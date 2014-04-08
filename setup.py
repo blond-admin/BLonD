@@ -10,20 +10,28 @@ from distutils.extension import Extension
 from Cython.Distutils import build_ext
 from Cython.Build import cythonize
 
+# Remember that you have to launch this setup.py script from console with the exact following syntax "python setup.py cleanall build_ext --inplace"
 
 args = sys.argv[1:]
 
-# Make a `cleanall` rule to get rid of intermediate and library files
+# Make a `cleanall` rule to get rid of previously created cython files
+
 if "cleanall" in args:
     print "Deleting cython files..."
-    # Just in case the build directory was created by accident,
-    # note that shell=True should be OK here because the command is constant.
-    subprocess.Popen("rm -rf build", shell=True, executable="/bin/bash")
-    subprocess.Popen("rm -rf *.c", shell=True, executable="/bin/bash")
-    subprocess.Popen("rm -rf *.so", shell=True, executable="/bin/bash")
-
-    # Now do a normal clean
-    sys.argv[1] = "clean"
+    if "lin" in sys.platform:
+        subprocess.Popen("rm -rf build", shell = True, executable = "/bin/bash")
+        subprocess.Popen("rm -rf *.c", shell = True, executable = "/bin/bash")
+        subprocess.Popen("rm -rf *.so", shell = True, executable = "/bin/bash")
+        sys.argv[1] = "clean"
+    elif "win" in sys.platform:
+        os.system('rd /s/q '+ os.getcwd() +'\\build')
+        os.system('del /s/q '+ os.getcwd() +'\\*.c')
+        os.system('del /s/q '+ os.getcwd() +'\\*.html')
+        os.system('del /s/q '+ os.getcwd() +'\\*.pyd')
+        sys.argv[1] = "clean"
+    else:
+        print "You have not a Windows or Linux operating system. Aborting..."
+        sys.exit()
 
 # We want to always use build_ext --inplace
 if args.count("build_ext") > 0 and args.count("--inplace") == 0:
@@ -45,7 +53,7 @@ cy_ext = [
         Extension("solvers.grid_functions",
                  ["solvers/grid_functions.pyx"],
                  include_dirs=[np.get_include()], library_dirs=[], libraries=["m"],
-                 extra_compile_args=["-fopenmp"],
+                 extra_compile_args=["-fopenmp"],     # If your PC is Windows-based you can use the TDM-GCC compiler which supports OpenMP
                  extra_link_args=["-fopenmp"],
                  ),
         Extension("cobra_functions.stats",
