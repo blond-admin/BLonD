@@ -28,6 +28,8 @@ if "cleanall" in args:
         os.system('del /s/q '+ os.getcwd() +'\\*.c')
         os.system('del /s/q '+ os.getcwd() +'\\*.html')
         os.system('del /s/q '+ os.getcwd() +'\\*.pyd')
+        os.system('del /s/q '+ os.getcwd() +'\\*.h5')
+        os.system('del /s/q '+ os.getcwd() +'\\*.h5part')
         sys.argv[1] = "clean"
     else:
         print "You have not a Windows or Linux operating system. Aborting..."
