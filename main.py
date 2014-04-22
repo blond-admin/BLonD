@@ -46,38 +46,59 @@ bunch = bunch_matched_and_sliced(10000, n_particles=1.15e11, charge=1*e, energy=
                                  n_slices=64, nsigmaz=None, slicemode='cspace')
 bunch.update_slices()
 
+# Cloud
+cloud = Cloud.from_parameters(100000, 5e11, plt.std(bunch.x) * 16, plt.std(bunch.y) * 8, C)
+cloud.add_poisson(plt.std(bunch.x) * 16, plt.std(bunch.y) * 8, 64, 128, other=bunch)
+
 # PIC grid
-poisson = PoissonFFT(plt.std(bunch.x) * 16, plt.std(bunch.y) * 8, 64, 128)
-poisson.track(bunch)
+# poisson = PoissonFFT(plt.std(bunch.x) * 16, plt.std(bunch.y) * 8, 64, 128)
+# poisson.inject(master=cloud, slave=bunch)
+# Test the PIC here!
 t0 = time.clock()
-poisson.compute_potential()
 print 'Time took', time.clock() - t0, 's'
+# Cloud track
+cloud.poisson_self.gather_from(cloud.x, cloud.y, cloud.poisson_self.rho)
+cloud.poisson_self.compute_potential()
+cloud.poisson_self.compute_fields()
+# cloud.poisson_self.scatter_to(bunch)
+
+bunch.poisson_other.gather_from(bunch.x, bunch.y, bunch.poisson_other.rho)
+bunch.poisson_other.compute_potential()
+bunch.poisson_other.compute_fields()
+phi = plt.zeros((bunch.poisson_other.ny, bunch.poisson_other.nx))
+bunch.poisson_other.compute_potential_fgreenm2m(bunch.poisson_other.x, bunch.poisson_other.y,
+                                                phi, bunch.poisson_other.rho)
+# bunch.poisson_other.scatter_to(cloud)
+
+# Plot results
 # [plt.axvline(v, c='orange') for v in poisson.mx[0,:]]
 # [plt.axhline(h, c='orange') for h in poisson.my[:,0]]
 # plt.gca().set_xlim(plt.amin(poisson.mx), plt.amax(poisson.mx[-1]))
 # plt.gca().set_ylim(plt.amin(poisson.my), plt.amax(poisson.my[-1]))
 # plt.scatter(bunch.x, bunch.y, marker='.')
 # plt.scatter(poisson.mx, poisson.my, s=poisson.rho*2, c=poisson.rho)
-fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2)#, sharex=True, sharey=True)
-ax1.contour(poisson.fgreen.T, 100)
-ax2.plot(poisson.phi[poisson.ny / 2, :poisson.nx], '-g')
-ax3.contour(poisson.rho[:poisson.ny, :poisson.nx], 100)
-ax3.contour(poisson.phi[:poisson.ny, :poisson.nx], 100, lw=2)
+
+p = bunch.poisson_other
+fig1, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2)#, sharex=True, sharey=True)
+ax1.contour(p.fgreen.T, 100)
+ax2.plot(p.phi[p.ny / 2,:], '-g')
+ax2.plot(phi[p.ny / 2,:], '-r')
+ax3.contourf(p.x, p.y, p.rho, 100)
+ax3.contour(p.x, p.y, p.phi, 100, lw=2)
+ax3.scatter(bunch.x, bunch.y, marker='.', c='y', alpha=0.8)
+ax4.imshow(p.ex, origin='lower', aspect='auto', extent=(p.x[0,0], p.x[0,-1], p.y[0,0], p.y[-1,0]))
+
+# p = cloud.poisson_self
+# fig2, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2)#, sharex=True, sharey=True)
+# ax1.contour(p.fgreen.T, 100)
+# ax2.plot(p.phi[p.ny / 2,:], '-g')
+# ax3.contourf(p.x, p.y, p.rho, 100)
+# ax3.contour(p.x, p.y, p.phi, 100, lw=2)
+# ax3.scatter(cloud.x, cloud.y, marker='.', c='y', alpha=0.8)
+# ax4.imshow(p.ex, origin='lower', aspect='auto', extent=(p.x[0,0], p.x[0,-1], p.y[0,0], p.y[-1,0]))
 plt.show()
 sys.exit(-1)
 
-t0 = time.clock()
-poisson.compute_potential_fgreenm2m()
-poisson.B= poisson.phi[poisson.ny / 2, :poisson.nx]
-print 'Time took', time.clock() - t0, 's'
-ax2.plot(poisson.phi[poisson.ny / 2, :poisson.nx])
-ax4.plot(poisson.phi[poisson.ny / 2, :poisson.nx])
-ax3.contour(poisson.phi, 100, cmap=plt.cm.get_cmap('hsv'))
-
-# plt.gca().set_aspect('equal')
-plt.show()
-bunchmonitor.h5file.close()
-sys.exit(-1)
 
 # pdf, bins, patches = plt.hist(bunch.dz, n_slices)
 # plt.stem(bunch.slices.dz_centers[:-1], bunch.slices.charge[:-1], linefmt='g', markerfmt='go')
@@ -88,13 +109,8 @@ sys.exit(-1)
 # Resonator wakefields
 # wakes = WakeResonator(R_shunt=2e6, frequency=1e9, Q=1)
 
-poisson = PoissonFFT(100)
 
-#     plt.scatter(bunch.x, bunch.xp)
-#     plt.show()
-
-map_ = [linear_map, [cavity]]
-map_ = list(itertools.chain.from_iterable(map_))
+map_ = linear_map +  [cavity]
 
 t1 = time.clock()
 normalization = np.max(bunch.dz) / np.max(bunch.dp)

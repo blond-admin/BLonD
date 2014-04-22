@@ -9,13 +9,14 @@ Created on 08.01.2014
 import numpy as np
 
 
+import copy
 from solvers.grid import *
 from solvers.compute_potential_fgreenm2m import compute_potential_fgreenm2m
 
 
 class PoissonFFT(UniformGrid):
     '''
-    classdocs
+    FFT Poisson solver operates on a grid
     '''
 
     # @profile
@@ -25,18 +26,16 @@ class PoissonFFT(UniformGrid):
         '''
         super(PoissonFFT, self).__init__(*args, **kwargs)
 
+        self.tmprho = np.zeros((2 * self.ny, 2 * self.nx))
         self.fgreen = np.zeros((2 * self.ny, 2 * self.nx))
 
         mx = -self.dx / 2 + np.arange(self.nx + 1) * self.dx
         my = -self.dy / 2 + np.arange(self.ny + 1) * self.dy
-
         x, y = np.meshgrid(mx, my)
         r2 = x ** 2 + y ** 2
-
         # Antiderivative
         tmpfgreen = -1 / 2 * (-3 * x * y + x * y * np.log(r2)
                    + x * x * np.arctan(y / x) + y * y * np.arctan(x / y)) # * 2 / dx / dy
-        # tmpfgreen = tmpfgreen.T
 
         # Integration and circular Green's function
         self.fgreen[:self.ny, :self.nx] = tmpfgreen[1:, 1:] + tmpfgreen[:-1, :-1] - tmpfgreen[1:, :-1] - tmpfgreen[:-1, 1:]
@@ -51,13 +50,22 @@ class PoissonFFT(UniformGrid):
         from types import MethodType
         PoissonFFT.compute_potential_fgreenm2m = MethodType(compute_potential_fgreenm2m, None, PoissonFFT)
 
+    # def inject(self, master, slave=None):
+
+    #     master.poisson_self = copy.deepcopy(self)
+    #     master.kx = np.zeros(master.n_macroparticles)
+    #     master.ky = np.zeros(master.n_macroparticles)
+    #     if slave:
+    #         slave.poisson_other = copy.deepcopy(self)
+    #         slave.kx = np.zeros(slave.n_macroparticles)
+    #         slave.ky = np.zeros(slave.n_macroparticles)
+
     # @profile
     def compute_potential(self):
 
-        tmprho = np.zeros((2 * self.ny, 2 * self.nx))
-        tmprho[:self.ny, :self.nx] = self.rho
+        self.tmprho[:self.ny, :self.nx] = self.rho
 
-        fftphi = np.fft.fft2(tmprho) * np.fft.fft2(self.fgreen)
+        fftphi = np.fft.fft2(self.tmprho) * np.fft.fft2(self.fgreen)
 
         tmpphi = np.fft.ifft2(fftphi)
         self.phi = np.abs(tmpphi[:self.ny, :self.nx])
@@ -68,6 +76,12 @@ class PoissonFFT(UniformGrid):
         #               + fftw_phi[j][1] * fftw_phi[j][1]);
         #     tmpphi[j] *= norm; // FFT specific
         # }
+
+    def compute_fields(self):
+
+        self.ey, self.ex = np.gradient(self.phi, self.dy, self.dx)
+        self.ex *= -1
+        self.ey *= -1
 
     # @profile
     def py_green_m2m(self):
