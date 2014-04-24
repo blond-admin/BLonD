@@ -50,8 +50,6 @@ class RFCavity(LongitudinalTracker):
         '''
         Constructor
         '''        
-        dict_integrator = {'rk4': self.integrator_rk4, 'euler-chromer': self.integrator_euler_chromer, 'ruth4': self.integrator_ruth4}
-        self.integrator = dict_integrator[integrator]
 
         self.i_turn = 0
         self.time = 0
