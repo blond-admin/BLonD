@@ -8,6 +8,7 @@ from beams import slices
 from monitors.monitors import *
 from aperture.aperture import *
 from impedances.wake_fields  import *
+from impedances.longitudinal_impedance  import *
 from trackers.transverse_tracker import *
 from trackers.longitudinal_tracker import *
 from plots import *
@@ -99,7 +100,7 @@ wakes = BB_Resonator_longitudinal(R_shunt=R_shunt, frequency=R_frequency, Q=Q)
 delta_t = np.linspace(-1,1,100001) / c / bunch.beta
 wake_longitudinal = wakes.wake_longitudinal(bunch, - delta_t * c * bunch.beta)
 # Wakefield interpolating from table
-wakes = Wake_table()
+wakes = Wake_table_longitudinal()
 wakes.wake_table['time'] = delta_t
 wakes.wake_table['longitudinal'] = wake_longitudinal
 wakes.wake_field_keys=['longitudinal']
