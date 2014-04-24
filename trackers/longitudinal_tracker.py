@@ -45,7 +45,7 @@ class RFCavity(LongitudinalTracker):
     '''
 
     def __init__(self, circumference, length, gamma_transition, 
-                        frequency, voltage, phi_s, integrator=symple.Euler_Cromer):
+                        frequency, voltage, phi_s, integrator):
         '''
         Constructor
         '''
