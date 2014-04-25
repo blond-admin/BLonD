@@ -7,7 +7,8 @@ from beams.bunch import *
 from beams import slices
 from monitors.monitors import *
 from aperture.aperture import *
-from impedances.wake_fields  import *
+from impedances.transverse_impedance  import *
+from impedances.longitudinal_impedance  import *
 from trackers.transverse_tracker import *
 from trackers.longitudinal_tracker import *
 from plots import *
