@@ -69,11 +69,11 @@ class RFCavity(LongitudinalTracker):
         self.time = 0
 
         self.circumference = circumference
-        self.length = length
         self.gamma_transition = gamma_transition
         self.h = frequency
         self.voltage = voltage
         self.phi_s = phi_s
+        self.timestep = length / (bunch.beta * c)
 
     def eta(self, bunch):
         return self.gamma_transition**-2 - bunch.gamma**-2
@@ -143,16 +143,19 @@ class RFCavity(LongitudinalTracker):
 
         R = self.circumference / (2 * np.pi)
         eta = self.eta(bunch)
-
+        
         cf1 = self.h / R
-        cf2 = np.sign(eta) * e * self.voltage / (bunch.p0 * bunch.beta * c)
+        cf2 = np.sign(eta) * e * self.voltage / (bunch.p0 * self.circumference)
+        cf3 = eta * bunch.beta * c
+        
+        # Hamiltonian derived by dp equivalent to the first equation of motion
+        def drift(dp): return -cf3 * dp
+        # Hamiltonian derived by dz equivalent to the second equation of motion with opposite sign
+        def kick(dz): return -cf2 * sin(cf1 * dz + self.phi_s)   
 
-        def drift(dp): return -eta * self.length * dp           # Hamiltonian derived by dp
-        def kick(dz): return -cf2 * sin(cf1 * dz + self.phi_s)  # Hamiltonian derived by dz
-
-        # vectorised:
+        # vectorised
         bunch.dz, bunch.dp = self.integrator(
-                        bunch.dz, bunch.dp, self.length, drift, kick)
+                        bunch.dz, bunch.dp, self.timestep, drift, kick)
 
         bunch.update_slices()
 
