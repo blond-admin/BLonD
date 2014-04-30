@@ -12,7 +12,7 @@ from impedances.longitudinal_impedance  import *
 from impedances.longitudinal_impedance  import *
 from trackers.transverse_tracker import *
 from trackers.longitudinal_tracker import *
-from trackers.libintegr import symple, non_symple
+from trackers.libintegrators import symple, non_symple
 from plots import *
 from scipy.constants import c, e, m_p
 from scipy.constants import physical_constants
