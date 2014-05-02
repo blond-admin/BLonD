@@ -1,4 +1,3 @@
-from __future__ import division
 '''
 @class Cavity
 @author Kevin Li
@@ -7,21 +6,17 @@ from __future__ import division
 @copyright CERN
 '''
 
-
+from __future__ import division
 import numpy as np
 import sys
 from functools import partial
 
-
-from beams.distributions import stationary_exponential
-from scipy.integrate import quad, dblquad
 from abc import ABCMeta, abstractmethod 
 from scipy.constants import c, e
-from libintegrators import symple
+from libintegrators import *
 
 sin = np.sin
 cos = np.cos
-
 
 
 class LongitudinalTracker(object):
@@ -47,32 +42,26 @@ class LongitudinalTracker(object):
 class RFCavity(LongitudinalTracker):
 
     def __init__(self, circumference, length, gamma_transition, 
-                        harmonic, voltage, dphi, integrator=symple.Euler_Cromer):
+                        harmonic, voltage, phi_s, integrator=symple.Euler_Cromer):
 
         self.integrator = integrator
-
-        self.i_turn = 0
-        self.time = 0
-
         self.circumference = circumference
         self.length = length
         self.gamma_transition = gamma_transition
         self.harmonic = harmonic
         self.voltage = voltage
-        self.dphi = dphi
-
+        self.phi_s = phi_s
+        self.R = circumference / (2 * np.pi)
+         
     def eta(self, bunch):
         return self.gamma_transition**-2 - bunch.gamma**-2
-
+    
     def Qs(self, bunch):
         '''
-        Synchrotron tune derived from the linearized Hamiltonian
+        Synchrotron tune derived from the Hamiltonian
 
-        .. math::
-        H = -1 / 2 * eta * beta * c * delta ** 2
-           + e * V / (p0 * 2 * np.pi * h) * (np.cos(phi) - np.cos(dphi) + (phi - dphi) * np.sin(dphi))
         '''
-        Qs = np.sqrt(e * self.voltage * np.abs(self.eta(bunch)) * self.harmonic \
+        Qs = np.sqrt(e * self.voltage * np.abs(self.eta(bunch) * cos(self.phi_s)) * self.harmonic \
                 / (2 * np.pi * bunch.p0 * bunch.beta * c))
 
         return Qs
@@ -80,16 +69,20 @@ class RFCavity(LongitudinalTracker):
     def potential(self, dz, bunch):
         """the potential part V(dz) of the cavity's separable Hamiltonian"""
 
-        R = self.circumference / (2 * np.pi)
-        phi = self.harmonic / R * dz + self.dphi
-
-        return e * self.voltage / (bunch.p0 * 2 * np.pi * self.harmonic) \
-           * (cos(phi) - cos(self.dphi) + (phi - self.dphi) * sin(self.dphi))
+        return e * self.voltage / (bunch.p0 * self.circunference) \
+           * ( cos(self.phi_s - self.harmonic / self.R * dz) - cos(self.phi_s) - self.harmonic / self.R * dz * sin(self.phi_s) )
 
     def hamiltonian(self, dz, dp, bunch):
-        """the full separable Hamiltonian of the rf cavity"""
+        '''
+        The full separable Hamiltonian of the rf cavity:
+        
+        .. math::
+        H = 1 / 2 * h * beta * c * eta / R * delta ** 2
+           + e * V / (p0 * C) * [ cos(phi_s - h / R * z) - cos(phi_s) - h / R * z * sin(phi_s) ]
+        
+        '''
 
-        kinetic = -0.5 * self.eta(bunch) * bunch.beta * c * dp ** 2
+        kinetic = 0.5 * self.harmonic * bunch.beta * c * self.eta / self.R * dp ** 2
 
         return kinetic + self.potential(dz, bunch)
 
@@ -101,14 +94,8 @@ class RFCavity(LongitudinalTracker):
         .. math::
         p(dz): (H(dz, dp) == H(zmax, 0))
         '''
-
-        R = self.circumference / (2 * np.pi)
-        Qs = self.Qs(bunch)
-
-        phi = self.harmonic / R * dz + self.dphi 
-        cf1 = 2 * Qs ** 2 / (self.eta(bunch) * self.harmonic) ** 2
-
-        return np.sqrt( cf1 * (1 + cos(phi - self.dphi) + (phi - np.pi) * sin(self.dphi)) )
+        coeff = e * self.voltage  / (self.harmonic * self.eta * np.pi * bunch.beta * bunch.p0 * c)
+        return np.sqrt( coeff * (1 - cos(self.phi_s - self.harmonic / self.R * dz) - (self.phi_s - self.harmonic / self.R * dz ) * sin(self.phi_s)) )
 
     def isin_separatrix(self, dz, dp, bunch):
 
@@ -138,18 +125,20 @@ class RFCavity(LongitudinalTracker):
             mind that the separatrix loses it's local meaning as a stability criterion.)
         """
 
-        R = self.circumference / (2 * np.pi)
+       
         eta = self.eta(bunch)
          
-        cf1 = self.harmonic / R
-        cf2 = np.sign(eta) * e * self.voltage / (bunch.p0 * bunch.beta * c)
-
-        def drift(dp): return -eta * self.length * dp           # Hamiltonian derived by dp
-        def kick(dz): return -cf2 * sin(cf1 * dz + self.dphi)  # Hamiltonian derived by dz
+        cf1 = self.harmonic / self.R
+        cf2 = e * self.voltage / (bunch.p0 * bunch.beta * c)
+        
+        # first equation of motion   
+        def drift(dp): return -eta * self.length * dp
+        # second equation of motion
+        def kick(dz): return cf2 * ( sin(self.phi_s - cf1 * dz) - sin(self.phi_s) )
 
         # we want a "timestep" of 1 since the cavity will contribute to tracking
-        # over one turn
-        bunch.dz, bunch.dp = self.integrator(bunch.dz, bunch.dp, 1, drift, kick)
+        # over one turn;
+        bunch.dz, bunch.dp = self.integrator(bunch.dz, bunch.dp, 1, drift, -kick)
 
 class RFCavityArray(LongitudinalTracker):
     """
