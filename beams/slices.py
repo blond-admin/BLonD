@@ -16,104 +16,173 @@ class Slices(object):
     classdocs
     '''
 
-    def __init__(self, n_slices, nsigmaz=None, slicemode='cspace'):
+    def __init__(self, n_slices, nsigmaz=None, mode='cspace'):
         '''
         Constructor
         '''
-        self.mean_x = np.zeros(n_slices + 4)
-        self.mean_xp = np.zeros(n_slices + 4)
-        self.mean_y = np.zeros(n_slices + 4)
-        self.mean_yp = np.zeros(n_slices + 4)
-        self.mean_dz = np.zeros(n_slices + 4)
-        self.mean_dp = np.zeros(n_slices + 4)
-        self.sigma_x = np.zeros(n_slices + 4)
-        self.sigma_y = np.zeros(n_slices + 4)
-        self.sigma_dz = np.zeros(n_slices + 4)
-        self.sigma_dp = np.zeros(n_slices + 4)
-        self.epsn_x = np.zeros(n_slices + 4)
-        self.epsn_y = np.zeros(n_slices + 4)
-        self.epsn_z = np.zeros(n_slices + 4)
-
-        self.n_macroparticles = np.zeros(n_slices + 4, dtype=int)
-        self.dz_centers = np.zeros(n_slices + 3)
-        self.dz_bins = np.zeros(n_slices + 3)
-
         self.nsigmaz = nsigmaz
-        self.slicemode = slicemode
-        self.n_slices = n_slices
+        self.mode = mode
 
+        self.mean_x = np.zeros(n_slices)
+        self.mean_xp = np.zeros(n_slices)
+        self.mean_y = np.zeros(n_slices)
+        self.mean_yp = np.zeros(n_slices)
+        self.mean_dz = np.zeros(n_slices)
+        self.mean_dp = np.zeros(n_slices)
+        self.sigma_x = np.zeros(n_slices)
+        self.sigma_y = np.zeros(n_slices)
+        self.sigma_dz = np.zeros(n_slices)
+        self.sigma_dp = np.zeros(n_slices)
+        self.epsn_x = np.zeros(n_slices)
+        self.epsn_y = np.zeros(n_slices)
+        self.epsn_z = np.zeros(n_slices)
 
-    #~ @profile
-    def slice_constant_space(self, bunch, nsigmaz=None):
+        self.n_macroparticles = np.zeros(n_slices, dtype=int)
+        self.z_bins = np.zeros(n_slices + 1)
 
-        # sort particles according to dz (this is needed for correct functioning of bunch.compute_statistics)
-        bunch.sort_particles()
+    @property
+    def n_slices(self):
 
-        # determine the longitudinal cuts (this allows for the user defined static cuts: self.dz_cut_tail, self.dz_cut_head)
-        try:
-            dz_cut_tail, dz_cut_head = self.dz_cut_tail, self.dz_cut_head
-        except:
-            dz_cut_tail, dz_cut_head = self.determine_longitudinal_cuts(bunch, nsigmaz)
+        return len(self.mean_x)
 
-        # First bins
-        dz_bins = np.zeros(self.n_slices + 3)
-        dz_bins[0] = np.min([bunch.dz[0], dz_cut_tail])
-        dz_bins[-1] = np.max([bunch.dz[- 1 - bunch.n_macroparticles_lost], dz_cut_head])
-        dz_bins[1:-1] = np.linspace(dz_cut_tail, dz_cut_head, self.n_slices + 1)
-        self.dz_centers[:-1] = dz_bins[:-1] + (dz_bins[1:] - dz_bins[:-1]) / 2.
-        self.dz_centers[-1] = self.mean_dz[-1]
-        index_after_bin_edges = np.searchsorted(bunch.dz[:bunch.n_macroparticles - bunch.n_macroparticles_lost], dz_bins)
-        index_after_bin_edges[np.where(dz_bins == bunch.dz[-1 - bunch.n_macroparticles_lost])] += 1
-        # Get n_macroparticles
-        self.n_macroparticles = np.diff(index_after_bin_edges)
-        self.n_macroparticles = np.concatenate((self.n_macroparticles, [bunch.n_macroparticles - bunch.n_macroparticles_lost], [bunch.n_macroparticles_lost]))
+    def _set_longitudinal_cuts(self, bunch):
 
-        # .in_slice indicates in which slice the particle is (needed for wakefields)
-        bunch.set_in_slice(index_after_bin_edges)
-
-
-    def slice_constant_charge(self, bunch, nsigmaz=None):
-
-        # sort particles according to dz (this is needed for correct functioning of bunch.compute_statistics)
-        bunch.sort_particles()
-
-        # determine the longitudinal cuts
-        dz_cut_tail, dz_cut_head = self.determine_longitudinal_cuts(bunch, nsigmaz)
-
-        # First n_macroparticles
-        particles_in_left_cut = np.searchsorted(bunch.dz[:bunch.n_macroparticles - bunch.n_macroparticles_lost], dz_cut_tail)
-        particles_in_right_cut = bunch.n_macroparticles - bunch.n_macroparticles_lost - np.searchsorted(bunch.dz[:bunch.n_macroparticles - bunch.n_macroparticles_lost], dz_cut_head)
-        # set number of macro_particles in the slices that are cut (slice 0 and n_slices+1)
-        self.n_macroparticles[0] = particles_in_left_cut
-        self.n_macroparticles[-3] = particles_in_right_cut
-        # determine number of macroparticles used for slicing
-        q0 = bunch.n_macroparticles - bunch.n_macroparticles_lost - self.n_macroparticles[0] - self.n_macroparticles[-3]
-        # distribute macroparticles uniformly along slices
-        self.n_macroparticles[1:-3] = int(q0 / self.n_slices)
-        self.n_macroparticles[1:(q0 % self.n_slices + 1)] += 1
-        # number of macroparticles in full bunch slice and lost particles slice
-        self.n_macroparticles[-2:] =  bunch.n_macroparticles - bunch.n_macroparticles_lost, bunch.n_macroparticles_lost
-
-        # Get indices of the particles defining the bin edges
-        index_after_bin_edges = np.append(0, np.cumsum(self.n_macroparticles[:-2]))
-
-        # bin centers
-        self.dz_centers[:-1] = map((lambda i: cp.mean(bunch.dz[index_after_bin_edges[i]:index_after_bin_edges[i+1]])), np.arange(self.n_slices + 2))
-        self.dz_centers[-1] = cp.mean(bunch.dz)
-
-        # .in_slice indicates in which slice the particle is (needed for wakefields)
-        bunch.set_in_slice(index_after_bin_edges)
-
-
-    def determine_longitudinal_cuts(self, bunch, nsigmaz):
-
-        if nsigmaz == None:
-            dz_cut_tail = bunch.dz[0]
-            dz_cut_head = bunch.dz[-1 - bunch.n_macroparticles_lost]
+        if self.nsigmaz == None:
+            z_cut_tail = bunch.dz[0]
+            z_cut_head = bunch.dz[-1 - bunch.n_macroparticles_lost]
         else:
-            sigma_dz = cp.std(bunch.dz[:bunch.n_macroparticles - bunch.n_macroparticles_lost])
-            mean_dz = cp.mean(bunch.dz[:bunch.n_macroparticles - bunch.n_macroparticles_lost])
-            dz_cut_tail = -nsigmaz * sigma_dz + mean_dz
-            dz_cut_head = nsigmaz * sigma_dz + mean_dz
+            mean_z = cp.mean(bunch.dz[:bunch.n_macroparticles - bunch.n_macroparticles_lost])
+            sigma_z = cp.std(bunch.dz[:bunch.n_macroparticles - bunch.n_macroparticles_lost])
+            z_cut_tail = mean_z - self.nsigmaz * sigma_z
+            z_cut_head = mean_z + self.nsigmaz * sigma_z
 
-        return dz_cut_tail, dz_cut_head
+        return z_cut_tail, z_cut_head
+
+    # @profile
+    def slice_constant_space(self, bunch):
+
+        # sort particles according to dz (this is needed for correct functioning of bunch.compute_statistics)
+        bunch.sort_particles()
+
+        # determine the longitudinal cuts (this allows for the user defined static cuts: self.z_cut_tail, self.z_cut_head)
+        try:
+            self.z_cut_tail, self.z_cut_head
+        except AttributeError:
+            self.z_cut_tail, self.z_cut_head = self._set_longitudinal_cuts(bunch)
+
+        n_macroparticles_alive = bunch.n_macroparticles - bunch.n_macroparticles_lost
+        # 1. z-bins
+        # z_bins = np.zeros(self.n_slices + 3)
+        # # TODO: ask Hannes: is this check neccessary?
+        # z_bins[0] = np.min([bunch.dz[0], z_cut_tail])
+        # z_bins[-1] = np.max([bunch.dz[- 1 - bunch.n_macroparticles_lost], z_cut_head])
+        # # Not so nice, dz not explicit
+        # Constant space
+        self.z_bins[:] = np.linspace(self.z_cut_tail, self.z_cut_head, self.n_slices + 1) # more robust than arange, to reach z_cut_head exactly
+        self.z_centers = self.z_bins[:-1] + (self.z_bins[1:] - self.z_bins[:-1]) / 2.
+
+        # 2. n_macroparticles - equivalet to x0 <= x < x1 binning
+        z_bins_all = np.hstack((bunch.dz[0], self.z_bins, bunch.dz[n_macroparticles_alive - 1]))
+        first_index_in_bin = np.searchsorted(bunch.dz[:n_macroparticles_alive], z_bins_all)
+        first_index_in_bin[np.where(z_bins_all == bunch.dz[-1 - bunch.n_macroparticles_lost])] += 1 # treat last bin for x0 <= x <= x1
+        self.z_index = first_index_in_bin[1:-2]
+
+        n_macroparticles = np.diff(first_index_in_bin)
+        self.n_cut_tail = n_macroparticles[0]
+        self.n_cut_head = n_macroparticles[-1]
+        self.n_macroparticles[:] = n_macroparticles[1:-1]
+
+        # .in_slice indicates in which slice the particle is (needed for wakefields)
+        # bunch.set_in_slice(index_after_bin_edges)
+
+    def slice_constant_charge(self, bunch):
+
+        # sort particles according to dz (this is needed for correct functioning of bunch.compute_statistics)
+     
+        bunch.sort_particles()
+        
+        # determine the longitudinal cuts (this allows for the user defined static cuts: self.z_cut_tail, self.z_cut_head)
+        try:
+            self.z_cut_tail, self.z_cut_head
+        except AttributeError:
+            self.z_cut_tail, self.z_cut_head = self._set_longitudinal_cuts(bunch)
+            
+        n_macroparticles_alive = bunch.n_macroparticles - bunch.n_macroparticles_lost
+        # 1. n_macroparticles
+        self.n_cut_tail = np.searchsorted(bunch.dz[:n_macroparticles_alive], self.z_cut_tail)
+        self.n_cut_head = n_macroparticles_alive - (np.searchsorted(bunch.dz[:n_macroparticles_alive], self.z_cut_head) ) # always throw last index into slices (x0 <= x <= x1)
+        
+        # distribute macroparticles uniformly along slices
+        q0 = n_macroparticles_alive - self.n_cut_tail - self.n_cut_head
+        
+        self.n_macroparticles[:] = q0 // self.n_slices
+        
+        x = sample(range(self.n_slices), (q0 % self.n_slices))
+        
+        self.n_macroparticles[x] += 1
+        
+        # 2. z-bins
+        # Get indices of the particles defining the bin edges
+        n_macroparticles_all = np.hstack((self.n_cut_tail, self.n_macroparticles, self.n_cut_head))
+        first_index_in_bin = np.append(0, np.cumsum(n_macroparticles_all))
+        # first_index_in_bin[np.where(z_bins_all == bunch.dz[-1 - bunch.n_macroparticles_lost])] += 1 # treat last bin for x0 <= x <= x1
+        self.z_index = first_index_in_bin[1:-2]
+        self.z_bins = map(lambda i: bunch.dz[self.z_index[i] - 1] + (bunch.dz[self.z_index[i]] - bunch.dz[self.z_index[i] - 1]) / 2,
+                          np.arange(1, self.n_slices))
+        self.z_bins = np.hstack((self.z_cut_tail, self.z_bins, self.z_cut_head))
+        self.z_centers = self.z_bins[:-1] + (self.z_bins[1:] - self.z_bins[:-1]) / 2.
+        # self.z_centers = map((lambda i: cp.mean(bunch.dz[first_index_in_bin[i]:first_index_in_bin[i+1]])), np.arange(self.n_slices))
+
+        
+    def update_slices(self, bunch):
+
+        if self.mode == 'ccharge':
+            self.slice_constant_charge(bunch)
+        elif self.mode == 'cspace':
+            self.slice_constant_space(bunch)
+
+    # @profile
+    def compute_statistics(self):
+
+        # if not hasattr(self, 'slices'):
+        #     print "*** WARNING: bunch not yet sliced! Aborting..."
+        #     sys.exit(-1)
+
+        # determine the start and end indices of each slices
+        i1 = np.append(np.cumsum(self.slices.n_macroparticles[:-2]), np.cumsum(self.slices.n_macroparticles[-2:]))
+        i0 = np.zeros(len(i1), dtype=np.int)
+        i0[1:] = i1[:-1]
+        i0[-2] = 0
+
+        for i in xrange(self.slices.n_slices + 4):
+            x = self.x[i0[i]:i1[i]]
+            xp = self.xp[i0[i]:i1[i]]
+            y = self.y[i0[i]:i1[i]]
+            yp = self.yp[i0[i]:i1[i]]
+            dz = self.dz[i0[i]:i1[i]]
+            dp = self.dp[i0[i]:i1[i]]
+
+            self.slices.mean_x[i] = cp.mean(x)
+            self.slices.mean_xp[i] = cp.mean(xp)
+            self.slices.mean_y[i] = cp.mean(y)
+            self.slices.mean_yp[i] = cp.mean(yp)
+            self.slices.mean_dz[i] = cp.mean(dz)
+            self.slices.mean_dp[i] = cp.mean(dp)
+
+            self.slices.sigma_x[i] = cp.std(x)
+            self.slices.sigma_y[i] = cp.std(y)
+            self.slices.sigma_dz[i] = cp.std(dz)
+            self.slices.sigma_dp[i] = cp.std(dp)
+
+            self.slices.epsn_x[i] = cp.emittance(x, xp) * self.gamma * self.beta * 1e6
+            self.slices.epsn_y[i] = cp.emittance(y, yp) * self.gamma * self.beta * 1e6
+            self.slices.epsn_z[i] = 4 * np.pi \
+                                  * self.slices.sigma_dz[i] * self.slices.sigma_dp[i] \
+                                  * self.mass * self.gamma * self.beta * c / e
+
+    # def set_in_slice(self, index_after_bin_edges):
+
+    #     self.in_slice = (self.slices.n_slices + 3) * np.ones(self.n_macroparticles, dtype=np.int)
+
+    #     for i in xrange(self.slices.n_slices + 2):
+    #         self.in_slice[index_after_bin_edges[i]:index_after_bin_edges[i+1]] = i
