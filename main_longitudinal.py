@@ -48,8 +48,8 @@ dp = temp[:,1]
 n_macroparticles = len(dz)
 zeroarray = np.zeros(n_macroparticles)
 bunch = Bunch(zeroarray, zeroarray, zeroarray, zeroarray, dz, dp)
-bunch.set_beam_physics(n_particles, charge, energy, mass)
-bunch.set_beam_numerics()
+bunch._set_beam_physics(n_particles, charge, energy, mass)
+bunch._set_beam_numerics()
 bunch.set_slices(Slices(n_slices, nsigmaz, 'cspace'))
 bunch.update_slices()
 

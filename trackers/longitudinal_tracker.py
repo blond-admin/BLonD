@@ -134,11 +134,11 @@ class RFCavity(LongitudinalTracker):
         # first equation of motion   
         def drift(dp): return -eta * self.length * dp
         # second equation of motion
-        def kick(dz): return cf2 * ( sin(self.phi_s - cf1 * dz) - sin(self.phi_s) )
+        def kick(dz): return -cf2 * ( sin(self.phi_s - cf1 * dz) - sin(self.phi_s) )
 
         # we want a "timestep" of 1 since the cavity will contribute to tracking
         # over one turn;
-        bunch.dz, bunch.dp = self.integrator(bunch.dz, bunch.dp, 1, drift, -kick)
+        bunch.dz, bunch.dp = self.integrator(bunch.dz, bunch.dp, 1, drift, kick)
 
 class RFCavityArray(LongitudinalTracker):
     """

@@ -44,16 +44,11 @@ def gather_from(self, double[:] x, double[:] y, double[:,:] rho):
     cdef double ai = 1 / (dx * dy)
     # TODO: on adaptive mesh
 
-    # Line charge density and particle selection
-    # double lambda;
-    # std::vector<int> index;
-    # t.get_slice(i_slice, lambda, index);
-    # int np = index.size();
-
     cdef int i, n = len(x)
     cdef int ix, iy
     cdef double fx, fy
     cdef double a1, a2, a3, a4
+    cdef double q = 1 # if taken into account as coefficient for kx in push
     # for i in prange(n, nogil=True, num_threads=2):
     for i in xrange(n):
         fx, fy = (x[i] - x0) * dxi, (y[i] - y0) * dyi
@@ -65,13 +60,18 @@ def gather_from(self, double[:] x, double[:] y, double[:,:] rho):
         a3 = (1 - fx) * fy
         a4 = fx * fy
 
-        rho[iy, ix] += a1 * ai
-        rho[iy + 1, ix] += a2 * ai
-        rho[iy, ix + 1] += a3 * ai
-        rho[iy + 1, ix + 1] += a4 * ai
+        rho[iy, ix] += a1 * ai * q
+        rho[iy + 1, ix] += a2 * ai * q
+        rho[iy, ix + 1] += a3 * ai * q
+        rho[iy + 1, ix + 1] += a4 * ai * q
+        # remember: 1 / dz missing here
 
     # H, xedges, yedges = np.histogram2d(ix, iy, bins=self.rho.shape)
     # self.rho += H
+
+# def weight(self):
+
+#     pass
 
 # def fastscatter(self):
 #     '''
@@ -158,7 +158,7 @@ def gather_from(self, double[:] x, double[:] y, double[:,:] rho):
 # #       u.ky[ip[j]] = (t.ey_g[k1] * a1 + t.ey_g[k2] * a2
 # #                      + t.ey_g[k3] * a3 + t.ey_g[k4] * a4);
 
-def scatter_to(self, o):
+def scatter_to(self, double[:,:] ex, double[:,:] ey, double[::1] x, double[::1] y, double[::1] kx, double[::1] ky):
     '''
     Cell
     3 ------------ 4
@@ -172,8 +172,8 @@ def scatter_to(self, o):
     '''
 
     # Initialise
-    cdef double[:,:] ex = self.ex
-    cdef double[:,:] ey = self.ey
+    # cdef double[:,:] ex = self.ex
+    # cdef double[:,:] ey = self.ey
 
     # On regular mesh
     cdef double x0 = self.x[0,0]
@@ -190,11 +190,11 @@ def scatter_to(self, o):
     cdef int ix, iy
     cdef double fx, fy
     cdef double a1, a2, a3, a4
-    cdef int i, n = o.n_macroparticles
-    cdef double[::1] x = o.x
-    cdef double[::1] y = o.y
-    cdef double[::1] kx = o.kx
-    cdef double[::1] ky = o.ky
+    cdef int i, n = len(x)
+    # cdef double[::1] x = other.x
+    # cdef double[::1] y = other.y
+    # cdef double[::1] kx = other.kx
+    # cdef double[::1] ky = other.ky
     # for i in prange(n, nogil=True, num_threads=2):
     for i in xrange(n):
         fx, fy = (x[i] - x0) * dxi, (y[i] - y0) * dyi
@@ -206,31 +206,5 @@ def scatter_to(self, o):
         a3 = (1 - fx) * fy
         a4 = fx * fy
 
-    	# size_t k1 = iy * n_points_x + ix;
-    	# size_t k2 = iy * n_points_x + ix + 1;
-    	# size_t k3 = (iy + 1) * n_points_x + ix;
-    	# size_t k4 = (iy + 1) * n_points_x + ix + 1;
-
-    	# // Compute normalized area
-    	# fx -= ix;
-    	# fy -= iy;
-
-    	# double a1 = (1 - fx) * (1 - fy);
-    	# double a2 = fx * (1 - fy);
-    	# double a3 = (1 - fx) * fy;
-    	# double a4 = fx * fy;
-
-    	# // Scatter fields
-    	# t.kx[ip[j]] = (u.ex_g[k1] * a1 + u.ex_g[k2] * a2
-        #              + u.ex_g[k3] * a3 + u.ex_g[k4] * a4);
-    	# t.ky[ip[j]] = (u.ey_g[k1] * a1 + u.ey_g[k2] * a2
-        #              + u.ey_g[k3] * a3 + u.ey_g[k4] * a4);
-
-
-        # Scatter fields
-        kx[i] = ex[iy, ix] * a1  + ex[iy + 1, ix] * a2 * ex[iy, ix + 1] * a3 + ex[iy + 1, ix + 1] * a4
-        ky[i] = ey[iy, ix] * a1  + ey[iy + 1, ix] * a2 * ey[iy, ix + 1] * a3 + ey[iy + 1, ix + 1] * a4
-#       t.kx[ip[j]] = (u.ex_g[k1] * a1 + u.ex_g[k2] * a2
-#                      + u.ex_g[k3] * a3 + u.ex_g[k4] * a4);
-#       t.ky[ip[j]] = (u.ey_g[k1] * a1 + u.ey_g[k2] * a2
-#                      + u.ey_g[k3] * a3 + u.ey_g[k4] * a4);
+        kx[i] = ex[iy, ix] * a1  + ex[iy, ix + 1] * a2 + ex[iy + 1, ix] * a3 + ex[iy + 1, ix + 1] * a4
+        ky[i] = ey[iy, ix] * a1  + ey[iy, ix + 1] * a2 + ey[iy + 1, ix] * a3 + ey[iy + 1, ix + 1] * a4

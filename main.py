@@ -3,15 +3,20 @@ import cProfile, itertools, sys, time, timeit
 
 from scipy.constants import c, e, m_p
 
+import beams.beam as beam
 from cobra_functions import stats, random
 from beams.bunch import *
-from beams import slices
 from beams.matching import match_transverse, match_longitudinal
 from monitors.monitors import *
+
 from solvers.grid import *
 from solvers.poissonfft import *
 from impedances.transverse_impedance import *
 from impedances.longitudinal_impedance import *
+
+from spacecharge.spacecharge import *
+
+
 from trackers.transverse_tracker import *
 from trackers.longitudinal_tracker import *
 
@@ -20,7 +25,7 @@ from plots import *
 
 
 # plt.ion()
-n_turns = 100
+n_turns = 20
 
 # Monitors
 bunchmonitor = BunchMonitor('bunch', n_turns)
@@ -31,9 +36,9 @@ n_segments = 1
 C = 6911.
 s = np.arange(1, n_segments + 1) * C / n_segments
 linear_map = TransverseTracker.from_copy(s,
-                                         np.zeros(n_segments), np.ones(n_segments) * 100, np.zeros(n_segments),
-                                         np.zeros(n_segments), np.ones(n_segments) * 100, np.zeros(n_segments),
-                                         26.13, 0, 0, 26.18, 0, 0)
+                                         np.zeros(n_segments), np.ones(n_segments) * 54.6, np.zeros(n_segments),
+                                         np.zeros(n_segments), np.ones(n_segments) * 54.6, np.zeros(n_segments),
+                                         20.13, 0, 0, 20.18, 0, 0)
 
 # Synchrotron
 cavity = CSCavity(C, 18, 0.017)
@@ -42,64 +47,35 @@ cavity = CSCavity(C, 18, 0.017)
 # bunch = Bunch.from_empty(2e3, charge, energy, intensity, mass)
 # x, xp, y, yp, dz, dp = random.gsl_quasirandom(bunch)
 # Bunch
-bunch = bunch_matched_and_sliced(10000, n_particles=1.15e11, charge=1*e, energy=26e9, mass=m_p,
-                                 epsn_x=2.5, epsn_y=2.5, ltm=linear_map[0], bunch_length=0.21, bucket=0.5, matching=None,
-                                 n_slices=64, nsigmaz=None, slicemode='cspace')
-bunch.update_slices()
+bunch = bunch_matched_and_sliced(1000, n_particles=1.15e11, charge=1*e, energy=26e9, mass=m_p,
+                                 epsn_x=2.5, epsn_y=2.5, ltm=linear_map[0], bunch_length=0.23, bucket=0.5, matching=None,
+                                 n_slices=64, nsigmaz=3, slicemode='cspace')
+# bunch.update_slices()
+
+slices1 = beam.Slices(10, 2, mode='ccharge')
+slices1.update_slices(bunch)
+print slices1.n_cut_tail, slices1.n_cut_head, slices1.n_macroparticles, sum(slices1.n_macroparticles) + slices1.n_cut_tail + slices1.n_cut_head
+# print slices1.z_index
+
+plt.hist(bunch.dz, 32)
+[plt.axvline(z, c='m') for z in slices1.z_bins]
+# [plt.axvline(z, c='g') for z in slices1.z_centers]
+plt.plot(bunch.dz, plt.ones(bunch.n_macroparticles) * 2, 'o')
+[plt.plot(bunch.dz[i], 2, marker='x', c='y', ms=20) for i in slices1.z_index]
+plt.stem(slices1.z_centers, slices1.n_macroparticles)
+# plt.show()
+
+exit(-1)
 
 # Cloud
-cloud = Cloud.from_parameters(100000, 5e11, plt.std(bunch.x) * 16, plt.std(bunch.y) * 8, C)
-cloud.add_poisson(plt.std(bunch.x) * 16, plt.std(bunch.y) * 8, 64, 128, other=bunch)
+ecloud = Cloud.from_parameters(100000, 10e11, plt.std(bunch.x) * 20, plt.std(bunch.y) * 20, C)
 
-# PIC grid
-# poisson = PoissonFFT(plt.std(bunch.x) * 16, plt.std(bunch.y) * 8, 64, 128)
-# poisson.inject(master=cloud, slave=bunch)
+# print plt.std(bunch.x) * 20, plt.std(bunch.y) * 20, C
+# exit(-1)
+
+# Space charge
+cloud = SpaceCharge(ecloud, 'cloud', plt.std(bunch.x) * 20, plt.std(bunch.y) * 20, 128, 128)
 # Test the PIC here!
-t0 = time.clock()
-print 'Time took', time.clock() - t0, 's'
-# Cloud track
-cloud.poisson_self.gather_from(cloud.x, cloud.y, cloud.poisson_self.rho)
-cloud.poisson_self.compute_potential()
-cloud.poisson_self.compute_fields()
-# cloud.poisson_self.scatter_to(bunch)
-
-bunch.poisson_other.gather_from(bunch.x, bunch.y, bunch.poisson_other.rho)
-bunch.poisson_other.compute_potential()
-bunch.poisson_other.compute_fields()
-phi = plt.zeros((bunch.poisson_other.ny, bunch.poisson_other.nx))
-bunch.poisson_other.compute_potential_fgreenm2m(bunch.poisson_other.x, bunch.poisson_other.y,
-                                                phi, bunch.poisson_other.rho)
-# bunch.poisson_other.scatter_to(cloud)
-
-# Plot results
-# [plt.axvline(v, c='orange') for v in poisson.mx[0,:]]
-# [plt.axhline(h, c='orange') for h in poisson.my[:,0]]
-# plt.gca().set_xlim(plt.amin(poisson.mx), plt.amax(poisson.mx[-1]))
-# plt.gca().set_ylim(plt.amin(poisson.my), plt.amax(poisson.my[-1]))
-# plt.scatter(bunch.x, bunch.y, marker='.')
-# plt.scatter(poisson.mx, poisson.my, s=poisson.rho*2, c=poisson.rho)
-
-p = bunch.poisson_other
-fig1, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2)#, sharex=True, sharey=True)
-ax1.contour(p.fgreen.T, 100)
-ax2.plot(p.phi[p.ny / 2,:], '-g')
-ax2.plot(phi[p.ny / 2,:], '-r')
-ax3.contourf(p.x, p.y, p.rho, 100)
-ax3.contour(p.x, p.y, p.phi, 100, lw=2)
-ax3.scatter(bunch.x, bunch.y, marker='.', c='y', alpha=0.8)
-ax4.imshow(p.ex, origin='lower', aspect='auto', extent=(p.x[0,0], p.x[0,-1], p.y[0,0], p.y[-1,0]))
-
-# p = cloud.poisson_self
-# fig2, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2)#, sharex=True, sharey=True)
-# ax1.contour(p.fgreen.T, 100)
-# ax2.plot(p.phi[p.ny / 2,:], '-g')
-# ax3.contourf(p.x, p.y, p.rho, 100)
-# ax3.contour(p.x, p.y, p.phi, 100, lw=2)
-# ax3.scatter(cloud.x, cloud.y, marker='.', c='y', alpha=0.8)
-# ax4.imshow(p.ex, origin='lower', aspect='auto', extent=(p.x[0,0], p.x[0,-1], p.y[0,0], p.y[-1,0]))
-plt.show()
-sys.exit(-1)
-
 
 # pdf, bins, patches = plt.hist(bunch.dz, n_slices)
 # plt.stem(bunch.slices.dz_centers[:-1], bunch.slices.charge[:-1], linefmt='g', markerfmt='go')
@@ -109,23 +85,21 @@ sys.exit(-1)
 
 # Resonator wakefields
 # wakes = WakeResonator(R_shunt=2e6, frequency=1e9, Q=1)
-
-
-map_ = linear_map +  [cavity]
+map_ = list(itertools.chain.from_iterable([[l] + [cloud] for l in linear_map] + [[cavity]]))
 
 t1 = time.clock()
 normalization = np.max(bunch.dz) / np.max(bunch.dp)
 r = bunch.dz ** 2 + (normalization * bunch.dp) ** 2
 for i in range(n_turns):
-    # t1 = time.clock()
+    t0 = time.clock()
+
     for m in map_:
-#            t1 = time.clock()
         m.track(bunch)
-#            t0 = time.clock() - t1
-#            print m, ', elapsed time: ' + str(t0) + ' s'
+
+    print 'Turn',i,': elapsed time: ' + '{:3f}'.format(time.clock() - t0) + ' s'
     bunchmonitor.dump(bunch)
-    particlemonitor.dump(bunch)
-    plot_phasespace(bunch, r)
+    # particlemonitor.dump(bunch)
+    # plot_phasespace(bunch, r)
 
 
 # if __name__ == '__main__':

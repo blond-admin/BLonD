@@ -79,10 +79,10 @@ class Ensemble(object):
         return self
 
     @abstractmethod
-    def set_beam_physics(self): return None
+    def _set_beam_physics(self): pass
 
     @abstractmethod
-    def set_beam_numerics(self): return None
+    def _set_beam_numerics(self): pass
 
 
 class Beam(Ensemble):
@@ -95,6 +95,7 @@ class Cloud(Ensemble):
     # TODO: rather go for charge, intensity, unitcharge
     # instead of n_macroparticles, n_particles, charge
     # or macrocharge, charge, unitcharge
+    # or macrocharge, totalcharge, unitcharge, gamma, mass; particles: q
     @classmethod
     def from_file(self): pass
 
@@ -110,26 +111,26 @@ class Cloud(Ensemble):
         self.dz *= 0
         self.dp *= 0
 
-        self.set_beam_physics(density, extent_x, extent_y, extent_z)
-        self.set_beam_numerics()
+        self._set_beam_physics(density, extent_x, extent_y, extent_z)
+        self._set_beam_numerics()
 
-        self.x0 = self.x
-        self.xp0 = self.xp
-        self.y0 = self.yp
-        self.yp0 = self.yp
+        self.x0 = self.x.copy()
+        self.xp0 = self.xp.copy()
+        self.y0 = self.y.copy()
+        self.yp0 = self.yp.copy()
 
         return self
 
-    def set_beam_physics(self, density, extent_x, extent_y, extent_z):
+    def _set_beam_physics(self, density, extent_x, extent_y, extent_z):
 
-        self.n_particles = density * extent_x * extent_y * extent_z
+        self.n_particles = density * 2 * extent_x * 2 * extent_y * extent_z
         self.charge = e
         self.gamma = 1
         self.beta = np.sqrt(1 - 1 / self.gamma ** 2)
         self.mass = m_e
         self.p0 = self.mass * self.gamma * self.beta * c
 
-    def set_beam_numerics(self):
+    def _set_beam_numerics(self):
 
         self.n_macroparticles = len(self.x)
 
@@ -147,40 +148,29 @@ class Cloud(Ensemble):
             other.kx = np.zeros(other.n_macroparticles)
             other.ky = np.zeros(other.n_macroparticles)
 
-    # # def add_poisson(self, poisson):
-
-    #     # self.poisson_self = poisson
-    #     # self.poisson_other = copy.copy(poisson)
-
-    # def copy_poisson(self, poisson):
-
-    #     self.poisson = copy.copy(poisson)
-
     def reinitialize(self):
 
-        self.x = self.x0
-        self.xp = self.xp0
-        self.y = self.y0
-        self.yp = self.yp0
+        np.copyto(self.x, self.x0)
+        np.copyto(self.xp, self.xp0)
+        np.copyto(self.y, self.y0)
+        np.copyto(self.yp, self.yp0)
 
-    def push(self, bunch, i_slice):
+    def push(self, bunch, ix):
 
         # Normalization factors to speed up computations
-        dz = bunch.slice_dz[i_slice + 1] - bunch.slice_dz[i_slice]
+        dz = bunch.slices.dz_centers[5] - bunch.slices.dz_centers[4]
         dt = dz / (bunch.beta * c)
-        c_e = -2 * c * re * dz * 1 / (1 * bunch.beta)
-        #   = -2 * c ** 2 * re  * Ex / dz * dt * 1 / gamma
-        c_p = -2 * 1 * rp * dL * 1 / (bunch.gamma * bunch.beta ** 2)
-        #   = -2 * c ** 2 * rp  * Ex / dL * dL * 1 / gamma / (beta * c) ** 2
 
-        # Line charge density
-        lambda_e = self.density / self.n_macroparticles * (max_x - min_x) * (max_y - min_y)
-        lambda_p = bunch.n_particles / bunch.n_macroparticles / dz;
+        qe = self.n_particles / self.n_macroparticles
+        qp = bunch.n_particles / bunch.n_macroparticles
+        c_e = -2 * c * re * 1 / bunch.beta * qp
+        #   = -2 * c ** 2 * re  * ex / dz * dt * 1 / gamma
+        c_p = -2 * 1 * rp * 1 / (bunch.gamma * bunch.beta ** 2) * qe
+        #   = -2 * c ** 2 * rp  * ex / dL * dL * 1 / gamma / (beta * c) ** 2
 
         # Push bunch
-        indices = np.s_[::2]
-        bunch.xp[indices] += c_p * bunch.kx[indices]
-        bunch.yp[indices] += c_p * bunch.ky[indices]
+        bunch.xp[ix] += c_p * bunch.kx[ix]
+        bunch.yp[ix] += c_p * bunch.ky[ix]
 
         # Push cloud
         self.xp += c_e * self.kx
@@ -188,42 +178,66 @@ class Cloud(Ensemble):
         self.x += self.xp * dt
         self.y += self.yp * dt
 
+    # @profile
     def track(self, bunch):
 
-        # self.reinitialize()
-        # self.poisson.initialize<Bunch&, Cloud&>(bunch, *this)
+        bunch.compute_statistics()
+        self.reinitialize()
+
+        # phi1 = plt.zeros((bunch.poisson_other.ny, bunch.poisson_other.nx))
+        # phi2 = plt.zeros((bunch.poisson_other.ny, bunch.poisson_other.nx))
+
+        index_after_bin_edges = np.cumsum(bunch.slices.n_macroparticles)[:-3]
+        index_after_bin_edges[0] = 0
 
         for i in xrange(bunch.slices.n_slices):
-            dz = 1
-            poisson = self.poisson_self
-            lambda_ = self.n_particles / self.n_macroparticles * self.charge / dz
-            poisson.fastgather(self.x, self.y, lambda_)
-            poisson.compute_potential(poisson)
+            ix = np.s_[index_after_bin_edges[i]:index_after_bin_edges[i + 1]]
 
-            dz = 1
-            poisson = bunch.poisson_other
-            lambda_ = bunch.n_particles / bunch.n_macroparticles * bunch.charge / dz
-            poisson.fastgather(bunch.x, bunch.y, lambda_)
-            poisson.compute_potential(poisson)
+            # Cloud track
+            self.poisson_self.gather_from(self.x, self.y, self.poisson_self.rho)
+            self.poisson_self.compute_potential()
+            self.poisson_self.compute_fields()
+            self.poisson_self.scatter_to(bunch.x[ix], bunch.y[ix], bunch.kx[ix], bunch.ky[ix])
 
-            # poisson.fastgather<Bunch&>(bunch, i)
-            # poisson.computePotential<Bunch&>(bunch, i)
-            # poisson.compute_field<Bunch&>(bunch, i)
+            bunch.poisson_other.gather_from(bunch.x[ix], bunch.y[ix], bunch.poisson_other.rho)
+            bunch.poisson_other.compute_potential()
+            bunch.poisson_other.compute_fields()
+            # bunch.poisson_other.compute_potential_fgreenm2m(bunch.poisson_other.x, bunch.poisson_other.y,
+            #                                                 phi1, bunch.poisson_other.rho)
+            # bunch.poisson_other.compute_potential_fgreenp2m(bunch.x, bunch.y,
+            #                                                 bunch.poisson_other.x, bunch.poisson_other.y,
+            #                                                 phi2, bunch.poisson_other.rho)
+            bunch.poisson_other.scatter_to(self.x, self.y, self.kx, self.ky)
 
-            # poisson.fastgather<Cloud&>(*this, i)
-            # poisson.computePotential<Cloud&>(*this, i)
-            # poisson.compute_field<Cloud&>(*this, i)
+            self.push(bunch, ix)
 
-            # poisson.parallelscatter<Bunch&, Cloud&>(bunch, *this, i)
+            # if i == 0:
+            #     fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(12, 12))
+            # [ax.cla() for ax in (ax1, ax2, ax3, ax4)]
+            # # [ax.set_aspect('equal') for ax in (ax1, ax2, ax3, ax4)]
+            # ax1.contour(bunch.poisson_other.fgreen.T, 100)
+            # ax2.plot(bunch.poisson_other.phi[bunch.poisson_other.ny / 2,:], '-g')
+            # # ax2.plot(phi1[bunch.poisson_other.ny / 2,:], '-r')
+            # # ax2.plot(phi2[bunch.poisson_other.ny / 2,:], '-', c='orange')
+            # # ax3.contourf(self.poisson_self.x, self.poisson_self.y, 10 * plt.log10(self.poisson_self.rho), 100)
+            # print 10 * plt.log10(self.poisson_self.rho)
+            # ax3.imshow(10 * plt.log10(self.poisson_self.rho), origin='lower', aspect='auto', vmin=10, vmax=1e2,
+            #            extent=(self.poisson_self.x[0,0], self.poisson_self.x[0,-1], self.poisson_self.y[0,0], self.poisson_self.y[-1,0]))
+            # # ax3.scatter(self.x[::20], self.y[::20], c='b', marker='.')
+            # # ax3.quiver(self.x[::50], self.y[::50], self.kx[::50], self.ky[::50], color='g')
+            # # ax3.contour(p.x, p.y, p.phi, 100, lw=2)
+            # # ax3.scatter(bunch.x[ix], bunch.y[ix], c='y', marker='.', alpha=0.8)
+            # ax4.imshow(plt.sqrt(bunch.poisson_other.ex ** 2 + bunch.poisson_other.ey ** 2), origin='lower', aspect='auto',
+            #            extent=(bunch.poisson_other.x[0,0], bunch.poisson_other.x[0,-1], bunch.poisson_other.y[0,0], bunch.poisson_other.y[-1,0]))
 
-            # self.push(bunch, i)
+            # plt.draw()
 
 
 class Ghost(Ensemble):
 
-    def set_beam_physics(self): pass
+    def _set_beam_physics(self): pass
 
-    def set_beam_numerics(self): pass
+    def _set_beam_numerics(self): pass
 
 
 def bunch_matched_and_sliced(n_macroparticles, n_particles, charge, energy, mass,
@@ -291,8 +305,8 @@ class Bunch(object):
 
         self = cls(x, xp, y, yp, dz, dp)
 
-        self.set_beam_physics(n_particles, charge, energy, mass)
-        self.set_beam_numerics()
+        self._set_beam_physics(n_particles, charge, energy, mass)
+        self._set_beam_numerics()
 
         return self
 
@@ -310,8 +324,8 @@ class Bunch(object):
 
         self = cls(x, xp, y, yp, dz, dp)
 
-        self.set_beam_physics(n_particles, charge, energy, mass)
-        self.set_beam_numerics()
+        self._set_beam_physics(n_particles, charge, energy, mass)
+        self._set_beam_numerics()
 
         self.id = np.array(particles['Step#' + str(step)]['id'])
 
@@ -329,8 +343,8 @@ class Bunch(object):
 
         self = cls(x, xp, y, yp, dz, dp)
 
-        self.set_beam_physics(n_particles, charge, energy, mass)
-        self.set_beam_numerics()
+        self._set_beam_physics(n_particles, charge, energy, mass)
+        self._set_beam_numerics()
 
         return self
 
@@ -346,12 +360,12 @@ class Bunch(object):
 
         self = cls(x, xp, y, yp, dz, dp)
 
-        self.set_beam_physics(n_particles, charge, energy, mass)
-        self.set_beam_numerics()
+        self._set_beam_physics(n_particles, charge, energy, mass)
+        self._set_beam_numerics()
 
         return self
 
-    def set_beam_physics(self, n_particles, charge, energy, mass):
+    def _set_beam_physics(self, n_particles, charge, energy, mass):
         '''
         Set the physical quantities of the beam
         '''
@@ -362,7 +376,7 @@ class Bunch(object):
         self.mass = mass
         self.p0 = mass * self.gamma * self.beta * c
 
-    def set_beam_numerics(self):
+    def _set_beam_numerics(self):
         '''
         Set the numerical quantities of the beam
         '''
@@ -463,7 +477,7 @@ class Bunch(object):
         self.yp = self.yp.take(dz_argsorted)
         self.dz = self.dz.take(dz_argsorted)
         self.dp = self.dp.take(dz_argsorted)
-        self.id = self.id.take(dz_argsorted)   
+        self.id = self.id.take(dz_argsorted)
 
     def set_in_slice(self, index_after_bin_edges):
         self.in_slice = (self.slices.n_slices + 3) * np.ones(self.n_macroparticles, dtype=np.int)
