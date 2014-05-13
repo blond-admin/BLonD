@@ -40,12 +40,15 @@ dp = temp[:,1]
 
 ## Initialize the bunch
 
-n_macroparticles = len(dz)
-zeroarray = np.zeros(n_macroparticles)
-bunch = Bunch(zeroarray, zeroarray, zeroarray, zeroarray, dz, dp)
-bunch._set_beam_physics(n_particles, charge, energy, mass)
-bunch.set_slices(Slices(n_slices, nsigmaz, 'cspace'))
-bunch.update_slices()
+gamma = energy * e / (mass * c ** 2)
+bunch = Bunch(len(dz), n_particles, charge, gamma, mass)
+bunch.dz = dz
+bunch.dp = dp
+
+## First slicing
+
+slices = Slices(300, z_cut_tail = - C / (2 * harmonic_number), z_cut_head = C / (2 * harmonic_number))
+slices.update_slices(bunch)
 
 ## Synchrotron motion
 

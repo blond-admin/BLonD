@@ -4,7 +4,6 @@ Created on 06.01.2014
 @author: Kevin Li
 '''
 
-
 import numpy as np
 import copy, h5py, sys
 from scipy.constants import c, e, epsilon_0, m_e, m_p, pi
@@ -12,11 +11,12 @@ from beams.slices import *
 from beams.matching import match_transverse, match_longitudinal, unmatched_inbucket
 
 
-def bunch_matched_and_sliced(n_macroparticles, n_particles, charge, gamma, mass,
-                             epsn_x, epsn_y, ltm, bunch_length, bucket, matching,
-                             n_slices, nsigmaz, slicemode='cspace'):
+def bunch_matched_and_sliced(n_macroparticles, n_particles, charge, gamma, mass, 
+                                    epsn_x, epsn_y, ltm, bunch_length,
+                                    bucket, matching, n_slices, nsigmaz, slicemode='cspace'):
 
-    bunch = Bunch.from_gaussian(n_macroparticles, n_particles, charge, gamma, mass)
+    bunch = Bunch(n_macroparticles, n_particles, charge, gamma, mass,
+                 distribution='gauss')
     bunch.match_transverse(epsn_x, epsn_y, ltm)
     bunch.match_longitudinal(bunch_length, bucket, matching)
     slices = Slices(n_slices, nsigmaz, slicemode)
@@ -24,11 +24,12 @@ def bunch_matched_and_sliced(n_macroparticles, n_particles, charge, gamma, mass,
 
     return bunch, slices
 
-def bunch_unmatched_inbucket_sliced(n_macroparticles, n_particles, charge, gamma, mass,
+def bunch_unmatched_inbucket_sliced(n_macroparticles, n_particles, charge, gamma, mass, 
                                     epsn_x, epsn_y, ltm, sigma_dz, sigma_dp, bucket,
                                     n_slices, nsigmaz, slicemode='cspace'):
     
-    bunch = Bunch.from_gaussian(n_macroparticles, n_particles, charge, gamma, mass)
+    bunch = Bunch(n_macroparticles, n_particles, charge, gamma, mass,
+                 distribution='gauss')
     bunch.match_transverse(epsn_x, epsn_y, ltm)
     bunch.unmatched_inbucket(sigma_dz, sigma_dp, bucket)
     slices = Slices(n_slices, nsigmaz, slicemode)
@@ -39,8 +40,7 @@ def bunch_unmatched_inbucket_sliced(n_macroparticles, n_particles, charge, gamma
 class Bunch(object):
 
     def __init__(self, n_macroparticles, n_particles, charge, gamma, mass,
-                 alpha_x, beta_x, epsn_x, alpha_y, beta_y, epsn_y, sigma_z, sigma_dp,
-                 distribution='gauss'):
+                 distribution='empty'):
 
         if distribution == 'empty':
             _create_empty(n_macroparticles)
@@ -52,8 +52,7 @@ class Bunch(object):
         self.id = np.arange(1, n_particles + 1, dtype=int)
 
         _set_beam_physics(n_particles, charge, gamma, mass)
-        _set_beam_geometry(alpha_x, beta_x, epsn_x, alpha_y, beta_y, epsn_y, sigma_z, sigma_dp)
-
+        
         self.x0 = self.x.copy()
         self.xp0 = self.xp.copy()
         self.y0 = self.y.copy()
@@ -96,10 +95,6 @@ class Bunch(object):
         self.mass = mass
 
     
-    def _set_beam_geometry(self, alpha_x, beta_x, epsn_x, alpha_y, beta_y, epsn_y, sigma_z, sigma_dp,
-                           distribution='gauss'): pass
-
-
     def n_macroparticles(self):
 
         return len(self.x)

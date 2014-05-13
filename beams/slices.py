@@ -14,10 +14,11 @@ class Slices(object):
     classdocs
     '''
 
-    def __init__(self, n_slices, nsigmaz=None, mode='cspace'):
+    def __init__(self, n_slices, nsigmaz = None, mode = 'const_space', z_cut_tail = "null" , z_cut_head = "null"):
         '''
         Constructor
         '''
+        
         self.nsigmaz = nsigmaz
         self.mode = mode
 
@@ -37,8 +38,14 @@ class Slices(object):
 
         self.n_macroparticles = np.zeros(n_slices, dtype=int)
         self.z_bins = np.zeros(n_slices + 1)
-
-    
+        self.dynamic_frame = "on"
+        
+        if (z_cut_tail != "null" and z_cut_head != "null"):
+            self.z_cut_tail = z_cut_tail
+            self.z_cut_head = z_cut_head
+            self.dynamic_frame = "off"
+        
+        
     def n_slices(self):
 
         return len(self.mean_x)
@@ -59,21 +66,16 @@ class Slices(object):
  
     def slice_constant_space(self, bunch):
 
-        # sort particles according to dz (this is needed for correct functioning of bunch.compute_statistics)
         bunch.sort_particles()
 
-        # determine the longitudinal cuts (this allows for the user defined static cuts: self.z_cut_tail, self.z_cut_head)
-        try:
-            self.z_cut_tail, self.z_cut_head
-        except AttributeError:
+        if self.dynamic_frame == "on":
+            
             self.z_cut_tail, self.z_cut_head = self._set_longitudinal_cuts(bunch)
-
-        n_macroparticles_alive = bunch.n_macroparticles - bunch.n_macroparticles_lost
-        # 1. z-bins
-        self.z_bins[:] = np.linspace(self.z_cut_tail, self.z_cut_head, self.n_slices + 1) # more robust than arange, to reach z_cut_head exactly
-        self.z_centers = self.z_bins[:-1] + (self.z_bins[1:] - self.z_bins[:-1]) / 2.
+            self.z_bins[:] = np.linspace(self.z_cut_tail, self.z_cut_head, self.n_slices + 1) 
+            self.z_centers = self.z_bins[:-1] + (self.z_bins[1:] - self.z_bins[:-1]) / 2.
 
         # 2. n_macroparticles - equivalet to x0 <= x < x1 binning
+        n_macroparticles_alive = bunch.n_macroparticles - bunch.n_macroparticles_lost
         z_bins_all = np.hstack((bunch.dz[0], self.z_bins, bunch.dz[n_macroparticles_alive - 1]))
         first_index_in_bin = np.searchsorted(bunch.dz[:n_macroparticles_alive], z_bins_all)
         first_index_in_bin[np.where(z_bins_all == bunch.dz[-1 - bunch.n_macroparticles_lost])] += 1 # treat last bin for x0 <= x <= x1
@@ -87,14 +89,10 @@ class Slices(object):
        
     def slice_constant_charge(self, bunch):
 
-        # sort particles according to dz (this is needed for correct functioning of bunch.compute_statistics)
-     
         bunch.sort_particles()
         
-        # determine the longitudinal cuts (this allows for the user defined static cuts: self.z_cut_tail, self.z_cut_head)
-        try:
-            self.z_cut_tail, self.z_cut_head
-        except AttributeError:
+        if self.dynamic_frame == "on":
+        
             self.z_cut_tail, self.z_cut_head = self._set_longitudinal_cuts(bunch)
             
         n_macroparticles_alive = bunch.n_macroparticles - bunch.n_macroparticles_lost
@@ -125,9 +123,9 @@ class Slices(object):
 
     def update_slices(self, bunch):
 
-        if self.mode == 'ccharge':
+        if self.mode == 'const_charge':
             self.slice_constant_charge(bunch)
-        elif self.mode == 'cspace':
+        elif self.mode == 'const_space':
             self.slice_constant_space(bunch)
 
 
