@@ -63,7 +63,7 @@ plt.hist(bunch.dz, 32)
 plt.plot(bunch.dz, plt.ones(bunch.n_macroparticles) * 2, 'o')
 [plt.plot(bunch.dz[i], 2, marker='x', c='y', ms=20) for i in slices1.z_index]
 plt.stem(slices1.z_centers, slices1.n_macroparticles)
-# plt.show()
+plt.show()
 
 exit(-1)
 

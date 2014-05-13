@@ -6,6 +6,7 @@ Created on 06.01.2014
 
 
 import numpy as np
+from random import sample
 
 
 import copy, h5py, sys
@@ -220,23 +221,29 @@ class Slices(object):
     def slice_constant_charge(self, bunch):
 
         # sort particles according to dz (this is needed for correct functioning of bunch.compute_statistics)
+     
         bunch.sort_particles()
-
+        
         # determine the longitudinal cuts (this allows for the user defined static cuts: self.z_cut_tail, self.z_cut_head)
         try:
             self.z_cut_tail, self.z_cut_head
         except AttributeError:
             self.z_cut_tail, self.z_cut_head = self._set_longitudinal_cuts(bunch)
-
+            
         n_macroparticles_alive = bunch.n_macroparticles - bunch.n_macroparticles_lost
         # 1. n_macroparticles
         self.n_cut_tail = np.searchsorted(bunch.dz[:n_macroparticles_alive], self.z_cut_tail)
-        self.n_cut_head = n_macroparticles_alive - (np.searchsorted(bunch.dz[:n_macroparticles_alive], self.z_cut_head) + 1) # always throw last index into slices (x0 <= x <= x1)
+        self.n_cut_head = n_macroparticles_alive - (np.searchsorted(bunch.dz[:n_macroparticles_alive], self.z_cut_head) ) # always throw last index into slices (x0 <= x <= x1)
+        
         # distribute macroparticles uniformly along slices
         q0 = n_macroparticles_alive - self.n_cut_tail - self.n_cut_head
+        
         self.n_macroparticles[:] = q0 // self.n_slices
-        self.n_macroparticles[np.random.randint(self.n_slices, size=q0 % self.n_slices)] += 1
-
+        
+        x = sample(range(self.n_slices), (q0 % self.n_slices))
+        
+        self.n_macroparticles[x] += 1
+        
         # 2. z-bins
         # Get indices of the particles defining the bin edges
         n_macroparticles_all = np.hstack((self.n_cut_tail, self.n_macroparticles, self.n_cut_head))
@@ -249,10 +256,7 @@ class Slices(object):
         self.z_centers = self.z_bins[:-1] + (self.z_bins[1:] - self.z_bins[:-1]) / 2.
         # self.z_centers = map((lambda i: cp.mean(bunch.dz[first_index_in_bin[i]:first_index_in_bin[i+1]])), np.arange(self.n_slices))
 
-        print first_index_in_bin
-        # print n_macroparticles, len(n_macroparticles)
-        print self.n_cut_tail, self.n_cut_head, self.n_macroparticles, sum(self.n_macroparticles) + self.n_cut_tail + self.n_cut_head
-
+        
     def update_slices(self, bunch):
 
         if self.mode == 'ccharge':
