@@ -32,11 +32,6 @@ RF_voltage = 0.9e6 # [V]
 harmonic_number = 4620
 
 
-## Synchrotron motion
-
-cavity = RFCavity(C, C, gamma_t, harmonic_number, RF_voltage, 0)
-
-
 ## Longitudinal distribution from file
 
 temp = np.loadtxt('distribution.crd')
@@ -49,9 +44,12 @@ n_macroparticles = len(dz)
 zeroarray = np.zeros(n_macroparticles)
 bunch = Bunch(zeroarray, zeroarray, zeroarray, zeroarray, dz, dp)
 bunch._set_beam_physics(n_particles, charge, energy, mass)
-bunch._set_beam_numerics()
 bunch.set_slices(Slices(n_slices, nsigmaz, 'cspace'))
 bunch.update_slices()
+
+## Synchrotron motion
+
+cavity = RFCavity(C, C, gamma_t, harmonic_number, RF_voltage, 0)
 
 ## Resonator wakefields
 

@@ -6,8 +6,6 @@ Created on 06.01.2014
 
 
 import numpy as np
-
-
 import cobra_functions.stats as cp
 
 
@@ -40,7 +38,7 @@ class Slices(object):
         self.n_macroparticles = np.zeros(n_slices, dtype=int)
         self.z_bins = np.zeros(n_slices + 1)
 
-    @property
+    
     def n_slices(self):
 
         return len(self.mean_x)
@@ -58,7 +56,7 @@ class Slices(object):
 
         return z_cut_tail, z_cut_head
 
-    # @profile
+ 
     def slice_constant_space(self, bunch):
 
         # sort particles according to dz (this is needed for correct functioning of bunch.compute_statistics)
@@ -72,12 +70,6 @@ class Slices(object):
 
         n_macroparticles_alive = bunch.n_macroparticles - bunch.n_macroparticles_lost
         # 1. z-bins
-        # z_bins = np.zeros(self.n_slices + 3)
-        # # TODO: ask Hannes: is this check neccessary?
-        # z_bins[0] = np.min([bunch.dz[0], z_cut_tail])
-        # z_bins[-1] = np.max([bunch.dz[- 1 - bunch.n_macroparticles_lost], z_cut_head])
-        # # Not so nice, dz not explicit
-        # Constant space
         self.z_bins[:] = np.linspace(self.z_cut_tail, self.z_cut_head, self.n_slices + 1) # more robust than arange, to reach z_cut_head exactly
         self.z_centers = self.z_bins[:-1] + (self.z_bins[1:] - self.z_bins[:-1]) / 2.
 
@@ -92,9 +84,7 @@ class Slices(object):
         self.n_cut_head = n_macroparticles[-1]
         self.n_macroparticles[:] = n_macroparticles[1:-1]
 
-        # .in_slice indicates in which slice the particle is (needed for wakefields)
-        # bunch.set_in_slice(index_after_bin_edges)
-
+       
     def slice_constant_charge(self, bunch):
 
         # sort particles according to dz (this is needed for correct functioning of bunch.compute_statistics)
@@ -131,9 +121,8 @@ class Slices(object):
                           np.arange(1, self.n_slices))
         self.z_bins = np.hstack((self.z_cut_tail, self.z_bins, self.z_cut_head))
         self.z_centers = self.z_bins[:-1] + (self.z_bins[1:] - self.z_bins[:-1]) / 2.
-        # self.z_centers = map((lambda i: cp.mean(bunch.dz[first_index_in_bin[i]:first_index_in_bin[i+1]])), np.arange(self.n_slices))
-
         
+
     def update_slices(self, bunch):
 
         if self.mode == 'ccharge':
@@ -141,12 +130,8 @@ class Slices(object):
         elif self.mode == 'cspace':
             self.slice_constant_space(bunch)
 
-    # @profile
-    def compute_statistics(self):
 
-        # if not hasattr(self, 'slices'):
-        #     print "*** WARNING: bunch not yet sliced! Aborting..."
-        #     sys.exit(-1)
+    def compute_statistics(self):
 
         # determine the start and end indices of each slices
         i1 = np.append(np.cumsum(self.slices.n_macroparticles[:-2]), np.cumsum(self.slices.n_macroparticles[-2:]))
@@ -180,9 +165,4 @@ class Slices(object):
                                   * self.slices.sigma_dz[i] * self.slices.sigma_dp[i] \
                                   * self.mass * self.gamma * self.beta * c / e
 
-    # def set_in_slice(self, index_after_bin_edges):
-
-    #     self.in_slice = (self.slices.n_slices + 3) * np.ones(self.n_macroparticles, dtype=np.int)
-
-    #     for i in xrange(self.slices.n_slices + 2):
-    #         self.in_slice[index_after_bin_edges[i]:index_after_bin_edges[i+1]] = i
+   

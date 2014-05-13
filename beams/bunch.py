@@ -6,42 +6,35 @@ Created on 06.01.2014
 
 
 import numpy as np
-
-
 import copy, h5py, sys
-from abc import ABCMeta, abstractmethod
 from scipy.constants import c, e, epsilon_0, m_e, m_p, pi
-
 from beams.slices import *
 from beams.matching import match_transverse, match_longitudinal, unmatched_inbucket
-from solvers.poissonfft import *
 
 
-
-def bunch_matched_and_sliced(n_macroparticles, n_particles, charge, energy, mass,
+def bunch_matched_and_sliced(n_macroparticles, n_particles, charge, gamma, mass,
                              epsn_x, epsn_y, ltm, bunch_length, bucket, matching,
                              n_slices, nsigmaz, slicemode='cspace'):
 
-    # bunch = Bunch.from_empty(1e3, n_particles, charge, energy, mass)
-    # x, xp, y, yp, dz, dp = random.gsl_quasirandom(bunch)
-    bunch = Bunch.from_gaussian(n_macroparticles, n_particles, charge, energy, mass)
+    bunch = Bunch.from_gaussian(n_macroparticles, n_particles, charge, gamma, mass)
     bunch.match_transverse(epsn_x, epsn_y, ltm)
     bunch.match_longitudinal(bunch_length, bucket, matching)
-    bunch.set_slices(Slices(n_slices, nsigmaz, slicemode))
-    bunch.update_slices()
+    slices = Slices(n_slices, nsigmaz, slicemode)
+    slices.update_slices(bunch)
 
-    return bunch
+    return bunch, slices
 
-def bunch_unmatched_inbucket_sliced(n_macroparticles, n_particles, charge, energy, mass,
+def bunch_unmatched_inbucket_sliced(n_macroparticles, n_particles, charge, gamma, mass,
                                     epsn_x, epsn_y, ltm, sigma_dz, sigma_dp, bucket,
                                     n_slices, nsigmaz, slicemode='cspace'):
-    bunch = Bunch.from_gaussian(n_macroparticles, n_particles, charge, energy, mass)
+    
+    bunch = Bunch.from_gaussian(n_macroparticles, n_particles, charge, gamma, mass)
     bunch.match_transverse(epsn_x, epsn_y, ltm)
     bunch.unmatched_inbucket(sigma_dz, sigma_dp, bucket)
-    bunch.set_slices(Slices(n_slices, nsigmaz, slicemode))
-    bunch.update_slices()
+    slices = Slices(n_slices, nsigmaz, slicemode)
+    slices.update_slices(bunch)
 
-    return bunch
+    return bunch, slices
 
 class Bunch(object):
 
@@ -102,27 +95,26 @@ class Bunch(object):
         self.gamma = gamma
         self.mass = mass
 
-    # def _set_beam_numerics(self): pass
-
+    
     def _set_beam_geometry(self, alpha_x, beta_x, epsn_x, alpha_y, beta_y, epsn_y, sigma_z, sigma_dp,
                            distribution='gauss'): pass
 
-    @property
+
     def n_macroparticles(self):
 
         return len(self.x)
 
-    @property
+ 
     def beta(self):
 
         return np.sqrt(1 - 1 / self.gamma ** 2)
 
-    @property
+   
     def p0(self):
 
         return self.mass * self.gamma * self.beta * c
 
-    def reinit():
+    def reinit(self):
 
         np.copyto(self.x, self.x0)
         np.copyto(self.xp, self.xp0)
@@ -131,7 +123,7 @@ class Bunch(object):
         np.copyto(self.z, self.z0)
         np.copyto(self.dp, self.dp0)
 
-    #~ @profile
+  
     def sort_particles(self):
         # update the number of lost particles
         self.n_macroparticles_lost = (self.n_macroparticles - np.count_nonzero(self.id))
