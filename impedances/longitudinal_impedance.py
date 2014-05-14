@@ -31,12 +31,14 @@ class Wakefields(object):
 
 
     def wake_factor(self, bunch):
+        
         particles_per_macroparticle = bunch.n_particles / bunch.n_macroparticles
         return -(bunch.charge) ** 2 / (bunch.mass * bunch.gamma * (bunch.beta * c) ** 2) * particles_per_macroparticle
 
 
     #~ @profile         
-    def longitudinal_wakefield_kicks(self, bunch): 
+    def longitudinal_wakefield_kicks(self, bunch, slices): 
+        
         wake = self.wake_longitudinal 
         
         # matrix with distances to target slice
@@ -95,7 +97,6 @@ class Wake_table_longitudinal(Wakefields):
     
     
     def track(self, bunch):
-        bunch.compute_statistics()    
         
         if 'longitudinal' in self.wake_field_keys:
             self.longitudinal_wakefield_kicks(bunch)
@@ -138,7 +139,7 @@ class BB_Resonator_longitudinal(Wakefields):
         
         
     def track(self, bunch):
-        bunch.compute_statistics()  
+        
         self.longitudinal_wakefield_kicks(bunch)
         
   

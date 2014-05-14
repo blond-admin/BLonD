@@ -40,18 +40,19 @@ def bunch_unmatched_inbucket_sliced(n_macroparticles, n_particles, charge, gamma
 class Bunch(object):
 
     def __init__(self, n_macroparticles, n_particles, charge, gamma, mass,
-                 distribution='empty'):
+                 distribution = 'empty'):
 
         if distribution == 'empty':
-            _create_empty(n_macroparticles)
+            self._create_empty(n_macroparticles)
         elif distribution == 'gauss':
-            _creat_gauss(n_macroparticles)
+            self._creat_gauss(n_macroparticles)
         elif distribution == "uniform":
-            _create_uniform(n_macroparticles)
+            self._create_uniform(n_macroparticles)
 
-        self.id = np.arange(1, n_particles + 1, dtype=int)
+        self.n_macroparticles = n_macroparticles
+        self.id = np.arange(1, n_macroparticles + 1)
 
-        _set_beam_physics(n_particles, charge, gamma, mass)
+        self._set_beam_physics(n_particles, charge, gamma, mass)
         
         self.x0 = self.x.copy()
         self.xp0 = self.xp.copy()
@@ -119,23 +120,7 @@ class Bunch(object):
         np.copyto(self.dp, self.dp0)
 
   
-    def sort_particles(self):
-        # update the number of lost particles
-        self.n_macroparticles_lost = (self.n_macroparticles - np.count_nonzero(self.id))
-
-        # sort particles according to dz (this is needed for correct functioning of bunch.compute_statistics)
-        if self.n_macroparticles_lost:
-            dz_argsorted = np.lexsort((self.dz, -np.sign(self.id))) # place lost particles at the end of the array
-        else:
-            dz_argsorted = np.argsort(self.dz)
-
-        self.x = self.x.take(dz_argsorted)
-        self.xp = self.xp.take(dz_argsorted)
-        self.y = self.y.take(dz_argsorted)
-        self.yp = self.yp.take(dz_argsorted)
-        self.dz = self.dz.take(dz_argsorted)
-        self.dp = self.dp.take(dz_argsorted)
-        self.id = self.id.take(dz_argsorted)
+    
 
 
 

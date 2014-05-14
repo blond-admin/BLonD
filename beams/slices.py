@@ -4,7 +4,6 @@ Created on 06.01.2014
 @author: Kevin Li, Hannes Bartosik
 '''
 
-
 import numpy as np
 from random import sample
 import cobra_functions.stats as cp
@@ -20,6 +19,7 @@ class Slices(object):
         Constructor
         '''
         
+        self.n_slices = n_slices
         self.nsigmaz = nsigmaz
         self.mode = mode
 
@@ -37,22 +37,24 @@ class Slices(object):
         self.epsn_y = np.zeros(n_slices)
         self.epsn_z = np.zeros(n_slices)
 
-        self.n_macroparticles = np.zeros(n_slices, dtype=int)
-        self.z_bins = np.zeros(n_slices + 1)
+        self.n_macroparticles = np.zeros(n_slices)
         self.dynamic_frame = "on"
         
-        if (z_cut_tail != "null" and z_cut_head != "null"):
+        if (z_cut_tail != "null" and z_cut_head != "null" and mode == 'const_space'):
+            
             self.z_cut_tail = z_cut_tail
             self.z_cut_head = z_cut_head
-            self.z_bins[:] = np.linspace(self.z_cut_tail, self.z_cut_head, self.n_slices + 1) 
+            self.z_bins = np.linspace(self.z_cut_tail, self.z_cut_head, self.n_slices + 1) 
             self.z_centers = self.z_bins[:-1] + (self.z_bins[1:] - self.z_bins[:-1]) / 2.
             self.dynamic_frame = "off"
         
+        if (z_cut_tail != "null" and z_cut_head != "null" and mode == 'const_charge'):
+            
+            self.z_cut_tail = z_cut_tail
+            self.z_cut_head = z_cut_head
+            self.dynamic_frame = "off"
         
-    def n_slices(self):
-
-        return len(self.mean_x)
-
+        
     def _set_longitudinal_cuts(self, bunch):
 
         if self.nsigmaz == None:
@@ -69,12 +71,12 @@ class Slices(object):
  
     def slice_constant_space(self, bunch):
 
-        bunch.sort_particles()
+        self.sort_particles(bunch)
 
         if self.dynamic_frame == "on":
             
             self.z_cut_tail, self.z_cut_head = self._set_longitudinal_cuts(bunch)
-            self.z_bins[:] = np.linspace(self.z_cut_tail, self.z_cut_head, self.n_slices + 1) 
+            self.z_bins = np.linspace(self.z_cut_tail, self.z_cut_head, self.n_slices + 1) 
             self.z_centers = self.z_bins[:-1] + (self.z_bins[1:] - self.z_bins[:-1]) / 2.
 
         n_macroparticles_alive = bunch.n_macroparticles - bunch.n_macroparticles_lost
@@ -89,30 +91,28 @@ class Slices(object):
 
     def slice_constant_charge(self, bunch):
 
-        bunch.sort_particles()
         
-        self.z_cut_tail, self.z_cut_head = self._set_longitudinal_cuts(bunch)
+        self.sort_particles(bunch)
+        
+        if self.dynamic_frame == "on":
+        
+            self.z_cut_tail, self.z_cut_head = self._set_longitudinal_cuts(bunch)
             
         n_macroparticles_alive = bunch.n_macroparticles - bunch.n_macroparticles_lost
     
         self.n_cut_tail = np.searchsorted(bunch.dz[:n_macroparticles_alive], self.z_cut_tail)
-        self.n_cut_head = n_macroparticles_alive - (np.searchsorted(bunch.dz[:n_macroparticles_alive], self.z_cut_head) ) # always throw last index into slices (x0 <= x <= x1)
+        self.n_cut_head = n_macroparticles_alive - np.searchsorted(bunch.dz[:n_macroparticles_alive], self.z_cut_head) 
         
         q0 = n_macroparticles_alive - self.n_cut_tail - self.n_cut_head
-        
         self.n_macroparticles[:] = q0 // self.n_slices
-        
-        x = sample(range(self.n_slices), (q0 % self.n_slices))
-        
+        x = sample(range(self.n_slices), q0 % self.n_slices)
         self.n_macroparticles[x] += 1
         
-        n_macroparticles_all = np.hstack((self.n_cut_tail, self.n_macroparticles, self.n_cut_head))
-        first_index_in_bin = np.append(0, np.cumsum(n_macroparticles_all))
+        first_index_in_bin = np.cumsum(self.n_macroparticles)
+        indexes = (self.n_cut_tail + first_index_in_bin[:(self.n_slices-1)]).astype(int)
+        z_bins_internal = 1/2 * (bunch.dz[indexes] + bunch.dz[indexes-1])
         
-        self.z_index = first_index_in_bin[1:-2]
-        self.z_bins = map(lambda i: bunch.dz[self.z_index[i] - 1] + (bunch.dz[self.z_index[i]] - bunch.dz[self.z_index[i] - 1]) / 2,
-                          np.arange(1, self.n_slices))
-        self.z_bins = np.hstack((self.z_cut_tail, self.z_bins, self.z_cut_head))
+        self.z_bins = np.hstack((self.z_cut_tail, z_bins_internal, self.z_cut_head))
         self.z_centers = self.z_bins[:-1] + (self.z_bins[1:] - self.z_bins[:-1]) / 2.
         
 
@@ -126,7 +126,7 @@ class Slices(object):
 
     def compute_statistics(self, bunch):
 
-        index = self.n_cut_tail + np.cumsum(np.insert(self.n_macroparticles, 0, 0))
+        index = self.n_cut_tail + np.cumsum(np.append(0, self.n_macroparticles))
 
         for i in xrange(self.n_slices):
             
@@ -154,5 +154,24 @@ class Slices(object):
             self.epsn_z[i] = 4 * np.pi \
                                   * self.slices.sigma_dz[i] * self.slices.sigma_dp[i] \
                                   * self.mass * self.gamma * self.beta * c / e
+    
+    def sort_particles(self, bunch):
+       
+        # update the number of lost particles
+        bunch.n_macroparticles_lost = (bunch.n_macroparticles - np.count_nonzero(bunch.id))
+    
+        # sort particles according to dz (this is needed for correct functioning of bunch.compute_statistics)
+        if bunch.n_macroparticles_lost:
+            dz_argsorted = np.lexsort((bunch.dz, -np.sign(bunch.id))) # place lost particles at the end of the array
+        else:
+            dz_argsorted = np.argsort(bunch.dz)
+    
+        bunch.x = bunch.x.take(dz_argsorted)
+        bunch.xp = bunch.xp.take(dz_argsorted)
+        bunch.y = bunch.y.take(dz_argsorted)
+        bunch.yp = bunch.yp.take(dz_argsorted)
+        bunch.dz = bunch.dz.take(dz_argsorted)
+        bunch.dp = bunch.dp.take(dz_argsorted)
+        bunch.id = bunch.id.take(dz_argsorted)
 
    

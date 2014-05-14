@@ -47,70 +47,71 @@ bunch.dp = dp
 
 ## First slicing
 
-slices = Slices(300, z_cut_tail = - C / (2 * harmonic_number), z_cut_head = C / (2 * harmonic_number))
+slices = Slices(300, z_cut_tail = - C / (2 * harmonic_number), z_cut_head = C / (2 * harmonic_number), mode = 'const_charge')
 slices.update_slices(bunch)
 
-## Synchrotron motion
 
-cavity = RFCavity(C, C, gamma_t, harmonic_number, RF_voltage, 0)
-
-## Resonator wakefields
-
-temp = np.loadtxt('Z_table.dat', comments = '!')
-R_shunt = temp[:,2]*10**6
-R_frequency = temp[:,0]*10**9
-Q = temp[:,1]
-wakes = BB_Resonator_longitudinal(R_shunt=R_shunt, frequency=R_frequency, Q=Q)
-
-## Calculate the z kick
-
-wakekick = BB_Resonator_longitudinal(R_shunt=R_shunt, frequency=R_frequency, Q=Q)
-wake = wakekick.wake_longitudinal 
-dz_to_target_slice = [bunch.slices.dz_centers[1:-2]] - np.transpose([bunch.slices.dz_centers[1:-2]])
-wakekick.longitudinal_kick = np.zeros(bunch.slices.n_slices)
-wakekick.longitudinal_kick = np.dot(bunch.slices.n_macroparticles[1:-3], wake(bunch, dz_to_target_slice)) * n_particles / n_macroparticles * e * (-1)
-fact = 2 * np.pi * harmonic_number / C
-def V_RF(z):
-    return RF_voltage * np.sin(fact * z)
-V_RF_array = np.zeros(bunch.slices.n_slices)
-for i in range(bunch.slices.n_slices):
-    V_RF_array[i] = V_RF(bunch.slices.dz_centers[i+1])
-V_effect = wakekick.longitudinal_kick + V_RF_array
-V_effect_interp = interp1d(bunch.slices.dz_centers[1:-2], V_effect)
-z_kick = brentq(V_effect_interp, bunch.slices.dz_centers[1], bunch.slices.dz_centers[-3])
-print z_kick
-## Add the following lines if you want to plot the various functions
-# plt.plot(bunch.slices.dz_centers[1:-2], V_effect, color = 'green')
-# plt.plot(bunch.slices.dz_centers[1:-2], V_RF_array, color = 'blue')
-# plt.plot(bunch.slices.dz_centers[1:-2], wakekick.longitudinal_kick, color = 'yellow')
-# plt.plot(bunch.slices.dz_centers[1:-2], bunch.slices.n_macroparticles[1:-3] / np.max(bunch.slices.n_macroparticles[1:-3]) * np.max(V_RF_array), color = 'red')
-# plt.axhline(0, color = 'black')
-# plt.axvline(0, color = 'black')
-# plt.pause(5)
-
-
-## Apply the z kick
-
-bunch.dz +=  z_kick
-
-## Accelerator map
-
-plt.ion()
-map_ = [wakes] + [cavity] 
-for i in range(n_turns):
-    t0 = time.clock() 
-    for m in map_:
-        m.track(bunch)
-    print '{0:4d} \t {1:+3e} \t {2:3f} \t {3:3f} \t {4:3f} \t {5:3s}'.format(i+1, bunch.slices.mean_dz[-2], bunch.slices.epsn_z[-2], bunch.slices.sigma_dz[-2], bunch.slices.sigma_dp[-2], str(time.clock() - t0))
-    ## Add the following lines if you want to plot on (dz, dp) phase space
-    if np.mod(i, 5) == 0:
-        plt.figure(1)
-        plt.clf()
-        ax = plt.gca()
-#         ax.set_xlim(-3e-9, 3e-9)
-#         ax.set_ylim(-3e-3, 3e-3)
-        ax.plot(bunch.dz, bunch.dp, marker='.', lw=0)
-        plt.draw()
-        plt.pause(1)
+# ## Synchrotron motion
+# 
+# cavity = RFCavity(C, C, gamma_t, harmonic_number, RF_voltage, 0)
+# 
+# ## Resonator wakefields
+# 
+# temp = np.loadtxt('Z_table.dat', comments = '!')
+# R_shunt = temp[:,2]*10**6
+# R_frequency = temp[:,0]*10**9
+# Q = temp[:,1]
+# wakes = BB_Resonator_longitudinal(R_shunt=R_shunt, frequency=R_frequency, Q=Q)
+# 
+# ## Calculate the z kick
+# 
+# wakekick = BB_Resonator_longitudinal(R_shunt=R_shunt, frequency=R_frequency, Q=Q)
+# wake = wakekick.wake_longitudinal 
+# dz_to_target_slice = [bunch.slices.dz_centers[1:-2]] - np.transpose([bunch.slices.dz_centers[1:-2]])
+# wakekick.longitudinal_kick = np.zeros(bunch.slices.n_slices)
+# wakekick.longitudinal_kick = np.dot(bunch.slices.n_macroparticles[1:-3], wake(bunch, dz_to_target_slice)) * n_particles / n_macroparticles * e * (-1)
+# fact = 2 * np.pi * harmonic_number / C
+# def V_RF(z):
+#     return RF_voltage * np.sin(fact * z)
+# V_RF_array = np.zeros(bunch.slices.n_slices)
+# for i in range(bunch.slices.n_slices):
+#     V_RF_array[i] = V_RF(bunch.slices.dz_centers[i+1])
+# V_effect = wakekick.longitudinal_kick + V_RF_array
+# V_effect_interp = interp1d(bunch.slices.dz_centers[1:-2], V_effect)
+# z_kick = brentq(V_effect_interp, bunch.slices.dz_centers[1], bunch.slices.dz_centers[-3])
+# print z_kick
+# ## Add the following lines if you want to plot the various functions
+# # plt.plot(bunch.slices.dz_centers[1:-2], V_effect, color = 'green')
+# # plt.plot(bunch.slices.dz_centers[1:-2], V_RF_array, color = 'blue')
+# # plt.plot(bunch.slices.dz_centers[1:-2], wakekick.longitudinal_kick, color = 'yellow')
+# # plt.plot(bunch.slices.dz_centers[1:-2], bunch.slices.n_macroparticles[1:-3] / np.max(bunch.slices.n_macroparticles[1:-3]) * np.max(V_RF_array), color = 'red')
+# # plt.axhline(0, color = 'black')
+# # plt.axvline(0, color = 'black')
+# # plt.pause(5)
+# 
+# 
+# ## Apply the z kick
+# 
+# bunch.dz +=  z_kick
+# 
+# ## Accelerator map
+# 
+# plt.ion()
+# map_ = [wakes] + [cavity] 
+# for i in range(n_turns):
+#     t0 = time.clock() 
+#     for m in map_:
+#         m.track(bunch)
+#     print '{0:4d} \t {1:+3e} \t {2:3f} \t {3:3f} \t {4:3f} \t {5:3s}'.format(i+1, bunch.slices.mean_dz[-2], bunch.slices.epsn_z[-2], bunch.slices.sigma_dz[-2], bunch.slices.sigma_dp[-2], str(time.clock() - t0))
+#     ## Add the following lines if you want to plot on (dz, dp) phase space
+#     if np.mod(i, 5) == 0:
+#         plt.figure(1)
+#         plt.clf()
+#         ax = plt.gca()
+# #         ax.set_xlim(-3e-9, 3e-9)
+# #         ax.set_ylim(-3e-3, 3e-3)
+#         ax.plot(bunch.dz, bunch.dp, marker='.', lw=0)
+#         plt.draw()
+#         plt.pause(1)
 
 
