@@ -35,23 +35,17 @@ class Wakefields(object):
         particles_per_macroparticle = bunch.n_particles / bunch.n_macroparticles
         return -(bunch.charge) ** 2 / (bunch.mass * bunch.gamma * (bunch.beta * c) ** 2) * particles_per_macroparticle
 
-
-    #~ @profile         
-    def longitudinal_wakefield_kicks(self, bunch, slices): 
+    
+    def convolution_plus_kick(self, bunch): 
         
-        wake = self.wake_longitudinal 
+        self.longitudinal_kick = np.dot(self.slices.n_macroparticles, self.wake_matrix) * self.wake_factor(bunch)
         
-        # matrix with distances to target slice
-        dz_to_target_slice = [bunch.slices.dz_centers[1:-2]] - np.transpose([bunch.slices.dz_centers[1:-2]])
-
-        # compute kicks
-        self.longitudinal_kick = np.zeros(bunch.slices.n_slices+4)
-        self.longitudinal_kick[1:-3] = np.dot(bunch.slices.n_macroparticles[1:-3], wake(bunch, dz_to_target_slice)) * self.wake_factor(bunch)
+        for i in range(0, self.slices.n_slices):
+            
+            bunch.dp[self.slices.first_index_in_bin[i]:self.slices.first_index_in_bin[i+1]] += self.longitudinal_kick[i]
         
-        bunch.dp += self.longitudinal_kick[bunch.in_slice]           
-             
-
-class Wake_table_longitudinal(Wakefields):
+        
+class long_wake_table(Wakefields):
     '''
     classdocs
     '''
@@ -102,11 +96,11 @@ class Wake_table_longitudinal(Wakefields):
             self.longitudinal_wakefield_kicks(bunch)
 
 
-class BB_Resonator_longitudinal(Wakefields):
+class long_wake_analytical(Wakefields):
     '''
     classdocs
     '''
-    def __init__(self, R_shunt, frequency, Q):
+    def __init__(self, R_shunt, frequency, Q, slices, bunch):
         '''
         Constructor
         '''
@@ -114,20 +108,24 @@ class BB_Resonator_longitudinal(Wakefields):
         self.frequency = np.array([frequency]).flatten()
         self.Q = np.array([Q]).flatten()
         assert(len(self.R_shunt) == len(self.frequency) == len(self.Q))
-
-
+        self.slices = slices
+        dz_to_target_slice = slices.z_centers - np.transpose([slices.z_centers])
+        self.wake_matrix = self.wake_longitudinal(bunch, dz_to_target_slice)
+        
+        
     def wake_longitudinal(self, bunch, z):
         return reduce(lambda x,y: x+y, [self.wake_BB_resonator(self.R_shunt[i], self.frequency[i], self.Q[i], bunch, z) for i in np.arange(len(self.Q))])
 
     
     def wake_BB_resonator(self, R_shunt, frequency, Q, bunch, z):        
-        # Taken from Alex Chao's resonator model (2.82)
+        
         omega = 2 * np.pi * frequency
         alpha = omega / (2 * Q)
         omegabar = np.sqrt(np.abs(omega ** 2 - alpha ** 2))
 
         if Q > 0.5:
-            wake =  - (np.sign(z) - 1) * R_shunt * alpha * np.exp(alpha * z.clip(max=0) / c / bunch.beta) * \
+            wake =  - (np.sign(z) - 1) * R_shunt * alpha * np.exp(alpha * z.clip(max=0) / \
+                                                                  c / bunch.beta) * \
                     (cos(omegabar * z.clip(max=0) / c / bunch.beta) + alpha / omegabar * sin(omegabar * z.clip(max=0) / c / bunch.beta))
         elif Q == 0.5:
             wake =  - (np.sign(z) - 1) * R_shunt * alpha * np.exp(alpha * z.clip(max=0) / c / bunch.beta) * \
@@ -140,7 +138,7 @@ class BB_Resonator_longitudinal(Wakefields):
         
     def track(self, bunch):
         
-        self.longitudinal_wakefield_kicks(bunch)
+        self.convolution_plus_kick(bunch)
         
   
  

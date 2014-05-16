@@ -9,6 +9,7 @@ import copy, h5py, sys
 from scipy.constants import c, e, epsilon_0, m_e, m_p, pi
 from beams.slices import *
 from beams.matching import match_transverse, match_longitudinal, unmatched_inbucket
+import cobra_functions.stats as cp
 
 
 def bunch_matched_and_sliced(n_macroparticles, n_particles, charge, gamma, mass, 
@@ -50,6 +51,7 @@ class Bunch(object):
             self._create_uniform(n_macroparticles)
 
         self.n_macroparticles = n_macroparticles
+        self.n_macroparticles_lost = 0
         self.id = np.arange(1, n_macroparticles + 1)
 
         self._set_beam_physics(n_particles, charge, gamma, mass)
@@ -88,27 +90,18 @@ class Bunch(object):
         self.z = 2 * np.random.rand(n_macroparticles) - 1
         self.dp = 2 * np.random.rand(n_macroparticles) - 1
 
-    def _set_beam_physics(self, n_particles, charge, gamma, mass):
+    def _set_beam_physics(self, n_particles, charge, energy, mass):
 
         self.n_particles = n_particles
         self.charge = charge
-        self.gamma = gamma
+        self.gamma = energy * e / (mass * c ** 2)
+        self.beta = np.sqrt(1 - 1 / self.gamma ** 2)
         self.mass = mass
+        self.p0 = mass * self.gamma * self.beta * c
 
-    
     def n_macroparticles(self):
 
         return len(self.x)
-
- 
-    def beta(self):
-
-        return np.sqrt(1 - 1 / self.gamma ** 2)
-
-   
-    def p0(self):
-
-        return self.mass * self.gamma * self.beta * c
 
     def reinit(self):
 
@@ -118,6 +111,25 @@ class Bunch(object):
         np.copyto(self.yp, self.yp0)
         np.copyto(self.z, self.z0)
         np.copyto(self.dp, self.dp0)
+    
+    def longit_mean_and_std(self):
+        
+        self.mean_z = cp.mean(self.z)
+        self.mean_dp = cp.mean(self.dp)
+        self.sigma_z = cp.std(self.z)
+        self.sigma_dp = cp.std(self.dp)
+        self.epsn_z_dp = 4 * np.pi * self.sigma_z * self.sigma_dp * self.mass * self.gamma * self.beta * c / e
+    
+    def transv_mean_and_std(self):
+        
+        self.mean_x = cp.mean(self.x)
+        self.mean_xp = cp.mean(self.xp)
+        self.mean_y = cp.mean(self.y)
+        self.mean_yp = cp.mean(self.yp)
+        self.sigma_x = cp.std(self.x)
+        self.sigma_y = cp.std(self.y)
+        self.epsn_x_xp = cp.emittance(x, xp) * self.gamma * self.beta * 1e6
+        self.epsn_y_yp = cp.emittance(y, yp) * self.gamma * self.beta * 1e6
 
   
     

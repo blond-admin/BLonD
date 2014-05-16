@@ -66,13 +66,13 @@ class RFCavity(LongitudinalTracker):
 
         return Qs
 
-    def potential(self, dz, bunch):
-        """the potential part V(dz) of the cavity's separable Hamiltonian"""
+    def potential(self, z, bunch):
+        """the potential part V(z) of the cavity's separable Hamiltonian"""
 
         return e * self.voltage / (bunch.p0 * self.circunference) \
-           * ( cos(self.phi_s - self.harmonic / self.R * dz) - cos(self.phi_s) - self.harmonic / self.R * dz * sin(self.phi_s) )
+           * ( cos(self.phi_s - self.harmonic / self.R * z) - cos(self.phi_s) - self.harmonic / self.R * z * sin(self.phi_s) )
 
-    def hamiltonian(self, dz, dp, bunch):
+    def hamiltonian(self, z, dp, bunch):
         '''
         The full separable Hamiltonian of the rf cavity:
         
@@ -134,11 +134,11 @@ class RFCavity(LongitudinalTracker):
         # first equation of motion   
         def drift(dp): return -eta * self.length * dp
         # second equation of motion
-        def kick(dz): return -cf2 * ( sin(self.phi_s - cf1 * dz) - sin(self.phi_s) )
+        def kick(z): return -cf2 * ( sin(self.phi_s - cf1 * z) - sin(self.phi_s) )
 
         # we want a "timestep" of 1 since the cavity will contribute to tracking
         # over one turn;
-        bunch.dz, bunch.dp = self.integrator(bunch.dz, bunch.dp, 1, drift, kick)
+        bunch.z, bunch.dp = self.integrator(bunch.z, bunch.dp, 1, drift, kick)
 
 class RFCavityArray(LongitudinalTracker):
     """
@@ -268,10 +268,9 @@ class CSCavity(object):
         cosdQs = cos(dQs)
         sindQs = sin(dQs)
 
-        dz0 = bunch.dz
+        z0 = bunch.z
         dp0 = bunch.dp
 
-        bunch.dz = dz0 * cosdQs - eta * c / omega_s * dp0 * sindQs
-        bunch.dp = dp0 * cosdQs + omega_s / eta / c * dz0 * sindQs
+        bunch.z = z0 * cosdQs - eta * c / omega_s * dp0 * sindQs
+        bunch.dp = dp0 * cosdQs + omega_s / eta / c * z0 * sindQs
 
-        bunch.update_slices()
