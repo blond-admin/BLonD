@@ -31,6 +31,7 @@ if "cleanall" in args:
         os.system('del /s/q '+ os.getcwd() +'\\*.h5')
         os.system('del /s/q '+ os.getcwd() +'\\*.h5part')
         sys.argv[1] = "clean"
+        sys.exit()
     else:
         print "You have not a Windows or Linux operating system. Aborting..."
         sys.exit()
