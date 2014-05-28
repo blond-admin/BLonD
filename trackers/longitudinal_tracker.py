@@ -55,19 +55,6 @@ class LongitudinalMap(object):
     def _eta1(alpha_array, beam):
         return alpha_array[0] - beam.gamma ** -2
 
-class Drift(LongitudinalMap):
-    """the drift (i.e. Delta z) of the particle's z coordinate is given by
-    the (separable) Hamiltonian derived by dp (defined by (p - p0) / p0).
-
-    self.length is the drift length."""
-
-    def __init__(self, alpha_array, length):
-        super(Drift, self).__init__(alpha_array)
-        self.length = length
-
-    def track(self, beam):
-        beam.z += -self.eta(beam) * beam.dp * self.length
-
 class Kick(LongitudinalMap):
     """The Kick class represents the kick by a single RF element in a ring!
     The kick (i.e. Delta dp) of the particle's dp coordinate is given by
@@ -133,7 +120,20 @@ class Kick(LongitudinalMap):
         return amplitude * modulation
 
 
+class Drift(LongitudinalMap):
+    """the drift (i.e. Delta z) of the particle's z coordinate is given by
+    the (separable) Hamiltonian derived by dp (defined by (p - p0) / p0).
 
+    self.length is the drift length."""
+
+    def __init__(self, alpha_array, length):
+        super(Drift, self).__init__(alpha_array)
+        self.length = length
+
+    def track(self, beam):
+        beam.z += -self.eta(beam) * beam.dp * self.length
+        
+        
 class LongitudinalOneTurnMap(object):
     """A longitudinal one turn map tracks over a complete turn.
     Any inheriting classes guarantee to provide a self.track(beam) method that 
@@ -178,14 +178,14 @@ class RFSystems(LongitudinalOneTurnMap):
         super(RFSystems, self).__init__(circumference)
         self.p_increment = p_increment
 
-        if not len(harmonic_list) == len(voltage_list) == len(dphi_list):
+        if not len(harmonic_list) == len(voltage_list) == len(phi_offset_list):
             print ("Warning: parameter lists for RFSystems do not have the same length!")
 
         self.kicks = []
         for h, V, dphi in zip(harmonic_list, voltage_list, phi_offset_list):
             self.kicks.append( Kick(alpha_array, h, V, dphi) )
         self.kicks[0].p_increment = self.p_increment
-        self.elements = [ Drift(self.circumference) ] + [kicks]
+        self.elements = [ Drift(self.circumference) ] + [self.kicks]
 
     def track(self, beam):
         if self.p_increment:

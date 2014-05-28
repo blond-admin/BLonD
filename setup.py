@@ -31,7 +31,6 @@ if "cleanall" in args:
         os.system('del /s/q '+ os.getcwd() +'\\*.h5')
         os.system('del /s/q '+ os.getcwd() +'\\*.h5part')
         sys.argv[1] = "clean"
-        sys.exit()
     else:
         print "You have not a Windows or Linux operating system. Aborting..."
         sys.exit()
@@ -45,7 +44,7 @@ if args.count("build_ext") > 0 and args.count("--inplace") == 0:
 
 # Set up extension and build
 cy_ext = [
-        # Extension("beams.beams",
+        # Extension("beams.beam",
         #           ["beams/bunch.pyx"],
         #          include_dirs=[np.get_include()],
         #          #extra_compile_args=["-g"],
