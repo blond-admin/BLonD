@@ -5,13 +5,6 @@ from __future__ import division
 @copyright CERN
 '''
 
-# @TODO
-# think about flexible design to separate numerical methods 
-# and physical parameters (as before for the libintegrators.py) 
-# while satisfying this design layout.
-# currently: only Euler Cromer supported in RFSystems
-
-
 import numpy as np
 
 from abc import ABCMeta, abstractmethod 
@@ -37,10 +30,11 @@ class LongitudinalMap(object):
     """
     __metaclass__ = ABCMeta
 
-    def __init__(self, alpha_array):
+    def __init__(self, alpha_array, momentum_program_array):
         """The length of the momentum compaction factor array /alpha_array/
         defines the order of the slippage factor expansion. """
         self.alpha_array = alpha_array
+        self.momentum_program_array = momentum_program_array
 
     @abstractmethod
     def track(self, beam):
@@ -87,13 +81,11 @@ class Kick(LongitudinalMap):
         self.p_increment = p_increment
 
     def track(self, beam):
-        sgn_eta = np.sign(self.eta(0, beam))
-        amplitude = sgn_eta * e * self.voltage / (beam.beta * c)
-        theta = (2 * np.pi / self.circumference) * beam.z
-        phi = self.harmonic * theta + self.phi_offset
-
-        beam.delta += amplitude * sin(phi) - self.p_increment
-        beam.p0  += self.p_increment
+        
+        synchr_moment_old = beam.p0
+        synchr_moment_new = self.momentum_program_array()
+        beam.dE += e * self.voltage * sin(self.harmonic * beam.theta + self.phi_offset) - beam.beta * c * (synchr_moment_new - synchr_moment_old)
+        beam.p0  = synchr_moment_new
 
     def Qs(self, beam):
         '''
@@ -106,8 +98,7 @@ class Kick(LongitudinalMap):
         ASSUMPTION: this is the only Kick instance in the ring layout 
             (i.e. only a single harmonic RF system)!
         '''
-        Qs = np.sqrt(e * self.voltage * np.abs(self.eta(0, beam)) * \
-                    self.harmonic / (2 * np.pi * beam.p0 * beam.beta * c))
+        Qs = np.sqrt(e * self.voltage * np.abs(self.eta(0, beam)) * self.harmonic / (2 * np.pi * beam.p0 * beam.beta * c))
         return Qs
 
     def calc_phi_0(self, beam):
@@ -119,8 +110,7 @@ class Kick(LongitudinalMap):
         (i.e. technically the only Kick instance with self.p_increment != 0)!"""
         deltaE  = self.p_increment * c / beam.beta
         sgn_eta = np.sign( self.eta(0, beam) )
-        return np.arccos( 
-            sgn_eta * np.sqrt(1 - (deltaE / (e * self.voltage)) ** 2))
+        return np.arccos(sgn_eta * np.sqrt(1 - (deltaE / (e * self.voltage)) ** 2))
 
     def potential(self, z, beam, phi_0):
         """The contribution of this kick to the overall potential V(z).
@@ -148,9 +138,8 @@ class Drift(LongitudinalMap):
         self.beta_factor = beta_factor
 
     def track(self, beam):
-        beam.z = (self.beta_factor * beam.z - 
-            self.eta(beam.delta, beam) * beam.delta * self.length)
-
+        beam.theta = self.beta_factor * beam.theta + 2 * np.pi / (1 - self.eta(beam.delta, beam) * beam.delta)
+            
 
 class LongitudinalOneTurnMap(LongitudinalMap):
     """A longitudinal one turn map tracks over a complete turn.
@@ -162,10 +151,10 @@ class LongitudinalOneTurnMap(LongitudinalMap):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, alpha_array, circumference):
+    def __init__(self, alpha_array, circumference, momentum_program_array):
         """LongitudinalOneTurnMap objects know their circumference: 
         this is THE ONE place to store the circumference in the simulations!"""
-        super(LongitudinalOneTurnMap, self).__init__(alpha_array)
+        super(LongitudinalOneTurnMap, self).__init__(alpha_array, momentum_program_array)
         self.circumference = circumference
 
     @abstractmethod
@@ -182,7 +171,7 @@ class RFSystems(LongitudinalOneTurnMap):
     """
 
     def __init__(self, circumference, harmonic_list, voltage_list, 
-                        phi_offset_list, alpha_array, p_increment=0):
+                        phi_offset_list, alpha_array, momentum_program_array):
         """The first entry in harmonic_list, voltage_list and phi_offset_list
         defines the parameters for the one accelerating Kick object 
         (i.e. the accelerating RF system).
@@ -200,13 +189,10 @@ class RFSystems(LongitudinalOneTurnMap):
         self.fundamental_kick
         self.accelerating_kick"""
 
-        
-
-        super(RFSystems, self).__init__(alpha_array, circumference)
+        super(RFSystems, self).__init__(alpha_array, circumference, momentum_program_array)
 
         if not len(harmonic_list) == len(voltage_list) == len(phi_offset_list):
-            print ("Warning: parameter lists for RFSystems " +
-                                        "do not have the same length!")
+            print ("Warning: parameter lists for RFSystems do not have the same length!")
 
         self.kicks = []
         for h, V, dphi in zip(harmonic_list, voltage_list, phi_offset_list):
@@ -214,8 +200,8 @@ class RFSystems(LongitudinalOneTurnMap):
             self.kicks.append(kick)
         self.elements = self.kicks + [Drift(alpha_array, self.circumference)] 
         self.accelerating_kick = self.kicks[0]
-        self.p_increment = p_increment
-        self.fundamental_kick = min(self.kicks, key=lambda kick: kick.harmonic)
+        self.momentum_program_array = momentum_program_array
+        
 
     def track(self, beam):
         if self.p_increment:
@@ -224,8 +210,7 @@ class RFSystems(LongitudinalOneTurnMap):
         for longMap in self.elements:
             longMap.track(beam)
         if self.p_increment:
-            self._shrink_transverse_emittance(beam, 
-                                np.sqrt(betagamma_old / beam.betagamma) )
+            self._shrink_transverse_emittance(beam, np.sqrt(betagamma_old / beam.betagamma) )
 
     @staticmethod
     def _shrink_transverse_emittance(beam, geo_emittance_factor):
@@ -242,7 +227,6 @@ class RFSystems(LongitudinalOneTurnMap):
     def p_increment(self, value):
         self.accelerating_kick.p_increment = value
     
-
     def potential(self, z, beam):
         """the potential well of the rf system"""
         phi_0 = self.accelerating_kick.calc_phi_0(beam)
@@ -266,10 +250,6 @@ class RFSystems(LongitudinalOneTurnMap):
         0 = H(z_sep, dp_sep) becomes inexplicit in general)."""
         return np.sqrt(2 / (beam.beta * c * self.eta(0, beam)) * self.potential(z, beam))
 
-#     def is_in_separatrix(self, z, dp, beam):
-#         """Returns boolean whether this coordinate is located 
-#         strictly inside the separatrix."""
-#         return hamiltonian(z, dp, beam) < 0
 
 class LinearMap(LongitudinalOneTurnMap):
     '''
