@@ -44,7 +44,7 @@ if args.count("build_ext") > 0 and args.count("--inplace") == 0:
 
 # Set up extension and build
 cy_ext = [
-        # Extension("beams.beam",
+        # Extension("beams.beams",
         #           ["beams/bunch.pyx"],
         #          include_dirs=[np.get_include()],
         #          #extra_compile_args=["-g"],
