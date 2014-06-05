@@ -12,7 +12,7 @@ from beams import slices
 from monitors.monitors import *
 from trackers.longitudinal_tracker import *
 from trackers.transverse_tracker import *
-from longitudinal_plots import *
+from plots.longitudinal_plots import *
 
 
 # Simulation parameters --------------------------------------------------------

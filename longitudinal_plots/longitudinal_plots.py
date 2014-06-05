@@ -7,7 +7,7 @@ from trackers.longitudinal_tracker import *
 
 
 def fig_folder():
-    # Directory where plots will be stored
+    # Directory where longitudinal_plots will be stored
     dirname = 'fig'
 
     # Try to create directory
@@ -24,7 +24,7 @@ def fig_folder():
 def plot_long_phase_space(bunch, cavity, nturns, xmin, xmax, ymin, ymax, 
                             unit=None):
 
-    # Directory where plots will be stored
+    # Directory where longitudinal_plots will be stored
     fig_folder()
 
     # Conversion from metres to nanoseconds
@@ -98,7 +98,7 @@ def plot_long_phase_space(bunch, cavity, nturns, xmin, xmax, ymin, ymax,
 
 def plot_bunch_length_evol(bunch, h5file, nturns, unit=None):
 
-    # Directory where plots will be stored
+    # Directory where longitudinal_plots will be stored
     fig_folder()
 
     # Get bunch length data in metres or nanoseconds
@@ -126,7 +126,7 @@ def plot_bunch_length_evol(bunch, h5file, nturns, unit=None):
 
 def plot_bunch_length_evol_gaussian(bunch, h5file, nturns, unit=None):
 
-    # Directory where plots will be stored
+    # Directory where longitudinal_plots will be stored
     fig_folder()
 
     # Get bunch length data in metres or nanoseconds
