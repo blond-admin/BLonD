@@ -74,7 +74,8 @@ print ""
 
 
 # Synchrotron motion
-cavity = RFSystems(C, h, V_rf, dphi, alpha)
+momentum_program_array = np.random.rand(N_t)
+cavity = RFSystems(C, h, V_rf, dphi, alpha, momentum_program_array)
 #cavity = RFCavity(C, C, gamma_t, h, V_rf, 0.)#, integrator='euler-chromer')
 #cavity = RFCavity(C, C, gamma_t, h, V_rf, np.pi)#, integrator='euler-chromer')
 #cavity = RFCavityArray(C, gamma_t, h, V_rf, 0.)
@@ -105,7 +106,7 @@ print "Initial distribution set"
 
 
 # Accelerator map
-map_ = [cavity] # No intensity effects, no aperture limitations
+map_ = [cavity]  # No intensity effects, no aperture limitations
 print "Map set"
 print ""
 
@@ -115,7 +116,7 @@ for i in range(N_t):
     
     # Track
     for m in map_:
-        m.track(bunch, i)
+        m.track(bunch)
     
     
 

@@ -68,57 +68,29 @@ class Kick(LongitudinalMap):
 
     self.phi_offset reflects an offset of the cavity's reference system."""
 
-    def __init__(self, alpha_array, circumference, harmonic, voltage, phi_offset = 0, p_increment = 0):
+    def __init__(self, alpha_array, circumference, harmonic, voltage, phi_offset = 0):
         
         super(Kick, self).__init__(alpha_array)
         self.circumference = circumference
         self.harmonic = harmonic
         self.voltage = voltage
         self.phi_offset = phi_offset
+        
+    def track(self, beam):
+        
+        beam.dE += e * self.voltage * np.sin(self.harmonic * beam.theta + self.phi_offset)
+
+
+class Kick_acceleration(LongitudinalMap):
+    
+    def __init__(self, p_increment = 0):
+        
         self.p_increment = p_increment
 
     def track(self, beam):
         
-        beam.dE += e * self.voltage * np.sin(self.harmonic * beam.theta + self.phi_offset) - beam.beta * c * self.p_increment
-        beam.p0  += self.p_increment
-
-    def Qs(self, beam):
+        beam.dE += - beam.beta * c * self.p_increment
         
-        '''
-        Synchrotron tune derived from the linearized Hamiltonian
-
-        .. math::
-        H = -1 / 2 * eta * beta * c * delta ** 2
-           + e * V / (p0 * 2 * np.pi * h) * 
-            * (np.cos(phi) - np.cos(dphi) + (phi - dphi) * np.sin(dphi))
-        ASSUMPTION: this is the only Kick instance in the ring layout 
-            (i.e. only a single harmonic RF system)!
-        '''
-        Qs = np.sqrt(e * self.voltage * np.abs(self.eta(0, beam)) * self.harmonic / (2 * np.pi * beam.p0 * beam.beta * c))
-        return Qs
-
-    def calc_phi_0(self, beam):
-        
-        """The synchronous phase calculated from the momentum increase per turn.
-        It includes the jump in the e.o.m. (via sign(eta)) at transition energy:
-            gamma < gamma_transition <==> phi_0 ~ pi
-            gamma > gamma_transition <==> phi_0 ~ 0
-        ASSUMPTION: this is the only Kick instance adding to acceleration
-        (i.e. technically the only Kick instance with self.p_increment != 0)!"""
-        deltaE  = self.p_increment * c / beam.beta
-        sgn_eta = np.sign( self.eta(0, beam) )
-        return np.arccos(sgn_eta * np.sqrt(1 - (deltaE / (e * self.voltage)) ** 2))
-
-    def potential(self, z, beam, phi_0):
-        
-        """The contribution of this kick to the overall potential V(z).
-        ASSUMPTION: there is one Kick instance adding to overall acceleration
-        (i.e. technically only one Kick instance with self.p_increment != 0)!"""
-        theta = (2 * np.pi / self.circumference) * z
-        phi = self.harmonic * theta + self.phi_offset
-        amplitude = -e * self.voltage / (beam.p0 * 2 * np.pi * self.harmonic)
-        modulation = np.cos(phi) - np.cos(phi_0) + (phi - phi_0) * np.sin(phi_0)
-        return amplitude * modulation
 
 class Drift(LongitudinalMap):
     
@@ -131,16 +103,16 @@ class Drift(LongitudinalMap):
     continuously be adapted by the user according to Kick.p_increment.]
     """
 
-    def __init__(self, alpha_array, length, beta_factor = 1):
+    def __init__(self, alpha_array, length, beam):
         
         super(Drift, self).__init__(alpha_array)
         self.length = length
-        self.beta_factor = beta_factor
-
+        self.beta_old = beam.beta
+        
     def track(self, beam):
         
-        beam.theta = self.beta_factor * beam.theta + 2 * np.pi / (1 - self.eta(beam.delta, beam) * beam.delta)
-            
+        beam.theta = beam.beta / self.beta_old  * beam.theta + 2 * np.pi / (1 - self.eta(beam.delta, beam) * beam.delta)
+        self.beta_old = beam.beta
 
 class LongitudinalOneTurnMap(LongitudinalMap):
     
@@ -153,11 +125,11 @@ class LongitudinalOneTurnMap(LongitudinalMap):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, alpha_array, circumference, momentum_program_array):
+    def __init__(self, alpha_array, circumference):
         
         """LongitudinalOneTurnMap objects know their circumference: 
         this is THE ONE place to store the circumference in the simulations!"""
-        super(LongitudinalOneTurnMap, self).__init__(alpha_array, momentum_program_array)
+        super(LongitudinalOneTurnMap, self).__init__(alpha_array)
         self.circumference = circumference
 
     @abstractmethod
@@ -166,6 +138,7 @@ class LongitudinalOneTurnMap(LongitudinalMap):
         """Contract: advances the longitudinal coordinates 
         of the beam over a full turn."""
         pass
+
 
 class RFSystems(LongitudinalOneTurnMap):
     
@@ -194,7 +167,7 @@ class RFSystems(LongitudinalOneTurnMap):
         self.fundamental_kick
         self.accelerating_kick"""
 
-        super(RFSystems, self).__init__(alpha_array, circumference, momentum_program_array)
+        super(RFSystems, self).__init__(alpha_array, circumference)
 
         if not len(harmonic_list) == len(voltage_list) == len(phi_offset_list):
             print ("Warning: parameter lists for RFSystems do not have the same length!")
@@ -203,21 +176,20 @@ class RFSystems(LongitudinalOneTurnMap):
         for h, V, dphi in zip(harmonic_list, voltage_list, phi_offset_list):
             kick = Kick(alpha_array, self.circumference, h, V, dphi)
             self.kicks.append(kick)
-        self.elements = self.kicks + [Drift(alpha_array, self.circumference)] 
-        self.accelerating_kick = self.kicks[0]
-        self.momentum_program_array = momentum_program_array
+        self.kick_acceleration = Kick_acceleration()
+        self.elements = self.kicks + [self.kick_acceleration] + [Drift(alpha_array, self.circumference)]
+        self.momentum_program_array = np.insert(momentum_program_array, 0, momentum_program_array[0])
         self.turn_number = 0
         
-
     def track(self, beam):
         
-        self.accelerating_kick.p_increment = self.momentum_program_array(self.turn_number+1) - self.momentum_program_array(self.turn_number)
+        self.kick_acceleration.p_increment = self.momentum_program_array(self.turn_number+1) - self.momentum_program_array(self.turn_number)
+        beam.p0 = self.momentum_program_array(self.turn_number+2)
         for longMap in self.elements:
             longMap.track(beam)
         self.turn_number += 1
         
-    @staticmethod
-    def _shrink_transverse_emittance(beam, geo_emittance_factor):
+    def _shrink_transverse_emittance(self,beam, geo_emittance_factor):
         
         """accounts for the transverse geometrical emittance shrinking"""
         beam.x *= geo_emittance_factor
