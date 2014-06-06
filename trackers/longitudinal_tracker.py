@@ -83,13 +83,32 @@ class Kick(LongitudinalMap):
 
 class Kick_acceleration(LongitudinalMap):
     
-    def __init__(self, p_increment = 0):
+    def __init__(self, voltage, p_increment = 0, beam):
         
+        self.voltage = voltage
         self.p_increment = p_increment
+        self.beta_old = beam.beta
 
     def track(self, beam):
         
-        beam.dE += - beam.beta * c * self.p_increment
+        """Using the average beta during the acceleration to account for 
+        the change in momentum over one turn."""
+        beam.dE += - (self.beta_old + beam.beta) / 2 * c * self.p_increment
+        self.beta_old = beam.beta
+
+    def calc_phi_s(self, beam):
+        """The synchronous phase calculated from the rate of momentum change.
+        Below transition, for decelerating bucket: phi_s is in (-Pi/2,0)
+        Below transition, for accelerating bucket: phi_s is in (0,Pi/2)
+        Above transition, for accelerating bucket: phi_s is in (Pi/2,Pi)
+        Above transition, for decelerating bucket: phi_s is in (Pi,3Pi/2)
+        The synchronous phase is calculated at a certain moment."""
+        V0 = self.voltage[0]
+        phi_s = np.arcsin(beam.beta * c / (e * V0) * self.p_increment)
+        if self.eta(0, beam) > 0:
+            phi_s = np.pi - phi_s
+
+        return phi_s
         
 
 class Drift(LongitudinalMap):
@@ -167,24 +186,31 @@ class RFSystems(LongitudinalOneTurnMap):
         self.fundamental_kick
         self.accelerating_kick"""
 
+        self.harmonic_list = harmonic_list
+        self.voltage_list = voltage_list
+        self.circumference = circumference
+
         super(RFSystems, self).__init__(alpha_array, circumference)
 
         if not len(harmonic_list) == len(voltage_list) == len(phi_offset_list):
             print ("Warning: parameter lists for RFSystems do not have the same length!")
 
+
+        """Separating the kicks from the RF and the magnets.
+        kick can contain multiple contributions
+        kick_acceleration is only used once per time step"""
         self.kicks = []
         for h, V, dphi in zip(harmonic_list, voltage_list, phi_offset_list):
             kick = Kick(alpha_array, self.circumference, h, V, dphi)
             self.kicks.append(kick)
         self.kick_acceleration = Kick_acceleration()
         self.elements = self.kicks + [self.kick_acceleration] + [Drift(alpha_array, self.circumference)]
-        self.momentum_program_array = np.insert(momentum_program_array, 0, momentum_program_array[0])
         self.turn_number = 0
         
     def track(self, beam):
         
         self.kick_acceleration.p_increment = self.momentum_program_array(self.turn_number+1) - self.momentum_program_array(self.turn_number)
-        beam.p0 = self.momentum_program_array(self.turn_number+2)
+        beam.p0 = self.momentum_program_array(self.turn_number+1)
         for longMap in self.elements:
             longMap.track(beam)
         self.turn_number += 1
@@ -197,31 +223,66 @@ class RFSystems(LongitudinalOneTurnMap):
         beam.y *= geo_emittance_factor
         beam.yp *= geo_emittance_factor
 
-    def potential(self, z, beam):
+#    def potential(self, z, beam):
         
-        """the potential well of the rf system"""
-        phi_0 = self.accelerating_kick.calc_phi_0(beam)
-        h1 = self.accelerating_kick.harmonic
-        def fetch_potential(kick):
-            phi_0_i = kick.harmonic / h1 * phi_0
-            return kick.potential(z, beam, phi_0_i)
-        potential_list = map(fetch_potential, self.kicks)
-        return sum(potential_list)
+#        """the potential well of the rf system"""
+#        phi_0 = self.accelerating_kick.calc_phi_0(beam)
+#        h1 = self.accelerating_kick.harmonic
+#        def fetch_potential(kick):
+#            phi_0_i = kick.harmonic / h1 * phi_0
+#            return kick.potential(z, beam, phi_0_i)
+#        potential_list = map(fetch_potential, self.kicks)
+#        return sum(potential_list)
 
-    def hamiltonian(self, z, dp, beam):
+#    def hamiltonian(self, z, dp, beam):
         
-        """the full separable Hamiltonian of the RF system.
-        Its zero value is located at the fundamental separatrix
-        (between bound and unbound motion)."""
-        kinetic = -0.5 * self.eta(dp, beam) * beam.beta * c * dp ** 2
-        return kinetic + self.potential(z, beam)
+#        """the full separable Hamiltonian of the RF system.
+#        Its zero value is located at the fundamental separatrix
+#        (between bound and unbound motion)."""
+#        kinetic = -0.5 * self.eta(dp, beam) * beam.beta * c * dp ** 2
+#        return kinetic + self.potential(z, beam)
 
-    def separatrix(self, z, beam):
+#    def separatrix(self, z, beam):
         
-        """Returns the separatrix delta_sep = (p - p0) / p0 for the synchronous 
-        particle (since eta depends on delta, inverting the separatrix equation 
-        0 = H(z_sep, dp_sep) becomes inexplicit in general)."""
-        return np.sqrt(2 / (beam.beta * c * self.eta(0, beam)) * self.potential(z, beam))
+#        """Returns the separatrix delta_sep = (p - p0) / p0 for the synchronous 
+#        particle (since eta depends on delta, inverting the separatrix equation 
+#        0 = H(z_sep, dp_sep) becomes inexplicit in general)."""
+#        return np.sqrt(2 / (beam.beta * c * self.eta(0, beam)) * self.potential(z, beam))
+
+    def hamiltonian(self, theta, dE, delta, beam):
+        """Single RF sinusoidal Hamiltonian.
+        To be generalized."""
+        h0 = self.harmonic_list[0]
+        V0 = self.voltage_list[0]
+        c1 = self.eta(delta, beam) * c * np.pi / (self.circumference * 
+                                                  beam.beta * beam.energy )
+        c2 = c * e * V0 / (h0 * self.circumference)
+        phi_s = self.calc_phi_s(beam)
+
+        return c1 * dE**2 + c2 * (np.cos(h0 * theta) - np.cos(phi_s) + 
+                                  (h0 * theta) * np.sin(phi_s))
+
+    def separatrix(self, theta, beam):
+        """Single RF sinusoidal separatrix.
+        To be generalized."""
+        h0 = self.harmonic_list[0]
+        V0 = self.voltage_list[0]
+        phi_s = self.calc_phi_s(beam)
+        return np.sqrt(beam.beta**2 * beam.energy * e * V0 / 
+                       (np.pi * self.eta(0, beam) * h0) * 
+                       (-np.cos(h0 * theta) - np.cos(phi_s) + 
+                         (np.pi - phi_s - h0 * theta) * np.sin(phi_s)))
+
+    def is_in_separatrix(self, theta, dE, delta, beam):
+        """Condition for being inside the separatrix.
+        Single RF sinusoidal.
+        To be generalized."""
+        h0 = self.harmonic_list[0]
+        phi_s = self.calc_phi_s(beam)
+        Hsep = self.hamiltonian((np.pi - phi_s) / h0, 0, 0, beam) 
+        isin = np.fabs(self.hamiltonian(theta, dE, delta, beam)) < np.fabs(Hsep)
+
+        return isin
 
 
 class LinearMap(LongitudinalOneTurnMap):
