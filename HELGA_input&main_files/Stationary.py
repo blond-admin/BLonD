@@ -12,7 +12,7 @@ from beams import slices
 from monitors.monitors import *
 from trackers.longitudinal_tracker import *
 from trackers.transverse_tracker import *
-from plots.longitudinal_plots import *
+from longitudinal_plots.longitudinal_plots import *
 
 
 # Simulation parameters --------------------------------------------------------
@@ -115,7 +115,7 @@ for i in range(N_t):
     
     # Track
     for m in map_:
-        m.track(bunch)
+        m.track(bunch, i)
     
     
 
