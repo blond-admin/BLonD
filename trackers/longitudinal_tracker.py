@@ -46,13 +46,15 @@ class LongitudinalMap(object):
         """
         eta = 0
         for i in xrange( len(self.alpha_array) ):   # order = len - 1
-            eta_i = getattr(self, '_eta' + str(i))(self.alpha_array, beam)
+            eta_i = getattr(self, '_eta' + str(i))(beam, self.alpha_array)
             eta  += eta_i * (delta ** i)
         return eta
 
     @staticmethod
     def _eta0(beam, alpha_array):
         
+        print beam.gamma
+        print alpha_array[0]
         return alpha_array[0] - beam.gamma ** -2
 
 
@@ -108,13 +110,12 @@ class Kick_acceleration(LongitudinalMap):
         Above transition, for accelerating bucket: phi_s is in (Pi/2,Pi)
         Above transition, for decelerating bucket: phi_s is in (Pi,3Pi/2)
         The synchronous phase is calculated at a certain moment."""
-        V0 = self.voltage[0]
+        V0 = voltage[0]
         phi_s = np.arcsin(beam.beta * c / (e * V0) * self.p_increment)
         if self.eta(0, beam) > 0:
             phi_s = np.pi - phi_s
 
-        return phi_s
-        
+        return phi_s      
 
 class Drift(LongitudinalMap):
     
@@ -140,7 +141,7 @@ class Drift(LongitudinalMap):
         if self.flag == 0:
             self.beta_old = beam.beta
             self.flag = 1
-        beam.theta = beam.beta / self.beta_old  * beam.theta + 2 * np.pi / (1 - self.eta(beam.delta, beam) * beam.delta)
+        beam.theta = beam.beta / self.beta_old  * beam.theta + 2 * np.pi / (1 - self.eta(beam, beam.delta) * beam.delta)
         self.beta_old = beam.beta
 
 class LongitudinalOneTurnMap(LongitudinalMap):
@@ -225,8 +226,8 @@ class RFSystems(LongitudinalOneTurnMap):
         
     def track(self, beam):
         
-        self.kick_acceleration.p_increment = self.momentum_program_array(self.turn_number+1) - self.momentum_program_array(self.turn_number)
-        beam.p0 = self.momentum_program_array(self.turn_number+1)
+        self.kick_acceleration.p_increment = self.momentum_program_array[self.turn_number+1] - self.momentum_program_array[self.turn_number]
+        beam.p0 = self.momentum_program_array[self.turn_number+1]
         for longMap in self.elements:
             longMap.track(beam)
         self.turn_number += 1
@@ -284,6 +285,7 @@ class RFSystems(LongitudinalOneTurnMap):
         h0 = self.harmonic_list[0]
         V0 = self.voltage_list[0]
         phi_s = self.calc_phi_s(beam, self.voltage_list)
+
         return np.sqrt(beam.beta**2 * beam.energy * e * V0 / 
                        (np.pi * self.eta(0, beam) * h0) * 
                        (-np.cos(h0 * theta) - np.cos(phi_s) + 
@@ -299,6 +301,7 @@ class RFSystems(LongitudinalOneTurnMap):
         isin = np.fabs(self.hamiltonian(theta, dE, delta, beam)) < np.fabs(Hsep)
 
         return isin
+
 
 
 class LinearMap(LongitudinalOneTurnMap):

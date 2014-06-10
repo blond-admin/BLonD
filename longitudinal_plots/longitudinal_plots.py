@@ -63,9 +63,9 @@ def plot_long_phase_space(bunch, cavity, nturns, xmin, xmax, ymin, ymax,
     # Separatrix
     x_sep = np.linspace(xmin, xmax, 1000)
     if unit == None or unit == 'm':
-        y_sep = cavity.separatrix(x_sep, bunch)
+        y_sep = cavity.separatrix(bunch, x_sep)
     elif unit == 'ns':
-        y_sep = cavity.separatrix(x_sep/coeff, bunch)
+        y_sep = cavity.separatrix(bunch, x_sep/coeff)
     axScatter.plot(x_sep, y_sep, 'r')
     axScatter.plot(x_sep, -1.*y_sep, 'r')
     
