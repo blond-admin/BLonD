@@ -112,7 +112,7 @@ class Kick_acceleration(LongitudinalMap):
         The synchronous phase is calculated at a certain moment."""
         V0 = voltage[0]
         phi_s = np.arcsin(beam.beta * c / (e * V0) * self.p_increment)
-        if self.eta(0, beam) > 0:
+        if self.eta(beam, 0) > 0:
             phi_s = np.pi - phi_s
 
         return phi_s      
@@ -271,7 +271,7 @@ class RFSystems(LongitudinalOneTurnMap):
         To be generalized."""
         h0 = self.harmonic_list[0]
         V0 = self.voltage_list[0]
-        c1 = self.eta(delta, beam) * c * np.pi / (self.circumference * 
+        c1 = self.eta(beam, delta) * c * np.pi / (self.circumference * 
                                                   beam.beta * beam.energy )
         c2 = c * e * V0 / (h0 * self.circumference)
         phi_s = self.calc_phi_s(beam, self.voltage_list)
@@ -286,8 +286,9 @@ class RFSystems(LongitudinalOneTurnMap):
         V0 = self.voltage_list[0]
         phi_s = self.calc_phi_s(beam, self.voltage_list)
 
+
         return np.sqrt(beam.beta**2 * beam.energy * e * V0 / 
-                       (np.pi * self.eta(0, beam) * h0) * 
+                       (np.pi * self.eta(beam, 0) * h0) * 
                        (-np.cos(h0 * theta) - np.cos(phi_s) + 
                          (np.pi - phi_s - h0 * theta) * np.sin(phi_s)))
 
@@ -297,8 +298,8 @@ class RFSystems(LongitudinalOneTurnMap):
         To be generalized."""
         h0 = self.harmonic_list[0]
         phi_s = self.calc_phi_s(beam, self.voltage_list)
-        Hsep = self.hamiltonian((np.pi - phi_s) / h0, 0, 0, beam) 
-        isin = np.fabs(self.hamiltonian(theta, dE, delta, beam)) < np.fabs(Hsep)
+        Hsep = self.hamiltonian(beam, (np.pi - phi_s) / h0, 0, 0) 
+        isin = np.fabs(self.hamiltonian(beam, theta, dE, delta)) < np.fabs(Hsep)
 
         return isin
 
