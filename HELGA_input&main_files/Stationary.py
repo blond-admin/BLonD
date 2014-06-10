@@ -12,7 +12,7 @@ from beams import slices
 from monitors.monitors import *
 from trackers.longitudinal_tracker import *
 from trackers.transverse_tracker import *
-from plots.longitudinal_plots import *
+from longitudinal_plots.longitudinal_plots import *
 
 
 # Simulation parameters --------------------------------------------------------
@@ -74,7 +74,8 @@ print ""
 
 
 # Synchrotron motion
-cavity = RFSystems(C, h, V_rf, dphi, alpha)
+ring = Ring_and_RF(C, h, V_rf, dphi, alpha, p_s*np.ones(N_t+1))
+cavity = RFSystems(ring)
 #cavity = RFCavity(C, C, gamma_t, h, V_rf, 0.)#, integrator='euler-chromer')
 #cavity = RFCavity(C, C, gamma_t, h, V_rf, np.pi)#, integrator='euler-chromer')
 #cavity = RFCavityArray(C, gamma_t, h, V_rf, 0.)
@@ -128,9 +129,9 @@ for i in range(N_t):
 #                 str(time.clock() - t0))
 
     # Plot
-    if (i % dt_plt) == 0:
-        plot_long_phase_space(bunch, cavity, i, -1.5, 1.5, -1.e-3, 1.e-3, 
-                              unit='ns')
+#     if (i % dt_plt) == 0:
+#         plot_long_phase_space(bunch, cavity, i, -1.5, 1.5, -1.e-3, 1.e-3, 
+#                               unit='ns')
 #        plot_bunch_length_evol(bunch, 'bunch', i, unit='ns')
 #        plot_bunch_length_evol_gaussian(bunch, 'bunch', i, unit='ns')
 
