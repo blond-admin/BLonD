@@ -34,7 +34,7 @@ class LongitudinalMap(object):
         
         pass
 
-    def eta(self, delta, beam):
+    def eta(self, beam, delta):
         
         """Depending on the number of entries in self.alpha_array the 
         according order of \eta = \sum_i \eta_i * \delta^i where
@@ -51,7 +51,7 @@ class LongitudinalMap(object):
         return eta
 
     @staticmethod
-    def _eta0(alpha_array, beam):
+    def _eta0(beam, alpha_array):
         
         return alpha_array[0] - beam.gamma ** -2
 
@@ -68,9 +68,9 @@ class Kick(LongitudinalMap):
 
     self.phi_offset reflects an offset of the cavity's reference system."""
 
-    def __init__(self, alpha_array, circumference, harmonic, voltage, phi_offset = 0):
+    def __init__(self, alpha_array, circumference, momentum_program_array, harmonic, voltage, phi_offset = 0):
         
-        super(Kick, self).__init__(alpha_array)
+        super(Kick, self).__init__(alpha_array, momentum_program_array)
         self.circumference = circumference
         self.harmonic = harmonic
         self.voltage = voltage
@@ -83,20 +83,25 @@ class Kick(LongitudinalMap):
 
 class Kick_acceleration(LongitudinalMap):
     
-    def __init__(self, voltage, p_increment = 0, beam):
+    def __init__(self, p_increment = 0):
         
-        self.voltage = voltage
+#        self.voltage = voltage
         self.p_increment = p_increment
-        self.beta_old = beam.beta
+        self.flag = 0 
+        self.beta_old = 0
+#        self.beta_old = beam.beta
 
     def track(self, beam):
         
         """Using the average beta during the acceleration to account for 
         the change in momentum over one turn."""
+        if self.flag == 0:
+            self.beta_old = beam.beta
+            self.flag = 1
         beam.dE += - (self.beta_old + beam.beta) / 2 * c * self.p_increment
         self.beta_old = beam.beta
 
-    def calc_phi_s(self, beam):
+    def calc_phi_s(self, beam, voltage):
         """The synchronous phase calculated from the rate of momentum change.
         Below transition, for decelerating bucket: phi_s is in (-Pi/2,0)
         Below transition, for accelerating bucket: phi_s is in (0,Pi/2)
@@ -122,14 +127,19 @@ class Drift(LongitudinalMap):
     continuously be adapted by the user according to Kick.p_increment.]
     """
 
-    def __init__(self, alpha_array, length, beam):
+    def __init__(self, alpha_array, length, momentum_program_array):
         
-        super(Drift, self).__init__(alpha_array)
+        super(Drift, self).__init__(alpha_array, momentum_program_array)
         self.length = length
-        self.beta_old = beam.beta
+        self.flag = 0 
+        self.beta_old = 0
+#        self.beta_old = beam.beta
         
     def track(self, beam):
         
+        if self.flag == 0:
+            self.beta_old = beam.beta
+            self.flag = 1
         beam.theta = beam.beta / self.beta_old  * beam.theta + 2 * np.pi / (1 - self.eta(beam.delta, beam) * beam.delta)
         self.beta_old = beam.beta
 
@@ -144,11 +154,13 @@ class LongitudinalOneTurnMap(LongitudinalMap):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, alpha_array, circumference):
-        
+    def __init__(self, alpha_array, circumference, momentum_program_array):
+#    def __init__(self, beam, alpha_array, circumference, length):
+                
         """LongitudinalOneTurnMap objects know their circumference: 
         this is THE ONE place to store the circumference in the simulations!"""
-        super(LongitudinalOneTurnMap, self).__init__(alpha_array)
+#        super(LongitudinalOneTurnMap, self).__init__(alpha_array)
+        super(LongitudinalOneTurnMap, self).__init__(alpha_array, momentum_program_array)
         self.circumference = circumference
 
     @abstractmethod
@@ -189,8 +201,12 @@ class RFSystems(LongitudinalOneTurnMap):
         self.harmonic_list = harmonic_list
         self.voltage_list = voltage_list
         self.circumference = circumference
+        #self.momentum_program_array = momentum_program_array
 
-        super(RFSystems, self).__init__(alpha_array, circumference)
+#        super(RFSystems, self).__init__(alpha_array, circumference)
+        super(RFSystems, self).__init__(alpha_array, circumference, momentum_program_array)        
+#        super(RFSystems, self).__init__(beam, alpha_array, circumference, length)
+        
 
         if not len(harmonic_list) == len(voltage_list) == len(phi_offset_list):
             print ("Warning: parameter lists for RFSystems do not have the same length!")
@@ -204,7 +220,7 @@ class RFSystems(LongitudinalOneTurnMap):
             kick = Kick(alpha_array, self.circumference, h, V, dphi)
             self.kicks.append(kick)
         self.kick_acceleration = Kick_acceleration()
-        self.elements = self.kicks + [self.kick_acceleration] + [Drift(alpha_array, self.circumference)]
+        self.elements = self.kicks + [self.kick_acceleration] + [Drift(alpha_array, self.circumference, momentum_program_array)]
         self.turn_number = 0
         
     def track(self, beam):
@@ -215,7 +231,7 @@ class RFSystems(LongitudinalOneTurnMap):
             longMap.track(beam)
         self.turn_number += 1
         
-    def _shrink_transverse_emittance(self,beam, geo_emittance_factor):
+    def _shrink_transverse_emittance(self, beam, geo_emittance_factor):
         
         """accounts for the transverse geometrical emittance shrinking"""
         beam.x *= geo_emittance_factor
@@ -249,7 +265,7 @@ class RFSystems(LongitudinalOneTurnMap):
 #        0 = H(z_sep, dp_sep) becomes inexplicit in general)."""
 #        return np.sqrt(2 / (beam.beta * c * self.eta(0, beam)) * self.potential(z, beam))
 
-    def hamiltonian(self, theta, dE, delta, beam):
+    def hamiltonian(self, beam, theta, dE, delta):
         """Single RF sinusoidal Hamiltonian.
         To be generalized."""
         h0 = self.harmonic_list[0]
@@ -257,28 +273,28 @@ class RFSystems(LongitudinalOneTurnMap):
         c1 = self.eta(delta, beam) * c * np.pi / (self.circumference * 
                                                   beam.beta * beam.energy )
         c2 = c * e * V0 / (h0 * self.circumference)
-        phi_s = self.calc_phi_s(beam)
+        phi_s = self.calc_phi_s(beam, self.voltage_list)
 
         return c1 * dE**2 + c2 * (np.cos(h0 * theta) - np.cos(phi_s) + 
                                   (h0 * theta) * np.sin(phi_s))
 
-    def separatrix(self, theta, beam):
+    def separatrix(self, beam, theta):
         """Single RF sinusoidal separatrix.
         To be generalized."""
         h0 = self.harmonic_list[0]
         V0 = self.voltage_list[0]
-        phi_s = self.calc_phi_s(beam)
+        phi_s = self.calc_phi_s(beam, self.voltage_list)
         return np.sqrt(beam.beta**2 * beam.energy * e * V0 / 
                        (np.pi * self.eta(0, beam) * h0) * 
                        (-np.cos(h0 * theta) - np.cos(phi_s) + 
                          (np.pi - phi_s - h0 * theta) * np.sin(phi_s)))
 
-    def is_in_separatrix(self, theta, dE, delta, beam):
+    def is_in_separatrix(self, beam, theta, dE, delta):
         """Condition for being inside the separatrix.
         Single RF sinusoidal.
         To be generalized."""
         h0 = self.harmonic_list[0]
-        phi_s = self.calc_phi_s(beam)
+        phi_s = self.calc_phi_s(beam, self.voltage_list)
         Hsep = self.hamiltonian((np.pi - phi_s) / h0, 0, 0, beam) 
         isin = np.fabs(self.hamiltonian(theta, dE, delta, beam)) < np.fabs(Hsep)
 

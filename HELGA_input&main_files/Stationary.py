@@ -74,8 +74,9 @@ print ""
 
 
 # Synchrotron motion
-momentum_program_array = np.random.rand(N_t)
-cavity = RFSystems(C, h, V_rf, dphi, alpha, momentum_program_array)
+#momentum_program_array = np.random.rand(N_t)
+#cavity = RFSystems(C, h, V_rf, dphi, alpha, momentum_program_array)
+cavity = RFSystems(C, h, V_rf, dphi, alpha, p_s*np.ones(N_t))
 #cavity = RFCavity(C, C, gamma_t, h, V_rf, 0.)#, integrator='euler-chromer')
 #cavity = RFCavity(C, C, gamma_t, h, V_rf, np.pi)#, integrator='euler-chromer')
 #cavity = RFCavityArray(C, gamma_t, h, V_rf, 0.)
