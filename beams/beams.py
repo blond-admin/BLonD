@@ -5,14 +5,26 @@ Created on 06.01.2014
 '''
 
 import numpy as np
-
-
 import copy, h5py, sys
 from scipy.constants import c, e, epsilon_0, m_e, m_p, pi
 from trackers.longitudinal_tracker import RFSystems
 
 class Beam(object):
     
+    def __init__(self, ring_and_RF, mass):
+        
+        self.mass = mass
+        self.gamma = ring_and_RF.gamma_i(self)
+        self.beta = ring_and_RF.beta_i(self)
+        self.p0 = ring_and_RF.p0_i
+        self.energy = ring_and_RF.energy_i(self)
+        self.x = []
+        self.xp = []
+        self.y = []
+        self.yp = []
+        self.theta = []
+        self.dE = []
+        
     def _create_empty(self, n_macroparticles):
 
         self.x = np.zeros(n_macroparticles)
@@ -40,7 +52,7 @@ class Beam(object):
         self.theta = 2 * np.random.rand(n_macroparticles) - 1
         self.dE = 2 * np.random.rand(n_macroparticles) - 1
         
-    def as_bunch(self, n_macroparticles, charge, gamma, intensity, mass,
+    def as_bunch(self, n_macroparticles, charge, intensity, 
                  alpha_x, beta_x, epsn_x, alpha_y, beta_y, epsn_y, beta_z, sigma_z=None, epsn_z=None):
 
         self._create_gauss(n_macroparticles)
@@ -48,14 +60,14 @@ class Beam(object):
 
         # General
         self.charge = charge
-        self.gamma = gamma
+        
         self.intensity = intensity
-        self.mass = mass
+        #self.mass = mass
 
         # Transverse
-        sigma_x = np.sqrt(beta_x * epsn_x * 1e-6 / (gamma * self.beta))
+        sigma_x = np.sqrt(beta_x * epsn_x * 1e-6 / (self.gamma * self.beta))
         sigma_xp = sigma_x / beta_x
-        sigma_y = np.sqrt(beta_y * epsn_y * 1e-6 / (gamma * self.beta))
+        sigma_y = np.sqrt(beta_y * epsn_y * 1e-6 / (self.gamma * self.beta))
         sigma_yp = sigma_y / beta_y
 
         self.x *= sigma_x
@@ -81,7 +93,7 @@ class Beam(object):
         return self
 
     @classmethod
-    def as_cloud(cls, n_macroparticles, density, extent_x, extent_y, extent_z):
+    def as_cloud(cls, ring_and_RF, n_macroparticles, density, extent_x, extent_y, extent_z):
 
         self = cls()
 
@@ -89,7 +101,7 @@ class Beam(object):
 
         # General
         self.charge = e
-        self.gamma = 1
+        self.gamma = ring_and_RF.gamma_i
         self.intensity = density * extent_x * extent_y * extent_z
         self.mass = m_e
 
@@ -125,34 +137,7 @@ class Beam(object):
 
         return len(self.x)
 
-    @property
-    def beta(self):
-        return np.sqrt(1 - self.gamma ** -2)
-    @beta.setter
-    def beta(self, value):
-        self.gamma = 1. / np.sqrt(1 - value ** 2)
 
-    @property
-    def p0(self):
-        return self.mass * self.gamma * self.beta * c
-    @p0.setter
-    def p0(self, value):
-        self.gamma = value / (self.mass * self.beta * c)
-        
-    @property
-    def energy(self):
-        return self.mass * c ** 2 * self.gamma / e
-    @energy.setter
-    def energy(self, value):
-        self.gamma = value * e / (self.mass * c ** 2)
-    
-#     @property
-#     def delta(self):
-#         return self.Deltap / self.p0
-#     @delta.setter
-#     def delta(self, value):
-#         self.Deltap = value * self.p0
-    
     @property
     def z(self):
         return - self.theta * 4242.893006758496
@@ -197,11 +182,10 @@ class Beam(object):
 
 class GaussianBunch(Beam):
 
-    def __init__(self, n_macroparticles, charge, gamma, intensity, mass, 
+    def __init__(self, n_macroparticles, charge, intensity, mass, 
                  alpha_x, beta_x, epsn_x, alpha_y, beta_y, epsn_y, beta_z, 
                  sigma_z=None, epsn_z=None, match=None):
         self.charge = charge
-        self.gamma = gamma
         self.intensity = intensity
         self.mass = mass
 
@@ -242,26 +226,7 @@ class GaussianBunch(Beam):
     def n_macroparticles(self):
         return len(self.x)
 
-    @property
-    def beta(self):
-        return np.sqrt(1 - 1. / self.gamma ** 2)
-    @beta.setter
-    def beta(self, value):
-        self.gamma = 1. / np.sqrt(1 - value ** 2)
-
-    @property
-    def p0(self):
-        return self.mass * self.gamma * self.beta * c
-    @p0.setter
-    def p0(self, value):
-        self.gamma = value / (self.mass * self.beta * c)
-
-    @property
-    def Deltap(self):
-        return self.delta * self.p0
-    @Deltap.setter
-    def Deltap(self, value):
-        self.delta = value / self.p0
+ 
     
     def sort_particles(self):
         # update the number of lost particles

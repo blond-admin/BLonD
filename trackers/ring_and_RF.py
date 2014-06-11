@@ -4,7 +4,7 @@ from scipy.constants import c, e
 
 class Ring_and_RF(object):
     
-    def __init__(self, circumference, harmonic_list, voltage_list, phi_offset_list, alpha_array, momentum_program_array):
+    def __init__(self, circumference, length, harmonic_list, voltage_list, phi_offset_list, alpha_array, momentum_program_array):
         
         self.circumference = circumference
         self.harmonic = harmonic_list
@@ -12,10 +12,42 @@ class Ring_and_RF(object):
         self.phi_offset = phi_offset_list
         self.alpha_array = alpha_array
         self.momentum_program_array = momentum_program_array
-
-
+        self.length = length
+        self.counter = 0
+        self.p0_i = momentum_program_array[self.counter]
+        self.p0_f = momentum_program_array[self.counter + 1]
         
+    
 
+    def beta_i(self, beam):
+        return np.sqrt( 1 / (1 + (beam.mass * c)**2 / (self.p0_i * e / c)**2) )
+        
+    def beta_f(self, beam):
+        return np.sqrt( 1 / (1 + (beam.mass * e)**2 / (self.p0_f * e / c)**2) )
+        
+    def gamma_i(self, beam):
+        return np.sqrt( 1 + (self.p0_i * e / c)**2 / (beam.mass * c)**2 )
+    
+    def gamma_f(self, beam):
+        return np.sqrt( 1 + (self.p0_f * e / c)**2 / (beam.mass * c)**2 )
+    
+    def energy_i(self, beam):
+        return np.sqrt( (self.p0_i * e)**2 + (beam.mass * c**2)**2 )
+    
+    def energy_f(self, beam):
+        return np.sqrt( (self.p0_f * e)**2 + (beam.mass * c**2)**2 )
+    
+#    def potential(self, z, beam):
+        
+#        """the potential well of the rf system"""
+#        phi_0 = self.accelerating_kick.calc_phi_0(beam)
+#        h1 = self.accelerating_kick.harmonic
+#        def fetch_potential(kick):
+#            phi_0_i = kick.harmonic / h1 * phi_0
+#            return kick.potential(z, beam, phi_0_i)
+#        potential_list = map(fetch_potential, self.kicks)
+#        return sum(potential_list)
+    
     def hamiltonian(self, beam, theta, dE, delta):
         """Single RF sinusoidal Hamiltonian.
         To be generalized."""
@@ -98,3 +130,5 @@ class Ring_and_RF(object):
         return - beam.beta ** 2 * (5 * beam.beta ** 2 - 1) / (2 * beam.gamma ** 2) \
             + alpha_array[2] - 2 * alpha_array[0] * alpha_array[1] + alpha_array[1] / beam.gamma ** 2 \
             + alpha_array[0] ** 2 * (alpha_array[0] - beam.gamma ** -2) - 3 * beam.beta ** 2 * alpha_array[0] / (2 * beam.gamma ** 2)
+    
+    

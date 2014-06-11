@@ -1,22 +1,8 @@
+
 from __future__ import division
-'''
-@class Wakefields
-@author Hannes Bartosik & Kevin Li & Giovanni Rumolo
-@date March 2014
-@Class for creation and management of wakefields from impedance sources
-@copyright CERN
-'''
-
-
 import numpy as np
-
-
 from scipy.constants import c, e
 from scipy.constants import physical_constants
-
-
-sin = np.sin
-cos = np.cos
 
 
 class Wakefields(object):
@@ -126,7 +112,7 @@ class long_wake_analytical(Wakefields):
         if Q > 0.5:
             wake =  - (np.sign(z) - 1) * R_shunt * alpha * np.exp(alpha * z.clip(max=0) / \
                                                                   c / bunch.beta) * \
-                    (cos(omegabar * z.clip(max=0) / c / bunch.beta) + alpha / omegabar * sin(omegabar * z.clip(max=0) / c / bunch.beta))
+                    (np.cos(omegabar * z.clip(max=0) / c / bunch.beta) + alpha / omegabar * np.sin(omegabar * z.clip(max=0) / c / bunch.beta))
         elif Q == 0.5:
             wake =  - (np.sign(z) - 1) * R_shunt * alpha * np.exp(alpha * z.clip(max=0) / c / bunch.beta) * \
                     (1. + alpha * z.clip(max=0) / c / bunch.beta)

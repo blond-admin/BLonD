@@ -18,7 +18,7 @@ from longitudinal_plots.longitudinal_plots import *
 # Simulation parameters --------------------------------------------------------
 # Bunch parameters
 N_b = 1.e9           # Intensity
-N_p = 10000          # Macro-particles
+N_p = 1          # Macro-particles
 tau_0 = 0.4e-9       # Initial bunch length, 4 sigma [s]
 sd = .5e-4           # Initial r.m.s. momentum spread
 N_sl = 100           # Number of slices
@@ -51,7 +51,7 @@ V_rf.append(6.e6)    # RF voltage [eV]
 dphi.append(0.)      # Phase modulation/offset
 
 # Tracking details
-N_t = 101            # Number of turns to track
+N_t = 200            # Number of turns to track
 dt_out = 20          # Time steps between output
 dt_plt = 10          # Time steps between plots
 
@@ -74,7 +74,7 @@ print ""
 
 
 # Synchrotron motion
-ring = Ring_and_RF(C, h, V_rf, dphi, alpha, p_s*np.ones(N_t+1))
+ring = Ring_and_RF(C, C, h, V_rf, dphi, alpha, p_s*np.ones(N_t+1))
 cavity = RFSystems(ring)
 #cavity = RFCavity(C, C, gamma_t, h, V_rf, 0.)#, integrator='euler-chromer')
 #cavity = RFCavity(C, C, gamma_t, h, V_rf, np.pi)#, integrator='euler-chromer')
@@ -99,9 +99,12 @@ print "Cavity set"
 #ParticleMonitor('initial_distribution').dump(bunch)
 #print "Initial distribution set"
 
-beam = Beam()
-bunch = beam.as_bunch(N_p, e, gamma, N_b, m_p, alpha_x, beta_x, epsn_x, 
+
+beam = Beam(ring, m_p)
+bunch = beam.as_bunch(N_p, e, N_b, alpha_x, beta_x, epsn_x, 
                       alpha_y, beta_y, epsn_y, beta, sz, 0.0614)
+bunch.theta[0] = 1e-5 + np.pi/h[0]
+bunch.dE[0] = 0 #7e-13
 print "Initial distribution set"
 
 
@@ -116,7 +119,11 @@ for i in range(N_t):
     
     # Track
     for m in map_:
+        print bunch.theta
+        print bunch.dE
+        print ""
         m.track(bunch)
+
     
     
 
@@ -129,9 +136,9 @@ for i in range(N_t):
 #                 str(time.clock() - t0))
 
     # Plot
-#     if (i % dt_plt) == 0:
-#         plot_long_phase_space(bunch, cavity, i, -1.5, 1.5, -1.e-3, 1.e-3, 
-#                               unit='ns')
+    #if (i % dt_plt) == 0:
+    #    plot_long_phase_space(bunch, cavity, i, -1.5, 1.5, -1.e-3, 1.e-3, 
+    #                           unit='ns')
 #        plot_bunch_length_evol(bunch, 'bunch', i, unit='ns')
 #        plot_bunch_length_evol_gaussian(bunch, 'bunch', i, unit='ns')
 
