@@ -13,6 +13,7 @@ from monitors.monitors import *
 from trackers.longitudinal_tracker import *
 from trackers.transverse_tracker import *
 from longitudinal_plots.longitudinal_plots import *
+from beams.transverse_distributions import *
 
 
 # Simulation parameters --------------------------------------------------------
@@ -74,8 +75,11 @@ print ""
 
 
 # Synchrotron motion
-ring = Ring_and_RF(C, C, h, V_rf, dphi, alpha, p_s*np.ones(N_t+1))
-cavity = RFSystems(ring)
+ring1 = Ring_and_RFstation(C, C, h, V_rf, dphi, alpha, p_s*np.ones(N_t+1))
+cavity1 = Longitudinal_tracker(ring1)
+
+#ring2 = Ring_and_RF(C, C*0.7, h, V_rf, dphi, alpha, p_s*np.ones(N_t+1))
+#cavity2 = RFSystems(ring2)
 #cavity = RFCavity(C, C, gamma_t, h, V_rf, 0.)#, integrator='euler-chromer')
 #cavity = RFCavity(C, C, gamma_t, h, V_rf, np.pi)#, integrator='euler-chromer')
 #cavity = RFCavityArray(C, gamma_t, h, V_rf, 0.)
@@ -100,16 +104,19 @@ print "Cavity set"
 #print "Initial distribution set"
 
 
-beam = Beam(ring, m_p)
-bunch = beam.as_bunch(N_p, e, N_b, alpha_x, beta_x, epsn_x, 
+beam = Beam(ring1, m_p, N_p, e, N_b)
+bunch = as_bunch(ring1, beam, alpha_x, beta_x, epsn_x, 
                       alpha_y, beta_y, epsn_y, beta, sz, 0.0614)
-bunch.theta[0] = 1e-5 + np.pi/h[0]
-bunch.dE[0] = 0 #7e-13
+beam2 = Beam(ring1, m_p, N_p, e, N_b)
+bunch2 = as_cloud(ring1, beam2, 1, 1, 1, 1)
+                      
+beam.theta[0] = 1e-5 + np.pi/h[0]
+beam.dE[0] = 0 #7e-13
 print "Initial distribution set"
 
 
 # Accelerator map
-map_ = [cavity] # No intensity effects, no aperture limitations
+map_ = [cavity1] #+ [cavity2] # No intensity effects, no aperture limitations
 print "Map set"
 print ""
 
@@ -119,10 +126,12 @@ for i in range(N_t):
     
     # Track
     for m in map_:
-        print bunch.theta
-        print bunch.dE
+        print beam.theta
+        print beam.dE
+#         print beam2.theta
+#         print beam2.dE
         print ""
-        m.track(bunch)
+        m.track(beam)
 
     
     

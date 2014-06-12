@@ -11,7 +11,7 @@ from __future__ import division
 import numpy as np
 
 
-from beams.distributions import stationary_exponential
+from beams.longitudinal_distributions import stationary_exponential
 from scipy.integrate import quad, dblquad
 from scipy.constants import c, e
 
