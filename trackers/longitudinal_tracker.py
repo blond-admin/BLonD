@@ -33,7 +33,7 @@ class Kick(object):
         self.phi_offset = ring.phi_offset[i]
         
     def track(self, beam):
-        
+       
         beam.dE += e * self.voltage * np.sin(self.harmonic * beam.theta + self.phi_offset)
     
     

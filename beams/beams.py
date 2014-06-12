@@ -22,22 +22,24 @@ class Beam(object):
         self.beta = ring_and_RF.beta_i(self)
         self.p0 = ring_and_RF.p0_i
         self.energy = ring_and_RF.energy_i(self)
-        
+        self.radius = ring_and_RF.radius
+        self.harmonic = ring_and_RF.harmonic
+                
         # Beam coordinates
-        self.x = []
-        self.xp = []
-        self.y = []
-        self.yp = []
-        self.theta = []
-        self.dE = []
+        self.x = np.empty([n_macroparticles])
+        self.xp = np.empty([n_macroparticles])
+        self.y = np.empty([n_macroparticles])
+        self.yp = np.empty([n_macroparticles])
+        self.theta = np.empty([n_macroparticles])
+        self.dE = np.empty([n_macroparticles])
         
         # Initial coordinates (e.g. for ecloud)
-        self.x0 = []
-        self.xp0 = []
-        self.y0 = []
-        self.yp0 = []
-        self.theta0 = []
-        self.dE0 = []
+        self.x0 = np.empty([n_macroparticles])
+        self.xp0 = np.empty([n_macroparticles])
+        self.y0 = np.empty([n_macroparticles])
+        self.yp0 = np.empty([n_macroparticles])
+        self.theta0 = np.empty([n_macroparticles])
+        self.dE0 = np.empty([n_macroparticles])
         
         # Transverse and longitudinal properties, statistics       
         self.alpha_x = 0
@@ -59,24 +61,26 @@ class Beam(object):
 
     @property
     def z(self):
-        return - self.theta * 4242.893006758496
+        return - self.theta * self.radius * self.harmonic[0] 
+    
     @z.setter
     def z(self, value):
-        self.theta = - value / 4242.893006758496
+        self.theta = - value / self.radius / self.harmonic[0]
     
     @property
     def delta(self):
         return self.dE / (self.beta**2 * self.energy)
+
     @delta.setter
     def delta(self, value):
         self.dE = value * self.beta**2 * self.energy
 
     @property
     def z0(self):
-        return - self.theta0 * 4242.893006758496
+        return - self.theta0 * self.radius * self.harmonic[0]
     @z0.setter
     def z0(self, value):
-        self.theta0 = - value / 4242.893006758496
+        self.theta0 = - value / self.radius / self.harmonic[0]
     
     @property
     def delta0(self):
@@ -97,10 +101,10 @@ class Beam(object):
     # Statistics
     @property    
     def mean_z(self):
-        return - self.mean_theta * 4242.893006758496
+        return - self.mean_theta * self.radius * self.harmonic[0]
     @mean_z.setter
     def mean_z(self, value):
-        self.mean_theta = - value / 4242.893006758496
+        self.mean_theta = - value / self.radius / self.harmonic[0]
     
     @property
     def mean_delta(self):
@@ -111,10 +115,10 @@ class Beam(object):
 
     @property    
     def sigma_z(self):
-        return - self.sigma_theta * 4242.893006758496
+        return - self.sigma_theta * self.radius * self.harmonic[0]
     @sigma_z.setter
     def sigma_z(self, value):
-        self.sigma_theta = - value / 4242.893006758496
+        self.sigma_theta = - value / self.radius / self.harmonic[0]
     
     @property
     def sigma_delta(self):
@@ -144,10 +148,10 @@ class Beam(object):
     
     def losses(self, ring):
          
-        for k in xrange(self.n_macroparticles):
-            if ring.is_in_separatrix(ring, self, self.theta[k], self.dE[k], self.delta[k]) == 0:
+        for i in xrange(self.n_macroparticles):
+            if not ring.is_in_separatrix(ring, self, self.theta[i], self.dE[i], self.delta[i]):
                 # Set ID to zero
-                self.id[k] = 0
+                self.id[i] = 0
          
 
 

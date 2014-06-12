@@ -16,6 +16,7 @@ class Ring_and_RFstation(object):
         if circumference != length:
             print "ATTENTION: The total length of RF stations should sum up to the circumference."
         self.circumference = circumference
+        self.radius = circumference / 2 / np.pi
         self.harmonic = harmonic_list
         self.voltage = voltage_list
         self.phi_offset = phi_offset_list
@@ -60,12 +61,12 @@ class Ring_and_RFstation(object):
     def hamiltonian(self, beam, theta, dE, delta):
         """Single RF sinusoidal Hamiltonian.
         To be generalized."""
-        h0 = self.harmonic_list[0]
-        V0 = self.voltage_list[0]
+        h0 = self.harmonic[0]
+        V0 = self.voltage[0]
         c1 = self.eta(beam, delta) * c * np.pi / (self.circumference * 
                                                   self.beta_i(beam) * self.energy_i(beam) )
         c2 = c * e * V0 / (h0 * self.circumference)
-        phi_s = self.calc_phi_s(beam, self.voltage_list)
+        phi_s = self.calc_phi_s(beam, self.voltage)
 
         return c1 * dE**2 + c2 * (np.cos(h0 * theta) - np.cos(phi_s) + 
                                   (h0 * theta) * np.sin(phi_s))

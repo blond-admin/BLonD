@@ -1,3 +1,9 @@
+'''
+Created on 12.06.2014
+
+@author: Helga Timko
+'''
+
 import h5py
 import os
 import numpy as np
