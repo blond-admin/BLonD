@@ -8,8 +8,7 @@ import h5py
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-
-from trackers.longitudinal_tracker import *
+from scipy.constants import c, e
 
 
 def fig_folder():
@@ -27,15 +26,20 @@ def fig_folder():
             raise
 
 
-def plot_long_phase_space(bunch, cavity, nturns, xmin, xmax, ymin, ymax, 
-                            unit=None):
+def plot_long_phase_space(ring, beam, nturns, xmin, xmax, ymin, ymax, 
+                          xunit=None, yunit=None):
 
     # Directory where longitudinal_plots will be stored
     fig_folder()
 
     # Conversion from metres to nanoseconds
-    if unit == 'ns':
-        coeff = 1.e9/c/bunch.beta
+    if xunit == 'ns':
+        coeff = 1.e9 * beam.radius / (ring.beta_f(beam) * c)
+    elif xunit == 'm':
+        coeff = - beam.radius * beam.harmonic[0]
+#     if yunit == None or yunit == 'MeV':
+#         ymin *= 1.e6
+#         ymax *= 1.e6
 
     # Definitions for placing the axes
     left, width = 0.1, 0.63
@@ -53,27 +57,52 @@ def plot_long_phase_space(bunch, cavity, nturns, xmin, xmax, ymin, ymax,
     axHisty = plt.axes(rect_histy)
     
     # Main plot: longitudinal distribution
-    if unit == None or unit == 'm':
-        axScatter.scatter(bunch.z, bunch.delta, s=1, edgecolor='none')
+    if xunit == None or xunit == 'rad':
+        axScatter.set_xlabel('theta [rad]', fontsize=14)
+        if yunit == None or yunit == 'MeV':
+            axScatter.scatter(beam.theta, beam.dE/1.e6, s=1, edgecolor='none')
+            axScatter.set_ylabel(r"$\Delta$E [MeV]", fontsize=14)
+        elif yunit == '1': 
+            axScatter.scatter(beam.theta, beam.delta, s=1, edgecolor='none') 
+            axScatter.set_ylabel(r"$\Delta$p/p$_0$ [1]", fontsize=14)           
+    elif xunit == 'm':
         axScatter.set_xlabel('z [m]', fontsize=14)
-    elif unit == 'ns':
-        axScatter.scatter(bunch.z*coeff, bunch.delta, s=1, edgecolor='none')
+        if yunit == None or yunit == 'MeV':
+            axScatter.scatter(beam.z, beam.dE/1.e6, s=1, edgecolor='none')
+            axScatter.set_ylabel(r"$\Delta$E [MeV]", fontsize=14)
+        elif yunit == '1': 
+            axScatter.scatter(beam.z, beam.delta, s=1, edgecolor='none') 
+            axScatter.set_ylabel(r"$\Delta$p/p$_0$ [1]", fontsize=14)              
+    elif xunit == 'ns':
         axScatter.set_xlabel('Time [ns]', fontsize=14)
+        if yunit == None or yunit == 'MeV':
+            axScatter.scatter(beam.theta*coeff, beam.dE/1.e6, s=1, edgecolor='none')
+            axScatter.set_ylabel(r"$\Delta$E [MeV]", fontsize=14)
+        elif yunit == '1': 
+            axScatter.scatter(beam.theta*coeff, beam.delta, s=1, edgecolor='none') 
+            axScatter.set_ylabel(r"$\Delta$p/p$_0$ [1]", fontsize=14)           
+        
     axScatter.set_xlim(xmin, xmax)
     axScatter.set_ylim(ymin, ymax)
-    axScatter.set_ylabel(r"$\Delta$p/p [1]", fontsize=14)
+    
+    if xunit == None or xunit == 'rad':
+        axScatter.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
     axScatter.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
     plt.figtext(0.95,0.95,'%d turns' %(nturns+1), fontsize=16, ha='right', 
                 va='center') 
 
     # Separatrix
     x_sep = np.linspace(xmin, xmax, 1000)
-    if unit == None or unit == 'm':
-        y_sep = cavity.separatrix(x_sep, bunch)
-    elif unit == 'ns':
-        y_sep = cavity.separatrix(x_sep/coeff, bunch)
-    axScatter.plot(x_sep, y_sep, 'r')
-    axScatter.plot(x_sep, -1.*y_sep, 'r')
+    if xunit == None or xunit == 'rad':
+        y_sep = ring.separatrix(beam, x_sep)
+    elif xunit == 'm' or xunit == 'ns':
+        y_sep = ring.separatrix(beam, x_sep/coeff)
+    if yunit == None or yunit == 'MeV':
+        axScatter.plot(x_sep, y_sep/1.e6, 'r')
+        axScatter.plot(x_sep, -1.e-6*y_sep, 'r')       
+    else:
+        axScatter.plot(x_sep, y_sep, 'r')
+        axScatter.plot(x_sep, -1.*y_sep, 'r')
     
     # Phase and momentum histograms
     xbin = (xmax - xmin)/200.
@@ -81,11 +110,16 @@ def plot_long_phase_space(bunch, cavity, nturns, xmin, xmax, ymin, ymax,
     ybin = (ymax - ymin)/200.
     yh = np.arange(ymin, ymax + ybin, ybin)
 
-    if unit == None or unit == 'm':
-        axHistx.hist(bunch.dz, bins=xh, histtype='step')
-    elif unit == 'ns':
-        axHistx.hist(bunch.z*coeff, bins=xh, histtype='step')
-    axHisty.hist(bunch.delta, bins=yh, histtype='step', orientation='horizontal')
+    if xunit == None or xunit == 'rad':
+        axHistx.hist(beam.theta, bins=xh, histtype='step')
+    elif xunit == 'm':
+        axHistx.hist(beam.z, bins=xh, histtype='step')       
+    elif xunit == 'ns':
+        axHistx.hist(beam.theta*coeff, bins=xh, histtype='step')
+    if yunit == None or yunit == 'MeV':
+        axHisty.hist(beam.dE/1.e6, bins=yh, histtype='step', orientation='horizontal')
+    if yunit == '1':
+        axHisty.hist(beam.delta, bins=yh, histtype='step', orientation='horizontal')
     axHistx.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
     axHisty.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
     axHistx.axes.get_xaxis().set_visible(False)

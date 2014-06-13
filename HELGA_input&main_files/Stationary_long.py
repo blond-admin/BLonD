@@ -15,7 +15,7 @@ from longitudinal_plots.longitudinal_plots import *
 # Simulation parameters --------------------------------------------------------
 # Bunch parameters
 N_b = 1.e9           # Intensity
-N_p = 11            # Macro-particles
+N_p = 10001            # Macro-particles
 tau_0 = 0.4e-9       # Initial bunch length, 4 sigma [s]
 sd = .5e-4           # Initial r.m.s. momentum spread
 
@@ -31,9 +31,9 @@ V_rf.append(6.e6)    # RF voltage [eV]
 dphi.append(0.)      # Phase modulation/offset
 
 # Tracking details
-N_t = 10            # Number of turns to track
+N_t = 200            # Number of turns to track
 dt_out = 20          # Time steps between output
-dt_plt = 10          # Time steps between plots
+dt_plt = 20          # Time steps between plots
 
 # Derived parameters
 #m_p *= c**2/e
@@ -41,7 +41,7 @@ E_s = np.sqrt(p_s**2 + m_p**2 * c**4 / e**2)  # Sychronous energy [eV]
 gamma = E_s/(m_p*c**2/e)          # Relativistic gamma
 beta = np.sqrt(1. - 1./gamma**2)  # Relativistic beta
 T0 = C / beta / c                 # Turn period
-sigma_theta = tau_0 / 4 / T0      # R.m.s. theta
+sigma_theta = 2 * np.pi * tau_0 / T0      # R.m.s. theta
 sigma_dE = sd * beta**2 * E_s           # R.m.s. dE
 alpha = []
 alpha.append(1./gamma_t/gamma_t)        # First order mom. comp. factor
@@ -54,15 +54,37 @@ print "Setting up the simulation..."
 print ""
 
 
-# Synchrotron motion
+# Define Ring and RF Station
 ring = Ring_and_RFstation(C, C, h, V_rf, dphi, alpha, p_s*np.ones(N_t+1))
+
+# Define Beam
+beam = Beam(ring, m_p, N_p, e, N_b)
+print "Momentumi %.6e" %ring.p0_i
+print "Momentumf %.6e" %ring.p0_f
+print "Gammai %3.3f" %ring.gamma_i(beam)
+print "Gammaf %3.3f" %ring.gamma_f(beam)
+print "Betai %.6e" %ring.beta_i(beam)
+print "Betaf %.6e" %ring.beta_f(beam)
+print "Energyi %.6e" %ring.energy_i(beam)
+print "Energyf %.6e" %ring.energy_f(beam)
+print ""
+
+# Choose Tracker 
 long_tracker = Longitudinal_tracker(ring)
+#long_tracker = LinearMap(ring, beam)
 print "RF station set"
 
-# Bunch initialisation
-beam = Beam(ring, m_p, N_p, e, N_b)
-distribution = longitudinal_bigaussian(ring, beam, sigma_theta, sigma_dE)
+# Choose Distribution
+#distribution = longitudinal_bigaussian(ring, beam, sigma_theta*10, sigma_dE*10)
+distribution = longitudinal_gaussian_matched(ring, beam, sigma_theta)
 print "Initial distribution set"
+
+
+beam.longit_statistics(ring)
+print beam.sigma_dE
+print beam.sigma_theta
+print beam.eps_rms_l
+
 
 # Accelerator map
 map_ = [long_tracker] # No intensity effects, no aperture limitations
@@ -94,8 +116,8 @@ for i in range(N_t):
 
     # Plot
     if (i % dt_plt) == 0:
-        plot_long_phase_space(beam, ring, i, -1.5, 1.5, -1.e-3, 1.e-3, 
-                              unit='ns')
+        #plot_long_phase_space(ring, beam, i, 0, 2.5, -1.e-3, 1.e-3, xunit='ns', yunit='1')
+       plot_long_phase_space(ring, beam, i, 0, 0.0001763, -450, 450)
 #        plot_bunch_length_evol(bunch, 'bunch', i, unit='ns')
 #        plot_bunch_length_evol_gaussian(bunch, 'bunch', i, unit='ns')
 

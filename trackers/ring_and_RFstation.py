@@ -15,37 +15,37 @@ class Ring_and_RFstation(object):
         
         if circumference != length:
             print "ATTENTION: The total length of RF stations should sum up to the circumference."
-        self.circumference = circumference
-        self.radius = circumference / 2 / np.pi
+        self.circumference = circumference # in m
+        self.radius = circumference / 2 / np.pi # in m
         self.harmonic = harmonic_list
-        self.voltage = voltage_list
-        self.phi_offset = phi_offset_list
+        self.voltage = voltage_list # in V
+        self.phi_offset = phi_offset_list # in rad
         if len(alpha_array) > 3:
             print "WARNING: Slippage factor implemented only till second order. Higher orders in alpha ignored. "
         self.alpha_array = alpha_array
-        self.momentum_program_array = momentum_program_array
-        self.length = length
+        self.momentum_program_array = momentum_program_array # in eV
+        self.length = length # in m
         self.counter = 0
-        self.p0_i = momentum_program_array[self.counter]
-        self.p0_f = momentum_program_array[self.counter + 1]
+        self.p0_i = momentum_program_array[self.counter] # in eV
+        self.p0_f = momentum_program_array[self.counter + 1] # in eV
         
     def beta_i(self, beam):
-        return np.sqrt( 1 / (1 + (beam.mass * c)**2 / (self.p0_i * e / c)**2) )
+        return np.sqrt( 1 / (1 + (beam.mass * c**2)**2 / (self.p0_i * e)**2) )
         
     def beta_f(self, beam):
-        return np.sqrt( 1 / (1 + (beam.mass * e)**2 / (self.p0_f * e / c)**2) )
+        return np.sqrt( 1 / (1 + (beam.mass * c**2)**2 / (self.p0_f * e)**2) )
         
     def gamma_i(self, beam):
-        return np.sqrt( 1 + (self.p0_i * e / c)**2 / (beam.mass * c)**2 )
+        return np.sqrt( 1 + (self.p0_i * e)**2 / (beam.mass * c**2)**2 )
     
     def gamma_f(self, beam):
-        return np.sqrt( 1 + (self.p0_f * e / c)**2 / (beam.mass * c)**2 )
+        return np.sqrt( 1 + (self.p0_f * e)**2 / (beam.mass * c**2)**2 )
     
     def energy_i(self, beam):
-        return np.sqrt( (self.p0_i * e)**2 + (beam.mass * c**2)**2 )
+        return np.sqrt( self.p0_i**2 + (beam.mass * c**2 / e)**2 )
     
     def energy_f(self, beam):
-        return np.sqrt( (self.p0_f * e)**2 + (beam.mass * c**2)**2 )
+        return np.sqrt( self.p0_f**2 + (beam.mass * c**2 / e)**2 )
     
 #    def potential(self, z, beam):
         
@@ -64,12 +64,12 @@ class Ring_and_RFstation(object):
         h0 = self.harmonic[0]
         V0 = self.voltage[0]
         c1 = self.eta(beam, delta) * c * np.pi / (self.circumference * 
-                                                  self.beta_i(beam) * self.energy_i(beam) )
-        c2 = c * e * V0 / (h0 * self.circumference)
+             self.beta_f(beam) * self.energy_f(beam) )
+        c2 = c * self.beta_f(beam) * V0 / (h0 * self.circumference)
         phi_s = self.calc_phi_s(beam, self.voltage)
 
         return c1 * dE**2 + c2 * (np.cos(h0 * theta) - np.cos(phi_s) + 
-                                  (h0 * theta) * np.sin(phi_s))
+                                  (h0 * theta - phi_s) * np.sin(phi_s))
 
     def calc_phi_s(self, beam, voltage):
         """The synchronous phase calculated from the rate of momentum change.
@@ -79,7 +79,7 @@ class Ring_and_RFstation(object):
         Above transition, for decelerating bucket: phi_s is in (Pi,3Pi/2)
         The synchronous phase is calculated at a certain moment."""
         V0 = voltage[0]
-        phi_s = np.arcsin(self.beta_i(beam) * c / (e * V0) * (self.p0_f - self.p0_i))
+        phi_s = np.arcsin(self.beta_f(beam) * (self.p0_f - self.p0_i) / V0 )
         if self.eta(beam, 0) > 0:
             phi_s = np.pi - phi_s
 
@@ -92,7 +92,7 @@ class Ring_and_RFstation(object):
         V0 = self.voltage[0]
         phi_s = self.calc_phi_s(beam, self.voltage)
 
-        return np.sqrt(self.beta_i(beam)**2 * self.energy_i(beam) * e * V0 / 
+        return np.sqrt(self.beta_f(beam)**2 * self.energy_f(beam) * V0 / 
                        (np.pi * self.eta(beam, 0) * h0) * 
                        (-np.cos(h0 * theta) - np.cos(phi_s) + 
                          (np.pi - phi_s - h0 * theta) * np.sin(phi_s)))

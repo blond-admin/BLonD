@@ -34,7 +34,8 @@ class Kick(object):
         
     def track(self, beam):
        
-        beam.dE += e * self.voltage * np.sin(self.harmonic * beam.theta + self.phi_offset)
+        beam.dE += self.voltage * np.sin(self.harmonic * beam.theta + 
+                                         self.phi_offset) # in eV
     
     
 class Kick_acceleration(object):
@@ -48,7 +49,8 @@ class Kick_acceleration(object):
         
         """Using the average beta during the acceleration to account for 
         the change in momentum over one turn."""
-        beam.dE += - (self.ring.beta_i(beam) + self.ring.beta_f(beam)) / 2 * c * self.p_increment
+        beam.dE += - (self.ring.beta_i(beam) + self.ring.beta_f(beam)) / 2 \
+                * self.p_increment # in eV
         # Update momentum in ring_and_RFstation
         self.ring.counter += 1
         
@@ -72,10 +74,15 @@ class Drift(object):
         
     def track(self, beam):  
         try: 
-            beam.theta = { 'full' : self.ring.beta_f(beam) / self.ring.beta_i(beam)  * beam.theta \
-                          + 2 * np.pi * (1 / (1 - self.ring.eta(beam, beam.delta) * beam.delta) - 1) * self.ring.length / self.ring.circumference,
-                          'simple' : beam.theta + 2 * np.pi * self.ring._eta0(beam, self.ring.alpha_array) * beam.delta * self.ring.length / self.ring.circumference
-                          }[self.solver]
+            beam.theta = \
+            {'full' : self.ring.beta_f(beam) / self.ring.beta_i(beam)  
+             * beam.theta + 2 * np.pi * (1 / (1 - self.ring.eta(beam, beam.delta) 
+                                             * beam.delta) - 1) 
+             * self.ring.length / self.ring.circumference,
+             'simple' : beam.theta + 2 * np.pi * self.ring.
+             _eta0(beam, self.ring.alpha_array) * beam.delta * self.ring.length \
+             / self.ring.circumference
+            }[self.solver]
         except KeyError:
             print "ERROR: Choice of longitudinal solver not recognized! Aborting..."
             sys.exit()
@@ -142,19 +149,24 @@ class LinearMap(object):
     self.alpha is the linear momentum compaction factor.
     '''
 
-    def __init__(self, circumference, alpha, Qs):
+    def __init__(self, ring, beam, Qs):
         
         """alpha is the linear momentum compaction factor,
         Qs the synchroton tune."""
-        self.circumference = circumference
-        self.alpha = alpha
+        self.circumference = ring.circumference
+        self.alpha = ring.alpha_array[0]
+        self.eta = ring._eta0(beam, ring.alpha_array)
+        # Qs calculated for stationary bucket, doesn't include cos(phi_s)!
+        #self.Qs = np.sqrt(ring.harmonic[0] * ring.voltage[0] * np.fabs(self.eta) / 
+        #                  2 / np.pi / ring.beta_i(beam)**2 / ring.energy_i(beam))
         self.Qs = Qs
+        self.beta = ring.beta_i(beam)
 
     def track(self, beam):
 
-        eta = self.alpha - beam.gamma ** -2
 
-        omega_0 = 2 * np.pi * beam.beta * c / self.circumference
+
+        omega_0 = 2 * np.pi * self.beta * c / self.circumference
         omega_s = self.Qs * omega_0
 
         dQs = 2 * np.pi * self.Qs
@@ -162,8 +174,8 @@ class LinearMap(object):
         sindQs = np.sin(dQs)
 
         z0 = beam.z
-        dp0 = beam.dp
+        delta0 = beam.delta
 
-        beam.z = z0 * cosdQs - eta * c / omega_s * dp0 * sindQs
-        beam.dp = dp0 * cosdQs + omega_s / eta / c * z0 * sindQs
+        beam.z = z0 * cosdQs - self.eta * c / omega_s * delta0 * sindQs
+        beam.delta = delta0 * cosdQs + omega_s / self.eta / c * z0 * sindQs
 

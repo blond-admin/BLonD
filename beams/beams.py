@@ -15,15 +15,15 @@ class Beam(object):
     def __init__(self, ring_and_RF, mass, n_macroparticles, charge, intensity):
         
         # Beam properties
-        self.mass = mass
-        self.charge = charge
-        self.intensity = intensity
+        self.mass = mass # in kg
+        self.charge = charge # in C
+        self.intensity = intensity # total no of particles
         self.gamma = ring_and_RF.gamma_i(self)
         self.beta = ring_and_RF.beta_i(self)
-        self.p0 = ring_and_RF.p0_i
-        self.energy = ring_and_RF.energy_i(self)
-        self.radius = ring_and_RF.radius
-        self.harmonic = ring_and_RF.harmonic
+        self.p0 = ring_and_RF.p0_i # in eV
+        self.energy = ring_and_RF.energy_i(self) # in eV
+        self.radius = ring_and_RF.radius # in m
+        self.harmonic = ring_and_RF.harmonic # in eV
                 
         # Beam coordinates
         self.x = np.empty([n_macroparticles])
@@ -133,7 +133,10 @@ class Beam(object):
         self.mean_dE = cp.mean(self.dE)
         self.sigma_theta = cp.std(self.theta)
         self.sigma_dE = cp.std(self.dE)
-        self.epsn_l = 4 * np.pi * self.sigma_theta * self.sigma_dE * self.mass * ring.gamma_f * ring.beta_f * c / e
+        #self.epsn_l = 4 * np.pi * self.sigma_theta * self.sigma_dE * self.mass * ring.gamma_f * ring.beta_f * c / e
+        # R.m.s. emittance in Gaussian approximation, other emittances to be defined
+        self.eps_rms_l = np.pi * self.sigma_dE * self.sigma_theta \
+                         * self.radius / (ring.beta_f(self) * c) # in eVs
     
     def transv_statistics(self, ring):
         
