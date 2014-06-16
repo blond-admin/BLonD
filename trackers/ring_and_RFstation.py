@@ -6,6 +6,7 @@ Created on 12.06.2014
 
 from __future__ import division
 import numpy as np
+from warnings import filterwarnings
 
 from scipy.constants import c, e
 
@@ -74,11 +75,17 @@ class Ring_and_RFstation(object):
         h0 = self.harmonic[0]
         V0 = self.voltage[0]
         phi_s = self.calc_phi_s(beam, self.voltage)
-           
-        return np.sqrt(beam.beta()**2 * beam.energy() * V0 / 
+        
+        filterwarnings('ignore')
+        
+        separatrix_array = np.sqrt(beam.beta()**2 * beam.energy() * V0 / 
                        (np.pi * self.eta(beam, 0) * h0) * 
                        (-np.cos(h0 * theta) - np.cos(phi_s) + 
                          (np.pi - phi_s - h0 * theta) * np.sin(phi_s)))
+        
+        filterwarnings('default')
+           
+        return separatrix_array
 
     def is_in_separatrix(self, beam, theta, dE, delta):
         """Condition for being inside the separatrix.
