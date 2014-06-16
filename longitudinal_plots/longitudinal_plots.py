@@ -36,10 +36,8 @@ def plot_long_phase_space(ring, beam, nturns, xmin, xmax, ymin, ymax,
     if xunit == 'ns':
         coeff = 1.e9 * beam.radius / (ring.beta_f(beam) * c)
     elif xunit == 'm':
-        coeff = - beam.radius * beam.harmonic[0]
-#     if yunit == None or yunit == 'MeV':
-#         ymin *= 1.e6
-#         ymax *= 1.e6
+        coeff = - beam.radius
+    ycoeff = ring.beta_f(beam)**2 * ring.energy_f(beam)
 
     # Definitions for placing the axes
     left, width = 0.1, 0.63
@@ -76,6 +74,7 @@ def plot_long_phase_space(ring, beam, nturns, xmin, xmax, ymin, ymax,
     elif xunit == 'ns':
         axScatter.set_xlabel('Time [ns]', fontsize=14)
         if yunit == None or yunit == 'MeV':
+            print beam.theta*coeff
             axScatter.scatter(beam.theta*coeff, beam.dE/1.e6, s=1, edgecolor='none')
             axScatter.set_ylabel(r"$\Delta$E [MeV]", fontsize=14)
         elif yunit == '1': 
@@ -101,8 +100,8 @@ def plot_long_phase_space(ring, beam, nturns, xmin, xmax, ymin, ymax,
         axScatter.plot(x_sep, y_sep/1.e6, 'r')
         axScatter.plot(x_sep, -1.e-6*y_sep, 'r')       
     else:
-        axScatter.plot(x_sep, y_sep, 'r')
-        axScatter.plot(x_sep, -1.*y_sep, 'r')
+        axScatter.plot(x_sep, y_sep/ycoeff, 'r')
+        axScatter.plot(x_sep, -1.*y_sep/ycoeff, 'r')
     
     # Phase and momentum histograms
     xbin = (xmax - xmin)/200.

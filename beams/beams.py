@@ -61,11 +61,11 @@ class Beam(object):
 
     @property
     def z(self):
-        return - self.theta * self.radius * self.harmonic[0] 
+        return - self.theta * self.radius 
     
     @z.setter
     def z(self, value):
-        self.theta = - value / self.radius / self.harmonic[0]
+        self.theta = - value / self.radius
     
     @property
     def delta(self):
@@ -77,10 +77,10 @@ class Beam(object):
 
     @property
     def z0(self):
-        return - self.theta0 * self.radius * self.harmonic[0]
+        return - self.theta0 * self.radius 
     @z0.setter
     def z0(self, value):
-        self.theta0 = - value / self.radius / self.harmonic[0]
+        self.theta0 = - value / self.radius 
     
     @property
     def delta0(self):
@@ -101,10 +101,10 @@ class Beam(object):
     # Statistics
     @property    
     def mean_z(self):
-        return - self.mean_theta * self.radius * self.harmonic[0]
+        return - self.mean_theta * self.radius 
     @mean_z.setter
     def mean_z(self, value):
-        self.mean_theta = - value / self.radius / self.harmonic[0]
+        self.mean_theta = - value / self.radius 
     
     @property
     def mean_delta(self):
@@ -115,10 +115,10 @@ class Beam(object):
 
     @property    
     def sigma_z(self):
-        return - self.sigma_theta * self.radius * self.harmonic[0]
+        return - self.sigma_theta * self.radius 
     @sigma_z.setter
     def sigma_z(self, value):
-        self.sigma_theta = - value / self.radius / self.harmonic[0]
+        self.sigma_theta = - value / self.radius 
     
     @property
     def sigma_delta(self):

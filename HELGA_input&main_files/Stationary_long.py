@@ -91,11 +91,11 @@ map_ = [long_tracker] # No intensity effects, no aperture limitations
 print "Map set"
 print ""
 
-print beam.dE
-print beam.theta
-print ""
-print beam.delta
-print beam.z
+# print beam.dE
+# print beam.theta
+# print ""
+# print beam.delta
+# print beam.z
 #plot_long_phase_space(beam, ring, 0, -1.5, 1.5, -1.e-3, 1.e-3, unit='ns')
 
 # Tracking ---------------------------------------------------------------------
@@ -116,8 +116,9 @@ for i in range(N_t):
 
     # Plot
     if (i % dt_plt) == 0:
-        #plot_long_phase_space(ring, beam, i, 0, 2.5, -1.e-3, 1.e-3, xunit='ns', yunit='1')
-       plot_long_phase_space(ring, beam, i, 0, 0.0001763, -450, 450)
+        plot_long_phase_space(ring, beam, i, -0.75, 0, -1.e-3, 1.e-3, xunit='m', yunit='1')
+        #plot_long_phase_space(ring, beam, i, 0, 2.5, -.5e3, .5e3, xunit='ns', yunit='MeV')
+        #plot_long_phase_space(ring, beam, i, 0, 0.0001763, -450, 450)
 #        plot_bunch_length_evol(bunch, 'bunch', i, unit='ns')
 #        plot_bunch_length_evol_gaussian(bunch, 'bunch', i, unit='ns')
 
