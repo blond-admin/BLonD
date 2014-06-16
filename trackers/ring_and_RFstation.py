@@ -11,6 +11,15 @@ from warnings import filterwarnings
 from scipy.constants import c, e
 
 class Ring_and_RFstation(object):
+    '''
+    Definition of an RF station and part of the ring until the next station
+    
+    .. image:: https://github.com/jakubroztocil/httpie/raw/master/httpie.png
+        :alt: HTTPie compared to cURL
+        :width: 835
+        :height: 835
+        :align: center
+    '''
     
     def __init__(self, circumference, length, harmonic_list, voltage_list, phi_offset_list, alpha_array):
         
