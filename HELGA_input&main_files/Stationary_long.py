@@ -31,7 +31,7 @@ V_rf.append(6.e6)    # RF voltage [eV]
 dphi.append(0)      # Phase modulation/offset
 
 # Tracking details
-N_t = 20000            # Number of turns to track
+N_t = 2000            # Number of turns to track
 dt_out = 20          # Time steps between output
 dt_plt = 200          # Time steps between plots
 
@@ -133,6 +133,7 @@ for i in range(N_t):
 #        plot_bunch_length_evol_gaussian(bunch, 'bunch', i, unit='ns')
 
 
+print np.sqrt(-1)
 
 print "Done!"
 print ""
