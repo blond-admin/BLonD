@@ -36,14 +36,14 @@ def longitudinal_bigaussian(ring, beam, sigma_x, sigma_y, xunit=None, yunit=None
     if xunit == None or xunit == 'rad':
         sigma_theta = sigma_x
     elif xunit == 'm':
-        sigma_theta = sigma_x / (- beam.radius * beam.harmonic[0]) 
+        sigma_theta = sigma_x / (- ring.radius * ring.harmonic[0]) 
     elif xunit == 'ns':       
-        sigma_theta = sigma_x * ring.beta_f(beam) * c * 1.e-9 / beam.radius
+        sigma_theta = sigma_x * beam.beta_i() * c * 1.e-9 / ring.radius
         
     if yunit == None or yunit == 'eV':
         sigma_dE = sigma_y
     elif yunit == '1':    
-        sigma_dE = sigma_y * ring.beta_i(beam)**2 * ring.energy_i(beam)
+        sigma_dE = sigma_y * beam.beta_i()**2 * beam.energy_i()
         
     
     beam.sigma_theta = sigma_theta
@@ -68,29 +68,19 @@ def longitudinal_gaussian_matched(ring, beam, four_sigma_bunch_length, unit=None
     if unit == None or unit == 'rad':
         sigma_theta = four_sigma_bunch_length / 4
     elif unit == 'm':
-        sigma_theta = four_sigma_bunch_length / (-4 * beam.radius * beam.harmonic[0]) 
+        sigma_theta = four_sigma_bunch_length / (-4 * ring.radius * ring.harmonic[0]) 
     elif unit == 'ns':       
-        sigma_theta = four_sigma_bunch_length * ring.beta_f(beam) * c * 4.e-9 / beam.radius  
+        sigma_theta = four_sigma_bunch_length * beam.beta_i() * c * 4.e-9 / ring.radius  
         
     phi_s = ring.calc_phi_s(beam, ring.voltage)
     phi_b = ring.harmonic[0]*sigma_theta + phi_s
-    print phi_s
-    print phi_b   
-    print np.cos(phi_b) - np.cos(phi_s) + (phi_b - phi_s) * np.sin(phi_s)
-    print ""
-    print ring.voltage[0]
-    print ring.energy_i(beam)
-    print ring.beta_i(beam)
-    print ring._eta0(beam, ring.alpha_array)
-    print ""
     
-    sigma_dE = np.sqrt( ring.voltage[0] * ring.energy_i(beam) * ring.beta_i(beam)**2  
+    sigma_dE = np.sqrt( ring.voltage[0] * beam.energy_i() * beam.beta_i()**2  
              * (np.cos(phi_b) - np.cos(phi_s) + (phi_b - phi_s) * np.sin(phi_s)) 
              / (np.pi * ring.harmonic[0] * ring._eta0(beam, ring.alpha_array)) )
     
     beam.sigma_theta = sigma_theta
     beam.sigma_dE = sigma_dE
-    print sigma_dE
 
     for i in xrange(beam.n_macroparticles):
         beam.theta[i] = sigma_theta * np.random.randn() \

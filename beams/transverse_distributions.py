@@ -33,7 +33,7 @@ def _create_uniform(beam):
     beam.z = 2 * np.random.rand(beam.n_macroparticles) - 1
     beam.delta = 2 * np.random.rand(beam.n_macroparticles) - 1
         
-def as_bunch(ring, beam, alpha_x, beta_x, epsn_x, alpha_y, beta_y, epsn_y, beta_z, sigma_z=None, epsn_z=None):
+def as_bunch(beam, alpha_x, beta_x, epsn_x, alpha_y, beta_y, epsn_y, beta_z, sigma_z=None, epsn_z=None):
 
     beam.alpha_x = alpha_x
     beam.beta_x = beta_x
@@ -47,9 +47,9 @@ def as_bunch(ring, beam, alpha_x, beta_x, epsn_x, alpha_y, beta_y, epsn_y, beta_
     
 
     # Transverse
-    sigma_x = np.sqrt(beta_x * epsn_x * 1e-6 / (ring.gamma_i(beam) * ring.beta_i(beam)))
+    sigma_x = np.sqrt(beta_x * epsn_x * 1e-6 / (beam.gamma_i() * beam.beta_i()))
     sigma_xp = sigma_x / beta_x
-    sigma_y = np.sqrt(beta_y * epsn_y * 1e-6 / (ring.gamma_i(beam) * ring.beta_i(beam)))
+    sigma_y = np.sqrt(beta_y * epsn_y * 1e-6 / (beam.gamma_i() * beam.beta_i()))
     sigma_yp = sigma_y / beta_y
 
     beam.x *= sigma_x
@@ -60,11 +60,11 @@ def as_bunch(ring, beam, alpha_x, beta_x, epsn_x, alpha_y, beta_y, epsn_y, beta_
     # Longitudinal
     # Assuming a gaussian-type stationary distribution: beta_z = eta * circumference / (2 * np.pi * Qs)
     if sigma_z and epsn_z:
-        sigma_delta = epsn_z / (4 * np.pi * sigma_z) * e / ring.p0_i
+        sigma_delta = epsn_z / (4 * np.pi * sigma_z) * e / beam.p0_i()
         if sigma_z / sigma_delta != beta_z:
             print '*** WARNING: beam mismatched in bucket. Set synchrotron tune to obtain beta_z = ', sigma_z / sigma_delta
     elif not sigma_z and epsn_z:
-        sigma_z = np.sqrt(beta_z * epsn_z / (4 * np.pi) * e / ring.p0_i)
+        sigma_z = np.sqrt(beta_z * epsn_z / (4 * np.pi) * e / beam.p0_i())
         sigma_delta = sigma_z / beta_z
     else:
         sigma_delta = sigma_z / beta_z
@@ -73,7 +73,7 @@ def as_bunch(ring, beam, alpha_x, beta_x, epsn_x, alpha_y, beta_y, epsn_y, beta_
     beam.delta *= sigma_delta
 
     
-def as_cloud(ring, beam, density, extent_x, extent_y, extent_z):
+def as_cloud(beam, density, extent_x, extent_y, extent_z):
 
     _create_uniform(beam)
 
@@ -104,11 +104,11 @@ def as_ghost(beam):
 
     _create_uniform(beam)
 
-def _match_simple_gaussian_transverse(ring, beam):
+def _match_simple_gaussian_transverse(beam):
 
-        sigma_x = np.sqrt(beam.beta_x * beam.epsn_x * 1e-6 / (ring.gamma_i * ring.beta_i))
+        sigma_x = np.sqrt(beam.beta_x * beam.epsn_x * 1e-6 / (beam.gamma_i() * beam.beta_i()))
         sigma_xp = sigma_x / beam.beta_x
-        sigma_y = np.sqrt(beam.beta_y * beam.epsn_y * 1e-6 / (ring.gamma_i * ring.beta_i))
+        sigma_y = np.sqrt(beam.beta_y * beam.epsn_y * 1e-6 / (beam.gamma_i() * beam.beta_i()))
         sigma_yp = sigma_y / beam.beta_y
 
         beam.x *= sigma_x

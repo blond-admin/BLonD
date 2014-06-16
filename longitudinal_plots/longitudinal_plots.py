@@ -34,10 +34,10 @@ def plot_long_phase_space(ring, beam, nturns, xmin, xmax, ymin, ymax,
 
     # Conversion from metres to nanoseconds
     if xunit == 'ns':
-        coeff = 1.e9 * beam.radius / (ring.beta_f(beam) * c)
+        coeff = 1.e9 * beam.radius / (beam.beta_i() * c)
     elif xunit == 'm':
         coeff = - beam.radius
-    ycoeff = ring.beta_f(beam)**2 * ring.energy_f(beam)
+    ycoeff = beam.beta_i()**2 * beam.energy_i()
 
     # Definitions for placing the axes
     left, width = 0.1, 0.63
@@ -102,7 +102,7 @@ def plot_long_phase_space(ring, beam, nturns, xmin, xmax, ymin, ymax,
     else:
         axScatter.plot(x_sep, y_sep/ycoeff, 'r')
         axScatter.plot(x_sep, -1.*y_sep/ycoeff, 'r')
-    
+   
     # Phase and momentum histograms
     xbin = (xmax - xmin)/200.
     xh = np.arange(xmin, xmax + xbin, xbin)

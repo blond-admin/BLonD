@@ -1,4 +1,4 @@
-# Example input for stationary longitudinal simulation
+# Example input for stationary longitudinal simulation for transverse use
 # No intensity effects
 
 import numpy as np
@@ -8,7 +8,7 @@ from scipy.constants import c, e, m_p
 from trackers.ring_and_RFstation import *
 from trackers.longitudinal_tracker import *
 from beams.beams import *
-from beams.longitudinal_distributions import *
+from beams.transverse_distributions import *
 from longitudinal_plots.longitudinal_plots import *
 
 
@@ -28,12 +28,12 @@ C = 26658.883        # Machine circumference [m]
 p_s = 450.e9         # Synchronous momentum [eV]
 h.append(35640)      # Harmonic number
 V_rf.append(6.e6)    # RF voltage [eV]
-dphi.append(0)      # Phase modulation/offset
+dphi.append(0.)      # Phase modulation/offset
 
 # Tracking details
-N_t = 20000            # Number of turns to track
+N_t = 200            # Number of turns to track
 dt_out = 20          # Time steps between output
-dt_plt = 200          # Time steps between plots
+dt_plt = 20          # Time steps between plots
 
 # Derived parameters
 #m_p *= c**2/e
@@ -45,8 +45,19 @@ sigma_theta = 2 * np.pi * tau_0 / T0      # R.m.s. theta
 sigma_dE = sd * beta**2 * E_s           # R.m.s. dE
 alpha = []
 alpha.append(1./gamma_t/gamma_t)        # First order mom. comp. factor
+R = C/2/np.pi
 
-
+# Transverse parameters (dummy)
+epsn_x = 2.          # Horizontal emittance [um]
+epsn_y = 2.          # Vertical emittance [um]
+beta_x = 50.         # Horizontal betatron amplitude [m]
+beta_y = 50.         # Vertical betatron amplitude [m]
+alpha_x = 0.5        # Betatron amplitude fct. [1], dummy
+alpha_y = 0.5        # Betatron amplitude fct. [1], dummy
+Qx = 64.28           # Horizontal tune at injection
+Qy = 59.31           # Vertical tune at injection
+Qp_x = 0. 
+Qp_y = 0. 
 
 
 # Simulation setup -------------------------------------------------------------
@@ -54,35 +65,26 @@ print "Setting up the simulation..."
 print ""
 
 
-# Define Ring and RF Station
-ring = Ring_and_RFstation(C, C, h, V_rf, dphi, alpha)
-
-# Define Beam
-p_f = 500.005e9
-#p_f = 455.0025e9
-#beam = Beam(ring.radius, m_p, N_p, e, N_b, p_s*np.ones(N_t+1))
-beam = Beam(ring.radius, m_p, N_p, e, N_b, np.arange(p_s, p_f, 0.25e7))
-# print "Momentumi %.6e eV" %beam.p0_i()
-# print "Momentumf %.6e eV" %beam.p0_f()
-# print "Gammai %3.3f" %beam.gamma_i()
-# print "Gammaf %3.3f" %beam.gamma_f()
-# print "Betai %.6e" %beam.beta_i()
-# print "Betaf %.6e" %beam.beta_f()
-# print "Energyi %.6e eV" %beam.energy_i()
-# print "Energyf %.6e eV" %beam.energy_f()
+# Define beam w/o defining the ring
+beam = Beam(R, m_p, N_p, e, N_b, p_s*np.ones(N_t+1))
+print "Momentumi %.6e eV" %beam.p0_i
+print "Momentumf %.6e eV" %beam.p0_f
+print "Gammai %3.3f" %beam.gamma_i()
+print "Gammaf %3.3f" %beam.gamma_f()
+print "Betai %.6e" %beam.beta_i()
+print "Betaf %.6e" %beam.beta_f()
+print "Energyi %.6e eV" %beam.energy_i()
+print "Energyf %.6e eV" %beam.energy_f()
 print ""
 
 # Choose Tracker 
-long_tracker = Longitudinal_tracker(ring)
-#long_tracker = LinearMap(ring, beam)
+Qs = 4.9053e-03
+long_tracker = LinearMap(C, 1/gamma_t**2, Qs)
 print "RF station set"
 
 # Choose Distribution
-#distribution = longitudinal_bigaussian(ring, beam, sigma_theta*10, sigma_dE*10)
-distribution = longitudinal_gaussian_matched(ring, beam, sigma_theta*2)
-#beam.dE[0] = 0.
-#beam.theta[0] = 6.7e-5
-#beam.theta[0] = 8.8e-5
+eta = 1 / gamma_t**2 - 1 / beam.gamma_i()**2
+distribution = as_bunch(beam, alpha_x, beta_x, epsn_x, alpha_y, beta_y, epsn_y, R*eta/Qs, 0.1)
 print "Initial distribution set"
 
 
@@ -111,9 +113,7 @@ for i in range(N_t):
     # Track
     for m in map_:
         m.track(beam)
-    
-#     print "Momentumi %.6e eV" %beam.p0_i()
-#     print "Particle energy, theta %.6e %.6e" %(beam.dE[0], beam.theta[0])
+
     # Output data
     #if (i % dt_out) == 0:
     
@@ -122,13 +122,11 @@ for i in range(N_t):
 #                 bunch.slices.sigma_dp[-2], bunch.slices.n_macroparticles[-2], 
 #                 str(time.clock() - t0))
 
-    
-
     # Plot
     if (i % dt_plt) == 0:
         #plot_long_phase_space(ring, beam, i, -0.75, 0, -1.e-3, 1.e-3, xunit='m', yunit='1')
         #plot_long_phase_space(ring, beam, i, 0, 2.5, -.5e3, .5e3, xunit='ns', yunit='MeV')
-        plot_long_phase_space(ring, beam, i, 0, 0.0001763, -450, 450)
+        plot_long_phase_space(beam, i, 0, 0.0001763, -450, 450)
 #        plot_bunch_length_evol(bunch, 'bunch', i, unit='ns')
 #        plot_bunch_length_evol_gaussian(bunch, 'bunch', i, unit='ns')
 
