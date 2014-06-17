@@ -21,21 +21,64 @@ class Ring_and_RFstation(object):
         :align: center
     '''
     
-    def __init__(self, circumference, length, harmonic_list, voltage_list, phi_offset_list, alpha_array):
+    def __init__(self, circumference, momentum_program, alpha_array, length=None, 
+                 harmonic_list=None, voltage_list=None, phi_offset_list=None):
         
-        if circumference != length:
-            print "ATTENTION: The total length of RF stations should sum up to the circumference."
+        # Obligatory input
         self.circumference = circumference # in m
-        self.radius = circumference / 2 / np.pi # in m
-        self.length = length # in m
-                
+        self.radius = circumference / 2 / np.pi # in m       
+        self.momentum_program = momentum_program # in eV
+        if alpha_array != None and len(alpha_array) > 3:
+            print "WARNING: Slippage factor implemented only till second order. Higher orders in alpha ignored. "
+        self.alpha_array = alpha_array
+        self.counter = 0 # To step in the momentum program  
+                      
+        # Optional parameters
+        if length != None and circumference != length:
+            print "ATTENTION: The total length of RF stations should sum up to the circumference."
+        self.length = length # in m              
         self.harmonic = harmonic_list
         self.voltage = voltage_list # in V
         self.phi_offset = phi_offset_list # in rad
-        if len(alpha_array) > 3:
-            print "WARNING: Slippage factor implemented only till second order. Higher orders in alpha ignored. "
-        self.alpha_array = alpha_array
 
+    # Derived energy-related properties 
+    # Energy and momentum in units of eV   
+    def p0_i(self):
+        return self.momentum_program[self.counter]
+    
+    def p0_f(self):
+        return self.momentum_program[self.counter + 1]
+
+    def p0(self):
+        return (self.p0_i() + self.p0_f()) / 2   
+        
+    def beta_i(self, beam):
+        return np.sqrt( 1 / (1 + (beam.mass * c**2)**2 / (self.p0_i() * e)**2) )
+        
+    def beta_f(self, beam):
+        return np.sqrt( 1 / (1 + (beam.mass * c**2)**2 / (self.p0_f() * e)**2) )
+ 
+    def beta(self, beam):
+        return (self.beta_i(beam) + self.beta_f(beam)) / 2
+        
+    def gamma_i(self, beam):
+        return np.sqrt( 1 + (self.p0_i() * e)**2 / (beam.mass * c**2)**2 )
+    
+    def gamma_f(self, beam):
+        return np.sqrt( 1 + (self.p0_f() * e)**2 / (beam.mass * c**2)**2 )
+    
+    def gamma(self, beam):
+        return (self.gamma_i(beam) + self.gamma_f(beam)) / 2
+    
+    def energy_i(self, beam):
+        return np.sqrt( self.p0_i()**2 + (beam.mass * c**2 / e)**2 )
+    
+    def energy_f(self, beam):
+        return np.sqrt( self.p0_f()**2 + (beam.mass * c**2 / e)**2 )
+
+    def energy(self, beam):
+        return (self.energy_i(beam) + self.energy_f(beam)) / 2    
+ 
     
 #    def potential(self, z, beam):
         
@@ -55,8 +98,8 @@ class Ring_and_RFstation(object):
         h0 = self.harmonic[0]
         V0 = self.voltage[0]
         c1 = self.eta(beam, delta) * c * np.pi / (self.circumference * 
-             beam.beta() * beam.energy() )
-        c2 = c * beam.beta() * V0 / (h0 * self.circumference)
+             self.beta_i(beam) * self.energy_i(beam) )
+        c2 = c * self.beta_i(beam) * V0 / (h0 * self.circumference)
         phi_s = self.calc_phi_s(beam, self.voltage)
 
         return c1 * dE**2 + c2 * (np.cos(h0 * theta) - np.cos(phi_s) + 
@@ -71,7 +114,7 @@ class Ring_and_RFstation(object):
         The synchronous phase is calculated at a certain moment.
         Uses beta, energy averaged over the turn."""
         V0 = voltage[0]
-        phi_s = np.arcsin(beam.beta() * (beam.p0_f() - beam.p0_i()) / V0 )
+        phi_s = np.arcsin(self.beta(beam) * (self.p0_f() - self.p0_i()) / V0 )
         if self.eta(beam, 0) > 0:
             phi_s = np.pi - phi_s
 
@@ -87,10 +130,10 @@ class Ring_and_RFstation(object):
         
         filterwarnings('ignore')
         
-        separatrix_array = np.sqrt(beam.beta()**2 * beam.energy() * V0 / 
-                       (np.pi * self.eta(beam, 0) * h0) * 
-                       (-np.cos(h0 * theta) - np.cos(phi_s) + 
-                         (np.pi - phi_s - h0 * theta) * np.sin(phi_s)))
+        separatrix_array = np.sqrt(self.beta_i(beam)**2 * self.energy_i(beam) *
+                        V0 / (np.pi * self.eta(beam, 0) * h0) * 
+                        (-np.cos(h0 * theta) - np.cos(phi_s) + 
+                        (np.pi - phi_s - h0 * theta) * np.sin(phi_s)))
         
         filterwarnings('default')
            
@@ -130,20 +173,20 @@ class Ring_and_RFstation(object):
     
     def _eta0(self, beam, alpha_array):
         
-        return alpha_array[0] - beam.gamma_i()**-2
+        return alpha_array[0] - self.gamma_i(beam)**-2
    
     
     def _eta1(self, beam, alpha_array):
         
-        return 3 * beam.beta_i()**2 / (2 * beam.gamma_i()**2) + alpha_array[1] \
-            - alpha_array[0] * (alpha_array[0] - beam.gamma_i()**-2)
+        return 3 * self.beta_i(beam)**2 / (2 * self.gamma_i(beam)**2) + alpha_array[1] \
+            - alpha_array[0] * (alpha_array[0] - self.gamma_i(beam)**-2)
     
     
     def _eta2(self, beam, alpha_array):
         
-        return - beam.beta_i()**2 * (5 * beam.beta_i()**2 - 1) / (2 * beam.gamma_i()**2) \
+        return - self.beta_i(beam)**2 * (5 * self.beta_i(beam)**2 - 1) / (2 * self.gamma_i(beam)**2) \
             + alpha_array[2] - 2 * alpha_array[0] * alpha_array[1] + alpha_array[1] \
-            / beam.gamma_i()**2 + alpha_array[0]**2 * (alpha_array[0] - beam.gamma_i()**-2) \
-            - 3 * beam.beta_i()**2 * alpha_array[0] / (2 * beam.gamma_i()**2)
+            / self.gamma_i(beam)**2 + alpha_array[0]**2 * (alpha_array[0] - self.gamma_i(beam)**-2) \
+            - 3 * self.beta_i(beam)**2 * alpha_array[0] / (2 * self.gamma_i(beam)**2)
     
     

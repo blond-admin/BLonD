@@ -40,17 +40,18 @@ class Kick(object):
     
 class Kick_acceleration(object):
     
-    def __init__(self, p_increment):
+    def __init__(self, ring, p_increment):
         
+        self.ring = ring
         self.p_increment = p_increment
         
     def track(self, beam):
         
         """Using the average beta during the acceleration to account for 
         the change in momentum over one turn."""
-        beam.dE += - beam.beta() * self.p_increment # in eV
+        beam.dE += - self.ring.beta(beam) * self.p_increment # in eV
         # Update momentum in ring_and_RFstation
-        beam.counter += 1
+        self.ring.counter += 1
         
 
 class Drift(object):
@@ -73,9 +74,9 @@ class Drift(object):
     def track(self, beam):  
         try: 
             beam.theta = \
-            {'full' : beam.beta_f() / beam.beta_i() * beam.theta + 2 * np.pi \
-                    * (1 / (1 - self.ring.eta(beam, beam.delta) * beam.delta) - 1) \
-                    * self.ring.length / self.ring.circumference,
+            {'full' : self.ring.beta_f(beam) / self.ring.beta_i(beam) * beam.theta \
+                    + 2 * np.pi * (1 / (1 - self.ring.eta(beam, beam.delta) \
+                    * beam.delta) - 1) * self.ring.length / self.ring.circumference,
              'simple' : beam.theta + 2 * np.pi * self.ring.
                     _eta0(beam, self.ring.alpha_array) * beam.delta * \
                     self.ring.length / self.ring.circumference
@@ -129,12 +130,12 @@ class Longitudinal_tracker(object):
         for i in xrange(len(ring.harmonic)):
             kick = Kick(ring, i)
             self.kicks.append(kick)
-        self.kick_acceleration = Kick_acceleration(0)
+        self.kick_acceleration = Kick_acceleration(ring, 0)
         self.elements = self.kicks + [self.kick_acceleration] + [Drift(ring, solver)]
         
     def track(self, beam):
         
-        self.kick_acceleration.p_increment = beam.p0_f() - beam.p0_i()
+        self.kick_acceleration.p_increment = self.ring.p0_f() - self.ring.p0_i()
         for longMap in self.elements:
             longMap.track(beam)
         
@@ -146,20 +147,20 @@ class LinearMap(object):
     self.alpha is the linear momentum compaction factor.
     '''
 
-    def __init__(self, circumference, momentum_compaction, Qs):
+    def __init__(self, ring, Qs):
 
         """alpha is the linear momentum compaction factor,
         Qs the synchroton tune."""
         
-        self.circumference = circumference
-        self.alpha = momentum_compaction
+        self.circumference = ring.circumference
+        self.alpha = ring.alpha_array[0]
         self.Qs = Qs
 
     def track(self, beam):
 
-        eta = self.alpha - 1 / beam.gamma()**2
+        eta = self.alpha - 1 / beam.ring.gamma_i(beam)**2
 
-        omega_0 = 2 * np.pi * beam.beta() * c / self.circumference
+        omega_0 = 2 * np.pi * beam.ring.beta_i(beam) * c / self.circumference
         omega_s = self.Qs * omega_0
 
         dQs = 2 * np.pi * self.Qs

@@ -15,34 +15,20 @@ from longitudinal_plots.longitudinal_plots import *
 # Simulation parameters --------------------------------------------------------
 # Bunch parameters
 N_b = 1.e9           # Intensity
-N_p = 10001            # Macro-particles
-tau_0 = 0.4e-9       # Initial bunch length, 4 sigma [s]
-sd = .5e-4           # Initial r.m.s. momentum spread
+N_p = 10001          # Macro-particles
 
 # Machine and RF parameters
-h = []
-V_rf = []
-dphi = []
 gamma_t = 55.759505  # Transition gamma
 C = 26658.883        # Machine circumference [m]
 p_s = 450.e9         # Synchronous momentum [eV]
-h.append(35640)      # Harmonic number
-V_rf.append(6.e6)    # RF voltage [eV]
-dphi.append(0.)      # Phase modulation/offset
 
 # Tracking details
-N_t = 200            # Number of turns to track
+N_t = 2000            # Number of turns to track
 dt_out = 20          # Time steps between output
-dt_plt = 20          # Time steps between plots
+dt_plt = 200          # Time steps between plots
 
 # Derived parameters
 #m_p *= c**2/e
-E_s = np.sqrt(p_s**2 + m_p**2 * c**4 / e**2)  # Sychronous energy [eV]
-gamma = E_s/(m_p*c**2/e)          # Relativistic gamma
-beta = np.sqrt(1. - 1./gamma**2)  # Relativistic beta
-T0 = C / beta / c                 # Turn period
-sigma_theta = 2 * np.pi * tau_0 / T0      # R.m.s. theta
-sigma_dE = sd * beta**2 * E_s           # R.m.s. dE
 alpha = []
 alpha.append(1./gamma_t/gamma_t)        # First order mom. comp. factor
 R = C/2/np.pi
@@ -65,25 +51,26 @@ print "Setting up the simulation..."
 print ""
 
 
-# Define beam w/o defining the ring
-beam = Beam(R, m_p, N_p, e, N_b, p_s*np.ones(N_t+1))
-print "Momentumi %.6e eV" %beam.p0_i
-print "Momentumf %.6e eV" %beam.p0_f
-print "Gammai %3.3f" %beam.gamma_i()
-print "Gammaf %3.3f" %beam.gamma_f()
-print "Betai %.6e" %beam.beta_i()
-print "Betaf %.6e" %beam.beta_f()
-print "Energyi %.6e eV" %beam.energy_i()
-print "Energyf %.6e eV" %beam.energy_f()
+# Define beam w/ minimal ring properties
+ring = Ring_and_RFstation(C, p_s*np.ones(N_t+1), alpha)
+beam = Beam(ring, m_p, N_p, e, N_b)
+print "Momentumi %.6e eV" %beam.ring.p0_i()
+print "Momentumf %.6e eV" %beam.ring.p0_f()
+print "Gammai %3.3f" %beam.ring.gamma_i(beam)
+print "Gammaf %3.3f" %beam.ring.gamma_f(beam)
+print "Betai %.6e" %beam.ring.beta_i(beam)
+print "Betaf %.6e" %beam.ring.beta_f(beam)
+print "Energyi %.6e eV" %beam.ring.energy_i(beam)
+print "Energyf %.6e eV" %beam.ring.energy_f(beam)
 print ""
 
 # Choose Tracker 
 Qs = 4.9053e-03
-long_tracker = LinearMap(C, 1/gamma_t**2, Qs)
+long_tracker = LinearMap(ring, Qs)
 print "RF station set"
 
 # Choose Distribution
-eta = 1 / gamma_t**2 - 1 / beam.gamma_i()**2
+eta = 1 / gamma_t**2 - 1 / ring.gamma_i(beam)**2
 distribution = as_bunch(beam, alpha_x, beta_x, epsn_x, alpha_y, beta_y, epsn_y, R*eta/Qs, 0.1)
 print "Initial distribution set"
 
@@ -124,9 +111,9 @@ for i in range(N_t):
 
     # Plot
     if (i % dt_plt) == 0:
-        #plot_long_phase_space(ring, beam, i, -0.75, 0, -1.e-3, 1.e-3, xunit='m', yunit='1')
-        #plot_long_phase_space(ring, beam, i, 0, 2.5, -.5e3, .5e3, xunit='ns', yunit='MeV')
-        plot_long_phase_space(beam, i, 0, 0.0001763, -450, 450)
+        #plot_long_phase_space(beam, i, -0.75, 0, -1.e-3, 1.e-3, xunit='m', yunit='1')
+        #plot_long_phase_space(beam, i, 0, 2.5, -.5e3, .5e3, xunit='ns', yunit='MeV')
+        plot_long_phase_space(beam, i, 0, 0.0001763, -450, 450, separatrix='off')
 #        plot_bunch_length_evol(bunch, 'bunch', i, unit='ns')
 #        plot_bunch_length_evol_gaussian(bunch, 'bunch', i, unit='ns')
 

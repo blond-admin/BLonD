@@ -26,18 +26,18 @@ def fig_folder():
             raise
 
 
-def plot_long_phase_space(ring, beam, nturns, xmin, xmax, ymin, ymax, 
-                          xunit=None, yunit=None):
+def plot_long_phase_space(beam, nturns, xmin, xmax, ymin, ymax, 
+                          xunit=None, yunit=None, separatrix=None):
 
     # Directory where longitudinal_plots will be stored
     fig_folder()
 
     # Conversion from metres to nanoseconds
     if xunit == 'ns':
-        coeff = 1.e9 * beam.radius / (beam.beta_i() * c)
+        coeff = 1.e9 * beam.ring.radius / (beam.beta_i() * c)
     elif xunit == 'm':
-        coeff = - beam.radius
-    ycoeff = beam.beta_i()**2 * beam.energy_i()
+        coeff = - beam.ring.radius
+    ycoeff = beam.ring.beta_i(beam)**2 * beam.ring.energy_i(beam)
 
     # Definitions for placing the axes
     left, width = 0.1, 0.63
@@ -91,17 +91,18 @@ def plot_long_phase_space(ring, beam, nturns, xmin, xmax, ymin, ymax,
                 va='center') 
 
     # Separatrix
-    x_sep = np.linspace(xmin, xmax, 1000)
-    if xunit == None or xunit == 'rad':
-        y_sep = ring.separatrix(beam, x_sep)
-    elif xunit == 'm' or xunit == 'ns':
-        y_sep = ring.separatrix(beam, x_sep/coeff)
-    if yunit == None or yunit == 'MeV':
-        axScatter.plot(x_sep, y_sep/1.e6, 'r')
-        axScatter.plot(x_sep, -1.e-6*y_sep, 'r')       
-    else:
-        axScatter.plot(x_sep, y_sep/ycoeff, 'r')
-        axScatter.plot(x_sep, -1.*y_sep/ycoeff, 'r')
+    if separatrix == None or separatrix == 'on':
+        x_sep = np.linspace(xmin, xmax, 1000)
+        if xunit == None or xunit == 'rad':
+            y_sep = beam.ring.separatrix(beam, x_sep)
+        elif xunit == 'm' or xunit == 'ns':
+            y_sep = beam.ring.separatrix(beam, x_sep/coeff)
+        if yunit == None or yunit == 'MeV':
+            axScatter.plot(x_sep, y_sep/1.e6, 'r')
+            axScatter.plot(x_sep, -1.e-6*y_sep, 'r')       
+        else:
+            axScatter.plot(x_sep, y_sep/ycoeff, 'r')
+            axScatter.plot(x_sep, -1.*y_sep/ycoeff, 'r')
    
     # Phase and momentum histograms
     xbin = (xmax - xmin)/200.

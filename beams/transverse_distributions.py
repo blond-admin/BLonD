@@ -47,9 +47,9 @@ def as_bunch(beam, alpha_x, beta_x, epsn_x, alpha_y, beta_y, epsn_y, beta_z, sig
     
 
     # Transverse
-    sigma_x = np.sqrt(beta_x * epsn_x * 1e-6 / (beam.gamma_i() * beam.beta_i()))
+    sigma_x = np.sqrt(beta_x * epsn_x * 1e-6 / (beam.ring.gamma_i(beam) * beam.ring.beta_i(beam)))
     sigma_xp = sigma_x / beta_x
-    sigma_y = np.sqrt(beta_y * epsn_y * 1e-6 / (beam.gamma_i() * beam.beta_i()))
+    sigma_y = np.sqrt(beta_y * epsn_y * 1e-6 / (beam.ring.gamma_i(beam) * beam.ring.beta_i(beam)))
     sigma_yp = sigma_y / beta_y
 
     beam.x *= sigma_x
@@ -60,11 +60,11 @@ def as_bunch(beam, alpha_x, beta_x, epsn_x, alpha_y, beta_y, epsn_y, beta_z, sig
     # Longitudinal
     # Assuming a gaussian-type stationary distribution: beta_z = eta * circumference / (2 * np.pi * Qs)
     if sigma_z and epsn_z:
-        sigma_delta = epsn_z / (4 * np.pi * sigma_z) * e / beam.p0_i()
+        sigma_delta = epsn_z / (4 * np.pi * sigma_z) * e / beam.ring.p0_i()
         if sigma_z / sigma_delta != beta_z:
             print '*** WARNING: beam mismatched in bucket. Set synchrotron tune to obtain beta_z = ', sigma_z / sigma_delta
     elif not sigma_z and epsn_z:
-        sigma_z = np.sqrt(beta_z * epsn_z / (4 * np.pi) * e / beam.p0_i())
+        sigma_z = np.sqrt(beta_z * epsn_z / (4 * np.pi) * e / beam.ring.p0_i())
         sigma_delta = sigma_z / beta_z
     else:
         sigma_delta = sigma_z / beta_z
@@ -106,9 +106,9 @@ def as_ghost(beam):
 
 def _match_simple_gaussian_transverse(beam):
 
-        sigma_x = np.sqrt(beam.beta_x * beam.epsn_x * 1e-6 / (beam.gamma_i() * beam.beta_i()))
+        sigma_x = np.sqrt(beam.beta_x * beam.epsn_x * 1e-6 / (beam.ring.gamma_i(beam) * beam.ring.beta_i(beam)))
         sigma_xp = sigma_x / beam.beta_x
-        sigma_y = np.sqrt(beam.beta_y * beam.epsn_y * 1e-6 / (beam.gamma_i() * beam.beta_i()))
+        sigma_y = np.sqrt(beam.beta_y * beam.epsn_y * 1e-6 / (beam.ring.gamma_i(beam) * beam.ring.beta_i(beam)))
         sigma_yp = sigma_y / beam.beta_y
 
         beam.x *= sigma_x
