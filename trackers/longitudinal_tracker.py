@@ -16,15 +16,11 @@ from trackers.ring_and_RFstation import *
 
 class Kick(object):
     
-    """The Kick class represents the kick by a single RF element in a ring!
-    The kick (i.e. Delta dp) of the particle's dp coordinate is given by
-    the (separable) Hamiltonian derived by z, i.e. the force.
+    """The Kick represents the kick(s) by an RF station at a certain position 
+    of the ring. The kicks are summed over the different harmonic RF systems 
+    in the station.
 
-    self.p_increment is the momentum step per turn of the synchronous particle,
-        it can be continuously adjusted to reflect different slopes 
-        in the dipole magnet strength ramp.
-
-    self.phi_offset reflects an offset of the cavity's reference system."""
+    The cavity phase can be shifted by the user via phi_offset."""
 
     def __init__(self, ring, i):
         
@@ -40,6 +36,13 @@ class Kick(object):
     
 class Kick_acceleration(object):
     
+    """Kick_acceleration gives a single accelerating kick to the bunch. 
+    The accelerating kick is defined by the change in the design momentum 
+    (synchronous momentum). 
+    
+    The acceleration is assumed to be distributed over the length of the 
+    RF station, so the average beta is used in the calculation of the kick."""
+    
     def __init__(self, ring, p_increment):
         
         self.ring = ring
@@ -47,8 +50,6 @@ class Kick_acceleration(object):
         
     def track(self, beam):
         
-        """Using the average beta during the acceleration to account for 
-        the change in momentum over one turn."""
         beam.dE += - self.ring.beta(beam) * self.p_increment # in eV
         # Update momentum in ring_and_RFstation
         self.ring.counter += 1
@@ -56,14 +57,12 @@ class Kick_acceleration(object):
 
 class Drift(object):
     
-    """the drift (i.e. Delta z) of the particle's z coordinate is given by
-    the (separable) Hamiltonian derived by dp (defined by (p - p0) / p0).
+    """The drift updates the longitudinal coordinate of the particle after 
+    applying the energy kick; self.length is the drift length.  
 
-    self.length is the drift length,
-    self.beta_factor is the change ratio of \\beta_{n+1} / \\beta_n
-    which can often be neglected (and be set to one). [Otherwise it may
-    continuously be adapted by the user according to Kick.p_increment.]
-    """
+    The correction factor \\beta_{n+1} / \\beta_n is necessary when the 
+    synchronous energy is low and the range is synchronous energy is large,
+    to avoid a shrinking phase space."""
 
     def __init__(self, ring, solver):
         
@@ -89,29 +88,22 @@ class Drift(object):
 class Longitudinal_tracker(object):
     
     """
-        With one RFSystems object in the ring layout (with all kicks applied 
-        at the same longitudinal position), the longitudinal separatrix function 
-        is exact and makes a valid local statement about stability!
+        The Longitudinal_tracker tracks the bunch through a given RF station
+        and takes care that kicks and the drift are done in correct order.
+        
+        Different solvers can be used:
+        'full' -- accurate solution of the drift
+        'simple' -- drift with no correction for low energy/large energy range
+                    and zeroth order in the slippage factor
+        For de-bunching, simply pass zero voltage.
+        For synchrotron radiation, energy loss term yet to be implemented.
     """
 
     def __init__(self, ring, solver='full'): 
         
-        """The first entry in harmonic_list, voltage_list and phi_offset_list
-        defines the parameters for the one accelerating Kick object 
-        (i.e. the accelerating RF system).
-
-        The length of the momentum compaction factor array alpha_array
-        defines the order of the slippage factor expansion. 
-        See the LongitudinalMap class for further details.
-
-        self.p_increment is the momentum step per turn of the synchronous 
-        particle, it can be continuously adjusted to reflect different slopes 
-        in the dipole magnet strength ramp.
-        See the Kick class for further details.
-        self.kicks
-        self.elements
-        self.fundamental_kick
-        self.accelerating_kick"""
+        """self.p_increment is the momentum step per turn of the synchronous 
+        particle (defined via user input, see ring_and_RFstation).
+        See the Kick_acceleration class for further details."""
         
         self.solver = solver
         self.ring = ring
@@ -124,8 +116,10 @@ class Longitudinal_tracker(object):
 
 
         """Separating the kicks from the RF and the magnets.
-        kick can contain multiple contributions
-        kick_acceleration is only used once per time step"""
+        kick can contain multiple contributions:
+        self.kicks -- kick due to RF station passage
+        self.kick_acceleration -- kick due to acceleration
+        self.elements contains the full map of kicks and drift in the RF station."""
         self.kicks = []
         for i in xrange(len(ring.harmonic)):
             kick = Kick(ring, i)
@@ -145,6 +139,7 @@ class LinearMap(object):
     '''
     Linear Map represented by a Courant-Snyder transportation matrix.
     self.alpha is the linear momentum compaction factor.
+    Qs is forced to be constant.
     '''
 
     def __init__(self, ring, Qs):

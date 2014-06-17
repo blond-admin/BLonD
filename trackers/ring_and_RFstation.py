@@ -12,13 +12,17 @@ from scipy.constants import c, e
 
 class Ring_and_RFstation(object):
     '''
-    Definition of an RF station and part of the ring until the next station
-    
-    .. image:: https://github.com/jakubroztocil/httpie/raw/master/httpie.png
-        :alt: HTTPie compared to cURL
-        :width: 835
-        :height: 835
+    Definition of an RF station and part of the ring until the next station, see figure.
+    .. image:: https://github.com/like2000/PyHEADTAIL/tree/PYlongitudinal/doc/source/ring_and_RFstation.png
         :align: center
+    The time step is fixed to be one turn, but the tracking can consist of multiple
+    ring_and_RFstation objects. In this case, the user should make sure that the lengths
+    of the stations sum up exactly to the circumference.
+    Each RF station may contain several RF harmonic systems which are considered to be
+    in the same location. First, a kick from the cavity voltage(s) is applied, then a
+    kick from the accelerating magnets, and finally a drift. 
+    If one wants to do minimal longitudinal tracking, defining the RF systems in the 
+    station is not necessary. 
     '''
     
     def __init__(self, circumference, momentum_program, alpha_array, length=None, 
@@ -43,6 +47,9 @@ class Ring_and_RFstation(object):
 
     # Derived energy-related properties 
     # Energy and momentum in units of eV   
+    '''The relativistic beta, gamma, and energy of the synchronous particle are
+    derived from the synchronous momentum provided by the user.
+    Energy and momentum are in units of eV, while all other quantities are SI.'''
     def p0_i(self):
         return self.momentum_program[self.counter]
     
@@ -153,17 +160,12 @@ class Ring_and_RFstation(object):
 
     def eta(self, beam, delta):
         
-        """Depending on the number of entries in self.alpha_array the 
-        according order of \eta = \sum_i \eta_i * \delta^i where
-        \delta = \Delta p / p0 will be included in this gathering function.
+        """Depending on the number of entries in self.alpha_array, the slippage factor
+        \eta = \sum_i \eta_i * \delta^i is calculated to the corresponding order.
 
-        Note: Please implement higher slippage factor orders as static methods
-        with name _eta<N> where <N> is the order of delta in eta(delta)
-        and with signature (alpha_array, beam).
-        
-        Use initial momentum (beta_i, gamma_i).
-        Update done in longitudinal_tracker.Kick_acceleration.
-        """
+        As eta is used in the tracker, it is calculated with the initial momentum
+        at that time step, and the corresponding relativistic beta and gamma.
+        For eta coefficients, see Lee: Accelerator Physics (Wiley)."""
         eta = 0
         for i in xrange( len(self.alpha_array) ):   # order = len - 1
             eta_i = getattr(self, '_eta' + str(i))(beam, self.alpha_array)
