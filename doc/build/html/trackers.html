@@ -196,12 +196,11 @@ keyword: leapfrog mechanism</p>
 <dt id="trackers.longitudinal_tracker.Drift">
 <em class="property">class </em><tt class="descclassname">trackers.longitudinal_tracker.</tt><tt class="descname">Drift</tt><big>(</big><em>ring</em>, <em>solver</em><big>)</big><a class="headerlink" href="#trackers.longitudinal_tracker.Drift" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
-<p>the drift (i.e. Delta z) of the particle&#8217;s z coordinate is given by
-the (separable) Hamiltonian derived by dp (defined by (p - p0) / p0).</p>
-<p>self.length is the drift length,
-self.beta_factor is the change ratio of beta_{n+1} / beta_n
-which can often be neglected (and be set to one). [Otherwise it may
-continuously be adapted by the user according to Kick.p_increment.]</p>
+<p>The drift updates the longitudinal coordinate of the particle after 
+applying the energy kick; self.length is the drift length.</p>
+<p>The correction factor beta_{n+1} / beta_n is necessary when the 
+synchronous energy is low and the range is synchronous energy is large,
+to avoid a shrinking phase space.</p>
 <dl class="method">
 <dt id="trackers.longitudinal_tracker.Drift.track">
 <tt class="descname">track</tt><big>(</big><em>beam</em><big>)</big><a class="headerlink" href="#trackers.longitudinal_tracker.Drift.track" title="Permalink to this definition">¶</a></dt>
@@ -213,15 +212,10 @@ continuously be adapted by the user according to Kick.p_increment.]</p>
 <dt id="trackers.longitudinal_tracker.Kick">
 <em class="property">class </em><tt class="descclassname">trackers.longitudinal_tracker.</tt><tt class="descname">Kick</tt><big>(</big><em>ring</em>, <em>i</em><big>)</big><a class="headerlink" href="#trackers.longitudinal_tracker.Kick" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
-<p>The Kick class represents the kick by a single RF element in a ring!
-The kick (i.e. Delta dp) of the particle&#8217;s dp coordinate is given by
-the (separable) Hamiltonian derived by z, i.e. the force.</p>
-<dl class="docutils">
-<dt>self.p_increment is the momentum step per turn of the synchronous particle,</dt>
-<dd>it can be continuously adjusted to reflect different slopes 
-in the dipole magnet strength ramp.</dd>
-</dl>
-<p>self.phi_offset reflects an offset of the cavity&#8217;s reference system.</p>
+<p>The Kick represents the kick(s) by an RF station at a certain position 
+of the ring. The kicks are summed over the different harmonic RF systems 
+in the station.</p>
+<p>The cavity phase can be shifted by the user via phi_offset.</p>
 <dl class="method">
 <dt id="trackers.longitudinal_tracker.Kick.track">
 <tt class="descname">track</tt><big>(</big><em>beam</em><big>)</big><a class="headerlink" href="#trackers.longitudinal_tracker.Kick.track" title="Permalink to this definition">¶</a></dt>
@@ -231,23 +225,27 @@ in the dipole magnet strength ramp.</dd>
 
 <dl class="class">
 <dt id="trackers.longitudinal_tracker.Kick_acceleration">
-<em class="property">class </em><tt class="descclassname">trackers.longitudinal_tracker.</tt><tt class="descname">Kick_acceleration</tt><big>(</big><em>p_increment</em><big>)</big><a class="headerlink" href="#trackers.longitudinal_tracker.Kick_acceleration" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descclassname">trackers.longitudinal_tracker.</tt><tt class="descname">Kick_acceleration</tt><big>(</big><em>ring</em>, <em>p_increment</em><big>)</big><a class="headerlink" href="#trackers.longitudinal_tracker.Kick_acceleration" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p>Kick_acceleration gives a single accelerating kick to the bunch. 
+The accelerating kick is defined by the change in the design momentum 
+(synchronous momentum).</p>
+<p>The acceleration is assumed to be distributed over the length of the 
+RF station, so the average beta is used in the calculation of the kick.</p>
 <dl class="method">
 <dt id="trackers.longitudinal_tracker.Kick_acceleration.track">
 <tt class="descname">track</tt><big>(</big><em>beam</em><big>)</big><a class="headerlink" href="#trackers.longitudinal_tracker.Kick_acceleration.track" title="Permalink to this definition">¶</a></dt>
-<dd><p>Using the average beta during the acceleration to account for 
-the change in momentum over one turn.</p>
-</dd></dl>
+<dd></dd></dl>
 
 </dd></dl>
 
 <dl class="class">
 <dt id="trackers.longitudinal_tracker.LinearMap">
-<em class="property">class </em><tt class="descclassname">trackers.longitudinal_tracker.</tt><tt class="descname">LinearMap</tt><big>(</big><em>circumference</em>, <em>momentum_compaction</em>, <em>Qs</em><big>)</big><a class="headerlink" href="#trackers.longitudinal_tracker.LinearMap" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descclassname">trackers.longitudinal_tracker.</tt><tt class="descname">LinearMap</tt><big>(</big><em>ring</em>, <em>Qs</em><big>)</big><a class="headerlink" href="#trackers.longitudinal_tracker.LinearMap" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
 <p>Linear Map represented by a Courant-Snyder transportation matrix.
-self.alpha is the linear momentum compaction factor.</p>
+self.alpha is the linear momentum compaction factor.
+Qs is forced to be constant.</p>
 <dl class="method">
 <dt id="trackers.longitudinal_tracker.LinearMap.track">
 <tt class="descname">track</tt><big>(</big><em>beam</em><big>)</big><a class="headerlink" href="#trackers.longitudinal_tracker.LinearMap.track" title="Permalink to this definition">¶</a></dt>
@@ -259,9 +257,13 @@ self.alpha is the linear momentum compaction factor.</p>
 <dt id="trackers.longitudinal_tracker.Longitudinal_tracker">
 <em class="property">class </em><tt class="descclassname">trackers.longitudinal_tracker.</tt><tt class="descname">Longitudinal_tracker</tt><big>(</big><em>ring</em>, <em>solver='full'</em><big>)</big><a class="headerlink" href="#trackers.longitudinal_tracker.Longitudinal_tracker" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
-<p>With one RFSystems object in the ring layout (with all kicks applied 
-at the same longitudinal position), the longitudinal separatrix function 
-is exact and makes a valid local statement about stability!</p>
+<p>The Longitudinal_tracker tracks the bunch through a given RF station
+and takes care that kicks and the drift are done in correct order.</p>
+<p>Different solvers can be used:</p>
+<p>&#8216;full&#8217; &#8211; accurate solution of the drift</p>
+<p>&#8216;simple&#8217; &#8211; drift with no correction for low energy/large energy range and zeroth order in the slippage factor</p>
+<p>For de-bunching, simply pass zero voltage.
+For synchrotron radiation, energy loss term yet to be implemented.</p>
 <dl class="method">
 <dt id="trackers.longitudinal_tracker.Longitudinal_tracker.track">
 <tt class="descname">track</tt><big>(</big><em>beam</em><big>)</big><a class="headerlink" href="#trackers.longitudinal_tracker.Longitudinal_tracker.track" title="Permalink to this definition">¶</a></dt>
@@ -276,10 +278,33 @@ is exact and makes a valid local statement about stability!</p>
 <p>&#64;author: Danilo Quartullo, Helga Timko</p>
 <dl class="class">
 <dt id="trackers.ring_and_RFstation.Ring_and_RFstation">
-<em class="property">class </em><tt class="descclassname">trackers.ring_and_RFstation.</tt><tt class="descname">Ring_and_RFstation</tt><big>(</big><em>circumference</em>, <em>length</em>, <em>harmonic_list</em>, <em>voltage_list</em>, <em>phi_offset_list</em>, <em>alpha_array</em><big>)</big><a class="headerlink" href="#trackers.ring_and_RFstation.Ring_and_RFstation" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descclassname">trackers.ring_and_RFstation.</tt><tt class="descname">Ring_and_RFstation</tt><big>(</big><em>circumference</em>, <em>momentum_program</em>, <em>alpha_array</em>, <em>length=None</em>, <em>harmonic_list=None</em>, <em>voltage_list=None</em>, <em>phi_offset_list=None</em><big>)</big><a class="headerlink" href="#trackers.ring_and_RFstation.Ring_and_RFstation" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
-<p>Definition of an RF station and part of the ring until the next station</p>
-<a class="reference internal image-reference" href="https://github.com/jakubroztocil/httpie/raw/master/httpie.png"><img alt="HTTPie compared to cURL" class="align-center" src="https://github.com/jakubroztocil/httpie/raw/master/httpie.png" style="width: 835px; height: 835px;" /></a>
+<p>Definition of an RF station and part of the ring until the next station, see figure.</p>
+<a class="reference internal image-reference" href="https://raw.githubusercontent.com/like2000/PyHEADTAIL/PYlongitudinal/doc/source/ring_and_RFstation.png"><img alt="https://raw.githubusercontent.com/like2000/PyHEADTAIL/PYlongitudinal/doc/source/ring_and_RFstation.png" class="align-center" src="https://raw.githubusercontent.com/like2000/PyHEADTAIL/PYlongitudinal/doc/source/ring_and_RFstation.png" style="width: 600px; height: 600px;" /></a>
+<p>The time step is fixed to be one turn, but the tracking can consist of multiple
+ring_and_RFstation objects. In this case, the user should make sure that the lengths
+of the stations sum up exactly to the circumference.
+Each RF station may contain several RF harmonic systems which are considered to be
+in the same location. First, a kick from the cavity voltage(s) is applied, then a
+kick from the accelerating magnets, and finally a drift. 
+If one wants to do minimal longitudinal tracking, defining the RF systems in the 
+station is not necessary.</p>
+<dl class="method">
+<dt id="trackers.ring_and_RFstation.Ring_and_RFstation.beta">
+<tt class="descname">beta</tt><big>(</big><em>beam</em><big>)</big><a class="headerlink" href="#trackers.ring_and_RFstation.Ring_and_RFstation.beta" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="trackers.ring_and_RFstation.Ring_and_RFstation.beta_f">
+<tt class="descname">beta_f</tt><big>(</big><em>beam</em><big>)</big><a class="headerlink" href="#trackers.ring_and_RFstation.Ring_and_RFstation.beta_f" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="trackers.ring_and_RFstation.Ring_and_RFstation.beta_i">
+<tt class="descname">beta_i</tt><big>(</big><em>beam</em><big>)</big><a class="headerlink" href="#trackers.ring_and_RFstation.Ring_and_RFstation.beta_i" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
 <dl class="method">
 <dt id="trackers.ring_and_RFstation.Ring_and_RFstation.calc_phi_s">
 <tt class="descname">calc_phi_s</tt><big>(</big><em>beam</em>, <em>voltage</em><big>)</big><a class="headerlink" href="#trackers.ring_and_RFstation.Ring_and_RFstation.calc_phi_s" title="Permalink to this definition">¶</a></dt>
@@ -293,17 +318,44 @@ Uses beta, energy averaged over the turn.</p>
 </dd></dl>
 
 <dl class="method">
+<dt id="trackers.ring_and_RFstation.Ring_and_RFstation.energy">
+<tt class="descname">energy</tt><big>(</big><em>beam</em><big>)</big><a class="headerlink" href="#trackers.ring_and_RFstation.Ring_and_RFstation.energy" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="trackers.ring_and_RFstation.Ring_and_RFstation.energy_f">
+<tt class="descname">energy_f</tt><big>(</big><em>beam</em><big>)</big><a class="headerlink" href="#trackers.ring_and_RFstation.Ring_and_RFstation.energy_f" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="trackers.ring_and_RFstation.Ring_and_RFstation.energy_i">
+<tt class="descname">energy_i</tt><big>(</big><em>beam</em><big>)</big><a class="headerlink" href="#trackers.ring_and_RFstation.Ring_and_RFstation.energy_i" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
 <dt id="trackers.ring_and_RFstation.Ring_and_RFstation.eta">
 <tt class="descname">eta</tt><big>(</big><em>beam</em>, <em>delta</em><big>)</big><a class="headerlink" href="#trackers.ring_and_RFstation.Ring_and_RFstation.eta" title="Permalink to this definition">¶</a></dt>
-<dd><p>Depending on the number of entries in self.alpha_array the 
-according order of eta = sum_i eta_i * delta^i where
-delta = Delta p / p0 will be included in this gathering function.</p>
-<p>Note: Please implement higher slippage factor orders as static methods
-with name _eta&lt;N&gt; where &lt;N&gt; is the order of delta in eta(delta)
-and with signature (alpha_array, beam).</p>
-<p>Use initial momentum (beta_i, gamma_i).
-Update done in longitudinal_tracker.Kick_acceleration.</p>
+<dd><p>Depending on the number of entries in self.alpha_array, the slippage factor
+eta = sum_i eta_i * delta^i is calculated to the corresponding order.</p>
+<p>As eta is used in the tracker, it is calculated with the initial momentum
+at that time step, and the corresponding relativistic beta and gamma.
+For eta coefficients, see Lee: Accelerator Physics (Wiley).</p>
 </dd></dl>
+
+<dl class="method">
+<dt id="trackers.ring_and_RFstation.Ring_and_RFstation.gamma">
+<tt class="descname">gamma</tt><big>(</big><em>beam</em><big>)</big><a class="headerlink" href="#trackers.ring_and_RFstation.Ring_and_RFstation.gamma" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="trackers.ring_and_RFstation.Ring_and_RFstation.gamma_f">
+<tt class="descname">gamma_f</tt><big>(</big><em>beam</em><big>)</big><a class="headerlink" href="#trackers.ring_and_RFstation.Ring_and_RFstation.gamma_f" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="trackers.ring_and_RFstation.Ring_and_RFstation.gamma_i">
+<tt class="descname">gamma_i</tt><big>(</big><em>beam</em><big>)</big><a class="headerlink" href="#trackers.ring_and_RFstation.Ring_and_RFstation.gamma_i" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
 
 <dl class="method">
 <dt id="trackers.ring_and_RFstation.Ring_and_RFstation.hamiltonian">
@@ -321,6 +373,21 @@ Single RF sinusoidal.
 Uses beta, energy averaged over the turn.
 To be generalized.</p>
 </dd></dl>
+
+<dl class="method">
+<dt id="trackers.ring_and_RFstation.Ring_and_RFstation.p0">
+<tt class="descname">p0</tt><big>(</big><big>)</big><a class="headerlink" href="#trackers.ring_and_RFstation.Ring_and_RFstation.p0" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="trackers.ring_and_RFstation.Ring_and_RFstation.p0_f">
+<tt class="descname">p0_f</tt><big>(</big><big>)</big><a class="headerlink" href="#trackers.ring_and_RFstation.Ring_and_RFstation.p0_f" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="trackers.ring_and_RFstation.Ring_and_RFstation.p0_i">
+<tt class="descname">p0_i</tt><big>(</big><big>)</big><a class="headerlink" href="#trackers.ring_and_RFstation.Ring_and_RFstation.p0_i" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
 
 <dl class="method">
 <dt id="trackers.ring_and_RFstation.Ring_and_RFstation.separatrix">

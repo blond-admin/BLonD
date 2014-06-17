@@ -92,9 +92,11 @@ class Longitudinal_tracker(object):
         and takes care that kicks and the drift are done in correct order.
         
         Different solvers can be used:
+        
         'full' -- accurate solution of the drift
-        'simple' -- drift with no correction for low energy/large energy range
-                    and zeroth order in the slippage factor
+        
+        'simple' -- drift with no correction for low energy/large energy range and zeroth order in the slippage factor
+        
         For de-bunching, simply pass zero voltage.
         For synchrotron radiation, energy loss term yet to be implemented.
     """

@@ -13,8 +13,12 @@ from scipy.constants import c, e
 class Ring_and_RFstation(object):
     '''
     Definition of an RF station and part of the ring until the next station, see figure.
-    .. image:: https://github.com/like2000/PyHEADTAIL/tree/PYlongitudinal/doc/source/ring_and_RFstation.png
+    
+    .. image:: https://raw.githubusercontent.com/like2000/PyHEADTAIL/PYlongitudinal/doc/source/ring_and_RFstation.png
         :align: center
+        :width: 600
+        :height: 600
+        
     The time step is fixed to be one turn, but the tracking can consist of multiple
     ring_and_RFstation objects. In this case, the user should make sure that the lengths
     of the stations sum up exactly to the circumference.
