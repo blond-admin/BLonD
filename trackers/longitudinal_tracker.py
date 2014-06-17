@@ -26,7 +26,11 @@ class Kick(object):
         
         self.harmonic = ring.harmonic[i]
         self.voltage = ring.voltage[i]
-        self.phi_offset = ring.phi_offset[i]
+        
+        if ring.phi_offset is not None:
+            self.phi_offset = ring.phi_offset[i]
+        else:
+            self.phi_offset = 0
         
     def track(self, beam):
        
@@ -113,8 +117,9 @@ class Longitudinal_tracker(object):
         self.voltage_list = ring.voltage
         self.circumference = ring.circumference
         
-        if not len(ring.harmonic) == len(ring.voltage) == len(ring.phi_offset):
-            print ("Warning: parameter lists for RFSystems do not have the same length!")
+        if ring.phi_offset is not None:
+            if not len(ring.harmonic) == len(ring.voltage) == len(ring.phi_offset):
+                print ("Warning: parameter lists for RFSystems do not have the same length!")
 
 
         """Separating the kicks from the RF and the magnets.
