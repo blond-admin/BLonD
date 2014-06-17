@@ -133,6 +133,14 @@ class TransverseTracker(object):
         self.M = self.build_maps(Qx, Qp_x, app_x, Qy, Qp_y, app_y)
 
         return self.M
+    
+    def _shrink_transverse_emittance(self, beam, geo_emittance_factor):
+        
+        """accounts for the transverse geometrical emittance shrinking"""
+        beam.x *= geo_emittance_factor
+        beam.xp *= geo_emittance_factor
+        beam.y *= geo_emittance_factor
+        beam.yp *= geo_emittance_factor
 
     def build_maps(self, Qx, Qp_x, app_x, Qy, Qp_y, app_y):
 #         cls.R = [np.kron(np.eye(2), np.ones((2, 2)))

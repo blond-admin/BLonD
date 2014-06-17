@@ -1,320 +1,89 @@
 '''
-Created on 06.01.2014
+Created on 12.06.2014
 
-@author: Kevin Li
+@author: Kevin Li, Danilo Quartullo, Helga Timko
 '''
 
 import numpy as np
+#import copy, h5py, sys
+import sys
+from scipy.constants import c, e
+import cobra_functions.stats as cp
 
-
-import copy, h5py, sys
-from scipy.constants import c, e, epsilon_0, m_e, m_p, pi
-from trackers.longitudinal_tracker import RFSystems
 
 class Beam(object):
     
-    def _create_empty(self, n_macroparticles):
-
-        self.x = np.zeros(n_macroparticles)
-        self.xp = np.zeros(n_macroparticles)
-        self.y = np.zeros(n_macroparticles)
-        self.yp = np.zeros(n_macroparticles)
-        self.theta = np.zeros(n_macroparticles)
-        self.dE = np.zeros(n_macroparticles)
-
-    def _create_gauss(self, n_macroparticles):
-
-        self.x = np.random.randn(n_macroparticles)
-        self.xp = np.random.randn(n_macroparticles)
-        self.y = np.random.randn(n_macroparticles)
-        self.yp = np.random.randn(n_macroparticles)
-        self.theta = np.random.randn(n_macroparticles)
-        self.dE = np.random.randn(n_macroparticles)
+    def __init__(self, ring, mass, n_macroparticles, charge, intensity):
         
-    def _create_uniform(self, n_macroparticles):
+        # Beam and ring-dependent properties
+        self.ring = ring
+        self.mass = mass # in kg
+        self.charge = charge # in C
+        self.intensity = intensity # total no of particles
 
-        self.x = 2 * np.random.rand(n_macroparticles) - 1
-        self.xp = 2 * np.random.rand(n_macroparticles) - 1
-        self.y = 2 * np.random.rand(n_macroparticles) - 1
-        self.yp = 2 * np.random.rand(n_macroparticles) - 1
-        self.theta = 2 * np.random.rand(n_macroparticles) - 1
-        self.dE = 2 * np.random.rand(n_macroparticles) - 1
+        # Beam coordinates
+        self.x = np.empty([n_macroparticles])
+        self.xp = np.empty([n_macroparticles])
+        self.y = np.empty([n_macroparticles])
+        self.yp = np.empty([n_macroparticles])
+        self.theta = np.empty([n_macroparticles])
+        self.dE = np.empty([n_macroparticles])
         
-    def as_bunch(self, n_macroparticles, charge, gamma, intensity, mass,
-                 alpha_x, beta_x, epsn_x, alpha_y, beta_y, epsn_y, beta_z, sigma_z=None, epsn_z=None):
-
-        self._create_gauss(n_macroparticles)
-        self.id = np.arange(1, n_macroparticles + 1, dtype=int)
-
-        # General
-        self.charge = charge
-        self.gamma = gamma
-        self.intensity = intensity
-        self.mass = mass
-
-        # Transverse
-        sigma_x = np.sqrt(beta_x * epsn_x * 1e-6 / (gamma * self.beta))
-        sigma_xp = sigma_x / beta_x
-        sigma_y = np.sqrt(beta_y * epsn_y * 1e-6 / (gamma * self.beta))
-        sigma_yp = sigma_y / beta_y
-
-        self.x *= sigma_x
-        self.xp *= sigma_xp
-        self.y *= sigma_y
-        self.yp *= sigma_yp
-
-        # Longitudinal
-        # Assuming a gaussian-type stationary distribution: beta_z = eta * circumference / (2 * np.pi * Qs)
-        if sigma_z and epsn_z:
-            sigma_delta = epsn_z / (4 * np.pi * sigma_z) * e / self.p0
-            if sigma_z / sigma_delta != beta_z:
-                print '*** WARNING: beam mismatched in bucket. Set synchrotron tune to obtain beta_z = ', sigma_z / sigma_delta
-        elif not sigma_z and epsn_z:
-            sigma_z = np.sqrt(beta_z * epsn_z / (4 * np.pi) * e / self.p0)
-            sigma_delta = sigma_z / beta_z
-        else:
-            sigma_delta = sigma_z / beta_z
-
-        self.z *= sigma_z
-        self.delta *= sigma_delta
-
-        return self
-
-    @classmethod
-    def as_cloud(cls, n_macroparticles, density, extent_x, extent_y, extent_z):
-
-        self = cls()
-
-        self._create_uniform(n_macroparticles)
-
-        # General
-        self.charge = e
-        self.gamma = 1
-        self.intensity = density * extent_x * extent_y * extent_z
-        self.mass = m_e
-
-        # Transverse
-        self.x *= extent_x
-        self.xp *= 0
-        self.y *= extent_y
-        self.yp *= 0
-        self.z *= extent_z
-        self.delta *= 0
-
-        # Initial distribution
-        self.x0 = self.x.copy()
-        self.xp0 = self.xp.copy()
-        self.y0 = self.y.copy()
-        self.yp0 = self.yp.copy()
-        self.z0 = self.z.copy()
-        self.delta0 = self.delta.copy()
-
-        return self
-
-    @classmethod
-    def as_ghost(cls, n_macroparticles):
-
-        self = cls()
-
-        self._create_uniform(n_macroparticles)
-
-        return self
-
-    @property
-    def n_macroparticles(self):
-
-        return len(self.x)
-
-    @property
-    def beta(self):
-        return np.sqrt(1 - self.gamma ** -2)
-    @beta.setter
-    def beta(self, value):
-        self.gamma = 1. / np.sqrt(1 - value ** 2)
-
-    @property
-    def p0(self):
-        return self.mass * self.gamma * self.beta * c
-    @p0.setter
-    def p0(self, value):
-        self.gamma = value / (self.mass * self.beta * c)
+        # Initial coordinates (e.g. for ecloud)
+        self.x0 = np.empty([n_macroparticles])
+        self.xp0 = np.empty([n_macroparticles])
+        self.y0 = np.empty([n_macroparticles])
+        self.yp0 = np.empty([n_macroparticles])
+        self.theta0 = np.empty([n_macroparticles])
+        self.dE0 = np.empty([n_macroparticles])
         
-    @property
-    def energy(self):
-        return self.mass * c ** 2 * self.gamma / e
-    @energy.setter
-    def energy(self, value):
-        self.gamma = value * e / (self.mass * c ** 2)
-    
-#     @property
-#     def delta(self):
-#         return self.Deltap / self.p0
-#     @delta.setter
-#     def delta(self, value):
-#         self.Deltap = value * self.p0
-    
+        # Transverse and longitudinal properties, statistics       
+        self.alpha_x = 0
+        self.beta_x = 0
+        self.epsn_x = 0
+        self.alpha_y = 0
+        self.beta_y = 0
+        self.epsn_y = 0
+        self.sigma_theta = 0
+        self.sigma_dE = 0
+        #self.epsn_z = 0
+        
+        # Particle/loss counts
+        self.n_macroparticles = n_macroparticles
+        self.n_macroparticles_lost = 0
+        self.id = np.arange(1, self.n_macroparticles + 1, dtype=int)
+
+            
+    # Coordinate conversions
     @property
     def z(self):
-        return - self.theta * 4242.893006758496
+        return - self.theta * self.ring.radius 
+     
     @z.setter
     def z(self, value):
-        self.theta = - value / 4242.893006758496
+        self.theta = - value / self.ring.radius
     
     @property
     def delta(self):
-        return self.dE / (self.beta**2 * self.energy)
+        return self.dE / (self.ring.beta_i(self)**2 * self.ring.energy_i(self))
+
     @delta.setter
     def delta(self, value):
-        self.dE = value * self.beta**2 * self.energy
-
-    def reinit(self):
-
-        np.copyto(self.x, self.x0)
-        np.copyto(self.xp, self.xp0)
-        np.copyto(self.y, self.y0)
-        np.copyto(self.yp, self.yp0)
-        np.copyto(self.z, self.z0)
-        np.copyto(self.delta, self.delta0)
-
-    def sort_particles(self):
-        # update the number of lost particles
-        self.n_macroparticles_lost = (self.n_macroparticles - np.count_nonzero(self.id))
-
-        # sort particles according to dz (this is needed for correct functioning of bunch.compute_statistics)
-        if self.n_macroparticles_lost:
-            z_argsorted = np.lexsort((self.z, -np.sign(self.id))) # place lost particles at the end of the array
-        else:
-            z_argsorted = np.argsort(self.z)
-
-        self.x = self.x.take(z_argsorted)
-        self.xp = self.xp.take(z_argsorted)
-        self.y = self.y.take(z_argsorted)
-        self.yp = self.yp.take(z_argsorted)
-        self.z = self.z.take(z_argsorted)
-        self.dp = self.dp.take(z_argsorted)
-        self.id = self.id.take(z_argsorted)
-
-
-class GaussianBunch(Beam):
-
-    def __init__(self, n_macroparticles, charge, gamma, intensity, mass, 
-                 alpha_x, beta_x, epsn_x, alpha_y, beta_y, epsn_y, beta_z, 
-                 sigma_z=None, epsn_z=None, match=None):
-        self.charge = charge
-        self.gamma = gamma
-        self.intensity = intensity
-        self.mass = mass
-
-        self._create_gaussian(n_macroparticles)
-        self._match_simple_gaussian_transverse(alpha_x, beta_x, epsn_x, alpha_y, beta_y, epsn_y)
-        self._match_simple_gaussian_longitudinal(beta_z, sigma_z, epsn_z)
-
-        self.id = np.arange(1, n_macroparticles + 1, dtype=int)
-
-    def _match_simple_gaussian_transverse(self, alpha_x, beta_x, epsn_x, alpha_y, beta_y, epsn_y):
-
-        sigma_x = np.sqrt(beta_x * epsn_x * 1e-6 / (self.gamma * self.beta))
-        sigma_xp = sigma_x / beta_x
-        sigma_y = np.sqrt(beta_y * epsn_y * 1e-6 / (self.gamma * self.beta))
-        sigma_yp = sigma_y / beta_y
-
-        self.x *= sigma_x
-        self.xp *= sigma_xp
-        self.y *= sigma_y
-        self.yp *= sigma_yp
-
-    def _match_simple_gaussian_longitudinal(self, beta_z, sigma_z=None, epsn_z=None):
-
-        if sigma_z and epsn_z:
-            sigma_delta = epsn_z / (4 * np.pi * sigma_z) * e / self.p0
-            if sigma_z / sigma_delta != beta_z:
-                print '*** WARNING: beam mismatched in bucket. Set synchrotron tune as to obtain beta_z = ', sigma_z / sigma_delta
-        elif not sigma_z and epsn_z:
-            sigma_z = np.sqrt(beta_z * epsn_z / (4 * np.pi) * e / self.p0)
-            sigma_delta = sigma_z / beta_z
-        else:
-            sigma_delta = sigma_z / beta_z
-
-        self.z *= sigma_z
-        self.delta *= sigma_delta
+        self.dE = value * self.ring.beta_i(self)**2 * self.ring.energy_i(self)
 
     @property
-    def n_macroparticles(self):
-        return len(self.x)
-
-    @property
-    def beta(self):
-        return np.sqrt(1 - 1. / self.gamma ** 2)
-    @beta.setter
-    def beta(self, value):
-        self.gamma = 1. / np.sqrt(1 - value ** 2)
-
-    @property
-    def p0(self):
-        return self.mass * self.gamma * self.beta * c
-    @p0.setter
-    def p0(self, value):
-        self.gamma = value / (self.mass * self.beta * c)
-
-    @property
-    def Deltap(self):
-        return self.delta * self.p0
-    @Deltap.setter
-    def Deltap(self, value):
-        self.delta = value / self.p0
+    def z0(self):
+        return - self.theta0 * self.ring.radius 
+    @z0.setter
+    def z0(self, value):
+        self.theta0 = - value / self.ring.radius 
     
-    def sort_particles(self):
-        # update the number of lost particles
-        self.n_macroparticles_lost = (self.n_macroparticles - np.count_nonzero(self.id))
-
-        # sort particles according to z (this is needed for correct functioning of bunch.compute_statistics)
-        if self.n_macroparticles_lost:
-            z_argsorted = np.lexsort((self.z, -np.sign(self.id))) # place lost particles at the end of the array
-        else:
-            z_argsorted = np.argsort(self.z)
-
-        self.x = self.x.take(z_argsorted)
-        self.xp = self.xp.take(z_argsorted)
-        self.y = self.y.take(z_argsorted)
-        self.yp = self.yp.take(z_argsorted)
-        self.z = self.z.take(z_argsorted)
-        self.delta = self.delta.take(z_argsorted)
-        self.id = self.id.take(z_argsorted)
-
-
-class Cloud(Beam):
-
-    def __init__(self, n_macroparticles, density, extent_x, extent_y, extent_z):
-
-        self.charge = e
-        self.gamma = 1
-        self.intensity = density * extent_x * extent_y * extent_z
-        self.mass = m_e
-
-        self._create_uniform(n_macroparticles)
-        self._match_uniform(extent_x, extent_y, extent_z)
-
-        # Initial distribution
-        self.x0 = self.x.copy()
-        self.xp0 = self.xp.copy()
-        self.y0 = self.y.copy()
-        self.yp0 = self.yp.copy()
-        self.z0 = self.z.copy()
-        self.delta0 = self.delta.copy()
-
-    def _match_uniform(self, extent_x, extent_y, extent_z):
-
-        self.x *= extent_x
-        self.xp *= 0
-        self.y *= extent_y
-        self.yp *= 0
-        self.z *= extent_z
-        self.delta *= 0
-
     @property
-    def n_macroparticles(self):
-
-        return len(self.x)
+    def delta0(self):
+        return self.dE0 / (self.ring.beta_i(self)**2 * self.ring.energy_i(self))
+    @delta0.setter
+    def delta0(self, value):
+        self.dE0 = value * self.ring.beta_i(self)**2 * self.ring.energy_i(self)
 
     def reinit(self):
 
@@ -322,7 +91,80 @@ class Cloud(Beam):
         np.copyto(self.xp, self.xp0)
         np.copyto(self.y, self.y0)
         np.copyto(self.yp, self.yp0)
+        np.copyto(self.theta, self.theta0)
+        np.copyto(self.dE, self.dE0)
         np.copyto(self.z, self.z0)
         np.copyto(self.delta, self.delta0)
+        
+    # Statistics
+    @property    
+    def mean_z(self):
+        return - self.mean_theta * self.ring.radius 
+    @mean_z.setter
+    def mean_z(self, value):
+        self.mean_theta = - value / self.ring.radius 
+    
+    @property
+    def mean_delta(self):
+        return self.mean_dE / (self.ring.beta_i(self)**2 * self.ring.energy_i(self))
+    @mean_delta.setter
+    def mean_delta(self, value):
+        self.mean_dE = value * self.ring.beta_i(self)**2 * self.ring.energy_i(self)
+
+    @property    
+    def sigma_z(self):
+        return - self.sigma_theta * self.ring.radius 
+    @sigma_z.setter
+    def sigma_z(self, value):
+        self.sigma_theta = - value / self.ring.radius 
+    
+    @property
+    def sigma_delta(self):
+        return self.sigma_dE / (self.ring.beta_i(self)**2 * self.ring.energy_i(self))
+    @sigma_delta.setter
+    def sigma_delta(self, value):
+        self.sigma_dE = value * self.ring.beta_i(self)**2 * self.ring.energy_i(self)
+
+    def longit_statistics(self):
+        
+        self.mean_theta = cp.mean(self.theta)
+        self.mean_dE = cp.mean(self.dE)
+        self.sigma_theta = cp.std(self.theta)
+        self.sigma_dE = cp.std(self.dE)
+        #self.epsn_l = 4 * np.pi * self.sigma_theta * self.sigma_dE * self.mass * ring.gamma_f * ring.beta_f * c / e
+        # R.m.s. emittance in Gaussian approximation, other emittances to be defined
+        self.eps_rms_l = np.pi * self.sigma_dE * self.sigma_theta \
+                        * self.ring.radius / (self.ring.beta_i(self) * c) # in eVs
+
+        # Gaussian fit to theta-profile 
+#         p0 = [100., 0., self.slices.sigma_dz[-2]] #initial guess
+#         def gauss(x, *p):
+#             A, x0, sx = p
+#             return A*np.exp(-(x-x0)**2/2./sx**2) 
+#         pfit, pvar = curve_fit(gauss, self.slices.mean_dz[1:-3], 
+#                                self.slices.n_macroparticles[1:-3], p0=p0)
+#         self.bl_gauss = 4*abs(pfit[2]) # 4 sigma bunch length
+
+                                
+    def transv_statistics(self):
+        
+        self.mean_x = cp.mean(self.x)
+        self.mean_xp = cp.mean(self.xp)
+        self.mean_y = cp.mean(self.y)
+        self.mean_yp = cp.mean(self.yp)
+        self.sigma_x = cp.std(self.x)
+        self.sigma_y = cp.std(self.y)
+        self.epsn_x_xp = cp.emittance(x, xp) * self.ring.gamma_i(self) \
+                        * self.ring.beta_f(self) * 1e6
+        self.epsn_y_yp = cp.emittance(y, yp) * self.ring.gamma_f(self) \
+                        * self.ring.beta_f(self) * 1e6
+    
+    def losses(self, ring):
+         
+        for i in xrange(self.n_macroparticles):
+            if not ring.is_in_separatrix(ring, self, self.theta[i], self.dE[i], self.delta[i]):
+                # Set ID to zero
+                self.id[i] = 0
+
 
 

@@ -1,0 +1,450 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>trackers package &mdash; PyHEADTAIL embryo documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     'embryo',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="PyHEADTAIL embryo documentation" href="index.html" />
+    <link rel="up" title="&lt;no title&gt;" href="modules.html" />
+    <link rel="prev" title="&lt;no title&gt;" href="modules.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="modules.html" title="&lt;no title&gt;"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">PyHEADTAIL embryo documentation</a> &raquo;</li>
+          <li><a href="modules.html" accesskey="U">&lt;no title&gt;</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="trackers-package">
+<h1>trackers package<a class="headerlink" href="#trackers-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-trackers.libTPSA">
+<span id="trackers-libtpsa-module"></span><h2>trackers.libTPSA module<a class="headerlink" href="#module-trackers.libTPSA" title="Permalink to this headline">¶</a></h2>
+<p>Copyright CERN 2014
+Author: Adrian Oeftiger, <a class="reference external" href="mailto:oeftiger&#37;&#52;&#48;cern&#46;ch">oeftiger<span>&#64;</span>cern<span>&#46;</span>ch</a> Adrian Oeftiger, <a class="reference external" href="mailto:oeftiger&#37;&#52;&#48;cern&#46;ch">oeftiger<span>&#64;</span>cern<span>&#46;</span>ch</a></p>
+<p>This module provides a two-dimensional Truncated Power Series
+up until first order as suited for algebraical Jacobian determination
+for two given variables.</p>
+<p>The TPS class supports elementary operations such as +, -, /, * 
+(and true division according to &#8220;from __future__ import division&#8221;).</p>
+<p>Functions such as sin, cos, exp, log etc are envisaged 
+to be implemented in a later version.</p>
+<dl class="class">
+<dt id="trackers.libTPSA.TPS">
+<em class="property">class </em><tt class="descclassname">trackers.libTPSA.</tt><tt class="descname">TPS</tt><big>(</big><em>vector=array([0</em>, <em>1</em>, <em>0])</em><big>)</big><a class="headerlink" href="#trackers.libTPSA.TPS" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p>Truncated Power Series which obeys a TPS Algebra,
+cf. &#8220;DIFFERENTIAL ALGEBRAIC DESCRIPTION OF BEAM 
+DYNAMICS TO VERY HIGH ORDERS&#8221; by M. BERZ,
+Particle Accelerators, 1989. Vol. 24, pp. 109-124.</p>
+<dl class="method">
+<dt id="trackers.libTPSA.TPS.diff">
+<tt class="descname">diff</tt><big>(</big><big>)</big><a class="headerlink" href="#trackers.libTPSA.TPS.diff" title="Permalink to this definition">¶</a></dt>
+<dd><p>returns the first-order entries, the first differential values</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="trackers.libTPSA.TPS.getvector">
+<tt class="descname">getvector</tt><big>(</big><big>)</big><a class="headerlink" href="#trackers.libTPSA.TPS.getvector" title="Permalink to this definition">¶</a></dt>
+<dd><p>returns all TPS coefficients in an np.ndarray</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="trackers.libTPSA.TPS.invert">
+<tt class="descname">invert</tt><big>(</big><big>)</big><a class="headerlink" href="#trackers.libTPSA.TPS.invert" title="Permalink to this definition">¶</a></dt>
+<dd><p>1 / (this TPS)</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="trackers.libTPSA.TPS.real">
+<tt class="descname">real</tt><big>(</big><big>)</big><a class="headerlink" href="#trackers.libTPSA.TPS.real" title="Permalink to this definition">¶</a></dt>
+<dd><p>returns the zero-order entry, the main value</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-trackers.libintegrators">
+<span id="trackers-libintegrators-module"></span><h2>trackers.libintegrators module<a class="headerlink" href="#module-trackers.libintegrators" title="Permalink to this headline">¶</a></h2>
+<p>Copyright CERN 2014
+Author: Adrian Oeftiger, <a class="reference external" href="mailto:oeftiger&#37;&#52;&#48;cern&#46;ch">oeftiger<span>&#64;</span>cern<span>&#46;</span>ch</a></p>
+<p>This module provides various numerical integration methods
+for Hamiltonian vector fields on (currently two-dimensional) phase space.
+The integrators are separated according to symplecticity.
+The method is_symple() is provided to check for symplecticity 
+of a given integration method &#8211; it may be used generically
+for any integration method with the described signature.</p>
+<dl class="function">
+<dt id="trackers.libintegrators.is_symple">
+<tt class="descclassname">trackers.libintegrators.</tt><tt class="descname">is_symple</tt><big>(</big><em>integrator</em><big>)</big><a class="headerlink" href="#trackers.libintegrators.is_symple" title="Permalink to this definition">¶</a></dt>
+<dd><p>returns whether the given integrator is symplectic w.r.t. to a certain
+numerical tolerance (fixed by numpy.allclose).
+The decision is taken on whether the Jacobian determinant remains 1
+(after a time step of 1 while modelling a harmonic oscillator).
+The integrator input should be a function taking the argument 
+signature (x_initial, p_initial, timestep, H_p, H_x), where
+the first three arguments are numbers and H_p(p) and H_x(x) are
+functions taking one argument.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="trackers.libintegrators.non_symple">
+<em class="property">class </em><tt class="descclassname">trackers.libintegrators.</tt><tt class="descname">non_symple</tt><a class="headerlink" href="#trackers.libintegrators.non_symple" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p>Contains <em>non-symplectic</em> integrator algorithms.
+The integrator input should be a function taking the argument 
+signature (x_initial, p_initial, timestep, H_p, H_x).
+H_x(x) = dH/dx is a function of x only while
+H_p(p) = dH/dp is a function of p only.</p>
+<dl class="staticmethod">
+<dt id="trackers.libintegrators.non_symple.Euler">
+<em class="property">static </em><tt class="descname">Euler</tt><big>(</big><em>x_initial</em>, <em>p_initial</em>, <em>timestep</em>, <em>H_p</em>, <em>H_x</em><big>)</big><a class="headerlink" href="#trackers.libintegrators.non_symple.Euler" title="Permalink to this definition">¶</a></dt>
+<dd><p>Non-symplectic one-dimensional Euler O(T^2) Algorithm.</p>
+</dd></dl>
+
+<dl class="staticmethod">
+<dt id="trackers.libintegrators.non_symple.RK2">
+<em class="property">static </em><tt class="descname">RK2</tt><big>(</big><em>x_initial</em>, <em>p_initial</em>, <em>timestep</em>, <em>H_p</em>, <em>H_x</em><big>)</big><a class="headerlink" href="#trackers.libintegrators.non_symple.RK2" title="Permalink to this definition">¶</a></dt>
+<dd><p>Non-symplectic one-dimensional Runge Kutta 2 O(T^3) Algorithm.</p>
+</dd></dl>
+
+<dl class="staticmethod">
+<dt id="trackers.libintegrators.non_symple.RK4">
+<em class="property">static </em><tt class="descname">RK4</tt><big>(</big><em>x_initial</em>, <em>p_initial</em>, <em>timestep</em>, <em>H_p</em>, <em>H_x</em><big>)</big><a class="headerlink" href="#trackers.libintegrators.non_symple.RK4" title="Permalink to this definition">¶</a></dt>
+<dd><p>Non-symplectic one-dimensional Runge Kutta 4 O(T^5) Algorithm.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="trackers.libintegrators.symple">
+<em class="property">class </em><tt class="descclassname">trackers.libintegrators.</tt><tt class="descname">symple</tt><a class="headerlink" href="#trackers.libintegrators.symple" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p>Contains <em>symplectic</em> integrator algorithms. 
+The integrator input should be a function taking the argument 
+signature (x_initial, p_initial, timestep, H_p, H_x).
+It is assumed that the Hamiltonian is separable into a kinetic
+part T(p) (giving rise to H_p(p) = dH/dp which only depends on the 
+conjugate momentum p) and into a potential part V(x) (giving rise 
+to H_x(x) = dH/dx which only depends on the spatial coordinate x).</p>
+<dl class="staticmethod">
+<dt id="trackers.libintegrators.symple.Euler_Cromer">
+<em class="property">static </em><tt class="descname">Euler_Cromer</tt><big>(</big><em>x_initial</em>, <em>p_initial</em>, <em>timestep</em>, <em>H_p</em>, <em>H_x</em><big>)</big><a class="headerlink" href="#trackers.libintegrators.symple.Euler_Cromer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Symplectic one-dimensional Euler Cromer O(T^2) Algorithm.
+This Euler_Cromer is explicite! keyword: drift-kick mechanism</p>
+</dd></dl>
+
+<dl class="staticmethod">
+<dt id="trackers.libintegrators.symple.Ruth">
+<em class="property">static </em><tt class="descname">Ruth</tt><big>(</big><em>x_initial</em>, <em>p_initial</em>, <em>timestep</em>, <em>H_p</em>, <em>H_x</em><big>)</big><a class="headerlink" href="#trackers.libintegrators.symple.Ruth" title="Permalink to this definition">¶</a></dt>
+<dd><p>Symplectic one-dimensional Ruth and Forest O(T^5) Algorithm.
+Harvard: 1992IAUS..152..407Y</p>
+</dd></dl>
+
+<dl class="staticmethod">
+<dt id="trackers.libintegrators.symple.Verlet">
+<em class="property">static </em><tt class="descname">Verlet</tt><big>(</big><em>x_initial</em>, <em>p_initial</em>, <em>timestep</em>, <em>H_p</em>, <em>H_x</em><big>)</big><a class="headerlink" href="#trackers.libintegrators.symple.Verlet" title="Permalink to this definition">¶</a></dt>
+<dd><p>Symplectic one-dimensional (Velocity) Verlet O(T^3) Algorithm.
+keyword: leapfrog mechanism</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-trackers.longitudinal_tracker">
+<span id="trackers-longitudinal-tracker-module"></span><h2>trackers.longitudinal_tracker module<a class="headerlink" href="#module-trackers.longitudinal_tracker" title="Permalink to this headline">¶</a></h2>
+<p>Created on 12.06.2014</p>
+<p>&#64;author: Danilo Quartullo, Helga Timko</p>
+<dl class="class">
+<dt id="trackers.longitudinal_tracker.Drift">
+<em class="property">class </em><tt class="descclassname">trackers.longitudinal_tracker.</tt><tt class="descname">Drift</tt><big>(</big><em>ring</em>, <em>solver</em><big>)</big><a class="headerlink" href="#trackers.longitudinal_tracker.Drift" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p>the drift (i.e. Delta z) of the particle&#8217;s z coordinate is given by
+the (separable) Hamiltonian derived by dp (defined by (p - p0) / p0).</p>
+<p>self.length is the drift length,
+self.beta_factor is the change ratio of beta_{n+1} / beta_n
+which can often be neglected (and be set to one). [Otherwise it may
+continuously be adapted by the user according to Kick.p_increment.]</p>
+<dl class="method">
+<dt id="trackers.longitudinal_tracker.Drift.track">
+<tt class="descname">track</tt><big>(</big><em>beam</em><big>)</big><a class="headerlink" href="#trackers.longitudinal_tracker.Drift.track" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="trackers.longitudinal_tracker.Kick">
+<em class="property">class </em><tt class="descclassname">trackers.longitudinal_tracker.</tt><tt class="descname">Kick</tt><big>(</big><em>ring</em>, <em>i</em><big>)</big><a class="headerlink" href="#trackers.longitudinal_tracker.Kick" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p>The Kick class represents the kick by a single RF element in a ring!
+The kick (i.e. Delta dp) of the particle&#8217;s dp coordinate is given by
+the (separable) Hamiltonian derived by z, i.e. the force.</p>
+<dl class="docutils">
+<dt>self.p_increment is the momentum step per turn of the synchronous particle,</dt>
+<dd>it can be continuously adjusted to reflect different slopes 
+in the dipole magnet strength ramp.</dd>
+</dl>
+<p>self.phi_offset reflects an offset of the cavity&#8217;s reference system.</p>
+<dl class="method">
+<dt id="trackers.longitudinal_tracker.Kick.track">
+<tt class="descname">track</tt><big>(</big><em>beam</em><big>)</big><a class="headerlink" href="#trackers.longitudinal_tracker.Kick.track" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="trackers.longitudinal_tracker.Kick_acceleration">
+<em class="property">class </em><tt class="descclassname">trackers.longitudinal_tracker.</tt><tt class="descname">Kick_acceleration</tt><big>(</big><em>p_increment</em><big>)</big><a class="headerlink" href="#trackers.longitudinal_tracker.Kick_acceleration" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<dl class="method">
+<dt id="trackers.longitudinal_tracker.Kick_acceleration.track">
+<tt class="descname">track</tt><big>(</big><em>beam</em><big>)</big><a class="headerlink" href="#trackers.longitudinal_tracker.Kick_acceleration.track" title="Permalink to this definition">¶</a></dt>
+<dd><p>Using the average beta during the acceleration to account for 
+the change in momentum over one turn.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="trackers.longitudinal_tracker.LinearMap">
+<em class="property">class </em><tt class="descclassname">trackers.longitudinal_tracker.</tt><tt class="descname">LinearMap</tt><big>(</big><em>circumference</em>, <em>momentum_compaction</em>, <em>Qs</em><big>)</big><a class="headerlink" href="#trackers.longitudinal_tracker.LinearMap" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p>Linear Map represented by a Courant-Snyder transportation matrix.
+self.alpha is the linear momentum compaction factor.</p>
+<dl class="method">
+<dt id="trackers.longitudinal_tracker.LinearMap.track">
+<tt class="descname">track</tt><big>(</big><em>beam</em><big>)</big><a class="headerlink" href="#trackers.longitudinal_tracker.LinearMap.track" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="trackers.longitudinal_tracker.Longitudinal_tracker">
+<em class="property">class </em><tt class="descclassname">trackers.longitudinal_tracker.</tt><tt class="descname">Longitudinal_tracker</tt><big>(</big><em>ring</em>, <em>solver='full'</em><big>)</big><a class="headerlink" href="#trackers.longitudinal_tracker.Longitudinal_tracker" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p>With one RFSystems object in the ring layout (with all kicks applied 
+at the same longitudinal position), the longitudinal separatrix function 
+is exact and makes a valid local statement about stability!</p>
+<dl class="method">
+<dt id="trackers.longitudinal_tracker.Longitudinal_tracker.track">
+<tt class="descname">track</tt><big>(</big><em>beam</em><big>)</big><a class="headerlink" href="#trackers.longitudinal_tracker.Longitudinal_tracker.track" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-trackers.ring_and_RFstation">
+<span id="trackers-ring-and-rfstation-module"></span><h2>trackers.ring_and_RFstation module<a class="headerlink" href="#module-trackers.ring_and_RFstation" title="Permalink to this headline">¶</a></h2>
+<p>Created on 12.06.2014</p>
+<p>&#64;author: Danilo Quartullo, Helga Timko</p>
+<dl class="class">
+<dt id="trackers.ring_and_RFstation.Ring_and_RFstation">
+<em class="property">class </em><tt class="descclassname">trackers.ring_and_RFstation.</tt><tt class="descname">Ring_and_RFstation</tt><big>(</big><em>circumference</em>, <em>length</em>, <em>harmonic_list</em>, <em>voltage_list</em>, <em>phi_offset_list</em>, <em>alpha_array</em><big>)</big><a class="headerlink" href="#trackers.ring_and_RFstation.Ring_and_RFstation" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p>Definition of an RF station and part of the ring until the next station</p>
+<a class="reference internal image-reference" href="https://github.com/jakubroztocil/httpie/raw/master/httpie.png"><img alt="HTTPie compared to cURL" class="align-center" src="https://github.com/jakubroztocil/httpie/raw/master/httpie.png" style="width: 835px; height: 835px;" /></a>
+<dl class="method">
+<dt id="trackers.ring_and_RFstation.Ring_and_RFstation.calc_phi_s">
+<tt class="descname">calc_phi_s</tt><big>(</big><em>beam</em>, <em>voltage</em><big>)</big><a class="headerlink" href="#trackers.ring_and_RFstation.Ring_and_RFstation.calc_phi_s" title="Permalink to this definition">¶</a></dt>
+<dd><p>The synchronous phase calculated from the rate of momentum change.
+Below transition, for decelerating bucket: phi_s is in (-Pi/2,0)
+Below transition, for accelerating bucket: phi_s is in (0,Pi/2)
+Above transition, for accelerating bucket: phi_s is in (Pi/2,Pi)
+Above transition, for decelerating bucket: phi_s is in (Pi,3Pi/2)
+The synchronous phase is calculated at a certain moment.
+Uses beta, energy averaged over the turn.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="trackers.ring_and_RFstation.Ring_and_RFstation.eta">
+<tt class="descname">eta</tt><big>(</big><em>beam</em>, <em>delta</em><big>)</big><a class="headerlink" href="#trackers.ring_and_RFstation.Ring_and_RFstation.eta" title="Permalink to this definition">¶</a></dt>
+<dd><p>Depending on the number of entries in self.alpha_array the 
+according order of eta = sum_i eta_i * delta^i where
+delta = Delta p / p0 will be included in this gathering function.</p>
+<p>Note: Please implement higher slippage factor orders as static methods
+with name _eta&lt;N&gt; where &lt;N&gt; is the order of delta in eta(delta)
+and with signature (alpha_array, beam).</p>
+<p>Use initial momentum (beta_i, gamma_i).
+Update done in longitudinal_tracker.Kick_acceleration.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="trackers.ring_and_RFstation.Ring_and_RFstation.hamiltonian">
+<tt class="descname">hamiltonian</tt><big>(</big><em>beam</em>, <em>theta</em>, <em>dE</em>, <em>delta</em><big>)</big><a class="headerlink" href="#trackers.ring_and_RFstation.Ring_and_RFstation.hamiltonian" title="Permalink to this definition">¶</a></dt>
+<dd><p>Single RF sinusoidal Hamiltonian.
+Uses beta, energy averaged over the turn.
+To be generalized.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="trackers.ring_and_RFstation.Ring_and_RFstation.is_in_separatrix">
+<tt class="descname">is_in_separatrix</tt><big>(</big><em>beam</em>, <em>theta</em>, <em>dE</em>, <em>delta</em><big>)</big><a class="headerlink" href="#trackers.ring_and_RFstation.Ring_and_RFstation.is_in_separatrix" title="Permalink to this definition">¶</a></dt>
+<dd><p>Condition for being inside the separatrix.
+Single RF sinusoidal.
+Uses beta, energy averaged over the turn.
+To be generalized.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="trackers.ring_and_RFstation.Ring_and_RFstation.separatrix">
+<tt class="descname">separatrix</tt><big>(</big><em>beam</em>, <em>theta</em><big>)</big><a class="headerlink" href="#trackers.ring_and_RFstation.Ring_and_RFstation.separatrix" title="Permalink to this definition">¶</a></dt>
+<dd><p>Single RF sinusoidal separatrix.
+Uses beta, energy averaged over the turn.
+To be generalized.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-trackers.transverse_tracker">
+<span id="trackers-transverse-tracker-module"></span><h2>trackers.transverse_tracker module<a class="headerlink" href="#module-trackers.transverse_tracker" title="Permalink to this headline">¶</a></h2>
+<p>Created on 07.01.2014</p>
+<p>&#64;author: Kevin Li</p>
+<dl class="class">
+<dt id="trackers.transverse_tracker.LinearPeriodicMap">
+<em class="property">class </em><tt class="descclassname">trackers.transverse_tracker.</tt><tt class="descname">LinearPeriodicMap</tt><big>(</big><em>I</em>, <em>J</em>, <em>beta_x</em>, <em>dmu_x</em>, <em>Qx</em>, <em>Qp_x</em>, <em>app_x</em>, <em>beta_y</em>, <em>dmu_y</em>, <em>Qy</em>, <em>Qp_y</em>, <em>app_y</em><big>)</big><a class="headerlink" href="#trackers.transverse_tracker.LinearPeriodicMap" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<dl class="method">
+<dt id="trackers.transverse_tracker.LinearPeriodicMap.detune">
+<tt class="descname">detune</tt><big>(</big><em>beam</em><big>)</big><a class="headerlink" href="#trackers.transverse_tracker.LinearPeriodicMap.detune" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="trackers.transverse_tracker.LinearPeriodicMap.track">
+<tt class="descname">track</tt><big>(</big><em>beam</em><big>)</big><a class="headerlink" href="#trackers.transverse_tracker.LinearPeriodicMap.track" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="trackers.transverse_tracker.TransverseTracker">
+<em class="property">class </em><tt class="descclassname">trackers.transverse_tracker.</tt><tt class="descname">TransverseTracker</tt><big>(</big><em>s</em>, <em>alpha_x</em>, <em>beta_x</em>, <em>D_x</em>, <em>Qx</em>, <em>alpha_y</em>, <em>beta_y</em>, <em>D_y</em>, <em>Qy</em><big>)</big><a class="headerlink" href="#trackers.transverse_tracker.TransverseTracker" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p>classdocs</p>
+<dl class="method">
+<dt id="trackers.transverse_tracker.TransverseTracker.build_maps">
+<tt class="descname">build_maps</tt><big>(</big><em>Qx</em>, <em>Qp_x</em>, <em>app_x</em>, <em>Qy</em>, <em>Qp_y</em>, <em>app_y</em><big>)</big><a class="headerlink" href="#trackers.transverse_tracker.TransverseTracker.build_maps" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="classmethod">
+<dt id="trackers.transverse_tracker.TransverseTracker.default">
+<em class="property">classmethod </em><tt class="descname">default</tt><big>(</big><em>n_segments</em>, <em>C</em>, <em>beta_x</em>, <em>Qx</em>, <em>Qp_x</em>, <em>app_x</em>, <em>beta_y</em>, <em>Qy</em>, <em>Qp_y</em>, <em>app_y</em><big>)</big><a class="headerlink" href="#trackers.transverse_tracker.TransverseTracker.default" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="classmethod">
+<dt id="trackers.transverse_tracker.TransverseTracker.from_copy">
+<em class="property">classmethod </em><tt class="descname">from_copy</tt><big>(</big><em>s</em>, <em>alpha_x</em>, <em>beta_x</em>, <em>D_x</em>, <em>alpha_y</em>, <em>beta_y</em>, <em>D_y</em>, <em>Qx</em>, <em>Qp_x</em>, <em>app_x</em>, <em>Qy</em>, <em>Qp_y</em>, <em>app_y</em><big>)</big><a class="headerlink" href="#trackers.transverse_tracker.TransverseTracker.from_copy" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-trackers">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-trackers" title="Permalink to this headline">¶</a></h2>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">trackers package</a><ul>
+<li><a class="reference internal" href="#submodules">Submodules</a></li>
+<li><a class="reference internal" href="#module-trackers.libTPSA">trackers.libTPSA module</a></li>
+<li><a class="reference internal" href="#module-trackers.libintegrators">trackers.libintegrators module</a></li>
+<li><a class="reference internal" href="#module-trackers.longitudinal_tracker">trackers.longitudinal_tracker module</a></li>
+<li><a class="reference internal" href="#module-trackers.ring_and_RFstation">trackers.ring_and_RFstation module</a></li>
+<li><a class="reference internal" href="#module-trackers.transverse_tracker">trackers.transverse_tracker module</a></li>
+<li><a class="reference internal" href="#module-trackers">Module contents</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="modules.html"
+                        title="previous chapter">&lt;no title&gt;</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/trackers.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="modules.html" title="&lt;no title&gt;"
+             >previous</a> |</li>
+        <li><a href="index.html">PyHEADTAIL embryo documentation</a> &raquo;</li>
+          <li><a href="modules.html" >&lt;no title&gt;</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, CERN.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.1.
+    </div>
+  </body>
+</html>
