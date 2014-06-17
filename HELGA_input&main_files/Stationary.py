@@ -14,12 +14,13 @@ from trackers.longitudinal_tracker import *
 from trackers.transverse_tracker import *
 from longitudinal_plots.longitudinal_plots import *
 from beams.transverse_distributions import *
+from beams.longitudinal_distributions import *
 
 
 # Simulation parameters --------------------------------------------------------
 # Bunch parameters
 N_b = 1.e9           # Intensity
-N_p = 1          # Macro-particles
+N_p = 10000          # Macro-particles
 tau_0 = 0.4e-9       # Initial bunch length, 4 sigma [s]
 sd = .5e-4           # Initial r.m.s. momentum spread
 N_sl = 100           # Number of slices
@@ -39,7 +40,8 @@ Qp_y = 0.
 
 # Machine and RF parameters
 h = []
-V_rf = []
+V_rf1 = []
+V_rf2 = []
 dphi = []
 gamma_t = 55.759505  # Transition gamma
 C = 26658.883        # Machine circumference [m]
@@ -47,14 +49,15 @@ C = 26658.883        # Machine circumference [m]
 h.append(35640)      # Harmonic number
 p_s = 450.e9         # Synchronous momentum [eV]
 #V_rf = 6.e6          # RF voltage [eV]
-V_rf.append(6.e6)    # RF voltage [eV]
+V_rf1.append(6.e6/2)    # RF voltage [eV]
+V_rf2.append(6.e6)
 #dphi = 0.            # Phase modulation/offset
 dphi.append(0.)      # Phase modulation/offset
 
 # Tracking details
 N_t = 200            # Number of turns to track
 dt_out = 20          # Time steps between output
-dt_plt = 10          # Time steps between plots
+dt_plt = 50          # Time steps between plots
 
 # Derived parameters
 #m_p *= c**2/e
@@ -75,8 +78,12 @@ print ""
 
 
 # Synchrotron motion
-ring1 = Ring_and_RFstation(C, C, h, V_rf, dphi, alpha, p_s*np.ones(N_t+1))
-cavity1 = Longitudinal_tracker(ring1)
+station0 = Ring_and_RFstation(C, p_s*np.ones(N_t+2), alpha, C, h, V_rf2, dphi)
+station1 = Ring_and_RFstation(C, p_s*np.ones(N_t+2), alpha, C*0.3, h, V_rf1, dphi)
+tracker1 = Longitudinal_tracker(station1)
+
+station2 = Ring_and_RFstation(C, p_s*np.ones(N_t+2), alpha, C*0.7, h, V_rf1, dphi)
+tracker2 = Longitudinal_tracker(station2)
 
 #ring2 = Ring_and_RF(C, C*0.7, h, V_rf, dphi, alpha, p_s*np.ones(N_t+1))
 #cavity2 = RFSystems(ring2)
@@ -104,19 +111,16 @@ print "Cavity set"
 #print "Initial distribution set"
 
 
-beam = Beam(ring1, m_p, N_p, e, N_b)
-bunch = as_bunch(ring1, beam, alpha_x, beta_x, epsn_x, 
-                      alpha_y, beta_y, epsn_y, beta, sz, 0.0614)
-beam2 = Beam(ring1, m_p, N_p, e, N_b)
-bunch2 = as_cloud(ring1, beam2, 1, 1, 1, 1)
+beam = Beam(station0, m_p, N_p, e, N_b)
+distribution = longitudinal_gaussian_matched(beam, 1., unit='ns')
+#beam2 = Beam(ring1, m_p, N_p, e, N_b)
+#bunch2 = as_cloud(ring1, beam2, 1, 1, 1, 1)
                       
-beam.theta[0] = 1e-5 + np.pi/h[0]
-beam.dE[0] = 0 #7e-13
 print "Initial distribution set"
 
 
 # Accelerator map
-map_ = [cavity1] #+ [cavity2] # No intensity effects, no aperture limitations
+map_ = [tracker1] + [tracker2] # No intensity effects, no aperture limitations
 print "Map set"
 print ""
 
@@ -126,11 +130,11 @@ for i in range(N_t):
     
     # Track
     for m in map_:
-        print beam.theta
-        print beam.dE
+        #print beam.theta
+        #print beam.dE
 #         print beam2.theta
 #         print beam2.dE
-        print ""
+#         print ""
         m.track(beam)
 
     
@@ -145,7 +149,8 @@ for i in range(N_t):
 #                 str(time.clock() - t0))
 
     # Plot
-    #if (i % dt_plt) == 0:
+    if (i % dt_plt) == 0:
+        plot_long_phase_space(beam, i, 0, 0.0001763, -450, 450)
     #    plot_long_phase_space(bunch, cavity, i, -1.5, 1.5, -1.e-3, 1.e-3, 
     #                           unit='ns')
 #        plot_bunch_length_evol(bunch, 'bunch', i, unit='ns')

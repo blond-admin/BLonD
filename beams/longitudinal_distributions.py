@@ -70,7 +70,7 @@ def longitudinal_gaussian_matched(beam, four_sigma_bunch_length, unit=None):
     elif unit == 'm':
         sigma_theta = four_sigma_bunch_length / (-4 * beam.ring.radius * beam.ring.harmonic[0]) 
     elif unit == 'ns':       
-        sigma_theta = four_sigma_bunch_length * beam.ring.beta_i(beam) * c * 4.e-9 / beam.ring.radius  
+        sigma_theta = four_sigma_bunch_length * beam.ring.beta_i(beam) * c * 0.25e-9 / beam.ring.radius  
         
     phi_s = beam.ring.calc_phi_s(beam, beam.ring.voltage)
     phi_b = beam.ring.harmonic[0]*sigma_theta + phi_s

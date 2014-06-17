@@ -109,7 +109,7 @@ def plot_long_phase_space(beam, nturns, xmin, xmax, ymin, ymax,
     xh = np.arange(xmin, xmax + xbin, xbin)
     ybin = (ymax - ymin)/200.
     yh = np.arange(ymin, ymax + ybin, ybin)
-
+ 
     if xunit == None or xunit == 'rad':
         axHistx.hist(beam.theta, bins=xh, histtype='step')
     elif xunit == 'm':
