@@ -56,7 +56,7 @@ class Kick_acceleration(object):
         
         beam.dE += - self.ring.beta(beam) * self.p_increment # in eV
         # Update momentum in ring_and_RFstation
-        self.ring.counter += 1
+        
         
 
 class Drift(object):
@@ -87,6 +87,8 @@ class Drift(object):
         except KeyError:
             print "ERROR: Choice of longitudinal solver not recognized! Aborting..."
             sys.exit()
+        
+        self.ring.counter += 1
     
         
 class Longitudinal_tracker(object):
