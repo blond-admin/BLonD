@@ -34,7 +34,7 @@ def plot_long_phase_space(beam, nturns, xmin, xmax, ymin, ymax,
 
     # Conversion from metres to nanoseconds
     if xunit == 'ns':
-        coeff = 1.e9 * beam.ring.radius / (beam.beta_i() * c)
+        coeff = 1.e9 * beam.ring.radius / (beam.ring.beta_i(beam) * c)
     elif xunit == 'm':
         coeff = - beam.ring.radius
     ycoeff = beam.ring.beta_i(beam)**2 * beam.ring.energy_i(beam)
@@ -74,7 +74,6 @@ def plot_long_phase_space(beam, nturns, xmin, xmax, ymin, ymax,
     elif xunit == 'ns':
         axScatter.set_xlabel('Time [ns]', fontsize=14)
         if yunit == None or yunit == 'MeV':
-            print beam.theta*coeff
             axScatter.scatter(beam.theta*coeff, beam.dE/1.e6, s=1, edgecolor='none')
             axScatter.set_ylabel(r"$\Delta$E [MeV]", fontsize=14)
         elif yunit == '1': 
