@@ -9,6 +9,7 @@ import numpy as np
 import sys
 from scipy.constants import c, e
 import cobra_functions.stats as cp
+from scipy.optimize import curve_fit
 
 
 class Beam(object):
@@ -46,12 +47,15 @@ class Beam(object):
         self.epsn_y = 0
         self.sigma_theta = 0
         self.sigma_dE = 0
-        #self.epsn_z = 0
         
         # Particle/loss counts
         self.n_macroparticles = n_macroparticles
         self.n_macroparticles_lost = 0
         self.id = np.arange(1, self.n_macroparticles + 1, dtype=int)
+        
+        # Boolean value: is the beam sliced?
+        self.beam_is_sliced = False
+        self.slicing = None
 
             
     # Coordinate conversions
@@ -125,25 +129,28 @@ class Beam(object):
     def sigma_delta(self, value):
         self.sigma_dE = value * self.ring.beta_i(self)**2 * self.ring.energy_i(self)
 
-    def longit_statistics(self):
+    
+    def longit_statistics(self, gaussian_fit = "Off"):
         
         self.mean_theta = cp.mean(self.theta)
         self.mean_dE = cp.mean(self.dE)
         self.sigma_theta = cp.std(self.theta)
         self.sigma_dE = cp.std(self.dE)
-        #self.epsn_l = 4 * np.pi * self.sigma_theta * self.sigma_dE * self.mass * ring.gamma_f * ring.beta_f * c / e
-        # R.m.s. emittance in Gaussian approximation, other emittances to be defined
-        self.eps_rms_l = np.pi * self.sigma_dE * self.sigma_theta \
+        
+        ##### R.m.s. emittance in Gaussian approximation, other emittances to be defined
+        self.epsn_rms_l = np.pi * self.sigma_dE * self.sigma_theta \
                         * self.ring.radius / (self.ring.beta_i(self) * c) # in eVs
 
-        # Gaussian fit to theta-profile 
-#         p0 = [100., 0., self.slices.sigma_dz[-2]] #initial guess
-#         def gauss(x, *p):
-#             A, x0, sx = p
-#             return A*np.exp(-(x-x0)**2/2./sx**2) 
-#         pfit, pvar = curve_fit(gauss, self.slices.mean_dz[1:-3], 
-#                                self.slices.n_macroparticles[1:-3], p0=p0)
-#         self.bl_gauss = 4*abs(pfit[2]) # 4 sigma bunch length
+        ##### Gaussian fit to theta-profile
+        if self.beam_is_sliced == True and gaussian_fit == "On":
+            self.slicing.compute_statistics(self)
+            p0 = [max(self.slicing.n_macroparticles), self.mean_theta, self.sigma_theta] 
+            def gauss(x, *p):
+                A, x0, sx = p
+                return A*np.exp(-(x-x0)**2/2./sx**2) 
+            pfit, pvar = curve_fit(gauss, self.slicing.mean_theta[0:], 
+                                   self.slicing.n_macroparticles[0:], p0 = p0)
+            self.bl_gauss = 4*abs(pfit[2]) 
 
                                 
     def transv_statistics(self):
@@ -154,9 +161,9 @@ class Beam(object):
         self.mean_yp = cp.mean(self.yp)
         self.sigma_x = cp.std(self.x)
         self.sigma_y = cp.std(self.y)
-        self.epsn_x_xp = cp.emittance(x, xp) * self.ring.gamma_i(self) \
+        self.epsn_x_xp = cp.emittance(self.x, self.xp) * self.ring.gamma_f(self) \
                         * self.ring.beta_f(self) * 1e6
-        self.epsn_y_yp = cp.emittance(y, yp) * self.ring.gamma_f(self) \
+        self.epsn_y_yp = cp.emittance(self.y, self.yp) * self.ring.gamma_f(self) \
                         * self.ring.beta_f(self) * 1e6
     
     def losses(self, ring):

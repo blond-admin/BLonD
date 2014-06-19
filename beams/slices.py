@@ -1,179 +1,265 @@
 '''
-Created on 06.01.2014
-
-@author: Kevin Li, Hannes Bartosik, Danilo Quartullo
+@authors: Hannes Bartosik,
+          Kevin Li,
+          Michael Schenk
+@date:    06/01/2014
 '''
 
 import numpy as np
 from random import sample
 import cobra_functions.stats as cp
+from scipy.constants import c
+
 
 
 class Slices(object):
     '''
-    classdocs
+    Slices class that controlls longitudinal discretization of a bunch.
     '''
 
-    def __init__(self, n_slices, nsigmaz = None, mode = 'const_space', z_cut_tail = "null" , z_cut_head = "null"):
+    def __init__(self, n_slices, n_sigma = None, cut_left = None, cut_right = None, unit = "theta", mode = 'const_space'):
         '''
         Constructor
         '''
         
         self.n_slices = n_slices
-        self.nsigmaz = nsigmaz
+        self.n_sigma = n_sigma
+        self.unit = unit
         self.mode = mode
 
         self.mean_x = np.zeros(n_slices)
         self.mean_xp = np.zeros(n_slices)
         self.mean_y = np.zeros(n_slices)
         self.mean_yp = np.zeros(n_slices)
-        self.mean_dz = np.zeros(n_slices)
-        self.mean_dp = np.zeros(n_slices)
+        self.mean_theta = np.zeros(n_slices)
+        self.mean_dE = np.zeros(n_slices)
+        
         self.sigma_x = np.zeros(n_slices)
         self.sigma_y = np.zeros(n_slices)
-        self.sigma_dz = np.zeros(n_slices)
-        self.sigma_dp = np.zeros(n_slices)
+        self.sigma_theta = np.zeros(n_slices)
+        self.sigma_dE = np.zeros(n_slices)
+        
         self.epsn_x = np.zeros(n_slices)
         self.epsn_y = np.zeros(n_slices)
-        self.epsn_z = np.zeros(n_slices)
-
-        self.n_macroparticles = np.zeros(n_slices)
-        self.dynamic_frame = "on"
+        self.eps_rms_l = np.zeros(n_slices)
         
-        if (z_cut_tail != "null" and z_cut_head != "null" and mode == 'const_space'):
-            
-            self.z_cut_tail = z_cut_tail
-            self.z_cut_head = z_cut_head
-            self.z_bins = np.linspace(self.z_cut_tail, self.z_cut_head, self.n_slices + 1) 
-            self.z_centers = self.z_bins[:-1] + (self.z_bins[1:] - self.z_bins[:-1]) / 2.
-            self.dynamic_frame = "off"
+        if cut_left != None and cut_right != None:
+            self.cut_left = cut_left
+            self.cut_right = cut_right
+            self.bins = np.linspace(cut_left, cut_right, self.n_slices + 1)
+            self.centers = self.bins[:-1] + (self.bins[1:] - self.bins[:-1]) / 2.
         
-        if (z_cut_tail != "null" and z_cut_head != "null" and mode == 'const_charge'):
-            
-            self.z_cut_tail = z_cut_tail
-            self.z_cut_head = z_cut_head
-            self.dynamic_frame = "off"
-        
-        
-    def _set_longitudinal_cuts(self, beam):
-
-        if self.nsigmaz == None:
-            z_cut_tail = beam.dz[0]
-            z_cut_head = beam.dz[-1 - beam.n_macroparticles_lost]
-        else:
-            mean_z = cp.mean(beam.dz[:beam.n_macroparticles - beam.n_macroparticles_lost])
-            sigma_z = cp.std(beam.dz[:beam.n_macroparticles - beam.n_macroparticles_lost])
-            z_cut_tail = mean_z - self.nsigmaz * sigma_z
-            z_cut_head = mean_z + self.nsigmaz * sigma_z
-
-        return z_cut_tail, z_cut_head
-
- 
-    def slice_constant_space(self, beam):
-
-        self.sort_particles(beam)
-
-        if self.dynamic_frame == "on":
-            
-            self.z_cut_tail, self.z_cut_head = self._set_longitudinal_cuts(beam)
-            self.z_bins = np.linspace(self.z_cut_tail, self.z_cut_head, self.n_slices + 1) 
-            self.z_centers = self.z_bins[:-1] + (self.z_bins[1:] - self.z_bins[:-1]) / 2.
-
-        n_macroparticles_alive = beam.n_macroparticles - beam.n_macroparticles_lost
-        self.first_index_in_bin = np.searchsorted(beam.z[:n_macroparticles_alive], self.z_bins)
-        if (self.z_bins[-1] in beam.z[:n_macroparticles_alive]):
-            self.first_index_in_bin[-1] += 1 
-        
-        self.n_macroparticles = np.diff(self.first_index_in_bin)
-        self.cumsum_macroparticles = np.cumsum(self.n_macroparticles)
-        self.n_cut_tail = self.first_index_in_bin[0]
-        self.n_cut_head = n_macroparticles_alive - self.first_index_in_bin[-1]
-        
-
-    def slice_constant_charge(self, beam):
-
-        
-        self.sort_particles(beam)
-        
-        if self.dynamic_frame == "on":
-        
-            self.z_cut_tail, self.z_cut_head = self._set_longitudinal_cuts(beam)
-            
-        n_macroparticles_alive = beam.n_macroparticles - beam.n_macroparticles_lost
     
-        self.n_cut_tail = np.searchsorted(beam.z[:n_macroparticles_alive], self.z_cut_tail)
-        self.n_cut_head = n_macroparticles_alive - np.searchsorted(beam.z[:n_macroparticles_alive], self.z_cut_head) 
+    @property    
+    def mean_z(self):
+        return - self.mean_theta * self.ring.radius 
+    @mean_z.setter
+    def mean_z(self, value):
+        self.mean_theta = - value / self.ring.radius 
+    
+    @property
+    def mean_delta(self):
+        return self.mean_dE / (self.ring.beta_i(self)**2 * self.ring.energy_i(self))
+    @mean_delta.setter
+    def mean_delta(self, value):
+        self.mean_dE = value * self.ring.beta_i(self)**2 * self.ring.energy_i(self)
+
+    @property    
+    def sigma_z(self):
+        return - self.sigma_theta * self.ring.radius 
+    @sigma_z.setter
+    def sigma_z(self, value):
+        self.sigma_theta = - value / self.ring.radius 
+    
+    @property
+    def sigma_delta(self):
+        return self.sigma_dE / (self.ring.beta_i(self)**2 * self.ring.energy_i(self))
+    @sigma_delta.setter
+    def sigma_delta(self, value):
+        self.sigma_dE = value * self.ring.beta_i(self)**2 * self.ring.energy_i(self)
+
+    
+    def _set_longitudinal_cuts(self, bunch):
+
+        if self.n_sigma == None and self.unit == "theta":
+            cut_left = bunch.theta[0]
+            cut_right = bunch.theta[-1 - bunch.n_macroparticles_lost]
+        elif self.n_sigma == None and self.unit == "z":
+            cut_left = bunch.z[0]
+            cut_right = bunch.z[-1 - bunch.n_macroparticles_lost]
+        elif self.unit == "theta":
+            mean_theta = cp.mean(bunch.theta[:bunch.n_macroparticles - bunch.n_macroparticles_lost])
+            sigma_theta = cp.std(bunch.theta[:bunch.n_macroparticles - bunch.n_macroparticles_lost])
+            cut_left = mean_theta - self.n_sigma * sigma_theta
+            cut_right = mean_theta + self.n_sigma * sigma_theta
+        else:
+            mean_z = cp.mean(bunch.z[:bunch.n_macroparticles - bunch.n_macroparticles_lost])
+            sigma_z = cp.std(bunch.z[:bunch.n_macroparticles - bunch.n_macroparticles_lost])
+            cut_left = mean_z - self.n_sigma * sigma_z
+            cut_right = mean_z + self.n_sigma * sigma_z
+
+        return cut_left, cut_right
+
+
+    def _slice_constant_space(self, bunch):
         
+        self.sort_particles(bunch)
+
+        try:
+            cut_left, cut_right = self.cut_left, self.cut_right
+        except AttributeError:
+            cut_left, cut_right = self._set_longitudinal_cuts(bunch)
+            self.bins = np.linspace(cut_left, cut_right, self.n_slices + 1)
+            self.centers = self.bins[:-1] + (self.bins[1:] - self.bins[:-1]) / 2.
+        
+        n_macroparticles_alive = bunch.n_macroparticles - bunch.n_macroparticles_lost
+        
+        if self.unit == 'z':
+            
+            self.n_cut_tail = np.searchsorted(bunch.z[:n_macroparticles_alive], cut_left)
+            self.n_cut_head = np.searchsorted(bunch.z[:n_macroparticles_alive], cut_right)
+    
+            self.first_index_in_bin = np.searchsorted(bunch.z[:n_macroparticles_alive], self.bins)
+            if (self.bins[-1] in bunch.z[:n_macroparticles_alive]): first_index_in_bin[-1] += 1
+            
+        else:
+            self.n_cut_tail = np.searchsorted(bunch.theta[:n_macroparticles_alive], cut_left)
+            self.n_cut_head = np.searchsorted(bunch.theta[:n_macroparticles_alive], cut_right)
+    
+            self.first_index_in_bin = np.searchsorted(bunch.theta[:n_macroparticles_alive], self.bins)
+            if (self.bins[-1] in bunch.theta[:n_macroparticles_alive]): first_index_in_bin[-1] += 1
+            
+            
+        self.n_macroparticles = np.diff(self.first_index_in_bin)
+
+        self.set_slice_index_of_particle(bunch)
+       
+
+    def _slice_constant_charge(self, bunch):
+        
+        ################### TO BE CHECKED!!!!!!!!!
+        
+        
+        # sort particles according to dz (this is needed for correct functioning of bunch.compute_statistics)
+        self.sort_particles(bunch)
+
+
+        # try:
+        #     z_cut_tail, z_cut_head = self.z_cut_tail, self.z_cut_head
+        # except AttributeError:
+        z_cut_tail, z_cut_head = self._set_longitudinal_cuts(bunch)
+
+
+        n_macroparticles_alive = bunch.n_macroparticles - bunch.n_macroparticles_lost
+        self.n_cut_tail = +np.searchsorted(bunch.z[:n_macroparticles_alive], z_cut_tail)
+        self.n_cut_head = -np.searchsorted(bunch.z[:n_macroparticles_alive], z_cut_head) + n_macroparticles_alive
+
+
+        # 1. n_macroparticles - distribute macroparticles uniformly along slices.
+        # Must be integer. Distribute remaining particles randomly among slices with indices 'ix'.
         q0 = n_macroparticles_alive - self.n_cut_tail - self.n_cut_head
-        self.n_macroparticles[:] = q0 // self.n_slices
-        x = sample(range(self.n_slices), q0 % self.n_slices)
-        self.n_macroparticles[x] += 1
-        
-        self.cumsum_macroparticles = np.cumsum(self.n_macroparticles)
-        indexes = (self.n_cut_tail + self.first_index_in_bin[:(self.n_slices-1)]).astype(int)
-        z_bins_internal = 1/2 * (beam.z[indexes] + beam.z[indexes-1])
-        
-        self.z_bins = np.hstack((self.z_cut_tail, z_bins_internal, self.z_cut_head))
-        self.first_index_in_bin = np.searchsorted(beam.z[:n_macroparticles_alive], self.z_bins)
-        self.z_centers = self.z_bins[:-1] + (self.z_bins[1:] - self.z_bins[:-1]) / 2.
-        
+        ix = sample(range(self.n_slices), q0 % self.n_slices)
 
-    def track(self, beam):
 
+        self.n_macroparticles = (q0 // self.n_slices)*np.ones(self.n_slices)
+        self.n_macroparticles[ix] += 1
+
+
+        # 2. z-bins
+        # Get indices of the particles defining the bin edges
+        n_macroparticles_all = np.hstack((self.n_cut_tail, self.n_macroparticles, self.n_cut_head))
+        first_index_in_bin = np.cumsum(n_macroparticles_all)
+        self.z_index = first_index_in_bin[:-1]
+        self.z_index = (self.z_index).astype(int)
+
+
+        # print(self.z_index.shape)
+        self.z_bins = (bunch.z[self.z_index - 1] + bunch.z[self.z_index]) / 2.
+        self.z_bins[0], self.z_bins[-1] = z_cut_tail, z_cut_head
+        self.z_centers = (self.z_bins[:-1] + self.z_bins[1:]) / 2.
+
+
+        self._set_slice_index_of_particle(bunch)
+
+
+        # # self.z_centers = map((lambda i: cp.mean(bunch.z[first_index_in_bin[i]:first_index_in_bin[i+1]])), np.arange(self.n_slices)
+
+
+    def set_slice_index_of_particle(self, bunch):
+
+        try:
+            self.slice_index_of_particle
+        except AttributeError:
+            self.slice_index_of_particle = np.zeros(bunch.n_macroparticles, dtype=np.int)
+
+        for i in range(self.n_slices):
+            self.slice_index_of_particle[self.first_index_in_bin[i]:self.first_index_in_bin[i+1]] = i
+
+    
+    def track(self, bunch):
+        
+        bunch.beam_is_sliced = True
         if self.mode == 'const_charge':
-            self.slice_constant_charge(beam)
+            self._slice_constant_charge(bunch)
         elif self.mode == 'const_space':
-            self.slice_constant_space(beam)
+            self._slice_constant_space(bunch)
+        bunch.slicing = self
 
 
-    def compute_statistics(self, beam):
+    def compute_statistics(self, bunch):
 
         index = self.n_cut_tail + np.cumsum(np.append(0, self.n_macroparticles))
 
         for i in xrange(self.n_slices):
-            
-            x = self.x[index[i]:index[i+1]]
-            xp = self.xp[index[i]:index[i+1]]
-            y = self.y[index[i]:index[i+1]]
-            yp = self.yp[index[i]:index[i+1]]
-            z = self.z[index[i]:index[i+1]]
-            dp = self.dp[index[i]:index[i+1]]
+           
+            x  = bunch.x[index[i]:index[i + 1]]
+            xp = bunch.xp[index[i]:index[i + 1]]
+            y  = bunch.y[index[i]:index[i + 1]]
+            yp = bunch.yp[index[i]:index[i + 1]]
+            theta  = bunch.theta[index[i]:index[i + 1]]
+            dE = bunch.dE[index[i]:index[i + 1]]
+
 
             self.mean_x[i] = cp.mean(x)
             self.mean_xp[i] = cp.mean(xp)
             self.mean_y[i] = cp.mean(y)
             self.mean_yp[i] = cp.mean(yp)
-            self.mean_z[i] = cp.mean(z)
-            self.mean_dp[i] = cp.mean(dp)
+            self.mean_theta[i] = cp.mean(theta)
+            self.mean_dE[i] = cp.mean(dE)
+
 
             self.sigma_x[i] = cp.std(x)
             self.sigma_y[i] = cp.std(y)
-            self.sigma_z[i] = cp.std(z)
-            self.sigma_dp[i] = cp.std(dp)
+            self.sigma_theta[i] = cp.std(theta)
+            self.sigma_dE[i] = cp.std(dE)
 
-            self.epsn_x[i] = cp.emittance(x, xp) * self.gamma * self.beta * 1e6
-            self.epsn_y[i] = cp.emittance(y, yp) * self.gamma * self.beta * 1e6
-            self.epsn_z[i] = 4 * np.pi \
-                                  * self.slices.sigma_z[i] * self.slices.sigma_dp[i] \
-                                  * self.mass * self.gamma * self.beta * c / e
+
+            self.epsn_x[i] = cp.emittance(x, xp) * bunch.ring.gamma_i(bunch) * bunch.ring.beta_i(bunch) * 1e6
+            self.epsn_y[i] = cp.emittance(y, yp) * bunch.ring.gamma_i(bunch) * bunch.ring.beta_i(bunch) * 1e6
+            self.eps_rms_l[i] = np.pi * self.sigma_dE[i] * self.sigma_theta[i] * bunch.ring.radius / (bunch.ring.beta_i(bunch) * c)
+
     
-    def sort_particles(self, beam):
+    def sort_particles(self, bunch):
        
-        # update the number of lost particles
-        beam.n_macroparticles_lost = (beam.n_macroparticles - np.count_nonzero(beam.id))
+        bunch.n_macroparticles_lost = (bunch.n_macroparticles - np.count_nonzero(bunch.id))
     
-        # sort particles according to dz (this is needed for correct functioning of beam.compute_statistics)
-        if beam.n_macroparticles_lost:
-            dz_argsorted = np.lexsort((beam.z, -np.sign(beam.id))) # place lost particles at the end of the array
+        if self.unit == 'theta':
+            if bunch.n_macroparticles_lost:
+                argsorted = np.lexsort((bunch.theta, -np.sign(bunch.id))) 
+            else:
+                argsorted = np.argsort(bunch.theta)
         else:
-            dz_argsorted = np.argsort(beam.z)
+            if bunch.n_macroparticles_lost:
+                argsorted = np.lexsort((bunch.z, -np.sign(bunch.id))) 
+            else:
+                argsorted = np.argsort(bunch.z)
     
-        beam.x = beam.x.take(dz_argsorted)
-        beam.xp = beam.xp.take(dz_argsorted)
-        beam.y = beam.y.take(dz_argsorted)
-        beam.yp = beam.yp.take(dz_argsorted)
-        beam.z = beam.z.take(dz_argsorted)
-        beam.dp = beam.dp.take(dz_argsorted)
-        beam.id = beam.id.take(dz_argsorted)
+        bunch.x = bunch.x.take(argsorted)
+        bunch.xp = bunch.xp.take(argsorted)
+        bunch.y = bunch.y.take(argsorted)
+        bunch.yp = bunch.yp.take(argsorted)
+        bunch.theta = bunch.theta.take(argsorted)
+        bunch.dE = bunch.dE.take(argsorted)
+        bunch.id = bunch.id.take(argsorted)
 
    

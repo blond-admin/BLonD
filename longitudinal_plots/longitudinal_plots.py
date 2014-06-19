@@ -74,6 +74,7 @@ def plot_long_phase_space(beam, nturns, xmin, xmax, ymin, ymax,
     elif xunit == 'ns':
         axScatter.set_xlabel('Time [ns]', fontsize=14)
         if yunit == None or yunit == 'MeV':
+            print beam.theta*coeff
             axScatter.scatter(beam.theta*coeff, beam.dE/1.e6, s=1, edgecolor='none')
             axScatter.set_ylabel(r"$\Delta$E [MeV]", fontsize=14)
         elif yunit == '1': 
@@ -143,11 +144,11 @@ def plot_bunch_length_evol(bunch, h5file, nturns, unit=None):
     # Get bunch length data in metres or nanoseconds
     t = range(1, nturns + 1) 
     storeddata = h5py.File(h5file + '.h5', 'r')
-    bl = np.array(storeddata["/Bunch/sigma_dz"], dtype=np.double)
+    bl = np.array(storeddata["/Bunch/sigma_z"], dtype = np.double)
     if unit == None or unit == 'm':
         bl *= 4. # 4-sigma bunch length
     elif unit == 'ns':
-        bl *= 4.e9/c/bunch.beta # 4-sigma bunch length
+        bl *= 4.e9/c/bunch.ring.beta_i(bunch) # 4-sigma bunch length
 
     # Plot
     plt.figure(1, figsize=(8,6))
@@ -158,7 +159,9 @@ def plot_bunch_length_evol(bunch, h5file, nturns, unit=None):
         ax.set_ylabel (r"Bunch length, $4\sigma$ r.m.s. [m]")
     elif unit == 'ns':
         ax.set_ylabel (r"Bunch length, $4\sigma$ r.m.s. [ns]")
-    fign = "fig/bunch_length_evolution.png"
+    
+    # Save plot
+    fign = 'fig/bunch_length_evolution_' "%d" %nturns + '.png'
     plt.savefig(fign)
     plt.clf()
 
@@ -171,9 +174,9 @@ def plot_bunch_length_evol_gaussian(bunch, h5file, nturns, unit=None):
     # Get bunch length data in metres or nanoseconds
     t = range(1, nturns + 1) 
     storeddata = h5py.File(h5file + '.h5', 'r')
-    bl = np.array(storeddata["/Bunch/bl_gauss"], dtype=np.double)
+    bl = np.array(storeddata["/Bunch/bunch_length_gauss_theta"], dtype=np.double)
     if unit == 'ns':
-        bl *= 1.e9/c/bunch.beta # 4-sigma bunch length
+        bl *= 1.e9/c/bunch.ring.beta_i(bunch) * bunch.ring.radius # 4-sigma bunch length
 
     # Plot
     plt.figure(1, figsize=(8,6))
@@ -184,6 +187,8 @@ def plot_bunch_length_evol_gaussian(bunch, h5file, nturns, unit=None):
         ax.set_ylabel (r"Bunch length, $4\sigma$ Gaussian fit [m]")
     elif unit == 'ns':
         ax.set_ylabel (r"Bunch length, $4\sigma$ Gaussian fit [ns]")
-    fign = "fig/bunch_length_evolution_Gaussian.png"
+    
+    # Save plot    
+    fign = 'fig/bunch_length_evolution_Gaussian_' "%d" %nturns + '.png'
     plt.savefig(fign)
     plt.clf()
