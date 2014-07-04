@@ -78,7 +78,7 @@ print "Initial distribution set"
 beam.longit_statistics()
 print "Sigma dE %.2f MeV" %(beam.sigma_dE*1e-6)
 print "Sigma theta %.4e rad" %beam.sigma_theta
-print "RMS emittance %.4f eVs" %beam.epsn_rms_l
+print "RMS emittance %.4f eVs" %beam.eps_rms_l
 
 
 # Accelerator map

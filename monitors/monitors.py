@@ -1,18 +1,18 @@
 '''
-@author: Kevin Li, Michael Schenk
+@author: Kevin Li, Michael Schenk, Danilo Quartullo
 @date: 11.02.2014
 '''
 
 import h5py as hp
 import numpy as np
-
-
-from abc import ABCMeta, abstractmethod
+import abc
 
 
 class Monitor(object):
-
-    @abstractmethod
+    
+    __metaclass__ = abc.ABCMeta
+    
+    @abc.abstractmethod
     def dump(self, bunch):
         pass
 
@@ -20,6 +20,7 @@ class Monitor(object):
 class BunchMonitor(Monitor):
 
     def __init__(self, filename, n_steps, dictionary = None, statistics = "All", long_gaussian_fit = "Off"):
+        
         self.h5file = hp.File(filename + '.h5', 'w')
         self.n_steps = n_steps
         self.i_steps = 0
@@ -32,13 +33,13 @@ class BunchMonitor(Monitor):
 
         self.h5file.create_group('Bunch')
 
-    def dump(self, bunch):
+    def dump(self, bunch, slices = None):
         
         if self.statistics == "All":
-            bunch.longit_statistics(self.long_gaussian_fit)
+            bunch.longit_statistics(self.long_gaussian_fit, slices)
             bunch.transv_statistics()
         elif self.statistics == "Longitudinal":
-            bunch.longit_statistics(self.long_gaussian_fit)
+            bunch.longit_statistics(self.long_gaussian_fit, slices)
         else:
             bunch.transv_statistics()
         

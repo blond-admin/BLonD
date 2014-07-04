@@ -9,6 +9,7 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.constants import c, e
+from trackers.longitudinal_tracker import separatrix
 
 
 def fig_folder():
@@ -26,18 +27,20 @@ def fig_folder():
             raise
 
 
-def plot_long_phase_space(beam, nturns, xmin, xmax, ymin, ymax, 
-                          xunit=None, yunit=None, separatrix=None):
+def plot_long_phase_space(beam, General_parameters, RingAndRFSection, xmin,
+                          xmax, ymin, ymax, xunit=None, yunit=None, 
+                          separatrix_plot=None):
 
     # Directory where longitudinal_plots will be stored
     fig_folder()
-
+    
+    
     # Conversion from metres to nanoseconds
     if xunit == 'ns':
-        coeff = 1.e9 * beam.ring.radius / (beam.ring.beta_i(beam) * c)
+        coeff = 1.e9 * General_parameters.ring_radius / (beam.beta_rel * c)
     elif xunit == 'm':
-        coeff = - beam.ring.radius
-    ycoeff = beam.ring.beta_i(beam)**2 * beam.ring.energy_i(beam)
+        coeff = - General_parameters.ring_radius
+    ycoeff = beam.beta_rel**2 * beam.energy
 
     # Definitions for placing the axes
     left, width = 0.1, 0.63
@@ -74,7 +77,6 @@ def plot_long_phase_space(beam, nturns, xmin, xmax, ymin, ymax,
     elif xunit == 'ns':
         axScatter.set_xlabel('Time [ns]', fontsize=14)
         if yunit == None or yunit == 'MeV':
-            print beam.theta*coeff
             axScatter.scatter(beam.theta*coeff, beam.dE/1.e6, s=1, edgecolor='none')
             axScatter.set_ylabel(r"$\Delta$E [MeV]", fontsize=14)
         elif yunit == '1': 
@@ -87,16 +89,16 @@ def plot_long_phase_space(beam, nturns, xmin, xmax, ymin, ymax,
     if xunit == None or xunit == 'rad':
         axScatter.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
     axScatter.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
-    plt.figtext(0.95,0.95,'%d turns' %(nturns+1), fontsize=16, ha='right', 
+    plt.figtext(0.95,0.95,'%d turns' %(General_parameters.counter[0]), fontsize=16, ha='right', 
                 va='center') 
 
     # Separatrix
-    if separatrix == None or separatrix == 'on':
+    if separatrix_plot == None or separatrix_plot == 'on':
         x_sep = np.linspace(xmin, xmax, 1000)
         if xunit == None or xunit == 'rad':
-            y_sep = beam.ring.separatrix(beam, x_sep)
+            y_sep = separatrix(General_parameters, RingAndRFSection, x_sep)
         elif xunit == 'm' or xunit == 'ns':
-            y_sep = beam.ring.separatrix(beam, x_sep/coeff)
+            y_sep = separatrix(General_parameters, RingAndRFSection, x_sep/coeff)
         if yunit == None or yunit == 'MeV':
             axScatter.plot(x_sep, y_sep/1.e6, 'r')
             axScatter.plot(x_sep, -1.e-6*y_sep, 'r')       
@@ -131,7 +133,7 @@ def plot_long_phase_space(beam, nturns, xmin, xmax, ymin, ymax,
         label.set_rotation(-90) 
  
     # Save plot
-    fign = 'fig/long_distr_'"%d"%nturns+'.png'
+    fign = 'fig/long_distr_'"%d"%(General_parameters.counter[0])+'.png'
     plt.savefig(fign)
     plt.clf()
 
@@ -176,7 +178,7 @@ def plot_bunch_length_evol_gaussian(bunch, h5file, nturns, unit=None):
     storeddata = h5py.File(h5file + '.h5', 'r')
     bl = np.array(storeddata["/Bunch/bunch_length_gauss_theta"], dtype=np.double)
     if unit == 'ns':
-        bl *= 1.e9/c/bunch.ring.beta_i(bunch) * bunch.ring.radius # 4-sigma bunch length
+        bl *= 1.e9/c/bunch.beta_rel * bunch.ring_radius # 4-sigma bunch length
 
     # Plot
     plt.figure(1, figsize=(8,6))

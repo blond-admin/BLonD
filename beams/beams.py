@@ -1,7 +1,7 @@
 '''
 Created on 12.06.2014
 
-@author: Kevin Li, Danilo Quartullo, Helga Timko
+@author: Kevin Li, Danilo Quartullo, Helga Timko, ALexandre Lasheen
 '''
 
 import numpy as np
@@ -10,17 +10,23 @@ import sys
 from scipy.constants import c, e
 import cobra_functions.stats as cp
 from scipy.optimize import curve_fit
+from trackers.longitudinal_tracker import is_in_separatrix
 
 
 class Beam(object):
     
-    def __init__(self, ring, mass, n_macroparticles, charge, intensity):
+    def __init__(self, General_parameters, n_macroparticles, intensity):
         
         # Beam and ring-dependent properties
-        self.ring = ring
-        self.mass = mass # in kg
-        self.charge = charge # in C
+        self.ring_radius = General_parameters.ring_radius
+        self.mass = General_parameters.mass # in kg
+        self.charge = General_parameters.charge # in C
         self.intensity = intensity # total no of particles
+        
+        self.beta_rel = General_parameters.beta_rel_program[0][0] #: Relativistic beta of the synchronous particle
+        self.gamma_rel = General_parameters.gamma_rel_program[0][0] #: Relativistic gamma of the synchronous particle
+        self.energy = General_parameters.energy_program[0][0] #: Energy of the synchronous particle [eV]
+        self.momentum = General_parameters.momentum_program[0][0] #: Momentum of the synchronous particle [eV/c]
 
         # Beam coordinates
         self.x = np.empty([n_macroparticles])
@@ -29,16 +35,9 @@ class Beam(object):
         self.yp = np.empty([n_macroparticles])
         self.theta = np.empty([n_macroparticles])
         self.dE = np.empty([n_macroparticles])
-        
-        # Initial coordinates (e.g. for ecloud)
-        self.x0 = np.empty([n_macroparticles])
-        self.xp0 = np.empty([n_macroparticles])
-        self.y0 = np.empty([n_macroparticles])
-        self.yp0 = np.empty([n_macroparticles])
-        self.theta0 = np.empty([n_macroparticles])
-        self.dE0 = np.empty([n_macroparticles])
-        
+     
         # Transverse and longitudinal properties, statistics       
+        
         self.alpha_x = 0
         self.beta_x = 0
         self.epsn_x = 0
@@ -51,127 +50,125 @@ class Beam(object):
         # Particle/loss counts
         self.n_macroparticles = n_macroparticles
         self.n_macroparticles_lost = 0
+        self.n_macroparticles_alive = self.n_macroparticles - self.n_macroparticles_lost
         self.id = np.arange(1, self.n_macroparticles + 1, dtype=int)
-        
-        # Boolean value: is the beam sliced?
-        self.beam_is_sliced = False
-        self.slicing = None
 
             
     # Coordinate conversions
     @property
     def z(self):
-        return - self.theta * self.ring.radius 
+        return - self.theta * self.ring_radius
      
     @z.setter
     def z(self, value):
-        self.theta = - value / self.ring.radius
+        self.theta = - value / self.ring_radius
     
     @property
     def delta(self):
-        return self.dE / (self.ring.beta_i(self)**2 * self.ring.energy_i(self))
+        return self.dE / (self.beta_rel**2 * self.energy)
 
     @delta.setter
     def delta(self, value):
-        self.dE = value * self.ring.beta_i(self)**2 * self.ring.energy_i(self)
+        self.dE = value * self.beta_rel**2 * self.energy
 
     @property
-    def z0(self):
-        return - self.theta0 * self.ring.radius 
-    @z0.setter
-    def z0(self, value):
-        self.theta0 = - value / self.ring.radius 
-    
-    @property
-    def delta0(self):
-        return self.dE0 / (self.ring.beta_i(self)**2 * self.ring.energy_i(self))
-    @delta0.setter
-    def delta0(self, value):
-        self.dE0 = value * self.ring.beta_i(self)**2 * self.ring.energy_i(self)
+    def tau(self):
+        return  self.theta * self.ring_radius / (self.beta_rel * c)
+     
+    @tau.setter
+    def tau(self, value):
+        self.theta = value * self.beta_rel * c / self.ring_radius
 
-    def reinit(self):
-
-        np.copyto(self.x, self.x0)
-        np.copyto(self.xp, self.xp0)
-        np.copyto(self.y, self.y0)
-        np.copyto(self.yp, self.yp0)
-        np.copyto(self.theta, self.theta0)
-        np.copyto(self.dE, self.dE0)
-        np.copyto(self.z, self.z0)
-        np.copyto(self.delta, self.delta0)
-        
     # Statistics
+    
     @property    
     def mean_z(self):
-        return - self.mean_theta * self.ring.radius 
+        return - self.mean_theta * self.ring_radius
     @mean_z.setter
     def mean_z(self, value):
-        self.mean_theta = - value / self.ring.radius 
+        self.mean_theta = - value / self.ring_radius
     
     @property
     def mean_delta(self):
-        return self.mean_dE / (self.ring.beta_i(self)**2 * self.ring.energy_i(self))
+        return self.mean_dE / (self.beta_rel**2 * self.energy)
     @mean_delta.setter
     def mean_delta(self, value):
-        self.mean_dE = value * self.ring.beta_i(self)**2 * self.ring.energy_i(self)
+        self.mean_dE = value * self.beta_rel**2 * self.energy
+    
+    @property    
+    def mean_tau(self):
+        return self.mean_theta * self.ring_radius / (self.beta_rel * c)
+    @mean_tau.setter
+    def mean_tau(self, value):
+        self.mean_theta = value * self.beta_rel * c / self.ring_radius
 
     @property    
     def sigma_z(self):
-        return - self.sigma_theta * self.ring.radius 
+        return - self.sigma_theta * self.ring_radius
     @sigma_z.setter
     def sigma_z(self, value):
-        self.sigma_theta = - value / self.ring.radius 
+        self.sigma_theta = - value / self.ring_radius
     
     @property
     def sigma_delta(self):
-        return self.sigma_dE / (self.ring.beta_i(self)**2 * self.ring.energy_i(self))
+        return self.sigma_dE / (self.beta_rel**2 * self.energy)
     @sigma_delta.setter
     def sigma_delta(self, value):
-        self.sigma_dE = value * self.ring.beta_i(self)**2 * self.ring.energy_i(self)
+        self.sigma_dE = value * self.beta_rel**2 * self.energy
+    
+    @property
+    def sigma_tau(self):
+        return self.sigma_theta * self.ring_radius / (self.beta_rel * c)
+    @sigma_tau.setter
+    def sigma_tau(self, value):
+        self.sigma_theta = value * self.beta_rel * c / self.ring_radius
 
     
-    def longit_statistics(self, gaussian_fit = "Off"):
+    def longit_statistics(self, gaussian_fit, slices):
         
-        self.mean_theta = cp.mean(self.theta)
-        self.mean_dE = cp.mean(self.dE)
-        self.sigma_theta = cp.std(self.theta)
-        self.sigma_dE = cp.std(self.dE)
-        
+        self.mean_theta = np.mean(self.theta)
+        self.mean_dE = np.mean(self.dE)
+        self.sigma_theta = np.std(self.theta)
+        self.sigma_dE = np.std(self.dE)
+       
         ##### R.m.s. emittance in Gaussian approximation, other emittances to be defined
         self.epsn_rms_l = np.pi * self.sigma_dE * self.sigma_theta \
-                        * self.ring.radius / (self.ring.beta_i(self) * c) # in eVs
+                        * self.ring_radius / (self.beta_rel * c) # in eVs
 
         ##### Gaussian fit to theta-profile
-        if self.beam_is_sliced == True and gaussian_fit == "On":
-            self.slicing.compute_statistics(self)
-            p0 = [max(self.slicing.n_macroparticles), self.mean_theta, self.sigma_theta] 
+        if gaussian_fit == "On":
+
+            p0 = [max(slices.n_macroparticles), self.mean_theta, self.sigma_theta]
+        
             def gauss(x, *p):
                 A, x0, sx = p
                 return A*np.exp(-(x-x0)**2/2./sx**2) 
-            pfit, pvar = curve_fit(gauss, self.slicing.mean_theta[0:], 
-                                   self.slicing.n_macroparticles[0:], p0 = p0)
+            
+            pfit = curve_fit(gauss, slices.bins_centers, 
+                                   slices.n_macroparticles, p0)[0]
             self.bl_gauss = 4*abs(pfit[2]) 
 
                                 
     def transv_statistics(self):
         
-        self.mean_x = cp.mean(self.x)
-        self.mean_xp = cp.mean(self.xp)
-        self.mean_y = cp.mean(self.y)
-        self.mean_yp = cp.mean(self.yp)
-        self.sigma_x = cp.std(self.x)
-        self.sigma_y = cp.std(self.y)
-        self.epsn_x_xp = cp.emittance(self.x, self.xp) * self.ring.gamma_f(self) \
-                        * self.ring.beta_f(self) * 1e6
-        self.epsn_y_yp = cp.emittance(self.y, self.yp) * self.ring.gamma_f(self) \
-                        * self.ring.beta_f(self) * 1e6
+        self.mean_x = np.mean(self.x)
+        self.mean_xp = np.mean(self.xp)
+        self.mean_y = np.mean(self.y)
+        self.mean_yp = np.mean(self.yp)
+        self.sigma_x = np.std(self.x)
+        self.sigma_y = np.std(self.y)
+        self.epsn_x_xp = cp.emittance(self.x, self.xp) * self.gamma_rel \
+                        * self.beta_rel * 1e6
+        self.epsn_y_yp = cp.emittance(self.y, self.yp) * self.gamma_rel \
+                        * self.beta_rel * 1e6
     
-    def losses(self, ring):
-         
-        for i in xrange(self.n_macroparticles):
-            if not ring.is_in_separatrix(ring, self, self.theta[i], self.dE[i], self.delta[i]):
-                # Set ID to zero
-                self.id[i] = 0
+    def losses(self, GeneralParameters, RingAndRFSection):
+        
+        itemindex = np.where(is_in_separatrix(GeneralParameters, RingAndRFSection,
+                                 self.theta, self.dE, self.delta) == False)[0]
+        if itemindex.size != 0:
+            
+            self.id[itemindex] = 0
 
 
 
