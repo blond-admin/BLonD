@@ -4,13 +4,14 @@
 import numpy as np
 import time 
 from scipy.constants import c, e, m_p
+import matplotlib.pyplot as plt
 
 from trackers.ring_and_RFstation import *
 from trackers.longitudinal_tracker import *
 from beams.beams import *
 from beams.longitudinal_distributions import *
 from longitudinal_plots.longitudinal_plots import *
-
+from FFT.RF_noise import Phase_noise
 
 # Simulation parameters --------------------------------------------------------
 # Bunch parameters
@@ -90,6 +91,21 @@ print "RMS emittance %.4f eVs" %beam.eps_rms_l
 map_ = [long_tracker] # No intensity effects, no aperture limitations
 print "Map set"
 print ""
+
+# RF phase noise
+f = np.arange(0, 5.6227612455e+03, 1.12455000e-02)
+spectrum = np.concatenate((1.11100000e-07 * np.ones(4980), np.zeros(495021)))
+dphi = Phase_noise(f, spectrum).spectrum_to_phase_noise_r()
+time = Phase_noise(f, spectrum).time_r()
+plt.figure()
+ax = plt.axes([0.12, 0.1, 0.82, 0.8])
+#ax.plot(f, spectrum)
+ax.plot(time, dphi)
+plt.show()
+
+
+
+
 
 # print beam.dE
 # print beam.theta
