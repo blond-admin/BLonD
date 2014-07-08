@@ -4,11 +4,8 @@
 :Authors: **Helga Timko**
 '''
 
-
-#from pylab import *
 import numpy as np
 import numpy.random as rnd
-from scipy import integrate
 
 
 class Phase_noise(object):
@@ -38,13 +35,31 @@ class Phase_noise(object):
     def spectrum_to_phase_noise(self, transform=None):
         '''
         *Transforms a the noise spectrum to phase noise data.
+        
         Use transform=None or 'r' to transform hermitian spectrum to real phase.
+        In this case, input only the positive part of the double-sided spectrum.
+        
         Use transform='c' to transform complex spectrum to complex phase.
+        In this case, input first the zero and positive frequency components, 
+        then the decreasingly negative frequency components of the double-sided
+        spectrum.
         
         Returns only the real part of the phase noise.*
         '''
     
         # Resolution in time domain
+        '''
+            STEP 1: Set the resolution in time domain
+        For hermitian spectrum to real phase noise,
+        
+        .. math:: n_t = 2 (n_f - 1) \text{and} \Delta t = 1/(2 f_{max}) 
+        
+        for complex spectrum to complex phase noise,
+        
+        .. math:: n_t = n_f \text{and} \Delta t = 1/f_{max} ,
+        
+        where f_{max} is the maximum frequency in the input in both cases.         
+        '''
         if transform==None or transform=='r':
             self.nt = 2*(self.nf - 1) 
             self.dt = 1/(2*self.fmax) # s
@@ -56,15 +71,25 @@ class Phase_noise(object):
              RF noise generation could not be recognized. Use "r" or "c".')
             
         # Generate white noise in time domain
+        '''
+            STEP 2: Generate white (carrier) noise in time domain
+        
+        .. math:: 
+            w_k(t) = \cos(2 \pi r_k^{(1)}) \sqrt{-2 \ln(r_k^{(2)})} \text{case 'r'},
+            
+            w_k(t) = \exp(2 \pi i r_k^{(1)}) \sqrt{-2 \ln(r_k^{(2)})} \text{case 'c'},           
+        
+        '''
         rnd.RandomState(self.seed)
         r1 = rnd.random_sample(self.nt)
         r2 = rnd.random_sample(self.nt)
         if transform==None or transform=='r':
-            Gt = np.cos(2*np.pi*r1) * np.sqrt(-2.*np.log(r2))     
+            Gt = np.cos(2*np.pi*r1) * np.sqrt(-2*np.log(r2))     
         elif transform=='c':  
-            Gt = np.cos(2.*np.pi*r1)*np.sqrt(-2.*np.log(r2)) \
-                + 1j*np.sin(2.*np.pi*r1)*np.sqrt(-2.*np.log(r2))         
-               
+            #Gt = np.exp(2*np.pi*1j*r1)*np.sqrt(-2*np.log(r2)) 
+            Gt = np.cos(2*np.pi*r1)*np.sqrt(-2*np.log(r2)) \
+                + 1j*np.sin(2*np.pi*r1)*np.sqrt(-2*np.log(r2)) 
+
         # FFT to frequency domain
         if transform==None or transform=='r':
             Gf = np.fft.rfft(Gt)  
@@ -72,11 +97,10 @@ class Phase_noise(object):
             Gf = np.fft.fft(Gt)   
                 
         # Multiply by desired noise probability density
-        A = integrate.trapz(self.ReS, self.f)
         if transform==None or transform=='r':
             s = np.sqrt(2*self.fmax*self.ReS) # in rad
         elif transform=='c':
-            s = np.sqrt(self.ReS/A) # in rad
+            s = np.sqrt(self.fmax*self.ReS) # in rad
         dPf = s*Gf.real + 1j*s*Gf.imag 
                 
         # FFT back to time domain to get final phase shift

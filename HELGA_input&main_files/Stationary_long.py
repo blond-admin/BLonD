@@ -32,7 +32,7 @@ V_rf.append(6.e6)    # RF voltage [eV]
 dphi.append(0)      # Phase modulation/offset
 
 # Tracking details
-N_t = 20000           # Number of turns to track
+N_t = 2000           # Number of turns to track
 dt_out = 200          # Time steps between output
 dt_plt = 2000          # Time steps between plots
 
@@ -59,9 +59,20 @@ ax = plt.axes([0.12, 0.1, 0.82, 0.8])
 ax.plot(f, spectrum)
 plt.figure(2)
 ax2 = plt.axes([0.12, 0.1, 0.82, 0.8])
-ax2.plot(noise_t, noise_dphi)
-plt.show()
+ax2.plot(noise_t[::100], noise_dphi[::100],'b.')
+#plt.show()
+print "Sigma of noise 1 is %.4e" %np.std(noise_dphi)
+print "Time step of noise 1 is %.4e" %noise_t[1]
 
+f2 = np.arange(0, 2*5.62275e+03, 1.12455000e-02)
+#spectrum2 = np.concatenate(( np.zeros(495020), 1.11100000e-07 * np.ones(9960), np.zeros(495020) ))
+spectrum2 = np.concatenate(( 1.11100000e-07 * np.ones(4980), np.zeros(990040), 1.11100000e-07 * np.ones(4980) ))
+noise_t, noise_dphi = Phase_noise(f2, spectrum2).spectrum_to_phase_noise()
+print "Sigma of noise 2 is %.4e" %np.std(noise_dphi)
+print "Time step of noise 1 is %.4e" %noise_t[2]
+ax.plot(f2, spectrum2, 'r')
+ax2.plot(noise_t[::100], noise_dphi[::100],'r.')
+plt.show()
 
 
 # Simulation setup -------------------------------------------------------------
