@@ -32,9 +32,9 @@ V_rf.append(6.e6)    # RF voltage [eV]
 dphi.append(0)      # Phase modulation/offset
 
 # Tracking details
-N_t = 2000            # Number of turns to track
-dt_out = 20          # Time steps between output
-dt_plt = 200          # Time steps between plots
+N_t = 20000           # Number of turns to track
+dt_out = 200          # Time steps between output
+dt_plt = 2000          # Time steps between plots
 
 # Derived parameters
 #m_p *= c**2/e
@@ -49,15 +49,30 @@ alpha.append(1./gamma_t/gamma_t)        # First order mom. comp. factor
 
 
 
+# Pre-processing: RF phase noise -----------------------------------------------
+f = np.arange(0, 5.6227612455e+03, 1.12455000e-02)
+spectrum = np.concatenate((1.11100000e-07 * np.ones(4980), np.zeros(495021)))
+noise_t, noise_dphi = Phase_noise(f, spectrum).spectrum_to_phase_noise()
+#time = Phase_noise(f, spectrum).time_r()
+plt.figure(1)
+ax = plt.axes([0.12, 0.1, 0.82, 0.8])
+ax.plot(f, spectrum)
+plt.figure(2)
+ax2 = plt.axes([0.12, 0.1, 0.82, 0.8])
+ax2.plot(noise_t, noise_dphi)
+plt.show()
+
+
 
 # Simulation setup -------------------------------------------------------------
-print "Setting up the simulation..."
+print "   Setting up the simulation..."
 print ""
 
 
 # Define Ring and RF Station
 p_f = 500.005e9
-ring = Ring_and_RFstation(C, np.arange(p_s, p_f, 0.25e7), alpha, C, h, V_rf, dphi)
+#np.arange(p_s, p_f, 0.25e7)
+ring = Ring_and_RFstation(C, p_s*np.ones(N_t+2), alpha, C, h, V_rf, dphi)
 
 # Define Beam
 beam = Beam(ring, m_p, N_p, e, N_b)
@@ -92,16 +107,6 @@ map_ = [long_tracker] # No intensity effects, no aperture limitations
 print "Map set"
 print ""
 
-# RF phase noise
-f = np.arange(0, 5.6227612455e+03, 1.12455000e-02)
-spectrum = np.concatenate((1.11100000e-07 * np.ones(4980), np.zeros(495021)))
-dphi = Phase_noise(f, spectrum).spectrum_to_phase_noise_r()
-time = Phase_noise(f, spectrum).time_r()
-plt.figure()
-ax = plt.axes([0.12, 0.1, 0.82, 0.8])
-#ax.plot(f, spectrum)
-ax.plot(time, dphi)
-plt.show()
 
 
 
@@ -120,6 +125,7 @@ for i in range(N_t):
     
     # Track
     for m in map_:
+        ring = Ring_and_RFstation(C, p_s*np.ones(N_t+2), alpha, C, h, V_rf, noise_dphi[i])
         m.track(beam)
     
 #     print "Momentumi %.6e eV" %beam.p0_i()
@@ -136,9 +142,10 @@ for i in range(N_t):
 
     # Plot
     if (i % dt_plt) == 0:
+        print "   Outputting at time step %6d" %i
         #plot_long_phase_space(ring, beam, i, -0.75, 0, -1.e-3, 1.e-3, xunit='m', yunit='1')
-        #plot_long_phase_space(ring, beam, i, 0, 2.5, -.5e3, .5e3, xunit='ns', yunit='MeV')
-        plot_long_phase_space(beam, i, 0, 0.0001763, -450, 450)
+        plot_long_phase_space(beam, i, 0, 2.5, -.5e3, .5e3, xunit='ns')
+        #plot_long_phase_space(beam, i, 0, 0.0001763, -450, 450)
 #        plot_bunch_length_evol(bunch, 'bunch', i, unit='ns')
 #        plot_bunch_length_evol_gaussian(bunch, 'bunch', i, unit='ns')
 
