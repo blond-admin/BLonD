@@ -44,6 +44,12 @@ class Phase_noise(object):
         then the decreasingly negative frequency components of the double-sided
         spectrum.
         
+        E.g. the following two ways of usage are equivalent:
+        .. image:: RF_noise.png
+            :align: center
+            :width: 600
+            :height: 600       
+        
         Returns only the real part of the phase noise.*
         '''
     
@@ -52,11 +58,11 @@ class Phase_noise(object):
             STEP 1: Set the resolution in time domain
         For hermitian spectrum to real phase noise,
         
-        .. math:: n_t = 2 (n_f - 1) \text{and} \Delta t = 1/(2 f_{max}) 
+        .. math:: n_t = 2 (n_f - 1) \text{and} \Delta t = 1/(2 f_{\text{max}}) 
         
         for complex spectrum to complex phase noise,
         
-        .. math:: n_t = n_f \text{and} \Delta t = 1/f_{max} ,
+        .. math:: n_t = n_f \text{and} \Delta t = 1/f_{\text{max}} ,
         
         where f_{max} is the maximum frequency in the input in both cases.         
         '''
@@ -86,28 +92,45 @@ class Phase_noise(object):
         if transform==None or transform=='r':
             Gt = np.cos(2*np.pi*r1) * np.sqrt(-2*np.log(r2))     
         elif transform=='c':  
-            #Gt = np.exp(2*np.pi*1j*r1)*np.sqrt(-2*np.log(r2)) 
-            Gt = np.cos(2*np.pi*r1)*np.sqrt(-2*np.log(r2)) \
-                + 1j*np.sin(2*np.pi*r1)*np.sqrt(-2*np.log(r2)) 
+            Gt = np.exp(2*np.pi*1j*r1)*np.sqrt(-2*np.log(r2)) 
 
         # FFT to frequency domain
+        '''
+            STEP 3: Transform the generated white noise to frequency domain
+            
+        .. math:: W_l(f) = \sum_{k=1}^N w_k(t) e^{-2 \pi i \frac{k l}{N}}
+        '''
         if transform==None or transform=='r':
             Gf = np.fft.rfft(Gt)  
         elif transform=='c':
             Gf = np.fft.fft(Gt)   
                 
         # Multiply by desired noise probability density
+        '''
+            STEP 4: In frequency domain, colour the white noise with the desired
+            noise probability density (unit: radians)
+        
+        The noise probability density derived from the double-sided spectrum is
+        .. math:: s_l(f) = \sqrt{A S_l^{\text{DB}} f_{\text{max}}} ,  
+        where A=2 for transform = 'r' and A=1 for transform = 'c'.
+        The coloured noise is obtained by multiplication in frequency domain
+        .. math:: \Phi_l(f) = \s_l(f) W_l(f)
+        '''
         if transform==None or transform=='r':
             s = np.sqrt(2*self.fmax*self.ReS) # in rad
         elif transform=='c':
             s = np.sqrt(self.fmax*self.ReS) # in rad
-        dPf = s*Gf.real + 1j*s*Gf.imag 
+        dPf = s*Gf.real + 1j*s*Gf.imag  # in rad
                 
         # FFT back to time domain to get final phase shift
+        '''
+            STEP 5: Transform back the coloured spectrum to time domain to 
+            obtain the final phase shift array (we use only the real part)
+        '''
         if transform==None or transform=='r':
-            dPt = np.fft.irfft(dPf) 
+            dPt = np.fft.irfft(dPf) # in rad
         elif transform=='c':
-            dPt = np.fft.ifft(dPf)
+            dPt = np.fft.ifft(dPf) # in rad
                     
         # Use only real part for the phase shift and normalize
         self.t = np.arange(0, self.nt*self.dt, self.dt)

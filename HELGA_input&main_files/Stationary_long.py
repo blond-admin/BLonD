@@ -67,9 +67,9 @@ print "Time step of noise 1 is %.4e" %noise_t[1]
 f2 = np.arange(0, 2*5.62275e+03, 1.12455000e-02)
 #spectrum2 = np.concatenate(( np.zeros(495020), 1.11100000e-07 * np.ones(9960), np.zeros(495020) ))
 spectrum2 = np.concatenate(( 1.11100000e-07 * np.ones(4980), np.zeros(990040), 1.11100000e-07 * np.ones(4980) ))
-noise_t, noise_dphi = Phase_noise(f2, spectrum2).spectrum_to_phase_noise()
+noise_t, noise_dphi = Phase_noise(f2, spectrum2).spectrum_to_phase_noise(transform='c')
 print "Sigma of noise 2 is %.4e" %np.std(noise_dphi)
-print "Time step of noise 1 is %.4e" %noise_t[2]
+print "Time step of noise 2 is %.4e" %noise_t[1]
 ax.plot(f2, spectrum2, 'r')
 ax2.plot(noise_t[::100], noise_dphi[::100],'r.')
 plt.show()
