@@ -34,7 +34,7 @@ def plot_long_phase_space(beam, nturns, xmin, xmax, ymin, ymax,
 
     # Conversion from metres to nanoseconds
     if xunit == 'ns':
-        coeff = 1.e9 * beam.ring.radius / (beam.beta_i() * c)
+        coeff = 1.e9 * beam.ring.radius / (beam.ring.beta_i(beam) * c)
     elif xunit == 'm':
         coeff = - beam.ring.radius
     ycoeff = beam.ring.beta_i(beam)**2 * beam.ring.energy_i(beam)
@@ -74,7 +74,6 @@ def plot_long_phase_space(beam, nturns, xmin, xmax, ymin, ymax,
     elif xunit == 'ns':
         axScatter.set_xlabel('Time [ns]', fontsize=14)
         if yunit == None or yunit == 'MeV':
-            print beam.theta*coeff
             axScatter.scatter(beam.theta*coeff, beam.dE/1.e6, s=1, edgecolor='none')
             axScatter.set_ylabel(r"$\Delta$E [MeV]", fontsize=14)
         elif yunit == '1': 
@@ -188,3 +187,27 @@ def plot_bunch_length_evol_gaussian(bunch, h5file, nturns, unit=None):
     fign = "fig/bunch_length_evolution_Gaussian.png"
     plt.savefig(fign)
     plt.clf()
+    
+    
+def plot_noise_spectrum(frequency, spectrum, sampling=None):
+    
+    # Directory where longitudinal_plots will be stored
+    fig_folder()
+    
+    # Plot
+    plt.figure(1, figsize=(8,6))
+    ax = plt.axes([0.12, 0.1, 0.82, 0.8])
+    if sampling == None:
+        ax.plot(frequency, spectrum)
+    else:
+        ax.plot(frequency[::sampling], spectrum[::sampling])
+    ax.set_xlabel("Frequency [Hz]")
+    params = {'text.usetex': False, 'mathtext.default' : 'sf'}
+    plt.rcParams.update(params)
+    ax.set_ylabel (r"Noise spectrum [$\frac{rad^2}{Hz}$]")
+    fign = "fig/noise_spectrum.png"
+    plt.savefig(fign)
+    plt.clf()
+    
+    
+        
