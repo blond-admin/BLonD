@@ -17,8 +17,8 @@ from FFT.RF_noise import Phase_noise
 # Bunch parameters
 N_b = 1.e9           # Intensity
 N_p = 10001            # Macro-particles
-tau_0 = 0.4e-9       # Initial bunch length, 4 sigma [s]
-sd = .5e-4           # Initial r.m.s. momentum spread
+tau_0 = 0.4       # Initial bunch length, 4 sigma [ns]
+# sd = .5e-4           # Initial r.m.s. momentum spread
 
 # Machine and RF parameters
 h = []
@@ -38,12 +38,12 @@ dt_plt = 2000          # Time steps between plots
 
 # Derived parameters
 #m_p *= c**2/e
-E_s = np.sqrt(p_s**2 + m_p**2 * c**4 / e**2)  # Sychronous energy [eV]
-gamma = E_s/(m_p*c**2/e)          # Relativistic gamma
-beta = np.sqrt(1. - 1./gamma**2)  # Relativistic beta
-T0 = C / beta / c                 # Turn period
-sigma_theta = 2 * np.pi * tau_0 / T0      # R.m.s. theta
-sigma_dE = sd * beta**2 * E_s           # R.m.s. dE
+# E_s = np.sqrt(p_s**2 + m_p**2 * c**4 / e**2)  # Sychronous energy [eV]
+# gamma = E_s/(m_p*c**2/e)          # Relativistic gamma
+# beta = np.sqrt(1. - 1./gamma**2)  # Relativistic beta
+# T0 = C / beta / c                 # Turn period
+# sigma_theta = 2 * np.pi * tau_0 / T0      # R.m.s. theta
+# sigma_dE = sd * beta**2 * E_s           # R.m.s. dE
 alpha = []
 alpha.append(1./gamma_t/gamma_t)        # First order mom. comp. factor
 
@@ -53,27 +53,29 @@ alpha.append(1./gamma_t/gamma_t)        # First order mom. comp. factor
 f = np.arange(0, 5.6227612455e+03, 1.12455000e-02)
 spectrum = np.concatenate((1.11100000e-07 * np.ones(4980), np.zeros(495021)))
 noise_t, noise_dphi = Phase_noise(f, spectrum).spectrum_to_phase_noise()
-#time = Phase_noise(f, spectrum).time_r()
-plt.figure(1)
-ax = plt.axes([0.12, 0.1, 0.82, 0.8])
-#ax.plot(f, spectrum)
-plot_noise_spectrum(f, spectrum, sampling=100)
-plt.figure(2)
-ax2 = plt.axes([0.12, 0.1, 0.82, 0.8])
-ax2.plot(noise_t[::100], noise_dphi[::100],'b.')
-#plt.show()
-print "Sigma of noise 1 is %.4e" %np.std(noise_dphi)
-print "Time step of noise 1 is %.4e" %noise_t[1]
 
-f2 = np.arange(0, 2*5.62275e+03, 1.12455000e-02)
-#spectrum2 = np.concatenate(( np.zeros(495020), 1.11100000e-07 * np.ones(9960), np.zeros(495020) ))
-spectrum2 = np.concatenate(( 1.11100000e-07 * np.ones(4980), np.zeros(990040), 1.11100000e-07 * np.ones(4980) ))
-noise_t, noise_dphi = Phase_noise(f2, spectrum2).spectrum_to_phase_noise(transform='c')
-print "Sigma of noise 2 is %.4e" %np.std(noise_dphi)
-print "Time step of noise 2 is %.4e" %noise_t[1]
-ax.plot(f2, spectrum2, 'r')
-ax2.plot(noise_t[::100], noise_dphi[::100],'r.')
-plt.show()
+# Hermitian vs complex FFT (gives the same result)
+# plot_noise_spectrum(f, spectrum, sampling=100)
+# plot_phase_noise(noise_t, noise_dphi, sampling=100)
+# print "Sigma of noise 1 is %.4e" %np.std(noise_dphi)
+# print "Time step of noise 1 is %.4e" %noise_t[1]
+# f2 = np.arange(0, 2*5.62275e+03, 1.12455000e-02)
+# spectrum2 = np.concatenate(( 1.11100000e-07 * np.ones(4980), np.zeros(990040), 1.11100000e-07 * np.ones(4980) ))
+# noise_t2, noise_dphi2 = Phase_noise(f2, spectrum2).spectrum_to_phase_noise(transform='c')
+# os.rename('fig/noise_spectrum.png', 'fig/noise_spectrum_r.png')
+# os.rename('fig/phase_noise.png', 'fig/phase_noise_r.png')
+# plot_noise_spectrum(f2, spectrum2, sampling=100)
+# plot_phase_noise(noise_t2, noise_dphi2, sampling=100)
+# print "Sigma of noise 2 is %.4e" %np.std(noise_dphi)
+# print "Time step of noise 2 is %.4e" %noise_t[1]
+# os.rename('fig/noise_spectrum.png', 'fig/noise_spectrum_c.png')
+# os.rename('fig/phase_noise.png', 'fig/phase_noise_c.png')
+
+plot_noise_spectrum(f, spectrum, sampling=100)
+plot_phase_noise(noise_t, noise_dphi, sampling=100)
+print "   Sigma of RF noise is %.4e" %np.std(noise_dphi)
+print "   Time step of RF noise is %.4e" %noise_t[1]
+print ""
 
 
 # Simulation setup -------------------------------------------------------------
@@ -88,6 +90,7 @@ ring = Ring_and_RFstation(C, p_s*np.ones(N_t+2), alpha, C, h, V_rf, dphi)
 
 # Define Beam
 beam = Beam(ring, m_p, N_p, e, N_b)
+slices = Slices(self, n_slices, nsigmaz = None, mode = 'const_space', z_cut_tail = "null" , z_cut_head = "null")
 print "Momentumi %.6e eV" %beam.ring.p0_i()
 print "Momentumf %.6e eV" %beam.ring.p0_f()
 print "Gammai %3.3f" %beam.ring.gamma_i(beam)
@@ -104,7 +107,7 @@ print "RF station set"
 
 # Choose Distribution
 #distribution = longitudinal_bigaussian(beam, sigma_theta*10, sigma_dE*10)
-distribution = longitudinal_gaussian_matched(beam, sigma_theta*2)
+distribution = longitudinal_gaussian_matched(beam, tau_0, unit='ns')
 print "Initial distribution set"
 
 
@@ -149,7 +152,9 @@ for i in range(N_t):
 #                 bunch.slices.sigma_dz[-2], bunch.bl_gauss, 
 #                 bunch.slices.sigma_dp[-2], bunch.slices.n_macroparticles[-2], 
 #                 str(time.clock() - t0))
-
+    # Statistics
+    beam.longit_statistics()
+    print "Sigma theta %.4e" %beam.sigma_theta
     
 
     # Plot

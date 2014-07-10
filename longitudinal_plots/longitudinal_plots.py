@@ -198,9 +198,8 @@ def plot_noise_spectrum(frequency, spectrum, sampling=None):
     plt.figure(1, figsize=(8,6))
     ax = plt.axes([0.12, 0.1, 0.82, 0.8])
     if sampling == None:
-        ax.plot(frequency, spectrum)
-    else:
-        ax.plot(frequency[::sampling], spectrum[::sampling])
+        sampling = 1
+    ax.plot(frequency[::sampling], spectrum[::sampling])
     ax.set_xlabel("Frequency [Hz]")
     params = {'text.usetex': False, 'mathtext.default' : 'sf'}
     plt.rcParams.update(params)
@@ -210,4 +209,19 @@ def plot_noise_spectrum(frequency, spectrum, sampling=None):
     plt.clf()
     
     
-        
+def plot_phase_noise(time, dphi, sampling=None):
+    
+    # Directory where longitudinal_plots will be stored
+    fig_folder()
+    
+    # Plot
+    plt.figure(1, figsize=(8,6))
+    ax = plt.axes([0.12, 0.1, 0.82, 0.8])
+    if sampling == None:
+        sampling = 1
+    ax.plot(time[::sampling], dphi[::sampling])
+    ax.set_xlabel("Time [s]")
+    ax.set_ylabel (r"Phase noise [rad]")
+    fign = "fig/phase_noise.png"
+    plt.savefig(fign)
+    plt.clf()        

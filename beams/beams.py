@@ -8,6 +8,7 @@ import numpy as np
 #import copy, h5py, sys
 import sys
 from scipy.constants import c, e
+from scipy.optimize import curve_fit
 import cobra_functions.stats as cp
 
 
@@ -125,25 +126,29 @@ class Beam(object):
     def sigma_delta(self, value):
         self.sigma_dE = value * self.ring.beta_i(self)**2 * self.ring.energy_i(self)
 
-    def longit_statistics(self):
+    def longit_statistics(self, gaussian_fit="Off", slices=None):
         
         self.mean_theta = cp.mean(self.theta)
         self.mean_dE = cp.mean(self.dE)
         self.sigma_theta = cp.std(self.theta)
         self.sigma_dE = cp.std(self.dE)
-        #self.epsn_l = 4 * np.pi * self.sigma_theta * self.sigma_dE * self.mass * ring.gamma_f * ring.beta_f * c / e
+
         # R.m.s. emittance in Gaussian approximation, other emittances to be defined
         self.eps_rms_l = np.pi * self.sigma_dE * self.sigma_theta \
                         * self.ring.radius / (self.ring.beta_i(self) * c) # in eVs
 
-        # Gaussian fit to theta-profile 
-#         p0 = [100., 0., self.slices.sigma_dz[-2]] #initial guess
-#         def gauss(x, *p):
-#             A, x0, sx = p
-#             return A*np.exp(-(x-x0)**2/2./sx**2) 
-#         pfit, pvar = curve_fit(gauss, self.slices.mean_dz[1:-3], 
-#                                self.slices.n_macroparticles[1:-3], p0=p0)
-#         self.bl_gauss = 4*abs(pfit[2]) # 4 sigma bunch length
+        # Gaussian fit to theta-profile
+        if gaussian_fit == "On":
+
+            p0 = [max(slices.n_macroparticles), self.mean_theta, self.sigma_theta]
+        
+            def gauss(x, *p):
+                A, x0, sx = p
+                return A*np.exp(-(x-x0)**2/2./sx**2) 
+            
+            pfit = curve_fit(gauss, slices.bins_centers, 
+                             slices.n_macroparticles, p0)[0]
+            self.bl_gauss = 4*abs(pfit[2]) # 4 sigma bunch length
 
                                 
     def transv_statistics(self):
