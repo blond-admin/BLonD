@@ -62,9 +62,10 @@ tau_0 = 0.5                  # Initial bunch length, 4 sigma [ns]
 
 # Simulation setup -------------------------------------------------------------
 #Gathering and pre-processing parameters
-general_params = General_parameters(particle_type, n_turns, [circumference/2, circumference/2], 
+general_params = General_parameters(n_turns, [circumference/2, circumference/2], 
                                     [[momentum_compaction], [momentum_compaction]], 
-                                    [sync_momentum_1*np.ones(n_turns+1), sync_momentum_2*np.ones(n_turns+1)], number_of_sections = 2)
+                                    [sync_momentum_1*np.ones(n_turns+1), sync_momentum_2*np.ones(n_turns+1)], number_of_sections = 2,
+                                    particle_type)
 
 
 section_1_params = RFSectionParameters(n_turns, n_rf_systems_1, circumference/2, harmonic_numbers_1_list, voltage_program_1_list, phi_offset_1_list, sync_momentum_1)
