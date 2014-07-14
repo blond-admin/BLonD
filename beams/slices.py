@@ -8,10 +8,13 @@
 from __future__ import division
 import numpy as np
 from random import sample
-import cobra_functions.stats as cp
+import cython_functions.stats as cp
 from scipy.constants import c
 import sys
 import time
+from numpy.fft import rfft, irfft, rfftfreq
+from scipy import ndimage
+from numpy import delete
 
 
 
@@ -299,5 +302,28 @@ class Slices(object):
         bunch.dE = bunch.dE.take(argsorted)
         bunch.id = bunch.id.take(argsorted)
     
+    
+    def beam_spectrum(self, n_sampling_fft):
         
-   
+        spectrum = rfft(self.n_macroparticles, n_sampling_fft)
+            
+        return spectrum
+    
+    
+    def beam_profile_derivative(self, mode):
+        
+        dist_centers = self.bins_centers[1] - self.bins_centers[0]
+        
+        if mode == 1:
+            x = self.edges[1:-1]
+            derivative = np.diff(self.n_macroparticles) / dist_centers
+        if mode == 2:
+            x = self.bins_centers
+            derivative = ndimage.gaussian_filter1d(self.n_macroparticles, sigma=1, order=1, mode='wrap') / dist_centers
+        if mode == 3:
+            x = self.bins_centers
+            derivative = np.gradient(self.n_macroparticles, dist_centers)
+            
+        return x, derivative
+    
+        
