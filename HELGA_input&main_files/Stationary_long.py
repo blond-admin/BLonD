@@ -9,9 +9,11 @@ import matplotlib.pyplot as plt
 from trackers.ring_and_RFstation import *
 from trackers.longitudinal_tracker import *
 from beams.beams import *
+from beams.slices import *
 from beams.longitudinal_distributions import *
 from longitudinal_plots.longitudinal_plots import *
 from FFT.RF_noise import Phase_noise
+from monitors.monitors import *
 
 # Simulation parameters --------------------------------------------------------
 # Bunch parameters
@@ -34,7 +36,7 @@ dphi.append(0)      # Phase modulation/offset
 # Tracking details
 N_t = 2000           # Number of turns to track
 dt_out = 200          # Time steps between output
-dt_plt = 2000          # Time steps between plots
+dt_plt = 200          # Time steps between plots
 
 # Derived parameters
 #m_p *= c**2/e
@@ -90,7 +92,8 @@ ring = Ring_and_RFstation(C, p_s*np.ones(N_t+2), alpha, C, h, V_rf, dphi)
 
 # Define Beam
 beam = Beam(ring, m_p, N_p, e, N_b)
-slices = Slices(self, n_slices, nsigmaz = None, mode = 'const_space', z_cut_tail = "null" , z_cut_head = "null")
+slices = Slices(100)
+slices.set_longitudinal_cuts(beam)
 print "Momentumi %.6e eV" %beam.ring.p0_i()
 print "Momentumf %.6e eV" %beam.ring.p0_f()
 print "Gammai %3.3f" %beam.ring.gamma_i(beam)
@@ -122,7 +125,8 @@ map_ = [long_tracker] # No intensity effects, no aperture limitations
 print "Map set"
 print ""
 
-
+# Outputs
+output = BunchMonitor('output', N_t+1, statistics = "Longitudinal", long_gaussian_fit = "On")
 
 
 
@@ -153,8 +157,10 @@ for i in range(N_t):
 #                 bunch.slices.sigma_dp[-2], bunch.slices.n_macroparticles[-2], 
 #                 str(time.clock() - t0))
     # Statistics
-    beam.longit_statistics()
-    print "Sigma theta %.4e" %beam.sigma_theta
+    slices.slice_constant_space_histogram(beam)
+    #beam.longit_statistics(gaussian_fit='On', slices=slices)
+    #print "4 sigma theta %.4e, Gaussian fit %.4e" %(4*beam.sigma_theta, beam.bl_gauss)
+    output.dump(beam, slices)
     
 
     # Plot
@@ -163,8 +169,8 @@ for i in range(N_t):
         #plot_long_phase_space(ring, beam, i, -0.75, 0, -1.e-3, 1.e-3, xunit='m', yunit='1')
         plot_long_phase_space(beam, i, 0, 2.5, -.5e3, .5e3, xunit='ns')
         #plot_long_phase_space(beam, i, 0, 0.0001763, -450, 450)
-#        plot_bunch_length_evol(bunch, 'bunch', i, unit='ns')
-#        plot_bunch_length_evol_gaussian(bunch, 'bunch', i, unit='ns')
+        plot_bunch_length_evol(beam, 'output', i, unit='ns')
+        plot_bunch_length_evol_gaussian(beam, 'output', i, unit='ns')
 
 
 
