@@ -10,7 +10,7 @@ from numpy import convolve, interp
 from scipy.constants import c, e
 from scipy.constants import physical_constants
 import time
-from numpy.fft import rfft, irfft, rfftfreq
+from numpy.fft import rfft, irfft #, rfftfreq
 import matplotlib.pyplot as plt
 
 
@@ -172,8 +172,8 @@ class Induced_voltage_from_impedance(object):
                        /(bunch.beta_rel * c)
         
         power = int(np.floor(np.log2(1 / (self.frequency_step * dtau)))) + 1
-        return rfftfreq(2 ** power, dtau), 2 ** power
-    
+        #return rfftfreq(2 ** power, dtau), 2 ** power
+        return 0 # DEBUG!!!
     
     def track(self, bunch):
         

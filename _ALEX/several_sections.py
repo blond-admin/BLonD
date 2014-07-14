@@ -13,7 +13,7 @@ is the same than in main.py, no acceleration)
 from __future__ import division
 import numpy as np
 
-from input_parameters.simulation_parameters import GeneralParameters
+from input_parameters.general_parameters import General_parameters
 from input_parameters.rf_parameters import RFSectionParameters, SumRFSectionParameters
 from trackers.longitudinal_tracker import FullRingAndRF, RingAndRFSection
 from beams.beams import Beam
@@ -25,7 +25,7 @@ import time
 # Simulation parameters --------------------------------------------------------
 # Simulation parameters
 n_turns = 2000          # Number of turns to track
-plot_step = 100          # Time steps between plots
+plot_step = 200          # Time steps between plots
 # output_step = 100   # Time steps between outputs
 
 # General parameters
@@ -56,16 +56,22 @@ phi_offset_2 = 0
 
 # Beam parameters
 intensity = 1.e10           # Intensity
-n_macroparticles = 100000   # Macro-particles
+n_macroparticles = 10000   # Macro-particles
 tau_0 = 0.5                  # Initial bunch length, 4 sigma [ns]
 
 
 # Simulation setup -------------------------------------------------------------
 #Gathering and pre-processing parameters
+general_params = General_parameters(particle_type, n_turns, [circumference/2, circumference/2], 
+                                    [[momentum_compaction], [momentum_compaction]], 
+                                    [sync_momentum_1*np.ones(n_turns+1), sync_momentum_2*np.ones(n_turns+1)], number_of_sections = 2)
+
+
 section_1_params = RFSectionParameters(n_turns, n_rf_systems_1, circumference/2, harmonic_numbers_1_list, voltage_program_1_list, phi_offset_1_list, sync_momentum_1)
 section_2_params = RFSectionParameters(n_turns, n_rf_systems_2, circumference/2, harmonic_numbers_2, voltage_program_2, phi_offset_2, sync_momentum_2)
 full_rf_params = SumRFSectionParameters([section_1_params, section_2_params])
-general_params = GeneralParameters(particle_type, n_turns, circumference, momentum_compaction, full_rf_params.momentum_program_matrix)
+#general_params = General_parameters(particle_type, n_turns, circumference, momentum_compaction, full_rf_params.momentum_program_matrix)
+
  
 # # RF tracker
 my_accelerator_rf= FullRingAndRF(general_params, full_rf_params)
@@ -100,7 +106,7 @@ for i in range(n_turns):
         print t1-t0
       
     if i % plot_step == 0:
-        plot_long_phase_space(my_beam, general_params, RingAndRFSection_fake, 0., 5., -150, 150, xunit='ns')                   
+        plot_long_phase_space(my_beam, general_params, RingAndRFSection_fake, 0., 5., -150, 150, xunit='ns', separatrix_plot = True)                   
 
 
 

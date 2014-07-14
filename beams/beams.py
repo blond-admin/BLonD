@@ -10,7 +10,6 @@ from scipy.constants import c, e, m_p
 import cython_functions.stats as cp
 from scipy.optimize import curve_fit
 from trackers.longitudinal_tracker import is_in_separatrix
-from numpy.fft import rfft, irfft, rfftfreq
 from scipy import ndimage
 
 
@@ -130,12 +129,14 @@ class Beam(object):
         self.sigma_theta = value * self.beta_rel * c / self.ring_radius
 
     
-    def longit_statistics(self, gaussian_fit, slices):
+    def longit_statistics(self, gaussian_fit="Off", slices=None):
         
-        self.mean_theta = np.mean(self.theta)
-        self.mean_dE = np.mean(self.dE)
-        self.sigma_theta = np.std(self.theta)
-        self.sigma_dE = np.std(self.dE)
+        # Statistics only for particles that are not flagged as lost
+        itemindex = np.where(self.id != 0)[0]
+        self.mean_theta = np.mean(self.theta[itemindex])
+        self.mean_dE = np.mean(self.dE[itemindex])
+        self.sigma_theta = np.std(self.theta[itemindex])
+        self.sigma_dE = np.std(self.dE[itemindex])
        
         ##### R.m.s. emittance in Gaussian approximation, other emittances to be defined
         self.epsn_rms_l = np.pi * self.sigma_dE * self.sigma_theta \
@@ -169,17 +170,20 @@ class Beam(object):
         self.epsn_y_yp = cp.emittance(self.y, self.yp) * self.gamma_rel \
                         * self.beta_rel * 1e6
     
-    def losses(self, GeneralParameters, RingAndRFSection):
+    def losses_separatrix(self, GeneralParameters, RingAndRFSection):
         
         itemindex = np.where(is_in_separatrix(GeneralParameters, RingAndRFSection,
                                  self.theta, self.dE, self.delta) == False)[0]
-        if itemindex.size != 0:
-            
+
+        if itemindex.size != 0:    
             self.id[itemindex] = 0
     
+    def losses_longitudinal_cut(self, theta_min, theta_max): 
     
-    
-
+        itemindex = np.where( (self.theta < theta_min or self.theta > theta_max) )[0]
+        
+        if itemindex.size != 0:          
+            self.id[itemindex] = 0       
         
         
 
