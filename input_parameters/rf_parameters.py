@@ -32,38 +32,6 @@ def input_check(input_value, expected_length):
         raise RuntimeError(str(input_value) + ' does not match ' + str(expected_length))
     
     
-class SumRFSectionParameters(object):
-    '''
-    *Method to add RF_section_parameters objects together in order to gather
-    the complete information for a longitudinal_tracker.Full_Ring_and_RF
-    object*
-    '''
-    
-    def __init__(self, RFSectionParameters_list):
-        
-        #: *List of RF_section_parameters objects to concatenate*
-        self.RFSectionParameters_list = RFSectionParameters_list
-        
-        #: *Total length of the sections in [m]*
-        self.section_length_sum = 0
-        
-        #: | *The total number of sections concatenated*
-        #: | *Counter for section is:* :math:`i`
-        self.total_n_sections = len(RFSectionParameters_list)
-        
-        #: | *Momentum program matrix in [eV/c]* :math:`: \quad p_{i,n}`
-        #: | *The lines* :math:`i` *of this matrix corresponds to the momentum program for one section.*
-        #: | *The columns* :math:`n` *correspond to one turn of the simulation.* 
-        self.momentum_program_matrix = np.zeros((self.total_n_sections, 
-                                                 RFSectionParameters_list[0].n_turns + 1))
-        
-        ### Pre-processing the inputs
-        # The length of the sections are added and the momentum program is 
-        # set as a matrix.
-        for i in range(len(RFSectionParameters_list)):
-            self.section_length_sum += RFSectionParameters_list[i].section_length
-            self.momentum_program_matrix[i,:] = RFSectionParameters_list[i].momentum_program
-
 
 class RFSectionParameters(object):
     '''
@@ -75,51 +43,48 @@ class RFSectionParameters(object):
     for one full ring.*
     '''
     
-    section_counter = -1
-    
-    def __init__(self, n_turns, n_rf_systems, section_length, 
-                 harmonic_number_list, voltage_program_list, phi_offset_list, 
-                 momentum_program):
+    def __init__(self, general_parameters, section_number, n_rf_systems, 
+                 harmonic_number_list, voltage_program_list, phi_offset_list):
         
-        # Incrementing the RFSectionParameters.section_counter
-        RFSectionParameters.section_counter += 1
-        
-        #: *Index of the section (incremented by one whenever a RFSectionParameters
-        #: is created.*
-        self.index_section = RFSectionParameters.section_counter
+        #: *Number of the RF section (from 1 to n) -- has to be unique*
+        self.sno = section_number - 1
         
         #: | *Number of turns for the simulation*
         #: | *Counter for turns is:* :math:`n`
-        self.n_turns = n_turns
+        self.n_turns = general_parameters.n_turns
         
         #: *Length of the section in [m]* :math:`: \quad L_i`
-        self.section_length = section_length
-        
-        #: | *Number of RF systems in the section* :math:`: \quad n_{RF}`
-        #: | *Counter for RF is:* :math:`j`
-        self.n_rf_systems = n_rf_systems
+        self.section_length = general_parameters.ring_length_list[self.sno]
+        self.length_ratio = self.section_length/general_parameters.ring_circumference
         
         #: | *Momentum program in [eV/c]* :math:`: \quad p_{j,n}`
-        #: | *The length of the momentum program should be n_turns + 1, check longitudinal_tracker.py for more precisions.*
-        #: | *Inputing a single value will assume a constant value for all the simulation.*
-        self.momentum_program = input_check(momentum_program, self.n_turns + 1)
+        self.momentum_program = general_parameters.momentum_program[self.sno]
         
         #: *Momentum increment (acceleration/deceleration) between two turns,
         #: for one section in [eV/c]* :math:`: \quad \Delta p_{n\rightarrow n+1}`
         self.p_increment = np.diff(self.momentum_program)
         
+        #: *Copy of the relativistic parameters*
+        self.beta_r = general_parameters.beta_rel_program[self.sno]
+        self.beta_av = (self.beta_r[1:] + self.beta_r[0:-1])/2
+        self.gamma_r = general_parameters.gamma_rel_program[self.sno]
+        self.energy = general_parameters.energy_program[self.sno]
+
+        #: | *Slippage factors for the given RF section*
+        self.alpha_order = len(general_parameters.alpha[self.sno])
+        for i in xrange( self.alpha_order ):
+            dummy = getattr(general_parameters, 'eta' + str(i))
+            setattr(self, "eta_%s" %i, dummy[self.sno])     
+        
+        #: | *Number of RF systems in the section* :math:`: \quad n_{RF}`
+        #: | *Counter for RF is:* :math:`j`
+        self.n_rf_systems = n_rf_systems
+        
         #: | *Harmonic number list* :math:`: \quad h_{j,n}`
-        #: | *The length of the list should be equal to n_rf_systems.* 
-        self.harmonic_number_list = 0
-        
         #: | *Voltage program list in [V]* :math:`: \quad V_{j,n}`
-        #: | *The length of the list should be equal to n_rf_systems.* 
-        self.voltage_program_list = 0
-        
         #: | *Phase offset list in [rad]* :math:`: \quad \phi_{j,n}`
-        #: | *The length of the list should be equal to n_rf_systems.* 
-        self.phi_offset_list = 0
-         
+        #: | *Check consistency of input array lengths*
+        
         ### Pre-processing the inputs
         # The input is analysed and structured in order to have lists, which
         # length are matching the number of RF systems considered in this
@@ -128,7 +93,6 @@ class RFSectionParameters(object):
         # that these values will remain constant for all the simulation.
         # These can be inputed directly as arrays in order to have programs
         # (the length of the arrays will then be checked)
-        
         if n_rf_systems == 1:
             self.harmonic_number_list = [harmonic_number_list] 
             self.voltage_program_list = [voltage_program_list] 
@@ -144,9 +108,9 @@ class RFSectionParameters(object):
             self.phi_offset_list = phi_offset_list
         
         for i in range(self.n_rf_systems):
-            self.harmonic_number_list[i] = input_check(self.harmonic_number_list[i], n_turns)
-            self.voltage_program_list[i] = input_check(self.voltage_program_list[i], n_turns)
-            self.phi_offset_list[i] = input_check(self.phi_offset_list[i], n_turns)
+            self.harmonic_number_list[i] = input_check(self.harmonic_number_list[i], self.n_turns)
+            self.voltage_program_list[i] = input_check(self.voltage_program_list[i], self.n_turns)
+            self.phi_offset_list[i] = input_check(self.phi_offset_list[i], self.n_turns)
             
 
             

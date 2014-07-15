@@ -10,15 +10,15 @@ from scipy.constants import m_p, m_e, e, c
 import numpy as np
 
 
-class General_parameters(object):
+class GeneralParameters(object):
     '''
     *Object containing all the general input parameters used for the simulation*
     '''
 
-    def __init__(self, n_turns, ring_length_list, alpha, 
-                 momentum_program, number_of_sections = 1, particle_type, user_mass = None, 
-                 user_charge = None, particle_type_2 = None, user_mass_2 = None, 
-                 user_charge_2 = None):
+    def __init__(self, n_turns, ring_length_list, alpha, momentum_program, 
+                 particle_type, user_mass = None, user_charge = None, 
+                 particle_type_2 = None, user_mass_2 = None, 
+                 user_charge_2 = None, number_of_sections = 1):
 
         #: | *Number of sections defines how many longitudinal maps are done per turn.*
         #: | *Default is one.*
@@ -79,8 +79,7 @@ class General_parameters(object):
         self.ring_radius = self.ring_circumference / (2 * np.pi)         
         
         #: *Check consistency of input data; raise error if not consistent*        
-        if (self.n_sections == 1 and isinstance(self.ring_length_list, float) == False) or \
-            (self.n_sections > 1 and self.n_sections != len(self.ring_length_list)) or \
+        if self.n_sections != len(self.ring_length_list) or \
             self.n_sections != self.alpha.shape[0] or \
             self.n_sections != self.momentum_program.shape[0]:
             raise RuntimeError('ERROR: Number of sections, ring length, alpha, and/or momentum data do not match!')    
@@ -189,5 +188,39 @@ class General_parameters(object):
                     self.alpha[i,0]**2 * self.eta0[i] - \
                     3 * self.beta_rel_program[i]**2 * self.alpha[i,0] / (2 * self.gamma_rel_program[i]**2)
          
+    
+    
+    
+class SumRFSectionParameters(object):
+    '''
+    *Method to add RF_section_parameters objects together in order to gather
+    the complete information for a longitudinal_tracker.Full_Ring_and_RF
+    object*
+    '''
+    
+    def __init__(self, RFSectionParameters_list):
         
+        #: *List of RF_section_parameters objects to concatenate*
+        self.RFSectionParameters_list = RFSectionParameters_list
         
+        #: *Total length of the sections in [m]*
+        self.section_length_sum = 0
+        
+        #: | *The total number of sections concatenated*
+        #: | *Counter for section is:* :math:`i`
+        self.total_n_sections = len(RFSectionParameters_list)
+        
+        #: | *Momentum program matrix in [eV/c]* :math:`: \quad p_{i,n}`
+        #: | *The lines* :math:`i` *of this matrix corresponds to the momentum program for one section.*
+        #: | *The columns* :math:`n` *correspond to one turn of the simulation.* 
+        self.momentum_program_matrix = np.zeros((self.total_n_sections, 
+                                                 RFSectionParameters_list[0].n_turns + 1))
+        
+        ### Pre-processing the inputs
+        # The length of the sections are added and the momentum program is 
+        # set as a matrix.
+        for i in range(len(RFSectionParameters_list)):
+            self.section_length_sum += RFSectionParameters_list[i].section_length
+            self.momentum_program_matrix[i,:] = RFSectionParameters_list[i].momentum_program
+
+     

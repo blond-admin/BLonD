@@ -13,8 +13,8 @@ is the same than in main.py, no acceleration)
 from __future__ import division
 import numpy as np
 
-from input_parameters.general_parameters import General_parameters
-from input_parameters.rf_parameters import RFSectionParameters, SumRFSectionParameters
+from input_parameters.general_parameters import GeneralParameters
+from input_parameters.rf_parameters import RFSectionParameters #SumRFSectionParameters
 from trackers.longitudinal_tracker import FullRingAndRF, RingAndRFSection
 from beams.beams import Beam
 from beams.longitudinal_distributions import longitudinal_gaussian_matched
@@ -62,20 +62,28 @@ tau_0 = 0.5                  # Initial bunch length, 4 sigma [ns]
 
 # Simulation setup -------------------------------------------------------------
 #Gathering and pre-processing parameters
-general_params = General_parameters(n_turns, [circumference/2, circumference/2], 
-                                    [[momentum_compaction], [momentum_compaction]], 
-                                    [sync_momentum_1*np.ones(n_turns+1), sync_momentum_2*np.ones(n_turns+1)], number_of_sections = 2,
-                                    particle_type)
-
-
-section_1_params = RFSectionParameters(n_turns, n_rf_systems_1, circumference/2, harmonic_numbers_1_list, voltage_program_1_list, phi_offset_1_list, sync_momentum_1)
-section_2_params = RFSectionParameters(n_turns, n_rf_systems_2, circumference/2, harmonic_numbers_2, voltage_program_2, phi_offset_2, sync_momentum_2)
-full_rf_params = SumRFSectionParameters([section_1_params, section_2_params])
+general_params = GeneralParameters(n_turns, [circumference/2, circumference/2], 
+                                   [[momentum_compaction], [momentum_compaction]], 
+                                   [sync_momentum_1*np.ones(n_turns+1), sync_momentum_2*np.ones(n_turns+1)], 
+                                   particle_type, number_of_sections = 2)
+#general_params = GeneralParameters(n_turns, circumference, [[momentum_compaction]],
+#                                    [sync_momentum_1*np.ones(n_turns+1)], particle_type)
+ 
+sct1 = RFSectionParameters( general_params, 1, n_rf_systems_1, harmonic_numbers_1_list,
+                            voltage_program_1_list, phi_offset_1_list )
+sct2 = RFSectionParameters( general_params, 2, n_rf_systems_2, harmonic_numbers_2,
+                            voltage_program_2, phi_offset_2 )
+                 
+#section_1_params = RFSectionParameters(n_turns, n_rf_systems_1, circumference/2, harmonic_numbers_1_list, voltage_program_1_list, phi_offset_1_list, sync_momentum_1)
+#section_2_params = RFSectionParameters(n_turns, n_rf_systems_2, circumference/2, harmonic_numbers_2, voltage_program_2, phi_offset_2, sync_momentum_2)
+#full_rf_params = SumRFSectionParameters([section_1_params, section_2_params])
 #general_params = General_parameters(particle_type, n_turns, circumference, momentum_compaction, full_rf_params.momentum_program_matrix)
 
- 
+
 # # RF tracker
-my_accelerator_rf= FullRingAndRF(general_params, full_rf_params)
+#my_accelerator_rf= FullRingAndRF(general_params, full_rf_params)
+rf1 = RingAndRFSection(sct1)
+rf2 = RingAndRFSection(sct2)
  
 # # Bunch generation
 my_beam = Beam(general_params, n_macroparticles, intensity)
@@ -87,7 +95,8 @@ RingAndRFSection_fake = RingAndRFSection(general_params, fake_full_voltage)
 longitudinal_gaussian_matched(general_params, RingAndRFSection_fake, my_beam, tau_0, unit='ns')
 
 # Map
-map_ = [my_accelerator_rf]
+#map_ = [my_accelerator_rf]
+map_ = [rf1 + rf2]
 
 # Tracking ---------------------------------------------------------------------
  
