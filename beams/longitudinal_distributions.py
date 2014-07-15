@@ -4,6 +4,7 @@ Created on 12.06.2014
 @author: Danilo Quartullo, Helga Timko, Alexandre Lasheen
 '''
 
+from __future__ import division
 import numpy as np
 from scipy.constants import c
 from trackers.longitudinal_tracker import is_in_separatrix

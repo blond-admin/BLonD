@@ -191,36 +191,36 @@ class GeneralParameters(object):
     
     
     
-class SumRFSectionParameters(object):
-    '''
-    *Method to add RF_section_parameters objects together in order to gather
-    the complete information for a longitudinal_tracker.Full_Ring_and_RF
-    object*
-    '''
-    
-    def __init__(self, RFSectionParameters_list):
-        
-        #: *List of RF_section_parameters objects to concatenate*
-        self.RFSectionParameters_list = RFSectionParameters_list
-        
-        #: *Total length of the sections in [m]*
-        self.section_length_sum = 0
-        
-        #: | *The total number of sections concatenated*
-        #: | *Counter for section is:* :math:`i`
-        self.total_n_sections = len(RFSectionParameters_list)
-        
-        #: | *Momentum program matrix in [eV/c]* :math:`: \quad p_{i,n}`
-        #: | *The lines* :math:`i` *of this matrix corresponds to the momentum program for one section.*
-        #: | *The columns* :math:`n` *correspond to one turn of the simulation.* 
-        self.momentum_program_matrix = np.zeros((self.total_n_sections, 
-                                                 RFSectionParameters_list[0].n_turns + 1))
-        
-        ### Pre-processing the inputs
-        # The length of the sections are added and the momentum program is 
-        # set as a matrix.
-        for i in range(len(RFSectionParameters_list)):
-            self.section_length_sum += RFSectionParameters_list[i].section_length
-            self.momentum_program_matrix[i,:] = RFSectionParameters_list[i].momentum_program
+# class SumRFSectionParameters(object):
+#     '''
+#     *Method to add RF_section_parameters objects together in order to gather
+#     the complete information for a longitudinal_tracker.Full_Ring_and_RF
+#     object*
+#     '''
+#     
+#     def __init__(self, RFSectionParameters_list):
+#         
+#         #: *List of RF_section_parameters objects to concatenate*
+#         self.RFSectionParameters_list = RFSectionParameters_list
+#         
+#         #: *Total length of the sections in [m]*
+#         self.section_length_sum = 0
+#         
+#         #: | *The total number of sections concatenated*
+#         #: | *Counter for section is:* :math:`i`
+#         self.total_n_sections = len(RFSectionParameters_list)
+#         
+#         #: | *Momentum program matrix in [eV/c]* :math:`: \quad p_{i,n}`
+#         #: | *The lines* :math:`i` *of this matrix corresponds to the momentum program for one section.*
+#         #: | *The columns* :math:`n` *correspond to one turn of the simulation.* 
+#         self.momentum_program_matrix = np.zeros((self.total_n_sections, 
+#                                                  RFSectionParameters_list[0].n_turns + 1))
+#         
+#         ### Pre-processing the inputs
+#         # The length of the sections are added and the momentum program is 
+#         # set as a matrix.
+#         for i in range(len(RFSectionParameters_list)):
+#             self.section_length_sum += RFSectionParameters_list[i].section_length
+#             self.momentum_program_matrix[i,:] = RFSectionParameters_list[i].momentum_program
 
      

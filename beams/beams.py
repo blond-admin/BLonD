@@ -4,6 +4,7 @@ Created on 12.06.2014
 @author: Kevin Li, Danilo Quartullo, Helga Timko, ALexandre Lasheen
 '''
 
+from __future__ import division
 import numpy as np
 import sys
 from scipy.constants import c, e, m_p

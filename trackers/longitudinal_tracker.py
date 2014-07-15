@@ -7,9 +7,6 @@
 from __future__ import division
 import numpy as np
 from scipy.constants import c
-from warnings import filterwarnings
-
-
 
 
 
@@ -33,7 +30,7 @@ class RingAndRFSection(object):
     and finally a drift kick between stations.*
     '''
         
-    def __init__(self, rf_params, solver='full', phi_s_calc = 'Off'):
+    def __init__(self, rf_params, solver='full'):
         
         #: | *Choice of solver for the drift*
         #: | *Use 'full' for full eta solver*
@@ -62,10 +59,11 @@ class RingAndRFSection(object):
         self.p_increment = rf_params.p_increment
         #: | *... and derived relativistic quantities*
         self.beta_r = rf_params.beta_r
+        self.beta_av = rf_params.beta_av
         self.gamma_r = rf_params.gamma_r
         self.energy = rf_params.energy
         #: *Acceleration kick* :math:`: \quad - <\beta> \Delta p`
-        self.acceleration_kick = - rf_params.beta_av * self.p_increment  
+        self.acceleration_kick = - self.beta_av * self.p_increment  
 
         #: *Beta ratio*  :math:`: \quad \frac{\beta_{n+1}}{\beta_{n}}`  
         self.beta_ratio = self.beta_r[1:] / self.beta_r[0:-1]
@@ -78,9 +76,9 @@ class RingAndRFSection(object):
             
         #: *Synchronous phase for this section, calculated from the gamma
         #: transition and the momentum program.*
-        if phi_s_calc == 'On':
-            self.phi_s = calc_phi_s(rf_params)  
-            
+        self.phi_s = calc_phi_s(rf_params)  
+
+           
     def kick(self, beam):
         '''
         *The Kick represents the kick(s) by an RF station at a certain position 
@@ -180,8 +178,7 @@ class RingAndRFSection(object):
         self.drift(beam)
 
         self.counter += 1
-    
-    
+      
 
 
 def calc_phi_s(RF_section_parameters, accelerating_systems = 'all'):
@@ -233,96 +230,6 @@ def calc_phi_s(RF_section_parameters, accelerating_systems = 'all'):
             raise RuntimeError('Did not recognize the option accelerating_systems in calc_phi_s function')
          
  
-def hamiltonian(GeneralParameters, RingAndRFSection, theta, dE, delta):
-    """Single RF sinusoidal Hamiltonian.
-    Uses beta, energy averaged over the turn.
-    To be generalized."""
-     
-    if RingAndRFSection.drift.drift_length != GeneralParameters.ring_circumference:
-        raise RuntimeError('WARNING : The hamiltonian is not yet properly computed for several sections !!!')
-     
-     
-    if RingAndRFSection.kick.n_rf_systems == 1:
-        counter = GeneralParameters.counter[0]
-        h0 = RingAndRFSection.kick.harmonic_number_list[0][counter]
-        V0 = RingAndRFSection.kick.voltage_program_list[0][counter]
-        
-        c1 = eta_tracking(GeneralParameters, delta) * c * np.pi / (GeneralParameters.ring_circumference * 
-             GeneralParameters.beta_rel_program[0][counter] * GeneralParameters.energy_program[0][counter] )
-        c2 = c * GeneralParameters.beta_rel_program[0][counter] * V0 / (h0 * GeneralParameters.ring_circumference)
-         
-        phi_s = RingAndRFSection.phi_s[counter]  
-     
-        return c1 * dE**2 + c2 * (np.cos(h0 * theta) - np.cos(phi_s) + 
-                                   (h0 * theta - phi_s) * np.sin(phi_s))
-         
-    else:
-        raise RuntimeError('Hamiltonian for multiple RF is not implemeted yet')
- 
- 
-def separatrix(GeneralParameters, RingAndRFSection, theta):
-    """Single RF sinusoidal separatrix.
-    Uses beta, energy averaged over the turn.
-    To be generalized."""
-     
-    if RingAndRFSection.drift.drift_length != GeneralParameters.ring_circumference:
-        print 'WARNING : The separatrix is not yet properly computed for several sections !!!'
-     
-     
-    if RingAndRFSection.kick.n_rf_systems == 1:
-        counter = GeneralParameters.counter[0]
-        h0 = RingAndRFSection.kick.harmonic_number_list[0][counter]
-        V0 = RingAndRFSection.kick.voltage_program_list[0][counter]
-         
-    else:
-        raise RuntimeError('Separatrix for multiple RF is not implemeted yet')
- 
-    phi_s = RingAndRFSection.phi_s[counter]  
-      
-    filterwarnings('ignore')
-     
-    beta_average = (GeneralParameters.beta_rel_program[0][counter + 1] + GeneralParameters.beta_rel_program[0][counter]) / 2
-     
-    energy_average = (GeneralParameters.energy_program[0][counter + 1] + GeneralParameters.energy_program[0][counter]) / 2
-     
-    eta0_average = (GeneralParameters.eta0[0][counter + 1] + GeneralParameters.eta0[0][counter])/2
-      
-    separatrix_array = np.sqrt(beta_average**2 * energy_average *
-                    V0 / (np.pi * eta0_average * h0) * 
-                    (-np.cos(h0 * theta) - np.cos(phi_s) + 
-                    (np.pi - phi_s - h0 * theta) * np.sin(phi_s)))
-      
-    filterwarnings('default')
-         
-    return separatrix_array
- 
- 
- 
-def is_in_separatrix(GeneralParameters, RingAndRFSection, theta, dE, delta):
-    """Condition for being inside the separatrix.
-    Single RF sinusoidal.
-    Uses beta, energy averaged over the turn.
-    To be generalized."""
-     
-    if RingAndRFSection.drift.drift_length != GeneralParameters.ring_circumference:
-        print 'WARNING : The separatrix is not yet properly computed for several sections !!!'
-     
-     
-    if RingAndRFSection.kick.n_rf_systems == 1:
-        counter = GeneralParameters.counter[0]
-        h0 = RingAndRFSection.kick.harmonic_number_list[0][counter]
-         
-    else:
-        raise RuntimeError('is_in_separatrix for multiple RF is not implemeted yet')
-         
-    phi_s = RingAndRFSection.phi_s[counter] 
-     
-    Hsep = hamiltonian(GeneralParameters, RingAndRFSection, (np.pi - phi_s) / h0, 0, 0) 
-    isin = np.fabs(hamiltonian(GeneralParameters, RingAndRFSection, theta, dE, delta)) < np.fabs(Hsep)
- 
-    return isin
-        
-        
     
 class LinearMap(object):
     

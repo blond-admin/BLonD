@@ -4,6 +4,7 @@ Created on 12.06.2014
 @author: Helga Timko
 '''
 
+from __future__ import division
 import h5py
 import os
 import numpy as np
