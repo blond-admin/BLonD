@@ -60,13 +60,16 @@ class RFSectionParameters(object):
         #: | *Momentum program in [eV/c]* :math:`: \quad p_{j,n}`
         self.momentum_program = general_parameters.momentum_program[self.sno]
         
+        
         #: *Momentum increment (acceleration/deceleration) between two turns,
         #: for one section in [eV/c]* :math:`: \quad \Delta p_{n\rightarrow n+1}`
         self.p_increment = np.diff(self.momentum_program)
         
         #: *Copy of the relativistic parameters*
         self.beta_r = general_parameters.beta_rel_program[self.sno]
+        
         self.beta_av = (self.beta_r[1:] + self.beta_r[0:-1])/2
+        
         self.gamma_r = general_parameters.gamma_rel_program[self.sno]
         self.energy = general_parameters.energy_program[self.sno]
 
@@ -109,9 +112,11 @@ class RFSectionParameters(object):
         
         for i in range(self.n_rf_systems):
             self.harmonic_number_list[i] = input_check(self.harmonic_number_list[i], self.n_turns)
+        
             self.voltage_program_list[i] = input_check(self.voltage_program_list[i], self.n_turns)
             self.phi_offset_list[i] = input_check(self.phi_offset_list[i], self.n_turns)
-            
+        
+        
 
             
             

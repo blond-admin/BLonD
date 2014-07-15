@@ -64,13 +64,16 @@ class GeneralParameters(object):
 
         #: | *Momentum (program) in [eV/c] for each RF section* :math:`: \quad p_n`
         #: | *Can be given as a single value to be assumed constant, or as a program of (n_turns + 1) terms in case of acceleration.*
-        self.momentum_program = np.array(momentum_program)
+        self.momentum_program = np.array(momentum_program, ndmin =2)
         
         #: *Momentum compation factor (up to 2nd order) for each RF section* :math:`: \quad \alpha_i`
-        self.alpha = np.array(alpha) 
+        self.alpha = np.array(alpha, ndmin =2) 
         
         #: | *Ring length array contains the length of the RF sections, in [m]*
+        
         self.ring_length_list = ring_length_list
+        if isinstance(self.ring_length_list, float):
+            self.ring_length_list = [self.ring_length_list]
         
         #: | *Ring circumference is the sum of lengths* :math:`: \quad C = \sum_k L_k`
         self.ring_circumference = np.sum(self.ring_length_list)
@@ -83,7 +86,10 @@ class GeneralParameters(object):
             self.n_sections != self.alpha.shape[0] or \
             self.n_sections != self.momentum_program.shape[0]:
             raise RuntimeError('ERROR: Number of sections, ring length, alpha, and/or momentum data do not match!')    
-
+        
+        if self.momentum_program.size == 1:
+            self.momentum_program = self.momentum_program * np.ones(self.n_turns + 1)
+        
         #: *Relativistic beta (program)* :math:`: \quad \beta_n`
         #:
         #: .. math:: \beta = \sqrt{ 1 + \frac{1}{1 + \left(\frac{mc^2}{ep}\right)^2} }
@@ -104,6 +110,8 @@ class GeneralParameters(object):
         
         # Revolution period 
         self.T0 = self.ring_circumference / np.dot(ring_length_list/self.ring_circumference, self.beta_rel_program) / c 
+        
+  
         
         # Revolution frequency 
         self.f_rev = 1 / self.T0 
@@ -127,6 +135,7 @@ class GeneralParameters(object):
         if len(self.alpha[0]) > 3:
             print 'WARNING : Momentum compaction factor is held only up to \
                    2nd order'
+        
         
         
         if not self.momentum_program.shape[1] == self.n_turns + 1:

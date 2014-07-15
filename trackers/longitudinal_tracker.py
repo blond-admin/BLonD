@@ -59,10 +59,12 @@ class RingAndRFSection(object):
         self.p_increment = rf_params.p_increment
         #: | *... and derived relativistic quantities*
         self.beta_r = rf_params.beta_r
+        
         self.beta_av = rf_params.beta_av
         self.gamma_r = rf_params.gamma_r
         self.energy = rf_params.energy
         #: *Acceleration kick* :math:`: \quad - <\beta> \Delta p`
+        
         self.acceleration_kick = - self.beta_av * self.p_increment  
 
         #: *Beta ratio*  :math:`: \quad \frac{\beta_{n+1}}{\beta_{n}}`  
@@ -92,9 +94,9 @@ class RingAndRFSection(object):
         '''
 
         for i in range(self.n_rf):
-            beam.dE += self.voltage[i][self.counter] * \
-                       np.sin(self.harmonic[i][self.counter] * 
-                              beam.theta + self.phi_offset[i][self.counter])
+            beam.dE += self.voltage_list[i][self.counter] * \
+                       np.sin(self.harmonic_list[i][self.counter] * 
+                              beam.theta + self.phi_offset_list[i][self.counter])
     
     
     def kick_acceleration(self, beam):

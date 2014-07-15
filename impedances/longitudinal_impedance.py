@@ -10,7 +10,7 @@ from numpy import convolve, interp
 from scipy.constants import c, e
 from scipy.constants import physical_constants
 import time
-from numpy.fft import rfft, irfft #, rfftfreq
+from numpy.fft import rfft, irfft, rfftfreq
 import matplotlib.pyplot as plt
 
 
@@ -144,7 +144,9 @@ class Induced_voltage_from_impedance(object):
         
         if self.acceleration == 'off' or self.slices.unit == 'tau':
                 self.precalc = 'on'
+                
                 self.frequency_fft, self.n_sampling_fft = self.frequency_array(slices, bunch)
+                
                 self.impedance_array = self.sum_impedances(self.frequency_fft, self.impedance_sum)
         else:
             self.precalc = 'off' 
@@ -172,8 +174,8 @@ class Induced_voltage_from_impedance(object):
                        /(bunch.beta_rel * c)
         
         power = int(np.floor(np.log2(1 / (self.frequency_step * dtau)))) + 1
-        #return rfftfreq(2 ** power, dtau), 2 ** power
-        return 0 # DEBUG!!!
+        return rfftfreq(2 ** power, dtau), 2 ** power
+        
     
     def track(self, bunch):
         
@@ -368,12 +370,13 @@ class Longitudinal_inductive_impedance(object):
         Constructor
         '''
         self.Z_over_n = Z_over_n
-        self.counter = general_param.counter
+        self.counter = 0
         self.T0 = general_param.T0
         
     def imped_calc(self, frequency):    
         
         self.impedance = self.T0[0][self.counter] * frequency * self.Z_over_n * 1j
+        self.counter += 1
         
         return self.impedance 
  

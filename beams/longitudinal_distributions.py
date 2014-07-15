@@ -7,24 +7,24 @@ Created on 12.06.2014
 from __future__ import division
 import numpy as np
 from scipy.constants import c
-from trackers.longitudinal_tracker import is_in_separatrix
+from trackers.longitudinal_utilities import is_in_separatrix
 
 
 def longitudinal_bigaussian(GeneralParameters, RingAndRFSection, beam, sigma_x,
                              sigma_y, xunit=None, yunit=None, reinsertion = 'off'):
     
-    if RingAndRFSection.drift.drift_length != GeneralParameters.ring_circumference:
+    if GeneralParameters.n_sections > 1:
         raise RuntimeError('WARNING : The longitudinal_gaussian_matched is not\
          yet properly computed for several sections !!!')
         
-    if RingAndRFSection.kick.n_rf_systems != 1:
+    if RingAndRFSection.n_rf > 1:
         raise RuntimeError('longitudinal_gaussian_matched for multiple RF is \
         not implemeted yet')
     
-    counter = GeneralParameters.counter[0]
-    harmonic = RingAndRFSection.kick.harmonic_number_list[0][counter]
-    energy = GeneralParameters.energy_program[0][counter]
-    beta = GeneralParameters.beta_rel_program[0][counter]
+    counter = RingAndRFSection.counter
+    harmonic = RingAndRFSection.harmonic_list[0][counter]
+    energy = RingAndRFSection.energy[counter]
+    beta = RingAndRFSection.beta_r[counter]
     
     if xunit == None or xunit == 'rad':
         sigma_theta = sigma_x
@@ -42,7 +42,7 @@ def longitudinal_bigaussian(GeneralParameters, RingAndRFSection, beam, sigma_x,
     beam.sigma_theta = sigma_theta
     beam.sigma_dE = sigma_dE
     phi_s = RingAndRFSection.phi_s[counter]
-
+    
     beam.theta = sigma_theta * np.random.randn(beam.n_macroparticles) \
                         + phi_s/harmonic
     beam.dE = sigma_dE * np.random.randn(beam.n_macroparticles)
@@ -67,21 +67,21 @@ def longitudinal_gaussian_matched(GeneralParameters, RingAndRFSection, beam,
                                   four_sigma_bunch_length, unit=None, reinsertion = 'off'):
     
     
-    if RingAndRFSection.drift.drift_length != GeneralParameters.ring_circumference:
+    if GeneralParameters.n_sections > 1:
         raise RuntimeError('WARNING : The longitudinal_gaussian_matched is not\
          yet properly computed for several sections !!!')
         
-    if RingAndRFSection.kick.n_rf_systems != 1:
+    if RingAndRFSection.n_rf > 1:
         raise RuntimeError('longitudinal_gaussian_matched for multiple RF is \
         not implemeted yet')
     
-    counter = GeneralParameters.counter[0]
-    harmonic = RingAndRFSection.kick.harmonic_number_list[0][counter]
-    voltage = RingAndRFSection.kick.voltage_program_list[0][counter]
-    energy = GeneralParameters.energy_program[0][counter]
-    beta = GeneralParameters.beta_rel_program[0][counter]
-    eta0 = GeneralParameters.eta0[0][counter]
-            
+    counter = RingAndRFSection.counter
+    harmonic = RingAndRFSection.harmonic_list[0][counter]
+    energy = RingAndRFSection.energy[counter]
+    voltage = RingAndRFSection.voltage[0][counter]
+    beta = RingAndRFSection.beta_r[counter]
+    eta0 = RingAndRFSection.eta_0[counter]
+    
     if unit == None or unit == 'rad':
         sigma_theta = four_sigma_bunch_length / 4
     elif unit == 'm':

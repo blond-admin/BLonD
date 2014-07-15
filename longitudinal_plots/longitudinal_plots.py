@@ -10,7 +10,7 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.constants import c, e
-from trackers.longitudinal_tracker import separatrix
+from trackers.longitudinal_utilities import separatrix
 import sys
 from impedances.longitudinal_impedance import *
 
@@ -31,7 +31,7 @@ def fig_folder(dirname):
             raise
 
 
-def plot_long_phase_space(beam, General_parameters, RingAndRFSection, xmin,
+def plot_long_phase_space(counter, beam, General_parameters, RingAndRFSection, xmin,
                           xmax, ymin, ymax, xunit = None, yunit = None, perc_plotted_points = 100, 
                           separatrix_plot = False, histograms_plot = True, dirname = 'temp'):
 
@@ -95,7 +95,7 @@ def plot_long_phase_space(beam, General_parameters, RingAndRFSection, xmin,
     if xunit == None or xunit == 'rad':
         axScatter.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
     axScatter.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
-    plt.figtext(0.95,0.95,'%d turns' %(General_parameters.counter[0]), fontsize=16, ha='right', 
+    plt.figtext(0.95,0.95,'%d turns' %counter, fontsize=16, ha='right', 
                 va='center') 
 
     # Separatrix
@@ -140,12 +140,12 @@ def plot_long_phase_space(beam, General_parameters, RingAndRFSection, xmin,
             label.set_rotation(-90) 
  
     # Save plot
-    fign = dirname +'/long_distr_'"%d"%(General_parameters.counter[0])+'.png'
+    fign = dirname +'/long_distr_'"%d"%counter+'.png'
     plt.savefig(fign)
     plt.clf()
 
 
-def plot_bunch_length_evol(beam, h5file, General_parameters, unit = None, dirname = 'temp'):
+def plot_bunch_length_evol(counter, beam, h5file, General_parameters, unit = None, dirname = 'temp'):
 
     # Directory where longitudinal_plots will be stored
     fig_folder(dirname)
@@ -171,7 +171,7 @@ def plot_bunch_length_evol(beam, h5file, General_parameters, unit = None, dirnam
         ax.set_ylabel (r"Bunch length, $4\sigma$ r.m.s. [m]")
     
     # Save plot
-    fign = dirname +'/bunch_length_evolution_' "%d" %(General_parameters.counter[0]) + '.png'
+    fign = dirname +'/bunch_length_evolution_' "%d" %counter + '.png'
     plt.savefig(fign)
     plt.clf()
 
@@ -204,7 +204,7 @@ def plot_bunch_length_evol_gaussian(beam, h5file, General_parameters, unit = Non
     plt.clf()
 
 
-def plot_impedance_vs_frequency(general_params, ind_volt_from_imp, option1 = "sum", 
+def plot_impedance_vs_frequency(counter, general_params, ind_volt_from_imp, option1 = "sum", 
                                 option2 = "no_spectrum", option3 = "freq_fft", style = '-', dirname = 'temp'):
 
     # Directory where longitudinal_plots will be stored
@@ -218,7 +218,7 @@ def plot_impedance_vs_frequency(general_params, ind_volt_from_imp, option1 = "su
         if option2 == "spectrum":
             ax2 = ax1.twinx()
             ax2.plot(ind_volt_from_imp.frequency_fft, np.abs(ind_volt_from_imp.spectrum))
-        fign = dirname +'/sum_imp_vs_freq_fft' "%d" %(general_params.counter[0]) + '.png'
+        fign = dirname +'/sum_imp_vs_freq_fft' "%d" %counter + '.png'
         plt.savefig(fign, dpi=300)
         plt.clf()
     
@@ -236,14 +236,14 @@ def plot_impedance_vs_frequency(general_params, ind_volt_from_imp, option1 = "su
                     ax0.plot(ind_volt_from_imp.frequency_fft, ind_volt_from_imp.impedance_sum[i].impedance.real, style)
                     ax1.plot(ind_volt_from_imp.frequency_fft, ind_volt_from_imp.impedance_sum[i].impedance.imag, style)
         
-        fign1 = dirname +'/real_imp_vs_'+option3+'_' "%d" %(general_params.counter[0]) + '.png'
+        fign1 = dirname +'/real_imp_vs_'+option3+'_' "%d" %counter + '.png'
         if option2 == "spectrum":
             ax2 = ax0.twinx()
             ax2.plot(ind_volt_from_imp.frequency_fft, np.abs(ind_volt_from_imp.spectrum))
         plt.figure(0)
         plt.savefig(fign1, dpi=300)
         plt.clf()
-        fign2 = dirname +'/imag_imp_vs_'+option3+'_' "%d" %(general_params.counter[0]) + '.png'
+        fign2 = dirname +'/imag_imp_vs_'+option3+'_' "%d" %counter + '.png'
         plt.figure(1)
         if option2 == "spectrum":
             ax3 = ax1.twinx()
@@ -252,7 +252,7 @@ def plot_impedance_vs_frequency(general_params, ind_volt_from_imp, option1 = "su
         plt.clf()
         
    
-def plot_induced_voltage_vs_bins_centers(general_params, ind_volt_from_imp, style = '-', dirname = 'temp'):
+def plot_induced_voltage_vs_bins_centers(counter, general_params, ind_volt_from_imp, style = '-', dirname = 'temp'):
 
     # Directory where longitudinal_plots will be stored
     fig_folder(dirname)
@@ -260,21 +260,21 @@ def plot_induced_voltage_vs_bins_centers(general_params, ind_volt_from_imp, styl
     plt.plot(ind_volt_from_imp.slices.bins_centers, ind_volt_from_imp.ind_vol, style)
              
     # Save plot
-    fign = dirname +'/induced_voltage_' "%d" %(general_params.counter[0]) + '.png'
+    fign = dirname +'/induced_voltage_' "%d" %counter + '.png'
     plt.savefig(fign)
     plt.clf()
 
 
-def plot_beam_profile(general_params, slices, style = '-', dirname = 'temp'):
+def plot_beam_profile(counter, general_params, slices, style = '-', dirname = 'temp'):
     
     fig_folder(dirname)
     plt.plot(slices.bins_centers, slices.n_macroparticles, style)
-    fign = dirname +'/beam_profile_' "%d" %(general_params.counter[0]) + '.png'
+    fign = dirname +'/beam_profile_' "%d" %counter + '.png'
     plt.savefig(fign)
     plt.clf()
 
 
-def plot_beam_profile_derivative(general_params, slices, style = '-', dirname = 'temp', numbers = [3]):
+def plot_beam_profile_derivative(counter, general_params, slices, style = '-', dirname = 'temp', numbers = [3]):
     
     fig_folder(dirname)
     if 1 in numbers:
@@ -286,7 +286,7 @@ def plot_beam_profile_derivative(general_params, slices, style = '-', dirname = 
     if 3 in numbers:
         x3, derivative3 = slices.beam_profile_derivative(3)
         plt.plot(x3, derivative3, style)
-    fign = dirname +'/beam_profile_derivative_' "%d" %(general_params.counter[0]) + '.png'
+    fign = dirname +'/beam_profile_derivative_' "%d" %counter + '.png'
     plt.savefig(fign)
     plt.clf()
          
