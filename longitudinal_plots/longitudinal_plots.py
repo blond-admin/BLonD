@@ -14,8 +14,11 @@ from trackers.longitudinal_utilities import separatrix
 import sys
 from impedances.longitudinal_impedance import *
 
+
+
 if os.path.exists('temp'):
     os.system('del /s/q '+ os.getcwd() +'\\temp>null')
+
     
 
 def fig_folder(dirname):
@@ -31,19 +34,23 @@ def fig_folder(dirname):
             raise
 
 
+
 def plot_long_phase_space(beam, General_parameters, RFSectionParameters, xmin,
-                          xmax, ymin, ymax, xunit = None, yunit = None, sampling = 1, 
-                          separatrix_plot = False, histograms_plot = True, dirname = 'temp'):
+                          xmax, ymin, ymax, xunit = None, yunit = None, 
+                          sampling = 1, separatrix_plot = False, 
+                          histograms_plot = True, dirname = 'temp'):
+    """
+    Plot of longitudinal phase space. Optional use of histograms and separatrix.
+    Choice of units: xunit = rad, ns, m; yunit = MeV, 1.
+    For large amount of data, use "sampling" to plot a fraction of the data.
+    """
 
     # Directory where longitudinal_plots will be stored
     fig_folder(dirname)
     
-    # Calculate the final index of coordinate array according to perc_plotted_points
-    #index = int(perc_plotted_points * beam.n_macroparticles / 100) + 1
-    
     # Conversion from metres to nanoseconds
     if xunit == 'ns':
-        coeff = 1.e9 * General_parameters.ring_radius / (beam.beta_r * c)
+        coeff = 1.e9*General_parameters.ring_radius/beam.beta_r/c
     elif xunit == 'm':
         coeff = - General_parameters.ring_radius
     ycoeff = beam.beta_r**2 * beam.energy
@@ -65,7 +72,7 @@ def plot_long_phase_space(beam, General_parameters, RFSectionParameters, xmin,
     
     # Main plot: longitudinal distribution
     if xunit == None or xunit == 'rad':
-        axScatter.set_xlabel('theta [rad]', fontsize=14)
+        axScatter.set_xlabel(r"$\vartheta$ [rad]", fontsize=14)
         if yunit == None or yunit == 'MeV':
             axScatter.scatter(beam.theta[::sampling], beam.dE[::sampling]/1.e6, s=1, edgecolor='none')
             axScatter.set_ylabel(r"$\Delta$E [MeV]", fontsize=14)
@@ -145,67 +152,114 @@ def plot_long_phase_space(beam, General_parameters, RFSectionParameters, xmin,
     plt.clf()
 
 
-def plot_bunch_length_evol(counter, beam, h5file, General_parameters, unit = None, dirname = 'temp'):
+
+def plot_bunch_length_evol(beam, h5file, General_parameters, time_step, 
+                           unit = None, dirname = 'temp'):
+    """
+    Plot of r.m.s. 4-sigma bunch length as a function of time.
+    Choice of units: unit = rad, ns, m.
+    """
 
     # Directory where longitudinal_plots will be stored
     fig_folder(dirname)
 
     # Get bunch length data in metres or nanoseconds
-    t = range(1, General_parameters.n_turns + 1)
+    t = range(time_step)
     
     storeddata = h5py.File(h5file + '.h5', 'r')
     bl = np.array(storeddata["/Bunch/sigma_theta"], dtype = np.double)
-    if unit == None or unit == 'ns':
-        bl *= 4.e9 / beam.beta_rel / c * General_parameters.ring_radius
+    if unit == None or unit == 'rad':
+        bl *= 4 
+    elif unit == 'ns':
+        bl *= 4.e9*General_parameters.ring_radius/beam.beta_r/c 
     elif unit == 'm':
-        bl *= 4 * General_parameters.ring_radius
+        bl *= 4*General_parameters.ring_radius 
+    else:
+        print("WARNING: unit of plot_bunch_length not recognized!")   
 
     # Plot
     plt.figure(1, figsize=(8,6))
     ax = plt.axes([0.12, 0.1, 0.82, 0.8])
-    ax.plot(t, bl[0:General_parameters.n_turns], '.')
+    ax.plot(t, bl[0:time_step], '.')
     ax.set_xlabel(r"No. turns [T$_0$]")
-    if unit == None or unit == 'ns':
-        ax.set_ylabel (r"Bunch length, $4\sigma$ r.m.s. [ns]")
+    if unit == None or unit == 'rad':
+        ax.set_ylabel (r"Bunch length, $\vartheta_{4\sigma}$ r.m.s. [rad]")
+        ax.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+    elif unit == 'ns':
+        ax.set_ylabel (r"Bunch length, $\tau_{4\sigma}$ r.m.s. [ns]")
     elif unit == 'm':
-        ax.set_ylabel (r"Bunch length, $4\sigma$ r.m.s. [m]")
+        ax.set_ylabel (r"Bunch length, z$_{4\sigma}$ r.m.s. [m]")
     
     # Save plot
-    fign = dirname +'/bunch_length_evolution_' "%d" %counter + '.png'
+    fign = dirname +'/bunch_length.png'
     plt.savefig(fign)
     plt.clf()
 
 
-def plot_bunch_length_evol_gaussian(beam, h5file, General_parameters, unit = None, dirname = 'temp'):
+
+def plot_bunch_length_evol_gaussian(beam, h5file, General_parameters, slices, 
+                                    time_step, unit = None, dirname = 'temp'):
+
+    """
+    Plot of Gaussian 4-sigma bunch length as a function of time; requires slices.
+    Choice of units: unit = rad, ns, m.
+    """
 
     # Directory where longitudinal_plots will be stored
     fig_folder(dirname)
 
     # Get bunch length data in metres or nanoseconds
-    t = range(1, General_parameters.n_turns + 1) 
+    t = range(time_step) 
     storeddata = h5py.File(h5file + '.h5', 'r')
     bl = np.array(storeddata["/Bunch/bunch_length_gauss_theta"], dtype=np.double)
-    if unit == 'ns':
-        bl *= 1.e9/c/beam.beta_rel * General_parameters.ring_radius
+
+    if slices.coord == "theta":
+        if unit == 'ns':
+            bl *= 1.e9*General_parameters.ring_radius/beam.beta_r/c 
+        elif unit == 'm':
+            bl *= General_parameters.ring_radius 
+    elif slices.coord == "tau":
+        if unit == None or unit == 'rad':
+            bl *= beam.beta_r*c/General_parameters.ring_radius 
+        elif unit == 'ns':
+            bl *= 1.e9 
+        elif unit == 'm':
+            bl *= beam.beta_r*c 
+    elif slices.coord == "z":    
+        if unit == None or unit == 'rad':
+            bl /= General_parameters.ring_radius 
+        elif unit == 'ns':
+            bl *= 1.e9/beam.beta_r/c 
+    else:
+        print("WARNING: unit of plot_bunch_length_gaussian not recognized!")   
 
     # Plot
     plt.figure(1, figsize=(8,6))
     ax = plt.axes([0.12, 0.1, 0.82, 0.8])
-    ax.plot(t, bl[0:General_parameters.n_turns], '.')
+    ax.plot(t, bl[0:time_step], '.')
     ax.set_xlabel(r"No. turns [T$_0$]")
-    if unit == None or unit == 'theta':
-        ax.set_ylabel (r"Bunch length, $4\sigma$ Gaussian fit [rad]")
+    if unit == None or unit == 'rad':
+        ax.set_ylabel (r"Bunch length, $\vartheta_{4\sigma}$ Gaussian fit [rad]")
+        ax.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
     elif unit == 'ns':
-        ax.set_ylabel (r"Bunch length, $4\sigma$ Gaussian fit [ns]")
-    
+        ax.set_ylabel (r"Bunch length, $\tau_{4\sigma}$ Gaussian fit [ns]")
+    elif unit == 'm':
+        ax.set_ylabel (r"Bunch length, z$_{4\sigma}$ Gaussian fit [m]")
+   
     # Save plot    
-    fign = dirname +'/bunch_length_evolution_Gaussian_' "%d" %General_parameters.n_turns + '.png'
+    fign = dirname +'/bunch_length_Gaussian.png'
     plt.savefig(fign)
     plt.clf()
 
 
-def plot_impedance_vs_frequency(counter, general_params, ind_volt_from_imp, option1 = "sum", 
-                                option2 = "no_spectrum", option3 = "freq_fft", style = '-', dirname = 'temp'):
+
+def plot_impedance_vs_frequency(counter, general_params, ind_volt_from_imp, 
+                                option1 = "sum", option2 = "no_spectrum", 
+                                option3 = "freq_fft", style = '-', dirname = 'temp'):
+
+    """
+    Plot of impedance vs frequency.
+    """
 
     # Directory where longitudinal_plots will be stored
     fig_folder(dirname)
@@ -213,11 +267,14 @@ def plot_impedance_vs_frequency(counter, general_params, ind_volt_from_imp, opti
     if option1 == "sum":
         
         ax1 = plt.subplots()[1]
-        ax1.plot(ind_volt_from_imp.frequency_fft, ind_volt_from_imp.impedance_array.real, style)
-        ax1.plot(ind_volt_from_imp.frequency_fft, ind_volt_from_imp.impedance_array.imag, style)
+        ax1.plot(ind_volt_from_imp.frequency_fft, 
+                 ind_volt_from_imp.impedance_array.real, style)
+        ax1.plot(ind_volt_from_imp.frequency_fft, 
+                 ind_volt_from_imp.impedance_array.imag, style)
         if option2 == "spectrum":
             ax2 = ax1.twinx()
-            ax2.plot(ind_volt_from_imp.frequency_fft, np.abs(ind_volt_from_imp.spectrum))
+            ax2.plot(ind_volt_from_imp.frequency_fft, 
+                     np.abs(ind_volt_from_imp.spectrum))
         fign = dirname +'/sum_imp_vs_freq_fft' "%d" %counter + '.png'
         plt.savefig(fign, dpi=300)
         plt.clf()
@@ -229,17 +286,23 @@ def plot_impedance_vs_frequency(counter, general_params, ind_volt_from_imp, opti
         fig1 = plt.figure(1)
         ax1 = fig1.add_subplot(111)
         for i in range(len(ind_volt_from_imp.impedance_sum)):
-                if isinstance(ind_volt_from_imp.impedance_sum[i], Longitudinal_table) and option3 == "freq_table":
-                    ax0.plot(ind_volt_from_imp.impedance_sum[i].frequency_array, ind_volt_from_imp.impedance_sum[i].Re_Z_array, style)
-                    ax1.plot(ind_volt_from_imp.impedance_sum[i].frequency_array, ind_volt_from_imp.impedance_sum[i].Im_Z_array, style) 
+                if isinstance(ind_volt_from_imp.impedance_sum[i], 
+                              Longitudinal_table) and option3 == "freq_table":
+                    ax0.plot(ind_volt_from_imp.impedance_sum[i].frequency_array, 
+                             ind_volt_from_imp.impedance_sum[i].Re_Z_array, style)
+                    ax1.plot(ind_volt_from_imp.impedance_sum[i].frequency_array, 
+                             ind_volt_from_imp.impedance_sum[i].Im_Z_array, style) 
                 else:
-                    ax0.plot(ind_volt_from_imp.frequency_fft, ind_volt_from_imp.impedance_sum[i].impedance.real, style)
-                    ax1.plot(ind_volt_from_imp.frequency_fft, ind_volt_from_imp.impedance_sum[i].impedance.imag, style)
+                    ax0.plot(ind_volt_from_imp.frequency_fft, 
+                             ind_volt_from_imp.impedance_sum[i].impedance.real, style)
+                    ax1.plot(ind_volt_from_imp.frequency_fft, 
+                             ind_volt_from_imp.impedance_sum[i].impedance.imag, style)
         
         fign1 = dirname +'/real_imp_vs_'+option3+'_' "%d" %counter + '.png'
         if option2 == "spectrum":
             ax2 = ax0.twinx()
-            ax2.plot(ind_volt_from_imp.frequency_fft, np.abs(ind_volt_from_imp.spectrum))
+            ax2.plot(ind_volt_from_imp.frequency_fft, 
+                     np.abs(ind_volt_from_imp.spectrum))
         plt.figure(0)
         plt.savefig(fign1, dpi=300)
         plt.clf()
@@ -247,12 +310,20 @@ def plot_impedance_vs_frequency(counter, general_params, ind_volt_from_imp, opti
         plt.figure(1)
         if option2 == "spectrum":
             ax3 = ax1.twinx()
-            ax3.plot(ind_volt_from_imp.frequency_fft, np.abs(ind_volt_from_imp.spectrum))
+            ax3.plot(ind_volt_from_imp.frequency_fft, 
+                     np.abs(ind_volt_from_imp.spectrum))
         plt.savefig(fign2, dpi=300)
         plt.clf()
         
    
-def plot_induced_voltage_vs_bins_centers(counter, general_params, ind_volt_from_imp, style = '-', dirname = 'temp'):
+   
+def plot_induced_voltage_vs_bins_centers(counter, general_params, 
+                                         ind_volt_from_imp, style = '-', 
+                                         dirname = 'temp'):
+
+    """
+    Plot of induced voltage vs bin centers.
+    """
 
     # Directory where longitudinal_plots will be stored
     fig_folder(dirname)
@@ -265,8 +336,14 @@ def plot_induced_voltage_vs_bins_centers(counter, general_params, ind_volt_from_
     plt.clf()
 
 
-def plot_beam_profile(counter, general_params, slices, style = '-', dirname = 'temp'):
+
+def plot_beam_profile(counter, general_params, slices, style = '-', 
+                      dirname = 'temp'):
     
+    """
+    Plot of longitudinal beam profile
+    """
+ 
     fig_folder(dirname)
     plt.plot(slices.bins_centers, slices.n_macroparticles, style)
     fign = dirname +'/beam_profile_' "%d" %counter + '.png'
@@ -274,7 +351,14 @@ def plot_beam_profile(counter, general_params, slices, style = '-', dirname = 't
     plt.clf()
 
 
-def plot_beam_profile_derivative(counter, general_params, slices, style = '-', dirname = 'temp', numbers = [3]):
+
+def plot_beam_profile_derivative(counter, general_params, slices, style = '-', 
+                                 dirname = 'temp', numbers = [3]):
+
+    """
+    Plot of the derivative of the longitudinal beam profile.
+    """
+
     
     fig_folder(dirname)
     if 1 in numbers:
@@ -291,3 +375,50 @@ def plot_beam_profile_derivative(counter, general_params, slices, style = '-', d
     plt.clf()
          
     
+
+def plot_noise_spectrum(frequency, spectrum, sampling = 1, dirname = 'temp'):
+    
+    """
+    Plot of the phase noise spectrum.
+    For large amount of data, use "sampling" to plot a fraction of the data.
+    """
+
+    # Directory where longitudinal_plots will be stored
+    fig_folder()
+    
+    # Plot
+    plt.figure(1, figsize=(8,6))
+    ax = plt.axes([0.12, 0.1, 0.82, 0.8])
+    ax.plot(frequency[::sampling], spectrum[::sampling])
+    ax.set_xlabel("Frequency [Hz]")
+    params = {'text.usetex': False, 'mathtext.default' : 'sf'}
+    plt.rcParams.update(params)
+    ax.set_ylabel (r"Noise spectrum [$\frac{rad^2}{Hz}$]")
+    fign = dirname +'/noise_spectrum.png'
+    plt.savefig(fign)
+    plt.clf()
+    
+    
+    
+def plot_phase_noise(time, dphi, sampling = 1, dirname = 'temp'):
+    
+    """
+    Plot of the phase noise as a function of time.
+    For large amount of data, use "sampling" to plot a fraction of the data.
+    """
+
+    # Directory where longitudinal_plots will be stored
+    fig_folder()
+    
+    # Plot
+    plt.figure(1, figsize=(8,6))
+    ax = plt.axes([0.12, 0.1, 0.82, 0.8])
+    ax.plot(time[::sampling], dphi[::sampling])
+    ax.set_xlabel("Time [s]")
+    ax.set_ylabel (r"Phase noise [rad]")
+    fign = dirname +'fig/phase_noise.png'
+    plt.savefig(fign)
+    plt.clf()     
+    
+    
+       

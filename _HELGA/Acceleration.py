@@ -1,4 +1,4 @@
-# Example input for stationary longitudinal simulation
+# Example input for simulation acceleration
 # No intensity effects
 
 import time 
@@ -63,7 +63,7 @@ slice_beam = Slices(100)
 slice_beam.track(beam)
 
 # Define what to save in file
-bunchmonitor = BunchMonitor('beam', N_t+1, statistics = "Longitudinal", long_gaussian_fit = "On")
+bunchmonitor = BunchMonitor('output_data', N_t+1, statistics = "Longitudinal", long_gaussian_fit = "On")
 
 print "Statistics set..."
 
@@ -92,11 +92,10 @@ for i in range(N_t):
         print "   Four-times r.m.s. bunch length %.4e rad" %(4.*beam.sigma_theta)
         print "   Gaussian bunch length %.4e rad" %beam.bl_gauss
         print ""
-        #plot_long_phase_space(ring, beam, i, -0.75, 0, -1.e-3, 1.e-3, xunit='m', yunit='1')
-        #plot_long_phase_space(ring, beam, i, 0, 2.5, -.5e3, .5e3, xunit='ns', yunit='MeV')
+        # In plots, you can choose following units: rad, ns, m  
         plot_long_phase_space(beam, general_params, rf_params, 0, 0.0001763, -450, 450, separatrix_plot = True)
-#        plot_bunch_length_evol(bunch, 'bunch', i, unit='ns')
-#        plot_bunch_length_evol_gaussian(bunch, 'bunch', i, unit='ns')
+        plot_bunch_length_evol(beam, 'output_data', general_params, i, unit='ns')
+        plot_bunch_length_evol_gaussian(beam, 'output_data', general_params, slice_beam, i, unit='ns')
 
     # Track
     for m in map_:
@@ -104,6 +103,7 @@ for i in range(N_t):
     # Define losses according to separatrix and/or longitudinal position
     beam.losses_separatrix(general_params, rf_params)
     beam.losses_longitudinal_cut(0.28e-4, 0.75e-4)
+
 
 print "Done!"
 print ""
