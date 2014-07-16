@@ -6,6 +6,7 @@ Created on 12.06.2014
 
 from __future__ import division
 import numpy as np
+import warnings
 import sys
 from scipy.constants import c, e, m_p
 import cython_functions.stats as cp
@@ -147,7 +148,8 @@ class Beam(object):
         if gaussian_fit == "On":
             
             if slices == None:
-                print 'WARNING: The Gaussian bunch length fit cannot be calculated without slices!'
+                warnings.filterwarnings("once")                
+                warnings.warn("WARNING: The Gaussian bunch length fit cannot be calculated without slices!")
             else:
                 try:
                     if slices.coord == "theta":

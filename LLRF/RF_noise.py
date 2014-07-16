@@ -94,7 +94,7 @@ class Phase_noise(object):
         elif transform=='c':  
             Gt = np.exp(2*np.pi*1j*r1)*np.sqrt(-2*np.log(r2)) 
 
-        # FFT to frequency domain
+        # LLRF to frequency domain
         '''
             STEP 3: Transform the generated white noise to frequency domain
             
@@ -122,7 +122,7 @@ class Phase_noise(object):
             s = np.sqrt(self.fmax*self.ReS) # in rad
         dPf = s*Gf.real + 1j*s*Gf.imag  # in rad
                 
-        # FFT back to time domain to get final phase shift
+        # LLRF back to time domain to get final phase shift
         '''
             STEP 5: Transform back the coloured spectrum to time domain to 
             obtain the final phase shift array (we use only the real part)

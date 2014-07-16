@@ -6,7 +6,7 @@
 
 
 from __future__ import division
-from warnings import filterwarnings
+import warnings
 import numpy as np
 from scipy.constants import c
 
@@ -23,11 +23,14 @@ def total_voltage(RFsection_list, harmonic = 'first'):
     #: *Sums up only the voltage of the first harmonic RF, 
     #: taking into account relative phases*
     if harmonic == 'first':
-        Vtot = RFsection_list[0].voltage[0]
+        Vcos = RFsection_list[0].voltage[0]*np.cos(RFsection_list[0].phi_offset[0])
+        Vsin = RFsection_list[0].voltage[0]*np.sin(RFsection_list[0].phi_offset[0])
         if n_sections > 1:
             for i in range(1, n_sections):
-                Vtot += RFsection_list[i].voltage[0] \
-                * np.sin(RFsection_list[i].phi_offset[0] - RFsection_list[0].phi_offset[0])
+                print RFsection_list[i].voltage[0]
+                Vcos += RFsection_list[i].voltage[0]*np.cos(RFsection_list[i].phi_offset[0])
+                Vsin += RFsection_list[i].voltage[0]*np.sin(RFsection_list[i].phi_offset[0])
+        Vtot = np.sqrt(Vcos**2 + Vsin**2)
         return Vtot
     
     #: *To be implemented*
@@ -35,7 +38,8 @@ def total_voltage(RFsection_list, harmonic = 'first'):
         return 0
 
     else:
-        print 'WARNING: In total_voltage, harmonic choice not recognize!'
+        warnings.filterwarnings("once")
+        warnings.warn("WARNING: In total_voltage, harmonic choice not recognize!")
     
 
 
@@ -47,11 +51,13 @@ def hamiltonian(GeneralParameters, RFSectionParameters, theta, dE, delta,
     To be generalized."""
      
    
+    warnings.filterwarnings("once")
+    
     if GeneralParameters.n_sections > 1:
-        print 'WARNING : The hamiltonian is not yet properly computed for several sections !!!'
+        warnings.warn("WARNING: The Hamiltonian is not yet properly computed for several sections!")
     if RFSectionParameters.n_rf > 1:
-        print 'WARNING: The Hamiltonian will be calculated for the first harmonic only!!!'
-    filterwarnings('ignore')
+        warnings.warn("WARNING: The Hamiltonian will be calculated for the first harmonic only!")
+
          
     counter = RFSectionParameters.counter[0]
     h0 = RFSectionParameters.harmonic[0,counter]
@@ -65,8 +71,6 @@ def hamiltonian(GeneralParameters, RFSectionParameters, theta, dE, delta,
     c2 = c * RFSectionParameters.beta_r[counter] * V0 / (h0 * GeneralParameters.ring_circumference)
      
     phi_s = RFSectionParameters.phi_s[counter-1]  
- 
-    filterwarnings('default')
     
     return c1 * dE**2 + c2 * (np.cos(h0 * theta) - np.cos(phi_s) + 
                                (h0 * theta - phi_s) * np.sin(phi_s))
@@ -79,12 +83,13 @@ def separatrix(GeneralParameters, RFSectionParameters, theta, total_voltage = No
     Uses beta, energy averaged over the turn.
     To be generalized."""
  
+    warnings.filterwarnings("once")
      
     if GeneralParameters.n_sections > 1:
-        print 'WARNING : The hamiltonian is not yet properly computed for several sections !!!'
+        warnings.warn("WARNING: The separatrix is not yet properly computed for several sections!")
     if RFSectionParameters.n_rf > 1:
-        print 'WARNING: The Hamiltonian will be calculated for the first harmonic only!!!'    
-    filterwarnings('ignore')
+        warnings.warn("WARNING: The separatrix will be calculated for the first harmonic only!")    
+
      
      
     counter = RFSectionParameters.counter[0]
@@ -108,8 +113,6 @@ def separatrix(GeneralParameters, RFSectionParameters, theta, total_voltage = No
                     V0 / (np.pi * eta0_average * h0) * 
                     (-np.cos(h0 * theta) - np.cos(phi_s) + 
                     (np.pi - phi_s - h0 * theta) * np.sin(phi_s)))
-      
-    filterwarnings('default')
          
     return separatrix_array
  
@@ -122,11 +125,12 @@ def is_in_separatrix(GeneralParameters, RFSectionParameters, theta, dE, delta, t
     Uses beta, energy averaged over the turn.
     To be generalized."""
      
+    warnings.filterwarnings("once")
+    
     if GeneralParameters.n_sections > 1:
-        print 'WARNING : The hamiltonian is not yet properly computed for several sections !!!'
+        warnings.warn("WARNING: is_in_separatrix is not yet properly computed for several sections!")
     if RFSectionParameters.n_rf > 1:
-        print 'WARNING: The Hamiltonian will be calculated for the first harmonic only!!!'
-    filterwarnings('ignore')
+        warnings.warn("WARNING: is_in_separatrix will be calculated for the first harmonic only!")
     
          
     counter = RFSectionParameters.counter[0]
@@ -135,7 +139,7 @@ def is_in_separatrix(GeneralParameters, RFSectionParameters, theta, dE, delta, t
      
     Hsep = hamiltonian(GeneralParameters, RFSectionParameters, (np.pi - phi_s) / h0, 0, 0, total_voltage = None) 
     isin = np.fabs(hamiltonian(GeneralParameters, RFSectionParameters, theta, dE, delta, total_voltage = None)) < np.fabs(Hsep)
- 
+     
     return isin
         
         
