@@ -1,10 +1,10 @@
 PYHEADTAIL LONGITUDINAL
 ==========
 
-Longitudinal version of the CERN HeadTail code for simulation of multi-particle 
+Longitudinal version of the CERN PyHeadTail code for the simulation of multi-particle 
 beam dynamics with collective effects.
 
-The structure is the following:
+The structure is as follows:
 
 1) 5 folders reserved for the current members of the "longitudinal team" for
    their main files, input and output data	
@@ -14,4 +14,5 @@ The structure is the following:
 4) this README.md file
 5) a setup file to compile the various cython files present in the 
    cython_functions package; this file should be run before launching any 
-   simulation
+   simulation; from the console window type "python setup.py cleanall 
+   build_ext --inplace"

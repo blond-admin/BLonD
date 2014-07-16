@@ -60,8 +60,10 @@ bunchmonitor = BunchMonitor('beam', n_turns+1, statistics = "Longitudinal")
 
 general_params = GeneralParameters(n_turns, C, momentum_compaction, sync_momentum, 
                                    particle_type, number_of_sections = 1)
+
 RF_sct_par = RFSectionParameters(general_params, 1, n_rf_systems, harmonic_numbers, 
                           voltage_program, phi_offset)
+
 ring_RF_section = RingAndRFSection(RF_sct_par)
 
 # DEFINE BEAM------------------------------------------------------------------
@@ -96,7 +98,7 @@ Ekicker_cables = np.loadtxt('ps_booster_impedances/ejection kicker cables/Ekicke
 
 Ekicker_cables_table = Longitudinal_table(Ekicker_cables[:,0].real, Ekicker_cables[:,1].real, Ekicker_cables[:,1].imag)
 
-# KSW magnets
+# KSW kickers
 KSW = np.loadtxt('ps_booster_impedances/KSW/KSW_' + var + 'GeV.txt'
         , dtype=complex, converters = dict(zip((0, 1), (lambda s: 
         complex(s.replace('i', 'j')), lambda s: complex(s.replace('i', 'j'))))))
@@ -156,6 +158,7 @@ ind_volt_from_imp = Induced_voltage_from_impedance(slice_beam, "off", sum_impeda
 map_ = [slice_beam] + [ind_volt_from_imp] + [ring_RF_section]
 
 
+
 # TRACKING + PLOTS-------------------------------------------------------------
 
 
@@ -178,7 +181,7 @@ for i in range(n_turns):
           - 5.72984173562e-07 / 2 * 1e9, 5.72984173562e-07 / 2 * 1e9, 
           - my_beam.sigma_dE * 4 * 1e-6, my_beam.sigma_dE * 4 * 1e-6, xunit = 'ns')
         
-plot_bunch_length_evol(i+1, my_beam, 'beam', general_params)
+plot_bunch_length_evol(my_beam, 'beam', general_params, n_turns)
 
 print "Done!"
 
