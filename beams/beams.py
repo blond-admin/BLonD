@@ -26,13 +26,13 @@ class Beam(object):
         self.intensity = intensity # total no of particles
         
         #: Relativistic beta of the synchronous particle
-        self.beta_rel = General_parameters.beta_rel_program[0][0]
+        self.beta_r = General_parameters.beta_r[0][0]
         #: Relativistic gamma of the synchronous particle
-        self.gamma_rel = General_parameters.gamma_rel_program[0][0]
+        self.gamma_r = General_parameters.gamma_r[0][0]
         #: Energy of the synchronous particle [eV]
-        self.energy = General_parameters.energy_program[0][0]
+        self.energy = General_parameters.energy[0][0]
         #: Momentum of the synchronous particle [eV/c]
-        self.momentum = General_parameters.momentum_program[0][0] 
+        self.momentum = General_parameters.momentum[0][0] 
 
         # Beam coordinates
         self.x = np.empty([n_macroparticles])
@@ -71,19 +71,19 @@ class Beam(object):
     
     @property
     def delta(self):
-        return self.dE / (self.beta_rel**2 * self.energy)
+        return self.dE / (self.beta_r**2 * self.energy)
 
     @delta.setter
     def delta(self, value):
-        self.dE = value * self.beta_rel**2 * self.energy
+        self.dE = value * self.beta_r**2 * self.energy
 
     @property
     def tau(self):
-        return  self.theta * self.ring_radius / (self.beta_rel * c)
+        return  self.theta * self.ring_radius / (self.beta_r * c)
      
     @tau.setter
     def tau(self, value):
-        self.theta = value * self.beta_rel * c / self.ring_radius
+        self.theta = value * self.beta_r * c / self.ring_radius
 
     # Statistics
     
@@ -96,17 +96,17 @@ class Beam(object):
     
     @property
     def mean_delta(self):
-        return self.mean_dE / (self.beta_rel**2 * self.energy)
+        return self.mean_dE / (self.beta_r**2 * self.energy)
     @mean_delta.setter
     def mean_delta(self, value):
-        self.mean_dE = value * self.beta_rel**2 * self.energy
+        self.mean_dE = value * self.beta_r**2 * self.energy
     
     @property    
     def mean_tau(self):
-        return self.mean_theta * self.ring_radius / (self.beta_rel * c)
+        return self.mean_theta * self.ring_radius / (self.beta_r * c)
     @mean_tau.setter
     def mean_tau(self, value):
-        self.mean_theta = value * self.beta_rel * c / self.ring_radius
+        self.mean_theta = value * self.beta_r * c / self.ring_radius
 
     @property    
     def sigma_z(self):
@@ -117,17 +117,17 @@ class Beam(object):
     
     @property
     def sigma_delta(self):
-        return self.sigma_dE / (self.beta_rel**2 * self.energy)
+        return self.sigma_dE / (self.beta_r**2 * self.energy)
     @sigma_delta.setter
     def sigma_delta(self, value):
-        self.sigma_dE = value * self.beta_rel**2 * self.energy
+        self.sigma_dE = value * self.beta_r**2 * self.energy
     
     @property
     def sigma_tau(self):
-        return self.sigma_theta * self.ring_radius / (self.beta_rel * c)
+        return self.sigma_theta * self.ring_radius / (self.beta_r * c)
     @sigma_tau.setter
     def sigma_tau(self, value):
-        self.sigma_theta = value * self.beta_rel * c / self.ring_radius
+        self.sigma_theta = value * self.beta_r * c / self.ring_radius
 
     
     def longit_statistics(self, gaussian_fit="Off", slices=None):
@@ -141,22 +141,31 @@ class Beam(object):
        
         ##### R.m.s. emittance in Gaussian approximation, other emittances to be defined
         self.epsn_rms_l = np.pi * self.sigma_dE * self.sigma_theta \
-                        * self.ring_radius / (self.beta_rel * c) # in eVs
+                        * self.ring_radius / (self.beta_r * c) # in eVs
 
         ##### Gaussian fit to theta-profile
         if gaussian_fit == "On":
-
-            p0 = [max(slices.n_macroparticles), self.mean_theta, self.sigma_theta]
-        
-            def gauss(x, *p):
-                A, x0, sx = p
-                return A*np.exp(-(x-x0)**2/2./sx**2) 
             
-            pfit = curve_fit(gauss, slices.bins_centers, 
-                                   slices.n_macroparticles, p0)[0]
-            
-            self.bl_gauss = 4 * abs(pfit[2]) 
-
+            if slices == None:
+                print 'WARNING: The Gaussian bunch length fit cannot be calculated without slices!'
+            else:
+                try:
+                    if slices.coord == "theta":
+                        p0 = [max(slices.n_macroparticles), self.mean_theta, self.sigma_theta]                
+                        pfit = curve_fit(gauss, slices.bins_centers, 
+                                         slices.n_macroparticles, p0)[0]
+                    elif slices.coord == "tau":
+                        p0 = [max(slices.n_macroparticles), self.mean_tau, self.sigma_tau]                
+                        pfit = curve_fit(gauss, slices.bins_centers, 
+                                         slices.n_macroparticles, p0)[0]  
+                    elif slices.coord == "z":
+                        p0 = [max(slices.n_macroparticles), self.mean_z, self.sigma_z]                
+                        pfit = curve_fit(gauss, slices.bins_centers, 
+                                         slices.n_macroparticles, p0)[0]                                    
+                    self.bl_gauss = 4 * abs(pfit[2]) 
+                except:
+                    self.bl_gauss = 0 
+                    
                                 
     def transv_statistics(self):
         
@@ -166,14 +175,14 @@ class Beam(object):
         self.mean_yp = np.mean(self.yp)
         self.sigma_x = np.std(self.x)
         self.sigma_y = np.std(self.y)
-        self.epsn_x_xp = cp.emittance(self.x, self.xp) * self.gamma_rel \
-                        * self.beta_rel * 1e6
-        self.epsn_y_yp = cp.emittance(self.y, self.yp) * self.gamma_rel \
-                        * self.beta_rel * 1e6
+        self.epsn_x_xp = cp.emittance(self.x, self.xp) * self.gamma_r \
+                        * self.beta_r * 1e6
+        self.epsn_y_yp = cp.emittance(self.y, self.yp) * self.gamma_r \
+                        * self.beta_r * 1e6
     
-    def losses_separatrix(self, GeneralParameters, RingAndRFSection):
+    def losses_separatrix(self, GeneralParameters, RFSectionParameters):
         
-        itemindex = np.where(is_in_separatrix(GeneralParameters, RingAndRFSection,
+        itemindex = np.where(is_in_separatrix(GeneralParameters, RFSectionParameters,
                                  self.theta, self.dE, self.delta) == False)[0]
 
         if itemindex.size != 0:    
@@ -181,12 +190,16 @@ class Beam(object):
     
     def losses_longitudinal_cut(self, theta_min, theta_max): 
     
-        itemindex = np.where( (self.theta < theta_min or self.theta > theta_max) )[0]
+        itemindex = np.where( (self.theta - theta_min)*(theta_max - self.theta) < 0 )[0]
         
         if itemindex.size != 0:          
             self.id[itemindex] = 0       
         
         
+def gauss(x, *p):
+    A, x0, sx = p
+    return A*np.exp(-(x-x0)**2/2./sx**2) 
+                
 
 
 

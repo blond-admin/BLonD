@@ -15,7 +15,7 @@ class GeneralParameters(object):
     *Object containing all the general input parameters used for the simulation*
     '''
 
-    def __init__(self, n_turns, ring_length_list, alpha, momentum_program, 
+    def __init__(self, n_turns, ring_length, alpha, momentum, 
                  particle_type, user_mass = None, user_charge = None, 
                  particle_type_2 = None, user_mass_2 = None, 
                  user_charge_2 = None, number_of_sections = 1):
@@ -64,52 +64,53 @@ class GeneralParameters(object):
 
         #: | *Momentum (program) in [eV/c] for each RF section* :math:`: \quad p_n`
         #: | *Can be given as a single value to be assumed constant, or as a program of (n_turns + 1) terms in case of acceleration.*
-        self.momentum_program = np.array(momentum_program, ndmin =2)
+        self.momentum = np.array(momentum, ndmin =2)
         
         #: *Momentum compation factor (up to 2nd order) for each RF section* :math:`: \quad \alpha_i`
         self.alpha = np.array(alpha, ndmin =2) 
         
         #: | *Ring length array contains the length of the RF sections, in [m]*
         
-        self.ring_length_list = ring_length_list
-        if isinstance(self.ring_length_list, float):
-            self.ring_length_list = [self.ring_length_list]
+        self.ring_length = ring_length
+        if isinstance(self.ring_length, float):
+            self.ring_length = [self.ring_length]
         
         #: | *Ring circumference is the sum of lengths* :math:`: \quad C = \sum_k L_k`
-        self.ring_circumference = np.sum(self.ring_length_list)
+        self.ring_circumference = np.sum(self.ring_length)
         
         #: *Ring radius in [m]* :math:`: \quad R`
         self.ring_radius = self.ring_circumference / (2 * np.pi)         
         
         #: *Check consistency of input data; raise error if not consistent*        
-        if self.n_sections != len(self.ring_length_list) or \
+        if self.n_sections != len(self.ring_length) or \
             self.n_sections != self.alpha.shape[0] or \
-            self.n_sections != self.momentum_program.shape[0]:
+            self.n_sections != self.momentum.shape[0]:
             raise RuntimeError('ERROR: Number of sections, ring length, alpha, and/or momentum data do not match!')    
         
-        if self.momentum_program.size == 1:
-            self.momentum_program = self.momentum_program * np.ones(self.n_turns + 1)
+        if self.momentum.size == 1:
+            self.momentum = self.momentum * np.ones(self.n_turns + 1)
         
         #: *Relativistic beta (program)* :math:`: \quad \beta_n`
         #:
         #: .. math:: \beta = \sqrt{ 1 + \frac{1}{1 + \left(\frac{mc^2}{ep}\right)^2} }
-        self.beta_rel_program = np.sqrt(1 / (1 + (self.mass * c**2)**2 / 
-                                             (self.momentum_program * self.charge)**2))
+        self.beta_r = np.sqrt(1 / (1 + (self.mass * c**2)**2 / 
+                              (self.momentum * self.charge)**2))
         
         #: *Relativistic gamma (program)* :math:`: \quad \gamma_n`
         #:
         #: .. math:: \gamma = \sqrt{ 1 + \left(\frac{ep}{mc^2}\right)^2 }
-        self.gamma_rel_program = np.sqrt(1 + (self.momentum_program * self.charge)**2 / 
-                                         (self.mass * c**2)**2) 
+        self.gamma_r = np.sqrt(1 + (self.momentum * self.charge)**2 / 
+                               (self.mass * c**2)**2) 
         
         #: *Energy (program) in [eV]* :math:`: \quad E_n`
         #:
         #: .. math:: \\E = \sqrt{ p^2 + \left(\frac{mc^2}{e}\right)^2 }
-        self.energy_program = np.sqrt(self.momentum_program**2 + 
-                                      (self.mass * c**2 / self.charge)**2)
+        self.energy = np.sqrt(self.momentum**2 + 
+                              (self.mass * c**2 / self.charge)**2)
         
         # Revolution period 
-        self.T0 = self.ring_circumference / np.dot(ring_length_list/self.ring_circumference, self.beta_rel_program) / c 
+        self.T0 = self.ring_circumference / \
+                  np.dot(ring_length/self.ring_circumference, self.beta_r) / c 
         
   
         
@@ -138,7 +139,7 @@ class GeneralParameters(object):
         
         
         
-        if not self.momentum_program.shape[1] == self.n_turns + 1:
+        if not self.momentum.shape[1] == self.n_turns + 1:
             raise RuntimeError('The input momentum program does not \
                                 match the proper length (n_turns+1)')
         
@@ -165,7 +166,7 @@ class GeneralParameters(object):
 
         self.eta0 = np.empty([self.n_sections, self.n_turns+1])        
         for i in range(0, self.n_sections):
-            self.eta0[i] = self.alpha[i,0] - self.gamma_rel_program[i]**-2
+            self.eta0[i] = self.alpha[i,0] - self.gamma_r[i]**-2
         
    
     
@@ -177,7 +178,7 @@ class GeneralParameters(object):
                 
         self.eta1 = np.empty([self.n_sections, self.n_turns+1])        
         for i in range(0, self.n_sections):
-            self.eta1[i] = 3 * self.beta_rel_program[i]**2 / (2 * self.gamma_rel_program[i]**2) + \
+            self.eta1[i] = 3 * self.beta_r[i]**2 / (2 * self.gamma_r[i]**2) + \
                     self.alpha[i,1] - \
                     self.alpha[i,0] * self.eta0[i]
         
@@ -191,45 +192,11 @@ class GeneralParameters(object):
                 
         self.eta2 = np.empty([self.n_sections, self.n_turns+1])        
         for i in range(0, self.n_sections):
-            self.eta2[i] = - self.beta_rel_program[i]**2 * (5 * self.beta_rel_program[i]**2 - 1) / (2 * self.gamma_rel_program[i]**2) + \
+            self.eta2[i] = - self.beta_r[i]**2 * (5 * self.beta_r[i]**2 - 1) / (2 * self.gamma_r[i]**2) + \
                     self.alpha[i,2] - 2 * self.alpha[i,0] * self.alpha[i,1] + \
-                    self.alpha[i,1] / self.gamma_rel_program[i]**2 + \
+                    self.alpha[i,1] / self.gamma_r[i]**2 + \
                     self.alpha[i,0]**2 * self.eta0[i] - \
-                    3 * self.beta_rel_program[i]**2 * self.alpha[i,0] / (2 * self.gamma_rel_program[i]**2)
+                    3 * self.beta_r[i]**2 * self.alpha[i,0] / (2 * self.gamma_r[i]**2)
          
     
     
-    
-# class SumRFSectionParameters(object):
-#     '''
-#     *Method to add RF_section_parameters objects together in order to gather
-#     the complete information for a longitudinal_tracker.Full_Ring_and_RF
-#     object*
-#     '''
-#     
-#     def __init__(self, RFSectionParameters_list):
-#         
-#         #: *List of RF_section_parameters objects to concatenate*
-#         self.RFSectionParameters_list = RFSectionParameters_list
-#         
-#         #: *Total length of the sections in [m]*
-#         self.section_length_sum = 0
-#         
-#         #: | *The total number of sections concatenated*
-#         #: | *Counter for section is:* :math:`i`
-#         self.total_n_sections = len(RFSectionParameters_list)
-#         
-#         #: | *Momentum program matrix in [eV/c]* :math:`: \quad p_{i,n}`
-#         #: | *The lines* :math:`i` *of this matrix corresponds to the momentum program for one section.*
-#         #: | *The columns* :math:`n` *correspond to one turn of the simulation.* 
-#         self.momentum_program_matrix = np.zeros((self.total_n_sections, 
-#                                                  RFSectionParameters_list[0].n_turns + 1))
-#         
-#         ### Pre-processing the inputs
-#         # The length of the sections are added and the momentum program is 
-#         # set as a matrix.
-#         for i in range(len(RFSectionParameters_list)):
-#             self.section_length_sum += RFSectionParameters_list[i].section_length
-#             self.momentum_program_matrix[i,:] = RFSectionParameters_list[i].momentum_program
-
-     

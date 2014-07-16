@@ -23,11 +23,11 @@ def total_voltage(RFsection_list, harmonic = 'first'):
     #: *Sums up only the voltage of the first harmonic RF, 
     #: taking into account relative phases*
     if harmonic == 'first':
-        Vtot = RFsection_list[0].voltage_program_list[0]
+        Vtot = RFsection_list[0].voltage[0]
         if n_sections > 1:
             for i in range(1, n_sections):
-                Vtot += RFsection_list[i].voltage_program_list[0] \
-                * np.sin(RFsection_list[i].phi_offset_list[0] - RFsection_list[0].phi_offset_list[0])
+                Vtot += RFsection_list[i].voltage[0] \
+                * np.sin(RFsection_list[i].phi_offset[0] - RFsection_list[0].phi_offset[0])
         return Vtot
     
     #: *To be implemented*
@@ -39,7 +39,7 @@ def total_voltage(RFsection_list, harmonic = 'first'):
     
 
 
-def hamiltonian(GeneralParameters, RingAndRFSection, theta, dE, delta, 
+def hamiltonian(GeneralParameters, RFSectionParameters, theta, dE, delta, 
                 total_voltage = None):
     """Single RF sinusoidal Hamiltonian.
     For the time being, for single RF section only or from total voltage.
@@ -49,22 +49,22 @@ def hamiltonian(GeneralParameters, RingAndRFSection, theta, dE, delta,
    
     if GeneralParameters.n_sections > 1:
         print 'WARNING : The hamiltonian is not yet properly computed for several sections !!!'
-    if RingAndRFSection.n_rf > 1:
+    if RFSectionParameters.n_rf > 1:
         print 'WARNING: The Hamiltonian will be calculated for the first harmonic only!!!'
     filterwarnings('ignore')
          
-    counter = RingAndRFSection.counter
-    h0 = RingAndRFSection.harmonic_list[counter]
+    counter = RFSectionParameters.counter[0]
+    h0 = RFSectionParameters.harmonic[0,counter]
     if total_voltage == None:
-        V0 = RingAndRFSection.voltage_list[counter]
+        V0 = RFSectionParameters.voltage[0,counter]
     else: 
         V0 = total_voltage[counter]
     
-    c1 = RingAndRFSection.eta_tracking(delta) * c * np.pi / (GeneralParameters.ring_circumference * 
-         RingAndRFSection.beta_r[counter] * RingAndRFSection.energy[counter] )
-    c2 = c * RingAndRFSection.beta_r[counter] * V0 / (h0 * GeneralParameters.ring_circumference)
+    c1 = RFSectionParameters.eta_tracking(delta) * c * np.pi / (GeneralParameters.ring_circumference * 
+         RFSectionParameters.beta_r[counter] * RFSectionParameters.energy[counter] )
+    c2 = c * RFSectionParameters.beta_r[counter] * V0 / (h0 * GeneralParameters.ring_circumference)
      
-    phi_s = RingAndRFSection.phi_s[counter]  
+    phi_s = RFSectionParameters.phi_s[counter-1]  
  
     filterwarnings('default')
     
@@ -73,7 +73,7 @@ def hamiltonian(GeneralParameters, RingAndRFSection, theta, dE, delta,
          
  
  
-def separatrix(GeneralParameters, RingAndRFSection, theta, total_voltage = None):
+def separatrix(GeneralParameters, RFSectionParameters, theta, total_voltage = None):
     """Single RF sinusoidal separatrix.
     For the time being, for single RF section only or from total voltage.
     Uses beta, energy averaged over the turn.
@@ -82,26 +82,27 @@ def separatrix(GeneralParameters, RingAndRFSection, theta, total_voltage = None)
      
     if GeneralParameters.n_sections > 1:
         print 'WARNING : The hamiltonian is not yet properly computed for several sections !!!'
-    if RingAndRFSection.n_rf > 1:
+    if RFSectionParameters.n_rf > 1:
         print 'WARNING: The Hamiltonian will be calculated for the first harmonic only!!!'    
     filterwarnings('ignore')
      
      
-    counter = RingAndRFSection.counter
-    h0 = RingAndRFSection.harmonic_list[counter]
+    counter = RFSectionParameters.counter[0]
+    h0 = RFSectionParameters.harmonic[0,counter]
+
     if total_voltage == None:
-        V0 = RingAndRFSection.voltage_list[counter]
+        V0 = RFSectionParameters.voltage[0,counter]
     else: 
         V0 = total_voltage[counter]
  
-    phi_s = RingAndRFSection.phi_s[counter]  
+    phi_s = RFSectionParameters.phi_s[counter]  
       
      
-    beta_average = RingAndRFSection.beta_av[counter]
+    beta_average = RFSectionParameters.beta_av[counter]
      
-    energy_average = (RingAndRFSection.energy[counter + 1] + RingAndRFSection.energy[counter]) / 2
+    energy_average = (RFSectionParameters.energy[counter + 1] + RFSectionParameters.energy[counter]) / 2
      
-    eta0_average = (RingAndRFSection.eta_0[counter + 1] + RingAndRFSection.eta_0[counter])/2
+    eta0_average = (RFSectionParameters.eta_0[counter + 1] + RFSectionParameters.eta_0[counter])/2
       
     separatrix_array = np.sqrt(beta_average**2 * energy_average *
                     V0 / (np.pi * eta0_average * h0) * 
@@ -114,7 +115,7 @@ def separatrix(GeneralParameters, RingAndRFSection, theta, total_voltage = None)
  
  
  
-def is_in_separatrix(GeneralParameters, RingAndRFSection, theta, dE, delta, total_voltage = None):
+def is_in_separatrix(GeneralParameters, RFSectionParameters, theta, dE, delta, total_voltage = None):
     """Condition for being inside the separatrix.
     For the time being, for single RF section only or from total voltage.
     Single RF sinusoidal.
@@ -123,17 +124,17 @@ def is_in_separatrix(GeneralParameters, RingAndRFSection, theta, dE, delta, tota
      
     if GeneralParameters.n_sections > 1:
         print 'WARNING : The hamiltonian is not yet properly computed for several sections !!!'
-    if RingAndRFSection.n_rf > 1:
+    if RFSectionParameters.n_rf > 1:
         print 'WARNING: The Hamiltonian will be calculated for the first harmonic only!!!'
     filterwarnings('ignore')
     
          
-    counter = RingAndRFSection.counter
-    h0 = RingAndRFSection.harmonic_list[counter]        
-    phi_s = RingAndRFSection.phi_s[counter] 
+    counter = RFSectionParameters.counter[0]
+    h0 = RFSectionParameters.harmonic[0,counter]        
+    phi_s = RFSectionParameters.phi_s[counter-1] 
      
-    Hsep = hamiltonian(GeneralParameters, RingAndRFSection, (np.pi - phi_s) / h0, 0, 0, total_voltage = None) 
-    isin = np.fabs(hamiltonian(GeneralParameters, RingAndRFSection, theta, dE, delta, total_voltage = None)) < np.fabs(Hsep)
+    Hsep = hamiltonian(GeneralParameters, RFSectionParameters, (np.pi - phi_s) / h0, 0, 0, total_voltage = None) 
+    isin = np.fabs(hamiltonian(GeneralParameters, RFSectionParameters, theta, dE, delta, total_voltage = None)) < np.fabs(Hsep)
  
     return isin
         

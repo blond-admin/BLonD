@@ -12,7 +12,7 @@ import cython_functions.stats as cp
 from scipy.constants import c
 import sys
 import time
-from numpy.fft import rfft, irfft, rfftfreq
+from numpy.fft import rfft
 from scipy import ndimage
 from numpy import delete
 
@@ -24,15 +24,15 @@ class Slices(object):
     '''
 
     def __init__(self, n_slices, n_sigma = None, cut_left = None, 
-                 cut_right = None, unit = "theta", 
-                 mode = 'slice_constant_space_histogram'):
+                 cut_right = None, coord = "theta", 
+                 mode = 'const_space_hist'):
         '''
         Constructor
         '''
         
         self.n_slices = n_slices
         self.n_sigma = n_sigma
-        self.unit = unit
+        self.coord = coord
         self.mode = mode
         
         self.bunch = None
@@ -107,24 +107,26 @@ class Slices(object):
     def set_longitudinal_cuts(self, bunch):
         
         if self.n_sigma == None:
-            if self.unit == "theta":
+            if self.coord == "theta":
                 self.sort_particles(bunch)
                 self.sorted = True
-                cut_left = bunch.theta[0]
-                cut_right = bunch.theta[-1]
-            elif self.unit == "z":
-                cut_left = bunch.z[0]
-                cut_right = bunch.z[-1]
+                cut_left = bunch.theta[0] - 0.05*(bunch.theta[-1] - bunch.theta[0])
+                cut_right = bunch.theta[-1] + 0.05*(bunch.theta[-1] - bunch.theta[0])
+            elif self.coord == "z":
+                self.sort_particles(bunch)
+                cut_left = bunch.z[0] - 0.05*(bunch.z[-1] - bunch.z[0])
+                cut_right = bunch.z[-1] + 0.05*(bunch.z[-1] - bunch.z[0])
             else:
-                cut_left = bunch.tau[0]
-                cut_right = bunch.tau[-1]
+                self.sort_particles(bunch)
+                cut_left = bunch.tau[0] - 0.05*(bunch.tau[-1] - bunch.tau[0])
+                cut_right = bunch.tau[-1] + 0.05*(bunch.tau[-1] - bunch.tau[0])
         else:
-            if self.unit == "theta":
+            if self.coord == "theta":
                 mean_theta = np.mean(bunch.theta)
                 sigma_theta = np.std(bunch.theta)
                 cut_left = mean_theta - self.n_sigma * sigma_theta
                 cut_right = mean_theta + self.n_sigma * sigma_theta
-            elif self.unit == "z":
+            elif self.coord == "z":
                 mean_z = np.mean(bunch.z)
                 sigma_z = np.std(bunch.z)
                 cut_left = mean_z - self.n_sigma * sigma_z
@@ -152,7 +154,7 @@ class Slices(object):
             self.sort_particles(bunch)
             self.sorted = True
 
-        if self.unit == 'z':
+        if self.coord == 'z':
             
             self.first_index_in_bin = np.searchsorted(bunch.z, self.edges)
             if cut_right <= bunch.z[-1] and \
@@ -161,7 +163,7 @@ class Slices(object):
                 self.first_index_in_bin[-1] += list_z.count(bunch.z[
                                                 self.first_index_in_bin[-1]])
             
-        elif self.unit == 'theta':
+        elif self.coord == 'theta':
             
             self.first_index_in_bin = np.searchsorted(bunch.theta, self.edges)
             if cut_right <= bunch.theta[-1] and \
@@ -191,9 +193,9 @@ class Slices(object):
             self.edges = np.linspace(cut_left, cut_right, self.n_slices + 1)
             self.bins_centers = (self.edges[:-1] + self.edges[1:]) / 2
         
-        if self.unit == 'theta':
+        if self.coord == 'theta':
             self.n_macroparticles = np.histogram(bunch.theta, self.edges)[0]
-        elif self.unit == 'z':
+        elif self.coord == 'z':
             self.n_macroparticles = np.histogram(bunch.z, self.edges)[0]
         else:
             self.n_macroparticles = np.histogram(bunch.tau, self.edges)[0]
@@ -286,11 +288,11 @@ class Slices(object):
     
     def sort_particles(self, bunch):
        
-        if self.unit == 'theta' or self.unit == 'tau':
+        if self.coord == 'theta' or self.coord == 'tau':
             
             argsorted = np.argsort(bunch.theta)
             
-        elif self.unit == 'z':
+        elif self.coord == 'z':
             
             argsorted = np.argsort(bunch.z)
         

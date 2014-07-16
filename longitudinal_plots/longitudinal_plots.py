@@ -31,22 +31,22 @@ def fig_folder(dirname):
             raise
 
 
-def plot_long_phase_space(counter, beam, General_parameters, RingAndRFSection, xmin,
-                          xmax, ymin, ymax, xunit = None, yunit = None, perc_plotted_points = 100, 
+def plot_long_phase_space(beam, General_parameters, RFSectionParameters, xmin,
+                          xmax, ymin, ymax, xunit = None, yunit = None, sampling = 1, 
                           separatrix_plot = False, histograms_plot = True, dirname = 'temp'):
 
     # Directory where longitudinal_plots will be stored
     fig_folder(dirname)
     
     # Calculate the final index of coordinate array according to perc_plotted_points
-    index = int(perc_plotted_points * beam.n_macroparticles / 100) + 1
+    #index = int(perc_plotted_points * beam.n_macroparticles / 100) + 1
     
     # Conversion from metres to nanoseconds
     if xunit == 'ns':
-        coeff = 1.e9 * General_parameters.ring_radius / (beam.beta_rel * c)
+        coeff = 1.e9 * General_parameters.ring_radius / (beam.beta_r * c)
     elif xunit == 'm':
         coeff = - General_parameters.ring_radius
-    ycoeff = beam.beta_rel**2 * beam.energy
+    ycoeff = beam.beta_r**2 * beam.energy
 
     # Definitions for placing the axes
     left, width = 0.1, 0.63
@@ -67,26 +67,26 @@ def plot_long_phase_space(counter, beam, General_parameters, RingAndRFSection, x
     if xunit == None or xunit == 'rad':
         axScatter.set_xlabel('theta [rad]', fontsize=14)
         if yunit == None or yunit == 'MeV':
-            axScatter.scatter(beam.theta[0:index], beam.dE[0:index]/1.e6, s=1, edgecolor='none')
+            axScatter.scatter(beam.theta[::sampling], beam.dE[::sampling]/1.e6, s=1, edgecolor='none')
             axScatter.set_ylabel(r"$\Delta$E [MeV]", fontsize=14)
         elif yunit == '1': 
-            axScatter.scatter(beam.theta[0:index], beam.delta[0:index], s=1, edgecolor='none') 
+            axScatter.scatter(beam.theta[::sampling], beam.delta[::sampling], s=1, edgecolor='none') 
             axScatter.set_ylabel(r"$\Delta$p/p$_0$ [1]", fontsize=14)           
     elif xunit == 'm':
         axScatter.set_xlabel('z [m]', fontsize=14)
         if yunit == None or yunit == 'MeV':
-            axScatter.scatter(beam.z[0:index], beam.dE[0:index]/1.e6, s=1, edgecolor='none')
+            axScatter.scatter(beam.z[::sampling], beam.dE[::sampling]/1.e6, s=1, edgecolor='none')
             axScatter.set_ylabel(r"$\Delta$E [MeV]", fontsize=14)
         elif yunit == '1': 
-            axScatter.scatter(beam.z[0:index], beam.delta[0:index], s=1, edgecolor='none') 
+            axScatter.scatter(beam.z[::sampling], beam.delta[::sampling], s=1, edgecolor='none') 
             axScatter.set_ylabel(r"$\Delta$p/p$_0$ [1]", fontsize=14)              
     elif xunit == 'ns':
         axScatter.set_xlabel('Time [ns]', fontsize=14)
         if yunit == None or yunit == 'MeV':
-            axScatter.scatter(beam.theta[0:index]*coeff, beam.dE[0:index]/1.e6, s=1, edgecolor='none')
+            axScatter.scatter(beam.theta[::sampling]*coeff, beam.dE[::sampling]/1.e6, s=1, edgecolor='none')
             axScatter.set_ylabel(r"$\Delta$E [MeV]", fontsize=14)
         elif yunit == '1': 
-            axScatter.scatter(beam.theta[0:index]*coeff, beam.delta[0:index], s=1, edgecolor='none') 
+            axScatter.scatter(beam.theta[::sampling]*coeff, beam.delta[::sampling], s=1, edgecolor='none') 
             axScatter.set_ylabel(r"$\Delta$p/p$_0$ [1]", fontsize=14)           
         
     axScatter.set_xlim(xmin, xmax)
@@ -95,16 +95,16 @@ def plot_long_phase_space(counter, beam, General_parameters, RingAndRFSection, x
     if xunit == None or xunit == 'rad':
         axScatter.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
     axScatter.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
-    plt.figtext(0.95,0.95,'%d turns' %counter, fontsize=16, ha='right', 
+    plt.figtext(0.95,0.95,'%d turns' %RFSectionParameters.counter[0], fontsize=16, ha='right', 
                 va='center') 
 
     # Separatrix
     if separatrix_plot:
         x_sep = np.linspace(xmin, xmax, 1000)
         if xunit == None or xunit == 'rad':
-            y_sep = separatrix(General_parameters, RingAndRFSection, x_sep)
+            y_sep = separatrix(General_parameters, RFSectionParameters, x_sep)
         elif xunit == 'm' or xunit == 'ns':
-            y_sep = separatrix(General_parameters, RingAndRFSection, x_sep/coeff)
+            y_sep = separatrix(General_parameters, RFSectionParameters, x_sep/coeff)
         if yunit == None or yunit == 'MeV':
             axScatter.plot(x_sep, y_sep/1.e6, 'r')
             axScatter.plot(x_sep, -1.e-6*y_sep, 'r')       
@@ -120,15 +120,15 @@ def plot_long_phase_space(counter, beam, General_parameters, RingAndRFSection, x
         yh = np.arange(ymin, ymax + ybin, ybin)
       
         if xunit == None or xunit == 'rad':
-            axHistx.hist(beam.theta[0:index], bins=xh, histtype='step')
+            axHistx.hist(beam.theta[::sampling], bins=xh, histtype='step')
         elif xunit == 'm':
-            axHistx.hist(beam.z[0:index], bins=xh, histtype='step')       
+            axHistx.hist(beam.z[::sampling], bins=xh, histtype='step')       
         elif xunit == 'ns':
-            axHistx.hist(beam.theta[0:index]*coeff, bins=xh, histtype='step')
+            axHistx.hist(beam.theta[::sampling]*coeff, bins=xh, histtype='step')
         if yunit == None or yunit == 'MeV':
-            axHisty.hist(beam.dE[0:index]/1.e6, bins=yh, histtype='step', orientation='horizontal')
+            axHisty.hist(beam.dE[::sampling]/1.e6, bins=yh, histtype='step', orientation='horizontal')
         if yunit == '1':
-            axHisty.hist(beam.delta[0:index], bins=yh, histtype='step', orientation='horizontal')
+            axHisty.hist(beam.delta[::sampling], bins=yh, histtype='step', orientation='horizontal')
         axHistx.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
         axHisty.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
         axHistx.axes.get_xaxis().set_visible(False)
@@ -140,7 +140,7 @@ def plot_long_phase_space(counter, beam, General_parameters, RingAndRFSection, x
             label.set_rotation(-90) 
  
     # Save plot
-    fign = dirname +'/long_distr_'"%d"%counter+'.png'
+    fign = dirname +'/long_distr_'"%d"%RFSectionParameters.counter[0]+'.png'
     plt.savefig(fign)
     plt.clf()
 

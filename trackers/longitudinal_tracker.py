@@ -9,7 +9,6 @@ import numpy as np
 from scipy.constants import c
 
 
-
 class RingAndRFSection(object):
     '''
     *Definition of an RF station and part of the ring until the next station, 
@@ -37,25 +36,25 @@ class RingAndRFSection(object):
         #: | *Use 'simple' for 0th order eta solver*
         self.solver = solver
         
-        #: | *Counter to keep track of momentum and voltage programme*
-        self.counter = 0
+        #: | *Counter to keep track of time step (used in momentum and voltage)*
+        self.counter = rf_params.counter
         
         #: | *Import RF section parameters for RF kick*
         #: | *Length ratio between drift and ring circumference*  
         #: | :math:`: \quad \frac{L}{C}`
         self.length_ratio = rf_params.length_ratio
         #: | *Harmonic number list* :math:`: \quad h_{j,n}`
-        self.harmonic_list = rf_params.harmonic_number_list
+        self.harmonic = rf_params.harmonic
         #: | *Voltage program list in [V]* :math:`: \quad V_{j,n}`
-        self.voltage_list = rf_params.voltage_program_list
+        self.voltage = rf_params.voltage
         #: | *Phase offset list in [rad]* :math:`: \quad \phi_{j,n}`
-        self.phi_offset_list = rf_params.phi_offset_list
+        self.phi_offset = rf_params.phi_offset
         #: | *Number of RF systems in the RF station* :math:`: \quad n_{RF}`
-        self.n_rf = rf_params.n_rf_systems
+        self.n_rf = rf_params.n_rf
         
         #: | *Import RF section parameters for accelerating kick*
         #: | *Momentum (program) in [eV/c]* :math:`: \quad p_n`
-        self.momentum = rf_params.momentum_program
+        self.momentum = rf_params.momentum
         self.p_increment = rf_params.p_increment
         #: | *... and derived relativistic quantities*
         self.beta_r = rf_params.beta_r
@@ -75,12 +74,11 @@ class RingAndRFSection(object):
         for i in xrange( self.alpha_order ):
             dummy = getattr(rf_params, 'eta_' + str(i))
             setattr(self, "eta_%s" %i, dummy)
+        # For the eta tracking, import the RF section class
+        self.rf_params = rf_params    
             
-        #: *Synchronous phase for this section, calculated from the gamma
-        #: transition and the momentum program.*
-        self.phi_s = calc_phi_s(rf_params)  
-
-           
+        
+                   
     def kick(self, beam):
         '''
         *The Kick represents the kick(s) by an RF station at a certain position 
@@ -94,9 +92,9 @@ class RingAndRFSection(object):
         '''
 
         for i in range(self.n_rf):
-            beam.dE += self.voltage_list[i][self.counter] * \
-                       np.sin(self.harmonic_list[i][self.counter] * 
-                              beam.theta + self.phi_offset_list[i][self.counter])
+            beam.dE += self.voltage[i,self.counter[0]] * \
+                       np.sin(self.harmonic[i,self.counter[0]] * 
+                              beam.theta + self.phi_offset[i,self.counter[0]])
     
     
     def kick_acceleration(self, beam):
@@ -114,13 +112,7 @@ class RingAndRFSection(object):
             
         '''
         
-        beam.dE += self.acceleration_kick[self.counter]
-
-        # Updating the beam synchronous momentum etc.
-        beam.beta_rel = self.beta_r[self.counter + 1]
-        beam.gamma_rel = self.gamma_r[self.counter + 1]
-        beam.energy = self.energy[self.counter + 1]
-        beam.momentum = self.momentum[self.counter + 1]
+        beam.dE += self.acceleration_kick[self.counter[0]]
 
         
     def drift(self, beam):
@@ -141,98 +133,33 @@ class RingAndRFSection(object):
         '''
         
         if self.solver == 'full': 
-            beam.theta = self.beta_ratio[self.counter] * beam.theta \
-                         + 2 * np.pi * (1 / (1 - self.eta_tracking(beam.delta) * 
+            beam.theta = self.beta_ratio[self.counter[0]] * beam.theta \
+                         + 2 * np.pi * (1 / (1 - self.rf_params.eta_tracking(beam.delta) * 
                                              beam.delta) - 1) * self.length_ratio
         elif self.solver == 'simple':
-            beam.theta = self.beta_ratio[self.counter] *beam.theta \
-                         + 2 * np.pi * self.eta_0[self.counter] \
+            beam.theta = self.beta_ratio[self.counter[0]] *beam.theta \
+                         + 2 * np.pi * self.eta_0[self.counter[0]] \
                          * beam.delta * self.length_ratio
         else:
             raise RuntimeError("ERROR: Choice of longitudinal solver not \
                                recognized! Aborting...")
                 
         
-    def eta_tracking(self, delta):
-        
-        '''
-        *The slippage factor is calculated as a function of the relative momentum
-        (delta) of the beam. By definition, the slippage factor is:*
-        
-        .. math:: 
-            \eta = \sum_{i}(\eta_i \, \delta^i)
-    
-        '''
-        
-        if self.alpha_order == 1:
-            return self.eta_0[self.counter]
-        else:
-            eta = 0
-            for i in xrange( self.alpha_order ):
-                eta_i = getattr(self, 'eta_' + str(i))[self.counter]
-                eta  += eta_i * (delta**i)
-            return eta
-
-          
     def track(self, beam):
         self.kick(beam)
         self.kick_acceleration(beam)
         self.drift(beam)
 
-        self.counter += 1
+        self.counter[0] += 1
+
+        # Updating the beam synchronous momentum etc.
+        beam.beta_r = self.beta_r[self.counter[0]]
+        beam.gamma_r = self.gamma_r[self.counter[0]]
+        beam.energy = self.energy[self.counter[0]]
+        beam.momentum = self.momentum[self.counter[0]]
       
 
 
-def calc_phi_s(RF_section_parameters, accelerating_systems = 'all'):
-    """The synchronous phase calculated from the rate of momentum change.
-    Below transition, for decelerating bucket: phi_s is in (-Pi/2,0)
-    Below transition, for accelerating bucket: phi_s is in (0,Pi/2)
-    Above transition, for accelerating bucket: phi_s is in (Pi/2,Pi)
-    Above transition, for decelerating bucket: phi_s is in (Pi,3Pi/2)
-    The synchronous phase is calculated at a certain moment.
-    Uses beta, energy averaged over the turn."""
-
-    
-    eta0 = RF_section_parameters.eta_0
-         
-    if RF_section_parameters.n_rf_systems == 1:
-                     
-        acceleration_ratio = RF_section_parameters.beta_av * RF_section_parameters.p_increment \
-            / RF_section_parameters.voltage_program_list[0]
-        
-        acceleration_test = np.where((acceleration_ratio > -1) * (acceleration_ratio < 1) == False)[0]
-                
-        if acceleration_test.size > 0:
-            raise RuntimeError('Acceleration is not possible (momentum increment is too big or voltage too low) at index ' + str(acceleration_test))
-           
-        phi_s = np.arcsin(acceleration_ratio)
-        
-        index = np.where((eta0[1:] + eta0[0:-1])/2 > 0)       
-        phi_s[index] = np.pi - phi_s
-        
-        return phi_s
-     
-    else:
-        '''
-        To be implemented
-        '''
-        if accelerating_systems == 'all':
-            '''
-            In this case, all the rf_systems are accelerating, phi_s is calculated accordingly
-            with respect to the fundamental frequency
-            '''
-            pass
-        elif accelerating_systems == 'first':
-            '''
-            Only the first rf_system is accelerating, so we have to correct the phi_offset of the
-            other rf_systems in order that the p_increment is only caused by the first RF
-            '''
-            pass
-        else:
-            raise RuntimeError('Did not recognize the option accelerating_systems in calc_phi_s function')
-         
- 
-    
 class LinearMap(object):
     
     '''
@@ -246,12 +173,12 @@ class LinearMap(object):
         """alpha is the linear momentum compaction factor,
         Qs the synchroton tune."""
         
-        self.beta_rel_program = GeneralParameters.beta_rel_program[0][0]
+        self.beta_r = GeneralParameters.beta_r[0,0]
         
         self.ring_circumference = GeneralParameters.ring_circumference
-        self.eta = GeneralParameters._eta0[0][0]
+        self.eta = GeneralParameters._eta0[0,0]
         self.Qs = Qs
-        self.omega_0 = 2 * np.pi * self.beta_rel_program * c / self.ring_circumference
+        self.omega_0 = 2 * np.pi * self.beta_r * c / self.ring_circumference
         self.omega_s = self.Qs * self.omega_0
         
         self.dQs = 2 * np.pi * self.Qs

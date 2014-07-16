@@ -10,7 +10,7 @@ from numpy import convolve, interp
 from scipy.constants import c, e
 from scipy.constants import physical_constants
 import time
-from numpy.fft import rfft, irfft, rfftfreq
+from numpy.fft import irfft, fftfreq
 import matplotlib.pyplot as plt
 
 
@@ -29,8 +29,8 @@ class Induced_voltage_from_wake(object):
     5) if slices.mode == const_space_hist, use induced_voltage_with_convolv and
         update_with_interpolation
     If there is no acceleration then precalc == 'on', except for the const_charge method.
-    If you have acceleration and slices.unit == z or theta, then precalc == 'off';
-    if slices.unit == tau then precalc == 'on'
+    If you have acceleration and slices.coord == z or theta, then precalc == 'off';
+    if slices.coord == tau then precalc == 'on'
     '''
     
     def __init__(self, slices, acceleration, wake_sum, bunch):       
@@ -43,14 +43,14 @@ class Induced_voltage_from_wake(object):
         
         if self.slices.mode != 'const_charge':
             
-            if self.acceleration == 'off' or self.slices.unit == 'tau':
+            if self.acceleration == 'off' or self.slices.coord == 'tau':
                 self.precalc = 'on'
-                if self.slices.unit == 'tau':
+                if self.slices.coord == 'tau':
                     dtau = self.slices.bins_centers - self.slices.bins_centers[0]
-                elif self.slices.unit == 'theta':
+                elif self.slices.coord == 'theta':
                     dtau = (self.slices.bins_centers - self.slices.bins_centers[0])\
                        * bunch.ring_radius / (bunch.beta_rel * c)
-                elif self.slices.unit == 'z':
+                elif self.slices.coord == 'z':
                     dtau = (self.slices.bins_centers - self.slices.bins_centers[0])\
                        / (bunch.beta_rel * c)
                 self.wake_array = self.sum_wakes(dtau, self.wake_sum)
@@ -79,15 +79,15 @@ class Induced_voltage_from_wake(object):
            
     def induced_voltage_with_matrix(self, bunch):
         
-        if self.slices.unit == 'tau':
+        if self.slices.coord == 'tau':
             dtau_matrix = self.slices.bins_centers - \
                             np.transpose([self.slices.bins_centers])
             self.wake_matrix = self.sum_wakes(dtau_matrix, self.wake_object_sum)
-        elif self.slices.unit == 'z':
+        elif self.slices.coord == 'z':
             dtau_matrix = (np.transpose([self.slices.bins_centers]) - \
                            self.slices.bins_centers) / (bunch.beta_rel * c)
             self.wake_matrix = self.sum_wakes(dtau_matrix, self.wake_object_sum)
-        elif self.slices.unit == 'theta':
+        elif self.slices.coord == 'theta':
             dtau_matrix = bunch.ring_radius / (bunch.beta_rel * c) * \
             (self.slices.bins_centers - np.transpose([self.slices.bins_centers])) 
             self.wake_matrix = self.sum_wakes(dtau_matrix, self.wake_object_sum)
@@ -100,11 +100,11 @@ class Induced_voltage_from_wake(object):
     
         if self.precalc == 'off':
             
-            if self.slices.unit == 'tau':
+            if self.slices.coord == 'tau':
                 dtau = self.slices.bins_centers - self.slices.bins_centers[0]
                 self.wake_array = self.sum_wakes(dtau, self.wake_sum)
             
-            elif self.slices.unit == 'z':
+            elif self.slices.coord == 'z':
                 dtau = (self.slices.bins_centers - self.slices.bins_centers[0])\
                        /(bunch.beta_rel * c)
                 self.wake_array = self.sum_wakes(dtau, self.wake_sum)
@@ -112,12 +112,12 @@ class Induced_voltage_from_wake(object):
                 return - bunch.charge * bunch.intensity / bunch.n_macroparticles * \
                     convolve(reversed_array, self.slices.n_macroparticles)[(len(reversed_array) - 1):] 
             
-            elif self.slices.unit == 'theta':
+            elif self.slices.coord == 'theta':
                 dtau = (self.slices.bins_centers - self.slices.bins_centers[0]) \
                        * bunch.ring_radius / (bunch.beta_rel * c)
                 self.wake_array = self.sum_wakes(dtau, self.wake_sum)
         
-        if self.precalc == 'on' and self.slices.unit == 'z':
+        if self.precalc == 'on' and self.slices.coord == 'z':
                 reversed_array = self.wake_array[::-1]
                 return - bunch.charge * bunch.intensity / bunch.n_macroparticles * \
                     convolve(reversed_array, self.slices.n_macroparticles)[(len(reversed_array) - 1):]  
@@ -142,7 +142,7 @@ class Induced_voltage_from_impedance(object):
         
         self.frequency_step = frequency_step
         
-        if self.acceleration == 'off' or self.slices.unit == 'tau':
+        if self.acceleration == 'off' or self.slices.coord == 'tau':
                 self.precalc = 'on'
                 
                 self.frequency_fft, self.n_sampling_fft = self.frequency_array(slices, bunch)
@@ -164,17 +164,18 @@ class Induced_voltage_from_impedance(object):
     
     def frequency_array(self, slices, bunch):
         
-        if self.slices.unit == 'tau':
+        if self.slices.coord == 'tau':
                     dtau = self.slices.bins_centers[1] - self.slices.bins_centers[0]
-        elif self.slices.unit == 'theta':
+        elif self.slices.coord == 'theta':
                     dtau = (self.slices.bins_centers[1] - self.slices.bins_centers[0]) \
                        * bunch.ring_radius / (bunch.beta_rel * c)
-        elif self.slices.unit == 'z':
+        elif self.slices.coord == 'z':
                     dtau = (self.slices.bins_centers[1] - self.slices.bins_centers[0])\
                        /(bunch.beta_rel * c)
         
         power = int(np.floor(np.log2(1 / (self.frequency_step * dtau)))) + 1
-        return rfftfreq(2 ** power, dtau), 2 ** power
+        
+        return fftfreq(2 ** power, dtau)[0:2**(power-1)], 2 ** power
         
     
     def track(self, bunch):
@@ -212,17 +213,17 @@ def update_with_interpolation(bunch, induced_voltage, slices):
     slices.bins_centers[0] = slices.edges[0]
     slices.bins_centers[-1] = slices.edges[-1]
     
-    if slices.unit == 'tau':
+    if slices.coord == 'tau':
         
         induced_voltage_interpolated = interp(bunch.tau, 
                             slices.bins_centers, induced_voltage, 0, 0)
         
-    elif slices.unit == 'z':
+    elif slices.coord == 'z':
         
         induced_voltage_interpolated = interp(bunch.z, 
                             slices.bins_centers, induced_voltage, 0, 0)
         
-    elif slices.unit == 'theta':
+    elif slices.coord == 'theta':
         
         induced_voltage_interpolated = interp(bunch.theta, 
                             slices.bins_centers, induced_voltage, 0, 0)
