@@ -1,4 +1,4 @@
-# Example input for simulation acceleration
+# Example input for simulation of acceleration
 # No intensity effects
 
 import time 

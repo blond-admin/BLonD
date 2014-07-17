@@ -387,7 +387,7 @@ def plot_noise_spectrum(frequency, spectrum, sampling = 1, dirname = 'temp'):
     """
 
     # Directory where longitudinal_plots will be stored
-    fig_folder()
+    fig_folder(dirname)
     
     # Plot
     plt.figure(1, figsize=(8,6))
@@ -411,7 +411,7 @@ def plot_phase_noise(time, dphi, sampling = 1, dirname = 'temp'):
     """
 
     # Directory where longitudinal_plots will be stored
-    fig_folder()
+    fig_folder(dirname)
     
     # Plot
     plt.figure(1, figsize=(8,6))
@@ -419,7 +419,7 @@ def plot_phase_noise(time, dphi, sampling = 1, dirname = 'temp'):
     ax.plot(time[::sampling], dphi[::sampling])
     ax.set_xlabel("Time [s]")
     ax.set_ylabel (r"Phase noise [rad]")
-    fign = dirname +'fig/phase_noise.png'
+    fign = dirname +'/phase_noise.png'
     plt.savefig(fign)
     plt.clf()     
     
