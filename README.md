@@ -18,3 +18,17 @@ The structure is as follows:
    cython_functions package; this file should be run before launching any 
    simulation; from the console window type "python setup.py cleanall 
    build_ext --inplace"
+
+
+VERSION CONTENTS
+==========
+
+v1.0   Longitudinal tracker tested. Works for acceleration and multiple
+       RF sections.
+       Beams and slices ready for transverse features to be added.
+       Basic statistics, monitors, and plotting in longitudinal plane.
+       Longitudinal bunch generation options. 
+       Simple versions of separatrix/Hamiltonian.
+       Longitudinal impedance calculations in frequency and time domain.
+       RF noise.
+

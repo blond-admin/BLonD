@@ -136,12 +136,11 @@ class GeneralParameters(object):
         # Warning that higher orders for alpha will not be used
         if len(self.alpha[0]) > 3:
             warnings.filterwarnings("once")
-            warnings.warn("WARNING: Momentum compaction factor is implemented only up to 2nd order"
+            warnings.warn("WARNING: Momentum compaction factor is implemented only up to 2nd order")        
         
         if not self.momentum.shape[1] == self.n_turns + 1:
             raise RuntimeError('The input momentum program does not \
                                 match the proper length (n_turns+1)')        
-        
         # Processing the slippage factor
         self.eta_generation()
                 
