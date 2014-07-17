@@ -6,6 +6,7 @@ Created on 12.06.2014
 
 from __future__ import division
 import numpy as np
+import warnings
 from scipy.constants import c
 from trackers.longitudinal_utilities import is_in_separatrix
 
@@ -13,13 +14,12 @@ from trackers.longitudinal_utilities import is_in_separatrix
 def longitudinal_bigaussian(GeneralParameters, RFSectionParameters, beam, sigma_x,
                              sigma_y, xunit=None, yunit=None, reinsertion = 'off'):
     
+    warnings.filterwarnings("once")
     if GeneralParameters.n_sections > 1:
-        raise RuntimeError('WARNING : The longitudinal_gaussian_matched is not\
-         yet properly computed for several sections !!!')
+        warnings.warn("WARNING: longitudinal_bigaussian is not yet properly computed for several sections!")
         
     if RFSectionParameters.n_rf > 1:
-        raise RuntimeError('longitudinal_gaussian_matched for multiple RF is \
-        not implemented yet')
+        warnings.warn("longitudinal_bigaussian for multiple RF is not yet implemented")
     
     counter = RFSectionParameters.counter[0]
     harmonic = RFSectionParameters.harmonic[0,counter]
@@ -66,14 +66,13 @@ def longitudinal_bigaussian(GeneralParameters, RFSectionParameters, beam, sigma_
 def longitudinal_gaussian_matched(GeneralParameters, RFSectionParameters, beam, 
                                   four_sigma_bunch_length, unit=None, reinsertion = 'off'):
     
-    
+    warnings.filterwarnings("once")
+        
     if GeneralParameters.n_sections > 1:
-        raise RuntimeError('WARNING : The longitudinal_gaussian_matched is not\
-         yet properly computed for several sections !!!')
+        warnings.warn("WARNING: longitudinal_gaussian_matched is not yet properly computed for several sections!")
         
     if RFSectionParameters.n_rf > 1:
-        raise RuntimeError('longitudinal_gaussian_matched for multiple RF is \
-        not implemeted yet')
+        warnings.warn("longitudinal_gaussian_matched for multiple RF is not yet implemented!")
     
     counter = RFSectionParameters.counter[0]
     harmonic = RFSectionParameters.harmonic[0,counter]

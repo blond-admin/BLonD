@@ -8,6 +8,7 @@
 from __future__ import division
 from scipy.constants import m_p, m_e, e, c
 import numpy as np
+import warnings
 
 
 class GeneralParameters(object):
@@ -65,10 +66,10 @@ class GeneralParameters(object):
         #: | *Momentum (program) in [eV/c] for each RF section* :math:`: \quad p_n`
         #: | *Can be given as a single value to be assumed constant, or as a program of (n_turns + 1) terms in case of acceleration.*
         self.momentum = np.array(momentum, ndmin =2)
-        
+
         #: *Momentum compation factor (up to 2nd order) for each RF section* :math:`: \quad \alpha_i`
         self.alpha = np.array(alpha, ndmin =2) 
-        
+
         #: | *Ring length array contains the length of the RF sections, in [m]*
         
         self.ring_length = ring_length
@@ -134,15 +135,12 @@ class GeneralParameters(object):
         
         # Warning that higher orders for alpha will not be used
         if len(self.alpha[0]) > 3:
-            print 'WARNING : Momentum compaction factor is held only up to \
-                   2nd order'
-        
-        
+            warnings.filterwarnings("once")
+            warnings.warn("WARNING: Momentum compaction factor is implemented only up to 2nd order"
         
         if not self.momentum.shape[1] == self.n_turns + 1:
             raise RuntimeError('The input momentum program does not \
-                                match the proper length (n_turns+1)')
-        
+                                match the proper length (n_turns+1)')        
         
         # Processing the slippage factor
         self.eta_generation()

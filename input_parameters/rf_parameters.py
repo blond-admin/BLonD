@@ -178,7 +178,6 @@ def calc_phi_s(RF_section_parameters, accelerating_systems = 'all'):
         index = np.where((eta0[1:] + eta0[0:-1])/2 > 0)       
         phi_s[index] = np.pi - phi_s
 
-        
         return phi_s 
      
     else:

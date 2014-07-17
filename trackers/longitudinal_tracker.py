@@ -176,7 +176,7 @@ class LinearMap(object):
         self.beta_r = GeneralParameters.beta_r[0,0]
         
         self.ring_circumference = GeneralParameters.ring_circumference
-        self.eta = GeneralParameters._eta0[0,0]
+        self.eta = GeneralParameters.eta0[0,0]
         self.Qs = Qs
         self.omega_0 = 2 * np.pi * self.beta_r * c / self.ring_circumference
         self.omega_s = self.Qs * self.omega_0

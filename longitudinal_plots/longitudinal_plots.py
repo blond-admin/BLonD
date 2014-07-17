@@ -9,6 +9,7 @@ import h5py
 import os
 import numpy as np
 import matplotlib.pyplot as plt
+import warnings
 from scipy.constants import c, e
 from trackers.longitudinal_utilities import separatrix
 import sys
@@ -175,7 +176,8 @@ def plot_bunch_length_evol(beam, h5file, General_parameters, time_step,
     elif unit == 'm':
         bl *= 4*General_parameters.ring_radius 
     else:
-        print("WARNING: unit of plot_bunch_length not recognized!")   
+        warnings.filterwarnings("once")
+        warnings.warn("WARNING: unit of plot_bunch_length not recognized!")   
 
     # Plot
     plt.figure(1, figsize=(8,6))
@@ -231,7 +233,8 @@ def plot_bunch_length_evol_gaussian(beam, h5file, General_parameters, slices,
         elif unit == 'ns':
             bl *= 1.e9/beam.beta_r/c 
     else:
-        print("WARNING: unit of plot_bunch_length_gaussian not recognized!")   
+        warnings.filterwarnings("once")
+        warnings.warn("WARNING: unit of plot_bunch_length_gaussian not recognized!")   
 
     # Plot
     plt.figure(1, figsize=(8,6))
@@ -384,7 +387,7 @@ def plot_noise_spectrum(frequency, spectrum, sampling = 1, dirname = 'temp'):
     """
 
     # Directory where longitudinal_plots will be stored
-    fig_folder()
+    fig_folder(dirname)
     
     # Plot
     plt.figure(1, figsize=(8,6))
@@ -408,7 +411,7 @@ def plot_phase_noise(time, dphi, sampling = 1, dirname = 'temp'):
     """
 
     # Directory where longitudinal_plots will be stored
-    fig_folder()
+    fig_folder(dirname)
     
     # Plot
     plt.figure(1, figsize=(8,6))
@@ -416,7 +419,7 @@ def plot_phase_noise(time, dphi, sampling = 1, dirname = 'temp'):
     ax.plot(time[::sampling], dphi[::sampling])
     ax.set_xlabel("Time [s]")
     ax.set_ylabel (r"Phase noise [rad]")
-    fign = dirname +'fig/phase_noise.png'
+    fign = dirname +'/phase_noise.png'
     plt.savefig(fign)
     plt.clf()     
     
