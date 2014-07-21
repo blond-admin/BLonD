@@ -12,12 +12,10 @@ class Phase_noise(object):
     '''
     *The Phase noise class contains the spectrum of RF phase noise and the 
     actual phase noise randomly generated from this spectrum (via mixing with
-    white noise).
-    
-    The spectrum has to be input as double-sided spectrum, in units of 
-    radian-square per hertz.
-    
-    Both hermitian to real and complex to complex FFTs are available.*
+    white noise).*
+    *The spectrum has to be input as double-sided spectrum, in units of 
+    radian-square per hertz.*
+    *Both hermitian to real and complex to complex FFTs are available.*
     '''    
     
     def __init__(self, frequency_array, real_part_of_spectrum, seed=None):
@@ -35,22 +33,20 @@ class Phase_noise(object):
     def spectrum_to_phase_noise(self, transform=None):
         '''
         *Transforms a the noise spectrum to phase noise data.
-        
         Use transform=None or 'r' to transform hermitian spectrum to real phase.
         In this case, input only the positive part of the double-sided spectrum.
-        
         Use transform='c' to transform complex spectrum to complex phase.
         In this case, input first the zero and positive frequency components, 
         then the decreasingly negative frequency components of the double-sided
         spectrum.
+        E.g. the following two ways of usage are equivalent:*
         
-        E.g. the following two ways of usage are equivalent:
         .. image:: RF_noise.png
             :align: center
             :width: 600
-            :height: 600       
+            :height: 600   
         
-        Returns only the real part of the phase noise.*
+        *Returns only the real part of the phase noise.*
         '''
     
         # Resolution in time domain

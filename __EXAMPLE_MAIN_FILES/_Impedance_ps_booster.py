@@ -1,3 +1,4 @@
+# Example script to take into account intensity effects from impedance tables
 
 from __future__ import division
 import numpy as np
@@ -86,46 +87,16 @@ slice_beam = Slices(number_slices, cut_left = - 5.72984173562e-07 / 2,
 var = str(kin_beam_energy / 1e9)
 
 # ejection kicker
-Ekicker = np.loadtxt('ps_booster_impedances/ejection kicker/Ekicker_' + var + 'GeV.txt'
+Ekicker = np.loadtxt('Ekicker_' + var + 'GeV.txt'
         , skiprows = 1, dtype=complex, converters = dict(zip((0, 1), (lambda s: 
         complex(s.replace('i', 'j')), lambda s: complex(s.replace('i', 'j'))))))
 
 Ekicker_table = Longitudinal_table(Ekicker[:,0].real, Ekicker[:,1].real, Ekicker[:,1].imag)
 
-# ejection kicker cables
-Ekicker_cables = np.loadtxt('ps_booster_impedances/ejection kicker cables/Ekicker_cables_' + var + 'GeV.txt'
-        , skiprows = 1, dtype=complex, converters = dict(zip((0, 1), (lambda s: 
-        complex(s.replace('i', 'j')), lambda s: complex(s.replace('i', 'j'))))))
-
-Ekicker_cables_table = Longitudinal_table(Ekicker_cables[:,0].real, Ekicker_cables[:,1].real, Ekicker_cables[:,1].imag)
-
-# KSW kickers
-KSW = np.loadtxt('ps_booster_impedances/KSW/KSW_' + var + 'GeV.txt'
-        , skiprows = 1, dtype=complex, converters = dict(zip((0, 1), (lambda s: 
-        complex(s.replace('i', 'j')), lambda s: complex(s.replace('i', 'j'))))))
-
-KSW_table = Longitudinal_table(KSW[:,0].real, KSW[:,1].real, KSW[:,1].imag)
-
-# resistive wall
-RW = np.loadtxt('ps_booster_impedances/resistive wall/RW_' + var + 'GeV.txt'
-        , skiprows = 1, dtype=complex, converters = dict(zip((0, 1), (lambda s: 
-        complex(s.replace('i', 'j')), lambda s: complex(s.replace('i', 'j'))))))
-
-RW_table = Longitudinal_table(RW[:,0].real, RW[:,1].real, RW[:,1].imag)
-
-# indirect space charge
-ISC = np.loadtxt('ps_booster_impedances/Indirect space charge/ISC_' + var + 'GeV.txt'
-        , skiprows = 1, dtype=complex, converters = dict(zip((0, 1), (lambda s: 
-        complex(s.replace('i', 'j')), lambda s: complex(s.replace('i', 'j'))))))
-
-ISC_table = Longitudinal_table(ISC[:,0].real, ISC[:,1].real, ISC[:,1].imag)
-
-# steps
-steps = Longitudinal_inductive_impedance(34.6669349520904 / 10e9) # input in [Ohm/Hz]
 
 # Finemet cavity
 
-F_C = np.loadtxt('ps_booster_impedances/Finemet_cavity/Finemet.txt', dtype = float, skiprows = 1)
+F_C = np.loadtxt('Finemet.txt', dtype = float, skiprows = 1)
 
 F_C[:, 3], F_C[:, 5], F_C[:, 7] = np.pi * F_C[:, 3] / 180, np.pi * F_C[:, 5] / 180, np.pi * F_C[:, 7] / 180
 
@@ -146,24 +117,19 @@ elif option == "shorted":
 else:
     pass
 
-# direct space charge
-dir_space_charge = Longitudinal_inductive_impedance( - (376.730313462 *  
-                    general_params.T0[0, 0]) / (general_params.beta_r[0,0] *
-                     general_params.gamma_r[0,0]**2))       # input in [Ohm/Hz]
 
 
 # INDUCED VOLTAGE FROM IMPEDANCE------------------------------------------------
 
 # impedance to be used for ind_volt calculation through the profile spectrum
-sum_impedance = [Ekicker_table] + [Ekicker_cables_table] + [KSW_table] \
-                 + [RW_table] + [F_C_table] + [ISC_table] 
+sum_impedance = [Ekicker_table] +  [F_C_table] 
 
 # impedance to be used for ind_volt calculation through the profile derivative
 sum_slopes_from_induc_imp = (376.730313462 * general_params.T0[0, 0]) / \
         (my_beam.beta_r * my_beam.gamma_r**2) - \
         34.6669349520904 / 10e9    # direct space charge plus steps, in [Ohm/Hz]
 
-ind_volt_from_imp = Induced_voltage_from_impedance(slice_beam, "on", sum_impedance, 2e5,
+ind_volt_from_imp = Induced_voltage_from_impedance(slice_beam, sum_impedance, 2e5,
                  sum_slopes_from_induc_imp, mode = 'spectrum + derivative')
 
 

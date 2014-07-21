@@ -1,6 +1,7 @@
 '''
-@author: Kevin Li, Michael Schenk, Danilo Quartullo
-@date: 11.02.2014
+**Module to save beam statistics in h5 file**
+
+:Authors: **Kevin Li**, **Michael Schenk**, **Danilo Quartullo**
 '''
 
 import h5py as hp

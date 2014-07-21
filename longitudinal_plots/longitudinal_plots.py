@@ -1,7 +1,8 @@
 '''
-Created on 12.06.2014
+**Module to plot different bunch features **
 
-@author: Helga Timko
+:Authors: **Helga Timko**, **Danilo Quartullo**
+
 '''
 
 from __future__ import division
@@ -10,18 +11,22 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import warnings
+import subprocess
 from scipy.constants import c, e
 from trackers.longitudinal_utilities import separatrix
 import sys
 from impedances.longitudinal_impedance import *
 
 
-
-if os.path.exists('temp'):
-    os.system('del /s/q '+ os.getcwd() +'\\temp>null')
+if os.path.exists('fig'):    
+    if "lin" in sys.platform:
+        subprocess.Popen("rm -rf fig", shell = True, executable = "/bin/bash")
+    elif "win" in sys.platform:
+        os.system('del /s/q '+ os.getcwd() +'\\fig>null')
+    else:
+        warnings.warn("You have not a Windows or Linux operating system. Aborting...")
 
     
-
 def fig_folder(dirname):
     
     # Try to create directory
@@ -39,7 +44,7 @@ def fig_folder(dirname):
 def plot_long_phase_space(beam, General_parameters, RFSectionParameters, xmin,
                           xmax, ymin, ymax, xunit = None, yunit = None, 
                           sampling = 1, separatrix_plot = False, 
-                          histograms_plot = True, dirname = 'temp'):
+                          histograms_plot = True, dirname = 'fig'):
     """
     Plot of longitudinal phase space. Optional use of histograms and separatrix.
     Choice of units: xunit = rad, ns, m; yunit = MeV, 1.
@@ -155,7 +160,7 @@ def plot_long_phase_space(beam, General_parameters, RFSectionParameters, xmin,
 
 
 def plot_bunch_length_evol(beam, h5file, General_parameters, time_step, 
-                           unit = None, dirname = 'temp'):
+                           unit = None, dirname = 'fig'):
     """
     Plot of r.m.s. 4-sigma bunch length as a function of time.
     Choice of units: unit = rad, ns, m.
@@ -200,7 +205,7 @@ def plot_bunch_length_evol(beam, h5file, General_parameters, time_step,
 
 
 def plot_bunch_length_evol_gaussian(beam, h5file, General_parameters, slices, 
-                                    time_step, unit = None, dirname = 'temp'):
+                                    time_step, unit = None, dirname = 'fig'):
 
     """
     Plot of Gaussian 4-sigma bunch length as a function of time; requires slices.
@@ -256,9 +261,44 @@ def plot_bunch_length_evol_gaussian(beam, h5file, General_parameters, slices,
 
 
 
+def plot_position_evol(counter, beam, h5file, General_parameters, unit = None, style = '-', dirname = 'fig'): 
+ 
+    # Directory where longitudinal_plots will be stored 
+    fig_folder(dirname) 
+ 
+    # Get position data in metres or nanoseconds 
+    t = range(1, General_parameters.n_turns + 1) 
+     
+    storeddata = h5py.File(h5file + '.h5', 'r') 
+    pos = np.array(storeddata["/Bunch/mean_theta"], dtype = np.double) 
+    if unit == None or unit == 'ns': 
+        pos *= 1.e9 / beam.beta_r / c * General_parameters.ring_radius 
+    elif unit == 'm': 
+        pos *= General_parameters.ring_radius 
+         
+    pos[counter:] = np.nan 
+ 
+    # Plot 
+    plt.figure(1, figsize=(8,6)) 
+    ax = plt.axes([0.12, 0.1, 0.82, 0.8]) 
+    ax.plot(t[0:counter], pos[0:counter], style) 
+    ax.set_xlabel(r"No. turns [T$_0$]") 
+    ax.set_xlim((1,General_parameters.n_turns + 1)) 
+    if unit == None or unit == 'ns': 
+        ax.set_ylabel (r"Position [ns]") 
+    elif unit == 'm': 
+        ax.set_ylabel (r"Position [m]") 
+     
+    # Save plot 
+    fign = 'fig/position_evolution_' "%d" %counter + '.png' 
+    plt.savefig(fign) 
+    plt.clf() 
+
+
+
 def plot_impedance_vs_frequency(counter, general_params, ind_volt_from_imp, 
                                 option1 = "sum", option2 = "no_spectrum", 
-                                option3 = "freq_fft", style = '-', dirname = 'temp'):
+                                option3 = "freq_fft", style = '-', dirname = 'fig'):
 
     """
     Plot of impedance vs frequency.
@@ -322,7 +362,7 @@ def plot_impedance_vs_frequency(counter, general_params, ind_volt_from_imp,
    
 def plot_induced_voltage_vs_bins_centers(counter, general_params, 
                                          ind_volt_from_imp, style = '-', 
-                                         dirname = 'temp'):
+                                         dirname = 'fig'):
 
     """
     Plot of induced voltage vs bin centers.
@@ -341,7 +381,7 @@ def plot_induced_voltage_vs_bins_centers(counter, general_params,
 
 
 def plot_beam_profile(counter, general_params, slices, style = '-', 
-                      dirname = 'temp'):
+                      dirname = 'fig'):
     
     """
     Plot of longitudinal beam profile
@@ -356,7 +396,7 @@ def plot_beam_profile(counter, general_params, slices, style = '-',
 
 
 def plot_beam_profile_derivative(counter, general_params, slices, style = '-', 
-                                 dirname = 'temp', numbers = [3]):
+                                 dirname = 'fig', numbers = [3]):
 
     """
     Plot of the derivative of the longitudinal beam profile.
@@ -379,7 +419,7 @@ def plot_beam_profile_derivative(counter, general_params, slices, style = '-',
          
     
 
-def plot_noise_spectrum(frequency, spectrum, sampling = 1, dirname = 'temp'):
+def plot_noise_spectrum(frequency, spectrum, sampling = 1, dirname = 'fig'):
     
     """
     Plot of the phase noise spectrum.
@@ -403,7 +443,7 @@ def plot_noise_spectrum(frequency, spectrum, sampling = 1, dirname = 'temp'):
     
     
     
-def plot_phase_noise(time, dphi, sampling = 1, dirname = 'temp'):
+def plot_phase_noise(time, dphi, sampling = 1, dirname = 'fig'):
     
     """
     Plot of the phase noise as a function of time.

@@ -22,6 +22,7 @@ def longitudinal_bigaussian(GeneralParameters, RFSectionParameters, beam, sigma_
         warnings.warn("longitudinal_bigaussian for multiple RF is not yet implemented")
     
     counter = RFSectionParameters.counter[0]
+    
     harmonic = RFSectionParameters.harmonic[0,counter]
     energy = RFSectionParameters.energy[counter]
     beta = RFSectionParameters.beta_r[counter]
@@ -42,6 +43,7 @@ def longitudinal_bigaussian(GeneralParameters, RFSectionParameters, beam, sigma_
     beam.sigma_theta = sigma_theta
     beam.sigma_dE = sigma_dE
     phi_s = RFSectionParameters.phi_s[counter]
+    
     
     beam.theta = sigma_theta * np.random.randn(beam.n_macroparticles) \
                         + phi_s/harmonic

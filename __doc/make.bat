@@ -63,7 +63,7 @@ if errorlevel 9009 (
 
 
 if "%1" == "apidoc" (
-	sphinx-apidoc -o ./source ../. ../aperture ../beams ../cobra_functions ../impedances ../longitudinal_plots ../monitors ../setup.py ../solvers ../spacecharge
+	sphinx-apidoc -o ./source ../. ../setup.py
 	echo.
 	echo.rst files generated.
 	goto end

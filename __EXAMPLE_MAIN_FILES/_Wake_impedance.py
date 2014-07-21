@@ -80,13 +80,13 @@ slice_beam = Slices(number_slices, cut_left = - coeff * 5.72984173562e-07 / 2,
                     "tau", mode = 'const_space_hist')
 
 temp = np.loadtxt('new_HQ_table.dat', comments = '!')
-R_shunt = temp[0, 2] * 10**6 
-f_res = temp[0, 0] * 10**9
-Q_factor = temp[0, 1]
+R_shunt = temp[:, 2] * 10**6 
+f_res = temp[:, 0] * 10**9
+Q_factor = temp[:, 1]
 
 resonator = Longitudinal_resonators(R_shunt, f_res, Q_factor)
 ind_volt_from_wake = Induced_voltage_from_wake(slice_beam, 'off', [resonator], my_beam)
-ind_volt_from_wake2 = Induced_voltage_from_impedance(slice_beam, 'on', [resonator], 1e3, my_beam)
+ind_volt_from_wake2 = Induced_voltage_from_impedance(slice_beam, [resonator], 1e3, my_beam)
 
 
 # ACCELERATION MAP-------------------------------------------------------------

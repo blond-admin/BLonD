@@ -314,15 +314,16 @@ class Slices(object):
     
     def beam_profile_derivative(self, mode):
         
+        ''' The input is one of the two available methods for differentiating
+            a function. The two outputs are the coordinate step and the discrete
+            derivative of the bunch profile respectively'''
+        
         dist_centers = self.bins_centers[1] - self.bins_centers[0]
         
         if mode == 1:
-            x = self.edges[1:-1]
-            derivative = np.diff(self.n_macroparticles) / dist_centers
-        if mode == 2:
             x = self.bins_centers
             derivative = ndimage.gaussian_filter1d(self.n_macroparticles, sigma=1, order=1, mode='wrap') / dist_centers
-        if mode == 3:
+        if mode == 2:
             x = self.bins_centers
             derivative = np.gradient(self.n_macroparticles, dist_centers)
             
