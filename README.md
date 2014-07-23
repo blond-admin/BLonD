@@ -25,19 +25,28 @@ The structure is as follows:
 VERSION CONTENTS
 ==========
 
-v1.1   Added method in 'longitudinal_impedance' to calculate through the 
-	   derivative of the bunch profile the induced voltage derived from 
-	   inductive impedance.
-	   Added in 'longitudinal_plots' the feature to delete the 'fig' folder 
-	   for Linux users together with a method for plotting the evolution of
-	   the position of the bunch.
-	   Two new example main files showing the use of intensity effects methods
-	   have been included in the corresponding folder.
-	   The doc folder has been updated to take into account all the packages
-	   of the tree.
-	   Several bugs, mostly in the 'longitudinal_impedance' script, have been
-	   fixed.
+2014-07-23
+v1.1.1 Plotting routines now separated into different files:
+       beams.plot_beams.py -> phase space, beam statistics plots
+       beams.plot_slices.py -> profile, slice statistics
+       impedances.plot_impedance.py -> induced voltage, wakes, impedances
+       LLRF.plot_llrf.py -> noise in time and frequency domain
 
+2014-07-22
+v1.1   Added method in 'longitudinal_impedance' to calculate through the 
+       derivative of the bunch profile the induced voltage derived from 
+       inductive impedance.
+       Added in 'longitudinal_plots' the feature to delete the 'fig' folder 
+       for Linux users together with a method for plotting the evolution of
+       the position of the bunch.
+       Two new example main files showing the use of intensity effects methods
+       have been included in the corresponding folder.
+       The doc folder has been updated to take into account all the packages
+       of the tree.
+       Several bugs, mostly in the 'longitudinal_impedance' script, have been
+       fixed.
+
+2014-07-17
 v1.0   Longitudinal tracker tested. Works for acceleration and multiple
        RF sections.
        Beams and slices ready for transverse features to be added.

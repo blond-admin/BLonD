@@ -1,0 +1,358 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>trackers package &mdash; PyHEADTAIL embryo documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     'embryo',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="PyHEADTAIL embryo documentation" href="index.html" />
+    <link rel="up" title="&lt;no title&gt;" href="modules.html" />
+    <link rel="prev" title="monitors package" href="monitors.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="monitors.html" title="monitors package"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">PyHEADTAIL embryo documentation</a> &raquo;</li>
+          <li><a href="modules.html" accesskey="U">&lt;no title&gt;</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="trackers-package">
+<h1>trackers package<a class="headerlink" href="#trackers-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-trackers.longitudinal_tracker">
+<span id="trackers-longitudinal-tracker-module"></span><h2>trackers.longitudinal_tracker module<a class="headerlink" href="#module-trackers.longitudinal_tracker" title="Permalink to this headline">¶</a></h2>
+<p><strong>Module containing all the elements to track the beam in the longitudinal plane.</strong></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Authors:</th><td class="field-body"><strong>Danilo Quartullo</strong>, <strong>Helga Timko</strong>, <strong>Adrian Oeftiger</strong>, <strong>Alexandre Lasheen</strong></td>
+</tr>
+</tbody>
+</table>
+<dl class="class">
+<dt id="trackers.longitudinal_tracker.LinearMap">
+<em class="property">class </em><tt class="descclassname">trackers.longitudinal_tracker.</tt><tt class="descname">LinearMap</tt><big>(</big><em>GeneralParameters</em>, <em>Qs</em><big>)</big><a class="headerlink" href="#trackers.longitudinal_tracker.LinearMap" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p>Linear Map represented by a Courant-Snyder transportation matrix.
+self.alpha is the linear momentum compaction factor.
+Qs is forced to be constant.</p>
+<dl class="method">
+<dt id="trackers.longitudinal_tracker.LinearMap.track">
+<tt class="descname">track</tt><big>(</big><em>beam</em><big>)</big><a class="headerlink" href="#trackers.longitudinal_tracker.LinearMap.track" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="trackers.longitudinal_tracker.RingAndRFSection">
+<em class="property">class </em><tt class="descclassname">trackers.longitudinal_tracker.</tt><tt class="descname">RingAndRFSection</tt><big>(</big><em>rf_params</em>, <em>solver='full'</em><big>)</big><a class="headerlink" href="#trackers.longitudinal_tracker.RingAndRFSection" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p><em>Definition of an RF station and part of the ring until the next station, 
+see figure.</em></p>
+<img alt="_images/ring_and_RFstation.png" class="align-center" src="_images/ring_and_RFstation.png" style="width: 600px; height: 600px;" />
+<p><em>The time step is fixed to be one turn, but the tracking can consist of 
+multiple RingAndRFSection objects. In this case, the user should make sure 
+that the lengths of the stations sum up exactly to the circumference or use
+the FullRingAndRF object in order to let the code pre-process the parameters.
+Each RF station may contain several RF harmonic systems which are considered
+to be in the same location. First, a kick from the cavity voltage(s) is applied, 
+then an accelerating kick in case the momentum program presents variations, 
+and finally a drift kick between stations.</em></p>
+<dl class="attribute">
+<dt id="trackers.longitudinal_tracker.RingAndRFSection.acceleration_kick">
+<tt class="descname">acceleration_kick</tt><em class="property"> = None</em><a class="headerlink" href="#trackers.longitudinal_tracker.RingAndRFSection.acceleration_kick" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Acceleration kick</em> <img class="math" src="_images/math/054deb314de61f61ad8deb9d72eb9c635e1ab2fe.png" alt=": \quad - &lt;\beta&gt; \Delta p"/></p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="trackers.longitudinal_tracker.RingAndRFSection.alpha_order">
+<tt class="descname">alpha_order</tt><em class="property"> = None</em><a class="headerlink" href="#trackers.longitudinal_tracker.RingAndRFSection.alpha_order" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Slippage factor up to desired order</em></p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="trackers.longitudinal_tracker.RingAndRFSection.beta_r">
+<tt class="descname">beta_r</tt><em class="property"> = None</em><a class="headerlink" href="#trackers.longitudinal_tracker.RingAndRFSection.beta_r" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>... and derived relativistic quantities</em></div>
+</div>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="trackers.longitudinal_tracker.RingAndRFSection.beta_ratio">
+<tt class="descname">beta_ratio</tt><em class="property"> = None</em><a class="headerlink" href="#trackers.longitudinal_tracker.RingAndRFSection.beta_ratio" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Beta ratio</em>  <img class="math" src="_images/math/54cfe2890cfb174c99e13f012fd5e8c496ba4f09.png" alt=": \quad \frac{\beta_{n+1}}{\beta_{n}}"/></p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="trackers.longitudinal_tracker.RingAndRFSection.counter">
+<tt class="descname">counter</tt><em class="property"> = None</em><a class="headerlink" href="#trackers.longitudinal_tracker.RingAndRFSection.counter" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>Counter to keep track of time step (used in momentum and voltage)</em></div>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="trackers.longitudinal_tracker.RingAndRFSection.drift">
+<tt class="descname">drift</tt><big>(</big><em>beam</em><big>)</big><a class="headerlink" href="#trackers.longitudinal_tracker.RingAndRFSection.drift" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>The drift updates the longitudinal coordinate of the particle after 
+applying the energy kick. The two options of tracking are: full, 
+corresponding to the cases where beta is not considered constant and
+the slippage factor may be of higher orders; and simple, where beta
+is approximatively one and the slippage factor is of order 0. Corresponding
+to the equations:</em></p>
+<div class="math">
+<p><img src="_images/math/af801d05e771f201285be4e64b83668aa190bae6.png" alt="\theta_{n+1} = \frac{\beta_{n+1}}{\beta_n}\theta_n + 2\pi\left(\frac{1}{1 - \eta\delta_n} - 1\right)\frac{L}{C} \quad \text{(full)}"/></p>
+</div><div class="math">
+<p><img src="_images/math/527183dfa330ce745b561a860ea6602021a5e82b.png" alt="\approx&gt; \theta_{n+1} = \theta_n + 2\pi\eta_0\delta_n\frac{L}{C} \quad \text{(simple)}"/></p>
+</div></dd></dl>
+
+<dl class="attribute">
+<dt id="trackers.longitudinal_tracker.RingAndRFSection.harmonic">
+<tt class="descname">harmonic</tt><em class="property"> = None</em><a class="headerlink" href="#trackers.longitudinal_tracker.RingAndRFSection.harmonic" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>Harmonic number list</em> <img class="math" src="_images/math/25e5d948404472ca9570cd1cc66117d880adf3c7.png" alt=": \quad h_{j,n}"/></div>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="trackers.longitudinal_tracker.RingAndRFSection.kick">
+<tt class="descname">kick</tt><big>(</big><em>beam</em><big>)</big><a class="headerlink" href="#trackers.longitudinal_tracker.RingAndRFSection.kick" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>The Kick represents the kick(s) by an RF station at a certain position 
+of the ring. The kicks are summed over the different harmonic RF systems 
+in the station. The cavity phase can be shifted by the user via phi_offset.
+The increment in energy is given by the discrete equation of motion:</em></p>
+<div class="math">
+<p><img src="_images/math/0a60c58fecc87f4035e6a3186d8cea410db1af8c.png" alt="\Delta E_{n+1} = \Delta E_n + \sum_{j=0}^{n_{RF}}{V_{j,n}\,\sin{\left(h_{j,n}\,\theta + \phi_{j,n}\right)}}"/></p>
+</div></dd></dl>
+
+<dl class="method">
+<dt id="trackers.longitudinal_tracker.RingAndRFSection.kick_acceleration">
+<tt class="descname">kick_acceleration</tt><big>(</big><em>beam</em><big>)</big><a class="headerlink" href="#trackers.longitudinal_tracker.RingAndRFSection.kick_acceleration" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>KickAcceleration gives a single accelerating kick to the bunch. 
+The accelerating kick is defined by the change in the design momentum 
+(synchronous momentum). 
+The acceleration is assumed to be distributed over the length of the 
+RF station, so the average beta is used in the calculation of the kick.
+An extra increment in the equation of motion with respect to the Kick
+object is given by:</em></p>
+<div class="math">
+<p><img src="_images/math/87dfa386167dbed575e96d9013fea5a3d1edff8a.png" alt="\Delta E_{n+1} = \Delta E_n + \beta_{av} \Delta p_{n\rightarrow n+1}"/></p>
+</div></dd></dl>
+
+<dl class="attribute">
+<dt id="trackers.longitudinal_tracker.RingAndRFSection.length_ratio">
+<tt class="descname">length_ratio</tt><em class="property"> = None</em><a class="headerlink" href="#trackers.longitudinal_tracker.RingAndRFSection.length_ratio" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>Import RF section parameters for RF kick</em></div>
+<div class="line"><em>Length ratio between drift and ring circumference</em></div>
+<div class="line"><img class="math" src="_images/math/2c7b130203bfbe568b8412d92ccae33f92f22bfc.png" alt=": \quad \frac{L}{C}"/></div>
+</div>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="trackers.longitudinal_tracker.RingAndRFSection.momentum">
+<tt class="descname">momentum</tt><em class="property"> = None</em><a class="headerlink" href="#trackers.longitudinal_tracker.RingAndRFSection.momentum" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>Import RF section parameters for accelerating kick</em></div>
+<div class="line"><em>Momentum (program) in [eV/c]</em> <img class="math" src="_images/math/361fd32ae6699bbe97221e1cfecf8a23d1d4dfe9.png" alt=": \quad p_n"/></div>
+</div>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="trackers.longitudinal_tracker.RingAndRFSection.n_rf">
+<tt class="descname">n_rf</tt><em class="property"> = None</em><a class="headerlink" href="#trackers.longitudinal_tracker.RingAndRFSection.n_rf" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>Number of RF systems in the RF station</em> <img class="math" src="_images/math/bc61b3d408bd3809fe76c340c5170bbc30fe967e.png" alt=": \quad n_{RF}"/></div>
+</div>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="trackers.longitudinal_tracker.RingAndRFSection.phi_offset">
+<tt class="descname">phi_offset</tt><em class="property"> = None</em><a class="headerlink" href="#trackers.longitudinal_tracker.RingAndRFSection.phi_offset" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>Phase offset list in [rad]</em> <img class="math" src="_images/math/e13ad736f8769505eca84d3c9bc1cbd677394c4a.png" alt=": \quad \phi_{j,n}"/></div>
+</div>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="trackers.longitudinal_tracker.RingAndRFSection.solver">
+<tt class="descname">solver</tt><em class="property"> = None</em><a class="headerlink" href="#trackers.longitudinal_tracker.RingAndRFSection.solver" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>Choice of solver for the drift</em></div>
+<div class="line"><em>Use &#8216;full&#8217; for full eta solver</em></div>
+<div class="line"><em>Use &#8216;simple&#8217; for 0th order eta solver</em></div>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="trackers.longitudinal_tracker.RingAndRFSection.track">
+<tt class="descname">track</tt><big>(</big><em>beam</em><big>)</big><a class="headerlink" href="#trackers.longitudinal_tracker.RingAndRFSection.track" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="trackers.longitudinal_tracker.RingAndRFSection.voltage">
+<tt class="descname">voltage</tt><em class="property"> = None</em><a class="headerlink" href="#trackers.longitudinal_tracker.RingAndRFSection.voltage" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>Voltage program list in [V]</em> <img class="math" src="_images/math/68d6de66610585864a30f3b99b7b82cb01a8ca19.png" alt=": \quad V_{j,n}"/></div>
+</div>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-trackers.longitudinal_utilities">
+<span id="trackers-longitudinal-utilities-module"></span><h2>trackers.longitudinal_utilities module<a class="headerlink" href="#module-trackers.longitudinal_utilities" title="Permalink to this headline">¶</a></h2>
+<p><strong>Utilities to calculate Hamiltonian, separatrix, total voltage for the full ring.</strong></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Authors:</th><td class="field-body"><strong>Danilo Quartullo</strong>, <strong>Helga Timko</strong>, <strong>Alexandre Lasheen</strong></td>
+</tr>
+</tbody>
+</table>
+<dl class="function">
+<dt id="trackers.longitudinal_utilities.hamiltonian">
+<tt class="descclassname">trackers.longitudinal_utilities.</tt><tt class="descname">hamiltonian</tt><big>(</big><em>GeneralParameters</em>, <em>RFSectionParameters</em>, <em>theta</em>, <em>dE</em>, <em>delta</em>, <em>total_voltage=None</em><big>)</big><a class="headerlink" href="#trackers.longitudinal_utilities.hamiltonian" title="Permalink to this definition">¶</a></dt>
+<dd><p>Single RF sinusoidal Hamiltonian.
+For the time being, for single RF section only or from total voltage.
+Uses beta, energy averaged over the turn.
+To be generalized.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="trackers.longitudinal_utilities.is_in_separatrix">
+<tt class="descclassname">trackers.longitudinal_utilities.</tt><tt class="descname">is_in_separatrix</tt><big>(</big><em>GeneralParameters</em>, <em>RFSectionParameters</em>, <em>theta</em>, <em>dE</em>, <em>delta</em>, <em>total_voltage=None</em><big>)</big><a class="headerlink" href="#trackers.longitudinal_utilities.is_in_separatrix" title="Permalink to this definition">¶</a></dt>
+<dd><p>Condition for being inside the separatrix.
+For the time being, for single RF section only or from total voltage.
+Single RF sinusoidal.
+Uses beta, energy averaged over the turn.
+To be generalized.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="trackers.longitudinal_utilities.separatrix">
+<tt class="descclassname">trackers.longitudinal_utilities.</tt><tt class="descname">separatrix</tt><big>(</big><em>GeneralParameters</em>, <em>RFSectionParameters</em>, <em>theta</em>, <em>total_voltage=None</em><big>)</big><a class="headerlink" href="#trackers.longitudinal_utilities.separatrix" title="Permalink to this definition">¶</a></dt>
+<dd><p>Single RF sinusoidal separatrix.
+For the time being, for single RF section only or from total voltage.
+Uses beta, energy averaged over the turn.
+To be generalized.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="trackers.longitudinal_utilities.total_voltage">
+<tt class="descclassname">trackers.longitudinal_utilities.</tt><tt class="descname">total_voltage</tt><big>(</big><em>RFsection_list</em>, <em>harmonic='first'</em><big>)</big><a class="headerlink" href="#trackers.longitudinal_utilities.total_voltage" title="Permalink to this definition">¶</a></dt>
+<dd><p>Total voltage from all the RF stations and systems in the ring.
+To be generalized.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-trackers">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-trackers" title="Permalink to this headline">¶</a></h2>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">trackers package</a><ul>
+<li><a class="reference internal" href="#submodules">Submodules</a></li>
+<li><a class="reference internal" href="#module-trackers.longitudinal_tracker">trackers.longitudinal_tracker module</a></li>
+<li><a class="reference internal" href="#module-trackers.longitudinal_utilities">trackers.longitudinal_utilities module</a></li>
+<li><a class="reference internal" href="#module-trackers">Module contents</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="monitors.html"
+                        title="previous chapter">monitors package</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/trackers.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="monitors.html" title="monitors package"
+             >previous</a> |</li>
+        <li><a href="index.html">PyHEADTAIL embryo documentation</a> &raquo;</li>
+          <li><a href="modules.html" >&lt;no title&gt;</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, CERN.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+    </div>
+  </body>
+</html>

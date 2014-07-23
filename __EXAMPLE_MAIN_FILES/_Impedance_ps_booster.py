@@ -12,11 +12,12 @@ from input_parameters.rf_parameters import *
 from trackers.longitudinal_tracker import *
 from beams.beams import *
 from beams.longitudinal_distributions import *
-from longitudinal_plots.longitudinal_plots import *
+from beams.plot_beams import *
+from beams.plot_slices import *
 from monitors.monitors import *
 from beams.slices import *
 from impedances.longitudinal_impedance import *
-
+from impedances.plot_impedance import *
 
 # SIMULATION PARAMETERS -------------------------------------------------------
 

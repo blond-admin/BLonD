@@ -11,7 +11,7 @@ from beams.beams import *
 from beams.longitudinal_distributions import *
 from beams.slices import *
 from monitors.monitors import *
-from longitudinal_plots.longitudinal_plots import *
+from beams.plot_beams import *
 
 # Simulation parameters --------------------------------------------------------
 # Bunch parameters

@@ -1,0 +1,9 @@
+# Compiled files #
+##################
+*.pyc
+
+# Cython files #
+################
+stats.pyd
+stats.c
+stats.html

@@ -5,6 +5,7 @@
 import time 
 
 from LLRF.RF_noise import *
+from LLRF.plot_llrf import *
 from input_parameters.general_parameters import *
 from input_parameters.rf_parameters import *
 from trackers.longitudinal_tracker import *
@@ -12,7 +13,8 @@ from beams.beams import *
 from beams.longitudinal_distributions import *
 from beams.slices import *
 from monitors.monitors import *
-from longitudinal_plots.longitudinal_plots import *
+from beams.plot_beams import *
+
 
 # Simulation parameters --------------------------------------------------------
 # Bunch parameters
