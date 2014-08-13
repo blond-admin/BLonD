@@ -11,7 +11,9 @@ from beams.beams import *
 from beams.longitudinal_distributions import *
 from beams.slices import *
 from monitors.monitors import *
-from beams.plot_beams import *
+from longitudinal_plots.plot_beams import *
+from longitudinal_plots.plot_impedance import *
+from longitudinal_plots.plot_slices import *
 
 # Simulation parameters --------------------------------------------------------
 # Bunch parameters
@@ -46,16 +48,16 @@ general_params = GeneralParameters(N_t, [0.3*C, 0.7*C], [[alpha], [alpha]],
                                    'proton', number_of_sections = 2)
 
 # Define RF station parameters and corresponding tracker
-rf_params_1 = RFSectionParameters(general_params, 1, 1, h, V1, dphi)
+rf_params_1 = RFSectionParameters(general_params, 1, h, V1, dphi, 1)
 long_tracker_1 = RingAndRFSection(rf_params_1)
 
-rf_params_2 = RFSectionParameters(general_params, 2, 1, h, V2, dphi)
+rf_params_2 = RFSectionParameters(general_params, 1, h, V2, dphi, 2)
 long_tracker_2 = RingAndRFSection(rf_params_2)
 
 # Define full voltage over one turn and a corresponding "overall" set of 
 #parameters, which is used for the separatrix (in plotting and losses)
 Vtot = total_voltage([rf_params_1, rf_params_2])
-rf_params_tot = RFSectionParameters(general_params, 1, 1, h, Vtot, dphi)
+rf_params_tot = RFSectionParameters(general_params, 1, h, Vtot, dphi)
 long_tracker_tot = RingAndRFSection(rf_params_tot)
 beam_dummy = Beam(general_params, 0, N_b)
 print "General and RF parameters set..."

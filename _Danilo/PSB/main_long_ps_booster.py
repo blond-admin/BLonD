@@ -11,7 +11,9 @@ from input_parameters.rf_parameters import *
 from trackers.longitudinal_tracker import *
 from beams.beams import *
 from beams.longitudinal_distributions import *
-from longitudinal_plots.longitudinal_plots import *
+from longitudinal_plots.plot_beams import *
+from longitudinal_plots.plot_impedance import *
+from longitudinal_plots.plot_slices import *
 from monitors.monitors import *
 from beams.slices import *
 from impedances.longitudinal_impedance import *
@@ -61,7 +63,7 @@ bunchmonitor = BunchMonitor('beam', n_turns+1, statistics = "Longitudinal")
 general_params = GeneralParameters(n_turns, C, momentum_compaction, sync_momentum, 
                                    particle_type, number_of_sections = 1)
 
-RF_sct_par = RFSectionParameters(general_params, 1, n_rf_systems, harmonic_numbers, 
+RF_sct_par = RFSectionParameters(general_params, n_rf_systems, harmonic_numbers, 
                           voltage_program, phi_offset)
 
 ring_RF_section = RingAndRFSection(RF_sct_par)
@@ -147,8 +149,9 @@ else:
     pass
 
 # direct space charge
+
 dir_space_charge = Longitudinal_inductive_impedance( - (376.730313462 *  
-                    general_params.T0[0, 0]) / (general_params.beta_r[0,0] *
+                    general_params.t_rev[0]) / (general_params.beta_r[0,0] *
                      general_params.gamma_r[0,0]**2))       # input in [Ohm/Hz]
 
 
@@ -159,11 +162,11 @@ sum_impedance = [Ekicker_table] + [Ekicker_cables_table] + [KSW_table] \
                  + [RW_table] + [F_C_table] + [ISC_table] 
 
 # impedance to be used for ind_volt calculation through the profile derivative
-sum_slopes_from_induc_imp = (376.730313462 * general_params.T0[0, 0]) / \
+sum_slopes_from_induc_imp = (376.730313462 * general_params.t_rev[0]) / \
         (my_beam.beta_r * my_beam.gamma_r**2) - \
         34.6669349520904 / 10e9    # direct space charge plus steps, in [Ohm/Hz]
 
-ind_volt_from_imp = Induced_voltage_from_impedance(slice_beam, "on", sum_impedance, 2e5,
+ind_volt_from_imp = Induced_voltage_from_impedance(slice_beam, sum_impedance, 2e5,
                  sum_slopes_from_induc_imp, mode = 'spectrum + derivative')
 
 

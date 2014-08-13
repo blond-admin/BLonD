@@ -1,4 +1,4 @@
-PYHEADTAIL LONGITUDINAL v1.0
+PYHEADTAIL LONGITUDINAL
 ==========
 
 Longitudinal version of the CERN PyHeadTail code for the simulation of multi-particle 
@@ -24,6 +24,24 @@ The structure is as follows:
 
 VERSION CONTENTS
 ==========
+
+2014-08-13
+v1.1.2 PEP8 changes:
+        - changed LLRF module name to llrf
+        - changed GeneralParameters.T0 to t_rev plus correcting the calculation
+          method
+        - changed RFSectionParameters.sno to section_index
+       Put section_number as an option in RFSectionParameters input plus 
+       changing its name to section_index.
+       Optimization of the longitudinal_tracker.RingAndRFSection object
+  	   Applied little changes to documentation.
+       Added a method that chooses the solver to be 'simple' or 'full' wrt the 
+       input order.
+  	   Changed general_parameters to GeneralParameters as an input for
+  	   RFSectionParameters.
+  	   Changed rf_params to RFSectionParameters as an input for RingAndRFSection
+       Secured the cases where the user input momentum compaction with higher 
+       orders than 2.
 
 2014-07-23
 v1.1.1 Plotting routines now separated into different files:

@@ -5,7 +5,6 @@ Created on 31.01.2014
 
 '''
 
-
 import numpy as np
 cimport numpy as np
 cimport cython
@@ -25,6 +24,7 @@ cpdef double mean(double[::1] u):
 
     return mean_u
 
+
 cpdef double std(double[::1] u):
 
     cdef int n = u.shape[0]
@@ -39,6 +39,7 @@ cpdef double std(double[::1] u):
     std_u = np.sqrt(std_u)
 
     return std_u
+
 
 cpdef double emittance(double[::1] u, double[::1] v):
 

@@ -14,7 +14,9 @@ from beams.longitudinal_distributions import *
 from monitors.monitors import *
 from beams.slices import *
 from impedances.longitudinal_impedance import *
-from impedances.plot_impedance import *
+from longitudinal_plots.plot_beams import *
+from longitudinal_plots.plot_impedance import *
+from longitudinal_plots.plot_slices import *
 
 
 # SIMULATION PARAMETERS -------------------------------------------------------
@@ -61,7 +63,7 @@ bunchmonitor = BunchMonitor('beam', n_turns+1, statistics = "Longitudinal")
 general_params = GeneralParameters(n_turns, C, momentum_compaction, sync_momentum, 
                                    particle_type, number_of_sections = 1)
 
-RF_sct_par = RFSectionParameters(general_params, 1, n_rf_systems, harmonic_numbers, 
+RF_sct_par = RFSectionParameters(general_params, n_rf_systems, harmonic_numbers, 
                           voltage_program, phi_offset)
 
 ring_RF_section = RingAndRFSection(RF_sct_par)

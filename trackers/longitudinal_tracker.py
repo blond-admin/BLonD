@@ -7,6 +7,7 @@
 from __future__ import division
 import numpy as np
 from scipy.constants import c
+from scipy.integrate import cumtrapz
 
 
 class RingAndRFSection(object):
@@ -29,54 +30,63 @@ class RingAndRFSection(object):
     and finally a drift kick between stations.*
     '''
         
-    def __init__(self, rf_params, solver='full'):
+    def __init__(self, RFSectionParameters, solver = 'full'):
         
-        #: | *Choice of solver for the drift*
-        #: | *Use 'full' for full eta solver*
-        #: | *Use 'simple' for 0th order eta solver*
-        self.solver = solver
+        #: *Copy of the counter (from RFSectionParameters)*
+        self.counter = RFSectionParameters.counter
         
-        #: | *Counter to keep track of time step (used in momentum and voltage)*
-        self.counter = rf_params.counter
+        ### Import RF section parameters for RF kick
+        #: *Copy of length (from RFSectionParameters)*
+        self.section_length = RFSectionParameters.section_length
+        #: *Copy of length ratio (from RFSectionParameters)*
+        self.length_ratio = RFSectionParameters.length_ratio
+        #: *Copy of the number of RF systems (from RFSectionParameters)*
+        self.n_rf = RFSectionParameters.n_rf
+        #: *Copy of harmonic number program (from RFSectionParameters)*
+        self.harmonic = RFSectionParameters.harmonic
+        #: *Copy of voltage program in [V] (from RFSectionParameters)*
+        self.voltage = RFSectionParameters.voltage
+        #: *Copy of phi_offset program in [rad] (from RFSectionParameters)*
+        self.phi_offset = RFSectionParameters.phi_offset
+        #: *Copy of phi_s program in [rad] (from RFSectionParameters)*
+        self.phi_s = RFSectionParameters.phi_s
         
-        #: | *Import RF section parameters for RF kick*
-        #: | *Length ratio between drift and ring circumference*  
-        #: | :math:`: \quad \frac{L}{C}`
-        self.length_ratio = rf_params.length_ratio
-        #: | *Harmonic number list* :math:`: \quad h_{j,n}`
-        self.harmonic = rf_params.harmonic
-        #: | *Voltage program list in [V]* :math:`: \quad V_{j,n}`
-        self.voltage = rf_params.voltage
-        #: | *Phase offset list in [rad]* :math:`: \quad \phi_{j,n}`
-        self.phi_offset = rf_params.phi_offset
-        #: | *Number of RF systems in the RF station* :math:`: \quad n_{RF}`
-        self.n_rf = rf_params.n_rf
+        ### Import RF section parameters for accelerating kick
+        #: *Copy of the momentum program in [eV/c] (from RFSectionParameters)*
+        self.momentum = RFSectionParameters.momentum
+        #: *Copy of the momentum increment in [eV/c] (from RFSectionParameters)*
+        self.p_increment = RFSectionParameters.p_increment
+        #: *Copy of the relativistic beta (from RFSectionParameters)*
+        self.beta_r = RFSectionParameters.beta_r
+        #: *Copy of the averaged relativistic beta (from RFSectionParameters)*
+        self.beta_av = RFSectionParameters.beta_av
+        #: *Copy of the relativistic gamma (from RFSectionParameters)*        
+        self.gamma_r = RFSectionParameters.gamma_r
+        #: *Copy of the relativistic energy (from RFSectionParameters)*                
+        self.energy = RFSectionParameters.energy
         
-        #: | *Import RF section parameters for accelerating kick*
-        #: | *Momentum (program) in [eV/c]* :math:`: \quad p_n`
-        self.momentum = rf_params.momentum
-        self.p_increment = rf_params.p_increment
-        #: | *... and derived relativistic quantities*
-        self.beta_r = rf_params.beta_r
-        
-        self.beta_av = rf_params.beta_av
-        self.gamma_r = rf_params.gamma_r
-        self.energy = rf_params.energy
         #: *Acceleration kick* :math:`: \quad - <\beta> \Delta p`
-        
         self.acceleration_kick = - self.beta_av * self.p_increment  
-
+        
+        ### Import RF section parameters for the drift
+        #: *Slippage factor (order 0) for the given RF section*
+        self.eta_0 = RFSectionParameters.eta_0
+        #: *Slippage factor (order 1) for the given RF section*
+        self.eta_1 = RFSectionParameters.eta_1
+        #: *Slippage factor (order 2) for the given RF section*
+        self.eta_2 = RFSectionParameters.eta_2
+        #: *Copy of the slippage factor order number (from RFSectionParameters)*                
+        self.alpha_order = RFSectionParameters.alpha_order
+            
         #: *Beta ratio*  :math:`: \quad \frac{\beta_{n+1}}{\beta_{n}}`  
         self.beta_ratio = self.beta_r[1:] / self.beta_r[0:-1]
-
-        #: *Slippage factor up to desired order*
-        self.alpha_order = rf_params.alpha_order
-        for i in xrange( self.alpha_order ):
-            dummy = getattr(rf_params, 'eta_' + str(i))
-            setattr(self, "eta_%s" %i, dummy)
-        # For the eta tracking, import the RF section class
-        self.rf_params = rf_params    
-            
+        
+        #: | *Choice of solver for the drift*
+        #: | *Set to 'simple' if only 0th order of slippage factor eta*
+        #: | *Set to 'full' if higher orders of slippage factor eta*
+        self.solver = solver
+        if self.alpha_order == 1:
+            self.solver = 'simple'         
         
                    
     def kick(self, beam):
@@ -108,7 +118,7 @@ class RingAndRFSection(object):
         object is given by:*
         
         .. math::
-            \Delta E_{n+1} = \Delta E_n + \\beta_{av} \Delta p_{n\\rightarrow n+1}
+            \Delta E_{n+1} = \Delta E_n + <\\beta> \Delta p_{n\\rightarrow n+1}
             
         '''
         
@@ -119,22 +129,23 @@ class RingAndRFSection(object):
         '''
         *The drift updates the longitudinal coordinate of the particle after 
         applying the energy kick. The two options of tracking are: full, 
-        corresponding to the cases where beta is not considered constant and
-        the slippage factor may be of higher orders; and simple, where beta
-        is approximatively one and the slippage factor is of order 0. Corresponding
-        to the equations:*
+        corresponding to the cases where beta the slippage factor may be of 
+        higher orders; and simple, where the slippage factor is of order 0 (the
+        code is then faster).*
+        
+        *Corresponding to the equations:*
         
         .. math::
             \\theta_{n+1} = \\frac{\\beta_{n+1}}{\\beta_n}\\theta_n + 2\\pi\\left(\\frac{1}{1 - \\eta\\delta_n} - 1\\right)\\frac{L}{C} \quad \\text{(full)}
             
         .. math::
-            \\approx> \\theta_{n+1} = \\theta_n + 2\\pi\\eta_0\\delta_n\\frac{L}{C} \quad \\text{(simple)}
+            \\approx> \\theta_{n+1} = \\frac{\\beta_{n+1}}{\\beta_n}\\theta_n + 2\\pi\\eta_0\\delta_n\\frac{L}{C} \quad \\text{(simple)}
         
         '''
         
         if self.solver == 'full': 
             beam.theta = self.beta_ratio[self.counter[0]] * beam.theta \
-                         + 2 * np.pi * (1 / (1 - self.rf_params.eta_tracking(beam.delta) * 
+                         + 2 * np.pi * (1 / (1 - self.eta_tracking(beam.delta) * 
                                              beam.delta) - 1) * self.length_ratio
         elif self.solver == 'simple':
             beam.theta = self.beta_ratio[self.counter[0]] *beam.theta \
@@ -144,14 +155,41 @@ class RingAndRFSection(object):
             raise RuntimeError("ERROR: Choice of longitudinal solver not \
                                recognized! Aborting...")
                 
+                
+    def eta_tracking(self, delta):
+        '''
+        *The slippage factor is calculated as a function of the relative momentum
+        (delta) of the beam. By definition, the slippage factor is:*
+        
+        .. math:: 
+            \eta = \sum_{i}(\eta_i \, \delta^i)
+    
+        '''
+        
+        if self.alpha_order == 1:
+            return self.eta_0[self.counter[0]]
+        else:
+            eta = 0
+            for i in xrange( self.alpha_order ):
+                eta_i = getattr(self, 'eta_' + str(i))[self.counter[0]]
+                eta  += eta_i * (delta**i)
+            return eta  
+        
         
     def track(self, beam):
+        '''
+        | *Tracking method for the section, applies the equations in this order:*
+        | *kick -> kick_acceleration -> drift*
+        |
+        | *Updates the relativistic information of the beam.*
+        '''
+        
         self.kick(beam)
         self.kick_acceleration(beam)
         self.drift(beam)
-
+        
         self.counter[0] += 1
-
+        
         # Updating the beam synchronous momentum etc.
         beam.beta_r = self.beta_r[self.counter[0]]
         beam.gamma_r = self.gamma_r[self.counter[0]]
@@ -161,24 +199,28 @@ class RingAndRFSection(object):
 
 
 class LinearMap(object):
-    
     '''
     Linear Map represented by a Courant-Snyder transportation matrix.
-    self.alpha is the linear momentum compaction factor.
     Qs is forced to be constant.
     '''
 
     def __init__(self, GeneralParameters, Qs):
-
-        """alpha is the linear momentum compaction factor,
-        Qs the synchroton tune."""
         
-        self.beta_r = GeneralParameters.beta_r[0,0]
-        
-        self.ring_circumference = GeneralParameters.ring_circumference
+        #: *Copy of the relativistic beta (from GeneralParameters)*
+        self.beta_r = GeneralParameters.beta_r[0,0]        
+        #: *Copy of the ring circumference (from GeneralParameters)*
+        self.ring_circumference = GeneralParameters.ring_circumference        
+        #: *Copy of the 0th order slippage factor (from GeneralParameters)*
         self.eta = GeneralParameters.eta0[0,0]
+        
+        #: *Synchrotron tune (constant)*
         self.Qs = Qs
-        self.omega_0 = 2 * np.pi * self.beta_r * c / self.ring_circumference
+        
+        #: *Copy of the revolution angular frequency (from GeneralParameters)*
+        self.omega_0 = GeneralParameters.omega_rev[0]
+        
+        #: *Synchrotron angular frequency in [rad/s]* 
+        #: :math:`: \quad \omega_s = Q_s \omega_0`
         self.omega_s = self.Qs * self.omega_0
         
         self.dQs = 2 * np.pi * self.Qs

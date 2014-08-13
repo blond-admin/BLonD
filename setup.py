@@ -8,14 +8,14 @@ import numpy as np
 import os
 import sys
 import subprocess
-import cython_gsl
 
 from distutils.core import setup
 from distutils.extension import Extension
 from Cython.Distutils import build_ext
 from Cython.Build import cythonize
 
-# Remember that you have to launch this setup.py script from console with the exact following syntax "python setup.py cleanall build_ext --inplace"
+# Remember that you have to launch this setup.py script from console with the 
+# exact following syntax "python setup.py cleanall build_ext --inplace"
 
 args = sys.argv[1:]
 
@@ -41,23 +41,18 @@ if "cleanall" in args:
         sys.exit()
 
 # We want to always use build_ext --inplace
+
 if args.count("build_ext") > 0 and args.count("--inplace") == 0:
     sys.argv.insert(sys.argv.index("build_ext") + 1, "--inplace")
 
 # Set up extension and build
+
 cy_ext = [
         Extension("cython_functions.stats",
                  ["cython_functions/stats.pyx"],
                  include_dirs=[np.get_include()], library_dirs=[], libraries=["m"],
                  #extra_compile_args=["-g"],
                  #extra_link_args=["-g"],
-                 ),
-        Extension("cython_functions.random",
-                 ["cython_functions/random.pyx"],
-                 include_dirs=[np.get_include(), cython_gsl.get_cython_include_dir()],
-                 #extra_compile_args=["-g"],
-                 #extra_link_args=["-g"],
-                 library_dirs=[], libraries=["gsl", "gslcblas"],
                  )
         ]
 

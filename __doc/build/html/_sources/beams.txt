@@ -20,22 +20,6 @@ beams.longitudinal_distributions module
     :undoc-members:
     :show-inheritance:
 
-beams.plot_beams module
----------------------------------------
-
-.. automodule:: beams.plot_beams
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-beams.plot_slices module
----------------------------------------
-
-.. automodule:: beams.plot_slices
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 beams.slices module
 -------------------
 

@@ -10,7 +10,9 @@ from beams.beams import *
 from beams.longitudinal_distributions import *
 from beams.slices import *
 from monitors.monitors import *
-from beams.plot_beams import *
+from longitudinal_plots.plot_beams import *
+from longitudinal_plots.plot_impedance import *
+from longitudinal_plots.plot_slices import *
 
 # Simulation parameters --------------------------------------------------------
 # Bunch parameters
@@ -23,7 +25,7 @@ C = 26658.883        # Machine circumference [m]
 p_i = 450.e9         # Synchronous momentum [eV]
 p_f = 460.005e9      # Synchronous momentum, final
 h = 35640            # Harmonic number
-V = 6.e6             # RF voltage [eV]
+V = 6.e6         # RF voltage [eV]
 dphi = 0             # Phase modulation/offset
 gamma_t = 55.759505  # Transition gamma
 alpha = 1./gamma_t/gamma_t        # First order mom. comp. factor
@@ -44,7 +46,7 @@ general_params = GeneralParameters(N_t, C, alpha, np.linspace(p_i, p_f, 2002),
                                    'proton')
 
 # Define RF station parameters and corresponding tracker
-rf_params = RFSectionParameters(general_params, 1, 1, h, V, dphi)
+rf_params = RFSectionParameters(general_params, 1, h, V, dphi)
 long_tracker = RingAndRFSection(rf_params)
 
 print "General and RF parameters set..."

@@ -10,7 +10,9 @@ from beams.beams import *
 from beams.longitudinal_distributions import *
 from beams.slices import *
 from monitors.monitors import *
-from beams.plot_beams import *
+from longitudinal_plots.plot_beams import *
+from longitudinal_plots.plot_impedance import *
+from longitudinal_plots.plot_slices import *
 
 # Simulation parameters --------------------------------------------------------
 # Bunch parameters
