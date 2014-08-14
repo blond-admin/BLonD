@@ -86,7 +86,9 @@ class RingAndRFSection(object):
         #: | *Set to 'full' if higher orders of slippage factor eta*
         self.solver = solver
         if self.alpha_order == 1:
-            self.solver = 'simple'         
+            self.solver = 'simple'
+        
+        self.rf_params = RFSectionParameters         
         
                    
     def kick(self, beam):
@@ -144,10 +146,12 @@ class RingAndRFSection(object):
         '''
         
         if self.solver == 'full': 
+           
             beam.theta = self.beta_ratio[self.counter[0]] * beam.theta \
-                         + 2 * np.pi * (1 / (1 - self.eta_tracking(beam.delta) * 
+                         + 2 * np.pi * (1 / (1 - self.rf_params.eta_tracking(beam.delta) * 
                                              beam.delta) - 1) * self.length_ratio
         elif self.solver == 'simple':
+            
             beam.theta = self.beta_ratio[self.counter[0]] *beam.theta \
                          + 2 * np.pi * self.eta_0[self.counter[0]] \
                          * beam.delta * self.length_ratio
@@ -156,26 +160,6 @@ class RingAndRFSection(object):
                                recognized! Aborting...")
                 
                 
-    def eta_tracking(self, delta):
-        '''
-        *The slippage factor is calculated as a function of the relative momentum
-        (delta) of the beam. By definition, the slippage factor is:*
-        
-        .. math:: 
-            \eta = \sum_{i}(\eta_i \, \delta^i)
-    
-        '''
-        
-        if self.alpha_order == 1:
-            return self.eta_0[self.counter[0]]
-        else:
-            eta = 0
-            for i in xrange( self.alpha_order ):
-                eta_i = getattr(self, 'eta_' + str(i))[self.counter[0]]
-                eta  += eta_i * (delta**i)
-            return eta  
-        
-        
     def track(self, beam):
         '''
         | *Tracking method for the section, applies the equations in this order:*

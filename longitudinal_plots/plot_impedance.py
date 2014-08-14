@@ -52,14 +52,14 @@ def plot_impedance_vs_frequency(counter, general_params, ind_volt_from_imp,
     if option1 == "sum":
         
         ax1 = plt.subplots()[1]
-        ax1.plot(ind_volt_from_imp.frequency_fft, 
-                 ind_volt_from_imp.impedance_array.real, style)
-        ax1.plot(ind_volt_from_imp.frequency_fft, 
-                 ind_volt_from_imp.impedance_array.imag, style)
+        ax1.plot(ind_volt_from_imp.frequency_array, 
+                 ind_volt_from_imp.total_impedance.real, style)
+        ax1.plot(ind_volt_from_imp.frequency_array, 
+                 ind_volt_from_imp.total_impedance.imag, style)
         if option2 == "spectrum":
             ax2 = ax1.twinx()
-            ax2.plot(ind_volt_from_imp.frequency_fft, 
-                     np.abs(ind_volt_from_imp.spectrum))
+            ax2.plot(ind_volt_from_imp.frequency_array, 
+                     np.abs(ind_volt_from_imp.slices.beam_spectrum))
         fign = dirname +'/sum_imp_vs_freq_fft' "%d" %counter + '.png'
         plt.savefig(fign, dpi=300)
         plt.clf()
@@ -70,24 +70,24 @@ def plot_impedance_vs_frequency(counter, general_params, ind_volt_from_imp,
         ax0 = fig0.add_subplot(111)
         fig1 = plt.figure(1)
         ax1 = fig1.add_subplot(111)
-        for i in range(len(ind_volt_from_imp.impedance_sum)):
-                if isinstance(ind_volt_from_imp.impedance_sum[i], 
-                              Longitudinal_table) and option3 == "freq_table":
-                    ax0.plot(ind_volt_from_imp.impedance_sum[i].frequency_array, 
-                             ind_volt_from_imp.impedance_sum[i].Re_Z_array, style)
-                    ax1.plot(ind_volt_from_imp.impedance_sum[i].frequency_array, 
-                             ind_volt_from_imp.impedance_sum[i].Im_Z_array, style) 
+        for i in range(len(ind_volt_from_imp.impedance_source_list)):
+                if isinstance(ind_volt_from_imp.impedance_source_list[i], 
+                              InputTable) and option3 == "freq_table":
+                    ax0.plot(ind_volt_from_imp.impedance_source_list[i].freq_array, 
+                             ind_volt_from_imp.impedance_source_list[i].Re_Z_array, style)
+                    ax1.plot(ind_volt_from_imp.impedance_source_list[i].freq_array, 
+                             ind_volt_from_imp.impedance_source_list[i].Im_Z_array, style) 
                 else:
-                    ax0.plot(ind_volt_from_imp.frequency_fft, 
-                             ind_volt_from_imp.impedance_sum[i].impedance.real, style)
-                    ax1.plot(ind_volt_from_imp.frequency_fft, 
-                             ind_volt_from_imp.impedance_sum[i].impedance.imag, style)
+                    ax0.plot(ind_volt_from_imp.frequency_array, 
+                             ind_volt_from_imp.impedance_source_list[i].impedance.real, style)
+                    ax1.plot(ind_volt_from_imp.frequency_array, 
+                             ind_volt_from_imp.impedance_source_list[i].impedance.imag, style)
         
         fign1 = dirname +'/real_imp_vs_'+option3+'_' "%d" %counter + '.png'
         if option2 == "spectrum":
             ax2 = ax0.twinx()
-            ax2.plot(ind_volt_from_imp.frequency_fft, 
-                     np.abs(ind_volt_from_imp.spectrum))
+            ax2.plot(ind_volt_from_imp.frequency_array, 
+                     np.abs(ind_volt_from_imp.slices.beam_spectrum))
         plt.figure(0)
         plt.savefig(fign1, dpi=300)
         plt.clf()
@@ -95,15 +95,15 @@ def plot_impedance_vs_frequency(counter, general_params, ind_volt_from_imp,
         plt.figure(1)
         if option2 == "spectrum":
             ax3 = ax1.twinx()
-            ax3.plot(ind_volt_from_imp.frequency_fft, 
-                     np.abs(ind_volt_from_imp.spectrum))
+            ax3.plot(ind_volt_from_imp.frequency_array, 
+                     np.abs(ind_volt_from_imp.slices.beam_spectrum))
         plt.savefig(fign2, dpi=300)
         plt.clf()
         
    
    
 def plot_induced_voltage_vs_bins_centers(counter, general_params, 
-                                         ind_volt_from_imp, style = '-', 
+                                         total_voltage, style = '-', 
                                          dirname = 'fig'):
 
     """
@@ -113,7 +113,7 @@ def plot_induced_voltage_vs_bins_centers(counter, general_params,
     # Directory where longitudinal_plots will be stored
     fig_folder(dirname)
     
-    plt.plot(ind_volt_from_imp.slices.bins_centers, ind_volt_from_imp.ind_vol, style)
+    plt.plot(total_voltage.slices.bins_centers, total_voltage.induced_voltage, style)
              
     # Save plot
     fign = dirname +'/induced_voltage_' "%d" %counter + '.png'

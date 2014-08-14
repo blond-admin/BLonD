@@ -1,0 +1,271 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>longitudinal_plots package &mdash; PyHEADTAIL embryo documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     'embryo',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="PyHEADTAIL embryo documentation" href="index.html" />
+    <link rel="up" title="&lt;no title&gt;" href="modules.html" />
+    <link rel="next" title="monitors package" href="monitors.html" />
+    <link rel="prev" title="llrf package" href="llrf.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="monitors.html" title="monitors package"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="llrf.html" title="llrf package"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">PyHEADTAIL embryo documentation</a> &raquo;</li>
+          <li><a href="modules.html" accesskey="U">&lt;no title&gt;</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="longitudinal-plots-package">
+<h1>longitudinal_plots package<a class="headerlink" href="#longitudinal-plots-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-longitudinal_plots.plot_beams">
+<span id="longitudinal-plots-plot-beams-module"></span><h2>longitudinal_plots.plot_beams module<a class="headerlink" href="#module-longitudinal_plots.plot_beams" title="Permalink to this headline">¶</a></h2>
+<p><a href="#id1"><span class="problematic" id="id2">**</span></a>Module to plot different bunch features **</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Authors:</th><td class="field-body"><strong>Helga Timko</strong>, <strong>Danilo Quartullo</strong></td>
+</tr>
+</tbody>
+</table>
+<dl class="function">
+<dt id="longitudinal_plots.plot_beams.fig_folder">
+<tt class="descclassname">longitudinal_plots.plot_beams.</tt><tt class="descname">fig_folder</tt><big>(</big><em>dirname</em><big>)</big><a class="headerlink" href="#longitudinal_plots.plot_beams.fig_folder" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="longitudinal_plots.plot_beams.plot_bunch_length_evol">
+<tt class="descclassname">longitudinal_plots.plot_beams.</tt><tt class="descname">plot_bunch_length_evol</tt><big>(</big><em>beam</em>, <em>h5file</em>, <em>General_parameters</em>, <em>time_step</em>, <em>unit=None</em>, <em>dirname='fig'</em><big>)</big><a class="headerlink" href="#longitudinal_plots.plot_beams.plot_bunch_length_evol" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot of r.m.s. 4-sigma bunch length as a function of time.
+Choice of units: unit = rad, ns, m.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="longitudinal_plots.plot_beams.plot_bunch_length_evol_gaussian">
+<tt class="descclassname">longitudinal_plots.plot_beams.</tt><tt class="descname">plot_bunch_length_evol_gaussian</tt><big>(</big><em>beam</em>, <em>h5file</em>, <em>General_parameters</em>, <em>slices</em>, <em>time_step</em>, <em>unit=None</em>, <em>dirname='fig'</em><big>)</big><a class="headerlink" href="#longitudinal_plots.plot_beams.plot_bunch_length_evol_gaussian" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot of Gaussian 4-sigma bunch length as a function of time; requires slices.
+Choice of units: unit = rad, ns, m.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="longitudinal_plots.plot_beams.plot_long_phase_space">
+<tt class="descclassname">longitudinal_plots.plot_beams.</tt><tt class="descname">plot_long_phase_space</tt><big>(</big><em>beam</em>, <em>General_parameters</em>, <em>RFSectionParameters</em>, <em>xmin</em>, <em>xmax</em>, <em>ymin</em>, <em>ymax</em>, <em>xunit=None</em>, <em>yunit=None</em>, <em>sampling=1</em>, <em>separatrix_plot=False</em>, <em>histograms_plot=True</em>, <em>dirname='fig'</em><big>)</big><a class="headerlink" href="#longitudinal_plots.plot_beams.plot_long_phase_space" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot of longitudinal phase space. Optional use of histograms and separatrix.
+Choice of units: xunit = rad, ns, m; yunit = MeV, 1.
+For large amount of data, use &#8220;sampling&#8221; to plot a fraction of the data.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="longitudinal_plots.plot_beams.plot_position_evol">
+<tt class="descclassname">longitudinal_plots.plot_beams.</tt><tt class="descname">plot_position_evol</tt><big>(</big><em>counter</em>, <em>beam</em>, <em>h5file</em>, <em>General_parameters</em>, <em>unit=None</em>, <em>style='-'</em>, <em>dirname='fig'</em><big>)</big><a class="headerlink" href="#longitudinal_plots.plot_beams.plot_position_evol" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-longitudinal_plots.plot_impedance">
+<span id="longitudinal-plots-plot-impedance-module"></span><h2>longitudinal_plots.plot_impedance module<a class="headerlink" href="#module-longitudinal_plots.plot_impedance" title="Permalink to this headline">¶</a></h2>
+<p><a href="#id3"><span class="problematic" id="id4">**</span></a>Module to plot different bunch features **</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Authors:</th><td class="field-body"><strong>Helga Timko</strong>, <strong>Danilo Quartullo</strong></td>
+</tr>
+</tbody>
+</table>
+<dl class="function">
+<dt id="longitudinal_plots.plot_impedance.fig_folder">
+<tt class="descclassname">longitudinal_plots.plot_impedance.</tt><tt class="descname">fig_folder</tt><big>(</big><em>dirname</em><big>)</big><a class="headerlink" href="#longitudinal_plots.plot_impedance.fig_folder" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="longitudinal_plots.plot_impedance.plot_impedance_vs_frequency">
+<tt class="descclassname">longitudinal_plots.plot_impedance.</tt><tt class="descname">plot_impedance_vs_frequency</tt><big>(</big><em>counter</em>, <em>general_params</em>, <em>ind_volt_from_imp</em>, <em>option1='sum'</em>, <em>option2='no_spectrum'</em>, <em>option3='freq_fft'</em>, <em>style='-'</em>, <em>dirname='fig'</em><big>)</big><a class="headerlink" href="#longitudinal_plots.plot_impedance.plot_impedance_vs_frequency" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot of impedance vs frequency.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="longitudinal_plots.plot_impedance.plot_induced_voltage_vs_bins_centers">
+<tt class="descclassname">longitudinal_plots.plot_impedance.</tt><tt class="descname">plot_induced_voltage_vs_bins_centers</tt><big>(</big><em>counter</em>, <em>general_params</em>, <em>total_voltage</em>, <em>style='-'</em>, <em>dirname='fig'</em><big>)</big><a class="headerlink" href="#longitudinal_plots.plot_impedance.plot_induced_voltage_vs_bins_centers" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot of induced voltage vs bin centers.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-longitudinal_plots.plot_llrf">
+<span id="longitudinal-plots-plot-llrf-module"></span><h2>longitudinal_plots.plot_llrf module<a class="headerlink" href="#module-longitudinal_plots.plot_llrf" title="Permalink to this headline">¶</a></h2>
+<p><a href="#id5"><span class="problematic" id="id6">**</span></a>Module to plot different bunch features **</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Authors:</th><td class="field-body"><strong>Helga Timko</strong>, <strong>Danilo Quartullo</strong></td>
+</tr>
+</tbody>
+</table>
+<dl class="function">
+<dt id="longitudinal_plots.plot_llrf.fig_folder">
+<tt class="descclassname">longitudinal_plots.plot_llrf.</tt><tt class="descname">fig_folder</tt><big>(</big><em>dirname</em><big>)</big><a class="headerlink" href="#longitudinal_plots.plot_llrf.fig_folder" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="longitudinal_plots.plot_llrf.plot_noise_spectrum">
+<tt class="descclassname">longitudinal_plots.plot_llrf.</tt><tt class="descname">plot_noise_spectrum</tt><big>(</big><em>frequency</em>, <em>spectrum</em>, <em>sampling=1</em>, <em>dirname='fig'</em><big>)</big><a class="headerlink" href="#longitudinal_plots.plot_llrf.plot_noise_spectrum" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot of the phase noise spectrum.
+For large amount of data, use &#8220;sampling&#8221; to plot a fraction of the data.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="longitudinal_plots.plot_llrf.plot_phase_noise">
+<tt class="descclassname">longitudinal_plots.plot_llrf.</tt><tt class="descname">plot_phase_noise</tt><big>(</big><em>time</em>, <em>dphi</em>, <em>sampling=1</em>, <em>dirname='fig'</em><big>)</big><a class="headerlink" href="#longitudinal_plots.plot_llrf.plot_phase_noise" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot of the phase noise as a function of time.
+For large amount of data, use &#8220;sampling&#8221; to plot a fraction of the data.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-longitudinal_plots.plot_slices">
+<span id="longitudinal-plots-plot-slices-module"></span><h2>longitudinal_plots.plot_slices module<a class="headerlink" href="#module-longitudinal_plots.plot_slices" title="Permalink to this headline">¶</a></h2>
+<p><a href="#id7"><span class="problematic" id="id8">**</span></a>Module to plot different bunch features **</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Authors:</th><td class="field-body"><strong>Helga Timko</strong>, <strong>Danilo Quartullo</strong></td>
+</tr>
+</tbody>
+</table>
+<dl class="function">
+<dt id="longitudinal_plots.plot_slices.fig_folder">
+<tt class="descclassname">longitudinal_plots.plot_slices.</tt><tt class="descname">fig_folder</tt><big>(</big><em>dirname</em><big>)</big><a class="headerlink" href="#longitudinal_plots.plot_slices.fig_folder" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="longitudinal_plots.plot_slices.plot_beam_profile">
+<tt class="descclassname">longitudinal_plots.plot_slices.</tt><tt class="descname">plot_beam_profile</tt><big>(</big><em>counter</em>, <em>general_params</em>, <em>slices</em>, <em>style='-'</em>, <em>dirname='fig'</em><big>)</big><a class="headerlink" href="#longitudinal_plots.plot_slices.plot_beam_profile" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot of longitudinal beam profile</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="longitudinal_plots.plot_slices.plot_beam_profile_derivative">
+<tt class="descclassname">longitudinal_plots.plot_slices.</tt><tt class="descname">plot_beam_profile_derivative</tt><big>(</big><em>counter, general_params, slices, style='-', dirname='fig', numbers=[3]</em><big>)</big><a class="headerlink" href="#longitudinal_plots.plot_slices.plot_beam_profile_derivative" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot of the derivative of the longitudinal beam profile.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-longitudinal_plots">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-longitudinal_plots" title="Permalink to this headline">¶</a></h2>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">longitudinal_plots package</a><ul>
+<li><a class="reference internal" href="#submodules">Submodules</a></li>
+<li><a class="reference internal" href="#module-longitudinal_plots.plot_beams">longitudinal_plots.plot_beams module</a></li>
+<li><a class="reference internal" href="#module-longitudinal_plots.plot_impedance">longitudinal_plots.plot_impedance module</a></li>
+<li><a class="reference internal" href="#module-longitudinal_plots.plot_llrf">longitudinal_plots.plot_llrf module</a></li>
+<li><a class="reference internal" href="#module-longitudinal_plots.plot_slices">longitudinal_plots.plot_slices module</a></li>
+<li><a class="reference internal" href="#module-longitudinal_plots">Module contents</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="llrf.html"
+                        title="previous chapter">llrf package</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="monitors.html"
+                        title="next chapter">monitors package</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/longitudinal_plots.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="monitors.html" title="monitors package"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="llrf.html" title="llrf package"
+             >previous</a> |</li>
+        <li><a href="index.html">PyHEADTAIL embryo documentation</a> &raquo;</li>
+          <li><a href="modules.html" >&lt;no title&gt;</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, CERN.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.1.
+    </div>
+  </body>
+</html>

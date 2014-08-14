@@ -226,6 +226,12 @@ def calc_phi_s(RFSectionParameters, accelerating_systems = 'all'):
             pass
         else:
             raise RuntimeError('Did not recognize the option accelerating_systems in calc_phi_s function')
+        
+        # This part only works when you have no acceleration and several RF systems
+        if eta0[0] > 0:
+            return np.pi*np.ones(RFSectionParameters.n_turns)
+        elif eta0[0] < 0:
+            return 0*np.ones(RFSectionParameters.n_turns)
          
  
     

@@ -20,22 +20,30 @@ class Monitor(object):
 
 class BunchMonitor(Monitor):
 
-    def __init__(self, filename, n_steps, statistics = "All", long_gaussian_fit = "Off"):
+    def __init__(self, filename, n_steps, statistics = "All", slices = None):
         
         self.h5file = hp.File(filename + '.h5', 'w')
         self.n_steps = n_steps
         self.i_steps = 0
         self.statistics = statistics
-        self.long_gaussian_fit = long_gaussian_fit 
+        self.slices = slices
         self.h5file.create_group('Bunch')
 
-    def dump(self, bunch, slices = None):
+    def dump(self, bunch):
         
         if self.statistics == "All":
-            bunch.longit_statistics(self.long_gaussian_fit, slices)
+            bunch.longit_statistics()
+            try:
+                self.slices.gaussian_fit()
+            except AttributeError:
+                pass
             bunch.transv_statistics()
         elif self.statistics == "Longitudinal":
-            bunch.longit_statistics(self.long_gaussian_fit, slices)
+            bunch.longit_statistics()
+            try:
+                self.slices.gaussian_fit()
+            except AttributeError:
+                pass
         else:
             bunch.transv_statistics()
         
@@ -52,7 +60,7 @@ class BunchMonitor(Monitor):
         
         h5group.create_dataset("n_macroparticles", dims, compression="gzip", compression_opts=9)
         
-        if self.statistics == "All" or self.statistics == "Transverse": 
+        if self.statistics != "Longitudinal": 
             # Transverse statistics
             h5group.create_dataset("mean_x",   dims, compression="gzip", compression_opts=9)
             h5group.create_dataset("mean_xp",  dims, compression="gzip", compression_opts=9)
@@ -74,7 +82,7 @@ class BunchMonitor(Monitor):
             h5group.create_dataset("sigma_theta",  dims, compression="gzip", compression_opts=9)
             h5group.create_dataset("sigma_dE", dims, compression="gzip", compression_opts=9)
             h5group.create_dataset("epsn_rms_l",   dims, compression="gzip", compression_opts=9)
-            if self.long_gaussian_fit == "On":
+            if self.slices:
                 h5group.create_dataset("bunch_length_gauss_theta", dims, compression="gzip", compression_opts=9)
 
     def write_data(self, bunch, h5group, i_steps):
@@ -103,8 +111,8 @@ class BunchMonitor(Monitor):
             h5group["sigma_theta"][i_steps]  = bunch.sigma_theta
             h5group["sigma_dE"][i_steps] = bunch.sigma_dE
             h5group["epsn_rms_l"][i_steps]   = bunch.epsn_rms_l
-            if self.long_gaussian_fit == "On":
-                h5group["bunch_length_gauss_theta"][i_steps] = bunch.bl_gauss
+            if self.slices:
+                h5group["bunch_length_gauss_theta"][i_steps] = self.slices.bl_gauss
             
         
     def close(self):

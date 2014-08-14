@@ -57,15 +57,16 @@ beam = Beam(general_params, N_p, N_b)
 longitudinal_gaussian_matched(general_params, rf_params, beam, tau_0, 
                               unit='ns', reinsertion = 'on')
 
+
 print "Beam set and distribution generated..."
 
 
 # Need slices for the Gaussian fit; slice for the first plot
-slice_beam = Slices(100)
+slice_beam = Slices(beam, 100, fit_option = 'gaussian')
 slice_beam.track(beam)
 
 # Define what to save in file
-bunchmonitor = BunchMonitor('output_data', N_t+1, statistics = "Longitudinal", long_gaussian_fit = "On")
+bunchmonitor = BunchMonitor('output_data', N_t+1, "Longitudinal", slice_beam)
 
 print "Statistics set..."
 
@@ -80,9 +81,9 @@ print ""
 # Tracking ---------------------------------------------------------------------
 for i in range(N_t):
     t0 = time.clock()
-    
+   
     # Save data
-    bunchmonitor.dump(beam, slice_beam)    
+    bunchmonitor.dump(beam)    
     
     # Plot has to be done before tracking (at least for cases with separatrix)
     if (i % dt_plt) == 0:
@@ -102,6 +103,7 @@ for i in range(N_t):
     # Track
     for m in map_:
         m.track(beam)
+
     # Define losses according to separatrix and/or longitudinal position
     beam.losses_separatrix(general_params, rf_params)
     beam.losses_longitudinal_cut(0.28e-4, 0.75e-4)

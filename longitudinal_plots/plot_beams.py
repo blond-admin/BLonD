@@ -221,19 +221,19 @@ def plot_bunch_length_evol_gaussian(beam, h5file, General_parameters, slices,
     storeddata = h5py.File(h5file + '.h5', 'r')
     bl = np.array(storeddata["/Bunch/bunch_length_gauss_theta"], dtype=np.double)
 
-    if slices.coord == "theta":
+    if slices.slicing_coord == "theta":
         if unit == 'ns':
             bl *= 1.e9*General_parameters.ring_radius/beam.beta_r/c 
         elif unit == 'm':
             bl *= General_parameters.ring_radius 
-    elif slices.coord == "tau":
+    elif slices.slicing_coord == "tau":
         if unit == None or unit == 'rad':
             bl *= beam.beta_r*c/General_parameters.ring_radius 
         elif unit == 'ns':
             bl *= 1.e9 
         elif unit == 'm':
             bl *= beam.beta_r*c 
-    elif slices.coord == "z":    
+    elif slices.slicing_coord == "z":    
         if unit == None or unit == 'rad':
             bl /= General_parameters.ring_radius 
         elif unit == 'ns':

@@ -72,11 +72,11 @@ print "Beam set and distribution generated..."
 
 
 # Need slices for the Gaussian fit; slice for the first plot
-slice_beam = Slices(100)
+slice_beam = Slices(beam, 100, fit_option = 'gaussian')
 slice_beam.track(beam)
 
 # Define what to save in file
-bunchmonitor = BunchMonitor('output_data', N_t+1, statistics = "Longitudinal", long_gaussian_fit = "On")
+bunchmonitor = BunchMonitor('output_data', N_t+1, "Longitudinal", slice_beam)
 
 print "Statistics set..."
 
@@ -93,7 +93,7 @@ for i in range(N_t):
     t0 = time.clock()
     
     # Save data
-    bunchmonitor.dump(beam, slice_beam)    
+    bunchmonitor.dump(beam)    
     
     # Plot has to be done before tracking (at least for cases with separatrix)
     # Use the full voltage for plotting the separatrix

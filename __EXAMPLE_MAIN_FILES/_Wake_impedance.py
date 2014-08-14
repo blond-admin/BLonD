@@ -76,24 +76,23 @@ longitudinal_bigaussian(general_params, RF_sct_par, my_beam, sigma_theta, sigma_
 
 
 number_slices = 100
-coeff = 1
-slice_beam = Slices(number_slices, cut_left = - coeff * 5.72984173562e-07 / 2, 
-                    cut_right = coeff * 5.72984173562e-07 / 2, coord = 
-                    "tau", mode = 'const_space_hist')
+slice_beam = Slices(my_beam, number_slices, cut_left = - 5.72984173562e-07 / 2, 
+                    cut_right = 5.72984173562e-07 / 2, mode = 'const_space_hist')
 
 temp = np.loadtxt('new_HQ_table.dat', comments = '!')
 R_shunt = temp[:, 2] * 10**6 
 f_res = temp[:, 0] * 10**9
 Q_factor = temp[:, 1]
 
-resonator = Longitudinal_resonators(R_shunt, f_res, Q_factor)
-ind_volt_from_wake = Induced_voltage_from_wake(slice_beam, 'off', [resonator], my_beam)
-ind_volt_from_wake2 = Induced_voltage_from_impedance(slice_beam, [resonator], 1e3, my_beam)
+resonator = Resonators(R_shunt, f_res, Q_factor)
+ind_volt_time = InducedVoltageTime(slice_beam, [resonator])
+ind_volt_freq = InducedVoltageFreq(slice_beam, [resonator], 2e5)
+tot_vol = TotalInducedVoltage(slice_beam, [ind_volt_time])
 
 
 # ACCELERATION MAP-------------------------------------------------------------
 
-map_ = [slice_beam] + [ind_volt_from_wake] + [ring_RF_section]
+map_ = [slice_beam] + [tot_vol] + [ring_RF_section]
 
 
 # TRACKING + PLOTS-------------------------------------------------------------
@@ -101,20 +100,17 @@ map_ = [slice_beam] + [ind_volt_from_wake] + [ring_RF_section]
 for i in range(n_turns):
     
     print i+1
-    t0 = time.clock()
     for m in map_:
         m.track(my_beam)
-    bunchmonitor.dump(my_beam, slice_beam)
-    t1 = time.clock()
-    print t1 - t0
+    
+    bunchmonitor.dump(my_beam)
+    
     # Plots
     if ((i+1) % n_turns_between_two_plots) == 0:
         
-        plot_induced_voltage_vs_bins_centers(i+1, general_params, ind_volt_from_wake, style = '-')
+        plot_induced_voltage_vs_bins_centers(i+1, general_params, tot_vol, style = '-')
         
         
-
-
 print "Done!"
 
 bunchmonitor.h5file.close()
