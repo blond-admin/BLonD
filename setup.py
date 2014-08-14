@@ -25,16 +25,14 @@ if "cleanall" in args:
     print "Deleting cython files..."
     if "lin" in sys.platform:
         subprocess.Popen("rm -rf build", shell = True, executable = "/bin/bash")
-        subprocess.Popen("rm -rf *.c", shell = True, executable = "/bin/bash")
-        subprocess.Popen("rm -rf *.so", shell = True, executable = "/bin/bash")
+        subprocess.Popen("rm -rf cython_functions/*.c", shell = True, executable = "/bin/bash")
+        subprocess.Popen("rm -rf cython_functions/*.so", shell = True, executable = "/bin/bash")
         sys.argv[1] = "clean"
     elif "win" in sys.platform:
         os.system('rd /s/q '+ os.getcwd() +'\\build')
-        os.system('del /s/q '+ os.getcwd() +'\\*.c')
-        os.system('del /s/q '+ os.getcwd() +'\\*.html')
-        os.system('del /s/q '+ os.getcwd() +'\\*.pyd')
-        os.system('del /s/q '+ os.getcwd() +'\\*.h5')
-        os.system('del /s/q '+ os.getcwd() +'\\*.h5part')
+        os.system('del /s/q '+ os.getcwd() +'\\cython_functions\\*.c')
+        os.system('del /s/q '+ os.getcwd() +'\\cython_functions\\*.html')
+        os.system('del /s/q '+ os.getcwd() +'\\cython_functions\\*.pyd')
         sys.argv[1] = "clean"
     else:
         print "You have not a Windows or Linux operating system. Aborting..."

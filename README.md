@@ -10,9 +10,11 @@ The structure is as follows:
    show how to use the principal features of the code; for additional examples
    have a look at the code developers' personal folders present 
    in the corresponding git branches; 
-2) the __doc folder contains the documentation; to look at it go to build, html 
-   and open the index file; note that you need Latex and dvipng (if not present
-   in the Latex distribution) to be able to see displayed all the math formulas;
+2) the __doc folder contains the source files for the documentation; 
+   to have an output for example in html format, type make html into the console 
+   from the folder itself, then go to build, html and open the index file;
+   note that you need Latex and dvipng (if not present in the Latex 
+   distribution) to be able to see displayed all the math formulas;
 3) the various packages which constitute the code;
 4) a setup file needed to compile the cython files present in the 
    cython_functions package; this file should be run before launching any 
@@ -22,6 +24,14 @@ The structure is as follows:
 
 VERSION CONTENTS
 ==========
+
+2014-08-15
+v1.2.1 Elimination of the useless .pyd files from the various packages and of 
+	   the _doc/build directory; now the user has to build herself to see the
+	   documentation.
+	   Fixed a bug in the setup.py file that caused the undesired elimination
+	   of all the html and h5 files present in the structure of the code.
+
 
 2014-08-14
 v1.2.0 Reorganisation of the slices module

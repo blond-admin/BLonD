@@ -7,3 +7,11 @@
 stats.pyd
 stats.c
 stats.html
+
+# Cython build folder #
+#######################
+/build/
+
+# _doc/buil folder #
+#######################
+/__doc/build/
