@@ -92,7 +92,7 @@ tot_vol = TotalInducedVoltage(slice_beam, [ind_volt_time])
 
 # ACCELERATION MAP-------------------------------------------------------------
 
-map_ = [slice_beam] + [tot_vol] + [ring_RF_section]
+map_ = [slice_beam] + [tot_vol] + [ring_RF_section] + [bunchmonitor]
 
 
 # TRACKING + PLOTS-------------------------------------------------------------
@@ -103,8 +103,7 @@ for i in range(n_turns):
     for m in map_:
         m.track(my_beam)
     
-    bunchmonitor.dump(my_beam)
-    
+
     # Plots
     if ((i+1) % n_turns_between_two_plots) == 0:
         

@@ -14,7 +14,7 @@ class Monitor(object):
     __metaclass__ = abc.ABCMeta
     
     @abc.abstractmethod
-    def dump(self, bunch):
+    def track(self, bunch):
         pass
 
 
@@ -29,7 +29,7 @@ class BunchMonitor(Monitor):
         self.slices = slices
         self.h5file.create_group('Bunch')
 
-    def dump(self, bunch):
+    def track(self, bunch):
         
         if self.statistics == "All":
             bunch.longit_statistics()
@@ -134,7 +134,7 @@ class SliceMonitor(Monitor):
         self.h5file.create_group('Bunch')
         self.h5file.create_group('Slices')
 
-    def dump(self, bunch):
+    def track(self, bunch):
         if not self.slices:
             self.slices = bunch.slices
 
@@ -225,7 +225,7 @@ class ParticleMonitor(Monitor):
         # self.n_steps = n_steps
         self.i_steps = 0
 
-    def dump(self, bunch):
+    def track(self, bunch):
 
         if not self.i_steps:
             resorting_indices = np.argsort(bunch.id)[::self.stride]

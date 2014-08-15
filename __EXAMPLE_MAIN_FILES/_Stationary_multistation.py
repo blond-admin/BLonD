@@ -76,13 +76,13 @@ slice_beam = Slices(beam, 100, fit_option = 'gaussian')
 slice_beam.track(beam)
 
 # Define what to save in file
-bunchmonitor = BunchMonitor('output_data', N_t+1, "Longitudinal", slice_beam)
+bunchmonitor = BunchMonitor('output_data', N_t, "Longitudinal", slice_beam)
 
 print "Statistics set..."
 
 
 # Accelerator map
-map_ = [long_tracker_1] + [long_tracker_2] + [slice_beam] # No intensity effects, no aperture limitations
+map_ = [bunchmonitor] + [long_tracker_1] + [long_tracker_2] + [slice_beam] # No intensity effects, no aperture limitations
 print "Map set"
 print ""
 
@@ -91,10 +91,7 @@ print ""
 # Tracking ---------------------------------------------------------------------
 for i in range(N_t):
     t0 = time.clock()
-    
-    # Save data
-    bunchmonitor.dump(beam)    
-    
+       
     # Plot has to be done before tracking (at least for cases with separatrix)
     # Use the full voltage for plotting the separatrix
     if (i % dt_plt) == 0:
@@ -108,18 +105,24 @@ for i in range(N_t):
         print ""
         # In plots, you can choose following units: rad, ns, m  
         plot_long_phase_space(beam, general_params, rf_params_tot, 0, 0.0001763, -450, 450, separatrix_plot = True)
-        plot_bunch_length_evol(beam, 'output_data', general_params, i, unit='ns')
-        plot_bunch_length_evol_gaussian(beam, 'output_data', general_params, slice_beam, i, unit='ns')
 
     # Track
     for m in map_:
         m.track(beam)
     # Update full RF counter
     long_tracker_tot.track(beam_dummy)
+
+    # These plots have to be done after the tracking
+    if (i % dt_plt) == 0:
+        plot_bunch_length_evol(beam, 'output_data', general_params, i, unit='ns')
+        plot_bunch_length_evol_gaussian(beam, 'output_data', general_params, slice_beam, i, unit='ns')
+    
     # Define losses according to separatrix and/or longitudinal position
     beam.losses_separatrix(general_params, rf_params_tot)
     #beam.losses_longitudinal_cut(0.28e-4, 0.75e-4)
 
+
+bunchmonitor.h5file.close()
 print "Done!"
 print ""
 

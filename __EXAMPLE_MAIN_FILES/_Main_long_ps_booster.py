@@ -136,7 +136,7 @@ total_induced_voltage = TotalInducedVoltage(slice_beam, [ind_volt_freq])
 
 # ACCELERATION MAP-------------------------------------------------------------
 
-map_ = [slice_beam] + [total_induced_voltage] + [ring_RF_section]
+map_ = [slice_beam] + [total_induced_voltage] + [ring_RF_section] + [bunchmonitor]
 
 
 # TRACKING + PLOTS-------------------------------------------------------------
@@ -147,7 +147,6 @@ for i in range(n_turns):
     t0 = time.clock()
     for m in map_:
         m.track(my_beam)
-    bunchmonitor.dump(my_beam)
     t1 = time.clock()
     print t1 - t0
     # Plots

@@ -44,8 +44,25 @@ def plot_beam_profile(counter, general_params, slices, style = '-',
     Plot of longitudinal beam profile
     """
  
+    # Directory where plots will be stored 
     fig_folder(dirname)
-    plt.plot(slices.bins_centers, slices.n_macroparticles, style)
+    
+    plt.figure(1, figsize=(8,6))
+    ax = plt.axes([0.12, 0.1, 0.82, 0.8])
+    ax.plot(slices.bins_centers, slices.n_macroparticles, style)
+    if slices.slicing_coord == 'theta': 
+        ax.set_xlabel(r"$\vartheta$ [rad]", fontsize=14)
+    elif slices.slicing_coord == 'z':
+        ax.set_xlabel('z [m]', fontsize=14)
+    elif slices.slicing_coord == 'tau':
+        ax.set_xlabel('Time [s]', fontsize=14)
+    ax.set_ylabel('Beam profile [arb. units]')
+    ax.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
+    ax.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+    plt.figtext(0.95, 0.95, '%d turns' %counter, fontsize=16, ha='right', 
+                va='center') 
+    
+    # Save plot
     fign = dirname +'/beam_profile_' "%d" %counter + '.png'
     plt.savefig(fign)
     plt.clf()

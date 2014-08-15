@@ -2,6 +2,11 @@
 ##################
 *.pyc
 
+# Configuration files #
+#######################
+.project
+.pydevproject
+
 # Cython files #
 ################
 stats.pyd

@@ -4,6 +4,8 @@ PYHEADTAIL LONGITUDINAL
 Longitudinal version of the CERN PyHeadTail code for the simulation of 
 multi-particle beam dynamics with collective effects.
 
+Documentation: http://like2000.github.io/PyHEADTAIL/
+
 The structure is as follows:
 
 1) the folder __EXAMPLE_MAIN_FILES contains several main_files which
@@ -15,6 +17,7 @@ The structure is as follows:
    from the folder itself, then go to build, html and open the index file;
    note that you need Latex and dvipng (if not present in the Latex 
    distribution) to be able to see displayed all the math formulas;
+   the latest docs should be uploaded to the "gh-pages" branch
 3) the various packages which constitute the code;
 4) a setup file needed to compile the cython files present in the 
    cython_functions package; this file should be run before launching any 
@@ -24,6 +27,16 @@ The structure is as follows:
 
 VERSION CONTENTS
 ==========
+
+2014-08-15
+v1.2.2 
+       - RNG seeds for numpy.random fixed in RF_noise.py and 
+       	 longitudinal_distributions.py
+       - updated example files
+       - full documentation of RF_noise (see llrf.rst)
+       - small improvement of profile plot 
+       - change bunchmonitor.dump to bunchmonitor.track
+       - MPI parallelized tracker (optional)
 
 2014-08-15
 v1.2.1 Elimination of the useless .pyd files from the various packages and of 
