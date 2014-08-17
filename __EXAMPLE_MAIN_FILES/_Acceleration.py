@@ -61,18 +61,19 @@ longitudinal_gaussian_matched(general_params, rf_params, beam, tau_0,
 print "Beam set and distribution generated..."
 
 
-# Need slices for the Gaussian fit; slice for the first plot
+# Need slices for the Gaussian fit
 slice_beam = Slices(beam, 100, fit_option = 'gaussian')
-slice_beam.track(beam)
+
 
 # Define what to save in file
-bunchmonitor = BunchMonitor('output_data', N_t, "Longitudinal", slice_beam)
+bunchmonitor = BunchMonitor('output_data', N_t+1, "Longitudinal", slice_beam)
+bunchmonitor.track(beam)
 
 print "Statistics set..."
 
 
 # Accelerator map
-map_ = [bunchmonitor] + [long_tracker] + [slice_beam] # No intensity effects, no aperture limitations
+map_ = [long_tracker] + [slice_beam] + [bunchmonitor] # No intensity effects, no aperture limitations
 print "Map set"
 print ""
 

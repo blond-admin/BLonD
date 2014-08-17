@@ -17,8 +17,6 @@ from scipy.constants import c
 from trackers.longitudinal_utilities import separatrix
 
 
-
-
 if os.path.exists('fig'):    
     if "lin" in sys.platform:
         subprocess.Popen("rm -rf fig", shell = True, executable = "/bin/bash")

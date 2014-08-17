@@ -1,5 +1,5 @@
 '''
-**Module to set up MPI parallelization used in the longitudinal tracker.**
+**Module to set up MPI parallelisation used in the longitudinal tracker.**
 
 :Authors: **Helga Timko**
 '''

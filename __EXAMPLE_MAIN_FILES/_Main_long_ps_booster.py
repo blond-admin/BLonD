@@ -54,9 +54,6 @@ harmonic_numbers = 1
 voltage_program = 8.e3
 phi_offset = 0
 
-# MONITOR----------------------------------------------------------------------
-
-bunchmonitor = BunchMonitor('beam', n_turns+1, statistics = "Longitudinal")
 
 # DEFINE RING------------------------------------------------------------------
 
@@ -81,6 +78,10 @@ number_slices = 100
 slice_beam = Slices(my_beam, number_slices, cut_left = - 5.72984173562e-07 / 2, 
                     cut_right = 5.72984173562e-07 / 2, mode = 'const_space_hist')
 
+# MONITOR----------------------------------------------------------------------
+
+bunchmonitor = BunchMonitor('beam', n_turns+1, statistics = "Longitudinal")
+bunchmonitor.track(my_beam)
 
 # LOAD IMPEDANCE TABLES--------------------------------------------------------
 
@@ -136,7 +137,7 @@ total_induced_voltage = TotalInducedVoltage(slice_beam, [ind_volt_freq])
 
 # ACCELERATION MAP-------------------------------------------------------------
 
-map_ = [slice_beam] + [total_induced_voltage] + [ring_RF_section] + [bunchmonitor]
+map_ = [total_induced_voltage] + [ring_RF_section] + [slice_beam] + [bunchmonitor]
 
 
 # TRACKING + PLOTS-------------------------------------------------------------
