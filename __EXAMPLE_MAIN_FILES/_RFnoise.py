@@ -87,8 +87,8 @@ print "General and RF parameters set..."
 # Define beam and distribution
 beam = Beam(general_params, N_p, N_b)
 # Generate new distribution
-longitudinal_gaussian_matched(general_params, rf_params, beam, tau_0, 
-                              unit='ns', reinsertion = 'on')
+longitudinal_bigaussian(general_params, rf_params, beam, tau_0/4, 
+                              xunit = 'ns', reinsertion = 'on')
 #np.savetxt('initial_long_distr.dat', np.c_[beam.theta, beam.dE], fmt='%.8e')
 # Read in old distribution
 #beam.theta, beam.dE = np.loadtxt('initial_long_distr.dat', unpack=True)
@@ -96,7 +96,7 @@ print "Beam set and distribution generated..."
 
 
 # Need slices for the Gaussian fit; slice for the first plot
-slice_beam = Slices(beam, 100, slicing_coord = 'theta', fit_option = 'gaussian')
+slice_beam = Slices(beam, 100, slicing_coord = 'theta', fit_option = 'gaussian', slice_immediately = 'on')
 
 # Define what to save in file
 bunchmonitor = BunchMonitor('output_data', N_t+1, "Longitudinal", slice_beam)

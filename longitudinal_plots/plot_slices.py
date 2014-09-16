@@ -49,16 +49,24 @@ def plot_beam_profile(counter, general_params, slices, style = '-',
     
     plt.figure(1, figsize=(8,6))
     ax = plt.axes([0.12, 0.1, 0.82, 0.8])
-    ax.plot(slices.bins_centers, slices.n_macroparticles, style)
+    
+    ax.plot(slices.bins_centers, slices.n_macroparticles, style, linewidth=4)
     if slices.slicing_coord == 'theta': 
-        ax.set_xlabel(r"$\vartheta$ [rad]", fontsize=14)
+        ax.set_xlabel(r"$\vartheta$ [rad]", fontsize=20, fontweight='bold')
     elif slices.slicing_coord == 'z':
-        ax.set_xlabel('z [m]', fontsize=14)
+        ax.set_xlabel('z [m]', fontsize=20, fontweight='bold')
     elif slices.slicing_coord == 'tau':
-        ax.set_xlabel('Time [s]', fontsize=14)
-    ax.set_ylabel('Beam profile [arb. units]')
-    ax.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
-    ax.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+        ax.set_xlabel('Time [s]', fontsize=20, fontweight='bold')
+    ax.set_ylabel('Beam profile [arb. units]', fontsize=20, fontweight='bold')
+#     ax.ticklabel_format(style='sci', axis='x', scilimits=(0,0), fontweight='bold')
+#     ax.ticklabel_format(style='sci', axis='y', scilimits=(0,0), fontweight='bold')
+    for tick in ax.xaxis.get_major_ticks():
+        tick.label1.set_fontsize(10)
+        tick.label1.set_fontweight('bold')
+    for tick in ax.yaxis.get_major_ticks():
+        tick.label1.set_fontsize(10)
+        tick.label1.set_fontweight('bold')
+
     plt.figtext(0.95, 0.95, '%d turns' %counter, fontsize=16, ha='right', 
                 va='center') 
     

@@ -34,6 +34,24 @@ The structure is as follows:
 VERSION CONTENTS
 ==========
 
+2014-09-16
+v1.3.0 - Bunch generation from distribution function implemented, input is 
+         distribution type, emittance and bunch length.
+	   - Bunch generation from line density implemented through Abel transform,
+	     input is line density type and bunch length.
+	   - Option in beam spectrum calculation in order to compute the 
+	     frequency_array only with respect to the sampling and time step.
+       - Functions in the induced voltage objects to reprocess the wake/impedance
+         sources according to a new slicing.
+       - Corrected InputArray object in longitudinal_impedance.
+       - Added returns in the induced_voltage_generation in order to return 
+         induced_voltage after the frame of the slicing.
+       - Initialisation to 0 instead of empty for arrays.
+       - Initial guess for gaussian fit corrected.
+       - n_macroparticles converted to int in beam class (solve some warnings).
+       - Some changes in the plot functions.
+
+
 2014-08-17
 v1.2.3 - The monitor package has been revisited and cleaned, the SlicesMonitor
 		 class has been tested.

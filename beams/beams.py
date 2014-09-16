@@ -7,7 +7,6 @@
 from __future__ import division
 import numpy as np
 import warnings
-import sys
 from scipy.constants import c, e, m_p
 import cython_functions.stats as cp
 from scipy.optimize import curve_fit
@@ -36,12 +35,12 @@ class Beam(object):
         self.momentum = General_parameters.momentum[0][0] 
 
         # Beam coordinates
-        self.x = np.empty([n_macroparticles])
-        self.xp = np.empty([n_macroparticles])
-        self.y = np.empty([n_macroparticles])
-        self.yp = np.empty([n_macroparticles])
-        self.theta = np.empty([n_macroparticles])
-        self.dE = np.empty([n_macroparticles])
+        self.x = np.zeros([n_macroparticles])
+        self.xp = np.zeros([n_macroparticles])
+        self.y = np.zeros([n_macroparticles])
+        self.yp = np.zeros([n_macroparticles])
+        self.theta = np.zeros([n_macroparticles])
+        self.dE = np.zeros([n_macroparticles])
      
         # Transverse and longitudinal properties, statistics       
         
@@ -51,11 +50,13 @@ class Beam(object):
         self.alpha_y = 0
         self.beta_y = 0
         self.epsn_y = 0
+        self.mean_theta = 0
+        self.mean_dE = 0
         self.sigma_theta = 0
         self.sigma_dE = 0
         
         # Particle/loss counts
-        self.n_macroparticles = n_macroparticles
+        self.n_macroparticles = int(n_macroparticles)
         self.n_macroparticles_lost = 0
         self.n_macroparticles_alive = self.n_macroparticles - self.n_macroparticles_lost
         self.id = np.arange(1, self.n_macroparticles + 1, dtype=int)
@@ -129,6 +130,27 @@ class Beam(object):
     @sigma_tau.setter
     def sigma_tau(self, value):
         self.sigma_theta = value * self.beta_r * c / self.ring_radius
+    
+    # Gaussian fit conversion   
+    @property
+    def bl_gauss_tau(self):
+        '''*Gaussian bunch length converted to the tau coordinate in [s]*'''
+        return self.bl_gauss * self.ring_radius / (self.beta_r * c)
+    
+    @property
+    def bl_gauss_z(self):
+        '''*Gaussian bunch length to the z coordinate in [m]*'''
+        return self.bl_gauss * self.ring_radius 
+
+    @property
+    def bp_gauss_tau(self):
+        '''*Gaussian bunch position converted to the tau coordinate in [s]*'''
+        return self.bp_gauss * self.ring_radius / (self.beta_r * c)
+    
+    @property
+    def bp_gauss_z(self):
+        '''*Gaussian bunch position converted to the z coordinate in [m]*'''
+        return - self.bp_gauss * self.ring_radius      
 
     
     def longit_statistics(self):

@@ -60,7 +60,7 @@ print "Beam set and distribution generated..."
 
 
 # Need slices for the Gaussian fit
-slice_beam = Slices(beam, 100, fit_option = 'gaussian')
+slice_beam = Slices(beam, 100, fit_option = 'gaussian', slice_immediately = 'on')
 
 
 # Define what to save in file

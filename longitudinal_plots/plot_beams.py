@@ -77,29 +77,29 @@ def plot_long_phase_space(beam, General_parameters, RFSectionParameters, xmin,
     
     # Main plot: longitudinal distribution
     if xunit == None or xunit == 'rad':
-        axScatter.set_xlabel(r"$\vartheta$ [rad]", fontsize=14)
+        axScatter.set_xlabel(r"theta [rad]", fontsize=20, fontweight='bold')
         if yunit == None or yunit == 'MeV':
             axScatter.scatter(beam.theta[::sampling], beam.dE[::sampling]/1.e6, s=1, edgecolor='none')
-            axScatter.set_ylabel(r"$\Delta$E [MeV]", fontsize=14)
+            axScatter.set_ylabel(r"$\Delta$E [MeV]", fontsize=20, fontweight='bold')
         elif yunit == '1': 
             axScatter.scatter(beam.theta[::sampling], beam.delta[::sampling], s=1, edgecolor='none') 
-            axScatter.set_ylabel(r"$\Delta$p/p$_0$ [1]", fontsize=14)           
+            axScatter.set_ylabel(r"$\Delta$p/p$_0$ [1]", fontsize=20, fontweight='bold')           
     elif xunit == 'm':
         axScatter.set_xlabel('z [m]', fontsize=14)
         if yunit == None or yunit == 'MeV':
             axScatter.scatter(beam.z[::sampling], beam.dE[::sampling]/1.e6, s=1, edgecolor='none')
-            axScatter.set_ylabel(r"$\Delta$E [MeV]", fontsize=14)
+            axScatter.set_ylabel(r"$\Delta$E [MeV]", fontsize=20, fontweight='bold')
         elif yunit == '1': 
             axScatter.scatter(beam.z[::sampling], beam.delta[::sampling], s=1, edgecolor='none') 
-            axScatter.set_ylabel(r"$\Delta$p/p$_0$ [1]", fontsize=14)              
+            axScatter.set_ylabel(r"$\Delta$p/p$_0$ [1]", fontsize=20, fontweight='bold')              
     elif xunit == 'ns':
         axScatter.set_xlabel('Time [ns]', fontsize=14)
         if yunit == None or yunit == 'MeV':
             axScatter.scatter(beam.theta[::sampling]*coeff, beam.dE[::sampling]/1.e6, s=1, edgecolor='none')
-            axScatter.set_ylabel(r"$\Delta$E [MeV]", fontsize=14)
+            axScatter.set_ylabel(r"$\Delta$E [MeV]", fontsize=20, fontweight='bold')
         elif yunit == '1': 
             axScatter.scatter(beam.theta[::sampling]*coeff, beam.delta[::sampling], s=1, edgecolor='none') 
-            axScatter.set_ylabel(r"$\Delta$p/p$_0$ [1]", fontsize=14)           
+            axScatter.set_ylabel(r"$\Delta$p/p$_0$ [1]", fontsize=20, fontweight='bold')           
         
     axScatter.set_xlim(xmin, xmax)
     axScatter.set_ylim(ymin, ymax)
@@ -109,7 +109,12 @@ def plot_long_phase_space(beam, General_parameters, RFSectionParameters, xmin,
     axScatter.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
     plt.figtext(0.95,0.95,'%d turns' %RFSectionParameters.counter[0], fontsize=16, ha='right', 
                 va='center') 
-
+    for tick in axScatter.xaxis.get_major_ticks():
+        tick.label1.set_fontsize(10)
+        tick.label1.set_fontweight('bold')
+    for tick in axScatter.yaxis.get_major_ticks():
+        tick.label1.set_fontsize(10)
+        tick.label1.set_fontweight('bold')      
     # Separatrix
     if separatrix_plot:
         x_sep = np.linspace(xmin, xmax, 1000)
@@ -118,11 +123,11 @@ def plot_long_phase_space(beam, General_parameters, RFSectionParameters, xmin,
         elif xunit == 'm' or xunit == 'ns':
             y_sep = separatrix(General_parameters, RFSectionParameters, x_sep/coeff)
         if yunit == None or yunit == 'MeV':
-            axScatter.plot(x_sep, y_sep/1.e6, 'r')
-            axScatter.plot(x_sep, -1.e-6*y_sep, 'r')       
+            axScatter.plot(x_sep, y_sep/1.e6, 'r', linewidth = 4)
+            axScatter.plot(x_sep, -1.e-6*y_sep, 'r', linewidth = 4)       
         else:
-            axScatter.plot(x_sep, y_sep/ycoeff, 'r')
-            axScatter.plot(x_sep, -1.*y_sep/ycoeff, 'r')
+            axScatter.plot(x_sep, y_sep/ycoeff, 'r', linewidth = 4)
+            axScatter.plot(x_sep, -1.*y_sep/ycoeff, 'r', linewidth = 4)
     
     # Phase and momentum histograms
     if histograms_plot:
@@ -132,15 +137,15 @@ def plot_long_phase_space(beam, General_parameters, RFSectionParameters, xmin,
         yh = np.arange(ymin, ymax + ybin, ybin)
       
         if xunit == None or xunit == 'rad':
-            axHistx.hist(beam.theta[::sampling], bins=xh, histtype='step')
+            axHistx.hist(beam.theta[::sampling], bins=xh, histtype='step', linewidth = 4)
         elif xunit == 'm':
-            axHistx.hist(beam.z[::sampling], bins=xh, histtype='step')       
+            axHistx.hist(beam.z[::sampling], bins=xh, histtype='step', linewidth = 4)       
         elif xunit == 'ns':
-            axHistx.hist(beam.theta[::sampling]*coeff, bins=xh, histtype='step')
+            axHistx.hist(beam.theta[::sampling]*coeff, bins=xh, histtype='step', linewidth = 4)
         if yunit == None or yunit == 'MeV':
-            axHisty.hist(beam.dE[::sampling]/1.e6, bins=yh, histtype='step', orientation='horizontal')
+            axHisty.hist(beam.dE[::sampling]/1.e6, bins=yh, histtype='step', orientation='horizontal', linewidth = 4)
         if yunit == '1':
-            axHisty.hist(beam.delta[::sampling], bins=yh, histtype='step', orientation='horizontal')
+            axHisty.hist(beam.delta[::sampling], bins=yh, histtype='step', orientation='horizontal', linewidth = 4)
         axHistx.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
         axHisty.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
         axHistx.axes.get_xaxis().set_visible(False)
@@ -149,7 +154,19 @@ def plot_long_phase_space(beam, General_parameters, RFSectionParameters, xmin,
         axHisty.set_ylim(ymin, ymax)
         labels = axHisty.get_xticklabels()
         for label in labels:
-            label.set_rotation(-90) 
+            label.set_rotation(-90)
+        for tick in axHistx.xaxis.get_major_ticks():
+            tick.label1.set_fontsize(10)
+            tick.label1.set_fontweight('bold')
+        for tick in axHistx.yaxis.get_major_ticks():
+            tick.label1.set_fontsize(10)
+            tick.label1.set_fontweight('bold')
+        for tick in axHisty.xaxis.get_major_ticks():
+            tick.label1.set_fontsize(10)
+            tick.label1.set_fontweight('bold')
+        for tick in axHisty.yaxis.get_major_ticks():
+            tick.label1.set_fontsize(10)
+            tick.label1.set_fontweight('bold')        
  
     # Save plot
     fign = dirname +'/long_distr_'"%d"%RFSectionParameters.counter[0]+'.png'
@@ -289,7 +306,7 @@ def plot_position_evol(counter, beam, h5file, General_parameters, unit = None, s
         ax.set_ylabel (r"Position [m]") 
      
     # Save plot 
-    fign = 'fig/position_evolution_' "%d" %counter + '.png' 
+    fign = dirname +'/position_evolution_' "%d" %counter + '.png' 
     plt.savefig(fign) 
     plt.clf() 
 

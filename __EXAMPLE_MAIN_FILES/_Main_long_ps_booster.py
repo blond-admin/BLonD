@@ -76,7 +76,7 @@ longitudinal_bigaussian(general_params, RF_sct_par, my_beam, sigma_theta, sigma_
 
 number_slices = 100
 slice_beam = Slices(my_beam, number_slices, cut_left = - 5.72984173562e-07 / 2, 
-                    cut_right = 5.72984173562e-07 / 2, mode = 'const_space_hist')
+                    cut_right = 5.72984173562e-07 / 2, mode = 'const_space_hist', slice_immediately = 'on')
 
 # MONITOR----------------------------------------------------------------------
 

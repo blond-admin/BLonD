@@ -74,21 +74,21 @@ my_beam = Beam(general_params, n_macroparticles, n_particles)
 
 my_beam_copy = Beam(general_params_copy, n_macroparticles, n_particles)
 
-longitudinal_gaussian_matched(general_params, RF_sct_par, my_beam, tau_0, 
-                              unit='ns', seed=0)
+longitudinal_bigaussian(general_params, RF_sct_par, my_beam, tau_0/4, 
+                              xunit='ns', seed=0)
 
-longitudinal_gaussian_matched(general_params_copy, RF_sct_par_copy, my_beam_copy, tau_0, 
-                              unit='ns', seed=0)
+longitudinal_bigaussian(general_params_copy, RF_sct_par_copy, my_beam_copy, tau_0/4, 
+                              xunit='ns', seed=0)
 
 number_slices = 100
 slice_beam = Slices(my_beam, number_slices, cut_left = 0, 
                     cut_right = 2 * np.pi / harmonic_number, mode = 
                     'const_space', cuts_coord = 'theta', slicing_coord = 'tau', 
-                    statistics_option = 'on', fit_option = 'gaussian')
+                    statistics_option = 'on', fit_option = 'gaussian', slice_immediately = 'on')
 slice_beam_copy = Slices(my_beam_copy, number_slices, cut_left = 0, 
                     cut_right = 2 * np.pi / harmonic_number, mode = 
                     'const_space', cuts_coord = 'theta', slicing_coord = 'tau', 
-                    statistics_option = 'on', fit_option = 'gaussian')
+                    statistics_option = 'on', fit_option = 'gaussian', slice_immediately = 'on')
 
 
 # MONITOR----------------------------------------------------------------------

@@ -10,6 +10,112 @@ from scipy.constants import c
 from scipy.integrate import cumtrapz
 
 
+class FullRingAndRF(object):
+    '''
+    *Definition of the full ring and RF parameters in order to be able to have
+    a full turn information (used in the hamiltonian for example).*
+    '''
+    
+    def __init__(self, RingAndRFSection_list):
+        
+        #: *List of the total RingAndRFSection objects*
+        self.RingAndRFSection_list = RingAndRFSection_list
+        
+        #: *Total potential well in [V]*
+        self.potential_well = 0
+        
+        #: *Total potential well theta coordinates in [rad] *
+        self.potential_well_coordinates = 0
+        
+        #: *Ring circumference in [m]*
+        self.ring_circumference = 0
+        for RingAndRFSectionElement in self.RingAndRFSection_list:
+            self.ring_circumference += RingAndRFSectionElement.section_length
+            
+        #: *Ring radius in [m]*
+        self.ring_radius = self.ring_circumference / (2*np.pi)
+        
+        
+    def potential_well_generation(self, turn = 0, n_points = 1e5, 
+                                  main_harmonic_option = 'lowest_freq', 
+                                  theta_margin_percent = 0.):
+        '''
+        *Method to generate the potential well out of the RF systems. The 
+        assumption made is that all the RF voltages are averaged over
+        one turn. The potential well is then approximated over one turn,
+        which is not the exact potential. This approximation should be
+        fine enough to generate a bunch (the mismatch should be small and
+        damped fast enough). The default main harmonic is defined to be the
+        lowest one in frequency. The user can change this option if it is
+        not the case for his simulations (other options are: 'highest_voltage',
+        or inputing directly the value of the desired main harmonic). 
+        A margin on the theta array can be applied in order
+        to be able to see the min/max that might be exactly on the edges of the
+        frame (by adding a % to the length of the frame, this is set to 0 by default. 
+        It assumes also that the slippage factor is the same in the whole ring.*
+        '''
+        
+        voltages = np.array([])
+        harmonics = np.array([])
+        phi_offsets = np.array([])
+        sync_phases = np.array([])
+                 
+        for RingAndRFSectionElement in self.RingAndRFSection_list:
+            for rf_system in range(RingAndRFSectionElement.n_rf):
+                voltages = np.append(voltages, RingAndRFSectionElement.voltage[rf_system, turn])
+                harmonics = np.append(harmonics, RingAndRFSectionElement.harmonic[rf_system, turn])
+                phi_offsets = np.append(phi_offsets, RingAndRFSectionElement.phi_offset[rf_system, turn])
+                sync_phases = np.append(sync_phases, RingAndRFSectionElement.phi_s[turn])
+                        
+        voltages = np.array(voltages, ndmin = 2)
+        harmonics = np.array(harmonics, ndmin = 2)
+        phi_offsets = np.array(phi_offsets, ndmin = 2)
+        sync_phases = np.array(sync_phases, ndmin = 2)
+        
+        if main_harmonic_option is 'lowest_freq':
+            main_harmonic = np.min(harmonics)
+        elif main_harmonic_option is 'highest_voltage':
+            main_harmonic = np.min(harmonics[voltages == np.max(voltages)])
+        elif isinstance(main_harmonic_option, int) or isinstance(main_harmonic_option, float):
+            if harmonics[harmonics == main_harmonic_option].size == 0:
+                raise RuntimeError('The desired harmonic to compute the potential well does not match the RF parameters...')
+            main_harmonic = np.min(harmonics[harmonics == main_harmonic_option])
+            
+        theta_array_margin = theta_margin_percent * 2 * np.pi/main_harmonic
+        
+        slippage_factor = self.RingAndRFSection_list[0].eta_0[turn]
+        beta_r = self.RingAndRFSection_list[0].beta_r[turn]
+        
+        if slippage_factor > 0:
+            first_theta = 0 - theta_array_margin / 2
+            last_theta = 2*np.pi/main_harmonic + theta_array_margin / 2
+            transition_factor = - 1
+        else:
+            first_theta = - np.pi/main_harmonic - theta_array_margin / 2
+            last_theta = np.pi/main_harmonic + theta_array_margin / 2
+            transition_factor = 1
+            
+        theta_array = np.linspace(first_theta, last_theta, n_points)
+                
+        total_voltage = np.sum(voltages.T * np.sin(harmonics.T * theta_array + phi_offsets.T) - voltages.T * np.sin(sync_phases.T), axis = 0)
+        
+        eom_factor_potential = (beta_r * c) / (self.ring_circumference)
+        
+        potential_well = transition_factor * np.insert(cumtrapz(total_voltage, dx=theta_array[1]-theta_array[0]),0,0)
+        
+        self.potential_well_coordinates = theta_array
+        self.potential_well = eom_factor_potential * potential_well
+        
+        
+    def track(self, beam):
+        '''
+        *Loops over all the RingAndRFSection.track methods.*
+        '''
+        
+        for RingAndRFSectionElement in self.RingAndRFSection_list:
+            RingAndRFSectionElement.track(beam)
+
+
 class RingAndRFSection(object):
     '''
     *Definition of an RF station and part of the ring until the next station, 

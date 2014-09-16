@@ -17,7 +17,7 @@ from longitudinal_plots.plot_slices import *
 # Simulation parameters --------------------------------------------------------
 # Bunch parameters
 N_b = 1.e9           # Intensity
-N_p = 10001          # Macro-particles
+N_p = 50000         # Macro-particles
 tau_0 = 0.4          # Initial bunch length, 4 sigma [ns]
 
 # Machine and RF parameters
@@ -32,7 +32,7 @@ alpha = 1./gamma_t/gamma_t        # First order mom. comp. factor
 
 # Tracking details
 N_t = 2001           # Number of turns to track
-dt_plt = 200         # Time steps between plots
+dt_plt = 200       # Time steps between plots
 
 
 
@@ -54,15 +54,15 @@ print "General and RF parameters set..."
 
 # Define beam and distribution
 beam = Beam(general_params, N_p, N_b)
-longitudinal_gaussian_matched(general_params, rf_params, beam, tau_0, 
-                              unit='ns', reinsertion = 'on')
+longitudinal_bigaussian(general_params, rf_params, beam, tau_0/4, 
+                              xunit = 'ns', reinsertion = 'on')
 
 
 print "Beam set and distribution generated..."
 
 
 # Need slices for the Gaussian fit
-slice_beam = Slices(beam, 100, fit_option = 'gaussian')
+slice_beam = Slices(beam, 100, fit_option = 'gaussian', slice_immediately = 'on')
 
 
 # Define what to save in file
@@ -94,7 +94,7 @@ for i in range(N_t):
         print "   Gaussian bunch length %.4e rad" %beam.bl_gauss
         print ""
         # In plots, you can choose following units: rad, ns, m  
-        plot_long_phase_space(beam, general_params, rf_params, 0, 0.0001763, -450, 450, separatrix_plot = True)
+        plot_long_phase_space(beam, general_params, rf_params, 0, 0.0001763, -400, 400, separatrix_plot = True)
 
     # Track
     for m in map_:
