@@ -35,6 +35,10 @@ VERSION CONTENTS
 ==========
 
 2014-09-16
+v1.3.1 - Fixed an important bug in the matched_from_distribution_density method.
+
+
+2014-09-16
 v1.3.0 - Bunch generation from distribution function implemented, input is 
          distribution type, emittance and bunch length.
 	   - Bunch generation from line density implemented through Abel transform,
