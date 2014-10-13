@@ -1,10 +1,20 @@
-PYHEADTAIL LONGITUDINAL
+BLonD (Beam Longitudinal Dynamics)
+
+https://github.com/dquartul/BLonD.git
 ==========
 
-Longitudinal version of the CERN PyHeadTail code for the simulation of 
-multi-particle beam dynamics with collective effects.
+CERN code for the simulation of 
+longitudinal beam dynamics with collective effects.
 
-Documentation: http://like2000.github.io/PyHEADTAIL/
+
+Developers:
+
+Theodoros Argyropoulos (Theodoros.Argyropoulos@cern.ch)
+Alexandre Lasheen (alexandre.lasheen@cern.ch)
+Juan Esteban Muller (juan.fem@cern.ch)
+Danilo Quartullo (danilo.quartullo@cern.ch)
+Helga Timko (Helga.Timko@cern.ch)
+
 
 The structure is as follows:
 
@@ -17,22 +27,24 @@ The structure is as follows:
    from the folder itself, then go to build, html and open the index file;
    note that you need Latex and dvipng (if not present in the Latex 
    distribution) to be able to see displayed all the math formulas;
-   the latest docs should be uploaded to the "gh-pages" branch
-3) the various packages which constitute the code together with a beta-version
-   package named mpi in which the longitudinal tracker method is parallelised 
-   in order to save computational time when the main file RFnoise_mpi is launched.
-   If you are using a Windows system download either OpenMPI or MS-MPI together
-   with mpi4py from the following link: http://www.lfd.uci.edu/~gohlke/pythonlibs/ 
-   which is very useful in general to get easely a lot of Python extension 
-   packages for Windows 32-64 bit without building sources.
-4) a setup file needed to compile the cython files present in the 
-   cython_functions package; this file should be run before launching any 
-   simulation; from the console window type "python setup.py cleanall 
-   build_ext --inplace".
+   the latest docs should be uploaded to the "gh-pages" branch;
+3) the various packages which constitute the code;
+4) the setup_cpp_routines file needed to compile the C++ files present in the 
+   cpp_routines package; this file should be run once before launching any 
+   simulation. The compiler C/C++ GCC is necessary.
 
 
 VERSION CONTENTS
 ==========
+
+2014-10-13
+v1.4.0 - The name of the code has been changed from PyLongitudinal to BLond and 
+         a new repository has been created especially for this code.
+	   - The mpi package has been deleted because not used.
+	   - The cython setup file together with the corresponding package has been
+	     deleted; now the optimisation routines are coded in C++ and the user
+	     must run the setup_cpp_routines.py file.
+	   - The histogram.cpp file has been created to make the code faster.
 
 2014-09-16
 v1.3.1 - Fixed an important bug in the matched_from_distribution_density method.

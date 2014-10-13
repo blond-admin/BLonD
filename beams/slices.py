@@ -12,7 +12,15 @@ from numpy.fft import rfft, rfftfreq
 from scipy import ndimage
 from scipy.optimize import curve_fit
 import warnings
+import ctypes
+import sys
 
+if "lin" in sys.platform:
+    libfib=ctypes.CDLL('histogram.so')
+elif "win" in sys.platform:
+    libfib=ctypes.CDLL('histogram.dll')
+else:
+    sys.exit()
 
 
 class Slices(object):
@@ -65,7 +73,7 @@ class Slices(object):
             raise RuntimeError('The slicing_coord is not recognized')
         
         #: *Number of macroparticles per slice (~profile).*
-        self.n_macroparticles = np.zeros(n_slices)
+        self.n_macroparticles = np.zeros(n_slices, dtype='uint32')
         
         #: *Edges positions of the slicing*
         self.edges = np.zeros(n_slices + 1)
@@ -208,9 +216,12 @@ class Slices(object):
         *This method is faster than the classic slice_constant_space method 
         for high number of particles (~1e6).*
         '''
-        
-        self.n_macroparticles = np.histogram(self.beam_coordinates, self.edges)[0]
- 
+        w = self.beam_coordinates
+        libfib.histogram(w.ctypes.data_as(ctypes.c_void_p), 
+                      self.n_macroparticles.ctypes.data_as(ctypes.c_void_p), 
+               ctypes.c_double(self.cut_left), ctypes.c_double(self.cut_right), 
+               ctypes.c_uint(self.n_slices), ctypes.c_uint(self.Beam.n_macroparticles))
+
         
     def slice_constant_charge(self):
         '''
