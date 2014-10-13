@@ -55,7 +55,7 @@ print "General and RF parameters set..."
 # Define beam and distribution
 beam = Beam(general_params, N_p, N_b)
 longitudinal_bigaussian(general_params, rf_params, beam, tau_0/4, 
-                              xunit = 'ns', reinsertion = 'on')
+                        xunit = 'ns', reinsertion = 'on')
 
 
 print "Beam set and distribution generated..."

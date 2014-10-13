@@ -69,8 +69,7 @@ class PhaseNoise(object):
         # Use only real part for the phase shift and normalize
         self.t = np.arange(0, self.nt*self.dt, self.dt)
         self.dphi = dPt.real
-        
-        return self.t, self.dphi 
+
     
 
 

@@ -73,7 +73,7 @@ class Slices(object):
             raise RuntimeError('The slicing_coord is not recognized')
         
         #: *Number of macroparticles per slice (~profile).*
-        self.n_macroparticles = np.zeros(n_slices, dtype='uint32')
+        self.n_macroparticles = np.zeros(n_slices)
         
         #: *Edges positions of the slicing*
         self.edges = np.zeros(n_slices + 1)
@@ -311,8 +311,7 @@ class Slices(object):
         self.beam_spectrum_freq = rfftfreq(n_sampling_fft, time_step)
         
         if not only_rfft:
-            self.beam_spectrum = rfft(self.n_macroparticles, n_sampling_fft)
-             
+            self.beam_spectrum = rfft(self.n_macroparticles, n_sampling_fft)             
      
      
     def beam_profile_derivative(self, mode = 'gradient', coord = 'theta'):      

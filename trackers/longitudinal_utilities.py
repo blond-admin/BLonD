@@ -9,7 +9,6 @@ from __future__ import division
 import warnings
 import numpy as np
 from scipy.constants import c
-from trackers.longitudinal_tracker import *
 
 
 
@@ -67,11 +66,11 @@ def hamiltonian(GeneralParameters, RFSectionParameters, theta, dE, delta,
     else: 
         V0 = total_voltage[counter]
     
-    c1 = RFSectionParameters.eta_tracking(delta) * c * np.pi / (GeneralParameters.ring_circumference * 
+    c1 = RFSectionParameters.eta_tracking(counter, delta) * c * np.pi / (GeneralParameters.ring_circumference * 
          RFSectionParameters.beta_r[counter] * RFSectionParameters.energy[counter] )
     c2 = c * RFSectionParameters.beta_r[counter] * V0 / (h0 * GeneralParameters.ring_circumference)
      
-    phi_s = RFSectionParameters.phi_s[counter-1]  
+    phi_s = RFSectionParameters.phi_s[counter]  
     
     return c1 * dE**2 + c2 * (np.cos(h0 * theta) - np.cos(phi_s) + 
                                (h0 * theta - phi_s) * np.sin(phi_s))
@@ -101,19 +100,17 @@ def separatrix(GeneralParameters, RFSectionParameters, theta, total_voltage = No
     else: 
         V0 = total_voltage[counter]
  
-    phi_s = RFSectionParameters.phi_s[counter]  
+    phi_s = RFSectionParameters.phi_s[counter]
+     
+    beta = RFSectionParameters.beta_r[counter]
+     
+    energy = RFSectionParameters.energy[counter]
+     
+    eta0 = RFSectionParameters.eta_0[counter]
       
-     
-    beta_average = RFSectionParameters.beta_av[counter]
-     
-    energy_average = (RFSectionParameters.energy[counter + 1] + RFSectionParameters.energy[counter]) / 2
-     
-    eta0_average = (RFSectionParameters.eta_0[counter + 1] + RFSectionParameters.eta_0[counter])/2
-      
-    separatrix_array = np.sqrt(beta_average**2 * energy_average *
-                    V0 / (np.pi * eta0_average * h0) * 
-                    (-np.cos(h0 * theta) - np.cos(phi_s) + 
-                    (np.pi - phi_s - h0 * theta) * np.sin(phi_s)))
+    separatrix_array = np.sqrt(beta**2 * energy * V0 / (np.pi * eta0 * h0) * 
+                       (-np.cos(h0 * theta) - np.cos(phi_s) + 
+                       (np.pi - phi_s - h0 * theta) * np.sin(phi_s)))
          
     return separatrix_array
  
@@ -135,8 +132,8 @@ def is_in_separatrix(GeneralParameters, RFSectionParameters, theta, dE, delta, t
     
          
     counter = RFSectionParameters.counter[0]
-    h0 = RFSectionParameters.harmonic[0,counter]        
-    phi_s = RFSectionParameters.phi_s[counter-1] 
+    h0 = RFSectionParameters.harmonic[0,counter]     
+    phi_s = RFSectionParameters.phi_s[counter] 
      
     Hsep = hamiltonian(GeneralParameters, RFSectionParameters, (np.pi - phi_s) / h0, 0, 0, total_voltage = None) 
     isin = np.fabs(hamiltonian(GeneralParameters, RFSectionParameters, theta, dE, delta, total_voltage = None)) < np.fabs(Hsep)

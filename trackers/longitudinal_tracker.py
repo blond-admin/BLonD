@@ -136,7 +136,7 @@ class RingAndRFSection(object):
     and finally a drift kick between stations.*
     '''
         
-    def __init__(self, RFSectionParameters, solver = 'full'):
+    def __init__(self, RFSectionParameters, solver = 'full', PhaseLoop = None):
         
         #: *Copy of the counter (from RFSectionParameters)*
         self.counter = RFSectionParameters.counter
@@ -164,15 +164,13 @@ class RingAndRFSection(object):
         self.p_increment = RFSectionParameters.p_increment
         #: *Copy of the relativistic beta (from RFSectionParameters)*
         self.beta_r = RFSectionParameters.beta_r
-        #: *Copy of the averaged relativistic beta (from RFSectionParameters)*
-        self.beta_av = RFSectionParameters.beta_av
         #: *Copy of the relativistic gamma (from RFSectionParameters)*        
         self.gamma_r = RFSectionParameters.gamma_r
         #: *Copy of the relativistic energy (from RFSectionParameters)*                
         self.energy = RFSectionParameters.energy
         
         #: *Acceleration kick* :math:`: \quad - <\beta> \Delta p`
-        self.acceleration_kick = - self.beta_av * self.p_increment  
+        self.acceleration_kick = - self.beta_r[1:] * self.p_increment  
         
         ### Import RF section parameters for the drift
         #: *Slippage factor (order 0) for the given RF section*
@@ -191,10 +189,21 @@ class RingAndRFSection(object):
         #: | *Set to 'simple' if only 0th order of slippage factor eta*
         #: | *Set to 'full' if higher orders of slippage factor eta*
         self.solver = solver
-        if self.alpha_order == 1:
-            self.solver = 'simple'
+        #if self.alpha_order == 1:
+        #    self.solver = 'simple'
         
-        self.rf_params = RFSectionParameters         
+        self.rf_params = RFSectionParameters
+
+        ### Parameters for the Phase Loop
+        #: *Copy of the section index (from RFSectionParameters)*        
+        self.section_index = RFSectionParameters.section_index
+        
+        #: *Design RF frequency of the main RF system in the station*        
+        self.omega_RF = 2.*np.pi*self.beta_r*c*self.harmonic[0]/ \
+                        (RFSectionParameters.ring_cirumference)
+        
+        #: *Phase Loop class*                
+        self.PL = PhaseLoop         
         
                    
     def kick(self, beam):
@@ -213,7 +222,7 @@ class RingAndRFSection(object):
             beam.dE += self.voltage[i,self.counter[0]] * \
                        np.sin(self.harmonic[i,self.counter[0]] * 
                               beam.theta + self.phi_offset[i,self.counter[0]])
-    
+   
     
     def kick_acceleration(self, beam):
         '''
@@ -251,16 +260,38 @@ class RingAndRFSection(object):
         
         '''
         
+        # Determine frequency correction from feedback loops
+        if self.PL == None:
+            # No Phase Loop, no Radial Loop
+            omega_r1 = self.beta_ratio[self.counter[0]]
+            omega_r2 = 0.
+            omega_r3 = 1.
+            
+        else:
+            self.PL.track(beam, self)
+            # Sum up corrections from previous and current time step
+            # Sum up corrections from PL, RL, etc. here
+            corr_next = self.PL.domega_RF_next
+            corr_prev = self.PL.domega_RF_prev
+               
+            omega_r1 = (self.omega_RF[self.counter[0]+1] - corr_next) / \
+                       (self.omega_RF[self.counter[0]]- corr_prev)
+            omega_r2 = - corr_next/self.omega_RF[self.counter[0]+1]
+            omega_r3 = 1. + omega_r2
+
+       
+        # Choose solver
         if self.solver == 'full': 
            
-            beam.theta = self.beta_ratio[self.counter[0]] * beam.theta \
-                         + 2 * np.pi * (1 / (1 - self.rf_params.eta_tracking(beam.delta) * 
-                                             beam.delta) - 1) * self.length_ratio
+            beam.theta = omega_r1*beam.theta + 2*np.pi*self.length_ratio* \
+                (omega_r3*(1/(1 - self.rf_params.eta_tracking(self.counter[0]+1, beam.delta) 
+                *beam.delta) - 1) + omega_r2)            
+                                            
         elif self.solver == 'simple':
-            
-            beam.theta = self.beta_ratio[self.counter[0]] *beam.theta \
-                         + 2 * np.pi * self.eta_0[self.counter[0]] \
-                         * beam.delta * self.length_ratio
+
+            beam.theta = omega_r1*beam.theta + 2*np.pi*self.length_ratio* \
+                (omega_r3*self.eta_0[self.counter[0]+1]*beam.delta + omega_r2)
+                         
         else:
             raise RuntimeError("ERROR: Choice of longitudinal solver not \
                                recognized! Aborting...")

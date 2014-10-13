@@ -63,6 +63,9 @@ class RFSectionParameters(object):
         #: | *Counter for turns is:* :math:`n`
         self.n_turns = GeneralParameters.n_turns
         
+        #: *Copy of the ring circumference (from GeneralParameters)*
+        self.ring_cirumference = GeneralParameters.ring_circumference
+        
         #: *Length of the section in [m]* :math:`: \quad L_k`
         self.section_length = GeneralParameters.ring_length[self.section_index]
         
@@ -87,9 +90,6 @@ class RFSectionParameters(object):
         #: *Copy of the relativistic energy for the section (from 
         #: GeneralParameters)* :math:`: \quad E_{k,n}`
         self.energy = GeneralParameters.energy[self.section_index]
-        
-        #: *Copy of the average beta (from GeneralParameters)*
-        self.beta_av = GeneralParameters.beta_av[self.section_index]
         
         #: *Slippage factor (order 0) for the given RF section*
         self.eta_0 = 0
@@ -134,7 +134,6 @@ class RFSectionParameters(object):
             self.voltage = [voltage]
             self.phi_offset = [phi_offset] 
         else:
-            
             self.harmonic = harmonic
             self.voltage = voltage 
             self.phi_offset = phi_offset
@@ -154,7 +153,7 @@ class RFSectionParameters(object):
         self.phi_s = calc_phi_s(self)   
     
     
-    def eta_tracking(self, delta):
+    def eta_tracking(self, counter, delta):
         '''
         *The slippage factor is calculated as a function of the relative momentum
         (delta) of the beam. By definition, the slippage factor is:*
@@ -165,11 +164,11 @@ class RFSectionParameters(object):
         '''
         
         if self.alpha_order == 1:
-            return self.eta_0[self.counter[0]]
+            return self.eta_0[counter]
         else:
             eta = 0
             for i in xrange( self.alpha_order ):
-                eta_i = getattr(self, 'eta_' + str(i))[self.counter[0]]
+                eta_i = getattr(self, 'eta_' + str(i))[counter]
                 eta  += eta_i * (delta**i)
             return eta  
 
@@ -189,15 +188,17 @@ def calc_phi_s(RFSectionParameters, accelerating_systems = 'all'):
          
     if RFSectionParameters.n_rf == 1:
                      
-        acceleration_ratio = RFSectionParameters.beta_av * RFSectionParameters.p_increment \
-            / (RFSectionParameters.voltage[0,0:-1] + RFSectionParameters.voltage[0,1:]) * 2 
+        acceleration_ratio = RFSectionParameters.beta_r[1:] * RFSectionParameters.p_increment \
+            / RFSectionParameters.voltage[0,1:] 
         
         acceleration_test = np.where((acceleration_ratio > -1) * (acceleration_ratio < 1) == False)[0]
                 
         if acceleration_test.size > 0:
             raise RuntimeError('Acceleration is not possible (momentum increment is too big or voltage too low) at index ' + str(acceleration_test))
-           
-        phi_s = np.arcsin(acceleration_ratio)
+        
+        # For the initial phi_s, add the first value a second time   
+        phi_s = np.arcsin( np.concatenate((np.array([acceleration_ratio[0]]), 
+                                           acceleration_ratio)) )
         
         index = np.where((eta0[1:] + eta0[0:-1])/2 > 0)       
         phi_s[index] = np.pi - phi_s

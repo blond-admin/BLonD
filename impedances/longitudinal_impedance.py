@@ -333,8 +333,7 @@ class InducedVoltageFreq(object):
         self.induced_voltage_generation(Beam)
         
         induced_voltage_kick = np.interp(Beam.tau, self.slices.bins_centers, self.induced_voltage)
-        Beam.dE += induced_voltage_kick
-        
+        Beam.dE += induced_voltage_kick        
         
         
 class InductiveImpedance(object):

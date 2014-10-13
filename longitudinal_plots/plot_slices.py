@@ -6,35 +6,8 @@
 '''
 
 from __future__ import division
-import os
-import subprocess
-import sys
-import warnings
 import matplotlib.pyplot as plt
-
-
-
-if os.path.exists('fig'):    
-    if "lin" in sys.platform:
-        subprocess.Popen("rm -rf fig", shell = True, executable = "/bin/bash")
-    elif "win" in sys.platform:
-        os.system('del /s/q '+ os.getcwd() +'\\fig>null')
-    else:
-        warnings.warn("You have not a Windows or Linux operating system. Aborting...")
-
-    
-def fig_folder(dirname):
-    
-    # Try to create directory
-    try:
-        os.makedirs(dirname)
-    # Check whether already exists/creation failed
-    except OSError:
-        if os.path.exists(dirname):
-            pass
-        else:
-            raise
-
+from longitudinal_plots.plot_settings import fig_folder
 
 
 def plot_beam_profile(counter, general_params, slices, style = '-', 
@@ -48,25 +21,19 @@ def plot_beam_profile(counter, general_params, slices, style = '-',
     fig_folder(dirname)
     
     plt.figure(1, figsize=(8,6))
-    ax = plt.axes([0.12, 0.1, 0.82, 0.8])
+    ax = plt.axes([0.15, 0.1, 0.8, 0.8])    
+    ax.plot(slices.bins_centers, slices.n_macroparticles, style)
     
-    ax.plot(slices.bins_centers, slices.n_macroparticles, style, linewidth=4)
     if slices.slicing_coord == 'theta': 
-        ax.set_xlabel(r"$\vartheta$ [rad]", fontsize=20, fontweight='bold')
+        ax.set_xlabel(r"$\vartheta$ [rad]")
     elif slices.slicing_coord == 'z':
-        ax.set_xlabel('z [m]', fontsize=20, fontweight='bold')
+        ax.set_xlabel('z [m]')
     elif slices.slicing_coord == 'tau':
-        ax.set_xlabel('Time [s]', fontsize=20, fontweight='bold')
-    ax.set_ylabel('Beam profile [arb. units]', fontsize=20, fontweight='bold')
-#     ax.ticklabel_format(style='sci', axis='x', scilimits=(0,0), fontweight='bold')
-#     ax.ticklabel_format(style='sci', axis='y', scilimits=(0,0), fontweight='bold')
-    for tick in ax.xaxis.get_major_ticks():
-        tick.label1.set_fontsize(10)
-        tick.label1.set_fontweight('bold')
-    for tick in ax.yaxis.get_major_ticks():
-        tick.label1.set_fontsize(10)
-        tick.label1.set_fontweight('bold')
-
+        ax.set_xlabel('Time [s]')
+    ax.set_ylabel('Beam profile [arb. units]')
+    ax.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
+    ax.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+    
     plt.figtext(0.95, 0.95, '%d turns' %counter, fontsize=16, ha='right', 
                 va='center') 
     

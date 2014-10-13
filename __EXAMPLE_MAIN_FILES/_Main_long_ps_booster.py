@@ -166,8 +166,7 @@ for i in range(n_turns):
          
         plot_bunch_length_evol(my_beam, 'beam', general_params, n_turns)
         
-        plot_position_evol(i+1, my_beam, 'beam', general_params, unit = None, dirname = 'fig')
-
+        plot_position_evol(my_beam, 'beam', general_params, i+1, unit = None, dirname = 'fig')
 
 print "Done!"
 

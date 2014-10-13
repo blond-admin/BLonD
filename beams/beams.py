@@ -8,7 +8,7 @@ from __future__ import division
 import numpy as np
 import warnings
 from scipy.constants import c, e, m_p
-
+import cython_functions.stats as cp
 from scipy.optimize import curve_fit
 from trackers.longitudinal_utilities import is_in_separatrix
 from scipy import ndimage

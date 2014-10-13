@@ -126,11 +126,8 @@ class GeneralParameters(object):
         self.energy = np.sqrt(self.momentum**2 + 
                               (self.mass * c**2 / self.charge)**2)
         
-        #: *Average beta value between then end and the beginning of the section*
-        self.beta_av = (self.beta_r[:,1:] + self.beta_r[:,0:-1])/2
-        
         #: *Revolution period [s]* :math:`: \quad T_0 = \frac{C}{\beta c}`
-        self.t_rev = np.dot(self.ring_length, 1/self.beta_av) / c
+        self.t_rev = np.dot(self.ring_length, 1/(self.beta_r*c))
  
         #: *Revolution frequency [Hz]* :math:`: \quad f_0 = \frac{1}{T_0}`
         self.f_rev = 1 / self.t_rev

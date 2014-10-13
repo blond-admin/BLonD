@@ -20,3 +20,9 @@ stats.html
 # _doc/buil folder #
 #######################
 /__doc/build/
+
+# Figure folder #
+#################
+/__EXAMPLE_MAIN_FILES/fig/
+/__EXAMPLE_MAIN_FILES/*.h5
+/__EXAMPLE_MAIN_FILES/null

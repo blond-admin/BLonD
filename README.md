@@ -9,11 +9,11 @@ longitudinal beam dynamics with collective effects.
 
 Developers:
 
-Theodoros Argyropoulos (Theodoros.Argyropoulos@cern.ch)
-Alexandre Lasheen (alexandre.lasheen@cern.ch)
-Juan Esteban Muller (juan.fem@cern.ch)
-Danilo Quartullo (danilo.quartullo@cern.ch)
-Helga Timko (Helga.Timko@cern.ch)
+Theodoros Argyropoulos (Theodoros.Argyropoulos (at) cern.ch)
+Alexandre Lasheen (alexandre.lasheen (at) cern.ch)
+Juan Esteban Muller (juan.fem (at) cern.ch)
+Danilo Quartullo (danilo.quartullo (at) cern.ch)
+Helga Timko (Helga.Timko (at) cern.ch)
 
 
 The structure is as follows:
@@ -36,6 +36,13 @@ The structure is as follows:
 
 VERSION CONTENTS
 ==========
+
+2014-10-13
+v1.5.0 - Phase loop implemented and tested
+	   - New feedback features in plotting and monitoring
+	   - Removed average values (beta etc.) from input_parameters
+	   - Plotting: formatting setup is separate, files made "uniform"
+	   - Calculated synchronous phase now has the same array length as momentum
 
 2014-10-13
 v1.4.0 - The name of the code has been changed from PyLongitudinal to BLond and 
