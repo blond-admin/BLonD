@@ -37,6 +37,10 @@ The structure is as follows:
 VERSION CONTENTS
 ==========
 
+2014-10-14
+v1.5.1 - Removed cython calls
+	   - Updated c++ setup file
+
 2014-10-13
 v1.5.0 - Phase loop implemented and tested
 	   - New feedback features in plotting and monitoring
