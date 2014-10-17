@@ -13,15 +13,7 @@ from scipy import ndimage
 from scipy.optimize import curve_fit
 import warnings
 import ctypes
-import sys
-
-if "lin" in sys.platform:
-    libfib=ctypes.CDLL('histogram.so')
-elif "win" in sys.platform:
-    libfib=ctypes.CDLL('histogram.dll')
-else:
-    sys.exit()
-
+from setup_cpp import libfib
 
 class Slices(object):
     '''
@@ -217,8 +209,9 @@ class Slices(object):
         for high number of particles (~1e6).*
         '''
         w = self.beam_coordinates
+        v = self.n_macroparticles
         libfib.histogram(w.ctypes.data_as(ctypes.c_void_p), 
-                      self.n_macroparticles.ctypes.data_as(ctypes.c_void_p), 
+                      v.ctypes.data_as(ctypes.c_void_p), 
                ctypes.c_double(self.cut_left), ctypes.c_double(self.cut_right), 
                ctypes.c_uint(self.n_slices), ctypes.c_uint(self.Beam.n_macroparticles))
 

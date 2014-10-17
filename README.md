@@ -38,6 +38,9 @@ The structure is as follows:
 VERSION CONTENTS
 ==========
 
+2014-10-18
+v1.6.1 - Fixed bugs regarding ctypes in slices.py 
+
 2014-10-17
 v1.6.0 - New simplified setup files for cython and pure c++ routines
          in Windows and Linux environments
