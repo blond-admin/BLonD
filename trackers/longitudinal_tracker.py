@@ -6,8 +6,12 @@
 
 from __future__ import division
 import numpy as np
+import math
 from scipy.constants import c
 from scipy.integrate import cumtrapz
+import ctypes, copy, sys, thread
+from setup_cpp import libfib
+
 
 
 class FullRingAndRF(object):
@@ -150,10 +154,13 @@ class RingAndRFSection(object):
         self.n_rf = RFSectionParameters.n_rf
         #: *Copy of harmonic number program (from RFSectionParameters)*
         self.harmonic = RFSectionParameters.harmonic
+        
         #: *Copy of voltage program in [V] (from RFSectionParameters)*
         self.voltage = RFSectionParameters.voltage
+        
         #: *Copy of phi_offset program in [rad] (from RFSectionParameters)*
         self.phi_offset = RFSectionParameters.phi_offset
+        
         #: *Copy of phi_s program in [rad] (from RFSectionParameters)*
         self.phi_s = RFSectionParameters.phi_s
         
@@ -205,7 +212,7 @@ class RingAndRFSection(object):
         #: *Phase Loop class*                
         self.PL = PhaseLoop         
         
-                   
+# Old kick method now substituted by the equivalent pure c++ routine                   
     def kick(self, beam):
         '''
         *The Kick represents the kick(s) by an RF station at a certain position 
@@ -217,11 +224,12 @@ class RingAndRFSection(object):
             \Delta E_{n+1} = \Delta E_n + \sum_{j=0}^{n_{RF}}{V_{j,n}\,\sin{\\left(h_{j,n}\,\\theta + \phi_{j,n}\\right)}}
             
         '''
-
+                
         for i in range(self.n_rf):
             beam.dE += self.voltage[i,self.counter[0]] * \
                        np.sin(self.harmonic[i,self.counter[0]] * 
                               beam.theta + self.phi_offset[i,self.counter[0]])
+        
    
     
     def kick_acceleration(self, beam):
@@ -305,7 +313,18 @@ class RingAndRFSection(object):
         | *Updates the relativistic information of the beam.*
         '''
         
-        self.kick(beam)
+        a=beam.theta
+        q=beam.dE
+        v = np.array(self.voltage[:, self.counter[0]])
+        h = np.array(self.harmonic[:, self.counter[0]])
+        p = np.array(self.phi_offset[:, self.counter[0]])
+        
+        libfib.kick(a.ctypes.data_as(ctypes.c_void_p), q.ctypes.data_as(ctypes.c_void_p), ctypes.c_int(self.n_rf), 
+                        v.ctypes.data_as(ctypes.c_void_p),
+                        h.ctypes.data_as(ctypes.c_void_p), 
+                        p.ctypes.data_as(ctypes.c_void_p), 
+                        ctypes.c_uint(beam.n_macroparticles))
+        
         self.kick_acceleration(beam)
         self.drift(beam)
         

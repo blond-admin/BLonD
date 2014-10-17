@@ -39,6 +39,8 @@ def plot_impedance_vs_frequency(counter, general_params, ind_volt_from_imp,
         plt.show()
         plt.savefig(fign)
         plt.clf()
+        plt.close()
+        
     
     elif option1 == "single":
         
@@ -95,7 +97,7 @@ def plot_impedance_vs_frequency(counter, general_params, ind_volt_from_imp,
         
         plt.savefig(fign2)
         plt.clf()
-        
+        plt.close()
    
    
 def plot_induced_voltage_vs_bins_centers(counter, general_params, 
@@ -120,6 +122,6 @@ def plot_induced_voltage_vs_bins_centers(counter, general_params,
     fign = dirname +'/induced_voltage_' "%d" %counter + '.png'
     plt.savefig(fign)
     plt.clf()
-
+    plt.close()
 
 

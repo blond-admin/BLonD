@@ -38,7 +38,8 @@ def plot_noise_spectrum(frequency, spectrum, sampling = 1, dirname = 'fig'):
     fign = dirname +'/noise_spectrum.png'
     plt.savefig(fign)
     plt.clf()
-    
+    plt.close()
+        
     
 def plot_phase_noise(time, dphi, sampling = 1, dirname = 'fig'):
     
@@ -61,14 +62,15 @@ def plot_phase_noise(time, dphi, sampling = 1, dirname = 'fig'):
     fign = dirname +'/phase_noise.png'
     plt.savefig(fign)
     plt.clf()     
-    
+    plt.close()
+        
 
 def plot_PL_phase_corr(PhaseLoop, h5file, time_step, output_freq = 1, 
                        dirname = 'fig'):
     
     """
     Plot of the phase noise as a function of time.
-    For large amount of data, use "sampling" to plot a fraction of the data.
+    For large amount of data, monitor with larger 'output_freq'.
     """
 
     # Directory where longitudinal_plots will be stored
@@ -93,14 +95,15 @@ def plot_PL_phase_corr(PhaseLoop, h5file, time_step, output_freq = 1,
     fign = dirname +'/PL_phase_corr.png'
     plt.savefig(fign)
     plt.clf()     
-           
+    plt.close()
+               
 
 def plot_PL_freq_corr(PhaseLoop, h5file, time_step, output_freq = 1, 
                       dirname = 'fig'):
     
     """
     Plot of the phase noise as a function of time.
-    For large amount of data, use "sampling" to plot a fraction of the data.
+    For large amount of data, monitor with larger 'output_freq'.
     """
 
     # Directory where longitudinal_plots will be stored
@@ -126,7 +129,8 @@ def plot_PL_freq_corr(PhaseLoop, h5file, time_step, output_freq = 1,
     fign = dirname +'/PL_freq_corr.png'
     plt.savefig(fign)
     plt.clf()     
-    
+    plt.close()
+        
 
 def plot_COM_motion(beam, General_parameters, RFSectionParameters, h5file, xmin,
                     xmax, ymin, ymax, separatrix_plot = False, dirname = 'fig'):
@@ -169,7 +173,40 @@ def plot_COM_motion(beam, General_parameters, RFSectionParameters, h5file, xmin,
     fign = dirname +'/COM_evolution.png'
     plt.savefig(fign)
     plt.clf()
+    plt.close()
+    
 
+def plot_LHCNoiseFB(LHCNoiseFB, h5file, time_step, output_freq = 1, 
+                    dirname = 'fig'):
+    
+    """
+    Plot of the phase noise multiplication factor as a function of time.
+    For large amount of data, monitor with larger 'output_freq'.
+    """
 
+    # Directory where longitudinal_plots will be stored
+    fig_folder(dirname)
+
+    # Load/create data
+    if output_freq < 1:
+        output_freq = 1
+    ndata = int(time_step/output_freq) + 1
+    t = output_freq*range(0, ndata + 1)    
+    storeddata = h5py.File(h5file + '.h5', 'r')
+    x = np.array(storeddata["/Bunch/LHC_noise_scaling"], dtype = np.double)
+    
+    # Plot
+    plt.figure(1, figsize=(8,6))
+    ax = plt.axes([0.15, 0.1, 0.8, 0.8])
+    ax.plot(t, x[0:ndata+1],'.')
+    ax.set_xlabel(r"No. turns [T$_0$]")    
+    ax.set_ylabel (r"LHC noise FB scaling factor [1]")
+    ax.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+
+    # Save figure
+    fign = dirname +'/LHC_noise_FB.png'
+    plt.savefig(fign)
+    plt.clf()         
+    plt.close()
     
     

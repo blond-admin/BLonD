@@ -17,7 +17,7 @@ class BunchMonitor(object):
     '''
     
     def __init__(self, filename, n_steps, statistics = "All", slices = None, 
-                 PhaseLoop = None):
+                 PhaseLoop = None, LHCNoiseFB = None):
         
         self.h5file = hp.File(filename + '.h5', 'w')
         self.n_steps = n_steps
@@ -26,6 +26,7 @@ class BunchMonitor(object):
         self.slices = slices
         self.h5file.create_group('Bunch')
         self.PL = PhaseLoop
+        self.LHCNoiseFB = LHCNoiseFB
 
     
     def track(self, bunch):
@@ -79,6 +80,8 @@ class BunchMonitor(object):
             if self.PL:
                 h5group.create_dataset("PL_phase_corr", dims, compression="gzip", compression_opts=9)
                 h5group.create_dataset("PL_omegaRF_corr", dims, compression="gzip", compression_opts=9)
+            if self.LHCNoiseFB:
+                h5group.create_dataset("LHC_noise_scaling", dims, compression="gzip", compression_opts=9)
                 
 
     
@@ -113,6 +116,8 @@ class BunchMonitor(object):
             if self.PL:
                 h5group["PL_phase_corr"][i_steps] = self.PL.dphi
                 h5group["PL_omegaRF_corr"][i_steps] = self.PL.domega_RF_next
+            if self.LHCNoiseFB:
+                h5group["LHC_noise_scaling"][i_steps] = self.LHCNoiseFB.x
 
         
     def close(self):

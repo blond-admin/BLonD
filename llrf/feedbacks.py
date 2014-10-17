@@ -31,6 +31,8 @@ class PhaseLoop(object):
         if self.machine == 'PSB':
             self.counter = 0
             self.precalculate_time(general_params)
+        elif self.machine == 'LHC':
+            self.dt = 1 # make sure PL is on every turn
             
         self.phi_s_design = rf_params.phi_s
        
@@ -118,19 +120,20 @@ class PhaseLoop(object):
 class LHCNoiseFB(object): 
     
     # Feedback based on bunch length, acting on phase noise used for blow-up 
-    def __init__(self, bl_target, gain = 0.1, factor = 0.64, 
+    def __init__(self, general_params, bl_target, gain = 0.1, factor = 0.64, 
                  sampling_frequency = 100, self_statistics = False ):
 
         self.x = 1 # multiplication factor; initially 1
         self.bl_targ = bl_target # 4 sigma, in s
         self.bl_meas = bl_target # set initial value for measured bunch length
-        self.g = gain # in inverse-turns
+        self.g = gain/general_params.t_rev[0] # in inverse-turns
         self.a = factor
         self.dt = sampling_frequency # bunch length sampling frequency, in turns
         self.self_stat = self_statistics # using external/internal statistics
-       
+     
 
-    def FB(self, general_params, rf_params, beam, RFnoise):
+    def FB(self,  rf_params, beam, RFnoise):
+
         # Update bunch length, every dt no. of turns
         if rf_params.counter[0] % self.dt:
             if self.self_stat:
@@ -139,20 +142,18 @@ class LHCNoiseFB(object):
                              *beam.ring_radius/(beam.beta_r*c)
             else:
                 self.bl_meas = 4.*beam.sigma_tau
-
         
         # Update multiplication factor
-        self.x = self.a*self.x \
-               + self.g*(self.bl_targ - self.bl_meas)/general_params.t_rev
+        self.x = self.a*self.x + self.g*(self.bl_targ - self.bl_meas)               
         
         # Limit to range [0,1]
         if self.x < 0:
             self.x = 0
         if self.x > 1:
-            self.x = 1
-            
+            self.x = 1           
         
         # Update phase noise for the following turn
         RFnoise.dphi[rf_params.counter[0] + 1] *= self.x
+        
         
         

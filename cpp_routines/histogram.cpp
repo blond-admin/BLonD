@@ -1,5 +1,3 @@
-
-#include <omp.h>
 #include <cstring>
 using uint = unsigned int;
 

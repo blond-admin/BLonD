@@ -29,13 +29,22 @@ The structure is as follows:
    distribution) to be able to see displayed all the math formulas;
    the latest docs should be uploaded to the "gh-pages" branch;
 3) the various packages which constitute the code;
-4) the setup_cpp_routines file needed to compile the C++ files present in the 
-   cpp_routines package; this file should be run once before launching any 
-   simulation. The compiler C/C++ GCC is necessary.
+4) the setup_cpp and setup_cython files needed to compile the C++ and Cython
+   files present in the corresponding packages respectively; theses files 
+   should be run once before launching any simulation. 
+   The compiler C/C++ GCC is necessary.
 
 
 VERSION CONTENTS
 ==========
+
+2014-10-17
+v1.6.0 - New simplified setup files for cython and pure c++ routines
+         in Windows and Linux environments
+       - preprocess.py added
+       - example file _LHC_BUP added
+       - fixed two important bugs in slices.py and rf_parameters.py
+       - modifications to plot routines
 
 2014-10-14
 v1.5.1 - Removed cython calls

@@ -137,6 +137,7 @@ def plot_long_phase_space(beam, General_parameters, RFSectionParameters, xmin,
     fign = dirname +'/long_distr_'"%d"%RFSectionParameters.counter[0]+'.png'
     plt.savefig(fign)
     plt.clf()
+    plt.close()
 
 
 def plot_bunch_length_evol(beam, h5file, General_parameters, time_step, 
@@ -184,7 +185,8 @@ def plot_bunch_length_evol(beam, h5file, General_parameters, time_step,
     fign = dirname +'/bunch_length.png'
     plt.savefig(fign)
     plt.clf()
-
+    plt.close()
+    
 
 def plot_bunch_length_evol_gaussian(beam, h5file, General_parameters, slices, 
                                     time_step, output_freq = 1, unit = None,
@@ -244,7 +246,8 @@ def plot_bunch_length_evol_gaussian(beam, h5file, General_parameters, slices,
     fign = dirname +'/bunch_length_Gaussian.png'
     plt.savefig(fign)
     plt.clf()
-
+    plt.close()
+    
 
 def plot_position_evol(beam, h5file, General_parameters, time_step,
                        output_freq = 1, unit = None, style = '-', 
@@ -286,6 +289,6 @@ def plot_position_evol(beam, h5file, General_parameters, time_step,
     fign = 'fig/bunch_mean_position.png'
     plt.savefig(fign) 
     plt.clf() 
-
+    plt.close()
 
 
