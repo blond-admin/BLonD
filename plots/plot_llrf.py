@@ -10,8 +10,8 @@ import matplotlib.pyplot as plt
 import h5py
 import numpy as np
 from scipy.constants import c
-from longitudinal_plots.plot_settings import fig_folder
-from trackers.longitudinal_utilities import separatrix
+from plots.plot_settings import fig_folder
+from trackers.utilities import separatrix
 
 
 def plot_noise_spectrum(frequency, spectrum, sampling = 1, dirname = 'fig'):
@@ -21,7 +21,7 @@ def plot_noise_spectrum(frequency, spectrum, sampling = 1, dirname = 'fig'):
     For large amount of data, use "sampling" to plot a fraction of the data.
     """
 
-    # Directory where longitudinal_plots will be stored
+    # Directory where plots will be stored
     fig_folder(dirname)
     
     # Plot
@@ -48,7 +48,7 @@ def plot_phase_noise(time, dphi, sampling = 1, dirname = 'fig'):
     For large amount of data, use "sampling" to plot a fraction of the data.
     """
 
-    # Directory where longitudinal_plots will be stored
+    # Directory where plots will be stored
     fig_folder(dirname)
     
     # Plot
@@ -73,7 +73,7 @@ def plot_PL_phase_corr(PhaseLoop, h5file, time_step, output_freq = 1,
     For large amount of data, monitor with larger 'output_freq'.
     """
 
-    # Directory where longitudinal_plots will be stored
+    # Directory where plots will be stored
     fig_folder(dirname)
 
     # Load/create data
@@ -106,7 +106,7 @@ def plot_PL_freq_corr(PhaseLoop, h5file, time_step, output_freq = 1,
     For large amount of data, monitor with larger 'output_freq'.
     """
 
-    # Directory where longitudinal_plots will be stored
+    # Directory where plots will be stored
     fig_folder(dirname)
 
     # Load/create data
@@ -139,7 +139,7 @@ def plot_COM_motion(beam, General_parameters, RFSectionParameters, h5file, xmin,
     Optional use of histograms and separatrix.
     """
 
-    # Directory where longitudinal_plots will be stored
+    # Directory where plots will be stored
     fig_folder(dirname)
  
     # Load data
@@ -184,7 +184,7 @@ def plot_LHCNoiseFB(LHCNoiseFB, h5file, time_step, output_freq = 1,
     For large amount of data, monitor with larger 'output_freq'.
     """
 
-    # Directory where longitudinal_plots will be stored
+    # Directory where plots will be stored
     fig_folder(dirname)
 
     # Load/create data

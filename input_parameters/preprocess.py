@@ -9,7 +9,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.constants import m_p, m_e, e, c
 
-from longitudinal_plots.plot_settings import fig_folder
+from plots.plot_settings import fig_folder
 
 
 def preprocess_ramp(particle_type, nturns, circumference, time, momentum, 
@@ -89,7 +89,7 @@ def preprocess_ramp(particle_type, nturns, circumference, time, momentum,
       
       
     if plot:
-        # Directory where longitudinal_plots will be stored
+        # Directory where plots will be stored
         fig_folder(figdir)
         
         # Plot

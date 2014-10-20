@@ -37,6 +37,11 @@ The structure is as follows:
 
 VERSION CONTENTS
 ==========
+2014-10-18
+v1.7.0 - Tracker.kick method has been optimised via the CERN VDT math library
+	   - Code cleaning and rearrangement
+	   - Fixed a bug in the calc_phi_s method
+	   - New example file added
 
 2014-10-18
 v1.6.1 - Fixed bugs regarding ctypes in slices.py 

@@ -8,16 +8,16 @@ import numpy as np
 from llrf.RF_noise import *
 from input_parameters.general_parameters import *
 from input_parameters.rf_parameters import *
-from trackers.longitudinal_tracker import *
+from trackers.tracker import *
 from llrf.feedbacks import *
 from beams.beams import *
-from beams.longitudinal_distributions import *
+from beams.distributions import *
 from beams.slices import *
 from monitors.monitors import *
-from longitudinal_plots.plot_settings import *
-from longitudinal_plots.plot_beams import *
-from longitudinal_plots.plot_llrf import *
-from longitudinal_plots.plot_slices import *
+from plots.plot_settings import *
+from plots.plot_beams import *
+from plots.plot_llrf import *
+from plots.plot_slices import *
 
 
 
@@ -73,7 +73,7 @@ slice_beam = Slices(beam, 100, slicing_coord = 'theta')#, #fit_option = 'gaussia
                     #slice_immediately = 'on')
 
 # Define what to save in file
-bunchmonitor = BunchMonitor('output_data', N_t+1, "Longitudinal", PhaseLoop=PL)#slice_beam, PL)
+bunchmonitor = BunchMonitor('output_data', N_t+1, PhaseLoop=PL)#slice_beam, PL)
 
 print "Statistics set..."
 

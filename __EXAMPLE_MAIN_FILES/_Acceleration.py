@@ -5,14 +5,14 @@ import time
 
 from input_parameters.general_parameters import *
 from input_parameters.rf_parameters import *
-from trackers.longitudinal_tracker import *
+from trackers.tracker import *
 from beams.beams import *
-from beams.longitudinal_distributions import *
+from beams.distributions import *
 from beams.slices import *
 from monitors.monitors import *
-from longitudinal_plots.plot_beams import *
-from longitudinal_plots.plot_impedance import *
-from longitudinal_plots.plot_slices import *
+from plots.plot_beams import *
+from plots.plot_impedance import *
+from plots.plot_slices import *
 
 # Simulation parameters --------------------------------------------------------
 # Bunch parameters
@@ -66,7 +66,7 @@ slice_beam = Slices(beam, 100, fit_option = 'gaussian', slice_immediately = 'on'
 
 
 # Define what to save in file
-bunchmonitor = BunchMonitor('output_data', N_t+1, "Longitudinal", slice_beam)
+bunchmonitor = BunchMonitor('output_data', N_t+1, slice_beam)
 bunchmonitor.track(beam)
 
 print "Statistics set..."
@@ -107,7 +107,7 @@ for i in range(N_t):
     
     # Define losses according to separatrix and/or longitudinal position
     beam.losses_separatrix(general_params, rf_params)
-    beam.losses_longitudinal_cut(0.28e-4, 0.75e-4)
+    beam.losses_cut(0.28e-4, 0.75e-4)
 
 
 bunchmonitor.h5file.close()

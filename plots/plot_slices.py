@@ -7,7 +7,7 @@
 
 from __future__ import division
 import matplotlib.pyplot as plt
-from longitudinal_plots.plot_settings import fig_folder
+from plots.plot_settings import fig_folder
 
 
 def plot_beam_profile(counter, general_params, slices, style = '-', 

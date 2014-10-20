@@ -1,37 +1,37 @@
-longitudinal_plots package
+plots package
 ==========================
 
 Submodules
 ----------
 
-longitudinal_plots.plot_beams module
+plots.plot_beams module
 ------------------------------------
 
-.. automodule:: longitudinal_plots.plot_beams
+.. automodule:: plots.plot_beams
     :members:
     :undoc-members:
     :show-inheritance:
 
-longitudinal_plots.plot_impedance module
+plots.plot_impedance module
 ----------------------------------------
 
-.. automodule:: longitudinal_plots.plot_impedance
+.. automodule:: plots.plot_impedance
     :members:
     :undoc-members:
     :show-inheritance:
 
-longitudinal_plots.plot_llrf module
+plots.plot_llrf module
 -----------------------------------
 
-.. automodule:: longitudinal_plots.plot_llrf
+.. automodule:: plots.plot_llrf
     :members:
     :undoc-members:
     :show-inheritance:
 
-longitudinal_plots.plot_slices module
+plots.plot_slices module
 -------------------------------------
 
-.. automodule:: longitudinal_plots.plot_slices
+.. automodule:: plots.plot_slices
     :members:
     :undoc-members:
     :show-inheritance:
@@ -40,7 +40,7 @@ longitudinal_plots.plot_slices module
 Module contents
 ---------------
 
-.. automodule:: longitudinal_plots
+.. automodule:: plots
     :members:
     :undoc-members:
     :show-inheritance:

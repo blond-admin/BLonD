@@ -14,15 +14,15 @@ import matplotlib.pyplot as plt
 
 from input_parameters.general_parameters import *
 from input_parameters.rf_parameters import *
-from trackers.longitudinal_tracker import *
+from trackers.tracker import *
 from beams.beams import *
-from beams.longitudinal_distributions import *
+from beams.distributions import *
 from monitors.monitors import *
 from beams.slices import *
-from impedances.longitudinal_impedance import *
-from longitudinal_plots.plot_beams import *
-from longitudinal_plots.plot_impedance import *
-from longitudinal_plots.plot_slices import *
+from impedances.impedance import *
+from plots.plot_beams import *
+from plots.plot_impedance import *
+from plots.plot_slices import *
 
 
 # SIMULATION PARAMETERS -------------------------------------------------------
@@ -93,12 +93,12 @@ slice_beam_copy = Slices(my_beam_copy, number_slices, cut_left = 0,
 
 # MONITOR----------------------------------------------------------------------
 
-bunchmonitor = BunchMonitor('bunch', n_turns+1, "Longitudinal", slice_beam)
+bunchmonitor = BunchMonitor('bunch', n_turns+1, slice_beam)
 slicesmonitor = SlicesMonitor('slices', n_turns+1, slice_beam)
 bunchmonitor.track(my_beam)
 slicesmonitor.track(my_beam)
 
-bunchmonitor_copy = BunchMonitor('bunch_copy', n_turns+1, "Longitudinal", slice_beam_copy)
+bunchmonitor_copy = BunchMonitor('bunch_copy', n_turns+1, slice_beam_copy)
 slicesmonitor_copy = SlicesMonitor('slices_copy', n_turns+1, slice_beam_copy)
 bunchmonitor_copy.track(my_beam_copy)
 slicesmonitor_copy.track(my_beam_copy)

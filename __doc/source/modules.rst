@@ -9,6 +9,6 @@
    impedances
    input_parameters
    llrf
-   longitudinal_plots
+   plots
    monitors
    trackers

@@ -212,7 +212,8 @@ class RingAndRFSection(object):
         #: *Phase Loop class*                
         self.PL = PhaseLoop         
         
-# Old kick method now substituted by the equivalent pure c++ routine                   
+# Old not-optimised kick method now substituted by the equivalent c++ routine
+# It has been kept for future accuracy and time benchmarks.                   
     def kick(self, beam):
         '''
         *The Kick represents the kick(s) by an RF station at a certain position 
@@ -313,17 +314,21 @@ class RingAndRFSection(object):
         | *Updates the relativistic information of the beam.*
         '''
         
-        a=beam.theta
-        q=beam.dE
-        v = np.array(self.voltage[:, self.counter[0]])
-        h = np.array(self.harmonic[:, self.counter[0]])
-        p = np.array(self.phi_offset[:, self.counter[0]])
-        
-        libfib.kick(a.ctypes.data_as(ctypes.c_void_p), q.ctypes.data_as(ctypes.c_void_p), ctypes.c_int(self.n_rf), 
-                        v.ctypes.data_as(ctypes.c_void_p),
-                        h.ctypes.data_as(ctypes.c_void_p), 
-                        p.ctypes.data_as(ctypes.c_void_p), 
-                        ctypes.c_uint(beam.n_macroparticles))
+        theta_kick=beam.theta
+         
+        dE_kick=beam.dE
+         
+        v_kick = np.array(self.voltage[:, self.counter[0]])
+        h_kick = np.array(self.harmonic[:, self.counter[0]])
+        p_kick = np.array(self.phi_offset[:, self.counter[0]])
+         
+        libfib.kick(theta_kick.ctypes.data_as(ctypes.c_void_p), 
+                    dE_kick.ctypes.data_as(ctypes.c_void_p), 
+                    ctypes.c_int(self.n_rf), 
+                    v_kick.ctypes.data_as(ctypes.c_void_p),
+                    h_kick.ctypes.data_as(ctypes.c_void_p), 
+                    p_kick.ctypes.data_as(ctypes.c_void_p), 
+                    ctypes.c_uint(beam.n_macroparticles))
         
         self.kick_acceleration(beam)
         self.drift(beam)

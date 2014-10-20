@@ -10,8 +10,8 @@ import h5py
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.constants import c
-from trackers.longitudinal_utilities import separatrix
-from longitudinal_plots.plot_settings import fig_folder
+from trackers.utilities import separatrix
+from plots.plot_settings import fig_folder
 
 
 def plot_long_phase_space(beam, General_parameters, RFSectionParameters, xmin,
@@ -24,7 +24,7 @@ def plot_long_phase_space(beam, General_parameters, RFSectionParameters, xmin,
     For large amount of data, use "sampling" to plot a fraction of the data.
     """
 
-    # Directory where longitudinal_plots will be stored
+    # Directory where plots will be stored
     fig_folder(dirname)
     
     # Conversion from metres to nanoseconds
@@ -147,7 +147,7 @@ def plot_bunch_length_evol(beam, h5file, General_parameters, time_step,
     Choice of units: unit = rad, ns, m.
     """
 
-    # Directory where longitudinal_plots will be stored
+    # Directory where plots will be stored
     fig_folder(dirname)
 
     # Get bunch length data in metres or nanoseconds
@@ -197,7 +197,7 @@ def plot_bunch_length_evol_gaussian(beam, h5file, General_parameters, slices,
     Choice of units: unit = rad, ns, m.
     """
 
-    # Directory where longitudinal_plots will be stored
+    # Directory where plots will be stored
     fig_folder(dirname)
 
     # Get bunch length data in metres or nanoseconds
@@ -253,7 +253,7 @@ def plot_position_evol(beam, h5file, General_parameters, time_step,
                        output_freq = 1, unit = None, style = '-', 
                        dirname = 'fig'): 
  
-    # Directory where longitudinal_plots will be stored 
+    # Directory where plots will be stored 
     fig_folder(dirname) 
  
     # Get position data in metres or nanoseconds 

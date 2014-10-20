@@ -1,7 +1,7 @@
 '''
-**Module to compute longitudinal beam slicing**
+**Module to compute beam slicing**
 
-:Authors: **Hannes Bartosik**, **Kevin Li**, **Michael Schenk**, **Danilo Quartullo**, **Alexandre Lasheen**
+:Authors: **Danilo Quartullo**, **Alexandre Lasheen**, **Kevin Li**
 '''
 
 from __future__ import division
@@ -15,9 +15,10 @@ import warnings
 import ctypes
 from setup_cpp import libfib
 
+
 class Slices(object):
     '''
-    *Slices class that controls longitudinal discretisation of a Beam. This
+    *Slices class that controls discretisation of a Beam. This
     include the Beam profiling (including computation of Beam spectrum,
     derivative, and profile fitting) and the computation of statistics per
     slice.*
@@ -74,7 +75,7 @@ class Slices(object):
         self.bins_centers = np.zeros(n_slices)
         
         # Pre-processing the slicing edges
-        self.set_longitudinal_cuts()
+        self.set_cuts()
         
         #: *Compute statistics option allows to compute mean_theta, mean_dE, 
         #: sigma_theta and sigma_dE properties each turn.*
@@ -120,14 +121,14 @@ class Slices(object):
             #: *Gaussian parameters list obtained from fit*
             self.pfit_gauss = 0
                   
-        # Use of track in order to pre-process the slicing at injection
+        # Use of track method in order to pre-process the slicing at injection
         if slice_immediately == 'on':
             self.track(self.Beam)
           
         
     def sort_particles(self):
         '''
-        *Sort the particles with respect to their longitudinal position.*
+        *Sort the particles with respect to their position.*
         '''
         
         if (self.slicing_coord is 'tau') or (self.slicing_coord is 'theta'):
@@ -140,7 +141,7 @@ class Slices(object):
         self.Beam.id = self.Beam.id.take(argsorted)
         
 
-    def set_longitudinal_cuts(self):
+    def set_cuts(self):
         '''
         *Method to set the self.cut_left and self.cut_right properties. This is
         done as a pre-processing if the mode is set to 'const_space', for
@@ -152,7 +153,6 @@ class Slices(object):
         in each side of the frame.*
         '''
 
-        
         if self.mode is not 'const_charge':
             if self.cut_left is None and self.cut_right is None:
                 if self.n_sigma is None:
@@ -208,10 +208,11 @@ class Slices(object):
         *This method is faster than the classic slice_constant_space method 
         for high number of particles (~1e6).*
         '''
-        w = self.beam_coordinates
-        v = self.n_macroparticles
-        libfib.histogram(w.ctypes.data_as(ctypes.c_void_p), 
-                      v.ctypes.data_as(ctypes.c_void_p), 
+        
+        w_hist = self.beam_coordinates
+        v_hist = self.n_macroparticles
+        libfib.histogram(w_hist.ctypes.data_as(ctypes.c_void_p), 
+                      v_hist.ctypes.data_as(ctypes.c_void_p), 
                ctypes.c_double(self.cut_left), ctypes.c_double(self.cut_right), 
                ctypes.c_uint(self.n_slices), ctypes.c_uint(self.Beam.n_macroparticles))
 
@@ -226,7 +227,7 @@ class Slices(object):
         for the frame size not to diverge).*
         '''
          
-        self.set_longitudinal_cuts()
+        self.set_cuts()
          
         # 1. n_macroparticles - distribute macroparticles uniformly along slices.
         # Must be integer. Distribute remaining particles randomly among slices with indices 'ix'.
@@ -293,7 +294,6 @@ class Slices(object):
         self.bp_gauss = abs(self.pfit_gauss[1])
 
     
-    
     def beam_spectrum_generation(self, n_sampling_fft, filter_option = None, only_rfft = False):
         '''
         *Beam spectrum calculation, to be extended (normalized profile, different
@@ -324,10 +324,7 @@ class Slices(object):
             derivative = np.gradient(self.n_macroparticles, dist_centers)
         else:
             raise RuntimeError('Option for derivative is not recognized.')
-            
-#         elif mode is 'butterworth_filter':
-#             pass
-             
+
         return x, derivative
     
     
@@ -338,8 +335,7 @@ class Slices(object):
         result with NaN values for the statistics but that doesn't cause any
         problem.*
         
-        *Improvement is needed in order to include losses, and link with 
-        transverse statistics calculation.*
+        *Improvement is needed in order to include losses.*
         '''
         warnings.filterwarnings("ignore")
         index = np.cumsum(np.append(0, self.n_macroparticles))

@@ -14,11 +14,11 @@ import os
 from input_parameters.general_parameters import GeneralParameters 
 from input_parameters.rf_parameters import RFSectionParameters
 from beams.beams import Beam
-from beams.longitudinal_distributions import matched_from_distribution_density, \
+from beams.distributions import matched_from_distribution_density, \
                                              matched_from_line_density   
-from trackers.longitudinal_tracker import RingAndRFSection, FullRingAndRF
+from trackers.tracker import RingAndRFSection, FullRingAndRF
 from beams.slices import Slices
-from impedances.longitudinal_impedance import TravelingWaveCavity, Resonators, \
+from impedances.impedance import TravelingWaveCavity, Resonators, \
                                               InductiveImpedance, InputTable, \
                                               InducedVoltageTime, InducedVoltageFreq, \
                                               TotalInducedVoltage
@@ -29,7 +29,7 @@ from scipy.constants import c
 
 # Simulation parameters -------------------------------------------------------
 # Simulation parameters
-n_turns = 1500          # Number of turns to track
+n_turns = 200          # Number of turns to track
 plot_step = 1           # Time steps between plots
 output_step = 100
 
@@ -85,8 +85,8 @@ rf_params = RFSectionParameters(general_params, n_rf_systems, [harmonic_numbers_
                                 [voltage_program_1, voltage_program_2], [phi_offset_1, phi_offset_2])
 
 # RF tracker
-longitudinal_tracker = RingAndRFSection(rf_params)
-full_tracker = FullRingAndRF([longitudinal_tracker])
+tracker = RingAndRFSection(rf_params)
+full_tracker = FullRingAndRF([tracker])
 
 # Beam
 SPS_beam = Beam(general_params, n_macroparticles, intensity)
@@ -170,3 +170,4 @@ plt.plot(save_bl)
 plt.figure(2)
 plt.plot(save_bp)
 plt.show()
+print "done!"

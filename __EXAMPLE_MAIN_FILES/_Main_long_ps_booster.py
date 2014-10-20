@@ -9,22 +9,22 @@ import matplotlib.pyplot as plt
 
 from input_parameters.general_parameters import *
 from input_parameters.rf_parameters import *
-from trackers.longitudinal_tracker import *
+from trackers.tracker import *
 from beams.beams import *
-from beams.longitudinal_distributions import *
+from beams.distributions import *
 from monitors.monitors import *
 from beams.slices import *
-from impedances.longitudinal_impedance import *
-from longitudinal_plots.plot_beams import *
-from longitudinal_plots.plot_impedance import *
-from longitudinal_plots.plot_slices import *
+from impedances.impedance import *
+from plots.plot_beams import *
+from plots.plot_impedance import *
+from plots.plot_slices import *
 
 # SIMULATION PARAMETERS -------------------------------------------------------
 
 # Beam parameters
 particle_type = 'proton'
-n_particles = int(1e11)          
-n_macroparticles = int(5e5)
+n_particles = 1e11
+n_macroparticles = 5e5
 sigma_tau = 180e-9 / 4 # [s]     
 sigma_delta = .5e-4 # [1]          
 kin_beam_energy = 1.4e9 # [eV]
@@ -57,7 +57,7 @@ phi_offset = 0
 
 # DEFINE RING------------------------------------------------------------------
 
-general_params = GeneralParameters(n_turns, C, [momentum_compaction, 1], sync_momentum, 
+general_params = GeneralParameters(n_turns, C, momentum_compaction, sync_momentum, 
                                    particle_type, number_of_sections = 1)
 
 RF_sct_par = RFSectionParameters(general_params, n_rf_systems, harmonic_numbers, 
@@ -80,7 +80,7 @@ slice_beam = Slices(my_beam, number_slices, cut_left = - 5.72984173562e-07 / 2,
 
 # MONITOR----------------------------------------------------------------------
 
-bunchmonitor = BunchMonitor('beam', n_turns+1, statistics = "Longitudinal")
+bunchmonitor = BunchMonitor('beam', n_turns+1)
 bunchmonitor.track(my_beam)
 
 # LOAD IMPEDANCE TABLES--------------------------------------------------------

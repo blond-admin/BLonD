@@ -35,8 +35,8 @@ def input_check(input_value, expected_length):
 class RFSectionParameters(object):
     '''
     *Object gathering all the RF parameters for one section (see section
-    definition in longitudinal_tracker.RingAndRFSection), and pre-processing 
-    them in order to be used in the longitudinal_tracker.py module.*
+    definition in tracker.RingAndRFSection), and pre-processing 
+    them in order to be used in the tracker.py module.*
     
     :How to use RF programs:
 
@@ -199,10 +199,12 @@ def calc_phi_s(RFSectionParameters, accelerating_systems = 'all'):
         # For the initial phi_s, add the first value a second time, also in index   
         phi_s = np.arcsin( np.concatenate((np.array([acceleration_ratio[0]]), 
                                            acceleration_ratio)) )
+        
         index = np.where((eta0[1:] + eta0[0:-1])/2 > 0)[0] + 1
-        if index[0] == 1:
-            index = np.concatenate((np.array([0]), index))
-        phi_s[index] = np.pi - phi_s[index]
+        if len(index) > 0:
+            if index[0] == 1:
+                index = np.concatenate((np.array([0]), index))
+            phi_s[index] = np.pi - phi_s[index]
 
         return phi_s 
      

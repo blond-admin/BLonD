@@ -2,15 +2,15 @@
 @author: Danilo Quartullo
 '''
 # MAKE SURE YOU HAVE GCC 4.8.1 OR LATER VERSIONS ON YOUR SYSTEM LINKED TO YOUR SYSTEM PATH
-# IF YOU ARE ON CERN-LXPLUS YOU CAN TYPE FROM CONSOLE source /afs/cern.ch/sw/lcg/contrib/gcc/4.8.1/x86_64-slc6/setup_cython.sh
+# IF YOU ARE ON CERN-LXPLUS YOU CAN TYPE FROM CONSOLE source /afs/cern.ch/sw/lcg/contrib/gcc/4.8.1/x86_64-slc6/setup.sh
 
 import os
 import sys
 import subprocess
 import ctypes
 
-# EXAMPLE FLAGS: -Ofast -std=c++11 -ftree-vectorize -mfma4
-flags = '-Ofast -std=c++11 -ftree-vectorize'
+# EXAMPLE FLAGS: -Ofast -std=c++11 -ftree-vectorize -ftree-vectorizer-verbose=1 -mfma4
+flags = '-Ofast -std=c++11 -ftree-vectorizer-verbose=1'
 list_cpp_files = 'cpp_routines/histogram.cpp cpp_routines/kick.cpp'
 
 if "lin" in sys.platform:

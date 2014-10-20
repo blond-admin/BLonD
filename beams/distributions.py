@@ -10,7 +10,7 @@ import warnings
 import copy
 import matplotlib.pyplot as plt
 from scipy.constants import c
-from trackers.longitudinal_utilities import is_in_separatrix
+from trackers.utilities import is_in_separatrix
 from slices import Slices
 from scipy.integrate import cumtrapz
 

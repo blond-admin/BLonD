@@ -7,8 +7,8 @@
 
 from __future__ import division
 import matplotlib.pyplot as plt
-from impedances.longitudinal_impedance import *
-from longitudinal_plots.plot_settings import fig_folder
+from impedances.impedance import *
+from plots.plot_settings import fig_folder
 
 
 def plot_impedance_vs_frequency(counter, general_params, ind_volt_from_imp, 
@@ -21,7 +21,7 @@ def plot_impedance_vs_frequency(counter, general_params, ind_volt_from_imp,
     Plot of impedance vs frequency.
     """
 
-    # Directory where longitudinal_plots will be stored
+    # Directory where plots will be stored
     fig_folder(dirname)
     
     if option1 == "sum":
@@ -108,7 +108,7 @@ def plot_induced_voltage_vs_bins_centers(counter, general_params,
     Plot of induced voltage vs bin centers.
     """
 
-    # Directory where longitudinal_plots will be stored
+    # Directory where plots will be stored
     fig_folder(dirname)
     
     

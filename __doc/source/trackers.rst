@@ -4,10 +4,10 @@ trackers package
 Submodules
 ----------
 
-trackers.longitudinal_tracker module
+trackers.tracker module
 ------------------------------------
 
-.. automodule:: trackers.longitudinal_tracker
+.. automodule:: trackers.tracker
     :members:
     :undoc-members:
     :show-inheritance:
