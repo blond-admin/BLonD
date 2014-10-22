@@ -37,6 +37,11 @@ The structure is as follows:
 
 VERSION CONTENTS
 ==========
+
+2014-10-22
+v1.7.1 - setup_cpp.py has been improved: now it is more user-friendly and the 
+         false error which appeared before in the console is gone
+
 2014-10-18
 v1.7.0 - Tracker.kick method has been optimised via the CERN VDT math library
 	   - Code cleaning and rearrangement
