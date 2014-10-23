@@ -1,0 +1,533 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>input_parameters package &mdash; PyHEADTAIL embryo documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     'embryo',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="PyHEADTAIL embryo documentation" href="index.html" />
+    <link rel="up" title="&lt;no title&gt;" href="modules.html" />
+    <link rel="next" title="llrf package" href="llrf.html" />
+    <link rel="prev" title="impedances package" href="impedances.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="llrf.html" title="llrf package"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="impedances.html" title="impedances package"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">PyHEADTAIL embryo documentation</a> &raquo;</li>
+          <li><a href="modules.html" accesskey="U">&lt;no title&gt;</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="input-parameters-package">
+<h1>input_parameters package<a class="headerlink" href="#input-parameters-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-input_parameters.general_parameters">
+<span id="input-parameters-general-parameters-module"></span><h2>input_parameters.general_parameters module<a class="headerlink" href="#module-input_parameters.general_parameters" title="Permalink to this headline">¶</a></h2>
+<p><strong>Module gathering all the general input parameters used for the simulation</strong></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Authors:</th><td class="field-body"><strong>Alexandre Lasheen</strong>, <strong>Danilo Quartullo</strong></td>
+</tr>
+</tbody>
+</table>
+<dl class="class">
+<dt id="input_parameters.general_parameters.GeneralParameters">
+<em class="property">class </em><tt class="descclassname">input_parameters.general_parameters.</tt><tt class="descname">GeneralParameters</tt><big>(</big><em>n_turns</em>, <em>ring_length</em>, <em>alpha</em>, <em>momentum</em>, <em>particle_type</em>, <em>user_mass=None</em>, <em>user_charge=None</em>, <em>particle_type_2=None</em>, <em>user_mass_2=None</em>, <em>user_charge_2=None</em>, <em>number_of_sections=1</em><big>)</big><a class="headerlink" href="#input_parameters.general_parameters.GeneralParameters" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p><em>Object containing all the general input parameters used for the simulation.</em></p>
+<dl class="attribute">
+<dt id="input_parameters.general_parameters.GeneralParameters.alpha">
+<tt class="descname">alpha</tt><em class="property"> = None</em><a class="headerlink" href="#input_parameters.general_parameters.GeneralParameters.alpha" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>Momentum compaction factor (up to 2nd order) for each RF section</em> <img class="math" src="_images/math/33ca2923a9500672316b79997bbdb8efe8a92f90.png" alt=": \quad \alpha_i"/></div>
+<div class="line"><em>Should be given as a list for multi-station (each element of the list should be a list that can contain up to 2nd order but must contain the same orders)</em></div>
+</div>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="input_parameters.general_parameters.GeneralParameters.alpha_order">
+<tt class="descname">alpha_order</tt><em class="property"> = None</em><a class="headerlink" href="#input_parameters.general_parameters.GeneralParameters.alpha_order" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Number of orders for the momentum compaction</em></p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="input_parameters.general_parameters.GeneralParameters.beta_r">
+<tt class="descname">beta_r</tt><em class="property"> = None</em><a class="headerlink" href="#input_parameters.general_parameters.GeneralParameters.beta_r" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Relativistic beta (program)</em> <img class="math" src="_images/math/d42be4c55e75b9d264926528aab289c8b0605c58.png" alt=": \quad \beta_n"/></p>
+<div class="math">
+<p><img src="_images/math/9130415a0a849a49744c28b3d5a33ffc7dfb9786.png" alt="\beta = \sqrt{ 1 + \frac{1}{1 + \left(\frac{mc^2}{ep}\right)^2} }"/></p>
+</div></dd></dl>
+
+<dl class="attribute">
+<dt id="input_parameters.general_parameters.GeneralParameters.energy">
+<tt class="descname">energy</tt><em class="property"> = None</em><a class="headerlink" href="#input_parameters.general_parameters.GeneralParameters.energy" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Energy (program) in [eV]</em> <img class="math" src="_images/math/3903246f7b2bb8b641d574a719b9f5f8f1242d4b.png" alt=": \quad E_n"/></p>
+<div class="math">
+<p><img src="_images/math/4dca51f170b10d5870394d15453a0c63553527d3.png" alt="\\E = \sqrt{ p^2 + \left(\frac{mc^2}{e}\right)^2 }"/></p>
+</div></dd></dl>
+
+<dl class="attribute">
+<dt id="input_parameters.general_parameters.GeneralParameters.eta0">
+<tt class="descname">eta0</tt><em class="property"> = None</em><a class="headerlink" href="#input_parameters.general_parameters.GeneralParameters.eta0" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Slippage factor (order 0)</em> <img class="math" src="_images/math/c837062fdedae9b0ae1c714ea25bd1278ef87130.png" alt=": \quad \eta_{0,n}"/></p>
+<div class="math">
+<p><img src="_images/math/5a14579b2ab0885c814f160828ffef405334abd9.png" alt="\eta_0 = \alpha_0 - \frac{1}{\gamma^2}"/></p>
+</div></dd></dl>
+
+<dl class="attribute">
+<dt id="input_parameters.general_parameters.GeneralParameters.eta1">
+<tt class="descname">eta1</tt><em class="property"> = None</em><a class="headerlink" href="#input_parameters.general_parameters.GeneralParameters.eta1" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Slippage factor (order 1)</em> <img class="math" src="_images/math/7e58d5af05e90db0ba1dce5ef04724b0051e1c75.png" alt=": \quad \eta_{1,n}"/></p>
+<div class="math">
+<p><img src="_images/math/7d78e0b041ff8a0155499bc3591fa319e550497d.png" alt="\eta_1 = \frac{3\beta^2}{2\gamma^2} + \alpha_1 - \alpha_0\eta_0"/></p>
+</div></dd></dl>
+
+<dl class="attribute">
+<dt id="input_parameters.general_parameters.GeneralParameters.eta2">
+<tt class="descname">eta2</tt><em class="property"> = None</em><a class="headerlink" href="#input_parameters.general_parameters.GeneralParameters.eta2" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Slippage factor (order 2)</em> <img class="math" src="_images/math/31d1b7cc23324a474bf55e7a56d6256a2ef01584.png" alt=": \quad \eta_{2,n}"/></p>
+<div class="math">
+<p><img src="_images/math/c312a1ef1adf297afa8889f5d49b8c3322f911b9.png" alt="\eta_2 = -\frac{\beta^2\left(5\beta^2-1\right)}{2\gamma^2} + \alpha_2 - 2\alpha_0\alpha_1 + \frac{\alpha_1}{\gamma^2} + \alpha_0^2\eta_0 - \frac{3\beta^2\alpha_0}{2\gamma^2}"/></p>
+</div></dd></dl>
+
+<dl class="method">
+<dt id="input_parameters.general_parameters.GeneralParameters.eta_generation">
+<tt class="descname">eta_generation</tt><big>(</big><big>)</big><a class="headerlink" href="#input_parameters.general_parameters.GeneralParameters.eta_generation" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>Pre-processing of the slippage factor parameters with respect to the input momentum compaction factor (up to 2nd order) and the momentum program.</em></div>
+<div class="line"><em>For eta coefficients, see Lee: Accelerator Physics (Wiley).</em></div>
+</div>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="input_parameters.general_parameters.GeneralParameters.f_rev">
+<tt class="descname">f_rev</tt><em class="property"> = None</em><a class="headerlink" href="#input_parameters.general_parameters.GeneralParameters.f_rev" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Revolution frequency [Hz]</em> <img class="math" src="_images/math/be9965d1813a098042a5c3402208e4788b17a87a.png" alt=": \quad f_0 = \frac{1}{T_0}"/></p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="input_parameters.general_parameters.GeneralParameters.gamma_r">
+<tt class="descname">gamma_r</tt><em class="property"> = None</em><a class="headerlink" href="#input_parameters.general_parameters.GeneralParameters.gamma_r" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Relativistic gamma (program)</em> <img class="math" src="_images/math/efe53ff7da34a7bbc6cd038a16ebffe9b9f5d149.png" alt=": \quad \gamma_n"/></p>
+<div class="math">
+<p><img src="_images/math/f95ac8d1b40876b0c3475a2ce6720afa1de6bb0e.png" alt="\gamma = \sqrt{ 1 + \left(\frac{ep}{mc^2}\right)^2 }"/></p>
+</div></dd></dl>
+
+<dl class="attribute">
+<dt id="input_parameters.general_parameters.GeneralParameters.momentum">
+<tt class="descname">momentum</tt><em class="property"> = None</em><a class="headerlink" href="#input_parameters.general_parameters.GeneralParameters.momentum" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>Momentum (program) in [eV/c] for each RF section</em> <img class="math" src="_images/math/361fd32ae6699bbe97221e1cfecf8a23d1d4dfe9.png" alt=": \quad p_n"/></div>
+<div class="line"><em>Can be given as a single value to be assumed constant, or as a program of (n_turns + 1) terms in case of acceleration.</em></div>
+<div class="line"><a href="#id1"><span class="problematic" id="id2">*</span></a>In case of several sections without acceleration, the input is as follow : [[momentum_section_1], [momentum_section_2]]</div>
+<div class="line"><em>In case of several sections with momentum program, the input is as follow: [momentum_program_section_1, momentum_program_section_2]</em></div>
+</div>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="input_parameters.general_parameters.GeneralParameters.n_sections">
+<tt class="descname">n_sections</tt><em class="property"> = None</em><a class="headerlink" href="#input_parameters.general_parameters.GeneralParameters.n_sections" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>Number of sections defines how many longitudinal maps are done per turn.</em></div>
+<div class="line"><em>Default is one.</em></div>
+</div>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="input_parameters.general_parameters.GeneralParameters.n_turns">
+<tt class="descname">n_turns</tt><em class="property"> = None</em><a class="headerlink" href="#input_parameters.general_parameters.GeneralParameters.n_turns" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Number of turns of the simulation</em></p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="input_parameters.general_parameters.GeneralParameters.omega_rev">
+<tt class="descname">omega_rev</tt><em class="property"> = None</em><a class="headerlink" href="#input_parameters.general_parameters.GeneralParameters.omega_rev" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Revolution angular frequency [rad/s]</em> <img class="math" src="_images/math/771429a4c9e49232065cf93fab4384751d38b618.png" alt=": \quad \omega_0 = 2\pi f_0"/></p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="input_parameters.general_parameters.GeneralParameters.particle_type">
+<tt class="descname">particle_type</tt><em class="property"> = None</em><a class="headerlink" href="#input_parameters.general_parameters.GeneralParameters.particle_type" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>Particle type</em></div>
+<div class="line"><em>Recognized types: &#8216;proton&#8217; and &#8216;user_input&#8217; to input mass and charge manually.</em></div>
+<div class="line"><em>Particle mass in [kg]</em> <img class="math" src="_images/math/fd8b8614b16737cb1c163dabf0488dd098352dd6.png" alt=": \quad m"/></div>
+<div class="line"><em>Particle charge in [C]</em> <img class="math" src="_images/math/d73f748e5292e3084aebb9a06d37ef9c131911fe.png" alt=": \quad q"/></div>
+</div>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="input_parameters.general_parameters.GeneralParameters.particle_type_2">
+<tt class="descname">particle_type_2</tt><em class="property"> = None</em><a class="headerlink" href="#input_parameters.general_parameters.GeneralParameters.particle_type_2" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Second particle type: optional; does not affect the momentum,
+energy, beta, and gamma.</em></p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="input_parameters.general_parameters.GeneralParameters.ring_circumference">
+<tt class="descname">ring_circumference</tt><em class="property"> = None</em><a class="headerlink" href="#input_parameters.general_parameters.GeneralParameters.ring_circumference" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>Ring circumference is the sum of section lengths</em> <img class="math" src="_images/math/4e4131587509663235cd0cc19b98312c806f6dda.png" alt=": \quad C = \sum_k L_k"/></div>
+</div>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="input_parameters.general_parameters.GeneralParameters.ring_length">
+<tt class="descname">ring_length</tt><em class="property"> = None</em><a class="headerlink" href="#input_parameters.general_parameters.GeneralParameters.ring_length" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>Ring length contains the length of the RF sections, in [m]</em></div>
+<div class="line"><em>Should be given as a list for multi-station</em></div>
+</div>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="input_parameters.general_parameters.GeneralParameters.ring_radius">
+<tt class="descname">ring_radius</tt><em class="property"> = None</em><a class="headerlink" href="#input_parameters.general_parameters.GeneralParameters.ring_radius" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Ring radius in [m]</em> <img class="math" src="_images/math/532b75684e9accafaa47eab67086d5b6f311415f.png" alt=": \quad R"/></p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="input_parameters.general_parameters.GeneralParameters.t_rev">
+<tt class="descname">t_rev</tt><em class="property"> = None</em><a class="headerlink" href="#input_parameters.general_parameters.GeneralParameters.t_rev" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Revolution period [s]</em> <img class="math" src="_images/math/0733e542178d174a9bc6a63cfc8ad73d5419e4a6.png" alt=": \quad T_0 = \frac{C}{\beta c}"/></p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-input_parameters.rf_parameters">
+<span id="input-parameters-rf-parameters-module"></span><h2>input_parameters.rf_parameters module<a class="headerlink" href="#module-input_parameters.rf_parameters" title="Permalink to this headline">¶</a></h2>
+<p><strong>Module gathering and processing all the RF parameters to be given to the 
+other modules.</strong></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Authors:</th><td class="field-body"><strong>Alexandre Lasheen</strong>, <strong>Danilo Quartullo</strong></td>
+</tr>
+</tbody>
+</table>
+<dl class="class">
+<dt id="input_parameters.rf_parameters.RFSectionParameters">
+<em class="property">class </em><tt class="descclassname">input_parameters.rf_parameters.</tt><tt class="descname">RFSectionParameters</tt><big>(</big><em>GeneralParameters</em>, <em>n_rf</em>, <em>harmonic</em>, <em>voltage</em>, <em>phi_offset</em>, <em>section_index=1</em><big>)</big><a class="headerlink" href="#input_parameters.rf_parameters.RFSectionParameters" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p><em>Object gathering all the RF parameters for one section (see section
+definition in tracker.RingAndRFSection), and pre-processing 
+them in order to be used in the tracker.py module.</em></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name" colspan="2">How to use RF programs:</th></tr>
+<tr class="field-odd field"><td>&nbsp;</td><td class="field-body"><ul class="first last simple">
+<li>For 1 RF system and constant values of V, h or phi, just input the single value</li>
+<li>For 1 RF system and varying values of V, h or phi, input an array of n_turns values</li>
+<li>For several RF systems and constant values of V, h or phi, input lists of single values</li>
+<li>For several RF systems and varying values of V, h or phi, input lists of arrays of n_turns values</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="attribute">
+<dt id="input_parameters.rf_parameters.RFSectionParameters.alpha_order">
+<tt class="descname">alpha_order</tt><em class="property"> = None</em><a class="headerlink" href="#input_parameters.rf_parameters.RFSectionParameters.alpha_order" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Copy of the order of alpha for the section (from GeneralParameters)</em></p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="input_parameters.rf_parameters.RFSectionParameters.beta_r">
+<tt class="descname">beta_r</tt><em class="property"> = None</em><a class="headerlink" href="#input_parameters.rf_parameters.RFSectionParameters.beta_r" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Copy of the relativistic beta for the section (from
+GeneralParameters)</em> <img class="math" src="_images/math/302aa1e0ab608d2cfd09203a3b2ab3370c6534a7.png" alt=": \quad \beta_{k,n}"/></p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="input_parameters.rf_parameters.RFSectionParameters.counter">
+<tt class="descname">counter</tt><em class="property"> = None</em><a class="headerlink" href="#input_parameters.rf_parameters.RFSectionParameters.counter" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>Counter to keep track of time step (used in momentum and voltage)</em></div>
+<div class="line"><em>Definined as a list in order to be passed by reference.</em></div>
+</div>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="input_parameters.rf_parameters.RFSectionParameters.energy">
+<tt class="descname">energy</tt><em class="property"> = None</em><a class="headerlink" href="#input_parameters.rf_parameters.RFSectionParameters.energy" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Copy of the relativistic energy for the section (from
+GeneralParameters)</em> <img class="math" src="_images/math/647af0d94c4dcd111fe7d6dc01a34ae5d1aa8b55.png" alt=": \quad E_{k,n}"/></p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="input_parameters.rf_parameters.RFSectionParameters.eta_0">
+<tt class="descname">eta_0</tt><em class="property"> = None</em><a class="headerlink" href="#input_parameters.rf_parameters.RFSectionParameters.eta_0" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Slippage factor (order 0) for the given RF section</em></p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="input_parameters.rf_parameters.RFSectionParameters.eta_1">
+<tt class="descname">eta_1</tt><em class="property"> = None</em><a class="headerlink" href="#input_parameters.rf_parameters.RFSectionParameters.eta_1" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Slippage factor (order 1) for the given RF section</em></p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="input_parameters.rf_parameters.RFSectionParameters.eta_2">
+<tt class="descname">eta_2</tt><em class="property"> = None</em><a class="headerlink" href="#input_parameters.rf_parameters.RFSectionParameters.eta_2" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Slippage factor (order 2) for the given RF section</em></p>
+</dd></dl>
+
+<dl class="method">
+<dt id="input_parameters.rf_parameters.RFSectionParameters.eta_tracking">
+<tt class="descname">eta_tracking</tt><big>(</big><em>counter</em>, <em>delta</em><big>)</big><a class="headerlink" href="#input_parameters.rf_parameters.RFSectionParameters.eta_tracking" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>The slippage factor is calculated as a function of the relative momentum
+(delta) of the beam. By definition, the slippage factor is:</em></p>
+<div class="math">
+<p><img src="_images/math/3e57ebe9887e2e77bd76638452aca10d55775c32.png" alt="\eta = \sum_{i}(\eta_i \, \delta^i)"/></p>
+</div></dd></dl>
+
+<dl class="attribute">
+<dt id="input_parameters.rf_parameters.RFSectionParameters.gamma_r">
+<tt class="descname">gamma_r</tt><em class="property"> = None</em><a class="headerlink" href="#input_parameters.rf_parameters.RFSectionParameters.gamma_r" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Copy of the relativistic gamma for the section (from
+GeneralParameters)</em> <img class="math" src="_images/math/9197ae25540252eeb06a19955bf3b064b85dfeb5.png" alt=": \quad \gamma_{k,n}"/></p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="input_parameters.rf_parameters.RFSectionParameters.harmonic">
+<tt class="descname">harmonic</tt><em class="property"> = None</em><a class="headerlink" href="#input_parameters.rf_parameters.RFSectionParameters.harmonic" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>Harmonic number list</em> <img class="math" src="_images/math/08c6815f067ba66841909606d8f6e1136190cc8b.png" alt=": \quad h_{j,k,n}"/></div>
+<div class="line"><em>See note above on how to input RF programs.</em></div>
+</div>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="input_parameters.rf_parameters.RFSectionParameters.length_ratio">
+<tt class="descname">length_ratio</tt><em class="property"> = None</em><a class="headerlink" href="#input_parameters.rf_parameters.RFSectionParameters.length_ratio" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Length ratio of the section wrt the circumference</em></p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="input_parameters.rf_parameters.RFSectionParameters.momentum">
+<tt class="descname">momentum</tt><em class="property"> = None</em><a class="headerlink" href="#input_parameters.rf_parameters.RFSectionParameters.momentum" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Momentum program of the section in [eV/c]</em> <img class="math" src="_images/math/47c8dd2e679bd73c2f8b6f538130c586b6f1534f.png" alt=": \quad p_{k,n}"/></p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="input_parameters.rf_parameters.RFSectionParameters.n_rf">
+<tt class="descname">n_rf</tt><em class="property"> = None</em><a class="headerlink" href="#input_parameters.rf_parameters.RFSectionParameters.n_rf" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>Number of RF systems in the section</em> <img class="math" src="_images/math/bc61b3d408bd3809fe76c340c5170bbc30fe967e.png" alt=": \quad n_{RF}"/></div>
+<div class="line"><em>Counter for RF is:</em> <img class="math" src="_images/math/8122aa89ea6e80784c6513d22787ad86e36ad0cc.png" alt="j"/></div>
+</div>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="input_parameters.rf_parameters.RFSectionParameters.n_turns">
+<tt class="descname">n_turns</tt><em class="property"> = None</em><a class="headerlink" href="#input_parameters.rf_parameters.RFSectionParameters.n_turns" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>Number of turns for the simulation</em></div>
+<div class="line"><em>Counter for turns is:</em> <img class="math" src="_images/math/174fadd07fd54c9afe288e96558c92e0c1da733a.png" alt="n"/></div>
+</div>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="input_parameters.rf_parameters.RFSectionParameters.p_increment">
+<tt class="descname">p_increment</tt><em class="property"> = None</em><a class="headerlink" href="#input_parameters.rf_parameters.RFSectionParameters.p_increment" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Momentum increment (acceleration/deceleration) between two turns,
+for one section in [eV/c]</em> <img class="math" src="_images/math/07f479d220461a409a829a1b96e615db5401220c.png" alt=": \quad \Delta p_{n\rightarrow n+1}"/></p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="input_parameters.rf_parameters.RFSectionParameters.phi_offset">
+<tt class="descname">phi_offset</tt><em class="property"> = None</em><a class="headerlink" href="#input_parameters.rf_parameters.RFSectionParameters.phi_offset" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>Phase offset list in [rad]</em> <img class="math" src="_images/math/2ddce0e1f6aa09e5fd2c5872159f7e00d8a59cb7.png" alt=": \quad \phi_{j,k,n}"/></div>
+<div class="line"><em>See note above on how to input RF programs.</em></div>
+</div>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="input_parameters.rf_parameters.RFSectionParameters.phi_s">
+<tt class="descname">phi_s</tt><em class="property"> = None</em><a class="headerlink" href="#input_parameters.rf_parameters.RFSectionParameters.phi_s" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Synchronous phase for this section, calculated from the gamma
+transition and the momentum program.</em></p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="input_parameters.rf_parameters.RFSectionParameters.ring_cirumference">
+<tt class="descname">ring_cirumference</tt><em class="property"> = None</em><a class="headerlink" href="#input_parameters.rf_parameters.RFSectionParameters.ring_cirumference" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Copy of the ring circumference (from GeneralParameters)</em></p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="input_parameters.rf_parameters.RFSectionParameters.section_index">
+<tt class="descname">section_index</tt><em class="property"> = None</em><a class="headerlink" href="#input_parameters.rf_parameters.RFSectionParameters.section_index" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>Index of the RF section &#8211; has to be unique</em></div>
+<div class="line"><em>Counter for RF section is:</em> <img class="math" src="_images/math/8c325612684d41304b9751c175df7bcc0f61f64f.png" alt="k"/></div>
+<div class="line"><em>In the user input, the section_index goes from 1 to k</em></div>
+<div class="line"><em>This index is then corrected in the constructor in order to go from 0 to k-1 (as Python indexing starts from 0)</em></div>
+</div>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="input_parameters.rf_parameters.RFSectionParameters.section_length">
+<tt class="descname">section_length</tt><em class="property"> = None</em><a class="headerlink" href="#input_parameters.rf_parameters.RFSectionParameters.section_length" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Length of the section in [m]</em> <img class="math" src="_images/math/0481e6e0cca334d0effcb2f9bd960cccee8cf415.png" alt=": \quad L_k"/></p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="input_parameters.rf_parameters.RFSectionParameters.voltage">
+<tt class="descname">voltage</tt><em class="property"> = None</em><a class="headerlink" href="#input_parameters.rf_parameters.RFSectionParameters.voltage" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>Voltage program list in [V]</em> <img class="math" src="_images/math/7a9e2803b0c2d3c33100ee015893f8fd0d92a45b.png" alt=": \quad V_{j,k,n}"/></div>
+<div class="line"><em>See note above on how to input RF programs.</em></div>
+</div>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="input_parameters.rf_parameters.calc_phi_s">
+<tt class="descclassname">input_parameters.rf_parameters.</tt><tt class="descname">calc_phi_s</tt><big>(</big><em>RFSectionParameters</em>, <em>accelerating_systems='all'</em><big>)</big><a class="headerlink" href="#input_parameters.rf_parameters.calc_phi_s" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>The synchronous phase calculated from the rate of momentum change.</em></div>
+<div class="line"><em>Below transition, for decelerating bucket: phi_s is in (-Pi/2,0)</em></div>
+<div class="line"><em>Below transition, for accelerating bucket: phi_s is in (0,Pi/2)</em></div>
+<div class="line"><em>Above transition, for accelerating bucket: phi_s is in (Pi/2,Pi)</em></div>
+<div class="line"><em>Above transition, for decelerating bucket: phi_s is in (Pi,3Pi/2)</em></div>
+<div class="line"><em>The synchronous phase is calculated at a certain moment.</em></div>
+<div class="line"><em>Uses beta, energy averaged over the turn.</em></div>
+</div>
+</dd></dl>
+
+<dl class="function">
+<dt id="input_parameters.rf_parameters.input_check">
+<tt class="descclassname">input_parameters.rf_parameters.</tt><tt class="descname">input_check</tt><big>(</big><em>input_value</em>, <em>expected_length</em><big>)</big><a class="headerlink" href="#input_parameters.rf_parameters.input_check" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>Function to check the length of the input</em></div>
+<div class="line"><em>The input can be a float, int, np.ndarray and list</em></div>
+<div class="line"><em>If len(input_value) == 1, transform it to a constant array</em></div>
+<div class="line"><em>If len(input_value) != expected_length and != 1, raise an error</em></div>
+</div>
+</dd></dl>
+
+</div>
+<div class="section" id="module-input_parameters">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-input_parameters" title="Permalink to this headline">¶</a></h2>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">input_parameters package</a><ul>
+<li><a class="reference internal" href="#submodules">Submodules</a></li>
+<li><a class="reference internal" href="#module-input_parameters.general_parameters">input_parameters.general_parameters module</a></li>
+<li><a class="reference internal" href="#module-input_parameters.rf_parameters">input_parameters.rf_parameters module</a></li>
+<li><a class="reference internal" href="#module-input_parameters">Module contents</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="impedances.html"
+                        title="previous chapter">impedances package</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="llrf.html"
+                        title="next chapter">llrf package</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/input_parameters.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="llrf.html" title="llrf package"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="impedances.html" title="impedances package"
+             >previous</a> |</li>
+        <li><a href="index.html">PyHEADTAIL embryo documentation</a> &raquo;</li>
+          <li><a href="modules.html" >&lt;no title&gt;</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, CERN.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+    </div>
+  </body>
+</html>

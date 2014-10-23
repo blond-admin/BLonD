@@ -1,0 +1,241 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>llrf package &mdash; PyHEADTAIL embryo documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     'embryo',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="PyHEADTAIL embryo documentation" href="index.html" />
+    <link rel="up" title="&lt;no title&gt;" href="modules.html" />
+    <link rel="next" title="plots package" href="plots.html" />
+    <link rel="prev" title="input_parameters package" href="input_parameters.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="plots.html" title="plots package"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="input_parameters.html" title="input_parameters package"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">PyHEADTAIL embryo documentation</a> &raquo;</li>
+          <li><a href="modules.html" accesskey="U">&lt;no title&gt;</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="llrf-package">
+<h1>llrf package<a class="headerlink" href="#llrf-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="llrf-rf-noise-module">
+<h2>llrf.RF_noise module<a class="headerlink" href="#llrf-rf-noise-module" title="Permalink to this headline">¶</a></h2>
+<p><strong>Methods to generate RF phase noise from noise spectrum</strong></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Authors:</th><td class="field-body"><strong>Helga Timko</strong></td>
+</tr>
+</tbody>
+</table>
+<dl class="class">
+<dt id="LLRF.RF_noise.PhaseNoise">
+<em class="property">class </em><tt class="descclassname">LLRF.RF_noise.</tt><tt class="descname">PhaseNoise</tt><big>(</big><em>object).__init__(self</em>, <em>frequency_array</em>, <em>real_part_of_spectrum</em>, <em>seed1=None</em>, <em>seed2=None</em><big>)</big><a class="headerlink" href="#LLRF.RF_noise.PhaseNoise" title="Permalink to this definition">¶</a></dt>
+<dd><p>The <strong>PhaseNoise</strong> class contains the spectrum of RF phase noise and the
+actual phase noise randomly generated from this spectrum (via mixing with
+white noise).</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>frequency_array</strong> (<em>numpy.array</em>) &#8211; input frequency range</li>
+<li><strong>real_part_of_spectrum</strong> (<em>numpy.array</em>) &#8211; input spectrum, real part only, same length as <tt class="docutils literal"><span class="pre">frequency_array</span></tt></li>
+<li><strong>seeds</strong> (<em>int</em>) &#8211; seeds for random number generator</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">time and phase noise arrays</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">The spectrum has to be input as double-sided spectrum, in units of
+radian-square per hertz.</p>
+</div>
+<p>Both hermitian to real and complex to complex FFTs are available. Use seeds to
+fix a certain random number sequence; with <tt class="docutils literal"><span class="pre">seed=None</span></tt> a random sequence will
+be initialized.</p>
+<blockquote>
+<div><dl class="function">
+<dt id="spectrum_to_phase_noise">
+<tt class="descname">spectrum_to_phase_noise</tt><big>(</big><em>self</em>, <em>transform=None</em><big>)</big><a class="headerlink" href="#spectrum_to_phase_noise" title="Permalink to this definition">¶</a></dt>
+<dd><p>Transforms a noise spectrum to phase noise data.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>transform</strong> (<em>choice</em>) &#8211; FFT transform kind</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p>Use <tt class="docutils literal"><span class="pre">transform=None</span></tt> or <tt class="docutils literal"><span class="pre">'r'</span></tt> to transform hermitian spectrum
+to real phase. In this case, input only the positive part of the
+double-sided spectrum. Use <tt class="docutils literal"><span class="pre">transform='c'</span></tt> to transform complex spectrum
+to complex phase. In this case, input first the zero and positive
+frequency components, then the decreasingly negative frequency components
+of the double-sided spectrum. Returns only the real part of the phase
+noise. E.g. the following two ways of usage are equivalent:</p>
+<img alt="_images/RF_noise.png" class="last align-center" src="_images/RF_noise.png" style="width: 1000px; height: 250px;" />
+</div>
+</div></blockquote>
+<div class="section" id="the-transformation-in-steps">
+<h3>The transformation in steps<a class="headerlink" href="#the-transformation-in-steps" title="Permalink to this headline">¶</a></h3>
+<p><strong>Step 1:</strong> Set the resolution in time domain. To transform a hermitian spectrum to
+real phase noise,</p>
+<div class="math">
+<p><img src="_images/math/2dd1bd6702cf696e317a2defe6e4ecd51f700517.png" alt="n_t = 2 (n_f - 1) \text{and} \Delta t = 1/(2 f_{\text{max}}) ,"/></p>
+</div><p>and to transform a complex spectrum to complex phase noise,</p>
+<div class="math">
+<p><img src="_images/math/4954103d2a87b055d5e3788533007d4a6c43e449.png" alt="n_t = n_f \text{and} \Delta t = 1/f_{\text{max}} ,"/></p>
+</div><p>where <tt class="docutils literal"><span class="pre">fmax</span></tt> is the maximum frequency in the input in both cases.</p>
+<p><strong>Step 2:</strong> Generate white (carrier) noise in time domain</p>
+<div class="math">
+<p><img src="_images/math/7f1e5baaa5013bd6384a8491c67fc274aa3d6509.png" alt="w_k(t) = \cos(2 \pi r_k^{(1)}) \sqrt{-2 \ln(r_k^{(2)})} \text{case 'r'},
+
+w_k(t) = \exp(2 \pi i r_k^{(1)}) \sqrt{-2 \ln(r_k^{(2)})} \text{case 'c'},"/></p>
+</div><p><strong>Step 3:</strong> Transform the generated white noise to frequency domain</p>
+<div class="math">
+<p><img src="_images/math/804dfe0f9d4243fd73d32dd6f54d0d87f74227ef.png" alt="W_l(f) = \sum_{k=1}^N w_k(t) e^{-2 \pi i \frac{k l}{N}} ."/></p>
+</div><p><strong>Step 4:</strong> In frequency domain, colour the white noise with the desired noise
+probability density (unit: radians). The noise probability density derived from
+the double-sided spectrum is</p>
+<div class="math">
+<p><img src="_images/math/63a72ebd32c31af8a015b1836b17385181ba3497.png" alt="s_l(f) = \sqrt{A S_l^{\text{DB}} f_{\text{max}}} ,"/></p>
+</div><p>where A=2 for <tt class="docutils literal"><span class="pre">transform</span> <span class="pre">=</span> <span class="pre">'r'</span></tt> and A=1 for <tt class="docutils literal"><span class="pre">transform</span> <span class="pre">=</span> <span class="pre">'c'</span></tt>. The
+coloured noise is obtained by multiplication in frequency domain</p>
+<div class="math">
+<p><img src="_images/math/ed5ad9474928d1ff96575c1f22a4b8661563e92d.png" alt="\Phi_l(f) = s_l(f) W_l(f) ."/></p>
+</div><p><strong>Step 5:</strong> Transform back the coloured spectrum to time domain to obtain the final
+phase shift array (we use only the real part).</p>
+</div>
+</div>
+<div class="section" id="module-llrf">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-llrf" title="Permalink to this headline">¶</a></h2>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">llrf package</a><ul>
+<li><a class="reference internal" href="#submodules">Submodules</a></li>
+<li><a class="reference internal" href="#llrf-rf-noise-module">llrf.RF_noise module</a><ul>
+<li><a class="reference internal" href="#the-transformation-in-steps">The transformation in steps</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#module-llrf">Module contents</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="input_parameters.html"
+                        title="previous chapter">input_parameters package</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="plots.html"
+                        title="next chapter">plots package</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/llrf.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="plots.html" title="plots package"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="input_parameters.html" title="input_parameters package"
+             >previous</a> |</li>
+        <li><a href="index.html">PyHEADTAIL embryo documentation</a> &raquo;</li>
+          <li><a href="modules.html" >&lt;no title&gt;</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, CERN.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+    </div>
+  </body>
+</html>
