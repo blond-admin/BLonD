@@ -66,7 +66,7 @@ class Slices(object):
             raise RuntimeError('The slicing_coord is not recognized')
         
         #: *Number of macroparticles per slice (~profile).*
-        self.n_macroparticles = np.zeros(n_slices, dtype='uint32')
+        self.n_macroparticles = np.zeros(n_slices)
         
         #: *Edges positions of the slicing*
         self.edges = np.zeros(n_slices + 1)

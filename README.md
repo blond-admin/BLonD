@@ -1,13 +1,16 @@
 BLonD (Beam Longitudinal Dynamics)
 
 https://github.com/dquartul/BLonD.git
-==========
+
+DESCRIPTION
+===========
 
 CERN code for the simulation of 
 longitudinal beam dynamics with collective effects.
 
 
-Developers:
+DEVELOPERS:
+==========
 
 Theodoros Argyropoulos (Theodoros.Argyropoulos (at) cern.ch)
 Alexandre Lasheen (alexandre.lasheen (at) cern.ch)
@@ -16,7 +19,8 @@ Danilo Quartullo (danilo.quartullo (at) cern.ch)
 Helga Timko (Helga.Timko (at) cern.ch)
 
 
-The structure is as follows:
+STRUCTURE:
+==========
 
 1) the folder __EXAMPLE_MAIN_FILES contains several main files which
    show how to use the principal features of the code; for additional examples
@@ -35,8 +39,28 @@ The structure is as follows:
    The compiler C/C++ GCC is necessary.
 
 
+WARNINGS FOR THE USER:
+=====================
+
+1) If you have your distribution for (beam.theta, beam.dE) from file, overwrite
+   these variables in the main file after having constructed a Beam class and
+   then add immediately after these two following lines
+   	beam.theta = numpy.ascontiguousarray(beam.theta)
+   	beam.dE = numpy.ascontiguousarray(beam.dE) 
+   Example:
+   	beam = Beam(general_params, N_p, N_b)
+	beam.theta, beam.dE = numpy.loadtxt('../Input/initial_long_distr.dat', unpack=True)
+	beam.theta = numpy.ascontiguousarray(beam.theta)
+	beam.dE = numpy.ascontiguousarray(beam.dE)
+2)  You have to launch the setup_cpp.py file; change the options inside if 
+    necessary 
+
 VERSION CONTENTS
 ==========
+2014-10-24
+v1.8.0 - Fixed important bug in the slices class related to the histogram
+         routine and added an important warning for the user in the README.md
+         file
 
 2014-10-22
 v1.7.1 - setup_cpp.py has been improved: now it is more user-friendly and the 
