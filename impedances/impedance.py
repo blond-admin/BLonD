@@ -1,7 +1,16 @@
-'''
-**Module to compute longitudinal intensity effects**
 
-:Authors: **Danilo Quartullo**, **Alexandre Lasheen**, **Hannes Bartosik**
+# Copyright 2014 CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3), 
+# copied verbatim in the file LICENCE.md.
+# In applying this licence, CERN does not waive the privileges and immunities 
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
+'''
+**Module to compute intensity effects**
+
+:Authors: **Danilo Quartullo**, **Alexandre Lasheen**
 '''
 
 from __future__ import division
@@ -107,12 +116,8 @@ class InducedVoltageTime(object):
         self.induced_voltage = 0
         
         # Pre-processing the wakes
-        if self.slices.mode is 'const_charge':
-            self.precalc = 'off'
-        else:   
-            self.precalc = 'on'
-            self.time_array = self.slices.bins_centers - self.slices.bins_centers[0]
-            self.sum_wakes(self.time_array)
+        self.time_array = self.slices.bins_centers - self.slices.bins_centers[0]
+        self.sum_wakes(self.time_array)
             
             
     def reprocess(self, new_slicing):
@@ -139,21 +144,10 @@ class InducedVoltageTime(object):
     
     def induced_voltage_generation(self, Beam, length = 'slice_frame'): 
         '''
-        *Method to calculate the induced voltage from wakes with convolution 
-        or with the matrix method (this method scales with the number of sources 
-        you have and is slower than the convolve method, this might be optimized 
-        with a dedicated method that would use pure matrix calculations to 
-        reduce to the minimum the number of loops).*
+        *Method to calculate the induced voltage from wakes with convolution.*
         '''
         
-        if self.slices.mode == 'const_charge':
-            # Matrix method
-            time_matrix = self.slices.bins_centers - np.transpose([self.slices.bins_centers])
-            self.sum_wakes(time_matrix)
-            induced_voltage = - Beam.charge * Beam.intensity / Beam.n_macroparticles * np.dot(self.slices.n_macroparticles, self.total_wake) 
-        else:           
-            # Convolve method 
-            induced_voltage = - Beam.charge * Beam.intensity / Beam.n_macroparticles * np.convolve(self.total_wake, self.slices.n_macroparticles)
+        induced_voltage = - Beam.charge * Beam.intensity / Beam.n_macroparticles * np.convolve(self.total_wake, self.slices.n_macroparticles)
         
         self.induced_voltage = induced_voltage[0:self.slices.n_slices]
         
@@ -206,9 +200,6 @@ class InducedVoltageFreq(object):
         # The slicing has to be done in 'tau' in order to use intensity effects
         if self.slices.slicing_coord is not 'tau':
             raise RuntimeError('The slicing has to be done in tau (slicing_coord option) in order to use intensity effects !')
-        
-        if self.slices.mode is 'const_charge':
-            raise RuntimeError('Frequency domain calculation are not possible with const_charge slicing')
         
         #: *Impedance sources inputed as a list (eg: list of BBResonators objects)*
         self.impedance_source_list = impedance_source_list
@@ -370,9 +361,6 @@ class InductiveImpedance(object):
         #: *Derivation method to compute induced voltage*
         self.deriv_mode = deriv_mode
         
-        #: *Calculation domain (time for derivative, freq for inverse fft.*
-        self.calc_domain = calc_domain
-        
         
     def reprocess(self, new_slicing):
         '''
@@ -395,20 +383,14 @@ class InductiveImpedance(object):
     def induced_voltage_generation(self, Beam, length = 'slice_frame'):
         '''
         *Method to calculate the induced voltage through the derivative of the
-        profile; the impedance must be of inductive type. *
+        profile; the impedance must be of inductive type.*
         '''
         
-        if self.calc_domain is 'time':
-            induced_voltage = - Beam.charge / (2 * np.pi) * Beam.intensity / Beam.n_macroparticles * \
-                                self.Z_over_n / self.revolution_frequency * \
-                                self.slices.beam_profile_derivative(self.deriv_mode, coord = 'tau')[1] / \
-                                (self.slices.bins_centers[1] - self.slices.bins_centers[0])
-        
-#         if self.calc_domain is 'freq':
-#             self.slices.beam_spectrum_generation(self.n_fft_sampling, filter_option = None)
-#             self.induced_voltage = - Beam.charge * Beam.intensity / Beam.n_macroparticles * irfft(self.impedance * self.slices.beam_spectrum) * self.slices.beam_spectrum_freq[1] * 2*(len(self.slices.beam_spectrum)-1) 
-#             self.induced_voltage = self.induced_voltage[0:self.slices.n_slices]
-        
+        induced_voltage = - Beam.charge / (2 * np.pi) * Beam.intensity / Beam.n_macroparticles * \
+            self.Z_over_n / self.revolution_frequency * \
+            self.slices.beam_profile_derivative(self.deriv_mode, coord = 'tau')[1] / \
+            (self.slices.bins_centers[1] - self.slices.bins_centers[0])
+            
         self.induced_voltage = induced_voltage[0:self.slices.n_slices]
         
         if isinstance(length, int):

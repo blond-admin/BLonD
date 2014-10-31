@@ -1,9 +1,20 @@
-# SPS simulation with intensity effects in time and frequency domains using
-# a table of resonators. The input beam has been cloned to show that the two methods
-# are equivalent (compare the two figure folders). Note that to create an exact 
-# clone of the beam, the option seed=0 in the generation has been used. This 
-# script shows also an example of how to use the class SliceMonitor (check the
-# corresponding h5 files).
+
+# Copyright 2014 CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3), 
+# copied verbatim in the file LICENCE.md.
+# In applying this licence, CERN does not waive the privileges and immunities 
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
+'''
+SPS simulation with intensity effects in time and frequency domains using
+a table of resonators. The input beam has been cloned to show that the two methods
+are equivalent (compare the two figure folders). Note that to create an exact 
+clone of the beam, the option seed=0 in the generation has been used. This 
+script shows also an example of how to use the class SliceMonitor (check the
+corresponding h5 files).
+'''
 
 from __future__ import division
 import numpy as np
@@ -82,14 +93,15 @@ longitudinal_bigaussian(general_params_copy, RF_sct_par_copy, my_beam_copy, tau_
 
 number_slices = 100
 slice_beam = Slices(my_beam, number_slices, cut_left = 0, 
-                    cut_right = 2 * np.pi / harmonic_number, mode = 
-                    'const_space', cuts_coord = 'theta', slicing_coord = 'tau', 
-                    statistics_option = 'on', fit_option = 'gaussian', slice_immediately = 'on')
+                    cut_right = 2 * np.pi / harmonic_number, 
+                    cuts_coord = 'theta', slicing_coord = 'tau', 
+                    fit_option = 'gaussian')
+slice_beam.track(my_beam)
 slice_beam_copy = Slices(my_beam_copy, number_slices, cut_left = 0, 
-                    cut_right = 2 * np.pi / harmonic_number, mode = 
-                    'const_space', cuts_coord = 'theta', slicing_coord = 'tau', 
-                    statistics_option = 'on', fit_option = 'gaussian', slice_immediately = 'on')
-
+                    cut_right = 2 * np.pi / harmonic_number, 
+                    cuts_coord = 'theta', slicing_coord = 'tau', 
+                    fit_option = 'gaussian')
+slice_beam_copy.track(my_beam_copy)
 
 # MONITOR----------------------------------------------------------------------
 

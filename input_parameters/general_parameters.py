@@ -1,3 +1,12 @@
+
+# Copyright 2014 CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3), 
+# copied verbatim in the file LICENCE.md.
+# In applying this licence, CERN does not waive the privileges and immunities 
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 '''
 **Module gathering all the general input parameters used for the simulation**
 
@@ -66,7 +75,7 @@ class GeneralParameters(object):
 
         #: | *Momentum (program) in [eV/c] for each RF section* :math:`: \quad p_n`
         #: | *Can be given as a single value to be assumed constant, or as a program of (n_turns + 1) terms in case of acceleration.*
-        #: | *In case of several sections without acceleration, the input is as follow : [[momentum_section_1], [momentum_section_2]]
+        #: | *In case of several sections without acceleration, the input is as follow : [[momentum_section_1], [momentum_section_2]]*
         #: | *In case of several sections with momentum program, the input is as follow: [momentum_program_section_1, momentum_program_section_2]*
         self.momentum = np.array(momentum, ndmin =2)
 

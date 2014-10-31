@@ -1,3 +1,12 @@
+
+# Copyright 2014 CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3), 
+# copied verbatim in the file LICENCE.md.
+# In applying this licence, CERN does not waive the privileges and immunities 
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 '''
 **Module gathering and processing all the RF parameters to be given to the 
 other modules.**
@@ -35,8 +44,8 @@ def input_check(input_value, expected_length):
 class RFSectionParameters(object):
     '''
     *Object gathering all the RF parameters for one section (see section
-    definition in tracker.RingAndRFSection), and pre-processing 
-    them in order to be used in the tracker.py module.*
+    definition in longitudinal_tracker.RingAndRFSection), and pre-processing 
+    them in order to be used in the longitudinal_tracker.py module.*
     
     :How to use RF programs:
 
@@ -64,7 +73,7 @@ class RFSectionParameters(object):
         self.n_turns = GeneralParameters.n_turns
         
         #: *Copy of the ring circumference (from GeneralParameters)*
-        self.ring_cirumference = GeneralParameters.ring_circumference
+        self.ring_circumference = GeneralParameters.ring_circumference
         
         #: *Length of the section in [m]* :math:`: \quad L_k`
         self.section_length = GeneralParameters.ring_length[self.section_index]
@@ -199,7 +208,6 @@ def calc_phi_s(RFSectionParameters, accelerating_systems = 'all'):
         # For the initial phi_s, add the first value a second time, also in index   
         phi_s = np.arcsin( np.concatenate((np.array([acceleration_ratio[0]]), 
                                            acceleration_ratio)) )
-        
         index = np.where((eta0[1:] + eta0[0:-1])/2 > 0)[0] + 1
         if len(index) > 0:
             if index[0] == 1:

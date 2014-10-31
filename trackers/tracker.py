@@ -1,7 +1,17 @@
-'''
-**Module containing all the elements to track the beam in the longitudinal plane.**
 
-:Authors: **Danilo Quartullo**, **Helga Timko**, **Adrian Oeftiger**, **Alexandre Lasheen**
+# Copyright 2014 CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3), 
+# copied verbatim in the file LICENCE.md.
+# In applying this licence, CERN does not waive the privileges and immunities 
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
+'''
+
+**Module containing all the elements to track the beam in phase space.**
+
+:Authors: **Danilo Quartullo**, **Helga Timko**, **Alexandre Lasheen**
 '''
 
 from __future__ import division
@@ -28,7 +38,7 @@ class FullRingAndRF(object):
         #: *Total potential well in [V]*
         self.potential_well = 0
         
-        #: *Total potential well theta coordinates in [rad] *
+        #: *Total potential well theta coordinates in [rad]*
         self.potential_well_coordinates = 0
         
         #: *Ring circumference in [m]*
@@ -140,7 +150,7 @@ class RingAndRFSection(object):
     and finally a drift kick between stations.*
     '''
         
-    def __init__(self, RFSectionParameters, solver = 'full', PhaseLoop = None):
+    def __init__(self, RFSectionParameters, solver = 'simple', PhaseLoop = None):
         
         #: *Copy of the counter (from RFSectionParameters)*
         self.counter = RFSectionParameters.counter
@@ -207,13 +217,12 @@ class RingAndRFSection(object):
         
         #: *Design RF frequency of the main RF system in the station*        
         self.omega_RF = 2.*np.pi*self.beta_r*c*self.harmonic[0]/ \
-                        (RFSectionParameters.ring_cirumference)
+                        (RFSectionParameters.ring_circumference)
         
         #: *Phase Loop class*                
         self.PL = PhaseLoop         
         
-# Old not-optimised kick method now substituted by the equivalent c++ routine
-# It has been kept for future accuracy and time benchmarks.                   
+# This method has been substituted by the equivalent optimised routine in kicks.cpp              
     def kick(self, beam):
         '''
         *The Kick represents the kick(s) by an RF station at a certain position 
@@ -225,14 +234,14 @@ class RingAndRFSection(object):
             \Delta E_{n+1} = \Delta E_n + \sum_{j=0}^{n_{RF}}{V_{j,n}\,\sin{\\left(h_{j,n}\,\\theta + \phi_{j,n}\\right)}}
             
         '''
-                
+        
         for i in range(self.n_rf):
             beam.dE += self.voltage[i,self.counter[0]] * \
                        np.sin(self.harmonic[i,self.counter[0]] * 
                               beam.theta + self.phi_offset[i,self.counter[0]])
         
    
-    
+# This method has been substituted by the equivalent optimised routine in kicks.cpp  
     def kick_acceleration(self, beam):
         '''
         *KickAcceleration gives a single accelerating kick to the bunch. 
@@ -291,17 +300,32 @@ class RingAndRFSection(object):
        
         # Choose solver
         if self.solver == 'full': 
-           
+            
+            beam_delta = beam.delta
             beam.theta = omega_r1*beam.theta + 2*np.pi*self.length_ratio* \
-                (omega_r3*(1/(1 - self.rf_params.eta_tracking(self.counter[0]+1, beam.delta) 
-                *beam.delta) - 1) + omega_r2)            
+                (omega_r3*(1/(1 - self.rf_params.eta_tracking(self.counter[0]+1, beam_delta) 
+                *beam_delta) - 1) + omega_r2)            
                                             
         elif self.solver == 'simple':
+            
+            ### The next commented two lines are the old drift_simple not optimised
+            #             beam.theta = omega_r1*beam.theta + 2*np.pi*self.length_ratio* \
+            #                 (omega_r3*self.eta_0[self.counter[0]+1]*beam_delta + omega_r2)
+            
 
-            beam.theta = omega_r1*beam.theta + 2*np.pi*self.length_ratio* \
-                (omega_r3*self.eta_0[self.counter[0]+1]*beam.delta + omega_r2)
-                         
+            libfib.drift_simple(beam.theta.ctypes.data_as(ctypes.c_void_p), 
+              beam.dE.ctypes.data_as(ctypes.c_void_p), 
+              ctypes.c_double(omega_r1), 
+              ctypes.c_double(omega_r2),
+              ctypes.c_double(omega_r3), 
+              ctypes.c_double(self.length_ratio),
+              ctypes.c_double(self.eta_0[self.counter[0]+1]),
+              ctypes.c_double(beam.beta_r),
+              ctypes.c_double(beam.energy),
+              ctypes.c_uint(beam.n_macroparticles))
+     
         else:
+            
             raise RuntimeError("ERROR: Choice of longitudinal solver not \
                                recognized! Aborting...")
                 
@@ -314,25 +338,23 @@ class RingAndRFSection(object):
         | *Updates the relativistic information of the beam.*
         '''
         
-        theta_kick=beam.theta
-         
-        dE_kick=beam.dE
-         
-        v_kick = np.array(self.voltage[:, self.counter[0]])
-        h_kick = np.array(self.harmonic[:, self.counter[0]])
-        p_kick = np.array(self.phi_offset[:, self.counter[0]])
-         
-        libfib.kick(theta_kick.ctypes.data_as(ctypes.c_void_p), 
-                    dE_kick.ctypes.data_as(ctypes.c_void_p), 
+        # KICKS
+        v_kick = np.ascontiguousarray(self.voltage[:, self.counter[0]])
+        h_kick = np.ascontiguousarray(self.harmonic[:, self.counter[0]])
+        p_kick = np.ascontiguousarray(self.phi_offset[:, self.counter[0]])
+        
+        libfib.kicks(beam.theta.ctypes.data_as(ctypes.c_void_p), 
+                    beam.dE.ctypes.data_as(ctypes.c_void_p), 
                     ctypes.c_int(self.n_rf), 
                     v_kick.ctypes.data_as(ctypes.c_void_p),
                     h_kick.ctypes.data_as(ctypes.c_void_p), 
                     p_kick.ctypes.data_as(ctypes.c_void_p), 
-                    ctypes.c_uint(beam.n_macroparticles))
+                    ctypes.c_uint(beam.n_macroparticles), ctypes.c_double(self.acceleration_kick[self.counter[0]]))
         
-        self.kick_acceleration(beam)
+        # DRIFT
         self.drift(beam)
         
+        # Increment by one the turn counter
         self.counter[0] += 1
         
         # Updating the beam synchronous momentum etc.
@@ -340,46 +362,4 @@ class RingAndRFSection(object):
         beam.gamma_r = self.gamma_r[self.counter[0]]
         beam.energy = self.energy[self.counter[0]]
         beam.momentum = self.momentum[self.counter[0]]
-      
-
-
-class LinearMap(object):
-    '''
-    Linear Map represented by a Courant-Snyder transportation matrix.
-    Qs is forced to be constant.
-    '''
-
-    def __init__(self, GeneralParameters, Qs):
-        
-        #: *Copy of the relativistic beta (from GeneralParameters)*
-        self.beta_r = GeneralParameters.beta_r[0,0]        
-        #: *Copy of the ring circumference (from GeneralParameters)*
-        self.ring_circumference = GeneralParameters.ring_circumference        
-        #: *Copy of the 0th order slippage factor (from GeneralParameters)*
-        self.eta = GeneralParameters.eta0[0,0]
-        
-        #: *Synchrotron tune (constant)*
-        self.Qs = Qs
-        
-        #: *Copy of the revolution angular frequency (from GeneralParameters)*
-        self.omega_0 = GeneralParameters.omega_rev[0]
-        
-        #: *Synchrotron angular frequency in [rad/s]* 
-        #: :math:`: \quad \omega_s = Q_s \omega_0`
-        self.omega_s = self.Qs * self.omega_0
-        
-        self.dQs = 2 * np.pi * self.Qs
-        self.cosdQs = np.cos(self.dQs)
-        self.sindQs = np.sin(self.dQs)
-        
-
-    def track(self, beam):
-
-        z0 = beam.z
-        delta0 = beam.delta
-
-        beam.z = z0 * self.cosdQs - self.eta * c / self.omega_s * delta0 * self.sindQs
-        beam.delta = delta0 * self.cosdQs + self.omega_s / self.eta / c * z0 * self.sindQs
-        
-        
-
+ 

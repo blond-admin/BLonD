@@ -1,6 +1,16 @@
+# Copyright 2014 CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3), 
+# copied verbatim in the file LICENCE.md.
+# In applying this licence, CERN does not waive the privileges and immunities 
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
+CODE NAME
+=========
+
 BLonD (Beam Longitudinal Dynamics)
 
-https://github.com/dquartul/BLonD.git
 
 DESCRIPTION
 ===========
@@ -9,7 +19,20 @@ CERN code for the simulation of
 longitudinal beam dynamics with collective effects.
 
 
-DEVELOPERS:
+LINKS
+=====
+
+Repository:
+	http://github.com/dquartul/BLonD.git
+
+Documentation:
+	http://dquartul.github.io/BLonD/
+	
+Project website:
+	http://blond.web.cern.ch
+
+
+DEVELOPERS
 ==========
 
 Theodoros Argyropoulos (Theodoros.Argyropoulos (at) cern.ch)
@@ -19,7 +42,7 @@ Danilo Quartullo (danilo.quartullo (at) cern.ch)
 Helga Timko (Helga.Timko (at) cern.ch)
 
 
-STRUCTURE:
+STRUCTURE
 ==========
 
 1) the folder __EXAMPLE_MAIN_FILES contains several main files which
@@ -39,24 +62,20 @@ STRUCTURE:
    The compiler C/C++ GCC is necessary.
 
 
-WARNINGS FOR THE USER:
-=====================
-
-1) If you have your distribution for (beam.theta, beam.dE) from file, overwrite
-   these variables in the main file after having constructed a Beam class and
-   then add immediately after these two following lines
-   	beam.theta = numpy.ascontiguousarray(beam.theta)
-   	beam.dE = numpy.ascontiguousarray(beam.dE) 
-   Example:
-   	beam = Beam(general_params, N_p, N_b)
-	beam.theta, beam.dE = numpy.loadtxt('../Input/initial_long_distr.dat', unpack=True)
-	beam.theta = numpy.ascontiguousarray(beam.theta)
-	beam.dE = numpy.ascontiguousarray(beam.dE)
-2)  You have to launch the setup_cpp.py file; change the options inside if 
-    necessary 
-
 VERSION CONTENTS
-==========
+================
+
+2014-10-30
+v1.9.0 - setup_cpp.py improved
+       - now all the tracker (kick, kick_accelleration and drift) has been 
+         translated in C++ with autovectorization
+       - merged completely with Helga's branch
+       - removed linear map in the tracker method
+       - removed constant_charge and constant_space routines in the slices method
+       - code cleaned
+       - added license and warnings files
+       - updated documentation
+       
 2014-10-24
 v1.8.0 - Fixed important bug in the slices class related to the histogram
          routine and added an important warning for the user in the README.md

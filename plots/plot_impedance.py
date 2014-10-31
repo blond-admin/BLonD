@@ -1,5 +1,14 @@
+
+# Copyright 2014 CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3), 
+# copied verbatim in the file LICENCE.md.
+# In applying this licence, CERN does not waive the privileges and immunities 
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 '''
-**Module to plot different bunch features **
+**Module to plot different bunch features**
 
 :Authors: **Helga Timko**, **Danilo Quartullo**
 
@@ -21,7 +30,7 @@ def plot_impedance_vs_frequency(counter, general_params, ind_volt_from_imp,
     Plot of impedance vs frequency.
     """
 
-    # Directory where plots will be stored
+    # Directory where longitudinal_plots will be stored
     fig_folder(dirname)
     
     if option1 == "sum":
@@ -39,7 +48,7 @@ def plot_impedance_vs_frequency(counter, general_params, ind_volt_from_imp,
         plt.show()
         plt.savefig(fign)
         plt.clf()
-        plt.close()
+        #plt.close()
         
     
     elif option1 == "single":
@@ -97,7 +106,7 @@ def plot_impedance_vs_frequency(counter, general_params, ind_volt_from_imp,
         
         plt.savefig(fign2)
         plt.clf()
-        plt.close()
+        #plt.close()
    
    
 def plot_induced_voltage_vs_bins_centers(counter, general_params, 
@@ -108,7 +117,7 @@ def plot_induced_voltage_vs_bins_centers(counter, general_params,
     Plot of induced voltage vs bin centers.
     """
 
-    # Directory where plots will be stored
+    # Directory where longitudinal_plots will be stored
     fig_folder(dirname)
     
     
@@ -122,6 +131,6 @@ def plot_induced_voltage_vs_bins_centers(counter, general_params,
     fign = dirname +'/induced_voltage_' "%d" %counter + '.png'
     plt.savefig(fign)
     plt.clf()
-    plt.close()
+    #plt.close()
 
 

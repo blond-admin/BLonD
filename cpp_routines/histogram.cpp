@@ -1,5 +1,17 @@
-using uint = unsigned int;
+/*
+Copyright 2014 CERN. This software is distributed under the
+terms of the GNU General Public Licence version 3 (GPL Version 3), 
+copied verbatim in the file LICENCE.md.
+In applying this licence, CERN does not waive the privileges and immunities 
+granted to it by virtue of its status as an Intergovernmental Organization or 
+submit itself to any jurisdiction.
+Project website: http://blond.web.cern.ch/
+*/
 
+// Optimised C++ routine that calculates the histogram
+// Author: Danilo Quartullo
+
+using uint = unsigned int;
 
 extern "C" void histogram(const double * __restrict__ input,
 			   double * __restrict__ output,
@@ -27,5 +39,3 @@ extern "C" void histogram(const double * __restrict__ input,
       output[ffbin] = output[ffbin] + 1.0;
    }
 }
-
-

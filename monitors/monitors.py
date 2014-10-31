@@ -1,7 +1,16 @@
+
+# Copyright 2014 CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3), 
+# copied verbatim in the file LICENCE.md.
+# In applying this licence, CERN does not waive the privileges and immunities 
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 '''
 **Module to save beam statistics in h5 files**
 
-:Authors: **Danilo Quartullo**, **Kevin Li**
+:Authors: **Danilo Quartullo**
 '''
 
 import h5py as hp
@@ -82,10 +91,8 @@ class BunchMonitor(object):
 
 class SlicesMonitor(object):
 
-    ''' Class able to save slices data into h5 file. The user can save the 
-        statistics in theta and dE coordinates together with the bunch profile.
-        The last is always saved, the former are saved only if the 
-        statistics_option is set to 'on' in the Slices object.
+    ''' Class able to save the bunch profile, i.e. the histogram derived from
+        the slicing.
     '''
     
     def __init__(self, filename, n_turns, slices):
@@ -100,9 +107,7 @@ class SlicesMonitor(object):
     def track(self, bunch):
         
         if not self.i_turn:
-            n_turns = self.n_turns
-            n_slices = self.slices.n_slices
-            self.create_data(self.h5file['Slices'], (n_slices, n_turns))
+            self.create_data(self.h5file['Slices'], (self.slices.n_slices, self.n_turns))
             self.write_data(self.slices, self.h5file['Slices'], self.i_turn)
         else:
             self.write_data(self.slices, self.h5file['Slices'], self.i_turn)
@@ -114,28 +119,11 @@ class SlicesMonitor(object):
         
         h5group.create_dataset("n_macroparticles", dims, compression="gzip", compression_opts=9)
         
-        if self.slices.statistics_option == 'on':
-            
-            h5group.create_dataset("mean_theta",   dims, compression="gzip", compression_opts=9)
-            h5group.create_dataset("mean_dE",  dims, compression="gzip", compression_opts=9)
-            h5group.create_dataset("sigma_theta",  dims, compression="gzip", compression_opts=9)
-            h5group.create_dataset("sigma_dE", dims, compression="gzip", compression_opts=9)
-            h5group.create_dataset("eps_rms_l",   dims, compression="gzip", compression_opts=9)
-            
-
+        
     def write_data(self, bunch, h5group, i_turn):
         
         h5group["n_macroparticles"][:, i_turn] = self.slices.n_macroparticles
         
-        if self.slices.statistics_option == 'on':
-            
-            h5group["mean_theta"][:, i_turn] = self.slices.mean_theta
-            h5group["mean_dE"][:, i_turn] = self.slices.mean_dE
-            h5group["sigma_theta"][:, i_turn] = self.slices.sigma_theta
-            h5group["sigma_dE"][:, i_turn] = self.slices.sigma_dE
-            h5group["eps_rms_l"][:, i_turn] = self.slices.eps_rms_l
-            
-            
     def close(self):
         self.h5file.close()
 

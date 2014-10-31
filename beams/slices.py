@@ -1,7 +1,16 @@
+
+# Copyright 2014 CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3), 
+# copied verbatim in the file LICENCE.md.
+# In applying this licence, CERN does not waive the privileges and immunities 
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 '''
 **Module to compute beam slicing**
 
-:Authors: **Danilo Quartullo**, **Alexandre Lasheen**, **Kevin Li**
+:Authors: **Danilo Quartullo**, **Alexandre Lasheen**
 '''
 
 from __future__ import division
@@ -20,24 +29,18 @@ class Slices(object):
     '''
     *Slices class that controls discretisation of a Beam. This
     include the Beam profiling (including computation of Beam spectrum,
-    derivative, and profile fitting) and the computation of statistics per
-    slice.*
+    derivative, and profile fitting).*
     '''
     
     def __init__(self, Beam, n_slices, n_sigma = None, cut_left = None, 
                  cut_right = None, cuts_coord = 'tau', slicing_coord = 'tau', 
-                 mode = 'const_space', statistics_option = 'off', fit_option = 'off', slice_immediately = 'off'):
+                 fit_option = 'off'):
         
         #: *Copy (reference) of the beam to be sliced (from Beam)*
         self.Beam = Beam
         
         #: *Number of slices*
         self.n_slices = n_slices
-        
-        #: | *Slicing computation mode*
-        #: | *The options are: 'const_space' (default), 'const_space_hist' and 
-        #: 'const_charge'.*
-        self.mode = mode
         
         #: *Left edge of the slicing (is an optional input, in case you use
         #: the 'const_space' mode, a default value will be set if no value is 
@@ -77,30 +80,6 @@ class Slices(object):
         # Pre-processing the slicing edges
         self.set_cuts()
         
-        #: *Compute statistics option allows to compute mean_theta, mean_dE, 
-        #: sigma_theta and sigma_dE properties each turn.*
-        self.statistics_option = statistics_option
-        
-        if self.statistics_option is 'on' and self.mode is 'const_space_hist':
-            raise RuntimeError('Slice compute statistics does not work with \
-                                the const_space_hist mode !')
-        elif self.statistics_option is 'on':
-            #: *Average theta position of the particles in each slice (needs 
-            #: the compute_statistics_option to be 'on').*
-            self.mean_theta = np.zeros(n_slices)
-            #: *Average dE position of the particles in each slice (needs 
-            #: the compute_statistics_option to be 'on').*
-            self.mean_dE = np.zeros(n_slices)
-            #: *RMS theta position of the particles in each slice (needs 
-            #: the compute_statistics_option to be 'on').*
-            self.sigma_theta = np.zeros(n_slices)
-            #: *RMS dE position of the particles in each slice (needs 
-            #: the compute_statistics_option to be 'on').*
-            self.sigma_dE = np.zeros(n_slices)
-            #: *RMS dE position of the particles in each slice (needs 
-            #: the compute_statistics_option to be 'on').*
-            self.eps_rms_l = np.zeros(n_slices)
-        
         #: *Fit option allows to fit the Beam profile, with the options
         #: 'off' (default), 'gaussian'.*
         self.fit_option = fit_option
@@ -111,7 +90,7 @@ class Slices(object):
         #: *Frequency array corresponding to the beam spectrum in [Hz]*
         self.beam_spectrum_freq = 0
         
-        if self.mode is not 'const_charge' and self.fit_option is 'gaussian':    
+        if self.fit_option is 'gaussian':    
             #: *Beam length with a gaussian fit (needs fit_option to be 
             #: 'gaussian' defined as* :math:`\tau_{gauss} = 4\sigma`)
             self.bl_gauss = 0
@@ -121,10 +100,6 @@ class Slices(object):
             #: *Gaussian parameters list obtained from fit*
             self.pfit_gauss = 0
                   
-        # Use of track method in order to pre-process the slicing at injection
-        if slice_immediately == 'on':
-            self.track(self.Beam)
-          
         
     def sort_particles(self):
         '''
@@ -153,50 +128,26 @@ class Slices(object):
         in each side of the frame.*
         '''
 
-        if self.mode is not 'const_charge':
-            if self.cut_left is None and self.cut_right is None:
-                if self.n_sigma is None:
-                    self.sort_particles()
-                    self.cut_left = self.beam_coordinates[0] - 0.05*(self.beam_coordinates[-1] - self.beam_coordinates[0])
-                    self.cut_right = self.beam_coordinates[-1] + 0.05*(self.beam_coordinates[-1] - self.beam_coordinates[0])
-                else:
-                    mean_beam_coordinates = np.mean(self.beam_coordinates)
-                    sigma_beam_coordinates = np.std(self.beam_coordinates)
-                    self.cut_left = mean_beam_coordinates - self.n_sigma * sigma_beam_coordinates / 2
-                    self.cut_right = mean_beam_coordinates + self.n_sigma * sigma_beam_coordinates / 2
-            else:
-                self.cut_left = self.convert_coordinates(self.cut_left, self.cuts_coord, self.slicing_coord)
-                self.cut_right = self.convert_coordinates(self.cut_right, self.cuts_coord, self.slicing_coord)
-            self.edges = np.linspace(self.cut_left, self.cut_right, self.n_slices + 1)
-            self.bins_centers = (self.edges[:-1] + self.edges[1:]) / 2
+        
+        if self.cut_left is None and self.cut_right is None:
             
-        else:
+            if self.n_sigma is None:
+                self.sort_particles()
+                self.cut_left = self.beam_coordinates[0] - 0.05*(self.beam_coordinates[-1] - self.beam_coordinates[0])
+                self.cut_right = self.beam_coordinates[-1] + 0.05*(self.beam_coordinates[-1] - self.beam_coordinates[0])
+            else:
                 mean_beam_coordinates = np.mean(self.beam_coordinates)
                 sigma_beam_coordinates = np.std(self.beam_coordinates)
                 self.cut_left = mean_beam_coordinates - self.n_sigma * sigma_beam_coordinates / 2
                 self.cut_right = mean_beam_coordinates + self.n_sigma * sigma_beam_coordinates / 2
-
-
-    def slice_constant_space(self):
-        '''
-        *Constant space slicing. This method consist in slicing a fixed frame
-        (which length is determined in the beginning of the simulation) with
-        bins of constant size. Each turn, the particles are sorted with respect
-        to their longitudinal position and counted in each bin. This allows
-        also to calculate the statistics of the particles for each bin (if 
-        statistics_option is 'on') and fit the profile (e.g. Gaussian).*
-        
-        *Be careful that because the frame is not changing, a bunch with
-        increasing bunch length might not be sliced properly as part of it
-        might be out of the frame.*
-        '''
-
-        self.sort_particles()
-        
-        first_index_in_bin = np.searchsorted(self.beam_coordinates, self.edges)
+        else:
             
-        self.n_macroparticles = np.diff(first_index_in_bin)
+            self.cut_left = self.convert_coordinates(self.cut_left, self.cuts_coord, self.slicing_coord)
+            self.cut_right = self.convert_coordinates(self.cut_right, self.cuts_coord, self.slicing_coord)
         
+        self.edges = np.linspace(self.cut_left, self.cut_right, self.n_slices + 1)
+        self.bins_centers = (self.edges[:-1] + self.edges[1:]) / 2
+
 
     def slice_constant_space_histogram(self):
         '''
@@ -209,50 +160,15 @@ class Slices(object):
         for high number of particles (~1e6).*
         '''
         
-        w_hist = self.beam_coordinates
-        v_hist = self.n_macroparticles
-        libfib.histogram(w_hist.ctypes.data_as(ctypes.c_void_p), 
-                      v_hist.ctypes.data_as(ctypes.c_void_p), 
+        beam_hist = self.beam_coordinates
+        macro_hist = self.n_macroparticles
+        libfib.histogram(beam_hist.ctypes.data_as(ctypes.c_void_p), 
+                      macro_hist.ctypes.data_as(ctypes.c_void_p), 
                ctypes.c_double(self.cut_left), ctypes.c_double(self.cut_right), 
                ctypes.c_uint(self.n_slices), ctypes.c_uint(self.Beam.n_macroparticles))
 
         
-    def slice_constant_charge(self):
-        '''
-        *Constant charge slicing. This method consist in slicing with varying
-        bin sizes that adapts in order to have the same number of particles
-        in each bin*
-         
-        *Must be updated in order to take into account potential losses (in order
-        for the frame size not to diverge).*
-        '''
-         
-        self.set_cuts()
-         
-        # 1. n_macroparticles - distribute macroparticles uniformly along slices.
-        # Must be integer. Distribute remaining particles randomly among slices with indices 'ix'.
-        n_cut_left = 0 # number of particles cut left, to be adapted for losses
-        n_cut_right = 0 # number of particles cut right, to be adapted for losses
-           
-        q0 = self.Beam.n_macroparticles - n_cut_right - n_cut_left
-          
-        ix = sample(range(self.n_slices), q0 % self.n_slices)
-        self.n_macroparticles = (q0 // self.n_slices) * np.ones(self.n_slices)
-        self.n_macroparticles[ix] += 1
-         
-        # 2. edges
-        # Get indices of the particles defining the bin edges
-        n_macroparticles_all = np.hstack((n_cut_left, self.n_macroparticles, n_cut_right))
-        first_index_in_bin = np.cumsum(n_macroparticles_all)
-        first_particle_index_in_slice = first_index_in_bin[:-1]
-        first_particle_index_in_slice = (first_particle_index_in_slice).astype(int)
-          
-        self.edges[1:-1] = (self.beam_coordinates[(first_particle_index_in_slice - 1)[1:-1]] + 
-                            self.beam_coordinates[first_particle_index_in_slice[1:-1]]) / 2
-        self.edges[0], self.edges[-1] = self.cut_left, self.cut_right
-        self.bins_centers = (self.edges[:-1] + self.edges[1:]) / 2
-        
-        
+ 
     def track(self, Beam):
         '''
         *Track method in order to update the slicing along with the tracker.
@@ -260,22 +176,12 @@ class Slices(object):
         fit, etc.).*
         '''
         
-        if self.mode == 'const_charge':
-            self.slice_constant_charge()
-        elif self.mode == 'const_space':
-            self.slice_constant_space()
-        elif self.mode == 'const_space_hist':
-            self.slice_constant_space_histogram()
-        else:
-            raise RuntimeError('Choose one proper slicing mode!')
+        self.slice_constant_space_histogram()
         
         if self.fit_option is 'gaussian':
             self.gaussian_fit()
             self.Beam.bl_gauss = self.convert_coordinates(self.bl_gauss, self.slicing_coord, 'theta')
             self.Beam.bp_gauss = self.convert_coordinates(self.bp_gauss, self.slicing_coord, 'theta')
-           
-        if self.statistics_option is 'on':
-            self.compute_statistics()
         
         
     def gaussian_fit(self):
@@ -328,34 +234,7 @@ class Slices(object):
         return x, derivative
     
     
-    def compute_statistics(self):
-        '''
-        *Compute statistics of each slice (average position of the particles
-        in a slice and sigma_rms. Notice that empty slices will
-        result with NaN values for the statistics but that doesn't cause any
-        problem.*
-        
-        *Improvement is needed in order to include losses.*
-        '''
-        warnings.filterwarnings("ignore")
-        index = np.cumsum(np.append(0, self.n_macroparticles))
-
-        for i in xrange(self.n_slices):
-           
-            theta  = self.Beam.theta[index[i]:index[i + 1]]
-            dE = self.Beam.dE[index[i]:index[i + 1]]
-
-            self.mean_theta[i] = np.mean(theta)
-            self.mean_dE[i] = np.mean(dE)
-
-            self.sigma_theta[i] = np.std(theta)
-            self.sigma_dE[i] = np.std(dE)
-
-            self.eps_rms_l[i] = np.pi * self.sigma_dE[i] * self.sigma_theta[i] \
-                                * self.Beam.ring_radius / (self.Beam.beta_r * c)
-        warnings.filterwarnings("always")
-                                
-                                
+  
     def convert_coordinates(self, value, input_coord_type, output_coord_type):
         '''
         *Method to convert a value from one input_coord_type to an output_coord_type.*

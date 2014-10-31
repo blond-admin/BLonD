@@ -1,11 +1,24 @@
+
+# Copyright 2014 CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3), 
+# copied verbatim in the file LICENCE.md.
+# In applying this licence, CERN does not waive the privileges and immunities 
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 '''
 **Methods to generate RF phase noise from noise spectrum**
 
 :Authors: **Helga Timko**
 '''
 
+from __future__ import division
 import numpy as np
 import numpy.random as rnd
+from scipy.constants import e, c
+
+from plots.plot_llrf import *
 
 
 class PhaseNoise(object): 
@@ -67,11 +80,73 @@ class PhaseNoise(object):
             dPt = np.fft.ifft(dPf) # in rad
                     
         # Use only real part for the phase shift and normalize
-        self.t = np.arange(0, self.nt*self.dt, self.dt)
+        self.t = np.linspace(0, self.nt*self.dt, self.nt) #np.arange(0, self.nt*self.dt, self.dt)
         self.dphi = dPt.real
 
     
-
-
-
+class LHCFlatSpectrum(object): 
     
+    def __init__(self, general_params, rf_params, time_points, corr_time = 10000, 
+                 fmin = 0.8571, fmax = 1.1, initial_amplitude = 1.e-6,
+                 seed1 = 1234, seed2 = 7564):
+
+        self.f0 = general_params.f_rev  # revolution frequency in Hz
+        self.nt = time_points           # no. points in time domain to generate
+        self.corr = corr_time           # adjust noise every 'corr' time steps
+        self.fmin = fmin                # spectrum lower bound in synchr. freq.
+        self.fmax = fmax                # spectrum upper bound in synchr. freq.
+        self.A_i = initial_amplitude    # initial spectrum amplitude
+        self.seed1 = seed1
+        self.seed2 = seed2
+              
+        if self.nt < 2*self.corr:
+            raise RuntimeError('ERROR: Need more time points in LHCFlatSpectrum.')
+ 
+        # Synchrotron frequency array
+        self.fs = c/general_params.ring_circumference \
+                *np.sqrt( rf_params.harmonic[0]*rf_params.voltage[0]
+                          *np.fabs(rf_params.eta_0*np.cos(rf_params.phi_s))
+                          /(2.*np.pi*rf_params.energy) )
+                
+        self.dphi = np.zeros(general_params.n_turns+1)
+        
+        self.n_turns = general_params.n_turns
+ 
+    def generate(self):
+       
+        for i in xrange(0, int(self.n_turns/self.corr)):
+        
+            # Scale amplitude to keep area (phase noise amplitude) constant
+            k = i*self.corr       # current time step
+            ampl = self.A_i*self.fs[0]/self.fs[k]
+
+            # Calculate the frequency step
+            nf = int(self.nt/2 + 1)             # no. points in freq. domain
+            df = self.f0[k]/self.nt          
+
+            # Construct spectrum   
+            nmin = np.floor(self.fmin*self.fs[k]/df)  
+            nmax = np.ceil(self.fmax*self.fs[k]/df)    
+            freq = np.linspace(0, nf*df, nf) #np.arange(0, nf*df, df)        
+            spectrum = np.concatenate((np.zeros(nmin), ampl*np.ones(nmax-nmin+1), 
+                                       np.zeros(nf-nmax-1)))
+            
+            noise = PhaseNoise(freq, spectrum, self.seed1, self.seed2)
+            noise.spectrum_to_phase_noise()
+            self.seed1 +=239
+            self.seed2 +=158
+            
+            
+            # Fill phase noise array
+            if i < int(self.n_turns/self.corr) - 1:
+                kmax = (i + 1)*self.corr
+            else:
+                kmax = self.n_turns + 1
+            self.dphi[k:kmax] = noise.dphi[0:(kmax-k)]
+            
+            plot_noise_spectrum(freq, spectrum, sampling=1, figno=i)
+            plot_phase_noise(noise.t[0:(kmax-k)], noise.dphi[0:(kmax-k)], sampling=1, figno=i)
+            rms_noise = np.std(noise.dphi)
+            print "RF noise for time step %.4e s (iter %d) has r.m.s. phase %.4e rad (%.3e deg)" \
+                %(noise.t[1], i, rms_noise, rms_noise*180/np.pi)
+

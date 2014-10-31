@@ -1,5 +1,15 @@
+
+# Copyright 2014 CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3), 
+# copied verbatim in the file LICENCE.md.
+# In applying this licence, CERN does not waive the privileges and immunities 
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 '''
-**Module to plot different bunch features **
+
+**Module to plot different bunch features**
 
 :Authors: **Helga Timko**, **Danilo Quartullo**
 
@@ -41,7 +51,7 @@ def plot_beam_profile(counter, general_params, slices, style = '-',
     fign = dirname +'/beam_profile_' "%d" %counter + '.png'
     plt.savefig(fign)
     plt.clf()
-    plt.close()
+    #plt.close()
 
 
 def plot_beam_profile_derivative(counter, general_params, slices, style = '-', 
@@ -65,6 +75,6 @@ def plot_beam_profile_derivative(counter, general_params, slices, style = '-',
     fign = dirname +'/beam_profile_derivative_' "%d" %counter + '.png'
     plt.savefig(fign)
     plt.clf()
-    plt.close()        
+    #plt.close()        
     
 

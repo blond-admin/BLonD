@@ -1,5 +1,14 @@
+
+# Copyright 2014 CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3), 
+# copied verbatim in the file LICENCE.md.
+# In applying this licence, CERN does not waive the privileges and immunities 
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 '''
-**Module to plot different bunch features **
+**Module to plot different bunch features**
 
 :Authors: **Helga Timko**, **Danilo Quartullo**
 
@@ -24,7 +33,7 @@ def plot_long_phase_space(beam, General_parameters, RFSectionParameters, xmin,
     For large amount of data, use "sampling" to plot a fraction of the data.
     """
 
-    # Directory where plots will be stored
+    # Directory where longitudinal_plots will be stored
     fig_folder(dirname)
     
     # Conversion from metres to nanoseconds
@@ -137,7 +146,7 @@ def plot_long_phase_space(beam, General_parameters, RFSectionParameters, xmin,
     fign = dirname +'/long_distr_'"%d"%RFSectionParameters.counter[0]+'.png'
     plt.savefig(fign)
     plt.clf()
-    plt.close()
+    #plt.close()
 
 
 def plot_bunch_length_evol(beam, h5file, General_parameters, time_step, 
@@ -147,7 +156,7 @@ def plot_bunch_length_evol(beam, h5file, General_parameters, time_step,
     Choice of units: unit = rad, ns, m.
     """
 
-    # Directory where plots will be stored
+    # Directory where longitudinal_plots will be stored
     fig_folder(dirname)
 
     # Get bunch length data in metres or nanoseconds
@@ -180,12 +189,14 @@ def plot_bunch_length_evol(beam, h5file, General_parameters, time_step,
         ax.set_ylabel (r"Bunch length, $\tau_{4\sigma}$ r.m.s. [ns]")
     elif unit == 'm':
         ax.set_ylabel (r"Bunch length, z$_{4\sigma}$ r.m.s. [m]")
+    if time_step > 100000:
+        ax.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
     
     # Save plot
     fign = dirname +'/bunch_length.png'
     plt.savefig(fign)
     plt.clf()
-    plt.close()
+    #plt.close()
     
 
 def plot_bunch_length_evol_gaussian(beam, h5file, General_parameters, slices, 
@@ -197,7 +208,7 @@ def plot_bunch_length_evol_gaussian(beam, h5file, General_parameters, slices,
     Choice of units: unit = rad, ns, m.
     """
 
-    # Directory where plots will be stored
+    # Directory where longitudinal_plots will be stored
     fig_folder(dirname)
 
     # Get bunch length data in metres or nanoseconds
@@ -241,19 +252,21 @@ def plot_bunch_length_evol_gaussian(beam, h5file, General_parameters, slices,
         ax.set_ylabel (r"Bunch length, $\tau_{4\sigma}$ Gaussian fit [ns]")
     elif unit == 'm':
         ax.set_ylabel (r"Bunch length, z$_{4\sigma}$ Gaussian fit [m]")
+    if time_step > 100000:
+        ax.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
    
     # Save plot    
     fign = dirname +'/bunch_length_Gaussian.png'
     plt.savefig(fign)
     plt.clf()
-    plt.close()
+    #plt.close()
     
 
 def plot_position_evol(beam, h5file, General_parameters, time_step,
                        output_freq = 1, unit = None, style = '-', 
                        dirname = 'fig'): 
  
-    # Directory where plots will be stored 
+    # Directory where longitudinal_plots will be stored 
     fig_folder(dirname) 
  
     # Get position data in metres or nanoseconds 
@@ -284,11 +297,13 @@ def plot_position_evol(beam, h5file, General_parameters, time_step,
         ax.set_ylabel (r"Bunch mean position, $\tau$ [ns]") 
     elif unit == 'm': 
         ax.set_ylabel ("Bunch mean position, z [m]") 
+    if time_step > 100000:
+        ax.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
      
     # Save plot 
     fign = 'fig/bunch_mean_position.png'
     plt.savefig(fign) 
     plt.clf() 
-    plt.close()
+    #plt.close()
 
 

@@ -1,4 +1,15 @@
-# Example script to take into account intensity effects from impedance tables
+
+# Copyright 2014 CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3), 
+# copied verbatim in the file LICENCE.md.
+# In applying this licence, CERN does not waive the privileges and immunities 
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
+'''
+Example script to take into account intensity effects from impedance tables
+'''
 
 from __future__ import division
 import numpy as np
@@ -76,7 +87,8 @@ longitudinal_bigaussian(general_params, RF_sct_par, my_beam, sigma_theta, sigma_
 
 number_slices = 100
 slice_beam = Slices(my_beam, number_slices, cut_left = - 5.72984173562e-07 / 2, 
-                    cut_right = 5.72984173562e-07 / 2, mode = 'const_space_hist', slice_immediately = 'on')
+                    cut_right = 5.72984173562e-07 / 2)
+slice_beam.track(my_beam)
 
 # MONITOR----------------------------------------------------------------------
 

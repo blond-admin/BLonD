@@ -1,6 +1,16 @@
-# Example input for longitudinal simulation with phase loop (LHC)
-# No intensity effects
 
+# Copyright 2014 CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3), 
+# copied verbatim in the file LICENCE.md.
+# In applying this licence, CERN does not waive the privileges and immunities 
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
+'''
+Example input for longitudinal simulation with phase loop (LHC)
+No intensity effects
+'''
 
 import time 
 import numpy as np
@@ -53,7 +63,7 @@ general_params = GeneralParameters(N_t, C, alpha, p_s, 'proton')
 RF_params = RFSectionParameters(general_params, 1, h, V, dphi)
 PL_gain = 1./(5.*general_params.t_rev[0])
 print "PL gain is %.4e 1/s, Trev = %.4e s" %(PL_gain, general_params.t_rev[0])
-PL = PhaseLoop(general_params, RF_params, PL_gain, sampling_frequency = 1, 
+PL = PhaseLoop(general_params, RF_params, PL_gain, 
                machine = 'LHC')
 long_tracker = RingAndRFSection(RF_params, PhaseLoop=PL)
 

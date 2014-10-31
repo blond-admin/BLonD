@@ -1,0 +1,17 @@
+WARNINGS FOR THE USER
+=====================
+
+1) If you have your distribution for (beam.theta, beam.dE) from file, construct
+   a Beam class, overwrite the coordinates in it with your distribution and
+   then add immediately after these two following lines:
+   		beam.theta = numpy.ascontiguousarray(beam.theta)
+   		beam.dE = numpy.ascontiguousarray(beam.dE) 
+   Example:
+   		beam = Beam(general_params, N_p, N_b)
+		beam.theta, beam.dE = numpy.loadtxt('../Input/initial_long_distr.dat', 
+											unpack=True)
+		beam.theta = numpy.ascontiguousarray(beam.theta)
+		beam.dE = numpy.ascontiguousarray(beam.dE)
+		
+2)  You have to launch the setup_cpp.py file; change the options inside if 
+    necessary. 

@@ -1,3 +1,12 @@
+
+# Copyright 2014 CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3), 
+# copied verbatim in the file LICENCE.md.
+# In applying this licence, CERN does not waive the privileges and immunities 
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 '''
 SPS test case
 '''
@@ -93,7 +102,7 @@ SPS_beam = Beam(general_params, n_macroparticles, intensity)
  
 # Slicing
 slicing = Slices(SPS_beam, n_slices, cut_left = cut_left, cut_right = cut_right, 
-                 cuts_coord = 'theta', slicing_coord = 'tau', mode = 'const_space_hist', fit_option = 'gaussian')
+                 cuts_coord = 'theta', slicing_coord = 'tau', fit_option = 'gaussian')
   
    
 # Impedance sources

@@ -1,5 +1,14 @@
+
+# Copyright 2014 CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3), 
+# copied verbatim in the file LICENCE.md.
+# In applying this licence, CERN does not waive the privileges and immunities 
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 '''
-**Module to plot different bunch features **
+**Module to plot different bunch features**
 
 :Authors: **Helga Timko**, **Danilo Quartullo**
 
@@ -14,14 +23,15 @@ from plots.plot_settings import fig_folder
 from trackers.utilities import separatrix
 
 
-def plot_noise_spectrum(frequency, spectrum, sampling = 1, dirname = 'fig'):
+def plot_noise_spectrum(frequency, spectrum, sampling = 1, dirname = 'fig', 
+                        figno = 0):
     
     """
     Plot of the phase noise spectrum.
     For large amount of data, use "sampling" to plot a fraction of the data.
     """
 
-    # Directory where plots will be stored
+    # Directory where longitudinal_plots will be stored
     fig_folder(dirname)
     
     # Plot
@@ -32,23 +42,24 @@ def plot_noise_spectrum(frequency, spectrum, sampling = 1, dirname = 'fig'):
     ax.set_xlabel("Frequency [Hz]")
     params = {'text.usetex': False, 'mathtext.default' : 'sf'}
     plt.rcParams.update(params)
-    ax.set_ylabel (r"Noise spectrum [$\frac{rad^2}{Hz}$]")
+    ax.set_ylabel(r"Noise spectrum [$\frac{rad^2}{Hz}$]")
+    ax.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
 
     # Save figure
-    fign = dirname +'/noise_spectrum.png'
+    fign = dirname +'/noise_spectrum_' "%d" %figno +'.png'
     plt.savefig(fign)
     plt.clf()
-    plt.close()
+    #plt.close()
         
     
-def plot_phase_noise(time, dphi, sampling = 1, dirname = 'fig'):
+def plot_phase_noise(time, dphi, sampling = 1, dirname = 'fig', figno = 0):
     
     """
     Plot of the phase noise as a function of time.
     For large amount of data, use "sampling" to plot a fraction of the data.
     """
 
-    # Directory where plots will be stored
+    # Directory where longitudinal_plots will be stored
     fig_folder(dirname)
     
     # Plot
@@ -59,10 +70,10 @@ def plot_phase_noise(time, dphi, sampling = 1, dirname = 'fig'):
     ax.set_ylabel (r"Phase noise [rad]")
 
     # Save figure
-    fign = dirname +'/phase_noise.png'
+    fign = dirname +'/phase_noise_' "%d" %figno +'.png'
     plt.savefig(fign)
     plt.clf()     
-    plt.close()
+    #plt.close()
         
 
 def plot_PL_phase_corr(PhaseLoop, h5file, time_step, output_freq = 1, 
@@ -73,7 +84,7 @@ def plot_PL_phase_corr(PhaseLoop, h5file, time_step, output_freq = 1,
     For large amount of data, monitor with larger 'output_freq'.
     """
 
-    # Directory where plots will be stored
+    # Directory where longitudinal_plots will be stored
     fig_folder(dirname)
 
     # Load/create data
@@ -90,12 +101,14 @@ def plot_PL_phase_corr(PhaseLoop, h5file, time_step, output_freq = 1,
     ax.plot(t, dphi[0:ndata+1],'.')
     ax.set_xlabel(r"No. turns [T$_0$]")    
     ax.set_ylabel (r"PL $\phi$ correction [rad]")
+    if time_step > 100000:
+        ax.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
 
     # Save figure
     fign = dirname +'/PL_phase_corr.png'
     plt.savefig(fign)
     plt.clf()     
-    plt.close()
+    #plt.close()
                
 
 def plot_PL_freq_corr(PhaseLoop, h5file, time_step, output_freq = 1, 
@@ -106,7 +119,7 @@ def plot_PL_freq_corr(PhaseLoop, h5file, time_step, output_freq = 1,
     For large amount of data, monitor with larger 'output_freq'.
     """
 
-    # Directory where plots will be stored
+    # Directory where longitudinal_plots will be stored
     fig_folder(dirname)
 
     # Load/create data
@@ -124,12 +137,14 @@ def plot_PL_freq_corr(PhaseLoop, h5file, time_step, output_freq = 1,
     ax.set_xlabel(r"No. turns [T$_0$]")    
     ax.set_ylabel (r"PL $\omega_{RF}$ correction [1/s]")
     ax.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+    if time_step > 100000:
+        ax.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
 
     # Save figure
     fign = dirname +'/PL_freq_corr.png'
     plt.savefig(fign)
     plt.clf()     
-    plt.close()
+    #plt.close()
         
 
 def plot_COM_motion(beam, General_parameters, RFSectionParameters, h5file, xmin,
@@ -139,7 +154,7 @@ def plot_COM_motion(beam, General_parameters, RFSectionParameters, h5file, xmin,
     Optional use of histograms and separatrix.
     """
 
-    # Directory where plots will be stored
+    # Directory where longitudinal_plots will be stored
     fig_folder(dirname)
  
     # Load data
@@ -173,7 +188,7 @@ def plot_COM_motion(beam, General_parameters, RFSectionParameters, h5file, xmin,
     fign = dirname +'/COM_evolution.png'
     plt.savefig(fign)
     plt.clf()
-    plt.close()
+    #plt.close()
     
 
 def plot_LHCNoiseFB(LHCNoiseFB, h5file, time_step, output_freq = 1, 
@@ -184,7 +199,7 @@ def plot_LHCNoiseFB(LHCNoiseFB, h5file, time_step, output_freq = 1,
     For large amount of data, monitor with larger 'output_freq'.
     """
 
-    # Directory where plots will be stored
+    # Directory where longitudinal_plots will be stored
     fig_folder(dirname)
 
     # Load/create data
@@ -202,11 +217,13 @@ def plot_LHCNoiseFB(LHCNoiseFB, h5file, time_step, output_freq = 1,
     ax.set_xlabel(r"No. turns [T$_0$]")    
     ax.set_ylabel (r"LHC noise FB scaling factor [1]")
     ax.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+    if time_step > 100000:
+        ax.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
 
     # Save figure
     fign = dirname +'/LHC_noise_FB.png'
     plt.savefig(fign)
     plt.clf()         
-    plt.close()
+    #plt.close()
     
     
