@@ -12,10 +12,10 @@ beams.beams module
     :undoc-members:
     :show-inheritance:
 
-beams.longitudinal_distributions module
----------------------------------------
+beams.distributions module
+--------------------------
 
-.. automodule:: beams.longitudinal_distributions
+.. automodule:: beams.distributions
     :members:
     :undoc-members:
     :show-inheritance:

@@ -5,17 +5,17 @@ Submodules
 ----------
 
 trackers.tracker module
-------------------------------------
+-----------------------
 
 .. automodule:: trackers.tracker
     :members:
     :undoc-members:
     :show-inheritance:
 
-trackers.longitudinal_utilities module
---------------------------------------
+trackers.utilities module
+-------------------------
 
-.. automodule:: trackers.longitudinal_utilities
+.. automodule:: trackers.utilities
     :members:
     :undoc-members:
     :show-inheritance:

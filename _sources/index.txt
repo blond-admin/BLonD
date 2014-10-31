@@ -1,9 +1,9 @@
-.. PyHEADTAIL documentation master file, created by
+.. BLonD documentation master file, created by
    sphinx-quickstart on Mon Jun 16 12:52:53 2014.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to PyHEADTAIL's documentation!
+Welcome to BLonD's documentation!
 ======================================
 
 Contents:

@@ -4,10 +4,10 @@ impedances package
 Submodules
 ----------
 
-impedances.longitudinal_impedance module
-----------------------------------------
+impedances.impedance module
+---------------------------
 
-.. automodule:: impedances.longitudinal_impedance
+.. automodule:: impedances.impedance
     :members:
     :undoc-members:
     :show-inheritance:
