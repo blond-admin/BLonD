@@ -19,7 +19,7 @@ import numpy.random as rnd
 from scipy.constants import e, c
 
 from plots.plot_llrf import *
-
+from input_parameters.rf_parameters import calc_phi_s
 
 class PhaseNoise(object): 
     
@@ -101,11 +101,12 @@ class LHCFlatSpectrum(object):
               
         if self.nt < 2*self.corr:
             raise RuntimeError('ERROR: Need more time points in LHCFlatSpectrum.')
- 
+        
         # Synchrotron frequency array
+        phis = calc_phi_s(rf_params, accelerating_systems='as_single')   
         self.fs = c/general_params.ring_circumference \
                 *np.sqrt( rf_params.harmonic[0]*rf_params.voltage[0]
-                          *np.fabs(rf_params.eta_0*np.cos(rf_params.phi_s))
+                          *np.fabs(rf_params.eta_0*np.cos(phis))
                           /(2.*np.pi*rf_params.energy) )
                 
         self.dphi = np.zeros(general_params.n_turns+1)

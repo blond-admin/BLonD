@@ -92,7 +92,7 @@ slice_beam.track(my_beam)
 
 # MONITOR----------------------------------------------------------------------
 
-bunchmonitor = BunchMonitor('beam', n_turns+1)
+bunchmonitor = BunchMonitor('../output_files/TC2_output_data', n_turns+1)
 bunchmonitor.track(my_beam)
 
 # LOAD IMPEDANCE TABLES--------------------------------------------------------
@@ -100,7 +100,7 @@ bunchmonitor.track(my_beam)
 var = str(kin_beam_energy / 1e9)
 
 # ejection kicker
-Ekicker = np.loadtxt('Ekicker_' + var + 'GeV.txt'
+Ekicker = np.loadtxt('../input_files/TC2_Ekicker_1.4GeV.txt'
         , skiprows = 1, dtype=complex, converters = dict(zip((0, 1), (lambda s: 
         complex(s.replace('i', 'j')), lambda s: complex(s.replace('i', 'j'))))))
 
@@ -108,7 +108,7 @@ Ekicker_table = InputTable(Ekicker[:,0].real, Ekicker[:,1].real, Ekicker[:,1].im
 
 
 # Finemet cavity
-F_C = np.loadtxt('Finemet.txt', dtype = float, skiprows = 1)
+F_C = np.loadtxt('../input_files/TC2_Finemet.txt', dtype = float, skiprows = 1)
 
 F_C[:, 3], F_C[:, 5], F_C[:, 7] = np.pi * F_C[:, 3] / 180, np.pi * F_C[:, 5] / 180, np.pi * F_C[:, 7] / 180
 
@@ -167,18 +167,18 @@ for i in range(n_turns):
         
         plot_long_phase_space(my_beam, general_params, RF_sct_par, 
           - 5.72984173562e-07 / 2 * 1e9, 5.72984173562e-07 / 2 * 1e9, 
-          - my_beam.sigma_dE * 4 * 1e-6, my_beam.sigma_dE * 4 * 1e-6, xunit = 'ns')
+          - my_beam.sigma_dE * 4 * 1e-6, my_beam.sigma_dE * 4 * 1e-6, xunit = 'ns', dirname = '../output_files/TC2_fig')
          
         plot_impedance_vs_frequency(i+1, general_params, ind_volt_freq, 
-          option1 = "single", style = '-', option3 = "freq_table", option2 = "spectrum")
+          option1 = "single", style = '-', option3 = "freq_table", option2 = "spectrum", dirname = '../output_files/TC2_fig')
          
-        plot_induced_voltage_vs_bins_centers(i+1, general_params, total_induced_voltage, style = '-')
+        plot_induced_voltage_vs_bins_centers(i+1, general_params, total_induced_voltage, style = '-', dirname = '../output_files/TC2_fig')
          
-        plot_beam_profile(i+1, general_params, slice_beam)
+        plot_beam_profile(i+1, general_params, slice_beam, dirname = '../output_files/TC2_fig')
          
-        plot_bunch_length_evol(my_beam, 'beam', general_params, n_turns)
+        plot_bunch_length_evol(my_beam, '../output_files/TC2_output_data', general_params, n_turns, dirname = '../output_files/TC2_fig')
         
-        plot_position_evol(my_beam, 'beam', general_params, i+1, unit = None, dirname = 'fig')
+        plot_position_evol(my_beam, '../output_files/TC2_output_data', general_params, i+1, unit = None, dirname = '../output_files/TC2_fig')
 
 print "Done!"
 

@@ -46,7 +46,7 @@ def matched_from_line_density(Beam, FullRingAndRF, line_density_options,
     # Generate potential well
     n_points_potential = int(1e4)
     FullRingAndRF.potential_well_generation(n_points = n_points_potential, 
-                                            theta_margin_percent = 0.05, 
+                                            theta_margin_percent = 0.25, 
                                             main_harmonic_option = main_harmonic_option)
     potential_well_array = FullRingAndRF.potential_well
     theta_coord_array = FullRingAndRF.potential_well_coordinates
@@ -324,7 +324,7 @@ def matched_from_distribution_density(Beam, FullRingAndRF, distribution_options,
     # Generate potential well
     n_points_potential = int(1e5)
     FullRingAndRF.potential_well_generation(n_points = n_points_potential, 
-                                            theta_margin_percent = 0.05, 
+                                            theta_margin_percent = 0.25, 
                                             main_harmonic_option = main_harmonic_option)
     potential_well_array = FullRingAndRF.potential_well
     theta_coord_array = FullRingAndRF.potential_well_coordinates

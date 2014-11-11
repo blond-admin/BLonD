@@ -65,6 +65,12 @@ STRUCTURE
 VERSION CONTENTS
 ================
 
+2014-11-1
+v1.9.1 - fixed two bugs in plots routines
+	   - implemented Juan's changes on bunch generation routine
+	   - implemented Helga's changes on RF noise generation for multi-RF
+	   - folder _EXAMPLE_MAIN_FILES has been rearranged	
+
 2014-10-30
 v1.9.0 - setup_cpp.py improved
        - now all the tracker (kick, kick_accelleration and drift) has been 

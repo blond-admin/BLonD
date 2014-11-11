@@ -77,11 +77,11 @@ class GeneralParameters(object):
         #: | *Can be given as a single value to be assumed constant, or as a program of (n_turns + 1) terms in case of acceleration.*
         #: | *In case of several sections without acceleration, the input is as follow : [[momentum_section_1], [momentum_section_2]]*
         #: | *In case of several sections with momentum program, the input is as follow: [momentum_program_section_1, momentum_program_section_2]*
-        self.momentum = np.array(momentum, ndmin =2)
+        self.momentum = np.array(momentum, ndmin = 2)
 
         #: | *Momentum compaction factor (up to 2nd order) for each RF section* :math:`: \quad \alpha_i`
         #: | *Should be given as a list for multi-station (each element of the list should be a list that can contain up to 2nd order but must contain the same orders)*
-        self.alpha = np.array(alpha, ndmin =2) 
+        self.alpha = np.array(alpha, ndmin = 2) 
         
         #: *Number of orders for the momentum compaction*
         self.alpha_order = self.alpha.shape[1]

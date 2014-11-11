@@ -17,6 +17,7 @@
 from __future__ import division
 import h5py
 import numpy as np
+import warnings
 import matplotlib.pyplot as plt
 from scipy.constants import c
 from trackers.utilities import separatrix
@@ -38,7 +39,7 @@ def plot_long_phase_space(beam, General_parameters, RFSectionParameters, xmin,
     
     # Conversion from metres to nanoseconds
     if xunit == 'ns':
-        coeff = 1.e9*General_parameters.ring_radius/beam.beta_r/c
+        coeff = 1.e9 * General_parameters.ring_radius / (beam.beta_r*c)
     elif xunit == 'm':
         coeff = - General_parameters.ring_radius
     ycoeff = beam.beta_r**2 * beam.energy
@@ -156,21 +157,21 @@ def plot_bunch_length_evol(beam, h5file, General_parameters, time_step,
     Choice of units: unit = rad, ns, m.
     """
 
-    # Directory where longitudinal_plots will be stored
+    # Directory where plots will be stored
     fig_folder(dirname)
 
     # Get bunch length data in metres or nanoseconds
     if output_freq < 1:
         output_freq = 1
     ndata = int(time_step/output_freq) + 1
-    t = output_freq*range(1, ndata + 1)    
+    t = output_freq*range(0, ndata)    
     storeddata = h5py.File(h5file + '.h5', 'r')
     bl = np.array(storeddata["/Bunch/sigma_theta"], dtype = np.double)
     
     if unit == None or unit == 'rad':
         bl *= 4 
     elif unit == 'ns':
-        bl *= 4.e9*General_parameters.ring_radius/beam.beta_r/c 
+        bl *= 4.e9 * General_parameters.ring_radius / (General_parameters.beta_r[0]*c) 
     elif unit == 'm':
         bl *= 4*General_parameters.ring_radius 
     else:
@@ -215,27 +216,27 @@ def plot_bunch_length_evol_gaussian(beam, h5file, General_parameters, slices,
     if output_freq < 1:
         output_freq = 1
     ndata = int(time_step/output_freq)
-    t = output_freq*range(1, ndata + 1)    
+    t = output_freq*range(0, ndata)    
     storeddata = h5py.File(h5file + '.h5', 'r')
     bl = np.array(storeddata["/Bunch/bunch_length_gauss_theta"], dtype=np.double)
 
     if slices.slicing_coord == "theta":
         if unit == 'ns':
-            bl *= 1.e9*General_parameters.ring_radius/beam.beta_r/c 
+            bl *= 1.e9 * General_parameters.ring_radius / (General_parameters.beta_r[0]*c) 
         elif unit == 'm':
             bl *= General_parameters.ring_radius 
     elif slices.slicing_coord == "tau":
         if unit == None or unit == 'rad':
-            bl *= beam.beta_r*c/General_parameters.ring_radius 
+            bl *= (General_parameters.beta_r[0]*c) / General_parameters.ring_radius 
         elif unit == 'ns':
             bl *= 1.e9 
         elif unit == 'm':
-            bl *= beam.beta_r*c 
+            bl *= General_parameters.beta_r[0]*c 
     elif slices.slicing_coord == "z":    
         if unit == None or unit == 'rad':
             bl /= General_parameters.ring_radius 
         elif unit == 'ns':
-            bl *= 1.e9/beam.beta_r/c 
+            bl *= 1.e9 / (General_parameters.beta_r[0]*c) 
     else:
         warnings.filterwarnings("once")
         warnings.warn("WARNING: unit of plot_bunch_length_gaussian not recognized!")   
@@ -278,7 +279,7 @@ def plot_position_evol(beam, h5file, General_parameters, time_step,
     pos = np.array(storeddata["/Bunch/mean_theta"], dtype = np.double) 
     
     if unit == 'ns': 
-        pos *= 1.e9 / beam.beta_r / c * General_parameters.ring_radius 
+        pos *= 1.e9 / (General_parameters.beta_r[0]*c) * General_parameters.ring_radius 
     elif unit == 'm': 
         pos *= General_parameters.ring_radius 
          
@@ -301,7 +302,7 @@ def plot_position_evol(beam, h5file, General_parameters, time_step,
         ax.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
      
     # Save plot 
-    fign = 'fig/bunch_mean_position.png'
+    fign = dirname+'/bunch_mean_position.png'
     plt.savefig(fign) 
     plt.clf() 
     #plt.close()

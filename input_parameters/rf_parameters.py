@@ -194,8 +194,8 @@ def calc_phi_s(RFSectionParameters, accelerating_systems = 'all'):
     '''
     
     eta0 = RFSectionParameters.eta_0
-         
-    if RFSectionParameters.n_rf == 1:
+    
+    if RFSectionParameters.n_rf == 1 or accelerating_systems == 'as_single':
                      
         acceleration_ratio = RFSectionParameters.beta_r[1:] * RFSectionParameters.p_increment \
             / RFSectionParameters.voltage[0,1:] 

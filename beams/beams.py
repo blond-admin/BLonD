@@ -15,11 +15,9 @@
 
 from __future__ import division
 import numpy as np
-import warnings
-from scipy.constants import c, e, m_p
-from scipy.optimize import curve_fit
+from scipy.constants import c
 from trackers.utilities import is_in_separatrix
-from scipy import ndimage
+
 
 
 class Beam(object):

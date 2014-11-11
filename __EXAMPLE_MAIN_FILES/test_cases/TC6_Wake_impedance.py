@@ -105,19 +105,19 @@ slice_beam_copy.track(my_beam_copy)
 
 # MONITOR----------------------------------------------------------------------
 
-bunchmonitor = BunchMonitor('bunch', n_turns+1, slice_beam)
-slicesmonitor = SlicesMonitor('slices', n_turns+1, slice_beam)
+bunchmonitor = BunchMonitor('../output_files/TC6_bunch', n_turns+1, slice_beam)
+slicesmonitor = SlicesMonitor('../output_files/TC6_slices', n_turns+1, slice_beam)
 bunchmonitor.track(my_beam)
 slicesmonitor.track(my_beam)
 
-bunchmonitor_copy = BunchMonitor('bunch_copy', n_turns+1, slice_beam_copy)
-slicesmonitor_copy = SlicesMonitor('slices_copy', n_turns+1, slice_beam_copy)
+bunchmonitor_copy = BunchMonitor('../output_files/TC6_bunch_copy', n_turns+1, slice_beam_copy)
+slicesmonitor_copy = SlicesMonitor('../output_files/TC6_slices_copy', n_turns+1, slice_beam_copy)
 bunchmonitor_copy.track(my_beam_copy)
 slicesmonitor_copy.track(my_beam_copy)
 
 # LOAD IMPEDANCE TABLE--------------------------------------------------------
 
-table = np.loadtxt('new_HQ_table.dat', comments = '!')
+table = np.loadtxt('../input_files/TC6_new_HQ_table.dat', comments = '!')
 R_shunt = table[:, 2] * 10**6 
 f_res = table[:, 0] * 10**9
 Q_factor = table[:, 1]
@@ -145,13 +145,13 @@ for i in range(n_turns):
     # Plots
     if ((i+1) % n_turns_between_two_plots) == 0:
         
-        plot_induced_voltage_vs_bins_centers(i+1, general_params, tot_vol, style = '-', dirname = 'fig1a')
-        plot_induced_voltage_vs_bins_centers(i+1, general_params_copy, tot_vol_copy, style = '-', dirname = 'fig1b')
+        plot_induced_voltage_vs_bins_centers(i+1, general_params, tot_vol, style = '-', dirname = '../output_files/TC6_fig/1')
+        plot_induced_voltage_vs_bins_centers(i+1, general_params_copy, tot_vol_copy, style = '-', dirname = '../output_files/TC6_fig/2')
         
         plot_long_phase_space(my_beam, general_params, RF_sct_par, 
-          0, 0.0014, - 1.5e2, 1.5e2, sampling=50, dirname = 'fig1a')
+          0, 0.0014, - 1.5e2, 1.5e2, sampling=50, dirname = '../output_files/TC6_fig/1')
         plot_long_phase_space(my_beam_copy, general_params_copy, RF_sct_par_copy, 
-          0, 0.0014, - 1.5e2, 1.5e2, sampling=50, dirname = 'fig1b')
+          0, 0.0014, - 1.5e2, 1.5e2, sampling=50, dirname = '../output_files/TC6_fig/2')
         
 print "Done!"
 
