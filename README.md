@@ -64,6 +64,8 @@ STRUCTURE
 
 VERSION CONTENTS
 ================
+2015-1-13
+v1.10.1 - Two bugs fixed
 
 2015-1-13
 v1.10.0 - Synchrotron frequency distribution method

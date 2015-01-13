@@ -336,7 +336,7 @@ class InductiveImpedance(object):
     in the calculation of n=f/f0 is changing (general_params as input ?).*
     '''
     
-    def __init__(self, Slices, Z_over_n, revolution_frequency, calc_domain = 'time', deriv_mode = 'gradient'):
+    def __init__(self, Slices, Z_over_n, revolution_frequency, current_turn, deriv_mode = 'gradient'):
         
         #: *Copy of the Slices object in order to access the profile info.*
         self.slices = Slices
@@ -363,6 +363,9 @@ class InductiveImpedance(object):
         #: *Derivation method to compute induced voltage*
         self.deriv_mode = deriv_mode
         
+        #: *Current turn taken from RFSectionParameters*
+        self.current_turn = current_turn 
+        
         
     def reprocess(self, new_slicing):
         '''
@@ -387,10 +390,11 @@ class InductiveImpedance(object):
         *Method to calculate the induced voltage through the derivative of the
         profile; the impedance must be of inductive type.*
         '''
+        index = self.current_turn[0] + 1
         
         induced_voltage = - Beam.charge / (2 * np.pi) * Beam.intensity / Beam.n_macroparticles * \
-            self.Z_over_n / self.revolution_frequency * \
-            self.slices.beam_profile_derivative(self.deriv_mode, coord = 'tau')[1] / \
+            self.Z_over_n[0][index] / self.revolution_frequency[index] * \
+            self.slices.beam_profile_derivative(self.deriv_mode)[1] / \
             (self.slices.bins_centers[1] - self.slices.bins_centers[0])
             
         self.induced_voltage = induced_voltage[0:self.slices.n_slices]
