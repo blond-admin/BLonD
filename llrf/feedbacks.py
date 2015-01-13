@@ -1,5 +1,5 @@
 
-# Copyright 2014 CERN. This software is distributed under the
+# Copyright 2015 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3), 
 # copied verbatim in the file LICENCE.md.
 # In applying this licence, CERN does not waive the privileges and immunities 
@@ -148,7 +148,7 @@ class LHCNoiseFB(object):
         self.R = general_params.ring_radius
         
 
-    def FB(self, rf_params, beam, RFnoise, slices = None, CCL = False):
+    def FB(self, rf_params, beam, RFnoise, slices = None, CC = False):
 
         # Update bunch length, every x turns determined in main file
         if slices:
@@ -178,7 +178,7 @@ class LHCNoiseFB(object):
         print "In FB, phase noise multiplication factor x is %.4e" %self.x     
         
         # Update the whole phase noise array of main RF system  
-        if CCL == True:
+        if CC == True:
             rf_params.phi_offset[0] = self.x*RFnoise.dphi    
         
 

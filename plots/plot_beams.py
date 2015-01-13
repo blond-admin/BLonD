@@ -89,7 +89,8 @@ def plot_long_phase_space(beam, General_parameters, RFSectionParameters, xmin,
         elif yunit == '1': 
             axScatter.scatter(beam.theta[::sampling]*coeff, 
                               beam.delta[::sampling], s=1, edgecolor='none') 
-            axScatter.set_ylabel(r"$\Delta$p/p$_0$ [1]")           
+            axScatter.set_ylabel(r"$\Delta$p/p$_0$ [1]")      
+    axScatter.yaxis.labelpad = 1     
         
     axScatter.set_xlim(xmin, xmax)
     axScatter.set_ylim(ymin, ymax)
@@ -150,7 +151,7 @@ def plot_long_phase_space(beam, General_parameters, RFSectionParameters, xmin,
     #plt.close()
 
 
-def plot_bunch_length_evol(beam, h5file, General_parameters, time_step, 
+def plot_bunch_length_evol(h5file, General_parameters, time_step, 
                            output_freq = 1, unit = None, dirname = 'fig'):
     """
     Plot of r.m.s. 4-sigma bunch length as a function of time.
@@ -200,7 +201,7 @@ def plot_bunch_length_evol(beam, h5file, General_parameters, time_step,
     #plt.close()
     
 
-def plot_bunch_length_evol_gaussian(beam, h5file, General_parameters, slices, 
+def plot_bunch_length_evol_gaussian(h5file, General_parameters, slices, 
                                     time_step, output_freq = 1, unit = None,
                                     dirname = 'fig'):
 
@@ -263,7 +264,7 @@ def plot_bunch_length_evol_gaussian(beam, h5file, General_parameters, slices,
     #plt.close()
     
 
-def plot_position_evol(beam, h5file, General_parameters, time_step,
+def plot_position_evol(h5file, General_parameters, time_step,
                        output_freq = 1, unit = None, style = '-', 
                        dirname = 'fig'): 
  
@@ -307,4 +308,36 @@ def plot_position_evol(beam, h5file, General_parameters, time_step,
     plt.clf() 
     #plt.close()
 
+def plot_energy_evol(h5file, General_parameters, time_step,
+                     output_freq = 1, unit = None, style = '-', 
+                     dirname = 'fig'): 
+ 
+    # Directory where longitudinal_plots will be stored 
+    fig_folder(dirname) 
+ 
+    # Get position data in metres or nanoseconds 
+    if output_freq < 1:
+        output_freq = 1
+    ndata = int(time_step/output_freq) + 1
+    t = output_freq*range(1, ndata + 1)    
+    storeddata = h5py.File(h5file + '.h5', 'r') 
+    nrg = np.array(storeddata["/Bunch/mean_dE"], dtype = np.double)/1.e6 
+            
+    nrg[time_step:] = np.nan 
+ 
+    # Plot 
+    plt.figure(1, figsize=(8,6)) 
+    ax = plt.axes([0.15, 0.1, 0.8, 0.8]) 
+    ax.plot(t, nrg[0:ndata], style) 
+    ax.set_xlabel(r"No. turns [T$_0$]") 
+    ax.set_xlim((1,General_parameters.n_turns + 1)) 
+    ax.set_ylabel (r"Bunch mean energy, $\Delta E$ [MeV]") 
+    if time_step > 100000:
+        ax.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
+     
+    # Save plot 
+    fign = dirname+'/bunch_mean_energy.png'
+    plt.savefig(fign) 
+    plt.clf() 
+    #plt.close()
 

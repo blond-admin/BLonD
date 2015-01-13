@@ -8,7 +8,7 @@
 # Project website: http://blond.web.cern.ch/
 
 '''
-**Module to plot different bunch features**
+**Module to plot different LLRF features**
 
 :Authors: **Helga Timko**, **Danilo Quartullo**
 
@@ -147,7 +147,7 @@ def plot_PL_freq_corr(PhaseLoop, h5file, time_step, output_freq = 1,
     #plt.close()
         
 
-def plot_COM_motion(beam, General_parameters, RFSectionParameters, h5file, xmin,
+def plot_COM_motion(General_parameters, RFSectionParameters, h5file, xmin,
                     xmax, ymin, ymax, separatrix_plot = False, dirname = 'fig'):
     """
     Evolution of bunch C.O.M. in longitudinal phase space. 

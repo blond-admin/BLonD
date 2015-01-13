@@ -1,5 +1,5 @@
 
-# Copyright 2014 CERN. This software is distributed under the
+# Copyright 2015 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3), 
 # copied verbatim in the file LICENCE.md.
 # In applying this licence, CERN does not waive the privileges and immunities 
@@ -41,8 +41,8 @@ class Beam(object):
         self.momentum = General_parameters.momentum[0][0] 
 
         # Beam coordinates
-        self.theta = np.zeros([n_macroparticles])
-        self.dE = np.zeros([n_macroparticles])
+        self.theta = np.zeros(int(n_macroparticles))
+        self.dE = np.zeros(int(n_macroparticles))
      
         # Properties and statistics       
         self.mean_theta = 0

@@ -1,5 +1,5 @@
 
-# Copyright 2014 CERN. This software is distributed under the
+# Copyright 2015 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3), 
 # copied verbatim in the file LICENCE.md.
 # In applying this licence, CERN does not waive the privileges and immunities 
@@ -78,12 +78,14 @@ class TotalInducedVoltage(object):
             return extended_induced_voltage
     
     
-    def track(self, Beam):
+    def track(self, Beam, no_update_induced_voltage = False):
         '''
         *Track method to apply the induced voltage kick on the beam.*
         '''
         
-        self.induced_voltage_sum(Beam)
+        if not no_update_induced_voltage:
+            self.induced_voltage_sum(Beam)
+        
         induced_voltage_kick = np.interp(Beam.tau, self.slices.bins_centers, self.induced_voltage)
         Beam.dE += induced_voltage_kick
 
@@ -427,7 +429,7 @@ class InputTable(object):
     
     def __init__(self, input_1, input_2, input_3 = None):       
         
-        if input_3 == None:
+        if input_3 is None:
             #: *Time array of the wake in [s]*
             self.time_array = input_1
             #: *Wake array in* [:math:`\Omega / s`]

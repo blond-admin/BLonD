@@ -1,5 +1,5 @@
 
-# Copyright 2014 CERN. This software is distributed under the
+# Copyright 2015 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3), 
 # copied verbatim in the file LICENCE.md.
 # In applying this licence, CERN does not waive the privileges and immunities 
@@ -53,7 +53,7 @@ def matched_from_line_density(Beam, FullRingAndRF, line_density_options,
     
     if line_density_options['type'] is not 'user_input':
         # Theta coordinates for the line density
-        n_points_line_den = int(1e3)
+        n_points_line_den = int(1e4)
         theta_line_den = np.linspace(theta_coord_array[0], theta_coord_array[-1], n_points_line_den)
         line_den_resolution = theta_line_den[1] - theta_line_den[0]
                         
@@ -93,9 +93,6 @@ def matched_from_line_density(Beam, FullRingAndRF, line_density_options,
         
         # Re-calculating the sources of wakes/impedances according to this slicing
         induced_voltage_object.reprocess(induced_voltage_object.slices)
-        
-        # Calculating the induced voltage
-        induced_voltage_object.induced_voltage_sum(Beam)
         
         # Calculating the induced voltage
         induced_voltage_length = int(1.5*n_points_line_den)
@@ -145,7 +142,8 @@ def matched_from_line_density(Beam, FullRingAndRF, line_density_options,
             max_profile_pos = max_profile_pos - (max_profile_pos - min_potential_pos)
         if i != n_iterations - 1:
             theta_line_den = theta_line_den - (max_profile_pos - min_potential_pos)
-            theta_induced_voltage = np.linspace(theta_line_den[0], theta_line_den[0] + (induced_voltage_length - 1) * line_den_resolution, induced_voltage_length)           
+            theta_induced_voltage = np.linspace(theta_line_den[0], theta_line_den[0] + (induced_voltage_length - 1) * line_den_resolution, induced_voltage_length)
+    
             
     # Taking the first/second half of line density and potential
     n_points_abel = int(1e4)
@@ -260,22 +258,39 @@ def matched_from_line_density(Beam, FullRingAndRF, line_density_options,
     
     # Normalizing density
     density_grid = density_grid / np.sum(density_grid)
+    reconstructed_line_den = np.sum(density_grid, axis=0)
     
     # Ploting the result
     if plot_option:
         plt.figure()
-        plt.plot(theta_line_den, line_density)
-        reconstructed_line_den = np.sum(density_grid, axis=0)
+        plt.plot(theta_line_den, line_density)        
         plt.plot(theta_coord_for_grid, reconstructed_line_den / np.max(reconstructed_line_den) * np.max(line_density))
         plt.title('Line densities')
         plt.show()
     
     # Populating the bunch
     indexes = np.random.choice(range(0,np.size(density_grid)), Beam.n_macroparticles, p=density_grid.flatten())
-    Beam.theta = theta_grid.flatten()[indexes] + (np.random.rand(Beam.n_macroparticles) - 0.5) * (theta_coord_for_grid[1]-theta_coord_for_grid[0])
-    Beam.dE = deltaE_grid.flatten()[indexes] + (np.random.rand(Beam.n_macroparticles) - 0.5) * (deltaE_for_grid[1]-deltaE_for_grid[0])
+    Beam.theta = np.ascontiguousarray(theta_grid.flatten()[indexes] + (np.random.rand(Beam.n_macroparticles) - 0.5) * (theta_coord_for_grid[1]-theta_coord_for_grid[0]))
+    Beam.dE = np.ascontiguousarray(deltaE_grid.flatten()[indexes] + (np.random.rand(Beam.n_macroparticles) - 0.5) * (deltaE_for_grid[1]-deltaE_for_grid[0]))
     
-    return [hamiltonian_coord, density_function] 
+    if TotalInducedVoltage is not None:
+        # Inputing new line density
+        induced_voltage_object.slices.n_macroparticles = reconstructed_line_den * Beam.n_macroparticles
+        induced_voltage_object.slices.bins_centers = theta_coord_for_grid * FullRingAndRF.ring_radius / (Beam.beta_r * c)
+        induced_voltage_object.slices.edges = np.linspace(induced_voltage_object.slices.bins_centers[0]-(induced_voltage_object.slices.bins_centers[1]-induced_voltage_object.slices.bins_centers[0])/2,induced_voltage_object.slices.bins_centers[-1]+(induced_voltage_object.slices.bins_centers[1]-induced_voltage_object.slices.bins_centers[0])/2,len(induced_voltage_object.slices.bins_centers)+1)
+        induced_voltage_object.slices.n_slices = len(theta_coord_for_grid)
+        induced_voltage_object.slices.fit_option = 'off'
+        
+        # Re-calculating the sources of wakes/impedances according to this slicing
+        induced_voltage_object.reprocess(induced_voltage_object.slices)
+        
+        # Calculating the induced voltage
+        induced_voltage_object.induced_voltage_sum(Beam)
+        
+        return [hamiltonian_coord, density_function], induced_voltage_object
+    else:
+        return [hamiltonian_coord, density_function], [theta_line_den, line_density]
+
 
 
 def matched_from_distribution_density(Beam, FullRingAndRF, distribution_options,
@@ -505,13 +520,20 @@ def matched_from_distribution_density(Beam, FullRingAndRF, distribution_options,
             # Calculating the induced potential
             induced_potential_low_res = - eom_factor_potential * np.insert(cumtrapz(induced_voltage, dx=theta_induced_voltage[1]-theta_induced_voltage[0]),0,0)
             induced_potential = np.interp(theta_coord_array, theta_induced_voltage, induced_potential_low_res)
-    
-     
+        else:
+            line_density = np.sum(density_grid, axis = 0)
+            line_density = line_density / np.sum(line_density) * Beam.n_macroparticles
+         
     # Populating the bunch
     indexes = np.random.choice(range(0,np.size(density_grid)), Beam.n_macroparticles, p=density_grid.flatten())
      
-    Beam.theta = theta_grid.flatten()[indexes] + (np.random.rand(Beam.n_macroparticles) - 0.5) * (theta_coord_low_res[1]-theta_coord_low_res[0])
-    Beam.dE = deltaE_grid.flatten()[indexes] + (np.random.rand(Beam.n_macroparticles) - 0.5) * (deltaE_coord_array[1]-deltaE_coord_array[0])
+    Beam.theta = np.ascontiguousarray(theta_grid.flatten()[indexes] + (np.random.rand(Beam.n_macroparticles) - 0.5) * (theta_coord_low_res[1]-theta_coord_low_res[0]))
+    Beam.dE = np.ascontiguousarray(deltaE_grid.flatten()[indexes] + (np.random.rand(Beam.n_macroparticles) - 0.5) * (deltaE_coord_array[1]-deltaE_coord_array[0]))
+
+    if TotalInducedVoltage is not None:
+        return [theta_coord_low_res, line_density], induced_voltage_object
+    else:
+        return [theta_coord_low_res, line_density]
     
 
 
@@ -541,6 +563,8 @@ def _distribution_density_function(action_array, dist_type, length, exponent = N
     else:
         raise RuntimeError('The dist_type option was not recognized')
     
+
+
 def line_density_function(coord_array, dist_type, bunch_length, bunch_position = 0, exponent = None):
     '''
     *Line density*
@@ -572,107 +596,6 @@ def line_density_function(coord_array, dist_type, bunch_length, bunch_position =
         density_function[np.abs(coord_array - bunch_position) > bunch_length/2 ] = 0
         return density_function   
 
-
-def minmax_location(x,f):
-    '''
-    *Function to locate the minima and maxima of the f(x) numerical function.*
-    '''
-    
-    f_derivative = np.diff(f)
-    x_derivative = x[0:-1] + (x[1]-x[0])/2
-    f_derivative = np.interp(x, x_derivative,f_derivative)
-    
-    f_derivative_second = np.diff(f_derivative)
-    f_derivative_second = np.interp(x, x_derivative,f_derivative_second)
-    
-    warnings.filterwarnings("ignore")
-    f_derivative_zeros = np.unique(np.append(np.where(f_derivative == 0), np.where(f_derivative[1:]/f_derivative[0:-1] < 0)))
-        
-    min_x_position = (x[f_derivative_zeros[f_derivative_second[f_derivative_zeros]>0] + 1] + x[f_derivative_zeros[f_derivative_second[f_derivative_zeros]>0]])/2
-    max_x_position = (x[f_derivative_zeros[f_derivative_second[f_derivative_zeros]<0] + 1] + x[f_derivative_zeros[f_derivative_second[f_derivative_zeros]<0]])/2
-    
-    min_values = np.interp(min_x_position, x, f)
-    max_values = np.interp(max_x_position, x, f)
-
-    warnings.filterwarnings("default")
-                                          
-    return [min_x_position, max_x_position], [min_values, max_values]
-
-
-
-def potential_well_cut(theta_coord_array, potential_array):
-    '''
-    *Function to cut the potential well in order to take only the separatrix
-    (several cases according to the number of min/max).*
-    '''
-    
-    # Check for the min/max of the potential well
-    minmax_positions, minmax_values = minmax_location(theta_coord_array, 
-                                                      potential_array)
-    min_theta_positions = minmax_positions[0]
-    max_theta_positions = minmax_positions[1]
-    max_potential_values = minmax_values[1]
-    n_minima = len(min_theta_positions)
-    n_maxima = len(max_theta_positions)
-    
-    if n_minima == 0:
-        raise RuntimeError('The potential well has no minima...')
-    if n_minima > n_maxima and n_maxima == 1:
-        raise RuntimeError('The potential well has more minima than maxima, and only one maximum')
-    if n_maxima == 0:
-        print ('Warning: The maximum of the potential well could not be found... \
-                You may reconsider the options to calculate the potential well \
-                as the main harmonic is probably not the expected one. \
-                You may also increase the percentage of margin to compute \
-                the potentiel well. The full potential well will be taken')
-    elif n_maxima == 1:
-        if min_theta_positions[0] > max_theta_positions[0]:
-            saved_indexes = (potential_array < max_potential_values[0]) * \
-                            (theta_coord_array > max_theta_positions[0])
-            theta_coord_sep = theta_coord_array[saved_indexes]
-            potential_well_sep = potential_array[saved_indexes]
-            if potential_array[-1] < potential_array[0]:
-                raise RuntimeError('The potential well is not well defined. \
-                                    You may reconsider the options to calculate \
-                                    the potential well as the main harmonic is \
-                                    probably not the expected one.')
-        else:
-            saved_indexes = (potential_array < max_potential_values[0]) * \
-                            (theta_coord_array < max_theta_positions[0])
-            theta_coord_sep = theta_coord_array[saved_indexes]
-            potential_well_sep = potential_array[saved_indexes]
-            if potential_array[-1] > potential_array[0]:
-                raise RuntimeError('The potential well is not well defined. \
-                                    You may reconsider the options to calculate \
-                                    the potential well as the main harmonic is \
-                                    probably not the expected one.')
-    elif n_maxima == 2:
-        lower_maximum_value = np.min(max_potential_values)
-        higher_maximum_value = np.max(max_potential_values)
-        lower_maximum_theta = max_theta_positions[max_potential_values == lower_maximum_value]
-        higher_maximum_theta = max_theta_positions[max_potential_values == higher_maximum_value]
-        if min_theta_positions[0] > lower_maximum_theta:
-            saved_indexes = (potential_array < lower_maximum_value) * \
-                            (theta_coord_array > lower_maximum_theta) * \
-                            (theta_coord_array < higher_maximum_theta)
-            theta_coord_sep = theta_coord_array[saved_indexes]
-            potential_well_sep = potential_array[saved_indexes]
-        else:
-            saved_indexes = (potential_array < lower_maximum_value) * \
-                            (theta_coord_array < lower_maximum_theta) * \
-                            (theta_coord_array > higher_maximum_theta)
-            theta_coord_sep = theta_coord_array[saved_indexes]
-            potential_well_sep = potential_array[saved_indexes]
-    elif n_maxima > 2:
-#             raise RuntimeError('Work in progress, case to be included in the future...')
-        left_max_theta = np.min(max_theta_positions)
-        right_max_theta = np.max(max_theta_positions)
-        saved_indexes = (theta_coord_array > left_max_theta) * (theta_coord_array < right_max_theta)
-        theta_coord_sep = theta_coord_array[saved_indexes]
-        potential_well_sep = potential_array[saved_indexes]
-        
-        
-    return theta_coord_sep, potential_well_sep
 
 
 def longitudinal_bigaussian(GeneralParameters, RFSectionParameters, beam, 

@@ -81,7 +81,7 @@ the double-sided spectrum is
 
 .. math:: s_l(f) = \sqrt{A S_l^{\text{DB}} f_{\text{max}}} ,  
 
-where A=2 for ``transform = 'r'`` and A=1 for ``transform = 'c'``. The 
+where :math:`A=2` for ``transform = 'r'`` and A=1 for ``transform = 'c'``. The 
 coloured noise is obtained by multiplication in frequency domain
 
 .. math:: \Phi_l(f) = s_l(f) W_l(f) .

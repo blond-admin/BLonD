@@ -65,6 +65,18 @@ STRUCTURE
 VERSION CONTENTS
 ================
 
+2015-1-13
+v1.10.0 - Synchrotron frequency distribution method
+	    - Synchrotron frequency tracker method
+	    - Reorganized functions between trackers.utilities and beams.distributions
+	    - Changing the returns of the matched distribution generation methods
+	    - Adding new filtering method (Chebyshev type II) for the line density (mainly for space charge)
+	    - preprocess.py and feedbacks.py have been improved
+	    - Added plot_parameters.py and improved plot_beams.py and plot_llrf.py
+	    - Added the "LHC_ramp" testcase folder
+	    - Added the TC 7 and 8 plus the correspondent data files.
+	    - Documentation about trackers and llrt have been improved
+	    
 2014-11-1
 v1.9.1 - fixed two bugs in plots routines
 	   - implemented Juan's changes on bunch generation routine

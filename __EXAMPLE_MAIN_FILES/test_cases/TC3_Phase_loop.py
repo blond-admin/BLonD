@@ -1,5 +1,5 @@
 
-# Copyright 2014 CERN. This software is distributed under the
+# Copyright 2015 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3), 
 # copied verbatim in the file LICENCE.md.
 # In applying this licence, CERN does not waive the privileges and immunities 
@@ -122,7 +122,7 @@ for i in range(N_t):
         plot_long_phase_space(beam, general_params, RF_params, 0, 0.0001763, 
                               -450, 450, separatrix_plot = True, dirname = '../output_files/TC3_fig')
         plot_beam_profile(i, general_params, slice_beam, dirname = '../output_files/TC3_fig')
-        plot_COM_motion(beam, general_params, RF_params, '../output_files/TC3_output_data', 
+        plot_COM_motion(general_params, RF_params, '../output_files/TC3_output_data', 
                         0.8e-4, 1.1e-4, -75, 75, separatrix_plot = False, dirname = '../output_files/TC3_fig')
 
 
@@ -134,11 +134,11 @@ for i in range(N_t):
         
     # These plots have to be done after the tracking
     if (i % dt_plt) == 0 and i > dt_mon:
-        plot_bunch_length_evol(beam, '../output_files/TC3_output_data', general_params, i, 
+        plot_bunch_length_evol('../output_files/TC3_output_data', general_params, i, 
                                output_freq=dt_mon, unit='ns', dirname = '../output_files/TC3_fig')
         #plot_bunch_length_evol_gaussian(beam, 'output_data', general_params, 
         #                                slice_beam, i, output_freq=dt_mon, unit='ns')
-        plot_position_evol(beam, '../output_files/TC3_output_data', general_params, i,
+        plot_position_evol('../output_files/TC3_output_data', general_params, i,
                            output_freq=dt_mon, unit = None, style = '.', dirname = '../output_files/TC3_fig') 
         plot_PL_phase_corr(PL, '../output_files/TC3_output_data', i, output_freq=dt_mon, dirname = '../output_files/TC3_fig')
         plot_PL_freq_corr(PL, '../output_files/TC3_output_data', i, output_freq=dt_mon, dirname = '../output_files/TC3_fig')

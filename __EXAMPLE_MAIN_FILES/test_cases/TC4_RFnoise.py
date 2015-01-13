@@ -1,5 +1,5 @@
 
-# Copyright 2014 CERN. This software is distributed under the
+# Copyright 2015 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3), 
 # copied verbatim in the file LICENCE.md.
 # In applying this licence, CERN does not waive the privileges and immunities 
@@ -146,8 +146,8 @@ for i in range(N_t):
         
     # These plots have to be done after the tracking
     if (i % dt_plt) == 0:
-        plot_bunch_length_evol(beam, '../output_files/TC4_output_data', general_params, i, unit='ns', dirname = '../output_files/TC4_fig')
-        plot_bunch_length_evol_gaussian(beam, '../output_files/TC4_output_data', general_params, slice_beam, i, unit='ns', dirname = '../output_files/TC4_fig')
+        plot_bunch_length_evol('../output_files/TC4_output_data', general_params, i, unit='ns', dirname = '../output_files/TC4_fig')
+        plot_bunch_length_evol_gaussian('../output_files/TC4_output_data', general_params, slice_beam, i, unit='ns', dirname = '../output_files/TC4_fig')
 
     
     # Define losses according to separatrix and/or longitudinal position

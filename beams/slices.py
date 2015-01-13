@@ -1,5 +1,5 @@
 
-# Copyright 2014 CERN. This software is distributed under the
+# Copyright 2015 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3), 
 # copied verbatim in the file LICENCE.md.
 # In applying this licence, CERN does not waive the privileges and immunities 
@@ -10,7 +10,7 @@
 '''
 **Module to compute beam slicing**
 
-:Authors: **Danilo Quartullo**, **Alexandre Lasheen**
+:Authors: **Danilo Quartullo**, **Alexandre Lasheen**, **Juan Esteban Muller**
 '''
 
 from __future__ import division
@@ -20,6 +20,8 @@ from scipy.constants import c
 from numpy.fft import rfft, rfftfreq
 from scipy import ndimage
 from scipy.optimize import curve_fit
+from scipy.signal import cheb2ord, cheby2, filtfilt, freqz
+import matplotlib.pyplot as plt
 import warnings
 import ctypes
 from setup_cpp import libfib
@@ -34,7 +36,7 @@ class Slices(object):
     
     def __init__(self, Beam, n_slices, n_sigma = None, cut_left = None, 
                  cut_right = None, cuts_coord = 'tau', slicing_coord = 'tau', 
-                 fit_option = 'off'):
+                 fit_option = 'off', filter_option = {'type':'off'}):
         
         #: *Copy (reference) of the beam to be sliced (from Beam)*
         self.Beam = Beam
@@ -83,6 +85,9 @@ class Slices(object):
         #: *Fit option allows to fit the Beam profile, with the options
         #: 'off' (default), 'gaussian'.*
         self.fit_option = fit_option
+        
+        #: *Filter option*
+        self.filter_option = filter_option
         
         #: *Beam spectrum (arbitrary units)*
         self.beam_spectrum = 0
@@ -182,6 +187,9 @@ class Slices(object):
             self.gaussian_fit()
             self.Beam.bl_gauss = self.convert_coordinates(self.bl_gauss, self.slicing_coord, 'theta')
             self.Beam.bp_gauss = self.convert_coordinates(self.bp_gauss, self.slicing_coord, 'theta')
+            
+        if self.filter_option['type'] is 'chebyshev':
+            self.beam_profile_filter_chebyshev(self.filter_option)
         
         
     def gaussian_fit(self):
@@ -219,6 +227,7 @@ class Slices(object):
         self.bl_fwhm = 4 * (t2-t1)/ (2 * np.sqrt(2 * np.log(2)))
         self.bp_fwhm = (t1+t2)/2
     
+    
     def beam_spectrum_generation(self, n_sampling_fft, filter_option = None, only_rfft = False):
         '''
         *Beam spectrum calculation, to be extended (normalized profile, different
@@ -247,12 +256,84 @@ class Slices(object):
                                                    order=1, mode='wrap') / dist_centers
         elif mode is 'gradient':
             derivative = np.gradient(self.n_macroparticles, dist_centers)
+        elif mode is 'diff':
+            derivative = np.diff(self.n_macroparticles)
+            diffCenters = x[0:-1] + dist_centers/2
+            derivative = np.interp(x, diffCenters, derivative)
         else:
             raise RuntimeError('Option for derivative is not recognized.')
 
         return x, derivative
     
     
+    def beam_profile_filter_chebyshev(self, filter_option):      
+        ''' 
+        *This routine is filtering the beam profile with a type II Chebyshev
+        filter. The input is a library having the following structure and
+        informations:*
+        
+        filter_option = {'type':'chebyshev', 'pass_frequency':pass_frequency, 'stop_frequency':stop_frequency, 'gain_pass':gain_pass, 'gain_stop':gain_stop}
+        
+        *The function returns nCoefficients, the number of coefficients used 
+        in the filter. You can also add the following option to plot and return
+        the filter transfer function:*
+        
+        filter_option = {..., 'transfer_function_plot':True}
+        '''
+        
+        noisyProfile = np.array(self.n_macroparticles)
+        
+        freqSampling = 1 / (self.bins_centers[1] - self.bins_centers[0])
+        nyqFreq = freqSampling / 2.
+        
+        frequencyPass = filter_option['pass_frequency'] / nyqFreq
+        frequencyStop = filter_option['stop_frequency'] / nyqFreq
+        gainPass = filter_option['gain_pass']
+        gainStop = filter_option['gain_stop']
+        
+        # Compute the lowest order for a Chebyshev Type II digital filter
+        nCoefficients, wn = cheb2ord(frequencyPass, frequencyStop, gainPass, gainStop)
+        print nCoefficients
+        
+        # Compute the coefficients a Chebyshev Type II digital filter
+        b,a = cheby2(nCoefficients, gainStop, wn, btype='low')
+        
+        # Apply the filter forward and backwards to cancel the group delay
+        self.n_macroparticles = filtfilt(b, a, noisyProfile)
+        
+        if 'transfer_function_plot' in filter_option:
+            # Plot the filter transfer function
+            w, transferGain = freqz(b, a=a, worN=self.n_slices)
+            transferFreq = w / np.pi * nyqFreq
+            group_delay = -np.diff(-np.unwrap(-np.angle(transferGain))) / -np.diff(w*freqSampling) 
+                       
+            plt.figure()
+            ax1 = plt.subplot(311)
+            plt.plot(transferFreq, 20 * np.log10(abs(transferGain)))
+            plt.ylabel('Magnitude [dB]')
+            plt.subplot(312,sharex=ax1)
+            plt.plot(transferFreq, np.unwrap(-np.angle(transferGain)))
+            plt.ylabel('Phase [rad]')
+            plt.subplot(313,sharex=ax1)
+            plt.plot(transferFreq[:-1], group_delay)
+            plt.ylabel('Group delay [s]')
+            plt.xlabel('Frequency [Hz]')
+                        
+            ## Plot the bunch spectrum and the filter transfer function
+            plt.figure()
+            plt.plot(np.fft.fftfreq(self.n_slices, self.bins_centers[1]-self.bins_centers[0]), 20.*np.log10(np.abs(np.fft.fft(noisyProfile))))
+            plt.xlabel('Frequency [Hz]')
+            plt.twinx()
+            plt.plot(transferFreq, 20 * np.log10(abs(transferGain)),'r')
+            plt.xlim(0,plt.xlim()[1])
+            
+            plt.show()
+            
+            return nCoefficients, [transferFreq, transferGain]
+        
+        else:
+            return nCoefficients
+  
   
     def convert_coordinates(self, value, input_coord_type, output_coord_type):
         '''
@@ -277,6 +358,7 @@ class Slices(object):
                 return - value / self.Beam.ring_radius
             elif output_coord_type is 'tau':
                 return  - value / (self.Beam.beta_r * c)
+            
             
     @property
     def beam_coordinates(self):

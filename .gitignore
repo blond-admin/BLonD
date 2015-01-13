@@ -1,28 +1,18 @@
 # Compiled files #
 ##################
 *.pyc
+*.dll
+*.so
 
 # Configuration files #
 #######################
 .project
 .pydevproject
 
-# Cython files #
-################
-stats.pyd
-stats.c
-stats.html
-
-# Cython build folder #
-#######################
-/build/
-
-# _doc/buil folder #
+# _doc/build folder #
 #######################
 /__doc/build/
 
 # Figure folder #
 #################
-/__EXAMPLE_MAIN_FILES/fig/
-/__EXAMPLE_MAIN_FILES/*.h5
-/__EXAMPLE_MAIN_FILES/null
+/__EXAMPLE_MAIN_FILES/output_files/

@@ -1,5 +1,5 @@
 
-# Copyright 2014 CERN. This software is distributed under the
+# Copyright 2015 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3), 
 # copied verbatim in the file LICENCE.md.
 # In applying this licence, CERN does not waive the privileges and immunities 
@@ -176,9 +176,9 @@ for i in range(n_turns):
          
         plot_beam_profile(i+1, general_params, slice_beam, dirname = '../output_files/TC2_fig')
          
-        plot_bunch_length_evol(my_beam, '../output_files/TC2_output_data', general_params, n_turns, dirname = '../output_files/TC2_fig')
+        plot_bunch_length_evol('../output_files/TC2_output_data', general_params, n_turns, dirname = '../output_files/TC2_fig')
         
-        plot_position_evol(my_beam, '../output_files/TC2_output_data', general_params, i+1, unit = None, dirname = '../output_files/TC2_fig')
+        plot_position_evol('../output_files/TC2_output_data', general_params, i+1, unit = None, dirname = '../output_files/TC2_fig')
 
 print "Done!"
 
