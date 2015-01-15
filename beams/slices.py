@@ -257,7 +257,7 @@ class Slices(object):
         elif mode is 'gradient':
             derivative = np.gradient(self.n_macroparticles, dist_centers)
         elif mode is 'diff':
-            derivative = np.diff(self.n_macroparticles)
+            derivative = np.diff(self.n_macroparticles) / dist_centers
             diffCenters = x[0:-1] + dist_centers/2
             derivative = np.interp(x, diffCenters, derivative)
         else:

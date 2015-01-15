@@ -549,7 +549,13 @@ def potential_well_cut(theta_coord_array, potential_array):
         higher_maximum_value = np.max(max_potential_values)
         lower_maximum_theta = max_theta_positions[max_potential_values == lower_maximum_value]
         higher_maximum_theta = max_theta_positions[max_potential_values == higher_maximum_value]
-        if min_theta_positions[0] > lower_maximum_theta:
+        if len(lower_maximum_theta)==2:
+            saved_indexes = (potential_array < lower_maximum_value) * \
+                            (theta_coord_array > lower_maximum_theta[0]) * \
+                            (theta_coord_array < lower_maximum_theta[1])
+            theta_coord_sep = theta_coord_array[saved_indexes]
+            potential_well_sep = potential_array[saved_indexes]
+        elif min_theta_positions[0] > lower_maximum_theta:
             saved_indexes = (potential_array < lower_maximum_value) * \
                             (theta_coord_array > lower_maximum_theta) * \
                             (theta_coord_array < higher_maximum_theta)
