@@ -64,6 +64,9 @@ STRUCTURE
 
 VERSION CONTENTS
 ================
+2015-1-15
+v1.10.2 - Added the n_sampling option to the synchrotron_frequency_tracker.frequency_calculation method
+
 2015-1-13
 v1.10.1 - Two bugs fixed
 

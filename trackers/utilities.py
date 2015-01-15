@@ -1,5 +1,5 @@
 
-# Copyright 2015 CERN. This software is distributed under the
+# Copyright 2014 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3), 
 # copied verbatim in the file LICENCE.md.
 # In applying this licence, CERN does not waive the privileges and immunities 
@@ -293,7 +293,7 @@ class synchrotron_frequency_tracker(object):
         self.dE_save[self.counter] = self.Beam.dE
         
             
-    def frequency_calculation(self):
+    def frequency_calculation(self, n_sampling=100000):
         '''
         *Method to compute the fft of the particle oscillations in theta and dE
         to obtain their synchrotron frequencies. The particles for which
@@ -301,6 +301,8 @@ class synchrotron_frequency_tracker(object):
         theta from user input are considered to be lost and their synchrotron
         frequencies are not calculated.*
         '''
+        
+        n_sampling = int(n_sampling)
         
         #: *Saving the synchrotron frequency from the theta oscillations for each particle*
         self.frequency_theta_save = np.zeros(int(self.n_macroparticles))
@@ -323,7 +325,7 @@ class synchrotron_frequency_tracker(object):
         min_theta_range = np.min(self.theta_save[0,:])
         
         #: *Frequency array for the synchrotron frequency distribution*
-        self.frequency_array = np.fft.rfftfreq(100000, self.timeStep)
+        self.frequency_array = np.fft.rfftfreq(n_sampling, self.timeStep)
         
         # Computing the synchrotron frequency of each particle from the maximum
         # peak of the FFT.
@@ -333,8 +335,8 @@ class synchrotron_frequency_tracker(object):
             
             if (self.max_theta_save[indexParticle]<max_theta_range) and (self.min_theta_save[indexParticle]>min_theta_range):
             
-                theta_save_fft = abs(np.fft.rfft(self.theta_save[:,indexParticle] - np.mean(self.theta_save[:,indexParticle]), 100000))
-                dE_save_fft = abs(np.fft.rfft(self.dE_save[:,indexParticle] - np.mean(self.dE_save[:,indexParticle]), 100000))
+                theta_save_fft = abs(np.fft.rfft(self.theta_save[:,indexParticle] - np.mean(self.theta_save[:,indexParticle]), n_sampling))
+                dE_save_fft = abs(np.fft.rfft(self.dE_save[:,indexParticle] - np.mean(self.dE_save[:,indexParticle]), n_sampling))
         
                 self.frequency_theta_save[indexParticle] = self.frequency_array[theta_save_fft==np.max(theta_save_fft)]
                 self.frequency_dE_save[indexParticle] = self.frequency_array[dE_save_fft==np.max(dE_save_fft)]
@@ -547,13 +549,7 @@ def potential_well_cut(theta_coord_array, potential_array):
         higher_maximum_value = np.max(max_potential_values)
         lower_maximum_theta = max_theta_positions[max_potential_values == lower_maximum_value]
         higher_maximum_theta = max_theta_positions[max_potential_values == higher_maximum_value]
-        if len(lower_maximum_theta)==2:
-            saved_indexes = (potential_array < lower_maximum_value) * \
-                            (theta_coord_array > lower_maximum_theta[0]) * \
-                            (theta_coord_array < lower_maximum_theta[1])
-            theta_coord_sep = theta_coord_array[saved_indexes]
-            potential_well_sep = potential_array[saved_indexes]
-        elif min_theta_positions[0] > lower_maximum_theta:
+        if min_theta_positions[0] > lower_maximum_theta:
             saved_indexes = (potential_array < lower_maximum_value) * \
                             (theta_coord_array > lower_maximum_theta) * \
                             (theta_coord_array < higher_maximum_theta)
