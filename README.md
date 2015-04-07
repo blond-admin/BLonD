@@ -64,6 +64,9 @@ STRUCTURE
 
 VERSION CONTENTS
 ================
+2015-4-07
+v1.10.4 - Fixed two bugs in the EXAMPLE_MAIN_FILES
+
 2015-1-15
 v1.10.3 - Fixed two bugs in potential_well-cut and beam_profile_derivative routines
 

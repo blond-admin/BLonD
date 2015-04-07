@@ -130,12 +130,12 @@ else:
     pass
 
 # steps
-steps = InductiveImpedance(slice_beam, 34.6669349520904 / 10e9 * general_params.f_rev[0], 2e5) 
+steps = InductiveImpedance(slice_beam, 34.6669349520904 / 10e9 * general_params.f_rev[0], 2e5, RF_sct_par.counter) 
 
 # direct space charge
 dir_space_charge = InductiveImpedance(slice_beam, -376.730313462   
                      / (general_params.beta_r[0,0] *
-                     general_params.gamma_r[0,0]**2), 2e5)
+                     general_params.gamma_r[0,0]**2), 2e5, RF_sct_par.counter)
 
 
 # INDUCED VOLTAGE FROM IMPEDANCE------------------------------------------------
