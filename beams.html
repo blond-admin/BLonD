@@ -28,8 +28,8 @@
     <link rel="next" title="impedances package" href="impedances.html" />
     <link rel="prev" title="&lt;no title&gt;" href="modules.html" /> 
   </head>
-  <body role="document">
-    <div class="related" role="navigation" aria-label="related navigation">
+  <body>
+    <div class="related">
       <h3>Navigation</h3>
       <ul>
         <li class="right" style="margin-right: 10px">
@@ -52,7 +52,7 @@
     <div class="document">
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body" role="main">
+          <div class="body">
             
   <div class="section" id="beams-package">
 <h1>beams package<a class="headerlink" href="#beams-package" title="Permalink to this headline">¶</a></h1>
@@ -72,115 +72,157 @@
 </table>
 <dl class="class">
 <dt id="beams.beams.Beam">
-<em class="property">class </em><code class="descclassname">beams.beams.</code><code class="descname">Beam</code><span class="sig-paren">(</span><em>General_parameters</em>, <em>n_macroparticles</em>, <em>intensity</em><span class="sig-paren">)</span><a class="headerlink" href="#beams.beams.Beam" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<em class="property">class </em><tt class="descclassname">beams.beams.</tt><tt class="descname">Beam</tt><big>(</big><em>GeneralParameters</em>, <em>n_macroparticles</em>, <em>intensity</em><big>)</big><a class="headerlink" href="#beams.beams.Beam" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p><em>Object containing the beam coordinates and beam properties such as mass,
+charge, synchronous energy, momentum, etc.
+The beam coordinate &#8216;dt&#8217; is defined as the particle arrival time to the RF 
+station w.r.t. the reference time that is the sum of turns.
+The beam coordiate &#8216;dE&#8217; is defined as the particle energy offset w.r.t. the
+energy of the synchronous particle.</em></p>
 <dl class="attribute">
-<dt id="beams.beams.Beam.beta_r">
-<code class="descname">beta_r</code><em class="property"> = None</em><a class="headerlink" href="#beams.beams.Beam.beta_r" title="Permalink to this definition">¶</a></dt>
-<dd><p>Relativistic beta of the synchronous particle</p>
+<dt id="beams.beams.Beam.beta">
+<tt class="descname">beta</tt><em class="property"> = None</em><a class="headerlink" href="#beams.beams.Beam.beta" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Import synchronous relativistic beta [1] (from GeneralParameters)</em></p>
 </dd></dl>
 
 <dl class="attribute">
-<dt id="beams.beams.Beam.bl_gauss_tau">
-<code class="descname">bl_gauss_tau</code><a class="headerlink" href="#beams.beams.Beam.bl_gauss_tau" title="Permalink to this definition">¶</a></dt>
-<dd><p><em>Gaussian bunch length converted to the tau coordinate in [s]</em></p>
+<dt id="beams.beams.Beam.charge">
+<tt class="descname">charge</tt><em class="property"> = None</em><a class="headerlink" href="#beams.beams.Beam.charge" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Import particle charge [Me] (from GeneralParameters)</em></p>
 </dd></dl>
 
 <dl class="attribute">
-<dt id="beams.beams.Beam.bl_gauss_z">
-<code class="descname">bl_gauss_z</code><a class="headerlink" href="#beams.beams.Beam.bl_gauss_z" title="Permalink to this definition">¶</a></dt>
-<dd><p><em>Gaussian bunch length to the z coordinate in [m]</em></p>
+<dt id="beams.beams.Beam.dE">
+<tt class="descname">dE</tt><em class="property"> = None</em><a class="headerlink" href="#beams.beams.Beam.dE" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>Beam energy offset with respect to synchronous energy [MeV]</em></div>
+</div>
 </dd></dl>
 
 <dl class="attribute">
-<dt id="beams.beams.Beam.bp_gauss_tau">
-<code class="descname">bp_gauss_tau</code><a class="headerlink" href="#beams.beams.Beam.bp_gauss_tau" title="Permalink to this definition">¶</a></dt>
-<dd><p><em>Gaussian bunch position converted to the tau coordinate in [s]</em></p>
+<dt id="beams.beams.Beam.dt">
+<tt class="descname">dt</tt><em class="property"> = None</em><a class="headerlink" href="#beams.beams.Beam.dt" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>Beam arrival time with respect to reference time [ns]</em></div>
+</div>
 </dd></dl>
-
-<dl class="attribute">
-<dt id="beams.beams.Beam.bp_gauss_z">
-<code class="descname">bp_gauss_z</code><a class="headerlink" href="#beams.beams.Beam.bp_gauss_z" title="Permalink to this definition">¶</a></dt>
-<dd><p><em>Gaussian bunch position converted to the z coordinate in [m]</em></p>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="beams.beams.Beam.delta">
-<code class="descname">delta</code><a class="headerlink" href="#beams.beams.Beam.delta" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
 
 <dl class="attribute">
 <dt id="beams.beams.Beam.energy">
-<code class="descname">energy</code><em class="property"> = None</em><a class="headerlink" href="#beams.beams.Beam.energy" title="Permalink to this definition">¶</a></dt>
-<dd><p>Energy of the synchronous particle [eV]</p>
+<tt class="descname">energy</tt><em class="property"> = None</em><a class="headerlink" href="#beams.beams.Beam.energy" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Import synchronous total energy [MeV] (from GeneralParameters)</em></p>
 </dd></dl>
 
 <dl class="attribute">
-<dt id="beams.beams.Beam.gamma_r">
-<code class="descname">gamma_r</code><em class="property"> = None</em><a class="headerlink" href="#beams.beams.Beam.gamma_r" title="Permalink to this definition">¶</a></dt>
-<dd><p>Relativistic gamma of the synchronous particle</p>
+<dt id="beams.beams.Beam.gamma">
+<tt class="descname">gamma</tt><em class="property"> = None</em><a class="headerlink" href="#beams.beams.Beam.gamma" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Import synchronous relativistic gamma [1] (from GeneralParameters)</em></p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="beams.beams.Beam.id">
+<tt class="descname">id</tt><em class="property"> = None</em><a class="headerlink" href="#beams.beams.Beam.id" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>Unique macro-particle ID number; zero if particle is &#8216;lost&#8217;</em></div>
+</div>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="beams.beams.Beam.intensity">
+<tt class="descname">intensity</tt><em class="property"> = None</em><a class="headerlink" href="#beams.beams.Beam.intensity" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>Total beam intensity  [1]</em></div>
+</div>
 </dd></dl>
 
 <dl class="method">
 <dt id="beams.beams.Beam.losses_cut">
-<code class="descname">losses_cut</code><span class="sig-paren">(</span><em>theta_min</em>, <em>theta_max</em><span class="sig-paren">)</span><a class="headerlink" href="#beams.beams.Beam.losses_cut" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<tt class="descname">losses_cut</tt><big>(</big><em>dt_min</em>, <em>dt_max</em><big>)</big><a class="headerlink" href="#beams.beams.Beam.losses_cut" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Beam losses based on longitudinal cuts.</em></p>
+</dd></dl>
 
 <dl class="method">
 <dt id="beams.beams.Beam.losses_separatrix">
-<code class="descname">losses_separatrix</code><span class="sig-paren">(</span><em>GeneralParameters</em>, <em>RFSectionParameters</em><span class="sig-paren">)</span><a class="headerlink" href="#beams.beams.Beam.losses_separatrix" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="attribute">
-<dt id="beams.beams.Beam.mean_delta">
-<code class="descname">mean_delta</code><a class="headerlink" href="#beams.beams.Beam.mean_delta" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="attribute">
-<dt id="beams.beams.Beam.mean_tau">
-<code class="descname">mean_tau</code><a class="headerlink" href="#beams.beams.Beam.mean_tau" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="attribute">
-<dt id="beams.beams.Beam.mean_z">
-<code class="descname">mean_z</code><a class="headerlink" href="#beams.beams.Beam.mean_z" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="attribute">
-<dt id="beams.beams.Beam.momentum">
-<code class="descname">momentum</code><em class="property"> = None</em><a class="headerlink" href="#beams.beams.Beam.momentum" title="Permalink to this definition">¶</a></dt>
-<dd><p>Momentum of the synchronous particle [eV/c]</p>
+<tt class="descname">losses_separatrix</tt><big>(</big><em>GeneralParameters</em>, <em>RFSectionParameters</em>, <em>Beam</em><big>)</big><a class="headerlink" href="#beams.beams.Beam.losses_separatrix" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Beam losses based on separatrix.</em></p>
 </dd></dl>
 
 <dl class="attribute">
-<dt id="beams.beams.Beam.sigma_delta">
-<code class="descname">sigma_delta</code><a class="headerlink" href="#beams.beams.Beam.sigma_delta" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dt id="beams.beams.Beam.mass">
+<tt class="descname">mass</tt><em class="property"> = None</em><a class="headerlink" href="#beams.beams.Beam.mass" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Import particle mass [MeV] (from GeneralParameters)</em></p>
+</dd></dl>
 
 <dl class="attribute">
-<dt id="beams.beams.Beam.sigma_tau">
-<code class="descname">sigma_tau</code><a class="headerlink" href="#beams.beams.Beam.sigma_tau" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dt id="beams.beams.Beam.mean_dE">
+<tt class="descname">mean_dE</tt><em class="property"> = None</em><a class="headerlink" href="#beams.beams.Beam.mean_dE" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>Average beam energy offset [MeV]</em></div>
+</div>
+</dd></dl>
 
 <dl class="attribute">
-<dt id="beams.beams.Beam.sigma_z">
-<code class="descname">sigma_z</code><a class="headerlink" href="#beams.beams.Beam.sigma_z" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dt id="beams.beams.Beam.mean_dt">
+<tt class="descname">mean_dt</tt><em class="property"> = None</em><a class="headerlink" href="#beams.beams.Beam.mean_dt" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>Average beam arrival time [ns]</em></div>
+</div>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="beams.beams.Beam.momentum">
+<tt class="descname">momentum</tt><em class="property"> = None</em><a class="headerlink" href="#beams.beams.Beam.momentum" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Import synchronous momentum [MeV] (from GeneralParameters)</em></p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="beams.beams.Beam.n_macroparticles">
+<tt class="descname">n_macroparticles</tt><em class="property"> = None</em><a class="headerlink" href="#beams.beams.Beam.n_macroparticles" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>Total number of macro-particles in the beam [1]</em></div>
+</div>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="beams.beams.Beam.n_macroparticles_alive">
+<tt class="descname">n_macroparticles_alive</tt><em class="property"> = None</em><a class="headerlink" href="#beams.beams.Beam.n_macroparticles_alive" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>Number of transmitted macro-particles (= total - lost) [1]</em></div>
+</div>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="beams.beams.Beam.n_macroparticles_lost">
+<tt class="descname">n_macroparticles_lost</tt><em class="property"> = None</em><a class="headerlink" href="#beams.beams.Beam.n_macroparticles_lost" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>Number of macro-particles marked as &#8216;lost&#8217; [1]</em></div>
+<div class="line"><em>Losses defined via loss mechanisms chosen by user</em></div>
+</div>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="beams.beams.Beam.sigma_dE">
+<tt class="descname">sigma_dE</tt><em class="property"> = None</em><a class="headerlink" href="#beams.beams.Beam.sigma_dE" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>Standard deviation of beam energy offset [MeV]</em></div>
+</div>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="beams.beams.Beam.sigma_dt">
+<tt class="descname">sigma_dt</tt><em class="property"> = None</em><a class="headerlink" href="#beams.beams.Beam.sigma_dt" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>Standard deviation of beam arrival time [ns]</em></div>
+</div>
+</dd></dl>
 
 <dl class="method">
 <dt id="beams.beams.Beam.statistics">
-<code class="descname">statistics</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#beams.beams.Beam.statistics" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="attribute">
-<dt id="beams.beams.Beam.tau">
-<code class="descname">tau</code><a class="headerlink" href="#beams.beams.Beam.tau" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="attribute">
-<dt id="beams.beams.Beam.z">
-<code class="descname">z</code><a class="headerlink" href="#beams.beams.Beam.z" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<tt class="descname">statistics</tt><big>(</big><big>)</big><a class="headerlink" href="#beams.beams.Beam.statistics" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Calculation of the mean and standard deviation of beam coordinates,
+as well as beam emittance using different definitions.</em></p>
+</dd></dl>
 
 </dd></dl>
 
@@ -198,18 +240,18 @@
 </table>
 <dl class="function">
 <dt id="beams.distributions.line_density_function">
-<code class="descclassname">beams.distributions.</code><code class="descname">line_density_function</code><span class="sig-paren">(</span><em>coord_array</em>, <em>dist_type</em>, <em>bunch_length</em>, <em>bunch_position=0</em>, <em>exponent=None</em><span class="sig-paren">)</span><a class="headerlink" href="#beams.distributions.line_density_function" title="Permalink to this definition">¶</a></dt>
+<tt class="descclassname">beams.distributions.</tt><tt class="descname">line_density_function</tt><big>(</big><em>coord_array</em>, <em>dist_type</em>, <em>bunch_length</em>, <em>bunch_position=0</em>, <em>exponent=None</em><big>)</big><a class="headerlink" href="#beams.distributions.line_density_function" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Line density</em></p>
 </dd></dl>
 
 <dl class="function">
 <dt id="beams.distributions.longitudinal_bigaussian">
-<code class="descclassname">beams.distributions.</code><code class="descname">longitudinal_bigaussian</code><span class="sig-paren">(</span><em>GeneralParameters</em>, <em>RFSectionParameters</em>, <em>beam</em>, <em>sigma_x</em>, <em>sigma_y=None</em>, <em>xunit=None</em>, <em>yunit=None</em>, <em>seed=None</em>, <em>reinsertion='off'</em><span class="sig-paren">)</span><a class="headerlink" href="#beams.distributions.longitudinal_bigaussian" title="Permalink to this definition">¶</a></dt>
+<tt class="descclassname">beams.distributions.</tt><tt class="descname">longitudinal_bigaussian</tt><big>(</big><em>GeneralParameters</em>, <em>RFSectionParameters</em>, <em>beam</em>, <em>sigma_dt</em>, <em>sigma_dE=None</em>, <em>seed=None</em>, <em>reinsertion='off'</em><big>)</big><a class="headerlink" href="#beams.distributions.longitudinal_bigaussian" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="function">
 <dt id="beams.distributions.matched_from_distribution_density">
-<code class="descclassname">beams.distributions.</code><code class="descname">matched_from_distribution_density</code><span class="sig-paren">(</span><em>Beam</em>, <em>FullRingAndRF</em>, <em>distribution_options</em>, <em>main_harmonic_option='lowest_freq'</em>, <em>TotalInducedVoltage=None</em>, <em>n_iterations_input=1</em><span class="sig-paren">)</span><a class="headerlink" href="#beams.distributions.matched_from_distribution_density" title="Permalink to this definition">¶</a></dt>
+<tt class="descclassname">beams.distributions.</tt><tt class="descname">matched_from_distribution_density</tt><big>(</big><em>Beam</em>, <em>FullRingAndRF</em>, <em>distribution_options</em>, <em>main_harmonic_option='lowest_freq'</em>, <em>TotalInducedVoltage=None</em>, <em>n_iterations_input=1</em><big>)</big><a class="headerlink" href="#beams.distributions.matched_from_distribution_density" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Function to generate a beam by inputing the distribution density (by
 choosing the type of distribution and the emittance). 
 The potential well is preprocessed to check for the min/max and center
@@ -235,7 +277,7 @@ and distribution_options[&#8216;user_table_density&#8217;]</em></p>
 
 <dl class="function">
 <dt id="beams.distributions.matched_from_line_density">
-<code class="descclassname">beams.distributions.</code><code class="descname">matched_from_line_density</code><span class="sig-paren">(</span><em>Beam</em>, <em>FullRingAndRF</em>, <em>line_density_options</em>, <em>main_harmonic_option='lowest_freq'</em>, <em>TotalInducedVoltage=None</em>, <em>plot_option=False</em>, <em>half_option='first'</em><span class="sig-paren">)</span><a class="headerlink" href="#beams.distributions.matched_from_line_density" title="Permalink to this definition">¶</a></dt>
+<tt class="descclassname">beams.distributions.</tt><tt class="descname">matched_from_line_density</tt><big>(</big><em>Beam</em>, <em>FullRingAndRF</em>, <em>line_density_options</em>, <em>main_harmonic_option='lowest_freq'</em>, <em>TotalInducedVoltage=None</em>, <em>plot_option=False</em>, <em>half_option='first'</em><big>)</big><a class="headerlink" href="#beams.distributions.matched_from_line_density" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Function to generate a beam by inputing the line density. The distribution
 density is then reconstructed with the Abel transform and the particles
 randomly generated.</em></p>
@@ -243,13 +285,13 @@ randomly generated.</em></p>
 
 <dl class="function">
 <dt id="beams.distributions.minmax_location">
-<code class="descclassname">beams.distributions.</code><code class="descname">minmax_location</code><span class="sig-paren">(</span><em>x</em>, <em>f</em><span class="sig-paren">)</span><a class="headerlink" href="#beams.distributions.minmax_location" title="Permalink to this definition">¶</a></dt>
+<tt class="descclassname">beams.distributions.</tt><tt class="descname">minmax_location</tt><big>(</big><em>x</em>, <em>f</em><big>)</big><a class="headerlink" href="#beams.distributions.minmax_location" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Function to locate the minima and maxima of the f(x) numerical function.</em></p>
 </dd></dl>
 
 <dl class="function">
 <dt id="beams.distributions.potential_well_cut">
-<code class="descclassname">beams.distributions.</code><code class="descname">potential_well_cut</code><span class="sig-paren">(</span><em>theta_coord_array</em>, <em>potential_array</em><span class="sig-paren">)</span><a class="headerlink" href="#beams.distributions.potential_well_cut" title="Permalink to this definition">¶</a></dt>
+<tt class="descclassname">beams.distributions.</tt><tt class="descname">potential_well_cut</tt><big>(</big><em>theta_coord_array</em>, <em>potential_array</em><big>)</big><a class="headerlink" href="#beams.distributions.potential_well_cut" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Function to cut the potential well in order to take only the separatrix
 (several cases according to the number of min/max).</em></p>
 </dd></dl>
@@ -262,32 +304,31 @@ randomly generated.</em></p>
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Authors:</th><td class="field-body"><strong>Danilo Quartullo</strong>, <strong>Alexandre Lasheen</strong></td>
+<tr class="field-odd field"><th class="field-name">Authors:</th><td class="field-body"><strong>Danilo Quartullo</strong>, <strong>Alexandre Lasheen</strong>, <strong>Helga Timko</strong></td>
 </tr>
 </tbody>
 </table>
 <dl class="class">
 <dt id="beams.slices.Slices">
-<em class="property">class </em><code class="descclassname">beams.slices.</code><code class="descname">Slices</code><span class="sig-paren">(</span><em>Beam</em>, <em>n_slices</em>, <em>n_sigma=None</em>, <em>cut_left=None</em>, <em>cut_right=None</em>, <em>cuts_coord='tau'</em>, <em>slicing_coord='tau'</em>, <em>fit_option='off'</em><span class="sig-paren">)</span><a class="headerlink" href="#beams.slices.Slices" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
-<p><em>Slices class that controls discretisation of a Beam. This
-include the Beam profiling (including computation of Beam spectrum,
-derivative, and profile fitting).</em></p>
+<em class="property">class </em><tt class="descclassname">beams.slices.</tt><tt class="descname">Slices</tt><big>(</big><em>RFSectionParameters</em>, <em>Beam</em>, <em>n_slices</em>, <em>n_sigma=None</em>, <em>cut_left=None</em>, <em>cut_right=None</em>, <em>cuts_unit='ns'</em>, <em>fit_option=None</em><big>)</big><a class="headerlink" href="#beams.slices.Slices" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p><em>Contains the beam profile and related quantities including beam spectrum,
+profile derivative, and profile fitting.</em></p>
 <dl class="attribute">
 <dt id="beams.slices.Slices.Beam">
-<code class="descname">Beam</code><em class="property"> = None</em><a class="headerlink" href="#beams.slices.Slices.Beam" title="Permalink to this definition">¶</a></dt>
-<dd><p><em>Copy (reference) of the beam to be sliced (from Beam)</em></p>
+<tt class="descname">Beam</tt><em class="property"> = None</em><a class="headerlink" href="#beams.slices.Slices.Beam" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Import (reference) Beam</em></p>
 </dd></dl>
 
 <dl class="attribute">
-<dt id="beams.slices.Slices.beam_coordinates">
-<code class="descname">beam_coordinates</code><a class="headerlink" href="#beams.slices.Slices.beam_coordinates" title="Permalink to this definition">¶</a></dt>
-<dd><p><em>Returns the beam coordinates according to the slicing_coord option.</em></p>
+<dt id="beams.slices.Slices.RFParams">
+<tt class="descname">RFParams</tt><em class="property"> = None</em><a class="headerlink" href="#beams.slices.Slices.RFParams" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Import (reference) RFSectionParameters</em></p>
 </dd></dl>
 
 <dl class="method">
 <dt id="beams.slices.Slices.beam_profile_derivative">
-<code class="descname">beam_profile_derivative</code><span class="sig-paren">(</span><em>mode='gradient'</em>, <em>coord='theta'</em><span class="sig-paren">)</span><a class="headerlink" href="#beams.slices.Slices.beam_profile_derivative" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">beam_profile_derivative</tt><big>(</big><em>mode='gradient'</em><big>)</big><a class="headerlink" href="#beams.slices.Slices.beam_profile_derivative" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>The input is one of the two available methods for differentiating
 a function. The two outputs are the coordinate step and the discrete
 derivative of the Beam profile respectively.</em></p>
@@ -295,103 +336,109 @@ derivative of the Beam profile respectively.</em></p>
 
 <dl class="attribute">
 <dt id="beams.slices.Slices.beam_spectrum">
-<code class="descname">beam_spectrum</code><em class="property"> = None</em><a class="headerlink" href="#beams.slices.Slices.beam_spectrum" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">beam_spectrum</tt><em class="property"> = None</em><a class="headerlink" href="#beams.slices.Slices.beam_spectrum" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Beam spectrum (arbitrary units)</em></p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="beams.slices.Slices.beam_spectrum_freq">
-<code class="descname">beam_spectrum_freq</code><em class="property"> = None</em><a class="headerlink" href="#beams.slices.Slices.beam_spectrum_freq" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">beam_spectrum_freq</tt><em class="property"> = None</em><a class="headerlink" href="#beams.slices.Slices.beam_spectrum_freq" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Frequency array corresponding to the beam spectrum in [Hz]</em></p>
 </dd></dl>
 
 <dl class="method">
 <dt id="beams.slices.Slices.beam_spectrum_generation">
-<code class="descname">beam_spectrum_generation</code><span class="sig-paren">(</span><em>n_sampling_fft</em>, <em>filter_option=None</em>, <em>only_rfft=False</em><span class="sig-paren">)</span><a class="headerlink" href="#beams.slices.Slices.beam_spectrum_generation" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">beam_spectrum_generation</tt><big>(</big><em>n_sampling_fft</em>, <em>filter_option=None</em>, <em>only_rfft=False</em><big>)</big><a class="headerlink" href="#beams.slices.Slices.beam_spectrum_generation" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Beam spectrum calculation, to be extended (normalized profile, different
 coordinates, etc.)</em></p>
 </dd></dl>
 
 <dl class="attribute">
-<dt id="beams.slices.Slices.bins_centers">
-<code class="descname">bins_centers</code><em class="property"> = None</em><a class="headerlink" href="#beams.slices.Slices.bins_centers" title="Permalink to this definition">¶</a></dt>
+<dt id="beams.slices.Slices.bin_centers">
+<tt class="descname">bin_centers</tt><em class="property"> = None</em><a class="headerlink" href="#beams.slices.Slices.bin_centers" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Center of the bins</em></p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="beams.slices.Slices.bl_gauss">
-<code class="descname">bl_gauss</code><em class="property"> = None</em><a class="headerlink" href="#beams.slices.Slices.bl_gauss" title="Permalink to this definition">¶</a></dt>
-<dd><p><em>Beam length with a gaussian fit (needs fit_option to be
-&#8216;gaussian&#8217; defined as</em> <img class="math" src="_images/math/84942864d44b69939111156bb85197e0ae09ffa7.png" alt="\tau_{gauss} = 4\sigma"/>)</p>
+<tt class="descname">bl_gauss</tt><em class="property"> = None</em><a class="headerlink" href="#beams.slices.Slices.bl_gauss" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Beam length with a Gaussian fit (needs fit_option to be
+&#8216;gaussian&#8217; defined as</em> <img class="math" src="_images/math/ae56566bec6eb2cb96414fdd38064a05e9bfb703.png" alt="\tau_{gauss} = 4\sigma_{\Delta t}"/>)</p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="beams.slices.Slices.bp_gauss">
-<code class="descname">bp_gauss</code><em class="property"> = None</em><a class="headerlink" href="#beams.slices.Slices.bp_gauss" title="Permalink to this definition">¶</a></dt>
-<dd><p><em>Beam position with a gaussian fit (needs fit_option to be
-&#8216;gaussian&#8217;)</em></p>
+<tt class="descname">bp_gauss</tt><em class="property"> = None</em><a class="headerlink" href="#beams.slices.Slices.bp_gauss" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Beam position at the peak of Gaussian fit</em></p>
 </dd></dl>
 
 <dl class="method">
 <dt id="beams.slices.Slices.convert_coordinates">
-<code class="descname">convert_coordinates</code><span class="sig-paren">(</span><em>value</em>, <em>input_coord_type</em>, <em>output_coord_type</em><span class="sig-paren">)</span><a class="headerlink" href="#beams.slices.Slices.convert_coordinates" title="Permalink to this definition">¶</a></dt>
-<dd><p><em>Method to convert a value from one input_coord_type to an output_coord_type.</em></p>
+<tt class="descname">convert_coordinates</tt><big>(</big><em>value</em>, <em>input_unit_type</em><big>)</big><a class="headerlink" href="#beams.slices.Slices.convert_coordinates" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Method to convert a value from one input_unit_type to &#8216;ns&#8217;.</em></p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="beams.slices.Slices.cut_left">
-<code class="descname">cut_left</code><em class="property"> = None</em><a class="headerlink" href="#beams.slices.Slices.cut_left" title="Permalink to this definition">¶</a></dt>
-<dd><p><em>Left edge of the slicing (is an optional input, in case you use
-the &#8216;const_space&#8217; mode, a default value will be set if no value is
-given).</em></p>
+<tt class="descname">cut_left</tt><em class="property"> = None</em><a class="headerlink" href="#beams.slices.Slices.cut_left" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Left edge of the slicing; optional input in case of &#8216;const_space&#8217;
+mode. A default value will be set if no value is given.</em></p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="beams.slices.Slices.cut_right">
-<code class="descname">cut_right</code><em class="property"> = None</em><a class="headerlink" href="#beams.slices.Slices.cut_right" title="Permalink to this definition">¶</a></dt>
-<dd><p><em>Right edge of the slicing (is an optional input, in case you use
-the &#8216;const_space&#8217; mode, a default value will be set if no value is
-given).</em></p>
+<tt class="descname">cut_right</tt><em class="property"> = None</em><a class="headerlink" href="#beams.slices.Slices.cut_right" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Right edge of the slicing; optional input in case of &#8216;const_space&#8217;
+mode. A default value will be set if no value is given.</em></p>
 </dd></dl>
 
 <dl class="attribute">
-<dt id="beams.slices.Slices.cuts_coord">
-<code class="descname">cuts_coord</code><em class="property"> = None</em><a class="headerlink" href="#beams.slices.Slices.cuts_coord" title="Permalink to this definition">¶</a></dt>
+<dt id="beams.slices.Slices.cuts_unit">
+<tt class="descname">cuts_unit</tt><em class="property"> = None</em><a class="headerlink" href="#beams.slices.Slices.cuts_unit" title="Permalink to this definition">¶</a></dt>
 <dd><div class="line-block">
-<div class="line"><em>Type of coordinates in which the cuts are given.</em></div>
-<div class="line"><em>The options are: &#8216;tau&#8217; (default), &#8216;theta&#8217;, &#8216;z&#8217;.</em></div>
+<div class="line"><em>Unit in which the cuts are given.</em></div>
+<div class="line"><em>The options are: &#8216;ns&#8217; (default) or &#8216;rad&#8217; (RF phase).</em></div>
 </div>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="beams.slices.Slices.edges">
-<code class="descname">edges</code><em class="property"> = None</em><a class="headerlink" href="#beams.slices.Slices.edges" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">edges</tt><em class="property"> = None</em><a class="headerlink" href="#beams.slices.Slices.edges" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Edges positions of the slicing</em></p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="beams.slices.Slices.fit_option">
-<code class="descname">fit_option</code><em class="property"> = None</em><a class="headerlink" href="#beams.slices.Slices.fit_option" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">fit_option</tt><em class="property"> = None</em><a class="headerlink" href="#beams.slices.Slices.fit_option" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Fit option allows to fit the Beam profile, with the options
-&#8216;off&#8217; (default), &#8216;gaussian&#8217;.</em></p>
+&#8216;None&#8217; (default), &#8216;gaussian&#8217;.</em></p>
+</dd></dl>
+
+<dl class="method">
+<dt id="beams.slices.Slices.fwhm">
+<tt class="descname">fwhm</tt><big>(</big><big>)</big><a class="headerlink" href="#beams.slices.Slices.fwhm" title="Permalink to this definition">¶</a></dt>
+<dd><ul class="simple">
+<li>Computation of the bunch length and position from the FWHM</li>
+</ul>
+<p>assuming Gaussian line density.*</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="beams.slices.Slices.gaussian_fit">
-<code class="descname">gaussian_fit</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#beams.slices.Slices.gaussian_fit" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">gaussian_fit</tt><big>(</big><big>)</big><a class="headerlink" href="#beams.slices.Slices.gaussian_fit" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Gaussian fit of the profile, in order to get the bunch length and
-position.</em></p>
+position. Returns fit values in units of ns.</em></p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="beams.slices.Slices.n_macroparticles">
-<code class="descname">n_macroparticles</code><em class="property"> = None</em><a class="headerlink" href="#beams.slices.Slices.n_macroparticles" title="Permalink to this definition">¶</a></dt>
-<dd><p><em>Number of macroparticles per slice (~profile).</em></p>
+<tt class="descname">n_macroparticles</tt><em class="property"> = None</em><a class="headerlink" href="#beams.slices.Slices.n_macroparticles" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Number of macro-particles per slice (~profile).</em></p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="beams.slices.Slices.n_sigma">
-<code class="descname">n_sigma</code><em class="property"> = None</em><a class="headerlink" href="#beams.slices.Slices.n_sigma" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">n_sigma</tt><em class="property"> = None</em><a class="headerlink" href="#beams.slices.Slices.n_sigma" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Optional input parameters, corresponding to the number of</em>
 <img class="math" src="_images/math/4ff8fc564bf05a27ae89275768189c12e49157dd.png" alt="\sigma_{RMS}"/> <em>of the Beam to slice (this will overwrite
 any input of cut_left and cut_right).</em></p>
@@ -399,19 +446,19 @@ any input of cut_left and cut_right).</em></p>
 
 <dl class="attribute">
 <dt id="beams.slices.Slices.n_slices">
-<code class="descname">n_slices</code><em class="property"> = None</em><a class="headerlink" href="#beams.slices.Slices.n_slices" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">n_slices</tt><em class="property"> = None</em><a class="headerlink" href="#beams.slices.Slices.n_slices" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Number of slices</em></p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="beams.slices.Slices.pfit_gauss">
-<code class="descname">pfit_gauss</code><em class="property"> = None</em><a class="headerlink" href="#beams.slices.Slices.pfit_gauss" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">pfit_gauss</tt><em class="property"> = None</em><a class="headerlink" href="#beams.slices.Slices.pfit_gauss" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Gaussian parameters list obtained from fit</em></p>
 </dd></dl>
 
 <dl class="method">
 <dt id="beams.slices.Slices.set_cuts">
-<code class="descname">set_cuts</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#beams.slices.Slices.set_cuts" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">set_cuts</tt><big>(</big><big>)</big><a class="headerlink" href="#beams.slices.Slices.set_cuts" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Method to set the self.cut_left and self.cut_right properties. This is
 done as a pre-processing if the mode is set to &#8216;const_space&#8217;, for
 &#8216;const_charge&#8217; this is calculated each turn.</em></p>
@@ -423,7 +470,7 @@ in each side of the frame.</em></p>
 
 <dl class="method">
 <dt id="beams.slices.Slices.slice_constant_space_histogram">
-<code class="descname">slice_constant_space_histogram</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#beams.slices.Slices.slice_constant_space_histogram" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">slice_constant_space_histogram</tt><big>(</big><big>)</big><a class="headerlink" href="#beams.slices.Slices.slice_constant_space_histogram" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Constant space slicing with the built-in numpy histogram function,
 with a constant frame. This gives the same profile as the 
 slice_constant_space method, but no compute statistics possibilities
@@ -432,34 +479,34 @@ slice_constant_space method, but no compute statistics possibilities
 for high number of particles (~1e6).</em></p>
 </dd></dl>
 
-<dl class="attribute">
-<dt id="beams.slices.Slices.slicing_coord">
-<code class="descname">slicing_coord</code><em class="property"> = None</em><a class="headerlink" href="#beams.slices.Slices.slicing_coord" title="Permalink to this definition">¶</a></dt>
-<dd><div class="line-block">
-<div class="line"><em>Type of coordinates in which the slicing is done.</em></div>
-<div class="line"><em>The options are: &#8216;tau&#8217; (default), &#8216;theta&#8217;, &#8216;z&#8217;.</em></div>
-</div>
-</dd></dl>
-
 <dl class="method">
 <dt id="beams.slices.Slices.sort_particles">
-<code class="descname">sort_particles</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#beams.slices.Slices.sort_particles" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">sort_particles</tt><big>(</big><big>)</big><a class="headerlink" href="#beams.slices.Slices.sort_particles" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Sort the particles with respect to their position.</em></p>
 </dd></dl>
 
 <dl class="method">
 <dt id="beams.slices.Slices.track">
-<code class="descname">track</code><span class="sig-paren">(</span><em>Beam</em><span class="sig-paren">)</span><a class="headerlink" href="#beams.slices.Slices.track" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">track</tt><big>(</big><big>)</big><a class="headerlink" href="#beams.slices.Slices.track" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Track method in order to update the slicing along with the tracker.
 This will update the beam properties (bunch length obtained from the
 fit, etc.).</em></p>
+</dd></dl>
+
+<dl class="method">
+<dt id="beams.slices.Slices.track_cuts">
+<tt class="descname">track_cuts</tt><big>(</big><big>)</big><a class="headerlink" href="#beams.slices.Slices.track_cuts" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Track the slice frame (limits and slice position) as the mean of the 
+bunch moves.
+Requires Beam statistics!
+Method to be refined!</em></p>
 </dd></dl>
 
 </dd></dl>
 
 <dl class="function">
 <dt id="beams.slices.gauss">
-<code class="descclassname">beams.slices.</code><code class="descname">gauss</code><span class="sig-paren">(</span><em>x</em>, <em>*p</em><span class="sig-paren">)</span><a class="headerlink" href="#beams.slices.gauss" title="Permalink to this definition">¶</a></dt>
+<tt class="descclassname">beams.slices.</tt><tt class="descname">gauss</tt><big>(</big><em>x</em>, <em>*p</em><big>)</big><a class="headerlink" href="#beams.slices.gauss" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Defined as:</em></p>
 <div class="math">
 <p><img src="_images/math/1abadd3e0ea3408d4ce581e3a50c848aee302e82.png" alt="A \, e^{\frac{\left(x-x_0\right)^2}{2\sigma_x^2}}"/></p>
@@ -475,7 +522,7 @@ fit, etc.).</em></p>
           </div>
         </div>
       </div>
-      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+      <div class="sphinxsidebar">
         <div class="sphinxsidebarwrapper">
   <h3><a href="index.html">Table Of Contents</a></h3>
   <ul>
@@ -495,14 +542,12 @@ fit, etc.).</em></p>
   <h4>Next topic</h4>
   <p class="topless"><a href="impedances.html"
                         title="next chapter">impedances package</a></p>
-  <div role="note" aria-label="source link">
-    <h3>This Page</h3>
-    <ul class="this-page-menu">
-      <li><a href="_sources/beams.txt"
-            rel="nofollow">Show Source</a></li>
-    </ul>
-   </div>
-<div id="searchbox" style="display: none" role="search">
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/beams.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
   <h3>Quick search</h3>
     <form class="search" action="search.html" method="get">
       <input type="text" name="q" />
@@ -519,7 +564,7 @@ fit, etc.).</em></p>
       </div>
       <div class="clearer"></div>
     </div>
-    <div class="related" role="navigation" aria-label="related navigation">
+    <div class="related">
       <h3>Navigation</h3>
       <ul>
         <li class="right" style="margin-right: 10px">
@@ -538,9 +583,9 @@ fit, etc.).</em></p>
           <li><a href="modules.html" >&lt;no title&gt;</a> &raquo;</li> 
       </ul>
     </div>
-    <div class="footer" role="contentinfo">
+    <div class="footer">
         &copy; Copyright 2014, CERN.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.3b1.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
     </div>
   </body>
 </html>

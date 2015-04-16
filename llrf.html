@@ -28,8 +28,8 @@
     <link rel="next" title="monitors package" href="monitors.html" />
     <link rel="prev" title="input_parameters package" href="input_parameters.html" /> 
   </head>
-  <body role="document">
-    <div class="related" role="navigation" aria-label="related navigation">
+  <body>
+    <div class="related">
       <h3>Navigation</h3>
       <ul>
         <li class="right" style="margin-right: 10px">
@@ -52,7 +52,7 @@
     <div class="document">
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body" role="main">
+          <div class="body">
             
   <div class="section" id="llrf-package">
 <h1>llrf package<a class="headerlink" href="#llrf-package" title="Permalink to this headline">¶</a></h1>
@@ -60,8 +60,9 @@
 <h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
 </div>
 <div class="section" id="llrf-rf-noise-module">
-<h2>llrf.RF_noise module<a class="headerlink" href="#llrf-rf-noise-module" title="Permalink to this headline">¶</a></h2>
-<p><strong>Methods to generate RF phase noise from noise spectrum</strong></p>
+<h2>llrf.rf_noise module<a class="headerlink" href="#llrf-rf-noise-module" title="Permalink to this headline">¶</a></h2>
+<p><strong>Methods to generate RF phase noise from noise spectrum and feedback noise
+amplitude as a function of bunch length</strong></p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
@@ -70,42 +71,39 @@
 </tr>
 </tbody>
 </table>
+<div class="section" id="rf-phase-noise-generation">
+<h3>RF phase noise generation<a class="headerlink" href="#rf-phase-noise-generation" title="Permalink to this headline">¶</a></h3>
 <dl class="class">
-<dt id="LLRF.RF_noise.PhaseNoise">
-<em class="property">class </em><code class="descclassname">LLRF.RF_noise.</code><code class="descname">PhaseNoise</code><span class="sig-paren">(</span><em>object).__init__(self</em>, <em>frequency_array</em>, <em>real_part_of_spectrum</em>, <em>seed1=None</em>, <em>seed2=None</em><span class="sig-paren">)</span><a class="headerlink" href="#LLRF.RF_noise.PhaseNoise" title="Permalink to this definition">¶</a></dt>
-<dd><p>The <strong>PhaseNoise</strong> class contains the spectrum of RF phase noise and the
-actual phase noise randomly generated from this spectrum (via mixing with
-white noise).</p>
+<dt id="llrf.rf_noise.PhaseNoise">
+<em class="property">class </em><tt class="descclassname">llrf.rf_noise.</tt><tt class="descname">PhaseNoise</tt><big>(</big><em>object).__init__(frequency_array</em>, <em>real_part_of_spectrum</em>, <em>seed1=None</em>, <em>seed2=None</em><big>)</big><a class="headerlink" href="#llrf.rf_noise.PhaseNoise" title="Permalink to this definition">¶</a></dt>
+<dd><p>Contains the spectrum of RF phase noise and the actual phase noise randomly
+generated from it. Generation done via mixing with white noise.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
 <li><strong>frequency_array</strong> (<em>numpy.array</em>) &#8211; input frequency range</li>
-<li><strong>real_part_of_spectrum</strong> (<em>numpy.array</em>) &#8211; input spectrum, real part only, same length as <code class="docutils literal"><span class="pre">frequency_array</span></code></li>
-<li><strong>seeds</strong> (<em>int</em>) &#8211; seeds for random number generator</li>
+<li><strong>real_part_of_spectrum</strong> (<em>numpy.array</em>) &#8211; input spectrum, real part only,
+same length as <tt class="docutils literal"><span class="pre">frequency_array</span></tt></li>
+<li><strong>seed1</strong> (<em>int</em>) &#8211; seed for random number generator</li>
+<li><strong>seed2</strong> (<em>int</em>) &#8211; seed for random number generator</li>
 </ul>
-</td>
-</tr>
-<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">time and phase noise arrays</p>
 </td>
 </tr>
 </tbody>
 </table>
-</dd></dl>
-
 <div class="admonition warning">
 <p class="first admonition-title">Warning</p>
-<p class="last">The spectrum has to be input as double-sided spectrum, in units of
-radian-square per hertz.</p>
+<p class="last">The spectrum has to be input as double-sided spectrum, in units
+of [<img class="math" src="_images/math/ac1bd0d6634220d2bd9f7245bb1a263d30aa590b.png" alt="\text{rad}^2/\text{Hz}"/>].</p>
 </div>
-<p>Both hermitian to real and complex to complex FFTs are available. Use seeds to
-fix a certain random number sequence; with <code class="docutils literal"><span class="pre">seed=None</span></code> a random sequence will
-be initialized.</p>
-<blockquote>
-<div><dl class="function">
-<dt id="spectrum_to_phase_noise">
-<code class="descname">spectrum_to_phase_noise</code><span class="sig-paren">(</span><em>self</em>, <em>transform=None</em><span class="sig-paren">)</span><a class="headerlink" href="#spectrum_to_phase_noise" title="Permalink to this definition">¶</a></dt>
+<p>Both hermitian to real and complex to complex FFTs are available. Use seeds
+to fix a certain random number sequence; with <tt class="docutils literal"><span class="pre">seed=None</span></tt> a random sequence
+will be initialized.</p>
+<dl class="method">
+<dt id="llrf.rf_noise.PhaseNoise.spectrum_to_phase_noise">
+<tt class="descname">spectrum_to_phase_noise</tt><big>(</big><em>transform=None</em><big>)</big><a class="headerlink" href="#llrf.rf_noise.PhaseNoise.spectrum_to_phase_noise" title="Permalink to this definition">¶</a></dt>
 <dd><p>Transforms a noise spectrum to phase noise data.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -113,55 +111,411 @@ be initialized.</p>
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>transform</strong> (<em>choice</em>) &#8211; FFT transform kind</td>
 </tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">time and phase noise arrays</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p>Use <tt class="docutils literal"><span class="pre">transform=None</span></tt> or <tt class="docutils literal"><span class="pre">'r'</span></tt> to transform hermitian
+spectrum to real phase. In this case, input only the positive part of
+the double-sided spectrum. Use <tt class="docutils literal"><span class="pre">transform='c'</span></tt> to transform complex
+spectrum to complex phase. In this case, input first the zero and
+positive frequency components, then the decreasingly negative frequency
+components of the double-sided spectrum. Returns only the real part of
+the phase noise. E.g. the following two ways of usage are equivalent:</p>
+<a class="last reference internal image-reference" href="_images/RF_noise.png"><img alt="_images/RF_noise.png" class="align-center" src="_images/RF_noise.png" style="width: 1000px; height: 250px;" /></a>
+</div>
+<p><strong>The transformation in steps</strong></p>
+<p><strong>Step 1:</strong> Set the resolution in time domain. To transform a hermitian
+spectrum to real phase noise,</p>
+<div class="math">
+<p><img src="_images/math/ab3bcf2cc9410a9fbb38db6be199ea90ff04c32b.png" alt="n_t = 2 (n_f - 1) \text{\,\,and\,\,} \Delta t = 1/(2 f_{\text{max}}) ,"/></p>
+</div><p>and to transform a complex spectrum to complex phase noise,</p>
+<div class="math">
+<p><img src="_images/math/9b076903ffff465f7a78db56ea0553b504133c0d.png" alt="n_t = n_f \text{\,\,and\,\,} \Delta t = 1/f_{\text{max}} ,"/></p>
+</div><p>where <tt class="docutils literal"><span class="pre">fmax</span></tt> is the maximum frequency in the input in both cases.</p>
+<p><strong>Step 2:</strong> Generate white (carrier) noise in time domain</p>
+<div class="math">
+<p><img src="_images/math/6c783a50c65d2181470b38e50dc39c0c9888ffae.png" alt="w_k(t) = \cos(2 \pi r_k^{(1)}) \sqrt{-2 \ln(r_k^{(2)})} \text{\,\,\,case `r'},
+
+w_k(t) = \exp(2 \pi i r_k^{(1)}) \sqrt{-2 \ln(r_k^{(2)})} \text{\,\,\,case `c'},"/></p>
+</div><p><strong>Step 3:</strong> Transform the generated white noise to frequency domain</p>
+<div class="math">
+<p><img src="_images/math/46b97b0022f9c4d62c1212525034a9e5818bb877.png" alt="W_l(f) = \sum_{k=1}^N w_k(t) e^{-2 \pi i \frac{k l}{N}} ."/></p>
+</div><p><strong>Step 4:</strong> In frequency domain, colour the white noise with the desired
+noise probability density (unit: radians). The noise probability density
+derived from the double-sided spectrum is</p>
+<div class="math">
+<p><img src="_images/math/687b047a5ce40ca83da07fef4b0a5836ac389a46.png" alt="s_l(f) = \sqrt{A S_l^{\text{DB}} f_{\text{max}}} ,"/></p>
+</div><p>where <img class="math" src="_images/math/23bc1af8690803551343ab3ef881a210889cfa1b.png" alt="A=2"/> for <tt class="docutils literal"><span class="pre">transform</span> <span class="pre">=</span> <span class="pre">'r'</span></tt> and <img class="math" src="_images/math/ebab55c527ddfc70549fed4e8936a309813303cc.png" alt="A=1"/> for
+<tt class="docutils literal"><span class="pre">transform</span> <span class="pre">=</span> <span class="pre">'c'</span></tt>. The coloured noise is obtained by multiplication in
+frequency domain</p>
+<div class="math">
+<p><img src="_images/math/5e836a1396e011822c84e100dd2ac3625771a163.png" alt="\Phi_l(f) = s_l(f) W_l(f) ."/></p>
+</div><p><strong>Step 5:</strong> Transform back the coloured spectrum to time domain to obtain
+the final phase shift array (we use only the real part).</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="lhc-type-phase-noise-generation">
+<h3>LHC-type phase noise generation<a class="headerlink" href="#lhc-type-phase-noise-generation" title="Permalink to this headline">¶</a></h3>
+<dl class="class">
+<dt id="llrf.rf_noise.LHCFlatSpectrum">
+<em class="property">class </em><tt class="descclassname">llrf.rf_noise.</tt><tt class="descname">LHCFlatSpectrum</tt><big>(</big><em>object).__init__(GeneralParameters</em>, <em>RFSectionParameters</em>, <em>time_points</em>, <em>corr_time = 10000</em>, <em>fmin = 0.8571</em>, <em>fmax = 1.1</em>, <em>initial_amplitude = 1.e-6</em>, <em>seed1 = 1234</em>, <em>seed2 = 7564</em><big>)</big><a class="headerlink" href="#llrf.rf_noise.LHCFlatSpectrum" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generates LHC-type phase noise from a band-limited spectrum. Input frequency
+band using <tt class="docutils literal"><span class="pre">fmin</span></tt> and <tt class="docutils literal"><span class="pre">fmax</span></tt> w.r.t. the synchrotron frequency. Input
+double-sided spectrum amplitude [<img class="math" src="_images/math/ac1bd0d6634220d2bd9f7245bb1a263d30aa590b.png" alt="\text{rad}^2/\text{Hz}"/>] using
+<tt class="docutils literal"><span class="pre">initial_amplitude</span></tt>. Fix seeds to obtain reproducible phase noise. Select
+<tt class="docutils literal"><span class="pre">time_points</span></tt> suitably to resolve the spectrum in frequency domain. After
+<tt class="docutils literal"><span class="pre">corr_time</span></tt> turns, the seed is changed (reproducibly) to cut numerical
+correlated sequences of the random number generator.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>GeneralParameters</strong> &#8211; <a class="reference internal" href="input_parameters.html#input_parameters.general_parameters.GeneralParameters" title="input_parameters.general_parameters.GeneralParameters"><tt class="xref py py-class docutils literal"><span class="pre">input_parameters.general_parameters.GeneralParameters</span></tt></a></li>
+<li><strong>RFSectionParameters</strong> &#8211; <a class="reference internal" href="input_parameters.html#input_parameters.rf_parameters.RFSectionParameters" title="input_parameters.rf_parameters.RFSectionParameters"><tt class="xref py py-class docutils literal"><span class="pre">input_parameters.rf_parameters.RFSectionParameters</span></tt></a></li>
+<li><strong>time_points</strong> (<em>int</em>) &#8211; number of phase noise points of a sample in time
+domain</li>
+<li><strong>corr_time</strong> (<em>int</em>) &#8211; number of turns after which seed is changed</li>
+<li><strong>fmin</strong> (<em>double</em>) &#8211; spectrum lower limit in units of synchrotron frequency</li>
+<li><strong>fmax</strong> (<em>double</em>) &#8211; spectrum upper limit in units of synchrotron frequency</li>
+<li><strong>initial_amplitude</strong> (<em>double</em>) &#8211; initial double sided spectral density
+[<img class="math" src="_images/math/ac1bd0d6634220d2bd9f7245bb1a263d30aa590b.png" alt="\text{rad}^2/\text{Hz}"/>]</li>
+<li><strong>seed1</strong> (<em>int</em>) &#8211; seed for random number generator</li>
+<li><strong>seed2</strong> (<em>int</em>) &#8211; seed for random number generator</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last"><tt class="docutils literal"><span class="pre">time_points</span></tt> should be chosen large enough to resolve the
+desired frequency step <img class="math" src="_images/math/d399257efe800e98874f5df19f606f7a67f0533d.png" alt="\Delta f ="/>
+<tt class="xref py py-attr docutils literal"><span class="pre">GeneralParameters.f_rev</span></tt>/<tt class="xref py py-attr docutils literal"><span class="pre">LHCFlatSpectrum.time_points</span></tt>
+in frequency domain.</p>
+</div>
+<dl class="method">
+<dt id="llrf.rf_noise.LHCFlatSpectrum.generate">
+<tt class="descname">generate</tt><big>(</big><big>)</big><a class="headerlink" href="#llrf.rf_noise.LHCFlatSpectrum.generate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generates LHC-type phase noise array (length:
+<tt class="xref py py-attr docutils literal"><span class="pre">GeneralParameters.n_turns</span></tt> + 1). Stored in the variable
+<tt class="xref py py-attr docutils literal"><span class="pre">LHCFlatSpectrum.dphi</span></tt>.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="bunch-length-based-feedback-on-noise-amplitude">
+<h3>Bunch-length based feedback on noise amplitude<a class="headerlink" href="#bunch-length-based-feedback-on-noise-amplitude" title="Permalink to this headline">¶</a></h3>
+<dl class="class">
+<dt id="llrf.rf_noise.LHCNoiseFB">
+<em class="property">class </em><tt class="descclassname">llrf.rf_noise.</tt><tt class="descname">LHCNoiseFB</tt><big>(</big><em>object).__init__(bl_target</em>, <em>gain = 1.5</em>, <em>factor = 0.8</em><big>)</big><a class="headerlink" href="#llrf.rf_noise.LHCNoiseFB" title="Permalink to this definition">¶</a></dt>
+<dd><p>Feedback on phase noise amplitude for LHC controlled longitudinal emittance
+blow-up using noise injection through cavity controller or phase loop.
+The feedback compares the FWHM bunch length of the bunch to a target value
+and scales the phase noise to keep the targeted value.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>bl_target</strong> &#8211; Targeted 4-sigma-equivalent FWHM bunch length [ns]</li>
+<li><strong>gain</strong> &#8211; feedback gain [1/ns]</li>
+<li><strong>factor</strong> &#8211; feedback recursion scaling factor [1]</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">Note that the FWMH bunch length is scaled by
+<img class="math" src="_images/math/107d5f297f7b24fb7c33b23f63c0131c1a2193c8.png" alt="\sqrt{2/\ln{2}}"/> in order to obtain a 4-sigma equivalent value.</p>
+</div>
+<dl class="method">
+<dt id="llrf.rf_noise.LHCNoiseFB.FB">
+<tt class="descname">FB</tt><big>(</big><em>RFSectionParameters</em>, <em>Beam</em>, <em>PhaseNoise</em>, <em>Slices</em>, <em>CC = False</em><big>)</big><a class="headerlink" href="#llrf.rf_noise.LHCNoiseFB.FB" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates the bunch-length based feedback scaling factor as a function
+of measured FWHM bunch length. For phase noise injected through the
+cavity RF voltage, the feedback scaling can be directly applied on the
+<tt class="xref py py-attr docutils literal"><span class="pre">RFSectionParameters.phi_noise</span></tt> variable by setting
+<tt class="docutils literal"><span class="pre">CC</span> <span class="pre">=</span> <span class="pre">True</span></tt>. For phase noise injected through the <tt class="xref py py-class docutils literal"><span class="pre">PhaseLoop</span></tt>
+class, the correction can be applied inside the phase loop, via passing
+<tt class="xref py py-class docutils literal"><span class="pre">LHCNoiseFB</span></tt> as an argument in <tt class="xref py py-class docutils literal"><span class="pre">PhaseLoop</span></tt>.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>RFSectionParameters</strong> &#8211; <a class="reference internal" href="input_parameters.html#input_parameters.rf_parameters.RFSectionParameters" title="input_parameters.rf_parameters.RFSectionParameters"><tt class="xref py py-class docutils literal"><span class="pre">input_parameters.rf_parameters.RFSectionParameters</span></tt></a></li>
+<li><strong>Beam</strong> &#8211; <a class="reference internal" href="beams.html#beams.beams.Beam" title="beams.beams.Beam"><tt class="xref py py-class docutils literal"><span class="pre">beams.beams.Beam</span></tt></a></li>
+<li><strong>PhaseNoise</strong> &#8211; phase-noise type class,
+<a class="reference internal" href="#llrf.rf_noise.PhaseNoise" title="llrf.rf_noise.PhaseNoise"><tt class="xref py py-class docutils literal"><span class="pre">llrf.rf_noise.PhaseNoise</span></tt></a> or
+<a class="reference internal" href="#llrf.rf_noise.LHCFlatSpectrum" title="llrf.rf_noise.LHCFlatSpectrum"><tt class="xref py py-class docutils literal"><span class="pre">llrf.rf_noise.LHCFlatSpectrum</span></tt></a></li>
+<li><strong>Slices</strong> &#8211; <a class="reference internal" href="beams.html#beams.slices.Slices" title="beams.slices.Slices"><tt class="xref py py-class docutils literal"><span class="pre">beams.slices.Slices</span></tt></a></li>
+<li><strong>CC</strong> (<em>bool</em>) &#8211; cavity controller option</li>
+</ul>
+</td>
+</tr>
 </tbody>
 </table>
 </dd></dl>
 
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="fwhm">
+<em class="property">classmethod </em><tt class="descname">fwhm</tt><big>(</big><em>Slices</em><big>)</big><a class="headerlink" href="#fwhm" title="Permalink to this definition">¶</a></dt>
+<dd><p>Fast FWHM bunch length calculation with slice width precision.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>Slices</strong> &#8211; <a class="reference internal" href="beams.html#beams.slices.Slices" title="beams.slices.Slices"><tt class="xref py py-class docutils literal"><span class="pre">beams.slices.Slices</span></tt></a></td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">4-sigma-equivalent FWHM bunch length [ns]</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+</div>
+<div class="section" id="llrf-phase-loop-module">
+<h2>llrf.phase_loop module<a class="headerlink" href="#llrf-phase-loop-module" title="Permalink to this headline">¶</a></h2>
+<p><strong>Various beam phase loops (PL) with optional synchronisation (SL), frequency
+(FL), or radial loops (RL) for the CERN machines</strong></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Authors:</th><td class="field-body"><strong>Helga Timko</strong></td>
+</tr>
+</tbody>
+</table>
+<div class="section" id="machine-dependent-beam-phase-loop">
+<h3>Machine-dependent Beam Phase Loop<a class="headerlink" href="#machine-dependent-beam-phase-loop" title="Permalink to this headline">¶</a></h3>
+<dl class="class">
+<dt id="llrf.phase_loop.PhaseLoop">
+<em class="property">class </em><tt class="descclassname">llrf.phase_loop.</tt><tt class="descname">PhaseLoop</tt><big>(</big><em>object).__init__(GeneralParameters</em>, <em>RFSectionParameters</em>, <em>Slices</em>, <em>gain</em>, <em>gain2 = 0</em>, <em>machine = 'LHC'</em>, <em>period = None</em>, <em>window_coefficient = 0</em>, <em>coefficients = None</em>, <em>PhaseNoise = None</em>, <em>LHCNoiseFB = None</em><big>)</big><a class="headerlink" href="#llrf.phase_loop.PhaseLoop" title="Permalink to this definition">¶</a></dt>
+<dd><p>One-turn PL for different machines with different hardware. The beam phase is
+calculated as the convolution of the beam profile with the RF wave of the
+main harmonic system (corresponding to a band-pass filter). The PL acts
+directly on the RF frequency and phase of all harmonics.</p>
+<p>Some machine-dependent features:</p>
+<ul class="simple">
+<li>PSB: use <tt class="docutils literal"><span class="pre">sampling_frequency</span></tt> for a PL that is active only at certain
+turns.</li>
+<li>SPS: use <tt class="docutils literal"><span class="pre">window</span> <span class="pre">coefficient</span></tt> to sample beam phase over a suitable
+amount of bunches (<tt class="docutils literal"><span class="pre">window_coefficient</span> <span class="pre">=</span> <span class="pre">0</span></tt> results in single-bunch
+acquisition as in the LHC)</li>
+<li>LHC_F: PL with optional FL (use <tt class="docutils literal"><span class="pre">gain2</span></tt> to activate)</li>
+<li>LHC: PL with optional SL (use <tt class="docutils literal"><span class="pre">gain2</span></tt> to activate; note that gain is
+frequency dependent)</li>
+</ul>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>GeneralParameters</strong> &#8211; <a class="reference internal" href="input_parameters.html#input_parameters.general_parameters.GeneralParameters" title="input_parameters.general_parameters.GeneralParameters"><tt class="xref py py-class docutils literal"><span class="pre">input_parameters.general_parameters.GeneralParameters</span></tt></a></li>
+<li><strong>RFSectionParameters</strong> &#8211; <a class="reference internal" href="input_parameters.html#input_parameters.rf_parameters.RFSectionParameters" title="input_parameters.rf_parameters.RFSectionParameters"><tt class="xref py py-class docutils literal"><span class="pre">input_parameters.rf_parameters.RFSectionParameters</span></tt></a></li>
+<li><strong>Slices</strong> &#8211; <a class="reference internal" href="beams.html#beams.slices.Slices" title="beams.slices.Slices"><tt class="xref py py-class docutils literal"><span class="pre">beams.slices.Slices</span></tt></a></li>
+<li><strong>gain</strong> (<em>double</em>) &#8211; phase loop gain [1/ns], typically <img class="math" src="_images/math/8362f9705b36c8386a299c2e35d074779b25884b.png" alt="\sim 1/(10 T_0)"/></li>
+<li><strong>gain2</strong> (<em>double</em>) &#8211; FL gain [turns] or SL gain [1/ns], depending on machine;
+typically ~10 times weaker than PL</li>
+<li><strong>machine</strong> (<em>str</em>) &#8211; machine name, determines PL choice</li>
+<li><strong>period</strong> (<em>double</em>) &#8211; optional for PSB: period of PL being active</li>
+<li><strong>window_coefficient</strong> (<em>double</em>) &#8211; window coefficient for band-pass filter
+determining beam phase; use 0 for single-bunch acquisition</li>
+<li><strong>coefficients</strong> (<em>array</em>) &#8211; optional for PSB: PL transfer function
+coefficients</li>
+<li><strong>PhaseNoise</strong> &#8211; optional: phase-noise type class for noise injection
+through the PL,
+<a class="reference internal" href="#llrf.rf_noise.PhaseNoise" title="llrf.rf_noise.PhaseNoise"><tt class="xref py py-class docutils literal"><span class="pre">llrf.rf_noise.PhaseNoise</span></tt></a> or
+<a class="reference internal" href="#llrf.rf_noise.LHCFlatSpectrum" title="llrf.rf_noise.LHCFlatSpectrum"><tt class="xref py py-class docutils literal"><span class="pre">llrf.rf_noise.LHCFlatSpectrum</span></tt></a></li>
+<li><strong>LHCNoiseFB</strong> &#8211; optional: bunch-length feedback class for phase noise
+<a class="reference internal" href="#llrf.rf_noise.LHCNoiseFB" title="llrf.rf_noise.LHCNoiseFB"><tt class="xref py py-class docutils literal"><span class="pre">llrf.rf_noise.LHCNoiseFB</span></tt></a></li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="llrf.phase_loop.PhaseLoop.track">
+<tt class="descname">track</tt><big>(</big><big>)</big><a class="headerlink" href="#llrf.phase_loop.PhaseLoop.track" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates the PL correction on main RF frequency depending on machine.
+Updates the RF phase and frequency of the next turn for all RF systems.</p>
+<p>Let <img class="math" src="_images/math/04360b1c55bcf8dedf84981d957cff214adb807e.png" alt="\Delta \omega_{\mathsf{TOT}}"/> be the total frequency correction
+(calculation depends on the machine, see below). The RF frequency of a
+given RF system <img class="math" src="_images/math/a581f053bbfa5115f42c13094857cdd12a37ec49.png" alt="i"/> is then shifted by</p>
+<div class="math">
+<p><img src="_images/math/a68bfd24518e82b1edb09fe05c1c86d640bc0706.png" alt="\Delta \omega_{\mathsf{rf},i} = \frac{h_i}{h_0} \Delta
+\omega_{\mathsf{TOT}} ,"/></p>
+</div><p>with a corresponding RF phase shift of</p>
+<div class="math">
+<p><img src="_images/math/a3e08f3fc77b1cccd949e5996e416646394e525f.png" alt="\Delta \varphi_{\mathsf{rf},i} = 2 \pi h_i
+\frac{\omega_{\mathsf{rf},i}}{\Omega_{\mathsf{rf},i}} ,"/></p>
+</div><p>where <img class="math" src="_images/math/5bf102a27e511498f7a1ff8921ee097d42621412.png" alt="\Omega_{\mathsf{rf},i} = h_i \omega_0"/> is the design
+frequency and <img class="math" src="_images/math/eae2e26885c6d7b9f222ed7d0ea2e91d8bcef346.png" alt="\omega_{\mathsf{rf},i}"/> the actual RF frequency
+applied.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="llrf.phase_loop.PhaseLoop.precalculate_time">
+<tt class="descname">precalculate_time</tt><big>(</big><em>GeneralParameters</em><big>)</big><a class="headerlink" href="#llrf.phase_loop.PhaseLoop.precalculate_time" title="Permalink to this definition">¶</a></dt>
+<dd><p>For PSB, where the PL acts only with a given periodicity, pre-calculate on
+which turns to act.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>GeneralParameters</strong> &#8211; <a class="reference internal" href="input_parameters.html#input_parameters.general_parameters.GeneralParameters" title="input_parameters.general_parameters.GeneralParameters"><tt class="xref py py-class docutils literal"><span class="pre">input_parameters.general_parameters.GeneralParameters</span></tt></a></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="llrf.phase_loop.PhaseLoop.beam_phase">
+<tt class="descname">beam_phase</tt><big>(</big><big>)</big><a class="headerlink" href="#llrf.phase_loop.PhaseLoop.beam_phase" title="Permalink to this definition">¶</a></dt>
+<dd><p>Beam phase measured at the main RF frequency and phase. The beam is
+convolved with the window function of the band-pass filter of the machine.
+The coefficients of sine and cosine components determine the beam phase,
+projected to the range -Pi/2 to 3/2 Pi.</p>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
-<p>Use <code class="docutils literal"><span class="pre">transform=None</span></code> or <code class="docutils literal"><span class="pre">'r'</span></code> to transform hermitian spectrum
-to real phase. In this case, input only the positive part of the
-double-sided spectrum. Use <code class="docutils literal"><span class="pre">transform='c'</span></code> to transform complex spectrum
-to complex phase. In this case, input first the zero and positive
-frequency components, then the decreasingly negative frequency components
-of the double-sided spectrum. Returns only the real part of the phase
-noise. E.g. the following two ways of usage are equivalent:</p>
-<a class="last reference internal image-reference" href="_images/RF_noise.png"><img alt="_images/RF_noise.png" class="align-center" src="_images/RF_noise.png" style="width: 1000px; height: 250px;" /></a>
+<p class="last">that this beam phase is already determined w.r.t. the
+instantaneous RF phase.</p>
 </div>
-</div></blockquote>
-<div class="section" id="the-transformation-in-steps">
-<h3>The transformation in steps<a class="headerlink" href="#the-transformation-in-steps" title="Permalink to this headline">¶</a></h3>
-<p><strong>Step 1:</strong> Set the resolution in time domain. To transform a hermitian spectrum to
-real phase noise,</p>
+<p>The band-pass filter modelled assumes a window function of the form</p>
 <div class="math">
-<p><img src="_images/math/e1e825aeeaae046c45d16e3bb83c492cbf9433b5.png" alt="n_t = 2 (n_f - 1) \text{and} \Delta t = 1/(2 f_{\text{max}}) ,"/></p>
-</div><p>and to transform a complex spectrum to complex phase noise,</p>
+<p><img src="_images/math/c7554a19350d13f1107fba97b5cdceb764a54612.png" alt="W(t) = e^{-\alpha t}
+\cos(\omega_{\mathsf{rf}} t - \varphi_{\mathsf{rf}}) ,"/></p>
+</div><p>where <img class="math" src="_images/math/ad59b6e24a4a00ac621801f8d7513d68be654ab5.png" alt="\alpha"/> is the <tt class="docutils literal"><span class="pre">window_coefficient</span></tt> that determines how
+many bunches are taken into account.</p>
+<p>The convolution of <img class="math" src="_images/math/02decde7852427aece329cc3592cf12f32844c04.png" alt="W(t)"/> with the bunch profile <img class="math" src="_images/math/fb2560ade70d8ae6c836f8870929f17424ef5b5c.png" alt="\lambda(t)"/>
+results in two components,</p>
 <div class="math">
-<p><img src="_images/math/41668cc2c5e555ff44fd7f0a8246a564e74dbdf1.png" alt="n_t = n_f \text{and} \Delta t = 1/f_{\text{max}} ,"/></p>
-</div><p>where <code class="docutils literal"><span class="pre">fmax</span></code> is the maximum frequency in the input in both cases.</p>
-<p><strong>Step 2:</strong> Generate white (carrier) noise in time domain</p>
+<p><img src="_images/math/58584bf63c758fecf362782ef22d55666f3de797.png" alt="f(t) = \int_{\lambda_{\mathsf{min}}}^{\lambda_{\mathsf{max}}}
+{e^{-\alpha (t-\tau)} \cos(\omega_{\mathsf{rf}} (t-\tau) -
+\varphi_{\mathsf{rf}}) \lambda(\tau) d\tau}
+= e^{-\alpha t} \cos(\omega_{\mathsf{rf}} t)
+\int_{\lambda_{\mathsf{min}}}^{\lambda_{\mathsf{max}}}
+{e^{\alpha \tau} \cos(\omega_{\mathsf{rf}} \tau +
+\varphi_{\mathsf{rf}}) \lambda(\tau) d\tau}
++ e^{-\alpha t} \sin(\omega_{\mathsf{rf}} t)
+\int_{\lambda_{\mathsf{min}}}^{\lambda_{\mathsf{max}}}
+{e^{\alpha \tau} \sin(\omega_{\mathsf{rf}} \tau +
+\varphi_{\mathsf{rf}}) \lambda(\tau) d\tau} ."/></p>
+</div><p>The beam phase is determined from the coefficients of the sine and cosine
+components, i.e.</p>
 <div class="math">
-<p><img src="_images/math/57a1229476c407af66c2147ae6ce71312c77bd25.png" alt="w_k(t) = \cos(2 \pi r_k^{(1)}) \sqrt{-2 \ln(r_k^{(2)})} \text{case 'r'},
+<p><img src="_images/math/8ca457c88da7f53f1939c28ef9081d97e4c54cfa.png" alt="\varphi_b \equiv \arctan \left(
+\frac{\int_{\lambda_{\mathsf{min}}}^{\lambda_{\mathsf{max}}}
+{e^{\alpha \tau} \sin(\omega_{\mathsf{rf}} \tau +
+\varphi_{\mathsf{rf}}) \lambda(\tau) d\tau}}
+{\int_{\lambda_{\mathsf{min}}}^{\lambda_{\mathsf{max}}}
+{e^{\alpha \tau} \cos(\omega_{\mathsf{rf}} \tau +
+\varphi_{\mathsf{rf}}) \lambda(\tau) d\tau}} \right) ."/></p>
+</div><p>This projects the beam phase to the interval
+<img class="math" src="_images/math/1e9e1ca6c7fa87f7f475ae2024c0bdb6b36b0c6f.png" alt="\left( -\frac{\pi}{2} , \frac{\pi}{2}\right)"/>, however, the RF
+phase is defined on the interval
+<img class="math" src="_images/math/bb014d7a29b073812e99d7ba5cf94a955792469d.png" alt="\left( -\frac{\pi}{2} , \frac{3 \pi}{2}\right)"/>. In order to get a
+correct measurement of the beam phase, we thus add <img class="math" src="_images/math/c1bd4cb4e3647c6b2356b7ccf2f52aeffedd1b61.png" alt="\pi"/> if the
+cosine coefficient is negative (meaning normally the beam energy is above
+transition).</p>
+</dd></dl>
 
-w_k(t) = \exp(2 \pi i r_k^{(1)}) \sqrt{-2 \ln(r_k^{(2)})} \text{case 'c'},"/></p>
-</div><p><strong>Step 3:</strong> Transform the generated white noise to frequency domain</p>
+<dl class="method">
+<dt id="llrf.phase_loop.PhaseLoop.phase_difference">
+<tt class="descname">phase_difference</tt><big>(</big><big>)</big><a class="headerlink" href="#llrf.phase_loop.PhaseLoop.phase_difference" title="Permalink to this definition">¶</a></dt>
+<dd><p>Phase difference between beam and RF phase of the main RF system.
+Optional: add RF phase noise through dphi directly.</p>
+<p>As the actual RF phase is taken into account already in the beam phase
+calculation, only the synchronous phase needs to be substracted and thus
+the phase difference seen by the PL becomes</p>
 <div class="math">
-<p><img src="_images/math/46b97b0022f9c4d62c1212525034a9e5818bb877.png" alt="W_l(f) = \sum_{k=1}^N w_k(t) e^{-2 \pi i \frac{k l}{N}} ."/></p>
-</div><p><strong>Step 4:</strong> In frequency domain, colour the white noise with the desired noise
-probability density (unit: radians). The noise probability density derived from
-the double-sided spectrum is</p>
+<p><img src="_images/math/420ef1f4db43ffbe2fb0a61300726d8207882026.png" alt="\Delta \varphi_{\mathsf{PL}} = \varphi_b - \varphi_s ."/></p>
+</div><p>If phase noise is injected through the PL, it is added directly as an
+offset to this measurement, optionally with the feedback scaling factor
+<img class="math" src="_images/math/188c175aac0a8a9c22499336711b5d7256407254.png" alt="x"/>.</p>
 <div class="math">
-<p><img src="_images/math/687b047a5ce40ca83da07fef4b0a5836ac389a46.png" alt="s_l(f) = \sqrt{A S_l^{\text{DB}} f_{\text{max}}} ,"/></p>
-</div><p>where A=2 for <code class="docutils literal"><span class="pre">transform</span> <span class="pre">=</span> <span class="pre">'r'</span></code> and A=1 for <code class="docutils literal"><span class="pre">transform</span> <span class="pre">=</span> <span class="pre">'c'</span></code>. The
-coloured noise is obtained by multiplication in frequency domain</p>
+<p><img src="_images/math/ec5c66cd8440e06c5b39f466b3fd4e915e4bb362.png" alt="\Delta \varphi_{\mathsf{PL}} = \varphi_b - \varphi_s
++ (x) \phi_N ."/></p>
+</div></dd></dl>
+
+<dl class="method">
+<dt>
+<tt class="descname">LHC_F():</tt></dt>
+<dd><p>Calculates the RF frequency correction <img class="math" src="_images/math/92a14343ac129896315b0e7aa0369938eacbfc2c.png" alt="\Delta \omega_{\mathsf{PL}}"/>
+from the phase difference between beam and RF
+<img class="math" src="_images/math/cc21be8aa0960261e0e16bd615f0ece71075535c.png" alt="\Delta \varphi_{\mathsf{PL}}"/> for the LHC. The transfer function is</p>
 <div class="math">
-<p><img src="_images/math/5e836a1396e011822c84e100dd2ac3625771a163.png" alt="\Phi_l(f) = s_l(f) W_l(f) ."/></p>
-</div><p><strong>Step 5:</strong> Transform back the coloured spectrum to time domain to obtain the final
-phase shift array (we use only the real part).</p>
+<p><img src="_images/math/5fac57bddb1407d0e43248f1ff5db5cee52a2f6c.png" alt="\Delta \omega_{\mathsf{PL}} = - g_{\mathsf{PL}}
+\Delta\varphi_{\mathsf{PL}} ,"/></p>
+</div><p>Using &#8216;gain2&#8217;, the frequency loop can be activated in addition to remove
+long-term frequency drifts:</p>
+<div class="math">
+<p><img src="_images/math/937ad2ab1ff9f6ffcce76853d170d48542850221.png" alt="\Delta \omega_{\mathsf{FL}} = - g_{\mathsf{FL}}
+(\omega_{\mathsf{rf}} - h \omega_{0}) ."/></p>
+</div></dd></dl>
+
+<dl class="method">
+<dt id="llrf.phase_loop.PhaseLoop.LHC">
+<tt class="descname">LHC</tt><big>(</big><big>)</big><a class="headerlink" href="#llrf.phase_loop.PhaseLoop.LHC" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates the RF frequency correction <img class="math" src="_images/math/92a14343ac129896315b0e7aa0369938eacbfc2c.png" alt="\Delta \omega_{\mathsf{PL}}"/>
+from the phase difference between beam and RF
+<img class="math" src="_images/math/cc21be8aa0960261e0e16bd615f0ece71075535c.png" alt="\Delta \varphi_{\mathsf{PL}}"/> for the LHC. The transfer function is</p>
+<div class="math">
+<p><img src="_images/math/9828ea176ac25eb6457cc876bb5f6d8e2095b2e1.png" alt="\Delta \omega_{\mathsf{PL}} = - g_{\mathsf{PL}}
+\Delta \varphi_{\mathsf{PL}} ,"/></p>
+</div><p>Using &#8216;gain2&#8217;, a synchro loop can be activated in addition to remove
+long-term frequency and phase drifts:</p>
+<div class="math">
+<p><img src="_images/math/8b2040c639bd86c4352adffdc37b71a8f11a5202.png" alt="\Delta \omega_{\mathsf{SL}} = - g_{\mathsf{SL}}
+(y + a \, \Delta \varphi_{\mathsf{rf}}) ,"/></p>
+</div><p>where <img class="math" src="_images/math/83679eb8c9052ec527a8c1860665039dcbb15303.png" alt="\Delta \varphi_{\mathsf{rf}}"/> is the accumulated RF phase
+deviation from the design value and <img class="math" src="_images/math/b124ff74afb0914bb434e8fb849eb56d734412f8.png" alt="y"/> is is obtained through the
+recursion (<img class="math" src="_images/math/2bc284b160fe6cb0f9fd53b3f19ee06af35e3c0f.png" alt="y_0 = 0"/>)</p>
+<div class="math">
+<p><img src="_images/math/c9747d5592a39328fd34694ef092bf02f8882fc1.png" alt="y_{n+1} = (1 - \tau) y_n + (1 - a) \tau
+\Delta \varphi_{\mathsf{rf}} ."/></p>
+</div><p>The variables <img class="math" src="_images/math/7dd2a5ea01fbd72ad2a58dd1f3d6ecbfde6208a1.png" alt="a"/> and <img class="math" src="_images/math/d9e99c35d3632bb156b7aca0e93cd78a148a10e8.png" alt="\tau"/> are being defined through the
+(single-harmonic, central) synchrotron frequency <img class="math" src="_images/math/a2750eb24a00e1c35b2e560ee2981dbcb52d7b3c.png" alt="f_s"/> and the
+corresponding synchrotron tune <img class="math" src="_images/math/c4a58ebde93c9eea747565a76ddc749e696a3825.png" alt="Q_s"/> as</p>
+<div class="math">
+<p><img src="_images/math/f90d0d0f5f51a22f6265525b3cf291f910aa2582.png" alt="a (f_s) \equiv 5.25 - \frac{f_s}{\pi 40~\text{Hz}} ,"/></p>
+</div><div class="math">
+<p><img src="_images/math/a99ba48ba580ab1c5165c2edeb5c2fdcac5ff3c5.png" alt="\tau(f_s) \equiv 2 \pi Q_s \sqrt{ \frac{a}{1 +
+\frac{g_{\mathsf{PL}}}{g_{\mathsf{SL}}} \sqrt{\frac{1 + 1/a}{1 + a}} }} ."/></p>
+</div></dd></dl>
+
+<dl class="method">
+<dt>
+<tt class="descname">PSB():</tt></dt>
+<dd><p>Calculates the RF frequency correction <img class="math" src="_images/math/92a14343ac129896315b0e7aa0369938eacbfc2c.png" alt="\Delta \omega_{\mathsf{PL}}"/>
+from the phase difference between beam and RF
+<img class="math" src="_images/math/cc21be8aa0960261e0e16bd615f0ece71075535c.png" alt="\Delta \varphi_{\mathsf{PL}}"/> for the PSB. The transfer function is</p>
+<div class="math">
+<p><img src="_images/math/3dc4964e86b7cc38f1f0b76fe896b9fff0a1434f.png" alt="\Delta \omega_{\mathsf{PL}} = 2 \pi g
+\frac{a_0 \Delta \varphi_{\mathsf{PL}}^2
++ a_1 \Delta \varphi_{\mathsf{PL}} + a_2 }
+{\Delta \varphi_{\mathsf{PL}}^2
+- b_1 \Delta \varphi_{\mathsf{PL}} - b_2} ."/></p>
+</div><p>Input <img class="math" src="_images/math/67f4714f065d485540ad40829e0717bf75e9dd85.png" alt="g"/> through <tt class="docutils literal"><span class="pre">gain</span></tt> and the array
+<img class="math" src="_images/math/87a221bd2faa2daf6e90e9dc86abcfc1c3cb113d.png" alt="[a_0, a_1, a_2, b_1, b_2]"/> through <tt class="docutils literal"><span class="pre">coefficients</span></tt>.</p>
+</dd></dl>
+
+</dd></dl>
+
 </div>
-</div>
-<div class="section" id="module-llrf">
-<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-llrf" title="Permalink to this headline">¶</a></h2>
 </div>
 </div>
 
@@ -169,17 +523,22 @@ phase shift array (we use only the real part).</p>
           </div>
         </div>
       </div>
-      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+      <div class="sphinxsidebar">
         <div class="sphinxsidebarwrapper">
   <h3><a href="index.html">Table Of Contents</a></h3>
   <ul>
 <li><a class="reference internal" href="#">llrf package</a><ul>
 <li><a class="reference internal" href="#submodules">Submodules</a></li>
-<li><a class="reference internal" href="#llrf-rf-noise-module">llrf.RF_noise module</a><ul>
-<li><a class="reference internal" href="#the-transformation-in-steps">The transformation in steps</a></li>
+<li><a class="reference internal" href="#llrf-rf-noise-module">llrf.rf_noise module</a><ul>
+<li><a class="reference internal" href="#rf-phase-noise-generation">RF phase noise generation</a></li>
+<li><a class="reference internal" href="#lhc-type-phase-noise-generation">LHC-type phase noise generation</a></li>
+<li><a class="reference internal" href="#bunch-length-based-feedback-on-noise-amplitude">Bunch-length based feedback on noise amplitude</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#module-llrf">Module contents</a></li>
+<li><a class="reference internal" href="#llrf-phase-loop-module">llrf.phase_loop module</a><ul>
+<li><a class="reference internal" href="#machine-dependent-beam-phase-loop">Machine-dependent Beam Phase Loop</a></li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>
@@ -190,14 +549,12 @@ phase shift array (we use only the real part).</p>
   <h4>Next topic</h4>
   <p class="topless"><a href="monitors.html"
                         title="next chapter">monitors package</a></p>
-  <div role="note" aria-label="source link">
-    <h3>This Page</h3>
-    <ul class="this-page-menu">
-      <li><a href="_sources/llrf.txt"
-            rel="nofollow">Show Source</a></li>
-    </ul>
-   </div>
-<div id="searchbox" style="display: none" role="search">
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/llrf.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
   <h3>Quick search</h3>
     <form class="search" action="search.html" method="get">
       <input type="text" name="q" />
@@ -214,7 +571,7 @@ phase shift array (we use only the real part).</p>
       </div>
       <div class="clearer"></div>
     </div>
-    <div class="related" role="navigation" aria-label="related navigation">
+    <div class="related">
       <h3>Navigation</h3>
       <ul>
         <li class="right" style="margin-right: 10px">
@@ -233,9 +590,9 @@ phase shift array (we use only the real part).</p>
           <li><a href="modules.html" >&lt;no title&gt;</a> &raquo;</li> 
       </ul>
     </div>
-    <div class="footer" role="contentinfo">
+    <div class="footer">
         &copy; Copyright 2014, CERN.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.3b1.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
     </div>
   </body>
 </html>

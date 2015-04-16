@@ -26,8 +26,8 @@
     <script type="text/javascript" src="_static/doctools.js"></script>
     <link rel="top" title="BLonD embryo documentation" href="index.html" /> 
   </head>
-  <body role="document">
-    <div class="related" role="navigation" aria-label="related navigation">
+  <body>
+    <div class="related">
       <h3>Navigation</h3>
       <ul>
         <li class="right" style="margin-right: 10px">
@@ -43,7 +43,7 @@
     <div class="document">
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body" role="main">
+          <div class="body">
             
 
 <h1 id="index">Index</h1>
@@ -70,6 +70,8 @@
  | <a href="#T"><strong>T</strong></a>
  | <a href="#V"><strong>V</strong></a>
  | <a href="#W"><strong>W</strong></a>
+ | <a href="#X"><strong>X</strong></a>
+ | <a href="#Y"><strong>Y</strong></a>
  | <a href="#Z"><strong>Z</strong></a>
  
 </div>
@@ -121,7 +123,17 @@
 
       </dl></dd>
       
-  <dt><a href="beams.html#beams.slices.Slices.beam_coordinates">beam_coordinates (beams.slices.Slices attribute)</a>
+  <dt><a href="plots.html#plots.plot.Plot.beam">beam (plots.plot.Plot attribute)</a>
+  </dt>
+
+      <dd><dl>
+        
+  <dt><a href="trackers.html#trackers.tracker.RingAndRFSection.beam">(trackers.tracker.RingAndRFSection attribute)</a>
+  </dt>
+
+      </dl></dd>
+      
+  <dt><a href="llrf.html#llrf.phase_loop.PhaseLoop.beam_phase">beam_phase() (llrf.phase_loop.PhaseLoop method)</a>
   </dt>
 
       
@@ -144,6 +156,8 @@
   <dt><a href="beams.html#module-beams">beams (module)</a>
   </dt>
 
+  </dl></td>
+  <td style="width: 33%" valign="top"><dl>
       
   <dt><a href="beams.html#module-beams.beams">beams.beams (module)</a>
   </dt>
@@ -156,32 +170,22 @@
   <dt><a href="beams.html#module-beams.slices">beams.slices (module)</a>
   </dt>
 
-  </dl></td>
-  <td style="width: 33%" valign="top"><dl>
       
-  <dt><a href="beams.html#beams.beams.Beam.beta_r">beta_r (beams.beams.Beam attribute)</a>
+  <dt><a href="beams.html#beams.beams.Beam.beta">beta (beams.beams.Beam attribute)</a>
   </dt>
 
       <dd><dl>
         
-  <dt><a href="input_parameters.html#input_parameters.general_parameters.GeneralParameters.beta_r">(input_parameters.general_parameters.GeneralParameters attribute)</a>
+  <dt><a href="input_parameters.html#input_parameters.general_parameters.GeneralParameters.beta">(input_parameters.general_parameters.GeneralParameters attribute)</a>
   </dt>
 
         
-  <dt><a href="input_parameters.html#input_parameters.rf_parameters.RFSectionParameters.beta_r">(input_parameters.rf_parameters.RFSectionParameters attribute)</a>
-  </dt>
-
-        
-  <dt><a href="trackers.html#trackers.tracker.RingAndRFSection.beta_r">(trackers.tracker.RingAndRFSection attribute)</a>
+  <dt><a href="input_parameters.html#input_parameters.rf_parameters.RFSectionParameters.beta">(input_parameters.rf_parameters.RFSectionParameters attribute)</a>
   </dt>
 
       </dl></dd>
       
-  <dt><a href="trackers.html#trackers.tracker.RingAndRFSection.beta_ratio">beta_ratio (trackers.tracker.RingAndRFSection attribute)</a>
-  </dt>
-
-      
-  <dt><a href="beams.html#beams.slices.Slices.bins_centers">bins_centers (beams.slices.Slices attribute)</a>
+  <dt><a href="beams.html#beams.slices.Slices.bin_centers">bin_centers (beams.slices.Slices attribute)</a>
   </dt>
 
       
@@ -189,23 +193,7 @@
   </dt>
 
       
-  <dt><a href="beams.html#beams.beams.Beam.bl_gauss_tau">bl_gauss_tau (beams.beams.Beam attribute)</a>
-  </dt>
-
-      
-  <dt><a href="beams.html#beams.beams.Beam.bl_gauss_z">bl_gauss_z (beams.beams.Beam attribute)</a>
-  </dt>
-
-      
   <dt><a href="beams.html#beams.slices.Slices.bp_gauss">bp_gauss (beams.slices.Slices attribute)</a>
-  </dt>
-
-      
-  <dt><a href="beams.html#beams.beams.Beam.bp_gauss_tau">bp_gauss_tau (beams.beams.Beam attribute)</a>
-  </dt>
-
-      
-  <dt><a href="beams.html#beams.beams.Beam.bp_gauss_z">bp_gauss_z (beams.beams.Beam attribute)</a>
   </dt>
 
       
@@ -220,6 +208,10 @@
   <td style="width: 33%" valign="top"><dl>
       
   <dt><a href="input_parameters.html#input_parameters.rf_parameters.calc_phi_s">calc_phi_s() (in module input_parameters.rf_parameters)</a>
+  </dt>
+
+      
+  <dt><a href="beams.html#beams.beams.Beam.charge">charge (beams.beams.Beam attribute)</a>
   </dt>
 
       
@@ -249,15 +241,9 @@
   </dl></td>
   <td style="width: 33%" valign="top"><dl>
       
-  <dt><a href="monitors.html#monitors.monitors.BunchMonitor.create_data">create_data() (monitors.monitors.BunchMonitor method)</a>
+  <dt><a href="monitors.html#monitors.monitors.SlicesMonitor.create_data">create_data() (monitors.monitors.SlicesMonitor method)</a>
   </dt>
 
-      <dd><dl>
-        
-  <dt><a href="monitors.html#monitors.monitors.SlicesMonitor.create_data">(monitors.monitors.SlicesMonitor method)</a>
-  </dt>
-
-      </dl></dd>
       
   <dt><a href="beams.html#beams.slices.Slices.cut_left">cut_left (beams.slices.Slices attribute)</a>
   </dt>
@@ -267,7 +253,7 @@
   </dt>
 
       
-  <dt><a href="beams.html#beams.slices.Slices.cuts_coord">cuts_coord (beams.slices.Slices attribute)</a>
+  <dt><a href="beams.html#beams.slices.Slices.cuts_unit">cuts_unit (beams.slices.Slices attribute)</a>
   </dt>
 
   </dl></td>
@@ -277,17 +263,33 @@
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%" valign="top"><dl>
       
-  <dt><a href="beams.html#beams.beams.Beam.delta">delta (beams.beams.Beam attribute)</a>
+  <dt><a href="beams.html#beams.beams.Beam.dE">dE (beams.beams.Beam attribute)</a>
   </dt>
 
       
   <dt><a href="impedances.html#impedances.impedance.InductiveImpedance.deriv_mode">deriv_mode (impedances.impedance.InductiveImpedance attribute)</a>
   </dt>
 
+      
+  <dt><a href="input_parameters.html#input_parameters.rf_parameters.RFSectionParameters.dphi_RF">dphi_RF (input_parameters.rf_parameters.RFSectionParameters attribute)</a>
+  </dt>
+
+      
+  <dt><a href="trackers.html#trackers.tracker.RingAndRFSection.drift">drift() (trackers.tracker.RingAndRFSection method)</a>
+  </dt>
+
   </dl></td>
   <td style="width: 33%" valign="top"><dl>
       
-  <dt><a href="trackers.html#trackers.tracker.RingAndRFSection.drift">drift() (trackers.tracker.RingAndRFSection method)</a>
+  <dt><a href="beams.html#beams.beams.Beam.dt">dt (beams.beams.Beam attribute)</a>
+  </dt>
+
+      
+  <dt><a href="plots.html#plots.plot.Plot.dt_mon">dt_mon (plots.plot.Plot attribute)</a>
+  </dt>
+
+      
+  <dt><a href="plots.html#plots.plot.Plot.dt_plot">dt_plot (plots.plot.Plot attribute)</a>
   </dt>
 
   </dl></td>
@@ -296,6 +298,10 @@
 <h2 id="E">E</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%" valign="top"><dl>
+      
+  <dt><a href="input_parameters.html#input_parameters.rf_parameters.RFSectionParameters.E_increment">E_increment (input_parameters.rf_parameters.RFSectionParameters attribute)</a>
+  </dt>
+
       
   <dt><a href="beams.html#beams.slices.Slices.edges">edges (beams.slices.Slices attribute)</a>
   </dt>
@@ -313,50 +319,46 @@
   <dt><a href="input_parameters.html#input_parameters.rf_parameters.RFSectionParameters.energy">(input_parameters.rf_parameters.RFSectionParameters attribute)</a>
   </dt>
 
-        
-  <dt><a href="trackers.html#trackers.tracker.RingAndRFSection.energy">(trackers.tracker.RingAndRFSection attribute)</a>
-  </dt>
-
       </dl></dd>
       
-  <dt><a href="input_parameters.html#input_parameters.general_parameters.GeneralParameters.eta0">eta0 (input_parameters.general_parameters.GeneralParameters attribute)</a>
-  </dt>
-
-      
-  <dt><a href="input_parameters.html#input_parameters.general_parameters.GeneralParameters.eta1">eta1 (input_parameters.general_parameters.GeneralParameters attribute)</a>
-  </dt>
-
-      
-  <dt><a href="input_parameters.html#input_parameters.general_parameters.GeneralParameters.eta2">eta2 (input_parameters.general_parameters.GeneralParameters attribute)</a>
-  </dt>
-
-  </dl></td>
-  <td style="width: 33%" valign="top"><dl>
-      
-  <dt><a href="input_parameters.html#input_parameters.rf_parameters.RFSectionParameters.eta_0">eta_0 (input_parameters.rf_parameters.RFSectionParameters attribute)</a>
+  <dt><a href="input_parameters.html#input_parameters.general_parameters.GeneralParameters.eta_0">eta_0 (input_parameters.general_parameters.GeneralParameters attribute)</a>
   </dt>
 
       <dd><dl>
+        
+  <dt><a href="input_parameters.html#input_parameters.rf_parameters.RFSectionParameters.eta_0">(input_parameters.rf_parameters.RFSectionParameters attribute)</a>
+  </dt>
+
         
   <dt><a href="trackers.html#trackers.tracker.RingAndRFSection.eta_0">(trackers.tracker.RingAndRFSection attribute)</a>
   </dt>
 
       </dl></dd>
+  </dl></td>
+  <td style="width: 33%" valign="top"><dl>
       
-  <dt><a href="input_parameters.html#input_parameters.rf_parameters.RFSectionParameters.eta_1">eta_1 (input_parameters.rf_parameters.RFSectionParameters attribute)</a>
+  <dt><a href="input_parameters.html#input_parameters.general_parameters.GeneralParameters.eta_1">eta_1 (input_parameters.general_parameters.GeneralParameters attribute)</a>
   </dt>
 
       <dd><dl>
+        
+  <dt><a href="input_parameters.html#input_parameters.rf_parameters.RFSectionParameters.eta_1">(input_parameters.rf_parameters.RFSectionParameters attribute)</a>
+  </dt>
+
         
   <dt><a href="trackers.html#trackers.tracker.RingAndRFSection.eta_1">(trackers.tracker.RingAndRFSection attribute)</a>
   </dt>
 
       </dl></dd>
       
-  <dt><a href="input_parameters.html#input_parameters.rf_parameters.RFSectionParameters.eta_2">eta_2 (input_parameters.rf_parameters.RFSectionParameters attribute)</a>
+  <dt><a href="input_parameters.html#input_parameters.general_parameters.GeneralParameters.eta_2">eta_2 (input_parameters.general_parameters.GeneralParameters attribute)</a>
   </dt>
 
       <dd><dl>
+        
+  <dt><a href="input_parameters.html#input_parameters.rf_parameters.RFSectionParameters.eta_2">(input_parameters.rf_parameters.RFSectionParameters attribute)</a>
+  </dt>
+
         
   <dt><a href="trackers.html#trackers.tracker.RingAndRFSection.eta_2">(trackers.tracker.RingAndRFSection attribute)</a>
   </dt>
@@ -381,7 +383,11 @@
   </dt>
 
       
-  <dt><a href="plots.html#plots.plot_settings.fig_folder">fig_folder() (in module plots.plot_settings)</a>
+  <dt><a href="llrf.html#llrf.rf_noise.LHCNoiseFB.FB">FB() (llrf.rf_noise.LHCNoiseFB method)</a>
+  </dt>
+
+      
+  <dt><a href="plots.html#plots.plot.fig_folder">fig_folder() (in module plots.plot)</a>
   </dt>
 
       
@@ -438,6 +444,16 @@
   <dt><a href="trackers.html#trackers.tracker.FullRingAndRF">FullRingAndRF (class in trackers.tracker)</a>
   </dt>
 
+      
+  <dt><a href="llrf.html#fwhm">fwhm()</a>
+  </dt>
+
+      <dd><dl>
+        
+  <dt><a href="beams.html#beams.slices.Slices.fwhm">(beams.slices.Slices method)</a>
+  </dt>
+
+      </dl></dd>
   </dl></td>
 </tr></table>
 
@@ -445,20 +461,16 @@
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%" valign="top"><dl>
       
-  <dt><a href="beams.html#beams.beams.Beam.gamma_r">gamma_r (beams.beams.Beam attribute)</a>
+  <dt><a href="beams.html#beams.beams.Beam.gamma">gamma (beams.beams.Beam attribute)</a>
   </dt>
 
       <dd><dl>
         
-  <dt><a href="input_parameters.html#input_parameters.general_parameters.GeneralParameters.gamma_r">(input_parameters.general_parameters.GeneralParameters attribute)</a>
+  <dt><a href="input_parameters.html#input_parameters.general_parameters.GeneralParameters.gamma">(input_parameters.general_parameters.GeneralParameters attribute)</a>
   </dt>
 
         
-  <dt><a href="input_parameters.html#input_parameters.rf_parameters.RFSectionParameters.gamma_r">(input_parameters.rf_parameters.RFSectionParameters attribute)</a>
-  </dt>
-
-        
-  <dt><a href="trackers.html#trackers.tracker.RingAndRFSection.gamma_r">(trackers.tracker.RingAndRFSection attribute)</a>
+  <dt><a href="input_parameters.html#input_parameters.rf_parameters.RFSectionParameters.gamma">(input_parameters.rf_parameters.RFSectionParameters attribute)</a>
   </dt>
 
       </dl></dd>
@@ -466,14 +478,22 @@
   <dt><a href="beams.html#beams.slices.gauss">gauss() (in module beams.slices)</a>
   </dt>
 
-  </dl></td>
-  <td style="width: 33%" valign="top"><dl>
       
   <dt><a href="beams.html#beams.slices.Slices.gaussian_fit">gaussian_fit() (beams.slices.Slices method)</a>
   </dt>
 
+  </dl></td>
+  <td style="width: 33%" valign="top"><dl>
+      
+  <dt><a href="plots.html#plots.plot.Plot.general_params">general_params (plots.plot.Plot attribute)</a>
+  </dt>
+
       
   <dt><a href="input_parameters.html#input_parameters.general_parameters.GeneralParameters">GeneralParameters (class in input_parameters.general_parameters)</a>
+  </dt>
+
+      
+  <dt><a href="llrf.html#llrf.rf_noise.LHCFlatSpectrum.generate">generate() (llrf.rf_noise.LHCFlatSpectrum method)</a>
   </dt>
 
   </dl></td>
@@ -482,6 +502,10 @@
 <h2 id="H">H</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%" valign="top"><dl>
+      
+  <dt><a href="plots.html#plots.plot.Plot.h5file">h5file (plots.plot.Plot attribute)</a>
+  </dt>
+
       
   <dt><a href="trackers.html#trackers.utilities.hamiltonian">hamiltonian() (in module trackers.utilities)</a>
   </dt>
@@ -498,12 +522,20 @@
   </dt>
 
       </dl></dd>
+      
+  <dt><a href="plots.html#plots.plot.Plot.histogram">histogram (plots.plot.Plot attribute)</a>
+  </dt>
+
   </dl></td>
 </tr></table>
 
 <h2 id="I">I</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%" valign="top"><dl>
+      
+  <dt><a href="beams.html#beams.beams.Beam.id">id (beams.beams.Beam attribute)</a>
+  </dt>
+
       
   <dt><a href="impedances.html#impedances.impedance.InputTable.Im_Z_array_loaded">Im_Z_array_loaded (impedances.impedance.InputTable attribute)</a>
   </dt>
@@ -596,18 +628,26 @@
   <dt><a href="impedances.html#impedances.impedance.TotalInducedVoltage.induced_voltage_sum">induced_voltage_sum() (impedances.impedance.TotalInducedVoltage method)</a>
   </dt>
 
-  </dl></td>
-  <td style="width: 33%" valign="top"><dl>
       
   <dt><a href="impedances.html#impedances.impedance.InducedVoltageFreq">InducedVoltageFreq (class in impedances.impedance)</a>
   </dt>
 
+  </dl></td>
+  <td style="width: 33%" valign="top"><dl>
       
   <dt><a href="impedances.html#impedances.impedance.InducedVoltageTime">InducedVoltageTime (class in impedances.impedance)</a>
   </dt>
 
       
   <dt><a href="impedances.html#impedances.impedance.InductiveImpedance">InductiveImpedance (class in impedances.impedance)</a>
+  </dt>
+
+      
+  <dt><a href="monitors.html#monitors.monitors.BunchMonitor.init_buffer">init_buffer() (monitors.monitors.BunchMonitor method)</a>
+  </dt>
+
+      
+  <dt><a href="monitors.html#monitors.monitors.BunchMonitor.init_data">init_data() (monitors.monitors.BunchMonitor method)</a>
   </dt>
 
       
@@ -635,6 +675,10 @@
   </dt>
 
       
+  <dt><a href="beams.html#beams.beams.Beam.intensity">intensity (beams.beams.Beam attribute)</a>
+  </dt>
+
+      
   <dt><a href="trackers.html#trackers.utilities.is_in_separatrix">is_in_separatrix() (in module trackers.utilities)</a>
   </dt>
 
@@ -646,12 +690,6 @@
   <td style="width: 33%" valign="top"><dl>
       
   <dt><a href="trackers.html#trackers.tracker.RingAndRFSection.kick">kick() (trackers.tracker.RingAndRFSection method)</a>
-  </dt>
-
-  </dl></td>
-  <td style="width: 33%" valign="top"><dl>
-      
-  <dt><a href="trackers.html#trackers.tracker.RingAndRFSection.kick_acceleration">kick_acceleration() (trackers.tracker.RingAndRFSection method)</a>
   </dt>
 
   </dl></td>
@@ -671,19 +709,35 @@
 
       </dl></dd>
       
+  <dt><a href="llrf.html#llrf.phase_loop.PhaseLoop.LHC">LHC() (llrf.phase_loop.PhaseLoop method)</a>
+  </dt>
+
+      
   <dt><a href="beams.html#beams.distributions.line_density_function">line_density_function() (in module beams.distributions)</a>
   </dt>
 
       
-  <dt><a href="llrf.html#module-llrf">llrf (module)</a>
+  <dt><a href="llrf.html#llrf.phase_loop.PhaseLoop">llrf.phase_loop.PhaseLoop (built-in class)</a>
   </dt>
 
       
-  <dt><a href="llrf.html#LLRF.RF_noise.PhaseNoise">LLRF.RF_noise.PhaseNoise (built-in class)</a>
+  <dt><a href="llrf.html#llrf.rf_noise.LHCFlatSpectrum">llrf.rf_noise.LHCFlatSpectrum (built-in class)</a>
+  </dt>
+
+      
+  <dt><a href="llrf.html#llrf.rf_noise.LHCNoiseFB">llrf.rf_noise.LHCNoiseFB (built-in class)</a>
   </dt>
 
   </dl></td>
   <td style="width: 33%" valign="top"><dl>
+      
+  <dt><a href="llrf.html#llrf.rf_noise.PhaseNoise">llrf.rf_noise.PhaseNoise (built-in class)</a>
+  </dt>
+
+      
+  <dt><a href="input_parameters.html#input_parameters.preprocess.loaddata">loaddata() (in module input_parameters.preprocess)</a>
+  </dt>
+
       
   <dt><a href="beams.html#beams.distributions.longitudinal_bigaussian">longitudinal_bigaussian() (in module beams.distributions)</a>
   </dt>
@@ -703,6 +757,10 @@
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%" valign="top"><dl>
       
+  <dt><a href="beams.html#beams.beams.Beam.mass">mass (beams.beams.Beam attribute)</a>
+  </dt>
+
+      
   <dt><a href="beams.html#beams.distributions.matched_from_distribution_density">matched_from_distribution_density() (in module beams.distributions)</a>
   </dt>
 
@@ -711,15 +769,11 @@
   </dt>
 
       
-  <dt><a href="beams.html#beams.beams.Beam.mean_delta">mean_delta (beams.beams.Beam attribute)</a>
+  <dt><a href="beams.html#beams.beams.Beam.mean_dE">mean_dE (beams.beams.Beam attribute)</a>
   </dt>
 
       
-  <dt><a href="beams.html#beams.beams.Beam.mean_tau">mean_tau (beams.beams.Beam attribute)</a>
-  </dt>
-
-      
-  <dt><a href="beams.html#beams.beams.Beam.mean_z">mean_z (beams.beams.Beam attribute)</a>
+  <dt><a href="beams.html#beams.beams.Beam.mean_dt">mean_dt (beams.beams.Beam attribute)</a>
   </dt>
 
   </dl></td>
@@ -739,10 +793,6 @@
 
         
   <dt><a href="input_parameters.html#input_parameters.rf_parameters.RFSectionParameters.momentum">(input_parameters.rf_parameters.RFSectionParameters attribute)</a>
-  </dt>
-
-        
-  <dt><a href="trackers.html#trackers.tracker.RingAndRFSection.momentum">(trackers.tracker.RingAndRFSection attribute)</a>
   </dt>
 
       </dl></dd>
@@ -765,7 +815,21 @@
   </dt>
 
       
-  <dt><a href="beams.html#beams.slices.Slices.n_macroparticles">n_macroparticles (beams.slices.Slices attribute)</a>
+  <dt><a href="beams.html#beams.beams.Beam.n_macroparticles">n_macroparticles (beams.beams.Beam attribute)</a>
+  </dt>
+
+      <dd><dl>
+        
+  <dt><a href="beams.html#beams.slices.Slices.n_macroparticles">(beams.slices.Slices attribute)</a>
+  </dt>
+
+      </dl></dd>
+      
+  <dt><a href="beams.html#beams.beams.Beam.n_macroparticles_alive">n_macroparticles_alive (beams.beams.Beam attribute)</a>
+  </dt>
+
+      
+  <dt><a href="beams.html#beams.beams.Beam.n_macroparticles_lost">n_macroparticles_lost (beams.beams.Beam attribute)</a>
   </dt>
 
       
@@ -782,12 +846,12 @@
   </dt>
 
       </dl></dd>
+  </dl></td>
+  <td style="width: 33%" valign="top"><dl>
       
   <dt><a href="input_parameters.html#input_parameters.general_parameters.GeneralParameters.n_sections">n_sections (input_parameters.general_parameters.GeneralParameters attribute)</a>
   </dt>
 
-  </dl></td>
-  <td style="width: 33%" valign="top"><dl>
       
   <dt><a href="beams.html#beams.slices.Slices.n_sigma">n_sigma (beams.slices.Slices attribute)</a>
   </dt>
@@ -810,6 +874,10 @@
   <dt><a href="impedances.html#impedances.impedance.TravelingWaveCavity.n_twc">n_twc (impedances.impedance.TravelingWaveCavity attribute)</a>
   </dt>
 
+      
+  <dt><a href="plots.html#plots.plot.Plot.noiseFB">noiseFB (plots.plot.Plot attribute)</a>
+  </dt>
+
   </dl></td>
 </tr></table>
 
@@ -824,10 +892,28 @@
   <dt><a href="input_parameters.html#input_parameters.general_parameters.GeneralParameters.omega_rev">omega_rev (input_parameters.general_parameters.GeneralParameters attribute)</a>
   </dt>
 
+      
+  <dt><a href="input_parameters.html#input_parameters.rf_parameters.RFSectionParameters.omega_RF">omega_RF (input_parameters.rf_parameters.RFSectionParameters attribute)</a>
+  </dt>
+
+      <dd><dl>
+        
+  <dt><a href="trackers.html#trackers.tracker.RingAndRFSection.omega_RF">(trackers.tracker.RingAndRFSection attribute)</a>
+  </dt>
+
+      </dl></dd>
   </dl></td>
   <td style="width: 33%" valign="top"><dl>
       
-  <dt><a href="trackers.html#trackers.tracker.RingAndRFSection.omega_RF">omega_RF (trackers.tracker.RingAndRFSection attribute)</a>
+  <dt><a href="input_parameters.html#input_parameters.rf_parameters.RFSectionParameters.omega_RF_d">omega_RF_d (input_parameters.rf_parameters.RFSectionParameters attribute)</a>
+  </dt>
+
+      
+  <dt><a href="input_parameters.html#input_parameters.rf_parameters.RFSectionParameters.omega_s0">omega_s0 (input_parameters.rf_parameters.RFSectionParameters attribute)</a>
+  </dt>
+
+      
+  <dt><a href="monitors.html#monitors.monitors.BunchMonitor.open">open() (monitors.monitors.BunchMonitor method)</a>
   </dt>
 
   </dl></td>
@@ -836,16 +922,6 @@
 <h2 id="P">P</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%" valign="top"><dl>
-      
-  <dt><a href="input_parameters.html#input_parameters.rf_parameters.RFSectionParameters.p_increment">p_increment (input_parameters.rf_parameters.RFSectionParameters attribute)</a>
-  </dt>
-
-      <dd><dl>
-        
-  <dt><a href="trackers.html#trackers.tracker.RingAndRFSection.p_increment">(trackers.tracker.RingAndRFSection attribute)</a>
-  </dt>
-
-      </dl></dd>
       
   <dt><a href="input_parameters.html#input_parameters.general_parameters.GeneralParameters.particle_type">particle_type (input_parameters.general_parameters.GeneralParameters attribute)</a>
   </dt>
@@ -859,12 +935,30 @@
   </dt>
 
       
-  <dt><a href="input_parameters.html#input_parameters.rf_parameters.RFSectionParameters.phi_offset">phi_offset (input_parameters.rf_parameters.RFSectionParameters attribute)</a>
+  <dt><a href="llrf.html#llrf.phase_loop.PhaseLoop.phase_difference">phase_difference() (llrf.phase_loop.PhaseLoop method)</a>
+  </dt>
+
+      
+  <dt><a href="input_parameters.html#input_parameters.rf_parameters.RFSectionParameters.phi_noise">phi_noise (input_parameters.rf_parameters.RFSectionParameters attribute)</a>
   </dt>
 
       <dd><dl>
         
-  <dt><a href="trackers.html#trackers.tracker.RingAndRFSection.phi_offset">(trackers.tracker.RingAndRFSection attribute)</a>
+  <dt><a href="trackers.html#trackers.tracker.RingAndRFSection.phi_noise">(trackers.tracker.RingAndRFSection attribute)</a>
+  </dt>
+
+      </dl></dd>
+      
+  <dt><a href="input_parameters.html#input_parameters.rf_parameters.RFSectionParameters.phi_offset">phi_offset (input_parameters.rf_parameters.RFSectionParameters attribute)</a>
+  </dt>
+
+      
+  <dt><a href="input_parameters.html#input_parameters.rf_parameters.RFSectionParameters.phi_RF">phi_RF (input_parameters.rf_parameters.RFSectionParameters attribute)</a>
+  </dt>
+
+      <dd><dl>
+        
+  <dt><a href="trackers.html#trackers.tracker.RingAndRFSection.phi_RF">(trackers.tracker.RingAndRFSection attribute)</a>
   </dt>
 
       </dl></dd>
@@ -872,14 +966,18 @@
   <dt><a href="input_parameters.html#input_parameters.rf_parameters.RFSectionParameters.phi_s">phi_s (input_parameters.rf_parameters.RFSectionParameters attribute)</a>
   </dt>
 
+      
+  <dt><a href="plots.html#plots.plot.Plot.PL">PL (plots.plot.Plot attribute)</a>
+  </dt>
+
       <dd><dl>
         
-  <dt><a href="trackers.html#trackers.tracker.RingAndRFSection.phi_s">(trackers.tracker.RingAndRFSection attribute)</a>
+  <dt><a href="trackers.html#trackers.tracker.RingAndRFSection.PL">(trackers.tracker.RingAndRFSection attribute)</a>
   </dt>
 
       </dl></dd>
       
-  <dt><a href="trackers.html#trackers.tracker.RingAndRFSection.PL">PL (trackers.tracker.RingAndRFSection attribute)</a>
+  <dt><a href="plots.html#plots.plot.Plot">Plot (class in plots.plot)</a>
   </dt>
 
       
@@ -888,6 +986,10 @@
 
       
   <dt><a href="plots.html#plots.plot_slices.plot_beam_profile_derivative">plot_beam_profile_derivative() (in module plots.plot_slices)</a>
+  </dt>
+
+      
+  <dt><a href="plots.html#plots.plot_slices.plot_beam_spectrum">plot_beam_spectrum() (in module plots.plot_slices)</a>
   </dt>
 
       
@@ -903,6 +1005,10 @@
   </dt>
 
       
+  <dt><a href="plots.html#plots.plot_beams.plot_energy_evol">plot_energy_evol() (in module plots.plot_beams)</a>
+  </dt>
+
+      
   <dt><a href="plots.html#plots.plot_impedance.plot_impedance_vs_frequency">plot_impedance_vs_frequency() (in module plots.plot_impedance)</a>
   </dt>
 
@@ -915,17 +1021,25 @@
   </dt>
 
       
-  <dt><a href="plots.html#plots.plot_beams.plot_long_phase_space">plot_long_phase_space() (in module plots.plot_beams)</a>
+  <dt><a href="plots.html#plots.plot_llrf.plot_LHCNoiseFB_FWHM">plot_LHCNoiseFB_FWHM() (in module plots.plot_llrf)</a>
   </dt>
 
       
-  <dt><a href="plots.html#plots.plot_llrf.plot_noise_spectrum">plot_noise_spectrum() (in module plots.plot_llrf)</a>
+  <dt><a href="plots.html#plots.plot_beams.plot_long_phase_space">plot_long_phase_space() (in module plots.plot_beams)</a>
   </dt>
 
   </dl></td>
   <td style="width: 33%" valign="top"><dl>
       
+  <dt><a href="plots.html#plots.plot_llrf.plot_noise_spectrum">plot_noise_spectrum() (in module plots.plot_llrf)</a>
+  </dt>
+
+      
   <dt><a href="plots.html#plots.plot_llrf.plot_phase_noise">plot_phase_noise() (in module plots.plot_llrf)</a>
+  </dt>
+
+      
+  <dt><a href="plots.html#plots.plot_llrf.plot_PL_bunch_phase">plot_PL_bunch_phase() (in module plots.plot_llrf)</a>
   </dt>
 
       
@@ -941,7 +1055,15 @@
   </dt>
 
       
+  <dt><a href="plots.html#plots.plot_parameters.plot_voltage_programme">plot_voltage_programme() (in module plots.plot_parameters)</a>
+  </dt>
+
+      
   <dt><a href="plots.html#module-plots">plots (module)</a>
+  </dt>
+
+      
+  <dt><a href="plots.html#module-plots.plot">plots.plot (module)</a>
   </dt>
 
       
@@ -957,15 +1079,11 @@
   </dt>
 
       
-  <dt><a href="plots.html#module-plots.plot_settings">plots.plot_settings (module)</a>
+  <dt><a href="plots.html#module-plots.plot_parameters">plots.plot_parameters (module)</a>
   </dt>
 
       
   <dt><a href="plots.html#module-plots.plot_slices">plots.plot_slices (module)</a>
-  </dt>
-
-      
-  <dt><a href="plots.html#plots.plot_settings.PlotSettings">PlotSettings (class in plots.plot_settings)</a>
   </dt>
 
       
@@ -985,7 +1103,15 @@
   </dt>
 
       
+  <dt><a href="llrf.html#llrf.phase_loop.PhaseLoop.precalculate_time">precalculate_time() (llrf.phase_loop.PhaseLoop method)</a>
+  </dt>
+
+      
   <dt><a href="input_parameters.html#input_parameters.preprocess.preprocess_ramp">preprocess_ramp() (in module input_parameters.preprocess)</a>
+  </dt>
+
+      
+  <dt><a href="input_parameters.html#input_parameters.preprocess.preprocess_rf_params">preprocess_rf_params() (in module input_parameters.preprocess)</a>
   </dt>
 
   </dl></td>
@@ -996,6 +1122,12 @@
   <td style="width: 33%" valign="top"><dl>
       
   <dt><a href="impedances.html#impedances.impedance.Resonators.Q">Q (impedances.impedance.Resonators attribute)</a>
+  </dt>
+
+  </dl></td>
+  <td style="width: 33%" valign="top"><dl>
+      
+  <dt><a href="input_parameters.html#input_parameters.rf_parameters.RFSectionParameters.Qs">Qs (input_parameters.rf_parameters.RFSectionParameters attribute)</a>
   </dt>
 
   </dl></td>
@@ -1037,6 +1169,10 @@
 
       </dl></dd>
       
+  <dt><a href="plots.html#plots.plot.Plot.reset_frame">reset_frame() (plots.plot.Plot method)</a>
+  </dt>
+
+      
   <dt><a href="impedances.html#impedances.impedance.Resonators">Resonators (class in impedances.impedance)</a>
   </dt>
 
@@ -1045,11 +1181,25 @@
   </dt>
 
       
+  <dt><a href="plots.html#plots.plot.Plot.rf_params">rf_params (plots.plot.Plot attribute)</a>
+  </dt>
+
+      <dd><dl>
+        
+  <dt><a href="trackers.html#trackers.tracker.RingAndRFSection.rf_params">(trackers.tracker.RingAndRFSection attribute)</a>
+  </dt>
+
+      </dl></dd>
+  </dl></td>
+  <td style="width: 33%" valign="top"><dl>
+      
+  <dt><a href="beams.html#beams.slices.Slices.RFParams">RFParams (beams.slices.Slices attribute)</a>
+  </dt>
+
+      
   <dt><a href="input_parameters.html#input_parameters.rf_parameters.RFSectionParameters">RFSectionParameters (class in input_parameters.rf_parameters)</a>
   </dt>
 
-  </dl></td>
-  <td style="width: 33%" valign="top"><dl>
       
   <dt><a href="input_parameters.html#input_parameters.general_parameters.GeneralParameters.ring_circumference">ring_circumference (input_parameters.general_parameters.GeneralParameters attribute)</a>
   </dt>
@@ -1093,6 +1243,10 @@
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%" valign="top"><dl>
       
+  <dt><a href="plots.html#plots.plot.Plot.sampling">sampling (plots.plot.Plot attribute)</a>
+  </dt>
+
+      
   <dt><a href="input_parameters.html#input_parameters.rf_parameters.RFSectionParameters.section_index">section_index (input_parameters.rf_parameters.RFSectionParameters attribute)</a>
   </dt>
 
@@ -1106,12 +1260,10 @@
   <dt><a href="input_parameters.html#input_parameters.rf_parameters.RFSectionParameters.section_length">section_length (input_parameters.rf_parameters.RFSectionParameters attribute)</a>
   </dt>
 
-      <dd><dl>
-        
-  <dt><a href="trackers.html#trackers.tracker.RingAndRFSection.section_length">(trackers.tracker.RingAndRFSection attribute)</a>
+      
+  <dt><a href="plots.html#plots.plot.Plot.separatix">separatix (plots.plot.Plot attribute)</a>
   </dt>
 
-      </dl></dd>
       
   <dt><a href="trackers.html#trackers.utilities.separatrix">separatrix() (in module trackers.utilities)</a>
   </dt>
@@ -1121,31 +1273,27 @@
   </dt>
 
       
-  <dt><a href="plots.html#plots.plot_settings.PlotSettings.set_plot_format">set_plot_format() (plots.plot_settings.PlotSettings method)</a>
+  <dt><a href="plots.html#plots.plot.Plot.set_format">set_format() (plots.plot.Plot method)</a>
   </dt>
 
       
-  <dt><a href="beams.html#beams.beams.Beam.sigma_delta">sigma_delta (beams.beams.Beam attribute)</a>
+  <dt><a href="beams.html#beams.beams.Beam.sigma_dE">sigma_dE (beams.beams.Beam attribute)</a>
   </dt>
 
       
-  <dt><a href="beams.html#beams.beams.Beam.sigma_tau">sigma_tau (beams.beams.Beam attribute)</a>
-  </dt>
-
-      
-  <dt><a href="beams.html#beams.beams.Beam.sigma_z">sigma_z (beams.beams.Beam attribute)</a>
+  <dt><a href="beams.html#beams.beams.Beam.sigma_dt">sigma_dt (beams.beams.Beam attribute)</a>
   </dt>
 
       
   <dt><a href="beams.html#beams.slices.Slices.slice_constant_space_histogram">slice_constant_space_histogram() (beams.slices.Slices method)</a>
   </dt>
 
+  </dl></td>
+  <td style="width: 33%" valign="top"><dl>
       
   <dt><a href="beams.html#beams.slices.Slices">Slices (class in beams.slices)</a>
   </dt>
 
-  </dl></td>
-  <td style="width: 33%" valign="top"><dl>
       
   <dt><a href="impedances.html#impedances.impedance.InducedVoltageFreq.slices">slices (impedances.impedance.InducedVoltageFreq attribute)</a>
   </dt>
@@ -1163,13 +1311,13 @@
   <dt><a href="impedances.html#impedances.impedance.TotalInducedVoltage.slices">(impedances.impedance.TotalInducedVoltage attribute)</a>
   </dt>
 
+        
+  <dt><a href="plots.html#plots.plot.Plot.slices">(plots.plot.Plot attribute)</a>
+  </dt>
+
       </dl></dd>
       
   <dt><a href="monitors.html#monitors.monitors.SlicesMonitor">SlicesMonitor (class in monitors.monitors)</a>
-  </dt>
-
-      
-  <dt><a href="beams.html#beams.slices.Slices.slicing_coord">slicing_coord (beams.slices.Slices attribute)</a>
   </dt>
 
       
@@ -1181,7 +1329,7 @@
   </dt>
 
       
-  <dt><a href="llrf.html#spectrum_to_phase_noise">spectrum_to_phase_noise() (built-in function)</a>
+  <dt><a href="llrf.html#llrf.rf_noise.PhaseNoise.spectrum_to_phase_noise">spectrum_to_phase_noise() (llrf.rf_noise.PhaseNoise method)</a>
   </dt>
 
       
@@ -1206,10 +1354,16 @@
   <dt><a href="input_parameters.html#input_parameters.general_parameters.GeneralParameters.t_rev">t_rev (input_parameters.general_parameters.GeneralParameters attribute)</a>
   </dt>
 
-      
-  <dt><a href="beams.html#beams.beams.Beam.tau">tau (beams.beams.Beam attribute)</a>
+      <dd><dl>
+        
+  <dt><a href="input_parameters.html#input_parameters.rf_parameters.RFSectionParameters.t_rev">(input_parameters.rf_parameters.RFSectionParameters attribute)</a>
   </dt>
 
+        
+  <dt><a href="trackers.html#trackers.tracker.RingAndRFSection.t_rev">(trackers.tracker.RingAndRFSection attribute)</a>
+  </dt>
+
+      </dl></dd>
       
   <dt><a href="impedances.html#impedances.impedance.InducedVoltageTime.time_array">time_array (impedances.impedance.InducedVoltageTime attribute)</a>
   </dt>
@@ -1244,8 +1398,6 @@
   <dt><a href="impedances.html#impedances.impedance.InducedVoltageTime.total_wake">total_wake (impedances.impedance.InducedVoltageTime attribute)</a>
   </dt>
 
-  </dl></td>
-  <td style="width: 33%" valign="top"><dl>
       
   <dt><a href="impedances.html#impedances.impedance.TotalInducedVoltage">TotalInducedVoltage (class in impedances.impedance)</a>
   </dt>
@@ -1272,11 +1424,19 @@
   </dt>
 
         
+  <dt><a href="llrf.html#llrf.phase_loop.PhaseLoop.track">(llrf.phase_loop.PhaseLoop method)</a>
+  </dt>
+
+        
   <dt><a href="monitors.html#monitors.monitors.BunchMonitor.track">(monitors.monitors.BunchMonitor method)</a>
   </dt>
 
         
   <dt><a href="monitors.html#monitors.monitors.SlicesMonitor.track">(monitors.monitors.SlicesMonitor method)</a>
+  </dt>
+
+        
+  <dt><a href="plots.html#plots.plot.Plot.track">(plots.plot.Plot method)</a>
   </dt>
 
         
@@ -1288,6 +1448,12 @@
   </dt>
 
       </dl></dd>
+  </dl></td>
+  <td style="width: 33%" valign="top"><dl>
+      
+  <dt><a href="beams.html#beams.slices.Slices.track_cuts">track_cuts() (beams.slices.Slices method)</a>
+  </dt>
+
       
   <dt><a href="trackers.html#module-trackers">trackers (module)</a>
   </dt>
@@ -1302,6 +1468,10 @@
 
       
   <dt><a href="impedances.html#impedances.impedance.TravelingWaveCavity">TravelingWaveCavity (class in impedances.impedance)</a>
+  </dt>
+
+      
+  <dt><a href="plots.html#plots.plot.Plot.tstep">tstep (plots.plot.Plot attribute)</a>
   </dt>
 
   </dl></td>
@@ -1361,6 +1531,10 @@
   </dt>
 
       
+  <dt><a href="monitors.html#monitors.monitors.BunchMonitor.write_buffer">write_buffer() (monitors.monitors.BunchMonitor method)</a>
+  </dt>
+
+      
   <dt><a href="monitors.html#monitors.monitors.BunchMonitor.write_data">write_data() (monitors.monitors.BunchMonitor method)</a>
   </dt>
 
@@ -1373,14 +1547,44 @@
   </dl></td>
 </tr></table>
 
-<h2 id="Z">Z</h2>
+<h2 id="X">X</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%" valign="top"><dl>
       
-  <dt><a href="beams.html#beams.beams.Beam.z">z (beams.beams.Beam attribute)</a>
+  <dt><a href="plots.html#plots.plot.Plot.xmax">xmax (plots.plot.Plot attribute)</a>
+  </dt>
+
+      
+  <dt><a href="plots.html#plots.plot.Plot.xmin">xmin (plots.plot.Plot attribute)</a>
   </dt>
 
   </dl></td>
+  <td style="width: 33%" valign="top"><dl>
+      
+  <dt><a href="plots.html#plots.plot.Plot.xunit">xunit (plots.plot.Plot attribute)</a>
+  </dt>
+
+  </dl></td>
+</tr></table>
+
+<h2 id="Y">Y</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%" valign="top"><dl>
+      
+  <dt><a href="plots.html#plots.plot.Plot.ymax">ymax (plots.plot.Plot attribute)</a>
+  </dt>
+
+  </dl></td>
+  <td style="width: 33%" valign="top"><dl>
+      
+  <dt><a href="plots.html#plots.plot.Plot.ymin">ymin (plots.plot.Plot attribute)</a>
+  </dt>
+
+  </dl></td>
+</tr></table>
+
+<h2 id="Z">Z</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%" valign="top"><dl>
       
   <dt><a href="impedances.html#impedances.impedance.InductiveImpedance.Z_over_n">Z_over_n (impedances.impedance.InductiveImpedance attribute)</a>
@@ -1394,12 +1598,12 @@
           </div>
         </div>
       </div>
-      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+      <div class="sphinxsidebar">
         <div class="sphinxsidebarwrapper">
 
    
 
-<div id="searchbox" style="display: none" role="search">
+<div id="searchbox" style="display: none">
   <h3>Quick search</h3>
     <form class="search" action="search.html" method="get">
       <input type="text" name="q" />
@@ -1416,7 +1620,7 @@
       </div>
       <div class="clearer"></div>
     </div>
-    <div class="related" role="navigation" aria-label="related navigation">
+    <div class="related">
       <h3>Navigation</h3>
       <ul>
         <li class="right" style="margin-right: 10px">
@@ -1428,9 +1632,9 @@
         <li><a href="index.html">BLonD embryo documentation</a> &raquo;</li> 
       </ul>
     </div>
-    <div class="footer" role="contentinfo">
+    <div class="footer">
         &copy; Copyright 2014, CERN.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.3b1.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
     </div>
   </body>
 </html>

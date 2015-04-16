@@ -28,8 +28,8 @@
     <link rel="next" title="input_parameters package" href="input_parameters.html" />
     <link rel="prev" title="beams package" href="beams.html" /> 
   </head>
-  <body role="document">
-    <div class="related" role="navigation" aria-label="related navigation">
+  <body>
+    <div class="related">
       <h3>Navigation</h3>
       <ul>
         <li class="right" style="margin-right: 10px">
@@ -52,7 +52,7 @@
     <div class="document">
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body" role="main">
+          <div class="body">
             
   <div class="section" id="impedances-package">
 <h1>impedances package<a class="headerlink" href="#impedances-package" title="Permalink to this headline">¶</a></h1>
@@ -72,8 +72,8 @@
 </table>
 <dl class="class">
 <dt id="impedances.impedance.InducedVoltageFreq">
-<em class="property">class </em><code class="descclassname">impedances.impedance.</code><code class="descname">InducedVoltageFreq</code><span class="sig-paren">(</span><em>Slices</em>, <em>impedance_source_list</em>, <em>frequency_resolution_input</em>, <em>freq_res_option='round'</em><span class="sig-paren">)</span><a class="headerlink" href="#impedances.impedance.InducedVoltageFreq" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<em class="property">class </em><tt class="descclassname">impedances.impedance.</tt><tt class="descname">InducedVoltageFreq</tt><big>(</big><em>Slices</em>, <em>impedance_source_list</em>, <em>frequency_resolution_input</em>, <em>freq_res_option='round'</em><big>)</big><a class="headerlink" href="#impedances.impedance.InducedVoltageFreq" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
 <p><em>Induced voltage derived from the sum of several impedances.
 frequency_resolution is equal to 1/(dist_centers * n) where dist_centers is
 the distance between the centers of two consecutive slides and (n/2 + 1)
@@ -93,51 +93,51 @@ fulfills optimisation will be used. If set to &#8216;best&#8217;, the frequency 
 will be at least your input, so you always have a better resolution.</em></p>
 <dl class="attribute">
 <dt id="impedances.impedance.InducedVoltageFreq.freq_res_option">
-<code class="descname">freq_res_option</code><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InducedVoltageFreq.freq_res_option" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">freq_res_option</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InducedVoltageFreq.freq_res_option" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Frequency resolution calculation option</em></p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="impedances.impedance.InducedVoltageFreq.frequency_array">
-<code class="descname">frequency_array</code><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InducedVoltageFreq.frequency_array" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">frequency_array</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InducedVoltageFreq.frequency_array" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Frequency array of the impedance in [Hz]</em></p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="impedances.impedance.InducedVoltageFreq.frequency_resolution">
-<code class="descname">frequency_resolution</code><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InducedVoltageFreq.frequency_resolution" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">frequency_resolution</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InducedVoltageFreq.frequency_resolution" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Real frequency resolution in [Hz], according to the obtained n_fft_sampling.</em></p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="impedances.impedance.InducedVoltageFreq.frequency_resolution_input">
-<code class="descname">frequency_resolution_input</code><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InducedVoltageFreq.frequency_resolution_input" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">frequency_resolution_input</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InducedVoltageFreq.frequency_resolution_input" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Input frequency resolution in [Hz], the beam profile sampling for the spectrum
 will be adapted according to the freq_res_option.</em></p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="impedances.impedance.InducedVoltageFreq.impedance_source_list">
-<code class="descname">impedance_source_list</code><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InducedVoltageFreq.impedance_source_list" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">impedance_source_list</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InducedVoltageFreq.impedance_source_list" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Impedance sources inputed as a list (eg: list of BBResonators objects)</em></p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="impedances.impedance.InducedVoltageFreq.induced_voltage">
-<code class="descname">induced_voltage</code><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InducedVoltageFreq.induced_voltage" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">induced_voltage</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InducedVoltageFreq.induced_voltage" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Induced voltage from the sum of the wake sources in [V]</em></p>
 </dd></dl>
 
 <dl class="method">
 <dt id="impedances.impedance.InducedVoltageFreq.induced_voltage_generation">
-<code class="descname">induced_voltage_generation</code><span class="sig-paren">(</span><em>Beam</em>, <em>length='slice_frame'</em><span class="sig-paren">)</span><a class="headerlink" href="#impedances.impedance.InducedVoltageFreq.induced_voltage_generation" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">induced_voltage_generation</tt><big>(</big><em>Beam</em>, <em>length='slice_frame'</em><big>)</big><a class="headerlink" href="#impedances.impedance.InducedVoltageFreq.induced_voltage_generation" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Method to calculate the induced voltage from the inverse FFT of the
 impedance times the spectrum (fourier convolution).</em></p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="impedances.impedance.InducedVoltageFreq.n_fft_sampling">
-<code class="descname">n_fft_sampling</code><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InducedVoltageFreq.n_fft_sampling" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">n_fft_sampling</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InducedVoltageFreq.n_fft_sampling" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Number of points used to FFT the beam profile (by padding zeros),
 this is calculated in order to have at least the input
 frequency_resolution.</em></p>
@@ -145,31 +145,31 @@ frequency_resolution.</em></p>
 
 <dl class="method">
 <dt id="impedances.impedance.InducedVoltageFreq.reprocess">
-<code class="descname">reprocess</code><span class="sig-paren">(</span><em>new_slicing</em><span class="sig-paren">)</span><a class="headerlink" href="#impedances.impedance.InducedVoltageFreq.reprocess" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">reprocess</tt><big>(</big><em>new_slicing</em><big>)</big><a class="headerlink" href="#impedances.impedance.InducedVoltageFreq.reprocess" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Reprocess the impedance contributions with respect to the new_slicing.</em></p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="impedances.impedance.InducedVoltageFreq.slices">
-<code class="descname">slices</code><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InducedVoltageFreq.slices" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">slices</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InducedVoltageFreq.slices" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Copy of the Slices object in order to access the profile info.</em></p>
 </dd></dl>
 
 <dl class="method">
 <dt id="impedances.impedance.InducedVoltageFreq.sum_impedances">
-<code class="descname">sum_impedances</code><span class="sig-paren">(</span><em>frequency_array</em><span class="sig-paren">)</span><a class="headerlink" href="#impedances.impedance.InducedVoltageFreq.sum_impedances" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">sum_impedances</tt><big>(</big><em>frequency_array</em><big>)</big><a class="headerlink" href="#impedances.impedance.InducedVoltageFreq.sum_impedances" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Summing all the wake contributions in one total impedance.</em></p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="impedances.impedance.InducedVoltageFreq.total_impedance">
-<code class="descname">total_impedance</code><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InducedVoltageFreq.total_impedance" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">total_impedance</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InducedVoltageFreq.total_impedance" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Total impedance array of all sources in</em> [<img class="math" src="_images/math/b39932b8cbb311eeee9815738f6be3757737b2ff.png" alt="\Omega"/>]</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="impedances.impedance.InducedVoltageFreq.track">
-<code class="descname">track</code><span class="sig-paren">(</span><em>Beam</em><span class="sig-paren">)</span><a class="headerlink" href="#impedances.impedance.InducedVoltageFreq.track" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">track</tt><big>(</big><em>Beam</em><big>)</big><a class="headerlink" href="#impedances.impedance.InducedVoltageFreq.track" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Tracking method.</em></p>
 </dd></dl>
 
@@ -177,60 +177,60 @@ frequency_resolution.</em></p>
 
 <dl class="class">
 <dt id="impedances.impedance.InducedVoltageTime">
-<em class="property">class </em><code class="descclassname">impedances.impedance.</code><code class="descname">InducedVoltageTime</code><span class="sig-paren">(</span><em>Slices</em>, <em>wake_source_list</em><span class="sig-paren">)</span><a class="headerlink" href="#impedances.impedance.InducedVoltageTime" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<em class="property">class </em><tt class="descclassname">impedances.impedance.</tt><tt class="descname">InducedVoltageTime</tt><big>(</big><em>Slices</em>, <em>wake_source_list</em><big>)</big><a class="headerlink" href="#impedances.impedance.InducedVoltageTime" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
 <p><em>Induced voltage derived from the sum of several wake fields (time domain).</em></p>
 <dl class="attribute">
 <dt id="impedances.impedance.InducedVoltageTime.induced_voltage">
-<code class="descname">induced_voltage</code><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InducedVoltageTime.induced_voltage" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">induced_voltage</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InducedVoltageTime.induced_voltage" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Induced voltage from the sum of the wake sources in [V]</em></p>
 </dd></dl>
 
 <dl class="method">
 <dt id="impedances.impedance.InducedVoltageTime.induced_voltage_generation">
-<code class="descname">induced_voltage_generation</code><span class="sig-paren">(</span><em>Beam</em>, <em>length='slice_frame'</em><span class="sig-paren">)</span><a class="headerlink" href="#impedances.impedance.InducedVoltageTime.induced_voltage_generation" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">induced_voltage_generation</tt><big>(</big><em>Beam</em>, <em>length='slice_frame'</em><big>)</big><a class="headerlink" href="#impedances.impedance.InducedVoltageTime.induced_voltage_generation" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Method to calculate the induced voltage from wakes with convolution.</em></p>
 </dd></dl>
 
 <dl class="method">
 <dt id="impedances.impedance.InducedVoltageTime.reprocess">
-<code class="descname">reprocess</code><span class="sig-paren">(</span><em>new_slicing</em><span class="sig-paren">)</span><a class="headerlink" href="#impedances.impedance.InducedVoltageTime.reprocess" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">reprocess</tt><big>(</big><em>new_slicing</em><big>)</big><a class="headerlink" href="#impedances.impedance.InducedVoltageTime.reprocess" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Reprocess the wake contributions with respect to the new_slicing.</em></p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="impedances.impedance.InducedVoltageTime.slices">
-<code class="descname">slices</code><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InducedVoltageTime.slices" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">slices</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InducedVoltageTime.slices" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Copy of the Slices object in order to access the profile info.</em></p>
 </dd></dl>
 
 <dl class="method">
 <dt id="impedances.impedance.InducedVoltageTime.sum_wakes">
-<code class="descname">sum_wakes</code><span class="sig-paren">(</span><em>time_array</em><span class="sig-paren">)</span><a class="headerlink" href="#impedances.impedance.InducedVoltageTime.sum_wakes" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">sum_wakes</tt><big>(</big><em>time_array</em><big>)</big><a class="headerlink" href="#impedances.impedance.InducedVoltageTime.sum_wakes" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Summing all the wake contributions in one total wake.</em></p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="impedances.impedance.InducedVoltageTime.time_array">
-<code class="descname">time_array</code><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InducedVoltageTime.time_array" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">time_array</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InducedVoltageTime.time_array" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Time array of the wake in [s]</em></p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="impedances.impedance.InducedVoltageTime.total_wake">
-<code class="descname">total_wake</code><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InducedVoltageTime.total_wake" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">total_wake</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InducedVoltageTime.total_wake" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Total wake array of all sources in</em> [<img class="math" src="_images/math/9196874516c02750b618a27dd5a25f52b9a82122.png" alt="\Omega / s"/>]</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="impedances.impedance.InducedVoltageTime.track">
-<code class="descname">track</code><span class="sig-paren">(</span><em>Beam</em><span class="sig-paren">)</span><a class="headerlink" href="#impedances.impedance.InducedVoltageTime.track" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">track</tt><big>(</big><em>Beam</em><big>)</big><a class="headerlink" href="#impedances.impedance.InducedVoltageTime.track" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Tracking method.</em></p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="impedances.impedance.InducedVoltageTime.wake_source_list">
-<code class="descname">wake_source_list</code><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InducedVoltageTime.wake_source_list" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">wake_source_list</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InducedVoltageTime.wake_source_list" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Wake sources inputed as a list (eg: list of BBResonators objects)</em></p>
 </dd></dl>
 
@@ -238,75 +238,75 @@ frequency_resolution.</em></p>
 
 <dl class="class">
 <dt id="impedances.impedance.InductiveImpedance">
-<em class="property">class </em><code class="descclassname">impedances.impedance.</code><code class="descname">InductiveImpedance</code><span class="sig-paren">(</span><em>Slices</em>, <em>Z_over_n</em>, <em>revolution_frequency</em>, <em>calc_domain='time'</em>, <em>deriv_mode='gradient'</em><span class="sig-paren">)</span><a class="headerlink" href="#impedances.impedance.InductiveImpedance" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<em class="property">class </em><tt class="descclassname">impedances.impedance.</tt><tt class="descname">InductiveImpedance</tt><big>(</big><em>Slices</em>, <em>Z_over_n</em>, <em>revolution_frequency</em>, <em>calc_domain='time'</em>, <em>deriv_mode='gradient'</em><big>)</big><a class="headerlink" href="#impedances.impedance.InductiveImpedance" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
 <p><em>Constant imaginary Z/n impedance. This needs to be extended to the
 cases where there is acceleration as the revolution frequency f0 used
 in the calculation of n=f/f0 is changing (general_params as input ?).</em></p>
 <dl class="attribute">
 <dt id="impedances.impedance.InductiveImpedance.Z_over_n">
-<code class="descname">Z_over_n</code><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InductiveImpedance.Z_over_n" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">Z_over_n</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InductiveImpedance.Z_over_n" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Constant imaginary Z/n in</em> [<img class="math" src="_images/math/cf179a45115537d055c1a8abc6aee982d3223559.png" alt="\Omega / Hz"/>]</p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="impedances.impedance.InductiveImpedance.deriv_mode">
-<code class="descname">deriv_mode</code><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InductiveImpedance.deriv_mode" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">deriv_mode</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InductiveImpedance.deriv_mode" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Derivation method to compute induced voltage</em></p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="impedances.impedance.InductiveImpedance.freq_array">
-<code class="descname">freq_array</code><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InductiveImpedance.freq_array" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">freq_array</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InductiveImpedance.freq_array" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Frequency array of the impedance in [Hz]</em></p>
 </dd></dl>
 
 <dl class="method">
 <dt id="impedances.impedance.InductiveImpedance.imped_calc">
-<code class="descname">imped_calc</code><span class="sig-paren">(</span><em>freq_array</em><span class="sig-paren">)</span><a class="headerlink" href="#impedances.impedance.InductiveImpedance.imped_calc" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">imped_calc</tt><big>(</big><em>freq_array</em><big>)</big><a class="headerlink" href="#impedances.impedance.InductiveImpedance.imped_calc" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Impedance calculation method as a function of frequency.</em></p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="impedances.impedance.InductiveImpedance.impedance">
-<code class="descname">impedance</code><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InductiveImpedance.impedance" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">impedance</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InductiveImpedance.impedance" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Impedance array in</em> [<img class="math" src="_images/math/b39932b8cbb311eeee9815738f6be3757737b2ff.png" alt="\Omega"/>]</p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="impedances.impedance.InductiveImpedance.induced_voltage">
-<code class="descname">induced_voltage</code><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InductiveImpedance.induced_voltage" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">induced_voltage</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InductiveImpedance.induced_voltage" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Induced voltage from the sum of the wake sources in [V]</em></p>
 </dd></dl>
 
 <dl class="method">
 <dt id="impedances.impedance.InductiveImpedance.induced_voltage_generation">
-<code class="descname">induced_voltage_generation</code><span class="sig-paren">(</span><em>Beam</em>, <em>length='slice_frame'</em><span class="sig-paren">)</span><a class="headerlink" href="#impedances.impedance.InductiveImpedance.induced_voltage_generation" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">induced_voltage_generation</tt><big>(</big><em>Beam</em>, <em>length='slice_frame'</em><big>)</big><a class="headerlink" href="#impedances.impedance.InductiveImpedance.induced_voltage_generation" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Method to calculate the induced voltage through the derivative of the
 profile; the impedance must be of inductive type.</em></p>
 </dd></dl>
 
 <dl class="method">
 <dt id="impedances.impedance.InductiveImpedance.reprocess">
-<code class="descname">reprocess</code><span class="sig-paren">(</span><em>new_slicing</em><span class="sig-paren">)</span><a class="headerlink" href="#impedances.impedance.InductiveImpedance.reprocess" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">reprocess</tt><big>(</big><em>new_slicing</em><big>)</big><a class="headerlink" href="#impedances.impedance.InductiveImpedance.reprocess" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Reprocess the impedance contributions with respect to the new_slicing.</em></p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="impedances.impedance.InductiveImpedance.revolution_frequency">
-<code class="descname">revolution_frequency</code><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InductiveImpedance.revolution_frequency" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">revolution_frequency</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InductiveImpedance.revolution_frequency" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Revolution frequency in [Hz]</em></p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="impedances.impedance.InductiveImpedance.slices">
-<code class="descname">slices</code><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InductiveImpedance.slices" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">slices</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InductiveImpedance.slices" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Copy of the Slices object in order to access the profile info.</em></p>
 </dd></dl>
 
 <dl class="method">
 <dt id="impedances.impedance.InductiveImpedance.track">
-<code class="descname">track</code><span class="sig-paren">(</span><em>Beam</em><span class="sig-paren">)</span><a class="headerlink" href="#impedances.impedance.InductiveImpedance.track" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">track</tt><big>(</big><em>Beam</em><big>)</big><a class="headerlink" href="#impedances.impedance.InductiveImpedance.track" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Track method.</em></p>
 </dd></dl>
 
@@ -314,8 +314,8 @@ profile; the impedance must be of inductive type.</em></p>
 
 <dl class="class">
 <dt id="impedances.impedance.InputTable">
-<em class="property">class </em><code class="descclassname">impedances.impedance.</code><code class="descname">InputTable</code><span class="sig-paren">(</span><em>input_1</em>, <em>input_2</em>, <em>input_3=None</em><span class="sig-paren">)</span><a class="headerlink" href="#impedances.impedance.InputTable" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<em class="property">class </em><tt class="descclassname">impedances.impedance.</tt><tt class="descname">InputTable</tt><big>(</big><em>input_1</em>, <em>input_2</em>, <em>input_3=None</em><big>)</big><a class="headerlink" href="#impedances.impedance.InputTable" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
 <p><em>Intensity effects from impedance and wake tables.
 If this constructor takes just two arguments, then a wake table is passed;
 if it takes three arguments, then an impedance table is passed. Be careful
@@ -327,50 +327,50 @@ antisymmetric).Note that we add the point (f, Z(f)) = (0, 0) to the
 frequency and impedance arrays derived from the table.</em></p>
 <dl class="attribute">
 <dt id="impedances.impedance.InputTable.Im_Z_array_loaded">
-<code class="descname">Im_Z_array_loaded</code><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InputTable.Im_Z_array_loaded" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">Im_Z_array_loaded</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InputTable.Im_Z_array_loaded" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Imaginary part of impedance in</em> [<img class="math" src="_images/math/b39932b8cbb311eeee9815738f6be3757737b2ff.png" alt="\Omega"/>]</p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="impedances.impedance.InputTable.Re_Z_array_loaded">
-<code class="descname">Re_Z_array_loaded</code><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InputTable.Re_Z_array_loaded" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">Re_Z_array_loaded</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InputTable.Re_Z_array_loaded" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Real part of impedance in</em> [<img class="math" src="_images/math/b39932b8cbb311eeee9815738f6be3757737b2ff.png" alt="\Omega"/>]</p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="impedances.impedance.InputTable.frequency_array_loaded">
-<code class="descname">frequency_array_loaded</code><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InputTable.frequency_array_loaded" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">frequency_array_loaded</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InputTable.frequency_array_loaded" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Frequency array of the impedance in [Hz]</em></p>
 </dd></dl>
 
 <dl class="method">
 <dt id="impedances.impedance.InputTable.imped_calc">
-<code class="descname">imped_calc</code><span class="sig-paren">(</span><em>new_frequency_array</em><span class="sig-paren">)</span><a class="headerlink" href="#impedances.impedance.InputTable.imped_calc" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">imped_calc</tt><big>(</big><em>new_frequency_array</em><big>)</big><a class="headerlink" href="#impedances.impedance.InputTable.imped_calc" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>The impedance is interpolated in order to scale with the new frequency
 array.</em></p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="impedances.impedance.InputTable.impedance_loaded">
-<code class="descname">impedance_loaded</code><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InputTable.impedance_loaded" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">impedance_loaded</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InputTable.impedance_loaded" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Impedance array in</em> [<img class="math" src="_images/math/b39932b8cbb311eeee9815738f6be3757737b2ff.png" alt="\Omega"/>]</p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="impedances.impedance.InputTable.time_array">
-<code class="descname">time_array</code><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InputTable.time_array" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">time_array</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InputTable.time_array" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Time array of the wake in [s]</em></p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="impedances.impedance.InputTable.wake_array">
-<code class="descname">wake_array</code><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InputTable.wake_array" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">wake_array</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InputTable.wake_array" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Wake array in</em> [<img class="math" src="_images/math/9196874516c02750b618a27dd5a25f52b9a82122.png" alt="\Omega / s"/>]</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="impedances.impedance.InputTable.wake_calc">
-<code class="descname">wake_calc</code><span class="sig-paren">(</span><em>new_time_array</em><span class="sig-paren">)</span><a class="headerlink" href="#impedances.impedance.InputTable.wake_calc" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">wake_calc</tt><big>(</big><em>new_time_array</em><big>)</big><a class="headerlink" href="#impedances.impedance.InputTable.wake_calc" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>The wake is interpolated in order to scale with the new time array.</em></p>
 </dd></dl>
 
@@ -378,8 +378,8 @@ array.</em></p>
 
 <dl class="class">
 <dt id="impedances.impedance.Resonators">
-<em class="property">class </em><code class="descclassname">impedances.impedance.</code><code class="descname">Resonators</code><span class="sig-paren">(</span><em>R_S</em>, <em>frequency_R</em>, <em>Q</em><span class="sig-paren">)</span><a class="headerlink" href="#impedances.impedance.Resonators" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<em class="property">class </em><tt class="descclassname">impedances.impedance.</tt><tt class="descname">Resonators</tt><big>(</big><em>R_S</em>, <em>frequency_R</em>, <em>Q</em><big>)</big><a class="headerlink" href="#impedances.impedance.Resonators" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
 <p><em>Impedance contribution from resonators, analytic formulas for both wake 
 and impedance. The resonant modes (and the corresponding R and Q) 
 can be inputed as a list in case of several modes.</em></p>
@@ -398,67 +398,67 @@ W(0) = \alpha R"/></p>
 \bar{\omega} = \sqrt{\omega_r^2 - \alpha^2}"/></p>
 </div><dl class="attribute">
 <dt id="impedances.impedance.Resonators.Q">
-<code class="descname">Q</code><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.Resonators.Q" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">Q</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.Resonators.Q" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Quality factor</em></p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="impedances.impedance.Resonators.R_S">
-<code class="descname">R_S</code><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.Resonators.R_S" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">R_S</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.Resonators.R_S" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Shunt impepdance in</em> [<img class="math" src="_images/math/b39932b8cbb311eeee9815738f6be3757737b2ff.png" alt="\Omega"/>]</p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="impedances.impedance.Resonators.freq_array">
-<code class="descname">freq_array</code><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.Resonators.freq_array" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">freq_array</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.Resonators.freq_array" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Frequency array of the impedance in [Hz]</em></p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="impedances.impedance.Resonators.frequency_R">
-<code class="descname">frequency_R</code><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.Resonators.frequency_R" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">frequency_R</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.Resonators.frequency_R" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Resonant frequency in [Hz]</em></p>
 </dd></dl>
 
 <dl class="method">
 <dt id="impedances.impedance.Resonators.imped_calc">
-<code class="descname">imped_calc</code><span class="sig-paren">(</span><em>freq_array</em><span class="sig-paren">)</span><a class="headerlink" href="#impedances.impedance.Resonators.imped_calc" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">imped_calc</tt><big>(</big><em>freq_array</em><big>)</big><a class="headerlink" href="#impedances.impedance.Resonators.imped_calc" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Impedance calculation method as a function of frequency.</em></p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="impedances.impedance.Resonators.impedance">
-<code class="descname">impedance</code><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.Resonators.impedance" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">impedance</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.Resonators.impedance" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Impedance array in</em> [<img class="math" src="_images/math/b39932b8cbb311eeee9815738f6be3757737b2ff.png" alt="\Omega"/>]</p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="impedances.impedance.Resonators.n_resonators">
-<code class="descname">n_resonators</code><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.Resonators.n_resonators" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">n_resonators</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.Resonators.n_resonators" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Number of resonant modes</em></p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="impedances.impedance.Resonators.omega_R">
-<code class="descname">omega_R</code><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.Resonators.omega_R" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">omega_R</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.Resonators.omega_R" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Resonant angular frequency in [rad/s]</em></p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="impedances.impedance.Resonators.time_array">
-<code class="descname">time_array</code><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.Resonators.time_array" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">time_array</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.Resonators.time_array" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Time array of the wake in [s]</em></p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="impedances.impedance.Resonators.wake">
-<code class="descname">wake</code><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.Resonators.wake" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">wake</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.Resonators.wake" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Wake array in</em> [<img class="math" src="_images/math/9196874516c02750b618a27dd5a25f52b9a82122.png" alt="\Omega / s"/>]</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="impedances.impedance.Resonators.wake_calc">
-<code class="descname">wake_calc</code><span class="sig-paren">(</span><em>time_array</em><span class="sig-paren">)</span><a class="headerlink" href="#impedances.impedance.Resonators.wake_calc" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">wake_calc</tt><big>(</big><em>time_array</em><big>)</big><a class="headerlink" href="#impedances.impedance.Resonators.wake_calc" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Wake calculation method as a function of time.</em></p>
 </dd></dl>
 
@@ -466,8 +466,8 @@ W(0) = \alpha R"/></p>
 
 <dl class="class">
 <dt id="impedances.impedance.TotalInducedVoltage">
-<em class="property">class </em><code class="descclassname">impedances.impedance.</code><code class="descname">TotalInducedVoltage</code><span class="sig-paren">(</span><em>Slices</em>, <em>induced_voltage_list</em><span class="sig-paren">)</span><a class="headerlink" href="#impedances.impedance.TotalInducedVoltage" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<em class="property">class </em><tt class="descclassname">impedances.impedance.</tt><tt class="descname">TotalInducedVoltage</tt><big>(</big><em>Slices</em>, <em>induced_voltage_list</em><big>)</big><a class="headerlink" href="#impedances.impedance.TotalInducedVoltage" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
 <p><em>Object gathering all the induced voltage contributions. The input is a 
 list of objects able to compute induced voltages (InducedVoltageTime, 
 InducedVoltageFreq, InductiveImpedance). All the induced voltages will
@@ -475,43 +475,43 @@ be summed in order to reduce the computing time. All the induced
 voltages should have the same slicing resolution.</em></p>
 <dl class="attribute">
 <dt id="impedances.impedance.TotalInducedVoltage.induced_voltage">
-<code class="descname">induced_voltage</code><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.TotalInducedVoltage.induced_voltage" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">induced_voltage</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.TotalInducedVoltage.induced_voltage" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Induced voltage from the sum of the wake sources in [V]</em></p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="impedances.impedance.TotalInducedVoltage.induced_voltage_list">
-<code class="descname">induced_voltage_list</code><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.TotalInducedVoltage.induced_voltage_list" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">induced_voltage_list</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.TotalInducedVoltage.induced_voltage_list" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Induced voltage list.</em></p>
 </dd></dl>
 
 <dl class="method">
 <dt id="impedances.impedance.TotalInducedVoltage.induced_voltage_sum">
-<code class="descname">induced_voltage_sum</code><span class="sig-paren">(</span><em>Beam</em>, <em>length='slice_frame'</em><span class="sig-paren">)</span><a class="headerlink" href="#impedances.impedance.TotalInducedVoltage.induced_voltage_sum" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">induced_voltage_sum</tt><big>(</big><em>Beam</em>, <em>length='slice_frame'</em><big>)</big><a class="headerlink" href="#impedances.impedance.TotalInducedVoltage.induced_voltage_sum" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Method to sum all the induced voltages in one single array.</em></p>
 </dd></dl>
 
 <dl class="method">
 <dt id="impedances.impedance.TotalInducedVoltage.reprocess">
-<code class="descname">reprocess</code><span class="sig-paren">(</span><em>new_slicing</em><span class="sig-paren">)</span><a class="headerlink" href="#impedances.impedance.TotalInducedVoltage.reprocess" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">reprocess</tt><big>(</big><em>new_slicing</em><big>)</big><a class="headerlink" href="#impedances.impedance.TotalInducedVoltage.reprocess" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Reprocess the impedance contributions with respect to the new_slicing.</em></p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="impedances.impedance.TotalInducedVoltage.slices">
-<code class="descname">slices</code><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.TotalInducedVoltage.slices" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">slices</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.TotalInducedVoltage.slices" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Copy of the Slices object in order to access the profile info.</em></p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="impedances.impedance.TotalInducedVoltage.time_array">
-<code class="descname">time_array</code><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.TotalInducedVoltage.time_array" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">time_array</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.TotalInducedVoltage.time_array" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Time array of the wake in [s]</em></p>
 </dd></dl>
 
 <dl class="method">
 <dt id="impedances.impedance.TotalInducedVoltage.track">
-<code class="descname">track</code><span class="sig-paren">(</span><em>Beam</em><span class="sig-paren">)</span><a class="headerlink" href="#impedances.impedance.TotalInducedVoltage.track" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">track</tt><big>(</big><em>Beam</em><big>)</big><a class="headerlink" href="#impedances.impedance.TotalInducedVoltage.track" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Track method to apply the induced voltage kick on the beam.</em></p>
 </dd></dl>
 
@@ -519,8 +519,8 @@ voltages should have the same slicing resolution.</em></p>
 
 <dl class="class">
 <dt id="impedances.impedance.TravelingWaveCavity">
-<em class="property">class </em><code class="descclassname">impedances.impedance.</code><code class="descname">TravelingWaveCavity</code><span class="sig-paren">(</span><em>R_S</em>, <em>frequency_R</em>, <em>a_factor</em><span class="sig-paren">)</span><a class="headerlink" href="#impedances.impedance.TravelingWaveCavity" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<em class="property">class </em><tt class="descclassname">impedances.impedance.</tt><tt class="descname">TravelingWaveCavity</tt><big>(</big><em>R_S</em>, <em>frequency_R</em>, <em>a_factor</em><big>)</big><a class="headerlink" href="#impedances.impedance.TravelingWaveCavity" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
 <p><em>Impedance contribution from traveling wave cavities, analytic formulas for 
 both wake and impedance. The resonance modes (and the corresponding R and a) 
 can be inputed as a list in case of several modes.</em></p>
@@ -539,61 +539,61 @@ W(0) = \frac{2R}{\tilde{a}}"/></p>
 <p><img src="_images/math/15aa5ab3129b1012c50140ea337105ede52828ee.png" alt="a = 2 \pi \tilde{a}"/></p>
 </div><dl class="attribute">
 <dt id="impedances.impedance.TravelingWaveCavity.R_S">
-<code class="descname">R_S</code><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.TravelingWaveCavity.R_S" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">R_S</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.TravelingWaveCavity.R_S" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Shunt impepdance in</em> [<img class="math" src="_images/math/b39932b8cbb311eeee9815738f6be3757737b2ff.png" alt="\Omega"/>]</p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="impedances.impedance.TravelingWaveCavity.a_factor">
-<code class="descname">a_factor</code><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.TravelingWaveCavity.a_factor" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">a_factor</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.TravelingWaveCavity.a_factor" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Damping time a in [s]</em></p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="impedances.impedance.TravelingWaveCavity.freq_array">
-<code class="descname">freq_array</code><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.TravelingWaveCavity.freq_array" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">freq_array</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.TravelingWaveCavity.freq_array" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Frequency array of the impedance in [Hz]</em></p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="impedances.impedance.TravelingWaveCavity.frequency_R">
-<code class="descname">frequency_R</code><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.TravelingWaveCavity.frequency_R" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">frequency_R</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.TravelingWaveCavity.frequency_R" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Resonant frequency in [Hz]</em></p>
 </dd></dl>
 
 <dl class="method">
 <dt id="impedances.impedance.TravelingWaveCavity.imped_calc">
-<code class="descname">imped_calc</code><span class="sig-paren">(</span><em>freq_array</em><span class="sig-paren">)</span><a class="headerlink" href="#impedances.impedance.TravelingWaveCavity.imped_calc" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">imped_calc</tt><big>(</big><em>freq_array</em><big>)</big><a class="headerlink" href="#impedances.impedance.TravelingWaveCavity.imped_calc" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Impedance calculation method as a function of frequency.</em></p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="impedances.impedance.TravelingWaveCavity.impedance">
-<code class="descname">impedance</code><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.TravelingWaveCavity.impedance" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">impedance</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.TravelingWaveCavity.impedance" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Impedance array in</em> [<img class="math" src="_images/math/b39932b8cbb311eeee9815738f6be3757737b2ff.png" alt="\Omega"/>]</p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="impedances.impedance.TravelingWaveCavity.n_twc">
-<code class="descname">n_twc</code><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.TravelingWaveCavity.n_twc" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">n_twc</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.TravelingWaveCavity.n_twc" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Number of resonant modes</em></p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="impedances.impedance.TravelingWaveCavity.time_array">
-<code class="descname">time_array</code><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.TravelingWaveCavity.time_array" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">time_array</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.TravelingWaveCavity.time_array" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Time array of the wake in [s]</em></p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="impedances.impedance.TravelingWaveCavity.wake">
-<code class="descname">wake</code><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.TravelingWaveCavity.wake" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">wake</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.TravelingWaveCavity.wake" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Wake array in</em> [<img class="math" src="_images/math/9196874516c02750b618a27dd5a25f52b9a82122.png" alt="\Omega / s"/>]</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="impedances.impedance.TravelingWaveCavity.wake_calc">
-<code class="descname">wake_calc</code><span class="sig-paren">(</span><em>time_array</em><span class="sig-paren">)</span><a class="headerlink" href="#impedances.impedance.TravelingWaveCavity.wake_calc" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">wake_calc</tt><big>(</big><em>time_array</em><big>)</big><a class="headerlink" href="#impedances.impedance.TravelingWaveCavity.wake_calc" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Wake calculation method as a function of time.</em></p>
 </dd></dl>
 
@@ -609,7 +609,7 @@ W(0) = \frac{2R}{\tilde{a}}"/></p>
           </div>
         </div>
       </div>
-      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+      <div class="sphinxsidebar">
         <div class="sphinxsidebarwrapper">
   <h3><a href="index.html">Table Of Contents</a></h3>
   <ul>
@@ -627,14 +627,12 @@ W(0) = \frac{2R}{\tilde{a}}"/></p>
   <h4>Next topic</h4>
   <p class="topless"><a href="input_parameters.html"
                         title="next chapter">input_parameters package</a></p>
-  <div role="note" aria-label="source link">
-    <h3>This Page</h3>
-    <ul class="this-page-menu">
-      <li><a href="_sources/impedances.txt"
-            rel="nofollow">Show Source</a></li>
-    </ul>
-   </div>
-<div id="searchbox" style="display: none" role="search">
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/impedances.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
   <h3>Quick search</h3>
     <form class="search" action="search.html" method="get">
       <input type="text" name="q" />
@@ -651,7 +649,7 @@ W(0) = \frac{2R}{\tilde{a}}"/></p>
       </div>
       <div class="clearer"></div>
     </div>
-    <div class="related" role="navigation" aria-label="related navigation">
+    <div class="related">
       <h3>Navigation</h3>
       <ul>
         <li class="right" style="margin-right: 10px">
@@ -670,9 +668,9 @@ W(0) = \frac{2R}{\tilde{a}}"/></p>
           <li><a href="modules.html" >&lt;no title&gt;</a> &raquo;</li> 
       </ul>
     </div>
-    <div class="footer" role="contentinfo">
+    <div class="footer">
         &copy; Copyright 2014, CERN.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.3b1.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
     </div>
   </body>
 </html>

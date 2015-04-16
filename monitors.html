@@ -28,8 +28,8 @@
     <link rel="next" title="plots package" href="plots.html" />
     <link rel="prev" title="llrf package" href="llrf.html" /> 
   </head>
-  <body role="document">
-    <div class="related" role="navigation" aria-label="related navigation">
+  <body>
+    <div class="related">
       <h3>Navigation</h3>
       <ul>
         <li class="right" style="margin-right: 10px">
@@ -52,7 +52,7 @@
     <div class="document">
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body" role="main">
+          <div class="body">
             
   <div class="section" id="monitors-package">
 <h1>monitors package<a class="headerlink" href="#monitors-package" title="Permalink to this headline">¶</a></h1>
@@ -66,64 +66,80 @@
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Authors:</th><td class="field-body"><strong>Danilo Quartullo</strong></td>
+<tr class="field-odd field"><th class="field-name">Authors:</th><td class="field-body"><strong>Danilo Quartullo</strong>, <strong>Helga Timko</strong></td>
 </tr>
 </tbody>
 </table>
 <dl class="class">
 <dt id="monitors.monitors.BunchMonitor">
-<em class="property">class </em><code class="descclassname">monitors.monitors.</code><code class="descname">BunchMonitor</code><span class="sig-paren">(</span><em>filename</em>, <em>n_turns</em>, <em>slices=None</em>, <em>PhaseLoop=None</em>, <em>LHCNoiseFB=None</em><span class="sig-paren">)</span><a class="headerlink" href="#monitors.monitors.BunchMonitor" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
-<p>Class able to save bunch data into h5 file.
+<em class="property">class </em><tt class="descclassname">monitors.monitors.</tt><tt class="descname">BunchMonitor</tt><big>(</big><em>GeneralParameters</em>, <em>Beam</em>, <em>filename</em>, <em>buffer_time=None</em>, <em>Slices=None</em>, <em>PhaseLoop=None</em>, <em>LHCNoiseFB=None</em><big>)</big><a class="headerlink" href="#monitors.monitors.BunchMonitor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p>Class able to save bunch data into h5 file. Use &#8216;buffer_time&#8217; to select 
+the frequency of saving to file in number of turns.
 If in the constructor a Slices object is passed, that means that one
 wants to save the gaussian-fit bunch length as well (obviously the 
 Slices object has to have the fit_option set to &#8216;gaussian&#8217;).</p>
 <dl class="method">
 <dt id="monitors.monitors.BunchMonitor.close">
-<code class="descname">close</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#monitors.monitors.BunchMonitor.close" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">close</tt><big>(</big><big>)</big><a class="headerlink" href="#monitors.monitors.BunchMonitor.close" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="method">
-<dt id="monitors.monitors.BunchMonitor.create_data">
-<code class="descname">create_data</code><span class="sig-paren">(</span><em>h5group</em>, <em>dims</em><span class="sig-paren">)</span><a class="headerlink" href="#monitors.monitors.BunchMonitor.create_data" title="Permalink to this definition">¶</a></dt>
+<dt id="monitors.monitors.BunchMonitor.init_buffer">
+<tt class="descname">init_buffer</tt><big>(</big><big>)</big><a class="headerlink" href="#monitors.monitors.BunchMonitor.init_buffer" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="monitors.monitors.BunchMonitor.init_data">
+<tt class="descname">init_data</tt><big>(</big><em>filename</em>, <em>dims</em><big>)</big><a class="headerlink" href="#monitors.monitors.BunchMonitor.init_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="monitors.monitors.BunchMonitor.open">
+<tt class="descname">open</tt><big>(</big><big>)</big><a class="headerlink" href="#monitors.monitors.BunchMonitor.open" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="method">
 <dt id="monitors.monitors.BunchMonitor.track">
-<code class="descname">track</code><span class="sig-paren">(</span><em>bunch</em><span class="sig-paren">)</span><a class="headerlink" href="#monitors.monitors.BunchMonitor.track" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">track</tt><big>(</big><big>)</big><a class="headerlink" href="#monitors.monitors.BunchMonitor.track" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="monitors.monitors.BunchMonitor.write_buffer">
+<tt class="descname">write_buffer</tt><big>(</big><big>)</big><a class="headerlink" href="#monitors.monitors.BunchMonitor.write_buffer" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="method">
 <dt id="monitors.monitors.BunchMonitor.write_data">
-<code class="descname">write_data</code><span class="sig-paren">(</span><em>bunch</em>, <em>h5group</em>, <em>i_turn</em><span class="sig-paren">)</span><a class="headerlink" href="#monitors.monitors.BunchMonitor.write_data" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">write_data</tt><big>(</big><em>h5group</em>, <em>dims</em><big>)</big><a class="headerlink" href="#monitors.monitors.BunchMonitor.write_data" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 </dd></dl>
 
 <dl class="class">
 <dt id="monitors.monitors.SlicesMonitor">
-<em class="property">class </em><code class="descclassname">monitors.monitors.</code><code class="descname">SlicesMonitor</code><span class="sig-paren">(</span><em>filename</em>, <em>n_turns</em>, <em>slices</em><span class="sig-paren">)</span><a class="headerlink" href="#monitors.monitors.SlicesMonitor" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<em class="property">class </em><tt class="descclassname">monitors.monitors.</tt><tt class="descname">SlicesMonitor</tt><big>(</big><em>filename</em>, <em>n_turns</em>, <em>slices</em><big>)</big><a class="headerlink" href="#monitors.monitors.SlicesMonitor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
 <p>Class able to save the bunch profile, i.e. the histogram derived from
 the slicing.</p>
 <dl class="method">
 <dt id="monitors.monitors.SlicesMonitor.close">
-<code class="descname">close</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#monitors.monitors.SlicesMonitor.close" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">close</tt><big>(</big><big>)</big><a class="headerlink" href="#monitors.monitors.SlicesMonitor.close" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="method">
 <dt id="monitors.monitors.SlicesMonitor.create_data">
-<code class="descname">create_data</code><span class="sig-paren">(</span><em>h5group</em>, <em>dims</em><span class="sig-paren">)</span><a class="headerlink" href="#monitors.monitors.SlicesMonitor.create_data" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">create_data</tt><big>(</big><em>h5group</em>, <em>dims</em><big>)</big><a class="headerlink" href="#monitors.monitors.SlicesMonitor.create_data" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="method">
 <dt id="monitors.monitors.SlicesMonitor.track">
-<code class="descname">track</code><span class="sig-paren">(</span><em>bunch</em><span class="sig-paren">)</span><a class="headerlink" href="#monitors.monitors.SlicesMonitor.track" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">track</tt><big>(</big><em>bunch</em><big>)</big><a class="headerlink" href="#monitors.monitors.SlicesMonitor.track" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="method">
 <dt id="monitors.monitors.SlicesMonitor.write_data">
-<code class="descname">write_data</code><span class="sig-paren">(</span><em>bunch</em>, <em>h5group</em>, <em>i_turn</em><span class="sig-paren">)</span><a class="headerlink" href="#monitors.monitors.SlicesMonitor.write_data" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">write_data</tt><big>(</big><em>bunch</em>, <em>h5group</em>, <em>i_turn</em><big>)</big><a class="headerlink" href="#monitors.monitors.SlicesMonitor.write_data" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 </dd></dl>
@@ -138,7 +154,7 @@ the slicing.</p>
           </div>
         </div>
       </div>
-      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+      <div class="sphinxsidebar">
         <div class="sphinxsidebarwrapper">
   <h3><a href="index.html">Table Of Contents</a></h3>
   <ul>
@@ -156,14 +172,12 @@ the slicing.</p>
   <h4>Next topic</h4>
   <p class="topless"><a href="plots.html"
                         title="next chapter">plots package</a></p>
-  <div role="note" aria-label="source link">
-    <h3>This Page</h3>
-    <ul class="this-page-menu">
-      <li><a href="_sources/monitors.txt"
-            rel="nofollow">Show Source</a></li>
-    </ul>
-   </div>
-<div id="searchbox" style="display: none" role="search">
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/monitors.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
   <h3>Quick search</h3>
     <form class="search" action="search.html" method="get">
       <input type="text" name="q" />
@@ -180,7 +194,7 @@ the slicing.</p>
       </div>
       <div class="clearer"></div>
     </div>
-    <div class="related" role="navigation" aria-label="related navigation">
+    <div class="related">
       <h3>Navigation</h3>
       <ul>
         <li class="right" style="margin-right: 10px">
@@ -199,9 +213,9 @@ the slicing.</p>
           <li><a href="modules.html" >&lt;no title&gt;</a> &raquo;</li> 
       </ul>
     </div>
-    <div class="footer" role="contentinfo">
+    <div class="footer">
         &copy; Copyright 2014, CERN.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.3b1.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
     </div>
   </body>
 </html>
