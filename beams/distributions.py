@@ -23,6 +23,10 @@ from trackers.utilities import is_in_separatrix
 from slices import Slices
 from scipy.integrate import cumtrapz
 from trackers.utilities import potential_well_cut, minmax_location
+import sys
+
+
+
 
 def matched_from_line_density(Beam, FullRingAndRF, line_density_options, 
                               main_harmonic_option = 'lowest_freq', 

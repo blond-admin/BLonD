@@ -54,7 +54,8 @@ def plot_long_phase_space(beam, General_parameters, RFSectionParameters, xmin,
     rect_histy = [left_h, bottom, 0.2, height]
 
     # Prepare plot
-    plt.figure(1, figsize=(8,8))
+    fig = plt.figure(1)
+    fig.set_size_inches(8,8)
     axScatter = plt.axes(rect_scatter)
     axHistx = plt.axes(rect_histx)
     axHisty = plt.axes(rect_histy)
@@ -165,7 +166,7 @@ def plot_bunch_length_evol(h5file, General_parameters, time_step,
     if output_freq < 1:
         output_freq = 1
     ndata = int(time_step/output_freq) + 1
-    t = output_freq*range(0, ndata)    
+    t = output_freq*np.arange(ndata)    
     storeddata = h5py.File(h5file + '.h5', 'r')
     bl = np.array(storeddata["/Bunch/sigma_theta"], dtype = np.double)
     
@@ -180,7 +181,9 @@ def plot_bunch_length_evol(h5file, General_parameters, time_step,
         warnings.warn("WARNING: unit of plot_bunch_length not recognized!")   
 
     # Plot
-    plt.figure(1, figsize=(8,6))
+    
+    fig = plt.figure(1)
+    fig.set_size_inches(8,6)
     ax = plt.axes([0.15, 0.1, 0.8, 0.8])
     ax.plot(t, bl[0:ndata], '.')
     ax.set_xlabel(r"No. turns [T$_0$]")
@@ -243,7 +246,8 @@ def plot_bunch_length_evol_gaussian(h5file, General_parameters, slices,
         warnings.warn("WARNING: unit of plot_bunch_length_gaussian not recognized!")   
 
     # Plot
-    plt.figure(1, figsize=(8,6))
+    fig = plt.figure(1)
+    fig.set_size_inches(8,6)
     ax = plt.axes([0.15, 0.1, 0.8, 0.8])
     ax.plot(t, bl[0:ndata], '.')
     ax.set_xlabel(r"No. turns [T$_0$]")
@@ -287,7 +291,8 @@ def plot_position_evol(h5file, General_parameters, time_step,
     pos[time_step:] = np.nan 
  
     # Plot 
-    plt.figure(1, figsize=(8,6)) 
+    fig = plt.figure(1)
+    fig.set_size_inches(8,6)
     ax = plt.axes([0.15, 0.1, 0.8, 0.8]) 
     ax.plot(t, pos[0:ndata], style) 
     ax.set_xlabel(r"No. turns [T$_0$]") 
@@ -326,7 +331,8 @@ def plot_energy_evol(h5file, General_parameters, time_step,
     nrg[time_step:] = np.nan 
  
     # Plot 
-    plt.figure(1, figsize=(8,6)) 
+    fig = plt.figure(1)
+    fig.set_size_inches(8,6)
     ax = plt.axes([0.15, 0.1, 0.8, 0.8]) 
     ax.plot(t, nrg[0:ndata], style) 
     ax.set_xlabel(r"No. turns [T$_0$]") 

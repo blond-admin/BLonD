@@ -64,6 +64,10 @@ STRUCTURE
 
 VERSION CONTENTS
 ================
+
+2015-4-20
+v1.10.5 - Test cases reorganized for benchmark between old and new versions
+
 2015-4-07
 v1.10.4 - Fixed two bugs in the EXAMPLE_MAIN_FILES
 

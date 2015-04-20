@@ -30,7 +30,8 @@ def plot_beam_profile(counter, general_params, slices, style = '-',
     # Directory where plots will be stored 
     fig_folder(dirname)
     
-    plt.figure(1, figsize=(8,6))
+    fig = plt.figure(1)
+    fig.set_size_inches(8,6)
     ax = plt.axes([0.15, 0.1, 0.8, 0.8])    
     ax.plot(slices.bins_centers, slices.n_macroparticles, style)
     

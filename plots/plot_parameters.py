@@ -29,7 +29,8 @@ def plot_voltage_programme(time, voltage, sampling = 1, dirname = 'fig', figno =
     fig_folder(dirname)
     
     # Plot
-    plt.figure(1, figsize=(8,6))
+    fig = plt.figure(1)
+    fig.set_size_inches(8,6)
     ax = plt.axes([0.15, 0.1, 0.8, 0.8])
     ax.plot(time[::sampling], 1.e-6*voltage[::sampling])
     ax.set_xlabel("Time [s]")    

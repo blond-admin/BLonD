@@ -35,7 +35,8 @@ def plot_noise_spectrum(frequency, spectrum, sampling = 1, dirname = 'fig',
     fig_folder(dirname)
     
     # Plot
-    plt.figure(1, figsize=(8,6))
+    fig = plt.figure(1)
+    fig.set_size_inches(8,6)
     ax = plt.axes([0.15, 0.1, 0.8, 0.8])
     ax.set_xlim([0, 300])    
     ax.plot(frequency[::sampling], spectrum[::sampling])
@@ -63,7 +64,8 @@ def plot_phase_noise(time, dphi, sampling = 1, dirname = 'fig', figno = 0):
     fig_folder(dirname)
     
     # Plot
-    plt.figure(1, figsize=(8,6))
+    fig = plt.figure(1)
+    fig.set_size_inches(8,6)
     ax = plt.axes([0.15, 0.1, 0.8, 0.8])
     ax.plot(time[::sampling], dphi[::sampling])
     ax.set_xlabel("Time [s]")    
@@ -96,7 +98,8 @@ def plot_PL_phase_corr(PhaseLoop, h5file, time_step, output_freq = 1,
     dphi = np.array(storeddata["/Bunch/PL_phase_corr"], dtype = np.double)
     
     # Plot
-    plt.figure(1, figsize=(8,6))
+    fig = plt.figure(1)
+    fig.set_size_inches(8,6)
     ax = plt.axes([0.15, 0.1, 0.8, 0.8])
     ax.plot(t, dphi[0:ndata+1],'.')
     ax.set_xlabel(r"No. turns [T$_0$]")    
@@ -131,7 +134,8 @@ def plot_PL_freq_corr(PhaseLoop, h5file, time_step, output_freq = 1,
     dphi = np.array(storeddata["/Bunch/PL_omegaRF_corr"], dtype = np.double)
     
     # Plot
-    plt.figure(1, figsize=(8,6))
+    fig = plt.figure(1)
+    fig.set_size_inches(8,6)
     ax = plt.axes([0.15, 0.1, 0.8, 0.8])
     ax.plot(t, dphi[0:ndata+1],'.')
     ax.set_xlabel(r"No. turns [T$_0$]")    
@@ -165,7 +169,8 @@ def plot_COM_motion(General_parameters, RFSectionParameters, h5file, xmin,
     
 
     # Plot
-    plt.figure(1, figsize=(8,8))
+    fig = plt.figure(1)
+    fig.set_size_inches(8,6)
     ax = plt.axes([0.15, 0.1, 0.8, 0.8])
     ax.scatter(mean_theta, mean_dE/1.e6, s=5, edgecolor='none')
        
@@ -211,7 +216,8 @@ def plot_LHCNoiseFB(LHCNoiseFB, h5file, time_step, output_freq = 1,
     x = np.array(storeddata["/Bunch/LHC_noise_scaling"], dtype = np.double)
     
     # Plot
-    plt.figure(1, figsize=(8,6))
+    fig = plt.figure(1)
+    fig.set_size_inches(8,6)
     ax = plt.axes([0.15, 0.1, 0.8, 0.8])
     ax.plot(t, x[0:ndata+1],'.')
     ax.set_xlabel(r"No. turns [T$_0$]")    

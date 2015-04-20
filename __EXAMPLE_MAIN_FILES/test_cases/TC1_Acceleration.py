@@ -42,7 +42,7 @@ gamma_t = 55.759505  # Transition gamma
 alpha = 1./gamma_t/gamma_t        # First order mom. comp. factor
 
 # Tracking details
-N_t = 2001           # Number of turns to track
+N_t = 2000           # Number of turns to track
 dt_plt = 200       # Time steps between plots
 
 
@@ -53,7 +53,7 @@ print ""
 
 
 # Define general parameters
-general_params = GeneralParameters(N_t, C, alpha, np.linspace(p_i, p_f, 2002), 
+general_params = GeneralParameters(N_t, C, alpha, np.linspace(p_i, p_f, 2001), 
                                    'proton')
 
 # Define RF station parameters and corresponding tracker
@@ -66,9 +66,11 @@ print "General and RF parameters set..."
 # Define beam and distribution
 beam = Beam(general_params, N_p, N_b)
 longitudinal_bigaussian(general_params, rf_params, beam, tau_0/4, 
-                        xunit = 'ns', reinsertion = 'on')
+                        xunit = 'ns', reinsertion = 'on', seed=1)
 
-
+# plt.plot(beam.theta, beam.dE, '.')
+# plt.show()
+# sys.exit()
 print "Beam set and distribution generated..."
 
 
@@ -87,11 +89,12 @@ print "Statistics set..."
 map_ = [long_tracker] + [slice_beam] + [bunchmonitor] # No intensity effects, no aperture limitations
 print "Map set"
 print ""
-
-
+plot_long_phase_space(beam, general_params, rf_params, 0, 0.0001763, -400, 400, separatrix_plot = True, dirname = '../output_files/TC1_fig')
+plot_bunch_length_evol('../output_files/TC1_output_data', general_params, 0, unit='ns', dirname = '../output_files/TC1_fig')
+plot_bunch_length_evol_gaussian('../output_files/TC1_output_data', general_params, slice_beam, 0, unit='ns', dirname = '../output_files/TC1_fig')
 
 # Tracking ---------------------------------------------------------------------
-for i in range(N_t):
+for i in range(1, N_t+1):
     
     t0 = time.clock()
    
@@ -105,8 +108,8 @@ for i in range(N_t):
         print "   Four-times r.m.s. bunch length %.4e rad" %(4.*beam.sigma_theta)
         print "   Gaussian bunch length %.4e rad" %beam.bl_gauss
         print ""
-        # In plots, you can choose following units: rad, ns, m  
-        plot_long_phase_space(beam, general_params, rf_params, 0, 0.0001763, -400, 400, separatrix_plot = True, dirname = '../output_files/TC1_fig')
+    
+        
 
     # Track
     for m in map_:
@@ -114,6 +117,7 @@ for i in range(N_t):
 
     # These plots have to be done after the tracking
     if (i % dt_plt) == 0:
+        plot_long_phase_space(beam, general_params, rf_params, 0, 0.0001763, -400, 400, separatrix_plot = True, dirname = '../output_files/TC1_fig')
         plot_bunch_length_evol('../output_files/TC1_output_data', general_params, i, unit='ns', dirname = '../output_files/TC1_fig')
         plot_bunch_length_evol_gaussian('../output_files/TC1_output_data', general_params, slice_beam, i, unit='ns', dirname = '../output_files/TC1_fig')
     
