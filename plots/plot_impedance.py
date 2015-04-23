@@ -11,13 +11,12 @@
 **Module to plot different bunch features**
 
 :Authors: **Helga Timko**, **Danilo Quartullo**
-
 '''
 
 from __future__ import division
 import matplotlib.pyplot as plt
 from impedances.impedance import *
-from plots.plot_settings import fig_folder
+
 
 
 def plot_impedance_vs_frequency(counter, general_params, ind_volt_from_imp, 
@@ -30,9 +29,6 @@ def plot_impedance_vs_frequency(counter, general_params, ind_volt_from_imp,
     Plot of impedance vs frequency.
     """
 
-    # Directory where longitudinal_plots will be stored
-    fig_folder(dirname)
-    
     if option1 == "sum":
         
         ax1 = plt.subplots()[1]
@@ -48,9 +44,7 @@ def plot_impedance_vs_frequency(counter, general_params, ind_volt_from_imp,
         plt.show()
         plt.savefig(fign)
         plt.clf()
-        #plt.close()
-        
-    
+            
     elif option1 == "single":
         
         fig0 = plt.figure(0)
@@ -106,24 +100,20 @@ def plot_impedance_vs_frequency(counter, general_params, ind_volt_from_imp,
         
         plt.savefig(fign2)
         plt.clf()
-        #plt.close()
+
    
    
-def plot_induced_voltage_vs_bins_centers(counter, general_params, 
+def plot_induced_voltage_vs_bin_centers(counter, general_params, 
                                          total_voltage, style = '-', 
                                          dirname = 'fig'):
 
     """
     Plot of induced voltage vs bin centers.
     """
-
-    # Directory where longitudinal_plots will be stored
-    fig_folder(dirname)
-    
-    
+   
     fig0 = plt.figure(0)
     ax0 = fig0.add_subplot(111)
-    plt.plot(total_voltage.slices.bins_centers, total_voltage.induced_voltage, style)
+    plt.plot(total_voltage.slices.bin_centers, total_voltage.induced_voltage, style)
     ax0.set_xlabel("Time [s]")
     ax0.set_ylabel ("Induced voltage [V]")
 
@@ -131,6 +121,6 @@ def plot_induced_voltage_vs_bins_centers(counter, general_params,
     fign = dirname +'/induced_voltage_' "%d" %counter + '.png'
     plt.savefig(fign)
     plt.clf()
-    #plt.close()
+
 
 

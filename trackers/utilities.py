@@ -63,8 +63,8 @@ def synchrotron_frequency_distribution(Beam, FullRingAndRF, main_harmonic_option
     # Initialize variables depending on the accelerator parameters
     slippage_factor = FullRingAndRF.RingAndRFSection_list[0].eta_0[0]
     eom_factor_dE = (np.pi * abs(slippage_factor) * c) / \
-                    (FullRingAndRF.ring_circumference * Beam.beta_r * Beam.energy)
-    eom_factor_potential = np.sign(FullRingAndRF.RingAndRFSection_list[0].eta_0[0]) * (Beam.beta_r * c) / (FullRingAndRF.ring_circumference)
+                    (FullRingAndRF.ring_circumference * Beam.beta * Beam.energy)
+    eom_factor_potential = np.sign(FullRingAndRF.RingAndRFSection_list[0].eta_0[0]) * (Beam.beta * c) / (FullRingAndRF.ring_circumference)
      
     # Generate potential well
     n_points_potential = int(1e4)
@@ -82,14 +82,14 @@ def synchrotron_frequency_distribution(Beam, FullRingAndRF, main_harmonic_option
                             both lineDensity and TotalInducedVoltage options, \
                             please choose one or the other (the line density \
                             with intensity effects is already taken into \
-                            account yith the TotalInducedVoltage option !)')
+                            account with the TotalInducedVoltage option !)')
     
     if TotalInducedVoltage is not None:
         
         induced_voltage_object = copy.deepcopy(TotalInducedVoltage)
         
         induced_voltage = induced_voltage_object.induced_voltage
-        theta_induced_voltage = TotalInducedVoltage.slices.convert_coordinates(TotalInducedVoltage.slices.bins_centers, TotalInducedVoltage.slices.slicing_coord, 'theta')
+        theta_induced_voltage = TotalInducedVoltage.slices.bin_centers / (Beam.ring_radius/(Beam.beta*c))
         
         # Computing induced potential
         induced_potential = - eom_factor_potential * np.insert(cumtrapz(induced_voltage, dx=theta_induced_voltage[1] - theta_induced_voltage[0]),0,0)
@@ -175,11 +175,11 @@ def synchrotron_frequency_distribution(Beam, FullRingAndRF, main_harmonic_option
     sync_freq_distribution_left = np.fliplr([sync_freq_distribution_left])[0]
     sync_freq_distribution_right = np.diff(H_array_right)/np.diff(J_array_right) / (2*np.pi)
         
-    emittance_array_left = J_array_left * FullRingAndRF.ring_radius / (Beam.beta_r * c) * (2*np.pi)
+    emittance_array_left = J_array_left * FullRingAndRF.ring_radius / (Beam.beta * c) * (2*np.pi)
     emittance_array_left = np.fliplr([emittance_array_left])[0]
     emittance_array_left = np.interp(delta_theta_left_final, delta_theta_left, emittance_array_left)
 
-    emittance_array_right = J_array_right * FullRingAndRF.ring_radius / (Beam.beta_r * c) * (2*np.pi)     
+    emittance_array_right = J_array_right * FullRingAndRF.ring_radius / (Beam.beta * c) * (2*np.pi)     
     emittance_array_right = np.interp(delta_theta_right_final, delta_theta_right, emittance_array_right)
     
     if smoothOption is not None:
@@ -196,8 +196,8 @@ def synchrotron_frequency_distribution(Beam, FullRingAndRF, main_harmonic_option
     line_density_left = line_density_left / line_density_normalizing_factor * Beam.n_macroparticles
     line_density_right = line_density_right / line_density_normalizing_factor * Beam.n_macroparticles
     
-    particleDistributionFreq_left = np.interp(synchronous_theta - Beam.theta[Beam.theta<synchronous_theta], delta_theta_left_final, sync_freq_distribution_left)
-    particleDistributionFreq_right = np.interp(Beam.theta[Beam.theta>synchronous_theta] - synchronous_theta, delta_theta_right_final, sync_freq_distribution_right)
+    particleDistributionFreq_left = np.interp(synchronous_theta - (Beam.dt[Beam.dt<synchronous_theta*(Beam.ring_radius/(Beam.beta*c))])/(Beam.ring_radius/(Beam.beta*c)), delta_theta_left_final, sync_freq_distribution_left)
+    particleDistributionFreq_right = np.interp((Beam.dt[Beam.dt>synchronous_theta*(Beam.ring_radius/(Beam.beta*c))])/(Beam.ring_radius/(Beam.beta*c)) - synchronous_theta, delta_theta_right_final, sync_freq_distribution_right)
     particleDistributionFreq = np.concatenate(([particleDistributionFreq_left, particleDistributionFreq_right]))   
               
     return [sync_freq_distribution_left, sync_freq_distribution_right], [emittance_array_left, emittance_array_right], [delta_theta_left_final, delta_theta_right_final], [line_density_left, line_density_right], particleDistributionFreq, synchronous_theta
@@ -225,7 +225,7 @@ class synchrotron_frequency_tracker(object):
                  TotalInducedVoltage = None):
         
         #: *Number of macroparticles used in the synchrotron_frequency_tracker method*
-        self.n_macroparticles = n_macroparticles
+        self.n_macroparticles = int(n_macroparticles)
         
         #: *Copy of the input FullRingAndRF object to retrieve the accelerator programs*
         self.FullRingAndRF = copy.deepcopy(FullRingAndRF)
@@ -248,14 +248,17 @@ class synchrotron_frequency_tracker(object):
         
         # Generating the distribution from the user input
         if len(theta_coordinate_range) == 2:
-            self.Beam.theta = np.linspace(theta_coordinate_range[0], theta_coordinate_range[1], n_macroparticles)
+            self.Beam.dt = np.linspace(theta_coordinate_range[0], theta_coordinate_range[1], n_macroparticles) * (self.Beam.ring_radius/(self.Beam.beta*c))
         else:
             if len(theta_coordinate_range) != n_macroparticles:
                 raise RuntimeError('The input n_macroparticles does not match with the length of the theta_coordinates')
             else:
-                self.Beam.theta = np.array(theta_coordinate_range)
+                self.Beam.dt = np.array(theta_coordinate_range) * (self.Beam.ring_radius/(self.Beam.beta*c))
                         
         self.Beam.dE = np.zeros(int(n_macroparticles))
+ 
+        for RFsection in self.FullRingAndRF.RingAndRFSection_list:
+            RFsection.beam = self.Beam
         
         #: *Revolution period in [s]*
         self.timeStep = GeneralParameters.t_rev[0]
@@ -273,27 +276,27 @@ class synchrotron_frequency_tracker(object):
         self.counter = 0
           
         # The first save coordinates are the input coordinates      
-        self.theta_save[self.counter] = self.Beam.theta
+        self.theta_save[self.counter] = self.Beam.dt / (self.Beam.ring_radius/(self.Beam.beta*c))
         self.dE_save[self.counter] = self.Beam.dE
     
             
-    def track(self, Beam):
+    def track(self):
         '''
         *Method to track the particles with or without intensity effects.*
         '''
     
-        self.FullRingAndRF.track(self.Beam)
+        self.FullRingAndRF.track()
         
         if self.TotalInducedVoltage is not None:
-            self.TotalInducedVoltage.track(self.Beam, no_update_induced_voltage = True)
+            self.TotalInducedVoltage.track_ghosts_particles(self.Beam)
             
         self.counter = self.counter + 1
         
-        self.theta_save[self.counter] = self.Beam.theta
+        self.theta_save[self.counter] = self.Beam.dt / (self.Beam.ring_radius/(self.Beam.beta*c))
         self.dE_save[self.counter] = self.Beam.dE
         
             
-    def frequency_calculation(self, n_sampling=100000):
+    def frequency_calculation(self, n_sampling=100000, start_turn = None, end_turn = None):
         '''
         *Method to compute the fft of the particle oscillations in theta and dE
         to obtain their synchrotron frequencies. The particles for which
@@ -327,16 +330,22 @@ class synchrotron_frequency_tracker(object):
         #: *Frequency array for the synchrotron frequency distribution*
         self.frequency_array = np.fft.rfftfreq(n_sampling, self.timeStep)
         
+        if start_turn is None:
+            start_turn = 0
+        
+        if end_turn is None:
+            end_turn = self.nTurns + 1
+        
         # Computing the synchrotron frequency of each particle from the maximum
         # peak of the FFT.
         for indexParticle in range(0, self.n_macroparticles):
-            self.max_theta_save[indexParticle] = np.max(self.theta_save[:,indexParticle])
-            self.min_theta_save[indexParticle] = np.min(self.theta_save[:,indexParticle])
+            self.max_theta_save[indexParticle] = np.max(self.theta_save[start_turn:end_turn,indexParticle])
+            self.min_theta_save[indexParticle] = np.min(self.theta_save[start_turn:end_turn,indexParticle])
             
             if (self.max_theta_save[indexParticle]<max_theta_range) and (self.min_theta_save[indexParticle]>min_theta_range):
             
-                theta_save_fft = abs(np.fft.rfft(self.theta_save[:,indexParticle] - np.mean(self.theta_save[:,indexParticle]), n_sampling))
-                dE_save_fft = abs(np.fft.rfft(self.dE_save[:,indexParticle] - np.mean(self.dE_save[:,indexParticle]), n_sampling))
+                theta_save_fft = abs(np.fft.rfft(self.theta_save[start_turn:end_turn,indexParticle] - np.mean(self.theta_save[start_turn:end_turn,indexParticle]), n_sampling))
+                dE_save_fft = abs(np.fft.rfft(self.dE_save[start_turn:end_turn,indexParticle] - np.mean(self.dE_save[start_turn:end_turn,indexParticle]), n_sampling))
         
                 self.frequency_theta_save[indexParticle] = self.frequency_array[theta_save_fft==np.max(theta_save_fft)]
                 self.frequency_dE_save[indexParticle] = self.frequency_array[dE_save_fft==np.max(dE_save_fft)]
@@ -354,13 +363,13 @@ def total_voltage(RFsection_list, harmonic = 'first'):
     #: *Sums up only the voltage of the first harmonic RF, 
     #: taking into account relative phases*
     if harmonic == 'first':
-        Vcos = RFsection_list[0].voltage[0]*np.cos(RFsection_list[0].phi_offset[0])
-        Vsin = RFsection_list[0].voltage[0]*np.sin(RFsection_list[0].phi_offset[0])
+        Vcos = RFsection_list[0].voltage[0]*np.cos(RFsection_list[0].phi_RF[0])
+        Vsin = RFsection_list[0].voltage[0]*np.sin(RFsection_list[0].phi_RF[0])
         if n_sections > 1:
             for i in range(1, n_sections):
                 print RFsection_list[i].voltage[0]
-                Vcos += RFsection_list[i].voltage[0]*np.cos(RFsection_list[i].phi_offset[0])
-                Vsin += RFsection_list[i].voltage[0]*np.sin(RFsection_list[i].phi_offset[0])
+                Vcos += RFsection_list[i].voltage[0]*np.cos(RFsection_list[i].phi_RF[0])
+                Vsin += RFsection_list[i].voltage[0]*np.sin(RFsection_list[i].phi_RF[0])
         Vtot = np.sqrt(Vcos**2 + Vsin**2)
         return Vtot
     
@@ -374,7 +383,7 @@ def total_voltage(RFsection_list, harmonic = 'first'):
     
 
 
-def hamiltonian(GeneralParameters, RFSectionParameters, theta, dE, delta, 
+def hamiltonian(GeneralParameters, RFSectionParameters, Beam, dt, dE, 
                 total_voltage = None):
     """Single RF sinusoidal Hamiltonian.
     For the time being, for single RF section only or from total voltage.
@@ -397,18 +406,20 @@ def hamiltonian(GeneralParameters, RFSectionParameters, theta, dE, delta,
     else: 
         V0 = total_voltage[counter]
     
-    c1 = RFSectionParameters.eta_tracking(counter, delta) * c * np.pi / (GeneralParameters.ring_circumference * 
-         RFSectionParameters.beta_r[counter] * RFSectionParameters.energy[counter] )
-    c2 = c * RFSectionParameters.beta_r[counter] * V0 / (h0 * GeneralParameters.ring_circumference)
+    c1 = RFSectionParameters.eta_tracking(Beam, counter, dE)*c*np.pi/ \
+         (GeneralParameters.ring_circumference*Beam.beta*Beam.energy )
+    c2 = c*Beam.beta*V0/(h0*GeneralParameters.ring_circumference)
      
-    phi_s = RFSectionParameters.phi_s[counter]  
+    phi_s = RFSectionParameters.phi_s[counter] 
+    phi_b = RFSectionParameters.omega_RF[0,counter]*dt + \
+            RFSectionParameters.phi_RF[0,counter] 
     
-    return c1 * dE**2 + c2 * (np.cos(h0 * theta) - np.cos(phi_s) + 
-                               (h0 * theta - phi_s) * np.sin(phi_s))
+    return c1 * dE**2 + c2 * (np.cos(phi_b) - np.cos(phi_s) + 
+                               (phi_b - phi_s) * np.sin(phi_s))
          
  
  
-def separatrix(GeneralParameters, RFSectionParameters, theta, total_voltage = None):
+def separatrix(GeneralParameters, RFSectionParameters, dt, total_voltage = None):
     """Single RF sinusoidal separatrix.
     For the time being, for single RF section only or from total voltage.
     Uses beta, energy averaged over the turn.
@@ -420,8 +431,7 @@ def separatrix(GeneralParameters, RFSectionParameters, theta, total_voltage = No
         warnings.warn("WARNING: The separatrix is not yet properly computed for several sections!")
     if RFSectionParameters.n_rf > 1:
         warnings.warn("WARNING: The separatrix will be calculated for the first harmonic only!")    
-
-     
+  
      
     counter = RFSectionParameters.counter[0]
     h0 = RFSectionParameters.harmonic[0,counter]
@@ -432,22 +442,25 @@ def separatrix(GeneralParameters, RFSectionParameters, theta, total_voltage = No
         V0 = total_voltage[counter]
  
     phi_s = RFSectionParameters.phi_s[counter]
+
+    phi_b = RFSectionParameters.omega_RF[0,counter]*dt + \
+            RFSectionParameters.phi_RF[0,counter] 
      
-    beta = RFSectionParameters.beta_r[counter]
+    beta = RFSectionParameters.beta[counter]
      
     energy = RFSectionParameters.energy[counter]
      
     eta0 = RFSectionParameters.eta_0[counter]
       
     separatrix_array = np.sqrt(beta**2 * energy * V0 / (np.pi * eta0 * h0) * 
-                       (-np.cos(h0 * theta) - np.cos(phi_s) + 
-                       (np.pi - phi_s - h0 * theta) * np.sin(phi_s)))
+                       (-np.cos(phi_b) - np.cos(phi_s) + 
+                       (np.pi - phi_s - phi_b) * np.sin(phi_s)))
          
     return separatrix_array
  
  
  
-def is_in_separatrix(GeneralParameters, RFSectionParameters, theta, dE, delta, total_voltage = None):
+def is_in_separatrix(GeneralParameters, RFSectionParameters, Beam, dt, dE, total_voltage = None):
     """Condition for being inside the separatrix.
     For the time being, for single RF section only or from total voltage.
     Single RF sinusoidal.
@@ -463,13 +476,17 @@ def is_in_separatrix(GeneralParameters, RFSectionParameters, theta, dE, delta, t
     
          
     counter = RFSectionParameters.counter[0]
-    h0 = RFSectionParameters.harmonic[0,counter]     
-    phi_s = RFSectionParameters.phi_s[counter] 
+    dt_sep = (np.pi - RFSectionParameters.phi_s[counter] 
+              - RFSectionParameters.phi_RF[0,counter])/ \
+              RFSectionParameters.omega_RF[0,counter]
      
-    Hsep = hamiltonian(GeneralParameters, RFSectionParameters, (np.pi - phi_s) / h0, 0, 0, total_voltage = None) 
-    isin = np.fabs(hamiltonian(GeneralParameters, RFSectionParameters, theta, dE, delta, total_voltage = None)) < np.fabs(Hsep)
+    Hsep = hamiltonian(GeneralParameters, RFSectionParameters, Beam, dt_sep, 0, 
+                       total_voltage = None) 
+    isin = np.fabs(hamiltonian(GeneralParameters, RFSectionParameters, Beam, dt, 
+                               dE, total_voltage = None)) < np.fabs(Hsep)
      
     return isin
+        
 
 
 def minmax_location(x,f):

@@ -15,171 +15,119 @@
 
 from __future__ import division
 import numpy as np
-from scipy.constants import c
 from trackers.utilities import is_in_separatrix
 
 
 
-class Beam(object):
-    
-    def __init__(self, General_parameters, n_macroparticles, intensity):
-        
-        # Beam and ring-dependent properties
-  
-        self.mass = General_parameters.mass
-        self.charge = General_parameters.charge
-        self.ring_radius = General_parameters.ring_radius
-        self.intensity = intensity # total no of particles
-        
-        #: Relativistic beta of the synchronous particle
-        self.beta_r = General_parameters.beta_r[0][0]
-        #: Relativistic gamma of the synchronous particle
-        self.gamma_r = General_parameters.gamma_r[0][0]
-        #: Energy of the synchronous particle [eV]
-        self.energy = General_parameters.energy[0][0]
-        #: Momentum of the synchronous particle [eV/c]
-        self.momentum = General_parameters.momentum[0][0] 
 
-        # Beam coordinates
-        self.theta = np.zeros(int(n_macroparticles))
-        self.dE = np.zeros(int(n_macroparticles))
+class Beam(object):
+    '''
+    *Object containing the beam coordinates and beam properties such as mass,
+    charge, synchronous energy, momentum, etc.
+    The beam coordinate 'dt' is defined as the particle arrival time to the RF 
+    station w.r.t. the reference time that is the sum of turns.
+    The beam coordiate 'dE' is defined as the particle energy offset w.r.t. the
+    energy of the synchronous particle.* 
+    '''
+    
+    def __init__(self, GeneralParameters, n_macroparticles, intensity):
+        
+        #: *Import particle mass [eV] (from GeneralParameters)*
+        self.mass = GeneralParameters.mass
+        
+        #: *Import particle charge [e] (from GeneralParameters)*
+        self.charge = GeneralParameters.charge
+        
+        #: *Import synchronous relativistic beta [1] (from GeneralParameters)*
+        self.beta = GeneralParameters.beta[0][0]
+        
+        #: *Import synchronous relativistic gamma [1] (from GeneralParameters)*
+        self.gamma = GeneralParameters.gamma[0][0]
+        
+        #: *Import synchronous total energy [eV] (from GeneralParameters)*
+        self.energy = GeneralParameters.energy[0][0]
+        
+        #: *Import synchronous momentum [eV] (from GeneralParameters)*
+        self.momentum = GeneralParameters.momentum[0][0] 
+        
+        #: *Import ring radius [m] (from GeneralParameters)*
+        self.ring_radius = GeneralParameters.ring_radius
+
+        #: | *Beam arrival time with respect to reference time [s]*
+        self.dt = np.zeros([n_macroparticles])
+        
+        #: | *Beam energy offset with respect to synchronous energy [eV]*
+        self.dE = np.zeros([n_macroparticles])
      
-        # Properties and statistics       
-        self.mean_theta = 0
+        #: | *Average beam arrival time [s]*
+        self.mean_dt = 0
+        
+        #: | *Average beam energy offset [eV]*
         self.mean_dE = 0
-        self.sigma_theta = 0
+        
+        #: | *Standard deviation of beam arrival time [s]*
+        self.sigma_dt = 0
+        
+        #: | *Standard deviation of beam energy offset [eV]*
         self.sigma_dE = 0
         
-        # Particle/loss counts
+        #: | *Total beam intensity [1]*
+        self.intensity = intensity 
+        
+        #: | *Total number of macro-particles in the beam [1]*
         self.n_macroparticles = int(n_macroparticles)
+        
+        #: | *Number of macro-particles marked as 'lost' [1]*
+        #: | *Losses defined via loss mechanisms chosen by user*
         self.n_macroparticles_lost = 0
+        
+        #: | *Number of transmitted macro-particles (= total - lost) [1]*        
         self.n_macroparticles_alive = self.n_macroparticles - self.n_macroparticles_lost
+        
+        #: | *Unique macro-particle ID number; zero if particle is 'lost'*                
         self.id = np.arange(1, self.n_macroparticles + 1, dtype=int)
 
-
-    # Coordinate conversions
-    @property
-    def z(self):
-        return - self.theta * self.ring_radius
-     
-    @z.setter
-    def z(self, value):
-        self.theta = - value / self.ring_radius
-    
-    @property
-    def delta(self):
-        return self.dE / (self.beta_r**2 * self.energy)
-
-    @delta.setter
-    def delta(self, value):
-        self.dE = value * self.beta_r**2 * self.energy
-
-    @property
-    def tau(self):
-        return  self.theta * self.ring_radius / (self.beta_r * c)
-     
-    @tau.setter
-    def tau(self, value):
-        self.theta = value * self.beta_r * c / self.ring_radius
-
-    # Statistics
-    @property    
-    def mean_z(self):
-        return - self.mean_theta * self.ring_radius
-    @mean_z.setter
-    def mean_z(self, value):
-        self.mean_theta = - value / self.ring_radius
-    
-    @property
-    def mean_delta(self):
-        return self.mean_dE / (self.beta_r**2 * self.energy)
-    @mean_delta.setter
-    def mean_delta(self, value):
-        self.mean_dE = value * self.beta_r**2 * self.energy
-    
-    @property    
-    def mean_tau(self):
-        return self.mean_theta * self.ring_radius / (self.beta_r * c)
-    @mean_tau.setter
-    def mean_tau(self, value):
-        self.mean_theta = value * self.beta_r * c / self.ring_radius
-
-    @property    
-    def sigma_z(self):
-        return - self.sigma_theta * self.ring_radius
-    @sigma_z.setter
-    def sigma_z(self, value):
-        self.sigma_theta = - value / self.ring_radius
-    
-    @property
-    def sigma_delta(self):
-        return self.sigma_dE / (self.beta_r**2 * self.energy)
-    @sigma_delta.setter
-    def sigma_delta(self, value):
-        self.sigma_dE = value * self.beta_r**2 * self.energy
-    
-    @property
-    def sigma_tau(self):
-        return self.sigma_theta * self.ring_radius / (self.beta_r * c)
-    @sigma_tau.setter
-    def sigma_tau(self, value):
-        self.sigma_theta = value * self.beta_r * c / self.ring_radius
-    
-    # Gaussian fit conversion   
-    @property
-    def bl_gauss_tau(self):
-        '''*Gaussian bunch length converted to the tau coordinate in [s]*'''
-        return self.bl_gauss * self.ring_radius / (self.beta_r * c)
-    
-    @property
-    def bl_gauss_z(self):
-        '''*Gaussian bunch length to the z coordinate in [m]*'''
-        return self.bl_gauss * self.ring_radius 
-
-    @property
-    def bp_gauss_tau(self):
-        '''*Gaussian bunch position converted to the tau coordinate in [s]*'''
-        return self.bp_gauss * self.ring_radius / (self.beta_r * c)
-    
-    @property
-    def bp_gauss_z(self):
-        '''*Gaussian bunch position converted to the z coordinate in [m]*'''
-        return - self.bp_gauss * self.ring_radius      
-
-    
+ 
     def statistics(self):
+        '''
+        *Calculation of the mean and standard deviation of beam coordinates,
+        as well as beam emittance using different definitions.*
+        '''
         
         # Statistics only for particles that are not flagged as lost
         itemindex = np.where(self.id != 0)[0]
-        self.mean_theta = np.mean(self.theta[itemindex])
+        self.mean_dt = np.mean(self.dt[itemindex])
         self.mean_dE = np.mean(self.dE[itemindex])
-        self.sigma_theta = np.std(self.theta[itemindex])
+        self.sigma_dt = np.std(self.dt[itemindex])
         self.sigma_dE = np.std(self.dE[itemindex])
        
-        ##### R.m.s. emittance in Gaussian approximation, other emittances to be defined
-        self.epsn_rms_l = np.pi * self.sigma_dE * self.sigma_theta \
-                        * self.ring_radius / (self.beta_r * c) # in eVs
+        # R.m.s. emittance in Gaussian approximation
+        self.epsn_rms_l = 1.e3*np.pi*self.sigma_dE*self.sigma_dt # in eVs
 
         
-    def losses_separatrix(self, GeneralParameters, RFSectionParameters):
+    def losses_separatrix(self, GeneralParameters, RFSectionParameters, Beam):
+        '''
+        *Beam losses based on separatrix.*
+        '''
         
-        itemindex = np.where(is_in_separatrix(GeneralParameters, RFSectionParameters,
-                                 self.theta, self.dE, self.delta) == False)[0]
+        itemindex = np.where(is_in_separatrix(GeneralParameters, 
+                                              RFSectionParameters, 
+                                              Beam, self.dt, self.dE) 
+                             == False)[0]
 
         if itemindex.size != 0:    
             self.id[itemindex] = 0
     
     
-    def losses_cut(self, theta_min, theta_max): 
+    def losses_cut(self, dt_min, dt_max): 
+        '''
+        *Beam losses based on longitudinal cuts.*
+        '''
     
-        itemindex = np.where( (self.theta - theta_min)*(theta_max - self.theta) < 0 )[0]
+        itemindex = np.where( (self.dt - dt_min)*(dt_max - self.dt) < 0 )[0]
         
         if itemindex.size != 0:          
             self.id[itemindex] = 0       
         
         
-
-                
-
-
-
+           

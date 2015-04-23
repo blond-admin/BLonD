@@ -8,39 +8,28 @@
 # Project website: http://blond.web.cern.ch/
 
 '''
-
 **Module to plot different bunch features**
 
 :Authors: **Helga Timko**, **Danilo Quartullo**
-
 '''
 
 from __future__ import division
 import matplotlib.pyplot as plt
-from plots.plot_settings import fig_folder
 
 
-def plot_beam_profile(counter, general_params, slices, style = '-', 
-                      dirname = 'fig'):
+
+def plot_beam_profile(Slices, counter, style = '-', dirname = 'fig'):
     
     """
     Plot of longitudinal beam profile
     """
  
-    # Directory where plots will be stored 
-    fig_folder(dirname)
-    
     fig = plt.figure(1)
     fig.set_size_inches(8,6)
     ax = plt.axes([0.15, 0.1, 0.8, 0.8])    
-    ax.plot(slices.bins_centers, slices.n_macroparticles, style)
+    ax.plot(Slices.bin_centers, Slices.n_macroparticles, style)
     
-    if slices.slicing_coord == 'theta': 
-        ax.set_xlabel(r"$\vartheta$ [rad]")
-    elif slices.slicing_coord == 'z':
-        ax.set_xlabel('z [m]')
-    elif slices.slicing_coord == 'tau':
-        ax.set_xlabel('Time [s]')
+    ax.set_xlabel(r"$\Delta t$ [s]")
     ax.set_ylabel('Beam profile [arb. units]')
     ax.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
     ax.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
@@ -52,30 +41,28 @@ def plot_beam_profile(counter, general_params, slices, style = '-',
     fign = dirname +'/beam_profile_' "%d" %counter + '.png'
     plt.savefig(fign)
     plt.clf()
-    #plt.close()
 
 
-def plot_beam_profile_derivative(counter, general_params, slices, style = '-', 
-                                 dirname = 'fig', numbers = [3]):
+
+def plot_beam_profile_derivative(Slices, counter, style = '-', dirname = 'fig', 
+                                 numbers = [3]):
 
     """
     Plot of the derivative of the longitudinal beam profile.
     """
-
     
-    fig_folder(dirname)
     if 1 in numbers:
-        x1, derivative1 = slices.beam_profile_derivative(1)
+        x1, derivative1 = Slices.beam_profile_derivative(1)
         plt.plot(x1, derivative1, style)
     if 2 in numbers:
-        x2, derivative2 = slices.beam_profile_derivative(2)
+        x2, derivative2 = Slices.beam_profile_derivative(2)
         plt.plot(x2, derivative2, style)
     if 3 in numbers:
-        x3, derivative3 = slices.beam_profile_derivative(3)
+        x3, derivative3 = Slices.beam_profile_derivative(3)
         plt.plot(x3, derivative3, style)
     fign = dirname +'/beam_profile_derivative_' "%d" %counter + '.png'
     plt.savefig(fign)
     plt.clf()
-    #plt.close()        
+       
     
 

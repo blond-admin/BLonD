@@ -25,19 +25,20 @@ from monitors.monitors import *
 from plots.plot_beams import *
 from plots.plot_impedance import *
 from plots.plot_slices import *
+from plots.plot import *
 
 # Simulation parameters --------------------------------------------------------
 # Bunch parameters
 N_b = 1.e9           # Intensity
 N_p = 10001          # Macro-particles
-tau_0 = 0.4          # Initial bunch length, 4 sigma [ns]
+tau_0 = 0.4e-9          # Initial bunch length, 4 sigma [s]
 
 # Machine and RF parameters
 C = 26658.883        # Machine circumference [m]
 p_s = 450.e9         # Synchronous momentum [eV]
 h = 35640            # Harmonic number
-V1 = 2.e6            # RF voltage, station 1 [eV]
-V2 = 4.e6            # RF voltage, station 1 [eV]
+V1 = 2e6           # RF voltage, station 1 [eV]
+V2 = 4e6           # RF voltage, station 1 [eV]
 dphi = 0             # Phase modulation/offset
 gamma_t = 55.759505  # Transition gamma
 alpha = 1./gamma_t/gamma_t        # First order mom. comp. factor
@@ -58,75 +59,77 @@ general_params = GeneralParameters(N_t, [0.3*C, 0.7*C], [[alpha], [alpha]],
                                    [p_s*np.ones(N_t+1), p_s*np.ones(N_t+1)], 
                                    'proton', number_of_sections = 2)
 
-# Define RF station parameters and corresponding tracker
-rf_params_1 = RFSectionParameters(general_params, 1, h, V1, dphi, 1)
-long_tracker_1 = RingAndRFSection(rf_params_1)
 
-rf_params_2 = RFSectionParameters(general_params, 1, h, V2, dphi, 2)
-long_tracker_2 = RingAndRFSection(rf_params_2)
+# Define RF station parameters and corresponding tracker
+beam = Beam(general_params, N_p, N_b)
+rf_params_1 = RFSectionParameters(general_params, 1, h, V1, dphi, section_index = 1)
+long_tracker_1 = RingAndRFSection(rf_params_1, beam)
+
+rf_params_2 = RFSectionParameters(general_params, 1, h, V2, dphi, section_index = 2)
+long_tracker_2 = RingAndRFSection(rf_params_2, beam)
 
 # Define full voltage over one turn and a corresponding "overall" set of 
 #parameters, which is used for the separatrix (in plotting and losses)
 Vtot = total_voltage([rf_params_1, rf_params_2])
 rf_params_tot = RFSectionParameters(general_params, 1, h, Vtot, dphi)
-long_tracker_tot = RingAndRFSection(rf_params_tot)
 beam_dummy = Beam(general_params, 0, N_b)
+long_tracker_tot = RingAndRFSection(rf_params_tot, beam_dummy)
+
 print "General and RF parameters set..."
-print Vtot
+
 
 # Define beam and distribution
-beam = Beam(general_params, N_p, N_b)
+
 longitudinal_bigaussian(general_params, rf_params_tot, beam, tau_0/4, 
-                              xunit = 'ns', reinsertion = 'on', seed=1)
+                              reinsertion = 'on', seed=1)
+
+
 print "Beam set and distribution generated..."
 
 
 # Need slices for the Gaussian fit; slice for the first plot
-slice_beam = Slices(beam, 100, fit_option = 'gaussian')
-slice_beam.track(beam)
+slice_beam = Slices(rf_params_tot, beam, 100, fit_option = 'gaussian')
+slice_beam.track()
 
 # Define what to save in file
-bunchmonitor = BunchMonitor('../output_files/TC4_output_data', N_t+1, slice_beam)
-bunchmonitor.track(beam)
+bunchmonitor = BunchMonitor(general_params, beam, '../output_files/TC4_output_data', Slices=slice_beam, buffer_time = 1)
 
-print "Statistics set..."
 
+# PLOTS
+
+plots = Plot(general_params, rf_params_tot, beam, dt_plt, 0, 
+             0.0001763*h, -450e6, 450e6, xunit= 'rad',
+             separatrix_plot= True, Slices = slice_beam, h5file = '../output_files/TC4_output_data', histograms_plot = True)
+ 
+ 
+plots.set_format(dirname = '../output_files/TC4_fig', linestyle = '.')
+plots.track()
 
 # Accelerator map
-map_ = [long_tracker_1] + [long_tracker_2] + [slice_beam] + [bunchmonitor] # No intensity effects, no aperture limitations
+map_ = [long_tracker_1] + [long_tracker_2] + [slice_beam] + [bunchmonitor] + [plots]
 print "Map set"
 print ""
-plot_bunch_length_evol('../output_files/TC4_output_data', general_params, 0, unit='ns', dirname = '../output_files/TC4_fig')
-plot_bunch_length_evol_gaussian('../output_files/TC4_output_data', general_params, slice_beam, 0, unit='ns', dirname = '../output_files/TC4_fig')
-plot_long_phase_space(beam, general_params, rf_params_tot, 0, 0.0001763, -450, 450, separatrix_plot = True, dirname = '../output_files/TC4_fig')
-plot_beam_profile(0, general_params, slice_beam, dirname = '../output_files/TC4_fig', style = '.')
+
+
 
 # Tracking ---------------------------------------------------------------------
-for i in range(1, N_t+1):
-    
+for i in np.arange(1,N_t+1):
     print i
     
-    # Update full RF counter
-    long_tracker_tot.track(beam_dummy)
+    long_tracker_tot.track() 
        
     # Track
     for m in map_:
-        m.track(beam)
+        m.track()
+        
     
-
-    # These plots have to be done after the tracking
-    if (i % dt_plt) == 0:
-        plot_bunch_length_evol('../output_files/TC4_output_data', general_params, i, unit='ns', dirname = '../output_files/TC4_fig')
-        plot_bunch_length_evol_gaussian('../output_files/TC4_output_data', general_params, slice_beam, i, unit='ns', dirname = '../output_files/TC4_fig')
-        plot_long_phase_space(beam, general_params, rf_params_tot, 0, 0.0001763, -450, 450, separatrix_plot = True, dirname = '../output_files/TC4_fig')
-        plot_beam_profile(i, general_params, slice_beam, dirname = '../output_files/TC4_fig', style = '.')
+    
         
     # Define losses according to separatrix and/or longitudinal position
-    beam.losses_separatrix(general_params, rf_params_tot)
-    beam.losses_cut(0.28e-4, 0.75e-4)
+    beam.losses_separatrix(general_params, rf_params_tot, beam)
+    beam.losses_cut(0.28e-4*general_params.ring_radius/(beam.beta*c), 0.75e-4*general_params.ring_radius/(beam.beta*c))
 
 
-bunchmonitor.h5file.close()
 print "Done!"
 print ""
 

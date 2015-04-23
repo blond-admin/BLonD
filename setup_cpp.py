@@ -24,12 +24,13 @@ import subprocess
 import ctypes
 
 # CHOOSE THE FLAG THAT YOU WANT
-# EXAMPLE FLAGS: -Ofast -std=c++11 -ftree-vectorizer-verbose=1
+# EXAMPLE FLAGS: -Ofast -std=c++11 -ftree-vectorizer-verbose=0
 #                -mfma4 -fopenmp
-flags = '-Ofast -std=c++11 -ftree-vectorizer-verbose=1'
+flags = '-Ofast -std=c++11 -fopt-info-vec'
+
 
 # CHOOSE THE cpp FILES THAT YOU WANT TO COMPILE
-list_cpp_files = 'cpp_routines/histogram.cpp cpp_routines/kicks.cpp cpp_routines/drift_simple.cpp'
+list_cpp_files = 'cpp_routines/histogram.cpp cpp_routines/kick.cpp cpp_routines/drift.cpp cpp_routines/linear_interp_kick.cpp'
 
 # DON'T TOUCH THE CODE FROM HERE TILL THE END OF THIS SCRIPT!
 if __name__ == "__main__":
@@ -45,6 +46,7 @@ if __name__ == "__main__":
         sys.exit()
     
     elif "win" in sys.platform:
+        os.system('gcc --version')
         os.system('del /s/q '+ os.getcwd() +'\\cpp_routines\\*.dll')
         x = os.getcwd()
         os.system('g++ -o '+ x +'\\cpp_routines\\result.dll -shared ' + flags + ' ' + x + '\\' + list_cpp_files)

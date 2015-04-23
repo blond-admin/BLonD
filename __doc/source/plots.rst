@@ -4,6 +4,14 @@ plots package
 Submodules
 ----------
 
+plots.plot module
+-----------------
+
+.. automodule:: plots.plot
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 plots.plot_beams module
 -----------------------
 
@@ -28,10 +36,10 @@ plots.plot_llrf module
     :undoc-members:
     :show-inheritance:
 
-plots.plot_settings module
---------------------------
+plots.plot_parameters module
+----------------------------
 
-.. automodule:: plots.plot_settings
+.. automodule:: plots.plot_parameters
     :members:
     :undoc-members:
     :show-inheritance:

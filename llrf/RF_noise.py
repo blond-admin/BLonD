@@ -16,18 +16,19 @@
 from __future__ import division
 import numpy as np
 import numpy.random as rnd
-from scipy.constants import e, c
 
 from plots.plot_llrf import *
 from input_parameters.rf_parameters import calc_phi_s
+from scipy.constants import c
+
 
 class PhaseNoise(object): 
     
     def __init__(self, frequency_array, real_part_of_spectrum, seed1=None, 
                  seed2=None):
 
-        self.f = frequency_array # in Hz
-        self.ReS = real_part_of_spectrum # in rad^2/Hz
+        self.f = frequency_array # in [Hz] (or [GHz])
+        self.ReS = real_part_of_spectrum # in [rad^2/Hz]
         
         self.nf = len(self.ReS)
         self.fmax = self.f[self.nf-1]
@@ -42,10 +43,10 @@ class PhaseNoise(object):
         # Resolution in time domain
         if transform==None or transform=='r':
             self.nt = 2*(self.nf - 1) 
-            self.dt = 1/(2*self.fmax) # s
+            self.dt = 1/(2*self.fmax) # in [s] (or [ns])
         elif transform=='c':  
             self.nt = self.nf 
-            self.dt = 1./self.fmax # s
+            self.dt = 1./self.fmax # in [s]
         else:
             raise RuntimeError('ERROR: The choice of Fourier transform for the\
              RF noise generation could not be recognized. Use "r" or "c".')
@@ -68,34 +69,45 @@ class PhaseNoise(object):
                 
         # Multiply by desired noise probability density
         if transform==None or transform=='r':
-            s = np.sqrt(2*self.fmax*self.ReS) # in rad
+            s = np.sqrt(2*self.fmax*self.ReS) # in [rad]
         elif transform=='c':
-            s = np.sqrt(self.fmax*self.ReS) # in rad
-        dPf = s*Gf.real + 1j*s*Gf.imag  # in rad
+            s = np.sqrt(self.fmax*self.ReS) # in [rad]
+        dPf = s*Gf.real + 1j*s*Gf.imag  # in [rad]
                 
         # LLRF back to time domain to get final phase shift
         if transform==None or transform=='r':
-            dPt = np.fft.irfft(dPf) # in rad
+            dPt = np.fft.irfft(dPf) # in [rad]
         elif transform=='c':
-            dPt = np.fft.ifft(dPf) # in rad
+            dPt = np.fft.ifft(dPf) # in [rad]
                     
         # Use only real part for the phase shift and normalize
-        self.t = np.linspace(0, self.nt*self.dt, self.nt) #np.arange(0, self.nt*self.dt, self.dt)
+        self.t = np.linspace(0, self.nt*self.dt, self.nt) 
         self.dphi = dPt.real
+
 
     
 class LHCFlatSpectrum(object): 
     
-    def __init__(self, general_params, rf_params, time_points, corr_time = 10000, 
-                 fmin = 0.8571, fmax = 1.1, initial_amplitude = 1.e-6,
-                 seed1 = 1234, seed2 = 7564):
+    def __init__(self, GeneralParameters, RFSectionParameters, time_points, 
+                 corr_time = 10000, fmin = 0.8571, fmax = 1.1, 
+                 initial_amplitude = 1.e-6, seed1 = 1234, seed2 = 7564):
 
-        self.f0 = general_params.f_rev  # revolution frequency in Hz
+        '''
+        Generate LHC-type phase noise from a band-limited spectrum.
+        Input frequency band using 'fmin' and 'fmax' w.r.t. the synchrotron 
+        frequency. Input double-sided spectrum amplitude [rad^2/Hz] using 
+        'initial_amplitude'. Fix seeds to obtain reproducible phase noise.
+        Select 'time_points' suitably to resolve the spectrum in frequency 
+        domain. After 'corr_time' turns, the seed is changed to cut numerical
+        correlated sequences of the random number generator.
+        '''
+
+        self.f0 = GeneralParameters.f_rev  # revolution frequency in Hz
         self.nt = time_points           # no. points in time domain to generate
         self.corr = corr_time           # adjust noise every 'corr' time steps
         self.fmin = fmin                # spectrum lower bound in synchr. freq.
         self.fmax = fmax                # spectrum upper bound in synchr. freq.
-        self.A_i = initial_amplitude    # initial spectrum amplitude
+        self.A_i = initial_amplitude    # initial spectrum amplitude [rad^2/Hz]
         self.seed1 = seed1
         self.seed2 = seed2
               
@@ -103,15 +115,16 @@ class LHCFlatSpectrum(object):
             raise RuntimeError('ERROR: Need more time points in LHCFlatSpectrum.')
         
         # Synchrotron frequency array
-        phis = calc_phi_s(rf_params, accelerating_systems='as_single')   
-        self.fs = c/general_params.ring_circumference \
-                *np.sqrt( rf_params.harmonic[0]*rf_params.voltage[0]
-                          *np.fabs(rf_params.eta_0*np.cos(phis))
-                          /(2.*np.pi*rf_params.energy) )
+        phis = calc_phi_s(RFSectionParameters, accelerating_systems='as_single')   
+        self.fs = c/GeneralParameters.ring_circumference*np.sqrt( 
+                  RFSectionParameters.harmonic[0]*RFSectionParameters.voltage[0]
+                  *np.fabs(RFSectionParameters.eta_0*np.cos(phis))
+                  /(2.*np.pi*RFSectionParameters.energy) ) # Hz
                 
-        self.dphi = np.zeros(general_params.n_turns+1)
+        self.dphi = np.zeros(GeneralParameters.n_turns+1)
         
-        self.n_turns = general_params.n_turns
+        self.n_turns = GeneralParameters.n_turns
+ 
  
     def generate(self):
        
@@ -122,7 +135,7 @@ class LHCFlatSpectrum(object):
             ampl = self.A_i*self.fs[0]/self.fs[k]
 
             # Calculate the frequency step
-            nf = int(self.nt/2 + 1)             # no. points in freq. domain
+            nf = int(self.nt/2 + 1)     # no. points in freq. domain
             df = self.f0[k]/self.nt          
 
             # Construct spectrum   
@@ -150,4 +163,6 @@ class LHCFlatSpectrum(object):
             rms_noise = np.std(noise.dphi)
             print "RF noise for time step %.4e s (iter %d) has r.m.s. phase %.4e rad (%.3e deg)" \
                 %(noise.t[1], i, rms_noise, rms_noise*180/np.pi)
+
+
 

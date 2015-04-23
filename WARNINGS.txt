@@ -15,3 +15,7 @@ WARNINGS FOR THE USER
 		
 2)  You have to launch the setup_cpp.py file; change the options inside if 
     necessary. 
+    
+3) There have been a lot of changes with version 1.11.0 (see README.md for details); the input files
+   used for previous versions of the code won't work anymore and should be readapted; please check
+   the example main files to have a reference point.

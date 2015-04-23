@@ -8,14 +8,15 @@
 # Project website: http://blond.web.cern.ch/
 
 '''
-**Module gathering and processing all the RF parameters to be given to the 
-other modules.**
+**Module gathering and processing all RF parameters used in the simulation.**
 
-:Authors: **Alexandre Lasheen**, **Danilo Quartullo**
+:Authors: **Alexandre Lasheen**, **Danilo Quartullo**, **Helga Timko**
 '''
 
 from __future__ import division
 import numpy as np
+from scipy.constants import c
+
 
 
 def input_check(input_value, expected_length):
@@ -43,9 +44,8 @@ def input_check(input_value, expected_length):
 
 class RFSectionParameters(object):
     '''
-    *Object gathering all the RF parameters for one section (see section
-    definition in longitudinal_tracker.RingAndRFSection), and pre-processing 
-    them in order to be used in the longitudinal_tracker.py module.*
+    *Object gathering all the RF parameters for one section (sections defined in
+    tracker.RingAndRFSection), and pre-processing them for later use.*
     
     :How to use RF programs:
 
@@ -55,8 +55,8 @@ class RFSectionParameters(object):
       - For several RF systems and varying values of V, h or phi, input lists of arrays of n_turns values
     '''
     
-    def __init__(self, GeneralParameters, n_rf, 
-                 harmonic, voltage, phi_offset, section_index = 1):
+    def __init__(self, GeneralParameters, n_rf, harmonic, voltage, phi_offset, 
+                 phi_noise = None, section_index = 1):
         
         #: | *Counter to keep track of time step (used in momentum and voltage)*
         #: | *Definined as a list in order to be passed by reference.*
@@ -72,103 +72,128 @@ class RFSectionParameters(object):
         #: | *Counter for turns is:* :math:`n`
         self.n_turns = GeneralParameters.n_turns
         
-        #: *Copy of the ring circumference (from GeneralParameters)*
+        #: *Import ring circumference [m] (from GeneralParameters)*
         self.ring_circumference = GeneralParameters.ring_circumference
         
-        #: *Length of the section in [m]* :math:`: \quad L_k`
+        #: *Import section length [m] (from GeneralParameters)*
         self.section_length = GeneralParameters.ring_length[self.section_index]
         
         #: *Length ratio of the section wrt the circumference*
-        self.length_ratio = self.section_length / GeneralParameters.ring_circumference
+        self.length_ratio = self.section_length/self.ring_circumference
         
-        #: *Momentum program of the section in [eV/c]* :math:`: \quad p_{k,n}`
+        #: *Import revolution period [s] (from GeneralParameters)*       
+        self.t_rev = GeneralParameters.t_rev
+        
+        #: *Import momentum program [eV] (from GeneralParameters)*
         self.momentum = GeneralParameters.momentum[self.section_index]
         
-        #: *Momentum increment (acceleration/deceleration) between two turns,
-        #: for one section in [eV/c]* :math:`: \quad \Delta p_{n\rightarrow n+1}`
-        self.p_increment = np.diff(self.momentum)
+        #: *Import synchronous relativistic beta [1] (from GeneralParameters)*
+        self.beta = GeneralParameters.beta[self.section_index]
         
-        #: *Copy of the relativistic beta for the section (from 
-        #: GeneralParameters)* :math:`: \quad \beta_{k,n}`
-        self.beta_r = GeneralParameters.beta_r[self.section_index]
+        #: *Import synchronous relativistic gamma [1] (from GeneralParameters)*
+        self.gamma = GeneralParameters.gamma[self.section_index]
         
-        #: *Copy of the relativistic gamma for the section (from 
-        #: GeneralParameters)* :math:`: \quad \gamma_{k,n}`
-        self.gamma_r = GeneralParameters.gamma_r[self.section_index]
-        
-        #: *Copy of the relativistic energy for the section (from 
-        #: GeneralParameters)* :math:`: \quad E_{k,n}`
+        #: *Import synchronous total energy [eV] (from GeneralParameters)*
         self.energy = GeneralParameters.energy[self.section_index]
         
-        #: *Slippage factor (order 0) for the given RF section*
+        #: *Energy increment (acceleration/deceleration) between two turns,
+        #: for one section in [eV]* :math:`: \quad E_s^{n+1}- E_s^n`
+        self.E_increment = np.diff(self.energy)
+        
+        #: *Slippage factor (0th order) for the given RF section*
         self.eta_0 = 0
-        #: *Slippage factor (order 1) for the given RF section*
+        #: *Slippage factor (1st order) for the given RF section*
         self.eta_1 = 0
-        #: *Slippage factor (order 2) for the given RF section*
+        #: *Slippage factor (2nd order) for the given RF section*
         self.eta_2 = 0
         
-        #: *Copy of the order of alpha for the section (from GeneralParameters)*
+        #: *Import alpha order for the section (from GeneralParameters)*
         self.alpha_order = GeneralParameters.alpha_order
         for i in xrange( self.alpha_order ):
-            dummy = getattr(GeneralParameters, 'eta' + str(i))
+            dummy = getattr(GeneralParameters, 'eta_' + str(i))
             setattr(self, "eta_%s" %i, dummy[self.section_index])
             
         
-        #: | *Number of RF systems in the section* :math:`: \quad n_{RF}`
+        #: | *Number of RF systems in the section* :math:`: \quad n_{\mathsf{rf}}`
         #: | *Counter for RF is:* :math:`j`
         self.n_rf = n_rf
         
-        #: | *Harmonic number list* :math:`: \quad h_{j,k,n}`
+        #: | *RF harmonic number list* :math:`: \quad h_{j,k}^n`
         #: | *See note above on how to input RF programs.*
         self.harmonic = 0
         
-        #: | *Voltage program list in [V]* :math:`: \quad V_{j,k,n}`
+        #: | *RF voltage program list in [eV]* :math:`: \quad V_{j,k}^n`
         #: | *See note above on how to input RF programs.*
         self.voltage = 0
         
-        #: | *Phase offset list in [rad]* :math:`: \quad \phi_{j,k,n}`
+        #: | *Design RF phase offset list in [rad]* :math:`: \quad \phi_{j,k}^n`
         #: | *See note above on how to input RF programs.*
         self.phi_offset = 0
+
+        #: | *Phase noise array (optional). Added to all RF systems.*
+        self.phi_noise = phi_noise
                 
         ### Pre-processing the inputs
-        # The input is analysed and structured in order to have lists, which
+        # The input is analyzed and structured in order to have lists, which
         # length are matching the number of RF systems considered in this
         # section.
-        # For one rf system, single values for h, V_rf, and phi will assume
+        # For one RF system, single values for h, V_rf, and phi will assume
         # that these values will remain constant for all the simulation.
-        # These can be inputed directly as arrays in order to have programs
+        # These can be input directly as arrays in order to have programs
         # (the length of the arrays will then be checked)
         if n_rf == 1:
             self.harmonic = [harmonic] 
             self.voltage = [voltage]
-            self.phi_offset = [phi_offset] 
+            self.phi_offset = [phi_offset]
+            if phi_noise != None:
+                self.phi_noise = [phi_noise] 
         else:
             self.harmonic = harmonic
             self.voltage = voltage 
             self.phi_offset = phi_offset
+            if phi_noise != None:
+                self.phi_noise = phi_noise 
         
         for i in range(self.n_rf):
             self.harmonic[i] = input_check(self.harmonic[i], self.n_turns+1)
             self.voltage[i] = input_check(self.voltage[i], self.n_turns+1)
             self.phi_offset[i] = input_check(self.phi_offset[i], self.n_turns+1)
+            if phi_noise != None:
+                self.phi_noise[i] = input_check(self.phi_noise[i], self.n_turns+1) 
         
         # Convert to numpy matrix
         self.harmonic = np.array(self.harmonic, ndmin =2)
         self.voltage = np.array(self.voltage, ndmin =2)
         self.phi_offset = np.array(self.phi_offset, ndmin =2)
+        if phi_noise != None:
+            self.phi_noise = np.array(self.phi_noise, ndmin =2) 
             
-        #: *Synchronous phase for this section, calculated from the gamma
-        #: transition and the momentum program.*
+        #: *Synchronous phase for this section, calculated from the transition
+        #: energy and the momentum program.*
         self.phi_s = calc_phi_s(self)   
-    
-    
-    def eta_tracking(self, counter, delta):
+
+        #: *Design RF frequency of the RF systems in the station [GHz]*        
+        self.omega_RF_d = 2.*np.pi*self.beta*c*self.harmonic/ \
+                          (self.ring_circumference)
+                          
+        #: *Initial, actual RF frequency of the RF systems in the station [GHz]*
+        self.omega_RF = np.array(self.omega_RF_d)                  
+
+        #: *Initial, actual RF phase of each harmonic system*
+        self.phi_RF = np.array(self.phi_offset) 
+        
+        #: *Accumulated RF phase error of each harmonic system*
+        self.dphi_RF = np.zeros(self.n_rf)
+        
+          
+    def eta_tracking(self, beam, counter, dE):
         '''
-        *The slippage factor is calculated as a function of the relative momentum
-        (delta) of the beam. By definition, the slippage factor is:*
+        *The slippage factor is calculated as a function of the energy offset
+        (dE) of the beam particle. By definition, the slippage factor in ith 
+        order is:*
         
         .. math:: 
-            \eta = \sum_{i}(\eta_i \, \delta^i)
+            \\eta(\\delta) = \\sum_{i}(\\eta_i \\, \\delta^i) = \\sum_{i} \\left(\\eta_i \\, \\left[ \\frac{\\Delta E}{\\beta_s^2 E_s} \\right]^i \\right)
     
         '''
         
@@ -176,10 +201,12 @@ class RFSectionParameters(object):
             return self.eta_0[counter]
         else:
             eta = 0
+            delta = dE/(beam.beta**2 * beam.energy)
             for i in xrange( self.alpha_order ):
                 eta_i = getattr(self, 'eta_' + str(i))[counter]
                 eta  += eta_i * (delta**i)
             return eta  
+
 
 
 def calc_phi_s(RFSectionParameters, accelerating_systems = 'all'):
@@ -197,10 +224,11 @@ def calc_phi_s(RFSectionParameters, accelerating_systems = 'all'):
     
     if RFSectionParameters.n_rf == 1 or accelerating_systems == 'as_single':
                      
-        acceleration_ratio = RFSectionParameters.beta_r[1:] * RFSectionParameters.p_increment \
-            / RFSectionParameters.voltage[0,1:] 
+        acceleration_ratio = RFSectionParameters.E_increment/ \
+                             RFSectionParameters.voltage[0,1:] 
         
-        acceleration_test = np.where((acceleration_ratio > -1) * (acceleration_ratio < 1) == False)[0]
+        acceleration_test = np.where((acceleration_ratio > -1)*\
+                                     (acceleration_ratio < 1) == False)[0]
                 
         if acceleration_test.size > 0:
             raise RuntimeError('Acceleration is not possible (momentum increment is too big or voltage too low) at index ' + str(acceleration_test))
@@ -222,14 +250,15 @@ def calc_phi_s(RFSectionParameters, accelerating_systems = 'all'):
         '''
         if accelerating_systems == 'all':
             '''
-            In this case, all the rf_systems are accelerating, phi_s is calculated accordingly
-            with respect to the fundamental frequency
+            In this case, all the RF systems are accelerating, phi_s is 
+            calculated accordingly with respect to the fundamental frequency
             '''
             pass
         elif accelerating_systems == 'first':
             '''
-            Only the first rf_system is accelerating, so we have to correct the phi_offset of the
-            other rf_systems in order that the p_increment is only caused by the first RF
+            Only the first RF system is accelerating, so we have to correct the 
+            phi_offset of the other rf_systems such that p_increment relates 
+            only to the first RF
             '''
             pass
         else:
@@ -242,9 +271,4 @@ def calc_phi_s(RFSectionParameters, accelerating_systems = 'all'):
             return 0*np.ones(RFSectionParameters.n_turns)
          
  
-    
-            
-
-            
-            
     

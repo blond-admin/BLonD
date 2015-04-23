@@ -18,20 +18,18 @@ import numpy as np
 import warnings
 import copy
 import matplotlib.pyplot as plt
-from scipy.constants import c
 from trackers.utilities import is_in_separatrix
 from slices import Slices
 from scipy.integrate import cumtrapz
 from trackers.utilities import potential_well_cut, minmax_location
 import sys
-
-
-
+from scipy.constants import c
 
 def matched_from_line_density(Beam, FullRingAndRF, line_density_options, 
                               main_harmonic_option = 'lowest_freq', 
                               TotalInducedVoltage = None,
-                              plot_option = False, half_option = 'first'):
+                              plot_option = False, half_option = 'first',
+                              extraVoltageDict = None):
     '''
     *Function to generate a beam by inputing the line density. The distribution
     density is then reconstructed with the Abel transform and the particles
@@ -44,8 +42,8 @@ def matched_from_line_density(Beam, FullRingAndRF, line_density_options,
     # Initialize variables depending on the accelerator parameters
     slippage_factor = FullRingAndRF.RingAndRFSection_list[0].eta_0[0]
     eom_factor_dE = (np.pi * abs(slippage_factor) * c) / \
-                    (FullRingAndRF.ring_circumference * Beam.beta_r * Beam.energy)
-    eom_factor_potential = np.sign(FullRingAndRF.RingAndRFSection_list[0].eta_0[0]) * (Beam.beta_r * c) / (FullRingAndRF.ring_circumference)
+                    (FullRingAndRF.ring_circumference * Beam.beta * Beam.energy)
+    eom_factor_potential = np.sign(FullRingAndRF.RingAndRFSection_list[0].eta_0[0]) * (Beam.beta * c) / (FullRingAndRF.ring_circumference)
      
     # Generate potential well
     n_points_potential = int(1e4)
@@ -54,6 +52,14 @@ def matched_from_line_density(Beam, FullRingAndRF, line_density_options,
                                             main_harmonic_option = main_harmonic_option)
     potential_well_array = FullRingAndRF.potential_well
     theta_coord_array = FullRingAndRF.potential_well_coordinates
+    
+    extra_potential = 0
+    
+    if extraVoltageDict is not None:
+        extra_voltage_theta_input = extraVoltageDict['theta_array']
+        extra_voltage_input = extraVoltageDict['voltage_array']
+        extra_potential_input = - eom_factor_potential * np.insert(cumtrapz(extra_voltage_input, dx=extra_voltage_theta_input[1]-extra_voltage_theta_input[0]),0,0)
+        extra_potential = np.interp(theta_coord_array, extra_voltage_theta_input, extra_potential_input)
     
     if line_density_options['type'] is not 'user_input':
         # Theta coordinates for the line density
@@ -90,8 +96,8 @@ def matched_from_line_density(Beam, FullRingAndRF, line_density_options,
         
         # Inputing new line density
         induced_voltage_object.slices.n_macroparticles = line_density
-        induced_voltage_object.slices.bins_centers = theta_line_den * FullRingAndRF.ring_radius / (Beam.beta_r * c)
-        induced_voltage_object.slices.edges = np.linspace(induced_voltage_object.slices.bins_centers[0]-(induced_voltage_object.slices.bins_centers[1]-induced_voltage_object.slices.bins_centers[0])/2,induced_voltage_object.slices.bins_centers[-1]+(induced_voltage_object.slices.bins_centers[1]-induced_voltage_object.slices.bins_centers[0])/2,len(induced_voltage_object.slices.bins_centers)+1)
+        induced_voltage_object.slices.bin_centers = theta_line_den * FullRingAndRF.ring_radius / (Beam.beta * c)
+        induced_voltage_object.slices.edges = np.linspace(induced_voltage_object.slices.bin_centers[0]-(induced_voltage_object.slices.bin_centers[1]-induced_voltage_object.slices.bin_centers[0])/2,induced_voltage_object.slices.bin_centers[-1]+(induced_voltage_object.slices.bin_centers[1]-induced_voltage_object.slices.bin_centers[0])/2,len(induced_voltage_object.slices.bin_centers)+1)
         induced_voltage_object.slices.n_slices = n_points_line_den
         induced_voltage_object.slices.fit_option = 'off'
         
@@ -117,7 +123,7 @@ def matched_from_line_density(Beam, FullRingAndRF, line_density_options,
             induced_potential_final = np.interp(theta_coord_array, theta_induced_voltage, induced_potential)
             
         # Induced voltage contribution
-        total_potential = potential_well_array + induced_potential_final
+        total_potential = potential_well_array + induced_potential_final + extra_potential
         
         # Process the potential well in order to take a frame around the separatrix
         theta_coord_sep, potential_well_sep = potential_well_cut(theta_coord_array, total_potential)
@@ -274,14 +280,17 @@ def matched_from_line_density(Beam, FullRingAndRF, line_density_options,
     
     # Populating the bunch
     indexes = np.random.choice(range(0,np.size(density_grid)), Beam.n_macroparticles, p=density_grid.flatten())
-    Beam.theta = np.ascontiguousarray(theta_grid.flatten()[indexes] + (np.random.rand(Beam.n_macroparticles) - 0.5) * (theta_coord_for_grid[1]-theta_coord_for_grid[0]))
+    theta_coord = np.ascontiguousarray(theta_grid.flatten()[indexes]+(np.random.rand(Beam.n_macroparticles) -0.5)*(theta_coord_for_grid[1]-theta_coord_for_grid[0]))
+    
+    Beam.tau=theta_coord/(Beam.ring_radius/(Beam.beta*c))
+
     Beam.dE = np.ascontiguousarray(deltaE_grid.flatten()[indexes] + (np.random.rand(Beam.n_macroparticles) - 0.5) * (deltaE_for_grid[1]-deltaE_for_grid[0]))
     
     if TotalInducedVoltage is not None:
         # Inputing new line density
         induced_voltage_object.slices.n_macroparticles = reconstructed_line_den * Beam.n_macroparticles
-        induced_voltage_object.slices.bins_centers = theta_coord_for_grid * FullRingAndRF.ring_radius / (Beam.beta_r * c)
-        induced_voltage_object.slices.edges = np.linspace(induced_voltage_object.slices.bins_centers[0]-(induced_voltage_object.slices.bins_centers[1]-induced_voltage_object.slices.bins_centers[0])/2,induced_voltage_object.slices.bins_centers[-1]+(induced_voltage_object.slices.bins_centers[1]-induced_voltage_object.slices.bins_centers[0])/2,len(induced_voltage_object.slices.bins_centers)+1)
+        induced_voltage_object.slices.bin_centers = theta_coord_for_grid * FullRingAndRF.ring_radius / (Beam.beta * c)
+        induced_voltage_object.slices.edges = np.linspace(induced_voltage_object.slices.bin_centers[0]-(induced_voltage_object.slices.bin_centers[1]-induced_voltage_object.slices.bin_centers[0])/2,induced_voltage_object.slices.bin_centers[-1]+(induced_voltage_object.slices.bin_centers[1]-induced_voltage_object.slices.bin_centers[0])/2,len(induced_voltage_object.slices.bin_centers)+1)
         induced_voltage_object.slices.n_slices = len(theta_coord_for_grid)
         induced_voltage_object.slices.fit_option = 'off'
         
@@ -300,7 +309,8 @@ def matched_from_line_density(Beam, FullRingAndRF, line_density_options,
 def matched_from_distribution_density(Beam, FullRingAndRF, distribution_options,
                                       main_harmonic_option = 'lowest_freq', 
                                       TotalInducedVoltage = None,
-                                      n_iterations_input = 1):
+                                      n_iterations_input = 1,
+                                      extraVoltageDict = None):
     '''
     *Function to generate a beam by inputing the distribution density (by
     choosing the type of distribution and the emittance). 
@@ -324,7 +334,7 @@ def matched_from_distribution_density(Beam, FullRingAndRF, distribution_options,
     distribution_options['user_table_action'] = array of action (in H or in J)
     and distribution_options['user_table_density']*
     '''
-    
+
     if not distribution_options.has_key('exponent'):  
         distribution_options['exponent'] = None
     
@@ -336,22 +346,32 @@ def matched_from_distribution_density(Beam, FullRingAndRF, distribution_options,
     
     # Initialize variables depending on the accelerator parameters
     slippage_factor = abs(FullRingAndRF.RingAndRFSection_list[0].eta_0[0])
-    eom_factor_dE = (np.pi * slippage_factor * c) / \
-                    (FullRingAndRF.ring_circumference * Beam.beta_r * Beam.energy)
-    eom_factor_potential = np.sign(FullRingAndRF.RingAndRFSection_list[0].eta_0[0]) * (Beam.beta_r * c) / (FullRingAndRF.ring_circumference)
     
+    eom_factor_dE = (np.pi * slippage_factor * c) / \
+                    (FullRingAndRF.ring_circumference * Beam.beta * Beam.energy)
+    eom_factor_potential = np.sign(FullRingAndRF.RingAndRFSection_list[0].eta_0[0]) * (Beam.beta * c) / (FullRingAndRF.ring_circumference)
+
     # Generate potential well
     n_points_potential = int(1e5)
     FullRingAndRF.potential_well_generation(n_points = n_points_potential, 
-                                            theta_margin_percent = 0.25, 
+                                            theta_margin_percent = 0.40, 
                                             main_harmonic_option = main_harmonic_option)
     potential_well_array = FullRingAndRF.potential_well
     theta_coord_array = FullRingAndRF.potential_well_coordinates
+    
     theta_resolution = theta_coord_array[1] - theta_coord_array[0]
     
     induced_potential = 0
-    total_potential = potential_well_array + induced_potential
+    extra_potential = 0
     
+    if extraVoltageDict is not None:
+        extra_voltage_theta_input = extraVoltageDict['theta_array']
+        extra_voltage_input = extraVoltageDict['voltage_array']
+        extra_potential_input = - eom_factor_potential * np.insert(cumtrapz(extra_voltage_input, dx=extra_voltage_theta_input[1]-extra_voltage_theta_input[0]),0,0)
+        extra_potential = np.interp(theta_coord_array, extra_voltage_theta_input, extra_potential_input)
+        
+    total_potential = potential_well_array + induced_potential + extra_potential
+
     n_iterations = n_iterations_input
     if not TotalInducedVoltage:
         n_iterations = 1
@@ -360,7 +380,7 @@ def matched_from_distribution_density(Beam, FullRingAndRF, distribution_options,
         
         old_potential = copy.deepcopy(total_potential)
         # Adding the induced potential to the RF potential
-        total_potential = potential_well_array + induced_potential
+        total_potential = potential_well_array + induced_potential + extra_potential
         
         sse = np.sqrt(np.sum((old_potential-total_potential)**2))
 
@@ -376,7 +396,7 @@ def matched_from_distribution_density(Beam, FullRingAndRF, distribution_options,
         # Compute deltaE frame corresponding to the separatrix
         max_potential = np.max(potential_well_sep)
         max_deltaE = np.sqrt(max_potential / eom_factor_dE)
-    
+        
         # Saving the Hamilotian values corresponding to dE=0 (with high resolution
         # to be used in the integral to compute J further)
         H_array_dE0 = potential_well_sep
@@ -402,7 +422,7 @@ def matched_from_distribution_density(Beam, FullRingAndRF, distribution_options,
             dE_trajectory[np.isnan(dE_trajectory)] = 0
             J_array_dE0[i] = 2 / (2*np.pi) * np.trapz(dE_trajectory, dx=theta_resolution * 
                                                       FullRingAndRF.ring_radius / 
-                                                      (Beam.beta_r * c)) 
+                                                      (Beam.beta * c)) 
 
                 
         warnings.filterwarnings("default")
@@ -419,23 +439,32 @@ def matched_from_distribution_density(Beam, FullRingAndRF, distribution_options,
         # Computing bunch length as a function of H/J if needed
         # Bunch length can be calculated as 4-rms, Gaussian fit, or FWHM
         density_variable_option = distribution_options['density_variable']
+        
         if distribution_options.has_key('bunch_length'):        
-            time_low_res = theta_coord_low_res * FullRingAndRF.ring_radius / (Beam.beta_r * c)
+            time_low_res = theta_coord_low_res * FullRingAndRF.ring_radius / (Beam.beta * c)
+            
             tau = 0.0
             # Choice of either H or J as the variable used
             if density_variable_option is 'density_from_J':
                 X_low = sorted_J_dE0[0]
                 X_hi = sorted_J_dE0[n_points_grid - 1]
+                X_min = sorted_J_dE0[0]
+                X_max = sorted_J_dE0[n_points_grid - 1]
+                X_accuracy = sorted_J_dE0[1] - sorted_J_dE0[0] /2.
             elif density_variable_option is 'density_from_H':
                 X_low = sorted_H_dE0[0]
                 X_hi = sorted_H_dE0[n_points_grid - 1]
+                X_min = sorted_H_dE0[0]
+                X_max = sorted_H_dE0[n_points_grid - 1]
+                X_accuracy = sorted_H_dE0[1] - sorted_H_dE0[0] /2.
             else:
                 raise RuntimeError('The density_variable option was not recognized')
             
-            bunch_length_accuracy = (time_low_res[1] - time_low_res[0]) / 10
+            bunch_length_accuracy = (time_low_res[1] - time_low_res[0]) / 2.
             
             # Iteration to find H0/J0 from the bunch length
             while np.abs(distribution_options['bunch_length']-tau) > bunch_length_accuracy:
+                
                 # Takes middle point of the interval [X_low,X_hi]                
                 X0 = 0.5 * (X_low + X_hi)
                 
@@ -453,10 +482,11 @@ def matched_from_distribution_density(Beam, FullRingAndRF, distribution_options,
                     tau = 4.0 * np.sqrt(np.sum((time_low_res - np.sum(line_density * time_low_res) / np.sum(line_density))**2 * line_density) / np.sum(line_density))            
                     
                     if distribution_options.has_key('bunch_length_fit'):
-                        slices = Slices(Beam,n_points_grid)
+                        slices = Slices(FullRingAndRF.RingAndRFSection_list[0].rf_params, Beam,n_points_grid)
                         slices.n_macroparticles = line_density
-                        slices.bins_centers = time_low_res
-                        slices.edges = np.linspace(slices.bins_centers[0]-(slices.bins_centers[1]-slices.bins_centers[0])/2,slices.bins_centers[-1]+(slices.bins_centers[1]-slices.bins_centers[0])/2,len(slices.bins_centers)+1)
+                        
+                        slices.bin_centers = time_low_res
+                        slices.edges = np.linspace(slices.bin_centers[0]-(slices.bin_centers[1]-slices.bin_centers[0])/2,slices.bin_centers[-1]+(slices.bin_centers[1]-slices.bin_centers[0])/2,len(slices.bin_centers)+1)
                         
                         if distribution_options['bunch_length_fit'] is 'gauss':                              
                             slices.bl_gauss = tau
@@ -466,13 +496,21 @@ def matched_from_distribution_density(Beam, FullRingAndRF, distribution_options,
                         elif distribution_options['bunch_length_fit'] is 'fwhm': 
                             slices.fwhm()
                             tau = slices.bl_fwhm
+                            
                 
                 # Update of the interval for the next iteration
                 if tau >= distribution_options['bunch_length']:
                     X_hi = X0
                 else:
                     X_low = X0
-            
+                    
+                if (X_max - X0) < X_accuracy:
+                    print 'WARNING : The bucket is too small to have the desired bunch length ! Input is %.2e, the generation gave %.2e, the error is %.2e' %(distribution_options['bunch_length'], tau, distribution_options['bunch_length']-tau)
+                    break
+                
+                if (X0-X_min) < X_accuracy:
+                    print 'WARNING : The desired bunch length is too small to be generated accurately !'    
+                
             if density_variable_option is 'density_from_J':
                 J0 = X0
             elif density_variable_option is 'density_from_H':
@@ -508,8 +546,8 @@ def matched_from_distribution_density(Beam, FullRingAndRF, distribution_options,
                         
             # Inputing new line density
             induced_voltage_object.slices.n_macroparticles = line_density
-            induced_voltage_object.slices.bins_centers = theta_coord_low_res * FullRingAndRF.ring_radius / (Beam.beta_r * c)
-            induced_voltage_object.slices.edges = np.linspace(induced_voltage_object.slices.bins_centers[0]-(induced_voltage_object.slices.bins_centers[1]-induced_voltage_object.slices.bins_centers[0])/2,induced_voltage_object.slices.bins_centers[-1]+(induced_voltage_object.slices.bins_centers[1]-induced_voltage_object.slices.bins_centers[0])/2,len(induced_voltage_object.slices.bins_centers)+1)
+            induced_voltage_object.slices.bin_centers = theta_coord_low_res * FullRingAndRF.ring_radius / (Beam.beta * c)
+            induced_voltage_object.slices.edges = np.linspace(induced_voltage_object.slices.bin_centers[0]-(induced_voltage_object.slices.bin_centers[1]-induced_voltage_object.slices.bin_centers[0])/2,induced_voltage_object.slices.bin_centers[-1]+(induced_voltage_object.slices.bin_centers[1]-induced_voltage_object.slices.bin_centers[0])/2,len(induced_voltage_object.slices.bin_centers)+1)
             induced_voltage_object.slices.n_slices = n_points_grid
             induced_voltage_object.slices.fit_option = 'off'
             
@@ -520,7 +558,7 @@ def matched_from_distribution_density(Beam, FullRingAndRF, distribution_options,
             induced_voltage_length_sep = int(np.ceil((theta_coord_array[-1] -  theta_coord_low_res[0]) / (theta_coord_low_res[1] - theta_coord_low_res[0])))
             induced_voltage = induced_voltage_object.induced_voltage_sum(Beam, length = induced_voltage_length_sep)
             theta_induced_voltage = np.linspace(theta_coord_low_res[0], theta_coord_low_res[0] + (induced_voltage_length_sep - 1) * (theta_coord_low_res[1] - theta_coord_low_res[0]), induced_voltage_length_sep)
-            
+
             # Calculating the induced potential
             induced_potential_low_res = - eom_factor_potential * np.insert(cumtrapz(induced_voltage, dx=theta_induced_voltage[1]-theta_induced_voltage[0]),0,0)
             induced_potential = np.interp(theta_coord_array, theta_induced_voltage, induced_potential_low_res)
@@ -530,10 +568,12 @@ def matched_from_distribution_density(Beam, FullRingAndRF, distribution_options,
          
     # Populating the bunch
     indexes = np.random.choice(range(0,np.size(density_grid)), Beam.n_macroparticles, p=density_grid.flatten())
-     
-    Beam.theta = np.ascontiguousarray(theta_grid.flatten()[indexes] + (np.random.rand(Beam.n_macroparticles) - 0.5) * (theta_coord_low_res[1]-theta_coord_low_res[0]))
+  
+    theta_coord = np.ascontiguousarray(theta_grid.flatten()[indexes]+(np.random.rand(Beam.n_macroparticles) -0.5)*(theta_coord_low_res[1]-theta_coord_low_res[0]))
+    
+    Beam.dt = theta_coord*(Beam.ring_radius/(Beam.beta*c))
     Beam.dE = np.ascontiguousarray(deltaE_grid.flatten()[indexes] + (np.random.rand(Beam.n_macroparticles) - 0.5) * (deltaE_coord_array[1]-deltaE_coord_array[0]))
-
+    
     if TotalInducedVoltage is not None:
         return [theta_coord_low_res, line_density], induced_voltage_object
     else:
@@ -603,8 +643,8 @@ def line_density_function(coord_array, dist_type, bunch_length, bunch_position =
 
 
 def longitudinal_bigaussian(GeneralParameters, RFSectionParameters, beam, 
-                            sigma_x, sigma_y = None, xunit = None, yunit = None, 
-                            seed = None, reinsertion = 'off'):
+                            sigma_dt, sigma_dE = None, seed = None, 
+                            reinsertion = 'off'):
     
     warnings.filterwarnings("once")
     if GeneralParameters.n_sections > 1:
@@ -616,53 +656,38 @@ def longitudinal_bigaussian(GeneralParameters, RFSectionParameters, beam,
     
     harmonic = RFSectionParameters.harmonic[0,counter]
     energy = RFSectionParameters.energy[counter]
-    beta = RFSectionParameters.beta_r[counter]
-    if sigma_y == None:
+    beta = RFSectionParameters.beta[counter]
+    omega_RF = RFSectionParameters.omega_RF[0,counter] 
+    phi_s = RFSectionParameters.phi_s[counter]
+    phi_RF = RFSectionParameters.phi_RF[0,counter]
+    
+    if sigma_dE == None:
         voltage = RFSectionParameters.voltage[0,counter]
         eta0 = RFSectionParameters.eta_0[counter]
     
-    if xunit == None or xunit == 'rad':
-        sigma_theta = sigma_x
-    elif xunit == 'm':
-        sigma_theta = sigma_x / (- beam.ring_radius * harmonic) 
-    elif xunit == 'ns':       
-        sigma_theta = sigma_x * beta * c * 1.e-9 / beam.ring_radius
-    
-    phi_s = RFSectionParameters.phi_s[counter]
-    
-    if sigma_y != None:    
-        if yunit == None or yunit == 'eV':
-            sigma_dE = sigma_y
-        elif yunit == '1':    
-            sigma_dE = sigma_y * beta**2 * energy
-    else:
-        phi_b = harmonic*sigma_theta + phi_s
+        phi_b = omega_RF*sigma_dt + phi_s
         sigma_dE = np.sqrt( voltage * energy * beta**2  
              * (np.cos(phi_b) - np.cos(phi_s) + (phi_b - phi_s) * np.sin(phi_s)) 
              / (np.pi * harmonic * eta0) )
         
     
-    beam.sigma_theta = sigma_theta
+    beam.sigma_dt = sigma_dt
     beam.sigma_dE = sigma_dE
     
     np.random.seed(seed)
-    beam.theta = sigma_theta * np.random.randn(beam.n_macroparticles) \
-                        + phi_s/harmonic
-    beam.dE = sigma_dE * np.random.randn(beam.n_macroparticles)
-    
+    beam.dt = sigma_dt*np.random.randn(beam.n_macroparticles) + \
+              (phi_s - phi_RF)/omega_RF
+    beam.dE = sigma_dE*np.random.randn(beam.n_macroparticles)
+       
     if reinsertion is 'on':
     
-        itemindex = np.where(is_in_separatrix(GeneralParameters, RFSectionParameters,
-                                     beam.theta, beam.dE, beam.delta) == False)[0]
+        itemindex = np.where(is_in_separatrix(GeneralParameters, 
+                    RFSectionParameters, beam, beam.dt, beam.dE) == False)[0]
          
         while itemindex.size != 0:
          
-            beam.theta[itemindex] = sigma_theta * np.random.randn(itemindex.size) \
-                    + phi_s/harmonic
-            beam.dE[itemindex] = sigma_dE * np.random.randn(itemindex.size)
+            beam.dt[itemindex] = sigma_dt*np.random.randn(itemindex.size) \
+                                 + (phi_s - phi_RF)/omega_RF
+            beam.dE[itemindex] = sigma_dE*np.random.randn(itemindex.size)
             itemindex = np.where(is_in_separatrix(GeneralParameters, 
-                                RFSectionParameters, beam.theta, beam.dE, beam.delta) 
-                                 == False)[0]
-
-  
-
+                        RFSectionParameters, beam, beam.dt, beam.dE) == False)[0]

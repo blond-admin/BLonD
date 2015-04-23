@@ -1,10 +1,10 @@
-# Copyright 2014 CERN. This software is distributed under the
-# terms of the GNU General Public Licence version 3 (GPL Version 3), 
-# copied verbatim in the file LICENCE.md.
-# In applying this licence, CERN does not waive the privileges and immunities 
-# granted to it by virtue of its status as an Intergovernmental Organization or
-# submit itself to any jurisdiction.
-# Project website: http://blond.web.cern.ch/
+Copyright 2014 CERN. This software is distributed under the
+terms of the GNU General Public Licence version 3 (GPL Version 3), 
+copied verbatim in the file LICENCE.md.
+In applying this licence, CERN does not waive the privileges and immunities 
+granted to it by virtue of its status as an Intergovernmental Organization or
+submit itself to any jurisdiction.
+Project website: http://blond.web.cern.ch/
 
 CODE NAME
 =========
@@ -46,24 +46,23 @@ STRUCTURE
 ==========
 
 1) the folder __EXAMPLE_MAIN_FILES contains several main files which
-   show how to use the principal features of the code; for additional examples
-   have a look at the code developers' personal folders present 
-   in the corresponding git branches; 
+   show how to use the principal features of the code; 
 2) the __doc folder contains the source files for the documentation; 
-   to have an output for example in html format, type make html into the console 
-   from the folder itself, then go to build, html and open the index file;
-   note that you need Latex and dvipng (if not present in the Latex 
-   distribution) to be able to see displayed all the math formulas;
-   the latest docs should be uploaded to the "gh-pages" branch;
 3) the various packages which constitute the code;
 4) the setup_cpp and setup_cython files needed to compile the C++ and Cython
-   files present in the corresponding packages respectively; theses files 
+   files present in the corresponding packages respectively; these files 
    should be run once before launching any simulation. 
-   The compiler C/C++ GCC is necessary.
+   The compiler C/C++ GCC (at least version 4.8) is necessary.
 
 
 VERSION CONTENTS
 ================
+
+2015-4-23
+v1.11.0 - New features included: multibunch and phase loop
+        - The phase-space coordinate theta has changed to time to allow better treatment of phase loop
+        - Linear constant space interpolation routine optimised
+        - Smoother histogram routine introduced as an option
 
 2015-4-20
 v1.10.5 - Test cases reorganized for benchmark between old and new versions

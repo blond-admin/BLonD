@@ -8,20 +8,18 @@
 # Project website: http://blond.web.cern.ch/
 
 '''
+**Module containing all the elements to track the RF frequency and phase and the
+beam in phase space.**
 
-**Module containing all the elements to track the beam in phase space.**
-
-:Authors: **Danilo Quartullo**, **Helga Timko**, **Alexandre Lasheen**
+:Authors:  **Helga Timko**, **Alexandre Lasheen**, **Danilo Quartullo**
 '''
 
 from __future__ import division
 import numpy as np
-import math
-from scipy.constants import c
 from scipy.integrate import cumtrapz
-import ctypes, copy, sys, thread
+import ctypes
 from setup_cpp import libfib
-
+from scipy.constants import c
 
 
 class FullRingAndRF(object):
@@ -48,6 +46,7 @@ class FullRingAndRF(object):
             
         #: *Ring radius in [m]*
         self.ring_radius = self.ring_circumference / (2*np.pi)
+        
         
         
     def potential_well_generation(self, turn = 0, n_points = 1e5, 
@@ -78,7 +77,7 @@ class FullRingAndRF(object):
             for rf_system in range(RingAndRFSectionElement.n_rf):
                 voltages = np.append(voltages, RingAndRFSectionElement.voltage[rf_system, turn])
                 harmonics = np.append(harmonics, RingAndRFSectionElement.harmonic[rf_system, turn])
-                phi_offsets = np.append(phi_offsets, RingAndRFSectionElement.phi_offset[rf_system, turn])
+                phi_offsets = np.append(phi_offsets, RingAndRFSectionElement.phi_RF[rf_system, turn])
                 sync_phases = np.append(sync_phases, RingAndRFSectionElement.phi_s[turn])
                         
         voltages = np.array(voltages, ndmin = 2)
@@ -98,7 +97,7 @@ class FullRingAndRF(object):
         theta_array_margin = theta_margin_percent * 2 * np.pi/main_harmonic
         
         slippage_factor = self.RingAndRFSection_list[0].eta_0[turn]
-        beta_r = self.RingAndRFSection_list[0].beta_r[turn]
+        beta = self.RingAndRFSection_list[0].beta[turn]
         
         if slippage_factor > 0:
             first_theta = 0 - theta_array_margin / 2
@@ -113,7 +112,7 @@ class FullRingAndRF(object):
                 
         total_voltage = np.sum(voltages.T * np.sin(harmonics.T * theta_array + phi_offsets.T) - voltages.T * np.sin(sync_phases.T), axis = 0)
         
-        eom_factor_potential = (beta_r * c) / (self.ring_circumference)
+        eom_factor_potential = (beta * c) / (self.ring_circumference)
         
         potential_well = transition_factor * np.insert(cumtrapz(total_voltage, dx=theta_array[1]-theta_array[0]),0,0)
         
@@ -121,13 +120,14 @@ class FullRingAndRF(object):
         self.potential_well = eom_factor_potential * potential_well
         
         
-    def track(self, beam):
+    def track(self):
         '''
         *Loops over all the RingAndRFSection.track methods.*
         '''
         
         for RingAndRFSectionElement in self.RingAndRFSection_list:
-            RingAndRFSectionElement.track(beam)
+            RingAndRFSectionElement.track()
+
 
 
 class RingAndRFSection(object):
@@ -143,223 +143,182 @@ class RingAndRFSection(object):
     *The time step is fixed to be one turn, but the tracking can consist of 
     multiple RingAndRFSection objects. In this case, the user should make sure 
     that the lengths of the stations sum up exactly to the circumference or use
-    the FullRingAndRF object in order to let the code pre-process the parameters.
-    Each RF station may contain several RF harmonic systems which are considered
-    to be in the same location. First, a kick from the cavity voltage(s) is applied, 
-    then an accelerating kick in case the momentum program presents variations, 
-    and finally a drift kick between stations.*
+    the FullRingAndRF object in order to let the code pre-process the 
+    parameters. Each RF station may contain several RF harmonic systems which 
+    are considered to be in the same location. First, the energy kick of the RF
+    station is applied, and then the particle arrival time to the next station
+    is updated. The change in RF phase and frequency due to control loops is 
+    tracked as well.*
     '''
         
-    def __init__(self, RFSectionParameters, solver = 'simple', PhaseLoop = None):
+    def __init__(self, RFSectionParameters, Beam, solver = 'simple', 
+                 PhaseLoop = None):
         
-        #: *Copy of the counter (from RFSectionParameters)*
-        self.counter = RFSectionParameters.counter
-        
-        ### Import RF section parameters for RF kick
-        #: *Copy of length (from RFSectionParameters)*
-        self.section_length = RFSectionParameters.section_length
-        #: *Copy of length ratio (from RFSectionParameters)*
-        self.length_ratio = RFSectionParameters.length_ratio
-        #: *Copy of the number of RF systems (from RFSectionParameters)*
-        self.n_rf = RFSectionParameters.n_rf
-        #: *Copy of harmonic number program (from RFSectionParameters)*
-        self.harmonic = RFSectionParameters.harmonic
-        
-        #: *Copy of voltage program in [V] (from RFSectionParameters)*
-        self.voltage = RFSectionParameters.voltage
-        
-        #: *Copy of phi_offset program in [rad] (from RFSectionParameters)*
-        self.phi_offset = RFSectionParameters.phi_offset
-        
-        #: *Copy of phi_s program in [rad] (from RFSectionParameters)*
-        self.phi_s = RFSectionParameters.phi_s
-        
-        ### Import RF section parameters for accelerating kick
-        #: *Copy of the momentum program in [eV/c] (from RFSectionParameters)*
-        self.momentum = RFSectionParameters.momentum
-        #: *Copy of the momentum increment in [eV/c] (from RFSectionParameters)*
-        self.p_increment = RFSectionParameters.p_increment
-        #: *Copy of the relativistic beta (from RFSectionParameters)*
-        self.beta_r = RFSectionParameters.beta_r
-        #: *Copy of the relativistic gamma (from RFSectionParameters)*        
-        self.gamma_r = RFSectionParameters.gamma_r
-        #: *Copy of the relativistic energy (from RFSectionParameters)*                
-        self.energy = RFSectionParameters.energy
-        
-        #: *Acceleration kick* :math:`: \quad - <\beta> \Delta p`
-        self.acceleration_kick = - self.beta_r[1:] * self.p_increment  
-        
-        ### Import RF section parameters for the drift
-        #: *Slippage factor (order 0) for the given RF section*
-        self.eta_0 = RFSectionParameters.eta_0
-        #: *Slippage factor (order 1) for the given RF section*
-        self.eta_1 = RFSectionParameters.eta_1
-        #: *Slippage factor (order 2) for the given RF section*
-        self.eta_2 = RFSectionParameters.eta_2
-        #: *Copy of the slippage factor order number (from RFSectionParameters)*                
-        self.alpha_order = RFSectionParameters.alpha_order
-            
-        #: *Beta ratio*  :math:`: \quad \frac{\beta_{n+1}}{\beta_{n}}`  
-        self.beta_ratio = self.beta_r[1:] / self.beta_r[0:-1]
-        
-        #: | *Choice of solver for the drift*
-        #: | *Set to 'simple' if only 0th order of slippage factor eta*
-        #: | *Set to 'full' if higher orders of slippage factor eta*
-        self.solver = solver
-        #if self.alpha_order == 1:
-        #    self.solver = 'simple'
-        
+        #: *Import of RFSectionParameters object*
         self.rf_params = RFSectionParameters
 
-        ### Parameters for the Phase Loop
-        #: *Copy of the section index (from RFSectionParameters)*        
+        #: *Import of Beam object*
+        self.beam = Beam
+
+        #: *Import PhaseLoop object*                
+        self.PL = PhaseLoop   
+        
+        ### Import RF section parameters #######################################
+        #: *Import section index (from RFSectionParameters)*        
         self.section_index = RFSectionParameters.section_index
         
-        #: *Design RF frequency of the main RF system in the station*        
-        self.omega_RF = 2.*np.pi*self.beta_r*c*self.harmonic[0]/ \
-                        (RFSectionParameters.ring_circumference)
+        #: *Import counter (from RFSectionParameters)*        
+        self.counter = RFSectionParameters.counter 
+              
+        #: *Import length ratio (from RFSectionParameters)*
+        self.length_ratio = RFSectionParameters.length_ratio
         
-        #: *Phase Loop class*                
-        self.PL = PhaseLoop         
+        #: *Import section length (from RFSectionParameters)*
+        self.section_length = RFSectionParameters.section_length
         
-# This method has been substituted by the equivalent optimised routine in kicks.cpp              
-    def kick(self, beam):
+        #: *Import revolution period (from GeneralParameters)*       
+        self.t_rev = RFSectionParameters.t_rev
+
+        #: *Import the number of RF systems (from RFSectionParameters)*
+        self.n_rf = RFSectionParameters.n_rf
+        
+        #: *Import beta (from RFSectionParameters)*
+        self.beta = RFSectionParameters.beta
+        
+        #: *Import RF harmonic number program (from RFSectionParameters)*
+        self.harmonic = RFSectionParameters.harmonic 
+               
+        #: *Import RF voltage program [GV] (from RFSectionParameters)*
+        self.voltage = RFSectionParameters.voltage  
+           
+        #: *Import RF phase noise [rad] (from RFSectionParameters)*
+        self.phi_noise = RFSectionParameters.phi_noise
+        
+        #: *Import RF phase [rad] (from RFSectionParameters)*
+        self.phi_RF = RFSectionParameters.phi_RF
+        
+        #: *Import phi_s [rad] (from RFSectionParameters)*
+        self.phi_s = RFSectionParameters.phi_s
+        
+        #: *Import actual RF frequency [1/s] (from RFSectionParameters)*
+        self.omega_RF = RFSectionParameters.omega_RF
+        
+        #: *Slippage factor (0th order) for the given RF section*
+        self.eta_0 = RFSectionParameters.eta_0
+        
+        #: *Slippage factor (1st order) for the given RF section*
+        self.eta_1 = RFSectionParameters.eta_1
+        
+        #: *Slippage factor (2nd order) for the given RF section*
+        self.eta_2 = RFSectionParameters.eta_2
+        
+        #: *Import alpha order (from RFSectionParameters)*                
+        self.alpha_order = RFSectionParameters.alpha_order
+        
+        #: *Fill unused eta arrays with zeros*
+        for i in xrange( self.alpha_order, 3 ):
+            setattr(self, "eta_%s" %i, np.zeros(RFSectionParameters.n_turns+1))       
+        ### End of import of RF section parameters #############################
+            
+        #: *Synchronous energy change* :math:`: \quad - \delta E_s`
+        self.acceleration_kick = - RFSectionParameters.E_increment  
+        
+        
+        #: | *Choice of drift solver options*
+        self.solver = solver
+        if self.solver != 'simple' and self.solver != 'full':
+            raise RuntimeError("ERROR: Choice of longitudinal solver not recognized! Aborting...")
+            
+        #: | *Set to 'full' if higher orders of eta are used*
+        if self.alpha_order > 1:
+            self.solver = 'full'
+                     
+        
+    def kick(self):
         '''
-        *The Kick represents the kick(s) by an RF station at a certain position 
-        of the ring. The kicks are summed over the different harmonic RF systems 
-        in the station. The cavity phase can be shifted by the user via phi_offset.
+        *Update of the particle energy due to the RF kick in a given RF station. 
+        The kicks are summed over the different harmonic RF systems in the 
+        station. The cavity phase can be shifted by the user via phi_offset.
+        The main RF (harmonic[0]) has by definition phase=0 at time=0. The 
+        phases of all other RF systems are defined w.r.t. to the main RF.
         The increment in energy is given by the discrete equation of motion:*
         
         .. math::
-            \Delta E_{n+1} = \Delta E_n + \sum_{j=0}^{n_{RF}}{V_{j,n}\,\sin{\\left(h_{j,n}\,\\theta + \phi_{j,n}\\right)}}
+            \Delta E^{n+1} = \Delta E^n + \sum_{k=0}^{n_{\mathsf{rf}}-1}{e V_k^n \\sin{\\left(\omega_{\mathsf{rf,k}}^n \\Delta t^n + \phi_{\mathsf{rf,k}}^n \\right)}} - (E_s^{n+1} - E_s^n) 
             
         '''
         
-        for i in range(self.n_rf):
-            beam.dE += self.voltage[i,self.counter[0]] * \
-                       np.sin(self.harmonic[i,self.counter[0]] * 
-                              beam.theta + self.phi_offset[i,self.counter[0]])
+        v_kick = np.ascontiguousarray(self.voltage[:, self.counter[0]])
+        o_kick = np.ascontiguousarray(self.omega_RF[:, self.counter[0]])
+        p_kick = np.ascontiguousarray(self.phi_RF[:, self.counter[0]])
+        
+        libfib.kick(self.beam.dt.ctypes.data_as(ctypes.c_void_p), 
+            self.beam.dE.ctypes.data_as(ctypes.c_void_p), 
+            ctypes.c_int(self.n_rf), v_kick.ctypes.data_as(ctypes.c_void_p), 
+            o_kick.ctypes.data_as(ctypes.c_void_p), 
+            p_kick.ctypes.data_as(ctypes.c_void_p), 
+            ctypes.c_uint(self.beam.n_macroparticles), 
+            ctypes.c_double(self.acceleration_kick[self.counter[0]]))
         
    
-# This method has been substituted by the equivalent optimised routine in kicks.cpp  
-    def kick_acceleration(self, beam):
+    def drift(self):
         '''
-        *KickAcceleration gives a single accelerating kick to the bunch. 
-        The accelerating kick is defined by the change in the design momentum 
-        (synchronous momentum). 
-        The acceleration is assumed to be distributed over the length of the 
-        RF station, so the average beta is used in the calculation of the kick.
-        An extra increment in the equation of motion with respect to the Kick
-        object is given by:*
+        *Update of particle arrival time to the RF station. If only the zeroth 
+        order slippage factor is given, 'simple' and 'full' solvers are 
+        available. The 'simple' solver is somewhat faster. Otherwise, the solver
+        is automatically 'full' and calculates the frequency slippage up to 
+        second order.*
+        
+        *The corresponding equations are:*
         
         .. math::
-            \Delta E_{n+1} = \Delta E_n + <\\beta> \Delta p_{n\\rightarrow n+1}
-            
-        '''
-        
-        beam.dE += self.acceleration_kick[self.counter[0]]
-
-        
-    def drift(self, beam):
-        '''
-        *The drift updates the longitudinal coordinate of the particle after 
-        applying the energy kick. The two options of tracking are: full, 
-        corresponding to the cases where beta the slippage factor may be of 
-        higher orders; and simple, where the slippage factor is of order 0 (the
-        code is then faster).*
-        
-        *Corresponding to the equations:*
-        
-        .. math::
-            \\theta_{n+1} = \\frac{\\beta_{n+1}}{\\beta_n}\\theta_n + 2\\pi\\left(\\frac{1}{1 - \\eta\\delta_n} - 1\\right)\\frac{L}{C} \quad \\text{(full)}
+            \\Delta t^{n+1} = \\Delta t^{n} + \\frac{L}{C} T_0^{n+1} \\left(\\frac{1}{1 - \\eta(\\delta^n)\\delta^n} - 1\\right) \quad \\text{(full)}
             
         .. math::
-            \\approx> \\theta_{n+1} = \\frac{\\beta_{n+1}}{\\beta_n}\\theta_n + 2\\pi\\eta_0\\delta_n\\frac{L}{C} \quad \\text{(simple)}
+            \\Delta t^{n+1} = \\Delta t^{n} + \\frac{L}{C} T_0^{n+1}\\eta_0\\delta^n \quad \\text{(simple)}
         
         '''
         
-        # Determine frequency correction from feedback loops
-        if self.PL == None:
-            # No Phase Loop, no Radial Loop
-            omega_r1 = self.beta_ratio[self.counter[0]]
-            omega_r2 = 0.
-            omega_r3 = 1.
-            
-        else:
-            self.PL.track(beam, self)
-            # Sum up corrections from previous and current time step
-            # Sum up corrections from PL, RL, etc. here
-            corr_next = self.PL.domega_RF_next
-            corr_prev = self.PL.domega_RF_prev
-               
-            omega_r1 = (self.omega_RF[self.counter[0]+1] - corr_next) / \
-                       (self.omega_RF[self.counter[0]]- corr_prev)
-            omega_r2 = - corr_next/self.omega_RF[self.counter[0]+1]
-            omega_r3 = 1. + omega_r2
+        libfib.drift(self.beam.dt.ctypes.data_as(ctypes.c_void_p), 
+            self.beam.dE.ctypes.data_as(ctypes.c_void_p), 
+            ctypes.c_char_p(self.solver),
+            ctypes.c_double(self.t_rev[self.counter[0]]),
+            ctypes.c_double(self.length_ratio), 
+            ctypes.c_double(self.alpha_order), 
+            ctypes.c_double(self.eta_0[self.counter[0]]), 
+            ctypes.c_double(self.eta_1[self.counter[0]]),
+            ctypes.c_double(self.eta_2[self.counter[0]]), 
+            ctypes.c_double(self.beam.beta), ctypes.c_double(self.beam.energy), 
+            ctypes.c_uint(self.beam.n_macroparticles))
 
-       
-        # Choose solver
-        if self.solver == 'full': 
-            
-            beam_delta = beam.delta
-            beam.theta = omega_r1*beam.theta + 2*np.pi*self.length_ratio* \
-                (omega_r3*(1/(1 - self.rf_params.eta_tracking(self.counter[0]+1, beam_delta) 
-                *beam_delta) - 1) + omega_r2)            
-                                            
-        elif self.solver == 'simple':
-            
-            ### The next commented two lines are the old drift_simple not optimised
-            #             beam.theta = omega_r1*beam.theta + 2*np.pi*self.length_ratio* \
-            #                 (omega_r3*self.eta_0[self.counter[0]+1]*beam_delta + omega_r2)
-            
-
-            libfib.drift_simple(beam.theta.ctypes.data_as(ctypes.c_void_p), 
-              beam.dE.ctypes.data_as(ctypes.c_void_p), 
-              ctypes.c_double(omega_r1), 
-              ctypes.c_double(omega_r2),
-              ctypes.c_double(omega_r3), 
-              ctypes.c_double(self.length_ratio),
-              ctypes.c_double(self.eta_0[self.counter[0]+1]),
-              ctypes.c_double(beam.beta_r),
-              ctypes.c_double(beam.energy),
-              ctypes.c_uint(beam.n_macroparticles))
-     
-        else:
-            
-            raise RuntimeError("ERROR: Choice of longitudinal solver not \
-                               recognized! Aborting...")
                 
-                
-    def track(self, beam):
+    def track(self):
         '''
-        | *Tracking method for the section, applies the equations in this order:*
-        | *kick -> kick_acceleration -> drift*
-        |
-        | *Updates the relativistic information of the beam.*
+        *Tracking method for the section. Applies first the kick, then the 
+        drift. Calls also RF feedbacks if applicable. Updates the counter of the
+        corresponding RFSectionParameters class and the energy-related 
+        variables of the Beam class.*
         '''
         
-        # KICKS
-        v_kick = np.ascontiguousarray(self.voltage[:, self.counter[0]])
-        h_kick = np.ascontiguousarray(self.harmonic[:, self.counter[0]])
-        p_kick = np.ascontiguousarray(self.phi_offset[:, self.counter[0]])
+        # Add phase noise directly to the cavity RF phase
+        if self.phi_noise != None:
+            self.phi_RF[:,self.counter[0]] += self.phi_noise[:,self.counter[0]]
+
+        # Determine phase loop correction on RF phase and frequency
+        if self.PL != None:
+            self.PL.track()  
+
+        # Kick
+        self.kick()
         
-        libfib.kicks(beam.theta.ctypes.data_as(ctypes.c_void_p), 
-                    beam.dE.ctypes.data_as(ctypes.c_void_p), 
-                    ctypes.c_int(self.n_rf), 
-                    v_kick.ctypes.data_as(ctypes.c_void_p),
-                    h_kick.ctypes.data_as(ctypes.c_void_p), 
-                    p_kick.ctypes.data_as(ctypes.c_void_p), 
-                    ctypes.c_uint(beam.n_macroparticles), ctypes.c_double(self.acceleration_kick[self.counter[0]]))
-        
-        # DRIFT
-        self.drift(beam)
+        # Drift
+        self.drift()
         
         # Increment by one the turn counter
         self.counter[0] += 1
         
         # Updating the beam synchronous momentum etc.
-        beam.beta_r = self.beta_r[self.counter[0]]
-        beam.gamma_r = self.gamma_r[self.counter[0]]
-        beam.energy = self.energy[self.counter[0]]
-        beam.momentum = self.momentum[self.counter[0]]
- 
+        self.beam.beta = self.rf_params.beta[self.counter[0]]
+        self.beam.gamma = self.rf_params.gamma[self.counter[0]]
+        self.beam.energy = self.rf_params.energy[self.counter[0]]
+        self.beam.momentum = self.rf_params.momentum[self.counter[0]]
