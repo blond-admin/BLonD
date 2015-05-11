@@ -19,6 +19,7 @@ import warnings
 from scipy.constants import m_p, m_e, e, c
 
 
+
 class GeneralParameters(object):
     '''
     *Object containing all the general input parameters used for the simulation.*
@@ -71,12 +72,16 @@ class GeneralParameters(object):
         
         #: *Number of turns of the simulation*
         self.n_turns = n_turns 
-
-        #: | *Synchronous momentum (program) in [eV] for each RF section* :math:`: \quad p_{s,k}^n`
-        #: | *Can be given as a single constant value, or as a program of (n_turns + 1) turns.*
-        #: | *In case of several sections without acceleration, input: [[momentum_section_1], [momentum_section_2]]*
-        #: | *In case of several sections with acceleration, input: [momentum_program_section_1, momentum_program_section_2]*
-        self.momentum = np.array(momentum, ndmin = 2)
+        
+        if type(momentum)==tuple:
+            self.momentum = np.array(momentum[1], ndmin = 2)
+            self.cumulative_times = momentum[0]
+        else:
+            #: | *Synchronous momentum (program) in [eV] for each RF section* :math:`: \quad p_{s,k}^n`
+            #: | *Can be given as a single constant value, or as a program of (n_turns + 1) turns.*
+            #: | *In case of several sections without acceleration, input: [[momentum_section_1], [momentum_section_2]]*
+            #: | *In case of several sections with acceleration, input: [momentum_program_section_1, momentum_program_section_2]*
+            self.momentum = np.array(momentum, ndmin = 2)
 
         #: | *Momentum compaction factor (up to 2nd order) for each RF section* :math:`: \quad \alpha_{k,i}`
         #: | *Should be given as a list for multiple RF stations (each element of the list should be a list of alpha factors up to 2nd order)*
@@ -133,12 +138,16 @@ class GeneralParameters(object):
         #: .. math:: E_s = \sqrt{ p_s^2 + m^2 }
         self.energy = np.sqrt(self.momentum**2 + self.mass**2)
         
-        #: *Revolution period [s]* :math:`: \quad T_0 = \frac{C}{\beta_s c}`
-        self.t_rev = np.dot(self.ring_length, 1/(self.beta*c))
-        
-        #: *Cumulative times [s]*
-        self.cycle_time = np.cumsum(self.t_rev)
-       
+        # Be careful that self.cycle_time in the else statement starts always with 0.
+        if type(momentum)==tuple:
+            #: *Cumulative times [s] taken from preprocess ramp method*
+            self.cycle_time = self.cumulative_times
+            #: *Revolution period [s]* :math:`: \quad T_0 = \frac{C}{\beta_s c}`
+            self.t_rev = np.append(np.diff(self.cycle_time),self.ring_circumference/(self.beta[0][-1]*c))
+        else:    
+            self.t_rev = np.dot(self.ring_length, 1/(self.beta*c))
+            self.cycle_time = np.insert(np.cumsum(self.t_rev),0,0)
+            
         #: *Revolution frequency [GHz]* :math:`: \quad f_0 = \frac{1}{T_0}`
         self.f_rev = 1/self.t_rev
          

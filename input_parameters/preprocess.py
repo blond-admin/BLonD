@@ -18,32 +18,32 @@ import numpy as np
 import matplotlib.pyplot as plt
 from plots.plot import fig_folder
 from scipy.constants import m_p, m_e, c, e
+from scipy.interpolate import splrep, splev
 
 
-def loaddata(filename, ignore=0):
+def loaddata(filename, ignore=0, delimiter=None):
 
     """
     Loading column-by-column data from file to numpy arrays.
     Ignore x lines from the head of the file.
     """
     
-    data = np.loadtxt(filename, skiprows=ignore)
+    data = np.loadtxt(filename, skiprows=ignore, delimiter=delimiter)
 
     return [ np.ascontiguousarray(data[:,i]) for i in range(len(data[0])) ]
 
 
 
 def preprocess_ramp(particle_type, circumference, time, data, 
-                    data_type='momentum', interpolation='linear', 
+                    data_type='momentum', interpolation='linear', smoothing = 0,
                     flat_bottom=0, flat_top=0, 
                     plot=True, figdir='fig', figname='data', sampling=1, 
                     user_mass=None, user_charge=None):
     '''
     Pre-process acceleration ramp data to create input for simulation parameters.
-    Input: absolute time [s] and corresponding momentum [eV] or gamma or beta.
-    Output: momentum [eV].
-    Interpolate data points to simulation time steps.
-    'interpolation': restricted to linear at the moment.
+    Input: absolute time [s] and corresponding momentum [eV/c] or total energy [eV] or kinetic energy [eV].
+    Output: cumulative time array [s], interpolated momentum [eV/c].
+    'interpolation': restricted to linear and cubic at the moment.
     'flat_bottom/top': extra time can be be added in units of time steps;
     constant extrapolation of the first/last data point is used in this case. 
     'plot': optional plotting of interpolated array with 'sampling' frequency; 
@@ -63,23 +63,25 @@ def preprocess_ramp(particle_type, circumference, time, data,
     elif particle_type is 'user_input':
         mass = user_mass # [eV]
     else:
-        raise RuntimeError('ERROR: Particle type in preprocess_rampnot recognized!')
+        raise RuntimeError('ERROR: Particle type in preprocess_ramp not recognized!')
 
     # Convert data to beta, if necessary
     if data_type == 'momentum':
-        beta = np.sqrt(1/(1 + (mass/data)**2))
-    elif data_type == 'gamma':
-        beta = np.sqrt(1 - 1/(data*data))
-    elif data_type != 'beta':
-        raise RuntimeError('ERROR: Ramp data in preprocess_ramp not recognized!')
-    
+        momentum = data
+    elif data_type == 'total energy':
+        momentum = np.sqrt(data**2-mass**2)
+    elif data_type != 'kinetic energy':
+        momentum = np.sqrt((data+mass)**2-mass**2)
+    else:
+        raise RuntimeError('ERROR: Data type in preprocess_ramp not recognized!')
+        
     # Obtain flat bottom data, extrapolate to constant
-    T0 = circumference/(beta[0]*c) # Initial revolution period [s]
+    beta_0 = np.sqrt(1/(1 + (mass/momentum[0])**2))
+    T0 = circumference/(beta_0*c) # Initial revolution period [s]
     shift = time[0] - flat_bottom*T0
     time_interp = shift + T0*np.arange(0, flat_bottom+1)
-    beta_interp = beta[0]*np.ones(flat_bottom+1)
-    if data_type == 'momentum':
-        momentum_interp = data[0]*np.ones(flat_bottom+1)
+    beta_interp = beta_0*np.ones(flat_bottom+1)
+    momentum_interp = momentum[0]*np.ones(flat_bottom+1)
         
     time_interp = time_interp.tolist()
     beta_interp = beta_interp.tolist()
@@ -88,44 +90,67 @@ def preprocess_ramp(particle_type, circumference, time, data,
     # Interpolate data recursively
     if interpolation=='linear':
         
-        i = flat_bottom + 1 # Counter for time steps
-        for k in xrange(1,Nd): # Counter for data points
-            while time_interp[i-1] <= time[k]:
+        time_interp.append(time_interp[0]
+                                     + circumference/(beta_interp[0]*c) )
+        i = flat_bottom 
+        for k in xrange(1,Nd): 
+            while time_interp[i+1] <= time[k]:
                 
-                time_interp.append(time_interp[i-1]
-                                         + circumference/(beta_interp[i-1]*c) )
+                momentum_interp.append(data[k-1] + (data[k] - data[k-1]) * (time_interp[i+1] - time[k-1])
+                                    / (time[k] - time[k-1])) 
                 
-                beta_interp.append(beta[k-1] + (beta[k] - beta[k-1]) * (time_interp[i] - time[k-1])
-                                     / (time[k] - time[k-1])) 
-                                   
-                if data_type == 'momentum':
-                    momentum_interp.append(data[k-1] + (data[k] - data[k-1]) * (time_interp[i] - time[k-1])
-                                            / (time[k] - time[k-1])) 
+                beta_interp.append(np.sqrt(1/(1 + (mass/momentum_interp[i+1])**2))) 
                 
+                time_interp.append(time_interp[i+1]
+                                     + circumference/(beta_interp[i+1]*c) )               
+            
                 i += 1
+            
+        time_interp.pop()        
+        time_interp = np.asarray(time_interp)
+        beta_interp = np.asarray(beta_interp)
+        momentum_interp = np.asarray(momentum_interp)   
+                    
+    
+    elif interpolation=='cubic':
+        
+        interp_funtion_momentum = splrep(time, data, s=smoothing)
+        
+        i = flat_bottom 
+        
+        while time_interp[i] <= time[-1]:
+            
+            time_interp.append(time_interp[i]
+                                     + circumference/(beta_interp[i]*c) )
+            
+            momentum_interp.append(splev(time_interp[i+1], interp_funtion_momentum))
+            
+            beta_interp.append(np.sqrt(1/(1 + (mass/momentum_interp[i+1])**2))) 
+
+            i += 1
+            
+        time_interp.pop()
+        beta_interp.pop()
+        momentum_interp.pop()       
+        time_interp = np.asarray(time_interp)
+        beta_interp = np.asarray(beta_interp)
+        momentum_interp = np.asarray(momentum_interp)
+        
                 
     else:
         
         raise RuntimeError("WARNING: Interpolation scheme in preprocess_arrays \
                            not recognized. Aborting...")
     
-    time_interp = np.asarray(time_interp)
-    beta_interp = np.asarray(beta_interp)
-    momentum_interp = np.asarray(momentum_interp)
     
     # Obtain flat top data, extrapolate to constant
     if flat_top > 0:
-        T0 = circumference/(beta[-1]*c)
-        time_interp = np.append(time_interp, time_interp[-1] + T0*np.arange(1, flat_top+1))
+        
+        time_interp = np.append(time_interp, time_interp[-1] + circumference*np.arange(1, flat_top+1)/(beta_interp[-1]*c))
         beta_interp = np.append(beta_interp, beta_interp[-1]*np.ones(flat_top))
-        if data_type == 'momentum':
-            momentum_interp = np.append(momentum_interp, momentum_interp[-1]*np.ones(flat_top))
+        momentum_interp = np.append(momentum_interp, momentum_interp[-1]*np.ones(flat_top))
             
-            
-    # Convert data if necessary
-    if data_type != 'momentum':
-        momentum_interp = mass*beta_interp*np.sqrt( 1/(1-beta_interp**2) )
-    
+
     if plot:
         # Directory where longitudinal_plots will be stored
         fig_folder(figdir)
@@ -133,10 +158,9 @@ def preprocess_ramp(particle_type, circumference, time, data,
         # Plot
         plt.figure(1, figsize=(8,6))
         ax = plt.axes([0.15, 0.1, 0.8, 0.8])
-        ax.plot(time_interp[::sampling]*1e-9, momentum_interp[::sampling], 
+        ax.plot(time_interp[::sampling], momentum_interp[::sampling], 
                 label='Interpolated momentum')
-        if data_type == 'momentum':
-            ax.plot(time[0:Nd]*1e-9, data[0:Nd], 'ro', label='momentum')
+        ax.plot(time, momentum, '.', label='input momentum', color='r')
         ax.set_xlabel("Time [s]")    
         ax.set_ylabel ("p [eV]")
         ax.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
@@ -148,106 +172,63 @@ def preprocess_ramp(particle_type, circumference, time, data,
         fign = figdir + '/preprocess_momentum.png'
         plt.savefig(fign)
         plt.clf()     
-    
-    return time_interp, momentum_interp  
+        
+    return (time_interp, momentum_interp)
         
 
 
-def preprocess_rf_params(general_params, time, data, interpolation='linear', 
-                         flat_bottom=0, 
-                         plot=True, figdir='fig', figname='data', sampling=1):
+def preprocess_rf_params(general_params, time_arrays, data_arrays, interpolation='linear', smoothing = 0,
+                         plot=True, figdir='fig', figname=['data'], sampling=1):
     
     """
-    Pre-process 'data' to be input into RF parameters, such as RF voltage, 
-    phase, harmonic as a function of 'time' [s].
-    'data' can be a single np array or a list of arrays corresponding to 'time'.
+    Pre-process RF programs to be input into RF parameters, such as RF voltage [V], 
+    phase [rad], harmonic as a function of time [s].
+    time_arrays and data_arrays are two lists of numpy arrays: thi first array of time_arrays
+    corresponds to the first array of data_arrays and so on.
     Use 'loaddata' function to load data with correct format.
     Pre-requisite: general parameters need to be set up.
     'interpolation': restricted to linear at the moment.
     'flat_bottom': extrapolation to flat vector during given time steps;
     Flat top time automatically adjusted.
     'plot': optional plotting of interpolated array with 'sampling' frequency; 
-    saved with name 'figname' into 'figdir'.
+    saved with name 'figname' into 'figdir'. Note that figname has to be a list of string where 
+    each string corresponds to an interpolated array.
     """
     
-    T0 = general_params.t_rev          # Revolution period
-    Nt = general_params.n_turns        # Number of turns
-    Nd = len(time)                     # Number of data points
-
-    # Check input format of 'data'
-    # Single numpy array
-    if isinstance(data, np.ndarray) and data.ndim == 1: 
-        Na = 1                         # Number of arrays
-        data = np.array(data, ndmin =2)
-        if data.size != Nd:
-            raise RuntimeError(str(data)+' does not match the length of '+str(time))
-    # List of numpy arrays
-    elif isinstance(data, list) and isinstance(data[0], np.ndarray): 
-        data = np.array(data, ndmin =2)
-        Na = len(data)                 # Number of arrays
-        if data[0].size != Nd: 
-            raise RuntimeError(str(data)+' does not match the length of '+str(time))
-    else:
-        raise RuntimeError('Data format not recognized in preprocess_rf_params()')
-
-    # Initialise data; constant at flat bottom
-    data_interp = np.zeros((Na, Nt+1))
-    time_interp = np.zeros(Nt+1)
-    for m in xrange(0,Na):
-        data_interp[m,0:flat_bottom+1] = data[m,0]
-    shift = time[0] - flat_bottom*T0[0]
-    time_interp[0:flat_bottom+1] = shift + T0[0]*np.arange(0, flat_bottom+1)
     
-    # Interpolate data
-    if interpolation=='linear':
-        
-        i = flat_bottom + 1
-        for k in xrange(1,Nd):      
-            while time_interp[i-1] <= time[k]: # and i < Nt+1:
-
-                # Obtain next data point based on time passed during previous turns
-                data_interp[:,i] = (data[:,k-1]*(time[k]-time_interp[i-1]) + data[:,k]
-                                 *(time_interp[i-1]-time[k-1])) / (time[k] - time[k-1])
-                                     
-                # Update time array              
-                time_interp[i] = time_interp[i-1] + T0[i-1]              
-                i += 1
-
-    else:
-        
-        raise RuntimeError("WARNING: Interpolation scheme in preprocess_arrays \
-                           not recognized. Aborting...")
-        
-    # Obtain flat top data, extrapolate to constant
-    flat_top = Nt+1-i
-    print "    In preprocess_rf_params, adding %d flat top time steps" %flat_top
-    if flat_top > 0:
-        time_interp[i:] = time_interp[i-1] + T0[i]*np.arange(1, Nt+2-i)
-        for m in xrange(0,Na):
-            data_interp[m,i:] = data_interp[m,i-1]
-    if flat_top < 0:
-        raise RuntimeError("Number of turns contradicts data length in preprocess_rf_params!")
+    cumulative_times = general_params.cycle_time
     
+    data_interp = []
+    
+    for i in range(len(time_arrays)):
+        if len(time_arrays[i])!=len(data_arrays[i]):
+            raise RuntimeError(str(data_arrays[i])+' does not match the length of '+str(time_arrays[i]))
+        if interpolation=='linear':
+            data_interp.append(np.interp(cumulative_times, time_arrays[i], data_arrays[i]))
+        elif interpolation=='cubic':
+            interp_funtion = splrep(time_arrays[i], data_arrays[i], s=smoothing)
+            data_interp.append(splev(cumulative_times, interp_funtion))
+            
     # Plot original and interpolated data       
     if plot:
         # Directory where longitudinal_plots will be stored
         fig_folder(figdir)
         
         # Plot
-        for i in xrange(0,Na):
+        for i in range(len(time_arrays)):
             plt.figure(1, figsize=(8,6))
             ax = plt.axes([0.15, 0.1, 0.8, 0.8])
-            ax.plot(time_interp[::sampling]*1.e-9, data_interp[i,::sampling], 
+            ax.plot(cumulative_times[::sampling], data_interp[i][::sampling], 
                     label='Interpolated data')
-            ax.plot(time[0:Nd], data[i,0:Nd], 'ro', label='Input data')
+            ax.plot(time_arrays[i], data_arrays[i], '.', label='Input data', color='r')
             ax.set_xlabel("Time [s]")    
-            ax.set_ylabel ("%s" %figname)
+            ax.set_ylabel ("%s" %figname[i])
             ax.legend = plt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3, 
                                    ncol=2, mode="expand", borderaxespad=0.)
 
         
             # Save figure
-            fign = figdir + '/preprocess_' "%s" %figname + '_' "%d" %i +'.png'
+            fign = figdir + '/preprocess_' "%s" %figname[i] + '_' "%d" %i +'.png'
             plt.savefig(fign)
             plt.clf()     
  

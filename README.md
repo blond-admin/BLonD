@@ -58,6 +58,13 @@ STRUCTURE
 VERSION CONTENTS
 ================
 
+2015-5-11
+v1.11.1 - Fixed two bugs inside the preprocess_ramp routine. 
+		- the General_parameters class has been reviewed to take innto account the output from
+		  preprocess_ramp
+		- a new test case showing how to use the preprocess routines has been added in the
+		  _TEST_CASES folder
+
 2015-4-23
 v1.11.0 - New features included: multibunch and phase loop
         - The phase-space coordinate theta has changed to time to allow better treatment of phase loop

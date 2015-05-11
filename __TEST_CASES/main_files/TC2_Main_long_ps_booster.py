@@ -30,8 +30,6 @@ from plots.plot_impedance import *
 from plots.plot_slices import *
 from plots.plot import *
 
-import os 
-os.chdir('C:/Users/dquartul/git/BLonDbeta/__EXAMPLE_MAIN_FILES/test_cases')
 
 # SIMULATION PARAMETERS -------------------------------------------------------
 

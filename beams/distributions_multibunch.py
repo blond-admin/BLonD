@@ -10,9 +10,8 @@ import copy
 import matplotlib.pyplot as plt
 from beams import Beam
 from distributions import matched_from_distribution_density, matched_from_line_density
-# import sys
-# from scipy.constants import m_p, m_e, e, c
-from input_parameters.constants import *
+from scipy.constants import m_p, m_e, e, c
+
 
 def matched_from_distribution_density_multibunch(beam, GeneralParameters, FullRingAndRF, distribution_options_list,
                                       n_bunches, bunch_spacing_buckets,
