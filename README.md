@@ -58,6 +58,9 @@ STRUCTURE
 VERSION CONTENTS
 ================
 
+2015-5-13
+v1.11.2 - Input paths have been corrected in the test cases main files. 
+
 2015-5-11
 v1.11.1 - Fixed two bugs inside the preprocess_ramp routine. 
 		- the General_parameters class has been reviewed to take innto account the output from

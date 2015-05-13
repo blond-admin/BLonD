@@ -95,7 +95,7 @@ bunchmonitor = BunchMonitor(general_params, my_beam, '../output_files/TC2_output
 var = str(kin_beam_energy / 1e9)
 
 # ejection kicker
-Ekicker = np.loadtxt('../input_files_for_test_cases/TC2_Ekicker_1.4GeV.txt'
+Ekicker = np.loadtxt('../input_files/TC2_Ekicker_1.4GeV.txt'
         , skiprows = 1, dtype=complex, converters = dict(zip((0, 1), (lambda s: 
         complex(s.replace('i', 'j')), lambda s: complex(s.replace('i', 'j'))))))
 
@@ -103,7 +103,7 @@ Ekicker_table = InputTable(Ekicker[:,0].real, Ekicker[:,1].real, Ekicker[:,1].im
 
 
 # Finemet cavity
-F_C = np.loadtxt('../input_files_for_test_cases/TC2_Finemet.txt', dtype = float, skiprows = 1)
+F_C = np.loadtxt('../input_files/TC2_Finemet.txt', dtype = float, skiprows = 1)
 
 F_C[:, 3], F_C[:, 5], F_C[:, 7] = np.pi * F_C[:, 3] / 180, np.pi * F_C[:, 5] / 180, np.pi * F_C[:, 7] / 180
 

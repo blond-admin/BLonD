@@ -112,7 +112,7 @@ bunchmonitor_copy = BunchMonitor(general_params_copy, my_beam_copy, '../output_f
 
 # LOAD IMPEDANCE TABLE--------------------------------------------------------
 
-table = np.loadtxt('../input_files_for_test_cases/TC5_new_HQ_table.dat', comments = '!')
+table = np.loadtxt('../input_files/TC5_new_HQ_table.dat', comments = '!')
 
 R_shunt = table[:, 2] * 10**6 
 f_res = table[:, 0] * 10**9

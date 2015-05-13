@@ -34,7 +34,7 @@ C = 2*np.pi*radius  # [m]
 initial_time = 0.275 # [s]
 final_time = 0.700 # [s]
 
-momentum_program = np.loadtxt('../input_files_for_test_cases/TC6_Source_TOF_P.csv', delimiter=',')
+momentum_program = np.loadtxt('../input_files/TC6_Source_TOF_P.csv', delimiter=',')
 time_array = momentum_program[:, 0]*1e-3  # [s]
 momentum = momentum_program[:, 1]*1e9  # [eV/c]
 
@@ -58,9 +58,9 @@ harmonic_numbers_2 = 2  # [1]
 phi_offset_1 = 0   # [rad]
 phi_offset_2 = np.pi # [rad]
 
-voltage_program_C02 = np.loadtxt('../input_files_for_test_cases/TC6_voltage_program_LHC25_c02.txt')
-voltage_program_C04 = np.loadtxt('../input_files_for_test_cases/TC6_voltage_program_LHC25_c04.txt')
-voltage_program_C16 = np.loadtxt('../input_files_for_test_cases/TC6_voltage_program_LHC25_c16.txt')
+voltage_program_C02 = np.loadtxt('../input_files/TC6_voltage_program_LHC25_c02.txt')
+voltage_program_C04 = np.loadtxt('../input_files/TC6_voltage_program_LHC25_c04.txt')
+voltage_program_C16 = np.loadtxt('../input_files/TC6_voltage_program_LHC25_c16.txt')
 time_C02 = voltage_program_C02[:, 0]*1e-3  # [s]
 voltage_C02 = voltage_program_C02[:, 1]*1e3  # [V]
 time_C04 = voltage_program_C04[:, 0]*1e-3  # [s]
