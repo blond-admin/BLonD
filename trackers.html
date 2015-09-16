@@ -123,7 +123,7 @@ It assumes also that the slippage factor is the same in the whole ring.</em></p>
 
 <dl class="method">
 <dt id="trackers.tracker.FullRingAndRF.track">
-<tt class="descname">track</tt><big>(</big><em>beam</em><big>)</big><a class="headerlink" href="#trackers.tracker.FullRingAndRF.track" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">track</tt><big>(</big><big>)</big><a class="headerlink" href="#trackers.tracker.FullRingAndRF.track" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Loops over all the RingAndRFSection.track methods.</em></p>
 </dd></dl>
 
@@ -131,7 +131,7 @@ It assumes also that the slippage factor is the same in the whole ring.</em></p>
 
 <dl class="class">
 <dt id="trackers.tracker.RingAndRFSection">
-<em class="property">class </em><tt class="descclassname">trackers.tracker.</tt><tt class="descname">RingAndRFSection</tt><big>(</big><em>RFSectionParameters</em>, <em>Beam</em>, <em>solver='simple'</em>, <em>PhaseLoop=None</em><big>)</big><a class="headerlink" href="#trackers.tracker.RingAndRFSection" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descclassname">trackers.tracker.</tt><tt class="descname">RingAndRFSection</tt><big>(</big><em>RFSectionParameters</em>, <em>Beam</em>, <em>solver='simple'</em>, <em>PhaseLoop=None</em>, <em>NoiseFB=None</em>, <em>periodicity=False</em>, <em>dE_max=None</em>, <em>cut_vertically=False</em><big>)</big><a class="headerlink" href="#trackers.tracker.RingAndRFSection" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
 <p><em>Definition of an RF station and part of the ring until the next station, 
 see figure.</em></p>
@@ -170,6 +170,18 @@ tracked as well.</em></p>
 </dd></dl>
 
 <dl class="attribute">
+<dt id="trackers.tracker.RingAndRFSection.beta">
+<tt class="descname">beta</tt><em class="property"> = None</em><a class="headerlink" href="#trackers.tracker.RingAndRFSection.beta" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Import beta (from RFSectionParameters)</em> # needed for FullRingAndRF</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="trackers.tracker.RingAndRFSection.charge">
+<tt class="descname">charge</tt><em class="property"> = None</em><a class="headerlink" href="#trackers.tracker.RingAndRFSection.charge" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Import particle charge (from RFSectionParameters)</em></p>
+</dd></dl>
+
+<dl class="attribute">
 <dt id="trackers.tracker.RingAndRFSection.counter">
 <tt class="descname">counter</tt><em class="property"> = None</em><a class="headerlink" href="#trackers.tracker.RingAndRFSection.counter" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Import counter (from RFSectionParameters)</em></p>
@@ -177,7 +189,7 @@ tracked as well.</em></p>
 
 <dl class="method">
 <dt id="trackers.tracker.RingAndRFSection.drift">
-<tt class="descname">drift</tt><big>(</big><big>)</big><a class="headerlink" href="#trackers.tracker.RingAndRFSection.drift" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">drift</tt><big>(</big><em>beam_dt</em>, <em>beam_dE</em><big>)</big><a class="headerlink" href="#trackers.tracker.RingAndRFSection.drift" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Update of particle arrival time to the RF station. If only the zeroth 
 order slippage factor is given, &#8216;simple&#8217; and &#8216;full&#8217; solvers are 
 available. The &#8216;simple&#8217; solver is somewhat faster. Otherwise, the solver
@@ -185,9 +197,9 @@ is automatically &#8216;full&#8217; and calculates the frequency slippage up to
 second order.</em></p>
 <p><em>The corresponding equations are:</em></p>
 <div class="math">
-<p><img src="_images/math/dfcec349452f471bc0a091d4c52840c7b264215b.png" alt="\Delta t^{n+1} = \Delta t^{n} + \frac{L}{C} T_0^{n+1} \left(\frac{1}{1 - \eta(\delta^n)\delta^n} - 1\right) \quad \text{(full)}"/></p>
+<p><img src="_images/math/5a9cb5072aa395422ea9deea221c38597a04db24.png" alt="\Delta t^{n+1} = \Delta t^{n} + \frac{L}{C} T_0^{n+1} \left(\frac{1}{1 - \eta(\delta^{n+1})\delta^{n+1}} - 1\right) \quad \text{(full)}"/></p>
 </div><div class="math">
-<p><img src="_images/math/e3a3836c0ea3d5b4f8365f89e7654e59b407013c.png" alt="\Delta t^{n+1} = \Delta t^{n} + \frac{L}{C} T_0^{n+1}\eta_0\delta^n \quad \text{(simple)}"/></p>
+<p><img src="_images/math/0499f72b9460cdd1edd2b5648f315254c88f4353.png" alt="\Delta t^{n+1} = \Delta t^{n} + \frac{L}{C} T_0^{n+1}\eta_0\delta^{n+1} \quad \text{(simple)}"/></p>
 </div></dd></dl>
 
 <dl class="attribute">
@@ -216,7 +228,7 @@ second order.</em></p>
 
 <dl class="method">
 <dt id="trackers.tracker.RingAndRFSection.kick">
-<tt class="descname">kick</tt><big>(</big><big>)</big><a class="headerlink" href="#trackers.tracker.RingAndRFSection.kick" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">kick</tt><big>(</big><em>beam_dt</em>, <em>beam_dE</em><big>)</big><a class="headerlink" href="#trackers.tracker.RingAndRFSection.kick" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Update of the particle energy due to the RF kick in a given RF station. 
 The kicks are summed over the different harmonic RF systems in the 
 station. The cavity phase can be shifted by the user via phi_offset.
@@ -240,9 +252,15 @@ The increment in energy is given by the discrete equation of motion:</em></p>
 </dd></dl>
 
 <dl class="attribute">
+<dt id="trackers.tracker.RingAndRFSection.noiseFB">
+<tt class="descname">noiseFB</tt><em class="property"> = None</em><a class="headerlink" href="#trackers.tracker.RingAndRFSection.noiseFB" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Import NoiseFB object</em></p>
+</dd></dl>
+
+<dl class="attribute">
 <dt id="trackers.tracker.RingAndRFSection.omega_RF">
 <tt class="descname">omega_RF</tt><em class="property"> = None</em><a class="headerlink" href="#trackers.tracker.RingAndRFSection.omega_RF" title="Permalink to this definition">¶</a></dt>
-<dd><p><em>Import actual RF frequency [1/ns] (from RFSectionParameters)</em></p>
+<dd><p><em>Import actual RF frequency [1/s] (from RFSectionParameters)</em></p>
 </dd></dl>
 
 <dl class="attribute">
@@ -258,6 +276,12 @@ The increment in energy is given by the discrete equation of motion:</em></p>
 </dd></dl>
 
 <dl class="attribute">
+<dt id="trackers.tracker.RingAndRFSection.phi_s">
+<tt class="descname">phi_s</tt><em class="property"> = None</em><a class="headerlink" href="#trackers.tracker.RingAndRFSection.phi_s" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Import phi_s [rad] (from RFSectionParameters)</em> # needed for FullRingAndRF</p>
+</dd></dl>
+
+<dl class="attribute">
 <dt id="trackers.tracker.RingAndRFSection.rf_params">
 <tt class="descname">rf_params</tt><em class="property"> = None</em><a class="headerlink" href="#trackers.tracker.RingAndRFSection.rf_params" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Import of RFSectionParameters object</em></p>
@@ -267,6 +291,12 @@ The increment in energy is given by the discrete equation of motion:</em></p>
 <dt id="trackers.tracker.RingAndRFSection.section_index">
 <tt class="descname">section_index</tt><em class="property"> = None</em><a class="headerlink" href="#trackers.tracker.RingAndRFSection.section_index" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Import section index (from RFSectionParameters)</em></p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="trackers.tracker.RingAndRFSection.section_length">
+<tt class="descname">section_length</tt><em class="property"> = None</em><a class="headerlink" href="#trackers.tracker.RingAndRFSection.section_length" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Import section length (from RFSectionParameters)</em> # needed for FullRingAndRF</p>
 </dd></dl>
 
 <dl class="attribute">
@@ -295,7 +325,7 @@ variables of the Beam class.</em></p>
 <dl class="attribute">
 <dt id="trackers.tracker.RingAndRFSection.voltage">
 <tt class="descname">voltage</tt><em class="property"> = None</em><a class="headerlink" href="#trackers.tracker.RingAndRFSection.voltage" title="Permalink to this definition">¶</a></dt>
-<dd><p><em>Import RF voltage program [GV] (from RFSectionParameters)</em></p>
+<dd><p><em>Import RF voltage program [V] (from RFSectionParameters)</em></p>
 </dd></dl>
 
 </dd></dl>
@@ -311,175 +341,259 @@ variables of the Beam class.</em></p>
 </tbody>
 </table>
 <a class="reference internal image-reference" href="_images/ring_and_RFstation.png"><img alt="_images/ring_and_RFstation.png" class="align-right" src="_images/ring_and_RFstation.png" style="width: 350px; height: 350px;" /></a>
-<p>Below, we shall derive the equations of motion (EOMs) for an energy kick given to the particle by the RF caviti(es) of a given RF station and the subsequent drift of the particle during one turn, see Figure. In the case of multiple RF stations, the drift equation should be scaled by <img class="math" src="_images/math/f282022cb612e63f1d5ce78cf8f84d66e0ce5a6d.png" alt="\frac{L_i}{C}"/>, where <img class="math" src="_images/math/9b6e16c1cafa090be103023fa78db1ae3b96bfdf.png" alt="C = \sum_{i} L_i"/> is the machine circumference.</p>
+<p>Below, we shall derive the equations of motion (EOMs) for an energy kick given
+to the particle by the RF caviti(es) of a given RF station and the subsequent
+drift of the particle during one turn, see Figure. In the case of multiple RF
+stations, the drift equation should be scaled by <img class="math" src="_images/math/f282022cb612e63f1d5ce78cf8f84d66e0ce5a6d.png" alt="\frac{L_i}{C}"/>, where
+<img class="math" src="_images/math/9b6e16c1cafa090be103023fa78db1ae3b96bfdf.png" alt="C = \sum_{i} L_i"/> is the machine circumference.</p>
 <div class="section" id="definitions">
 <h4>Definitions<a class="headerlink" href="#definitions" title="Permalink to this headline">¶</a></h4>
-<p><strong>Code-internal units</strong> are SI-units unless otherwise specified in the below table.</p>
+<p><strong>Code-internal units</strong> are SI-units unless otherwise specified in the below
+table.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name" colspan="2">Code-internal units:</th></tr>
-<tr class="field-odd field"><td>&nbsp;</td><td class="field-body"><p class="first">Energy <img class="math" src="_images/math/cfd13a0f26eb7ef0093319a7669da7dd3771dbac.png" alt="E"/> = [MeV]</p>
-<p>Momentum <img class="math" src="_images/math/3eca8557203e86160952e1c0f735f7417f3285b1.png" alt="p"/> = [MeV]</p>
-<p>Mass <img class="math" src="_images/math/c4bb40dd65eae6c11b325989b14e0b8d35e4e3ef.png" alt="m"/> = [MeV]</p>
-<p>Time <img class="math" src="_images/math/ef9270877405055756d345facd044e4ab297f858.png" alt="t"/> = [ns]</p>
-<p>Frequency <img class="math" src="_images/math/0001d02b63ede2fe3219e05a7cd09c82ae6298b6.png" alt="f"/> = [GHz]</p>
-<p class="last">Revolution frequency <img class="math" src="_images/math/c7415c6919c2eb17b1ea36f0243079b59825ee89.png" alt="\omega"/> = [1/ns]</p>
+<tr class="field-odd field"><td>&nbsp;</td><td class="field-body"><p class="first">Energy <img class="math" src="_images/math/cfd13a0f26eb7ef0093319a7669da7dd3771dbac.png" alt="E"/> = [eV]</p>
+<p>Momentum <img class="math" src="_images/math/3eca8557203e86160952e1c0f735f7417f3285b1.png" alt="p"/> = [eV]</p>
+<p>Mass <img class="math" src="_images/math/c4bb40dd65eae6c11b325989b14e0b8d35e4e3ef.png" alt="m"/> = [eV]</p>
+<p>Time <img class="math" src="_images/math/ef9270877405055756d345facd044e4ab297f858.png" alt="t"/> = [s]</p>
+<p>Frequency <img class="math" src="_images/math/0001d02b63ede2fe3219e05a7cd09c82ae6298b6.png" alt="f"/> = [Hz]</p>
+<p class="last">Angular frequency <img class="math" src="_images/math/c7415c6919c2eb17b1ea36f0243079b59825ee89.png" alt="\omega"/> = [rad/s]</p>
 </td>
 </tr>
 </tbody>
 </table>
-<p>Just like in the real machine, we demand the user to define beforehand the momentum programme, i.e. the <strong>synchronous (design) momentum</strong> at every time step <img class="math" src="_images/math/413f8a8e40062a9090d9d50b88bc7b551b314c26.png" alt="n"/> and RF station <img class="math" src="_images/math/d399e052e976c0b84b11bfb3256b42c12d31dd41.png" alt="(i)"/>, <img class="math" src="_images/math/a1d14a0ff7f3539a4d3bcd057d5cf005a0f026c9.png" alt="\left\{ p_{s,(i)}^n \right\}"/>. This will define the design total energy <img class="math" src="_images/math/2e521ddbad0025047cc5bec46b91b4814231ed74.png" alt="E_s"/> through following relations:</p>
+<p>Just like in the real machine, we demand the user to define beforehand the
+energy programme, i.e. the <strong>synchronous (design) total energy</strong> at every time
+step <img class="math" src="_images/math/413f8a8e40062a9090d9d50b88bc7b551b314c26.png" alt="n"/> and RF station <img class="math" src="_images/math/d399e052e976c0b84b11bfb3256b42c12d31dd41.png" alt="(i)"/>, <img class="math" src="_images/math/4aec33fe5e6c503f0c3249124f424f32672d1d32.png" alt="\left\{ E_{s,(i)}^n \right\}"/>.
+This will define the design momentum <img class="math" src="_images/math/f6daa9bc492a1695a8c96051a83caf8931d0772f.png" alt="p_s"/> through following relations:</p>
 <div class="math" id="equation-E">
 <p><span class="eqno">(1)</span><img src="_images/math/109d336a4e03d1447df246b2f74b2ba5fca669ab.png" alt="E_s = \gamma_s m ,"/></p>
 </div><div class="math" id="equation-p">
 <p><span class="eqno">(2)</span><img src="_images/math/23cb761b5b9edb4b818ca700d184ca74fcf6817d.png" alt="p_s = \beta_s \gamma_s m ,"/></p>
 </div><div class="math" id="equation-E-p">
 <p><span class="eqno">(3)</span><img src="_images/math/29705b8dd53f5b5b24e1b02e31fcd4e0cbccd3d5.png" alt="E_s^2 = p_s^2 + m^2 ,"/></p>
-</div><p>where <img class="math" src="_images/math/c4bb40dd65eae6c11b325989b14e0b8d35e4e3ef.png" alt="m"/> is the mass of the particle, and energy, momentum, and mass are given in [MeV].</p>
-<p>For a given <strong>synchronous orbit with an average radius</strong> <img class="math" src="_images/math/830092c252cdd80c53f42393a0332999a2721225.png" alt="R_s"/>, the revolution period will be <img class="math" src="_images/math/3da0cabb66c0f78c0591fef2031f485528a72aeb.png" alt="\omega_0 \equiv \frac{\beta_s c}{R_s}"/> and one turn will take <img class="math" src="_images/math/e89c8da1cf70f63d658b4899851179a3bf8bf90e.png" alt="T_0 \equiv \frac{2 \pi}{\omega_0}"/> at the synchronous energy. The magnetic field programme is assumed to be synchronised with the design energy turn by turn. Hence, a particle leaving the RF station with the synchronous energy will always be on the synchronous orbit and return to the RF station after exactly one period, unless the actual magnetic field differs from the designed one.</p>
+</div><p>where <img class="math" src="_images/math/c4bb40dd65eae6c11b325989b14e0b8d35e4e3ef.png" alt="m"/> is the mass of the particle, and energy, momentum, and mass are
+given in [eV].</p>
+<p>For a given <strong>synchronous orbit with an average radius</strong> <img class="math" src="_images/math/830092c252cdd80c53f42393a0332999a2721225.png" alt="R_s"/>, the
+angular frequency will be <img class="math" src="_images/math/3da0cabb66c0f78c0591fef2031f485528a72aeb.png" alt="\omega_0 \equiv \frac{\beta_s c}{R_s}"/> and one
+turn will take <img class="math" src="_images/math/e89c8da1cf70f63d658b4899851179a3bf8bf90e.png" alt="T_0 \equiv \frac{2 \pi}{\omega_0}"/> at the synchronous
+energy. The magnetic field programme is assumed to be synchronised with the
+design energy turn by turn. Hence, a particle leaving the RF station with the
+synchronous energy will always be on the synchronous orbit and return to the RF
+station after exactly one period, unless the actual magnetic field differs from
+the designed one.</p>
 <p>We define then an external <strong>reference (clock) time</strong></p>
 <div class="math" id="equation-t_ref">
 <p><span class="eqno">(4)</span><img src="_images/math/f7fc5b9f9e6298930a5f86a008af211d8ed0aebe.png" alt="t_{\mathsf{ref}}^n \equiv \sum_{i=1}^n T_0^i ,"/></p>
-</div><p>and as initial condition we choose the sinusoidal RF wave of the <strong>main RF system</strong> (harmonic <img class="math" src="_images/math/fda7c606710a3011192999c39b6c862d9db414d6.png" alt="h_0"/> and RF frequency <img class="math" src="_images/math/8f32f2575480c2a75b9c76f631f41c202e763ec8.png" alt="\omega_{\mathsf{rf},0}"/>) to be at phase zero at time zero:</p>
+</div><p>and as initial condition we choose the sinusoidal RF wave of the <strong>main RF
+system</strong> (harmonic <img class="math" src="_images/math/fda7c606710a3011192999c39b6c862d9db414d6.png" alt="h_0"/> and RF frequency <img class="math" src="_images/math/8f32f2575480c2a75b9c76f631f41c202e763ec8.png" alt="\omega_{\mathsf{rf},0}"/>)
+to be at phase zero at time zero:</p>
 <div class="math" id="equation-IC">
-<p><span class="eqno">(5)</span><img src="_images/math/b4dc10de3633b436fb322345f745e2b791c9f8f7.png" alt="V(t = 0) = V_0 \sin(\omega_{\mathsf{rf},0} \, t) = 0 ."/></p>
-</div><p><strong>All phase offsets of all RF systems are defined w.r.t. this initial condition and w.r.t. to the main RF system.</strong> Phase offsets can be programmed through the <tt class="docutils literal"><span class="pre">phi_offset</span></tt> parameter. For <img class="math" src="_images/math/db5507e139fe2e7557f46b0881b26ff2a60a3f07.png" alt="n_{\mathsf{rf}}"/> RF systems in the RF station the total voltage [MeV] becomes:</p>
+<p><span class="eqno">(5)</span><img src="_images/math/dee2d67a6e63c212e961a068d5f302a415ff0c7c.png" alt="V_{\mathsf{rf},0}(t) = V_0 \sin(\omega_{\mathsf{rf},0} \, t \, + \phi_{\mathsf{offset},0}) \Rightarrow \phi_{\mathsf{offset},0} (t=0) = 0."/></p>
+</div><p><strong>All phase offsets of all RF systems are defined w.r.t. this initial condition
+and w.r.t. to the main RF system.</strong> Phase offsets can be programmed through the
+<tt class="docutils literal"><span class="pre">phi_offset</span></tt> parameter. In addition, RF phase noise
+<img class="math" src="_images/math/787ea55826f4ed325a1ca2c3f15173c72f0af034.png" alt="\phi_{\mathsf{noise},k}"/> can be added through <tt class="docutils literal"><span class="pre">phi_noise</span></tt>  for each
+system. For <img class="math" src="_images/math/db5507e139fe2e7557f46b0881b26ff2a60a3f07.png" alt="n_{\mathsf{rf}}"/> RF systems in the RF station the total
+voltage [eV] becomes:</p>
 <div class="math" id="equation-Vtot">
-<p><span class="eqno">(6)</span><img src="_images/math/2fd72eb3ea6bf5ed9282afd8536339b6bd5159fd.png" alt="V_{\mathsf{tot}}(t) = \sum_{k=0}^{n_{\mathsf{rf}}-1} V_k \sin(\omega_{\mathsf{rf},k} \, t + \phi_{\mathsf{offset},k}^n) ."/></p>
-</div><p>We define the <strong>arrival time of an arbitrary particle</strong> to the RF station relative to the reference time in that turn,</p>
+<p><span class="eqno">(6)</span><img src="_images/math/688b14e52e4631bb0aa05ce7409b4cb830bb7445.png" alt="V_{\mathsf{tot}}(t) = \sum_{k=0}^{n_{\mathsf{rf}}-1} V_k \sin(\omega_{\mathsf{rf},k} \, t + \phi_{\mathsf{offset},k}^n + \phi_{\mathsf{noise},k}^n) ."/></p>
+</div><p>We define the <strong>arrival time of an arbitrary particle</strong> to the RF station
+relative to the reference time in that turn,</p>
 <div class="math" id="equation-dt">
 <p><span class="eqno">(7)</span><img src="_images/math/1d2d55fa6f25fdd083a302e27be534a2060f88a6.png" alt="\Delta t^n \equiv t^n - t_{\mathsf{ref}}^n ."/></p>
+</div><p>The total phase offset at the reference time is tracked in the variable
+<tt class="docutils literal"><span class="pre">phi_RF</span></tt>, defined through</p>
+<div class="math" id="equation-phiRF">
+<p><span class="eqno">(8)</span><img src="_images/math/49273ca34f3b73a0550dde1b29cdd33acae1dbb4.png" alt="V_{\mathsf{tot}}(t=t_{\mathsf{ref}}^n) \equiv \sum_{k=0}^{n_{\mathsf{rf}}-1} V_k \sin(\phi_{\mathsf{rf},k}^n) ."/></p>
 </div></div>
 <div class="section" id="energy-kick">
 <h4>Energy kick<a class="headerlink" href="#energy-kick" title="Permalink to this headline">¶</a></h4>
-<p>During the passage through an RF station, the energy <img class="math" src="_images/math/ec87ef588913f233c39ea2c4a771f03ffc478e72.png" alt="E^n"/> of an arbitrary particle is changed by the total energy kick received from the various RF systems in the station. The energy gain due to the induced electric fields in the magnets is negligible and beam-induced voltage is taken into account in the <tt class="docutils literal"><span class="pre">impedace</span></tt> module. Whatever the RF phase <img class="math" src="_images/math/a7233937d0f133633c276f40be76605d72104e25.png" alt="\varphi_{\mathsf{rf}}"/> and revolution frequency <img class="math" src="_images/math/8db7934523496b7e16ff3278b79bd14d2bbfe214.png" alt="\omega_{\mathsf{rf}}"/> in the different RF systems may be, the energy kick for a particle arriving at time <img class="math" src="_images/math/918af2e01d390138b6c578872acef0285471adb1.png" alt="t_n"/> is:</p>
+<p>During the passage through an RF station, the energy <img class="math" src="_images/math/ec87ef588913f233c39ea2c4a771f03ffc478e72.png" alt="E^n"/> of an
+arbitrary particle is changed by the total energy kick received from the
+various RF systems in the station. The energy change due to the induced
+electric fields in the magnets is negligible and beam-induced voltage is taken
+into account in the <tt class="docutils literal"><span class="pre">impedance</span></tt> module. The phase of the RF voltage of system
+k at the arrival time <img class="math" src="_images/math/2594c561b9ae124861c3519e8f976571cf5778d4.png" alt="t^n"/> of any particle is:</p>
+<div class="math" id="equation-1-0-1">
+<p><span class="eqno">(9)</span><img src="_images/math/2c33c1e725347aa1daf7cf761b2afdca5871d5eb.png" alt="\varphi_{\mathsf{rf},k}(t^n) = \int_{0}^{t^n} d\tau \, \omega_{\mathsf{rf}}(\tau) + \phi_{\mathsf{offset},k}^n + \phi_{\mathsf{noise},k}^n = \sum_{i=1}^{n} \omega_{\mathsf{rf},k}^i T_0^i + (t^n-t_{\mathsf{ref}}^n) \omega_{\mathsf{rf},k}^n + \phi_{\mathsf{offset},k}^n + \phi_{\mathsf{noise},k}^n ."/></p>
+</div><p>Subtracting multiples of <img class="math" src="_images/math/78b13210d9a65c08832c81655587364d44d1bf95.png" alt="2 \pi"/>, which can be neglected,</p>
+<div class="math" id="equation-1-0-2">
+<p><span class="eqno">(10)</span><img src="_images/math/7de472955f515b830ee629827e1a92d004bc8a8d.png" alt="\varphi_{\mathsf{rf},k}(\Delta t^n) = \sum_{i=1}^{n} \frac{\omega_{\mathsf{rf},k}^i - h_k^i \omega_0^i}{h_k^i \omega_0^i} 2 \pi h_k^i + \omega_{\mathsf{rf},k}^n \Delta t^n + \phi_{\mathsf{offset},k}^n + \phi_{\mathsf{noise},k}^n ."/></p>
+</div><p>Note that <tt class="docutils literal"><span class="pre">phi_RF</span></tt> is determined through the above equation,</p>
+<div class="math" id="equation-1-0-3">
+<p><span class="eqno">(11)</span><img src="_images/math/cc8c55865971f3599987c5d7bd39f41bb0075cd8.png" alt="\phi_{\mathsf{rf},k}^n = \varphi_{\mathsf{rf},k}(\Delta t^n = 0) ."/></p>
+</div><p>Thus the total energy change equation is</p>
 <div class="math" id="equation-1-1">
-<p><span class="eqno">(8)</span><img src="_images/math/39d3905152d8854690de017a13c70f980ffe70b4.png" alt="E^{n+1} = E^{n} + \sum_{k=0}^{n_{\mathsf{rf}}-1} V_k^n \sin \left( \omega_{\mathsf{rf},k}^n \, t^n + \phi_{\mathsf{offset},k}^n \right) = E^{n} + \sum_{k=0}^{n_{\mathsf{rf}}-1} V_k^n \sin \left( \omega_{\mathsf{rf},k}^n \, \Delta t^n + \varphi_{\mathsf{rf},k}^n \right) ,"/></p>
-</div><p>where the RF phase of system k in turn n <img class="math" src="_images/math/b646f91bcfdecce025760f54a2dc04edd5c9989a.png" alt="\varphi_{\mathsf{rf},k}"/> is defined as</p>
-<div class="math" id="equation-1-a">
-<p><span class="eqno">(9)</span><img src="_images/math/03415f17dffd51821f2b34c9a65056e2ab3cca04.png" alt="\varphi_{\mathsf{rf},k}^n \equiv \phi_{\mathsf{offset},k}^n + \sum_{k=0}^{n_{\mathsf{rf}}-1} \omega_{\mathsf{rf},k}^n T_0^i"/></p>
-</div><p>As multiples of <img class="math" src="_images/math/78b13210d9a65c08832c81655587364d44d1bf95.png" alt="2 \pi"/> can be neglected, an equivalent form is:</p>
-<div class="math" id="equation-1-b">
-<p><span class="eqno">(10)</span><img src="_images/math/bb4bc56ed9b3479afa25f092f0d55640f9234166.png" alt="\varphi_{\mathsf{rf},k}^n \equiv \phi_{\mathsf{offset},k}^n + \sum_{k=0}^{n_{\mathsf{rf}}-1} \frac{\omega_{\mathsf{rf},k}^n - h_k^n \omega_0^n}{\omega_0^n} T_0^i"/></p>
+<p><span class="eqno">(12)</span><img src="_images/math/78b9b27f32350cb2b0385acef2707db0c7d9aa30.png" alt="E^{n+1} = E^{n} + \sum_{k=0}^{n_{\mathsf{rf}}-1} V_k^n \sin \varphi_{\mathsf{rf},k}(\Delta t^n)"/></p>
 </div><div class="admonition note">
 <p class="first admonition-title">Note</p>
-<p class="last">Eq. <a href="#equation-1-1">(8)</a> is intrinsically discrete; no approximation has been done.</p>
+<p class="last">Eq. <a href="#equation-1-1">(12)</a> is intrinsically discrete; no approximation has been
+done.</p>
 </div>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
-<p class="last">The RF phase (Eq. <a href="#equation-1-b">(10)</a>) differs from the phase offset only if the RF frequency differs from the design RF frequency <img class="math" src="_images/math/ec16024f4656f6b7e76dd21e1fa7eb0e63b08a9d.png" alt="\omega_{\mathsf{rf},k}^n \neq \Omega_{\mathsf{rf},k}^n \equiv h_k^n \omega_0^n"/>, i.e. when feedback loops are active.</p>
+<p class="last">The RF phase (Eq. <a href="#equation-1-0-3">(11)</a>) differs from the sum of phase offset
+and phase noise only if the RF frequency differs from the design RF frequency
+<img class="math" src="_images/math/ec16024f4656f6b7e76dd21e1fa7eb0e63b08a9d.png" alt="\omega_{\mathsf{rf},k}^n \neq \Omega_{\mathsf{rf},k}^n \equiv h_k^n \omega_0^n"/>,
+i.e. when feedback loops are active.</p>
 </div>
-<p>Rather than the absolute energy, we are actually interested in the energy offset of a given particle w.r.t. the synchronous energy <img class="math" src="_images/math/37d1cd56ae1537ed6c136821403b1e8925d62f7c.png" alt="\Delta E^n \equiv E^n - E_s^n, \, \forall n"/>. So we choose our coordinate system to be centred around <img class="math" src="_images/math/82de6ceb1ec1c01236c319b309e1d78fc8080302.png" alt="E_s^n \, \forall n"/>. Substracting <img class="math" src="_images/math/5109214e7c8c9b14f79aa820d9600a2d783356c8.png" alt="E_s^{n+1}"/> from both sides of Eq. <a href="#equation-1-1">(8)</a>, we arrive at</p>
+<p>Rather than the absolute energy, we are actually interested in the energy
+offset of a given particle w.r.t. the synchronous energy
+<img class="math" src="_images/math/37d1cd56ae1537ed6c136821403b1e8925d62f7c.png" alt="\Delta E^n \equiv E^n - E_s^n, \, \forall n"/>. So we choose our
+coordinate system to be centred around <img class="math" src="_images/math/82de6ceb1ec1c01236c319b309e1d78fc8080302.png" alt="E_s^n \, \forall n"/>. Substracting
+<img class="math" src="_images/math/5109214e7c8c9b14f79aa820d9600a2d783356c8.png" alt="E_s^{n+1}"/> from both sides of Eq. <a href="#equation-1-1">(12)</a>, we arrive at</p>
 <div class="math" id="equation-1-2">
-<p><span class="eqno">(11)</span><img src="_images/math/dd81401661e83026933ddd9296157bfcd5f37097.png" alt="\Delta E^{n+1} = \Delta E^{n} + \sum_{k=1}^K V_k^n \sin \left( \omega_{\mathsf{rf},k}^n \Delta t^n + \varphi_{\mathsf{rf},k}^n \right) - (E_s^{n+1} - E_s^n) ."/></p>
+<p><span class="eqno">(13)</span><img src="_images/math/607151d979875c7d7c0e7770161f4d9cf0df44f2.png" alt="\Delta E^{n+1} = \Delta E^{n} + \sum_{k=0}^{n_{\mathsf{rf}}-1} V_k^n \sin \varphi_{\mathsf{rf},k}(\Delta t^n) - (E_s^{n+1} - E_s^n) ."/></p>
 </div><div class="admonition warning">
 <p class="first admonition-title">Warning</p>
-<p class="last">As a consequence, during acceleration the coordinate system is non-inertial and a coordinate transform is done turn by turn.</p>
+<p class="last">As a consequence, during acceleration the coordinate system is
+non-inertial and a coordinate transform is done turn by turn.</p>
 </div>
 </div>
 <div class="section" id="arrival-time-drift">
 <h4>Arrival time drift<a class="headerlink" href="#arrival-time-drift" title="Permalink to this headline">¶</a></h4>
 <div class="sidebar">
 <p class="first sidebar-title">Frequency slippage</p>
-<p>The frequency slippage of an off-momentum particle during one turn is defined w.r.t. the <strong>design synchronous particle</strong>,</p>
+<p>The frequency slippage of an off-momentum particle during one turn is
+defined w.r.t. the <strong>design synchronous particle</strong>,</p>
 <div class="math" id="equation-slippage">
-<p><span class="eqno">(12)</span><img src="_images/math/fdbcf758e9c1b6b4b04a0a9007bdde63373fce4a.png" alt="\frac{\Delta \omega}{\omega_0} = \frac{\omega - \omega_0}{\omega_0} \equiv - \eta(\delta) \delta \approx - (\eta_0 + \eta_1 \delta + \eta_2 \delta^2 + ...) \delta,"/></p>
-</div><p>where <img class="math" src="_images/math/d171e2106f814d1d7bf460a733d265716f8d1677.png" alt="\delta \equiv \frac{\Delta p}{p_s} = \frac{\Delta E}{\beta_s^2 E_s}"/> is the relative off-momentum of the particle and <img class="math" src="_images/math/08b3fcb51de5448459c91982a0895d6aca4ecc03.png" alt="\eta_i"/> are the slippage factors</p>
+<p><span class="eqno">(14)</span><img src="_images/math/565906e06e325bd95e8df483eb28782cfc5707f2.png" alt="\frac{\Delta \omega}{\omega_0} = \frac{\omega - \omega_0}{\omega_0} \equiv - \eta(\delta) \delta = - (\eta_0 + \eta_1 \delta + \eta_2 \delta^2 + ...) \delta,"/></p>
+</div><p>where <img class="math" src="_images/math/d171e2106f814d1d7bf460a733d265716f8d1677.png" alt="\delta \equiv \frac{\Delta p}{p_s} = \frac{\Delta E}{\beta_s^2 E_s}"/>
+is the relative off-momentum of the particle and <img class="math" src="_images/math/08b3fcb51de5448459c91982a0895d6aca4ecc03.png" alt="\eta_i"/> are the
+slippage factors</p>
 <div class="math" id="equation-etas">
-<p><span class="eqno">(13)</span><img src="_images/math/1ff1f71846e6bc58483e68f9a5c4a3e82b268ae0.png" alt="\eta_0 = \alpha_0 - \frac{1}{\gamma_s^2} \\
+<p><span class="eqno">(15)</span><img src="_images/math/1ff1f71846e6bc58483e68f9a5c4a3e82b268ae0.png" alt="\eta_0 = \alpha_0 - \frac{1}{\gamma_s^2} \\
 \eta_1 = \frac{3 \beta_s^2}{2 \gamma_s^2} + \alpha_1 - \alpha_0 \eta_0 \\
 \eta_2 = - \frac{\beta_s^2(5 \beta_s^2 - 1)}{2 \gamma_s^2} + \alpha_2 - 2 \alpha_0 \alpha_1 + \frac{\alpha_1}{\gamma_s^2} + \alpha_0^2 \eta_0 - \frac{3 \beta_s^2 \alpha_0}{2 \gamma_s^2},"/></p>
 </div><p class="last">which are defined via the momentum compaction factors <img class="math" src="_images/math/3228d3af43b1c1912502d5dd6103cbd8440e9247.png" alt="\alpha_i"/>.</p>
 </div>
-<p>The absolute arrival time of an arbitrary particle can be expressed as a recursion</p>
+<p>The absolute arrival time of an arbitrary particle can be expressed as a
+recursion</p>
 <div class="math" id="equation-2-1">
-<p><span class="eqno">(14)</span><img src="_images/math/ca771c04d205be0ea54a8c9259f34e8735dd2c92.png" alt="t^{n+1} = t^n + \frac{2 \pi}{\omega^{n+1}} ,"/></p>
-</div><p>with initial condition <img class="math" src="_images/math/7bca09121dd1919b204e0c8ddda513a803f57b77.png" alt="t^0 = t_0"/> and where the revolution frequency of the particle <img class="math" src="_images/math/9224146b52a224c30198194f7e6730e9bfa1ef81.png" alt="\omega^n \equiv \frac{\beta^n c}{R^n}"/> can differ from <img class="math" src="_images/math/149d9e39f73cfae043e3a0a6a34230976024127b.png" alt="\omega_0^n"/> due to energy and orbit deviations from the synchronous particle.</p>
+<p><span class="eqno">(16)</span><img src="_images/math/ca771c04d205be0ea54a8c9259f34e8735dd2c92.png" alt="t^{n+1} = t^n + \frac{2 \pi}{\omega^{n+1}} ,"/></p>
+</div><p>with initial condition <img class="math" src="_images/math/7bca09121dd1919b204e0c8ddda513a803f57b77.png" alt="t^0 = t_0"/> and where the revolution frequency of
+the particle <img class="math" src="_images/math/9224146b52a224c30198194f7e6730e9bfa1ef81.png" alt="\omega^n \equiv \frac{\beta^n c}{R^n}"/> can differ from
+<img class="math" src="_images/math/149d9e39f73cfae043e3a0a6a34230976024127b.png" alt="\omega_0^n"/> due to energy and orbit deviations from the synchronous
+particle.</p>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
-<p class="last">Eq. <a href="#equation-2-1">(14)</a> contains <img class="math" src="_images/math/235cf786058bdc8527847bec07e0d852eeea2dc1.png" alt="\omega^{n+1}"/> as we chose to perform the energy kick first and the subsequent time drift happens according to the already updated energy.</p>
+<p class="last">Eq. <a href="#equation-2-1">(16)</a> contains <img class="math" src="_images/math/235cf786058bdc8527847bec07e0d852eeea2dc1.png" alt="\omega^{n+1}"/> as we chose to perform
+the energy kick first and the subsequent time drift happens according to the
+already updated energy.</p>
 </div>
-<p>Using Eq. <a href="#equation-dt">(7)</a>, the recursion on the particle arrival time relative to the clock becomes</p>
+<p>Using Eq. <a href="#equation-dt">(7)</a>, the recursion on the particle arrival time relative to the
+clock becomes</p>
 <div class="math" id="equation-2-2">
-<p><span class="eqno">(15)</span><img src="_images/math/97dc1e8c8f1bc366f7a61aca629a49ade0ec2ee7.png" alt="\Delta t^{n+1} = \Delta t^n + \frac{2 \pi}{\omega^{n+1}} - \frac{2 \pi}{\omega_0^{n+1}} =
-\Delta t^n + T_0 \left( \frac{1}{\frac{\omega^{n+1}}{\omega_0^{n+1}}} - 1 \right)"/></p>
-</div><p>Using definition <a href="#equation-slippage">(12)</a>, the arrival time drift can be calculated as</p>
+<p><span class="eqno">(17)</span><img src="_images/math/48ee31fb50b6c46207ce46cefd90b78d5f3a8e87.png" alt="\Delta t^{n+1} = \Delta t^n + \frac{2 \pi}{\omega^{n+1}} - \frac{2 \pi}{\omega_0^{n+1}} =
+\Delta t^n + T_0^{n+1} \left( \frac{1}{\frac{\omega^{n+1}}{\omega_0^{n+1}}} - 1 \right)"/></p>
+</div><p>Using definition <a href="#equation-slippage">(14)</a>, the arrival time drift can be calculated as</p>
 <div class="math" id="equation-2-3">
-<p><span class="eqno">(16)</span><img src="_images/math/1ffc170e7c6cf2267a8a8d9c407c711e819fd9b8.png" alt="\Delta t^{n+1} = \Delta t^n + T_0 \left( \frac{1}{1 - \eta(\delta^{n+1})\delta^{n+1}} - 1 \right) ."/></p>
-</div><p>If a zeroth order slippage is used, <img class="math" src="_images/math/37e4a92f097adf0e7397bfdd25249f61ca314581.png" alt="\eta(\delta) \approx \eta_0"/>, the option <tt class="docutils literal"><span class="pre">solver</span> <span class="pre">=</span> <span class="pre">'simple'</span></tt> can be used to approximate the above equation as</p>
+<p><span class="eqno">(18)</span><img src="_images/math/08d2fe86ceaf854735ab826e63b4bb8e92969a4c.png" alt="\Delta t^{n+1} = \Delta t^n + T_0^{n+1} \left( \frac{1}{1 - \eta(\delta^{n+1})\delta^{n+1}} - 1 \right) ."/></p>
+</div><p>If a zeroth order slippage is used, <img class="math" src="_images/math/37e4a92f097adf0e7397bfdd25249f61ca314581.png" alt="\eta(\delta) \approx \eta_0"/>, the
+option <tt class="docutils literal"><span class="pre">solver</span> <span class="pre">=</span> <span class="pre">'simple'</span></tt> can be used to approximate the above equation as</p>
 <div class="math" id="equation-2-3-simple">
-<p><span class="eqno">(17)</span><img src="_images/math/c6976d28334627063a7be2ad36bb7c4ecd2c61ca.png" alt="\Delta t^{n+1} = \Delta t^n + \frac{\eta_0 T_0}{\beta_s^2 E_s} \Delta E^{n+1} ."/></p>
+<p><span class="eqno">(19)</span><img src="_images/math/dc4a04449e1f6d70c7290affc6304c4678d80a29.png" alt="\Delta t^{n+1} = \Delta t^n + \frac{\eta_0^{n+1} T_0^{n+1}}{(\beta_s^{n+1})^{2} E_s^{n+1}} \Delta E^{n+1} ."/></p>
 </div></div>
 <div class="section" id="the-synchronous-particle">
 <h4>The synchronous particle<a class="headerlink" href="#the-synchronous-particle" title="Permalink to this headline">¶</a></h4>
-<p>A particle is <strong>synchronous in turn n</strong> if it enters and leaves the RF station with zero energy offset, <img class="math" src="_images/math/bae5572c6306348261d345b94883063822f1b8f2.png" alt="\Delta E^n = \Delta E^{n+1} = 0"/>, and thus gains exactly the designed energy gain <img class="math" src="_images/math/df089d96e30a165c85fec97c835fd6c90e9c2d14.png" alt="E_s^{n+1} - E_s^n"/>. As a consequence, in the absence of induced voltage the synchronous particle will fulfil:</p>
+<p>A particle is <strong>synchronous in turn n</strong> if it enters and leaves the RF station
+with zero energy offset, <img class="math" src="_images/math/bae5572c6306348261d345b94883063822f1b8f2.png" alt="\Delta E^n = \Delta E^{n+1} = 0"/>, and thus
+gains exactly the designed energy gain <img class="math" src="_images/math/df089d96e30a165c85fec97c835fd6c90e9c2d14.png" alt="E_s^{n+1} - E_s^n"/>. As a
+consequence, in the absence of induced voltage the synchronous particle will
+fulfil:</p>
 <div class="math" id="equation-E_s">
-<p><span class="eqno">(18)</span><img src="_images/math/c1b0dcf3d1dbbe725423f76e74d4130bd18bbcb0.png" alt="\sum_{k=0}^{n_{\mathsf{rf}}-1} V_k^n \sin \left( \omega_{\mathsf{rf},k}^n \Delta t_s^n + \varphi_{\mathsf{rf},k}^n \right) \equiv \sum_{k=0}^{n_{\mathsf{rf}}-1} V_k^n \sin {\varphi_{s,k}^n} = (E_s^{n+1} - E_s^n) ,"/></p>
-</div><p>and in the presence of intensity effects, the induced voltage from the particles in front should be added on the left-hand side:</p>
+<p><span class="eqno">(20)</span><img src="_images/math/4c6f67a41233f65504ca38bb5a0964006885167f.png" alt="\sum_{k=0}^{n_{\mathsf{rf}}-1} V_k^n \sin \varphi_{\mathsf{rf},k}(\Delta t_s^n) = (E_s^{n+1} - E_s^n) ,"/></p>
+</div><p>and in the presence of intensity effects, the induced voltage from the
+particles in front should be added on the left-hand side:</p>
 <div class="math" id="equation-E_s-2">
-<p><span class="eqno">(19)</span><img src="_images/math/7d066ca69aad658806839cd8f807647eee224608.png" alt="\sum_{k=0}^{n_{\mathsf{rf}}-1} V_k^n \sin \left( \omega_{\mathsf{rf},k}^n \Delta t_s^n + \varphi_{\mathsf{rf},k}^n \right) - e \int_{\Delta t_{\mathsf{min}}}^{\Delta t_s^n} d\tau \lambda(\tau) W(\Delta t_s^n - \tau) = (E_s^{n+1} - E_s^n) ,"/></p>
-</div><p>where <img class="math" src="_images/math/fb2560ade70d8ae6c836f8870929f17424ef5b5c.png" alt="\lambda(t)"/> is the beam/bunch profile and <img class="math" src="_images/math/02decde7852427aece329cc3592cf12f32844c04.png" alt="W(t)"/> the wake potential.</p>
+<p><span class="eqno">(21)</span><img src="_images/math/a1a10ccf8b79a8771e4d505e43faa3eb4f9a0ec4.png" alt="\sum_{k=0}^{n_{\mathsf{rf}}-1} V_k^n \sin \varphi_{\mathsf{rf},k}(\Delta t_s^n) - e \int_{\Delta t_{\mathsf{min}}}^{\Delta t_s^n} d\tau \lambda(\tau) W(\Delta t_s^n - \tau) = (E_s^{n+1} - E_s^n) ,"/></p>
+</div><p>where <img class="math" src="_images/math/fb2560ade70d8ae6c836f8870929f17424ef5b5c.png" alt="\lambda(t)"/> is the beam/bunch profile and <img class="math" src="_images/math/02decde7852427aece329cc3592cf12f32844c04.png" alt="W(t)"/> the wake
+potential.</p>
 <div class="admonition seealso">
 <p class="first admonition-title">See also</p>
 <p class="last"><a class="reference external" href="http://dquartul.github.io/BLonD/impedances.html">http://dquartul.github.io/BLonD/impedances.html</a></p>
 </div>
 <div class="admonition warning">
 <p class="first admonition-title">Warning</p>
-<p class="last">In general, these equations have <img class="math" src="_images/math/db5507e139fe2e7557f46b0881b26ff2a60a3f07.png" alt="n_{\mathsf{rf}}"/> solutions. If the synchronous energy gain <img class="math" src="_images/math/df089d96e30a165c85fec97c835fd6c90e9c2d14.png" alt="E_s^{n+1} - E_s^n"/> changes from one turn to another, also the synchronous particle changes with it.</p>
+<p class="last">In general, these equations have <img class="math" src="_images/math/db5507e139fe2e7557f46b0881b26ff2a60a3f07.png" alt="n_{\mathsf{rf}}"/>
+solutions. If the synchronous energy gain <img class="math" src="_images/math/df089d96e30a165c85fec97c835fd6c90e9c2d14.png" alt="E_s^{n+1} - E_s^n"/> changes
+from one turn to another, also the synchronous particle changes with it.</p>
 </div>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
 <p><strong>Synchronous particle arrival time</strong></p>
-<p>As a consequence, the arrival time of the synchronous particle <img class="math" src="_images/math/e26ed3b49dc5c5d1edeb350b3704e924cc848bf7.png" alt="\Delta t_s"/> is not necessarily constant, but can change turn by turn. This might be counter-intuitive, as the synchronous particle drifts with exactly <img class="math" src="_images/math/d923d280ba6d46855f692af8a61757bc556f31a1.png" alt="\omega_0"/> along the ring. To see this effect, consider two subsequent turns with different synchronous energy gains <img class="math" src="_images/math/c220cce1d5480d5532a1c683da745d8e92c8d559.png" alt="E_s^{n+1} - E_s^{n} \ne E_s^{n+2} - E_s^{n+1}"/> in a single-RF system. Let particle 1 be synchronous in turn n and particle 2 be synchronous in turn n+1:</p>
+<p>As a consequence, the arrival time of the synchronous particle
+<img class="math" src="_images/math/e26ed3b49dc5c5d1edeb350b3704e924cc848bf7.png" alt="\Delta t_s"/> is not necessarily constant, but can change from turn to
+turn. This might be counter-intuitive, as the synchronous particle drifts
+with exactly <img class="math" src="_images/math/d923d280ba6d46855f692af8a61757bc556f31a1.png" alt="\omega_0"/> along the ring. To see this effect, consider
+two subsequent turns with different synchronous energy gains
+<img class="math" src="_images/math/c220cce1d5480d5532a1c683da745d8e92c8d559.png" alt="E_s^{n+1} - E_s^{n} \ne E_s^{n+2} - E_s^{n+1}"/> in a single-RF system.
+Let particle 1 be synchronous in turn n and particle 2 be synchronous in
+turn <img class="math" src="_images/math/f1299887120e51fb9e64e2a29c4ede283c9fec3c.png" alt="n+1"/>:</p>
 <div class="math" id="equation-synch-1">
-<p><span class="eqno">(20)</span><img src="_images/math/b8396872f1d76ac77d84045488459aacc2cb3212.png" alt="\Delta E_1^n = \Delta E_1^{n+1} = 0 \,\,\, \ne \Delta E_1^{n+2} \\
+<p><span class="eqno">(22)</span><img src="_images/math/b8396872f1d76ac77d84045488459aacc2cb3212.png" alt="\Delta E_1^n = \Delta E_1^{n+1} = 0 \,\,\, \ne \Delta E_1^{n+2} \\
 \Delta t_1^{n-1} = \Delta t_1^n = \Delta t_1^{n+1} \,\,\, \ne \Delta t_1^{n+2}"/></p>
 </div><div class="math" id="equation-synch-2">
-<p><span class="eqno">(21)</span><img src="_images/math/af66561f31c2dbd28a0679c2c497c894b4f1da49.png" alt="\Delta E_2^n \ne \,\,\, \Delta E_2^{n+1} = \Delta E_2^{n+2} = 0  \\
+<p><span class="eqno">(23)</span><img src="_images/math/af66561f31c2dbd28a0679c2c497c894b4f1da49.png" alt="\Delta E_2^n \ne \,\,\, \Delta E_2^{n+1} = \Delta E_2^{n+2} = 0  \\
 \Delta t_2^{n-1} \ne \,\,\, \Delta t_2^n = \Delta t_2^{n+1} = \Delta t_2^{n+2}"/></p>
 </div><p>The arrival time of the synchronous particles in this case will be:</p>
 <div class="math" id="equation-synch-3">
-<p><span class="eqno">(22)</span><img src="_images/math/ae3a9eff93e9bf303041113192c2f3da6c9e9f2b.png" alt="\Delta t_s^n \equiv \Delta t_1^n \\
+<p><span class="eqno">(24)</span><img src="_images/math/ae3a9eff93e9bf303041113192c2f3da6c9e9f2b.png" alt="\Delta t_s^n \equiv \Delta t_1^n \\
 \Delta t_s^{n+1} \equiv \Delta t_2^{n+1}"/></p>
-</div><p>Thus, because the synchronous particle can be a different particle each turn, the recursion on the synchronous arrival time becomes in general</p>
-<div class="math">
-<p><img src="_images/math/e661e0fc1d96309568ffc673529c6e90996a378a.png" alt="\Delta t_s^{n+1} = \Delta t_s^n + (\Delta t_2^{n+1} - \Delta t_1^n) = \Delta t_s^n + (\Delta t_2^n - \Delta t_1^n) ."/></p>
-</div><p>The difference in arrival time of the two particles in turn n can be determined from the energy equations</p>
-<div class="math">
-<p><img src="_images/math/87b33510fade5643371a63610bfa3981004d3474.png" alt="V^n \sin \left( \omega_{\mathsf{rf}}^n \Delta t_1^n + \varphi_{\mathsf{rf}}^n \right)= (E_s^{n+1} - E_s^n) \\
+</div><p>Thus, because the synchronous particle can be a different particle each
+turn, the recursion on the synchronous arrival time becomes in general</p>
+<div class="math" id="equation-synch-4">
+<p><span class="eqno">(25)</span><img src="_images/math/e661e0fc1d96309568ffc673529c6e90996a378a.png" alt="\Delta t_s^{n+1} = \Delta t_s^n + (\Delta t_2^{n+1} - \Delta t_1^n) = \Delta t_s^n + (\Delta t_2^n - \Delta t_1^n) ."/></p>
+</div><p>The difference in arrival time of the two particles in turn n can be
+determined from the energy equations</p>
+<div class="math" id="equation-synch-5">
+<p><span class="eqno">(26)</span><img src="_images/math/87b33510fade5643371a63610bfa3981004d3474.png" alt="V^n \sin \left( \omega_{\mathsf{rf}}^n \Delta t_1^n + \varphi_{\mathsf{rf}}^n \right)= (E_s^{n+1} - E_s^n) \\
 V^{n+1} \sin \left( \omega_{\mathsf{rf}}^{n+1} \Delta t_2^{n+1} + \varphi_{\mathsf{rf}}^{n+1} \right) =  V^{n+1} \sin \left( \omega_{\mathsf{rf}}^{n+1} \Delta t_2^n + \varphi_{\mathsf{rf}}^{n+1} \right) = (E_s^{n+2} - E_s^{n+1}) ,"/></p>
-</div><p>which in first-order approximation (see <em>Small-amplitude oscillations</em>) gives</p>
-<div class="last math">
-<p><img src="_images/math/f1e514f19aee110de4622abcbae93766ac7cda32.png" alt="\sin{\varphi_s^{n+1}} - \sin{\varphi_s^n} \approx ( \omega_{\mathsf{rf}}^{n+1} \Delta t_2^n + \varphi_{\mathsf{rf}}^{n+1} - \omega_{\mathsf{rf}}^n \Delta t_1^n - \varphi_{\mathsf{rf}}^n) \cos{\varphi_s^n} = \frac{E_s^{n+2} - E_s^{n+1}}{V^{n+1}} - \frac{E_s^{n+1} - E_s^{n}}{V^{n}} ."/></p>
+</div><p>which in first-order approximation (see <em>Small-amplitude oscillations</em>)
+gives</p>
+<div class="last math" id="equation-synch-6">
+<p><span class="eqno">(27)</span><img src="_images/math/f1e514f19aee110de4622abcbae93766ac7cda32.png" alt="\sin{\varphi_s^{n+1}} - \sin{\varphi_s^n} \approx ( \omega_{\mathsf{rf}}^{n+1} \Delta t_2^n + \varphi_{\mathsf{rf}}^{n+1} - \omega_{\mathsf{rf}}^n \Delta t_1^n - \varphi_{\mathsf{rf}}^n) \cos{\varphi_s^n} = \frac{E_s^{n+2} - E_s^{n+1}}{V^{n+1}} - \frac{E_s^{n+1} - E_s^{n}}{V^{n}} ."/></p>
 </div></div>
 </div>
 <div class="section" id="small-amplitude-oscillations">
 <h4>Small-amplitude oscillations<a class="headerlink" href="#small-amplitude-oscillations" title="Permalink to this headline">¶</a></h4>
-<p>Assuming a single-RF station and a simple solver (Eq. <a href="#equation-2-3-simple">(17)</a>), the EOMs in continous time can be written as</p>
+<p>Assuming a single-RF station and a simple solver (Eq. <a href="#equation-2-3-simple">(19)</a>), the
+EOMs in continous time can be written as</p>
 <div class="math" id="equation-HO-1">
-<p><span class="eqno">(23)</span><img src="_images/math/f1b5be7e2f1d7934611cdbfeba131aae9519ac31.png" alt="\Delta \dot{E} = \frac{V}{T_0} \left( \sin(\omega_{\mathsf{rf}} \Delta t + \varphi_{\mathsf{rf}}) - \sin{\varphi_s} \right),"/></p>
+<p><span class="eqno">(28)</span><img src="_images/math/f1b5be7e2f1d7934611cdbfeba131aae9519ac31.png" alt="\Delta \dot{E} = \frac{V}{T_0} \left( \sin(\omega_{\mathsf{rf}} \Delta t + \varphi_{\mathsf{rf}}) - \sin{\varphi_s} \right),"/></p>
 </div><div class="math" id="equation-HO-2">
-<p><span class="eqno">(24)</span><img src="_images/math/7a65d2cd73dc1c41ed1d246e677d0c53732b9d5f.png" alt="\Delta \dot{t} = \frac{\eta_0}{\beta_s^2 E_s} \Delta E ."/></p>
-</div><p>Assuming further a constant synchronous phase <img class="math" src="_images/math/b6e8f2d95121e53953d616b037239f529ca43a04.png" alt="\sin{\varphi_s} \equiv \frac{\dot{E_s}}{V}"/> and expanding the RF wave around it</p>
-<div class="math">
-<p><img src="_images/math/6715b821086d88678c3a7d9bc402bc7fd5df1207.png" alt="\omega_{\mathsf{rf}} \Delta t + \varphi_{\mathsf{rf}} = \varphi_s + (\omega_{\mathsf{rf}} \Delta t + \varphi_{\mathsf{rf}} - \varphi_s) \equiv \varphi_s + \varepsilon , \,\,\, \varepsilon \ll 1 ,"/></p>
+<p><span class="eqno">(29)</span><img src="_images/math/7a65d2cd73dc1c41ed1d246e677d0c53732b9d5f.png" alt="\Delta \dot{t} = \frac{\eta_0}{\beta_s^2 E_s} \Delta E ."/></p>
+</div><p>Assuming further a constant synchronous phase
+<img class="math" src="_images/math/b6e8f2d95121e53953d616b037239f529ca43a04.png" alt="\sin{\varphi_s} \equiv \frac{\dot{E_s}}{V}"/> and expanding the RF wave
+around it</p>
+<div class="math" id="equation-HO-3-0">
+<p><span class="eqno">(30)</span><img src="_images/math/6715b821086d88678c3a7d9bc402bc7fd5df1207.png" alt="\omega_{\mathsf{rf}} \Delta t + \varphi_{\mathsf{rf}} = \varphi_s + (\omega_{\mathsf{rf}} \Delta t + \varphi_{\mathsf{rf}} - \varphi_s) \equiv \varphi_s + \varepsilon , \,\,\, \varepsilon \ll 1 ,"/></p>
 </div><p>we obtain for the sinusoidal term in first order</p>
-<div class="math">
-<p><img src="_images/math/963e91810c6a4010c2d592f5fcd7fd6dd56ece7f.png" alt="\sin (\omega_{\mathsf{rf}} \Delta t + \varphi_{\mathsf{rf}}) = \sin {\varphi_s} \cos{\varepsilon} + \cos{\varphi_s} \sin{\varepsilon} \approx \sin{\varphi_s} (1 + \mathcal{O}(\varepsilon^2)) +  \cos{\varphi_s} (\varepsilon + \mathcal{O}(\varepsilon^3)) ."/></p>
-</div><p>Derivating Eq. <a href="#equation-HO-1">(23)</a> a second time, and using Eq. <a href="#equation-HO-2">(24)</a></p>
+<div class="math" id="equation-HO-3-1">
+<p><span class="eqno">(31)</span><img src="_images/math/963e91810c6a4010c2d592f5fcd7fd6dd56ece7f.png" alt="\sin (\omega_{\mathsf{rf}} \Delta t + \varphi_{\mathsf{rf}}) = \sin {\varphi_s} \cos{\varepsilon} + \cos{\varphi_s} \sin{\varepsilon} \approx \sin{\varphi_s} (1 + \mathcal{O}(\varepsilon^2)) +  \cos{\varphi_s} (\varepsilon + \mathcal{O}(\varepsilon^3)) ."/></p>
+</div><p>Derivating Eq. <a href="#equation-HO-1">(28)</a> a second time, and using Eq. <a href="#equation-HO-2">(29)</a></p>
 <div class="math" id="equation-HO-3">
-<p><span class="eqno">(25)</span><img src="_images/math/0302b2f76aac8651fe35815934b3dbf17cc1678e.png" alt="\Delta \ddot{E} = \frac{V \cos{\varphi_s} \omega_{\mathsf{rf}}}{T_0} \Delta \dot{t} = \frac{V \eta_0 \cos{\varphi_s} \omega_{\mathsf{rf}} \omega_0 }{2 \pi \beta_s^2 E_s} \Delta E ."/></p>
-</div><p>Vice versa, derivating <a href="#equation-HO-2">(24)</a> another time, and substituting Eq. <a href="#equation-HO-1">(23)</a>, an equivalent equation can be found for the arrival time w.r.t. to the arrival of the synchronous particle <img class="math" src="_images/math/e26ed3b49dc5c5d1edeb350b3704e924cc848bf7.png" alt="\Delta t_s"/>:</p>
+<p><span class="eqno">(32)</span><img src="_images/math/1fe67ca4626609a7e02d92d4e258f6221ce05f0d.png" alt="\Delta \ddot{E} = \frac{V \cos{\varphi_s} \, \omega_{\mathsf{rf}}}{T_0} \Delta \dot{t} = \frac{V \eta_0 \cos{\varphi_s} \, \omega_{\mathsf{rf}} \omega_0 }{2 \pi \beta_s^2 E_s} \Delta E ."/></p>
+</div><p>Vice versa, derivating <a href="#equation-HO-2">(29)</a> another time, and substituting
+Eq. <a href="#equation-HO-1">(28)</a>, an equivalent equation can be found for the arrival time w.r.t.
+to the arrival of the synchronous particle <img class="math" src="_images/math/e26ed3b49dc5c5d1edeb350b3704e924cc848bf7.png" alt="\Delta t_s"/>:</p>
 <div class="math" id="equation-HO-4">
-<p><span class="eqno">(26)</span><img src="_images/math/0ed6f35eea31d946587981c0a8fc436694a0ff62.png" alt="\Delta \ddot{t} - \Delta \ddot{t_s} = \frac{V \eta_0 \cos{\varphi_s} \omega_{\mathsf{rf}} \omega_0 }{2 \pi \beta_s^2 E_s} (\Delta t - \Delta t_s) ."/></p>
-</div><p>Equations <a href="#equation-HO-3">(25)</a> and <a href="#equation-HO-4">(26)</a> describe an oscillating motion in phase space if <img class="math" src="_images/math/2d50184379b7caa89ff941284f56e1f184818ab1.png" alt="\eta_0 \cos{\varphi_s} &lt; 0"/>, which for <img class="math" src="_images/math/614d97876d48afb1eca94713ea57ddaeec06932c.png" alt="\omega_{\mathsf{rf}} = h \omega_0"/> has the synchrotron frequency</p>
+<p><span class="eqno">(33)</span><img src="_images/math/f9008cd6a94b2dab2e9a7ed0e9bc008ea8e7d450.png" alt="\Delta \ddot{t} - \Delta \ddot{t_s} = \frac{V \eta_0 \cos{\varphi_s} \, \omega_{\mathsf{rf}} \omega_0 }{2 \pi \beta_s^2 E_s} (\Delta t - \Delta t_s) ."/></p>
+</div><p>Equations <a href="#equation-HO-3">(32)</a> and <a href="#equation-HO-4">(33)</a> describe an oscillating motion in phase
+space if <img class="math" src="_images/math/2d50184379b7caa89ff941284f56e1f184818ab1.png" alt="\eta_0 \cos{\varphi_s} &lt; 0"/>, which for
+<img class="math" src="_images/math/614d97876d48afb1eca94713ea57ddaeec06932c.png" alt="\omega_{\mathsf{rf}} = h \omega_0"/> has the synchrotron frequency</p>
 <div class="math" id="equation-omega_s">
-<p><span class="eqno">(27)</span><img src="_images/math/0fee3b5c72c08ae66a5a65d2db7cd4db442bd8b4.png" alt="\omega_{s,0} = \sqrt{\frac{- h V \eta_0 \cos{\varphi_s}}{2 \pi \beta_s^2 E_s}} \omega_0 ."/></p>
+<p><span class="eqno">(34)</span><img src="_images/math/0fee3b5c72c08ae66a5a65d2db7cd4db442bd8b4.png" alt="\omega_{s,0} = \sqrt{\frac{- h V \eta_0 \cos{\varphi_s}}{2 \pi \beta_s^2 E_s}} \omega_0 ."/></p>
 </div><div class="admonition note">
 <p class="first admonition-title">Note</p>
-<p class="last">that energy and time are conjugate variables, whereas energy and phase are not. When forming time derivatives in phase, one should take into account the frequency correction from one turn to another: <img class="math" src="_images/math/ff65674b056ad02cfc036fe2e7f5020a2b805e0c.png" alt="\dot{\varphi} \approx \varphi^{n+1} - \frac{\omega_{\mathsf{rf}}^{n+1}}{\omega_{\mathsf{rf}}^n} \varphi^n"/>.</p>
+<p class="last">that energy and time are conjugate variables, whereas energy and
+phase are not. When forming time derivatives in phase, one should take into
+account the frequency correction from one turn to another:
+<img class="math" src="_images/math/ff65674b056ad02cfc036fe2e7f5020a2b805e0c.png" alt="\dot{\varphi} \approx \varphi^{n+1} - \frac{\omega_{\mathsf{rf}}^{n+1}}{\omega_{\mathsf{rf}}^n} \varphi^n"/>.</p>
 </div>
 </div>
 </div>
@@ -515,6 +629,31 @@ To be generalized.</p>
 </dd></dl>
 
 <dl class="function">
+<dt id="trackers.utilities.minmax_location">
+<tt class="descclassname">trackers.utilities.</tt><tt class="descname">minmax_location</tt><big>(</big><em>x</em>, <em>f</em><big>)</big><a class="headerlink" href="#trackers.utilities.minmax_location" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Function to locate the minima and maxima of the f(x) numerical function.</em></p>
+</dd></dl>
+
+<dl class="function">
+<dt id="trackers.utilities.phase_modulo_above_transition">
+<tt class="descclassname">trackers.utilities.</tt><tt class="descname">phase_modulo_above_transition</tt><big>(</big><em>phi</em><big>)</big><a class="headerlink" href="#trackers.utilities.phase_modulo_above_transition" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Projects a phase array into the range -Pi/2 to +3*Pi/2.</em></p>
+</dd></dl>
+
+<dl class="function">
+<dt id="trackers.utilities.phase_modulo_below_transition">
+<tt class="descclassname">trackers.utilities.</tt><tt class="descname">phase_modulo_below_transition</tt><big>(</big><em>phi</em><big>)</big><a class="headerlink" href="#trackers.utilities.phase_modulo_below_transition" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Projects a phase array into the range -Pi/2 to +3*Pi/2.</em></p>
+</dd></dl>
+
+<dl class="function">
+<dt id="trackers.utilities.potential_well_cut">
+<tt class="descclassname">trackers.utilities.</tt><tt class="descname">potential_well_cut</tt><big>(</big><em>theta_coord_array</em>, <em>potential_array</em><big>)</big><a class="headerlink" href="#trackers.utilities.potential_well_cut" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Function to cut the potential well in order to take only the separatrix
+(several cases according to the number of min/max).</em></p>
+</dd></dl>
+
+<dl class="function">
 <dt id="trackers.utilities.separatrix">
 <tt class="descclassname">trackers.utilities.</tt><tt class="descname">separatrix</tt><big>(</big><em>GeneralParameters</em>, <em>RFSectionParameters</em>, <em>dt</em>, <em>total_voltage=None</em><big>)</big><a class="headerlink" href="#trackers.utilities.separatrix" title="Permalink to this definition">¶</a></dt>
 <dd><p>Single RF sinusoidal separatrix.
@@ -524,12 +663,209 @@ To be generalized.</p>
 </dd></dl>
 
 <dl class="function">
+<dt id="trackers.utilities.synchrotron_frequency_distribution">
+<tt class="descclassname">trackers.utilities.</tt><tt class="descname">synchrotron_frequency_distribution</tt><big>(</big><em>Beam</em>, <em>FullRingAndRF</em>, <em>main_harmonic_option='lowest_freq'</em>, <em>lineDensityInput=None</em>, <em>TotalInducedVoltage=None</em>, <em>smoothOption=None</em><big>)</big><a class="headerlink" href="#trackers.utilities.synchrotron_frequency_distribution" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Function to compute the frequency distribution of a distribution for a certain
+RF system and optional intensity effects. The potential well (and induced
+potential) are not updated by this function, thus it has to be called</em> 
+<strong>after</strong> <em>the potential well (and induced potential) generation.</em></p>
+<p><em>If used with induced potential, be careful that noise can be an issue. An
+analytical line density can be inputed by inputing the output of the 
+matched_from_line_density function output in the longitudinal_distributions 
+module.</em></p>
+<p><em>A smoothing function is included (running mean) in order to smooth
+noise and numerical errors due to linear interpolation, the user can input the 
+number of pixels to smooth with smoothOption = N.</em></p>
+<p><em>The particle distribution of synchrotron frequencies in the beam are also
+outputed. Would you like to have this result for an analytical beam profile,
+you can have the particle distribution with or without intensity effects.
+To have it without intensity effects, please pass the option lineDensityInput 
+with the following parameters:</em></p>
+<p>lineDensityInput = [theta_array, line_density]
+or
+lineDensityInput = beam_generation_output[1] (generated without intensity effects)</p>
+<ul class="simple">
+<li>With intensity effects you can use the TotalInducedVoltage option by passing</li>
+</ul>
+<p>the following parameters:*</p>
+<p>TotalInducedVoltage = beam_generation_output[1]</p>
+<p><em>with beam_generation_output being the output of the 
+matched_from_line_density and matched_from_distribution_density functions 
+in the distribution module.</em></p>
+</dd></dl>
+
+<dl class="class">
+<dt id="trackers.utilities.synchrotron_frequency_tracker">
+<em class="property">class </em><tt class="descclassname">trackers.utilities.</tt><tt class="descname">synchrotron_frequency_tracker</tt><big>(</big><em>GeneralParameters</em>, <em>n_macroparticles</em>, <em>theta_coordinate_range</em>, <em>FullRingAndRF</em>, <em>TotalInducedVoltage=None</em><big>)</big><a class="headerlink" href="#trackers.utilities.synchrotron_frequency_tracker" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p><em>This class can be added to the tracking map to track a certain
+number of particles (defined by the user) and to store the evolution
+of their coordinates in phase space in order to compute their synchrotron
+frequency as a function of their amplitude in theta.</em></p>
+<p><em>As the time step between two turns can change with acceleration, make sure
+that the momentum program is set to be constant when using this function,
+or that beta_rel~1.</em></p>
+<p><em>The user can input the minimum and maximum theta for the theta_coordinate_range
+option as [min, max]. The input n_macroparticles will be generated with
+linear spacing between these values. One can also input the theta_coordinate_range
+as the coordinates of all particles, but the length of the array should 
+match the n_macroparticles value.</em></p>
+<dl class="attribute">
+<dt id="trackers.utilities.synchrotron_frequency_tracker.Beam">
+<tt class="descname">Beam</tt><em class="property"> = None</em><a class="headerlink" href="#trackers.utilities.synchrotron_frequency_tracker.Beam" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Beam object containing the same physical information as the real beam,
+but containing only the coordinates of the particles for which the
+synchrotron frequency are computed.</em></p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="trackers.utilities.synchrotron_frequency_tracker.FullRingAndRF">
+<tt class="descname">FullRingAndRF</tt><em class="property"> = None</em><a class="headerlink" href="#trackers.utilities.synchrotron_frequency_tracker.FullRingAndRF" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Copy of the input FullRingAndRF object to retrieve the accelerator programs</em></p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="trackers.utilities.synchrotron_frequency_tracker.TotalInducedVoltage">
+<tt class="descname">TotalInducedVoltage</tt><em class="property"> = None</em><a class="headerlink" href="#trackers.utilities.synchrotron_frequency_tracker.TotalInducedVoltage" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Copy of the input TotalInducedVoltage object to retrieve the intensity effects
+(the synchrotron_frequency_tracker particles are not contributing to the
+induced voltage).</em></p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="trackers.utilities.synchrotron_frequency_tracker.counter">
+<tt class="descname">counter</tt><em class="property"> = None</em><a class="headerlink" href="#trackers.utilities.synchrotron_frequency_tracker.counter" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Tracking counter</em></p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="trackers.utilities.synchrotron_frequency_tracker.dE_save">
+<tt class="descname">dE_save</tt><em class="property"> = None</em><a class="headerlink" href="#trackers.utilities.synchrotron_frequency_tracker.dE_save" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Saving the dE coordinates of the particles while tracking</em></p>
+</dd></dl>
+
+<dl class="method">
+<dt id="trackers.utilities.synchrotron_frequency_tracker.frequency_calculation">
+<tt class="descname">frequency_calculation</tt><big>(</big><em>n_sampling=100000</em>, <em>start_turn=None</em>, <em>end_turn=None</em><big>)</big><a class="headerlink" href="#trackers.utilities.synchrotron_frequency_tracker.frequency_calculation" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Method to compute the fft of the particle oscillations in theta and dE
+to obtain their synchrotron frequencies. The particles for which
+the amplitude of oscillations is extending the minimum and maximum
+theta from user input are considered to be lost and their synchrotron
+frequencies are not calculated.</em></p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="trackers.utilities.synchrotron_frequency_tracker.nTurns">
+<tt class="descname">nTurns</tt><em class="property"> = None</em><a class="headerlink" href="#trackers.utilities.synchrotron_frequency_tracker.nTurns" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Number of turns of the simulation (+1 to include the input parameters)</em></p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="trackers.utilities.synchrotron_frequency_tracker.n_macroparticles">
+<tt class="descname">n_macroparticles</tt><em class="property"> = None</em><a class="headerlink" href="#trackers.utilities.synchrotron_frequency_tracker.n_macroparticles" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Number of macroparticles used in the synchrotron_frequency_tracker method</em></p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="trackers.utilities.synchrotron_frequency_tracker.theta_save">
+<tt class="descname">theta_save</tt><em class="property"> = None</em><a class="headerlink" href="#trackers.utilities.synchrotron_frequency_tracker.theta_save" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Saving the theta coordinates of the particles while tracking</em></p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="trackers.utilities.synchrotron_frequency_tracker.timeStep">
+<tt class="descname">timeStep</tt><em class="property"> = None</em><a class="headerlink" href="#trackers.utilities.synchrotron_frequency_tracker.timeStep" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Revolution period in [s]</em></p>
+</dd></dl>
+
+<dl class="method">
+<dt id="trackers.utilities.synchrotron_frequency_tracker.track">
+<tt class="descname">track</tt><big>(</big><big>)</big><a class="headerlink" href="#trackers.utilities.synchrotron_frequency_tracker.track" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Method to track the particles with or without intensity effects.</em></p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="trackers.utilities.time_modulo">
+<tt class="descclassname">trackers.utilities.</tt><tt class="descname">time_modulo</tt><big>(</big><em>dt</em>, <em>dt_offset</em>, <em>T</em><big>)</big><a class="headerlink" href="#trackers.utilities.time_modulo" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Projects time array into the range 0 to T, where T is the RF period.</em></p>
+</dd></dl>
+
+<dl class="function">
 <dt id="trackers.utilities.total_voltage">
 <tt class="descclassname">trackers.utilities.</tt><tt class="descname">total_voltage</tt><big>(</big><em>RFsection_list</em>, <em>harmonic='first'</em><big>)</big><a class="headerlink" href="#trackers.utilities.total_voltage" title="Permalink to this definition">¶</a></dt>
 <dd><p>Total voltage from all the RF stations and systems in the ring.
 To be generalized.</p>
 </dd></dl>
 
+<div class="section" id="tracking-utilities">
+<h3>Tracking utilities<a class="headerlink" href="#tracking-utilities" title="Permalink to this headline">¶</a></h3>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Authors:</th><td class="field-body"><strong>Helga Timko</strong></td>
+</tr>
+</tbody>
+</table>
+<div class="section" id="hamiltonian">
+<h4>Hamiltonian<a class="headerlink" href="#hamiltonian" title="Permalink to this headline">¶</a></h4>
+<p>To construct the Hamiltonian <img class="math" src="_images/math/91269b5e38d627b1f586d3210c0fb20e902b06e5.png" alt="\mathcal{H}"/> from the conjugate variables
+<img class="math" src="_images/math/5b4271afe7fc7c0ee84172e0ad19b82caf450c00.png" alt="\Delta t"/> and <img class="math" src="_images/math/1606587edf3c8ccbd15e67e5e631c62eb68e3249.png" alt="\Delta E"/>, let us first rewrite the equations of
+motion in continuous time (for a zeroth-order slippage factor):</p>
+<div class="math" id="equation-hamiltonian-1">
+<p><span class="eqno">(35)</span><img src="_images/math/2c048c7c0384c159ad96bb60847a05d11a0d9a09.png" alt="\dot{\Delta t} = \frac{\Delta t^{n+1} - \Delta t^n}{T_0^{n+1}} = \frac{\eta_0}{\beta_s^2 E_s} \Delta E = \frac{\partial \mathcal{H}}{\partial (\Delta E)} ,"/></p>
+</div><div class="math" id="equation-hamiltonian-2">
+<p><span class="eqno">(36)</span><img src="_images/math/fe7a68c2b06f1eada5497e462a28552bc8d866b4.png" alt="\dot{\Delta E} = \frac{\Delta E^{n+1} - \Delta E^n}{T_0^{n+1}} = \sum_{k=0}^{n_{\mathsf{rf}}-1} \frac{q V_k}{T_0} \sin (\omega_{\mathsf{rf}}^k \Delta t + \varphi_{\mathsf{rf}}^k) - \dot{E_s} = - \frac{\partial \mathcal{H}}{\partial (\Delta t)} ,"/></p>
+</div><p>from which we obtain the Hamiltonian by partial integration:</p>
+<div class="math">
+<p><img src="_images/math/93d3e9ecded068af34235b4f76186e76803469d9.png" alt="\mathcal{H}(\Delta t, \Delta E) = \int d(\Delta t) \partial_{\Delta t} \mathcal{H}  + \int d(\Delta E) \partial_{\Delta E} \mathcal{H}  = \int d(\Delta E) \dot{\Delta t} - \int d(\Delta t) \dot{\Delta E} ,"/></p>
+</div><div class="math">
+<p><img src="_images/math/f0041d37d3e1410769793dde89bf9242c9fe2aee.png" alt="\mathcal{H}(\Delta t, \Delta E) = \frac{\eta_0}{2 \beta_s^2 E_s}(\Delta E)^2 + \sum_{k=0}^{n_{\mathsf{rf}}-1} \frac{q V_k}{T_0 \omega_{\mathsf{rf}}^k} \cos (\omega_{\mathsf{rf}}^k \Delta t + \varphi_{\mathsf{rf}}^k) + \dot{E_s} \Delta t + \mathsf{const} ."/></p>
+</div><p>The constant of integration can be chosen such that</p>
+<div class="math">
+<p><img src="_images/math/0b9aabe59a6f5bf9341c46fa8c7eec06f97ecacf.png" alt="\mathcal{H}(\Delta t = \Delta t_s, \Delta E = 0) = 0 ,"/></p>
+</div><p>from which the Hamiltonian becomes</p>
+<div class="math">
+<p><img src="_images/math/2cf92a1a0d856d6dbc7835ba9e255eb2dd4661fa.png" alt="\mathcal{H}(\Delta t, \Delta E) = \frac{\eta_0}{2 \beta_s^2 E_s}(\Delta E)^2 + \sum_{k=0}^{n_{\mathsf{rf}}-1} \frac{q V_k}{T_0 \omega_{\mathsf{rf}}^k} \left( \cos (\omega_{\mathsf{rf}}^k \Delta t + \varphi_{\mathsf{rf}}^k) - \cos (\omega_{\mathsf{rf}}^k \Delta t_s + \varphi_{\mathsf{rf}}^k) \right) + \dot{E_s} (\Delta t - \Delta t_s) ."/></p>
+</div><p>In case of a single-harmonic RF system with
+<img class="math" src="_images/math/614d97876d48afb1eca94713ea57ddaeec06932c.png" alt="\omega_{\mathsf{rf}} = h \omega_0"/>, the second term can be replaced
+with <img class="math" src="_images/math/7d038b9b20a769ada29172dadc5853d6b81e65df.png" alt="\dot{E_s} = q V \sin{\varphi_s} / T_0"/>, and we obtain the know
+textbook formula</p>
+<div class="math">
+<p><img src="_images/math/c8728dfde90245d59ed5e31d2b4c3a870523041e.png" alt="\mathcal{H}(\Delta t, \Delta E) = \frac{\eta_0}{2 \beta_s^2 E_s}(\Delta E)^2 + \frac{q V}{2 \pi h} \left( \cos (h \omega_0 \Delta t + \varphi_{\mathsf{rf}}) - \cos (h \omega_0 \Delta t_s + \varphi_{\mathsf{rf}}) + h \omega_0 (\Delta t - \Delta t_s) \sin{\varphi_s} \right) ,"/></p>
+</div><p>or in terms of particle phase <img class="math" src="_images/math/f943a0eac3e9e9e7ad984e7273d8f2a7aaaa9892.png" alt="\varphi"/>,</p>
+<div class="math">
+<p><img src="_images/math/1824d53d26973c02cd44e4ad61c12ce0d62a62df.png" alt="\mathcal{H}(\varphi, \Delta E) = \frac{\eta_0}{2 \beta_s^2 E_s}(\Delta E)^2 + \frac{q V}{2 \pi h} \left( \cos \varphi - \cos \varphi_s + (\varphi - \varphi_s) \sin{\varphi_s} \right) ."/></p>
+</div></div>
+<div class="section" id="separatrix">
+<h4>Separatrix<a class="headerlink" href="#separatrix" title="Permalink to this headline">¶</a></h4>
+<p>To construct the separatrix, first the unstable fixed point (UFP) needs to be
+determined. Its coordinates <img class="math" src="_images/math/b44cea2fc2c0a50b06ceae3434bd61d09c5a4843.png" alt="(\Delta t_{\mathsf{ufp}}, \Delta E = 0)"/> are
+calculated numerically by looking for the smallest (largest) zero crossing
+position in one period of the total voltage waveform above (below) transition.
+The separatrix is the equipotential line that goes through the UFP and is thus
+defined by the condition</p>
+<div class="math">
+<p><img src="_images/math/2f282d32a0b9ad36f2fae23a7127b95cc4f73321.png" alt="\mathcal{H}(\Delta t_{\mathsf{ufp}}, \Delta E = 0) = \mathcal{H}(\Delta t_{\mathsf{sep}}, \Delta E_{\mathsf{sep}}) ."/></p>
+</div><p>Solving this equation we obtain</p>
+<div class="math">
+<p><img src="_images/math/b6afdf20d0cd534cc3eb5b7713a81743709dda62.png" alt="\Delta E_{\mathsf{sep}} =  \pm \sqrt{ \frac{2 \beta_s^2 E_s}{\eta_0} \left \{ \sum_{k=0}^{n_{\mathsf{rf}}-1} \frac{q V_k}{T_0 \omega_{\mathsf{rf}}^k} \left [ \cos (\omega_{\mathsf{rf}}^k \Delta t_{\mathsf{ufp}} + \varphi_{\mathsf{rf}}^k) - \cos (\omega_{\mathsf{rf}}^k \Delta t_{\mathsf{sep}} + \varphi_{\mathsf{rf}}^k) \right ] + \dot{E_s} (\Delta t_{\mathsf{ufp}} - \Delta t_{\mathsf{sep}}) \right \}} ."/></p>
+</div><p>In the case of a single-harmonic RF system with
+<img class="math" src="_images/math/614d97876d48afb1eca94713ea57ddaeec06932c.png" alt="\omega_{\mathsf{rf}} = h \omega_0"/>, the phase of the UFP is
+<img class="math" src="_images/math/a9cad4737ae3ee3f923e46ca578439d0c53e7cc2.png" alt="\varphi_{\mathsf{ufp}} = \pi - \varphi_s"/>. In addition,
+<img class="math" src="_images/math/7d038b9b20a769ada29172dadc5853d6b81e65df.png" alt="\dot{E_s} = q V \sin{\varphi_s} / T_0"/>, so the above equation reduces to</p>
+<div class="math">
+<p><img src="_images/math/e058359677111a4a36e5bc246c2ff60f91fb248d.png" alt="\Delta E_{\mathsf{sep}} =  \pm \sqrt{ \frac{2 \beta_s^2 E_s q V}{2 \pi h \eta_0} \left \{ \cos (\pi - \varphi_s) - \cos \varphi + (\pi - \varphi_s - \varphi) \sin \varphi_s \right \} }."/></p>
+</div><p>In practise, to calculate the separatrix for input arrays
+<img class="math" src="_images/math/6896b2509762b8ae510a13ed5b911174697ef083.png" alt="\Delta t_{\mathsf{sep}}"/> that are longer than the period of the voltage
+waveform, the routine takes into account periodicity and projects the input
+array onto the &#8216;basic period&#8217; of the waveform (that is <img class="math" src="_images/math/f17eadde7569cc1e5c0a0b9397c90c08a6fb748e.png" alt="(-\pi,\pi)"/> and
+<img class="math" src="_images/math/47ceeaaa418951714522efe1b33e025d621579b3.png" alt="(0,2 \pi)"/> on the first harmonic, below and above transition,
+respectively).</p>
+</div>
+</div>
 </div>
 <div class="section" id="module-trackers">
 <span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-trackers" title="Permalink to this headline">¶</a></h2>
@@ -557,7 +893,14 @@ To be generalized.</p>
 </li>
 </ul>
 </li>
-<li><a class="reference internal" href="#module-trackers.utilities">trackers.utilities module</a></li>
+<li><a class="reference internal" href="#module-trackers.utilities">trackers.utilities module</a><ul>
+<li><a class="reference internal" href="#tracking-utilities">Tracking utilities</a><ul>
+<li><a class="reference internal" href="#hamiltonian">Hamiltonian</a></li>
+<li><a class="reference internal" href="#separatrix">Separatrix</a></li>
+</ul>
+</li>
+</ul>
+</li>
 <li><a class="reference internal" href="#module-trackers">Module contents</a></li>
 </ul>
 </li>
