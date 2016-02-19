@@ -32,7 +32,7 @@ def plot_voltage_programme(time, voltage, sampling = 1, dirname = 'fig',
     ax = plt.axes([0.15, 0.1, 0.8, 0.8])
     ax.plot(time[::sampling], voltage[::sampling])
     ax.set_xlabel("Time [s]")    
-    ax.set_ylabel (r"RF voltage [MV]")
+    ax.set_ylabel(r"RF voltage [V]")
 
     # Save figure
     fign = dirname +'/RF_voltage_' "%d" %figno +'.png'

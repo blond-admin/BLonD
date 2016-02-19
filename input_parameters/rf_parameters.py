@@ -16,8 +16,9 @@
 from __future__ import division
 import numpy as np
 from scipy.constants import c
-
-
+import matplotlib.pyplot as plt
+from scipy.integrate import cumtrapz
+import sys
 
 def input_check(input_value, expected_length):
     '''
@@ -53,10 +54,13 @@ class RFSectionParameters(object):
       - For 1 RF system and varying values of V, h or phi, input an array of n_turns values
       - For several RF systems and constant values of V, h or phi, input lists of single values 
       - For several RF systems and varying values of V, h or phi, input lists of arrays of n_turns values
+      
+    Optional: RF frequency other than the design frequency. In this case, need
+    to use the Phase Loop for correct RF phase!
     '''
     
     def __init__(self, GeneralParameters, n_rf, harmonic, voltage, phi_offset, 
-                 phi_noise = None, section_index = 1):
+                 phi_noise = None, omega_rf = None, section_index = 1, accelerating_systems = 'as_single'):
         
         #: | *Counter to keep track of time step (used in momentum and voltage)*
         #: | *Definined as a list in order to be passed by reference.*
@@ -100,6 +104,9 @@ class RFSectionParameters(object):
         #: for one section in [eV]* :math:`: \quad E_s^{n+1}- E_s^n`
         self.E_increment = np.diff(self.energy)
         
+        #: *Import particle mass [e] (from GeneralParameters)*
+        self.charge = GeneralParameters.charge
+        
         #: *Slippage factor (0th order) for the given RF section*
         self.eta_0 = 0
         #: *Slippage factor (1st order) for the given RF section*
@@ -112,7 +119,8 @@ class RFSectionParameters(object):
         for i in xrange( self.alpha_order ):
             dummy = getattr(GeneralParameters, 'eta_' + str(i))
             setattr(self, "eta_%s" %i, dummy[self.section_index])
-            
+        #: *Sign of eta_0*
+        self.sign_eta_0 = np.sign(self.eta_0)   
         
         #: | *Number of RF systems in the section* :math:`: \quad n_{\mathsf{rf}}`
         #: | *Counter for RF is:* :math:`j`
@@ -146,13 +154,18 @@ class RFSectionParameters(object):
             self.voltage = [voltage]
             self.phi_offset = [phi_offset]
             if phi_noise != None:
-                self.phi_noise = [phi_noise] 
+                self.phi_noise = [phi_noise]
+            if omega_rf != None:
+                self.omega_RF = [omega_rf]
+                 
         else:
             self.harmonic = harmonic
             self.voltage = voltage 
             self.phi_offset = phi_offset
             if phi_noise != None:
-                self.phi_noise = phi_noise 
+                self.phi_noise = phi_noise
+            if omega_rf != None:
+                self.omega_RF = omega_rf
         
         for i in range(self.n_rf):
             self.harmonic[i] = input_check(self.harmonic[i], self.n_turns+1)
@@ -160,6 +173,8 @@ class RFSectionParameters(object):
             self.phi_offset[i] = input_check(self.phi_offset[i], self.n_turns+1)
             if phi_noise != None:
                 self.phi_noise[i] = input_check(self.phi_noise[i], self.n_turns+1) 
+            if omega_rf != None:
+                self.omega_RF[i] = input_check(self.omega_RF[i], self.n_turns+1) 
         
         # Convert to numpy matrix
         self.harmonic = np.array(self.harmonic, ndmin =2)
@@ -167,17 +182,28 @@ class RFSectionParameters(object):
         self.phi_offset = np.array(self.phi_offset, ndmin =2)
         if phi_noise != None:
             self.phi_noise = np.array(self.phi_noise, ndmin =2) 
+        if omega_rf != None:
+            self.omega_RF = np.array(self.omega_RF, ndmin =2) 
             
         #: *Synchronous phase for this section, calculated from the transition
         #: energy and the momentum program.*
-        self.phi_s = calc_phi_s(self)   
+        self.phi_s = calc_phi_s(self, accelerating_systems)   
 
-        #: *Design RF frequency of the RF systems in the station [GHz]*        
+        
+        #: *Synchrotron tune [1]*                         
+        self.Qs = np.sqrt( self.harmonic[0]*self.charge*self.voltage[0]*np.abs(self.eta_0*np.cos(self.phi_s)) / \
+                                 (2*np.pi*self.beta**2*self.energy) ) 
+        
+        #: *Central angular synchronous frequency, w/o intensity effects [1/s]*
+        self.omega_s0 = self.Qs*GeneralParameters.omega_rev
+
+        #: *Design RF frequency of the RF systems in the station [Hz]*        
         self.omega_RF_d = 2.*np.pi*self.beta*c*self.harmonic/ \
                           (self.ring_circumference)
                           
-        #: *Initial, actual RF frequency of the RF systems in the station [GHz]*
-        self.omega_RF = np.array(self.omega_RF_d)                  
+        #: *Initial, actual RF frequency of the RF systems in the station [Hz]*
+        if omega_rf == None:
+            self.omega_RF = np.array(self.omega_RF_d)                  
 
         #: *Initial, actual RF phase of each harmonic system*
         self.phi_RF = np.array(self.phi_offset) 
@@ -185,7 +211,14 @@ class RFSectionParameters(object):
         #: *Accumulated RF phase error of each harmonic system*
         self.dphi_RF = np.zeros(self.n_rf)
         
-          
+        #: *Accumulated RF phase error of each harmonic system*
+        self.dphi_RF_steering = np.zeros(self.n_rf)
+        
+        self.t_RF = 2*np.pi / self.omega_RF[0]
+        
+ 
+        
+        
     def eta_tracking(self, beam, counter, dE):
         '''
         *The slippage factor is calculated as a function of the energy offset
@@ -209,7 +242,7 @@ class RFSectionParameters(object):
 
 
 
-def calc_phi_s(RFSectionParameters, accelerating_systems = 'all'):
+def calc_phi_s(RFSectionParameters, accelerating_systems = 'as_single'):
     '''
     | *The synchronous phase calculated from the rate of momentum change.*
     | *Below transition, for decelerating bucket: phi_s is in (-Pi/2,0)*
@@ -222,38 +255,67 @@ def calc_phi_s(RFSectionParameters, accelerating_systems = 'all'):
     
     eta0 = RFSectionParameters.eta_0
     
-    if RFSectionParameters.n_rf == 1 or accelerating_systems == 'as_single':
-                     
-        acceleration_ratio = RFSectionParameters.E_increment/ \
-                             RFSectionParameters.voltage[0,1:] 
-        
+    if accelerating_systems == 'as_single':
+        denergy = np.append(RFSectionParameters.E_increment, RFSectionParameters.E_increment[-1])             
+        acceleration_ratio = denergy/ \
+                             (RFSectionParameters.charge*
+                              RFSectionParameters.voltage[0,:])
+
         acceleration_test = np.where((acceleration_ratio > -1)*\
                                      (acceleration_ratio < 1) == False)[0]
                 
         if acceleration_test.size > 0:
-            raise RuntimeError('Acceleration is not possible (momentum increment is too big or voltage too low) at index ' + str(acceleration_test))
+            print 'Warning!!! Acceleration is not possible (momentum increment is too big or voltage too low) at index ' + str(acceleration_test)
         
-        # For the initial phi_s, add the first value a second time, also in index   
-        phi_s = np.arcsin( np.concatenate((np.array([acceleration_ratio[0]]), 
-                                           acceleration_ratio)) )
-        index = np.where((eta0[1:] + eta0[0:-1])/2 > 0)[0] + 1
-        if len(index) > 0:
-            if index[0] == 1:
-                index = np.concatenate((np.array([0]), index))
-            phi_s[index] = np.pi - phi_s[index]
-
+        phi_s = np.arcsin(acceleration_ratio)
+        
+        eta0_middle_points = (eta0[1:] + eta0[:-1])/2
+        eta0_middle_points = np.append(eta0_middle_points, eta0[-1])             
+        index = np.where(eta0_middle_points > 0)[0]
+        index_below = np.where(eta0_middle_points < 0)[0]
+        
+        phi_s[index] = np.pi - phi_s[index]
+        phi_s[index_below] = np.pi + phi_s[index_below]
+        
         return phi_s 
      
     else:
-        '''
-        To be implemented
-        '''
+        
         if accelerating_systems == 'all':
             '''
             In this case, all the RF systems are accelerating, phi_s is 
-            calculated accordingly with respect to the fundamental frequency
-            '''
-            pass
+            calculated accordingly with respect to the fundamental frequency (the minimum
+            of the potential well is taken)
+            '''         
+            
+            transition_phase_offset = np.zeros(len(eta0))
+            phi_s = np.zeros(len(RFSectionParameters.voltage[0,1:]))
+            
+            index = np.where(eta0 > 0)[0]
+            transition_phase_offset[index] = np.pi
+
+            phase_array = np.linspace(-np.pi*1.2, np.pi*1.2, 1000) 
+            
+            for indexTurn in range(len(RFSectionParameters.E_increment)):
+                
+                totalRF = 0
+
+                for indexRF in range(len(RFSectionParameters.voltage[:,indexTurn+1])):
+                    totalRF +=RFSectionParameters.voltage[indexRF,indexTurn+1] * np.sin(RFSectionParameters.harmonic[indexRF,indexTurn+1]/np.min(RFSectionParameters.harmonic[:,indexTurn+1]) * (phase_array + transition_phase_offset[indexTurn+1]) + RFSectionParameters.phi_offset[indexRF,indexTurn+1])
+                
+                if transition_phase_offset[indexTurn] == 0:
+                    transition_factor = +1
+                else:
+                    transition_factor = -1
+                    
+                potential_well = transition_factor * np.insert(cumtrapz(totalRF - RFSectionParameters.E_increment[indexTurn]/RFSectionParameters.charge, dx=phase_array[1]-phase_array[0]),0,0)
+
+                phi_s[indexTurn] = np.mean(phase_array[potential_well==np.min(potential_well)] + transition_phase_offset[indexTurn+1])
+            
+            phi_s = np.insert(phi_s, 0, phi_s[0])
+            
+            return phi_s
+        
         elif accelerating_systems == 'first':
             '''
             Only the first RF system is accelerating, so we have to correct the 

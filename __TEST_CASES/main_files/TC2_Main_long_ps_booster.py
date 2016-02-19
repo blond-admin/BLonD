@@ -84,11 +84,10 @@ longitudinal_bigaussian(general_params, RF_sct_par, my_beam, sigma_dt, seed=1)
 number_slices = 100
 slice_beam = Slices(RF_sct_par, my_beam, number_slices, cut_left = - 5.72984173562e-7, 
                     cut_right = 5.72984173562e-7) 
-slice_beam.track()
 
 # MONITOR----------------------------------------------------------------------
 
-bunchmonitor = BunchMonitor(general_params, my_beam, '../output_files/TC2_output_data', buffer_time=1)
+bunchmonitor = BunchMonitor(general_params, RF_sct_par, my_beam, '../output_files/TC2_output_data', buffer_time=1)
 
 # LOAD IMPEDANCE TABLES--------------------------------------------------------
 
@@ -145,13 +144,12 @@ total_induced_voltage = TotalInducedVoltage(my_beam, slice_beam, [ind_volt_freq,
 
 # PLOTS
 
-plots = Plot(general_params, RF_sct_par, my_beam, 1, - 5.72984173562e-7, 
+format_options = {'dirname': '../output_files/TC2_fig', 'linestyle': '.'}
+plots = Plot(general_params, RF_sct_par, my_beam, 1, n_turns, - 5.72984173562e-7, 
              5.72984173562e-7, - my_beam.sigma_dE * 4.2, my_beam.sigma_dE * 4.2, xunit= 's',
-             separatrix_plot= True, Slices = slice_beam, h5file = '../output_files/TC2_output_data', histograms_plot = True)
+             separatrix_plot= True, Slices = slice_beam, h5file = '../output_files/TC2_output_data', 
+             histograms_plot = True, format_options = format_options)
  
- 
-plots.set_format(dirname = '../output_files/TC2_fig', linestyle = '.')
-plots.track()
 
 # ACCELERATION MAP-------------------------------------------------------------
 

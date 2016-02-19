@@ -72,7 +72,7 @@ long_tracker_2 = RingAndRFSection(rf_params_2, beam)
 #parameters, which is used for the separatrix (in plotting and losses)
 Vtot = total_voltage([rf_params_1, rf_params_2])
 rf_params_tot = RFSectionParameters(general_params, 1, h, Vtot, dphi)
-beam_dummy = Beam(general_params, 0, N_b)
+beam_dummy = Beam(general_params, 1, N_b)
 long_tracker_tot = RingAndRFSection(rf_params_tot, beam_dummy)
 
 print "General and RF parameters set..."
@@ -89,21 +89,19 @@ print "Beam set and distribution generated..."
 
 # Need slices for the Gaussian fit; slice for the first plot
 slice_beam = Slices(rf_params_tot, beam, 100, fit_option = 'gaussian')
-slice_beam.track()
 
 # Define what to save in file
-bunchmonitor = BunchMonitor(general_params, beam, '../output_files/TC4_output_data', Slices=slice_beam, buffer_time = 1)
+bunchmonitor = BunchMonitor(general_params, rf_params_tot, beam, '../output_files/TC4_output_data', Slices=slice_beam, buffer_time = 1)
 
 
 # PLOTS
-
-plots = Plot(general_params, rf_params_tot, beam, dt_plt, 0, 
+format_options = {'dirname': '../output_files/TC4_fig', 'linestyle': '.'}
+plots = Plot(general_params, rf_params_tot, beam, dt_plt, dt_plt, 0, 
              0.0001763*h, -450e6, 450e6, xunit= 'rad',
-             separatrix_plot= True, Slices = slice_beam, h5file = '../output_files/TC4_output_data', histograms_plot = True)
+             separatrix_plot= True, Slices = slice_beam, h5file = '../output_files/TC4_output_data', histograms_plot = True, format_options = format_options)
  
  
-plots.set_format(dirname = '../output_files/TC4_fig', linestyle = '.')
-plots.track()
+#plots.set_format()
 
 # Accelerator map
 map_ = [long_tracker_1] + [long_tracker_2] + [slice_beam] + [bunchmonitor] + [plots]
@@ -127,7 +125,7 @@ for i in np.arange(1,N_t+1):
         
     # Define losses according to separatrix and/or longitudinal position
     beam.losses_separatrix(general_params, rf_params_tot, beam)
-    beam.losses_cut(0.28e-4*general_params.ring_radius/(beam.beta*c), 0.75e-4*general_params.ring_radius/(beam.beta*c))
+    beam.losses_longitudinal_cut(0., 2.5e-9)
 
 
 print "Done!"

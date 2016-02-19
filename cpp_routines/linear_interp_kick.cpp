@@ -8,36 +8,36 @@ submit itself to any jurisdiction.
 Project website: http://blond.web.cern.ch/
 */
 
+
 // Optimised C++ routine that calculates the kick of a voltage array on particles
 // Author: Juan F. Esteban Muller, Alexandre Lasheen
-
-
-using uint = unsigned int;
 
 extern "C" void linear_interp_kick(
 		double * __restrict__ beam_dt,
 		double * __restrict__ beam_dE,
 		double * __restrict__ voltage_array,
 		double * __restrict__ bin_centers,
-        const uint n_slices,
-		const uint n_macroparticles){
+        const int n_slices,
+		const int n_macroparticles,
+		const double acc_kick){
 
 	double a;
-	uint i;
+	int i;
 	double fbin;
-	uint ffbin;
-	double inducedVoltageKick;
-	const double inv_bin_width = (n_slices-1) / (bin_centers[n_slices-1] - bin_centers[0]);
+	int ffbin;
+	double voltageKick;
+	double inv_bin_width = (n_slices-1) / (bin_centers[n_slices-1] - bin_centers[0]);
 
-	for (i = 0; i < n_macroparticles; i++) {
-		a = beam_dt[i];
-		fbin = (a - bin_centers[0]) * inv_bin_width;
-		ffbin = (uint)(fbin);
-		if ((a < bin_centers[0])||(a > bin_centers[n_slices-1]))
-			inducedVoltageKick = 0.;
-		else
-			inducedVoltageKick = voltage_array[ffbin] + (a - bin_centers[ffbin]) * (voltage_array[ffbin+1]-voltage_array[ffbin]) * inv_bin_width;
-		beam_dE[i] = beam_dE[i] + inducedVoltageKick;
-	}
+    for (i = 0; i < n_macroparticles; i++) {
+    	a = beam_dt[i];
+    	fbin = (a - bin_centers[0]) * inv_bin_width;
+    	ffbin = (int)(fbin);
+    	voltageKick;
+    	if ((a < bin_centers[0])||(a > bin_centers[n_slices-1]))
+    		voltageKick = 0.;
+    	else
+    		voltageKick = voltage_array[ffbin] + (a - bin_centers[ffbin]) * (voltage_array[ffbin+1]-voltage_array[ffbin]) * inv_bin_width;
+    	beam_dE[i] = beam_dE[i] + voltageKick + acc_kick;
+    }
 
 }

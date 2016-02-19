@@ -46,5 +46,9 @@ def next_regular(target):
             return p5
     if p5 < match:
         match = p5
+    
+    if int(match/2)!=match/2.:
+        match = int(match / 5 * 6)
+
     return match
 

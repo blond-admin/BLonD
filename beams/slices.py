@@ -1,4 +1,5 @@
 
+
 # Copyright 2015 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3), 
 # copied verbatim in the file LICENCE.md.
@@ -22,7 +23,7 @@ from scipy.optimize import curve_fit
 from scipy.signal import cheb2ord, cheby2, filtfilt, freqz
 import ctypes
 from setup_cpp import libfib
-
+from copy import deepcopy
 
 
 class Slices(object):
@@ -33,7 +34,7 @@ class Slices(object):
     
     def __init__(self, RFSectionParameters, Beam, n_slices, n_sigma = None, 
                  cut_left = None, cut_right = None, cuts_unit = 's', 
-                 fit_option = None):
+                 fit_option = None, direct_slicing = False):
         
         #: *Import (reference) Beam*
         self.Beam = Beam
@@ -91,7 +92,13 @@ class Slices(object):
             self.bp_gauss = 0
             #: *Gaussian parameters list obtained from fit*
             self.pfit_gauss = 0
-                  
+        
+        
+        # Track at initialisation
+        if direct_slicing:
+            self.track()          
+        
+        
         
     def sort_particles(self):
         '''
@@ -142,7 +149,7 @@ class Slices(object):
         self.bin_centers = (self.edges[:-1] + self.edges[1:])/2
 
 
-    def slice_constant_space_histogram(self):
+    def slice_constant_space_histogram(self, beam_dt):
         '''
         *Constant space slicing with the built-in numpy histogram function,
         with a constant frame. This gives the same profile as the 
@@ -153,12 +160,12 @@ class Slices(object):
         for high number of particles (~1e6).*
         '''
         
-        libfib.histogram(self.Beam.dt.ctypes.data_as(ctypes.c_void_p), 
+        libfib.histogram(beam_dt.ctypes.data_as(ctypes.c_void_p), 
                          self.n_macroparticles.ctypes.data_as(ctypes.c_void_p), 
                          ctypes.c_double(self.cut_left), 
                          ctypes.c_double(self.cut_right), 
-                         ctypes.c_uint(self.n_slices), 
-                         ctypes.c_uint(self.Beam.n_macroparticles))
+                         ctypes.c_int(self.n_slices), 
+                         ctypes.c_int(len(beam_dt)))
     
     
     def slice_constant_space_histogram_smooth(self):
@@ -180,19 +187,35 @@ class Slices(object):
         This will update the beam properties (bunch length obtained from the
         fit, etc.).*
         '''
-        
-        self.slice_constant_space_histogram()
+    
+        self.slice_constant_space_histogram(self.Beam.dt)
         
         if self.fit_option is 'gaussian':
             self.gaussian_fit()
         
         
+    def track_cuts(self):
+        '''
+        *Track the slice frame (limits and slice position) as the mean of the 
+        bunch moves.
+        Requires Beam statistics!
+        Method to be refined!*
+        '''
+
+        delta = self.Beam.mean_dt - 0.5*(self.cut_left + self.cut_right)
+        
+        self.cut_left += delta
+        self.cut_right += delta
+        self.edges += delta
+        self.bin_centers += delta
+        
+
     def gaussian_fit(self):
         '''
         *Gaussian fit of the profile, in order to get the bunch length and
         position. Returns fit values in units of s.*
         '''
-            
+        
         if self.bl_gauss is 0 and self.bp_gauss is 0:
             p0 = [max(self.n_macroparticles), np.mean(self.Beam.dt), 
                   np.std(self.Beam.dt)]
@@ -204,28 +227,46 @@ class Slices(object):
         self.bl_gauss = 4 * abs(self.pfit_gauss[2]) 
         self.bp_gauss = abs(self.pfit_gauss[1])
     
+ 
+    def rms(self):
+        '''
+        * Computation of the RMS bunch length and position from the line density 
+        (bunch length = 4sigma).*
+        '''
+
+        timeResolution = self.bin_centers[1]-self.bin_centers[0]
+        
+        lineDenNormalized = self.n_macroparticles / np.trapz(self.n_macroparticles, dx=timeResolution)
+        
+        self.bp_rms = np.trapz(self.bin_centers * lineDenNormalized, dx=timeResolution)
+        
+        self.bl_rms = 4 * np.sqrt(np.trapz((self.bin_centers-self.bp_rms)**2*lineDenNormalized, dx=timeResolution))      
        
-    def fwhm(self):
+       
+    def fwhm(self, shift=0):
         '''
         * Computation of the bunch length and position from the FWHM
         assuming Gaussian line density.*
         '''
 
-        half_max = 0.5 * self.n_macroparticles.max()
+        half_max = shift + 0.5 * (self.n_macroparticles.max() - shift)
         time_resolution = self.bin_centers[1]-self.bin_centers[0]    
         # First aproximation for the half maximum values
         taux = np.where(self.n_macroparticles>=half_max)
         taux1 = taux[0][0]
         taux2 = taux[0][-1]
         # Interpolation of the time where the line density is half the maximun
-        t1 = self.bin_centers[taux1] - (self.n_macroparticles[taux1]-half_max)/(self.n_macroparticles[taux1]-self.n_macroparticles[taux1-1]) * time_resolution
-        t2 = self.bin_centers[taux2] + (self.n_macroparticles[taux2]-half_max)/(self.n_macroparticles[taux2]-self.n_macroparticles[taux2+1]) * time_resolution
-        
-        self.bl_fwhm = 4 * (t2-t1)/ (2 * np.sqrt(2 * np.log(2)))
-        self.bp_fwhm = (t1+t2)/2
+        try:
+            t1 = self.bin_centers[taux1] - (self.n_macroparticles[taux1]-half_max)/(self.n_macroparticles[taux1]-self.n_macroparticles[taux1-1]) * time_resolution
+            t2 = self.bin_centers[taux2] + (self.n_macroparticles[taux2]-half_max)/(self.n_macroparticles[taux2]-self.n_macroparticles[taux2+1]) * time_resolution
+            
+            self.bl_fwhm = 4 * (t2-t1)/ (2 * np.sqrt(2 * np.log(2)))
+            self.bp_fwhm = (t1+t2)/2
+        except:
+            self.bl_fwhm = np.nan
+            self.bp_fwhm = np.nan
     
-    
-    def fwhm_multibunch(self, n_bunches, n_slices_per_bunch, bunch_spacing_buckets, bucket_size_tau):
+    def fwhm_multibunch(self, n_bunches, n_slices_per_bunch, bunch_spacing_buckets, bucket_size_tau, bucket_tolerance=0.40):
         '''
         * Computation of the bunch length and position from the FWHM
         assuming Gaussian line density for multibunch case.*
@@ -238,19 +279,19 @@ class Slices(object):
         
         for indexBunch in range(0,n_bunches):
             
-            left_edge = indexBunch * bunch_spacing_buckets * bucket_size_tau
-            right_edge = indexBunch * bunch_spacing_buckets * bucket_size_tau + bucket_size_tau
+            left_edge = indexBunch * bunch_spacing_buckets * bucket_size_tau - bucket_tolerance * bucket_size_tau
+            right_edge = indexBunch * bunch_spacing_buckets * bucket_size_tau + bucket_size_tau + bucket_tolerance * bucket_size_tau
             indexes_bucket = np.where((self.bin_centers > left_edge)*(self.bin_centers < right_edge))[0]
             
             try:
                 half_max = 0.5 * self.n_macroparticles[indexes_bucket].max()
         
-                # First aproximation for the half maximum values
+                # First approximation for the half maximum values
                 taux = np.where(self.n_macroparticles[indexes_bucket]>=half_max)
                 taux1 = taux[0][0]
                 taux2 = taux[0][-1]
                 
-                # Interpolation of the time where the line density is half the maximun
+                # Interpolation of the time where the line density is half the maximum
                 t1 = self.bin_centers[indexes_bucket][taux1] - \
                      (self.n_macroparticles[indexes_bucket][taux1]-half_max) / \
                      (self.n_macroparticles[indexes_bucket][taux1] - 
@@ -270,7 +311,7 @@ class Slices(object):
                 self.bp_fwhm[indexBunch] = 0
     
     
-    def beam_spectrum_generation(self, n_sampling_fft, filter_option = None, only_rfft = False):
+    def beam_spectrum_generation(self, n_sampling_fft, only_rfft = False):
         '''
         *Beam spectrum calculation, to be extended (normalized profile, different
         coordinates, etc.)*
@@ -289,7 +330,8 @@ class Slices(object):
         a function. The two outputs are the coordinate step and the discrete
         derivative of the Beam profile respectively.*
         '''
-            
+        
+        
         x = self.bin_centers
         dist_centers = x[1] - x[0]
             
@@ -335,15 +377,15 @@ class Slices(object):
         
         # Compute the lowest order for a Chebyshev Type II digital filter
         nCoefficients, wn = cheb2ord(frequencyPass, frequencyStop, gainPass, gainStop)
-        print nCoefficients
         
         # Compute the coefficients a Chebyshev Type II digital filter
         b,a = cheby2(nCoefficients, gainStop, wn, btype='low')
         
         # Apply the filter forward and backwards to cancel the group delay
         self.n_macroparticles = filtfilt(b, a, noisyProfile)
+        self.n_macroparticles = np.ascontiguousarray(self.n_macroparticles)
         
-        if 'transfer_function_plot' in filter_option:
+        if 'transfer_function_plot' in filter_option and filter_option['transfer_function_plot']==True:
             # Plot the filter transfer function
             w, transferGain = freqz(b, a=a, worN=self.n_slices)
             transferFreq = w / np.pi * nyqFreq
@@ -374,7 +416,7 @@ class Slices(object):
             return nCoefficients, [transferFreq, transferGain]
         
         else:
-            return nCoefficients
+            return nCoefficients, b, a
   
   
     def convert_coordinates(self, value, input_unit_type):
@@ -386,7 +428,7 @@ class Slices(object):
             return value
         
         elif input_unit_type is 'rad':
-            return (value-self.RFParams.phi_RF[0,self.RFParams.counter[0]])/\
+            return value /\
                 self.RFParams.omega_RF[0,self.RFParams.counter[0]]
             
  

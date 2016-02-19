@@ -27,7 +27,8 @@ class BunchMonitor(object):
         Slices object has to have the fit_option set to 'gaussian').
     '''
     
-    def __init__(self, GeneralParameters, Beam, filename, buffer_time = None, 
+    def __init__(self, GeneralParameters, RFParameters, Beam, filename, 
+                 buffer_time = None, 
                  Slices = None, PhaseLoop = None, LHCNoiseFB = None):
         
         self.filename = filename
@@ -36,13 +37,24 @@ class BunchMonitor(object):
         self.buffer_time = buffer_time
         if buffer_time == None:
             self.buffer_time = self.n_turns
+        self.rf_params = RFParameters
         self.beam = Beam
         self.slices = Slices
+        if self.slices:
+            if self.slices.fit_option is 'gaussian':
+                self.gaussian = True
+            else:
+                self.gaussian = False
+        else:
+            self.gaussian = False
         self.PL = PhaseLoop
         self.LHCNoiseFB = LHCNoiseFB
 
         # Initialise data and save initial state
         self.init_data( self.filename, (self.n_turns + 1,))
+        
+        # Track at initialisation
+        self.track()          
 
     
     def track(self):
@@ -56,7 +68,6 @@ class BunchMonitor(object):
         self.i_turn += 1
 
         if self.i_turn > 0 and ( self.i_turn % self.buffer_time ) == 0:
-            
             self.open()
             self.write_data(self.h5file['Beam'], (self.n_turns + 1,))
             self.close()
@@ -82,9 +93,8 @@ class BunchMonitor(object):
         
         h5group.create_dataset("mean_dt", shape = dims, dtype = 'f',
                                compression = "gzip", compression_opts = 9)
-        
         h5group["mean_dt"][0]   = self.beam.mean_dt
-        
+         
         h5group.create_dataset("mean_dE", shape = dims, dtype = 'f',
                                compression = "gzip", compression_opts = 9)
         h5group["mean_dE"][0]  = self.beam.mean_dE
@@ -101,8 +111,8 @@ class BunchMonitor(object):
                                compression = "gzip", compression_opts = 9)
         h5group["epsn_rms_l"][0]   = self.beam.epsn_rms_l
          
-        if self.slices:
-             
+        if self.gaussian == True:
+
             h5group.create_dataset("bunch_length_gaussian", shape = dims, 
                                    dtype = 'f',
                                    compression = "gzip", compression_opts = 9)
@@ -110,6 +120,16 @@ class BunchMonitor(object):
              
         if self.PL:
              
+            h5group.create_dataset("PL_omegaRF", shape = dims, 
+                                   dtype = np.float64,
+                                   compression = "gzip", compression_opts = 9)
+            h5group["PL_omegaRF"][0] = self.rf_params.omega_RF[0,0]
+
+            h5group.create_dataset("PL_phiRF", shape = dims, 
+                                   dtype = 'f',
+                                   compression = "gzip", compression_opts = 9)
+            h5group["PL_phiRF"][0] = self.rf_params.phi_RF[0,0]
+
             h5group.create_dataset("PL_bunch_phase", shape = dims, 
                                    dtype = 'f',
                                    compression = "gzip", compression_opts = 9)
@@ -124,6 +144,16 @@ class BunchMonitor(object):
                                    dtype = 'f',
                                    compression = "gzip", compression_opts = 9)
             h5group["PL_omegaRF_corr"][0] = self.PL.domega_RF
+
+            h5group.create_dataset("SL_dphiRF", shape = dims, 
+                                   dtype = 'f',
+                                   compression = "gzip", compression_opts = 9)
+            h5group["SL_dphiRF"][0] = self.rf_params.dphi_RF[0]
+
+            h5group.create_dataset("RL_drho", shape = dims, 
+                                   dtype = 'f',
+                                   compression = "gzip", compression_opts = 9)
+            h5group["RL_drho"][0] = self.PL.drho
              
         if self.LHCNoiseFB:
              
@@ -136,6 +166,15 @@ class BunchMonitor(object):
                                    dtype = 'f',
                                    compression = "gzip", compression_opts = 9)
             h5group["LHC_noise_FB_bl"][0] = self.LHCNoiseFB.bl_meas
+            
+            if self.LHCNoiseFB.bl_meas_bbb != None:
+                
+                h5group.create_dataset("LHC_noise_FB_bl_bbb", 
+                                       shape = (self.n_turns + 1, 
+                                                len(self.LHCNoiseFB.bl_meas_bbb)), 
+                                       dtype = 'f', compression = "gzip", 
+                                       compression_opts = 9)
+                h5group["LHC_noise_FB_bl_bbb"][0,:] = self.LHCNoiseFB.bl_meas_bbb[:]
                  
         # Close file
         self.close() 
@@ -153,20 +192,27 @@ class BunchMonitor(object):
         self.b_sigma_dE = np.zeros(self.buffer_time)
         self.b_epsn_rms = np.zeros(self.buffer_time)
          
-        if self.slices:
+        if self.gaussian == True:
              
             self.b_bl_gauss = np.zeros(self.buffer_time)
              
         if self.PL:
              
+            self.b_PL_omegaRF = np.zeros(self.buffer_time)
+            self.b_PL_phiRF = np.zeros(self.buffer_time)
             self.b_PL_bunch_phase = np.zeros(self.buffer_time)
             self.b_PL_phase_corr = np.zeros(self.buffer_time)
             self.b_PL_omegaRF_corr = np.zeros(self.buffer_time)
+            self.b_SL_dphiRF = np.zeros(self.buffer_time)
+            self.b_RL_drho = np.zeros(self.buffer_time)
              
         if self.LHCNoiseFB:
              
             self.b_LHCnoiseFB_factor = np.zeros(self.buffer_time)
             self.b_LHCnoiseFB_bl = np.zeros(self.buffer_time)
+            if self.LHCNoiseFB.bl_meas_bbb != None:
+                self.b_LHCnoiseFB_bl_bbb = np.zeros((self.buffer_time, 
+                                           len(self.LHCNoiseFB.bl_meas_bbb)))
                 
 
     def write_buffer(self):
@@ -180,26 +226,32 @@ class BunchMonitor(object):
         self.b_sigma_dE[i] = self.beam.sigma_dE
         self.b_epsn_rms[i] = self.beam.epsn_rms_l
          
-        if self.slices:
+        if self.gaussian == True:
              
             self.b_bl_gauss[i] = self.slices.bl_gauss
              
         if self.PL:
              
+            self.b_PL_omegaRF[i] = self.rf_params.omega_RF[0,self.i_turn]
+            self.b_PL_phiRF[i] = self.rf_params.phi_RF[0,self.i_turn]
             self.b_PL_bunch_phase[i] = self.PL.phi_beam
             self.b_PL_phase_corr[i] = self.PL.dphi
             self.b_PL_omegaRF_corr[i] = self.PL.domega_RF
-             
+            self.b_SL_dphiRF[i] = self.rf_params.dphi_RF[0]
+            self.b_RL_drho[i] = self.PL.drho
+                         
         if self.LHCNoiseFB:
              
             self.b_LHCnoiseFB_factor[i] = self.LHCNoiseFB.x
             self.b_LHCnoiseFB_bl[i] = self.LHCNoiseFB.bl_meas
+            if self.LHCNoiseFB.bl_meas_bbb != None:
+                self.b_LHCnoiseFB_bl_bbb[i,:] = self.LHCNoiseFB.bl_meas_bbb[:]
 
 
     def write_data(self, h5group, dims):
         
-        i1 = (self.i_turn+1) - self.buffer_time
-        i2 = (self.i_turn+1)
+        i1 = self.i_turn - self.buffer_time
+        i2 = self.i_turn
 
         h5group.require_dataset("n_macroparticles_alive", shape = dims, 
                                 dtype = 'f')
@@ -207,7 +259,7 @@ class BunchMonitor(object):
 
         h5group.require_dataset("mean_dt", shape = dims, dtype = 'f')
         h5group["mean_dt"][i1:i2]   = self.b_mean_dt[:]
-        
+         
         h5group.require_dataset("mean_dE", shape = dims, dtype = 'f')
         h5group["mean_dE"][i1:i2]  = self.b_mean_dE[:]
          
@@ -220,14 +272,22 @@ class BunchMonitor(object):
         h5group.require_dataset("epsn_rms_l", shape = dims, dtype = 'f')
         h5group["epsn_rms_l"][i1:i2]   = self.b_epsn_rms[:]
          
-        if self.slices:
+        if self.gaussian == True:
              
-            h5group.require_dataset("bunch_length_gaussian", shape = dims, 
-                                    dtype = 'f')
-            h5group["bunch_length_gaussian"][i1:i2] = self.b_bl_gauss[:]
+                h5group.require_dataset("bunch_length_gaussian", shape = dims, 
+                                        dtype = 'f')
+                h5group["bunch_length_gaussian"][i1:i2] = self.b_bl_gauss[:]
              
         if self.PL:
  
+            h5group.require_dataset("PL_omegaRF", shape = dims, 
+                                    dtype = np.float64)
+            h5group["PL_omegaRF"][i1:i2] = self.b_PL_omegaRF[:]
+
+            h5group.require_dataset("PL_phiRF", shape = dims, 
+                                    dtype = 'f')
+            h5group["PL_phiRF"][i1:i2] = self.b_PL_phiRF[:]
+
             h5group.require_dataset("PL_bunch_phase", shape = dims, 
                                     dtype = 'f')
             h5group["PL_bunch_phase"][i1:i2] = self.b_PL_bunch_phase[:]
@@ -239,6 +299,14 @@ class BunchMonitor(object):
             h5group.require_dataset("PL_omegaRF_corr", shape = dims, 
                                     dtype = 'f')
             h5group["PL_omegaRF_corr"][i1:i2] = self.b_PL_omegaRF_corr[:]
+
+            h5group.require_dataset("SL_dphiRF", shape = dims, 
+                                    dtype = 'f')
+            h5group["SL_dphiRF"][i1:i2] = self.b_SL_dphiRF[:]
+
+            h5group.require_dataset("RL_drho", shape = dims, 
+                                    dtype = 'f')
+            h5group["RL_drho"][i1:i2] = self.b_RL_drho[:]
              
         if self.LHCNoiseFB:
              
@@ -250,7 +318,13 @@ class BunchMonitor(object):
                                     dtype = 'f')        
             h5group["LHC_noise_FB_bl"][i1:i2] = self.b_LHCnoiseFB_bl[:]
 
-        
+            if self.LHCNoiseFB.bl_meas_bbb != None:
+                h5group.require_dataset("LHC_noise_FB_bl_bbb", shape = (self.n_turns + 1, 
+                                        len(self.LHCNoiseFB.bl_meas_bbb)), 
+                                        dtype = 'f')        
+                h5group["LHC_noise_FB_bl_bbb"][i1:i2,:] = self.b_LHCnoiseFB_bl_bbb[:,:]
+
+
     def open(self):
         self.h5file = hp.File(self.filename + '.h5', 'r+')
         self.h5file.require_group('Beam')
@@ -261,7 +335,45 @@ class BunchMonitor(object):
 
 
 
+class SlicesMonitor(object):
 
+    ''' Class able to save the bunch profile, i.e. the histogram derived from
+        the slicing.
+    '''
+    
+    def __init__(self, filename, n_turns, slices):
+        
+        self.h5file = hp.File(filename + '.h5', 'w')
+        self.n_turns = n_turns
+        self.i_turn = 0
+        self.slices = slices
+        self.h5file.create_group('Slices')
+
+    
+    def track(self, bunch):
+        
+        if not self.i_turn:
+            self.create_data(self.h5file['Slices'], (self.slices.n_slices, 
+                                                     self.n_turns))
+            self.write_data(self.slices, self.h5file['Slices'], self.i_turn)
+        else:
+            self.write_data(self.slices, self.h5file['Slices'], self.i_turn)
+
+        self.i_turn += 1
+
+    
+    def create_data(self, h5group, dims):
+        
+        h5group.create_dataset("n_macroparticles", dims, compression="gzip", 
+                               compression_opts=9)
+        
+        
+    def write_data(self, bunch, h5group, i_turn):
+        
+        h5group["n_macroparticles"][:, i_turn] = self.slices.n_macroparticles
+        
+    def close(self):
+        self.h5file.close()
 
 
 

@@ -25,7 +25,6 @@ from plots.plot_beams import *
 from plots.plot_impedance import *
 from plots.plot_slices import *
 from plots.plot import *
-from plots.plot_settings import *
 from plots.plot_parameters import *
 
 
@@ -74,16 +73,14 @@ longitudinal_bigaussian(general_params, rf_params, beam, tau_0/4,
 
 # Need slices for the Gaussian fit
 slice_beam = Slices(rf_params, beam, 100, fit_option = 'gaussian')
-slice_beam.track()
 
 # Define what to save in file
-bunchmonitor = BunchMonitor(general_params, beam, '../output_files/TC1_output_data', Slices = slice_beam)
+bunchmonitor = BunchMonitor(general_params, rf_params, beam, '../output_files/TC1_output_data', Slices = slice_beam)
 
-plots = Plot(general_params, rf_params, beam, dt_plt, 0, 0.0001763*h, -400e6, 400e6, xunit= 'rad',
-             separatrix_plot= True, Slices = slice_beam, h5file = '../output_files/TC1_output_data')
-
-plots.set_format(dirname = '../output_files/TC1_fig')
-plots.track()
+format_options = {'dirname': '../output_files/TC1_fig'}
+plots = Plot(general_params, rf_params, beam, dt_plt, N_t, 0, 0.0001763*h, -400e6, 400e6, xunit= 'rad',
+             separatrix_plot= True, Slices = slice_beam, h5file = '../output_files/TC1_output_data', 
+             format_options = format_options)
 
 # Accelerator map
 map_ = [long_tracker] + [slice_beam] + [bunchmonitor] + [plots]
@@ -113,7 +110,7 @@ for i in range(1, N_t+1):
         
     # Define losses according to separatrix and/or longitudinal position
     beam.losses_separatrix(general_params, rf_params, beam)
-    beam.losses_cut(0.28e-4/general_params.omega_rev[i], 0.75e-4/general_params.omega_rev[i])
+    beam.losses_longitudinal_cut(0., 2.5e-9)
     
 print "Done!"
 print ""

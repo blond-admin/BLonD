@@ -4,12 +4,6 @@ from input_parameters.general_parameters import *
 import matplotlib.pyplot as plt
 from beams.beams import *
 from input_parameters.rf_parameters import *
-from plots.plot_beams import *
-from plots.plot_impedance import *
-from plots.plot_slices import *
-from plots.plot import *
-from plots.plot_settings import *
-from plots.plot_parameters import *
 from beams.slices import *
 from monitors.monitors import *
 from trackers.tracker import *

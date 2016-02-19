@@ -96,18 +96,16 @@ slice_beam = Slices(RF_sct_par, my_beam, number_slices, cut_left = 0,
                     cut_right = 2 * np.pi, 
                     cuts_unit = 'rad', 
                     fit_option = 'gaussian')
-slice_beam.track()
 slice_beam_copy = Slices(RF_sct_par_copy, my_beam_copy, number_slices, cut_left = 0, 
                     cut_right = 2 * np.pi , 
                     cuts_unit = 'rad', 
                     fit_option = 'gaussian')
-slice_beam_copy.track()
 
 # MONITOR----------------------------------------------------------------------
 
-bunchmonitor = BunchMonitor(general_params, my_beam, '../output_files/TC5_output_data', Slices=slice_beam, buffer_time = 1)
+bunchmonitor = BunchMonitor(general_params, ring_RF_section, my_beam, '../output_files/TC5_output_data', Slices=slice_beam, buffer_time = 1)
 
-bunchmonitor_copy = BunchMonitor(general_params_copy, my_beam_copy, '../output_files/TC5_output_data_copy', Slices=slice_beam_copy, buffer_time = 1)
+bunchmonitor_copy = BunchMonitor(general_params_copy, ring_RF_section_copy, my_beam_copy, '../output_files/TC5_output_data_copy', Slices=slice_beam_copy, buffer_time = 1)
 
 
 # LOAD IMPEDANCE TABLE--------------------------------------------------------
@@ -127,20 +125,18 @@ tot_vol_copy = TotalInducedVoltage(my_beam_copy, slice_beam_copy, [ind_volt_freq
 
 # PLOTS
 
-plots = Plot(general_params, RF_sct_par, my_beam, dt_plt, 0, 
+format_options = {'dirname': '../output_files/TC5_fig/1', 'linestyle': '.'}
+plots = Plot(general_params, RF_sct_par, my_beam, dt_plt, n_turns, 0, 
              0.0014*harmonic_number, - 1.5e8, 1.5e8, xunit= 'rad',
-             separatrix_plot= True, Slices = slice_beam, h5file = '../output_files/TC5_output_data', histograms_plot = True, sampling=50)
- 
- 
-plots.set_format(dirname = '../output_files/TC5_fig/1', linestyle = '.')
-plots.track()
+             separatrix_plot= True, Slices = slice_beam, h5file = '../output_files/TC5_output_data', 
+             histograms_plot = True, sampling=50, format_options = format_options)
 
-plots_copy = Plot(general_params_copy, RF_sct_par_copy, my_beam_copy, dt_plt, 0, 
-             0.0014*harmonic_number, - 1.5e8, 1.5e8, xunit= 'rad',
-             separatrix_plot= True, Slices = slice_beam_copy, h5file = '../output_files/TC5_output_data_copy', histograms_plot = True, sampling=50)
-
-plots_copy.set_format(dirname = '../output_files/TC5_fig/2', linestyle = '.')
-plots_copy.track() 
+format_options = {'dirname': '../output_files/TC5_fig/2', 'linestyle': '.'}
+plots_copy = Plot(general_params_copy, RF_sct_par_copy, my_beam_copy, dt_plt, n_turns, 
+                  0, 0.0014*harmonic_number, - 1.5e8, 1.5e8, xunit= 'rad',
+                  separatrix_plot= True, Slices = slice_beam_copy, 
+                  h5file = '../output_files/TC5_output_data_copy', 
+                  histograms_plot = True, sampling=50, format_options = format_options)
 
 # ACCELERATION MAP-------------------------------------------------------------
 

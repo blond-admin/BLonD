@@ -17,7 +17,7 @@ from __future__ import division
 import numpy as np
 import warnings
 from scipy.constants import m_p, m_e, e, c
-
+import matplotlib.pyplot as plt
 
 
 class GeneralParameters(object):
@@ -46,27 +46,27 @@ class GeneralParameters(object):
         # Attribution of mass and charge with respect to particle_type
         if self.particle_type is 'proton':
             self.mass =  m_p*c**2/e # [eV]
-            self.charge = e # [e]
+            self.charge = 1. # [e]
         elif self.particle_type is 'electron':
             self.mass =  m_e*c**2/e # [eV]
-            self.charge = -e # [e]
+            self.charge = -1. # [e]
         elif self.particle_type is 'user_input':
             self.mass = user_mass # [eV]
-            self.charge = user_charge*e # [e]
+            self.charge = user_charge # [e]
         else:
             raise RuntimeError('ERROR: Particle type not recognized!')
         
         if self.particle_type_2 == None:
             pass
         elif self.particle_type_2 is 'proton':
-            self.mass2 =  m_p # [eV]
-            self.charge2 = e # [Me]
+            self.mass2 =  m_p*c**2/e # [eV]
+            self.charge2 = 1. # [e]
         elif self.particle_type_2 is 'electron':
-            self.mass2 =  m_e # [eV]
-            self.charge2 = -e # [e]
+            self.mass2 =  m_e*c**2/e # [eV]
+            self.charge2 = -1. # [e]
         elif self.particle_type_2 is 'user_input':
             self.mass2 = user_mass_2 # [eV]
-            self.charge2 = user_charge_2*e # [e]
+            self.charge2 = user_charge_2 # [e]
         else:
             raise RuntimeError('ERROR: Second particle type not recognized!')
         
@@ -93,7 +93,7 @@ class GeneralParameters(object):
         #: | *Ring length contains the length of the RF sections, in [m]*
         #: | *Should be given as a list for multiple RF stations*
         self.ring_length = ring_length
-        if isinstance(self.ring_length, float):
+        if isinstance(self.ring_length, float) or isinstance(self.ring_length, int):
             self.ring_length = [self.ring_length]
         
         #: | *Ring circumference is the sum of section lengths* :math:`: \quad C = \sum_k L_k`
@@ -103,12 +103,12 @@ class GeneralParameters(object):
         self.ring_radius = self.ring_circumference/(2*np.pi)         
         
         # Check consistency of input data; raise error if not consistent
-         
+        
         if self.n_sections != len(self.ring_length) or \
            self.n_sections != self.alpha.shape[0] or \
            self.n_sections != self.momentum.shape[0]:
-            raise RuntimeError('ERROR: Number of sections, ring length, alpha, \
-                               and/or momentum data do not match!')    
+            raise RuntimeError('ERROR: Number of sections, ring length, alpha,'+
+                               ' and/or momentum data do not match!')    
         
         if self.n_sections > 1:
             if self.momentum.shape[1] == 1:
@@ -118,8 +118,8 @@ class GeneralParameters(object):
                 self.momentum = self.momentum*np.ones(self.n_turns + 1)
 
         if not self.momentum.shape[1] == self.n_turns + 1:
-                raise RuntimeError('The input momentum program does not match \
-                                    the proper length (n_turns+1)')
+                raise RuntimeError('The input momentum program does not match'+ 
+                ' the proper length (n_turns+1)')
             
         
         #: *Synchronous relativistic beta (program)* :math:`: \quad \beta_{s,k}^n`
@@ -138,6 +138,10 @@ class GeneralParameters(object):
         #: .. math:: E_s = \sqrt{ p_s^2 + m^2 }
         self.energy = np.sqrt(self.momentum**2 + self.mass**2)
         
+        #: *Synchronous kinetic energy (program) in [eV]
+        #: .. math:: E_s^kin = \sqrt{ p_s^2 + m^2 } - m
+        self.kin_energy = np.sqrt(self.momentum**2 + self.mass**2) - self.mass
+        
         # Be careful that self.cycle_time in the else statement starts always with 0.
         if type(momentum)==tuple:
             #: *Cumulative times [s] taken from preprocess ramp method*
@@ -148,9 +152,10 @@ class GeneralParameters(object):
             self.t_rev = np.dot(self.ring_length, 1/(self.beta*c))
             self.cycle_time = np.insert(np.cumsum(self.t_rev),0,0)
             
-        #: *Revolution frequency [GHz]* :math:`: \quad f_0 = \frac{1}{T_0}`
+        #: *Revolution frequency [Hz]* :math:`: \quad f_0 = \frac{1}{T_0}`
         self.f_rev = 1/self.t_rev
          
+        
         #: *Revolution angular frequency [1/s]* :math:`: \quad \omega_0 = 2\pi f_0`
         self.omega_rev = 2*np.pi*self.f_rev
         

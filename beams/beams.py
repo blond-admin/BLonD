@@ -18,8 +18,6 @@ import numpy as np
 from trackers.utilities import is_in_separatrix
 
 
-
-
 class Beam(object):
     '''
     *Object containing the beam coordinates and beam properties such as mass,
@@ -51,7 +49,7 @@ class Beam(object):
         self.momentum = GeneralParameters.momentum[0][0] 
         
         #: *Import ring radius [m] (from GeneralParameters)*
-        self.ring_radius = GeneralParameters.ring_radius
+        #self.ring_radius = GeneralParameters.ring_radius
 
         #: | *Beam arrival time with respect to reference time [s]*
         self.dt = np.zeros([n_macroparticles])
@@ -77,17 +75,29 @@ class Beam(object):
         #: | *Total number of macro-particles in the beam [1]*
         self.n_macroparticles = int(n_macroparticles)
         
+        #: | *This ratio should be in general constant during the simulation*
+        self.ratio = self.intensity/self.n_macroparticles
+        
         #: | *Number of macro-particles marked as 'lost' [1]*
         #: | *Losses defined via loss mechanisms chosen by user*
         self.n_macroparticles_lost = 0
         
         #: | *Number of transmitted macro-particles (= total - lost) [1]*        
-        self.n_macroparticles_alive = self.n_macroparticles - self.n_macroparticles_lost
+        #self.n_macroparticles_alive = self.n_macroparticles - self.n_macroparticles_lost
         
         #: | *Unique macro-particle ID number; zero if particle is 'lost'*                
         self.id = np.arange(1, self.n_macroparticles + 1, dtype=int)
 
  
+    @property
+    def n_macroparticles_alive(self):
+        '''
+        *Number of transmitted macro-particles.*
+        '''
+        
+        return self.n_macroparticles - self.n_macroparticles_lost
+
+    
     def statistics(self):
         '''
         *Calculation of the mean and standard deviation of beam coordinates,
@@ -102,7 +112,10 @@ class Beam(object):
         self.sigma_dE = np.std(self.dE[itemindex])
        
         # R.m.s. emittance in Gaussian approximation
-        self.epsn_rms_l = 1.e3*np.pi*self.sigma_dE*self.sigma_dt # in eVs
+        self.epsn_rms_l = np.pi*self.sigma_dE*self.sigma_dt # in eVs
+
+        # Losses
+        self.n_macroparticles_lost = len( np.where( self.id == 0 )[0] )
 
         
     def losses_separatrix(self, GeneralParameters, RFSectionParameters, Beam):
@@ -119,7 +132,7 @@ class Beam(object):
             self.id[itemindex] = 0
     
     
-    def losses_cut(self, dt_min, dt_max): 
+    def losses_longitudinal_cut(self, dt_min, dt_max): 
         '''
         *Beam losses based on longitudinal cuts.*
         '''
@@ -129,5 +142,16 @@ class Beam(object):
         if itemindex.size != 0:          
             self.id[itemindex] = 0       
         
+
+    def losses_energy_cut(self, dE_min, dE_max): 
+        '''
+        *Beam losses based on energy cuts, e.g. on collimators.*
+        '''
+    
+        itemindex = np.where( (self.dE - dE_min)*(dE_max - self.dE) < 0 )[0]
+        
+        if itemindex.size != 0:          
+            self.id[itemindex] = 0       
         
            
+

@@ -10,7 +10,7 @@
 '''
 **Function(s) for pre-processing input data**
 
-:Authors: **Helga Timko**
+:Authors: **Helga Timko**, **Alexandre Lasheen**, **Danilo Quartullo**
 '''
 
 from __future__ import division
@@ -36,8 +36,8 @@ def loaddata(filename, ignore=0, delimiter=None):
 
 def preprocess_ramp(particle_type, circumference, time, data, 
                     data_type='momentum', interpolation='linear', smoothing = 0,
-                    flat_bottom=0, flat_top=0, 
-                    plot=True, figdir='fig', figname='data', sampling=1, 
+                    flat_bottom=0, flat_top=0, t_start=0, t_end=-1,
+                    plot=False, figdir='fig', figname='data', sampling=1, 
                     user_mass=None, user_charge=None):
     '''
     Pre-process acceleration ramp data to create input for simulation parameters.
@@ -46,10 +46,11 @@ def preprocess_ramp(particle_type, circumference, time, data,
     'interpolation': restricted to linear and cubic at the moment.
     'flat_bottom/top': extra time can be be added in units of time steps;
     constant extrapolation of the first/last data point is used in this case. 
+    't_start/end': cutting the inputed momentum program to the times to be simulated
     'plot': optional plotting of interpolated array with 'sampling' frequency; 
     saved with name 'figname' into 'figdir'.
     '''
-
+    
     # Definitions
     Nd = len(time)
     if len(data) != Nd:
@@ -65,16 +66,17 @@ def preprocess_ramp(particle_type, circumference, time, data,
     else:
         raise RuntimeError('ERROR: Particle type in preprocess_ramp not recognized!')
 
-    # Convert data to beta, if necessary
+    # Convert data to momentum, if necessary
     if data_type == 'momentum':
         momentum = data
     elif data_type == 'total energy':
         momentum = np.sqrt(data**2-mass**2)
-    elif data_type != 'kinetic energy':
+    elif data_type == 'kinetic energy':
         momentum = np.sqrt((data+mass)**2-mass**2)
     else:
         raise RuntimeError('ERROR: Data type in preprocess_ramp not recognized!')
-        
+    
+    
     # Obtain flat bottom data, extrapolate to constant
     beta_0 = np.sqrt(1/(1 + (mass/momentum[0])**2))
     T0 = circumference/(beta_0*c) # Initial revolution period [s]
@@ -87,6 +89,9 @@ def preprocess_ramp(particle_type, circumference, time, data,
     beta_interp = beta_interp.tolist()
     momentum_interp = momentum_interp.tolist()
     
+    time_start_ramp = np.max(time[momentum==momentum[0]])
+    time_end_ramp = np.min(time[momentum==momentum[-1]])
+
     # Interpolate data recursively
     if interpolation=='linear':
         
@@ -96,7 +101,7 @@ def preprocess_ramp(particle_type, circumference, time, data,
         for k in xrange(1,Nd): 
             while time_interp[i+1] <= time[k]:
                 
-                momentum_interp.append(data[k-1] + (data[k] - data[k-1]) * (time_interp[i+1] - time[k-1])
+                momentum_interp.append(momentum[k-1] + (momentum[k] - momentum[k-1]) * (time_interp[i+1] - time[k-1])
                                     / (time[k] - time[k-1])) 
                 
                 beta_interp.append(np.sqrt(1/(1 + (mass/momentum_interp[i+1])**2))) 
@@ -114,24 +119,48 @@ def preprocess_ramp(particle_type, circumference, time, data,
     
     elif interpolation=='cubic':
         
-        interp_funtion_momentum = splrep(time, data, s=smoothing)
-        
-        i = flat_bottom 
+        interp_funtion_momentum = splrep(time[(time>=time_start_ramp)*(time<=time_end_ramp)], 
+                                         momentum[(time>=time_start_ramp)*(time<=time_end_ramp)], 
+                                         s=smoothing)
+                  
+        i = flat_bottom
+       
+        time_interp.append(time_interp[0]
+                         + circumference/(beta_interp[0]*c) )
         
         while time_interp[i] <= time[-1]:
-            
-            time_interp.append(time_interp[i]
-                                     + circumference/(beta_interp[i]*c) )
-            
-            momentum_interp.append(splev(time_interp[i+1], interp_funtion_momentum))
-            
-            beta_interp.append(np.sqrt(1/(1 + (mass/momentum_interp[i+1])**2))) 
+
+            if (time_interp[i+1] < time_start_ramp) :
+
+                momentum_interp.append(momentum[0]) 
+                
+                beta_interp.append(np.sqrt(1/(1 + (mass/momentum_interp[i+1])**2))) 
+                
+                time_interp.append(time_interp[i+1]
+                                     + circumference/(beta_interp[i+1]*c) )
+                                     
+            elif (time_interp[i+1] > time_end_ramp):
+                
+                momentum_interp.append(momentum[-1]) 
+                
+                beta_interp.append(np.sqrt(1/(1 + (mass/momentum_interp[i+1])**2))) 
+                
+                time_interp.append(time_interp[i+1]
+                                     + circumference/(beta_interp[i+1]*c) )
+                
+            else:     
+
+                momentum_interp.append(splev(time_interp[i+1], interp_funtion_momentum))
+                
+                beta_interp.append(np.sqrt(1/(1 + (mass/momentum_interp[i+1])**2))) 
+                
+                time_interp.append(time_interp[i+1]
+                                         + circumference/(beta_interp[i+1]*c) )
 
             i += 1
-            
-        time_interp.pop()
-        beta_interp.pop()
-        momentum_interp.pop()       
+        
+        
+        time_interp.pop()       
         time_interp = np.asarray(time_interp)
         beta_interp = np.asarray(beta_interp)
         momentum_interp = np.asarray(momentum_interp)
@@ -145,12 +174,18 @@ def preprocess_ramp(particle_type, circumference, time, data,
     
     # Obtain flat top data, extrapolate to constant
     if flat_top > 0:
-        
         time_interp = np.append(time_interp, time_interp[-1] + circumference*np.arange(1, flat_top+1)/(beta_interp[-1]*c))
         beta_interp = np.append(beta_interp, beta_interp[-1]*np.ones(flat_top))
         momentum_interp = np.append(momentum_interp, momentum_interp[-1]*np.ones(flat_top))
-            
-
+ 
+        
+    # Cutting the input momentum on the desired cycle time
+    if (t_start != 0) or (t_end != -1):
+        if t_end == -1:
+            t_end = time[-1]   
+        momentum_interp = momentum_interp[(time_interp>=t_start)*(time_interp<=t_end)]
+        time_interp = time_interp[(time_interp>=t_start)*(time_interp<=t_end)]
+        
     if plot:
         # Directory where longitudinal_plots will be stored
         fig_folder(figdir)
@@ -160,7 +195,7 @@ def preprocess_ramp(particle_type, circumference, time, data,
         ax = plt.axes([0.15, 0.1, 0.8, 0.8])
         ax.plot(time_interp[::sampling], momentum_interp[::sampling], 
                 label='Interpolated momentum')
-        ax.plot(time, momentum, '.', label='input momentum', color='r')
+        ax.plot(time, momentum, '.', label='input momentum', color='r', markersize=0.5)
         ax.set_xlabel("Time [s]")    
         ax.set_ylabel ("p [eV]")
         ax.ticklabel_format(style='sci', axis='x', scilimits=(0,0))

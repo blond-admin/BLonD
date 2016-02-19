@@ -15,6 +15,7 @@
 
 from __future__ import division
 import matplotlib.pyplot as plt
+import numpy as np
 
 
 
@@ -65,4 +66,29 @@ def plot_beam_profile_derivative(Slices, counter, style = '-', dirname = 'fig',
     plt.clf()
        
     
+
+def plot_beam_spectrum(Slices, counter, style = '-', dirname = 'fig'):
+    
+    """
+    Plot of longitudinal beam profile
+    """
+ 
+    plt.figure(1, figsize=(8,6))
+    ax = plt.axes([0.15, 0.1, 0.8, 0.8]) 
+    ax.plot(Slices.beam_spectrum_freq, np.absolute(Slices.beam_spectrum), style)
+    
+    ax.set_xlabel(r"Frequency [Hz]")
+    ax.set_ylabel('Beam spectrum, absolute value [arb. units]')
+    ax.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+    ax.set_xlim(0,5.e9)
+    
+    plt.figtext(0.95, 0.95, '%d turns' %counter, fontsize=16, ha='right', 
+                va='center') 
+    
+    # Save plot
+    fign = dirname +'/beam_spectrum_' "%d" %counter + '.png'
+    plt.savefig(fign)
+    plt.clf()
+
+
 

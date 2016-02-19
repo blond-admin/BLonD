@@ -15,7 +15,7 @@ No intensity effects
 import time 
 import numpy as np
 
-from llrf.RF_noise import *
+from llrf.rf_noise import *
 from input_parameters.general_parameters import *
 from input_parameters.rf_parameters import *
 from trackers.tracker import *
@@ -106,21 +106,18 @@ print "Beam set and distribution generated..."
 
 # Need slices for the Gaussian fit; slice for the first plot
 slice_beam = Slices(rf_params, beam, 100, fit_option = 'gaussian', cuts_unit = 'rad')
-slice_beam.track()
 
 # Define what to save in file
-bunchmonitor = BunchMonitor(general_params, beam, '../output_files/TC3_output_data', Slices=slice_beam, buffer_time = 1)
+bunchmonitor = BunchMonitor(general_params, rf_params, beam, '../output_files/TC3_output_data', Slices=slice_beam)
 
 
 # PLOTS
 
-plots = Plot(general_params, rf_params, beam, dt_plt, 0, 
+format_options = {'dirname': '../output_files/TC3_fig', 'linestyle': '.'}
+plots = Plot(general_params, rf_params, beam, dt_plt, N_t, 0, 
              0.0001763*h, -450e6, 450e6, xunit= 'rad',
-             separatrix_plot= True, Slices = slice_beam, h5file = '../output_files/TC3_output_data', histograms_plot = True)
- 
- 
-plots.set_format(dirname = '../output_files/TC3_fig', linestyle = '.')
-plots.track()
+             separatrix_plot= True, Slices = slice_beam, h5file = '../output_files/TC3_output_data', 
+             histograms_plot = True, format_options = format_options)
 
 # Accelerator map
 map_ = [long_tracker] + [slice_beam] + [bunchmonitor] + [plots]
@@ -156,7 +153,7 @@ for i in range(1,N_t+1):
     
     # Define losses according to separatrix and/or longitudinal position
     beam.losses_separatrix(general_params, rf_params, beam)
-    beam.losses_cut(0.28e-4*general_params.ring_radius/(beam.beta*c), 0.75e-4*general_params.ring_radius/(beam.beta*c))
+    beam.losses_longitudinal_cut(0., 2.5e-9)
 
 
 

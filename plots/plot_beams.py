@@ -25,7 +25,7 @@ from trackers.utilities import separatrix
 def plot_long_phase_space(GeneralParameters, RFSectionParameters, Beam, xmin,
                           xmax, ymin, ymax, xunit = 's', sampling = 1, 
                           separatrix_plot = False, histograms_plot = True, 
-                          dirname = 'fig'):
+                          dirname = 'fig', alpha = 1):
     """
     Plot of longitudinal phase space. Optional use of histograms and separatrix.
     Choice of units: xunit = s, rad.
@@ -38,8 +38,8 @@ def plot_long_phase_space(GeneralParameters, RFSectionParameters, Beam, xmin,
         phi_RF = RFSectionParameters.phi_RF[0,RFSectionParameters.counter[0]]
 
     # Definitions for placing the axes
-    left, width = 0.1, 0.63
-    bottom, height = 0.1, 0.63
+    left, width = 0.115, 0.63
+    bottom, height = 0.115, 0.63
     bottom_h = left_h = left+width+0.03
     
     rect_scatter = [left, bottom, width, height]
@@ -54,14 +54,22 @@ def plot_long_phase_space(GeneralParameters, RFSectionParameters, Beam, xmin,
     axHisty = plt.axes(rect_histy)
     
     # Main plot: longitudinal distribution
+    indlost = np.where( Beam.id[::sampling] == 0 )[0] # particles lost
+    indalive = np.where( Beam.id[::sampling] != 0 )[0] # particles transmitted
     if xunit == 's':
         axScatter.set_xlabel(r"$\Delta t$ [s]")
-        axScatter.scatter(Beam.dt[::sampling], Beam.dE[::sampling], 
+        axScatter.scatter(Beam.dt[indalive], Beam.dE[indalive], 
+                          s=1, edgecolor='none', alpha=alpha)
+        axScatter.scatter(Beam.dt[indlost], Beam.dE[indlost], c='0.5',
                           s=1, edgecolor='none')
     elif xunit == 'rad':
         axScatter.set_xlabel(r"$\varphi$ [rad]")
-        axScatter.scatter(omega_RF*Beam.dt[::sampling] + phi_RF, 
-                          Beam.dE[::sampling], s=1, edgecolor='none')
+        axScatter.scatter(omega_RF*Beam.dt[indalive] + phi_RF, 
+                          Beam.dE[indalive], s=1, edgecolor='none', 
+                          alpha=alpha)
+        axScatter.scatter(omega_RF*Beam.dt[indlost] + phi_RF, 
+                          Beam.dE[indlost], c='0.5', s=1, 
+                          edgecolor='none')
     axScatter.set_ylabel(r"$\Delta$E [eV]")
     axScatter.yaxis.labelpad = 1     
         
@@ -125,7 +133,7 @@ def plot_bunch_length_evol(RFSectionParameters, h5data, output_freq = 1,
     # Get bunch length data in metres or seconds
     if output_freq < 1:
         output_freq = 1
-    ndata = int(time_step/output_freq) + 1
+    ndata = int(time_step/output_freq)
     t = output_freq*np.arange(ndata)  
     bl = np.array(h5data["/Beam/sigma_dt"][0:ndata], dtype = np.double)
     bl *= 4
@@ -195,10 +203,10 @@ def plot_position_evol(RFSectionParameters, h5data, output_freq = 1,
     # Get position data [s] 
     if output_freq < 1:
         output_freq = 1
-    ndata = int(time_step/output_freq) + 1
+    ndata = int(time_step/output_freq)
     t = output_freq*np.arange(ndata)    
     pos = np.array(h5data["/Beam/mean_dt"][0:ndata], dtype = np.double)          
-    pos[(time_step+1):] = np.nan 
+    pos[time_step:] = np.nan 
  
     # Plot 
     fig = plt.figure(1)
@@ -226,8 +234,8 @@ def plot_energy_evol(RFSectionParameters, h5data, output_freq = 1, style = '.',
     # Get position data in metres or nanoseconds 
     if output_freq < 1:
         output_freq = 1
-    ndata = int(time_step/output_freq) + 1
-    t = output_freq*np.arange(1, ndata + 1)  
+    ndata = int(time_step/output_freq)
+    t = output_freq*np.arange(ndata)  
     nrg = np.array(h5data["/Beam/mean_dE"][0:ndata], dtype = np.double)          
     nrg[time_step:] = np.nan 
  
@@ -246,6 +254,38 @@ def plot_energy_evol(RFSectionParameters, h5data, output_freq = 1, style = '.',
     fign = dirname+'/bunch_mean_energy.png'
     plt.savefig(fign) 
     plt.clf() 
+
+
+def plot_transmitted_particles(RFSectionParameters, h5data, output_freq = 1, 
+                               style = '.', dirname = 'fig'): 
+ 
+    # Time step of plotting
+    time_step = RFSectionParameters.counter[0]
+
+    # Get position data in metres or nanoseconds 
+    if output_freq < 1:
+        output_freq = 1
+    ndata = int(time_step/output_freq)
+    t = output_freq*np.arange(ndata)
+    prtcls = np.array(h5data["/Beam/n_macroparticles_alive"][0:ndata], 
+                      dtype = np.double)          
+    prtcls[time_step:] = np.nan 
+ 
+    # Plot 
+    plt.figure(1, figsize=(8,6)) 
+    ax = plt.axes([0.15, 0.1, 0.8, 0.8]) 
+    ax.plot(t, prtcls, style) 
+    ax.set_xlabel(r"No. turns [T$_0$]") 
+    ax.set_ylabel (r"Transmitted macro-particles [1]") 
+    ax.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+    if time_step > 100000:
+        ax.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
+     
+    # Save plot 
+    fign = dirname+'/bunch_transmitted_particles.png'
+    plt.savefig(fign) 
+    plt.clf() 
+
 
 
 

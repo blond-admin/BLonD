@@ -1,5 +1,5 @@
 
-# Copyright 2014 CERN. This software is distributed under the
+# Copyright 2015 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3), 
 # copied verbatim in the file LICENCE.md.
 # In applying this licence, CERN does not waive the privileges and immunities 
@@ -21,6 +21,7 @@ import numpy as np
 import copy
 from scipy.constants import c
 from scipy.integrate import cumtrapz
+import matplotlib.pyplot as plt
 
 
 def synchrotron_frequency_distribution(Beam, FullRingAndRF, main_harmonic_option = 'lowest_freq', 
@@ -64,7 +65,7 @@ def synchrotron_frequency_distribution(Beam, FullRingAndRF, main_harmonic_option
     slippage_factor = FullRingAndRF.RingAndRFSection_list[0].eta_0[0]
     eom_factor_dE = (np.pi * abs(slippage_factor) * c) / \
                     (FullRingAndRF.ring_circumference * Beam.beta * Beam.energy)
-    eom_factor_potential = np.sign(FullRingAndRF.RingAndRFSection_list[0].eta_0[0]) * (Beam.beta * c) / (FullRingAndRF.ring_circumference)
+    eom_factor_potential = np.sign(FullRingAndRF.RingAndRFSection_list[0].eta_0[0]) * (Beam.charge*Beam.beta * c) / (FullRingAndRF.ring_circumference)
      
     # Generate potential well
     n_points_potential = int(1e4)
@@ -405,6 +406,7 @@ def hamiltonian(GeneralParameters, RFSectionParameters, Beam, dt, dE,
         V0 = RFSectionParameters.voltage[0,counter]
     else: 
         V0 = total_voltage[counter]
+    V0 *= RFSectionParameters.charge
     
     c1 = RFSectionParameters.eta_tracking(Beam, counter, dE)*c*np.pi/ \
          (GeneralParameters.ring_circumference*Beam.beta*Beam.energy )
@@ -414,6 +416,14 @@ def hamiltonian(GeneralParameters, RFSectionParameters, Beam, dt, dE,
     phi_b = RFSectionParameters.omega_RF[0,counter]*dt + \
             RFSectionParameters.phi_RF[0,counter] 
     
+    eta0 = RFSectionParameters.eta_0[counter]
+    
+    # Modulo 2 Pi of bunch phase
+    if eta0 < 0:
+        phi_b = phase_modulo_below_transition(phi_b)
+    elif eta0 > 0:
+        phi_b = phase_modulo_above_transition(phi_b)    
+
     return c1 * dE**2 + c2 * (np.cos(phi_b) - np.cos(phi_s) + 
                                (phi_b - phi_s) * np.sin(phi_s))
          
@@ -429,32 +439,100 @@ def separatrix(GeneralParameters, RFSectionParameters, dt, total_voltage = None)
      
     if GeneralParameters.n_sections > 1:
         warnings.warn("WARNING: The separatrix is not yet properly computed for several sections!")
-    if RFSectionParameters.n_rf > 1:
-        warnings.warn("WARNING: The separatrix will be calculated for the first harmonic only!")    
-  
-     
+       
+    # Import RF and ring parameters at this moment 
     counter = RFSectionParameters.counter[0]
-    h0 = RFSectionParameters.harmonic[0,counter]
+    voltage = GeneralParameters.charge*RFSectionParameters.voltage[:,counter]
+    omega_RF = RFSectionParameters.omega_RF[:,counter]
+    phi_RF = RFSectionParameters.phi_RF[:,counter]
 
-    if total_voltage == None:
-        V0 = RFSectionParameters.voltage[0,counter]
-    else: 
-        V0 = total_voltage[counter]
- 
-    phi_s = RFSectionParameters.phi_s[counter]
-
-    phi_b = RFSectionParameters.omega_RF[0,counter]*dt + \
-            RFSectionParameters.phi_RF[0,counter] 
-     
-    beta = RFSectionParameters.beta[counter]
-     
-    energy = RFSectionParameters.energy[counter]
-     
     eta0 = RFSectionParameters.eta_0[counter]
+    beta_sq = RFSectionParameters.beta[counter]**2     
+    energy = RFSectionParameters.energy[counter]
+
+    # Projects time array into the range [-T_RF/2+t_RF, T_RF/2+t_RF]
+    # if below transition and into the range [t_RF, t_RF+T_RF] if above transition.
+    # T_RF = 2*pi/omega_RF, t_RF = - phi_RF/omega_RF
+    if eta0 < 0:
+        dt = time_modulo(dt, (phi_RF[0] + np.pi)/omega_RF[0], 
+                         2.*np.pi/omega_RF[0])
+    elif eta0 > 0:
+        dt = time_modulo(dt, phi_RF[0]/omega_RF[0], 2.*np.pi/omega_RF[0])
+
+    
+    # Single-harmonic RF system
+    if RFSectionParameters.n_rf == 1:
+     
+        h0 = RFSectionParameters.harmonic[0,counter]
+     
+        if total_voltage == None:
+            V0 = voltage[0]
+        else: 
+            V0 = total_voltage[counter]
       
-    separatrix_array = np.sqrt(beta**2 * energy * V0 / (np.pi * eta0 * h0) * 
-                       (-np.cos(phi_b) - np.cos(phi_s) + 
-                       (np.pi - phi_s - phi_b) * np.sin(phi_s)))
+        phi_s = RFSectionParameters.phi_s[counter]
+        phi_b = omega_RF[0]*dt + phi_RF[0]
+          
+        separatrix_array = np.sqrt(beta_sq*energy*V0/(np.pi*eta0*h0)* 
+                                    (-np.cos(phi_b) - np.cos(phi_s) + 
+                                     (np.pi - phi_s - phi_b)*np.sin(phi_s)))
+
+    # Multi-harmonic RF system
+    else:
+        
+        voltage = GeneralParameters.charge*RFSectionParameters.voltage[:,counter]
+        omega_RF = RFSectionParameters.omega_RF[:,counter]
+        phi_RF = RFSectionParameters.phi_RF[:,counter]     
+        try:
+            denergy = RFSectionParameters.E_increment[counter]
+        except:
+            denergy = RFSectionParameters.E_increment[-1]
+        T0 = GeneralParameters.t_rev[counter]
+        index_voltage = np.min(np.where(voltage>0)[0])
+        T_RF0 = 2*np.pi/omega_RF[index_voltage]
+        
+        # Find unstable fixed point
+        
+        dt_ufp = np.linspace(-phi_RF[index_voltage]/omega_RF[index_voltage] - T_RF0/1000, 
+                             T_RF0 - phi_RF[index_voltage]/omega_RF[index_voltage] + T_RF0/1000, 1002)
+        
+        if eta0 < 0:
+            dt_ufp -= 0.5*T_RF0
+        Vtot = np.zeros(len(dt_ufp))
+        
+        # Construct waveform
+        for i in range(RFSectionParameters.n_rf):
+            temp = np.sin(omega_RF[i]*dt_ufp + phi_RF[i])
+            Vtot += voltage[i]*temp
+        Vtot -= denergy
+        
+        # Find zero crossings
+        zero_crossings = np.where(np.diff(np.sign(Vtot)))[0]
+        
+        # Interpolate UFP
+        if eta0 < 0:
+            i = -1
+            ind  = zero_crossings[i]
+            while (Vtot[ind+1] -  Vtot[ind]) > 0:
+                i -= 1
+                ind = zero_crossings[i]
+        else:
+            i = 0
+            ind = zero_crossings[i]
+            while (Vtot[ind+1] -  Vtot[ind]) < 0:
+                i += 1
+                ind = zero_crossings[i]
+        dt_ufp = dt_ufp[ind] + Vtot[ind]/(Vtot[ind] - Vtot[ind+1])* \
+                 (dt_ufp[ind+1] - dt_ufp[ind])
+        
+        # Construct separatrix
+        Vtot = np.zeros(len(dt))
+        for i in range(RFSectionParameters.n_rf):
+            Vtot += voltage[i]*(np.cos(omega_RF[i]*dt_ufp + phi_RF[i]) - 
+                                np.cos(omega_RF[i]*dt + phi_RF[i]))/omega_RF[i]
+    
+        separatrix_array = np.sqrt(2*beta_sq*energy/(eta0*T0)* \
+                                    (Vtot + denergy*(dt_ufp - dt)))
          
     return separatrix_array
  
@@ -597,5 +675,33 @@ def potential_well_cut(theta_coord_array, potential_array):
         
         
 
+def phase_modulo_above_transition(phi):
+    '''
+    *Projects a phase array into the range -Pi/2 to +3*Pi/2.*
+    '''
+    
+    return phi - 2.*np.pi*np.floor(phi/(2.*np.pi))
+
+
+ 
+def phase_modulo_below_transition(phi):
+    '''
+    *Projects a phase array into the range -Pi/2 to +3*Pi/2.*
+    '''
+    
+    return phi - 2.*np.pi*(np.floor(phi/(2.*np.pi) + 0.5))
         
+
+
+def time_modulo(dt, dt_offset, T):
+    '''
+    *Returns dt projected onto the desired interval.*
+    '''
+    
+    return dt - T*np.floor((dt + dt_offset)/T)
+
+
+ 
         
+
+
