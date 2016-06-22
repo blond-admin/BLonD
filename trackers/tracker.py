@@ -1,4 +1,4 @@
-# Copyright 2015 CERN. This software is distributed under the
+# Copyright 2016 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3), 
 # copied verbatim in the file LICENCE.md.
 # In applying this licence, CERN does not waive the privileges and immunities 
@@ -100,11 +100,11 @@ class FullRingAndRF(object):
             
         time_array = np.linspace(first_dt, last_dt, n_points)
                 
-        total_voltage = np.sum(voltages.T * np.sin(omega_rf.T * time_array + phi_offsets.T), axis = 0)
+        self.total_voltage = np.sum(voltages.T * np.sin(omega_rf.T * time_array + phi_offsets.T), axis = 0)
         
         eom_factor_potential = np.sign(slippage_factor) * charge / (RingAndRFSectionElement.t_rev[turn])
         
-        potential_well = - np.insert(cumtrapz(eom_factor_potential * (total_voltage + RingAndRFSectionElement.acceleration_kick[turn]/charge), dx=time_array[1]-time_array[0]),0,0)
+        potential_well = - np.insert(cumtrapz(eom_factor_potential * (self.total_voltage - (-RingAndRFSectionElement.acceleration_kick[turn])/abs(charge)), dx=time_array[1]-time_array[0]),0,0)
         potential_well = potential_well - np.min(potential_well)
         
         self.potential_well_coordinates = time_array
@@ -143,7 +143,7 @@ class RingAndRFSection(object):
     '''
         
     def __init__(self, RFSectionParameters, Beam, solver = 'simple', 
-                 PhaseLoop = None, NoiseFB = None, periodicity = False, dE_max = None, rf_kick_interp=False, Slices=None, TotalInducedVoltage=None, n_threads=1):
+                 PhaseLoop = None, NoiseFB = None, periodicity = False, dE_max = None, rf_kick_interp=False, Slices=None, TotalInducedVoltage=None):
         
         #: *Import of RFSectionParameters object*
         self.rf_params = RFSectionParameters
@@ -237,40 +237,16 @@ class RingAndRFSection(object):
         
         # Periodicity setting up
         self.periodicity = periodicity
-        if periodicity:
-            # Check the periodicity loop invariant dt>=0.
-            if len(np.where(self.beam.dt<0)[0])>0:
-                raise RuntimeError('ERROR: condition beam.dt >= 0 not true!')
-            # Distinguish the particle inside the frame from the particles on the
-            # right of the frame.
-            self.indices_right_outside = np.where(self.beam.dt > self.t_rev[self.counter[0]+1])[0]
-            self.indices_inside_frame = np.where(self.beam.dt < self.t_rev[self.counter[0]+1])[0]
-            self.beam.insiders_dt = np.ascontiguousarray(self.beam.dt[self.indices_inside_frame])
-            self.insiders_dE = np.ascontiguousarray(self.beam.dE[self.indices_inside_frame])
-    
+            
         # Use interpolate to apply kick
         self.rf_kick_interp = rf_kick_interp
         self.slices = Slices
         self.TotalInducedVoltage = TotalInducedVoltage
-        self.n_threads = n_threads
         
         if self.rf_kick_interp and self.slices is None:
             raise RuntimeError('ERROR: A slices object is needed in the RingAndRFSection to use the kick_interp option')
         
-    
-    def set_periodicity(self):
-        
-        # Check the periodicity loop invariant dt>=0.
-        if len(np.where(self.beam.dt<0)[0])>0:
-            raise RuntimeError('ERROR: condition beam.dt >= 0 not true!')
-        # Distinguish the particle inside the frame from the particles on the
-        # right of the frame.
-        self.indices_right_outside = np.where(self.beam.dt > self.t_rev[self.counter[0]+1])[0]
-        self.indices_inside_frame = np.where(self.beam.dt < self.t_rev[self.counter[0]+1])[0]
-        self.beam.insiders_dt = np.ascontiguousarray(self.beam.dt[self.indices_inside_frame])
-        self.insiders_dE = np.ascontiguousarray(self.beam.dE[self.indices_inside_frame])        
-    
-    
+ 
     def kick(self, beam_dt, beam_dE, index):
         '''
         *Update of the particle energy due to the RF kick in a given RF station. 
@@ -296,8 +272,7 @@ class RingAndRFSection(object):
             omegaRF_kick.ctypes.data_as(ctypes.c_void_p), 
             phiRF_kick.ctypes.data_as(ctypes.c_void_p),
             ctypes.c_int(len(beam_dt)), 
-            ctypes.c_double(self.acceleration_kick[index]),
-            ctypes.c_int(self.n_threads))
+            ctypes.c_double(self.acceleration_kick[index]))
         
    
     def drift(self, beam_dt, beam_dE, index):
@@ -329,8 +304,7 @@ class RingAndRFSection(object):
             ctypes.c_double(self.eta_2[index]), 
             ctypes.c_double(self.rf_params.beta[index]), 
             ctypes.c_double(self.rf_params.energy[index]), 
-            ctypes.c_int(len(beam_dt)),
-            ctypes.c_int(self.n_threads))
+            ctypes.c_int(len(beam_dt)))
 
 
     def rf_voltage_calculation(self, turn, Slices):
@@ -377,23 +351,33 @@ class RingAndRFSection(object):
         
         if self.periodicity:
             
-            # Change reference of all the particles on the right of the current
-            # frame; these particles skip one kick and drift
+            # Distinguish the particles inside the frame from the particles on the
+            # right of the frame.
+            self.indices_right_outside = np.where(self.beam.dt > self.t_rev[self.counter[0]+1])[0]
+            self.indices_inside_frame = np.where(self.beam.dt < self.t_rev[self.counter[0]+1])[0]
             if len(self.indices_right_outside)>0:
-                self.beam.dt[self.indices_right_outside] -= self.t_rev[self.counter[0]+1]
-            
-            # Syncronize the bunch with the particles that are on the right of
-            # the current frame applying kick and drift to the bunch; after that 
-            # all the particle are in the new updated frame
-            self.kick(self.beam.insiders_dt, self.insiders_dE, self.counter[0])
-            self.drift(self.beam.insiders_dt, self.insiders_dE, self.counter[0]+1)
-            self.beam.dt[self.indices_inside_frame] = self.beam.insiders_dt
-            self.beam.dE[self.indices_inside_frame] = self.insiders_dE
-            
-            # Check all the particles on the left of the just updated frame and 
-            # apply a second kick and drift to them with the previous wave after
-            # having changed reference.
-            self.indices_left_outside = np.where(self.beam.dt < 0)[0]
+                self.insiders_dt = np.ascontiguousarray(self.beam.dt[self.indices_inside_frame])
+                self.insiders_dE = np.ascontiguousarray(self.beam.dE[self.indices_inside_frame])
+                
+                # Change reference of all the particles on the right of the current
+                # frame; these particles skip one kick and drift
+                if len(self.indices_right_outside)>0:
+                    self.beam.dt[self.indices_right_outside] -= self.t_rev[self.counter[0]+1]
+                
+                # Syncronize the bunch with the particles that are on the right of
+                # the current frame applying kick and drift to the bunch; after that 
+                # all the particle are in the new updated frame
+                self.kick(self.insiders_dt, self.insiders_dE, self.counter[0])
+                self.drift(self.insiders_dt, self.insiders_dE, self.counter[0]+1)
+                self.beam.dt[self.indices_inside_frame] = self.insiders_dt
+                self.beam.dE[self.indices_inside_frame] = self.insiders_dE
+            else:
+                self.kick(self.beam.dt, self.beam.dE, self.counter[0])
+                self.drift(self.beam.dt, self.beam.dE, self.counter[0]+1)
+                # Check all the particles on the left of the just updated frame and 
+                # apply a second kick and drift to them with the previous wave after
+                # having changed reference.
+                self.indices_left_outside = np.where(self.beam.dt < 0)[0]
             if len(self.indices_left_outside)>0:
                 left_outsiders_dt = np.ascontiguousarray(self.beam.dt[self.indices_left_outside])
                 left_outsiders_dE = np.ascontiguousarray(self.beam.dE[self.indices_left_outside])
@@ -402,21 +386,15 @@ class RingAndRFSection(object):
                 self.drift(left_outsiders_dt, left_outsiders_dE, self.counter[0]+1)
                 self.beam.dt[self.indices_left_outside] = left_outsiders_dt
                 self.beam.dE[self.indices_left_outside] = left_outsiders_dE
-            
-            # Distinguish the particle inside the frame from the particles on the
-            # right of the frame.
-            self.indices_right_outside = np.where(self.beam.dt > self.t_rev[self.counter[0]+2])[0]
-            self.indices_inside_frame = np.where(self.beam.dt < self.t_rev[self.counter[0]+2])[0]
-            self.beam.insiders_dt = np.ascontiguousarray(self.beam.dt[self.indices_inside_frame])
-            self.insiders_dE = np.ascontiguousarray(self.beam.dE[self.indices_inside_frame])
-            
+                        
             # Orizzontal cut: this method really eliminates particles from the
             # code
             if self.dE_max!=None:
                 itemindex = np.where(self.beam.dE > -self.dE_max)[0]
-                self.beam.dt = np.ascontiguousarray(self.beam.dt[itemindex])
-                self.beam.dE = np.ascontiguousarray(self.beam.dE[itemindex])
-                self.beam.n_macroparticles = len(self.beam.dt)
+                if len(itemindex) < self.beam.n_macroparticles:
+                    self.beam.dt = np.ascontiguousarray(self.beam.dt[itemindex])
+                    self.beam.dE = np.ascontiguousarray(self.beam.dE[itemindex])
+                    self.beam.n_macroparticles = len(self.beam.dt)
                 
         else:
             
@@ -443,10 +421,11 @@ class RingAndRFSection(object):
             # Orizzontal cut: this method really eliminates particles from the
             # code
             if self.dE_max!=None:
-                itemindex = np.where((self.beam.dE > -self.dE_max)&(self.beam.dE < self.dE_max))[0]
-                self.beam.dt = np.ascontiguousarray(self.beam.dt[itemindex])
-                self.beam.dE = np.ascontiguousarray(self.beam.dE[itemindex])
-                self.beam.n_macroparticles = len(self.beam.dt)
+                itemindex = np.where(self.beam.dE > -self.dE_max)[0]
+                if len(itemindex) < self.beam.n_macroparticles:
+                    self.beam.dt = np.ascontiguousarray(self.beam.dt[itemindex])
+                    self.beam.dE = np.ascontiguousarray(self.beam.dE[itemindex])
+                    self.beam.n_macroparticles = len(self.beam.dt)
     
         # Increment by one the turn counter
         self.counter[0] += 1

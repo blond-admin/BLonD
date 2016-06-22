@@ -1,18 +1,15 @@
-# Compiled files #
-##################
 *.pyc
-*.dll
-*.so
 
-# Configuration files #
-#######################
-.project
-.pydevproject
+*.project
 
-# _doc/build folder #
-#######################
+*.pydevproject
+
+result.dll
+result.so
+
 /__doc/build/
+/__TEST_CASES/
+/PERSONAL_FOLDER/
 
-/__TEST_CASES/output_files
 
 

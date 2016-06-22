@@ -1,4 +1,4 @@
-Copyright 2015 CERN. This software is distributed under the
+Copyright 2016 CERN. This software is distributed under the
 terms of the GNU General Public Licence version 3 (GPL Version 3), 
 copied verbatim in the file LICENCE.md.
 In applying this licence, CERN does not waive the privileges and immunities 
@@ -23,10 +23,10 @@ LINKS
 =====
 
 Repository:
-	http://github.com/dquartul/BLonD.git
+	https://gitlab.cern.ch/dquartul/BLonD
 
 Documentation:
-	http://dquartul.github.io/BLonD/
+	http://blond-documentation.web.cern.ch/
 	
 Project website:
 	http://blond.web.cern.ch
@@ -54,8 +54,39 @@ STRUCTURE
    The compiler C/C++ GCC (at least version 4.8) is necessary.
 
 
-VERSION CONTENTS
+VERSION CONTENTS 
 ================
+2016-06-21
+v1.14.4 - PSB phase loop and rf noise fixed
+
+2016-06-09
+v1.14.3 - multi-turn wake revised 
+        - PSB phase noise for emittance blow up
+        - added support for OpenMP for the cpp functions
+        - minor bugs fixed
+
+2016-04-14
+v1.14.2 - bug in bigaussian function
+
+2016-04-14
+v1.14.1 - cleaning and small bug fixes
+
+2016-03-16
+v1.14.0 - fixed bug in periodicity
+        - small fixes in impedance module
+        - potential well when # max >2
+
+2016-03-10
+v1.13.3 - small fixes
+
+2016-02-29
+v1.13.2 - bug in periodicity routine fixed
+        - added end to end bunch length in bunch generation from matched
+          distribution density
+
+2016-02-25
+v1.13.1 - Important bux fixed for the below-transition case
+
 2016-02-19
 v1.13.0 - Minor updates and bug fixes
 

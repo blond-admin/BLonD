@@ -1,5 +1,5 @@
 
-# Copyright 2015 CERN. This software is distributed under the
+# Copyright 2016 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3), 
 # copied verbatim in the file LICENCE.md.
 # In applying this licence, CERN does not waive the privileges and immunities 
@@ -454,7 +454,7 @@ def separatrix(GeneralParameters, RFSectionParameters, dt, total_voltage = None)
     # if below transition and into the range [t_RF, t_RF+T_RF] if above transition.
     # T_RF = 2*pi/omega_RF, t_RF = - phi_RF/omega_RF
     if eta0 < 0:
-        dt = time_modulo(dt, (phi_RF[0] + np.pi)/omega_RF[0], 
+        dt = time_modulo(dt, (phi_RF[0] - np.pi)/omega_RF[0], 
                          2.*np.pi/omega_RF[0])
     elif eta0 > 0:
         dt = time_modulo(dt, phi_RF[0]/omega_RF[0], 2.*np.pi/omega_RF[0])
@@ -663,10 +663,12 @@ def potential_well_cut(theta_coord_array, potential_array):
             theta_coord_sep = theta_coord_array[saved_indexes]
             potential_well_sep = potential_array[saved_indexes]
     elif n_maxima > 2:
-#             raise RuntimeError('Work in progress, case to be included in the future...')
         left_max_theta = np.min(max_theta_positions)
         right_max_theta = np.max(max_theta_positions)
-        saved_indexes = (theta_coord_array > left_max_theta) * (theta_coord_array < right_max_theta)
+        left_max_value = max_potential_values[max_theta_positions==left_max_theta]
+        right_max_value = max_potential_values[max_theta_positions==right_max_theta]
+        separatrix_value = np.min([left_max_value, right_max_value])
+        saved_indexes = (theta_coord_array > left_max_theta) * (theta_coord_array < right_max_theta) * (potential_array < separatrix_value)
         theta_coord_sep = theta_coord_array[saved_indexes]
         potential_well_sep = potential_array[saved_indexes]
         

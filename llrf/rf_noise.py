@@ -15,6 +15,7 @@ amplitude as a function of bunch length**
 '''
 
 from __future__ import division
+from next_regular import next_regular
 import numpy as np
 import numpy.random as rnd
 
@@ -23,6 +24,7 @@ from plots.plot import *
 from plots.plot_llrf import *
 from input_parameters.rf_parameters import calc_phi_s
 cfwhm = np.sqrt(2./np.log(2.))
+import matplotlib.pyplot as plt
 
 
 
@@ -64,13 +66,13 @@ class PhaseNoise(object):
             Gt = np.cos(2*np.pi*r1) * np.sqrt(-2*np.log(r2))     
         elif transform=='c':  
             Gt = np.exp(2*np.pi*1j*r1)*np.sqrt(-2*np.log(r2)) 
-
+ 
         # FFT to frequency domain
         if transform==None or transform=='r':
             Gf = np.fft.rfft(Gt)  
         elif transform=='c':
             Gf = np.fft.fft(Gt)   
-                
+             
         # Multiply by desired noise probability density
         if transform==None or transform=='r':
             s = np.sqrt(2*self.fmax*self.ReS) # in [rad]
@@ -130,8 +132,7 @@ class LHCFlatSpectrum(object):
         self.fs = c/GeneralParameters.ring_circumference*np.sqrt( 
             RFSectionParameters.harmonic[0]*RFSectionParameters.voltage[0]
             *np.fabs(RFSectionParameters.eta_0*np.cos(phis))
-            /(2.*np.pi*RFSectionParameters.energy) ) # Hz
-                
+            /(2.*np.pi*RFSectionParameters.energy) ) # Hz 
         self.dphi = np.zeros(GeneralParameters.n_turns+1)
         
         self.n_turns = GeneralParameters.n_turns
@@ -157,7 +158,7 @@ class LHCFlatSpectrum(object):
             # To compensate the notch due to PL at central frequency
             if self.predistortion == 'exponential':
                 
-                spectrum = np.concatenate(( np.zeros(nmin), ampl*np.exp(
+                spectrum = np.concatenate((np.zeros(nmin), ampl*np.exp(
                     np.log(100.)*np.arange(0,nmax-nmin+1)/(nmax-nmin) ), 
                                            np.zeros(nf-nmax-1) ))
              
@@ -226,11 +227,14 @@ class LHCNoiseFB(object):
     and scales the phase noise to keep the targeted value.
     Activate the feedback either by passing it in RFSectionParameters or in
     the PhaseLoop object.
-    Update the noise amplitude scaling using track().*
+    Update the noise amplitude scaling using track().
+    Pass the bunch pattern (occupied bucket numbers from 0...h-1) in buckets 
+    for multi-bunch simulations; the feedback uses the average bunch length.*
     '''    
 
-    def __init__(self, RFSectionParameters, Slices, bl_target, gain = 1.5e-9, 
-                 factor = 0.8, update_frequency = 22500, variable_gain = False):
+    def __init__(self, RFSectionParameters, Slices, bl_target, gain = 0.1e9, 
+                 factor = 0.93, update_frequency = 22500, variable_gain = True,
+                 bunch_pattern = None):
 
         #: | *Import RFSectionParameters*
         self.rf_params = RFSectionParameters
@@ -263,6 +267,19 @@ class LHCNoiseFB(object):
         else:
             self.g = gain*np.ones(self.rf_params.n_turns + 1)            
 
+        #: | *Bunch pattern for multi-bunch simulations*
+        self.bunch_pattern = bunch_pattern
+        
+        #: | *Function dictionary to calculate FWHM bunch length*
+        fwhm_functions = {'single': self.fwhm_single_bunch,
+                          'multi': self.fwhm_multi_bunch}
+        if self.bunch_pattern == None:
+            self.fwhm = fwhm_functions['single']
+            self.bl_meas_bbb = None
+        else: 
+            self.bunch_pattern = np.ascontiguousarray(self.bunch_pattern)
+            self.bl_meas_bbb = np.zeros(len(self.bunch_pattern))
+            self.fwhm = fwhm_functions['multi']
         
 
     def track(self):
@@ -275,7 +292,7 @@ class LHCNoiseFB(object):
         if (self.rf_params.counter[0] % self.n_update) == 0:
             
             # Update bunch length, every x turns determined in main file
-            self.bl_meas = fwhm(self.slices)
+            self.fwhm()
         
             # Update noise amplitude-scaling factor
             self.x = self.a*self.x + self.g[self.rf_params.counter[0]]* \
@@ -288,15 +305,122 @@ class LHCNoiseFB(object):
                 self.x = 1           
                    
 
-
-def fwhm(Slices): 
-    '''
-    *Fast FWHM bunch length calculation with slice width precision.*
-    '''    
+    def fwhm_interpolation(self, index, half_height):
     
-    height = np.max(Slices.n_macroparticles)
-    index = np.where(Slices.n_macroparticles > height/2.)[0]
-    return cfwhm*(Slices.bin_centers[index[-1]] - Slices.bin_centers[index[0]])
+        time_resolution = self.slices.bin_centers[1]-self.slices.bin_centers[0]
+        
+        left = self.slices.bin_centers[index[0]] - (self.slices.n_macroparticles[index[0]] -
+               half_height)/(self.slices.n_macroparticles[index[0]] -
+               self.slices.n_macroparticles[index[0]-1])*time_resolution
+               
+        right = self.slices.bin_centers[index[-1]] + (self.slices.n_macroparticles[index[-1]]
+                - half_height)/(self.slices.n_macroparticles[index[-1]] -
+                self.slices.n_macroparticles[index[-1]+1])*time_resolution
+
+        return cfwhm*(right - left)
+        
+    
+    def fwhm_single_bunch(self): 
+        '''
+        *Single-bunch FWHM bunch length calculation with interpolation.*
+        '''    
+        
+        half_height = np.max(self.slices.n_macroparticles)/2.
+        index = np.where(self.slices.n_macroparticles > half_height)[0]   
+    
+        self.bl_meas = self.fwhm_interpolation(index, half_height)
+
+    
+    def fwhm_multi_bunch(self):
+        '''
+        *Multi-bunch FWHM bunch length calculation with interpolation.*
+        '''    
+
+        # Find correct RF buckets
+        phi_RF = self.rf_params.phi_RF[0,self.rf_params.counter[0]]
+        omega_RF = self.rf_params.omega_RF[0,self.rf_params.counter[0]]
+        bucket_min = (phi_RF + 2.*np.pi*self.bunch_pattern)/omega_RF
+        bucket_max = bucket_min + 2.*np.pi/omega_RF
+
+        # Bunch-by-bunch FWHM bunch length
+        for i in range(len(self.bunch_pattern)):
+            
+            bind = np.where((self.slices.bin_centers - bucket_min[i])*
+                            (self.slices.bin_centers - bucket_max[i]) < 0)[0]
+            hheight = np.max(self.slices.n_macroparticles[bind])/2.
+            index = np.where(self.slices.n_macroparticles[bind] > hheight)[0]
+            self.bl_meas_bbb[i] = self.fwhm_interpolation(bind[index], hheight)
+            
+        # Average FWHM bunch length            
+        self.bl_meas = np.mean(self.bl_meas_bbb)
 
 
+class PSB_phase_noise_injection(object): 
+    
+    def __init__(self, GeneralParameters, RFSectionParameters, delta_f = 1, 
+                 corr_time = 10000, fmin = 0.8571, fmax = 1.1, 
+                 initial_amplitude = 1.e-6, seed1 = 1234, seed2 = 7564, 
+                 predistortion = None, rescale_amplitude = 'with_sync_freq'):
+        
+        self.f_rev = GeneralParameters.f_rev  
+        self.delta_f = delta_f           
+        self.corr = corr_time           
+        self.fmin = fmin                
+        self.fmax = fmax                
+        self.initial_amplitude = initial_amplitude    
+        self.seed1 = seed1
+        self.seed2 = seed2
+        self.predistortion = predistortion
+        self.rescale_amplitude = rescale_amplitude
+        self.f_s0 = RFSectionParameters.omega_s0 / (2*np.pi)
+        self.n_turns = GeneralParameters.n_turns
+        self.dphi = np.zeros(self.n_turns+1)
+        
+    
+    def generate(self):
+        
+        for i in xrange(0, int(self.n_turns/self.corr)+1):
+            
+            k = i*self.corr
+            f_max = self.f_rev[k]/2
+            f_s0 = self.f_s0[k]
+            
+            n_points_pos_f_incl_zero = int(f_max/self.delta_f)+2
+            nt = 2*(n_points_pos_f_incl_zero - 1)
+            nt_regular = next_regular(nt)
+            n_points_pos_f_incl_zero = nt_regular/2 + 1  
+            freq = np.linspace(0, f_max, n_points_pos_f_incl_zero)
+            new_delta_f = f_max/(n_points_pos_f_incl_zero-1) 
+            
+            nmin = np.floor(self.fmin*f_s0/new_delta_f)  
+            nmax = np.ceil(self.fmax*f_s0/new_delta_f)
+            
+            if self.rescale_amplitude == 'with_sync_freq':
+                ampl = self.initial_amplitude*self.f_s0[0]/f_s0
+            elif self.rescale_amplitude == 'no_scaling':
+                ampl = self.initial_amplitude
+            
+            if self.predistortion == 'linear':
+                
+                spectrum = np.concatenate((np.zeros(nmin), 
+                    np.linspace(0, ampl, nmax-nmin+1), np.zeros(n_points_pos_f_incl_zero-nmax-1)))   
+                
+            else:
+                
+                spectrum = np.concatenate((np.zeros(nmin), 
+                    ampl*np.ones(nmax-nmin+1), np.zeros(n_points_pos_f_incl_zero-nmax-1)))               
 
+            noise = PhaseNoise(freq, spectrum, self.seed1, self.seed2)
+            noise.spectrum_to_phase_noise()
+        
+            self.seed1 +=239
+            self.seed2 +=158
+            
+            if i < int(self.n_turns/self.corr):
+                self.dphi[(i*self.corr):((i+1)*self.corr)] = noise.dphi[:self.corr]
+            else:
+                self.dphi[int(self.n_turns/self.corr)*self.corr:] = noise.dphi[:(self.n_turns-int(self.n_turns/self.corr)*self.corr+1)]
+            
+            rms_noise = np.std(noise.dphi)
+            print "RF noise for time step %.4e s (iter %d) has r.m.s. phase %.4e rad (%.3e deg)" \
+                %(noise.t[1], i, rms_noise, rms_noise*180/np.pi)

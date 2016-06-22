@@ -1,5 +1,5 @@
 /*
-Copyright 2015 CERN. This software is distributed under the
+Copyright 2016 CERN. This software is distributed under the
 terms of the GNU General Public Licence version 3 (GPL Version 3), 
 copied verbatim in the file LICENCE.md.
 In applying this licence, CERN does not waive the privileges and immunities 
@@ -32,8 +32,8 @@ double T = T0*length_ratio;
 if ( strcmp (solver,"simple") == 0 )
 	{
 		double coeff = eta_zero/(beta*beta*energy);
-
-		for (i = 0; i < n_macroparticles; i++)
+        #pragma omp parallel for
+		for (int i = 0; i < n_macroparticles; i++)
 			beam_dt[i] += T*coeff*beam_dE[i];
 	}
 

@@ -1,5 +1,5 @@
 
-# Copyright 2015 CERN. This software is distributed under the
+# Copyright 2016 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3), 
 # copied verbatim in the file LICENCE.md.
 # In applying this licence, CERN does not waive the privileges and immunities 
@@ -28,12 +28,14 @@ def matched_from_line_density(Beam, FullRingAndRF, line_density_options,
                               main_harmonic_option = 'lowest_freq', 
                               TotalInducedVoltage = None,
                               plot = None, figdir='fig', half_option = 'first',
-                              extraVoltageDict = None, n_iterations_input = 100):
+                              extraVoltageDict = None, n_iterations_input = 100, seed = None):
     '''
     *Function to generate a beam by inputing the line density. The distribution
     density is then reconstructed with the Abel transform and the particles
     randomly generated.*
     '''
+    
+    np.random.seed(seed)
     
     if not line_density_options.has_key('exponent'):  
         line_density_options['exponent'] = None
@@ -42,7 +44,7 @@ def matched_from_line_density(Beam, FullRingAndRF, line_density_options,
     slippage_factor = FullRingAndRF.RingAndRFSection_list[0].eta_0[0]
     
     eom_factor_dE = abs(slippage_factor) / (2*Beam.beta**2. * Beam.energy)
-    eom_factor_potential = np.sign(slippage_factor) * np.abs(Beam.charge) / (FullRingAndRF.RingAndRFSection_list[0].t_rev[0])
+    eom_factor_potential = np.sign(slippage_factor) * Beam.charge / (FullRingAndRF.RingAndRFSection_list[0].t_rev[0])
      
     # Generate potential well
     n_points_potential = int(1e4)
@@ -351,10 +353,10 @@ def matched_from_distribution_density(Beam, FullRingAndRF, distribution_options,
         distribution_density_function = _distribution_density_function
     
     # Initialize variables depending on the accelerator parameters
-    slippage_factor = abs(FullRingAndRF.RingAndRFSection_list[0].eta_0[0])
+    slippage_factor = FullRingAndRF.RingAndRFSection_list[0].eta_0[0]
     
     eom_factor_dE = abs(slippage_factor) / (2*Beam.beta**2. * Beam.energy)
-    eom_factor_potential = np.sign(slippage_factor) * np.abs(Beam.charge) / (FullRingAndRF.RingAndRFSection_list[0].t_rev[0])
+    eom_factor_potential = np.sign(slippage_factor) * Beam.charge / (FullRingAndRF.RingAndRFSection_list[0].t_rev[0])
 
     # Generate potential well
     n_points_potential = int(1e4)
@@ -498,7 +500,10 @@ def matched_from_distribution_density(Beam, FullRingAndRF, distribution_options,
                         elif distribution_options['bunch_length_fit'] is 'fwhm': 
                             slices.fwhm()
                             tau = slices.bl_fwhm
-                            
+                        elif distribution_options['bunch_length_fit'] is 'end_to_end': 
+                            bunchIndices = np.where(slices.n_macroparticles>0)[0]
+                            tau = slices.bin_centers[bunchIndices][-1]-slices.bin_centers[bunchIndices][0]
+                                
                 
                 # Update of the interval for the next iteration
                 if tau >= distribution_options['bunch_length']:
@@ -662,6 +667,7 @@ def longitudinal_bigaussian(GeneralParameters, RFSectionParameters, beam,
     omega_RF = RFSectionParameters.omega_RF[0,counter] 
     phi_s = RFSectionParameters.phi_s[counter]
     phi_RF = RFSectionParameters.phi_RF[0,counter]
+    eta0 = RFSectionParameters.eta_0[counter]
     
     if sigma_dE == None:
         voltage = RFSectionParameters.charge* \
@@ -678,8 +684,13 @@ def longitudinal_bigaussian(GeneralParameters, RFSectionParameters, beam,
     beam.sigma_dE = sigma_dE
     
     np.random.seed(seed)
-    beam.dt = sigma_dt*np.random.randn(beam.n_macroparticles) + \
+    
+    if eta0>0:
+        beam.dt = sigma_dt*np.random.randn(beam.n_macroparticles) + \
               (phi_s - phi_RF)/omega_RF
+    else:
+        beam.dt = sigma_dt*np.random.randn(beam.n_macroparticles) + \
+                  (phi_s - phi_RF - np.pi)/omega_RF
     beam.dE = sigma_dE*np.random.randn(beam.n_macroparticles)
     
     if reinsertion is 'on':

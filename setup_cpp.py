@@ -1,5 +1,5 @@
 
-# Copyright 2015 CERN. This software is distributed under the
+# Copyright 2016 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3), 
 # copied verbatim in the file LICENCE.md.
 # In applying this licence, CERN does not waive the privileges and immunities 
@@ -23,16 +23,21 @@ import sys
 import subprocess
 import ctypes
 
-# CHOOSE THE FLAG THAT YOU WANT
+# If True you can launch with 'OMP_NUM_THREADS=xx python MAIN_FILE.py' 
+# where xx is the number of threads that you want to launch
+parallel = False
+
+
 # EXAMPLE FLAGS: -Ofast -std=c++11 -fopt-info-vec
-#                -mfma4 -fopenmp
-flags = '-Ofast -std=c++11 -fopt-info-vec' #-ftree-vectorizer-verbose=1' #-fopt-info-vec'
+#                -mfma4 -fopenmp -ftree-vectorizer-verbose=1
+if parallel == False:
+    flags = '-Ofast -std=c++11'
+    list_cpp_files = 'cpp_routines/mean_std_whereint.cpp cpp_routines/histogram.cpp cpp_routines/kick.cpp cpp_routines/drift.cpp cpp_routines/linear_interp_kick.cpp toolbox/tomoscope.cpp'
+elif parallel == True:
+    flags = '-Ofast -std=c++11 -fopenmp'
+    list_cpp_files = 'cpp_routines/mean_std_whereint.cpp cpp_routines/histogram_par.cpp cpp_routines/kick.cpp cpp_routines/drift.cpp cpp_routines/linear_interp_kick.cpp toolbox/tomoscope.cpp'
 
 
-# CHOOSE THE cpp FILES THAT YOU WANT TO COMPILE
-list_cpp_files = 'cpp_routines/histogram.cpp cpp_routines/kick.cpp cpp_routines/drift.cpp cpp_routines/linear_interp_kick.cpp toolbox/tomoscope.cpp'
-
-# DON'T TOUCH THE CODE FROM HERE TILL THE END OF THIS SCRIPT!
 if __name__ == "__main__":
     
     if "lin" in sys.platform:

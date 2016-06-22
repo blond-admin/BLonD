@@ -1,5 +1,5 @@
 
-# Copyright 2015 CERN. This software is distributed under the
+# Copyright 2016 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3), 
 # copied verbatim in the file LICENCE.md.
 # In applying this licence, CERN does not waive the privileges and immunities 
@@ -150,7 +150,7 @@ class GeneralParameters(object):
             self.t_rev = np.append(np.diff(self.cycle_time),self.ring_circumference/(self.beta[0][-1]*c))
         else:    
             self.t_rev = np.dot(self.ring_length, 1/(self.beta*c))
-            self.cycle_time = np.insert(np.cumsum(self.t_rev),0,0)
+            self.cycle_time = np.cumsum(self.t_rev)
             
         #: *Revolution frequency [Hz]* :math:`: \quad f_0 = \frac{1}{T_0}`
         self.f_rev = 1/self.t_rev

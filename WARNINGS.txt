@@ -14,5 +14,6 @@ WARNINGS FOR THE USER
 		beam.dE = numpy.ascontiguousarray(beam.dE)
 		
 2)  You have to launch the setup_cpp.py file; change the options inside if 
-    necessary. 
+    necessary: now there is also an option for the parallel versions of certain 
+    core routines
     

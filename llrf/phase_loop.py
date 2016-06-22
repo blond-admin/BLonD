@@ -1,5 +1,5 @@
 
-# Copyright 2015 CERN. This software is distributed under the
+# Copyright 2016 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3), 
 # copied verbatim in the file LICENCE.md.
 # In applying this licence, CERN does not waive the privileges and immunities 
@@ -114,6 +114,8 @@ class PhaseLoop(object):
         # PSB CONFIGURATION        
         elif self.machine == 'PSB':
             
+            self.gain = self.gain * np.ones(GeneralParameters.n_turns+1)
+            
             #: | *Radial loop gain, proportional [1] and integral [1/s].*
             if not self.config.has_key('RL_gain'):  
                 self.gain2 = [0., 0.]
@@ -121,21 +123,16 @@ class PhaseLoop(object):
                 self.gain2 = self.config['RL_gain'] 
                         
             #: | *Optional: PL & RL acting only in certain time intervals/turns.*
-            self.dt = np.zeros(2)
+            self.dt = 0
             #| *Phase Loop sampling period [s]*
-            if not self.config.has_key('PL_period'):  
-                self.dt[0] = 10.e-6 # [s]
+            if not self.config.has_key('period'):  
+                self.dt = 10.e-6 # [s]
             else: 
-                self.dt[0] = self.config['PL_period'] 
-            #| *Radial Loop sampling period [multiples of PL period]*
-            if not self.config.has_key('RL_period'):  
-                self.dt[1] = 7 # [1]
-            else: 
-                self.dt[1] = self.config['RL_period'] 
-                
+                self.dt = self.config['period'] 
+            
             # Counter of turns passed since last time the PL was active
             self.PL_counter = 1
-            self.on_time = np.array([0])
+            self.on_time = np.array([])
             
             self.precalculate_time(GeneralParameters)
         
@@ -146,14 +143,12 @@ class PhaseLoop(object):
                 self.coefficients = self.config['coefficients']
                 
             #: | *Memory of previous phase correction, for phase loop.*        
+            self.dphi_sum = 0.
             self.dphi_av = 0.
             self.dphi_av_prev = 0.
 
             #: | *Memory of previous relative radial correction, for rad loop.*        
-            self.drho_prev = 0.
-            
-            #: | *Accumulated time for radial loop*
-            self.t_accum = 0.
+            self.dR_over_R_prev = 0.
             
             #: | *Phase loop frequency correction [1/s]*
             self.domega_PL = 0.
@@ -161,8 +156,7 @@ class PhaseLoop(object):
             #: | *Radial loop frequency correction [1/s]*
             self.domega_RL = 0.
             
-            self.domega_RF = 0.
-        
+            self.dR_over_R = 0
 
         #: | *Relative radial displacement [1], for radial loop.*        
         self.drho = 0.
@@ -203,14 +197,14 @@ class PhaseLoop(object):
         counter = self.rf_params.counter[0] + 1
         self.rf_params.omega_RF[:,counter] += self.domega_RF* \
             self.rf_params.harmonic[:,counter]/self.rf_params.harmonic[0,counter]  
-                      
+
         # Update the RF phase of all systems for the next turn
         # Accumulated phase offset due to PL in each RF system
         self.rf_params.dphi_RF += 2.*np.pi*self.rf_params.harmonic[:,counter]* \
             (self.rf_params.omega_RF[:,counter] - 
              self.rf_params.omega_RF_d[:,counter])/ \
              self.rf_params.omega_RF_d[:,counter] 
-               
+
         # Total phase offset
         self.rf_params.phi_RF[:,counter] += self.rf_params.dphi_RF
     
@@ -225,7 +219,7 @@ class PhaseLoop(object):
         
         while n < GeneralParameters.t_rev.size: 
             summa = 0
-            while summa < self.dt[0]:
+            while summa < self.dt:
                 try:
                     summa += GeneralParameters.t_rev[n]
                     n += 1
@@ -257,16 +251,8 @@ class PhaseLoop(object):
                            *np.cos(omega_RF*self.slices.bin_centers + phi_RF) \
                            *self.slices.n_macroparticles, self.slices.bin_centers )
         
-        # Project beam phase to (-pi/2,3pi/2) range
-#         if np.fabs(ccoeff) > 1.e-20: 
-#             self.phi_beam = np.arctan(scoeff/ccoeff)
-#             if ccoeff < 0:
-#                 self.phi_beam += np.pi
-#         else:
-#             self.phi_beam = np.pi/2.
-
+        # Project beam phase to (pi/2,3pi/2) range
         self.phi_beam = np.arctan(scoeff/ccoeff) + np.pi
-
 
     def phase_difference(self):               
         '''
@@ -277,6 +263,7 @@ class PhaseLoop(object):
         # Correct for design stable phase
         counter = self.rf_params.counter[0]
         self.dphi = self.phi_beam - self.rf_params.phi_s[counter]
+
         # Possibility to add RF phase noise through the PL
         if self.RFnoise != None:
             if self.noiseFB != None:
@@ -293,9 +280,14 @@ class PhaseLoop(object):
         counter = self.rf_params.counter[0]
         
         # Correct for design orbit
-        self.average_dE = np.mean(self.slices.Beam.dE[(self.slices.Beam.dt>self.slices.bin_centers[0])*(self.slices.Beam.dt<self.slices.bin_centers[-1])])
+        self.average_dE = np.mean(self.slices.Beam.dE[(self.slices.Beam.dt >
+            self.slices.bin_centers[0])*(self.slices.Beam.dt <
+                                         self.slices.bin_centers[-1])])
         
-        self.drho = self.general_params.alpha[0,0] * self.general_params.ring_radius * self.average_dE / (self.general_params.beta[0,counter]**2.*self.general_params.energy[0,counter])
+        self.drho = self.general_params.alpha[0,0]* \
+            self.general_params.ring_radius*self.average_dE/ \
+            (self.general_params.beta[0,counter]**2.* \
+             self.general_params.energy[0,counter])
     
     
     def radial_steering_from_freq(self):               
@@ -305,11 +297,13 @@ class PhaseLoop(object):
         
         counter = self.rf_params.counter[0]
         
-#         self.radial_steering_domega_RF = self.rf_params.omega_RF_d[0,counter] * (np.sqrt(1/self.general_params.alpha[0,0])**2./self.general_params.gamma[0,counter]**2.-1.) * self.reference / self.general_params.ring_radius
-        self.radial_steering_domega_RF = - self.rf_params.omega_RF_d[0,counter] * self.rf_params.eta_0[counter] / self.general_params.alpha[0,0] * self.reference / self.general_params.ring_radius
+        self.radial_steering_domega_RF = - self.rf_params.omega_RF_d[0,counter]* \
+            self.rf_params.eta_0[counter]/self.general_params.alpha[0,0]* \
+            self.reference/self.general_params.ring_radius
         
-        self.rf_params.omega_RF[:,counter] += self.radial_steering_domega_RF * \
-                                self.rf_params.harmonic[:,counter]/self.rf_params.harmonic[0,counter]  
+        self.rf_params.omega_RF[:,counter] += self.radial_steering_domega_RF* \
+                                self.rf_params.harmonic[:,counter]/ \
+                                self.rf_params.harmonic[0,counter]  
 
         # Update the RF phase of all systems for the next turn
         # Accumulated phase offset due to PL in each RF system
@@ -320,31 +314,7 @@ class PhaseLoop(object):
                
         # Total phase offset
         self.rf_params.phi_RF[:,counter] += self.rf_params.dphi_RF_steering
-        
-    
-#     def radial_steering_from_B(self):               
-#         '''
-#         *Frequency and phase change for the current turn due to the radial steering program.*
-#         '''    
-#         
-#         counter = self.rf_params.counter[0]
-#         
-#         self.radial_steering_domega_RF = self.rf_params.omega_RF_d[0,counter] * (np.sqrt(1/self.general_params.alpha[0,0])**2./self.general_params.gamma[0,counter]**2.-1.) * self.reference / self.general_params.ring_radius
-#         
-#         self.rf_params.omega_RF[:,counter] += self.radial_steering_domega_RF * \
-#                                 self.rf_params.harmonic[:,counter]/self.rf_params.harmonic[0,counter]  
-# 
-#         # Update the RF phase of all systems for the next turn
-#         # Accumulated phase offset due to PL in each RF system
-#         self.rf_params.dphi_RF_steering += 2.*np.pi*self.rf_params.harmonic[:,counter]* \
-#             (self.rf_params.omega_RF[:,counter] - 
-#              self.rf_params.omega_RF_d[:,counter])/ \
-#              self.rf_params.omega_RF_d[:,counter] 
-#                
-#         # Total phase offset
-#         self.rf_params.phi_RF[:,counter] += self.rf_params.dphi_RF_steering
-        
-        
+                
 
     def LHC_F(self):
         '''
@@ -400,7 +370,8 @@ class PhaseLoop(object):
         
         # Frequency correction from phase loop and radial loop
         self.domega_dphi = - self.gain * self.dphi
-        self.domega_dR = - np.sign(self.rf_params.eta_0[counter]) * self.gain2 * (self.reference - self.drho) / self.general_params.ring_radius
+        self.domega_dR = - np.sign(self.rf_params.eta_0[counter])*self.gain2* \
+            (self.reference - self.drho) / self.general_params.ring_radius
         
         self.domega_RF = self.domega_dphi + self.domega_dR
 
@@ -470,42 +441,34 @@ class PhaseLoop(object):
         
         self.beam_phase()
         self.phase_difference()        
-        self.dphi_av += self.dphi
-        self.t_accum += self.general_params.t_rev[counter]
-        
-        # Phase loop active on certain turns
+        self.dphi_sum += self.dphi
+
+        # Phase and radial loop active on certain turns
         if counter == self.on_time[self.PL_counter] and counter>self.delay:
-            self.dphi_av /= (self.on_time[self.PL_counter] 
+            
+            #Phase loop
+            self.dphi_av = self.dphi_sum / (self.on_time[self.PL_counter] 
                              - self.on_time[self.PL_counter-1])
             
             self.domega_PL = 0.998*self.domega_PL \
-                - self.gain[counter]*(self.dphi_av - self.dphi_av_prev + self.reference)
+                - self.gain[counter]*(self.dphi_av - self.dphi_av_prev)
                     
-            # Update averaging variables
             self.dphi_av_prev = self.dphi_av
-            self.dphi_av = 0.
+            self.dphi_sum = 0.
+            
+            #Radial loop    
+            self.dR_over_R = (self.rf_params.omega_RF[0,counter] - 
+                         self.rf_params.omega_RF_d[0,counter])/(
+                         self.rf_params.omega_RF_d[0,counter] * 
+                         (1./(self.general_params.alpha[0]*
+                              self.rf_params.gamma[counter]**2) - 1.))
+                         
+            self.domega_RL = self.domega_RL - self.gain2[0]*(self.dR_over_R - 
+                self.dR_over_R_prev) - self.gain2[1]*self.dR_over_R
+            
+            self.dR_over_R_prev = self.dR_over_R
                 
-            # Add correction from radial loop
-            if (self.PL_counter % self.dt[1]) == 0:
-                
-                self.drho = (self.rf_params.omega_RF[0,counter] - 
-                             self.rf_params.omega_RF_d[0,counter])/(
-                             self.rf_params.omega_RF_d[0,counter] * 
-                             (1./(self.general_params.alpha[0]*
-                                  self.rf_params.gamma[counter]**2) - 1.)) + \
-                             self.reference
-                             
-                self.domega_RL = self.domega_RL - self.gain2[0]*(self.drho - 
-                    self.drho_prev) - self.gain2[1]*self.drho*self.t_accum
-                    
-#                 print "Correction 1 %.4e" %(self.gain2[0]*(self.drho - 
-#                     self.drho_prev))
-#                 print "Correction 2 %.4e" %(self.gain2[1]*self.drho*self.t_accum)
-                    
-                self.drho_prev = self.drho
-                self.t_accum = 0.
-                
-            # Counter to pick the next time step when the PL will be active
+            # Counter to pick the next time step when the PL & RL will be active
             self.PL_counter += 1 
 
         # Apply frequency correction

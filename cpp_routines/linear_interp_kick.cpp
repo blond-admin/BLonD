@@ -1,5 +1,5 @@
 /*
-Copyright 2015 CERN. This software is distributed under the
+Copyright 2016 CERN. This software is distributed under the
 terms of the GNU General Public Licence version 3 (GPL Version 3), 
 copied verbatim in the file LICENCE.md.
 In applying this licence, CERN does not waive the privileges and immunities 
@@ -18,26 +18,23 @@ extern "C" void linear_interp_kick(
 		double * __restrict__ voltage_array,
 		double * __restrict__ bin_centers,
         const int n_slices,
-		const int n_macroparticles,
-		const double acc_kick){
+		const int n_macroparticles){
 
-	double a;
-	int i;
-	double fbin;
-	int ffbin;
-	double voltageKick;
-	double inv_bin_width = (n_slices-1) / (bin_centers[n_slices-1] - bin_centers[0]);
-
-    for (i = 0; i < n_macroparticles; i++) {
+	
+	const double inv_bin_width = (n_slices-1) / (bin_centers[n_slices-1] - bin_centers[0]);
+    
+    #pragma omp parallel for
+    for (int i = 0; i < n_macroparticles; i++) {
+        double a;
+        double voltageKick;
+        int ffbin; 
     	a = beam_dt[i];
-    	fbin = (a - bin_centers[0]) * inv_bin_width;
-    	ffbin = (int)(fbin);
-    	voltageKick;
+    	ffbin = (int)((a - bin_centers[0]) * inv_bin_width);
     	if ((a < bin_centers[0])||(a > bin_centers[n_slices-1]))
     		voltageKick = 0.;
     	else
     		voltageKick = voltage_array[ffbin] + (a - bin_centers[ffbin]) * (voltage_array[ffbin+1]-voltage_array[ffbin]) * inv_bin_width;
-    	beam_dE[i] = beam_dE[i] + voltageKick + acc_kick;
+    	beam_dE[i] = beam_dE[i] + voltageKick;
     }
 
 }

@@ -1,5 +1,5 @@
 
-# Copyright 2015 CERN. This software is distributed under the
+# Copyright 2016 CERN. This software is distributed under the
 # terms of the GNU General Public License version 3 (GPL Version 3), 
 # copied verbatim in the file LICENSE.md.
 # In applying this license, CERN does not waive the privileges and immunities 
