@@ -25,7 +25,7 @@ import ctypes
 
 # If True you can launch with 'OMP_NUM_THREADS=xx python MAIN_FILE.py' 
 # where xx is the number of threads that you want to launch
-parallel = False
+parallel = True
 
 
 # EXAMPLE FLAGS: -Ofast -std=c++11 -fopt-info-vec

@@ -427,13 +427,7 @@ class PhaseLoop(object):
 
     def PSB(self):
         '''
-        Calculation of the PSB RF frequency correction from the phase difference
-        between beam and RF (actual synchronous phase). The transfer function is
-        
-        .. math::
-            \\Delta \\omega_{RF} = g(t) \\frac{a_0 \\Delta\\Phi_{PL}^2 + a_1 \\Delta\\Phi_{PL} + a_2 }{b_0 \\Delta\\Phi_{PL}^2 + b_1 \\Delta\\Phi_{PL} + b_2} 
-            
-        Input g through gain and [a_0, a_1, a_2, b_0, b_1, b_2] through coefficients.       
+        Phase and radial loops for PSB. See documentation on-line for details.
         '''
 
         # Average phase error while frequency is updated
@@ -450,8 +444,8 @@ class PhaseLoop(object):
             self.dphi_av = self.dphi_sum / (self.on_time[self.PL_counter] 
                              - self.on_time[self.PL_counter-1])
             
-            self.domega_PL = 0.998*self.domega_PL \
-                - self.gain[counter]*(self.dphi_av - self.dphi_av_prev)
+            self.domega_PL = 0.99803799*self.domega_PL \
+                - self.gain[counter]*(0.99901903*self.dphi_av - 0.99901003*self.dphi_av_prev)
                     
             self.dphi_av_prev = self.dphi_av
             self.dphi_sum = 0.

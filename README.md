@@ -4,7 +4,6 @@ copied verbatim in the file LICENCE.md.
 In applying this licence, CERN does not waive the privileges and immunities 
 granted to it by virtue of its status as an Intergovernmental Organization or
 submit itself to any jurisdiction.
-Project website: http://blond.web.cern.ch/
 
 CODE NAME
 =========
@@ -16,29 +15,37 @@ DESCRIPTION
 ===========
 
 CERN code for the simulation of 
-longitudinal beam dynamics with collective effects.
+longitudinal beam dynamics in synchrotrons.
 
 
 LINKS
 =====
 
 Repository:
-	https://gitlab.cern.ch/dquartul/BLonD
+	https://github.com/dquartul/BLonD
 
 Documentation:
-	http://blond-documentation.web.cern.ch/
-	
+	http://dquartul.github.io/BLonD/
+
 Project website:
 	http://blond.web.cern.ch
 
 
-DEVELOPERS
-==========
+CURRENT DEVELOPERS
+==================
 
+Simon Albright (simon.albright (at) cern.ch)
+Konstantinos Iliakis (konstantinos.iliakis (at) cern.ch)
 Alexandre Lasheen (alexandre.lasheen (at) cern.ch)
 Juan Esteban Muller (juan.fem (at) cern.ch)
 Danilo Quartullo (danilo.quartullo (at) cern.ch)
+Joel Repond (joel.repond (at) cern.ch)
 Helga Timko (Helga.Timko (at) cern.ch)
+
+PREVIOUS DEVELOPERS
+===================
+
+Theodoros Argyropoulos
 
 
 STRUCTURE
@@ -46,16 +53,21 @@ STRUCTURE
 
 1) the folder __TEST_CASES contains several main files which
    show how to use the principal features of the code; 
-2) the __doc folder contains the source files for the documentation; 
+2) the __doc folder contains the source files for the documentation on-line; 
 3) the various packages which constitute the code;
-4) the setup_cpp and setup_cython files needed to compile the C++ and Cython
-   files present in the corresponding packages respectively; these files 
-   should be run once before launching any simulation. 
-   The compiler C/C++ GCC (at least version 4.8) is necessary.
+4) setup_cpp.py is needed to compile all the C++ files present in the project; 
+   this file should be run once before launching any simulation. 
+   The compiler C++ GCC (at least version 4.8) is necessary.
+5) WARNINGS.txt contains useful information related to code usage.
 
 
 VERSION CONTENTS 
 ================
+2016-06-23
+v1.14.5 - RF modulation file added in llrf folder
+        - documentation on-line for PSB phase loop added
+        - setup_cython.py removed because not used
+
 2016-06-21
 v1.14.4 - PSB phase loop and rf noise fixed
 
