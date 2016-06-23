@@ -500,18 +500,48 @@ corresponding synchrotron tune <img class="math" src="_images/math/c4a58ebde93c9
 <dl class="method">
 <dt>
 <tt class="descname">PSB():</tt></dt>
-<dd><p>Calculates the RF frequency correction <img class="math" src="_images/math/92a14343ac129896315b0e7aa0369938eacbfc2c.png" alt="\Delta \omega_{\mathsf{PL}}"/>
-from the phase difference between beam and RF
-<img class="math" src="_images/math/cc21be8aa0960261e0e16bd615f0ece71075535c.png" alt="\Delta \varphi_{\mathsf{PL}}"/> for the PSB. The transfer function is</p>
+<dd><p>Phase loop:</p>
+<p>The transfer function of the system is</p>
 <div class="math">
-<p><img src="_images/math/3dc4964e86b7cc38f1f0b76fe896b9fff0a1434f.png" alt="\Delta \omega_{\mathsf{PL}} = 2 \pi g
-\frac{a_0 \Delta \varphi_{\mathsf{PL}}^2
-+ a_1 \Delta \varphi_{\mathsf{PL}} + a_2 }
-{\Delta \varphi_{\mathsf{PL}}^2
-- b_1 \Delta \varphi_{\mathsf{PL}} - b_2} ."/></p>
-</div><p>Input <img class="math" src="_images/math/67f4714f065d485540ad40829e0717bf75e9dd85.png" alt="g"/> through <tt class="docutils literal"><span class="pre">gain</span></tt> and the array
-<img class="math" src="_images/math/87a221bd2faa2daf6e90e9dc86abcfc1c3cb113d.png" alt="[a_0, a_1, a_2, b_1, b_2]"/> through <tt class="docutils literal"><span class="pre">coefficients</span></tt>.</p>
-</dd></dl>
+<p><img src="_images/math/64ffb40e423b99d82656f1cdd7be29b489df92bc.png" alt="H(z) = g \frac{b_{0}+b_{1} z^{-1}}{1 +a_{1} z^{-1}}"/></p>
+</div><p>where g is the gain and <img class="math" src="_images/math/4fa30cf42ceae491381a593df676568b4f706407.png" alt="b_{0} = 0.99901903"/>, <img class="math" src="_images/math/36a35222c60d2a8687bae2742e554d362e177135.png" alt="b_{1} = -0.99901003"/>,
+<img class="math" src="_images/math/918e5670b7b8266b3f75223c606432303a0247aa.png" alt="a_{1} = -0.99803799"/>.</p>
+<p>Let <img class="math" src="_images/math/4a20302ada28a559239595c77569552ae608d410.png" alt="\Delta \phi_{PL}"/> and <img class="math" src="_images/math/f5875bb2f12593f56d5b96f53cf1a607653b15f9.png" alt="\Delta \omega_{PL}"/> be the
+phase difference and the phase loop correction on the frequency
+respectively; since these two quantities are the input and output of our
+system, then from the transfer function we
+have in time domain (see <a class="reference external" href="https://en.wikipedia.org/wiki/Z-transform">https://en.wikipedia.org/wiki/Z-transform</a>):</p>
+<div class="math">
+<p><img src="_images/math/62ece60f1d206075929450bdfd0581ed7b842756.png" alt="\Delta \omega_{PL}^{n+1} = - a_{1} \Delta \omega_{PL}^{n} +
+g(b_{0} \Delta \phi_{PL}^{n+1} + b_{1} \Delta \phi_{PL}^{n})"/></p>
+</div><p>In fact the phase and radial loops act every 10 <img class="math" src="_images/math/7378a81a9cd3bf706f56328c3aeed5f6aa200da6.png" alt="\mu s"/> and as a
+consequence <img class="math" src="_images/math/4a20302ada28a559239595c77569552ae608d410.png" alt="\Delta \phi_{PL}"/> is an average on all the values
+between two trigger times.</p>
+<p>Radial loop:</p>
+<p>We estimate
+the difference of the radii of the actual trajectory and the desired trajectory
+using one of the four known differential relations with <img class="math" src="_images/math/e35c313ce20e887742240d2e02efd28ab64d418c.png" alt="\Delta B = 0"/>:</p>
+<div class="math">
+<p><img src="_images/math/7edff9554fde143afd8f22ddf4c9ed54de148bb5.png" alt="\frac{\Delta R}{R} = \frac{\Delta \omega_{RF}}{\omega_{RF}}
+\frac{\gamma^2}{\gamma_{T}^2-\gamma^2}"/></p>
+</div><p>In reality the error <img class="math" src="_images/math/6f953f6b09f92cf5f76b8922c34bb187e4fe0520.png" alt="\Delta R"/> is filtered with a PI (Proportional-
+Integrator) corrector. This means that</p>
+<div class="math">
+<p><img src="_images/math/674ec6aa6b6ccf8647048216b58447d4dac8aca6.png" alt="\Delta \omega_{RL}^{n+1} = K_{P} \left(\frac{\Delta R}{R}\right)^{n}
++ K_{I} \int_0^n \! \frac{\Delta R}{R} (t) \, \mathrm{d}t."/></p>
+</div><p>Writing the same equation for <img class="math" src="_images/math/2a2e3967fbb496ad693ad3dd3c7df18633e5f6d0.png" alt="\Delta \omega_{RL}^{n}"/> and
+subtracting side by side we have</p>
+<div class="math">
+<p><img src="_images/math/316ed4d95856365225a1e2804163fb9231ebddc3.png" alt="\Delta \omega_{RL}^{n+1} = \Delta \omega_{RL}^{n} +
+K_{P} \left[ \left(\frac{\Delta R}{R}\right)^{n} -
+\left(\frac{\Delta R}{R}\right)^{n-1} \right] + K_{I}^{'}
+\left(\frac{\Delta R}{R}\right)^{n}"/></p>
+</div><p>here <img class="math" src="_images/math/a78fbf47f8c3fa61fa28423e3990a45d717d79ff.png" alt="K_{I}^{'} = K_{I} 10 \mu s"/> and we approximated the integral
+with a simple product.</p>
+<p>The total correction is then</p>
+<div class="math">
+<p><img src="_images/math/2261f72968f91e26beea661120ec00ffc31afc7f.png" alt="\Delta \omega_{RF}^{n+1} = \Delta \omega_{PL}^{n+1} + \Delta \omega_{RL}^{n+1}"/></p>
+</div></dd></dl>
 
 </dd></dl>
 

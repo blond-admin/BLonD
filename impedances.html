@@ -72,7 +72,7 @@
 </table>
 <dl class="class">
 <dt id="impedances.impedance.InducedVoltageFreq">
-<em class="property">class </em><tt class="descclassname">impedances.impedance.</tt><tt class="descname">InducedVoltageFreq</tt><big>(</big><em>Slices</em>, <em>impedance_source_list</em>, <em>frequency_resolution_input=None</em>, <em>freq_res_option='round'</em>, <em>n_turns_memory=0</em>, <em>recalculation_impedance=False</em>, <em>reduction_finemet_closed=None</em><big>)</big><a class="headerlink" href="#impedances.impedance.InducedVoltageFreq" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descclassname">impedances.impedance.</tt><tt class="descname">InducedVoltageFreq</tt><big>(</big><em>Slices</em>, <em>impedance_source_list</em>, <em>frequency_resolution_input=None</em>, <em>freq_res_option='round'</em>, <em>n_turns_memory=0</em>, <em>recalculation_impedance=False</em>, <em>save_individual_voltages=False</em>, <em>n_windows_before=0</em><big>)</big><a class="headerlink" href="#impedances.impedance.InducedVoltageFreq" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
 <p><em>Induced voltage derived from the sum of several impedances.
 frequency_resolution is equal to 1/(dist_centers * n) where dist_centers is
@@ -91,12 +91,6 @@ way the code chooses the power is set by the freq_res_option. If this is set
 to &#8216;round&#8217; (default), the closest (higher or lower) resolution that also 
 fulfills optimisation will be used. If set to &#8216;best&#8217;, the frequency resolution
 will be at least your input, so you always have a better resolution.</em></p>
-<dl class="attribute">
-<dt id="impedances.impedance.InducedVoltageFreq.freq_res_option">
-<tt class="descname">freq_res_option</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InducedVoltageFreq.freq_res_option" title="Permalink to this definition">¶</a></dt>
-<dd><p><em>Frequency resolution calculation option</em></p>
-</dd></dl>
-
 <dl class="attribute">
 <dt id="impedances.impedance.InducedVoltageFreq.frequency_array">
 <tt class="descname">frequency_array</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InducedVoltageFreq.frequency_array" title="Permalink to this definition">¶</a></dt>
@@ -136,14 +130,6 @@ impedance times the spectrum (fourier convolution).</em></p>
 </dd></dl>
 
 <dl class="attribute">
-<dt id="impedances.impedance.InducedVoltageFreq.n_fft_sampling">
-<tt class="descname">n_fft_sampling</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InducedVoltageFreq.n_fft_sampling" title="Permalink to this definition">¶</a></dt>
-<dd><p><em>Number of points used to FFT the beam profile (by padding zeros),
-this is calculated in order to have at least the input
-frequency_resolution.</em></p>
-</dd></dl>
-
-<dl class="attribute">
 <dt id="impedances.impedance.InducedVoltageFreq.n_turns_memory">
 <tt class="descname">n_turns_memory</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InducedVoltageFreq.n_turns_memory" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Number of turns to be considered as memory for induced voltage calculation.</em></p>
@@ -163,7 +149,13 @@ frequency_resolution.</em></p>
 
 <dl class="method">
 <dt id="impedances.impedance.InducedVoltageFreq.sum_impedances">
-<tt class="descname">sum_impedances</tt><big>(</big><em>frequency_array</em>, <em>reduction_finemet_closed</em><big>)</big><a class="headerlink" href="#impedances.impedance.InducedVoltageFreq.sum_impedances" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">sum_impedances</tt><big>(</big><em>frequency_array</em><big>)</big><a class="headerlink" href="#impedances.impedance.InducedVoltageFreq.sum_impedances" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Summing all the wake contributions in one total impedance.</em></p>
+</dd></dl>
+
+<dl class="method">
+<dt id="impedances.impedance.InducedVoltageFreq.sum_impedances_memory">
+<tt class="descname">sum_impedances_memory</tt><big>(</big><em>frequency_array_memory</em><big>)</big><a class="headerlink" href="#impedances.impedance.InducedVoltageFreq.sum_impedances_memory" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Summing all the wake contributions in one total impedance.</em></p>
 </dd></dl>
 
@@ -250,7 +242,7 @@ frequency_resolution.</em></p>
 
 <dl class="class">
 <dt id="impedances.impedance.InductiveImpedance">
-<em class="property">class </em><tt class="descclassname">impedances.impedance.</tt><tt class="descname">InductiveImpedance</tt><big>(</big><em>Slices, Z_over_n, revolution_frequency, current_turn, deriv_mode='gradient', periodicity=False, smooth_before_after=[False, False], filter_ind_imp=None, filter_options=None, t_station=None</em><big>)</big><a class="headerlink" href="#impedances.impedance.InductiveImpedance" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descclassname">impedances.impedance.</tt><tt class="descname">InductiveImpedance</tt><big>(</big><em>Slices, Z_over_n, revolution_frequency, current_turn, deriv_mode='gradient', periodicity=False, smooth_before_after=[False, False], filter_ind_imp=None, filter_options=None, t_rev=None</em><big>)</big><a class="headerlink" href="#impedances.impedance.InductiveImpedance" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
 <p><em>Constant imaginary Z/n impedance. This needs to be extended to the
 cases where there is acceleration as the revolution frequency f0 used
@@ -258,7 +250,7 @@ in the calculation of n=f/f0 is changing (general_params as input ?).</em></p>
 <dl class="attribute">
 <dt id="impedances.impedance.InductiveImpedance.Z_over_n">
 <tt class="descname">Z_over_n</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InductiveImpedance.Z_over_n" title="Permalink to this definition">¶</a></dt>
-<dd><p><em>Constant imaginary Z/n in</em> [<img class="math" src="_images/math/cf179a45115537d055c1a8abc6aee982d3223559.png" alt="\Omega / Hz"/>]</p>
+<dd><p><em>Constant imaginary Z/n program in</em> [<img class="math" src="_images/math/cf179a45115537d055c1a8abc6aee982d3223559.png" alt="\Omega / Hz"/>].*</p>
 </dd></dl>
 
 <dl class="attribute">
@@ -274,8 +266,8 @@ in the calculation of n=f/f0 is changing (general_params as input ?).</em></p>
 </dd></dl>
 
 <dl class="attribute">
-<dt id="impedances.impedance.InductiveImpedance.freq_array">
-<tt class="descname">freq_array</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InductiveImpedance.freq_array" title="Permalink to this definition">¶</a></dt>
+<dt id="impedances.impedance.InductiveImpedance.frequency_array">
+<tt class="descname">frequency_array</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InductiveImpedance.frequency_array" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Frequency array of the impedance in [Hz]</em></p>
 </dd></dl>
 
@@ -313,7 +305,7 @@ profile; the impedance must be of inductive type.</em></p>
 <dl class="attribute">
 <dt id="impedances.impedance.InductiveImpedance.revolution_frequency">
 <tt class="descname">revolution_frequency</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.InductiveImpedance.revolution_frequency" title="Permalink to this definition">¶</a></dt>
-<dd><p><em>Revolution frequency in [Hz]</em></p>
+<dd><p><em>Revolution frequency program in [Hz]</em></p>
 </dd></dl>
 
 <dl class="attribute">
@@ -484,13 +476,19 @@ W(0) = \alpha R"/></p>
 
 <dl class="class">
 <dt id="impedances.impedance.TotalInducedVoltage">
-<em class="property">class </em><tt class="descclassname">impedances.impedance.</tt><tt class="descname">TotalInducedVoltage</tt><big>(</big><em>Beam</em>, <em>Slices</em>, <em>induced_voltage_list</em>, <em>n_turns_memory=0</em>, <em>rev_time_array=None</em>, <em>option_save_voltage_components=False</em>, <em>save_voltage_components_every=0</em><big>)</big><a class="headerlink" href="#impedances.impedance.TotalInducedVoltage" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descclassname">impedances.impedance.</tt><tt class="descname">TotalInducedVoltage</tt><big>(</big><em>Beam</em>, <em>Slices</em>, <em>induced_voltage_list</em>, <em>n_turns_memory=0</em>, <em>rev_time_array=None</em>, <em>mode_mtw='old'</em><big>)</big><a class="headerlink" href="#impedances.impedance.TotalInducedVoltage" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
 <p><em>Object gathering all the induced voltage contributions. The input is a 
 list of objects able to compute induced voltages (InducedVoltageTime, 
 InducedVoltageFreq, InductiveImpedance). All the induced voltages will
 be summed in order to reduce the computing time. All the induced
 voltages should have the same slicing resolution.</em></p>
+<dl class="attribute">
+<dt id="impedances.impedance.TotalInducedVoltage.beam">
+<tt class="descname">beam</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.TotalInducedVoltage.beam" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Copy of the Beam object in order to access the beam info.</em></p>
+</dd></dl>
+
 <dl class="attribute">
 <dt id="impedances.impedance.TotalInducedVoltage.induced_voltage">
 <tt class="descname">induced_voltage</tt><em class="property"> = None</em><a class="headerlink" href="#impedances.impedance.TotalInducedVoltage.induced_voltage" title="Permalink to this definition">¶</a></dt>
@@ -541,7 +539,9 @@ voltages should have the same slicing resolution.</em></p>
 <dl class="method">
 <dt id="impedances.impedance.TotalInducedVoltage.track_memory">
 <tt class="descname">track_memory</tt><big>(</big><big>)</big><a class="headerlink" href="#impedances.impedance.TotalInducedVoltage.track_memory" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Calculates the induced voltage energy kick to particles taking into
+account multi-turn induced voltage plus inductive impedance contribution.</p>
+</dd></dl>
 
 </dd></dl>
 

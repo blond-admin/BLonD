@@ -93,7 +93,7 @@ a full turn information (used in the hamiltonian for example).</em></p>
 
 <dl class="method">
 <dt id="trackers.tracker.FullRingAndRF.potential_well_generation">
-<tt class="descname">potential_well_generation</tt><big>(</big><em>turn=0</em>, <em>n_points=100000.0</em>, <em>main_harmonic_option='lowest_freq'</em>, <em>theta_margin_percent=0.0</em><big>)</big><a class="headerlink" href="#trackers.tracker.FullRingAndRF.potential_well_generation" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">potential_well_generation</tt><big>(</big><em>turn=0</em>, <em>n_points=100000.0</em>, <em>main_harmonic_option='lowest_freq'</em>, <em>dt_margin_percent=0.0</em><big>)</big><a class="headerlink" href="#trackers.tracker.FullRingAndRF.potential_well_generation" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Method to generate the potential well out of the RF systems. The 
 assumption made is that all the RF voltages are averaged over
 one turn. The potential well is then approximated over one turn,
@@ -103,7 +103,7 @@ damped fast enough). The default main harmonic is defined to be the
 lowest one in frequency. The user can change this option if it is
 not the case for his simulations (other options are: &#8216;highest_voltage&#8217;,
 or inputing directly the value of the desired main harmonic). 
-A margin on the theta array can be applied in order
+A margin on the time array can be applied in order
 to be able to see the min/max that might be exactly on the edges of the
 frame (by adding a % to the length of the frame, this is set to 0 by default. 
 It assumes also that the slippage factor is the same in the whole ring.</em></p>
@@ -131,7 +131,7 @@ It assumes also that the slippage factor is the same in the whole ring.</em></p>
 
 <dl class="class">
 <dt id="trackers.tracker.RingAndRFSection">
-<em class="property">class </em><tt class="descclassname">trackers.tracker.</tt><tt class="descname">RingAndRFSection</tt><big>(</big><em>RFSectionParameters</em>, <em>Beam</em>, <em>solver='simple'</em>, <em>PhaseLoop=None</em>, <em>NoiseFB=None</em>, <em>periodicity=False</em>, <em>dE_max=None</em>, <em>cut_vertically=False</em><big>)</big><a class="headerlink" href="#trackers.tracker.RingAndRFSection" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descclassname">trackers.tracker.</tt><tt class="descname">RingAndRFSection</tt><big>(</big><em>RFSectionParameters</em>, <em>Beam</em>, <em>solver='simple'</em>, <em>PhaseLoop=None</em>, <em>NoiseFB=None</em>, <em>periodicity=False</em>, <em>dE_max=None</em>, <em>rf_kick_interp=False</em>, <em>Slices=None</em>, <em>TotalInducedVoltage=None</em><big>)</big><a class="headerlink" href="#trackers.tracker.RingAndRFSection" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
 <p><em>Definition of an RF station and part of the ring until the next station, 
 see figure.</em></p>
@@ -189,7 +189,7 @@ tracked as well.</em></p>
 
 <dl class="method">
 <dt id="trackers.tracker.RingAndRFSection.drift">
-<tt class="descname">drift</tt><big>(</big><em>beam_dt</em>, <em>beam_dE</em><big>)</big><a class="headerlink" href="#trackers.tracker.RingAndRFSection.drift" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">drift</tt><big>(</big><em>beam_dt</em>, <em>beam_dE</em>, <em>index</em><big>)</big><a class="headerlink" href="#trackers.tracker.RingAndRFSection.drift" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Update of particle arrival time to the RF station. If only the zeroth 
 order slippage factor is given, &#8216;simple&#8217; and &#8216;full&#8217; solvers are 
 available. The &#8216;simple&#8217; solver is somewhat faster. Otherwise, the solver
@@ -228,7 +228,7 @@ second order.</em></p>
 
 <dl class="method">
 <dt id="trackers.tracker.RingAndRFSection.kick">
-<tt class="descname">kick</tt><big>(</big><em>beam_dt</em>, <em>beam_dE</em><big>)</big><a class="headerlink" href="#trackers.tracker.RingAndRFSection.kick" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">kick</tt><big>(</big><em>beam_dt</em>, <em>beam_dE</em>, <em>index</em><big>)</big><a class="headerlink" href="#trackers.tracker.RingAndRFSection.kick" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Update of the particle energy due to the RF kick in a given RF station. 
 The kicks are summed over the different harmonic RF systems in the 
 station. The cavity phase can be shifted by the user via phi_offset.
@@ -287,6 +287,12 @@ The increment in energy is given by the discrete equation of motion:</em></p>
 <dd><p><em>Import of RFSectionParameters object</em></p>
 </dd></dl>
 
+<dl class="method">
+<dt id="trackers.tracker.RingAndRFSection.rf_voltage_calculation">
+<tt class="descname">rf_voltage_calculation</tt><big>(</big><em>turn</em>, <em>Slices</em><big>)</big><a class="headerlink" href="#trackers.tracker.RingAndRFSection.rf_voltage_calculation" title="Permalink to this definition">¶</a></dt>
+<dd><p><a href="#id1"><span class="problematic" id="id2">*</span></a>Calculating the RF voltage seen by the beam at a given turn, needs a Slices object.</p>
+</dd></dl>
+
 <dl class="attribute">
 <dt id="trackers.tracker.RingAndRFSection.section_index">
 <tt class="descname">section_index</tt><em class="property"> = None</em><a class="headerlink" href="#trackers.tracker.RingAndRFSection.section_index" title="Permalink to this definition">¶</a></dt>
@@ -297,6 +303,12 @@ The increment in energy is given by the discrete equation of motion:</em></p>
 <dt id="trackers.tracker.RingAndRFSection.section_length">
 <tt class="descname">section_length</tt><em class="property"> = None</em><a class="headerlink" href="#trackers.tracker.RingAndRFSection.section_length" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Import section length (from RFSectionParameters)</em> # needed for FullRingAndRF</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="trackers.tracker.RingAndRFSection.sign_eta_0">
+<tt class="descname">sign_eta_0</tt><em class="property"> = None</em><a class="headerlink" href="#trackers.tracker.RingAndRFSection.sign_eta_0" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Slippage factor (2nd order) for the given RF section</em></p>
 </dd></dl>
 
 <dl class="attribute">
@@ -789,7 +801,7 @@ frequencies are not calculated.</em></p>
 <dl class="function">
 <dt id="trackers.utilities.time_modulo">
 <tt class="descclassname">trackers.utilities.</tt><tt class="descname">time_modulo</tt><big>(</big><em>dt</em>, <em>dt_offset</em>, <em>T</em><big>)</big><a class="headerlink" href="#trackers.utilities.time_modulo" title="Permalink to this definition">¶</a></dt>
-<dd><p><em>Projects time array into the range 0 to T, where T is the RF period.</em></p>
+<dd><p><em>Returns dt projected onto the desired interval.</em></p>
 </dd></dl>
 
 <dl class="function">

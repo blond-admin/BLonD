@@ -1,0 +1,316 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>toolbox package &mdash; BLonD embryo documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     'embryo',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="BLonD embryo documentation" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="index.html">BLonD embryo documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="toolbox-package">
+<h1>toolbox package<a class="headerlink" href="#toolbox-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-toolbox.action">
+<span id="toolbox-action-module"></span><h2>toolbox.action module<a class="headerlink" href="#module-toolbox.action" title="Permalink to this headline">¶</a></h2>
+<p><strong>Phase-space variable conversions related to action. Single-RF case without
+intensity effects is considered.</strong></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Authors:</th><td class="field-body"><strong>Helga Timko</strong></td>
+</tr>
+</tbody>
+</table>
+<dl class="function">
+<dt id="toolbox.action.action_from_oscillation_amplitude">
+<tt class="descclassname">toolbox.action.</tt><tt class="descname">action_from_oscillation_amplitude</tt><big>(</big><em>RFParameters</em>, <em>dtmax</em>, <em>timestep=0</em>, <em>Np_histogram=None</em><big>)</big><a class="headerlink" href="#toolbox.action.action_from_oscillation_amplitude" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the relative action for given oscillation amplitude in time,
+assuming single-harmonic RF system and no intensity effects.
+Action is normalised to the value at the separatrix, given in units of 1. 
+Optional: RF parameters at a given timestep (default = 0) are used.
+Optional: Number of points for histogram output</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="toolbox.action.action_from_phase_amplitude">
+<tt class="descclassname">toolbox.action.</tt><tt class="descname">action_from_phase_amplitude</tt><big>(</big><em>x2</em><big>)</big><a class="headerlink" href="#toolbox.action.action_from_phase_amplitude" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the relative action for given oscillation amplitude in time.
+Action is normalised to the value at the separatrix, given in units of 1.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="toolbox.action.oscillation_amplitude_from_coordinates">
+<tt class="descclassname">toolbox.action.</tt><tt class="descname">oscillation_amplitude_from_coordinates</tt><big>(</big><em>GeneralParams</em>, <em>RFParameters</em>, <em>dt</em>, <em>dE</em>, <em>timestep=0</em>, <em>Np_histogram=None</em><big>)</big><a class="headerlink" href="#toolbox.action.oscillation_amplitude_from_coordinates" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the oscillation amplitude in time for given particle coordinates,
+assuming single-harmonic RF system and no intensity effects. 
+Optional: RF parameters at a given timestep (default = 0) are used.
+Optional: Number of points for histogram output</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="toolbox.action.phase_amplitude_from_tune">
+<tt class="descclassname">toolbox.action.</tt><tt class="descname">phase_amplitude_from_tune</tt><big>(</big><em>tune</em><big>)</big><a class="headerlink" href="#toolbox.action.phase_amplitude_from_tune" title="Permalink to this definition">¶</a></dt>
+<dd><p>Find the amplitude of synchrotron oscillations in phase corresponding to a
+given tune w.r.t. the central synchrotron frequency</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="toolbox.action.tune_from_phase_amplitude">
+<tt class="descclassname">toolbox.action.</tt><tt class="descname">tune_from_phase_amplitude</tt><big>(</big><em>phimax</em><big>)</big><a class="headerlink" href="#toolbox.action.tune_from_phase_amplitude" title="Permalink to this definition">¶</a></dt>
+<dd><p>Find the tune w.r.t. the central synchrotron frequency corresponding to a
+given amplitude of synchrotron oscillations in phase</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="toolbox.action.x">
+<tt class="descclassname">toolbox.action.</tt><tt class="descname">x</tt><big>(</big><em>phimax</em><big>)</big><a class="headerlink" href="#toolbox.action.x" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="toolbox.action.x2">
+<tt class="descclassname">toolbox.action.</tt><tt class="descname">x2</tt><big>(</big><em>phimax</em><big>)</big><a class="headerlink" href="#toolbox.action.x2" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-toolbox.diffusion">
+<span id="toolbox-diffusion-module"></span><h2>toolbox.diffusion module<a class="headerlink" href="#module-toolbox.diffusion" title="Permalink to this headline">¶</a></h2>
+<p><strong>Numerical diffusion model based on Ivanov (1992). Stationary single-harmonic
+RF bucket is considered.</strong></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Authors:</th><td class="field-body"><strong>Helga Timko</strong></td>
+</tr>
+</tbody>
+</table>
+<dl class="function">
+<dt id="toolbox.diffusion.phase_noise_diffusion">
+<tt class="descclassname">toolbox.diffusion.</tt><tt class="descname">phase_noise_diffusion</tt><big>(</big><em>GeneralParams</em>, <em>RFParameters</em>, <em>spectrum</em>, <em>distribution</em>, <em>Ngrids=200</em>, <em>M=1</em>, <em>iterations=100000</em>, <em>figdir=None</em><big>)</big><a class="headerlink" href="#toolbox.diffusion.phase_noise_diffusion" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate diffusion in action space according to a given double-sided phase
+noise spectrum, on a uniform grid in oscillation amplitude.
+The spectrum is defined on the grid points (Ngrids + 1 points) for all M.
+The particle distribution in action is defined on the grids (Ngrids points). 
+Returns the diffused action distribution.
+Optional: define number of side-bands (M) to be taken into account, default
+is M = 1; N.B. this will only give impair modes for phase noise. 
+Optional: number of iterations to track.
+Optional: save figures into directory &#8216;figdir&#8217;.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-toolbox.parameter_scaling">
+<span id="toolbox-parameter-scaling-module"></span><h2>toolbox.parameter_scaling module<a class="headerlink" href="#module-toolbox.parameter_scaling" title="Permalink to this headline">¶</a></h2>
+<p><strong>Module gathering and processing all RF parameters used in the simulation.</strong></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Authors:</th><td class="field-body"><strong>Helga Timko</strong></td>
+</tr>
+</tbody>
+</table>
+<dl class="class">
+<dt id="toolbox.parameter_scaling.ParameterScaling">
+<em class="property">class </em><tt class="descclassname">toolbox.parameter_scaling.</tt><tt class="descname">ParameterScaling</tt><a class="headerlink" href="#toolbox.parameter_scaling.ParameterScaling" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p>Determines longitudinal parameters to construct simulation input or simply
+estimate different parameters. Assumes a single RF system.</p>
+<dl class="method">
+<dt id="toolbox.parameter_scaling.ParameterScaling.bucket_parameters">
+<tt class="descname">bucket_parameters</tt><big>(</big><big>)</big><a class="headerlink" href="#toolbox.parameter_scaling.ParameterScaling.bucket_parameters" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="toolbox.parameter_scaling.ParameterScaling.bunch_length_from_emittance">
+<tt class="descname">bunch_length_from_emittance</tt><big>(</big><em>emittance</em><big>)</big><a class="headerlink" href="#toolbox.parameter_scaling.ParameterScaling.bunch_length_from_emittance" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="toolbox.parameter_scaling.ParameterScaling.callback">
+<tt class="descname">callback</tt><big>(</big><em>*args</em><big>)</big><a class="headerlink" href="#toolbox.parameter_scaling.ParameterScaling.callback" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get values from dialogue window and execute calculations</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="toolbox.parameter_scaling.ParameterScaling.dE_b">
+<tt class="descname">dE_b</tt><a class="headerlink" href="#toolbox.parameter_scaling.ParameterScaling.dE_b" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="toolbox.parameter_scaling.ParameterScaling.delta_b">
+<tt class="descname">delta_b</tt><a class="headerlink" href="#toolbox.parameter_scaling.ParameterScaling.delta_b" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="toolbox.parameter_scaling.ParameterScaling.dialogue_window">
+<tt class="descname">dialogue_window</tt><big>(</big><big>)</big><a class="headerlink" href="#toolbox.parameter_scaling.ParameterScaling.dialogue_window" title="Permalink to this definition">¶</a></dt>
+<dd><p>Set up password entry dialogue box</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="toolbox.parameter_scaling.ParameterScaling.emittance">
+<tt class="descname">emittance</tt><a class="headerlink" href="#toolbox.parameter_scaling.ParameterScaling.emittance" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="toolbox.parameter_scaling.ParameterScaling.emittance_from_bunch_length">
+<tt class="descname">emittance_from_bunch_length</tt><big>(</big><em>four_sigma_bunch_length</em><big>)</big><a class="headerlink" href="#toolbox.parameter_scaling.ParameterScaling.emittance_from_bunch_length" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="toolbox.parameter_scaling.ParameterScaling.frequencies">
+<tt class="descname">frequencies</tt><big>(</big><big>)</big><a class="headerlink" href="#toolbox.parameter_scaling.ParameterScaling.frequencies" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="toolbox.parameter_scaling.ParameterScaling.integral">
+<tt class="descname">integral</tt><a class="headerlink" href="#toolbox.parameter_scaling.ParameterScaling.integral" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="toolbox.parameter_scaling.ParameterScaling.phi_b">
+<tt class="descname">phi_b</tt><a class="headerlink" href="#toolbox.parameter_scaling.ParameterScaling.phi_b" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="toolbox.parameter_scaling.ParameterScaling.relativistic_quantities">
+<tt class="descname">relativistic_quantities</tt><big>(</big><big>)</big><a class="headerlink" href="#toolbox.parameter_scaling.ParameterScaling.relativistic_quantities" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="toolbox.parameter_scaling.ParameterScaling.tune">
+<tt class="descname">tune</tt><big>(</big><big>)</big><a class="headerlink" href="#toolbox.parameter_scaling.ParameterScaling.tune" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-toolbox.tomoscope">
+<span id="toolbox-tomoscope-module"></span><h2>toolbox.tomoscope module<a class="headerlink" href="#module-toolbox.tomoscope" title="Permalink to this headline">¶</a></h2>
+<p>** CERN Tomoscope-related functions to generate particle distribution or 
+probability density.**</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Authors:</th><td class="field-body"><strong>Helga Timko</strong></td>
+</tr>
+</tbody>
+</table>
+<dl class="function">
+<dt id="toolbox.tomoscope.distribution_from_tomoscope_data">
+<tt class="descclassname">toolbox.tomoscope.</tt><tt class="descname">distribution_from_tomoscope_data</tt><big>(</big><em>dataDir</em>, <em>nPart</em>, <em>cutoff=1000</em>, <em>seed=1234</em>, <em>plotFig=True</em>, <em>saveDistr=False</em><big>)</big><a class="headerlink" href="#toolbox.tomoscope.distribution_from_tomoscope_data" title="Permalink to this definition">¶</a></dt>
+<dd><p>&#8216;dataDir&#8217; is the directory of <em>directories</em> of offline-processed tomoscope 
+data containing &#8216;plotinfo.data&#8217; and &#8216;image001.data&#8217;
+Use &#8216;cutoff&#8217; to eliminate measurement noise (use values around 50-100).
+Use &#8216;seed&#8217; to change the random number seed.
+Use &#8216;plotFig = True&#8217; to plot and save figures.
+Use &#8216;saveDistr = True&#8217; to save particle coordinates.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-toolbox">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-toolbox" title="Permalink to this headline">¶</a></h2>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">toolbox package</a><ul>
+<li><a class="reference internal" href="#submodules">Submodules</a></li>
+<li><a class="reference internal" href="#module-toolbox.action">toolbox.action module</a></li>
+<li><a class="reference internal" href="#module-toolbox.diffusion">toolbox.diffusion module</a></li>
+<li><a class="reference internal" href="#module-toolbox.parameter_scaling">toolbox.parameter_scaling module</a></li>
+<li><a class="reference internal" href="#module-toolbox.tomoscope">toolbox.tomoscope module</a></li>
+<li><a class="reference internal" href="#module-toolbox">Module contents</a></li>
+</ul>
+</li>
+</ul>
+
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/toolbox.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="index.html">BLonD embryo documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, CERN.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

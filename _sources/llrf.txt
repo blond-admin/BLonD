@@ -388,19 +388,56 @@ Machine-dependent Beam Phase Loop
          
          
    .. py:method:: PSB():
-
-      Calculates the RF frequency correction :math:`\Delta \omega_{\mathsf{PL}}`
-      from the phase difference between beam and RF 
-      :math:`\Delta \varphi_{\mathsf{PL}}` for the PSB. The transfer function is
+      
+      Phase loop:
+      
+      The transfer function of the system is
         
-      .. math:: \Delta \omega_{\mathsf{PL}} = 2 \pi g 
-         \frac{a_0 \Delta \varphi_{\mathsf{PL}}^2 
-         + a_1 \Delta \varphi_{\mathsf{PL}} + a_2 }
-         {\Delta \varphi_{\mathsf{PL}}^2 
-         - b_1 \Delta \varphi_{\mathsf{PL}} - b_2} .
-            
-      Input :math:`g` through ``gain`` and the array 
-      :math:`[a_0, a_1, a_2, b_1, b_2]` through ``coefficients``.       
-
-
+      .. math:: H(z) = g \frac{b_{0}+b_{1} z^{-1}}{1 +a_{1} z^{-1}}  
+      
+      where g is the gain and :math:`b_{0} = 0.99901903`, :math:`b_{1} = -0.99901003`,  
+      :math:`a_{1} = -0.99803799`.
+      
+      Let :math:`\Delta \phi_{PL}` and :math:`\Delta \omega_{PL}` be the
+      phase difference and the phase loop correction on the frequency
+      respectively; since these two quantities are the input and output of our 
+      system, then from the transfer function we
+      have in time domain (see https://en.wikipedia.org/wiki/Z-transform):
+      
+      .. math:: \Delta \omega_{PL}^{n+1} = - a_{1} \Delta \omega_{PL}^{n} + 
+            g(b_{0} \Delta \phi_{PL}^{n+1} + b_{1} \Delta \phi_{PL}^{n})
+      
+      In fact the phase and radial loops act every 10 :math:`\mu s` and as a 
+      consequence :math:`\Delta \phi_{PL}` is an average on all the values 
+      between two trigger times.
+      
+      Radial loop:
+      
+      We estimate
+      the difference of the radii of the actual trajectory and the desired trajectory
+      using one of the four known differential relations with :math:`\Delta B = 0`:
+      
+      .. math:: \frac{\Delta R}{R} = \frac{\Delta \omega_{RF}}{\omega_{RF}} 
+        \frac{\gamma^2}{\gamma_{T}^2-\gamma^2}
+      
+      In reality the error :math:`\Delta R` is filtered with a PI (Proportional-
+      Integrator) corrector. This means that
+      
+      .. math:: \Delta \omega_{RL}^{n+1} = K_{P} \left(\frac{\Delta R}{R}\right)^{n} 
+            + K_{I} \int_0^n \! \frac{\Delta R}{R} (t) \, \mathrm{d}t. 
+      
+      Writing the same equation for :math:`\Delta \omega_{RL}^{n}` and
+      subtracting side by side we have
+      
+      .. math:: \Delta \omega_{RL}^{n+1} = \Delta \omega_{RL}^{n} + 
+            K_{P} \left[ \left(\frac{\Delta R}{R}\right)^{n} - 
+            \left(\frac{\Delta R}{R}\right)^{n-1} \right] + K_{I}^{'} 
+            \left(\frac{\Delta R}{R}\right)^{n} 
+      
+      here :math:`K_{I}^{'} = K_{I} 10 \mu s` and we approximated the integral
+      with a simple product.
+      
+      The total correction is then
+      
+      .. math:: \Delta \omega_{RF}^{n+1} = \Delta \omega_{PL}^{n+1} + \Delta \omega_{RL}^{n+1}
     

@@ -206,6 +206,14 @@ energy of the synchronous particle.</em></p>
 </dd></dl>
 
 <dl class="attribute">
+<dt id="beams.beams.Beam.ratio">
+<tt class="descname">ratio</tt><em class="property"> = None</em><a class="headerlink" href="#beams.beams.Beam.ratio" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>This ratio should be in general constant during the simulation</em></div>
+</div>
+</dd></dl>
+
+<dl class="attribute">
 <dt id="beams.beams.Beam.sigma_dE">
 <tt class="descname">sigma_dE</tt><em class="property"> = None</em><a class="headerlink" href="#beams.beams.Beam.sigma_dE" title="Permalink to this definition">¶</a></dt>
 <dd><div class="line-block">
@@ -255,7 +263,7 @@ as well as beam emittance using different definitions.</em></p>
 
 <dl class="function">
 <dt id="beams.distributions.matched_from_distribution_density">
-<tt class="descclassname">beams.distributions.</tt><tt class="descname">matched_from_distribution_density</tt><big>(</big><em>Beam</em>, <em>FullRingAndRF</em>, <em>distribution_options</em>, <em>main_harmonic_option='lowest_freq'</em>, <em>TotalInducedVoltage=None</em>, <em>n_iterations_input=1</em>, <em>extraVoltageDict=None</em><big>)</big><a class="headerlink" href="#beams.distributions.matched_from_distribution_density" title="Permalink to this definition">¶</a></dt>
+<tt class="descclassname">beams.distributions.</tt><tt class="descname">matched_from_distribution_density</tt><big>(</big><em>Beam</em>, <em>FullRingAndRF</em>, <em>distribution_options</em>, <em>main_harmonic_option='lowest_freq'</em>, <em>TotalInducedVoltage=None</em>, <em>n_iterations_input=1</em>, <em>extraVoltageDict=None</em>, <em>seed=None</em><big>)</big><a class="headerlink" href="#beams.distributions.matched_from_distribution_density" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Function to generate a beam by inputing the distribution density (by
 choosing the type of distribution and the emittance). 
 The potential well is preprocessed to check for the min/max and center
@@ -281,7 +289,7 @@ and distribution_options[&#8216;user_table_density&#8217;]</em></p>
 
 <dl class="function">
 <dt id="beams.distributions.matched_from_line_density">
-<tt class="descclassname">beams.distributions.</tt><tt class="descname">matched_from_line_density</tt><big>(</big><em>Beam</em>, <em>FullRingAndRF</em>, <em>line_density_options</em>, <em>main_harmonic_option='lowest_freq'</em>, <em>TotalInducedVoltage=None</em>, <em>plot=None</em>, <em>figdir='fig'</em>, <em>half_option='first'</em>, <em>extraVoltageDict=None</em>, <em>n_iterations_input=100</em><big>)</big><a class="headerlink" href="#beams.distributions.matched_from_line_density" title="Permalink to this definition">¶</a></dt>
+<tt class="descclassname">beams.distributions.</tt><tt class="descname">matched_from_line_density</tt><big>(</big><em>Beam</em>, <em>FullRingAndRF</em>, <em>line_density_options</em>, <em>main_harmonic_option='lowest_freq'</em>, <em>TotalInducedVoltage=None</em>, <em>plot=None</em>, <em>figdir='fig'</em>, <em>half_option='first'</em>, <em>extraVoltageDict=None</em>, <em>n_iterations_input=100</em>, <em>seed=None</em><big>)</big><a class="headerlink" href="#beams.distributions.matched_from_line_density" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Function to generate a beam by inputing the line density. The distribution
 density is then reconstructed with the Abel transform and the particles
 randomly generated.</em></p>
@@ -301,7 +309,7 @@ randomly generated.</em></p>
 </table>
 <dl class="class">
 <dt id="beams.slices.Slices">
-<em class="property">class </em><tt class="descclassname">beams.slices.</tt><tt class="descname">Slices</tt><big>(</big><em>RFSectionParameters</em>, <em>Beam</em>, <em>n_slices</em>, <em>n_sigma=None</em>, <em>cut_left=None</em>, <em>cut_right=None</em>, <em>cuts_unit='s'</em>, <em>fit_option=None</em><big>)</big><a class="headerlink" href="#beams.slices.Slices" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descclassname">beams.slices.</tt><tt class="descname">Slices</tt><big>(</big><em>RFSectionParameters</em>, <em>Beam</em>, <em>n_slices</em>, <em>n_sigma=None</em>, <em>cut_left=None</em>, <em>cut_right=None</em>, <em>cuts_unit='s'</em>, <em>fit_option=None</em>, <em>direct_slicing=False</em><big>)</big><a class="headerlink" href="#beams.slices.Slices" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
 <p><em>Contains the beam profile and related quantities including beam spectrum,
 profile derivative, and profile fitting.</em></p>

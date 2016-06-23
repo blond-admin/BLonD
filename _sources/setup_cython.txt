@@ -1,0 +1,7 @@
+setup_cython module
+===================
+
+.. automodule:: setup_cython
+    :members:
+    :undoc-members:
+    :show-inheritance:
