@@ -26,8 +26,8 @@ from toolbox.action import *
 
 
 def phase_noise_diffusion(GeneralParams, RFParameters, spectrum, distribution,
-                          Ngrids = 200, M = 1, iterations = 100000, 
-                          figdir = None):
+                          distributionBins, Ngrids = 200, M = 1,
+                          iterations = 100000, figdir = None):
     '''
     Calculate diffusion in action space according to a given double-sided phase
     noise spectrum, on a uniform grid in oscillation amplitude.
@@ -66,8 +66,11 @@ def phase_noise_diffusion(GeneralParams, RFParameters, spectrum, distribution,
     dJ = J[1:] - J[:-1] # Differential on grid
     Jav = 0.5*(J[1:] + J[:-1]) # Average on grid
     
+    # Interpolate distribution
+    distributionInterp = np.interp(Jav, distributionBins, distribution)
+    
     # Normalise distribution
-    distribution /= int.simps(distribution, Jav)
+    distributionInterp /= int.simps(distributionInterp, Jav)
     
     # Construct weighting function
     Wm = np.zeros((M, N+1))
@@ -133,7 +136,7 @@ def phase_noise_diffusion(GeneralParams, RFParameters, spectrum, distribution,
     M2 = A + T0 * B / 2.
     M1 = np.matrix(M1)
     M2 = np.matrix(M2)
-    F = np.matrix(distribution)
+    F = np.matrix(distributionInterp)
     Mtot = np.dot(M2.I,M1)    
     Fold = F.T
     
@@ -198,7 +201,7 @@ def phase_noise_diffusion(GeneralParams, RFParameters, spectrum, distribution,
         plt.show()
 
 
-    return Jav, Fnew[0]
+    return Jav, distributionInterp, Fnew[0]
 
 
 
