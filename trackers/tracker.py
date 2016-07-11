@@ -410,8 +410,7 @@ class RingAndRFSection(object):
                                   self.slices.bin_centers.ctypes.data_as(ctypes.c_void_p), 
                                   ctypes.c_int(self.slices.n_slices),
                                   ctypes.c_int(self.beam.n_macroparticles),
-                                  ctypes.c_double(self.acceleration_kick[self.counter[0]]),
-                                  ctypes.c_int(self.n_threads))
+                                  ctypes.c_double(self.acceleration_kick[self.counter[0]]))
                 
             else:
                 self.kick(self.beam.dt, self.beam.dE, self.counter[0])
