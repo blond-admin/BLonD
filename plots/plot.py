@@ -279,6 +279,11 @@ class Plot(object):
                 plot_LHCNoiseFB_FWHM(self.rf_params, self.noiseFB, h5data, 
                                      output_freq = self.dt_mon, 
                                      dirname = self.dirname)
+            
+                if self.noiseFB.bl_meas_bbb != None:
+                    plot_LHCNoiseFB_FWHM_bbb(self.rf_params, self.noiseFB, 
+                                             h5data, output_freq = self.dt_mon, 
+                                             dirname = self.dirname)
 
             h5data.close()
 
