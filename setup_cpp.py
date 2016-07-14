@@ -27,23 +27,27 @@ import ctypes
 # where xx is the number of threads that you want to launch
 parallel = False
 
+list_cpp_files = 'cpp_routines/mean_std_whereint.cpp cpp_routines/kick.cpp cpp_routines/drift.cpp cpp_routines/linear_interp_kick.cpp toolbox/tomoscope.cpp'
+list_cpp_files_SR = 'synchrotron_radiation/synchrotron_radiation.cpp'
 
 # EXAMPLE FLAGS: -Ofast -std=c++11 -fopt-info-vec
 #                -mfma4 -fopenmp -ftree-vectorizer-verbose=1
 if parallel == False:
     flags = '-Ofast -std=c++11'
-    list_cpp_files = 'cpp_routines/mean_std_whereint.cpp cpp_routines/histogram.cpp cpp_routines/kick.cpp cpp_routines/drift.cpp cpp_routines/linear_interp_kick.cpp toolbox/tomoscope.cpp'
+    list_cpp_files += ' cpp_routines/histogram.cpp'
 elif parallel == True:
     flags = '-Ofast -std=c++11 -fopenmp'
-    list_cpp_files = 'cpp_routines/mean_std_whereint.cpp cpp_routines/histogram_par.cpp cpp_routines/kick.cpp cpp_routines/drift.cpp cpp_routines/linear_interp_kick.cpp toolbox/tomoscope.cpp'
+    list_cpp_files += ' cpp_routines/histogram_par.cpp'
 
 
 if __name__ == "__main__":
     
     if "lin" in sys.platform:
         subprocess.Popen("rm -rf cpp_routines/*.so", shell = True, executable = "/bin/bash")
+        subprocess.Popen("rm -rf synchrotron_radiation/*.so", shell = True, executable = "/bin/bash")
         x = os.getcwd()
         os.system('g++ -o '+ x +'/cpp_routines/result.so -shared ' + flags + ' -fPIC ' + x + '/' + list_cpp_files)
+        os.system('g++ -o '+ x +'/synchrotron_radiation/sync_rad.so -shared ' + flags + ' -fPIC ' + x + '/' + list_cpp_files_SR)
         print ""
         print ""
         print "IF THE COMPILATION IS CORRECT A FILE NAMED result.so SHOULD APPEAR IN THE cpp_routines FOLDER." 
@@ -53,8 +57,10 @@ if __name__ == "__main__":
     elif "win" in sys.platform:
         os.system('gcc --version')
         os.system('del /s/q '+ os.getcwd() +'\\cpp_routines\\*.dll')
+        os.system('del /s/q '+ os.getcwd() +'\\synchrotron_radiation\\*.dll')
         x = os.getcwd()
         os.system('g++ -o '+ x +'\\cpp_routines\\result.dll -shared ' + flags + ' ' + x + '\\' + list_cpp_files)
+        os.system('g++ -o '+ x +'\\synchrotron_radiation\\sync_rad.dll -shared ' + flags + ' ' + x + '\\' + list_cpp_files_SR)
         print ""
         print ""
         print "IF THE COMPILATION IS CORRECT A FILE NAMED result.dll SHOULD APPEAR IN THE cpp_routines FOLDER." 
@@ -70,8 +76,10 @@ parent_path = os.sep.join(path.split(os.sep)[:-1])
 
 if "lin" in sys.platform:
     libfib=ctypes.CDLL(parent_path+'/cpp_routines/result.so')
+    libsrqe=ctypes.CDLL(parent_path+'/synchrotron_radiation/sync_rad.so')
 elif "win" in sys.platform:
     libfib=ctypes.CDLL(parent_path+'\\cpp_routines\\result.dll')
+    libsrqe=ctypes.CDLL(parent_path+'\\synchrotron_radiation\\sync_rad.dll')
 else:
     print "YOU DO NOT HAVE A WINDOWS OR LINUX OPERATING SYSTEM. ABORTING..."
     sys.exit()
