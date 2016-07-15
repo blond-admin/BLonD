@@ -125,14 +125,11 @@ class SynchrotronRadiation(object):
         # Recalculate SR parameters if energy changes
         if i_turn != 0 and self.general_params.energy[0,i_turn] != self.general_params.energy[0,i_turn-1]:
             self.calculate_SR_params()
-            
-        random_array = np.random.randn(self.beam.n_macroparticles)
         
         libsrqe.SR_full(self.beam.dE.ctypes.data_as(ctypes.c_void_p), 
             ctypes.c_double(self.U0),
             ctypes.c_int(self.beam.n_macroparticles), 
             ctypes.c_double(self.sigma_dE), 
             ctypes.c_double(self.tau_z), 
-            ctypes.c_double(self.general_params.energy[0,i_turn]),
-            random_array.ctypes.data_as(ctypes.c_void_p))
+            ctypes.c_double(self.general_params.energy[0,i_turn]))
             
