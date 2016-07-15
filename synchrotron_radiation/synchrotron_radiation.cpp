@@ -13,8 +13,7 @@ Project website: http://blond.web.cern.ch/
 
 #include <math.h>
 #include <stdlib.h>
-
-void sampleNormal(double *n1, double *n2);
+#include <random>
 
 extern "C" void SR_full(double * __restrict__ beam_dE, const double U0, 
 					 const int n_macroparticles,
@@ -31,13 +30,14 @@ extern "C" void SR_full(double * __restrict__ beam_dE, const double U0,
     for (int i = 0; i < n_macroparticles; i++)
         beam_dE[i] -= U0;
 
-    // Quantum excitation term
-	double random_array[2] = {0, 0};
+    // Quantum excitation term    
+	std::random_device rd;
+    std::minstd_rand gen(rd()); 
+    std::normal_distribution<> d(0,1);
+	
     const double const_quantum_exc = 2.0 * sigma_dE / sqrt(tau_z) * energy;
     for (int i = 0; i < n_macroparticles; i++){
-		if (i%2 == 0)
-			sampleNormal(&random_array[0], &random_array[1]);
-        beam_dE[i] += const_quantum_exc * random_array[i%2];
+        beam_dE[i] += const_quantum_exc * d(gen);
 	}
 }
 
@@ -54,19 +54,4 @@ extern "C" void SR(double * __restrict__ beam_dE, const double U0,
     #pragma omp parallel for
     for (int i = 0; i < n_macroparticles; i++)
         beam_dE[i] -= U0;
-}
-
-void sampleNormal(double *n1, double *n2) {
-    const double u = drand48() * 2 - 1;
-    const double v = drand48() * 2 - 1;
-	
-    const double r = u * u + v * v;
-    if (r == 0 || r > 1) {
-		sampleNormal(n1, n2); 
-		return;
-	}
-    const double c = sqrt(-2 * log(r) / r);
-
-	*n1 = u * c;
-	*n2 = v * c;
 }
