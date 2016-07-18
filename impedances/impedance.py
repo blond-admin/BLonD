@@ -569,12 +569,12 @@ class InductiveImpedance(object):
         self.slices = new_slicing
         
         
-    def imped_calc(self, freq_array):
+    def imped_calc(self, frequency_array):
         '''
         *Impedance calculation method as a function of frequency.*
         '''    
         index = self.current_turn[0]
-        self.frequency_array = freq_array
+        self.frequency_array = frequency_array
         self.impedance = (self.frequency_array / self.revolution_frequency[index]) * \
                          self.Z_over_n[index] * 1j
         
@@ -759,7 +759,7 @@ class Resonators(object):
         self.wake = 0
         
         #: *Frequency array of the impedance in [Hz]*
-        self.freq_array = 0
+        self.frequency_array = 0
         
         #: *Impedance array in* [:math:`\Omega`]
         self.impedance = 0
@@ -784,19 +784,19 @@ class Resonators(object):
                           alpha / omega_bar * np.sin(omega_bar * self.time_array))
     
     
-    def imped_calc(self, freq_array):
+    def imped_calc(self, frequency_array):
         '''
         *Impedance calculation method as a function of frequency.*
         '''
         
-        self.freq_array = freq_array
-        self.impedance = np.zeros(len(self.freq_array)) + 0j
+        self.frequency_array = frequency_array
+        self.impedance = np.zeros(len(self.frequency_array)) + 0j
         
         for i in range(0, self.n_resonators):
             
             self.impedance[1:] += self.R_S[i] / (1 + 1j * self.Q[i] * 
-                                                 (self.freq_array[1:] / self.frequency_R[i] - 
-                                                  self.frequency_R[i] / self.freq_array[1:]))
+                                                 (self.frequency_array[1:] / self.frequency_R[i] - 
+                                                  self.frequency_R[i] / self.frequency_array[1:]))
  
  
 
@@ -849,7 +849,7 @@ class TravelingWaveCavity(object):
         self.wake = 0
         
         #: *Frequency array of the impedance in [Hz]*
-        self.freq_array = 0
+        self.frequency_array = 0
         
         #: *Impedance array in* [:math:`\Omega`]
         self.impedance = 0
@@ -871,27 +871,27 @@ class TravelingWaveCavity(object):
                                   np.cos(2 * np.pi * self.frequency_R[i] * self.time_array[indexes])
     
     
-    def imped_calc(self, freq_array):
+    def imped_calc(self, frequency_array):
         '''
         *Impedance calculation method as a function of frequency.*
         '''
         
-        self.freq_array = freq_array
-        self.impedance = np.zeros(len(self.freq_array)) + 0j
+        self.frequency_array = frequency_array
+        self.impedance = np.zeros(len(self.frequency_array)) + 0j
         
         for i in range(0, self.n_twc):
             
-            Zplus = self.R_S[i] * ((np.sin(self.a_factor[i] / 2 * (self.freq_array - self.frequency_R[i])) / 
-                                    (self.a_factor[i] / 2 * (self.freq_array - self.frequency_R[i])))**2 - 
-                                   2j*(self.a_factor[i] * (self.freq_array - self.frequency_R[i]) - 
-                                       np.sin(self.a_factor[i] * (self.freq_array - self.frequency_R[i]))) / \
-                                    (self.a_factor[i] * (self.freq_array - self.frequency_R[i]))**2)
+            Zplus = self.R_S[i] * ((np.sin(self.a_factor[i] / 2 * (self.frequency_array - self.frequency_R[i])) / 
+                                    (self.a_factor[i] / 2 * (self.frequency_array - self.frequency_R[i])))**2 - 
+                                   2j*(self.a_factor[i] * (self.frequency_array - self.frequency_R[i]) - 
+                                       np.sin(self.a_factor[i] * (self.frequency_array - self.frequency_R[i]))) / \
+                                    (self.a_factor[i] * (self.frequency_array - self.frequency_R[i]))**2)
             
-            Zminus = self.R_S[i] * ((np.sin(self.a_factor[i] / 2 * (self.freq_array + self.frequency_R[i])) / 
-                                    (self.a_factor[i] / 2 * (self.freq_array + self.frequency_R[i])))**2 - 
-                                   2j*(self.a_factor[i] * (self.freq_array + self.frequency_R[i]) - 
-                                       np.sin(self.a_factor[i] * (self.freq_array + self.frequency_R[i]))) / \
-                                    (self.a_factor[i] * (self.freq_array + self.frequency_R[i]))**2)
+            Zminus = self.R_S[i] * ((np.sin(self.a_factor[i] / 2 * (self.frequency_array + self.frequency_R[i])) / 
+                                    (self.a_factor[i] / 2 * (self.frequency_array + self.frequency_R[i])))**2 - 
+                                   2j*(self.a_factor[i] * (self.frequency_array + self.frequency_R[i]) - 
+                                       np.sin(self.a_factor[i] * (self.frequency_array + self.frequency_R[i]))) / \
+                                    (self.a_factor[i] * (self.frequency_array + self.frequency_R[i]))**2)
             
             self.impedance += Zplus + Zminus   
     
