@@ -15,7 +15,7 @@ amplitude as a function of bunch length**
 '''
 
 from __future__ import division
-from next_regular import next_regular
+from toolbox.next_regular import next_regular
 import numpy as np
 import numpy.random as rnd
 

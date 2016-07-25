@@ -1,4 +1,11 @@
 
+'''
+**Optimised next_regular routine to generate Hamming numbers: 
+the output will contain at least one factor 2.**
+
+:Authors: **Alexandre Lasheen**, **Juan Esteban Muller**, **Danilo Quartullo** 
+'''
+
 def next_regular(target):
     """
     Find the next regular number greater than or equal to target.
@@ -14,7 +21,9 @@ def next_regular(target):
     # Quickly check if it's already a power of 2
     if not (target & (target-1)):
         return target
-
+    
+    target = -(-target // 2)
+    
     match = float('inf') # Anything found will be smaller
     p5 = 1
     while p5 < target:
@@ -33,24 +42,21 @@ def next_regular(target):
 
             N = p2 * p35
             if N == target:
-                return N 
+                return N * 2
             elif N < match:
                 match = N
             p35 *= 3
             if p35 == target:
-                return p35 / 3 * 4
+                return p35 * 2
         if p35 < match:
             match = p35
         p5 *= 5
         if p5 == target:
-            return p5 / 5 * 6
+            return p5 * 2
     if p5 < match:
         match = p5
     
-    if match%2 != 0:
-        match = match / 5 * 6
-
-    return match
+    return match * 2
 
 ############# THIS IS THE ORIGINAL PYTHON VERSION ##############################
 

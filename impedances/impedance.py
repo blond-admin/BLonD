@@ -15,7 +15,7 @@
 
 from __future__ import division
 import numpy as np
-from next_regular import next_regular
+from toolbox.next_regular import next_regular
 from numpy.fft import  rfft, irfft, rfftfreq
 import ctypes
 from setup_cpp import libfib
