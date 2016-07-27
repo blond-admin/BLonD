@@ -673,11 +673,20 @@ def longitudinal_bigaussian(GeneralParameters, RFSectionParameters, beam,
         voltage = RFSectionParameters.charge* \
                   RFSectionParameters.voltage[0,counter]
         eta0 = RFSectionParameters.eta_0[counter]
-    
-        phi_b = omega_RF*sigma_dt + phi_s
-        sigma_dE = np.sqrt( voltage * energy * beta**2  
-             * (np.cos(phi_b) - np.cos(phi_s) + (phi_b - phi_s) * np.sin(phi_s)) 
-             / (np.pi * harmonic * eta0) )
+        
+        if eta0>0:
+            
+            phi_b = omega_RF*sigma_dt + phi_s
+            sigma_dE = np.sqrt( voltage * energy * beta**2  
+                 * (np.cos(phi_b) - np.cos(phi_s) + (phi_b - phi_s) * np.sin(phi_s)) 
+                 / (np.pi * harmonic * eta0) )
+            
+        else:
+            
+            phi_b = omega_RF*sigma_dt + phi_s - np.pi
+            sigma_dE = np.sqrt( voltage * energy * beta**2  
+                 * (np.cos(phi_b) - np.cos(phi_s-np.pi) + (phi_b - phi_s-np.pi) * np.sin(phi_s-np.pi)) 
+                 / (np.pi * harmonic * eta0) )
         
     
     beam.sigma_dt = sigma_dt
@@ -691,6 +700,7 @@ def longitudinal_bigaussian(GeneralParameters, RFSectionParameters, beam,
     else:
         beam.dt = sigma_dt*np.random.randn(beam.n_macroparticles) + \
                   (phi_s - phi_RF - np.pi)/omega_RF
+                  
     beam.dE = sigma_dE*np.random.randn(beam.n_macroparticles)
     
     if reinsertion is 'on':
@@ -699,9 +709,14 @@ def longitudinal_bigaussian(GeneralParameters, RFSectionParameters, beam,
                     RFSectionParameters, beam, beam.dt, beam.dE) == False)[0]
          
         while itemindex.size != 0:
-         
-            beam.dt[itemindex] = sigma_dt*np.random.randn(itemindex.size) \
-                                 + (phi_s - phi_RF)/omega_RF
+            
+            if eta0>0:
+                beam.dt[itemindex] = sigma_dt*np.random.randn(itemindex.size) \
+                                     + (phi_s - phi_RF)/omega_RF
+            else:
+                beam.dt[itemindex] = sigma_dt*np.random.randn(itemindex.size) \
+                                     + (phi_s - phi_RF - np.pi)/omega_RF
+                                     
             beam.dE[itemindex] = sigma_dE*np.random.randn(itemindex.size)
             itemindex = np.where(is_in_separatrix(GeneralParameters, 
                         RFSectionParameters, beam, beam.dt, beam.dE) == False)[0]
