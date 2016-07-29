@@ -63,6 +63,9 @@ STRUCTURE
 
 VERSION CONTENTS 
 ================
+2016-07-29
+v1.15.1 - several upgrades and bug fixes
+
 2016-06-23
 v1.14.5 - RF modulation file added in llrf folder
         - documentation on-line for PSB phase loop added
