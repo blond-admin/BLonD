@@ -8,7 +8,7 @@
 # Project website: http://blond.web.cern.ch/
 
 '''
-**Module to compute synchrotron radiation damping and quantum excitation**
+**Class to compute synchrotron radiation damping and quantum excitation**
 
 :Authors: **Juan F. Esteban Mueller**
 '''
@@ -23,7 +23,7 @@ from setup_cpp import libsrqe
 
 class SynchrotronRadiation(object):
     
-    ''' Class able to compute synchrotron radiation effects, including radiation
+    ''' Class to compute synchrotron radiation effects, including radiation
         damping and quantum excitation.
         Only for single RF section for the moment...
     '''
@@ -49,10 +49,15 @@ class SynchrotronRadiation(object):
         self.calculate_SR_params()
         self.print_SR_params()
         
+        # Initialize the random number array if quantum excitation is included
+        if quantum_excitation==True:
+            self.random_array = np.zeros(self.beam.n_macroparticles)
+        
         # Displace the beam in phase to account for the energy loss due to 
         # synchrotron radiation (temporary until bunch generation is updated)
         self.beam.dt -= np.arcsin(self.U0/self.rf_params.voltage[0][0]) * self.rf_params.t_RF[0]/ (2.0*np.pi)
         
+        # Select the right method for the tracker according to the selected settings
         if python==True:
             if synchrotron_radiation==True and quantum_excitation==True:
                 self.track = self.track_full_python
@@ -114,7 +119,7 @@ class SynchrotronRadiation(object):
         if i_turn != 0 and self.general_params.energy[0,i_turn] != self.general_params.energy[0,i_turn-1]:
             self.calculate_SR_params()
         
-        libsrqe.SR(self.beam.dE.ctypes.data_as(ctypes.c_void_p), 
+        libsrqe.synchrotron_radiation(self.beam.dE.ctypes.data_as(ctypes.c_void_p), 
             ctypes.c_double(self.U0),
             ctypes.c_int(self.beam.n_macroparticles), 
             ctypes.c_double(self.tau_z))
@@ -126,10 +131,11 @@ class SynchrotronRadiation(object):
         if i_turn != 0 and self.general_params.energy[0,i_turn] != self.general_params.energy[0,i_turn-1]:
             self.calculate_SR_params()
         
-        libsrqe.SR_full(self.beam.dE.ctypes.data_as(ctypes.c_void_p), 
+        libsrqe.synchrotron_radiation_full(self.beam.dE.ctypes.data_as(ctypes.c_void_p), 
             ctypes.c_double(self.U0),
             ctypes.c_int(self.beam.n_macroparticles), 
             ctypes.c_double(self.sigma_dE), 
             ctypes.c_double(self.tau_z), 
-            ctypes.c_double(self.general_params.energy[0,i_turn]))
+            ctypes.c_double(self.general_params.energy[0,i_turn]),
+            self.random_array.ctypes.data_as(ctypes.c_void_p))
             

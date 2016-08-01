@@ -27,9 +27,20 @@ import ctypes
 # where xx is the number of threads that you want to launch
 parallel = False
 
-list_cpp_files = 'cpp_routines/mean_std_whereint.cpp cpp_routines/kick.cpp cpp_routines/drift.cpp cpp_routines/linear_interp_kick.cpp toolbox/tomoscope.cpp'
-list_cpp_files_SR = 'synchrotron_radiation/synchrotron_radiation.cpp'
+# If True, the boost library would be used
+boost = False
+# Path to the boost library (recommended to use the latest version)
+boost_path = None
 
+list_cpp_files = 'cpp_routines/mean_std_whereint.cpp cpp_routines/kick.cpp cpp_routines/drift.cpp cpp_routines/linear_interp_kick.cpp toolbox/tomoscope.cpp'
+
+# Select the right 
+list_cpp_files_SR = 'synchrotron_radiation/synchrotron_radiation.cpp'
+if boost:
+    list_cpp_files_SR += ' synchrotron_radiation/quantum_excitation_boost.cpp'
+else:
+    list_cpp_files_SR += ' synchrotron_radiation/quantum_excitation_std.cpp'
+    
 # EXAMPLE FLAGS: -Ofast -std=c++11 -fopt-info-vec
 #                -mfma4 -fopenmp -ftree-vectorizer-verbose=1
 if parallel == False:
@@ -38,7 +49,9 @@ if parallel == False:
 elif parallel == True:
     flags = '-Ofast -std=c++11 -fopenmp'
     list_cpp_files += ' cpp_routines/histogram_par.cpp'
-
+    
+if boost_path != None:
+     flags += ' -I '+boost_path
 
 if __name__ == "__main__":
     
