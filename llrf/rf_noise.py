@@ -32,7 +32,7 @@ class FlatSpectrum(object):
     def __init__(self, GeneralParameters, RFSectionParameters, delta_f = 1, 
                  corr_time = 10000, fmin_s0 = 0.8571, fmax_s0 = 1.1, 
                  initial_amplitude = 1.e-6, seed1 = 1234, seed2 = 7564, 
-                 predistortion = None):
+                 predistortion = None, continuous_phase = False):
 
         '''
         Generate phase noise from a band-limited spectrum.
@@ -60,6 +60,9 @@ class FlatSpectrum(object):
         self.fs = RFSectionParameters.omega_s0 / (2*np.pi) # synchrotron frequency in Hz
         self.n_turns = GeneralParameters.n_turns 
         self.dphi = np.zeros(self.n_turns+1)
+        self.continuous_phase = continuous_phase
+        if self.continuous_phase:
+            self.dphi2 = np.zeros(self.n_turns+1+self.corr/4)
         
     
     def spectrum_to_phase_noise(self, freq, spectrum, transform=None):
@@ -176,17 +179,29 @@ class FlatSpectrum(object):
                     ampl*np.ones(nmax-nmin+1), np.zeros(n_points_pos_f_incl_zero-nmax-1)))               
             
             
-            self.spectrum_to_phase_noise(freq, spectrum)
-            self.seed1 +=239
-            self.seed2 +=158
-            
-            
             # Fill phase noise array
             if i < int(self.n_turns/self.corr) - 1:
                 kmax = (i + 1)*self.corr
             else:
                 kmax = self.n_turns + 1
+            
+            
+            self.spectrum_to_phase_noise(freq, spectrum)
+            self.seed1 +=239
+            self.seed2 +=158
             self.dphi[k:kmax] = self.dphi_output[0:(kmax-k)]
+            
+            if self.continuous_phase:
+                if i==0:
+                    self.spectrum_to_phase_noise(freq, spectrum)
+                    self.seed1 +=239
+                    self.seed2 +=158
+                    self.dphi2[:self.corr/4] = self.dphi_output[:self.corr/4]
+                    
+                self.spectrum_to_phase_noise(freq, spectrum)
+                self.seed1 +=239
+                self.seed2 +=158
+                self.dphi2[(k+self.corr/4):(kmax+self.corr/4)] = self.dphi_output[0:(kmax-k)]
             
             fig_folder('fig_noise')
             plot_noise_spectrum(freq, spectrum, sampling=1, figno=i, 
@@ -196,7 +211,10 @@ class FlatSpectrum(object):
             rms_noise = np.std(self.dphi_output)
             print "RF noise for time step %.4e s (iter %d) has r.m.s. phase %.4e rad (%.3e deg)" \
                 %(self.t[1], i, rms_noise, rms_noise*180/np.pi)
-
+                
+        if self.continuous_phase:
+            psi = np.arange(0, self.n_turns+1)*2*np.pi/self.corr
+            self.dphi = self.dphi*np.sin(psi[:self.n_turns+1]) + self.dphi2[:(self.n_turns+1)]*np.cos(psi[:self.n_turns+1])
 
 
 class LHCNoiseFB(object): 
