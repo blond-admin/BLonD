@@ -76,6 +76,7 @@ class TotalInducedVoltage(object):
                     self.omegaj_array_memory = 2.0j * np.pi * self.frequency_array_memory
                     self.coefficient = - self.beam.charge * e * self.beam.ratio / (self.slices.bin_centers[1]-self.slices.bin_centers[0])
                     self.main_harmonic_number = induced_voltage_object.main_harmonic_number
+                    self.time_array_memory = induced_voltage_object.time_array_memory
                     i += 1
                 elif type(induced_voltage_object) is InductiveImpedance:
                     self.inductive_impedance_on = True    
@@ -84,8 +85,9 @@ class TotalInducedVoltage(object):
                 else:
                     raise RuntimeError('Memory feature not available for InducedVoltageTime objects! Aborting...')
             
-            if self.mode_mtw=='frequency_domain_first_method':       
-                self.array_memory = np.zeros(len(self.frequency_array_memory), complex)
+            if self.mode_mtw=='frequency_domain_first_method':
+                self.induced_voltage_extended = np.zeros(self.n_points_fft)       
+#                 self.array_memory = np.zeros(len(self.frequency_array_memory), complex)
             
             elif self.mode_mtw=='frequency_domain_second_method':
                 self.ind_volt_freq_table_memory = np.zeros((n_turns_memory+1, len(self.frequency_array_memory)), complex)
@@ -148,28 +150,27 @@ class TotalInducedVoltage(object):
         '''
         
         if self.mode_mtw=='frequency_domain_first_method':
-            # There is a bug inside, do not use it
+            self.induced_voltage_extended[:(self.slices.n_slices*self.main_harmonic_number)]=0
+            self.induced_voltage_extended[(self.slices.n_slices*self.main_harmonic_number*(self.n_turns_memory+1)):]=0
+            self.array_memory = rfft(self.induced_voltage_extended, self.n_points_fft)
             self.array_memory *= np.exp(self.omegaj_array_memory * self.rev_time_array[self.counter_turn])
-            induced_voltage = irfft(self.array_memory + rfft(self.slices.n_macroparticles, self.n_points_fft) * self.sum_impedances_memory, self.n_points_fft)
-            self.induced_voltage = self.coefficient * induced_voltage[:self.slices.n_slices]
-            self.induced_voltage_extended = self.coefficient * induced_voltage[:self.len_array_memory]
-            induced_voltage[self.len_array_memory:]=0
-            self.array_memory = rfft(induced_voltage, self.n_points_fft)
+            self.induced_voltage_extended =  irfft(self.array_memory + rfft(self.slices.n_macroparticles, self.n_points_fft) * self.sum_impedances_memory, self.n_points_fft)
+            self.induced_voltage = self.coefficient * self.induced_voltage_extended[:self.slices.n_slices]
         elif self.mode_mtw=='frequency_domain_second_method':
             self.ind_volt_freq_table_memory *= np.exp(self.omegaj_array_memory * self.rev_time_array[self.counter_turn])
             padded_before_profile = np.lib.pad(self.slices.n_macroparticles, (self.slices.n_slices*self.n_windows_before,0), 'constant', constant_values=(0,0))
             self.fourier_transf_profile = rfft(padded_before_profile, self.n_points_fft)
             self.ind_volt_freq_table_memory[self.pointer_current_turn,:] = self.fourier_transf_profile * self.sum_impedances_memory
             ind_volt_total_f = np.sum(self.ind_volt_freq_table_memory,axis=0)
-            self.induced_voltage_extended = self.coefficient * irfft(ind_volt_total_f, self.n_points_fft)
-            self.induced_voltage = self.induced_voltage_extended[(self.slices.n_slices*self.n_windows_before):((self.slices.n_slices*self.n_windows_before)+self.slices.n_slices)]
+            self.induced_voltage_extended = irfft(ind_volt_total_f, self.n_points_fft)
+            self.induced_voltage = self.coefficient * self.induced_voltage_extended[(self.slices.n_slices*self.n_windows_before):((self.slices.n_slices*self.n_windows_before)+self.slices.n_slices)]
         elif self.mode_mtw=='frequency_domain_third_method':
-            induced_voltage_current = self.coefficient * irfft( rfft(self.slices.n_macroparticles, self.n_points_fft) * self.sum_impedances_memory, self.n_points_fft)
+            induced_voltage_current = irfft( rfft(self.slices.n_macroparticles, self.n_points_fft) * self.sum_impedances_memory, self.n_points_fft)
             self.induced_voltage_extended[:(self.slices.n_slices*self.main_harmonic_number*self.n_turns_memory)] = \
                 induced_voltage_current[:(self.slices.n_slices*self.main_harmonic_number*self.n_turns_memory)] + \
                 self.induced_voltage_extended[(self.slices.n_slices*self.main_harmonic_number):(self.slices.n_slices*self.main_harmonic_number*(self.n_turns_memory+1))]
             self.induced_voltage_extended[(self.slices.n_slices*self.main_harmonic_number*self.n_turns_memory):] = induced_voltage_current[(self.slices.n_slices*self.main_harmonic_number*self.n_turns_memory):]
-            self.induced_voltage = self.induced_voltage_extended[:self.slices.n_slices]
+            self.induced_voltage = self.coefficient * self.induced_voltage_extended[:self.slices.n_slices]
             
             
         # Contribution from inductive impedance
