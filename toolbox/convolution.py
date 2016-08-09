@@ -4,11 +4,13 @@ import numpy as np
 
 
 def convolution(signal, kernel):
-    size = len(signal) + len(kernel) - 1
-    result = np.empty(size)
+    signalLen = len(signal)
+    kernelLen = len(kernel)
+    # size = len(signal) + len(kernel) - 1
+    result = np.empty(signalLen + kernelLen - 1)
     libfib.convolution(signal.ctypes.data_as(ctypes.c_void_p),
-                       ctypes.c_int(len(signal)),
+                       ctypes.c_int(signalLen),
                        kernel.ctypes.data_as(ctypes.c_void_p),
-                       ctypes.c_int(len(kernel)),
+                       ctypes.c_int(kernelLen),
                        result.ctypes.data_as(ctypes.c_void_p))
     return result
