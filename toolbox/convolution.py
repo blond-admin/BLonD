@@ -6,7 +6,6 @@ import numpy as np
 def convolution(signal, kernel):
     signalLen = len(signal)
     kernelLen = len(kernel)
-    # size = len(signal) + len(kernel) - 1
     result = np.empty(signalLen + kernelLen - 1)
     libfib.convolution(signal.ctypes.data_as(ctypes.c_void_p),
                        ctypes.c_int(signalLen),
