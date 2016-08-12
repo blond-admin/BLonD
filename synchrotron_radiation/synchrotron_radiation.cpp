@@ -12,22 +12,25 @@ Project website: http://blond.web.cern.ch/
 // damping term
 // Author: Juan F. Esteban Mueller
 
-#include <math.h>
 #include <stdlib.h>
-#include <random>
 
 // This function calculates and applies only the synchrotron radiation damping term
 extern "C" void synchrotron_radiation(double * __restrict__ beam_dE, const double U0, 
-					 const int n_macroparticles,
-					 const double tau_z){
-    // SR damping term due to energy spread
-    const double const_synch_rad = 2.0 / tau_z;
-    #pragma omp parallel for
-    for (int i = 0; i < n_macroparticles; i++)
-        beam_dE[i] -= const_synch_rad * beam_dE[i];
+                            const int n_macroparticles, const double tau_z, 
+                            const int n_kicks){
 
-    // Average energy change due to SR
-    #pragma omp parallel for
-    for (int i = 0; i < n_macroparticles; i++)
-        beam_dE[i] -= U0;
+    // SR damping constant
+    const double const_synch_rad = 2.0 / tau_z;
+
+    for (int j=0; j<n_kicks; j++){
+        // SR damping term due to energy spread
+        #pragma omp parallel for
+        for (int i = 0; i < n_macroparticles; i++)
+            beam_dE[i] -= const_synch_rad * beam_dE[i];
+    
+        // Average energy change due to SR
+        #pragma omp parallel for
+        for (int i = 0; i < n_macroparticles; i++)
+            beam_dE[i] -= U0;
+    }
 }

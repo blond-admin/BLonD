@@ -24,26 +24,30 @@ Project website: http://blond.web.cern.ch/
 extern "C" void synchrotron_radiation_full(double * __restrict__ beam_dE, const double U0,
                                         const int n_macroparticles, const double sigma_dE,
                                         const double tau_z,const double energy,
-                                        double * __restrict__ random_array){
+                                        double * __restrict__ random_array,
+                                        const int n_kicks){
     
-    // Compute synchrotron radiation damping term
-    synchrotron_radiation(beam_dE, U0, n_macroparticles, tau_z);
-    
+    // Quantum excitation constant
+    const double const_quantum_exc = 2.0 * sigma_dE / sqrt(tau_z) * energy;
+
     // Random number generator for the quantum excitation term
     std::random_device rd;
     std::mt19937_64 gen(rd());
     std::normal_distribution<> d(0.0,1.0);
     
-    // Re-calculate the randon (Gaussian) number array
-    for (int i = 0; i < n_macroparticles; i++){
-        random_array[i] = d(gen);
-    }
+    for (int j=0; j<n_kicks; j++){
+        // Compute synchrotron radiation damping term
+        synchrotron_radiation(beam_dE, U0, n_macroparticles, tau_z, 1);
     
-    // Applies the quantum excitation term
-    const double const_quantum_exc = 2.0 * sigma_dE / sqrt(tau_z) * energy;
-    #pragma omp parallel for
-    for (int i = 0; i < n_macroparticles; i++){
-        beam_dE[i] += const_quantum_exc * random_array[i];
+        // Re-calculate the random (Gaussian) number array
+        for (int i = 0; i < n_macroparticles; i++){
+            random_array[i] = d(gen);
+        }
+        
+        // Applies the quantum excitation term
+        #pragma omp parallel for
+        for (int i = 0; i < n_macroparticles; i++){
+            beam_dE[i] += const_quantum_exc * random_array[i];
+        }
     }
-    
 }
