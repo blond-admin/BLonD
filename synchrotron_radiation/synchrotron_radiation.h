@@ -11,5 +11,5 @@ Project website: http://blond.web.cern.ch/
 // Author: Juan F. Esteban Mueller
 
 extern "C" void synchrotron_radiation(double * __restrict__ beam_dE, const double U0, 
-					 const int n_macroparticles,
-					 const double tau_z);
+                                const int n_macroparticles, const double tau_z,
+                                const int n_kicks);

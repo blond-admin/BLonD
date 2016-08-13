@@ -14,7 +14,6 @@
 '''
 
 from __future__ import division
-import h5py as hp
 import numpy as np
 import ctypes
 from scipy.constants import e, c, epsilon_0, hbar
@@ -25,16 +24,18 @@ class SynchrotronRadiation(object):
     
     ''' Class to compute synchrotron radiation effects, including radiation
         damping and quantum excitation.
-        Only for single RF section for the moment...
+        For multiple RF section, instanciate one object per RF section an call
+        the track() method after tracking each section.
     '''
     
-    def __init__(self, GeneralParameters, RFParameters, Beam, ro,
+    def __init__(self, GeneralParameters, RFParameters, Beam, ro, n_kicks=1,
                  synchrotron_radiation=True, quantum_excitation=True, python=False):
         
         self.general_params = GeneralParameters
         self.rf_params = RFParameters
         self.beam = Beam
         self.ro = ro
+        self.n_kicks = n_kicks  # To apply SR in several kicks
         
         # Calculate static parameters
         self.Cgamma = 1.0 / (e**2.0 * 3.0 * epsilon_0 * self.general_params.mass**4.0)
@@ -47,7 +48,6 @@ class SynchrotronRadiation(object):
         
         # Calculate synchrotron radiation parameters
         self.calculate_SR_params()
-        self.print_SR_params()
         
         # Initialize the random number array if quantum excitation is included
         if quantum_excitation==True:
@@ -55,7 +55,8 @@ class SynchrotronRadiation(object):
         
         # Displace the beam in phase to account for the energy loss due to 
         # synchrotron radiation (temporary until bunch generation is updated)
-        self.beam.dt -= np.arcsin(self.U0/self.rf_params.voltage[0][0]) * self.rf_params.t_RF[0]/ (2.0*np.pi)
+        if self.rf_params.section_index == 0:
+            self.beam.dt -= np.arcsin(self.U0/self.rf_params.voltage[0][0]) * self.rf_params.t_RF[0]/ (2.0*np.pi)
         
         # Select the right method for the tracker according to the selected settings
         if python==True:
@@ -73,8 +74,10 @@ class SynchrotronRadiation(object):
     def calculate_SR_params(self):
         i_turn = self.rf_params.counter[0]
         
-        # Energy loss per turn [eV]        
-        self.U0 = self.Cgamma * self.general_params.energy[0,i_turn]**4.0 * self.I2 / (2.0 * np. pi) * e**3.0
+        # Energy loss per turn/RF section [eV]        
+        self.U0 = self.Cgamma * self.general_params.energy[0,i_turn]**4.0 * \
+                  self.I2 / (2.0 * np. pi) * e**3.0 * \
+                  self.rf_params.section_length / self.general_params.ring_circumference   # to account for only one section
 
         # Damping time [turns]        
         self.tau_z = 2.0 / self.jz * self.general_params.energy[0,i_turn] / self.U0 
@@ -89,9 +92,14 @@ class SynchrotronRadiation(object):
         
         print( '------- Synchrotron radiation parameters -------' )
         print( 'jz = {0:1.8f} '.format( self.jz ) )
-        print( 'Energy loss per turn = {0:1.4f} GeV/turn'.format(self.U0*1e-9) )
+        if self.rf_params.section_length == self.general_params.ring_circumference:
+            print( 'Energy loss per turn = {0:1.4f} GeV/turn'.format(self.U0*1e-9) )
+            print( 'Damping time = {0:1.4f} turns'.format(self.tau_z) )
+        else:
+            print( 'Energy loss per RF section = {0:1.4f} GeV/section'.format(self.U0*1e-9) )
+            print( 'Energy loss per turn = {0:1.4f} GeV/turn'.format(self.U0*1e-9 * self.general_params.ring_circumference / self.rf_params.section_length) )
+            print( 'Damping time = {0:1.4f} turns'.format(self.tau_z * self.rf_params.section_length / self.general_params.ring_circumference ) )
         print( 'Equilibrium energy spread = {0:1.4f}% ({1:1.4f} MeV)'.format(self.sigma_dE * 100,self.sigma_dE * self.general_params.energy[0,i_turn]*1e-6)  )
-        print( 'Damping time = {0:1.4f} turns'.format(self.tau_z) )
         print( '------------------------------------------------' )
 
     # Track particles with SR only (without quantum excitation)
@@ -100,7 +108,8 @@ class SynchrotronRadiation(object):
         # Recalculate SR parameters if energy changes
         if i_turn != 0 and self.general_params.energy[0,i_turn] != self.general_params.energy[0,i_turn-1]:
             self.calculate_SR_params()
-        self.beam.dE += - 2.0 / self.tau_z * self.beam.dE - self.U0
+        for i in range(self.n_kicks):
+            self.beam.dE += - 2.0 / self.tau_z / self.n_kicks * self.beam.dE - self.U0 / self.n_kicks
     
     # Track particles with SR and quantum excitation
     def track_full_python(self):
@@ -108,9 +117,10 @@ class SynchrotronRadiation(object):
         # Recalculate SR parameters if energy changes
         if i_turn != 0 and self.general_params.energy[0,i_turn] != self.general_params.energy[0,i_turn-1]:
             self.calculate_SR_params()
-        self.beam.dE += - 2.0 / self.tau_z * self.beam.dE - self.U0 + \
-            2.0 * self.sigma_dE / np.sqrt(self.tau_z) \
-            * self.general_params.energy[0,i_turn] * np.random.randn(self.beam.n_macroparticles)
+        for i in range(self.n_kicks):
+            self.beam.dE += - 2.0 / self.tau_z / self.n_kicks * self.beam.dE - self.U0 / self.n_kicks + \
+                2.0 * self.sigma_dE / np.sqrt(self.tau_z * self.n_kicks) \
+                * self.general_params.energy[0,i_turn] * np.random.randn(self.beam.n_macroparticles)
 
     # Track particles with SR only (without quantum excitation). C implementation
     def track_SR_C(self):
@@ -120,9 +130,10 @@ class SynchrotronRadiation(object):
             self.calculate_SR_params()
         
         libsrqe.synchrotron_radiation(self.beam.dE.ctypes.data_as(ctypes.c_void_p), 
-            ctypes.c_double(self.U0),
+            ctypes.c_double(self.U0 / self.n_kicks),
             ctypes.c_int(self.beam.n_macroparticles), 
-            ctypes.c_double(self.tau_z))
+            ctypes.c_double(self.tau_z * self.n_kicks),
+            ctypes.c_int(self.n_kicks))
     
     # Track particles with SR and quantum excitation. C implementation
     def track_full_C(self):
@@ -132,10 +143,11 @@ class SynchrotronRadiation(object):
             self.calculate_SR_params()
         
         libsrqe.synchrotron_radiation_full(self.beam.dE.ctypes.data_as(ctypes.c_void_p), 
-            ctypes.c_double(self.U0),
+            ctypes.c_double(self.U0 / self.n_kicks),
             ctypes.c_int(self.beam.n_macroparticles), 
             ctypes.c_double(self.sigma_dE), 
-            ctypes.c_double(self.tau_z), 
+            ctypes.c_double(self.tau_z * self.n_kicks), 
             ctypes.c_double(self.general_params.energy[0,i_turn]),
-            self.random_array.ctypes.data_as(ctypes.c_void_p))
+            self.random_array.ctypes.data_as(ctypes.c_void_p),
+            ctypes.c_int(self.n_kicks))
             
