@@ -14,10 +14,13 @@
 '''
 
 from __future__ import division
+from future import standard_library
+standard_library.install_aliases()
+from builtins import object
 import numpy as np
 from scipy.constants import m_p, e, c
 from scipy import integrate
-import Tkinter as tk
+import tkinter as tk
 
 
 
@@ -391,7 +394,3 @@ class ParameterScaling(object):
             self.emittance_from_bunch_length(self.bunch_length_target)
 
         #self.master.destroy()
-
-
-       
-        

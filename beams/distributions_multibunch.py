@@ -4,12 +4,14 @@
 :Authors: **Danilo Quartullo**, **Alexandre Lasheen**, **Theodoros Argyropoulos**
 '''
 
-from __future__ import division
+from __future__ import division, print_function, absolute_import
+from builtins import range
 import numpy as np
 import copy
 import matplotlib.pyplot as plt
-from beams import Beam
-from distributions import matched_from_distribution_density, matched_from_line_density
+from .beams import Beam
+from .distributions import matched_from_distribution_density, matched_from_line_density
+
 
 
 def matched_from_distribution_density_multibunch(beam, GeneralParameters, FullRingAndRF, distribution_options_list,
@@ -43,12 +45,12 @@ def matched_from_distribution_density_multibunch(beam, GeneralParameters, FullRi
             n_macroparticles_per_bunch = np.round(minimum_n_macroparticles/np.min(intensity_per_bunch) * intensity_per_bunch)
     
     if np.sum(intensity_per_bunch) != beam.intensity:
-        print 'WARNING !! The total intensity per bunch does not match the total intensity of the beam, the beam.intensity will be overwritten'
+        print('WARNING !! The total intensity per bunch does not match the total intensity of the beam, the beam.intensity will be overwritten')
         beam.intensity = np.sum(intensity_per_bunch)
     
     
     if np.sum(n_macroparticles_per_bunch) != beam.n_macroparticles:
-        print 'WARNING !! The number of macroparticles per bunch does not match the total number of the beam, the beam.n_macroparticles will be overwritten'
+        print('WARNING !! The number of macroparticles per bunch does not match the total number of the beam, the beam.n_macroparticles will be overwritten')
         beam.n_macroparticles = int(np.sum(n_macroparticles_per_bunch))
 
     voltages = np.array([])
@@ -82,7 +84,7 @@ def matched_from_distribution_density_multibunch(beam, GeneralParameters, FullRi
     
     for indexBunch in range(0, n_bunches):
         
-        print 'Generating bunch no %d' %(indexBunch+1)
+        print('Generating bunch no %d' %(indexBunch+1))
         
         bunch = Beam(GeneralParameters, int(n_macroparticles_per_bunch[indexBunch]), intensity_per_bunch[indexBunch])
         
@@ -171,11 +173,11 @@ def matched_from_line_density_multibunch(beam, GeneralParameters, FullRingAndRF,
             n_macroparticles_per_bunch = np.round(minimum_n_macroparticles/np.min(intensity_per_bunch) * intensity_per_bunch)
         
     if np.sum(intensity_per_bunch) != beam.intensity:
-        print 'WARNING !! The total intensity per bunch does not match the total intensity of the beam, the beam.intensity will be overwritten'
+        print('WARNING !! The total intensity per bunch does not match the total intensity of the beam, the beam.intensity will be overwritten')
         beam.intensity = np.sum(intensity_per_bunch)
     
     if np.sum(n_macroparticles_per_bunch) != beam.n_macroparticles:
-        print 'WARNING !! The number of macroparticles per bunch does not match the total number of the beam, the beam.n_macroparticles will be overwritten'
+        print('WARNING !! The number of macroparticles per bunch does not match the total number of the beam, the beam.n_macroparticles will be overwritten')
         beam.n_macroparticles = int(np.sum(n_macroparticles_per_bunch))
     
     voltages = np.array([])
@@ -208,7 +210,7 @@ def matched_from_line_density_multibunch(beam, GeneralParameters, FullRingAndRF,
     
     for indexBunch in range(0, n_bunches):
         
-        print 'Generating bunch no %d' %(indexBunch+1)
+        print('Generating bunch no %d' %(indexBunch+1))
         
         bunch = Beam(GeneralParameters, int(n_macroparticles_per_bunch[indexBunch]), intensity_per_bunch[indexBunch])
         
@@ -264,4 +266,3 @@ def matched_from_line_density_multibunch(beam, GeneralParameters, FullRingAndRF,
                 
     beam.dt = beamIteration.dt
     beam.dE = beamIteration.dE
-            

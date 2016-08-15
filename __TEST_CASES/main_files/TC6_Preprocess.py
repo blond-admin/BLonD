@@ -1,17 +1,26 @@
+
+# Copyright 2016 CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3), 
+# copied verbatim in the file LICENCE.md.
+# In applying this licence, CERN does not waive the privileges and immunities 
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+'''
+Test case to show how to use preprocess_ramp and preprocess_rf_params in the main file
+(CERN PS Booster context).
+'''
+
+from __future__ import division
 import numpy as np
 from input_parameters.preprocess import *
 from input_parameters.general_parameters import *
-import matplotlib.pyplot as plt
 from beams.beams import *
 from input_parameters.rf_parameters import *
 from beams.slices import *
 from monitors.monitors import *
 from trackers.tracker import *
 
-'''
-Test case to show how to use preprocess_ramp and preprocess_rf_params in the main file
-(CERN PS Booster context).
-'''
 
 # Beam parameters
 particle_type = 'proton'

@@ -13,12 +13,13 @@
 :Authors: **Alexandre Lasheen**, **Danilo Quartullo**, **Helga Timko**
 '''
 
-from __future__ import division
+from __future__ import division, print_function
+from builtins import str, range, object
 import numpy as np
 from scipy.constants import c
-import matplotlib.pyplot as plt
 from scipy.integrate import cumtrapz
-import sys
+
+
 
 def input_check(input_value, expected_length):
     '''
@@ -116,7 +117,7 @@ class RFSectionParameters(object):
         
         #: *Import alpha order for the section (from GeneralParameters)*
         self.alpha_order = GeneralParameters.alpha_order
-        for i in xrange( self.alpha_order ):
+        for i in range( self.alpha_order ):
             dummy = getattr(GeneralParameters, 'eta_' + str(i))
             setattr(self, "eta_%s" %i, dummy[self.section_index])
         #: *Sign of eta_0*
@@ -235,7 +236,7 @@ class RFSectionParameters(object):
         else:
             eta = 0
             delta = dE/(beam.beta**2 * beam.energy)
-            for i in xrange( self.alpha_order ):
+            for i in range( self.alpha_order ):
                 eta_i = getattr(self, 'eta_' + str(i))[counter]
                 eta  += eta_i * (delta**i)
             return eta  
@@ -265,7 +266,7 @@ def calc_phi_s(RFSectionParameters, accelerating_systems = 'as_single'):
                                      (acceleration_ratio < 1) == False)[0]
                 
         if acceleration_test.size > 0:
-            print 'Warning!!! Acceleration is not possible (momentum increment is too big or voltage too low) at index ' + str(acceleration_test)
+            print('Warning!!! Acceleration is not possible (momentum increment is too big or voltage too low) at index ' + str(acceleration_test))
         
         phi_s = np.arcsin(acceleration_ratio)
         
@@ -331,6 +332,3 @@ def calc_phi_s(RFSectionParameters, accelerating_systems = 'as_single'):
             return np.pi*np.ones(RFSectionParameters.n_turns)
         elif eta0[0] < 0:
             return 0*np.ones(RFSectionParameters.n_turns)
-         
- 
-    

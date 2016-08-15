@@ -12,7 +12,8 @@ Example input for simulation of ion dynamics
 No intensity effects
 '''
 
-import time 
+from __future__ import division, print_function
+from builtins import range
 import numpy as np
 from scipy.constants import physical_constants
 # Atomic Mass Unit [eV]
@@ -56,8 +57,8 @@ dt_plt = 5000                # Time steps between plots
 
 
 # Simulation setup -------------------------------------------------------------
-print "Setting up the simulation..."
-print ""
+print("Setting up the simulation...")
+print("")
 
 
 # Define general parameters
@@ -66,8 +67,8 @@ general_params = GeneralParameters(N_t, C, alpha, np.linspace(p_i, p_f, N_t+1),
 
 # Define beam and distribution
 beam = Beam(general_params, N_p, N_b)
-print "Particle mass is %.3e eV" %general_params.mass
-print "Particle charge is %d e" %general_params.charge
+print("Particle mass is %.3e eV" %general_params.mass)
+print("Particle charge is %d e" %general_params.charge)
 
 linspace_test = np.linspace(p_i, p_f, N_t+1)
 momentum_test = general_params.momentum
@@ -79,8 +80,8 @@ charge_test = general_params.charge # e*Z
 
 # Define RF station parameters and corresponding tracker
 rf_params = RFSectionParameters(general_params, 1, h, V, dphi)
-print "Initial bucket length is %.3e s" %(2.*np.pi/rf_params.omega_RF[0,0])
-print "Final bucket length is %.3e s" %(2.*np.pi/rf_params.omega_RF[0,N_t])
+print("Initial bucket length is %.3e s" %(2.*np.pi/rf_params.omega_RF[0,0]))
+print("Final bucket length is %.3e s" %(2.*np.pi/rf_params.omega_RF[0,N_t]))
 
 phi_s_test = rf_params.phi_s #: *Synchronous phase
 omega_RF_d_test = rf_params.omega_RF_d #: *Design RF frequency of the RF systems in the station [GHz]*
@@ -113,8 +114,8 @@ plots = Plot(general_params, rf_params, beam, dt_plt, N_t, -4.e-7, 4.e-7, -400e6
 
 # Accelerator map
 map_ = [long_tracker] + [slice_beam] + [bunchmonitor] + [plots]
-print "Map set"
-print ""
+print("Map set")
+print("")
 
 
 
@@ -124,14 +125,14 @@ for i in range(1, N_t+1):
     
     # Plot has to be done before tracking (at least for cases with separatrix)
     if (i % dt_plt) == 0:
-        print "Outputting at time step %d..." %i
-        print "   Beam momentum %.6e eV" %beam.momentum
-        print "   Beam gamma %3.3f" %beam.gamma
-        print "   Beam beta %3.3f" %beam.beta
-        print "   Beam energy %.6e eV" %beam.energy
-        print "   Four-times r.m.s. bunch length %.4e s" %(4.*beam.sigma_dt)
+        print("Outputting at time step %d..." %i)
+        print("   Beam momentum %.6e eV" %beam.momentum)
+        print("   Beam gamma %3.3f" %beam.gamma)
+        print("   Beam beta %3.3f" %beam.beta)
+        print("   Beam energy %.6e eV" %beam.energy)
+        print("   Four-times r.m.s. bunch length %.4e s" %(4.*beam.sigma_dt))
         #print "   Gaussian bunch length %.4e s" %slice_beam.bl_gauss
-        print ""
+        print("")
         
     # Track
     for m in map_:
@@ -141,7 +142,5 @@ for i in range(1, N_t+1):
     beam.losses_separatrix(general_params, rf_params, beam)
     #beam.losses_longitudinal_cut(0.28e-4/general_params.omega_rev[i], 0.75e-4/general_params.omega_rev[i])
     
-print "Done!"
-print ""
-
-
+print("Done!")
+print("")

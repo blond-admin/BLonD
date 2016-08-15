@@ -15,10 +15,10 @@ for the CERN machines**
 '''
 
 from __future__ import division
+from builtins import object
 import numpy as np
-import sys
-from setup_cpp import libfib
-import ctypes
+
+
 
 class PhaseLoop(object): 
     '''
@@ -47,13 +47,13 @@ class PhaseLoop(object):
         self.delay = delay
         
         #: | *Machine name; see description of each machine.*
-        if not self.config.has_key('machine'):  
+        if 'machine' not in self.config:  
             self.machine = 'LHC'
         else: 
             self.machine = self.config['machine'] 
 
         #: | *Band-pass filter window coefficient for beam phase calculation.*
-        if not self.config.has_key('window_coefficient'):  
+        if 'window_coefficient' not in self.config:  
             self.alpha = 0.
         else: 
             self.alpha = self.config['window_coefficient'] 
@@ -68,7 +68,7 @@ class PhaseLoop(object):
         if self.machine == 'LHC':
 
             #: | *Synchronisation loop gain.*            
-            if not self.config.has_key('SL_gain'):  
+            if 'SL_gain' not in self.config:  
                 self.gain2 = 0.
             else: 
                 self.gain2 = self.config['SL_gain'] 
@@ -95,7 +95,7 @@ class PhaseLoop(object):
         elif self.machine == 'LHC_F':
 
             #: | *Frequency loop gain.*            
-            if not self.config.has_key('FL_gain'):  
+            if 'FL_gain' not in self.config:  
                 self.gain2 = 0.
             else: 
                 self.gain2 = self.config['FL_gain'] 
@@ -105,7 +105,7 @@ class PhaseLoop(object):
         elif self.machine == 'SPS_RL':
 
             #: | *Frequency loop gain.*            
-            if not self.config.has_key('RL_gain'):  
+            if 'RL_gain' not in self.config:  
                 self.gain2 = 0.
             else: 
                 self.gain2 = self.config['RL_gain'] 
@@ -117,7 +117,7 @@ class PhaseLoop(object):
             self.gain = self.gain * np.ones(GeneralParameters.n_turns+1)
             
             #: | *Radial loop gain, proportional [1] and integral [1/s].*
-            if not self.config.has_key('RL_gain'):  
+            if 'RL_gain' not in self.config:  
                 self.gain2 = [0., 0.]
             else: 
                 self.gain2 = self.config['RL_gain'] 
@@ -125,7 +125,7 @@ class PhaseLoop(object):
             #: | *Optional: PL & RL acting only in certain time intervals/turns.*
             self.dt = 0
             #| *Phase Loop sampling period [s]*
-            if not self.config.has_key('period'):  
+            if 'period' not in self.config:  
                 self.dt = 10.e-6 # [s]
             else: 
                 self.dt = self.config['period'] 
@@ -137,7 +137,7 @@ class PhaseLoop(object):
             self.precalculate_time(GeneralParameters)
         
             #: | *Array of transfer function coefficients.*
-            if not self.config.has_key('coefficients'):  
+            if 'coefficients' not in self.config:  
                 self.coefficients = [0.999019,-0.999019,0.,1.,-0.998038,0.]  
             else:
                 self.coefficients = self.config['coefficients']
@@ -467,7 +467,3 @@ class PhaseLoop(object):
 
         # Apply frequency correction
         self.domega_RF = self.domega_PL + self.domega_RL
-        
-            
-   
-        

@@ -18,6 +18,7 @@
 # TO GET GCC 4.8.1 64 BIT. IN GENERAL IT IS ADVISED TO USE PYTHON 64 BIT PLUS 
 # GCC 64 BIT.
 
+from __future__ import print_function
 import os
 import sys
 import subprocess
@@ -29,10 +30,12 @@ parallel = False
 
 # If True, the boost library would be used
 boost = False
-# Path to the boost library (recommended to use the latest version)
+# Path to the boost library if not in your CPATH (recommended to use the latest version)
 boost_path = None
 
-list_cpp_files = 'cpp_routines/mean_std_whereint.cpp cpp_routines/kick.cpp cpp_routines/drift.cpp cpp_routines/linear_interp_kick.cpp toolbox/tomoscope.cpp cpp_routines/convolution.cpp'
+list_cpp_files = ('cpp_routines/mean_std_whereint.cpp cpp_routines/kick.cpp '
+                'cpp_routines/drift.cpp cpp_routines/linear_interp_kick.cpp '
+                'toolbox/tomoscope.cpp cpp_routines/convolution.cpp')
 
 # Select the right 
 list_cpp_files_SR = 'synchrotron_radiation/synchrotron_radiation.cpp'
@@ -61,10 +64,10 @@ if __name__ == "__main__":
         x = os.getcwd()
         os.system('g++ -o '+ x +'/cpp_routines/result.so -shared ' + flags + ' -fPIC ' + x + '/' + list_cpp_files)
         os.system('g++ -o '+ x +'/synchrotron_radiation/sync_rad.so -shared ' + flags + ' -fPIC ' + x + '/' + list_cpp_files_SR)
-        print ""
-        print ""
-        print "IF THE COMPILATION IS CORRECT A FILE NAMED result.so SHOULD APPEAR IN THE cpp_routines FOLDER." 
-        print "OTHERWISE YOU HAVE TO CORRECT THE ERRORS AND COMPILE AGAIN."
+        print("")
+        print("")
+        print("IF THE COMPILATION IS CORRECT A FILE NAMED result.so SHOULD APPEAR IN THE cpp_routines FOLDER.") 
+        print("OTHERWISE YOU HAVE TO CORRECT THE ERRORS AND COMPILE AGAIN.")
         sys.exit()
     
     elif "win" in sys.platform:
@@ -74,29 +77,25 @@ if __name__ == "__main__":
         x = os.getcwd()
         os.system('g++ -o '+ x +'\\cpp_routines\\result.dll -shared ' + flags + ' ' + x + '\\' + list_cpp_files)
         os.system('g++ -o '+ x +'\\synchrotron_radiation\\sync_rad.dll -shared ' + flags + ' ' + x + '\\' + list_cpp_files_SR)
-        print ""
-        print ""
-        print "IF THE COMPILATION IS CORRECT A FILE NAMED result.dll SHOULD APPEAR IN THE cpp_routines FOLDER." 
-        print "OTHERWISE YOU HAVE TO CORRECT THE ERRORS AND COMPILE AGAIN."
+        print("")
+        print("")
+        print("IF THE COMPILATION IS CORRECT A FILE NAMED result.dll SHOULD APPEAR IN THE cpp_routines FOLDER.") 
+        print("OTHERWISE YOU HAVE TO CORRECT THE ERRORS AND COMPILE AGAIN.")
         sys.exit()
     
     else:
-        print "YOU DO NOT HAVE A WINDOWS OR LINUX OPERATING SYSTEM. ABORTING..."
+        print("YOU DO NOT HAVE A WINDOWS OR LINUX OPERATING SYSTEM. ABORTING...")
         sys.exit()
 
 path = os.path.realpath(__file__)
 parent_path = os.sep.join(path.split(os.sep)[:-1])
 
 if "lin" in sys.platform:
-    libfib=ctypes.CDLL(parent_path+'/cpp_routines/result.so')
+    libblond=ctypes.CDLL(parent_path+'/cpp_routines/result.so')
     libsrqe=ctypes.CDLL(parent_path+'/synchrotron_radiation/sync_rad.so')
 elif "win" in sys.platform:
-    libfib=ctypes.CDLL(parent_path+'\\cpp_routines\\result.dll')
+    libblond=ctypes.CDLL(parent_path+'\\cpp_routines\\result.dll')
     libsrqe=ctypes.CDLL(parent_path+'\\synchrotron_radiation\\sync_rad.dll')
 else:
-    print "YOU DO NOT HAVE A WINDOWS OR LINUX OPERATING SYSTEM. ABORTING..."
+    print("YOU DO NOT HAVE A WINDOWS OR LINUX OPERATING SYSTEM. ABORTING...")
     sys.exit()
-
-
-    
-

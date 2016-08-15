@@ -14,12 +14,13 @@ and offset functions**
 :Authors: **Simon Albright**
 '''
 
+from __future__ import division
+from __future__ import print_function
+from builtins import str, range, object
 import numpy as np
 import scipy.interpolate as interp
-import matplotlib.pyplot as plt
 
 import input_parameters.preprocess as prep
-import input_parameters.rf_parameters as rfpar
 
 
 

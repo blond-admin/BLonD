@@ -16,12 +16,8 @@ script shows also an example of how to use the class SliceMonitor (check the
 corresponding h5 files).
 '''
 
-from __future__ import division
+from __future__ import division, print_function
 import numpy as np
-import math
-from scipy.constants import c, e, m_p
-import time, sys
-import matplotlib.pyplot as plt
 
 from input_parameters.general_parameters import *
 from input_parameters.rf_parameters import *
@@ -147,7 +143,7 @@ map_copy = [tot_vol_copy] + [ring_RF_section_copy] + [slice_beam_copy] + [bunchm
 
 for i in np.arange(1, n_turns+1):
     
-    print i
+    print(i)
     for m in map_:
         m.track()
     for m in map_copy:
@@ -158,9 +154,5 @@ for i in np.arange(1, n_turns+1):
         
         plot_induced_voltage_vs_bin_centers(i, general_params, tot_vol, style = '.', dirname = '../output_files/TC5_fig/1')
         plot_induced_voltage_vs_bin_centers(i, general_params_copy, tot_vol_copy, style = '.', dirname = '../output_files/TC5_fig/2')
-        
- 
-        
-print "Done!"
-
-
+                
+print("Done!")

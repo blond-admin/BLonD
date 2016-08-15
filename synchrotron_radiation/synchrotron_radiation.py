@@ -13,7 +13,8 @@
 :Authors: **Juan F. Esteban Mueller**
 '''
 
-from __future__ import division
+from __future__ import division, print_function
+from builtins import range, object
 import numpy as np
 import ctypes
 from scipy.constants import e, c, epsilon_0, hbar

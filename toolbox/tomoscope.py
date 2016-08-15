@@ -15,16 +15,17 @@ probability density.**
 
 
 from __future__ import division
+from __future__ import print_function
+from builtins import str
 import numpy as np
 import h5py as hp
 import os, linecache, ctypes
 from matplotlib import pyplot as plt
 import matplotlib.cm as cm
-from setup_cpp import libfib
+from setup_cpp import libblond
 
 
 
-#dataDir = r'\\cern.ch\dfs\Departments\AB\Groups\RF\Machines\PS\MD_Data\2015\2015-07-16_LHC25ns_PS-SPSTransfer2x40MHz\TomoscopeProcessed\OfflineTomoProcessed'
 def distribution_from_tomoscope_data(dataDir, nPart, cutoff = 1000, seed = 1234,
                                      plotFig = True, saveDistr = False):
      
@@ -73,7 +74,7 @@ def distribution_from_tomoscope_data(dataDir, nPart, cutoff = 1000, seed = 1234,
             dt = np.empty(nPart)
             dE = np.empty(nPart)
             
-            libfib.generate_distribution(dt.ctypes.data_as(ctypes.c_void_p), 
+            libblond.generate_distribution(dt.ctypes.data_as(ctypes.c_void_p), 
                                          dE.ctypes.data_as(ctypes.c_void_p), 
                                          probDistr.ctypes.data_as(ctypes.c_void_p), 
                                          ctypes.c_uint(seed), ctypes.c_uint(profLen), 
@@ -113,4 +114,3 @@ def distribution_from_tomoscope_data(dataDir, nPart, cutoff = 1000, seed = 1234,
                                        compression = "gzip", compression_opts = 9)
                 h5Group["dE"][:] = dE
                 h5File.close()
-

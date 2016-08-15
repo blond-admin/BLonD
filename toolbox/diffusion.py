@@ -15,8 +15,9 @@ RF bucket is considered.**
 '''
 
 from __future__ import division
+from builtins import range
 import numpy as np
-from scipy.special import ellipk, ellipe
+from scipy.special import ellipk
 import scipy.integrate as int
 import matplotlib.pyplot as plt
 from pylab import cm
@@ -202,6 +203,3 @@ def phase_noise_diffusion(GeneralParams, RFParameters, spectrum, distribution,
 
 
     return Jav, distributionInterp, Fnew[0]
-
-
-

@@ -13,16 +13,13 @@
 :Authors: **Helga Timko**
 '''
 
+from builtins import object
 import os
-import subprocess
-import sys
-import warnings
 import matplotlib.pyplot as plt
-import h5py as hp
 from plots.plot_beams import *
 from plots.plot_slices import *
 from plots.plot_llrf import *
-
+import h5py as hp
 
 
 def fig_folder(dirname):
@@ -132,47 +129,47 @@ class Plot(object):
         if format_options == None:
             format_options = {'dummy': 0} 
 
-        if not format_options.has_key('dirname'):  
+        if 'dirname' not in format_options:  
             self.dirname = 'fig'
         else: 
             self.dirname = format_options['dirname'] 
             
-        if not format_options.has_key('linewidth'):  
+        if 'linewidth' not in format_options:  
             self.lwidth = 2
         else: 
             self.lwidth = format_options['linewidth'] 
 
-        if not format_options.has_key('linestyle'):  
+        if 'linestyle' not in format_options:  
             self.lstyle = '-'
         else: 
             self.lstyle = format_options['linestyle'] 
 
-        if not format_options.has_key('markersize'):  
+        if 'markersize' not in format_options:  
             self.msize = 6
         else: 
             self.msize = format_options['markersize'] 
 
-        if not format_options.has_key('alpha'):  
+        if 'alpha' not in format_options:  
             self.alpha = 0.05
         else: 
             self.alpha = format_options['alpha'] 
 
-        if not format_options.has_key('labelsize'):  
+        if 'labelsize' not in format_options:  
             self.lsize = 18
         else: 
             self.lsize = format_options['labelsize'] 
 
-        if not format_options.has_key('fontfamily'):  
+        if 'fontfamily' not in format_options:  
             self.ffamily = 'sans-serif'
         else: 
             self.ffamily = format_options['fontfamily'] 
             
-        if not format_options.has_key('fontweight'):  
+        if 'fontweight' not in format_options:  
             self.fweight = 'normal'
         else: 
             self.fweight = format_options['fontweight'] 
 
-        if not format_options.has_key('dpi'):  
+        if 'dpi' not in format_options:  
             self.dpi = 100
         else: 
             self.dpi = format_options['dpi'] 
@@ -227,7 +224,7 @@ class Plot(object):
         # Plots as a function of time        
         if (self.tstep[0] % self.dt_bckp) == 0 and self.h5file:
             
-            h5data = h5py.File(self.h5file + '.h5', 'r')
+            h5data = hp.File(self.h5file + '.h5', 'r')
             plot_bunch_length_evol(self.rf_params, h5data, 
                                    output_freq = self.dt_mon, 
                                    dirname = self.dirname)
@@ -294,6 +291,3 @@ class Plot(object):
         self.xmax = xmax
         self.ymin = ymin
         self.ymax = ymax
-
-
-

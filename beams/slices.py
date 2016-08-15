@@ -10,10 +10,11 @@
 '''
 **Module to compute beam slicing**
 
-:Authors: **Danilo Quartullo**, **Alexandre Lasheen**, **Juan Esteban Muller**
+:Authors: **Danilo Quartullo**, **Alexandre Lasheen**, **Juan F. Esteban Mueller**
 '''
 
-from __future__ import division
+from __future__ import division, print_function
+from builtins import range, object
 import numpy as np
 import matplotlib.pyplot as plt
 from numpy.fft import rfft, rfftfreq
@@ -21,8 +22,8 @@ from scipy import ndimage
 from scipy.optimize import curve_fit
 from scipy.signal import cheb2ord, cheby2, filtfilt, freqz
 import ctypes
-from setup_cpp import libfib
-from copy import deepcopy
+from setup_cpp import libblond
+
 
 
 class Slices(object):
@@ -159,7 +160,7 @@ class Slices(object):
         for high number of particles (~1e6).*
         '''
         
-        libfib.histogram(beam_dt.ctypes.data_as(ctypes.c_void_p), 
+        libblond.histogram(beam_dt.ctypes.data_as(ctypes.c_void_p), 
                          self.n_macroparticles.ctypes.data_as(ctypes.c_void_p), 
                          ctypes.c_double(self.cut_left), 
                          ctypes.c_double(self.cut_right), 
@@ -172,7 +173,7 @@ class Slices(object):
         At the moment 4x slower than slice_constant_space_histogram but smoother.
         '''
         
-        libfib.smooth_histogram(self.Beam.dt.ctypes.data_as(ctypes.c_void_p), 
+        libblond.smooth_histogram(self.Beam.dt.ctypes.data_as(ctypes.c_void_p), 
                          self.n_macroparticles.ctypes.data_as(ctypes.c_void_p), 
                          ctypes.c_double(self.cut_left), 
                          ctypes.c_double(self.cut_right), 
@@ -305,7 +306,7 @@ class Slices(object):
                 self.bp_fwhm[indexBunch] = (t1+t2)/2
             
             except:
-                print 'Warning: The bunch index %d is empty !!' %(indexBunch)
+                print('Warning: The bunch index %d is empty !!' %(indexBunch))
                 self.bl_fwhm[indexBunch] = 0
                 self.bp_fwhm[indexBunch] = 0
     
@@ -441,5 +442,3 @@ def gauss(x, *p):
     
     A, x0, sx = p
     return A*np.exp(-(x-x0)**2/2./sx**2) 
-    
-        

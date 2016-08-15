@@ -14,11 +14,10 @@
 '''
 
 from __future__ import division
+from builtins import range
 import matplotlib.pyplot as plt
 from pylab import cm
-import h5py
 import numpy as np
-from trackers.utilities import separatrix
 
 
 
@@ -475,6 +474,3 @@ def plot_LHCNoiseFB_FWHM_bbb(RFSectionParameters, LHCNoiseFB, h5data,
     fign = dirname +'/LHC_noise_FB_bl_bbb.png'
     plt.savefig(fign)
     plt.clf()         
-
-
-    

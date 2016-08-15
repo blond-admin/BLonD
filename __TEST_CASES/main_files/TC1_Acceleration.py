@@ -12,8 +12,8 @@ Example input for simulation of acceleration
 No intensity effects
 '''
 
-import time 
-
+from __future__ import division, print_function
+from builtins import range
 from input_parameters.general_parameters import *
 from input_parameters.rf_parameters import *
 from trackers.tracker import *
@@ -51,8 +51,8 @@ dt_plt = 200         # Time steps between plots
 
 
 # Simulation setup -------------------------------------------------------------
-print "Setting up the simulation..."
-print ""
+print("Setting up the simulation...")
+print("")
 
 
 # Define general parameters
@@ -84,8 +84,8 @@ plots = Plot(general_params, rf_params, beam, dt_plt, N_t, 0, 0.0001763*h, -400e
 
 # Accelerator map
 map_ = [long_tracker] + [slice_beam] + [bunchmonitor] + [plots]
-print "Map set"
-print ""
+print("Map set")
+print("")
 
 
 
@@ -95,14 +95,14 @@ for i in range(1, N_t+1):
     
     # Plot has to be done before tracking (at least for cases with separatrix)
     if (i % dt_plt) == 0:
-        print "Outputting at time step %d..." %i
-        print "   Beam momentum %.6e eV" %beam.momentum
-        print "   Beam gamma %3.3f" %beam.gamma
-        print "   Beam beta %3.3f" %beam.beta
-        print "   Beam energy %.6e eV" %beam.energy
-        print "   Four-times r.m.s. bunch length %.4e s" %(4.*beam.sigma_dt)
-        print "   Gaussian bunch length %.4e s" %slice_beam.bl_gauss
-        print ""
+        print("Outputting at time step %d..." %i)
+        print("   Beam momentum %.6e eV" %beam.momentum)
+        print("   Beam gamma %3.3f" %beam.gamma)
+        print("   Beam beta %3.3f" %beam.beta)
+        print("   Beam energy %.6e eV" %beam.energy)
+        print("   Four-times r.m.s. bunch length %.4e s" %(4.*beam.sigma_dt))
+        print("   Gaussian bunch length %.4e s" %slice_beam.bl_gauss)
+        print("")
         
     # Track
     for m in map_:
@@ -112,7 +112,5 @@ for i in range(1, N_t+1):
     beam.losses_separatrix(general_params, rf_params, beam)
     beam.losses_longitudinal_cut(0., 2.5e-9)
     
-print "Done!"
-print ""
-
-
+print("Done!")
+print("")

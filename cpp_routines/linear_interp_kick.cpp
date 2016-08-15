@@ -10,7 +10,7 @@ Project website: http://blond.web.cern.ch/
 
 
 // Optimised C++ routine that calculates the kick of a voltage array on particles
-// Author: Juan F. Esteban Muller, Alexandre Lasheen
+// Authors: Juan F. Esteban Mueller, Alexandre Lasheen
 
 extern "C" void linear_interp_kick(
 		double * __restrict__ beam_dt,

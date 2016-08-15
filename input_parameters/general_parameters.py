@@ -14,10 +14,11 @@
 '''
 
 from __future__ import division
+from builtins import str, range, object
 import numpy as np
 import warnings
 from scipy.constants import m_p, m_e, e, c
-import matplotlib.pyplot as plt
+
 
 
 class GeneralParameters(object):
@@ -191,7 +192,7 @@ class GeneralParameters(object):
         | *For eta coefficients, see Lee: Accelerator Physics (Wiley).*
         '''
         
-        for i in xrange(self.alpha_order):
+        for i in range(self.alpha_order):
             getattr(self, '_eta' + str(i))()
 
     
@@ -231,6 +232,3 @@ class GeneralParameters(object):
                            2*self.alpha[i,0]*self.alpha[i,1] + self.alpha[i,1]/ \
                            self.gamma[i]**2 + self.alpha[i,0]**2*self.eta_0[i] - \
                            3*self.beta[i]**2*self.alpha[i,0]/(2*self.gamma[i]**2)
-         
-    
-    

@@ -13,6 +13,7 @@
 :Authors: **Danilo Quartullo**, **Helga Timko**
 '''
 
+from builtins import object
 import h5py as hp
 import numpy as np
 
@@ -374,6 +375,3 @@ class SlicesMonitor(object):
         
     def close(self):
         self.h5file.close()
-
-
-

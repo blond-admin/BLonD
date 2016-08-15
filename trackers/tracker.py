@@ -14,12 +14,12 @@ beam in phase space.**
 '''
 
 from __future__ import division
+from builtins import range, object
 import numpy as np
 from scipy.integrate import cumtrapz
 import ctypes
-from setup_cpp import libfib
-from scipy.constants import c
-import matplotlib.pyplot as plt
+from setup_cpp import libblond
+
 
 
 class FullRingAndRF(object):
@@ -142,7 +142,7 @@ class RingAndRFSection(object):
     tracked as well.*
     '''
         
-    def __init__(self, RFSectionParameters, Beam, solver = 'simple', 
+    def __init__(self, RFSectionParameters, Beam, solver = b'simple', 
                  PhaseLoop = None, NoiseFB = None, periodicity = False, dE_max = None, rf_kick_interp=False, Slices=None, TotalInducedVoltage=None):
         
         #: *Import of RFSectionParameters object*
@@ -216,7 +216,7 @@ class RingAndRFSection(object):
         self.alpha_order = RFSectionParameters.alpha_order
         
         #: *Fill unused eta arrays with zeros*
-        for i in xrange( self.alpha_order, 3 ):
+        for i in range( self.alpha_order, 3 ):
             setattr(self, "eta_%s" %i, np.zeros(RFSectionParameters.n_turns+1))       
         ### End of import of RF section parameters #############################
             
@@ -225,7 +225,7 @@ class RingAndRFSection(object):
         
         #: | *Choice of drift solver options*
         self.solver = solver
-        if self.solver != 'simple' and self.solver != 'full':
+        if self.solver != b'simple' and self.solver != b'full':
             raise RuntimeError("ERROR: Choice of longitudinal solver not recognized! Aborting...")
             
         #: | *Set to 'full' if higher orders of eta are used*
@@ -266,7 +266,7 @@ class RingAndRFSection(object):
         omegaRF_kick = np.ascontiguousarray(self.omega_RF[:, index])
         phiRF_kick = np.ascontiguousarray(self.phi_RF[:, index])
         
-        libfib.kick(beam_dt.ctypes.data_as(ctypes.c_void_p), 
+        libblond.kick(beam_dt.ctypes.data_as(ctypes.c_void_p), 
             beam_dE.ctypes.data_as(ctypes.c_void_p), 
             ctypes.c_int(self.n_rf), voltage_kick.ctypes.data_as(ctypes.c_void_p), 
             omegaRF_kick.ctypes.data_as(ctypes.c_void_p), 
@@ -293,7 +293,7 @@ class RingAndRFSection(object):
         
         '''
         
-        libfib.drift(beam_dt.ctypes.data_as(ctypes.c_void_p), 
+        libblond.drift(beam_dt.ctypes.data_as(ctypes.c_void_p), 
             beam_dE.ctypes.data_as(ctypes.c_void_p), 
             ctypes.c_char_p(self.solver),
             ctypes.c_double(self.t_rev[index]),
@@ -355,6 +355,7 @@ class RingAndRFSection(object):
             # right of the frame.
             self.indices_right_outside = np.where(self.beam.dt > self.t_rev[self.counter[0]+1])[0]
             self.indices_inside_frame = np.where(self.beam.dt < self.t_rev[self.counter[0]+1])[0]
+            self.indices_left_outside = np.empty(0)
             if len(self.indices_right_outside)>0:
                 self.insiders_dt = np.ascontiguousarray(self.beam.dt[self.indices_inside_frame])
                 self.insiders_dE = np.ascontiguousarray(self.beam.dE[self.indices_inside_frame])
@@ -404,7 +405,7 @@ class RingAndRFSection(object):
                     self.total_voltage = self.rf_voltage + self.TotalInducedVoltage.induced_voltage
                 else:
                     self.total_voltage = self.rf_voltage
-                libfib.linear_interp_kick(self.beam.dt.ctypes.data_as(ctypes.c_void_p),
+                libblond.linear_interp_kick(self.beam.dt.ctypes.data_as(ctypes.c_void_p),
                                   self.beam.dE.ctypes.data_as(ctypes.c_void_p), 
                                   (self.beam.charge * self.total_voltage).ctypes.data_as(ctypes.c_void_p), 
                                   self.slices.bin_centers.ctypes.data_as(ctypes.c_void_p), 

@@ -14,9 +14,7 @@
 '''
 
 from __future__ import division
-import h5py
 import numpy as np
-import warnings
 import matplotlib.pyplot as plt
 from trackers.utilities import separatrix
 
@@ -285,7 +283,3 @@ def plot_transmitted_particles(RFSectionParameters, h5data, output_freq = 1,
     fign = dirname+'/bunch_transmitted_particles.png'
     plt.savefig(fign) 
     plt.clf() 
-
-
-
-

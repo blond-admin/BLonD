@@ -11,11 +11,10 @@
 Example script to take into account intensity effects from impedance tables
 '''
 
-from __future__ import division
+from __future__ import division, print_function
+from builtins import str, range, bytes
 import numpy as np
-import math
-import time, sys
-import matplotlib.pyplot as plt
+import time
 
 from input_parameters.general_parameters import *
 from input_parameters.rf_parameters import *
@@ -87,7 +86,8 @@ slice_beam = Slices(RF_sct_par, my_beam, number_slices, cut_left = - 5.729841735
 
 # MONITOR----------------------------------------------------------------------
 
-bunchmonitor = BunchMonitor(general_params, RF_sct_par, my_beam, '../output_files/TC2_output_data', buffer_time=1)
+bunchmonitor = BunchMonitor(general_params, RF_sct_par, my_beam, 
+                            '../output_files/TC2_output_data', buffer_time=1)
 
 # LOAD IMPEDANCE TABLES--------------------------------------------------------
 
@@ -95,8 +95,9 @@ var = str(kin_beam_energy / 1e9)
 
 # ejection kicker
 Ekicker = np.loadtxt('../input_files/TC2_Ekicker_1.4GeV.txt'
-        , skiprows = 1, dtype=complex, converters = dict(zip((0, 1), (lambda s: 
-        complex(s.replace('i', 'j')), lambda s: complex(s.replace('i', 'j'))))))
+        , skiprows = 1, dtype=complex, converters = {0: lambda s: 
+        complex(bytes(s).decode('UTF-8').replace('i', 'j')), 
+        1: lambda s: complex(bytes(s).decode('UTF-8').replace('i', 'j'))})
 
 Ekicker_table = InputTable(Ekicker[:,0].real, Ekicker[:,1].real, Ekicker[:,1].imag)
 
@@ -124,14 +125,14 @@ else:
     pass
 
 # steps
-
-steps = InductiveImpedance(slice_beam, [34.6669349520904 / 10e9 * general_params.f_rev], general_params.f_rev, RF_sct_par.counter, deriv_mode='diff') 
+steps = InductiveImpedance(slice_beam, 34.6669349520904 / 10e9 * general_params.f_rev,
+                           general_params.f_rev, RF_sct_par.counter, deriv_mode='diff') 
 
 # direct space charge
 
-dir_space_charge = InductiveImpedance(slice_beam, [-376.730313462   
+dir_space_charge = InductiveImpedance(slice_beam, -376.730313462   
                      / (general_params.beta[0] *
-                     general_params.gamma[0]**2)], general_params.f_rev, RF_sct_par.counter)
+                     general_params.gamma[0]**2), general_params.f_rev, RF_sct_par.counter)
 
 
 # INDUCED VOLTAGE FROM IMPEDANCE------------------------------------------------
@@ -155,17 +156,16 @@ plots = Plot(general_params, RF_sct_par, my_beam, 1, n_turns, - 5.72984173562e-7
 
 map_ = [total_induced_voltage] + [ring_RF_section] + [slice_beam] + [bunchmonitor] + [plots]
 
-
 # TRACKING + PLOTS-------------------------------------------------------------
 
 for i in range(1, n_turns+1):
     
-    print i
+    print(i)
     t0 = time.clock()
     for m in map_:
         m.track()
     t1 = time.clock()
-    print t1 - t0
+    print(t1 - t0)
 
     # Plots
     if (i% n_turns_between_two_plots) == 0:
@@ -176,7 +176,4 @@ for i in range(1, n_turns+1):
         plot_induced_voltage_vs_bin_centers(i, general_params, total_induced_voltage, style = '.', dirname = '../output_files/TC2_fig')
          
                  
-print "Done!"
-
-
-
+print("Done!")

@@ -14,11 +14,13 @@
 '''
 
 from __future__ import division
+from builtins import str, range
 import numpy as np
 import matplotlib.pyplot as plt
 from plots.plot import fig_folder
 from scipy.constants import m_p, m_e, c, e
 from scipy.interpolate import splrep, splev
+
 
 
 def loaddata(filename, ignore=0, delimiter=None):
@@ -98,7 +100,7 @@ def preprocess_ramp(particle_type, circumference, time, data,
         time_interp.append(time_interp[0]
                                      + circumference/(beta_interp[0]*c) )
         i = flat_bottom 
-        for k in xrange(1,Nd): 
+        for k in range(1,Nd): 
             while time_interp[i+1] <= time[k]:
                 
                 momentum_interp.append(momentum[k-1] + (momentum[k] - momentum[k-1]) * (time_interp[i+1] - time[k-1])
@@ -268,7 +270,3 @@ def preprocess_rf_params(general_params, time_arrays, data_arrays, interpolation
             plt.clf()     
  
     return data_interp
-
-
-
-        

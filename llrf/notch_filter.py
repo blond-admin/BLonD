@@ -14,9 +14,10 @@
 '''
 
 from __future__ import division
+from builtins import range, object
 import numpy as np
-import matplotlib.pyplot as plt
-import time
+
+
 
 #FIRST METHOD
 class Filter(object):

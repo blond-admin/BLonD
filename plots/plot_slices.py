@@ -89,6 +89,3 @@ def plot_beam_spectrum(Slices, counter, style = '-', dirname = 'fig'):
     fign = dirname +'/beam_spectrum_' "%d" %counter + '.png'
     plt.savefig(fign)
     plt.clf()
-
-
-

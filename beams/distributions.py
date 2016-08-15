@@ -10,18 +10,21 @@
 '''
 **Module to generate distributions**
 
-:Authors: **Danilo Quartullo**, **Helga Timko**, **Alexandre Lasheen**, **Juan Esteban Muller**, **Theodoros Argyropoulos**
+:Authors: **Danilo Quartullo**, **Helga Timko**, **Alexandre Lasheen**, **Juan F. Esteban Mueller**, **Theodoros Argyropoulos**
 '''
 
-from __future__ import division
+from __future__ import division, print_function, absolute_import
+from builtins import str
+from builtins import range
 import numpy as np
 import warnings
 import copy
 import matplotlib.pyplot as plt
 from trackers.utilities import is_in_separatrix
-from slices import Slices
+from .slices import Slices
 from scipy.integrate import cumtrapz
 from trackers.utilities import potential_well_cut, minmax_location
+
 
 
 def matched_from_line_density(Beam, FullRingAndRF, line_density_options, 
@@ -37,7 +40,7 @@ def matched_from_line_density(Beam, FullRingAndRF, line_density_options,
     
     np.random.seed(seed)
     
-    if not line_density_options.has_key('exponent'):  
+    if 'exponent' not in line_density_options:  
         line_density_options['exponent'] = None
         
     # Initialize variables depending on the accelerator parameters
@@ -139,12 +142,12 @@ def matched_from_line_density(Beam, FullRingAndRF, line_density_options,
 
         # Warnings
         if n_maxima_profile > 1:
-            print 'Warning: the profile has serveral max, the highest one is taken. Be sure the profile is monotonous and not too noisy.'
+            print('Warning: the profile has serveral max, the highest one is taken. Be sure the profile is monotonous and not too noisy.')
             max_profile_pos = minmax_positions_profile[1][np.where(minmax_values_profile[1] == np.max(minmax_values_profile[1]))]
         else:
             max_profile_pos = minmax_positions_profile[1]
         if n_minima_potential > 1:
-            print 'Warning: the potential well has serveral min, the deepest one is taken. The induced potential is probably splitting the potential well.'
+            print('Warning: the potential well has serveral min, the deepest one is taken. The induced potential is probably splitting the potential well.')
             min_potential_pos = minmax_positions_potential[0][np.where(minmax_values_potential[0] == np.min(minmax_values_potential[0]))]
         else:
             min_potential_pos = minmax_positions_potential[0]
@@ -288,7 +291,7 @@ def matched_from_line_density(Beam, FullRingAndRF, line_density_options,
             plt.savefig(fign)
     
     # Populating the bunch
-    indexes = np.random.choice(range(0,np.size(density_grid)), Beam.n_macroparticles, p=density_grid.flatten())
+    indexes = np.random.choice(np.arange(0,np.size(density_grid)), Beam.n_macroparticles, p=density_grid.flatten())
         
     Beam.dt = np.ascontiguousarray(time_grid.flatten()[indexes]+(np.random.rand(Beam.n_macroparticles) -0.5)*(time_coord_for_grid[1]-time_coord_for_grid[0]))
 
@@ -343,7 +346,7 @@ def matched_from_distribution_density(Beam, FullRingAndRF, distribution_options,
     and distribution_options['user_table_density']*
     '''
 
-    if not distribution_options.has_key('exponent'):  
+    if 'exponent' not in distribution_options:  
         distribution_options['exponent'] = None
     
     # Loading the distribution function if provided by the user
@@ -392,7 +395,7 @@ def matched_from_distribution_density(Beam, FullRingAndRF, distribution_options,
         
         sse = np.sqrt(np.sum((old_potential-total_potential)**2))
 
-        print 'Matching the bunch... (iteration: ' + str(i) + ' and sse: ' + str(sse) +')'
+        print('Matching the bunch... (iteration: ' + str(i) + ' and sse: ' + str(sse) +')')
                 
         # Process the potential well in order to take a frame around the separatrix
         time_coord_sep, potential_well_sep = potential_well_cut(time_coord_array, total_potential)
@@ -445,7 +448,7 @@ def matched_from_distribution_density(Beam, FullRingAndRF, distribution_options,
         # Bunch length can be calculated as 4-rms, Gaussian fit, or FWHM
         density_variable_option = distribution_options['density_variable']
         
-        if distribution_options.has_key('bunch_length'):        
+        if 'bunch_length' in distribution_options:        
             
             tau = 0.0
             # Choice of either H or J as the variable used
@@ -485,7 +488,7 @@ def matched_from_distribution_density(Beam, FullRingAndRF, distribution_options,
                 if (line_density>0).any():
                     tau = 4.0 * np.sqrt(np.sum((time_coord_low_res - np.sum(line_density * time_coord_low_res) / np.sum(line_density))**2 * line_density) / np.sum(line_density))            
                     
-                    if distribution_options.has_key('bunch_length_fit'):
+                    if 'bunch_length_fit' in distribution_options:
                         slices = Slices(FullRingAndRF.RingAndRFSection_list[0].rf_params, Beam,n_points_grid)
                         slices.n_macroparticles = line_density
                         
@@ -512,11 +515,11 @@ def matched_from_distribution_density(Beam, FullRingAndRF, distribution_options,
                     X_low = X0
                     
                 if (X_max - X0) < X_accuracy:
-                    print 'WARNING : The bucket is too small to have the desired bunch length ! Input is %.2e, the generation gave %.2e, the error is %.2e' %(distribution_options['bunch_length'], tau, distribution_options['bunch_length']-tau)
+                    print('WARNING : The bucket is too small to have the desired bunch length ! Input is %.2e, the generation gave %.2e, the error is %.2e' %(distribution_options['bunch_length'], tau, distribution_options['bunch_length']-tau))
                     break
                 
                 if (X0-X_min) < X_accuracy:
-                    print 'WARNING : The desired bunch length is too small to be generated accurately !'    
+                    print('WARNING : The desired bunch length is too small to be generated accurately !')    
                 
             if density_variable_option is 'density_from_J':
                 J0 = X0
@@ -526,11 +529,11 @@ def matched_from_distribution_density(Beam, FullRingAndRF, distribution_options,
         # Computing the density grid
         if distribution_options['type'] is not 'user_input_table':
             if density_variable_option is 'density_from_J':
-                if distribution_options.has_key('emittance'):
+                if 'emittance' in distribution_options:
                     J0 = distribution_options['emittance']/ (2*np.pi)
                 density_grid = distribution_density_function(J_grid, distribution_options['type'], J0, distribution_options['exponent'])
             elif density_variable_option is 'density_from_H':
-                if distribution_options.has_key('emittance'):
+                if 'emittance' in distribution_options:
                     H0 = np.interp(distribution_options['emittance'] / (2*np.pi), sorted_J_dE0, sorted_H_dE0)
                 density_grid = distribution_density_function(H_grid, distribution_options['type'], H0, distribution_options['exponent'])
         else:
@@ -575,7 +578,7 @@ def matched_from_distribution_density(Beam, FullRingAndRF, distribution_options,
          
     # Populating the bunch
     np.random.seed(seed=seed)
-    indexes = np.random.choice(range(0,np.size(density_grid)), Beam.n_macroparticles, p=density_grid.flatten())
+    indexes = np.random.choice(np.arange(0,np.size(density_grid)), Beam.n_macroparticles, p=density_grid.flatten())
   
     Beam.dt = np.ascontiguousarray(time_grid.flatten()[indexes]+(np.random.rand(Beam.n_macroparticles) -0.5)*(time_coord_low_res[1]-time_coord_low_res[0]))
     Beam.dE = np.ascontiguousarray(deltaE_grid.flatten()[indexes] + (np.random.rand(Beam.n_macroparticles) - 0.5) * (deltaE_coord_array[1]-deltaE_coord_array[0]))
@@ -720,4 +723,3 @@ def longitudinal_bigaussian(GeneralParameters, RFSectionParameters, beam,
             beam.dE[itemindex] = sigma_dE*np.random.randn(itemindex.size)
             itemindex = np.where(is_in_separatrix(GeneralParameters, 
                         RFSectionParameters, beam, beam.dt, beam.dE) == False)[0]
-

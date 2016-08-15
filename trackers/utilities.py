@@ -15,13 +15,14 @@
 '''
 
 
-from __future__ import division
+from __future__ import division, print_function
+from builtins import range, object
 import warnings
 import numpy as np
 import copy
 from scipy.constants import c
 from scipy.integrate import cumtrapz
-import matplotlib.pyplot as plt
+
 
 
 def synchrotron_frequency_distribution(Beam, FullRingAndRF, main_harmonic_option = 'lowest_freq', 
@@ -368,7 +369,7 @@ def total_voltage(RFsection_list, harmonic = 'first'):
         Vsin = RFsection_list[0].voltage[0]*np.sin(RFsection_list[0].phi_RF[0])
         if n_sections > 1:
             for i in range(1, n_sections):
-                print RFsection_list[i].voltage[0]
+                print(RFsection_list[i].voltage[0])
                 Vcos += RFsection_list[i].voltage[0]*np.cos(RFsection_list[i].phi_RF[0])
                 Vsin += RFsection_list[i].voltage[0]*np.sin(RFsection_list[i].phi_RF[0])
         Vtot = np.sqrt(Vcos**2 + Vsin**2)
@@ -701,9 +702,3 @@ def time_modulo(dt, dt_offset, T):
     '''
     
     return dt - T*np.floor((dt + dt_offset)/T)
-
-
- 
-        
-
-

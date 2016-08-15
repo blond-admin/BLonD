@@ -12,6 +12,7 @@ Example input for simulating a ring with multiple RF stations
 No intensity effects
 '''
 
+from __future__ import division, print_function
 import time 
 
 from input_parameters.general_parameters import *
@@ -50,8 +51,8 @@ dt_plt = 200         # Time steps between plots
 
 
 # Simulation setup -------------------------------------------------------------
-print "Setting up the simulation..."
-print ""
+print("Setting up the simulation...")
+print("")
 
 
 # Define general parameters containing data for both RF stations
@@ -75,7 +76,7 @@ rf_params_tot = RFSectionParameters(general_params, 1, h, Vtot, dphi)
 beam_dummy = Beam(general_params, 1, N_b)
 long_tracker_tot = RingAndRFSection(rf_params_tot, beam_dummy)
 
-print "General and RF parameters set..."
+print("General and RF parameters set...")
 
 
 # Define beam and distribution
@@ -84,7 +85,7 @@ longitudinal_bigaussian(general_params, rf_params_tot, beam, tau_0/4,
                               reinsertion = 'on', seed=1)
 
 
-print "Beam set and distribution generated..."
+print("Beam set and distribution generated...")
 
 
 # Need slices for the Gaussian fit; slice for the first plot
@@ -105,14 +106,14 @@ plots = Plot(general_params, rf_params_tot, beam, dt_plt, dt_plt, 0,
 
 # Accelerator map
 map_ = [long_tracker_1] + [long_tracker_2] + [slice_beam] + [bunchmonitor] + [plots]
-print "Map set"
-print ""
+print("Map set")
+print("")
 
 
 
 # Tracking ---------------------------------------------------------------------
 for i in np.arange(1,N_t+1):
-    print i
+    print(i)
     
     long_tracker_tot.track() 
        
@@ -128,7 +129,5 @@ for i in np.arange(1,N_t+1):
     beam.losses_longitudinal_cut(0., 2.5e-9)
 
 
-print "Done!"
-print ""
-
-
+print("Done!")
+print("")

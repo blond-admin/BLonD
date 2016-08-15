@@ -14,8 +14,10 @@
 '''
 
 from __future__ import division
+from builtins import object
 import numpy as np
 from trackers.utilities import is_in_separatrix
+
 
 
 class Beam(object):
@@ -151,7 +153,4 @@ class Beam(object):
         itemindex = np.where( (self.dE - dE_min)*(dE_max - self.dE) < 0 )[0]
         
         if itemindex.size != 0:          
-            self.id[itemindex] = 0       
-        
-           
-
+            self.id[itemindex] = 0   

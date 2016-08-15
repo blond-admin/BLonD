@@ -14,7 +14,8 @@ amplitude as a function of bunch length**
 :Authors: **Helga Timko**
 '''
 
-from __future__ import division
+from __future__ import division, print_function
+from builtins import range, object
 from toolbox.next_regular import next_regular
 import numpy as np
 import numpy.random as rnd
@@ -25,6 +26,7 @@ from plots.plot_llrf import *
 from input_parameters.rf_parameters import calc_phi_s
 cfwhm = np.sqrt(2./np.log(2.))
 import matplotlib.pyplot as plt
+
 
 
 class FlatSpectrum(object): 
@@ -117,7 +119,7 @@ class FlatSpectrum(object):
     
     def generate(self):
        
-        for i in xrange(0, int(self.n_turns/self.corr)):
+        for i in range(0, int(self.n_turns/self.corr)):
         
             # Scale amplitude to keep area (phase noise amplitude) constant
             k = i*self.corr       # current time step
@@ -209,8 +211,8 @@ class FlatSpectrum(object):
             plot_phase_noise(self.t[0:(kmax-k)], self.dphi_output[0:(kmax-k)], 
                              sampling=1, figno=i, dirname = 'fig_noise')
             rms_noise = np.std(self.dphi_output)
-            print "RF noise for time step %.4e s (iter %d) has r.m.s. phase %.4e rad (%.3e deg)" \
-                %(self.t[1], i, rms_noise, rms_noise*180/np.pi)
+            print("RF noise for time step %.4e s (iter %d) has r.m.s. phase %.4e rad (%.3e deg)" \
+                %(self.t[1], i, rms_noise, rms_noise*180/np.pi))
                 
         if self.continuous_phase:
             psi = np.arange(0, self.n_turns+1)*2*np.pi/self.corr
@@ -351,5 +353,3 @@ class LHCNoiseFB(object):
             
         # Average FWHM bunch length            
         self.bl_meas = np.mean(self.bl_meas_bbb)
-
-

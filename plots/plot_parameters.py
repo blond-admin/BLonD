@@ -17,7 +17,6 @@ from __future__ import division
 import matplotlib.pyplot as plt
 
 
-
 def plot_voltage_programme(time, voltage, sampling = 1, dirname = 'fig', 
                            figno = 0):
     
@@ -38,6 +37,3 @@ def plot_voltage_programme(time, voltage, sampling = 1, dirname = 'fig',
     fign = dirname +'/RF_voltage_' "%d" %figno +'.png'
     plt.savefig(fign)
     plt.clf()     
-
-
-

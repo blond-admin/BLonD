@@ -15,6 +15,7 @@ intensity effects is considered.**
 '''
 
 from __future__ import division
+from builtins import range
 import numpy as np
 from scipy.special import ellipk, ellipe
 
@@ -173,7 +174,3 @@ def action_from_oscillation_amplitude(RFParameters, dtmax, timestep = 0,
     else:
         
         return action
-
-
-
-        

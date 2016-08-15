@@ -13,19 +13,17 @@
 :Authors: **Danilo Quartullo**, **Alexandre Lasheen**
 '''
 
-from __future__ import division
+from __future__ import division, print_function
+from builtins import range, object
 import numpy as np
 from toolbox.next_regular import next_regular
 from numpy.fft import  rfft, irfft, rfftfreq
 import ctypes
-from setup_cpp import libfib
 from scipy.constants import e
-from scipy.signal import filtfilt, fftconvolve
+from scipy.signal import filtfilt
 import scipy.ndimage as ndimage
-import matplotlib.pyplot as plt
-import sys
-import time
 from toolbox.convolution import convolution
+from setup_cpp import libblond
 
 
 
@@ -106,7 +104,7 @@ class TotalInducedVoltage(object):
                 self.induced_voltage_extended = np.zeros(self.n_points_wake)
                 
             else:
-                    raise RuntimeError('Error! Aborting...')
+                raise RuntimeError('Error! Aborting...')
     
     
     def reprocess(self, new_slicing):
@@ -148,7 +146,7 @@ class TotalInducedVoltage(object):
         
         self.induced_voltage_sum(self.beam)
         
-        libfib.linear_interp_kick(self.beam.dt.ctypes.data_as(ctypes.c_void_p),
+        libblond.linear_interp_kick(self.beam.dt.ctypes.data_as(ctypes.c_void_p),
                                   self.beam.dE.ctypes.data_as(ctypes.c_void_p), 
                                   (self.beam.charge * self.induced_voltage).ctypes.data_as(ctypes.c_void_p), 
                                   self.slices.bin_centers.ctypes.data_as(ctypes.c_void_p), 
@@ -204,7 +202,7 @@ class TotalInducedVoltage(object):
 
         
         # Induced voltage energy kick to particles through linear interpolation
-        libfib.linear_interp_kick(self.beam.dt.ctypes.data_as(ctypes.c_void_p),
+        libblond.linear_interp_kick(self.beam.dt.ctypes.data_as(ctypes.c_void_p),
                                   self.beam.dE.ctypes.data_as(ctypes.c_void_p), 
                                   self.induced_voltage.ctypes.data_as(ctypes.c_void_p), 
                                   self.slices.bin_centers.ctypes.data_as(ctypes.c_void_p), 
@@ -222,7 +220,7 @@ class TotalInducedVoltage(object):
     
     def track_ghosts_particles(self, ghostBeam):
         
-        libfib.linear_interp_kick(ghostBeam.dt.ctypes.data_as(ctypes.c_void_p),
+        libblond.linear_interp_kick(ghostBeam.dt.ctypes.data_as(ctypes.c_void_p),
                                   ghostBeam.dE.ctypes.data_as(ctypes.c_void_p), 
                                   self.induced_voltage.ctypes.data_as(ctypes.c_void_p), 
                                   self.slices.bin_centers.ctypes.data_as(ctypes.c_void_p), 
@@ -323,7 +321,7 @@ class InducedVoltageTime(object):
         '''
         
         self.induced_voltage_generation(Beam)
-        libfib.linear_interp_kick(self.beam.dt.ctypes.data_as(ctypes.c_void_p),
+        libblond.linear_interp_kick(self.beam.dt.ctypes.data_as(ctypes.c_void_p),
                                   self.beam.dE.ctypes.data_as(ctypes.c_void_p), 
                                   (self.beam.charge * self.induced_voltage).ctypes.data_as(ctypes.c_void_p), 
                                   self.slices.bin_centers.ctypes.data_as(ctypes.c_void_p), 
@@ -391,11 +389,11 @@ class InducedVoltageFreq(object):
                     raise RuntimeError('The input freq_res_option is not recognized')
                 
                 if self.n_fft_sampling < self.slices.n_slices:
-                    print 'The input frequency resolution step is too big, and the whole \
+                    print('The input frequency resolution step is too big, and the whole \
                            bunch is not sliced... The number of sampling points for the \
                            FFT is corrected in order to sample the whole bunch (and \
                            you might consider changing the input in order to have \
-                           a finer resolution).'
+                           a finer resolution).')
                     self.n_fft_sampling = next_regular(self.slices.n_slices)
                 
             #: *Real frequency resolution in [Hz], according to the obtained n_fft_sampling.*
@@ -468,11 +466,11 @@ class InducedVoltageFreq(object):
                 raise RuntimeError('The input freq_res_option is not recognized')
             
             if self.n_fft_sampling < self.slices.n_slices:
-                print 'The input frequency resolution step is too big, and the whole \
+                print('The input frequency resolution step is too big, and the whole \
                        bunch is not sliced... The number of sampling points for the \
                        FFT is corrected in order to sample the whole bunch (and \
                        you might consider changing the input in order to have \
-                       a finer resolution).'
+                       a finer resolution).')
                 self.n_fft_sampling = next_regular(self.slices.n_slices)
                 
         #: *Real frequency resolution in [Hz], according to the obtained n_fft_sampling.*
@@ -546,7 +544,7 @@ class InducedVoltageFreq(object):
         '''
         
         self.induced_voltage_generation(Beam)
-        libfib.linear_interp_kick(self.beam.dt.ctypes.data_as(ctypes.c_void_p),
+        libblond.linear_interp_kick(self.beam.dt.ctypes.data_as(ctypes.c_void_p),
                                   self.beam.dE.ctypes.data_as(ctypes.c_void_p), 
                                   (self.beam.charge * self.induced_voltage).ctypes.data_as(ctypes.c_void_p), 
                                   self.slices.bin_centers.ctypes.data_as(ctypes.c_void_p), 
@@ -674,7 +672,7 @@ class InductiveImpedance(object):
         '''
         
         self.induced_voltage_generation(Beam)
-        libfib.linear_interp_kick(self.beam.dt.ctypes.data_as(ctypes.c_void_p),
+        libblond.linear_interp_kick(self.beam.dt.ctypes.data_as(ctypes.c_void_p),
                                   self.beam.dE.ctypes.data_as(ctypes.c_void_p), 
                                   (self.beam.charge * self.induced_voltage).ctypes.data_as(ctypes.c_void_p), 
                                   self.slices.bin_centers.ctypes.data_as(ctypes.c_void_p), 
@@ -932,8 +930,3 @@ class TravelingWaveCavity(object):
                                     (self.a_factor[i] * (self.frequency_array + self.frequency_R[i]))**2)
             
             self.impedance += Zplus + Zminus   
-    
-
-
-
- 

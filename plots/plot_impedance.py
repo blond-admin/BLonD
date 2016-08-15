@@ -14,6 +14,7 @@
 '''
 
 from __future__ import division
+from builtins import range
 import matplotlib.pyplot as plt
 from impedances.impedance import *
 
@@ -54,25 +55,25 @@ def plot_impedance_vs_frequency(counter, general_params, ind_volt_from_imp,
         ax1 = fig1.add_subplot(111)
         
         for i in range(len(ind_volt_from_imp.impedance_source_list)):
-                if isinstance(ind_volt_from_imp.impedance_source_list[i], 
-                              InputTable) and option3 == "freq_table":
-                    ax0.plot(ind_volt_from_imp.impedance_source_list[i].frequency_array_loaded, 
-                             ind_volt_from_imp.impedance_source_list[i].Re_Z_array_loaded, style)
-                    ax0.set_xlim(cut_left_right)
-                    ax0.set_ylim(cut_up_down) 
-                    ax1.plot(ind_volt_from_imp.impedance_source_list[i].frequency_array_loaded, 
-                             ind_volt_from_imp.impedance_source_list[i].Im_Z_array_loaded, style)
-                    ax1.set_xlim(cut_left_right)
-                    ax1.set_ylim(cut_up_down) 
-                else:
-                    ax0.plot(ind_volt_from_imp.frequency_array, 
-                             ind_volt_from_imp.impedance_source_list[i].impedance.real, style)
-                    ax0.set_xlim(cut_left_right)
-                    ax0.set_ylim(cut_up_down) 
-                    ax1.plot(ind_volt_from_imp.frequency_array, 
-                             ind_volt_from_imp.impedance_source_list[i].impedance.imag, style)
-                    ax1.set_xlim(cut_left_right)
-                    ax1.set_ylim(cut_up_down) 
+            if isinstance(ind_volt_from_imp.impedance_source_list[i], 
+                          InputTable) and option3 == "freq_table":
+                ax0.plot(ind_volt_from_imp.impedance_source_list[i].frequency_array_loaded, 
+                         ind_volt_from_imp.impedance_source_list[i].Re_Z_array_loaded, style)
+                ax0.set_xlim(cut_left_right)
+                ax0.set_ylim(cut_up_down) 
+                ax1.plot(ind_volt_from_imp.impedance_source_list[i].frequency_array_loaded, 
+                         ind_volt_from_imp.impedance_source_list[i].Im_Z_array_loaded, style)
+                ax1.set_xlim(cut_left_right)
+                ax1.set_ylim(cut_up_down) 
+            else:
+                ax0.plot(ind_volt_from_imp.frequency_array, 
+                         ind_volt_from_imp.impedance_source_list[i].impedance.real, style)
+                ax0.set_xlim(cut_left_right)
+                ax0.set_ylim(cut_up_down) 
+                ax1.plot(ind_volt_from_imp.frequency_array, 
+                         ind_volt_from_imp.impedance_source_list[i].impedance.imag, style)
+                ax1.set_xlim(cut_left_right)
+                ax1.set_ylim(cut_up_down) 
         
         fign1 = dirname +'/real_imp_vs_'+option3+'_' "%d" %counter + '.png'
         if option2 == "spectrum":
@@ -89,8 +90,7 @@ def plot_impedance_vs_frequency(counter, general_params, ind_volt_from_imp,
         plt.clf()
         fign2 = dirname +'/imag_imp_vs_'+option3+'_' "%d" %counter + '.png'
         
-        if option2 == "spectrum":
-            
+        if option2 == "spectrum":            
             ax3 = ax1.twinx()
             ax3.plot(ind_volt_from_imp.slices.beam_spectrum_freq, 
                      np.abs(ind_volt_from_imp.slices.beam_spectrum))
@@ -122,6 +122,3 @@ def plot_induced_voltage_vs_bin_centers(counter, general_params,
     fign = dirname +'/induced_voltage_' "%d" %counter + '.png'
     plt.savefig(fign)
     plt.clf()
-
-
-
