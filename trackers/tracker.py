@@ -355,6 +355,7 @@ class RingAndRFSection(object):
             # right of the frame.
             self.indices_right_outside = np.where(self.beam.dt > self.t_rev[self.counter[0]+1])[0]
             self.indices_inside_frame = np.where(self.beam.dt < self.t_rev[self.counter[0]+1])[0]
+            self.indices_left_outside = np.empty(0)
             if len(self.indices_right_outside)>0:
                 self.insiders_dt = np.ascontiguousarray(self.beam.dt[self.indices_inside_frame])
                 self.insiders_dE = np.ascontiguousarray(self.beam.dE[self.indices_inside_frame])
