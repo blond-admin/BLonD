@@ -321,12 +321,12 @@ class InducedVoltageTime(object):
         '''
         
         self.induced_voltage_generation(Beam)
-        libblond.linear_interp_kick(self.beam.dt.ctypes.data_as(ctypes.c_void_p),
-                                  self.beam.dE.ctypes.data_as(ctypes.c_void_p), 
-                                  (self.beam.charge * self.induced_voltage).ctypes.data_as(ctypes.c_void_p), 
+        libblond.linear_interp_kick(Beam.dt.ctypes.data_as(ctypes.c_void_p),
+                                  Beam.dE.ctypes.data_as(ctypes.c_void_p), 
+                                  (Beam.charge * self.induced_voltage).ctypes.data_as(ctypes.c_void_p), 
                                   self.slices.bin_centers.ctypes.data_as(ctypes.c_void_p), 
                                   ctypes.c_uint(self.slices.n_slices),
-                                  ctypes.c_uint(self.beam.n_macroparticles),
+                                  ctypes.c_uint(Beam.n_macroparticles),
                                   ctypes.c_double(0.))
 
     
