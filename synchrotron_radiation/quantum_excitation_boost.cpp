@@ -16,6 +16,7 @@ Project website: http://blond.web.cern.ch/
 
 #include <math.h>
 #include <stdlib.h>
+#include <random>
 #include <boost/random.hpp>
 #include <boost/random/normal_distribution.hpp>
 #include "synchrotron_radiation.h"
