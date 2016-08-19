@@ -45,26 +45,20 @@ def plot_beam_profile(Slices, counter, style = '-', dirname = 'fig'):
 
 
 
-def plot_beam_profile_derivative(Slices, counter, style = '-', dirname = 'fig', 
-                                 numbers = [3]):
-
+def plot_beam_profile_derivative(Slices, counter, style='-', dirname='fig',
+                                 modes=['diff']):
     """
     Plot of the derivative of the longitudinal beam profile.
+    Modes list should contain 1 or more of the elements below:
+    1) 'filter1d', 2) 'gradient', 3) 'diff'
     """
-    
-    if 1 in numbers:
-        x1, derivative1 = Slices.beam_profile_derivative(1)
-        plt.plot(x1, derivative1, style)
-    if 2 in numbers:
-        x2, derivative2 = Slices.beam_profile_derivative(2)
-        plt.plot(x2, derivative2, style)
-    if 3 in numbers:
-        x3, derivative3 = Slices.beam_profile_derivative(3)
-        plt.plot(x3, derivative3, style)
-    fign = dirname +'/beam_profile_derivative_' "%d" %counter + '.png'
+    for mode in modes:
+        x, derivative = Slices.beam_profile_derivative(mode)
+        plt.plot(x, derivative, style, label=mode)
+    fign = dirname + '/beam_profile_derivative_' "%d" % counter + '.png'
+    plt.legend()
     plt.savefig(fign)
     plt.clf()
-       
     
 
 def plot_beam_spectrum(Slices, counter, style = '-', dirname = 'fig'):
