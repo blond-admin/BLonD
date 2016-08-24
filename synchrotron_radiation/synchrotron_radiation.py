@@ -29,29 +29,29 @@ class SynchrotronRadiation(object):
         the track() method after tracking each section.
     '''
     
-    def __init__(self, GeneralParameters, RFParameters, Beam, ro, n_kicks=1,
+    def __init__(self, GeneralParameters, RFParameters, Beam, bending_radius, n_kicks=1,
                  synchrotron_radiation=True, quantum_excitation=True, python=False):
         
         self.general_params = GeneralParameters
         self.rf_params = RFParameters
         self.beam = Beam
-        self.ro = ro
+        self.rho = bending_radius
         self.n_kicks = n_kicks  # To apply SR in several kicks
         
         # Calculate static parameters
         self.Cgamma = 1.0 / (e**2.0 * 3.0 * epsilon_0 * self.general_params.mass**4.0)
         self.Cq = 55.0 / (32.0 * np.sqrt(3.0)) * hbar * c / (self.general_params.mass * e)
         
-        self.I2 = 2.0 * np.pi / self.ro     # Assuming isomagnetic machine
-        self.I3 = 2.0 * np.pi / self.ro**2.0
-        self.I4 = self.general_params.ring_circumference * self.general_params.alpha[0,0] / self.ro**2.0
+        self.I2 = 2.0 * np.pi / self.rho     # Assuming isomagnetic machine
+        self.I3 = 2.0 * np.pi / self.rho**2.0
+        self.I4 = self.general_params.ring_circumference * self.general_params.alpha[0,0] / self.rho**2.0
         self.jz = 2.0 + self.I4 / self.I2
         
         # Calculate synchrotron radiation parameters
         self.calculate_SR_params()
         
         # Initialize the random number array if quantum excitation is included
-        if quantum_excitation==True:
+        if quantum_excitation:
             self.random_array = np.zeros(self.beam.n_macroparticles)
         
         # Displace the beam in phase to account for the energy loss due to 
@@ -60,15 +60,15 @@ class SynchrotronRadiation(object):
             self.beam.dt -= np.arcsin(self.U0/self.rf_params.voltage[0][0]) * self.rf_params.t_RF[0]/ (2.0*np.pi)
         
         # Select the right method for the tracker according to the selected settings
-        if python==True:
-            if synchrotron_radiation==True and quantum_excitation==True:
+        if python:
+            if synchrotron_radiation and quantum_excitation:
                 self.track = self.track_full_python
-            elif synchrotron_radiation==True and quantum_excitation==False:
+            elif synchrotron_radiation and not quantum_excitation:
                 self.track = self.track_SR_python
         else:
-            if synchrotron_radiation==True and quantum_excitation==True:
+            if synchrotron_radiation and quantum_excitation:
                 self.track = self.track_full_C
-            elif synchrotron_radiation==True and quantum_excitation==False:
+            elif synchrotron_radiation and not quantum_excitation:
                 self.track = self.track_SR_C
 
     # Method to compute the SR parameters
