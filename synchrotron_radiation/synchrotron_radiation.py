@@ -30,7 +30,7 @@ class SynchrotronRadiation(object):
     '''
     
     def __init__(self, GeneralParameters, RFParameters, Beam, bending_radius, n_kicks=1,
-                 synchrotron_radiation=True, quantum_excitation=True, python=False):
+                 quantum_excitation=True, python=False):
         
         self.general_params = GeneralParameters
         self.rf_params = RFParameters
@@ -61,14 +61,14 @@ class SynchrotronRadiation(object):
         
         # Select the right method for the tracker according to the selected settings
         if python:
-            if synchrotron_radiation and quantum_excitation:
+            if quantum_excitation:
                 self.track = self.track_full_python
-            elif synchrotron_radiation and not quantum_excitation:
+            else:
                 self.track = self.track_SR_python
         else:
-            if synchrotron_radiation and quantum_excitation:
+            if quantum_excitation:
                 self.track = self.track_full_C
-            elif synchrotron_radiation and not quantum_excitation:
+            else:
                 self.track = self.track_SR_C
 
     # Method to compute the SR parameters
