@@ -351,14 +351,14 @@ class SlicesMonitor(object):
         self.h5file.create_group('Slices')
 
     
-    def track(self, bunch):
+    def track(self):
         
         if not self.i_turn:
             self.create_data(self.h5file['Slices'], (self.slices.n_slices, 
                                                      self.n_turns))
-            self.write_data(self.slices, self.h5file['Slices'], self.i_turn)
+            self.write_data(self.h5file['Slices'])
         else:
-            self.write_data(self.slices, self.h5file['Slices'], self.i_turn)
+            self.write_data(self.h5file['Slices'])
 
         self.i_turn += 1
 
@@ -369,9 +369,9 @@ class SlicesMonitor(object):
                                compression_opts=9)
         
         
-    def write_data(self, bunch, h5group, i_turn):
+    def write_data(self, h5group):
         
-        h5group["n_macroparticles"][:, i_turn] = self.slices.n_macroparticles
+        h5group["n_macroparticles"][:, self.i_turn] = self.slices.n_macroparticles
         
     def close(self):
         self.h5file.close()
