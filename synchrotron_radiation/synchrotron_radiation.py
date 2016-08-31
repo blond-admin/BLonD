@@ -84,8 +84,8 @@ class SynchrotronRadiation(object):
         self.tau_z = 2.0 / self.jz * self.general_params.energy[0,i_turn] / self.U0 
 
         # Equilibrium energy spread     
-        self.sigma_dE = self.general_params.beta[0,i_turn]**2.0 * \
-             np.sqrt( self.Cq * self.general_params.gamma[0,i_turn]**2.0 * self.I3 / (self.jz * self.I2) )
+        self.sigma_dE = np.sqrt(self.Cq * self.general_params.gamma[0,i_turn]**2.0 \
+                                * self.I3 / (self.jz * self.I2))
 
     # Print SR parameters
     def print_SR_params(self):
