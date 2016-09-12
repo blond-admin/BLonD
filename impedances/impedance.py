@@ -13,7 +13,7 @@
 :Authors: **Danilo Quartullo**, **Alexandre Lasheen**
 '''
 
-from __future__ import division, print_function
+from __future__ import division
 from builtins import range, object
 import numpy as np
 from toolbox.next_regular import next_regular
@@ -169,6 +169,7 @@ class TotalInducedVoltage(object):
             self.induced_voltage = self.coefficient * self.induced_voltage_extended[:self.slices.n_slices]
             
         elif self.mode_mtw=='second_method':
+            print 'hello'
             self.ind_volt_freq_table_memory *= np.exp(self.omegaj_array_memory * self.rev_time_array[self.counter_turn])
             padded_before_profile = np.lib.pad(self.slices.n_macroparticles, (self.slices.n_slices*self.n_windows_before,0), 'constant', constant_values=(0,0))
             self.fourier_transf_profile = rfft(padded_before_profile, self.n_points_fft)
