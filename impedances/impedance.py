@@ -210,7 +210,7 @@ class TotalInducedVoltage(object):
                                   ctypes.c_uint(self.beam.n_macroparticles),
                                   ctypes.c_double(0.))
         
-        if self.mode_mtw=='frequency_domain_second_method':
+        if self.mode_mtw=='second_method':
             self.pointer_current_turn += 1
             self.pointer_current_turn = np.mod(self.pointer_current_turn, self.n_turns_memory+1)
         
