@@ -13,7 +13,7 @@
 :Authors: **Danilo Quartullo**, **Alexandre Lasheen**
 '''
 
-from __future__ import division
+from __future__ import division, print_function
 from builtins import range, object
 import numpy as np
 from toolbox.next_regular import next_regular

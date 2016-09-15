@@ -10,7 +10,7 @@
 '''
 **Methods to apply a notch filter to a specified impedance source**
 
-:Authors: **Simon Albright**
+:Authors: **Simon Albright, Danilo Quartullo**
 '''
 
 from __future__ import division
@@ -18,8 +18,52 @@ from builtins import range, object
 import numpy as np
 
 
-
 #FIRST METHOD
+def impedance_notches(f_rev, frequencies, real_imp, imag_imp, list_harmonics, list_width_depth):
+	
+	halfmajorWidth = list_width_depth[0]
+	halfminorWidth = list_width_depth[1]
+	majorDepth = list_width_depth[2]
+	minorDepth = list_width_depth[3]
+	array_left = np.array([])
+	indices_final = np.array([])
+	frequencies_remainder_array = np.array([])
+	Re_Z_remainder_array = np.array([])
+	Im_Z_remainder_array = np.array([])
+	
+	for i in list_harmonics:
+		exec("yre_"+str(i)+" = np.interp(i*f_rev, frequencies, real_imp)")
+		exec("yim_"+str(i)+" = np.interp(i*f_rev, frequencies, imag_imp)")
+		array_left = np.append(array_left, np.array([i*f_rev-halfmajorWidth, i*f_rev+halfmajorWidth]))
+		exec("indices_"+str(i)+" = np.where((frequencies >= (i*f_rev-halfmajorWidth))&(frequencies <= (i*f_rev+halfmajorWidth)))[0]")
+		indices_final = np.append(indices_final, locals()['indices_'+str(i)])
+		frequencies_remainder_array = np.append(frequencies_remainder_array, np.array([i*f_rev-halfminorWidth, i*f_rev, i*f_rev+halfminorWidth]))
+		Re_Z_remainder_array = np.append(Re_Z_remainder_array, np.array([locals()['yre_'+str(i)]/minorDepth, locals()['yre_'+str(i)]/majorDepth, locals()['yre_'+str(i)]/minorDepth]))
+		Im_Z_remainder_array = np.append(Im_Z_remainder_array, np.array([locals()['yim_'+str(i)]/minorDepth, locals()['yim_'+str(i)]/majorDepth, locals()['yim_'+str(i)]/minorDepth]))	
+		
+	left_yre = np.interp(array_left, frequencies, real_imp)
+	left_yim = 	np.interp(array_left, frequencies, imag_imp)
+	frequencies_remainder = np.delete(frequencies, indices_final)
+	Re_Z_remainder = np.delete(real_imp, indices_final)
+	Im_Z_remainder = np.delete(imag_imp, indices_final)
+	
+	frequencies_remainder_array = np.append(frequencies_remainder_array, array_left)
+	Re_Z_remainder_array = np.append(Re_Z_remainder_array, left_yre)
+	Im_Z_remainder_array = np.append(Im_Z_remainder_array, left_yim)
+	frequencies_remainder = np.append(frequencies_remainder, frequencies_remainder_array)
+	Re_Z_remainder = np.append(Re_Z_remainder, Re_Z_remainder_array)
+	Im_Z_remainder = np.append(Im_Z_remainder, Im_Z_remainder_array)
+	
+	ordered_freq = np.argsort(frequencies_remainder)
+	frequencies_remainder = np.take(frequencies_remainder, ordered_freq)
+	Re_Z_closed = np.take(Re_Z_remainder, ordered_freq)
+	Im_Z_closed = np.take(Im_Z_remainder, ordered_freq)
+	
+	return [frequencies_remainder, Re_Z_closed, Im_Z_closed]
+
+
+#SECOND METHOD, DO NOT USE IT!!! 
+#SLOWER AND LESS PRECISE THAN FIRST METHOD, MAYBE TO BE REMOVED
 class Filter(object):
 
 	def __init__(self, majorWidth, minorWidth, majorDepth, minorDepth, harmonics, resolution = None):
@@ -90,85 +134,4 @@ class Filter(object):
 		
 		return (newFreqArray, realInterp, imagInterp)
 
-#SECOND METHOD
-#it needs to be generalised, it works now specifically for Finemet cavities
-def finemet_one_gap_closed_loop(f_rev, frequencies, real_imp, imag_imp):
 
-	yre_1 = np.interp(f_rev, frequencies, real_imp)
-	yim_1 = np.interp(f_rev, frequencies, imag_imp)
-	yre_2 = np.interp(2*f_rev, frequencies, real_imp)
-	yim_2 = np.interp(2*f_rev, frequencies, imag_imp)
-	yre_3 = np.interp(3*f_rev, frequencies, real_imp)
-	yim_3 = np.interp(3*f_rev, frequencies, imag_imp)
-	yre_4 = np.interp(4*f_rev, frequencies, real_imp)
-	yim_4 = np.interp(4*f_rev, frequencies, imag_imp)
-	yre_5 = np.interp(5*f_rev, frequencies, real_imp)
-	yim_5 = np.interp(5*f_rev, frequencies, imag_imp)
-	yre_6 = np.interp(6*f_rev, frequencies, real_imp)
-	yim_6 = np.interp(6*f_rev, frequencies, imag_imp)
-	yre_7 = np.interp(7*f_rev, frequencies, real_imp)
-	yim_7 = np.interp(7*f_rev, frequencies, imag_imp)
-	yre_8 = np.interp(8*f_rev, frequencies, real_imp)
-	yim_8 = np.interp(8*f_rev, frequencies, imag_imp)
-	 
-	left_yre = np.interp(np.array([f_rev-16e3,f_rev+16e3, 2*f_rev-16e3, 2*f_rev+16e3,
-	                               3*f_rev-16e3,3*f_rev+16e3, 4*f_rev-16e3,4*f_rev+16e3,
-	                               5*f_rev-16e3,5*f_rev+16e3, 6*f_rev-16e3,6*f_rev+16e3,
-	                               7*f_rev-16e3,7*f_rev+16e3, 8*f_rev-16e3,8*f_rev+16e3]), frequencies, real_imp)
-	 
-	left_yim = np.interp(np.array([1*f_rev-16e3,1*f_rev+16e3, 2*f_rev-16e3,2*f_rev+16e3,
-	                               3*f_rev-16e3,3*f_rev+16e3, 4*f_rev-16e3,4*f_rev+16e3,
-	                               5*f_rev-16e3,5*f_rev+16e3, 6*f_rev-16e3,6*f_rev+16e3,
-	                               7*f_rev-16e3,7*f_rev+16e3, 8*f_rev-16e3,8*f_rev+16e3]), frequencies, imag_imp)
-	 
-	indices_1 = np.where((frequencies >= (1*f_rev-16e3))&(frequencies <= (1*f_rev+16e3)))[0]
-	indices_2 = np.where((frequencies >= (2*f_rev-16e3))&(frequencies <= (2*f_rev+16e3)))[0]
-	indices_3 = np.where((frequencies >= (3*f_rev-16e3))&(frequencies <= (3*f_rev+16e3)))[0]
-	indices_4 = np.where((frequencies >= (4*f_rev-16e3))&(frequencies <= (4*f_rev+16e3)))[0]
-	indices_5 = np.where((frequencies >= (5*f_rev-16e3))&(frequencies <= (5*f_rev+16e3)))[0]
-	indices_6 = np.where((frequencies >= (6*f_rev-16e3))&(frequencies <= (6*f_rev+16e3)))[0]
-	indices_7 = np.where((frequencies >= (7*f_rev-16e3))&(frequencies <= (7*f_rev+16e3)))[0]
-	indices_8 = np.where((frequencies >= (8*f_rev-16e3))&(frequencies <= (8*f_rev+16e3)))[0]
-	indices_final = np.concatenate((indices_1,indices_2,indices_3,indices_4,indices_5,indices_6,indices_7,indices_8))
-	 
-	frequencies_remainder = np.delete(frequencies, indices_final)
-	 
-	Re_Z_remainder = np.delete(real_imp, indices_final)
-	Im_Z_remainder = np.delete(imag_imp, indices_final)
-	 
-	frequencies_remainder = np.append(frequencies_remainder, 
-	                                       np.array([1*f_rev-8e3, 1*f_rev, 1*f_rev+8e3, 2*f_rev-8e3, 2*f_rev, 2*f_rev+8e3,
-	                                                 3*f_rev-8e3, 3*f_rev, 3*f_rev+8e3, 4*f_rev-8e3, 4*f_rev, 4*f_rev+8e3,
-	                                                 5*f_rev-8e3, 5*f_rev, 5*f_rev+8e3, 6*f_rev-8e3, 6*f_rev, 6*f_rev+8e3,
-	                                                 7*f_rev-8e3, 7*f_rev, 7*f_rev+8e3, 8*f_rev-8e3, 8*f_rev, 8*f_rev+8e3,
-	                                                 1*f_rev-16e3, 1*f_rev+16e3, 2*f_rev-16e3, 2*f_rev+16e3,
-	                                                 3*f_rev-16e3, 3*f_rev+16e3, 4*f_rev-16e3, 4*f_rev+16e3,
-	                                                 5*f_rev-16e3, 5*f_rev+16e3, 6*f_rev-16e3, 6*f_rev+16e3,
-	                                                 7*f_rev-16e3, 7*f_rev+16e3, 8*f_rev-16e3, 8*f_rev+16e3]))
-	 
-	Re_Z_remainder = np.append(Re_Z_remainder, 
-	                                       np.array([yre_1/1.4, yre_1/63, yre_1/1.4, yre_2/1.4, yre_2/63, yre_2/1.4,
-	                                                 yre_3/1.4, yre_3/63, yre_3/1.4, yre_4/1.4, yre_4/63, yre_4/1.4,
-	                                                 yre_5/1.4, yre_5/63, yre_5/1.4, yre_6/1.4, yre_6/63, yre_6/1.4,
-	                                                 yre_7/1.4, yre_7/63, yre_7/1.4, yre_8/1.4, yre_8/63, yre_8/1.4,
-	                                                 left_yre[0], left_yre[1], left_yre[2], left_yre[3],
-	                                                 left_yre[4], left_yre[5], left_yre[6], left_yre[7],
-	                                                 left_yre[8], left_yre[9], left_yre[10], left_yre[11],
-	                                                 left_yre[12], left_yre[13], left_yre[14], left_yre[15]]))
-	 
-	Im_Z_remainder = np.append(Im_Z_remainder, 
-	                                       np.array([yim_1/1.4, yim_1/63, yim_1/1.4, yim_2/1.4, yim_2/63, yim_2/1.4,
-	                                                 yim_3/1.4, yim_3/63, yim_3/1.4, yim_4/1.4, yim_4/63, yim_4/1.4,
-	                                                 yim_5/1.4, yim_5/63, yim_5/1.4, yim_6/1.4, yim_6/63, yim_6/1.4,
-	                                                 yim_7/1.4, yim_7/63, yim_7/1.4, yim_8/1.4, yim_8/63, yim_8/1.4,
-	                                                 left_yim[0], left_yim[1], left_yim[2], left_yim[3],
-	                                                 left_yim[4], left_yim[5], left_yim[6], left_yim[7],
-	                                                 left_yim[8], left_yim[9], left_yim[10], left_yim[11],
-	                                                 left_yim[12], left_yim[13], left_yim[14], left_yim[15]]))
-	 
-	ordered_freq = np.argsort(frequencies_remainder)
-	frequencies_remainder = np.take(frequencies_remainder, ordered_freq)
-	Re_Z_closed = np.take(Re_Z_remainder, ordered_freq)
-	Im_Z_closed = np.take(Im_Z_remainder, ordered_freq)
-	
-	return [frequencies_remainder, Re_Z_closed, Im_Z_closed]
