@@ -35,7 +35,8 @@ boost_path = None
 
 list_cpp_files = ('cpp_routines/mean_std_whereint.cpp cpp_routines/kick.cpp '
                 'cpp_routines/drift.cpp cpp_routines/linear_interp_kick.cpp '
-                'toolbox/tomoscope.cpp cpp_routines/convolution.cpp')
+                'toolbox/tomoscope.cpp cpp_routines/convolution.cpp '
+                'impedances/music_track.cpp')
 
 # Select the right 
 list_cpp_files_SR = 'synchrotron_radiation/synchrotron_radiation.cpp'
