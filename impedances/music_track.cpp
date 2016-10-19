@@ -14,6 +14,9 @@ Project website: http://blond.web.cern.ch/
 // #include "sin.h"
 #include <algorithm>
 #include <cmath>
+#include <ctime>
+#include <iostream>
+
 // using namespace vdt;
 using namespace std;
 
@@ -39,6 +42,14 @@ extern "C" void music_track(double *__restrict__ beam_dt,
                             const double coeff3,
                             const double coeff4)
 {
+    clock_t start;
+    double duration;
+
+    start = std::clock();
+
+    
+
+//     sort(&beam_dt[0], &beam_dt[n_macroparticles]);
     vector<particle> particles; particles.reserve(n_macroparticles);
     for (int i = 0; i < n_macroparticles; i++)
         particles.push_back({beam_dE[i], beam_dt[i]});
@@ -47,7 +58,10 @@ extern "C" void music_track(double *__restrict__ beam_dt,
         beam_dE[i] = particles[i].de;
         beam_dt[i] = particles[i].dt;
     }
+    
+    duration = ( clock() - start ) / (double) CLOCKS_PER_SEC;
 
+    cout<<"printf: "<< duration <<'\n';
     beam_dE[0] += induced_voltage[0];
     double input_first_component = 1;
     double input_second_component = 0;
@@ -71,6 +85,9 @@ extern "C" void music_track(double *__restrict__ beam_dt,
         input_first_component = product_first_component + 1;
         input_second_component = product_second_component;
     }
+    
+    
+
 
 
 }
