@@ -44,7 +44,7 @@ rf_params = rfparClass.RFSectionParameters(general_params, n_rf_systems,
                                         h_1, V_1, phi_1)
 
 my_beam = beamClass.Beam(general_params, n_macroparticles, n_particles)
-np.random.seed(100)
+np.random.seed(1000)
 my_beam.dt = 1e-9*np.random.randn(n_macroparticles) + general_params.t_rev[0]/2
 my_beam.dE = 1e-9*np.random.randn(n_macroparticles) 
 
@@ -63,27 +63,36 @@ ind_volt = impClass.InducedVoltageTime(slices_ring, [mode])
 total_induced_voltage = impClass.TotalInducedVoltage(my_beam, slices_ring, [ind_volt])
 t0 = time.clock()
 total_induced_voltage.track()
-print time.clock()-t0
+# print time.clock()-t0
 
 ind_volt2 = impClass.InducedVoltageFreq(slices_ring, [mode], None)
 total_induced_voltage2 = impClass.TotalInducedVoltage(my_beam, slices_ring, [ind_volt2])
 t0 = time.clock()
 total_induced_voltage2.track()
-print time.clock()-t0
+# print time.clock()-t0
 
 
 
-n_macroparticles2 = 1000000
+n_macroparticles2 = 100
 my_beam2 = beamClass.Beam(general_params, n_macroparticles2, n_particles)
 my_beam2.dt = 1e-9*np.random.randn(n_macroparticles2) + general_params.t_rev[0]/2
 my_beam2.dE = 1e-9*np.random.randn(n_macroparticles2) 
 music = musClass.Music(my_beam2, [R_S, 2*np.pi*frequency_R, Q], n_macroparticles2, n_particles)
+music2 = musClass.Music(my_beam2, [R_S, 2*np.pi*frequency_R, Q], n_macroparticles2, n_particles)
 t0 = time.clock()
 music.track()
-print time.clock()-t0
-plt.plot(slices_ring.bin_centers*1e9, total_induced_voltage.induced_voltage)
-plt.plot(slices_ring.bin_centers*1e9, total_induced_voltage2.induced_voltage)
-plt.plot(my_beam2.dt*1e9, music.induced_voltage)
+# print time.clock()-t0
+
+t0 = time.clock()
+music2.track_classic()
+# print time.clock()-t0
+
+# plt.plot(slices_ring.bin_centers*1e9, total_induced_voltage.induced_voltage)
+# plt.plot(slices_ring.bin_centers*1e9, total_induced_voltage2.induced_voltage)
+print 'h'
+
+plt.plot(my_beam2.dt*1e9, music.induced_voltage, '.-')
+plt.plot(my_beam2.dt*1e9, music2.induced_voltage, '.-')
 plt.grid()
 plt.show()    
     

@@ -68,13 +68,14 @@ class Music(object):
 #         self.beam.dE[0] += self.induced_voltage[0]
 #         input_first_component = 1
 #         input_second_component = 0
-#  
+#   
 #         for i in range(len(indices_sorted)-1):
-#  
+#   
 #             time_difference = self.beam.dt[i+1]-self.beam.dt[i]
+#             
 #             exp_term = np.exp(-self.alpha * time_difference)
 #             cos_term = np.cos(self.omega_bar * time_difference)
-#             sin_term = np.sqrt(1-cos_term**2)
+#             sin_term = np.sin(self.omega_bar * time_difference)
 #             product_first_component = exp_term * \
 #                 ((cos_term+self.coeff1*sin_term)*input_first_component +
 #                  self.coeff2*sin_term*input_second_component)
@@ -84,8 +85,9 @@ class Music(object):
 #             self.induced_voltage[i+1] = self.const * \
 #                 (0.5+product_first_component)
 #             self.beam.dE[i+1] += self.induced_voltage[i+1]
-#             input_first_component = product_first_component+1
+#             input_first_component = product_first_component+1.0
 #             input_second_component = product_second_component
+    
     
     def track_classic(self):
         
@@ -101,8 +103,10 @@ class Music(object):
                 time_difference = self.beam.dt[i+1]-self.beam.dt[j]
                 exp_term = np.exp(-self.alpha * time_difference)
                 cos_term = np.cos(self.omega_bar * time_difference)
-                sin_term = np.sqrt(1-cos_term**2)
+                sin_term = np.sin(self.omega_bar * time_difference)
                 self.induced_voltage[i+1] += exp_term*(cos_term+self.coeff1*sin_term)
                 
             self.induced_voltage[i+1] = self.const*(0.5+self.induced_voltage[i+1])    
             self.beam.dE[i+1] += self.induced_voltage[i+1]
+    
+ 

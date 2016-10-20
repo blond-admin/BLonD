@@ -70,7 +70,7 @@ extern "C" void music_track(double *__restrict__ beam_dt,
         const double time_difference = beam_dt[i + 1] - beam_dt[i];
         const double exp_term = exp(-alpha * time_difference);
         const double cos_term = cos(omega_bar * time_difference);
-        const double sin_term = sqrt(1 - cos_term * cos_term);
+        const double sin_term = sin(omega_bar * time_difference);
         const double product_first_component =
             exp_term * ((cos_term + coeff1 * sin_term)
                         * input_first_component + coeff2 * sin_term
