@@ -26,7 +26,7 @@ import ctypes
 
 # If True you can launch with 'OMP_NUM_THREADS=xx python MAIN_FILE.py' 
 # where xx is the number of threads that you want to launch
-parallel = False
+parallel = True
 
 # If True, the boost library would be used
 boost = False
@@ -51,7 +51,7 @@ if parallel == False:
     flags = '-Ofast -std=c++11'
     list_cpp_files += ' cpp_routines/histogram.cpp'
 elif parallel == True:
-    flags = '-Ofast -std=c++11 -fopenmp'
+    flags = '-Ofast -std=c++11 -fopenmp -DPARALLEL'
     list_cpp_files += ' cpp_routines/histogram_par.cpp'
     
 if boost_path != None:
