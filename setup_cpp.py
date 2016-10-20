@@ -26,7 +26,7 @@ import ctypes
 
 # If True you can launch with 'OMP_NUM_THREADS=xx python MAIN_FILE.py' 
 # where xx is the number of threads that you want to launch
-parallel = True
+parallel = False
 
 # If True, the boost library would be used
 boost = False

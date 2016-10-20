@@ -27,14 +27,14 @@ Project website: http://blond.web.cern.ch/
 
 using namespace vdt;
 
-// struct particle {
-//     double de;
-//     double dt;
-//     bool operator<(const particle &o) const
-//     {
-//         return dt < o.dt;
-//     }
-// };
+struct particle {
+    double de;
+    double dt;
+    bool operator<(const particle &o) const
+    {
+        return dt < o.dt;
+    }
+};
 
 struct Comparator {
     const double *dt;
@@ -62,27 +62,31 @@ extern "C" void music_track(double *__restrict__ beam_dt,
     std::chrono::duration<double> duration(0.0);
     start = std::chrono::system_clock::now();
 
-    // vector<particle> particles; particles.reserve(n_macroparticles);
-    // for (int i = 0; i < n_macroparticles; i++)
-    //     particles.push_back({beam_dE[i], beam_dt[i]});
-    // sort(particles.begin(), particles.end());
-    // for (int i = 0; i < n_macroparticles; i++) {
-    //     beam_dE[i] = particles[i].de;
-    //     beam_dt[i] = particles[i].dt;
-    // }
+    std::vector<particle> particles; particles.reserve(n_macroparticles);
+    for (int i = 0; i < n_macroparticles; i++)
+        particles.push_back({beam_dE[i], beam_dt[i]});
+#ifdef PARALLEL
+    __gnu_parallel::sort(particles.begin(), particles.end());
+#else
+    std::sort(particles.begin(), particles.end());
+#endif
+    for (int i = 0; i < n_macroparticles; i++) {
+        beam_dE[i] = particles[i].de;
+        beam_dt[i] = particles[i].dt;
+    }
     // NOTE make sure that this is actually sorting beam_dE with regards to
     // beam_dt
-#ifdef PARALLEL
-    // std::cout << "parallel code\n";
-    __gnu_parallel::sort(&beam_dE[0], &beam_dE[n_macroparticles],
-                         Comparator(beam_dt));
-    __gnu_parallel::sort(&beam_dt[0], &beam_dt[n_macroparticles]);
-#else
-    // std::cout << "serial code\n";
-    std::sort(&beam_dE[0], &beam_dE[n_macroparticles],
-              Comparator(beam_dt));
-    std::sort(&beam_dt[0], &beam_dt[n_macroparticles]);
-#endif
+// #ifdef PARALLEL
+//     // std::cout << "parallel code\n";
+//     __gnu_parallel::sort(&beam_dE[0], &beam_dE[n_macroparticles],
+//                          Comparator(beam_dt));
+//     __gnu_parallel::sort(&beam_dt[0], &beam_dt[n_macroparticles]);
+// #else
+//     // std::cout << "serial code\n";
+//     std::sort(&beam_dE[0], &beam_dE[n_macroparticles],
+//               Comparator(beam_dt));
+//     std::sort(&beam_dt[0], &beam_dt[n_macroparticles]);
+// #endif
 
 
     duration = std::chrono::system_clock::now() - start;
