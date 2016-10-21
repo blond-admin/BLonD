@@ -51,7 +51,7 @@ if parallel == False:
     flags = '-Ofast -std=c++11'
     list_cpp_files += ' cpp_routines/histogram.cpp'
 elif parallel == True:
-    flags = '-Ofast -std=c++11 -fopenmp'
+    flags = '-Ofast -std=c++11 -fopenmp -DPARALLEL'
     list_cpp_files += ' cpp_routines/histogram_par.cpp'
     
 if boost_path != None:
