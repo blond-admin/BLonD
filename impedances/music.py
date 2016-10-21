@@ -50,7 +50,6 @@ class Music(object):
         self.coeff4 = self.alpha/self.omega_bar
 
     def track(self):
-        start = time.time()
 
         libblond.music_track(self.beam.dt.ctypes.data_as(ctypes.c_void_p),
                              self.beam.dE.ctypes.data_as(ctypes.c_void_p),
@@ -63,7 +62,6 @@ class Music(object):
                              ctypes.c_double(self.coeff2),
                              ctypes.c_double(self.coeff3),
                              ctypes.c_double(self.coeff4))
-        print "total music_track time with .time(): ", time.time() - start
 
 #         indices_sorted = np.argsort(self.beam.dt)
 #         self.beam.dt = self.beam.dt[indices_sorted]

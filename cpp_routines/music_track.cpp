@@ -58,9 +58,9 @@ extern "C" void music_track(double *__restrict__ beam_dt,
                             const double coeff4)
 {
 
-    std::chrono::time_point<std::chrono::high_resolution_clock>start;
-    std::chrono::duration<double> duration(0.0);
-    start = std::chrono::system_clock::now();
+//     std::chrono::time_point<std::chrono::high_resolution_clock>start;
+//     std::chrono::duration<double> duration(0.0);
+//     start = std::chrono::system_clock::now();
 
     std::vector<particle> particles; particles.reserve(n_macroparticles);
     for (int i = 0; i < n_macroparticles; i++)
@@ -89,10 +89,10 @@ extern "C" void music_track(double *__restrict__ beam_dt,
 // #endif
 
 
-    duration = std::chrono::system_clock::now() - start;
-    std::cout << "sorting time: " << duration.count() << '\n';
+//     duration = std::chrono::system_clock::now() - start;
+//     std::cout << "sorting time: " << duration.count() << '\n';
 
-    start = std::chrono::system_clock::now();
+//     start = std::chrono::system_clock::now();
 
     beam_dE[0] += induced_voltage[0];
     double input_first_component = 1;
@@ -121,8 +121,8 @@ extern "C" void music_track(double *__restrict__ beam_dt,
 
 
 
-    duration = std::chrono::system_clock::now() - start;
-    std::cout << "tracking time: " << duration.count() << '\n';
+//     duration = std::chrono::system_clock::now() - start;
+//     std::cout << "tracking time: " << duration.count() << '\n';
 
 
 }

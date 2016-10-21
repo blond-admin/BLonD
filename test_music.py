@@ -23,14 +23,14 @@ from shutil import copy2
 import time
 
 
-n_turns = 100000
+n_turns = 1000000
 C = 628.32
 alpha = 0.0268745
 tot_energy = 13e9
 mass_rest = m_p*c**2/e
 momentum = np.sqrt(tot_energy**2 - mass_rest**2)
 n_particles = 6.4e-7/e
-n_macroparticles = 1000000
+n_macroparticles = 10000000
 n_rf_systems = 1
 h_1 = 1
 V_1 = 165e3
@@ -52,9 +52,9 @@ my_beam.dE = 1e-9*np.random.randn(n_macroparticles)
 
 R_S = 4e4
 frequency_R = 2.4e9
-Q = 100
+Q = 1
 
-n_slices = 1000
+n_slices = 1000000
 slices_ring = slicesClass.Slices(rf_params, my_beam, n_slices, cut_left = general_params.t_rev[0]/2 - 5e-9, cut_right = general_params.t_rev[0]/2 + 5e-9)
 slices_ring.track()
 
@@ -71,9 +71,9 @@ t0 = time.clock()
 total_induced_voltage2.track()
 # print time.clock()-t0
 
+print "passage"
 
-
-n_macroparticles2 = 100
+n_macroparticles2 = 1000000
 my_beam2 = beamClass.Beam(general_params, n_macroparticles2, n_particles)
 my_beam2.dt = 1e-9*np.random.randn(n_macroparticles2) + general_params.t_rev[0]/2
 my_beam2.dE = 1e-9*np.random.randn(n_macroparticles2) 
@@ -81,18 +81,19 @@ music = musClass.Music(my_beam2, [R_S, 2*np.pi*frequency_R, Q], n_macroparticles
 music2 = musClass.Music(my_beam2, [R_S, 2*np.pi*frequency_R, Q], n_macroparticles2, n_particles)
 t0 = time.clock()
 music.track()
+print time.clock()-t0
+
+# t0 = time.clock()
+# music2.track_classic()
 # print time.clock()-t0
 
-t0 = time.clock()
-music2.track_classic()
-# print time.clock()-t0
 
-# plt.plot(slices_ring.bin_centers*1e9, total_induced_voltage.induced_voltage)
-# plt.plot(slices_ring.bin_centers*1e9, total_induced_voltage2.induced_voltage)
 print 'h'
 
-plt.plot(my_beam2.dt*1e9, music.induced_voltage, '.-')
-plt.plot(my_beam2.dt*1e9, music2.induced_voltage, '.-')
+plt.plot(my_beam2.dt*1e9, music.induced_voltage, '-')
+plt.plot(slices_ring.bin_centers*1e9, total_induced_voltage.induced_voltage)
+plt.plot(slices_ring.bin_centers*1e9, total_induced_voltage2.induced_voltage)
+# plt.plot(my_beam2.dt*1e9, music2.induced_voltage, 'o')
 plt.grid()
 plt.show()    
     
