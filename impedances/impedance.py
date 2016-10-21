@@ -146,9 +146,10 @@ class TotalInducedVoltage(object):
         
         self.induced_voltage_sum(self.beam)
         
+        induced_energy = self.beam.charge * self.induced_voltage
         libblond.linear_interp_kick(self.beam.dt.ctypes.data_as(ctypes.c_void_p),
                                   self.beam.dE.ctypes.data_as(ctypes.c_void_p), 
-                                  (self.beam.charge * self.induced_voltage).ctypes.data_as(ctypes.c_void_p), 
+                                  induced_energy.ctypes.data_as(ctypes.c_void_p), 
                                   self.slices.bin_centers.ctypes.data_as(ctypes.c_void_p), 
                                   ctypes.c_uint(self.slices.n_slices),
                                   ctypes.c_uint(self.beam.n_macroparticles))
@@ -202,9 +203,10 @@ class TotalInducedVoltage(object):
 
         
         # Induced voltage energy kick to particles through linear interpolation
+        induced_energy = self.beam.charge * self.induced_voltage
         libblond.linear_interp_kick(self.beam.dt.ctypes.data_as(ctypes.c_void_p),
                                   self.beam.dE.ctypes.data_as(ctypes.c_void_p), 
-                                  self.induced_voltage.ctypes.data_as(ctypes.c_void_p), 
+                                  induced_energy.ctypes.data_as(ctypes.c_void_p), 
                                   self.slices.bin_centers.ctypes.data_as(ctypes.c_void_p), 
                                   ctypes.c_uint(self.slices.n_slices),
                                   ctypes.c_uint(self.beam.n_macroparticles),
@@ -220,9 +222,10 @@ class TotalInducedVoltage(object):
     
     def track_ghosts_particles(self, ghostBeam):
         
+        induced_energy = self.beam.charge * self.induced_voltage
         libblond.linear_interp_kick(ghostBeam.dt.ctypes.data_as(ctypes.c_void_p),
                                   ghostBeam.dE.ctypes.data_as(ctypes.c_void_p), 
-                                  self.induced_voltage.ctypes.data_as(ctypes.c_void_p), 
+                                  induced_energy.ctypes.data_as(ctypes.c_void_p), 
                                   self.slices.bin_centers.ctypes.data_as(ctypes.c_void_p), 
                                   ctypes.c_uint(self.slices.n_slices),
                                   ctypes.c_uint(ghostBeam.n_macroparticles))
@@ -321,9 +324,10 @@ class InducedVoltageTime(object):
         '''
         
         self.induced_voltage_generation(Beam)
+        induced_energy = self.beam.charge * self.induced_voltage
         libblond.linear_interp_kick(Beam.dt.ctypes.data_as(ctypes.c_void_p),
                                   Beam.dE.ctypes.data_as(ctypes.c_void_p), 
-                                  (Beam.charge * self.induced_voltage).ctypes.data_as(ctypes.c_void_p), 
+                                  induced_energy.ctypes.data_as(ctypes.c_void_p), 
                                   self.slices.bin_centers.ctypes.data_as(ctypes.c_void_p), 
                                   ctypes.c_uint(self.slices.n_slices),
                                   ctypes.c_uint(Beam.n_macroparticles),
@@ -544,9 +548,10 @@ class InducedVoltageFreq(object):
         '''
         
         self.induced_voltage_generation(Beam)
+        induced_energy = self.beam.charge * self.induced_voltage
         libblond.linear_interp_kick(Beam.dt.ctypes.data_as(ctypes.c_void_p),
                                   Beam.dE.ctypes.data_as(ctypes.c_void_p), 
-                                  (Beam.charge * self.induced_voltage).ctypes.data_as(ctypes.c_void_p), 
+                                  induced_energy.ctypes.data_as(ctypes.c_void_p), 
                                   self.slices.bin_centers.ctypes.data_as(ctypes.c_void_p), 
                                   ctypes.c_uint(self.slices.n_slices),
                                   ctypes.c_uint(Beam.n_macroparticles),
@@ -672,9 +677,10 @@ class InductiveImpedance(object):
         '''
         
         self.induced_voltage_generation(Beam)
+        induced_energy = self.beam.charge * self.induced_voltage
         libblond.linear_interp_kick(self.beam.dt.ctypes.data_as(ctypes.c_void_p),
                                   self.beam.dE.ctypes.data_as(ctypes.c_void_p), 
-                                  (self.beam.charge * self.induced_voltage).ctypes.data_as(ctypes.c_void_p), 
+                                  induced_energy.ctypes.data_as(ctypes.c_void_p), 
                                   self.slices.bin_centers.ctypes.data_as(ctypes.c_void_p), 
                                   ctypes.c_uint(self.slices.n_slices),
                                   ctypes.c_uint(self.beam.n_macroparticles),

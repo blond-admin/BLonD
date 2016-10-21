@@ -8,7 +8,7 @@ submit itself to any jurisdiction.
 Project website: http://blond.web.cern.ch/
 */
 
-// Optimised C++ routine that calculates MuSiC trakc method
+// Optimised C++ routine that calculates MuSiC track method
 // Author: Danilo Quartullo, Konstantinos Iliakis
 
 #include "sin.h"
@@ -24,6 +24,7 @@ Project website: http://blond.web.cern.ch/
 #include <cmath>
 #include <chrono>
 #include <iostream>
+#include <vector>
 
 using namespace vdt;
 
