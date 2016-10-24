@@ -42,10 +42,11 @@ can be useful.
 from __future__ import division, print_function
 import numpy as np
 import scipy.special as scisp
+from scipy.constants import e
 
 
 
-def analytical_gaussian_resonator(sigma_t, Q, R_s, omega_r, tau_array):
+def analytical_gaussian_resonator(sigma_t, Q, R_s, omega_r, tau_array, n_particles):
     
     alpha = omega_r /(2*Q)
     ombar = np.sqrt(omega_r**2-alpha**2)
@@ -55,4 +56,4 @@ def analytical_gaussian_resonator(sigma_t, Q, R_s, omega_r, tau_array):
     result = R_s*alpha/ombar*np.e**(0.5*(alpha**2-ombar**2)*sigma_t**2-alpha*tau_array)*\
                 (scisp.erfc(A).real*(ombar*np.cos(B)+alpha*np.sin(B))+scisp.erfc(A).imag*(alpha*np.cos(B)-ombar*np.sin(B)))
     
-    return result
+    return -n_particles*e*result

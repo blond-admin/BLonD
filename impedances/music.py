@@ -45,7 +45,6 @@ class Music(object):
         self.n_particles = n_particles
         self.alpha = self.omega_R / (2*self.Q)
         self.omega_bar = np.sqrt(self.omega_R ** 2 - self.alpha ** 2)
-        # The induced voltage will be in eV, so self.const has e**1 and not e**2
         self.const = -e*self.R_S*self.omega_R * \
             self.n_particles/(self.n_macroparticles*self.Q)
         self.induced_voltage = np.zeros(len(self.beam.dt))

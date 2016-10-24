@@ -11,6 +11,8 @@
 Calculation of the induced voltage for a gaussian bunch and a resonator.
 Four different methods: time domain with convolution, frequency domain with FFT,
 time domain with MuSiC, time domain with analytical formula.
+
+:Authors: **Danilo Quartullo**
 '''
 
 from __future__ import division
@@ -42,8 +44,8 @@ V_1 = 24e3
 phi_1 = 0
 
 # RESONATOR PARAMETERS
-R_S = 2060e3
-frequency_R = 0.2003e9
+R_S = 1e7
+frequency_R = 1e8
 Q = 1
 mode = impClass.Resonators(R_S, frequency_R, Q)
 
@@ -85,16 +87,16 @@ music.track()
 
 # ANALYTICAL VOLTAGE CALCULATION
 time_array = np.linspace(0, general_params.t_rev[0], 1000000)
-induced_voltage_analytical = -n_particles*e*indVoltAn.analytical_gaussian_resonator(sigma_gaussian, Q, R_S, 2*np.pi*frequency_R, time_array-general_params.t_rev[0]/2)
+induced_voltage_analytical = indVoltAn.analytical_gaussian_resonator(sigma_gaussian, Q, R_S, 2*np.pi*frequency_R, time_array-general_params.t_rev[0]/2, n_particles)
 
 # PLOTS
 if n_macroparticles2 == n_macroparticles: 
-    plt.plot(my_beam.dt*1e9, music.induced_voltage)
+    plt.plot(my_beam.dt*1e9, music.induced_voltage, label='MuSiC')
 else:
-    plt.plot(my_beam2.dt*1e9, music.induced_voltage)
-plt.plot(slices_ring.bin_centers*1e9, total_induced_voltage.induced_voltage)
-plt.plot(slices_ring.bin_centers*1e9, total_induced_voltage2.induced_voltage)
-plt.plot(time_array*1e9, induced_voltage_analytical)
-plt.grid()
+    plt.plot(my_beam2.dt*1e9, music.induced_voltage, label='MuSiC')
+plt.plot(slices_ring.bin_centers*1e9, total_induced_voltage.induced_voltage, label='convolution')
+plt.plot(slices_ring.bin_centers*1e9, total_induced_voltage2.induced_voltage, label='FFT')
+plt.plot(time_array*1e9, induced_voltage_analytical, label='analytical')
+plt.legend(loc='upper left')
 plt.show()    
     
