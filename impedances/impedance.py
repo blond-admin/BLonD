@@ -176,6 +176,11 @@ class TotalInducedVoltage(object):
         # method instead, self.n_points_wake is precisely n_slices*(n_turns+1).
         # The parameter self.main_harmonic_number indicates that all the ring
         # is sliced for the different methods.
+        # To avoid undesirable contributions of the induced voltage caused by
+        # circular convolution when front wake is present, the profile can
+        # be padded with zeros in front: self.n_windows_before represents
+        # the number of buckets that should be taken into account if self.slices.n_slices
+        # is the number of slices per bucket.
         
         if self.mode_mtw=='first_method':
             # At each turn the induced voltage is calculated for the current
@@ -184,13 +189,15 @@ class TotalInducedVoltage(object):
             # the voltage from the past is multiplied by a complex
             # exponential after imposing zero values in appropriate cells to
             # avoid overlapping.
-            self.induced_voltage_extended[:(self.slices.n_slices*self.main_harmonic_number)]=0
-            self.induced_voltage_extended[(self.slices.n_slices*self.main_harmonic_number*(self.n_turns_memory+1)):]=0
+            self.induced_voltage_extended[:(self.slices.n_slices*self.n_windows_before+self.slices.n_slices*self.main_harmonic_number)]=0
+            self.induced_voltage_extended[(self.slices.n_slices*self.main_harmonic_number*(self.n_turns_memory+1)+self.slices.n_slices*self.n_windows_before):]=0
             self.array_memory = rfft(self.induced_voltage_extended, self.n_points_fft)
             self.array_memory *= np.exp(self.omegaj_array_memory * self.rev_time_array[self.counter_turn])
+            padded_before_profile = np.lib.pad(self.slices.n_macroparticles, (self.slices.n_slices*self.n_windows_before,0), 'constant', constant_values=(0,0))
+            self.fourier_transf_profile = rfft(padded_before_profile, self.n_points_fft)
             self.induced_voltage_extended =  irfft(self.array_memory + self.coefficient * \
-                    rfft(self.slices.n_macroparticles, self.n_points_fft) * self.sum_impedances_memory, self.n_points_fft)
-            self.induced_voltage = self.induced_voltage_extended[:self.slices.n_slices]
+                    self.fourier_transf_profile * self.sum_impedances_memory, self.n_points_fft)
+            self.induced_voltage = self.induced_voltage_extended[(self.slices.n_slices*self.n_windows_before):((self.slices.n_slices*self.n_windows_before)+self.slices.n_slices*self.main_harmonic_number)]
             
         elif self.mode_mtw=='second_method':
             # Here the rotation technique is used, as in the first method.
@@ -206,7 +213,7 @@ class TotalInducedVoltage(object):
             self.ind_volt_freq_table_memory[self.pointer_current_turn,:] = self.fourier_transf_profile * self.sum_impedances_memory
             ind_volt_total_f = np.sum(self.ind_volt_freq_table_memory, axis=0)
             self.induced_voltage_extended = self.coefficient * irfft(ind_volt_total_f, self.n_points_fft)
-            self.induced_voltage = self.induced_voltage_extended[(self.slices.n_slices*self.n_windows_before):((self.slices.n_slices*self.n_windows_before)+self.slices.n_slices)]
+            self.induced_voltage = self.induced_voltage_extended[(self.slices.n_slices*self.n_windows_before):((self.slices.n_slices*self.n_windows_before)+self.slices.n_slices*self.main_harmonic_number)]
             
             if self.index_save_individual_voltage != -1:
                 self.ind_volt_freq_table_memory_ind_volt *= np.exp(self.omegaj_array_memory * self.rev_time_array[self.counter_turn])
@@ -223,16 +230,18 @@ class TotalInducedVoltage(object):
             # deriving from the past; the substitution technique is used, that is
             # at every turn the calculated induced voltage for the current and 
             # following turns will be used as past voltage in the following turn.
+            padded_before_profile = np.lib.pad(self.slices.n_macroparticles, (self.slices.n_slices*self.n_windows_before,0), 'constant', constant_values=(0,0))
+            self.fourier_transf_profile = rfft(padded_before_profile, self.n_points_fft)
             induced_voltage_current = self.coefficient * \
-                irfft(rfft(self.slices.n_macroparticles, self.n_points_fft)*
+                irfft(self.fourier_transf_profile*
                       self.sum_impedances_memory, self.n_points_fft)
-            self.induced_voltage_extended[:(self.slices.n_slices*self.main_harmonic_number*self.n_turns_memory)] = \
-                induced_voltage_current[:(self.slices.n_slices*self.main_harmonic_number*self.n_turns_memory)] + \
-                self.induced_voltage_extended[(self.slices.n_slices*self.main_harmonic_number):
-                                              (self.slices.n_slices*self.main_harmonic_number*(self.n_turns_memory+1))]
-            self.induced_voltage_extended[(self.slices.n_slices*self.main_harmonic_number*self.n_turns_memory):] = \
-                induced_voltage_current[(self.slices.n_slices*self.main_harmonic_number*self.n_turns_memory):]
-            self.induced_voltage = self.induced_voltage_extended[:self.slices.n_slices]
+            self.induced_voltage_extended[(self.slices.n_slices*self.n_windows_before):(self.slices.n_slices*self.main_harmonic_number*self.n_turns_memory+self.slices.n_slices*self.n_windows_before)] = \
+                induced_voltage_current[(self.slices.n_slices*self.n_windows_before):(self.slices.n_slices*self.main_harmonic_number*self.n_turns_memory+self.slices.n_slices*self.n_windows_before)] + \
+                self.induced_voltage_extended[(self.slices.n_slices*self.main_harmonic_number+self.slices.n_slices*self.n_windows_before):
+                                              (self.slices.n_slices*self.main_harmonic_number*(self.n_turns_memory+1)+self.slices.n_slices*self.n_windows_before)]
+            self.induced_voltage_extended[(self.slices.n_slices*self.main_harmonic_number*self.n_turns_memory+self.slices.n_slices*self.n_windows_before):] = \
+                induced_voltage_current[(self.slices.n_slices*self.main_harmonic_number*self.n_turns_memory+self.slices.n_slices*self.n_windows_before):]
+            self.induced_voltage = self.induced_voltage_extended[(self.slices.n_slices*self.n_windows_before):((self.slices.n_slices*self.n_windows_before)+self.slices.n_slices*self.main_harmonic_number)]
             
         elif self.mode_mtw=='fourth_method':
             # The only difference between this and the third method is that here
