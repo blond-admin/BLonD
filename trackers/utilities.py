@@ -26,7 +26,7 @@ from scipy.integrate import cumtrapz
 
 
 def synchrotron_frequency_distribution(Beam, FullRingAndRF, main_harmonic_option = 'lowest_freq', 
-                                 lineDensityInput = None, TotalInducedVoltage = None, smoothOption = None):
+                                 turn = 0, TotalInducedVoltage = None, smoothOption = None):
     '''
     *Function to compute the frequency distribution of a distribution for a certain
     RF system and optional intensity effects. The potential well (and induced
@@ -34,89 +34,62 @@ def synchrotron_frequency_distribution(Beam, FullRingAndRF, main_harmonic_option
     **after** *the potential well (and induced potential) generation.*
     
     *If used with induced potential, be careful that noise can be an issue. An
-    analytical line density can be inputed by inputing the output of the 
-    matched_from_line_density function output in the longitudinal_distributions 
-    module.*
-    
-    *A smoothing function is included (running mean) in order to smooth
-    noise and numerical errors due to linear interpolation, the user can input the 
-    number of pixels to smooth with smoothOption = N.*
-    
-    *The particle distribution of synchrotron frequencies in the beam are also
-    outputed. Would you like to have this result for an analytical beam profile,
-    you can have the particle distribution with or without intensity effects.
-    To have it without intensity effects, please pass the option lineDensityInput 
-    with the following parameters:*
-    
-    lineDensityInput = [theta_array, line_density]
-    or
-    lineDensityInput = beam_generation_output[1] (generated without intensity effects)
-    
-    * With intensity effects you can use the TotalInducedVoltage option by passing
-    the following parameters:*
+    analytical line density can be inputed by using the TotalInducedVoltage 
+    option and passing the following parameters:*
     
     TotalInducedVoltage = beam_generation_output[1]
      
     *with beam_generation_output being the output of the 
     matched_from_line_density and matched_from_distribution_density functions 
     in the distribution module.*
+    
+    *A smoothing function is included (running mean) in order to smooth
+    noise and numerical errors due to linear interpolation, the user can input the 
+    number of pixels to smooth with smoothOption = N.*
+    
+    *The particle distribution in synchrotron frequencies of the beam is also
+    outputed.*
     '''
     
     # Initialize variables depending on the accelerator parameters
     slippage_factor = FullRingAndRF.RingAndRFSection_list[0].eta_0[0]
-    eom_factor_dE = (np.pi * abs(slippage_factor) * c) / \
-                    (FullRingAndRF.ring_circumference * Beam.beta * Beam.energy)
-    eom_factor_potential = np.sign(FullRingAndRF.RingAndRFSection_list[0].eta_0[0]) * (Beam.charge*Beam.beta * c) / (FullRingAndRF.ring_circumference)
-     
+                        
+    eom_factor_dE = abs(slippage_factor) / (2*Beam.beta**2. * Beam.energy)
+    eom_factor_potential = np.sign(slippage_factor) * Beam.charge / (FullRingAndRF.RingAndRFSection_list[0].t_rev[0])
+
     # Generate potential well
     n_points_potential = int(1e4)
     FullRingAndRF.potential_well_generation(n_points = n_points_potential, 
-                                            theta_margin_percent = 0.05, 
+                                            turn = turn, dt_margin_percent = 0.05, 
                                             main_harmonic_option = main_harmonic_option)
     potential_well_array = FullRingAndRF.potential_well
-    theta_coord_array = FullRingAndRF.potential_well_coordinates
+    time_coord_array = FullRingAndRF.potential_well_coordinates
     
     induced_potential_final = 0
     
-    # Calculating the induced potential
-    if TotalInducedVoltage is not None and lineDensityInput is not None:
-        raise RuntimeError('The synchrotron_frequency_distribution cannot take \
-                            both lineDensity and TotalInducedVoltage options, \
-                            please choose one or the other (the line density \
-                            with intensity effects is already taken into \
-                            account with the TotalInducedVoltage option !)')
-    
+    # Calculating the induced potential    
     if TotalInducedVoltage is not None:
         
         induced_voltage_object = copy.deepcopy(TotalInducedVoltage)
         
         induced_voltage = induced_voltage_object.induced_voltage
-        theta_induced_voltage = TotalInducedVoltage.slices.bin_centers / (Beam.ring_radius/(Beam.beta*c))
+        time_induced_voltage = TotalInducedVoltage.slices.bin_centers
         
         # Computing induced potential
-        induced_potential = - eom_factor_potential * np.insert(cumtrapz(induced_voltage, dx=theta_induced_voltage[1] - theta_induced_voltage[0]),0,0)
+        induced_potential = - eom_factor_potential * np.insert(cumtrapz(induced_voltage, dx=time_induced_voltage[1] - time_induced_voltage[0]),0,0)
         
         # Interpolating the potential well
-        induced_potential_final = np.interp(theta_coord_array, theta_induced_voltage, induced_potential)
-        
-        theta_line_density = np.array(theta_induced_voltage)
-        line_density_input = TotalInducedVoltage.slices.n_macroparticles
-        
-    if lineDensityInput is not None:
-        theta_line_density = lineDensityInput[0]
-        line_density_input = lineDensityInput[1]
+        induced_potential_final = np.interp(time_coord_array, time_induced_voltage, induced_potential)
                                 
     # Induced voltage contribution
     total_potential = potential_well_array + induced_potential_final
-        
+    
     # Process the potential well in order to take a frame around the separatrix
-    theta_coord_sep, potential_well_sep = potential_well_cut(theta_coord_array, total_potential)
-        
-    line_density = np.interp(theta_coord_sep, theta_line_density, line_density_input)
-        
+    time_coord_sep, potential_well_sep = potential_well_cut(time_coord_array, total_potential)
+    
     potential_well_sep = potential_well_sep - np.min(potential_well_sep)
     synchronous_phase_index = np.where(potential_well_sep == np.min(potential_well_sep))[0]
-    theta_resolution = theta_coord_sep[1] - theta_coord_sep[0] 
+    time_resolution = time_coord_sep[1] - time_coord_sep[0] 
     
     # Computing the action J by integrating the dE trajectories
     J_array_dE0 = np.zeros(len(potential_well_sep))
@@ -127,82 +100,69 @@ def synchrotron_frequency_distribution(Beam, FullRingAndRF, main_harmonic_option
         dE_trajectory = np.sqrt((potential_well_sep[i] - potential_well_sep)/eom_factor_dE)
         dE_trajectory[np.isnan(dE_trajectory)] = 0
         
-        # Careful: Action is integrated over theta
-        J_array_dE0[i] = 2 / (2*np.pi) * np.trapz(dE_trajectory, dx=theta_resolution)
-             
+        # Careful: Action is integrated over time
+        J_array_dE0[i] = 2 / (2*np.pi) * np.trapz(dE_trajectory, dx=time_resolution)
+    
     warnings.filterwarnings("default")
-
+    
     # Computing the sync_freq_distribution (if to handle cases where maximum is in 2 consecutive points)
     if len(synchronous_phase_index) > 1:
         H_array_left = potential_well_sep[0:synchronous_phase_index[0]+1]
         H_array_right = potential_well_sep[synchronous_phase_index[1]:]
         J_array_left = J_array_dE0[0:synchronous_phase_index[0]+1]
         J_array_right = J_array_dE0[synchronous_phase_index[1]:]
-        delta_theta_left = theta_coord_sep[0:synchronous_phase_index[0]+1]
-        delta_theta_right = theta_coord_sep[synchronous_phase_index[1]:]
-        synchronous_theta = np.mean(theta_coord_sep[synchronous_phase_index])
-        line_density_left = line_density[0:synchronous_phase_index[0]+1]
-        line_density_right = line_density[synchronous_phase_index[1]:]
+        delta_time_left = time_coord_sep[0:synchronous_phase_index[0]+1]
+        delta_time_right = time_coord_sep[synchronous_phase_index[1]:]
+        synchronous_time = np.mean(time_coord_sep[synchronous_phase_index])
     else:
         H_array_left = potential_well_sep[0:synchronous_phase_index[0]+1]
         H_array_right = potential_well_sep[synchronous_phase_index[0]:]   
         J_array_left = J_array_dE0[0:synchronous_phase_index[0]+1]
         J_array_right = J_array_dE0[synchronous_phase_index[0]:]   
-        delta_theta_left = theta_coord_sep[0:synchronous_phase_index[0]+1]
-        delta_theta_right = theta_coord_sep[synchronous_phase_index[0]:]
-        synchronous_theta = theta_coord_sep[synchronous_phase_index]
-        line_density_left = line_density[0:synchronous_phase_index[0]+1]
-        line_density_right = line_density[synchronous_phase_index[0]:]
-        
-    delta_theta_left = delta_theta_left[-1] - delta_theta_left
-    delta_theta_right = delta_theta_right - delta_theta_right[0]
-           
+        delta_time_left = time_coord_sep[0:synchronous_phase_index[0]+1]
+        delta_time_right = time_coord_sep[synchronous_phase_index[0]:]
+        synchronous_time = time_coord_sep[synchronous_phase_index]
+    
+    delta_time_left = delta_time_left[-1] - delta_time_left
+    delta_time_right = delta_time_right - delta_time_right[0]
+    
     if smoothOption is not None:
         H_array_left = np.convolve(H_array_left, np.ones(smoothOption)/smoothOption, mode='valid')
         J_array_left = np.convolve(J_array_left, np.ones(smoothOption)/smoothOption, mode='valid')
         H_array_right = np.convolve(H_array_right, np.ones(smoothOption)/smoothOption, mode='valid')
         J_array_right = np.convolve(J_array_right, np.ones(smoothOption)/smoothOption, mode='valid')
-        delta_theta_left_before_smooth = delta_theta_left
-        delta_theta_right_before_smooth = delta_theta_right
-        delta_theta_left = (delta_theta_left + (smoothOption-1) * (delta_theta_left[1] - delta_theta_left[0])/2)[0:len(delta_theta_left)-smoothOption+1]
-        delta_theta_right = (delta_theta_right + (smoothOption-1) * (delta_theta_right[1] - delta_theta_right[0])/2)[0:len(delta_theta_right)-smoothOption+1]
+        delta_time_left = (delta_time_left + (smoothOption-1) * (delta_time_left[1] - delta_time_left[0])/2)[0:len(delta_time_left)-smoothOption+1]
+        delta_time_right = (delta_time_right + (smoothOption-1) * (delta_time_right[1] - delta_time_right[0])/2)[0:len(delta_time_right)-smoothOption+1]
     
     # Taking only the centers, because of the derivative fs= dH/dJ / (2*pi)
-    delta_theta_left_final = (delta_theta_left + (delta_theta_left[1] - delta_theta_left[0])/2)[0:-1]
-    delta_theta_left = np.fliplr([delta_theta_left])[0]
-    delta_theta_left_final = np.fliplr([delta_theta_left_final])[0]
-    delta_theta_right_final = (delta_theta_right + (delta_theta_right[1] - delta_theta_right[0])/2)[0:-1]
-        
-    sync_freq_distribution_left = np.diff(H_array_left)/np.diff(J_array_left) / (2*np.pi)
+    delta_time_left_final = (delta_time_left + (delta_time_left[1] - delta_time_left[0])/2)
+    delta_time_left = np.fliplr([delta_time_left])[0]
+    delta_time_left_final = np.fliplr([delta_time_left_final])[0]
+    delta_time_right_final = (delta_time_right + (delta_time_right[1] - delta_time_right[0])/2)
+    
+    sync_freq_distribution_left = np.gradient(H_array_left)/np.gradient(J_array_left) / (2*np.pi)
     sync_freq_distribution_left = np.fliplr([sync_freq_distribution_left])[0]
-    sync_freq_distribution_right = np.diff(H_array_right)/np.diff(J_array_right) / (2*np.pi)
-        
-    emittance_array_left = J_array_left * FullRingAndRF.ring_radius / (Beam.beta * c) * (2*np.pi)
+    sync_freq_distribution_right = np.gradient(H_array_right)/np.gradient(J_array_right) / (2*np.pi)
+    
+    emittance_array_left = J_array_left * (2*np.pi) #* FullRingAndRF.ring_radius / (Beam.beta * c)
     emittance_array_left = np.fliplr([emittance_array_left])[0]
-    emittance_array_left = np.interp(delta_theta_left_final, delta_theta_left, emittance_array_left)
-
-    emittance_array_right = J_array_right * FullRingAndRF.ring_radius / (Beam.beta * c) * (2*np.pi)     
-    emittance_array_right = np.interp(delta_theta_right_final, delta_theta_right, emittance_array_right)
+    emittance_array_left = np.interp(delta_time_left_final, delta_time_left, emittance_array_left)
     
-    if smoothOption is not None:
-        line_density_left = np.fliplr([line_density_left])[0]
-        delta_theta_left_before_smooth = np.fliplr([delta_theta_left_before_smooth])[0]
-        line_density_left = np.interp(delta_theta_left_final, delta_theta_left_before_smooth, line_density_left)
-        line_density_right = np.interp(delta_theta_right_final, delta_theta_right_before_smooth, line_density_right)
-    else:
-        line_density_left = np.fliplr([line_density_left])[0]
-        line_density_left = np.interp(delta_theta_left_final, delta_theta_left, line_density_left)
-        line_density_right = np.interp(delta_theta_right_final, delta_theta_right, line_density_right)
-         
-    line_density_normalizing_factor = np.sum(line_density_left) + np.sum(line_density_right)
-    line_density_left = line_density_left / line_density_normalizing_factor * Beam.n_macroparticles
-    line_density_right = line_density_right / line_density_normalizing_factor * Beam.n_macroparticles
+    emittance_array_right = J_array_right * (2*np.pi) #* FullRingAndRF.ring_radius / (Beam.beta * c)     
+    emittance_array_right = np.interp(delta_time_right_final, delta_time_right, emittance_array_right)
     
-    particleDistributionFreq_left = np.interp(synchronous_theta - (Beam.dt[Beam.dt<synchronous_theta*(Beam.ring_radius/(Beam.beta*c))])/(Beam.ring_radius/(Beam.beta*c)), delta_theta_left_final, sync_freq_distribution_left)
-    particleDistributionFreq_right = np.interp((Beam.dt[Beam.dt>synchronous_theta*(Beam.ring_radius/(Beam.beta*c))])/(Beam.ring_radius/(Beam.beta*c)) - synchronous_theta, delta_theta_right_final, sync_freq_distribution_right)
-    particleDistributionFreq = np.concatenate(([particleDistributionFreq_left, particleDistributionFreq_right]))   
-              
-    return [sync_freq_distribution_left, sync_freq_distribution_right], [emittance_array_left, emittance_array_right], [delta_theta_left_final, delta_theta_right_final], [line_density_left, line_density_right], particleDistributionFreq, synchronous_theta
+    H_particles = eom_factor_dE * Beam.dE**2 + np.interp(Beam.dt, time_coord_array, total_potential)
+    sync_freq_distribution = np.concatenate((sync_freq_distribution_left, sync_freq_distribution_right))
+    H_array = np.concatenate((np.fliplr([H_array_left])[0], H_array_right))
+    sync_freq_distribution = sync_freq_distribution[H_array.argsort()]
+    H_array.sort()
+    
+    particleDistributionFreq = np.interp(H_particles, H_array, sync_freq_distribution)
+    
+    return [sync_freq_distribution_left, sync_freq_distribution_right], \
+            [emittance_array_left, emittance_array_right], \
+            [delta_time_left_final, delta_time_right_final], \
+            particleDistributionFreq, synchronous_time
 
 
 class synchrotron_frequency_tracker(object):
