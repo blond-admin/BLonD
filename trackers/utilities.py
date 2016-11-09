@@ -51,6 +51,8 @@ def synchrotron_frequency_distribution(Beam, FullRingAndRF, main_harmonic_option
     outputed.*
     '''
     
+    # TODO: improve the calculation for small amplitude of oscillations
+
     # Initialize variables depending on the accelerator parameters
     slippage_factor = FullRingAndRF.RingAndRFSection_list[0].eta_0[0]
                         
@@ -80,7 +82,7 @@ def synchrotron_frequency_distribution(Beam, FullRingAndRF, main_harmonic_option
         
         # Interpolating the potential well
         induced_potential_final = np.interp(time_coord_array, time_induced_voltage, induced_potential)
-                                
+                                    
     # Induced voltage contribution
     total_potential = potential_well_array + induced_potential_final
     
@@ -101,7 +103,7 @@ def synchrotron_frequency_distribution(Beam, FullRingAndRF, main_harmonic_option
         dE_trajectory[np.isnan(dE_trajectory)] = 0
         
         # Careful: Action is integrated over time
-        J_array_dE0[i] = 2 / (2*np.pi) * np.trapz(dE_trajectory, dx=time_resolution)
+        J_array_dE0[i] = 1 / np.pi * np.trapz(dE_trajectory, dx=time_resolution)
     
     warnings.filterwarnings("default")
     
@@ -134,23 +136,19 @@ def synchrotron_frequency_distribution(Beam, FullRingAndRF, main_harmonic_option
         delta_time_left = (delta_time_left + (smoothOption-1) * (delta_time_left[1] - delta_time_left[0])/2)[0:len(delta_time_left)-smoothOption+1]
         delta_time_right = (delta_time_right + (smoothOption-1) * (delta_time_right[1] - delta_time_right[0])/2)[0:len(delta_time_right)-smoothOption+1]
     
-    # Taking only the centers, because of the derivative fs= dH/dJ / (2*pi)
-    delta_time_left_final = (delta_time_left + (delta_time_left[1] - delta_time_left[0])/2)
     delta_time_left = np.fliplr([delta_time_left])[0]
-    delta_time_left_final = np.fliplr([delta_time_left_final])[0]
-    delta_time_right_final = (delta_time_right + (delta_time_right[1] - delta_time_right[0])/2)
     
+    # Calculation of fs as fs= dH/dJ / (2*pi)
     sync_freq_distribution_left = np.gradient(H_array_left)/np.gradient(J_array_left) / (2*np.pi)
     sync_freq_distribution_left = np.fliplr([sync_freq_distribution_left])[0]
     sync_freq_distribution_right = np.gradient(H_array_right)/np.gradient(J_array_right) / (2*np.pi)
     
-    emittance_array_left = J_array_left * (2*np.pi) #* FullRingAndRF.ring_radius / (Beam.beta * c)
+    # Emittance arrays
+    emittance_array_left = J_array_left * (2*np.pi)
     emittance_array_left = np.fliplr([emittance_array_left])[0]
-    emittance_array_left = np.interp(delta_time_left_final, delta_time_left, emittance_array_left)
+    emittance_array_right = J_array_right * (2*np.pi) 
     
-    emittance_array_right = J_array_right * (2*np.pi) #* FullRingAndRF.ring_radius / (Beam.beta * c)     
-    emittance_array_right = np.interp(delta_time_right_final, delta_time_right, emittance_array_right)
-    
+    # Calculating particle distribution in synchrotron frequency 
     H_particles = eom_factor_dE * Beam.dE**2 + np.interp(Beam.dt, time_coord_array, total_potential)
     sync_freq_distribution = np.concatenate((sync_freq_distribution_left, sync_freq_distribution_right))
     H_array = np.concatenate((np.fliplr([H_array_left])[0], H_array_right))
@@ -161,7 +159,7 @@ def synchrotron_frequency_distribution(Beam, FullRingAndRF, main_harmonic_option
     
     return [sync_freq_distribution_left, sync_freq_distribution_right], \
             [emittance_array_left, emittance_array_right], \
-            [delta_time_left_final, delta_time_right_final], \
+            [delta_time_left, delta_time_right], \
             particleDistributionFreq, synchronous_time
 
 
