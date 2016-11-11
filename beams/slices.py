@@ -34,7 +34,7 @@ class Slices(object):
     
     def __init__(self, RFSectionParameters, Beam, n_slices, n_sigma = None, 
                  cut_left = None, cut_right = None, cuts_unit = 's', 
-                 fit_option = None, direct_slicing = False):
+                 fit_option = None, direct_slicing = False, smooth = False):
         
         #: *Import (reference) Beam*
         self.Beam = Beam
@@ -74,17 +74,22 @@ class Slices(object):
         # Pre-processing the slicing edges
         self.set_cuts()
         
-        #: *Fit option allows to fit the Beam profile, with the options
-        #: 'None' (default), 'gaussian'.*
-        self.fit_option = fit_option
-        
         #: *Beam spectrum (arbitrary units)*
         self.beam_spectrum = 0
         
         #: *Frequency array corresponding to the beam spectrum in [Hz]*
         self.beam_spectrum_freq = 0
         
-        if self.fit_option is 'gaussian':    
+        #: *Smooth option produces smoother profiles at the expenses of a 
+        #: slower computation time*
+        if smooth:
+            self.operations = [self._slice_smooth]
+        else:
+            self.operations = [self._slice]
+            
+        #: *Fit option allows to fit the Beam profile, with the options
+        #: 'None' (default), 'gaussian'.*
+        if fit_option is 'gaussian':    
             #: *Beam length with a Gaussian fit (needs fit_option to be 
             #: 'gaussian' defined as* :math:`\tau_{gauss} = 4\sigma_{\Delta t}`)
             self.bl_gauss = 0
@@ -92,31 +97,19 @@ class Slices(object):
             self.bp_gauss = 0
             #: *Gaussian parameters list obtained from fit*
             self.pfit_gauss = 0
+            #: *Performs gaussian_fit each time the track method is called*
+            self.operations.append(self.gaussian_fit())
         
         
         # Track at initialisation
         if direct_slicing:
-            self.track()          
-        
-        
-        
-    def sort_particles(self):
-        '''
-        *Sort the particles with respect to their position.*
-        '''
-        
-        argsorted = np.argsort(self.Beam.dt) 
-                    
-        self.Beam.dt = self.Beam.dt.take(argsorted)
-        self.Beam.dE = self.Beam.dE.take(argsorted)
-        self.Beam.id = self.Beam.id.take(argsorted)
-        
+            self.track()
+
 
     def set_cuts(self):
         '''
         *Method to set the self.cut_left and self.cut_right properties. This is
-        done as a pre-processing if the mode is set to 'const_space', for
-        'const_charge' this is calculated each turn.*
+        done as a pre-processing.*
         
         *The frame is defined by :math:`n\sigma_{RMS}` or manually by the user.
         If not, a default frame consisting of taking the whole bunch +5% of the 
@@ -127,11 +120,10 @@ class Slices(object):
         if self.cut_left is None and self.cut_right is None:
             
             if self.n_sigma is None:
-                self.sort_particles()
-                self.cut_left = self.Beam.dt[0] - 0.05* \
-                                (self.Beam.dt[-1] - self.Beam.dt[0])
-                self.cut_right = self.Beam.dt[-1] + 0.05* \
-                                 (self.Beam.dt[-1] - self.Beam.dt[0])
+                dt_min = self.Beam.dt.min()
+                dt_max = self.Beam.dt.max()
+                self.cut_left = dt_min - 0.05 * (dt_max - dt_min)
+                self.cut_right = dt_max + 0.05 * (dt_max - dt_min)
             else:
                 mean_coords = np.mean(self.Beam.dt)
                 sigma_coords = np.std(self.Beam.dt)
@@ -149,28 +141,23 @@ class Slices(object):
         self.bin_centers = (self.edges[:-1] + self.edges[1:])/2
 
 
-    def slice_constant_space_histogram(self, beam_dt):
+    def _slice(self):
         '''
-        *Constant space slicing with the built-in numpy histogram function,
-        with a constant frame. This gives the same profile as the 
-        slice_constant_space method, but no compute statistics possibilities
-        (the index of the particles is needed).*
-        
-        *This method is faster than the classic slice_constant_space method 
-        for high number of particles (~1e6).*
+        *Constant space slicing with a constant frame. It does not compute 
+        statistics possibilities (the index of the particles is needed).*
         '''
         
-        libblond.histogram(beam_dt.ctypes.data_as(ctypes.c_void_p), 
+        libblond.histogram(self.Beam.dt.ctypes.data_as(ctypes.c_void_p), 
                          self.n_macroparticles.ctypes.data_as(ctypes.c_void_p), 
                          ctypes.c_double(self.cut_left), 
                          ctypes.c_double(self.cut_right), 
                          ctypes.c_int(self.n_slices), 
-                         ctypes.c_int(len(beam_dt)))
+                         ctypes.c_int(self.Beam.n_macroparticles))
     
     
-    def slice_constant_space_histogram_smooth(self):
+    def _slice_smooth(self):
         '''
-        At the moment 4x slower than slice_constant_space_histogram but smoother.
+        At the moment 4x slower than _slice but smoother (filtered).
         '''
         
         libblond.smooth_histogram(self.Beam.dt.ctypes.data_as(ctypes.c_void_p), 
@@ -187,12 +174,10 @@ class Slices(object):
         This will update the beam properties (bunch length obtained from the
         fit, etc.).*
         '''
-    
-        self.slice_constant_space_histogram(self.Beam.dt)
         
-        if self.fit_option is 'gaussian':
-            self.gaussian_fit()
-        
+        for op in self.operations:
+            op()
+            
         
     def track_cuts(self):
         '''
@@ -430,6 +415,19 @@ class Slices(object):
         elif input_unit_type is 'rad':
             return value /\
                 self.RFParams.omega_RF[0,self.RFParams.counter[0]]
+
+
+    ### DEPRECATED METHODS. TO BE REMOVED IN A FUTURE VERSION ###
+    def slice_constant_space_histogram(self, beam_dt):
+        print('DEPRECATED METHOD: slice_constant_space_histogram method has \
+               been replaced by the _slice() method')
+        self._slice()
+    
+    
+    def slice_constant_space_histogram_smooth(self):
+        print('DEPRECATED METHOD: slice_constant_space_histogram_smooth method \
+               has been replaced by the _slice_smooth() method')
+        self._slice_smooth()
             
  
 def gauss(x, *p):
