@@ -34,7 +34,8 @@ class Slices(object):
     
     def __init__(self, RFSectionParameters, Beam, n_slices, n_sigma = None, 
                  cut_left = None, cut_right = None, cuts_unit = 's', 
-                 fit_option = None, direct_slicing = False, smooth = False):
+                 fit_option = None, direct_slicing = False, smooth = False,
+                 cut_edges = 'bin_centers'):
         
         #: *Import (reference) Beam*
         self.Beam = Beam
@@ -52,6 +53,9 @@ class Slices(object):
         #: *Right edge of the slicing; optional input in case of 'const_space' 
         #: mode. A default value will be set if no value is given.*
         self.cut_right = cut_right
+        
+        #: *To aling the cut edges to 'bin_centers' (default) or  'edges'*
+        self.cut_edges = cut_edges
         
         #: *Optional input parameters, corresponding to the number of*
         #: :math:`\sigma_{RMS}` *of the Beam to slice (this will overwrite
@@ -135,10 +139,17 @@ class Slices(object):
                                                      self.cuts_unit)
             self.cut_right = self.convert_coordinates(self.cut_right, 
                                                       self.cuts_unit)
-            
-        self.edges = np.linspace(self.cut_left, self.cut_right, 
-                                 self.n_slices + 1)
-        self.bin_centers = (self.edges[:-1] + self.edges[1:])/2
+        
+        if self.cut_edges == 'bin_centers':
+            dt = (self.cut_right - self.cut_left) / (self.n_slices - 1)
+            self.edges = np.linspace(self.cut_left - dt/2.0, self.cut_right + dt/2.0, 
+                                     self.n_slices + 1)
+            self.bin_centers = (self.edges[:-1] + self.edges[1:])/2
+        elif self.cut_edges == 'edges':
+            self.edges = np.linspace(self.cut_left, self.cut_right, 
+                                     self.n_slices + 1)
+            self.bin_centers = (self.edges[:-1] + self.edges[1:])/2
+                
 
 
     def _slice(self):
