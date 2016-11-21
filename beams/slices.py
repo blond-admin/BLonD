@@ -1,8 +1,8 @@
 
 # Copyright 2016 CERN. This software is distributed under the
-# terms of the GNU General Public Licence version 3 (GPL Version 3), 
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
 # copied verbatim in the file LICENCE.md.
-# In applying this licence, CERN does not waive the privileges and immunities 
+# In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
@@ -31,59 +31,59 @@ class Slices(object):
     *Contains the beam profile and related quantities including beam spectrum,
     profile derivative, and profile fitting.*
     '''
-    
-    def __init__(self, RFSectionParameters, Beam, n_slices, n_sigma = None, 
-                 cut_left = None, cut_right = None, cuts_unit = 's', 
-                 fit_option = None, direct_slicing = False, smooth = False,
-                 cut_edges = 'bin_centers'):
-        
+
+    def __init__(self, RFSectionParameters, Beam, n_slices, n_sigma=None,
+                 cut_left=None, cut_right=None, cuts_unit='s',
+                 fit_option=None, direct_slicing=False, smooth=False,
+                 cut_edges='edges'):
+
         #: *Import (reference) Beam*
         self.Beam = Beam
-        
+
         #: *Import (reference) RFSectionParameters*
         self.RFParams = RFSectionParameters
-        
+
         #: *Number of slices*
         self.n_slices = n_slices
-        
-        #: *Left edge of the slicing; optional input in case of 'const_space' 
-        #: mode. A default value will be set if no value is given.*
+
+        #: *Left edge of the slicing (optional). A default value will be set if
+        #: no value is given.*
         self.cut_left = cut_left
-        
-        #: *Right edge of the slicing; optional input in case of 'const_space' 
-        #: mode. A default value will be set if no value is given.*
+
+        #: *Right edge of the slicing (optional). A default value will be set
+        #: if no value is given.*
         self.cut_right = cut_right
-        
-        #: *To aling the cut edges to 'bin_centers' (default) or  'edges'*
+
+        #: *To aling the cut edges to 'edges' (default) or 'bin_centers'*
         self.cut_edges = cut_edges
-        
+
         #: *Optional input parameters, corresponding to the number of*
         #: :math:`\sigma_{RMS}` *of the Beam to slice (this will overwrite
         #: any input of cut_left and cut_right).*
         self.n_sigma = n_sigma
-        
+
         #: | *Unit in which the cuts are given.*
         #: | *The options are: 's' (default) or 'rad' (RF phase).*
         self.cuts_unit = cuts_unit
-               
+
         #: *Number of macro-particles per slice (~profile).*
         self.n_macroparticles = np.zeros(n_slices)
-        
+
         #: *Edges positions of the slicing*
         self.edges = np.zeros(n_slices + 1)
-        
+
         #: *Center of the bins*
         self.bin_centers = np.zeros(n_slices)
-        
+
         # Pre-processing the slicing edges
         self.set_cuts()
-        
+
         #: *Beam spectrum (arbitrary units)*
         self.beam_spectrum = 0
-        
-        #: *Frequency array corresponding to the beam spectrum in [Hz]*
+
+        #: *Frequency array corresponding to the beam spectrum in Hz*
         self.beam_spectrum_freq = 0
-        
+
         #: *Smooth option produces smoother profiles at the expenses of a 
         #: slower computation time*
         if smooth:
@@ -134,22 +134,27 @@ class Slices(object):
                 self.cut_left = mean_coords - self.n_sigma*sigma_coords/2
                 self.cut_right = mean_coords + self.n_sigma*sigma_coords/2
         else:
-            
             self.cut_left = self.convert_coordinates(self.cut_left, 
                                                      self.cuts_unit)
-            self.cut_right = self.convert_coordinates(self.cut_right, 
+            self.cut_right = self.convert_coordinates(self.cut_right,
                                                       self.cuts_unit)
         
         if self.cut_edges == 'bin_centers':
-            dt = (self.cut_right - self.cut_left) / (self.n_slices - 1)
-            self.edges = np.linspace(self.cut_left - dt/2.0, self.cut_right + dt/2.0, 
-                                     self.n_slices + 1)
-            self.bin_centers = (self.edges[:-1] + self.edges[1:])/2
+            # Calculate the bin size for n_slices - 1, as half a slice will be 
+            # added on each end of the slicing window
+            bin_size = (self.cut_right - self.cut_left) / (self.n_slices - 1)
+            # Update the cut_left and cut_right coordinates
+            self.cut_left -= bin_size / 2.0
+            self.cut_right += bin_size / 2.0            
         elif self.cut_edges == 'edges':
-            self.edges = np.linspace(self.cut_left, self.cut_right, 
-                                     self.n_slices + 1)
-            self.bin_centers = (self.edges[:-1] + self.edges[1:])/2
-                
+            pass
+        else:
+            raise RuntimeError('Option for "cut_edges" is not recognized.')
+
+        self.edges = np.linspace(self.cut_left, self.cut_right, 
+                                 self.n_slices + 1)
+        self.bin_centers = (self.edges[:-1] + self.edges[1:])/2
+
 
 
     def _slice(self):
@@ -262,7 +267,8 @@ class Slices(object):
             self.bl_fwhm = np.nan
             self.bp_fwhm = np.nan
     
-    def fwhm_multibunch(self, n_bunches, n_slices_per_bunch, bunch_spacing_buckets, bucket_size_tau, bucket_tolerance=0.40):
+    def fwhm_multibunch(self, n_bunches, n_slices_per_bunch, bunch_spacing_buckets, 
+                        bucket_size_tau, bucket_tolerance=0.40):
         '''
         * Computation of the bunch length and position from the FWHM
         assuming Gaussian line density for multibunch case.*

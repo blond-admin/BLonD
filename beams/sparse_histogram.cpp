@@ -9,9 +9,7 @@ Project website: http://blond.web.cern.ch/
 */
 
 // Optimised C++ routine that calculates the histogram for a sparse beam
-// Author: Juan F. Esteban Mueller
-
-//using uint = unsigned int;
+// Author: Juan F. Esteban Mueller, Danilo Quartullo, Alexandre Lasheen
 
 #include <stdio.h>
 
@@ -30,32 +28,32 @@ extern "C" void sparse_histogram(const double * __restrict__ input,
     double a;
     double fbin;
     double fbunch;
-    double cut_left, cut_right;
     int ffbin;
     int ffbunch;
-    const double inv_bin_width = n_slices / (cut_right_array[0] - cut_left_array[0]);
-    const double inv_bucket_length = 1 / (cut_right_array[0] - cut_left_array[0]);
-   
+    
+    // Only valid for cut_edges = edges
+    const double inv_bucket_length = 1.0 / (cut_right_array[0] - cut_left_array[0]);
+    const double inv_bin_width = inv_bucket_length * (double) n_slices;
+    
     // Initialises all slicing arrays to zero
     for (i = 0; i < n_filled_buckets*n_slices; i++){
         output[i] = 0.0;
     }
-
+    
     // Histogram loop
     for (i = 0; j < n_macroparticles; j++){
         a = input[j];   // Particle dt
-        // Find bucket in which the particle is and its index
-        fbunch = (a - cut_left_array[0]) * inv_bucket_length;
-        ffbunch = (int)(fbunch);
         if ((a < cut_left_array[0])||(a > cut_right_array[n_filled_buckets-1]))
             continue;
-        i_bucket = bunch_indexes[ffbunch];
+        // Find bucket in which the particle is and its index
+        fbunch = (a - cut_left_array[0]) * inv_bucket_length;
+        ffbunch = (int) fbunch;
+        i_bucket = (int) bunch_indexes[ffbunch];
         if (i_bucket == -1)
             continue;
         // Find the bin inside the corresponding bucket
         fbin = (a - cut_left_array[i_bucket]) * inv_bin_width;
-        ffbin = (int)(fbin);
-        output[i_bucket*n_slices+ffbin] = output[i_bucket+ffbin] + 1.0;
+        ffbin = i_bucket*n_slices + (int) fbin;
+        output[ffbin] = output[ffbin] + 1.0;
     }
-
 }

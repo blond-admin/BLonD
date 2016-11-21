@@ -36,23 +36,23 @@ boost_path = None
 list_cpp_files = ('cpp_routines/mean_std_whereint.cpp cpp_routines/kick.cpp '
                 'cpp_routines/drift.cpp cpp_routines/linear_interp_kick.cpp '
                 'toolbox/tomoscope.cpp cpp_routines/convolution.cpp '
-                'cpp_routines/music_track.cpp cpp_routines/sparse_histogram.cpp')
+                'cpp_routines/music_track.cpp beams/sparse_histogram.cpp '
+                'synchrotron_radiation/synchrotron_radiation.cpp')
 
 # Select the right 
-list_cpp_files_SR = 'synchrotron_radiation/synchrotron_radiation.cpp'
 if boost:
-    list_cpp_files_SR += ' synchrotron_radiation/quantum_excitation_boost.cpp'
+    list_cpp_files += ' synchrotron_radiation/quantum_excitation_boost.cpp'
 else:
-    list_cpp_files_SR += ' synchrotron_radiation/quantum_excitation_std.cpp'
+    list_cpp_files += ' synchrotron_radiation/quantum_excitation_std.cpp'
     
 # EXAMPLE FLAGS: -Ofast -std=c++11 -fopt-info-vec
 #                -mfma4 -fopenmp -ftree-vectorizer-verbose=1
 if parallel == False:
-    flags = '-Ofast -std=c++11'
-    list_cpp_files += ' cpp_routines/histogram.cpp'
+    flags = '-march=native -O3 -std=c++11'
+    list_cpp_files += ' beams/histogram.cpp'
 elif parallel == True:
-    flags = '-Ofast -std=c++11 -fopenmp -DPARALLEL'
-    list_cpp_files += ' cpp_routines/histogram_par.cpp'
+    flags = '-march=native -O3 -std=c++11 -fopenmp -DPARALLEL'
+    list_cpp_files += ' beams/histogram_par.cpp'
     
 if boost_path != None:
      flags += ' -I '+boost_path
@@ -61,10 +61,8 @@ if __name__ == "__main__":
     
     if "lin" in sys.platform:
         subprocess.Popen("rm -rf cpp_routines/*.so", shell = True, executable = "/bin/bash")
-        subprocess.Popen("rm -rf synchrotron_radiation/*.so", shell = True, executable = "/bin/bash")
         x = os.getcwd()
         os.system('g++ -o '+ x +'/cpp_routines/result.so -shared ' + flags + ' -fPIC ' + x + '/' + list_cpp_files)
-        os.system('g++ -o '+ x +'/synchrotron_radiation/sync_rad.so -shared ' + flags + ' -fPIC ' + x + '/' + list_cpp_files_SR)
         print("")
         print("")
         print("IF THE COMPILATION IS CORRECT A FILE NAMED result.so SHOULD APPEAR IN THE cpp_routines FOLDER.") 
@@ -74,10 +72,8 @@ if __name__ == "__main__":
     elif "win" in sys.platform:
         os.system('gcc --version')
         os.system('del /s/q '+ os.getcwd() +'\\cpp_routines\\*.dll')
-        os.system('del /s/q '+ os.getcwd() +'\\synchrotron_radiation\\*.dll')
         x = os.getcwd()
         os.system('g++ -o '+ x +'\\cpp_routines\\result.dll -shared ' + flags + ' ' + x + '\\' + list_cpp_files)
-        os.system('g++ -o '+ x +'\\synchrotron_radiation\\sync_rad.dll -shared ' + flags + ' ' + x + '\\' + list_cpp_files_SR)
         print("")
         print("")
         print("IF THE COMPILATION IS CORRECT A FILE NAMED result.dll SHOULD APPEAR IN THE cpp_routines FOLDER.") 
@@ -93,10 +89,8 @@ parent_path = os.sep.join(path.split(os.sep)[:-1])
 
 if "lin" in sys.platform:
     libblond=ctypes.CDLL(parent_path+'/cpp_routines/result.so')
-    libsrqe=ctypes.CDLL(parent_path+'/synchrotron_radiation/sync_rad.so')
 elif "win" in sys.platform:
     libblond=ctypes.CDLL(parent_path+'\\cpp_routines\\result.dll')
-    libsrqe=ctypes.CDLL(parent_path+'\\synchrotron_radiation\\sync_rad.dll')
 else:
     print("YOU DO NOT HAVE A WINDOWS OR LINUX OPERATING SYSTEM. ABORTING...")
     sys.exit()

@@ -11,8 +11,6 @@ Project website: http://blond.web.cern.ch/
 // Optimised C++ routine that calculates the histogram
 // Author: Danilo Quartullo, Alexandre Lasheen
 
-//using uint = unsigned int;
-
 extern "C" void histogram(const double * __restrict__ input,
 			   double * __restrict__ output,
                const double cut_left,
@@ -35,7 +33,7 @@ extern "C" void histogram(const double * __restrict__ input,
       if ((a < cut_left)||(a > cut_right))
         	continue;
       fbin = (a - cut_left) * inv_bin_width;
-      ffbin = (int)(fbin);
+      ffbin = (int) fbin;
       output[ffbin] = output[ffbin] + 1.0;
    }
 }
@@ -67,7 +65,7 @@ extern "C" void smooth_histogram(const double * __restrict__ input,
       if ((a < (cut_left+bin_width*0.5))||(a > (cut_right-bin_width*0.5)))
         	continue;
       fbin = (a - cut_left) * inv_bin_width;
-      ffbin = (int)(fbin);
+      ffbin = (int) fbin;
       distToCenter = fbin-(double)(ffbin);
       if (distToCenter>0.5)
     	  fffbin = (int)(fbin+1.0);

@@ -31,7 +31,7 @@ class SparseSlices(object):
     '''
     
     def __init__(self, RFSectionParameters, Beam, n_slices, filling_pattern,
-                 tracker = 'C', direct_slicing = False, cut_edges = 'bin_centers'):
+                 tracker = 'C', direct_slicing = False):
         
         #: *Import (reference) Beam*
         self.Beam = Beam
@@ -59,11 +59,12 @@ class SparseSlices(object):
         # Group n_macroparticles from all objects in a single array (for C++ track).
         self.n_macroparticles_array = np.zeros((self.n_filled_buckets, n_slices))
         for i in range(self.n_filled_buckets):
+            # Only valid for cut_edges='edges'
             self.slices_array.append(Slices(RFSectionParameters, Beam, n_slices, 
-                 n_sigma = None, cut_left = self.cut_left_array[i], 
-                 cut_right = self.cut_right_array[i], cuts_unit = 's', 
-                 fit_option = None, direct_slicing = False, smooth = False,
-                 cut_edges = cut_edges))
+                 n_sigma=None, cut_left=self.cut_left_array[i], 
+                 cut_right=self.cut_right_array[i], cuts_unit='s',
+                 fit_option=None, direct_slicing=False, smooth=False,
+                 cut_edges='edges'))
                  
             self.slices_array[i].n_macroparticles = self.n_macroparticles_array[i,:]
         
@@ -102,7 +103,7 @@ class SparseSlices(object):
         '''
                
         libblond.sparse_histogram(self.Beam.dt.ctypes.data_as(ctypes.c_void_p), 
-                         self.n_macroparticles_array.ctypes.data_as(ctypes.POINTER(ctypes.c_double)), 
+                         self.n_macroparticles_array.ctypes.data_as(ctypes.c_void_p),
                          self.cut_left_array.ctypes.data_as(ctypes.c_void_p), 
                          self.cut_right_array.ctypes.data_as(ctypes.c_void_p),
                          self.bunch_indexes.ctypes.data_as(ctypes.c_void_p),
