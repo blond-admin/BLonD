@@ -22,9 +22,7 @@ from beams.beams import Beam
 from beams.distributions import matched_from_distribution_density
 from input_parameters.rf_parameters import RFSectionParameters
 from beams.sparse_slices import SparseSlices
-from impedances.impedance import Resonators, InducedVoltageFreq, TotalInducedVoltage
 from trackers.tracker import RingAndRFSection, FullRingAndRF
-from synchrotron_radiation.synchrotron_radiation import SynchrotronRadiation
 from scipy.constants import c, e, m_e
 
 

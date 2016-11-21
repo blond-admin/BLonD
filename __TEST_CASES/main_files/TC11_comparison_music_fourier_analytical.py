@@ -23,6 +23,7 @@ import beams.beams as beamClass
 import input_parameters.rf_parameters as rfparClass
 import beams.slices as slicesClass
 import impedances.impedance as impClass
+from impedances.impedance_sources import impSClass
 import impedances.induced_voltage_analytical as indVoltAn
 import impedances.music as musClass
 from scipy.constants import m_p, e, c
@@ -47,7 +48,7 @@ phi_1 = 0
 R_S = 1e7
 frequency_R = 1e8
 Q = 1
-mode = impClass.Resonators(R_S, frequency_R, Q)
+mode = impSClass.Resonators(R_S, frequency_R, Q)
 
 # DEFINE MAIN CLASSES
 general_params = genparClass.GeneralParameters(n_turns, C, alpha, momentum, 

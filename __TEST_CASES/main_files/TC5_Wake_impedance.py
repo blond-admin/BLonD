@@ -27,6 +27,7 @@ from beams.distributions import *
 from monitors.monitors import *
 from beams.slices import *
 from impedances.impedance import *
+from impedances.impedance_sources import *
 from plots.plot_beams import *
 from plots.plot_impedance import *
 from plots.plot_slices import *
