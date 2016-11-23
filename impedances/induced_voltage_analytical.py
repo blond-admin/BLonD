@@ -13,19 +13,19 @@ The formula can be derived using the following lines of codes in Mathematica:
 lambda = Exp[-(tau - t)^2 / (2 * sigma^2)] / ((2*Pi)^0.5 * sigma)
 wake = 2 * alpha * Rs * Exp[-alpha * t] * (Cos[ombar * t] - alpha / ombar * Sin[ombar * t])
 output = Integrate[wake * lambda, {t, 0, Infinity},
-    Assumptions → {sigma > 0, alpha > 0, Rs > 0, ombar > 0, tau ∈ Reals}]
+    Assumptions -> {sigma > 0, alpha > 0, Rs > 0, ombar > 0, tau in Reals}]
 outputreal = Simplify[ComplexExpand[Re[output]],
-    {sigma > 0, alpha > 0, Rs > 0, ombar > 0, tau ∈ Reals}]
+    {sigma > 0, alpha > 0, Rs > 0, ombar > 0, tau in  Reals}]
     
 The imaginary part of output is identically equal to zero even if Mathematica 
 cannot see that. To verify that the expression is correct launch:
 
 output2 = Integrate[wake * lambda, t]
 outputreal2 = Simplify[ComplexExpand[Re[output2]],
-    {sigma > 0, alpha > 0, Rs > 0, ombar > 0, tau ∈ Reals, t > 0}]
-∂t output2;
+    {sigma > 0, alpha > 0, Rs > 0, ombar > 0, tau in Reals, t > 0}]
+d/dt output2;
 Simplify[ComplexExpand[Re[%]],
-    {sigma > 0, alpha > 0, Rs > 0, ombar > 0, tau ∈ Reals, t > 0}]
+    {sigma > 0, alpha > 0, Rs > 0, ombar > 0, tau in Reals, t > 0}]
 
 and check that applying the fundamental calculus theorem to outputreal2, one
 obtains back outputreal; the formula [5] in 
@@ -42,17 +42,18 @@ can be useful.
 from __future__ import division, print_function
 import numpy as np
 import scipy.special as scisp
+from scipy.constants import e
 
 
 
-def analytical_gaussian_resonator(sigma_t, Q, R_s, omega_r, time_array):
+def analytical_gaussian_resonator(sigma_t, Q, R_s, omega_r, tau_array, n_particles):
     
     alpha = omega_r /(2*Q)
     ombar = np.sqrt(omega_r**2-alpha**2)
     
-    A = (alpha*sigma_t**2-time_array+1j*ombar*sigma_t**2)/(np.sqrt(2)*sigma_t)
-    B = alpha*ombar*sigma_t**2-ombar*time_array
-    result = R_s*alpha/ombar*np.e**(0.5*(alpha**2-ombar**2)*sigma_t**2-alpha*time_array)*\
+    A = (alpha*sigma_t**2-tau_array+1j*ombar*sigma_t**2)/(np.sqrt(2)*sigma_t)
+    B = alpha*ombar*sigma_t**2-ombar*tau_array
+    result = R_s*alpha/ombar*np.e**(0.5*(alpha**2-ombar**2)*sigma_t**2-alpha*tau_array)*\
                 (scisp.erfc(A).real*(ombar*np.cos(B)+alpha*np.sin(B))+scisp.erfc(A).imag*(alpha*np.cos(B)-ombar*np.sin(B)))
     
-    return result
+    return -n_particles*e*result

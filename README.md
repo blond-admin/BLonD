@@ -63,6 +63,9 @@ STRUCTURE
 
 VERSION CONTENTS 
 ================
+2016-10-24
+v1.16.0 - MuSiC algorithm introduced, TC11 added, minor bugs fixed
+
 2016-07-29
 v1.15.1 - several upgrades and bug fixes
 
