@@ -71,12 +71,15 @@ cpp_files = ['cpp_routines/mean_std_whereint.cpp',
 cpp_files_SR = ['synchrotron_radiation/synchrotron_radiation.cpp']
 
 
-if __name__ == "__main__":
+if (__name__ == "__main__"):
     args = parser.parse_args()
     parallel = args.parallel
     if(args.boost is not None):
         boost = True
-        boost_path = os.path.abspath(args.boost)
+        if(args.boost):
+            boost_path = os.path.abspath(args.boost)
+        else:
+            boost_path = ''
     compiler = args.compiler
 
     print('Produce Multi-threaded code: ', parallel)
@@ -84,25 +87,27 @@ if __name__ == "__main__":
     print('Boost installation path: ', boost_path)
     print('C++ Compiler: ', compiler)
 
-    if boost:
+    if (boost):
         cpp_files_SR += ['synchrotron_radiation/quantum_excitation_boost.cpp']
         cflags += ['-I', boost_path]
     else:
         cpp_files_SR += ['synchrotron_radiation/quantum_excitation_std.cpp']
 
-    if parallel is False:
+    if (parallel is False):
         cpp_files += ['cpp_routines/histogram.cpp']
-    elif parallel is True:
+    elif (parallel is True):
         cflags += ['-fopenmp', '-DPARALLEL']
         cpp_files += ['cpp_routines/histogram_par.cpp']
 
-    if 'lin' in sys.platform:
-        cflags += ['-shared', '-fPIC']
+    if ('posix' in os.name):
+        cflags += ['-shared']
+        if('linux' in sys.platform):
+            cflags += ['-fPIC']
         subprocess.Popen('rm -rf cpp_routines/*.so',
                          shell=True, executable='/bin/bash')
         subprocess.Popen('rm -rf synchrotron_radiation/*.so',
                          shell=True, executable='/bin/bash')
-        # x = os.getcwd()
+
         command = [compiler] + cflags + \
             ['-o', 'cpp_routines/result.so'] + cpp_files
         subprocess.Popen(command)
@@ -116,15 +121,15 @@ if __name__ == "__main__":
               ' CORRECT THE ERRORS AND COMPILE AGAIN.')
         sys.exit()
 
-    elif 'win' in sys.platform:
+    elif ('win' in sys.platform):
         os.system('gcc --version')
         os.system('del /s/q ' + os.getcwd() + '\\cpp_routines\\*.dll')
         os.system('del /s/q ' + os.getcwd() + '\\synchrotron_radiation\\*.dll')
-        # x = os.getcwd()
 
         command = [compiler] + cflags + \
             ['-o', 'cpp_routines\\result.dll'] + cpp_files
         subprocess.Popen(command)
+
         command = [compiler] + cflags + \
             ['-o', 'synchrotron_radiation\\sync_rad.dll'] + cpp_files_SR
         subprocess.Popen(command)
@@ -144,13 +149,13 @@ if __name__ == "__main__":
             'YOU DO NOT HAVE A WINDOWS OR LINUX OPERATING SYSTEM. ABORTING...')
         sys.exit()
 
+
 path = os.path.realpath(__file__)
 parent_path = os.sep.join(path.split(os.sep)[:-1])
-
-if 'lin' in sys.platform:
+if ('posix' in os.name):
     libblond = ctypes.CDLL(parent_path+'/cpp_routines/result.so')
     libsrqe = ctypes.CDLL(parent_path+'/synchrotron_radiation/sync_rad.so')
-elif 'win' in sys.platform:
+elif ('win' in sys.platform):
     libblond = ctypes.CDLL(parent_path+'\\cpp_routines\\result.dll')
     libsrqe = ctypes.CDLL(parent_path+'\\synchrotron_radiation\\sync_rad.dll')
 else:
