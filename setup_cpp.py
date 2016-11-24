@@ -55,9 +55,9 @@ boost = False
 # latest version)
 boost_path = None
 
-# EXAMPLE FLAGS: -Ofast -std=c++11 -fopt-info-vec
+# EXAMPLE FLAGS: -Ofast -std=c++11 -fopt-info-vec -march=native
 #                -mfma4 -fopenmp -ftree-vectorizer-verbose=1
-cflags = ['-Ofast', '-std=c++11', '-march=native']
+cflags = ['-Ofast', '-std=c++11']
 
 cpp_files = ['cpp_routines/mean_std_whereint.cpp',
              'cpp_routines/kick.cpp',
