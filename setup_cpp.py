@@ -76,10 +76,10 @@ if __name__ == "__main__":
     parallel = args.parallel
     if(args.boost is not None):
         boost = True
-        boost_path = args.boost
+        boost_path = os.path.abspath(args.boost)
     compiler = args.compiler
 
-    print('Compile Multi-threaded code: ', parallel)
+    print('Produce Multi-threaded code: ', parallel)
     print('Use of boost: ', boost)
     print('Boost installation path: ', boost_path)
     print('C++ Compiler: ', compiler)
