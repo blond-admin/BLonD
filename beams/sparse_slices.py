@@ -58,6 +58,8 @@ class SparseSlices(object):
         self.slices_array = []
         # Group n_macroparticles from all objects in a single array (for C++ track).
         self.n_macroparticles_array = np.zeros((self.n_filled_buckets, n_slices))
+        # Group bin_centers from all objects in a single array (for impedance).
+        self.bin_centers_array = np.zeros((self.n_filled_buckets, n_slices))
         for i in range(self.n_filled_buckets):
             # Only valid for cut_edges='edges'
             self.slices_array.append(Slices(RFSectionParameters, Beam, n_slices, 
@@ -67,6 +69,8 @@ class SparseSlices(object):
                  cut_edges='edges'))
                  
             self.slices_array[i].n_macroparticles = self.n_macroparticles_array[i,:]
+            self.bin_centers_array[i,:] = self.slices_array[i].bin_centers
+            self.slices_array[i].bin_centers = self.bin_centers_array[i,:]
         
         # Select the tracker
         if tracker is 'C':

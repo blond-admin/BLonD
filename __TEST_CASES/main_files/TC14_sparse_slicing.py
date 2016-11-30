@@ -83,8 +83,9 @@ full_tracker = FullRingAndRF([longitudinal_tracker])
 n_slices = 500
 
 n_bunches = 80
-filling_pattern = np.zeros(2*n_bunches)
-filling_pattern[::2] = 1
+bunch_spacing = 2       # buckets
+filling_pattern = np.zeros(bunch_spacing*n_bunches)
+filling_pattern[::bunch_spacing] = 1
 
 
 # BEAM GENERATION--------------------------------------------------------------

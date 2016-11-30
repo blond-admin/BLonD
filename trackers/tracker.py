@@ -162,7 +162,7 @@ class RingAndRFSection(object):
         self.section_index = RFSectionParameters.section_index
         
         #: *Import counter (from RFSectionParameters)*        
-        self.counter = RFSectionParameters.counter 
+        self.counter = RFSectionParameters.counter
               
         #: *Import length ratio (from RFSectionParameters)*
         self.length_ratio = RFSectionParameters.length_ratio

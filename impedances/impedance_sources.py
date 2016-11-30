@@ -10,7 +10,8 @@
 '''
 **Module to describe impedance classes to be used by InducedVoltage* objects**
 
-:Authors: **Danilo Quartullo**, **Alexandre Lasheen**, **Juan F. Esteban Mueller**
+:Authors: **Danilo Quartullo**, **Alexandre Lasheen**,
+          **Juan F. Esteban Mueller**
 '''
 
 from __future__ import division, print_function
@@ -19,8 +20,48 @@ import numpy as np
 from scipy.constants import c, physical_constants
 
 
+class _ImpedanceObject(object):
+    '''
+    Parent impedance object to implement required methods and attributes
+    '''
+    
+    def __init__(self):        
+        #: *Time array of the wake in s*
+        self.time_array = 0
+        
+        #: *Wake array in* :math:`\Omega / s`
+        self.wake = 0
+        
+        #: *Frequency array of the impedance in Hz*
+        self.frequency_array = 0
+        
+        #: *Impedance array in* :math:`\Omega`
+        self.impedance = 0
+        
+    
+    def wake_calc(self, *args):
+        '''
+        *Method required to compute the wake function. Returns an error if
+        called from an object which does not implement this method.*
+        '''
+        
+        raise RuntimeError('wake_calc() method not implemented in this class'+
+                           '. This object is probably meant to be used in the'+
+                           ' frequency domain')
+    
+    
+    def imped_calc(self, *args):    
+        '''
+        *Method required to compute the impedance. Returns an error if called
+        from an object which does not implement this method.*
+        '''
+        
+        raise RuntimeError('imped_calc() method not implemented in this class'+
+                           '. This object is probably meant to be used in the'+
+                           ' time domain')
+    
 
-class InputTable(object):
+class InputTable(_ImpedanceObject):
     '''
     *Intensity effects from impedance and wake tables.
     If this constructor takes just two arguments, then a wake table is passed;
@@ -33,21 +74,23 @@ class InputTable(object):
     frequency and impedance arrays derived from the table.*
     '''
     
-    def __init__(self, input_1, input_2, input_3 = None):       
+    def __init__(self, input_1, input_2, input_3 = None):    
         
+        _ImpedanceObject.__init__(self)   
+
         if input_3 is None:
-            #: *Time array of the wake in [s]*
+            #: *Time array of the wake in s*
             self.time_array = input_1
-            #: *Wake array in* [:math:`\Omega / s`]
+            #: *Wake array in* :math:`\Omega / s`
             self.wake_array = input_2
         else:
-            #: *Frequency array of the impedance in [Hz]*
+            #: *Frequency array of the impedance in Hz*
             self.frequency_array_loaded = input_1
-            #: *Real part of impedance in* [:math:`\Omega`]
+            #: *Real part of impedance in* :math:`\Omega`
             self.Re_Z_array_loaded = input_2
-            #: *Imaginary part of impedance in* [:math:`\Omega`]
+            #: *Imaginary part of impedance in* :math:`\Omega`
             self.Im_Z_array_loaded = input_3
-            #: *Impedance array in* [:math:`\Omega`]
+            #: *Impedance array in* :math:`\Omega`
             self.impedance_loaded = self.Re_Z_array_loaded + 1j * self.Im_Z_array_loaded
             
             if self.frequency_array_loaded[0] != 0:
@@ -71,10 +114,10 @@ class InputTable(object):
         array.*
         '''
 
-        Re_Z = np.interp(new_frequency_array, self.frequency_array_loaded, self.Re_Z_array_loaded, 
-                      right = 0)
-        Im_Z = np.interp(new_frequency_array, self.frequency_array_loaded, self.Im_Z_array_loaded, 
-                      right = 0)
+        Re_Z = np.interp(new_frequency_array, self.frequency_array_loaded, 
+                         self.Re_Z_array_loaded, right = 0)
+        Im_Z = np.interp(new_frequency_array, self.frequency_array_loaded, 
+                         self.Im_Z_array_loaded, right = 0)
         self.frequency_array = new_frequency_array
         self.Re_Z_array = Re_Z
         self.Im_Z_array = Im_Z
@@ -82,7 +125,7 @@ class InputTable(object):
         
     
     
-class Resonators(object):
+class Resonators(_ImpedanceObject):
     '''
     *Impedance contribution from resonators, analytic formulas for both wake 
     and impedance. The resonant modes (and the corresponding R and Q) 
@@ -112,34 +155,39 @@ class Resonators(object):
     
     def __init__(self, R_S, frequency_R, Q):
         
-        #: *Shunt impepdance in* [:math:`\Omega`]
+        _ImpedanceObject.__init__(self)
+
+        #: *Shunt impepdance in* :math:`\Omega`
         self.R_S = np.array([R_S]).flatten()
         
-        #: *Resonant frequency in [Hz]*
+        #: *Resonant frequency in Hz*
         self.frequency_R = np.array([frequency_R]).flatten()
-        
-        #: *Resonant angular frequency in [rad/s]*
-        self.omega_R = 2 *np.pi * self.frequency_R
-        
+                
         #: *Quality factor*
         self.Q = np.array([Q]).flatten()
         
         #: *Number of resonant modes*
-        self.n_resonators = len(self.R_S)
+        self.n_resonators = len(self.R_S)    
+    
+    @property
+    def frequency_R(self):
+        return self.__frequency_R
         
-        #: *Time array of the wake in [s]*
-        self.time_array = 0
-        
-        #: *Wake array in* [:math:`\Omega / s`]
-        self.wake = 0
-        
-        #: *Frequency array of the impedance in [Hz]*
-        self.frequency_array = 0
-        
-        #: *Impedance array in* [:math:`\Omega`]
-        self.impedance = 0
+    @frequency_R.setter
+    def frequency_R(self, frequency_R):
+        self.__frequency_R = frequency_R
+        self.__omega_R = 2 *np.pi * frequency_R
 
-
+    #: *Resonant angular frequency in rad/s*
+    @property
+    def omega_R(self):
+        return self.__omega_R
+        
+    @omega_R.setter
+    def omega_R(self, omega_R):
+        self.__frequency_R = omega_R / 2 / np.pi
+        self.__omega_R = omega_R
+        
     def wake_calc(self, time_array):
         '''
         *Wake calculation method as a function of time.*
@@ -153,10 +201,10 @@ class Resonators(object):
             alpha = self.omega_R[i] / (2 * self.Q[i])
             omega_bar = np.sqrt(self.omega_R[i] ** 2 - alpha ** 2)
             
-            self.wake += (np.sign(self.time_array) + 1) * self.R_S[i] * alpha * \
-                         np.exp(-alpha * self.time_array) * \
-                         (np.cos(omega_bar * self.time_array) - 
-                          alpha / omega_bar * np.sin(omega_bar * self.time_array))
+            self.wake += (np.sign(self.time_array) + 1) * self.R_S[i] * \
+                         alpha * np.exp(-alpha * self.time_array) * \
+                         (np.cos(omega_bar * self.time_array) - alpha / \
+                          omega_bar * np.sin(omega_bar * self.time_array))
     
     
     def imped_calc(self, frequency_array):
@@ -165,17 +213,17 @@ class Resonators(object):
         '''
         
         self.frequency_array = frequency_array
-        self.impedance = np.zeros(len(self.frequency_array)) + 0j
+        self.impedance = np.zeros(len(self.frequency_array), complex)
         
         for i in range(0, self.n_resonators):
             
             self.impedance[1:] += self.R_S[i] / (1 + 1j * self.Q[i] * 
-                                                 (self.frequency_array[1:] / self.frequency_R[i] - 
-                                                  self.frequency_R[i] / self.frequency_array[1:]))
+                             (self.frequency_array[1:] / self.frequency_R[i] - 
+                              self.frequency_R[i] / self.frequency_array[1:]))
  
  
 
-class TravelingWaveCavity(object):
+class TravelingWaveCavity(_ImpedanceObject):
     '''
     *Impedance contribution from traveling wave cavities, analytic formulas for 
     both wake and impedance. The resonance modes (and the corresponding R and a) 
@@ -205,29 +253,19 @@ class TravelingWaveCavity(object):
     
     def __init__(self, R_S, frequency_R, a_factor):
         
-        #: *Shunt impepdance in* [:math:`\Omega`]
+        _ImpedanceObject.__init__(self)
+        
+        #: *Shunt impepdance in* :math:`\Omega`
         self.R_S = np.array([R_S]).flatten()
         
-        #: *Resonant frequency in [Hz]*
+        #: *Resonant frequency in Hz*
         self.frequency_R = np.array([frequency_R]).flatten()
         
-        #: *Damping time a in [s]*
+        #: *Damping time a in s*
         self.a_factor = np.array([a_factor]).flatten()
         
         #: *Number of resonant modes*
         self.n_twc = len(self.R_S)
-        
-        #: *Time array of the wake in [s]*
-        self.time_array = 0
-        
-        #: *Wake array in* [:math:`\Omega / s`]
-        self.wake = 0
-        
-        #: *Frequency array of the impedance in [Hz]*
-        self.frequency_array = 0
-        
-        #: *Impedance array in* [:math:`\Omega`]
-        self.impedance = 0
         
     
     def wake_calc(self, time_array):
@@ -252,7 +290,7 @@ class TravelingWaveCavity(object):
         '''
         
         self.frequency_array = frequency_array
-        self.impedance = np.zeros(len(self.frequency_array)) + 0j
+        self.impedance = np.zeros(len(self.frequency_array), complex)
         
         for i in range(0, self.n_twc):
             
@@ -272,7 +310,7 @@ class TravelingWaveCavity(object):
 
  
 
-class ResistiveWall(object):
+class ResistiveWall(_ImpedanceObject):
     '''
     *Impedance contribution from resistive wall for a cilindrical beam pipe*
     
@@ -284,7 +322,10 @@ class ResistiveWall(object):
         
     '''
     
-    def __init__(self, pipe_radius, pipe_length, resistivity = None, conductivity = None):
+    def __init__(self, pipe_radius, pipe_length, resistivity = None, 
+                 conductivity = None):
+        
+        _ImpedanceObject.__init__(self)
         
         #: *Beam pipe radius in m*
         self.pipe_radius = pipe_radius
@@ -298,14 +339,29 @@ class ResistiveWall(object):
         elif conductivity != None:
             self.conductivity = conductivity
         else:
-            raise RuntimeError('At least one of the following parameters should be provided: resistivity or conductivity')
-        
-        #: *Frequency array of the impedance in Hz*
-        self.frequency_array = 0
-        
+            raise RuntimeError('At least one of the following parameters ' + 
+                             'should be provided: resistivity or conductivity')
+                
         #: *Characteristic impedance of vacuum in* :math:`\Omega`
         self.Z0 = physical_constants['characteristic impedance of vacuum'][0]
+            
+    @property
+    def resistivity(self):
+        return self.__resistivity
         
+    @resistivity.setter
+    def resistivity(self, resistivity):
+        self.__resistivity = resistivity
+        self.__conductivity = 1 / resistivity
+
+    @property
+    def conductivity(self):
+        return self.__conductivity
+        
+    @conductivity.setter
+    def conductivity(self, conductivity):
+        self.__resistivity = 1 / conductivity
+        self.__conductivity = conductivity
     
     def imped_calc(self, frequency_array):
         '''
@@ -315,8 +371,9 @@ class ResistiveWall(object):
         self.frequency_array = frequency_array
                 
         self.impedance = self.Z0 * c * self.pipe_length / \
-            (np.pi * (1.0 - 1j*np.sign(self.frequency_array)) * 2 * self.pipe_radius * c * \
-            np.sqrt(self.conductivity * self.Z0 * c / (4.0 * np.pi * np.abs(self.frequency_array)) ) \
+            (np.pi * (1.0 - 1j*np.sign(self.frequency_array)) * 2 * \
+            self.pipe_radius * c * np.sqrt(self.conductivity * self.Z0 * c / \
+            (4.0 * np.pi * np.abs(self.frequency_array)) ) \
             + 1j * self.pipe_radius**2.0 * 2.0 * np.pi * self.frequency_array ) 
 
         self.impedance[np.isnan(self.impedance)]= 0.0
