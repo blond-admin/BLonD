@@ -9,11 +9,10 @@
  */
 
 // Optimised C++ routine that calculates the histogram
-// Author: Danilo Quartullo, Alexandre Lasheen
-//using uint = unsigned int;
+// Author: Danilo Quartullo, Alexandre Lasheen, Konstantinos Iliakis
+
 #include <omp.h>        // omp_get_thread_num(), omp_get_num_threads()
 #include <string.h>     // memset()
-#include <stdio.h>
 
 const int MAX_SLICES = 100000;
 const int MAX_THREADS = 56;
@@ -88,4 +87,3 @@ extern "C" void smooth_histogram(const double *__restrict__ input,
         output[fffbin] = output[fffbin] + ratiofffbin;
     }
 }
-
