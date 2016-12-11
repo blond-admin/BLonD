@@ -321,7 +321,7 @@ def matched_from_distribution_density(Beam, FullRingAndRF, distribution_options,
                                       main_harmonic_option = 'lowest_freq', 
                                       TotalInducedVoltage = None,
                                       n_iterations_input = 1,
-                                      extraVoltageDict = None, seed = None):
+                                      extraVoltageDict = None, seed = None, dt_margin_percent=0.40, process_pot_well = True ):
     '''
     *Function to generate a beam by inputing the distribution density (by
     choosing the type of distribution and the emittance). 
@@ -364,7 +364,7 @@ def matched_from_distribution_density(Beam, FullRingAndRF, distribution_options,
     # Generate potential well
     n_points_potential = int(1e4)
     FullRingAndRF.potential_well_generation(n_points = n_points_potential, 
-                                            dt_margin_percent = 0.40, 
+                                            dt_margin_percent = dt_margin_percent, 
                                             main_harmonic_option = main_harmonic_option)
     potential_well_array = FullRingAndRF.potential_well 
     time_coord_array = FullRingAndRF.potential_well_coordinates
@@ -399,6 +399,8 @@ def matched_from_distribution_density(Beam, FullRingAndRF, distribution_options,
                 
         # Process the potential well in order to take a frame around the separatrix
         time_coord_sep, potential_well_sep = potential_well_cut(time_coord_array, total_potential)
+        if process_pot_well == False:
+            time_coord_sep, potential_well_sep = time_coord_array, total_potential
         
         # Potential is shifted to put the minimum on 0
         potential_well_sep = potential_well_sep - np.min(potential_well_sep)
