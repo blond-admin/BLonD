@@ -93,7 +93,8 @@ class Slices(object):
             
         #: *Fit option allows to fit the Beam profile, with the options
         #: 'None' (default), 'gaussian'.*
-        if fit_option is 'gaussian':    
+        self.fit_option = fit_option
+        if fit_option is 'gaussian': 
             #: *Bunch length from a Gaussian fit defined as*
             #: :math:`\tau_{gauss} = 4\sigma_{\Delta t}`
             self.bl_gauss = 0
@@ -102,7 +103,7 @@ class Slices(object):
             #: *Gaussian parameters list obtained from fit*
             self.pfit_gauss = 0
             #: *Performs gaussian_fit each time the track method is called*
-            self.operations.append(self.gaussian_fit())
+            self.operations.append(self.gaussian_fit)
         
         # Track at initialisation
         if direct_slicing:

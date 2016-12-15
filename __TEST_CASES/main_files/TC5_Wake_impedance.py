@@ -1,19 +1,19 @@
 
 # Copyright 2016 CERN. This software is distributed under the
-# terms of the GNU General Public Licence version 3 (GPL Version 3), 
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
 # copied verbatim in the file LICENCE.md.
-# In applying this licence, CERN does not waive the privileges and immunities 
+# In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
 '''
 SPS simulation with intensity effects in time and frequency domains using
-a table of resonators. The input beam has been cloned to show that the two methods
-are equivalent (compare the two figure folders). Note that to create an exact 
-clone of the beam, the option seed=0 in the generation has been used. This 
-script shows also an example of how to use the class SliceMonitor (check the
-corresponding h5 files).
+a table of resonators. The input beam has been cloned to show that the two
+methods are equivalent (compare the two figure folders). Note that to create an
+exact clone of the beam, the option seed=0 in the generation has been used.
+This script shows also an example of how to use the class SliceMonitor (check
+the corresponding h5 files).
 '''
 
 from __future__ import division, print_function
@@ -64,15 +64,16 @@ phi_offset = 0
 
 # DEFINE RING------------------------------------------------------------------
 
-general_params = GeneralParameters(n_turns, C, momentum_compaction, sync_momentum, 
-                                   particle_type, number_of_sections = 1)
-general_params_copy = GeneralParameters(n_turns, C, momentum_compaction, sync_momentum, 
-                                   particle_type, number_of_sections = 1)
+general_params = GeneralParameters(n_turns, C, momentum_compaction,
+                                   sync_momentum, particle_type)
+general_params_copy = GeneralParameters(n_turns, C, momentum_compaction,
+                                        sync_momentum, particle_type)
 
 RF_sct_par = RFSectionParameters(general_params, n_rf_systems, harmonic_number, 
                           voltage_program, phi_offset)
-RF_sct_par_copy = RFSectionParameters(general_params_copy, n_rf_systems, harmonic_number, 
-                          voltage_program, phi_offset)
+RF_sct_par_copy = RFSectionParameters(general_params_copy, n_rf_systems,
+                                      harmonic_number, voltage_program,
+                                      phi_offset)
 
 my_beam = Beam(general_params, n_macroparticles, n_particles)
 my_beam_copy = Beam(general_params_copy, n_macroparticles, n_particles)
@@ -85,24 +86,25 @@ ring_RF_section_copy = RingAndRFSection(RF_sct_par_copy, my_beam_copy)
 longitudinal_bigaussian(general_params, RF_sct_par, my_beam, tau_0/4, 
                              seed=1)
 
-longitudinal_bigaussian(general_params_copy, RF_sct_par_copy, my_beam_copy, tau_0/4, 
-                              seed=1)
+longitudinal_bigaussian(general_params_copy, RF_sct_par_copy, my_beam_copy,
+                        tau_0/4, seed=1)
 
 number_slices = 2**8
-slice_beam = Slices(RF_sct_par, my_beam, number_slices, cut_left = 0, 
-                    cut_right = 2 * np.pi, 
-                    cuts_unit = 'rad', 
-                    fit_option = 'gaussian')
-slice_beam_copy = Slices(RF_sct_par_copy, my_beam_copy, number_slices, cut_left = 0, 
-                    cut_right = 2 * np.pi , 
-                    cuts_unit = 'rad', 
-                    fit_option = 'gaussian')
+slice_beam = Slices(RF_sct_par, my_beam, number_slices, cut_left=0,
+                    cut_right=2*np.pi, cuts_unit='rad', fit_option='gaussian')
+slice_beam_copy = Slices(RF_sct_par_copy, my_beam_copy, number_slices,
+                         cut_left=0, cut_right=2 * np.pi, cuts_unit='rad',
+                         fit_option='gaussian')
 
 # MONITOR----------------------------------------------------------------------
 
-bunchmonitor = BunchMonitor(general_params, ring_RF_section, my_beam, '../output_files/TC5_output_data', Slices=slice_beam, buffer_time = 1)
+bunchmonitor = BunchMonitor(general_params, ring_RF_section, my_beam, 
+                            '../output_files/TC5_output_data',
+                            Slices=slice_beam, buffer_time=1)
 
-bunchmonitor_copy = BunchMonitor(general_params_copy, ring_RF_section_copy, my_beam_copy, '../output_files/TC5_output_data_copy', Slices=slice_beam_copy, buffer_time = 1)
+bunchmonitor_copy = BunchMonitor(general_params_copy, ring_RF_section_copy,
+                         my_beam_copy, '../output_files/TC5_output_data_copy',
+                         Slices=slice_beam_copy, buffer_time=1)
 
 
 # LOAD IMPEDANCE TABLE--------------------------------------------------------
@@ -114,31 +116,35 @@ f_res = table[:, 0] * 10**9
 Q_factor = table[:, 1]
 resonator = Resonators(R_shunt, f_res, Q_factor)
 
-ind_volt_time = InducedVoltageTime(slice_beam, [resonator])
-ind_volt_freq = InducedVoltageFreq(slice_beam_copy, [resonator], 1e5)
+ind_volt_time = InducedVoltageTime(my_beam, slice_beam, [resonator])
+ind_volt_freq = InducedVoltageFreq(my_beam, slice_beam_copy, [resonator], 1e5)
 
 tot_vol = TotalInducedVoltage(my_beam, slice_beam, [ind_volt_time])
-tot_vol_copy = TotalInducedVoltage(my_beam_copy, slice_beam_copy, [ind_volt_freq])
+tot_vol_copy = TotalInducedVoltage(my_beam_copy, slice_beam_copy,
+                                   [ind_volt_freq])
 
 # PLOTS
 
 format_options = {'dirname': '../output_files/TC5_fig/1', 'linestyle': '.'}
 plots = Plot(general_params, RF_sct_par, my_beam, dt_plt, n_turns, 0, 
-             0.0014*harmonic_number, - 1.5e8, 1.5e8, xunit= 'rad',
-             separatrix_plot= True, Slices = slice_beam, h5file = '../output_files/TC5_output_data', 
-             histograms_plot = True, sampling=50, format_options = format_options)
+             0.0014*harmonic_number, -1.5e8, 1.5e8, xunit='rad',
+             separatrix_plot=True, Slices=slice_beam,
+             h5file='../output_files/TC5_output_data', 
+             histograms_plot=True, sampling=50, format_options=format_options)
 
 format_options = {'dirname': '../output_files/TC5_fig/2', 'linestyle': '.'}
-plots_copy = Plot(general_params_copy, RF_sct_par_copy, my_beam_copy, dt_plt, n_turns, 
-                  0, 0.0014*harmonic_number, - 1.5e8, 1.5e8, xunit= 'rad',
-                  separatrix_plot= True, Slices = slice_beam_copy, 
-                  h5file = '../output_files/TC5_output_data_copy', 
-                  histograms_plot = True, sampling=50, format_options = format_options)
+plots_copy = Plot(general_params_copy, RF_sct_par_copy, my_beam_copy, dt_plt,
+                  n_turns, 0, 0.0014*harmonic_number, -1.5e8, 1.5e8,
+                  xunit='rad', separatrix_plot=True, Slices=slice_beam_copy, 
+                  h5file='../output_files/TC5_output_data_copy', 
+                  histograms_plot=True, sampling=50,
+                  format_options=format_options)
 
 # ACCELERATION MAP-------------------------------------------------------------
 
 map_ = [tot_vol] + [ring_RF_section] + [slice_beam] + [bunchmonitor] + [plots]
-map_copy = [tot_vol_copy] + [ring_RF_section_copy] + [slice_beam_copy] + [bunchmonitor_copy] + [plots_copy]
+map_copy = [tot_vol_copy] + [ring_RF_section_copy] + [slice_beam_copy] + \
+           [bunchmonitor_copy] + [plots_copy]
 
 # TRACKING + PLOTS-------------------------------------------------------------
 
@@ -153,7 +159,9 @@ for i in np.arange(1, n_turns+1):
     # Plots
     if (i % dt_plt) == 0:
         
-        plot_induced_voltage_vs_bin_centers(i, general_params, tot_vol, style = '.', dirname = '../output_files/TC5_fig/1')
-        plot_induced_voltage_vs_bin_centers(i, general_params_copy, tot_vol_copy, style = '.', dirname = '../output_files/TC5_fig/2')
+        plot_induced_voltage_vs_bin_centers(i, general_params, tot_vol,
+                                style='.', dirname='../output_files/TC5_fig/1')
+        plot_induced_voltage_vs_bin_centers(i, general_params_copy,
+                  tot_vol_copy, style='.', dirname='../output_files/TC5_fig/2')
                 
 print("Done!")

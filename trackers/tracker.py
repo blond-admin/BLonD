@@ -49,9 +49,9 @@ class FullRingAndRF(object):
         
         
         
-    def potential_well_generation(self, turn = 0, n_points = 1e5, 
-                                  main_harmonic_option = 'lowest_freq', 
-                                  dt_margin_percent = 0.):
+    def potential_well_generation(self, turn=0, n_points=1e5, 
+                                  main_harmonic_option='lowest_freq', 
+                                  dt_margin_percent=0., time_array=None):
         '''
         *Method to generate the potential well out of the RF systems. The 
         assumption made is that all the RF voltages are averaged over
@@ -92,19 +92,21 @@ class FullRingAndRF(object):
                 raise RuntimeError('The desired harmonic to compute the potential well does not match the RF parameters...')
             main_omega_rf = np.min(omega_rf[omega_rf == main_harmonic_option])
             
-        time_array_margin = dt_margin_percent * 2 * np.pi/main_omega_rf
         slippage_factor = self.RingAndRFSection_list[0].eta_0[turn]
         
-        first_dt = - time_array_margin / 2
-        last_dt = 2 * np.pi/main_omega_rf + time_array_margin / 2
+        if time_array is None:            
+            time_array_margin = dt_margin_percent * 2 * np.pi/main_omega_rf
             
-        time_array = np.linspace(first_dt, last_dt, n_points)
+            first_dt = - time_array_margin / 2
+            last_dt = 2 * np.pi/main_omega_rf + time_array_margin / 2
                 
-        self.total_voltage = np.sum(voltages.T * np.sin(omega_rf.T * time_array + phi_offsets.T), axis = 0)
+            time_array = np.linspace(first_dt, last_dt, n_points)
+                
+        self.total_voltage = np.sum(voltages.T * np.sin(omega_rf.T * time_array + phi_offsets.T), axis=0)
         
         eom_factor_potential = np.sign(slippage_factor) * charge / (RingAndRFSectionElement.t_rev[turn])
         
-        potential_well = - np.insert(cumtrapz(eom_factor_potential * (self.total_voltage - (-RingAndRFSectionElement.acceleration_kick[turn])/abs(charge)), dx=time_array[1]-time_array[0]),0,0)
+        potential_well = -cumtrapz(eom_factor_potential * (self.total_voltage - (-RingAndRFSectionElement.acceleration_kick[turn])/abs(charge)), dx=time_array[1]-time_array[0],initial=0)
         potential_well = potential_well - np.min(potential_well)
         
         self.potential_well_coordinates = time_array

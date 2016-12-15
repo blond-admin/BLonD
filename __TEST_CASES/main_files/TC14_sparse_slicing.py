@@ -15,11 +15,13 @@ Example for the FCC-ee at 175 GeV.
 '''
 
 from __future__ import division
+from __future__ import print_function
+from builtins import range
 import matplotlib.pyplot as plt
 import numpy as np
 from input_parameters.general_parameters import GeneralParameters
 from beams.beams import Beam
-from beams.distributions import matched_from_distribution_density
+from beams.distributions import matched_from_distribution_function
 from input_parameters.rf_parameters import RFSectionParameters
 from beams.sparse_slices import SparseSlices
 from trackers.tracker import RingAndRFSection, FullRingAndRF
@@ -34,8 +36,9 @@ n_particles = int(1.7e11)
 n_macroparticles = int(50e6)
 sync_momentum = 175e9 # [eV]
 
-distribution_options = {'type':'gaussian', 'emittance': 1.0,
-                        'density_variable':'density_from_J'}
+distribution_type = 'gaussian'
+emittance = 1.0
+distribution_variable = 'Action'
 
 # Machine and RF parameters
 radius = 15915.49
@@ -49,7 +52,7 @@ n_turns_between_two_plots = 100
 # Derived parameters
 E_0 = m_e * c**2 / e    # [eV]
 tot_beam_energy =  np.sqrt(sync_momentum**2 + E_0**2) # [eV]
-momentum_compaction = 1 / gamma_transition**2 # [1]       
+momentum_compaction = 1 / gamma_transition**2  
 
 # Cavities parameters
 n_rf_systems = 1                                
@@ -62,11 +65,11 @@ print(bucket_length)
 
 # DEFINE RING------------------------------------------------------------------
 
-general_params = GeneralParameters(n_turns, C, momentum_compaction, sync_momentum,
-                                   particle_type)
+general_params = GeneralParameters(n_turns, C, momentum_compaction,
+                                   sync_momentum, particle_type)
 
-RF_sct_par = RFSectionParameters(general_params, n_rf_systems, harmonic_numbers,
-                          voltage_program, phi_offset)
+RF_sct_par = RFSectionParameters(general_params, n_rf_systems,
+                                 harmonic_numbers, voltage_program, phi_offset)
 
 # DEFINE BEAM------------------------------------------------------------------
 
@@ -90,14 +93,18 @@ filling_pattern[::bunch_spacing] = 1
 
 # BEAM GENERATION--------------------------------------------------------------
 
-matched_from_distribution_density(beam, full_tracker, distribution_options, 
-            main_harmonic_option = 'lowest_freq')
+matched_from_distribution_function(beam, full_tracker, {}, 
+                                   emittance=emittance,
+                                   distribution_type=distribution_type, 
+                                   distribution_variable=distribution_variable)
 
 indexes = np.arange(n_macroparticles)
 #np.random.shuffle(indexes)
 
 for i in np.arange(np.sum(filling_pattern)):
-    beam.dt[indexes[i*len(beam.dt)//np.sum(filling_pattern)]:indexes[(i+1)*len(beam.dt)//np.sum(filling_pattern)-1]] += bucket_length*np.where(filling_pattern)[0][i]
+    beam.dt[indexes[i*len(beam.dt)//np.sum(filling_pattern)]: 
+        indexes[(i+1)*len(beam.dt)//np.sum(filling_pattern)-1]] += (
+        bucket_length * np.where(filling_pattern)[0][i])
 
 import time
 
@@ -109,7 +116,8 @@ slice_beam.track()
 print( 'Time for optimized C++ track ', time.time() - t0 )
 plt.figure()
 for i in range(int(np.sum(filling_pattern))):
-    plt.plot(slice_beam.slices_array[i].bin_centers, slice_beam.slices_array[i].n_macroparticles)
+    plt.plot(slice_beam.slices_array[i].bin_centers,
+             slice_beam.slices_array[i].n_macroparticles)
 plt.show()
 
 
@@ -117,12 +125,14 @@ for i in range(int(np.sum(filling_pattern))):
     slice_beam.slices_array[i].n_macroparticles *= 0
 
 
-slice_beam = SparseSlices(RF_sct_par, beam, n_slices, filling_pattern, tracker='onebyone')
+slice_beam = SparseSlices(RF_sct_par, beam, n_slices, filling_pattern,
+                          tracker='onebyone')
 
 t0 = time.time()
 slice_beam.track()
 print( 'Time for individual tracks ', time.time() - t0 )
 plt.figure()
 for i in range(int(np.sum(filling_pattern))):
-    plt.plot(slice_beam.slices_array[i].bin_centers, slice_beam.slices_array[i].n_macroparticles)
+    plt.plot(slice_beam.slices_array[i].bin_centers,
+             slice_beam.slices_array[i].n_macroparticles)
 plt.show()

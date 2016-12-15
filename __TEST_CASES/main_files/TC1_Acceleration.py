@@ -14,21 +14,17 @@ No intensity effects
 
 from __future__ import division, print_function
 from builtins import range
-from input_parameters.general_parameters import *
-from input_parameters.rf_parameters import *
-from trackers.tracker import *
-from beams.beams import *
-from beams.distributions import *
-from beams.slices import *
-from monitors.monitors import *
-from plots.plot_beams import *
-from plots.plot_impedance import *
-from plots.plot_slices import *
-from plots.plot import *
-from plots.plot_parameters import *
+from input_parameters.general_parameters import GeneralParameters
+from input_parameters.rf_parameters import RFSectionParameters
+from trackers.tracker import RingAndRFSection
+from beams.beams import Beam
+from beams.distributions import longitudinal_bigaussian
+from beams.slices import Slices
+from monitors.monitors import BunchMonitor
+from plots.plot import Plot
 
 
-# Simulation parameters --------------------------------------------------------
+# Simulation parameters -------------------------------------------------------
 # Bunch parameters
 N_b = 1e9           # Intensity
 N_p = 50000         # Macro-particles
@@ -50,7 +46,7 @@ dt_plt = 200         # Time steps between plots
 
 
 
-# Simulation setup -------------------------------------------------------------
+# Simulation setup ------------------------------------------------------------
 print("Setting up the simulation...")
 print("")
 
@@ -72,15 +68,17 @@ longitudinal_bigaussian(general_params, rf_params, beam, tau_0/4,
 
 
 # Need slices for the Gaussian fit
-slice_beam = Slices(rf_params, beam, 100, fit_option = 'gaussian')
-
+slice_beam = Slices(rf_params, beam, 100, fit_option='gaussian')                     
+                     
 # Define what to save in file
-bunchmonitor = BunchMonitor(general_params, rf_params, beam, '../output_files/TC1_output_data', Slices = slice_beam)
+bunchmonitor = BunchMonitor(general_params, rf_params, beam,
+                          '../output_files/TC1_output_data', Slices=slice_beam)
 
 format_options = {'dirname': '../output_files/TC1_fig'}
-plots = Plot(general_params, rf_params, beam, dt_plt, N_t, 0, 0.0001763*h, -400e6, 400e6, xunit= 'rad',
-             separatrix_plot= True, Slices = slice_beam, h5file = '../output_files/TC1_output_data', 
-             format_options = format_options)
+plots = Plot(general_params, rf_params, beam, dt_plt, N_t, 0, 0.0001763*h,
+             -400e6, 400e6, xunit='rad', separatrix_plot=True, 
+             Slices=slice_beam, h5file='../output_files/TC1_output_data', 
+             format_options=format_options)
 
 # Accelerator map
 map_ = [long_tracker] + [slice_beam] + [bunchmonitor] + [plots]
@@ -89,7 +87,7 @@ print("")
 
 
 
-# Tracking ---------------------------------------------------------------------
+# Tracking --------------------------------------------------------------------
 for i in range(1, N_t+1):
     
     

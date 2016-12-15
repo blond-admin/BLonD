@@ -1,7 +1,7 @@
 # Copyright 2016 CERN. This software is distributed under the
-# terms of the GNU General Public Licence version 3 (GPL Version 3), 
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
 # copied verbatim in the file LICENCE.md.
-# In applying this licence, CERN does not waive the privileges and immunities 
+# In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
@@ -10,7 +10,7 @@
 '''
 Test case for the synchrotron frequency distribution routine in the utilities
 of the tracker module.
-Example for the LHC at 7 TeV. Single RF, double RF in BSM and BLM, and with 
+Example for the LHC at 7 TeV. Single RF, double RF in BSM and BLM, and with
 intensity effects. Comparison with analytical formula.
 
 :Authors: **Juan F. Esteban Mueller**
@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from input_parameters.general_parameters import GeneralParameters
 from beams.beams import Beam
-from beams.distributions import matched_from_distribution_density
+from beams.distributions import matched_from_distribution_function
 from input_parameters.rf_parameters import RFSectionParameters
 from beams.slices import Slices
 from impedances.impedance import InducedVoltageFreq, TotalInducedVoltage
@@ -38,8 +38,9 @@ n_particles = int(20e11)
 n_macroparticles = int(1e6)
 sync_momentum = 7e12 # [eV]
 
-distribution_options = {'type':'gaussian', 'emittance': 2.5,
-                        'density_variable':'density_from_J'}
+distribution_type = 'gaussian'
+emittance = 2.5
+distribution_variable = 'Action'
 
 # Machine and RF parameters
 radius = 4242.89
@@ -49,7 +50,7 @@ C = 2 * np.pi * radius  # [m]
 # Derived parameters
 E_0 = m_p * c**2 / e    # [eV]
 tot_beam_energy =  np.sqrt(sync_momentum**2 + E_0**2) # [eV]
-momentum_compaction = 1 / gamma_transition**2 # [1]
+momentum_compaction = 1 / gamma_transition**2
 
 # Cavities parameters
 n_rf_systems = 1
@@ -57,15 +58,15 @@ harmonic_numbers = [35640.0]
 voltage_program = [16e6]
 phi_offset = [0]
 
-bucket_length = C / c / harmonic_numbers[0]
-
 # DEFINE RING------------------------------------------------------------------
 n_turns = 1
-general_params = GeneralParameters(n_turns, C, momentum_compaction, sync_momentum, 
-                                   particle_type, number_of_sections = 1)
+general_params = GeneralParameters(n_turns, C, momentum_compaction,
+                                   sync_momentum,particle_type)
 
-RF_sct_par = RFSectionParameters(general_params, n_rf_systems, harmonic_numbers,
-                          voltage_program, phi_offset)
+RF_sct_par = RFSectionParameters(general_params, n_rf_systems,
+                                 harmonic_numbers, voltage_program, phi_offset)
+
+bucket_length = 2.0 * np.pi / RF_sct_par.omega_RF[0,0]
 
 # DEFINE BEAM------------------------------------------------------------------
 
@@ -79,25 +80,30 @@ full_tracker = FullRingAndRF([longitudinal_tracker])
 # DEFINE SLICES----------------------------------------------------------------
 
 number_slices = 500
-slice_beam = Slices(RF_sct_par, beam, number_slices, cut_left = 0., 
-                    cut_right = bucket_length)
+slice_beam = Slices(RF_sct_par, beam, number_slices, cut_left=0., 
+                    cut_right=bucket_length)
 
 
 # Single RF -------------------------------------------------------------------
-matched_from_distribution_density(beam, full_tracker, distribution_options, 
-            main_harmonic_option = 'lowest_freq')
+matched_from_distribution_function(beam, full_tracker, {},
+                                   distribution_type=distribution_type,
+                                   emittance=emittance,
+                                   distribution_variable=distribution_variable,
+                                   main_harmonic_option='lowest_freq')
 
 slice_beam.track()
 
 [sync_freq_distribution_left, sync_freq_distribution_right], \
     [emittance_array_left, emittance_array_right], \
     [delta_time_left, delta_time_right], \
-    particleDistributionFreq, synchronous_time = synchrotron_frequency_distribution(beam, full_tracker)
+    particleDistributionFreq, synchronous_time = \
+                         synchrotron_frequency_distribution(beam, full_tracker)
 
 # Plot of the synchrotron frequency distribution
 plt.figure('fs_distribution')
 plt.plot(delta_time_left, sync_freq_distribution_left, lw=2, label='Left')
-plt.plot(delta_time_right, sync_freq_distribution_right, 'r--', lw=2, label='Right')
+plt.plot(delta_time_right, sync_freq_distribution_right, 'r--', lw=2,
+         label='Right')
 
 ## Analytical calculation of fs(phi)
 gamma = tot_beam_energy / E_0
@@ -106,13 +112,16 @@ frev = beta * c / C
 etta = 1/gamma**2.0- 1/gamma_transition**2.0
 phi_s = np.pi
 # Zero-amplitude synchrotron frequency
-fs0 = frev * np.sqrt( harmonic_numbers[0] * voltage_program[0] * np.abs(etta*np.cos(phi_s))/(2*np.pi*beta**2*tot_beam_energy))
+fs0 = frev * np.sqrt(harmonic_numbers[0] * voltage_program[0] * np.abs(etta * 
+                              np.cos(phi_s))/(2*np.pi*beta**2*tot_beam_energy))
 # Analytical synchrotron frequency distribution
 phi = delta_time_left * 2.0 * np.pi / bucket_length
-sync_freq_distribution_analytical = fs0 * np.pi / ( 2.0 * ellipk(np.sin(phi/2.0)**2.0) )
+sync_freq_distribution_analytical = fs0 * np.pi / ( 2.0 *
+                                                 ellipk(np.sin(phi/2.0)**2.0) )
 
 plt.figure('fs_distribution')
-plt.plot(delta_time_left, sync_freq_distribution_analytical, 'g-.', lw=2, label='Analytical')
+plt.plot(delta_time_left, sync_freq_distribution_analytical, 'g-.', lw=2,
+         label='Analytical')
 plt.legend(loc=0, fontsize='medium')
 plt.xlabel('Amplitude of particle oscillations [s]')
 plt.ylabel('Synchrotron frequency [Hz]')
@@ -141,19 +150,23 @@ harmonic_numbers = [35640.0, 35640.0*2.0]
 voltage_program = [16e6, 8e6]
 phi_offset = [0, 0]
 
-RF_sct_par = RFSectionParameters(general_params, n_rf_systems, harmonic_numbers,
-                          voltage_program, phi_offset)
+RF_sct_par = RFSectionParameters(general_params, n_rf_systems,
+                                 harmonic_numbers, voltage_program, phi_offset)
 
 longitudinal_tracker = RingAndRFSection(RF_sct_par,beam)
 full_tracker = FullRingAndRF([longitudinal_tracker])
 
-beam_generation_output = matched_from_distribution_density(beam, full_tracker, distribution_options, 
-            main_harmonic_option = 'lowest_freq')
+beam_generation_output = matched_from_distribution_function(beam, full_tracker,
+                                   {}, distribution_type=distribution_type,
+                                   emittance=emittance,
+                                   distribution_variable=distribution_variable,
+                                   main_harmonic_option='lowest_freq')
             
 [sync_freq_distribution_left, sync_freq_distribution_right], \
     [emittance_array_left, emittance_array_right], \
     [delta_time_left, delta_time_right], \
-    particleDistributionFreq, synchronous_time = synchrotron_frequency_distribution(beam, full_tracker)
+    particleDistributionFreq, synchronous_time = \
+                         synchrotron_frequency_distribution(beam, full_tracker)
 
 # Plot of the synchrotron frequency distribution
 plt.figure('fs_distribution_DRF')
@@ -166,8 +179,8 @@ harmonic_numbers = [35640.0, 35640.0*2.0]
 voltage_program = [16e6, 8e6]
 phi_offset = [0, np.pi]
 
-RF_sct_par = RFSectionParameters(general_params, n_rf_systems, harmonic_numbers,
-                          voltage_program, phi_offset)
+RF_sct_par = RFSectionParameters(general_params, n_rf_systems,
+                                 harmonic_numbers, voltage_program, phi_offset)
 
 longitudinal_tracker = RingAndRFSection(RF_sct_par,beam)
 full_tracker = FullRingAndRF([longitudinal_tracker])
@@ -175,11 +188,13 @@ full_tracker = FullRingAndRF([longitudinal_tracker])
 [sync_freq_distribution_left, sync_freq_distribution_right], \
     [emittance_array_left, emittance_array_right], \
     [delta_time_left, delta_time_right], \
-    particleDistributionFreq, synchronous_time = synchrotron_frequency_distribution(beam, full_tracker)
+    particleDistributionFreq, synchronous_time = \
+                         synchrotron_frequency_distribution(beam, full_tracker)
 
 # Plot of the synchrotron frequency distribution
 plt.figure('fs_distribution_DRF')
-plt.plot(delta_time_left, sync_freq_distribution_left, 'r--', lw=2, label='DRF BSM')
+plt.plot(delta_time_left, sync_freq_distribution_left, 'r--', lw=2,
+         label='DRF BSM')
 plt.legend(loc=0, fontsize='medium')
 # Value for the zero-amplitude synchrotron frequency in double RF with 
 # second harmonic
@@ -195,8 +210,8 @@ harmonic_numbers = [35640.0]
 voltage_program = [16e6]
 phi_offset = [0]
 
-RF_sct_par = RFSectionParameters(general_params, n_rf_systems, harmonic_numbers,
-                          voltage_program, phi_offset)
+RF_sct_par = RFSectionParameters(general_params, n_rf_systems,
+                                 harmonic_numbers, voltage_program, phi_offset)
 
 longitudinal_tracker = RingAndRFSection(RF_sct_par,beam)
 full_tracker = FullRingAndRF([longitudinal_tracker])
@@ -209,36 +224,50 @@ Q = 1.0
 frequency_resolution_input = 1e7
 
 Zres = Resonators(R_S, frequency_R, Q)
-ind_volt = InducedVoltageFreq(slice_beam, [Zres], frequency_resolution_input)
+ind_volt = InducedVoltageFreq(beam, slice_beam, [Zres],
+                              frequency_resolution=frequency_resolution_input)
+                     
 total_induced_voltage = TotalInducedVoltage(beam, slice_beam, [ind_volt])
 
-beam_generation_output = matched_from_distribution_density(beam, full_tracker,
-            distribution_options, main_harmonic_option = 'lowest_freq', 
-            TotalInducedVoltage = total_induced_voltage, n_iterations_input = 20)
+beam_generation_output = matched_from_distribution_function(beam, full_tracker,
+                                   {}, distribution_type=distribution_type,
+                                   emittance=emittance,
+                                   distribution_variable=distribution_variable,
+                                   main_harmonic_option='lowest_freq',
+                                   TotalInducedVoltage=total_induced_voltage,
+                                   n_iterations=20)
 
 [sync_freq_distribution_left, sync_freq_distribution_right], \
     [emittance_array_left, emittance_array_right], \
     [delta_time_left, delta_time_right], \
-    particleDistributionFreq, synchronous_time = synchrotron_frequency_distribution(beam, full_tracker,
-                              TotalInducedVoltage = beam_generation_output[1])
+    particleDistributionFreq, synchronous_time = \
+                         synchrotron_frequency_distribution(beam, full_tracker,
+                                 TotalInducedVoltage=beam_generation_output[1])
 
 # Plot of the synchrotron frequency distribution
 plt.figure('fs_distribution_IE')
 plt.plot(delta_time_left, sync_freq_distribution_left, lw=2, label='Left')
-plt.plot(delta_time_right, sync_freq_distribution_right, 'r--', lw=2, label='Right')
+plt.plot(delta_time_right, sync_freq_distribution_right, 'r--', lw=2,
+         label='Right')
 phi = delta_time_left * 2.0 * np.pi / bucket_length
-sync_freq_distribution_analytical = fs0 * np.pi / ( 2.0 * ellipk(np.sin(phi/2.0)**2.0) )
-plt.plot(delta_time_left, sync_freq_distribution_analytical, 'g-.', lw=2, label='Analytical no IE')
+sync_freq_distribution_analytical = fs0 * np.pi / ( 2.0 *
+                                                 ellipk(np.sin(phi/2.0)**2.0) )
+plt.plot(delta_time_left, sync_freq_distribution_analytical, 'g-.', lw=2,
+         label='Analytical no IE')
 plt.legend(loc=0, fontsize='medium')
 plt.xlabel('Amplitude of particle oscillations [s]')
 plt.ylabel('Synchrotron frequency [Hz]')
-plt.title('Synchrotron frequency distribution in single RF with intensity effects')
+plt.title('Synchrotron frequency distribution in single RF with intensity ' +
+          'effects')
 
 plt.figure('fs_distribution_IE_J')
 plt.plot(emittance_array_left, sync_freq_distribution_left, lw=2, label='Left')
-plt.plot(emittance_array_right, sync_freq_distribution_right, 'r--', lw=2, label='Right')
-plt.plot(emittance_array_left, sync_freq_distribution_analytical, 'g-.', lw=2, label='Analytical no IE')
+plt.plot(emittance_array_right, sync_freq_distribution_right, 'r--', lw=2,
+         label='Right')
+plt.plot(emittance_array_left, sync_freq_distribution_analytical, 'g-.', lw=2,
+         label='Analytical no IE')
 plt.legend(loc=0, fontsize='medium')
 plt.xlabel('Emittance [eVs]')
 plt.ylabel('Synchrotron frequency [Hz]')
-plt.title('Synchrotron frequency distribution in single RF with intensity effects')
+plt.title('Synchrotron frequency distribution in single RF with intensity ' +
+          'effects')

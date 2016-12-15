@@ -10,7 +10,7 @@ import numpy as np
 import copy
 import matplotlib.pyplot as plt
 from .beams import Beam
-from .distributions import matched_from_distribution_density, matched_from_line_density
+from .distributions import matched_from_distribution_function, matched_from_line_density
 
 
 
@@ -97,45 +97,94 @@ def matched_from_distribution_density_multibunch(beam, GeneralParameters, FullRi
             function should either be a dictionary as requested by the matched_from_distribution_density \
             function, or a list of dictionaries containing n_bunches elements')
         
-        matched_from_distribution_density(bunch, FullRingAndRF, distribution_options,
-                                          main_harmonic_option = main_harmonic_option, 
-                                          TotalInducedVoltage = TotalInducedVoltage,
-                                          n_iterations_input = n_iterations_input,
-                                          extraVoltageDict = extraVoltageDict)
-       
+        if 'type' in distribution_options:
+            distribution_type = distribution_options['type']
+        else:
+            distribution_type = None
         
+        if 'exponent' in distribution_options:
+            distribution_exponent = distribution_options['exponent']
+        else:
+            distribution_exponent = None
+        
+        if 'emittance' in distribution_options:
+            emittance = distribution_options['emittance']
+        else:
+            emittance = None
+        
+        if 'bunch_length' in distribution_options:
+            bunch_length = distribution_options['bunch_length']
+        else:
+            bunch_length = None
+        
+        if 'bunch_length_fit' in distribution_options:
+            bunch_length_fit = distribution_options['bunch_length_fit']
+        else:
+            bunch_length_fit = None
+        
+        if 'density_variable' in distribution_options:
+            distribution_variable = distribution_options['density_variable']
+        else:
+            distribution_variable = None
+            
+        matched_from_distribution_function(bunch, FullRingAndRF,
+                               distribution_options, 
+                               main_harmonic_option=main_harmonic_option,
+                               TotalInducedVoltage=TotalInducedVoltage,
+                               n_iterations=n_iterations_input,
+                               extraVoltageDict=extraVoltageDict,
+                               distribution_exponent=distribution_exponent,
+                               distribution_type=distribution_type,
+                               emittance=emittance, bunch_length=bunch_length,
+                               bunch_length_fit=bunch_length_fit,
+                               distribution_variable=distribution_variable)
+
         if indexBunch==0:
             beamIteration.dt = bunch.dt
             beamIteration.dE = bunch.dE
         else:
-            beamIteration.dt = np.append(beamIteration.dt, bunch.dt +(indexBunch *bunch_spacing_buckets *bucket_size_tau))
+            beamIteration.dt = np.append(beamIteration.dt, bunch.dt + 
+                        (indexBunch * bunch_spacing_buckets * bucket_size_tau))
             beamIteration.dE = np.append(beamIteration.dE, bunch.dE)
         
-        beamIteration.n_macroparticles = int(np.sum(n_macroparticles_per_bunch[0:indexBunch+1]))
-        beamIteration.intensity = np.sum(intensity_per_bunch[0:indexBunch+1])
-        beamIteration.ratio = beamIteration.intensity/beamIteration.n_macroparticles
+        beamIteration.n_macroparticles = int(np.sum(n_macroparticles_per_bunch[:indexBunch+1]))
+        beamIteration.intensity = np.sum(intensity_per_bunch[:indexBunch+1])
+        beamIteration.ratio = beamIteration.intensity / beamIteration.n_macroparticles
         
         
         if TotalInducedVoltage is not None:
             TotalInducedVoltageIteration.slices.track()
-            TotalInducedVoltageIteration.induced_voltage_sum(beamIteration)
+            TotalInducedVoltageIteration.induced_voltage_sum()
 
-            left_edge = (indexBunch+1) * bunch_spacing_buckets * bucket_size_tau - bucket_tolerance * bucket_size_tau
-            right_edge = ((indexBunch+1) * bunch_spacing_buckets +1)* bucket_size_tau + bucket_tolerance * bucket_size_tau
-
-            tau_induced_voltage_next_bunch = TotalInducedVoltageIteration.slices.bin_centers[(TotalInducedVoltageIteration.slices.bin_centers > left_edge)*(TotalInducedVoltageIteration.slices.bin_centers < right_edge)]
-            induced_voltage_next_bunch = TotalInducedVoltageIteration.induced_voltage[(TotalInducedVoltageIteration.slices.bin_centers > left_edge)*(TotalInducedVoltageIteration.slices.bin_centers < right_edge)]
-
-            time_induced_voltage_next_bunch = (tau_induced_voltage_next_bunch - (indexBunch+1) * bunch_spacing_buckets * bucket_size_tau)
+            left_edge = ((indexBunch + 1) * bunch_spacing_buckets * 
+                          bucket_size_tau - bucket_tolerance * bucket_size_tau)
+            right_edge = (((indexBunch + 1) * bunch_spacing_buckets + 1) * 
+                          bucket_size_tau + bucket_tolerance * bucket_size_tau)
             
-            extraVoltageDict = {'time_array':time_induced_voltage_next_bunch, 'voltage_array':induced_voltage_next_bunch}
+            bin_centers = TotalInducedVoltageIteration.slices.bin_centers
+            
+            tau_induced_voltage_next_bunch = bin_centers[
+                        (bin_centers > left_edge) * (bin_centers < right_edge)]
+            induced_voltage_next_bunch = \
+                        TotalInducedVoltageIteration.induced_voltage[
+                        (bin_centers > left_edge) * (bin_centers < right_edge)]
+
+            time_induced_voltage_next_bunch = (tau_induced_voltage_next_bunch -
+                      (indexBunch+1) * bunch_spacing_buckets * bucket_size_tau)
+            
+            extraVoltageDict = {'time_array':time_induced_voltage_next_bunch,
+                                'voltage_array':induced_voltage_next_bunch}
 
             
         if plot_option:
             plt.figure('Bunch train + induced voltage')
             plt.clf()
-            plt.plot(TotalInducedVoltageIteration.slices.bin_centers, TotalInducedVoltageIteration.slices.n_macroparticles / (1.*np.max(TotalInducedVoltageIteration.slices.n_macroparticles))*np.max(TotalInducedVoltageIteration.induced_voltage))
-            plt.plot(TotalInducedVoltageIteration.slices.bin_centers, TotalInducedVoltageIteration.induced_voltage)
+            plt.plot(TotalInducedVoltageIteration.slices.bin_centers,
+                     TotalInducedVoltageIteration.slices.n_macroparticles / 
+                     (1.*np.max(TotalInducedVoltageIteration.slices.n_macroparticles)) *
+                     np.max(TotalInducedVoltageIteration.induced_voltage))
+            plt.plot(TotalInducedVoltageIteration.slices.bin_centers,
+                     TotalInducedVoltageIteration.induced_voltage)
             plt.show()
                 
     beam.dt = beamIteration.dt
@@ -143,14 +192,13 @@ def matched_from_distribution_density_multibunch(beam, GeneralParameters, FullRi
     beam.dE = beamIteration.dE
     
     
-def matched_from_line_density_multibunch(beam, GeneralParameters, FullRingAndRF, line_density_options_list,
-                                      n_bunches, bunch_spacing_buckets,
-                                      intensity_list = None,
-                                      minimum_n_macroparticles = None,
-                                      main_harmonic_option = 'lowest_freq', 
-                                      TotalInducedVoltage = None,
-                                      half_option = 'first',
-                                      plot_option = False):
+def matched_from_line_density_multibunch(beam, GeneralParameters,
+                        FullRingAndRF, line_density_options_list, n_bunches,
+                        bunch_spacing_buckets, intensity_list=None,
+                        minimum_n_macroparticles=None,
+                        main_harmonic_option='lowest_freq',
+                        TotalInducedVoltage=None, half_option='first',
+                        plot_option=False):
     '''
     *Function to generate a multi-bunch beam using the matched_from_distribution_density
     function for each bunch. The extra parameters to include are the number of 
@@ -212,37 +260,62 @@ def matched_from_line_density_multibunch(beam, GeneralParameters, FullRingAndRF,
         
         print('Generating bunch no %d' %(indexBunch+1))
         
-        bunch = Beam(GeneralParameters, int(n_macroparticles_per_bunch[indexBunch]), intensity_per_bunch[indexBunch])
+        bunch = Beam(GeneralParameters,
+                     int(n_macroparticles_per_bunch[indexBunch]),
+                     intensity_per_bunch[indexBunch])
         
         if isinstance(line_density_options_list, list):
             line_density_options = line_density_options_list[indexBunch]
         elif isinstance(line_density_options_list, dict):
             line_density_options = line_density_options_list
         else:
-            raise RuntimeError('The input line_density_options_list option of the matched_from_line_density_multibunch \
-            function should either be a dictionary as requested by the matched_from_line_density \
-            function, or a list of dictionaries containing n_bunches elements')
+            raise RuntimeError('The input line_density_options_list option ' +
+                               'of the matched_from_line_density_multibunch ' +
+                               'function should either be a dictionary as ' +
+                               'requested by the matched_from_line_density ' +
+                               'function, or a list of dictionaries ' +
+                               'containing n_bunches elements')
         
-        matched_from_line_density(bunch, FullRingAndRF, line_density_options, 
-                              main_harmonic_option = main_harmonic_option, 
-                              TotalInducedVoltage = TotalInducedVoltage,
-                              plot = plot_option, half_option = half_option,
-                              extraVoltageDict = extraVoltageDict)
+        
+        if 'bunch_length' in line_density_options:
+            bunch_length = line_density_options['bunch_length']
+        else:
+            bunch_length = None
+                              
+        if 'type' in line_density_options:
+            line_density_type = line_density_options['type']
+        else:
+            line_density_type = None
+        
+        if 'exponent' in line_density_options:
+            line_density_exponent = line_density_options['exponent']
+        else:
+            line_density_exponent = None
+        
+        matched_from_line_density(bunch, FullRingAndRF, line_density_options,
+                              main_harmonic_option=main_harmonic_option,
+                              TotalInducedVoltage=TotalInducedVoltage,
+                              plot=plot_option, half_option=half_option,
+                              extraVoltageDict=extraVoltageDict,
+                              bunch_length=bunch_length,
+                              line_density_type=line_density_type,
+                              line_density_exponent=line_density_exponent)
 
         if indexBunch==0:
             beamIteration.dt = bunch.dt
             beamIteration.dE = bunch.dE
         else:
-            beamIteration.dt = np.append(beamIteration.dt, bunch.dt +(indexBunch *bunch_spacing_buckets *bucket_size_tau))
+            beamIteration.dt = np.append(beamIteration.dt, bunch.dt +
+                        (indexBunch * bunch_spacing_buckets * bucket_size_tau))
             beamIteration.dE = np.append(beamIteration.dE, bunch.dE)
         
-        beamIteration.n_macroparticles = int(np.sum(n_macroparticles_per_bunch[0:indexBunch+1]))
-        beamIteration.intensity = np.sum(intensity_per_bunch[0:indexBunch+1])
+        beamIteration.n_macroparticles = int(np.sum(n_macroparticles_per_bunch[:indexBunch+1]))
+        beamIteration.intensity = np.sum(intensity_per_bunch[:indexBunch+1])
         beamIteration.ratio = beamIteration.intensity/beamIteration.n_macroparticles
         
         if TotalInducedVoltage is not None:
             TotalInducedVoltageIteration.slices.track()
-            TotalInducedVoltageIteration.induced_voltage_sum(beamIteration)        
+            TotalInducedVoltageIteration.induced_voltage_sum()        
             
             bucket_tolerance = 0.40  
             

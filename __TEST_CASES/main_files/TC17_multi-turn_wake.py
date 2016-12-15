@@ -1,8 +1,8 @@
 
 # Copyright 2016 CERN. This software is distributed under the
-# terms of the GNU General Public Licence version 3 (GPL Version 3), 
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
 # copied verbatim in the file LICENCE.md.
-# In applying this licence, CERN does not waive the privileges and immunities 
+# In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
@@ -17,6 +17,7 @@ domain.
 
 
 from __future__ import division
+from __future__ import print_function
 from builtins import range
 import numpy as np
 import pylab as plt
@@ -38,33 +39,31 @@ from scipy.constants import c, e, m_p
 particle_type = 'proton'
 n_particles = 1e11
 n_macroparticles = 5e5
-sigma_dt = 180e-9 / 4 # [s]     
+sigma_dt = 180e-9 / 4 # [s]
 kin_beam_energy = 1.4e9 # [eV]
 
 # Machine and RF parameters
 radius = 25.0
 gamma_transition = 4.4
-C = 2 * np.pi * radius  # [m]       
+C = 2 * np.pi * radius  # [m]
       
 # Tracking details
 n_turns = 5
-n_turns_between_two_plots = 1          
+n_turns_between_two_plots = 1   
 
 # Derived parameters
 E_0 = m_p*c**2/e    # [eV]
 tot_beam_energy =  E_0 + kin_beam_energy # [eV]
-sync_momentum = np.sqrt(tot_beam_energy**2 - E_0**2) # [eV / c]
+sync_momentum = np.sqrt(tot_beam_energy**2 - E_0**2) # [eV/c]
 
 gamma = tot_beam_energy / E_0
 beta = np.sqrt(1.0-1.0/gamma**2.0)
 
-bucket_length = C / beta / c
-
-momentum_compaction = 1 / gamma_transition**2 # [1]       
+momentum_compaction = 1 / gamma_transition**2
 
 # Cavities parameters
-n_rf_systems = 1                                     
-harmonic_numbers = 1                         
+n_rf_systems = 1
+harmonic_numbers = 1
 voltage_program = 8e3 #[V]
 phi_offset = -np.pi
 
@@ -80,6 +79,8 @@ RF_sct_par = RFSectionParameters(general_params, n_rf_systems,
 beam = Beam(general_params, n_macroparticles, n_particles)
 ring_RF_section = RingAndRFSection(RF_sct_par, beam)
 
+bucket_length = 2.0 * np.pi / RF_sct_par.omega_RF[0,0]
+
 # DEFINE BEAM------------------------------------------------------------------
 
 longitudinal_bigaussian(general_params, RF_sct_par, beam, sigma_dt, seed=1)
@@ -88,32 +89,32 @@ longitudinal_bigaussian(general_params, RF_sct_par, beam, sigma_dt, seed=1)
 # DEFINE SLICES----------------------------------------------------------------
 
 number_slices = 200
-slice_beam = Slices(RF_sct_par, beam, number_slices, cut_left = 0,
-                    cut_right = bucket_length)
+slice_beam = Slices(RF_sct_par, beam, number_slices, cut_left=0,
+                    cut_right=bucket_length)
 
 # Overwriting the slices by a Gaussian profile (no slicing noise)
 slice_beam.n_macroparticles = n_macroparticles * slice_beam.bin_size / \
     (sigma_dt * np.sqrt(2.0 * np.pi)) * np.exp(-0.5 * \
-    (slice_beam.bin_centers - bucket_length/2.0)**2.0 / sigma_dt**2.0) 
+    (slice_beam.bin_centers - bucket_length/2.0)**2.0 / sigma_dt**2.0)
                     
 # LOAD IMPEDANCE TABLES--------------------------------------------------------
-                     
+
 R_S = 5e3
 frequency_R = 10e6
 Q = 10
 
 resonator = Resonators(R_S, frequency_R, Q)
 
-# INDUCED VOLTAGE FROM IMPEDANCE------------------------------------------------
+# INDUCED VOLTAGE FROM IMPEDANCE-----------------------------------------------
 
 imp_list = [resonator]
 
 ind_volt_freq = InducedVoltageFreq(beam, slice_beam, imp_list,
-                    RFParams=RF_sct_par, frequency_resolution=1e5,
+                    RFParams=RF_sct_par, frequency_resolution=1e2,
                     multi_turn_wake=True, mtw_mode='time')
 
 ind_volt_time = InducedVoltageTime(beam, slice_beam, imp_list,
-                    RFParams=RF_sct_par, wake_length=50*bucket_length,
+                    RFParams=RF_sct_par, wake_length=n_turns*bucket_length,
                     multi_turn_wake=True)
                     
 ind_volt_freq_periodic = InducedVoltageFreq(beam, slice_beam, imp_list)
@@ -122,7 +123,7 @@ total_ind_volt_freq = TotalInducedVoltage(beam, slice_beam, [ind_volt_freq])
                  
 total_ind_volt_time = TotalInducedVoltage(beam, slice_beam, [ind_volt_time])
 
-total_ind_volt_freq_periodic = TotalInducedVoltage(beam, slice_beam, 
+total_ind_volt_freq_periodic = TotalInducedVoltage(beam, slice_beam,
                                                    [ind_volt_freq_periodic])
 
 
@@ -145,13 +146,14 @@ plt.plot(slice_beam.bin_centers*1e9, total_ind_volt_freq.induced_voltage, lw=2,
 plt.plot(slice_beam.bin_centers*1e9, total_ind_volt_time.induced_voltage, lw=2,
          label='Z in time MTW in freq', alpha=.75)
 plt.plot(slice_beam.bin_centers*1e9,
-         total_ind_volt_freq_periodic.induced_voltage, 
+         total_ind_volt_freq_periodic.induced_voltage,
          label='Z in freq. MTW from periodicity', lw=2, alpha=.75)
 
 # Multi-turn wake calculated using a convolution in time
-time_array = np.arange(-np.sum(RF_sct_par.t_rev[1:]), bucket_length, 
+time_array = np.arange(-np.sum(RF_sct_par.t_rev[1:]), bucket_length,
                        slice_beam.bin_size)
 profiles = np.zeros(time_array.shape)
+
 for i in range(1, n_turns+1):
     profiles += n_macroparticles * slice_beam.bin_size / (sigma_dt * \
     np.sqrt(2.0 * np.pi)) * np.exp(-0.5 * (time_array - bucket_length/2.0 + \
@@ -179,7 +181,7 @@ for i in range(n_turns):
         m.track()
         
     # Increasing turn counter manually because tracker is not called
-    RF_sct_par.counter[0] += 1  
+    RF_sct_par.counter[0] += 1
 
 plt.figure('comparison2')
 plt.plot(slice_beam.bin_centers*1e9, total_ind_volt_freq.induced_voltage, lw=2,
@@ -188,7 +190,7 @@ plt.plot(slice_beam.bin_centers*1e9, total_ind_volt_time.induced_voltage, lw=2,
          label='Z in time MTW in freq', alpha=.75)
 
 # Multi-turn wake calculated using a convolution in time
-time_array = np.arange(-np.sum(RF_sct_par.t_rev[1:]), bucket_length, 
+time_array = np.arange(-np.sum(RF_sct_par.t_rev[1:]), bucket_length,
                        slice_beam.bin_size)
 profiles = np.zeros(time_array.shape)
 for i in range(1, n_turns+1):
