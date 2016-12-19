@@ -166,7 +166,10 @@ def preprocess_ramp(particle_type, circumference, time, data,
         time_interp = np.asarray(time_interp)
         beta_interp = np.asarray(beta_interp)
         momentum_interp = np.asarray(momentum_interp)
-        
+
+    elif interpolation == 'derivative':
+
+        print("test")        
                 
     else:
         
