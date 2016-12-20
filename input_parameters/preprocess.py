@@ -10,7 +10,7 @@
 '''
 **Function(s) for pre-processing input data**
 
-:Authors: **Helga Timko**, **Alexandre Lasheen**, **Danilo Quartullo**
+:Authors: **Helga Timko**, **Alexandre Lasheen**, **Danilo Quartullo**, **Simon Albright**
 '''
 
 from __future__ import division
@@ -86,7 +86,7 @@ def preprocess_ramp(particle_type, circumference, time, data,
     time_interp = shift + T0*np.arange(0, flat_bottom+1)
     beta_interp = beta_0*np.ones(flat_bottom+1)
     momentum_interp = momentum[0]*np.ones(flat_bottom+1)
-        
+    
     time_interp = time_interp.tolist()
     beta_interp = beta_interp.tolist()
     momentum_interp = momentum_interp.tolist()
@@ -97,7 +97,7 @@ def preprocess_ramp(particle_type, circumference, time, data,
     # Interpolate data recursively
     if interpolation=='linear':
         
-        time_interp.append(time_interp[0]
+        time_interp.append(time_interp[-1]
                                      + circumference/(beta_interp[0]*c) )
 
         i = flat_bottom 
@@ -122,7 +122,7 @@ def preprocess_ramp(particle_type, circumference, time, data,
                   
         i = flat_bottom
        
-        time_interp.append(time_interp[0]
+        time_interp.append(time_interp[-1]
                          + circumference/(beta_interp[0]*c) )
         
         while time_interp[i] <= time[-1]:
@@ -167,7 +167,7 @@ def preprocess_ramp(particle_type, circumference, time, data,
 
         i = flat_bottom
 
-        time_interp.append(time_interp[0]
+        time_interp.append(time_interp[-1]
                          + circumference/(beta_interp[0]*c) )
 
         while time_interp[i] <= time[-1]:
@@ -203,7 +203,6 @@ def preprocess_ramp(particle_type, circumference, time, data,
     beta_interp = np.asarray(beta_interp)
     momentum_interp = np.asarray(momentum_interp)
 
- 
     # Obtain flat top data, extrapolate to constant
     if flat_top > 0:
         time_interp = np.append(time_interp, time_interp[-1] + circumference*np.arange(1, flat_top+1)/(beta_interp[-1]*c))
