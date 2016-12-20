@@ -85,9 +85,8 @@ slice_beam = Slices(RF_sct_par, beam, number_slices, cut_left=0.,
 
 
 # Single RF -------------------------------------------------------------------
-matched_from_distribution_function(beam, full_tracker, {},
+matched_from_distribution_function(beam, full_tracker, emittance=emittance, 
                                    distribution_type=distribution_type,
-                                   emittance=emittance,
                                    distribution_variable=distribution_variable,
                                    main_harmonic_option='lowest_freq')
 
@@ -157,7 +156,7 @@ longitudinal_tracker = RingAndRFSection(RF_sct_par,beam)
 full_tracker = FullRingAndRF([longitudinal_tracker])
 
 beam_generation_output = matched_from_distribution_function(beam, full_tracker,
-                                   {}, distribution_type=distribution_type,
+                                   distribution_type=distribution_type,
                                    emittance=emittance,
                                    distribution_variable=distribution_variable,
                                    main_harmonic_option='lowest_freq')
@@ -230,7 +229,7 @@ ind_volt = InducedVoltageFreq(beam, slice_beam, [Zres],
 total_induced_voltage = TotalInducedVoltage(beam, slice_beam, [ind_volt])
 
 beam_generation_output = matched_from_distribution_function(beam, full_tracker,
-                                   {}, distribution_type=distribution_type,
+                                   distribution_type=distribution_type,
                                    emittance=emittance,
                                    distribution_variable=distribution_variable,
                                    main_harmonic_option='lowest_freq',

@@ -127,7 +127,7 @@ matched_from_distribution_density_multibunch(beam, general_params,
 
 plt.figure()
 slice_beam.track()
-plt.plot(slice_beam.bin_centers, slice_beam.n_macroparticles, lw=2, 
+plt.plot(slice_beam.bin_centers, slice_beam.n_macroparticles, lw=2,
          label='without intensity effects')
          
 matched_from_distribution_density_multibunch(beam, general_params,
@@ -140,7 +140,7 @@ matched_from_distribution_density_multibunch(beam, general_params,
 
 
 slice_beam.track()
-plt.plot(slice_beam.bin_centers, slice_beam.n_macroparticles, lw=2, 
+plt.plot(slice_beam.bin_centers, slice_beam.n_macroparticles, lw=2,
          label='with intensity effects')
          
 plt.legend(loc=0, fontsize='medium')
@@ -154,7 +154,7 @@ matched_from_line_density_multibunch(beam, general_params,
                         
 plt.figure('From line density')
 slice_beam.track()
-plt.plot(slice_beam.bin_centers, slice_beam.n_macroparticles, lw=2, 
+plt.plot(slice_beam.bin_centers, slice_beam.n_macroparticles, lw=2,
          label='without intensity effects')
 
          
@@ -166,7 +166,7 @@ matched_from_line_density_multibunch(beam, general_params,
 
 plt.figure('From line density')
 slice_beam.track()
-plt.plot(slice_beam.bin_centers, slice_beam.n_macroparticles, lw=2, 
-         label='with intensity effects') 
+plt.plot(slice_beam.bin_centers, slice_beam.n_macroparticles, lw=2,
+         label='with intensity effects')
 plt.title('From line density')
 plt.legend(loc=0, fontsize='medium')

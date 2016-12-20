@@ -93,9 +93,9 @@ slice_beam = Slices(RF_sct_par, beam, number_slices, cut_left=0,
                     cut_right=bucket_length)
 
 # Overwriting the slices by a Gaussian profile (no slicing noise)
-slice_beam.n_macroparticles = n_macroparticles * slice_beam.bin_size / \
-    (sigma_dt * np.sqrt(2.0 * np.pi)) * np.exp(-0.5 * \
-    (slice_beam.bin_centers - bucket_length/2.0)**2.0 / sigma_dt**2.0)
+slice_beam.n_macroparticles = (n_macroparticles * slice_beam.bin_size /
+    (sigma_dt * np.sqrt(2.0 * np.pi)) * np.exp(-0.5 *
+    (slice_beam.bin_centers - bucket_length/2.0)**2.0 / sigma_dt**2.0))
                     
 # LOAD IMPEDANCE TABLES--------------------------------------------------------
 
@@ -110,7 +110,7 @@ resonator = Resonators(R_S, frequency_R, Q)
 imp_list = [resonator]
 
 ind_volt_freq = InducedVoltageFreq(beam, slice_beam, imp_list,
-                    RFParams=RF_sct_par, frequency_resolution=1e2,
+                    RFParams=RF_sct_par, frequency_resolution=1e3,
                     multi_turn_wake=True, mtw_mode='time')
 
 ind_volt_time = InducedVoltageTime(beam, slice_beam, imp_list,
@@ -140,7 +140,7 @@ for i in range(n_turns):
     for m in map_:
         m.track()
 
-plt.figure('comparison')
+plt.figure('comparison', figsize=[6,4.5])
 plt.plot(slice_beam.bin_centers*1e9, total_ind_volt_freq.induced_voltage, lw=2,
          label='Z in freq. MTW in time')
 plt.plot(slice_beam.bin_centers*1e9, total_ind_volt_time.induced_voltage, lw=2,
@@ -155,9 +155,9 @@ time_array = np.arange(-np.sum(RF_sct_par.t_rev[1:]), bucket_length,
 profiles = np.zeros(time_array.shape)
 
 for i in range(1, n_turns+1):
-    profiles += n_macroparticles * slice_beam.bin_size / (sigma_dt * \
-    np.sqrt(2.0 * np.pi)) * np.exp(-0.5 * (time_array - bucket_length/2.0 + \
-    np.sum(RF_sct_par.t_rev[i:-1]))**2.0 / sigma_dt**2.0)
+    profiles += n_macroparticles * slice_beam.bin_size / (sigma_dt *
+        np.sqrt(2.0 * np.pi)) * np.exp(-0.5 * (time_array - bucket_length/2.0 +
+        np.sum(RF_sct_par.t_rev[i:-1]))**2.0 / sigma_dt**2.0)
 
 ind_volt = - beam.charge * e * beam.ratio * \
            np.convolve(profiles, ind_volt_time.total_wake)
@@ -168,7 +168,7 @@ plt.xlim(0, bucket_length*1e9)
 plt.xlabel('Time [ns]')
 plt.ylabel('Induced voltage [V]')
 plt.title('Constant revolution frequency')
-plt.legend(loc=2, fontsize='medium')
+plt.legend(loc=2, fontsize='x-small')
 
 # SECOND COMPARISON: DIFFERENT REVOLUTION FREQUENCIES -------------------------
 
@@ -183,7 +183,7 @@ for i in range(n_turns):
     # Increasing turn counter manually because tracker is not called
     RF_sct_par.counter[0] += 1
 
-plt.figure('comparison2')
+plt.figure('comparison2', figsize=[6,4.5])
 plt.plot(slice_beam.bin_centers*1e9, total_ind_volt_freq.induced_voltage, lw=2,
          label='Z in freq. MTW in time')
 plt.plot(slice_beam.bin_centers*1e9, total_ind_volt_time.induced_voltage, lw=2,
@@ -194,12 +194,12 @@ time_array = np.arange(-np.sum(RF_sct_par.t_rev[1:]), bucket_length,
                        slice_beam.bin_size)
 profiles = np.zeros(time_array.shape)
 for i in range(1, n_turns+1):
-    profiles += n_macroparticles * slice_beam.bin_size / (sigma_dt * \
-    np.sqrt(2.0 * np.pi)) * np.exp(-0.5 * (time_array - bucket_length/2.0 + \
-    np.sum(RF_sct_par.t_rev[i:-1]))**2.0 / sigma_dt**2.0)
+    profiles += n_macroparticles * slice_beam.bin_size / (sigma_dt *
+        np.sqrt(2.0 * np.pi)) * np.exp(-0.5 * (time_array - bucket_length/2.0 +
+        np.sum(RF_sct_par.t_rev[i:-1]))**2.0 / sigma_dt**2.0)
 
-ind_volt = - beam.charge * e * beam.ratio * \
-           np.convolve(profiles, ind_volt_time.total_wake)
+ind_volt = -(beam.charge * e * beam.ratio *
+           np.convolve(profiles, ind_volt_time.total_wake))
 
 plt.plot(time_array*1e9, ind_volt[:time_array.shape[0]], lw=2, alpha=0.75,
          label='"Manual" convolution')

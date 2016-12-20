@@ -93,8 +93,7 @@ filling_pattern[::bunch_spacing] = 1
 
 # BEAM GENERATION--------------------------------------------------------------
 
-matched_from_distribution_function(beam, full_tracker, {}, 
-                                   emittance=emittance,
+matched_from_distribution_function(beam, full_tracker, emittance=emittance,
                                    distribution_type=distribution_type, 
                                    distribution_variable=distribution_variable)
 

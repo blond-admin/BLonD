@@ -98,8 +98,7 @@ slice_beam = Slices(RF_sct_par[0], beam, number_slices, cut_left = 0.,
 
 # BEAM GENERATION--------------------------------------------------------------
 
-matched_from_distribution_function(beam, full_tracker, {}, 
-                                   emittance=emittance,
+matched_from_distribution_function(beam, full_tracker, emittance=emittance,
                                    distribution_type=distribution_type, 
                                    distribution_variable=distribution_variable)
             
@@ -234,8 +233,7 @@ slice_beam = Slices(RF_sct_par[0], beam, number_slices, cut_left = 0.,
 
 # BEAM GENERATION--------------------------------------------------------------
 
-matched_from_distribution_function(beam, full_tracker, {}, 
-                                   emittance=emittance,
+matched_from_distribution_function(beam, full_tracker, emittance=emittance,
                                    distribution_type=distribution_type, 
                                    distribution_variable=distribution_variable)
             

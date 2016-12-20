@@ -146,8 +146,7 @@ plt.close()
 
 # BEAM GENERATION -------------------------------------------------------------
 
-matched_from_distribution_function(beam, full_tracker, {},
-                                  main_harmonic_option='lowest_freq',
+matched_from_distribution_function(beam, full_tracker,
                                   distribution_type=distribution_type,
                                   bunch_length=bunch_length, n_iterations=20,
                                   TotalInducedVoltage=total_ind_volt)

@@ -125,19 +125,32 @@ def matched_from_distribution_density_multibunch(beam, GeneralParameters, FullRi
         if 'density_variable' in distribution_options:
             distribution_variable = distribution_options['density_variable']
         else:
-            distribution_variable = None
+            distribution_variable = None            
+        
+        if distribution_options['type'] is 'user_input':
+            distribution_function_input = distribution_options['function']
+        else:
+            distribution_function_input = None
+        
+        if distribution_options['type'] is 'user_input_table':
+            distribution_user_table = {
+              'user_table_action': distribution_options['user_table_action'],
+              'user_table_density': distribution_options['user_table_density']}
+        else:
+            distribution_user_table = None
             
         matched_from_distribution_function(bunch, FullRingAndRF,
-                               distribution_options, 
-                               main_harmonic_option=main_harmonic_option,
-                               TotalInducedVoltage=TotalInducedVoltage,
-                               n_iterations=n_iterations_input,
-                               extraVoltageDict=extraVoltageDict,
-                               distribution_exponent=distribution_exponent,
-                               distribution_type=distribution_type,
-                               emittance=emittance, bunch_length=bunch_length,
-                               bunch_length_fit=bunch_length_fit,
-                               distribution_variable=distribution_variable)
+                       distribution_function_input=distribution_function_input,
+                       distribution_user_table=distribution_user_table,
+                       main_harmonic_option=main_harmonic_option,
+                       TotalInducedVoltage=TotalInducedVoltage,
+                       n_iterations=n_iterations_input,
+                       extraVoltageDict=extraVoltageDict,
+                       distribution_exponent=distribution_exponent,
+                       distribution_type=distribution_type,
+                       emittance=emittance, bunch_length=bunch_length,
+                       bunch_length_fit=bunch_length_fit,
+                       distribution_variable=distribution_variable)
 
         if indexBunch==0:
             beamIteration.dt = bunch.dt
@@ -292,7 +305,15 @@ def matched_from_line_density_multibunch(beam, GeneralParameters,
         else:
             line_density_exponent = None
         
-        matched_from_line_density(bunch, FullRingAndRF, line_density_options,
+        if line_density_options['type'] is 'user_input':
+            line_density_input = {
+                        'time_line_den': line_density_options['time_line_den'],
+                        'line_density': line_density_options['line_density']}
+        else:
+            line_density_input = None
+        
+        matched_from_line_density(bunch, FullRingAndRF,
+                              line_density_input=line_density_input,
                               main_harmonic_option=main_harmonic_option,
                               TotalInducedVoltage=TotalInducedVoltage,
                               plot=plot_option, half_option=half_option,

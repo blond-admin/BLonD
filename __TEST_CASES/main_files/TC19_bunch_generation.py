@@ -25,7 +25,7 @@ from beams.beams import Beam
 from beams.distributions import matched_from_distribution_function
 from beams.distributions import matched_from_line_density
 from beams.slices import Slices
-from impedances.impedance import InducedVoltageFreq, TotalInducedVoltage
+from impedances.impedance import InducedVoltageFreq, TotalInducedVoltage, InducedVoltageTime
 from impedances.impedance_sources import Resonators
 from scipy.constants import c, e, m_p
 
@@ -99,9 +99,9 @@ slice_beam = Slices(RF_sct_par, beam, number_slices, cut_left=0,
                 
 # LOAD IMPEDANCE TABLES -------------------------------------------------------
 
-R_S = 2e4
-frequency_R = 10*RF_sct_par.omega_RF[0,0] / 2.0 / np.pi
-Q = 1
+R_S = 2e4*1000
+frequency_R = 10*RF_sct_par.omega_RF[0,0] / 2.0 / np.pi   /10
+Q = 100
 
 print('Im Z/n = '+str(R_S / (RF_sct_par.t_rev[0] * frequency_R * Q)))
 
@@ -115,12 +115,13 @@ imp_list = [resonator]
 ind_volt_freq = InducedVoltageFreq(beam, slice_beam, imp_list,
                                    frequency_resolution=5e5)
 
+#ind_volt_freq = InducedVoltageTime(beam, slice_beam, imp_list)
+
 total_ind_volt = TotalInducedVoltage(beam, slice_beam, [ind_volt_freq])
 
 # BEAM GENERATION -------------------------------------------------------------
 
-matched_from_distribution_function(beam, full_tracker, {},
-                                  main_harmonic_option='lowest_freq',
+matched_from_distribution_function(beam, full_tracker,
                                   distribution_type=distribution_type,
                                   distribution_exponent=distribution_exponent,
                                   bunch_length=bunch_length,
@@ -132,9 +133,7 @@ slice_beam.track()
 plt.plot(slice_beam.bin_centers, slice_beam.n_macroparticles, lw=2, 
          label='from distribution function')
          
-matched_from_line_density(beam, full_tracker, {}, 
-                          main_harmonic_option='lowest_freq',
-                          bunch_length=bunch_length,
+matched_from_line_density(beam, full_tracker, bunch_length=bunch_length,
                           line_density_type=distribution_type,
                           line_density_exponent=distribution_exponent)
 
@@ -145,8 +144,7 @@ plt.plot(slice_beam.bin_centers, slice_beam.n_macroparticles, lw=2,
 plt.legend(loc=0, fontsize='medium')
 plt.title('Without intensity effects')
 
-matched_from_distribution_function(beam, full_tracker, {},
-                                  main_harmonic_option='lowest_freq',
+matched_from_distribution_function(beam, full_tracker,
                                   distribution_type=distribution_type,
                                   distribution_exponent=distribution_exponent,
                                   bunch_length_fit=bunch_length_fit,
@@ -159,12 +157,10 @@ slice_beam.track()
 plt.plot(slice_beam.bin_centers, slice_beam.n_macroparticles, lw=2, 
          label='from distribution function')
          
-matched_from_line_density(beam, full_tracker, {},
-                          main_harmonic_option='lowest_freq',
-                          TotalInducedVoltage=total_ind_volt,
-                          bunch_length=bunch_length,
+matched_from_line_density(beam, full_tracker, bunch_length=bunch_length,
                           line_density_type=distribution_type,
-                          line_density_exponent=distribution_exponent)
+                          line_density_exponent=distribution_exponent,
+                          TotalInducedVoltage=total_ind_volt)
 
 slice_beam.track()
 plt.plot(slice_beam.bin_centers, slice_beam.n_macroparticles, lw=2, 

@@ -1,8 +1,8 @@
 
 # Copyright 2016 CERN. This software is distributed under the
-# terms of the GNU General Public Licence version 3 (GPL Version 3), 
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
 # copied verbatim in the file LICENCE.md.
-# In applying this licence, CERN does not waive the privileges and immunities 
+# In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
@@ -10,7 +10,7 @@
 '''
 **Module to compute intensity effects**
 
-:Authors: **Juan F. Esteban Mueller**, **Danilo Quartullo**, 
+:Authors: **Juan F. Esteban Mueller**, **Danilo Quartullo**,
           **Alexandre Lasheen**
 '''
 
@@ -27,8 +27,8 @@ linear_interp_kick = libblond.linear_interp_kick
 
 class TotalInducedVoltage(object):
     '''
-    *Object gathering all the induced voltage contributions. The input is a 
-    list of objects able to compute induced voltages (InducedVoltageTime, 
+    *Object gathering all the induced voltage contributions. The input is a
+    list of objects able to compute induced voltages (InducedVoltageTime,
     InducedVoltageFreq, InductiveImpedance). All the induced voltages will
     be summed in order to reduce the computing time. All the induced
     voltages should have the same slicing resolution.*
@@ -72,12 +72,12 @@ class TotalInducedVoltage(object):
 
         for induced_voltage_object in self.induced_voltage_list:
             induced_voltage_object.induced_voltage_generation()
-            temp_induced_voltage += induced_voltage_object.induced_voltage[:self.slices.n_slices]
+            temp_induced_voltage += \
+                  induced_voltage_object.induced_voltage[:self.slices.n_slices]
             
         self.induced_voltage = temp_induced_voltage
         
         
-    
     def track(self):
         '''
         *Track method to apply the induced voltage kick on the beam.*
@@ -175,16 +175,22 @@ class _InducedVoltage(object):
             raise RuntimeError('Error: only one of wake_length or '+
                 'frequency_resolution can be specified.')
         
+        print(self.n_induced_voltage, self.wake_length, self.frequency_resolution)
         
         if self.multi_turn_wake:            
             # Number of points of the memory array for multi-turn wake
             self.n_mtw_memory = self.n_induced_voltage
+            
+            self.front_wake_buffer = 0
             
             if self.mtw_mode == 'freq':
                 # In frequency domain, an extra buffer for a revolution turn is
                 # needed due to the circular time shift in frequency domain
                 self.buffer_size = \
                     np.ceil(np.max(self.RFParams.t_rev) / self.slices.bin_size)
+                # Extending the buffer to reduce the effect of the front wake
+                self.buffer_size += \
+                    np.ceil(np.max(self.buffer_extra) / self.slices.bin_size)
                 self.n_mtw_memory += int(self.buffer_size)
                 # Using next regular for FFTs speedup
                 self.n_mtw_fft = next_regular(self.n_mtw_memory)
@@ -236,6 +242,11 @@ class _InducedVoltage(object):
         # Induced voltage of the current turn calculation
         self.induced_voltage_1turn()
         
+        # Setting to zero to the last part to remove the contribution from the
+        # front wake
+        self.induced_voltage[self.n_induced_voltage -
+                             self.front_wake_buffer:] = 0
+        
         # Add the induced voltage of the current turn to the memory from
         # previous turns
         self.mtw_memory[:self.n_induced_voltage] += self.induced_voltage
@@ -285,8 +296,8 @@ class _InducedVoltage(object):
                            c_uint(self.slices.n_slices),
                            c_uint(self.beam.n_macroparticles))
 
-                           
-            
+
+
 class InducedVoltageTime(_InducedVoltage):
     '''
     *Induced voltage derived from the sum of several wake fields (time domain)*
@@ -319,8 +330,8 @@ class InducedVoltageTime(_InducedVoltage):
         # in the frequency domain. The next regular number is used for speed,
         # therefore the frequency resolution is always equal or finer than
         # the input value
-        self.n_fft = next_regular(int(self.n_induced_voltage +
-                                      self.slices.n_slices) - 1)
+        self.n_fft = next_regular(int(self.n_induced_voltage) +
+                                  int(self.slices.n_slices) - 1)
         
         #: *Time array of the wake in s*
         self.time = np.arange(0, self.wake_length, self.wake_length /
@@ -353,7 +364,7 @@ class InducedVoltageFreq(_InducedVoltage):
         
     def __init__(self, Beam, Slices, impedance_source_list, 
                  frequency_resolution=None, multi_turn_wake=False, 
-                 RFParams=None, mtw_mode=None):
+                 front_wake_length=0, RFParams=None, mtw_mode=None):
         
         #: *Impedance sources list (e.g. list of Resonator objects)*
         self.impedance_source_list = impedance_source_list
@@ -361,10 +372,16 @@ class InducedVoltageFreq(_InducedVoltage):
         #: *Total impedance array of all sources in* :math:`\Omega`
         self.total_impedance = 0
         
+        #: *Lenght in s of the front wake (if any) for multi-turn wake mode.
+        # If the impedance calculation is performed in frequency domain, an
+        # artificial front wake may appear. With this option, it is possible to
+        # set to zero a portion at the end of the induced voltage array.*
+        self.front_wake_length = front_wake_length
+        
         # Call the __init__ method of the parent class
-        _InducedVoltage.__init__(self, Beam, Slices, wake_length=None, 
+        _InducedVoltage.__init__(self, Beam, Slices, wake_length=None,
                  frequency_resolution=frequency_resolution,
-                 multi_turn_wake=multi_turn_wake, RFParams=RFParams, 
+                 multi_turn_wake=multi_turn_wake, RFParams=RFParams,
                  mtw_mode=mtw_mode)
 
 
@@ -384,6 +401,11 @@ class InducedVoltageFreq(_InducedVoltage):
         
         #: *Frequency array of the impedance in Hz*
         self.freq = self.slices.beam_spectrum_freq
+            
+        # Length of the front wake in frequency domain calculations 
+        if self.front_wake_length:            
+            self.front_wake_buffer = int(np.ceil(
+                    np.max(self.front_wake_length) / self.slices.bin_size))
         
         # Processing the impedances
         self.sum_impedances(self.freq)

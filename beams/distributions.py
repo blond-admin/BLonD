@@ -26,9 +26,9 @@ from .slices import Slices
 from scipy.integrate import cumtrapz
 from trackers.utilities import potential_well_cut, minmax_location
 
+# TODO: option to set potential well limits to revolution period
 
-
-def matched_from_line_density(beam, full_ring_and_RF, line_density_options,
+def matched_from_line_density(beam, full_ring_and_RF, line_density_input=None,
                               main_harmonic_option='lowest_freq',
                               TotalInducedVoltage=None, plot=False,
                               figdir='fig', half_option='first',
@@ -88,12 +88,12 @@ def matched_from_line_density(beam, full_ring_and_RF, line_density_options,
 
     elif line_density_type is 'user_input':
         # Time coordinates for the line density
-        time_line_den = line_density_options['time_line_den']
+        time_line_den = line_density_input['time_line_den']
         n_points_line_den = len(time_line_den)
         line_den_resolution = time_line_den[1] - time_line_den[0]
                         
         # Normalizing the line density
-        line_density_ = line_density_options['line_density']
+        line_density_ = line_density_input['line_density']
         line_density_ -= np.min(line_density_)
         line_density_ *= beam.n_macroparticles / np.sum(line_density_)
     else:
@@ -113,6 +113,7 @@ def matched_from_line_density(beam, full_ring_and_RF, line_density_options,
         slices.bin_size = line_den_resolution
         slices.cut_left = time_line_den[0] - 0.5*slices.bin_size
         slices.cut_right = time_line_den[-1] + 0.5*slices.bin_size
+        slices.cuts_unit = 's'
         slices.set_cuts()
 #        slices.fit_option = 'off'  # Why was that here?
         
@@ -362,7 +363,8 @@ def matched_from_line_density(beam, full_ring_and_RF, line_density_options,
 
 
 def matched_from_distribution_function(beam, full_ring_and_RF,
-                               distribution_options, 
+                               distribution_function_input=None,
+                               distribution_user_table=None,
                                main_harmonic_option='lowest_freq',
                                TotalInducedVoltage=None,
                                n_iterations=1, n_points_potential=1e4,
@@ -399,8 +401,8 @@ def matched_from_distribution_function(beam, full_ring_and_RF,
     '''
         
     # Loading the distribution function if provided by the user
-    if distribution_type is 'user_input':
-        distribution_function_ = distribution_options['function']
+    if distribution_function_input is not None:
+        distribution_function_ = distribution_function_input
     else:
         distribution_function_ = distribution_function
     
@@ -557,13 +559,13 @@ def matched_from_distribution_function(beam, full_ring_and_RF,
                                sorted_H_dE0)
         
         # Computing the density grid
-        if distribution_type is not 'user_input_table':
+        if distribution_user_table is None:
             density_grid = distribution_function_(X_grid, distribution_type,
                                                   X0, distribution_exponent)
         else:
             density_grid = np.interp(X_grid,
-                            distribution_options['user_table_action'],
-                            distribution_options['user_table_distribution'])
+                            distribution_user_table['user_table_action'],
+                            distribution_user_table['user_table_distribution'])
         
         # Normalizing the grid
         density_grid[H_grid>np.max(H_array_dE0)] = 0
@@ -581,6 +583,7 @@ def matched_from_distribution_function(beam, full_ring_and_RF,
             slices.bin_size = time_resolution_low
             slices.cut_left = time_potential_low_res[0] - 0.5*slices.bin_size
             slices.cut_right = time_potential_low_res[-1] + 0.5*slices.bin_size
+            slices.cuts_unit = 's'
             slices.set_cuts()
             
             # Re-calculating the sources of wakes/impedances according to this

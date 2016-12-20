@@ -87,8 +87,8 @@ longitudinal_bigaussian(general_params, RF_sct_par, beam, sigma_dt, seed=1)
 
 # DEFINE SLICES----------------------------------------------------------------
 
-number_slices = 100
-slice_beam = Slices(RF_sct_par, beam, number_slices, cut_left=0, 
+number_slices = int(100*2.5)
+slice_beam = Slices(RF_sct_par, beam, number_slices, cut_left=0,
                     cut_right=bucket_length)
 
 # LOAD IMPEDANCE TABLES--------------------------------------------------------
@@ -107,9 +107,9 @@ imp_list = [resonator]
 
 ind_volt_freq = InducedVoltageFreq(beam, slice_beam, imp_list,
                     frequency_resolution=1e4)
-
-ind_volt_time = InducedVoltageTime(beam, slice_beam, imp_list)
-
+#print(11)
+ind_volt_time = InducedVoltageTime(beam, slice_beam, imp_list)#, wake_length=bucket_length)
+#print(12)
 total_ind_volt_freq = TotalInducedVoltage(beam, slice_beam, [ind_volt_freq])
 
 total_ind_volt_time = TotalInducedVoltage(beam, slice_beam, [ind_volt_time])

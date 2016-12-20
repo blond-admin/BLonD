@@ -34,7 +34,7 @@ from scipy.constants import c, e, m_e
 # Beam parameters
 particle_type = 'electron'
 n_particles = int(1.7e11)          
-n_macroparticles = int(50e6)
+n_macroparticles = int(20e6)
 sync_momentum = 175e9 # [eV]
 
 distribution_type = 'gaussian'
@@ -94,8 +94,7 @@ filling_pattern[::bunch_spacing] = 1
 
 # BEAM GENERATION--------------------------------------------------------------
 
-matched_from_distribution_function(beam, full_tracker, {}, 
-                                   emittance=emittance,
+matched_from_distribution_function(beam, full_tracker, emittance=emittance,
                                    distribution_type=distribution_type, 
                                    distribution_variable=distribution_variable)
 
