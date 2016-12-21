@@ -356,17 +356,21 @@ def matched_from_distribution_density(Beam, FullRingAndRF, distribution_options,
     else:
         distribution_density_function = _distribution_density_function
     
+
     # Initialize variables depending on the accelerator parameters
-    slippage_factor = FullRingAndRF.RingAndRFSection_list[0].eta_0[0]
+    slippage_factor = FullRingAndRF.RingAndRFSection_list[0].eta_0[turn_number]
     
     eom_factor_dE = abs(slippage_factor) / (2*Beam.beta**2. * Beam.energy)
-    eom_factor_potential = np.sign(slippage_factor) * Beam.charge / (FullRingAndRF.RingAndRFSection_list[0].t_rev[0])
+    eom_factor_potential = np.sign(slippage_factor) * Beam.charge / (FullRingAndRF.RingAndRFSection_list[0].t_rev[turn_number])
 
     # Generate potential well
     n_points_potential = int(1e4)
     FullRingAndRF.potential_well_generation(n_points = n_points_potential, 
                                             dt_margin_percent = dt_margin_percent, 
                                             main_harmonic_option = main_harmonic_option)
+
+
+#potential well here
     potential_well_array = FullRingAndRF.potential_well 
     time_coord_array = FullRingAndRF.potential_well_coordinates
     time_resolution = time_coord_array[1] - time_coord_array[0]

@@ -48,7 +48,7 @@ class FullRingAndRF(object):
         self.ring_radius = self.ring_circumference / (2*np.pi)
         
         
-        
+#generate potential well on non-default turn        
     def potential_well_generation(self, turn = 0, n_points = 1e5, 
                                   main_harmonic_option = 'lowest_freq', 
                                   dt_margin_percent = 0.):
