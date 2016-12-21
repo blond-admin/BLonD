@@ -154,6 +154,10 @@ class _InducedVoltage(object):
             # Number of points of the induced voltage array
             self.n_induced_voltage = int(np.ceil(self.wake_length_input/
                                                  self.slices.bin_size))
+            if self.n_induced_voltage < self.slices.n_slices:
+                raise RuntimeError('Error: too short wake length. '+
+                'Increase it above {0:1.2e} s.'.format(self.slices.n_slices *
+                                                       self.slices.bin_size))
             #: *Wake length in s, rounded up to the next multiple of bin size*
             self.wake_length = self.n_induced_voltage * self.slices.bin_size
             self.frequency_resolution = 1 / self.wake_length
@@ -161,6 +165,10 @@ class _InducedVoltage(object):
                 and self.wake_length_input == None):
             self.n_induced_voltage = int(np.ceil(1/ (self.slices.bin_size *
                                              self.frequency_resolution_input)))
+            if self.n_induced_voltage < self.slices.n_slices:
+                raise RuntimeError('Error: too large frequency_resolution. '+
+                'Reduce it below {0:1.2e} Hz.'.format(1 / 
+                               (self.slices.cut_right - self.slices.cut_left)))
             self.wake_length = self.n_induced_voltage * self.slices.bin_size
             #: *Frequency resolution in Hz*
             self.frequency_resolution = 1 / self.wake_length
@@ -174,9 +182,7 @@ class _InducedVoltage(object):
         else:
             raise RuntimeError('Error: only one of wake_length or '+
                 'frequency_resolution can be specified.')
-        
-        print(self.n_induced_voltage, self.wake_length, self.frequency_resolution)
-        
+                
         if self.multi_turn_wake:            
             # Number of points of the memory array for multi-turn wake
             self.n_mtw_memory = self.n_induced_voltage

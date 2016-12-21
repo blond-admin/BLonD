@@ -107,9 +107,9 @@ imp_list = [resonator]
 
 ind_volt_freq = InducedVoltageFreq(beam, slice_beam, imp_list,
                     frequency_resolution=1e4)
-#print(11)
-ind_volt_time = InducedVoltageTime(beam, slice_beam, imp_list)#, wake_length=bucket_length)
-#print(12)
+
+ind_volt_time = InducedVoltageTime(beam, slice_beam, imp_list)
+
 total_ind_volt_freq = TotalInducedVoltage(beam, slice_beam, [ind_volt_freq])
 
 total_ind_volt_time = TotalInducedVoltage(beam, slice_beam, [ind_volt_time])
