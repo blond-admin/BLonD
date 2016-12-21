@@ -321,7 +321,8 @@ def matched_from_distribution_density(Beam, FullRingAndRF, distribution_options,
                                       main_harmonic_option = 'lowest_freq', 
                                       TotalInducedVoltage = None,
                                       n_iterations_input = 1,
-                                      extraVoltageDict = None, seed = None, dt_margin_percent=0.40, process_pot_well = True ):
+                                      extraVoltageDict = None, seed = None, dt_margin_percent=0.40, process_pot_well = True,
+                                      turn_number = 0):
     '''
     *Function to generate a beam by inputing the distribution density (by
     choosing the type of distribution and the emittance). 
