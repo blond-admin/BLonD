@@ -126,19 +126,26 @@ if (__name__ == "__main__"):
         os.system('del /s/q ' + os.getcwd() + '\\cpp_routines\\*.dll')
         os.system('del /s/q ' + os.getcwd() + '\\synchrotron_radiation\\*.dll')
 
-        command = [compiler] + cflags + \
-            ['-o', 'cpp_routines\\result.dll'] + cpp_files
-        subprocess.Popen(command)
+#         command = [compiler] + cflags + \
+#             ['-o', 'cpp_routines\\result.dll'] + cpp_files
+#         subprocess.Popen(command)
+# 
+#         command = [compiler] + cflags + \
+#             ['-o', 'synchrotron_radiation\\sync_rad.dll'] + cpp_files_SR
+#         subprocess.Popen(command)
 
-        command = [compiler] + cflags + \
-            ['-o', 'synchrotron_radiation\\sync_rad.dll'] + cpp_files_SR
-        subprocess.Popen(command)
-
-        # os.system('g++ -o ' + x + '\\cpp_routines\\result.dll -shared ' +
-        #           flags + ' ' + x + '\\' + list_cpp_files)
-        # os.system('g++ -o ' + x + '\\synchrotron_radiation\\sync_rad.dll -shared ' +
-        #           flags + ' ' + x + '\\' + list_cpp_files_SR)
-
+        cpp_files_join_list = os.getcwd()+'\\'+' '.join(cpp_files)
+        cpp_files_SR_join_list = os.getcwd()+'\\'+' '.join(cpp_files_SR)
+        cflags_join_list = ' '+ ' '.join(cflags)
+        
+        command = compiler + cflags_join_list + ' -o ' + \
+            os.getcwd()+'\\cpp_routines\\result.dll -shared ' + cpp_files_join_list
+        os.system(command)
+        
+        command = compiler + cflags_join_list + ' -o ' + \
+            os.getcwd()+'\\synchrotron_radiation\\sync_rad.dll -shared ' + cpp_files_SR_join_list
+        os.system(command)
+        
         print('\nIF THE COMPILATION IS CORRECT A FILE NAMED result.dll SHOULD'
               ' APPEAR IN THE cpp_routines FOLDER. OTHERWISE YOU HAVE TO'
               ' CORRECT THE ERRORS AND COMPILE AGAIN.')
