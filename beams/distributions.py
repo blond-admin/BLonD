@@ -360,12 +360,15 @@ def matched_from_distribution_density(Beam, FullRingAndRF, distribution_options,
     # Initialize variables depending on the accelerator parameters
     slippage_factor = FullRingAndRF.RingAndRFSection_list[0].eta_0[turn_number]
     
-    eom_factor_dE = abs(slippage_factor) / (2*Beam.beta**2. * Beam.energy)
+#    eom_factor_dE = abs(slippage_factor) / (2*Beam.beta**2. * Beam.energy)
+    beta = FullRingAndRF.RingAndRFSection_list[0].rf_params.beta[turn_number]
+    energy = FullRingAndRF.RingAndRFSection_list[0].rf_params.energy[turn_number]
+    eom_factor_dE = abs(slippage_factor) / (2*beta**2. * energy)
     eom_factor_potential = np.sign(slippage_factor) * Beam.charge / (FullRingAndRF.RingAndRFSection_list[0].t_rev[turn_number])
 
     # Generate potential well
     n_points_potential = int(1e4)
-    FullRingAndRF.potential_well_generation(n_points = n_points_potential, 
+    FullRingAndRF.potential_well_generation(turn_number = turn_number, n_points = n_points_potential,
                                             dt_margin_percent = dt_margin_percent, 
                                             main_harmonic_option = main_harmonic_option)
 
