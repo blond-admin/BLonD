@@ -360,7 +360,6 @@ def matched_from_distribution_density(Beam, FullRingAndRF, distribution_options,
     # Initialize variables depending on the accelerator parameters
     slippage_factor = FullRingAndRF.RingAndRFSection_list[0].eta_0[turn_number]
     
-#    eom_factor_dE = abs(slippage_factor) / (2*Beam.beta**2. * Beam.energy)
     beta = FullRingAndRF.RingAndRFSection_list[0].rf_params.beta[turn_number]
     energy = FullRingAndRF.RingAndRFSection_list[0].rf_params.energy[turn_number]
     eom_factor_dE = abs(slippage_factor) / (2*beta**2. * energy)
@@ -372,8 +371,6 @@ def matched_from_distribution_density(Beam, FullRingAndRF, distribution_options,
                                             dt_margin_percent = dt_margin_percent, 
                                             main_harmonic_option = main_harmonic_option)
 
-
-#potential well here
     potential_well_array = FullRingAndRF.potential_well 
     time_coord_array = FullRingAndRF.potential_well_coordinates
     time_resolution = time_coord_array[1] - time_coord_array[0]
@@ -499,7 +496,7 @@ def matched_from_distribution_density(Beam, FullRingAndRF, distribution_options,
                     tau = 4.0 * np.sqrt(np.sum((time_coord_low_res - np.sum(line_density * time_coord_low_res) / np.sum(line_density))**2 * line_density) / np.sum(line_density))            
                     
                     if 'bunch_length_fit' in distribution_options:
-                        slices = Slices(FullRingAndRF.RingAndRFSection_list[0].rf_params, Beam,n_points_grid)
+                        slices = Slices(FullRingAndRF.RingAndRFSection_list[0].rf_params, Beam, n_points_grid)
                         slices.n_macroparticles = line_density
                         
                         slices.bin_centers = time_coord_low_res
