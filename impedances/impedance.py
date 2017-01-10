@@ -18,7 +18,7 @@ from builtins import range, object
 import numpy as np
 from toolbox.next_regular import next_regular
 from numpy.fft import  rfft, irfft, rfftfreq
-import ctypes
+import ctypes, time
 from scipy.constants import e
 from scipy.signal import filtfilt
 import scipy.ndimage as ndimage
@@ -114,9 +114,10 @@ class TotalInducedVoltage(object):
                 
             elif self.mode_mtw=='fifth_method':
                 self.points_before = self.slices.n_slices*self.n_windows_before
-                self.induced_voltage_extended = np.zeros(self.n_fft_sampling-self.points_before)
-                t_max = (self.n_fft_sampling-self.points_before) * (self.slices.bin_centers[1]-self.slices.bin_centers[0])
-                self.time_array_interp = np.linspace(self.slices.bin_centers[0], t_max-(self.slices.bin_centers[1]-self.slices.bin_centers[0])/2, self.n_fft_sampling-self.points_before)
+                self.points_ext_ind_volt = self.n_fft_sampling-self.points_before
+                self.induced_voltage_extended = np.zeros(self.points_ext_ind_volt)
+                t_max = self.points_ext_ind_volt * (self.slices.bin_centers[1]-self.slices.bin_centers[0])
+                self.time_array_interp = np.linspace(self.slices.bin_centers[0], t_max-(self.slices.bin_centers[1]-self.slices.bin_centers[0])/2, self.points_ext_ind_volt)
                 
             else:
                 raise RuntimeError('Error! Aborting...')
@@ -266,9 +267,15 @@ class TotalInducedVoltage(object):
             # To be used in presence of acceleration. Interpolation in time domain.
             padded_before_profile = np.lib.pad(self.slices.n_macroparticles, (self.points_before,0), 'constant', constant_values=(0,0))
             self.fourier_transf_profile = rfft(padded_before_profile, self.n_fft_sampling)
-            
+            time_array_shifted = self.time_array_interp + self.rev_time_array[self.counter_turn]
+            interpolation2 = np.zeros(self.points_ext_ind_volt)
+            libblond.linear_interp_time_translation(self.time_array_interp.ctypes.data_as(ctypes.c_void_p),
+                                  self.induced_voltage_extended.ctypes.data_as(ctypes.c_void_p), 
+                                  time_array_shifted.ctypes.data_as(ctypes.c_void_p), 
+                                  interpolation2.ctypes.data_as(ctypes.c_void_p), 
+                                  ctypes.c_uint(self.points_ext_ind_volt))
             self.induced_voltage_extended = irfft(self.coefficient * self.fourier_transf_profile * self.sum_impedances_memory, self.n_fft_sampling)[self.points_before:] + \
-                                                + np.interp(self.time_array_interp + self.rev_time_array[self.counter_turn], self.time_array_interp, self.induced_voltage_extended, left=0, right=0)
+                                                + interpolation2
             self.induced_voltage = self.induced_voltage_extended[:self.slices.n_slices]
             
                                                 
