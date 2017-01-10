@@ -115,7 +115,7 @@ class TotalInducedVoltage(object):
             elif self.mode_mtw=='fifth_method':
                 self.points_before = self.slices.n_slices*self.n_windows_before
                 self.induced_voltage_extended = np.zeros(self.n_fft_sampling-self.points_before)
-                t_max = self.n_fft_sampling * (self.slices.bin_centers[1]-self.slices.bin_centers[0])
+                t_max = (self.n_fft_sampling-self.points_before) * (self.slices.bin_centers[1]-self.slices.bin_centers[0])
                 self.time_array_interp = np.linspace(self.slices.bin_centers[0], t_max-(self.slices.bin_centers[1]-self.slices.bin_centers[0])/2, self.n_fft_sampling-self.points_before)
                 
             else:
