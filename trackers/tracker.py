@@ -354,23 +354,25 @@ class RingAndRFSection(object):
             # right of the frame.
             self.indices_right_outside = np.where(self.beam.dt > self.t_rev[self.counter[0]+1])[0]
             self.indices_inside_frame = np.where(self.beam.dt < self.t_rev[self.counter[0]+1])[0]
-            self.indices_left_outside = np.empty(0)
+            
             if len(self.indices_right_outside)>0:
-                self.insiders_dt = np.ascontiguousarray(self.beam.dt[self.indices_inside_frame])
-                self.insiders_dE = np.ascontiguousarray(self.beam.dE[self.indices_inside_frame])
-                
                 # Change reference of all the particles on the right of the current
                 # frame; these particles skip one kick and drift
-                if len(self.indices_right_outside)>0:
-                    self.beam.dt[self.indices_right_outside] -= self.t_rev[self.counter[0]+1]
-                
+                self.beam.dt[self.indices_right_outside] -= self.t_rev[self.counter[0]+1]
                 # Syncronize the bunch with the particles that are on the right of
                 # the current frame applying kick and drift to the bunch; after that 
-                # all the particle are in the new updated frame
+                # all the particles are in the new updated frame
+                self.insiders_dt = np.ascontiguousarray(self.beam.dt[self.indices_inside_frame])
+                self.insiders_dE = np.ascontiguousarray(self.beam.dE[self.indices_inside_frame])
                 self.kick(self.insiders_dt, self.insiders_dE, self.counter[0])
                 self.drift(self.insiders_dt, self.insiders_dE, self.counter[0]+1)
                 self.beam.dt[self.indices_inside_frame] = self.insiders_dt
                 self.beam.dE[self.indices_inside_frame] = self.insiders_dE
+                # Check all the particles on the left of the just updated frame and 
+                # apply a second kick and drift to them with the previous wave after
+                # having changed reference.
+                self.indices_left_outside = np.where(self.beam.dt < 0)[0]
+                
             else:
                 self.kick(self.beam.dt, self.beam.dE, self.counter[0])
                 self.drift(self.beam.dt, self.beam.dE, self.counter[0]+1)
@@ -378,6 +380,7 @@ class RingAndRFSection(object):
                 # apply a second kick and drift to them with the previous wave after
                 # having changed reference.
                 self.indices_left_outside = np.where(self.beam.dt < 0)[0]
+                
             if len(self.indices_left_outside)>0:
                 left_outsiders_dt = np.ascontiguousarray(self.beam.dt[self.indices_left_outside])
                 left_outsiders_dE = np.ascontiguousarray(self.beam.dE[self.indices_left_outside])
