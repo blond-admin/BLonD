@@ -10,7 +10,7 @@
 '''
 **Function(s) for pre-processing input data**
 
-:Authors: **Helga Timko**, **Alexandre Lasheen**, **Danilo Quartullo**
+:Authors: **Helga Timko**, **Alexandre Lasheen**, **Danilo Quartullo**, **Simon Albright**
 '''
 
 from __future__ import division
@@ -86,7 +86,7 @@ def preprocess_ramp(particle_type, circumference, time, data,
     time_interp = shift + T0*np.arange(0, flat_bottom+1)
     beta_interp = beta_0*np.ones(flat_bottom+1)
     momentum_interp = momentum[0]*np.ones(flat_bottom+1)
-        
+    
     time_interp = time_interp.tolist()
     beta_interp = beta_interp.tolist()
     momentum_interp = momentum_interp.tolist()
@@ -97,8 +97,9 @@ def preprocess_ramp(particle_type, circumference, time, data,
     # Interpolate data recursively
     if interpolation=='linear':
         
-        time_interp.append(time_interp[0]
+        time_interp.append(time_interp[-1]
                                      + circumference/(beta_interp[0]*c) )
+
         i = flat_bottom 
         for k in range(1,Nd): 
             while time_interp[i+1] <= time[k]:
@@ -113,12 +114,6 @@ def preprocess_ramp(particle_type, circumference, time, data,
             
                 i += 1
             
-        time_interp.pop()        
-        time_interp = np.asarray(time_interp)
-        beta_interp = np.asarray(beta_interp)
-        momentum_interp = np.asarray(momentum_interp)   
-                    
-    
     elif interpolation=='cubic':
         
         interp_funtion_momentum = splrep(time[(time>=time_start_ramp)*(time<=time_end_ramp)], 
@@ -127,7 +122,7 @@ def preprocess_ramp(particle_type, circumference, time, data,
                   
         i = flat_bottom
        
-        time_interp.append(time_interp[0]
+        time_interp.append(time_interp[-1]
                          + circumference/(beta_interp[0]*c) )
         
         while time_interp[i] <= time[-1]:
@@ -161,19 +156,53 @@ def preprocess_ramp(particle_type, circumference, time, data,
 
             i += 1
         
-        
-        time_interp.pop()       
-        time_interp = np.asarray(time_interp)
-        beta_interp = np.asarray(beta_interp)
+    #interpolate momentum in 1st derivative to maintain smooth B-dot
+    elif interpolation == 'derivative':
+
+        momentum_initial = momentum_interp[0]
+        momentum_derivative = np.gradient(momentum)/np.gradient(time)
+
+        momentum_derivative_interp = [0]*flat_bottom + [momentum_derivative[0]]
+        integral_point = momentum_initial
+
+        i = flat_bottom
+
+        time_interp.append(time_interp[-1]
+                         + circumference/(beta_interp[0]*c) )
+
+        while time_interp[i] <= time[-1]:
+
+            derivative_point = np.interp(time_interp[i+1], time, momentum_derivative)
+            momentum_derivative_interp.append(derivative_point)
+            integral_point += (time_interp[i+1] - time_interp[i]) * derivative_point
+
+            momentum_interp.append(integral_point)
+            beta_interp.append(np.sqrt(1/(1 + (mass/momentum_interp[i+1])**2)))
+            time_interp.append(time_interp[i+1]
+                                + circumference/(beta_interp[i+1]*c) )
+
+            i += 1
+
+        #adjust result to get flat top energy correct as derivation + integration leads to ~10^-8 error in flat top momentum
+
         momentum_interp = np.asarray(momentum_interp)
-        
-                
+        momentum_interp -= momentum_interp[0]
+        momentum_interp /= momentum_interp[-1]
+        momentum_interp *= momentum[-1] - momentum[0]
+
+        momentum_interp += momentum[0]
+       
+ 
     else:
         
         raise RuntimeError("WARNING: Interpolation scheme in preprocess_arrays \
                            not recognized. Aborting...")
-    
-    
+  
+    time_interp.pop()
+    time_interp = np.asarray(time_interp)
+    beta_interp = np.asarray(beta_interp)
+    momentum_interp = np.asarray(momentum_interp)
+
     # Obtain flat top data, extrapolate to constant
     if flat_top > 0:
         time_interp = np.append(time_interp, time_interp[-1] + circumference*np.arange(1, flat_top+1)/(beta_interp[-1]*c))

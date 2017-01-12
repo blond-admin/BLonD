@@ -8,10 +8,9 @@ submit itself to any jurisdiction.
 Project website: http://blond.web.cern.ch/
 */
 
+// Authors: Juan F. Esteban Mueller, Alexandre Lasheen, D. Quartullo
 
 // Optimised C++ routine that calculates the kick of a voltage array on particles
-// Authors: Juan F. Esteban Mueller, Alexandre Lasheen
-
 extern "C" void linear_interp_kick(
 		double * __restrict__ beam_dt,
 		double * __restrict__ beam_dE,
@@ -35,6 +34,31 @@ extern "C" void linear_interp_kick(
     	else
     		voltageKick = voltage_array[ffbin] + (a - bin_centers[ffbin]) * (voltage_array[ffbin+1]-voltage_array[ffbin]) * inv_bin_width;
     	beam_dE[i] = beam_dE[i] + voltageKick;
+    }
+
+}
+
+// Optimised C++ routine that interpolates the induced voltage
+// assuming constant slice width and a shift of the time array by a constant.
+// Only right extrapolation is assumed; it gives zero values.
+// This routine contributes to the computation of multi-turn wake with acceleration
+extern "C" void linear_interp_time_translation(
+        double * __restrict__ xp,
+        double * __restrict__ yp,
+        double * __restrict__ x,
+        double * __restrict__ y,
+        const int len_xp){
+
+    const double inv_bin_width = (len_xp-1) / (xp[len_xp-1] - xp[0]);
+     
+    const int ffbin0 = (int)((x[0] - xp[0]) * inv_bin_width);
+    const int diff = len_xp-ffbin0;
+    
+    #pragma omp parallel for
+    for (int i = 0; i < diff; i++) {
+        int ffbin; 
+        ffbin = ffbin0+i;
+        y[i] = yp[ffbin] + (x[i] - xp[ffbin]) * (yp[ffbin+1]-yp[ffbin]) * inv_bin_width;
     }
 
 }

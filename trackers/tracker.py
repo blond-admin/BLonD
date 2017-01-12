@@ -20,8 +20,6 @@ from scipy.integrate import cumtrapz
 import ctypes
 from setup_cpp import libblond
 
-
-
 class FullRingAndRF(object):
     '''
     *Definition of the full ring and RF parameters in order to be able to have
@@ -48,10 +46,10 @@ class FullRingAndRF(object):
         self.ring_radius = self.ring_circumference / (2*np.pi)
         
         
-        
-    def potential_well_generation(self, turn = 0, n_points = 1e5, 
+    def potential_well_generation(self, turn_number = 0, n_points = 1e5, 
                                   main_harmonic_option = 'lowest_freq', 
                                   dt_margin_percent = 0.):
+
         '''
         *Method to generate the potential well out of the RF systems. The 
         assumption made is that all the RF voltages are averaged over
@@ -75,9 +73,9 @@ class FullRingAndRF(object):
         for RingAndRFSectionElement in self.RingAndRFSection_list:
             charge = RingAndRFSectionElement.charge
             for rf_system in range(RingAndRFSectionElement.n_rf):
-                voltages = np.append(voltages, RingAndRFSectionElement.voltage[rf_system, turn])
-                omega_rf = np.append(omega_rf, RingAndRFSectionElement.omega_RF[rf_system, turn])
-                phi_offsets = np.append(phi_offsets, RingAndRFSectionElement.phi_RF[rf_system, turn])
+                voltages = np.append(voltages, RingAndRFSectionElement.voltage[rf_system, turn_number])
+                omega_rf = np.append(omega_rf, RingAndRFSectionElement.omega_RF[rf_system, turn_number])
+                phi_offsets = np.append(phi_offsets, RingAndRFSectionElement.phi_RF[rf_system, turn_number])
                         
         voltages = np.array(voltages, ndmin = 2)
         omega_rf = np.array(omega_rf, ndmin = 2)
@@ -93,7 +91,7 @@ class FullRingAndRF(object):
             main_omega_rf = np.min(omega_rf[omega_rf == main_harmonic_option])
             
         time_array_margin = dt_margin_percent * 2 * np.pi/main_omega_rf
-        slippage_factor = self.RingAndRFSection_list[0].eta_0[turn]
+        slippage_factor = self.RingAndRFSection_list[0].eta_0[turn_number]
         
         first_dt = - time_array_margin / 2
         last_dt = 2 * np.pi/main_omega_rf + time_array_margin / 2
@@ -102,13 +100,14 @@ class FullRingAndRF(object):
                 
         self.total_voltage = np.sum(voltages.T * np.sin(omega_rf.T * time_array + phi_offsets.T), axis = 0)
         
-        eom_factor_potential = np.sign(slippage_factor) * charge / (RingAndRFSectionElement.t_rev[turn])
+        eom_factor_potential = np.sign(slippage_factor) * charge / (RingAndRFSectionElement.t_rev[turn_number])
         
-        potential_well = - np.insert(cumtrapz(eom_factor_potential * (self.total_voltage - (-RingAndRFSectionElement.acceleration_kick[turn])/abs(charge)), dx=time_array[1]-time_array[0]),0,0)
+        potential_well = - np.insert(cumtrapz(eom_factor_potential * (self.total_voltage - (-RingAndRFSectionElement.acceleration_kick[turn_number])/abs(charge)), dx=time_array[1]-time_array[0]),0,0)
         potential_well = potential_well - np.min(potential_well)
         
         self.potential_well_coordinates = time_array
         self.potential_well = potential_well
+
         
         
     def track(self):
@@ -355,23 +354,25 @@ class RingAndRFSection(object):
             # right of the frame.
             self.indices_right_outside = np.where(self.beam.dt > self.t_rev[self.counter[0]+1])[0]
             self.indices_inside_frame = np.where(self.beam.dt < self.t_rev[self.counter[0]+1])[0]
-            self.indices_left_outside = np.empty(0)
+            
             if len(self.indices_right_outside)>0:
-                self.insiders_dt = np.ascontiguousarray(self.beam.dt[self.indices_inside_frame])
-                self.insiders_dE = np.ascontiguousarray(self.beam.dE[self.indices_inside_frame])
-                
                 # Change reference of all the particles on the right of the current
                 # frame; these particles skip one kick and drift
-                if len(self.indices_right_outside)>0:
-                    self.beam.dt[self.indices_right_outside] -= self.t_rev[self.counter[0]+1]
-                
+                self.beam.dt[self.indices_right_outside] -= self.t_rev[self.counter[0]+1]
                 # Syncronize the bunch with the particles that are on the right of
                 # the current frame applying kick and drift to the bunch; after that 
-                # all the particle are in the new updated frame
+                # all the particles are in the new updated frame
+                self.insiders_dt = np.ascontiguousarray(self.beam.dt[self.indices_inside_frame])
+                self.insiders_dE = np.ascontiguousarray(self.beam.dE[self.indices_inside_frame])
                 self.kick(self.insiders_dt, self.insiders_dE, self.counter[0])
                 self.drift(self.insiders_dt, self.insiders_dE, self.counter[0]+1)
                 self.beam.dt[self.indices_inside_frame] = self.insiders_dt
                 self.beam.dE[self.indices_inside_frame] = self.insiders_dE
+                # Check all the particles on the left of the just updated frame and 
+                # apply a second kick and drift to them with the previous wave after
+                # having changed reference.
+                self.indices_left_outside = np.where(self.beam.dt < 0)[0]
+                
             else:
                 self.kick(self.beam.dt, self.beam.dE, self.counter[0])
                 self.drift(self.beam.dt, self.beam.dE, self.counter[0]+1)
@@ -379,6 +380,7 @@ class RingAndRFSection(object):
                 # apply a second kick and drift to them with the previous wave after
                 # having changed reference.
                 self.indices_left_outside = np.where(self.beam.dt < 0)[0]
+                
             if len(self.indices_left_outside)>0:
                 left_outsiders_dt = np.ascontiguousarray(self.beam.dt[self.indices_left_outside])
                 left_outsiders_dE = np.ascontiguousarray(self.beam.dE[self.indices_left_outside])
