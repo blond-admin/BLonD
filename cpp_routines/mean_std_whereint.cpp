@@ -1,5 +1,8 @@
 #include <cmath>
+
+#ifdef PARALLEL
 #include <omp.h>
+#endif
 
 extern "C" double mean(const double * __restrict__ data, const int n)
 {
