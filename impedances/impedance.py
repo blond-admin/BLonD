@@ -76,7 +76,6 @@ class TotalInducedVoltage(object):
                     self.omegaj_array_memory = 2.0j * np.pi * self.frequency_array_memory
                     self.coefficient = - self.beam.charge * e * self.beam.ratio / (self.slices.bin_centers[1]-self.slices.bin_centers[0])
                     self.main_harmonic_number = induced_voltage_object.main_harmonic_number
-                    self.time_array_memory = induced_voltage_object.time_array_memory
                     self.index_save_individual_voltage = induced_voltage_object.index_save_individual_voltage
                     if self.index_save_individual_voltage != -1:
                         self.individual_impedance = induced_voltage_object.impedance_source_list[self.index_save_individual_voltage].impedance
@@ -189,7 +188,7 @@ class TotalInducedVoltage(object):
             
         
         elif self.mode_mtw=='second_method':
-            # Like the previous one but an nterpolation in time domain is performed
+            # Like the previous one but an interpolation in time domain is performed
             # instead of the rotation to transport the voltage from the past.
             padded_before_profile = np.lib.pad(self.slices.n_macroparticles, (self.points_before,0), 'constant', constant_values=(0,0))
             self.fourier_transf_profile = rfft(padded_before_profile, self.n_fft_sampling)
@@ -377,7 +376,7 @@ class InducedVoltageFreq(object):
         self.n_turns_memory = n_turns_memory
         
         #: *Length of one slice.*
-        time_resolution = (self.slices.bin_centers[1] - self.slices.bin_centers[0])
+        time_resolution = self.slices.bin_centers[1] - self.slices.bin_centers[0]
         
         self.recalculation_impedance = recalculation_impedance
         
@@ -430,14 +429,8 @@ class InducedVoltageFreq(object):
             self.main_harmonic_number = main_harmonic_number
             self.len_array_memory = (self.n_turns_memory+1+n_windows_before) * self.slices.n_slices * main_harmonic_number
             self.n_fft_sampling = next_regular(self.len_array_memory)
-            if overwrite_n_fft_sampling != None:
-                self.n_fft_sampling = overwrite_n_fft_sampling    
             self.frequency_array_memory = rfftfreq(self.n_fft_sampling, time_resolution)
-            self.total_impedance_memory = np.zeros(self.frequency_array_memory.shape) + 0j
-            
-            #Costruction of time array for plotting
-            self.time_array_memory = np.linspace(time_resolution/2, time_resolution*self.n_fft_sampling-time_resolution/2, self.n_fft_sampling)
-                
+            self.total_impedance_memory = np.zeros(self.frequency_array_memory.shape) + 0j   
             for imped_object in self.impedance_source_list:
                 imped_object.imped_calc(self.frequency_array_memory)
                 self.total_impedance_memory += imped_object.impedance
