@@ -193,12 +193,14 @@ class TotalInducedVoltage(object):
             padded_before_profile = np.lib.pad(self.slices.n_macroparticles, (self.points_before,0), 'constant', constant_values=(0,0))
             self.fourier_transf_profile = rfft(padded_before_profile, self.n_fft_sampling)
             time_array_shifted = self.time_array_interp + self.rev_time_array[self.counter_turn]
-            interpolation2 = np.zeros(self.points_ext_ind_volt)
-            libblond.linear_interp_time_translation(self.time_array_interp.ctypes.data_as(ctypes.c_void_p),
-                                  self.induced_voltage_extended.ctypes.data_as(ctypes.c_void_p), 
-                                  time_array_shifted.ctypes.data_as(ctypes.c_void_p), 
-                                  interpolation2.ctypes.data_as(ctypes.c_void_p), 
-                                  ctypes.c_uint(self.points_ext_ind_volt))
+            ## C++ VERSION DOESNT'T WORK, TO BE CHECKED...
+#             interpolation2 = np.zeros(self.points_ext_ind_volt)
+#             libblond.linear_interp_time_translation(self.time_array_interp.ctypes.data_as(ctypes.c_void_p),
+#                                   self.induced_voltage_extended.ctypes.data_as(ctypes.c_void_p), 
+#                                   time_array_shifted.ctypes.data_as(ctypes.c_void_p), 
+#                                   interpolation2.ctypes.data_as(ctypes.c_void_p), 
+#                                   ctypes.c_uint(self.points_ext_ind_volt))
+            interpolation2 = np.interp(time_array_shifted, self.time_array_interp, self.induced_voltage_extended, right = 0)
             self.induced_voltage_extended = irfft(self.coefficient * self.fourier_transf_profile * self.sum_impedances_memory, self.n_fft_sampling)[self.points_before:] + \
                                                 + interpolation2
             self.induced_voltage = self.induced_voltage_extended[:self.slices.n_slices]
