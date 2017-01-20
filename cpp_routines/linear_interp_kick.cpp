@@ -55,7 +55,7 @@ extern "C" void linear_interp_time_translation(
     const int diff = len_xp-ffbin0;
     
     #pragma omp parallel for
-    for (int i = 0; i < diff; i++) {
+    for (int i = 0; i < diff-1; i++) {
         int ffbin; 
         ffbin = ffbin0+i;
         y[i] = yp[ffbin] + (x[i] - xp[ffbin]) * (yp[ffbin+1]-yp[ffbin]) * inv_bin_width;
