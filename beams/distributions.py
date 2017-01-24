@@ -403,9 +403,10 @@ def matched_from_distribution_density(Beam, FullRingAndRF, distribution_options,
         print('Matching the bunch... (iteration: ' + str(i) + ' and sse: ' + str(sse) +')')
                 
         # Process the potential well in order to take a frame around the separatrix
-        time_coord_sep, potential_well_sep = potential_well_cut(time_coord_array, total_potential)
         if process_pot_well == False:
             time_coord_sep, potential_well_sep = time_coord_array, total_potential
+        else:
+            time_coord_sep, potential_well_sep = potential_well_cut(time_coord_array, total_potential)
         
         # Potential is shifted to put the minimum on 0
         potential_well_sep = potential_well_sep - np.min(potential_well_sep)
