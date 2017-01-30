@@ -26,6 +26,8 @@ from toolbox.convolution import convolution
 from setup_cpp import libblond
 import matplotlib.pyplot as plt
 
+from setup_cpp import libimp
+
 import time
 
 
@@ -873,16 +875,24 @@ class Resonators(object):
         *Impedance calculation method as a function of frequency.*
         '''
       
-        t0 = time.clock() 
         self.frequency_array = frequency_array
-        self.impedance = np.zeros(len(self.frequency_array)) + 0j
-        for i in range(0, self.n_resonators):
-            
-            self.impedance[1:] += self.R_S[i] / (1 + 1j * self.Q[i] * 
-                                                 (self.frequency_array[1:] / self.frequency_R[i] - 
-                                                  self.frequency_R[i] / self.frequency_array[1:]))
+	self.impedance = np.zeros(len(self.frequency_array)) + 0j
 
-   
+        realImp = self.impedance.real*0
+        imagImp = self.impedance.real*0
+
+        libimp.fast_resonator_real(realImp.ctypes.data_as(ctypes.c_void_p),
+               self.frequency_array.ctypes.data_as(ctypes.c_void_p), self.R_S.ctypes.data_as(ctypes.c_void_p),
+               self.Q.ctypes.data_as(ctypes.c_void_p), self.frequency_R.ctypes.data_as(ctypes.c_void_p),
+               ctypes.c_uint(self.n_resonators), ctypes.c_uint(len(self.frequency_array)))
+
+        libimp.fast_resonator_imag(imagImp.ctypes.data_as(ctypes.c_void_p),
+               self.frequency_array.ctypes.data_as(ctypes.c_void_p), self.R_S.ctypes.data_as(ctypes.c_void_p),
+               self.Q.ctypes.data_as(ctypes.c_void_p), self.frequency_R.ctypes.data_as(ctypes.c_void_p),
+               ctypes.c_uint(self.n_resonators), ctypes.c_uint(len(self.frequency_array)))
+
+        self.impedance.real = realImp
+        self.impedance.imag = imagImp
  
 
 class TravelingWaveCavity(object):

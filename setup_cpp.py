@@ -9,7 +9,7 @@
 
 '''
 
-@author: Danilo Quartullo
+@authors:  Danilo Quartullo, Simon Albright
 '''
 
 # MAKE SURE YOU HAVE GCC 4.8.1 OR LATER VERSIONS ON YOUR SYSTEM LINKED TO YOUR
@@ -70,6 +70,8 @@ cpp_files = ['cpp_routines/mean_std_whereint.cpp',
 # Select the right
 cpp_files_SR = ['synchrotron_radiation/synchrotron_radiation.cpp']
 
+cpp_files_Res = ['impedances/fast_resonator.cpp']
+
 
 if (__name__ == "__main__"):
     args = parser.parse_args()
@@ -107,6 +109,9 @@ if (__name__ == "__main__"):
                          shell=True, executable='/bin/bash')
         subprocess.Popen('rm -rf synchrotron_radiation/*.so',
                          shell=True, executable='/bin/bash')
+        subprocess.Popen('rm -rf impedances/*.so',
+                         shell=True, executable='/bin/bash')
+
 
         command = [compiler] + cflags + \
             ['-o', 'cpp_routines/result.so'] + cpp_files
@@ -115,6 +120,11 @@ if (__name__ == "__main__"):
         command = [compiler] + cflags + \
             ['-o', 'synchrotron_radiation/sync_rad.so'] + cpp_files_SR
         subprocess.Popen(command)
+
+        command = [compiler] + cflags + \
+            ['-o', 'impedances/fast_resonator.so'] + cpp_files_Res
+        subprocess.Popen(command)
+
 
         print('\nIF THE COMPILATION IS CORRECT A FILE NAMED result.so SHOULD'
               ' APPEAR IN THE cpp_routines FOLDER. OTHERWISE YOU HAVE TO'
@@ -125,6 +135,7 @@ if (__name__ == "__main__"):
         os.system('gcc --version')
         os.system('del /s/q ' + os.getcwd() + '\\cpp_routines\\*.dll')
         os.system('del /s/q ' + os.getcwd() + '\\synchrotron_radiation\\*.dll')
+        os.system('del /s/q ' + os.getcwd() + '\\impedances\\*.dll')
 
 #         command = [compiler] + cflags + \
 #             ['-o', 'cpp_routines\\result.dll'] + cpp_files
@@ -136,6 +147,7 @@ if (__name__ == "__main__"):
 
         cpp_files_join_list = os.getcwd()+'\\'+' '.join(cpp_files)
         cpp_files_SR_join_list = os.getcwd()+'\\'+' '.join(cpp_files_SR)
+        cpp_files_Res_join_list = os.getcwd()+'\\'+' '.join(cpp_files_Res)
         cflags_join_list = ' '+ ' '.join(cflags)
         
         command = compiler + cflags_join_list + ' -o ' + \
@@ -145,7 +157,12 @@ if (__name__ == "__main__"):
         command = compiler + cflags_join_list + ' -o ' + \
             os.getcwd()+'\\synchrotron_radiation\\sync_rad.dll -shared ' + cpp_files_SR_join_list
         os.system(command)
-        
+       
+        command = compiler + cflags_join_list + ' -o ' + \
+            os.getcwd()+'\\impedances\\fast_resonator.dll -shared ' + cpp_files_Res_join_list
+        os.system(command)
+
+ 
         print('\nIF THE COMPILATION IS CORRECT A FILE NAMED result.dll SHOULD'
               ' APPEAR IN THE cpp_routines FOLDER. OTHERWISE YOU HAVE TO'
               ' CORRECT THE ERRORS AND COMPILE AGAIN.')
@@ -162,9 +179,11 @@ parent_path = os.sep.join(path.split(os.sep)[:-1])
 if ('posix' in os.name):
     libblond = ctypes.CDLL(parent_path+'/cpp_routines/result.so')
     libsrqe = ctypes.CDLL(parent_path+'/synchrotron_radiation/sync_rad.so')
+    libimp = ctypes.CDLL(parent_path+'/impedances/fast_resonator.so')
 elif ('win' in sys.platform):
     libblond = ctypes.CDLL(parent_path+'\\cpp_routines\\result.dll')
     libsrqe = ctypes.CDLL(parent_path+'\\synchrotron_radiation\\sync_rad.dll')
+    libimp = ctypes.CDLL(parent_path+'\\impedances\\fast_resonator.dll')
 else:
     print('YOU DO NOT HAVE A WINDOWS OR LINUX OPERATING SYSTEM. ABORTING...')
     sys.exit()
