@@ -31,7 +31,7 @@ from impedances.impedance import InducedVoltageFreq, InducedVoltageTime
 from impedances.impedance import TotalInducedVoltage
 from impedances.impedance_sources import Resonators
 from scipy.constants import c, e, m_p
-import sys
+
 
 
 # SIMULATION PARAMETERS -------------------------------------------------------
@@ -113,7 +113,7 @@ imp_list = [resonator]
 ind_volt_freq = InducedVoltageFreq(beam, slice_beam, imp_list,
                     RFParams=RF_sct_par, frequency_resolution=1e3,
                     multi_turn_wake=True, mtw_mode='time')
-sys.exit()
+
 ind_volt_time = InducedVoltageTime(beam, slice_beam, imp_list,
                     RFParams=RF_sct_par, wake_length=n_turns*bucket_length,
                     multi_turn_wake=True)
