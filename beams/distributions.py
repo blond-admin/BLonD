@@ -31,7 +31,7 @@ def matched_from_line_density(Beam, FullRingAndRF, line_density_options,
                               main_harmonic_option = 'lowest_freq', 
                               TotalInducedVoltage = None,
                               plot = None, figdir='fig', half_option = 'first',
-                              extraVoltageDict = None, n_iterations_input = 100, seed = None):
+                              extraVoltageDict = None, n_iterations_input = 100, seed = None, dt_margin_percent=0.4, process_pot_well = True):
     '''
     *Function to generate a beam by inputing the line density. The distribution
     density is then reconstructed with the Abel transform and the particles
@@ -52,7 +52,7 @@ def matched_from_line_density(Beam, FullRingAndRF, line_density_options,
     # Generate potential well
     n_points_potential = int(1e4)
     FullRingAndRF.potential_well_generation(n_points = n_points_potential, 
-                                            dt_margin_percent = 0.4, 
+                                            dt_margin_percent = dt_margin_percent, 
                                             main_harmonic_option = main_harmonic_option)
     potential_well_array = FullRingAndRF.potential_well
     time_coord_array = FullRingAndRF.potential_well_coordinates
@@ -132,7 +132,10 @@ def matched_from_line_density(Beam, FullRingAndRF, line_density_options,
         total_potential = potential_well_array + induced_potential_final + extra_potential
         
         # Process the potential well in order to take a frame around the separatrix
-        time_coord_sep, potential_well_sep = potential_well_cut(time_coord_array, total_potential)
+        if process_pot_well == False:
+            time_coord_sep, potential_well_sep = time_coord_array, total_potential
+        else:
+            time_coord_sep, potential_well_sep = potential_well_cut(time_coord_array, total_potential)
         
         minmax_positions_potential, minmax_values_potential = minmax_location(time_coord_sep, potential_well_sep)
         minmax_positions_profile, minmax_values_profile = minmax_location(time_line_den[line_density != 0], line_density[line_density != 0])
