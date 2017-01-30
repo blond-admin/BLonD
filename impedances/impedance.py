@@ -872,7 +872,7 @@ class Resonators(object):
         '''
         *Impedance calculation method as a function of frequency.*
         '''
-       
+      
         t0 = time.clock() 
         self.frequency_array = frequency_array
         self.impedance = np.zeros(len(self.frequency_array)) + 0j
@@ -881,61 +881,6 @@ class Resonators(object):
             self.impedance[1:] += self.R_S[i] / (1 + 1j * self.Q[i] * 
                                                  (self.frequency_array[1:] / self.frequency_R[i] - 
                                                   self.frequency_R[i] / self.frequency_array[1:]))
-
-        print("Old: " + str(time.clock() - t0))
-#        t0 = time.clock()
-
-#        freq_2d = np.zeros([len(self.frequency_array), self.n_resonators])
-#        invfreq_2d = np.zeros([len(self.frequency_array), self.n_resonators])
-        self.Q = self.Q[0]
-        freq_2d = np.repeat(np.expand_dims(self.Q*self.frequency_array, 1), self.n_resonators, axis=1)[1:]
-        invfreq_2d = np.repeat(np.expand_dims(-1.*self.Q/self.frequency_array, 1), self.n_resonators, axis=1)[1:]
-#        impedance = np.zeros([len(self.frequency_array), self.n_resonators]) + 0j
-#	self.R_S = np.repeat(np.expand_dims(self.R_S, 0), len(self.frequency_array), axis = 0)[1:]
-#	self.frequency_R = np.repeat(np.expand_dims(self.frequency_R, 0), len(self.frequency_array), axis = 0)[1:]
-
-
-        t0 = time.clock()
-        inverseRShunt = 1./self.R_S
-        inverseFreqs = 1./self.frequency_R
-
-        fArrPerF = np.einsum('ij, j -> ij', freq_2d, inverseFreqs)
-        fPerFArr = np.einsum('ij, j -> ij', invfreq_2d, self.frequency_R)
-
-#        denom = np.einsum(', ij -> ij', 1+1j, (fArrPerF + fPerFArr))
-        denom = 1 + 1j*(fArrPerF + fPerFArr)
-#        Imp = 1./np.einsum('j, ij -> i', inverseRShunt, denom)
-        Imp = np.einsum('j, ij -> i', self.R_S, 1./denom)
-
-        print("einsum: " + str(time.clock() - t0))
-
-        t0 = time.clock()
-
-#	print(freq_2d.shape)
- #       print(self.frequency_R.shape)
-
-#        arrPerRes = np.multiply(freq_2d[1:, :], 1./self.frequency_R)
-#        resPerArr = 1./arrPerRes
-
-#        diffArray = arrPerRes - resPerArr
-
-#        diffArray = np.multiply(freq_2d[1:, :], 1./self.frequency_R) - np.multiply(1./freq_2d[1:, :], self.frequency_R)
-#        diffArray = (freq_2d[1:, :]**2 - self.frequency_R**2) / (freq_2d[1:, :] * self.frequency_R)
-#        denom = 1 + 1j * np.multiply(diffArray, self.Q)
-#        denom = 1 + 1j * self.Q * (freq_2d[1:, :]**2 - self.frequency_R**2) / (freq_2d[1:, :] * self.frequency_R)
-
-#        impedance = np.multiply(1./denom, self.R_S)
-
-#        impedance = self.R_S / (1 + 1j * self.Q * (freq_2d[1:, :]**2 - self.frequency_R**2) / (freq_2d[1:, :] * self.frequency_R))
-        impedance = self.R_S / (1 + 1j * self.Q * (freq_2d/self.frequency_R - self.frequency_R/freq_2d))
-
-        print("New: " + str(time.clock() - t0))
-
-#        plt.plot(self.frequency_array[1:], 10+np.sum(np.transpose(impedance), axis=0))
-
-        plt.plot(self.frequency_array, self.impedance)
-        plt.show()
-        
 
    
  
