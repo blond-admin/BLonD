@@ -62,7 +62,7 @@ def synchrotron_frequency_distribution(Beam, FullRingAndRF, main_harmonic_option
     # Generate potential well
     n_points_potential = int(1e4)
     FullRingAndRF.potential_well_generation(n_points = n_points_potential, 
-                                            turn = turn, dt_margin_percent = 0.05, 
+                                            turn_number = turn, dt_margin_percent = 0.05, 
                                             main_harmonic_option = main_harmonic_option)
     potential_well_array = FullRingAndRF.potential_well
     time_coord_array = FullRingAndRF.potential_well_coordinates
