@@ -11,7 +11,7 @@
 **Module to compute beam slicing**
 
 :Authors: **Danilo Quartullo**, **Alexandre Lasheen**, 
-          **Juan F. Esteban Mueller**
+          **Juan F. Esteban Mueller**, **Joel Repond**
 '''
 
 from __future__ import division, print_function
@@ -310,8 +310,41 @@ class Slices(object):
                 print('Warning: The bunch index %d is empty !!' %(indexBunch))
                 self.bl_fwhm[indexBunch] = 0
                 self.bp_fwhm[indexBunch] = 0
-    
-    
+
+    def rms_multibunch(self, n_bunches, n_slices_per_bunch, bunch_spacing_buckets, bucket_size_tau, bucket_tolerance=0.40):
+        '''
+        * Computation of the RMS bunch length and position from the line density 
+        (bunch length = 4sigma).*
+        '''
+        
+        time_resolution = self.bin_centers[1]-self.bin_centers[0]
+        
+        self.bl_rms = np.zeros(n_bunches)
+        self.bp_rms = np.zeros(n_bunches)
+        
+        self.dEp_rms = np.zeros(n_bunches)
+        self.dEl_rms = np.zeros(n_bunches)
+        
+        self.emit_rms = np.zeros(n_bunches)
+        
+        for indexBunch in range(0,n_bunches):
+            
+#            left_edge = indexBunch * bunch_spacing_buckets * bucket_size_tau - bucket_tolerance * bucket_size_tau
+#            right_edge = indexBunch * bunch_spacing_buckets * bucket_size_tau + bucket_size_tau + bucket_tolerance * bucket_size_tau
+            
+            left_edge = indexBunch * bunch_spacing_buckets * bucket_size_tau
+            right_edge = indexBunch * bunch_spacing_buckets * bucket_size_tau + bucket_size_tau
+            
+            indexes_bucket = np.where((self.bin_centers > left_edge)*(self.bin_centers < right_edge))[0]
+            
+#            try:
+#                timeResolution = self.bin_centers[1]-self.bin_centers[0]                
+            lineDenNormalized = self.n_macroparticles[indexes_bucket] / np.trapz(self.n_macroparticles[indexes_bucket], dx=time_resolution)
+            
+#            print lineDenNormalized.shape
+            self.bp_rms[indexBunch] = np.trapz(self.bin_centers[indexes_bucket] * lineDenNormalized, dx=time_resolution)                
+            self.bl_rms[indexBunch] = 4 * np.sqrt(np.trapz((self.bin_centers[indexes_bucket]-self.bp_rms[indexBunch])**2*lineDenNormalized, dx=time_resolution))
+
     def beam_spectrum_freq_generation(self, n_sampling_fft):
         '''
         *Frequency array of the beam spectrum*

@@ -46,7 +46,7 @@ class FullRingAndRF(object):
         self.ring_radius = self.ring_circumference / (2*np.pi)
         
         
-    def potential_well_generation(self, turn_number = 0, n_points = 1e5, 
+    def potential_well_generation(self, turn = 0, n_points = 1e5, 
                                   main_harmonic_option = 'lowest_freq', 
                                   dt_margin_percent = 0., time_array=None):
 
@@ -73,9 +73,9 @@ class FullRingAndRF(object):
         for RingAndRFSectionElement in self.RingAndRFSection_list:
             charge = RingAndRFSectionElement.charge
             for rf_system in range(RingAndRFSectionElement.n_rf):
-                voltages = np.append(voltages, RingAndRFSectionElement.voltage[rf_system, turn_number])
-                omega_rf = np.append(omega_rf, RingAndRFSectionElement.omega_RF[rf_system, turn_number])
-                phi_offsets = np.append(phi_offsets, RingAndRFSectionElement.phi_RF[rf_system, turn_number])
+                voltages = np.append(voltages, RingAndRFSectionElement.voltage[rf_system, turn])
+                omega_rf = np.append(omega_rf, RingAndRFSectionElement.omega_RF[rf_system, turn])
+                phi_offsets = np.append(phi_offsets, RingAndRFSectionElement.phi_RF[rf_system, turn])
                         
         voltages = np.array(voltages, ndmin = 2)
         omega_rf = np.array(omega_rf, ndmin = 2)
