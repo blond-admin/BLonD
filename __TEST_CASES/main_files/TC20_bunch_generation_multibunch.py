@@ -24,7 +24,8 @@ from input_parameters.rf_parameters import RFSectionParameters
 from trackers.tracker import RingAndRFSection, FullRingAndRF
 from beams.beams import Beam
 from beams.distributions_multibunch \
-                            import matched_from_distribution_density_multibunch
+                        import matched_from_distribution_density_multibunch,\
+                               match_beam_from_distribution
 from beams.distributions_multibunch import matched_from_line_density_multibunch
 from beams.slices import Slices
 from impedances.impedance import InducedVoltageFreq, TotalInducedVoltage
@@ -110,41 +111,58 @@ ind_volt_freq = InducedVoltageFreq(beam, slice_beam, imp_list,
 total_ind_volt = TotalInducedVoltage(beam, slice_beam, [ind_volt_freq])
 
 # BEAM GENERATION -------------------------------------------------------------
-
+# --- from phase space distribution function
 n_bunches = 3
 bunch_spacing_buckets = 10
 intensity_list = [1e11, 1e11, 1e11]
 minimum_n_macroparticles = [5e5, 5e5, 5e5]
-distribution_options_list = {'bunch_length': 1e-9,
-                             'type': 'parabolic_amplitude',
+#distribution_options_list = {'bunch_length': 1e-9,
+#                             'type': 'parabolic_amplitude',
+#                             'density_variable': 'Hamiltonian'}
+distribution_options = {'type': 'binomial', 'exponent':1.5,
+                             'emittance':None, 'bunch_length':1e-9,
+                             'bunch_length_fit':'FWHM', 
                              'density_variable': 'Hamiltonian'}
 
+# No intensity
 matched_from_distribution_density_multibunch(beam, general_params,
-                             full_tracker, distribution_options_list,
+                             full_tracker, distribution_options,
                              n_bunches, bunch_spacing_buckets,
                              intensity_list=intensity_list,
                              minimum_n_macroparticles=minimum_n_macroparticles)
 
-plt.figure()
+plt.figure('from distribution function')
 slice_beam.track()
 plt.plot(slice_beam.bin_centers, slice_beam.n_macroparticles, lw=2,
          label='without intensity effects')
-         
+
+# Intensity
 matched_from_distribution_density_multibunch(beam, general_params,
-                             full_tracker, distribution_options_list,
+                             full_tracker, distribution_options,
                              n_bunches, bunch_spacing_buckets,
                              intensity_list=intensity_list,
                              minimum_n_macroparticles=minimum_n_macroparticles,
                              TotalInducedVoltage=total_ind_volt,
                              n_iterations_input=10)
 
-
 slice_beam.track()
 plt.plot(slice_beam.bin_centers, slice_beam.n_macroparticles, lw=2,
-         label='with intensity effects')
-         
-plt.legend(loc=0, fontsize='medium')
+         label='with intensity effects, bunch after bunch gen.')
+
+match_beam_from_distribution(beam, full_tracker, general_params,
+                             distribution_options, n_bunches,
+                             bunch_spacing_buckets,
+                             TotalInducedVoltage=total_ind_volt,
+                             n_iterations=10, n_points_potential=1e3)
+
+plt.figure('from distribution function')
+slice_beam.track()
+plt.plot(slice_beam.bin_centers, slice_beam.n_macroparticles, lw=2, label='with intensity effects, whole beam gen.')
+
+plt.legend(loc='best', fontsize='medium', frameon=False)
 plt.title('From distribution function')
+   
+# --- from line density
 
 line_density_options_list = distribution_options_list
 matched_from_line_density_multibunch(beam, general_params,
@@ -169,4 +187,4 @@ slice_beam.track()
 plt.plot(slice_beam.bin_centers, slice_beam.n_macroparticles, lw=2,
          label='with intensity effects')
 plt.title('From line density')
-plt.legend(loc=0, fontsize='medium')
+plt.legend(loc='best', fontsize='medium', frameon=False)

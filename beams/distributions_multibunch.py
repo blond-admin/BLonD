@@ -1,7 +1,7 @@
 '''
 **Module to generate multibunch distributions**
 
-:Authors: **Danilo Quartullo**, **Alexandre Lasheen**, **Theodoros Argyropoulos**
+:Authors: **Danilo Quartullo**, **Alexandre Lasheen**, **Theodoros Argyropoulos**, **Joel Repond**
 '''
 
 from __future__ import division, print_function, absolute_import
@@ -10,7 +10,12 @@ import numpy as np
 import copy
 import matplotlib.pyplot as plt
 from .beams import Beam
-from .distributions import matched_from_distribution_function, matched_from_line_density
+
+from scipy.integrate import cumtrapz
+from .distributions import matched_from_distribution_function,\
+                           matched_from_line_density, populate_bunch,\
+                           distribution_function, potential_well_cut,\
+                           X0_from_bunch_length
 
 
 
@@ -360,3 +365,251 @@ def matched_from_line_density_multibunch(beam, GeneralParameters,
                 
     beam.dt = beamIteration.dt
     beam.dE = beamIteration.dE
+
+#def match_beam_from_distribution(beam, FullRingAndRF, GeneralParameters,
+#                                  distribution_options, n_bunches,
+#                                  bunch_spacing_buckets,
+#                                  main_harmonic_option='lowest_freq',
+#                                  TotalInducedVoltage=None, n_iterations=1,
+#                                  n_points_potential=1e4,
+#                                  n_points_grid=int(1e3),
+#                                  dt_margin_percent=0.40,
+#                                  extraVoltageDict=None, seed=None,
+#                                  distribution_exponent=None,
+#                                  distribution_type=None,
+#                                  emittance=None, bunch_length=None,
+#                                  bunch_length_fit=None,
+#                                  distribution_variable='Hamiltonian'):
+def match_beam_from_distribution(beam, FullRingAndRF, GeneralParameters,
+                                  distribution_options, n_bunches,
+                                  bunch_spacing_buckets,
+                                  main_harmonic_option='lowest_freq',
+                                  TotalInducedVoltage=None, n_iterations=1,
+                                  n_points_potential=1e4,
+                                  dt_margin_percent=0.40, seed=None,):
+    '''
+    *This function generates n equaly spaced bunches for a stationary 
+    distribution and try to match them with intensity effects.*
+    
+    *The corresponding distributions are specified by their exponent:*
+    
+    .. math::
+        g_0(J) \\sim (1-J/J_0)^{\\text{exponent}}}
+        
+    *Knowing the distribution, to generate the phase space:
+    - Compute the potential U
+    - The value of H can be computed thanks to U
+    - The action J can be integrated over the whole phase space
+    - 2piJ = emittance, this restrict the value of J0 (or H0)
+    - with g0(H) we can randomize the macroparticles*
+    '''           
+#------------------------------------------------------------------------
+# USEFUL VARIABLES
+#------------------------------------------------------------------------
+    # Slicing necessary only with intensity effects
+    if TotalInducedVoltage is not None:
+        slicing = TotalInducedVoltage.slices
+
+    # Ring informations, Trev, energy, RF parameters ...
+    rf_params = FullRingAndRF.RingAndRFSection_list[0].rf_params
+    t_rev = rf_params.t_rev[0]
+    n_rf = rf_params.n_rf
+    beta = rf_params.beta[0]
+    E = rf_params.energy[0]
+    charge = rf_params.charge
+#    acceleration_kick = FullRingAndRF.RingAndRFSection_list[0].acceleration_kick[0]
+
+    # Minimum omega_RF is used to compute the size of the bucket
+    omega_RF = []
+    for i in range(n_rf):
+        omega_RF += [rf_params.omega_RF[i][0]]
+    omega_RF = np.array(omega_RF)
+
+    eta_0 = rf_params.eta_0[0]
+    
+    # Coefficient of Kin and Pot part of the hamiltonian
+    normalization_DeltaE = np.abs(eta_0) / (2.*beta**2*E)
+    normalization_potential = np.sign(eta_0)*charge/t_rev
+    
+    intensity_per_bunch = beam.intensity/n_bunches
+    n_macro_per_bunch = int(beam.n_macroparticles/n_bunches)
+    bucket_size_tau = 2*np.pi/(np.min(omega_RF))
+
+#------------------------------------------------------------------------
+# GENERATES N BUNCHES WITHOUT INTENSITY EFFECTS
+#------------------------------------------------------------------------
+
+    FullRingAndRF.potential_well_generation(n_points=n_points_potential, 
+                                    dt_margin_percent=dt_margin_percent, 
+                                    main_harmonic_option=main_harmonic_option)
+
+    # Restrict the potential well inside the separatrix and put min on 0
+    potential_well_coordinates, potential_well = potential_well_cut(\
+        FullRingAndRF.potential_well_coordinates,\
+        FullRingAndRF.potential_well)
+    potential_well = potential_well - np.min(potential_well)
+    
+    # Temporary beam, everything is done in the first bucket and then
+    # shifted to plug into the real beam.
+    temporary_beam = Beam(GeneralParameters, n_macro_per_bunch, intensity_per_bunch)
+
+    # Bunches placed in all the buckets without intensity effects
+    # Loop the match function to have "different" bunches in each bucket
+    for indexBunch in range(n_bunches):
+        match_a_bunch(normalization_DeltaE, temporary_beam,
+                      potential_well_coordinates,
+                      potential_well, seed, distribution_options,
+                      full_ring_and_RF=FullRingAndRF)
+        if indexBunch==0:
+            beam.dt = temporary_beam.dt
+            beam.dE = temporary_beam.dE
+        else:
+            beam.dt = np.append(beam.dt, temporary_beam.dt +(indexBunch *bunch_spacing_buckets *bucket_size_tau))
+            beam.dE = np.append(beam.dE, temporary_beam.dE)
+    
+    print(str(n_bunches)+' stationary bunches without intensity generated')
+#------------------------------------------------------------------------
+# REMATCH THE BUNCHES WITH INTENSITY EFFECTS
+#------------------------------------------------------------------------
+    if TotalInducedVoltage is not None:
+        print('Applying intensity effects ...')
+        for it in range(n_iterations):
+            conv = 0.
+            # Compute the induced voltage/potential for all the beam
+            slicing.track()
+            TotalInducedVoltage.induced_voltage_sum()
+            
+            induced_voltage_coordinates = TotalInducedVoltage.time_array
+            induced_voltage = TotalInducedVoltage.induced_voltage
+            induced_potential = - normalization_potential * cumtrapz(induced_voltage, dx=induced_voltage_coordinates[1] - induced_voltage_coordinates[0], initial=0)
+
+            for indexBunch in range(n_bunches):
+                # Extract the induced potential for the specific bucket
+                induced_potential_bunch = np.interp(potential_well_coordinates\
+                + indexBunch*bunch_spacing_buckets*bucket_size_tau,\
+                induced_voltage_coordinates, induced_potential)
+
+                # Recompute the phase space distribution for the new
+                # perturbed potential (containing induced_potential_bunch)
+                match_a_bunch(normalization_DeltaE, temporary_beam,
+                              potential_well_coordinates,
+                              potential_well+induced_potential_bunch, seed,
+                              distribution_options,
+                              full_ring_and_RF=FullRingAndRF)
+
+                dt = temporary_beam.dt
+                dE = temporary_beam.dE
+                
+                # Compute RMS emittance to observe convergence
+                conv += np.pi*np.std(dt)*np.std(dE)
+                
+                length_dt = len(dt)
+                length_dE = len(dE)
+                beam.dt[indexBunch*length_dt:(indexBunch+1)*length_dt] = dt+(indexBunch *bunch_spacing_buckets *bucket_size_tau)
+                beam.dE[indexBunch*length_dE:(indexBunch+1)*length_dE] = dE
+
+ 
+            print('iteration ' + str(it) + ', average RMS emittance (4sigma) = ' + str(4*conv/n_bunches))
+            slicing.track()
+            TotalInducedVoltage.induced_voltage_sum()
+
+def compute_X_grid(normalization_DeltaE, time_array, potential_well,
+                   distribution_variable):
+    
+    # Delta Energy array
+    max_DeltaE = np.sqrt(np.max(potential_well)/normalization_DeltaE)
+    coord_array_DeltaE = np.linspace(-max_DeltaE,max_DeltaE,len(time_array))
+    
+    # Resolution in time and energy
+    time_resolution = time_array[1]-time_array[0]
+    energy_resolution = coord_array_DeltaE[1]-coord_array_DeltaE[0]
+    
+    # Grid
+    time_grid, deltaE_grid = np.meshgrid(time_array, coord_array_DeltaE)
+    potential_well_grid = np.meshgrid(potential_well, potential_well)[0]
+    H_grid = normalization_DeltaE * deltaE_grid**2 + potential_well_grid
+    
+    # Compute the action J
+    J_array = np.zeros(shape=potential_well.shape, dtype=float)
+    for i in range(len(J_array)):
+        DELTA = np.sqrt((potential_well[i]-potential_well)[potential_well <= potential_well[i]]/normalization_DeltaE)
+        J_array[i] = 1./np.pi*np.trapz(DELTA, dx=time_array[1]-time_array[0])
+    
+    # Compute J grid
+    sorted_H = potential_well[potential_well.argsort()]
+    sorted_J = J_array[potential_well.argsort()]
+    
+    if distribution_variable == 'Action':
+        J_grid = np.interp(H_grid, sorted_H, sorted_J,\
+                           left=0, right=np.inf)
+        return sorted_H, sorted_J, J_grid, time_grid, deltaE_grid,\
+               time_resolution, energy_resolution
+    else:
+        return sorted_H, sorted_J, H_grid, time_grid, deltaE_grid,\
+                       time_resolution, energy_resolution
+
+def compute_H0(emittance, H, J):
+    #  Estimation of H corresponding to the emittance
+    return np.interp(emittance / (2.*np.pi), J, H)
+
+def match_a_bunch(normalization_DeltaE, beam, potential_well_coordinates,\
+                  potential_well, seed, distribution_options,\
+                  full_ring_and_RF=None):
+    
+    if 'type' in distribution_options:
+        distribution_type = distribution_options['type']
+    else:
+        distribution_type = None
+#    
+    if 'exponent' in distribution_options:
+        distribution_exponent = distribution_options['exponent']
+    else:
+        distribution_exponent = None
+#    
+    if 'emittance' in distribution_options:
+        emittance = distribution_options['emittance']
+    else:
+        emittance = None
+    
+    if 'bunch_length' in distribution_options:
+        bunch_length = distribution_options['bunch_length']
+    else:
+        bunch_length = None
+    
+    if 'bunch_length_fit' in distribution_options:
+        bunch_length_fit = distribution_options['bunch_length_fit']
+    else:
+        bunch_length_fit = None
+    
+    if 'density_variable' in distribution_options:
+        distribution_variable = distribution_options['density_variable']
+    else:
+        distribution_variable = 'Hamiltonian'
+
+    H, J, X_grid, time_grid, deltaE_grid, time_resolution, energy_resolution = compute_X_grid(normalization_DeltaE, potential_well_coordinates, potential_well,distribution_variable)
+    
+    # Choice of either H or J as the variable used
+    if distribution_variable is 'Action':
+        sorted_X = J
+    elif distribution_variable is 'Hamiltonian':
+        sorted_X = H
+    else:
+        raise SystemError('distribution_variable should be Action or Hamiltonian')
+
+    if bunch_length is not None:
+        n_points_grid = X_grid.shape[0]
+        X0 = X0_from_bunch_length(bunch_length, bunch_length_fit, X_grid, sorted_X,
+                         n_points_grid, potential_well_coordinates,
+                         distribution_function, distribution_type, 
+                         distribution_exponent, beam, full_ring_and_RF)
+    elif emittance is not None:
+        X0 = compute_H0(emittance, H, J)
+    else:
+        raise SystemError('You should specify either bunch_length or emittance')
+
+    distribution = distribution_function(X_grid, distribution_type, X0, exponent=distribution_exponent)
+    distribution[X_grid>np.max(H)] = 0
+    distribution = distribution / np.sum(distribution)
+
+    populate_bunch(beam, time_grid, deltaE_grid, distribution, time_resolution,
+                   energy_resolution, seed)
