@@ -63,6 +63,12 @@ STRUCTURE
 
 VERSION CONTENTS 
 ================
+2017-01-18
+v1.17.0 - Numerical synchrotron frequency distribution added (TC12)
+        - Possibility to compute multi-turn wake with acceleration
+          (in impedance.py)
+        - fixed a bug in the periodicity routine (in tracker.py)
+
 2016-10-24
 v1.16.0 - MuSiC algorithm introduced, TC11 added, minor bugs fixed
 
