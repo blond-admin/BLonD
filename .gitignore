@@ -10,3 +10,8 @@ sync_rad.dll
 
 /__doc/build/
 /PERSONAL_FOLDER/
+/cedar/
+/input_files/
+impedance_scenario.py
+SPS_tools.py
+/toolbox/SPS_model

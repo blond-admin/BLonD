@@ -26,12 +26,11 @@ from scipy.integrate import cumtrapz
 
 
 def synchrotron_frequency_distribution(Beam, FullRingAndRF, main_harmonic_option = 'lowest_freq', 
-                                 turn = 0, TotalInducedVoltage = None, smoothOption = None):
+                                 turn = 0, TotalInducedVoltage = None, smoothOption = None,
+                                 n_bunches=1):
     '''
     *Function to compute the frequency distribution of a distribution for a certain
-    RF system and optional intensity effects. The potential well (and induced
-    potential) are not updated by this function, thus it has to be called* 
-    **after** *the potential well (and induced potential) generation.*
+    RF system and optional intensity effects.*
     
     *If used with induced potential, be careful that noise can be an issue. An
     analytical line density can be inputed by using the TotalInducedVoltage 
@@ -52,7 +51,7 @@ def synchrotron_frequency_distribution(Beam, FullRingAndRF, main_harmonic_option
     '''
     
     # Initialize variables depending on the accelerator parameters
-    slippage_factor = FullRingAndRF.RingAndRFSection_list[0].eta_0[0]
+    slippage_factor = FullRingAndRF.RingAndRFSection_list[0].eta_0[turn]
                         
     eom_factor_dE = abs(slippage_factor) / (2*Beam.beta**2. * Beam.energy)
     eom_factor_potential = np.sign(slippage_factor) * Beam.charge / (FullRingAndRF.RingAndRFSection_list[0].t_rev[0])
@@ -166,14 +165,22 @@ def synchrotron_frequency_distribution(Beam, FullRingAndRF, main_harmonic_option
     emittance_array_right = J_array_right * (2*np.pi) 
     
     # Calculating particle distribution in synchrotron frequency 
-    H_particles = eom_factor_dE * Beam.dE**2 + np.interp(Beam.dt, time_coord_array, total_potential)
+#    bucket_size = 2.*np.pi/ FullRingAndRF.RingAndRFSection_list[0].omega_RF[0][0]
+#    H_particles = eom_factor_dE * Beam.dE**2 + np.interp(np.fmod(Beam.dt,bucket_size), time_coord_array, total_potential)
     sync_freq_distribution = np.concatenate((sync_freq_distribution_left, sync_freq_distribution_right))
     H_array = np.concatenate((np.fliplr([H_array_left])[0], H_array_right))
     sync_freq_distribution = sync_freq_distribution[H_array.argsort()]
     H_array.sort()
     
-    particleDistributionFreq = np.interp(H_particles, H_array, sync_freq_distribution)
-    
+    bucket_size = 2.*np.pi/ FullRingAndRF.RingAndRFSection_list[0].omega_RF[0][0]
+    particleDistributionFreq = []
+    for it in range(n_bunches):
+        H_particles = eom_factor_dE * Beam.dE**2 + np.interp(\
+                    np.fmod(Beam.dt,bucket_size),\
+                    time_coord_array, total_potential)
+        particleDistributionFreq += [np.interp(H_particles, H_array,
+                                              sync_freq_distribution)]
+
     return [sync_freq_distribution_left, sync_freq_distribution_right], \
             [emittance_array_left, emittance_array_right], \
             [delta_time_left, delta_time_right], \
