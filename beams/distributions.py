@@ -415,6 +415,7 @@ def matched_from_distribution_function(beam, full_ring_and_RF,
 
     #: *Number of points to be used in the potential well calculation*
     n_points_potential = int(n_points_potential)
+    n_points_grid = int(n_points_grid)
     # Generate potential well
     full_ring_and_RF.potential_well_generation(n_points=n_points_potential, 
                                     dt_margin_percent=dt_margin_percent, 

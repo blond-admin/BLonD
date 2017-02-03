@@ -353,3 +353,194 @@ class LHCNoiseFB(object):
             
         # Average FWHM bunch length            
         self.bl_meas = np.mean(self.bl_meas_bbb)
+
+class PSB_phase_noise_injection(object): 
+    
+    def __init__(self, GeneralParameters, RFSectionParameters, delta_f = 1, 
+                 corr_time = 10000, fmin = 0.8571, fmax = 1.1, 
+                 initial_amplitude = 1.e-6, seed1 = 1234, seed2 = 7564, 
+                 predistortion = None, rescale_amplitude = 'with_sync_freq'):
+        
+        self.f_rev = GeneralParameters.f_rev  
+        self.delta_f = delta_f           
+        self.corr = corr_time           
+        self.fmin = fmin                
+        self.fmax = fmax                
+        self.initial_amplitude = initial_amplitude    
+        self.seed1 = seed1
+        self.seed2 = seed2
+        self.predistortion = predistortion
+        self.rescale_amplitude = rescale_amplitude
+        self.f_s0 = RFSectionParameters.omega_s0 / (2*np.pi)
+        self.n_turns = GeneralParameters.n_turns
+        self.dphi = np.zeros(self.n_turns+1)
+        
+    
+    def generate(self):
+        
+        for i in xrange(0, int(self.n_turns/self.corr)+1):
+            
+            k = i*self.corr
+            f_max = self.f_rev[k]/2
+            f_s0 = self.f_s0[k]
+            
+            n_points_pos_f_incl_zero = int(f_max/self.delta_f)+2
+            nt = 2*(n_points_pos_f_incl_zero - 1)
+            nt_regular = next_regular(nt)
+            n_points_pos_f_incl_zero = nt_regular/2 + 1  
+            freq = np.linspace(0, f_max, n_points_pos_f_incl_zero)
+            new_delta_f = f_max/(n_points_pos_f_incl_zero-1) 
+            
+#            f_s0 = 1.3e5
+            nmin = np.floor(self.fmin*f_s0/new_delta_f)  
+            nmax = np.ceil(self.fmax*f_s0/new_delta_f)
+            
+            print('nmin nmax : ',nmin,nmax)
+            
+            if self.rescale_amplitude == 'with_sync_freq':
+                ampl = self.initial_amplitude*self.f_s0[0]/f_s0
+            elif self.rescale_amplitude == 'no_scaling':
+                ampl = self.initial_amplitude
+            
+            if self.predistortion == 'linear':
+                
+                spectrum = np.concatenate((np.zeros(nmin), 
+                    np.linspace(0, ampl, nmax-nmin+1), np.zeros(n_points_pos_f_incl_zero-nmax-1)))   
+                
+            else:
+                
+                spectrum = np.concatenate((np.zeros(int(nmin)), 
+                    ampl*np.ones(int(nmax-nmin+1)), np.zeros(int(n_points_pos_f_incl_zero-nmax-1))))               
+
+            plt.figure('spectrum noise')
+            plt.plot(freq,spectrum)
+            x1,x2,y1,y2 = plt.axis()
+            plt.axis((0,300,y1,y2)) 
+            plt.pause(0.0001)
+            
+            noise = PhaseNoise(freq, spectrum, self.seed1, self.seed2)
+            noise.spectrum_to_phase_noise()
+        
+            self.seed1 +=239
+            self.seed2 +=158
+            
+            if i < int(self.n_turns/self.corr):
+                self.dphi[(i*self.corr):((i+1)*self.corr)] = noise.dphi[:self.corr]
+            else:
+                self.dphi[int(self.n_turns/self.corr)*self.corr:] = noise.dphi[:(self.n_turns-int(self.n_turns/self.corr)*self.corr+1)]
+            
+            rms_noise = np.std(noise.dphi)
+            print('RF noise for time step %.4e s (iter %d) has r.m.s. phase %.4e rad (%.3e deg' \
+                %(noise.t[1], i, rms_noise, rms_noise*180/np.pi))
+
+class SPS_phase_noise_injection(object): 
+    
+    def __init__(self,noise_nturn_recalculation,noise_time_window,GeneralParameters, RFSectionParameters, delta_f = 1, 
+                 corr_time = 10000, fmin = 0.8571, fmax = 1.1, 
+                 initial_amplitude = 1.e-6, seed1 = 1234, seed2 = 7564, 
+                 predistortion = None, rescale_amplitude = 'with_sync_freq'):
+        
+        self.rf_params = RFSectionParameters
+        self.noise_nturn_recalculation = noise_nturn_recalculation
+        self.noise_time_window = noise_time_window
+        self.turn = 0.
+        
+        self.f_rev = GeneralParameters.f_rev  
+        self.delta_f = delta_f           
+        self.corr = corr_time           
+        self.fmin = fmin                
+        self.fmax = fmax
+        self.initial_amplitude = initial_amplitude    
+        self.seed1 = seed1
+        self.seed2 = seed2
+        self.predistortion = predistortion
+        self.rescale_amplitude = rescale_amplitude
+        self.f_s0 = RFSectionParameters.omega_s0 / (2*np.pi)
+        self.n_turns = GeneralParameters.n_turns
+        self.dphi = np.zeros(self.n_turns+1)
+        self.totalnoise = np.zeros(self.n_turns+1)
+        
+        self.freqmax = self.fmax*self.f_s0
+        self.freqmin = self.fmin*self.f_s0
+        
+        self.fs0_array = np.array([])
+        self.fedge_array = np.array([])
+        
+#        self.totalnoisespectrum
+        
+    
+    def generate(self):
+        
+        for i in xrange(0, int(self.n_turns/self.corr)+1):
+            
+            k = i*self.corr
+            f_max = self.f_rev[k]/2
+            f_s0 = self.f_s0[k]
+            
+            n_points_pos_f_incl_zero = int(f_max/self.delta_f)+2
+            nt = 2*(n_points_pos_f_incl_zero - 1)
+            nt_regular = next_regular(nt)
+            n_points_pos_f_incl_zero = nt_regular/2 + 1  
+            freq = np.linspace(0, f_max, n_points_pos_f_incl_zero)
+            new_delta_f = f_max/(n_points_pos_f_incl_zero-1) 
+            
+#            f_s0 = 1.3e5
+            nmin = np.floor(self.freqmin/new_delta_f)  
+            nmax = np.ceil(self.freqmax/new_delta_f)
+            
+#            print 'nmin nmax : ',nmin,nmax
+            
+            if self.rescale_amplitude == 'with_sync_freq':
+                ampl = self.initial_amplitude*self.f_s0[0]/f_s0
+            elif self.rescale_amplitude == 'no_scaling':
+                ampl = self.initial_amplitude
+            
+            if self.predistortion == 'linear':
+                
+                spectrum = np.concatenate((np.zeros(nmin), 
+                    np.linspace(0, ampl, nmax-nmin+1), np.zeros(n_points_pos_f_incl_zero-nmax-1)))   
+                
+            else:
+                
+                spectrum = np.concatenate((np.zeros(int(nmin)), 
+                    ampl*np.ones(int(nmax-nmin+1)), np.zeros(int(n_points_pos_f_incl_zero-nmax-1))))       
+                    
+#            self.totalnoisespectrum = spectrum
+#            plt.figure('spectrum noise')
+#            plt.plot(freq,spectrum)
+#            x1,x2,y1,y2 = plt.axis()
+#            plt.axis((0,300,y1,y2)) 
+#            plt.pause(0.0001)
+            
+            noise = PhaseNoise(freq, spectrum, self.seed1, self.seed2)
+            noise.spectrum_to_phase_noise()
+        
+            self.seed1 +=239
+            self.seed2 +=158
+            
+            if i < int(self.n_turns/self.corr):
+                self.dphi[(i*self.corr):((i+1)*self.corr)] = noise.dphi[:self.corr]
+            else:
+                self.dphi[int(self.n_turns/self.corr)*self.corr:] = noise.dphi[:(self.n_turns-int(self.n_turns/self.corr)*self.corr+1)]
+            
+#            rms_noise = np.std(noise.dphi)
+#            print "RF noise for time step %.4e s (iter %d) has r.m.s. phase %.4e rad (%.3e deg)" \
+#                %(noise.t[1], i, rms_noise, rms_noise*180/np.pi)
+    def update_freq(self,fs0,fedge):  #temporary function to update the freq targeted by the noise
+        if fs0 > fedge:
+            self.freqmax = fs0            
+            self.freqmin = fedge
+        else:
+            self.freqmax = fedge
+            self.freqmin = fs0
+        self.fs0_array = np.append(self.fs0_array,fs0)
+        self.fedge_array = np.append(self.fedge_array,fedge)
+            
+    def track(self):
+        if self.turn >= self.noise_time_window[0] and self.turn <= self.noise_time_window[1]:
+            if self.turn%self.noise_nturn_recalculation==0:
+                self.generate()
+                phasenoise = self.dphi
+                self.totalnoise[int(self.turn):int(self.turn+self.noise_nturn_recalculation)] += phasenoise[int(self.turn):int(self.turn+self.noise_nturn_recalculation)]  #save the noise for plotting purpose
+                self.rf_params.phi_RF[0][int(self.turn):int(self.turn+self.noise_nturn_recalculation)] += phasenoise[int(self.turn):int(self.turn+self.noise_nturn_recalculation)]
+        self.turn += 1

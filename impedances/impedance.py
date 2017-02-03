@@ -73,7 +73,7 @@ class TotalInducedVoltage(object):
         for induced_voltage_object in self.induced_voltage_list:
             induced_voltage_object.induced_voltage_generation()
             temp_induced_voltage += \
-                  induced_voltage_object.induced_voltage[:self.slices.n_slices]
+                  induced_voltage_object.induced_voltage[:int(self.slices.n_slices)]
             
         self.induced_voltage = temp_induced_voltage
         
