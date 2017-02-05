@@ -22,12 +22,11 @@ import numpy as np
 import copy
 from scipy.constants import c
 from scipy.integrate import cumtrapz
-
-
+import matplotlib.pyplot as plt
 
 def synchrotron_frequency_distribution(Beam, FullRingAndRF, main_harmonic_option = 'lowest_freq', 
                                  turn = 0, TotalInducedVoltage = None, smoothOption = None,
-                                 n_bunches=1):
+                                 n_bunches=1,bunch_spacing_buckets=0):
     '''
     *Function to compute the frequency distribution of a distribution for a certain
     RF system and optional intensity effects.*
@@ -69,7 +68,8 @@ def synchrotron_frequency_distribution(Beam, FullRingAndRF, main_harmonic_option
     # Calculating the induced potential    
     if TotalInducedVoltage is not None:
         
-        induced_voltage_object = copy.deepcopy(TotalInducedVoltage)
+#        induced_voltage_object = copy.deepcopy(TotalInducedVoltage)
+        induced_voltage_object = TotalInducedVoltage
         
         induced_voltage = induced_voltage_object.induced_voltage
         time_induced_voltage = TotalInducedVoltage.slices.bin_centers
@@ -174,9 +174,15 @@ def synchrotron_frequency_distribution(Beam, FullRingAndRF, main_harmonic_option
     
     bucket_size = 2.*np.pi/ FullRingAndRF.RingAndRFSection_list[0].omega_RF[0][0]
     particleDistributionFreq = []
+    
     for it in range(n_bunches):
-        H_particles = eom_factor_dE * Beam.dE**2 + np.interp(\
-                    np.fmod(Beam.dt,bucket_size),\
+        left_edge = it * bunch_spacing_buckets * bucket_size
+        right_edge = left_edge + bucket_size
+        cond1 = Beam.dt >= left_edge
+        cond2 = Beam.dt <= right_edge
+        
+        H_particles = eom_factor_dE * Beam.dE[cond1*cond2]**2 + np.interp(\
+                    np.fmod(Beam.dt[cond1*cond2],bucket_size),\
                     time_coord_array, total_potential)
         particleDistributionFreq += [np.interp(H_particles, H_array,
                                               sync_freq_distribution)]
