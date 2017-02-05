@@ -380,6 +380,7 @@ def matched_from_line_density_multibunch(beam, GeneralParameters,
 #                                  emittance=None, bunch_length=None,
 #                                  bunch_length_fit=None,
 #                                  distribution_variable='Hamiltonian'):
+#@profile
 def match_beam_from_distribution(beam, FullRingAndRF, GeneralParameters,
                                   distribution_options, n_bunches,
                                   bunch_spacing_buckets,

@@ -21,9 +21,12 @@ import h5py
 #import numpy as np
 #from scipy.special import ellipk, ellipe
 
-
+def load_logs(file_str):
+    stream = file(file_str)
+    return yaml.load(stream)
 class logs(object):
-    def __init__(self, logFile, GeneralParameters, RFSectionParameters, Beam, Slices, userInputDic=None):
+    def __init__(self, logFile, GeneralParameters, RFSectionParameters, Beam,
+                 Slices, userInputDic=None):
         
         self.logFile = logFile
         self.rf_params = RFSectionParameters#  To obtain nturns through counter
