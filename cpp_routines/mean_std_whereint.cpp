@@ -31,7 +31,7 @@ extern "C" int where(const double *__restrict__ dt, const int n_macroparticles,
     int s = 0;
    #pragma omp parallel for reduction(+:s)
    for (int i = 0; i < n_macroparticles; i++) {
-      s += (dt[i]< constant) ? 1 : 0;
+      s += (dt[i]< constant && dt[i]>0) ? 1 : 0;
    }
    return s;
 }
