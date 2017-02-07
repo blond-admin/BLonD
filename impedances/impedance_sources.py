@@ -18,7 +18,8 @@ from __future__ import division, print_function
 from builtins import range, object
 import numpy as np
 from scipy.constants import c, physical_constants
-
+from setup_cpp import libblond
+import ctypes
 
 class _ImpedanceObject(object):
     '''
@@ -213,16 +214,33 @@ class Resonators(_ImpedanceObject):
         '''
         *Impedance calculation method as a function of frequency.*
         '''
+ 
+                ###### Python version left for comparison
+        
+#         self.frequency_array = frequency_array
+#         self.impedance = np.zeros(len(self.frequency_array)) + 0j
+#         
+#         
+#         for i in range(0, self.n_resonators):
+#             
+#             self.impedance[1:] += self.R_S[i] / (1 + 1j * self.Q[i] * 
+#                                                  (self.frequency_array[1:] / self.frequency_R[i] - 
+#                                                   self.frequency_R[i] / self.frequency_array[1:]))
+        
+        ###### C++ optimized version
         
         self.frequency_array = frequency_array
         self.impedance = np.zeros(len(self.frequency_array), complex)
-        
-        for i in range(0, self.n_resonators):
-            
-            self.impedance[1:] += self.R_S[i] / (1 + 1j * self.Q[i] *
-                             (self.frequency_array[1:] / self.frequency_R[i] - 
-                              self.frequency_R[i] / self.frequency_array[1:]))
+        realImp = np.zeros(len(self.frequency_array))
+        imagImp = np.zeros(len(self.frequency_array))
+
+        libblond.fast_resonator_real_imag(realImp.ctypes.data_as(ctypes.c_void_p), imagImp.ctypes.data_as(ctypes.c_void_p),
+               self.frequency_array.ctypes.data_as(ctypes.c_void_p), self.R_S.ctypes.data_as(ctypes.c_void_p),
+               self.Q.ctypes.data_as(ctypes.c_void_p), self.frequency_R.ctypes.data_as(ctypes.c_void_p),
+               ctypes.c_uint(self.n_resonators), ctypes.c_uint(len(self.frequency_array)))
  
+        self.impedance.real = realImp
+        self.impedance.imag = imagImp
  
 
 class TravelingWaveCavity(_ImpedanceObject):

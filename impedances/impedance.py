@@ -22,6 +22,7 @@ from numpy.fft import  rfft, irfft, rfftfreq
 from ctypes import c_uint, c_double, c_void_p
 from scipy.constants import e
 from setup_cpp import libblond
+import ctypes
 
 linear_interp_kick = libblond.linear_interp_kick
 
@@ -73,7 +74,7 @@ class TotalInducedVoltage(object):
         for induced_voltage_object in self.induced_voltage_list:
             induced_voltage_object.induced_voltage_generation()
             temp_induced_voltage += \
-                  induced_voltage_object.induced_voltage[:int(self.slices.n_slices)]
+                  induced_voltage_object.induced_voltage[:self.slices.n_slices]
             
         self.induced_voltage = temp_induced_voltage
         
@@ -185,9 +186,9 @@ class _InducedVoltage(object):
                 
         if self.multi_turn_wake:            
             # Number of points of the memory array for multi-turn wake
-            self.n_mtw_memory = self.n_induced_voltage
-            
-            self.front_wake_buffer = 0
+            self.n_fft = next_regular(self.n_induced_voltage+self.front_wake_length)
+            self.n_mtw_memory = self.n_fft - self.front_wake_length
+
             
             if self.mtw_mode == 'freq':
                 # In frequency domain, an extra buffer for a revolution turn is
@@ -210,9 +211,8 @@ class _InducedVoltage(object):
                 # Selecting time-shift method
                 self.shift_trev = self.shift_trev_time
                 # Time array
-                self.time_mtw = np.arange(0, self.wake_length, 
-                                          self.wake_length / self.n_mtw_memory)
-            
+                t_max = self.n_mtw_memory * self.slices.bin_size
+                self.time_mtw = np.linspace(self.slices.bin_centers[0], t_max-self.slices.bin_size/2, self.n_mtw_memory)
             # Array to add and shift in time the multi-turn wake over the turns
             self.mtw_memory = np.zeros(self.n_mtw_memory)
             
@@ -227,13 +227,13 @@ class _InducedVoltage(object):
         *Method to calculate the induced voltage at the current turn. DFTs are 
         used for calculations in time and frequency domain (see classes below)*
         '''
+        padded_before_profile = np.lib.pad(self.slices.n_macroparticles, (self.front_wake_length,0), 'constant', constant_values=(0,0))
+        self.slices.beam_spectrum = rfft(padded_before_profile, self.n_fft)       
         
-        self.slices.beam_spectrum_generation(self.n_fft)
+        self.induced_voltage_extended = - (self.beam.charge * e * self.beam.ratio *
+            irfft(self.total_impedance * self.slices.beam_spectrum))[self.front_wake_length:]
         
-        induced_voltage = - (self.beam.charge * e * self.beam.ratio *
-            irfft(self.total_impedance * self.slices.beam_spectrum))
-        
-        self.induced_voltage = induced_voltage[:self.n_induced_voltage]
+        self.induced_voltage = self.induced_voltage_extended[:self.slices.n_slices]
 
 
     def induced_voltage_mtw(self):
@@ -248,16 +248,11 @@ class _InducedVoltage(object):
         # Induced voltage of the current turn calculation
         self.induced_voltage_1turn()
         
-        # Setting to zero to the last part to remove the contribution from the
-        # front wake
-        self.induced_voltage[self.n_induced_voltage -
-                             self.front_wake_buffer:] = 0
-        
         # Add the induced voltage of the current turn to the memory from
         # previous turns
-        self.mtw_memory[:self.n_induced_voltage] += self.induced_voltage
+        self.mtw_memory += self.induced_voltage_extended
         
-        self.induced_voltage = self.mtw_memory[:self.n_induced_voltage]
+        self.induced_voltage = self.mtw_memory[:self.slices.n_slices]
 
 
     def shift_trev_freq(self):
@@ -283,9 +278,16 @@ class _InducedVoltage(object):
         '''
         
         t_rev = self.RFParams.t_rev[self.RFParams.counter[0]]
-        self.mtw_memory = np.interp(self.time_mtw + t_rev, self.time_mtw,
-                                    self.mtw_memory, left=0, right=0)
-
+        
+        time_array_shifted = self.time_mtw + t_rev
+        
+        interpolation2 = np.zeros(self.n_mtw_memory)
+        libblond.linear_interp_time_translation(self.time_mtw.ctypes.data_as(ctypes.c_void_p),
+                              self.mtw_memory.ctypes.data_as(ctypes.c_void_p), 
+                              time_array_shifted.ctypes.data_as(ctypes.c_void_p), 
+                              interpolation2.ctypes.data_as(ctypes.c_void_p), 
+                              ctypes.c_uint(self.n_mtw_memory))
+        self.mtw_memory = interpolation2
 
     def _track(self):
         '''
@@ -401,18 +403,13 @@ class InducedVoltageFreq(_InducedVoltage):
         # Number of points for the FFT. The next regular number is used for 
         # speed, therefore the frequency resolution is always equal or finer
         # than the input value
-        self.n_fft = next_regular(self.n_induced_voltage)
+        self.n_fft = next_regular(self.n_induced_voltage+self.front_wake_length)
                 
         self.slices.beam_spectrum_freq_generation(self.n_fft)
         
         #: *Frequency array of the impedance in Hz*
         self.freq = self.slices.beam_spectrum_freq
             
-        # Length of the front wake in frequency domain calculations 
-        if self.front_wake_length:            
-            self.front_wake_buffer = int(np.ceil(
-                    np.max(self.front_wake_length) / self.slices.bin_size))
-        
         # Processing the impedances
         self.sum_impedances(self.freq)
         

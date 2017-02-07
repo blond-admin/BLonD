@@ -66,6 +66,7 @@ cpp_files = ['cpp_routines/mean_std_whereint.cpp',
              'toolbox/tomoscope.cpp',
              'cpp_routines/convolution.cpp',
              'cpp_routines/music_track.cpp',
+             'cpp_routines/fast_resonator.cpp',
              'cpp_routines/sparse_histogram.cpp',
              'synchrotron_radiation/synchrotron_radiation.cpp']
 

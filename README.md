@@ -63,7 +63,13 @@ STRUCTURE
 
 VERSION CONTENTS 
 ================
-2017-01-18
+2017-02-06
+v1.18.0 - Juan's modications have been included:
+            - New test cases added
+            - Impedance file splitted for more readibility
+            - Improvements in utilities
+            -...
+
 v1.17.0 - Numerical synchrotron frequency distribution added (TC12)
         - Possibility to compute multi-turn wake with acceleration
           (in impedance.py)

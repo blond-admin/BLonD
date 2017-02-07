@@ -34,7 +34,7 @@ class FlatSpectrum(object):
     def __init__(self, GeneralParameters, RFSectionParameters, delta_f = 1, 
                  corr_time = 10000, fmin_s0 = 0.8571, fmax_s0 = 1.1, 
                  initial_amplitude = 1.e-6, seed1 = 1234, seed2 = 7564, 
-                 predistortion = None, continuous_phase = False):
+                 predistortion = None, continuous_phase = False, folder_plots = 'fig_noise'):
 
         '''
         Generate phase noise from a band-limited spectrum.
@@ -65,6 +65,7 @@ class FlatSpectrum(object):
         self.continuous_phase = continuous_phase
         if self.continuous_phase:
             self.dphi2 = np.zeros(self.n_turns+1+self.corr/4)
+        self.folder_plots = folder_plots    
         
     
     def spectrum_to_phase_noise(self, freq, spectrum, transform=None):
@@ -205,11 +206,12 @@ class FlatSpectrum(object):
                 self.seed2 +=158
                 self.dphi2[(k+self.corr/4):(kmax+self.corr/4)] = self.dphi_output[0:(kmax-k)]
             
-            fig_folder('fig_noise')
-            plot_noise_spectrum(freq, spectrum, sampling=1, figno=i, 
-                                dirname = 'fig_noise')
-            plot_phase_noise(self.t[0:(kmax-k)], self.dphi_output[0:(kmax-k)], 
-                             sampling=1, figno=i, dirname = 'fig_noise')
+            if self.folder_plots != None:
+                fig_folder(self.folder_plots)
+                plot_noise_spectrum(freq, spectrum, sampling=1, figno=i, 
+                                    dirname = self.folder_plots)
+                plot_phase_noise(self.t[0:(kmax-k)], self.dphi_output[0:(kmax-k)], 
+                                 sampling=1, figno=i, dirname = self.folder_plots)
             rms_noise = np.std(self.dphi_output)
             print("RF noise for time step %.4e s (iter %d) has r.m.s. phase %.4e rad (%.3e deg)" \
                 %(self.t[1], i, rms_noise, rms_noise*180/np.pi))
@@ -353,6 +355,8 @@ class LHCNoiseFB(object):
             
         # Average FWHM bunch length            
         self.bl_meas = np.mean(self.bl_meas_bbb)
+
+
 
 
 class SPS_phase_noise_injection(object): 

@@ -14,14 +14,14 @@ Project website: http://blond.web.cern.ch/
 #include <stdio.h>
 
 extern "C" void sparse_histogram(const double * __restrict__ input,
-            double * __restrict__ output,
+		    double * __restrict__ output,
                const double * __restrict__ cut_left_array,
                const double * __restrict__ cut_right_array,
                const double * __restrict__ bunch_indexes,
                const int n_slices,
                const int n_filled_buckets,
                const int n_macroparticles){
-    
+	
     int i;
     int j;
     int i_bucket;
