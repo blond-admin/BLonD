@@ -22,9 +22,8 @@ from numpy.fft import  rfft, irfft, rfftfreq
 from ctypes import c_uint, c_double, c_void_p
 from scipy.constants import e
 from setup_cpp import libblond
-import ctypes
+import ctypes, sys
 
-linear_interp_kick = libblond.linear_interp_kick
 
 class TotalInducedVoltage(object):
     '''
@@ -86,24 +85,26 @@ class TotalInducedVoltage(object):
         
         self.induced_voltage_sum()
         
-        linear_interp_kick(self.beam.dt.ctypes.data_as(c_void_p),
-                           self.beam.dE.ctypes.data_as(c_void_p),
-                           self.induced_voltage.ctypes.data_as(c_void_p), 
-                           self.slices.bin_centers.ctypes.data_as(c_void_p),
-                           c_double(self.beam.charge),
-                           c_uint(self.slices.n_slices),
-                           c_uint(self.beam.n_macroparticles))
+        induced_energy = self.beam.charge * self.induced_voltage
+        libblond.linear_interp_kick(self.beam.dt.ctypes.data_as(ctypes.c_void_p),
+                                  self.beam.dE.ctypes.data_as(ctypes.c_void_p), 
+                                  induced_energy.ctypes.data_as(ctypes.c_void_p), 
+                                  self.slices.bin_centers.ctypes.data_as(ctypes.c_void_p), 
+                                  ctypes.c_uint(self.slices.n_slices),
+                                  ctypes.c_uint(self.beam.n_macroparticles),
+                                  ctypes.c_double(0.))
 
 
     def track_ghosts_particles(self, ghostBeam):
         
-        linear_interp_kick(ghostBeam.dt.ctypes.data_as(c_void_p),
+        induced_energy = self.beam.charge * self.induced_voltage
+        libblond.linear_interp_kick(ghostBeam.dt.ctypes.data_as(c_void_p),
                            ghostBeam.dE.ctypes.data_as(c_void_p), 
-                           self.induced_voltage.ctypes.data_as(c_void_p), 
+                           induced_energy.ctypes.data_as(c_void_p), 
                            self.slices.bin_centers.ctypes.data_as(c_void_p),
-                           c_double(self.beam.charge),
-                           c_uint(self.slices.n_slices),
-                           c_uint(ghostBeam.n_macroparticles))
+                           ctypes.c_uint(self.slices.n_slices),
+                           ctypes.c_uint(ghostBeam.n_macroparticles),
+                           ctypes.c_double(0.))
 
 
 class _InducedVoltage(object):
@@ -143,7 +144,7 @@ class _InducedVoltage(object):
         self.mtw_mode = mtw_mode
         
         self.process()
-
+        
 
     def process(self):
         '''
@@ -166,6 +167,7 @@ class _InducedVoltage(object):
                 and self.wake_length_input == None):
             self.n_induced_voltage = int(np.ceil(1/ (self.slices.bin_size *
                                              self.frequency_resolution_input)))
+#             self.n_induced_voltage = 99330
             if self.n_induced_voltage < self.slices.n_slices:
                 raise RuntimeError('Error: too large frequency_resolution. '+
                 'Reduce it below {0:1.2e} Hz.'.format(1 / 
@@ -187,6 +189,7 @@ class _InducedVoltage(object):
         if self.multi_turn_wake:            
             # Number of points of the memory array for multi-turn wake
             self.n_fft = next_regular(self.n_induced_voltage+self.front_wake_length)
+            
             self.n_mtw_memory = self.n_fft - self.front_wake_length
 
             
@@ -220,8 +223,8 @@ class _InducedVoltage(object):
             self.induced_voltage_generation = self.induced_voltage_mtw
         else:
             self.induced_voltage_generation = self.induced_voltage_1turn
-
-
+          
+            
     def induced_voltage_1turn(self):
         '''
         *Method to calculate the induced voltage at the current turn. DFTs are 
@@ -269,7 +272,7 @@ class _InducedVoltage(object):
         # Setting to zero to the last part to remove the contribution from the
         # circular convolution
         self.mtw_memory[-int(self.buffer_size):] = 0
-    
+        
     
     def shift_trev_time(self):
         '''
@@ -288,22 +291,23 @@ class _InducedVoltage(object):
                               interpolation2.ctypes.data_as(ctypes.c_void_p), 
                               ctypes.c_uint(self.n_mtw_memory))
         self.mtw_memory = interpolation2
-
+        
+        
     def _track(self):
         '''
         *Tracking method*
         '''
         
         self.induced_voltage_generation()
-
-        linear_interp_kick(self.beam.dt.ctypes.data_as(c_void_p),
-                           self.beam.dE.ctypes.data_as(c_void_p),
-                           self.induced_voltage.ctypes.data_as(c_void_p),
-                           self.slices.bin_centers.ctypes.data_as(c_void_p),
-                           c_double(self.beam.charge),
-                           c_uint(self.slices.n_slices),
-                           c_uint(self.beam.n_macroparticles))
-
+        
+        induced_energy = self.beam.charge * self.induced_voltage
+        libblond.linear_interp_kick(self.beam.dt.ctypes.data_as(ctypes.c_void_p),
+                                  self.beam.dE.ctypes.data_as(ctypes.c_void_p), 
+                                  induced_energy.ctypes.data_as(ctypes.c_void_p), 
+                                  self.slices.bin_centers.ctypes.data_as(ctypes.c_void_p), 
+                                  ctypes.c_uint(self.slices.n_slices),
+                                  ctypes.c_uint(self.beam.n_macroparticles),
+                                  ctypes.c_double(0.))
 
 
 class InducedVoltageTime(_InducedVoltage):
@@ -391,25 +395,26 @@ class InducedVoltageFreq(_InducedVoltage):
                  frequency_resolution=frequency_resolution,
                  multi_turn_wake=multi_turn_wake, RFParams=RFParams,
                  mtw_mode=mtw_mode)
-
+        
 
     def process(self):
         '''
         *Reprocess the impedance contributions. To be run when slices changes*
         '''
-
+       
         _InducedVoltage.process(self)
         
         # Number of points for the FFT. The next regular number is used for 
         # speed, therefore the frequency resolution is always equal or finer
         # than the input value
+        
         self.n_fft = next_regular(self.n_induced_voltage+self.front_wake_length)
-                
+        
         self.slices.beam_spectrum_freq_generation(self.n_fft)
         
         #: *Frequency array of the impedance in Hz*
         self.freq = self.slices.beam_spectrum_freq
-            
+             
         # Processing the impedances
         self.sum_impedances(self.freq)
         
@@ -455,10 +460,11 @@ class InductiveImpedance(_InducedVoltage):
         '''
         
         index = self.RFParams.counter[0]
-        
+
         induced_voltage = - (self.beam.charge * e / (2 * np.pi) *
                 self.beam.ratio * self.Z_over_n[index] *
                 self.RFParams.t_rev[index] / self.slices.bin_size *
                 self.slices.beam_profile_derivative(self.deriv_mode)[1])
 
-        self.induced_voltage = induced_voltage[:self.n_induced_voltage]
+        self.induced_voltage = induced_voltage[:self.slices.n_slices]
+        

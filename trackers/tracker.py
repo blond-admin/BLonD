@@ -409,9 +409,11 @@ class RingAndRFSection(object):
                     self.total_voltage = self.rf_voltage + self.TotalInducedVoltage.induced_voltage
                 else:
                     self.total_voltage = self.rf_voltage
+                    
+                induced_energy = self.beam.charge * self.total_voltage
                 libblond.linear_interp_kick(self.beam.dt.ctypes.data_as(ctypes.c_void_p),
                                   self.beam.dE.ctypes.data_as(ctypes.c_void_p), 
-                                  (self.beam.charge * self.total_voltage).ctypes.data_as(ctypes.c_void_p), 
+                                  induced_energy.ctypes.data_as(ctypes.c_void_p), 
                                   self.slices.bin_centers.ctypes.data_as(ctypes.c_void_p), 
                                   ctypes.c_int(self.slices.n_slices),
                                   ctypes.c_int(self.beam.n_macroparticles),
@@ -419,9 +421,9 @@ class RingAndRFSection(object):
                 
             else:
                 self.kick(self.beam.dt, self.beam.dE, self.counter[0])
-            
+             
             self.drift(self.beam.dt, self.beam.dE, self.counter[0]+1)
-            
+                   
             # Orizzontal cut: this method really eliminates particles from the
             # code
             if self.dE_max!=None:
