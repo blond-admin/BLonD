@@ -18,7 +18,7 @@ from builtins import range, object
 import numpy as np
 from toolbox.next_regular import next_regular
 from numpy.fft import  rfft, irfft, rfftfreq
-import ctypes, time
+import ctypes, time,sys
 from scipy.constants import e
 from scipy.signal import filtfilt
 import scipy.ndimage as ndimage
@@ -191,8 +191,8 @@ class TotalInducedVoltage(object):
         elif self.mode_mtw=='second_method':
             # Like the previous one but an interpolation in time domain is performed
             # instead of the rotation to transport the voltage from the past.
-            padded_before_profile = np.lib.pad(self.slices.n_macroparticles, (self.points_before,0), 'constant', constant_values=(0,0))
-            self.fourier_transf_profile = rfft(padded_before_profile, self.n_fft_sampling)
+            
+            # shift
             time_array_shifted = self.time_array_interp + self.rev_time_array[self.counter_turn]
             interpolation2 = np.zeros(self.points_ext_ind_volt)
             libblond.linear_interp_time_translation(self.time_array_interp.ctypes.data_as(ctypes.c_void_p),
@@ -200,6 +200,10 @@ class TotalInducedVoltage(object):
                                   time_array_shifted.ctypes.data_as(ctypes.c_void_p), 
                                   interpolation2.ctypes.data_as(ctypes.c_void_p), 
                                   ctypes.c_uint(self.points_ext_ind_volt))
+            # induced voltage calculation
+            padded_before_profile = np.lib.pad(self.slices.n_macroparticles, (self.points_before,0), 'constant', constant_values=(0,0))
+            self.fourier_transf_profile = rfft(padded_before_profile, self.n_fft_sampling)
+            
             self.induced_voltage_extended = irfft(self.coefficient * self.fourier_transf_profile * self.sum_impedances_memory, self.n_fft_sampling)[self.points_before:] + \
                                                 + interpolation2
             self.induced_voltage = self.induced_voltage_extended[:self.slices.n_slices]
@@ -646,6 +650,7 @@ class InductiveImpedance(object):
                 self.Z_over_n[index] * \
                 self.derivative_line_density_not_filtered / (2 * np.pi * self.revolution_frequency[index])
         else:
+            
             induced_voltage = - Beam.charge * e / (2 * np.pi) * Beam.ratio * \
                 self.Z_over_n[index] / self.revolution_frequency[index] * \
                 self.slices.beam_profile_derivative(self.deriv_mode)[1] / \

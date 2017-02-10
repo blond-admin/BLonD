@@ -37,14 +37,6 @@ struct particle {
     }
 };
 
-struct Comparator {
-    const double *dt;
-    Comparator(const double *_dt) : dt(_dt) {}
-    bool operator()(const int i1, const int i2) const
-    {
-        return dt[i1] < dt[i2];
-    }
-};
 
 extern "C" void music_track(double *__restrict__ beam_dt,
                             double *__restrict__ beam_dE,
@@ -75,20 +67,6 @@ extern "C" void music_track(double *__restrict__ beam_dt,
         beam_dE[i] = particles[i].de;
         beam_dt[i] = particles[i].dt;
     }
-    // NOTE make sure that this is actually sorting beam_dE with regards to
-    // beam_dt
-// #ifdef PARALLEL
-//     // std::cout << "parallel code\n";
-//     __gnu_parallel::sort(&beam_dE[0], &beam_dE[n_macroparticles],
-//                          Comparator(beam_dt));
-//     __gnu_parallel::sort(&beam_dt[0], &beam_dt[n_macroparticles]);
-// #else
-//     // std::cout << "serial code\n";
-//     std::sort(&beam_dE[0], &beam_dE[n_macroparticles],
-//               Comparator(beam_dt));
-//     std::sort(&beam_dt[0], &beam_dt[n_macroparticles]);
-// #endif
-
 
 //     duration = std::chrono::system_clock::now() - start;
 //     std::cout << "sorting time: " << duration.count() << '\n';
