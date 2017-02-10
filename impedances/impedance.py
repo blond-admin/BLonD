@@ -162,7 +162,8 @@ class TotalInducedVoltage(object):
                                   induced_energy.ctypes.data_as(ctypes.c_void_p), 
                                   self.slices.bin_centers.ctypes.data_as(ctypes.c_void_p), 
                                   ctypes.c_uint(self.slices.n_slices),
-                                  ctypes.c_uint(self.beam.n_macroparticles))
+                                  ctypes.c_uint(self.beam.n_macroparticles),
+                                  ctypes.c_double(0.))
         
     
     def track_memory(self):
@@ -217,7 +218,8 @@ class TotalInducedVoltage(object):
                                   induced_energy.ctypes.data_as(ctypes.c_void_p), 
                                   self.slices.bin_centers.ctypes.data_as(ctypes.c_void_p), 
                                   ctypes.c_uint(self.slices.n_slices),
-                                  ctypes.c_uint(self.beam.n_macroparticles))
+                                  ctypes.c_uint(self.beam.n_macroparticles),
+                                  ctypes.c_double(0.))
             
         # Counter update
         self.counter_turn += 1
@@ -231,7 +233,8 @@ class TotalInducedVoltage(object):
                                   induced_energy.ctypes.data_as(ctypes.c_void_p), 
                                   self.slices.bin_centers.ctypes.data_as(ctypes.c_void_p), 
                                   ctypes.c_uint(self.slices.n_slices),
-                                  ctypes.c_uint(ghostBeam.n_macroparticles))
+                                  ctypes.c_uint(ghostBeam.n_macroparticles),
+                                  ctypes.c_double(0.))
 
 
 
@@ -333,7 +336,8 @@ class InducedVoltageTime(object):
                                   induced_energy.ctypes.data_as(ctypes.c_void_p), 
                                   self.slices.bin_centers.ctypes.data_as(ctypes.c_void_p), 
                                   ctypes.c_uint(self.slices.n_slices),
-                                  ctypes.c_uint(Beam.n_macroparticles))
+                                  ctypes.c_uint(Beam.n_macroparticles),
+                                  ctypes.c_double(0.))
 
     
 class InducedVoltageFreq(object):
@@ -539,7 +543,8 @@ class InducedVoltageFreq(object):
                                   induced_energy.ctypes.data_as(ctypes.c_void_p), 
                                   self.slices.bin_centers.ctypes.data_as(ctypes.c_void_p), 
                                   ctypes.c_uint(self.slices.n_slices),
-                                  ctypes.c_uint(Beam.n_macroparticles))
+                                  ctypes.c_uint(Beam.n_macroparticles),
+                                  ctypes.c_double(0.))
         
         
 class InductiveImpedance(object):
@@ -667,7 +672,8 @@ class InductiveImpedance(object):
                                   induced_energy.ctypes.data_as(ctypes.c_void_p), 
                                   self.slices.bin_centers.ctypes.data_as(ctypes.c_void_p), 
                                   ctypes.c_uint(self.slices.n_slices),
-                                  ctypes.c_uint(self.beam.n_macroparticles))
+                                  ctypes.c_uint(self.beam.n_macroparticles),
+                                  ctypes.c_double(0.))
 
     
 class InputTable(object):

@@ -63,7 +63,11 @@ STRUCTURE
 
 VERSION CONTENTS 
 ================
-2017-01-18
+2017-02-10
+v1.18.0 - Fixed an important bug in linear_interp_kick.cpp: before the
+          acceleration kick was not applied if rf_kick_interp==TRUE in 
+          RingAndRFSection
+        
 v1.17.0 - Numerical synchrotron frequency distribution added (TC12)
         - Possibility to compute multi-turn wake with acceleration
           (in impedance.py)
