@@ -200,6 +200,10 @@ class TotalInducedVoltage(object):
                                   time_array_shifted.ctypes.data_as(ctypes.c_void_p), 
                                   interpolation2.ctypes.data_as(ctypes.c_void_p), 
                                   ctypes.c_uint(self.points_ext_ind_volt))
+            # Python version, left for comparison
+#             interpolation2 = np.interp(time_array_shifted, self.time_array_interp,
+#                                         self.induced_voltage_extended, left=0, right=0)
+            
             # induced voltage calculation
             padded_before_profile = np.lib.pad(self.slices.n_macroparticles, (self.points_before,0), 'constant', constant_values=(0,0))
             self.fourier_transf_profile = rfft(padded_before_profile, self.n_fft_sampling)
