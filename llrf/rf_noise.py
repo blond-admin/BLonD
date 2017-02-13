@@ -55,7 +55,7 @@ class FlatSpectrum(object):
         self.seed1 = seed1
         self.seed2 = seed2
         self.predistortion = predistortion
-        if self.predistortion != None:
+        if self.predistortion == 'weightfunction':
             # Overwrite frequencies
             self.fmin_s0 = 0.8571
             self.fmax_s0 = 1.001
