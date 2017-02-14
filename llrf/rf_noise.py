@@ -34,7 +34,8 @@ class FlatSpectrum(object):
     def __init__(self, GeneralParameters, RFSectionParameters, delta_f = 1, 
                  corr_time = 10000, fmin_s0 = 0.8571, fmax_s0 = 1.1, 
                  initial_amplitude = 1.e-6, seed1 = 1234, seed2 = 7564, 
-                 predistortion = None, continuous_phase = False, folder_plots = 'fig_noise'):
+                 predistortion = None, continuous_phase = False, folder_plots =
+                  'fig_noise', print_option = True):
 
         '''
         Generate phase noise from a band-limited spectrum.
@@ -66,7 +67,8 @@ class FlatSpectrum(object):
         if self.continuous_phase:
             self.dphi2 = np.zeros(self.n_turns+1+self.corr/4)
         self.folder_plots = folder_plots    
-        
+        self.print_option = print_option
+    
     
     def spectrum_to_phase_noise(self, freq, spectrum, transform=None):
         
@@ -212,9 +214,11 @@ class FlatSpectrum(object):
                                     dirname = self.folder_plots)
                 plot_phase_noise(self.t[0:(kmax-k)], self.dphi_output[0:(kmax-k)], 
                                  sampling=1, figno=i, dirname = self.folder_plots)
+                
             rms_noise = np.std(self.dphi_output)
-            print("RF noise for time step %.4e s (iter %d) has r.m.s. phase %.4e rad (%.3e deg)" \
-                %(self.t[1], i, rms_noise, rms_noise*180/np.pi))
+            if self.print_option:
+                print("RF noise for time step %.4e s (iter %d) has r.m.s. phase %.4e rad (%.3e deg)" \
+                    %(self.t[1], i, rms_noise, rms_noise*180/np.pi))
                 
         if self.continuous_phase:
             psi = np.arange(0, self.n_turns+1)*2*np.pi/self.corr
