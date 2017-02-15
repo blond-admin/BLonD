@@ -54,16 +54,20 @@ class Music(object):
         self.coeff2 = -self.R_S*self.omega_R/(self.Q*self.omega_bar)
         self.coeff3 = self.omega_R*self.Q/(self.R_S*self.omega_bar)
         self.coeff4 = self.alpha/self.omega_bar
+        
         self.input_first_component = 1
         self.input_second_component = 0
         self.t_rev = t_rev
-        
+        self.last_dt = self.beam.dt[-1]
+        self.array_parameters = np.array([self.input_first_component, self.input_second_component, self.t_rev, self.last_dt])
+    
     
     def track_cpp(self):
 
         libblond.music_track(self.beam.dt.ctypes.data_as(ctypes.c_void_p),
                              self.beam.dE.ctypes.data_as(ctypes.c_void_p),
                              self.induced_voltage.ctypes.data_as(ctypes.c_void_p),
+                             self.array_parameters.ctypes.data_as(ctypes.c_void_p),
                              ctypes.c_int(len(self.beam.dt)),
                              ctypes.c_double(self.alpha),
                              ctypes.c_double(self.omega_bar),
@@ -72,6 +76,7 @@ class Music(object):
                              ctypes.c_double(self.coeff2),
                              ctypes.c_double(self.coeff3),
                              ctypes.c_double(self.coeff4))
+    
     
     def track_py(self):
         
@@ -103,7 +108,8 @@ class Music(object):
             
             self.input_first_component = product_first_component+1.0
             self.input_second_component = product_second_component
-        
+            self.last_dt = self.beam.dt[-1]
+    
     
     def track_classic(self):
         
@@ -125,12 +131,7 @@ class Music(object):
                 
             self.induced_voltage[i+1] = self.const*(0.5+self.induced_voltage[i+1])    
             self.beam.dE[i+1] += self.induced_voltage[i+1]
-    
-    
-    def track_py_multi_turn_first_turn(self):
-        
-        self.track_py()
-        self.last_dt = self.beam.dt[-1]
+
     
     
     def track_py_multi_turn(self):
@@ -176,4 +177,20 @@ class Music(object):
             self.input_first_component = product_first_component+1.0
             self.input_second_component = product_second_component 
         
-        self.last_dt = self.beam.dt[-1]       
+        self.last_dt = self.beam.dt[-1]    
+        
+        
+    def track_cpp_multi_turn(self):
+        
+        libblond.music_track_multiturn(self.beam.dt.ctypes.data_as(ctypes.c_void_p),
+                             self.beam.dE.ctypes.data_as(ctypes.c_void_p),
+                             self.induced_voltage.ctypes.data_as(ctypes.c_void_p),
+                             self.array_parameters.ctypes.data_as(ctypes.c_void_p),
+                             ctypes.c_int(len(self.beam.dt)),
+                             ctypes.c_double(self.alpha),
+                             ctypes.c_double(self.omega_bar),
+                             ctypes.c_double(self.const),
+                             ctypes.c_double(self.coeff1),
+                             ctypes.c_double(self.coeff2),
+                             ctypes.c_double(self.coeff3),
+                             ctypes.c_double(self.coeff4))

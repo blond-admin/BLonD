@@ -41,6 +41,7 @@ struct particle {
 extern "C" void music_track(double *__restrict__ beam_dt,
                             double *__restrict__ beam_dE,
                             double *__restrict__ induced_voltage,
+                            double *__restrict__ array_parameters,
                             const int n_macroparticles,
                             const double alpha,
                             const double omega_bar,
@@ -96,6 +97,10 @@ extern "C" void music_track(double *__restrict__ beam_dt,
         beam_dE[i + 1] += induced_voltage[i + 1];
         input_first_component = product_first_component + 1;
         input_second_component = product_second_component;
+        
+        array_parameters[0] = input_first_component;
+        array_parameters[1] = input_second_component;
+        array_parameters[3] = beam_dt[n_macroparticles-1];
     }
 
 
@@ -105,4 +110,81 @@ extern "C" void music_track(double *__restrict__ beam_dt,
 
 
 }
+
+
+extern "C" void music_track_multiturn(double *__restrict__ beam_dt,
+                            double *__restrict__ beam_dE,
+                            double *__restrict__ induced_voltage,
+                            double *__restrict__ array_parameters,
+                            const int n_macroparticles,
+                            const double alpha,
+                            const double omega_bar,
+                            const double cnst,
+                            const double coeff1,
+                            const double coeff2,
+                            const double coeff3,
+                            const double coeff4)
+{
+
+    std::vector<particle> particles; particles.reserve(n_macroparticles);
+    for (int i = 0; i < n_macroparticles; i++)
+        particles.push_back({beam_dE[i], beam_dt[i]});
+#ifdef PARALLEL
+    __gnu_parallel::sort(particles.begin(), particles.end());
+#else
+    std::sort(particles.begin(), particles.end());
+#endif
+    for (int i = 0; i < n_macroparticles; i++) {
+        beam_dE[i] = particles[i].de;
+        beam_dt[i] = particles[i].dt;
+    }
+
+    const double time_difference_0 = beam_dt[0] + array_parameters[2] - array_parameters[3];
+    const double exp_term = fast_exp(-alpha * time_difference_0);
+    const double cos_term = fast_cos(omega_bar * time_difference_0);
+    const double sin_term = fast_sin(omega_bar * time_difference_0);
+    
+    const double product_first_component =
+            exp_term * ((cos_term + coeff1 * sin_term)
+                        * array_parameters[0] + coeff2 * sin_term
+                        * array_parameters[1]);
+
+    const double product_second_component =
+        exp_term * (coeff3 * sin_term * array_parameters[0]
+                    + (cos_term + coeff4 * sin_term)
+                    * array_parameters[1]);
+                    
+    induced_voltage[0] = cnst * (0.5 + product_first_component);
+    beam_dE[0] += induced_voltage[0];
+    double input_first_component = product_first_component + 1;
+    double input_second_component = product_second_component;
+
+    
+    for (int i = 0; i < n_macroparticles - 1; i++) {
+        const double time_difference = beam_dt[i + 1] - beam_dt[i];
+        const double exp_term = fast_exp(-alpha * time_difference);
+        const double cos_term = fast_cos(omega_bar * time_difference);
+        const double sin_term = fast_sin(omega_bar * time_difference);
+
+        const double product_first_component =
+            exp_term * ((cos_term + coeff1 * sin_term)
+                        * input_first_component + coeff2 * sin_term
+                        * input_second_component);
+
+        const double product_second_component =
+            exp_term * (coeff3 * sin_term * input_first_component
+                        + (cos_term + coeff4 * sin_term)
+                        * input_second_component);
+
+        induced_voltage[i + 1] = cnst * (0.5 + product_first_component);
+        beam_dE[i + 1] += induced_voltage[i + 1];
+        input_first_component = product_first_component + 1;
+        input_second_component = product_second_component;
+    }
+    
+    array_parameters[0] = input_first_component;
+    array_parameters[1] = input_second_component;
+    array_parameters[3] = beam_dt[n_macroparticles-1];
+}
+
 
