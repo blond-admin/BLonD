@@ -26,12 +26,12 @@ extern "C" double standard_deviation(const double * __restrict__ data, const int
 
 
 extern "C" int where(const double *__restrict__ dt, const int n_macroparticles,
-                                    const double constant)
+                                    const double constant1, const double constant2)
 {
-    int s = 0;
+   int s = 0;
    #pragma omp parallel for reduction(+:s)
    for (int i = 0; i < n_macroparticles; i++) {
-      s += (dt[i]< constant) ? 1 : 0;
+      s += (dt[i] < constant2 && dt[i] > constant1) ? 1 : 0;
    }
    return s;
 }

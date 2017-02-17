@@ -18,7 +18,7 @@ from builtins import range, object
 import numpy as np
 from toolbox.next_regular import next_regular
 from numpy.fft import  rfft, irfft, rfftfreq
-import ctypes, time
+import ctypes, time,sys
 from scipy.constants import e
 from scipy.signal import filtfilt
 import scipy.ndimage as ndimage
@@ -162,7 +162,8 @@ class TotalInducedVoltage(object):
                                   induced_energy.ctypes.data_as(ctypes.c_void_p), 
                                   self.slices.bin_centers.ctypes.data_as(ctypes.c_void_p), 
                                   ctypes.c_uint(self.slices.n_slices),
-                                  ctypes.c_uint(self.beam.n_macroparticles))
+                                  ctypes.c_uint(self.beam.n_macroparticles),
+                                  ctypes.c_double(0.))
         
     
     def track_memory(self):
@@ -190,8 +191,8 @@ class TotalInducedVoltage(object):
         elif self.mode_mtw=='second_method':
             # Like the previous one but an interpolation in time domain is performed
             # instead of the rotation to transport the voltage from the past.
-            padded_before_profile = np.lib.pad(self.slices.n_macroparticles, (self.points_before,0), 'constant', constant_values=(0,0))
-            self.fourier_transf_profile = rfft(padded_before_profile, self.n_fft_sampling)
+            
+            # shift
             time_array_shifted = self.time_array_interp + self.rev_time_array[self.counter_turn]
             interpolation2 = np.zeros(self.points_ext_ind_volt)
             libblond.linear_interp_time_translation(self.time_array_interp.ctypes.data_as(ctypes.c_void_p),
@@ -199,6 +200,14 @@ class TotalInducedVoltage(object):
                                   time_array_shifted.ctypes.data_as(ctypes.c_void_p), 
                                   interpolation2.ctypes.data_as(ctypes.c_void_p), 
                                   ctypes.c_uint(self.points_ext_ind_volt))
+            # Python version, left for comparison
+#             interpolation2 = np.interp(time_array_shifted, self.time_array_interp,
+#                                         self.induced_voltage_extended, left=0, right=0)
+            
+            # induced voltage calculation
+            padded_before_profile = np.lib.pad(self.slices.n_macroparticles, (self.points_before,0), 'constant', constant_values=(0,0))
+            self.fourier_transf_profile = rfft(padded_before_profile, self.n_fft_sampling)
+            
             self.induced_voltage_extended = irfft(self.coefficient * self.fourier_transf_profile * self.sum_impedances_memory, self.n_fft_sampling)[self.points_before:] + \
                                                 + interpolation2
             self.induced_voltage = self.induced_voltage_extended[:self.slices.n_slices]
@@ -217,7 +226,8 @@ class TotalInducedVoltage(object):
                                   induced_energy.ctypes.data_as(ctypes.c_void_p), 
                                   self.slices.bin_centers.ctypes.data_as(ctypes.c_void_p), 
                                   ctypes.c_uint(self.slices.n_slices),
-                                  ctypes.c_uint(self.beam.n_macroparticles))
+                                  ctypes.c_uint(self.beam.n_macroparticles),
+                                  ctypes.c_double(0.))
             
         # Counter update
         self.counter_turn += 1
@@ -231,7 +241,8 @@ class TotalInducedVoltage(object):
                                   induced_energy.ctypes.data_as(ctypes.c_void_p), 
                                   self.slices.bin_centers.ctypes.data_as(ctypes.c_void_p), 
                                   ctypes.c_uint(self.slices.n_slices),
-                                  ctypes.c_uint(ghostBeam.n_macroparticles))
+                                  ctypes.c_uint(ghostBeam.n_macroparticles),
+                                  ctypes.c_double(0.))
 
 
 
@@ -333,7 +344,8 @@ class InducedVoltageTime(object):
                                   induced_energy.ctypes.data_as(ctypes.c_void_p), 
                                   self.slices.bin_centers.ctypes.data_as(ctypes.c_void_p), 
                                   ctypes.c_uint(self.slices.n_slices),
-                                  ctypes.c_uint(Beam.n_macroparticles))
+                                  ctypes.c_uint(Beam.n_macroparticles),
+                                  ctypes.c_double(0.))
 
     
 class InducedVoltageFreq(object):
@@ -539,7 +551,8 @@ class InducedVoltageFreq(object):
                                   induced_energy.ctypes.data_as(ctypes.c_void_p), 
                                   self.slices.bin_centers.ctypes.data_as(ctypes.c_void_p), 
                                   ctypes.c_uint(self.slices.n_slices),
-                                  ctypes.c_uint(Beam.n_macroparticles))
+                                  ctypes.c_uint(Beam.n_macroparticles),
+                                  ctypes.c_double(0.))
         
         
 class InductiveImpedance(object):
@@ -641,6 +654,7 @@ class InductiveImpedance(object):
                 self.Z_over_n[index] * \
                 self.derivative_line_density_not_filtered / (2 * np.pi * self.revolution_frequency[index])
         else:
+            
             induced_voltage = - Beam.charge * e / (2 * np.pi) * Beam.ratio * \
                 self.Z_over_n[index] / self.revolution_frequency[index] * \
                 self.slices.beam_profile_derivative(self.deriv_mode)[1] / \
@@ -667,7 +681,8 @@ class InductiveImpedance(object):
                                   induced_energy.ctypes.data_as(ctypes.c_void_p), 
                                   self.slices.bin_centers.ctypes.data_as(ctypes.c_void_p), 
                                   ctypes.c_uint(self.slices.n_slices),
-                                  ctypes.c_uint(self.beam.n_macroparticles))
+                                  ctypes.c_uint(self.beam.n_macroparticles),
+                                  ctypes.c_double(0.))
 
     
 class InputTable(object):
@@ -788,7 +803,7 @@ class Resonators(object):
         
         #: *Impedance array in* [:math:`\Omega`]
         self.impedance = 0
-
+        
 
     def wake_calc(self, time_array):
         '''
@@ -814,17 +829,36 @@ class Resonators(object):
         *Impedance calculation method as a function of frequency.*
         '''
         
+        ###### Python version left for comparison
+        
+#         self.frequency_array = frequency_array
+#         self.impedance = np.zeros(len(self.frequency_array)) + 0j
+#         
+#         
+#         for i in range(0, self.n_resonators):
+#             
+#             self.impedance[1:] += self.R_S[i] / (1 + 1j * self.Q[i] * 
+#                                                  (self.frequency_array[1:] / self.frequency_R[i] - 
+#                                                   self.frequency_R[i] / self.frequency_array[1:]))
+        
+        ###### C++ optimized version
+        
         self.frequency_array = frequency_array
         self.impedance = np.zeros(len(self.frequency_array)) + 0j
-        
-        for i in range(0, self.n_resonators):
-            
-            self.impedance[1:] += self.R_S[i] / (1 + 1j * self.Q[i] * 
-                                                 (self.frequency_array[1:] / self.frequency_R[i] - 
-                                                  self.frequency_R[i] / self.frequency_array[1:]))
- 
- 
+        realImp = np.zeros(len(self.frequency_array))
+        imagImp = np.zeros(len(self.frequency_array))
 
+        libblond.fast_resonator_real_imag(realImp.ctypes.data_as(ctypes.c_void_p), imagImp.ctypes.data_as(ctypes.c_void_p),
+               self.frequency_array.ctypes.data_as(ctypes.c_void_p), self.R_S.ctypes.data_as(ctypes.c_void_p),
+               self.Q.ctypes.data_as(ctypes.c_void_p), self.frequency_R.ctypes.data_as(ctypes.c_void_p),
+               ctypes.c_uint(self.n_resonators), ctypes.c_uint(len(self.frequency_array)))
+ 
+        self.impedance.real = realImp
+        self.impedance.imag = imagImp
+            
+            
+
+    
 class TravelingWaveCavity(object):
     '''
     *Impedance contribution from traveling wave cavities, analytic formulas for 
