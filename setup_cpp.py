@@ -65,7 +65,8 @@ cpp_files = ['cpp_routines/mean_std_whereint.cpp',
              'cpp_routines/linear_interp_kick.cpp',
              'toolbox/tomoscope.cpp',
              'cpp_routines/convolution.cpp',
-             'cpp_routines/music_track.cpp']
+             'cpp_routines/music_track.cpp',
+             'cpp_routines/fast_resonator.cpp']
 
 # Select the right
 cpp_files_SR = ['synchrotron_radiation/synchrotron_radiation.cpp']
