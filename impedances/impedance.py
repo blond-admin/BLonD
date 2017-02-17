@@ -18,17 +18,13 @@ from builtins import range, object
 import numpy as np
 from toolbox.next_regular import next_regular
 from numpy.fft import  rfft, irfft, rfftfreq
-import ctypes
+import ctypes, time,sys
 from scipy.constants import e
 from scipy.signal import filtfilt
 import scipy.ndimage as ndimage
 from toolbox.convolution import convolution
 from setup_cpp import libblond
 import matplotlib.pyplot as plt
-
-from setup_cpp import libimp
-
-import time
 
 
 class TotalInducedVoltage(object):
@@ -40,7 +36,7 @@ class TotalInducedVoltage(object):
     voltages should have the same slicing resolution.*
     '''
     
-    def __init__(self, Beam, Slices, induced_voltage_list, n_turns_memory=0, rev_time_array=None, mode_mtw='fourth_method'):
+    def __init__(self, Beam, Slices, induced_voltage_list, n_turns_memory=0, rev_time_array=None, mode_mtw='second_method'):
         '''
         *Constructor.*
         '''
@@ -80,7 +76,6 @@ class TotalInducedVoltage(object):
                     self.omegaj_array_memory = 2.0j * np.pi * self.frequency_array_memory
                     self.coefficient = - self.beam.charge * e * self.beam.ratio / (self.slices.bin_centers[1]-self.slices.bin_centers[0])
                     self.main_harmonic_number = induced_voltage_object.main_harmonic_number
-                    self.time_array_memory = induced_voltage_object.time_array_memory
                     self.index_save_individual_voltage = induced_voltage_object.index_save_individual_voltage
                     if self.index_save_individual_voltage != -1:
                         self.individual_impedance = induced_voltage_object.impedance_source_list[self.index_save_individual_voltage].impedance
@@ -102,19 +97,21 @@ class TotalInducedVoltage(object):
                     raise RuntimeError('Error! Aborting...')
             
             if self.mode_mtw=='first_method':
-                self.induced_voltage_extended = np.zeros(self.n_fft_sampling)       
+                self.points_before = self.slices.n_slices*self.n_windows_before
+                self.induced_voltage_extended = np.zeros(self.n_fft_sampling)
+                t_max = self.n_fft_sampling * (self.slices.bin_centers[1]-self.slices.bin_centers[0])
+                self.time_array_interp = np.linspace(self.slices.bin_centers[0], t_max-(self.slices.bin_centers[1]-self.slices.bin_centers[0])/2, self.n_fft_sampling)
+                if self.points_before == 0:
+                    self.buffer = self.slices.n_slices
+                else:
+                    self.buffer = self.points_before
             
             elif self.mode_mtw=='second_method':
-                self.ind_volt_freq_table_memory = np.zeros((n_turns_memory+1, len(self.frequency_array_memory)), complex)
-                self.pointer_current_turn = 0
-                if self.index_save_individual_voltage != -1:
-                    self.ind_volt_freq_table_memory_ind_volt = np.zeros((n_turns_memory+1, len(self.frequency_array_memory)), complex)
-                    
-            elif self.mode_mtw=='third_method':
-                self.induced_voltage_extended = np.zeros(self.n_fft_sampling)
-            
-            elif self.mode_mtw=='fourth_method':
-                self.induced_voltage_extended = np.zeros(self.n_points_wake)
+                self.points_before = self.slices.n_slices*self.n_windows_before
+                self.points_ext_ind_volt = self.n_fft_sampling-self.points_before
+                self.induced_voltage_extended = np.zeros(self.points_ext_ind_volt)
+                t_max = self.points_ext_ind_volt * (self.slices.bin_centers[1]-self.slices.bin_centers[0])
+                self.time_array_interp = np.linspace(self.slices.bin_centers[0], t_max-(self.slices.bin_centers[1]-self.slices.bin_centers[0])/2, self.points_ext_ind_volt)
                 
             else:
                 raise RuntimeError('Error! Aborting...')
@@ -138,6 +135,7 @@ class TotalInducedVoltage(object):
         
         temp_induced_voltage = 0
         extended_induced_voltage = 0
+
         for induced_voltage_object in self.induced_voltage_list:
             if isinstance(length, int):
                 extended_induced_voltage += induced_voltage_object.induced_voltage_generation(Beam, length)
@@ -164,7 +162,8 @@ class TotalInducedVoltage(object):
                                   induced_energy.ctypes.data_as(ctypes.c_void_p), 
                                   self.slices.bin_centers.ctypes.data_as(ctypes.c_void_p), 
                                   ctypes.c_uint(self.slices.n_slices),
-                                  ctypes.c_uint(self.beam.n_macroparticles))
+                                  ctypes.c_uint(self.beam.n_macroparticles),
+                                  ctypes.c_double(0.))
         
     
     def track_memory(self):
@@ -172,18 +171,6 @@ class TotalInducedVoltage(object):
         Calculates the induced voltage energy kick to particles taking into
         account multi-turn induced voltage plus inductive impedance contribution.
         '''
-        # Four different methods. It should be reminded that self.n_fft_sampling
-        # is the next regular of n_slices*(n_turns+1); the first, second and
-        # third methods assume the induced voltage zero for all the points
-        # between n_slices*(n_turns+1) and its next regular. For the fourth
-        # method instead, self.n_points_wake is precisely n_slices*(n_turns+1).
-        # The parameter self.main_harmonic_number indicates that all the ring
-        # is sliced for the different methods.
-        # To avoid undesirable contributions of the induced voltage caused by
-        # circular convolution when front wake is present, the profile can
-        # be padded with zeros in front: self.n_windows_before represents
-        # the number of buckets that should be taken into account if self.slices.n_slices
-        # is the number of slices per bucket.
         
         if self.mode_mtw=='first_method':
             # At each turn the induced voltage is calculated for the current
@@ -192,74 +179,40 @@ class TotalInducedVoltage(object):
             # the voltage from the past is multiplied by a complex
             # exponential after imposing zero values in appropriate cells to
             # avoid overlapping.
-            self.induced_voltage_extended[:(self.slices.n_slices*self.n_windows_before+self.slices.n_slices*self.main_harmonic_number)]=0
-            self.induced_voltage_extended[(self.slices.n_slices*self.main_harmonic_number*(self.n_turns_memory+1)+self.slices.n_slices*self.n_windows_before):]=0
+            self.fourier_transf_profile = rfft(self.slices.n_macroparticles, self.n_fft_sampling)
             self.array_memory = rfft(self.induced_voltage_extended, self.n_fft_sampling)
             self.array_memory *= np.exp(self.omegaj_array_memory * self.rev_time_array[self.counter_turn])
-            padded_before_profile = np.lib.pad(self.slices.n_macroparticles, (self.slices.n_slices*self.n_windows_before,0), 'constant', constant_values=(0,0))
-            self.fourier_transf_profile = rfft(padded_before_profile, self.n_fft_sampling)
             self.induced_voltage_extended =  irfft(self.array_memory + self.coefficient * \
                     self.fourier_transf_profile * self.sum_impedances_memory, self.n_fft_sampling)
-            self.induced_voltage = self.induced_voltage_extended[(self.slices.n_slices*self.n_windows_before):((self.slices.n_slices*self.n_windows_before)+self.slices.n_slices*self.main_harmonic_number)]
-            
-        elif self.mode_mtw=='second_method':
-            # Here the rotation technique is used, as in the first method.
-            # The main difference is that a matrix m x n is used, where m is the
-            # number of memory turns +1, and n is the number of fft points.
-            # Each turn, scanning from top to bottom, the current induced voltage 
-            # is calculated in frequency domain and saved into a row of the matrix;
-            # all the other raws are rotated of T_rev to have the suitable
-            # induced voltage from the past.
-            self.ind_volt_freq_table_memory *= np.exp(self.omegaj_array_memory * self.rev_time_array[self.counter_turn])
-            padded_before_profile = np.lib.pad(self.slices.n_macroparticles, (self.slices.n_slices*self.n_windows_before,0), 'constant', constant_values=(0,0))
-            self.fourier_transf_profile = rfft(padded_before_profile, self.n_fft_sampling)
-            self.ind_volt_freq_table_memory[self.pointer_current_turn,:] = self.fourier_transf_profile * self.sum_impedances_memory
-            ind_volt_total_f = np.sum(self.ind_volt_freq_table_memory, axis=0)
-            self.induced_voltage_extended = self.coefficient * irfft(ind_volt_total_f, self.n_fft_sampling)
-            self.induced_voltage = self.induced_voltage_extended[(self.slices.n_slices*self.n_windows_before):((self.slices.n_slices*self.n_windows_before)+self.slices.n_slices*self.main_harmonic_number)]
-            
-            if self.index_save_individual_voltage != -1:
-                self.ind_volt_freq_table_memory_ind_volt *= np.exp(self.omegaj_array_memory * self.rev_time_array[self.counter_turn])
-                self.ind_volt_freq_table_memory_ind_volt[self.pointer_current_turn,:] = self.fourier_transf_profile * self.individual_impedance
-                ind_volt_total_f_individual = np.sum(self.ind_volt_freq_table_memory_ind_volt,axis=0)
-                self.voltage_saved = self.coefficient * irfft(ind_volt_total_f_individual, self.n_fft_sampling)[(self.slices.n_slices*self.n_windows_before):((self.slices.n_slices*self.n_windows_before)+self.slices.n_slices)]
-                
-            self.pointer_current_turn += 1
-            self.pointer_current_turn = np.mod(self.pointer_current_turn, self.n_turns_memory+1)
-            
-        elif self.mode_mtw=='third_method':
-            # At each turn the induced voltage is calculated for the current
-            # turn and the future, then this voltage is summed to the voltage
-            # deriving from the past; the substitution technique is used, that is
-            # at every turn the calculated induced voltage for the current and 
-            # following turns will be used as past voltage in the following turn.
-            padded_before_profile = np.lib.pad(self.slices.n_macroparticles, (self.slices.n_slices*self.n_windows_before,0), 'constant', constant_values=(0,0))
-            self.fourier_transf_profile = rfft(padded_before_profile, self.n_fft_sampling)
-            induced_voltage_current = self.coefficient * \
-                irfft(self.fourier_transf_profile*
-                      self.sum_impedances_memory, self.n_fft_sampling)
-            self.induced_voltage_extended[(self.slices.n_slices*self.n_windows_before):(self.slices.n_slices*self.main_harmonic_number*self.n_turns_memory+self.slices.n_slices*self.n_windows_before)] = \
-                induced_voltage_current[(self.slices.n_slices*self.n_windows_before):(self.slices.n_slices*self.main_harmonic_number*self.n_turns_memory+self.slices.n_slices*self.n_windows_before)] + \
-                self.induced_voltage_extended[(self.slices.n_slices*self.main_harmonic_number+self.slices.n_slices*self.n_windows_before):
-                                              (self.slices.n_slices*self.main_harmonic_number*(self.n_turns_memory+1)+self.slices.n_slices*self.n_windows_before)]
-            self.induced_voltage_extended[(self.slices.n_slices*self.main_harmonic_number*self.n_turns_memory+self.slices.n_slices*self.n_windows_before):] = \
-                induced_voltage_current[(self.slices.n_slices*self.main_harmonic_number*self.n_turns_memory+self.slices.n_slices*self.n_windows_before):]
-            self.induced_voltage = self.induced_voltage_extended[(self.slices.n_slices*self.n_windows_before):((self.slices.n_slices*self.n_windows_before)+self.slices.n_slices*self.main_harmonic_number)]
-  
-        elif self.mode_mtw=='fourth_method':
-            # The only difference between this and the third method is that here
-            # the voltage is calculated in time domain with a convolution.
-            induced_voltage_current = self.coefficient_time * \
-                convolution(self.slices.n_macroparticles, self.total_wake)[:self.n_points_wake]
-            self.induced_voltage_extended[:(self.slices.n_slices*self.main_harmonic_number*self.n_turns_memory)] = \
-                induced_voltage_current[:(self.slices.n_slices*self.main_harmonic_number*self.n_turns_memory)] + \
-                self.induced_voltage_extended[(self.slices.n_slices*self.main_harmonic_number):
-                                              (self.slices.n_slices*self.main_harmonic_number*(self.n_turns_memory+1))]
-            self.induced_voltage_extended[(self.slices.n_slices*self.main_harmonic_number*self.n_turns_memory):] = \
-                induced_voltage_current[(self.slices.n_slices*self.main_harmonic_number*self.n_turns_memory):]
+            self.induced_voltage_extended[-self.buffer:] = 0
             self.induced_voltage = self.induced_voltage_extended[:self.slices.n_slices]
             
+        
+        elif self.mode_mtw=='second_method':
+            # Like the previous one but an interpolation in time domain is performed
+            # instead of the rotation to transport the voltage from the past.
             
+            # shift
+            time_array_shifted = self.time_array_interp + self.rev_time_array[self.counter_turn]
+            interpolation2 = np.zeros(self.points_ext_ind_volt)
+            libblond.linear_interp_time_translation(self.time_array_interp.ctypes.data_as(ctypes.c_void_p),
+                                  self.induced_voltage_extended.ctypes.data_as(ctypes.c_void_p), 
+                                  time_array_shifted.ctypes.data_as(ctypes.c_void_p), 
+                                  interpolation2.ctypes.data_as(ctypes.c_void_p), 
+                                  ctypes.c_uint(self.points_ext_ind_volt))
+            # Python version, left for comparison
+#             interpolation2 = np.interp(time_array_shifted, self.time_array_interp,
+#                                         self.induced_voltage_extended, left=0, right=0)
+            
+            # induced voltage calculation
+            padded_before_profile = np.lib.pad(self.slices.n_macroparticles, (self.points_before,0), 'constant', constant_values=(0,0))
+            self.fourier_transf_profile = rfft(padded_before_profile, self.n_fft_sampling)
+            
+            self.induced_voltage_extended = irfft(self.coefficient * self.fourier_transf_profile * self.sum_impedances_memory, self.n_fft_sampling)[self.points_before:] + \
+                                                + interpolation2
+            self.induced_voltage = self.induced_voltage_extended[:self.slices.n_slices]
+            
+                                                
         # Contribution from inductive impedance
         if self.inductive_impedance_on:  
             self.induced_voltage_list[self.index_inductive_impedance].induced_voltage_generation(self.beam, 'slice_frame')
@@ -273,7 +226,8 @@ class TotalInducedVoltage(object):
                                   induced_energy.ctypes.data_as(ctypes.c_void_p), 
                                   self.slices.bin_centers.ctypes.data_as(ctypes.c_void_p), 
                                   ctypes.c_uint(self.slices.n_slices),
-                                  ctypes.c_uint(self.beam.n_macroparticles))
+                                  ctypes.c_uint(self.beam.n_macroparticles),
+                                  ctypes.c_double(0.))
             
         # Counter update
         self.counter_turn += 1
@@ -287,7 +241,8 @@ class TotalInducedVoltage(object):
                                   induced_energy.ctypes.data_as(ctypes.c_void_p), 
                                   self.slices.bin_centers.ctypes.data_as(ctypes.c_void_p), 
                                   ctypes.c_uint(self.slices.n_slices),
-                                  ctypes.c_uint(ghostBeam.n_macroparticles))
+                                  ctypes.c_uint(ghostBeam.n_macroparticles),
+                                  ctypes.c_double(0.))
 
 
 
@@ -389,7 +344,8 @@ class InducedVoltageTime(object):
                                   induced_energy.ctypes.data_as(ctypes.c_void_p), 
                                   self.slices.bin_centers.ctypes.data_as(ctypes.c_void_p), 
                                   ctypes.c_uint(self.slices.n_slices),
-                                  ctypes.c_uint(Beam.n_macroparticles))
+                                  ctypes.c_uint(Beam.n_macroparticles),
+                                  ctypes.c_double(0.))
 
     
 class InducedVoltageFreq(object):
@@ -432,7 +388,7 @@ class InducedVoltageFreq(object):
         self.n_turns_memory = n_turns_memory
         
         #: *Length of one slice.*
-        time_resolution = (self.slices.bin_centers[1] - self.slices.bin_centers[0])
+        time_resolution = self.slices.bin_centers[1] - self.slices.bin_centers[0]
         
         self.recalculation_impedance = recalculation_impedance
         
@@ -485,14 +441,8 @@ class InducedVoltageFreq(object):
             self.main_harmonic_number = main_harmonic_number
             self.len_array_memory = (self.n_turns_memory+1+n_windows_before) * self.slices.n_slices * main_harmonic_number
             self.n_fft_sampling = next_regular(self.len_array_memory)
-            if overwrite_n_fft_sampling != None:
-                self.n_fft_sampling = overwrite_n_fft_sampling    
             self.frequency_array_memory = rfftfreq(self.n_fft_sampling, time_resolution)
-            self.total_impedance_memory = np.zeros(self.frequency_array_memory.shape) + 0j
-            
-            #Costruction of time array for plotting
-            self.time_array_memory = np.linspace(time_resolution/2, time_resolution*self.n_fft_sampling-time_resolution/2, self.n_fft_sampling)
-                
+            self.total_impedance_memory = np.zeros(self.frequency_array_memory.shape) + 0j   
             for imped_object in self.impedance_source_list:
                 imped_object.imped_calc(self.frequency_array_memory)
                 self.total_impedance_memory += imped_object.impedance
@@ -601,7 +551,8 @@ class InducedVoltageFreq(object):
                                   induced_energy.ctypes.data_as(ctypes.c_void_p), 
                                   self.slices.bin_centers.ctypes.data_as(ctypes.c_void_p), 
                                   ctypes.c_uint(self.slices.n_slices),
-                                  ctypes.c_uint(Beam.n_macroparticles))
+                                  ctypes.c_uint(Beam.n_macroparticles),
+                                  ctypes.c_double(0.))
         
         
 class InductiveImpedance(object):
@@ -664,6 +615,7 @@ class InductiveImpedance(object):
         self.frequency_array = frequency_array
         self.impedance = (self.frequency_array / self.revolution_frequency[index]) * \
                          self.Z_over_n[index] * 1j
+        
                          
 
     def induced_voltage_generation(self, Beam, length = 'slice_frame'):
@@ -702,6 +654,7 @@ class InductiveImpedance(object):
                 self.Z_over_n[index] * \
                 self.derivative_line_density_not_filtered / (2 * np.pi * self.revolution_frequency[index])
         else:
+            
             induced_voltage = - Beam.charge * e / (2 * np.pi) * Beam.ratio * \
                 self.Z_over_n[index] / self.revolution_frequency[index] * \
                 self.slices.beam_profile_derivative(self.deriv_mode)[1] / \
@@ -728,7 +681,8 @@ class InductiveImpedance(object):
                                   induced_energy.ctypes.data_as(ctypes.c_void_p), 
                                   self.slices.bin_centers.ctypes.data_as(ctypes.c_void_p), 
                                   ctypes.c_uint(self.slices.n_slices),
-                                  ctypes.c_uint(self.beam.n_macroparticles))
+                                  ctypes.c_uint(self.beam.n_macroparticles),
+                                  ctypes.c_double(0.))
 
     
 class InputTable(object):
@@ -849,7 +803,7 @@ class Resonators(object):
         
         #: *Impedance array in* [:math:`\Omega`]
         self.impedance = 0
-
+        
 
     def wake_calc(self, time_array):
         '''
@@ -874,27 +828,37 @@ class Resonators(object):
         '''
         *Impedance calculation method as a function of frequency.*
         '''
-      
+        
+        ###### Python version left for comparison
+        
+#         self.frequency_array = frequency_array
+#         self.impedance = np.zeros(len(self.frequency_array)) + 0j
+#         
+#         
+#         for i in range(0, self.n_resonators):
+#             
+#             self.impedance[1:] += self.R_S[i] / (1 + 1j * self.Q[i] * 
+#                                                  (self.frequency_array[1:] / self.frequency_R[i] - 
+#                                                   self.frequency_R[i] / self.frequency_array[1:]))
+        
+        ###### C++ optimized version
+        
         self.frequency_array = frequency_array
-	self.impedance = np.zeros(len(self.frequency_array)) + 0j
+        self.impedance = np.zeros(len(self.frequency_array)) + 0j
+        realImp = np.zeros(len(self.frequency_array))
+        imagImp = np.zeros(len(self.frequency_array))
 
-        realImp = self.impedance.real*0
-        imagImp = self.impedance.real*0
-
-        libimp.fast_resonator_real(realImp.ctypes.data_as(ctypes.c_void_p),
+        libblond.fast_resonator_real_imag(realImp.ctypes.data_as(ctypes.c_void_p), imagImp.ctypes.data_as(ctypes.c_void_p),
                self.frequency_array.ctypes.data_as(ctypes.c_void_p), self.R_S.ctypes.data_as(ctypes.c_void_p),
                self.Q.ctypes.data_as(ctypes.c_void_p), self.frequency_R.ctypes.data_as(ctypes.c_void_p),
                ctypes.c_uint(self.n_resonators), ctypes.c_uint(len(self.frequency_array)))
-
-        libimp.fast_resonator_imag(imagImp.ctypes.data_as(ctypes.c_void_p),
-               self.frequency_array.ctypes.data_as(ctypes.c_void_p), self.R_S.ctypes.data_as(ctypes.c_void_p),
-               self.Q.ctypes.data_as(ctypes.c_void_p), self.frequency_R.ctypes.data_as(ctypes.c_void_p),
-               ctypes.c_uint(self.n_resonators), ctypes.c_uint(len(self.frequency_array)))
-
+ 
         self.impedance.real = realImp
         self.impedance.imag = imagImp
- 
+            
+            
 
+    
 class TravelingWaveCavity(object):
     '''
     *Impedance contribution from traveling wave cavities, analytic formulas for 
@@ -929,7 +893,6 @@ class TravelingWaveCavity(object):
         self.R_S = np.array([R_S]).flatten()
         
         #: *Resonant frequency in [Hz]*
-	
         self.frequency_R = np.array([frequency_R]).flatten()
         
         #: *Damping time a in [s]*
