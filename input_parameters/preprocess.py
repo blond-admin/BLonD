@@ -348,8 +348,8 @@ def combine_rf_functions(function_list, merge_type = 'linear', resolution = 1E-3
 
 	for i in range(1, nFunctions):
 
-
 		if merge_type[i-1] == 'linear':
+
 			if not isinstance(function_list[i][0], np.ndarray):
 				fullFunction += 2*[function_list[i][0]]
 				fullTime += function_list[i][1]
@@ -365,6 +365,7 @@ def combine_rf_functions(function_list, merge_type = 'linear', resolution = 1E-3
 				fullTime += funcTime
 
 		elif merge_type[i-1] == 'isoadiabatic':
+
 			if not isinstance(function_list[i][0], np.ndarray):
 				
 				tDur = function_list[i][1][0] - fullTime[-1]
