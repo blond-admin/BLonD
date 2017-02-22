@@ -57,9 +57,9 @@ rf_params = rfparClass.RFSectionParameters(general_params, n_rf_systems,
                                         h_1, V_1, phi_1)
 
 # DEFINE FIRST BEAM TO BE USED WITH SLICES (t AND f DOMAINS), AND VOLTAGE CALCULATION
-n_macroparticles = 10000000
+n_macroparticles = 100000000
 my_beam = beamClass.Beam(general_params, n_macroparticles, n_particles)
-np.random.seed(1000)
+np.random.seed(10000000)
 sigma_gaussian = 3e-8
 my_beam.dt = sigma_gaussian*np.random.randn(n_macroparticles) + general_params.t_rev[0]/2
 my_beam.dE = sigma_gaussian*np.random.randn(n_macroparticles)
@@ -76,14 +76,14 @@ total_induced_voltage2.track()
 # DEFINE SECOND BEAM TO BE USED WITH MUSIC, AND VOLTAGE CALCULATION
 n_macroparticles2 = n_macroparticles
 if n_macroparticles2 == n_macroparticles: 
-    music = musClass.Music(my_beam, [R_S, 2*np.pi*frequency_R, Q], n_macroparticles, n_particles)
+    music = musClass.Music(my_beam, [R_S, 2*np.pi*frequency_R, Q], n_macroparticles, n_particles, general_params.t_rev[0])
 else:
     my_beam2 = beamClass.Beam(general_params, n_macroparticles2, n_particles)
-    np.random.seed(1000)
+    np.random.seed(10000000)
     my_beam2.dt = sigma_gaussian*np.random.randn(n_macroparticles2) + general_params.t_rev[0]/2
     my_beam2.dE = sigma_gaussian*np.random.randn(n_macroparticles2)
-    music = musClass.Music(my_beam2, [R_S, 2*np.pi*frequency_R, Q], n_macroparticles2, n_particles)
-music.track()
+    music = musClass.Music(my_beam2, [R_S, 2*np.pi*frequency_R, Q], n_macroparticles2, n_particles, general_params.t_rev[0])
+music.track_cpp()
 
 # ANALYTICAL VOLTAGE CALCULATION
 time_array = np.linspace(0, general_params.t_rev[0], 1000000)
