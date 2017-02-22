@@ -161,13 +161,16 @@ class Resonators(_ImpedanceObject):
         _ImpedanceObject.__init__(self)
 
         #: *Shunt impepdance in* :math:`\Omega`
-        self.R_S = np.array([R_S]).flatten()
+        self.R_S = np.array([R_S],dtype=np.float64).flatten()
+        self.R_S = np.ascontiguousarray(self.R_S)
         
         #: *Resonant frequency in Hz*
-        self.frequency_R = np.array([frequency_R]).flatten()
+        self.frequency_R = np.array([frequency_R],dtype=np.float64).flatten()
+        self.frequency_R = np.ascontiguousarray(self.frequency_R)
                 
         #: *Quality factor*
-        self.Q = np.array([Q]).flatten()
+        self.Q = np.array([Q],dtype=np.float64).flatten()
+        self.Q = np.ascontiguousarray(self.Q)
         
         #: *Number of resonant modes*
         self.n_resonators = len(self.R_S)    
