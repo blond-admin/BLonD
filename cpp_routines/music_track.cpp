@@ -42,14 +42,17 @@ extern "C" void music_track(double *__restrict__ beam_dt,
                             double *__restrict__ beam_dE,
                             double *__restrict__ induced_voltage,
                             double *__restrict__ array_parameters,
+                            double *__restrict__ input_first_component,
+                            double *__restrict__ input_second_component,
                             const int n_macroparticles,
-                            const double alpha,
-                            const double omega_bar,
-                            const double cnst,
-                            const double coeff1,
-                            const double coeff2,
-                            const double coeff3,
-                            const double coeff4)
+                            const int n_resonators,
+                            const double *__restrict__ alpha,
+                            const double *__restrict__ omega_bar,
+                            const double *__restrict__ cnst,
+                            const double *__restrict__ coeff1,
+                            const double *__restrict__ coeff2,
+                            const double *__restrict__ coeff3,
+                            const double *__restrict__ coeff4)
 {
 
 //     std::chrono::time_point<std::chrono::high_resolution_clock>start;
@@ -74,36 +77,44 @@ extern "C" void music_track(double *__restrict__ beam_dt,
 
 //     start = std::chrono::system_clock::now();
 
-    beam_dE[0] += induced_voltage[0];
-    double input_first_component = 1;
-    double input_second_component = 0;
-    for (int i = 0; i < n_macroparticles - 1; i++) {
-        const double time_difference = beam_dt[i + 1] - beam_dt[i];
-        const double exp_term = fast_exp(-alpha * time_difference);
-        const double cos_term = fast_cos(omega_bar * time_difference);
-        const double sin_term = fast_sin(omega_bar * time_difference);
+    // beam_dE[0] += induced_voltage[0];
+    // double input_first_component = 1;
+    // double input_second_component = 0;
+    for (int i = 1; i < n_macroparticles; i++)
+        induced_voltage[i] = 0;
 
-        const double product_first_component =
-            exp_term * ((cos_term + coeff1 * sin_term)
-                        * input_first_component + coeff2 * sin_term
-                        * input_second_component);
+    #pragma omp parallel for
+    for (int j = 0; j < n_resonators; j++) {
+        input_first_component[j] = 1.0;
+        input_second_component[j] = 0.0;
+        for (int i = 0; i < n_macroparticles - 1; i++) {
+            const double time_difference = beam_dt[i + 1] - beam_dt[i];
+            const double exp_term = fast_exp(-alpha[j] * time_difference);
+            const double cos_term = fast_cos(omega_bar[j] * time_difference);
+            const double sin_term = fast_sin(omega_bar[j] * time_difference);
 
-        const double product_second_component =
-            exp_term * (coeff3 * sin_term * input_first_component
-                        + (cos_term + coeff4 * sin_term)
-                        * input_second_component);
+            const double product_first_component =
+                exp_term * ((cos_term + coeff1[j] * sin_term)
+                            * input_first_component[j] + coeff2[j] * sin_term
+                            * input_second_component[j]);
 
-        induced_voltage[i + 1] = cnst * (0.5 + product_first_component);
-        beam_dE[i + 1] += induced_voltage[i + 1];
-        input_first_component = product_first_component + 1;
-        input_second_component = product_second_component;
-        
-        array_parameters[0] = input_first_component;
-        array_parameters[1] = input_second_component;
-        array_parameters[3] = beam_dt[n_macroparticles-1];
+            const double product_second_component =
+                exp_term * (coeff3[j] * sin_term * input_first_component[j]
+                            + (cos_term + coeff4[j] * sin_term)
+                            * input_second_component[j]);
+            // beam_dE[i + 1] += induced_voltage[i + 1];
+            input_first_component[j] = product_first_component + 1;
+            input_second_component[j] = product_second_component;
+
+            #pragma omp atomic
+            induced_voltage[i + 1] += cnst[j] * (0.5 + product_first_component);
+
+        }
     }
+    for (int i = 0; i < n_macroparticles; i++)
+        beam_dE[i] += induced_voltage[i];
 
-
+    array_parameters[1] = beam_dt[n_macroparticles - 1];
 
 //     duration = std::chrono::system_clock::now() - start;
 //     std::cout << "tracking time: " << duration.count() << '\n';
@@ -113,17 +124,17 @@ extern "C" void music_track(double *__restrict__ beam_dt,
 
 
 extern "C" void music_track_multiturn(double *__restrict__ beam_dt,
-                            double *__restrict__ beam_dE,
-                            double *__restrict__ induced_voltage,
-                            double *__restrict__ array_parameters,
-                            const int n_macroparticles,
-                            const double alpha,
-                            const double omega_bar,
-                            const double cnst,
-                            const double coeff1,
-                            const double coeff2,
-                            const double coeff3,
-                            const double coeff4)
+                                      double *__restrict__ beam_dE,
+                                      double *__restrict__ induced_voltage,
+                                      double *__restrict__ array_parameters,
+                                      const int n_macroparticles,
+                                      const double alpha,
+                                      const double omega_bar,
+                                      const double cnst,
+                                      const double coeff1,
+                                      const double coeff2,
+                                      const double coeff3,
+                                      const double coeff4)
 {
 
     std::vector<particle> particles; particles.reserve(n_macroparticles);
@@ -143,23 +154,23 @@ extern "C" void music_track_multiturn(double *__restrict__ beam_dt,
     const double exp_term = fast_exp(-alpha * time_difference_0);
     const double cos_term = fast_cos(omega_bar * time_difference_0);
     const double sin_term = fast_sin(omega_bar * time_difference_0);
-    
+
     const double product_first_component =
-            exp_term * ((cos_term + coeff1 * sin_term)
-                        * array_parameters[0] + coeff2 * sin_term
-                        * array_parameters[1]);
+        exp_term * ((cos_term + coeff1 * sin_term)
+                    * array_parameters[0] + coeff2 * sin_term
+                    * array_parameters[1]);
 
     const double product_second_component =
         exp_term * (coeff3 * sin_term * array_parameters[0]
                     + (cos_term + coeff4 * sin_term)
                     * array_parameters[1]);
-                    
+
     induced_voltage[0] = cnst * (0.5 + product_first_component);
     beam_dE[0] += induced_voltage[0];
     double input_first_component = product_first_component + 1;
     double input_second_component = product_second_component;
 
-    
+
     for (int i = 0; i < n_macroparticles - 1; i++) {
         const double time_difference = beam_dt[i + 1] - beam_dt[i];
         const double exp_term = fast_exp(-alpha * time_difference);
@@ -181,10 +192,10 @@ extern "C" void music_track_multiturn(double *__restrict__ beam_dt,
         input_first_component = product_first_component + 1;
         input_second_component = product_second_component;
     }
-    
+
     array_parameters[0] = input_first_component;
     array_parameters[1] = input_second_component;
-    array_parameters[3] = beam_dt[n_macroparticles-1];
+    array_parameters[3] = beam_dt[n_macroparticles - 1];
 }
 
 
