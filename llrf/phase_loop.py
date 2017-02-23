@@ -269,7 +269,10 @@ class PhaseLoop(object):
             if self.noiseFB != None:
                 self.dphi += self.noiseFB.x*self.RFnoise.dphi[counter]
             else:
-                self.dphi += self.RFnoise.dphi[counter]
+                if self.machine == 'PSB':
+                    self.dphi = self.dphi
+                else:
+                    self.dphi += self.RFnoise.dphi[counter]
                 
                 
     def radial_difference(self):               
@@ -444,6 +447,9 @@ class PhaseLoop(object):
             self.dphi_av = self.dphi_sum / (self.on_time[self.PL_counter] 
                              - self.on_time[self.PL_counter-1])
             
+            if self.RFnoise != None:
+                self.dphi_av += self.RFnoise.dphi[counter]
+                
             self.domega_PL = 0.99803799*self.domega_PL \
                 - self.gain[counter]*(0.99901903*self.dphi_av - 0.99901003*self.dphi_av_prev)
                     

@@ -36,7 +36,7 @@ class TotalInducedVoltage(object):
     voltages should have the same slicing resolution.*
     '''
     
-    def __init__(self, Beam, Slices, induced_voltage_list, n_turns_memory=0, rev_time_array=None, mode_mtw='second_method'):
+    def __init__(self, Beam, Slices, induced_voltage_list, n_turns_memory=0, rev_time_array=None, mode_mtw='second_method', track_dE = True):
         '''
         *Constructor.*
         '''
@@ -57,6 +57,8 @@ class TotalInducedVoltage(object):
         
         self.mode_mtw = mode_mtw
         
+        self.track_dE = track_dE
+        
         #: *Creation of fundamental objects/parameters in case of multi-turn wake.*
         if n_turns_memory > 0:
             
@@ -76,9 +78,6 @@ class TotalInducedVoltage(object):
                     self.omegaj_array_memory = 2.0j * np.pi * self.frequency_array_memory
                     self.coefficient = - self.beam.charge * e * self.beam.ratio / (self.slices.bin_centers[1]-self.slices.bin_centers[0])
                     self.main_harmonic_number = induced_voltage_object.main_harmonic_number
-                    self.index_save_individual_voltage = induced_voltage_object.index_save_individual_voltage
-                    if self.index_save_individual_voltage != -1:
-                        self.individual_impedance = induced_voltage_object.impedance_source_list[self.index_save_individual_voltage].impedance
                     i += 1
                     
                 elif type(induced_voltage_object) is InducedVoltageTime:
@@ -116,7 +115,8 @@ class TotalInducedVoltage(object):
             else:
                 raise RuntimeError('Error! Aborting...')
     
-    
+            
+            
     def reprocess(self, new_slicing):
         '''
         *Reprocess the impedance contributions with respect to the new_slicing.*
@@ -210,27 +210,30 @@ class TotalInducedVoltage(object):
             
             self.induced_voltage_extended = irfft(self.coefficient * self.fourier_transf_profile * self.sum_impedances_memory, self.n_fft_sampling)[self.points_before:] + \
                                                 + interpolation2
+                                                
             self.induced_voltage = self.induced_voltage_extended[:self.slices.n_slices]
             
+            self.save_voltage_minus_sc = np.copy(self.induced_voltage)
                                                 
         # Contribution from inductive impedance
         if self.inductive_impedance_on:  
             self.induced_voltage_list[self.index_inductive_impedance].induced_voltage_generation(self.beam, 'slice_frame')
             self.induced_voltage += self.induced_voltage_list[self.index_inductive_impedance].induced_voltage
-
+        
         
         # Induced voltage energy kick to particles through linear interpolation
-        induced_energy = self.beam.charge * self.induced_voltage
-        libblond.linear_interp_kick(self.beam.dt.ctypes.data_as(ctypes.c_void_p),
-                                  self.beam.dE.ctypes.data_as(ctypes.c_void_p), 
-                                  induced_energy.ctypes.data_as(ctypes.c_void_p), 
-                                  self.slices.bin_centers.ctypes.data_as(ctypes.c_void_p), 
-                                  ctypes.c_uint(self.slices.n_slices),
-                                  ctypes.c_uint(self.beam.n_macroparticles),
-                                  ctypes.c_double(0.))
-            
-        # Counter update
-        self.counter_turn += 1
+        if self.track_dE:
+            induced_energy = self.beam.charge * self.induced_voltage
+            libblond.linear_interp_kick(self.beam.dt.ctypes.data_as(ctypes.c_void_p),
+                                      self.beam.dE.ctypes.data_as(ctypes.c_void_p), 
+                                      induced_energy.ctypes.data_as(ctypes.c_void_p), 
+                                      self.slices.bin_centers.ctypes.data_as(ctypes.c_void_p), 
+                                      ctypes.c_uint(self.slices.n_slices),
+                                      ctypes.c_uint(self.beam.n_macroparticles),
+                                      ctypes.c_double(0.))
+            # Counter update
+            self.counter_turn += 1
+        
     
     
     def track_ghosts_particles(self, ghostBeam):
@@ -370,8 +373,8 @@ class InducedVoltageFreq(object):
     '''
         
     def __init__(self, Slices, impedance_source_list, frequency_resolution_input = None, 
-                 freq_res_option = 'round', n_turns_memory = 0, recalculation_impedance = False, 
-                 index_save_individual_voltage = -1, n_windows_before = 0, main_harmonic_number = 1, overwrite_n_fft_sampling = None):
+                 freq_res_option = 'round', n_turns_memory = 0, n_windows_before = 0, 
+                 main_harmonic_number = 1, overwrite_n_fft_sampling = None):
     
 
         #: *Copy of the Slices object in order to access the profile info.*
@@ -389,10 +392,6 @@ class InducedVoltageFreq(object):
         
         #: *Length of one slice.*
         time_resolution = self.slices.bin_centers[1] - self.slices.bin_centers[0]
-        
-        self.recalculation_impedance = recalculation_impedance
-        
-        self.index_save_individual_voltage = index_save_individual_voltage
         
         if n_turns_memory==0:
             
@@ -416,9 +415,10 @@ class InducedVoltageFreq(object):
                            you might consider changing the input in order to have \
                            a finer resolution).')
                     self.n_fft_sampling = next_regular(self.slices.n_slices)
-                    
-            if overwrite_n_fft_sampling != None:
-                self.n_fft_sampling = overwrite_n_fft_sampling    
+            
+            self.overwrite_n_fft_sampling = overwrite_n_fft_sampling        
+            if self.overwrite_n_fft_sampling != None:
+                self.n_fft_sampling = self.overwrite_n_fft_sampling   
                 
             #: *Real frequency resolution in [Hz], according to the obtained n_fft_sampling.*
             self.frequency_resolution = 1 / (self.n_fft_sampling * time_resolution)
@@ -476,6 +476,9 @@ class InducedVoltageFreq(object):
                        you might consider changing the input in order to have \
                        a finer resolution).')
                 self.n_fft_sampling = next_regular(self.slices.n_slices)
+        
+        if self.overwrite_n_fft_sampling != None:
+                self.n_fft_sampling = self.overwrite_n_fft_sampling   
                 
         #: *Real frequency resolution in [Hz], according to the obtained n_fft_sampling.*
         self.frequency_resolution = 1 / (self.n_fft_sampling * time_resolution)
@@ -519,15 +522,8 @@ class InducedVoltageFreq(object):
         *Method to calculate the induced voltage from the inverse FFT of the
         impedance times the spectrum (fourier convolution).*
         '''
-        if self.recalculation_impedance:
-            self.sum_impedances(self.frequency_array)
-        
+    
         self.slices.beam_spectrum_generation(self.n_fft_sampling)
-
-        if self.index_save_individual_voltage != -1:
-            self.voltage_saved = - Beam.charge * e * Beam.ratio * irfft(self.impedance_source_list[self.index_save_individual_voltage].impedance * self.slices.beam_spectrum)[:self.slices.n_slices] * self.slices.beam_spectrum_freq[1] * 2*(len(self.slices.beam_spectrum)-1)
-        
-        
         induced_voltage = - Beam.charge * e * Beam.ratio * irfft(self.total_impedance * self.slices.beam_spectrum) * self.slices.beam_spectrum_freq[1] * 2*(len(self.slices.beam_spectrum)-1) 
         self.induced_voltage_ext = induced_voltage
         self.induced_voltage = induced_voltage[0:self.slices.n_slices]
@@ -778,16 +774,19 @@ class Resonators(object):
     def __init__(self, R_S, frequency_R, Q):
         
         #: *Shunt impepdance in* [:math:`\Omega`]
-        self.R_S = np.array([R_S]).flatten()
+        self.R_S = np.array([R_S],dtype=np.float64).flatten()
+        self.R_S = np.ascontiguousarray(self.R_S)
         
         #: *Resonant frequency in [Hz]*
-        self.frequency_R = np.array([frequency_R]).flatten()
+        self.frequency_R = np.array([frequency_R],dtype=np.float64).flatten()
+        self.frequency_R = np.ascontiguousarray(self.frequency_R)
         
         #: *Resonant angular frequency in [rad/s]*
         self.omega_R = 2 *np.pi * self.frequency_R
         
         #: *Quality factor*
-        self.Q = np.array([Q]).flatten()
+        self.Q = np.array([Q],dtype=np.float64).flatten()
+        self.Q = np.ascontiguousarray(self.Q)
         
         #: *Number of resonant modes*
         self.n_resonators = len(self.R_S)
