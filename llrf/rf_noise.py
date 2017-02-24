@@ -229,7 +229,7 @@ class FlatSpectrum(object):
             self.dphi = self.dphi*np.sin(psi[:self.n_turns+1]) + self.dphi2[:(self.n_turns+1)]*np.cos(psi[:self.n_turns+1])
         
         if self.initial_final_turns[0]>0 or self.initial_final_turns[1]<self.total_n_turns+1:
-            self.dphi = np.concatenate((np.zeros(self.initial_final_turns[0]), self.dphi, np.zeros(self.total_n_turns-self.initial_final_turns[1])))
+            self.dphi = np.concatenate((np.zeros(self.initial_final_turns[0]), self.dphi, np.zeros(1+self.total_n_turns-self.initial_final_turns[1])))
 
 class LHCNoiseFB(object): 
     '''
