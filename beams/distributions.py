@@ -126,8 +126,7 @@ def matched_from_line_density(beam, full_ring_and_RF, line_density_input=None,
         # Calculating the induced potential
         induced_potential = -(eom_factor_potential * cumtrapz(induced_voltage,
                                                 dx=slices.bin_size, initial=0))
-        
-    
+
     # Centering the bunch in the potential well
     for i in range(0, n_iterations):        
         if TotalInducedVoltage is not None:
@@ -710,40 +709,43 @@ def populate_bunch(beam, time_grid, deltaE_grid, density_grid, time_step,
     beam.dE = (np.ascontiguousarray(deltaE_grid.flatten()[indexes] +
         (np.random.rand(beam.n_macroparticles) - 0.5) * deltaE_step))
 
-def _distribution_density_function(action_array, dist_type, length, exponent = None):
+def distribution_function(action_array, dist_type, length, exponent=None):
     '''
-    *Distribution density (formulas from Laclare).*
+    *Distribution function (formulas from Laclare).*
     '''
     
-    if dist_type in ['binomial', 'waterbag', 'parabolic_amplitude', 'parabolic_line']:
+    if dist_type in ['binomial', 'waterbag', 'parabolic_amplitude',
+                     'parabolic_line']:
         if dist_type is 'waterbag':
             exponent = 0
         elif dist_type is 'parabolic_amplitude':
             exponent = 1
         elif dist_type is 'parabolic_line':
             exponent = 0.5
-        
+
         warnings.filterwarnings("ignore")
-        density_function = (1 - action_array / length)**exponent
+        distribution_function_ = (1 - action_array / length)**exponent
         warnings.filterwarnings("default")
-        density_function[action_array > length] = 0
-        return density_function
+        distribution_function_[action_array > length] = 0
+        return distribution_function_
     
     elif dist_type is 'gaussian':
-        density_function = np.exp(- 2 * action_array / length)
-        return density_function
+        distribution_function_ = np.exp(- 2 * action_array / length)
+        return distribution_function_
 
     else:
         raise RuntimeError('The dist_type option was not recognized')
     
 
 
-def line_density_function(coord_array, dist_type, bunch_length, bunch_position = 0, exponent = None):
+def line_density(coord_array, dist_type, bunch_length, bunch_position=0,
+                 exponent=None):
     '''
     *Line density*
     '''
     
-    if dist_type in ['binomial', 'waterbag', 'parabolic_amplitude', 'parabolic_line']:
+    if dist_type in ['binomial', 'waterbag', 'parabolic_amplitude',
+                     'parabolic_line']:
         if dist_type is 'waterbag':
             exponent = 0
         elif dist_type is 'parabolic_amplitude':
@@ -752,35 +754,38 @@ def line_density_function(coord_array, dist_type, bunch_length, bunch_position =
             exponent = 0.5
         
         warnings.filterwarnings("ignore")
-        density_function = (1 - ((coord_array - bunch_position) / (bunch_length/2))**2)**(exponent+0.5)
+        line_density_ = ((1 - (2.0 * (coord_array - bunch_position) /
+                         bunch_length)**2)**(exponent+0.5))
         warnings.filterwarnings("default")
-        density_function[np.abs(coord_array - bunch_position) > bunch_length/2 ] = 0
-        return density_function
+        line_density_[np.abs(coord_array-bunch_position) > bunch_length/2] = 0
+        return line_density_
     
     elif dist_type is 'gaussian':
         sigma = bunch_length/4
-        density_function = np.exp(- (coord_array - bunch_position)**2 /(2*sigma**2))
-        return density_function
+        line_density_ = np.exp(-(coord_array-bunch_position)**2 / (2*sigma**2))
+        return line_density_
     
     elif dist_type is 'cosine_squared':
         warnings.filterwarnings("ignore")
-        density_function = np.cos(np.pi * (coord_array - bunch_position) / bunch_length)**2
+        line_density_ = ( np.cos(np.pi * (coord_array - bunch_position) /
+                                 bunch_length)**2 )
         warnings.filterwarnings("default")
-        density_function[np.abs(coord_array - bunch_position) > bunch_length/2 ] = 0
-        return density_function   
-
+        line_density_[np.abs(coord_array-bunch_position) > bunch_length/2] = 0
+        return line_density_
 
 
 
 def longitudinal_bigaussian(GeneralParameters, RFSectionParameters, beam, 
-                            sigma_dt, sigma_dE = None, seed = None, 
-                            reinsertion = 'off'):
+                            sigma_dt, sigma_dE=None, seed=None, 
+                            reinsertion='off'):
     
     warnings.filterwarnings("once")
     if GeneralParameters.n_sections > 1:
-        warnings.warn("WARNING: longitudinal_bigaussian is not yet properly computed for several sections!")
+        warnings.warn('WARNING: longitudinal_bigaussian is not yet properly ' +
+                      'computed for several sections!')
     if RFSectionParameters.n_rf > 1:
-        warnings.warn("longitudinal_bigaussian for multiple RF is not yet implemented")
+        warnings.warn('longitudinal_bigaussian for multiple RF is not yet ' +
+                      'implemented')
     
     counter = RFSectionParameters.counter[0]
     
@@ -793,53 +798,48 @@ def longitudinal_bigaussian(GeneralParameters, RFSectionParameters, beam,
     eta0 = RFSectionParameters.eta_0[counter]
     
     if sigma_dE == None:
-        voltage = RFSectionParameters.charge* \
-                  RFSectionParameters.voltage[0,counter]
+        voltage = (RFSectionParameters.charge * 
+                  RFSectionParameters.voltage[0,counter])
         eta0 = RFSectionParameters.eta_0[counter]
         
-        if eta0>0:
-            
+        if eta0>0:            
             phi_b = omega_RF*sigma_dt + phi_s
-            sigma_dE = np.sqrt( voltage * energy * beta**2  
-                 * (np.cos(phi_b) - np.cos(phi_s) + (phi_b - phi_s) * np.sin(phi_s)) 
-                 / (np.pi * harmonic * eta0) )
-            
-        else:
-            
+            sigma_dE = np.sqrt( voltage * energy * beta**2 *
+                 (np.cos(phi_b) - np.cos(phi_s) + (phi_b - phi_s) *
+                 np.sin(phi_s)) / (np.pi * harmonic * eta0) )
+        else:            
             phi_b = omega_RF*sigma_dt + phi_s - np.pi
-            sigma_dE = np.sqrt( voltage * energy * beta**2  
-                 * (np.cos(phi_b) - np.cos(phi_s-np.pi) + (phi_b - phi_s-np.pi) * np.sin(phi_s-np.pi)) 
-                 / (np.pi * harmonic * eta0) )
-        
+            sigma_dE = np.sqrt( voltage * energy * beta**2 *
+                       (np.cos(phi_b) - np.cos(phi_s-np.pi) +
+                       (phi_b - phi_s-np.pi) * np.sin(phi_s-np.pi)) /
+                       (np.pi * harmonic * eta0) )
     
     beam.sigma_dt = sigma_dt
     beam.sigma_dE = sigma_dE
     
     np.random.seed(seed)
     
-    if eta0>0:
-        beam.dt = sigma_dt*np.random.randn(beam.n_macroparticles) + \
-              (phi_s - phi_RF)/omega_RF
+    if eta0 > 0:
+        beam.dt = (sigma_dt*np.random.randn(beam.n_macroparticles) +
+              (phi_s - phi_RF)/omega_RF)
     else:
-        beam.dt = sigma_dt*np.random.randn(beam.n_macroparticles) + \
-                  (phi_s - phi_RF - np.pi)/omega_RF
+        beam.dt = (sigma_dt*np.random.randn(beam.n_macroparticles) +
+                  (phi_s - phi_RF - np.pi)/omega_RF)
                   
     beam.dE = sigma_dE*np.random.randn(beam.n_macroparticles)
     
-    if reinsertion is 'on':
-        
+    if reinsertion is 'on':        
         itemindex = np.where(is_in_separatrix(GeneralParameters, 
                     RFSectionParameters, beam, beam.dt, beam.dE) == False)[0]
          
-        while itemindex.size != 0:
-            
-            if eta0>0:
-                beam.dt[itemindex] = sigma_dt*np.random.randn(itemindex.size) \
-                                     + (phi_s - phi_RF)/omega_RF
+        while itemindex.size != 0:            
+            if eta0 > 0:
+                beam.dt[itemindex] = (sigma_dt*np.random.randn(itemindex.size)+
+                                     (phi_s - phi_RF)/omega_RF)
             else:
-                beam.dt[itemindex] = sigma_dt*np.random.randn(itemindex.size) \
-                                     + (phi_s - phi_RF - np.pi)/omega_RF
+                beam.dt[itemindex] = (sigma_dt*np.random.randn(itemindex.size)+
+                                     (phi_s - phi_RF - np.pi)/omega_RF)
                                      
             beam.dE[itemindex] = sigma_dE*np.random.randn(itemindex.size)
             itemindex = np.where(is_in_separatrix(GeneralParameters, 
-                        RFSectionParameters, beam, beam.dt, beam.dE) == False)[0]
+                   RFSectionParameters, beam, beam.dt, beam.dE) == False)[0]
