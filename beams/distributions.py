@@ -358,287 +358,338 @@ def matched_from_line_density(beam, full_ring_and_RF, line_density_input=None,
         return [hamiltonian_coord, distribution_function_],\
                [time_line_den, line_density_]
 
-
-
-def matched_from_distribution_density(Beam, FullRingAndRF, distribution_options,
-                                      main_harmonic_option = 'lowest_freq', 
-                                      TotalInducedVoltage = None,
-                                      n_iterations_input = 1,
-                                      extraVoltageDict = None, seed = None, dt_margin_percent=0.40, process_pot_well = True,
-                                      turn_number = 0):
+def matched_from_distribution_function(beam, full_ring_and_RF,
+                               distribution_function_input=None,
+                               distribution_user_table=None,
+                               main_harmonic_option='lowest_freq',
+                               TotalInducedVoltage=None,
+                               n_iterations=1, n_points_potential=1e4,
+                               n_points_grid=int(1e3),
+                               dt_margin_percent=0.40,
+                               extraVoltageDict=None, seed=None,
+                               distribution_exponent=None,
+                               distribution_type=None,
+                               emittance=None, bunch_length=None,
+                               bunch_length_fit=None,
+                               distribution_variable='Hamiltonian'):
     '''
-    *Function to generate a beam by inputing the distribution density (by
-    choosing the type of distribution and the emittance). 
+    *Function to generate a beam by inputing the distribution function (by
+    choosing the type of distribution and the emittance).
     The potential well is preprocessed to check for the min/max and center
     the frame around the separatrix.
-    An error will be raised if there is not a full potential well (2 max 
-    and 1 min at least), or if there are several wells (more than 2 max and 
+    An error will be raised if there is not a full potential well (2 max
+    and 1 min at least), or if there are several wells (more than 2 max and
     1 min, this case will be treated in the future).
-    A margin of 5% is applied in order to be able to catch the min/max of the 
-    potential well that might be on the edge of the frame. 
-    The slippage factor should be updated to take the higher orders.
+    An adjustable margin (40% by default) is applied in order to be able to
+    catch the min/max of the potential well that might be on the edge of the
+    frame. The slippage factor should be updated to take the higher orders.
     Outputs should be added in order for the user to check step by step if
-    his bunch is going to be well generated. More detailed 'step by step' 
+    his bunch is going to be well generated. More detailed 'step by step'
     documentation should be implemented
     The user can input a custom distribution function by setting the parameter
-    distribution_options['type'] = 'user_input' and passing the function in the
+    distribution_type = 'user_input' and passing the function in the
     parameter distribution_options['function'], with the following definition:
-    distribution_density_function(action_array, dist_type, length, exponent = None).
-    The user can also add an input table by setting the parameter 
-    distribution_options['type'] = 'user_input_table', 
+    distribution_function(action_array, dist_type, length, exponent=None).
+    The user can also add an input table by setting the parameter
+    distribution_type = 'user_input_table',
     distribution_options['user_table_action'] = array of action (in H or in J)
-    and distribution_options['user_table_density']*
+    and distribution_options['user_table_distribution']*
     '''
-
-    if 'exponent' not in distribution_options:  
-        distribution_options['exponent'] = None
-    
+        
     # Loading the distribution function if provided by the user
-    if distribution_options['type'] is 'user_input':
-        distribution_density_function = distribution_options['function']
+    if distribution_function_input is not None:
+        distribution_function_ = distribution_function_input
     else:
-        distribution_density_function = _distribution_density_function
+        distribution_function_ = distribution_function
     
-
     # Initialize variables depending on the accelerator parameters
-    slippage_factor = FullRingAndRF.RingAndRFSection_list[0].eta_0[turn_number]
+    slippage_factor = full_ring_and_RF.RingAndRFSection_list[0].eta_0[0]
     
-    beta = FullRingAndRF.RingAndRFSection_list[0].rf_params.beta[turn_number]
-    energy = FullRingAndRF.RingAndRFSection_list[0].rf_params.energy[turn_number]
-    eom_factor_dE = abs(slippage_factor) / (2*beta**2. * energy)
-    eom_factor_potential = np.sign(slippage_factor) * Beam.charge / (FullRingAndRF.RingAndRFSection_list[0].t_rev[turn_number])
+    eom_factor_dE = abs(slippage_factor) / (2*beam.beta**2. * beam.energy)
+    eom_factor_potential = (np.sign(slippage_factor) * beam.charge /
+                          (full_ring_and_RF.RingAndRFSection_list[0].t_rev[0]))
 
+    #: *Number of points to be used in the potential well calculation*
+    n_points_potential = int(n_points_potential)
     # Generate potential well
-    n_points_potential = int(1e4)
-    FullRingAndRF.potential_well_generation(turn_number = turn_number, n_points = n_points_potential,
-                                            dt_margin_percent = dt_margin_percent, 
-                                            main_harmonic_option = main_harmonic_option)
-
-    potential_well_array = FullRingAndRF.potential_well 
-    time_coord_array = FullRingAndRF.potential_well_coordinates
-    time_resolution = time_coord_array[1] - time_coord_array[0]
+    full_ring_and_RF.potential_well_generation(n_points=n_points_potential, 
+                                    dt_margin_percent=dt_margin_percent, 
+                                    main_harmonic_option=main_harmonic_option)
+    potential_well = full_ring_and_RF.potential_well 
+    time_potential = full_ring_and_RF.potential_well_coordinates
     
     induced_potential = 0
-    extra_potential = 0
     
+    # Extra potential from previous bunches (for multi-bunch generation)
+    extra_potential = 0    
     if extraVoltageDict is not None:
         extra_voltage_time_input = extraVoltageDict['time_array']
         extra_voltage_input = extraVoltageDict['voltage_array']
-        extra_potential_input = - eom_factor_potential * np.insert(cumtrapz(extra_voltage_input, dx=extra_voltage_time_input[1]-extra_voltage_time_input[0]),0,0)
-        extra_potential = np.interp(time_coord_array, extra_voltage_time_input, extra_potential_input)
+        extra_potential_input = -(eom_factor_potential * 
+            cumtrapz(extra_voltage_input, dx=extra_voltage_time_input[1]-
+                     extra_voltage_time_input[0], initial=0))
+        extra_potential = np.interp(time_potential, extra_voltage_time_input,
+                                    extra_potential_input)
         
-    total_potential = potential_well_array + induced_potential + extra_potential
+    total_potential = potential_well + induced_potential + extra_potential
 
-    n_iterations = n_iterations_input
     if not TotalInducedVoltage:
         n_iterations = 1
     else:
         induced_voltage_object = copy.deepcopy(TotalInducedVoltage)
+        slices = induced_voltage_object.slices
         
-    for i in range(0, n_iterations):
-        
+    dE_trajectory = np.zeros(n_points_potential)
+    for i in range(n_iterations):    
         old_potential = copy.deepcopy(total_potential)
+        
         # Adding the induced potential to the RF potential
-        total_potential = potential_well_array + induced_potential + extra_potential
+        total_potential = (potential_well + induced_potential +
+                          extra_potential)
         
-        sse = np.sqrt(np.sum((old_potential-total_potential)**2))
+        sse = np.sqrt(np.sum((old_potential - total_potential)**2))
 
-        print('Matching the bunch... (iteration: ' + str(i) + ' and sse: ' + str(sse) +')')
+        print('Matching the bunch... (iteration: ' + str(i) + ' and sse: ' +
+              str(sse) +')')
                 
-        # Process the potential well in order to take a frame around the separatrix
-        if process_pot_well == False:
-            time_coord_sep, potential_well_sep = time_coord_array, total_potential
-        else:
-            time_coord_sep, potential_well_sep = potential_well_cut(time_coord_array, total_potential)
-        
+        # Potential well calculation around the separatrix
+        time_potential_sep, potential_well_sep = \
+                            potential_well_cut(time_potential, total_potential)
+
         # Potential is shifted to put the minimum on 0
         potential_well_sep = potential_well_sep - np.min(potential_well_sep)
-        n_points_potential = len(potential_well_sep)
         
         # Compute deltaE frame corresponding to the separatrix
         max_potential = np.max(potential_well_sep)
         max_deltaE = np.sqrt(max_potential / eom_factor_dE)
         
-        # Saving the Hamilotian values corresponding to dE=0 (with high resolution
-        # to be used in the integral to compute J further)
-        H_array_dE0 = potential_well_sep
-        
-        # Initializing the grids by reducing the resolution to a 
-        # n_points_grid*n_points_grid frame.
-        n_points_grid = int(1e3)
-        potential_well_indexes = np.arange(0,n_points_potential)
-        grid_indexes = np.arange(0,n_points_grid) * n_points_potential / n_points_grid
-        time_coord_low_res = np.interp(grid_indexes, potential_well_indexes, time_coord_sep)
-        deltaE_coord_array = np.linspace(-max_deltaE, max_deltaE, n_points_grid)
-        potential_well_low_res = np.interp(grid_indexes, potential_well_indexes, potential_well_sep)
-        time_grid, deltaE_grid = np.meshgrid(time_coord_low_res, deltaE_coord_array)
-        potential_well_grid = np.meshgrid(potential_well_low_res, potential_well_low_res)[0]
+        # Initializing the grids by reducing the resolution to a
+        # n_points_grid*n_points_grid frame
+        time_potential_low_res = np.linspace(time_potential_sep[0],
+                                             time_potential_sep[-1],
+                                             n_points_grid)
+        time_resolution_low = (time_potential_low_res[1] -
+                               time_potential_low_res[0])
+        deltaE_coord_array = np.linspace(-max_deltaE, max_deltaE,
+                                         n_points_grid)
+        potential_well_low_res = np.interp(time_potential_low_res,
+                                        time_potential_sep, potential_well_sep)
+        time_grid, deltaE_grid = np.meshgrid(time_potential_low_res,
+                                             deltaE_coord_array)
+        potential_well_grid = np.meshgrid(potential_well_low_res,
+                                          potential_well_low_res)[0]
         
         # Computing the action J by integrating the dE trajectories
         J_array_dE0 = np.zeros(n_points_grid)
         
-        warnings.filterwarnings("ignore")
-        
-        for i in range(0, n_points_grid):
-            dE_trajectory = np.sqrt((potential_well_low_res[i] - H_array_dE0)/eom_factor_dE)
-            dE_trajectory[np.isnan(dE_trajectory)] = 0
-            J_array_dE0[i] = 2 / (2*np.pi) * np.trapz(dE_trajectory, dx=time_resolution) 
-
-        warnings.filterwarnings("default")
-        
-        # Sorting the H and J functions in order to be able to interpolate the function J(H)
+        full_ring_and_RF2 = copy.deepcopy(full_ring_and_RF)
+        for j in range(n_points_grid):
+            # Find left and right time coordinates for a given hamiltonian 
+            # value
+            time_indexes = np.where(potential_well_low_res <= 
+                                    potential_well_low_res[j])[0]
+            left_time = time_potential_low_res[np.max((0,time_indexes[0]))]
+            right_time = time_potential_low_res[np.min((time_indexes[-1],
+                                                        n_points_grid-1))]
+            # Potential well calculation with high resolution in that frame
+            time_potential_high_res = np.linspace(left_time, right_time,
+                                                  n_points_potential)
+            full_ring_and_RF2.potential_well_generation(
+                                     n_points=n_points_potential,
+                                     time_array=time_potential_high_res,
+                                     main_harmonic_option=main_harmonic_option)
+            pot_well_high_res = full_ring_and_RF2.potential_well
+            
+            if TotalInducedVoltage is not None and i != 0:
+                induced_potential_hires = np.interp(time_potential_high_res,
+                                           time_potential, induced_potential +
+                                           extra_potential, left=0, right=0)
+                pot_well_high_res += induced_potential_hires
+                pot_well_high_res -= pot_well_high_res.min()
+            
+            # Integration to calculate action
+            dE_trajectory[pot_well_high_res <= potential_well_low_res[j]] = \
+                np.sqrt((potential_well_low_res[j] - 
+                pot_well_high_res[pot_well_high_res <= 
+                potential_well_low_res[j]]) / eom_factor_dE)
+            dE_trajectory[pot_well_high_res > potential_well_low_res[j]] = 0
+            
+            J_array_dE0[j] = 1 / np.pi * np.trapz(dE_trajectory,
+                    dx=time_potential_high_res[1] - time_potential_high_res[0])
+            
+        # Sorting the H and J functions to be able to interpolate J(H)
         H_array_dE0 = potential_well_low_res
         sorted_H_dE0 = H_array_dE0[H_array_dE0.argsort()]
         sorted_J_dE0 = J_array_dE0[H_array_dE0.argsort()]
         
         # Calculating the H and J grid
         H_grid = eom_factor_dE * deltaE_grid**2 + potential_well_grid
-        J_grid = np.interp(H_grid, sorted_H_dE0, sorted_J_dE0, left = 0, right = np.inf)
+        J_grid = np.interp(H_grid, sorted_H_dE0, sorted_J_dE0, left=0,
+                           right=np.inf)
+        
+        # Choice of either H or J as the variable used
+        if distribution_variable is 'Action':
+            sorted_X_dE0 = sorted_J_dE0
+            X_grid = J_grid
+        elif distribution_variable is 'Hamiltonian':
+            sorted_X_dE0 = sorted_H_dE0
+            X_grid = H_grid
+        else:
+            raise RuntimeError('The distribution_variable option was not ' +
+                               'recognized')
         
         # Computing bunch length as a function of H/J if needed
         # Bunch length can be calculated as 4-rms, Gaussian fit, or FWHM
-        density_variable_option = distribution_options['density_variable']
+        if bunch_length is not None:
+            X0 = X0_from_bunch_length(bunch_length, bunch_length_fit, 
+                                X_grid, sorted_X_dE0, n_points_grid, 
+                                time_potential_low_res, distribution_function_, 
+                                distribution_type, distribution_exponent, beam,
+                                full_ring_and_RF)
         
-        if 'bunch_length' in distribution_options:        
-            
-            tau = 0.0
-            # Choice of either H or J as the variable used
-            if density_variable_option is 'density_from_J':
-                X_low = sorted_J_dE0[0]
-                X_hi = sorted_J_dE0[n_points_grid - 1]
-                X_min = sorted_J_dE0[0]
-                X_max = sorted_J_dE0[n_points_grid - 1]
-                X_accuracy = sorted_J_dE0[1] - sorted_J_dE0[0] /2.
-            elif density_variable_option is 'density_from_H':
-                X_low = sorted_H_dE0[0]
-                X_hi = sorted_H_dE0[n_points_grid - 1]
-                X_min = sorted_H_dE0[0]
-                X_max = sorted_H_dE0[n_points_grid - 1]
-                X_accuracy = sorted_H_dE0[1] - sorted_H_dE0[0] /2.
-            else:
-                raise RuntimeError('The density_variable option was not recognized')
-            
-            bunch_length_accuracy = (time_coord_low_res[1] - time_coord_low_res[0]) / 2.
-            
-            # Iteration to find H0/J0 from the bunch length
-            while np.abs(distribution_options['bunch_length']-tau) > bunch_length_accuracy:
-                
-                # Takes middle point of the interval [X_low,X_hi]                
-                X0 = 0.5 * (X_low + X_hi)
-                
-                # Calculating the line density for the parameter X0
-                if density_variable_option is 'density_from_J':
-                    density_grid = distribution_density_function(J_grid, distribution_options['type'], X0, distribution_options['exponent'])
-                elif density_variable_option is 'density_from_H':
-                    density_grid = distribution_density_function(H_grid, distribution_options['type'], X0, distribution_options['exponent'])                
-                
-                density_grid = density_grid / np.sum(density_grid)                
-                line_density = np.sum(density_grid, axis = 0)
-                
-                # Calculating the bunch length of that line density
-                if (line_density>0).any():
-                    tau = 4.0 * np.sqrt(np.sum((time_coord_low_res - np.sum(line_density * time_coord_low_res) / np.sum(line_density))**2 * line_density) / np.sum(line_density))            
-                    
-                    if 'bunch_length_fit' in distribution_options:
-                        slices = Slices(FullRingAndRF.RingAndRFSection_list[0].rf_params, Beam, n_points_grid)
-                        slices.n_macroparticles = line_density
-                        
-                        slices.bin_centers = time_coord_low_res
-                        slices.edges = np.linspace(slices.bin_centers[0]-(slices.bin_centers[1]-slices.bin_centers[0])/2,slices.bin_centers[-1]+(slices.bin_centers[1]-slices.bin_centers[0])/2,len(slices.bin_centers)+1)
-                        
-                        if distribution_options['bunch_length_fit'] is 'gauss':                              
-                            slices.bl_gauss = tau
-                            slices.bp_gauss = np.sum(line_density * time_coord_low_res) / np.sum(line_density)
-                            slices.gaussian_fit()
-                            tau = slices.bl_gauss
-                        elif distribution_options['bunch_length_fit'] is 'fwhm': 
-                            slices.fwhm()
-                            tau = slices.bl_fwhm
-                        elif distribution_options['bunch_length_fit'] is 'end_to_end': 
-                            bunchIndices = np.where(slices.n_macroparticles>0)[0]
-                            tau = slices.bin_centers[bunchIndices][-1]-slices.bin_centers[bunchIndices][0]
-                                
-                
-                # Update of the interval for the next iteration
-                if tau >= distribution_options['bunch_length']:
-                    X_hi = X0
-                else:
-                    X_low = X0
-                    
-                if (X_max - X0) < X_accuracy:
-                    print('WARNING : The bucket is too small to have the desired bunch length ! Input is %.2e, the generation gave %.2e, the error is %.2e' %(distribution_options['bunch_length'], tau, distribution_options['bunch_length']-tau))
-                    break
-                
-                if (X0-X_min) < X_accuracy:
-                    print('WARNING : The desired bunch length is too small to be generated accurately !')    
-                
-            if density_variable_option is 'density_from_J':
-                J0 = X0
-            elif density_variable_option is 'density_from_H':
-                H0 = X0
+        elif emittance is not None:
+            if distribution_variable is 'Action':
+                X0 = emittance / (2*np.pi)
+            elif distribution_variable is 'Hamiltonian':
+                X0 = np.interp(emittance / (2*np.pi), sorted_J_dE0,
+                               sorted_H_dE0)
         
         # Computing the density grid
-        if distribution_options['type'] is not 'user_input_table':
-            if density_variable_option is 'density_from_J':
-                if 'emittance' in distribution_options:
-                    J0 = distribution_options['emittance']/ (2*np.pi)
-                density_grid = distribution_density_function(J_grid, distribution_options['type'], J0, distribution_options['exponent'])
-            elif density_variable_option is 'density_from_H':
-                if 'emittance' in distribution_options:
-                    H0 = np.interp(distribution_options['emittance'] / (2*np.pi), sorted_J_dE0, sorted_H_dE0)
-                density_grid = distribution_density_function(H_grid, distribution_options['type'], H0, distribution_options['exponent'])
+        if distribution_user_table is None:
+            density_grid = distribution_function_(X_grid, distribution_type,
+                                                  X0, distribution_exponent)
         else:
-            if density_variable_option is 'density_from_J':
-                density_grid = np.interp(J_grid, distribution_options['user_table_action'], distribution_options['user_table_density'])
-            elif density_variable_option is 'density_from_H':
-                density_grid = np.interp(H_grid, distribution_options['user_table_action'], distribution_options['user_table_density'])
+            density_grid = np.interp(X_grid,
+                            distribution_user_table['user_table_action'],
+                            distribution_user_table['user_table_distribution'])
         
         # Normalizing the grid
         density_grid[H_grid>np.max(H_array_dE0)] = 0
         density_grid = density_grid / np.sum(density_grid)
         
+        # Calculating the line density
+        line_density_ = np.sum(density_grid, axis=0)
+        line_density_ *= beam.n_macroparticles / np.sum(line_density_)
+        
         # Induced voltage contribution
-        if TotalInducedVoltage is not None:
-            # Calculating the line density
-            line_density = np.sum(density_grid, axis = 0)
-            line_density = line_density / np.sum(line_density) * Beam.n_macroparticles
-                        
+        if TotalInducedVoltage is not None:                      
             # Inputing new line density
-            induced_voltage_object.slices.n_macroparticles = line_density
-            induced_voltage_object.slices.bin_centers = time_coord_low_res
-            induced_voltage_object.slices.edges = np.linspace(induced_voltage_object.slices.bin_centers[0]-(induced_voltage_object.slices.bin_centers[1]-induced_voltage_object.slices.bin_centers[0])/2,induced_voltage_object.slices.bin_centers[-1]+(induced_voltage_object.slices.bin_centers[1]-induced_voltage_object.slices.bin_centers[0])/2,len(induced_voltage_object.slices.bin_centers)+1)
-            induced_voltage_object.slices.n_slices = n_points_grid
-            induced_voltage_object.slices.fit_option = 'off'
+            slices.n_slices = n_points_grid
+            slices.n_macroparticles = line_density_
+            slices.bin_size = time_resolution_low
+            slices.cut_left = time_potential_low_res[0] - 0.5*slices.bin_size
+            slices.cut_right = time_potential_low_res[-1] + 0.5*slices.bin_size
+            slices.cuts_unit = 's'
+            slices.set_cuts()
             
-            # Re-calculating the sources of wakes/impedances according to this slicing
-            induced_voltage_object.reprocess(induced_voltage_object.slices)
+            # Re-calculating the sources of wakes/impedances according to this
+            # slicing
+            induced_voltage_object.reprocess()
             
             # Calculating the induced voltage
-            induced_voltage_length_sep = int(np.ceil((time_coord_array[-1] -  time_coord_low_res[0]) / (time_coord_low_res[1] - time_coord_low_res[0])))
-            induced_voltage = induced_voltage_object.induced_voltage_sum(Beam, length = induced_voltage_length_sep)
-            time_induced_voltage = np.linspace(time_coord_low_res[0], time_coord_low_res[0] + (induced_voltage_length_sep - 1) * (time_coord_low_res[1] - time_coord_low_res[0]), induced_voltage_length_sep)
+            induced_voltage_object.induced_voltage_sum()
+            induced_voltage = induced_voltage_object.induced_voltage
 
             # Calculating the induced potential
-            induced_potential_low_res = - eom_factor_potential * np.insert(cumtrapz(induced_voltage, dx=time_induced_voltage[1]-time_induced_voltage[0]),0,0)
-            induced_potential = np.interp(time_coord_array, time_induced_voltage, induced_potential_low_res)
-            
-        else:
-            line_density = np.sum(density_grid, axis = 0)
-            line_density = line_density / np.sum(line_density) * Beam.n_macroparticles
-         
-         
+            induced_potential_low_res = -(eom_factor_potential *
+                                          cumtrapz(induced_voltage,
+                                                   dx=time_resolution_low,
+                                                   initial=0))
+            induced_potential = np.interp(time_potential,
+                             time_potential_low_res, induced_potential_low_res,
+                             left=0, right=0)
+    
     # Populating the bunch
-    np.random.seed(seed=seed)
-    indexes = np.random.choice(np.arange(0,np.size(density_grid)), Beam.n_macroparticles, p=density_grid.flatten())
-  
-    Beam.dt = np.ascontiguousarray(time_grid.flatten()[indexes]+(np.random.rand(Beam.n_macroparticles) -0.5)*(time_coord_low_res[1]-time_coord_low_res[0]))
-    Beam.dE = np.ascontiguousarray(deltaE_grid.flatten()[indexes] + (np.random.rand(Beam.n_macroparticles) - 0.5) * (deltaE_coord_array[1]-deltaE_coord_array[0]))
+    populate_bunch(beam, time_grid, deltaE_grid, density_grid, 
+                   time_resolution_low, deltaE_coord_array[1] -
+                   deltaE_coord_array[0], seed)
     
     if TotalInducedVoltage is not None:
-        return [time_coord_low_res, line_density], induced_voltage_object
+        return [time_potential_low_res, line_density_], induced_voltage_object
     else:
-        return [time_coord_low_res, line_density]
+        return [time_potential_low_res, line_density_]
+
+def X0_from_bunch_length(bunch_length, bunch_length_fit, X_grid, sorted_X_dE0,
+                         n_points_grid, time_potential_low_res,
+                         distribution_function_, distribution_type, 
+                         distribution_exponent, beam, full_ring_and_RF):
+    '''
+    Function to find the corresponding H0 or J0 for a given bunch length.
+    Used by matched_from_distribution_function()
+    '''
+    tau = 0.0
     
+    # Initial values for iteration
+    X_low = sorted_X_dE0[0]
+    X_hi = sorted_X_dE0[-1]
+    X_min = sorted_X_dE0[0]
+    X_max = sorted_X_dE0[-1]
+    X_accuracy = sorted_X_dE0[1] - sorted_X_dE0[0] / 2.0
+    
+    bin_size = (time_potential_low_res[1] - time_potential_low_res[0])
+    
+    # Iteration to find H0/J0 from the bunch length
+    while np.abs(bunch_length-tau) > bin_size:
+        # Takes middle point of the interval [X_low,X_hi]
+        X0 = 0.5 * (X_low + X_hi)
+        
+        if bunch_length_fit is 'full':
+            bunchIndices = np.where(np.sum(X_grid<=X0, axis=0))[0]
+            tau = (time_potential_low_res[bunchIndices][-1] -
+                   time_potential_low_res[bunchIndices][0])
+        else:
+            # Calculating the line density for the parameter X0
+            density_grid = distribution_function_(X_grid,
+                              distribution_type, X0, distribution_exponent)
+            
+            density_grid = density_grid / np.sum(density_grid)
+            line_density_ = np.sum(density_grid, axis=0)
+            
+            # Calculating the bunch length of that line density
+            if (line_density_ > 0).any():
+                tau = 4.0 * np.sqrt(np.sum((time_potential_low_res -
+                      np.sum(line_density_ * time_potential_low_res) /
+                      np.sum(line_density_))**2 * line_density_) /
+                      np.sum(line_density_))
+                
+                if bunch_length_fit!=None:
+                    slices = Slices(
+                      full_ring_and_RF.RingAndRFSection_list[0].rf_params,
+                      beam, n_points_grid, cut_left=time_potential_low_res[0] -
+                      0.5*bin_size , cut_right=time_potential_low_res[-1] +
+                      0.5*bin_size)
+                        
+                    slices.n_macroparticles = line_density_
+                    
+                    if bunch_length_fit is 'gauss':
+                        slices.bl_gauss = tau
+                        slices.bp_gauss = np.sum(line_density_ *
+                                time_potential_low_res) / np.sum(line_density_)
+                        slices.gaussian_fit()
+                        tau = slices.bl_gauss
+                    elif bunch_length_fit is 'fwhm':
+                        slices.fwhm()
+                        tau = slices.bl_fwhm                        
+        
+        # Update of the interval for the next iteration
+        if tau >= bunch_length:
+            X_hi = X0
+        else:
+            X_low = X0
+            
+        if (X_max - X0) < X_accuracy:
+            print('WARNING: The bucket is too small to have the ' +
+                  'desired bunch length! Input is %.2e, the ' +
+                  'generation gave %.2e, the error is %.2e'
+                  %(bunch_length, tau, bunch_length-tau))
+            break
+        
+        if (X0-X_min) < X_accuracy:
+            print('WARNING: The desired bunch length is too small ' +
+                  'to be generated accurately!')
+                  
+#    return 0.5 * (X_low + X_hi)
+    return X0
 
 def populate_bunch(beam, time_grid, deltaE_grid, density_grid, time_step,
                    deltaE_step, seed):
