@@ -34,7 +34,8 @@ class FlatSpectrum(object):
     def __init__(self, GeneralParameters, RFSectionParameters, delta_f = 1, 
                  corr_time = 10000, fmin_s0 = 0.8571, fmax_s0 = 1.1, 
                  initial_amplitude = 1.e-6, seed1 = 1234, seed2 = 7564, 
-                 predistortion = None, continuous_phase = False):
+                 predistortion = None, continuous_phase = False, folder_plots =
+                  'fig_noise', print_option = True, initial_final_turns = [0,-1]):
 
         '''
         Generate phase noise from a band-limited spectrum.
@@ -45,8 +46,12 @@ class FlatSpectrum(object):
         domain. After 'corr_time' turns, the seed is changed to cut numerical
         correlated sequences of the random number generator.
         '''
-
-        self.f0 = GeneralParameters.f_rev  # revolution frequency in Hz
+        self.total_n_turns = GeneralParameters.n_turns
+        self.initial_final_turns = initial_final_turns
+        if self.initial_final_turns[1]==-1:
+            self.initial_final_turns[1] = self.total_n_turns+1
+            
+        self.f0 = GeneralParameters.f_rev[self.initial_final_turns[0]:self.initial_final_turns[1]]  # revolution frequency in Hz
         self.delta_f = delta_f           # frequency resolution [Hz]
         self.corr = corr_time           # adjust noise every 'corr' time steps
         self.fmin_s0 = fmin_s0                # spectrum lower bound in synchr. freq.
@@ -55,17 +60,19 @@ class FlatSpectrum(object):
         self.seed1 = seed1
         self.seed2 = seed2
         self.predistortion = predistortion
-        if self.predistortion != None:
+        if self.predistortion == 'weightfunction':
             # Overwrite frequencies
             self.fmin_s0 = 0.8571
             self.fmax_s0 = 1.001
-        self.fs = RFSectionParameters.omega_s0 / (2*np.pi) # synchrotron frequency in Hz
-        self.n_turns = GeneralParameters.n_turns 
+        self.fs = RFSectionParameters.omega_s0[self.initial_final_turns[0]:self.initial_final_turns[1]] / (2*np.pi) # synchrotron frequency in Hz
+        self.n_turns = len(self.fs)-1
         self.dphi = np.zeros(self.n_turns+1)
         self.continuous_phase = continuous_phase
         if self.continuous_phase:
             self.dphi2 = np.zeros(self.n_turns+1+self.corr/4)
-        
+        self.folder_plots = folder_plots    
+        self.print_option = print_option
+    
     
     def spectrum_to_phase_noise(self, freq, spectrum, transform=None):
         
@@ -205,19 +212,24 @@ class FlatSpectrum(object):
                 self.seed2 +=158
                 self.dphi2[(k+self.corr/4):(kmax+self.corr/4)] = self.dphi_output[0:(kmax-k)]
             
-            fig_folder('fig_noise')
-            plot_noise_spectrum(freq, spectrum, sampling=1, figno=i, 
-                                dirname = 'fig_noise')
-            plot_phase_noise(self.t[0:(kmax-k)], self.dphi_output[0:(kmax-k)], 
-                             sampling=1, figno=i, dirname = 'fig_noise')
+            if self.folder_plots != None:
+                fig_folder(self.folder_plots)
+                plot_noise_spectrum(freq, spectrum, sampling=1, figno=i, 
+                                    dirname = self.folder_plots)
+                plot_phase_noise(self.t[0:(kmax-k)], self.dphi_output[0:(kmax-k)], 
+                                 sampling=1, figno=i, dirname = self.folder_plots)
+                
             rms_noise = np.std(self.dphi_output)
-            print("RF noise for time step %.4e s (iter %d) has r.m.s. phase %.4e rad (%.3e deg)" \
-                %(self.t[1], i, rms_noise, rms_noise*180/np.pi))
+            if self.print_option:
+                print("RF noise for time step %.4e s (iter %d) has r.m.s. phase %.4e rad (%.3e deg)" \
+                    %(self.t[1], i, rms_noise, rms_noise*180/np.pi))
                 
         if self.continuous_phase:
             psi = np.arange(0, self.n_turns+1)*2*np.pi/self.corr
             self.dphi = self.dphi*np.sin(psi[:self.n_turns+1]) + self.dphi2[:(self.n_turns+1)]*np.cos(psi[:self.n_turns+1])
-
+        
+        if self.initial_final_turns[0]>0 or self.initial_final_turns[1]<self.total_n_turns+1:
+            self.dphi = np.concatenate((np.zeros(self.initial_final_turns[0]), self.dphi, np.zeros(1+self.total_n_turns-self.initial_final_turns[1])))
 
 class LHCNoiseFB(object): 
     '''

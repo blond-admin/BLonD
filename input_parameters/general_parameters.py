@@ -29,7 +29,7 @@ class GeneralParameters(object):
     def __init__(self, n_turns, ring_length, alpha, momentum, 
                  particle_type, user_mass = None, user_charge = None, 
                  particle_type_2 = None, user_mass_2 = None, 
-                 user_charge_2 = None, number_of_sections = 1):
+                 user_charge_2 = None, number_of_sections = 1, force_beta_equal_one = False):
         
         #: | *Number of RF sections over the ring; default is one.*
         self.n_sections = number_of_sections
@@ -128,6 +128,8 @@ class GeneralParameters(object):
         #: .. math:: \beta_s = \frac{1}{\sqrt{1 + \left(\frac{m}{p_s}\right)^2} }
         
         self.beta = np.sqrt(1/(1 + (self.mass/self.momentum)**2))
+        if force_beta_equal_one:
+            self.beta = np.array([np.ones(self.n_turns + 1)])
         
         #: *Synchronous relativistic gamma (program)* :math:`: \quad \gamma_{s,k}^n`
         #:
