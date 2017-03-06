@@ -232,3 +232,28 @@ class GeneralParameters(object):
                            2*self.alpha[i,0]*self.alpha[i,1] + self.alpha[i,1]/ \
                            self.gamma[i]**2 + self.alpha[i,0]**2*self.eta_0[i] - \
                            3*self.beta[i]**2*self.alpha[i,0]/(2*self.gamma[i]**2)
+
+
+
+    def parameters_at_time(cycle_time):
+        '''
+        *Function to return various cycle parameters at a specific point in time.*
+        '''
+
+        parameters = {}
+        parameters['momentum'] = np.interp(cycle_time, self.cumulative_times, self.momentum[0])
+        parameters['beta'] = np.interp(cycle_time, self.cumulative_times, self.beta[0])
+        parameters['gamma'] = np.interp(cycle_time, self.cumulative_times, self.gamma[0])
+        parameters['energy'] = np.interp(cycle_time, self.cumulative_times, self.energy[0])
+        parameters['kin_energy'] = np.interp(cycle_time, self.cumulative_times, self.kin_energy[0])
+        parameters['f_rev'] = np.interp(cycle_time, self.cumulative_times, self.f_rev)
+	parameters['t_rev'] = np.interp(cycle_time, self.cumulative_times, self.t_rev)
+	parameters['omega_rev'] = np.interp(cycle_time, self.cumulative_times, self.omega_rev)
+	parameters['eta_0'] = np.interp(cycle_time, self.cumulative_times, self.eta_0[0])
+
+        return parameters
+
+
+
+
+

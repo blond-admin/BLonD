@@ -302,7 +302,7 @@ def preprocess_rf_params(general_params, time_arrays, data_arrays, interpolation
 
 
 
-def combine_rf_functions(function_list, merge_type = 'linear', resolution = 1E-3):
+def combine_rf_functions(function_list, merge_type = 'linear', resolution = 1E-3, general_params = None):
 
 	"""
 	function to merge different programs in case e.g. different fixed bucket areas are required at different points in time.
@@ -400,6 +400,18 @@ def combine_rf_functions(function_list, merge_type = 'linear', resolution = 1E-3
 				fullFunction += volts.tolist() + funcProg.tolist()
 				fullTime += time.tolist() + funcTime
 
+		elif merge_type[i-1] == 'linear_tune':
+
+			#harmonic, charge and 2pi are constant so can be ignored
+			if not isinstance(function_list[i][0], np.ndarray):
+				
+				initPars = general_params.parameters_at_time(function_list[i][1][0])
+				finalPars = general_params.parameters_at_time(function_list[i][1][1])
+
+				vInit = fullFunction[-1]
+				vFin = np.interp(function_list[i][1][0], function_list[i][0][0], function_list[i][0][1])
+
+				initTune = np.sqrt((initPars['t_rev']**2*initPars['beta']**2*initPars['energy'])/())
 
 
 	returnFunction = np.zeros([2, len(fullTime)])
