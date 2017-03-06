@@ -17,6 +17,7 @@ for the CERN machines**
 from __future__ import division
 from builtins import object
 import numpy as np
+import sys
 
 
 
@@ -121,6 +122,9 @@ class PhaseLoop(object):
                 self.gain2 = [0., 0.]
             else: 
                 self.gain2 = self.config['RL_gain'] 
+            
+            self.gain2[0] = self.gain2[0] * np.ones(GeneralParameters.n_turns+1)
+            self.gain2[1] = self.gain2[1] * np.ones(GeneralParameters.n_turns+1)
                         
             #: | *Optional: PL & RL acting only in certain time intervals/turns.*
             self.dt = 0
@@ -131,7 +135,7 @@ class PhaseLoop(object):
                 self.dt = self.config['period'] 
             
             # Counter of turns passed since last time the PL was active
-            self.PL_counter = 1
+            self.PL_counter = 0
             self.on_time = np.array([])
             
             self.precalculate_time(GeneralParameters)
@@ -269,7 +273,10 @@ class PhaseLoop(object):
             if self.noiseFB != None:
                 self.dphi += self.noiseFB.x*self.RFnoise.dphi[counter]
             else:
-                self.dphi += self.RFnoise.dphi[counter]
+                if self.machine == 'PSB':
+                    self.dphi = self.dphi
+                else:
+                    self.dphi += self.RFnoise.dphi[counter]
                 
                 
     def radial_difference(self):               
@@ -432,20 +439,23 @@ class PhaseLoop(object):
 
         # Average phase error while frequency is updated
         counter = self.rf_params.counter[0]
-        
         self.beam_phase()
-        self.phase_difference()        
+        self.phase_difference()
+        
+        
         self.dphi_sum += self.dphi
 
         # Phase and radial loop active on certain turns
-        if counter == self.on_time[self.PL_counter] and counter>self.delay:
-            
+        if counter == self.on_time[self.PL_counter] and counter>=self.delay:
             #Phase loop
             self.dphi_av = self.dphi_sum / (self.on_time[self.PL_counter] 
                              - self.on_time[self.PL_counter-1])
             
+            if self.RFnoise != None:
+                self.dphi_av += self.RFnoise.dphi[counter]
+                
             self.domega_PL = 0.99803799*self.domega_PL \
-                - self.gain[counter]*(0.99901903*self.dphi_av - 0.99901003*self.dphi_av_prev)
+                + self.gain[counter]*(0.99901903*self.dphi_av - 0.99901003*self.dphi_av_prev)
                     
             self.dphi_av_prev = self.dphi_av
             self.dphi_sum = 0.
@@ -454,16 +464,16 @@ class PhaseLoop(object):
             self.dR_over_R = (self.rf_params.omega_RF[0,counter] - 
                          self.rf_params.omega_RF_d[0,counter])/(
                          self.rf_params.omega_RF_d[0,counter] * 
-                         (1./(self.general_params.alpha[0]*
+                         (1./(self.general_params.alpha[0][0]*
                               self.rf_params.gamma[counter]**2) - 1.))
-                         
-            self.domega_RL = self.domega_RL - self.gain2[0]*(self.dR_over_R - 
-                self.dR_over_R_prev) - self.gain2[1]*self.dR_over_R
+            
+            self.domega_RL = self.domega_RL + self.gain2[0][counter]*(self.dR_over_R - 
+                self.dR_over_R_prev) + self.gain2[1][counter]*self.dR_over_R
             
             self.dR_over_R_prev = self.dR_over_R
                 
             # Counter to pick the next time step when the PL & RL will be active
             self.PL_counter += 1 
-
+            
         # Apply frequency correction
-        self.domega_RF = self.domega_PL + self.domega_RL
+        self.domega_RF = - self.domega_PL - self.domega_RL
