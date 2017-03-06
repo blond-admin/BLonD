@@ -426,18 +426,17 @@ def separatrix(GeneralParameters, RFSectionParameters, dt, total_voltage = None)
                          2.*np.pi/omega_RF[0])
     elif eta0 > 0:
         dt = time_modulo(dt, phi_RF[0]/omega_RF[0], 2.*np.pi/omega_RF[0])
-    print(dt)
     
     # Unstable fixed point in single-harmonic RF system
     if RFSectionParameters.n_rf == 1:
      
         dt_s = RFSectionParameters.phi_s[counter]/omega_RF[0]
         if eta0 < 0:
-            dt_RF = (phi_RF[0] - np.pi)/omega_RF[0]
+            dt_RF = -(phi_RF[0] - np.pi)/omega_RF[0]
         else:
-            dt_RF = phi_RF[0]/omega_RF[0]
+            dt_RF = -phi_RF[0]/omega_RF[0]
             
-        dt_ufp = 2.*dt_RF + 0.5*T_RF0 - dt_s
+        dt_ufp = dt_RF + 0.5*T_RF0 - dt_s
         if eta0*denergy < 0:
             dt_ufp += T_RF0
 
