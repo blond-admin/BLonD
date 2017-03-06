@@ -404,59 +404,51 @@ def separatrix(GeneralParameters, RFSectionParameters, dt, total_voltage = None)
     voltage = GeneralParameters.charge*RFSectionParameters.voltage[:,counter]
     omega_RF = RFSectionParameters.omega_RF[:,counter]
     phi_RF = RFSectionParameters.phi_RF[:,counter]
+    harmonic = RFSectionParameters.harmonic[:,counter]
 
     eta0 = RFSectionParameters.eta_0[counter]
     beta_sq = RFSectionParameters.beta[counter]**2     
     energy = RFSectionParameters.energy[counter]
+    try:
+        denergy = RFSectionParameters.E_increment[counter]
+    except:
+        denergy = RFSectionParameters.E_increment[-1]
+    T0 = GeneralParameters.t_rev[counter]
+    index_voltage = np.min(np.where(voltage>0)[0])
+    T_RF0 = 2*np.pi/omega_RF[index_voltage]
 
-    # Projects time array into the range [-T_RF/2+t_RF, T_RF/2+t_RF]
-    # if below transition and into the range [t_RF, t_RF+T_RF] if above transition.
-    # T_RF = 2*pi/omega_RF, t_RF = - phi_RF/omega_RF
+
+    # Projects time array into the range [t_RF, t_RF+T_RF] below and above
+    # transition, where T_RF = 2*pi/omega_RF, t_RF = - phi_RF/omega_RF.
+    # Note that the RF wave is shifted by Pi for eta < 0
     if eta0 < 0:
         dt = time_modulo(dt, (phi_RF[0] - np.pi)/omega_RF[0], 
                          2.*np.pi/omega_RF[0])
     elif eta0 > 0:
         dt = time_modulo(dt, phi_RF[0]/omega_RF[0], 2.*np.pi/omega_RF[0])
-
+    print(dt)
     
-    # Single-harmonic RF system
+    # Unstable fixed point in single-harmonic RF system
     if RFSectionParameters.n_rf == 1:
      
-        h0 = RFSectionParameters.harmonic[0,counter]
-     
-        if total_voltage == None:
-            V0 = voltage[0]
-        else: 
-            V0 = total_voltage[counter]
-      
-        phi_s = RFSectionParameters.phi_s[counter]
-        phi_b = omega_RF[0]*dt + phi_RF[0]
-          
-        separatrix_array = np.sqrt(beta_sq*energy*V0/(np.pi*eta0*h0)* 
-                                    (-np.cos(phi_b) - np.cos(phi_s) + 
-                                     (np.pi - phi_s - phi_b)*np.sin(phi_s)))
+        dt_s = RFSectionParameters.phi_s[counter]/omega_RF[0]
+        if eta0 < 0:
+            dt_RF = (phi_RF[0] - np.pi)/omega_RF[0]
+        else:
+            dt_RF = phi_RF[0]/omega_RF[0]
+            
+        dt_ufp = 2.*dt_RF + 0.5*T_RF0 - dt_s
+        if eta0*denergy < 0:
+            dt_ufp += T_RF0
 
-    # Multi-harmonic RF system
+    # Unstable fixed point in multi-harmonic RF system
     else:
-        
-        voltage = GeneralParameters.charge*RFSectionParameters.voltage[:,counter]
-        omega_RF = RFSectionParameters.omega_RF[:,counter]
-        phi_RF = RFSectionParameters.phi_RF[:,counter]     
-        try:
-            denergy = RFSectionParameters.E_increment[counter]
-        except:
-            denergy = RFSectionParameters.E_increment[-1]
-        T0 = GeneralParameters.t_rev[counter]
-        index_voltage = np.min(np.where(voltage>0)[0])
-        T_RF0 = 2*np.pi/omega_RF[index_voltage]
-        
-        # Find unstable fixed point
         
         dt_ufp = np.linspace(-phi_RF[index_voltage]/omega_RF[index_voltage] - T_RF0/1000, 
                              T_RF0 - phi_RF[index_voltage]/omega_RF[index_voltage] + T_RF0/1000, 1002)
-        
+
         if eta0 < 0:
-            dt_ufp -= 0.5*T_RF0
+            dt_ufp += 0.5*T_RF0 # Shift in RF phase below transition
         Vtot = np.zeros(len(dt_ufp))
         
         # Construct waveform
@@ -483,15 +475,16 @@ def separatrix(GeneralParameters, RFSectionParameters, dt, total_voltage = None)
                 ind = zero_crossings[i]
         dt_ufp = dt_ufp[ind] + Vtot[ind]/(Vtot[ind] - Vtot[ind+1])* \
                  (dt_ufp[ind+1] - dt_ufp[ind])
+        print(dt_ufp)
         
-        # Construct separatrix
-        Vtot = np.zeros(len(dt))
-        for i in range(RFSectionParameters.n_rf):
-            Vtot += voltage[i]*(np.cos(omega_RF[i]*dt_ufp + phi_RF[i]) - 
-                                np.cos(omega_RF[i]*dt + phi_RF[i]))/omega_RF[i]
+    # Construct separatrix
+    Vtot = np.zeros(len(dt))
+    for i in range(RFSectionParameters.n_rf):
+        Vtot += voltage[i]*(np.cos(omega_RF[i]*dt_ufp + phi_RF[i]) - 
+                            np.cos(omega_RF[i]*dt + phi_RF[i]))/omega_RF[i]
     
-        separatrix_array = np.sqrt(2*beta_sq*energy/(eta0*T0)* \
-                                    (Vtot + denergy*(dt_ufp - dt)))
+    separatrix_array = np.sqrt(2*beta_sq*energy/(eta0*T0)* \
+                                (Vtot + denergy*(dt_ufp - dt)))
          
     return separatrix_array
  
