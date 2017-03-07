@@ -18,7 +18,7 @@ from builtins import range, object
 import numpy as np
 import ctypes
 from scipy.constants import e, c, epsilon_0, hbar
-from setup_cpp import libblond
+from setup_cpp import libsrqe
 
 
 class SynchrotronRadiation(object):
@@ -154,7 +154,7 @@ class SynchrotronRadiation(object):
                 self.general_params.energy[0,i_turn-1]):
             self.calculate_SR_params()
         
-        libblond.synchrotron_radiation(
+        libsrqe.synchrotron_radiation(
             self.beam.dE.ctypes.data_as(ctypes.c_void_p), 
             ctypes.c_double(self.U0 / self.n_kicks),
             ctypes.c_int(self.beam.n_macroparticles), 
@@ -169,7 +169,7 @@ class SynchrotronRadiation(object):
                 self.general_params.energy[0,i_turn-1]):
             self.calculate_SR_params()
         
-        libblond.synchrotron_radiation_full(
+        libsrqe.synchrotron_radiation_full(
             self.beam.dE.ctypes.data_as(ctypes.c_void_p), 
             ctypes.c_double(self.U0 / self.n_kicks),
             ctypes.c_int(self.beam.n_macroparticles), 
