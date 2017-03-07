@@ -209,9 +209,20 @@ class Resonators(_ImpedanceObject):
                           omega_bar * np.sin(omega_bar * self.time_array)))
     
     
-    def imped_calc(self, frequency_array):
+    def imped_calc(self, frequency_array, method='c++'):
         '''
         *Impedance calculation method as a function of frequency.*
+        '''
+        if method is 'c++':
+            self._imped_calc_cpp(frequency_array)
+        elif method is 'python':
+            self._imped_calc_python(frequency_array)
+        else:
+            raise RuntimeError('method for impedance calculation in Resonator object not recognized')
+ 
+    def _imped_calc_python(self, frequency_array):
+        '''
+        *Impedance calculation method as a function of frequency using python.*
         '''
         
         self.frequency_array = frequency_array
@@ -223,7 +234,25 @@ class Resonators(_ImpedanceObject):
                              (self.frequency_array[1:] / self.frequency_R[i] - 
                               self.frequency_R[i] / self.frequency_array[1:]))
  
+    def _imped_calc_cpp(self, frequency_array):
+        '''
+        *Impedance calculation method as a function of frequency optimized in C++.*
+        '''
+        
+        self.frequency_array = frequency_array
+        self.impedance = np.zeros(len(self.frequency_array), complex)
+        realImp = np.zeros(len(self.frequency_array))
+        imagImp = np.zeros(len(self.frequency_array))
+
+        libblond.fast_resonator_real_imag(realImp.ctypes.data_as(ctypes.c_void_p), imagImp.ctypes.data_as(ctypes.c_void_p),
+               self.frequency_array.ctypes.data_as(ctypes.c_void_p), self.R_S.ctypes.data_as(ctypes.c_void_p),
+               self.Q.ctypes.data_as(ctypes.c_void_p), self.frequency_R.ctypes.data_as(ctypes.c_void_p),
+               ctypes.c_uint(self.n_resonators), ctypes.c_uint(len(self.frequency_array)))
  
+        self.impedance.real = realImp
+        self.impedance.imag = imagImp
+
+
 
 class TravelingWaveCavity(_ImpedanceObject):
     '''
