@@ -1,8 +1,8 @@
 
 # Copyright 2016 CERN. This software is distributed under the
-# terms of the GNU General Public Licence version 3 (GPL Version 3), 
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
 # copied verbatim in the file LICENCE.md.
-# In applying this licence, CERN does not waive the privileges and immunities 
+# In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
@@ -63,7 +63,7 @@ print("")
 
 # Define general parameters
 general_params = GeneralParameters(N_t, C, alpha, np.linspace(p_i, p_f, N_t+1), 
-                                   'user_input', user_mass = m_p, user_charge = Z)
+                                   'user_input', user_mass=m_p, user_charge=Z)
 
 # Define beam and distribution
 beam = Beam(general_params, N_p, N_b)
@@ -105,12 +105,15 @@ longitudinal_bigaussian(general_params, rf_params, beam, tau_0/4,
 slice_beam = Slices(rf_params, beam, 100)
 
 # Define what to save in file
-bunchmonitor = BunchMonitor(general_params, rf_params, beam, '../output_files/TC7_output_data', Slices = slice_beam)
+bunchmonitor = BunchMonitor(general_params, rf_params, beam,
+                            '../output_files/TC7_output_data',
+                            Slices=slice_beam)
 
 format_options = {'dirname': '../output_files/TC7_fig'}
-plots = Plot(general_params, rf_params, beam, dt_plt, N_t, -4.e-7, 4.e-7, -400e6, 400e6, 
-             separatrix_plot= True, Slices = slice_beam, h5file = '../output_files/TC7_output_data', 
-             format_options = format_options)
+plots = Plot(general_params, rf_params, beam, dt_plt, N_t, -4.e-7, 4.e-7,
+             -400e6, 400e6, separatrix_plot=True, Slices=slice_beam,
+             h5file='../output_files/TC7_output_data', 
+             format_options=format_options)
 
 # Accelerator map
 map_ = [long_tracker] + [slice_beam] + [bunchmonitor] + [plots]
