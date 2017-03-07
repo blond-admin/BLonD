@@ -46,10 +46,10 @@ class FullRingAndRF(object):
         self.ring_radius = self.ring_circumference / (2*np.pi)
         
         
-    def potential_well_generation(self, turn_number = 0, n_points = 1e5, 
-                                  main_harmonic_option = 'lowest_freq', 
-                                  dt_margin_percent = 0.):
-
+        
+    def potential_well_generation(self, turn=0, n_points=1e5, 
+                                  main_harmonic_option='lowest_freq', 
+                                  dt_margin_percent=0., time_array=None):
         '''
         *Method to generate the potential well out of the RF systems. The 
         assumption made is that all the RF voltages are averaged over
@@ -73,9 +73,9 @@ class FullRingAndRF(object):
         for RingAndRFSectionElement in self.RingAndRFSection_list:
             charge = RingAndRFSectionElement.charge
             for rf_system in range(RingAndRFSectionElement.n_rf):
-                voltages = np.append(voltages, RingAndRFSectionElement.voltage[rf_system, turn_number])
-                omega_rf = np.append(omega_rf, RingAndRFSectionElement.omega_RF[rf_system, turn_number])
-                phi_offsets = np.append(phi_offsets, RingAndRFSectionElement.phi_RF[rf_system, turn_number])
+                voltages = np.append(voltages, RingAndRFSectionElement.voltage[rf_system, turn])
+                omega_rf = np.append(omega_rf, RingAndRFSectionElement.omega_RF[rf_system, turn])
+                phi_offsets = np.append(phi_offsets, RingAndRFSectionElement.phi_RF[rf_system, turn])
                         
         voltages = np.array(voltages, ndmin = 2)
         omega_rf = np.array(omega_rf, ndmin = 2)
@@ -90,24 +90,25 @@ class FullRingAndRF(object):
                 raise RuntimeError('The desired harmonic to compute the potential well does not match the RF parameters...')
             main_omega_rf = np.min(omega_rf[omega_rf == main_harmonic_option])
             
-        time_array_margin = dt_margin_percent * 2 * np.pi/main_omega_rf
-        slippage_factor = self.RingAndRFSection_list[0].eta_0[turn_number]
+        slippage_factor = self.RingAndRFSection_list[0].eta_0[turn]
         
-        first_dt = - time_array_margin / 2
-        last_dt = 2 * np.pi/main_omega_rf + time_array_margin / 2
+        if time_array is None:            
+            time_array_margin = dt_margin_percent * 2 * np.pi/main_omega_rf
             
-        time_array = np.linspace(first_dt, last_dt, n_points)
+            first_dt = - time_array_margin / 2
+            last_dt = 2 * np.pi/main_omega_rf + time_array_margin / 2
                 
-        self.total_voltage = np.sum(voltages.T * np.sin(omega_rf.T * time_array + phi_offsets.T), axis = 0)
+            time_array = np.linspace(first_dt, last_dt, n_points)
+                
+        self.total_voltage = np.sum(voltages.T * np.sin(omega_rf.T * time_array + phi_offsets.T), axis=0)
         
-        eom_factor_potential = np.sign(slippage_factor) * charge / (RingAndRFSectionElement.t_rev[turn_number])
+        eom_factor_potential = np.sign(slippage_factor) * charge / (RingAndRFSectionElement.t_rev[turn])
         
-        potential_well = - np.insert(cumtrapz(eom_factor_potential * (self.total_voltage - (-RingAndRFSectionElement.acceleration_kick[turn_number])/abs(charge)), dx=time_array[1]-time_array[0]),0,0)
+        potential_well = -cumtrapz(eom_factor_potential * (self.total_voltage - (-RingAndRFSectionElement.acceleration_kick[turn])/abs(charge)), dx=time_array[1]-time_array[0],initial=0)
         potential_well = potential_well - np.min(potential_well)
         
         self.potential_well_coordinates = time_array
         self.potential_well = potential_well
-
         
         
     def track(self):
@@ -117,7 +118,6 @@ class FullRingAndRF(object):
         
         for RingAndRFSectionElement in self.RingAndRFSection_list:
             RingAndRFSectionElement.track()
-
 
 
 class RingAndRFSection(object):
@@ -408,11 +408,11 @@ class RingAndRFSection(object):
                 else:
                     self.total_voltage = self.rf_voltage
                 
-                induced_energy = self.beam.charge * self.total_voltage
                 libblond.linear_interp_kick(self.beam.dt.ctypes.data_as(ctypes.c_void_p),
                                   self.beam.dE.ctypes.data_as(ctypes.c_void_p), 
                                   induced_energy.ctypes.data_as(ctypes.c_void_p), 
-                                  self.slices.bin_centers.ctypes.data_as(ctypes.c_void_p), 
+                                  self.slices.bin_centers.ctypes.data_as(ctypes.c_void_p),
+                                  ctypes.c_double(self.beam.charge),
                                   ctypes.c_int(self.slices.n_slices),
                                   ctypes.c_int(self.beam.n_macroparticles),
                                   ctypes.c_double(self.acceleration_kick[self.counter[0]]))
