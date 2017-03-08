@@ -302,7 +302,7 @@ def preprocess_rf_params(general_params, time_arrays, data_arrays, interpolation
 
 
 
-def combine_rf_functions(function_list, merge_type = 'linear', resolution = 1E-3, general_params = None):
+def combine_rf_functions(function_list, merge_type = 'linear', resolution = 1E-3, general_params = None, mainH = True):
 
 	"""
 	function to merge different programs in case e.g. different fixed bucket areas are required at different points in time.
@@ -407,20 +407,18 @@ def combine_rf_functions(function_list, merge_type = 'linear', resolution = 1E-3
 			#harmonic, charge and 2pi are constant so can be ignored
 			if not isinstance(function_list[i][0], np.ndarray):
 				
-				initPars = general_params.parameters_at_time(fullTime[-1])#function_list[i][1][0])
-				finalPars = general_params.parameters_at_time(function_list[i][1][0])#function_list[i][1][1])
+				initPars = general_params.parameters_at_time(fullTime[-1])
+				finalPars = general_params.parameters_at_time(function_list[i][1][0])
 
 				vInit = fullFunction[-1]
-				vFin = function_list[i][0]#np.interp(function_list[i][1][0], function_list[i][0][0], function_list[i][0][1])
+				vFin = function_list[i][0]
 
-#				initTune = np.sqrt((initPars['t_rev']**2*initPars['beta']**2*initPars['energy']) / (vInit * np.abs(initPars['eta_0']) * np.sqrt(1 - (initPars['delta_E']/vInit)**2) ))
-#				finalTune = np.sqrt((finalPars['t_rev']**2 * finalPars['beta']**2 * finalPars['energy']) / (vFin * np.abs(finalPars['eta_0']) * np.sqrt(1 - (finalPars['delta_E']/vFin)**2) ))
-#				initVolt = np.sqrt( ( (initPars['t_rev']**2 * initPars['beta']**2 * initPars['energy']) / (np.abs(initPars['eta_0']) * initTune) )**2 + initPars['delta_E']**2)
+				if mainH is False:
+					initPars['delta_E'] = 0.
+					finalPars['delta_E'] = 0.
 
 				initTune = np.sqrt( (vInit * np.abs(initPars['eta_0']) * np.sqrt(1 - (initPars['delta_E']/vInit)**2)) / (initPars['beta']**2 * initPars['energy']) )
 				finalTune = np.sqrt( (vFin * np.abs(finalPars['eta_0']) * np.sqrt(1 - (finalPars['delta_E']/vFin)**2)) / (finalPars['beta']**2 * finalPars['energy']) )
-
-				initVolts = np.sqrt( ((initTune**2 * initPars['beta']**2 * initPars['energy']) / (np.abs(initPars['eta_0'])))**2 + initPars['delta_E']**2)
 
 				tDur = function_list[i][1][0] - fullTime[-1]
 				nSteps = int(tDur/resolution[i-1])
@@ -428,14 +426,51 @@ def combine_rf_functions(function_list, merge_type = 'linear', resolution = 1E-3
 				tuneInterp = np.linspace(initTune, finalTune, nSteps)
 
 				mergePars = general_params.parameters_at_time(time)
+
+				if mainH is False:
+					mergePars['delta_E'] *= 0
+
+				volts = np.sqrt( ((tuneInterp**2 * mergePars['beta']**2 * mergePars['energy']) / (np.abs(mergePars['eta_0'])))**2 + mergePars['delta_E']**2)
+
+				fullFunction += volts.tolist() + 2*[function_list[i][0]]
+				fullTime += time.tolist() + function_list[i][1]
+
+			else:
+
+				start = np.where(function_list[i][0][0] >= function_list[i][1][0])[0][0]
+				stop = np.where(function_list[i][0][0] >= function_list[i][1][1])[0][0]
+
+				funcTime = [function_list[i][1][0]] + function_list[i][0][0][start:stop].tolist() + [function_list[i][1][1]]
+				funcProg = np.interp(funcTime, function_list[i][0][0], function_list[i][0][1])
+
+				tDur = funcTime[0] - fullTime[-1]
+				nSteps = int(tDur/resolution[i-1])
+				time = np.linspace(fullTime[-1], funcTime[0], nSteps)
+
+				initPars = general_params.parameters_at_time(fullTime[-1])
+				finalPars = general_params.parameters_at_time(funcTime[0])
+
+				if mainH is False:
+					initPars['delta_E'] = 0.
+					finalPars['delta_E'] = 0.
+
+				vInit = fullFunction[-1]
+				vFin = funcProg[0]
+
+				initTune = np.sqrt( (vInit * np.abs(initPars['eta_0']) * np.sqrt(1 - (initPars['delta_E']/vInit)**2)) / (initPars['beta']**2 * initPars['energy']) )
+				finalTune = np.sqrt( (vFin * np.abs(finalPars['eta_0']) * np.sqrt(1 - (finalPars['delta_E']/vFin)**2)) / (finalPars['beta']**2 * finalPars['energy']) )
+				tuneInterp = np.linspace(initTune, finalTune, nSteps)
+
+				mergePars = general_params.parameters_at_time(time)
+
+				if mainH is False:
+					mergePars['delta_E'] *= 0
+
+				volts = np.sqrt( ((tuneInterp**2 * mergePars['beta']**2 * mergePars['energy']) / (np.abs(mergePars['eta_0'])))**2 + mergePars['delta_E']**2)
+
+				fullFunction += volts.tolist() + funcProg.tolist()
+				fullTime += time.tolist() + funcTime
 				
-#				voltFunc = np.sqrt( ((mergePars['t_rev']**2 * mergePars['beta']**2 * mergePars['energy']) / (np.abs(mergePars['eta_0']) * tuneInterp))**2  + mergePars['delta_E']**2)
-
-				voltFunc = np.sqrt( ((tuneInterp**2 * mergePars['beta']**2 * mergePars['energy']) / (np.abs(mergePars['eta_0'])))**2 + mergePars['delta_E']**2)
-
-				plt.plot(time, voltFunc)
-				plt.gca().twinx().plot(time, general_params.parameters_at_time(time)['energy'], color='red')
-				plt.show()
 
 
 	returnFunction = np.zeros([2, len(fullTime)])
