@@ -237,7 +237,7 @@ class GeneralParameters(object):
 
 
 
-    def parameters_at_time(cycle_time):
+    def parameters_at_time(self, cycle_time):
         '''
         *Function to return various cycle parameters at a specific point in time.*
         '''
@@ -252,6 +252,7 @@ class GeneralParameters(object):
 	parameters['t_rev'] = np.interp(cycle_time, self.cumulative_times, self.t_rev)
 	parameters['omega_rev'] = np.interp(cycle_time, self.cumulative_times, self.omega_rev)
 	parameters['eta_0'] = np.interp(cycle_time, self.cumulative_times, self.eta_0[0])
+	parameters['delta_E'] = np.interp(cycle_time, self.cumulative_times[1:], np.diff(self.energy[0]))
 
         return parameters
 
