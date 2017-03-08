@@ -348,8 +348,6 @@ def combine_rf_functions(function_list, merge_type = 'linear', resolution = 1E-3
 
 	for i in range(1, nFunctions):
 
-		print(merge_type[i-1])
-
 		if merge_type[i-1] == 'linear':
 
 			if not isinstance(function_list[i][0], np.ndarray):
