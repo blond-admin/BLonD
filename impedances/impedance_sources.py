@@ -155,7 +155,7 @@ class Resonators(_ImpedanceObject):
         
     '''
     
-    def __init__(self, R_S, frequency_R, Q):
+    def __init__(self, R_S, frequency_R, Q, method='c++'):
         
         _ImpedanceObject.__init__(self)
 
@@ -171,6 +171,14 @@ class Resonators(_ImpedanceObject):
         #: *Number of resonant modes*
         self.n_resonators = len(self.R_S)    
     
+        if method is 'c++':
+            self.imped_calc = self._imped_calc_cpp
+        elif method is 'python':
+            self.imped_calc = self._imped_calc_python
+        else:
+            raise RuntimeError('method for impedance calculation in Resonator object not recognized')
+
+
     @property
     def frequency_R(self):
         return self.__frequency_R
@@ -189,7 +197,8 @@ class Resonators(_ImpedanceObject):
     def omega_R(self, omega_R):
         self.__frequency_R = omega_R / 2 / np.pi
         self.__omega_R = omega_R
-        
+
+
     def wake_calc(self, time_array):
         '''
         *Wake calculation method as a function of time.*
@@ -209,17 +218,7 @@ class Resonators(_ImpedanceObject):
                           omega_bar * np.sin(omega_bar * self.time_array)))
     
     
-    def imped_calc(self, frequency_array, method='c++'):
-        '''
-        *Impedance calculation method as a function of frequency.*
-        '''
-        if method is 'c++':
-            self._imped_calc_cpp(frequency_array)
-        elif method is 'python':
-            self._imped_calc_python(frequency_array)
-        else:
-            raise RuntimeError('method for impedance calculation in Resonator object not recognized')
- 
+
     def _imped_calc_python(self, frequency_array):
         '''
         *Impedance calculation method as a function of frequency using python.*
