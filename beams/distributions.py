@@ -21,7 +21,7 @@ import warnings
 import copy
 import matplotlib.pyplot as plt
 from trackers.utilities import is_in_separatrix
-from .slices import Slices
+from beams.slices import Slices
 from scipy.integrate import cumtrapz
 from trackers.utilities import potential_well_cut, minmax_location
 

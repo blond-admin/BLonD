@@ -308,9 +308,9 @@ def calc_phi_s(RFSectionParameters, accelerating_systems = 'as_single'):
                 
                 totalRF = 0
                 if np.sign(eta0[indexTurn])>0:
-                    phase_array = np.linspace(RFSectionParameters.phi_RF[0,indexTurn+1], RFSectionParameters.phi_RF[0,indexTurn+1] + 2*np.pi, 1000) 
+                    phase_array = np.linspace(-RFSectionParameters.phi_RF[0,indexTurn+1], -RFSectionParameters.phi_RF[0,indexTurn+1] + 2*np.pi, 1000) 
                 else:
-                    phase_array = np.linspace(RFSectionParameters.phi_RF[0,indexTurn+1] - np.pi, RFSectionParameters.phi_RF[0,indexTurn+1] + np.pi, 1000) 
+                    phase_array = np.linspace(-RFSectionParameters.phi_RF[0,indexTurn+1] - np.pi, -RFSectionParameters.phi_RF[0,indexTurn+1] + np.pi, 1000) 
 
                 for indexRF in range(len(RFSectionParameters.voltage[:,indexTurn+1])):
                     totalRF += RFSectionParameters.voltage[indexRF,indexTurn+1] * np.sin(RFSectionParameters.harmonic[indexRF,indexTurn+1]/np.min(RFSectionParameters.harmonic[:,indexTurn+1]) * phase_array + RFSectionParameters.phi_RF[indexRF,indexTurn+1]) #
@@ -318,8 +318,10 @@ def calc_phi_s(RFSectionParameters, accelerating_systems = 'as_single'):
                 potential_well = - cumtrapz(np.sign(eta0[indexTurn])*(totalRF - RFSectionParameters.E_increment[indexTurn]/abs(RFSectionParameters.charge)), dx=phase_array[1]-phase_array[0], initial=0)
 
                 phi_s[indexTurn] = np.mean(phase_array[potential_well==np.min(potential_well)])
-            
-            phi_s = (np.insert(phi_s, 0, phi_s[0])) % (2*np.pi)
+
+            phi_s = np.insert(phi_s, 0, phi_s[0])+RFSectionParameters.phi_RF[0,:]
+            phi_s[eta0<0] += np.pi
+            phi_s = phi_s % (2*np.pi)
             
             return phi_s
         
