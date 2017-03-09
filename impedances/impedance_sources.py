@@ -18,6 +18,8 @@ from __future__ import division, print_function
 from builtins import range, object
 import numpy as np
 from scipy.constants import c, physical_constants
+from setup_cpp import libblond
+import ctypes
 
 
 class _ImpedanceObject(object):
@@ -171,9 +173,9 @@ class Resonators(_ImpedanceObject):
         #: *Number of resonant modes*
         self.n_resonators = len(self.R_S)    
     
-        if method is 'c++':
+        if method == 'c++':
             self.imped_calc = self._imped_calc_cpp
-        elif method is 'python':
+        elif method == 'python':
             self.imped_calc = self._imped_calc_python
         else:
             raise RuntimeError('method for impedance calculation in Resonator object not recognized')
