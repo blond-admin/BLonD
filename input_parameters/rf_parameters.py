@@ -186,10 +186,18 @@ class RFSectionParameters(object):
         if omega_rf != None:
             self.omega_RF = np.array(self.omega_RF, ndmin =2) 
             
+        #: *Initial, actual RF phase of each harmonic system*
+        self.phi_RF = np.array(self.phi_offset) 
+        
+        #: *Accumulated RF phase error of each harmonic system*
+        self.dphi_RF = np.zeros(self.n_rf)
+        
+        #: *Accumulated RF phase error of each harmonic system*
+        self.dphi_RF_steering = np.zeros(self.n_rf)
+        
         #: *Synchronous phase for this section, calculated from the transition
         #: energy and the momentum program.*
         self.phi_s = calc_phi_s(self, accelerating_systems)   
-
         
         #: *Synchrotron tune [1]*                         
         self.Qs = np.sqrt( self.harmonic[0]*self.charge*self.voltage[0]*np.abs(self.eta_0*np.cos(self.phi_s)) / \
@@ -206,19 +214,9 @@ class RFSectionParameters(object):
         if omega_rf == None:
             self.omega_RF = np.array(self.omega_RF_d)                  
 
-        #: *Initial, actual RF phase of each harmonic system*
-        self.phi_RF = np.array(self.phi_offset) 
-        
-        #: *Accumulated RF phase error of each harmonic system*
-        self.dphi_RF = np.zeros(self.n_rf)
-        
-        #: *Accumulated RF phase error of each harmonic system*
-        self.dphi_RF_steering = np.zeros(self.n_rf)
-        
         self.t_RF = 2*np.pi / self.omega_RF[0]
         
  
-        
         
     def eta_tracking(self, beam, counter, dE):
         '''
@@ -248,12 +246,13 @@ def calc_phi_s(RFSectionParameters, accelerating_systems = 'as_single'):
     Calculation of the synchronous phase at every turn
     according to the parameters in the RFSectionParameters object. The
     phase is expressed in the lowest RF harmonic and with respect to the
-    RF bucket (see the equations of motion defined for BLonD)
+    RF bucket (see the equations of motion defined for BLonD).
     The returned value is given in the range [0,2pi].
     Below transition, the RF wave is shifted by Pi w.r.t. the time reference.
     
     If the accelerating_systems option is set to 'as_single', the synchronous
-    phase is calculated analytically.
+    phase is calculated analytically taking into account the phase program
+    (RFSectionParameters.phi_offset).
     
     If the accelerating_systems is set to 'all', the synchronous phase
     is calculated numerically by finding the minimum of the potential well.
@@ -340,3 +339,4 @@ def calc_phi_s(RFSectionParameters, accelerating_systems = 'as_single'):
             return np.pi*np.ones(RFSectionParameters.n_turns)
         elif eta0[0] < 0:
             return 0*np.ones(RFSectionParameters.n_turns)
+

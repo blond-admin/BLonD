@@ -22,7 +22,7 @@ import warnings
 import copy
 import matplotlib.pyplot as plt
 from trackers.utilities import is_in_separatrix
-from .slices import Slices
+from beams.slices import Slices
 from scipy.integrate import cumtrapz
 from trackers.utilities import potential_well_cut, minmax_location
 
@@ -803,12 +803,17 @@ def longitudinal_bigaussian(GeneralParameters, RFSectionParameters, beam,
     phi_RF = RFSectionParameters.phi_RF[0,counter]
     eta0 = RFSectionParameters.eta_0[counter]
     
+    # RF wave is shifted by Pi below transition
+    if eta0<0:
+        phi_RF -= np.pi
+    
+    # Calculate sigma_dE from sigma_dt using single-harmonic Hamiltonian
     if sigma_dE == None:
         voltage = (RFSectionParameters.charge * 
                   RFSectionParameters.voltage[0,counter])
         eta0 = RFSectionParameters.eta_0[counter]
         
-        if eta0>0:            
+        if eta0 > 0:            
             phi_b = omega_RF*sigma_dt + phi_s
             sigma_dE = np.sqrt( voltage * energy * beta**2 *
                  (np.cos(phi_b) - np.cos(phi_s) + (phi_b - phi_s) *
@@ -823,6 +828,7 @@ def longitudinal_bigaussian(GeneralParameters, RFSectionParameters, beam,
     beam.sigma_dt = sigma_dt
     beam.sigma_dE = sigma_dE
     
+    # Generate coordinates
     np.random.seed(seed)
     
     if eta0 > 0:
