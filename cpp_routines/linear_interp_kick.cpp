@@ -16,6 +16,7 @@ extern "C" void linear_interp_kick(
 		double * __restrict__ beam_dE,
 		double * __restrict__ voltage_array,
 		double * __restrict__ bin_centers,
+		const double charge,
         const int n_slices,
 		const int n_macroparticles,
 		const double acc_kick){
@@ -34,7 +35,7 @@ extern "C" void linear_interp_kick(
     		voltageKick = 0.;
     	else
     		voltageKick = voltage_array[ffbin] + (a - bin_centers[ffbin]) * (voltage_array[ffbin+1]-voltage_array[ffbin]) * inv_bin_width;
-    	beam_dE[i] = beam_dE[i] + voltageKick + acc_kick;
+    	beam_dE[i] = beam_dE[i] + charge*voltageKick + acc_kick;
     }
 
 }

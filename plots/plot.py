@@ -217,6 +217,7 @@ class Plot(object):
                 plot_beam_profile(self.slices, self.tstep[0], 
                                   style = self.lstyle, dirname = self.dirname)
 
+                self.slices.beam_spectrum_freq_generation(self.slices.n_slices)
                 self.slices.beam_spectrum_generation(self.slices.n_slices)
                 plot_beam_spectrum(self.slices, self.tstep[0], 
                                    style = self.lstyle, dirname = self.dirname)

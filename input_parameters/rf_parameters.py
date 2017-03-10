@@ -218,7 +218,6 @@ class RFSectionParameters(object):
         
  
         
-        
     def eta_tracking(self, beam, counter, dE):
         '''
         *The slippage factor is calculated as a function of the energy offset
@@ -247,7 +246,7 @@ def calc_phi_s(RFSectionParameters, accelerating_systems = 'as_single'):
     Calculation of the synchronous phase at every turn
     according to the parameters in the RFSectionParameters object. The
     phase is expressed in the lowest RF harmonic and with respect to the
-    RF bucket (see the equations of motion defined for BLonD)
+    RF bucket (see the equations of motion defined for BLonD).
     The returned value is given in the range [0,2pi].
     Below transition, the RF wave is shifted by Pi w.r.t. the time reference.
     

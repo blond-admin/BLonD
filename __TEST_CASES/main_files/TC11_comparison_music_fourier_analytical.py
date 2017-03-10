@@ -1,7 +1,7 @@
 # Copyright 2016 CERN. This software is distributed under the
-# terms of the GNU General Public Licence version 3 (GPL Version 3), 
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
 # copied verbatim in the file LICENCE.md.
-# In applying this licence, CERN does not waive the privileges and immunities 
+# In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
@@ -9,8 +9,8 @@
 
 '''
 Calculation of the induced voltage for a gaussian bunch and a resonator.
-Four different methods: time domain with convolution, frequency domain with FFT,
-time domain with MuSiC, time domain with analytical formula.
+Four different methods: time domain with convolution, frequency domain with
+FFT, time domain with MuSiC, time domain with analytical formula.
 
 :Authors: **Danilo Quartullo**
 '''
@@ -23,6 +23,7 @@ import beams.beams as beamClass
 import input_parameters.rf_parameters as rfparClass
 import beams.slices as slicesClass
 import impedances.impedance as impClass
+import impedances.impedance_sources as impSClass
 import impedances.induced_voltage_analytical as indVoltAn
 import impedances.music as musClass
 from scipy.constants import m_p, e, c
@@ -47,14 +48,14 @@ phi_1 = 0
 R_S = 1e7
 frequency_R = 1e8
 Q = 1
-mode = impClass.Resonators(R_S, frequency_R, Q)
+mode = impSClass.Resonators(R_S, frequency_R, Q)
 
 # DEFINE MAIN CLASSES
-general_params = genparClass.GeneralParameters(n_turns, C, alpha, momentum, 
-                                   'proton')
+general_params = genparClass.GeneralParameters(n_turns, C, alpha, momentum,
+                                               'proton')
 
-rf_params = rfparClass.RFSectionParameters(general_params, n_rf_systems, 
-                                        h_1, V_1, phi_1)
+rf_params = rfparClass.RFSectionParameters(general_params, n_rf_systems,
+                                           h_1, V_1, phi_1)
 
 # DEFINE FIRST BEAM TO BE USED WITH SLICES (t AND f DOMAINS), AND VOLTAGE CALCULATION
 n_macroparticles = 10000000
@@ -64,12 +65,12 @@ sigma_gaussian = 3e-8
 my_beam.dt = sigma_gaussian*np.random.randn(n_macroparticles) + general_params.t_rev[0]/2
 my_beam.dE = sigma_gaussian*np.random.randn(n_macroparticles)
 n_slices = 10000
-slices_ring = slicesClass.Slices(rf_params, my_beam, n_slices, cut_left = 0, cut_right = general_params.t_rev[0])
+slices_ring = slicesClass.Slices(rf_params, my_beam, n_slices, cut_left=0, cut_right=general_params.t_rev[0])
 slices_ring.track()
-ind_volt = impClass.InducedVoltageTime(slices_ring, [mode])
+ind_volt = impClass.InducedVoltageTime(my_beam, slices_ring, [mode])
 total_induced_voltage = impClass.TotalInducedVoltage(my_beam, slices_ring, [ind_volt])
 total_induced_voltage.track()
-ind_volt2 = impClass.InducedVoltageFreq(slices_ring, [mode], None)
+ind_volt2 = impClass.InducedVoltageFreq(my_beam, slices_ring, [mode], None)
 total_induced_voltage2 = impClass.TotalInducedVoltage(my_beam, slices_ring, [ind_volt2])
 total_induced_voltage2.track() 
 
@@ -99,4 +100,4 @@ plt.plot(slices_ring.bin_centers*1e9, total_induced_voltage2.induced_voltage, la
 plt.plot(time_array*1e9, induced_voltage_analytical, label='analytical')
 plt.legend(loc='upper left')
 plt.show()    
-    
+  
