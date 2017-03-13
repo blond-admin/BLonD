@@ -1,8 +1,8 @@
 
 # Copyright 2016 CERN. This software is distributed under the
-# terms of the GNU General Public Licence version 3 (GPL Version 3), 
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
 # copied verbatim in the file LICENCE.md.
-# In applying this licence, CERN does not waive the privileges and immunities 
+# In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
@@ -22,7 +22,7 @@ import warnings
 import copy
 import matplotlib.pyplot as plt
 from trackers.utilities import is_in_separatrix
-from .slices import Slices
+from beams.slices import Slices
 from scipy.integrate import cumtrapz
 from trackers.utilities import potential_well_cut, minmax_location
 
@@ -34,7 +34,8 @@ def matched_from_line_density(beam, full_ring_and_RF, line_density_input=None,
                               n_points_potential=1e4, n_points_grid=int(1e3),
                               dt_margin_percent=0.40, n_points_abel=1e4,
                               bunch_length=None, line_density_type=None,
-                              line_density_exponent=None, seed=None):
+                              line_density_exponent=None, seed=None,
+                              process_pot_well = True):
     '''
     *Function to generate a beam by inputing the line density. The distribution
     function is then reconstructed with the Abel transform and the particles
@@ -139,9 +140,11 @@ def matched_from_line_density(beam, full_ring_and_RF, line_density_input=None,
                            extra_potential)
         
         # Potential well calculation around the separatrix
-        time_potential_sep, potential_well_sep = \
-                            potential_well_cut(time_potential, total_potential)
-        
+        if process_pot_well == False:
+            time_potential_sep, potential_well_sep = time_potential, total_potential
+        else:
+            time_potential_sep, potential_well_sep = potential_well_cut(time_potential, total_potential)
+
         minmax_positions_potential, minmax_values_potential = \
                         minmax_location(time_potential_sep, potential_well_sep)
         minmax_positions_profile, minmax_values_profile = \
@@ -370,7 +373,8 @@ def matched_from_distribution_function(beam, full_ring_and_RF,
                                distribution_type=None,
                                emittance=None, bunch_length=None,
                                bunch_length_fit=None,
-                               distribution_variable='Hamiltonian'):
+                               distribution_variable='Hamiltonian',
+                               process_pot_well = True):
     '''
     *Function to generate a beam by inputing the distribution function (by
     choosing the type of distribution and the emittance).
@@ -451,9 +455,11 @@ def matched_from_distribution_function(beam, full_ring_and_RF,
         print('Matching the bunch... (iteration: ' + str(i) + ' and sse: ' +
               str(sse) +')')
                 
-        # Potential well calculation around the separatrix
-        time_potential_sep, potential_well_sep = \
-                            potential_well_cut(time_potential, total_potential)
+        # Process the potential well in order to take a frame around the separatrix
+        if process_pot_well == False:
+            time_potential_sep, potential_well_sep = time_potential, total_potential
+        else:
+            time_potential_sep, potential_well_sep = potential_well_cut(time_potential, total_potential)
 
         # Potential is shifted to put the minimum on 0
         potential_well_sep = potential_well_sep - np.min(potential_well_sep)
@@ -797,12 +803,17 @@ def longitudinal_bigaussian(GeneralParameters, RFSectionParameters, beam,
     phi_RF = RFSectionParameters.phi_RF[0,counter]
     eta0 = RFSectionParameters.eta_0[counter]
     
+    # RF wave is shifted by Pi below transition
+    if eta0<0:
+        phi_RF -= np.pi
+    
+    # Calculate sigma_dE from sigma_dt using single-harmonic Hamiltonian
     if sigma_dE == None:
         voltage = (RFSectionParameters.charge * 
                   RFSectionParameters.voltage[0,counter])
         eta0 = RFSectionParameters.eta_0[counter]
         
-        if eta0>0:            
+        if eta0 > 0:            
             phi_b = omega_RF*sigma_dt + phi_s
             sigma_dE = np.sqrt( voltage * energy * beta**2 *
                  (np.cos(phi_b) - np.cos(phi_s) + (phi_b - phi_s) *
@@ -817,6 +828,7 @@ def longitudinal_bigaussian(GeneralParameters, RFSectionParameters, beam,
     beam.sigma_dt = sigma_dt
     beam.sigma_dE = sigma_dE
     
+    # Generate coordinates
     np.random.seed(seed)
     
     if eta0 > 0:

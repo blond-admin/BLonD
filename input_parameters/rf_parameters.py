@@ -186,10 +186,18 @@ class RFSectionParameters(object):
         if omega_rf != None:
             self.omega_RF = np.array(self.omega_RF, ndmin =2) 
             
+        #: *Initial, actual RF phase of each harmonic system*
+        self.phi_RF = np.array(self.phi_offset) 
+        
+        #: *Accumulated RF phase error of each harmonic system*
+        self.dphi_RF = np.zeros(self.n_rf)
+        
+        #: *Accumulated RF phase error of each harmonic system*
+        self.dphi_RF_steering = np.zeros(self.n_rf)
+        
         #: *Synchronous phase for this section, calculated from the transition
         #: energy and the momentum program.*
         self.phi_s = calc_phi_s(self, accelerating_systems)   
-
         
         #: *Synchrotron tune [1]*                         
         self.Qs = np.sqrt( self.harmonic[0]*self.charge*self.voltage[0]*np.abs(self.eta_0*np.cos(self.phi_s)) / \
@@ -206,19 +214,9 @@ class RFSectionParameters(object):
         if omega_rf == None:
             self.omega_RF = np.array(self.omega_RF_d)                  
 
-        #: *Initial, actual RF phase of each harmonic system*
-        self.phi_RF = np.array(self.phi_offset) 
-        
-        #: *Accumulated RF phase error of each harmonic system*
-        self.dphi_RF = np.zeros(self.n_rf)
-        
-        #: *Accumulated RF phase error of each harmonic system*
-        self.dphi_RF_steering = np.zeros(self.n_rf)
-        
         self.t_RF = 2*np.pi / self.omega_RF[0]
         
  
-        
         
     def eta_tracking(self, beam, counter, dE):
         '''
@@ -248,8 +246,9 @@ def calc_phi_s(RFSectionParameters, accelerating_systems = 'as_single'):
     Calculation of the synchronous phase at every turn
     according to the parameters in the RFSectionParameters object. The
     phase is expressed in the lowest RF harmonic and with respect to the
-    reference time delta_t = 0 (see the equations of motion defined for BLonD)
+    RF bucket (see the equations of motion defined for BLonD).
     The returned value is given in the range [0,2pi].
+    Below transition, the RF wave is shifted by Pi w.r.t. the time reference.
     
     If the accelerating_systems option is set to 'as_single', the synchronous
     phase is calculated analytically taking into account the phase program
@@ -269,7 +268,8 @@ def calc_phi_s(RFSectionParameters, accelerating_systems = 'as_single'):
     eta0 = RFSectionParameters.eta_0
     
     if accelerating_systems == 'as_single':
-        denergy = np.append(RFSectionParameters.E_increment, RFSectionParameters.E_increment[-1])             
+        denergy = np.append(RFSectionParameters.E_increment, 
+                            RFSectionParameters.E_increment[-1])             
         acceleration_ratio = denergy/ \
                              (RFSectionParameters.charge*
                               RFSectionParameters.voltage[0,:])
@@ -287,8 +287,8 @@ def calc_phi_s(RFSectionParameters, accelerating_systems = 'as_single'):
         index = np.where(eta0_middle_points > 0)[0]
         index_below = np.where(eta0_middle_points < 0)[0]
          
-        phi_s[index] = (np.pi - phi_s[index] + RFSectionParameters.phi_offset[0,index]) % (2*np.pi)
-        phi_s[index_below] = (phi_s[index_below]+ RFSectionParameters.phi_offset[0,index_below]) % (2*np.pi)
+        phi_s[index] = (np.pi - phi_s[index]) % (2*np.pi)
+        phi_s[index_below] = (np.pi + phi_s[index_below]) % (2*np.pi)
         
         return phi_s 
      
@@ -297,8 +297,8 @@ def calc_phi_s(RFSectionParameters, accelerating_systems = 'as_single'):
         if accelerating_systems == 'all':
             '''
             In this case, all the RF systems are accelerating, phi_s is 
-            calculated accordingly with respect to the fundamental frequency (the minimum
-            of the potential well is taken)
+            calculated accordingly with respect to the fundamental frequency 
+            (the minimum of the potential well is taken)
             '''         
             
             phi_s = np.zeros(len(RFSectionParameters.voltage[0,1:]))
@@ -307,25 +307,27 @@ def calc_phi_s(RFSectionParameters, accelerating_systems = 'as_single'):
                 
                 totalRF = 0
                 if np.sign(eta0[indexTurn])>0:
-                    phase_array = np.linspace(RFSectionParameters.phi_offset[0,indexTurn+1], RFSectionParameters.phi_offset[0,indexTurn+1] + 2*np.pi, 1000) 
+                    phase_array = np.linspace(-RFSectionParameters.phi_RF[0,indexTurn+1], -RFSectionParameters.phi_RF[0,indexTurn+1] + 2*np.pi, 1000) 
                 else:
-                    phase_array = np.linspace(RFSectionParameters.phi_offset[0,indexTurn+1] - np.pi, RFSectionParameters.phi_offset[0,indexTurn+1] + np.pi, 1000) 
+                    phase_array = np.linspace(-RFSectionParameters.phi_RF[0,indexTurn+1] - np.pi, -RFSectionParameters.phi_RF[0,indexTurn+1] + np.pi, 1000) 
 
                 for indexRF in range(len(RFSectionParameters.voltage[:,indexTurn+1])):
-                    totalRF +=RFSectionParameters.voltage[indexRF,indexTurn+1] * np.sin(RFSectionParameters.harmonic[indexRF,indexTurn+1]/np.min(RFSectionParameters.harmonic[:,indexTurn+1]) * phase_array + RFSectionParameters.phi_offset[indexRF,indexTurn+1]) #
+                    totalRF += RFSectionParameters.voltage[indexRF,indexTurn+1] * np.sin(RFSectionParameters.harmonic[indexRF,indexTurn+1]/np.min(RFSectionParameters.harmonic[:,indexTurn+1]) * phase_array + RFSectionParameters.phi_RF[indexRF,indexTurn+1]) #
                     
                 potential_well = - cumtrapz(np.sign(eta0[indexTurn])*(totalRF - RFSectionParameters.E_increment[indexTurn]/abs(RFSectionParameters.charge)), dx=phase_array[1]-phase_array[0], initial=0)
 
                 phi_s[indexTurn] = np.mean(phase_array[potential_well==np.min(potential_well)])
-            
-            phi_s = (np.insert(phi_s, 0, phi_s[0])) % (2*np.pi)
+
+            phi_s = np.insert(phi_s, 0, phi_s[0])+RFSectionParameters.phi_RF[0,:]
+            phi_s[eta0<0] += np.pi
+            phi_s = phi_s % (2*np.pi)
             
             return phi_s
         
         elif accelerating_systems == 'first':
             '''
             Only the first RF system is accelerating, so we have to correct the 
-            phi_offset of the other rf_systems such that p_increment relates 
+            phi_RF of the other rf_systems such that p_increment relates 
             only to the first RF
             '''
             pass
@@ -337,3 +339,4 @@ def calc_phi_s(RFSectionParameters, accelerating_systems = 'as_single'):
             return np.pi*np.ones(RFSectionParameters.n_turns)
         elif eta0[0] < 0:
             return 0*np.ones(RFSectionParameters.n_turns)
+

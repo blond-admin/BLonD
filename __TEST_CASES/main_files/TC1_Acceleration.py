@@ -10,9 +10,12 @@
 Example input for simulation of acceleration
 No intensity effects
 '''
-
+#  General Imports
 from __future__ import division, print_function
 from builtins import range
+import numpy as np
+
+#  BLonD Imports
 from input_parameters.general_parameters import GeneralParameters
 from input_parameters.rf_parameters import RFSectionParameters
 from trackers.tracker import RingAndRFSection
@@ -21,6 +24,7 @@ from beams.distributions import longitudinal_bigaussian
 from beams.slices import Slices
 from monitors.monitors import BunchMonitor
 from plots.plot import Plot
+
 
 
 # Simulation parameters -------------------------------------------------------
