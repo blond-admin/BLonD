@@ -809,49 +809,36 @@ def longitudinal_bigaussian(GeneralParameters, RFSectionParameters, beam,
     
     # Calculate sigma_dE from sigma_dt using single-harmonic Hamiltonian
     if sigma_dE == None:
-        voltage = (RFSectionParameters.charge * 
-                  RFSectionParameters.voltage[0,counter])
+        voltage = RFSectionParameters.charge* \
+                  RFSectionParameters.voltage[0,counter]
         eta0 = RFSectionParameters.eta_0[counter]
         
-        if eta0 > 0:            
-            phi_b = omega_RF*sigma_dt + phi_s
-            sigma_dE = np.sqrt( voltage * energy * beta**2 *
-                 (np.cos(phi_b) - np.cos(phi_s) + (phi_b - phi_s) *
-                 np.sin(phi_s)) / (np.pi * harmonic * eta0) )
-        else:            
-            phi_b = omega_RF*sigma_dt + phi_s - np.pi
-            sigma_dE = np.sqrt( voltage * energy * beta**2 *
-                       (np.cos(phi_b) - np.cos(phi_s-np.pi) +
-                       (phi_b - phi_s-np.pi) * np.sin(phi_s-np.pi)) /
-                       (np.pi * harmonic * eta0) )
-    
+        phi_b = omega_RF*sigma_dt + phi_s
+        sigma_dE = np.sqrt( voltage * energy * beta**2  
+                 * (np.cos(phi_b) - np.cos(phi_s) + (phi_b - phi_s) * np.sin(phi_s)) 
+                 / (np.pi * harmonic * np.fabs(eta0)) )
+                
     beam.sigma_dt = sigma_dt
     beam.sigma_dE = sigma_dE
     
     # Generate coordinates
     np.random.seed(seed)
     
-    if eta0 > 0:
-        beam.dt = (sigma_dt*np.random.randn(beam.n_macroparticles) +
-              (phi_s - phi_RF)/omega_RF)
-    else:
-        beam.dt = (sigma_dt*np.random.randn(beam.n_macroparticles) +
-                  (phi_s - phi_RF - np.pi)/omega_RF)
-                  
+    beam.dt = sigma_dt*np.random.randn(beam.n_macroparticles) + \
+              (phi_s - phi_RF)/omega_RF                  
     beam.dE = sigma_dE*np.random.randn(beam.n_macroparticles)
     
-    if reinsertion is 'on':        
+    # Re-insert if necessary
+    if reinsertion is 'on':
+        
         itemindex = np.where(is_in_separatrix(GeneralParameters, 
                     RFSectionParameters, beam, beam.dt, beam.dE) == False)[0]
          
-        while itemindex.size != 0:            
-            if eta0 > 0:
-                beam.dt[itemindex] = (sigma_dt*np.random.randn(itemindex.size)+
-                                     (phi_s - phi_RF)/omega_RF)
-            else:
-                beam.dt[itemindex] = (sigma_dt*np.random.randn(itemindex.size)+
-                                     (phi_s - phi_RF - np.pi)/omega_RF)
+        while itemindex.size != 0:
+            
+            beam.dt[itemindex] = sigma_dt*np.random.randn(itemindex.size) \
+                                 + (phi_s - phi_RF)/omega_RF
                                      
             beam.dE[itemindex] = sigma_dE*np.random.randn(itemindex.size)
             itemindex = np.where(is_in_separatrix(GeneralParameters, 
-                   RFSectionParameters, beam, beam.dt, beam.dE) == False)[0]
+                        RFSectionParameters, beam, beam.dt, beam.dE) == False)[0]

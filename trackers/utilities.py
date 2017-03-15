@@ -491,7 +491,6 @@ def separatrix(GeneralParameters, RFSectionParameters, dt, total_voltage = None)
                 ind = zero_crossings[i]
         dt_ufp = dt_ufp[ind] + Vtot[ind]/(Vtot[ind] - Vtot[ind+1])* \
                  (dt_ufp[ind+1] - dt_ufp[ind])
-        print(dt_ufp)
         
     # Construct separatrix
     Vtot = np.zeros(len(dt))
