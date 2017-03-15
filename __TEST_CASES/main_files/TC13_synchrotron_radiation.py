@@ -198,7 +198,7 @@ plt.savefig('../output_files/TC13_fig/pos_fit')
 plt.close()
 
 ## WITH QUANTUM EXCITATION
-n_turns = 1000
+n_turns = 200
 # DEFINE RING------------------------------------------------------------------
 
 n_sections = 2
