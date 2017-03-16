@@ -198,10 +198,10 @@ plt.savefig('../output_files/TC13_fig/pos_fit')
 plt.close()
 
 ## WITH QUANTUM EXCITATION
-n_turns = 1000
+n_turns = 200
 # DEFINE RING------------------------------------------------------------------
 
-n_sections = 2
+n_sections = 10
 general_params = GeneralParameters(n_turns, np.ones(n_sections) * C/n_sections,
                                np.tile(momentum_compaction,(1,n_sections)).T,
                                np.tile(sync_momentum,(n_sections, n_turns+1)),
