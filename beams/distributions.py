@@ -374,7 +374,8 @@ def matched_from_distribution_function(beam, full_ring_and_RF,
                                emittance=None, bunch_length=None,
                                bunch_length_fit=None,
                                distribution_variable='Hamiltonian',
-                               process_pot_well = True):
+                               process_pot_well = True,
+                               turn_number=0):
     '''
     *Function to generate a beam by inputing the distribution function (by
     choosing the type of distribution and the emittance).
@@ -406,16 +407,19 @@ def matched_from_distribution_function(beam, full_ring_and_RF,
         distribution_function_ = distribution_function
     
     # Initialize variables depending on the accelerator parameters
-    slippage_factor = full_ring_and_RF.RingAndRFSection_list[0].eta_0[0]
+    slippage_factor = full_ring_and_RF.RingAndRFSection_list[0].eta_0[turn_number]
+    beta = full_ring_and_RF.RingAndRFSection_list[0].beta[turn_number]
+    energy = full_ring_and_RF.RingAndRFSection_list[0].energy[turn_number]
     
-    eom_factor_dE = abs(slippage_factor) / (2*beam.beta**2. * beam.energy)
+    eom_factor_dE = abs(slippage_factor) / (2*beta**2. * energy)
     eom_factor_potential = (np.sign(slippage_factor) * beam.charge /
-                          (full_ring_and_RF.RingAndRFSection_list[0].t_rev[0]))
+                          (full_ring_and_RF.RingAndRFSection_list[0].t_rev[turn_number]))
 
     #: *Number of points to be used in the potential well calculation*
     n_points_potential = int(n_points_potential)
     # Generate potential well
-    full_ring_and_RF.potential_well_generation(n_points=n_points_potential, 
+    full_ring_and_RF.potential_well_generation(turn=turn_number,
+                                    n_points=n_points_potential,
                                     dt_margin_percent=dt_margin_percent, 
                                     main_harmonic_option=main_harmonic_option)
     potential_well = full_ring_and_RF.potential_well 
