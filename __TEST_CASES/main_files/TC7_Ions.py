@@ -47,7 +47,7 @@ p_i = 153.37e9               # Synchronous momentum [eV/c]
 p_f = 535.62e9               # Synchronous momentum, final 535.62e9
 h = 10                       # Harmonic number
 V = 280.e3                   # RF voltage [V]
-dphi = 0.                    # Phase modulation/offset
+dphi = np.pi                 # Phase modulation/offset
 gamma_t = 15.59              # Transition gamma
 alpha = 1./gamma_t/gamma_t   # First order mom. comp. factor
 
