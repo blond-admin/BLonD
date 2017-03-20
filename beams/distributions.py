@@ -556,8 +556,6 @@ def matched_from_distribution_function(beam, full_ring_and_RF,
                                 distribution_type, distribution_exponent, beam,
                                 full_ring_and_RF)
        
-#        print("Emit: ")
- #       print(emittance)
         elif emittance is not None:
             if distribution_variable is 'Action':
                 X0 = emittance / (2*np.pi)
