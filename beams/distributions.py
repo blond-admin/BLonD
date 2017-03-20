@@ -408,8 +408,8 @@ def matched_from_distribution_function(beam, full_ring_and_RF,
     
     # Initialize variables depending on the accelerator parameters
     slippage_factor = full_ring_and_RF.RingAndRFSection_list[0].eta_0[turn_number]
-    beta = full_ring_and_RF.RingAndRFSection_list[0].beta[turn_number]
-    energy = full_ring_and_RF.RingAndRFSection_list[0].energy[turn_number]
+    beta = full_ring_and_RF.RingAndRFSection_list[0].rf_params.beta[turn_number]
+    energy = full_ring_and_RF.RingAndRFSection_list[0].rf_params.energy[turn_number]
     
     eom_factor_dE = abs(slippage_factor) / (2*beta**2. * energy)
     eom_factor_potential = (np.sign(slippage_factor) * beam.charge /
@@ -555,7 +555,9 @@ def matched_from_distribution_function(beam, full_ring_and_RF,
                                 time_potential_low_res, distribution_function_, 
                                 distribution_type, distribution_exponent, beam,
                                 full_ring_and_RF)
-        
+       
+#        print("Emit: ")
+ #       print(emittance)
         elif emittance is not None:
             if distribution_variable is 'Action':
                 X0 = emittance / (2*np.pi)
