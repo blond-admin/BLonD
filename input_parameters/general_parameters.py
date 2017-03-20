@@ -249,10 +249,10 @@ class GeneralParameters(object):
         parameters['energy'] = np.interp(cycle_time, self.cumulative_times, self.energy[0])
         parameters['kin_energy'] = np.interp(cycle_time, self.cumulative_times, self.kin_energy[0])
         parameters['f_rev'] = np.interp(cycle_time, self.cumulative_times, self.f_rev)
-	parameters['t_rev'] = np.interp(cycle_time, self.cumulative_times, self.t_rev)
-	parameters['omega_rev'] = np.interp(cycle_time, self.cumulative_times, self.omega_rev)
-	parameters['eta_0'] = np.interp(cycle_time, self.cumulative_times, self.eta_0[0])
-	parameters['delta_E'] = np.interp(cycle_time, self.cumulative_times[1:], np.diff(self.energy[0]))
+        parameters['t_rev'] = np.interp(cycle_time, self.cumulative_times, self.t_rev)
+        parameters['omega_rev'] = np.interp(cycle_time, self.cumulative_times, self.omega_rev)
+        parameters['eta_0'] = np.interp(cycle_time, self.cumulative_times, self.eta_0[0])
+        parameters['delta_E'] = np.interp(cycle_time, self.cumulative_times[1:], np.diff(self.energy[0]))
 
         return parameters
 

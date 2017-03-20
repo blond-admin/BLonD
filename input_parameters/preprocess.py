@@ -304,175 +304,172 @@ def preprocess_rf_params(general_params, time_arrays, data_arrays, interpolation
 
 def combine_rf_functions(function_list, merge_type = 'linear', resolution = 1E-3, general_params = None, mainH = True):
 
-	"""
-	function to merge different programs in case e.g. different fixed bucket areas are required at different points in time.
-	function_list contains 2-tuples in the form (program, start/stop time), where program is a 2-D numpy array or a single
-	value and start/stop time is a list of length 2, with the first member the start time and the second the stop time.
-	merge_type can be 'linear' or 'adiabatic' or a list in case different merge types are required between different functions.
-	resolution determines the time points along the merge for non-linear merge types and can also be a list if required.
-	"""
+    """
+    function to merge different programs in case e.g. different fixed bucket areas are required at different points in time.
+    function_list contains 2-tuples in the form (program, start/stop time), where program is a 2-D numpy array or a single
+    value and start/stop time is a list of length 2, with the first member the start time and the second the stop time.
+    merge_type can be 'linear' or 'adiabatic' or a list in case different merge types are required between different functions.
+    resolution determines the time points along the merge for non-linear merge types and can also be a list if required.
+    """
 
-	nFunctions = len(function_list)
+    nFunctions = len(function_list)
 
-	if not isinstance(merge_type, list):
-		merge_type = (nFunctions-1)*[merge_type]
-	if not isinstance(resolution, list):
-		resolution = (nFunctions-1)*[resolution]
+    if not isinstance(merge_type, list):
+        merge_type = (nFunctions-1)*[merge_type]
+    if not isinstance(resolution, list):
+        resolution = (nFunctions-1)*[resolution]
+    
+    timePoints = []
+    for i in range(nFunctions):
+        timePoints += function_list[i][1]
+    
+    if not np.all(np.diff(timePoints)) > 0:
+        print("Error, times not monotonically increasing")
+    
+    fullFunction = []
+    fullTime = []
+    
+    if not isinstance(function_list[0][0], np.ndarray):
+        fullFunction += 2*[function_list[0][0]]
+        fullTime += function_list[0][1]
+    
+    else:
+        start = np.where(function_list[0][0][0] > function_list[0][1][0])[0][0]
+        stop = np.where(function_list[0][0][0] > function_list[0][1][1])[0][0]
 
-	timePoints = []
-	for i in range(nFunctions):
-		timePoints += function_list[i][1]
+        funcTime = [function_list[0][1][0]] + function_list[0][0][0][start:stop].tolist() + [function_list[0][1][1]]
+        funcProg = np.interp(funcTime, function_list[0][0][0], function_list[0][0][1])
+        
+        fullFunction += funcProg.tolist()
+        fullTime += funcTime
 
-	if not np.all(np.diff(timePoints)) > 0:
-		print("Error, times not monotonically increasing")
-
-	fullFunction = []
-	fullTime = []
-
-	if not isinstance(function_list[0][0], np.ndarray):
-		fullFunction += 2*[function_list[0][0]]
-		fullTime += function_list[0][1]
-
-	else:
-		start = np.where(function_list[0][0][0] > function_list[0][1][0])[0][0]
-		stop = np.where(function_list[0][0][0] > function_list[0][1][1])[0][0]
-
-		funcTime = [function_list[0][1][0]] + function_list[0][0][0][start:stop].tolist() + [function_list[0][1][1]]
-		funcProg = np.interp(funcTime, function_list[0][0][0], function_list[0][0][1])
-
-		fullFunction += funcProg.tolist()
-		fullTime += funcTime
-
-
-
-
-	for i in range(1, nFunctions):
-
-		if merge_type[i-1] == 'linear':
-
-			if not isinstance(function_list[i][0], np.ndarray):
-				fullFunction += 2*[function_list[i][0]]
-				fullTime += function_list[i][1]
-
-			else:
-				start = np.where(function_list[i][0][0] >= function_list[i][1][0])[0][0]
-				stop = np.where(function_list[i][0][0] >= function_list[i][1][1])[0][0]
-
-				funcTime = [function_list[i][1][0]] + function_list[i][0][0][start:stop].tolist() + [function_list[i][1][1]]
-				funcProg = np.interp(funcTime, function_list[i][0][0], function_list[i][0][1])
-
-				fullFunction += funcProg.tolist()
-				fullTime += funcTime
-
-		elif merge_type[i-1] == 'isoadiabatic':
-
-			if not isinstance(function_list[i][0], np.ndarray):
-				
-				tDur = function_list[i][1][0] - fullTime[-1]
-				Vinit = fullFunction[-1]
-				Vfin = function_list[i][0]
-				k = (1./tDur)*(1-(1.*Vinit/Vfin)**0.5)
-
-				nSteps = int(tDur/resolution[i-1])
-				time = np.linspace(fullTime[-1], function_list[i][1][0], nSteps)
-				volts = Vinit/((1-k*(time-time[0]))**2)
-				
-				fullFunction += volts.tolist() + 2*[function_list[i][0]]
-				fullTime += time.tolist() + function_list[i][1]
-
-			else:
-
-				start = np.where(function_list[i][0][0] >= function_list[i][1][0])[0][0]
-				stop = np.where(function_list[i][0][0] >= function_list[i][1][1])[0][0]
-
-				funcTime = [function_list[i][1][0]] + function_list[i][0][0][start:stop].tolist() + [function_list[i][1][1]]
-				funcProg = np.interp(funcTime, function_list[i][0][0], function_list[i][0][1])
-
-				tDur = funcTime[0] - fullTime[-1]
-				Vinit = fullFunction[-1]
-				Vfin = funcProg[0]
-				k = (1./tDur)*(1-(1.*Vinit/Vfin)**0.5)
-
-				nSteps = int(tDur/resolution[i-1])
-				time = np.linspace(fullTime[-1], funcTime[0], nSteps)
-				volts = Vinit/((1-k*(time-time[0]))**2)
-
-				fullFunction += volts.tolist() + funcProg.tolist()
-				fullTime += time.tolist() + funcTime
-
-		elif merge_type[i-1] == 'linear_tune':
-
-			#harmonic, charge and 2pi are constant so can be ignored
-			if not isinstance(function_list[i][0], np.ndarray):
-				
-				initPars = general_params.parameters_at_time(fullTime[-1])
-				finalPars = general_params.parameters_at_time(function_list[i][1][0])
-
-				vInit = fullFunction[-1]
-				vFin = function_list[i][0]
-
-				if mainH is False:
-					initPars['delta_E'] = 0.
-					finalPars['delta_E'] = 0.
-
-				initTune = np.sqrt( (vInit * np.abs(initPars['eta_0']) * np.sqrt(1 - (initPars['delta_E']/vInit)**2)) / (initPars['beta']**2 * initPars['energy']) )
-				finalTune = np.sqrt( (vFin * np.abs(finalPars['eta_0']) * np.sqrt(1 - (finalPars['delta_E']/vFin)**2)) / (finalPars['beta']**2 * finalPars['energy']) )
-
-				tDur = function_list[i][1][0] - fullTime[-1]
-				nSteps = int(tDur/resolution[i-1])
-                                time = np.linspace(fullTime[-1], function_list[i][1][0], nSteps)
-				tuneInterp = np.linspace(initTune, finalTune, nSteps)
-
-				mergePars = general_params.parameters_at_time(time)
-
-				if mainH is False:
-					mergePars['delta_E'] *= 0
-
-				volts = np.sqrt( ((tuneInterp**2 * mergePars['beta']**2 * mergePars['energy']) / (np.abs(mergePars['eta_0'])))**2 + mergePars['delta_E']**2)
-
-				fullFunction += volts.tolist() + 2*[function_list[i][0]]
-				fullTime += time.tolist() + function_list[i][1]
-
-			else:
-
-				start = np.where(function_list[i][0][0] >= function_list[i][1][0])[0][0]
-				stop = np.where(function_list[i][0][0] >= function_list[i][1][1])[0][0]
-
-				funcTime = [function_list[i][1][0]] + function_list[i][0][0][start:stop].tolist() + [function_list[i][1][1]]
-				funcProg = np.interp(funcTime, function_list[i][0][0], function_list[i][0][1])
-
-				tDur = funcTime[0] - fullTime[-1]
-				nSteps = int(tDur/resolution[i-1])
-				time = np.linspace(fullTime[-1], funcTime[0], nSteps)
-
-				initPars = general_params.parameters_at_time(fullTime[-1])
-				finalPars = general_params.parameters_at_time(funcTime[0])
-
-				if mainH is False:
-					initPars['delta_E'] = 0.
-					finalPars['delta_E'] = 0.
-
-				vInit = fullFunction[-1]
-				vFin = funcProg[0]
-
-				initTune = np.sqrt( (vInit * np.abs(initPars['eta_0']) * np.sqrt(1 - (initPars['delta_E']/vInit)**2)) / (initPars['beta']**2 * initPars['energy']) )
-				finalTune = np.sqrt( (vFin * np.abs(finalPars['eta_0']) * np.sqrt(1 - (finalPars['delta_E']/vFin)**2)) / (finalPars['beta']**2 * finalPars['energy']) )
-				tuneInterp = np.linspace(initTune, finalTune, nSteps)
-
-				mergePars = general_params.parameters_at_time(time)
-
-				if mainH is False:
-					mergePars['delta_E'] *= 0
-
-				volts = np.sqrt( ((tuneInterp**2 * mergePars['beta']**2 * mergePars['energy']) / (np.abs(mergePars['eta_0'])))**2 + mergePars['delta_E']**2)
-
-				fullFunction += volts.tolist() + funcProg.tolist()
-				fullTime += time.tolist() + funcTime
-				
-
-
-	returnFunction = np.zeros([2, len(fullTime)])
-	returnFunction[0] = fullTime
-	returnFunction[1] = fullFunction
-
-	return returnFunction
+    
+    for i in range(1, nFunctions):
+        
+        if merge_type[i-1] == 'linear':
+            
+            if not isinstance(function_list[i][0], np.ndarray):
+                fullFunction += 2*[function_list[i][0]]
+                fullTime += function_list[i][1]
+                
+            else:
+                start = np.where(function_list[i][0][0] >= function_list[i][1][0])[0][0]
+                stop = np.where(function_list[i][0][0] >= function_list[i][1][1])[0][0]
+                
+                funcTime = [function_list[i][1][0]] + function_list[i][0][0][start:stop].tolist() + [function_list[i][1][1]]
+                funcProg = np.interp(funcTime, function_list[i][0][0], function_list[i][0][1])
+                
+                fullFunction += funcProg.tolist()
+                fullTime += funcTime
+                
+        elif merge_type[i-1] == 'isoadiabatic':
+            
+            if not isinstance(function_list[i][0], np.ndarray):
+                
+                tDur = function_list[i][1][0] - fullTime[-1]
+                Vinit = fullFunction[-1]
+                Vfin = function_list[i][0]
+                k = (1./tDur)*(1-(1.*Vinit/Vfin)**0.5)
+                
+                nSteps = int(tDur/resolution[i-1])
+                time = np.linspace(fullTime[-1], function_list[i][1][0], nSteps)
+                volts = Vinit/((1-k*(time-time[0]))**2)
+                
+                fullFunction += volts.tolist() + 2*[function_list[i][0]]
+                fullTime += time.tolist() + function_list[i][1]
+                
+            else:
+                
+                start = np.where(function_list[i][0][0] >= function_list[i][1][0])[0][0]
+                stop = np.where(function_list[i][0][0] >= function_list[i][1][1])[0][0]
+                
+                funcTime = [function_list[i][1][0]] + function_list[i][0][0][start:stop].tolist() + [function_list[i][1][1]]
+                funcProg = np.interp(funcTime, function_list[i][0][0], function_list[i][0][1])
+                
+                tDur = funcTime[0] - fullTime[-1]
+                Vinit = fullFunction[-1]
+                Vfin = funcProg[0]
+                k = (1./tDur)*(1-(1.*Vinit/Vfin)**0.5)
+                
+                nSteps = int(tDur/resolution[i-1])
+                time = np.linspace(fullTime[-1], funcTime[0], nSteps)
+                volts = Vinit/((1-k*(time-time[0]))**2)
+                
+                fullFunction += volts.tolist() + funcProg.tolist()
+                fullTime += time.tolist() + funcTime
+                
+        elif merge_type[i-1] == 'linear_tune':
+            
+            #harmonic, charge and 2pi are constant so can be ignored
+            if not isinstance(function_list[i][0], np.ndarray):
+                
+                initPars = general_params.parameters_at_time(fullTime[-1])
+                finalPars = general_params.parameters_at_time(function_list[i][1][0])
+                
+                vInit = fullFunction[-1]
+                vFin = function_list[i][0]
+                
+                if mainH is False:
+                    initPars['delta_E'] = 0.
+                    finalPars['delta_E'] = 0.
+                    
+                initTune = np.sqrt( (vInit * np.abs(initPars['eta_0']) * np.sqrt(1 - (initPars['delta_E']/vInit)**2)) / (initPars['beta']**2 * initPars['energy']) )
+                finalTune = np.sqrt( (vFin * np.abs(finalPars['eta_0']) * np.sqrt(1 - (finalPars['delta_E']/vFin)**2)) / (finalPars['beta']**2 * finalPars['energy']) )
+                
+                tDur = function_list[i][1][0] - fullTime[-1]
+                nSteps = int(tDur/resolution[i-1])
+                time = np.linspace(fullTime[-1], function_list[i][1][0], nSteps)
+                tuneInterp = np.linspace(initTune, finalTune, nSteps)
+                
+                mergePars = general_params.parameters_at_time(time)
+                
+                if mainH is False:
+                    mergePars['delta_E'] *= 0
+                    
+                volts = np.sqrt( ((tuneInterp**2 * mergePars['beta']**2 * mergePars['energy']) / (np.abs(mergePars['eta_0'])))**2 + mergePars['delta_E']**2)
+                
+                fullFunction += volts.tolist() + 2*[function_list[i][0]]
+                fullTime += time.tolist() + function_list[i][1]
+                
+            else:
+                
+                start = np.where(function_list[i][0][0] >= function_list[i][1][0])[0][0]
+                stop = np.where(function_list[i][0][0] >= function_list[i][1][1])[0][0]
+                
+                funcTime = [function_list[i][1][0]] + function_list[i][0][0][start:stop].tolist() + [function_list[i][1][1]]
+                funcProg = np.interp(funcTime, function_list[i][0][0], function_list[i][0][1])
+                
+                tDur = funcTime[0] - fullTime[-1]
+                nSteps = int(tDur/resolution[i-1])
+                time = np.linspace(fullTime[-1], funcTime[0], nSteps)
+                
+                initPars = general_params.parameters_at_time(fullTime[-1])
+                finalPars = general_params.parameters_at_time(funcTime[0])
+                
+                if mainH is False:
+                    initPars['delta_E'] = 0.
+                    finalPars['delta_E'] = 0.
+                    
+                vInit = fullFunction[-1]
+                vFin = funcProg[0]
+                
+                initTune = np.sqrt( (vInit * np.abs(initPars['eta_0']) * np.sqrt(1 - (initPars['delta_E']/vInit)**2)) / (initPars['beta']**2 * initPars['energy']) )
+                finalTune = np.sqrt( (vFin * np.abs(finalPars['eta_0']) * np.sqrt(1 - (finalPars['delta_E']/vFin)**2)) / (finalPars['beta']**2 * finalPars['energy']) )
+                tuneInterp = np.linspace(initTune, finalTune, nSteps)
+                
+                mergePars = general_params.parameters_at_time(time)
+                
+                if mainH is False:
+                    mergePars['delta_E'] *= 0
+                    
+                volts = np.sqrt( ((tuneInterp**2 * mergePars['beta']**2 * mergePars['energy']) / (np.abs(mergePars['eta_0'])))**2 + mergePars['delta_E']**2)
+                
+                fullFunction += volts.tolist() + funcProg.tolist()
+                fullTime += time.tolist() + funcTime
+                
+                
+    returnFunction = np.zeros([2, len(fullTime)])
+    returnFunction[0] = fullTime
+    returnFunction[1] = fullFunction
+    
+    return returnFunction
