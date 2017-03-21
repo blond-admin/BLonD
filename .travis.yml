@@ -45,7 +45,7 @@ cache:
   apt: true
   pip: true
 before_script:
-  - python setup.py
+  - python setup_cpp.py
   - export PYTHONPATH='./'
 script:
   - coverage run -m pytest -k 'Test and py' unittests/*/*
