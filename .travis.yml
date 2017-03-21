@@ -40,6 +40,7 @@ cache:
   pip: true
 before_script:
   - python setup_cpp.py --compiler=g++-4.8
+  - sleep 10
   - export PYTHONPATH='./'
 script:
   - coverage run -m pytest -k 'Test and py' unittests/*/*
