@@ -1,8 +1,8 @@
 
 # Copyright 2016 CERN. This software is distributed under the
-# terms of the GNU General Public Licence version 3 (GPL Version 3), 
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
 # copied verbatim in the file LICENCE.md.
-# In applying this licence, CERN does not waive the privileges and immunities 
+# In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
@@ -10,7 +10,8 @@
 '''
 **Module to compute beam slicing**
 
-:Authors: **Danilo Quartullo**, **Alexandre Lasheen**, **Juan F. Esteban Mueller**
+:Authors: **Danilo Quartullo**, **Alexandre Lasheen**, 
+          **Juan F. Esteban Mueller**
 '''
 
 from __future__ import division, print_function
@@ -31,92 +32,88 @@ class Slices(object):
     *Contains the beam profile and related quantities including beam spectrum,
     profile derivative, and profile fitting.*
     '''
-    
-    def __init__(self, RFSectionParameters, Beam, n_slices, n_sigma = None, 
-                 cut_left = None, cut_right = None, cuts_unit = 's', 
-                 fit_option = None, direct_slicing = False):
-        
+
+    def __init__(self, RFSectionParameters, Beam, n_slices, n_sigma=None,
+                 cut_left=None, cut_right=None, cuts_unit='s',
+                 fit_option=None, direct_slicing=False, smooth=False):
+
         #: *Import (reference) Beam*
         self.Beam = Beam
-        
+
         #: *Import (reference) RFSectionParameters*
         self.RFParams = RFSectionParameters
-        
+
         #: *Number of slices*
         self.n_slices = n_slices
-        
-        #: *Left edge of the slicing; optional input in case of 'const_space' 
-        #: mode. A default value will be set if no value is given.*
+
+        #: *Left edge of the slicing (optional). A default value will be set if
+        #: no value is given.*
         self.cut_left = cut_left
-        
-        #: *Right edge of the slicing; optional input in case of 'const_space' 
-        #: mode. A default value will be set if no value is given.*
+
+        #: *Right edge of the slicing (optional). A default value will be set
+        #: if no value is given.*
         self.cut_right = cut_right
-        
+
         #: *Optional input parameters, corresponding to the number of*
         #: :math:`\sigma_{RMS}` *of the Beam to slice (this will overwrite
         #: any input of cut_left and cut_right).*
         self.n_sigma = n_sigma
-        
+
         #: | *Unit in which the cuts are given.*
         #: | *The options are: 's' (default) or 'rad' (RF phase).*
         self.cuts_unit = cuts_unit
-               
+
         #: *Number of macro-particles per slice (~profile).*
         self.n_macroparticles = np.zeros(n_slices)
-        
+
         #: *Edges positions of the slicing*
         self.edges = np.zeros(n_slices + 1)
-        
+
         #: *Center of the bins*
         self.bin_centers = np.zeros(n_slices)
-        
+
         # Pre-processing the slicing edges
         self.set_cuts()
         
+        # Bin size
+        self.bin_size = (self.cut_right - self.cut_left) / self.n_slices
+
+        #: *Beam spectrum (arbitrary units)*
+        self.beam_spectrum = 0
+
+        #: *Frequency array corresponding to the beam spectrum in Hz*
+        self.beam_spectrum_freq = 0
+
+        #: *Smooth option produces smoother profiles at the expenses of a 
+        #: slower computation time*
+        if smooth:
+            self.operations = [self._slice_smooth]
+        else:
+            self.operations = [self._slice]
+            
         #: *Fit option allows to fit the Beam profile, with the options
         #: 'None' (default), 'gaussian'.*
         self.fit_option = fit_option
-        
-        #: *Beam spectrum (arbitrary units)*
-        self.beam_spectrum = 0
-        
-        #: *Frequency array corresponding to the beam spectrum in [Hz]*
-        self.beam_spectrum_freq = 0
-        
-        if self.fit_option is 'gaussian':    
-            #: *Beam length with a Gaussian fit (needs fit_option to be 
-            #: 'gaussian' defined as* :math:`\tau_{gauss} = 4\sigma_{\Delta t}`)
+        if fit_option is 'gaussian': 
+            #: *Bunch length from a Gaussian fit defined as*
+            #: :math:`\tau_{gauss} = 4\sigma_{\Delta t}`
             self.bl_gauss = 0
             #: *Beam position at the peak of Gaussian fit*
             self.bp_gauss = 0
             #: *Gaussian parameters list obtained from fit*
             self.pfit_gauss = 0
-        
+            #: *Performs gaussian_fit each time the track method is called*
+            self.operations.append(self.gaussian_fit)
         
         # Track at initialisation
         if direct_slicing:
-            self.track()          
-        
-        
-        
-    def sort_particles(self):
-        '''
-        *Sort the particles with respect to their position.*
-        '''
-        
-        argsorted = np.argsort(self.Beam.dt) 
-                    
-        self.Beam.dt = self.Beam.dt.take(argsorted)
-        self.Beam.dE = self.Beam.dE.take(argsorted)
-        self.Beam.id = self.Beam.id.take(argsorted)
-        
+            self.track()
+
 
     def set_cuts(self):
         '''
         *Method to set the self.cut_left and self.cut_right properties. This is
-        done as a pre-processing if the mode is set to 'const_space', for
-        'const_charge' this is calculated each turn.*
+        done as a pre-processing.*
         
         *The frame is defined by :math:`n\sigma_{RMS}` or manually by the user.
         If not, a default frame consisting of taking the whole bunch +5% of the 
@@ -127,50 +124,44 @@ class Slices(object):
         if self.cut_left is None and self.cut_right is None:
             
             if self.n_sigma is None:
-                self.sort_particles()
-                self.cut_left = self.Beam.dt[0] - 0.05* \
-                                (self.Beam.dt[-1] - self.Beam.dt[0])
-                self.cut_right = self.Beam.dt[-1] + 0.05* \
-                                 (self.Beam.dt[-1] - self.Beam.dt[0])
+                dt_min = self.Beam.dt.min()
+                dt_max = self.Beam.dt.max()
+                self.cut_left = dt_min - 0.05 * (dt_max - dt_min)
+                self.cut_right = dt_max + 0.05 * (dt_max - dt_min)
             else:
                 mean_coords = np.mean(self.Beam.dt)
                 sigma_coords = np.std(self.Beam.dt)
                 self.cut_left = mean_coords - self.n_sigma*sigma_coords/2
                 self.cut_right = mean_coords + self.n_sigma*sigma_coords/2
         else:
-            
             self.cut_left = self.convert_coordinates(self.cut_left, 
                                                      self.cuts_unit)
-            self.cut_right = self.convert_coordinates(self.cut_right, 
+            self.cut_right = self.convert_coordinates(self.cut_right,
                                                       self.cuts_unit)
-            
+
         self.edges = np.linspace(self.cut_left, self.cut_right, 
                                  self.n_slices + 1)
         self.bin_centers = (self.edges[:-1] + self.edges[1:])/2
 
 
-    def slice_constant_space_histogram(self, beam_dt):
+
+    def _slice(self):
         '''
-        *Constant space slicing with the built-in numpy histogram function,
-        with a constant frame. This gives the same profile as the 
-        slice_constant_space method, but no compute statistics possibilities
-        (the index of the particles is needed).*
-        
-        *This method is faster than the classic slice_constant_space method 
-        for high number of particles (~1e6).*
+        *Constant space slicing with a constant frame. It does not compute 
+        statistics possibilities (the index of the particles is needed).*
         '''
         
-        libblond.histogram(beam_dt.ctypes.data_as(ctypes.c_void_p), 
+        libblond.histogram(self.Beam.dt.ctypes.data_as(ctypes.c_void_p), 
                          self.n_macroparticles.ctypes.data_as(ctypes.c_void_p), 
                          ctypes.c_double(self.cut_left), 
                          ctypes.c_double(self.cut_right), 
                          ctypes.c_int(self.n_slices), 
-                         ctypes.c_int(len(beam_dt)))
+                         ctypes.c_int(self.Beam.n_macroparticles))
     
     
-    def slice_constant_space_histogram_smooth(self):
+    def _slice_smooth(self):
         '''
-        At the moment 4x slower than slice_constant_space_histogram but smoother.
+        At the moment 4x slower than _slice but smoother (filtered).
         '''
         
         libblond.smooth_histogram(self.Beam.dt.ctypes.data_as(ctypes.c_void_p), 
@@ -187,12 +178,10 @@ class Slices(object):
         This will update the beam properties (bunch length obtained from the
         fit, etc.).*
         '''
-    
-        self.slice_constant_space_histogram(self.Beam.dt)
         
-        if self.fit_option is 'gaussian':
-            self.gaussian_fit()
-        
+        for op in self.operations:
+            op()
+            
         
     def track_cuts(self):
         '''
@@ -230,17 +219,20 @@ class Slices(object):
  
     def rms(self):
         '''
-        * Computation of the RMS bunch length and position from the line density 
-        (bunch length = 4sigma).*
+        * Computation of the RMS bunch length and position from the line
+        density (bunch length = 4sigma).*
         '''
 
         timeResolution = self.bin_centers[1]-self.bin_centers[0]
         
-        lineDenNormalized = self.n_macroparticles / np.trapz(self.n_macroparticles, dx=timeResolution)
+        lineDenNormalized = self.n_macroparticles / \
+                            np.trapz(self.n_macroparticles, dx=timeResolution)
         
-        self.bp_rms = np.trapz(self.bin_centers * lineDenNormalized, dx=timeResolution)
+        self.bp_rms = np.trapz(self.bin_centers * lineDenNormalized,
+                               dx=timeResolution)
         
-        self.bl_rms = 4 * np.sqrt(np.trapz((self.bin_centers-self.bp_rms)**2*lineDenNormalized, dx=timeResolution))      
+        self.bl_rms = 4 * np.sqrt(np.trapz((self.bin_centers-self.bp_rms)**2* \
+                                  lineDenNormalized, dx=timeResolution))      
        
        
     def fwhm(self, shift=0):
@@ -250,23 +242,29 @@ class Slices(object):
         '''
 
         half_max = shift + 0.5 * (self.n_macroparticles.max() - shift)
-        time_resolution = self.bin_centers[1]-self.bin_centers[0]    
+
         # First aproximation for the half maximum values
         taux = np.where(self.n_macroparticles>=half_max)
-        taux1 = taux[0][0]
-        taux2 = taux[0][-1]
-        # Interpolation of the time where the line density is half the maximun
+        t1 = taux[0][0]
+        t2 = taux[0][-1]
+        # Interpolation of the time where the line density is half the maximum
         try:
-            t1 = self.bin_centers[taux1] - (self.n_macroparticles[taux1]-half_max)/(self.n_macroparticles[taux1]-self.n_macroparticles[taux1-1]) * time_resolution
-            t2 = self.bin_centers[taux2] + (self.n_macroparticles[taux2]-half_max)/(self.n_macroparticles[taux2]-self.n_macroparticles[taux2+1]) * time_resolution
+            t_left = self.bin_centers[t1] - self.bin_size * \
+                 (self.n_macroparticles[t1] - half_max) / \
+                 (self.n_macroparticles[t1] - self.n_macroparticles[t1-1])
+            t_right = self.bin_centers[t2] + self.bin_size * \
+                 (self.n_macroparticles[t2] - half_max) / \
+                 (self.n_macroparticles[t2]-self.n_macroparticles[t2+1])
             
-            self.bl_fwhm = 4 * (t2-t1)/ (2 * np.sqrt(2 * np.log(2)))
-            self.bp_fwhm = (t1+t2)/2
+            self.bl_fwhm = 4 * (t_right-t_left)/ (2 * np.sqrt(2 * np.log(2)))
+            self.bp_fwhm = (t_left+t_right)/2
         except:
             self.bl_fwhm = np.nan
             self.bp_fwhm = np.nan
     
-    def fwhm_multibunch(self, n_bunches, n_slices_per_bunch, bunch_spacing_buckets, bucket_size_tau, bucket_tolerance=0.40):
+    def fwhm_multibunch(self, n_bunches, n_slices_per_bunch,
+                        bunch_spacing_buckets, bucket_size_tau,
+                        bucket_tolerance=0.40):
         '''
         * Computation of the bunch length and position from the FWHM
         assuming Gaussian line density for multibunch case.*
@@ -279,9 +277,12 @@ class Slices(object):
         
         for indexBunch in range(0,n_bunches):
             
-            left_edge = indexBunch * bunch_spacing_buckets * bucket_size_tau - bucket_tolerance * bucket_size_tau
-            right_edge = indexBunch * bunch_spacing_buckets * bucket_size_tau + bucket_size_tau + bucket_tolerance * bucket_size_tau
-            indexes_bucket = np.where((self.bin_centers > left_edge)*(self.bin_centers < right_edge))[0]
+            left_edge = indexBunch * bunch_spacing_buckets * bucket_size_tau -\
+                        bucket_tolerance * bucket_size_tau
+            right_edge = indexBunch * bunch_spacing_buckets * bucket_size_tau \
+                         + bucket_size_tau + bucket_tolerance * bucket_size_tau
+            indexes_bucket = np.where((self.bin_centers > left_edge) * \
+                                      (self.bin_centers < right_edge))[0]
             
             try:
                 half_max = 0.5 * self.n_macroparticles[indexes_bucket].max()
@@ -311,17 +312,20 @@ class Slices(object):
                 self.bp_fwhm[indexBunch] = 0
     
     
-    def beam_spectrum_generation(self, n_sampling_fft, only_rfft = False):
+    def beam_spectrum_freq_generation(self, n_sampling_fft):
         '''
-        *Beam spectrum calculation, to be extended (normalized profile, different
-        coordinates, etc.)*
+        *Frequency array of the beam spectrum*
         '''
         
-        self.beam_spectrum_freq = rfftfreq(n_sampling_fft, (self.bin_centers[1] 
-                                           - self.bin_centers[0]))
+        self.beam_spectrum_freq = rfftfreq(n_sampling_fft, self.bin_size)
         
-        if not only_rfft:
-            self.beam_spectrum = rfft(self.n_macroparticles, n_sampling_fft)         
+    
+    def beam_spectrum_generation(self, n_sampling_fft):
+        '''
+        *Beam spectrum calculation*
+        '''
+        
+        self.beam_spectrum = rfft(self.n_macroparticles, n_sampling_fft)         
      
      
     def beam_profile_derivative(self, mode = 'gradient'):      
@@ -336,8 +340,8 @@ class Slices(object):
         dist_centers = x[1] - x[0]
             
         if mode is 'filter1d':
-            derivative = ndimage.gaussian_filter1d(self.n_macroparticles, sigma=1, 
-                                                   order=1, mode='wrap') / dist_centers
+            derivative = ndimage.gaussian_filter1d(self.n_macroparticles, 
+                                sigma=1, order=1, mode='wrap') / dist_centers
         elif mode is 'gradient':
             derivative = np.gradient(self.n_macroparticles, dist_centers)
         elif mode is 'diff':
@@ -356,7 +360,9 @@ class Slices(object):
         filter. The input is a library having the following structure and
         informations:*
         
-        filter_option = {'type':'chebyshev', 'pass_frequency':pass_frequency, 'stop_frequency':stop_frequency, 'gain_pass':gain_pass, 'gain_stop':gain_stop}
+        filter_option = {'type':'chebyshev', 'pass_frequency':pass_frequency, 
+        'stop_frequency':stop_frequency, 'gain_pass':gain_pass,
+        'gain_stop':gain_stop}
         
         *The function returns nCoefficients, the number of coefficients used 
         in the filter. You can also add the following option to plot and return
@@ -376,7 +382,8 @@ class Slices(object):
         gainStop = filter_option['gain_stop']
         
         # Compute the lowest order for a Chebyshev Type II digital filter
-        nCoefficients, wn = cheb2ord(frequencyPass, frequencyStop, gainPass, gainStop)
+        nCoefficients, wn = cheb2ord(frequencyPass, frequencyStop, gainPass, 
+                                     gainStop)
         
         # Compute the coefficients a Chebyshev Type II digital filter
         b,a = cheby2(nCoefficients, gainStop, wn, btype='low')
@@ -385,11 +392,13 @@ class Slices(object):
         self.n_macroparticles = filtfilt(b, a, noisyProfile)
         self.n_macroparticles = np.ascontiguousarray(self.n_macroparticles)
         
-        if 'transfer_function_plot' in filter_option and filter_option['transfer_function_plot']==True:
+        if ( 'transfer_function_plot' in filter_option and \
+                filter_option['transfer_function_plot']==True ):
             # Plot the filter transfer function
             w, transferGain = freqz(b, a=a, worN=self.n_slices)
             transferFreq = w / np.pi * nyqFreq
-            group_delay = -np.diff(-np.unwrap(-np.angle(transferGain))) / -np.diff(w*freqSampling) 
+            group_delay = -np.diff(-np.unwrap(-np.angle(transferGain))) / \
+                          -np.diff(w*freqSampling) 
                        
             plt.figure()
             ax1 = plt.subplot(311)
@@ -405,7 +414,9 @@ class Slices(object):
                         
             ## Plot the bunch spectrum and the filter transfer function
             plt.figure()
-            plt.plot(np.fft.fftfreq(self.n_slices, self.bin_centers[1]-self.bin_centers[0]), 20.*np.log10(np.abs(np.fft.fft(noisyProfile))))
+            plt.plot(np.fft.fftfreq(self.n_slices, self.bin_centers[1] - \
+                                self.bin_centers[0]), \
+                                20.*np.log10(np.abs(np.fft.fft(noisyProfile))))
             plt.xlabel('Frequency [Hz]')
             plt.twinx()
             plt.plot(transferFreq, 20 * np.log10(abs(transferGain)),'r')
@@ -430,6 +441,19 @@ class Slices(object):
         elif input_unit_type is 'rad':
             return value /\
                 self.RFParams.omega_RF[0,self.RFParams.counter[0]]
+
+
+    ### DEPRECATED METHODS. TO BE REMOVED IN A FUTURE VERSION ###
+    def slice_constant_space_histogram(self, beam_dt):
+        print('DEPRECATED METHOD: slice_constant_space_histogram method has \
+               been replaced by the _slice() method')
+        self._slice()
+    
+    
+    def slice_constant_space_histogram_smooth(self):
+        print('DEPRECATED METHOD: slice_constant_space_histogram_smooth \
+               method has been replaced by the _slice_smooth() method')
+        self._slice_smooth()
             
  
 def gauss(x, *p):

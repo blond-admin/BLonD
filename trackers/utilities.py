@@ -51,8 +51,6 @@ def synchrotron_frequency_distribution(Beam, FullRingAndRF, main_harmonic_option
     outputed.*
     '''
     
-    # TODO: improve the calculation for small amplitude of oscillations
-
     # Initialize variables depending on the accelerator parameters
     slippage_factor = FullRingAndRF.RingAndRFSection_list[0].eta_0[0]
                         
@@ -62,7 +60,7 @@ def synchrotron_frequency_distribution(Beam, FullRingAndRF, main_harmonic_option
     # Generate potential well
     n_points_potential = int(1e4)
     FullRingAndRF.potential_well_generation(n_points = n_points_potential, 
-                                            turn_number = turn, dt_margin_percent = 0.05, 
+                                            turn = turn, dt_margin_percent = 0.05, 
                                             main_harmonic_option = main_harmonic_option)
     potential_well_array = FullRingAndRF.potential_well
     time_coord_array = FullRingAndRF.potential_well_coordinates
@@ -91,7 +89,6 @@ def synchrotron_frequency_distribution(Beam, FullRingAndRF, main_harmonic_option
     
     potential_well_sep = potential_well_sep - np.min(potential_well_sep)
     synchronous_phase_index = np.where(potential_well_sep == np.min(potential_well_sep))[0]
-    time_resolution = time_coord_sep[1] - time_coord_sep[0] 
     
     # Computing the action J by integrating the dE trajectories
     J_array_dE0 = np.zeros(len(potential_well_sep))
@@ -99,11 +96,31 @@ def synchrotron_frequency_distribution(Beam, FullRingAndRF, main_harmonic_option
     warnings.filterwarnings("ignore")
 
     for i in range(0, len(potential_well_sep)):
-        dE_trajectory = np.sqrt((potential_well_sep[i] - potential_well_sep)/eom_factor_dE)
+        # Find left and right time coordinates for a given hamiltonian 
+        # value
+        time_indexes = np.where(potential_well_sep <= 
+                                potential_well_sep[i])[0]
+        left_time = time_coord_sep[np.max((0,time_indexes[0]))]
+        right_time = time_coord_sep[np.min((time_indexes[-1],
+                                                   len(time_coord_sep)-1))]
+        # Potential well calculation with high resolution in that frame
+        time_potential_high_res = np.linspace(left_time, right_time,
+                                              n_points_potential)
+        FullRingAndRF.potential_well_generation(
+                                 n_points=n_points_potential,
+                                 time_array=time_potential_high_res,
+                                 main_harmonic_option=main_harmonic_option)
+        pot_well_high_res = FullRingAndRF.potential_well   
+        if TotalInducedVoltage is not None:
+            pot_well_high_res += np.interp(time_potential_high_res,
+                                       time_induced_voltage, induced_potential)
+            pot_well_high_res -= pot_well_high_res.min()
+        # Integration to calculate action
+        dE_trajectory = np.sqrt((potential_well_sep[i] -
+                                 pot_well_high_res) / eom_factor_dE)
         dE_trajectory[np.isnan(dE_trajectory)] = 0
-        
-        # Careful: Action is integrated over time
-        J_array_dE0[i] = 1 / np.pi * np.trapz(dE_trajectory, dx=time_resolution)
+        J_array_dE0[i] = 1 / np.pi * np.trapz(dE_trajectory,
+                dx=time_potential_high_res[1] - time_potential_high_res[0])
     
     warnings.filterwarnings("default")
     
@@ -404,59 +421,50 @@ def separatrix(GeneralParameters, RFSectionParameters, dt, total_voltage = None)
     voltage = GeneralParameters.charge*RFSectionParameters.voltage[:,counter]
     omega_RF = RFSectionParameters.omega_RF[:,counter]
     phi_RF = RFSectionParameters.phi_RF[:,counter]
+    harmonic = RFSectionParameters.harmonic[:,counter]
 
     eta0 = RFSectionParameters.eta_0[counter]
     beta_sq = RFSectionParameters.beta[counter]**2     
     energy = RFSectionParameters.energy[counter]
+    try:
+        denergy = RFSectionParameters.E_increment[counter]
+    except:
+        denergy = RFSectionParameters.E_increment[-1]
+    T0 = GeneralParameters.t_rev[counter]
+    index_voltage = np.min(np.where(voltage>0)[0])
+    T_RF0 = 2*np.pi/omega_RF[index_voltage]
 
-    # Projects time array into the range [-T_RF/2+t_RF, T_RF/2+t_RF]
-    # if below transition and into the range [t_RF, t_RF+T_RF] if above transition.
-    # T_RF = 2*pi/omega_RF, t_RF = - phi_RF/omega_RF
+
+    # Projects time array into the range [t_RF, t_RF+T_RF] below and above
+    # transition, where T_RF = 2*pi/omega_RF, t_RF = - phi_RF/omega_RF.
+    # Note that the RF wave is shifted by Pi for eta < 0
     if eta0 < 0:
         dt = time_modulo(dt, (phi_RF[0] - np.pi)/omega_RF[0], 
                          2.*np.pi/omega_RF[0])
     elif eta0 > 0:
         dt = time_modulo(dt, phi_RF[0]/omega_RF[0], 2.*np.pi/omega_RF[0])
-
     
-    # Single-harmonic RF system
+    # Unstable fixed point in single-harmonic RF system
     if RFSectionParameters.n_rf == 1:
      
-        h0 = RFSectionParameters.harmonic[0,counter]
-     
-        if total_voltage == None:
-            V0 = voltage[0]
-        else: 
-            V0 = total_voltage[counter]
-      
-        phi_s = RFSectionParameters.phi_s[counter]
-        phi_b = omega_RF[0]*dt + phi_RF[0]
-          
-        separatrix_array = np.sqrt(beta_sq*energy*V0/(np.pi*eta0*h0)* 
-                                    (-np.cos(phi_b) - np.cos(phi_s) + 
-                                     (np.pi - phi_s - phi_b)*np.sin(phi_s)))
+        dt_s = RFSectionParameters.phi_s[counter]/omega_RF[0]
+        if eta0 < 0:
+            dt_RF = -(phi_RF[0] - np.pi)/omega_RF[0]
+        else:
+            dt_RF = -phi_RF[0]/omega_RF[0]
+            
+        dt_ufp = dt_RF + 0.5*T_RF0 - dt_s
+        if eta0*denergy < 0:
+            dt_ufp += T_RF0
 
-    # Multi-harmonic RF system
+    # Unstable fixed point in multi-harmonic RF system
     else:
-        
-        voltage = GeneralParameters.charge*RFSectionParameters.voltage[:,counter]
-        omega_RF = RFSectionParameters.omega_RF[:,counter]
-        phi_RF = RFSectionParameters.phi_RF[:,counter]     
-        try:
-            denergy = RFSectionParameters.E_increment[counter]
-        except:
-            denergy = RFSectionParameters.E_increment[-1]
-        T0 = GeneralParameters.t_rev[counter]
-        index_voltage = np.min(np.where(voltage>0)[0])
-        T_RF0 = 2*np.pi/omega_RF[index_voltage]
-        
-        # Find unstable fixed point
         
         dt_ufp = np.linspace(-phi_RF[index_voltage]/omega_RF[index_voltage] - T_RF0/1000, 
                              T_RF0 - phi_RF[index_voltage]/omega_RF[index_voltage] + T_RF0/1000, 1002)
-        
+
         if eta0 < 0:
-            dt_ufp -= 0.5*T_RF0
+            dt_ufp += 0.5*T_RF0 # Shift in RF phase below transition
         Vtot = np.zeros(len(dt_ufp))
         
         # Construct waveform
@@ -484,14 +492,14 @@ def separatrix(GeneralParameters, RFSectionParameters, dt, total_voltage = None)
         dt_ufp = dt_ufp[ind] + Vtot[ind]/(Vtot[ind] - Vtot[ind+1])* \
                  (dt_ufp[ind+1] - dt_ufp[ind])
         
-        # Construct separatrix
-        Vtot = np.zeros(len(dt))
-        for i in range(RFSectionParameters.n_rf):
-            Vtot += voltage[i]*(np.cos(omega_RF[i]*dt_ufp + phi_RF[i]) - 
-                                np.cos(omega_RF[i]*dt + phi_RF[i]))/omega_RF[i]
+    # Construct separatrix
+    Vtot = np.zeros(len(dt))
+    for i in range(RFSectionParameters.n_rf):
+        Vtot += voltage[i]*(np.cos(omega_RF[i]*dt_ufp + phi_RF[i]) - 
+                            np.cos(omega_RF[i]*dt + phi_RF[i]))/omega_RF[i]
     
-        separatrix_array = np.sqrt(2*beta_sq*energy/(eta0*T0)* \
-                                    (Vtot + denergy*(dt_ufp - dt)))
+    separatrix_array = np.sqrt(2*beta_sq*energy/(eta0*T0)* \
+                                (Vtot + denergy*(dt_ufp - dt)))
          
     return separatrix_array
  
@@ -552,20 +560,20 @@ def minmax_location(x,f):
     return [min_x_position, max_x_position], [min_values, max_values]
 
 
-def potential_well_cut(theta_coord_array, potential_array):
+def potential_well_cut(time_potential, potential_array):
     '''
     *Function to cut the potential well in order to take only the separatrix
     (several cases according to the number of min/max).*
     '''
     
     # Check for the min/max of the potential well
-    minmax_positions, minmax_values = minmax_location(theta_coord_array, 
+    minmax_positions, minmax_values = minmax_location(time_potential, 
                                                       potential_array)
-    min_theta_positions = minmax_positions[0]
-    max_theta_positions = minmax_positions[1]
+    min_time_positions = minmax_positions[0]
+    max_time_positions = minmax_positions[1]
     max_potential_values = minmax_values[1]
-    n_minima = len(min_theta_positions)
-    n_maxima = len(max_theta_positions)
+    n_minima = len(min_time_positions)
+    n_maxima = len(max_time_positions)
     
     if n_minima == 0:
         raise RuntimeError('The potential well has no minima...')
@@ -578,10 +586,10 @@ def potential_well_cut(theta_coord_array, potential_array):
                 You may also increase the percentage of margin to compute \
                 the potentiel well. The full potential well will be taken')
     elif n_maxima == 1:
-        if min_theta_positions[0] > max_theta_positions[0]:
+        if min_time_positions[0] > max_time_positions[0]:
             saved_indexes = (potential_array < max_potential_values[0]) * \
-                            (theta_coord_array > max_theta_positions[0])
-            theta_coord_sep = theta_coord_array[saved_indexes]
+                            (time_potential > max_time_positions[0])
+            time_potential_sep = time_potential[saved_indexes]
             potential_well_sep = potential_array[saved_indexes]
             if potential_array[-1] < potential_array[0]:
                 raise RuntimeError('The potential well is not well defined. \
@@ -590,8 +598,8 @@ def potential_well_cut(theta_coord_array, potential_array):
                                     probably not the expected one.')
         else:
             saved_indexes = (potential_array < max_potential_values[0]) * \
-                            (theta_coord_array < max_theta_positions[0])
-            theta_coord_sep = theta_coord_array[saved_indexes]
+                            (time_potential < max_time_positions[0])
+            time_potential_sep = time_potential[saved_indexes]
             potential_well_sep = potential_array[saved_indexes]
             if potential_array[-1] > potential_array[0]:
                 raise RuntimeError('The potential well is not well defined. \
@@ -601,40 +609,38 @@ def potential_well_cut(theta_coord_array, potential_array):
     elif n_maxima == 2:
         lower_maximum_value = np.min(max_potential_values)
         higher_maximum_value = np.max(max_potential_values)
-        lower_maximum_theta = max_theta_positions[max_potential_values == lower_maximum_value]
-        higher_maximum_theta = max_theta_positions[max_potential_values == higher_maximum_value]
-        if len(lower_maximum_theta)==2:
+        lower_maximum_time = max_time_positions[max_potential_values == lower_maximum_value]
+        higher_maximum_time = max_time_positions[max_potential_values == higher_maximum_value]
+        if len(lower_maximum_time)==2:
             saved_indexes = (potential_array < lower_maximum_value) * \
-                            (theta_coord_array > lower_maximum_theta[0]) * \
-                            (theta_coord_array < lower_maximum_theta[1])
-            theta_coord_sep = theta_coord_array[saved_indexes]
+                            (time_potential > lower_maximum_time[0]) * \
+                            (time_potential < lower_maximum_time[1])
+            time_potential_sep = time_potential[saved_indexes]
             potential_well_sep = potential_array[saved_indexes]
-        elif min_theta_positions[0] > lower_maximum_theta:
+        elif min_time_positions[0] > lower_maximum_time:
             saved_indexes = (potential_array < lower_maximum_value) * \
-                            (theta_coord_array > lower_maximum_theta) * \
-                            (theta_coord_array < higher_maximum_theta)
-            theta_coord_sep = theta_coord_array[saved_indexes]
+                            (time_potential > lower_maximum_time) * \
+                            (time_potential < higher_maximum_time)
+            time_potential_sep = time_potential[saved_indexes]
             potential_well_sep = potential_array[saved_indexes]
         else:
             saved_indexes = (potential_array < lower_maximum_value) * \
-                            (theta_coord_array < lower_maximum_theta) * \
-                            (theta_coord_array > higher_maximum_theta)
-            theta_coord_sep = theta_coord_array[saved_indexes]
+                            (time_potential < lower_maximum_time) * \
+                            (time_potential > higher_maximum_time)
+            time_potential_sep = time_potential[saved_indexes]
             potential_well_sep = potential_array[saved_indexes]
     elif n_maxima > 2:
-        left_max_theta = np.min(max_theta_positions)
-        right_max_theta = np.max(max_theta_positions)
-        left_max_value = max_potential_values[max_theta_positions==left_max_theta]
-        right_max_value = max_potential_values[max_theta_positions==right_max_theta]
+        left_max_time = np.min(max_time_positions)
+        right_max_time = np.max(max_time_positions)
+        left_max_value = max_potential_values[max_time_positions==left_max_time]
+        right_max_value = max_potential_values[max_time_positions==right_max_time]
         separatrix_value = np.min([left_max_value, right_max_value])
-        saved_indexes = (theta_coord_array > left_max_theta) * (theta_coord_array < right_max_theta) * (potential_array < separatrix_value)
-        theta_coord_sep = theta_coord_array[saved_indexes]
+        saved_indexes = (time_potential > left_max_time) * (time_potential < right_max_time) * (potential_array < separatrix_value)
+        time_potential_sep = time_potential[saved_indexes]
         potential_well_sep = potential_array[saved_indexes]
         
         
-    return theta_coord_sep, potential_well_sep
-        
-        
+    return time_potential_sep, potential_well_sep
 
 def phase_modulo_above_transition(phi):
     '''

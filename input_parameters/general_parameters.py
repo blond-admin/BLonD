@@ -29,7 +29,7 @@ class GeneralParameters(object):
     def __init__(self, n_turns, ring_length, alpha, momentum, 
                  particle_type, user_mass = None, user_charge = None, 
                  particle_type_2 = None, user_mass_2 = None, 
-                 user_charge_2 = None, number_of_sections = 1):
+                 user_charge_2 = None, number_of_sections = 1, force_beta_equal_one = False):
         
         #: | *Number of RF sections over the ring; default is one.*
         self.n_sections = number_of_sections
@@ -128,6 +128,8 @@ class GeneralParameters(object):
         #: .. math:: \beta_s = \frac{1}{\sqrt{1 + \left(\frac{m}{p_s}\right)^2} }
         
         self.beta = np.sqrt(1/(1 + (self.mass/self.momentum)**2))
+        if force_beta_equal_one:
+            self.beta = np.array([np.ones(self.n_turns + 1)])
         
         #: *Synchronous relativistic gamma (program)* :math:`: \quad \gamma_{s,k}^n`
         #:
@@ -232,3 +234,29 @@ class GeneralParameters(object):
                            2*self.alpha[i,0]*self.alpha[i,1] + self.alpha[i,1]/ \
                            self.gamma[i]**2 + self.alpha[i,0]**2*self.eta_0[i] - \
                            3*self.beta[i]**2*self.alpha[i,0]/(2*self.gamma[i]**2)
+
+
+
+    def parameters_at_time(self, cycle_time):
+        '''
+        *Function to return various cycle parameters at a specific point in time.*
+        '''
+
+        parameters = {}
+        parameters['momentum'] = np.interp(cycle_time, self.cumulative_times, self.momentum[0])
+        parameters['beta'] = np.interp(cycle_time, self.cumulative_times, self.beta[0])
+        parameters['gamma'] = np.interp(cycle_time, self.cumulative_times, self.gamma[0])
+        parameters['energy'] = np.interp(cycle_time, self.cumulative_times, self.energy[0])
+        parameters['kin_energy'] = np.interp(cycle_time, self.cumulative_times, self.kin_energy[0])
+        parameters['f_rev'] = np.interp(cycle_time, self.cumulative_times, self.f_rev)
+        parameters['t_rev'] = np.interp(cycle_time, self.cumulative_times, self.t_rev)
+        parameters['omega_rev'] = np.interp(cycle_time, self.cumulative_times, self.omega_rev)
+        parameters['eta_0'] = np.interp(cycle_time, self.cumulative_times, self.eta_0[0])
+        parameters['delta_E'] = np.interp(cycle_time, self.cumulative_times[1:], np.diff(self.energy[0]))
+
+        return parameters
+
+
+
+
+

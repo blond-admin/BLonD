@@ -65,7 +65,7 @@ class FlatSpectrum(object):
             self.fmin_s0 = 0.8571
             self.fmax_s0 = 1.001
         self.fs = RFSectionParameters.omega_s0[self.initial_final_turns[0]:self.initial_final_turns[1]] / (2*np.pi) # synchrotron frequency in Hz
-        self.n_turns = len(self.fs)
+        self.n_turns = len(self.fs)-1
         self.dphi = np.zeros(self.n_turns+1)
         self.continuous_phase = continuous_phase
         if self.continuous_phase:
@@ -229,7 +229,7 @@ class FlatSpectrum(object):
             self.dphi = self.dphi*np.sin(psi[:self.n_turns+1]) + self.dphi2[:(self.n_turns+1)]*np.cos(psi[:self.n_turns+1])
         
         if self.initial_final_turns[0]>0 or self.initial_final_turns[1]<self.total_n_turns+1:
-            self.dphi = np.concatenate((np.zeros(self.initial_final_turns[0]), self.dphi, np.zeros(self.total_n_turns-self.initial_final_turns[1])))
+            self.dphi = np.concatenate((np.zeros(self.initial_final_turns[0]), self.dphi, np.zeros(1+self.total_n_turns-self.initial_final_turns[1])))
 
 class LHCNoiseFB(object): 
     '''

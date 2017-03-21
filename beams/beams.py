@@ -54,10 +54,10 @@ class Beam(object):
         #self.ring_radius = GeneralParameters.ring_radius
 
         #: | *Beam arrival time with respect to reference time [s]*
-        self.dt = np.zeros([n_macroparticles])
+        self.dt = np.zeros([int(n_macroparticles)])
         
         #: | *Beam energy offset with respect to synchronous energy [eV]*
-        self.dE = np.zeros([n_macroparticles])
+        self.dE = np.zeros([int(n_macroparticles)])
      
         #: | *Average beam arrival time [s]*
         self.mean_dt = 0

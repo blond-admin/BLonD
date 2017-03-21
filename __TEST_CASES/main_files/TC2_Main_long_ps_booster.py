@@ -24,6 +24,7 @@ from beams.distributions import *
 from monitors.monitors import *
 from beams.slices import *
 from impedances.impedance import *
+from impedances.impedance_sources import *
 from plots.plot_beams import *
 from plots.plot_impedance import *
 from plots.plot_slices import *
@@ -60,7 +61,7 @@ momentum_compaction = 1 / gamma_transition**2 # [1]
 n_rf_systems = 1                                     
 harmonic_numbers = 1                         
 voltage_program = 8.e3 #[V]
-phi_offset = 0
+phi_offset = np.pi
 
 
 # DEFINE RING------------------------------------------------------------------
@@ -76,13 +77,15 @@ ring_RF_section = RingAndRFSection(RF_sct_par, my_beam)
 
 # DEFINE BEAM------------------------------------------------------------------
 longitudinal_bigaussian(general_params, RF_sct_par, my_beam, sigma_dt, seed=1)
-
+print(RF_sct_par.phi_s)
+print(np.mean(my_beam.dt))
+print(RF_sct_par.phi_RF)
 
 # DEFINE SLICES----------------------------------------------------------------
 
 number_slices = 100
-slice_beam = Slices(RF_sct_par, my_beam, number_slices, cut_left = - 5.72984173562e-7, 
-                    cut_right = 5.72984173562e-7) 
+slice_beam = Slices(RF_sct_par, my_beam, number_slices, cut_left= -5.72984173562e-7, 
+                    cut_right=5.72984173562e-7) 
 
 # MONITOR----------------------------------------------------------------------
 
@@ -125,23 +128,25 @@ else:
     pass
 
 # steps
-steps = InductiveImpedance(slice_beam, 34.6669349520904 / 10e9 * general_params.f_rev,
-                           general_params.f_rev, RF_sct_par.counter, deriv_mode='diff') 
-
+steps = InductiveImpedance(my_beam, slice_beam, 34.6669349520904 / 10e9 *
+                           general_params.f_rev, RF_sct_par, deriv_mode='diff') 
 # direct space charge
 
-dir_space_charge = InductiveImpedance(slice_beam, -376.730313462   
-                     / (general_params.beta[0] *
-                     general_params.gamma[0]**2), general_params.f_rev, RF_sct_par.counter)
+dir_space_charge = InductiveImpedance(my_beam, slice_beam, -376.730313462   
+                     / (general_params.beta[0] * general_params.gamma[0]**2),
+                     RF_sct_par)
 
 
 # INDUCED VOLTAGE FROM IMPEDANCE------------------------------------------------
 
 imp_list = [Ekicker_table, F_C_table]
 
-ind_volt_freq = InducedVoltageFreq(slice_beam, imp_list, 2e5)
-
-total_induced_voltage = TotalInducedVoltage(my_beam, slice_beam, [ind_volt_freq, steps, dir_space_charge])
+ind_volt_freq = InducedVoltageFreq(my_beam, slice_beam, imp_list,
+                                   frequency_resolution=2e5)
+                     
+                     
+total_induced_voltage = TotalInducedVoltage(my_beam, slice_beam,
+                                      [ind_volt_freq, steps, dir_space_charge])
 
 # PLOTS
 
