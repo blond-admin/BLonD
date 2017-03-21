@@ -38,8 +38,7 @@ cache:
   apt: true
   pip: true
 before_script:
-  - gcc -v
-  - python setup_cpp.py
+  - python setup_cpp.py --compiler=g++-4.8
   - export PYTHONPATH='./'
 script:
   - coverage run -m pytest -k 'Test and py' unittests/*/*
