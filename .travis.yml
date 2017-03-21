@@ -11,7 +11,6 @@ addons:
   apt:
     sources:
     - ubuntu-toolchain-r-test
-    # - george-edison55-precise-backports
     packages:
     - gcc-4.8
     - g++-4.8
@@ -35,28 +34,9 @@ install:
   # Replace dep1 dep2 ... with your dependencies
   - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy matplotlib future
   - source activate test-environment
-# addons:
-#   apt:
-#     sources:
-#     - ubuntu-toolchain-r-test
-#     - george-edison55-precise-backports
-#     packages:
-#     - gcc-4.8
-#     - g++-4.8
-#     - libblas-dev
-#     - liblapack-dev
-#     - libatlas-base-dev
-#     - gfortran
-#     - libpng-dev
-#     - libfreetype6
-#     - python-tk
-# install:
-#   - pip install coveralls numpy scipy matplotlib future
 cache:
   apt: true
   pip: true
-  directories:
-    - $HOME/miniconda
 before_script:
   - python setup_cpp.py
   - export PYTHONPATH='./'
