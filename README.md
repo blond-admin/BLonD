@@ -1,3 +1,6 @@
+[![Build Status](https://travis-ci.org/kiliakis/BLonD-1.svg?branch=master)](https://travis-ci.org/kiliakis/BLonD-1)
+[![Coverage Status](https://coveralls.io/repos/github/kiliakis/BLonD-1/badge.svg?branch=master)](https://coveralls.io/github/kiliakis/BLonD-1?branch=master)
+
 Copyright 2016 CERN. This software is distributed under the
 terms of the GNU General Public Licence version 3 (GPL Version 3), 
 copied verbatim in the file LICENCE.md.
