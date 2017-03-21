@@ -1,11 +1,28 @@
 sudo: false
 language: python
+os:
+- linux
+compiler:
+- gcc
 python:
   - "2.7"
   - "3.4"
+addons:
+  apt:
+    sources:
+    # - ubuntu-toolchain-r-test
+    # - george-edison55-precise-backports
+    packages:
+    - gcc-4.8
+    - g++-4.8
+    - gfortran
+    - libpng-dev
+    - libfreetype6
+    - python-tk
 install:
   - pip install coveralls numpy scipy matplotlib future
 cache:
+  apt: true
   pip: true
 before_script:
   - export PYTHONPATH='./'
