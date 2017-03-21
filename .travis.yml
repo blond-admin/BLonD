@@ -13,8 +13,6 @@ addons:
     # - ubuntu-toolchain-r-test
     # - george-edison55-precise-backports
     packages:
-    - gcc-4.8
-    - g++-4.8
     - gfortran
     - libpng-dev
     - libfreetype6
