@@ -34,7 +34,7 @@ install:
   # Replace dep1 dep2 ... with your dependencies
   - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION pip numpy scipy matplotlib future
   - source activate test-environment
-  - pip install coveralls
+  - pip install coveralls pytest
 cache:
   apt: true
   pip: true
@@ -42,6 +42,6 @@ before_script:
   - python setup_cpp.py --compiler=g++-4.8
   - export PYTHONPATH='./'
 script:
-  - coverage run python -m pytest -k 'Test and py' unittests/*/*
+  - coverage run -m pytest -k 'Test and py' unittests/*/*
 after_sucess:
   - coveralls
