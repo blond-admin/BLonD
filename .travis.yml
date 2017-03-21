@@ -38,6 +38,7 @@ cache:
   apt: true
   pip: true
 before_script:
+  - gcc -v
   - python setup_cpp.py
   - export PYTHONPATH='./'
 script:
