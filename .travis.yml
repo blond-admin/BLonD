@@ -3,7 +3,7 @@ python:
   - "2.7"
   - "3.4"
 install:
-  - pip install coveralls numpy scipy matplotlib h5py future
+  - pip install --user coveralls numpy scipy matplotlib future
 before_script:
   - export PYTHONPATH='./'
 script:
