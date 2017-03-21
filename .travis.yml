@@ -1,12 +1,10 @@
 language: python
-
 python:
   - "2.7"
   - "3.4"
-
-before_install:
-  - pip install coverage
-  - cd python
-
-script: 
-- nosetests -v --with-coverage
+install:
+  - pip install coveralls,numpy,scipy,matplotlib,h5py,future
+before_script:
+  - export PYTHONPATH='./'
+script:
+  - coverage run -m pytest -k 'Test and py' unittests/*/*
