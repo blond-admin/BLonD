@@ -10,9 +10,11 @@ python:
 addons:
   apt:
     sources:
-    # - ubuntu-toolchain-r-test
-    # - george-edison55-precise-backports
+    - ubuntu-toolchain-r-test
+    - george-edison55-precise-backports
     packages:
+    - gcc-4.8
+    - g++-4.8
     - libblas-dev
     - liblapack-dev
     - libatlas-base-dev
@@ -26,6 +28,7 @@ cache:
   apt: true
   pip: true
 before_script:
+  - python setup.py
   - export PYTHONPATH='./'
 script:
   - coverage run -m pytest -k 'Test and py' unittests/*/*
