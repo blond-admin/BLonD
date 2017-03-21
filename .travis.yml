@@ -42,6 +42,6 @@ before_script:
   - python setup_cpp.py --compiler=g++-4.8
   - export PYTHONPATH='./'
 script:
-  - coverage run -m pytest -k 'Test and py' unittests/*/*
+  - coverage run python -m pytest -k 'Test and py' unittests/*/*
 after_sucess:
   - coveralls
