@@ -1,29 +1,47 @@
-sudo: false
+# sudo: false
 language: python
 os:
-- linux
-compiler:
-- gcc
+  - linux
+# compiler:
+# - gcc
 python:
   - "2.7"
   - "3.4"
-addons:
-  apt:
-    sources:
-    - ubuntu-toolchain-r-test
-    - george-edison55-precise-backports
-    packages:
-    - gcc-4.8
-    - g++-4.8
-    - libblas-dev
-    - liblapack-dev
-    - libatlas-base-dev
-    - gfortran
-    - libpng-dev
-    - libfreetype6
-    - python-tk
 install:
-  - pip install coveralls numpy scipy matplotlib future
+  - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
+      wget https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh -O miniconda.sh;
+    else
+      wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
+    fi
+  - bash miniconda.sh -b -p $HOME/miniconda
+  - export PATH="$HOME/miniconda/bin:$PATH"
+  - hash -r
+  - conda config --set always_yes yes --set changeps1 no
+  - conda update -q conda
+  # Useful for debugging any issues with conda
+  - conda info -a
+
+  # Replace dep1 dep2 ... with your dependencies
+  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy matplotlib future
+  - source activate test-environment
+  - python setup.py install
+# addons:
+#   apt:
+#     sources:
+#     - ubuntu-toolchain-r-test
+#     - george-edison55-precise-backports
+#     packages:
+#     - gcc-4.8
+#     - g++-4.8
+#     - libblas-dev
+#     - liblapack-dev
+#     - libatlas-base-dev
+#     - gfortran
+#     - libpng-dev
+#     - libfreetype6
+#     - python-tk
+# install:
+#   - pip install coveralls numpy scipy matplotlib future
 cache:
   apt: true
   pip: true
