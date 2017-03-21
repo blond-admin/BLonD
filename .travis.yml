@@ -13,12 +13,15 @@ addons:
     # - ubuntu-toolchain-r-test
     # - george-edison55-precise-backports
     packages:
+    - python-numpy
+    - python-scipy
+    - python-matplotlib
     - gfortran
     - libpng-dev
     - libfreetype6
     - python-tk
 install:
-  - pip install coveralls numpy scipy matplotlib future
+  - pip install coveralls future
 cache:
   apt: true
   pip: true
