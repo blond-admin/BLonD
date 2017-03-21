@@ -1,9 +1,12 @@
+sudo: false
 language: python
 python:
   - "2.7"
   - "3.4"
 install:
-  - pip install --user coveralls numpy scipy matplotlib future
+  - pip install coveralls numpy scipy matplotlib future
+cache:
+  pip: true
 before_script:
   - export PYTHONPATH='./'
 script:
