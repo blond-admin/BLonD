@@ -25,7 +25,7 @@ Repository:
 	https://github.com/dquartul/BLonD
 
 Documentation:
-	http://dquartul.github.io/BLonD/
+	http://blond-admin.github.io/BLonD/
 
 Project website:
 	http://blond.web.cern.ch
