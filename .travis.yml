@@ -44,5 +44,5 @@ before_script:
   - export PYTHONPATH='./'
 script:
   - coverage run -m pytest -k 'Test and py' unittests/*/*
-after_sucess:
+after_success:
   - coveralls
