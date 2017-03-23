@@ -1,3 +1,6 @@
+[![Build Status](https://travis-ci.org/blond-admin/BLonD.svg?branch=master)](https://travis-ci.org/blond-admin/BLonD)
+[![Coverage Status](https://coveralls.io/repos/github/blond-admin/BLonD/badge.svg?branch=master)](https://coveralls.io/github/blond-admin/BLonD?branch=master)
+
 Copyright 2016 CERN. This software is distributed under the
 terms of the GNU General Public Licence version 3 (GPL Version 3), 
 copied verbatim in the file LICENCE.md.
@@ -35,9 +38,10 @@ CURRENT DEVELOPERS
 ==================
 
 Simon Albright (simon.albright (at) cern.ch)
+Theodoros Argyropoulos (theodoros.argyropoulos (at) cern.ch)
 Konstantinos Iliakis (konstantinos.iliakis (at) cern.ch)
+Ivan Karpov (ivan.karpov (at) cern.ch)
 Alexandre Lasheen (alexandre.lasheen (at) cern.ch)
-Juan Esteban Muller (juan.fem (at) cern.ch)
 Danilo Quartullo (danilo.quartullo (at) cern.ch)
 Joel Repond (joel.repond (at) cern.ch)
 Helga Timko (Helga.Timko (at) cern.ch)
@@ -45,8 +49,7 @@ Helga Timko (Helga.Timko (at) cern.ch)
 PREVIOUS DEVELOPERS
 ===================
 
-Theodoros Argyropoulos
-
+Juan Esteban Muller
 
 STRUCTURE
 ==========
