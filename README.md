@@ -66,6 +66,9 @@ STRUCTURE
 
 VERSION CONTENTS 
 ================
+2017-03-28
+v1.19.0 - Several files have been rearranged and simplified
+
 2017-02-10
 v1.18.0 - Fixed an important bug in linear_interp_kick.cpp: before the
           acceleration kick was not applied if rf_kick_interp==TRUE in 
