@@ -1,12 +1,48 @@
+# sudo: false
 language: python
-
+os:
+  - linux
+compiler:
+  - gcc
 python:
   - "2.7"
   - "3.4"
-
+addons:
+  apt:
+    sources:
+    - ubuntu-toolchain-r-test
+    packages:
+    - gcc-4.8
+    - g++-4.8
 before_install:
-  - pip install coverage
-  - cd python
+  - export CC=/usr/bin/gcc-4.8
+  - export CXX=/usr/bin/g++-4.8
+install:
+  - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
+      wget https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh -O miniconda.sh;
+    else
+      wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
+    fi
+  - bash miniconda.sh -b -p $HOME/miniconda
+  - export PATH="$HOME/miniconda/bin:$PATH"
+  - hash -r
+  - conda config --set always_yes yes --set changeps1 no
+  - conda update -q conda
+  # Useful for debugging any issues with conda
+  - conda info -a
 
-script: 
-- nosetests -v --with-coverage
+  # Replace dep1 dep2 ... with your dependencies
+  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION pip numpy scipy matplotlib future
+  - source activate test-environment
+  - pip install coveralls pytest
+cache:
+  apt: true
+  pip: true
+before_script:
+  - python setup_cpp.py --compiler=g++-4.8
+  - sleep 10
+  - export PYTHONPATH='./'
+script:
+  - coverage run -m pytest -k 'Test and py' unittests/*/*
+after_success:
+- coveralls
