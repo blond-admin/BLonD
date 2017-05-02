@@ -162,13 +162,13 @@ class Resonators(_ImpedanceObject):
         _ImpedanceObject.__init__(self)
 
         #: *Shunt impepdance in* :math:`\Omega`
-        self.R_S = np.array([R_S]).flatten()
+        self.R_S = np.array([R_S], dtype=float).flatten()
         
         #: *Resonant frequency in Hz*
-        self.frequency_R = np.array([frequency_R]).flatten()
+        self.frequency_R = np.array([frequency_R], dtype=float).flatten()
                 
         #: *Quality factor*
-        self.Q = np.array([Q]).flatten()
+        self.Q = np.array([Q], dtype=float).flatten()
         
         #: *Number of resonant modes*
         self.n_resonators = len(self.R_S)    
@@ -288,13 +288,13 @@ class TravelingWaveCavity(_ImpedanceObject):
         _ImpedanceObject.__init__(self)
         
         #: *Shunt impepdance in* :math:`\Omega`
-        self.R_S = np.array([R_S]).flatten()
+        self.R_S = np.array([R_S], dtype=float).flatten()
         
         #: *Resonant frequency in Hz*
-        self.frequency_R = np.array([frequency_R]).flatten()
+        self.frequency_R = np.array([frequency_R], dtype=float).flatten()
         
         #: *Damping time a in s*
-        self.a_factor = np.array([a_factor]).flatten()
+        self.a_factor = np.array([a_factor], dtype=float).flatten()
         
         #: *Number of resonant modes*
         self.n_twc = len(self.R_S)

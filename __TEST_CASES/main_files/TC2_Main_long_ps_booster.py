@@ -61,7 +61,7 @@ momentum_compaction = 1 / gamma_transition**2 # [1]
 n_rf_systems = 1                                     
 harmonic_numbers = 1                         
 voltage_program = 8.e3 #[V]
-phi_offset = 0
+phi_offset = np.pi
 
 
 # DEFINE RING------------------------------------------------------------------
@@ -77,7 +77,9 @@ ring_RF_section = RingAndRFSection(RF_sct_par, my_beam)
 
 # DEFINE BEAM------------------------------------------------------------------
 longitudinal_bigaussian(general_params, RF_sct_par, my_beam, sigma_dt, seed=1)
-
+print(RF_sct_par.phi_s)
+print(np.mean(my_beam.dt))
+print(RF_sct_par.phi_RF)
 
 # DEFINE SLICES----------------------------------------------------------------
 

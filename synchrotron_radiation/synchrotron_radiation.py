@@ -128,7 +128,7 @@ class SynchrotronRadiation(object):
                 self.general_params.energy[0,i_turn-1]):
             self.calculate_SR_params()
         for i in range(self.n_kicks):
-            self.beam.dE += -(2.0 / self.tau_z / self.n_kicks * self.beam.dE -
+            self.beam.dE += -(2.0 / self.tau_z / self.n_kicks * self.beam.dE +
                               self.U0 / self.n_kicks)
     
     # Track particles with SR and quantum excitation
@@ -139,8 +139,8 @@ class SynchrotronRadiation(object):
                 self.general_params.energy[0,i_turn-1]):
             self.calculate_SR_params()
         for i in range(self.n_kicks):
-            self.beam.dE += -(2.0 / self.tau_z / self.n_kicks * self.beam.dE -
-                              self.U0 / self.n_kicks + 2.0 * self.sigma_dE /
+            self.beam.dE += -(2.0 / self.tau_z / self.n_kicks * self.beam.dE +
+                              self.U0 / self.n_kicks - 2.0 * self.sigma_dE /
                               np.sqrt(self.tau_z * self.n_kicks) *
                               self.general_params.energy[0,i_turn] *
                               np.random.randn(self.beam.n_macroparticles))

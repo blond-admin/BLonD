@@ -1,3 +1,6 @@
+[![Build Status](https://travis-ci.org/blond-admin/BLonD.svg?branch=master)](https://travis-ci.org/blond-admin/BLonD)
+[![Coverage Status](https://coveralls.io/repos/github/blond-admin/BLonD/badge.svg?branch=master)](https://coveralls.io/github/blond-admin/BLonD?branch=master)
+
 Copyright 2016 CERN. This software is distributed under the
 terms of the GNU General Public Licence version 3 (GPL Version 3), 
 copied verbatim in the file LICENCE.md.
@@ -25,7 +28,7 @@ Repository:
 	https://github.com/dquartul/BLonD
 
 Documentation:
-	http://dquartul.github.io/BLonD/
+	http://blond-admin.github.io/BLonD/
 
 Project website:
 	http://blond.web.cern.ch
@@ -35,9 +38,10 @@ CURRENT DEVELOPERS
 ==================
 
 Simon Albright (simon.albright (at) cern.ch)
+Theodoros Argyropoulos (theodoros.argyropoulos (at) cern.ch)
 Konstantinos Iliakis (konstantinos.iliakis (at) cern.ch)
+Ivan Karpov (ivan.karpov (at) cern.ch)
 Alexandre Lasheen (alexandre.lasheen (at) cern.ch)
-Juan Esteban Muller (juan.fem (at) cern.ch)
 Danilo Quartullo (danilo.quartullo (at) cern.ch)
 Joel Repond (joel.repond (at) cern.ch)
 Helga Timko (Helga.Timko (at) cern.ch)
@@ -45,8 +49,7 @@ Helga Timko (Helga.Timko (at) cern.ch)
 PREVIOUS DEVELOPERS
 ===================
 
-Theodoros Argyropoulos
-
+Juan Esteban Muller
 
 STRUCTURE
 ==========
@@ -63,6 +66,9 @@ STRUCTURE
 
 VERSION CONTENTS 
 ================
+2017-03-28
+v1.19.0 - Several files have been rearranged and simplified
+
 2017-02-10
 v1.18.0 - Fixed an important bug in linear_interp_kick.cpp: before the
           acceleration kick was not applied if rf_kick_interp==TRUE in 
@@ -366,4 +372,5 @@ v1.0   Longitudinal tracker tested. Works for acceleration and multiple
        Simple versions of separatrix/Hamiltonian.
        Longitudinal impedance calculations in frequency and time domain.
        RF noise.
+
 
