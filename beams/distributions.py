@@ -374,7 +374,8 @@ def matched_from_distribution_function(beam, full_ring_and_RF,
                                emittance=None, bunch_length=None,
                                bunch_length_fit=None,
                                distribution_variable='Hamiltonian',
-                               process_pot_well = True):
+                               process_pot_well = True,
+                               turn_number=0):
     '''
     *Function to generate a beam by inputing the distribution function (by
     choosing the type of distribution and the emittance).
@@ -406,16 +407,19 @@ def matched_from_distribution_function(beam, full_ring_and_RF,
         distribution_function_ = distribution_function
     
     # Initialize variables depending on the accelerator parameters
-    slippage_factor = full_ring_and_RF.RingAndRFSection_list[0].eta_0[0]
+    slippage_factor = full_ring_and_RF.RingAndRFSection_list[0].eta_0[turn_number]
+    beta = full_ring_and_RF.RingAndRFSection_list[0].rf_params.beta[turn_number]
+    energy = full_ring_and_RF.RingAndRFSection_list[0].rf_params.energy[turn_number]
     
-    eom_factor_dE = abs(slippage_factor) / (2*beam.beta**2. * beam.energy)
+    eom_factor_dE = abs(slippage_factor) / (2*beta**2. * energy)
     eom_factor_potential = (np.sign(slippage_factor) * beam.charge /
-                          (full_ring_and_RF.RingAndRFSection_list[0].t_rev[0]))
+                          (full_ring_and_RF.RingAndRFSection_list[0].t_rev[turn_number]))
 
     #: *Number of points to be used in the potential well calculation*
     n_points_potential = int(n_points_potential)
     # Generate potential well
-    full_ring_and_RF.potential_well_generation(n_points=n_points_potential, 
+    full_ring_and_RF.potential_well_generation(turn=turn_number,
+                                    n_points=n_points_potential,
                                     dt_margin_percent=dt_margin_percent, 
                                     main_harmonic_option=main_harmonic_option)
     potential_well = full_ring_and_RF.potential_well 
@@ -551,7 +555,7 @@ def matched_from_distribution_function(beam, full_ring_and_RF,
                                 time_potential_low_res, distribution_function_, 
                                 distribution_type, distribution_exponent, beam,
                                 full_ring_and_RF)
-        
+       
         elif emittance is not None:
             if distribution_variable is 'Action':
                 X0 = emittance / (2*np.pi)
@@ -809,49 +813,36 @@ def longitudinal_bigaussian(GeneralParameters, RFSectionParameters, beam,
     
     # Calculate sigma_dE from sigma_dt using single-harmonic Hamiltonian
     if sigma_dE == None:
-        voltage = (RFSectionParameters.charge * 
-                  RFSectionParameters.voltage[0,counter])
+        voltage = RFSectionParameters.charge* \
+                  RFSectionParameters.voltage[0,counter]
         eta0 = RFSectionParameters.eta_0[counter]
         
-        if eta0 > 0:            
-            phi_b = omega_RF*sigma_dt + phi_s
-            sigma_dE = np.sqrt( voltage * energy * beta**2 *
-                 (np.cos(phi_b) - np.cos(phi_s) + (phi_b - phi_s) *
-                 np.sin(phi_s)) / (np.pi * harmonic * eta0) )
-        else:            
-            phi_b = omega_RF*sigma_dt + phi_s - np.pi
-            sigma_dE = np.sqrt( voltage * energy * beta**2 *
-                       (np.cos(phi_b) - np.cos(phi_s-np.pi) +
-                       (phi_b - phi_s-np.pi) * np.sin(phi_s-np.pi)) /
-                       (np.pi * harmonic * eta0) )
-    
+        phi_b = omega_RF*sigma_dt + phi_s
+        sigma_dE = np.sqrt( voltage * energy * beta**2  
+                 * (np.cos(phi_b) - np.cos(phi_s) + (phi_b - phi_s) * np.sin(phi_s)) 
+                 / (np.pi * harmonic * np.fabs(eta0)) )
+                
     beam.sigma_dt = sigma_dt
     beam.sigma_dE = sigma_dE
     
     # Generate coordinates
     np.random.seed(seed)
     
-    if eta0 > 0:
-        beam.dt = (sigma_dt*np.random.randn(beam.n_macroparticles) +
-              (phi_s - phi_RF)/omega_RF)
-    else:
-        beam.dt = (sigma_dt*np.random.randn(beam.n_macroparticles) +
-                  (phi_s - phi_RF - np.pi)/omega_RF)
-                  
+    beam.dt = sigma_dt*np.random.randn(beam.n_macroparticles) + \
+              (phi_s - phi_RF)/omega_RF                  
     beam.dE = sigma_dE*np.random.randn(beam.n_macroparticles)
     
-    if reinsertion is 'on':        
+    # Re-insert if necessary
+    if reinsertion is 'on':
+        
         itemindex = np.where(is_in_separatrix(GeneralParameters, 
                     RFSectionParameters, beam, beam.dt, beam.dE) == False)[0]
          
-        while itemindex.size != 0:            
-            if eta0 > 0:
-                beam.dt[itemindex] = (sigma_dt*np.random.randn(itemindex.size)+
-                                     (phi_s - phi_RF)/omega_RF)
-            else:
-                beam.dt[itemindex] = (sigma_dt*np.random.randn(itemindex.size)+
-                                     (phi_s - phi_RF - np.pi)/omega_RF)
+        while itemindex.size != 0:
+            
+            beam.dt[itemindex] = sigma_dt*np.random.randn(itemindex.size) \
+                                 + (phi_s - phi_RF)/omega_RF
                                      
             beam.dE[itemindex] = sigma_dE*np.random.randn(itemindex.size)
             itemindex = np.where(is_in_separatrix(GeneralParameters, 
-                   RFSectionParameters, beam, beam.dt, beam.dE) == False)[0]
+                        RFSectionParameters, beam, beam.dt, beam.dE) == False)[0]

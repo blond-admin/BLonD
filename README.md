@@ -25,7 +25,7 @@ Repository:
 	https://github.com/dquartul/BLonD
 
 Documentation:
-	http://dquartul.github.io/BLonD/
+	http://blond-admin.github.io/BLonD/
 
 Project website:
 	http://blond.web.cern.ch
@@ -366,4 +366,5 @@ v1.0   Longitudinal tracker tested. Works for acceleration and multiple
        Simple versions of separatrix/Hamiltonian.
        Longitudinal impedance calculations in frequency and time domain.
        RF noise.
+
 
