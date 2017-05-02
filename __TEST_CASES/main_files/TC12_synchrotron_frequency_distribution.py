@@ -270,3 +270,5 @@ plt.xlabel('Emittance [eVs]')
 plt.ylabel('Synchrotron frequency [Hz]')
 plt.title('Synchrotron frequency distribution in single RF with intensity ' +
           'effects')
+plt.show()
+

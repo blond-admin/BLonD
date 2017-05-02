@@ -16,6 +16,7 @@ Example for the FCC-ee at 175 GeV.
 
 from __future__ import division
 import matplotlib.pyplot as plt
+import os
 import numpy as np
 from input_parameters.general_parameters import GeneralParameters
 from beams.beams import Beam
@@ -25,6 +26,12 @@ from beams.slices import Slices
 from trackers.tracker import RingAndRFSection, FullRingAndRF
 from synchrotron_radiation.synchrotron_radiation import SynchrotronRadiation
 from scipy.constants import c, e, m_e
+
+
+try:
+    os.mkdir('../output_files/TC13_fig')
+except:
+    pass
 
 
 # SIMULATION PARAMETERS -------------------------------------------------------
@@ -109,7 +116,7 @@ rho = 11e3
 SR = []
 for i in range(n_sections):
     SR.append(SynchrotronRadiation(general_params, RF_sct_par[i], beam, rho,
-                                   quantum_excitation=False))
+                                   quantum_excitation=False, python=True))
 
 SR[0].print_SR_params()
 
@@ -242,7 +249,7 @@ slice_beam.track()
 # Redefine Synchrotron radiation objects with quantum excitation
 SR = []
 for i in range(n_sections):
-    SR.append(SynchrotronRadiation(general_params, RF_sct_par[i], beam, rho))
+    SR.append(SynchrotronRadiation(general_params, RF_sct_par[i], beam, rho, python=True))
 
 # ACCELERATION MAP-------------------------------------------------------------
 map_ = []
