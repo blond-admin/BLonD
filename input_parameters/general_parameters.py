@@ -130,8 +130,7 @@ class GeneralParameters(object):
         if not self.momentum.shape[1] == self.n_turns + 1:
                 raise RuntimeError('ERROR: The momentum program does not'+ 
                                    'match the proper length (n_turns+1)')
-            
-        
+         
         self.particle_type = str(particle_type)        
         # Derived: mass and charge from particle_type
         if self.particle_type is 'proton':
