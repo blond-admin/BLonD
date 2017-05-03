@@ -93,33 +93,14 @@ class Beam(object):
     
     References
     ----------
-    Ignobel 2016: *Gábor Horváth, Miklós Blahó, György Kriska, Ramón Hegedüs, Balázs 
-    Gerics, Róbert Farkas, Susanne Åkesson, Péter Malik, and Hansruedi Wildermuth*, 
-    **for discovering why white-haired horses are the most horsefly-proof horses** [1]_.
-    
-    Ignobel 2014: *Kiyoshi Mabuchi, Kensei Tanaka, Daichi Uchijima and Rina Sakai*, 
-    **for measuring the amount of friction between a shoe and a banana skin, 
-    and between a banana skin and the floor, when a person steps on a banana 
-    skin that's on the floor** [2]_.
+    Dummy references, just as example =) [1]_.
 
-    Ignobel 2005: John Mainstone and the late Thomas Parnell of the University of Queensland,
-    Australia, for patiently conducting an experiment that began in the year 1927
-    -- in which a glob of congealed black tar has been slowly, 
-    slowly dripping through a funnel, at a rate of approximately one drop 
-    every nine years [3]_.
 
     .. [1]  "An Unexpected Advantage of Whiteness in Horses: The Most 
             Horsefly-Proof Horse Has a Depolarizing White Coat," Gábor 
             Horváth, Miklós Blahó, György Kriska, Ramón Hegedüs, Balázs 
             Gerics, Róbert Farkas and Susanne Åkesson, Proceedings of the 
             Royal Society B, vol. 277 no. 1688, pp. June 2010, pp. 1643-1650.
-
-    .. [2] "Frictional Coefficient under Banana Skin," Kiyoshi Mabuchi, Kensei
-            Tanaka, Daichi Uchijima and Rina Sakai, Tribology Online 7, 
-            no. 3, 2012, pp. 147-151.
-
-    .. [3] "The Pitch Drop Experiment," R. Edgeworth, B.J. Dalton and T. 
-            Parnell, European Journal of Physics, 1984, pp. 198-200.
 
     Examples
     --------
@@ -140,17 +121,17 @@ class Beam(object):
     def __init__(self, GeneralParameters, n_macroparticles, intensity):
 
         self.mass = GeneralParameters.mass
-        self.charge = GeneralParameters.charge
+        self.charge = int(GeneralParameters.charge)
         self.beta = GeneralParameters.beta[0][0]
         self.gamma = GeneralParameters.gamma[0][0]
         self.energy = GeneralParameters.energy[0][0]
         self.momentum = GeneralParameters.momentum[0][0] 
         self.dt = np.zeros([int(n_macroparticles)])
         self.dE = np.zeros([int(n_macroparticles)])
-        self.mean_dt = 0
-        self.mean_dE = 0
-        self.sigma_dt = 0
-        self.sigma_dE = 0
+        self.mean_dt = 0.
+        self.mean_dE = 0.
+        self.sigma_dt = 0.
+        self.sigma_dE = 0.
         self.intensity = intensity 
         self.n_macroparticles = int(n_macroparticles)
         self.ratio = self.intensity/self.n_macroparticles
