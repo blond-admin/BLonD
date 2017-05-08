@@ -7,10 +7,9 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+''' 
 **Module gathering all general input parameters used for the simulation.**
-
-:Authors: **Alexandre Lasheen**, **Danilo Quartullo**, **Helga Timko**
+    :Authors: **Alexandre Lasheen**, **Danilo Quartullo**, **Helga Timko**
 '''
 
 from __future__ import division
@@ -22,52 +21,54 @@ from scipy.constants import m_p, m_e, e, c
 
 
 class GeneralParameters(object):
-    """ Class containing the general properties of the synchrotron that are 
-    independent of the RF system or the beam. The index 'n' denotes time steps,
-    'k' ring segments and 'i' momentum compaction orders.
+    """ Class containing the general properties of the synchrotron that are \
+    independent of the RF system or the beam. 
+    
+    *The index `n` denotes time steps, `k` ring segments and `i` momentum \
+    compaction orders.*
     
     Parameters
     ----------
     n_turns : int
-        Number of turns [1] to be simulated.
+        Number of turns [1] to be simulated
     ring_length : float
         Length [m] of the n_sections ring segments of the synchrotron.
-        Input as a list for multiple RF stations.
+        Input as a list for multiple RF stations
     alpha : float (opt: float array)
-        Momentum compaction factor [1]; can be input as single float (only 0th 
-        order element) or float array (up to 2nd order elements). In case of 
-        several sections without higher orders, input: [[alpha_section_1], 
-        [alpha_section_2], etc.]. In case of several sections and higher order
-        alphas, input: [alpha_array_section_1, alpha_array_section_2, etc.], 
-        :math:`: \quad \alpha_{k,i}`.
+        Momentum compaction factor :math:`\quad \alpha_{k,i}` [1]; can be input as 
+        single float (only 0th order element) or float array (up to 2nd order 
+        elements). In case of several sections without higher orders, input: 
+        [[alpha_section_1], [alpha_section_2], etc.]. In case of several 
+        sections and higher order alphas, input: [alpha_array_section_1, 
+        alpha_array_section_2, etc.]
     momentum : float (opt: float array/matrix)
         Design synchronous particle momementum [eV] on the design orbit. Input
-        for each RF section :math:`: \quad p_{s,k}^n`. Can be input as a single
+        for each RF section :math:`\quad p_{s,k}^n`. Can be input as a single
         constant float, or as a program of (n_turns + 1) turns. In case of 
         several sections without acceleration, input: [[momentum_section_1], 
         [momentum_section_2], etc.]. In case of several sections with 
         acceleration, input: [momentum_program_section_1, 
         momentum_program_section_2, etc.]. Can be input also as a tuple of time
-        and momentum, see also 'cumulative_times'.
+        and momentum, see also 'cumulative_times'
     particle_type : string
         Primary particle type that is reference for the momentum; Recognized 
         types are 'proton' and 'electron'. Use 'user_input' to input mass and 
-        charge manually.
+        charge manually
     n_sections : int
-        Optional: number of RF sections [1] over the ring; default is 1.
+        Optional: number of RF sections [1] over the ring; default is 1
         
     Attributes
     ----------
     ring_circumference : float
-        Circumference [m] of the synchrotron. Sum of ring segment lengths, 
-        :math:`: \quad C = \sum_k L_k`.
+        Circumference [m] of the synchrotron. Sum of ring segment lengths, \
+        :math:`\quad C = \sum_k L_k`.
     ring_radius : float
-        Radius [m] of the synchrotron, :math:`: \quad R = C/(2 \pi)`
+        Radius [m] of the synchrotron, :math:`\quad R = C/(2 \pi)`
     alpha_order : int
         Number of orders of the momentum compaction factor
     eta_0 : float
-        Zeroth order slippage factor [1] :math:`: \quad \eta_{k,0}`
-        .. math:: \eta_0 = \alpha_0 - \frac{1}{\gamma_s^2}
+        Zeroth order slippage factor [1] \
+        :math:`\quad \eta_{k,0} = \alpha_{k,0} - \frac{1}{\gamma_{s,k}^2}`
     eta_1 : float
         First order slippage factor [1] :math:`: \quad \eta_{k,1}`
         .. math:: \eta_1 = \frac{3\beta_s^2}{2\gamma_s^2} + \alpha_1 - \alpha_0\eta_0
