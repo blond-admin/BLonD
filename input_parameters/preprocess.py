@@ -36,11 +36,11 @@ def loaddata(filename, ignore=0, delimiter=None):
 
 
 
-def preprocess_ramp(particle_type, circumference, time, data, 
-                    data_type='momentum', interpolation='linear', smoothing = 0,
+def preprocess_ramp(mass, circumference, time, momentum, #data, #data_type='momentum', 
+                    interpolation='linear', smoothing = 0,
                     flat_bottom=0, flat_top=0, t_start=0, t_end=-1,
-                    plot=False, figdir='fig', figname='data', sampling=1, 
-                    user_mass=None, user_charge=None):
+                    plot=False, figdir='fig', figname='data', sampling=1): #, 
+#                    user_mass=None, user_charge=None):
     '''
     Pre-process acceleration ramp data to create input for simulation parameters.
     Input: absolute time [s] and corresponding momentum [eV/c] or total energy [eV] or kinetic energy [eV].
@@ -55,28 +55,28 @@ def preprocess_ramp(particle_type, circumference, time, data,
     
     # Definitions
     Nd = len(time)
-    if len(data) != Nd:
-        raise RuntimeError(str(data)+' does not match the length of '+str(time))
+#    if len(data) != Nd:
+#        raise RuntimeError(str(data)+' does not match the length of '+str(time))
 
     # Attribution of mass and charge with respect to particle_type
-    if particle_type is 'proton':
-        mass =  m_p*c**2/e # [eV]
-    elif particle_type is 'electron':
-        mass =  m_e*c**2/e # [eV]
-    elif particle_type is 'user_input':
-        mass = user_mass # [eV]
-    else:
-        raise RuntimeError('ERROR: Particle type in preprocess_ramp not recognized!')
+#     if particle_type is 'proton':
+#         mass =  m_p*c**2/e # [eV]
+#     elif particle_type is 'electron':
+#         mass =  m_e*c**2/e # [eV]
+#     elif particle_type is 'user_input':
+#         mass = user_mass # [eV]
+#     else:
+#         raise RuntimeError('ERROR: Particle type in preprocess_ramp not recognized!')
 
     # Convert data to momentum, if necessary
-    if data_type == 'momentum':
-        momentum = data
-    elif data_type == 'total energy':
-        momentum = np.sqrt(data**2-mass**2)
-    elif data_type == 'kinetic energy':
-        momentum = np.sqrt((data+mass)**2-mass**2)
-    else:
-        raise RuntimeError('ERROR: Data type in preprocess_ramp not recognized!')
+#     if data_type == 'momentum':
+#         momentum = data
+#     elif data_type == 'total energy':
+#         momentum = np.sqrt(data**2-mass**2)
+#     elif data_type == 'kinetic energy':
+#         momentum = np.sqrt((data+mass)**2-mass**2)
+#     else:
+#         raise RuntimeError('ERROR: Data type in preprocess_ramp not recognized!')
     
     
     # Obtain flat bottom data, extrapolate to constant
