@@ -55,7 +55,7 @@ class GeneralParameters(object):
         types are 'proton' and 'electron'. Use 'user_input' to input mass and 
         charge manually
     n_sections : int
-        Optional: number of RF sections [1] over the ring; default is 1
+        Optional: number of RF sections [1] over the ring; default is 1 
         
     Attributes
     ----------
