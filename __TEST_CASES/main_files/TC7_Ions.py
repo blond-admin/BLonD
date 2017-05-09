@@ -110,7 +110,7 @@ bunchmonitor = BunchMonitor(general_params, rf_params, beam,
                             Slices=slice_beam)
 
 format_options = {'dirname': '../output_files/TC7_fig'}
-plots = Plot(general_params, rf_params, beam, dt_plt, N_t, -4.e-7, 4.e-7,
+plots = Plot(general_params, rf_params, beam, dt_plt, N_t, 0, 8.e-7,
              -400e6, 400e6, separatrix_plot=True, Slices=slice_beam,
              h5file='../output_files/TC7_output_data', 
              format_options=format_options)
