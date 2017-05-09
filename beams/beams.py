@@ -29,6 +29,7 @@ class Beam(object):
     
     The class creates a beam with zero dt and dE, see distributions to match
     a beam with respect to the RF and intensity effects.
+    
     Parameters
     ----------
     GeneralParameters : GeneralParameters
@@ -37,6 +38,7 @@ class Beam(object):
         total number of macroparticles.
     intensity : float
         total intensity of the beam (in number of charge).
+        
     Attributes
     ----------
     mass : float
@@ -73,6 +75,7 @@ class Beam(object):
         number of macro-particles marked as 'lost' ().
     id : numpy_array, int
         unique macro-particle ID number; zero if particle is 'lost'.
+        
     See Also
     ---------
     distributions.matched_from_line_density:
@@ -83,15 +86,7 @@ class Beam(object):
     Warnings
     --------
     She's watching you! The cake is a lie! In fact there really was a cake ...
-    
-    References
-    ----------
-    Dummy references, just as example =) [1]_.
-    .. [1]  "An Unexpected Advantage of Whiteness in Horses: The Most 
-            Horsefly-Proof Horse Has a Depolarizing White Coat," G�bor 
-            Horv�th, Mikl�s Blah�, Gy�rgy Kriska, Ram�n Heged�s, Bal�zs 
-            Gerics, R�bert Farkas and Susanne �kesson, Proceedings of the 
-            Royal Society B, vol. 277 no. 1688, pp. June 2010, pp. 1643-1650.
+               
     Examples
     --------
     >>> from input_parameters.general_parameters import GeneralParameters

@@ -1,5 +1,5 @@
 
-# Copyright 2016 CERN. This software is distributed under the
+# Copyright 2014-2017 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3), 
 # copied verbatim in the file LICENCE.md.
 # In applying this licence, CERN does not waive the privileges and immunities 
@@ -22,41 +22,42 @@ from input_parameters.preprocess import preprocess_ramp
 
 
 class GeneralParameters(object):
-    """ Class containing the general properties of the synchrotron that are \
-        independent of the RF system or the beam. 
+    r""" Class containing the general properties of the synchrotron that are
+    independent of the RF system or the beam. 
     
-    The index `n` denotes time steps, `k` ring segments and `i` momentum \
-    compaction orders.
+    The index :math:`n` denotes time steps, :math:`k` ring segments and 
+    :math:`i` momentum compaction orders.
+    
     Parameters
     ----------
     n_turns : int
         Number of turns [1] to be simulated
     ring_length : float
-        Length [m] of the n_sections ring segments of the synchrotron. \
+        Length [m] of the n_sections ring segments of the synchrotron.
         Input as a list for multiple RF stations
     alpha : float (opt: float array)
-        Momentum compaction factor :math:`\alpha_{k,i}` [1]; can be input as \
-        single float (only 0th order element) or float array (up to 2nd order \
-        elements). In case of several sections without higher orders, input: \
-        [[alpha_section_1], [alpha_section_2], etc.]. In case of several \
-        sections and higher order alphas, input: [alpha_array_section_1, \
+        Momentum compaction factor :math:`\alpha_{k,i}` [1]; can be input as
+        single float (only 0th order element) or float array (up to 2nd order
+        elements). In case of several sections without higher orders, input:
+        [[alpha_section_1], [alpha_section_2], etc.]. In case of several
+        sections and higher order alphas, input: [alpha_array_section_1,
         alpha_array_section_2, etc.]
     synchronous_data : float (opt: float array/matrix)
-        Design synchronous particle momentum (default) [eV] or kinetic or \
-        total energy [eV] on the design orbit. Input for each RF section \
-        :math:`p_{s,k}^n`. Can be input as a single constant float, or as a \
-        program of (n_turns + 1) turns. In case of several sections without \
-        acceleration, input: [[momentum_section_1], [momentum_section_2], \
-        etc.]. In case of several sections with acceleration, input: \
-        [momentum_program_section_1, momentum_program_section_2, etc.]. Can \
-        be input also as a tuple of time and momentum, see also \
+        Design synchronous particle momentum (default) [eV] or kinetic or
+        total energy [eV] on the design orbit. Input for each RF section
+        :math:`p_{s,k,n}`. Can be input as a single constant float, or as a
+        program of (n_turns + 1) turns. In case of several sections without
+        acceleration, input: [[momentum_section_1], [momentum_section_2],
+        etc.]. In case of several sections with acceleration, input:
+        [momentum_program_section_1, momentum_program_section_2, etc.]. Can
+        be input also as a tuple of time and momentum, see also
         'cumulative_times'
     particle_type : string
-        Primary particle type that is reference for the momentum; Recognized \
-        types are 'proton' and 'electron'. Use 'user_input' to input mass and \
+        Primary particle type that is reference for the momentum; Recognized
+        types are 'proton' and 'electron'. Use 'user_input' to input mass and
         charge manually
     synchronous_data_type : string
-        Choice of 'synchronous_data' type; can be 'momentum' (default), \
+        Choice of 'synchronous_data' type; can be 'momentum' (default),
         'total_energy' or 'kinetic_energy'
     n_sections : int
         Optional: number of RF sections [1] over the ring; default is 1  
@@ -64,67 +65,78 @@ class GeneralParameters(object):
     Attributes
     ----------
     ring_circumference : float
-        Circumference [m] of the synchrotron. Sum of ring segment lengths, \
-        :math:`C = \sum_k L_k`     
+        Circumference of the synchrotron. Sum of ring segment lengths,
+        :math:`C = \sum_k L_k` [m]    
     ring_radius : float
-        Radius [m] of the synchrotron, :math:`R = C/(2 \pi)`
+        Radius of the synchrotron, :math:`R = C/(2 \pi)` [m]
     alpha_order : int
         Number of orders of the momentum compaction factor
     eta_0 : float
-        Zeroth order slippage factor [1] :math:`\eta_{k,0} = \alpha_{k,0} - \frac{1}{\gamma_{s,k}^2}`
+        Zeroth order slippage factor :math:`\eta_{0,k} = \alpha_{0,k} - 
+        \frac{1}{\gamma_{s,k}^2}` [1]
     eta_1 : float
-        First order slippage factor [1] :math:`\quad \eta_{k,1} = \frac{3\beta_{s,k}^2}{2\gamma_{s,k}^2} + \alpha_{k,1} - \alpha_{k,0}\eta_{k,0}`
+        First order slippage factor :math:`\eta_{1,k} = 
+        \frac{3\beta_{s,k}^2}{2\gamma_{s,k}^2} + \alpha_{1,k} - 
+        \alpha_{0,k}\eta_{0,k}` [1]
     eta_2 : float
-        Second order slippage factor [1] :math:`\quad \eta_{k,2} = -\frac{\beta_{s,k}^2\left(5\beta_{s,k}^2-1\right)}{2\gamma_{s,k}^2} + \alpha_{k,2} - 2\alpha_{k,0}\alpha_{k,1} + \frac{\alpha_{k,1}}{\gamma_{s,k}^2} + \alpha_{k,0}^2\eta_{k,0} - \frac{3\beta_{s,k}^2\alpha_{k,0}}{2\gamma_{s,k}^2}`
-    cumulative_times : float array
-        Cycle time moments [s] taken from preprocess ramp method. Possibility \
-        to extract cycle parameters at these moments using 'parameters_at_time'
+        Second order slippage factor :math:`\eta_{2,k} = 
+        -\frac{\beta_{s,k}^2\left(5\beta_{s,k}^2-1\right)}{2\gamma_{s,k}^2} 
+        + \alpha_{2,k} - 2\alpha_{0,k}\alpha_{1,k} 
+        + \frac{\alpha_{1,k}}{\gamma_{s,k}^2} + \alpha_{0,k}^2\eta_{0,k} 
+        - \frac{3\beta_{s,k}^2\alpha_{0,k}}{2\gamma_{s,k}^2}` [1]
     mass : float
-        Primary particle mass [eV]
+        Primary particle mass :math:`m` [eV]
     charge : float
-        Primary particle charge [e]
+        Primary particle charge :math:`q` [e]
     beta : float matrix
-        Synchronous relativistic beta program [1] for each segment of the \
-        ring :math:`: \quad \beta_{s,k}^n`
-        .. math:: \beta_s = \frac{1}{\sqrt{1 + \left(\frac{m}{p_s}\right)^2} }
+        Synchronous relativistic beta program for each segment of the
+        ring :math:`\beta_{s,k}^n = \frac{1}{\sqrt{1 
+        + \left(\frac{m}{p_{s,k,n}}\right)^2} }` [1]
     gamma : float matrix
-        Synchronous relativistic gamma program [1] for each segment of the ring
-        :math:`: \quad \gamma_{s,k}^n`
-        .. math:: \gamma_s = \sqrt{ 1 + \left(\frac{p_s}{m}\right)^2 }
+        Synchronous relativistic gamma program for each segment of the ring
+        :math:`\gamma_{s,k,n} = \sqrt{ 1 
+        + \left(\frac{p_{s,k,n}}{m}\right)^2 }` [1] 
     energy : float matrix
-        Synchronous total energy program [eV] for each segment of the ring
-        :math:`: \quad E_{s,k}^n`
-        .. math:: E_s = \sqrt{ p_s^2 + m^2 }
+        Synchronous total energy program for each segment of the ring
+        :math:`E_{s,k,n} = \sqrt{ p_{s,k,n}^2 + m^2 }` [eV]
     kin_energy : float matrix
-        Synchronous kinetic energy program [eV] for each segment of the ring
-        .. math:: E_s^kin = \sqrt{ p_s^2 + m^2 } - m
+        Synchronous kinetic energy program for each segment of the ring
+        :math:`E_{s,kin} = \sqrt{ p_{s,k,n}^2 + m^2 } - m` [eV]
     t_rev : float array
-        Revolution period [s] turn by turn.
-        :math:`: \quad T_0 = \frac{C}{\beta_s c}`
+        Revolution period turn by turn.
+        :math:`T_{0,n} = \frac{C}{\beta_{s,n} c}` [s]
     f_rev : float array
-        Revolution frequency [Hz] :math:`: \quad f_0 = \frac{1}{T_0}`
+        Revolution frequency :math:`f_{0,n} = \frac{1}{T_{0,n}}` [Hz]
     omega_rev : float array
-        Revolution angular frequency [1/s] :math:`: \quad \omega_0 = 2\pi f_0`
+        Revolution angular frequency :math:`\omega_{0,n} = 2\pi f_{0,n}` [1/s]
+    cycle_time : float array
+        Cumulative cycle time, turn by turn, :math:`t_n = \sum_n T_{0,n}` [s]. 
+        Possibility to extract cycle parameters at these moments using 
+        'parameters_at_time'.
+
     Examples
     --------
-    To declare a single-stationed synchrotron at constant energy:
+    >>> # To declare a single-stationed synchrotron at constant energy:
     >>> from input_parameters.general_parameters import GeneralParameters
     >>>
     >>> n_turns = 10
     >>> C = 26659
     >>> alpha = 3.21e-4
     >>> momentum = 450e9
-    >>> general_parameters = GeneralParameters(n_turns, C, eta, momentum, 'proton')
-
-    To declare a double-stationed synchrotron at constant energy and higher-
-    order momentum compaction factors:
+    >>> general_parameters = GeneralParameters(n_turns, C, eta, momentum, 
+    >>>                                        'proton')
+    >>>
+    >>> # To declare a double-stationed synchrotron at constant energy and 
+    >>> # higher-order momentum compaction factors:
     >>> from input_parameters.general_parameters import GeneralParameters
     >>>
     >>> n_turns = 10
     >>> C = [13000, 13659]
     >>> alpha = [[3.21e-4, 2.e-5, 5.e-7], [2.89e-4, 1.e-5, 5.e-7]]
     >>> momentum = 450e9
-    >>> general_parameters = GeneralParameters(n_turns, C, eta, momentum, 'proton')
+    >>> general_parameters = GeneralParameters(n_turns, C, eta, momentum, 
+    >>>                                        'proton')
+    
     """
     
     def __init__(self, n_turns, ring_length, alpha, synchronous_data, 
@@ -192,8 +204,6 @@ class GeneralParameters(object):
 
         # Synchronous momentum and checks
         if type(synchronous_data)==tuple:
-#            self.momentum = np.array(momentum[1], ndmin = 2)
-#            self.cumulative_times = momentum[0]
             self.cycle_time, self.momentum = preprocess_ramp(self.mass, 
                 self.ring_circumference, self.cycle_time, self.momentum, 
                 interpolation = 'linear', smoothing = 0, flat_bottom = 0, 
@@ -219,16 +229,6 @@ class GeneralParameters(object):
         self.gamma = np.sqrt(1 + (self.momentum/self.mass)**2) 
         self.energy = np.sqrt(self.momentum**2 + self.mass**2)
         self.kin_energy = np.sqrt(self.momentum**2 + self.mass**2) - self.mass
-        
-        # N.B. self.cycle_time in the else statement should start always with 0
-#         if type(self.momentum)==tuple:
-#             self.cycle_time = self.cumulative_times
-#             self.t_rev = np.append(np.diff(self.cycle_time),
-#                                    self.ring_circumference/
-#                                    (self.beta[0][-1]*c))
-#         else:    
-#             self.t_rev = np.dot(self.ring_length, 1/(self.beta*c))
-#             self.cycle_time = np.cumsum(self.t_rev)
         self.t_rev = np.dot(self.ring_length, 1/(self.beta*c))
         self.cycle_time = np.cumsum(self.t_rev) # Always starts with zero
         self.f_rev = 1/self.t_rev
@@ -256,9 +256,9 @@ class GeneralParameters(object):
         Attributes
         ----------
         mass2 : float
-            primary particle mass [eV].
+            primary particle mass :math:`m_2` [eV].
         charge2 : float
-            primary particle charge [e].
+            primary particle charge :math:`q_2` [e].
         """
         
         self.particle_type_2 = str(particle_type_2)
@@ -281,12 +281,12 @@ class GeneralParameters(object):
     
     def eta_generation(self):
         """ Function to generate the slippage factors (zeroth, first, and 
-        second orders) from the momentum compaction and the relativistic beta 
-        and gamma program through the cycle.
+        second orders, see [1]_) from the momentum compaction and the 
+        relativistic beta and gamma program through the cycle.
         
         References
         ----------
-        .. [2] "Accelerator Physics," S. Y. Lee, World Scientific, 
+        .. [1] "Accelerator Physics," S. Y. Lee, World Scientific, 
                 Third Edition, 2012.
         """
         
@@ -323,13 +323,13 @@ class GeneralParameters(object):
                 self.alpha[i,0]/(2*self.gamma[i]**2)
 
 
-    def parameters_at_time(self, cycle_time):
+    def parameters_at_time(self, cycle_moments):
         """ Function to return various cycle parameters at a specific moment in
-        time.
+        time. The cycle time is defined to start at zero in turn zero. 
             
         Parameters
         ----------
-        cycle_time : float array
+        cycle_moments : float array
             moments of time at which cycle parameters are to be calculated [s].  
               
         Attributes
@@ -337,30 +337,31 @@ class GeneralParameters(object):
         parameters : dictionary
             contains 'momentum', 'beta', 'gamma', 'energy', 'kin_energy',
             'f_rev', 't_rev'. 'omega_rev', 'eta_0', and 'delta_E' interpolated
-            to the moments contained in the 'cycle_time' array
+            to the moments contained in the 'cycle_moments' array
+            
         """
 
         parameters = {}
-        parameters['momentum'] = np.interp(cycle_time, self.cumulative_times, 
+        parameters['momentum'] = np.interp(cycle_moments, self.cycle_time, 
                                            self.momentum[0])
-        parameters['beta'] = np.interp(cycle_time, self.cumulative_times, 
+        parameters['beta'] = np.interp(cycle_moments, self.cycle_time, 
                                        self.beta[0])
-        parameters['gamma'] = np.interp(cycle_time, self.cumulative_times, 
+        parameters['gamma'] = np.interp(cycle_moments, self.cycle_time, 
                                         self.gamma[0])
-        parameters['energy'] = np.interp(cycle_time, self.cumulative_times, 
+        parameters['energy'] = np.interp(cycle_moments, self.cycle_time, 
                                          self.energy[0])
-        parameters['kin_energy'] = np.interp(cycle_time, self.cumulative_times, 
+        parameters['kin_energy'] = np.interp(cycle_moments, self.cycle_time, 
                                              self.kin_energy[0])
-        parameters['f_rev'] = np.interp(cycle_time, self.cumulative_times, 
+        parameters['f_rev'] = np.interp(cycle_moments, self.cycle_time, 
                                         self.f_rev)
-        parameters['t_rev'] = np.interp(cycle_time, self.cumulative_times, 
+        parameters['t_rev'] = np.interp(cycle_moments, self.cycle_time, 
                                         self.t_rev)
-        parameters['omega_rev'] = np.interp(cycle_time, self.cumulative_times, 
+        parameters['omega_rev'] = np.interp(cycle_moments, self.cycle_time, 
                                             self.omega_rev)
-        parameters['eta_0'] = np.interp(cycle_time, self.cumulative_times, 
+        parameters['eta_0'] = np.interp(cycle_moments, self.cycle_time, 
                                         self.eta_0[0])
-        parameters['delta_E'] = np.interp(cycle_time, 
-                                          self.cumulative_times[1:], 
+        parameters['delta_E'] = np.interp(cycle_moments, 
+                                          self.cycle_time[1:], 
                                           np.diff(self.energy[0]))
 
         return parameters
