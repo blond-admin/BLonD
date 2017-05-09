@@ -1,5 +1,5 @@
 
-# Copyright 2016 CERN. This software is distributed under the
+# Copyright 2014-2017 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3), 
 # copied verbatim in the file LICENCE.md.
 # In applying this licence, CERN does not waive the privileges and immunities 
@@ -40,25 +40,137 @@ def input_check(input_value, expected_length):
     elif len(input_value) == expected_length:
         return np.array(input_value)
     else:
-        raise RuntimeError(str(input_value) + ' does not match ' + str(expected_length))
+        raise RuntimeError('ERROR: ' + str(input_value) + ' does not match ' 
+                           + str(expected_length))
     
     
 
 class RFSectionParameters(object):
-    '''
-    *Object gathering all the RF parameters for one section (sections defined in
-    tracker.RingAndRFSection), and pre-processing them for later use.*
-    
-    :How to use RF programs:
+#     '''
+#     *Object gathering all the RF parameters for one section (sections defined 
+#     in tracker.RingAndRFSection), and pre-processing them for later use.*
+#     
+#     '''
+    r""" Class containing all the RF parameters for all the RF systems in one 
+    ring segment or RF section.
 
-      - For 1 RF system and constant values of V, h or phi, just input the single value
-      - For 1 RF system and varying values of V, h or phi, input an array of n_turns values
-      - For several RF systems and constant values of V, h or phi, input lists of single values 
-      - For several RF systems and varying values of V, h or phi, input lists of arrays of n_turns values
+    **How to use RF programs:**
+
+    * For 1 RF system and constant values of V, h, or phi, input a single value
+    * For 1 RF system and varying values of V, h, or phi, input an array of 
+      n_turns values
+    * For several RF systems and constant values of V, h, or phi, input lists 
+      of single values 
+    * For several RF systems and varying values of V, h, or phi, input lists 
+      of arrays of n_turns values
       
     Optional: RF frequency other than the design frequency. In this case, need
-    to use the Phase Loop for correct RF phase!
-    '''
+    to use a beam phase loop for correct RF phase!
+    
+    The index :math:`n` denotes time steps, :math:`l` the index of the RF 
+    systems in the section.
+    
+    Parameters
+    ----------
+    GeneralParameters : class
+        A GeneralParameters-based class
+    n_rf : int
+        Number of harmonic RF systems in the section
+    harmonic : float (opt: float array/matrix)
+        Harmonic number of the RF system, :math:`h_{l,n}` [1]. For input 
+        options, see above
+    voltage : float (opt: float array/matrix)
+        RF cavity voltage as seen by the beam, :math:`V_{l,n}` [V]. For input 
+        options, see above
+    phi_offset : float (opt: float array/matrix)
+        Programmed RF cavity phase offset, :math:`\phi_{l,n}` [rad]. 
+        For input options, see above
+    phi_noise : float (opt: float array/matrix)
+        Optional, programmed RF cavity phase noise, :math:`\phi_{N,l,n}` [rad]. 
+        For input options, see above
+    omega_rf : float (opt: float array/matrix)
+        Programmed RF revolution frequency, :math:`\omega_{rf,l,n}` [rad]. 
+        For input options, see above. Default value is :math:`\omega_{rf,l,n}
+        = \frac{h_{l,n} \beta_{l,n} c}{R_{s,n}}`
+        
+    """
+           
+#     Attributes
+#     ----------
+#     ring_circumference : float
+#         Circumference of the synchrotron. Sum of ring segment lengths,
+#         :math:`C = \sum_k L_k` [m]    
+#     ring_radius : float
+#         Radius of the synchrotron, :math:`R = C/(2 \pi)` [m]
+#     alpha_order : int
+#         Number of orders of the momentum compaction factor
+#     eta_0 : float
+#         Zeroth order slippage factor :math:`\eta_{0,k} = \alpha_{0,k} - 
+#         \frac{1}{\gamma_{s,k}^2}` [1]
+#     eta_1 : float
+#         First order slippage factor :math:`\eta_{1,k} = 
+#         \frac{3\beta_{s,k}^2}{2\gamma_{s,k}^2} + \alpha_{1,k} - 
+#         \alpha_{0,k}\eta_{0,k}` [1]
+#     eta_2 : float
+#         Second order slippage factor :math:`\eta_{2,k} = 
+#         -\frac{\beta_{s,k}^2\left(5\beta_{s,k}^2-1\right)}{2\gamma_{s,k}^2} 
+#         + \alpha_{2,k} - 2\alpha_{0,k}\alpha_{1,k} 
+#         + \frac{\alpha_{1,k}}{\gamma_{s,k}^2} + \alpha_{0,k}^2\eta_{0,k} 
+#         - \frac{3\beta_{s,k}^2\alpha_{0,k}}{2\gamma_{s,k}^2}` [1]
+#     mass : float
+#         Primary particle mass :math:`m` [eV]
+#     charge : float
+#         Primary particle charge :math:`q` [e]
+#     beta : float matrix
+#         Synchronous relativistic beta program for each segment of the
+#         ring :math:`\beta_{s,k}^n = \frac{1}{\sqrt{1 
+#         + \left(\frac{m}{p_{s,k,n}}\right)^2} }` [1]
+#     gamma : float matrix
+#         Synchronous relativistic gamma program for each segment of the ring
+#         :math:`\gamma_{s,k,n} = \sqrt{ 1 
+#         + \left(\frac{p_{s,k,n}}{m}\right)^2 }` [1] 
+#     energy : float matrix
+#         Synchronous total energy program for each segment of the ring
+#         :math:`E_{s,k,n} = \sqrt{ p_{s,k,n}^2 + m^2 }` [eV]
+#     kin_energy : float matrix
+#         Synchronous kinetic energy program for each segment of the ring
+#         :math:`E_{s,kin} = \sqrt{ p_{s,k,n}^2 + m^2 } - m` [eV]
+#     t_rev : float array
+#         Revolution period turn by turn.
+#         :math:`T_{0,n} = \frac{C}{\beta_{s,n} c}` [s]
+#     f_rev : float array
+#         Revolution frequency :math:`f_{0,n} = \frac{1}{T_{0,n}}` [Hz]
+#     omega_rev : float array
+#         Revolution angular frequency :math:`\omega_{0,n} = 2\pi f_{0,n}` [1/s]
+#     cycle_time : float array
+#         Cumulative cycle time, turn by turn, :math:`t_n = \sum_n T_{0,n}` [s]. 
+#         Possibility to extract cycle parameters at these moments using 
+#         'parameters_at_time'.
+# 
+#     Examples
+#     --------
+#     >>> # To declare a single-stationed synchrotron at constant energy:
+#     >>> from input_parameters.general_parameters import GeneralParameters
+#     >>>
+#     >>> n_turns = 10
+#     >>> C = 26659
+#     >>> alpha = 3.21e-4
+#     >>> momentum = 450e9
+#     >>> general_parameters = GeneralParameters(n_turns, C, eta, momentum, 
+#     >>>                                        'proton')
+#     >>>
+#     >>> # To declare a double-stationed synchrotron at constant energy and 
+#     >>> # higher-order momentum compaction factors:
+#     >>> from input_parameters.general_parameters import GeneralParameters
+#     >>>
+#     >>> n_turns = 10
+#     >>> C = [13000, 13659]
+#     >>> alpha = [[3.21e-4, 2.e-5, 5.e-7], [2.89e-4, 1.e-5, 5.e-7]]
+#     >>> momentum = 450e9
+#     >>> general_parameters = GeneralParameters(n_turns, C, eta, momentum, 
+#     >>>                                        'proton')
+#     
+#     """
     
     def __init__(self, GeneralParameters, n_rf, harmonic, voltage, phi_offset, 
                  phi_noise = None, omega_rf = None, section_index = 1, accelerating_systems = 'as_single'):

@@ -1,5 +1,5 @@
 
-# Copyright 2016 CERN. This software is distributed under the
+# Copyright 2014-2017 CERN. This software is distributed under the
 # terms of the GNU General Public License version 3 (GPL Version 3), 
 # copied verbatim in the file LICENSE.md.
 # In applying this license, CERN does not waive the privileges and immunities 
@@ -10,7 +10,8 @@
 '''
 **Function(s) for pre-processing input data**
 
-:Authors: **Helga Timko**, **Alexandre Lasheen**, **Danilo Quartullo**, **Simon Albright**
+:Authors: **Helga Timko**, **Alexandre Lasheen**, **Danilo Quartullo**, 
+    **Simon Albright**
 '''
 
 from __future__ import division
@@ -54,7 +55,7 @@ def preprocess_ramp(mass, circumference, time, momentum, #data, #data_type='mome
     '''
     
     # Definitions
-    Nd = len(time)
+#    Nd = len(time)
 #    if len(data) != Nd:
 #        raise RuntimeError(str(data)+' does not match the length of '+str(time))
 
@@ -98,65 +99,70 @@ def preprocess_ramp(mass, circumference, time, momentum, #data, #data_type='mome
     if interpolation=='linear':
         
         time_interp.append(time_interp[-1]
-                                     + circumference/(beta_interp[0]*c) )
+                           + circumference/(beta_interp[0]*c) )
 
         i = flat_bottom 
-        for k in range(1,Nd): 
+        for k in range(1,len(time)): 
             while time_interp[i+1] <= time[k]:
                 
-                momentum_interp.append(momentum[k-1] + (momentum[k] - momentum[k-1]) * (time_interp[i+1] - time[k-1])
-                                    / (time[k] - time[k-1])) 
+                momentum_interp.append(momentum[k-1] + (momentum[k] 
+                    - momentum[k-1]) * (time_interp[i+1] - time[k-1])
+                    / (time[k] - time[k-1])) 
                 
-                beta_interp.append(np.sqrt(1/(1 + (mass/momentum_interp[i+1])**2))) 
+                beta_interp.append(np.sqrt(1/(1 
+                    + (mass/momentum_interp[i+1])**2))) 
                 
                 time_interp.append(time_interp[i+1]
-                                     + circumference/(beta_interp[i+1]*c) )               
+                    + circumference/(beta_interp[i+1]*c) )               
             
                 i += 1
             
     elif interpolation=='cubic':
         
-        interp_funtion_momentum = splrep(time[(time>=time_start_ramp)*(time<=time_end_ramp)], 
-                                         momentum[(time>=time_start_ramp)*(time<=time_end_ramp)], 
-                                         s=smoothing)
+        interp_funtion_momentum = splrep(time[(time>=time_start_ramp) \
+            *(time<=time_end_ramp)], momentum[(time>=time_start_ramp) \
+            *(time<=time_end_ramp)], s=smoothing)
                   
         i = flat_bottom
        
-        time_interp.append(time_interp[-1]
-                         + circumference/(beta_interp[0]*c) )
+        time_interp.append(time_interp[-1] + circumference/(beta_interp[0]*c))
         
         while time_interp[i] <= time[-1]:
 
-            if (time_interp[i+1] < time_start_ramp) :
+            if (time_interp[i+1] < time_start_ramp):
 
                 momentum_interp.append(momentum[0]) 
                 
-                beta_interp.append(np.sqrt(1/(1 + (mass/momentum_interp[i+1])**2))) 
+                beta_interp.append(np.sqrt(1/(1 
+                    + (mass/momentum_interp[i+1])**2))) 
                 
                 time_interp.append(time_interp[i+1]
-                                     + circumference/(beta_interp[i+1]*c) )
+                    + circumference/(beta_interp[i+1]*c) )
                                      
             elif (time_interp[i+1] > time_end_ramp):
                 
                 momentum_interp.append(momentum[-1]) 
                 
-                beta_interp.append(np.sqrt(1/(1 + (mass/momentum_interp[i+1])**2))) 
+                beta_interp.append(np.sqrt(1/(1 
+                    + (mass/momentum_interp[i+1])**2))) 
                 
                 time_interp.append(time_interp[i+1]
-                                     + circumference/(beta_interp[i+1]*c) )
+                    + circumference/(beta_interp[i+1]*c) )
                 
             else:     
 
-                momentum_interp.append(splev(time_interp[i+1], interp_funtion_momentum))
+                momentum_interp.append(splev(time_interp[i+1], 
+                    interp_funtion_momentum))
                 
-                beta_interp.append(np.sqrt(1/(1 + (mass/momentum_interp[i+1])**2))) 
+                beta_interp.append(np.sqrt(1/(1 
+                    + (mass/momentum_interp[i+1])**2))) 
                 
                 time_interp.append(time_interp[i+1]
-                                         + circumference/(beta_interp[i+1]*c) )
+                    + circumference/(beta_interp[i+1]*c) )
 
             i += 1
         
-    #interpolate momentum in 1st derivative to maintain smooth B-dot
+    # Interpolate momentum in 1st derivative to maintain smooth B-dot
     elif interpolation == 'derivative':
 
         momentum_initial = momentum_interp[0]
@@ -172,19 +178,21 @@ def preprocess_ramp(mass, circumference, time, momentum, #data, #data_type='mome
 
         while time_interp[i] <= time[-1]:
 
-            derivative_point = np.interp(time_interp[i+1], time, momentum_derivative)
+            derivative_point = np.interp(time_interp[i+1], time, 
+                                         momentum_derivative)
             momentum_derivative_interp.append(derivative_point)
-            integral_point += (time_interp[i+1] - time_interp[i]) * derivative_point
+            integral_point += (time_interp[i+1] - time_interp[i]) \
+                * derivative_point
 
             momentum_interp.append(integral_point)
             beta_interp.append(np.sqrt(1/(1 + (mass/momentum_interp[i+1])**2)))
             time_interp.append(time_interp[i+1]
-                                + circumference/(beta_interp[i+1]*c) )
+                + circumference/(beta_interp[i+1]*c) )
 
             i += 1
 
-        #adjust result to get flat top energy correct as derivation + integration leads to ~10^-8 error in flat top momentum
-
+        #Adjust result to get flat top energy correct as derivation and
+        #integration leads to ~10^-8 error in flat top momentum
         momentum_interp = np.asarray(momentum_interp)
         momentum_interp -= momentum_interp[0]
         momentum_interp /= momentum_interp[-1]
@@ -195,8 +203,8 @@ def preprocess_ramp(mass, circumference, time, momentum, #data, #data_type='mome
  
     else:
         
-        raise RuntimeError("WARNING: Interpolation scheme in preprocess_arrays \
-                           not recognized. Aborting...")
+        raise RuntimeError('ERROR: Interpolation scheme in preprocess_arrays'+
+                           ' not recognized. Aborting...')
   
     time_interp.pop()
     time_interp = np.asarray(time_interp)
@@ -205,17 +213,21 @@ def preprocess_ramp(mass, circumference, time, momentum, #data, #data_type='mome
 
     # Obtain flat top data, extrapolate to constant
     if flat_top > 0:
-        time_interp = np.append(time_interp, time_interp[-1] + circumference*np.arange(1, flat_top+1)/(beta_interp[-1]*c))
+        time_interp = np.append(time_interp, time_interp[-1] 
+            + circumference*np.arange(1, flat_top+1)/(beta_interp[-1]*c))
         beta_interp = np.append(beta_interp, beta_interp[-1]*np.ones(flat_top))
-        momentum_interp = np.append(momentum_interp, momentum_interp[-1]*np.ones(flat_top))
+        momentum_interp = np.append(momentum_interp, 
+            momentum_interp[-1]*np.ones(flat_top))
  
         
     # Cutting the input momentum on the desired cycle time
     if (t_start != 0) or (t_end != -1):
         if t_end == -1:
             t_end = time[-1]   
-        momentum_interp = momentum_interp[(time_interp>=t_start)*(time_interp<=t_end)]
-        time_interp = time_interp[(time_interp>=t_start)*(time_interp<=t_end)]
+        momentum_interp = momentum_interp[(time_interp>=t_start) \
+            *(time_interp<=t_end)]
+        time_interp = time_interp[(time_interp>=t_start) \
+            *(time_interp<=t_end)]
         
     if plot:
         # Directory where longitudinal_plots will be stored
@@ -226,7 +238,8 @@ def preprocess_ramp(mass, circumference, time, momentum, #data, #data_type='mome
         ax = plt.axes([0.15, 0.1, 0.8, 0.8])
         ax.plot(time_interp[::sampling], momentum_interp[::sampling], 
                 label='Interpolated momentum')
-        ax.plot(time, momentum, '.', label='input momentum', color='r', markersize=0.5)
+        ax.plot(time, momentum, '.', label='input momentum', color='r', 
+                markersize=0.5)
         ax.set_xlabel("Time [s]")    
         ax.set_ylabel ("p [eV]")
         ax.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
