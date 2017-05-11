@@ -14,7 +14,32 @@
 from __future__ import division
 from builtins import object
 import numpy as np
+from scipy.constants import m_p, m_e, e, c
 from trackers.utilities import is_in_separatrix
+
+
+
+class Particle(object):
+    
+    def __init__(self, user_mass, user_charge):
+        
+        if user_mass > 0.:
+            self.mass = float(user_mass)
+            self.charge = float(user_charge)
+        else:
+            raise RuntimeError('ERROR: Particle mass not recognized!')
+        
+class Proton(Particle):
+    
+    def __init__(self):        
+        
+        Particle.__init__(self, float(m_p*c**2/e), np.float(1))
+
+class Electron(Particle):
+        
+    def __init__(self):        
+        self.mass =  float(m_e*c**2/e)
+        self.charge = float(-1)
 
 
 

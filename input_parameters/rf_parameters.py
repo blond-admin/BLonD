@@ -173,7 +173,8 @@ class RFSectionParameters(object):
 #     """
     
     def __init__(self, GeneralParameters, n_rf, harmonic, voltage, phi_offset, 
-                 phi_noise = None, omega_rf = None, section_index = 1, accelerating_systems = 'as_single'):
+                 phi_noise = None, omega_rf = None, section_index = 1, 
+                 accelerating_systems = 'as_single'):
         
         #: | *Counter to keep track of time step (used in momentum and voltage)*
         #: | *Definined as a list in order to be passed by reference.*

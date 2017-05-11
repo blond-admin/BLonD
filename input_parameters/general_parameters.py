@@ -16,8 +16,9 @@ from __future__ import division
 from builtins import str, range, object
 import numpy as np
 import warnings
-from scipy.constants import m_p, m_e, e, c
-from input_parameters.preprocess import preprocess_ramp
+from scipy.constants import c
+from input_parameters.preprocess import PreprocessRamp
+from beams.beams import Proton
 
 
 
@@ -51,16 +52,19 @@ class GeneralParameters(object):
         etc.]. In case of several sections with acceleration, input:
         [momentum_program_section_1, momentum_program_section_2, etc.]. Can
         be input also as a tuple of time and momentum, see also
-        'cumulative_times'
-    particle_type : string
-        Primary particle type that is reference for the momentum; Recognized
-        types are 'proton' and 'electron'. Use 'user_input' to input mass and
-        charge manually
+        'cycle_time' and 'PreprocessRamp'
     synchronous_data_type : string
         Choice of 'synchronous_data' type; can be 'momentum' (default),
         'total_energy' or 'kinetic_energy'
+    Particle : class
+        A Particle-based class defining the primary, synchronous particle (mass
+        and charge) that is reference for the momentum/energy in the ring. 
+        Default is Proton().
     n_sections : int
         Optional: number of RF sections [1] over the ring; default is 1  
+    PreprocessRamp : class
+        A PreprocessRamp-based class defining smoothing, interpolation, etc. 
+        options for synchronous_data that comes as a tuple.
            
     Attributes
     ----------
@@ -117,31 +121,39 @@ class GeneralParameters(object):
     Examples
     --------
     >>> # To declare a single-stationed synchrotron at constant energy:
+    >>> # Particle type Proton
     >>> from input_parameters.general_parameters import GeneralParameters
     >>>
     >>> n_turns = 10
     >>> C = 26659
     >>> alpha = 3.21e-4
     >>> momentum = 450e9
-    >>> general_parameters = GeneralParameters(n_turns, C, eta, momentum, 
-    >>>                                        'proton')
+    >>> general_parameters = GeneralParameters(n_turns, C, alpha, momentum) 
+    >>>                                        
     >>>
     >>> # To declare a double-stationed synchrotron at constant energy and 
-    >>> # higher-order momentum compaction factors:
+    >>> # higher-order momentum compaction factors; particle Electron:
+    >>> from beams.beams import Electron
     >>> from input_parameters.general_parameters import GeneralParameters
     >>>
     >>> n_turns = 10
     >>> C = [13000, 13659]
     >>> alpha = [[3.21e-4, 2.e-5, 5.e-7], [2.89e-4, 1.e-5, 5.e-7]]
     >>> momentum = 450e9
-    >>> general_parameters = GeneralParameters(n_turns, C, eta, momentum, 
-    >>>                                        'proton')
+    >>> general_parameters = GeneralParameters(n_turns, C, alpha, momentum, 
+    >>>                                        Particle = Electron())
     
     """
+#     particle_type : string
+#         Primary particle type that is reference for the momentum; Recognized
+#         types are 'proton' and 'electron'. Use 'user_input' to input mass and
+#         charge manually
     
     def __init__(self, n_turns, ring_length, alpha, synchronous_data, 
-                 particle_type, synchronous_data_type = 'momentum',
-                 user_mass = None, user_charge = None, n_sections = 1): 
+                 synchronous_data_type = 'momentum', Particle = Proton(), 
+                 n_sections = 1, PreprocessRamp = PreprocessRamp()): 
+#                 particle_type, synchronous_data_type = 'momentum',
+#                 user_mass = None, user_charge = None, n_sections = 1): 
         
         self.n_turns = int(n_turns) 
         self.n_sections = int(n_sections)
@@ -167,22 +179,26 @@ class GeneralParameters(object):
                                ' compaction factor size do not match!')    
                 
         # Particle type, checks, and derived mass and charge
-        self.particle_type = str(particle_type)        
-        if self.particle_type is 'proton':
-            self.mass =  float(m_p*c**2/e) 
-            self.charge = float(1) 
-        elif self.particle_type is 'electron':
-            self.mass =  float(m_e*c**2/e)
-            self.charge = float(-1)
-        elif self.particle_type is 'user_input':
-            if user_mass > 0. and user_charge > 0.:
-                self.mass = float(user_mass)
-                self.charge = float(user_charge)
-            else:
-                raise RuntimeError('ERROR: Particle mass and/or charge not'+
-                                   ' recognized!')
-        else:
-            raise RuntimeError('ERROR: Particle type not recognized!')
+#         self.particle_type = str(particle_type)        
+#         if self.particle_type == 'proton':
+#             self.mass =  float(m_p*c**2/e) 
+#             self.charge = float(1) 
+#         elif self.particle_type == 'electron':
+#             self.mass =  float(m_e*c**2/e)
+#             self.charge = float(-1)
+#         elif self.particle_type == 'user_input':
+#             if user_mass > 0. and user_charge > 0.:
+#                 self.mass = float(user_mass)
+#                 self.charge = float(user_charge)
+#             else:
+#                 raise RuntimeError('ERROR: Particle mass and/or charge not'+
+#                                    ' recognized!')
+#         else:
+#             raise RuntimeError('ERROR: Particle type not recognized!')
+
+        # Primary particle mass and charge used for energy calculations
+        self.mass = Particle.mass
+        self.charge = Particle.charge
         
         # If tuple, separate time and synchronous data
         if type(synchronous_data)==tuple:
@@ -204,11 +220,9 @@ class GeneralParameters(object):
 
         # Synchronous momentum and checks
         if type(synchronous_data)==tuple:
-            self.cycle_time, self.momentum = preprocess_ramp(self.mass, 
-                self.ring_circumference, self.cycle_time, self.momentum, 
-                interpolation = 'linear', smoothing = 0, flat_bottom = 0, 
-                flat_top = 0, t_start = 0, t_end = -1, plot = False, 
-                figdir = 'fig', figname = 'data', sampling = 1)
+            self.cycle_time, self.momentum = PreprocessRamp.preprocess(
+                self.mass, self.ring_circumference, self.cycle_time, 
+                self.momentum)
         else:
             self.momentum = np.array(self.momentum, ndmin = 2)
         if self.n_sections != self.momentum.shape[0]:
@@ -242,41 +256,41 @@ class GeneralParameters(object):
         
                 
                 
-    def add_species(self, particle_type_2, user_mass_2 = None, 
-                    user_charge_2 = None):
-        """ Function to declare an optional second particle type
-    
-        Parameters
-        ----------
-        particle_type_2 : string
-            secondary particle type that is not a reference for the momentum; 
-            Recognized types are 'proton' and 'electron'. 
-            Use 'user_input' to input mass and charge manually.    
-
-        Attributes
-        ----------
-        mass2 : float
-            primary particle mass :math:`m_2` [eV].
-        charge2 : float
-            primary particle charge :math:`q_2` [e].
-        """
-        
-        self.particle_type_2 = str(particle_type_2)
-        if self.particle_type_2 is 'proton':
-            self.mass2 =  float(m_p*c**2/e)
-            self.charge2 = float(1)
-        elif self.particle_type_2 is 'electron':
-            self.mass2 =  float(m_e*c**2/e)
-            self.charge2 = float(-1)
-        elif self.particle_type_2 is 'user_input':
-            if user_mass_2 > 0. and user_charge_2 > 0.:
-                self.mass2 = float(user_mass_2)
-                self.charge2 = float(user_charge_2)
-            else:
-                raise RuntimeError('ERROR: Particle mass and/or charge not'+
-                                   ' recognized!')
-        else:
-            raise RuntimeError('ERROR: Second particle type not recognized!')
+#     def add_species(self, particle_type_2, user_mass_2 = None, 
+#                     user_charge_2 = None):
+#         """ Function to declare an optional second particle type
+#     
+#         Parameters
+#         ----------
+#         particle_type_2 : string
+#             secondary particle type that is not a reference for the momentum; 
+#             Recognized types are 'proton' and 'electron'. 
+#             Use 'user_input' to input mass and charge manually.    
+# 
+#         Attributes
+#         ----------
+#         mass2 : float
+#             primary particle mass :math:`m_2` [eV].
+#         charge2 : float
+#             primary particle charge :math:`q_2` [e].
+#         """
+#         
+#         self.particle_type_2 = str(particle_type_2)
+#         if self.particle_type_2 == 'proton':
+#             self.mass2 =  float(m_p*c**2/e)
+#             self.charge2 = float(1)
+#         elif self.particle_type_2 == 'electron':
+#             self.mass2 =  float(m_e*c**2/e)
+#             self.charge2 = float(-1)
+#         elif self.particle_type_2 == 'user_input':
+#             if user_mass_2 > 0. and user_charge_2 > 0.:
+#                 self.mass2 = float(user_mass_2)
+#                 self.charge2 = float(user_charge_2)
+#             else:
+#                 raise RuntimeError('ERROR: Particle mass and/or charge not'+
+#                                    ' recognized!')
+#         else:
+#             raise RuntimeError('ERROR: Second particle type not recognized!')
 
     
     def eta_generation(self):
