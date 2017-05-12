@@ -18,6 +18,7 @@ from builtins import str, range, object
 import numpy as np
 from scipy.constants import c
 from scipy.integrate import cumtrapz
+from beams.beams import Proton
 
 
 
@@ -46,11 +47,6 @@ def input_check(input_value, expected_length):
     
 
 class RFSectionParameters(object):
-#     '''
-#     *Object gathering all the RF parameters for one section (sections defined 
-#     in tracker.RingAndRFSection), and pre-processing them for later use.*
-#     
-#     '''
     r""" Class containing all the RF parameters for all the RF systems in one 
     ring segment or RF section.
 
@@ -74,6 +70,35 @@ class RFSectionParameters(object):
     ----------
     GeneralParameters : class
         A GeneralParameters-based class
+    n_turns : int 
+        Inherited from
+        :py:attr:`input_parameters.general_parameters.GeneralParameters`
+    ring_circumference : float
+        Inherited from
+        :py:attr:`input_parameters.general_parameters.GeneralParameters`
+    section_length : float
+        Length :math:`L_k` of the RF section; inherited from 
+        :py:attr:`input_parameters.general_parameters.GeneralParameters`
+    length_ratio : float
+        Fractional RF section length :math:`L_k/C`
+    t_rev : float array
+        Inherited from
+        :py:attr:`input_parameters.general_parameters.GeneralParameters`
+    momentum : float array
+        Momentum program of the present RF section; inherited from
+        :py:attr:`input_parameters.general_parameters.GeneralParameters`
+    beta : float array
+        Relativistic beta of the present RF section; inherited from
+        :py:attr:`input_parameters.general_parameters.GeneralParameters`
+    gamma : float array
+        Relativistic gamma of the present RF section; inherited from
+        :py:attr:`input_parameters.general_parameters.GeneralParameters`
+    energy : float array
+        Total energy of the present RF section; inherited from
+        :py:attr:`input_parameters.general_parameters.GeneralParameters`
+    delta_E : float array
+        Time derivative of total energy of the present section; inherited from
+        :py:attr:`input_parameters.general_parameters.GeneralParameters`
     n_rf : int
         Number of harmonic RF systems in the section
     harmonic : float (opt: float array/matrix)
@@ -92,61 +117,31 @@ class RFSectionParameters(object):
         Programmed RF revolution frequency, :math:`\omega_{rf,l,n}` [rad]. 
         For input options, see above. Default value is :math:`\omega_{rf,l,n}
         = \frac{h_{l,n} \beta_{l,n} c}{R_{s,n}}`
+    Particle : class
+        A Particle-based class defining the primary, synchronous particle (mass
+        and charge) that is used to calculate phi_s and Qs; default is Proton()
+        
+    Attributes
+    ----------
+    counter : int
+        Counter of the current simulation time step; defined as a list in 
+        order to be passed by reference
+    section_index : int                    
+        Unique index :math:`k` of the RF section the present class is defined 
+        for. Input in the range 1..n_sections (see 
+        :py:class:`input_parameters.general_parameters.GeneralParameters`). 
+        Inside the code, indices 0..n_sections-1 are used.
+    phi_s : float array
+        Synchronous phase for this section, calculated in 
+        :py:func:`input_parameters.rf_parameters.calculate_phi_s`
+    Q_s : float array
+        Synchrotron tune for this section, calculated in 
+        :py:func:`input_parameters.rf_parameters.calculate_Q_s`
+
+
+
         
     """
-           
-#     Attributes
-#     ----------
-#     ring_circumference : float
-#         Circumference of the synchrotron. Sum of ring segment lengths,
-#         :math:`C = \sum_k L_k` [m]    
-#     ring_radius : float
-#         Radius of the synchrotron, :math:`R = C/(2 \pi)` [m]
-#     alpha_order : int
-#         Number of orders of the momentum compaction factor
-#     eta_0 : float
-#         Zeroth order slippage factor :math:`\eta_{0,k} = \alpha_{0,k} - 
-#         \frac{1}{\gamma_{s,k}^2}` [1]
-#     eta_1 : float
-#         First order slippage factor :math:`\eta_{1,k} = 
-#         \frac{3\beta_{s,k}^2}{2\gamma_{s,k}^2} + \alpha_{1,k} - 
-#         \alpha_{0,k}\eta_{0,k}` [1]
-#     eta_2 : float
-#         Second order slippage factor :math:`\eta_{2,k} = 
-#         -\frac{\beta_{s,k}^2\left(5\beta_{s,k}^2-1\right)}{2\gamma_{s,k}^2} 
-#         + \alpha_{2,k} - 2\alpha_{0,k}\alpha_{1,k} 
-#         + \frac{\alpha_{1,k}}{\gamma_{s,k}^2} + \alpha_{0,k}^2\eta_{0,k} 
-#         - \frac{3\beta_{s,k}^2\alpha_{0,k}}{2\gamma_{s,k}^2}` [1]
-#     mass : float
-#         Primary particle mass :math:`m` [eV]
-#     charge : float
-#         Primary particle charge :math:`q` [e]
-#     beta : float matrix
-#         Synchronous relativistic beta program for each segment of the
-#         ring :math:`\beta_{s,k}^n = \frac{1}{\sqrt{1 
-#         + \left(\frac{m}{p_{s,k,n}}\right)^2} }` [1]
-#     gamma : float matrix
-#         Synchronous relativistic gamma program for each segment of the ring
-#         :math:`\gamma_{s,k,n} = \sqrt{ 1 
-#         + \left(\frac{p_{s,k,n}}{m}\right)^2 }` [1] 
-#     energy : float matrix
-#         Synchronous total energy program for each segment of the ring
-#         :math:`E_{s,k,n} = \sqrt{ p_{s,k,n}^2 + m^2 }` [eV]
-#     kin_energy : float matrix
-#         Synchronous kinetic energy program for each segment of the ring
-#         :math:`E_{s,kin} = \sqrt{ p_{s,k,n}^2 + m^2 } - m` [eV]
-#     t_rev : float array
-#         Revolution period turn by turn.
-#         :math:`T_{0,n} = \frac{C}{\beta_{s,n} c}` [s]
-#     f_rev : float array
-#         Revolution frequency :math:`f_{0,n} = \frac{1}{T_{0,n}}` [Hz]
-#     omega_rev : float array
-#         Revolution angular frequency :math:`\omega_{0,n} = 2\pi f_{0,n}` [1/s]
-#     cycle_time : float array
-#         Cumulative cycle time, turn by turn, :math:`t_n = \sum_n T_{0,n}` [s]. 
-#         Possibility to extract cycle parameters at these moments using 
-#         'parameters_at_time'.
-# 
 #     Examples
 #     --------
 #     >>> # To declare a single-stationed synchrotron at constant energy:
@@ -174,52 +169,30 @@ class RFSectionParameters(object):
     
     def __init__(self, GeneralParameters, n_rf, harmonic, voltage, phi_offset, 
                  phi_noise = None, omega_rf = None, section_index = 1, 
-                 accelerating_systems = 'as_single'):
+                 accelerating_systems = 'as_single', Particle = Proton()):
         
-        #: | *Counter to keep track of time step (used in momentum and voltage)*
-        #: | *Definined as a list in order to be passed by reference.*
-        self.counter = [0]
-                
-        #: | *Index of the RF section -- has to be unique*
-        #: | *Counter for RF section is:* :math:`k`
-        #: | *In the user input, the section_index goes from 1 to k*
-        #: | *This index is then corrected in the constructor in order to go from 0 to k-1 (as Python indexing starts from 0)*
-        self.section_index = section_index - 1
-        
-        #: | *Number of turns for the simulation*
-        #: | *Counter for turns is:* :math:`n`
+        # Imported from GeneralParameters
         self.n_turns = GeneralParameters.n_turns
-        
-        #: *Import ring circumference [m] (from GeneralParameters)*
         self.ring_circumference = GeneralParameters.ring_circumference
-        
-        #: *Import section length [m] (from GeneralParameters)*
         self.section_length = GeneralParameters.ring_length[self.section_index]
-        
-        #: *Length ratio of the section wrt the circumference*
-        self.length_ratio = self.section_length/self.ring_circumference
-        
-        #: *Import revolution period [s] (from GeneralParameters)*       
+        self.length_ratio = float(self.section_length/self.ring_circumference)
         self.t_rev = GeneralParameters.t_rev
-        
-        #: *Import momentum program [eV] (from GeneralParameters)*
         self.momentum = GeneralParameters.momentum[self.section_index]
-        
-        #: *Import synchronous relativistic beta [1] (from GeneralParameters)*
         self.beta = GeneralParameters.beta[self.section_index]
-        
-        #: *Import synchronous relativistic gamma [1] (from GeneralParameters)*
         self.gamma = GeneralParameters.gamma[self.section_index]
-        
-        #: *Import synchronous total energy [eV] (from GeneralParameters)*
         self.energy = GeneralParameters.energy[self.section_index]
+        self.delta_E = GeneralParameters.delta_E[self.section_index]
+
+        self.counter = [int(0)]
+        self.section_index = int(section_index - 1)
+        if self.section_index < 0 \
+            or self.section_index > GeneralParameters.n_sections - 1:
+            raise RuntimeError('ERROR in RFSectionParameters: section_index'+
+                ' out of allowed range!')   
         
-        #: *Energy increment (acceleration/deceleration) between two turns,
-        #: for one section in [eV]* :math:`: \quad E_s^{n+1}- E_s^n`
-        self.E_increment = np.diff(self.energy)
-        
-        #: *Import particle mass [e] (from GeneralParameters)*
-        self.charge = GeneralParameters.charge
+# STOPPED HERE        
+#        #: *Import particle mass [e] (from GeneralParameters)*
+#        self.charge = GeneralParameters.charge
         
         #: *Slippage factor (0th order) for the given RF section*
         self.eta_0 = 0
@@ -308,13 +281,10 @@ class RFSectionParameters(object):
         #: *Accumulated RF phase error of each harmonic system*
         self.dphi_RF_steering = np.zeros(self.n_rf)
         
-        #: *Synchronous phase for this section, calculated from the transition
-        #: energy and the momentum program.*
-        self.phi_s = calc_phi_s(self, accelerating_systems)   
         
         #: *Synchrotron tune [1]*                         
-        self.Qs = np.sqrt( self.harmonic[0]*self.charge*self.voltage[0]*np.abs(self.eta_0*np.cos(self.phi_s)) / \
-                                 (2*np.pi*self.beta**2*self.energy) ) 
+#        self.Q_s = np.sqrt( self.harmonic[0]*self.charge*self.voltage[0]*np.abs(self.eta_0*np.cos(self.phi_s)) / \
+#                                 (2*np.pi*self.beta**2*self.energy) ) 
         
         #: *Central angular synchronous frequency, w/o intensity effects [1/s]*
         self.omega_s0 = self.Qs*GeneralParameters.omega_rev
@@ -329,6 +299,14 @@ class RFSectionParameters(object):
 
         self.t_RF = 2*np.pi / self.omega_RF[0]
         
+# END OF STOPPED HERE             
+        
+        
+        # From helper functions
+        self.phi_s = calculate_phi_s(self, Particle, accelerating_systems)
+        self.Q_s = calculate_Q_s(self, Particle)   
+
+
  
         
     def eta_tracking(self, beam, counter, dE):
@@ -354,7 +332,13 @@ class RFSectionParameters(object):
 
 
 
-def calc_phi_s(RFSectionParameters, accelerating_systems = 'as_single'):
+def calculate_Q_s(RFSectionParameters, Particle = Proton()):
+
+    return np.sqrt( RFSectionParameters.harmonic[0]*Particle.charge*RFSectionParameters.voltage[0]*np.abs(RFSectionParameters.eta_0*np.cos(RFSectionParameters.phi_s)) / \
+                                 (2*np.pi*RFSectionParameters.beta**2*RFSectionParameters.energy) )
+
+def calculate_phi_s(RFSectionParameters, Particle = Proton(),
+                    accelerating_systems = 'as_single'):
     '''
     Calculation of the synchronous phase at every turn
     according to the parameters in the RFSectionParameters object. The
@@ -381,10 +365,10 @@ def calc_phi_s(RFSectionParameters, accelerating_systems = 'as_single'):
     eta0 = RFSectionParameters.eta_0
     
     if accelerating_systems == 'as_single':
-        denergy = np.append(RFSectionParameters.E_increment, 
-                            RFSectionParameters.E_increment[-1])             
+        denergy = np.append(RFSectionParameters.delta_E, 
+                            RFSectionParameters.delta_E[-1])             
         acceleration_ratio = denergy/ \
-                             (RFSectionParameters.charge*
+                             (Particle.charge*
                               RFSectionParameters.voltage[0,:])
 
         acceleration_test = np.where((acceleration_ratio > -1)*\
@@ -416,7 +400,7 @@ def calc_phi_s(RFSectionParameters, accelerating_systems = 'as_single'):
             
             phi_s = np.zeros(len(RFSectionParameters.voltage[0,1:]))
             
-            for indexTurn in range(len(RFSectionParameters.E_increment)):
+            for indexTurn in range(len(RFSectionParameters.delta_E)):
                 
                 totalRF = 0
                 if np.sign(eta0[indexTurn])>0:
@@ -427,7 +411,7 @@ def calc_phi_s(RFSectionParameters, accelerating_systems = 'as_single'):
                 for indexRF in range(len(RFSectionParameters.voltage[:,indexTurn+1])):
                     totalRF += RFSectionParameters.voltage[indexRF,indexTurn+1] * np.sin(RFSectionParameters.harmonic[indexRF,indexTurn+1]/np.min(RFSectionParameters.harmonic[:,indexTurn+1]) * phase_array + RFSectionParameters.phi_RF[indexRF,indexTurn+1]) #
                     
-                potential_well = - cumtrapz(np.sign(eta0[indexTurn])*(totalRF - RFSectionParameters.E_increment[indexTurn]/abs(RFSectionParameters.charge)), dx=phase_array[1]-phase_array[0], initial=0)
+                potential_well = - cumtrapz(np.sign(eta0[indexTurn])*(totalRF - RFSectionParameters.delta_E[indexTurn]/abs(Particle.charge)), dx=phase_array[1]-phase_array[0], initial=0)
 
                 phi_s[indexTurn] = np.mean(phase_array[potential_well==np.min(potential_well)])
 

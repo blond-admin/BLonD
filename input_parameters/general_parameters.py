@@ -24,15 +24,15 @@ from beams.beams import Proton
 
 class GeneralParameters(object):
     r""" Class containing the general properties of the synchrotron that are
-    independent of the RF system or the beam. 
+    independent of the RF system or the beam.
     
-    The index :math:`n` denotes time steps, :math:`k` ring segments and 
-    :math:`i` momentum compaction orders.
+    The index :math:`n` denotes time steps, :math:`k` ring segments/sections
+    and :math:`i` momentum compaction orders.
     
     Parameters
     ----------
     n_turns : int
-        Number of turns [1] to be simulated
+        Number of turns :math:`n` [1] to be simulated
     ring_length : float
         Length [m] of the n_sections ring segments of the synchrotron.
         Input as a list for multiple RF stations
@@ -106,6 +106,9 @@ class GeneralParameters(object):
     kin_energy : float matrix
         Synchronous kinetic energy program for each segment of the ring
         :math:`E_{s,kin} = \sqrt{ p_{s,k,n}^2 + m^2 } - m` [eV]
+    delta_E : float matrix
+        Derivative of synchronous total energy w.r.t. time, for all sections,
+        :math:`: \quad E_{s,k,n+1}- E_{s,k,n}` [eV]
     t_rev : float array
         Revolution period turn by turn.
         :math:`T_{0,n} = \frac{C}{\beta_{s,n} c}` [s]
@@ -163,20 +166,21 @@ class GeneralParameters(object):
         self.ring_circumference = np.sum(self.ring_length)
         self.ring_radius = self.ring_circumference/(2*np.pi)         
         if self.n_sections != len(self.ring_length): 
-            raise RuntimeError('ERROR: Number of sections and ring length'+
-                               ' size do not match!')    
+            raise RuntimeError('ERROR in GeneralParameters: Number of '+
+                'sections and ring length size do not match!')    
         
         # Momentum compaction, checks, and derived slippage factors
         self.alpha = np.array(alpha, ndmin = 2, dtype = float) 
         self.alpha_order = int(self.alpha.shape[1])
         if self.alpha_order > 3:
             warnings.filterwarnings("once")
-            warnings.warn('WARNING: Momentum compaction factor is implemented'+
-                          ' only up to 2nd order. Higher orders are ignored.')
+            warnings.warn('WARNING in GeneralParameters: Momentum compaction'+
+                ' factor is implemented only up to 2nd order. Higher orders'+
+                ' are ignored.')
             self.alpha_order = 3         
         if self.n_sections != self.alpha.shape[0]:
-            raise RuntimeError('ERROR: Number of sections and the momentum'+
-                               ' compaction factor size do not match!')    
+            raise RuntimeError('ERROR in GeneralParameters: Number of '+
+                'sections and size of momentum compaction do not match!')    
                 
         # Particle type, checks, and derived mass and charge
 #         self.particle_type = str(particle_type)        
@@ -205,8 +209,8 @@ class GeneralParameters(object):
             self.cycle_time = synchronous_data[0]
             self.momentum = synchronous_data[1]
             if len(self.cycle_time) != len(self.momentum):
-                raise RuntimeError('ERROR: sychronous data does not match'+
-                                   ' the time data!')
+                raise RuntimeError('ERROR in GeneralParameters: sychronous'+
+                    ' data does not match the time data')
         # Convert synchronous data to momentum, if necessary
         if synchronous_data_type == 'momentum':
             self.momentum = synchronous_data
@@ -216,7 +220,8 @@ class GeneralParameters(object):
             self.momentum = np.sqrt((synchronous_data+self.mass)**2 -
                                     self.mass**2)
         else:
-            raise RuntimeError('ERROR: Synchronous data type not recognized!')
+            raise RuntimeError('ERROR in GeneralParameters: Synchronous data'+
+                ' type not recognized!')
 
         # Synchronous momentum and checks
         if type(synchronous_data)==tuple:
@@ -226,8 +231,8 @@ class GeneralParameters(object):
         else:
             self.momentum = np.array(self.momentum, ndmin = 2)
         if self.n_sections != self.momentum.shape[0]:
-            raise RuntimeError('ERROR: Number of sections and momentum data'+
-                               ' do not match!')           
+            raise RuntimeError('ERROR in GeneralParameters: Number of'+
+                ' sections and momentum data do not match!')           
         if self.n_sections > 1:
             if self.momentum.shape[1] == 1:
                 self.momentum = self.momentum*np.ones(self.n_turns + 1)
@@ -235,14 +240,15 @@ class GeneralParameters(object):
             if self.momentum.size == 1:
                 self.momentum = self.momentum*np.ones(self.n_turns + 1)
         if not self.momentum.shape[1] == self.n_turns + 1:
-                raise RuntimeError('ERROR: The momentum program does not'+ 
-                                   'match the proper length (n_turns+1)')
+                raise RuntimeError('ERROR in GeneralParameters: The momentum'+
+                    ' program does not match the proper length (n_turns+1)')
          
         # Derived from momentum
         self.beta = np.sqrt(1/(1 + (self.mass/self.momentum)**2))
         self.gamma = np.sqrt(1 + (self.momentum/self.mass)**2) 
         self.energy = np.sqrt(self.momentum**2 + self.mass**2)
         self.kin_energy = np.sqrt(self.momentum**2 + self.mass**2) - self.mass
+        self.delta_E = np.diff(self.energy, axis=1)
         self.t_rev = np.dot(self.ring_length, 1/(self.beta*c))
         self.cycle_time = np.cumsum(self.t_rev) # Always starts with zero
         self.f_rev = 1/self.t_rev
