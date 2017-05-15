@@ -99,24 +99,38 @@ class RFSectionParameters(object):
     delta_E : float array
         Time derivative of total energy of the present section; inherited from
         :py:attr:`input_parameters.general_parameters.GeneralParameters`
+    alpha_order : int
+        Inherited from
+        :py:attr:`input_parameters.general_parameters.GeneralParameters`
+    eta_0 : float array
+        Zeroth order slippage factor of the present section; inherited from
+        :py:attr:`input_parameters.general_parameters.GeneralParameters`
+    eta_1 : float array
+        First order slippage factor of the present section; inherited from
+        :py:attr:`input_parameters.general_parameters.GeneralParameters`
+    eta_2 : float array
+        Second order slippage factor of the present section; inherited from
+        :py:attr:`input_parameters.general_parameters.GeneralParameters`
+    sign_eta_0 : float array
+        Sign of the eta_0 array
     n_rf : int
-        Number of harmonic RF systems in the section
+        Number of harmonic RF systems in the section :math:`l`
     harmonic : float (opt: float array/matrix)
         Harmonic number of the RF system, :math:`h_{l,n}` [1]. For input 
         options, see above
     voltage : float (opt: float array/matrix)
         RF cavity voltage as seen by the beam, :math:`V_{l,n}` [V]. For input 
         options, see above
-    phi_offset : float (opt: float array/matrix)
-        Programmed RF cavity phase offset, :math:`\phi_{l,n}` [rad]. 
-        For input options, see above
+    phi_rf_d : float (opt: float array/matrix)
+        Programmed/designed RF cavity phase, 
+        :math:`\phi_{d,l,n}` [rad]. For input options, see above
     phi_noise : float (opt: float array/matrix)
-        Optional, programmed RF cavity phase noise, :math:`\phi_{N,l,n}` [rad]. 
-        For input options, see above
+        Optional, programmed RF cavity phase noise, :math:`\phi_{N,l,n}` [rad].
+        Added to all RF systems in the station. For input options, see above
     omega_rf : float (opt: float array/matrix)
-        Programmed RF revolution frequency, :math:`\omega_{rf,l,n}` [rad]. 
-        For input options, see above. Default value is :math:`\omega_{rf,l,n}
-        = \frac{h_{l,n} \beta_{l,n} c}{R_{s,n}}`
+        Actual RF revolution frequency, :math:`\omega_{rf,l,n}` [rad]. 
+        For input options, see above. The default value is the design frequency
+        :math:`\omega_{rf,l,n} = \omega_{d,l,n}`
     Particle : class
         A Particle-based class defining the primary, synchronous particle (mass
         and charge) that is used to calculate phi_s and Qs; default is Proton()
@@ -131,12 +145,29 @@ class RFSectionParameters(object):
         for. Input in the range 1..n_sections (see 
         :py:class:`input_parameters.general_parameters.GeneralParameters`). 
         Inside the code, indices 0..n_sections-1 are used.
+    phi_rf : float matrix
+        Actual RF cavity phase of each harmonic system, 
+        :math:`\phi_{rf,l,n}` [rad]. Initially the same as the designed phase.
+    dphi_rf : float matrix
+        Accumulated RF phase error of each harmonic system 
+        :math:`\Delta \phi_{rf,l,n}` [rad]
+    omega_rf_d : float matrix
+        Design RF frequency of the RF systems in the station 
+        :math:`\omega_{d,l,n} = \frac{h_{l,n} \beta_{l,n} c}{R_{s,n}}` [Hz]
+    t_rf : float matrix
+        RF period :math:`\frac{2 \pi}{\omega_{rf,l,n}}` [s]
     phi_s : float array
         Synchronous phase for this section, calculated in 
         :py:func:`input_parameters.rf_parameters.calculate_phi_s`
     Q_s : float array
         Synchrotron tune for this section, calculated in 
         :py:func:`input_parameters.rf_parameters.calculate_Q_s`
+    omega_s0 : float array
+        Central synchronous angular frequency corresponding to Q_s (single
+        harmonic, no intensity effects) 
+        :math:`\omega_{s,0} = Q_s \omega_{\text{rev}}` [1/s], where 
+        :math:`\omega_{\text{rev}}` is defined in 
+        :py:class:`input_parameters.general_parameters.GeneralParameters`)  
 
 
 
@@ -167,7 +198,7 @@ class RFSectionParameters(object):
 #     
 #     """
     
-    def __init__(self, GeneralParameters, n_rf, harmonic, voltage, phi_offset, 
+    def __init__(self, GeneralParameters, n_rf, harmonic, voltage, phi_rf_d, 
                  phi_noise = None, omega_rf = None, section_index = 1, 
                  accelerating_systems = 'as_single', Particle = Proton()):
         
@@ -182,130 +213,80 @@ class RFSectionParameters(object):
         self.gamma = GeneralParameters.gamma[self.section_index]
         self.energy = GeneralParameters.energy[self.section_index]
         self.delta_E = GeneralParameters.delta_E[self.section_index]
+        self.alpha_order = GeneralParameters.alpha_order
+        self.eta_0 = 0
+        self.eta_1 = 0
+        self.eta_2 = 0
+        for i in range( self.alpha_order ):
+            dummy = getattr(GeneralParameters, 'eta_' + str(i))
+            setattr(self, "eta_%s" %i, dummy[self.section_index])
+        self.sign_eta_0 = np.sign(self.eta_0)   
 
+        # Different indices
         self.counter = [int(0)]
         self.section_index = int(section_index - 1)
         if self.section_index < 0 \
             or self.section_index > GeneralParameters.n_sections - 1:
             raise RuntimeError('ERROR in RFSectionParameters: section_index'+
-                ' out of allowed range!')   
-        
-# STOPPED HERE        
-#        #: *Import particle mass [e] (from GeneralParameters)*
-#        self.charge = GeneralParameters.charge
-        
-        #: *Slippage factor (0th order) for the given RF section*
-        self.eta_0 = 0
-        #: *Slippage factor (1st order) for the given RF section*
-        self.eta_1 = 0
-        #: *Slippage factor (2nd order) for the given RF section*
-        self.eta_2 = 0
-        
-        #: *Import alpha order for the section (from GeneralParameters)*
-        self.alpha_order = GeneralParameters.alpha_order
-        for i in range( self.alpha_order ):
-            dummy = getattr(GeneralParameters, 'eta_' + str(i))
-            setattr(self, "eta_%s" %i, dummy[self.section_index])
-        #: *Sign of eta_0*
-        self.sign_eta_0 = np.sign(self.eta_0)   
-        
-        #: | *Number of RF systems in the section* :math:`: \quad n_{\mathsf{rf}}`
-        #: | *Counter for RF is:* :math:`j`
+                ' out of allowed range!')    
         self.n_rf = n_rf
-        
-        #: | *RF harmonic number list* :math:`: \quad h_{j,k}^n`
-        #: | *See note above on how to input RF programs.*
-        self.harmonic = 0
-        
-        #: | *RF voltage program list in [eV]* :math:`: \quad V_{j,k}^n`
-        #: | *See note above on how to input RF programs.*
-        self.voltage = 0
-        
-        #: | *Design RF phase offset list in [rad]* :math:`: \quad \phi_{j,k}^n`
-        #: | *See note above on how to input RF programs.*
-        self.phi_offset = 0
-
-        #: | *Phase noise array (optional). Added to all RF systems.*
-        self.phi_noise = phi_noise
-                
-        ### Pre-processing the inputs
-        # The input is analyzed and structured in order to have lists, which
-        # length are matching the number of RF systems considered in this
-        # section.
-        # For one RF system, single values for h, V_rf, and phi will assume
-        # that these values will remain constant for all the simulation.
-        # These can be input directly as arrays in order to have programs
-        # (the length of the arrays will then be checked)
-        if n_rf == 1:
+ 
+        # RF programs. Cast the input into appropriate shape: the input is 
+        # analyzed and structured in order to have lists whose length is 
+        # matching the number of RF systems in the section.
+        if self.n_rf == 1:
             self.harmonic = [harmonic] 
             self.voltage = [voltage]
-            self.phi_offset = [phi_offset]
+            self.phi_rf_d = [phi_rf_d]
             if phi_noise != None:
                 self.phi_noise = [phi_noise]
             if omega_rf != None:
-                self.omega_RF = [omega_rf]
-                 
+                self.omega_rf = [omega_rf]                 
         else:
             self.harmonic = harmonic
             self.voltage = voltage 
-            self.phi_offset = phi_offset
+            self.phi_rf_d = phi_rf_d
             if phi_noise != None:
                 self.phi_noise = phi_noise
             if omega_rf != None:
-                self.omega_RF = omega_rf
-        
+                self.omega_rf = omega_rf
+        # Run input_check() on all RF systems
         for i in range(self.n_rf):
             self.harmonic[i] = input_check(self.harmonic[i], self.n_turns+1)
             self.voltage[i] = input_check(self.voltage[i], self.n_turns+1)
-            self.phi_offset[i] = input_check(self.phi_offset[i], self.n_turns+1)
+            self.phi_rf_d[i] = input_check(self.phi_rf_d[i], 
+                                             self.n_turns+1)
             if phi_noise != None:
-                self.phi_noise[i] = input_check(self.phi_noise[i], self.n_turns+1) 
+                self.phi_noise[i] = input_check(self.phi_noise[i], 
+                                                self.n_turns+1) 
             if omega_rf != None:
-                self.omega_RF[i] = input_check(self.omega_RF[i], self.n_turns+1) 
-        
-        # Convert to numpy matrix
+                self.omega_rf[i] = input_check(self.omega_rf[i], 
+                                               self.n_turns+1) 
+        # Convert to 2D numpy matrix
         self.harmonic = np.array(self.harmonic, ndmin =2)
         self.voltage = np.array(self.voltage, ndmin =2)
-        self.phi_offset = np.array(self.phi_offset, ndmin =2)
+        self.phi_rf_d = np.array(self.phi_rf_d, ndmin =2)
         if phi_noise != None:
             self.phi_noise = np.array(self.phi_noise, ndmin =2) 
         if omega_rf != None:
-            self.omega_RF = np.array(self.omega_RF, ndmin =2) 
-            
-        #: *Initial, actual RF phase of each harmonic system*
-        self.phi_RF = np.array(self.phi_offset) 
+            self.omega_rf = np.array(self.omega_rf, ndmin =2) 
         
-        #: *Accumulated RF phase error of each harmonic system*
-        self.dphi_RF = np.zeros(self.n_rf)
-        
-        #: *Accumulated RF phase error of each harmonic system*
-        self.dphi_RF_steering = np.zeros(self.n_rf)
-        
-        
-        #: *Synchrotron tune [1]*                         
-#        self.Q_s = np.sqrt( self.harmonic[0]*self.charge*self.voltage[0]*np.abs(self.eta_0*np.cos(self.phi_s)) / \
-#                                 (2*np.pi*self.beta**2*self.energy) ) 
-        
-        #: *Central angular synchronous frequency, w/o intensity effects [1/s]*
-        self.omega_s0 = self.Qs*GeneralParameters.omega_rev
-
-        #: *Design RF frequency of the RF systems in the station [Hz]*        
-        self.omega_RF_d = 2.*np.pi*self.beta*c*self.harmonic/ \
+        # With feedbacks
+        self.phi_rf = np.array(self.phi_rf_d) 
+        self.dphi_rf = np.zeros(self.n_rf)
+        self.omega_rf_d = 2.*np.pi*self.beta*c*self.harmonic/ \
                           (self.ring_circumference)
-                          
-        #: *Initial, actual RF frequency of the RF systems in the station [Hz]*
         if omega_rf == None:
-            self.omega_RF = np.array(self.omega_RF_d)                  
+            self.omega_rf = np.array(self.omega_rf_d)                  
+        self.t_rf = 2*np.pi / self.omega_rf[0]
 
-        self.t_RF = 2*np.pi / self.omega_RF[0]
-        
-# END OF STOPPED HERE             
-        
+        #: *Accumulated RF phase error of each harmonic system*
+#        self.dphi_RF_steering = np.zeros(self.n_rf)
         
         # From helper functions
         self.phi_s = calculate_phi_s(self, Particle, accelerating_systems)
         self.Q_s = calculate_Q_s(self, Particle)   
-
+        self.omega_s0 = self.Q_s*GeneralParameters.omega_rev
 
  
         

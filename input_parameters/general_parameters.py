@@ -75,19 +75,19 @@ class GeneralParameters(object):
         Radius of the synchrotron, :math:`R = C/(2 \pi)` [m]
     alpha_order : int
         Number of orders of the momentum compaction factor
-    eta_0 : float
-        Zeroth order slippage factor :math:`\eta_{0,k} = \alpha_{0,k} - 
-        \frac{1}{\gamma_{s,k}^2}` [1]
-    eta_1 : float
-        First order slippage factor :math:`\eta_{1,k} = 
-        \frac{3\beta_{s,k}^2}{2\gamma_{s,k}^2} + \alpha_{1,k} - 
-        \alpha_{0,k}\eta_{0,k}` [1]
-    eta_2 : float
-        Second order slippage factor :math:`\eta_{2,k} = 
-        -\frac{\beta_{s,k}^2\left(5\beta_{s,k}^2-1\right)}{2\gamma_{s,k}^2} 
-        + \alpha_{2,k} - 2\alpha_{0,k}\alpha_{1,k} 
-        + \frac{\alpha_{1,k}}{\gamma_{s,k}^2} + \alpha_{0,k}^2\eta_{0,k} 
-        - \frac{3\beta_{s,k}^2\alpha_{0,k}}{2\gamma_{s,k}^2}` [1]
+    eta_0 : float matrix
+        Zeroth order slippage factor :math:`\eta_{0,k,n} = \alpha_{0,k,n} - 
+        \frac{1}{\gamma_{s,k,n}^2}` [1]
+    eta_1 : float matrix
+        First order slippage factor :math:`\eta_{1,k,n} = 
+        \frac{3\beta_{s,k,n}^2}{2\gamma_{s,k,n}^2} + \alpha_{1,k,n} - 
+        \alpha_{0,k,n}\eta_{0,k,n}` [1]
+    eta_2 : float matrix
+        Second order slippage factor :math:`\eta_{2,k,n} = 
+        -\frac{\beta_{s,k,n}^2\left(5\beta_{s,k,n}^2-1\right)}
+        {2\gamma_{s,k,n}^2} + \alpha_{2,k,n} - 2\alpha_{0,k,n}\alpha_{1,k,n} 
+        + \frac{\alpha_{1,k,n}}{\gamma_{s,k,n}^2} + \alpha_{0,k}^2\eta_{0,k,n} 
+        - \frac{3\beta_{s,k,n}^2\alpha_{0,k,n}}{2\gamma_{s,k,n}^2}` [1]
     mass : float
         Primary particle mass :math:`m` [eV]
     charge : float
