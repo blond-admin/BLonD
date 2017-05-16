@@ -110,7 +110,7 @@ class testBeamClass(unittest.TestCase):
 #                              msg='Beam: dE is not a numpy.array')
 
     def test_beam_statistic(self):
-        sigma_dt = 1
+        sigma_dt = 1.
         sigma_dE = 1.
         self.beam.dt = sigma_dt*numpy.random.randn(self.beam.n_macroparticles)
         self.beam.dE = sigma_dE*numpy.random.randn(self.beam.n_macroparticles)
@@ -141,15 +141,17 @@ class testBeamClass(unittest.TestCase):
                                bunch_length_fit='fwhm',
                                distribution_variable='Hamiltonian')
 
-        self.beam.losses_separatrix(self.general_params, self.rf_params, self.beam)
+#        self.beam.losses_separatrix(self.general_params, self.rf_params, self.beam)
+        self.beam.losses_separatrix(self.general_params, self.rf_params)
         self.assertEqual(len(self.beam.id[self.beam.id==0]), 0,
                          msg='Beam: Failed losses_sepatrix, first')
         self.beam.dE += 10e8
-        self.beam.losses_separatrix(self.general_params, self.rf_params, self.beam)
+#        self.beam.losses_separatrix(self.general_params, self.rf_params, self.beam)
+        self.beam.losses_separatrix(self.general_params, self.rf_params)
         self.assertEqual(len(self.beam.id[self.beam.id==0]), self.beam.n_macroparticles,
                          msg='Beam: Failed losses_sepatrix, second')
 
-    def losses_longitudinal_cut(self):
+    def test_losses_longitudinal_cut(self):
         longitudinal_tracker = RingAndRFSection(self.rf_params, self.beam)
         full_tracker = FullRingAndRF([longitudinal_tracker])
         matched_from_distribution_function(self.beam, full_tracker,
@@ -166,7 +168,7 @@ class testBeamClass(unittest.TestCase):
         self.assertEqual(len(self.beam.id[self.beam.id==0]), self.beam.n_macroparticles,
                          msg='Beam: Failed losses_longitudinal_cut, second')
 
-    def losses_energy_cut(self):
+    def test_losses_energy_cut(self):
         longitudinal_tracker = RingAndRFSection(self.rf_params, self.beam)
         full_tracker = FullRingAndRF([longitudinal_tracker])
         matched_from_distribution_function(self.beam, full_tracker,
