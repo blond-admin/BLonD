@@ -21,6 +21,7 @@ import matplotlib.pyplot as plt
 from plots.plot import fig_folder
 from scipy.constants import m_p, m_e, c, e
 from scipy.interpolate import splrep, splev
+from beams.beams import Proton
 
 
 
@@ -104,6 +105,22 @@ class PreprocessRamp(object):
             raise RuntimeError('ERROR: sampling value in PreprocessRamp'+
                                ' not recognized. Aborting...')            
             
+
+    def convert_data(self, synchronous_data, Particle = Proton(),
+                     synchronous_data_type = 'momentum'):
+    
+        if synchronous_data_type == 'momentum':
+            momentum = synchronous_data
+        elif synchronous_data_type == 'total energy':
+            momentum = np.sqrt(synchronous_data**2 - Particle.mass**2)
+        elif synchronous_data_type == 'kinetic energy':
+            momentum = np.sqrt((synchronous_data+Particle.mass)**2 -
+                                    Particle.mass**2)
+        else:
+            raise RuntimeError('ERROR in PreprocessRamp: Synchronous data'+
+                ' type not recognized!')
+        return momentum
+    
 
     def preprocess(self, mass, circumference, time, momentum):#, #data, #data_type='momentum', 
 #                    interpolation='linear', smoothing = 0,

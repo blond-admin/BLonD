@@ -1,4 +1,4 @@
-
+# coding: utf8
 # Copyright 2014-2017 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3), 
 # copied verbatim in the file LICENCE.md.
@@ -147,16 +147,10 @@ class GeneralParameters(object):
     >>>                                        Particle = Electron())
     
     """
-#     particle_type : string
-#         Primary particle type that is reference for the momentum; Recognized
-#         types are 'proton' and 'electron'. Use 'user_input' to input mass and
-#         charge manually
     
     def __init__(self, n_turns, ring_length, alpha, synchronous_data, 
                  synchronous_data_type = 'momentum', Particle = Proton(), 
                  n_sections = 1, PreprocessRamp = PreprocessRamp()): 
-#                 particle_type, synchronous_data_type = 'momentum',
-#                 user_mass = None, user_charge = None, n_sections = 1): 
         
         self.n_turns = int(n_turns) 
         self.n_sections = int(n_sections)
@@ -181,24 +175,6 @@ class GeneralParameters(object):
         if self.n_sections != self.alpha.shape[0]:
             raise RuntimeError('ERROR in GeneralParameters: Number of '+
                 'sections and size of momentum compaction do not match!')    
-                
-        # Particle type, checks, and derived mass and charge
-#         self.particle_type = str(particle_type)        
-#         if self.particle_type == 'proton':
-#             self.mass =  float(m_p*c**2/e) 
-#             self.charge = float(1) 
-#         elif self.particle_type == 'electron':
-#             self.mass =  float(m_e*c**2/e)
-#             self.charge = float(-1)
-#         elif self.particle_type == 'user_input':
-#             if user_mass > 0. and user_charge > 0.:
-#                 self.mass = float(user_mass)
-#                 self.charge = float(user_charge)
-#             else:
-#                 raise RuntimeError('ERROR: Particle mass and/or charge not'+
-#                                    ' recognized!')
-#         else:
-#             raise RuntimeError('ERROR: Particle type not recognized!')
 
         # Primary particle mass and charge used for energy calculations
         self.mass = Particle.mass
@@ -208,20 +184,13 @@ class GeneralParameters(object):
         if type(synchronous_data)==tuple:
             self.cycle_time = synchronous_data[0]
             self.momentum = synchronous_data[1]
+            synchronous_data = synchronous_data[1]
             if len(self.cycle_time) != len(self.momentum):
                 raise RuntimeError('ERROR in GeneralParameters: sychronous'+
                     ' data does not match the time data')
         # Convert synchronous data to momentum, if necessary
-        if synchronous_data_type == 'momentum':
-            self.momentum = synchronous_data
-        elif synchronous_data_type == 'total energy':
-                self.momentum = np.sqrt(synchronous_data**2 - self.mass**2)
-        elif synchronous_data_type == 'kinetic energy':
-            self.momentum = np.sqrt((synchronous_data+self.mass)**2 -
-                                    self.mass**2)
-        else:
-            raise RuntimeError('ERROR in GeneralParameters: Synchronous data'+
-                ' type not recognized!')
+        self.momentum = PreprocessRamp.convert_data(synchronous_data, 
+            Particle = Particle, synchronous_data_type = synchronous_data_type)
 
         # Synchronous momentum and checks
         if type(synchronous_data)==tuple:
@@ -255,49 +224,8 @@ class GeneralParameters(object):
         self.omega_rev = 2*np.pi*self.f_rev
 
         # Slippage factor derived from alpha, beta, gamma
-        self.eta_0 = float(0)
-        self.eta_1 = float(0)
-        self.eta_2 = float(0)
         self.eta_generation()
         
-                
-                
-#     def add_species(self, particle_type_2, user_mass_2 = None, 
-#                     user_charge_2 = None):
-#         """ Function to declare an optional second particle type
-#     
-#         Parameters
-#         ----------
-#         particle_type_2 : string
-#             secondary particle type that is not a reference for the momentum; 
-#             Recognized types are 'proton' and 'electron'. 
-#             Use 'user_input' to input mass and charge manually.    
-# 
-#         Attributes
-#         ----------
-#         mass2 : float
-#             primary particle mass :math:`m_2` [eV].
-#         charge2 : float
-#             primary particle charge :math:`q_2` [e].
-#         """
-#         
-#         self.particle_type_2 = str(particle_type_2)
-#         if self.particle_type_2 == 'proton':
-#             self.mass2 =  float(m_p*c**2/e)
-#             self.charge2 = float(1)
-#         elif self.particle_type_2 == 'electron':
-#             self.mass2 =  float(m_e*c**2/e)
-#             self.charge2 = float(-1)
-#         elif self.particle_type_2 == 'user_input':
-#             if user_mass_2 > 0. and user_charge_2 > 0.:
-#                 self.mass2 = float(user_mass_2)
-#                 self.charge2 = float(user_charge_2)
-#             else:
-#                 raise RuntimeError('ERROR: Particle mass and/or charge not'+
-#                                    ' recognized!')
-#         else:
-#             raise RuntimeError('ERROR: Second particle type not recognized!')
-
     
     def eta_generation(self):
         """ Function to generate the slippage factors (zeroth, first, and 
