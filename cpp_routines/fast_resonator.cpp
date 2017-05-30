@@ -16,56 +16,7 @@
 #include <math.h>
 // #include <iostream>
 
-extern "C" void fast_resonator_real(double *__restrict__ impedanceReal,
-                                    const double *__restrict__ frequencies,
-                                    const double *__restrict__ shunt_impedances,
-                                    const double *__restrict__ Q_values,
-                                    const double *__restrict__ resonant_frequencies,
-                                    const int n_resonators,
-                                    const int n_frequencies)
 
-{
-
-    for (int res = 0; res < n_resonators; res++) {
-        const double Qsquare = Q_values[res] * Q_values[res];
-        #pragma omp parallel for
-        for (int freq = 1; freq < n_frequencies; freq++) {
-            impedanceReal[freq] += shunt_impedances[res]
-                                   / (1.0 + Qsquare
-                                      * pow((frequencies[freq]
-                                             / resonant_frequencies[res]
-                                             - resonant_frequencies[res]
-                                             / frequencies[freq]), 2));
-        }
-    }
-}
-
-
-extern "C" void fast_resonator_imag(double *__restrict__ impedanceImag,
-                                    const double *__restrict__ frequencies,
-                                    const double *__restrict__ shunt_impedances,
-                                    const double *__restrict__ Q_values,
-                                    const double *__restrict__ resonant_frequencies,
-                                    const int n_resonators,
-                                    const int n_frequencies)
-
-{
-
-    for (int res = 0; res < n_resonators; res++) {
-        #pragma omp parallel for
-        for (int freq = 1; freq < n_frequencies; freq++) {
-            const double commonTerm = (frequencies[freq]
-                                       / resonant_frequencies[res]
-                                       - resonant_frequencies[res]
-                                       / frequencies[freq]);
-            
-            impedanceImag[freq] -= shunt_impedances[res]
-                                   * (Q_values[res] * commonTerm)
-                                   / (1.0 + pow(Q_values[res], 2)
-                                      * commonTerm * commonTerm);
-        }
-    }
-}
 
 extern "C" void fast_resonator_real_imag(double *__restrict__ impedanceReal,
         double *__restrict__ impedanceImag,
