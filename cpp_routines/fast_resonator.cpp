@@ -12,11 +12,34 @@
 //Author:  Simon Albright, Konstantinos Iliakis
 
 #include <stdlib.h>
-// #include <stdio.h>
 #include <math.h>
-// #include <iostream>
 
+/*
+This function takes as an input a list of resonators parameters and computes the
+impedance in an optimised way.
 
+Parameters
+---------- 
+frequencies : float array
+    array of frequency in Hz
+shunt_impedances : float array
+    array of shunt impedances in Ohm
+Q_values : float array
+    array of quality factors
+resonant_frequencies : float array
+    array of resonant frequency in Hz
+n_resonators : int
+    number of resonantors
+n_frequencies : int
+    length of the array 'frequencies'
+
+Returns
+-------
+impedanceReal : float array
+    real part of the impedance
+impedanceImag : float array
+    imaginary part of the impedance
+  */
 
 extern "C" void fast_resonator_real_imag(double *__restrict__ impedanceReal,
         double *__restrict__ impedanceImag,
