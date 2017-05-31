@@ -8,8 +8,8 @@
  * Project website: http://blond.web.cern.ch/
  * */
 
-
-//Author:  Simon Albright, Konstantinos Iliakis
+// Optimised C++ routine that calculates the impedance of a resonator.
+// Author:  Simon Albright, Konstantinos Iliakis, Danilo Quartullo
 
 #include <stdlib.h>
 #include <math.h>
