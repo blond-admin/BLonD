@@ -37,13 +37,13 @@ class _ImpedanceObject(object):
         # Time array of the wake in s
         self.time_array = 0
         
-        # Wake array in* :math:`\Omega / s`
+        # Wake array in :math:`\Omega / s`
         self.wake = 0
         
         # Frequency array of the impedance in Hz
         self.frequency_array = 0
         
-        # Impedance array in* :math:`\Omega`
+        # Impedance array in :math:`\Omega`
         self.impedance = 0
         
     

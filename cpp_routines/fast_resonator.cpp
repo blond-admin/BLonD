@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 CERN. This software is distributed under the
+ * Copyright 2014-2017 CERN. This software is distributed under the
  * terms of the GNU General Public Licence version 3 (GPL Version 3), 
  * copied verbatim in the file LICENCE.md.
  * In applying this licence, CERN does not waive the privileges and immunities 
@@ -14,32 +14,6 @@
 #include <stdlib.h>
 #include <math.h>
 
-/*
-This function takes as an input a list of resonators parameters and computes the
-impedance in an optimised way.
-
-Parameters
----------- 
-frequencies : float array
-    array of frequency in Hz
-shunt_impedances : float array
-    array of shunt impedances in Ohm
-Q_values : float array
-    array of quality factors
-resonant_frequencies : float array
-    array of resonant frequency in Hz
-n_resonators : int
-    number of resonantors
-n_frequencies : int
-    length of the array 'frequencies'
-
-Returns
--------
-impedanceReal : float array
-    real part of the impedance
-impedanceImag : float array
-    imaginary part of the impedance
-  */
 
 extern "C" void fast_resonator_real_imag(double *__restrict__ impedanceReal,
         double *__restrict__ impedanceImag,
@@ -49,7 +23,33 @@ extern "C" void fast_resonator_real_imag(double *__restrict__ impedanceReal,
         const double *__restrict__ resonant_frequencies,
         const int n_resonators,
         const int n_frequencies)
-{
+        
+{   /*
+    This function takes as an input a list of resonators parameters and 
+    computes the impedance in an optimised way.
+    
+    Parameters
+    ---------- 
+    frequencies : float array
+        array of frequency in Hz
+    shunt_impedances : float array
+        array of shunt impedances in Ohm
+    Q_values : float array
+        array of quality factors
+    resonant_frequencies : float array
+        array of resonant frequency in Hz
+    n_resonators : int
+        number of resonantors
+    n_frequencies : int
+        length of the array 'frequencies'
+    
+    Returns
+    -------
+    impedanceReal : float array
+        real part of the impedance
+    impedanceImag : float array
+        imaginary part of the impedance
+      */
 
 
     for (int res = 0; res < n_resonators; res++) {
