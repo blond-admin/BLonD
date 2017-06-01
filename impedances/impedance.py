@@ -11,7 +11,7 @@
 **Module to compute intensity effects**
 
 :Authors: **Juan F. Esteban Mueller**, **Danilo Quartullo**,
-          **Alexandre Lasheen**
+          **Alexandre Lasheen**, **Markus Schwarz**
 '''
 
 from __future__ import division, print_function
@@ -600,3 +600,163 @@ class InductiveImpedance(_InducedVoltage):
                 self.slices.beam_profile_derivative(self.deriv_mode)[1])
 
         self.induced_voltage = induced_voltage[:self.n_induced_voltage]
+
+
+class InducedVoltageResonator(_InducedVoltage):
+    r"""
+    *Calculates the induced voltage of several resonators for arbitrary 
+    line density. It does so by linearily interpolating the line density and 
+    solving the convolution integral with the resonator impedance analytically.
+    The line density need NOT be sampled at equidistant points. The times where
+    the induced voltage is calculated need to be the same where the line 
+    density is sampled. If no timeArray is passed, the induced voltage is 
+    evaluated at the points of the line density. This is nececassry of 
+    compatability with other functions that calculate the induced voltage.
+    Currently, it requires the all quality factors * :math:`Q>0.5`
+    Currently, only works for single turn.
+    
+    Parameters
+    ----------
+    Beam : object
+        Beam object
+    Slices : object
+        Slices object
+    Resonators : object
+        Resonators object
+    timeArray : float array, optional
+        Array of time values where the induced voltage is calculated. 
+        If left out, the induced voltage is calculated at the times of the line
+        density.
+    
+    Attributes
+    ----------
+    beam : object
+        Copy of the Beam object in order to access the beam info.
+    slices : object
+        Copy of the Slices object in order to access the line density.
+    tArray : float array
+        array of time values where the induced voltage is calculated. 
+        If left out, the induced voltage is calculated at the times of the 
+        line density
+    atLineDensityTimes : boolean
+        flag indicating if the induced voltage has to be computed for timeArray
+        or for the line density
+    n_time : int
+        length of tArray
+    R, omega_r, Q : lists of float
+        Resonators parameters
+    n_resonators : int
+        Number of resonators
+    induced_voltage : float array
+        Computed induced voltage [V]
+    """
+    
+    def __init__ (self, Beam, Slices, Resonators, timeArray=None):
+        
+        # Test if one or more quality factors is smaller than 0.5.
+        if sum(Resonators.Q<0.5)>0:
+            raise RuntimeError('All quality factors Q must be larger than 0.5')
+        
+        # Copy of the Beam object in order to access the beam info.
+        self.beam = Beam
+        # Copy of the Slices object in order to access the line density.
+        self.slices = Slices
+        
+        # Optional array of time values where the induced voltage is calculated.
+        # If left out, the induced voltage is calculated at the times of the
+        # line density.
+        if timeArray is None:
+            self.tArray =  self.slices.bin_centers
+            self.atLineDensityTimes = True
+        else:
+            self.tArray = timeArray
+            self.atLineDensityTimes = False
+        
+        # Length of timeArray
+        self.n_time = len(self.tArray)
+        
+        # Copy of the shunt impedances of the Resonators in* :math:`\Omega`
+        self.R = Resonators.R_S
+        # Copy of the resonant frequencies of the Resonators in in 1/s
+        self.omega_r = Resonators.omega_R #resonant frequencies [1/s]
+        # Copy of the quality factors of the Resonators
+        self.Q = Resonators.Q
+        # Number of resonators
+        self.n_resonators = len(self.R)
+
+        # For internal use
+        self._Qtilde = self.Q * np.sqrt(1. - 1./(4.*self.Q**2.))
+        self._reOmegaP = self.omega_r * self._Qtilde / self.Q
+        self._imOmegaP = self.omega_r / (2.*self.Q)
+        
+        # Each the 'n_resonator' rows of the matrix holds the induced voltage
+        # at the 'n_time' time-values of one cavity. For internal use.
+        self._tmp_matrix = np.ones((self.n_resonators, self.n_time))
+        
+        # Slopes of the line segments. For internal use.
+        self._kappa1 = np.zeros(int(self.slices.n_slices-1))
+
+        # Matrix to hold n_times many tArray[t]-bin_centers arrays.        
+        self._deltaT = np.zeros((self.n_time,self.slices.n_slices))
+        
+        # Call the __init__ method of the parent class [calls process()]
+        _InducedVoltage.__init__(self, Beam, Slices, wake_length=None,
+             frequency_resolution=None,
+             multi_turn_wake=False, RFParams=None, mtw_mode=None)
+    
+    
+    def process(self):
+        r"""
+        Reprocess the impedance contributions. To be run when slicing changes
+        """
+
+        _InducedVoltage.process(self)
+        
+        # Since slices object changed, need to assign the proper dimensions to 
+        # _kappa1 and _deltaT
+        self._kappa1 = np.zeros(int(self.slices.n_slices-1))
+        self._deltaT = np.zeros((self.n_time,self.slices.n_slices))
+    
+    
+    def induced_voltage_1turn(self):
+        r"""
+        Method to calculate the induced voltage through linearily 
+        interpolating the line density and applying the analytic equation
+        to the result.
+        """
+        
+        # Compute the slopes of the line sections of the linearily interpolated
+        # (normalized) line density.
+        self._kappa1[:] = np.diff(self.slices.n_macroparticles) \
+                        / np.diff(self.slices.bin_centers) \
+                        / (self.beam.n_macroparticles*self.slices.bin_size)
+                        #[:] makes kappa pass by reference
+        
+        for t in range(self.n_time):
+            self._deltaT[t] = self.tArray[t]-self.slices.bin_centers
+        
+        # For each cavity compute the induced voltage and store in the r-th row
+        for r in range(self.n_resonators):
+            tmp_sum=((((2 
+                     *np.cos(self._reOmegaP[r] * self._deltaT)
+                     +np.sin(self._reOmegaP[r] * self._deltaT)/self._Qtilde[r]) 
+                     * np.exp(-self._imOmegaP[r] * self._deltaT)) 
+                     * self.Heaviside(self._deltaT)) 
+                     - np.sign(self._deltaT))
+            # np.sum performs the sum over the points of the line density
+            self._tmp_matrix[r] = self.R[r]/(2*self.omega_r[r]*self.Q[r]) \
+                                * np.sum(self._kappa1 * np.diff(tmp_sum),axis=1)
+        
+        # To obtain the voltage, sum the contribution of each cavity...
+        self.induced_voltage = self._tmp_matrix.sum(axis=0)
+        # ... and multiply with bunch charge
+        self.induced_voltage *= -self.beam.charge*e*self.beam.intensity
+    
+    # Implementation of Heaviside function
+    def Heaviside(self,x):
+        r"""
+        Heaviside function, which returns 1 if x>1, 0 if x<0, and 1/2 if x=0
+        """
+        
+        return 0.5*(np.sign(x) + 1.)
+
