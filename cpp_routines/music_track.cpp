@@ -1,5 +1,5 @@
 /*
-Copyright 2016 CERN. This software is distributed under the
+Copyright 2014-2017 CERN. This software is distributed under the
 terms of the GNU General Public Licence version 3 (GPL Version 3),
 copied verbatim in the file LICENCE.md.
 In applying this licence, CERN does not waive the privileges and immunities
@@ -8,8 +8,9 @@ submit itself to any jurisdiction.
 Project website: http://blond.web.cern.ch/
 */
 
-// Optimised C++ routine that calculates MuSiC track method
+// Optimised C++ routines for the MuSiC algorithm.
 // Author: Danilo Quartullo, Konstantinos Iliakis
+
 
 #include "sin.h"
 #include "cos.h"
@@ -28,6 +29,8 @@ Project website: http://blond.web.cern.ch/
 
 using namespace vdt;
 
+
+// Definition of struct particle
 struct particle {
     double de;
     double dt;
@@ -50,30 +53,50 @@ extern "C" void music_track(double *__restrict__ beam_dt,
                             const double coeff2,
                             const double coeff3,
                             const double coeff4)
-{
-
-//     std::chrono::time_point<std::chrono::high_resolution_clock>start;
-//     std::chrono::duration<double> duration(0.0);
-//     start = std::chrono::system_clock::now();
-
+{   
+    /*
+    This function calculates the single-turn induced voltage and updates the
+    energies of the particles.
+    
+    Parameters
+    ---------- 
+    beam_dt : float array
+        Longitudinal coordinates [s]
+    beam_dE : float array
+        Initial energies [V]
+    induced_voltage : float array
+        array used to store the output of the computation
+    array_parameters : float array
+        See documentation in music.py
+    n_macroparticles : int
+        number of macro-particles
+    alpha, omega_bar, cnst, coeff1, coeff2, coeff3, coeff4 : floats
+        See documentation in music.py
+    
+    Returns
+    -------
+    induced_voltage : float array
+        Computed induced voltage.
+    beam_dE : float array
+        Array of energies updated.
+    */
+    
+    
+    // Particle sorting with respect to dt 
     std::vector<particle> particles; particles.reserve(n_macroparticles);
     for (int i = 0; i < n_macroparticles; i++)
         particles.push_back({beam_dE[i], beam_dt[i]});
-#ifdef PARALLEL
-    __gnu_parallel::sort(particles.begin(), particles.end());
-#else
-    std::sort(particles.begin(), particles.end());
-#endif
+    #ifdef PARALLEL
+        __gnu_parallel::sort(particles.begin(), particles.end());
+    #else
+        std::sort(particles.begin(), particles.end());
+    #endif
     for (int i = 0; i < n_macroparticles; i++) {
         beam_dE[i] = particles[i].de;
         beam_dt[i] = particles[i].dt;
     }
-
-//     duration = std::chrono::system_clock::now() - start;
-//     std::cout << "sorting time: " << duration.count() << '\n';
-
-//     start = std::chrono::system_clock::now();
-
+    
+    // MuSiC algorithm
     beam_dE[0] += induced_voltage[0];
     double input_first_component = 1;
     double input_second_component = 0;
@@ -97,18 +120,12 @@ extern "C" void music_track(double *__restrict__ beam_dt,
         beam_dE[i + 1] += induced_voltage[i + 1];
         input_first_component = product_first_component + 1;
         input_second_component = product_second_component;
-        
-        array_parameters[0] = input_first_component;
-        array_parameters[1] = input_second_component;
-        array_parameters[3] = beam_dt[n_macroparticles-1];
     }
-
-
-
-//     duration = std::chrono::system_clock::now() - start;
-//     std::cout << "tracking time: " << duration.count() << '\n';
-
-
+        
+    array_parameters[0] = input_first_component;
+    array_parameters[1] = input_second_component;
+    array_parameters[3] = beam_dt[n_macroparticles-1];
+    
 }
 
 
@@ -124,21 +141,29 @@ extern "C" void music_track_multiturn(double *__restrict__ beam_dt,
                             const double coeff2,
                             const double coeff3,
                             const double coeff4)
-{
+{   /*
+    This function calculates the multi-turn induced voltage and updates the
+    energies of the particles.
+    Parameters and Returns as for music_track. 
+    */
 
+
+    // Particle sorting with respect to dt 
     std::vector<particle> particles; particles.reserve(n_macroparticles);
     for (int i = 0; i < n_macroparticles; i++)
         particles.push_back({beam_dE[i], beam_dt[i]});
-#ifdef PARALLEL
-    __gnu_parallel::sort(particles.begin(), particles.end());
-#else
-    std::sort(particles.begin(), particles.end());
-#endif
+    #ifdef PARALLEL
+        __gnu_parallel::sort(particles.begin(), particles.end());
+    #else
+        std::sort(particles.begin(), particles.end());
+    #endif
     for (int i = 0; i < n_macroparticles; i++) {
         beam_dE[i] = particles[i].de;
         beam_dt[i] = particles[i].dt;
     }
-
+    
+    // First computation of MuSiC relative to the voltage coming from the
+    // previous turn
     const double time_difference_0 = beam_dt[0] + array_parameters[2] - array_parameters[3];
     const double exp_term = fast_exp(-alpha * time_difference_0);
     const double cos_term = fast_cos(omega_bar * time_difference_0);
@@ -159,7 +184,7 @@ extern "C" void music_track_multiturn(double *__restrict__ beam_dt,
     double input_first_component = product_first_component + 1;
     double input_second_component = product_second_component;
 
-    
+    // MuSiC algorithm for the current turn
     for (int i = 0; i < n_macroparticles - 1; i++) {
         const double time_difference = beam_dt[i + 1] - beam_dt[i];
         const double exp_term = fast_exp(-alpha * time_difference);

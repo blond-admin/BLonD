@@ -8,7 +8,9 @@
 # Project website: http://blond.web.cern.ch/
 
 """Module containing the fundamental beam class with methods to compute beam statistics
+
 :Authors: **Danilo Quartullo**, **Helga Timko**, **ALexandre Lasheen**
+
 """
 
 from __future__ import division
@@ -45,13 +47,14 @@ class Electron(Particle):
 
 class Beam(object):
     """Class containing the beam properties.
+
     This class containes the beam coordinates (dt, dE) and the beam properties.
     
     The beam coordinate 'dt' is defined as the particle arrival time to the RF 
     station w.r.t. the reference time that is the sum of turns. The beam
     coordiate 'dE' is defined as the particle energy offset w.r.t. the
     energy of the synchronous particle.
-    
+
     The class creates a beam with zero dt and dE, see distributions to match
     a beam with respect to the RF and intensity effects.
     
@@ -126,8 +129,8 @@ class Beam(object):
     >>> intensity = 1e11
     >>>
     >>> my_beam = Beam(GeneralParameters, n_macroparticle, intensity)
-    
     """
+
     def __init__(self, GeneralParameters, n_macroparticles, intensity):
 
         self.mass = GeneralParameters.mass

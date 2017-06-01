@@ -94,6 +94,11 @@ plots = Plot(general_params, rf_params, my_beam, 50, n_turns, 0.0, 2*np.pi,
              format_options=format_options,
              h5file='../output_files/TC8_output_data', PhaseLoop=phase_loop)
 
+# plots = Plot(general_params, rf_params, my_beam, 50, n_turns, 0.0, rf_params.t_RF[0],
+#              -1e6, 1e6, xunit='s', separatrix_plot=True, Slices=slices_ring,
+#              format_options=format_options,
+#              h5file='../output_files/TC8_output_data', PhaseLoop=phase_loop)
+
 
 # Accelerator map
 map_ = [full_ring] + [slices_ring] + [bunch_monitor] + [plots] 
