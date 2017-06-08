@@ -1,5 +1,5 @@
 
-# Copyright 2016 CERN. This software is distributed under the
+# Copyright 2014-2017 CERN. This software is distributed under the
 # terms of the GNU General Public License version 3 (GPL Version 3), 
 # copied verbatim in the file LICENSE.md.
 # In applying this license, CERN does not waive the privileges and immunities 
@@ -10,7 +10,8 @@
 '''
 **Function(s) for pre-processing input data**
 
-:Authors: **Helga Timko**, **Alexandre Lasheen**, **Danilo Quartullo**, **Simon Albright**
+:Authors: **Helga Timko**, **Alexandre Lasheen**, **Danilo Quartullo**, 
+    **Simon Albright**
 '''
 
 from __future__ import division
@@ -20,6 +21,7 @@ import matplotlib.pyplot as plt
 from plots.plot import fig_folder
 from scipy.constants import m_p, m_e, c, e
 from scipy.interpolate import splrep, splev
+from beams.beams import Proton
 
 
 
@@ -36,210 +38,316 @@ def loaddata(filename, ignore=0, delimiter=None):
 
 
 
-def preprocess_ramp(particle_type, circumference, time, data, 
-                    data_type='momentum', interpolation='linear', smoothing = 0,
-                    flat_bottom=0, flat_top=0, t_start=0, t_end=-1,
-                    plot=False, figdir='fig', figname='data', sampling=1, 
-                    user_mass=None, user_charge=None):
-    '''
-    Pre-process acceleration ramp data to create input for simulation parameters.
-    Input: absolute time [s] and corresponding momentum [eV/c] or total energy [eV] or kinetic energy [eV].
-    Output: cumulative time array [s], interpolated momentum [eV/c].
-    'interpolation': restricted to linear and cubic at the moment.
-    'flat_bottom/top': extra time can be be added in units of time steps;
-    constant extrapolation of the first/last data point is used in this case. 
-    't_start/end': cutting the inputed momentum program to the times to be simulated
-    'plot': optional plotting of interpolated array with 'sampling' frequency; 
-    saved with name 'figname' into 'figdir'.
-    '''
+class PreprocessRamp(object):
+    r""" Class to preprocess the synchronous data for GeneralParameters
     
-    # Definitions
-    Nd = len(time)
-    if len(data) != Nd:
-        raise RuntimeError(str(data)+' does not match the length of '+str(time))
-
-    # Attribution of mass and charge with respect to particle_type
-    if particle_type is 'proton':
-        mass =  m_p*c**2/e # [eV]
-    elif particle_type is 'electron':
-        mass =  m_e*c**2/e # [eV]
-    elif particle_type is 'user_input':
-        mass = user_mass # [eV]
-    else:
-        raise RuntimeError('ERROR: Particle type in preprocess_ramp not recognized!')
-
-    # Convert data to momentum, if necessary
-    if data_type == 'momentum':
-        momentum = data
-    elif data_type == 'total energy':
-        momentum = np.sqrt(data**2-mass**2)
-    elif data_type == 'kinetic energy':
-        momentum = np.sqrt((data+mass)**2-mass**2)
-    else:
-        raise RuntimeError('ERROR: Data type in preprocess_ramp not recognized!')
+    Parameters
+    ----------
+    interpolation : string
+        Interpolation options for the data points. Available options are 
+        'linear' (default), 'cubic', and 'derivative'.
+    smoothing : float
+        Smoothing value for 'cubic' interpolation
+    flat_bottom : int
+        Number of turns to be added on flat bottom; default is 0. Constant
+        extrapolation is used for the synchronous data
+    flat_top : int
+        Number of turns to be added on flat top; default is 0. Constant
+        extrapolation is used for the synchronous data
+    t_start : int
+        Starting index from which the time array input should be taken into
+        account; default is 0
+    t_end : int
+        Last index up to which the time array input should be taken into
+        account; default is -1
+    plot : boolean
+        Option to plot interpolated arrays; default is False
+    figdir : string
+        Directory to save optional plot; default is 'fig'
+    figname : string
+        Figure name to save optional plot; default is 'preprocess_ramp'
+    sampling : int
+        Decimation value for plotting; default is 1
     
-    
-    # Obtain flat bottom data, extrapolate to constant
-    beta_0 = np.sqrt(1/(1 + (mass/momentum[0])**2))
-    T0 = circumference/(beta_0*c) # Initial revolution period [s]
-    shift = time[0] - flat_bottom*T0
-    time_interp = shift + T0*np.arange(0, flat_bottom+1)
-    beta_interp = beta_0*np.ones(flat_bottom+1)
-    momentum_interp = momentum[0]*np.ones(flat_bottom+1)
-    
-    time_interp = time_interp.tolist()
-    beta_interp = beta_interp.tolist()
-    momentum_interp = momentum_interp.tolist()
-    
-    time_start_ramp = np.max(time[momentum==momentum[0]])
-    time_end_ramp = np.min(time[momentum==momentum[-1]])
-
-    # Interpolate data recursively
-    if interpolation=='linear':
+    """
+    def __init__(self, interpolation='linear', smoothing = 0, flat_bottom = 0, 
+                 flat_top = 0, t_start = 0, t_end = -1, plot = False, 
+                 figdir= 'fig', figname = 'preprocess_ramp', sampling = 1):
         
-        time_interp.append(time_interp[-1]
-                                     + circumference/(beta_interp[0]*c) )
-
-        i = flat_bottom 
-        for k in range(1,Nd): 
-            while time_interp[i+1] <= time[k]:
-                
-                momentum_interp.append(momentum[k-1] + (momentum[k] - momentum[k-1]) * (time_interp[i+1] - time[k-1])
-                                    / (time[k] - time[k-1])) 
-                
-                beta_interp.append(np.sqrt(1/(1 + (mass/momentum_interp[i+1])**2))) 
-                
-                time_interp.append(time_interp[i+1]
-                                     + circumference/(beta_interp[i+1]*c) )               
+        if interpolation in ['linear', 'cubic', 'derivative']:
+            self.interpolation = str(interpolation)
+        else:    
+            raise RuntimeError('ERROR: Interpolation scheme in PreprocessRamp'+
+                               ' not recognized. Aborting...')
+        self.smoothing = float(smoothing)
+        if flat_bottom < 0:
+            raise RuntimeError('ERROR: flat_bottom value in PreprocessRamp'+
+                               ' not recognized. Aborting...')
+        else:          
+            self.flat_bottom = int(flat_bottom)
+        if flat_top < 0:
+            raise RuntimeError('ERROR: flat_top value in PreprocessRamp'+
+                               ' not recognized. Aborting...')
+        else:          
+            self.flat_top = int(flat_top)            
+        self.t_start = int(t_start)
+        self.t_end = int(t_end)
+        if plot == True or plot == False:
+            self.plot = bool(plot)
+        else: 
+            raise RuntimeError('ERROR: plot value in PreprocessRamp'+
+                               ' not recognized. Aborting...')            
+        self.figdir = str(figdir)
+        self.figname = str(figname)
+        if sampling > 0:
+            self.sampling = int(sampling)
+        else:
+            raise RuntimeError('ERROR: sampling value in PreprocessRamp'+
+                               ' not recognized. Aborting...')            
             
+
+    def convert_data(self, synchronous_data, Particle = Proton(),
+                     synchronous_data_type = 'momentum'):
+    
+        if synchronous_data_type == 'momentum':
+            momentum = synchronous_data
+        elif synchronous_data_type == 'total energy':
+            momentum = np.sqrt(synchronous_data**2 - Particle.mass**2)
+        elif synchronous_data_type == 'kinetic energy':
+            momentum = np.sqrt((synchronous_data+Particle.mass)**2 -
+                                    Particle.mass**2)
+        else:
+            raise RuntimeError('ERROR in PreprocessRamp: Synchronous data'+
+                ' type not recognized!')
+        return momentum
+    
+
+    def preprocess(self, mass, circumference, time, momentum):#, #data, #data_type='momentum', 
+#                    interpolation='linear', smoothing = 0,
+#                    flat_bottom=0, flat_top=0, t_start=0, t_end=-1,
+#                    plot=False, figdir='fig', figname='data', sampling=1): #, 
+#                    user_mass=None, user_charge=None):
+        """
+        Pre-process acceleration ramp data to create input for simulation parameters.
+        Input: absolute time [s] and corresponding momentum [eV/c] or total energy [eV] or kinetic energy [eV].
+        Output: cumulative time array [s], interpolated momentum [eV/c].
+        """
+#        'interpolation': restricted to linear and cubic at the moment.
+#        'flat_bottom/top': extra time can be be added in units of time steps;
+#        constant extrapolation of the first/last data point is used in this case. 
+#        't_start/end': cutting the inputed momentum program to the times to be simulated
+#        'plot': optional plotting of interpolated array with 'sampling' frequency; 
+#        saved with name 'figname' into 'figdir'.
+#        '''
+        
+        # Definitions
+    #    Nd = len(time)
+    #    if len(data) != Nd:
+    #        raise RuntimeError(str(data)+' does not match the length of '+str(time))
+    
+        # Attribution of mass and charge with respect to particle_type
+    #     if particle_type is 'proton':
+    #         mass =  m_p*c**2/e # [eV]
+    #     elif particle_type is 'electron':
+    #         mass =  m_e*c**2/e # [eV]
+    #     elif particle_type is 'user_input':
+    #         mass = user_mass # [eV]
+    #     else:
+    #         raise RuntimeError('ERROR: Particle type in preprocess_ramp not recognized!')
+    
+        # Convert data to momentum, if necessary
+    #     if data_type == 'momentum':
+    #         momentum = data
+    #     elif data_type == 'total energy':
+    #         momentum = np.sqrt(data**2-mass**2)
+    #     elif data_type == 'kinetic energy':
+    #         momentum = np.sqrt((data+mass)**2-mass**2)
+    #     else:
+    #         raise RuntimeError('ERROR: Data type in preprocess_ramp not recognized!')
+        
+        # Some checks on the options
+        if self.t_start < 0 or self.t_start > len(time)-1:
+            raise RuntimeError('ERROR: t_start value in PreprocessRamp'+
+                               ' does not match the time array length')            
+        if np.abs(self.t_end) > len(time)-1:   
+            raise RuntimeError('ERROR: t_end value in PreprocessRamp'+
+                               ' does not match the time array length')            
+        
+        # Obtain flat bottom data, extrapolate to constant
+        beta_0 = np.sqrt(1/(1 + (mass/momentum[0])**2))
+        T0 = circumference/(beta_0*c) # Initial revolution period [s]
+        shift = time[0] - self.flat_bottom*T0
+        time_interp = shift + T0*np.arange(0, self.flat_bottom+1)
+        beta_interp = beta_0*np.ones(self.flat_bottom+1)
+        momentum_interp = momentum[0]*np.ones(self.flat_bottom+1)
+        
+        time_interp = time_interp.tolist()
+        beta_interp = beta_interp.tolist()
+        momentum_interp = momentum_interp.tolist()
+        
+        time_start_ramp = np.max(time[momentum==momentum[0]])
+        time_end_ramp = np.min(time[momentum==momentum[-1]])
+    
+        # Interpolate data recursively
+        if self.interpolation=='linear':
+            
+            time_interp.append(time_interp[-1]
+                               + circumference/(beta_interp[0]*c) )
+    
+            i = self.flat_bottom 
+            for k in range(1,len(time)): 
+                while time_interp[i+1] <= time[k]:
+                    
+                    momentum_interp.append(momentum[k-1] + (momentum[k] 
+                        - momentum[k-1]) * (time_interp[i+1] - time[k-1])
+                        / (time[k] - time[k-1])) 
+                    
+                    beta_interp.append(np.sqrt(1/(1 
+                        + (mass/momentum_interp[i+1])**2))) 
+                    
+                    time_interp.append(time_interp[i+1]
+                        + circumference/(beta_interp[i+1]*c) )               
+                
+                    i += 1
+                
+        elif self.interpolation=='cubic':
+            
+            interp_funtion_momentum = splrep(time[(time>=time_start_ramp) \
+                *(time<=time_end_ramp)], momentum[(time>=time_start_ramp) \
+                *(time<=time_end_ramp)], s=self.smoothing)
+                      
+            i = self.flat_bottom
+           
+            time_interp.append(time_interp[-1] + circumference/
+                               (beta_interp[0]*c))
+            
+            while time_interp[i] <= time[-1]:
+    
+                if (time_interp[i+1] < time_start_ramp):
+    
+                    momentum_interp.append(momentum[0]) 
+                    
+                    beta_interp.append(np.sqrt(1/(1 
+                        + (mass/momentum_interp[i+1])**2))) 
+                    
+                    time_interp.append(time_interp[i+1]
+                        + circumference/(beta_interp[i+1]*c) )
+                                         
+                elif (time_interp[i+1] > time_end_ramp):
+                    
+                    momentum_interp.append(momentum[-1]) 
+                    
+                    beta_interp.append(np.sqrt(1/(1 
+                        + (mass/momentum_interp[i+1])**2))) 
+                    
+                    time_interp.append(time_interp[i+1]
+                        + circumference/(beta_interp[i+1]*c) )
+                    
+                else:     
+    
+                    momentum_interp.append(splev(time_interp[i+1], 
+                        interp_funtion_momentum))
+                    
+                    beta_interp.append(np.sqrt(1/(1 
+                        + (mass/momentum_interp[i+1])**2))) 
+                    
+                    time_interp.append(time_interp[i+1]
+                        + circumference/(beta_interp[i+1]*c) )
+    
                 i += 1
             
-    elif interpolation=='cubic':
-        
-        interp_funtion_momentum = splrep(time[(time>=time_start_ramp)*(time<=time_end_ramp)], 
-                                         momentum[(time>=time_start_ramp)*(time<=time_end_ramp)], 
-                                         s=smoothing)
-                  
-        i = flat_bottom
-       
-        time_interp.append(time_interp[-1]
-                         + circumference/(beta_interp[0]*c) )
-        
-        while time_interp[i] <= time[-1]:
-
-            if (time_interp[i+1] < time_start_ramp) :
-
-                momentum_interp.append(momentum[0]) 
-                
-                beta_interp.append(np.sqrt(1/(1 + (mass/momentum_interp[i+1])**2))) 
-                
+        # Interpolate momentum in 1st derivative to maintain smooth B-dot
+        elif self.interpolation == 'derivative':
+    
+            momentum_initial = momentum_interp[0]
+            momentum_derivative = np.gradient(momentum)/np.gradient(time)
+    
+            momentum_derivative_interp = [0]*self.flat_bottom + \
+                [momentum_derivative[0]]
+            integral_point = momentum_initial
+    
+            i = self.flat_bottom
+    
+            time_interp.append(time_interp[-1]
+                             + circumference/(beta_interp[0]*c) )
+    
+            while time_interp[i] <= time[-1]:
+    
+                derivative_point = np.interp(time_interp[i+1], time, 
+                                             momentum_derivative)
+                momentum_derivative_interp.append(derivative_point)
+                integral_point += (time_interp[i+1] - time_interp[i]) \
+                    * derivative_point
+    
+                momentum_interp.append(integral_point)
+                beta_interp.append(np.sqrt(1/(1 + (mass/
+                                                   momentum_interp[i+1])**2)))
                 time_interp.append(time_interp[i+1]
-                                     + circumference/(beta_interp[i+1]*c) )
-                                     
-            elif (time_interp[i+1] > time_end_ramp):
-                
-                momentum_interp.append(momentum[-1]) 
-                
-                beta_interp.append(np.sqrt(1/(1 + (mass/momentum_interp[i+1])**2))) 
-                
-                time_interp.append(time_interp[i+1]
-                                     + circumference/(beta_interp[i+1]*c) )
-                
-            else:     
-
-                momentum_interp.append(splev(time_interp[i+1], interp_funtion_momentum))
-                
-                beta_interp.append(np.sqrt(1/(1 + (mass/momentum_interp[i+1])**2))) 
-                
-                time_interp.append(time_interp[i+1]
-                                         + circumference/(beta_interp[i+1]*c) )
-
-            i += 1
-        
-    #interpolate momentum in 1st derivative to maintain smooth B-dot
-    elif interpolation == 'derivative':
-
-        momentum_initial = momentum_interp[0]
-        momentum_derivative = np.gradient(momentum)/np.gradient(time)
-
-        momentum_derivative_interp = [0]*flat_bottom + [momentum_derivative[0]]
-        integral_point = momentum_initial
-
-        i = flat_bottom
-
-        time_interp.append(time_interp[-1]
-                         + circumference/(beta_interp[0]*c) )
-
-        while time_interp[i] <= time[-1]:
-
-            derivative_point = np.interp(time_interp[i+1], time, momentum_derivative)
-            momentum_derivative_interp.append(derivative_point)
-            integral_point += (time_interp[i+1] - time_interp[i]) * derivative_point
-
-            momentum_interp.append(integral_point)
-            beta_interp.append(np.sqrt(1/(1 + (mass/momentum_interp[i+1])**2)))
-            time_interp.append(time_interp[i+1]
-                                + circumference/(beta_interp[i+1]*c) )
-
-            i += 1
-
-        #adjust result to get flat top energy correct as derivation + integration leads to ~10^-8 error in flat top momentum
-
+                    + circumference/(beta_interp[i+1]*c) )
+    
+                i += 1
+    
+            #Adjust result to get flat top energy correct as derivation and
+            #integration leads to ~10^-8 error in flat top momentum
+            momentum_interp = np.asarray(momentum_interp)
+            momentum_interp -= momentum_interp[0]
+            momentum_interp /= momentum_interp[-1]
+            momentum_interp *= momentum[-1] - momentum[0]
+    
+            momentum_interp += momentum[0]
+           
+     
+      
+        time_interp.pop()
+        time_interp = np.asarray(time_interp)
+        beta_interp = np.asarray(beta_interp)
         momentum_interp = np.asarray(momentum_interp)
-        momentum_interp -= momentum_interp[0]
-        momentum_interp /= momentum_interp[-1]
-        momentum_interp *= momentum[-1] - momentum[0]
-
-        momentum_interp += momentum[0]
-       
- 
-    else:
-        
-        raise RuntimeError("WARNING: Interpolation scheme in preprocess_arrays \
-                           not recognized. Aborting...")
-  
-    time_interp.pop()
-    time_interp = np.asarray(time_interp)
-    beta_interp = np.asarray(beta_interp)
-    momentum_interp = np.asarray(momentum_interp)
-
-    # Obtain flat top data, extrapolate to constant
-    if flat_top > 0:
-        time_interp = np.append(time_interp, time_interp[-1] + circumference*np.arange(1, flat_top+1)/(beta_interp[-1]*c))
-        beta_interp = np.append(beta_interp, beta_interp[-1]*np.ones(flat_top))
-        momentum_interp = np.append(momentum_interp, momentum_interp[-1]*np.ones(flat_top))
- 
-        
-    # Cutting the input momentum on the desired cycle time
-    if (t_start != 0) or (t_end != -1):
-        if t_end == -1:
-            t_end = time[-1]   
-        momentum_interp = momentum_interp[(time_interp>=t_start)*(time_interp<=t_end)]
-        time_interp = time_interp[(time_interp>=t_start)*(time_interp<=t_end)]
-        
-    if plot:
-        # Directory where longitudinal_plots will be stored
-        fig_folder(figdir)
-        
-        # Plot
-        plt.figure(1, figsize=(8,6))
-        ax = plt.axes([0.15, 0.1, 0.8, 0.8])
-        ax.plot(time_interp[::sampling], momentum_interp[::sampling], 
-                label='Interpolated momentum')
-        ax.plot(time, momentum, '.', label='input momentum', color='r', markersize=0.5)
-        ax.set_xlabel("Time [s]")    
-        ax.set_ylabel ("p [eV]")
-        ax.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
-        ax.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
-        ax.legend = plt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3, 
-                               ncol=2, mode="expand", borderaxespad=0.)
-        
-        # Save figure
-        fign = figdir + '/preprocess_momentum.png'
-        plt.savefig(fign)
-        plt.clf()     
-        
-    return (time_interp, momentum_interp)
+    
+        # Obtain flat top data, extrapolate to constant
+        if self.flat_top > 0:
+            time_interp = np.append(time_interp, time_interp[-1] 
+                + circumference*np.arange(1, self.flat_top+1)
+                /(beta_interp[-1]*c))
+            beta_interp = np.append(beta_interp, beta_interp[-1]
+                                    *np.ones(self.flat_top))
+            momentum_interp = np.append(momentum_interp, 
+                momentum_interp[-1]*np.ones(self.flat_top))
+     
+            
+        # Cutting the input momentum on the desired cycle time
+        if (self.t_start != 0) or (self.t_end != -1):
+            if self.t_end == -1:
+                t_end = time[-1]   
+            momentum_interp = momentum_interp[(time_interp>=self.t_start) \
+                *(time_interp<=t_end)]
+            time_interp = time_interp[(time_interp>=self.t_start) \
+                *(time_interp<=t_end)]
+            
+        if self.plot:
+            # Directory where longitudinal_plots will be stored
+            fig_folder(self.figdir)
+            
+            # Plot
+            plt.figure(1, figsize=(8,6))
+            ax = plt.axes([0.15, 0.1, 0.8, 0.8])
+            ax.plot(time_interp[::self.sampling], 
+                    momentum_interp[::self.sampling], 
+                    label='Interpolated momentum')
+            ax.plot(time, momentum, '.', label='input momentum', color='r', 
+                    markersize=0.5)
+            ax.set_xlabel("Time [s]")    
+            ax.set_ylabel ("p [eV]")
+            ax.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
+            ax.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+            ax.legend = plt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3, 
+                                   ncol=2, mode="expand", borderaxespad=0.)
+            
+            # Save figure
+            fign = self.figdir + '/preprocess_momentum.png'
+            plt.savefig(fign)
+            plt.clf()     
+            
+        return (time_interp, momentum_interp)
         
 
 
