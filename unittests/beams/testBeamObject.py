@@ -102,7 +102,6 @@ class testBeamClass(unittest.TestCase):
                               msg='Beam: dt is not a numpy.array')
         self.assertIsInstance(self.beam.dE, numpy.ndarray,
                               msg='Beam: dE is not a numpy.array')
-#
 #    def test_dtdE_are_numpy_array(self):
 #        self.assertIsInstance(self.beam.dt, numpy.ndarray,
 #                              msg='Beam: dt is not a numpy.array')

@@ -37,51 +37,6 @@ class Electron(Particle):
         self.mass =  float(m_e*c**2/e)
         self.charge = float(-1)
 
-class SecondarySpecies(object):
-
-    """Class containing a secondary specie properties.
-
-    This class contain the properties of a possible secondary specie. Used to
-    add new species in the Beam class.
-
-    Parameters
-    ----------
-    Particle : Particle
-        Particle object containing the type of particle to add.
-    n_macroparticles : int
-        total number of macroparticles for the new specie.
-    intensity : float
-        total intensity of the new specie [in number of charge].
-
-
-    Attributes
-    ----------
-    mass : float
-        mass of the particle [eV].
-    charge : int
-        integer charge of the particle [e].
-    dt : numpy_array, float
-        beam arrival times with respect to synchronous time [s].
-    dE : numpy_array, float
-        beam energy offset with respect to the synchronous particle [eV].
-    intensity : float
-        total intensity of the beam in number of charges [].
-    n_macroparticles : int
-        total number of macroparticles in the beam [].
-    ratio : float
-        ratio intensity per macroparticle [].
-    """
-
-    def __init__(self, Particle, n_macroparticles, intensity):
-        self.mass = Particle.mass
-        self.charge = Particle.charge
-        self.dt = np.zeros([int(n_macroparticles)])
-        self.dE = np.zeros([int(n_macroparticles)])
-        self.intensity = float(intensity) 
-        self.n_macroparticles = int(n_macroparticles)
-        self.ratio = self.intensity/self.n_macroparticles
-
-
 class Beam(object):
     """Class containing the beam properties.
 
@@ -141,8 +96,6 @@ class Beam(object):
         number of macro-particles marked as 'lost' [].
     id : numpy_array, int
         unique macro-particle ID number; zero if particle is 'lost'.
-    secondarySpecies : SecondarySpecies list
-        list containing all the secondary species.
 
     See Also
     ---------
@@ -150,21 +103,6 @@ class Beam(object):
         match a beam with a given bunch profile.
     distributions.matched_from_distribution_function:
         match a beam with a given distribution function in phase space.
-        
-    Warnings
-    --------
-    She's watching you! The cake is a lie! In fact there really was a cake ...
-    
-    References
-    ----------
-    Dummy references, just as example =) [1]_.
-
-
-    .. [1]  "An Unexpected Advantage of Whiteness in Horses: The Most 
-            Horsefly-Proof Horse Has a Depolarizing White Coat," Gábor 
-            Horváth, Miklós Blahó, György Kriska, Ramón Hegedüs, Balázs 
-            Gerics, Róbert Farkas and Susanne Åkesson, Proceedings of the 
-            Royal Society B, vol. 277 no. 1688, pp. June 2010, pp. 1643-1650.
 
     Examples
     --------
@@ -304,16 +242,3 @@ class Beam(object):
 
         if itemindex.size != 0:
             self.id[itemindex] = 0
-
-    def add_species(self, SecondarySpecies):
-
-         """ Function to declare an optional second particle type
-     
-         Parameters
-         ----------
-         SecondarySpecies: SecondarySpecies
-             SecondarySpecies object containing the informations about the
-             particles to add. It does not modify the synchronous reference.
-         """
-
-         self.SecondarySpecies.append(SecondarySpecies)
