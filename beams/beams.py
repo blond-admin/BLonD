@@ -19,10 +19,8 @@ import numpy as np
 from scipy.constants import m_p, m_e, e, c
 from trackers.utilities import is_in_separatrix
 
-
-
 class Particle(object):
-    
+
     def __init__(self, user_mass, user_charge):
         
         if user_mass > 0.:
@@ -42,6 +40,7 @@ class Electron(Particle):
     def __init__(self):        
         self.mass =  float(m_e*c**2/e)
         self.charge = float(-1)
+
 
 
 
@@ -66,41 +65,41 @@ class Beam(object):
         total number of macroparticles.
     intensity : float
         total intensity of the beam (in number of charge).
-        
+  
     Attributes
     ----------
     mass : float
-        mass of the particle (eV).
+        mass of the particle [eV].
     charge : int
-        integer charge of the particle (e).
+        integer charge of the particle [e].
     beta : float
-        relativistic velocity factor ().
+        relativistic velocity factor [].
     gamma : float
-        relativistic mass factor ().
+        relativistic mass factor [].
     energy : float
-        energy of the synchronous particle (eV).
+        energy of the synchronous particle [eV].
     momentum : float
-        momentum of the synchronous particle (eV).
+        momentum of the synchronous particle [eV].
     dt : numpy_array, float
-        beam arrival times with respect to synchronous time (s).
+        beam arrival times with respect to synchronous time [s].
     dE : numpy_array, float
-        beam energy offset with respect to the synchronous particle (eV).
+        beam energy offset with respect to the synchronous particle [eV].
     mean_dt : float
-        average beam arrival time (s).
+        average beam arrival time [s].
     mean_dE : float
-        average beam energy offset (eV).
+        average beam energy offset [eV].
     sigma_dt : float
-        standard deviation of beam arrival time (s).
+        standard deviation of beam arrival time [s].
     sigma_dE : float
-        standard deviation of beam energy offset (eV).
+        standard deviation of beam energy offset [eV].
     intensity : float
-        total intensity of the beam in number of charges ().
+        total intensity of the beam in number of charges [].
     n_macroparticles : int
-        total number of macroparticles in the beam ().
+        total number of macroparticles in the beam [].
     ratio : float
-        ratio intensity per macroparticle ().
+        ratio intensity per macroparticle [].
     n_macroparticles_lost : int
-        number of macro-particles marked as 'lost' ().
+        number of macro-particles marked as 'lost' [].
     id : numpy_array, int
         unique macro-particle ID number; zero if particle is 'lost'.
         
@@ -110,11 +109,7 @@ class Beam(object):
         match a beam with a given bunch profile.
     distributions.matched_from_distribution_function:
         match a beam with a given distribution function in phase space.
-        
-    Warnings
-    --------
-    She's watching you! The cake is a lie! In fact there really was a cake ...
-               
+
     Examples
     --------
     >>> from input_parameters.general_parameters import GeneralParameters
@@ -138,64 +133,65 @@ class Beam(object):
         self.beta = GeneralParameters.beta[0][0]
         self.gamma = GeneralParameters.gamma[0][0]
         self.energy = GeneralParameters.energy[0][0]
-        self.momentum = GeneralParameters.momentum[0][0] 
+        self.momentum = GeneralParameters.momentum[0][0]
         self.dt = np.zeros([int(n_macroparticles)])
         self.dE = np.zeros([int(n_macroparticles)])
         self.mean_dt = 0.
         self.mean_dE = 0.
         self.sigma_dt = 0.
         self.sigma_dE = 0.
-        self.intensity = intensity 
+        self.intensity = float(intensity) 
         self.n_macroparticles = int(n_macroparticles)
         self.ratio = self.intensity/self.n_macroparticles
 
         #: | *Losses defined via loss mechanisms chosen by user*
-        self.n_macroparticles_lost = 0
-        
+        self.n_macroparticles_lost = int(0)
+
         self.id = np.arange(1, self.n_macroparticles + 1, dtype=int)
+        self.secondarySpecies = list()
 
     @property
     def n_macroparticles_alive(self):
         '''Number of transmitted macro-particles, defined as @property.
-        
+
         Returns
         -------        
         n_macroparticles_alive : int
             number of macroparticles not lost.
         '''
-        
+
         return self.n_macroparticles - self.n_macroparticles_lost
 
-    
+
     def statistics(self):
         '''
         Calculation of the mean and standard deviation of beam coordinates,
         as well as beam emittance using different definitions.
         Take no arguments, statistics stored in
-        
+
         - mean_dt
         - mean_dE
         - sigma_dt
         - sigma_dE
         '''
-        
+
         # Statistics only for particles that are not flagged as lost
         itemindex = np.where(self.id != 0)[0]
         self.mean_dt = np.mean(self.dt[itemindex])
         self.mean_dE = np.mean(self.dE[itemindex])
         self.sigma_dt = np.std(self.dt[itemindex])
         self.sigma_dE = np.std(self.dE[itemindex])
-       
+
         # R.m.s. emittance in Gaussian approximation
         self.epsn_rms_l = np.pi*self.sigma_dE*self.sigma_dt # in eVs
 
         # Losses
         self.n_macroparticles_lost = len( np.where( self.id == 0 )[0] )
 
-        
-    def losses_separatrix(self, GeneralParameters, RFSectionParameters, Beam):
+
+    def losses_separatrix(self, GeneralParameters, RFSectionParameters):
         '''Beam losses based on separatrix.
-        
+
         Set to 0 all the particle's id not in the separatrix anymore.
         
         Parameters
@@ -204,22 +200,20 @@ class Beam(object):
             Used to call the function is_in_separatrix.
         RFSectionParameters : RFSectionParameters
             Used to call the function is_in_separatrix.
-        Beam : Beam
-            Apply the function on the beam Beam.
         '''
-        
-        itemindex = np.where(is_in_separatrix(GeneralParameters, 
-                                              RFSectionParameters, 
-                                              Beam, self.dt, self.dE) 
+
+        itemindex = np.where(is_in_separatrix(GeneralParameters,
+                                              RFSectionParameters,
+                                              self, self.dt, self.dE)
                              == False)[0]
 
-        if itemindex.size != 0:    
+        if itemindex.size != 0:
             self.id[itemindex] = 0
-    
-    
+
+
     def losses_longitudinal_cut(self, dt_min, dt_max): 
         '''Beam losses based on longitudinal cuts.
-        
+
         Set to 0 all the particle's id with dt not in the interval (dt_min, dt_max).
         
         Parameters
@@ -229,18 +223,18 @@ class Beam(object):
         dt_max : float
             maximum dt.
         '''
-    
+
         itemindex = np.where( (self.dt - dt_min)*(dt_max - self.dt) < 0 )[0]
-        
-        if itemindex.size != 0:          
-            self.id[itemindex] = 0       
-        
+
+        if itemindex.size != 0:
+            self.id[itemindex] = 0
+
 
     def losses_energy_cut(self, dE_min, dE_max): 
         '''Beam losses based on energy cuts, e.g. on collimators.
-        
+
         Set to 0 all the particle's id with dE not in the interval (dE_min, dE_max).
-        
+
         Parameters
         ----------
         dE_min : float
@@ -248,10 +242,8 @@ class Beam(object):
         dE_max : float
             maximum dE.
         '''
-    
+
         itemindex = np.where( (self.dE - dE_min)*(dE_max - self.dE) < 0 )[0]
-        
+
         if itemindex.size != 0:          
             self.id[itemindex] = 0 
-
-
