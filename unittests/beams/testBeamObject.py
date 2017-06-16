@@ -102,20 +102,13 @@ class testBeamClass(unittest.TestCase):
                               msg='Beam: dt is not a numpy.array')
         self.assertIsInstance(self.beam.dE, numpy.ndarray,
                               msg='Beam: dE is not a numpy.array')
-#    def test_dtdE_are_numpy_array(self):
-#        self.assertIsInstance(self.beam.dt, numpy.ndarray,
-#                              msg='Beam: dt is not a numpy.array')
-#        self.assertIsInstance(self.beam.dE, numpy.ndarray,
-#                              msg='Beam: dE is not a numpy.array')
 
     def test_beam_statistic(self):
         sigma_dt = 1.
         sigma_dE = 1.
         self.beam.dt = sigma_dt*numpy.random.randn(self.beam.n_macroparticles)
         self.beam.dE = sigma_dE*numpy.random.randn(self.beam.n_macroparticles)
-        
-#        print(numpy.std(self.beam.dt)-sigma_dt,numpy.mean(self.beam.dt))
-#        print(numpy.std(self.beam.dE)-sigma_dE,numpy.mean(self.beam.dE))
+
         self.beam.statistics()
         
         self.assertAlmostEqual(self.beam.sigma_dt, sigma_dt, delta=1e-2,
@@ -140,12 +133,10 @@ class testBeamClass(unittest.TestCase):
                                bunch_length_fit='fwhm',
                                distribution_variable='Hamiltonian')
 
-#        self.beam.losses_separatrix(self.general_params, self.rf_params, self.beam)
         self.beam.losses_separatrix(self.general_params, self.rf_params)
         self.assertEqual(len(self.beam.id[self.beam.id==0]), 0,
                          msg='Beam: Failed losses_sepatrix, first')
         self.beam.dE += 10e8
-#        self.beam.losses_separatrix(self.general_params, self.rf_params, self.beam)
         self.beam.losses_separatrix(self.general_params, self.rf_params)
         self.assertEqual(len(self.beam.id[self.beam.id==0]), self.beam.n_macroparticles,
                          msg='Beam: Failed losses_sepatrix, second')
