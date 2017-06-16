@@ -45,7 +45,7 @@ extensions = ['sphinx.ext.autodoc',
     'sphinx.ext.mathjax',
 #    'sphinx.ext.viewcode',
 #    'sphinx.ext.githubpages',
-    'numpydoc']
+    'sphinxcontrib.napoleon']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -61,8 +61,9 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'BLonD'
-copyright = u'2017, Test'
-author = u'Test'
+copyright = u'2017'
+author = u'BLonD-admin'
+
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the

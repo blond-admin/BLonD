@@ -151,7 +151,7 @@ total_induced_voltage = TotalInducedVoltage(my_beam, slice_beam,
 # PLOTS
 
 format_options = {'dirname': '../output_files/TC2_fig', 'linestyle': '.'}
-plots = Plot(general_params, RF_sct_par, my_beam, 1, n_turns, - 5.72984173562e-7, 
+plots = Plot(general_params, RF_sct_par, my_beam, 1, n_turns, 0, 
              5.72984173562e-7, - my_beam.sigma_dE * 4.2, my_beam.sigma_dE * 4.2, xunit= 's',
              separatrix_plot= True, Slices = slice_beam, h5file = '../output_files/TC2_output_data', 
              histograms_plot = True, format_options = format_options)

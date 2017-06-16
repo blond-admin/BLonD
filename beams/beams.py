@@ -20,22 +20,29 @@ from scipy.constants import m_p, m_e, e, c
 from trackers.utilities import is_in_separatrix
 
 class Particle(object):
+
     def __init__(self, user_mass, user_charge):
+        
         if user_mass > 0.:
             self.mass = float(user_mass)
             self.charge = float(user_charge)
         else:
             raise RuntimeError('ERROR: Particle mass not recognized!')
-
-
+        
 class Proton(Particle):
-    def __init__(self):
+    
+    def __init__(self):        
+        
         Particle.__init__(self, float(m_p*c**2/e), np.float(1))
 
 class Electron(Particle):
-    def __init__(self):
+        
+    def __init__(self):        
         self.mass =  float(m_e*c**2/e)
         self.charge = float(-1)
+
+
+
 
 class Beam(object):
     """Class containing the beam properties.
@@ -46,10 +53,10 @@ class Beam(object):
     station w.r.t. the reference time that is the sum of turns. The beam
     coordiate 'dE' is defined as the particle energy offset w.r.t. the
     energy of the synchronous particle.
-    
+
     The class creates a beam with zero dt and dE, see distributions to match
     a beam with respect to the RF and intensity effects.
-
+    
     Parameters
     ----------
     GeneralParameters : GeneralParameters
@@ -57,9 +64,8 @@ class Beam(object):
     n_macroparticles : int
         total number of macroparticles.
     intensity : float
-        total intensity of the beam [in number of charge].
-
-
+        total intensity of the beam (in number of charge).
+  
     Attributes
     ----------
     mass : float
@@ -96,7 +102,7 @@ class Beam(object):
         number of macro-particles marked as 'lost' [].
     id : numpy_array, int
         unique macro-particle ID number; zero if particle is 'lost'.
-
+        
     See Also
     ---------
     distributions.matched_from_line_density:
@@ -118,7 +124,6 @@ class Beam(object):
     >>> intensity = 1e11
     >>>
     >>> my_beam = Beam(GeneralParameters, n_macroparticle, intensity)
-    
     """
 
     def __init__(self, GeneralParameters, n_macroparticles, intensity):
@@ -240,5 +245,5 @@ class Beam(object):
 
         itemindex = np.where( (self.dE - dE_min)*(dE_max - self.dE) < 0 )[0]
 
-        if itemindex.size != 0:
-            self.id[itemindex] = 0
+        if itemindex.size != 0:          
+            self.id[itemindex] = 0 
