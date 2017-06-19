@@ -186,7 +186,7 @@ class GeneralParameters(object):
             self.momentum = synchronous_data[1]
             synchronous_data = synchronous_data[1]
             if len(self.cycle_time) != len(self.momentum):
-                raise RuntimeError('ERROR in GeneralParameters: sychronous'+
+                raise RuntimeError('ERROR in GeneralParameters: synchronous'+
                     ' data does not match the time data')
         # Convert synchronous data to momentum, if necessary
         self.momentum = PreprocessRamp.convert_data(synchronous_data, 
@@ -278,12 +278,12 @@ class GeneralParameters(object):
         Parameters
         ----------
         cycle_moments : float array
-            moments of time at which cycle parameters are to be calculated [s].  
+            Moments of time at which cycle parameters are to be calculated [s].  
               
         Attributes
         ----------
         parameters : dictionary
-            contains 'momentum', 'beta', 'gamma', 'energy', 'kin_energy',
+            Contains 'momentum', 'beta', 'gamma', 'energy', 'kin_energy',
             'f_rev', 't_rev'. 'omega_rev', 'eta_0', and 'delta_E' interpolated
             to the moments contained in the 'cycle_moments' array
             
