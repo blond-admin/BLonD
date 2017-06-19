@@ -23,12 +23,10 @@ from beams.beams import Proton
 
 
 def input_check(input_value, expected_length):
-    '''
-    | *Function to check the length of the input*
-    | *The input can be a float, int, np.ndarray and list*
-    | *If len(input_value) == 1, transform it to a constant array*
-    | *If len(input_value) != expected_length and != 1, raise an error*
-    '''
+    r"""Function to check the length of the input. The input can be a float, 
+    int, np.ndarray and list. If len(input_value) == 1, transform it to a 
+    constant array. If len(input_value) != expected_length and != 1, raise an 
+    error"""
     
     if isinstance(input_value, float):
         return input_value * np.ones(expected_length)
@@ -426,12 +424,7 @@ def calculate_phi_s(RFSectionParameters, Particle = Proton(),
         return phi_s
     
     elif accelerating_systems == 'first':
-        '''
-        Only the first RF system is accelerating, so we have to correct the 
-        phi_RF of the other rf_systems such that p_increment relates 
-        only to the first RF
-        '''
-        
+       
         print('WARNING in calculate_phi_s(): accelerating_systems "first"'+
                   ' not yet implemented')
         pass
