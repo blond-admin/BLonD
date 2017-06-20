@@ -346,7 +346,7 @@ def calculate_phi_s(RFSectionParameters, Particle = Proton(),
         An RFSectionParameters type class.  
     Particle : class
         A Particle type class; default is Proton().
-    accelerating_systems : string
+    accelerating_systems : str
         Choice of accelerating systems; or options, see list above.
           
     Returns

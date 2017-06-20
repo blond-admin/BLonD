@@ -53,7 +53,7 @@ class GeneralParameters(object):
         [momentum_program_section_1, momentum_program_section_2, etc.]. Can
         be input also as a tuple of time and momentum, see also
         'cycle_time' and 'PreprocessRamp'
-    synchronous_data_type : string
+    synchronous_data_type : str
         Choice of 'synchronous_data' type; can be 'momentum' (default),
         'total_energy' or 'kinetic_energy'
     Particle : class
@@ -150,7 +150,7 @@ class GeneralParameters(object):
     
     def __init__(self, n_turns, ring_length, alpha, synchronous_data, 
                  synchronous_data_type = 'momentum', Particle = Proton(), 
-                 n_sections = 1, PreprocessRamp = PreprocessRamp()): 
+                 n_sections = 1, PreprocessRamp = None): 
         
         self.n_turns = int(n_turns) 
         self.n_sections = int(n_sections)
