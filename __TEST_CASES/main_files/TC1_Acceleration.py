@@ -110,7 +110,7 @@ for i in range(1, N_t+1):
         m.track()
         
     # Define losses according to separatrix and/or longitudinal position
-    beam.losses_separatrix(general_params, rf_params, beam)
+    beam.losses_separatrix(general_params, rf_params)
     beam.losses_longitudinal_cut(0., 2.5e-9)
     
 print("Done!")
