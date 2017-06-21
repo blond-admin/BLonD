@@ -1,4 +1,4 @@
-
+# coding: utf8
 # Copyright 2014-2017 CERN. This software is distributed under the
 # terms of the GNU General Public License version 3 (GPL Version 3), 
 # copied verbatim in the file LICENSE.md.
@@ -25,14 +25,28 @@ from beams.beams import Proton
 
 
 
-def loaddata(filename, ignore=0, delimiter=None):
-
-    """
-    Loading column-by-column data from file to numpy arrays.
-    Ignore x lines from the head of the file.
+def load_data(filename, ignore=0, delimiter=None):
+    r"""Helper function to load column-by-column data from a txt file to numpy 
+    arrays.
+    
+    Parameters
+    ----------
+    filename : str
+        Name of the file containing the data.
+    ignore : int
+        Number of lines to ignore from the head of the file.
+    delimiter : str
+        Delimiting character between columns.
+        
+    Returns
+    -------
+    list of arrays
+        Input data, column by column.
+        
     """
     
-    data = np.loadtxt(filename, skiprows=ignore, delimiter=delimiter)
+    data = np.loadtxt(str(filename), skiprows=int(ignore), 
+                      delimiter=str(delimiter))
 
     return [ np.ascontiguousarray(data[:,i]) for i in range(len(data[0])) ]
 
@@ -43,7 +57,7 @@ class PreprocessRamp(object):
     
     Parameters
     ----------
-    interpolation : string
+    interpolation : str
         Interpolation options for the data points. Available options are 
         'linear' (default), 'cubic', and 'derivative'.
     smoothing : float
@@ -60,11 +74,11 @@ class PreprocessRamp(object):
     t_end : int
         Last index up to which the time array input should be taken into
         account; default is -1
-    plot : boolean
+    plot : bool
         Option to plot interpolated arrays; default is False
-    figdir : string
+    figdir : str
         Directory to save optional plot; default is 'fig'
-    figname : string
+    figname : str
         Figure name to save optional plot; default is 'preprocess_ramp'
     sampling : int
         Decimation value for plotting; default is 1
@@ -122,48 +136,29 @@ class PreprocessRamp(object):
         return momentum
     
 
-    def preprocess(self, mass, circumference, time, momentum):#, #data, #data_type='momentum', 
-#                    interpolation='linear', smoothing = 0,
-#                    flat_bottom=0, flat_top=0, t_start=0, t_end=-1,
-#                    plot=False, figdir='fig', figname='data', sampling=1): #, 
-#                    user_mass=None, user_charge=None):
+    def preprocess(self, mass, circumference, time, momentum):
+        r"""Function to pre-process acceleration ramp data, interpolating it to
+        every turn.
+
+        Parameters
+        ----------
+        mass : float
+            Particle mass [eV].
+        circumference : float
+            Machine circumference [m].
+        time : float array
+            Time points [s] corresponding to momentum data.
+        momentum : float array
+            Particle momentum [eV/c].
+            
+        Returns
+        -------
+        float array
+            Cumulative time [s].
+        float array
+            Interpolated momentum [eV/c].
+
         """
-        Pre-process acceleration ramp data to create input for simulation parameters.
-        Input: absolute time [s] and corresponding momentum [eV/c] or total energy [eV] or kinetic energy [eV].
-        Output: cumulative time array [s], interpolated momentum [eV/c].
-        """
-#        'interpolation': restricted to linear and cubic at the moment.
-#        'flat_bottom/top': extra time can be be added in units of time steps;
-#        constant extrapolation of the first/last data point is used in this case. 
-#        't_start/end': cutting the inputed momentum program to the times to be simulated
-#        'plot': optional plotting of interpolated array with 'sampling' frequency; 
-#        saved with name 'figname' into 'figdir'.
-#        '''
-        
-        # Definitions
-    #    Nd = len(time)
-    #    if len(data) != Nd:
-    #        raise RuntimeError(str(data)+' does not match the length of '+str(time))
-    
-        # Attribution of mass and charge with respect to particle_type
-    #     if particle_type is 'proton':
-    #         mass =  m_p*c**2/e # [eV]
-    #     elif particle_type is 'electron':
-    #         mass =  m_e*c**2/e # [eV]
-    #     elif particle_type is 'user_input':
-    #         mass = user_mass # [eV]
-    #     else:
-    #         raise RuntimeError('ERROR: Particle type in preprocess_ramp not recognized!')
-    
-        # Convert data to momentum, if necessary
-    #     if data_type == 'momentum':
-    #         momentum = data
-    #     elif data_type == 'total energy':
-    #         momentum = np.sqrt(data**2-mass**2)
-    #     elif data_type == 'kinetic energy':
-    #         momentum = np.sqrt((data+mass)**2-mass**2)
-    #     else:
-    #         raise RuntimeError('ERROR: Data type in preprocess_ramp not recognized!')
         
         # Some checks on the options
         if self.t_start < 0 or self.t_start > len(time)-1:
@@ -287,8 +282,8 @@ class PreprocessRamp(object):
     
                 i += 1
     
-            #Adjust result to get flat top energy correct as derivation and
-            #integration leads to ~10^-8 error in flat top momentum
+            # Adjust result to get flat top energy correct as derivation and
+            # integration leads to ~10^-8 error in flat top momentum
             momentum_interp = np.asarray(momentum_interp)
             momentum_interp -= momentum_interp[0]
             momentum_interp /= momentum_interp[-1]
