@@ -8,6 +8,7 @@ result.dll
 result.so
 sync_rad.dll
 
+/__doc/_build/
 /__doc/build/
 /__TEST_CASES/output_files
 /PERSONAL_FOLDER/
