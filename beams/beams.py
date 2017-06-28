@@ -155,6 +155,19 @@ class Beam(object):
         self.id = np.arange(1, self.n_macroparticles + 1, dtype=int)
 
     @property
+    def n_macroparticles_lost(self):
+        '''Number of lost macro-particles, defined as @property.
+        
+        Returns
+        -------        
+        n_macroparticles_lost : int
+            number of macroparticles lost.
+            
+        '''
+        
+        return len( np.where( self.id == 0 )[0] )
+
+    @property
     def n_macroparticles_alive(self):
         '''Number of transmitted macro-particles, defined as @property.
         
@@ -162,6 +175,7 @@ class Beam(object):
         -------        
         n_macroparticles_alive : int
             number of macroparticles not lost.
+            
         '''
         
         return self.n_macroparticles - self.n_macroparticles_lost
@@ -189,8 +203,6 @@ class Beam(object):
         # R.m.s. emittance in Gaussian approximation
         self.epsn_rms_l = np.pi*self.sigma_dE*self.sigma_dt # in eVs
 
-        # Losses
-        self.n_macroparticles_lost = len( np.where( self.id == 0 )[0] )
 
         
     def losses_separatrix(self, GeneralParameters, RFSectionParameters, Beam):
