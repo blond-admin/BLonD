@@ -367,11 +367,18 @@ class PreprocessRFParams(object):
         will have figures with different indices
     sampling : int
         Decimation value for plotting; default is 1
+    harmonic : bool
+        Switch to pre-process harmonic; default is False
+    voltage : bool
+        Switch to pre-process voltage; default is True
+    phase : bool
+        Switch to pre-process phase; default is False
     
     """
 
     def __init__(self, interpolation = 'linear', smoothing = 0, plot = False, 
-                 figdir = 'fig', figname = ['data'], sampling = 1):
+                 figdir = 'fig', figname = ['data'], sampling = 1, 
+                 harmonic = False, voltage = True, phase = False):
     
         if interpolation in ['linear', 'cubic']:
             self.interpolation = str(interpolation)
@@ -390,7 +397,10 @@ class PreprocessRFParams(object):
             self.sampling = int(sampling)
         else:
             raise RuntimeError('ERROR: sampling value in PreprocessRamp'+
-                               ' not recognized. Aborting...')            
+                               ' not recognized. Aborting...')
+        self.harmonic = harmonic
+        self.voltage = voltage
+        self.phase = phase            
     
     
     def preprocess(self, GeneralParameters, time_arrays, data_arrays):

@@ -57,6 +57,9 @@ class RFSectionParameters(object):
       of single values 
     * For several RF systems and varying values of V, h, or phi, input lists 
       of arrays of n_turns values
+    * For pre-processing, pass a list of times-voltages, times-harmonics, 
+      and/or times-phases for **each** RF system and define the 
+      PreprocessRFParams class, i.e. [time_1, ..., time_n, data_1, ..., data_n]  
       
     Optional: RF frequency other than the design frequency. In this case, need
     to use a beam phase loop for correct RF phase!
@@ -135,6 +138,10 @@ class RFSectionParameters(object):
     Particle : class
         A Particle type class defining the primary, synchronous particle (mass
         and charge) that is used to calculate phi_s and Qs; default is Proton()
+    PreprocessRFParams : class
+        A PreprocessRFParams-based class defining smoothing, interpolation, 
+        etc. options for harmonic, voltage, and/or phi_rf_d programme to be 
+        interpolated to a turn-by-turn programme
         
     Attributes
     ----------
@@ -188,7 +195,8 @@ class RFSectionParameters(object):
     
     def __init__(self, GeneralParameters, n_rf, harmonic, voltage, phi_rf_d, 
                  phi_noise = None, omega_rf = None, section_index = 1, 
-                 accelerating_systems = 'as_single', Particle = Proton()):
+                 accelerating_systems = 'as_single', Particle = Proton(), 
+                 PreprocessRFParams = None):
         
         # Imported from GeneralParameters
         self.n_turns = GeneralParameters.n_turns
@@ -219,9 +227,51 @@ class RFSectionParameters(object):
                 ' out of allowed range!')    
         self.n_rf = n_rf
  
-        # RF programs. Cast the input into appropriate shape: the input is 
+        # Treat RF programs
+        rf_params = [harmonic, voltage, phi_rf_d]
+        for rf_param in rf_params:
+            # Option 1: pre-process
+            if PreprocessRFParams:
+                time_arrays = []
+                data_arrays = []
+                if PreprocessRFParams.harmonic == True:
+                    if len(harmonic) == 2*self.n_rf:
+                        time_arrays.append(harmonic[0:self.n_rf])
+                        data_arrays.append(harmonic[self.n_rf:])
+                    else:
+                        raise RuntimeError("ERROR in RFSectionParameters:"+
+                            " harmonic to be pre-processed should have length of"+
+                            " 2*n_rf!")
+                else:
+                    input_check(harmonic)
+#             if PreprocessRFParams.voltage == True:
+#                 if len(voltage) == 2*self.n_rf:
+#                     time_arrays.append(voltage[0:self.n_rf])
+#                     data_arrays.append(voltage[self.n_rf:])
+#                 else:
+#                     raise RuntimeError("ERROR in RFSectionParameters:"+
+#                         " voltage to be pre-processed should have length of"+
+#                         " 2*n_rf!")
+#             else:
+#                 input_check(voltage)
+#             if PreprocessRFParams.phase == True:
+#                 if len(phi_rf_d) == 2*self.n_rf:
+#                     time_arrays.append(phi_rf_d[0:self.n_rf])
+#                     data_arrays.append(phi_rf_d[self.n_rf:])
+#                 else:
+#                     raise RuntimeError("ERROR in RFSectionParameters:"+
+#                         " phi_rf_d to be pre-processed should have length of"+
+#                         " 2*n_rf!")
+#             else:
+#                 input_check(phi_rf_d)
+            # Execute pre-processing
+            data_interp = PreprocessRFParams.preprocess(GeneralParameters, 
+                time_arrays, data_arrays)
+            
+                
+        # Option 2: cast the input into appropriate shape: the input is 
         # analyzed and structured in order to have lists whose length is 
-        # matching the number of RF systems in the section.
+        # matching the number of RF systems in the section.      
         if self.n_rf == 1:
             self.harmonic = [harmonic] 
             self.voltage = [voltage]
