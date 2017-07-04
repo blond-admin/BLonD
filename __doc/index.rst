@@ -62,16 +62,16 @@ Modules
 .. toctree::
     :maxdepth: 2
 
-    modules/beams.rst
-    modules/impedances.rst
-    modules/input_parameters.rst
-    modules/llrf.rst
-    modules/monitors.rst
-    modules/plots.rst
-    modules/synchrotron_radiation.rst
-    modules/toolbox.rst
-    modules/trackers.rst
-    modules/setup_cpp.rst
+    source/beams.rst
+    source/impedances.rst
+    source/input_parameters.rst
+    source/llrf.rst
+    source/monitors.rst
+    source/plots.rst
+    source/synchrotron_radiation.rst
+    source/toolbox.rst
+    source/trackers.rst
+    source/setup_cpp.rst
 
 
 
