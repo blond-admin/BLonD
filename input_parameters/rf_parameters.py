@@ -39,7 +39,7 @@ def input_check(input_value, expected_length):
     elif len(input_value) == expected_length:
         return np.array(input_value)
     else:
-        raise RuntimeError('ERROR: ' + str(input_value) + ' does not match ' 
+        raise RuntimeError("ERROR: " + str(input_value) + " does not match " 
                            + str(expected_length))
     
     
@@ -57,6 +57,9 @@ class RFSectionParameters(object):
       of single values 
     * For several RF systems and varying values of V, h, or phi, input lists 
       of arrays of n_turns values
+    * For pre-processing, pass a list of times-voltages, times-harmonics, 
+      and/or times-phases for **each** RF system and define the 
+      PreprocessRFParams class, i.e. [time_1, ..., time_n, data_1, ..., data_n]  
       
     Optional: RF frequency other than the design frequency. In this case, need
     to use a beam phase loop for correct RF phase!
@@ -135,6 +138,10 @@ class RFSectionParameters(object):
     Particle : class
         A Particle type class defining the primary, synchronous particle (mass
         and charge) that is used to calculate phi_s and Qs; default is Proton()
+    PreprocessRFParams : class
+        A PreprocessRFParams-based class defining smoothing, interpolation, 
+        etc. options for harmonic, voltage, and/or phi_rf_d programme to be 
+        interpolated to a turn-by-turn programme
         
     Attributes
     ----------
@@ -188,7 +195,8 @@ class RFSectionParameters(object):
     
     def __init__(self, GeneralParameters, n_rf, harmonic, voltage, phi_rf_d, 
                  phi_noise = None, omega_rf = None, section_index = 1, 
-                 accelerating_systems = 'as_single', Particle = Proton()):
+                 accelerating_systems = 'as_single', Particle = Proton(), 
+                 PreprocessRFParams = None):
         
         # Imported from GeneralParameters
         self.n_turns = GeneralParameters.n_turns
@@ -215,13 +223,38 @@ class RFSectionParameters(object):
         self.section_index = int(section_index - 1)
         if self.section_index < 0 \
             or self.section_index > GeneralParameters.n_sections - 1:
-            raise RuntimeError('ERROR in RFSectionParameters: section_index'+
-                ' out of allowed range!')    
+            raise RuntimeError("ERROR in RFSectionParameters: section_index"+
+                " out of allowed range!")    
         self.n_rf = n_rf
  
-        # RF programs. Cast the input into appropriate shape: the input is 
+        # Treat RF programs
+        self.harmonic = harmonic
+        self.voltage = voltage
+        self.phi_rf_d = phi_rf_d
+        rf_params = ['harmonic', 'voltage', 'phi_rf_d', 'omega_rf']
+        for rf_param in rf_params:
+            # Option 1: pre-process
+            if PreprocessRFParams:
+                if PreprocessRFParams.__getattribute__(rf_param) == True:
+                    if len(self.__getattribute__(rf_param)) == 2*self.n_rf:
+                        # Overwrite with interpolated values
+                        self.__setattribute__(rf_param, 
+                            PreprocessRFParams.preprocess(GeneralParameters, 
+                            self.__getattribute__(rf_param)[0:self.n_rf], #time
+                            self.__getattribute__(rf_param)[self.n_rf:])) #data
+                    else:
+                        raise RuntimeError("ERROR in RFSectionParameters:"+
+                            " harmonic to be pre-processed should have length"+
+                            " of 2*n_rf!")
+                else:
+                    input_check(self.__getattribute__(rf_param))
+        if phi_noise:
+            input_check(self.phi_noise)
+            
+# BEGIN MOVE TO INPUT CHECK... ************************************************               
+        # Option 2: cast the input into appropriate shape: the input is 
         # analyzed and structured in order to have lists whose length is 
-        # matching the number of RF systems in the section.
+        # matching the number of RF systems in the section.      
         if self.n_rf == 1:
             self.harmonic = [harmonic] 
             self.voltage = [voltage]
@@ -258,6 +291,7 @@ class RFSectionParameters(object):
             self.phi_noise = np.array(self.phi_noise, ndmin =2) 
         if omega_rf != None:
             self.omega_rf = np.array(self.omega_rf, ndmin =2) 
+# END MOVE TO INPUT CHECK... **************************************************               
         
         # RF (feedback) properties
         self.phi_rf = np.array(self.phi_rf_d) 
@@ -369,9 +403,9 @@ def calculate_phi_s(RFSectionParameters, Particle = Proton(),
         
         # Validity check on acceleration_ratio        
         if acceleration_test.size > 0:
-            print('WARNING in calculate_phi_s(): acceleration is not possible'+
-                  ' (momentum increment is too big or voltage too low) at'+
-                  ' index ' + str(acceleration_test))
+            print("WARNING in calculate_phi_s(): acceleration is not possible"+
+                  " (momentum increment is too big or voltage too low) at"+
+                  " index " + str(acceleration_test))
         
         phi_s = np.arcsin(acceleration_ratio)
 
@@ -425,12 +459,12 @@ def calculate_phi_s(RFSectionParameters, Particle = Proton(),
     
     elif accelerating_systems == 'first':
        
-        print('WARNING in calculate_phi_s(): accelerating_systems "first"'+
-                  ' not yet implemented')
+        print("WARNING in calculate_phi_s(): accelerating_systems 'first'"+
+              " not yet implemented")
         pass
     else:
-        raise RuntimeError('ERROR in calculate_phi_s(): unrecognized' +
-                           ' accelerating_systems option')
+        raise RuntimeError("ERROR in calculate_phi_s(): unrecognised"+
+                           " accelerating_systems option")
 
 
 
