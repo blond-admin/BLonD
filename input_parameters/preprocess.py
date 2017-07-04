@@ -19,7 +19,7 @@ from builtins import str, range
 import numpy as np
 import matplotlib.pyplot as plt
 from plots.plot import fig_folder
-from scipy.constants import m_p, m_e, c, e
+from scipy.constants import c
 from scipy.interpolate import splrep, splev
 from beams.beams import Proton
 
@@ -92,17 +92,17 @@ class PreprocessRamp(object):
         if interpolation in ['linear', 'cubic', 'derivative']:
             self.interpolation = str(interpolation)
         else:    
-            raise RuntimeError('ERROR: Interpolation scheme in PreprocessRamp'+
-                               ' not recognized. Aborting...')
+            raise RuntimeError("ERROR: Interpolation scheme in PreprocessRamp"+
+                               " not recognised. Aborting...")
         self.smoothing = float(smoothing)
         if flat_bottom < 0:
-            raise RuntimeError('ERROR: flat_bottom value in PreprocessRamp'+
-                               ' not recognized. Aborting...')
+            raise RuntimeError("ERROR: flat_bottom value in PreprocessRamp"+
+                               " not recognised. Aborting...")
         else:          
             self.flat_bottom = int(flat_bottom)
         if flat_top < 0:
-            raise RuntimeError('ERROR: flat_top value in PreprocessRamp'+
-                               ' not recognized. Aborting...')
+            raise RuntimeError("ERROR: flat_top value in PreprocessRamp"+
+                               " not recognised. Aborting...")
         else:          
             self.flat_top = int(flat_top)            
         self.t_start = int(t_start)
@@ -110,15 +110,15 @@ class PreprocessRamp(object):
         if plot == True or plot == False:
             self.plot = bool(plot)
         else: 
-            raise RuntimeError('ERROR: plot value in PreprocessRamp'+
-                               ' not recognized. Aborting...')            
+            raise RuntimeError("ERROR: plot value in PreprocessRamp"+
+                               " not recognised. Aborting...")            
         self.figdir = str(figdir)
         self.figname = str(figname)
         if sampling > 0:
             self.sampling = int(sampling)
         else:
-            raise RuntimeError('ERROR: sampling value in PreprocessRamp'+
-                               ' not recognized. Aborting...')            
+            raise RuntimeError("ERROR: sampling value in PreprocessRamp"+
+                               " not recognised. Aborting...")            
             
 
     def convert_data(self, synchronous_data, Particle = Proton(),
@@ -132,8 +132,8 @@ class PreprocessRamp(object):
             momentum = np.sqrt((synchronous_data+Particle.mass)**2 -
                                     Particle.mass**2)
         else:
-            raise RuntimeError('ERROR in PreprocessRamp: Synchronous data'+
-                ' type not recognized!')
+            raise RuntimeError("ERROR in PreprocessRamp: Synchronous data"+
+                " type not recognized!")
         return momentum
     
 
@@ -163,11 +163,11 @@ class PreprocessRamp(object):
         
         # Some checks on the options
         if self.t_start < 0 or self.t_start > len(time)-1:
-            raise RuntimeError('ERROR: t_start value in PreprocessRamp'+
-                               ' does not match the time array length')            
+            raise RuntimeError("ERROR: t_start value in PreprocessRamp"+
+                               " does not match the time array length")            
         if np.abs(self.t_end) > len(time)-1:   
-            raise RuntimeError('ERROR: t_end value in PreprocessRamp'+
-                               ' does not match the time array length')            
+            raise RuntimeError("ERROR: t_end value in PreprocessRamp"+
+                               " does not match the time array length")            
         
         # Obtain flat bottom data, extrapolate to constant
         beta_0 = np.sqrt(1/(1 + (mass/momentum[0])**2))
@@ -370,37 +370,39 @@ class PreprocessRFParams(object):
     harmonic : bool
         Switch to pre-process harmonic; default is False
     voltage : bool
-        Switch to pre-process voltage; default is True
-    phase : bool
-        Switch to pre-process phase; default is False
+        Switch to pre-process RF voltage; default is True
+    phi_rf_d : bool
+        Switch to pre-process RF phase; default is False
     
     """
 
     def __init__(self, interpolation = 'linear', smoothing = 0, plot = False, 
                  figdir = 'fig', figname = ['data'], sampling = 1, 
-                 harmonic = False, voltage = True, phase = False):
+                 harmonic = False, voltage = True, phi_rf_d = False, 
+                 omega_rf = False):
     
         if interpolation in ['linear', 'cubic']:
             self.interpolation = str(interpolation)
         else:    
-            raise RuntimeError('ERROR: Interpolation scheme in'+
-                ' PreprocessRFParams not recognized. Aborting...')
+            raise RuntimeError("ERROR: Interpolation scheme in"+
+                " PreprocessRFParams not recognised. Aborting...")
         self.smoothing = float(smoothing)
         if plot == True or plot == False:
             self.plot = bool(plot)
         else: 
-            raise RuntimeError('ERROR: plot value in PreprocessRamp'+
-                               ' not recognized. Aborting...')            
+            raise RuntimeError("ERROR: plot value in PreprocessRamp"+
+                               " not recognised. Aborting...")            
         self.figdir = str(figdir)
         self.figname = str(figname)
         if sampling > 0:
             self.sampling = int(sampling)
         else:
-            raise RuntimeError('ERROR: sampling value in PreprocessRamp'+
-                               ' not recognized. Aborting...')
+            raise RuntimeError("ERROR: sampling value in PreprocessRamp"+
+                               " not recognised. Aborting...")
         self.harmonic = harmonic
         self.voltage = voltage
-        self.phase = phase            
+        self.phi_rf_d = phi_rf_d
+        self.omega_rf = omega_rf            
     
     
     def preprocess(self, GeneralParameters, time_arrays, data_arrays):
@@ -433,8 +435,8 @@ class PreprocessRFParams(object):
         # Interpolation done here
         for i in range(len(time_arrays)):
             if len(time_arrays[i]) != len(data_arrays[i]):
-                raise RuntimeError('ERROR: number of time and data arrays in'+
-                                   ' PreprocessRFParams do not match!')
+                raise RuntimeError("ERROR: number of time and data arrays in"+
+                                   " PreprocessRFParams do not match!")
             if self.interpolation == 'linear':
                 data_interp.append(np.interp(cumulative_time, time_arrays[i], 
                                              data_arrays[i]))
@@ -496,8 +498,8 @@ def combine_rf_functions(function_list, merge_type = 'linear',
         timePoints += function_list[i][1]
     
     if not np.all(np.diff(timePoints)) > 0:
-        raise RuntimeError('ERROR: in combine_rf_functions, times are not'+
-                           ' monotonically increasing')
+        raise RuntimeError("ERROR: in combine_rf_functions, times are not"+
+                           " monotonically increasing!")
     
     fullFunction = []
     fullTime = []

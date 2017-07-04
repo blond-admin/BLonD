@@ -17,7 +17,7 @@ from builtins import str, range, object
 import numpy as np
 import warnings
 from scipy.constants import c
-from input_parameters.preprocess import PreprocessRamp
+#from input_parameters.preprocess import PreprocessRamp
 from beams.beams import Proton
 
 
@@ -160,21 +160,21 @@ class GeneralParameters(object):
         self.ring_circumference = np.sum(self.ring_length)
         self.ring_radius = self.ring_circumference/(2*np.pi)         
         if self.n_sections != len(self.ring_length): 
-            raise RuntimeError('ERROR in GeneralParameters: Number of '+
-                'sections and ring length size do not match!')    
+            raise RuntimeError("ERROR in GeneralParameters: Number of"+
+                " sections and ring length size do not match!")    
         
         # Momentum compaction, checks, and derived slippage factors
         self.alpha = np.array(alpha, ndmin = 2, dtype = float) 
         self.alpha_order = int(self.alpha.shape[1])
         if self.alpha_order > 3:
             warnings.filterwarnings("once")
-            warnings.warn('WARNING in GeneralParameters: Momentum compaction'+
-                ' factor is implemented only up to 2nd order. Higher orders'+
-                ' are ignored.')
+            warnings.warn("WARNING in GeneralParameters: Momentum compaction"+
+                " factor is implemented only up to 2nd order. Higher orders"+
+                " are ignored.")
             self.alpha_order = 3         
         if self.n_sections != self.alpha.shape[0]:
-            raise RuntimeError('ERROR in GeneralParameters: Number of '+
-                'sections and size of momentum compaction do not match!')    
+            raise RuntimeError("ERROR in GeneralParameters: Number of"+
+                " sections and size of momentum compaction do not match!")    
 
         # Primary particle mass and charge used for energy calculations
         self.mass = Particle.mass
@@ -186,8 +186,8 @@ class GeneralParameters(object):
             self.momentum = synchronous_data[1]
             synchronous_data = synchronous_data[1]
             if len(self.cycle_time) != len(self.momentum):
-                raise RuntimeError('ERROR in GeneralParameters: synchronous'+
-                    ' data does not match the time data')
+                raise RuntimeError("ERROR in GeneralParameters: synchronous"+
+                    " data does not match the time data")
         # Convert synchronous data to momentum, if necessary
         self.momentum = PreprocessRamp.convert_data(synchronous_data, 
             Particle = Particle, synchronous_data_type = synchronous_data_type)
@@ -200,8 +200,8 @@ class GeneralParameters(object):
         else:
             self.momentum = np.array(self.momentum, ndmin = 2)
         if self.n_sections != self.momentum.shape[0]:
-            raise RuntimeError('ERROR in GeneralParameters: Number of'+
-                ' sections and momentum data do not match!')           
+            raise RuntimeError("ERROR in GeneralParameters: Number of"+
+                " sections and momentum data do not match!")           
         if self.n_sections > 1:
             if self.momentum.shape[1] == 1:
                 self.momentum = self.momentum*np.ones(self.n_turns + 1)
@@ -209,8 +209,8 @@ class GeneralParameters(object):
             if self.momentum.size == 1:
                 self.momentum = self.momentum*np.ones(self.n_turns + 1)
         if not self.momentum.shape[1] == self.n_turns + 1:
-                raise RuntimeError('ERROR in GeneralParameters: The momentum'+
-                    ' program does not match the proper length (n_turns+1)')
+                raise RuntimeError("ERROR in GeneralParameters: The momentum"+
+                    " program does not match the proper length (n_turns+1)")
          
         # Derived from momentum
         self.beta = np.sqrt(1/(1 + (self.mass/self.momentum)**2))
