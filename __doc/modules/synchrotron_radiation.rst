@@ -1,21 +1,11 @@
-synchrotron_radiation package
+synchrotron_radiation Package
 =============================
 
-Submodules
-----------
-
-synchrotron_radiation.synchrotron_radiation module
---------------------------------------------------
+:mod:`synchrotron_radiation` Module
+-----------------------------------
 
 .. automodule:: synchrotron_radiation.synchrotron_radiation
     :members:
     :undoc-members:
     :show-inheritance:
 
-Module contents
----------------
-
-.. automodule:: synchrotron_radiation
-    :members:
-    :undoc-members:
-    :show-inheritance:

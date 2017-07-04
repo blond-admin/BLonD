@@ -1,38 +1,51 @@
-beams package
+beams Package
 =============
 
-Submodules
-----------
-
-beams.beams module
-------------------
+:mod:`beams` Module
+-------------------
 
 .. automodule:: beams.beams
     :members:
     :undoc-members:
     :show-inheritance:
 
-beams.distributions module
---------------------------
+:mod:`coasting_beam` Module
+---------------------------
+
+.. automodule:: beams.coasting_beam
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+:mod:`distributions` Module
+---------------------------
 
 .. automodule:: beams.distributions
     :members:
     :undoc-members:
     :show-inheritance:
 
-beams.slices module
--------------------
+:mod:`distributions_multibunch` Module
+--------------------------------------
+
+.. automodule:: beams.distributions_multibunch
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+:mod:`slices` Module
+--------------------
 
 .. automodule:: beams.slices
     :members:
     :undoc-members:
     :show-inheritance:
 
+:mod:`sparse_slices` Module
+---------------------------
 
-Module contents
----------------
-
-.. automodule:: beams
+.. automodule:: beams.sparse_slices
     :members:
     :undoc-members:
     :show-inheritance:
+

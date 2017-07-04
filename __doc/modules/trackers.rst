@@ -1,11 +1,8 @@
-trackers package
+trackers Package
 ================
 
-Submodules
-----------
-
-trackers.tracker module
------------------------
+:mod:`tracker` Module
+---------------------
 
 .. automodule:: trackers.tracker
     :members:
@@ -418,10 +415,10 @@ array onto the 'basic period' of the waveform (that is :math:`(-\pi,\pi)` and
 respectively). 
 
 
-Module contents
----------------
+:mod:`utilities` Module
+-----------------------
 
-.. automodule:: trackers
+.. automodule:: trackers.utilities
     :members:
     :undoc-members:
     :show-inheritance:

@@ -1,46 +1,51 @@
-toolbox package
+toolbox Package
 ===============
 
-Submodules
-----------
-
-toolbox.action module
----------------------
+:mod:`action` Module
+--------------------
 
 .. automodule:: toolbox.action
     :members:
     :undoc-members:
     :show-inheritance:
 
-toolbox.diffusion module
-------------------------
+:mod:`convolution` Module
+-------------------------
+
+.. automodule:: toolbox.convolution
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+:mod:`diffusion` Module
+-----------------------
 
 .. automodule:: toolbox.diffusion
     :members:
     :undoc-members:
     :show-inheritance:
 
-toolbox.parameter_scaling module
---------------------------------
+:mod:`next_regular` Module
+--------------------------
+
+.. automodule:: toolbox.next_regular
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+:mod:`parameter_scaling` Module
+-------------------------------
 
 .. automodule:: toolbox.parameter_scaling
     :members:
     :undoc-members:
     :show-inheritance:
 
-toolbox.tomoscope module
-------------------------
+:mod:`tomoscope` Module
+-----------------------
 
 .. automodule:: toolbox.tomoscope
     :members:
     :undoc-members:
     :show-inheritance:
 
-
-Module contents
----------------
-
-.. automodule:: toolbox
-    :members:
-    :undoc-members:
-    :show-inheritance:

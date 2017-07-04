@@ -1,22 +1,35 @@
-impedances package
+impedances Package
 ==================
 
-Submodules
-----------
-
-impedances.impedance module
----------------------------
+:mod:`impedance` Module
+-----------------------
 
 .. automodule:: impedances.impedance
     :members:
     :undoc-members:
     :show-inheritance:
 
+:mod:`impedance_sources` Module
+-------------------------------
 
-Module contents
----------------
-
-.. automodule:: impedances
+.. automodule:: impedances.impedance_sources
     :members:
     :undoc-members:
     :show-inheritance:
+
+:mod:`induced_voltage_analytical` Module
+----------------------------------------
+
+.. automodule:: impedances.induced_voltage_analytical
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+:mod:`music` Module
+-------------------
+
+.. automodule:: impedances.music
+    :members:
+    :undoc-members:
+    :show-inheritance:
+

@@ -1,38 +1,27 @@
-input_parameters package
+input_parameters Package
 ========================
 
-Submodules
-----------
-
-input_parameters.general_parameters module
-------------------------------------------
+:mod:`general_parameters` Module
+--------------------------------
 
 .. automodule:: input_parameters.general_parameters
     :members:
     :undoc-members:
     :show-inheritance:
 
-input_parameters.preprocess module
-----------------------------------
+:mod:`preprocess` Module
+------------------------
 
 .. automodule:: input_parameters.preprocess
     :members:
     :undoc-members:
     :show-inheritance:
 
-input_parameters.rf_parameters module
--------------------------------------
+:mod:`rf_parameters` Module
+---------------------------
 
 .. automodule:: input_parameters.rf_parameters
     :members:
     :undoc-members:
     :show-inheritance:
 
-
-Module contents
----------------
-
-.. automodule:: input_parameters
-    :members:
-    :undoc-members:
-    :show-inheritance:

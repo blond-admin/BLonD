@@ -1,22 +1,11 @@
-monitors package
+monitors Package
 ================
 
-Submodules
-----------
-
-monitors.monitors module
-------------------------
+:mod:`monitors` Module
+----------------------
 
 .. automodule:: monitors.monitors
     :members:
     :undoc-members:
     :show-inheritance:
 
-
-Module contents
----------------
-
-.. automodule:: monitors
-    :members:
-    :undoc-members:
-    :show-inheritance:
