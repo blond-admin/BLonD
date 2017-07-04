@@ -17,7 +17,6 @@ from builtins import str, range, object
 import numpy as np
 import warnings
 from scipy.constants import c
-#from input_parameters.preprocess import PreprocessRamp
 from beams.beams import Proton
 
 
