@@ -453,4 +453,3 @@ Bunch-length based feedback on noise amplitude
    
    :param Slices: :py:class:`beams.slices.Slices`
    :return: 4-sigma-equivalent FWHM bunch length [ns]
-

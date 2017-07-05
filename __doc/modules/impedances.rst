@@ -32,4 +32,3 @@ impedances Package
     :members:
     :undoc-members:
     :show-inheritance:
-

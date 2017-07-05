@@ -48,4 +48,3 @@ beams Package
     :members:
     :undoc-members:
     :show-inheritance:
-

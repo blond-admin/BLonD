@@ -8,4 +8,3 @@ synchrotron_radiation Package
     :members:
     :undoc-members:
     :show-inheritance:
-
