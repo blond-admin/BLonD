@@ -227,7 +227,7 @@ class RFSectionParameters(object):
                 " out of allowed range!")    
         self.n_rf = n_rf
  
-        # Treat RF programs
+        # Process RF programs
         self.harmonic = harmonic
         self.voltage = voltage
         self.phi_rf_d = phi_rf_d
