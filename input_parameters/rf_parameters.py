@@ -231,6 +231,7 @@ class RFSectionParameters(object):
         self.harmonic = harmonic
         self.voltage = voltage
         self.phi_rf_d = phi_rf_d
+        self.omega_rf = omega_rf
         rf_params = ['harmonic', 'voltage', 'phi_rf_d', 'omega_rf']
         for rf_param in rf_params:
             # Option 1: pre-process
