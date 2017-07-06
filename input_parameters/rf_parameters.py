@@ -19,6 +19,7 @@ import numpy as np
 from scipy.constants import c
 from scipy.integrate import cumtrapz
 from beams.beams import Proton
+#from input_parameters.preprocess import PreprocessRFParams
 
 
 
@@ -197,7 +198,11 @@ class RFSectionParameters(object):
                  phi_noise = None, omega_rf = None, section_index = 1, 
                  accelerating_systems = 'as_single', Particle = Proton(), 
                  PreprocessRFParams = None):
-        
+
+        # Different indices
+        self.counter = [int(0)]
+        self.section_index = int(section_index - 1)
+
         # Imported from GeneralParameters
         self.n_turns = GeneralParameters.n_turns
         self.ring_circumference = GeneralParameters.ring_circumference
@@ -213,14 +218,12 @@ class RFSectionParameters(object):
         self.eta_0 = 0
         self.eta_1 = 0
         self.eta_2 = 0
+        self.charge = Particle.charge
         for i in range( self.alpha_order ):
             dummy = getattr(GeneralParameters, 'eta_' + str(i))
             setattr(self, "eta_%s" %i, dummy[self.section_index])
         self.sign_eta_0 = np.sign(self.eta_0)   
 
-        # Different indices
-        self.counter = [int(0)]
-        self.section_index = int(section_index - 1)
         if self.section_index < 0 \
             or self.section_index > GeneralParameters.n_sections - 1:
             raise RuntimeError("ERROR in RFSectionParameters: section_index"+
@@ -251,6 +254,9 @@ class RFSectionParameters(object):
                     input_check(self.__getattribute__(rf_param))
         if phi_noise:
             input_check(self.phi_noise)
+        else:
+            self.phi_noise = None
+
             
 # BEGIN MOVE TO INPUT CHECK... ************************************************               
         # Option 2: cast the input into appropriate shape: the input is 

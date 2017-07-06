@@ -18,6 +18,7 @@ import numpy as np
 import warnings
 from scipy.constants import c
 from beams.beams import Proton
+from input_parameters.preprocess import PreprocessRamp
 
 
 

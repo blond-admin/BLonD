@@ -389,8 +389,8 @@ def hamiltonian(GeneralParameters, RFSectionParameters, Beam, dt, dE,
     c2 = c*Beam.beta*V0/(h0*GeneralParameters.ring_circumference)
      
     phi_s = RFSectionParameters.phi_s[counter] 
-    phi_b = RFSectionParameters.omega_RF[0,counter]*dt + \
-            RFSectionParameters.phi_RF[0,counter] 
+    phi_b = RFSectionParameters.omega_rf[0,counter]*dt + \
+            RFSectionParameters.phi_rf_d[0,counter] 
     
     eta0 = RFSectionParameters.eta_0[counter]
     
@@ -522,8 +522,8 @@ def is_in_separatrix(GeneralParameters, RFSectionParameters, Beam, dt, dE, total
          
     counter = RFSectionParameters.counter[0]
     dt_sep = (np.pi - RFSectionParameters.phi_s[counter] 
-              - RFSectionParameters.phi_RF[0,counter])/ \
-              RFSectionParameters.omega_RF[0,counter]
+              - RFSectionParameters.phi_rf_d[0,counter])/ \
+              RFSectionParameters.omega_rf[0,counter]
      
     Hsep = hamiltonian(GeneralParameters, RFSectionParameters, Beam, dt_sep, 0, 
                        total_voltage = None) 
