@@ -186,18 +186,18 @@ class RingAndRFSection(object):
                
         #: *Import RF voltage program [V] (from RFSectionParameters)*
         self.voltage = RFSectionParameters.voltage  
-           
+
         #: *Import RF phase noise [rad] (from RFSectionParameters)*
         self.phi_noise = RFSectionParameters.phi_noise
-        
-        #: *Import RF phase [rad] (from RFSectionParameters)*
-        self.phi_RF = RFSectionParameters.phi_RF
-        
+
         #: *Import phi_s [rad] (from RFSectionParameters)* # needed for FullRingAndRF
         self.phi_s = RFSectionParameters.phi_s
-        
+
+        #: *Import RF phase [rad] (from RFSectionParameters)*
+        self.phi_RF = RFSectionParameters.phi_rf_d
+
         #: *Import actual RF frequency [1/s] (from RFSectionParameters)*
-        self.omega_RF = RFSectionParameters.omega_RF
+        self.omega_RF = RFSectionParameters.omega_rf
         
         #: *Slippage factor (0th order) for the given RF section*
         self.eta_0 = RFSectionParameters.eta_0
@@ -220,7 +220,7 @@ class RingAndRFSection(object):
         ### End of import of RF section parameters #############################
             
         #: *Synchronous energy change* :math:`: \quad - \delta E_s`
-        self.acceleration_kick = - RFSectionParameters.E_increment  
+        self.acceleration_kick = - RFSectionParameters.delta_E 
         
         #: | *Choice of drift solver options*
         self.solver = solver

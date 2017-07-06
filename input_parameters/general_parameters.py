@@ -18,6 +18,7 @@ import numpy as np
 import warnings
 from scipy.constants import c
 from beams.beams import Proton
+from input_parameters.preprocess import PreprocessRamp
 
 
 
@@ -149,7 +150,7 @@ class GeneralParameters(object):
     
     def __init__(self, n_turns, ring_length, alpha, synchronous_data, 
                  synchronous_data_type = 'momentum', Particle = Proton(), 
-                 n_sections = 1, PreprocessRamp = None): 
+                 n_sections = 1, PreprocessRamp = PreprocessRamp()): 
         
         self.n_turns = int(n_turns) 
         self.n_sections = int(n_sections)
