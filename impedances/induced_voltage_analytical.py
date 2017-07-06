@@ -24,6 +24,7 @@ def analytical_gaussian_resonator(sigma_t, Q, R_s, omega_r, tau_array, n_particl
 
     Parameters
     ----------
+    
     sigma_t : float
         Rms of the beam longitudinal coordinates [s].
     Q : float
@@ -39,11 +40,13 @@ def analytical_gaussian_resonator(sigma_t, Q, R_s, omega_r, tau_array, n_particl
     
     Returns
     -------
+    
     induced_voltage : float array
         Induced voltage [V] (multiplied by -1 according to BLonD conventions).
      
     Notes
     -----
+    
     The formula can be derived using the following lines of codes in 
     Mathematica:
     

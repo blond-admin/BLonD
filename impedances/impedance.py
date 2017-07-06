@@ -612,8 +612,8 @@ class InducedVoltageResonator(_InducedVoltage):
     density is sampled. If no timeArray is passed, the induced voltage is 
     evaluated at the points of the line density. This is nececassry of 
     compatability with other functions that calculate the induced voltage.
-    Currently, it requires the all quality factors * :math:`Q>0.5`
-    Currently, only works for single turn.
+    Currently, it requires the all quality factors :math:`Q>0.5`
+    Currently, only works for single turn.*
     
     Parameters
     ----------

@@ -219,7 +219,7 @@ class Slices(object):
  
     def rms(self):
         '''
-        * Computation of the RMS bunch length and position from the line
+        *Computation of the RMS bunch length and position from the line
         density (bunch length = 4sigma).*
         '''
 
@@ -237,7 +237,7 @@ class Slices(object):
        
     def fwhm(self, shift=0):
         '''
-        * Computation of the bunch length and position from the FWHM
+        *Computation of the bunch length and position from the FWHM
         assuming Gaussian line density.*
         '''
 
@@ -266,7 +266,7 @@ class Slices(object):
                         bunch_spacing_buckets, bucket_size_tau,
                         bucket_tolerance=0.40):
         '''
-        * Computation of the bunch length and position from the FWHM
+        *Computation of the bunch length and position from the FWHM
         assuming Gaussian line density for multibunch case.*
         '''
         

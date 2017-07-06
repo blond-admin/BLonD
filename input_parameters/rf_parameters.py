@@ -1,4 +1,4 @@
-
+# coding: utf8
 # Copyright 2014-2017 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3), 
 # copied verbatim in the file LICENCE.md.
@@ -23,12 +23,10 @@ from beams.beams import Proton
 
 
 def input_check(input_value, expected_length):
-    '''
-    | *Function to check the length of the input*
-    | *The input can be a float, int, np.ndarray and list*
-    | *If len(input_value) == 1, transform it to a constant array*
-    | *If len(input_value) != expected_length and != 1, raise an error*
-    '''
+    r"""Function to check the length of the input. The input can be a float, 
+    int, np.ndarray and list. If len(input_value) == 1, transform it to a 
+    constant array. If len(input_value) != expected_length and != 1, raise an 
+    error"""
     
     if isinstance(input_value, float):
         return input_value * np.ones(expected_length)
@@ -41,7 +39,7 @@ def input_check(input_value, expected_length):
     elif len(input_value) == expected_length:
         return np.array(input_value)
     else:
-        raise RuntimeError('ERROR: ' + str(input_value) + ' does not match ' 
+        raise RuntimeError("ERROR: " + str(input_value) + " does not match " 
                            + str(expected_length))
     
     
@@ -59,6 +57,9 @@ class RFSectionParameters(object):
       of single values 
     * For several RF systems and varying values of V, h, or phi, input lists 
       of arrays of n_turns values
+    * For pre-processing, pass a list of times-voltages, times-harmonics, 
+      and/or times-phases for **each** RF system and define the 
+      PreprocessRFParams class, i.e. [time_1, ..., time_n, data_1, ..., data_n]  
       
     Optional: RF frequency other than the design frequency. In this case, need
     to use a beam phase loop for correct RF phase!
@@ -66,10 +67,13 @@ class RFSectionParameters(object):
     The index :math:`n` denotes time steps, :math:`l` the index of the RF 
     systems in the section.
     
+    **N.B. for negative eta the RF phase has to be shifted by Pi w.r.t the time
+    reference.**
+    
     Parameters
     ----------
     GeneralParameters : class
-        A GeneralParameters-based class
+        A GeneralParameters type class
     n_turns : int 
         Inherited from
         :py:attr:`input_parameters.general_parameters.GeneralParameters`
@@ -132,8 +136,12 @@ class RFSectionParameters(object):
         For input options, see above. The default value is the design frequency
         :math:`\omega_{rf,l,n} = \omega_{d,l,n}`
     Particle : class
-        A Particle-based class defining the primary, synchronous particle (mass
+        A Particle type class defining the primary, synchronous particle (mass
         and charge) that is used to calculate phi_s and Qs; default is Proton()
+    PreprocessRFParams : class
+        A PreprocessRFParams-based class defining smoothing, interpolation, 
+        etc. options for harmonic, voltage, and/or phi_rf_d programme to be 
+        interpolated to a turn-by-turn programme
         
     Attributes
     ----------
@@ -170,37 +178,25 @@ class RFSectionParameters(object):
         :py:class:`input_parameters.general_parameters.GeneralParameters`)  
 
 
+    Examples
+    --------
+    >>> # To declare a double-harmonic RF system for protons:
+    >>>
+    >>> n_turns = 10
+    >>> C = 26659
+    >>> alpha = 3.21e-4
+    >>> momentum = 450e9
+    >>> general_parameters = GeneralParameters(n_turns, C, alpha, momentum) 
+    >>> rf_parameters = RFSectionParameters(general_parameters, 2, [35640, 
+    >>>     71280], [6e6, 6e5], [0, 0])
 
         
     """
-#     Examples
-#     --------
-#     >>> # To declare a single-stationed synchrotron at constant energy:
-#     >>> from input_parameters.general_parameters import GeneralParameters
-#     >>>
-#     >>> n_turns = 10
-#     >>> C = 26659
-#     >>> alpha = 3.21e-4
-#     >>> momentum = 450e9
-#     >>> general_parameters = GeneralParameters(n_turns, C, eta, momentum, 
-#     >>>                                        'proton')
-#     >>>
-#     >>> # To declare a double-stationed synchrotron at constant energy and 
-#     >>> # higher-order momentum compaction factors:
-#     >>> from input_parameters.general_parameters import GeneralParameters
-#     >>>
-#     >>> n_turns = 10
-#     >>> C = [13000, 13659]
-#     >>> alpha = [[3.21e-4, 2.e-5, 5.e-7], [2.89e-4, 1.e-5, 5.e-7]]
-#     >>> momentum = 450e9
-#     >>> general_parameters = GeneralParameters(n_turns, C, eta, momentum, 
-#     >>>                                        'proton')
-#     
-#     """
     
     def __init__(self, GeneralParameters, n_rf, harmonic, voltage, phi_rf_d, 
                  phi_noise = None, omega_rf = None, section_index = 1, 
-                 accelerating_systems = 'as_single', Particle = Proton()):
+                 accelerating_systems = 'as_single', Particle = Proton(), 
+                 PreprocessRFParams = None):
         
         # Imported from GeneralParameters
         self.n_turns = GeneralParameters.n_turns
@@ -227,13 +223,39 @@ class RFSectionParameters(object):
         self.section_index = int(section_index - 1)
         if self.section_index < 0 \
             or self.section_index > GeneralParameters.n_sections - 1:
-            raise RuntimeError('ERROR in RFSectionParameters: section_index'+
-                ' out of allowed range!')    
+            raise RuntimeError("ERROR in RFSectionParameters: section_index"+
+                " out of allowed range!")    
         self.n_rf = n_rf
  
-        # RF programs. Cast the input into appropriate shape: the input is 
+        # Process RF programs
+        self.harmonic = harmonic
+        self.voltage = voltage
+        self.phi_rf_d = phi_rf_d
+        self.omega_rf = omega_rf
+        rf_params = ['harmonic', 'voltage', 'phi_rf_d', 'omega_rf']
+        for rf_param in rf_params:
+            # Option 1: pre-process
+            if PreprocessRFParams:
+                if PreprocessRFParams.__getattribute__(rf_param) == True:
+                    if len(self.__getattribute__(rf_param)) == 2*self.n_rf:
+                        # Overwrite with interpolated values
+                        self.__setattribute__(rf_param, 
+                            PreprocessRFParams.preprocess(GeneralParameters, 
+                            self.__getattribute__(rf_param)[0:self.n_rf], #time
+                            self.__getattribute__(rf_param)[self.n_rf:])) #data
+                    else:
+                        raise RuntimeError("ERROR in RFSectionParameters:"+
+                            " harmonic to be pre-processed should have length"+
+                            " of 2*n_rf!")
+                else:
+                    input_check(self.__getattribute__(rf_param))
+        if phi_noise:
+            input_check(self.phi_noise)
+            
+# BEGIN MOVE TO INPUT CHECK... ************************************************               
+        # Option 2: cast the input into appropriate shape: the input is 
         # analyzed and structured in order to have lists whose length is 
-        # matching the number of RF systems in the section.
+        # matching the number of RF systems in the section.      
         if self.n_rf == 1:
             self.harmonic = [harmonic] 
             self.voltage = [voltage]
@@ -270,8 +292,9 @@ class RFSectionParameters(object):
             self.phi_noise = np.array(self.phi_noise, ndmin =2) 
         if omega_rf != None:
             self.omega_rf = np.array(self.omega_rf, ndmin =2) 
+# END MOVE TO INPUT CHECK... **************************************************               
         
-        # With feedbacks
+        # RF (feedback) properties
         self.phi_rf = np.array(self.phi_rf_d) 
         self.dphi_rf = np.zeros(self.n_rf)
         self.omega_rf_d = 2.*np.pi*self.beta*c*self.harmonic/ \
@@ -280,26 +303,20 @@ class RFSectionParameters(object):
             self.omega_rf = np.array(self.omega_rf_d)                  
         self.t_rf = 2*np.pi / self.omega_rf[0]
 
-        #: *Accumulated RF phase error of each harmonic system*
-#        self.dphi_RF_steering = np.zeros(self.n_rf)
-        
         # From helper functions
         self.phi_s = calculate_phi_s(self, Particle, accelerating_systems)
         self.Q_s = calculate_Q_s(self, Particle)   
         self.omega_s0 = self.Q_s*GeneralParameters.omega_rev
 
- 
-        
+       
     def eta_tracking(self, beam, counter, dE):
-        '''
-        *The slippage factor is calculated as a function of the energy offset
-        (dE) of the beam particle. By definition, the slippage factor in ith 
-        order is:*
-        
-        .. math:: 
-            \\eta(\\delta) = \\sum_{i}(\\eta_i \\, \\delta^i) = \\sum_{i} \\left(\\eta_i \\, \\left[ \\frac{\\Delta E}{\\beta_s^2 E_s} \\right]^i \\right)
+        r"""Function to calculate the slippage factor as a function of the 
+        energy offset :math:`\Delta E` of the particle. The slippage factor 
+        of the :math:`i`th order is :math:`\eta(\delta) = \sum_{i}(\eta_i \, 
+        \delta^i) = \sum_{i} \left(\eta_i \, \left[ \frac{\Delta E}
+        {\beta_s^2 E_s} \right]^i \right)`
     
-        '''
+        """
         
         if self.alpha_order == 1:
             return self.eta_0[counter]
@@ -314,107 +331,142 @@ class RFSectionParameters(object):
 
 
 def calculate_Q_s(RFSectionParameters, Particle = Proton()):
+    r""" Function calculating the turn-by-turn synchrotron tune for 
+    single-harmonic RF, without intensity effects. 
+        
+    Parameters
+    ----------
+    RFSectionParameters : class
+        An RFSectionParameters type class.  
+    Particle : class
+        A Particle type class; default is Proton().
+          
+    Returns
+    -------
+    float
+        Synchrotron tune.
+        
+    """
 
-    return np.sqrt( RFSectionParameters.harmonic[0]*Particle.charge*RFSectionParameters.voltage[0]*np.abs(RFSectionParameters.eta_0*np.cos(RFSectionParameters.phi_s)) / \
-                                 (2*np.pi*RFSectionParameters.beta**2*RFSectionParameters.energy) )
+    return np.sqrt( RFSectionParameters.harmonic[0]*Particle.charge* \
+        RFSectionParameters.voltage[0]*np.abs(RFSectionParameters.eta_0* \
+        np.cos(RFSectionParameters.phi_s)) / \
+        (2*np.pi*RFSectionParameters.beta**2*RFSectionParameters.energy) )
+
+
 
 def calculate_phi_s(RFSectionParameters, Particle = Proton(),
                     accelerating_systems = 'as_single'):
-    '''
-    Calculation of the synchronous phase at every turn
-    according to the parameters in the RFSectionParameters object. The
-    phase is expressed in the lowest RF harmonic and with respect to the
-    RF bucket (see the equations of motion defined for BLonD).
-    The returned value is given in the range [0,2pi].
-    Below transition, the RF wave is shifted by Pi w.r.t. the time reference.
+    r"""Function calculating the turn-by-turn synchronous phase according to 
+    the parameters in the RFSectionParameters object. The phase is expressed in
+    the lowest RF harmonic and with respect to the RF bucket (see the equations
+    of motion defined for BLonD). The returned value is given in the range [0,
+    2*Pi]. Below transition, the RF wave is shifted by Pi w.r.t. the time 
+    reference.
     
-    If the accelerating_systems option is set to 'as_single', the synchronous
-    phase is calculated analytically taking into account the phase program
-    (RFSectionParameters.phi_offset).
+    The accelerating_systems option can be set to
+    * 'as_single' (default): the synchronous phase is calculated analytically 
+    taking into account the phase program (RFSectionParameters.phi_offset).
+    * 'all': the synchronous phase is calculated numerically by finding the 
+    minimum of the potential well; no intensity effects included. In case of 
+    several minima, the deepest is taken. WARNING: in case of RF harmonics with
+    comparable voltages, this may lead to inconsistent values of phi_s.
+    * 'first': not yet implemented. Its purpose should be to adjust the 
+    RFSectionParameters.phi_offset of the higher harmonics so that only the 
+    main harmonic is accelerating.
     
-    If the accelerating_systems is set to 'all', the synchronous phase
-    is calculated numerically by finding the minimum of the potential well.
-    In case of several minima, the deepest is taken. WARNING: in case of 
-    RF harmonics with comparable voltages, this may lead to inconsistent 
-    values of phi_s.
-    
-    The option accelerating_systems set to 'first' is not yet implemented.
-    Its purpose should be to adjust the RFSectionParameters.phi_offset of the
-    higher harmonics so that only the main harmonic is accelerating.
-    '''
+    Parameters
+    ----------
+    RFSectionParameters : class
+        An RFSectionParameters type class.  
+    Particle : class
+        A Particle type class; default is Proton().
+    accelerating_systems : str
+        Choice of accelerating systems; or options, see list above.
+          
+    Returns
+    -------
+    float
+        Synchronous phase.
+            
+    """
     
     eta0 = RFSectionParameters.eta_0
     
     if accelerating_systems == 'as_single':
+        
         denergy = np.append(RFSectionParameters.delta_E, 
                             RFSectionParameters.delta_E[-1])             
-        acceleration_ratio = denergy/ \
-                             (Particle.charge*
-                              RFSectionParameters.voltage[0,:])
-
-        acceleration_test = np.where((acceleration_ratio > -1)*\
+        acceleration_ratio = denergy/(Particle.charge*
+                                      RFSectionParameters.voltage[0,:])
+        acceleration_test = np.where((acceleration_ratio > -1)*
                                      (acceleration_ratio < 1) == False)[0]
-                
+        
+        # Validity check on acceleration_ratio        
         if acceleration_test.size > 0:
-            print('Warning!!! Acceleration is not possible (momentum increment is too big or voltage too low) at index ' + str(acceleration_test))
+            print("WARNING in calculate_phi_s(): acceleration is not possible"+
+                  " (momentum increment is too big or voltage too low) at"+
+                  " index " + str(acceleration_test))
         
         phi_s = np.arcsin(acceleration_ratio)
 
+        # Identify where eta swaps sign
         eta0_middle_points = (eta0[1:] + eta0[:-1])/2
         eta0_middle_points = np.append(eta0_middle_points, eta0[-1])             
         index = np.where(eta0_middle_points > 0)[0]
         index_below = np.where(eta0_middle_points < 0)[0]
-         
+        
+        # Project phi_s in correct range 
         phi_s[index] = (np.pi - phi_s[index]) % (2*np.pi)
         phi_s[index_below] = (np.pi + phi_s[index_below]) % (2*np.pi)
         
         return phi_s 
      
-    else:
+    elif accelerating_systems == 'all':
+            
+        phi_s = np.zeros(len(RFSectionParameters.voltage[0,1:]))
         
-        if accelerating_systems == 'all':
-            '''
-            In this case, all the RF systems are accelerating, phi_s is 
-            calculated accordingly with respect to the fundamental frequency 
-            (the minimum of the potential well is taken)
-            '''         
+        for indexTurn in range(len(RFSectionParameters.delta_E)):
             
-            phi_s = np.zeros(len(RFSectionParameters.voltage[0,1:]))
-            
-            for indexTurn in range(len(RFSectionParameters.delta_E)):
+            totalRF = 0
+            if np.sign(eta0[indexTurn]) > 0:
+                phase_array = np.linspace(
+                    -RFSectionParameters.phi_RF[0,indexTurn+1], 
+                    -RFSectionParameters.phi_RF[0,indexTurn+1] + 2*np.pi, 1000) 
+            else:
+                phase_array = np.linspace(
+                    -RFSectionParameters.phi_RF[0,indexTurn+1] - np.pi, 
+                    -RFSectionParameters.phi_RF[0,indexTurn+1] + np.pi, 1000) 
+
+            for indexRF in range(len(RFSectionParameters.voltage[:,indexTurn+1])):
+                totalRF += RFSectionParameters.voltage[indexRF,indexTurn+1]* \
+                    np.sin(RFSectionParameters.harmonic[indexRF,indexTurn+1]/ \
+                    np.min(RFSectionParameters.harmonic[:,indexTurn+1])* \
+                    phase_array + \
+                    RFSectionParameters.phi_RF[indexRF,indexTurn+1]) 
                 
-                totalRF = 0
-                if np.sign(eta0[indexTurn])>0:
-                    phase_array = np.linspace(-RFSectionParameters.phi_RF[0,indexTurn+1], -RFSectionParameters.phi_RF[0,indexTurn+1] + 2*np.pi, 1000) 
-                else:
-                    phase_array = np.linspace(-RFSectionParameters.phi_RF[0,indexTurn+1] - np.pi, -RFSectionParameters.phi_RF[0,indexTurn+1] + np.pi, 1000) 
+            potential_well = - cumtrapz( np.sign(eta0[indexTurn])*(totalRF - 
+                RFSectionParameters.delta_E[indexTurn]/abs(Particle.charge)), 
+                dx=phase_array[1]-phase_array[0], initial=0 )
 
-                for indexRF in range(len(RFSectionParameters.voltage[:,indexTurn+1])):
-                    totalRF += RFSectionParameters.voltage[indexRF,indexTurn+1] * np.sin(RFSectionParameters.harmonic[indexRF,indexTurn+1]/np.min(RFSectionParameters.harmonic[:,indexTurn+1]) * phase_array + RFSectionParameters.phi_RF[indexRF,indexTurn+1]) #
-                    
-                potential_well = - cumtrapz(np.sign(eta0[indexTurn])*(totalRF - RFSectionParameters.delta_E[indexTurn]/abs(Particle.charge)), dx=phase_array[1]-phase_array[0], initial=0)
+            phi_s[indexTurn] = np.mean(phase_array[potential_well == 
+                                                   np.min(potential_well)])
 
-                phi_s[indexTurn] = np.mean(phase_array[potential_well==np.min(potential_well)])
-
-            phi_s = np.insert(phi_s, 0, phi_s[0])+RFSectionParameters.phi_RF[0,:]
-            phi_s[eta0<0] += np.pi
-            phi_s = phi_s % (2*np.pi)
-            
-            return phi_s
+        phi_s = np.insert(phi_s, 0, phi_s[0]) + RFSectionParameters.phi_RF[0,:]
+        phi_s[eta0 < 0] += np.pi
+        phi_s = phi_s % (2*np.pi)
         
-        elif accelerating_systems == 'first':
-            '''
-            Only the first RF system is accelerating, so we have to correct the 
-            phi_RF of the other rf_systems such that p_increment relates 
-            only to the first RF
-            '''
-            pass
-        else:
-            raise RuntimeError('Did not recognize the option accelerating_systems in calc_phi_s function')
-        
-        # This part only works when you have no acceleration and several RF systems
-        if eta0[0] > 0:
-            return np.pi*np.ones(RFSectionParameters.n_turns)
-        elif eta0[0] < 0:
-            return 0*np.ones(RFSectionParameters.n_turns)
+        return phi_s
+    
+    elif accelerating_systems == 'first':
+       
+        print("WARNING in calculate_phi_s(): accelerating_systems 'first'"+
+              " not yet implemented")
+        pass
+    else:
+        raise RuntimeError("ERROR in calculate_phi_s(): unrecognised"+
+                           " accelerating_systems option")
+
+
+
 
