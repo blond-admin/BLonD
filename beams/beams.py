@@ -143,12 +143,20 @@ class Beam(object):
         self.intensity = float(intensity) 
         self.n_macroparticles = int(n_macroparticles)
         self.ratio = self.intensity/self.n_macroparticles
-
-        #: | *Losses defined via loss mechanisms chosen by user*
-        self.n_macroparticles_lost = int(0)
-
         self.id = np.arange(1, self.n_macroparticles + 1, dtype=int)
-        self.secondarySpecies = list()
+
+    @property
+    def n_macroparticles_lost(self):
+        '''Number of lost macro-particles, defined as @property.
+        
+        Returns
+        -------        
+        n_macroparticles_lost : int
+            number of macroparticles lost.
+            
+        '''
+        
+        return len( np.where( self.id == 0 )[0] )
 
     @property
     def n_macroparticles_lost(self):
