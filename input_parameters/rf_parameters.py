@@ -256,7 +256,8 @@ class RFSectionParameters(object):
             input_check(self.phi_noise)
         else:
             self.phi_noise = None
-            
+
+
 # BEGIN MOVE TO INPUT CHECK... ************************************************               
         # Option 2: cast the input into appropriate shape: the input is 
         # analyzed and structured in order to have lists whose length is 

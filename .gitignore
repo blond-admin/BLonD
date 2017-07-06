@@ -4,6 +4,8 @@
 
 *.pydevproject
 
+.settings
+
 result.dll
 result.so
 sync_rad.dll
