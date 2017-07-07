@@ -76,45 +76,45 @@ class RFSectionParameters(object):
         A GeneralParameters type class
     n_turns : int 
         Inherited from
-        :py:attr:`input_parameters.general_parameters.GeneralParameters`
+        :py:attr:`input_parameters.general_parameters.GeneralParameters.n_turns`
     ring_circumference : float
         Inherited from
-        :py:attr:`input_parameters.general_parameters.GeneralParameters`
+        :py:attr:`input_parameters.general_parameters.GeneralParameters.ring_circumference`
     section_length : float
         Length :math:`L_k` of the RF section; inherited from 
-        :py:attr:`input_parameters.general_parameters.GeneralParameters`
+        :py:attr:`input_parameters.general_parameters.GeneralParameters.ring_length`
     length_ratio : float
         Fractional RF section length :math:`L_k/C`
     t_rev : float array
         Inherited from
-        :py:attr:`input_parameters.general_parameters.GeneralParameters`
+        :py:attr:`input_parameters.general_parameters.GeneralParameters.t_rev`
     momentum : float array
         Momentum program of the present RF section; inherited from
-        :py:attr:`input_parameters.general_parameters.GeneralParameters`
+        :py:attr:`input_parameters.general_parameters.GeneralParameters.momentum`
     beta : float array
         Relativistic beta of the present RF section; inherited from
-        :py:attr:`input_parameters.general_parameters.GeneralParameters`
+        :py:attr:`input_parameters.general_parameters.GeneralParameters.beta`
     gamma : float array
         Relativistic gamma of the present RF section; inherited from
-        :py:attr:`input_parameters.general_parameters.GeneralParameters`
+        :py:attr:`input_parameters.general_parameters.GeneralParameters.gamma`
     energy : float array
         Total energy of the present RF section; inherited from
-        :py:attr:`input_parameters.general_parameters.GeneralParameters`
+        :py:attr:`input_parameters.general_parameters.GeneralParameters.energy`
     delta_E : float array
         Time derivative of total energy of the present section; inherited from
-        :py:attr:`input_parameters.general_parameters.GeneralParameters`
+        :py:attr:`input_parameters.general_parameters.GeneralParameters.delta_E`
     alpha_order : int
         Inherited from
-        :py:attr:`input_parameters.general_parameters.GeneralParameters`
+        :py:attr:`input_parameters.general_parameters.GeneralParameters.alpha_order`
     eta_0 : float array
         Zeroth order slippage factor of the present section; inherited from
-        :py:attr:`input_parameters.general_parameters.GeneralParameters`
+        :py:attr:`input_parameters.general_parameters.GeneralParameters.eta_0`
     eta_1 : float array
         First order slippage factor of the present section; inherited from
-        :py:attr:`input_parameters.general_parameters.GeneralParameters`
+        :py:attr:`input_parameters.general_parameters.GeneralParameters.eta_1`
     eta_2 : float array
         Second order slippage factor of the present section; inherited from
-        :py:attr:`input_parameters.general_parameters.GeneralParameters`
+        :py:attr:`input_parameters.general_parameters.GeneralParameters.eta_2`
     sign_eta_0 : float array
         Sign of the eta_0 array
     n_rf : int
@@ -198,6 +198,15 @@ class RFSectionParameters(object):
                  accelerating_systems = 'as_single', Particle = Proton(), 
                  PreprocessRFParams = None):
         
+        # Different indices
+        self.counter = [int(0)]
+        self.section_index = int(section_index - 1)
+        if self.section_index < 0 \
+            or self.section_index > GeneralParameters.n_sections - 1:
+            raise RuntimeError("ERROR in RFSectionParameters: section_index"+
+                " out of allowed range!")    
+        self.n_rf = n_rf
+
         # Imported from GeneralParameters
         self.n_turns = GeneralParameters.n_turns
         self.ring_circumference = GeneralParameters.ring_circumference
@@ -217,15 +226,6 @@ class RFSectionParameters(object):
             dummy = getattr(GeneralParameters, 'eta_' + str(i))
             setattr(self, "eta_%s" %i, dummy[self.section_index])
         self.sign_eta_0 = np.sign(self.eta_0)   
-
-        # Different indices
-        self.counter = [int(0)]
-        self.section_index = int(section_index - 1)
-        if self.section_index < 0 \
-            or self.section_index > GeneralParameters.n_sections - 1:
-            raise RuntimeError("ERROR in RFSectionParameters: section_index"+
-                " out of allowed range!")    
-        self.n_rf = n_rf
  
         # Process RF programs
         self.harmonic = harmonic

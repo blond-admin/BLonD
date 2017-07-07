@@ -23,6 +23,7 @@ Modules
 .. toctree::
     :maxdepth: 2
 
+    modules/equations_of_motion.rst
     modules/beams.rst
     modules/impedances.rst
     modules/input_parameters.rst

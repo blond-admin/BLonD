@@ -1,4 +1,5 @@
-# Copyright 2016 CERN. This software is distributed under the
+# coding: utf8
+# Copyright 2014-2017 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3), 
 # copied verbatim in the file LICENCE.md.
 # In applying this licence, CERN does not waive the privileges and immunities 
@@ -7,8 +8,8 @@
 # Project website: http://blond.web.cern.ch/
 
 '''
-**Module containing all the elements to track the RF frequency and phase and the
-beam in phase space.**
+**Module containing all the elements to track the RF frequency, voltage, phase,
+and the beam coordinates in phase space.**
 
 :Authors:  **Helga Timko**, **Alexandre Lasheen**, **Danilo Quartullo**
 '''
@@ -19,6 +20,8 @@ import numpy as np
 from scipy.integrate import cumtrapz
 import ctypes
 from setup_cpp import libblond
+
+
 
 class FullRingAndRF(object):
     '''
@@ -120,48 +123,71 @@ class FullRingAndRF(object):
             RingAndRFSectionElement.track()
 
 
-class RingAndRFSection(object):
-    '''
-    *Definition of an RF station and part of the ring until the next station, 
-    see figure.*
+
+class RingAndRFTracker(object):
+    r""" Class taking care of basic particle coordinate tracking for a given
+    RF station and the part of the ring until the next station, see figure.
     
     .. image:: ring_and_RFstation.png
         :align: center
         :width: 600
         :height: 600
         
-    *The time step is fixed to be one turn, but the tracking can consist of 
-    multiple RingAndRFSection objects. In this case, the user should make sure 
+    The time step is fixed to be one turn, but the tracking can consist of 
+    multiple RingAndRFTracker objects. In this case, the user should make sure 
     that the lengths of the stations sum up exactly to the circumference or use
     the FullRingAndRF object in order to let the code pre-process the 
     parameters. Each RF station may contain several RF harmonic systems which 
     are considered to be in the same location. First, the energy kick of the RF
     station is applied, and then the particle arrival time to the next station
-    is updated. The change in RF phase and frequency due to control loops is 
-    tracked as well.*
-    '''
-        
-    def __init__(self, RFSectionParameters, Beam, solver = b'simple', 
-                 PhaseLoop = None, NoiseFB = None, periodicity = False, dE_max = None, rf_kick_interp=False, Slices=None, TotalInducedVoltage=None):
-        
-        #: *Import of RFSectionParameters object*
-        self.rf_params = RFSectionParameters
+    is updated. The change in RF phase, voltage, and frequency due to control 
+    loops is tracked as well.
 
-        #: *Import of Beam object*
+    Parameters
+    ----------
+    RFSectionParameters : class
+        A RFSectionParameters type class
+    counter : [int] 
+        Inherited from
+        :py:attr:`input_parameters.rf_parameters.RFSectionParameters.counter`
+    Beam : class
+        A Beam type class
+    solver : str
+        Type of solver used for the drift equation; use 'simple' for 1st order
+        approximation and 'exact' for exact solver
+    BeamFeedback : class
+        A BeamFeedback type class, beam-based feedback on RF frequency;
+        default is None
+    NoiseFeedback : class
+        A NoiseFeedback type class, bunch-length feedback on RF noise;
+        default is None
+
+    """
+        
+    def __init__(self, RFSectionParameters, Beam, solver = 'simple', 
+                 BeamFeedback = None, NoiseFeedback = None, 
+                 periodicity = False, dE_max = None, rf_kick_interp = False, 
+                 Slices = None, TotalInducedVoltage = None):
+        
+        # Imports from RF parameters
+        self.rf_params = RFSectionParameters
+        self.counter = RFSectionParameters.counter 
+        
         self.beam = Beam
-        
-        #: *Import PhaseLoop object*                
-        self.PL = PhaseLoop   
-        
-        #: *Import NoiseFB object*                
-        self.noiseFB = NoiseFB
+        self.solver = solver
+        if self.solver not in ['simple', 'exact']:
+            raise RuntimeError("ERROR in RingAndRFTracker: Choice of"+
+                " longitudinal solver not recognised!")    
+
+        # Options
+        self.beamFB = BeamFeedback   
+        self.noiseFB = NoiseFeedback
 
         ### Import RF section parameters #######################################
         #: *Import section index (from RFSectionParameters)*        
-        self.section_index = RFSectionParameters.section_index
+        #self.section_index = RFSectionParameters.section_index
         
         #: *Import counter (from RFSectionParameters)*        
-        self.counter = RFSectionParameters.counter 
               
         #: *Import length ratio (from RFSectionParameters)*
         self.length_ratio = RFSectionParameters.length_ratio
@@ -222,10 +248,6 @@ class RingAndRFSection(object):
         #: *Synchronous energy change* :math:`: \quad - \delta E_s`
         self.acceleration_kick = - RFSectionParameters.E_increment  
         
-        #: | *Choice of drift solver options*
-        self.solver = solver
-        if self.solver != b'simple' and self.solver != b'full':
-            raise RuntimeError("ERROR: Choice of longitudinal solver not recognized! Aborting...")
             
         #: | *Set to 'full' if higher orders of eta are used*
         if self.alpha_order > 1:
@@ -308,7 +330,7 @@ class RingAndRFSection(object):
 
     def rf_voltage_calculation(self, turn, Slices):
         '''
-        *Calculating the RF voltage seen by the beam at a given turn, needs a Slices object.
+        Calculating the RF voltage seen by the beam at a given turn, needs a Slices object.
         '''
         
         voltages = np.array([])
