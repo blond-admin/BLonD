@@ -74,6 +74,9 @@ class RFSectionParameters(object):
     ----------
     GeneralParameters : class
         A GeneralParameters type class
+    Particle : class 
+        Inherited from
+        :py:attr:`input_parameters.general_parameters.GeneralParameters.Particle`
     n_turns : int 
         Inherited from
         :py:attr:`input_parameters.general_parameters.GeneralParameters.n_turns`
@@ -195,7 +198,7 @@ class RFSectionParameters(object):
     
     def __init__(self, GeneralParameters, n_rf, harmonic, voltage, phi_rf_d, 
                  phi_noise = None, omega_rf = None, section_index = 1, 
-                 accelerating_systems = 'as_single', Particle = Proton(), 
+                 accelerating_systems = 'as_single', 
                  PreprocessRFParams = None):
         
         # Different indices
@@ -208,6 +211,7 @@ class RFSectionParameters(object):
         self.n_rf = n_rf
 
         # Imported from GeneralParameters
+        self.Particle = GeneralParameters.Particle
         self.n_turns = GeneralParameters.n_turns
         self.ring_circumference = GeneralParameters.ring_circumference
         self.section_length = GeneralParameters.ring_length[self.section_index]
@@ -304,8 +308,8 @@ class RFSectionParameters(object):
         self.t_rf = 2*np.pi / self.omega_rf[0]
 
         # From helper functions
-        self.phi_s = calculate_phi_s(self, Particle, accelerating_systems)
-        self.Q_s = calculate_Q_s(self, Particle)   
+        self.phi_s = calculate_phi_s(self, self.Particle, accelerating_systems)
+        self.Q_s = calculate_Q_s(self, self.Particle)   
         self.omega_s0 = self.Q_s*GeneralParameters.omega_rev
 
        

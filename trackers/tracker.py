@@ -150,6 +150,26 @@ class RingAndRFTracker(object):
     counter : [int] 
         Inherited from
         :py:attr:`input_parameters.rf_parameters.RFSectionParameters.counter`
+    length_ratio : float 
+        Inherited from
+        :py:attr:`input_parameters.rf_parameters.RFSectionParameters.length_ratio`
+    section_length : float 
+        Inherited from
+        :py:attr:`input_parameters.rf_parameters.RFSectionParameters.section_length`
+    t_rev : float 
+        Inherited from
+        :py:attr:`input_parameters.rf_parameters.RFSectionParameters.t_rev`
+    n_rf : float 
+        Inherited from
+        :py:attr:`input_parameters.rf_parameters.RFSectionParameters.n_rf`
+    beta : float 
+        Inherited from
+        :py:attr:`input_parameters.rf_parameters.RFSectionParameters.beta`
+    charge : float 
+        Inherited from
+        :py:attr:`input_parameters.rf_parameters.RFSectionParameters.Particle.charge`
+
+
     Beam : class
         A Beam type class
     solver : str
@@ -172,6 +192,12 @@ class RingAndRFTracker(object):
         # Imports from RF parameters
         self.rf_params = RFSectionParameters
         self.counter = RFSectionParameters.counter 
+        self.length_ratio = RFSectionParameters.length_ratio
+        self.section_length = RFSectionParameters.section_length
+        self.t_rev = RFSectionParameters.t_rev
+        self.n_rf = RFSectionParameters.n_rf
+        self.beta = RFSectionParameters.beta
+        self.charge = RFSectionParameters.Particle.charge
         
         self.beam = Beam
         self.solver = solver
@@ -190,22 +216,16 @@ class RingAndRFTracker(object):
         #: *Import counter (from RFSectionParameters)*        
               
         #: *Import length ratio (from RFSectionParameters)*
-        self.length_ratio = RFSectionParameters.length_ratio
         
         #: *Import section length (from RFSectionParameters)* # needed for FullRingAndRF
-        self.section_length = RFSectionParameters.section_length
         
         #: *Import revolution period (from GeneralParameters)*       
-        self.t_rev = RFSectionParameters.t_rev
 
         #: *Import the number of RF systems (from RFSectionParameters)*
-        self.n_rf = RFSectionParameters.n_rf
         
         #: *Import beta (from RFSectionParameters)* # needed for FullRingAndRF
-        self.beta = RFSectionParameters.beta
         
         #: *Import particle charge (from RFSectionParameters)* 
-        self.charge = RFSectionParameters.charge
         
         #: *Import RF harmonic number program (from RFSectionParameters)*
         self.harmonic = RFSectionParameters.harmonic 

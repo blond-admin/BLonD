@@ -176,6 +176,7 @@ class GeneralParameters(object):
                 " sections and size of momentum compaction do not match!")    
 
         # Primary particle mass and charge used for energy calculations
+        self.Particle = Particle
         self.mass = Particle.mass
         self.charge = Particle.charge
         
