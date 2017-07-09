@@ -159,6 +159,19 @@ class Beam(object):
         return len( np.where( self.id == 0 )[0] )
 
     @property
+    def n_macroparticles_lost(self):
+        '''Number of lost macro-particles, defined as @property.
+        
+        Returns
+        -------        
+        n_macroparticles_lost : int
+            number of macroparticles lost.
+            
+        '''
+        
+        return len( np.where( self.id == 0 )[0] )
+
+    @property
     def n_macroparticles_alive(self):
         '''Number of transmitted macro-particles, defined as @property.
 

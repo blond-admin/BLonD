@@ -199,10 +199,6 @@ class RFSectionParameters(object):
                  accelerating_systems = 'as_single', Particle = Proton(), 
                  PreprocessRFParams = None):
 
-        # Different indices
-        self.counter = [int(0)]
-        self.section_index = int(section_index - 1)
-
         # Imported from GeneralParameters
         self.n_turns = GeneralParameters.n_turns
         self.ring_circumference = GeneralParameters.ring_circumference
@@ -254,8 +250,6 @@ class RFSectionParameters(object):
                     input_check(self.__getattribute__(rf_param))
         if phi_noise:
             input_check(self.phi_noise)
-        else:
-            self.phi_noise = None
             
 # BEGIN MOVE TO INPUT CHECK... ************************************************               
         # Option 2: cast the input into appropriate shape: the input is 
