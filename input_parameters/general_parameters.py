@@ -91,6 +91,8 @@ class GeneralParameters(object):
         Primary particle mass :math:`m` [eV]
     charge : float
         Primary particle charge :math:`q` [e]
+    momentum : float matrix
+        Synchronous relativistic momentum on the design orbit :math:`p_{s,k,n}`
     beta : float matrix
         Synchronous relativistic beta program for each segment of the
         ring :math:`\beta_{s,k}^n = \frac{1}{\sqrt{1 
@@ -240,6 +242,10 @@ class GeneralParameters(object):
         
         for i in range(self.alpha_order):
             getattr(self, '_eta' + str(i))()
+            
+        # Fill unused eta arrays with zeros
+        for i in range( self.alpha_order, 3 ):
+            setattr(self, "eta_%s" %i, np.zeros(self.n_turns+1))       
 
     
     def _eta0(self):

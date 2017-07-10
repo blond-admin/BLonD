@@ -7,12 +7,12 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 **Module containing all the elements to track the RF frequency, voltage, phase,
 and the beam coordinates in phase space.**
 
 :Authors:  **Helga Timko**, **Alexandre Lasheen**, **Danilo Quartullo**
-'''
+"""
 
 from __future__ import division
 from builtins import range, object
@@ -24,10 +24,10 @@ from setup_cpp import libblond
 
 
 class FullRingAndRF(object):
-    '''
+    """
     *Definition of the full ring and RF parameters in order to be able to have
     a full turn information (used in the hamiltonian for example).*
-    '''
+    """
     
     def __init__(self, RingAndRFSection_list):
         
@@ -53,7 +53,7 @@ class FullRingAndRF(object):
     def potential_well_generation(self, turn=0, n_points=1e5, 
                                   main_harmonic_option='lowest_freq', 
                                   dt_margin_percent=0., time_array=None):
-        '''
+        """
         *Method to generate the potential well out of the RF systems. The 
         assumption made is that all the RF voltages are averaged over
         one turn. The potential well is then approximated over one turn,
@@ -67,7 +67,7 @@ class FullRingAndRF(object):
         to be able to see the min/max that might be exactly on the edges of the
         frame (by adding a % to the length of the frame, this is set to 0 by default. 
         It assumes also that the slippage factor is the same in the whole ring.*
-        '''
+        """
         
         voltages = np.array([])
         omega_rf = np.array([])
@@ -77,8 +77,8 @@ class FullRingAndRF(object):
             charge = RingAndRFSectionElement.charge
             for rf_system in range(RingAndRFSectionElement.n_rf):
                 voltages = np.append(voltages, RingAndRFSectionElement.voltage[rf_system, turn])
-                omega_rf = np.append(omega_rf, RingAndRFSectionElement.omega_RF[rf_system, turn])
-                phi_offsets = np.append(phi_offsets, RingAndRFSectionElement.phi_RF[rf_system, turn])
+                omega_rf = np.append(omega_rf, RingAndRFSectionElement.omega_rf[rf_system, turn])
+                phi_offsets = np.append(phi_offsets, RingAndRFSectionElement.phi_rf[rf_system, turn])
                         
         voltages = np.array(voltages, ndmin = 2)
         omega_rf = np.array(omega_rf, ndmin = 2)
@@ -115,9 +115,9 @@ class FullRingAndRF(object):
         
         
     def track(self):
-        '''
+        """
         *Loops over all the RingAndRFSection.track methods.*
-        '''
+        """
         
         for RingAndRFSectionElement in self.RingAndRFSection_list:
             RingAndRFSectionElement.track()
@@ -152,41 +152,75 @@ class RingAndRFTracker(object):
         :py:attr:`input_parameters.rf_parameters.RFSectionParameters.counter`
     length_ratio : float 
         Inherited from
-        :py:attr:`input_parameters.rf_parameters.RFSectionParameters.length_ratio`
+        :py:attr:`input_parameters.general_parameters.GeneralParameters.length_ratio`
     section_length : float 
         Inherited from
-        :py:attr:`input_parameters.rf_parameters.RFSectionParameters.section_length`
+        :py:attr:`input_parameters.general_parameters.GeneralParameters.section_length`
     t_rev : float 
         Inherited from
-        :py:attr:`input_parameters.rf_parameters.RFSectionParameters.t_rev`
+        :py:attr:`input_parameters.general_parameters.GeneralParameters.t_rev`
     n_rf : float 
         Inherited from
         :py:attr:`input_parameters.rf_parameters.RFSectionParameters.n_rf`
     beta : float 
         Inherited from
-        :py:attr:`input_parameters.rf_parameters.RFSectionParameters.beta`
+        :py:attr:`input_parameters.general_parameters.GeneralParameters.beta`
     charge : float 
         Inherited from
-        :py:attr:`input_parameters.rf_parameters.RFSectionParameters.Particle.charge`
-
-
+        :py:attr:`input_parameters.general_parameters.GeneralParameters.Particle.charge`
+    harmonic : float array
+        Inherited from
+        :py:attr:`input_parameters.rf_parameters.RFSectionParameters.harmonic`
+    voltage : float array
+        Inherited from
+        :py:attr:`input_parameters.rf_parameters.RFSectionParameters.voltage`
+    phi_noise : float array
+        Inherited from
+        :py:attr:`input_parameters.rf_parameters.RFSectionParameters.phi_noise`
+    phi_rf : float array
+        Inherited from
+        :py:attr:`input_parameters.rf_parameters.RFSectionParameters.phi_rf`
+    phi_s : float array
+        Inherited from
+        :py:attr:`input_parameters.rf_parameters.RFSectionParameters.phi_s`
+    eta_0 : float array
+        Inherited from
+        :py:attr:`input_parameters.general_parameters.GeneralParameters.eta_0`
+    eta_1 : float array
+        Inherited from
+        :py:attr:`input_parameters.general_parameters.GeneralParameters.eta_1`
+    eta_2 : float array
+        Inherited from
+        :py:attr:`input_parameters.general_parameters.GeneralParameters.eta_2`
+    alpha_order : float array
+        Inherited from
+        :py:attr:`input_parameters.general_parameters.GeneralParameters.alpha_order`
+    acceleration_kick : float array
+        Inherited from
+        :py:attr:`input_parameters.general_parameters.GeneralParameters.delta_E`
+        and multiplied by -1
     Beam : class
         A Beam type class
     solver : str
         Type of solver used for the drift equation; use 'simple' for 1st order
         approximation and 'exact' for exact solver
-    BeamFeedback : class
+    BeamFeedback : class (optional)
         A BeamFeedback type class, beam-based feedback on RF frequency;
         default is None
-    NoiseFeedback : class
+    NoiseFeedback : class (optional)
         A NoiseFeedback type class, bunch-length feedback on RF noise;
         default is None
+    periodicity : bool (optional)
+        Option to switch periodic solver on/off; default is False (off)
+    interpolation : bool (optional)
+        Option to use sliced and interpolated voltage for the kicker; default 
+        is False
 
     """
         
     def __init__(self, RFSectionParameters, Beam, solver = 'simple', 
                  BeamFeedback = None, NoiseFeedback = None, 
-                 periodicity = False, dE_max = None, rf_kick_interp = False, 
+                 periodicity = False, interpolation = False, 
                  Slices = None, TotalInducedVoltage = None):
         
         # Imports from RF parameters
@@ -198,94 +232,45 @@ class RingAndRFTracker(object):
         self.n_rf = RFSectionParameters.n_rf
         self.beta = RFSectionParameters.beta
         self.charge = RFSectionParameters.Particle.charge
-        
+        self.harmonic = RFSectionParameters.harmonic 
+        self.voltage = RFSectionParameters.voltage  
+        self.phi_noise = RFSectionParameters.phi_noise
+        self.phi_rf = RFSectionParameters.phi_rf
+        self.phi_s = RFSectionParameters.phi_s
+        self.omega_rf = RFSectionParameters.omega_rf
+        self.eta_0 = RFSectionParameters.eta_0
+        self.eta_1 = RFSectionParameters.eta_1
+        self.eta_2 = RFSectionParameters.eta_2
+        self.alpha_order = RFSectionParameters.alpha_order
+        self.acceleration_kick = - RFSectionParameters.delta_E  
+
+        # Other imports
         self.beam = Beam
-        self.solver = solver
+        self.solver = str(solver)
         if self.solver not in ['simple', 'exact']:
             raise RuntimeError("ERROR in RingAndRFTracker: Choice of"+
                 " longitudinal solver not recognised!")    
+        if self.alpha_order > 1: # Set full solver for higher orders of eta
+            self.solver = 'full'
 
         # Options
         self.beamFB = BeamFeedback   
         self.noiseFB = NoiseFeedback
-
-        ### Import RF section parameters #######################################
-        #: *Import section index (from RFSectionParameters)*        
-        #self.section_index = RFSectionParameters.section_index
-        
-        #: *Import counter (from RFSectionParameters)*        
-              
-        #: *Import length ratio (from RFSectionParameters)*
-        
-        #: *Import section length (from RFSectionParameters)* # needed for FullRingAndRF
-        
-        #: *Import revolution period (from GeneralParameters)*       
-
-        #: *Import the number of RF systems (from RFSectionParameters)*
-        
-        #: *Import beta (from RFSectionParameters)* # needed for FullRingAndRF
-        
-        #: *Import particle charge (from RFSectionParameters)* 
-        
-        #: *Import RF harmonic number program (from RFSectionParameters)*
-        self.harmonic = RFSectionParameters.harmonic 
-               
-        #: *Import RF voltage program [V] (from RFSectionParameters)*
-        self.voltage = RFSectionParameters.voltage  
-           
-        #: *Import RF phase noise [rad] (from RFSectionParameters)*
-        self.phi_noise = RFSectionParameters.phi_noise
-        
-        #: *Import RF phase [rad] (from RFSectionParameters)*
-        self.phi_RF = RFSectionParameters.phi_RF
-        
-        #: *Import phi_s [rad] (from RFSectionParameters)* # needed for FullRingAndRF
-        self.phi_s = RFSectionParameters.phi_s
-        
-        #: *Import actual RF frequency [1/s] (from RFSectionParameters)*
-        self.omega_RF = RFSectionParameters.omega_RF
-        
-        #: *Slippage factor (0th order) for the given RF section*
-        self.eta_0 = RFSectionParameters.eta_0
-        
-        #: *Slippage factor (1st order) for the given RF section*
-        self.eta_1 = RFSectionParameters.eta_1
-        
-        #: *Slippage factor (2nd order) for the given RF section*
-        self.eta_2 = RFSectionParameters.eta_2
-        
-        #: *Slippage factor (2nd order) for the given RF section*
-        self.sign_eta_0 = RFSectionParameters.sign_eta_0
-        
-        #: *Import alpha order (from RFSectionParameters)*                
-        self.alpha_order = RFSectionParameters.alpha_order
-        
-        #: *Fill unused eta arrays with zeros*
-        for i in range( self.alpha_order, 3 ):
-            setattr(self, "eta_%s" %i, np.zeros(RFSectionParameters.n_turns+1))       
-        ### End of import of RF section parameters #############################
-            
-        #: *Synchronous energy change* :math:`: \quad - \delta E_s`
-        self.acceleration_kick = - RFSectionParameters.E_increment  
-        
-            
-        #: | *Set to 'full' if higher orders of eta are used*
-        if self.alpha_order > 1:
-            self.solver = 'full'
-        
-        # Set the horizontal cut
-        self.dE_max = dE_max
-        
-        # Periodicity setting up
-        self.periodicity = periodicity
-            
-        # Use interpolate to apply kick
-        self.rf_kick_interp = rf_kick_interp
+        try:
+            self.periodicity = bool(periodicity)
+        except:
+            raise RuntimeError("ERROR in RingAndRFTracker: Choice of"+
+                " periodicity not recognised!")                
+        try:
+            self.interpolation = bool(interpolation)
+        except:
+            raise RuntimeError("ERROR in RingAndRFTracker: Choice of"+
+                " interpolation not recognised!")    
         self.slices = Slices
-        self.TotalInducedVoltage = TotalInducedVoltage
-        
-        if self.rf_kick_interp and self.slices is None:
-            raise RuntimeError('ERROR: A slices object is needed in the RingAndRFSection to use the kick_interp option')
+        self.totalInducedVoltage = TotalInducedVoltage        
+        if self.interpolation and self.slices is None:
+            raise RuntimeError("ERROR in RingAndRFTracker: Please specify a"+
+                " Slices object to use the interpolation option")
         
  
     def kick(self, beam_dt, beam_dE, index):
@@ -304,8 +289,8 @@ class RingAndRFTracker(object):
         
         voltage_kick = np.ascontiguousarray(self.charge*
                                       self.voltage[:, index])
-        omegaRF_kick = np.ascontiguousarray(self.omega_RF[:, index])
-        phiRF_kick = np.ascontiguousarray(self.phi_RF[:, index])
+        omegaRF_kick = np.ascontiguousarray(self.omega_rf[:, index])
+        phiRF_kick = np.ascontiguousarray(self.phi_rf[:, index])
         
         libblond.kick(beam_dt.ctypes.data_as(ctypes.c_void_p), 
             beam_dE.ctypes.data_as(ctypes.c_void_p), 
@@ -355,18 +340,18 @@ class RingAndRFTracker(object):
         
         voltages = np.array([])
         omega_rf = np.array([])
-        phi_RF = np.array([])
+        phi_rf = np.array([])
         
         for rf_system in range(self.n_rf):
                 voltages = np.append(voltages, self.voltage[rf_system, turn])
-                omega_rf = np.append(omega_rf, self.omega_RF[rf_system, turn])
-                phi_RF = np.append(phi_RF, self.phi_RF[rf_system, turn])
+                omega_rf = np.append(omega_rf, self.omega_rf[rf_system, turn])
+                phi_rf = np.append(phi_rf, self.phi_rf[rf_system, turn])
                         
         voltages = np.array(voltages, ndmin = 2)
         omega_rf = np.array(omega_rf, ndmin = 2)
-        phi_RF = np.array(phi_RF, ndmin = 2)
+        phi_rf = np.array(phi_rf, ndmin = 2)
         
-        self.rf_voltage = np.sum(voltages.T * np.sin(omega_rf.T * Slices.bin_centers + phi_RF.T), axis = 0)
+        self.rf_voltage = np.sum(voltages.T * np.sin(omega_rf.T * Slices.bin_centers + phi_rf.T), axis = 0)
         
                 
     def track(self):
@@ -380,10 +365,10 @@ class RingAndRFTracker(object):
         # Add phase noise directly to the cavity RF phase
         if self.phi_noise != None:
             if self.noiseFB != None:
-                self.phi_RF[:,self.counter[0]] += \
+                self.phi_rf[:,self.counter[0]] += \
                     self.noiseFB.x*self.phi_noise[:,self.counter[0]]
             else:
-                self.phi_RF[:,self.counter[0]] += \
+                self.phi_rf[:,self.counter[0]] += \
                     self.phi_noise[:,self.counter[0]]
 
         # Determine phase loop correction on RF phase and frequency
@@ -432,21 +417,13 @@ class RingAndRFTracker(object):
                 self.beam.dt[self.indices_left_outside] = left_outsiders_dt
                 self.beam.dE[self.indices_left_outside] = left_outsiders_dE
                         
-            # Orizzontal cut: this method really eliminates particles from the
-            # code
-            if self.dE_max!=None:
-                itemindex = np.where(self.beam.dE > -self.dE_max)[0]
-                if len(itemindex) < self.beam.n_macroparticles:
-                    self.beam.dt = np.ascontiguousarray(self.beam.dt[itemindex])
-                    self.beam.dE = np.ascontiguousarray(self.beam.dE[itemindex])
-                    self.beam.n_macroparticles = len(self.beam.dt)
                 
         else:
             
-            if self.rf_kick_interp:
+            if self.interpolation:
                 self.rf_voltage_calculation(self.counter[0], self.slices)
-                if self.TotalInducedVoltage is not None:
-                    self.total_voltage = self.rf_voltage + self.TotalInducedVoltage.induced_voltage
+                if self.totalInducedVoltage is not None:
+                    self.total_voltage = self.rf_voltage + self.totalInducedVoltage.induced_voltage
                 else:
                     self.total_voltage = self.rf_voltage
                 
@@ -464,15 +441,6 @@ class RingAndRFTracker(object):
             
             self.drift(self.beam.dt, self.beam.dE, self.counter[0]+1)
             
-            # Orizzontal cut: this method really eliminates particles from the
-            # code
-            if self.dE_max!=None:
-                itemindex = np.where(self.beam.dE > -self.dE_max)[0]
-                if len(itemindex) < self.beam.n_macroparticles:
-                    self.beam.dt = np.ascontiguousarray(self.beam.dt[itemindex])
-                    self.beam.dE = np.ascontiguousarray(self.beam.dE[itemindex])
-                    self.beam.n_macroparticles = len(self.beam.dt)
-    
         # Increment by one the turn counter
         self.counter[0] += 1
         

@@ -316,7 +316,7 @@ class RFSectionParameters(object):
     def eta_tracking(self, beam, counter, dE):
         r"""Function to calculate the slippage factor as a function of the 
         energy offset :math:`\Delta E` of the particle. The slippage factor 
-        of the :math:`i`th order is :math:`\eta(\delta) = \sum_{i}(\eta_i \, 
+        of the :math:`i` th order is :math:`\eta(\delta) = \sum_{i}(\eta_i \, 
         \delta^i) = \sum_{i} \left(\eta_i \, \left[ \frac{\Delta E}
         {\beta_s^2 E_s} \right]^i \right)`
     
@@ -369,15 +369,16 @@ def calculate_phi_s(RFSectionParameters, Particle = Proton(),
     reference.
     
     The accelerating_systems option can be set to
+    
     * 'as_single' (default): the synchronous phase is calculated analytically 
-    taking into account the phase program (RFSectionParameters.phi_offset).
+      taking into account the phase program (RFSectionParameters.phi_offset).
     * 'all': the synchronous phase is calculated numerically by finding the 
-    minimum of the potential well; no intensity effects included. In case of 
-    several minima, the deepest is taken. WARNING: in case of RF harmonics with
-    comparable voltages, this may lead to inconsistent values of phi_s.
+      minimum of the potential well; no intensity effects included. In case of 
+      several minima, the deepest is taken. **WARNING:** in case of RF harmonics 
+      with comparable voltages, this may lead to inconsistent values of phi_s.
     * 'first': not yet implemented. Its purpose should be to adjust the 
-    RFSectionParameters.phi_offset of the higher harmonics so that only the 
-    main harmonic is accelerating.
+      RFSectionParameters.phi_offset of the higher harmonics so that only the 
+      main harmonic is accelerating.
     
     Parameters
     ----------
