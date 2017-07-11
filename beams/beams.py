@@ -172,6 +172,20 @@ class Beam(object):
         return self.n_macroparticles - self.n_macroparticles_lost
 
 
+    def eliminate_lost_particles(self):
+        """Eliminate lost particles from the beam coordinate arrays
+        """
+        
+        indexalive = np.where( self.id == 0 )[0]
+        if len(indexalive) < self.n_macroparticles:
+            self.dt = np.ascontiguousarray(self.beam.dt[indexalive])
+            self.dE = np.ascontiguousarray(self.beam.dE[indexalive])
+            self.n_macroparticles = len(self.beam.dt)
+        else:
+            raise RuntimeError("ERROR in Beams: all particles lost and"+
+                " eliminated!")    
+
+        
     def statistics(self):
         '''
         Calculation of the mean and standard deviation of beam coordinates,
@@ -210,9 +224,7 @@ class Beam(object):
         '''
 
         itemindex = np.where(is_in_separatrix(GeneralParameters,
-                                              RFSectionParameters,
-                                              self, self.dt, self.dE)
-                             == False)[0]
+            RFSectionParameters, self, self.dt, self.dE) == False)[0]
 
         if itemindex.size != 0:
             self.id[itemindex] = 0
@@ -221,7 +233,8 @@ class Beam(object):
     def losses_longitudinal_cut(self, dt_min, dt_max): 
         '''Beam losses based on longitudinal cuts.
 
-        Set to 0 all the particle's id with dt not in the interval (dt_min, dt_max).
+        Set to 0 all the particle's id with dt not in the interval 
+        (dt_min, dt_max).
         
         Parameters
         ----------
@@ -254,3 +267,23 @@ class Beam(object):
 
         if itemindex.size != 0:          
             self.id[itemindex] = 0 
+
+
+    def losses_below_energy(self, dE_min): 
+        '''Beam losses based on lower energy cut.
+
+        Set to 0 all the particle's id with dE below dE_min.
+
+        Parameters
+        ----------
+        dE_min : float
+            minimum dE.
+        '''
+
+        itemindex = np.where( (self.dE - dE_min) < 0 )[0]
+
+        if itemindex.size != 0:          
+            self.id[itemindex] = 0 
+
+
+

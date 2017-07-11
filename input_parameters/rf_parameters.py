@@ -75,47 +75,50 @@ class RFSectionParameters(object):
     ----------
     GeneralParameters : class
         A GeneralParameters type class
+    Particle : class 
+        Inherited from
+        :py:attr:`input_parameters.general_parameters.GeneralParameters.Particle`
     n_turns : int 
         Inherited from
-        :py:attr:`input_parameters.general_parameters.GeneralParameters`
+        :py:attr:`input_parameters.general_parameters.GeneralParameters.n_turns`
     ring_circumference : float
         Inherited from
-        :py:attr:`input_parameters.general_parameters.GeneralParameters`
+        :py:attr:`input_parameters.general_parameters.GeneralParameters.ring_circumference`
     section_length : float
         Length :math:`L_k` of the RF section; inherited from 
-        :py:attr:`input_parameters.general_parameters.GeneralParameters`
+        :py:attr:`input_parameters.general_parameters.GeneralParameters.ring_length`
     length_ratio : float
         Fractional RF section length :math:`L_k/C`
     t_rev : float array
         Inherited from
-        :py:attr:`input_parameters.general_parameters.GeneralParameters`
+        :py:attr:`input_parameters.general_parameters.GeneralParameters.t_rev`
     momentum : float array
         Momentum program of the present RF section; inherited from
-        :py:attr:`input_parameters.general_parameters.GeneralParameters`
+        :py:attr:`input_parameters.general_parameters.GeneralParameters.momentum`
     beta : float array
         Relativistic beta of the present RF section; inherited from
-        :py:attr:`input_parameters.general_parameters.GeneralParameters`
+        :py:attr:`input_parameters.general_parameters.GeneralParameters.beta`
     gamma : float array
         Relativistic gamma of the present RF section; inherited from
-        :py:attr:`input_parameters.general_parameters.GeneralParameters`
+        :py:attr:`input_parameters.general_parameters.GeneralParameters.gamma`
     energy : float array
         Total energy of the present RF section; inherited from
-        :py:attr:`input_parameters.general_parameters.GeneralParameters`
+        :py:attr:`input_parameters.general_parameters.GeneralParameters.energy`
     delta_E : float array
         Time derivative of total energy of the present section; inherited from
-        :py:attr:`input_parameters.general_parameters.GeneralParameters`
+        :py:attr:`input_parameters.general_parameters.GeneralParameters.delta_E`
     alpha_order : int
         Inherited from
-        :py:attr:`input_parameters.general_parameters.GeneralParameters`
+        :py:attr:`input_parameters.general_parameters.GeneralParameters.alpha_order`
     eta_0 : float array
         Zeroth order slippage factor of the present section; inherited from
-        :py:attr:`input_parameters.general_parameters.GeneralParameters`
+        :py:attr:`input_parameters.general_parameters.GeneralParameters.eta_0`
     eta_1 : float array
         First order slippage factor of the present section; inherited from
-        :py:attr:`input_parameters.general_parameters.GeneralParameters`
+        :py:attr:`input_parameters.general_parameters.GeneralParameters.eta_1`
     eta_2 : float array
         Second order slippage factor of the present section; inherited from
-        :py:attr:`input_parameters.general_parameters.GeneralParameters`
+        :py:attr:`input_parameters.general_parameters.GeneralParameters.eta_2`
     sign_eta_0 : float array
         Sign of the eta_0 array
     n_rf : int
@@ -196,14 +199,20 @@ class RFSectionParameters(object):
     
     def __init__(self, GeneralParameters, n_rf, harmonic, voltage, phi_rf_d, 
                  phi_noise = None, omega_rf = None, section_index = 1, 
-                 accelerating_systems = 'as_single', Particle = Proton(), 
+                 accelerating_systems = 'as_single', 
                  PreprocessRFParams = None):
-
+        
         # Different indices
         self.counter = [int(0)]
         self.section_index = int(section_index - 1)
+        if self.section_index < 0 \
+            or self.section_index > GeneralParameters.n_sections - 1:
+            raise RuntimeError("ERROR in RFSectionParameters: section_index"+
+                " out of allowed range!")    
+        self.n_rf = n_rf
 
         # Imported from GeneralParameters
+        self.Particle = GeneralParameters.Particle
         self.n_turns = GeneralParameters.n_turns
         self.ring_circumference = GeneralParameters.ring_circumference
         self.section_length = GeneralParameters.ring_length[self.section_index]
@@ -223,12 +232,6 @@ class RFSectionParameters(object):
             dummy = getattr(GeneralParameters, 'eta_' + str(i))
             setattr(self, "eta_%s" %i, dummy[self.section_index])
         self.sign_eta_0 = np.sign(self.eta_0)   
-
-        if self.section_index < 0 \
-            or self.section_index > GeneralParameters.n_sections - 1:
-            raise RuntimeError("ERROR in RFSectionParameters: section_index"+
-                " out of allowed range!")    
-        self.n_rf = n_rf
  
         # Process RF programs
         self.harmonic = harmonic
@@ -309,15 +312,15 @@ class RFSectionParameters(object):
         self.t_rf = 2*np.pi / self.omega_rf[0]
 
         # From helper functions
-        self.phi_s = calculate_phi_s(self, Particle, accelerating_systems)
-        self.Q_s = calculate_Q_s(self, Particle)   
+        self.phi_s = calculate_phi_s(self, self.Particle, accelerating_systems)
+        self.Q_s = calculate_Q_s(self, self.Particle)   
         self.omega_s0 = self.Q_s*GeneralParameters.omega_rev
 
        
     def eta_tracking(self, beam, counter, dE):
         r"""Function to calculate the slippage factor as a function of the 
         energy offset :math:`\Delta E` of the particle. The slippage factor 
-        of the :math:`i`th order is :math:`\eta(\delta) = \sum_{i}(\eta_i \, 
+        of the :math:`i` th order is :math:`\eta(\delta) = \sum_{i}(\eta_i \, 
         \delta^i) = \sum_{i} \left(\eta_i \, \left[ \frac{\Delta E}
         {\beta_s^2 E_s} \right]^i \right)`
     
@@ -370,15 +373,16 @@ def calculate_phi_s(RFSectionParameters, Particle = Proton(),
     reference.
     
     The accelerating_systems option can be set to
+    
     * 'as_single' (default): the synchronous phase is calculated analytically 
-    taking into account the phase program (RFSectionParameters.phi_offset).
+      taking into account the phase program (RFSectionParameters.phi_offset).
     * 'all': the synchronous phase is calculated numerically by finding the 
-    minimum of the potential well; no intensity effects included. In case of 
-    several minima, the deepest is taken. WARNING: in case of RF harmonics with
-    comparable voltages, this may lead to inconsistent values of phi_s.
+      minimum of the potential well; no intensity effects included. In case of 
+      several minima, the deepest is taken. **WARNING:** in case of RF harmonics 
+      with comparable voltages, this may lead to inconsistent values of phi_s.
     * 'first': not yet implemented. Its purpose should be to adjust the 
-    RFSectionParameters.phi_offset of the higher harmonics so that only the 
-    main harmonic is accelerating.
+      RFSectionParameters.phi_offset of the higher harmonics so that only the 
+      main harmonic is accelerating.
     
     Parameters
     ----------
