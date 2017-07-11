@@ -243,7 +243,7 @@ class RingAndRFTracker(object):
         self.harmonic = RFSectionParameters.harmonic 
         self.voltage = RFSectionParameters.voltage  
         self.phi_noise = RFSectionParameters.phi_noise
-        self.phi_rf = RFSectionParameters.phi_rf
+        self.phi_rf = RFSectionParameters.phi_rf_d
         self.phi_s = RFSectionParameters.phi_s
         self.omega_rf = RFSectionParameters.omega_rf
         self.eta_0 = RFSectionParameters.eta_0
