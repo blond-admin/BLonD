@@ -207,7 +207,7 @@ class GeneralParameters(object):
                 self.mass, self.ring_circumference, self.cycle_time, 
                 self.momentum)
         else:
-            self.momentum = np.array(self.momentum, ndmin = 2)
+            self.momentum = np.array(synchronous_data, ndmin = 2)
         if self.n_sections != self.momentum.shape[0]:
             raise RuntimeError("ERROR in GeneralParameters: Number of"+
                 " sections and momentum data do not match!")           

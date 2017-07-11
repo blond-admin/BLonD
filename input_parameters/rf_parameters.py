@@ -227,7 +227,7 @@ class RFSectionParameters(object):
         self.eta_0 = 0
         self.eta_1 = 0
         self.eta_2 = 0
-        self.charge = Particle.charge
+        self.charge = self.Particle.charge
         for i in range( self.alpha_order ):
             dummy = getattr(GeneralParameters, 'eta_' + str(i))
             setattr(self, "eta_%s" %i, dummy[self.section_index])
