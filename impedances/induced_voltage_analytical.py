@@ -21,7 +21,7 @@ def analytical_gaussian_resonator(sigma_t, Q, R_s, omega_r, tau_array, n_particl
     resonator.
 
     Parameters
-    ----------    
+    ----------
     sigma_t : float
         Rms of the beam longitudinal coordinates [s].
     Q : float

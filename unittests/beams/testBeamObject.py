@@ -1,3 +1,4 @@
+# coding: utf-8
 # Copyright 2017 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3), 
 # copied verbatim in the file LICENCE.md.
@@ -21,6 +22,7 @@ import numpy
 # BLonD imports
 # --------------
 from input_parameters.general_parameters import GeneralParameters
+from input_parameters.rf_parameters import RFSectionParameters
 from beams.beams import Beam
 from beams.distributions import matched_from_distribution_function
 from trackers.tracker import FullRingAndRF,RingAndRFSection
@@ -48,7 +50,7 @@ class testBeamClass(unittest.TestCase):
 
         # Define general parameters
         # --------------------------
-        self.general_params = GeneralParameters(N_turn, C, alpha, p, 'proton')
+        self.general_params = GeneralParameters(N_turn, C, alpha, p)
 
 
         # Define beam
@@ -63,12 +65,14 @@ class testBeamClass(unittest.TestCase):
 
     # Run after every test
     def tearDown(self):
-         
+
         del self.general_params
         del self.beam
+        del self.rf_params
 
 
     def test_variables_types(self):
+
         self.assertIsInstance(self.beam.mass, float,
                               msg='Beam: mass is not a float')
         self.assertIsInstance(self.beam.charge, int,
@@ -93,29 +97,34 @@ class testBeamClass(unittest.TestCase):
                               msg='Beam: intensity is not a float')
         self.assertIsInstance(self.beam.n_macroparticles, int,
                               msg='Beam: n_macroparticles is not an int')
+        self.assertIsInstance(self.beam.ratio, float,
+                              msg='Beam: ratio is not a float')
         self.assertIsInstance(self.beam.id, numpy.ndarray,
                               msg='Beam: id is not a numpy.array')
-        self.assertIsInstance(self.beam.id[0], int,
+        self.assertIn('int', type(self.beam.id[0]).__name__,
                               msg='Beam: id array does not contain int')
-
+        self.assertIsInstance(self.beam.n_macroparticles_lost, int,
+                              msg='Beam: n_macroparticles_lost is not an int')
+        self.assertIsInstance(self.beam.n_macroparticles_alive, int,
+                              msg='Beam: n_macroparticles_alive is not an int')
         self.assertIsInstance(self.beam.dt, numpy.ndarray,
                               msg='Beam: dt is not a numpy.array')
         self.assertIsInstance(self.beam.dE, numpy.ndarray,
                               msg='Beam: dE is not a numpy.array')
-#    def test_dtdE_are_numpy_array(self):
-#        self.assertIsInstance(self.beam.dt, numpy.ndarray,
-#                              msg='Beam: dt is not a numpy.array')
-#        self.assertIsInstance(self.beam.dE, numpy.ndarray,
-#                              msg='Beam: dE is not a numpy.array')
+        self.assertIn('float', type(self.beam.dt[0]).__name__,
+                              msg='Beam: dt does not contain float')
+        self.assertIn('float', type(self.beam.dE[0]).__name__,
+                              msg='Beam: dE does not contain float')
+
 
     def test_beam_statistic(self):
+
         sigma_dt = 1.
         sigma_dE = 1.
         self.beam.dt = sigma_dt*numpy.random.randn(self.beam.n_macroparticles)
         self.beam.dE = sigma_dE*numpy.random.randn(self.beam.n_macroparticles)
-        
-#        print(numpy.std(self.beam.dt)-sigma_dt,numpy.mean(self.beam.dt))
-#        print(numpy.std(self.beam.dE)-sigma_dE,numpy.mean(self.beam.dE))
+
+
         self.beam.statistics()
         
         self.assertAlmostEqual(self.beam.sigma_dt, sigma_dt, delta=1e-2,
@@ -126,12 +135,10 @@ class testBeamClass(unittest.TestCase):
                                msg='Beam: Failed statistic mean_dt')
         self.assertAlmostEqual(self.beam.mean_dE, 0., delta=1e-2,
                                msg='Beam: Failed statistic mean_dE')
-    
-    def test_n_macroparticles_alive_int(self):
-        self.assertIsInstance(self.beam.n_macroparticles_alive, int,
-                              msg='Beam: n_macroparticles_alive does not return\
-                              an int')
+
+
     def test_losses_separatrix(self):
+
         longitudinal_tracker = RingAndRFSection(self.rf_params, self.beam)
         full_tracker = FullRingAndRF([longitudinal_tracker])
         matched_from_distribution_function(self.beam, full_tracker,
@@ -140,17 +147,18 @@ class testBeamClass(unittest.TestCase):
                                bunch_length_fit='fwhm',
                                distribution_variable='Hamiltonian')
 
-#        self.beam.losses_separatrix(self.general_params, self.rf_params, self.beam)
         self.beam.losses_separatrix(self.general_params, self.rf_params)
         self.assertEqual(len(self.beam.id[self.beam.id==0]), 0,
                          msg='Beam: Failed losses_sepatrix, first')
+
         self.beam.dE += 10e8
-#        self.beam.losses_separatrix(self.general_params, self.rf_params, self.beam)
         self.beam.losses_separatrix(self.general_params, self.rf_params)
         self.assertEqual(len(self.beam.id[self.beam.id==0]), self.beam.n_macroparticles,
                          msg='Beam: Failed losses_sepatrix, second')
 
+
     def test_losses_longitudinal_cut(self):
+
         longitudinal_tracker = RingAndRFSection(self.rf_params, self.beam)
         full_tracker = FullRingAndRF([longitudinal_tracker])
         matched_from_distribution_function(self.beam, full_tracker,
@@ -162,12 +170,15 @@ class testBeamClass(unittest.TestCase):
         self.beam.losses_longitudinal_cut(0., 5e-9)
         self.assertEqual(len(self.beam.id[self.beam.id==0]), 0,
                          msg='Beam: Failed losses_longitudinal_cut, first')
+
         self.beam.dt += 10e-9
         self.beam.losses_longitudinal_cut(0., 5e-9)
         self.assertEqual(len(self.beam.id[self.beam.id==0]), self.beam.n_macroparticles,
                          msg='Beam: Failed losses_longitudinal_cut, second')
 
+
     def test_losses_energy_cut(self):
+
         longitudinal_tracker = RingAndRFSection(self.rf_params, self.beam)
         full_tracker = FullRingAndRF([longitudinal_tracker])
         matched_from_distribution_function(self.beam, full_tracker,
@@ -179,19 +190,14 @@ class testBeamClass(unittest.TestCase):
         self.beam.losses_energy_cut(-3e8, 3e8)
         self.assertEqual(len(self.beam.id[self.beam.id==0]), 0,
                          msg='Beam: Failed losses_energy_cut, first')
+
         self.beam.dE += 10e8
         self.beam.losses_energy_cut(-3e8, 3e8)
         self.assertEqual(len(self.beam.id[self.beam.id==0]), self.beam.n_macroparticles,
                          msg='Beam: Failed losses_energy_cut, second')
 
+
 if __name__ == '__main__':
-    from input_parameters.general_parameters import *
-    from input_parameters.rf_parameters import *
-    from trackers.tracker import *
-    from trackers.utilities import separatrix
-    from beams.beams import *
-    from beams.distributions import *
-    from beams.slices import *
-    from llrf.phase_loop import *
+
     unittest.main()
 
