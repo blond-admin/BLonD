@@ -191,9 +191,15 @@ class GeneralParameters(object):
                 raise RuntimeError("ERROR in GeneralParameters: synchronous"+
                     " data does not match the time data")
         # Convert synchronous data to momentum, if necessary
-        self.momentum = PreprocessRamp.convert_data(synchronous_data, 
-            Particle = Particle, synchronous_data_type = synchronous_data_type)
-
+        if synchronous_data_type != 'momentum':
+            if PreprocessRamp:
+                self.momentum = PreprocessRamp.convert_data(synchronous_data, 
+                    Particle = Particle, 
+                    synchronous_data_type = synchronous_data_type)
+            else:
+                raise RuntimeError("ERROR in GeneralParameters: synchronous"+
+                    " data type conversion requires a PreprocessRamp class")
+                
         # Synchronous momentum and checks
         if type(synchronous_data)==tuple:
             self.cycle_time, self.momentum = PreprocessRamp.preprocess(
