@@ -25,7 +25,7 @@ from input_parameters.general_parameters import GeneralParameters
 from input_parameters.rf_parameters import RFSectionParameters
 from beams.beams import Beam
 from beams.distributions import matched_from_distribution_function
-from trackers.tracker import FullRingAndRF,RingAndRFSection
+from trackers.tracker import FullRingAndRF, RingAndRFTracker
 
 class testBeamClass(unittest.TestCase):
     
@@ -139,7 +139,7 @@ class testBeamClass(unittest.TestCase):
 
     def test_losses_separatrix(self):
 
-        longitudinal_tracker = RingAndRFSection(self.rf_params, self.beam)
+        longitudinal_tracker = RingAndRFTracker(self.rf_params, self.beam)
         full_tracker = FullRingAndRF([longitudinal_tracker])
         matched_from_distribution_function(self.beam, full_tracker,
                                distribution_exponent=1.5,
@@ -159,7 +159,7 @@ class testBeamClass(unittest.TestCase):
 
     def test_losses_longitudinal_cut(self):
 
-        longitudinal_tracker = RingAndRFSection(self.rf_params, self.beam)
+        longitudinal_tracker = RingAndRFTracker(self.rf_params, self.beam)
         full_tracker = FullRingAndRF([longitudinal_tracker])
         matched_from_distribution_function(self.beam, full_tracker,
                                distribution_exponent=1.5,
@@ -179,7 +179,7 @@ class testBeamClass(unittest.TestCase):
 
     def test_losses_energy_cut(self):
 
-        longitudinal_tracker = RingAndRFSection(self.rf_params, self.beam)
+        longitudinal_tracker = RingAndRFTracker(self.rf_params, self.beam)
         full_tracker = FullRingAndRF([longitudinal_tracker])
         matched_from_distribution_function(self.beam, full_tracker,
                                distribution_exponent=1.5,
