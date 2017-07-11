@@ -19,6 +19,7 @@ import numpy as np
 from scipy.constants import c
 from scipy.integrate import cumtrapz
 from beams.beams import Proton
+#from input_parameters.preprocess import PreprocessRFParams
 
 
 
@@ -226,6 +227,7 @@ class RFSectionParameters(object):
         self.eta_0 = 0
         self.eta_1 = 0
         self.eta_2 = 0
+        self.charge = Particle.charge
         for i in range( self.alpha_order ):
             dummy = getattr(GeneralParameters, 'eta_' + str(i))
             setattr(self, "eta_%s" %i, dummy[self.section_index])
@@ -255,6 +257,8 @@ class RFSectionParameters(object):
                     input_check(self.__getattribute__(rf_param))
         if phi_noise:
             input_check(self.phi_noise)
+        else:
+            self.phi_noise = None
             
 # BEGIN MOVE TO INPUT CHECK... ************************************************               
         # Option 2: cast the input into appropriate shape: the input is 
