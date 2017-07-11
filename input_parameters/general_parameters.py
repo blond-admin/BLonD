@@ -92,6 +92,8 @@ class GeneralParameters(object):
         Primary particle mass :math:`m` [eV]
     charge : float
         Primary particle charge :math:`q` [e]
+    momentum : float matrix
+        Synchronous relativistic momentum on the design orbit :math:`p_{s,k,n}`
     beta : float matrix
         Synchronous relativistic beta program for each segment of the
         ring :math:`\beta_{s,k}^n = \frac{1}{\sqrt{1 
@@ -177,6 +179,7 @@ class GeneralParameters(object):
                 " sections and size of momentum compaction do not match!")    
 
         # Primary particle mass and charge used for energy calculations
+        self.Particle = Particle
         self.mass = Particle.mass
         self.charge = Particle.charge
         
@@ -189,9 +192,15 @@ class GeneralParameters(object):
                 raise RuntimeError("ERROR in GeneralParameters: synchronous"+
                     " data does not match the time data")
         # Convert synchronous data to momentum, if necessary
-        self.momentum = PreprocessRamp.convert_data(synchronous_data, 
-            Particle = Particle, synchronous_data_type = synchronous_data_type)
-
+        if synchronous_data_type != 'momentum':
+            if PreprocessRamp:
+                self.momentum = PreprocessRamp.convert_data(synchronous_data, 
+                    Particle = Particle, 
+                    synchronous_data_type = synchronous_data_type)
+            else:
+                raise RuntimeError("ERROR in GeneralParameters: synchronous"+
+                    " data type conversion requires a PreprocessRamp class")
+                
         # Synchronous momentum and checks
         if type(synchronous_data)==tuple:
             self.cycle_time, self.momentum = PreprocessRamp.preprocess(
@@ -240,6 +249,10 @@ class GeneralParameters(object):
         
         for i in range(self.alpha_order):
             getattr(self, '_eta' + str(i))()
+            
+        # Fill unused eta arrays with zeros
+        for i in range( self.alpha_order, 3 ):
+            setattr(self, "eta_%s" %i, np.zeros(self.n_turns+1))       
 
     
     def _eta0(self):
