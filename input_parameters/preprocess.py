@@ -478,13 +478,33 @@ def combine_rf_functions(function_list, merge_type = 'linear',
                          resolution = 1e-3, GeneralParameters = None, 
                          main_h = True):
 
-    """
-    function to merge different programs in case e.g. different fixed bucket areas are required at different points in time.
-    function_list contains 2-tuples in the form (program, start/stop time), where program is a 2-D numpy array or a single
-    value and start/stop time is a list of length 2, with the first member the start time and the second the stop time.
-    merge_type can be 'linear' or 'adiabatic' or a list in case different merge types are required between different functions.
-    resolution determines the time points along the merge for non-linear merge types and can also be a list if required.
-    """
+
+    r"""Function to combine different RF programs.  Each program is passed in a tuple with complete function (single valued or numpy array) and 2-list [start_time, stop_time].
+
+    Parameters
+    ----------
+    function_list : list of tuples
+        each tuple has form (function, [start_time, stop_time])
+        function can be a numpy.ndarray of format [time, value] or single valued
+        if function is single valued it will be assumed constant from start_time to stop_time
+        if function is numpy.ndarray it will be truncated to start_time, stop_time
+    merge_type : str
+        string signifying type of merge available, options are:
+            linear : function will be linearly interpolated from function_1[stop_time] to function_2[start_time]
+            isoadiabatic : designed for voltage functions and intended to maintain adiabaticity during change of voltage, best suited to flat momentum sections
+            linear_tune : for use with voltages, provides a linear change in the tune from function_1[stop_time] to function_2[start_time]
+    resolution : float
+        the time in seconds between points of the interpolation
+    GeneralParameters : class
+        A GeneralParameters type class, only used with linear_tune merge_type
+    main_h : boolean
+        if main_h is True dE is considered in linear_tune merge_type, otherwise dE is set to 0
+
+    Returns
+    -------
+    2 dimensional numpy.ndarray containing [time, value] of merged functions
+
+        """
 
     nFunctions = len(function_list)
 
@@ -492,18 +512,24 @@ def combine_rf_functions(function_list, merge_type = 'linear',
         merge_type = (nFunctions-1)*[merge_type]
     if not isinstance(resolution, list):
         resolution = (nFunctions-1)*[resolution]
-    
+   
+    if len(merge_type) != nFunctions:
+        raise RuntimeError("ERROR: merge_type list wrong length")
+    if len(resolution != nFunctions:
+        raise RuntimeError("ERROR: resolution list wrong length")
+ 
     timePoints = []
     for i in range(nFunctions):
         timePoints += function_list[i][1]
-    
     if not np.all(np.diff(timePoints)) > 0:
         raise RuntimeError("ERROR: in combine_rf_functions, times are not"+
                            " monotonically increasing!")
     
     fullFunction = []
     fullTime = []
-    
+   
+
+    #Determines if 1st function is single valued or array and stores values
     if not isinstance(function_list[0][0], np.ndarray):
         fullFunction += 2*[function_list[0][0]]
         fullTime += function_list[0][1]
@@ -522,6 +548,7 @@ def combine_rf_functions(function_list, merge_type = 'linear',
         fullTime += funcTime
 
     
+    #Loops through remaining functions merging them as requested and storing results
     for i in range(1, nFunctions):
         
         if merge_type[i-1] == 'linear':
@@ -673,6 +700,9 @@ def combine_rf_functions(function_list, merge_type = 'linear',
                 
                 fullFunction += volts.tolist() + funcProg.tolist()
                 fullTime += time.tolist() + funcTime
+
+        else:
+            raise RuntimeError("ERROR: merge_type not recognised")
                 
                 
     returnFunction = np.zeros([2, len(fullTime)])
