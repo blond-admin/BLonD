@@ -1,5 +1,5 @@
-
-# Copyright 2016 CERN. This software is distributed under the
+# coding: utf8
+# Copyright 2014-2017 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3), 
 # copied verbatim in the file LICENCE.md.
 # In applying this licence, CERN does not waive the privileges and immunities 
@@ -15,17 +15,18 @@ Run as python TestSeparatrixBigaussian.py in console or via travis
 '''
 
 from __future__ import division, print_function
-from builtins import range
+#from builtins import range
 import unittest
+import numpy as np
 
-from input_parameters.general_parameters import *
-from input_parameters.rf_parameters import *
-from trackers.tracker import *
+from input_parameters.general_parameters import GeneralParameters
+from input_parameters.rf_parameters import RFSectionParameters
+#from trackers.tracker import *
+from beams.beams import Beam
+from beams.distributions import longitudinal_bigaussian
+from beams.slices import Slices
+from llrf.beam_feedback import BeamFeedback
 from trackers.utilities import separatrix
-from beams.beams import *
-from beams.distributions import *
-from beams.slices import *
-from llrf.phase_loop import *
 
 class TestSeparatrixBigaussian(unittest.TestCase):
     
@@ -105,7 +106,7 @@ class TestSeparatrixBigaussian(unittest.TestCase):
         slices.track()
         configuration = {'machine': 'LHC', 
                          'PL_gain': 0.1*general_params.t_rev[0]}
-        PL = PhaseLoop(general_params, rf_params, slices, configuration)
+        PL = BeamFeedback(general_params, rf_params, slices, configuration)
         PL.beam_phase()
 
         # Quantities to be compared

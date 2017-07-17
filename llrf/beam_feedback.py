@@ -1,5 +1,5 @@
-
-# Copyright 2016 CERN. This software is distributed under the
+# coding: utf8
+# Copyright 2014-2017 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3), 
 # copied verbatim in the file LICENCE.md.
 # In applying this licence, CERN does not waive the privileges and immunities 
@@ -21,7 +21,7 @@ import sys
 
 
 
-class PhaseLoop(object): 
+class BeamFeedback(object): 
     '''
     One-turn beam phase loop for different machines with different hardware. 
     Use 'period' for a phase loop that is active only in certain turns. 

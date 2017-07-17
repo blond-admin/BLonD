@@ -1,17 +1,3 @@
-trackers package
-================
-
-Submodules
-----------
-
-trackers.tracker module
------------------------
-
-.. automodule:: trackers.tracker
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 Equations of Motion
 ^^^^^^^^^^^^^^^^^^^
 :Authors: **Helga Timko**
@@ -334,19 +320,8 @@ space if :math:`\eta_0 \cos{\varphi_s} < 0`, which for
 
 
 
-trackers.utilities module
--------------------------
-
-.. automodule:: trackers.utilities
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-
 Tracking utilities
 ^^^^^^^^^^^^^^^^^^
-
-:Authors: **Helga Timko**
 
 Hamiltonian
 """""""""""
@@ -417,12 +392,4 @@ array onto the 'basic period' of the waveform (that is :math:`(-\pi,\pi)` and
 :math:`(0,2 \pi)` on the first harmonic, below and above transition, 
 respectively). 
 
-
-Module contents
----------------
-
-.. automodule:: trackers
-    :members:
-    :undoc-members:
-    :show-inheritance:
 

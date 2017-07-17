@@ -170,3 +170,5 @@ plt.plot(slice_beam.bin_centers, slice_beam.n_macroparticles, lw=2,
          label='with intensity effects')
 plt.title('From line density')
 plt.legend(loc=0, fontsize='medium')
+plt.show()
+

@@ -1,5 +1,8 @@
-setup_cpp module
+setup_cpp Module
 ================
+
+:mod:`setup_cpp` Module
+-----------------------
 
 .. automodule:: setup_cpp
     :members:
