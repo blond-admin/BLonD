@@ -88,7 +88,7 @@ def moving_average(x, N, center = False):
         x = np.concatenate((x[0]*np.ones(N_half), x, x[-1]*np.ones(N_half)))
         
     cumulative_sum = np.cumsum(np.insert(x, 0, 0))
-    print(cumulative_sum) 
+    #print(cumulative_sum) 
    
     return (cumulative_sum[N:] - cumulative_sum[:-N]) / N
 

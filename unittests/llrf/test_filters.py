@@ -21,7 +21,7 @@ from llrf.filters import moving_average
 class TestMovingAverage(unittest.TestCase):
     
     # Run before every test
-    def setUp(self, N, center):
+    def setUp(self, N = 3, center = False):
         self.x = np.array([0,3,6,3,0,3,6,3,0], dtype=float)
         self.y = moving_average(self.x, N, center)
         
@@ -33,36 +33,40 @@ class TestMovingAverage(unittest.TestCase):
 
     def test_1(self):
         
-        self.setUp(3, False)
+        self.setUp(N = 3, center = False)
         self.assertEqual(len(self.x), len(self.y) + 3 - 1, 
             msg="In TestMovingAverage, test_1: wrong array length")
-        self.assertItemsEqual(self.y, np.array([3, 4, 3, 2, 3, 4, 3], 
-            dtype=float), msg="In TestMovingAverage, test_1: arrays differ")
+        self.assertSequenceEqual(self.y.tolist(), 
+            np.array([3, 4, 3, 2, 3, 4, 3], dtype=float).tolist(), 
+            msg="In TestMovingAverage, test_1: arrays differ")
 
     def test_2(self):
         
-        self.setUp(4, False)
+        self.setUp(N = 4, center = False)
         self.assertEqual(len(self.x), len(self.y) + 4 - 1, 
             msg="In TestMovingAverage, test_2: wrong array length")
-        self.assertItemsEqual(self.y, np.array([3, 3, 3, 3, 3, 3], 
-            dtype=float), msg="In TestMovingAverage, test_2: arrays differ")
+        self.assertSequenceEqual(self.y.tolist(), np.array([3, 3, 3, 3, 3, 3], 
+            dtype=float).tolist(), 
+            msg="In TestMovingAverage, test_2: arrays differ")
 
     def test_3(self):
         
-        self.setUp(3, True)
+        self.setUp(N = 3, center = True)
         self.assertEqual(len(self.x), len(self.y), 
             msg="In TestMovingAverage, test_3: wrong array length")
-        self.assertItemsEqual(self.y, np.array([1, 3, 4, 3, 2, 3, 4, 3, 1], 
-            dtype=float), msg="In TestMovingAverage, test_3: arrays differ")
+        self.assertSequenceEqual(self.y.tolist(), 
+            np.array([1, 3, 4, 3, 2, 3, 4, 3, 1], dtype=float).tolist(), 
+            msg="In TestMovingAverage, test_3: arrays differ")
     
     def test_4(self):
         
-        self.setUp(4, True)
+        self.setUp(N = 4, center = True)
         self.assertEqual(len(self.x), len(self.y), 
             msg="In TestMovingAverage, test_4: wrong array length")
-        self.assertItemsEqual(self.y, 
+        self.assertSequenceEqual(self.y.tolist(), 
             np.array([1.8, 2.4, 2.4, 3, 3.6, 3, 2.4, 2.4, 1.8], 
-            dtype=float), msg="In TestMovingAverage, test_4: arrays differ")
+            dtype=float).tolist(), 
+            msg="In TestMovingAverage, test_4: arrays differ")
 
 # def test_moving_average_2():
 #     
