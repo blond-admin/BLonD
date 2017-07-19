@@ -55,4 +55,41 @@ def cavity_filter():
         
 def cavity_impedance():
     """Model of the SPS cavity impedance.
-    """   
+    """
+
+def moving_average(x, N, center = False):
+    """Function to calculate the moving average (or running mean) of the input
+    data.
+    
+    Parameters
+    ----------
+    x : float array
+        Data to be smoothed
+    N : int
+        Window size in points; rounded up to next impair value if center is 
+        True
+    center : bool    
+        Window function centered
+        
+    Returns
+    -------
+    float array
+        Smoothed data array of has the size 
+        * len(x) - N + 1, if center = False
+        * len(x), if center = True
+        
+    """
+    
+    if center == True:
+        # Round up to next impair number
+        N_half = int(N/2)
+        N = N_half*2 + 1
+        # Pad with first and last values
+        x = np.concatenate((x[0]*np.ones(N_half), x, x[-1]*np.ones(N_half)))
+        
+    cumulative_sum = np.cumsum(np.insert(x, 0, 0))
+    print(cumulative_sum) 
+   
+    return (cumulative_sum[N:] - cumulative_sum[:-N]) / N
+
+

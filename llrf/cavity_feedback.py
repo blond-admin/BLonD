@@ -29,18 +29,30 @@ class SPSOneTurnFeedback(object):
         self.rf_params = RFSectionParameters
         self.beam = Beam
         self.slices = Slices
+        
+        # Initialise bunch-by-bunch voltage correction array
+        self.voltage = np.ones(self.slices.n_slices, dtype=float) + \
+            1j*np.zeros(self.slices.n_slices, dtype=float)
+        
+        # Initialise comb filter
         self.a_comb_filter = float(15/16)
+        self.voltage_IQ_prev = polar_to_cartesian(self.voltage) # ??? WHAT IS THE CORRECT INITIAL VALUE???
+        
+        # Initialise cavity filter
+        self.cavity_filter_buckets = float(5) # Trev  / 4620 * 5
         
         
     def track(self):
         
-        # Memorize previous voltage
-        self.voltage_IQ_prev = np.copy(self.voltage_IQ)
         # Move from polar to cartesian coordinates
         self.voltage_IQ = polar_to_cartesian(self.voltage)
         # Apply comb filter
         self.voltage_IQ = comb_filter(self.voltage_IQ_prev, self.a_comb_filter, 
                                       self.voltage_IQ)
+        # Memorize previous voltage ???HERE OR AT THE END OF TRACK???
+        self.voltage_IQ_prev = np.copy(self.voltage_IQ)
+
+        
         # Apply cavity filter
         cavity_filter()
         # Apply cavity impedance
@@ -48,4 +60,11 @@ class SPSOneTurnFeedback(object):
         
         # Go back to polar coordinates
         self.voltage = cartesian_to_polar(self.voltage_IQ)
+
+
+
+
+
+
+
         
