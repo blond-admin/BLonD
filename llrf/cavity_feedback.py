@@ -36,7 +36,7 @@ class SPSOneTurnFeedback(object):
         
         # Initialise comb filter
         self.a_comb_filter = float(15/16)
-        self.voltage_IQ_prev = polar_to_cartesian(self.voltage) # ??? WHAT IS THE CORRECT INITIAL VALUE???
+        self.voltage_IQ_prev = np.zeros() #polar_to_cartesian(self.voltage) # ??? WHAT IS THE CORRECT INITIAL VALUE???
         
         # Initialise cavity filter
         self.cavity_filter_buckets = float(5) # Trev  / 4620 * 5

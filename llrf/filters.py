@@ -33,8 +33,15 @@ def cartesian_to_polar(IQ_vector):
 
     
 def rf_beam_current(frequency, profile):
-    """Function calculating the beam current at the RF frequency, bucket by
+    """Function calculating the beam current at the (RF) frequency, bucket by
     bucket.
+    
+    Parameters
+    ----------
+    frequency : float
+        Frequency at which the current should be calculated
+    profile : float array
+        
     """
     
     
