@@ -26,10 +26,49 @@ def polar_to_cartesian(amplitude, phase):
 
 
 def cartesian_to_polar(IQ_vector):
-    """Convert data from polar to cartesian (I,Q) coordinates.
+    """Convert data from cartesian (I,Q) to polar coordinates.
     """
     
     return np.absolute(IQ_vector), np.angle(IQ_vector)
+
+
+def modulator(signal, f_initial, f_final, T_sampling):
+    """Demodulate a signal from initial frequency to final frequency. The two
+    frequencies should be close.
+    
+    Parameters
+    ----------
+    signal : float array
+        Signal to be demodulated
+    f_initial : float
+        Initial frequency [Hz] of signal (before demodulation)
+    f_final : float
+        Final frequency [Hz] of signal (after demodulation)
+    T_sampling : float
+        Sampling period (temporal bin size) [s] of the signal
+        
+    Returns
+    -------
+    float array
+        Demodulated signal at f_final
+    
+    """
+    
+    if len(signal) < 2:
+        raise RuntimeError("ERROR in filters.py/demodulator: signal should be"+
+                           " an array!")
+    delta = 2*np.pi*(f_initial - f_final)*T_sampling
+    indices = np.arange(len(signal))
+    try:
+        I_new = np.cos(delta*indices)*signal.real \
+            - np.sin(delta*indices)*signal.imag  
+        Q_new = np.sin(delta*indices)*signal.real \
+            + np.cos(delta*indices)*signal.imag  
+    except:
+        raise RuntimeError("ERROR in filters.py/demodulator: signal should be"+
+                           " complex!")
+        
+    return I_new + 1j*Q_new
 
     
 def rf_beam_current(frequency, profile):
