@@ -114,7 +114,6 @@ class TestIQ(unittest.TestCase):
             msg="In TestIQ test_1, amplitude is not correct")
         self.assertSequenceEqual(phase.tolist(), phases.tolist(),
             msg="In TestIQ test_1, phase is not correct")
-        
         #polar_to_cartesian(amplitude, phase)
 
         
