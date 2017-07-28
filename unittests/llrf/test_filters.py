@@ -95,26 +95,93 @@ class TestModulator(unittest.TestCase):
 
 class TestIQ(unittest.TestCase):
     
+    # Run before every test
+    def setUp(self, f_rf = 200.1e6, T_s = 5e-10, n = 1000):
+        
+        self.f_rf = f_rf # initial frequency in Hz
+        self.T_s = T_s # sampling time
+        self.n = n # number of points
+        
+    # Run after every test
+    def tearDown(self):
+         
+        del self.f_rf
+        del self.T_s
+        del self.n
+
     def test_1(self):
-        
-        f_rf = 200.1e6 # initial frequency in Hz
-        T_s = 5e-10 # sampling time
-        n = 1000 # number of points
-        
-        # From IQ to polar
-        phases = np.pi*(np.fmod(2*np.arange(n)*f_rf*T_s,2) - 1) # (-pi,pi)
+               
+        # Define signal in range (-pi, pi)
+        phases = np.pi*(np.fmod(2*np.arange(self.n)*self.f_rf*self.T_s,2) - 1)
         signal = np.cos(phases) + 1j*np.sin(phases)            
+        # From IQ to polar
         amplitude, phase = cartesian_to_polar(signal)
         
         # Drop some digits to avoid rounding errors
         amplitude = np.around(amplitude, 12)
         phase = np.around(phase, 12)
         phases = np.around(phases, 12)
-        self.assertSequenceEqual(amplitude.tolist(), np.ones(n).tolist(),
+        self.assertSequenceEqual(amplitude.tolist(), np.ones(self.n).tolist(),
             msg="In TestIQ test_1, amplitude is not correct")
         self.assertSequenceEqual(phase.tolist(), phases.tolist(),
             msg="In TestIQ test_1, phase is not correct")
-        #polar_to_cartesian(amplitude, phase)
+
+    def test_2(self):
+               
+        # Define signal in range (-pi, pi)
+        phase = np.pi*(np.fmod(2*np.arange(self.n)*self.f_rf*self.T_s,2) - 1)
+        amplitude = np.ones(self.n)             
+        # From polar to IQ
+        signal = polar_to_cartesian(amplitude, phase)
+        
+        # Drop some digits to avoid rounding errors
+        signal_real = np.around(np.real(signal), 12)
+        signal_imag = np.around(np.imag(signal), 12)
+        theor_real = np.around(np.cos(phase), 12) # what it should be
+        theor_imag = np.around(np.sin(phase), 12) # what it should be
+        self.assertSequenceEqual(signal_real.tolist(), theor_real.tolist(),
+            msg="In TestIQ test_2, real part is not correct")
+        self.assertSequenceEqual(signal_imag.tolist(), theor_imag.tolist(),
+            msg="In TestIQ test_2, imaginary part is not correct")
+
+    def test_3(self):
+               
+        # Define signal in range (-pi, pi)
+        phase = np.pi*(np.fmod(2*np.arange(self.n)*self.f_rf*self.T_s,2) - 1)
+        amplitude = np.ones(self.n)             
+        # Forwards and backwards transform
+        signal = polar_to_cartesian(amplitude, phase)
+        amplitude_new, phase_new = cartesian_to_polar(signal)
+        
+        # Drop some digits to avoid rounding errors
+        phase = np.around(phase, 11)
+        amplitude = np.around(amplitude, 11)
+        amplitude_new = np.around(amplitude_new, 11) 
+        phase_new = np.around(phase_new, 11)
+        self.assertSequenceEqual(phase.tolist(), phase_new.tolist(),
+            msg="In TestIQ test_3, phase is not correct")
+        self.assertSequenceEqual(amplitude.tolist(), amplitude_new.tolist(),
+            msg="In TestIQ test_3, amplitude is not correct")
+
+    def test_4(self):
+               
+        # Define signal in range (-pi, pi)
+        phase = np.pi*(np.fmod(2*np.arange(self.n)*self.f_rf*self.T_s,2) - 1)
+        signal = np.cos(phase) + 1j*np.sin(phase)            
+        # Forwards and backwards transform
+        amplitude, phase = cartesian_to_polar(signal)
+        signal_new = polar_to_cartesian(amplitude, phase)
+        
+        # Drop some digits to avoid rounding errors
+        signal_real = np.around(np.real(signal), 11)
+        signal_imag = np.around(np.imag(signal), 11)
+        signal_real_2 = np.around(np.real(signal_new), 11)
+        signal_imag_2 = np.around(np.imag(signal_new), 11)
+        self.assertSequenceEqual(signal_real.tolist(), signal_real_2.tolist(),
+            msg="In TestIQ test_4, real part is not correct")
+        self.assertSequenceEqual(signal_imag.tolist(), signal_imag_2.tolist(),
+            msg="In TestIQ test_4, imaginary part is not correct")
+
 
         
 if __name__ == '__main__':
