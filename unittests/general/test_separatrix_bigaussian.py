@@ -21,14 +21,16 @@ import numpy as np
 
 from input_parameters.general_parameters import GeneralParameters
 from input_parameters.rf_parameters import RFSectionParameters
-#from trackers.tracker import *
-from beams.beams import Beam
-from beams.distributions import longitudinal_bigaussian
+from beams.beams import Beam, Proton
+from beams.distributions import bigaussian
 from beams.slices import Slices
 from llrf.beam_feedback import BeamFeedback
 from trackers.utilities import separatrix
 
+
+
 class TestSeparatrixBigaussian(unittest.TestCase):
+    
     
     # Run before every test
     def setUp(self, negativeEta = True, acceleration = True, singleRF = True):
@@ -62,43 +64,40 @@ class TestSeparatrixBigaussian(unittest.TestCase):
             if acceleration == True:
                 # eta < 0, acceleration
                 general_params = GeneralParameters(N_t, C, alpha_1, 
-                                                   np.linspace(p_1i, p_1f, 43858), 
-                                                   'proton')
+                    np.linspace(p_1i, p_1f, N_t + 1), Particle = Proton())
             elif acceleration == False: 
                 # eta < 0, deceleration
                 general_params = GeneralParameters(N_t, C, alpha_1, 
-                                                   np.linspace(p_1f, p_1i, 43858), 
-                                                   'proton')
+                    np.linspace(p_1f, p_1i, N_t + 1), Particle = Proton())
         
             if singleRF == True:
-                rf_params = RFSectionParameters(general_params, 1, 9, 1.8e6, np.pi+1., 
-                                                accelerating_systems = 'as_single')
+                rf_params = RFSectionParameters(general_params, 1, 9, 1.8e6, 
+                    np.pi + 1., accelerating_systems = 'as_single')
             elif singleRF == False:
                 rf_params = RFSectionParameters(general_params, 2, h, V, phi_1, 
-                                                accelerating_systems = 'all')
+                    accelerating_systems = 'all')
         
         elif( negativeEta == False ): 
 
             if acceleration == True:
                 # eta > 0, acceleration
                 general_params = GeneralParameters(N_t, C, alpha_2, 
-                                                   np.linspace(p_2i, p_2f, 43858), 
-                                                   'proton')
+                    np.linspace(p_2i, p_2f, N_t + 1), Particle = Proton())
             elif acceleration == False: 
                 # eta > 0, deceleration
                 general_params = GeneralParameters(N_t, C, alpha_2, 
-                                                   np.linspace(p_2f, p_2i, 43858), 
-                                                   'proton')
+                    np.linspace(p_2f, p_2i, N_t + 1), Particle = Proton())
+                
             if singleRF == True:
-                rf_params = RFSectionParameters(general_params, 1, 9, 1.8e6, 1., 
-                                                accelerating_systems = 'as_single')
+                rf_params = RFSectionParameters(general_params, 1, 9, 1.8e6, 
+                    1., accelerating_systems = 'as_single')
             elif singleRF == False:
                 rf_params = RFSectionParameters(general_params, 2, h, V, phi_2, 
-                                                accelerating_systems = 'all')
+                    accelerating_systems = 'all')
 
         # Define beam and distribution
         beam = Beam(general_params, N_p, N_b)
-        longitudinal_bigaussian(general_params, rf_params, beam, tau_0/4, 
+        bigaussian(general_params, rf_params, beam, tau_0/4, 
                                 seed = 1234) 
         #print(np.mean(beam.dt))
         slices = Slices(rf_params, beam, 1000, cut_left=0.e-9, 
@@ -112,9 +111,9 @@ class TestSeparatrixBigaussian(unittest.TestCase):
         # Quantities to be compared
         self.phi_s = rf_params.phi_s[0]
         self.phi_b = PL.phi_beam
-        self.phi_rf = rf_params.phi_RF[0,0]
+        self.phi_rf = rf_params.phi_rf[0,0]
         self.dE_sep = separatrix(general_params, rf_params, 
-                           [-5.e-7,-3.e-7,1.e-7,3.e-7,7.e-7,9.e-7])
+                                 [-5.e-7,-3.e-7,1.e-7,3.e-7,7.e-7,9.e-7])
 
 
     # Run after every test
@@ -132,43 +131,43 @@ class TestSeparatrixBigaussian(unittest.TestCase):
         self.setUp(negativeEta = True, acceleration = True, singleRF = True)
 
         self.assertAlmostEqual(self.phi_s, 3.4741, places = 3, 
-                               msg = 'Failed test_1 in TestSeparatrixBigaussian on phi_s')
+            msg = 'Failed test_1 in TestSeparatrixBigaussian on phi_s')
         self.assertAlmostEqual(self.phi_b, 3.4742, places  = 3,
-                               msg = 'Failed test_1 in TestSeparatrixBigaussian on phi_b')
+            msg = 'Failed test_1 in TestSeparatrixBigaussian on phi_b')
         self.assertAlmostEqual(self.phi_rf, 4.1416, places = 3,
-                               msg = 'Failed test_1 in TestSeparatrixBigaussian on phi_rf')
+            msg = 'Failed test_1 in TestSeparatrixBigaussian on phi_rf')
         self.assertAlmostEqual(self.dE_sep[0], 21061257.1819199, delta = 1.e2,
-                               msg = 'Failed test_1 in TestSeparatrixBigaussian on dE_sep[0]')
+            msg = 'Failed test_1 in TestSeparatrixBigaussian on dE_sep[0]')
         self.assertAlmostEqual(self.dE_sep[1], 41984031.07781138, delta = 1.e2,
-                               msg = 'Failed test_1 in TestSeparatrixBigaussian on dE_sep[1]')
+            msg = 'Failed test_1 in TestSeparatrixBigaussian on dE_sep[1]')
         self.assertAlmostEqual(self.dE_sep[2], 15008002.86609393, delta = 1.e2,
-                               msg = 'Failed test_1 in TestSeparatrixBigaussian on dE_sep[2]')
+            msg = 'Failed test_1 in TestSeparatrixBigaussian on dE_sep[2]')
         self.assertAlmostEqual(self.dE_sep[3], 43084412.69304573, delta = 1.e2,
-                               msg = 'Failed test_1 in TestSeparatrixBigaussian on dE_sep[3]')
+            msg = 'Failed test_1 in TestSeparatrixBigaussian on dE_sep[3]')
         self.assertAlmostEqual(self.dE_sep[5], 44050421.49141181, delta = 1.e2,
-                               msg = 'Failed test_1 in TestSeparatrixBigaussian on dE_sep[5]')
-
+            msg = 'Failed test_1 in TestSeparatrixBigaussian on dE_sep[5]')
+        print(self.dE_sep)
 
     def test_2(self):
 
         self.setUp(negativeEta = True, acceleration = True, singleRF = False)
         
         self.assertAlmostEqual(self.phi_s, 3.4152, places = 3, 
-                               msg = 'Failed test_2 in TestSeparatrixBigaussian on phi_s')
+            msg = 'Failed test_2 in TestSeparatrixBigaussian on phi_s')
         self.assertAlmostEqual(self.phi_b, 3.4153, places  = 3,
-                               msg = 'Failed test_2 in TestSeparatrixBigaussian on phi_b')
+            msg = 'Failed test_2 in TestSeparatrixBigaussian on phi_b')
         self.assertAlmostEqual(self.phi_rf, 4.1416, places = 3,
-                               msg = 'Failed test_2 in TestSeparatrixBigaussian on phi_rf')
+            msg = 'Failed test_2 in TestSeparatrixBigaussian on phi_rf')
         self.assertAlmostEqual(self.dE_sep[0], 19644213.74986242, delta = 1.e2,
-                               msg = 'Failed test_2 in TestSeparatrixBigaussian on dE_sep[0]')
+            msg = 'Failed test_2 in TestSeparatrixBigaussian on dE_sep[0]')
         self.assertAlmostEqual(self.dE_sep[1], 40597543.48205686, delta = 1.e2,
-                               msg = 'Failed test_2 in TestSeparatrixBigaussian on dE_sep[1]')
+            msg = 'Failed test_2 in TestSeparatrixBigaussian on dE_sep[1]')
         self.assertAlmostEqual(self.dE_sep[2], 12508689.67263455, delta = 1.e2,
-                               msg = 'Failed test_2 in TestSeparatrixBigaussian on dE_sep[2]')
+            msg = 'Failed test_2 in TestSeparatrixBigaussian on dE_sep[2]')
         self.assertAlmostEqual(self.dE_sep[3], 41811463.57144009, delta = 1.e2,
-                               msg = 'Failed test_2 in TestSeparatrixBigaussian on dE_sep[3]')
+            msg = 'Failed test_2 in TestSeparatrixBigaussian on dE_sep[3]')
         self.assertAlmostEqual(self.dE_sep[5], 42898898.52214498, delta = 1.e2,
-                               msg = 'Failed test_2 in TestSeparatrixBigaussian on dE_sep[5]')
+            msg = 'Failed test_2 in TestSeparatrixBigaussian on dE_sep[5]')
 
 
     def test_3(self):
@@ -176,21 +175,21 @@ class TestSeparatrixBigaussian(unittest.TestCase):
         self.setUp(negativeEta = True, acceleration = False, singleRF = True)
         
         self.assertAlmostEqual(self.phi_s, 2.7927, places = 3, 
-                               msg = 'Failed test_3 in TestSeparatrixBigaussian on phi_s')
+            msg = 'Failed test_3 in TestSeparatrixBigaussian on phi_s')
         self.assertAlmostEqual(self.phi_b, 2.7928, places  = 3,
-                               msg = 'Failed test_3 in TestSeparatrixBigaussian on phi_b')
+            msg = 'Failed test_3 in TestSeparatrixBigaussian on phi_b')
         self.assertAlmostEqual(self.phi_rf, 4.1416, places = 3,
-                               msg = 'Failed test_3 in TestSeparatrixBigaussian on phi_rf')
+            msg = 'Failed test_3 in TestSeparatrixBigaussian on phi_rf')
         self.assertAlmostEqual(self.dE_sep[0], 8.33180231e+08, delta = 1.e3,
-                               msg = 'Failed test_3 in TestSeparatrixBigaussian on dE_sep[0]')
+            msg = 'Failed test_3 in TestSeparatrixBigaussian on dE_sep[0]')
         self.assertAlmostEqual(self.dE_sep[1], 5.38487881e+08, delta = 1.e3,
-                               msg = 'Failed test_3 in TestSeparatrixBigaussian on dE_sep[1]')
+            msg = 'Failed test_3 in TestSeparatrixBigaussian on dE_sep[1]')
         self.assertAlmostEqual(self.dE_sep[2], 8.98061872e+08, delta = 1.e3,
-                               msg = 'Failed test_3 in TestSeparatrixBigaussian on dE_sep[2]')
+            msg = 'Failed test_3 in TestSeparatrixBigaussian on dE_sep[2]')
         self.assertAlmostEqual(self.dE_sep[3], 2.42395281e+08, delta = 1.e3,
-                               msg = 'Failed test_3 in TestSeparatrixBigaussian on dE_sep[3]')
+            msg = 'Failed test_3 in TestSeparatrixBigaussian on dE_sep[3]')
         self.assertAlmostEqual(self.dE_sep[4], 9.48437947e+08, delta = 1.e3,
-                               msg = 'Failed test_3 in TestSeparatrixBigaussian on dE_sep[4]')
+            msg = 'Failed test_3 in TestSeparatrixBigaussian on dE_sep[4]')
 
 
     def test_4(self):
@@ -198,21 +197,21 @@ class TestSeparatrixBigaussian(unittest.TestCase):
         self.setUp(negativeEta = True, acceleration = False, singleRF = False)
         
         self.assertAlmostEqual(self.phi_s, 2.8051, places = 3, 
-                               msg = 'Failed test_4 in TestSeparatrixBigaussian on phi_s')
+            msg = 'Failed test_4 in TestSeparatrixBigaussian on phi_s')
         self.assertAlmostEqual(self.phi_b, 2.8052, places  = 3,
-                               msg = 'Failed test_4 in TestSeparatrixBigaussian on phi_b')
+            msg = 'Failed test_4 in TestSeparatrixBigaussian on phi_b')
         self.assertAlmostEqual(self.phi_rf, 4.1416, places = 3,
-                               msg = 'Failed test_4 in TestSeparatrixBigaussian on phi_rf')
+            msg = 'Failed test_4 in TestSeparatrixBigaussian on phi_rf')
         self.assertAlmostEqual(self.dE_sep[0], 8.20683627e+08, delta = 1.e3,
-                               msg = 'Failed test_4 in TestSeparatrixBigaussian on dE_sep[0]')
+            msg = 'Failed test_4 in TestSeparatrixBigaussian on dE_sep[0]')
         self.assertAlmostEqual(self.dE_sep[1], 5.11428511e+08, delta = 1.e3,
-                               msg = 'Failed test_4 in TestSeparatrixBigaussian on dE_sep[1]')
+            msg = 'Failed test_4 in TestSeparatrixBigaussian on dE_sep[1]')
         self.assertAlmostEqual(self.dE_sep[2], 8.92977832e+08, delta = 1.e3,
-                               msg = 'Failed test_4 in TestSeparatrixBigaussian on dE_sep[2]')
+            msg = 'Failed test_4 in TestSeparatrixBigaussian on dE_sep[2]')
         self.assertAlmostEqual(self.dE_sep[3], 1.53185755e+08, delta = 1.e3,
-                               msg = 'Failed test_4 in TestSeparatrixBigaussian on dE_sep[3]')
+            msg = 'Failed test_4 in TestSeparatrixBigaussian on dE_sep[3]')
         self.assertAlmostEqual(self.dE_sep[4], 9.49799425e+08, delta = 1.e3,
-                               msg = 'Failed test_4 in TestSeparatrixBigaussian on dE_sep[4]')
+            msg = 'Failed test_4 in TestSeparatrixBigaussian on dE_sep[4]')
 
 
     def test_5(self):
@@ -220,23 +219,23 @@ class TestSeparatrixBigaussian(unittest.TestCase):
         self.setUp(negativeEta = False, acceleration = True, singleRF = True)
         
         self.assertAlmostEqual(self.phi_s, 3.3977, places = 3, 
-                               msg = 'Failed test_5 in TestSeparatrixBigaussian on phi_s')
+            msg = 'Failed test_5 in TestSeparatrixBigaussian on phi_s')
         self.assertAlmostEqual(self.phi_b, 3.3978, places  = 3,
-                               msg = 'Failed test_5 in TestSeparatrixBigaussian on phi_b')
+            msg = 'Failed test_5 in TestSeparatrixBigaussian on phi_b')
         self.assertAlmostEqual(self.phi_rf, 1.0000, places = 3,
-                               msg = 'Failed test_5 in TestSeparatrixBigaussian on phi_rf')
+            msg = 'Failed test_5 in TestSeparatrixBigaussian on phi_rf')
         self.assertAlmostEqual(self.dE_sep[0], 1.04542867e+09, delta = 1.e3,
-                               msg = 'Failed test_5 in TestSeparatrixBigaussian on dE_sep[0]')
+            msg = 'Failed test_5 in TestSeparatrixBigaussian on dE_sep[0]')
         self.assertAlmostEqual(self.dE_sep[1], 2.34232667e+09, delta = 1.e3,
-                               msg = 'Failed test_5 in TestSeparatrixBigaussian on dE_sep[1]')
+            msg = 'Failed test_5 in TestSeparatrixBigaussian on dE_sep[1]')
         self.assertAlmostEqual(self.dE_sep[2], 1.51776652e+09, delta = 1.e3,
-                               msg = 'Failed test_5 in TestSeparatrixBigaussian on dE_sep[2]')
+            msg = 'Failed test_5 in TestSeparatrixBigaussian on dE_sep[2]')
         self.assertAlmostEqual(self.dE_sep[3], 2.20889395e+09, delta = 1.e3,
-                               msg = 'Failed test_5 in TestSeparatrixBigaussian on dE_sep[3]')
+            msg = 'Failed test_5 in TestSeparatrixBigaussian on dE_sep[3]')
         self.assertAlmostEqual(self.dE_sep[4], 1.84686032e+09, delta = 1.e3,
-                               msg = 'Failed test_5 in TestSeparatrixBigaussian on dE_sep[4]')
+            msg = 'Failed test_5 in TestSeparatrixBigaussian on dE_sep[4]')
         self.assertAlmostEqual(self.dE_sep[5], 2.04363122e+09, delta = 1.e3,
-                               msg = 'Failed test_5 in TestSeparatrixBigaussian on dE_sep[5]')
+            msg = 'Failed test_5 in TestSeparatrixBigaussian on dE_sep[5]')
 
     
     def test_6(self):
@@ -244,23 +243,23 @@ class TestSeparatrixBigaussian(unittest.TestCase):
         self.setUp(negativeEta = False, acceleration = True, singleRF = False)
         
         self.assertAlmostEqual(self.phi_s, 3.4529, places = 3, 
-                               msg = 'Failed test_6 in TestSeparatrixBigaussian on phi_s')
+            msg = 'Failed test_6 in TestSeparatrixBigaussian on phi_s')
         self.assertAlmostEqual(self.phi_b, 3.4531, places  = 3,
-                               msg = 'Failed test_6 in TestSeparatrixBigaussian on phi_b')
+            msg = 'Failed test_6 in TestSeparatrixBigaussian on phi_b')
         self.assertAlmostEqual(self.phi_rf, 1.0000, places = 3,
-                               msg = 'Failed test_6 in TestSeparatrixBigaussian on phi_rf')
+            msg = 'Failed test_6 in TestSeparatrixBigaussian on phi_rf')
         self.assertAlmostEqual(self.dE_sep[0], 1.14552779e+09, delta = 1.e3,
-                               msg = 'Failed test_6 in TestSeparatrixBigaussian on dE_sep[0]')
+            msg = 'Failed test_6 in TestSeparatrixBigaussian on dE_sep[0]')
         self.assertAlmostEqual(self.dE_sep[1], 2.39697217e+09, delta = 1.e3,
-                               msg = 'Failed test_6 in TestSeparatrixBigaussian on dE_sep[1]')
+            msg = 'Failed test_6 in TestSeparatrixBigaussian on dE_sep[1]')
         self.assertAlmostEqual(self.dE_sep[2], 1.56900748e+09, delta = 1.e3,
-                               msg = 'Failed test_6 in TestSeparatrixBigaussian on dE_sep[2]')
+            msg = 'Failed test_6 in TestSeparatrixBigaussian on dE_sep[2]')
         self.assertAlmostEqual(self.dE_sep[3], 2.27477221e+09, delta = 1.e3,
-                               msg = 'Failed test_6 in TestSeparatrixBigaussian on dE_sep[3]')
+            msg = 'Failed test_6 in TestSeparatrixBigaussian on dE_sep[3]')
         self.assertAlmostEqual(self.dE_sep[4], 1.87276617e+09, delta = 1.e3,
-                               msg = 'Failed test_6 in TestSeparatrixBigaussian on dE_sep[4]')
+            msg = 'Failed test_6 in TestSeparatrixBigaussian on dE_sep[4]')
         self.assertAlmostEqual(self.dE_sep[5], 2.11772438e+09, delta = 1.e3,
-                               msg = 'Failed test_6 in TestSeparatrixBigaussian on dE_sep[5]')
+            msg = 'Failed test_6 in TestSeparatrixBigaussian on dE_sep[5]')
 
     
     def test_7(self):
@@ -268,23 +267,23 @@ class TestSeparatrixBigaussian(unittest.TestCase):
         self.setUp(negativeEta = False, acceleration = False, singleRF = True)
         
         self.assertAlmostEqual(self.phi_s, 2.8855, places = 3, 
-                               msg = 'Failed test_7 in TestSeparatrixBigaussian on phi_s')
+            msg = 'Failed test_7 in TestSeparatrixBigaussian on phi_s')
         self.assertAlmostEqual(self.phi_b, 2.8857, places  = 3,
-                               msg = 'Failed test_7 in TestSeparatrixBigaussian on phi_b')
+            msg = 'Failed test_7 in TestSeparatrixBigaussian on phi_b')
         self.assertAlmostEqual(self.phi_rf, 1.0000, places = 3,
-                               msg = 'Failed test_7 in TestSeparatrixBigaussian on phi_rf')
+            msg = 'Failed test_7 in TestSeparatrixBigaussian on phi_rf')
         self.assertAlmostEqual(self.dE_sep[0], 2.19987056e+09, delta = 1.e3,
-                               msg = 'Failed test_7 in TestSeparatrixBigaussian on dE_sep[0]')
+            msg = 'Failed test_7 in TestSeparatrixBigaussian on dE_sep[0]')
         self.assertAlmostEqual(self.dE_sep[1], 1.88822988e+09, delta = 1.e3,
-                               msg = 'Failed test_7 in TestSeparatrixBigaussian on dE_sep[1]')
+            msg = 'Failed test_7 in TestSeparatrixBigaussian on dE_sep[1]')
         self.assertAlmostEqual(self.dE_sep[2], 2.36696369e+09, delta = 1.e3,
-                               msg = 'Failed test_7 in TestSeparatrixBigaussian on dE_sep[2]')
+            msg = 'Failed test_7 in TestSeparatrixBigaussian on dE_sep[2]')
         self.assertAlmostEqual(self.dE_sep[3], 1.51884903e+09, delta = 1.e3,
-                               msg = 'Failed test_7 in TestSeparatrixBigaussian on dE_sep[3]')
+            msg = 'Failed test_7 in TestSeparatrixBigaussian on dE_sep[3]')
         self.assertAlmostEqual(self.dE_sep[4], 2.50023666e+09, delta = 1.e3,
-                               msg = 'Failed test_7 in TestSeparatrixBigaussian on dE_sep[4]')
+            msg = 'Failed test_7 in TestSeparatrixBigaussian on dE_sep[4]')
         self.assertAlmostEqual(self.dE_sep[5], 9.70872687e+08, delta = 1.e3,
-                               msg = 'Failed test_7 in TestSeparatrixBigaussian on dE_sep[5]')
+            msg = 'Failed test_7 in TestSeparatrixBigaussian on dE_sep[5]')
 
     
     def test_8(self):
@@ -292,26 +291,28 @@ class TestSeparatrixBigaussian(unittest.TestCase):
         self.setUp(negativeEta = False, acceleration = False, singleRF = False)
         
         self.assertAlmostEqual(self.phi_s, 2.8869, places = 3, 
-                               msg = 'Failed test_8 in TestSeparatrixBigaussian on phi_s')
+            msg = 'Failed test_8 in TestSeparatrixBigaussian on phi_s')
         self.assertAlmostEqual(self.phi_b, 2.8870, places  = 3,
-                               msg = 'Failed test_8 in TestSeparatrixBigaussian on phi_b')
+            msg = 'Failed test_8 in TestSeparatrixBigaussian on phi_b')
         self.assertAlmostEqual(self.phi_rf, 1.0000, places = 3,
-                               msg = 'Failed test_8 in TestSeparatrixBigaussian on phi_rf')
+            msg = 'Failed test_8 in TestSeparatrixBigaussian on phi_rf')
         self.assertAlmostEqual(self.dE_sep[0], 2.23770717e+09, delta = 1.e3,
-                               msg = 'Failed test_8 in TestSeparatrixBigaussian on dE_sep[0]')
+            msg = 'Failed test_8 in TestSeparatrixBigaussian on dE_sep[0]')
         self.assertAlmostEqual(self.dE_sep[1], 1.94371462e+09, delta = 1.e3,
-                               msg = 'Failed test_8 in TestSeparatrixBigaussian on dE_sep[1]')
+            msg = 'Failed test_8 in TestSeparatrixBigaussian on dE_sep[1]')
         self.assertAlmostEqual(self.dE_sep[2], 2.38797174e+09, delta = 1.e3,
-                               msg = 'Failed test_8 in TestSeparatrixBigaussian on dE_sep[2]')
+            msg = 'Failed test_8 in TestSeparatrixBigaussian on dE_sep[2]')
         self.assertAlmostEqual(self.dE_sep[3], 1.59999782e+09, delta = 1.e3,
-                               msg = 'Failed test_8 in TestSeparatrixBigaussian on dE_sep[3]')
+            msg = 'Failed test_8 in TestSeparatrixBigaussian on dE_sep[3]')
         self.assertAlmostEqual(self.dE_sep[4], 2.50645531e+09, delta = 1.e3,
-                               msg = 'Failed test_8 in TestSeparatrixBigaussian on dE_sep[4]')
+            msg = 'Failed test_8 in TestSeparatrixBigaussian on dE_sep[4]')
         self.assertAlmostEqual(self.dE_sep[5], 1.10010190e+09, delta = 1.e3,
-                               msg = 'Failed test_8 in TestSeparatrixBigaussian on dE_sep[5]')
+            msg = 'Failed test_8 in TestSeparatrixBigaussian on dE_sep[5]')
         
 
 
 if __name__ == '__main__':
     unittest.main()
+
+
 
