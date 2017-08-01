@@ -228,8 +228,9 @@ class RingAndRFTracker(object):
         
     def __init__(self, RFSectionParameters, Beam, solver = 'simple', 
                  BeamFeedback = None, NoiseFeedback = None, 
-                 periodicity = False, interpolation = False, 
-                 Slices = None, TotalInducedVoltage = None):
+                 CavityFeedback = None, periodicity = False, 
+                 interpolation = False, Slices = None,  
+                 TotalInducedVoltage = None):
         
         # Imports from RF parameters
         self.rf_params = RFSectionParameters
@@ -264,6 +265,7 @@ class RingAndRFTracker(object):
         # Options
         self.beamFB = BeamFeedback   
         self.noiseFB = NoiseFeedback
+        self.cavityFB = CavityFeedback
         try:
             self.periodicity = bool(periodicity)
         except:
@@ -279,6 +281,11 @@ class RingAndRFTracker(object):
         if self.interpolation and self.slices is None:
             raise RuntimeError("ERROR in RingAndRFTracker: Please specify a"+
                 " Slices object to use the interpolation option")
+        if self.cavityFB and self.slices is None:
+            raise RuntimeError("ERROR in RingAndRFTracker: Please specify a"+
+                " Slices object to use the CavityFeedback class")
+        else:
+            self.interpolation = True # obligatory interpolation if cavFB on
         
  
     def kick(self, beam_dt, beam_dE, index):
@@ -340,7 +347,8 @@ class RingAndRFTracker(object):
             ctypes.c_int(len(beam_dt)))
 
 
-    def rf_voltage_calculation(self, turn, Slices):
+#    def rf_voltage_calculation(self, turn, Slices):
+    def rf_voltage_calculation(self):
         """Function calculating the total, discretised RF voltage seen by the
         beam at a given turn. Requires a Slices object.
         
@@ -351,16 +359,25 @@ class RingAndRFTracker(object):
         phi_rf = np.array([])
         
         for rf_system in range(self.n_rf):
-            voltages = np.append(voltages, self.voltage[rf_system, turn])
-            omega_rf = np.append(omega_rf, self.omega_rf[rf_system, turn])
-            phi_rf = np.append(phi_rf, self.phi_rf[rf_system, turn])
+            voltages = np.append(voltages, self.voltage[rf_system, 
+                                                        self.counter[0]])
+            omega_rf = np.append(omega_rf, self.omega_rf[rf_system, 
+                                                         self.counter[0]])
+            phi_rf = np.append(phi_rf, self.phi_rf[rf_system, 
+                                                   self.counter[0]])
                         
         voltages = np.array(voltages, ndmin = 2)
         omega_rf = np.array(omega_rf, ndmin = 2)
         phi_rf = np.array(phi_rf, ndmin = 2)
         
-        self.rf_voltage = np.sum(voltages.T* \
-            np.sin(omega_rf.T*Slices.bin_centers + phi_rf.T), axis = 0)
+        if self.cavityFB: # FIX FOR DIFFERENT HARMONICS!
+            self.rf_voltage = np.sum(voltages.T*self.cavityFB.v_corr* \
+                np.sin(omega_rf.T*self.slices.bin_centers + 
+                       phi_rf.T*self.cavityFB.v_corr), axis = 0)
+        else:
+            self.rf_voltage = np.sum(voltages.T* \
+                np.sin(omega_rf.T*self.slices.bin_centers + phi_rf.T), 
+                axis = 0)
         
                 
     def track(self):
@@ -433,7 +450,8 @@ class RingAndRFTracker(object):
         else:
             
             if self.interpolation:
-                self.rf_voltage_calculation(self.counter[0], self.slices)
+#                self.rf_voltage_calculation(self.counter[0], self.slices)
+                self.rf_voltage_calculation()
                 if self.totalInducedVoltage is not None:
                     self.total_voltage = self.rf_voltage + self.totalInducedVoltage.induced_voltage
                 else:

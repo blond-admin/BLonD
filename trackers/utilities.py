@@ -405,79 +405,93 @@ def hamiltonian(GeneralParameters, RFSectionParameters, Beam, dt, dE,
          
  
  
-def separatrix(GeneralParameters, RFSectionParameters, dt, total_voltage = None):
-    """Single RF sinusoidal separatrix.
-    For the time being, for single RF section only or from total voltage.
-    Uses beta, energy averaged over the turn.
-    To be generalized."""
+def separatrix(GeneralParameters, RFSectionParameters, dt):
+    r""" Function to calculate the ideal separatrix without intensity effects.
+    For single or multiple RF systems. For the time being, multiple RF sections
+    are not yet implemented.
+    
+    Parameters
+    ---------- 
+    GeneralParameters : class
+        A GeneralParameters type class
+    RFSectionParameters : class
+        An RFSectionParameters type class
+    dt : float array
+        Time coordinates the separatrix is to be calculated for
+        
+    Returns
+    -------
+    float array
+        Energy coordinates of the separatrix corresponding to dt
+        
+    """
  
     warnings.filterwarnings("once")
      
     if GeneralParameters.n_sections > 1:
-        warnings.warn("WARNING: The separatrix is not yet properly computed for several sections!")
+        warnings.warn("WARNING in separatrix(): the usage of several RF" +
+                      " sections is not yet implemented!")
        
     # Import RF and ring parameters at this moment 
     counter = RFSectionParameters.counter[0]
     voltage = GeneralParameters.charge*RFSectionParameters.voltage[:,counter]
-    omega_RF = RFSectionParameters.omega_RF[:,counter]
-    phi_RF = RFSectionParameters.phi_RF[:,counter]
-    harmonic = RFSectionParameters.harmonic[:,counter]
+    omega_rf = RFSectionParameters.omega_rf[:,counter]
+    phi_rf = RFSectionParameters.phi_rf[:,counter]
 
-    eta0 = RFSectionParameters.eta_0[counter]
+    eta_0 = RFSectionParameters.eta_0[counter]
     beta_sq = RFSectionParameters.beta[counter]**2     
     energy = RFSectionParameters.energy[counter]
     try:
-        denergy = RFSectionParameters.E_increment[counter]
+        delta_E = RFSectionParameters.delta_E[counter]
     except:
-        denergy = RFSectionParameters.E_increment[-1]
-    T0 = GeneralParameters.t_rev[counter]
-    index_voltage = np.min(np.where(voltage>0)[0])
-    T_RF0 = 2*np.pi/omega_RF[index_voltage]
+        delta_E = RFSectionParameters.delta_E[-1]
+    T_0 = GeneralParameters.t_rev[counter]
+    index = np.min( np.where(voltage > 0)[0] )
+    T_rf_0 = 2*np.pi/omega_rf[index]
 
 
     # Projects time array into the range [t_RF, t_RF+T_RF] below and above
     # transition, where T_RF = 2*pi/omega_RF, t_RF = - phi_RF/omega_RF.
     # Note that the RF wave is shifted by Pi for eta < 0
-    if eta0 < 0:
-        dt = time_modulo(dt, (phi_RF[0] - np.pi)/omega_RF[0], 
-                         2.*np.pi/omega_RF[0])
-    elif eta0 > 0:
-        dt = time_modulo(dt, phi_RF[0]/omega_RF[0], 2.*np.pi/omega_RF[0])
+    if eta_0 < 0:
+        dt = time_modulo(dt, (phi_rf[0] - np.pi)/omega_rf[0], 
+                         2.*np.pi/omega_rf[0])
+    elif eta_0 > 0:
+        dt = time_modulo(dt, phi_rf[0]/omega_rf[0], 2.*np.pi/omega_rf[0])
     
     # Unstable fixed point in single-harmonic RF system
     if RFSectionParameters.n_rf == 1:
      
-        dt_s = RFSectionParameters.phi_s[counter]/omega_RF[0]
-        if eta0 < 0:
-            dt_RF = -(phi_RF[0] - np.pi)/omega_RF[0]
+        dt_s = RFSectionParameters.phi_s[counter]/omega_rf[0]
+        if eta_0 < 0:
+            dt_RF = -(phi_rf[0] - np.pi)/omega_rf[0]
         else:
-            dt_RF = -phi_RF[0]/omega_RF[0]
+            dt_RF = -phi_rf[0]/omega_rf[0]
             
-        dt_ufp = dt_RF + 0.5*T_RF0 - dt_s
-        if eta0*denergy < 0:
-            dt_ufp += T_RF0
+        dt_ufp = dt_RF + 0.5*T_rf_0 - dt_s
+        if eta_0*delta_E < 0:
+            dt_ufp += T_rf_0
 
     # Unstable fixed point in multi-harmonic RF system
     else:
         
-        dt_ufp = np.linspace(-phi_RF[index_voltage]/omega_RF[index_voltage] - T_RF0/1000, 
-                             T_RF0 - phi_RF[index_voltage]/omega_RF[index_voltage] + T_RF0/1000, 1002)
+        dt_ufp = np.linspace(-phi_rf[index]/omega_rf[index] - T_rf_0/1000, 
+            T_rf_0 - phi_rf[index]/omega_rf[index] + T_rf_0/1000, 1002)
 
-        if eta0 < 0:
-            dt_ufp += 0.5*T_RF0 # Shift in RF phase below transition
+        if eta_0 < 0:
+            dt_ufp += 0.5*T_rf_0 # Shift in RF phase below transition
         Vtot = np.zeros(len(dt_ufp))
         
         # Construct waveform
         for i in range(RFSectionParameters.n_rf):
-            temp = np.sin(omega_RF[i]*dt_ufp + phi_RF[i])
-            Vtot += voltage[i]*temp
-        Vtot -= denergy
+            Vtot += voltage[i]*np.sin(omega_rf[i]*dt_ufp + phi_rf[i])
+        Vtot -= delta_E
         
         # Find zero crossings
         zero_crossings = np.where(np.diff(np.sign(Vtot)))[0]
         
         # Interpolate UFP
-        if eta0 < 0:
+        if eta_0 < 0:
             i = -1
             ind  = zero_crossings[i]
             while (Vtot[ind+1] -  Vtot[ind]) > 0:
@@ -495,29 +509,53 @@ def separatrix(GeneralParameters, RFSectionParameters, dt, total_voltage = None)
     # Construct separatrix
     Vtot = np.zeros(len(dt))
     for i in range(RFSectionParameters.n_rf):
-        Vtot += voltage[i]*(np.cos(omega_RF[i]*dt_ufp + phi_RF[i]) - 
-                            np.cos(omega_RF[i]*dt + phi_RF[i]))/omega_RF[i]
-    
-    separatrix_array = np.sqrt(2*beta_sq*energy/(eta0*T0)* \
-                                (Vtot + denergy*(dt_ufp - dt)))
+        Vtot += voltage[i]*(np.cos(omega_rf[i]*dt_ufp + phi_rf[i]) - 
+                            np.cos(omega_rf[i]*dt + phi_rf[i]))/omega_rf[i]
+                            
+    separatrix_sq = 2*beta_sq*energy/(eta_0*T_0)*(Vtot + delta_E*(dt_ufp - dt))
+    pos_ind = np.where(separatrix_sq >= 0)[0]
+    separatrix_array = np.empty((len(separatrix_sq)))*np.nan
+    separatrix_array[pos_ind] = np.sqrt(separatrix_sq[pos_ind])
          
     return separatrix_array
  
  
  
-def is_in_separatrix(GeneralParameters, RFSectionParameters, Beam, dt, dE, total_voltage = None):
-    """Condition for being inside the separatrix.
-    For the time being, for single RF section only or from total voltage.
-    Single RF sinusoidal.
-    Uses beta, energy averaged over the turn.
-    To be generalized."""
+def is_in_separatrix(GeneralParameters, RFSectionParameters, Beam, dt, dE, 
+                     total_voltage = None):
+    r"""Function checking whether coordinate pair(s) are inside the separatrix. 
+    Uses the single-RF sinusoidal Hamiltonian.
+    
+    Parameters
+    ---------- 
+    GeneralParameters : class
+        A GeneralParameters type class
+    RFSectionParameters : class
+        An RFSectionParameters type class
+    Beam : class
+        A Beam type class
+    dt : float array
+        Time coordinates of the particles to be checked
+    dE : float array
+        Energy coordinates of the particles to be checked
+    total_voltage : float array
+        Total voltage to be used if not single-harmonic RF
+        
+    Returns
+    -------
+    bool array
+        True/False array for the given coordinates
+        
+    """
      
     warnings.filterwarnings("once")
     
     if GeneralParameters.n_sections > 1:
-        warnings.warn("WARNING: is_in_separatrix is not yet properly computed for several sections!")
+        warnings.warn("WARNING: in is_in_separatrix(): the usage of several"+
+                      " sections is not yet implemented!")
     if RFSectionParameters.n_rf > 1:
-        warnings.warn("WARNING: is_in_separatrix will be calculated for the first harmonic only!")
+        warnings.warn("WARNING in is_in_separatrix(): taking into account" +
+                      " the first harmonic only!")
     
          
     counter = RFSectionParameters.counter[0]
@@ -527,8 +565,8 @@ def is_in_separatrix(GeneralParameters, RFSectionParameters, Beam, dt, dE, total
      
     Hsep = hamiltonian(GeneralParameters, RFSectionParameters, Beam, dt_sep, 0, 
                        total_voltage = None) 
-    isin = np.fabs(hamiltonian(GeneralParameters, RFSectionParameters, Beam, dt, 
-                               dE, total_voltage = None)) < np.fabs(Hsep)
+    isin = np.fabs(hamiltonian(GeneralParameters, RFSectionParameters, Beam, 
+                               dt, dE, total_voltage = None)) < np.fabs(Hsep)
      
     return isin
         

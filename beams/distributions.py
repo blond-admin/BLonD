@@ -785,26 +785,50 @@ def line_density(coord_array, dist_type, bunch_length, bunch_position=0,
 
 
 
-def longitudinal_bigaussian(GeneralParameters, RFSectionParameters, beam, 
-                            sigma_dt, sigma_dE=None, seed=None, 
-                            reinsertion='off'):
+def bigaussian(GeneralParameters, RFSectionParameters, Beam, sigma_dt, 
+               sigma_dE = None, seed = None, reinsertion = False):
+    r"""Function generating a Gaussian beam both in time and energy 
+    coordinates. Fills Beam.dt and Beam.dE arrays.
+    
+    Parameters
+    ---------- 
+    GeneralParameters : class
+        A GeneralParameters type class
+    RFSectionParameters : class
+        An RFSectionParameters type class
+    Beam : class
+        A Beam type class
+    sigma_dt : float
+        R.m.s. extension of the Gaussian in time
+    sigma_dE : float (optional)
+        R.m.s. extension of the Gaussian in energy; default is None and will
+        match the energy coordinate according to bucket height and sigma_dt
+    seed : int (optional)
+        Fixed seed to have a reproducible distribution
+    reinsertion : bool (optional)
+        Re-insert particles that are generated outside the separatrix into the
+        bucket; default in False
+    
+    """
     
     warnings.filterwarnings("once")
     if GeneralParameters.n_sections > 1:
-        warnings.warn('WARNING: longitudinal_bigaussian is not yet properly ' +
-                      'computed for several sections!')
+        warnings.warn("WARNING in bigaussian(): the usage of several" +
+                      " sections is not yet implemented. Ignoring" +
+                      " all but the first!")
     if RFSectionParameters.n_rf > 1:
-        warnings.warn('longitudinal_bigaussian for multiple RF is not yet ' +
-                      'implemented')
+        warnings.warn("WARNING in bigaussian(): the usage of multiple RF" +
+                      " systems is not yet implemented. Ignoring" +
+                      " higher harmonics!")
     
     counter = RFSectionParameters.counter[0]
     
     harmonic = RFSectionParameters.harmonic[0,counter]
     energy = RFSectionParameters.energy[counter]
     beta = RFSectionParameters.beta[counter]
-    omega_RF = RFSectionParameters.omega_RF[0,counter] 
+    omega_RF = RFSectionParameters.omega_rf[0,counter] 
     phi_s = RFSectionParameters.phi_s[counter]
-    phi_RF = RFSectionParameters.phi_RF[0,counter]
+    phi_RF = RFSectionParameters.phi_rf[0,counter]
     eta0 = RFSectionParameters.eta_0[counter]
     
     # RF wave is shifted by Pi below transition
@@ -819,30 +843,33 @@ def longitudinal_bigaussian(GeneralParameters, RFSectionParameters, beam,
         
         phi_b = omega_RF*sigma_dt + phi_s
         sigma_dE = np.sqrt( voltage * energy * beta**2  
-                 * (np.cos(phi_b) - np.cos(phi_s) + (phi_b - phi_s) * np.sin(phi_s)) 
-                 / (np.pi * harmonic * np.fabs(eta0)) )
+            * (np.cos(phi_b) - np.cos(phi_s) + (phi_b - phi_s) * np.sin(phi_s)) 
+            / (np.pi * harmonic * np.fabs(eta0)) )
                 
-    beam.sigma_dt = sigma_dt
-    beam.sigma_dE = sigma_dE
+    Beam.sigma_dt = sigma_dt
+    Beam.sigma_dE = sigma_dE
     
     # Generate coordinates
     np.random.seed(seed)
     
-    beam.dt = sigma_dt*np.random.randn(beam.n_macroparticles) + \
+    Beam.dt = sigma_dt*np.random.randn(Beam.n_macroparticles) + \
               (phi_s - phi_RF)/omega_RF                  
-    beam.dE = sigma_dE*np.random.randn(beam.n_macroparticles)
+    Beam.dE = sigma_dE*np.random.randn(Beam.n_macroparticles)
     
     # Re-insert if necessary
-    if reinsertion is 'on':
+    if reinsertion == True:
         
         itemindex = np.where(is_in_separatrix(GeneralParameters, 
-                    RFSectionParameters, beam, beam.dt, beam.dE) == False)[0]
+            RFSectionParameters, Beam, Beam.dt, Beam.dE) == False)[0]
          
         while itemindex.size != 0:
             
-            beam.dt[itemindex] = sigma_dt*np.random.randn(itemindex.size) \
+            Beam.dt[itemindex] = sigma_dt*np.random.randn(itemindex.size) \
                                  + (phi_s - phi_RF)/omega_RF
                                      
-            beam.dE[itemindex] = sigma_dE*np.random.randn(itemindex.size)
+            Beam.dE[itemindex] = sigma_dE*np.random.randn(itemindex.size)
             itemindex = np.where(is_in_separatrix(GeneralParameters, 
-                        RFSectionParameters, beam, beam.dt, beam.dE) == False)[0]
+                RFSectionParameters, Beam, Beam.dt, Beam.dE) == False)[0]
+
+
+
