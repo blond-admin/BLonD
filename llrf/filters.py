@@ -15,6 +15,7 @@
 
 from __future__ import division
 import numpy as np
+from scipy.constants import e
 
 
 
@@ -139,9 +140,13 @@ def rf_beam_current(Slices, frequency):
     IQ = real_to_cartesian(Slices.n_macroparticles)
     
     # Convert from dimensionless to Ampères
-    IQ *= Slices.Beam.charge/(Slices.bin_centers[-1] - Slices.bin_centers[0])
+    IQ *= Slices.Beam.charge*e/(Slices.bin_centers[-1] - Slices.bin_centers[0])
     
     # Mix with frequency of interest
+#     print(len(Slices.bin_centers))
+#     print(len(IQ.real))
+#     print(len(frequency))
+#     print(len(np.cos(frequency*Slices.bin_centers)))
     I_f = IQ.real*np.cos(frequency*Slices.bin_centers)
     Q_f = IQ.imag*np.sin(frequency*Slices.bin_centers)
     

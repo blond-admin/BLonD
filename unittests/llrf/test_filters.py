@@ -25,8 +25,8 @@ class TestRealToCartesian(unittest.TestCase):
         
         signal = np.array([0, 3, 4, 5, 4, 3, 0], dtype=float)
         IQ_vector = real_to_cartesian(signal)
-        I_comp = np.around(np.real(IQ_vector), 12)
-        Q_comp = np.around(np.imag(IQ_vector), 12)
+        I_comp = np.around(IQ_vector.real, 12)
+        Q_comp = np.around(IQ_vector.imag, 12)
 
         self.assertSequenceEqual(signal.tolist(), I_comp.tolist(),
             msg="In TestRealToCartesian: real component differs")
@@ -153,8 +153,8 @@ class TestIQ(unittest.TestCase):
         signal = polar_to_cartesian(amplitude, phase)
         
         # Drop some digits to avoid rounding errors
-        signal_real = np.around(np.real(signal), 12)
-        signal_imag = np.around(np.imag(signal), 12)
+        signal_real = np.around(signal.real, 12)
+        signal_imag = np.around(signal.imag, 12)
         theor_real = np.around(np.cos(phase), 12) # what it should be
         theor_imag = np.around(np.sin(phase), 12) # what it should be
         self.assertSequenceEqual(signal_real.tolist(), theor_real.tolist(),
@@ -191,8 +191,8 @@ class TestIQ(unittest.TestCase):
         signal_new = polar_to_cartesian(amplitude, phase)
         
         # Drop some digits to avoid rounding errors
-        signal_real = np.around(np.real(signal), 11)
-        signal_imag = np.around(np.imag(signal), 11)
+        signal_real = np.around(signal.real, 11)
+        signal_imag = np.around(signal.imag, 11)
         signal_real_2 = np.around(np.real(signal_new), 11)
         signal_imag_2 = np.around(np.imag(signal_new), 11)
         self.assertSequenceEqual(signal_real.tolist(), signal_real_2.tolist(),
