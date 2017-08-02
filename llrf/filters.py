@@ -20,6 +20,18 @@ import numpy as np
 
 def polar_to_cartesian(amplitude, phase):
     """Convert data from polar to cartesian (I,Q) coordinates.
+    
+    Parameters
+    ----------
+    amplitude : float array
+        Amplitude of signal
+    phase : float array
+        Phase of signal
+    
+    Returns
+    -------
+    complex array
+        Signal with in-phase and quadrature (I,Q) components
     """
     
     return amplitude*(np.cos(phase) + 1j*np.sin(phase))
@@ -27,11 +39,45 @@ def polar_to_cartesian(amplitude, phase):
 
 def cartesian_to_polar(IQ_vector):
     """Convert data from cartesian (I,Q) to polar coordinates.
+
+    Parameters
+    ----------
+    IQ_vector : complex array
+        Signal with in-phase and quadrature (I,Q) components
+    
+    Returns
+    -------
+    float array
+        Amplitude of signal
+    float array
+        Phase of signal
+    
     """
     
     return np.absolute(IQ_vector), np.angle(IQ_vector)
 
 
+def real_to_cartesian(signal):
+    """Convert a real signal to cartesian (I,Q) coordinates.
+    
+    Parameters
+    ----------
+    signal : float array
+        Input signal, real array
+    
+    Returns
+    -------
+    complex array
+        Signal with in-phase and quadrature (I,Q) components
+    
+    """
+    
+    amplitude = np.max(signal)
+    phase = np.arccos(signal/amplitude)
+    
+    return signal + 1j*amplitude*np.sin(phase)
+    
+    
 def modulator(signal, f_initial, f_final, T_sampling):
     """Demodulate a signal from initial frequency to final frequency. The two
     frequencies should be close.
@@ -71,20 +117,37 @@ def modulator(signal, f_initial, f_final, T_sampling):
     return I_new + 1j*Q_new
 
     
-def rf_beam_current(frequency, profile):
-    """Function calculating the beam current at the (RF) frequency, bucket by
-    bucket.
+def rf_beam_current(Slices, frequency):
+    """Function calculating the beam current at the (RF) frequency, slice by
+    slice.
     
     Parameters
     ----------
+    Slices : class
+        A Slices type class
     frequency : float
-        Frequency at which the current should be calculated
-    profile : float array
+        Revolution frequency [1/s] at which the current should be calculated
+        
+    Returns
+    -------
+    float array
+        RF beam current array [A] at 'frequency' frequency
         
     """
     
+    # Convert real signal to complex IQ
+    IQ = real_to_cartesian(Slices.n_macroparticles)
     
-    return current
+    # Convert from dimensionless to Ampères
+    IQ *= Slices.Beam.charge/(Slices.bin_centers[-1] - Slices.bin_centers[0])
+    
+    # Mix with frequency of interest
+    I_f = IQ.real*np.cos(frequency*Slices.bin_centers)
+    Q_f = IQ.imag*np.sin(frequency*Slices.bin_centers)
+    
+    # Pass through a low-pass filter
+    
+    return I_f + 1j*Q_f
 
 
 def comb_filter(x, y, a):

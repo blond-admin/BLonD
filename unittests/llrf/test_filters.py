@@ -15,9 +15,27 @@ Unittest for llrf.filters
 
 import unittest
 import numpy as np
-from llrf.filters import moving_average, modulator, polar_to_cartesian, cartesian_to_polar
+from llrf.filters import moving_average, modulator, real_to_cartesian
+from llrf.filters import polar_to_cartesian, cartesian_to_polar
 
 
+class TestRealToCartesian(unittest.TestCase):
+    
+    def test(self):
+        
+        signal = np.array([0, 3, 4, 5, 4, 3, 0], dtype=float)
+        IQ_vector = real_to_cartesian(signal)
+        I_comp = np.around(np.real(IQ_vector), 12)
+        Q_comp = np.around(np.imag(IQ_vector), 12)
+
+        self.assertSequenceEqual(signal.tolist(), I_comp.tolist(),
+            msg="In TestRealToCartesian: real component differs")
+        self.assertSequenceEqual(Q_comp.tolist(), 
+            np.array([5, 4, 3, 0, 3, 4, 5], dtype=float).tolist(), 
+            msg="In TestRealToCartesian: imaginary component differs")
+
+
+        
 class TestMovingAverage(unittest.TestCase):
     
     # Run before every test
