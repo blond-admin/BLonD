@@ -43,8 +43,8 @@ class SPSOneTurnFeedback(object):
         self.cavity_filter_buckets = float(5) # Trev  / 4620 * 5
         
         # Set up logging
-        self.logger = logging.getLogger(__name__)
-        self.logger.debug("Class initialized")
+        self.logger = logging.getLogger(__class__.__name__)
+        self.logger.info("Class initialized")
         
         
     def track(self):

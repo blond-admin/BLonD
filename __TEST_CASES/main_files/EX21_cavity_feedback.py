@@ -23,7 +23,7 @@ from input_parameters.rf_parameters import RFSectionParameters
 from beams.beams import Beam
 from beams.distributions import bigaussian
 from beams.slices import Slices
-#from llrf.cavity_feedback import SPSOneTurnFeedback
+from llrf.cavity_feedback import SPSOneTurnFeedback
 from llrf.filters import rf_beam_current
 #import logging
 
@@ -45,8 +45,15 @@ N_t = 1000                  # Number of turns to track
 
 
 # Logger for verbose output
-Logger()
-   
+#Logger().disable()
+Logger(debug = True)
+#logging.basicConfig(level=logging.DEBUG)
+#logging.info("Start logging")
+# logger = logging.getLogger('')
+# ch = logging.StreamHandler()
+# logger.addHandler(ch)
+# ch.setLevel(logging.DEBUG)
+# logger.info("Start logging")
 
 # Set up machine parameters
 GeneralParams = GeneralParameters(N_t, C, alpha, p_s)
@@ -67,7 +74,7 @@ print("Time coordinates are in range %.4e to %.4e s" %(np.min(Beam.dt),
 Slices = Slices(RFParams, Beam, 100, cut_left=-1.e-9, cut_right=6.e-9)
 Slices.track()
 plt.plot(Slices.bin_centers, Slices.n_macroparticles)
-plt.show()
+#plt.show()
 print("Slices set! Integral of slices is %d" %np.sum(Slices.n_macroparticles))
 Q_tot = Beam.intensity*Beam.charge*e/Beam.n_macroparticles*np.sum(Slices.n_macroparticles)
 print("Total charges %.4e C" %Q_tot)
@@ -77,8 +84,8 @@ rf_current = rf_beam_current(Slices, RFParams.omega_rf[0][0])
 print("RF current is %.e4 A" %np.max(rf_current.real))
 plt.plot(rf_current.real)
 plt.plot(rf_current.imag)
-plt.show()
-#OTFB = SPSOneTurnFeedback(RFParams, Beam, Slices) 
+#plt.show()
+OTFB = SPSOneTurnFeedback(RFParams, Beam, Slices) 
 
 print("")
 print("Done!")
