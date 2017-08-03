@@ -16,7 +16,7 @@
 from __future__ import division
 import logging
 import numpy as np
-from llrf.filters import comb_filter, cartesian_to_polar, polar_to_cartesian, \
+from llrf.signal_processing import comb_filter, cartesian_to_polar, polar_to_cartesian, \
     cavity_filter, cavity_impedance
 
 
@@ -45,7 +45,8 @@ class SPSOneTurnFeedback(object):
         # Set up logging
         self.logger = logging.getLogger(__class__.__name__)
         self.logger.info("Class initialized")
-        
+
+
         
     def track(self):
         

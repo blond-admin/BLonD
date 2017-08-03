@@ -15,8 +15,8 @@ Unittest for llrf.filters
 
 import unittest
 import numpy as np
-from llrf.filters import moving_average, modulator, real_to_cartesian
-from llrf.filters import polar_to_cartesian, cartesian_to_polar
+from llrf.signal_processing import moving_average, modulator, real_to_cartesian
+from llrf.signal_processing import polar_to_cartesian, cartesian_to_polar
 
 
 class TestRealToCartesian(unittest.TestCase):

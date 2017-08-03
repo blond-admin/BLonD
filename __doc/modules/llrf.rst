@@ -9,8 +9,8 @@ llrf Package
     :undoc-members:
     :show-inheritance:
 
-llrf.phase_loop module
------------------------
+llrf.beam_feedback Module
+-------------------------
 
 **Various beam phase loops (PL) with optional synchronisation (SL), frequency 
 (FL), or radial loops (RL) for the CERN machines**
@@ -270,6 +270,14 @@ Machine-dependent Beam Phase Loop
       .. math:: \Delta \omega_{RF}^{n+1} = \Delta \omega_{PL}^{n+1} + \Delta \omega_{RL}^{n+1}
     
 
+:mod:`cavity_feedback` Module
+-----------------------------
+
+.. automodule:: llrf.cavity_feedback
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 :mod:`rf_modulation` Module
 ---------------------------
 
@@ -278,7 +286,7 @@ Machine-dependent Beam Phase Loop
     :undoc-members:
     :show-inheritance:
 
-llrf.rf_noise module
+llrf.rf_noise Module
 --------------------
 
 **Methods to generate RF phase noise from noise spectrum and feedback noise
@@ -453,4 +461,13 @@ Bunch-length based feedback on noise amplitude
    
    :param Slices: :py:class:`beams.slices.Slices`
    :return: 4-sigma-equivalent FWHM bunch length [ns]
+
+
+:mod:`signal_processing` Module
+-------------------------------
+
+.. automodule:: llrf.signal_processing
+    :members:
+    :undoc-members:
+    :show-inheritance:
 

@@ -24,8 +24,8 @@ from beams.beams import Beam
 from beams.distributions import bigaussian
 from beams.slices import Slices
 from llrf.cavity_feedback import SPSOneTurnFeedback
-from llrf.filters import rf_beam_current
-#import logging
+from llrf.signal_processing import rf_beam_current, low_pass_filter
+
 
 # CERN SPS --------------------------------------------------------------------
 # Machine and RF parameters
@@ -44,16 +44,9 @@ N_t = 1000                  # Number of turns to track
 # CERN SPS --------------------------------------------------------------------
 
 
-# Logger for verbose output
+# Logger for messages on console & in file
 #Logger().disable()
 Logger(debug = True)
-#logging.basicConfig(level=logging.DEBUG)
-#logging.info("Start logging")
-# logger = logging.getLogger('')
-# ch = logging.StreamHandler()
-# logger.addHandler(ch)
-# ch.setLevel(logging.DEBUG)
-# logger.info("Start logging")
 
 # Set up machine parameters
 GeneralParams = GeneralParameters(N_t, C, alpha, p_s)
@@ -73,19 +66,25 @@ print("Time coordinates are in range %.4e to %.4e s" %(np.min(Beam.dt),
 
 Slices = Slices(RFParams, Beam, 100, cut_left=-1.e-9, cut_right=6.e-9)
 Slices.track()
-plt.plot(Slices.bin_centers, Slices.n_macroparticles)
+#plt.plot(Slices.bin_centers, Slices.n_macroparticles)
 #plt.show()
-print("Slices set! Integral of slices is %d" %np.sum(Slices.n_macroparticles))
-Q_tot = Beam.intensity*Beam.charge*e/Beam.n_macroparticles*np.sum(Slices.n_macroparticles)
-print("Total charges %.4e C" %Q_tot)
+#Q_tot = Beam.intensity*Beam.charge*e/Beam.n_macroparticles*np.sum(Slices.n_macroparticles)
+#print("Total charges %.4e C" %Q_tot)
 
-print(RFParams.omega_rf[0][0]) # To be CORRECTED in RFParams!!!
-rf_current = rf_beam_current(Slices, RFParams.omega_rf[0][0])
-print("RF current is %.e4 A" %np.max(rf_current.real))
-plt.plot(rf_current.real)
-plt.plot(rf_current.imag)
-#plt.show()
-OTFB = SPSOneTurnFeedback(RFParams, Beam, Slices) 
+#print(RFParams.omega_rf[0][0]) # To be CORRECTED in RFParams!!!
+#rf_current = rf_beam_current(Slices, RFParams.omega_rf[0][0], GeneralParams.t_rev[0])
+rf_current = rf_beam_current(Slices, 2*np.pi*200.222e6, GeneralParams.t_rev[0])
+# Apply LPF on current
+filtered_1 = low_pass_filter(rf_current.real, 20.e6)
+filtered_2 = low_pass_filter(rf_current.imag, 20.e6)
+plt.plot(rf_current.real, 'b')
+plt.plot(rf_current.imag, 'r')
+plt.plot(filtered_1, 'turquoise')
+plt.plot(filtered_2, 'orange')
+plt.show()
+
+
+#OTFB = SPSOneTurnFeedback(RFParams, Beam, Slices)
 
 print("")
 print("Done!")

@@ -16,7 +16,12 @@
 from __future__ import division
 import numpy as np
 from scipy.constants import e
+from scipy import signal as sgn
 
+
+# Set up logging
+import logging
+logger = logging.getLogger(__name__)
 
 
 def polar_to_cartesian(amplitude, phase):
@@ -35,11 +40,13 @@ def polar_to_cartesian(amplitude, phase):
         Signal with in-phase and quadrature (I,Q) components
     """
     
+    logger.debug("Converting from polar to Cartesian")
+    
     return amplitude*(np.cos(phase) + 1j*np.sin(phase))
 
 
 def cartesian_to_polar(IQ_vector):
-    """Convert data from cartesian (I,Q) to polar coordinates.
+    """Convert data from Cartesian (I,Q) to polar coordinates.
 
     Parameters
     ----------
@@ -55,11 +62,13 @@ def cartesian_to_polar(IQ_vector):
     
     """
     
+    logger.debug("Converting from Cartesian to polar")
+
     return np.absolute(IQ_vector), np.angle(IQ_vector)
 
 
 def real_to_cartesian(signal):
-    """Convert a real signal to cartesian (I,Q) coordinates.
+    """Convert a real signal to Cartesian (I,Q) coordinates.
     
     Parameters
     ----------
@@ -75,6 +84,7 @@ def real_to_cartesian(signal):
     
     amplitude = np.max(signal)
     phase = np.arccos(signal/amplitude)
+    logger.debug("Creating complex IQ array from real array")
     
     return signal + 1j*amplitude*np.sin(phase)
     
@@ -118,9 +128,17 @@ def modulator(signal, f_initial, f_final, T_sampling):
     return I_new + 1j*Q_new
 
     
-def rf_beam_current(Slices, frequency):
-    """Function calculating the beam current at the (RF) frequency, slice by
-    slice.
+def rf_beam_current(Slices, frequency, T_rev):
+    r"""Function calculating the beam current at the (RF) frequency, slice by
+    slice. The total charge [C] in the beam is determined from the sum of the 
+    beam profile :math:`\lambda_i`, the particle charge :math:`q_p` and the 
+    real vs. macro-particle ratio :math:`N_{\mathsf{real}}/N_{\mathsf{macro}}`
+    
+    .. math:: Q_{\mathsf{tot}} = \frac{N_{\mathsf{real}}}{N_{\mathsf{macro}}} q_p \sum_i{\lambda_i}
+    
+    The DC beam current [A] is the total number of charges per turn :math:`T_0`
+    
+    .. math:: I_{\mathsf{DC}} = \frac{Q_{\mathsf{tot}}}{T_0}
     
     Parameters
     ----------
@@ -128,6 +146,8 @@ def rf_beam_current(Slices, frequency):
         A Slices type class
     frequency : float
         Revolution frequency [1/s] at which the current should be calculated
+    T_rev : float 
+        Revolution period [s] of the machine
         
     Returns
     -------
@@ -140,7 +160,15 @@ def rf_beam_current(Slices, frequency):
     IQ = real_to_cartesian(Slices.n_macroparticles)
     
     # Convert from dimensionless to Ampères
-    IQ *= Slices.Beam.charge*e/(Slices.bin_centers[-1] - Slices.bin_centers[0])
+    #T_range = Slices.bin_centers[-1] - Slices.bin_centers[0]
+    # Macro-particle charge with real-to-macro-particle ratio
+    q_m = Slices.Beam.intensity/Slices.Beam.n_macroparticles \
+        *Slices.Beam.charge*e
+    IQ *= q_m/T_rev#T_range
+    #Q_tot = Beam.intensity*Beam.charge*e/Beam.n_macroparticles*np.sum(Slices.n_macroparticles)
+    logger.debug("Sum of slices: %d, total charge: %.4e C", 
+                 np.sum(Slices.n_macroparticles), np.sum(IQ.real)*T_rev)
+    logger.debug("DC current is %.4e A", np.sum(IQ.real))
     
     # Mix with frequency of interest
 #     print(len(Slices.bin_centers))
@@ -151,7 +179,9 @@ def rf_beam_current(Slices, frequency):
     Q_f = IQ.imag*np.sin(frequency*Slices.bin_centers)
     
     # Pass through a low-pass filter
-    
+#    logger.debug("RF peak current is %.4e A", np.max(I_f))
+    logger.debug("RF total current is %.4e A", np.fabs(np.sum(I_f)))
+
     return I_f + 1j*Q_f
 
 
@@ -161,6 +191,31 @@ def comb_filter(x, y, a):
     
     return a*y + (1 - a)*x
 
+
+def low_pass_filter(signal, cutoff_frequency = 0.5):
+    """Low-pass filter based on Butterworth 5th order digital filter and a 
+    forward-backward filter with Gustafsson's method from scipy,
+    http://docs.scipy.org
+    
+    Parameters
+    ----------
+    signal : float array
+        Signal to be filtered
+    cutoff_frequency : float
+        Cutoff frequency [1] corresponding to a 3 dB gain drop, relative to the
+        Nyquist frequency of 1; default is 0.5
+        
+    Returns
+    -------
+    float array
+        Low-pass filtered signal
+        
+    """
+    
+    b, a = sgn.butter(5, 0.5, 'low', analog = False)
+    
+    return sgn.filtfilt(b, a, signal)
+    
 
 def cavity_filter():
     """Model of the SPS cavity filter.

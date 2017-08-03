@@ -13,7 +13,7 @@
 :Authors: **Helga Timko**
 '''
 
-import logging, sys
+import logging
 
 
 class Logger(object):
@@ -38,7 +38,7 @@ class Logger(object):
         console_handler = logging.StreamHandler()
         console_handler.setLevel(logging.INFO)
         log_format = logging.Formatter(
-            "%(asctime)s %(name)-20s %(levelname)-9s %(message)s")
+            "%(asctime)s %(name)-25s %(levelname)-9s %(message)s")
         console_handler.setFormatter(log_format)
         root_logger.addHandler(console_handler)
         
@@ -60,3 +60,5 @@ class Logger(object):
         logging.info("Disable logging")
         logging.disable(level=logging.NOTSET)
         
+
+
