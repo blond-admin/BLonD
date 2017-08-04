@@ -57,15 +57,15 @@ RFParams = RFSectionParameters(GeneralParams, 1, h, V, phi)
 print("RF parameters set!")
 
 # Define beam and fill it
-Beam = Beam(GeneralParams, N_m, N_b)
-bigaussian(GeneralParams, RFParams, Beam, 3.2e-9/4, seed = 1234, 
+Bunch = Beam(GeneralParams, N_m, N_b)
+bigaussian(GeneralParams, RFParams, Bunch, 3.2e-9/4, seed = 1234, 
            reinsertion = True) 
-print("Beam set! Number of particles %d" %len(Beam.dt))
-print("Time coordinates are in range %.4e to %.4e s" %(np.min(Beam.dt), 
-                                                     np.max(Beam.dt)))
+print("Beam set! Number of particles %d" %len(Bunch.dt))
+print("Time coordinates are in range %.4e to %.4e s" %(np.min(Bunch.dt), 
+                                                     np.max(Bunch.dt)))
 
-Slices = Slices(RFParams, Beam, 100, cut_left=-1.e-9, cut_right=6.e-9)
-Slices.track()
+Profile = Slices(RFParams, Bunch, 100, cut_left=-1.e-9, cut_right=6.e-9)
+Profile.track()
 #plt.plot(Slices.bin_centers, Slices.n_macroparticles)
 #plt.show()
 #Q_tot = Beam.intensity*Beam.charge*e/Beam.n_macroparticles*np.sum(Slices.n_macroparticles)
@@ -73,10 +73,13 @@ Slices.track()
 
 #print(RFParams.omega_rf[0][0]) # To be CORRECTED in RFParams!!!
 #rf_current = rf_beam_current(Slices, RFParams.omega_rf[0][0], GeneralParams.t_rev[0])
-rf_current = rf_beam_current(Slices, 2*np.pi*200.222e6, GeneralParams.t_rev[0])
+rf_current = rf_beam_current(Profile, 2*np.pi*200.222e6, GeneralParams.t_rev[0])
 # Apply LPF on current
 filtered_1 = low_pass_filter(rf_current.real, 20.e6)
 filtered_2 = low_pass_filter(rf_current.imag, 20.e6)
+np.set_printoptions(precision=10)
+print(repr(rf_current.real))
+#print(repr(filtered_2))
 plt.plot(rf_current.real, 'b')
 plt.plot(rf_current.imag, 'r')
 plt.plot(filtered_1, 'turquoise')
