@@ -193,8 +193,8 @@ def comb_filter(x, y, a):
 
 
 def low_pass_filter(signal, cutoff_frequency = 0.5):
-    """Low-pass filter based on Butterworth 5th order digital filter and a 
-    forward-backward filter with Gustafsson's method from scipy,
+    """Low-pass filter based on Butterworth 5th order digital filter from 
+    scipy,
     http://docs.scipy.org
     
     Parameters
