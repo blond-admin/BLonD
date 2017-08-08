@@ -15,9 +15,27 @@ Unittest for llrf.filters
 
 import unittest
 import numpy as np
-from llrf.filters import moving_average, modulator, polar_to_cartesian, cartesian_to_polar
+from llrf.signal_processing import moving_average, modulator, real_to_cartesian
+from llrf.signal_processing import polar_to_cartesian, cartesian_to_polar
 
 
+class TestRealToCartesian(unittest.TestCase):
+    
+    def test(self):
+        
+        signal = np.array([0, 3, 4, 5, 4, 3, 0], dtype=float)
+        IQ_vector = real_to_cartesian(signal)
+        I_comp = np.around(IQ_vector.real, 12)
+        Q_comp = np.around(IQ_vector.imag, 12)
+
+        self.assertSequenceEqual(signal.tolist(), I_comp.tolist(),
+            msg="In TestRealToCartesian: real component differs")
+        self.assertSequenceEqual(Q_comp.tolist(), 
+            np.array([5, 4, 3, 0, 3, 4, 5], dtype=float).tolist(), 
+            msg="In TestRealToCartesian: imaginary component differs")
+
+
+        
 class TestMovingAverage(unittest.TestCase):
     
     # Run before every test
@@ -135,8 +153,8 @@ class TestIQ(unittest.TestCase):
         signal = polar_to_cartesian(amplitude, phase)
         
         # Drop some digits to avoid rounding errors
-        signal_real = np.around(np.real(signal), 12)
-        signal_imag = np.around(np.imag(signal), 12)
+        signal_real = np.around(signal.real, 12)
+        signal_imag = np.around(signal.imag, 12)
         theor_real = np.around(np.cos(phase), 12) # what it should be
         theor_imag = np.around(np.sin(phase), 12) # what it should be
         self.assertSequenceEqual(signal_real.tolist(), theor_real.tolist(),
@@ -173,8 +191,8 @@ class TestIQ(unittest.TestCase):
         signal_new = polar_to_cartesian(amplitude, phase)
         
         # Drop some digits to avoid rounding errors
-        signal_real = np.around(np.real(signal), 11)
-        signal_imag = np.around(np.imag(signal), 11)
+        signal_real = np.around(signal.real, 11)
+        signal_imag = np.around(signal.imag, 11)
         signal_real_2 = np.around(np.real(signal_new), 11)
         signal_imag_2 = np.around(np.imag(signal_new), 11)
         self.assertSequenceEqual(signal_real.tolist(), signal_real_2.tolist(),

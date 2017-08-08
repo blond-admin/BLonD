@@ -14,8 +14,9 @@
 '''
 
 from __future__ import division
+import logging
 import numpy as np
-from llrf.filters import comb_filter, cartesian_to_polar, polar_to_cartesian, \
+from llrf.signal_processing import comb_filter, cartesian_to_polar, polar_to_cartesian, \
     cavity_filter, cavity_impedance
 
 
@@ -36,16 +37,22 @@ class SPSOneTurnFeedback(object):
         
         # Initialise comb filter
         self.a_comb_filter = float(15/16)
-        self.voltage_IQ_prev = np.zeros() #polar_to_cartesian(self.voltage) # ??? WHAT IS THE CORRECT INITIAL VALUE???
+        self.voltage_IQ_prev = np.zeros(len(self.voltage)) #polar_to_cartesian(self.voltage) # ??? WHAT IS THE CORRECT INITIAL VALUE???
         
         # Initialise cavity filter
         self.cavity_filter_buckets = float(5) # Trev  / 4620 * 5
         
+        # Set up logging
+        self.logger = logging.getLogger(__class__.__name__)
+        self.logger.info("Class initialized")
+
+
         
     def track(self):
         
         # Move from polar to cartesian coordinates
         self.voltage_IQ = polar_to_cartesian(self.voltage)
+        self.logger.info("Voltage is %.4e", np.sum(self.voltage))
         # Apply comb filter
         self.voltage_IQ = comb_filter(self.voltage_IQ_prev, self.a_comb_filter, 
                                       self.voltage_IQ)
