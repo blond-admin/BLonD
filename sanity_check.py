@@ -1,8 +1,8 @@
 # coding: utf8
 # Copyright 2014-2017 CERN. This software is distributed under the
-# terms of the GNU General Public Licence version 3 (GPL Version 3), 
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
 # copied verbatim in the file LICENCE.md.
-# In applying this licence, CERN does not waive the privileges and immunities 
+# In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
@@ -13,8 +13,9 @@
 :Authors: **Helga Timko**
 '''
 
-import argparse, os
-import pep8
+import argparse
+import os
+import textwrap
 
 
 
@@ -50,13 +51,31 @@ class SanityCheck(object):
         
     def pep8_test(self, pep8File):
         
+        # Ignore W291 trailing whitespace
+        # Ignore W293 blank line contains whitespace
+        # Ignore W391 blank line at end of file
+        command = lambda x: os.system("pep8 --ignore=W291,W293,W391 " + x)        
+
         if pep8File:
             try:
                 print("EXECUTING PEP8 CHECK ON %s" %pep8File)
+                command(pep8File)
             except:
                 print("File to be checked for PEP8 not found")
+        else:
+            print("EXECUTING PEP8 CHECK ON ENTIRE BLOND DISTRIBUTION")
+            for path, subDir, files in os.walk("."):
+                if ("./." not in path) and ("./__" not in path) and \
+                    (".\." not in path) and (".\__" not in path):
+                    for fileName in files:
+                        if fileName.endswith(".py") \
+                            and not fileName.endswith("__.py"): # \
+                                pep8File = os.path.join(path, fileName)
+                                print("~~~ CHECK %s ~~~" %pep8File)
+                                command(pep8File)
         print("PEP8 check finished")
         print("")
+
 
     def unit_test(self):
         
@@ -76,9 +95,12 @@ class SanityCheck(object):
 def main():
     
     # Arguments read from command line
-    parser = argparse.ArgumentParser(description="Sanity check;" +
-                                     " run before committing")
-    
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description=textwrap.dedent('''
+        SANITY CHECKER; run before committing from BLonD folder
+        E.g. > python sanity_check.py -p --pep8File llrf/signal_processing.py
+        '''))    
     parser.add_argument('-a', dest ='allChecks ', action = 'store_true', 
                         help = 'Execute all checks')
     parser.set_defaults(allChecks = False)
