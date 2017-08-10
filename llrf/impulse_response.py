@@ -1,8 +1,8 @@
 # coding: utf8
 # Copyright 2014-2017 CERN. This software is distributed under the
-# terms of the GNU General Public Licence version 3 (GPL Version 3), 
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
 # copied verbatim in the file LICENCE.md.
-# In applying this licence, CERN does not waive the privileges and immunities 
+# In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
@@ -16,11 +16,14 @@
 from __future__ import division
 import numpy as np
 from scipy.constants import c
+
+# Set up logging
 import logging
+logger = logging.getLogger(__name__)
 
 
 
-def rect(t, tau):
+def rectangle(t, tau):
     r"""Rectangular function of time
     
     .. math:: \mathsf{rect} \left( \frac{t}{\tau} \right) = 
@@ -29,8 +32,35 @@ def rect(t, tau):
             0.5 \, , \, t = \pm \tau/2 \\
             0 \, , \, \textsf{otherwise}
         \end{cases}
+        
+    Parameters
+    ----------
+    t : float array
+        Time array
+    tau : float
+        Time window of rectangular function
+        
+    Returns
+    -------
+    float array
+        Rectangular function for given time array
+        
     """
     
+    dt = t[1] - t[0]
+    limits = np.where((np.fabs(t - tau/2) < dt/2) | 
+                      (np.fabs(t + tau/2) < dt/2))[0]
+    logger.debug("In rect(), number of limiting indices is %d" %(len(limits)))
+    print(limits)
+    if len(limits) != 2:
+        raise RuntimeError("ERROR in impulse_response.rect(): time array not" +
+                           " in correct range!")
+    y = np.zeros(len(t))
+    y[limits] = 0.5
+    y[limits[0]+1:limits[1]] = np.ones(limits[1] - limits[0] - 1)
+
+    return y
+
 
 
 class TravellingWaveCavity(object):

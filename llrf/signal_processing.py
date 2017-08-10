@@ -158,32 +158,27 @@ def rf_beam_current(Slices, frequency, T_rev):
     """
     
     # Convert real signal to complex IQ
-    IQ = real_to_cartesian(Slices.n_macroparticles)
+    profile = Slices.n_macroparticles
     
     # Convert from dimensionless to Ampères
-    # T_range = Slices.bin_centers[-1] - Slices.bin_centers[0]
-    # Macro-particle charge with real-to-macro-particle ratio
+    # Take into account macro-particle charge with real-to-macro-particle ratio
     q_m = Slices.Beam.intensity/Slices.Beam.n_macroparticles \
         *Slices.Beam.charge*e
-    IQ *= q_m/T_rev#T_range
-    # Q_tot = Beam.intensity*Beam.charge*e/Beam.n_macroparticles*np.sum(Slices.n_macroparticles)
+    profile *= q_m/T_rev
     logger.debug("Sum of slices: %d, total charge: %.4e C", 
-                 np.sum(Slices.n_macroparticles), np.sum(IQ.real)*T_rev)
-    logger.debug("DC current is %.4e A", np.sum(IQ.real))
+                 np.sum(Slices.n_macroparticles), np.sum(profile)*T_rev)
+    logger.debug("DC current is %.4e A", np.sum(profile))
     
     # Mix with frequency of interest
-#     print(len(Slices.bin_centers))
-#     print(len(IQ.real))
-#     print(len(frequency))
-#     print(len(np.cos(frequency*Slices.bin_centers)))
-    I_f = IQ.real*np.cos(frequency*Slices.bin_centers)
-    Q_f = IQ.imag*np.sin(frequency*Slices.bin_centers)
+    I_f = profile*np.cos(frequency*Slices.bin_centers)
+    Q_f = profile*np.sin(frequency*Slices.bin_centers)
     
     # Pass through a low-pass filter
-#    logger.debug("RF peak current is %.4e A", np.max(I_f))
+    I_filt = low_pass_filter(I_f, 20.e6)
+    Q_filt = low_pass_filter(Q_f, 20.e6)
     logger.debug("RF total current is %.4e A", np.fabs(np.sum(I_f)))
 
-    return I_f + 1j*Q_f
+    return I_filt + 1j*Q_filt
 
 
 def comb_filter(x, y, a):
