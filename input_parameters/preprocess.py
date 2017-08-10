@@ -515,7 +515,7 @@ def combine_rf_functions(function_list, merge_type = 'linear',
    
     if len(merge_type) != nFunctions:
         raise RuntimeError("ERROR: merge_type list wrong length")
-    if len(resolution != nFunctions:
+    if len(resolution) != nFunctions:
         raise RuntimeError("ERROR: resolution list wrong length")
  
     timePoints = []
