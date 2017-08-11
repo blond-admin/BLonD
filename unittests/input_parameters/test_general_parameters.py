@@ -16,8 +16,8 @@ Unit-test for general_parameters.py
 import unittest
 import numpy as np
 
-from input_parameters.general_parameters import GeneralParameters
-from beams.beams import Electron
+from input_parameters.ring import Ring
+from beam.beam import Electron
 
 
 
@@ -36,8 +36,8 @@ class TestGeneralParameters(unittest.TestCase):
     
     def test_kinetic_energy_positive(self):
         # Kinetic energy must be greater or equal 0 for all turns
-        general_parameters = GeneralParameters(self.n_turns, self.C, 
-            self.alpha, self.momentum, n_sections = self.num_sections,
+        general_parameters = Ring(self.n_turns, self.C, 
+            self.alpha, self.momentum, n_stations = self.num_sections,
             Particle = self.particle)
         
         self.assertTrue((general_parameters.kin_energy>=0.0).all(),
@@ -46,8 +46,8 @@ class TestGeneralParameters(unittest.TestCase):
 
     def test_cycle_time_turn1(self):
         # Cycle_time[0] must be equal to t_rev[0]
-        general_parameters = GeneralParameters(self.n_turns, self.C,
-            self.alpha, self.momentum, n_sections = self.num_sections,
+        general_parameters = Ring(self.n_turns, self.C,
+            self.alpha, self.momentum, n_stations = self.num_sections,
             Particle = self.particle)
         self.assertEqual(general_parameters.cycle_time[0],
             general_parameters.t_rev[0], 
@@ -60,12 +60,12 @@ class TestGeneralParameters(unittest.TestCase):
         # of rf sections
         num_sections = 1    # only one rf-section!
         
-        with self.assertRaisesRegex(RuntimeError,'ERROR in GeneralParameters: '
+        with self.assertRaisesRegex(RuntimeError,'ERROR in Ring: '
             +'Number of sections and ring length size do not match!',
             msg = 'No RuntimeError for wrong n_sections!'):
 
-            GeneralParameters(self.n_turns, self.C, self.alpha, self.momentum,
-                Particle = self, n_sections = num_sections)
+            Ring(self.n_turns, self.C, self.alpha, self.momentum,
+                Particle = self, n_stations = num_sections)
             
     
     def test_alpha_shape_exception(self):
@@ -73,12 +73,12 @@ class TestGeneralParameters(unittest.TestCase):
         # shape of alpha
         alpha = [[3.21e-4, 2.e-5, 5.e-7]]   # only one array!
         
-        with self.assertRaisesRegex(RuntimeError,'ERROR in GeneralParameters: '
+        with self.assertRaisesRegex(RuntimeError,'ERROR in Ring: '
             +'Number of sections and size of momentum compaction do not match!'
             ,msg = 'No RuntimeError for wrong shape of alpha!'):
             
-            GeneralParameters(self.n_turns, self.C, alpha, self.momentum,
-                Particle = self.particle, n_sections = self.num_sections)
+            Ring(self.n_turns, self.C, alpha, self.momentum,
+                Particle = self.particle, n_stations = self.num_sections)
             
     
     def test_synchronous_data_exception(self):
@@ -89,37 +89,37 @@ class TestGeneralParameters(unittest.TestCase):
         # have the correct length.
         cycle_time = np.linspace(0,1,self.n_turns) # wrong length
         
-        with self.assertRaisesRegex(RuntimeError,'ERROR in GeneralParameters: '
+        with self.assertRaisesRegex(RuntimeError,'ERROR in Ring: '
             +'sychronous data does not match the time data',
             msg = 'No RuntimeError for wrong synchronous_data!'):
             
-            GeneralParameters(self.n_turns, self.C, self.alpha, 
+            Ring(self.n_turns, self.C, self.alpha, 
                 ([cycle_time,cycle_time], self.momentum), 
-                Particle = self.particle, n_sections = self.num_sections)
+                Particle = self.particle, n_stations = self.num_sections)
 
     
     def test_momentum_shape_exception(self):
         # Test if RuntimeError gets thrown for wrong shape of momentum
         momentum = 450e9 # only one momentum!
         
-        with self.assertRaisesRegex(RuntimeError,'ERROR in GeneralParameters: '
+        with self.assertRaisesRegex(RuntimeError,'ERROR in Ring: '
             +'Number of sections and momentum data do not match!',
             msg = 'No RuntimeError for wrong shape of momentum!'):
-            GeneralParameters(self.n_turns, self.C, self.alpha, momentum,
-                Particle = self.particle, n_sections = self.num_sections)
+            Ring(self.n_turns, self.C, self.alpha, momentum,
+                Particle = self.particle, n_stations = self.num_sections)
             
     
     def test_momentum_length_exception(self):
         # Test if RuntimeError gets thrown for wrong length of momentum
         # Only n_turns elements per section!
         
-        with self.assertRaisesRegex(RuntimeError,'ERROR in GeneralParameters: '
+        with self.assertRaisesRegex(RuntimeError,'ERROR in Ring: '
             +'The momentum program does not match the proper length '
             +r'\(n_turns\+1\)',
             msg = 'No RuntimeError for wrong length of momentum array!'):
             
-            GeneralParameters(self.n_turns, self.C, self.alpha, self.momentum,
-                Particle = self.particle, n_sections = self.num_sections)
+            Ring(self.n_turns, self.C, self.alpha, self.momentum,
+                Particle = self.particle, n_stations = self.num_sections)
 
 
 

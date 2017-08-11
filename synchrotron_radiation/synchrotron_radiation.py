@@ -29,10 +29,10 @@ class SynchrotronRadiation(object):
         the track() method after tracking each section.
     '''
     
-    def __init__(self, GeneralParameters, RFParameters, Beam, bending_radius,
+    def __init__(self, Ring, RFParameters, Beam, bending_radius,
                  n_kicks=1, quantum_excitation=True, python=False):
         
-        self.general_params = GeneralParameters
+        self.general_params = Ring
         self.rf_params = RFParameters
         self.beam = Beam
         self.rho = bending_radius

@@ -41,10 +41,10 @@ def fig_folder(dirname):
 
 class Plot(object):
     
-    def __init__(self, GeneralParameters, RFSectionParameters, Beam, dt_plot,
+    def __init__(self, Ring, RFStation, Beam, dt_plot,
                  dt_bckp, xmin, xmax, ymin, ymax, xunit = 's', sampling = 1, 
                  separatrix_plot = False, histograms_plot = True, 
-                 Slices = None, h5file = None, output_frequency = 1, 
+                 Profile = None, h5file = None, output_frequency = 1, 
                  PhaseLoop = None, LHCNoiseFB = None, format_options = None):
         '''
         Define what plots should be plotted during the simulation. Passing only
@@ -56,14 +56,14 @@ class Plot(object):
         in units of time steps.
         '''
 
-        #: | *Import GeneralParameters*
-        self.general_params = GeneralParameters
+        #: | *Import Ring*
+        self.general_params = Ring
         
-        #: | *Import RFSectionParameters*       
-        self.rf_params = RFSectionParameters
+        #: | *Import RFStation*       
+        self.rf_params = RFStation
         
-        #: | *Import actual time step RFSectionParameters*
-        self.tstep = RFSectionParameters.counter
+        #: | *Import actual time step RFStation*
+        self.tstep = RFStation.counter
         
         #: | *Import Beam*
         self.beam = Beam
@@ -96,8 +96,8 @@ class Plot(object):
         #: | *Histogram in phase space plot: 'True' or 'False'*
         self.histogram = histograms_plot
 
-        #: | *Optional import of Slices*
-        self.slices = Slices
+        #: | *Optional import of Profile*
+        self.profile = Profile
 
         #: | *Optional import of Monitor file*
         self.h5file = h5file
@@ -213,13 +213,13 @@ class Plot(object):
                                   histograms_plot = self.histogram, 
                                   dirname = self.dirname, alpha = self.alpha)
             
-            if self.slices:
-                plot_beam_profile(self.slices, self.tstep[0], 
+            if self.profile:
+                plot_beam_profile(self.profile, self.tstep[0], 
                                   style = self.lstyle, dirname = self.dirname)
 
-                self.slices.beam_spectrum_freq_generation(self.slices.n_slices)
-                self.slices.beam_spectrum_generation(self.slices.n_slices)
-                plot_beam_spectrum(self.slices, self.tstep[0], 
+                self.profile.beam_spectrum_freq_generation(self.profile.n_slices)
+                self.profile.beam_spectrum_generation(self.profile.n_slices)
+                plot_beam_spectrum(self.profile, self.tstep[0], 
                                    style = self.lstyle, dirname = self.dirname)
         
         # Plots as a function of time        
@@ -230,8 +230,8 @@ class Plot(object):
                                    output_freq = self.dt_mon, 
                                    dirname = self.dirname)
             
-            if self.slices and self.slices.fit_option == 'gaussian':
-                    plot_bunch_length_evol_gaussian(self.rf_params, self.slices,
+            if self.profile and self.profile.fit_option == 'gaussian':
+                    plot_bunch_length_evol_gaussian(self.rf_params, self.profile,
                                                     h5data, 
                                                     output_freq = self.dt_mon, 
                                                     dirname = self.dirname)

@@ -23,26 +23,26 @@ class BunchMonitor(object):
     
     ''' Class able to save bunch data into h5 file. Use 'buffer_time' to select 
         the frequency of saving to file in number of turns.
-        If in the constructor a Slices object is passed, that means that one
+        If in the constructor a Profile object is passed, that means that one
         wants to save the gaussian-fit bunch length as well (obviously the 
-        Slices object has to have the fit_option set to 'gaussian').
+        Profile object has to have the fit_option set to 'gaussian').
     '''
     
-    def __init__(self, GeneralParameters, RFParameters, Beam, filename, 
+    def __init__(self, Ring, RFParameters, Beam, filename, 
                  buffer_time = None, 
-                 Slices = None, PhaseLoop = None, LHCNoiseFB = None):
+                 Profile = None, PhaseLoop = None, LHCNoiseFB = None):
         
         self.filename = filename
-        self.n_turns = GeneralParameters.n_turns
+        self.n_turns = Ring.n_turns
         self.i_turn = 0
         self.buffer_time = buffer_time
         if buffer_time == None:
             self.buffer_time = self.n_turns
         self.rf_params = RFParameters
         self.beam = Beam
-        self.slices = Slices
-        if self.slices:
-            if self.slices.fit_option is 'gaussian':
+        self.profile = Profile
+        if self.profile:
+            if self.profile.fit_option is 'gaussian':
                 self.gaussian = True
             else:
                 self.gaussian = False
@@ -117,7 +117,7 @@ class BunchMonitor(object):
             h5group.create_dataset("bunch_length_gaussian", shape = dims, 
                                    dtype = 'f',
                                    compression = "gzip", compression_opts = 9)
-            h5group["bunch_length_gaussian"][0] = self.slices.bl_gauss
+            h5group["bunch_length_gaussian"][0] = self.profile.bl_gauss
              
         if self.PL:
              
@@ -229,7 +229,7 @@ class BunchMonitor(object):
          
         if self.gaussian == True:
              
-            self.b_bl_gauss[i] = self.slices.bl_gauss
+            self.b_bl_gauss[i] = self.profile.bl_gauss
              
         if self.PL:
              
@@ -342,23 +342,23 @@ class SlicesMonitor(object):
         the slicing.
     '''
     
-    def __init__(self, filename, n_turns, slices):
+    def __init__(self, filename, n_turns, profile):
         
         self.h5file = hp.File(filename + '.h5', 'w')
         self.n_turns = n_turns
         self.i_turn = 0
-        self.slices = slices
+        self.profile = profile
         self.h5file.create_group('Slices')
 
     
     def track(self, bunch):
         
         if not self.i_turn:
-            self.create_data(self.h5file['Slices'], (self.slices.n_slices, 
+            self.create_data(self.h5file['Slices'], (self.profile.n_slices, 
                                                      self.n_turns))
-            self.write_data(self.slices, self.h5file['Slices'], self.i_turn)
+            self.write_data(self.profile, self.h5file['Slices'], self.i_turn)
         else:
-            self.write_data(self.slices, self.h5file['Slices'], self.i_turn)
+            self.write_data(self.profile, self.h5file['Slices'], self.i_turn)
 
         self.i_turn += 1
 
@@ -371,7 +371,7 @@ class SlicesMonitor(object):
         
     def write_data(self, bunch, h5group, i_turn):
         
-        h5group["n_macroparticles"][:, i_turn] = self.slices.n_macroparticles
+        h5group["n_macroparticles"][:, i_turn] = self.profile.n_macroparticles
         
     def close(self):
         self.h5file.close()

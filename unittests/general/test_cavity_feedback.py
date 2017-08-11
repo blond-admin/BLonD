@@ -15,11 +15,11 @@ Unittest for llrf.filters
 
 import unittest
 import numpy as np
-from input_parameters.general_parameters import GeneralParameters
-from input_parameters.rf_parameters import RFSectionParameters
-from beams.beams import Beam
-from beams.distributions import bigaussian
-from beams.slices import Slices
+from input_parameters.ring import Ring
+from input_parameters.rf_parameters import RFStation
+from beam.beam import Beam
+from beam.distributions import bigaussian
+from beam.profile import Profile
 from llrf.signal_processing import rf_beam_current, low_pass_filter
 
 
@@ -28,19 +28,18 @@ class TestBeamCurrent(unittest.TestCase):
     def test(self):
         
         # Set up SPS conditions
-        GeneralParams = GeneralParameters(1000, 2*np.pi*1100.009, 1/18**2, 
-                                          25.92e9)
-        RFParams = RFSectionParameters(GeneralParams, 1, 4620, 4.5e6, 0)
+        GeneralParams = Ring(1000, 2*np.pi*1100.009, 1/18**2, 25.92e9)
+        RFParams = RFStation(GeneralParams, 1, 4620, 4.5e6, 0)
         Bunch = Beam(GeneralParams, 1e5, 1e11)
         bigaussian(GeneralParams, RFParams, Bunch, 3.2e-9/4, seed = 1234, 
                    reinsertion = True) 
-        Profile = Slices(RFParams, Bunch, 100, cut_left=-1.e-9, cut_right=6.e-9)
-        Profile.track()
-        self.assertEqual(len(Bunch.dt), np.sum(Profile.n_macroparticles), "In" +
-            " TestBeamCurrent: particle number mismatch in Beam vs Slices")
+        profile = Profile(RFParams, Bunch, 100, cut_left=-1.e-9, cut_right=6.e-9)
+        profile.track()
+        self.assertEqual(len(Bunch.dt), np.sum(profile.n_macroparticles), "In" +
+            " TestBeamCurrent: particle number mismatch in Beam vs Profile")
         
         # RF current calculation
-        rf_current = rf_beam_current(Profile, 2*np.pi*200.222e6, 
+        rf_current = rf_beam_current(profile, 2*np.pi*200.222e6, 
                                      GeneralParams.t_rev[0])
         Iref_real = np.array([  0.0000000000e+00,   0.0000000000e+00,   
             0.0000000000e+00,
