@@ -15,7 +15,7 @@ import unittest
 import math
 
 
-from input_parameters.preprocess import PreprocessRamp
+from input_parameters.ring_options import PreprocessRamp
 from beam.beam import Proton
 
 

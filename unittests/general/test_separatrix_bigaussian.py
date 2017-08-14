@@ -64,11 +64,11 @@ class TestSeparatrixBigaussian(unittest.TestCase):
             if acceleration == True:
                 # eta < 0, acceleration
                 general_params = Ring(N_t, C, alpha_1, 
-                    np.linspace(p_1i, p_1f, N_t + 1), Particle = Proton())
+                    np.linspace(p_1i, p_1f, N_t + 1), Proton())
             elif acceleration == False: 
                 # eta < 0, deceleration
                 general_params = Ring(N_t, C, alpha_1, 
-                    np.linspace(p_1f, p_1i, N_t + 1), Particle = Proton())
+                    np.linspace(p_1f, p_1i, N_t + 1), Proton())
         
             if singleRF == True:
                 rf_params = RFStation(general_params, 1, 9, 1.8e6, 
@@ -82,11 +82,11 @@ class TestSeparatrixBigaussian(unittest.TestCase):
             if acceleration == True:
                 # eta > 0, acceleration
                 general_params = Ring(N_t, C, alpha_2, 
-                    np.linspace(p_2i, p_2f, N_t + 1), Particle = Proton())
+                    np.linspace(p_2i, p_2f, N_t + 1), Proton())
             elif acceleration == False: 
                 # eta > 0, deceleration
                 general_params = Ring(N_t, C, alpha_2, 
-                    np.linspace(p_2f, p_2i, N_t + 1), Particle = Proton())
+                    np.linspace(p_2f, p_2i, N_t + 1), Proton())
                 
             if singleRF == True:
                 rf_params = RFStation(general_params, 1, 9, 1.8e6, 
