@@ -21,6 +21,7 @@ import numpy
 
 # BLonD imports
 # --------------
+from beam.beam import Proton
 from input_parameters.ring import Ring
 from input_parameters.rf_parameters import RFStation
 from beam.beam import Beam
@@ -50,7 +51,7 @@ class testBeamClass(unittest.TestCase):
 
         # Define general parameters
         # --------------------------
-        self.general_params = Ring(N_turn, C, alpha, p)
+        self.general_params = Ring(N_turn, C, alpha, p, Proton())
 
 
         # Define beam
@@ -72,10 +73,10 @@ class testBeamClass(unittest.TestCase):
 
     def test_variables_types(self):
 
-        self.assertIsInstance(self.beam.mass, float,
+        self.assertIsInstance(self.beam.Particle.mass, float,
                               msg='Beam: mass is not a float')
-        self.assertIsInstance(self.beam.charge, int,
-                              msg='Beam: charge is not an int')
+        self.assertIsInstance(self.beam.Particle.charge, float,
+                              msg='Beam: charge is not an float')
         self.assertIsInstance(self.beam.beta, float,
                               msg='Beam: beta is not a float')
         self.assertIsInstance(self.beam.gamma, float,
