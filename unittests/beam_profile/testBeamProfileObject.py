@@ -50,7 +50,7 @@ class testProfileClass(unittest.TestCase):
         
         # Beam object parameters
         my_beam = Beam(self.ring, n_macroparticles, intensity)
-        my_beam.dt = np.load('dt_coordinates.npy')
+        my_beam.dt = np.load('dt_coordinates.npz')['arr_0']
         
         # First profile object initialization and tracking
         self.profile1 = profileModule.Profile(my_beam)
