@@ -18,7 +18,6 @@ Run as python testBeamProfileObject.py in console or via travis
 from __future__ import division, print_function
 import unittest
 import numpy as np
-import matplotlib.pyplot as plt
 
 # BLonD imports
 # --------------
@@ -31,8 +30,12 @@ class testProfileClass(unittest.TestCase):
     
     # Run before every test
     def setUp(self):
-        
-        # Machine parameters
+        """
+        Slicing of the same Gaussian profile using four distinct settings to
+        test different features.
+        """
+          
+        # Ring parameters
         n_turns = 1
         ring_length = 125
         alpha = 0.001
@@ -45,6 +48,7 @@ class testProfileClass(unittest.TestCase):
         n_macroparticles = 100000
         intensity = 1e10
         
+        # Beam object parameters
         my_beam = Beam(self.ring, n_macroparticles, intensity)
         my_beam.dt = np.load('dt_coordinates.npy')
         
@@ -78,12 +82,12 @@ class testProfileClass(unittest.TestCase):
         self.profile3.track()
         
         # Fourth profile object initialization and tracking
-        n_slices = 2000
+        n_slices = 100
         CutOptions = profileModule.CutOptions(cut_left=0, cut_right=self.ring.t_rev[0], 
                         n_slices = n_slices, cuts_unit='s')
         FitOptions = profileModule.FitOptions(fitMethod='gaussian', fitExtraOptions=None)
-        filter_option = {'pass_frequency':1e8, 
-        'stop_frequency':1e9, 'gain_pass':1, 'gain_stop':2, 'transfer_function_plot':True}
+        filter_option = {'pass_frequency':1e7, 
+        'stop_frequency':1e8, 'gain_pass':1, 'gain_stop':2, 'transfer_function_plot':False}
         FilterOptions = profileModule.FilterOptions(filterMethod='chebishev', filterExtraOptions=filter_option)
         OtherSlicesOptions = profileModule.OtherSlicesOptions(smooth=False, direct_slicing = True)
         self.profile4 = profileModule.Profile(my_beam, CutOptions = CutOptions,
@@ -91,21 +95,7 @@ class testProfileClass(unittest.TestCase):
                          FilterOptions=FilterOptions, 
                          OtherSlicesOptions = OtherSlicesOptions)
         
-        print(self.profile2.bunchPosition-self.ring.t_rev[0]/2, sep=", ")
         
-        print(self.profile3.bunchPosition-self.ring.t_rev[0]/2, sep=", ")
-        
-        print(self.profile4.bunchPosition-self.ring.t_rev[0]/2, sep=", ")
-        
-        print(self.profile2.bunchLength, sep=", ")
-        
-        print(self.profile3.bunchLength, sep=", ")
-        
-        print(self.profile4.bunchLength, sep=", ")
-        
-#         plt.plot(self.profile4.bin_centers, self.profile4.n_macroparticles)
-#         plt.show()
-    
     def test(self):
         
         self.assertAlmostEqual(self.ring.t_rev[0], 5.71753954209e-07, delta=1e-16,
@@ -167,9 +157,58 @@ class testProfileClass(unittest.TestCase):
               0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
               0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
               0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-                    0, 1e-8, err_msg="Profile3 not correct")
-
-
+                    1e-10, 0, err_msg="Profile3 not correct")
+        
+        np.testing.assert_allclose(self.profile4.n_macroparticles.tolist(), 
+                [3.04390342739e-10, 6.42161174461e-10, 1.3547439458e-09, 
+                 2.8580537592e-09, 6.0295314962e-09, 1.27202820964e-08, 
+                 2.68355139555e-08, 5.66139024119e-08, 1.19436279537e-07, 
+                 2.51970351131e-07, 5.31572635175e-07, 1.12143934871e-06, 
+                 2.36585958272e-06, 4.99116744172e-06, 1.05296834238e-05, 
+                 2.22140880466e-05, 4.68642491784e-05, 9.88677926569e-05, 
+                 0.000208577766554, 0.000440028886368, 0.000928312849628, 
+                 0.00195842767028, 0.0041316232359, 0.0087163344465, 
+                 0.0183885320237, 0.0387936135382, 0.0818414677914, 
+                 0.172657951641, 0.364250166442, 0.768445255442, 1.62116085321,
+                  3.42010376585, 7.06934966864, 14.4070273867, 29.1322663172, 
+                  57.0673409924, 107.367201129, 195.236438646, 343.216047763, 
+                  576.683888858, 925.972171496, 1429.04196501, 2121.53804001, 
+                  3024.03256787, 4107.04688385, 5292.37720345, 6501.56643031, 
+                  7614.78027336, 8457.77133102, 8917.59371854, 8940.7377173, 
+                  8510.50678563, 7697.68236675, 6617.05862601, 5396.53357642, 
+                  4175.00669728, 3071.53152854, 2158.0602225, 1451.53603502, 
+                  931.07854988, 569.13404729, 335.967612417, 192.376031593, 
+                  106.641608202, 57.6152988997, 30.252175918, 15.4392857786, 
+                  7.59503067718, 3.60011486661, 1.70648778177, 0.808891009658, 
+                  0.383421828445, 0.181745496949, 0.0861490484128, 
+                  0.0408354466385, 0.0193563798194, 0.00917510326339, 
+                  0.00434908390304, 0.00206150604006, 0.000977172951353, 
+                  0.000463189027003, 0.000219555887664, 0.000104071523714, 
+                  4.93308658832e-05, 2.33832872042e-05, 1.10838946506e-05, 
+                  5.25386869489e-06, 2.49038240919e-06, 1.18046432148e-06, 
+                  5.59551018822e-07, 2.65232364082e-07, 1.25722596556e-07, 
+                  5.95936750584e-08, 2.82479541435e-08, 1.33897925887e-08, 
+                  6.34688728235e-09, 3.00848674436e-09, 1.42605775497e-09, 
+                  6.75979730414e-10, 3.20452612975e-10], 1e-10, 0, 
+                                   err_msg="Profile4 not correct")
+        
+        np.testing.assert_allclose(np.array([self.profile2.bunchPosition,
+                                             self.profile3.bunchPosition,
+                                             self.profile4.bunchPosition]),
+                                   [2.86004598801e-07,
+                                    2.86942707778e-07,
+                                    2.86090181555e-07], 1e-10, 0, 
+                err_msg='Bunch position values not correct')
+        
+        np.testing.assert_allclose(np.array([self.profile2.bunchLength,
+                                             self.profile3.bunchLength,
+                                             self.profile4.bunchLength]),
+                                   [9.27853156526e-08,
+                                    9.24434506817e-08,
+                                    9.18544356769e-08], 1e-10, 0, 
+                err_msg='Bunch length values not correct')
+        
+        
 if __name__ == '__main__':
 
     unittest.main()

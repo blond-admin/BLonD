@@ -75,10 +75,11 @@ def beam_profile_filter_chebyshev(Y_array, X_array, filter_option):
         
         plt.show()
         
-        return nCoefficients, [transferFreq, transferGain]
+        return Y_array
     
     else:
-        return nCoefficients, b, a
+        
+        return Y_array
 
 
 def gaussian_fit(Y_array, X_array, p0):

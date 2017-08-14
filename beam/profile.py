@@ -260,12 +260,11 @@ class Profile(object):
         self.bunchLength = 4*self.fitExtraOptions[2]
         
     
-    
     def apply_filter(self):
         
-        self.return_filter_params = ffroutines.beam_profile_filter_chebyshev(self.n_macroparticles, 
+        self.n_macroparticles = ffroutines.beam_profile_filter_chebyshev(self.n_macroparticles, 
                             self.bin_centers, self.filterExtraOptions)
- 
+        
     
     def rms(self):
         '''
