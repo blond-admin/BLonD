@@ -31,17 +31,17 @@ class Ring(object):
     ----------
     n_turns : int
         Number of turns :math:`n` [1] to be simulated
-    ring_length : float
+    ring_length : float (opt: float array [n_stations])
         Length [m] of the n_stations ring segments of the synchrotron.
         Input as a list for multiple RF stations
-    alpha : float (opt: float array)
+    alpha : float (opt: float array/matrix [n_stations, alpha_order])
         Momentum compaction factor :math:`\alpha_{k,i}` [1]; can be input as
         single float (only 0th order element) or float array (up to 2nd order
         elements). In case of several sections without higher orders, input:
         [[alpha_section_1], [alpha_section_2], etc.]. In case of several
         sections and higher order alphas, input: [alpha_array_section_1,
         alpha_array_section_2, etc.]
-    synchronous_data : float (opt: float array/matrix)
+    synchronous_data : float (opt: float array/matrix [n_stations, n_turns])
         Design synchronous particle momentum (default) [eV] or kinetic or
         total energy [eV] on the design orbit. Input for each RF section
         :math:`p_{s,k,n}`. Can be input as a single constant float, or as a
@@ -51,13 +51,12 @@ class Ring(object):
         [momentum_program_section_1, momentum_program_section_2, etc.]. Can
         be input also as a tuple of time and momentum, see also
         'cycle_time' and 'PreprocessRamp'
-    synchronous_data_type : str
-        Choice of 'synchronous_data' type; can be 'momentum' (default),
-        'total_energy' or 'kinetic_energy'
     Particle : class
         A Particle-based class defining the primary, synchronous particle (mass
         and charge) that is reference for the momentum/energy in the ring.
-        Default is Proton().
+    synchronous_data_type : str
+        Choice of 'synchronous_data' type; can be 'momentum' (default),
+        'total_energy' or 'kinetic_energy'
     n_stations : int
         Optional: number of RF stations [1] over the ring; default is 1
     PreprocessRamp : class
@@ -73,46 +72,46 @@ class Ring(object):
         Radius of the synchrotron, :math:`R = C/(2 \pi)` [m]
     alpha_order : int
         Number of orders of the momentum compaction factor
-    eta_0 : float matrix
+    eta_0 : float matrix [n_stations, n_turns+1]
         Zeroth order slippage factor :math:`\eta_{0,k,n} = \alpha_{0,k,n} -
         \frac{1}{\gamma_{s,k,n}^2}` [1]
-    eta_1 : float matrix
+    eta_1 : float matrix [n_stations, n_turns+1]
         First order slippage factor :math:`\eta_{1,k,n} =
         \frac{3\beta_{s,k,n}^2}{2\gamma_{s,k,n}^2} + \alpha_{1,k,n} -
         \alpha_{0,k,n}\eta_{0,k,n}` [1]
-    eta_2 : float matrix
+    eta_2 : float matrix [n_stations, n_turns+1]
         Second order slippage factor :math:`\eta_{2,k,n} =
         -\frac{\beta_{s,k,n}^2\left(5\beta_{s,k,n}^2-1\right)}
         {2\gamma_{s,k,n}^2} + \alpha_{2,k,n} - 2\alpha_{0,k,n}\alpha_{1,k,n}
         + \frac{\alpha_{1,k,n}}{\gamma_{s,k,n}^2} + \alpha_{0,k}^2\eta_{0,k,n}
         - \frac{3\beta_{s,k,n}^2\alpha_{0,k,n}}{2\gamma_{s,k,n}^2}` [1]
-    momentum : float matrix
+    momentum : float matrix [n_stations, n_turns+1]
         Synchronous relativistic momentum on the design orbit :math:`p_{s,k,n}`
-    beta : float matrix
+    beta : float matrix [n_stations, n_turns+1]
         Synchronous relativistic beta program for each segment of the
         ring :math:`\beta_{s,k}^n = \frac{1}{\sqrt{1
         + \left(\frac{m}{p_{s,k,n}}\right)^2} }` [1]
-    gamma : float matrix
+    gamma : float matrix [n_stations, n_turns+1]
         Synchronous relativistic gamma program for each segment of the ring
         :math:`\gamma_{s,k,n} = \sqrt{ 1
         + \left(\frac{p_{s,k,n}}{m}\right)^2 }` [1]
-    energy : float matrix
+    energy : float matrix [n_stations, n_turns+1]
         Synchronous total energy program for each segment of the ring
         :math:`E_{s,k,n} = \sqrt{ p_{s,k,n}^2 + m^2 }` [eV]
-    kin_energy : float matrix
+    kin_energy : float matrix [n_stations, n_turns+1]
         Synchronous kinetic energy program for each segment of the ring
         :math:`E_{s,kin} = \sqrt{ p_{s,k,n}^2 + m^2 } - m` [eV]
-    delta_E : float matrix
+    delta_E : float matrix [n_stations, n_turns+1]
         Derivative of synchronous total energy w.r.t. time, for all sections,
         :math:`: \quad E_{s,k,n+1}- E_{s,k,n}` [eV]
-    t_rev : float array
+    t_rev : float array [n_turns+1]
         Revolution period turn by turn.
         :math:`T_{0,n} = \frac{C}{\beta_{s,n} c}` [s]
-    f_rev : float array
+    f_rev : float array [n_turns+1]
         Revolution frequency :math:`f_{0,n} = \frac{1}{T_{0,n}}` [Hz]
-    omega_rev : float array
+    omega_rev : float array [n_turns+1]
         Revolution angular frequency :math:`\omega_{0,n} = 2\pi f_{0,n}` [1/s]
-    cycle_time : float array
+    cycle_time : float array [n_turns+1]
         Cumulative cycle time, turn by turn, :math:`t_n = \sum_n T_{0,n}` [s].
         Possibility to extract cycle parameters at these moments using
         'parameters_at_time'.
