@@ -11,6 +11,8 @@
 Test preprocess.py
 
 '''
+
+import sys
 import unittest
 import math
 
@@ -20,7 +22,13 @@ from beam.beam import Proton
 
 
 class test_preprocess(unittest.TestCase):
-    
+
+
+    def setUp(self):
+
+        if int(sys.version[0]) == 2:
+            self.assertRaisesRegex = self.assertRaisesRegexp
+
     def assertIsNaN(self, value, msg=None):
         """
         Fail if provided value is not NaN
@@ -76,26 +84,34 @@ class test_preprocess(unittest.TestCase):
                                     'ERROR in PreprocessRamp: Synchronous data'
                                     +' type not recognized!', 
                 msg = 'No RuntimeError for wrong synchronous data type!'):
-
-            PreprocessRamp.convert_data('dummy',25e9,
-                    synchronous_data_type = 'somethingCompletelyDifferent')
+            
+            
+            prep = PreprocessRamp()
+            prep.convert_data(25e9, 
+                              synchronous_data_type = 'somethingCompletelyDifferent')
     
     def test_convert_data_value_rest_mass(self):
-        self.assertEqual(PreprocessRamp.convert_data('dummy',Proton().mass,
+        
+        prep = PreprocessRamp()
+        self.assertEqual(prep.convert_data(Proton().mass,
                                 Particle = Proton(),
                                 synchronous_data_type = 'total energy'),0.0,
                 msg = 'Momentum not zero for total engery equal rest mass!')
     
     def test_convert_data_wrong_total_energy(self):
         #use energy 25 instead of 25e9
-        self.assertIsNaN(PreprocessRamp.convert_data('dummy',25,
+        
+        prep = PreprocessRamp()
+        self.assertIsNaN(prep.convert_data(25,
                                 Particle = Proton(),
                                 synchronous_data_type = 'total energy'),
                 msg = 'No NaN for total energy less than rest mass!')
                 
     def test_convert_data_wrong_kinetic_energy(self):
         #use negative kinetic energy
-        self.assertIsNaN(PreprocessRamp.convert_data('dummy',-25,
+        
+        prep = PreprocessRamp()
+        self.assertIsNaN(prep.convert_data(-25,
                                 Particle = Proton(),
                                 synchronous_data_type = 'kinetic energy'),
                 msg = 'No NaN for total energy less than rest mass!')
