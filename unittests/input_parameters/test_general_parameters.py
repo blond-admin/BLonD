@@ -12,7 +12,7 @@ Unit-test for general_parameters.py
 :Authors: **Markus Schwarz**
 """
 
-
+import sys
 import unittest
 import numpy as np
 
@@ -31,6 +31,9 @@ class TestGeneralParameters(unittest.TestCase):
         self.momentum = [450e9*(np.ones(self.n_turns+1)),
                          450e9*(np.ones(self.n_turns+1))]
         self.particle = Electron()
+
+        if int(sys.version[0]) == 2:
+            self.assertRaisesRegex = self.assertRaisesRegexp
 
     def test_kinetic_energy_positive(self):
         # Kinetic energy must be greater or equal 0 for all turns
