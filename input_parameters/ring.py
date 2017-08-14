@@ -86,10 +86,6 @@ class Ring(object):
         {2\gamma_{s,k,n}^2} + \alpha_{2,k,n} - 2\alpha_{0,k,n}\alpha_{1,k,n}
         + \frac{\alpha_{1,k,n}}{\gamma_{s,k,n}^2} + \alpha_{0,k}^2\eta_{0,k,n}
         - \frac{3\beta_{s,k,n}^2\alpha_{0,k,n}}{2\gamma_{s,k,n}^2}` [1]
-    mass : float
-        Primary particle mass :math:`m` [eV]
-    charge : float
-        Primary particle charge :math:`q` [e]
     momentum : float matrix
         Synchronous relativistic momentum on the design orbit :math:`p_{s,k,n}`
     beta : float matrix
@@ -206,7 +202,7 @@ class Ring(object):
         # Synchronous momentum and checks
         if isinstance(synchronous_data, tuple):
             self.cycle_time, self.momentum = PreprocessRamp.preprocess(
-                self.mass, self.ring_circumference, self.cycle_time,
+                self.Particle.mass, self.ring_circumference, self.cycle_time,
                 self.momentum)
         else:
             self.momentum = np.array(synchronous_data, ndmin=2)
@@ -228,10 +224,11 @@ class Ring(object):
                                    "(n_turns+1)")
 
         # Derived from momentum
-        self.beta = np.sqrt(1/(1 + (self.mass/self.momentum)**2))
-        self.gamma = np.sqrt(1 + (self.momentum/self.mass)**2)
-        self.energy = np.sqrt(self.momentum**2 + self.mass**2)
-        self.kin_energy = np.sqrt(self.momentum**2 + self.mass**2) - self.mass
+        self.beta = np.sqrt(1/(1 + (self.Particle.mass/self.momentum)**2))
+        self.gamma = np.sqrt(1 + (self.momentum/self.Particle.mass)**2)
+        self.energy = np.sqrt(self.momentum**2 + self.Particle.mass**2)
+        self.kin_energy = np.sqrt(self.momentum**2 + self.Particle.mass**2) - \
+            self.Particle.mass
         self.delta_E = np.diff(self.energy, axis=1)
         self.t_rev = np.dot(self.ring_length, 1/(self.beta*c))
         self.cycle_time = np.cumsum(self.t_rev)  # Always starts with zero
