@@ -20,7 +20,7 @@ from builtins import str, range, object
 import numpy as np
 import scipy.interpolate as interp
 
-import input_parameters.preprocess as prep
+import input_parameters.rf_paramaters_options as prep
 
 
 
