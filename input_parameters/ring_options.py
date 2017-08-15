@@ -91,7 +91,7 @@ class PreprocessRamp(object):
             self.interpolation = str(interpolation)
         else:
             raise RuntimeError("ERROR: Interpolation scheme in " +
-                               "[n_turns+1] not recognised. Aborting...")
+                               "PreprocessRamp not recognised. Aborting...")
 
         self.smoothing = float(smoothing)
 
