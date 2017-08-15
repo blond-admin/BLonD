@@ -18,11 +18,11 @@ from scipy.constants import e
 import matplotlib.pyplot as plt 
 
 from toolbox.logger import Logger
-from input_parameters.general_parameters import GeneralParameters
-from input_parameters.rf_parameters import RFSectionParameters
-from beams.beams import Beam
-from beams.distributions import bigaussian
-from beams.slices import Slices
+from input_parameters.ring import Ring
+from input_parameters.rf_parameters import RFStation
+from beam.beam import Beam
+from beam.distributions import bigaussian
+from beam.profile import Profile
 from llrf.cavity_feedback import SPSOneTurnFeedback
 from llrf.signal_processing import rf_beam_current, low_pass_filter
 
@@ -49,11 +49,11 @@ N_t = 1000                  # Number of turns to track
 Logger(debug = True)
 
 # Set up machine parameters
-GeneralParams = GeneralParameters(N_t, C, alpha, p_s)
+GeneralParams = Ring(N_t, C, alpha, p_s)
 print("Machine parameters set!")
 
 # Set up RF parameters
-RFParams = RFSectionParameters(GeneralParams, 1, h, V, phi)
+RFParams = RFStation(GeneralParams, 1, h, V, phi)
 print("RF parameters set!")
 
 # Define beam and fill it
@@ -64,7 +64,7 @@ print("Beam set! Number of particles %d" %len(Bunch.dt))
 print("Time coordinates are in range %.4e to %.4e s" %(np.min(Bunch.dt), 
                                                      np.max(Bunch.dt)))
 
-Profile = Slices(RFParams, Bunch, 100, cut_left=-1.e-9, cut_right=6.e-9)
+Profile = Profile(RFParams, Bunch, 100, cut_left=-1.e-9, cut_right=6.e-9)
 Profile.track()
 #plt.plot(Slices.bin_centers, Slices.n_macroparticles)
 #plt.show()
