@@ -174,21 +174,6 @@ class Ring(object):
             raise RuntimeError("ERROR in Ring: Number of sections and ring " +
                                "length size do not match!")
 
-        # Momentum compaction, checks, and derived slippage factors
-        self.alpha = np.array(alpha, ndmin=2, dtype=float)
-        self.alpha_order = int(self.alpha.shape[1])
-
-        if self.alpha_order > 3:
-            warnings.filterwarnings("once")
-            warnings.warn("WARNING in Ring: Momentum compaction factor is " +
-                          "implemented only up to 2nd order. Higher orders " +
-                          "are ignored.")
-            self.alpha_order = 3
-
-        if self.n_stations != self.alpha.shape[0]:
-            raise RuntimeError("ERROR in Ring: Number of sections and size " +
-                               "of momentum compaction do not match!")
-
         # Primary particle mass and charge used for energy calculations
         self.Particle = Particle
 
@@ -255,6 +240,21 @@ class Ring(object):
         self.cycle_time = np.cumsum(self.t_rev)  # Always starts with zero
         self.f_rev = 1/self.t_rev
         self.omega_rev = 2*np.pi*self.f_rev
+
+        # Momentum compaction, checks, and derived slippage factors
+        self.alpha = np.array(alpha, ndmin=2, dtype=float)
+        self.alpha_order = int(self.alpha.shape[1])
+
+        if self.alpha_order > 3:
+            warnings.filterwarnings("once")
+            warnings.warn("WARNING in Ring: Momentum compaction factor is " +
+                          "implemented only up to 2nd order. Higher orders " +
+                          "are ignored.")
+            self.alpha_order = 3
+
+        if self.n_stations != self.alpha.shape[0]:
+            raise RuntimeError("ERROR in Ring: Number of sections and size " +
+                               "of momentum compaction do not match!")
 
         # Slippage factor derived from alpha, beta, gamma
         self.eta_generation()
