@@ -172,7 +172,7 @@ class _InducedVoltage(object):
         Multi-turn wake mode can be 'freq' or 'time' (default)
     """
     
-    def __init__(self, Beam, Profiles, frequency_resolution=None,
+    def __init__(self, Beam, Profile, frequency_resolution=None,
                  wake_length=None, multi_turn_wake=False, mtw_mode='time', 
                  RFParams=None):
 
