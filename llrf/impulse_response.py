@@ -50,14 +50,56 @@ def rectangle(t, tau):
     dt = t[1] - t[0]
     limits = np.where((np.fabs(t - tau/2) < dt/2) | 
                       (np.fabs(t + tau/2) < dt/2))[0]
-    logger.debug("In rect(), number of limiting indices is %d" %(len(limits)))
+    logger.debug("In rectangle(), number of limiting indices is %d" 
+                 %(len(limits)))
     print(limits)
     if len(limits) != 2:
-        raise RuntimeError("ERROR in impulse_response.rect(): time array not" +
-                           " in correct range!")
+        raise RuntimeError("ERROR in impulse_response.rectangle(): time" +
+                           " array not in correct range!")
     y = np.zeros(len(t))
     y[limits] = 0.5
     y[limits[0]+1:limits[1]] = np.ones(limits[1] - limits[0] - 1)
+
+    return y
+
+
+
+def triangle(t, tau):
+    r"""Triangular function of time
+    
+    .. math:: \mathsf{tri} \left( \frac{t}{\tau} \right) = 
+        \begin{cases}
+            1 - t/\tau\, , \, t \in (0, \tau) \\
+            0.5 \, , \, t = 0 \\
+            0 \, , \, \textsf{otherwise}
+        \end{cases}
+        
+    Parameters
+    ----------
+    t : float array
+        Time array
+    tau : float
+        Time window of rectangular function
+        
+    Returns
+    -------
+    float array
+        Rectangular function for given time array
+        
+    """
+    
+    dt = t[1] - t[0]
+    limits = np.where(np.fabs(t) < dt/2)[0]
+    logger.debug("In triangle(), number of limiting indices is %d" 
+                 %(len(limits)))
+    print(limits)
+    if len(limits) != 1:
+        raise RuntimeError("ERROR in impulse_response.triangle(): time" +
+                           " array not in correct range!")
+    y = np.zeros(len(t))
+    y[limits[0]] = 0.5
+    y[limits[0]+1:] = 1 - t[limits[0]+1:]/tau
+    y[np.where(y < 0)[0]] = 0
 
     return y
 

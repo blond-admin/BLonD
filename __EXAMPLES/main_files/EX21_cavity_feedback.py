@@ -25,6 +25,7 @@ from beam.distributions import bigaussian
 from beam.profile import Profile, CutOptions
 from llrf.cavity_feedback import SPSOneTurnFeedback
 from llrf.signal_processing import rf_beam_current, low_pass_filter
+from llrf.impulse_response import triangle
 
 
 # CERN SPS --------------------------------------------------------------------
