@@ -17,7 +17,7 @@ from builtins import str, range, object
 import numpy as np
 import warnings
 from scipy.constants import c
-from input_parameters.ring_options import PreprocessRamp
+from input_parameters.ring_options import RampOptions
 
 
 class Ring(object):
@@ -42,9 +42,10 @@ class Ring(object):
         sections and higher order alphas, input: [alpha_array_section_1,
         alpha_array_section_2, etc.]
     synchronous_data : float (opt: float array/matrix [n_stations, n_turns])
-        Design synchronous particle momentum (default) [eV] or kinetic or
-        total energy [eV] on the design orbit. Input for each RF section
-        :math:`p_{s,k,n}`. Can be input as a single constant float, or as a
+        Design synchronous particle momentum (default) [eV], kinetic or
+        total energy [eV] or bending field [T] on the design orbit.
+        Input for each RF section :math:`p_{s,k,n}`.
+        Can be input as a single constant float, or as a
         program of (n_turns + 1) turns. In case of several sections without
         acceleration, input: [[momentum_section_1], [momentum_section_2],
         etc.]. In case of several sections with acceleration, input:
@@ -56,12 +57,18 @@ class Ring(object):
         and charge) that is reference for the momentum/energy in the ring.
     synchronous_data_type : str
         Choice of 'synchronous_data' type; can be 'momentum' (default),
-        'total_energy' or 'kinetic_energy'
+        'total energy', 'kinetic energy' or 'bending field'
+        (requires bending_radius to be defined)
+    bending_radius : float
+        Radius [m] of the bending magnets, required if 'bending field' is set
+        for the synchronous_data_type
     n_stations : int
         Optional: number of RF stations [1] over the ring; default is 1
-    PreprocessRamp : class
-        A PreprocessRamp-based class defining smoothing, interpolation, etc.
-        options for synchronous_data that comes as a tuple.
+    RampOptions : class
+        A RampOptions-based class with default options to check the input and
+        initialize the momentum program for the simulation. This object defines
+        the interpolation scheme, plotting options, etc. The options for this
+        object can be adjusted and passed to the Ring object.
 
     Attributes
     ----------
@@ -70,6 +77,8 @@ class Ring(object):
         :math:`C = \sum_k L_k` [m]
     ring_radius : float
         Radius of the synchrotron, :math:`R = C/(2 \pi)` [m]
+    bending_radius : float
+        Bending radius in dipole magnets, :math:`\rho` [m]
     alpha_order : int
         Number of orders of the momentum compaction factor
     eta_0 : float matrix [n_stations, n_turns+1]
@@ -144,9 +153,10 @@ class Ring(object):
     """
 
     def __init__(self, n_turns, ring_length, alpha, synchronous_data, Particle,
-                 synchronous_data_type='momentum', n_stations=1,
-                 PreprocessRamp=PreprocessRamp()):
+                 synchronous_data_type='momentum', bending_radius=None,
+                 n_stations=1, RampOptions=RampOptions()):
 
+        # Conversion of initial inputs to expected types
         self.n_turns = int(n_turns)
         self.n_stations = int(n_stations)
 
@@ -154,6 +164,11 @@ class Ring(object):
         self.ring_length = np.array(ring_length, ndmin=1, dtype=float)
         self.ring_circumference = np.sum(self.ring_length)
         self.ring_radius = self.ring_circumference/(2*np.pi)
+
+        if bending_radius is not None:
+            self.bending_radius = float(bending_radius)
+        else:
+            self.bending_radius = bending_radius
 
         if self.n_stations != len(self.ring_length):
             raise RuntimeError("ERROR in Ring: Number of sections and ring " +
@@ -177,50 +192,57 @@ class Ring(object):
         # Primary particle mass and charge used for energy calculations
         self.Particle = Particle
 
-        # If tuple, separate time and synchronous data
+        # Initialization of the ramp
+        # If tuple, separate time and synchronous data and check data
         if isinstance(synchronous_data, tuple):
-            self.cycle_time = synchronous_data[0]
-            self.momentum = synchronous_data[1]
-            synchronous_data = synchronous_data[1]
-            if len(self.cycle_time) != len(self.momentum):
+            synchronous_data_time = np.array(synchronous_data[0], ndmin=2,
+                                             dtype=float)
+            synchronous_data = np.array(synchronous_data[1], ndmin=2,
+                                        dtype=float)
+
+            if synchronous_data_time.shape != synchronous_data.shape:
                 raise RuntimeError("ERROR in Ring: synchronous data does " +
                                    "not match the time data")
 
-        # Convert synchronous data to momentum, if necessary
-        if synchronous_data_type != 'momentum':
-            if PreprocessRamp:
-                self.momentum = PreprocessRamp.convert_data(
-                    synchronous_data,
-                    Particle=Particle,
-                    synchronous_data_type=synchronous_data_type)
-            else:
-                raise RuntimeError("ERROR in Ring: synchronous data type " +
-                                   "conversion requires a PreprocessRamp " +
-                                   "class")
+        # If string, loads the input file
+        elif isinstance(synchronous_data, str):
+            pass
 
-        # Synchronous momentum and checks
-        if isinstance(synchronous_data, tuple):
-            self.cycle_time, self.momentum = PreprocessRamp.preprocess(
-                self.Particle.mass, self.ring_circumference, self.cycle_time,
-                self.momentum)
+        # If array/list or float, compares with the input number of turns and
+        # if synchronous_data is a single value converts it into a (n_turns+1)
+        # array
         else:
-            self.momentum = np.array(synchronous_data, ndmin=2)
+            synchronous_data_time = None
 
-        if self.n_stations != self.momentum.shape[0]:
-            raise RuntimeError("ERROR in Ring: Number of sections and " +
-                               "momentum data do not match!")
+            synchronous_data = np.array(synchronous_data, ndmin=2,
+                                        dtype=float)
 
-        if self.n_stations > 1:
-            if self.momentum.shape[1] == 1:
-                self.momentum = self.momentum*np.ones(self.n_turns + 1)
-        else:
-            if self.momentum.size == 1:
-                self.momentum = self.momentum*np.ones(self.n_turns + 1)
+            if synchronous_data.shape[1] == 1:
+                synchronous_data = synchronous_data*np.ones(self.n_turns + 1)
 
-        if not self.momentum.shape[1] == self.n_turns + 1:
+            elif synchronous_data.shape[1] != (self.n_turns+1):
+
                 raise RuntimeError("ERROR in Ring: The momentum program " +
                                    "does not match the proper length " +
                                    "(n_turns+1)")
+
+        # Check if the input data matches the number of sections
+        if (synchronous_data.shape[0] != self.n_stations):
+
+                raise RuntimeError("ERROR in Ring: Number of sections and " +
+                                   "synchronous data data do not match!")
+
+        # Convert synchronous data to momentum
+        self.momentum = self.convert_data(
+            synchronous_data,
+            synchronous_data_type=synchronous_data_type)
+
+        # If synchronous_data_time is defined, the RampOptions object
+        # interpolates the momentum program for every machine turn
+        if synchronous_data_time is not None:
+            self.cycle_time, self.momentum = RampOptions.preprocess(
+                self.Particle.mass, self.ring_circumference,
+                synchronous_data_time, self.momentum)
 
         # Derived from momentum
         self.beta = np.sqrt(1/(1 + (self.Particle.mass/self.momentum)**2))
@@ -280,6 +302,27 @@ class Ring(object):
                 self.alpha[i, 1] + self.alpha[i, 1] / self.gamma[i]**2 + \
                 self.alpha[i, 0]**2*self.eta_0[i] - 3*self.beta[i]**2 * \
                 self.alpha[i, 0]/(2*self.gamma[i]**2)
+
+    def convert_data(self, synchronous_data, synchronous_data_type='momentum'):
+
+        if synchronous_data_type == 'momentum':
+            momentum = synchronous_data
+        elif synchronous_data_type == 'total energy':
+            momentum = np.sqrt(synchronous_data**2 - self.Particle.mass**2)
+        elif synchronous_data_type == 'kinetic energy':
+            momentum = np.sqrt((synchronous_data+self.Particle.mass)**2 -
+                               self.Particle.mass**2)
+        elif synchronous_data_type == 'bending field':
+            if self.bending_radius is None:
+                raise RuntimeError("ERROR in Ring: bending_radius is not " +
+                                   "defined and is required to compute " +
+                                   "momentum")
+            momentum = synchronous_data*self.bending_radius*c
+        else:
+            raise RuntimeError("ERROR in Ring: Synchronous data" +
+                               " type not recognized!")
+
+        return momentum
 
     def parameters_at_time(self, cycle_moments):
         """ Function to return various cycle parameters at a specific moment in

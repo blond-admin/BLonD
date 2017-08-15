@@ -21,7 +21,6 @@ import matplotlib.pyplot as plt
 from plots.plot import fig_folder
 from scipy.constants import c
 from scipy.interpolate import splrep, splev
-from beam.beam import Proton
 
 
 def load_data(filename, ignore=0, delimiter=None):
@@ -50,7 +49,7 @@ def load_data(filename, ignore=0, delimiter=None):
     return [np.ascontiguousarray(data[:, i]) for i in range(len(data[0]))]
 
 
-class PreprocessRamp(object):
+class RampOptions(object):
     r""" Class to preprocess the synchronous data for Ring, interpolating it to
     every turn.
 
@@ -123,22 +122,6 @@ class PreprocessRamp(object):
         else:
             raise RuntimeError("ERROR: sampling value in PreprocessRamp" +
                                " not recognised. Aborting...")
-
-    def convert_data(self, synchronous_data, Particle=Proton(),
-                     synchronous_data_type='momentum'):
-
-        if synchronous_data_type == 'momentum':
-            momentum = synchronous_data
-        elif synchronous_data_type == 'total energy':
-            momentum = np.sqrt(synchronous_data**2 - Particle.mass**2)
-        elif synchronous_data_type == 'kinetic energy':
-            momentum = np.sqrt((synchronous_data+Particle.mass)**2 -
-                               Particle.mass**2)
-        else:
-            raise RuntimeError("ERROR in PreprocessRamp: Synchronous data" +
-                               " type not recognized!")
-
-        return momentum
 
     def preprocess(self, mass, circumference, time, momentum):
         r"""Function to pre-process acceleration ramp data, interpolating it to

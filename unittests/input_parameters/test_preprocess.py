@@ -17,7 +17,7 @@ import unittest
 import math
 
 
-from input_parameters.ring_options import PreprocessRamp
+from input_parameters.ring_options import RampOptions
 from beam.beam import Proton
 
 
@@ -45,7 +45,7 @@ class test_preprocess(unittest.TestCase):
                 +' in PreprocessRamp not recognised. Aborting...', 
                 msg = 'No RuntimeError for wrong interpolation scheme!'):
 
-            PreprocessRamp(interpolation='exponential')
+            RampOptions(interpolation='exponential')
     
     def test_flat_bottom_exception(self):
         with self.assertRaisesRegex(RuntimeError,
@@ -53,7 +53,7 @@ class test_preprocess(unittest.TestCase):
                             ' not recognised. Aborting...', 
                             msg = 'No RuntimeError for negative flat_bottom!'):
 
-            PreprocessRamp(flat_bottom = -42)
+            RampOptions(flat_bottom = -42)
 
     def test_flat_top_exception(self):
         with self.assertRaisesRegex(RuntimeError,
@@ -61,7 +61,7 @@ class test_preprocess(unittest.TestCase):
                             ' not recognised. Aborting...', 
                             msg = 'No RuntimeError for negative flat_top!'):
 
-            PreprocessRamp(flat_top = -42)
+            RampOptions(flat_top = -42)
     
     def test_plot_option_exception(self):
         with self.assertRaisesRegex(RuntimeError,
@@ -69,7 +69,7 @@ class test_preprocess(unittest.TestCase):
                 ' not recognised. Aborting...', 
                 msg = 'No RuntimeError for wrong plot option!'):
 
-            PreprocessRamp(plot = 42)
+            RampOptions(plot = 42)
     
     def test_sampling_exception(self):
         with self.assertRaisesRegex(RuntimeError,
@@ -77,44 +77,8 @@ class test_preprocess(unittest.TestCase):
                                     ' not recognised. Aborting...', 
                 msg = 'No RuntimeError for wrong sampling!'):
 
-            PreprocessRamp(sampling = 0)
-    
-    def test_convet_data_exception(self):
-        with self.assertRaisesRegex(RuntimeError,
-                                    'ERROR in PreprocessRamp: Synchronous data'
-                                    +' type not recognized!', 
-                msg = 'No RuntimeError for wrong synchronous data type!'):
-            
-            
-            prep = PreprocessRamp()
-            prep.convert_data(25e9, 
-                              synchronous_data_type = 'somethingCompletelyDifferent')
-    
-    def test_convert_data_value_rest_mass(self):
-        
-        prep = PreprocessRamp()
-        self.assertEqual(prep.convert_data(Proton().mass,
-                                Particle = Proton(),
-                                synchronous_data_type = 'total energy'),0.0,
-                msg = 'Momentum not zero for total engery equal rest mass!')
-    
-    def test_convert_data_wrong_total_energy(self):
-        #use energy 25 instead of 25e9
-        
-        prep = PreprocessRamp()
-        self.assertIsNaN(prep.convert_data(25,
-                                Particle = Proton(),
-                                synchronous_data_type = 'total energy'),
-                msg = 'No NaN for total energy less than rest mass!')
-                
-    def test_convert_data_wrong_kinetic_energy(self):
-        #use negative kinetic energy
-        
-        prep = PreprocessRamp()
-        self.assertIsNaN(prep.convert_data(-25,
-                                Particle = Proton(),
-                                synchronous_data_type = 'kinetic energy'),
-                msg = 'No NaN for total energy less than rest mass!')
+            RampOptions(sampling = 0)
+
     
     
 if __name__ == '__main__':
