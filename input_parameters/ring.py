@@ -1,8 +1,8 @@
 # coding: utf8
 # Copyright 2014-2017 CERN. This software is distributed under the
-# terms of the GNU General Public Licence version 3 (GPL Version 3), 
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
 # copied verbatim in the file LICENCE.md.
-# In applying this licence, CERN does not waive the privileges and immunities 
+# In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
@@ -17,12 +17,12 @@ from builtins import str, range, object
 import numpy as np
 import warnings
 from scipy.constants import c
-from beams.beams import Proton
+from beam.beam import Proton
 from input_parameters.preprocess import PreprocessRamp
 
 
 
-class GeneralParameters(object):
+class Ring(object):
     r""" Class containing the general properties of the synchrotron that are
     independent of the RF system or the beam.
     
@@ -34,7 +34,7 @@ class GeneralParameters(object):
     n_turns : int
         Number of turns :math:`n` [1] to be simulated
     ring_length : float
-        Length [m] of the n_sections ring segments of the synchrotron.
+        Length [m] of the n_stations ring segments of the synchrotron.
         Input as a list for multiple RF stations
     alpha : float (opt: float array)
         Momentum compaction factor :math:`\alpha_{k,i}` [1]; can be input as
@@ -60,8 +60,8 @@ class GeneralParameters(object):
         A Particle-based class defining the primary, synchronous particle (mass
         and charge) that is reference for the momentum/energy in the ring. 
         Default is Proton().
-    n_sections : int
-        Optional: number of RF sections [1] over the ring; default is 1  
+    n_stations : int
+        Optional: number of RF stations [1] over the ring; default is 1  
     PreprocessRamp : class
         A PreprocessRamp-based class defining smoothing, interpolation, etc. 
         options for synchronous_data that comes as a tuple.
@@ -127,56 +127,55 @@ class GeneralParameters(object):
     --------
     >>> # To declare a single-stationed synchrotron at constant energy:
     >>> # Particle type Proton
-    >>> from input_parameters.general_parameters import GeneralParameters
+    >>> from input_parameters.ring import Ring
     >>>
     >>> n_turns = 10
     >>> C = 26659
     >>> alpha = 3.21e-4
     >>> momentum = 450e9
-    >>> general_parameters = GeneralParameters(n_turns, C, alpha, momentum) 
+    >>> ring = Ring(n_turns, C, alpha, momentum) 
     >>>                                        
     >>>
     >>> # To declare a double-stationed synchrotron at constant energy and 
     >>> # higher-order momentum compaction factors; particle Electron:
-    >>> from beams.beams import Electron
-    >>> from input_parameters.general_parameters import GeneralParameters
+    >>> from beam.beam import Electron
+    >>> from input_parameters.ring import Ring
     >>>
     >>> n_turns = 10
     >>> C = [13000, 13659]
     >>> alpha = [[3.21e-4, 2.e-5, 5.e-7], [2.89e-4, 1.e-5, 5.e-7]]
     >>> momentum = 450e9
-    >>> general_parameters = GeneralParameters(n_turns, C, alpha, momentum, 
-    >>>                                        Particle = Electron())
+    >>> ring = Ring(n_turns, C, alpha, momentum, Particle = Electron())
     
     """
     
     def __init__(self, n_turns, ring_length, alpha, synchronous_data, 
-                 synchronous_data_type = 'momentum', Particle = Proton(), 
-                 n_sections = 1, PreprocessRamp = PreprocessRamp()): 
+                 synchronous_data_type='momentum', Particle=Proton(), 
+                 n_stations=1, PreprocessRamp=PreprocessRamp()): 
         
         self.n_turns = int(n_turns) 
-        self.n_sections = int(n_sections)
+        self.n_stations = int(n_stations)
         
         # Ring length and checks
         self.ring_length = np.array(ring_length, ndmin = 1, dtype = float)
         self.ring_circumference = np.sum(self.ring_length)
         self.ring_radius = self.ring_circumference/(2*np.pi)         
-        if self.n_sections != len(self.ring_length): 
-            raise RuntimeError("ERROR in GeneralParameters: Number of"+
-                " sections and ring length size do not match!")    
+        if self.n_stations != len(self.ring_length): 
+            raise RuntimeError("ERROR in Ring: Number of sections and ring" +
+                " length size do not match!")    
         
         # Momentum compaction, checks, and derived slippage factors
         self.alpha = np.array(alpha, ndmin = 2, dtype = float) 
         self.alpha_order = int(self.alpha.shape[1])
         if self.alpha_order > 3:
             warnings.filterwarnings("once")
-            warnings.warn("WARNING in GeneralParameters: Momentum compaction"+
-                " factor is implemented only up to 2nd order. Higher orders"+
-                " are ignored.")
+            warnings.warn("WARNING in Ring: Momentum compaction factor is" +
+                " implemented only up to 2nd order. Higher orders are" +
+                " ignored.")
             self.alpha_order = 3         
-        if self.n_sections != self.alpha.shape[0]:
-            raise RuntimeError("ERROR in GeneralParameters: Number of"+
-                " sections and size of momentum compaction do not match!")    
+        if self.n_stations != self.alpha.shape[0]:
+            raise RuntimeError("ERROR in Ring: Number of sections and size" +
+                " of momentum compaction do not match!")    
 
         # Primary particle mass and charge used for energy calculations
         self.Particle = Particle
@@ -189,8 +188,8 @@ class GeneralParameters(object):
             self.momentum = synchronous_data[1]
             synchronous_data = synchronous_data[1]
             if len(self.cycle_time) != len(self.momentum):
-                raise RuntimeError("ERROR in GeneralParameters: synchronous"+
-                    " data does not match the time data")
+                raise RuntimeError("ERROR in Ring: synchronous data does not" +
+                    " match the time data")
         # Convert synchronous data to momentum, if necessary
         if synchronous_data_type != 'momentum':
             if PreprocessRamp:
@@ -198,8 +197,8 @@ class GeneralParameters(object):
                     Particle = Particle, 
                     synchronous_data_type = synchronous_data_type)
             else:
-                raise RuntimeError("ERROR in GeneralParameters: synchronous"+
-                    " data type conversion requires a PreprocessRamp class")
+                raise RuntimeError("ERROR in Ring: synchronous data type" +
+                    " conversion requires a PreprocessRamp class")
                 
         # Synchronous momentum and checks
         if type(synchronous_data)==tuple:
@@ -208,18 +207,18 @@ class GeneralParameters(object):
                 self.momentum)
         else:
             self.momentum = np.array(synchronous_data, ndmin = 2)
-        if self.n_sections != self.momentum.shape[0]:
-            raise RuntimeError("ERROR in GeneralParameters: Number of"+
-                " sections and momentum data do not match!")           
-        if self.n_sections > 1:
+        if self.n_stations != self.momentum.shape[0]:
+            raise RuntimeError("ERROR in Ring: Number of sections and" +
+                " momentum data do not match!")           
+        if self.n_stations > 1:
             if self.momentum.shape[1] == 1:
                 self.momentum = self.momentum*np.ones(self.n_turns + 1)
         else:
             if self.momentum.size == 1:
                 self.momentum = self.momentum*np.ones(self.n_turns + 1)
         if not self.momentum.shape[1] == self.n_turns + 1:
-                raise RuntimeError("ERROR in GeneralParameters: The momentum"+
-                    " program does not match the proper length (n_turns+1)")
+                raise RuntimeError("ERROR in Ring: The momentum program does" +
+                    " not match the proper length (n_turns+1)")
          
         # Derived from momentum
         self.beta = np.sqrt(1/(1 + (self.mass/self.momentum)**2))
@@ -258,16 +257,16 @@ class GeneralParameters(object):
     def _eta0(self):
         """ Function to calculate the zeroth order slippage factor eta_0 """
 
-        self.eta_0 = np.empty([self.n_sections, self.n_turns+1])        
-        for i in range(0, self.n_sections):
+        self.eta_0 = np.empty([self.n_stations, self.n_turns+1])        
+        for i in range(0, self.n_stations):
             self.eta_0[i] = self.alpha[i,0] - self.gamma[i]**-2 
    
     
     def _eta1(self):
         """ Function to calculate the first order slippage factor eta_1 """
                 
-        self.eta_1 = np.empty([self.n_sections, self.n_turns+1])        
-        for i in range(0, self.n_sections):
+        self.eta_1 = np.empty([self.n_stations, self.n_turns+1])        
+        for i in range(0, self.n_stations):
             self.eta_1[i] = 3*self.beta[i]**2/(2*self.gamma[i]**2) + \
                 self.alpha[i,1] - self.alpha[i,0]*self.eta_0[i]
         
@@ -275,8 +274,8 @@ class GeneralParameters(object):
     def _eta2(self):
         """ Function to calculate the second order slippage factor eta_2 """
                 
-        self.eta_2 = np.empty([self.n_sections, self.n_turns+1])        
-        for i in range(0, self.n_sections):
+        self.eta_2 = np.empty([self.n_stations, self.n_turns+1])        
+        for i in range(0, self.n_stations):
             self.eta_2[i] = - self.beta[i]**2*(5*self.beta[i]**2 - 1)/ \
                 (2*self.gamma[i]**2) + self.alpha[i,2] - 2*self.alpha[i,0]* \
                 self.alpha[i,1] + self.alpha[i,1]/self.gamma[i]**2 + \

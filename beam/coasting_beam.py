@@ -8,7 +8,7 @@
 # Project website: http://blond.web.cern.ch/
 
 '''
-**Module to generate coasting beams**
+**Module to generate coasting beam**
 
 :Authors: **Simon Albright**
 '''

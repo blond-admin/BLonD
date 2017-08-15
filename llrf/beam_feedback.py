@@ -28,19 +28,19 @@ class BeamFeedback(object):
     The phase loop acts directly on the RF frequency of all harmonics and
     affects the RF phase as well.
     '''    
-    def __init__(self, GeneralParameters, RFSectionParameters, Slices, 
+    def __init__(self, Ring, RFStation, Profile, 
                  configuration,
                  PhaseNoise = None, 
                  LHCNoiseFB = None, delay = 0):
         
-        #: | *Import GeneralParameters*
-        self.general_params = GeneralParameters
+        #: | *Import Ring*
+        self.ring = Ring
 
-        #: | *Import RFSectionParameters*
-        self.rf_params = RFSectionParameters
+        #: | *Import RFStation*
+        self.rf_params = RFStation
         
-        #: | *Import Slices*
-        self.slices = Slices
+        #: | *Import Profile*
+        self.profile = Profile
 
         #: | *Machine-dependent configuration of LLRF system.*
         self.config = configuration
@@ -115,7 +115,7 @@ class BeamFeedback(object):
         # PSB CONFIGURATION        
         elif self.machine == 'PSB':
             
-            self.gain = self.gain * np.ones(GeneralParameters.n_turns+1)
+            self.gain = self.gain * np.ones(Ring.n_turns+1)
             
             #: | *Radial loop gain, proportional [1] and integral [1/s].*
             if 'RL_gain' not in self.config:  
@@ -123,8 +123,8 @@ class BeamFeedback(object):
             else: 
                 self.gain2 = self.config['RL_gain'] 
             
-            self.gain2[0] = self.gain2[0] * np.ones(GeneralParameters.n_turns+1)
-            self.gain2[1] = self.gain2[1] * np.ones(GeneralParameters.n_turns+1)
+            self.gain2[0] = self.gain2[0] * np.ones(Ring.n_turns+1)
+            self.gain2[1] = self.gain2[1] * np.ones(Ring.n_turns+1)
                         
             #: | *Optional: PL & RL acting only in certain time intervals/turns.*
             self.dt = 0
@@ -138,7 +138,7 @@ class BeamFeedback(object):
             self.PL_counter = 0
             self.on_time = np.array([])
             
-            self.precalculate_time(GeneralParameters)
+            self.precalculate_time(Ring)
         
             #: | *Array of transfer function coefficients.*
             if 'coefficients' not in self.config:  
@@ -180,7 +180,7 @@ class BeamFeedback(object):
         #: | *Optional import of RF PhaseNoise object*       
         self.RFnoise = PhaseNoise
         if (self.RFnoise != None and 
-            (len(self.RFnoise.dphi) != GeneralParameters.n_turns + 1)):
+            (len(self.RFnoise.dphi) != Ring.n_turns + 1)):
             raise RuntimeError('Phase noise has to have a length of n_turns + 1')
         
         #: | *Optional import of amplitude-scaling feedback object LHCNoiseFB*       
@@ -213,7 +213,7 @@ class BeamFeedback(object):
         self.rf_params.phi_rf[:,counter] += self.rf_params.dphi_rf
     
 
-    def precalculate_time(self, GeneralParameters):
+    def precalculate_time(self, Ring):
         '''
         *For machines like the PSB, where the PL acts only in certain time
         intervals, pre-calculate on which turns to act.*
@@ -221,11 +221,11 @@ class BeamFeedback(object):
         
         n = self.delay + 1
         
-        while n < GeneralParameters.t_rev.size: 
+        while n < Ring.t_rev.size: 
             summa = 0
             while summa < self.dt:
                 try:
-                    summa += GeneralParameters.t_rev[n]
+                    summa += Ring.t_rev[n]
                     n += 1
                 except:
                     self.on_time = np.append(self.on_time, 0)
@@ -248,12 +248,12 @@ class BeamFeedback(object):
         phi_rf = self.rf_params.phi_rf[0,self.rf_params.counter[0]]
         
         # Convolve with window function
-        scoeff = np.trapz( np.exp(self.alpha*self.slices.bin_centers) \
-                           *np.sin(omega_rf*self.slices.bin_centers + phi_rf) \
-                           *self.slices.n_macroparticles, self.slices.bin_centers )
-        ccoeff = np.trapz( np.exp(self.alpha*self.slices.bin_centers) \
-                           *np.cos(omega_rf*self.slices.bin_centers + phi_rf) \
-                           *self.slices.n_macroparticles, self.slices.bin_centers )
+        scoeff = np.trapz( np.exp(self.alpha*self.profile.bin_centers) \
+                           *np.sin(omega_rf*self.profile.bin_centers + phi_rf) \
+                           *self.profile.n_macroparticles, self.profile.bin_centers )
+        ccoeff = np.trapz( np.exp(self.alpha*self.profile.bin_centers) \
+                           *np.cos(omega_rf*self.profile.bin_centers + phi_rf) \
+                           *self.profile.n_macroparticles, self.profile.bin_centers )
         
         # Project beam phase to (pi/2,3pi/2) range
         self.phi_beam = np.arctan(scoeff/ccoeff) + np.pi
@@ -287,14 +287,14 @@ class BeamFeedback(object):
         counter = self.rf_params.counter[0]
         
         # Correct for design orbit
-        self.average_dE = np.mean(self.slices.Beam.dE[(self.slices.Beam.dt >
-            self.slices.bin_centers[0])*(self.slices.Beam.dt <
-                                         self.slices.bin_centers[-1])])
+        self.average_dE = np.mean(self.profile.Beam.dE[(self.profile.Beam.dt >
+            self.profile.bin_centers[0])*(self.profile.Beam.dt <
+                                         self.profile.bin_centers[-1])])
         
-        self.drho = self.general_params.alpha[0,0]* \
-            self.general_params.ring_radius*self.average_dE/ \
-            (self.general_params.beta[0,counter]**2.* \
-             self.general_params.energy[0,counter])
+        self.drho = self.ring.alpha[0,0]* \
+            self.ring.ring_radius*self.average_dE/ \
+            (self.ring.beta[0,counter]**2.* \
+             self.ring.energy[0,counter])
     
     
     def radial_steering_from_freq(self):               
@@ -305,8 +305,8 @@ class BeamFeedback(object):
         counter = self.rf_params.counter[0]
         
         self.radial_steering_domega_rf = - self.rf_params.omega_rf_d[0,counter]* \
-            self.rf_params.eta_0[counter]/self.general_params.alpha[0,0]* \
-            self.reference/self.general_params.ring_radius
+            self.rf_params.eta_0[counter]/self.ring.alpha[0,0]* \
+            self.reference/self.ring.ring_radius
         
         self.rf_params.omega_rf[:,counter] += self.radial_steering_domega_rf* \
                                 self.rf_params.harmonic[:,counter]/ \
@@ -378,7 +378,7 @@ class BeamFeedback(object):
         # Frequency correction from phase loop and radial loop
         self.domega_dphi = - self.gain * self.dphi
         self.domega_dR = - np.sign(self.rf_params.eta_0[counter])*self.gain2* \
-            (self.reference - self.drho) / self.general_params.ring_radius
+            (self.reference - self.drho) / self.ring.ring_radius
         
         self.domega_rf = self.domega_dphi + self.domega_dR
 
@@ -464,7 +464,7 @@ class BeamFeedback(object):
             self.dR_over_R = (self.rf_params.omega_rf[0,counter] - 
                          self.rf_params.omega_rf_d[0,counter])/(
                          self.rf_params.omega_rf_d[0,counter] * 
-                         (1./(self.general_params.alpha[0][0]*
+                         (1./(self.ring.alpha[0][0]*
                               self.rf_params.gamma[counter]**2) - 1.))
             
             self.domega_RL = self.domega_RL + self.gain2[0][counter]*(self.dR_over_R - 

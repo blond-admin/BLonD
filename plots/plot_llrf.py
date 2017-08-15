@@ -70,7 +70,7 @@ def plot_phase_noise(time, dphi, sampling = 1, dirname = 'fig', figno = 0):
 
         
 
-def plot_PL_bunch_phase(RFSectionParameters, h5data, output_freq = 1, 
+def plot_PL_bunch_phase(RFStation, h5data, output_freq = 1, 
                         dirname = 'fig'):
     
     """
@@ -79,7 +79,7 @@ def plot_PL_bunch_phase(RFSectionParameters, h5data, output_freq = 1,
     """
 
     # Time step of plotting
-    time_step = RFSectionParameters.counter[0]
+    time_step = RFStation.counter[0]
 
     # Load/create data
     if output_freq < 1:
@@ -107,7 +107,7 @@ def plot_PL_bunch_phase(RFSectionParameters, h5data, output_freq = 1,
 
                
 
-def plot_PL_RF_phase(RFSectionParameters, h5data, output_freq = 1, 
+def plot_PL_RF_phase(RFStation, h5data, output_freq = 1, 
                     dirname = 'fig'):
     
     """
@@ -116,7 +116,7 @@ def plot_PL_RF_phase(RFSectionParameters, h5data, output_freq = 1,
     """
 
     # Time step of plotting
-    time_step = RFSectionParameters.counter[0]
+    time_step = RFStation.counter[0]
 
     # Load/create data
     if output_freq < 1:
@@ -143,7 +143,7 @@ def plot_PL_RF_phase(RFSectionParameters, h5data, output_freq = 1,
 
                
 
-def plot_PL_phase_corr(RFSectionParameters, h5data, output_freq = 1, 
+def plot_PL_phase_corr(RFStation, h5data, output_freq = 1, 
                        dirname = 'fig'):
     
     """
@@ -152,7 +152,7 @@ def plot_PL_phase_corr(RFSectionParameters, h5data, output_freq = 1,
     """
 
     # Time step of plotting
-    time_step = RFSectionParameters.counter[0]
+    time_step = RFStation.counter[0]
 
     # Load/create data
     if output_freq < 1:
@@ -180,7 +180,7 @@ def plot_PL_phase_corr(RFSectionParameters, h5data, output_freq = 1,
 
                
 
-def plot_PL_RF_freq(RFSectionParameters, h5data, output_freq = 1, 
+def plot_PL_RF_freq(RFStation, h5data, output_freq = 1, 
                     dirname = 'fig'):
     
     """
@@ -189,7 +189,7 @@ def plot_PL_RF_freq(RFSectionParameters, h5data, output_freq = 1,
     """
 
     # Time step of plotting
-    time_step = RFSectionParameters.counter[0]
+    time_step = RFStation.counter[0]
 
     # Load/create data
     if output_freq < 1:
@@ -216,7 +216,7 @@ def plot_PL_RF_freq(RFSectionParameters, h5data, output_freq = 1,
 
         
 
-def plot_PL_freq_corr(RFSectionParameters, h5data, output_freq = 1, 
+def plot_PL_freq_corr(RFStation, h5data, output_freq = 1, 
                       dirname = 'fig'):
     
     """
@@ -225,7 +225,7 @@ def plot_PL_freq_corr(RFSectionParameters, h5data, output_freq = 1,
     """
 
     # Time step of plotting
-    time_step = RFSectionParameters.counter[0]
+    time_step = RFStation.counter[0]
 
     # Load/create data
     if output_freq < 1:
@@ -253,7 +253,7 @@ def plot_PL_freq_corr(RFSectionParameters, h5data, output_freq = 1,
 
         
 
-def plot_RF_phase_error(RFSectionParameters, h5data, output_freq = 1, 
+def plot_RF_phase_error(RFStation, h5data, output_freq = 1, 
                        dirname = 'fig'):
     
     """
@@ -262,7 +262,7 @@ def plot_RF_phase_error(RFSectionParameters, h5data, output_freq = 1,
     """
 
     # Time step of plotting
-    time_step = RFSectionParameters.counter[0]
+    time_step = RFStation.counter[0]
 
     # Load/create data
     if output_freq < 1:
@@ -289,7 +289,7 @@ def plot_RF_phase_error(RFSectionParameters, h5data, output_freq = 1,
     
     
      
-def plot_RL_radial_error(RFSectionParameters, h5data, output_freq = 1, 
+def plot_RL_radial_error(RFStation, h5data, output_freq = 1, 
                          dirname = 'fig'):
     
     """
@@ -298,7 +298,7 @@ def plot_RL_radial_error(RFSectionParameters, h5data, output_freq = 1,
     """
 
     # Time step of plotting
-    time_step = RFSectionParameters.counter[0]
+    time_step = RFStation.counter[0]
 
     # Load/create data
     if output_freq < 1:
@@ -325,7 +325,7 @@ def plot_RL_radial_error(RFSectionParameters, h5data, output_freq = 1,
     
                
 
-def plot_COM_motion(GeneralParameters, RFSectionParameters, h5data,  
+def plot_COM_motion(Ring, RFStation, h5data,  
                     output_freq = 1, dirname = 'fig'):
     """
     Evolution of bunch C.O.M. in longitudinal phase space. 
@@ -333,7 +333,7 @@ def plot_COM_motion(GeneralParameters, RFSectionParameters, h5data,
     """
 
     # Time step of plotting
-    time_step = RFSectionParameters.counter[0]
+    time_step = RFStation.counter[0]
 
     # Load/create data
     if output_freq < 1:
@@ -365,7 +365,7 @@ def plot_COM_motion(GeneralParameters, RFSectionParameters, h5data,
 
     
 
-def plot_LHCNoiseFB(RFSectionParameters, LHCNoiseFB, h5data, output_freq = 1, 
+def plot_LHCNoiseFB(RFStation, LHCNoiseFB, h5data, output_freq = 1, 
                     dirname = 'fig'):
     
     """
@@ -374,7 +374,7 @@ def plot_LHCNoiseFB(RFSectionParameters, LHCNoiseFB, h5data, output_freq = 1,
     """
 
     # Time step of plotting
-    time_step = RFSectionParameters.counter[0]
+    time_step = RFStation.counter[0]
 
     # Load/create data
     if output_freq < 1:
@@ -402,7 +402,7 @@ def plot_LHCNoiseFB(RFSectionParameters, LHCNoiseFB, h5data, output_freq = 1,
 
 
     
-def plot_LHCNoiseFB_FWHM(RFSectionParameters, LHCNoiseFB, h5data, 
+def plot_LHCNoiseFB_FWHM(RFStation, LHCNoiseFB, h5data, 
                          output_freq = 1, dirname = 'fig'):
     
     """
@@ -411,7 +411,7 @@ def plot_LHCNoiseFB_FWHM(RFSectionParameters, LHCNoiseFB, h5data,
     """
 
     # Time step of plotting
-    time_step = RFSectionParameters.counter[0]
+    time_step = RFStation.counter[0]
 
     # Load/create data
     if output_freq < 1:
@@ -438,7 +438,7 @@ def plot_LHCNoiseFB_FWHM(RFSectionParameters, LHCNoiseFB, h5data,
 
 
 
-def plot_LHCNoiseFB_FWHM_bbb(RFSectionParameters, LHCNoiseFB, h5data, 
+def plot_LHCNoiseFB_FWHM_bbb(RFStation, LHCNoiseFB, h5data, 
                              output_freq = 1, dirname = 'fig'):
     
     """
@@ -447,7 +447,7 @@ def plot_LHCNoiseFB_FWHM_bbb(RFSectionParameters, LHCNoiseFB, h5data,
     """
 
     # Time step of plotting
-    time_step = RFSectionParameters.counter[0]
+    time_step = RFStation.counter[0]
 
     # Load/create data
     if output_freq < 1:

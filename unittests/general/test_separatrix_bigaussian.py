@@ -19,11 +19,11 @@ from __future__ import division, print_function
 import unittest
 import numpy as np
 
-from input_parameters.general_parameters import GeneralParameters
-from input_parameters.rf_parameters import RFSectionParameters
-from beams.beams import Beam, Proton
-from beams.distributions import bigaussian
-from beams.slices import Slices
+from input_parameters.ring import Ring
+from input_parameters.rf_parameters import RFStation
+from beam.beam import Beam, Proton
+from beam.distributions import bigaussian
+from beam.profile import Profile
 from llrf.beam_feedback import BeamFeedback
 from trackers.utilities import separatrix
 
@@ -63,36 +63,36 @@ class TestSeparatrixBigaussian(unittest.TestCase):
     
             if acceleration == True:
                 # eta < 0, acceleration
-                general_params = GeneralParameters(N_t, C, alpha_1, 
+                general_params = Ring(N_t, C, alpha_1, 
                     np.linspace(p_1i, p_1f, N_t + 1), Particle = Proton())
             elif acceleration == False: 
                 # eta < 0, deceleration
-                general_params = GeneralParameters(N_t, C, alpha_1, 
+                general_params = Ring(N_t, C, alpha_1, 
                     np.linspace(p_1f, p_1i, N_t + 1), Particle = Proton())
         
             if singleRF == True:
-                rf_params = RFSectionParameters(general_params, 1, 9, 1.8e6, 
+                rf_params = RFStation(general_params, 1, 9, 1.8e6, 
                     np.pi + 1., accelerating_systems = 'as_single')
             elif singleRF == False:
-                rf_params = RFSectionParameters(general_params, 2, h, V, phi_1, 
+                rf_params = RFStation(general_params, 2, h, V, phi_1, 
                     accelerating_systems = 'all')
         
         elif( negativeEta == False ): 
 
             if acceleration == True:
                 # eta > 0, acceleration
-                general_params = GeneralParameters(N_t, C, alpha_2, 
+                general_params = Ring(N_t, C, alpha_2, 
                     np.linspace(p_2i, p_2f, N_t + 1), Particle = Proton())
             elif acceleration == False: 
                 # eta > 0, deceleration
-                general_params = GeneralParameters(N_t, C, alpha_2, 
+                general_params = Ring(N_t, C, alpha_2, 
                     np.linspace(p_2f, p_2i, N_t + 1), Particle = Proton())
                 
             if singleRF == True:
-                rf_params = RFSectionParameters(general_params, 1, 9, 1.8e6, 
+                rf_params = RFStation(general_params, 1, 9, 1.8e6, 
                     1., accelerating_systems = 'as_single')
             elif singleRF == False:
-                rf_params = RFSectionParameters(general_params, 2, h, V, phi_2, 
+                rf_params = RFStation(general_params, 2, h, V, phi_2, 
                     accelerating_systems = 'all')
 
         # Define beam and distribution
@@ -100,7 +100,7 @@ class TestSeparatrixBigaussian(unittest.TestCase):
         bigaussian(general_params, rf_params, beam, tau_0/4, 
                                 seed = 1234) 
         #print(np.mean(beam.dt))
-        slices = Slices(rf_params, beam, 1000, cut_left=0.e-9, 
+        slices = Profile(rf_params, beam, 1000, cut_left=0.e-9, 
                         cut_right=600.e-9)
         slices.track()
         configuration = {'machine': 'LHC', 
@@ -146,7 +146,6 @@ class TestSeparatrixBigaussian(unittest.TestCase):
             msg = 'Failed test_1 in TestSeparatrixBigaussian on dE_sep[3]')
         self.assertAlmostEqual(self.dE_sep[5], 44050421.49141181, delta = 1.e2,
             msg = 'Failed test_1 in TestSeparatrixBigaussian on dE_sep[5]')
-        print(self.dE_sep)
 
     def test_2(self):
 

@@ -21,12 +21,11 @@ import numpy
 
 # BLonD imports
 # --------------
-from input_parameters.general_parameters import GeneralParameters
-from input_parameters.rf_parameters import RFSectionParameters, calculate_Q_s,\
-                                            calculate_phi_s
-from beams.beams import Beam
-from beams.distributions import matched_from_distribution_function
-from trackers.tracker import FullRingAndRF,RingAndRFTracker
+from input_parameters.ring import Ring
+from input_parameters.rf_parameters import RFStation
+from beam.beam import Beam
+#from beam.distributions import matched_from_distribution_function
+#from trackers.tracker import FullRingAndRF, RingAndRFTracker
 
 class testRFParamClass(unittest.TestCase):
     
@@ -51,7 +50,7 @@ class testRFParamClass(unittest.TestCase):
 
         # Define general parameters
         # --------------------------
-        self.general_params = GeneralParameters(N_turn, C, alpha, p)
+        self.general_params = Ring(N_turn, C, alpha, p)
 
 
         # Define beam
@@ -60,8 +59,7 @@ class testRFParamClass(unittest.TestCase):
         
         # Define RF section
         # -----------------
-        self.rf_params = RFSectionParameters(self.general_params, 1, [4620],
-                                [7e6], [0.])
+        self.rf_params = RFStation(self.general_params, 1, [4620], [7e6], [0.])
 
 
     # Run after every test

@@ -1,8 +1,8 @@
 # coding: utf8
 # Copyright 2014-2017 CERN. This software is distributed under the
-# terms of the GNU General Public Licence version 3 (GPL Version 3), 
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
 # copied verbatim in the file LICENCE.md.
-# In applying this licence, CERN does not waive the privileges and immunities 
+# In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
@@ -153,59 +153,59 @@ class RingAndRFTracker(object):
 
     Parameters
     ----------
-    RFSectionParameters : class
-        A RFSectionParameters type class
+    RFStation : class
+        A RFStation type class
     counter : [int] 
         Inherited from
-        :py:attr:`input_parameters.rf_parameters.RFSectionParameters.counter`
+        :py:attr:`input_parameters.rf_parameters.RFStation.counter`
     length_ratio : float 
         Inherited from
-        :py:attr:`input_parameters.general_parameters.GeneralParameters.length_ratio`
+        :py:attr:`input_parameters.ring.Ring.length_ratio`
     section_length : float 
         Inherited from
-        :py:attr:`input_parameters.general_parameters.GeneralParameters.section_length`
+        :py:attr:`input_parameters.ring.Ring.section_length`
     t_rev : float 
         Inherited from
-        :py:attr:`input_parameters.general_parameters.GeneralParameters.t_rev`
+        :py:attr:`input_parameters.ring.Ring.t_rev`
     n_rf : float 
         Inherited from
-        :py:attr:`input_parameters.rf_parameters.RFSectionParameters.n_rf`
+        :py:attr:`input_parameters.rf_parameters.RFStation.n_rf`
     beta : float 
         Inherited from
-        :py:attr:`input_parameters.general_parameters.GeneralParameters.beta`
+        :py:attr:`input_parameters.ring.Ring.beta`
     charge : float 
         Inherited from
-        :py:attr:`input_parameters.general_parameters.GeneralParameters.Particle.charge`
+        :py:attr:`input_parameters.ring.Ring.Particle.charge`
     harmonic : float array
         Inherited from
-        :py:attr:`input_parameters.rf_parameters.RFSectionParameters.harmonic`
+        :py:attr:`input_parameters.rf_parameters.RFStation.harmonic`
     voltage : float array
         Inherited from
-        :py:attr:`input_parameters.rf_parameters.RFSectionParameters.voltage`
+        :py:attr:`input_parameters.rf_parameters.RFStation.voltage`
     phi_noise : float array
         Inherited from
-        :py:attr:`input_parameters.rf_parameters.RFSectionParameters.phi_noise`
+        :py:attr:`input_parameters.rf_parameters.RFStation.phi_noise`
     phi_rf : float array
         Inherited from
-        :py:attr:`input_parameters.rf_parameters.RFSectionParameters.phi_rf`
+        :py:attr:`input_parameters.rf_parameters.RFStation.phi_rf`
     phi_s : float array
         Inherited from
-        :py:attr:`input_parameters.rf_parameters.RFSectionParameters.phi_s`
+        :py:attr:`input_parameters.rf_parameters.RFStation.phi_s`
     eta_0 : float array
         Inherited from
-        :py:attr:`input_parameters.general_parameters.GeneralParameters.eta_0`
+        :py:attr:`input_parameters.ring.Ring.eta_0`
     eta_1 : float array
         Inherited from
-        :py:attr:`input_parameters.general_parameters.GeneralParameters.eta_1`
+        :py:attr:`input_parameters.ring.Ring.eta_1`
     eta_2 : float array
         Inherited from
-        :py:attr:`input_parameters.general_parameters.GeneralParameters.eta_2`
+        :py:attr:`input_parameters.ring.Ring.eta_2`
     alpha_order : float array
         Inherited from
-        :py:attr:`input_parameters.general_parameters.GeneralParameters.alpha_order`
+        :py:attr:`input_parameters.ring.Ring.alpha_order`
     acceleration_kick : float array
         Inherited from
-        :py:attr:`input_parameters.general_parameters.GeneralParameters.delta_E`
+        :py:attr:`input_parameters.ring.Ring.delta_E`
         and multiplied by -1
     Beam : class
         A Beam type class
@@ -226,32 +226,31 @@ class RingAndRFTracker(object):
 
     """
         
-    def __init__(self, RFSectionParameters, Beam, solver = 'simple', 
-                 BeamFeedback = None, NoiseFeedback = None, 
-                 CavityFeedback = None, periodicity = False, 
-                 interpolation = False, Slices = None,  
+    def __init__(self, RFStation, Beam, solver = 'simple', BeamFeedback = None,
+                 NoiseFeedback = None, CavityFeedback = None, 
+                 periodicity = False, interpolation = False, Profile = None,  
                  TotalInducedVoltage = None):
         
         # Imports from RF parameters
-        self.rf_params = RFSectionParameters
-        self.counter = RFSectionParameters.counter 
-        self.length_ratio = RFSectionParameters.length_ratio
-        self.section_length = RFSectionParameters.section_length
-        self.t_rev = RFSectionParameters.t_rev
-        self.n_rf = RFSectionParameters.n_rf
-        self.beta = RFSectionParameters.beta
-        self.charge = RFSectionParameters.Particle.charge
-        self.harmonic = RFSectionParameters.harmonic 
-        self.voltage = RFSectionParameters.voltage  
-        self.phi_noise = RFSectionParameters.phi_noise
-        self.phi_rf = RFSectionParameters.phi_rf_d
-        self.phi_s = RFSectionParameters.phi_s
-        self.omega_rf = RFSectionParameters.omega_rf
-        self.eta_0 = RFSectionParameters.eta_0
-        self.eta_1 = RFSectionParameters.eta_1
-        self.eta_2 = RFSectionParameters.eta_2
-        self.alpha_order = RFSectionParameters.alpha_order
-        self.acceleration_kick = - RFSectionParameters.delta_E  
+        self.rf_params = RFStation
+        self.counter = RFStation.counter 
+        self.length_ratio = RFStation.length_ratio
+        self.section_length = RFStation.section_length
+        self.t_rev = RFStation.t_rev
+        self.n_rf = RFStation.n_rf
+        self.beta = RFStation.beta
+        self.charge = RFStation.Particle.charge
+        self.harmonic = RFStation.harmonic 
+        self.voltage = RFStation.voltage  
+        self.phi_noise = RFStation.phi_noise
+        self.phi_rf = RFStation.phi_rf_d
+        self.phi_s = RFStation.phi_s
+        self.omega_rf = RFStation.omega_rf
+        self.eta_0 = RFStation.eta_0
+        self.eta_1 = RFStation.eta_1
+        self.eta_2 = RFStation.eta_2
+        self.alpha_order = RFStation.alpha_order
+        self.acceleration_kick = - RFStation.delta_E  
 
         # Other imports
         self.beam = Beam
@@ -276,14 +275,14 @@ class RingAndRFTracker(object):
         except:
             raise RuntimeError("ERROR in RingAndRFTracker: Choice of"+
                 " interpolation not recognised!")    
-        self.slices = Slices
+        self.profile = Profile
         self.totalInducedVoltage = TotalInducedVoltage        
-        if self.interpolation and self.slices is None:
+        if self.interpolation and self.profile is None:
             raise RuntimeError("ERROR in RingAndRFTracker: Please specify a"+
-                " Slices object to use the interpolation option")
-        if self.cavityFB and self.slices is None:
+                " Profile object to use the interpolation option")
+        if self.cavityFB and self.profile is None:
             raise RuntimeError("ERROR in RingAndRFTracker: Please specify a"+
-                " Slices object to use the CavityFeedback class")
+                " Profile object to use the CavityFeedback class")
         else:
             self.interpolation = True # obligatory interpolation if cavFB on
         
@@ -347,10 +346,10 @@ class RingAndRFTracker(object):
             ctypes.c_int(len(beam_dt)))
 
 
-#    def rf_voltage_calculation(self, turn, Slices):
+#    def rf_voltage_calculation(self, turn, Profile):
     def rf_voltage_calculation(self):
         """Function calculating the total, discretised RF voltage seen by the
-        beam at a given turn. Requires a Slices object.
+        beam at a given turn. Requires a Profile object.
         
         """
         
@@ -372,19 +371,19 @@ class RingAndRFTracker(object):
         
         if self.cavityFB: # FIX FOR DIFFERENT HARMONICS!
             self.rf_voltage = np.sum(voltages.T*self.cavityFB.v_corr* \
-                np.sin(omega_rf.T*self.slices.bin_centers + 
+                np.sin(omega_rf.T*self.profile.bin_centers + 
                        phi_rf.T*self.cavityFB.v_corr), axis = 0)
         else:
             self.rf_voltage = np.sum(voltages.T* \
-                np.sin(omega_rf.T*self.slices.bin_centers + phi_rf.T), 
+                np.sin(omega_rf.T*self.profile.bin_centers + phi_rf.T), 
                 axis = 0)
         
                 
     def track(self):
         """Tracking method for the section. Applies first the kick, then the 
         drift. Calls also RF/beam feedbacks if applicable. Updates the counter
-        of the corresponding RFSectionParameters class and the energy-related 
-        variables of the Beam class.
+        of the corresponding RFStation class and the energy-related variables
+        of the Beam class.
         
         """
         
@@ -398,8 +397,8 @@ class RingAndRFTracker(object):
                     self.phi_noise[:,self.counter[0]]
 
         # Determine phase loop correction on RF phase and frequency
-        if self.PL != None and self.counter[0]>=self.PL.delay:
-            self.PL.track()  
+        if self.beamFB != None and self.counter[0]>=self.beamFB.delay:
+            self.beamFB.track()  
         
         if self.periodicity:
             
@@ -450,7 +449,7 @@ class RingAndRFTracker(object):
         else:
             
             if self.interpolation:
-#                self.rf_voltage_calculation(self.counter[0], self.slices)
+#                self.rf_voltage_calculation(self.counter[0], self.profile)
                 self.rf_voltage_calculation()
                 if self.totalInducedVoltage is not None:
                     self.total_voltage = self.rf_voltage + self.totalInducedVoltage.induced_voltage
@@ -460,9 +459,9 @@ class RingAndRFTracker(object):
                 libblond.linear_interp_kick(self.beam.dt.ctypes.data_as(ctypes.c_void_p),
                     self.beam.dE.ctypes.data_as(ctypes.c_void_p), 
                     self.total_voltage.ctypes.data_as(ctypes.c_void_p), 
-                    self.slices.bin_centers.ctypes.data_as(ctypes.c_void_p),
+                    self.profile.bin_centers.ctypes.data_as(ctypes.c_void_p),
                     ctypes.c_double(self.beam.charge),
-                    ctypes.c_int(self.slices.n_slices),
+                    ctypes.c_int(self.profile.n_slices),
                     ctypes.c_int(self.beam.n_macroparticles),
                     ctypes.c_double(self.acceleration_kick[self.counter[0]]))
                 

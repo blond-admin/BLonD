@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 from plots.plot import fig_folder
 from scipy.constants import c
 from scipy.interpolate import splrep, splev
-from beams.beams import Proton
+from beam.beam import Proton
 
 
 
@@ -53,8 +53,8 @@ def load_data(filename, ignore=0, delimiter=None):
 
 
 class PreprocessRamp(object):
-    r""" Class to preprocess the synchronous data for GeneralParameters, 
-    interpolating it to every turn.
+    r""" Class to preprocess the synchronous data for Ring, nterpolating it to
+    every turn.
     
     Parameters
     ----------
@@ -85,9 +85,9 @@ class PreprocessRamp(object):
         Decimation value for plotting; default is 1
     
     """
-    def __init__(self, interpolation='linear', smoothing = 0, flat_bottom = 0, 
-                 flat_top = 0, t_start = 0, t_end = -1, plot = False, 
-                 figdir= 'fig', figname = 'preprocess_ramp', sampling = 1):
+    def __init__(self, interpolation='linear', smoothing=0, flat_bottom=0, 
+                 flat_top=0, t_start=0, t_end=-1, plot=False, figdir='fig',
+                 figname='preprocess_ramp', sampling=1):
         
         if interpolation in ['linear', 'cubic', 'derivative']:
             self.interpolation = str(interpolation)
@@ -121,8 +121,8 @@ class PreprocessRamp(object):
                                " not recognised. Aborting...")            
             
 
-    def convert_data(self, synchronous_data, Particle = Proton(),
-                     synchronous_data_type = 'momentum'):
+    def convert_data(self, synchronous_data, Particle=Proton(),
+                     synchronous_data_type='momentum'):
     
         if synchronous_data_type == 'momentum':
             momentum = synchronous_data
@@ -146,7 +146,7 @@ class PreprocessRamp(object):
         mass : float
             Particle mass [eV]
         circumference : float
-            Machine circumference [m]
+            Ring circumference [m]
         time : float array
             Time points [s] corresponding to momentum data
         momentum : float array
@@ -349,7 +349,7 @@ class PreprocessRamp(object):
 
 class PreprocessRFParams(object):
     r""" Class to preprocess the RF data (voltage, phase, harmonic) for 
-    RFSectionParameters, interpolating it to every turn.
+    RFStation, interpolating it to every turn.
     
     Parameters
     ----------
@@ -405,13 +405,13 @@ class PreprocessRFParams(object):
         self.omega_rf = omega_rf            
     
     
-    def preprocess(self, GeneralParameters, time_arrays, data_arrays):
+    def preprocess(self, Ring, time_arrays, data_arrays):
         r"""Function to pre-process RF data, interpolating it to every turn.
 
         Parameters
         ----------
-        GeneralParameters : class
-            A GeneralParameters type class
+        Ring : class
+            A Ring type class
         time_arrays : list of float arrays
             Time corresponding to data points; input one array for each data 
             array
@@ -425,7 +425,7 @@ class PreprocessRFParams(object):
 
         """
         
-        cumulative_time = GeneralParameters.cycle_time
+        cumulative_time = Ring.cycle_time
         time_arrays = time_arrays
         data_arrays = data_arrays
  
@@ -474,12 +474,13 @@ class PreprocessRFParams(object):
 
 
 
-def combine_rf_functions(function_list, merge_type = 'linear', 
-                         resolution = 1e-3, GeneralParameters = None, 
-                         main_h = True):
+def combine_rf_functions(function_list, merge_type='linear', resolution=1e-3, 
+                         Ring=None, main_h=True):
 
 
-    r"""Function to combine different RF programs.  Each program is passed in a tuple with complete function (single valued or numpy array) and 2-list [start_time, stop_time].
+    r"""Function to combine different RF programs. Each program is passed in a
+    tuple with complete function (single valued or numpy array) and 2-list
+    [start_time, stop_time].
 
     Parameters
     ----------
@@ -495,8 +496,8 @@ def combine_rf_functions(function_list, merge_type = 'linear',
             linear_tune : for use with voltages, provides a linear change in the tune from function_1[stop_time] to function_2[start_time]
     resolution : float
         the time in seconds between points of the interpolation
-    GeneralParameters : class
-        A GeneralParameters type class, only used with linear_tune merge_type
+    Ring : class
+        A Ring type class, only used with linear_tune merge_type
     main_h : boolean
         if main_h is True dE is considered in linear_tune merge_type, otherwise dE is set to 0
 
@@ -619,8 +620,8 @@ def combine_rf_functions(function_list, merge_type = 'linear',
             #harmonic, charge and 2pi are constant so can be ignored
             if not isinstance(function_list[i][0], np.ndarray):
                 
-                initPars = GeneralParameters.parameters_at_time(fullTime[-1])
-                finalPars = GeneralParameters.parameters_at_time(function_list[i][1][0])
+                initPars = Ring.parameters_at_time(fullTime[-1])
+                finalPars = Ring.parameters_at_time(function_list[i][1][0])
                 
                 vInit = fullFunction[-1]
                 vFin = function_list[i][0]
@@ -642,7 +643,7 @@ def combine_rf_functions(function_list, merge_type = 'linear',
                                    nSteps)
                 tuneInterp = np.linspace(initTune, finalTune, nSteps)
                 
-                mergePars = GeneralParameters.parameters_at_time(time)
+                mergePars = Ring.parameters_at_time(time)
                 
                 if main_h is False:
                     mergePars['delta_E'] *= 0
@@ -671,8 +672,8 @@ def combine_rf_functions(function_list, merge_type = 'linear',
                 nSteps = int(tDur/resolution[i-1])
                 time = np.linspace(fullTime[-1], funcTime[0], nSteps)
                 
-                initPars = GeneralParameters.parameters_at_time(fullTime[-1])
-                finalPars = GeneralParameters.parameters_at_time(funcTime[0])
+                initPars = Ring.parameters_at_time(fullTime[-1])
+                finalPars = Ring.parameters_at_time(funcTime[0])
                 
                 if main_h is False:
                     initPars['delta_E'] = 0.
@@ -689,7 +690,7 @@ def combine_rf_functions(function_list, merge_type = 'linear',
                     (finalPars['beta']**2 * finalPars['energy']) )
                 tuneInterp = np.linspace(initTune, finalTune, nSteps)
                 
-                mergePars = GeneralParameters.parameters_at_time(time)
+                mergePars = Ring.parameters_at_time(time)
                 
                 if main_h is False:
                     mergePars['delta_E'] *= 0

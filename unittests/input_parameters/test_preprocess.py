@@ -16,7 +16,7 @@ import math
 
 
 from input_parameters.preprocess import PreprocessRamp
-from beams.beams import Proton
+from beam.beam import Proton
 
 
 class test_preprocess(unittest.TestCase):

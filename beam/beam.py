@@ -7,7 +7,8 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Module containing the fundamental beam class with methods to compute beam statistics
+"""Module containing the fundamental beam class with methods to compute beam 
+statistics
 
 :Authors: **Danilo Quartullo**, **Helga Timko**, **ALexandre Lasheen**
 
@@ -59,7 +60,7 @@ class Beam(object):
     
     Parameters
     ----------
-    GeneralParameters : GeneralParameters
+    Ring : Ring
         Used to import different quantities such as the mass and the energy.
     n_macroparticles : int
         total number of macroparticles.
@@ -112,28 +113,28 @@ class Beam(object):
 
     Examples
     --------
-    >>> from input_parameters.general_parameters import GeneralParameters
-    >>> from beams.beams import Beam
+    >>> from input_parameters.ring import Ring
+    >>> from beam.beam import Beam
     >>>
     >>> n_turns = 10
     >>> C = 100
     >>> eta = 0.03
     >>> momentum = 26e9
-    >>> general_parameters = GeneralParameters(n_turns, C, eta, momentum, 'proton')
+    >>> ring = Ring(n_turns, C, eta, momentum, 'proton')
     >>> n_macroparticle = 1e6
     >>> intensity = 1e11
     >>>
-    >>> my_beam = Beam(GeneralParameters, n_macroparticle, intensity)
+    >>> my_beam = Beam(ring, n_macroparticle, intensity)
     """
 
-    def __init__(self, GeneralParameters, n_macroparticles, intensity):
+    def __init__(self, Ring, n_macroparticles, intensity):
 
-        self.mass = GeneralParameters.mass
-        self.charge = int(GeneralParameters.charge)
-        self.beta = GeneralParameters.beta[0][0]
-        self.gamma = GeneralParameters.gamma[0][0]
-        self.energy = GeneralParameters.energy[0][0]
-        self.momentum = GeneralParameters.momentum[0][0]
+        self.mass = Ring.mass
+        self.charge = int(Ring.charge)
+        self.beta = Ring.beta[0][0]
+        self.gamma = Ring.gamma[0][0]
+        self.energy = Ring.energy[0][0]
+        self.momentum = Ring.momentum[0][0]
         self.dt = np.zeros([int(n_macroparticles)])
         self.dE = np.zeros([int(n_macroparticles)])
         self.mean_dt = 0.
@@ -210,21 +211,21 @@ class Beam(object):
 
 
 
-    def losses_separatrix(self, GeneralParameters, RFSectionParameters):
+    def losses_separatrix(self, Ring, RFStation):
         '''Beam losses based on separatrix.
 
         Set to 0 all the particle's id not in the separatrix anymore.
         
         Parameters
         ----------
-        GeneralParameters : GeneralParameters
+        Ring : Ring
             Used to call the function is_in_separatrix.
-        RFSectionParameters : RFSectionParameters
+        RFStation : RFStation
             Used to call the function is_in_separatrix.
         '''
 
-        itemindex = np.where(is_in_separatrix(GeneralParameters,
-            RFSectionParameters, self, self.dt, self.dE) == False)[0]
+        itemindex = np.where(is_in_separatrix(Ring, RFStation, self, 
+            self.dt, self.dE) == False)[0]
 
         if itemindex.size != 0:
             self.id[itemindex] = 0
