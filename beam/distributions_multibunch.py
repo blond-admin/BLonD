@@ -9,8 +9,8 @@ from builtins import range
 import numpy as np
 import copy
 import matplotlib.pyplot as plt
-from beam import Beam
-from beam import matched_from_distribution_function, matched_from_line_density
+from beam.beam import Beam
+from beam.distributions import matched_from_distribution_function, matched_from_line_density
 
 
 

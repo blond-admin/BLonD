@@ -64,6 +64,9 @@ class SPSOneTurnFeedback(object):
         cavity_filter()
         # Apply cavity impedance
         cavity_impedance()
+        # Before applying impulse response to beam, make sure that time_array
+        # Starts from zero and corresponds to non-empty slice
+        cavity_to_beam()
         
         # Go back to polar coordinates
         self.voltage = cartesian_to_polar(self.voltage_IQ)

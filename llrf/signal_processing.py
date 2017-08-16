@@ -1,8 +1,8 @@
 # coding: utf8
 # Copyright 2014-2017 CERN. This software is distributed under the
-# terms of the GNU General Public Licence version 3 (GPL Version 3), 
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
 # copied verbatim in the file LICENCE.md.
-# In applying this licence, CERN does not waive the privileges and immunities 
+# In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 def polar_to_cartesian(amplitude, phase):
     """Convert data from polar to cartesian (I,Q) coordinates.
-    
+
     Parameters
     ----------
     amplitude : float array
@@ -83,7 +83,7 @@ def real_to_cartesian(signal):
     """
     
     amplitude = np.max(signal)
-    phase = np.arccos(signal/amplitude)
+    phase = np.arccos(signal / amplitude)
     logger.debug("Creating complex IQ array from real array")
     
     return signal + 1j*amplitude*np.sin(phase)
@@ -112,8 +112,8 @@ def modulator(signal, f_initial, f_final, T_sampling):
     """
     
     if len(signal) < 2:
-        raise RuntimeError("ERROR in filters.py/demodulator: signal should be"+
-                           " an array!")
+        raise RuntimeError("ERROR in filters.py/demodulator: signal should" +
+                           " be an array!")
     delta = 2*np.pi*(f_initial - f_final)*T_sampling
     indices = np.arange(len(signal))
     try:
@@ -122,8 +122,8 @@ def modulator(signal, f_initial, f_final, T_sampling):
         Q_new = np.sin(delta*indices)*signal.real \
             + np.cos(delta*indices)*signal.imag  
     except:
-        raise RuntimeError("ERROR in filters.py/demodulator: signal should be"+
-                           " complex!")
+        raise RuntimeError("ERROR in filters.py/demodulator: signal should" +
+                           " be complex!")
         
     return I_new + 1j*Q_new
 
@@ -134,7 +134,8 @@ def rf_beam_current(Slices, frequency, T_rev):
     beam profile :math:`\lambda_i`, the particle charge :math:`q_p` and the 
     real vs. macro-particle ratio :math:`N_{\mathsf{real}}/N_{\mathsf{macro}}`
     
-    .. math:: Q_{\mathsf{tot}} = \frac{N_{\mathsf{real}}}{N_{\mathsf{macro}}} q_p \sum_i{\lambda_i}
+    .. math:: 
+        Q_{\mathsf{tot}} = \frac{N_{\mathsf{real}}}{N_{\mathsf{macro}}} q_p \sum_i{\lambda_i}
     
     The DC beam current [A] is the total number of charges per turn :math:`T_0`
     
@@ -157,32 +158,27 @@ def rf_beam_current(Slices, frequency, T_rev):
     """
     
     # Convert real signal to complex IQ
-    IQ = real_to_cartesian(Slices.n_macroparticles)
+    profile = Slices.n_macroparticles
     
     # Convert from dimensionless to Ampères
-    #T_range = Slices.bin_centers[-1] - Slices.bin_centers[0]
-    # Macro-particle charge with real-to-macro-particle ratio
+    # Take into account macro-particle charge with real-to-macro-particle ratio
     q_m = Slices.Beam.intensity/Slices.Beam.n_macroparticles \
         *Slices.Beam.charge*e
-    IQ *= q_m/T_rev#T_range
-    #Q_tot = Beam.intensity*Beam.charge*e/Beam.n_macroparticles*np.sum(Slices.n_macroparticles)
+    profile *= q_m/T_rev
     logger.debug("Sum of slices: %d, total charge: %.4e C", 
-                 np.sum(Slices.n_macroparticles), np.sum(IQ.real)*T_rev)
-    logger.debug("DC current is %.4e A", np.sum(IQ.real))
+                 np.sum(Slices.n_macroparticles), np.sum(profile)*T_rev)
+    logger.debug("DC current is %.4e A", np.sum(profile))
     
     # Mix with frequency of interest
-#     print(len(Slices.bin_centers))
-#     print(len(IQ.real))
-#     print(len(frequency))
-#     print(len(np.cos(frequency*Slices.bin_centers)))
-    I_f = IQ.real*np.cos(frequency*Slices.bin_centers)
-    Q_f = IQ.imag*np.sin(frequency*Slices.bin_centers)
+    I_f = profile*np.cos(frequency*Slices.bin_centers)
+    Q_f = profile*np.sin(frequency*Slices.bin_centers)
     
     # Pass through a low-pass filter
-#    logger.debug("RF peak current is %.4e A", np.max(I_f))
+    I_filt = low_pass_filter(I_f, 20.e6)
+    Q_filt = low_pass_filter(Q_f, 20.e6)
     logger.debug("RF total current is %.4e A", np.fabs(np.sum(I_f)))
 
-    return I_f + 1j*Q_f
+    return I_filt + 1j*Q_filt
 
 
 def comb_filter(x, y, a):
@@ -192,7 +188,7 @@ def comb_filter(x, y, a):
     return a*y + (1 - a)*x
 
 
-def low_pass_filter(signal, cutoff_frequency = 0.5):
+def low_pass_filter(signal, cutoff_frequency=0.5):
     """Low-pass filter based on Butterworth 5th order digital filter from 
     scipy,
     http://docs.scipy.org
@@ -212,7 +208,7 @@ def low_pass_filter(signal, cutoff_frequency = 0.5):
         
     """
     
-    b, a = sgn.butter(5, 0.5, 'low', analog = False)
+    b, a = sgn.butter(5, 0.5, 'low', analog=False)
     
     return sgn.filtfilt(b, a, signal)
     
@@ -226,7 +222,8 @@ def cavity_impedance():
     """Model of the SPS cavity impedance.
     """
 
-def moving_average(x, N, center = False):
+
+def moving_average(x, N, center=False):
     """Function to calculate the moving average (or running mean) of the input
     data.
     
@@ -249,7 +246,7 @@ def moving_average(x, N, center = False):
         
     """
     
-    if center == True:
+    if center is True:
         # Round up to next impair number
         N_half = int(N/2)
         N = N_half*2 + 1
@@ -257,8 +254,9 @@ def moving_average(x, N, center = False):
         x = np.concatenate((x[0]*np.ones(N_half), x, x[-1]*np.ones(N_half)))
         
     cumulative_sum = np.cumsum(np.insert(x, 0, 0))
-    #print(cumulative_sum) 
+    # print(cumulative_sum) 
    
     return (cumulative_sum[N:] - cumulative_sum[:-N]) / N
+
 
 

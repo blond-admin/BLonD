@@ -1,10 +1,10 @@
-beams Package
-=============
+beam Package
+============
 
-:mod:`beams` Module
--------------------
+:mod:`beam` Module
+------------------
 
-.. automodule:: beams.beams
+.. automodule:: beam.beam
     :members:
     :undoc-members:
     :show-inheritance:
@@ -12,7 +12,7 @@ beams Package
 :mod:`coasting_beam` Module
 ---------------------------
 
-.. automodule:: beams.coasting_beam
+.. automodule:: beam.coasting_beam
     :members:
     :undoc-members:
     :show-inheritance:
@@ -20,7 +20,7 @@ beams Package
 :mod:`distributions` Module
 ---------------------------
 
-.. automodule:: beams.distributions
+.. automodule:: beam.distributions
     :members:
     :undoc-members:
     :show-inheritance:
@@ -28,15 +28,15 @@ beams Package
 :mod:`distributions_multibunch` Module
 --------------------------------------
 
-.. automodule:: beams.distributions_multibunch
+.. automodule:: beam.distributions_multibunch
     :members:
     :undoc-members:
     :show-inheritance:
 
-:mod:`slices` Module
---------------------
+:mod:`profile` Module
+---------------------
 
-.. automodule:: beams.slices
+.. automodule:: beam.profile
     :members:
     :undoc-members:
     :show-inheritance:
@@ -44,7 +44,7 @@ beams Package
 :mod:`sparse_slices` Module
 ---------------------------
 
-.. automodule:: beams.sparse_slices
+.. automodule:: beam.sparse_slices
     :members:
     :undoc-members:
     :show-inheritance:

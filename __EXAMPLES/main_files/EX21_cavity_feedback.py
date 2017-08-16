@@ -22,9 +22,10 @@ from input_parameters.ring import Ring
 from input_parameters.rf_parameters import RFStation
 from beam.beam import Beam
 from beam.distributions import bigaussian
-from beam.profile import Profile
+from beam.profile import Profile, CutOptions
 from llrf.cavity_feedback import SPSOneTurnFeedback
 from llrf.signal_processing import rf_beam_current, low_pass_filter
+from llrf.impulse_response import triangle
 
 
 # CERN SPS --------------------------------------------------------------------
@@ -49,23 +50,24 @@ N_t = 1000                  # Number of turns to track
 Logger(debug = True)
 
 # Set up machine parameters
-GeneralParams = Ring(N_t, C, alpha, p_s)
+ring = Ring(N_t, C, alpha, p_s)
 print("Machine parameters set!")
 
 # Set up RF parameters
-RFParams = RFStation(GeneralParams, 1, h, V, phi)
+RF = RFStation(ring, 1, h, V, phi)
 print("RF parameters set!")
 
 # Define beam and fill it
-Bunch = Beam(GeneralParams, N_m, N_b)
-bigaussian(GeneralParams, RFParams, Bunch, 3.2e-9/4, seed = 1234, 
+bunch = Beam(ring, N_m, N_b)
+bigaussian(ring, RF, bunch, 3.2e-9/4, seed = 1234, 
            reinsertion = True) 
-print("Beam set! Number of particles %d" %len(Bunch.dt))
-print("Time coordinates are in range %.4e to %.4e s" %(np.min(Bunch.dt), 
-                                                     np.max(Bunch.dt)))
+print("Beam set! Number of particles %d" %len(bunch.dt))
+print("Time coordinates are in range %.4e to %.4e s" %(np.min(bunch.dt), 
+                                                     np.max(bunch.dt)))
 
-Profile = Profile(RFParams, Bunch, 100, cut_left=-1.e-9, cut_right=6.e-9)
-Profile.track()
+#profile = Profile(RF, bunch, 100, cut_left=-1.e-9, cut_right=6.e-9)
+profile = Profile(bunch, CutOptions = CutOptions(cut_left=-1.e-9, cut_right=6.e-9, n_slices = 100))
+profile.track()
 #plt.plot(Slices.bin_centers, Slices.n_macroparticles)
 #plt.show()
 #Q_tot = Beam.intensity*Beam.charge*e/Beam.n_macroparticles*np.sum(Slices.n_macroparticles)
@@ -73,12 +75,12 @@ Profile.track()
 
 #print(RFParams.omega_rf[0][0]) # To be CORRECTED in RFParams!!!
 #rf_current = rf_beam_current(Slices, RFParams.omega_rf[0][0], GeneralParams.t_rev[0])
-rf_current = rf_beam_current(Profile, 2*np.pi*200.222e6, GeneralParams.t_rev[0])
+rf_current = rf_beam_current(profile, 2*np.pi*200.222e6, ring.t_rev[0])
 # Apply LPF on current
 #filtered_1 = low_pass_filter(rf_current.real, 20.e6)
 #filtered_2 = low_pass_filter(rf_current.imag, 20.e6)
 np.set_printoptions(precision=10)
-print(repr(rf_current.real))
+print(repr(rf_current.imag))
 #print(repr(filtered_2))
 plt.plot(rf_current.real, 'b')
 plt.plot(rf_current.imag, 'r')
