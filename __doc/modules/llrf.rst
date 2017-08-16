@@ -278,6 +278,14 @@ Machine-dependent Beam Phase Loop
     :undoc-members:
     :show-inheritance:
 
+:mod:`impulse_response` Module
+------------------------------
+
+.. automodule:: llrf.impulse_response
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 :mod:`rf_modulation` Module
 ---------------------------
 

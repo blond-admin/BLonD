@@ -23,7 +23,7 @@ from input_parameters.ring import Ring
 from input_parameters.rf_parameters import RFStation
 from beam.beam import Beam, Proton
 from beam.distributions import bigaussian
-from beam.profile import Profile
+from beam.profile import Profile, CutOptions
 from llrf.beam_feedback import BeamFeedback
 from trackers.utilities import separatrix
 
@@ -100,8 +100,8 @@ class TestSeparatrixBigaussian(unittest.TestCase):
         bigaussian(general_params, rf_params, beam, tau_0/4, 
                                 seed = 1234) 
         #print(np.mean(beam.dt))
-        slices = Profile(rf_params, beam, 1000, cut_left=0.e-9, 
-                        cut_right=600.e-9)
+        slices = Profile(beam, CutOptions(cut_left=0.e-9, cut_right=600.e-9, 
+                                          n_slices=1000))
         slices.track()
         configuration = {'machine': 'LHC', 
                          'PL_gain': 0.1*general_params.t_rev[0]}

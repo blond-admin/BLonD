@@ -1,14 +1,6 @@
 input_parameters Package
 ========================
 
-:mod:`general_parameters` Module
---------------------------------
-
-.. automodule:: input_parameters.general_parameters
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 :mod:`preprocess` Module
 ------------------------
 
@@ -21,6 +13,14 @@ input_parameters Package
 ---------------------------
 
 .. automodule:: input_parameters.rf_parameters
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+:mod:`ring` Module
+------------------
+
+.. automodule:: input_parameters.ring
     :members:
     :undoc-members:
     :show-inheritance:
