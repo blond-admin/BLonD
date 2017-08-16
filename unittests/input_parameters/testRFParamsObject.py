@@ -23,7 +23,7 @@ import numpy
 # --------------
 from input_parameters.ring import Ring
 from input_parameters.rf_parameters import RFStation
-from beam.beam import Beam
+from beam.beam import Beam, Proton
 #from beam.distributions import matched_from_distribution_function
 #from trackers.tracker import FullRingAndRF, RingAndRFTracker
 
@@ -50,7 +50,7 @@ class testRFParamClass(unittest.TestCase):
 
         # Define general parameters
         # --------------------------
-        self.general_params = Ring(N_turn, C, alpha, p)
+        self.general_params = Ring(N_turn, C, alpha, p, Proton())
 
 
         # Define beam

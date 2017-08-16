@@ -129,8 +129,7 @@ class Beam(object):
 
     def __init__(self, Ring, n_macroparticles, intensity):
 
-        self.mass = Ring.mass
-        self.charge = int(Ring.charge)
+        self.Particle = Ring.Particle
         self.beta = Ring.beta[0][0]
         self.gamma = Ring.gamma[0][0]
         self.energy = Ring.energy[0][0]

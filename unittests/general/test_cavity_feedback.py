@@ -15,6 +15,7 @@ Unittest for llrf.filters
 
 import unittest
 import numpy as np
+from beam.beam import Proton
 from input_parameters.ring import Ring
 from input_parameters.rf_parameters import RFStation
 from beam.beam import Beam
@@ -28,10 +29,11 @@ class TestBeamCurrent(unittest.TestCase):
     def test(self):
         
         # Set up SPS conditions
-        ring = Ring(1000, 2*np.pi*1100.009, 1/18**2, 25.92e9)
+        ring = Ring(1000, 2*np.pi*1100.009, 1/18**2, 25.92e9,
+                    Proton())
         RF = RFStation(ring, 1, 4620, 4.5e6, 0)
         beam = Beam(ring, 1e5, 1e11)
-        bigaussian(ring, RF, beam, 3.2e-9/4, seed = 1234, 
+        bigaussian(ring, RF, beam, 3.2e-9/4, seed = 1234,
                    reinsertion = True) 
         profile = Profile(beam, CutOptions(cut_left=-1.e-9, cut_right=6.e-9, 
                                            n_slices=100))

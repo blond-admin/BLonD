@@ -19,7 +19,7 @@ import numpy as np
 from scipy.constants import c
 from scipy.integrate import cumtrapz
 from beam.beam import Proton
-#from input_parameters.preprocess import PreprocessRFParams
+#from input_parameters.rf_parameters_options import PreprocessRFParams
 
 
 
