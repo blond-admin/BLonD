@@ -26,6 +26,8 @@ from beam.profile import Profile, CutOptions
 from llrf.cavity_feedback import SPSOneTurnFeedback
 from llrf.signal_processing import rf_beam_current, low_pass_filter
 from llrf.impulse_response import triangle
+from impedances.impedance_sources import TravelingWaveCavity
+from llrf.impulse_response import SPS4Section200MHzTWC
 
 
 # CERN SPS --------------------------------------------------------------------
@@ -44,10 +46,18 @@ N_b = 1.e11                 # Bunch intensity [ppb]
 N_t = 1000                  # Number of turns to track
 # CERN SPS --------------------------------------------------------------------
 
+# OPTIONS TO TEST -------------------------------------------------------------
+LOGGING = True              # Logging messages
+RF_CURRENT = False          # RF beam current
+TWC = True                  # Impulse response of travelling wave cavity
+
+# OPTIONS TO TEST -------------------------------------------------------------
 
 # Logger for messages on console & in file
-#Logger().disable()
-Logger(debug = True)
+if LOGGING == True:
+    Logger(debug = True)
+else:
+    Logger().disable()
 
 # Set up machine parameters
 ring = Ring(N_t, C, alpha, p_s)
@@ -65,7 +75,6 @@ print("Beam set! Number of particles %d" %len(bunch.dt))
 print("Time coordinates are in range %.4e to %.4e s" %(np.min(bunch.dt), 
                                                      np.max(bunch.dt)))
 
-#profile = Profile(RF, bunch, 100, cut_left=-1.e-9, cut_right=6.e-9)
 profile = Profile(bunch, CutOptions = CutOptions(cut_left=-1.e-9, cut_right=6.e-9, n_slices = 100))
 profile.track()
 #plt.plot(Slices.bin_centers, Slices.n_macroparticles)
@@ -73,23 +82,35 @@ profile.track()
 #Q_tot = Beam.intensity*Beam.charge*e/Beam.n_macroparticles*np.sum(Slices.n_macroparticles)
 #print("Total charges %.4e C" %Q_tot)
 
-#print(RFParams.omega_rf[0][0]) # To be CORRECTED in RFParams!!!
-#rf_current = rf_beam_current(Slices, RFParams.omega_rf[0][0], GeneralParams.t_rev[0])
-rf_current = rf_beam_current(profile, 2*np.pi*200.222e6, ring.t_rev[0])
-# Apply LPF on current
-#filtered_1 = low_pass_filter(rf_current.real, 20.e6)
-#filtered_2 = low_pass_filter(rf_current.imag, 20.e6)
-np.set_printoptions(precision=10)
-print(repr(rf_current.imag))
-#print(repr(filtered_2))
-plt.plot(rf_current.real, 'b')
-plt.plot(rf_current.imag, 'r')
-#plt.plot(filtered_1, 'turquoise')
-#plt.plot(filtered_2, 'orange')
-plt.show()
+if RF_CURRENT == True:
+    rf_current = rf_beam_current(profile, 2*np.pi*200.222e6, ring.t_rev[0])
+    np.set_printoptions(precision=10)
+    print(repr(rf_current.real))
+    plt.plot(profile.bin_centers, rf_current.real, 'b')
+    plt.plot(profile.bin_centers, rf_current.imag, 'r')
+    plt.plot(profile.bin_centers, profile.n_macroparticles, 'g')
+    plt.show()
 
 
 #OTFB = SPSOneTurnFeedback(RFParams, Beam, Slices)
 
+if TWC == True:
+    time = np.linspace(-1e-6, 4.e-6, 10000)
+    impResp = SPS4Section200MHzTWC()
+    impResp.impulse_response(2*np.pi*200.e6, time)
+    print(impResp.tau)
+    print(3.56e-6/2/np.pi)
+    TWC200_4 = TravelingWaveCavity(0.876e6, 200.222e6, 2*np.pi*6.207e-7)
+    TWC200_4.wake_calc(time)
+    plt.plot(TWC200_4.time_array, TWC200_4.wake, 'b')
+    plt.plot(impResp.time, impResp.W_beam, 'r')
+    plt.plot(impResp.time, impResp.hs_beam, 'g')
+    plt.plot(impResp.time, impResp.hs_gen, 'purple', marker='.')
+    plt.show()
+
+
 print("")
 print("Done!")
+
+
+
