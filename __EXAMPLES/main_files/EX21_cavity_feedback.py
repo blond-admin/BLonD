@@ -77,10 +77,6 @@ print("Time coordinates are in range %.4e to %.4e s" %(np.min(bunch.dt),
 
 profile = Profile(bunch, CutOptions = CutOptions(cut_left=-1.e-9, cut_right=6.e-9, n_slices = 100))
 profile.track()
-#plt.plot(Slices.bin_centers, Slices.n_macroparticles)
-#plt.show()
-#Q_tot = Beam.intensity*Beam.charge*e/Beam.n_macroparticles*np.sum(Slices.n_macroparticles)
-#print("Total charges %.4e C" %Q_tot)
 
 if RF_CURRENT == True:
     rf_current = rf_beam_current(profile, 2*np.pi*200.222e6, ring.t_rev[0])
