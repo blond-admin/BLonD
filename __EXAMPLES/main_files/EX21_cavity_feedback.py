@@ -24,8 +24,8 @@ from beam.beam import Beam
 from beam.distributions import bigaussian
 from beam.profile import Profile, CutOptions
 from llrf.cavity_feedback import SPSOneTurnFeedback
-from llrf.signal_processing import rf_beam_current, low_pass_filter
-from llrf.impulse_response import triangle
+from llrf.signal_processing import rf_beam_current #, low_pass_filter
+#from llrf.impulse_response import triangle
 from impedances.impedance_sources import TravelingWaveCavity
 from llrf.impulse_response import SPS4Section200MHzTWC
 
@@ -49,7 +49,8 @@ N_t = 1000                  # Number of turns to track
 # OPTIONS TO TEST -------------------------------------------------------------
 LOGGING = True              # Logging messages
 RF_CURRENT = False          # RF beam current
-TWC = True                  # Impulse response of travelling wave cavity
+TWC = False                 # Impulse response of travelling wave cavity
+VIND_BEAM = True            # Beam-induced voltage
 
 # OPTIONS TO TEST -------------------------------------------------------------
 
@@ -64,12 +65,12 @@ ring = Ring(N_t, C, alpha, p_s)
 print("Machine parameters set!")
 
 # Set up RF parameters
-RF = RFStation(ring, 1, h, V, phi)
+rf = RFStation(ring, 1, h, V, phi)
 print("RF parameters set!")
 
 # Define beam and fill it
 bunch = Beam(ring, N_m, N_b)
-bigaussian(ring, RF, bunch, 3.2e-9/4, seed = 1234, 
+bigaussian(ring, rf, bunch, 3.2e-9/4, seed = 1234, 
            reinsertion = True) 
 print("Beam set! Number of particles %d" %len(bunch.dt))
 print("Time coordinates are in range %.4e to %.4e s" %(np.min(bunch.dt), 
@@ -88,8 +89,6 @@ if RF_CURRENT == True:
     plt.show()
 
 
-#OTFB = SPSOneTurnFeedback(RFParams, Beam, Slices)
-
 if TWC == True:
     time = np.linspace(-1e-6, 4.e-6, 10000)
     impResp = SPS4Section200MHzTWC()
@@ -104,6 +103,15 @@ if TWC == True:
     plt.plot(impResp.time, impResp.hs_gen, 'purple', marker='.')
     plt.show()
 
+
+if VIND_BEAM == True:
+    OTFB = SPSOneTurnFeedback(rf, bunch, profile)
+    OTFB.counter = 0 # First turn
+    OTFB.omega_c = rf.omega_rf[0,0]
+    OTFB.beam_induced_voltage()
+    plt.plot(profile.bin_centers, OTFB.Vind_beam.real, 'b')
+    plt.plot(profile.bin_centers, OTFB.Vind_beam.imag, 'r')
+    plt.show()
 
 print("")
 print("Done!")

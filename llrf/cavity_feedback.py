@@ -18,22 +18,27 @@ import logging
 import numpy as np
 from llrf.signal_processing import comb_filter, cartesian_to_polar, polar_to_cartesian, \
     cavity_filter, cavity_impedance
-
+from llrf.signal_processing import rf_beam_current
+from llrf.impulse_response import SPS4Section200MHzTWC, SPS5Section200MHzTWC
 
 class SPSOneTurnFeedback(object): 
     '''
     Voltage feedback around the cavity.
     '''
     
-    def __init__(self, RFSectionParameters, Beam, Slices):
+    def __init__(self, RFStation, Beam, Profile):
 
-        self.rf_params = RFSectionParameters
+        self.rf = RFStation
         self.beam = Beam
-        self.slices = Slices
+        self.profile = Profile
+        
+        # 200 MHz travelling wave cavity impulse responses
+        self.TWC_4 = SPS4Section200MHzTWC()
+        self.TWC_5 = SPS5Section200MHzTWC()
         
         # Initialise bunch-by-bunch voltage correction array
-        self.voltage = np.ones(self.slices.n_slices, dtype=float) + \
-            1j*np.zeros(self.slices.n_slices, dtype=float)
+        self.voltage = np.ones(self.profile.n_slices, dtype=float) + \
+            1j*np.zeros(self.profile.n_slices, dtype=float)
         
         # Initialise comb filter
         self.a_comb_filter = float(15/16)
@@ -49,32 +54,101 @@ class SPSOneTurnFeedback(object):
 
         
     def track(self):
+        """Turn-by-turn tracking method."""
         
-        # Move from polar to cartesian coordinates
-        self.voltage_IQ = polar_to_cartesian(self.voltage)
-        self.logger.info("Voltage is %.4e", np.sum(self.voltage))
-        # Apply comb filter
-        self.voltage_IQ = comb_filter(self.voltage_IQ_prev, self.a_comb_filter, 
-                                      self.voltage_IQ)
-        # Memorize previous voltage ???HERE OR AT THE END OF TRACK???
-        self.voltage_IQ_prev = np.copy(self.voltage_IQ)
-
+        # Present time step
+        self.counter = self.rf.counter[0]
+        # Present carrier frequency: main RF frequency
+        self.omega_c = self.rf.omega_rf[0,self.counter]
         
-        # Apply cavity filter
-        cavity_filter()
-        # Apply cavity impedance
-        cavity_impedance()
-        # Before applying impulse response to beam, make sure that time_array
-        # Starts from zero and corresponds to non-empty slice
-        cavity_to_beam()
+#         # Move from polar to cartesian coordinates
+#         self.voltage_IQ = polar_to_cartesian(self.voltage)
+#         self.logger.info("Voltage is %.4e", np.sum(self.voltage))
+#         # Apply comb filter
+#         self.voltage_IQ = comb_filter(self.voltage_IQ_prev, self.a_comb_filter, 
+#                                       self.voltage_IQ)
+#         # Memorize previous voltage ???HERE OR AT THE END OF TRACK???
+#         self.voltage_IQ_prev = np.copy(self.voltage_IQ)
+# 
+#         
+#         # Apply cavity filter
+#         cavity_filter()
+#         # Apply cavity impedance
+#         cavity_impedance()
+#         # Before applying impulse response to beam, make sure that time_array
+#         # Starts from zero and corresponds to non-empty slice
+#         cavity_to_beam()
+#         
+#         # Go back to polar coordinates
+#         self.voltage = cartesian_to_polar(self.voltage_IQ)
+
+
+    def beam_induced_voltage(self):
+        r"""Calculates the beam-induced voltage from the beam profile, at a
+        given carrier frequency and turn. The beam-induced voltage 
+        :math:`V(t)` is calculated from the impulse response matrix 
+        :math:`h(t)` as follows:
         
-        # Go back to polar coordinates
-        self.voltage = cartesian_to_polar(self.voltage_IQ)
-
-
-
-
-
-
-
+        .. math:: 
+            \left( \begin{matrix} V_I(t) \\ 
+            V_Q(t) \end{matrix} \right)
+            = \left( \begin{matrix} h_s(t) & - h_c(t) \\
+            h_c(t) & h_s(t) \end{matrix} \right)
+            * \left( \begin{matrix} I_I(t) \\ 
+            I_Q(t) \end{matrix} \right) \, ,
         
+        where :math:`*` denotes convolution,
+        :math:`h(t)*x(t) = \int d\tau h(\tau)x(t-\tau)`. If the carrier
+        frequency is close to the cavity resonant frequency, :math:`h_c = 0`.
+        
+        :seealso: :py:class:`llrf.impulse_response.TravellingWaveCavity`
+        
+        Attributes
+        ----------
+        I_beam : complex array
+            RF component of the beam current [A] at the present time step
+        Vind_beam : complex array
+            Induced voltage [V] from beam-cavity interaction
+        
+        """
+        
+        # Beam current from profile
+        self.I_beam = rf_beam_current(self.profile, self.TWC_4.omega_r, 
+                                   self.rf.t_rev[self.counter])
+        
+        # Calculate impulse response at omega_c
+        self.TWC_4.impulse_response(self.omega_c, self.profile.bin_centers)
+        self.TWC_5.impulse_response(self.omega_c, self.profile.bin_centers)
+        
+        # Total beam-induced voltage
+        if self.TWC_4.hc_beam == None:
+            self.Vind_beam = self.diag_conv(self.TWC_4.hs_beam, self.I_beam)
+        else:
+            self.Vind_beam = self.matr_conv(self.TWC_4.hs_beam, 
+                                            self.TWC_4.hc_beam, self.I_beam)
+        if self.TWC_5.hc_beam == None:
+            self.Vind_beam += self.diag_conv(self.TWC_5.hs_beam, self.I_beam) 
+        else:
+            self.Vind_beam += self.matr_conv(self.TWC_5.hs_beam, 
+                                             self.TWC_5.hc_beam, self.I_beam)
+        self.Vind_beam *= 2 # 2 cavities each       
+
+
+    def diag_conv(self, hs, I):
+        """Convolution of beam current with impulse response; diagonal
+        components only."""
+        
+        return ( np.convolve(hs, I.real, mode='same') \
+                 + 1j*np.convolve(hs, I.imag, mode='same') )
+        
+        
+    def matr_conv(self, hs, hc, I):
+        """Convolution of beam current with impulse response; uses a complete
+        matrix with off-diagonal elements."""
+
+        return ( np.convolve(hs, I.real, mode='same') \
+                 - np.convolve(hc, I.imag, mode='same') \
+                 + 1j*(np.convolve(hc, I.real, mode='same') \
+                       + np.convolve(hs, I.imag, mode='same')) )
+
+

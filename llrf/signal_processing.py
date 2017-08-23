@@ -128,7 +128,7 @@ def modulator(signal, f_initial, f_final, T_sampling):
     return I_new + 1j*Q_new
 
     
-def rf_beam_current(Slices, frequency, T_rev):
+def rf_beam_current(Profile, frequency, T_rev):
     r"""Function calculating the beam current at the (RF) frequency, slice by
     slice. The total charge [C] in the beam is determined from the sum of the 
     beam profile :math:`\lambda_i`, the particle charge :math:`q_p` and the 
@@ -143,8 +143,8 @@ def rf_beam_current(Slices, frequency, T_rev):
     
     Parameters
     ----------
-    Slices : class
-        A Slices type class
+    Profile : class
+        A Profile type class
     frequency : float
         Revolution frequency [1/s] at which the current should be calculated
     T_rev : float 
@@ -152,26 +152,26 @@ def rf_beam_current(Slices, frequency, T_rev):
         
     Returns
     -------
-    float array
+    complex array
         RF beam current array [A] at 'frequency' frequency
         
     """
     
     # Convert real signal to complex IQ
-    profile = Slices.n_macroparticles
+    profile = Profile.n_macroparticles
     
     # Convert from dimensionless to Ampères
     # Take into account macro-particle charge with real-to-macro-particle ratio
-    q_m = Slices.Beam.intensity/Slices.Beam.n_macroparticles \
-        *Slices.Beam.charge*e
+    q_m = Profile.Beam.intensity/Profile.Beam.n_macroparticles \
+        *Profile.Beam.charge*e
     profile *= q_m/T_rev
     logger.debug("Sum of slices: %d, total charge: %.4e C", 
-                 np.sum(Slices.n_macroparticles), np.sum(profile)*T_rev)
+                 np.sum(Profile.n_macroparticles), np.sum(profile)*T_rev)
     logger.debug("DC current is %.4e A", np.sum(profile))
     
     # Mix with frequency of interest
-    I_f = profile*np.cos(frequency*Slices.bin_centers)
-    Q_f = profile*np.sin(frequency*Slices.bin_centers)
+    I_f = profile*np.cos(frequency*Profile.bin_centers)
+    Q_f = profile*np.sin(frequency*Profile.bin_centers)
     
     # Pass through a low-pass filter
     I_filt = low_pass_filter(I_f, 20.e6)
