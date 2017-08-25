@@ -23,6 +23,47 @@ logger = logging.getLogger(__name__)
 
 
 
+# def rectangle(t, tau):
+#     r"""Rectangular function of time
+#     
+#     .. math:: \mathsf{rect} \left( \frac{t}{\tau} \right) = 
+#         \begin{cases}
+#             1 \, , \, t \in (-\tau/2, \tau/2) \\
+#             0.5 \, , \, t = \pm \tau/2 \\
+#             0 \, , \, \textsf{otherwise}
+#         \end{cases}
+#         
+#     Parameters
+#     ----------
+#     t : float array
+#         Time array
+#     tau : float
+#         Time window of rectangular function
+#         
+#     Returns
+#     -------
+#     float array
+#         Rectangular function for given time array
+#         
+#     """
+#     
+#     dt = t[1] - t[0]
+#     limits = np.where((np.fabs(t - tau/2) < dt/2) | 
+#                       (np.fabs(t + tau/2) < dt/2))[0]
+#     logger.debug("In rectangle(), number of limiting indices is %d" 
+#                  %(len(limits)))
+#     print(limits)
+#     if len(limits) != 2:
+#         raise RuntimeError("ERROR in impulse_response.rectangle(): time" +
+#                            " array not in correct range!")
+#     y = np.zeros(len(t))
+#     y[limits] = 0.5
+#     y[limits[0]+1:limits[1]] = np.ones(limits[1] - limits[0] - 1)
+# 
+#     return y
+# 
+# 
+# 
 def rectangle(t, tau):
     r"""Rectangular function of time
     
@@ -48,22 +89,68 @@ def rectangle(t, tau):
     """
     
     dt = t[1] - t[0]
-    limits = np.where((np.fabs(t - tau/2) < dt/2) | 
-                      (np.fabs(t + tau/2) < dt/2))[0]
-    logger.debug("In rectangle(), number of limiting indices is %d" 
-                 %(len(limits)))
-    print(limits)
-    if len(limits) != 2:
+    llimit = np.where(np.fabs(t + tau/2) < dt/2)[0]
+    ulimit = np.where(np.fabs(t - tau/2) < dt/2)[0]
+    if len(llimit) != 1:
         raise RuntimeError("ERROR in impulse_response.rectangle(): time" +
-                           " array not in correct range!")
+                           " array doesn't start at rising edge!")
+    if len(ulimit) not in [0,1]:
+        raise RuntimeError("ERROR in impulse_response.rectangle(): time" +
+                           " array has multiple falling edges!")
+    logger.debug("In rectangle(), index of rising edge is %d" %llimit[0])
     y = np.zeros(len(t))
-    y[limits] = 0.5
-    y[limits[0]+1:limits[1]] = np.ones(limits[1] - limits[0] - 1)
-
+    y[llimit[0]] = 0.5
+    if len(ulimit) == 1:
+        y[llimit[0]+1:ulimit[0]] = np.ones(ulimit[0] - llimit[0] - 1)
+        y[ulimit[0]] = 0.5
+    else:
+        y[llimit[0]+1:] = 1
+    
     return y
 
 
 
+# def triangle(t, tau):
+#     r"""Triangular function of time
+#     
+#     .. math:: \mathsf{tri} \left( \frac{t}{\tau} \right) = 
+#         \begin{cases}
+#             1 - \frac{t}{\tau}\, , \, t \in (0, \tau) \\
+#             0.5 \, , \, t = 0 \\
+#             0 \, , \, \textsf{otherwise}
+#         \end{cases}
+#         
+#     Parameters
+#     ----------
+#     t : float array
+#         Time array
+#     tau : float
+#         Time window of rectangular function
+#         
+#     Returns
+#     -------
+#     float array
+#         Triangular function for given time array
+#         
+#     """
+#     
+#     dt = t[1] - t[0]
+#     limits = np.where(np.fabs(t) < dt/2)[0]
+#     logger.debug("In triangle(), number of limiting indices is %d" 
+#                  %(len(limits)))
+#     print(limits)
+#     if len(limits) != 1:
+#         raise RuntimeError("ERROR in impulse_response.triangle(): time" +
+#                            " array not in correct range!")
+#     y = np.zeros(len(t))
+#     y[limits[0]] = 0.5
+#     y[limits[0]+1:] = 1 - t[limits[0]+1:]/tau
+#     y[np.where(y < 0)[0]] = 0
+# 
+#     return y
+# 
+# 
+#
 def triangle(t, tau):
     r"""Triangular function of time
     
@@ -89,16 +176,14 @@ def triangle(t, tau):
     """
     
     dt = t[1] - t[0]
-    limits = np.where(np.fabs(t) < dt/2)[0]
-    logger.debug("In triangle(), number of limiting indices is %d" 
-                 %(len(limits)))
-    print(limits)
-    if len(limits) != 1:
+    llimit = np.where(np.fabs(t) < dt/2)[0]
+    logger.debug("In triangle(), index of rising edge is %d" %llimit[0])
+    if len(llimit) != 1:
         raise RuntimeError("ERROR in impulse_response.triangle(): time" +
-                           " array not in correct range!")
+                           " array doesn't start at rising edge!")
     y = np.zeros(len(t))
-    y[limits[0]] = 0.5
-    y[limits[0]+1:] = 1 - t[limits[0]+1:]/tau
+    y[llimit[0]] = 0.5
+    y[llimit[0]+1:] = 1 - t[llimit[0]+1:]/tau
     y[np.where(y < 0)[0]] = 0
 
     return y
@@ -220,6 +305,75 @@ class TravellingWaveCavity(object):
         self.logger.debug("Filling time %.4e s", self.tau)
         
         
+#     def impulse_response(self, omega_c, time):
+#         """Impulse response from the cavity towards the beam and towards the 
+#         generator. For a signal that is I,Q demodulated at a given carrier 
+#         frequency :math:`\omega_c`. The formulae assume that the carrier 
+#         frequency is be close to the central frequency 
+#         :math:`\omega_c/\omega_r \ll 1` and that the signal is low-pass
+#         filtered (i.e.\ high-frequency components can be neglected).
+#          
+#         Parameters
+#         ----------
+#         omega_c : float
+#             Carrier revolution frequency [1/s]
+#         time : float
+#             Time array to act on
+#              
+#         Attributes
+#         ----------
+#         d_omega : float
+#             :math:`\omega_c - \omega_r` [1/s]
+#         R_beam : float
+#             :math:`R_b` [\Omega] as defined above
+#         R_gen : float
+#             :math:`R_g` [\Omega] as defined above
+#         W_beam : float array
+#             :math:`W_b(t)` [\Omega/s] as defined above
+#         W_gen : float array
+#             :math:`W_g(t)` [\Omega/s] as defined above
+#         hs_beam : float array
+#             :math:`h_{s,b}(t)` [\Omega/s] as defined above
+#         hc_beam : float array
+#             :math:`h_{c,b}(t)` [\Omega/s] as defined above
+#         hs_gen : float array
+#             :math:`h_{s,g}(t)` [\Omega/s] as defined above
+#         hc_gen : float array
+#             :math:`h_{c,g}(t)` [\Omega/s] as defined above
+#  
+#         """
+#          
+#         self.omega_c = float(omega_c)
+#         self.d_omega = self.omega_c - self.omega_r
+#         if np.fabs((self.d_omega)/self.omega_r) > 0.1:
+#             raise RuntimeError("ERROR in TravellingWaveCavity" +
+#                 " impulse_response(): carrier frequency should be close to" +
+#                 " central frequency of the cavity!")
+#      
+#         self.time = time
+#          
+#         # Shunt impedances towards beam and generator
+#         self.R_beam = 0.125*self.rho*self.l_cav**2
+#         self.R_gen = self.l_cav*np.sqrt(0.5*self.rho*self.Z_0)
+#  
+#         # Impulse response if on carrier frequency
+#         self.hs_beam = 2*self.R_beam/self.tau*triangle(time, self.tau)
+#         self.hc_beam = None
+#         self.hs_gen = self.R_gen/self.tau*rectangle(time, self.tau)
+#         self.hc_gen = None
+#  
+#         # Wake fields towards beam and generator
+#         self.W_beam = 2*np.copy(self.hs_beam)*np.cos(self.omega_r*self.time)
+#         self.W_gen = 2*np.copy(self.hs_gen)*np.cos(self.omega_r*self.time)
+#                 
+#         # Impulse response if not on carrier frequency
+#         if np.fabs((self.d_omega)/self.omega_r) > 1e-12:
+#             self.hc_beam = np.copy(self.hs_beam)*np.sin(self.d_omega*self.time)
+#             self.hs_beam *= np.cos(self.d_omega*self.time)
+#             self.hc_gen = np.copy(self.hs_gen)*np.sin(self.d_omega*self.time)
+#             self.hs_gen *= np.cos(self.d_omega*self.time)
+#  
+#                  
     def impulse_response(self, omega_c, time):
         """Impulse response from the cavity towards the beam and towards the 
         generator. For a signal that is I,Q demodulated at a given carrier 
@@ -227,14 +381,14 @@ class TravellingWaveCavity(object):
         frequency is be close to the central frequency 
         :math:`\omega_c/\omega_r \ll 1` and that the signal is low-pass
         filtered (i.e.\ high-frequency components can be neglected).
-        
+         
         Parameters
         ----------
         omega_c : float
             Carrier revolution frequency [1/s]
         time : float
             Time array to act on
-            
+             
         Attributes
         ----------
         d_omega : float
@@ -255,40 +409,49 @@ class TravellingWaveCavity(object):
             :math:`h_{s,g}(t)` [\Omega/s] as defined above
         hc_gen : float array
             :math:`h_{c,g}(t)` [\Omega/s] as defined above
-
+ 
         """
-        
+         
         self.omega_c = float(omega_c)
         self.d_omega = self.omega_c - self.omega_r
         if np.fabs((self.d_omega)/self.omega_r) > 0.1:
             raise RuntimeError("ERROR in TravellingWaveCavity" +
                 " impulse_response(): carrier frequency should be close to" +
                 " central frequency of the cavity!")
-    
-        self.time = time
-        
+     
+#         self.dt = dt
+#         n = np.min([int(self.tau/self.dt), self.pro])
+#         if n < 3:
+#             raise RuntimeError("ERROR in TravellingWaveCavity" +
+#                 " impulse_response(): time resolution insufficient!")
+#         self.t_beam = np.linspace(0., n*self.dt, n, endpoint=True) 
+#         self.t_gen = np.linspace(-0.5*self.tau, n*self.dt, n, endpoint=True) 
+        self.t_beam = time - time[0]
+        self.t_gen = time - time[0] - 0.5*self.tau
+         
+         
         # Shunt impedances towards beam and generator
         self.R_beam = 0.125*self.rho*self.l_cav**2
         self.R_gen = self.l_cav*np.sqrt(0.5*self.rho*self.Z_0)
-
+ 
         # Impulse response if on carrier frequency
-        self.hs_beam = 2*self.R_beam/self.tau*triangle(time, self.tau)
+        self.hs_beam = 2*self.R_beam/self.tau*triangle(self.t_beam, self.tau)
         self.hc_beam = None
-        self.hs_gen = self.R_gen/self.tau*rectangle(time, self.tau)
+        self.hs_gen = self.R_gen/self.tau*rectangle(self.t_gen, self.tau)
         self.hc_gen = None
-
+ 
         # Wake fields towards beam and generator
-        self.W_beam = 2*np.copy(self.hs_beam)*np.cos(self.omega_r*self.time)
-        self.W_gen = 2*np.copy(self.hs_gen)*np.cos(self.omega_r*self.time)
-               
+        self.W_beam = 2*np.copy(self.hs_beam)*np.cos(self.omega_r*self.t_beam)
+        self.W_gen = 2*np.copy(self.hs_gen)*np.cos(self.omega_r*self.t_gen)
+                
         # Impulse response if not on carrier frequency
         if np.fabs((self.d_omega)/self.omega_r) > 1e-12:
-            self.hc_beam = np.copy(self.hs_beam)*np.sin(self.d_omega*self.time)
-            self.hs_beam *= np.cos(self.d_omega*self.time)
-            self.hc_gen = np.copy(self.hs_gen)*np.sin(self.d_omega*self.time)
-            self.hs_gen *= np.cos(self.d_omega*self.time)
+            self.hc_beam = np.copy(self.hs_beam)*np.sin(self.d_omega*self.t_beam)
+            self.hs_beam *= np.cos(self.d_omega*self.t_beam)
+            self.hc_gen = np.copy(self.hs_gen)*np.sin(self.d_omega*self.t_gen)
+            self.hs_gen *= np.cos(self.d_omega*self.t_gen)
+ 
 
-                
 
 class SPS4Section200MHzTWC(TravellingWaveCavity):
         

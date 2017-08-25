@@ -14,12 +14,16 @@
 '''
 
 from __future__ import division
+import ctypes
 import logging
 import numpy as np
 from llrf.signal_processing import comb_filter, cartesian_to_polar, polar_to_cartesian, \
     cavity_filter, cavity_impedance
 from llrf.signal_processing import rf_beam_current
 from llrf.impulse_response import SPS4Section200MHzTWC, SPS5Section200MHzTWC
+from setup_cpp import libblond
+
+
 
 class SPSOneTurnFeedback(object): 
     '''
@@ -33,8 +37,11 @@ class SPSOneTurnFeedback(object):
         self.profile = Profile
         
         # 200 MHz travelling wave cavity impulse responses
+        # Make sure that the impulse reponse has the same length as the profile
         self.TWC_4 = SPS4Section200MHzTWC()
         self.TWC_5 = SPS5Section200MHzTWC()
+        self.time = np.copy(self.profile.bin_centers) \
+            - self.profile.bin_centers[0]
         
         # Initialise bunch-by-bunch voltage correction array
         self.voltage = np.ones(self.profile.n_slices, dtype=float) + \
@@ -103,6 +110,8 @@ class SPSOneTurnFeedback(object):
         
         :seealso: :py:class:`llrf.impulse_response.TravellingWaveCavity`
         
+        Impulse response is made to be the same length as the beam profile.
+        
         Attributes
         ----------
         I_beam : complex array
@@ -117,38 +126,60 @@ class SPSOneTurnFeedback(object):
                                    self.rf.t_rev[self.counter])
         
         # Calculate impulse response at omega_c
-        self.TWC_4.impulse_response(self.omega_c, self.profile.bin_centers)
-        self.TWC_5.impulse_response(self.omega_c, self.profile.bin_centers)
+        self.TWC_4.impulse_response(self.omega_c, self.time) #self.profile.bin_size) #self.time)
+        self.TWC_5.impulse_response(self.omega_c, self.time) #self.profile.bin_size) #, self.time)
+        #print(self.TWC_4.hc_beam)
+        #print(self.TWC_4.hs_beam)
         
         # Total beam-induced voltage
         if self.TWC_4.hc_beam == None:
-            self.Vind_beam = self.diag_conv(self.TWC_4.hs_beam, self.I_beam)
+            self.Vind_beam = self.diag_conv(self.I_beam, self.TWC_4.hs_beam)
+        #    print(self.Vind_beam.real[:100])
+        #    print(self.Vind_beam.imag[:100])
         else:
-            self.Vind_beam = self.matr_conv(self.TWC_4.hs_beam, 
-                                            self.TWC_4.hc_beam, self.I_beam)
+            self.Vind_beam = self.matr_conv(self.I_beam, self.TWC_4.hs_beam, 
+                                            self.TWC_4.hc_beam)
         if self.TWC_5.hc_beam == None:
-            self.Vind_beam += self.diag_conv(self.TWC_5.hs_beam, self.I_beam) 
+            self.Vind_beam += self.diag_conv(self.I_beam, self.TWC_5.hs_beam) 
         else:
-            self.Vind_beam += self.matr_conv(self.TWC_5.hs_beam, 
-                                             self.TWC_5.hc_beam, self.I_beam)
-        self.Vind_beam *= 2 # 2 cavities each       
+            self.Vind_beam += self.matr_conv(self.I_beam, self.TWC_5.hs_beam,
+                                             self.TWC_5.hc_beam)
+        # Cut the proper length and scale
+        self.Vind_beam = self.Vind_beam[:self.profile.n_slices]*\
+            2*self.profile.bin_size # 2 cavities each       
 
 
-    def diag_conv(self, hs, I):
+    def diag_conv(self, I, hs):
         """Convolution of beam current with impulse response; diagonal
         components only."""
         
-        return ( np.convolve(hs, I.real, mode='same') \
-                 + 1j*np.convolve(hs, I.imag, mode='same') )
+#        return ( np.convolve(hs, I.real, mode='same') \
+#                 + 1j*np.convolve(hs, I.imag, mode='same') )
+        return ( self.call_conv(I.real, hs) + 1j*self.call_conv(I.imag, hs) )
         
         
-    def matr_conv(self, hs, hc, I):
+    def matr_conv(self, I, hs, hc):
         """Convolution of beam current with impulse response; uses a complete
         matrix with off-diagonal elements."""
 
-        return ( np.convolve(hs, I.real, mode='same') \
-                 - np.convolve(hc, I.imag, mode='same') \
-                 + 1j*(np.convolve(hc, I.real, mode='same') \
-                       + np.convolve(hs, I.imag, mode='same')) )
+#         return ( np.convolve(hs, I.real, mode='same') \
+#                  - np.convolve(hc, I.imag, mode='same') \
+#                  + 1j*(np.convolve(hc, I.real, mode='same') \
+#                        + np.convolve(hs, I.imag, mode='same')) )
+        return ( self.call_conv(I.real, hs) - self.call_conv(I.imag, hc) \
+            + 1j*(self.call_conv(I.real, hc) + self.call_conv(I.imag, hs)) )
+
+
+    def call_conv(self, signal, kernel):
+        
+        result = np.zeros(len(kernel) + len(signal) - 1)
+        libblond.convolution(signal.ctypes.data_as(ctypes.c_void_p),
+                             ctypes.c_int(len(signal)),
+                             kernel.ctypes.data_as(ctypes.c_void_p),
+                             ctypes.c_int(len(kernel)),
+                             result.ctypes.data_as(ctypes.c_void_p))
+        
+        return result
+
 
 
