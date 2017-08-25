@@ -112,7 +112,7 @@ if TWC == True:
 if VIND_BEAM == True:
     OTFB = SPSOneTurnFeedback(rf, beam, profile)
     OTFB.counter = 0 # First turn
-    OTFB.omega_c = 2*np.pi*200.222e6 #rf.omega_rf[0,0] 
+    OTFB.omega_c = rf.omega_rf[0,0] #2*np.pi*200.222e6  
     OTFB.beam_induced_voltage()
     plt.figure(3)
     convtime = np.linspace(-1e-9, -1e-9+len(OTFB.Vind_beam.real)*
@@ -123,19 +123,17 @@ if VIND_BEAM == True:
     plt.plot(convtime[:100], OTFB.Vind_beam.real[:100], 'b')
     plt.plot(convtime, OTFB.Vind_beam.imag, 'r--')
     plt.plot(convtime[:100], OTFB.Vind_beam.imag[:100], 'r')
-    plt.plot(convtime[:100], np.abs(OTFB.Vind_beam)[:100], color='purple')
+#    plt.plot(convtime[:100], np.abs(OTFB.Vind_beam)[:100]*np.cos(OTFB.omega_c*convtime[:100]), color='purple')
+    plt.plot(convtime[:100], -OTFB.Vind_beam.real[:100]*np.cos(OTFB.omega_c*convtime[:100])-OTFB.Vind_beam.imag[:100]*np.sin(OTFB.omega_c*convtime[:100]), color='purple')
     
     # Comparison with impedances
     TWC200_4 = TravelingWaveCavity(0.876e6, 200.222e6, 3.899e-6)
     TWC200_5 = TravelingWaveCavity(1.4634e6, 200.222e6, 4.897e-6)
-    #TWC200_4.wake_calc(profile.bin_centers)
-    #TWC200_5.wake_calc(profile.bin_centers)
-    #ZTable = InputTable(ZTot[:,0], ZTot[:,1], ZTot[:,2])
     indVoltageTWC = InducedVoltageTime(beam, profile, [TWC200_4, TWC200_4, TWC200_5, TWC200_5])
     indVoltage = TotalInducedVoltage(beam, profile, [indVoltageTWC])
     indVoltage.induced_voltage_sum()
-    plt.plot(indVoltage.time_array, indVoltage.induced_voltage*np.max(OTFB.Vind_beam.real)/np.max(indVoltage.induced_voltage), 'g')
-    #print(indVoltage.induced_voltage)
+    #plt.plot(indVoltage.time_array, indVoltage.induced_voltage*np.max(np.abs(OTFB.Vind_beam))/np.max(indVoltage.induced_voltage), 'g')
+    plt.plot(indVoltage.time_array, indVoltage.induced_voltage*3, 'g')
     print(len(indVoltage.induced_voltage))
 
 plt.show()

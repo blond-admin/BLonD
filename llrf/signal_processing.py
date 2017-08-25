@@ -162,8 +162,7 @@ def rf_beam_current(Profile, frequency, T_rev):
     
     # Convert from dimensionless to Ampères
     # Take into account macro-particle charge with real-to-macro-particle ratio
-    q_m = Profile.Beam.intensity/Profile.Beam.n_macroparticles \
-        *Profile.Beam.charge*e
+    q_m = Profile.Beam.ratio*Profile.Beam.charge*e
     profile *= q_m/T_rev
     logger.debug("Sum of slices: %d, total charge: %.4e C", 
                  np.sum(Profile.n_macroparticles), np.sum(profile)*T_rev)
@@ -174,11 +173,14 @@ def rf_beam_current(Profile, frequency, T_rev):
     Q_f = profile*np.sin(frequency*Profile.bin_centers)
     
     # Pass through a low-pass filter
-    I_filt = low_pass_filter(I_f, 20.e6)
-    Q_filt = low_pass_filter(Q_f, 20.e6)
+#    I_filt = low_pass_filter(I_f, 20.e6)
+#    Q_filt = low_pass_filter(Q_f, 20.e6)
+    I_filt = low_pass_filter(I_f, cutoff_frequency=0.002)
+    Q_filt = low_pass_filter(Q_f, cutoff_frequency=0.002)
     logger.debug("RF total current is %.4e A", np.fabs(np.sum(I_f)))
 
     return I_filt + 1j*Q_filt
+#    return I_f + 1j*Q_f
 
 
 def comb_filter(x, y, a):
@@ -208,7 +210,7 @@ def low_pass_filter(signal, cutoff_frequency=0.5):
         
     """
     
-    b, a = sgn.butter(5, 0.5, 'low', analog=False)
+    b, a = sgn.butter(5, cutoff_frequency, 'low', analog=False)
     
     return sgn.filtfilt(b, a, signal)
     
