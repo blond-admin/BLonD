@@ -172,15 +172,14 @@ def rf_beam_current(Profile, frequency, T_rev):
     I_f = profile*np.cos(frequency*Profile.bin_centers)
     Q_f = profile*np.sin(frequency*Profile.bin_centers)
     
+    # Nyquist frequency 0.5*f_slices; cutoff at 20 MHz
+    cutoff = 20.e6*2.*Profile.bin_size
     # Pass through a low-pass filter
-#    I_filt = low_pass_filter(I_f, 20.e6)
-#    Q_filt = low_pass_filter(Q_f, 20.e6)
-    I_filt = low_pass_filter(I_f, cutoff_frequency=0.002)
-    Q_filt = low_pass_filter(Q_f, cutoff_frequency=0.002)
+    I_filt = low_pass_filter(I_f, cutoff_frequency=cutoff)
+    Q_filt = low_pass_filter(Q_f, cutoff_frequency=cutoff)
     logger.debug("RF total current is %.4e A", np.fabs(np.sum(I_f)))
 
     return I_filt + 1j*Q_filt
-#    return I_f + 1j*Q_f
 
 
 def comb_filter(x, y, a):
@@ -256,7 +255,6 @@ def moving_average(x, N, center=False):
         x = np.concatenate((x[0]*np.ones(N_half), x, x[-1]*np.ones(N_half)))
         
     cumulative_sum = np.cumsum(np.insert(x, 0, 0))
-    # print(cumulative_sum) 
    
     return (cumulative_sum[N:] - cumulative_sum[:-N]) / N
 
