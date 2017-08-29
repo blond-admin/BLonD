@@ -129,17 +129,34 @@ def modulator(signal, f_initial, f_final, T_sampling):
 
     
 def rf_beam_current(Profile, frequency, T_rev):
-    r"""Function calculating the beam current at the (RF) frequency, slice by
-    slice. The total charge [C] in the beam is determined from the sum of the 
-    beam profile :math:`\lambda_i`, the particle charge :math:`q_p` and the 
-    real vs. macro-particle ratio :math:`N_{\mathsf{real}}/N_{\mathsf{macro}}`
+    r"""Function calculating the beam charge at the (RF) frequency, slice by
+    slice. The charge distribution [C] of the beam is determined from the beam
+    profile :math:`\lambda_i`, the particle charge :math:`q_p` and the real vs.
+    macro-particle ratio :math:`N_{\mathsf{real}}/N_{\mathsf{macro}}`
     
     .. math:: 
-        Q_{\mathsf{tot}} = \frac{N_{\mathsf{real}}}{N_{\mathsf{macro}}} q_p \sum_i{\lambda_i}
+        Q_i = \frac{N_{\mathsf{real}}}{N_{\mathsf{macro}}} q_p \lambda_i
+
+    The total charge [C] in the beam is then
+    
+    .. math:: 
+        Q_{\mathsf{tot}} = \sum_i{Q_i}
     
     The DC beam current [A] is the total number of charges per turn :math:`T_0`
     
     .. math:: I_{\mathsf{DC}} = \frac{Q_{\mathsf{tot}}}{T_0}
+    
+    The RF beam charge distribution [C] at a revolution frequency 
+    :math:`\omega_c` is the complex quantity
+    
+    .. math:: 
+        \left( \begin{matrix} I_{rf,i} \\ 
+        Q_{rf,i} \end{matrix} \right)
+        = 2 Q_i \left( \begin{matrix} \cos(\omega_c t_i) \\
+        \cos(\omega_c t_i)\end{matrix} \right) \, ,
+        
+    where :math:`t_i` are the time coordinates of the beam profile. After de-
+    modulation, a low-pass filter at 20 MHz is applied.
     
     Parameters
     ----------
@@ -153,17 +170,13 @@ def rf_beam_current(Profile, frequency, T_rev):
     Returns
     -------
     complex array
-        RF beam current array [A] at 'frequency' frequency
+        RF beam charge array [C] at 'frequency' frequency. To obtain current,
+        divide by the sampling time
         
     """
     
-    # Convert real signal to complex IQ
-#    profile = np.copy(Profile.n_macroparticles)
-    
     # Convert from dimensionless to Coulomb/Ampères
     # Take into account macro-particle charge with real-to-macro-particle ratio
-#    q_m = Profile.Beam.ratio*Profile.Beam.charge*e
-#    profile *= q_m#/T_rev
     charges = Profile.Beam.ratio*Profile.Beam.charge*e*\
         np.copy(Profile.n_macroparticles)
     logger.debug("Sum of particles: %d, total charge: %.4e C", 

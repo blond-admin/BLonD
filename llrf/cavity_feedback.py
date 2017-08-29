@@ -167,9 +167,8 @@ class SPSOneTurnFeedback(object):
             self.Vind_beam += self.matr_conv(self.I_beam, self.TWC_5.hs_beam,
                                              self.TWC_5.hc_beam)
             self.logger.debug("Matrix convolution for TWC_5")
-        # Cut the proper length and scale
-        self.Vind_beam = -2*self.Vind_beam[:self.profile.n_slices]#*\
-            #2#*self.profile.bin_size # 2 cavities each       
+        # Cut the proper length and scale; 2 cavities each -> factor 2
+        self.Vind_beam = -2*self.Vind_beam[:self.profile.n_slices]
 
 
     def diag_conv(self, I, hs):
@@ -177,7 +176,8 @@ class SPSOneTurnFeedback(object):
         components only."""
         
         #return ( self.call_conv(I.real, hs) + 1j*self.call_conv(I.imag, hs) )
-        return ( np.convolve(I.real, hs, mode='full') + 1j*np.convolve(I.imag, hs, mode='full') )
+        return ( np.convolve(I.real, hs, mode='full') \
+                 + 1j*np.convolve(I.imag, hs, mode='full') )
         
         
     def matr_conv(self, I, hs, hc):
