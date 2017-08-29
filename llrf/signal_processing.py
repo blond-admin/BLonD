@@ -158,28 +158,30 @@ def rf_beam_current(Profile, frequency, T_rev):
     """
     
     # Convert real signal to complex IQ
-    profile = Profile.n_macroparticles
+#    profile = np.copy(Profile.n_macroparticles)
     
-    # Convert from dimensionless to Ampères
+    # Convert from dimensionless to Coulomb/Ampères
     # Take into account macro-particle charge with real-to-macro-particle ratio
-    q_m = Profile.Beam.ratio*Profile.Beam.charge*e
-    profile *= q_m/T_rev
-    logger.debug("Sum of slices: %d, total charge: %.4e C", 
-                 np.sum(Profile.n_macroparticles), np.sum(profile)*T_rev)
-    logger.debug("DC current is %.4e A", np.sum(profile))
+#    q_m = Profile.Beam.ratio*Profile.Beam.charge*e
+#    profile *= q_m#/T_rev
+    charges = Profile.Beam.ratio*Profile.Beam.charge*e*\
+        np.copy(Profile.n_macroparticles)
+    logger.debug("Sum of particles: %d, total charge: %.4e C", 
+                 np.sum(Profile.n_macroparticles), np.sum(charges))
+    logger.debug("DC current is %.4e A", np.sum(charges)/T_rev)
     
-    # Mix with frequency of interest
-    I_f = profile*np.cos(frequency*Profile.bin_centers)
-    Q_f = profile*np.sin(frequency*Profile.bin_centers)
+    # Mix with frequency of interest; remember factor 2 demodulation
+    I_f = 2.*charges*np.cos(frequency*Profile.bin_centers)
+    Q_f = 2.*charges*np.sin(frequency*Profile.bin_centers)
     
     # Nyquist frequency 0.5*f_slices; cutoff at 20 MHz
     cutoff = 20.e6*2.*Profile.bin_size
     # Pass through a low-pass filter
-    I_filt = low_pass_filter(I_f, cutoff_frequency=cutoff)
-    Q_filt = low_pass_filter(Q_f, cutoff_frequency=cutoff)
-    logger.debug("RF total current is %.4e A", np.fabs(np.sum(I_f)))
+#    I_filt = low_pass_filter(I_f, cutoff_frequency=cutoff)
+#    Q_filt = low_pass_filter(Q_f, cutoff_frequency=cutoff)
+    logger.debug("RF total current is %.4e A", np.fabs(np.sum(I_f))/T_rev)
 
-    return I_filt + 1j*Q_filt
+    return I_f + 1j*Q_f#I_filt + 1j*Q_filt
 
 
 def comb_filter(x, y, a):

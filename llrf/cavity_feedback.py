@@ -147,14 +147,15 @@ class SPSOneTurnFeedback(object):
         if self.TWC_4.hc_beam == None:
             self.Vind_beam = self.diag_conv(self.I_beam, self.TWC_4.hs_beam)
             self.logger.debug("Diagonal convolution for TWC_4")
-            print(self.I_beam.real[45:55])
-            print(self.Vind_beam.real[45:55])
-            print(self.call_conv(self.I_beam.real, self.TWC_4.hs_beam)[45:55])
-            print("")
-            print(self.I_beam.imag[45:55])
-            print(self.Vind_beam.imag[45:55])
-            print(self.call_conv(self.I_beam.imag, self.TWC_4.hs_beam)[45:55])
-            print("")
+            
+#             print(self.I_beam.real[45:55])
+#             print(self.Vind_beam.real[45:55])
+#             print(self.call_conv(self.I_beam.real, self.TWC_4.hs_beam)[45:55])
+#             print("")
+#             print(self.I_beam.imag[45:55])
+#             print(self.Vind_beam.imag[45:55])
+#             print(self.call_conv(self.I_beam.imag, self.TWC_4.hs_beam)[45:55])
+#             print("")
         else:
             self.Vind_beam = self.matr_conv(self.I_beam, self.TWC_4.hs_beam, 
                                             self.TWC_4.hc_beam)
@@ -167,8 +168,8 @@ class SPSOneTurnFeedback(object):
                                              self.TWC_5.hc_beam)
             self.logger.debug("Matrix convolution for TWC_5")
         # Cut the proper length and scale
-        self.Vind_beam = self.Vind_beam[:self.profile.n_slices]*\
-            2*self.profile.bin_size # 2 cavities each       
+        self.Vind_beam = -2*self.Vind_beam[:self.profile.n_slices]#*\
+            #2#*self.profile.bin_size # 2 cavities each       
 
 
     def diag_conv(self, I, hs):

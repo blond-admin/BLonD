@@ -279,6 +279,7 @@ class TravellingWaveCavity(object):
          
         # Shunt impedances towards beam and generator
         self.R_beam = 0.125*self.rho*self.l_cav**2
+        print(self.tau)
         self.R_gen = self.l_cav*np.sqrt(0.5*self.rho*self.Z_0)
  
         # Impulse response if on carrier frequency
