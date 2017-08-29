@@ -8,9 +8,10 @@
 # Project website: http://blond.web.cern.ch/
 
 '''
-Unit-tests for the Beam Profile class.
+**Unit-tests for the Beam Profile class.
+   Run as python testBeamProfileObject.py in console or via travis. **
 
-Run as python testBeamProfileObject.py in console or via travis
+:Authors: **Danilo Quartullo**
 '''
 
 # General imports
@@ -18,13 +19,15 @@ Run as python testBeamProfileObject.py in console or via travis
 from __future__ import division, print_function
 import unittest
 import numpy as np
+import matplotlib.pyplot as plt
 
 # BLonD imports
 # --------------
 from beam.beam import Beam
 from input_parameters.ring import Ring
 import beam.profile as profileModule
-
+from beam.beam import Proton
+from input_parameters.rf_parameters import RFStation
 
 class testProfileClass(unittest.TestCase):
     
@@ -42,7 +45,11 @@ class testProfileClass(unittest.TestCase):
         momentum = 1e9
         
         # Ring object initialization
-        self.ring = Ring(n_turns, ring_length, alpha, momentum)
+        self.ring = Ring(n_turns, ring_length, alpha, momentum, Proton())
+        
+        # RF object initialization
+        self.rf_params = RFStation(Ring=self.ring, n_rf=1, harmonic=[1], 
+                     voltage=[7e6], phi_rf_d=[0.])
         
         # Beam parameters
         n_macroparticles = 100000
@@ -59,7 +66,7 @@ class testProfileClass(unittest.TestCase):
         # Second profile object initialization and tracking
         n_slices = 200
         CutOptions = profileModule.CutOptions(cut_left=0, cut_right=2*np.pi, 
-                        n_slices = n_slices, cuts_unit='rad', omega_RF=2*np.pi/self.ring.t_rev[0])
+                        n_slices = n_slices, cuts_unit='rad', RFSectionParameters=self.rf_params)
         FitOptions = profileModule.FitOptions(fitMethod='fwhm', fitExtraOptions=None)
         FilterOptions = profileModule.FilterOptions(filterMethod=None, filterExtraOptions=None)
         OtherSlicesOptions = profileModule.OtherSlicesOptions(smooth=False, direct_slicing = True)
@@ -94,7 +101,6 @@ class testProfileClass(unittest.TestCase):
                          FitOptions= FitOptions,
                          FilterOptions=FilterOptions, 
                          OtherSlicesOptions = OtherSlicesOptions)
-        
         
     def test(self):
         
