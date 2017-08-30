@@ -179,7 +179,7 @@ def rf_beam_current(Profile, frequency, T_rev, lpf=True):
     
     # Convert from dimensionless to Coulomb/Ampères
     # Take into account macro-particle charge with real-to-macro-particle ratio
-    charges = Profile.Beam.ratio*Profile.Beam.charge*e*\
+    charges = Profile.Beam.ratio*Profile.Beam.Particle.charge*e*\
         np.copy(Profile.n_macroparticles)
     logger.debug("Sum of particles: %d, total charge: %.4e C", 
                  np.sum(Profile.n_macroparticles), np.sum(charges))
@@ -232,15 +232,15 @@ def low_pass_filter(signal, cutoff_frequency=0.5):
     return sgn.filtfilt(b, a, signal)
     
 
-def cavity_filter():
-    """Model of the SPS cavity filter.
-    """   
-    
-        
-def cavity_impedance():
-    """Model of the SPS cavity impedance.
-    """
-
+# def cavity_filter():
+#     """Model of the SPS cavity filter.
+#     """   
+#     
+#         
+# def cavity_impedance():
+#     """Model of the SPS cavity impedance.
+#     """
+# 
 
 def moving_average(x, N, center=False):
     """Function to calculate the moving average (or running mean) of the input

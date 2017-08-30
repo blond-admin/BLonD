@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 from toolbox.logger import Logger
 from input_parameters.ring import Ring
 from input_parameters.rf_parameters import RFStation
-from beam.beam import Beam
+from beam.beam import Beam, Proton
 from beam.distributions import bigaussian
 from beam.profile import Profile, CutOptions
 from llrf.cavity_feedback import SPSOneTurnFeedback
@@ -70,7 +70,7 @@ else:
     Logger().disable()
 
 # Set up machine parameters
-ring = Ring(N_t, C, alpha, p_s)
+ring = Ring(N_t, C, alpha, p_s, Particle=Proton())
 print("Machine parameters set!")
 
 # Set up RF parameters
@@ -157,7 +157,7 @@ if VIND_BEAM == True:
     TWC200_4.wake_calc(profile.bin_centers - profile.bin_centers[0])
     TWC200_5.wake_calc(profile.bin_centers - profile.bin_centers[0])
     wake1 = 2*(TWC200_4.wake + TWC200_5.wake)
-    Vind = -profile.Beam.ratio*profile.Beam.charge*e*\
+    Vind = -profile.Beam.ratio*profile.Beam.Particle.charge*e*\
         np.convolve(wake1, profile.n_macroparticles, mode='full')[:140]
     plt.plot(convtime[:140], Vind, color='teal', label='Time domain w conv')
     
@@ -167,7 +167,7 @@ if VIND_BEAM == True:
     impResp5 = SPS5Section200MHzTWC()
     impResp5.impulse_response(OTFB.omega_c, profile.bin_centers)
     wake2 = 2*(impResp4.W_beam + impResp5.W_beam)
-    Vind = -profile.Beam.ratio*profile.Beam.charge*e*\
+    Vind = -profile.Beam.ratio*profile.Beam.Particle.charge*e*\
         np.convolve(wake2, profile.n_macroparticles, mode='full')[:140]
     plt.plot(convtime[:140], Vind, color='turquoise', label='Wake, OTFB')
     plt.xlabel("Time [s]")
