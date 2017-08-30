@@ -260,6 +260,7 @@ class RingAndRFTracker(object):
                 " longitudinal solver not recognised!")    
         if self.alpha_order > 1: # Set exact solver for higher orders of eta
             self.solver = 'exact'
+        self.solver = self.solver.encode(encoding='utf_8')
 
         # Options
         self.beamFB = BeamFeedback   
@@ -277,12 +278,15 @@ class RingAndRFTracker(object):
                 " interpolation not recognised!")    
         self.profile = Profile
         self.totalInducedVoltage = TotalInducedVoltage        
-        if self.interpolation and self.profile is None:
+        if (self.interpolation == True) and (self.profile is None):
             raise RuntimeError("ERROR in RingAndRFTracker: Please specify a"+
                 " Profile object to use the interpolation option")
-        if self.cavityFB and self.profile is None:
+        if (self.cavityFB != None) and (self.profile is None):
             raise RuntimeError("ERROR in RingAndRFTracker: Please specify a"+
                 " Profile object to use the CavityFeedback class")
+        if (self.rf_params.empty == True) and (self.periodicity == True):
+            raise RuntimeError("ERROR in RingAndRFTracker: Empty RFStation"+
+                " with periodicity not yet implemented!")
         else:
             self.interpolation = True # obligatory interpolation if cavFB on
         
@@ -448,25 +452,26 @@ class RingAndRFTracker(object):
                 
         else:
             
-            if self.interpolation:
-#                self.rf_voltage_calculation(self.counter[0], self.profile)
-                self.rf_voltage_calculation()
-                if self.totalInducedVoltage is not None:
-                    self.total_voltage = self.rf_voltage + self.totalInducedVoltage.induced_voltage
+            if self.rf_params.empty == False:
+                if self.interpolation:
+    #                self.rf_voltage_calculation(self.counter[0], self.profile)
+                    self.rf_voltage_calculation()
+                    if self.totalInducedVoltage is not None:
+                        self.total_voltage = self.rf_voltage + self.totalInducedVoltage.induced_voltage
+                    else:
+                        self.total_voltage = self.rf_voltage
+                    
+                    libblond.linear_interp_kick(self.beam.dt.ctypes.data_as(ctypes.c_void_p),
+                        self.beam.dE.ctypes.data_as(ctypes.c_void_p), 
+                        self.total_voltage.ctypes.data_as(ctypes.c_void_p), 
+                        self.profile.bin_centers.ctypes.data_as(ctypes.c_void_p),
+                        ctypes.c_double(self.beam.charge),
+                        ctypes.c_int(self.profile.n_slices),
+                        ctypes.c_int(self.beam.n_macroparticles),
+                        ctypes.c_double(self.acceleration_kick[self.counter[0]]))
+                    
                 else:
-                    self.total_voltage = self.rf_voltage
-                
-                libblond.linear_interp_kick(self.beam.dt.ctypes.data_as(ctypes.c_void_p),
-                    self.beam.dE.ctypes.data_as(ctypes.c_void_p), 
-                    self.total_voltage.ctypes.data_as(ctypes.c_void_p), 
-                    self.profile.bin_centers.ctypes.data_as(ctypes.c_void_p),
-                    ctypes.c_double(self.beam.charge),
-                    ctypes.c_int(self.profile.n_slices),
-                    ctypes.c_int(self.beam.n_macroparticles),
-                    ctypes.c_double(self.acceleration_kick[self.counter[0]]))
-                
-            else:
-                self.kick(self.beam.dt, self.beam.dE, self.counter[0])
+                    self.kick(self.beam.dt, self.beam.dE, self.counter[0])
             
             self.drift(self.beam.dt, self.beam.dE, self.counter[0]+1)
             

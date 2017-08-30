@@ -55,7 +55,7 @@ def synchrotron_frequency_distribution(Beam, FullRingAndRF, main_harmonic_option
     slippage_factor = FullRingAndRF.RingAndRFSection_list[0].eta_0[0]
                         
     eom_factor_dE = abs(slippage_factor) / (2*Beam.beta**2. * Beam.energy)
-    eom_factor_potential = np.sign(slippage_factor) * Beam.charge / (FullRingAndRF.RingAndRFSection_list[0].t_rev[0])
+    eom_factor_potential = np.sign(slippage_factor) * Beam.Particle.charge / (FullRingAndRF.RingAndRFSection_list[0].t_rev[0])
 
     # Generate potential well
     n_points_potential = int(1e4)
@@ -382,7 +382,7 @@ def hamiltonian(Ring, RFStation, Beam, dt, dE,
         V0 = RFStation.voltage[0,counter]
     else: 
         V0 = total_voltage[counter]
-    V0 *= RFStation.charge
+    V0 *= RFStation.Particle.charge
     
     c1 = RFStation.eta_tracking(Beam, counter, dE)*c*np.pi/ \
          (Ring.ring_circumference*Beam.beta*Beam.energy )
@@ -434,7 +434,7 @@ def separatrix(Ring, RFStation, dt):
        
     # Import RF and ring parameters at this moment 
     counter = RFStation.counter[0]
-    voltage = Ring.charge*RFStation.voltage[:,counter]
+    voltage = Ring.Particle.charge*RFStation.voltage[:,counter]
     omega_rf = RFStation.omega_rf[:,counter]
     phi_rf = RFStation.phi_rf[:,counter]
 

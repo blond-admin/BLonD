@@ -13,10 +13,8 @@
 
 #include <omp.h>        // omp_get_thread_num(), omp_get_num_threads()
 #include <string.h>     // memset()
+#include <stdlib.h>     // mmalloc()
 
-const int MAX_SLICES = 100000;
-const int MAX_THREADS = 56;
-static double hist[MAX_THREADS][MAX_SLICES];
 
 extern "C" void histogram(const double *__restrict__ input,
                           double *__restrict__ output, const double cut_left,
@@ -25,6 +23,19 @@ extern "C" void histogram(const double *__restrict__ input,
 {
 
     const double inv_bin_width = n_slices / (cut_right - cut_left);
+    
+    // Dynamic memory allocation
+    // allocate an array of double** pointers
+    double **hist = (double **) malloc(omp_get_max_threads() * sizeof(double *));
+    
+    // allocate the whole memory region in one chunk
+    hist[0] = (double *) malloc (omp_get_max_threads() * n_slices * sizeof(double));
+    
+    // set the pointers to point to every row
+    for(int i =0; i < omp_get_max_threads(); i++)
+        hist[i] = (*hist + n_slices * i);
+
+
     #pragma omp parallel
     {
         const int id = omp_get_thread_num();
@@ -44,6 +55,10 @@ extern "C" void histogram(const double *__restrict__ input,
                 output[i] += hist[t][i];
         }
     }
+
+    // free the memory
+    free(hist[0]);
+    free(hist);
 }
 
 extern "C" void smooth_histogram(const double *__restrict__ input,
