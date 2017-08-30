@@ -27,7 +27,7 @@ from llrf.cavity_feedback import SPSOneTurnFeedback
 from llrf.signal_processing import rf_beam_current #, low_pass_filter
 #from llrf.impulse_response import triangle
 from impedances.impedance_sources import TravelingWaveCavity
-from llrf.impulse_response import SPS4Section200MHzTWC
+from llrf.impulse_response import SPS4Section200MHzTWC, SPS5Section200MHzTWC
 #from impedances.impedance_sources import InputTable
 from impedances.impedance import InducedVoltageTime, TotalInducedVoltage
 
@@ -56,6 +56,13 @@ VIND_BEAM = True            # Beam-induced voltage
 
 # OPTIONS TO TEST -------------------------------------------------------------
 
+# Plot settings
+plt.rc('axes', labelsize=16, labelweight='normal')
+plt.rc('lines', linewidth=1.5, markersize=6)
+plt.rc('font', family='sans-serif')  
+plt.rc('legend', fontsize=12)  
+
+
 # Logger for messages on console & in file
 if LOGGING == True:
     Logger(debug = True)
@@ -83,7 +90,8 @@ profile = Profile(beam, CutOptions = CutOptions(cut_left=-1.e-9,
 profile.track()
 
 if RF_CURRENT == True:
-    rf_current = rf_beam_current(profile, 2*np.pi*200.222e6, ring.t_rev[0])
+    rf_current = rf_beam_current(profile, 2*np.pi*200.222e6, ring.t_rev[0],
+                                 lpf=False)
     np.set_printoptions(precision=10)
     #print(repr(rf_current.real))
     #plt.figure(1)
@@ -107,11 +115,11 @@ if TWC == True:
     #print(impResp.tau)
     #print(3.56e-6/2/np.pi)
     TWC200_4 = TravelingWaveCavity(0.876e6, 200.222e6, 2*np.pi*6.207e-7)
-    TWC200_4.wake_calc(time)
+    TWC200_4.wake_calc(time - time[0])
     plt.figure(2)
-    plt.plot(TWC200_4.time_array, TWC200_4.wake, 'b', label='wake, impedances')
-    plt.plot(impResp.t_beam, impResp.W_beam, 'r', label='wake, OTFB')
-    plt.plot(impResp.t_beam, impResp.hs_beam, 'g', label='hs_cav, OTFB')
+    plt.plot(TWC200_4.time_array, TWC200_4.wake, 'b', marker='.', label='wake, impedances')
+    plt.plot(impResp.t_beam, impResp.W_beam, 'r', marker='.', label='wake, OTFB')
+    plt.plot(impResp.t_beam, impResp.hs_beam, 'g', marker='.', label='hs_cav, OTFB')
     plt.plot(impResp.t_gen, impResp.hs_gen, 'purple', marker='.', label='hs_gen, OTFB')
     plt.xlabel("Time [s]")
     plt.ylabel("Wake/impulse response [Ohms/s]")
@@ -123,46 +131,58 @@ if VIND_BEAM == True:
     OTFB.counter = 0 # First turn
 #    OTFB.omega_c = rf.omega_rf[0,0]  
     OTFB.omega_c = 2*np.pi*200.222e6  
-    OTFB.beam_induced_voltage()
+    OTFB.beam_induced_voltage(lpf=False)
     plt.figure(3)
     convtime = np.linspace(-1e-9, -1e-9+len(OTFB.Vind_beam.real)*
                            profile.bin_size, len(OTFB.Vind_beam.real))
 #    plt.plot(profile.bin_centers, OTFB.Vind_beam.real, 'b')
 #    plt.plot(profile.bin_centers, OTFB.Vind_beam.imag, 'r')
     plt.plot(convtime, OTFB.Vind_beam.real, 'b--')
-    plt.plot(convtime[:140], OTFB.Vind_beam.real[:140], 'b')
+    plt.plot(convtime[:140], OTFB.Vind_beam.real[:140], 'b', label='Re(Vind), OTFB')
     plt.plot(convtime, OTFB.Vind_beam.imag, 'r--')
-    plt.plot(convtime[:140], OTFB.Vind_beam.imag[:140], 'r')
-    plt.plot(convtime[:140], OTFB.Vind_beam.real[:140]*np.cos(OTFB.omega_c*convtime[:140]) + OTFB.Vind_beam.imag[:140]*np.sin(OTFB.omega_c*convtime[:140]), color='purple')
+    plt.plot(convtime[:140], OTFB.Vind_beam.imag[:140], 'r', label='Im(Vind), OTFB')
+    plt.plot(convtime[:140], OTFB.Vind_beam.real[:140]*np.cos(OTFB.omega_c*convtime[:140]) \
+             + OTFB.Vind_beam.imag[:140]*np.sin(OTFB.omega_c*convtime[:140]), 
+             color='purple', label='Total, OTFB')
     
     # Comparison with impedances: FREQUENCY DOMAIN
     TWC200_4 = TravelingWaveCavity(0.876e6, 200.222e6, 3.899e-6)
-    TWC200_5 = TravelingWaveCavity(1.4634e6, 200.222e6, 4.897e-6)
+    TWC200_5 = TravelingWaveCavity(1.38e6, 200.222e6, 4.897e-6)
     indVoltageTWC = InducedVoltageTime(beam, profile, [TWC200_4, TWC200_4, TWC200_5, TWC200_5])
     indVoltage = TotalInducedVoltage(beam, profile, [indVoltageTWC])
     indVoltage.induced_voltage_sum()
-    plt.plot(indVoltage.time_array, indVoltage.induced_voltage, 'g') #*1.5/(profile.bin_size*200.222e6)
+    plt.plot(indVoltage.time_array, indVoltage.induced_voltage, color='limegreen', label='Time domain w FFT')
     
     # Comparison with impedances: TIME DOMAIN
-#     TWC200_4.wake_calc(profile.bin_centers)
-#     TWC200_5.wake_calc(profile.bin_centers)
-#     wake = 2*(TWC200_4.wake + TWC200_5.wake)
-#     Vind = -profile.Beam.ratio*profile.Beam.charge*e*\
-#         np.convolve(profile.n_macroparticles, wake, mode='full')[:140]
-#     plt.plot(convtime[:140], Vind, 'g')
+    TWC200_4.wake_calc(profile.bin_centers - profile.bin_centers[0])
+    TWC200_5.wake_calc(profile.bin_centers - profile.bin_centers[0])
+    wake1 = 2*(TWC200_4.wake + TWC200_5.wake)
+    Vind = -profile.Beam.ratio*profile.Beam.charge*e*\
+        np.convolve(wake1, profile.n_macroparticles, mode='full')[:140]
+    plt.plot(convtime[:140], Vind, color='teal', label='Time domain w conv')
     
     # Wake from impulse response
-#     impResp4 = SPS4Section200MHzTWC()
-#     impResp4.impulse_response(OTFB.omega_c, profile.bin_centers)
-#     impResp5 = SPS4Section200MHzTWC()
-#     impResp5.impulse_response(OTFB.omega_c, profile.bin_centers)
-#     wake = 2*(impResp4.W_beam + impResp5.W_beam)
-#     Vind = -profile.Beam.ratio*profile.Beam.charge*e*\
-#         np.convolve(profile.n_macroparticles, wake, mode='full')[:140]
-#     plt.plot(convtime[:140], Vind, 'g')
+    impResp4 = SPS4Section200MHzTWC()
+    impResp4.impulse_response(OTFB.omega_c, profile.bin_centers)
+    impResp5 = SPS5Section200MHzTWC()
+    impResp5.impulse_response(OTFB.omega_c, profile.bin_centers)
+    wake2 = 2*(impResp4.W_beam + impResp5.W_beam)
+    Vind = -profile.Beam.ratio*profile.Beam.charge*e*\
+        np.convolve(wake2, profile.n_macroparticles, mode='full')[:140]
+    plt.plot(convtime[:140], Vind, color='turquoise', label='Wake, OTFB')
+    plt.xlabel("Time [s]")
+    plt.ylabel("Induced voltage [V]")
+    plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+    plt.legend(loc=2)
     
-#    plt.figure(4)
-#    plt.plot(profile.bin_centers, wake)
+    plt.figure(4)
+    plt.plot(profile.bin_centers, wake1, label='from impedances')
+    plt.plot(profile.bin_centers, wake2, label='from OTFB')
+    plt.xlabel("Time [s]")
+    plt.ylabel("Wake field [Ohms/s]")
+    plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+    plt.legend(loc=4)
+    
 
 
 plt.show()

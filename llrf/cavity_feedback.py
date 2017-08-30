@@ -104,7 +104,7 @@ class SPSOneTurnFeedback(object):
 #         self.voltage = cartesian_to_polar(self.voltage_IQ)
 
 
-    def beam_induced_voltage(self):
+    def beam_induced_voltage(self, lpf=True):
         r"""Calculates the beam-induced voltage from the beam profile, at a
         given carrier frequency and turn. The beam-induced voltage 
         :math:`V(t)` is calculated from the impulse response matrix 
@@ -126,6 +126,11 @@ class SPSOneTurnFeedback(object):
         
         Impulse response is made to be the same length as the beam profile.
         
+        Parameters
+        ----------
+        lpf : bool
+            Apply low-pass filter for beam current calculation; default is True 
+            
         Attributes
         ----------
         I_beam : complex array
@@ -137,7 +142,7 @@ class SPSOneTurnFeedback(object):
         
         # Beam current from profile
         self.I_beam = rf_beam_current(self.profile, self.TWC_4.omega_r, 
-                                      self.rf.t_rev[self.counter])
+                                      self.rf.t_rev[self.counter], lpf=lpf)
         
         # Calculate impulse response at omega_c
         self.TWC_4.impulse_response(self.omega_c, self.time)

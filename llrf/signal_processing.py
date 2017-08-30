@@ -128,7 +128,7 @@ def modulator(signal, f_initial, f_final, T_sampling):
     return I_new + 1j*Q_new
 
     
-def rf_beam_current(Profile, frequency, T_rev):
+def rf_beam_current(Profile, frequency, T_rev, lpf=True):
     r"""Function calculating the beam charge at the (RF) frequency, slice by
     slice. The charge distribution [C] of the beam is determined from the beam
     profile :math:`\lambda_i`, the particle charge :math:`q_p` and the real vs.
@@ -166,6 +166,8 @@ def rf_beam_current(Profile, frequency, T_rev):
         Revolution frequency [1/s] at which the current should be calculated
     T_rev : float 
         Revolution period [s] of the machine
+    lpf : bool
+        Apply low-pass filter; default is True 
         
     Returns
     -------
@@ -187,14 +189,15 @@ def rf_beam_current(Profile, frequency, T_rev):
     I_f = 2.*charges*np.cos(frequency*Profile.bin_centers)
     Q_f = 2.*charges*np.sin(frequency*Profile.bin_centers)
     
-    # Nyquist frequency 0.5*f_slices; cutoff at 20 MHz
-    cutoff = 20.e6*2.*Profile.bin_size
     # Pass through a low-pass filter
-#    I_filt = low_pass_filter(I_f, cutoff_frequency=cutoff)
-#    Q_filt = low_pass_filter(Q_f, cutoff_frequency=cutoff)
+    if lpf == True:
+        # Nyquist frequency 0.5*f_slices; cutoff at 20 MHz
+        cutoff = 20.e6*2.*Profile.bin_size
+        I_f = low_pass_filter(I_f, cutoff_frequency=cutoff)
+        Q_f = low_pass_filter(Q_f, cutoff_frequency=cutoff)
     logger.debug("RF total current is %.4e A", np.fabs(np.sum(I_f))/T_rev)
 
-    return I_f + 1j*Q_f#I_filt + 1j*Q_filt
+    return I_f + 1j*Q_f
 
 
 def comb_filter(x, y, a):
