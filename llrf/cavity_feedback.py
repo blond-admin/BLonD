@@ -17,12 +17,17 @@ from __future__ import division
 import ctypes
 import logging
 import numpy as np
-from llrf.signal_processing import comb_filter, cartesian_to_polar, polar_to_cartesian
-from llrf.signal_processing import rf_beam_current
+from llrf.signal_processing import comb_filter, polar_to_cartesian, cartesian_to_polar
+from llrf.signal_processing import rf_beam_current, modulator, moving_average
 from llrf.impulse_response import SPS4Section200MHzTWC, SPS5Section200MHzTWC
 from setup_cpp import libblond
 
 
+
+class SPSCavityFeedback(object):
+    """Class determining the turn-by-turn total RF voltage and phase correction
+    originating from the individual cavity feedbacks. 
+    """
 
 class SPSOneTurnFeedback(object): 
     '''
@@ -45,6 +50,8 @@ class SPSOneTurnFeedback(object):
         An SPS4Section200MHzTWC type class
     TWC_5 : class
         An SPS5Section200MHzTWC type class
+    omega_r : const float
+        Resonant revolution frequency [1/s] of the travelling wave cavities
     time : float array
         Time array of impulse responses
     V_tot : complex array
@@ -54,6 +61,12 @@ class SPSOneTurnFeedback(object):
         Cavity voltage [V] of the previous turn in (I,Q) coordinates
     a_comb_filter : float
         Recursion constant of the comb filter; :math:`a_{\mathsf{comb}}=15/16`
+    bw_cav : const float
+        Cavity bandwidth; :math:`f_{\mathsf{bw,cav}} = 40 MHz`
+    n_mov_av : const int
+        Number of points for moving average modelling cavity response;
+        :math:`n_{\mathsf{mov.av.}} = \frac{f_r}{f_{\mathsf{bw,cav}}}`, where
+        :math:`f_r` is the cavity resonant frequency of TWC_4 and TWC_5
     logger : logger
         Logger of the present class
     
@@ -70,6 +83,8 @@ class SPSOneTurnFeedback(object):
         # Make sure that the impulse reponse has the same length as the profile
         self.TWC_4 = SPS4Section200MHzTWC()
         self.TWC_5 = SPS5Section200MHzTWC()
+        self.omega_r = self.TWC_4.omega_r # same for TWC_4
+
 #        self.time = np.copy(self.profile.bin_centers) \
 #            - self.profile.bin_centers[0]
         
@@ -78,10 +93,12 @@ class SPSOneTurnFeedback(object):
             1j*np.zeros(self.profile.n_slices, dtype=float)
         
         # Initialise comb filter
-        self.V_gen_prev = np.zeros(len(self.V_tot)) #polar_to_cartesian(self.voltage) # ??? WHAT IS THE CORRECT INITIAL VALUE???
+        self.V_gen_prev = np.zeros(len(self.V_tot), dtype=float) #polar_to_cartesian(self.voltage) # ??? WHAT IS THE CORRECT INITIAL VALUE???
         self.a_comb_filter = float(15/16)
         
         # Initialise cavity filter
+        self.bw_cav = float(40e6)
+        self.n_mov_av = self.TWC_4.omega_r/(2*np.pi*self.bw_cav)
         #self.cavity_filter_buckets = float(5) # Trev  / 4620 * 5
         
         # Set up logging
@@ -97,17 +114,26 @@ class SPSOneTurnFeedback(object):
         self.counter = self.rf.counter[0]
         # Present carrier frequency: main RF frequency
         self.omega_c = self.rf.omega_rf[0,self.counter]
+        # Impulse response at present carrier frequency
+        self.impulse_response()
         
         # On current measured (I,Q) voltage, apply LLRF model
+        self.llrf_model()
         
-        # Convert voltage to current, transmitter model
-        self.I_gen = self.transmitter(self.V_gen)
         # Generator-induced voltage from generator current
+        self.generator_induced_voltage()
         
         # Beam-induced voltage from beam profile
+        self.beam_induced_voltage()
         
         # Sum and convert to voltage amplitude and phase
-
+        self.V_tot = self.V_ind_beam + self.V_ind_gen
+        
+        # Calculate OTFB correction w.r.t. RF voltage and phase in RFStation
+        self.V_corr, self.phi_corr = cartesian_to_polar(self.V_tot)
+        self.V_corr /= self.rf.voltage[0,self.counter]
+        self.phi_corr /= self.rf.phi_rf[0,self.counter]
+        
 
     def llrf_model(self):
         """Models the LLRF part of the OTFB.
@@ -119,6 +145,7 @@ class SPSOneTurnFeedback(object):
         V_gen : complex array
             Generator voltage [V] in (I,Q); 
             :math:`V_{\mathsf{gen}} = V_{\mathsf{set}} - V_{\mathsf{tot}}`
+            
         """
         
         # Voltage set point of current turn (I,Q)
@@ -136,28 +163,11 @@ class SPSOneTurnFeedback(object):
         self.V_gen = np.copy(V_tmp)
         
         # Modulate from omega_rf to omega_r
+        self.V_gen = modulator(self.V_gen, self.omega_c, self.omega_r, self.profile.bin_size)
         
-#         # Move from polar to cartesian coordinates
-#         self.voltage_IQ = polar_to_cartesian(self.voltage)
-#         self.logger.info("Voltage is %.4e", np.sum(self.voltage))
-#         # Apply comb filter
-#         self.voltage_IQ = comb_filter(self.voltage_IQ_prev, self.a_comb_filter, 
-#                                       self.voltage_IQ)
-#         # Memorize previous voltage ???HERE OR AT THE END OF TRACK???
-#         self.voltage_IQ_prev = np.copy(self.voltage_IQ)
-# 
-#         
-#         # Apply cavity filter
-#         cavity_filter()
-#         # Apply cavity impedance
-#         cavity_impedance()
-#         # Before applying impulse response to beam, make sure that time_array
-#         # Starts from zero and corresponds to non-empty slice
-#         cavity_to_beam()
-#         
-#         # Go back to polar coordinates
-#         self.voltage = cartesian_to_polar(self.voltage_IQ)
-
+        # Cavity filter: moving average at 40 MHz
+        self.V_gen = moving_average(self.V_gen, self.n_mov_av, center=True)
+        
 
     def transmitter(self, voltage):
         r"""Transmitter model: a simple gain [A/V] converting voltage to
@@ -171,11 +181,53 @@ class SPSOneTurnFeedback(object):
         
         return current
 
-
         
+    def impulse_response(self):
+        """Updates the travelling wave cavity impulse response at the present
+        time step's carrier frequency."""
+
+        self.TWC_4.impulse_response(self.omega_c, self.profile.bin_centers)
+        self.TWC_5.impulse_response(self.omega_c, self.profile.bin_centers)
+
+    
     def generator_induced_voltage(self):
         """
         """
+        # Generator current from voltage, transmitter model
+        self.I_gen = self.transmitter(self.V_gen)
+        self.induced_voltage('gen')
+        
+    def induced_voltage(self, name):
+        """
+        """
+        if self.TWC_4.__getattribute__("hc_"+name) == None:
+            self.__setattribute__("V_ind_"+name, 
+                self.diag_conv(self.__getattribute("I_"+name), 
+                               self.TWC_4.__getattribute__("hs_"+name)))
+            self.logger.debug("Diagonal convolution for TWC_4")
+        else:
+            self.__setattribute__("V_ind_"+name,
+                self.matr_conv(self.__getattribute("I_"+name), 
+                               self.TWC_4.__getattribute__("hs_"+name), 
+                               self.TWC_4.__getattribute__("hc_"+name)))
+            self.logger.debug("Matrix convolution for TWC_4")
+        if self.TWC_5.__getattribute__("hc_"+name) == None:
+            self.__setattribute__("V_ind_"+name, 
+                self.__getattribute__("V_ind_"+name) + 
+                self.diag_conv(self.self.__getattribute("I_"+name), 
+                               self.TWC_5.__getattribute__("hs_"+name))) 
+            self.logger.debug("Diagonal convolution for TWC_5")
+        else:
+            self.__setattribute__("V_ind_"+name,
+                self.__getattribute__("V_ind_"+name) +
+                self.matr_conv(self.__getattribute("I_"+name),
+                               self.TWC_5.__getattribute__("hs_"+name),
+                               self.TWC_5.__getattribute__("hc_"+name)))
+            self.logger.debug("Matrix convolution for TWC_5")
+        # Cut the proper length and scale; 2 cavities each -> factor 2
+        self.__setattribute__("V_ind_"+name, 
+            -2*self.__getattribute__("V_ind_"+name)[:self.profile.n_slices])
+
         
     def beam_induced_voltage(self, lpf=True):
         r"""Calculates the beam-induced voltage from the beam profile, at a
@@ -214,12 +266,12 @@ class SPSOneTurnFeedback(object):
         """
         
         # Beam current from profile
-        self.I_beam = rf_beam_current(self.profile, self.TWC_4.omega_r, 
+        self.I_beam = rf_beam_current(self.profile, self.omega_r, 
                                       self.rf.t_rev[self.counter], lpf=lpf)
         
-        # Calculate impulse response at omega_c
-        self.TWC_4.impulse_response(self.omega_c, self.profile.bin_centers)#self.time)
-        self.TWC_5.impulse_response(self.omega_c, self.profile.bin_centers)#, self.time)
+#         # Calculate impulse response at omega_c
+#         self.TWC_4.impulse_response(self.omega_c, self.profile.bin_centers)#self.time)
+#         self.TWC_5.impulse_response(self.omega_c, self.profile.bin_centers)#, self.time)
         
         # Total beam-induced voltage
         if self.TWC_4.hc_beam == None:

@@ -130,19 +130,18 @@ if VIND_BEAM == True:
     OTFB = SPSOneTurnFeedback(rf, beam, profile)
     OTFB.counter = 0 # First turn
 #    OTFB.omega_c = rf.omega_rf[0,0]  
-    OTFB.omega_c = 2*np.pi*200.222e6  
+    OTFB.omega_c = 2*np.pi*200.222e6
+    OTFB.impulse_response()
     OTFB.beam_induced_voltage(lpf=False)
     plt.figure(3)
-    convtime = np.linspace(-1e-9, -1e-9+len(OTFB.Vind_beam.real)*
-                           profile.bin_size, len(OTFB.Vind_beam.real))
-#    plt.plot(profile.bin_centers, OTFB.Vind_beam.real, 'b')
-#    plt.plot(profile.bin_centers, OTFB.Vind_beam.imag, 'r')
-    plt.plot(convtime, OTFB.Vind_beam.real, 'b--')
-    plt.plot(convtime[:140], OTFB.Vind_beam.real[:140], 'b', label='Re(Vind), OTFB')
-    plt.plot(convtime, OTFB.Vind_beam.imag, 'r--')
-    plt.plot(convtime[:140], OTFB.Vind_beam.imag[:140], 'r', label='Im(Vind), OTFB')
-    plt.plot(convtime[:140], OTFB.Vind_beam.real[:140]*np.cos(OTFB.omega_c*convtime[:140]) \
-             + OTFB.Vind_beam.imag[:140]*np.sin(OTFB.omega_c*convtime[:140]), 
+    convtime = np.linspace(-1e-9, -1e-9+len(OTFB.V_ind_beam.real)*
+                           profile.bin_size, len(OTFB.V_ind_beam.real))
+    plt.plot(convtime, OTFB.V_ind_beam.real, 'b--')
+    plt.plot(convtime[:140], OTFB.V_ind_beam.real[:140], 'b', label='Re(Vind), OTFB')
+    plt.plot(convtime, OTFB.V_ind_beam.imag, 'r--')
+    plt.plot(convtime[:140], OTFB.V_ind_beam.imag[:140], 'r', label='Im(Vind), OTFB')
+    plt.plot(convtime[:140], OTFB.V_ind_beam.real[:140]*np.cos(OTFB.omega_c*convtime[:140]) \
+             + OTFB.V_ind_beam.imag[:140]*np.sin(OTFB.omega_c*convtime[:140]), 
              color='purple', label='Total, OTFB')
     
     # Comparison with impedances: FREQUENCY DOMAIN

@@ -89,7 +89,7 @@ def real_to_cartesian(signal):
     return signal + 1j*amplitude*np.sin(phase)
     
     
-def modulator(signal, f_initial, f_final, T_sampling):
+def modulator(signal, omega_i, omega_f, T_sampling):
     """Demodulate a signal from initial frequency to final frequency. The two
     frequencies should be close.
     
@@ -97,10 +97,10 @@ def modulator(signal, f_initial, f_final, T_sampling):
     ----------
     signal : float array
         Signal to be demodulated
-    f_initial : float
-        Initial frequency [Hz] of signal (before demodulation)
-    f_final : float
-        Final frequency [Hz] of signal (after demodulation)
+    omega_i : float
+        Initial revolution frequency [1/s] of signal (before demodulation)
+    omega_f : float
+        Final revolution frequency [1/s] of signal (after demodulation)
     T_sampling : float
         Sampling period (temporal bin size) [s] of the signal
         
@@ -114,7 +114,7 @@ def modulator(signal, f_initial, f_final, T_sampling):
     if len(signal) < 2:
         raise RuntimeError("ERROR in filters.py/demodulator: signal should" +
                            " be an array!")
-    delta = 2*np.pi*(f_initial - f_final)*T_sampling
+    delta = 2*np.pi*(omega_i - omega_f)*T_sampling
     indices = np.arange(len(signal))
     try:
         I_new = np.cos(delta*indices)*signal.real \
