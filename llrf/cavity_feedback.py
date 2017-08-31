@@ -17,8 +17,8 @@ from __future__ import division
 import ctypes
 import logging
 import numpy as np
-from llrf.signal_processing import comb_filter, polar_to_cartesian, cartesian_to_polar
-from llrf.signal_processing import rf_beam_current, modulator, moving_average
+from llrf.signal_processing import comb_filter, cartesian_to_polar, \
+    polar_to_cartesian, modulator, moving_average, rf_beam_current
 from llrf.impulse_response import SPS4Section200MHzTWC, SPS5Section200MHzTWC
 from setup_cpp import libblond
 
@@ -26,12 +26,9 @@ from setup_cpp import libblond
 
 class SPSCavityFeedback(object):
     """Class determining the turn-by-turn total RF voltage and phase correction
-    originating from the individual cavity feedbacks. 
-    """
-
-class SPSOneTurnFeedback(object): 
-    '''
-    Voltage feedback around the cavity.
+    originating from the individual cavity feedbacks. Assumes two 4-section and
+    two 5-section travelling wave cavities and a voltage partition proportional
+    to the number of sections.
     
     Parameters
     ----------
@@ -41,6 +38,63 @@ class SPSOneTurnFeedback(object):
         A Beam type class
     Profile : class
         A Profile type class
+    G_tx_4 : float
+        Transmitter gain [1] of the 4-section cavity feedback; default is 10
+    G_tx_5 : float
+        Transmitter gain [1] of the 5-section cavity feedback; default is 10
+    
+    Attributes
+    ----------
+    OTFB_4 : class
+        An SPSOneTurnFeedback type class
+    OTFB_5 : class
+        An SPSOneTurnFeedback type class
+    V_sum : complex array
+        Vector sum of RF voltage from all the cavities
+    V_corr : float array
+        RF voltage correction array to be applied in the tracker
+    phi_corr : float array
+        RF phase correction array to be applied in the tracker
+    
+    """
+    
+    def __init__(self, RFStation, Beam, Profile, G_tx_4=10, G_tx_5=10):
+        
+        # Voltage partition proportional to the number of sections
+        self.OTFB_4 = SPSOneTurnFeedback(self, RFStation, Beam, Profile, 4, 
+            n_cavities=2, V_part = 4/9, G_tx=G_tx_4)
+        self.OTFB_5 = SPSOneTurnFeedback(self, RFStation, Beam, Profile, 5, 
+                                         n_cavities=2, V_part = 5/9, G_tx=G_tx_5)
+        
+    def track(self):
+        
+        self.OTFB_4.track()
+        self.OTFB_5.track()
+        self.V_sum = self.OTFB_4.V_tot + self.OTFB_5.V_tot
+        
+        # Calculate OTFB correction w.r.t. RF voltage and phase in RFStation
+        self.V_corr, self.phi_corr = cartesian_to_polar(self.V_sum)
+        self.V_corr /= self.rf.voltage[0,self.counter]
+        self.phi_corr /= self.rf.phi_rf[0,self.counter]
+
+
+
+class SPSOneTurnFeedback(object): 
+    r'''Voltage feedback around a travelling wave cavity with given amount of
+    sections.
+    
+    Parameters
+    ----------
+    RFStation : class
+        An RFStation type class
+    Beam : class
+        A Beam type class
+    Profile : class
+        A Profile type class
+    n_sections : int
+        Number of sections in the cavities
+    n_cavities : int
+        Number of cavities of the same type
     G_tx : float
         Transmitter gain [A/V]; default is :math:`(50 \Omega)^{-1}`
     
@@ -50,6 +104,8 @@ class SPSOneTurnFeedback(object):
         An SPS4Section200MHzTWC type class
     TWC_5 : class
         An SPS5Section200MHzTWC type class
+    TWC : class
+        A TravellingWaveCavity type class
     omega_r : const float
         Resonant revolution frequency [1/s] of the travelling wave cavities
     time : float array
@@ -72,22 +128,33 @@ class SPSOneTurnFeedback(object):
     
     '''
     
-    def __init__(self, RFStation, Beam, Profile, G_tx=0.02):
+    def __init__(self, RFStation, Beam, Profile, n_sections, n_cavities = 2, 
+                 V_part = 4/9, G_tx=10):
 
         self.rf = RFStation
         self.beam = Beam
         self.profile = Profile
+        self.n_cavities = int(n_cavities)
+        if self.n_cavities < 1:
+            raise RuntimeError("ERROR in SPSOneTurnFeedback: argument" +
+                               " n_cavities has invalid value!")
+        self.V_part = float(V_part)
+        if self.V_part*(1 - self.V_part) < 0:
+            raise RuntimeError("ERROR in SPSOneTurnFeedback: V_part" +
+                               " should be in range (0,1)!")
         self.G_tx = float(G_tx)
         
         # 200 MHz travelling wave cavity impulse responses
-        # Make sure that the impulse reponse has the same length as the profile
-        self.TWC_4 = SPS4Section200MHzTWC()
-        self.TWC_5 = SPS5Section200MHzTWC()
-        self.omega_r = self.TWC_4.omega_r # same for TWC_4
+#         self.TWC_4 = SPS4Section200MHzTWC()
+#         self.TWC_5 = SPS5Section200MHzTWC()
+#         self.omega_r = self.TWC_4.omega_r # same for TWC_4
+        if n_sections in [4,5]:
+            self.TWC = eval("SPS" + str(n_sections) + "Section200MHzTWC()") 
+        else:
+            raise RuntimeError("ERROR in SPSOneTurnFeedback: argument" +
+                               " n_sections has invalid value!")
+        self.omega_r = self.TWC.omega_r
 
-#        self.time = np.copy(self.profile.bin_centers) \
-#            - self.profile.bin_centers[0]
-        
         # Initialise bunch-by-bunch voltage correction array
         self.V_tot = np.ones(self.profile.n_slices, dtype=float) + \
             1j*np.zeros(self.profile.n_slices, dtype=float)
@@ -96,9 +163,13 @@ class SPSOneTurnFeedback(object):
         self.V_gen_prev = np.zeros(len(self.V_tot), dtype=float) #polar_to_cartesian(self.voltage) # ??? WHAT IS THE CORRECT INITIAL VALUE???
         self.a_comb_filter = float(15/16)
         
+        # Initialise induced voltage
+        #self.V_ind_beam = np.empty(self.profile.n_slices, dtype=np.complex)
+        #self.V_ind_gen = np.empty(self.profile.n_slices, dtype=np.complex)
+        
         # Initialise cavity filter
         self.bw_cav = float(40e6)
-        self.n_mov_av = self.TWC_4.omega_r/(2*np.pi*self.bw_cav)
+        self.n_mov_av = self.omega_r/(2*np.pi*self.bw_cav)
         #self.cavity_filter_buckets = float(5) # Trev  / 4620 * 5
         
         # Set up logging
@@ -129,10 +200,10 @@ class SPSOneTurnFeedback(object):
         # Sum and convert to voltage amplitude and phase
         self.V_tot = self.V_ind_beam + self.V_ind_gen
         
-        # Calculate OTFB correction w.r.t. RF voltage and phase in RFStation
-        self.V_corr, self.phi_corr = cartesian_to_polar(self.V_tot)
-        self.V_corr /= self.rf.voltage[0,self.counter]
-        self.phi_corr /= self.rf.phi_rf[0,self.counter]
+#         # Calculate OTFB correction w.r.t. RF voltage and phase in RFStation
+#         self.V_corr, self.phi_corr = cartesian_to_polar(self.V_tot)
+#         self.V_corr /= self.rf.voltage[0,self.counter]
+#         self.phi_corr /= self.rf.phi_rf[0,self.counter]
         
 
     def llrf_model(self):
@@ -148,9 +219,9 @@ class SPSOneTurnFeedback(object):
             
         """
         
-        # Voltage set point of current turn (I,Q)
-        self.V_set = polar_to_cartesian(self.rf.voltage[0,self.counter],
-                                        self.rf.phi_rf[0,self.counter])
+        # Voltage set point of current turn (I,Q); depends on voltage partition
+        self.V_set = polar_to_cartesian(self.V_part* \
+            self.rf.voltage[0,self.counter], self.rf.phi_rf[0,self.counter])
         # Convert to array
         self.V_set *= np.ones(self.profile.n_slices)
         
@@ -163,7 +234,8 @@ class SPSOneTurnFeedback(object):
         self.V_gen = np.copy(V_tmp)
         
         # Modulate from omega_rf to omega_r
-        self.V_gen = modulator(self.V_gen, self.omega_c, self.omega_r, self.profile.bin_size)
+        self.V_gen = modulator(self.V_gen, self.omega_c, self.omega_r, 
+                               self.profile.bin_size)
         
         # Cavity filter: moving average at 40 MHz
         self.V_gen = moving_average(self.V_gen, self.n_mov_av, center=True)
@@ -186,8 +258,10 @@ class SPSOneTurnFeedback(object):
         """Updates the travelling wave cavity impulse response at the present
         time step's carrier frequency."""
 
-        self.TWC_4.impulse_response(self.omega_c, self.profile.bin_centers)
-        self.TWC_5.impulse_response(self.omega_c, self.profile.bin_centers)
+        # Make sure that the impulse reponse has the same length as the profile
+#        self.TWC_4.impulse_response(self.omega_c, self.profile.bin_centers)
+#        self.TWC_5.impulse_response(self.omega_c, self.profile.bin_centers)
+        self.TWC.impulse_response(self.omega_c, self.profile.bin_centers)
 
     
     def generator_induced_voltage(self):
@@ -200,33 +274,34 @@ class SPSOneTurnFeedback(object):
     def induced_voltage(self, name):
         """
         """
-        if self.TWC_4.__getattribute__("hc_"+name) == None:
-            self.__setattribute__("V_ind_"+name, 
-                self.diag_conv(self.__getattribute("I_"+name), 
-                               self.TWC_4.__getattribute__("hs_"+name)))
-            self.logger.debug("Diagonal convolution for TWC_4")
+
+        if self.TWC.__getattribute__("hc_"+name) == None:
+            self.__setattr__("V_ind_"+name, 
+                self.diag_conv(self.__getattribute__("I_"+name),
+                               self.TWC.__getattribute__("hs_"+name)))
+            self.logger.debug("Diagonal convolution for V_ind")
         else:
-            self.__setattribute__("V_ind_"+name,
-                self.matr_conv(self.__getattribute("I_"+name), 
-                               self.TWC_4.__getattribute__("hs_"+name), 
-                               self.TWC_4.__getattribute__("hc_"+name)))
-            self.logger.debug("Matrix convolution for TWC_4")
-        if self.TWC_5.__getattribute__("hc_"+name) == None:
-            self.__setattribute__("V_ind_"+name, 
-                self.__getattribute__("V_ind_"+name) + 
-                self.diag_conv(self.self.__getattribute("I_"+name), 
-                               self.TWC_5.__getattribute__("hs_"+name))) 
-            self.logger.debug("Diagonal convolution for TWC_5")
-        else:
-            self.__setattribute__("V_ind_"+name,
-                self.__getattribute__("V_ind_"+name) +
-                self.matr_conv(self.__getattribute("I_"+name),
-                               self.TWC_5.__getattribute__("hs_"+name),
-                               self.TWC_5.__getattribute__("hc_"+name)))
-            self.logger.debug("Matrix convolution for TWC_5")
+            self.__setattr__("V_ind_"+name,
+                self.matr_conv(self.__getattribute__("I_"+name), 
+                               self.TWC.__getattribute__("hs_"+name), 
+                               self.TWC.__getattribute__("hc_"+name)))
+            self.logger.debug("Matrix convolution for V_ind")
+#         if self.TWC_5.__getattribute__("hc_"+name) == None:
+#             self.__setattribute__("V_ind_"+name, 
+#                 self.__getattribute__("V_ind_"+name) + 
+#                 self.diag_conv(self.self.__getattribute("I_"+name), 
+#                                self.TWC_5.__getattribute__("hs_"+name))) 
+#             self.logger.debug("Diagonal convolution for TWC_5")
+#         else:
+#             self.__setattribute__("V_ind_"+name,
+#                 self.__getattribute__("V_ind_"+name) +
+#                 self.matr_conv(self.__getattribute("I_"+name),
+#                                self.TWC_5.__getattribute__("hs_"+name),
+#                                self.TWC_5.__getattribute__("hc_"+name)))
+#             self.logger.debug("Matrix convolution for TWC_5")
         # Cut the proper length and scale; 2 cavities each -> factor 2
-        self.__setattribute__("V_ind_"+name, 
-            -2*self.__getattribute__("V_ind_"+name)[:self.profile.n_slices])
+        self.__setattr__("V_ind_"+name, -self.n_cavities* \
+            self.__getattribute__("V_ind_"+name)[:self.profile.n_slices])
 
         
     def beam_induced_voltage(self, lpf=True):
@@ -274,23 +349,24 @@ class SPSOneTurnFeedback(object):
 #         self.TWC_5.impulse_response(self.omega_c, self.profile.bin_centers)#, self.time)
         
         # Total beam-induced voltage
-        if self.TWC_4.hc_beam == None:
-            self.V_ind_beam = self.diag_conv(self.I_beam, self.TWC_4.hs_beam)
-            self.logger.debug("Diagonal convolution for TWC_4")
-        else:
-            self.V_ind_beam = self.matr_conv(self.I_beam, self.TWC_4.hs_beam, 
-                                            self.TWC_4.hc_beam)
-            self.logger.debug("Matrix convolution for TWC_4")
-        if self.TWC_5.hc_beam == None:
-            self.V_ind_beam += self.diag_conv(self.I_beam, self.TWC_5.hs_beam) 
-            self.logger.debug("Diagonal convolution for TWC_5")
-        else:
-            self.V_ind_beam += self.matr_conv(self.I_beam, self.TWC_5.hs_beam,
-                                             self.TWC_5.hc_beam)
-            self.logger.debug("Matrix convolution for TWC_5")
-        # Cut the proper length and scale; 2 cavities each -> factor 2
-        self.V_ind_beam = -2*self.V_ind_beam[:self.profile.n_slices]
-
+#         if self.TWC_4.hc_beam == None:
+#             self.V_ind_beam = self.diag_conv(self.I_beam, self.TWC_4.hs_beam)
+#             self.logger.debug("Diagonal convolution for TWC_4")
+#         else:
+#             self.V_ind_beam = self.matr_conv(self.I_beam, self.TWC_4.hs_beam, 
+#                                             self.TWC_4.hc_beam)
+#             self.logger.debug("Matrix convolution for TWC_4")
+#         if self.TWC_5.hc_beam == None:
+#             self.V_ind_beam += self.diag_conv(self.I_beam, self.TWC_5.hs_beam) 
+#             self.logger.debug("Diagonal convolution for TWC_5")
+#         else:
+#             self.V_ind_beam += self.matr_conv(self.I_beam, self.TWC_5.hs_beam,
+#                                              self.TWC_5.hc_beam)
+#             self.logger.debug("Matrix convolution for TWC_5")
+#         # Cut the proper length and scale; 2 cavities each -> factor 2
+#         self.V_ind_beam = -2*self.V_ind_beam[:self.profile.n_slices]
+        self.induced_voltage('beam')
+    
 
     def diag_conv(self, I, hs):
         """Convolution of beam current with impulse response; diagonal

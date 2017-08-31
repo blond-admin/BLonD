@@ -127,21 +127,28 @@ if TWC == True:
 
 
 if VIND_BEAM == True:
-    OTFB = SPSOneTurnFeedback(rf, beam, profile)
-    OTFB.counter = 0 # First turn
-#    OTFB.omega_c = rf.omega_rf[0,0]  
-    OTFB.omega_c = 2*np.pi*200.222e6
-    OTFB.impulse_response()
-    OTFB.beam_induced_voltage(lpf=False)
+    OTFB_4 = SPSOneTurnFeedback(rf, beam, profile, 4)
+    OTFB_5 = SPSOneTurnFeedback(rf, beam, profile, 5)
+    OTFB_4.counter = 0 # First turn
+    OTFB_5.counter = 0 # First turn
+#    OTFB_4.omega_c = rf.omega_rf[0,0]  
+#    OTFB_5.omega_c = rf.omega_rf[0,0]  
+    OTFB_4.omega_c = 2*np.pi*200.222e6
+    OTFB_5.omega_c = 2*np.pi*200.222e6
+    OTFB_4.impulse_response()
+    OTFB_5.impulse_response()
+    OTFB_4.beam_induced_voltage(lpf=False)
+    OTFB_5.beam_induced_voltage(lpf=False)
+    V_ind_beam = OTFB_4.V_ind_beam + OTFB_5.V_ind_beam
     plt.figure(3)
-    convtime = np.linspace(-1e-9, -1e-9+len(OTFB.V_ind_beam.real)*
-                           profile.bin_size, len(OTFB.V_ind_beam.real))
-    plt.plot(convtime, OTFB.V_ind_beam.real, 'b--')
-    plt.plot(convtime[:140], OTFB.V_ind_beam.real[:140], 'b', label='Re(Vind), OTFB')
-    plt.plot(convtime, OTFB.V_ind_beam.imag, 'r--')
-    plt.plot(convtime[:140], OTFB.V_ind_beam.imag[:140], 'r', label='Im(Vind), OTFB')
-    plt.plot(convtime[:140], OTFB.V_ind_beam.real[:140]*np.cos(OTFB.omega_c*convtime[:140]) \
-             + OTFB.V_ind_beam.imag[:140]*np.sin(OTFB.omega_c*convtime[:140]), 
+    convtime = np.linspace(-1e-9, -1e-9+len(V_ind_beam.real)*
+                           profile.bin_size, len(V_ind_beam.real))
+    plt.plot(convtime, V_ind_beam.real, 'b--')
+    plt.plot(convtime[:140], V_ind_beam.real[:140], 'b', label='Re(Vind), OTFB')
+    plt.plot(convtime, V_ind_beam.imag, 'r--')
+    plt.plot(convtime[:140], V_ind_beam.imag[:140], 'r', label='Im(Vind), OTFB')
+    plt.plot(convtime[:140], V_ind_beam.real[:140]*np.cos(OTFB_4.omega_c*convtime[:140]) \
+             + V_ind_beam.imag[:140]*np.sin(OTFB_4.omega_c*convtime[:140]), 
              color='purple', label='Total, OTFB')
     
     # Comparison with impedances: FREQUENCY DOMAIN
@@ -162,9 +169,9 @@ if VIND_BEAM == True:
     
     # Wake from impulse response
     impResp4 = SPS4Section200MHzTWC()
-    impResp4.impulse_response(OTFB.omega_c, profile.bin_centers)
+    impResp4.impulse_response(OTFB_4.omega_c, profile.bin_centers)
     impResp5 = SPS5Section200MHzTWC()
-    impResp5.impulse_response(OTFB.omega_c, profile.bin_centers)
+    impResp5.impulse_response(OTFB_4.omega_c, profile.bin_centers)
     wake2 = 2*(impResp4.W_beam + impResp5.W_beam)
     Vind = -profile.Beam.ratio*profile.Beam.Particle.charge*e*\
         np.convolve(wake2, profile.n_macroparticles, mode='full')[:140]
