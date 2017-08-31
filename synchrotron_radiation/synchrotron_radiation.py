@@ -40,9 +40,9 @@ class SynchrotronRadiation(object):
         
         # Calculate static parameters
         self.Cgamma = 1.0 / (e**2.0 * 3.0 * epsilon_0 *
-                             self.general_params.mass**4.0)
+                             self.general_params.Particle.mass**4.0)
         self.Cq = (55.0 / (32.0 * np.sqrt(3.0)) * hbar * c /
-                   (self.general_params.mass * e))
+                   (self.general_params.Particle.mass * e))
         
         self.I2 = 2.0 * np.pi / self.rho     # Assuming isomagnetic machine
         self.I3 = 2.0 * np.pi / self.rho**2.0
@@ -61,7 +61,7 @@ class SynchrotronRadiation(object):
         # synchrotron radiation (temporary until bunch generation is updated)
         if self.rf_params.section_index == 0:
             self.beam.dt -= (np.arcsin(self.U0/self.rf_params.voltage[0][0]) *
-                             self.rf_params.t_RF[0]/ (2.0*np.pi))
+                             self.rf_params.t_rf[0]/ (2.0*np.pi))
         
         # Select the right method for the tracker according to the selected
         # settings

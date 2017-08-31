@@ -465,7 +465,7 @@ class RingAndRFTracker(object):
                         self.beam.dE.ctypes.data_as(ctypes.c_void_p), 
                         self.total_voltage.ctypes.data_as(ctypes.c_void_p), 
                         self.profile.bin_centers.ctypes.data_as(ctypes.c_void_p),
-                        ctypes.c_double(self.beam.charge),
+                        ctypes.c_double(self.charge),
                         ctypes.c_int(self.profile.n_slices),
                         ctypes.c_int(self.beam.n_macroparticles),
                         ctypes.c_double(self.acceleration_kick[self.counter[0]]))
