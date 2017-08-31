@@ -114,8 +114,8 @@ def oscillation_amplitude_from_coordinates(Ring, RFStation, dt, dE,
     Optional: Number of points for histogram output
     '''
     
-    omega_rf = RFStation.omega_RF[0,timestep]
-    phi_rf = RFStation.phi_RF[0,timestep]
+    omega_rf = RFStation.omega_rf[0,timestep]
+    phi_rf = RFStation.phi_rf[0,timestep]
     phi_s = RFStation.phi_s[timestep]
     eta = RFStation.eta_0[0]
     T0 = Ring.t_rev[0]
@@ -129,7 +129,8 @@ def oscillation_amplitude_from_coordinates(Ring, RFStation, dt, dE,
 
     if Np_histogram != None:
         
-        histogram, bins = np.histogram(dtmax, Np_histogram, (0,0.5*T0))
+        histogram, bins = np.histogram(dtmax, Np_histogram, (0, 
+                                                             np.pi/omega_rf)) 
         histogram = np.double(histogram)/np.sum(histogram[:])
         bin_centres = 0.5*(bins[0:-1] + bins[1:])
         

@@ -22,6 +22,7 @@ from llrf.impulse_response import rectangle, triangle
 class TestRectangle(unittest.TestCase):
 
     def test_1(self):
+        
 
         tau = 1.
         time = np.array([-1, -0.75, -0.5, -0.25, 0., 0.25, 0.5, 0.75, 1])
