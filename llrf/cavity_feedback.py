@@ -60,18 +60,27 @@ class SPSCavityFeedback(object):
     
     """
     
-    def __init__(self, RFStation, Beam, Profile, G_tx_4=10, G_tx_5=10):
+    def __init__(self, RFStation, Beam, Profile, G_tx_4=10, G_tx_5=10, 
+                 turns=1000, debug=False):
         
         # Voltage partition proportional to the number of sections
-        self.OTFB_4 = SPSOneTurnFeedback(self, RFStation, Beam, Profile, 4, 
-            n_cavities=2, V_part = 4/9, G_tx=G_tx_4)
-        self.OTFB_5 = SPSOneTurnFeedback(self, RFStation, Beam, Profile, 5, 
-            n_cavities=2, V_part = 5/9, G_tx=G_tx_5)
+        self.OTFB_4 = SPSOneTurnFeedback(RFStation, Beam, Profile, 4, 
+            n_cavities=2, V_part=4/9, G_tx=G_tx_4)
+        self.OTFB_5 = SPSOneTurnFeedback(RFStation, Beam, Profile, 5, 
+            n_cavities=2, V_part=5/9, G_tx=G_tx_5)
         
         # Set up logging
         self.logger = logging.getLogger(__class__.__name__)
         self.logger.info("Class initialized")
         
+        # Initialise OTFB without beam
+        self.turns = int(turns)
+        if turns < 1:
+            raise RuntimeError("ERROR in SPSCavityFeedback: 'turns' has to" +
+                               " be a positive integer!")
+        self.track_init(debug=debug)
+        
+
     def track(self):
         
         self.OTFB_4.track()
@@ -82,6 +91,39 @@ class SPSCavityFeedback(object):
         self.V_corr, self.phi_corr = cartesian_to_polar(self.V_sum)
         self.V_corr /= self.rf.voltage[0,self.counter]
         self.phi_corr /= self.rf.phi_rf[0,self.counter]
+
+
+    def track_init(self, debug=False):
+        
+        if debug == True:
+            import matplotlib.pyplot as plt
+            f, ax1 = plt.subplots()
+            ax2 = plt.twinx(ax1)
+            ax1.set_xlabel("Time [s]")
+            ax1.set_ylabel("Voltage, real part [V]")
+            ax2.set_ylabel("Voltage, imaginary part (dotted) [V]")
+            ax1.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
+            ax1.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+            ax2.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+            plt.figure(2)
+            ax = plt.axes()
+            ax.set_xlabel("Time [s]")
+            ax.set_ylabel("Voltage amplitude [V]")
+            ax.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+
+        for i in range(self.turns):
+            self.OTFB_4.track_no_beam()
+            self.OTFB_5.track_no_beam()
+            self.V_sum = self.OTFB_4.V_tot + self.OTFB_5.V_tot
+            
+            if debug == True:
+                ax1.plot(self.OTFB_4.profile.bin_centers, self.V_sum.real)
+                ax2.plot(self.OTFB_4.profile.bin_centers, self.V_sum.imag, ':')
+                ax.plot(self.OTFB_4.profile.bin_centers, 
+                        np.absolute(self.V_sum))
+        if debug == True:
+            #fig.savefig("OTFB.png")
+            plt.show()
 
 
 
@@ -140,9 +182,13 @@ class SPSOneTurnFeedback(object):
     
     '''
     
-    def __init__(self, RFStation, Beam, Profile, n_sections, n_cavities = 2, 
-                 V_part = 4/9, G_tx=10):
+    def __init__(self, RFStation, Beam, Profile, n_sections, n_cavities=2, 
+                 V_part=4/9, G_tx=10):
 
+        # Set up logging
+        self.logger = logging.getLogger(__class__.__name__)
+
+        # Read input
         self.rf = RFStation
         self.beam = Beam
         self.profile = Profile
@@ -162,11 +208,16 @@ class SPSOneTurnFeedback(object):
         else:
             raise RuntimeError("ERROR in SPSOneTurnFeedback: argument" +
                                " n_sections has invalid value!")
+        self.logger.debug("SPS OTFB cavities: %d, sections: %d, voltage" +
+                          " partition %.2f, gain: %.2e", self.n_cavities, 
+                          n_sections, self.V_part, self.G_tx)
+        
         # TWC resonant frequency
         self.omega_r = self.TWC.omega_r
 
-        # Initialise bunch-by-bunch voltage correction array
-        self.V_tot = np.ones(self.profile.n_slices, dtype=float) + \
+        # Initialise bunch-by-bunch voltage array
+        self.V_tot = self.V_part*self.rf.voltage[0,0] \
+            *np.ones(self.profile.n_slices, dtype=float) + \
             1j*np.zeros(self.profile.n_slices, dtype=float)
         
         # Initialise comb filter
@@ -177,8 +228,6 @@ class SPSOneTurnFeedback(object):
         self.bw_cav = float(40e6)
         self.n_mov_av = self.omega_r/(2*np.pi*self.bw_cav)
         
-        # Set up logging
-        self.logger = logging.getLogger(__class__.__name__)
         self.logger.info("Class initialized")
 
 
@@ -205,6 +254,28 @@ class SPSOneTurnFeedback(object):
         
         # Sum and convert to voltage amplitude and phase
         self.V_tot = self.V_ind_beam + self.V_ind_gen
+        
+        
+
+    def track_no_beam(self):
+        """Initial tracking method, before injecting beam."""
+        
+        # Present time step
+        self.counter = int(0)
+        # Present carrier frequency: main RF frequency
+        self.omega_c = self.rf.omega_rf[0,0]
+        
+        # Update the impulse response at present carrier frequency
+        self.TWC.impulse_response(self.omega_c, self.profile.bin_centers)
+        
+        # On current measured (I,Q) voltage, apply LLRF model
+        self.llrf_model()
+        
+        # Generator-induced voltage from generator current
+        self.generator_induced_voltage()
+        
+        # Sum and convert to voltage amplitude and phase
+        self.V_tot = self.V_ind_gen
         
         
 
@@ -303,7 +374,9 @@ class SPSOneTurnFeedback(object):
                                self.TWC.__getattribute__("hs_"+name), 
                                self.TWC.__getattribute__("hc_"+name)))
             self.logger.debug("Matrix convolution for V_ind")
-        self.__setattr__("V_ind_"+name, -self.n_cavities* \
+#        self.__setattr__("V_ind_"+name, -self.n_cavities* \
+#            self.__getattribute__("V_ind_"+name)[:self.profile.n_slices])
+        self.__setattr__("V_ind_"+name, self.n_cavities* \
             self.__getattribute__("V_ind_"+name)[:self.profile.n_slices])
 
         

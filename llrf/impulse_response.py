@@ -214,16 +214,16 @@ class TravellingWaveCavity(object):
                 " velocity out of limits (0,1)!")
         self.omega_r = float(omega_r)
         
+        # Calculated
+        self.l_cav = float(self.l_cell*self.N_cells)
+        self.tau = self.l_cav/(self.v_g*c)*(1 + self.v_g) # v_g opposite to wave!
+        
         # Assumed impedance for measurement of generator current
         self.Z_0 = 50
         # Shunt impedances towards beam and generator
         self.R_beam = 0.125*self.rho*self.l_cav**2
         self.R_gen = self.l_cav*np.sqrt(0.5*self.rho*self.Z_0)
  
-        # Calculated
-        self.l_cav = float(self.l_cell*self.N_cells)
-        self.tau = self.l_cav/(self.v_g*c)*(1 + self.v_g) # v_g opposite to wave!
-        
         # Set up logging
         self.logger = logging.getLogger(__class__.__name__)
         self.logger.info("Class initialized")
