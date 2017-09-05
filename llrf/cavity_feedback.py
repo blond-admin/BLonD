@@ -376,7 +376,7 @@ class SPSOneTurnFeedback(object):
             self.logger.debug("Matrix convolution for V_ind")
 #        self.__setattr__("V_ind_"+name, -self.n_cavities* \
 #            self.__getattribute__("V_ind_"+name)[:self.profile.n_slices])
-        self.__setattr__("V_ind_"+name, self.n_cavities* \
+        self.__setattr__("V_ind_"+name, -self.n_cavities* \
             self.__getattribute__("V_ind_"+name)[:self.profile.n_slices])
 
         

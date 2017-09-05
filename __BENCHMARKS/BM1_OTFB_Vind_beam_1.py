@@ -135,8 +135,8 @@ if VIND_BEAM == True:
 #    OTFB_5.omega_c = rf.omega_rf[0,0]  
     OTFB_4.omega_c = 2*np.pi*200.222e6
     OTFB_5.omega_c = 2*np.pi*200.222e6
-    OTFB_4.impulse_response()
-    OTFB_5.impulse_response()
+    OTFB_4.TWC.impulse_response(OTFB_4.omega_c, profile.bin_centers)
+    OTFB_5.TWC.impulse_response(OTFB_4.omega_c, profile.bin_centers)
     OTFB_4.beam_induced_voltage(lpf=False)
     OTFB_5.beam_induced_voltage(lpf=False)
     V_ind_beam = OTFB_4.V_ind_beam + OTFB_5.V_ind_beam
