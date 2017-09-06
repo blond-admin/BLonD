@@ -223,8 +223,10 @@ class SPSOneTurnFeedback(object):
         self.omega_r = self.TWC.omega_r
 
         # Initialise bunch-by-bunch voltage array
-        self.V_tot = self.V_part*self.rf.voltage[0,0] \
-            *np.ones(self.profile.n_slices, dtype=float) + \
+        #self.V_tot = self.V_part*self.rf.voltage[0,0] \
+        #    *np.ones(self.profile.n_slices, dtype=float) + \
+        #    1j*np.zeros(self.profile.n_slices, dtype=float)
+        self.V_tot = np.zeros(self.profile.n_slices, dtype=float) + \
             1j*np.zeros(self.profile.n_slices, dtype=float)
         
         # Initialise comb filter
@@ -279,10 +281,11 @@ class SPSOneTurnFeedback(object):
         self.llrf_model()
         
         # Generator-induced voltage from generator current
-        self.logger.debug("Total voltage to generator %.3e V", np.mean(np.absolute(self.V_gen)))
+        self.logger.debug("Total voltage to generator %.3e V", 
+            np.mean(np.absolute(self.V_gen)))
         self.generator_induced_voltage()
         self.logger.debug("Total current from generator %.3e A", 
-                          np.mean(np.absolute(self.I_gen))/self.profile.bin_size)
+            np.mean(np.absolute(self.I_gen))/self.profile.bin_size)
         
         # Sum and convert to voltage amplitude and phase
         self.V_tot = self.V_ind_gen
@@ -386,8 +389,6 @@ class SPSOneTurnFeedback(object):
                                self.TWC.__getattribute__("hs_"+name), 
                                self.TWC.__getattribute__("hc_"+name)))
             self.logger.debug("Matrix convolution for V_ind")
-#        self.__setattr__("V_ind_"+name, -self.n_cavities* \
-#            self.__getattribute__("V_ind_"+name)[:self.profile.n_slices])
         self.__setattr__("V_ind_"+name, -self.n_cavities* \
             self.__getattribute__("V_ind_"+name)[:self.profile.n_slices])
 

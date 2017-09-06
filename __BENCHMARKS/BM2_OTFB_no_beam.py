@@ -16,6 +16,7 @@ Example for llrf.filters and llrf.cavity_feedback
 import numpy as np
 from scipy.constants import e
 import matplotlib.pyplot as plt 
+import logging
 
 from toolbox.logger import Logger
 from input_parameters.ring import Ring
@@ -58,6 +59,7 @@ print("Machine parameters set!")
 
 # Set up RF parameters
 rf = RFStation(ring, 1, h, V, phi)
+logging.debug("RF frequency %.6e Hz", rf.omega_rf[0,0]/(2*np.pi))
 print("RF parameters set!")
 
 # Define beam and fill it
@@ -72,5 +74,5 @@ profile = Profile(beam, CutOptions = CutOptions(cut_left=0.e-9,
     cut_right=23.06e-6, n_slices = 10000))
 profile.track()
 
-OTFB = SPSCavityFeedback(rf, beam, profile, G_tx_4=0.5, G_tx_5=0.5, turns=30,
+OTFB = SPSCavityFeedback(rf, beam, profile, G_tx_4=.521, G_tx_5=.521, turns=30,
                          debug=True, open_loop=0)
