@@ -428,6 +428,10 @@ class SPSOneTurnFeedback(object):
     def call_conv(self, signal, kernel):
         """Routine to call optimised C++ convolution"""
         
+        # Make sure that the buffers are stored contiguously
+        signal = np.ascontiguousarray(signal)
+        kernel = np.ascontiguousarray(kernel)        
+        
         result = np.zeros(len(kernel) + len(signal) - 1)
         libblond.convolution(signal.ctypes.data_as(ctypes.c_void_p),
                              ctypes.c_int(len(signal)),
