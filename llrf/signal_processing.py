@@ -242,7 +242,42 @@ def low_pass_filter(signal, cutoff_frequency=0.5):
 #     """
 # 
 
-def moving_average(x, N, center=False):
+# def moving_average(x, N, center=False):
+#     """Function to calculate the moving average (or running mean) of the input
+#     data.
+#     
+#     Parameters
+#     ----------
+#     x : float array
+#         Data to be smoothed
+#     N : int
+#         Window size in points; rounded up to next impair value if center is 
+#         True
+#     center : bool    
+#         Window function centered
+#         
+#     Returns
+#     -------
+#     float array
+#         Smoothed data array of has the size 
+#         * len(x) - N + 1, if center = False
+#         * len(x), if center = True
+#         
+#     """
+#     
+#     if center is True:
+#         # Round up to next impair number
+#         N_half = int(N/2)
+#         N = N_half*2 + 1
+#         # Pad with first and last values
+#         x = np.concatenate((x[0]*np.ones(N_half), x, x[-1]*np.ones(N_half)))
+# #        # Pad with zeros (no induced voltage in unsliced region)
+# #        x = np.concatenate((np.zeros(N_half), x, np.zeros(N_half)))
+#         
+#     cumulative_sum = np.cumsum(np.insert(x, 0, 0))
+#    
+#     return (cumulative_sum[N:] - cumulative_sum[:-N]) / N
+def moving_average(x, N, x_prev=None):
     """Function to calculate the moving average (or running mean) of the input
     data.
     
@@ -265,12 +300,17 @@ def moving_average(x, N, center=False):
         
     """
     
-    if center is True:
+    if x_prev:
         # Round up to next impair number
         N_half = int(N/2)
         N = N_half*2 + 1
-        # Pad with first and last values
-        x = np.concatenate((x[0]*np.ones(N_half), x, x[-1]*np.ones(N_half)))
+        # Pad before with last value from previous turn
+        # Pad after with last value from present turn
+        print("No points", N_half)
+        print(x_prev)
+        x = np.concatenate((x_prev*np.ones(N_half), x, x[-1]*np.ones(N_half)))
+#        # Pad with zeros (no induced voltage in unsliced region)
+#        x = np.concatenate((np.zeros(N_half), x, np.zeros(N_half)))
         
     cumulative_sum = np.cumsum(np.insert(x, 0, 0))
    

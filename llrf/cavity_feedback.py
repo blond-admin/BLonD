@@ -230,12 +230,19 @@ class SPSOneTurnFeedback(object):
             1j*np.zeros(self.profile.n_slices, dtype=float)
         
         # Initialise comb filter
-        self.V_gen_prev = np.zeros(len(self.V_tot), dtype=float) # CHECK CORRECT INITIAL VALUE!!!!
+        self.V_gen_prev = np.zeros(len(self.V_tot), dtype=complex)
         self.a_comb_filter = float(15/16)
+#        print(self.V_tot)
+#        print(self.V_gen_prev)
         
-        # Initialise cavity filter
+        # Initialise cavity filter (moving average)
         self.bw_cav = float(40e6)
-        self.n_mov_av = self.omega_r/(2*np.pi*self.bw_cav)
+        self.n_mov_av = int(1./(self.profile.bin_size*self.bw_cav)) #self.omega_r/(2*np.pi*self.bw_cav)
+        if self.n_mov_av < 1:
+            raise RuntimeError("ERROR in SPSOneTurnFeedback: profile has to" +
+                               " have at least 25 ns resolution!")
+        self.V_mov_av_prev = float(0) + 1j*float(0)
+#        print(self.n_mov_av)
         
         self.logger.info("Class initialized")
 
@@ -274,11 +281,14 @@ class SPSOneTurnFeedback(object):
         # Present carrier frequency: main RF frequency
         self.omega_c = self.rf.omega_rf[0,0]
         
+#        print(self.V_tot)
         # Update the impulse response at present carrier frequency
         self.TWC.impulse_response(self.omega_c, self.profile.bin_centers)
         
         # On current measured (I,Q) voltage, apply LLRF model
         self.llrf_model()
+#        print(self.V_set)
+#        print("")
         
         # Generator-induced voltage from generator current
         self.logger.debug("Total voltage to generator %.3e V", 
@@ -327,7 +337,20 @@ class SPSOneTurnFeedback(object):
                                self.profile.bin_size)
         
         # Cavity filter: moving average at 40 MHz
-        self.V_gen = moving_average(self.V_gen, self.n_mov_av, center=True)
+        V_tmp = self.V_gen[-1] # memorize last point for beginning of next turn
+        self.V_gen = moving_average(self.V_gen, self.n_mov_av, 
+                                    x_prev=self.V_mov_av_prev)
+        print(self.V_gen[0])
+        print(self.V_gen[-1])
+        print(self.V_mov_av_prev)
+        print("")
+        self.V_mov_av_prev = np.copy(V_tmp)
+#        self.V_gen = moving_average(self.V_gen, self.n_mov_av, center=True)
+#        self.V_gen.real = moving_average(self.V_gen.real, self.n_mov_av, 
+#                                         center=True)
+#        self.V_gen.imag = moving_average(self.V_gen.imag, self.n_mov_av, 
+#                                         center=True)
+        #print(self.V_gen)
         
 
     def generator_induced_voltage(self):

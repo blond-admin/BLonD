@@ -70,9 +70,11 @@ print("Beam set! Number of particles %d" %len(beam.dt))
 print("Time coordinates are in range %.4e to %.4e s" %(np.min(beam.dt), 
                                                      np.max(beam.dt)))
 
+#profile = Profile(beam, CutOptions = CutOptions(cut_left=0.e-9, 
+#    cut_right=23.06e-6, n_slices=100))#n_slices=10000))
 profile = Profile(beam, CutOptions = CutOptions(cut_left=0.e-9, 
-    cut_right=23.06e-6, n_slices = 10000))
+    cut_right=10.e-6, n_slices=4000))#n_slices=10000))
 profile.track()
 
-OTFB = SPSCavityFeedback(rf, beam, profile, G_tx_4=.521, G_tx_5=.521, turns=30,
+OTFB = SPSCavityFeedback(rf, beam, profile, G_tx_4=.521, G_tx_5=.521, turns=1,
                          debug=True, open_loop=0)
