@@ -33,7 +33,7 @@ gamma_t = 18.0              # Gamma at transition
 alpha = 1/gamma_t**2        # Momentum compaction factor
 p_s = 25.92e9               # Synchronous momentum at injection [eV]
 h = 4620                    # 200 MHz system harmonic
-V = 2.5e6                   # 200 MHz RF voltage
+V = 2.2e6                   # 200 MHz RF voltage
 phi = 0.                    # 200 MHz RF phase
 
 # Beam and tracking parameters
@@ -69,8 +69,8 @@ print("Time coordinates are in range %.4e to %.4e s" %(np.min(beam.dt),
                                                      np.max(beam.dt)))
 
 profile = Profile(beam, CutOptions = CutOptions(cut_left=0.e-9, 
-    cut_right=10.e-6, n_slices = 10000))
+    cut_right=23.06e-6, n_slices = 10000))
 profile.track()
 
-OTFB = SPSCavityFeedback(rf, beam, profile, G_tx_4=0.1, G_tx_5=0.1, turns=100,
-                         debug=True)
+OTFB = SPSCavityFeedback(rf, beam, profile, G_tx_4=0.5, G_tx_5=0.5, turns=30,
+                         debug=True, open_loop=0)

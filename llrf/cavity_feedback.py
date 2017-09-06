@@ -42,6 +42,8 @@ class SPSCavityFeedback(object):
         Transmitter gain [1] of the 4-section cavity feedback; default is 10
     G_tx_5 : float
         Transmitter gain [1] of the 5-section cavity feedback; default is 10
+    open_loop : int(bool)
+        Open (0) or closed (1) feedback loop; default is 1
     
     Attributes
     ----------
@@ -61,13 +63,15 @@ class SPSCavityFeedback(object):
     """
     
     def __init__(self, RFStation, Beam, Profile, G_tx_4=10, G_tx_5=10, 
-                 turns=1000, debug=False):
+                 turns=1000, debug=False, open_loop=1):
         
         # Voltage partition proportional to the number of sections
         self.OTFB_4 = SPSOneTurnFeedback(RFStation, Beam, Profile, 4, 
-            n_cavities=2, V_part=4/9, G_tx=G_tx_4)
+            n_cavities=2, V_part=4/9, G_tx=G_tx_4, 
+            open_loop=int(bool(open_loop)))
         self.OTFB_5 = SPSOneTurnFeedback(RFStation, Beam, Profile, 5, 
-            n_cavities=2, V_part=5/9, G_tx=G_tx_5)
+            n_cavities=2, V_part=5/9, G_tx=G_tx_5, 
+            open_loop=int(bool(open_loop)))
         
         # Set up logging
         self.logger = logging.getLogger(__class__.__name__)
@@ -147,6 +151,8 @@ class SPSOneTurnFeedback(object):
         Voltage partition for the given n_cavities; in range (0,1)
     G_tx : float
         Transmitter gain [A/V]; default is :math:`(50 \Omega)^{-1}`
+    open_loop : int(bool)
+        Open (0) or closed (1) feedback loop; default is 1
     
     Attributes
     ----------
@@ -183,7 +189,7 @@ class SPSOneTurnFeedback(object):
     '''
     
     def __init__(self, RFStation, Beam, Profile, n_sections, n_cavities=2, 
-                 V_part=4/9, G_tx=10):
+                 V_part=4/9, G_tx=10, open_loop=1):
 
         # Set up logging
         self.logger = logging.getLogger(__class__.__name__)
@@ -201,6 +207,7 @@ class SPSOneTurnFeedback(object):
             raise RuntimeError("ERROR in SPSOneTurnFeedback: V_part" +
                                " should be in range (0,1)!")
         self.G_tx = float(G_tx)
+        self.open_loop = int(bool(open_loop))
         
         # 200 MHz travelling wave cavity (TWC) model
         if n_sections in [4,5]:
@@ -272,10 +279,15 @@ class SPSOneTurnFeedback(object):
         self.llrf_model()
         
         # Generator-induced voltage from generator current
+        self.logger.debug("Total voltage to generator %.3e V", np.mean(np.absolute(self.V_gen)))
         self.generator_induced_voltage()
+        self.logger.debug("Total current from generator %.3e A", 
+                          np.mean(np.absolute(self.I_gen))/self.profile.bin_size)
         
         # Sum and convert to voltage amplitude and phase
         self.V_tot = self.V_ind_gen
+        self.logger.debug("Average total voltage, last half of array %.3e V", 
+            np.mean(np.absolute(self.V_tot[int(0.5*self.profile.n_slices):])))
         
         
 
@@ -300,7 +312,7 @@ class SPSOneTurnFeedback(object):
         self.V_set *= np.ones(self.profile.n_slices)
         
         # Difference of set point and actual voltage
-        self.V_gen = self.V_set - self.V_tot
+        self.V_gen = self.V_set - self.open_loop*self.V_tot
         
         # One-turn delay comb filter; memorise the value of the previous turn
         V_tmp = comb_filter(self.V_gen_prev, self.V_gen, self.a_comb_filter)
@@ -408,25 +420,29 @@ class SPSOneTurnFeedback(object):
         """Convolution of beam current with impulse response; diagonal
         components only."""
         
-        #return ( self.call_conv(I.real, hs) + 1j*self.call_conv(I.imag, hs) )
-        return ( np.convolve(I.real, hs, mode='full') \
-                 + 1j*np.convolve(I.imag, hs, mode='full') )
+        return ( self.call_conv(I.real, hs) + 1j*self.call_conv(I.imag, hs) )
+        #return ( np.convolve(I.real, hs, mode='full') \
+        #         + 1j*np.convolve(I.imag, hs, mode='full') )
         
         
     def matr_conv(self, I, hs, hc):
         """Convolution of beam current with impulse response; uses a complete
         matrix with off-diagonal elements."""
 
-        #return ( self.call_conv(I.real, hs) - self.call_conv(I.imag, hc) \
-        #    + 1j*(self.call_conv(I.real, hc) + self.call_conv(I.imag, hs)) )
-        return ( np.convolve(I.real, hs, mode='full') \
-                 - np.convolve(I.imag, hc, mode='full') \
-                 + 1j*(np.convolve(I.real, hc, mode='full') 
-                       + np.convolve(I.imag, hs, mode='full')) )
+        return ( self.call_conv(I.real, hs) - self.call_conv(I.imag, hc) \
+            + 1j*(self.call_conv(I.real, hc) + self.call_conv(I.imag, hs)) )
+        #return ( np.convolve(I.real, hs, mode='full') \
+        #         - np.convolve(I.imag, hc, mode='full') \
+        #         + 1j*(np.convolve(I.real, hc, mode='full') 
+        #               + np.convolve(I.imag, hs, mode='full')) )
 
 
     def call_conv(self, signal, kernel):
         """Routine to call optimised C++ convolution"""
+        
+        # Make sure that the buffers are stored contiguously
+        signal = np.ascontiguousarray(signal)
+        kernel = np.ascontiguousarray(kernel)        
         
         result = np.zeros(len(kernel) + len(signal) - 1)
         libblond.convolution(signal.ctypes.data_as(ctypes.c_void_p),
