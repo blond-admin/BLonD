@@ -300,21 +300,26 @@ def moving_average(x, N, x_prev=None):
         
     """
     
-    if x_prev:
+    if x_prev != None:
         # Round up to next impair number
-        N_half = int(N/2)
-        N = N_half*2 + 1
+#        N_half = int(N/2)
+#        N = N_half*2 + 1
         # Pad before with last value from previous turn
         # Pad after with last value from present turn
-        print("No points", N_half)
-        print(x_prev)
-        x = np.concatenate((x_prev*np.ones(N_half), x, x[-1]*np.ones(N_half)))
+#        print("No points", N_half)
+#        print(x_prev)
+#        x = np.concatenate((x_prev*np.ones(N_half), x, x[-1]*np.ones(N_half)))
+#        print(len(x))
+        x = np.concatenate((x_prev*np.ones(N), x))
+#        print(len(x))
 #        # Pad with zeros (no induced voltage in unsliced region)
 #        x = np.concatenate((np.zeros(N_half), x, np.zeros(N_half)))
-        
-    cumulative_sum = np.cumsum(np.insert(x, 0, 0))
+#    print("Entered Mov av")   
+#    cumulative_sum = np.cumsum(np.insert(x, 0, 0))
    
-    return (cumulative_sum[N:] - cumulative_sum[:-N]) / N
+#    return (cumulative_sum[N:] - cumulative_sum[:-N]) / N
+   
+    return (np.cumsum(x)[N:] - np.cumsum(x)[:-N]) / N
 
 
 
