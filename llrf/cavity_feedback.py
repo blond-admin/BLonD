@@ -234,8 +234,9 @@ class SPSOneTurnFeedback(object):
         #self.V_tot = self.V_part*self.rf.voltage[0,0] \
         #    *np.ones(self.profile.n_slices, dtype=float) + \
         #    1j*np.zeros(self.profile.n_slices, dtype=float)
-        self.V_tot = np.zeros(self.profile.n_slices, dtype=float) \
-            + 1j*np.zeros(self.profile.n_slices, dtype=float)
+        self.V_tot = np.zeros(self.profile.n_slices, dtype=complex)
+#        self.V_tot = np.zeros(self.profile.n_slices, dtype=float) \
+#            + 1j*np.zeros(self.profile.n_slices, dtype=float)
         
         # Length of arrays in LLRF and V_ind_gen
         self.n_llrf = int(self.rf.t_rev[0]/self.profile.bin_size)
@@ -350,6 +351,10 @@ class SPSOneTurnFeedback(object):
 #        self.V_gen = self.V_set - self.open_loop*self.V_tot
         self.V_gen = self.V_set - self.open_loop*np.concatenate((self.V_tot, 
             np.zeros(self.n_diff)))
+        print("Set", np.mean(self.V_set))
+        print("Tot", np.mean(self.V_tot))
+        print("Gen", np.mean(self.V_gen))
+        print("")
 #        print("Length of V_gen %d", len(self.V_gen))
         
         # One-turn delay comb filter; memorise the value of the previous turn
@@ -461,8 +466,8 @@ class SPSOneTurnFeedback(object):
         elif name == "gen":
             # Circular convolution
             h_len = len(self.TWC.hs_gen)
-            self.V_ind_gen = -self.n_cavities \
-                *self.V_ind_gen[h_len:self.n_llrf+h_len]
+            self.V_ind_gen = +self.n_cavities \
+                *self.V_ind_gen[h_len:self.n_llrf+h_len] # WHAT IS THE CORRECT SIGN???
 #                *self.V_ind_gen[h_len:self.profile.n_slices+h_len]
 
         
