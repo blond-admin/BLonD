@@ -32,12 +32,13 @@ signal = np.concatenate((signal, signal))
 
 plt.figure()
 plt.plot(time, signal)
-prev = 0.
+prev = np.zeros(n_ma)
 
 for i in range(iterations):
-    print("Average of end of previous signal", prev)
+    print("Average of end of previous signal", np.mean(prev))
+    tmp = signal[-n_ma:]
     signal = moving_average(signal, n_ma, prev)
-    prev = np.mean(signal[-n_ma:])
+    prev = np.copy(tmp)
     print("Length of signal", len(signal))
     plt.plot(time, signal)
 

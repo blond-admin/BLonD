@@ -126,6 +126,10 @@ class SPSCavityFeedback(object):
                 ax2.plot(self.OTFB_4.profile.bin_centers, self.V_sum.imag, ':')
                 ax.plot(self.OTFB_4.profile.bin_centers, 
                         np.absolute(self.V_sum))
+#                 time = np.linspace(0., self.OTFB_4.n_llrf*self.OTFB_4.profile.bin_size, self.OTFB_4.n_llrf, endpoint=True)
+#                 ax1.plot(time, self.V_sum.real)
+#                 ax2.plot(time, self.V_sum.imag, ':')
+#                 ax.plot(time, np.absolute(self.V_sum))
 #                ax.plot(np.absolute(self.OTFB_4.I_gen))
 #                ax.plot(self.OTFB_4.profile.bin_centers, 
 #                        np.absolute(self.OTFB_4.V_gen))
@@ -226,15 +230,21 @@ class SPSOneTurnFeedback(object):
         # TWC resonant frequency
         self.omega_r = self.TWC.omega_r
 
-        # Initialise bunch-by-bunch voltage array
+        # Initialise bunch-by-bunch voltage array with LENGTH OF PROFILE
         #self.V_tot = self.V_part*self.rf.voltage[0,0] \
         #    *np.ones(self.profile.n_slices, dtype=float) + \
         #    1j*np.zeros(self.profile.n_slices, dtype=float)
-        self.V_tot = np.zeros(self.profile.n_slices, dtype=float) + \
-            1j*np.zeros(self.profile.n_slices, dtype=float)
+        self.V_tot = np.zeros(self.profile.n_slices, dtype=float) \
+            + 1j*np.zeros(self.profile.n_slices, dtype=float)
+        
+        # Length of arrays in LLRF and V_ind_gen
+        self.n_llrf = int(self.rf.t_rev[0]/self.profile.bin_size)
+        self.logger.debug("Length of arrays in generator path %d", self.n_llrf)
+        self.n_diff = self.n_llrf - self.profile.n_slices 
         
         # Initialise comb filter
-        self.V_gen_prev = np.zeros(len(self.V_tot), dtype=complex)
+#        self.V_gen_prev = np.zeros(len(self.V_tot), dtype=complex)
+        self.V_gen_prev = np.zeros(self.n_llrf, dtype=complex)
         self.a_comb_filter = float(15/16)
 #        print(self.V_tot)
 #        print(self.V_gen_prev)
@@ -242,14 +252,16 @@ class SPSOneTurnFeedback(object):
         # Initialise cavity filter (moving average)
         self.bw_cav = float(40e6)
         self.n_mov_av = int(1./(self.profile.bin_size*self.bw_cav)) #self.omega_r/(2*np.pi*self.bw_cav)
-        if self.n_mov_av < 1:
+        if self.n_mov_av < 2:
             raise RuntimeError("ERROR in SPSOneTurnFeedback: profile has to" +
-                               " have at least 25 ns resolution!")
-        self.V_mov_av_prev = np.zeros(len(self.V_tot), dtype=complex) #float(0) + 1j*float(0)
+                               " have at least 12.5 ns resolution!")
+#        self.V_mov_av_prev = np.zeros(len(self.V_tot), dtype=complex) #float(0) + 1j*float(0)
+        self.V_mov_av_prev = np.zeros(self.n_llrf, dtype=complex)
 #        print(self.n_mov_av)
 
         # Initialise generator-induced voltage
-        self.I_gen_prev = np.zeros(len(self.V_tot), dtype=complex)
+#        self.I_gen_prev = np.zeros(len(self.V_tot), dtype=complex)
+        self.I_gen_prev = np.zeros(self.n_llrf, dtype=complex)
         
         self.logger.info("Class initialized")
 
@@ -276,7 +288,7 @@ class SPSOneTurnFeedback(object):
         self.beam_induced_voltage()
         
         # Sum and convert to voltage amplitude and phase
-        self.V_tot = self.V_ind_beam + self.V_ind_gen
+        self.V_tot = self.V_ind_beam + self.V_ind_gen[:self.profile.n_slices]
         
         
 
@@ -287,6 +299,7 @@ class SPSOneTurnFeedback(object):
         self.counter = int(0)
         # Present carrier frequency: main RF frequency
         self.omega_c = self.rf.omega_rf[0,0]
+#        print("Length of V_tot", len(self.V_tot))
         
 #        print(self.V_tot)
         # Update the impulse response at present carrier frequency
@@ -294,7 +307,7 @@ class SPSOneTurnFeedback(object):
         
         # On current measured (I,Q) voltage, apply LLRF model
         self.llrf_model()
-        self.V_tot = self.V_gen # tmp
+#        self.V_tot = self.V_gen # tmp
 #        print(self.V_set)
 #        print("")
         
@@ -306,7 +319,7 @@ class SPSOneTurnFeedback(object):
             np.mean(np.absolute(self.I_gen))/self.profile.bin_size)
          
         # Sum and convert to voltage amplitude and phase
-        self.V_tot = self.V_ind_gen
+        self.V_tot = self.V_ind_gen[:self.profile.n_slices]
         self.logger.debug("Average total voltage, last half of array %.3e V", 
             np.mean(np.absolute(self.V_tot[int(0.5*self.profile.n_slices):])))
         
@@ -330,10 +343,14 @@ class SPSOneTurnFeedback(object):
         self.V_set = polar_to_cartesian(self.V_part* \
             self.rf.voltage[0,self.counter], self.rf.phi_rf[0,self.counter])
         # Convert to array
-        self.V_set *= np.ones(self.profile.n_slices)
+#        self.V_set *= np.ones(self.profile.n_slices)
+        self.V_set *= np.ones(self.n_llrf)
         
         # Difference of set point and actual voltage
-        self.V_gen = self.V_set - self.open_loop*self.V_tot
+#        self.V_gen = self.V_set - self.open_loop*self.V_tot
+        self.V_gen = self.V_set - self.open_loop*np.concatenate((self.V_tot, 
+            np.zeros(self.n_diff)))
+#        print("Length of V_gen %d", len(self.V_gen))
         
         # One-turn delay comb filter; memorise the value of the previous turn
         V_tmp = comb_filter(self.V_gen_prev, self.V_gen, self.a_comb_filter)
@@ -445,7 +462,8 @@ class SPSOneTurnFeedback(object):
             # Circular convolution
             h_len = len(self.TWC.hs_gen)
             self.V_ind_gen = -self.n_cavities \
-                *self.V_ind_gen[h_len:self.profile.n_slices+h_len]
+                *self.V_ind_gen[h_len:self.n_llrf+h_len]
+#                *self.V_ind_gen[h_len:self.profile.n_slices+h_len]
 
         
     def beam_induced_voltage(self, lpf=True):

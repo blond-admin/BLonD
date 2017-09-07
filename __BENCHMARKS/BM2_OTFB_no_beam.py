@@ -61,6 +61,7 @@ print("Machine parameters set!")
 rf = RFStation(ring, 1, h, V, phi)
 rf.omega_rf[0,0] = 2*np.pi*200.222e6 # cavity central frequency
 logging.debug("RF frequency %.6e Hz", rf.omega_rf[0,0]/(2*np.pi))
+logging.debug("Revolution period %.6e s", rf.t_rev[0])
 print("RF parameters set!")
 
 # Define beam and fill it
@@ -74,7 +75,7 @@ print("Time coordinates are in range %.4e to %.4e s" %(np.min(beam.dt),
 #profile = Profile(beam, CutOptions = CutOptions(cut_left=0.e-9, 
 #    cut_right=23.06e-6, n_slices=100))#n_slices=10000))
 profile = Profile(beam, CutOptions = CutOptions(cut_left=0.e-9, 
-    cut_right=23.06e-6, n_slices=10000))#n_slices=10000))
+    cut_right=10.e-6, n_slices=10000))#n_slices=10000))
 profile.track()
 
 #OTFB = SPSCavityFeedback(rf, beam, profile, G_tx_4=.521, G_tx_5=.521, turns=10,
