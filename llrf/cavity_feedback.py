@@ -245,7 +245,7 @@ class SPSOneTurnFeedback(object):
         if self.n_mov_av < 1:
             raise RuntimeError("ERROR in SPSOneTurnFeedback: profile has to" +
                                " have at least 25 ns resolution!")
-        self.V_mov_av_prev = float(0) + 1j*float(0)
+        self.V_mov_av_prev = np.zeros(len(self.V_tot), dtype=complex) #float(0) + 1j*float(0)
 #        print(self.n_mov_av)
 
         # Initialise generator-induced voltage
@@ -346,14 +346,18 @@ class SPSOneTurnFeedback(object):
         
         # Cavity filter: moving average at 40 MHz
         # Memorize average of last points for beginning of next turn
-        V_tmp = np.mean(self.V_gen[-self.n_mov_av:]) 
-        self.V_gen = moving_average(self.V_gen, self.n_mov_av, 
-                                    x_prev=self.V_mov_av_prev)
+#        V_tmp = np.mean(self.V_gen[-self.n_mov_av:]) 
+#        self.V_gen = moving_average(self.V_gen, self.n_mov_av, 
+#                                    x_prev=self.V_mov_av_prev)
+        V_tmp = moving_average(self.V_gen, self.n_mov_av, 
+                               x_prev=self.V_mov_av_prev[-self.n_mov_av:])
 #        print(self.V_gen[0])
 #        print(self.V_gen[-1])
 #        print(self.V_mov_av_prev)
 #        print("")
-        self.V_mov_av_prev = V_tmp
+#        self.V_mov_av_prev = V_tmp
+        self.V_mov_av_prev = np.copy(self.V_gen)
+        self.V_gen = np.copy(V_tmp)
 #        self.V_gen = moving_average(self.V_gen, self.n_mov_av, center=True)
 #        self.V_gen.real = moving_average(self.V_gen.real, self.n_mov_av, 
 #                                         center=True)
