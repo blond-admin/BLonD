@@ -76,5 +76,7 @@ profile = Profile(beam, CutOptions = CutOptions(cut_left=0.e-9,
     cut_right=23.069e-6, n_slices=23069))#n_slices=10000))
 profile.track()
 
-OTFB = SPSCavityFeedback(rf, beam, profile, G_tx_4=.500068, G_tx_5=.500068, 
-                         turns=5, debug=True, open_loop=0)
+#OTFB = SPSCavityFeedback(rf, beam, profile, G_tx_4=.500068, G_tx_5=.500068, 
+#                         turns=10, debug=True, open_loop=1)
+OTFB = SPSCavityFeedback(rf, beam, profile, G_tx_4=.25, G_tx_5=.25, 
+                         turns=5, debug=True, open_loop=1)

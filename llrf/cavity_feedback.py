@@ -104,15 +104,15 @@ class SPSCavityFeedback(object):
             f, ax1 = plt.subplots()
             ax2 = plt.twinx(ax1)
             ax1.set_xlabel("Time [s]")
-            ax1.set_ylabel("Voltage, real part [V]")
-            ax2.set_ylabel("Voltage, imaginary part (dotted) [V]")
+            ax1.set_ylabel("Total voltage, real part [V]")
+            ax2.set_ylabel("Total voltage, imaginary part (dotted) [V]")
             ax1.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
             ax1.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
             ax2.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
             plt.figure(2)
             ax = plt.axes()
             ax.set_xlabel("Time [s]")
-            ax.set_ylabel("Voltage amplitude [V]")
+            ax.set_ylabel("Total voltage, amplitude [V]")
             ax.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
 
         for i in range(self.turns):
@@ -406,8 +406,17 @@ class SPSOneTurnFeedback(object):
         
         """
         
+        # Add correction to the drive already existing
+#        self.V_gen += np.concatenate((self.V_tot, np.zeros(self.n_diff)))
+        self.V_gen = self.V_set + self.V_gen
+#        self.V_gen = np.concatenate((self.V_tot, np.zeros(self.n_diff))) \
+#            + self.V_gen
+        
         # Generator charge from voltage, transmitter model
         self.I_gen = self.G_tx*self.V_gen/self.TWC.R_gen*self.profile.bin_size # CHECK SCALING!!!
+        
+        # Add to the drive already existing
+#        self.I_gen += self.I_gen_prev
         
         # Circular convolution: attach last points of previous turn
         self.I_gen = np.concatenate((self.I_gen_prev[-len(self.TWC.hs_gen):],
@@ -415,10 +424,13 @@ class SPSOneTurnFeedback(object):
         # Generator-induced voltage
         self.induced_voltage('gen')
         # Update memory of previous turn
-        self.I_gen_prev = np.copy(self.I_gen)
+        self.I_gen_prev = np.copy(self.I_gen[len(self.TWC.hs_gen):])
 #        print(len(self.V_ind_gen))
 #        print(len(self.TWC.hs_gen))
-
+#        # Modulate back to f_rf
+#        self.V_ind_gen = modulator(self.V_ind_gen, self.omega_r, self.omega_c, 
+#                                   self.profile.bin_size)
+        
         
     def induced_voltage(self, name):
         r"""Generation of beam- or generator-induced voltage from the beam or
@@ -466,7 +478,7 @@ class SPSOneTurnFeedback(object):
         elif name == "gen":
             # Circular convolution
             h_len = len(self.TWC.hs_gen)
-            self.V_ind_gen = +self.n_cavities \
+            self.V_ind_gen = -self.n_cavities \
                 *self.V_ind_gen[h_len:self.n_llrf+h_len] # WHAT IS THE CORRECT SIGN???
 #                *self.V_ind_gen[h_len:self.profile.n_slices+h_len]
 
