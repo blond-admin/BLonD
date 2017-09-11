@@ -24,6 +24,19 @@ from setup_cpp import libblond
 
 
 
+class CavityFeedbackCommissioning(object):
+    
+    def __init__(self, debug=False, open_loop=False, open_FB=False, 
+                 open_drive=False):
+        
+        self.debug = bool(debug)
+        # Multiply with zeros if open == True
+        self.open_loop = int(np.invert(bool(open_loop)))
+        self.open_FB = int(np.invert(bool(open_FB)))
+        self.open_drive = int(np.invert(bool(open_drive)))
+
+
+
 class SPSCavityFeedback(object):
     """Class determining the turn-by-turn total RF voltage and phase correction
     originating from the individual cavity feedbacks. Assumes two 4-section and
@@ -63,15 +76,18 @@ class SPSCavityFeedback(object):
     """
     
     def __init__(self, RFStation, Beam, Profile, G_tx_4=10, G_tx_5=10, 
-                 turns=1000, debug=False, open_loop=1):
+                 turns=1000, Commissioning=CavityFeedbackCommissioning()):
         
+        # Options for commissioning the feedback
+        self.Commissioning = Commissioning
+
         # Voltage partition proportional to the number of sections
         self.OTFB_4 = SPSOneTurnFeedback(RFStation, Beam, Profile, 4, 
             n_cavities=2, V_part=4/9, G_tx=G_tx_4, 
-            open_loop=int(bool(open_loop)))
+            Commissioning=self.Commissioning)
         self.OTFB_5 = SPSOneTurnFeedback(RFStation, Beam, Profile, 5, 
             n_cavities=2, V_part=5/9, G_tx=G_tx_5, 
-            open_loop=int(bool(open_loop)))
+            Commissioning=self.Commissioning)
         
         # Set up logging
         self.logger = logging.getLogger(__class__.__name__)
@@ -82,7 +98,7 @@ class SPSCavityFeedback(object):
         if turns < 1:
             raise RuntimeError("ERROR in SPSCavityFeedback: 'turns' has to" +
                                " be a positive integer!")
-        self.track_init(debug=debug)
+        self.track_init(debug=Commissioning.debug)
         
 
     def track(self):
@@ -200,10 +216,19 @@ class SPSOneTurnFeedback(object):
     '''
     
     def __init__(self, RFStation, Beam, Profile, n_sections, n_cavities=2, 
-                 V_part=4/9, G_tx=10, open_loop=1):
+                 V_part=4/9, G_tx=10, 
+                 Commissioning=CavityFeedbackCommissioning()):
 
         # Set up logging
         self.logger = logging.getLogger(__class__.__name__)
+        
+        # Commissioning options
+        self.open_loop = Commissioning.open_loop
+        self.logger.debug("Opening overall OTFB loop")
+        self.open_FB = Commissioning.open_FB
+        self.logger.debug("Opening feedback of drive correction")
+        self.open_drive = Commissioning.open_drive
+        self.logger.debug("Opening drive to generator")
 
         # Read input
         self.rf = RFStation
@@ -218,7 +243,7 @@ class SPSOneTurnFeedback(object):
             raise RuntimeError("ERROR in SPSOneTurnFeedback: V_part" +
                                " should be in range (0,1)!")
         self.G_tx = float(G_tx)
-        self.open_loop = int(bool(open_loop))
+#        self.open_loop = int(bool(open_loop))
         
         # 200 MHz travelling wave cavity (TWC) model
         if n_sections in [4,5]:
@@ -381,6 +406,7 @@ class SPSOneTurnFeedback(object):
 #        V_tmp = np.mean(self.V_gen[-self.n_mov_av:]) 
 #        self.V_gen = moving_average(self.V_gen, self.n_mov_av, 
 #                                    x_prev=self.V_mov_av_prev)
+        print(self.n_mov_av)
         V_tmp = moving_average(self.V_gen, self.n_mov_av, 
                                x_prev=self.V_mov_av_prev[-self.n_mov_av:])
 #        print(self.V_gen[0])
@@ -417,18 +443,9 @@ class SPSOneTurnFeedback(object):
         """
         
         # Add correction to the drive already existing
-#        self.V_gen += np.concatenate((self.V_tot, np.zeros(self.n_diff)))
-#        self.V_gen = self.V_set + self.V_gen
-#        self.V_gen = self.open_loop*self.V_gen + modulator(self.V_set, 
-#            self.omega_c, self.omega_r, self.profile.bin_size)
-#        self.V_gen = self.open_loop*modulator(self.V_gen, self.omega_r, 
-#            self.omega_c, self.profile.bin_size) + self.V_set 
-        self.V_gen = modulator(self.V_gen, self.omega_r, 
-            self.omega_c, self.profile.bin_size) #+ self.open_loop*self.V_set 
+        self.V_gen = self.open_FB*modulator(self.V_gen, self.omega_r, 
+            self.omega_c, self.profile.bin_size) + self.open_drive*self.V_set 
             
-#        self.V_gen = np.concatenate((self.V_tot, np.zeros(self.n_diff))) \
-#            + self.V_gen
-        
         # Generator charge from voltage, transmitter model
         self.I_gen = self.G_tx*self.V_gen/self.TWC.R_gen*self.profile.bin_size # CHECK SCALING!!!
         

@@ -24,7 +24,7 @@ from input_parameters.rf_parameters import RFStation
 from beam.beam import Beam, Proton
 from beam.distributions import bigaussian
 from beam.profile import Profile, CutOptions
-from llrf.cavity_feedback import SPSCavityFeedback
+from llrf.cavity_feedback import SPSCavityFeedback, CavityFeedbackCommissioning
 
 
 # CERN SPS --------------------------------------------------------------------
@@ -46,6 +46,7 @@ N_t = 1000                  # Number of turns to track
 # Plot settings
 plt.rc('axes', labelsize=16, labelweight='normal')
 plt.rc('lines', linewidth=1.5, markersize=6)
+
 plt.rc('font', family='sans-serif')  
 plt.rc('legend', fontsize=12)  
 
@@ -80,5 +81,9 @@ profile.track()
 #                         turns=10, debug=True, open_loop=1)
 #OTFB = SPSCavityFeedback(rf, beam, profile, G_tx_4=.25, G_tx_5=.25, 
 #                         turns=5, debug=True, open_loop=1)
+Commissioning = CavityFeedbackCommissioning(debug=True, open_loop=False,
+                                            open_FB=False, open_drive=True)
+#Commissioning = CavityFeedbackCommissioning(debug=True, open_loop=True,
+#                                            open_FB=False, open_drive=True)
 OTFB = SPSCavityFeedback(rf, beam, profile, G_tx_4=.5, G_tx_5=.5, 
-                         turns=10, debug=True, open_loop=1)
+                         turns=10, Commissioning=Commissioning)
