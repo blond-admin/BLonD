@@ -85,5 +85,5 @@ Commissioning = CavityFeedbackCommissioning(debug=True, open_loop=False,
                                             open_FB=False, open_drive=True)
 #Commissioning = CavityFeedbackCommissioning(debug=True, open_loop=True,
 #                                            open_FB=False, open_drive=True)
-OTFB = SPSCavityFeedback(rf, beam, profile, G_tx_4=.5, G_tx_5=.5, 
+OTFB = SPSCavityFeedback(rf, beam, profile, G_llrf=5, G_tx=0.5, a_comb=15/16, 
                          turns=10, Commissioning=Commissioning)

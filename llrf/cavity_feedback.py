@@ -75,19 +75,20 @@ class SPSCavityFeedback(object):
     
     """
     
-    def __init__(self, RFStation, Beam, Profile, G_tx_4=10, G_tx_5=10, 
-                 turns=1000, Commissioning=CavityFeedbackCommissioning()):
+    def __init__(self, RFStation, Beam, Profile, G_llrf=10, G_tx=0.5, 
+                 a_comb=15/16, turns=1000, 
+                 Commissioning=CavityFeedbackCommissioning()):
         
         # Options for commissioning the feedback
         self.Commissioning = Commissioning
 
         # Voltage partition proportional to the number of sections
         self.OTFB_4 = SPSOneTurnFeedback(RFStation, Beam, Profile, 4, 
-            n_cavities=2, V_part=4/9, G_tx=G_tx_4, 
-            Commissioning=self.Commissioning)
+            n_cavities=2, V_part=4/9, G_llrf=float(G_llrf), G_tx=float(G_tx), 
+            a_comb=float(a_comb), Commissioning=self.Commissioning)
         self.OTFB_5 = SPSOneTurnFeedback(RFStation, Beam, Profile, 5, 
-            n_cavities=2, V_part=5/9, G_tx=G_tx_5, 
-            Commissioning=self.Commissioning)
+            n_cavities=2, V_part=5/9, G_llrf=float(G_llrf), G_tx=float(G_tx), 
+            a_comb=float(a_comb), Commissioning=self.Commissioning)
         
         # Set up logging
         self.logger = logging.getLogger(__class__.__name__)
@@ -202,7 +203,7 @@ class SPSOneTurnFeedback(object):
     V_tot : complex array
         Cavity voltage [V] at present turn in (I,Q) coordinates;
         :math:`V_{\mathsf{tot}}`
-    a_comb_filter : float
+    a_comb : float
         Recursion constant of the comb filter; :math:`a_{\mathsf{comb}}=15/16`
     bw_cav : const float
         Cavity bandwidth; :math:`f_{\mathsf{bw,cav}} = 40 MHz`
@@ -216,7 +217,7 @@ class SPSOneTurnFeedback(object):
     '''
     
     def __init__(self, RFStation, Beam, Profile, n_sections, n_cavities=2, 
-                 V_part=4/9, G_tx=10, 
+                 V_part=4/9, G_llrf=10, G_tx=0.5, a_comb=15/16,
                  Commissioning=CavityFeedbackCommissioning()):
 
         # Set up logging
@@ -242,8 +243,10 @@ class SPSOneTurnFeedback(object):
         if self.V_part*(1 - self.V_part) < 0:
             raise RuntimeError("ERROR in SPSOneTurnFeedback: V_part" +
                                " should be in range (0,1)!")
+
+        # Gain settings
+        self.G_llrf = float(G_llrf)
         self.G_tx = float(G_tx)
-#        self.open_loop = int(bool(open_loop))
         
         # 200 MHz travelling wave cavity (TWC) model
         if n_sections in [4,5]:
@@ -274,7 +277,8 @@ class SPSOneTurnFeedback(object):
         # Initialise comb filter
 #        self.V_gen_prev = np.zeros(len(self.V_tot), dtype=complex)
         self.V_gen_prev = np.zeros(self.n_llrf, dtype=complex)
-        self.a_comb_filter = float(15/16) # 3/4
+        self.a_comb = float(a_comb)
+#        self.a_comb_filter = float(15/16) # 3/4
 #        print(self.V_tot)
 #        print(self.V_gen_prev)
         
@@ -329,17 +333,12 @@ class SPSOneTurnFeedback(object):
         self.counter = int(0)
         # Present carrier frequency: main RF frequency
         self.omega_c = self.rf.omega_rf[0,0]
-#        print("Length of V_tot", len(self.V_tot))
-        
-#        print(self.V_tot)
+
         # Update the impulse response at present carrier frequency
         self.TWC.impulse_response(self.omega_c, self.profile.bin_centers)
         
         # On current measured (I,Q) voltage, apply LLRF model
         self.llrf_model()
-#        self.V_tot = self.V_gen # tmp
-#        print(self.V_set)
-#        print("")
         
         # Generator-induced voltage from generator current
         self.logger.debug("Total voltage to generator %.3e V", 
@@ -380,7 +379,8 @@ class SPSOneTurnFeedback(object):
 #        self.V_gen = self.V_set - self.open_loop*self.V_tot
         self.V_gen = self.V_set - self.open_loop*np.concatenate((self.V_tot, 
             np.zeros(self.n_diff)))
-        self.G_llrf = 5.
+        
+        # Closed-loop gain
         self.V_gen *= self.G_llrf
 #        self.V_gen = self.V_set - np.concatenate((self.V_tot, 
 #            np.zeros(self.n_diff)))
@@ -394,7 +394,7 @@ class SPSOneTurnFeedback(object):
 #         V_tmp = comb_filter(self.V_gen_prev, self.V_gen, self.a_comb_filter)
 #         self.V_gen_prev = np.copy(self.V_gen)
 #         self.V_gen = np.copy(V_tmp)
-        self.V_gen = comb_filter(self.V_gen_prev, self.V_gen, self.a_comb_filter)
+        self.V_gen = comb_filter(self.V_gen_prev, self.V_gen, self.a_comb)
         self.V_gen_prev = np.copy(self.V_gen)
 
         # Modulate from omega_rf to omega_r
