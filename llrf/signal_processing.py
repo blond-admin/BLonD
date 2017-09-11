@@ -201,11 +201,6 @@ def rf_beam_current(Profile, frequency, T_rev, lpf=True):
     return I_f + 1j*Q_f
 
 
-# def comb_filter(x, y, a):
-#     """Feedback comb filter.
-#     """
-#     
-#     return a*y + (1 - a)*x
 def comb_filter(y, x, a):
     """Feedback comb filter.
     """
@@ -238,51 +233,6 @@ def low_pass_filter(signal, cutoff_frequency=0.5):
     return sgn.filtfilt(b, a, signal)
     
 
-# def cavity_filter():
-#     """Model of the SPS cavity filter.
-#     """   
-#     
-#         
-# def cavity_impedance():
-#     """Model of the SPS cavity impedance.
-#     """
-# 
-
-# def moving_average(x, N, center=False):
-#     """Function to calculate the moving average (or running mean) of the input
-#     data.
-#     
-#     Parameters
-#     ----------
-#     x : float array
-#         Data to be smoothed
-#     N : int
-#         Window size in points; rounded up to next impair value if center is 
-#         True
-#     center : bool    
-#         Window function centered
-#         
-#     Returns
-#     -------
-#     float array
-#         Smoothed data array of has the size 
-#         * len(x) - N + 1, if center = False
-#         * len(x), if center = True
-#         
-#     """
-#     
-#     if center is True:
-#         # Round up to next impair number
-#         N_half = int(N/2)
-#         N = N_half*2 + 1
-#         # Pad with first and last values
-#         x = np.concatenate((x[0]*np.ones(N_half), x, x[-1]*np.ones(N_half)))
-# #        # Pad with zeros (no induced voltage in unsliced region)
-# #        x = np.concatenate((np.zeros(N_half), x, np.zeros(N_half)))
-#         
-#     cumulative_sum = np.cumsum(np.insert(x, 0, 0))
-#    
-#     return (cumulative_sum[N:] - cumulative_sum[:-N]) / N
 def moving_average(x, N, x_prev=None):
     """Function to calculate the moving average (or running mean) of the input
     data.
@@ -294,37 +244,21 @@ def moving_average(x, N, x_prev=None):
     N : int
         Window size in points; rounded up to next impair value if center is 
         True
-    center : bool    
-        Window function centered
+    x_prev : float array    
+        Data to pad with in front
         
     Returns
     -------
     float array
         Smoothed data array of has the size 
-        * len(x) - N + 1, if center = False
-        * len(x), if center = True
+        * len(x) - N + 1, if x_prev = None
+        * len(x) + len(x_prev) - N + 1, if x_prev given
         
     """
     
     if x_prev != None:
-        # Round up to next impair number
-#        N_half = int(N/2)
-#        N = N_half*2 + 1
-        # Pad before with last value from previous turn
-        # Pad after with last value from present turn
-#        print("No points", N_half)
-#        print(x_prev)
-#        x = np.concatenate((x_prev*np.ones(N_half), x, x[-1]*np.ones(N_half)))
-#        print(len(x))
-#        x = np.concatenate((x_prev*np.ones(N), x))
+        # Pad in front with x_prev signal
         x = np.concatenate((x_prev, x))
-#        print(len(x))
-#        # Pad with zeros (no induced voltage in unsliced region)
-#        x = np.concatenate((np.zeros(N_half), x, np.zeros(N_half)))
-#    print("Entered Mov av")   
-#    cumulative_sum = np.cumsum(np.insert(x, 0, 0))
-   
-#    return (cumulative_sum[N:] - cumulative_sum[:-N]) / N
    
     return (np.cumsum(x)[N:] - np.cumsum(x)[:-N]) / N
 
