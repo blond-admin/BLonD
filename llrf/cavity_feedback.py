@@ -114,6 +114,8 @@ class SPSCavityFeedback(object):
             ax.set_xlabel("Time [s]")
             ax.set_ylabel("Total voltage, amplitude [V]")
             ax.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+            plt.figure(3)
+            ax3 = plt.axes()
 
         for i in range(self.turns):
             self.logger.debug("Pre-tracking w/o beam, iteration %d", i)
@@ -126,6 +128,7 @@ class SPSCavityFeedback(object):
                 ax2.plot(self.OTFB_4.profile.bin_centers, self.V_sum.imag, ':')
                 ax.plot(self.OTFB_4.profile.bin_centers, 
                         np.absolute(self.V_sum))
+                ax3.plot(np.absolute(self.OTFB_4.I_gen))
 #                 time = np.linspace(0., self.OTFB_4.n_llrf*self.OTFB_4.profile.bin_size, self.OTFB_4.n_llrf, endpoint=True)
 #                 ax1.plot(time, self.V_sum.real)
 #                 ax2.plot(time, self.V_sum.imag, ':')
@@ -246,13 +249,14 @@ class SPSOneTurnFeedback(object):
         # Initialise comb filter
 #        self.V_gen_prev = np.zeros(len(self.V_tot), dtype=complex)
         self.V_gen_prev = np.zeros(self.n_llrf, dtype=complex)
-        self.a_comb_filter = float(15/16)
+        self.a_comb_filter = float(15/16) # 3/4
 #        print(self.V_tot)
 #        print(self.V_gen_prev)
         
         # Initialise cavity filter (moving average)
-        self.bw_cav = float(40e6)
-        self.n_mov_av = int(1./(self.profile.bin_size*self.bw_cav)) #self.omega_r/(2*np.pi*self.bw_cav)
+        #self.bw_cav = float(40e6)
+        #self.n_mov_av = int(1./(self.profile.bin_size*self.bw_cav)) #self.omega_r/(2*np.pi*self.bw_cav)
+        self.n_mov_av = int(self.TWC.tau/self.profile.bin_size) #self.omega_r/(2*np.pi*self.bw_cav)
         if self.n_mov_av < 2:
             raise RuntimeError("ERROR in SPSOneTurnFeedback: profile has to" +
                                " have at least 12.5 ns resolution!")
@@ -351,16 +355,22 @@ class SPSOneTurnFeedback(object):
 #        self.V_gen = self.V_set - self.open_loop*self.V_tot
         self.V_gen = self.V_set - self.open_loop*np.concatenate((self.V_tot, 
             np.zeros(self.n_diff)))
-        print("Set", np.mean(self.V_set))
-        print("Tot", np.mean(self.V_tot))
-        print("Gen", np.mean(self.V_gen))
+        self.G_llrf = 5.
+        self.V_gen *= self.G_llrf
+#        self.V_gen = self.V_set - np.concatenate((self.V_tot, 
+#            np.zeros(self.n_diff)))
+        print("Set", np.mean(np.absolute(self.V_set)))
+        print("Tot", np.mean(np.absolute(self.V_tot)))
+        print("Delta", np.mean(np.absolute(self.V_gen)))
         print("")
 #        print("Length of V_gen %d", len(self.V_gen))
         
         # One-turn delay comb filter; memorise the value of the previous turn
-        V_tmp = comb_filter(self.V_gen_prev, self.V_gen, self.a_comb_filter)
+#         V_tmp = comb_filter(self.V_gen_prev, self.V_gen, self.a_comb_filter)
+#         self.V_gen_prev = np.copy(self.V_gen)
+#         self.V_gen = np.copy(V_tmp)
+        self.V_gen = comb_filter(self.V_gen_prev, self.V_gen, self.a_comb_filter)
         self.V_gen_prev = np.copy(self.V_gen)
-        self.V_gen = np.copy(V_tmp)
 
         # Modulate from omega_rf to omega_r
         self.V_gen = modulator(self.V_gen, self.omega_c, self.omega_r, 
@@ -408,7 +418,14 @@ class SPSOneTurnFeedback(object):
         
         # Add correction to the drive already existing
 #        self.V_gen += np.concatenate((self.V_tot, np.zeros(self.n_diff)))
-        self.V_gen = self.V_set + self.V_gen
+#        self.V_gen = self.V_set + self.V_gen
+#        self.V_gen = self.open_loop*self.V_gen + modulator(self.V_set, 
+#            self.omega_c, self.omega_r, self.profile.bin_size)
+#        self.V_gen = self.open_loop*modulator(self.V_gen, self.omega_r, 
+#            self.omega_c, self.profile.bin_size) + self.V_set 
+        self.V_gen = modulator(self.V_gen, self.omega_r, 
+            self.omega_c, self.profile.bin_size) #+ self.open_loop*self.V_set 
+            
 #        self.V_gen = np.concatenate((self.V_tot, np.zeros(self.n_diff))) \
 #            + self.V_gen
         
@@ -478,7 +495,7 @@ class SPSOneTurnFeedback(object):
         elif name == "gen":
             # Circular convolution
             h_len = len(self.TWC.hs_gen)
-            self.V_ind_gen = -self.n_cavities \
+            self.V_ind_gen = +self.n_cavities \
                 *self.V_ind_gen[h_len:self.n_llrf+h_len] # WHAT IS THE CORRECT SIGN???
 #                *self.V_ind_gen[h_len:self.profile.n_slices+h_len]
 
@@ -501,7 +518,9 @@ class SPSOneTurnFeedback(object):
         """
         
         # Beam current from profile
-        self.I_beam = rf_beam_current(self.profile, self.omega_r, 
+#        self.I_beam = rf_beam_current(self.profile, self.omega_r, 
+#                                      self.rf.t_rev[self.counter], lpf=lpf)
+        self.I_beam = rf_beam_current(self.profile, self.omega_c, 
                                       self.rf.t_rev[self.counter], lpf=lpf)
         # Beam-induced voltage
         self.induced_voltage('beam')

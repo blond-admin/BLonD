@@ -114,13 +114,14 @@ def modulator(signal, omega_i, omega_f, T_sampling):
     if len(signal) < 2:
         raise RuntimeError("ERROR in filters.py/demodulator: signal should" +
                            " be an array!")
-    delta = 2*np.pi*(omega_i - omega_f)*T_sampling
+#    delta = 2*np.pi*(omega_i - omega_f)*T_sampling
+    delta = (omega_i - omega_f)*T_sampling
     indices = np.arange(len(signal))
     try:
         I_new = np.cos(delta*indices)*signal.real \
-            - np.sin(delta*indices)*signal.imag  
+            - np.sin(delta*indices)*signal.imag 
         Q_new = np.sin(delta*indices)*signal.real \
-            + np.cos(delta*indices)*signal.imag  
+            + np.cos(delta*indices)*signal.imag
     except:
         raise RuntimeError("ERROR in filters.py/demodulator: signal should" +
                            " be complex!")
@@ -200,7 +201,12 @@ def rf_beam_current(Profile, frequency, T_rev, lpf=True):
     return I_f + 1j*Q_f
 
 
-def comb_filter(x, y, a):
+# def comb_filter(x, y, a):
+#     """Feedback comb filter.
+#     """
+#     
+#     return a*y + (1 - a)*x
+def comb_filter(y, x, a):
     """Feedback comb filter.
     """
     
