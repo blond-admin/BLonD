@@ -60,7 +60,7 @@ print("Machine parameters set!")
 
 # Set up RF parameters
 rf = RFStation(ring, 1, h, V, phi)
-rf.omega_rf[0,0] = 2*np.pi*200.222e6 # cavity central frequency
+#rf.omega_rf[0,0] = 2*np.pi*200.222e6 # cavity central frequency
 logging.debug("RF frequency %.6e Hz", rf.omega_rf[0,0]/(2*np.pi))
 logging.debug("Revolution period %.6e s", rf.t_rev[0])
 print("RF parameters set!")
@@ -77,13 +77,11 @@ profile = Profile(beam, CutOptions = CutOptions(cut_left=0.e-9,
     cut_right=23.069e-6, n_slices=2307))#n_slices=10000))
 profile.track()
 
-#OTFB = SPSCavityFeedback(rf, beam, profile, G_tx_4=.500068, G_tx_5=.500068, 
-#                         turns=10, debug=True, open_loop=1)
-#OTFB = SPSCavityFeedback(rf, beam, profile, G_tx_4=.25, G_tx_5=.25, 
-#                         turns=5, debug=True, open_loop=1)
 Commissioning = CavityFeedbackCommissioning(debug=True, open_loop=False,
-                                            open_FB=False, open_drive=True)
+                                            open_FB=False, open_drive=False)
 #Commissioning = CavityFeedbackCommissioning(debug=True, open_loop=True,
 #                                            open_FB=False, open_drive=True)
-OTFB = SPSCavityFeedback(rf, beam, profile, G_llrf=5, G_tx=0.5, a_comb=15/16, 
+#Commissioning = CavityFeedbackCommissioning(debug=True, open_loop=False,
+#                                            open_FB=True, open_drive=False)
+OTFB = SPSCavityFeedback(rf, beam, profile, G_llrf=1, G_tx=0.5, a_comb=15/16, 
                          turns=10, Commissioning=Commissioning)
