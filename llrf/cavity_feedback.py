@@ -371,7 +371,7 @@ class SPSOneTurnFeedback(object):
         self.V_set = polar_to_cartesian(self.V_part* \
             self.rf.voltage[0,self.counter], self.rf.phi_rf[0,self.counter])
         # Convert to array
-#        self.V_set *= np.concatenate((np.ones(1000), np.zeros(self.n_llrf - 1000))) #np.ones(self.n_llrf)
+#        self.V_set *= np.concatenate((np.ones(1000), np.zeros(self.n_llrf - 1000)))
         self.V_set *= np.ones(self.n_llrf)
         
         # Difference of set point and actual voltage
@@ -397,31 +397,13 @@ class SPSOneTurnFeedback(object):
         V_gen_in = np.copy(self.V_gen)
         self.V_gen = np.concatenate((self.V_mov_av_prev[-self.n_delay:],
                                      self.V_gen[:self.n_llrf-self.n_delay]))
-#        self.V_mov_av_prev = np.concatenate((
-#            self.V_mov_av_prev_prev[-self.n_delay:],
-#            self.V_mov_av_prev[:self.n_llrf-self.n_delay]))
-#        self.V_mov_av_prev = np.concatenate((
-#            np.zeros(self.n_delay),
-#            self.V_mov_av_prev[:self.n_llrf-self.n_delay]))
-#        self.V_mov_av_prev_prev = np.concatenate((
-#            np.zeros(self.n_delay), 
-#            self.V_mov_av_prev_prev[:self.n_llrf-self.n_delay]))
-         
+
         # Cavity filter: CIRCULAR moving average over filling time
-        # TODO: Combine with delay time
-#        # Memorize average of last points for beginning of next turn
-#        self.V_gen = moving_average(self.V_gen, self.n_mov_av, 
-#                                    x_prev=self.V_mov_av_prev[-self.n_mov_av:])
-#        V_tmp = moving_average(self.V_gen, self.n_mov_av, 
-#                               x_prev=self.V_mov_av_prev[-self.n_mov_av:])
-        self.V_gen = moving_average(self.V_gen, self.n_mov_av, 
-                               x_prev=self.V_mov_av_prev[:self.n_mov_av])
+        # Memorize last points of previous turn for beginning of next turn
+        self.V_gen = moving_average(self.V_gen, self.n_mov_av, x_prev=
+            self.V_mov_av_prev[-self.n_delay-self.n_mov_av:-self.n_delay])
         self.V_mov_av_prev = np.copy(V_gen_in)
-        
-#        self.V_mov_av_prev_prev = np.copy(self.V_mov_av_prev)
-#        self.V_mov_av_prev = np.copy(self.V_gen)
-#        self.V_gen = np.copy(V_tmp)
-        
+                
 
     def generator_induced_voltage(self):
         """Calculates the generator-induced voltage. The transmitter model is
@@ -449,8 +431,6 @@ class SPSOneTurnFeedback(object):
         self.I_gen = self.G_tx*self.V_gen/self.TWC.R_gen*self.profile.bin_size
 
         # Circular convolution: attach last points of previous turn
-        #print(self.I_gen_prev)
-        print(len(self.I_gen_prev))
         self.I_gen = np.concatenate((self.I_gen_prev, self.I_gen))
 
         # Generator-induced voltage
@@ -523,8 +503,6 @@ class SPSOneTurnFeedback(object):
         """
         
         # Beam current from profile
-#        self.I_beam = rf_beam_current(self.profile, self.omega_r, 
-#                                      self.rf.t_rev[self.counter], lpf=lpf)
         self.I_beam = rf_beam_current(self.profile, self.omega_c, 
                                       self.rf.t_rev[self.counter], lpf=lpf)
         # Beam-induced voltage

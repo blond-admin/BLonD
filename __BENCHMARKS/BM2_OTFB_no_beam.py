@@ -74,7 +74,7 @@ print("Time coordinates are in range %.4e to %.4e s" %(np.min(beam.dt),
                                                      np.max(beam.dt)))
 
 profile = Profile(beam, CutOptions = CutOptions(cut_left=0.e-9, 
-    cut_right=rf.t_rev[0], n_slices=h))#n_slices=10000))
+    cut_right=rf.t_rev[0], n_slices=h))
 profile.track()
 
 Commissioning = CavityFeedbackCommissioning(debug=True, open_loop=False,
