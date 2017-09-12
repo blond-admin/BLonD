@@ -374,9 +374,14 @@ class RingAndRFTracker(object):
         phi_rf = np.array(phi_rf, ndmin = 2)
         
         if self.cavityFB: # FIX FOR DIFFERENT HARMONICS!
-            self.rf_voltage = np.sum(voltages.T*self.cavityFB.v_corr* \
-                np.sin(omega_rf.T*self.profile.bin_centers + 
-                       phi_rf.T*self.cavityFB.v_corr), axis = 0)
+#             self.rf_voltage = np.sum(voltages.T*self.cavityFB.v_corr* \
+#                 np.sin(omega_rf.T*self.profile.bin_centers + 
+#                        phi_rf.T*self.cavityFB.v_corr), axis = 0)           
+            self.rf_voltage = voltages[0,0]*self.cavityFB.V_corr* \
+                np.sin(omega_rf[0,0]*self.profile.bin_centers + 
+                       phi_rf[0,0]*self.cavityFB.phi_corr) + \
+                np.sum(voltages.T[1:]*np.sin(omega_rf.T[1:]* # TODO: test with multiple harmonics, think about 800 MHz OTFB
+                    self.profile.bin_centers + phi_rf.T[1:]), axis = 0)
         else:
             self.rf_voltage = np.sum(voltages.T* \
                 np.sin(omega_rf.T*self.profile.bin_centers + phi_rf.T), 
@@ -465,7 +470,7 @@ class RingAndRFTracker(object):
                         self.beam.dE.ctypes.data_as(ctypes.c_void_p), 
                         self.total_voltage.ctypes.data_as(ctypes.c_void_p), 
                         self.profile.bin_centers.ctypes.data_as(ctypes.c_void_p),
-                        ctypes.c_double(self.beam.charge),
+                        ctypes.c_double(self.beam.Particle.charge),
                         ctypes.c_int(self.profile.n_slices),
                         ctypes.c_int(self.beam.n_macroparticles),
                         ctypes.c_double(self.acceleration_kick[self.counter[0]]))

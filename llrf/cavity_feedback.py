@@ -81,6 +81,7 @@ class SPSCavityFeedback(object):
         
         # Options for commissioning the feedback
         self.Commissioning = Commissioning
+        self.rf = RFStation
 
         # Voltage partition proportional to the number of sections
         self.OTFB_4 = SPSOneTurnFeedback(RFStation, Beam, Profile, 4, 
@@ -112,8 +113,8 @@ class SPSCavityFeedback(object):
         
         # Calculate OTFB correction w.r.t. RF voltage and phase in RFStation
         self.V_corr, self.phi_corr = cartesian_to_polar(self.V_sum)
-        self.V_corr /= self.rf.voltage[0,self.counter]
-        self.phi_corr /= self.rf.phi_rf[0,self.counter]
+        self.V_corr /= self.rf.voltage[0,self.rf.counter[0]]
+        self.phi_corr /= self.rf.phi_rf[0,self.rf.counter[0]]
 
 
     def track_init(self, debug=False):
