@@ -66,7 +66,7 @@ class RFStation(object):
     to use a beam phase loop for correct RF phase!
     
     Optional: empty RFStation (e.g. for machines with synchrotron radiation);
-    use harmonic = 0.
+    use negative harmonic.
     
     The index :math:`n` denotes time steps, :math:`l` the index of the RF 
     systems in the section.
@@ -228,98 +228,100 @@ class RFStation(object):
         self.eta_1 = 0
         self.eta_2 = 0
         self.charge = self.Particle.charge
-        for i in range( self.alpha_order ):
+        for i in range( 3 ):
             dummy = getattr(Ring, 'eta_' + str(i))
             setattr(self, "eta_%s" %i, dummy[self.section_index])
         self.sign_eta_0 = np.sign(self.eta_0)   
  
         # Process RF programs
         self.harmonic = harmonic
+        self.empty = False
         # Empty RFStation
-        if self.harmonic == 0:
+        if self.harmonic < 0:
             self.empty = True
-        else:
-            self.empty = False
-            self.voltage = voltage
-            self.phi_rf_d = phi_rf_d
-            self.omega_rf = omega_rf
-            rf_params = ['harmonic', 'voltage', 'phi_rf_d', 'omega_rf']
-            for rf_param in rf_params:
-                # Option 1: pre-process
-                if PreprocessRFParams:
-                    if PreprocessRFParams.__getattribute__(rf_param) == True:
-                        if len(self.__getattribute__(rf_param)) == 2*self.n_rf:
-                            # Overwrite with interpolated values
-                            self.__setattribute__(rf_param, 
-                                PreprocessRFParams.preprocess(Ring, 
-                                self.__getattribute__(rf_param)[0:self.n_rf], #time
-                                self.__getattribute__(rf_param)[self.n_rf:])) #data
-                        else:
-                            raise RuntimeError("ERROR in RFStation: harmonic to" +
-                                " be pre-processed should have length of 2*n_rf!")
+            harmonic = harmonic*(-1) # does not work for arrays -> returns []
+            self.harmonic = harmonic
+        
+        self.voltage = voltage
+        self.phi_rf_d = phi_rf_d
+        self.omega_rf = omega_rf
+        rf_params = ['harmonic', 'voltage', 'phi_rf_d', 'omega_rf']
+        for rf_param in rf_params:
+            # Option 1: pre-process
+            if PreprocessRFParams:
+                if PreprocessRFParams.__getattribute__(rf_param) == True:
+                    if len(self.__getattribute__(rf_param)) == 2*self.n_rf:
+                        # Overwrite with interpolated values
+                        self.__setattribute__(rf_param, 
+                            PreprocessRFParams.preprocess(Ring, 
+                            self.__getattribute__(rf_param)[0:self.n_rf], #time
+                            self.__getattribute__(rf_param)[self.n_rf:])) #data
                     else:
-                        input_check(self.__getattribute__(rf_param))
-            if phi_noise:
-                input_check(self.phi_noise)
-            else:
-                self.phi_noise = None
-                
-    # BEGIN MOVE TO INPUT CHECK... ************************************************               
-            # Option 2: cast the input into appropriate shape: the input is 
-            # analyzed and structured in order to have lists whose length is 
-            # matching the number of RF systems in the section.      
-            if self.n_rf == 1:
-                self.harmonic = [harmonic] 
-                self.voltage = [voltage]
-                self.phi_rf_d = [phi_rf_d]
-                if phi_noise != None:
-                    self.phi_noise = [phi_noise]
-                if omega_rf != None:
-                    self.omega_rf = [omega_rf]                 
-            else:
-                self.harmonic = harmonic
-                self.voltage = voltage 
-                self.phi_rf_d = phi_rf_d
-                if phi_noise != None:
-                    self.phi_noise = phi_noise
-                if omega_rf != None:
-                    self.omega_rf = omega_rf
-            # Run input_check() on all RF systems
-            for i in range(self.n_rf):
-                self.harmonic[i] = input_check(self.harmonic[i], self.n_turns+1)
-                self.voltage[i] = input_check(self.voltage[i], self.n_turns+1)
-                self.phi_rf_d[i] = input_check(self.phi_rf_d[i], 
-                                                 self.n_turns+1)
-                if phi_noise != None:
-                    self.phi_noise[i] = input_check(self.phi_noise[i], 
-                                                    self.n_turns+1) 
-                if omega_rf != None:
-                    self.omega_rf[i] = input_check(self.omega_rf[i], 
-                                                   self.n_turns+1) 
-            # Convert to 2D numpy matrix
-            self.harmonic = np.array(self.harmonic, ndmin =2)
-            self.voltage = np.array(self.voltage, ndmin =2)
-            self.phi_rf_d = np.array(self.phi_rf_d, ndmin =2)
-            if phi_noise != None:
-                self.phi_noise = np.array(self.phi_noise, ndmin =2) 
-            if omega_rf != None:
-                self.omega_rf = np.array(self.omega_rf, ndmin =2) 
-    # END MOVE TO INPUT CHECK... **************************************************               
+                        raise RuntimeError("ERROR in RFStation: harmonic to" +
+                            " be pre-processed should have length of 2*n_rf!")
+                else:
+                    input_check(self.__getattribute__(rf_param))
+        if phi_noise:
+            input_check(self.phi_noise)
+        else:
+            self.phi_noise = None
             
-            # RF (feedback) properties
-            self.phi_rf = np.array(self.phi_rf_d) 
-            self.dphi_rf = np.zeros(self.n_rf)
-            self.omega_rf_d = 2.*np.pi*self.beta*c*self.harmonic/ \
-                              (self.ring_circumference)
-            if omega_rf == None:
-                self.omega_rf = np.array(self.omega_rf_d)                  
-            self.t_rf = 2*np.pi / self.omega_rf[0]
-    
-            # From helper functions
-            self.phi_s = calculate_phi_s(self, self.Particle, 
-                                         accelerating_systems)
-            self.Q_s = calculate_Q_s(self, self.Particle)   
-            self.omega_s0 = self.Q_s*Ring.omega_rev
+        # BEGIN MOVE TO INPUT CHECK... ************************************************               
+        # Option 2: cast the input into appropriate shape: the input is 
+        # analyzed and structured in order to have lists whose length is 
+        # matching the number of RF systems in the section.      
+        if self.n_rf == 1:
+            self.harmonic = [harmonic] 
+            self.voltage = [voltage]
+            self.phi_rf_d = [phi_rf_d]
+            if phi_noise != None:
+                self.phi_noise = [phi_noise]
+            if omega_rf != None:
+                self.omega_rf = [omega_rf]                 
+        else:
+            self.harmonic = harmonic
+            self.voltage = voltage 
+            self.phi_rf_d = phi_rf_d
+            if phi_noise != None:
+                self.phi_noise = phi_noise
+            if omega_rf != None:
+                self.omega_rf = omega_rf
+        # Run input_check() on all RF systems
+        for i in range(self.n_rf):
+            self.harmonic[i] = input_check(self.harmonic[i], self.n_turns+1)
+            self.voltage[i] = input_check(self.voltage[i], self.n_turns+1)
+            self.phi_rf_d[i] = input_check(self.phi_rf_d[i], 
+                                             self.n_turns+1)
+            if phi_noise != None:
+                self.phi_noise[i] = input_check(self.phi_noise[i], 
+                                                self.n_turns+1) 
+            if omega_rf != None:
+                self.omega_rf[i] = input_check(self.omega_rf[i], 
+                                               self.n_turns+1) 
+        # Convert to 2D numpy matrix
+        self.harmonic = np.array(self.harmonic, ndmin =2)
+        self.voltage = np.array(self.voltage, ndmin =2)
+        self.phi_rf_d = np.array(self.phi_rf_d, ndmin =2)
+        if phi_noise != None:
+            self.phi_noise = np.array(self.phi_noise, ndmin =2) 
+        if omega_rf != None:
+            self.omega_rf = np.array(self.omega_rf, ndmin =2) 
+        # END MOVE TO INPUT CHECK... **************************************************               
+        
+        # RF (feedback) properties
+        self.phi_rf = np.array(self.phi_rf_d) 
+        self.dphi_rf = np.zeros(self.n_rf)
+        self.omega_rf_d = 2.*np.pi*self.beta*c*self.harmonic/ \
+                          (self.ring_circumference)
+        if omega_rf == None:
+            self.omega_rf = np.array(self.omega_rf_d)                  
+        self.t_rf = 2*np.pi / self.omega_rf[0]
+
+        # From helper functions
+        self.phi_s = calculate_phi_s(self, self.Particle, 
+                                     accelerating_systems)
+        self.Q_s = calculate_Q_s(self, self.Particle)   
+        self.omega_s0 = self.Q_s*Ring.omega_rev
 
        
     def eta_tracking(self, beam, counter, dE):
