@@ -38,9 +38,9 @@ C = 2*np.pi*1100.009        # Ring circumference [m]
 gamma_t = 18.0              # Gamma at transition
 alpha = 1/gamma_t**2        # Momentum compaction factor
 p_s = 25.92e9               # Synchronous momentum at injection [eV]
-h = 4620                    # 200 MHz system harmonic
-V = 4.5e6                   # 200 MHz RF voltage
-phi = 0.                    # 200 MHz RF phase
+h = [4620]                    # 200 MHz system harmonic
+V = [4.5e6]                   # 200 MHz RF voltage
+phi = [0.]                    # 200 MHz RF phase
 
 # Beam and tracking parameters
 N_m = 1e5                   # Number of macro-particles for tracking
@@ -110,7 +110,8 @@ if TWC == True:
     time = np.linspace(-1e-6, 4.e-6, 10000)
     impResp = SPS4Section200MHzTWC()
 #    impResp.impulse_response(2*np.pi*195.e6, time)
-    impResp.impulse_response(2*np.pi*200.222e6, time)
+    impResp.impulse_response(2*np.pi*200.36e6, time)
+#    impResp.impulse_response(2*np.pi*200.222e6, time)
     #print(impResp.t_beam[1] - impResp.t_beam[0])
     #print(len(impResp.t_beam))
     #print(impResp.tau)

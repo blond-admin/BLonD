@@ -237,7 +237,7 @@ class RFStation(object):
         self.harmonic = harmonic
         self.empty = False
         # Empty RFStation
-        if self.harmonic < 0:
+        if self.harmonic[0] < 0:
             self.empty = True
             harmonic = harmonic*(-1) # does not work for arrays -> returns []
             self.harmonic = harmonic

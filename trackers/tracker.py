@@ -379,7 +379,7 @@ class RingAndRFTracker(object):
 #                        phi_rf.T*self.cavityFB.v_corr), axis = 0)           
             self.rf_voltage = voltages[0,0]*self.cavityFB.V_corr* \
                 np.sin(omega_rf[0,0]*self.profile.bin_centers + 
-                       phi_rf[0,0]*self.cavityFB.phi_corr) + \
+                       phi_rf[0,0] + self.cavityFB.phi_corr) + \
                 np.sum(voltages.T[1:]*np.sin(omega_rf.T[1:]* # TODO: test with multiple harmonics, think about 800 MHz OTFB
                     self.profile.bin_centers + phi_rf.T[1:]), axis = 0)
         else:

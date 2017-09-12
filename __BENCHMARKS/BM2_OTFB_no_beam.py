@@ -34,14 +34,14 @@ C = 2*np.pi*1100.009        # Ring circumference [m]
 gamma_t = 18.0              # Gamma at transition
 alpha = 1/gamma_t**2        # Momentum compaction factor
 p_s = 25.92e9               # Synchronous momentum at injection [eV]
-h = [4620,4620*2]                    # 200 MHz system harmonic
-V = [4.5e6,0] #2.2e6                   # 200 MHz RF voltage
-phi = [0.,0]                    # 200 MHz RF phase
+h = [4620]                    # 200 MHz system harmonic
+V = [4.5e6] #2.2e6                   # 200 MHz RF voltage
+phi = [0.]                    # 200 MHz RF phase
 
 # Beam and tracking parameters
 N_m = 1e5                   # Number of macro-particles for tracking
 N_b = 1.e11                 # Bunch intensity [ppb]
-N_t = 2                  # Number of turns to track
+N_t = 1                  # Number of turns to track
 # CERN SPS --------------------------------------------------------------------
 
 # Plot settings
@@ -60,7 +60,7 @@ ring = Ring(N_t, C, alpha, p_s, Particle=Proton())
 print("Machine parameters set!")
 
 # Set up RF parameters
-rf = RFStation(ring, 2, h, V, phi)
+rf = RFStation(ring, 1, h, V, phi)
 #rf.omega_rf[0,0] = 2*np.pi*200.222e6 # cavity central frequency
 logging.debug("RF frequency %.6e Hz", rf.omega_rf[0,0]/(2*np.pi))
 logging.debug("Revolution period %.6e s", rf.t_rev[0])
@@ -87,15 +87,4 @@ Commissioning = CavityFeedbackCommissioning(debug=True, open_loop=False,
 OTFB = SPSCavityFeedback(rf, beam, profile, G_llrf=5, G_tx=0.5, a_comb=15/16, 
                          turns=50, Commissioning=Commissioning)
 
-tracker = RingAndRFTracker(rf, beam, CavityFeedback=OTFB, interpolation=True, 
-                           Profile=profile)
-
-map_ = [profile] + [OTFB] + [tracker] 
-
-
-for i in range(N_t):
-
-    # Track
-    for m in map_:
-        m.track()
 

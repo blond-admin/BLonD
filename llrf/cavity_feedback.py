@@ -114,7 +114,7 @@ class SPSCavityFeedback(object):
         # Calculate OTFB correction w.r.t. RF voltage and phase in RFStation
         self.V_corr, self.phi_corr = cartesian_to_polar(self.V_sum)
         self.V_corr /= self.rf.voltage[0,self.rf.counter[0]]
-        self.phi_corr /= self.rf.phi_rf[0,self.rf.counter[0]]
+        self.phi_corr -= self.rf.phi_rf[0,self.rf.counter[0]]
 
 
     def track_init(self, debug=False):
@@ -370,7 +370,7 @@ class SPSOneTurnFeedback(object):
         
         # Voltage set point of current turn (I,Q); depends on voltage partition
         self.V_set = polar_to_cartesian(self.V_part* \
-            self.rf.voltage[0,self.counter], self.rf.phi_rf[0,self.counter])
+            self.rf.voltage[0,self.counter], self.rf.phi_rf[0,self.counter] + 0.5*np.pi)
         # Convert to array
 #        self.V_set *= np.concatenate((np.ones(1000), np.zeros(self.n_llrf - 1000)))
         self.V_set *= np.ones(self.n_llrf)
@@ -478,12 +478,12 @@ class SPSOneTurnFeedback(object):
 
         if name == "beam":
             self.V_ind_beam = -self.n_cavities \
-                *self.V_ind_beam[:self.profile.n_slices]
+                *self.V_ind_beam[:self.profile.n_slices] # WHAT IS THE CORRECT SIGN???
 
         elif name == "gen":
             # Circular convolution
             self.V_ind_gen = +self.n_cavities \
-                *self.V_ind_gen[self.n_mov_av:self.n_llrf+self.n_mov_av] # WHAT IS THE CORRECT SIGN???
+                *self.V_ind_gen[self.n_mov_av:self.n_llrf+self.n_mov_av] 
 
         
     def beam_induced_voltage(self, lpf=True):
