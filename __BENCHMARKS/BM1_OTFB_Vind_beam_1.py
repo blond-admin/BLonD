@@ -109,7 +109,8 @@ if RF_CURRENT == True:
 if TWC == True:
     time = np.linspace(-1e-6, 4.e-6, 10000)
     impResp = SPS4Section200MHzTWC()
-    impResp.impulse_response(2*np.pi*195.e6, time)
+#    impResp.impulse_response(2*np.pi*195.e6, time)
+    impResp.impulse_response(2*np.pi*200.222e6, time)
     #print(impResp.t_beam[1] - impResp.t_beam[0])
     #print(len(impResp.t_beam))
     #print(impResp.tau)

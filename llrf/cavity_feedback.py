@@ -145,8 +145,10 @@ class SPSCavityFeedback(object):
             if debug == True:
                 ax1.plot(self.OTFB_4.profile.bin_centers, self.V_sum.real)
                 ax2.plot(self.OTFB_4.profile.bin_centers, self.V_sum.imag, ':')
+#                ax.plot(self.OTFB_4.profile.bin_centers, 
+#                        np.absolute(self.V_sum))
                 ax.plot(self.OTFB_4.profile.bin_centers, 
-                        np.absolute(self.V_sum))
+                        np.absolute(self.OTFB_4.V_tot))
                 ax3.plot(np.absolute(self.OTFB_4.I_gen))
 #                 time = np.linspace(0., self.OTFB_4.n_llrf*self.OTFB_4.profile.bin_size, self.OTFB_4.n_llrf, endpoint=True)
 #                 ax1.plot(time, self.V_sum.real)
@@ -283,6 +285,7 @@ class SPSOneTurnFeedback(object):
             raise RuntimeError("ERROR in SPSOneTurnFeedback: profile has to" +
                                " have at least 12.5 ns resolution!")
         self.V_mov_av_prev = np.zeros(self.n_llrf, dtype=complex)
+        self.V_mov_av_next = np.zeros(self.n_llrf, dtype=complex)
 
         # Initialise generator-induced voltage
         self.I_gen_prev = np.zeros(self.n_mov_av, dtype=complex)
@@ -299,8 +302,8 @@ class SPSOneTurnFeedback(object):
         # Present carrier frequency: main RF frequency
         self.omega_c = self.rf.omega_rf[0,self.counter]
         # Present delay time
-        self.delay = int((self.rf.t_rev[0] - 2*self.TWC.tau)
-                         /self.profile.bin_size)
+        self.n_delay = int((self.rf.t_rev[0] - self.TWC.tau)
+                           /self.profile.bin_size)
         
         # Update the impulse response at present carrier frequency
         self.TWC.impulse_response(self.omega_c, self.profile.bin_centers)
@@ -327,7 +330,7 @@ class SPSOneTurnFeedback(object):
         # Present carrier frequency: main RF frequency
         self.omega_c = self.rf.omega_rf[0,0]
         # Present delay time
-        self.delay = int((self.rf.t_rev[0] - 2*self.TWC.tau)
+        self.n_delay = int((self.rf.t_rev[0] - self.TWC.tau)
                          /self.profile.bin_size)
         
         # Update the impulse response at present carrier frequency
@@ -368,6 +371,7 @@ class SPSOneTurnFeedback(object):
         self.V_set = polar_to_cartesian(self.V_part* \
             self.rf.voltage[0,self.counter], self.rf.phi_rf[0,self.counter])
         # Convert to array
+#        self.V_set *= np.concatenate((np.ones(1000), np.zeros(self.n_llrf - 1000))) #np.ones(self.n_llrf)
         self.V_set *= np.ones(self.n_llrf)
         
         # Difference of set point and actual voltage
@@ -389,27 +393,34 @@ class SPSOneTurnFeedback(object):
         self.V_gen = modulator(self.V_gen, self.omega_c, self.omega_r, 
                                self.profile.bin_size)
         
+        # Shift signals with the delay time
+        V_gen_in = np.copy(self.V_gen)
+        self.V_gen = np.concatenate((self.V_mov_av_prev[-self.n_delay:],
+                                     self.V_gen[:self.n_llrf-self.n_delay]))
+#        self.V_mov_av_prev = np.concatenate((
+#            self.V_mov_av_prev_prev[-self.n_delay:],
+#            self.V_mov_av_prev[:self.n_llrf-self.n_delay]))
+#        self.V_mov_av_prev = np.concatenate((
+#            np.zeros(self.n_delay),
+#            self.V_mov_av_prev[:self.n_llrf-self.n_delay]))
+#        self.V_mov_av_prev_prev = np.concatenate((
+#            np.zeros(self.n_delay), 
+#            self.V_mov_av_prev_prev[:self.n_llrf-self.n_delay]))
+         
         # Cavity filter: CIRCULAR moving average over filling time
         # TODO: Combine with delay time
 #        # Memorize average of last points for beginning of next turn
-#        V_tmp = np.mean(self.V_gen[-self.n_mov_av:]) 
 #        self.V_gen = moving_average(self.V_gen, self.n_mov_av, 
-#                                    x_prev=self.V_mov_av_prev)
-        V_tmp = moving_average(self.V_gen, self.n_mov_av, 
-                               x_prev=self.V_mov_av_prev[-self.n_mov_av:])
-#        print(self.V_gen[0])
-#        print(self.V_gen[-1])
-#        print(self.V_mov_av_prev)
-#        print("")
-#        self.V_mov_av_prev = V_tmp
-        self.V_mov_av_prev = np.copy(self.V_gen)
-        self.V_gen = np.copy(V_tmp)
-#        self.V_gen = moving_average(self.V_gen, self.n_mov_av, center=True)
-#        self.V_gen.real = moving_average(self.V_gen.real, self.n_mov_av, 
-#                                         center=True)
-#        self.V_gen.imag = moving_average(self.V_gen.imag, self.n_mov_av, 
-#                                         center=True)
-        #print(self.V_gen)
+#                                    x_prev=self.V_mov_av_prev[-self.n_mov_av:])
+#        V_tmp = moving_average(self.V_gen, self.n_mov_av, 
+#                               x_prev=self.V_mov_av_prev[-self.n_mov_av:])
+        self.V_gen = moving_average(self.V_gen, self.n_mov_av, 
+                               x_prev=self.V_mov_av_prev[:self.n_mov_av])
+        self.V_mov_av_prev = np.copy(V_gen_in)
+        
+#        self.V_mov_av_prev_prev = np.copy(self.V_mov_av_prev)
+#        self.V_mov_av_prev = np.copy(self.V_gen)
+#        self.V_gen = np.copy(V_tmp)
         
 
     def generator_induced_voltage(self):
@@ -438,6 +449,8 @@ class SPSOneTurnFeedback(object):
         self.I_gen = self.G_tx*self.V_gen/self.TWC.R_gen*self.profile.bin_size
 
         # Circular convolution: attach last points of previous turn
+        #print(self.I_gen_prev)
+        print(len(self.I_gen_prev))
         self.I_gen = np.concatenate((self.I_gen_prev, self.I_gen))
 
         # Generator-induced voltage
@@ -522,21 +535,21 @@ class SPSOneTurnFeedback(object):
         """Convolution of beam current with impulse response; diagonal
         components only."""
         
-        return ( self.call_conv(I.real, hs) + 1j*self.call_conv(I.imag, hs) )
-        #return ( np.convolve(I.real, hs, mode='full') \
-        #         + 1j*np.convolve(I.imag, hs, mode='full') )
+        #return ( self.call_conv(I.real, hs) + 1j*self.call_conv(I.imag, hs) )
+        return ( np.convolve(I.real, hs, mode='full') \
+                 + 1j*np.convolve(I.imag, hs, mode='full') )
         
         
     def matr_conv(self, I, hs, hc):
         """Convolution of beam current with impulse response; uses a complete
         matrix with off-diagonal elements."""
 
-        return ( self.call_conv(I.real, hs) - self.call_conv(I.imag, hc) \
-            + 1j*(self.call_conv(I.real, hc) + self.call_conv(I.imag, hs)) )
-        #return ( np.convolve(I.real, hs, mode='full') \
-        #         - np.convolve(I.imag, hc, mode='full') \
-        #         + 1j*(np.convolve(I.real, hc, mode='full') 
-        #               + np.convolve(I.imag, hs, mode='full')) )
+        #return ( self.call_conv(I.real, hs) - self.call_conv(I.imag, hc) \
+        #    + 1j*(self.call_conv(I.real, hc) + self.call_conv(I.imag, hs)) )
+        return ( np.convolve(I.real, hs, mode='full') \
+                 - np.convolve(I.imag, hc, mode='full') \
+                 + 1j*(np.convolve(I.real, hc, mode='full') 
+                       + np.convolve(I.imag, hs, mode='full')) )
 
 
     def call_conv(self, signal, kernel):
