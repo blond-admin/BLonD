@@ -89,7 +89,7 @@ def real_to_cartesian(signal):
     return signal + 1j*amplitude*np.sin(phase)
     
     
-def modulator(signal, f_initial, f_final, T_sampling):
+def modulator(signal, omega_i, omega_f, T_sampling):
     """Demodulate a signal from initial frequency to final frequency. The two
     frequencies should be close.
     
@@ -97,10 +97,10 @@ def modulator(signal, f_initial, f_final, T_sampling):
     ----------
     signal : float array
         Signal to be demodulated
-    f_initial : float
-        Initial frequency [Hz] of signal (before demodulation)
-    f_final : float
-        Final frequency [Hz] of signal (after demodulation)
+    omega_i : float
+        Initial revolution frequency [1/s] of signal (before demodulation)
+    omega_f : float
+        Final revolution frequency [1/s] of signal (after demodulation)
     T_sampling : float
         Sampling period (temporal bin size) [s] of the signal
         
@@ -114,13 +114,14 @@ def modulator(signal, f_initial, f_final, T_sampling):
     if len(signal) < 2:
         raise RuntimeError("ERROR in filters.py/demodulator: signal should" +
                            " be an array!")
-    delta = 2*np.pi*(f_initial - f_final)*T_sampling
+#    delta = 2*np.pi*(omega_i - omega_f)*T_sampling
+    delta = (omega_i - omega_f)*T_sampling
     indices = np.arange(len(signal))
     try:
         I_new = np.cos(delta*indices)*signal.real \
-            - np.sin(delta*indices)*signal.imag  
+            - np.sin(delta*indices)*signal.imag 
         Q_new = np.sin(delta*indices)*signal.real \
-            + np.cos(delta*indices)*signal.imag  
+            + np.cos(delta*indices)*signal.imag
     except:
         raise RuntimeError("ERROR in filters.py/demodulator: signal should" +
                            " be complex!")
@@ -179,7 +180,7 @@ def rf_beam_current(Profile, frequency, T_rev, lpf=True):
     
     # Convert from dimensionless to Coulomb/Ampères
     # Take into account macro-particle charge with real-to-macro-particle ratio
-    charges = Profile.Beam.ratio*Profile.Beam.charge*e*\
+    charges = Profile.Beam.ratio*Profile.Beam.Particle.charge*e*\
         np.copy(Profile.n_macroparticles)
     logger.debug("Sum of particles: %d, total charge: %.4e C", 
                  np.sum(Profile.n_macroparticles), np.sum(charges))
@@ -200,7 +201,7 @@ def rf_beam_current(Profile, frequency, T_rev, lpf=True):
     return I_f + 1j*Q_f
 
 
-def comb_filter(x, y, a):
+def comb_filter(y, x, a):
     """Feedback comb filter.
     """
     
@@ -232,17 +233,7 @@ def low_pass_filter(signal, cutoff_frequency=0.5):
     return sgn.filtfilt(b, a, signal)
     
 
-def cavity_filter():
-    """Model of the SPS cavity filter.
-    """   
-    
-        
-def cavity_impedance():
-    """Model of the SPS cavity impedance.
-    """
-
-
-def moving_average(x, N, center=False):
+def moving_average(x, N, x_prev=None):
     """Function to calculate the moving average (or running mean) of the input
     data.
     
@@ -253,28 +244,23 @@ def moving_average(x, N, center=False):
     N : int
         Window size in points; rounded up to next impair value if center is 
         True
-    center : bool    
-        Window function centered
+    x_prev : float array    
+        Data to pad with in front
         
     Returns
     -------
     float array
         Smoothed data array of has the size 
-        * len(x) - N + 1, if center = False
-        * len(x), if center = True
+        * len(x) - N + 1, if x_prev = None
+        * len(x) + len(x_prev) - N + 1, if x_prev given
         
     """
     
-    if center is True:
-        # Round up to next impair number
-        N_half = int(N/2)
-        N = N_half*2 + 1
-        # Pad with first and last values
-        x = np.concatenate((x[0]*np.ones(N_half), x, x[-1]*np.ones(N_half)))
-        
-    cumulative_sum = np.cumsum(np.insert(x, 0, 0))
+    if x_prev != None:
+        # Pad in front with x_prev signal
+        x = np.concatenate((x_prev, x))
    
-    return (cumulative_sum[N:] - cumulative_sum[:-N]) / N
+    return (np.cumsum(x)[N:] - np.cumsum(x)[:-N]) / N
 
 
 

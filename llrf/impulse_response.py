@@ -191,6 +191,10 @@ class TravellingWaveCavity(object):
     ----------
     Z_0 : float
         Shunt impedance of generator current measurement; assumed to be 50 Ohms
+    R_beam : float
+        :math:`R_b` [\Omega] as defined above
+    R_gen : float
+        :math:`R_g` [\Omega] as defined above
     l_cav : float
         Length [m] of the interaction region
     tau : float
@@ -210,13 +214,16 @@ class TravellingWaveCavity(object):
                 " velocity out of limits (0,1)!")
         self.omega_r = float(omega_r)
         
-        # Assumed impedance for measurement of generator current
-        self.Z_0 = 50
-        
         # Calculated
         self.l_cav = float(self.l_cell*self.N_cells)
         self.tau = self.l_cav/(self.v_g*c)*(1 + self.v_g) # v_g opposite to wave!
         
+        # Assumed impedance for measurement of generator current
+        self.Z_0 = 50
+        # Shunt impedances towards beam and generator
+        self.R_beam = 0.125*self.rho*self.l_cav**2
+        self.R_gen = self.l_cav*np.sqrt(0.5*self.rho*self.Z_0)
+ 
         # Set up logging
         self.logger = logging.getLogger(__class__.__name__)
         self.logger.info("Class initialized")
@@ -247,10 +254,6 @@ class TravellingWaveCavity(object):
         t_gen : float array
             time array for generator wake and impulse response; starts from 
             :math:`- \tau/2`
-        R_beam : float
-            :math:`R_b` [\Omega] as defined above
-        R_gen : float
-            :math:`R_g` [\Omega] as defined above
         W_beam : float array
             :math:`W_b(t)` [\Omega/s] as defined above
         W_gen : float array
@@ -273,15 +276,10 @@ class TravellingWaveCavity(object):
                 " impulse_response(): carrier frequency should be close to" +
                 " central frequency of the cavity!")
      
+        # Move starting point of impulse response to correct value
         self.t_beam = time - time[0]
         self.t_gen = time - time[0] - 0.5*self.tau
          
-         
-        # Shunt impedances towards beam and generator
-        self.R_beam = 0.125*self.rho*self.l_cav**2
-        print(self.tau)
-        self.R_gen = self.l_cav*np.sqrt(0.5*self.rho*self.Z_0)
- 
         # Impulse response if on carrier frequency
         self.hs_beam = 2*self.R_beam/self.tau*triangle(self.t_beam, self.tau)
         self.hc_beam = None

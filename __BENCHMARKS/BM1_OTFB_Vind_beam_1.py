@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 from toolbox.logger import Logger
 from input_parameters.ring import Ring
 from input_parameters.rf_parameters import RFStation
-from beam.beam import Beam
+from beam.beam import Beam, Proton
 from beam.distributions import bigaussian
 from beam.profile import Profile, CutOptions
 from llrf.cavity_feedback import SPSOneTurnFeedback
@@ -38,9 +38,9 @@ C = 2*np.pi*1100.009        # Ring circumference [m]
 gamma_t = 18.0              # Gamma at transition
 alpha = 1/gamma_t**2        # Momentum compaction factor
 p_s = 25.92e9               # Synchronous momentum at injection [eV]
-h = 4620                    # 200 MHz system harmonic
-V = 4.5e6                   # 200 MHz RF voltage
-phi = 0.                    # 200 MHz RF phase
+h = [4620]                    # 200 MHz system harmonic
+V = [4.5e6]                   # 200 MHz RF voltage
+phi = [0.]                    # 200 MHz RF phase
 
 # Beam and tracking parameters
 N_m = 1e5                   # Number of macro-particles for tracking
@@ -70,7 +70,7 @@ else:
     Logger().disable()
 
 # Set up machine parameters
-ring = Ring(N_t, C, alpha, p_s)
+ring = Ring(N_t, C, alpha, p_s, Particle=Proton())
 print("Machine parameters set!")
 
 # Set up RF parameters
@@ -109,7 +109,9 @@ if RF_CURRENT == True:
 if TWC == True:
     time = np.linspace(-1e-6, 4.e-6, 10000)
     impResp = SPS4Section200MHzTWC()
-    impResp.impulse_response(2*np.pi*195.e6, time)
+#    impResp.impulse_response(2*np.pi*195.e6, time)
+    impResp.impulse_response(2*np.pi*200.36e6, time)
+#    impResp.impulse_response(2*np.pi*200.222e6, time)
     #print(impResp.t_beam[1] - impResp.t_beam[0])
     #print(len(impResp.t_beam))
     #print(impResp.tau)
@@ -127,22 +129,28 @@ if TWC == True:
 
 
 if VIND_BEAM == True:
-    OTFB = SPSOneTurnFeedback(rf, beam, profile)
-    OTFB.counter = 0 # First turn
-#    OTFB.omega_c = rf.omega_rf[0,0]  
-    OTFB.omega_c = 2*np.pi*200.222e6  
-    OTFB.beam_induced_voltage(lpf=False)
+    OTFB_4 = SPSOneTurnFeedback(rf, beam, profile, 4)
+    OTFB_5 = SPSOneTurnFeedback(rf, beam, profile, 5)
+    OTFB_4.counter = 0 # First turn
+    OTFB_5.counter = 0 # First turn
+#    OTFB_4.omega_c = rf.omega_rf[0,0]  
+#    OTFB_5.omega_c = rf.omega_rf[0,0]  
+    OTFB_4.omega_c = 2*np.pi*200.222e6
+    OTFB_5.omega_c = 2*np.pi*200.222e6
+    OTFB_4.TWC.impulse_response(OTFB_4.omega_c, profile.bin_centers)
+    OTFB_5.TWC.impulse_response(OTFB_4.omega_c, profile.bin_centers)
+    OTFB_4.beam_induced_voltage(lpf=False)
+    OTFB_5.beam_induced_voltage(lpf=False)
+    V_ind_beam = OTFB_4.V_ind_beam + OTFB_5.V_ind_beam
     plt.figure(3)
-    convtime = np.linspace(-1e-9, -1e-9+len(OTFB.Vind_beam.real)*
-                           profile.bin_size, len(OTFB.Vind_beam.real))
-#    plt.plot(profile.bin_centers, OTFB.Vind_beam.real, 'b')
-#    plt.plot(profile.bin_centers, OTFB.Vind_beam.imag, 'r')
-    plt.plot(convtime, OTFB.Vind_beam.real, 'b--')
-    plt.plot(convtime[:140], OTFB.Vind_beam.real[:140], 'b', label='Re(Vind), OTFB')
-    plt.plot(convtime, OTFB.Vind_beam.imag, 'r--')
-    plt.plot(convtime[:140], OTFB.Vind_beam.imag[:140], 'r', label='Im(Vind), OTFB')
-    plt.plot(convtime[:140], OTFB.Vind_beam.real[:140]*np.cos(OTFB.omega_c*convtime[:140]) \
-             + OTFB.Vind_beam.imag[:140]*np.sin(OTFB.omega_c*convtime[:140]), 
+    convtime = np.linspace(-1e-9, -1e-9+len(V_ind_beam.real)*
+                           profile.bin_size, len(V_ind_beam.real))
+    plt.plot(convtime, V_ind_beam.real, 'b--')
+    plt.plot(convtime[:140], V_ind_beam.real[:140], 'b', label='Re(Vind), OTFB')
+    plt.plot(convtime, V_ind_beam.imag, 'r--')
+    plt.plot(convtime[:140], V_ind_beam.imag[:140], 'r', label='Im(Vind), OTFB')
+    plt.plot(convtime[:140], V_ind_beam.real[:140]*np.cos(OTFB_4.omega_c*convtime[:140]) \
+             + V_ind_beam.imag[:140]*np.sin(OTFB_4.omega_c*convtime[:140]), 
              color='purple', label='Total, OTFB')
     
     # Comparison with impedances: FREQUENCY DOMAIN
@@ -157,17 +165,17 @@ if VIND_BEAM == True:
     TWC200_4.wake_calc(profile.bin_centers - profile.bin_centers[0])
     TWC200_5.wake_calc(profile.bin_centers - profile.bin_centers[0])
     wake1 = 2*(TWC200_4.wake + TWC200_5.wake)
-    Vind = -profile.Beam.ratio*profile.Beam.charge*e*\
+    Vind = -profile.Beam.ratio*profile.Beam.Particle.charge*e*\
         np.convolve(wake1, profile.n_macroparticles, mode='full')[:140]
     plt.plot(convtime[:140], Vind, color='teal', label='Time domain w conv')
     
     # Wake from impulse response
     impResp4 = SPS4Section200MHzTWC()
-    impResp4.impulse_response(OTFB.omega_c, profile.bin_centers)
+    impResp4.impulse_response(OTFB_4.omega_c, profile.bin_centers)
     impResp5 = SPS5Section200MHzTWC()
-    impResp5.impulse_response(OTFB.omega_c, profile.bin_centers)
+    impResp5.impulse_response(OTFB_4.omega_c, profile.bin_centers)
     wake2 = 2*(impResp4.W_beam + impResp5.W_beam)
-    Vind = -profile.Beam.ratio*profile.Beam.charge*e*\
+    Vind = -profile.Beam.ratio*profile.Beam.Particle.charge*e*\
         np.convolve(wake2, profile.n_macroparticles, mode='full')[:140]
     plt.plot(convtime[:140], Vind, color='turquoise', label='Wake, OTFB')
     plt.xlabel("Time [s]")
