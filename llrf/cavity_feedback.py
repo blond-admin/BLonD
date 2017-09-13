@@ -369,22 +369,26 @@ class SPSOneTurnFeedback(object):
         """
         
         # Voltage set point of current turn (I,Q); depends on voltage partition
+        # Sinusoidal voltage completely in Q
         self.V_set = polar_to_cartesian(self.V_part* \
-            self.rf.voltage[0,self.counter], self.rf.phi_rf[0,self.counter] + 0.5*np.pi)
+            self.rf.voltage[0,self.counter], self.rf.phi_rf[0,self.counter] 
+            + 0.5*np.pi)
         # Convert to array
 #        self.V_set *= np.concatenate((np.ones(1000), np.zeros(self.n_llrf - 1000)))
         self.V_set *= np.ones(self.n_llrf)
         
         # Difference of set point and actual voltage
         self.V_gen = self.V_set - self.open_loop*np.concatenate((self.V_tot, 
-            np.zeros(self.n_diff)))
+            np.zeros(self.n_diff, dtype=complex)))
         
         # Closed-loop gain
         self.V_gen *= self.G_llrf
-        print("Set", np.mean(np.absolute(self.V_set)))
-        print("Tot", np.mean(np.absolute(self.V_tot)))
-        print("Delta", np.mean(np.absolute(self.V_gen)))
-        print("")
+        self.logger.debug("Set voltage %.6f MV",
+                          1e-6*np.mean(np.absolute(self.V_set)))
+        self.logger.debug("Antenna voltage %.6f MV",
+                          1e-6*np.mean(np.absolute(self.V_tot)))
+        self.logger.debug("Voltage error %.6f MV",
+                          1e-6*np.mean(np.absolute(self.V_gen)))
         
         # One-turn delay comb filter; memorise the value of the previous turn
         self.V_gen = comb_filter(self.V_gen_prev, self.V_gen, self.a_comb)
