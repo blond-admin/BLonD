@@ -237,10 +237,9 @@ class RFStation(object):
         self.harmonic = harmonic
         self.empty = False
         # Empty RFStation
-        if self.harmonic[0] < 0:
+        if any(it < 0 for it in self.harmonic):
             self.empty = True
-            harmonic = harmonic*(-1) # does not work for arrays -> returns []
-            self.harmonic = harmonic
+            self.harmonic = [ abs(it) for it in self.harmonic ]
         
         self.voltage = voltage
         self.phi_rf_d = phi_rf_d
