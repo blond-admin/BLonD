@@ -92,7 +92,7 @@ profile.track()
 print(profile.Beam.ratio)
 
 plot_long_phase_space(ring, rf, beam, 0, 5e-9, -2e8, 2e8, 
-                      dirname='fig', alpha=0.05, color=colors[0])
+                      dirname='fig', alpha=0.5, color=colors[0])
 
 
 # # # Compare with induced voltage from impedances
@@ -151,7 +151,7 @@ ax2_1.set_ylabel(r"$Re(V_{\mathsf{ind,beam}})$ [MV]")
 ax2_2.set_xlabel(r"Time [$\mu$s]")
 ax2_2.set_ylabel(r"$Im(V_{\mathsf{ind,beam}})$ [MV]")
 ax2_1.set_ylim((-1,5))
-ax2_2.set_ylim((-0.1,0.5))
+ax2_2.set_ylim((-1,0.4))
  
  
 OTFB.OTFB_4.V_ind_beam = np.zeros(profile.n_slices)
@@ -181,7 +181,7 @@ for i in range(N_t):
         m.track()
 
     plot_long_phase_space(ring, rf, beam, 0, 5e-9, -2e8, 2e8, 
-                          dirname='fig', alpha=0.05, color=colors[i])
+                          dirname='fig', alpha=0.5, color=colors[i])
 
     
 #plt.show()
