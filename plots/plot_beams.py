@@ -23,7 +23,7 @@ from trackers.utilities import separatrix
 def plot_long_phase_space(Ring, RFStation, Beam, xmin,
                           xmax, ymin, ymax, xunit = 's', sampling = 1, 
                           separatrix_plot = False, histograms_plot = True, 
-                          dirname = 'fig', alpha = 1):
+                          dirname = 'fig', alpha = 1, color = 'b'):
     """
     Plot of longitudinal phase space. Optional use of histograms and separatrix.
     Choice of units: xunit = s, rad.
@@ -57,14 +57,14 @@ def plot_long_phase_space(Ring, RFStation, Beam, xmin,
     if xunit == 's':
         axScatter.set_xlabel(r"$\Delta t$ [s]")
         axScatter.scatter(Beam.dt[indalive], Beam.dE[indalive], 
-                          s=1, edgecolor='none', alpha=alpha)
+                          s=1, edgecolor='none', alpha=alpha, color=color)
         axScatter.scatter(Beam.dt[indlost], Beam.dE[indlost], c='0.5',
                           s=1, edgecolor='none')
     elif xunit == 'rad':
         axScatter.set_xlabel(r"$\varphi$ [rad]")
         axScatter.scatter(omega_RF*Beam.dt[indalive] + phi_RF, 
                           Beam.dE[indalive], s=1, edgecolor='none', 
-                          alpha=alpha)
+                          alpha=alpha, color=color)
         axScatter.scatter(omega_RF*Beam.dt[indlost] + phi_RF, 
                           Beam.dE[indlost], c='0.5', s=1, 
                           edgecolor='none')
@@ -96,11 +96,11 @@ def plot_long_phase_space(Ring, RFStation, Beam, xmin,
         yh = np.arange(ymin, ymax + ybin, ybin)
       
         if xunit == 's':
-            axHistx.hist(Beam.dt[::sampling], bins=xh, histtype='step')
+            axHistx.hist(Beam.dt[::sampling], bins=xh, histtype='step', color=color)
         elif xunit == 'rad':
-            axHistx.hist(omega_RF*Beam.dt[::sampling] + phi_RF, bins=xh, histtype='step')       
+            axHistx.hist(omega_RF*Beam.dt[::sampling] + phi_RF, bins=xh, histtype='step', color=color)       
         axHisty.hist(Beam.dE[::sampling], bins=yh, histtype='step', 
-                     orientation='horizontal')
+                     orientation='horizontal', color=color)
         axHistx.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
         axHisty.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
         axHistx.axes.get_xaxis().set_visible(False)
