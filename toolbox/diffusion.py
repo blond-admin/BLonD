@@ -26,7 +26,7 @@ from toolbox.action import *
 
 
 
-def phase_noise_diffusion(GeneralParams, RFParameters, spectrum, distribution,
+def phase_noise_diffusion(Ring, RFStation, spectrum, distribution,
                           distributionBins, Ngrids = 200, M = 1,
                           iterations = 100000, figdir = None):
     '''
@@ -49,9 +49,9 @@ def phase_noise_diffusion(GeneralParams, RFParameters, spectrum, distribution,
         raise RuntimeError("In phase_noise_diffusion(): distribution has to be an array of Ngrids elements!")
        
     # Some constants
-    T0 = GeneralParams.t_rev[0]
-    omega_s0 = RFParameters.omega_s0[0]
-    h = RFParameters.harmonic[0,0]
+    T0 = Ring.t_rev[0]
+    omega_s0 = RFStation.omega_s0[0]
+    h = RFStation.harmonic[0,0]
     Jsep = 8.*omega_s0/(np.pi*h**2) # Action at the separatrix
 
     # Settings for plots

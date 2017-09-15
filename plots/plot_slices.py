@@ -19,7 +19,7 @@ import numpy as np
 
 
 
-def plot_beam_profile(Slices, counter, style = '-', dirname = 'fig'):
+def plot_beam_profile(Profile, counter, style = '-', dirname = 'fig'):
     
     """
     Plot of longitudinal beam profile
@@ -28,7 +28,7 @@ def plot_beam_profile(Slices, counter, style = '-', dirname = 'fig'):
     fig = plt.figure(1)
     fig.set_size_inches(8,6)
     ax = plt.axes([0.15, 0.1, 0.8, 0.8])    
-    ax.plot(Slices.bin_centers, Slices.n_macroparticles, style)
+    ax.plot(Profile.bin_centers, Profile.n_macroparticles, style)
     
     ax.set_xlabel(r"$\Delta t$ [s]")
     ax.set_ylabel('Beam profile [arb. units]')
@@ -45,7 +45,7 @@ def plot_beam_profile(Slices, counter, style = '-', dirname = 'fig'):
 
 
 
-def plot_beam_profile_derivative(Slices, counter, style='-', dirname='fig',
+def plot_beam_profile_derivative(Profile, counter, style='-', dirname='fig',
                                  modes=['diff']):
     """
     Plot of the derivative of the longitudinal beam profile.
@@ -53,7 +53,7 @@ def plot_beam_profile_derivative(Slices, counter, style='-', dirname='fig',
     1) 'filter1d', 2) 'gradient', 3) 'diff'
     """
     for mode in modes:
-        x, derivative = Slices.beam_profile_derivative(mode)
+        x, derivative = Profile.beam_profile_derivative(mode)
         plt.plot(x, derivative, style, label=mode)
     fign = dirname + '/beam_profile_derivative_' "%d" % counter + '.png'
     plt.legend()
@@ -61,7 +61,7 @@ def plot_beam_profile_derivative(Slices, counter, style='-', dirname='fig',
     plt.clf()
     
 
-def plot_beam_spectrum(Slices, counter, style = '-', dirname = 'fig'):
+def plot_beam_spectrum(Profile, counter, style = '-', dirname = 'fig'):
     
     """
     Plot of longitudinal beam profile
@@ -69,7 +69,7 @@ def plot_beam_spectrum(Slices, counter, style = '-', dirname = 'fig'):
  
     plt.figure(1, figsize=(8,6))
     ax = plt.axes([0.15, 0.1, 0.8, 0.8]) 
-    ax.plot(Slices.beam_spectrum_freq, np.absolute(Slices.beam_spectrum), style)
+    ax.plot(Profile.beam_spectrum_freq, np.absolute(Profile.beam_spectrum), style)
     
     ax.set_xlabel(r"Frequency [Hz]")
     ax.set_ylabel('Beam spectrum, absolute value [arb. units]')

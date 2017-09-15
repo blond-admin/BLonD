@@ -20,8 +20,8 @@ from builtins import str, range, object
 import numpy as np
 import scipy.interpolate as interp
 
-import input_parameters.preprocess as prep
-
+from input_parameters.rf_paramaters_options import PreprocessRFParams
+prep = PreprocessRFParams()
 
 
 class PhaseModulation(object):
@@ -114,15 +114,15 @@ class PhaseModulation(object):
 
 
 
-def ModulateHarmonic(GeneralParameters, RFSectionParameters, modulationList, harmonic, includeFreq = True, preshift = 0):
+def ModulateHarmonic(Ring, RFStation, modulationList, harmonic, includeFreq = True, preshift = 0):
 
 
 	'''
-	Method to apply modulation(s) to RFSectionParameters
+	Method to apply modulation(s) to RFStation
 	modulationList is a list of modulation objects applied
-	sequentially to RFSectionParameters.
+	sequentially to RFStation.
 
-	harmonicList specifies which harmonic of RFSectionParameters
+	harmonicList specifies which harmonic of RFStation
 	will be modulated
 
 	includeFreq flag determines if effect of modulation on
@@ -136,18 +136,18 @@ def ModulateHarmonic(GeneralParameters, RFSectionParameters, modulationList, har
 
 	if isinstance(preshift, np.ndarray):
 		if len(preshift.shape) == 2:
-			preshift = prep.preprocess_rf_params(GeneralParameters, [preshift[0]], [preshift[1]], plot=False)[0]
+			preshift = prep.preprocess_rf_params(Ring, [preshift[0]], [preshift[1]], plot=False)[0]
 		elif len(preshift) == 2:
-			preshift = prep.preprocess_rf_params(GeneralParameters, [[GeneralParameters.cumulative_times[0], GeneralParameters.cumulative_times[-1]]], [[preshift[0], preshift[1]]], plot=False)[0]
+			preshift = prep.preprocess_rf_params(Ring, [[Ring.cumulative_times[0], Ring.cumulative_times[-1]]], [[preshift[0], preshift[1]]], plot=False)[0]
 		else:
 			print("ERROR: preshift array is incorrectly shaped")
 	elif isinstance(preshift, list):
 		if len(preshift) == 2:
-			preshift = prep.preprocess_rf_params(GeneralParameters, [[GeneralParameters.cumulative_times[0], GeneralParameters.cumulative_times[-1]]], [[preshift[0], preshift[1]]], plot=False)[0]
+			preshift = prep.preprocess_rf_params(Ring, [[Ring.cumulative_times[0], Ring.cumulative_times[-1]]], [[preshift[0], preshift[1]]], plot=False)[0]
 		else:
 			print("ERROR: preshift list is the wrong length")
 
-	fullPhiAddition = np.zeros(len(GeneralParameters.cumulative_times)) + preshift
+	fullPhiAddition = np.zeros(len(Ring.cumulative_times)) + preshift
 	
 	startPoints = []
 	stopPoints = []
@@ -156,30 +156,30 @@ def ModulateHarmonic(GeneralParameters, RFSectionParameters, modulationList, har
 		
 		modulation = modulationList[i]
 
-		modOff = prep.preprocess_rf_params(GeneralParameters, [[modulation.time[0] - modulation.ontime] + modulation.time.tolist() + [modulation.time[-1] + modulation.offtime]], [[0] + modulation.offset.tolist() + [0]], plot=False)
-		modDepth = prep.preprocess_rf_params(GeneralParameters, [modulation.time], [modulation.amplitude], plot=False)
-		modFreq = prep.preprocess_rf_params(GeneralParameters, [modulation.time], [modulation.frequency], plot=False)
+		modOff = prep.preprocess_rf_params(Ring, [[modulation.time[0] - modulation.ontime] + modulation.time.tolist() + [modulation.time[-1] + modulation.offtime]], [[0] + modulation.offset.tolist() + [0]], plot=False)
+		modDepth = prep.preprocess_rf_params(Ring, [modulation.time], [modulation.amplitude], plot=False)
+		modFreq = prep.preprocess_rf_params(Ring, [modulation.time], [modulation.frequency], plot=False)
 
-		start = np.where(GeneralParameters.cumulative_times < modulation.time[0])[0]
+		start = np.where(Ring.cumulative_times < modulation.time[0])[0]
 		if len(start) == 0:
 			start = [0, 1]
-		stop = np.where(GeneralParameters.cumulative_times > modulation.time[-1])[0]
+		stop = np.where(Ring.cumulative_times > modulation.time[-1])[0]
 		if len(stop)==0:
 			stop = [-1, -2]
 
 		modDepth[0][:start[-2]] = 0
 		modDepth[0][stop[1]:] = 0
 
-		phiAddition = (modDepth*np.sin(2*np.pi*(np.cumsum(modFreq*np.gradient(GeneralParameters.cumulative_times)))) + modOff)[0]
+		phiAddition = (modDepth*np.sin(2*np.pi*(np.cumsum(modFreq*np.gradient(Ring.cumulative_times)))) + modOff)[0]
 
 		fullPhiAddition[start[-2]:stop[1]] += phiAddition[start[-2]:stop[1]]
 
 		startPoints.append(start[-1])
 		stopPoints.append(stop[0])
 
-	RFSectionParameters.phi_RF[harmonic] += fullPhiAddition
+	RFStation.phi_RF[harmonic] += fullPhiAddition
 
 	if includeFreq:
 
-		freqAddition = (np.gradient(fullPhiAddition)*RFSectionParameters.omega_RF[harmonic])/(2*np.pi*RFSectionParameters.harmonic[harmonic])
-		RFSectionParameters.omega_RF[harmonic] += freqAddition
+		freqAddition = (np.gradient(fullPhiAddition)*RFStation.omega_RF[harmonic])/(2*np.pi*RFStation.harmonic[harmonic])
+		RFStation.omega_RF[harmonic] += freqAddition
