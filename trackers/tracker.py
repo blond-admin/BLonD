@@ -22,7 +22,6 @@ import ctypes
 from setup_cpp import libblond
 
 
-
 class FullRingAndRF(object):
     """
     *Definition of the full ring and RF parameters in order to be able to have
@@ -47,7 +46,6 @@ class FullRingAndRF(object):
             
         #: *Ring radius in [m]*
         self.ring_radius = self.ring_circumference / (2*np.pi)
-        
         
         
     def potential_well_generation(self, turn=0, n_points=1e5, 
@@ -129,7 +127,6 @@ class FullRingAndRF(object):
         
         for RingAndRFSectionElement in self.RingAndRFSection_list:
             RingAndRFSectionElement.track()
-
 
 
 class RingAndRFTracker(object):
@@ -256,7 +253,7 @@ class RingAndRFTracker(object):
         self.beam = Beam
         self.solver = str(solver)
         if self.solver not in ['simple', 'exact']:
-            raise RuntimeError("ERROR in RingAndRFTracker: Choice of"+
+            raise RuntimeError("ERROR in RingAndRFTracker: Choice of" +
                 " longitudinal solver not recognised!")    
         if self.alpha_order > 1: # Set exact solver for higher orders of eta
             self.solver = 'exact'
@@ -269,26 +266,27 @@ class RingAndRFTracker(object):
         try:
             self.periodicity = bool(periodicity)
         except:
-            raise RuntimeError("ERROR in RingAndRFTracker: Choice of"+
+            raise RuntimeError("ERROR in RingAndRFTracker: Choice of" +
                 " periodicity not recognised!")                
         try:
             self.interpolation = bool(interpolation)
         except:
-            raise RuntimeError("ERROR in RingAndRFTracker: Choice of"+
+            raise RuntimeError("ERROR in RingAndRFTracker: Choice of" +
                 " interpolation not recognised!")    
         self.profile = Profile
         self.totalInducedVoltage = TotalInducedVoltage        
         if (self.interpolation == True) and (self.profile is None):
-            raise RuntimeError("ERROR in RingAndRFTracker: Please specify a"+
+            raise RuntimeError("ERROR in RingAndRFTracker: Please specify a" +
                 " Profile object to use the interpolation option")
         if (self.cavityFB != None) and (self.profile is None):
-            raise RuntimeError("ERROR in RingAndRFTracker: Please specify a"+
+            raise RuntimeError("ERROR in RingAndRFTracker: Please specify a" +
                 " Profile object to use the CavityFeedback class")
         if (self.rf_params.empty == True) and (self.periodicity == True):
-            raise RuntimeError("ERROR in RingAndRFTracker: Empty RFStation"+
+            raise RuntimeError("ERROR in RingAndRFTracker: Empty RFStation" +
                 " with periodicity not yet implemented!")
-        else:
-            self.interpolation = True # obligatory interpolation if cavFB on
+        if (self.cavityFB != None) and (self.interpolation == False):
+            raise RuntimeError("ERROR in RingAndRFTracker: interpolation " +
+                " option must be True when using the CavityFeedback class")
         
  
     def kick(self, beam_dt, beam_dE, index):
@@ -377,17 +375,16 @@ class RingAndRFTracker(object):
 #             self.rf_voltage = np.sum(voltages.T*self.cavityFB.v_corr* \
 #                 np.sin(omega_rf.T*self.profile.bin_centers + 
 #                        phi_rf.T*self.cavityFB.v_corr), axis = 0)           
-            self.rf_voltage = voltages[0,0]*self.cavityFB.V_corr* \
-                np.sin(omega_rf[0,0]*self.profile.bin_centers + 
+            self.rf_voltage = voltages[0,0] * self.cavityFB.V_corr* \
+                np.sin(omega_rf[0,0] * self.profile.bin_centers + 
                        phi_rf[0,0] + self.cavityFB.phi_corr) + \
                 np.sum(voltages.T[1:]*np.sin(omega_rf.T[1:]* # TODO: test with multiple harmonics, think about 800 MHz OTFB
                     self.profile.bin_centers + phi_rf.T[1:]), axis = 0)
         else:
             self.rf_voltage = np.sum(voltages.T* \
-                np.sin(omega_rf.T*self.profile.bin_centers + phi_rf.T), 
+                np.sin(omega_rf.T * self.profile.bin_centers + phi_rf.T), 
                 axis = 0)
-        
-                
+                     
     def track(self):
         """Tracking method for the section. Applies first the kick, then the 
         drift. Calls also RF/beam feedbacks if applicable. Updates the counter
@@ -400,7 +397,7 @@ class RingAndRFTracker(object):
         if self.phi_noise != None:
             if self.noiseFB != None:
                 self.phi_rf[:,self.counter[0]] += \
-                    self.noiseFB.x*self.phi_noise[:,self.counter[0]]
+                    self.noiseFB.x * self.phi_noise[:,self.counter[0]]
             else:
                 self.phi_rf[:,self.counter[0]] += \
                     self.phi_noise[:,self.counter[0]]
@@ -414,71 +411,82 @@ class RingAndRFTracker(object):
             # Distinguish the particles inside the frame from the particles on 
             # the right-hand side of the frame.
             self.indices_right_outside = \
-                np.where(self.beam.dt > self.t_rev[self.counter[0]+1])[0]
+                np.where(self.beam.dt > self.t_rev[self.counter[0] + 1])[0]
             self.indices_inside_frame = \
-                np.where(self.beam.dt < self.t_rev[self.counter[0]+1])[0]
+                np.where(self.beam.dt < self.t_rev[self.counter[0] + 1])[0]
             
             if len(self.indices_right_outside)>0:
                 # Change reference of all the particles on the right of the 
                 # current frame; these particles skip one kick and drift
                 self.beam.dt[self.indices_right_outside] -= \
-                    self.t_rev[self.counter[0]+1]
+                    self.t_rev[self.counter[0] + 1]
                 # Synchronize the bunch with the particles that are on the 
-                # RHS of the current frame applying kick and drift to the bunch  
+                # RHS of the current frame applying kick and drift to the
+                # bunch  
                 # After that all the particles are in the new updated frame
-                self.insiders_dt = np.ascontiguousarray(self.beam.dt[self.indices_inside_frame])
-                self.insiders_dE = np.ascontiguousarray(self.beam.dE[self.indices_inside_frame])
+                self.insiders_dt = np.ascontiguousarray(
+                    self.beam.dt[self.indices_inside_frame])
+                self.insiders_dE = np.ascontiguousarray(
+                    self.beam.dE[self.indices_inside_frame])
                 self.kick(self.insiders_dt, self.insiders_dE, self.counter[0])
-                self.drift(self.insiders_dt, self.insiders_dE, self.counter[0]+1)
+                self.drift(self.insiders_dt, self.insiders_dE,
+                           self.counter[0] + 1)
                 self.beam.dt[self.indices_inside_frame] = self.insiders_dt
                 self.beam.dE[self.indices_inside_frame] = self.insiders_dE
-                # Check all the particles on the left of the just updated frame 
-                # and apply a second kick and drift to them with the previous
-                # wave after having changed reference.
+                # Check all the particles on the left of the just updated
+                # frame and apply a second kick and drift to them with the
+                # previous wave after having changed reference.
                 self.indices_left_outside = np.where(self.beam.dt < 0)[0]
                 
             else:
                 self.kick(self.beam.dt, self.beam.dE, self.counter[0])
-                self.drift(self.beam.dt, self.beam.dE, self.counter[0]+1)
-                # Check all the particles on the left of the just updated frame 
-                # and apply a second kick and drift to them with the previous
-                # wave after having changed reference.
+                self.drift(self.beam.dt, self.beam.dE, self.counter[0] + 1)
+                # Check all the particles on the left of the just updated 
+                # frame and apply a second kick and drift to them with the 
+                # previous wave after having changed reference.
                 self.indices_left_outside = np.where(self.beam.dt < 0)[0]
                 
             if len(self.indices_left_outside)>0:
-                left_outsiders_dt = np.ascontiguousarray(self.beam.dt[self.indices_left_outside])
-                left_outsiders_dE = np.ascontiguousarray(self.beam.dE[self.indices_left_outside])
-                left_outsiders_dt += self.t_rev[self.counter[0]+1]
-                self.kick(left_outsiders_dt, left_outsiders_dE, self.counter[0])
-                self.drift(left_outsiders_dt, left_outsiders_dE, self.counter[0]+1)
+                left_outsiders_dt = np.ascontiguousarray(
+                    self.beam.dt[self.indices_left_outside])
+                left_outsiders_dE = np.ascontiguousarray(
+                    self.beam.dE[self.indices_left_outside])
+                left_outsiders_dt += self.t_rev[self.counter[0] + 1]
+                self.kick(left_outsiders_dt, left_outsiders_dE,
+                          self.counter[0])
+                self.drift(left_outsiders_dt, left_outsiders_dE,
+                           self.counter[0] + 1)
                 self.beam.dt[self.indices_left_outside] = left_outsiders_dt
                 self.beam.dE[self.indices_left_outside] = left_outsiders_dE
-                        
                 
         else:
             
             if self.rf_params.empty == False:
                 if self.interpolation:
-    #                self.rf_voltage_calculation(self.counter[0], self.profile)
+#self.rf_voltage_calculation(self.counter[0], self.profile)
                     self.rf_voltage_calculation()
                     if self.totalInducedVoltage is not None:
-                        self.total_voltage = self.rf_voltage + self.totalInducedVoltage.induced_voltage
+                        self.total_voltage = self.rf_voltage \
+                            + self.totalInducedVoltage.induced_voltage
                     else:
                         self.total_voltage = self.rf_voltage
                     
-                    libblond.linear_interp_kick(self.beam.dt.ctypes.data_as(ctypes.c_void_p),
+                    libblond.linear_interp_kick(
+                        self.beam.dt.ctypes.data_as(ctypes.c_void_p),
                         self.beam.dE.ctypes.data_as(ctypes.c_void_p), 
                         self.total_voltage.ctypes.data_as(ctypes.c_void_p), 
-                        self.profile.bin_centers.ctypes.data_as(ctypes.c_void_p),
+                        self.profile.bin_centers.ctypes.data_as(
+                            ctypes.c_void_p),
                         ctypes.c_double(self.beam.Particle.charge),
                         ctypes.c_int(self.profile.n_slices),
                         ctypes.c_int(self.beam.n_macroparticles),
-                        ctypes.c_double(self.acceleration_kick[self.counter[0]]))
+                        ctypes.c_double(
+                            self.acceleration_kick[self.counter[0]]))
                     
                 else:
                     self.kick(self.beam.dt, self.beam.dE, self.counter[0])
             
-            self.drift(self.beam.dt, self.beam.dE, self.counter[0]+1)
+            self.drift(self.beam.dt, self.beam.dE, self.counter[0] + 1)
             
         # Increment by one the turn counter
         self.counter[0] += 1
