@@ -114,14 +114,13 @@ def modulator(signal, omega_i, omega_f, T_sampling):
     if len(signal) < 2:
         raise RuntimeError("ERROR in filters.py/demodulator: signal should" +
                            " be an array!")
-#    delta = 2*np.pi*(omega_i - omega_f)*T_sampling
-    delta = (omega_i - omega_f)*T_sampling
-    indices = np.arange(len(signal))
+    delta_phi = (omega_i - omega_f)*T_sampling * np.arange(len(signal))
+    # precompute sine and cosine for speed up
+    cs = np.cos(delta_phi)
+    sn = np.sin(delta_phi)
     try:
-        I_new = np.cos(delta*indices)*signal.real \
-            - np.sin(delta*indices)*signal.imag 
-        Q_new = np.sin(delta*indices)*signal.real \
-            + np.cos(delta*indices)*signal.imag
+        I_new = cs*signal.real - sn*signal.imag
+        Q_new = sn*signal.real + cs*signal.imag
     except:
         raise RuntimeError("ERROR in filters.py/demodulator: signal should" +
                            " be complex!")
@@ -256,7 +255,7 @@ def moving_average(x, N, x_prev=None):
         
     """
     
-    if x_prev != None:
+    if x_prev is not None:
         # Pad in front with x_prev signal
         x = np.concatenate((x_prev, x))
    

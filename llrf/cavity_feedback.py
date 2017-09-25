@@ -114,7 +114,8 @@ class SPSCavityFeedback(object):
         # Calculate OTFB correction w.r.t. RF voltage and phase in RFStation
         self.V_corr, self.phi_corr = cartesian_to_polar(self.V_sum)
         self.V_corr /= self.rf.voltage[0,self.rf.counter[0]]
-        self.phi_corr -= self.rf.phi_rf[0,self.rf.counter[0]]
+        # subtract pi/2, which was added in llrf
+        self.phi_corr -= self.rf.phi_rf[0,self.rf.counter[0]] + 0.5*np.pi
 
 
     def track_init(self, debug=False):
@@ -136,6 +137,28 @@ class SPSCavityFeedback(object):
             ax.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
             plt.figure(3)
             ax3 = plt.axes()
+            
+            from matplotlib import gridspec
+            # Colors
+            jet= plt.get_cmap('jet')
+            colors = jet(np.linspace(0,1,self.turns))
+            
+            # Plot 1: cavity voltage
+            fig1 = plt.figure(4, figsize=(8,10))
+            gs1 = gridspec.GridSpec(2, 1) 
+            ax1_1 = plt.subplot(gs1[0])
+            ax1_2 = plt.subplot(gs1[1], sharex=ax1_1)
+            plt.setp(ax1_1.get_xticklabels(), visible=False)
+            # remove last tick label for the second subplot
+            yticks = ax1_1.yaxis.get_major_ticks()
+            yticks[0].set_visible(False)
+            plt.subplots_adjust(hspace=.0)
+            ax1_1.set_ylabel(r"$Re(V_{\mathsf{cav}})$ [MV]")
+            ax1_2.set_xlabel(r"Time [$\mu$s]")
+            ax1_2.set_ylabel(r"$Im(V_{\mathsf{cav}})$ [MV]")
+            ax1_1.set_ylim((-1,5))
+            ax1_2.set_ylim((0,7))
+
 
         for i in range(self.turns):
             self.logger.debug("Pre-tracking w/o beam, iteration %d", i)
@@ -158,9 +181,24 @@ class SPSCavityFeedback(object):
 #                ax.plot(np.absolute(self.OTFB_4.I_gen))
 #                ax.plot(self.OTFB_4.profile.bin_centers, 
 #                        np.absolute(self.OTFB_4.V_gen))
-        if debug == True:
+                ax1_1.plot(1e6*self.OTFB_4.profile.bin_centers, 
+                    1e-6*(self.OTFB_4.V_tot.real + self.OTFB_5.V_tot.real), 
+                    color=colors[i])
+                ax1_1.fill_between(1e6*self.OTFB_4.profile.bin_centers, 0, 
+                    1e-6*(self.OTFB_4.V_tot.real + self.OTFB_5.V_tot.real), 
+                    alpha=0.2, color=colors[i])
+                ax1_2.plot(1e6*self.OTFB_4.profile.bin_centers, 
+                    1e-6*(self.OTFB_4.V_tot.imag + self.OTFB_5.V_tot.imag), 
+                    color=colors[i])
+                ax1_2.fill_between(1e6*self.OTFB_4.profile.bin_centers, 0, 
+                    1e-6*(self.OTFB_4.V_tot.imag + self.OTFB_5.V_tot.imag), 
+                    alpha=0.2, color=colors[i])
+#                fig1.savefig("fig/V_ant_" + "%d" %(i+1) + ".png")
+
+        
+        #if debug == True:
             #fig.savefig("OTFB.png")
-            plt.show()
+            #plt.show()
 
 
 
@@ -373,8 +411,8 @@ class SPSOneTurnFeedback(object):
         self.V_set = polar_to_cartesian(self.V_part* \
             self.rf.voltage[0,self.counter], self.rf.phi_rf[0,self.counter] 
             + 0.5*np.pi)
+        # pi/2 needs to be subtraced from final correction in track method
         # Convert to array
-#        self.V_set *= np.concatenate((np.ones(1000), np.zeros(self.n_llrf - 1000)))
         self.V_set *= np.ones(self.n_llrf)
         
         # Difference of set point and actual voltage
@@ -414,7 +452,7 @@ class SPSOneTurnFeedback(object):
         """Calculates the generator-induced voltage. The transmitter model is
         a simple linear gain [C/V] converting voltage to charge.
         
-        ..math:: I = G_{\mathsfs{tx}} \frac{V}{R_{\mathsf{gen}}},
+        .. math:: I = G_{\mathsfs{tx}} \frac{V}{R_{\mathsf{gen}}},
         
         where :math:`R_{\mathsf{gen}}` is the generator resistance,
         :py:attr:`llrf.impulse_response.TravellingWaveCavity.R_gen`
@@ -468,7 +506,7 @@ class SPSOneTurnFeedback(object):
         
         """
 
-        if self.TWC.__getattribute__("hc_"+name) == None:
+        if self.TWC.__getattribute__("hc_"+name) is None:
             self.__setattr__("V_ind_"+name, 
                 self.diag_conv(self.__getattribute__("I_"+name),
                                self.TWC.__getattribute__("hs_"+name)))
