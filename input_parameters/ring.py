@@ -275,7 +275,7 @@ class Ring(object):
 
         # Fill unused eta arrays with zeros
         for i in range(self.alpha_order, 3):
-            setattr(self, "eta_%s" % i, np.zeros(self.n_turns+1))
+            setattr(self, "eta_%s" % i, np.zeros([self.n_stations, self.n_turns+1]))
 
     def _eta0(self):
         """ Function to calculate the zeroth order slippage factor eta_0 """

@@ -23,7 +23,7 @@ import numpy.random as rnd
 from scipy.constants import c
 from plots.plot import *
 from plots.plot_llrf import *
-from input_parameters.rf_parameters import calc_phi_s
+#from input_parameters.rf_parameters import calculate_phi_s
 cfwhm = np.sqrt(2./np.log(2.))
 import matplotlib.pyplot as plt
 

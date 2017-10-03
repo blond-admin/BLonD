@@ -19,13 +19,14 @@ import matplotlib.pyplot as plt
 import os
 import numpy as np
 from input_parameters.ring import Ring
-from beam.beam import Beam
+from beam.beam import Beam, Electron
 from beam.distributions import matched_from_distribution_function
 from input_parameters.rf_parameters import RFStation
 from beam.profile import Profile
 from trackers.tracker import RingAndRFTracker, FullRingAndRF
 from synchrotron_radiation.synchrotron_radiation import SynchrotronRadiation
 from scipy.constants import c, e, m_e
+from beam.profile import CutOptions
 
 
 try:
@@ -37,7 +38,7 @@ except:
 # SIMULATION PARAMETERS -------------------------------------------------------
 
 # Beam parameters
-particle_type = 'electron'
+particle_type = Electron()
 n_particles = int(1.7e11)          
 n_macroparticles = int(1e5)
 sync_momentum = 175e9 # [eV]
@@ -76,7 +77,11 @@ n_sections = 2
 general_params = Ring(n_turns, np.ones(n_sections) * C/n_sections,
                                np.tile(momentum_compaction,(1,n_sections)).T,
                                np.tile(sync_momentum,(n_sections, n_turns+1)),
-                               particle_type, number_of_sections = n_sections)
+                               particle_type, n_stations = n_sections)
+
+
+
+
 
 RF_sct_par = []
 for i in np.arange(n_sections)+1:
@@ -88,19 +93,23 @@ for i in np.arange(n_sections)+1:
 
 beam = Beam(general_params, n_macroparticles, n_particles)
 
-# DEFINE TRACKER---------------------------------------------------------------
-longitudinal_tracker = []
-for i in range(n_sections):
-    longitudinal_tracker.append(RingAndRFTracker(RF_sct_par[i],beam))
 
-full_tracker = FullRingAndRF(longitudinal_tracker)
 
 
 # DEFINE SLICES----------------------------------------------------------------
 
 number_slices = 500
-slice_beam = Profile(RF_sct_par[0], beam, number_slices, cut_left = 0., 
-                    cut_right = bucket_length)
+
+cut_options = CutOptions(cut_left=0., cut_right=bucket_length, n_slices=number_slices)
+slice_beam = Profile(beam, CutOptions = cut_options)
+#RF_sct_par[0],
+
+# DEFINE TRACKER---------------------------------------------------------------
+longitudinal_tracker = []
+for i in range(n_sections):
+    longitudinal_tracker.append(RingAndRFTracker(RF_sct_par[i],beam,Profile = slice_beam))
+
+full_tracker = FullRingAndRF(longitudinal_tracker)
 
 
 # BEAM GENERATION--------------------------------------------------------------
@@ -212,7 +221,7 @@ n_sections = 10
 general_params = Ring(n_turns, np.ones(n_sections) * C/n_sections,
                                np.tile(momentum_compaction,(1,n_sections)).T,
                                np.tile(sync_momentum,(n_sections, n_turns+1)),
-                               particle_type, number_of_sections=n_sections)
+                               particle_type, n_stations=n_sections)
 
 RF_sct_par = []
 for i in np.arange(n_sections)+1:
@@ -224,18 +233,19 @@ for i in np.arange(n_sections)+1:
 
 beam = Beam(general_params, n_macroparticles, n_particles)
 
-# DEFINE TRACKER---------------------------------------------------------------
-longitudinal_tracker = []
-for i in range(n_sections):
-    longitudinal_tracker.append(RingAndRFTracker(RF_sct_par[i],beam))
-
-full_tracker = FullRingAndRF(longitudinal_tracker)
-
 
 # DEFINE SLICES----------------------------------------------------------------
 
-slice_beam = Profile(RF_sct_par[0], beam, number_slices, cut_left = 0., 
-                    cut_right = bucket_length)
+cut_options = CutOptions(cut_left=0., cut_right=bucket_length, n_slices=number_slices)
+slice_beam = Profile(beam, CutOptions = cut_options)
+
+# DEFINE TRACKER---------------------------------------------------------------
+longitudinal_tracker = []
+for i in range(n_sections):
+    longitudinal_tracker.append(RingAndRFTracker(RF_sct_par[i],beam,Profile = slice_beam))
+
+full_tracker = FullRingAndRF(longitudinal_tracker)
+
 
 
 # BEAM GENERATION--------------------------------------------------------------

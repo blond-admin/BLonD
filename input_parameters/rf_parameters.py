@@ -65,6 +65,9 @@ class RFStation(object):
     Optional: RF frequency other than the design frequency. In this case, need
     to use a beam phase loop for correct RF phase!
     
+    Optional: empty RFStation (e.g. for machines with synchrotron radiation);
+    use negative harmonic.
+    
     The index :math:`n` denotes time steps, :math:`l` the index of the RF 
     systems in the section.
     
@@ -225,13 +228,19 @@ class RFStation(object):
         self.eta_1 = 0
         self.eta_2 = 0
         self.charge = self.Particle.charge
-        for i in range( self.alpha_order ):
+        for i in range( 3 ):
             dummy = getattr(Ring, 'eta_' + str(i))
             setattr(self, "eta_%s" %i, dummy[self.section_index])
         self.sign_eta_0 = np.sign(self.eta_0)   
  
         # Process RF programs
         self.harmonic = harmonic
+        self.empty = False
+        # Empty RFStation
+        if any(it < 0 for it in self.harmonic):
+            self.empty = True
+            self.harmonic = [ abs(it) for it in self.harmonic ]
+        
         self.voltage = voltage
         self.phi_rf_d = phi_rf_d
         self.omega_rf = omega_rf
@@ -256,7 +265,7 @@ class RFStation(object):
         else:
             self.phi_noise = None
             
-# BEGIN MOVE TO INPUT CHECK... ************************************************               
+        # BEGIN MOVE TO INPUT CHECK... ************************************************               
         # Option 2: cast the input into appropriate shape: the input is 
         # analyzed and structured in order to have lists whose length is 
         # matching the number of RF systems in the section.      
@@ -296,7 +305,7 @@ class RFStation(object):
             self.phi_noise = np.array(self.phi_noise, ndmin =2) 
         if omega_rf != None:
             self.omega_rf = np.array(self.omega_rf, ndmin =2) 
-# END MOVE TO INPUT CHECK... **************************************************               
+        # END MOVE TO INPUT CHECK... **************************************************               
         
         # RF (feedback) properties
         self.phi_rf = np.array(self.phi_rf_d) 
@@ -308,7 +317,8 @@ class RFStation(object):
         self.t_rf = 2*np.pi / self.omega_rf[0]
 
         # From helper functions
-        self.phi_s = calculate_phi_s(self, self.Particle, accelerating_systems)
+        self.phi_s = calculate_phi_s(self, self.Particle, 
+                                     accelerating_systems)
         self.Q_s = calculate_Q_s(self, self.Particle)   
         self.omega_s0 = self.Q_s*Ring.omega_rev
 

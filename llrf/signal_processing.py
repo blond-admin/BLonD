@@ -89,7 +89,7 @@ def real_to_cartesian(signal):
     return signal + 1j*amplitude*np.sin(phase)
     
     
-def modulator(signal, f_initial, f_final, T_sampling):
+def modulator(signal, omega_i, omega_f, T_sampling):
     """Demodulate a signal from initial frequency to final frequency. The two
     frequencies should be close.
     
@@ -97,10 +97,10 @@ def modulator(signal, f_initial, f_final, T_sampling):
     ----------
     signal : float array
         Signal to be demodulated
-    f_initial : float
-        Initial frequency [Hz] of signal (before demodulation)
-    f_final : float
-        Final frequency [Hz] of signal (after demodulation)
+    omega_i : float
+        Initial revolution frequency [1/s] of signal (before demodulation)
+    omega_f : float
+        Final revolution frequency [1/s] of signal (after demodulation)
     T_sampling : float
         Sampling period (temporal bin size) [s] of the signal
         
@@ -114,13 +114,14 @@ def modulator(signal, f_initial, f_final, T_sampling):
     if len(signal) < 2:
         raise RuntimeError("ERROR in filters.py/demodulator: signal should" +
                            " be an array!")
-    delta = 2*np.pi*(f_initial - f_final)*T_sampling
+#    delta = 2*np.pi*(omega_i - omega_f)*T_sampling
+    delta = (omega_i - omega_f)*T_sampling
     indices = np.arange(len(signal))
     try:
         I_new = np.cos(delta*indices)*signal.real \
-            - np.sin(delta*indices)*signal.imag  
+            - np.sin(delta*indices)*signal.imag 
         Q_new = np.sin(delta*indices)*signal.real \
-            + np.cos(delta*indices)*signal.imag  
+            + np.cos(delta*indices)*signal.imag
     except:
         raise RuntimeError("ERROR in filters.py/demodulator: signal should" +
                            " be complex!")
@@ -128,60 +129,79 @@ def modulator(signal, f_initial, f_final, T_sampling):
     return I_new + 1j*Q_new
 
     
-def rf_beam_current(Slices, frequency, T_rev):
-    r"""Function calculating the beam current at the (RF) frequency, slice by
-    slice. The total charge [C] in the beam is determined from the sum of the 
-    beam profile :math:`\lambda_i`, the particle charge :math:`q_p` and the 
-    real vs. macro-particle ratio :math:`N_{\mathsf{real}}/N_{\mathsf{macro}}`
+def rf_beam_current(Profile, frequency, T_rev, lpf=True):
+    r"""Function calculating the beam charge at the (RF) frequency, slice by
+    slice. The charge distribution [C] of the beam is determined from the beam
+    profile :math:`\lambda_i`, the particle charge :math:`q_p` and the real vs.
+    macro-particle ratio :math:`N_{\mathsf{real}}/N_{\mathsf{macro}}`
     
     .. math:: 
-        Q_{\mathsf{tot}} = \frac{N_{\mathsf{real}}}{N_{\mathsf{macro}}} q_p \sum_i{\lambda_i}
+        Q_i = \frac{N_{\mathsf{real}}}{N_{\mathsf{macro}}} q_p \lambda_i
+
+    The total charge [C] in the beam is then
+    
+    .. math:: 
+        Q_{\mathsf{tot}} = \sum_i{Q_i}
     
     The DC beam current [A] is the total number of charges per turn :math:`T_0`
     
     .. math:: I_{\mathsf{DC}} = \frac{Q_{\mathsf{tot}}}{T_0}
     
+    The RF beam charge distribution [C] at a revolution frequency 
+    :math:`\omega_c` is the complex quantity
+    
+    .. math:: 
+        \left( \begin{matrix} I_{rf,i} \\ 
+        Q_{rf,i} \end{matrix} \right)
+        = 2 Q_i \left( \begin{matrix} \cos(\omega_c t_i) \\
+        \cos(\omega_c t_i)\end{matrix} \right) \, ,
+        
+    where :math:`t_i` are the time coordinates of the beam profile. After de-
+    modulation, a low-pass filter at 20 MHz is applied.
+    
     Parameters
     ----------
-    Slices : class
-        A Slices type class
+    Profile : class
+        A Profile type class
     frequency : float
         Revolution frequency [1/s] at which the current should be calculated
     T_rev : float 
         Revolution period [s] of the machine
+    lpf : bool
+        Apply low-pass filter; default is True 
         
     Returns
     -------
-    float array
-        RF beam current array [A] at 'frequency' frequency
+    complex array
+        RF beam charge array [C] at 'frequency' frequency. To obtain current,
+        divide by the sampling time
         
     """
     
-    # Convert real signal to complex IQ
-    profile = Slices.n_macroparticles
-    
-    # Convert from dimensionless to Ampères
+    # Convert from dimensionless to Coulomb/Ampères
     # Take into account macro-particle charge with real-to-macro-particle ratio
-    q_m = Slices.Beam.intensity/Slices.Beam.n_macroparticles \
-        *Slices.Beam.charge*e
-    profile *= q_m/T_rev
-    logger.debug("Sum of slices: %d, total charge: %.4e C", 
-                 np.sum(Slices.n_macroparticles), np.sum(profile)*T_rev)
-    logger.debug("DC current is %.4e A", np.sum(profile))
+    charges = Profile.Beam.ratio*Profile.Beam.Particle.charge*e*\
+        np.copy(Profile.n_macroparticles)
+    logger.debug("Sum of particles: %d, total charge: %.4e C", 
+                 np.sum(Profile.n_macroparticles), np.sum(charges))
+    logger.debug("DC current is %.4e A", np.sum(charges)/T_rev)
     
-    # Mix with frequency of interest
-    I_f = profile*np.cos(frequency*Slices.bin_centers)
-    Q_f = profile*np.sin(frequency*Slices.bin_centers)
+    # Mix with frequency of interest; remember factor 2 demodulation
+    I_f = 2.*charges*np.cos(frequency*Profile.bin_centers)
+    Q_f = 2.*charges*np.sin(frequency*Profile.bin_centers)
     
     # Pass through a low-pass filter
-    I_filt = low_pass_filter(I_f, 20.e6)
-    Q_filt = low_pass_filter(Q_f, 20.e6)
-    logger.debug("RF total current is %.4e A", np.fabs(np.sum(I_f)))
+    if lpf == True:
+        # Nyquist frequency 0.5*f_slices; cutoff at 20 MHz
+        cutoff = 20.e6*2.*Profile.bin_size
+        I_f = low_pass_filter(I_f, cutoff_frequency=cutoff)
+        Q_f = low_pass_filter(Q_f, cutoff_frequency=cutoff)
+    logger.debug("RF total current is %.4e A", np.fabs(np.sum(I_f))/T_rev)
 
-    return I_filt + 1j*Q_filt
+    return I_f + 1j*Q_f
 
 
-def comb_filter(x, y, a):
+def comb_filter(y, x, a):
     """Feedback comb filter.
     """
     
@@ -208,22 +228,12 @@ def low_pass_filter(signal, cutoff_frequency=0.5):
         
     """
     
-    b, a = sgn.butter(5, 0.5, 'low', analog=False)
+    b, a = sgn.butter(5, cutoff_frequency, 'low', analog=False)
     
     return sgn.filtfilt(b, a, signal)
     
 
-def cavity_filter():
-    """Model of the SPS cavity filter.
-    """   
-    
-        
-def cavity_impedance():
-    """Model of the SPS cavity impedance.
-    """
-
-
-def moving_average(x, N, center=False):
+def moving_average(x, N, x_prev=None):
     """Function to calculate the moving average (or running mean) of the input
     data.
     
@@ -234,29 +244,23 @@ def moving_average(x, N, center=False):
     N : int
         Window size in points; rounded up to next impair value if center is 
         True
-    center : bool    
-        Window function centered
+    x_prev : float array    
+        Data to pad with in front
         
     Returns
     -------
     float array
         Smoothed data array of has the size 
-        * len(x) - N + 1, if center = False
-        * len(x), if center = True
+        * len(x) - N + 1, if x_prev = None
+        * len(x) + len(x_prev) - N + 1, if x_prev given
         
     """
     
-    if center is True:
-        # Round up to next impair number
-        N_half = int(N/2)
-        N = N_half*2 + 1
-        # Pad with first and last values
-        x = np.concatenate((x[0]*np.ones(N_half), x, x[-1]*np.ones(N_half)))
-        
-    cumulative_sum = np.cumsum(np.insert(x, 0, 0))
-    # print(cumulative_sum) 
+    if x_prev != None:
+        # Pad in front with x_prev signal
+        x = np.concatenate((x_prev, x))
    
-    return (cumulative_sum[N:] - cumulative_sum[:-N]) / N
+    return (np.cumsum(x)[N:] - np.cumsum(x)[:-N]) / N
 
 
 

@@ -1,3 +1,20 @@
+# coding: utf-8
+# Copyright 2017 CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3), 
+# copied verbatim in the file LICENCE.md.
+# In applying this licence, CERN does not waive the privileges and immunities 
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
+'''
+**Fitting and filters routines to be used alone or with the Profile class in
+    the beam package. **
+
+:Authors: **Danilo Quartullo**, **Alexandre Lasheen**, 
+          **Juan F. Esteban Mueller**
+'''
+
 import numpy as np
 from scipy.signal import cheb2ord, cheby2, filtfilt, freqz
 import matplotlib.pyplot as plt
@@ -6,21 +23,21 @@ from scipy.optimize import curve_fit
 
 
 def beam_profile_filter_chebyshev(Y_array, X_array, filter_option):      
-    ''' 
-    *This routine is filtering the beam profile with a type II Chebyshev
+    """
+    This routine is filtering the beam profile with a type II Chebyshev
     filter. The input is a library having the following structure and
-    informations:*
+    informations:
     
     filter_option = {'type':'chebyshev', 'pass_frequency':pass_frequency, 
     'stop_frequency':stop_frequency, 'gain_pass':gain_pass,
     'gain_stop':gain_stop}
     
-    *The function returns nCoefficients, the number of coefficients used 
+    The function returns nCoefficients, the number of coefficients used 
     in the filter. You can also add the following option to plot and return
-    the filter transfer function:*
+    the filter transfer function:
     
     filter_option = {..., 'transfer_function_plot':True}
-    '''
+    """
     
     noisyProfile = np.array(Y_array)
     
@@ -83,31 +100,31 @@ def beam_profile_filter_chebyshev(Y_array, X_array, filter_option):
 
 
 def gaussian_fit(Y_array, X_array, p0):
-        '''
-        *Gaussian fit of the profile, in order to get the bunch length and
-        position. Returns fit values in units of s.*
-        '''
-                                                                
-        return curve_fit(gauss, X_array, Y_array, p0)[0] 
+    """
+    Gaussian fit of the profile, in order to get the bunch length and
+    position. Returns fit values in units of s.
+    """
+                                                            
+    return curve_fit(gauss, X_array, Y_array, p0)[0] 
 
 
 def gauss(x, *p):
-    '''
-    *Defined as:*
+    """
+    Defined as:
     
     .. math:: A \, e^{\\frac{\\left(x-x_0\\right)^2}{2\\sigma_x^2}}
     
-    '''
+    """
     
     A, x0, sx = p
     return A*np.exp(-(x-x0)**2/2./sx**2) 
 
 
 def rms(Y_array, X_array):
-    '''
-    *Computation of the RMS bunch length and position from the line
-    density (bunch length = 4sigma).*
-    '''
+    """
+    Computation of the RMS bunch length and position from the line
+    density (bunch length = 4sigma).
+    """
 
     timeResolution = X_array[1]-X_array[0]
     
@@ -124,10 +141,10 @@ def rms(Y_array, X_array):
    
    
 def fwhm(Y_array, X_array, shift=0):
-    '''
-    *Computation of the bunch length and position from the FWHM
-    assuming Gaussian line density.*
-    '''
+    """
+    Computation of the bunch length and position from the FWHM
+    assuming Gaussian line density.
+    """
 
     half_max = shift + 0.5 * (Y_array.max() - shift)
 
@@ -157,10 +174,10 @@ def fwhm(Y_array, X_array, shift=0):
 def fwhm_multibunch(Y_array, X_array, n_bunches, n_slices_per_bunch,
                     bunch_spacing_buckets, bucket_size_tau,
                     bucket_tolerance=0.40, shift = 0):
-    '''
-    *Computation of the bunch length and position from the FWHM
-    assuming Gaussian line density for multibunch case.*
-    '''
+    """
+    Computation of the bunch length and position from the FWHM
+    assuming Gaussian line density for multibunch case.
+    """
     
     bl_fwhm = np.zeros(n_bunches)
     bp_fwhm = np.zeros(n_bunches)
