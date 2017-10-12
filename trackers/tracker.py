@@ -278,16 +278,14 @@ class RingAndRFTracker(object):
         if (self.interpolation == True) and (self.profile is None):
             raise RuntimeError("ERROR in RingAndRFTracker: Please specify a" +
                 " Profile object to use the interpolation option")
-        if (self.cavityFB != None) and (self.profile is None):
-            raise RuntimeError("ERROR in RingAndRFTracker: Please specify a" +
-                " Profile object to use the CavityFeedback class")
+       if (self.cavityFB != None):
+            self.interpolation = True # obligatory interpolation if cavFB on
+            if (self.profile is None):
+                raise RuntimeError("ERROR in RingAndRFTracker: Please specify"+
+                    " a Profile object to use the CavityFeedback class")
         if (self.rf_params.empty == True) and (self.periodicity == True):
             raise RuntimeError("ERROR in RingAndRFTracker: Empty RFStation" +
                 " with periodicity not yet implemented!")
-        if (self.cavityFB != None) and (self.interpolation == False):
-            raise RuntimeError("ERROR in RingAndRFTracker: interpolation " +
-                " option must be True when using the CavityFeedback class")
-        
  
     def kick(self, beam_dt, beam_dE, index):
         """Function updating the particle energy due to the RF kick in a given
