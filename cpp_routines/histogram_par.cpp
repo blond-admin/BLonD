@@ -14,51 +14,56 @@
 #include <omp.h>        // omp_get_thread_num(), omp_get_num_threads()
 #include <string.h>     // memset()
 #include <stdlib.h>     // mmalloc()
-
+#include <math.h>
 
 extern "C" void histogram(const double *__restrict__ input,
-                          double *__restrict__ output, const double cut_left,
-                          const double cut_right, const int n_slices,
-                          const int n_macroparticles)
+                             double *__restrict__ output, const double cut_left,
+                             const double cut_right, const int n_slices,
+                             const int n_macroparticles)
 {
 
+    const int STEP = 16;
     const double inv_bin_width = n_slices / (cut_right - cut_left);
-    
-    // Dynamic memory allocation
-    // allocate an array of double** pointers
-    double **hist = (double **) malloc(omp_get_max_threads() * sizeof(double *));
-    
-    // allocate the whole memory region in one chunk
-    hist[0] = (double *) malloc (omp_get_max_threads() * n_slices * sizeof(double));
-    
-    // set the pointers to point to every row
-    for(int i =0; i < omp_get_max_threads(); i++)
-        hist[i] = (*hist + n_slices * i);
 
+    double **histo = (double **) malloc(omp_get_max_threads() * sizeof(double *));
+    histo[0] = (double *) malloc (omp_get_max_threads() * n_slices * sizeof(double));
+
+    for (int i = 0; i < omp_get_max_threads(); i++)
+        histo[i] = (*histo + n_slices * i);
 
     #pragma omp parallel
     {
         const int id = omp_get_thread_num();
         const int threads = omp_get_num_threads();
-        memset(hist[id], 0., n_slices * sizeof(double));
-
+        memset(histo[id], 0., n_slices * sizeof(double));
+        float fbin[STEP];
         #pragma omp for
-        for (int i = 0; i < n_macroparticles; ++i) {
-            if (input[i] < cut_left || input[i] > cut_right) continue;
-            hist[id][(int)((input[i] - cut_left)*inv_bin_width)] += 1.;
+        for (int i = 0; i < n_macroparticles; i += STEP) {
+
+            const int loop_count = n_macroparticles - i > STEP ?
+                                   STEP : n_macroparticles - i;
+
+            for (int j = 0; j < loop_count; j++) {
+                fbin[j] = floor((input[i + j] - cut_left) * inv_bin_width);
+            }
+
+            for (int j = 0; j < loop_count; j++) {
+                const int bin  = (int) fbin[j];
+                if (bin < 0 || bin >=n_slices) continue;
+                histo[id][bin] += 1.;
+            }
         }
 
         #pragma omp for
         for (int i = 0; i < n_slices; i++) {
             output[i] = 0.;
             for (int t = 0; t < threads; t++)
-                output[i] += hist[t][i];
+                output[i] += histo[t][i];
         }
     }
 
-    // free the memory
-    free(hist[0]);
-    free(hist);
+    free(histo[0]);
+    free(histo);
 }
 
 extern "C" void smooth_histogram(const double *__restrict__ input,
