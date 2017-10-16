@@ -25,38 +25,42 @@ extern "C" void linear_interp_kick(
     const double acc_kick)
 {
 
-
+    // Num of iterations of the inner loop
     const int STEP = 32;
-    const double inv_bin_width = (n_slices - 1)
-                                 / (bin_centers[n_slices - 1]
-                                    - bin_centers[0]);
+    const double inv_bin_width = (n_slices - 1) /
+                                 (bin_centers[n_slices - 1] - bin_centers[0]);
 
+    // allocate space for voltageKick
     double *voltageKick = (double *) malloc ((n_slices - 1) * sizeof(double));
 
     #pragma omp parallel
     {
-        int fbin[STEP];
+        float fbin[STEP];
 
+        // pre-calculate the voltageKick
         #pragma omp for
         for (int i = 0; i < n_slices - 1; i++) {
             voltageKick[i] =  (voltage_array[i + 1] - voltage_array[i]) * inv_bin_width;
         }
 
+        // apply the kick to the particles
         #pragma omp for
         for (int i = 0; i < n_macroparticles; i += STEP) {
 
             const int loop_count = n_macroparticles - i > STEP ?
                                    STEP : n_macroparticles - i;
-            
+
+            // First calculate the index of the voltage_array to use
             // directive recognized only by icc
             #pragma simd
             for (int j = 0; j < loop_count; j++) {
-                fbin[j] = (int) floor((beam_dt[i + j] - bin_centers[0]) * inv_bin_width);
+                fbin[j] = floor((beam_dt[i + j] - bin_centers[0]) * inv_bin_width);
                 beam_dE[i + j] += acc_kick;
             }
 
+            // Then apply kick
             for (int j = 0; j < loop_count; j++) {
-                int bin = fbin[j];
+                int bin = (int) fbin[j];
                 if (bin >= 0 && bin < n_slices - 1) {
                     beam_dE[i + j] += voltage_array[bin]
                                       + (beam_dt[i + j] - bin_centers[bin])
@@ -65,6 +69,7 @@ extern "C" void linear_interp_kick(
             }
         }
     }
+    // Free memory
     free(voltageKick);
 
 }

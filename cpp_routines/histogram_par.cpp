@@ -21,13 +21,13 @@ extern "C" void histogram(const double *__restrict__ input,
                              const double cut_right, const int n_slices,
                              const int n_macroparticles)
 {
-
+    // Number of Iterations of the inner loop
     const int STEP = 16;
     const double inv_bin_width = n_slices / (cut_right - cut_left);
 
+    // allocate memory for the thread_private histogram
     double **histo = (double **) malloc(omp_get_max_threads() * sizeof(double *));
     histo[0] = (double *) malloc (omp_get_max_threads() * n_slices * sizeof(double));
-
     for (int i = 0; i < omp_get_max_threads(); i++)
         histo[i] = (*histo + n_slices * i);
 
@@ -43,10 +43,11 @@ extern "C" void histogram(const double *__restrict__ input,
             const int loop_count = n_macroparticles - i > STEP ?
                                    STEP : n_macroparticles - i;
 
+            // First calculate the index to update
             for (int j = 0; j < loop_count; j++) {
                 fbin[j] = floor((input[i + j] - cut_left) * inv_bin_width);
             }
-
+            // Then update the corresponding bins
             for (int j = 0; j < loop_count; j++) {
                 const int bin  = (int) fbin[j];
                 if (bin < 0 || bin >=n_slices) continue;
@@ -54,6 +55,7 @@ extern "C" void histogram(const double *__restrict__ input,
             }
         }
 
+        // Reduce to a single histogram
         #pragma omp for
         for (int i = 0; i < n_slices; i++) {
             output[i] = 0.;
@@ -61,7 +63,8 @@ extern "C" void histogram(const double *__restrict__ input,
                 output[i] += histo[t][i];
         }
     }
-
+    
+    // free memory
     free(histo[0]);
     free(histo);
 }
