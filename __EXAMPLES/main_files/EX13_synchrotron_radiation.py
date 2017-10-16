@@ -64,11 +64,11 @@ momentum_compaction = 1 / gamma_transition**2 # [1]
 
 # Cavities parameters
 n_rf_systems = 1                                
-harmonic_numbers = 133650                        
+harmonic_numbers = [133650]                        
 voltage_program = [10e9]
 phi_offset = [np.pi]
 
-bucket_length = C / c / harmonic_numbers
+bucket_length = C / c / harmonic_numbers[0]
 print(bucket_length)
 
 # DEFINE RING------------------------------------------------------------------
