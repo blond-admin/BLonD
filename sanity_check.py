@@ -54,10 +54,11 @@ class SanityCheck(object):
         # Ignore W291 trailing whitespace
         # Ignore W293 blank line contains whitespace
         # Ignore W391 blank line at end of file
+
         def command(x):
             try:
                 subprocess.check_output(
-                    ['pep8', '--ignore', 'W291,W293,W391', x])
+                    ['pep8', '--ignore', 'W291,W293,W391,E303,E128', x])
             except subprocess.CalledProcessError as e:
                 print(e.output.decode())
 
