@@ -54,7 +54,9 @@ class SanityCheck(object):
         # Ignore W291 trailing whitespace
         # Ignore W293 blank line contains whitespace
         # Ignore W391 blank line at end of file
-        command = lambda x: os.system("pep8 --ignore=W291,W293,W391 " + x)        
+        # Ignore E303 too many blank lines
+        # Ignore E128 continuation line under-indented
+        command = lambda x: os.system("pep8 --ignore=W291,W293,W391,E303,E128 " + x)        
 
         if pep8File:
             try:
