@@ -19,11 +19,12 @@ import numpy as np
 from input_parameters.ring import Ring
 from input_parameters.rf_parameters import RFStation
 from trackers.tracker import RingAndRFTracker
-from beam.beam import Beam
+from beam.beam import Beam, Proton
 from beam.distributions import bigaussian
-from beam.profile import Profile
+from beam.profile import CutOptions, FitOptions, Profile
 from monitors.monitors import BunchMonitor
 from plots.plot import Plot
+
 
 
 
@@ -55,30 +56,32 @@ print("")
 
 
 # Define general parameters
-ring = Ring(N_t, C, alpha, np.linspace(p_i, p_f, 2001), 'proton')
+ring = Ring(N_t, C, alpha, np.linspace(p_i, p_f, 2001), Proton())
 
 # Define beam and distribution
 beam = Beam(ring, N_p, N_b)
 
 
 # Define RF station parameters and corresponding tracker
-rf = RFStation(ring, 1, h, V, dphi)
+rf = RFStation(ring, 1, [h], [V], [dphi])
 long_tracker = RingAndRFTracker(rf, beam)
 
-bigaussian(ring, rf, beam, tau_0/4, reinsertion = 'on', seed=1)
+
+bigaussian(ring, rf, beam, tau_0/4, reinsertion = True, seed=1)
 
 
 # Need slices for the Gaussian fit
-profile = Profile(rf, beam, 100, fit_option='gaussian')                     
+profile = Profile(beam, CutOptions(n_slices=100),
+                 FitOptions(fit_option='gaussian'))         
                      
 # Define what to save in file
 bunchmonitor = BunchMonitor(ring, rf, beam,
-                          '../output_files/EX1_output_data', Slices=profile)
+                          '../output_files/EX1_output_data', Profile=profile)
 
 format_options = {'dirname': '../output_files/EX1_fig'}
 plots = Plot(ring, rf, beam, dt_plt, N_t, 0, 0.0001763*h,
              -400e6, 400e6, xunit='rad', separatrix_plot=True, 
-             Slices=profile, h5file='../output_files/EX1_output_data', 
+             Profile=profile, h5file='../output_files/EX1_output_data', 
              format_options=format_options)
 
 # Accelerator map
@@ -100,7 +103,7 @@ for i in range(1, N_t+1):
         print("   Beam beta %3.3f" %beam.beta)
         print("   Beam energy %.6e eV" %beam.energy)
         print("   Four-times r.m.s. bunch length %.4e s" %(4.*beam.sigma_dt))
-        print("   Gaussian bunch length %.4e s" %profile.bl_gauss)
+        print("   Gaussian bunch length %.4e s" %profile.bunchLength)
         print("")
         
     # Track

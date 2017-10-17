@@ -202,13 +202,13 @@ class FitOptions(object):
     fitExtraOptions : unknown
     """
     
-    def __init__(self, fitMethod=None, fitExtraOptions=None):
+    def __init__(self, fit_option=None, fitExtraOptions=None):
         
         """
         Constructor
         """
         
-        self.fitMethod = str(fitMethod)
+        self.fit_option = str(fit_option)
         self.fitExtraOptions = fitExtraOptions
 
 
@@ -347,7 +347,7 @@ class Profile(object):
     >>> n_slices = 100
     >>> CutOptions = profileModule.CutOptions(cut_left=0, 
     >>>       cut_right=self.ring.t_rev[0],  n_slices = n_slices, cuts_unit='s')                 
-    >>> FitOptions = profileModule.FitOptions(fitMethod='gaussian', 
+    >>> FitOptions = profileModule.FitOptions(fit_option='gaussian', 
     >>>                                        fitExtraOptions=None)
     >>> filter_option = {'pass_frequency':1e7, 
     >>>    'stop_frequency':1e8, 'gain_pass':1, 'gain_stop':2, 
@@ -394,14 +394,15 @@ class Profile(object):
         else:
             self.operations = [self._slice]
         
-        if FitOptions.fitMethod!=None:
+        if FitOptions.fit_option!=None:
+            self.fit_option = FitOptions.fit_option
             self.bunchPosition = 0.0
             self.bunchLength = 0.0
-            if FitOptions.fitMethod == 'gaussian':
+            if FitOptions.fit_option == 'gaussian':
                 self.operations.append(self.apply_fit)
-            elif FitOptions.fitMethod == 'rms':
+            elif FitOptions.fit_option == 'rms':
                 self.operations.append(self.rms)
-            elif FitOptions.fitMethod == 'fwhm':
+            elif FitOptions.fit_option == 'fwhm':
                 self.operations.append(self.fwhm)    
                 
         if FilterOptions.filterMethod=='chebishev':

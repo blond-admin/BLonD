@@ -32,8 +32,8 @@ def plot_long_phase_space(Ring, RFStation, Beam, xmin,
 
     # Conversion from particle arrival time to RF phase
     if xunit == 'rad':
-        omega_RF = RFStation.omega_RF[0,RFStation.counter[0]]
-        phi_RF = RFStation.phi_RF[0,RFStation.counter[0]]
+        omega_RF = RFStation.omega_rf[0,RFStation.counter[0]]
+        phi_RF = RFStation.phi_rf[0,RFStation.counter[0]]
 
     # Definitions for placing the axes
     left, width = 0.115, 0.63
@@ -171,7 +171,7 @@ def plot_bunch_length_evol_gaussian(RFStation, Profile, h5data,
     ndata = int(time_step/output_freq)
     t = output_freq*np.arange(ndata)
     
-    bl = np.array(h5data["/Beam/bunch_length_gaussian"][0:ndata], dtype=np.double)
+    bl = np.array(h5data["/Beam/bunch_length"][0:ndata], dtype=np.double)
     
     bl[time_step:] = np.nan
 
