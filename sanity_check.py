@@ -66,7 +66,7 @@ class SanityCheck(object):
         if pep8Files:
             files = pep8Files.split(' ')
         else:
-            print("EXECUTING PEP8 CHECK ON THE COMMITTED FILES\n")
+            print("EXECUTING PEP8 CHECK ON THE COMMITTED/MODIFIED FILES\n")
             output = subprocess.check_output(['git', 'diff', '--no-commit-id',
                                               '--name-only', '-r', 'HEAD'])
             output += subprocess.check_output(['git', 'diff-tree',
@@ -126,7 +126,7 @@ def main():
                         help='Compile docs in html format', default=False)
     parser.add_argument('-p', '--pep8', dest='pep8Files', const='',
                         nargs='?', type=str, default=None,
-                        help='Run PEP8 check; on the committed files (default)' +
+                        help='Run PEP8 check; on committed/modified files (default)' +
                         ' or on the specified files')
     parser.add_argument('-u', '--unitTest', dest='unitTests',
                         const='', nargs='?', type=str, default=None,
