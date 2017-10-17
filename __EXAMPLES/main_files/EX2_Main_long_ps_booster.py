@@ -15,20 +15,18 @@ from __future__ import division, print_function
 from builtins import str, range, bytes
 import numpy as np
 import time
-
-from input_parameters.ring import *
-from input_parameters.rf_parameters import *
-from trackers.tracker import *
-from beam.beam import *
-from beam.distributions import *
-from monitors.monitors import *
-from beam.profile import *
-from impedances.impedance import *
-from impedances.impedance_sources import *
-from plots.plot_beams import *
-from plots.plot_impedance import *
-from plots.plot_slices import *
-from plots.plot import *
+from input_parameters.ring import Ring
+from input_parameters.rf_parameters import RFStation
+from trackers.tracker import RingAndRFTracker
+from beam.beam import Beam, Proton
+from beam.distributions import bigaussian
+from beam.profile import CutOptions, Profile
+from monitors.monitors import BunchMonitor
+from plots.plot import Plot
+from plots.plot_impedance import plot_impedance_vs_frequency, plot_induced_voltage_vs_bin_centers
+from scipy.constants import m_p, e, c
+from impedances.impedance_sources import InputTable
+from impedances.impedance import InductiveImpedance, InducedVoltageFreq, TotalInducedVoltage
 
 
 # SIMULATION PARAMETERS -------------------------------------------------------
@@ -60,32 +58,28 @@ momentum_compaction = 1 / gamma_transition**2 # [1]
 # Cavities parameters
 n_rf_systems = 1                                     
 harmonic_numbers = 1                         
-voltage_program = 8.e3 #[V]
+voltage_program = 8e3 #[V]
 phi_offset = np.pi
 
 
 # DEFINE RING------------------------------------------------------------------
 
 general_params = Ring(n_turns, C, momentum_compaction, sync_momentum, 
-                                   particle_type, number_of_sections = 1)
+                                   Proton())
 
-RF_sct_par = RFStation(general_params, n_rf_systems, harmonic_numbers, 
-                          voltage_program, phi_offset)
+RF_sct_par = RFStation(general_params, n_rf_systems, [harmonic_numbers], 
+                          [voltage_program], [phi_offset])
 
 my_beam = Beam(general_params, n_macroparticles, n_particles)
-ring_RF_section = RFStation(RF_sct_par, my_beam)
+
+ring_RF_section = RingAndRFTracker(RF_sct_par, my_beam)
 
 # DEFINE BEAM------------------------------------------------------------------
 bigaussian(general_params, RF_sct_par, my_beam, sigma_dt, seed=1)
-print(RF_sct_par.phi_s)
-print(np.mean(my_beam.dt))
-print(RF_sct_par.phi_RF)
 
 # DEFINE SLICES----------------------------------------------------------------
-
-number_slices = 100
-slice_beam = Profile(RF_sct_par, my_beam, number_slices, cut_left= -5.72984173562e-7, 
-                    cut_right=5.72984173562e-7) 
+slice_beam = Profile(my_beam, CutOptions(cut_left= -5.72984173562e-7, 
+                    cut_right=5.72984173562e-7, n_slices=100))       
 
 # MONITOR----------------------------------------------------------------------
 
@@ -153,7 +147,7 @@ total_induced_voltage = TotalInducedVoltage(my_beam, slice_beam,
 format_options = {'dirname': '../output_files/EX2_fig', 'linestyle': '.'}
 plots = Plot(general_params, RF_sct_par, my_beam, 1, n_turns, 0, 
              5.72984173562e-7, - my_beam.sigma_dE * 4.2, my_beam.sigma_dE * 4.2, xunit= 's',
-             separatrix_plot= True, Slices = slice_beam, h5file = '../output_files/EX2_output_data', 
+             separatrix_plot= True, Profile = slice_beam, h5file = '../output_files/EX2_output_data', 
              histograms_plot = True, format_options = format_options)
  
 
@@ -166,11 +160,11 @@ map_ = [total_induced_voltage] + [ring_RF_section] + [slice_beam] + [bunchmonito
 for i in range(1, n_turns+1):
     
     print(i)
-    t0 = time.clock()
+    
     for m in map_:
         m.track()
-    t1 = time.clock()
-    print(t1 - t0)
+    
+    
 
     # Plots
     if (i% n_turns_between_two_plots) == 0:
