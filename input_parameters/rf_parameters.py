@@ -261,7 +261,7 @@ class RFStation(object):
                 else:
                     input_check(self.__getattribute__(rf_param))
         if phi_noise:
-            input_check(self.phi_noise)
+            input_check(phi_noise, self.n_turns+1)
         else:
             self.phi_noise = None
             
