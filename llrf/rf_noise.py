@@ -126,7 +126,7 @@ class FlatSpectrum(object):
     
     def generate(self):
        
-        for i in range(0, int(self.n_turns/self.corr)):
+        for i in range(0, int(self.n_turns/self.corr)+1):
         
             # Scale amplitude to keep area (phase noise amplitude) constant
             k = i*self.corr       # current time step
@@ -134,18 +134,18 @@ class FlatSpectrum(object):
             
             # Calculate the frequency step
             f_max = self.f0[k]/2
-            n_points_pos_f_incl_zero = np.ceil(f_max/self.delta_f) + 1
+            n_points_pos_f_incl_zero = int(np.ceil(f_max/self.delta_f) + 1)
             nt = 2*(n_points_pos_f_incl_zero - 1)
             nt_regular = next_regular(int(nt))
             if nt_regular%2!=0 or nt_regular < self.corr:
                 raise RuntimeError('Error in noise generation!')
-            n_points_pos_f_incl_zero = nt_regular/2 + 1  
+            n_points_pos_f_incl_zero = int(nt_regular/2 + 1)  
             freq = np.linspace(0, f_max, n_points_pos_f_incl_zero)
             delta_f = f_max/(n_points_pos_f_incl_zero-1) 
 
             # Construct spectrum   
-            nmin = np.floor(self.fmin_s0*self.fs[k]/delta_f)  
-            nmax = np.ceil(self.fmax_s0*self.fs[k]/delta_f)    
+            nmin = np.int(np.floor(self.fmin_s0*self.fs[k]/delta_f))  
+            nmax = np.int(np.ceil(self.fmax_s0*self.fs[k]/delta_f))    
             
             # To compensate the notch due to PL at central frequency
             if self.predistortion == 'exponential':
@@ -183,7 +183,6 @@ class FlatSpectrum(object):
                                             np.zeros(n_points_pos_f_incl_zero-nmax-1)))
 
             else:
-    
                 spectrum = np.concatenate((np.zeros(nmin), 
                     ampl*np.ones(nmax-nmin+1), np.zeros(n_points_pos_f_incl_zero-nmax-1)))               
             

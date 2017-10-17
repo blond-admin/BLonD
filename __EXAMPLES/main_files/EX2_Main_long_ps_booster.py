@@ -14,7 +14,6 @@ Example script to take into account intensity effects from impedance tables
 from __future__ import division, print_function
 from builtins import str, range, bytes
 import numpy as np
-import time
 from input_parameters.ring import Ring
 from input_parameters.rf_parameters import RFStation
 from trackers.tracker import RingAndRFTracker

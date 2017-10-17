@@ -14,27 +14,23 @@ No intensity effects
 
 from __future__ import division, print_function
 from builtins import range
-import time 
 import numpy as np
+from input_parameters.ring import Ring
+from input_parameters.rf_parameters import RFStation
+from trackers.tracker import RingAndRFTracker
+from beam.beam import Beam, Proton
+from beam.distributions import bigaussian
+from beam.profile import CutOptions, Profile, FitOptions
+from monitors.monitors import BunchMonitor
+from plots.plot import Plot
+from llrf.rf_noise import FlatSpectrum
 
-from llrf.rf_noise import *
-from input_parameters.ring import *
-from input_parameters.rf_parameters import *
-from trackers.tracker import *
-from beam.beam import *
-from beam.distributions import *
-from beam.profile import *
-from monitors.monitors import *
-from plots.plot_beams import *
-from plots.plot_llrf import *
-from plots.plot_slices import *
-from plots.plot import *
 
 
 # Simulation parameters --------------------------------------------------------
 # Bunch parameters
 N_b = 1.e9           # Intensity
-N_p = 10001          # Macro-particles
+N_p = 50001          # Macro-particles
 tau_0 = 0.4e-9          # Initial bunch length, 4 sigma [s]
 
 # Machine and RF parameters
@@ -50,47 +46,30 @@ alpha = 1./gamma_t/gamma_t        # First order mom. comp. factor
 N_t = 200         # Number of turns to track
 dt_plt = 20        # Time steps between plots
 
-
-# Pre-processing: RF phase noise -----------------------------------------------
-f = np.arange(0, 5.6227612455e+03, 1.12455000e-02)
-spectrum = np.concatenate((1.11100000e-07 * np.ones(4980), np.zeros(495021)))
-RFnoise = FlatSpectrum(f, spectrum, seed1=1234, seed2=7564)
-RFnoise.spectrum_to_phase_noise()
-
-# Hermitian vs complex FFT (gives the same result)
-# plot_noise_spectrum(f, spectrum, sampling=100)
-# plot_phase_noise(noise_t, noise_dphi, sampling=100)
-# print "Sigma of noise 1 is %.4e" %np.std(noise_dphi)
-# print "Time step of noise 1 is %.4e" %noise_t[1]
-# f2 = np.arange(0, 2*5.62275e+03, 1.12455000e-02)
-# spectrum2 = np.concatenate(( 1.11100000e-07 * np.ones(4980), np.zeros(990040), 1.11100000e-07 * np.ones(4980) ))
-# noise_t2, noise_dphi2 = Phase_noise(f2, spectrum2).spectrum_to_phase_noise(transform='c')
-# os.rename('temp/noise_spectrum.png', 'temp/noise_spectrum_r.png')
-# os.rename('temp/phase_noise.png', 'temp/phase_noise_r.png')
-# plot_noise_spectrum(f2, spectrum2, sampling=100)
-# plot_phase_noise(noise_t2, noise_dphi2, sampling=100)
-# print "Sigma of noise 2 is %.4e" %np.std(noise_dphi)
-# print "Time step of noise 2 is %.4e" %noise_t[1]
-# os.rename('temp/noise_spectrum.png', 'temp/noise_spectrum_c.png')
-# os.rename('temp/phase_noise.png', 'temp/phase_noise_c.png')
-
-plot_noise_spectrum(f, spectrum, sampling=100, dirname = '../output_files/EX3_fig')
-plot_phase_noise(RFnoise.t, RFnoise.dphi, sampling=100, dirname = '../output_files/EX3_fig')
-#plot_phase_noise(RFnoise.t[0:10000], RFnoise.dphi[0:10000], sampling=1, dirname = '../output_files/EX4_fig')
-print("   Sigma of RF noise is %.4e" %np.std(RFnoise.dphi))
-print("   Time step of RF noise is %.4e" %RFnoise.t[1])
-print("")
-
-
 # Simulation setup -------------------------------------------------------------
 print("Setting up the simulation...")
 print("")
 
 # Define general parameters
-general_params = Ring(N_t, C, alpha, p_s, 'proton')
+general_params = Ring(N_t, C, alpha, p_s, Proton())
 
 # Define RF station parameters and corresponding tracker
-rf_params = RFStation(general_params, 1, h, V, 0, RFnoise.dphi[0:N_t+1])
+rf_params = RFStation(general_params, 1, [h], [V], [0])
+
+# Pre-processing: RF phase noise -----------------------------------------------
+RFnoise = FlatSpectrum(general_params, rf_params, delta_f = 1.12455000e-02, fmin_s0 = 0, 
+                       fmax_s0 = 1.1, seed1=1234, seed2=7564, 
+                       initial_amplitude = 1.11100000e-07, folder_plots =
+                       '../output_files/EX3_fig')
+RFnoise.generate()
+rf_params.phi_noise = np.array(RFnoise.dphi, ndmin =2) 
+
+
+print("   Sigma of RF noise is %.4e" %np.std(RFnoise.dphi))
+print("   Time step of RF noise is %.4e" %RFnoise.t[1])
+print("")
+
+
 beam = Beam(general_params, N_p, N_b)
 long_tracker = RingAndRFTracker(rf_params, beam)
 
@@ -101,16 +80,17 @@ print("General and RF parameters set...")
 
 # Generate new distribution
 bigaussian(general_params, rf_params, beam, tau_0/4, 
-                              reinsertion = 'on', seed=1)
+                              reinsertion = True, seed=1)
 
 print("Beam set and distribution generated...")
 
 
 # Need slices for the Gaussian fit; slice for the first plot
-slice_beam = Profile(rf_params, beam, 100, fit_option = 'gaussian', cuts_unit = 'rad')
-
+slice_beam = Profile(beam, CutOptions(n_slices=100),
+                 FitOptions(fit_option='gaussian'))        
+slice_beam.track()
 # Define what to save in file
-bunchmonitor = BunchMonitor(general_params, rf_params, beam, '../output_files/EX3_output_data', Slices=slice_beam)
+bunchmonitor = BunchMonitor(general_params, rf_params, beam, '../output_files/EX3_output_data', Profile=slice_beam)
 
 
 # PLOTS
@@ -118,7 +98,7 @@ bunchmonitor = BunchMonitor(general_params, rf_params, beam, '../output_files/EX
 format_options = {'dirname': '../output_files/EX3_fig', 'linestyle': '.'}
 plots = Plot(general_params, rf_params, beam, dt_plt, N_t, 0, 
              0.0001763*h, -450e6, 450e6, xunit= 'rad',
-             separatrix_plot= True, Slices = slice_beam, h5file = '../output_files/EX3_output_data', 
+             separatrix_plot= True, Profile = slice_beam, h5file = '../output_files/EX3_output_data', 
              histograms_plot = True, format_options = format_options)
 
 # Accelerator map
@@ -127,10 +107,8 @@ print("Map set")
 print("")
 
 
-
 # Tracking ---------------------------------------------------------------------
 for i in range(1,N_t+1):
-    t0 = time.clock()
     
     
     # Plot has to be done before tracking (at least for cases with separatrix)
@@ -142,7 +120,7 @@ for i in range(1,N_t+1):
         print("   Beam beta %3.3f" %beam.beta)
         print("   Beam energy %.6e eV" %beam.energy)
         print("   Four-times r.m.s. bunch length %.4e [s]" %(4.*beam.sigma_dt))
-        print("   Gaussian bunch length %.4e [s]" %slice_beam.bl_gauss)
+        print("   Gaussian bunch length %.4e [s]" %slice_beam.bunchLength)
         print("")
         
 
@@ -150,14 +128,11 @@ for i in range(1,N_t+1):
     for m in map_:
         m.track()
         
-    
-
-    
+        
     # Define losses according to separatrix and/or longitudinal position
-    beam.losses_separatrix(general_params, rf_params, beam)
+    beam.losses_separatrix(general_params, rf_params)
     beam.losses_longitudinal_cut(0., 2.5e-9)
-
-
 
 print("Done!")
 print("")
+
