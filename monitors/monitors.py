@@ -42,12 +42,12 @@ class BunchMonitor(object):
         self.beam = Beam
         self.profile = Profile
         if self.profile:
-            if self.profile.fit_option is 'gaussian':
-                self.gaussian = True
+            if self.profile.fit_option!=None:
+                self.fit_option = True
             else:
-                self.gaussian = False
+                self.fit_option = False
         else:
-            self.gaussian = False
+            self.fit_option = False
         self.PL = PhaseLoop
         self.LHCNoiseFB = LHCNoiseFB
 
@@ -112,12 +112,12 @@ class BunchMonitor(object):
                                compression = "gzip", compression_opts = 9)
         h5group["epsn_rms_l"][0]   = self.beam.epsn_rms_l
          
-        if self.gaussian == True:
+        if self.fit_option == True:
 
-            h5group.create_dataset("bunch_length_gaussian", shape = dims, 
+            h5group.create_dataset("bunch_length", shape = dims, 
                                    dtype = 'f',
                                    compression = "gzip", compression_opts = 9)
-            h5group["bunch_length_gaussian"][0] = self.profile.bl_gauss
+            h5group["bunch_length"][0] = self.profile.bunchLength
              
         if self.PL:
              
@@ -193,9 +193,9 @@ class BunchMonitor(object):
         self.b_sigma_dE = np.zeros(self.buffer_time)
         self.b_epsn_rms = np.zeros(self.buffer_time)
          
-        if self.gaussian == True:
+        if self.fit_option == True:
              
-            self.b_bl_gauss = np.zeros(self.buffer_time)
+            self.b_bl = np.zeros(self.buffer_time)
              
         if self.PL:
              
@@ -227,9 +227,9 @@ class BunchMonitor(object):
         self.b_sigma_dE[i] = self.beam.sigma_dE
         self.b_epsn_rms[i] = self.beam.epsn_rms_l
          
-        if self.gaussian == True:
+        if self.fit_option == True:
              
-            self.b_bl_gauss[i] = self.profile.bl_gauss
+            self.b_bl[i] = self.profile.bunchLength
              
         if self.PL:
              
@@ -273,11 +273,11 @@ class BunchMonitor(object):
         h5group.require_dataset("epsn_rms_l", shape = dims, dtype = 'f')
         h5group["epsn_rms_l"][i1:i2]   = self.b_epsn_rms[:]
          
-        if self.gaussian == True:
+        if self.fit_option == True:
              
-                h5group.require_dataset("bunch_length_gaussian", shape = dims, 
+                h5group.require_dataset("bunch_length", shape = dims, 
                                         dtype = 'f')
-                h5group["bunch_length_gaussian"][i1:i2] = self.b_bl_gauss[:]
+                h5group["bunch_length"][i1:i2] = self.b_bl[:]
              
         if self.PL:
  
