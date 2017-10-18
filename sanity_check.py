@@ -27,9 +27,9 @@ class SanityCheck(object):
         if allChecks:
             docs = True
             if pep8Files is None:
-                pep8Files = True
+                pep8Files = ''
             if unitTests is None:
-                unitTests = True
+                unitTests = ''
 
         print("*** START SANITY CHECK ***")
         if unitTests is not None:
@@ -54,6 +54,8 @@ class SanityCheck(object):
         # Ignore W291 trailing whitespace
         # Ignore W293 blank line contains whitespace
         # Ignore W391 blank line at end of file
+        # Ignore E303 too many blank lines (3)
+        # Ignore E128 continuation line under-indented for visual indent
 
         def command(x):
             try:
@@ -63,9 +65,19 @@ class SanityCheck(object):
             except subprocess.CalledProcessError as e:
                 print(e.output.decode())
         files = []
-        if pep8Files:
-            files = pep8Files.split(' ')
-        else:
+        if isinstance(pep8Files, str) and (pep8Files == ''):
+            print("EXECUTING PEP8 CHECK ON THE ENTIRE BLOND PROJECT\n")
+
+            for path, _, Files in os.walk("."):
+                if ("./." in path) or ("./__" in path) or \
+                        (".\." in path) or (".\__" in path):
+                    continue
+                for fileName in Files:
+                    if fileName.endswith(".py") \
+                            and not fileName.endswith("__.py"):
+                        files.append(os.path.join(path, fileName))
+
+        elif isinstance(pep8Files, str) and (pep8Files == 'git'):
             print("EXECUTING PEP8 CHECK ON THE COMMITTED/MODIFIED FILES\n")
             output = subprocess.check_output(['git', 'diff', '--no-commit-id',
                                               '--name-only', '-r', 'HEAD'])
@@ -74,6 +86,10 @@ class SanityCheck(object):
                                                '-r', 'HEAD'])
             files = output.decode().splitlines()
             files = [f for f in files if f.endswith('.py')]
+
+        elif isinstance(pep8Files, str):
+            files = pep8Files.split(' ')
+
         for file in files:
             command(file)
 
@@ -91,18 +107,19 @@ class SanityCheck(object):
         # Run unittests
         print("EXECUTING UNITTESTS")
         tests = []
-        if unitTests:
+        if isinstance(unitTests, str) and (unitTests == ''):
+            for path, _, files in os.walk("unittests"):
+                tests += [os.path.join(path, file)
+                          for file in files if file.startswith('test')]
+        elif isinstance(unitTests, str):
             for test in unitTests.split(' '):
                 if os.path.isdir(test):
-                    for path, subDir, files in os.walk(test):
+                    for path, _, files in os.walk(test):
                         tests += [os.path.join(path, file)
                                   for file in files if file.startswith('test')]
                 else:
                     tests.append(test)
-        else:
-            for path, subDir, files in os.walk("unittests"):
-                tests += [os.path.join(path, file)
-                          for file in files if file.startswith('test')]
+
         for test in tests:
             command(test)
         print("UNIT-TESTS FINISHED")
@@ -116,9 +133,10 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description=textwrap.dedent('''
         SANITY CHECKER; run before committing from BLonD folder
-        E.g. > python sanity_check.py -p 'llrf/signal_processing.py beam/profile.py'
-             > python sanity_check.py -u 'unittests/general'
+        E.g. > python sanity_check.py -p "llrf/signal_processing.py beam/profile.py"
+             > python sanity_check.py -u "unittests/general"
              > python sanity_check.py -a
+             > python sanity_check.py -p "git" (pep8 report only committed or modified files)
         '''))
     parser.add_argument('-a', '--all', dest='all', action='store_true',
                         help='Execute all checks', default=False)
@@ -126,8 +144,9 @@ def main():
                         help='Compile docs in html format', default=False)
     parser.add_argument('-p', '--pep8', dest='pep8Files', const='',
                         nargs='?', type=str, default=None,
-                        help='Run PEP8 check; on committed/modified files (default)' +
-                        ' or on the specified files')
+                        help='Run PEP8 check; on every BLonD file (default),' +
+                        ' on the specified files' +
+                        ' or on committed/ modified files with -p git')
     parser.add_argument('-u', '--unitTest', dest='unitTests',
                         const='', nargs='?', type=str, default=None,
                         help='Run all unit-tests (default) or only ' +
