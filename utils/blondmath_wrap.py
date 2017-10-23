@@ -12,7 +12,7 @@ def __getLen(x):
     return ct.c_int(len(x))
 
 
-def convolution(signal, kernel, result=None):
+def convolve(signal, kernel, result=None):
     if result is None:
         result = np.empty(len(signal) + len(kernel) - 1, dtype=float)
     __lib.convolution(__getPointer(signal), __getLen(signal),
