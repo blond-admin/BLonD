@@ -1,0 +1,147 @@
+import ctypes as ct
+import numpy as np
+
+__lib = ct.cdll.LoadLibrary('./libblondmath.so')
+
+
+def __getPointer(x):
+    return x.ctypes.data_as(ct.c_void_p)
+
+
+def __getLen(x):
+    return ct.c_int(len(x))
+
+
+def convolution(signal, kernel, result=None):
+    if result is None:
+        result = np.empty(len(signal) + len(kernel) - 1, dtype=float)
+    __lib.convolution(__getPointer(signal), __getLen(signal),
+                      __getPointer(kernel), __getLen(kernel),
+                      __getPointer(result))
+    return result
+
+
+def mean(x):
+    __lib.mean.restype = ct.c_double
+    return __lib.mean(__getPointer(x), __getLen(x))
+
+
+def std(x):
+    __lib.stdev.restype = ct.c_double
+    return __lib.stdev(__getPointer(x), __getLen(x))
+
+
+def sin(x, result=None):
+    if isinstance(x, np.ndarray):
+        if result is None:
+            result = np.empty(len(x), dtype=float)
+        __lib.fast_sinv(__getPointer(x), __getLen(x), __getPointer(result))
+        return result
+    else:
+        __lib.fast_sin.restype = ct.c_double
+        return __lib.fast_sin(ct.c_double(x))
+
+
+def cos(x, result=None):
+    if isinstance(x, np.ndarray):
+        if result is None:
+            result = np.empty(len(x), dtype=float)
+        __lib.fast_cosv(__getPointer(x), __getLen(x), __getPointer(result))
+        return result
+    elif isinstance(x, float):
+        __lib.fast_cos.restype = ct.c_double
+        return __lib.fast_cos(x)
+
+
+def exp(x, result=None):
+    if isinstance(x, np.ndarray):
+        if result is None:
+            result = np.empty(len(x), dtype=float)
+        __lib.fast_expv(__getPointer(x), __getLen(x), __getPointer(result))
+        return result
+    elif isinstance(x, float):
+        __lib.fast_exp.restype = ct.c_double
+        return __lib.fast_exp(x)
+
+
+def interp(x, xp, yp, left=None, right=None, result=None):
+    if not left:
+        left = yp[0]
+    if not right:
+        right = yp[-1]
+    if result is None:
+        result = np.empty(len(x), dtype=float)
+    __lib.interp(__getPointer(x), __getLen(x),
+                 __getPointer(xp), __getLen(xp),
+                 __getPointer(yp),
+                 ct.c_double(left),
+                 ct.c_double(right),
+                 __getPointer(result))
+    return result
+
+
+def cumtrapz(y, x=None, dx=1.0, initial=None, result=None):
+    if x is not None:
+        raise RuntimeError('[cumtrapz] x attribute is not yet supported')
+    if initial:
+        if result is None:
+            result = np.empty(len(y), dtype=float)
+        __lib.cumtrapz_w_initial(__getPointer(y),
+                                 ct.c_double(dx), ct.c_double(initial),
+                                 __getLen(y), __getPointer(result))
+    else:
+        if result is None:
+            result = np.empty(len(y)-1, dtype=float)
+        __lib.cumtrapz_wo_initial(__getPointer(y), ct.c_double(dx),
+                                  __getLen(y), __getPointer(result))
+    return result
+
+
+def trapz(y, x=None, dx=1.0):
+    __lib.trapz.restype = ct.c_double
+    if x is None:
+        return __lib.trapz_const_delta(__getPointer(y), ct.c_double(dx),
+                                       __getLen(y))
+    else:
+        return __lib.trapz_var_delta(__getPointer(y), __getPointer(x),
+                                     __getLen(y))
+
+
+def min_idx(x):
+    __lib.min_idx.restype = ct.c_int
+    return __lib.min_idx(__getPointer(x), __getLen(x))
+
+
+def max_idx(x):
+    __lib.max_idx.restype = ct.c_int
+    return __lib.max_idx(__getPointer(x), __getLen(x))
+
+
+def linspace(start, stop, num=50, retstep=False, result=None):
+    if result is None:
+        result = np.empty(num, dtype=float)
+    __lib.linspace(ct.c_double(start), ct.c_double(stop),
+                   ct.c_int(num), __getPointer(result))
+    if retstep:
+        return result, 1. * (stop-start) / (num-1)
+    else:
+        return result
+
+
+def arange(start, stop, step, dtype=float, result=None):
+    size = np.ceil((stop-start)/step)
+    if result is None:
+        result = np.empty(size, dtype=dtype)
+    if dtype == float:
+        __lib.arange_double(ct.c_double(start), ct.c_double(stop),
+                            ct.c_double(step), __getPointer(result))
+    elif dtype == int:
+        __lib.arange_int(ct.c_int(start), ct.c_int(stop),
+                         ct.c_int(step), __getPointer(result))
+
+    return result
+
+
+def sum(x):
+    __lib.sum.restype = ct.c_double
+    return __lib.sum(__getPointer(x), __getLen(x))
