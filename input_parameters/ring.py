@@ -152,12 +152,11 @@ class Ring(object):
 
     """
 
-    def __init__(self, n_turns, ring_length, alpha, synchronous_data, Particle,
-                 synchronous_data_type='momentum', bending_radius=None,
-                 n_stations=1, RampOptions=RampOptions()):
+    def __init__(self, ring_length, alpha, synchronous_data, Particle,
+                 n_turns=None, synchronous_data_type='momentum',
+                 bending_radius=None, n_stations=1, RampOptions=RampOptions()):
 
         # Conversion of initial inputs to expected types
-        self.n_turns = int(n_turns)
         self.n_stations = int(n_stations)
 
         # Ring length and checks
@@ -198,6 +197,11 @@ class Ring(object):
         # array
         else:
             synchronous_data_time = None
+            if n_turns:
+                self.n_turns = int(n_turns)
+            else:
+                raise RuntimeError("ERROR in Ring: need to define n_turns " +
+                                   "unless using the preprocess function!")
 
             synchronous_data = np.array(synchronous_data, ndmin=2,
                                         dtype=float)
@@ -228,6 +232,7 @@ class Ring(object):
             self.cycle_time, self.momentum = RampOptions.preprocess(
                 self.Particle.mass, self.ring_circumference,
                 synchronous_data_time, self.momentum)
+            self.n_turns = len(self.cycle_time)
 
         # Derived from momentum
         self.beta = np.sqrt(1/(1 + (self.Particle.mass/self.momentum)**2))

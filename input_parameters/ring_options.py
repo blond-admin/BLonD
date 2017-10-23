@@ -336,4 +336,4 @@ class RampOptions(object):
             plt.savefig(fign)
             plt.clf()
 
-        return (time_interp, momentum_interp)
+        return time_interp, momentum_interp
