@@ -13,17 +13,13 @@ main file (CERN PS Booster context).
 
 from __future__ import division
 import numpy as np
-from input_parameters.preprocess import *
-from input_parameters.ring import *
-from beam.beam import *
-from input_parameters.rf_parameters import *
-from beam.profile import *
-from monitors.monitors import *
-from trackers.tracker import *
-
+from input_parameters.ring import Ring
+from input_parameters.ring_options import RampOptions
+from input_parameters.rf_parameters import RFStation
+from input_parameters.rf_parameters_options import PreprocessRFParams
+from beam.beam import Proton
 
 # Beam parameters
-particle_type = 'proton'
 n_particles = 3e12
 
 
@@ -48,13 +44,14 @@ final_index = np.max(np.where(time_array<=final_time)[0])
 time_cut = time_array[initial_index:(final_index+1)]
 momentum_cut = momentum[initial_index:(final_index+1)]
 
-momentum_interp = preprocess_ramp(particle_type, C, time_cut, momentum_cut,
-                                  interpolation='linear',
+particle_type = Proton()
+momentum_interp_object = RampOptions(interpolation='linear', plot=True,
                                   figdir='../output_files/EX6_fig')
+
 
 n_turns = len(momentum_interp[0])-1
 
-general_params = Ring(n_turns, C, alpha, momentum_interp, 
+general_params = Ring(n_turns, C, alpha, (time_cut, momentum_cut), 
                                    particle_type)
 
 # Cavities parameters
@@ -74,7 +71,7 @@ voltage_C04 = voltage_program_C04[:, 1]*1e3  # [V]
 time_C16 = voltage_program_C16[:, 0]*1e-3  # [s]
 voltage_C16 = voltage_program_C16[:, 1]*1e3  # [V]
 
-data_interp = preprocess_rf_params(general_params,
+data_interp = PreprocessRFParams(general_params,
                                    [time_C02, time_C04, time_C16],
                                    [voltage_C02, voltage_C04, voltage_C16],
                                    interpolation='linear', smoothing=0,
