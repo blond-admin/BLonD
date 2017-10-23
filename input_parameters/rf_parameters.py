@@ -240,6 +240,7 @@ class RFStation(object):
         if any(it < 0 for it in self.harmonic):
             self.empty = True
             self.harmonic = [ abs(it) for it in self.harmonic ]
+            harmonic = [ abs(it) for it in harmonic ]
         
         self.voltage = voltage
         self.phi_rf_d = phi_rf_d
