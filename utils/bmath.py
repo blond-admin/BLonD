@@ -5,34 +5,35 @@ BLonD math functions
 @date 20.10.2017
 '''
 import numpy as np
-from functools import wraps
-import blondmath_wrap.py
+# from functools import wraps
+from utils import blondmath_wrap as cpp
 
 #### dictionary storing the CPU versions of the desired functions ####
 _CPU_func_dict = {
-    'sin': np.sin,
-    'cos': np.cos,
-    'exp': np.exp,
-    'mean': np.mean,
-    'std': cp.std,
-    'min_idx': np.min,
-    'max_idx': np.max,
+    'sin': cpp.sin,
+    'cos': cpp.cos,
+    'exp': cpp.exp,
+    'mean': cpp.mean,
+    'std': cpp.std,
+    'interp': cpp.interp,
+    'cumtrapz': cpp.cumtrapz,
+    'trapz': cpp.trapz,
+    'linspace': cpp.linspace,
+    'argmin': cpp.argmin,
+    'argmax': cpp.argmax,
+    'convolve': cpp.convolve,
+    'arange': cpp.arange,
+    'sum': cpp.sum,
     'diff': np.diff,
     'floor': np.floor,
     'argsort': np.argsort,
     'take': np.take,
-    'convolve': np.convolve,
     'seq': lambda stop: np.arange(stop, dtype=np.int32),
-    'arange': wraps(np.arange)(
-        lambda start, stop, step, nslices=None, dtype=np.float64:
-            np.arange(start, stop, step, dtype)
-    ),
     'zeros': np.zeros,
     'empty': np.empty,
     'empty_like': np.empty_like,
     'ones': np.ones,
     'device': 'CPU',
-    'sum': np.sum,
     'cumsum': np.cumsum,
     'all': np.all,
     'any': np.any,

@@ -1,7 +1,9 @@
 import ctypes as ct
 import numpy as np
+import os
 
-__lib = ct.cdll.LoadLibrary('./libblondmath.so')
+__lib = ct.cdll.LoadLibrary(os.path.dirname(
+    os.path.abspath(__file__)) + '/../cpp_routines/libblondmath.so')
 
 
 def __getPointer(x):
@@ -12,7 +14,9 @@ def __getLen(x):
     return ct.c_int(len(x))
 
 
-def convolve(signal, kernel, result=None):
+def convolve(signal, kernel, mode='full', result=None):
+    if mode != 'full':
+        raise RuntimeError('[convolve] Only full mode is supported')
     if result is None:
         result = np.empty(len(signal) + len(kernel) - 1, dtype=float)
     __lib.convolution(__getPointer(signal), __getLen(signal),
@@ -37,7 +41,7 @@ def sin(x, result=None):
             result = np.empty(len(x), dtype=float)
         __lib.fast_sinv(__getPointer(x), __getLen(x), __getPointer(result))
         return result
-    else:
+    elif isinstance(x, float) or isinstance(x, int):
         __lib.fast_sin.restype = ct.c_double
         return __lib.fast_sin(ct.c_double(x))
 
@@ -48,9 +52,9 @@ def cos(x, result=None):
             result = np.empty(len(x), dtype=float)
         __lib.fast_cosv(__getPointer(x), __getLen(x), __getPointer(result))
         return result
-    elif isinstance(x, float):
+    elif isinstance(x, float) or isinstance(x, int):
         __lib.fast_cos.restype = ct.c_double
-        return __lib.fast_cos(x)
+        return __lib.fast_cos(ct.c_double(x))
 
 
 def exp(x, result=None):
@@ -59,9 +63,9 @@ def exp(x, result=None):
             result = np.empty(len(x), dtype=float)
         __lib.fast_expv(__getPointer(x), __getLen(x), __getPointer(result))
         return result
-    elif isinstance(x, float):
+    elif isinstance(x, float) or isinstance(x, int):
         __lib.fast_exp.restype = ct.c_double
-        return __lib.fast_exp(x)
+        return __lib.fast_exp(ct.c_double(x))
 
 
 def interp(x, xp, yp, left=None, right=None, result=None):
@@ -98,21 +102,22 @@ def cumtrapz(y, x=None, dx=1.0, initial=None, result=None):
 
 
 def trapz(y, x=None, dx=1.0):
-    __lib.trapz.restype = ct.c_double
     if x is None:
+        __lib.trapz_const_delta.restype = ct.c_double
         return __lib.trapz_const_delta(__getPointer(y), ct.c_double(dx),
                                        __getLen(y))
     else:
+        __lib.trapz_var_delta.restype = ct.c_double
         return __lib.trapz_var_delta(__getPointer(y), __getPointer(x),
                                      __getLen(y))
 
 
-def min_idx(x):
+def argmin(x):
     __lib.min_idx.restype = ct.c_int
     return __lib.min_idx(__getPointer(x), __getLen(x))
 
 
-def max_idx(x):
+def argmax(x):
     __lib.max_idx.restype = ct.c_int
     return __lib.max_idx(__getPointer(x), __getLen(x))
 
@@ -129,7 +134,7 @@ def linspace(start, stop, num=50, retstep=False, result=None):
 
 
 def arange(start, stop, step, dtype=float, result=None):
-    size = np.ceil((stop-start)/step)
+    size = int(np.ceil((stop-start)/step))
     if result is None:
         result = np.empty(size, dtype=dtype)
     if dtype == float:

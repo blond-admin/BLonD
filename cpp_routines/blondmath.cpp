@@ -243,16 +243,16 @@ extern "C" {
     {
         const int size = (int) std::ceil((stop - start) / step);
         #pragma omp parallel for
-        for (int i = 0; i < size; ++i) out[i] = i * step;
+        for (int i = 0; i < size; ++i) out[i] = start + i * step;
     }
 
-    void arange_int(const double start, const double stop,
-                    const double step,
-                    double * __restrict__ out)
+    void arange_int(const int start, const int stop,
+                    const int step,
+                    int * __restrict__ out)
     {
         const int size = (int) std::ceil((stop - start) / step);
         #pragma omp parallel for
-        for (int i = 0; i < size; ++i) out[i] = i * step;
+        for (int i = 0; i < size; ++i) out[i] = start + i * step;
     }
 
     double sum(const double * __restrict__ data, const int n)
