@@ -229,10 +229,18 @@ class Ring(object):
         # If synchronous_data_time is defined, the RampOptions object
         # interpolates the momentum program for every machine turn
         if synchronous_data_time is not None:
+            if synchronous_data.shape[0] >1:
+                raise RuntimeError("ERROR in Ring: preprocess works just " +
+                                   "for single  section, to be extended.")
             self.cycle_time, self.momentum = RampOptions.preprocess(
                 self.Particle.mass, self.ring_circumference,
-                synchronous_data_time, self.momentum)
-            self.n_turns = len(self.cycle_time)
+                synchronous_data_time[0], self.momentum[0])
+            
+            self.n_turns = len(self.cycle_time)-1
+#             self.cycle_time = np.array(self.cycle_time, ndmin=2,
+#                                              dtype=float)
+            self.momentum = np.array(self.momentum, ndmin=2,
+                                             dtype=float)
 
         # Derived from momentum
         self.beta = np.sqrt(1/(1 + (self.Particle.mass/self.momentum)**2))
@@ -242,7 +250,10 @@ class Ring(object):
             self.Particle.mass
         self.delta_E = np.diff(self.energy, axis=1)
         self.t_rev = np.dot(self.ring_length, 1/(self.beta*c))
-        self.cycle_time = np.cumsum(self.t_rev)  # Always starts with zero
+        if synchronous_data_time is not None and RampOptions.t_start != 0:
+            pass
+        else:
+            self.cycle_time = np.cumsum(self.t_rev)  # Always starts with zero
         self.f_rev = 1/self.t_rev
         self.omega_rev = 2*np.pi*self.f_rev
 
