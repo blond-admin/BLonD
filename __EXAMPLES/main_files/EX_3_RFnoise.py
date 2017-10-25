@@ -51,7 +51,7 @@ print("Setting up the simulation...")
 print("")
 
 # Define general parameters
-general_params = Ring(N_t, C, alpha, p_s, Proton())
+general_params = Ring(C, alpha, p_s, Proton(), N_t)
 
 # Define RF station parameters and corresponding tracker
 rf_params = RFStation(general_params, 1, [h], [V], [0])

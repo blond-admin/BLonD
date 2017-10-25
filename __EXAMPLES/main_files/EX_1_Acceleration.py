@@ -56,7 +56,7 @@ print("")
 
 
 # Define general parameters
-ring = Ring(N_t, C, alpha, np.linspace(p_i, p_f, 2001), Proton())
+ring = Ring(C, alpha, np.linspace(p_i, p_f, 2001), Proton(), N_t)
 
 # Define beam and distribution
 beam = Beam(ring, N_p, N_b)

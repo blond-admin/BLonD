@@ -52,9 +52,9 @@ print("")
 
 
 # Define general parameters containing data for both RF stations
-general_params = Ring(N_t, [0.3*C, 0.7*C], [[alpha], [alpha]], 
+general_params = Ring([0.3*C, 0.7*C], [[alpha], [alpha]], 
                                    [p_s*np.ones(N_t+1), p_s*np.ones(N_t+1)], 
-                                   Proton(), n_stations = 2)
+                                   Proton(), N_t, n_stations = 2)
 
 
 # Define RF station parameters and corresponding tracker

@@ -61,12 +61,12 @@ phi_offset = 0.0
 
 # DEFINE RING------------------------------------------------------------------
 
-general_params = Ring(n_turns, C, momentum_compaction,
-                                   sync_momentum, Proton())
-general_params_freq = Ring(n_turns, C, momentum_compaction,
-                                        sync_momentum, Proton())
-general_params_res = Ring(n_turns, C, momentum_compaction,
-                                       sync_momentum, Proton())
+general_params = Ring(C, momentum_compaction,
+                                   sync_momentum, Proton(), n_turns)
+general_params_freq = Ring(C, momentum_compaction,
+                                        sync_momentum, Proton(), n_turns)
+general_params_res = Ring(C, momentum_compaction,
+                                       sync_momentum, Proton(), n_turns)
 
 
 RF_sct_par = RFStation(general_params, n_rf_systems, [harmonic_number], 
