@@ -73,7 +73,7 @@ def synchrotron_frequency_distribution(Beam, FullRingAndRF, main_harmonic_option
         induced_voltage_object = copy.deepcopy(TotalInducedVoltage)
         
         induced_voltage = induced_voltage_object.induced_voltage
-        time_induced_voltage = TotalInducedVoltage.profiles.bin_centers
+        time_induced_voltage = TotalInducedVoltage.profile.bin_centers
         
         # Computing induced potential
         induced_potential = - eom_factor_potential * np.insert(cumtrapz(induced_voltage, dx=time_induced_voltage[1] - time_induced_voltage[0]),0,0)
