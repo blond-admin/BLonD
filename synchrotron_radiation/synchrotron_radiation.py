@@ -60,7 +60,8 @@ class SynchrotronRadiation(object):
         # Displace the beam in phase to account for the energy loss due to 
         # synchrotron radiation (temporary until bunch generation is updated)
         if self.rf_params.section_index == 0:
-            self.beam.dt -= (np.arcsin(self.U0/self.rf_params.voltage[0][0]) *
+            self.beam_phase_to_compensate_SR = np.arcsin(self.U0/self.rf_params.voltage[0][0])
+            self.beam.dt -= (self.beam_phase_to_compensate_SR *
                              self.rf_params.t_rf[0]/ (2.0*np.pi))
         
         # Select the right method for the tracker according to the selected
