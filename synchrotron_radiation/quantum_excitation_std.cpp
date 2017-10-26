@@ -19,6 +19,11 @@ Project website: http://blond.web.cern.ch/
 #include <random>
 #include "synchrotron_radiation.h"
 
+// Random number generator for the quantum excitation term
+std::random_device rd;
+std::mt19937_64 gen(rd());
+std::normal_distribution<> d(0.0,1.0);
+
 // This function calculates and applies synchrotron radiation damping and
 // quantum excitation terms
 extern "C" void synchrotron_radiation_full(double * __restrict__ beam_dE, const double U0,
@@ -29,25 +34,14 @@ extern "C" void synchrotron_radiation_full(double * __restrict__ beam_dE, const 
     
     // Quantum excitation constant
     const double const_quantum_exc = 2.0 * sigma_dE / sqrt(tau_z) * energy;
-
-    // Random number generator for the quantum excitation term
-    std::random_device rd;
-    std::mt19937_64 gen(rd());
-    std::normal_distribution<> d(0.0,1.0);
+    const double const_synch_rad = 2.0 / tau_z;
     
     for (int j=0; j<n_kicks; j++){
-        // Compute synchrotron radiation damping term
-        synchrotron_radiation(beam_dE, U0, n_macroparticles, tau_z, 1);
-    
-        // Re-calculate the random (Gaussian) number array
-        for (int i = 0; i < n_macroparticles; i++){
-            random_array[i] = d(gen);
-        }
-        
-        // Applies the quantum excitation term
+
         #pragma omp parallel for
         for (int i = 0; i < n_macroparticles; i++){
-            beam_dE[i] += const_quantum_exc * random_array[i];
+        	// Applying quantum excitation term, SR damping term due to energy spread, and average energy change due to SR
+            beam_dE[i] += (const_quantum_exc * d(gen) - const_synch_rad * beam_dE[i] - U0);
         }
     }
 }
