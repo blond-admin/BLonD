@@ -112,7 +112,7 @@ class TotalInducedVoltage(object):
                            self.beam.dE.ctypes.data_as(c_void_p),
                            self.induced_voltage.ctypes.data_as(c_void_p), 
                            self.profile.bin_centers.ctypes.data_as(c_void_p),
-                           c_double(self.beam.charge),
+                           c_double(self.beam.Particle.charge),
                            c_uint(self.profile.n_slices),
                            c_uint(self.beam.n_macroparticles),
                            c_double(0.))
@@ -124,7 +124,7 @@ class TotalInducedVoltage(object):
                            ghostBeam.dE.ctypes.data_as(c_void_p), 
                            self.induced_voltage.ctypes.data_as(c_void_p), 
                            self.profile.bin_centers.ctypes.data_as(c_void_p),
-                           c_double(self.beam.charge),
+                           c_double(self.beam.Particle.charge),
                            c_uint(self.profile.n_slices),
                            c_uint(ghostBeam.n_macroparticles),
                            c_double(0.))
@@ -291,7 +291,7 @@ class _InducedVoltage(object):
         
         self.profile.beam_spectrum_generation(self.n_fft)
         
-        induced_voltage = - (self.beam.charge * e * self.beam.ratio *
+        induced_voltage = - (self.beam.Particle.charge * e * self.beam.ratio *
             irfft(self.total_impedance * self.profile.beam_spectrum))
         
         self.induced_voltage = induced_voltage[:self.n_induced_voltage]
@@ -518,15 +518,15 @@ class InducedVoltageFreq(_InducedVoltage):
         # than the input value
         self.n_fft = next_regular(self.n_induced_voltage)
                 
-        self.slices.beam_spectrum_freq_generation(self.n_fft)
+        self.profile.beam_spectrum_freq_generation(self.n_fft)
         
         # Frequency array of the impedance in Hz
-        self.freq = self.slices.beam_spectrum_freq
+        self.freq = self.profile.beam_spectrum_freq
             
         # Length of the front wake in frequency domain calculations 
         if self.front_wake_length:            
             self.front_wake_buffer = int(np.ceil(
-                    np.max(self.front_wake_length) / self.slices.bin_size))
+                    np.max(self.front_wake_length) / self.profile.bin_size))
         
         # Processing the impedances
         self.sum_impedances(self.freq)
@@ -544,7 +544,7 @@ class InducedVoltageFreq(_InducedVoltage):
             self.total_impedance += self.impedance_source_list[i].impedance
 
         # Factor relating Fourier transform and DFT            
-        self.total_impedance /= self.slices.bin_size
+        self.total_impedance /= self.profile.bin_size
 
 
 
@@ -596,8 +596,8 @@ class InductiveImpedance(_InducedVoltage):
         
         induced_voltage = - (self.beam.charge * e / (2 * np.pi) *
                 self.beam.ratio * self.Z_over_n[index] *
-                self.RFParams.t_rev[index] / self.slices.bin_size *
-                self.slices.beam_profile_derivative(self.deriv_mode)[1])
+                self.RFParams.t_rev[index] / self.profile.bin_size *
+                self.profile.beam_profile_derivative(self.deriv_mode)[1])
 
         self.induced_voltage = induced_voltage[:self.n_induced_voltage]
 
@@ -632,7 +632,7 @@ class InducedVoltageResonator(_InducedVoltage):
     ----------
     beam : object
         Copy of the Beam object in order to access the beam info.
-    slices : object
+    profile : object
         Copy of the Profile object in order to access the line density.
     tArray : float array
         array of time values where the induced voltage is calculated. 
@@ -660,13 +660,13 @@ class InducedVoltageResonator(_InducedVoltage):
         # Copy of the Beam object in order to access the beam info.
         self.beam = Beam
         # Copy of the Profile object in order to access the line density.
-        self.slices = Profile
+        self.profile = Profile
         
         # Optional array of time values where the induced voltage is calculated.
         # If left out, the induced voltage is calculated at the times of the
         # line density.
         if timeArray is None:
-            self.tArray =  self.slices.bin_centers
+            self.tArray =  self.profile.bin_centers
             self.atLineDensityTimes = True
         else:
             self.tArray = timeArray
@@ -694,10 +694,10 @@ class InducedVoltageResonator(_InducedVoltage):
         self._tmp_matrix = np.ones((self.n_resonators, self.n_time))
         
         # Slopes of the line segments. For internal use.
-        self._kappa1 = np.zeros(int(self.slices.n_slices-1))
+        self._kappa1 = np.zeros(int(self.profile.n_slices-1))
 
         # Matrix to hold n_times many tArray[t]-bin_centers arrays.        
-        self._deltaT = np.zeros((self.n_time,self.slices.n_slices))
+        self._deltaT = np.zeros((self.n_time,self.profile.n_slices))
         
         # Call the __init__ method of the parent class [calls process()]
         _InducedVoltage.__init__(self, Beam, Profile, wake_length=None,
