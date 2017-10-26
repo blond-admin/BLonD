@@ -51,8 +51,7 @@ cut_options = CutOptions(cut_left= 0, cut_right=2*np.pi, n_slices=200,
 slices_ring = Profile(my_beam, cut_options)
 
 #Phase loop
-configuration = {'machine': 'PSB', 'PL_gain': 1./25.e-6*np.ones(n_turns+1),
-                 'RL_gain': [0,0], 'PL_period': 10.e-6, 'RL_period': 7}
+configuration = {'machine': 'PSB', 'PL_gain': 1./25.e-6, 'period': 10.e-6}
 phase_loop = BeamFeedback(general_params, rf_params, slices_ring, configuration)
 
 
@@ -77,22 +76,16 @@ slices_ring.track()
 
 #Monitor
 bunch_monitor = BunchMonitor(general_params, rf_params, my_beam,
-                             '../output_files/EX8_output_data',
+                             '../output_files/EX_8_output_data',
                              Profile=slices_ring, PhaseLoop=phase_loop)
 
 
 #Plots
-format_options = {'dirname': '../output_files/EX8_fig'}
+format_options = {'dirname': '../output_files/EX_8_fig'}
 plots = Plot(general_params, rf_params, my_beam, 50, n_turns, 0.0, 2*np.pi,
              -1e6, 1e6, xunit='rad', separatrix_plot=True, Profile=slices_ring,
              format_options=format_options,
-             h5file='../output_files/EX8_output_data', PhaseLoop=phase_loop)
-
-# plots = Plot(general_params, rf_params, my_beam, 50, n_turns, 0.0, rf_params.t_RF[0],
-#              -1e6, 1e6, xunit='s', separatrix_plot=True, Slices=slices_ring,
-#              format_options=format_options,
-#              h5file='../output_files/EX8_output_data', PhaseLoop=phase_loop)
-
+             h5file='../output_files/EX_8_output_data', PhaseLoop=phase_loop)
 
 # Accelerator map
 map_ = [full_ring] + [slices_ring] + [bunch_monitor] + [plots] 

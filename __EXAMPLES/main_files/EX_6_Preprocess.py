@@ -33,14 +33,14 @@ C = 2*np.pi*radius  # [m]
 initial_time = 0.277 # [s]
 final_time = 0.700 # [s]
 
-momentum_program = np.loadtxt('../input_files/EX6_Source_TOF_P.csv',
+momentum_program = np.loadtxt('../input_files/EX_6_Source_TOF_P.csv',
                               delimiter=',')
 time_array = momentum_program[:, 0]*1e-3  # [s]
 momentum = momentum_program[:, 1]*1e9  # [eV/c]
 
 particle_type = Proton()
 ramp_opt = RampOptions(interpolation='linear', plot=True,
-                                  figdir='../output_files/EX6_fig',
+                                  figdir='../output_files/EX_6_fig',
                                   t_start=initial_time, t_end=final_time)
 
 general_params = Ring(C, alpha, (time_array, momentum), 
@@ -55,9 +55,9 @@ phi_rf_1 = 0   # [rad]
 phi_rf_2 = np.pi # [rad]
 phi_rf_3 = np.pi/6 # [rad]
 
-voltage_program_C02 = np.loadtxt('../input_files/EX6_voltage_program_LHC25_c02.txt')
-voltage_program_C04 = np.loadtxt('../input_files/EX6_voltage_program_LHC25_c04.txt')
-voltage_program_C16 = np.loadtxt('../input_files/EX6_voltage_program_LHC25_c16.txt')
+voltage_program_C02 = np.loadtxt('../input_files/EX_6_voltage_program_LHC25_c02.txt')
+voltage_program_C04 = np.loadtxt('../input_files/EX_6_voltage_program_LHC25_c04.txt')
+voltage_program_C16 = np.loadtxt('../input_files/EX_6_voltage_program_LHC25_c16.txt')
 time_C02 = voltage_program_C02[:, 0]*1e-3  # [s]
 voltage_C02 = voltage_program_C02[:, 1]*1e3  # [V]
 time_C04 = voltage_program_C04[:, 0]*1e-3  # [s]
@@ -66,7 +66,7 @@ time_C16 = voltage_program_C16[:, 0]*1e-3  # [s]
 voltage_C16 = voltage_program_C16[:, 1]*1e3  # [V]
 
 preprocess_rf = PreprocessRFParams(interpolation = 'linear', smoothing = 0, 
-                                   plot = True, figdir='../output_files/EX6_fig', 
+                                   plot = True, figdir='../output_files/EX_6_fig', 
                  figname=['voltage_C02 [V]', 'voltage_C04 [V]', 'voltage_C16 [V]'], 
                  sampling = 1, harmonic = False, voltage = True, 
                  phi_rf_d = False, omega_rf = False)

@@ -76,12 +76,12 @@ profile = Profile(beam, CutOptions(n_slices=100),
                      
 # Define what to save in file
 bunchmonitor = BunchMonitor(ring, rf, beam,
-                          '../output_files/EX1_output_data', Profile=profile)
+                          '../output_files/EX_1_output_data', Profile=profile)
 
-format_options = {'dirname': '../output_files/EX1_fig'}
+format_options = {'dirname': '../output_files/EX_1_fig'}
 plots = Plot(ring, rf, beam, dt_plt, N_t, 0, 0.0001763*h,
              -400e6, 400e6, xunit='rad', separatrix_plot=True, 
-             Profile=profile, h5file='../output_files/EX1_output_data', 
+             Profile=profile, h5file='../output_files/EX_1_output_data', 
              format_options=format_options)
 
 # Accelerator map
