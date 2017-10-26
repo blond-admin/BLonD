@@ -126,7 +126,7 @@ class FlatSpectrum(object):
     
     def generate(self):
        
-        for i in range(0, np.ceil(self.n_turns/self.corr)):
+        for i in range(0, np.int(np.ceil(self.n_turns/self.corr))):
         
             # Scale amplitude to keep area (phase noise amplitude) constant
             k = i*self.corr       # current time step
