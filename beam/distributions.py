@@ -583,13 +583,13 @@ def matched_from_distribution_function(beam, full_ring_and_RF,
         # Induced voltage contribution
         if TotalInducedVoltage is not None:                      
             # Inputing new line density
-            profile.n_slices = n_points_grid
+            profile.cut_options.cut_left = time_potential_low_res[0] - 0.5*profile.bin_size
+            profile.cut_options.cut_right = time_potential_low_res[-1] + 0.5*profile.bin_size
+            profile.cut_options.n_slices = n_points_grid
+            profile.cut_options.cuts_unit = 's'
+            profile.cut_options.set_cuts()
+            profile.set_slices_parameters()
             profile.n_macroparticles = line_density_
-            profile.bin_size = time_resolution_low
-            profile.cut_left = time_potential_low_res[0] - 0.5*profile.bin_size
-            profile.cut_right = time_potential_low_res[-1] + 0.5*profile.bin_size
-            profile.cuts_unit = 's'
-            profile.set_cuts()
             
             # Re-calculating the sources of wakes/impedances according to this
             # slicing

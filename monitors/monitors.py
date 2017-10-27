@@ -124,12 +124,12 @@ class BunchMonitor(object):
             h5group.create_dataset("PL_omegaRF", shape = dims, 
                                    dtype = np.float64,
                                    compression = "gzip", compression_opts = 9)
-            h5group["PL_omegaRF"][0] = self.rf_params.omega_RF[0,0]
+            h5group["PL_omegaRF"][0] = self.rf_params.omega_rf[0,0]
 
             h5group.create_dataset("PL_phiRF", shape = dims, 
                                    dtype = 'f',
                                    compression = "gzip", compression_opts = 9)
-            h5group["PL_phiRF"][0] = self.rf_params.phi_RF[0,0]
+            h5group["PL_phiRF"][0] = self.rf_params.phi_rf[0,0]
 
             h5group.create_dataset("PL_bunch_phase", shape = dims, 
                                    dtype = 'f',
@@ -144,12 +144,12 @@ class BunchMonitor(object):
             h5group.create_dataset("PL_omegaRF_corr", shape = dims, 
                                    dtype = 'f',
                                    compression = "gzip", compression_opts = 9)
-            h5group["PL_omegaRF_corr"][0] = self.PL.domega_RF
+            h5group["PL_omegaRF_corr"][0] = self.PL.domega_rf
 
             h5group.create_dataset("SL_dphiRF", shape = dims, 
                                    dtype = 'f',
                                    compression = "gzip", compression_opts = 9)
-            h5group["SL_dphiRF"][0] = self.rf_params.dphi_RF[0]
+            h5group["SL_dphiRF"][0] = self.rf_params.dphi_rf[0]
 
             h5group.create_dataset("RL_drho", shape = dims, 
                                    dtype = 'f',
@@ -233,12 +233,12 @@ class BunchMonitor(object):
              
         if self.PL:
              
-            self.b_PL_omegaRF[i] = self.rf_params.omega_RF[0,self.i_turn]
-            self.b_PL_phiRF[i] = self.rf_params.phi_RF[0,self.i_turn]
+            self.b_PL_omegaRF[i] = self.rf_params.omega_rf[0,self.i_turn]
+            self.b_PL_phiRF[i] = self.rf_params.phi_rf[0,self.i_turn]
             self.b_PL_bunch_phase[i] = self.PL.phi_beam
             self.b_PL_phase_corr[i] = self.PL.dphi
-            self.b_PL_omegaRF_corr[i] = self.PL.domega_RF
-            self.b_SL_dphiRF[i] = self.rf_params.dphi_RF[0]
+            self.b_PL_omegaRF_corr[i] = self.PL.domega_rf
+            self.b_SL_dphiRF[i] = self.rf_params.dphi_rf[0]
             self.b_RL_drho[i] = self.PL.drho
                          
         if self.LHCNoiseFB:

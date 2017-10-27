@@ -27,6 +27,7 @@ import impedances.impedance_sources as impSClass
 import impedances.induced_voltage_analytical as indVoltAn
 import impedances.music as musClass
 from scipy.constants import m_p, e, c
+import os
 
 
 # RING PARAMETERS
@@ -51,11 +52,11 @@ Q = 1
 mode = impSClass.Resonators(R_S, frequency_R, Q)
 
 # DEFINE MAIN CLASSES
-general_params = genparClass.Ring(n_turns, C, alpha, momentum,
-                                               'proton')
+general_params = genparClass.Ring(C, alpha, momentum,
+                                               beamClass.Proton(), n_turns)
 
 rf_params = rfparClass.RFStation(general_params, n_rf_systems,
-                                           h_1, V_1, phi_1)
+                                           [h_1], [V_1], [phi_1])
 
 # DEFINE FIRST BEAM TO BE USED WITH SLICES (t AND f DOMAINS), AND VOLTAGE CALCULATION
 n_macroparticles = 10000000
@@ -65,7 +66,8 @@ sigma_gaussian = 3e-8
 my_beam.dt = sigma_gaussian*np.random.randn(n_macroparticles) + general_params.t_rev[0]/2
 my_beam.dE = sigma_gaussian*np.random.randn(n_macroparticles)
 n_slices = 10000
-slices_ring = slicesClass.Profile(rf_params, my_beam, n_slices, cut_left=0, cut_right=general_params.t_rev[0])
+cut_options = slicesClass.CutOptions(cut_left= 0, cut_right=general_params.t_rev[0], n_slices=n_slices)
+slices_ring = slicesClass.Profile(my_beam, cut_options)
 slices_ring.track()
 ind_volt = impClass.InducedVoltageTime(my_beam, slices_ring, [mode])
 total_induced_voltage = impClass.TotalInducedVoltage(my_beam, slices_ring, [ind_volt])
@@ -96,8 +98,16 @@ if n_macroparticles2 == n_macroparticles:
 else:
     plt.plot(my_beam2.dt*1e9, music.induced_voltage, label='MuSiC')
 plt.plot(slices_ring.bin_centers*1e9, total_induced_voltage.induced_voltage, label='convolution')
+
 plt.plot(slices_ring.bin_centers*1e9, total_induced_voltage2.induced_voltage, label='FFT')
 plt.plot(time_array*1e9, induced_voltage_analytical, label='analytical')
 plt.legend(loc='upper left')
-plt.show()    
-  
+
+fig_directory = '../output_files/EX11_fig/'
+if os.path.exists(fig_directory):    
+    pass
+else:
+    os.makedirs(fig_directory)
+
+
+plt.savefig(fig_directory+'output.png')    

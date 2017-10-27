@@ -64,20 +64,19 @@ momentum_compaction = 1 / gamma_transition**2 # [1]
 
 # Cavities parameters
 n_rf_systems = 1                                
-harmonic_numbers = [133650]                        
-voltage_program = [10e9]
-phi_offset = [np.pi]
+harmonic_numbers = 133650                      
+voltage_program = 10e9
+phi_offset = np.pi
 
-bucket_length = C / c / harmonic_numbers[0]
-print(bucket_length)
+bucket_length = C / c / harmonic_numbers
 
 # DEFINE RING------------------------------------------------------------------
 
 n_sections = 2
-general_params = Ring(n_turns, np.ones(n_sections) * C/n_sections,
+general_params = Ring(np.ones(n_sections) * C/n_sections,
                                np.tile(momentum_compaction,(1,n_sections)).T,
                                np.tile(sync_momentum,(n_sections, n_turns+1)),
-                               particle_type, n_stations = n_sections)
+                               particle_type, n_turns, n_stations = n_sections)
 
 
 
@@ -86,8 +85,8 @@ general_params = Ring(n_turns, np.ones(n_sections) * C/n_sections,
 RF_sct_par = []
 for i in np.arange(n_sections)+1:
     RF_sct_par.append(RFStation(general_params, n_rf_systems,
-                harmonic_numbers, [v/n_sections for v in voltage_program],
-                phi_offset, section_index=i) )
+                [harmonic_numbers], [voltage_program/n_sections],
+                [phi_offset], section_index=i) )
 
 # DEFINE BEAM------------------------------------------------------------------
 
@@ -116,7 +115,8 @@ full_tracker = FullRingAndRF(longitudinal_tracker)
 
 matched_from_distribution_function(beam, full_tracker, emittance=emittance,
                                    distribution_type=distribution_type, 
-                                   distribution_variable=distribution_variable)
+                                   distribution_variable=distribution_variable
+                                   , seed=1000)
             
 slice_beam.track()
 
@@ -218,16 +218,16 @@ n_turns = 200
 # DEFINE RING------------------------------------------------------------------
 
 n_sections = 10
-general_params = Ring(n_turns, np.ones(n_sections) * C/n_sections,
+general_params = Ring(np.ones(n_sections) * C/n_sections,
                                np.tile(momentum_compaction,(1,n_sections)).T,
                                np.tile(sync_momentum,(n_sections, n_turns+1)),
-                               particle_type, n_stations=n_sections)
+                               particle_type, n_turns, n_stations=n_sections)
 
 RF_sct_par = []
 for i in np.arange(n_sections)+1:
     RF_sct_par.append(RFStation(general_params, n_rf_systems,
-                  harmonic_numbers, [v/n_sections for v in voltage_program],
-                  phi_offset, section_index=i) )
+                  [harmonic_numbers], [voltage_program/n_sections],
+                  [phi_offset], section_index=i) )
 
 # DEFINE BEAM------------------------------------------------------------------
 
@@ -252,14 +252,15 @@ full_tracker = FullRingAndRF(longitudinal_tracker)
 
 matched_from_distribution_function(beam, full_tracker, emittance=emittance,
                                    distribution_type=distribution_type, 
-                                   distribution_variable=distribution_variable)
+                                   distribution_variable=distribution_variable
+                                   , seed=1000)
             
 slice_beam.track()
 
 # Redefine Synchrotron radiation objects with quantum excitation
 SR = []
 for i in range(n_sections):
-    SR.append(SynchrotronRadiation(general_params, RF_sct_par[i], beam, rho, python=True))
+    SR.append(SynchrotronRadiation(general_params, RF_sct_par[i], beam, rho, python=True, seed=7))
 
 # ACCELERATION MAP-------------------------------------------------------------
 map_ = []

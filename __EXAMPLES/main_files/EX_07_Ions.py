@@ -14,23 +14,18 @@ No intensity effects
 
 from __future__ import division, print_function
 from builtins import range
-import numpy as np
 from scipy.constants import physical_constants
 # Atomic Mass Unit [eV]
 u = physical_constants['atomic mass unit-electron volt relationship'][0] 
-
-from input_parameters.ring import *
-from input_parameters.rf_parameters import *
-from trackers.tracker import *
-from beam.beam import *
-from beam.distributions import *
-from beam.profile import *
-from monitors.monitors import *
-from plots.plot_beams import *
-from plots.plot_impedance import *
-from plots.plot_slices import *
-from plots.plot import *
-from plots.plot_parameters import *
+import numpy as np
+from input_parameters.ring import Ring
+from input_parameters.rf_parameters import RFStation
+from trackers.tracker import RingAndRFTracker
+from beam.distributions import bigaussian
+from monitors.monitors import BunchMonitor
+from beam.profile import Profile, CutOptions
+from beam.beam import Beam, Particle
+from plots.plot import Plot
 
 
 # Simulation parameters --------------------------------------------------------
@@ -52,7 +47,7 @@ gamma_t = 15.59              # Transition gamma
 alpha = 1./gamma_t/gamma_t   # First order mom. comp. factor
 
 # Tracking details
-N_t = 45500                  # Number of turns to track
+N_t = 45500                 # Number of turns to track
 dt_plt = 5000                # Time steps between plots
 
 
@@ -62,32 +57,34 @@ print("")
 
 
 # Define general parameters
-general_params = Ring(N_t, C, alpha, np.linspace(p_i, p_f, N_t+1), 
-                                   'user_input', user_mass=m_p, user_charge=Z)
+
+
+general_params = Ring(C, alpha, np.linspace(p_i, p_f, N_t+1), 
+                                   Particle(m_p, Z), n_turns=N_t)
 
 # Define beam and distribution
 beam = Beam(general_params, N_p, N_b)
-print("Particle mass is %.3e eV" %general_params.mass)
-print("Particle charge is %d e" %general_params.charge)
+print("Particle mass is %.3e eV" %general_params.Particle.mass)
+print("Particle charge is %d e" %general_params.Particle.charge)
 
 linspace_test = np.linspace(p_i, p_f, N_t+1)
 momentum_test = general_params.momentum
 beta_test = general_params.beta
 gamma_test = general_params.gamma
 energy_test = general_params.energy
-mass_test = general_params.mass # [eV]
-charge_test = general_params.charge # e*Z
+mass_test = general_params.Particle.mass # [eV]
+charge_test = general_params.Particle.charge # e*Z
 
 # Define RF station parameters and corresponding tracker
-rf_params = RFStation(general_params, 1, h, V, dphi)
-print("Initial bucket length is %.3e s" %(2.*np.pi/rf_params.omega_RF[0,0]))
-print("Final bucket length is %.3e s" %(2.*np.pi/rf_params.omega_RF[0,N_t]))
+rf_params = RFStation(general_params, 1, [h], [V], [dphi])
+print("Initial bucket length is %.3e s" %(2.*np.pi/rf_params.omega_rf[0,0]))
+print("Final bucket length is %.3e s" %(2.*np.pi/rf_params.omega_rf[0,N_t]))
 
 phi_s_test = rf_params.phi_s #: *Synchronous phase
-omega_RF_d_test = rf_params.omega_RF_d #: *Design RF frequency of the RF systems in the station [GHz]*
-omega_RF_test = rf_params.omega_RF  #: *Initial, actual RF frequency of the RF systems in the station [GHz]*
-phi_RF_test = rf_params.omega_RF #: *Initial, actual RF phase of each harmonic system*
-E_increment_test = rf_params.E_increment #Energy increment (acceleration/deceleration) between two turns,
+omega_RF_d_test = rf_params.omega_rf_d #: *Design RF frequency of the RF systems in the station [GHz]*
+omega_RF_test = rf_params.omega_rf  #: *Initial, actual RF frequency of the RF systems in the station [GHz]*
+phi_RF_test = rf_params.omega_rf #: *Initial, actual RF phase of each harmonic system*
+E_increment_test = rf_params.delta_E #Energy increment (acceleration/deceleration) between two turns,
 
 
 long_tracker = RingAndRFTracker(rf_params, beam)
@@ -102,17 +99,17 @@ bigaussian(general_params, rf_params, beam, tau_0/4,
 
 
 # Need slices for the Gaussian fit
-slice_beam = Profile(rf_params, beam, 100)
+slice_beam = Profile(beam, CutOptions(n_slices=100))       
 
 # Define what to save in file
 bunchmonitor = BunchMonitor(general_params, rf_params, beam,
-                            '../output_files/EX7_output_data',
-                            Slices=slice_beam)
+                            '../output_files/EX_7_output_data',
+                            Profile=slice_beam)
 
-format_options = {'dirname': '../output_files/EX7_fig'}
+format_options = {'dirname': '../output_files/EX_7_fig'}
 plots = Plot(general_params, rf_params, beam, dt_plt, N_t, 0, 8.e-7,
-             -400e6, 400e6, separatrix_plot=True, Slices=slice_beam,
-             h5file='../output_files/EX7_output_data', 
+             -400e6, 400e6, separatrix_plot=True, Profile=slice_beam,
+             h5file='../output_files/EX_7_output_data', 
              format_options=format_options)
 
 # Accelerator map
@@ -142,7 +139,7 @@ for i in range(1, N_t+1):
         m.track()
         
     # Define losses according to separatrix and/or longitudinal position
-    beam.losses_separatrix(general_params, rf_params, beam)
+    beam.losses_separatrix(general_params, rf_params)
     #beam.losses_longitudinal_cut(0.28e-4/general_params.omega_rev[i], 0.75e-4/general_params.omega_rev[i])
     
 print("Done!")
