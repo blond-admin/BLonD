@@ -24,19 +24,24 @@ import pylab as plt
 from input_parameters.ring import Ring
 from input_parameters.rf_parameters import RFStation
 from trackers.tracker import RingAndRFTracker
-from beam.beam import Beam
+from beam.beam import Beam, Proton
 from beam.distributions import bigaussian
-from beam.profile import Profile
+from beam.profile import Profile, CutOptions
 from impedances.impedance import InducedVoltageFreq, InducedVoltageTime
 from impedances.impedance import InductiveImpedance, TotalInducedVoltage
 from impedances.impedance_sources import Resonators
 from scipy.constants import c, e, m_p
+import os
+
+try:
+    os.mkdir('../output_files/EX_16_fig')
+except:
+    pass
 
 
 # SIMULATION PARAMETERS -------------------------------------------------------
 
 # Beam parameters
-particle_type = 'proton'
 n_particles = 1e11
 n_macroparticles = 1e6
 sigma_dt = 180e-9 / 4 # [s]
@@ -70,16 +75,16 @@ phi_offset = np.pi
 
 # DEFINE RING------------------------------------------------------------------
 
-general_params = Ring(n_turns, C, momentum_compaction,
-                                   sync_momentum, particle_type)
+general_params = Ring(C, momentum_compaction,
+                                   sync_momentum, Proton(), n_turns)
 
 RF_sct_par = RFStation(general_params, n_rf_systems, 
-                                 harmonic_numbers, voltage_program, phi_offset)
+                                 [harmonic_numbers], [voltage_program], [phi_offset])
 
 beam = Beam(general_params, n_macroparticles, n_particles)
 ring_RF_section = RingAndRFTracker(RF_sct_par, beam)
 
-bucket_length = 2.0 * np.pi / RF_sct_par.omega_RF[0,0]
+bucket_length = 2.0 * np.pi / RF_sct_par.omega_rf[0,0]
 
 # DEFINE BEAM------------------------------------------------------------------
 bigaussian(general_params, RF_sct_par, beam, sigma_dt, seed=1)
@@ -88,8 +93,9 @@ bigaussian(general_params, RF_sct_par, beam, sigma_dt, seed=1)
 # DEFINE SLICES----------------------------------------------------------------
 
 number_slices = int(100*2.5)
-slice_beam = Profile(RF_sct_par, beam, number_slices, cut_left=0,
-                    cut_right=bucket_length)
+
+slice_beam = Profile(beam, CutOptions(cut_left=0, 
+                    cut_right=bucket_length, n_slices=number_slices)) 
 
 # LOAD IMPEDANCE TABLES--------------------------------------------------------
                      
@@ -143,6 +149,6 @@ plt.xlabel('Time [ns]')
 plt.ylabel('Induced voltage [V]')
 plt.legend(loc=2, fontsize='medium')
 
-plt.show()
+plt.savefig('../output_files/EX_16_fig/fig.png')
 
 print("Done!")

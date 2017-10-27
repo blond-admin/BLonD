@@ -18,21 +18,22 @@ from __future__ import division
 import matplotlib.pyplot as plt
 import numpy as np
 from input_parameters.ring import Ring
-from beam.beam import Beam
+from beam.beam import Beam, Electron
 from beam.distributions import matched_from_distribution_function
 from input_parameters.rf_parameters import RFStation
 from beam.sparse_slices import SparseSlices
-#from impedances.impedance import InducedVoltageFreq, TotalInducedVoltage
-#from impedances.impedance_sources import Resonators
 from trackers.tracker import RingAndRFTracker, FullRingAndRF
-#from synchrotron_radiation.synchrotron_radiation import SynchrotronRadiation
 from scipy.constants import c, e, m_e
+import os
 
+try:
+    os.mkdir('../output_files/EX_15_fig')
+except:
+    pass
 
 # SIMULATION PARAMETERS -------------------------------------------------------
 
 # Beam parameters
-particle_type = 'electron'
 n_particles = int(1.7e11)          
 n_macroparticles = int(20e6)
 sync_momentum = 175e9 # [eV]
@@ -62,12 +63,11 @@ voltage_program = [10e9]
 phi_offset = [np.pi]
 
 bucket_length = C / c / harmonic_numbers[0]
-print(bucket_length)
 
 # DEFINE RING------------------------------------------------------------------
 
-general_params = Ring(n_turns, C, momentum_compaction,
-                                   sync_momentum, particle_type)
+general_params = Ring(C, momentum_compaction,
+                                   sync_momentum, Electron(), n_turns)
 
 RF_sct_par = RFStation(general_params, n_rf_systems,
                                  harmonic_numbers, voltage_program, phi_offset)
@@ -96,14 +96,15 @@ filling_pattern[::bunch_spacing] = 1
 
 matched_from_distribution_function(beam, full_tracker, emittance=emittance,
                                    distribution_type=distribution_type, 
-                                   distribution_variable=distribution_variable)
+                                   distribution_variable=distribution_variable
+                                   , seed=134253)
 
 indexes = np.arange(n_macroparticles)
 #np.random.shuffle(indexes)
 
-for i in np.arange(np.sum(filling_pattern)):
-    beam.dt[indexes[i*len(beam.dt)//np.sum(filling_pattern)]: 
-        indexes[(i+1)*len(beam.dt)//np.sum(filling_pattern)-1]] += (
+for i in range(int(np.sum(filling_pattern))):
+    beam.dt[indexes[int(i*len(beam.dt)//np.sum(filling_pattern))]: 
+        indexes[int((i+1)*len(beam.dt)//np.sum(filling_pattern)-1)]] += (
         bucket_length * np.where(filling_pattern)[0][i])
 
 import time
@@ -115,12 +116,10 @@ t0 = time.time()
 slice_beam.track()
 print( 'Time for optimized C++ track ', time.time() - t0 )
 plt.figure()
-#plt.hist(beam.dt, 1e4)
-#plt.twinx()
 for i in range(int(np.sum(filling_pattern))):
     plt.plot(slice_beam.slices_array[i].bin_centers,
              slice_beam.slices_array[i].n_macroparticles,'b',lw=2)
-#plt.show()
+
 
 
 for i in range(int(np.sum(filling_pattern))):
@@ -133,25 +132,9 @@ slice_beam = SparseSlices(RF_sct_par, beam, n_slices, filling_pattern,
 t0 = time.time()
 slice_beam.track()
 print( 'Time for individual tracks ', time.time() - t0 )
-#plt.figure()
+
 for i in range(int(np.sum(filling_pattern))):
     plt.plot(slice_beam.slices_array[i].bin_centers,
              slice_beam.slices_array[i].n_macroparticles,'r')
-plt.show()
+plt.savefig('../output_files/EX_15_fig/ind_track.png')
 
-# ACCELERATION MAP-------------------------------------------------------------
-
-#map_ = [longitudinal_tracker] + [slice_beam]
-
-## TRACKING + PLOTS-------------------------------------------------------------
-#
-#avg_dt = np.zeros(n_turns)
-#std_dt = np.zeros(n_turns)
-#
-#for i in range(n_turns):
-#    for m in map_:
-#        m.track()
-#
-#    avg_dt[i] = np.mean(beam.dt)
-#    std_dt[i] = np.std(beam.dt)
-#        
