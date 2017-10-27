@@ -583,8 +583,8 @@ def matched_from_distribution_function(beam, full_ring_and_RF,
         # Induced voltage contribution
         if TotalInducedVoltage is not None:                      
             # Inputing new line density
-            profile.cut_options.cut_left = time_potential_low_res[0] - 0.5*profile.bin_size
-            profile.cut_options.cut_right = time_potential_low_res[-1] + 0.5*profile.bin_size
+            profile.cut_options.cut_left = time_potential_low_res[0] - 0.5*time_resolution_low
+            profile.cut_options.cut_right = time_potential_low_res[-1] + 0.5*time_resolution_low
             profile.cut_options.n_slices = n_points_grid
             profile.cut_options.cuts_unit = 's'
             profile.cut_options.set_cuts()
@@ -607,7 +607,7 @@ def matched_from_distribution_function(beam, full_ring_and_RF,
             induced_potential = np.interp(time_potential,
                              time_potential_low_res, induced_potential_low_res,
                              left=0, right=0)
-    
+                    
     # Populating the bunch
     populate_bunch(beam, time_grid, deltaE_grid, density_grid, 
                    time_resolution_low, deltaE_coord_array[1] -

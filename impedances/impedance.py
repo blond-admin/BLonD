@@ -271,12 +271,11 @@ class _InducedVoltage(object):
                 # Selecting time-shift method
                 self.shift_trev = self.shift_trev_time
                 # Time array
-                self.time_mtw = np.arange(0, self.wake_length, 
-                                          self.wake_length / self.n_mtw_memory)
-            
+                self.time_mtw = np.linspace(0, self.wake_length, self.n_mtw_memory, endpoint=False)
+                
             # Array to add and shift in time the multi-turn wake over the turns
             self.mtw_memory = np.zeros(self.n_mtw_memory)
-            
+
             # Select induced voltage generation method to be used
             self.induced_voltage_generation = self.induced_voltage_mtw
         else:
