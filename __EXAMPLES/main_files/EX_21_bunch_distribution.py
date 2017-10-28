@@ -80,6 +80,6 @@ plt.xlabel("Time [s]")
 plt.ylabel("Particle density [1/s]")
 plt.savefig('../output_files/EX_21_fig/profiles.png')
 
-
+print("Done!")
 
 

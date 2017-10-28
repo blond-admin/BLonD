@@ -1,7 +1,8 @@
-# Copyright 2016 CERN. This software is distributed under the
-# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# coding: utf8
+# Copyright 2014-2017 CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3), 
 # copied verbatim in the file LICENCE.md.
-# In applying this licence, CERN does not waive the privileges and immunities
+# In applying this licence, CERN does not waive the privileges and immunities 
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
@@ -30,7 +31,7 @@ from beam.profile import CutOptions
 
 
 try:
-    os.mkdir('../output_files/EX13_fig')
+    os.mkdir('../output_files/EX_13_fig')
 except:
     pass
 
@@ -194,7 +195,7 @@ plt.xlabel('Turns')
 plt.ylabel('Bunch length [ps]')
 plt.legend(('Simulation','Damping time: {0:1.1f} turns (fit)'.format(1 / 
            np.abs(tau))), loc=0, fontsize='medium')
-plt.savefig('../output_files/EX13_fig/bl_fit.png')
+plt.savefig('../output_files/EX_13_fig/bl_fit.png')
 plt.close()
 
 
@@ -210,7 +211,7 @@ plt.xlabel('Turns')
 plt.ylabel('Bunch position [ns]')
 plt.legend(('Simulation','Damping time: {0:1.1f} turns (fit)'.format(1 / 
             np.abs(tau))),loc=0,fontsize='medium')
-plt.savefig('../output_files/EX13_fig/pos_fit')
+plt.savefig('../output_files/EX_13_fig/pos_fit')
 plt.close()
 
 ## WITH QUANTUM EXCITATION
@@ -288,7 +289,7 @@ print('Equilibrium energy spread = {0:1.3f} [MeV]'.format(1e-6 *
         std_dE[-10:].mean()))
 plt.xlabel('Turns')
 plt.ylabel('Energy spread [MeV]')
-plt.savefig('../output_files/EX13_fig/std_dE_QE.png')
+plt.savefig('../output_files/EX_13_fig/std_dE_QE.png')
 plt.close()
 
 plt.figure(figsize=[6,4.5])
@@ -297,7 +298,7 @@ print('Equilibrium bunch length = {0:1.3f} [ps]'.format(4e12 *
         std_dt[-10:].mean()))
 plt.xlabel('Turns')
 plt.ylabel('Bunch length [ps]')
-plt.savefig('../output_files/EX13_fig/bl_QE.png')
+plt.savefig('../output_files/EX_13_fig/bl_QE.png')
 plt.close()
 
 print("Done!")

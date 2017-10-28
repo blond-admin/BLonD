@@ -1,7 +1,8 @@
-# Copyright 2016 CERN. This software is distributed under the
-# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# coding: utf8
+# Copyright 2014-2017 CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3), 
 # copied verbatim in the file LICENCE.md.
-# In applying this licence, CERN does not waive the privileges and immunities
+# In applying this licence, CERN does not waive the privileges and immunities 
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
@@ -103,11 +104,11 @@ plt.plot(slices_ring.bin_centers*1e9, total_induced_voltage2.induced_voltage, la
 plt.plot(time_array*1e9, induced_voltage_analytical, label='analytical')
 plt.legend(loc='upper left')
 
-fig_directory = '../output_files/EX11_fig/'
+fig_directory = '../output_files/EX_11_fig/'
 if os.path.exists(fig_directory):    
     pass
 else:
     os.makedirs(fig_directory)
-
-
 plt.savefig(fig_directory+'output.png')    
+
+print("Done!")

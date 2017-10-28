@@ -1,8 +1,8 @@
-
-# Copyright 2016 CERN. This software is distributed under the
-# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# coding: utf8
+# Copyright 2014-2017 CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3), 
 # copied verbatim in the file LICENCE.md.
-# In applying this licence, CERN does not waive the privileges and immunities
+# In applying this licence, CERN does not waive the privileges and immunities 
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
@@ -76,16 +76,16 @@ slices_ring.track()
 
 #Monitor
 bunch_monitor = BunchMonitor(general_params, rf_params, my_beam,
-                             '../output_files/EX_8_output_data',
+                             '../output_files/EX_08_output_data',
                              Profile=slices_ring, PhaseLoop=phase_loop)
 
 
 #Plots
-format_options = {'dirname': '../output_files/EX_8_fig'}
+format_options = {'dirname': '../output_files/EX_08_fig'}
 plots = Plot(general_params, rf_params, my_beam, 50, n_turns, 0.0, 2*np.pi,
              -1e6, 1e6, xunit='rad', separatrix_plot=True, Profile=slices_ring,
              format_options=format_options,
-             h5file='../output_files/EX_8_output_data', PhaseLoop=phase_loop)
+             h5file='../output_files/EX_08_output_data', PhaseLoop=phase_loop)
 
 # Accelerator map
 map_ = [full_ring] + [slices_ring] + [bunch_monitor] + [plots] 
@@ -97,5 +97,4 @@ for i in range(1, n_turns+1):
     for m in map_:
         m.track()      
     
-        
-print('DONE')
+print("Done!")

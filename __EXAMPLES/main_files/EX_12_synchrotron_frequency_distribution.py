@@ -1,7 +1,8 @@
-# Copyright 2016 CERN. This software is distributed under the
-# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# coding: utf8
+# Copyright 2014-2017 CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3), 
 # copied verbatim in the file LICENCE.md.
-# In applying this licence, CERN does not waive the privileges and immunities
+# In applying this licence, CERN does not waive the privileges and immunities 
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
@@ -33,7 +34,7 @@ from scipy.special import ellipk
 import os
 
 
-fig_directory = '../output_files/EX12_fig/'
+fig_directory = '../output_files/EX_12_fig/'
 if os.path.exists(fig_directory):    
     pass
 else:
@@ -283,3 +284,5 @@ plt.ylabel('Synchrotron frequency [Hz]')
 plt.title('Synchrotron frequency distribution in single RF with intensity ' +
           'effects')
 plt.savefig(fig_directory+'fs_distribution_IE_J.png')
+
+print("Done!")
