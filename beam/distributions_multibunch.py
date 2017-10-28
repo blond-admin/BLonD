@@ -21,7 +21,7 @@ def matched_from_distribution_density_multibunch(beam, Ring, FullRingAndRF, dist
                                       main_harmonic_option = 'lowest_freq', 
                                       TotalInducedVoltage = None,
                                       n_iterations_input = 1,
-                                      plot_option = False):
+                                      plot_option = False, seed=None):
     '''
     *Function to generate a multi-bunch beam using the matched_from_distribution_density
     function for each bunch. The extra parameters to include are the number of 
@@ -150,7 +150,7 @@ def matched_from_distribution_density_multibunch(beam, Ring, FullRingAndRF, dist
                        distribution_type=distribution_type,
                        emittance=emittance, bunch_length=bunch_length,
                        bunch_length_fit=bunch_length_fit,
-                       distribution_variable=distribution_variable)
+                       distribution_variable=distribution_variable, seed=seed)
 
         if indexBunch==0:
             beamIteration.dt = bunch.dt
@@ -211,7 +211,7 @@ def matched_from_line_density_multibunch(beam, Ring,
                         minimum_n_macroparticles=None,
                         main_harmonic_option='lowest_freq',
                         TotalInducedVoltage=None, half_option='first',
-                        plot_option=False):
+                        plot_option=False, seed=None):
     '''
     *Function to generate a multi-bunch beam using the matched_from_distribution_density
     function for each bunch. The extra parameters to include are the number of 
@@ -320,7 +320,8 @@ def matched_from_line_density_multibunch(beam, Ring,
                               extraVoltageDict=extraVoltageDict,
                               bunch_length=bunch_length,
                               line_density_type=line_density_type,
-                              line_density_exponent=line_density_exponent)
+                              line_density_exponent=line_density_exponent,
+                              seed=seed)
 
         if indexBunch==0:
             beamIteration.dt = bunch.dt
