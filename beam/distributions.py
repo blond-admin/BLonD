@@ -107,14 +107,14 @@ def matched_from_line_density(beam, full_ring_and_RF, line_density_input=None,
         profile = induced_voltage_object.profile
         
         # Inputing new line density
-        profile.n_slices = n_points_line_den
+        profile.cut_options.cut_left = time_line_den[0] - 0.5*line_den_resolution
+        profile.cut_options.cut_right = time_line_den[-1] + 0.5*line_den_resolution
+        profile.cut_options.n_slices = n_points_line_den
+        profile.cut_options.cuts_unit = 's'
+        profile.cut_options.set_cuts()
+        profile.set_slices_parameters()
         profile.n_macroparticles = line_density_
-        profile.bin_size = line_den_resolution
-        profile.cut_left = time_line_den[0] - 0.5*profile.bin_size
-        profile.cut_right = time_line_den[-1] + 0.5*profile.bin_size
-        profile.cuts_unit = 's'
-        profile.set_cuts()
-#        profile.fit_option = 'off'  # Why was that here?
+
         
         # Re-calculating the sources of wakes/impedances according to this
         # slicing
@@ -179,10 +179,10 @@ def matched_from_line_density(beam, full_ring_and_RF, line_density_input=None,
         elif i != n_iterations-1:
             time_line_den -= max_profile_pos - min_potential_pos
             # Update profile
-            profile.cut_left -= max_profile_pos - min_potential_pos
-            profile.cut_right -= max_profile_pos - min_potential_pos
-            profile.set_cuts()
-            
+            profile.cut_options.cut_left -= max_profile_pos - min_potential_pos
+            profile.cut_options.cut_right -= max_profile_pos - min_potential_pos
+            profile.cut_options.set_cuts()
+            profile.set_slices_parameters()
     
     # Taking the first/second half of line density and potential
     n_points_abel = int(n_points_abel)
@@ -339,13 +339,12 @@ def matched_from_line_density(beam, full_ring_and_RF, line_density_input=None,
              
     if TotalInducedVoltage is not None:
         # Inputing new line density
-        profile.n_slices = n_points_grid
+        profile.cut_options.cut_left = time_for_grid[0] - 0.5*(time_for_grid[1]-time_for_grid[0])
+        profile.cut_options.cut_right = time_for_grid[-1] + 0.5*(time_for_grid[1]-time_for_grid[0])
+        profile.cut_options.n_slices = n_points_grid
+        profile.cut_options.set_cuts()
+        profile.set_slices_parameters()
         profile.n_macroparticles = reconstructed_line_den*beam.n_macroparticles
-        profile.bin_size = time_for_grid[1]-time_for_grid[0]
-        profile.cut_left = time_for_grid[0] - 0.5*profile.bin_size
-        profile.cut_right = time_for_grid[-1] + 0.5*profile.bin_size
-        profile.set_cuts()
-#        profile.fit_option = 'off'
         
         # Re-calculating the sources of wakes/impedances according to this
         # slicing
