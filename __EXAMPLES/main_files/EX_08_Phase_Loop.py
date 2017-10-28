@@ -1,4 +1,4 @@
-# coding: utf8
+
 # Copyright 2014-2017 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3), 
 # copied verbatim in the file LICENCE.md.
@@ -24,11 +24,20 @@ from beam.profile import Profile, CutOptions
 from beam.beam import Beam, Proton
 from plots.plot import Plot
 from llrf.beam_feedback import BeamFeedback
+import os
+
+try:
+    os.mkdir('../output_files')
+except:
+    pass
+try:
+    os.mkdir('../output_files/EX_08_fig')
+except:
+    pass
 
 # Beam parameters
 n_macroparticles = 100000
 n_particles = 0
-
 
 # Machine and RF parameters
 radius = 25 # [m]

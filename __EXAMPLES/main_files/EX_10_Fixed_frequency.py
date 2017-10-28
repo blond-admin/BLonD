@@ -1,4 +1,4 @@
-# coding: utf8
+
 # Copyright 2014-2017 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3), 
 # copied verbatim in the file LICENCE.md.
@@ -6,6 +6,13 @@
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
+
+'''
+Test case to show the consequences of omega_rf != h*omega_rev  
+(CERN PS Booster context).
+
+:Authors: **Danilo Quartullo**
+'''
 
 from __future__ import division, print_function
 import numpy as np
@@ -18,13 +25,16 @@ from beam.profile import Profile, CutOptions
 from beam.beam import Beam, Proton
 from plots.plot import Plot
 from llrf.beam_feedback import BeamFeedback
+import os
 
-'''
-Test case to show the consequences of omega_rf != h*omega_rev  
-(CERN PS Booster context).
-
-:Authors: **Danilo Quartullo**
-'''
+try:
+    os.mkdir('../output_files')
+except:
+    pass
+try:
+    os.mkdir('../output_files/EX_10_fig')
+except:
+    pass
 
 # Beam parameters
 n_macroparticles = 100000

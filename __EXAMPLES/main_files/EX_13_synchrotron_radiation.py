@@ -1,4 +1,4 @@
-# coding: utf8
+
 # Copyright 2014-2017 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3), 
 # copied verbatim in the file LICENCE.md.
@@ -28,6 +28,10 @@ from synchrotron_radiation.synchrotron_radiation import SynchrotronRadiation
 from scipy.constants import c, e, m_e
 from beam.profile import CutOptions
 
+try:
+    os.mkdir('../output_files')
+except:
+    pass
 try:
     os.mkdir('../output_files/EX_13_fig')
 except:

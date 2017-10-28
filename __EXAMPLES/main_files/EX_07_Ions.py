@@ -28,6 +28,16 @@ from monitors.monitors import BunchMonitor
 from beam.profile import Profile, CutOptions
 from beam.beam import Beam, Particle
 from plots.plot import Plot
+import os
+
+try:
+    os.mkdir('../output_files')
+except:
+    pass
+try:
+    os.mkdir('../output_files/EX_07_fig')
+except:
+    pass
 
 
 # Simulation parameters --------------------------------------------------------

@@ -1,4 +1,4 @@
-# coding: utf8
+
 # Copyright 2014-2017 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3), 
 # copied verbatim in the file LICENCE.md.
@@ -27,6 +27,16 @@ from beam.distributions import bigaussian
 from beam.profile import CutOptions, FitOptions, Profile
 from monitors.monitors import BunchMonitor
 from plots.plot import Plot
+import os
+
+try:
+    os.mkdir('../output_files')
+except:
+    pass
+try:
+    os.mkdir('../output_files/EX_01_fig')
+except:
+    pass
 
 # Simulation parameters -------------------------------------------------------
 # Bunch parameters

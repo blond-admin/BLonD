@@ -28,7 +28,16 @@ from plots.plot_impedance import plot_impedance_vs_frequency, plot_induced_volta
 from scipy.constants import m_p, e, c
 from impedances.impedance_sources import InputTable
 from impedances.impedance import InductiveImpedance, InducedVoltageFreq, TotalInducedVoltage
+import os
 
+try:
+    os.mkdir('../output_files')
+except:
+    pass
+try:
+    os.mkdir('../output_files/EX_02_fig')
+except:
+    pass
 
 # SIMULATION PARAMETERS -------------------------------------------------------
 

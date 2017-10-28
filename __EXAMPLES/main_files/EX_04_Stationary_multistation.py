@@ -25,6 +25,16 @@ from beam.distributions import bigaussian
 from beam.profile import CutOptions, Profile, FitOptions
 from monitors.monitors import BunchMonitor
 from plots.plot import Plot
+import os
+
+try:
+    os.mkdir('../output_files')
+except:
+    pass
+try:
+    os.mkdir('../output_files/EX_04_fig')
+except:
+    pass
 
 # Simulation parameters -------------------------------------------------------
 # Bunch parameters

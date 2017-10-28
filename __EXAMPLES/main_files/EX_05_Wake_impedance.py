@@ -1,4 +1,4 @@
-# coding: utf8
+
 # Copyright 2014-2017 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3), 
 # copied verbatim in the file LICENCE.md.
@@ -34,7 +34,16 @@ from beam.beam import Beam, Proton
 from plots.plot import Plot
 from plots.plot_impedance import plot_induced_voltage_vs_bin_centers
 from impedances.impedance_sources import Resonators
+import os
 
+try:
+    os.mkdir('../output_files')
+except:
+    pass
+try:
+    os.mkdir('../output_files/EX_05_fig')
+except:
+    pass
 
 # SIMULATION PARAMETERS -------------------------------------------------------
 

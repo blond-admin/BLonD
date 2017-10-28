@@ -1,4 +1,4 @@
-# coding: utf8
+
 # Copyright 2014-2017 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3), 
 # copied verbatim in the file LICENCE.md.
@@ -29,6 +29,10 @@ from trackers.tracker import RingAndRFTracker, FullRingAndRF
 from scipy.constants import c, e, m_e
 import os
 
+try:
+    os.mkdir('../output_files')
+except:
+    pass
 try:
     os.mkdir('../output_files/EX_14_fig')
 except:

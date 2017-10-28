@@ -21,6 +21,16 @@ from input_parameters.ring_options import RampOptions
 from input_parameters.rf_parameters import RFStation
 from input_parameters.rf_parameters_options import PreprocessRFParams
 from beam.beam import Proton
+import os
+
+try:
+    os.mkdir('../output_files')
+except:
+    pass
+try:
+    os.mkdir('../output_files/EX_06_fig')
+except:
+    pass
 
 # Beam parameters
 n_particles = 3e12

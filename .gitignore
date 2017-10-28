@@ -1,5 +1,7 @@
 *.pyc
 
+*.so
+
 *.project
 
 *.pydevproject
@@ -12,10 +14,9 @@ sync_rad.dll
 
 /__doc/_build/
 /__doc/build/
-/__TEST_CASES/output_files
-/PERSONAL_FOLDER/
+/__EXAMPLES/output_files/
 
 
 
 
-*.so
+

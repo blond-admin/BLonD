@@ -26,7 +26,16 @@ from beam.profile import CutOptions, Profile, FitOptions
 from monitors.monitors import BunchMonitor
 from plots.plot import Plot
 from llrf.rf_noise import FlatSpectrum
+import os
 
+try:
+    os.mkdir('../output_files')
+except:
+    pass
+try:
+    os.mkdir('../output_files/EX_03_fig')
+except:
+    pass
 
 
 # Simulation parameters --------------------------------------------------------
