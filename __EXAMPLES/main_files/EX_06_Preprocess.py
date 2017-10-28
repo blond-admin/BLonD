@@ -10,6 +10,8 @@
 '''
 Test case to show how to use preprocess_ramp and preprocess_rf_params in the
 main file (CERN PS Booster context).
+
+:Authors: **Danilo Quartullo**
 '''
 
 from __future__ import division

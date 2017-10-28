@@ -101,7 +101,6 @@ matched_from_distribution_function(beam, full_tracker, emittance=emittance,
                                    , seed=134253)
 
 indexes = np.arange(n_macroparticles)
-#np.random.shuffle(indexes)
 
 for i in range(int(np.sum(filling_pattern))):
     beam.dt[indexes[int(i*len(beam.dt)//np.sum(filling_pattern))]: 

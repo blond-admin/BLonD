@@ -7,7 +7,6 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-
 '''
 Test case for the synchrotron radiation routine.
 Example for the FCC-ee at 175 GeV.
@@ -28,7 +27,6 @@ from trackers.tracker import RingAndRFTracker, FullRingAndRF
 from synchrotron_radiation.synchrotron_radiation import SynchrotronRadiation
 from scipy.constants import c, e, m_e
 from beam.profile import CutOptions
-
 
 try:
     os.mkdir('../output_files/EX_13_fig')
@@ -79,10 +77,6 @@ general_params = Ring(np.ones(n_sections) * C/n_sections,
                                np.tile(sync_momentum,(n_sections, n_turns+1)),
                                particle_type, n_turns, n_stations = n_sections)
 
-
-
-
-
 RF_sct_par = []
 for i in np.arange(n_sections)+1:
     RF_sct_par.append(RFStation(general_params, n_rf_systems,
@@ -93,16 +87,12 @@ for i in np.arange(n_sections)+1:
 
 beam = Beam(general_params, n_macroparticles, n_particles)
 
-
-
-
 # DEFINE SLICES----------------------------------------------------------------
 
 number_slices = 500
 
 cut_options = CutOptions(cut_left=0., cut_right=bucket_length, n_slices=number_slices)
 slice_beam = Profile(beam, CutOptions = cut_options)
-#RF_sct_par[0],
 
 # DEFINE TRACKER---------------------------------------------------------------
 longitudinal_tracker = []

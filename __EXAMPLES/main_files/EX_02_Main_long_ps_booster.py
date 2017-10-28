@@ -9,6 +9,8 @@
 
 '''
 Example script to take into account intensity effects from impedance tables
+
+:Authors: **Danilo Quartullo**
 '''
 
 from __future__ import division, print_function
@@ -31,7 +33,6 @@ from impedances.impedance import InductiveImpedance, InducedVoltageFreq, TotalIn
 # SIMULATION PARAMETERS -------------------------------------------------------
 
 # Beam parameters
-particle_type = 'proton'
 n_particles = 1e11
 n_macroparticles = 5e5
 sigma_dt = 180e-9 / 4 # [s]     
@@ -50,8 +51,6 @@ n_turns_between_two_plots = 1
 E_0 = m_p*c**2/e    # [eV]
 tot_beam_energy =  E_0 + kin_beam_energy # [eV]
 sync_momentum = np.sqrt(tot_beam_energy**2 - E_0**2) # [eV / c]
-
-
 momentum_compaction = 1 / gamma_transition**2 # [1]       
 
 # Cavities parameters
@@ -124,7 +123,6 @@ else:
 steps = InductiveImpedance(my_beam, slice_beam, 34.6669349520904 / 10e9 *
                            general_params.f_rev, RF_sct_par, deriv_mode='diff') 
 # direct space charge
-
 dir_space_charge = InductiveImpedance(my_beam, slice_beam, -376.730313462   
                      / (general_params.beta[0] * general_params.gamma[0]**2),
                      RF_sct_par)
@@ -163,8 +161,6 @@ for i in range(1, n_turns+1):
     for m in map_:
         m.track()
     
-    
-
     # Plots
     if (i% n_turns_between_two_plots) == 0:
         

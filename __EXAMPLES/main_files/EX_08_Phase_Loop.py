@@ -7,6 +7,12 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
+'''
+Test case to show how to use phase loop (CERN PS Booster context).
+
+:Authors: **Danilo Quartullo**
+'''
+
 from __future__ import division, print_function
 import numpy as np
 from input_parameters.ring import Ring
@@ -29,9 +35,7 @@ radius = 25 # [m]
 gamma_transition = 4.076750841
 alpha = 1 / gamma_transition**2
 C = 2*np.pi*radius  # [m]     
-
 n_turns = 500
-
 general_params = Ring(C, alpha, 310891054.809, 
                                    Proton(), n_turns)
 

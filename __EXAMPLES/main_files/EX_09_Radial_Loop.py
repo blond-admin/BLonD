@@ -7,6 +7,12 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
+'''
+Test case to show how to use radial loop (CERN PS Booster context).
+
+:Authors: **Danilo Quartullo**
+'''
+
 from __future__ import division, print_function
 import numpy as np
 from input_parameters.ring import Ring

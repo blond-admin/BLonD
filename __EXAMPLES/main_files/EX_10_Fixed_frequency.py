@@ -19,6 +19,13 @@ from beam.beam import Beam, Proton
 from plots.plot import Plot
 from llrf.beam_feedback import BeamFeedback
 
+'''
+Test case to show the consequences of omega_rf != h*omega_rev  
+(CERN PS Booster context).
+
+:Authors: **Danilo Quartullo**
+'''
+
 # Beam parameters
 n_macroparticles = 100000
 n_particles = 0
@@ -92,8 +99,6 @@ plots = Plot(general_params, rf_params, my_beam, 1000, 10000, 0.0, 2.0*0.9e-6,
 # Accelerator map
 map_ = [long_tracker] + [slices_ring] + [bunch_monitor] + [plots] 
 
-#phase_loop.reference += 0.00001
-
 for i in range(1, n_turns+1):
     
     for m in map_:
@@ -103,7 +108,6 @@ for i in range(1, n_turns+1):
     if (i % 100 == 0): 
         print("Time step %d" %i)
         print("    Radial error %.4e" %(phase_loop.drho))
-#        print("    Radial error, accum %.4e" %(phase_loop.drho_int))
         print("    Radial loop frequency correction %.4e 1/s"
               %(phase_loop.domega_rf))
         print("    RF phase %.4f rad" %(rf_params.phi_rf[0,i]))

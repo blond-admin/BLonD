@@ -10,6 +10,8 @@
 '''
 Example input for simulation of ion dynamics
 No intensity effects
+
+:Authors: **Alexandre Lasheen**
 '''
 
 from __future__ import division, print_function
@@ -131,15 +133,13 @@ for i in range(1, N_t+1):
         print("   Beam beta %3.3f" %beam.beta)
         print("   Beam energy %.6e eV" %beam.energy)
         print("   Four-times r.m.s. bunch length %.4e s" %(4.*beam.sigma_dt))
-        #print "   Gaussian bunch length %.4e s" %slice_beam.bl_gauss
         print("")
         
     # Track
     for m in map_:
         m.track()
         
-    # Define losses according to separatrix and/or longitudinal position
+    # Define losses according to separatrix
     beam.losses_separatrix(general_params, rf_params)
-    #beam.losses_longitudinal_cut(0.28e-4/general_params.omega_rev[i], 0.75e-4/general_params.omega_rev[i])
-    
+   
 print("Done!")

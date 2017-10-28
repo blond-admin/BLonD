@@ -14,6 +14,8 @@ methods are equivalent (compare the two figure folders). Note that to create an
 exact clone of the beam, the option seed=0 in the generation has been used.
 This script shows also an example of how to use the class SliceMonitor (check
 the corresponding h5 files).
+
+:Authors: **Danilo Quartullo**
 '''
 
 from __future__ import division, print_function
@@ -142,10 +144,10 @@ tot_vol_res = TotalInducedVoltage(my_beam_res, slice_beam_res,
 # Analytic result-----------------------------------------------------------
 VindGauss = np.zeros(len(slice_beam.bin_centers))
 for r in range(len(Q_factor)):
-#Notice that the time-argument of inducedVoltageGauss is shifted by 
-#mean(my_slices.bin_centers), because the analytical equation assumes the
-#Gauss to be centered at t=0, but the line density is centered at 
-#mean(my_slices.bin_centers)
+    # Notice that the time-argument of inducedVoltageGauss is shifted by 
+    # mean(my_slices.bin_centers), because the analytical equation assumes the
+    # Gauss to be centered at t=0, but the line density is centered at 
+    # mean(my_slices.bin_centers)
     tmp = analytical_gaussian_resonator(tau_0/4, \
                     Q_factor[r],R_shunt[r],2*np.pi*f_res[r], \
                     slice_beam.bin_centers - np.mean(slice_beam.bin_centers), \

@@ -10,6 +10,8 @@
 '''
 Example input for simulation with RF noise
 No intensity effects
+
+:Authors: **Helga Timko**
 '''
 
 from __future__ import division, print_function
@@ -89,6 +91,7 @@ print("Beam set and distribution generated...")
 slice_beam = Profile(beam, CutOptions(n_slices=100),
                  FitOptions(fit_option='gaussian'))        
 slice_beam.track()
+
 # Define what to save in file
 bunchmonitor = BunchMonitor(general_params, rf_params, beam, '../output_files/EX_03_output_data', Profile=slice_beam)
 
