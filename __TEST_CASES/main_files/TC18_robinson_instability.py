@@ -54,7 +54,7 @@ gamma_transition = 4.4
 C = 2 * np.pi * radius      # [m]
 
 # Tracking details
-n_turns = int(1e3)
+n_turns = int(1e4)
 n_turns_between_two_plots = 500
 
 # Derived parameters

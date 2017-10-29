@@ -31,6 +31,12 @@ from impedances.impedance import InducedVoltageFreq, InducedVoltageTime
 from impedances.impedance import InductiveImpedance, TotalInducedVoltage
 from impedances.impedance_sources import Resonators
 from scipy.constants import c, e, m_p
+import os
+
+try:
+    os.mkdir('../output_files/TC_16_fig')
+except:
+    pass
 
 
 # SIMULATION PARAMETERS -------------------------------------------------------
@@ -65,7 +71,7 @@ momentum_compaction = 1 / gamma_transition**2
 n_rf_systems = 1
 harmonic_numbers = 1
 voltage_program = 8e3 #[V]
-phi_offset = -np.pi
+phi_offset = np.pi
 
 
 # DEFINE RING------------------------------------------------------------------
@@ -142,5 +148,7 @@ plt.plot(slice_beam.bin_centers*1e9, total_ind_volt_ZoN.induced_voltage,
 plt.xlabel('Time [ns]')
 plt.ylabel('Induced voltage [V]')
 plt.legend(loc=2, fontsize='medium')
+
+plt.savefig('../output_files/TC_16_fig/fig.png')
 
 print("Done!")

@@ -73,7 +73,8 @@ distribution_variable = 'Action'
 matched_from_distribution_function(my_beam, full_ring, 
                                    bunch_length=bunch_length,
                                    distribution_type=distribution_type, 
-                                   distribution_variable=distribution_variable)
+                                   distribution_variable=distribution_variable
+                                   , seed = 3)
 slices_ring.track()
 long_tracker = RingAndRFSection(rf_params, my_beam, periodicity='Off',
                                 PhaseLoop=phase_loop)

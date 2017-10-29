@@ -93,7 +93,7 @@ class TotalInducedVoltage(object):
                            c_uint(self.slices.n_slices),
                            c_uint(self.beam.n_macroparticles),
                            c_double(0.))
-
+    
 
     def track_ghosts_particles(self, ghostBeam):
         
@@ -188,7 +188,6 @@ class _InducedVoltage(object):
         if self.multi_turn_wake:            
             # Number of points of the memory array for multi-turn wake
             self.n_mtw_memory = self.n_induced_voltage
-            
             self.front_wake_buffer = 0
             
             if self.mtw_mode == 'freq':
@@ -212,8 +211,7 @@ class _InducedVoltage(object):
                 # Selecting time-shift method
                 self.shift_trev = self.shift_trev_time
                 # Time array
-                self.time_mtw = np.arange(0, self.wake_length, 
-                                          self.wake_length / self.n_mtw_memory)
+                self.time_mtw = np.linspace(0, self.wake_length, self.n_mtw_memory, endpoint=False)
             
             # Array to add and shift in time the multi-turn wake over the turns
             self.mtw_memory = np.zeros(self.n_mtw_memory)

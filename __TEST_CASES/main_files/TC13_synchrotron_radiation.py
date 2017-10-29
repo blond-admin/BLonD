@@ -25,7 +25,13 @@ from beams.slices import Slices
 from trackers.tracker import RingAndRFSection, FullRingAndRF
 from synchrotron_radiation.synchrotron_radiation import SynchrotronRadiation
 from scipy.constants import c, e, m_e
+import os
 
+fig_directory = '../output_files/TC13_fig/'
+if os.path.exists(fig_directory):    
+    pass
+else:
+    os.makedirs(fig_directory)
 
 # SIMULATION PARAMETERS -------------------------------------------------------
 
@@ -100,7 +106,8 @@ slice_beam = Slices(RF_sct_par[0], beam, number_slices, cut_left = 0.,
 
 matched_from_distribution_function(beam, full_tracker, emittance=emittance,
                                    distribution_type=distribution_type, 
-                                   distribution_variable=distribution_variable)
+                                   distribution_variable=distribution_variable
+                                   , seed=1000)
             
 slice_beam.track()
 
@@ -235,14 +242,15 @@ slice_beam = Slices(RF_sct_par[0], beam, number_slices, cut_left = 0.,
 
 matched_from_distribution_function(beam, full_tracker, emittance=emittance,
                                    distribution_type=distribution_type, 
-                                   distribution_variable=distribution_variable)
+                                   distribution_variable=distribution_variable
+                                   , seed=1000)
             
 slice_beam.track()
 
 # Redefine Synchrotron radiation objects with quantum excitation
 SR = []
 for i in range(n_sections):
-    SR.append(SynchrotronRadiation(general_params, RF_sct_par[i], beam, rho))
+    SR.append(SynchrotronRadiation(general_params, RF_sct_par[i], beam, rho, python=True, seed=7))
 
 # ACCELERATION MAP-------------------------------------------------------------
 map_ = []
