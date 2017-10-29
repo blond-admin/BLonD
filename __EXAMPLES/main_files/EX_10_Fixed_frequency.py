@@ -113,7 +113,8 @@ for i in range(1, n_turns+1):
     
     for m in map_:
         m.track()   
-    cut_options.track_cuts(my_beam)   
+    slices_ring.cut_options.track_cuts(my_beam)   
+    slices_ring.set_slices_parameters()   
     
     if (i % 100 == 0): 
         print("Time step %d" %i)
