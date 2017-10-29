@@ -1,14 +1,17 @@
-
-# Copyright 2016 CERN. This software is distributed under the
-# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# coding: utf8
+# Copyright 2014-2017 CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3), 
 # copied verbatim in the file LICENCE.md.
-# In applying this licence, CERN does not waive the privileges and immunities
+# In applying this licence, CERN does not waive the privileges and immunities 
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
+
 '''
 Test case to show how to use preprocess_ramp and preprocess_rf_params in the
 main file (CERN PS Booster context).
+
+:Authors: **Danilo Quartullo**
 '''
 
 from __future__ import division
@@ -18,6 +21,16 @@ from input_parameters.ring_options import RampOptions
 from input_parameters.rf_parameters import RFStation
 from input_parameters.rf_parameters_options import PreprocessRFParams
 from beam.beam import Proton
+import os
+
+try:
+    os.mkdir('../output_files')
+except:
+    pass
+try:
+    os.mkdir('../output_files/EX_06_fig')
+except:
+    pass
 
 # Beam parameters
 n_particles = 3e12
@@ -33,14 +46,14 @@ C = 2*np.pi*radius  # [m]
 initial_time = 0.277 # [s]
 final_time = 0.700 # [s]
 
-momentum_program = np.loadtxt('../input_files/EX_6_Source_TOF_P.csv',
+momentum_program = np.loadtxt('../input_files/EX_06_Source_TOF_P.csv',
                               delimiter=',')
 time_array = momentum_program[:, 0]*1e-3  # [s]
 momentum = momentum_program[:, 1]*1e9  # [eV/c]
 
 particle_type = Proton()
 ramp_opt = RampOptions(interpolation='linear', plot=True,
-                                  figdir='../output_files/EX_6_fig',
+                                  figdir='../output_files/EX_06_fig',
                                   t_start=initial_time, t_end=final_time)
 
 general_params = Ring(C, alpha, (time_array, momentum), 
@@ -55,9 +68,9 @@ phi_rf_1 = 0   # [rad]
 phi_rf_2 = np.pi # [rad]
 phi_rf_3 = np.pi/6 # [rad]
 
-voltage_program_C02 = np.loadtxt('../input_files/EX_6_voltage_program_LHC25_c02.txt')
-voltage_program_C04 = np.loadtxt('../input_files/EX_6_voltage_program_LHC25_c04.txt')
-voltage_program_C16 = np.loadtxt('../input_files/EX_6_voltage_program_LHC25_c16.txt')
+voltage_program_C02 = np.loadtxt('../input_files/EX_06_voltage_program_LHC25_c02.txt')
+voltage_program_C04 = np.loadtxt('../input_files/EX_06_voltage_program_LHC25_c04.txt')
+voltage_program_C16 = np.loadtxt('../input_files/EX_06_voltage_program_LHC25_c16.txt')
 time_C02 = voltage_program_C02[:, 0]*1e-3  # [s]
 voltage_C02 = voltage_program_C02[:, 1]*1e3  # [V]
 time_C04 = voltage_program_C04[:, 0]*1e-3  # [s]
@@ -66,7 +79,7 @@ time_C16 = voltage_program_C16[:, 0]*1e-3  # [s]
 voltage_C16 = voltage_program_C16[:, 1]*1e3  # [V]
 
 preprocess_rf = PreprocessRFParams(interpolation = 'linear', smoothing = 0, 
-                                   plot = True, figdir='../output_files/EX_6_fig', 
+                                   plot = True, figdir='../output_files/EX_06_fig', 
                  figname=['voltage_C02 [V]', 'voltage_C04 [V]', 'voltage_C16 [V]'], 
                  sampling = 1, harmonic = False, voltage = True, 
                  phi_rf_d = False, omega_rf = False)
@@ -76,5 +89,4 @@ rf_params = RFStation(general_params, n_rf_systems,
                       [time_C02, time_C04, time_C16, voltage_C02, voltage_C04, voltage_C16], 
                       [phi_rf_1, phi_rf_2, phi_rf_3], 
                       PreprocessRFParams=preprocess_rf)
-
-print('end!')
+print("Done!")

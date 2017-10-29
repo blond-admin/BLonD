@@ -1,5 +1,5 @@
-
-# Copyright 2016 CERN. This software is distributed under the
+# coding: utf8
+# Copyright 2014-2017 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3), 
 # copied verbatim in the file LICENCE.md.
 # In applying this licence, CERN does not waive the privileges and immunities 
@@ -10,6 +10,8 @@
 '''
 Example input for simulation with RF noise
 No intensity effects
+
+:Authors: **Helga Timko**
 '''
 
 from __future__ import division, print_function
@@ -24,7 +26,16 @@ from beam.profile import CutOptions, Profile, FitOptions
 from monitors.monitors import BunchMonitor
 from plots.plot import Plot
 from llrf.rf_noise import FlatSpectrum
+import os
 
+try:
+    os.mkdir('../output_files')
+except:
+    pass
+try:
+    os.mkdir('../output_files/EX_03_fig')
+except:
+    pass
 
 
 # Simulation parameters --------------------------------------------------------
@@ -60,7 +71,7 @@ rf_params = RFStation(general_params, 1, [h], [V], [0])
 RFnoise = FlatSpectrum(general_params, rf_params, delta_f = 1.12455000e-02, fmin_s0 = 0, 
                        fmax_s0 = 1.1, seed1=1234, seed2=7564, 
                        initial_amplitude = 1.11100000e-07, folder_plots =
-                       '../output_files/EX_3_fig')
+                       '../output_files/EX_03_fig')
 RFnoise.generate()
 rf_params.phi_noise = np.array(RFnoise.dphi, ndmin =2) 
 
@@ -89,16 +100,17 @@ print("Beam set and distribution generated...")
 slice_beam = Profile(beam, CutOptions(n_slices=100),
                  FitOptions(fit_option='gaussian'))        
 slice_beam.track()
+
 # Define what to save in file
-bunchmonitor = BunchMonitor(general_params, rf_params, beam, '../output_files/EX_3_output_data', Profile=slice_beam)
+bunchmonitor = BunchMonitor(general_params, rf_params, beam, '../output_files/EX_03_output_data', Profile=slice_beam)
 
 
 # PLOTS
 
-format_options = {'dirname': '../output_files/EX_3_fig', 'linestyle': '.'}
+format_options = {'dirname': '../output_files/EX_03_fig', 'linestyle': '.'}
 plots = Plot(general_params, rf_params, beam, dt_plt, N_t, 0, 
              0.0001763*h, -450e6, 450e6, xunit= 'rad',
-             separatrix_plot= True, Profile = slice_beam, h5file = '../output_files/EX_3_output_data', 
+             separatrix_plot= True, Profile = slice_beam, h5file = '../output_files/EX_03_output_data', 
              histograms_plot = True, format_options = format_options)
 
 # Accelerator map
@@ -134,5 +146,4 @@ for i in range(1,N_t+1):
     beam.losses_longitudinal_cut(0., 2.5e-9)
 
 print("Done!")
-print("")
 

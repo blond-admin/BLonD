@@ -1,11 +1,11 @@
-# Copyright 2016 CERN. This software is distributed under the
-# terms of the GNU General Public Licence version 3 (GPL Version 3),
+
+# Copyright 2014-2017 CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3), 
 # copied verbatim in the file LICENCE.md.
-# In applying this licence, CERN does not waive the privileges and immunities
+# In applying this licence, CERN does not waive the privileges and immunities 
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
-
 
 '''
 Test case for the synchrotron radiation routine.
@@ -28,9 +28,12 @@ from synchrotron_radiation.synchrotron_radiation import SynchrotronRadiation
 from scipy.constants import c, e, m_e
 from beam.profile import CutOptions
 
-
 try:
-    os.mkdir('../output_files/EX13_fig')
+    os.mkdir('../output_files')
+except:
+    pass
+try:
+    os.mkdir('../output_files/EX_13_fig')
 except:
     pass
 
@@ -78,10 +81,6 @@ general_params = Ring(np.ones(n_sections) * C/n_sections,
                                np.tile(sync_momentum,(n_sections, n_turns+1)),
                                particle_type, n_turns, n_stations = n_sections)
 
-
-
-
-
 RF_sct_par = []
 for i in np.arange(n_sections)+1:
     RF_sct_par.append(RFStation(general_params, n_rf_systems,
@@ -92,16 +91,12 @@ for i in np.arange(n_sections)+1:
 
 beam = Beam(general_params, n_macroparticles, n_particles)
 
-
-
-
 # DEFINE SLICES----------------------------------------------------------------
 
 number_slices = 500
 
 cut_options = CutOptions(cut_left=0., cut_right=bucket_length, n_slices=number_slices)
 slice_beam = Profile(beam, CutOptions = cut_options)
-#RF_sct_par[0],
 
 # DEFINE TRACKER---------------------------------------------------------------
 longitudinal_tracker = []
@@ -194,7 +189,7 @@ plt.xlabel('Turns')
 plt.ylabel('Bunch length [ps]')
 plt.legend(('Simulation','Damping time: {0:1.1f} turns (fit)'.format(1 / 
            np.abs(tau))), loc=0, fontsize='medium')
-plt.savefig('../output_files/EX13_fig/bl_fit.png')
+plt.savefig('../output_files/EX_13_fig/bl_fit.png')
 plt.close()
 
 
@@ -210,7 +205,7 @@ plt.xlabel('Turns')
 plt.ylabel('Bunch position [ns]')
 plt.legend(('Simulation','Damping time: {0:1.1f} turns (fit)'.format(1 / 
             np.abs(tau))),loc=0,fontsize='medium')
-plt.savefig('../output_files/EX13_fig/pos_fit')
+plt.savefig('../output_files/EX_13_fig/pos_fit')
 plt.close()
 
 ## WITH QUANTUM EXCITATION
@@ -288,7 +283,7 @@ print('Equilibrium energy spread = {0:1.3f} [MeV]'.format(1e-6 *
         std_dE[-10:].mean()))
 plt.xlabel('Turns')
 plt.ylabel('Energy spread [MeV]')
-plt.savefig('../output_files/EX13_fig/std_dE_QE.png')
+plt.savefig('../output_files/EX_13_fig/std_dE_QE.png')
 plt.close()
 
 plt.figure(figsize=[6,4.5])
@@ -297,7 +292,7 @@ print('Equilibrium bunch length = {0:1.3f} [ps]'.format(4e12 *
         std_dt[-10:].mean()))
 plt.xlabel('Turns')
 plt.ylabel('Bunch length [ps]')
-plt.savefig('../output_files/EX13_fig/bl_QE.png')
+plt.savefig('../output_files/EX_13_fig/bl_QE.png')
 plt.close()
 
 print("Done!")

@@ -1,4 +1,5 @@
-# Copyright 2016 CERN. This software is distributed under the
+
+# Copyright 2014-2017 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3), 
 # copied verbatim in the file LICENCE.md.
 # In applying this licence, CERN does not waive the privileges and immunities 
@@ -28,6 +29,10 @@ from trackers.tracker import RingAndRFTracker, FullRingAndRF
 from scipy.constants import c, e, m_e
 import os
 
+try:
+    os.mkdir('../output_files')
+except:
+    pass
 try:
     os.mkdir('../output_files/EX_14_fig')
 except:
@@ -138,3 +143,5 @@ for i in range(int(np.sum(filling_pattern))):
     plt.plot(slice_beam.slices_array[i].bin_centers,
              slice_beam.slices_array[i].n_macroparticles)
 plt.savefig('../output_files/EX_14_fig/ind_track.png')
+
+print("Done!")

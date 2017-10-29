@@ -1,8 +1,8 @@
-
-# Copyright 2016 CERN. This software is distributed under the
-# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# coding: utf8
+# Copyright 2014-2017 CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3), 
 # copied verbatim in the file LICENCE.md.
-# In applying this licence, CERN does not waive the privileges and immunities
+# In applying this licence, CERN does not waive the privileges and immunities 
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
@@ -10,6 +10,8 @@
 '''
 Example input for simulating a ring with multiple RF stations
 No intensity effects
+
+:Authors: **Helga Timko**
 '''
 
 from __future__ import division, print_function
@@ -23,6 +25,16 @@ from beam.distributions import bigaussian
 from beam.profile import CutOptions, Profile, FitOptions
 from monitors.monitors import BunchMonitor
 from plots.plot import Plot
+import os
+
+try:
+    os.mkdir('../output_files')
+except:
+    pass
+try:
+    os.mkdir('../output_files/EX_04_fig')
+except:
+    pass
 
 # Simulation parameters -------------------------------------------------------
 # Bunch parameters
@@ -90,15 +102,15 @@ slice_beam = Profile(beam, CutOptions(n_slices=100),
                  FitOptions(fit_option='gaussian'))       
 # Define what to save in file
 bunchmonitor = BunchMonitor(general_params, rf_params_tot, beam,
-                            '../output_files/EX_4_output_data',
+                            '../output_files/EX_04_output_data',
                             Profile=slice_beam, buffer_time=1)
 
 # PLOTS
-format_options = {'dirname': '../output_files/EX_4_fig', 'linestyle': '.'}
+format_options = {'dirname': '../output_files/EX_04_fig', 'linestyle': '.'}
 plots = Plot(general_params, rf_params_tot, beam, dt_plt, dt_plt, 0, 
              0.0001763*h, -450e6, 450e6, xunit='rad',
              separatrix_plot=True, Profile=slice_beam,
-             h5file='../output_files/EX_4_output_data',
+             h5file='../output_files/EX_04_output_data',
              histograms_plot=True, format_options=format_options)
 
 
@@ -124,4 +136,3 @@ for i in np.arange(1,N_t+1):
 
 
 print("Done!")
-print("")

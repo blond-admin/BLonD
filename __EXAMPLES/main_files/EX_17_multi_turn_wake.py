@@ -1,8 +1,8 @@
 
-# Copyright 2016 CERN. This software is distributed under the
-# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# Copyright 2014-2017 CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3), 
 # copied verbatim in the file LICENCE.md.
-# In applying this licence, CERN does not waive the privileges and immunities
+# In applying this licence, CERN does not waive the privileges and immunities 
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
@@ -24,19 +24,27 @@ import pylab as plt
 from input_parameters.ring import Ring
 from input_parameters.rf_parameters import RFStation
 from trackers.tracker import RingAndRFTracker
-from beam.beam import Beam
+from beam.beam import Beam, Proton
 from beam.distributions import bigaussian
-from beam.profile import Profile
+from beam.profile import Profile, CutOptions
 from impedances.impedance import InducedVoltageFreq, InducedVoltageTime
 from impedances.impedance import TotalInducedVoltage
 from impedances.impedance_sources import Resonators
 from scipy.constants import c, e, m_p
+import os
 
+try:
+    os.mkdir('../output_files')
+except:
+    pass
+try:
+    os.mkdir('../output_files/EX_17_fig')
+except:
+    pass
 
 # SIMULATION PARAMETERS -------------------------------------------------------
 
 # Beam parameters
-particle_type = 'proton'
 n_particles = 1e11
 n_macroparticles = 5e5
 sigma_dt = 180e-9 / 4 # [s]
@@ -70,16 +78,16 @@ phi_offset = np.pi
 
 # DEFINE RING------------------------------------------------------------------
 
-general_params = Ring(n_turns, C, momentum_compaction,
-                                   sync_momentum, particle_type)
+general_params = Ring(C, momentum_compaction,
+                                   sync_momentum, Proton(), n_turns)
 
 RF_sct_par = RFStation(general_params, n_rf_systems,
-                                 harmonic_numbers, voltage_program, phi_offset)
+                                 [harmonic_numbers], [voltage_program], [phi_offset])
 
 beam = Beam(general_params, n_macroparticles, n_particles)
 ring_RF_section = RingAndRFTracker(RF_sct_par, beam)
 
-bucket_length = 2.0 * np.pi / RF_sct_par.omega_RF[0,0]
+bucket_length = 2.0 * np.pi / RF_sct_par.omega_rf[0,0]
 
 # DEFINE BEAM------------------------------------------------------------------
 
@@ -89,8 +97,9 @@ bigaussian(general_params, RF_sct_par, beam, sigma_dt, seed=1)
 # DEFINE SLICES----------------------------------------------------------------
 
 number_slices = 200
-slice_beam = Profile(RF_sct_par, beam, number_slices, cut_left=0,
-                    cut_right=bucket_length)
+slice_beam = Profile(beam, CutOptions(cut_left=0, 
+                    cut_right=bucket_length, n_slices=number_slices)) 
+
 
 # Overwriting the slices by a Gaussian profile (no slicing noise)
 slice_beam.n_macroparticles = (n_macroparticles * slice_beam.bin_size /
@@ -159,9 +168,9 @@ for i in range(1, n_turns+1):
         np.sqrt(2.0 * np.pi)) * np.exp(-0.5 * (time_array - bucket_length/2.0 +
         np.sum(RF_sct_par.t_rev[i:-1]))**2.0 / sigma_dt**2.0)
 
-ind_volt = - beam.charge * e * beam.ratio * \
+ind_volt = - beam.Particle.charge * e * beam.ratio * \
            np.convolve(profiles, ind_volt_time.total_wake)
-#plt.figure()
+
 plt.plot(time_array*1e9, ind_volt[:time_array.shape[0]], lw=2, alpha=0.75,
          label='"Manual" convolution')
 plt.xlim(0, bucket_length*1e9)
@@ -169,6 +178,7 @@ plt.xlabel('Time [ns]')
 plt.ylabel('Induced voltage [V]')
 plt.title('Constant revolution frequency')
 plt.legend(loc=2, fontsize='x-small')
+plt.savefig('../output_files/EX_17_fig/const_rev_f.png')
 
 # SECOND COMPARISON: DIFFERENT REVOLUTION FREQUENCIES -------------------------
 
@@ -198,7 +208,7 @@ for i in range(1, n_turns+1):
         np.sqrt(2.0 * np.pi)) * np.exp(-0.5 * (time_array - bucket_length/2.0 +
         np.sum(RF_sct_par.t_rev[i:-1]))**2.0 / sigma_dt**2.0)
 
-ind_volt = -(beam.charge * e * beam.ratio *
+ind_volt = -(beam.Particle.charge * e * beam.ratio *
            np.convolve(profiles, ind_volt_time.total_wake))
 
 plt.plot(time_array*1e9, ind_volt[:time_array.shape[0]], lw=2, alpha=0.75,
@@ -208,6 +218,6 @@ plt.xlabel('Time [ns]')
 plt.ylabel('Induced voltage [V]')
 plt.title('Different revolution frequencies')
 plt.legend(loc=2, fontsize='medium')
-plt.show()
+plt.savefig('../output_files/EX_17_fig/diff_rev_f.png')
 
 print("Done!")

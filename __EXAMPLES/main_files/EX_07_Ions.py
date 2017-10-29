@@ -1,8 +1,8 @@
-
-# Copyright 2016 CERN. This software is distributed under the
-# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# coding: utf8
+# Copyright 2014-2017 CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3), 
 # copied verbatim in the file LICENCE.md.
-# In applying this licence, CERN does not waive the privileges and immunities
+# In applying this licence, CERN does not waive the privileges and immunities 
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
@@ -10,6 +10,8 @@
 '''
 Example input for simulation of ion dynamics
 No intensity effects
+
+:Authors: **Alexandre Lasheen**
 '''
 
 from __future__ import division, print_function
@@ -26,6 +28,16 @@ from monitors.monitors import BunchMonitor
 from beam.profile import Profile, CutOptions
 from beam.beam import Beam, Particle
 from plots.plot import Plot
+import os
+
+try:
+    os.mkdir('../output_files')
+except:
+    pass
+try:
+    os.mkdir('../output_files/EX_07_fig')
+except:
+    pass
 
 
 # Simulation parameters --------------------------------------------------------
@@ -103,13 +115,13 @@ slice_beam = Profile(beam, CutOptions(n_slices=100))
 
 # Define what to save in file
 bunchmonitor = BunchMonitor(general_params, rf_params, beam,
-                            '../output_files/EX_7_output_data',
+                            '../output_files/EX_07_output_data',
                             Profile=slice_beam)
 
-format_options = {'dirname': '../output_files/EX_7_fig'}
+format_options = {'dirname': '../output_files/EX_07_fig'}
 plots = Plot(general_params, rf_params, beam, dt_plt, N_t, 0, 8.e-7,
              -400e6, 400e6, separatrix_plot=True, Profile=slice_beam,
-             h5file='../output_files/EX_7_output_data', 
+             h5file='../output_files/EX_07_output_data', 
              format_options=format_options)
 
 # Accelerator map
@@ -131,16 +143,13 @@ for i in range(1, N_t+1):
         print("   Beam beta %3.3f" %beam.beta)
         print("   Beam energy %.6e eV" %beam.energy)
         print("   Four-times r.m.s. bunch length %.4e s" %(4.*beam.sigma_dt))
-        #print "   Gaussian bunch length %.4e s" %slice_beam.bl_gauss
         print("")
         
     # Track
     for m in map_:
         m.track()
         
-    # Define losses according to separatrix and/or longitudinal position
+    # Define losses according to separatrix
     beam.losses_separatrix(general_params, rf_params)
-    #beam.losses_longitudinal_cut(0.28e-4/general_params.omega_rev[i], 0.75e-4/general_params.omega_rev[i])
-    
+   
 print("Done!")
-print("")

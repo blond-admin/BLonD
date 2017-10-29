@@ -1,11 +1,17 @@
 
-# Copyright 2016 CERN. This software is distributed under the
-# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# Copyright 2014-2017 CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3), 
 # copied verbatim in the file LICENCE.md.
-# In applying this licence, CERN does not waive the privileges and immunities
+# In applying this licence, CERN does not waive the privileges and immunities 
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
+
+'''
+Test case to show how to use radial loop (CERN PS Booster context).
+
+:Authors: **Danilo Quartullo**
+'''
 
 from __future__ import division, print_function
 import numpy as np
@@ -18,6 +24,16 @@ from beam.profile import Profile, CutOptions
 from beam.beam import Beam, Proton
 from plots.plot import Plot
 from llrf.beam_feedback import BeamFeedback
+import os
+
+try:
+    os.mkdir('../output_files')
+except:
+    pass
+try:
+    os.mkdir('../output_files/EX_09_fig')
+except:
+    pass
 
 # Beam parameters
 n_macroparticles = 100000
@@ -78,16 +94,16 @@ slices_ring.track()
 
 #Monitor
 bunch_monitor = BunchMonitor(general_params, rf_params, my_beam,
-                             '../output_files/EX_9_output_data',
+                             '../output_files/EX_09_output_data',
                              Profile=slices_ring, PhaseLoop=phase_loop)
 
 
 #Plots
-format_options = {'dirname': '../output_files/EX_9_fig'}
+format_options = {'dirname': '../output_files/EX_09_fig'}
 plots = Plot(general_params, rf_params, my_beam, 100, n_turns, 0.0, 2.0*0.9e-6,
              -1.e6, 1.e6, separatrix_plot=True, Profile=slices_ring,
              format_options=format_options,
-             h5file='../output_files/EX_9_output_data', PhaseLoop=phase_loop)
+             h5file='../output_files/EX_09_output_data', PhaseLoop=phase_loop)
 
 
 # Accelerator map
@@ -100,7 +116,8 @@ for i in range(1, n_turns+1):
     
     for m in map_:
         m.track()   
-    cut_options.track_cuts(my_beam)   
+    slices_ring.cut_options.track_cuts(my_beam)   
+    slices_ring.set_slices_parameters()
 
     if (i % 50 == 0): 
         print("Time step %d" %i)
@@ -110,5 +127,4 @@ for i in range(1, n_turns+1):
         print("    RF phase %.4f rad" %(rf_params.phi_rf[0,i]))
         print("    RF frequency %.6e 1/s" %(rf_params.omega_rf[0,i]))
 
-        
-print('DONE')
+print("Done!")

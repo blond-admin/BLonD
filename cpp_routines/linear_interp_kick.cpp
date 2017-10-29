@@ -15,16 +15,17 @@ Project website: http://blond.web.cern.ch/
 #include <stdlib.h>
 #include <math.h>
 
+
 extern "C" void linear_interp_kick(
     const double * __restrict__ beam_dt,
     double * __restrict__ beam_dE,
     const double * __restrict__ voltage_array,
     const double * __restrict__ bin_centers,
+    const double charge,
     const int n_slices,
     const int n_macroparticles,
     const double acc_kick)
-{
-
+{   
     // Num of iterations of the inner loop
     const int STEP = 32;
     const double inv_bin_width = (n_slices - 1) /
@@ -62,9 +63,9 @@ extern "C" void linear_interp_kick(
             for (int j = 0; j < loop_count; j++) {
                 int bin = (int) fbin[j];
                 if (bin >= 0 && bin < n_slices - 1) {
-                    beam_dE[i + j] += voltage_array[bin]
+                    beam_dE[i + j] += charge*(voltage_array[bin]
                                       + (beam_dt[i + j] - bin_centers[bin])
-                                      * voltageKick[bin];
+                                      * voltageKick[bin]);
                 }
             }
         }

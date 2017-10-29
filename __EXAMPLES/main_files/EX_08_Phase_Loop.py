@@ -1,11 +1,17 @@
 
-# Copyright 2016 CERN. This software is distributed under the
-# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# Copyright 2014-2017 CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3), 
 # copied verbatim in the file LICENCE.md.
-# In applying this licence, CERN does not waive the privileges and immunities
+# In applying this licence, CERN does not waive the privileges and immunities 
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
+
+'''
+Test case to show how to use phase loop (CERN PS Booster context).
+
+:Authors: **Danilo Quartullo**
+'''
 
 from __future__ import division, print_function
 import numpy as np
@@ -18,20 +24,27 @@ from beam.profile import Profile, CutOptions
 from beam.beam import Beam, Proton
 from plots.plot import Plot
 from llrf.beam_feedback import BeamFeedback
+import os
+
+try:
+    os.mkdir('../output_files')
+except:
+    pass
+try:
+    os.mkdir('../output_files/EX_08_fig')
+except:
+    pass
 
 # Beam parameters
 n_macroparticles = 100000
 n_particles = 0
-
 
 # Machine and RF parameters
 radius = 25 # [m]
 gamma_transition = 4.076750841
 alpha = 1 / gamma_transition**2
 C = 2*np.pi*radius  # [m]     
-
 n_turns = 500
-
 general_params = Ring(C, alpha, 310891054.809, 
                                    Proton(), n_turns)
 
@@ -76,16 +89,16 @@ slices_ring.track()
 
 #Monitor
 bunch_monitor = BunchMonitor(general_params, rf_params, my_beam,
-                             '../output_files/EX_8_output_data',
+                             '../output_files/EX_08_output_data',
                              Profile=slices_ring, PhaseLoop=phase_loop)
 
 
 #Plots
-format_options = {'dirname': '../output_files/EX_8_fig'}
+format_options = {'dirname': '../output_files/EX_08_fig'}
 plots = Plot(general_params, rf_params, my_beam, 50, n_turns, 0.0, 2*np.pi,
              -1e6, 1e6, xunit='rad', separatrix_plot=True, Profile=slices_ring,
              format_options=format_options,
-             h5file='../output_files/EX_8_output_data', PhaseLoop=phase_loop)
+             h5file='../output_files/EX_08_output_data', PhaseLoop=phase_loop)
 
 # Accelerator map
 map_ = [full_ring] + [slices_ring] + [bunch_monitor] + [plots] 
@@ -97,5 +110,4 @@ for i in range(1, n_turns+1):
     for m in map_:
         m.track()      
     
-        
-print('DONE')
+print("Done!")
