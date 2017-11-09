@@ -399,6 +399,61 @@ class TestCumTrapz(unittest.TestCase):
                                        decimal=8)
 
 
+class TestSort(unittest.TestCase):
+
+    # Run before every test
+    def setUp(self):
+        pass
+    # Run after every test
+
+    def tearDown(self):
+        pass
+
+    def test_sort_1(self):
+        y = np.random.randn(100)
+        y2 = np.copy(y)
+        y2.sort()
+        np.testing.assert_equal(bm.sort(y), y2)
+
+    def test_sort_2(self):
+        y = np.random.randn(200)
+        y2 = np.copy(y)
+        np.testing.assert_equal(bm.sort(y, reverse=True),
+                                sorted(y2, reverse=True))
+
+    def test_sort_3(self):
+        y = np.random.randn(200)
+        y2 = np.copy(y)
+        bm.sort(y)
+        y2.sort()
+        np.testing.assert_equal(y, y2)
+        bm.sort(y, reverse=True)
+        y2 = sorted(y2, reverse=True)
+        np.testing.assert_equal(y, y2)
+
+    def test_sort_4(self):
+        y = np.array([np.random.randint(100)
+                      for i in range(100)], dtype=np.int32)
+        y2 = np.copy(y)
+        bm.sort(y)
+        y2.sort()
+        np.testing.assert_equal(y, y2)
+        bm.sort(y, reverse=True)
+        y2 = sorted(y2, reverse=True)
+        np.testing.assert_equal(y, y2)
+
+    def test_sort_5(self):
+        y = np.array([np.random.randint(100)
+                      for i in range(100)], dtype=int)
+        y2 = np.copy(y)
+        bm.sort(y)
+        y2.sort()
+        np.testing.assert_equal(y, y2)
+        bm.sort(y, reverse=True)
+        y2 = sorted(y2, reverse=True)
+        np.testing.assert_equal(y, y2)
+
+
 if __name__ == '__main__':
 
     unittest.main()

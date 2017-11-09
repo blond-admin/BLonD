@@ -150,3 +150,15 @@ def arange(start, stop, step, dtype=float, result=None):
 def sum(x):
     __lib.sum.restype = ct.c_double
     return __lib.sum(__getPointer(x), __getLen(x))
+
+
+def sort(x, reverse=False):
+    if x.dtype == 'int32':
+        __lib.sort_int(__getPointer(x), __getLen(x), ct.c_bool(reverse))
+    elif x.dtype == 'float64':
+        __lib.sort_double(__getPointer(x), __getLen(x), ct.c_bool(reverse))
+    elif x.dtype == 'int64':
+        __lib.sort_longint(__getPointer(x), __getLen(x), ct.c_bool(reverse))
+    else:
+        raise RuntimeError('[sort] Datatype %s not supported' % x.dtype)
+    return x
