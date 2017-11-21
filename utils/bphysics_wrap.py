@@ -1,9 +1,16 @@
+'''
+BLonD math wrapper functions
+
+@author Konstantinos Iliakis
+@date 20.10.2017
+'''
+
 import ctypes as ct
 import numpy as np
 import os
 
 __lib = ct.cdll.LoadLibrary(os.path.dirname(
-    os.path.abspath(__file__)) + '/../cpp_routines/libblondmath.so')
+    os.path.abspath(__file__)) + '/../cpp_routines/libblondphysics.so')
 
 
 def __getPointer(x):
@@ -12,6 +19,38 @@ def __getPointer(x):
 
 def __getLen(x):
     return ct.c_int(len(x))
+
+
+def kick(ring, dt, dE, turn):
+    pass
+
+
+def drift(ring, dt, dE, turn):
+    pass
+
+
+def linear_interp_kick(ring, dt, dE, turn):
+    pass
+
+
+def linear_interp_time_translation(ring, dt, dE, turn):
+    pass
+
+
+def slice(profile):
+    pass
+
+
+def slice_smooth(profile):
+    pass
+
+
+def music_track():
+    pass
+
+
+def music_track_multiturn():
+    pass
 
 
 def convolve(signal, kernel, mode='full', result=None):

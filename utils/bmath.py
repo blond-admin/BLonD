@@ -4,48 +4,41 @@ BLonD math functions
 @author Stefan Hegglin, Konstantinos Iliakis
 @date 20.10.2017
 '''
-import numpy as np
 # from functools import wraps
-from utils import blondmath_wrap as cpp
+import numpy as np
+from utils import blondutils_wrap as butils_wrap
+from utils import blondphysics_wrap as bphysics_wrap
 
 #### dictionary storing the CPU versions of the desired functions ####
 _CPU_func_dict = {
-    'sin': cpp.sin,
-    'cos': cpp.cos,
-    'exp': cpp.exp,
-    'mean': cpp.mean,
-    'std': cpp.std,
-    'interp': cpp.interp,
-    'cumtrapz': cpp.cumtrapz,
-    'trapz': cpp.trapz,
-    'linspace': cpp.linspace,
-    'argmin': cpp.argmin,
-    'argmax': cpp.argmax,
-    'convolve': cpp.convolve,
-    'arange': cpp.arange,
-    'sum': cpp.sum,
-    'sort': cpp.sort,
+    'sin': butils_wrap.sin,
+    'cos': butils_wrap.cos,
+    'exp': butils_wrap.exp,
+    'mean': butils_wrap.mean,
+    'std': butils_wrap.std,
+    'interp': butils_wrap.interp,
+    'cumtrapz': butils_wrap.cumtrapz,
+    'trapz': butils_wrap.trapz,
+    'linspace': butils_wrap.linspace,
+    'argmin': butils_wrap.argmin,
+    'argmax': butils_wrap.argmax,
+    'convolve': butils_wrap.convolve,
+    'arange': butils_wrap.arange,
+    'sum': butils_wrap.sum,
+    'sort': butils_wrap.sort,
+    'kick': bphysics_wrap.kick,
+    'drift': bphysics_wrap.drift,
+    'linear_interp_kick': bphysics_wrap.linear_interp_kick,
+    'linear_interp_time_translation': bphysics_wrap.linear_interp_time_translation,
+    'histogram': bphysics_wrap.histogram,
+    'histogram_smooth': bphysics_wrap.histogram_smooth,
+    'music_track': bphysics_wrap.music_track,
+    'music_track_multiturn': bphysics_wrap.music_track_multiturn,
     'diff': np.diff,
     'cumsum': np.cumsum,
     'cumprod': np.cumprod,
     'gradient': np.gradient,
     'sqrt': np.sqrt,
-    # 'floor': np.floor,
-    # 'take': np.take,
-    # 'seq': lambda stop: np.arange(stop, dtype=np.int32),
-    # 'zeros': np.zeros,
-    # 'empty': np.empty,
-    # 'empty_like': np.empty_like,
-    # 'ones': np.ones,
-    # 'all': np.all,
-    # 'any': np.any,
-    # 'indexify': lambda array: array.astype(np.int32),
-    # 'abs': np.abs,
-    # 'sign': np.sign,
-    # 'allclose': np.allclose,
-    # 'put': np.put,
-    # 'atleast_1d': np.atleast_1d,
-    # 'almost_zero': lambda array, *args, **kwargs: np.allclose(array, 0, *args, **kwargs),
     'device': 'CPU'
 }
 
