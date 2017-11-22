@@ -1,5 +1,5 @@
 '''
-BLonD math wrapper functions
+BLonD physics wrapper functions
 
 @author Konstantinos Iliakis
 @date 20.10.2017
@@ -7,13 +7,7 @@ BLonD math wrapper functions
 
 import ctypes as ct
 import numpy as np
-import os
-# from ..trackers.tracker import RingAndRFTracker
-# from ..beam.profile import Profile
-# from ..impedances.music import Music
-
-__lib = ct.cdll.LoadLibrary(os.path.dirname(
-    os.path.abspath(__file__)) + '/../cpp_routines/libblondphysics.so')
+from setup_cpp import libblondphysics as __lib
 
 
 def __getPointer(x):

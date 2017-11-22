@@ -1,5 +1,5 @@
 '''
-BLonD math functions
+BLonD math and physics core functions
 
 @author Stefan Hegglin, Konstantinos Iliakis
 @date 20.10.2017
@@ -9,7 +9,7 @@ import numpy as np
 from utils import butils_wrap
 from utils import bphysics_wrap
 
-#### dictionary storing the CPU versions of the desired functions ####
+# dictionary storing the CPU versions of the desired functions #
 _CPU_func_dict = {
     'sin': butils_wrap.sin,
     'cos': butils_wrap.cos,

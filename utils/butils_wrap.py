@@ -7,10 +7,7 @@ BLonD math wrapper functions
 
 import ctypes as ct
 import numpy as np
-import os
-
-__lib = ct.cdll.LoadLibrary(os.path.dirname(
-    os.path.abspath(__file__)) + '/../cpp_routines/libblondmath.so')
+from setup_cpp import libblondmath as __lib
 
 
 def __getPointer(x):
@@ -43,7 +40,7 @@ def std(x):
 
 
 def sin(x, result=None):
-    if isinstance(x, np.ndarray):
+    if isinstance(x, np.ndarray) and isinstance(x[0], np.float64):
         if result is None:
             result = np.empty(len(x), dtype=float)
         __lib.fast_sinv(__getPointer(x), __getLen(x), __getPointer(result))
@@ -51,10 +48,12 @@ def sin(x, result=None):
     elif isinstance(x, float) or isinstance(x, int):
         __lib.fast_sin.restype = ct.c_double
         return __lib.fast_sin(ct.c_double(x))
+    else:
+        raise RuntimeError('[sin] The type %s is not supported', type(x))
 
 
 def cos(x, result=None):
-    if isinstance(x, np.ndarray):
+    if isinstance(x, np.ndarray) and isinstance(x[0], np.float64):
         if result is None:
             result = np.empty(len(x), dtype=float)
         __lib.fast_cosv(__getPointer(x), __getLen(x), __getPointer(result))
@@ -62,10 +61,12 @@ def cos(x, result=None):
     elif isinstance(x, float) or isinstance(x, int):
         __lib.fast_cos.restype = ct.c_double
         return __lib.fast_cos(ct.c_double(x))
+    else:
+        raise RuntimeError('[cos] The type %s is not supported', type(x))
 
 
 def exp(x, result=None):
-    if isinstance(x, np.ndarray):
+    if isinstance(x, np.ndarray) and isinstance(x[0], np.float64):
         if result is None:
             result = np.empty(len(x), dtype=float)
         __lib.fast_expv(__getPointer(x), __getLen(x), __getPointer(result))
@@ -73,6 +74,8 @@ def exp(x, result=None):
     elif isinstance(x, float) or isinstance(x, int):
         __lib.fast_exp.restype = ct.c_double
         return __lib.fast_exp(ct.c_double(x))
+    else:
+        raise RuntimeError('[exp] The type %s is not supported', type(x))
 
 
 def interp(x, xp, yp, left=None, right=None, result=None):
