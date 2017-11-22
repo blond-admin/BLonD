@@ -118,6 +118,15 @@ if (__name__ == "__main__"):
             ['-o', 'synchrotron_radiation/sync_rad.so'] + cpp_files_SR
         subprocess.Popen(command)
 
+        command = [compiler] + cflags + \
+            ['-o', 'cpp_routines/libblondphysics.so'] + cpp_files_SR + cpp_files
+        subprocess.Popen(command)
+
+        command = [compiler] + cflags + \
+            ['-o', 'cpp_routines/libblondmath.so'] + \
+            ['cpp_routines/blondmath.cpp']
+        subprocess.Popen(command)
+
         print('\nIF THE COMPILATION IS CORRECT A FILE NAMED result.so SHOULD'
               ' APPEAR IN THE cpp_routines FOLDER. OTHERWISE YOU HAVE TO'
               ' CORRECT THE ERRORS AND COMPILE AGAIN.')
@@ -131,23 +140,35 @@ if (__name__ == "__main__"):
 #         command = [compiler] + cflags + \
 #             ['-o', 'cpp_routines\\result.dll'] + cpp_files
 #         subprocess.Popen(command)
-# 
+#
 #         command = [compiler] + cflags + \
 #             ['-o', 'synchrotron_radiation\\sync_rad.dll'] + cpp_files_SR
 #         subprocess.Popen(command)
 
         cpp_files_join_list = os.getcwd()+'\\'+' '.join(cpp_files)
         cpp_files_SR_join_list = os.getcwd()+'\\'+' '.join(cpp_files_SR)
-        cflags_join_list = ' '+ ' '.join(cflags)
-        
+        cflags_join_list = ' ' + ' '.join(cflags)
+
         command = compiler + cflags_join_list + ' -o ' + \
-            os.getcwd()+'\\cpp_routines\\result.dll -shared ' + cpp_files_join_list
+            os.getcwd()+'\\cpp_routines\\result.dll -shared ' + \
+            cpp_files_join_list
         os.system(command)
-        
+
         command = compiler + cflags_join_list + ' -o ' + \
-            os.getcwd()+'\\synchrotron_radiation\\sync_rad.dll -shared ' + cpp_files_SR_join_list
+            os.getcwd()+'\\synchrotron_radiation\\sync_rad.dll -shared ' +\
+            cpp_files_SR_join_list
         os.system(command)
-        
+
+        command = compiler + cflags_join_list + ' -o ' + \
+            os.getcwd()+'\\cpp_routines\\libblondphysics.dll -shared ' + \
+            cpp_files_SR_join_list + cpp_files_join_list
+        os.system(command)
+
+        command = compiler + cflags_join_list + ' -o ' + \
+            os.getcwd()+'\\cpp_routines\\libblondmath.dll -shared ' + \
+            os.getcwd() + '\\blondmath.cpp'
+        os.system(command)
+
         print('\nIF THE COMPILATION IS CORRECT A FILE NAMED result.dll SHOULD'
               ' APPEAR IN THE cpp_routines FOLDER. OTHERWISE YOU HAVE TO'
               ' CORRECT THE ERRORS AND COMPILE AGAIN.')
@@ -164,9 +185,15 @@ parent_path = os.sep.join(path.split(os.sep)[:-1])
 if ('posix' in os.name):
     libblond = ctypes.CDLL(parent_path+'/cpp_routines/result.so')
     libsrqe = ctypes.CDLL(parent_path+'/synchrotron_radiation/sync_rad.so')
+    libblondmath = ctypes.CDLL(parent_path+'/cpp_routines/libblondmath.so')
+    libblondphysics = ctypes.CDLL(
+        parent_path+'/cpp_routines/libblondphysics.so')
 elif ('win' in sys.platform):
     libblond = ctypes.CDLL(parent_path+'\\cpp_routines\\result.dll')
     libsrqe = ctypes.CDLL(parent_path+'\\synchrotron_radiation\\sync_rad.dll')
+    libblondmath = ctypes.CDLL(parent_path+'\\cpp_routines\\libblondmath.dll')
+    libblondphysics = ctypes.CDLL(
+        parent_path+'\\cpp_routines\\libblondphysics.dll')
 else:
     print('YOU DO NOT HAVE A WINDOWS OR LINUX OPERATING SYSTEM. ABORTING...')
     sys.exit()
