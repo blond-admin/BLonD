@@ -6,8 +6,8 @@ BLonD math functions
 '''
 # from functools import wraps
 import numpy as np
-from utils import blondutils_wrap as butils_wrap
-from utils import blondphysics_wrap as bphysics_wrap
+from utils import butils_wrap
+from utils import bphysics_wrap
 
 #### dictionary storing the CPU versions of the desired functions ####
 _CPU_func_dict = {
@@ -29,9 +29,11 @@ _CPU_func_dict = {
     'kick': bphysics_wrap.kick,
     'drift': bphysics_wrap.drift,
     'linear_interp_kick': bphysics_wrap.linear_interp_kick,
-    'linear_interp_time_translation': bphysics_wrap.linear_interp_time_translation,
-    'histogram': bphysics_wrap.histogram,
-    'histogram_smooth': bphysics_wrap.histogram_smooth,
+    'synchrotron_radiation': bphysics_wrap.synchrotron_radiation,
+    'synchrotron_radiation_full': bphysics_wrap.synchrotron_radiation_full,
+    # 'linear_interp_time_translation': bphysics_wrap.linear_interp_time_translation,
+    'slice': bphysics_wrap.slice,
+    'slice_smooth': bphysics_wrap.slice_smooth,
     'music_track': bphysics_wrap.music_track,
     'music_track_multiturn': bphysics_wrap.music_track_multiturn,
     'diff': np.diff,
