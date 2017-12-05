@@ -1,8 +1,8 @@
 
-# Copyright 2016 CERN. This software is distributed under the
-# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# Copyright 2014-2017 CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3), 
 # copied verbatim in the file LICENCE.md.
-# In applying this licence, CERN does not waive the privileges and immunities
+# In applying this licence, CERN does not waive the privileges and immunities 
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
@@ -22,20 +22,28 @@ import pylab as plt
 from input_parameters.ring import Ring
 from input_parameters.rf_parameters import RFStation
 from trackers.tracker import RingAndRFTracker, FullRingAndRF
-from beam.beam import Beam
+from beam.beam import Beam, Proton
 from beam.distributions_multibunch \
                             import matched_from_distribution_density_multibunch
 from beam.distributions_multibunch import matched_from_line_density_multibunch
-from beam.profile import Profile
+from beam.profile import Profile, CutOptions
 from impedances.impedance import InducedVoltageFreq, TotalInducedVoltage
 from impedances.impedance_sources import Resonators
 from scipy.constants import c, e, m_p
+import os
 
+try:
+    os.mkdir('../output_files')
+except:
+    pass
+try:
+    os.mkdir('../output_files/EX_20_fig')
+except:
+    pass
 
 # SIMULATION PARAMETERS -------------------------------------------------------
 
 # Beam parameters
-particle_type = 'proton'
 n_particles = int(3e11)
 n_macroparticles = int(1.5e6)
 sync_momentum = 7e12 # [eV]
@@ -61,18 +69,18 @@ momentum_compaction = 1 / gamma_transition**2
 
 # Cavities parameters
 n_rf_systems = 1
-harmonic_numbers = [35640.0]
-voltage_program = [16e6]
-phi_offset = [0]
+harmonic_numbers = 35640.0
+voltage_program = 16e6
+phi_offset = 0
 
 
 # DEFINE RING------------------------------------------------------------------
 
-general_params = Ring(n_turns, C, momentum_compaction,
-                                   sync_momentum, particle_type)
+general_params = Ring(C, momentum_compaction,
+                                   sync_momentum, Proton(), n_turns)
 
 RF_sct_par = RFStation(general_params, n_rf_systems,
-                                 harmonic_numbers, voltage_program, phi_offset)
+                                 [harmonic_numbers], [voltage_program], [phi_offset])
 
 beam = Beam(general_params, n_macroparticles, n_particles)
 ring_RF_section = RingAndRFTracker(RF_sct_par, beam)
@@ -81,18 +89,18 @@ full_tracker = FullRingAndRF([ring_RF_section])
 
 fs = RF_sct_par.omega_s0[0]/2/np.pi    
 
-bucket_length = 2.0 * np.pi / RF_sct_par.omega_RF[0,0]
+bucket_length = 2.0 * np.pi / RF_sct_par.omega_rf[0,0]
 
 # DEFINE SLICES ---------------------------------------------------------------
 
 number_slices = 3000
-slice_beam = Profile(RF_sct_par, beam, number_slices, cut_left=0,
-                    cut_right=21*bucket_length)
+slice_beam = Profile(beam, CutOptions(cut_left=0, 
+                    cut_right=21*bucket_length, n_slices=number_slices))
                 
 # LOAD IMPEDANCE TABLES -------------------------------------------------------
 
 R_S = 5e8
-frequency_R = 2*RF_sct_par.omega_RF[0,0] / 2.0 / np.pi
+frequency_R = 2*RF_sct_par.omega_rf[0,0] / 2.0 / np.pi
 Q = 10000
 
 print('Im Z/n = '+str(R_S / (RF_sct_par.t_rev[0] * frequency_R * Q)))
@@ -123,7 +131,8 @@ matched_from_distribution_density_multibunch(beam, general_params,
                              full_tracker, distribution_options_list,
                              n_bunches, bunch_spacing_buckets,
                              intensity_list=intensity_list,
-                             minimum_n_macroparticles=minimum_n_macroparticles)
+                             minimum_n_macroparticles=minimum_n_macroparticles
+                             , seed=31331)
 
 plt.figure()
 slice_beam.track()
@@ -136,7 +145,7 @@ matched_from_distribution_density_multibunch(beam, general_params,
                              intensity_list=intensity_list,
                              minimum_n_macroparticles=minimum_n_macroparticles,
                              TotalInducedVoltage=total_ind_volt,
-                             n_iterations_input=10)
+                             n_iterations_input=10, seed=7878)
 
 
 slice_beam.track()
@@ -145,12 +154,14 @@ plt.plot(slice_beam.bin_centers, slice_beam.n_macroparticles, lw=2,
          
 plt.legend(loc=0, fontsize='medium')
 plt.title('From distribution function')
+plt.savefig('../output_files/EX_20_fig/from_distr_funct.png')
 
 line_density_options_list = distribution_options_list
 matched_from_line_density_multibunch(beam, general_params,
                         full_tracker, line_density_options_list, n_bunches,
                         bunch_spacing_buckets, intensity_list=intensity_list,
-                        minimum_n_macroparticles=minimum_n_macroparticles)
+                        minimum_n_macroparticles=minimum_n_macroparticles
+                        , seed=86867676)
                         
 plt.figure('From line density')
 slice_beam.track()
@@ -162,7 +173,7 @@ matched_from_line_density_multibunch(beam, general_params,
                         full_tracker, line_density_options_list, n_bunches,
                         bunch_spacing_buckets, intensity_list=intensity_list,
                         minimum_n_macroparticles=minimum_n_macroparticles,
-                        TotalInducedVoltage=total_ind_volt)
+                        TotalInducedVoltage=total_ind_volt, seed=12)
 
 plt.figure('From line density')
 slice_beam.track()
@@ -170,5 +181,6 @@ plt.plot(slice_beam.bin_centers, slice_beam.n_macroparticles, lw=2,
          label='with intensity effects')
 plt.title('From line density')
 plt.legend(loc=0, fontsize='medium')
-plt.show()
+plt.savefig('../output_files/EX_20_fig/from_line_density.png')
 
+print("Done!")

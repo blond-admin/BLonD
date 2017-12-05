@@ -211,7 +211,7 @@ class BeamFeedback(object):
 
         # Total phase offset
         self.rf_params.phi_rf[:,counter] += self.rf_params.dphi_rf
-    
+        
 
     def precalculate_time(self, Ring):
         '''
@@ -219,18 +219,20 @@ class BeamFeedback(object):
         intervals, pre-calculate on which turns to act.*
         '''    
         
-        n = self.delay + 1
-        
-        while n < Ring.t_rev.size: 
-            summa = 0
-            while summa < self.dt:
-                try:
-                    summa += Ring.t_rev[n]
-                    n += 1
-                except:
-                    self.on_time = np.append(self.on_time, 0)
-                    return 
-            self.on_time = np.append(self.on_time, n-1)
+        if self.dt > 0:
+            n = self.delay + 1
+            while n < Ring.t_rev.size: 
+                summa = 0
+                while summa < self.dt:
+                    try:
+                        summa += Ring.t_rev[n]
+                        n += 1
+                    except:
+                        self.on_time = np.append(self.on_time, 0)
+                        return 
+                self.on_time = np.append(self.on_time, n-1)
+        else:
+            self.on_time = np.arange(Ring.t_rev.size)
         
         
 
@@ -246,7 +248,7 @@ class BeamFeedback(object):
         # Main RF frequency at the present turn
         omega_rf = self.rf_params.omega_rf[0,self.rf_params.counter[0]]
         phi_rf = self.rf_params.phi_rf[0,self.rf_params.counter[0]]
-        
+
         # Convolve with window function
         scoeff = np.trapz( np.exp(self.alpha*self.profile.bin_centers) \
                            *np.sin(omega_rf*self.profile.bin_centers + phi_rf) \
@@ -254,7 +256,7 @@ class BeamFeedback(object):
         ccoeff = np.trapz( np.exp(self.alpha*self.profile.bin_centers) \
                            *np.cos(omega_rf*self.profile.bin_centers + phi_rf) \
                            *self.profile.n_macroparticles, self.profile.bin_centers )
-        
+
         # Project beam phase to (pi/2,3pi/2) range
         self.phi_beam = np.arctan(scoeff/ccoeff) + np.pi
 
@@ -267,7 +269,7 @@ class BeamFeedback(object):
         # Correct for design stable phase
         counter = self.rf_params.counter[0]
         self.dphi = self.phi_beam - self.rf_params.phi_s[counter]
-
+        
         # Possibility to add RF phase noise through the PL
         if self.RFnoise != None:
             if self.noiseFB != None:

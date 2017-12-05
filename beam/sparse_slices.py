@@ -19,7 +19,7 @@ from builtins import range, object
 import numpy as np
 import ctypes
 from setup_cpp import libblond
-from beam.profile import Profile
+from beam.profile import Profile, CutOptions
 
 
 
@@ -65,10 +65,9 @@ class SparseSlices(object):
         self.bin_centers_array = np.zeros((self.n_filled_buckets, n_slices))
         for i in range(self.n_filled_buckets):
             # Only valid for cut_edges='edges'
-            self.slices_array.append(Profile(RFStation, Beam,
-                 n_slices, n_sigma=None, cut_left=self.cut_left_array[i],
-                 cut_right=self.cut_right_array[i], cuts_unit='s',
-                 fit_option=None, direct_slicing=False, smooth=False))
+                
+            self.slices_array.append(Profile(Beam, CutOptions(cut_left= self.cut_left_array[i], 
+                    cut_right=self.cut_right_array[i], n_slices=n_slices))   )
                  
             self.slices_array[i].n_macroparticles = \
                                                self.n_macroparticles_array[i,:]
@@ -93,7 +92,7 @@ class SparseSlices(object):
         This is done as a pre-processing.*
         '''
         # RF period
-        Trf = 2.0 * np.pi / self.RFParams.omega_RF[0,self.RFParams.counter[0]]
+        Trf = 2.0 * np.pi / self.RFParams.omega_rf[0,self.RFParams.counter[0]]
         
         self.cut_left_array = np.zeros(self.n_filled_buckets)
         self.cut_right_array = np.zeros(self.n_filled_buckets)

@@ -228,7 +228,7 @@ class RFStation(object):
         self.eta_1 = 0
         self.eta_2 = 0
         self.charge = self.Particle.charge
-        for i in range( 3 ):
+        for i in range(3):
             dummy = getattr(Ring, 'eta_' + str(i))
             setattr(self, "eta_%s" %i, dummy[self.section_index])
         self.sign_eta_0 = np.sign(self.eta_0)   
@@ -251,7 +251,7 @@ class RFStation(object):
                 if PreprocessRFParams.__getattribute__(rf_param) == True:
                     if len(self.__getattribute__(rf_param)) == 2*self.n_rf:
                         # Overwrite with interpolated values
-                        self.__setattribute__(rf_param, 
+                        setattr(self, rf_param, 
                             PreprocessRFParams.preprocess(Ring, 
                             self.__getattribute__(rf_param)[0:self.n_rf], #time
                             self.__getattribute__(rf_param)[self.n_rf:])) #data
@@ -259,9 +259,9 @@ class RFStation(object):
                         raise RuntimeError("ERROR in RFStation: harmonic to" +
                             " be pre-processed should have length of 2*n_rf!")
                 else:
-                    input_check(self.__getattribute__(rf_param))
+                    pass
         if phi_noise:
-            input_check(self.phi_noise)
+            self.phi_noise = input_check(phi_noise, self.n_turns+1)
         else:
             self.phi_noise = None
             
@@ -269,22 +269,19 @@ class RFStation(object):
         # Option 2: cast the input into appropriate shape: the input is 
         # analyzed and structured in order to have lists whose length is 
         # matching the number of RF systems in the section.      
-        if self.n_rf == 1:
-            self.harmonic = [harmonic] 
-            self.voltage = [voltage]
-            self.phi_rf_d = [phi_rf_d]
-            if phi_noise != None:
-                self.phi_noise = [phi_noise]
-            if omega_rf != None:
-                self.omega_rf = [omega_rf]                 
-        else:
-            self.harmonic = harmonic
-            self.voltage = voltage 
-            self.phi_rf_d = phi_rf_d
-            if phi_noise != None:
-                self.phi_noise = phi_noise
-            if omega_rf != None:
-                self.omega_rf = omega_rf
+#         if self.n_rf == 1:
+#             self.harmonic = [harmonic] 
+#             self.voltage = [voltage]
+#             self.phi_rf_d = [phi_rf_d]
+#             if phi_noise != None:
+#                 self.phi_noise = [phi_noise]
+#             if omega_rf != None:
+#                 self.omega_rf = [omega_rf]                 
+#         else:
+#             if phi_noise != None:
+#                 self.phi_noise = phi_noise
+#             if omega_rf != None:
+#                 self.omega_rf = omega_rf
         # Run input_check() on all RF systems
         for i in range(self.n_rf):
             self.harmonic[i] = input_check(self.harmonic[i], self.n_turns+1)

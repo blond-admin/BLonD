@@ -1,8 +1,8 @@
 
-# Copyright 2016 CERN. This software is distributed under the
-# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# Copyright 2014-2017 CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3), 
 # copied verbatim in the file LICENCE.md.
-# In applying this licence, CERN does not waive the privileges and immunities
+# In applying this licence, CERN does not waive the privileges and immunities 
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
@@ -14,33 +14,40 @@ methods are equivalent (compare the two figure folders). Note that to create an
 exact clone of the beam, the option seed=0 in the generation has been used.
 This script shows also an example of how to use the class SliceMonitor (check
 the corresponding h5 files).
+
+:Authors: **Danilo Quartullo**
 '''
 
 from __future__ import division, print_function
 import numpy as np
 import matplotlib.pyplot as plt
-
 from input_parameters.ring import Ring
 from input_parameters.rf_parameters import RFStation
 from trackers.tracker import RingAndRFTracker
-from beam.beam import Beam
 from beam.distributions import bigaussian
 from monitors.monitors import BunchMonitor
-from beam.profile import Profile
+from beam.profile import Profile, CutOptions, FitOptions
 from impedances.impedance import InducedVoltageTime, InducedVoltageFreq
 from impedances.impedance import InducedVoltageResonator, TotalInducedVoltage
 from impedances.induced_voltage_analytical import analytical_gaussian_resonator
-from impedances.impedance_sources import Resonators
-from plots.plot_beams import *
-from plots.plot_impedance import *
-from plots.plot_slices import *
+from beam.beam import Beam, Proton
 from plots.plot import Plot
+from plots.plot_impedance import plot_induced_voltage_vs_bin_centers
+from impedances.impedance_sources import Resonators
+import os
 
+try:
+    os.mkdir('../output_files')
+except:
+    pass
+try:
+    os.mkdir('../output_files/EX_05_fig')
+except:
+    pass
 
 # SIMULATION PARAMETERS -------------------------------------------------------
 
 # Beam parameters
-particle_type = 'proton'
 n_particles = 1e10      
 n_macroparticles = 5*1e6
 tau_0 = 2e-9 # [s]
@@ -65,22 +72,22 @@ phi_offset = 0.0
 
 # DEFINE RING------------------------------------------------------------------
 
-general_params = Ring(n_turns, C, momentum_compaction,
-                                   sync_momentum, particle_type)
-general_params_freq = Ring(n_turns, C, momentum_compaction,
-                                        sync_momentum, particle_type)
-general_params_res = Ring(n_turns, C, momentum_compaction,
-                                       sync_momentum, particle_type)
+general_params = Ring(C, momentum_compaction,
+                                   sync_momentum, Proton(), n_turns)
+general_params_freq = Ring(C, momentum_compaction,
+                                        sync_momentum, Proton(), n_turns)
+general_params_res = Ring(C, momentum_compaction,
+                                       sync_momentum, Proton(), n_turns)
 
 
-RF_sct_par = RFStation(general_params, n_rf_systems, harmonic_number, 
-                          voltage_program, phi_offset)
+RF_sct_par = RFStation(general_params, n_rf_systems, [harmonic_number], 
+                          [voltage_program], [phi_offset])
 RF_sct_par_freq = RFStation(general_params_freq, n_rf_systems,
-                                      harmonic_number, voltage_program,
-                                      phi_offset)
+                                      [harmonic_number], [voltage_program],
+                                      [phi_offset])
 RF_sct_par_res = RFStation(general_params_res, n_rf_systems,
-                                      harmonic_number, voltage_program,
-                                      phi_offset)
+                                      [harmonic_number], [voltage_program],
+                                      [phi_offset])
 
 my_beam = Beam(general_params, n_macroparticles, n_particles)
 my_beam_freq = Beam(general_params_freq, n_macroparticles, n_particles)
@@ -100,32 +107,33 @@ bigaussian(general_params_res, RF_sct_par_res, my_beam_res,
                         tau_0/4, seed=1)
 
 number_slices = 2**8
-slice_beam = Profile(RF_sct_par, my_beam, number_slices, cut_left=0,
-                    cut_right=2*np.pi, cuts_unit='rad', fit_option='gaussian')
-slice_beam_freq = Profile(RF_sct_par_freq, my_beam_freq, number_slices,
-                         cut_left=0, cut_right=2 * np.pi, cuts_unit='rad',
-                         fit_option='gaussian')
-slice_beam_res = Profile(RF_sct_par_freq, my_beam_res, number_slices,
-                         cut_left=0, cut_right=2 * np.pi, cuts_unit='rad',
-                         fit_option='gaussian')
+cut_options = CutOptions(cut_left= 0, cut_right=2*np.pi, n_slices=number_slices, 
+                         RFSectionParameters=RF_sct_par, cuts_unit = 'rad')
+slice_beam = Profile(my_beam, cut_options, FitOptions(fit_option='gaussian'))
+cut_options_freq = CutOptions(cut_left= 0, cut_right=2*np.pi, n_slices=number_slices, 
+                         RFSectionParameters=RF_sct_par_freq, cuts_unit = 'rad')
+slice_beam_freq = Profile(my_beam_freq, cut_options_freq, FitOptions(fit_option='gaussian'))
+cut_options_res = CutOptions(cut_left= 0, cut_right=2*np.pi, n_slices=number_slices, 
+                         RFSectionParameters=ring_RF_section_res, cuts_unit = 'rad')
+slice_beam_res = Profile(my_beam_res, cut_options_res, FitOptions(fit_option='gaussian'))
 
 # MONITOR----------------------------------------------------------------------
 
 bunchmonitor = BunchMonitor(general_params, ring_RF_section, my_beam, 
-                            '../output_files/EX5_output_data',
-                            Slices=slice_beam, buffer_time=1)
+                            '../output_files/EX_05_output_data',
+                            Profile=slice_beam, buffer_time=1)
 
 bunchmonitor_freq = BunchMonitor(general_params_freq, ring_RF_section_freq,
-                         my_beam_freq, '../output_files/EX5_output_data_freq',
-                         Slices=slice_beam_freq, buffer_time=1)
+                         my_beam_freq, '../output_files/EX_05_output_data_freq',
+                         Profile=slice_beam_freq, buffer_time=1)
 bunchmonitor_res = BunchMonitor(general_params_res, ring_RF_section_res,
-                         my_beam_res, '../output_files/EX5_output_data_res',
-                         Slices=slice_beam_res, buffer_time=1)
+                         my_beam_res, '../output_files/EX_05_output_data_res',
+                         Profile=slice_beam_res, buffer_time=1)
 
 
 # LOAD IMPEDANCE TABLE--------------------------------------------------------
 
-table = np.loadtxt('../input_files/EX5_new_HQ_table.dat', comments = '!')
+table = np.loadtxt('../input_files/EX_05_new_HQ_table.dat', comments = '!')
 
 R_shunt = table[:, 2] * 10**6 
 f_res = table[:, 0] * 10**9
@@ -145,10 +153,10 @@ tot_vol_res = TotalInducedVoltage(my_beam_res, slice_beam_res,
 # Analytic result-----------------------------------------------------------
 VindGauss = np.zeros(len(slice_beam.bin_centers))
 for r in range(len(Q_factor)):
-#Notice that the time-argument of inducedVoltageGauss is shifted by 
-#mean(my_slices.bin_centers), because the analytical equation assumes the
-#Gauss to be centered at t=0, but the line density is centered at 
-#mean(my_slices.bin_centers)
+    # Notice that the time-argument of inducedVoltageGauss is shifted by 
+    # mean(my_slices.bin_centers), because the analytical equation assumes the
+    # Gauss to be centered at t=0, but the line density is centered at 
+    # mean(my_slices.bin_centers)
     tmp = analytical_gaussian_resonator(tau_0/4, \
                     Q_factor[r],R_shunt[r],2*np.pi*f_res[r], \
                     slice_beam.bin_centers - np.mean(slice_beam.bin_centers), \
@@ -157,25 +165,25 @@ for r in range(len(Q_factor)):
 
 # PLOTS
 
-format_options = {'dirname': '../output_files/EX5_fig/1', 'linestyle': '.'}
+format_options = {'dirname': '../output_files/EX_05_fig/1', 'linestyle': '.'}
 plots = Plot(general_params, RF_sct_par, my_beam, dt_plt, n_turns, 0, 
              0.0014*harmonic_number, -1.5e8, 1.5e8, xunit='rad',
-             separatrix_plot=True, Slices=slice_beam,
-             h5file='../output_files/EX5_output_data', 
+             separatrix_plot=True, Profile=slice_beam,
+             h5file='../output_files/EX_05_output_data', 
              histograms_plot=True, sampling=50, format_options=format_options)
 
-format_options = {'dirname': '../output_files/EX5_fig/2', 'linestyle': '.'}
+format_options = {'dirname': '../output_files/EX_05_fig/2', 'linestyle': '.'}
 plots_freq = Plot(general_params_freq, RF_sct_par_freq, my_beam_freq, dt_plt,
                   n_turns, 0, 0.0014*harmonic_number, -1.5e8, 1.5e8,
-                  xunit='rad', separatrix_plot=True, Slices=slice_beam_freq, 
-                  h5file='../output_files/EX5_output_data_freq', 
+                  xunit='rad', separatrix_plot=True, Profile=slice_beam_freq, 
+                  h5file='../output_files/EX_05_output_data_freq', 
                   histograms_plot=True, sampling=50,
                   format_options=format_options)
-format_options = {'dirname': '../output_files/EX5_fig/3', 'linestyle': '.'}
+format_options = {'dirname': '../output_files/EX_05_fig/3', 'linestyle': '.'}
 plots_res = Plot(general_params_res, RF_sct_par_res, my_beam_res, dt_plt,
                   n_turns, 0, 0.0014*harmonic_number, -1.5e8, 1.5e8,
-                  xunit='rad', separatrix_plot=True, Slices=slice_beam_res, 
-                  h5file='../output_files/EX5_output_data_res', 
+                  xunit='rad', separatrix_plot=True, Profile=slice_beam_res, 
+                  h5file='../output_files/EX_05_output_data_res', 
                   histograms_plot=True, sampling=50,
                   format_options=format_options)
 
@@ -203,19 +211,13 @@ for i in np.arange(1, n_turns+1):
     # Plots
     if (i % dt_plt) == 0:
         plot_induced_voltage_vs_bin_centers(i, general_params, tot_vol,
-                                style='.', dirname='../output_files/EX5_fig/1')
+                                style='.', dirname='../output_files/EX_05_fig/1')
         plot_induced_voltage_vs_bin_centers(i, general_params_freq,
-                  tot_vol_freq, style='.', dirname='../output_files/EX5_fig/2')
+                  tot_vol_freq, style='.', dirname='../output_files/EX_05_fig/2')
         plot_induced_voltage_vs_bin_centers(i, general_params_res,
-                  tot_vol_res, style='.', dirname='../output_files/EX5_fig/3')
+                  tot_vol_res, style='.', dirname='../output_files/EX_05_fig/3')
 
 # Plotting induced voltages---------------------------------------------------
-#slice_beam.track()
-#slice_beam_freq.track()
-#slice_beam_res.track()
-#tot_vol.track()
-#tot_vol_freq.track()
-#tot_vol_res.track()
 plt.clf()
 plt.ylabel("induced voltage [arb. unit]")
 plt.xlabel("time [ns]")
@@ -226,8 +228,8 @@ plt.plot(1e9*slice_beam_res.bin_centers,tot_vol_res.induced_voltage,\
          label='Resonator')
 plt.plot(1e9*slice_beam.bin_centers,VindGauss,label='Analytic')
 plt.legend()
-plt.show()
-plt.tight_layout()
-plt.pause(0.0001)
+dirname='../output_files/EX_05_fig'
+fign = dirname +'/comparison_induced_voltage.png'
+plt.savefig(fign)
 
 print("Done!")

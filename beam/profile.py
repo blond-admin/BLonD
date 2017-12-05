@@ -80,7 +80,7 @@ class CutOptions(object):
     """
     
     def __init__(self, cut_left=None, cut_right=None, n_slices=100, n_sigma=None, 
-                cuts_unit = 's', RFSectionParameters=None):
+                cuts_unit = 's', RFSectionParameters=None, Beam=None):
         """
         Constructor
         """
@@ -114,7 +114,8 @@ class CutOptions(object):
         
         self.edges = np.zeros(n_slices + 1, dtype = float)
         self.bin_centers = np.zeros(n_slices, dtype = float)
-    
+        
+        
     
     def set_cuts(self, Beam=None):
         """
@@ -149,6 +150,7 @@ class CutOptions(object):
         self.edges = np.linspace(self.cut_left, self.cut_right, 
                                  self.n_slices + 1)
         self.bin_centers = (self.edges[:-1] + self.edges[1:])/2
+        self.bin_size = (self.cut_right - self.cut_left) / self.n_slices
     
     
     def track_cuts(self, Beam):
@@ -178,7 +180,15 @@ class CutOptions(object):
         elif input_unit_type is 'rad':
             return value /\
                 self.RFParams.omega_rf[0,self.RFParams.counter[0]]
-                
+    
+    
+    def get_slices_parameters(self):
+        """
+        Reuturn all the computed parameters.
+        """
+        return self.n_slices, self.cut_left, self.cut_right, self.n_sigma, \
+                self.edges, self.bin_centers, self.bin_size
+                 
 
 class FitOptions(object):
     """
@@ -202,13 +212,13 @@ class FitOptions(object):
     fitExtraOptions : unknown
     """
     
-    def __init__(self, fitMethod=None, fitExtraOptions=None):
+    def __init__(self, fit_option=None, fitExtraOptions=None):
         
         """
         Constructor
         """
         
-        self.fitMethod = str(fitMethod)
+        self.fit_option = str(fit_option)
         self.fitExtraOptions = fitExtraOptions
 
 
@@ -347,7 +357,7 @@ class Profile(object):
     >>> n_slices = 100
     >>> CutOptions = profileModule.CutOptions(cut_left=0, 
     >>>       cut_right=self.ring.t_rev[0],  n_slices = n_slices, cuts_unit='s')                 
-    >>> FitOptions = profileModule.FitOptions(fitMethod='gaussian', 
+    >>> FitOptions = profileModule.FitOptions(fit_option='gaussian', 
     >>>                                        fitExtraOptions=None)
     >>> filter_option = {'pass_frequency':1e7, 
     >>>    'stop_frequency':1e8, 'gain_pass':1, 'gain_stop':2, 
@@ -372,20 +382,22 @@ class Profile(object):
         Constructor
         """
         
+        # Copy of CutOptions object to be usef for reslicing
+        self.cut_options = CutOptions
+        
+        # Define bins
+        CutOptions.set_cuts(Beam)
+        
         # Import (reference) Beam
         self.Beam = Beam
         
-        # Pre-processing the slicing edges
-        CutOptions.set_cuts(self.Beam)
+        # Get all computed parameters from CutOptions
+        self.set_slices_parameters()
         
-        self.n_slices = CutOptions.n_slices
-        self.cut_left = CutOptions.cut_left
-        self.cut_right = CutOptions.cut_right
-        self.n_sigma = CutOptions.n_sigma
-        self.edges = CutOptions.edges
-        self.bin_centers = CutOptions.bin_centers
-        self.bin_size = (self.cut_right - self.cut_left) / self.n_slices
+        # Initialize profile array as zero array
         self.n_macroparticles = np.zeros(self.n_slices, dtype = float)
+        
+        # Initialize beam_spectrum and beam_spectrum_freq as empty arrays
         self.beam_spectrum = np.array([], dtype=float)
         self.beam_spectrum_freq = np.array([], dtype=float)
 
@@ -394,14 +406,15 @@ class Profile(object):
         else:
             self.operations = [self._slice]
         
-        if FitOptions.fitMethod!=None:
+        if FitOptions.fit_option!=None:
+            self.fit_option = FitOptions.fit_option
             self.bunchPosition = 0.0
             self.bunchLength = 0.0
-            if FitOptions.fitMethod == 'gaussian':
+            if FitOptions.fit_option == 'gaussian':
                 self.operations.append(self.apply_fit)
-            elif FitOptions.fitMethod == 'rms':
+            elif FitOptions.fit_option == 'rms':
                 self.operations.append(self.rms)
-            elif FitOptions.fitMethod == 'fwhm':
+            elif FitOptions.fit_option == 'fwhm':
                 self.operations.append(self.fwhm)    
                 
         if FilterOptions.filterMethod=='chebishev':
@@ -410,6 +423,12 @@ class Profile(object):
     
         if OtherSlicesOptions.direct_slicing:
             self.track()
+    
+    
+    def set_slices_parameters(self):
+        self.n_slices, self.cut_left, self.cut_right, self.n_sigma, \
+                self.edges, self.bin_centers, self.bin_size = \
+                self.cut_options.get_slices_parameters()
     
     
     def track(self):

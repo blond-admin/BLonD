@@ -1,4 +1,5 @@
-# Copyright 2016 CERN. This software is distributed under the
+
+# Copyright 2014-2017 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3), 
 # copied verbatim in the file LICENCE.md.
 # In applying this licence, CERN does not waive the privileges and immunities 
@@ -9,6 +10,8 @@
 '''
 Example input for simulation of acceleration
 No intensity effects
+
+:Authors: **Helga Timko**
 '''
 #  General Imports
 from __future__ import division, print_function
@@ -19,13 +22,21 @@ import numpy as np
 from input_parameters.ring import Ring
 from input_parameters.rf_parameters import RFStation
 from trackers.tracker import RingAndRFTracker
-from beam.beam import Beam
+from beam.beam import Beam, Proton
 from beam.distributions import bigaussian
-from beam.profile import Profile
+from beam.profile import CutOptions, FitOptions, Profile
 from monitors.monitors import BunchMonitor
 from plots.plot import Plot
+import os
 
-
+try:
+    os.mkdir('../output_files')
+except:
+    pass
+try:
+    os.mkdir('../output_files/EX_01_fig')
+except:
+    pass
 
 # Simulation parameters -------------------------------------------------------
 # Bunch parameters
@@ -48,45 +59,44 @@ N_t = 2000           # Number of turns to track
 dt_plt = 200         # Time steps between plots
 
 
-
 # Simulation setup ------------------------------------------------------------
 print("Setting up the simulation...")
 print("")
 
 
 # Define general parameters
-ring = Ring(N_t, C, alpha, np.linspace(p_i, p_f, 2001), 'proton')
+ring = Ring(C, alpha, np.linspace(p_i, p_f, 2001), Proton(), N_t)
 
 # Define beam and distribution
 beam = Beam(ring, N_p, N_b)
 
 
 # Define RF station parameters and corresponding tracker
-rf = RFStation(ring, 1, h, V, dphi)
+rf = RFStation(ring, 1, [h], [V], [dphi])
 long_tracker = RingAndRFTracker(rf, beam)
 
-bigaussian(ring, rf, beam, tau_0/4, reinsertion = 'on', seed=1)
+
+bigaussian(ring, rf, beam, tau_0/4, reinsertion = True, seed=1)
 
 
 # Need slices for the Gaussian fit
-profile = Profile(rf, beam, 100, fit_option='gaussian')                     
+profile = Profile(beam, CutOptions(n_slices=100),
+                 FitOptions(fit_option='gaussian'))         
                      
 # Define what to save in file
 bunchmonitor = BunchMonitor(ring, rf, beam,
-                          '../output_files/EX1_output_data', Slices=profile)
+                          '../output_files/EX_01_output_data', Profile=profile)
 
-format_options = {'dirname': '../output_files/EX1_fig'}
+format_options = {'dirname': '../output_files/EX_01_fig'}
 plots = Plot(ring, rf, beam, dt_plt, N_t, 0, 0.0001763*h,
              -400e6, 400e6, xunit='rad', separatrix_plot=True, 
-             Slices=profile, h5file='../output_files/EX1_output_data', 
+             Profile=profile, h5file='../output_files/EX_01_output_data', 
              format_options=format_options)
 
 # Accelerator map
 map_ = [long_tracker] + [profile] + [bunchmonitor] + [plots]
 print("Map set")
 print("")
-
-
 
 # Tracking --------------------------------------------------------------------
 for i in range(1, N_t+1):
@@ -100,7 +110,7 @@ for i in range(1, N_t+1):
         print("   Beam beta %3.3f" %beam.beta)
         print("   Beam energy %.6e eV" %beam.energy)
         print("   Four-times r.m.s. bunch length %.4e s" %(4.*beam.sigma_dt))
-        print("   Gaussian bunch length %.4e s" %profile.bl_gauss)
+        print("   Gaussian bunch length %.4e s" %profile.bunchLength)
         print("")
         
     # Track
@@ -112,4 +122,3 @@ for i in range(1, N_t+1):
     beam.losses_longitudinal_cut(0., 2.5e-9)
     
 print("Done!")
-print("")

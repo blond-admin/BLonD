@@ -73,7 +73,7 @@ def synchrotron_frequency_distribution(Beam, FullRingAndRF, main_harmonic_option
         induced_voltage_object = copy.deepcopy(TotalInducedVoltage)
         
         induced_voltage = induced_voltage_object.induced_voltage
-        time_induced_voltage = TotalInducedVoltage.profiles.bin_centers
+        time_induced_voltage = TotalInducedVoltage.profile.bin_centers
         
         # Computing induced potential
         induced_potential = - eom_factor_potential * np.insert(cumtrapz(induced_voltage, dx=time_induced_voltage[1] - time_induced_voltage[0]),0,0)
@@ -340,13 +340,13 @@ def total_voltage(RFsection_list, harmonic = 'first'):
     #: *Sums up only the voltage of the first harmonic RF, 
     #: taking into account relative phases*
     if harmonic == 'first':
-        Vcos = RFsection_list[0].voltage[0]*np.cos(RFsection_list[0].phi_RF[0])
-        Vsin = RFsection_list[0].voltage[0]*np.sin(RFsection_list[0].phi_RF[0])
+        Vcos = RFsection_list[0].voltage[0]*np.cos(RFsection_list[0].phi_rf[0])
+        Vsin = RFsection_list[0].voltage[0]*np.sin(RFsection_list[0].phi_rf[0])
         if n_sections > 1:
             for i in range(1, n_sections):
                 print(RFsection_list[i].voltage[0])
-                Vcos += RFsection_list[i].voltage[0]*np.cos(RFsection_list[i].phi_RF[0])
-                Vsin += RFsection_list[i].voltage[0]*np.sin(RFsection_list[i].phi_RF[0])
+                Vcos += RFsection_list[i].voltage[0]*np.cos(RFsection_list[i].phi_rf[0])
+                Vsin += RFsection_list[i].voltage[0]*np.sin(RFsection_list[i].phi_rf[0])
         Vtot = np.sqrt(Vcos**2 + Vsin**2)
         return Vtot
     

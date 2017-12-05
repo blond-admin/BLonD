@@ -1,8 +1,8 @@
-
-# Copyright 2016 CERN. This software is distributed under the
-# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# coding: utf8
+# Copyright 2014-2017 CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3), 
 # copied verbatim in the file LICENCE.md.
-# In applying this licence, CERN does not waive the privileges and immunities
+# In applying this licence, CERN does not waive the privileges and immunities 
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
@@ -10,23 +10,31 @@
 '''
 Example input for simulating a ring with multiple RF stations
 No intensity effects
+
+:Authors: **Helga Timko**
 '''
 
 from __future__ import division, print_function
-import time 
+import numpy as np
+from input_parameters.ring import Ring
+from input_parameters.rf_parameters import RFStation
+from trackers.tracker import RingAndRFTracker
+from trackers.utilities import total_voltage
+from beam.beam import Beam, Proton
+from beam.distributions import bigaussian
+from beam.profile import CutOptions, Profile, FitOptions
+from monitors.monitors import BunchMonitor
+from plots.plot import Plot
+import os
 
-from input_parameters.ring import *
-from input_parameters.rf_parameters import *
-from trackers.tracker import *
-from trackers.utilities import *
-from beam.beam import *
-from beam.distributions import *
-from beam.profile import *
-from monitors.monitors import *
-from plots.plot_beams import *
-from plots.plot_impedance import *
-from plots.plot_slices import *
-from plots.plot import *
+try:
+    os.mkdir('../output_files')
+except:
+    pass
+try:
+    os.mkdir('../output_files/EX_04_fig')
+except:
+    pass
 
 # Simulation parameters -------------------------------------------------------
 # Bunch parameters
@@ -56,25 +64,25 @@ print("")
 
 
 # Define general parameters containing data for both RF stations
-general_params = Ring(N_t, [0.3*C, 0.7*C], [[alpha], [alpha]], 
+general_params = Ring([0.3*C, 0.7*C], [[alpha], [alpha]], 
                                    [p_s*np.ones(N_t+1), p_s*np.ones(N_t+1)], 
-                                   'proton', number_of_sections = 2)
+                                   Proton(), N_t, n_stations = 2)
 
 
 # Define RF station parameters and corresponding tracker
 beam = Beam(general_params, N_p, N_b)
-rf_params_1 = RFStation(general_params, 1, h, V1, dphi,
+rf_params_1 = RFStation(general_params, 1, [h], [V1], [dphi],
                                   section_index=1)
 long_tracker_1 = RingAndRFTracker(rf_params_1, beam)
 
-rf_params_2 = RFStation(general_params, 1, h, V2, dphi,
+rf_params_2 = RFStation(general_params, 1, [h], [V2], [dphi],
                                   section_index=2)
 long_tracker_2 = RingAndRFTracker(rf_params_2, beam)
 
 # Define full voltage over one turn and a corresponding "overall" set of 
 #parameters, which is used for the separatrix (in plotting and losses)
 Vtot = total_voltage([rf_params_1, rf_params_2])
-rf_params_tot = RFStation(general_params, 1, h, Vtot, dphi)
+rf_params_tot = RFStation(general_params, 1, [h], [Vtot], [dphi])
 beam_dummy = Beam(general_params, 1, N_b)
 long_tracker_tot = RingAndRFTracker(rf_params_tot, beam_dummy)
 
@@ -90,19 +98,19 @@ print("Beam set and distribution generated...")
 
 
 # Need slices for the Gaussian fit; slice for the first plot
-slice_beam = Profile(rf_params_tot, beam, 100, fit_option='gaussian')
-
+slice_beam = Profile(beam, CutOptions(n_slices=100),
+                 FitOptions(fit_option='gaussian'))       
 # Define what to save in file
 bunchmonitor = BunchMonitor(general_params, rf_params_tot, beam,
-                            '../output_files/EX4_output_data',
-                            Slices=slice_beam, buffer_time=1)
+                            '../output_files/EX_04_output_data',
+                            Profile=slice_beam, buffer_time=1)
 
 # PLOTS
-format_options = {'dirname': '../output_files/EX4_fig', 'linestyle': '.'}
+format_options = {'dirname': '../output_files/EX_04_fig', 'linestyle': '.'}
 plots = Plot(general_params, rf_params_tot, beam, dt_plt, dt_plt, 0, 
              0.0001763*h, -450e6, 450e6, xunit='rad',
-             separatrix_plot=True, Slices=slice_beam,
-             h5file='../output_files/EX4_output_data',
+             separatrix_plot=True, Profile=slice_beam,
+             h5file='../output_files/EX_04_output_data',
              histograms_plot=True, format_options=format_options)
 
 
@@ -123,9 +131,8 @@ for i in np.arange(1,N_t+1):
         m.track()
     
     # Define losses according to separatrix and/or longitudinal position
-    beam.losses_separatrix(general_params, rf_params_tot, beam)
+    beam.losses_separatrix(general_params, rf_params_tot)
     beam.losses_longitudinal_cut(0., 2.5e-9)
 
 
 print("Done!")
-print("")

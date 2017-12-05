@@ -112,7 +112,7 @@ class TotalInducedVoltage(object):
                            self.beam.dE.ctypes.data_as(c_void_p),
                            self.induced_voltage.ctypes.data_as(c_void_p), 
                            self.profile.bin_centers.ctypes.data_as(c_void_p),
-                           c_double(self.beam.charge),
+                           c_double(self.beam.Particle.charge),
                            c_uint(self.profile.n_slices),
                            c_uint(self.beam.n_macroparticles),
                            c_double(0.))
@@ -124,7 +124,7 @@ class TotalInducedVoltage(object):
                            ghostBeam.dE.ctypes.data_as(c_void_p), 
                            self.induced_voltage.ctypes.data_as(c_void_p), 
                            self.profile.bin_centers.ctypes.data_as(c_void_p),
-                           c_double(self.beam.charge),
+                           c_double(self.beam.Particle.charge),
                            c_uint(self.profile.n_slices),
                            c_uint(ghostBeam.n_macroparticles),
                            c_double(0.))
@@ -271,12 +271,11 @@ class _InducedVoltage(object):
                 # Selecting time-shift method
                 self.shift_trev = self.shift_trev_time
                 # Time array
-                self.time_mtw = np.arange(0, self.wake_length, 
-                                          self.wake_length / self.n_mtw_memory)
-            
+                self.time_mtw = np.linspace(0, self.wake_length, self.n_mtw_memory, endpoint=False)
+                
             # Array to add and shift in time the multi-turn wake over the turns
             self.mtw_memory = np.zeros(self.n_mtw_memory)
-            
+
             # Select induced voltage generation method to be used
             self.induced_voltage_generation = self.induced_voltage_mtw
         else:
@@ -518,10 +517,10 @@ class InducedVoltageFreq(_InducedVoltage):
         # than the input value
         self.n_fft = next_regular(self.n_induced_voltage)
                 
-        self.slices.beam_spectrum_freq_generation(self.n_fft)
+        self.profile.beam_spectrum_freq_generation(self.n_fft)
         
         # Frequency array of the impedance in Hz
-        self.freq = self.slices.beam_spectrum_freq
+        self.freq = self.profile.beam_spectrum_freq
             
         # Length of the front wake in frequency domain calculations 
         if self.front_wake_length:            
@@ -544,7 +543,7 @@ class InducedVoltageFreq(_InducedVoltage):
             self.total_impedance += self.impedance_source_list[i].impedance
 
         # Factor relating Fourier transform and DFT            
-        self.total_impedance /= self.slices.bin_size
+        self.total_impedance /= self.profile.bin_size
 
 
 
@@ -594,10 +593,10 @@ class InductiveImpedance(_InducedVoltage):
         
         index = self.RFParams.counter[0]
         
-        induced_voltage = - (self.beam.charge * e / (2 * np.pi) *
+        induced_voltage = - (self.beam.Particle.charge * e / (2 * np.pi) *
                 self.beam.ratio * self.Z_over_n[index] *
-                self.RFParams.t_rev[index] / self.slices.bin_size *
-                self.slices.beam_profile_derivative(self.deriv_mode)[1])
+                self.RFParams.t_rev[index] / self.profile.bin_size *
+                self.profile.beam_profile_derivative(self.deriv_mode)[1])
 
         self.induced_voltage = induced_voltage[:self.n_induced_voltage]
 
@@ -750,7 +749,7 @@ class InducedVoltageResonator(_InducedVoltage):
         # To obtain the voltage, sum the contribution of each cavity...
         self.induced_voltage = self._tmp_matrix.sum(axis=0)
         # ... and multiply with bunch charge
-        self.induced_voltage *= -self.beam.charge*e*self.beam.intensity
+        self.induced_voltage *= -self.beam.Particle.charge*e*self.beam.intensity
     
     # Implementation of Heaviside function
     def Heaviside(self,x):

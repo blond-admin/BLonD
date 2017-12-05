@@ -1,4 +1,4 @@
-# coding: utf8
+
 # Copyright 2014-2017 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3), 
 # copied verbatim in the file LICENCE.md.
@@ -22,7 +22,16 @@ from beam.beam import Beam, Proton
 from beam.distributions import bigaussian
 from beam.profile import Profile, CutOptions
 from toolbox.action import oscillation_amplitude_from_coordinates
+import os
 
+try:
+    os.mkdir('../output_files')
+except:
+    pass
+try:
+    os.mkdir('../output_files/EX_21_fig')
+except:
+    pass
 
 
 # LHC parameters --------------------------------------------------------------
@@ -46,10 +55,10 @@ N_t = 2000           # Number of turns to track
 
 
 # Simulation setup ------------------------------------------------------------
-ring = Ring(N_t, C, alpha, p, Particle=Proton())
-rf = RFStation(ring, 1, h, V, dphi)
+ring = Ring(C, alpha, p, Proton(), N_t)
+rf = RFStation(ring, 1, [h], [V], [dphi])
 beam = Beam(ring, N_p, N_b)
-bigaussian(ring, rf, beam, tau_0/4, reinsertion = 'on', seed=1)
+bigaussian(ring, rf, beam, tau_0/4, reinsertion = True, seed=1)
 profile = Profile(beam, CutOptions=CutOptions(n_slices=100, cut_left=0, 
                                               cut_right=2.5e-9))
 profile.track()                     
@@ -73,8 +82,8 @@ plt.plot(profile.bin_centers[51:], profile.n_macroparticles[51:]*2*1.41*\
 plt.legend()
 plt.xlabel("Time [s]")
 plt.ylabel("Particle density [1/s]")
-plt.show()
+plt.savefig('../output_files/EX_21_fig/profiles.png')
 
-
+print("Done!")
 
 
