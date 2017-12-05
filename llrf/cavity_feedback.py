@@ -111,8 +111,11 @@ class SPSCavityFeedback(object):
 
         # Calculate OTFB correction w.r.t. RF voltage and phase in RFStation
         self.V_corr, self.phi_corr = cartesian_to_polar(self.V_sum)
-        self.V_corr /= self.rf.voltage[0, self.rf.counter[0]]
-        self.phi_corr -= self.rf.phi_rf[0, self.rf.counter[0]]
+
+        self.V_corr /= self.rf.voltage[0,self.rf.counter[0]]
+        # subtract pi/2, which was added in llrf
+        self.phi_corr -= self.rf.phi_rf[0,self.rf.counter[0]] + 0.5*np.pi
+
 
     def track_init(self, debug=False):
 
@@ -133,6 +136,28 @@ class SPSCavityFeedback(object):
             ax.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
             plt.figure(3)
             ax3 = plt.axes()
+            
+            from matplotlib import gridspec
+            # Colors
+            jet= plt.get_cmap('jet')
+            colors = jet(np.linspace(0,1,self.turns))
+            
+            # Plot 1: cavity voltage
+            fig1 = plt.figure(4, figsize=(8,10))
+            gs1 = gridspec.GridSpec(2, 1) 
+            ax1_1 = plt.subplot(gs1[0])
+            ax1_2 = plt.subplot(gs1[1], sharex=ax1_1)
+            plt.setp(ax1_1.get_xticklabels(), visible=False)
+            # remove last tick label for the second subplot
+            yticks = ax1_1.yaxis.get_major_ticks()
+            yticks[0].set_visible(False)
+            plt.subplots_adjust(hspace=.0)
+            ax1_1.set_ylabel(r"$Re(V_{\mathsf{cav}})$ [MV]")
+            ax1_2.set_xlabel(r"Time [$\mu$s]")
+            ax1_2.set_ylabel(r"$Im(V_{\mathsf{cav}})$ [MV]")
+            ax1_1.set_ylim((-1,5))
+            ax1_2.set_ylim((0,7))
+
 
             from matplotlib import gridspec
             # Colors
@@ -176,6 +201,7 @@ class SPSCavityFeedback(object):
 #                ax.plot(np.absolute(self.OTFB_4.I_gen))
 #                ax.plot(self.OTFB_4.profile.bin_centers,
 #                        np.absolute(self.OTFB_4.V_gen))
+
                 ax1_1.plot(1e6*self.OTFB_4.profile.bin_centers,
                            1e-6*(self.OTFB_4.V_tot.real +
                                  self.OTFB_5.V_tot.real),
@@ -200,6 +226,7 @@ class SPSCavityFeedback(object):
 
 
 class SPSOneTurnFeedback(object):
+
     r'''Voltage feedback around a travelling wave cavity with given amount of
     sections.
 
@@ -399,12 +426,12 @@ class SPSOneTurnFeedback(object):
 
         # Voltage set point of current turn (I,Q); depends on voltage partition
         # Sinusoidal voltage completely in Q
-        self.V_set = polar_to_cartesian(self.V_part *
-                                        self.rf.voltage[0,
-                                                        self.counter], self.rf.phi_rf[0, self.counter]
-                                        + 0.5*np.pi)
+
+        self.V_set = polar_to_cartesian(self.V_part* \
+            self.rf.voltage[0,self.counter], self.rf.phi_rf[0,self.counter]             + 0.5*np.pi)
+        # pi/2 needs to be subtraced from final correction in track method
+
         # Convert to array
-#        self.V_set *= np.concatenate((np.ones(1000), np.zeros(self.n_llrf - 1000)))
         self.V_set *= np.ones(self.n_llrf)
 
         # Difference of set point and actual voltage
@@ -443,8 +470,9 @@ class SPSOneTurnFeedback(object):
         """Calculates the generator-induced voltage. The transmitter model is
         a simple linear gain [C/V] converting voltage to charge.
 
-        ..math:: I = G_{\mathsfs{tx}} \frac{V}{R_{\mathsf{gen}}},
-
+        
+        .. math:: I = G_{\mathsfs{tx}} \frac{V}{R_{\mathsf{gen}}},
+        
         where :math:`R_{\mathsf{gen}}` is the generator resistance,
         :py:attr:`llrf.impulse_response.TravellingWaveCavity.R_gen`
 
@@ -496,10 +524,12 @@ class SPSOneTurnFeedback(object):
 
         """
 
+
         self.__setattr__("V_ind_"+name,
                          self.matr_conv(self.__getattribute__("I_"+name),
                                         self.TWC.__getattribute__("h_"+name)))
         self.logger.debug("Matrix convolution for V_ind")
+
 
         if name == "beam":
             self.V_ind_beam = -self.n_cavities \
