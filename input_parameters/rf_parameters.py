@@ -200,7 +200,7 @@ class RFSectionParameters(object):
         self.phi_s = calc_phi_s(self, accelerating_systems)   
         
         #: *Synchrotron tune [1]*                         
-        self.Qs = np.sqrt( self.harmonic[0]*self.charge*self.voltage[0]*np.abs(self.eta_0*np.cos(self.phi_s)) / \
+        self.Qs = np.sqrt( self.harmonic[0]*np.abs(self.charge)*self.voltage[0]*np.abs(self.eta_0*np.cos(self.phi_s)) / \
                                  (2*np.pi*self.beta**2*self.energy) ) 
         
         #: *Central angular synchronous frequency, w/o intensity effects [1/s]*
