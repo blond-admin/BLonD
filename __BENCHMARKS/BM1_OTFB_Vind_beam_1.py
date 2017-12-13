@@ -70,7 +70,7 @@ else:
     Logger().disable()
 
 # Set up machine parameters
-ring = Ring(N_t, C, alpha, p_s, Particle=Proton())
+ring = Ring(C, alpha, p_s, Particle=Proton(), n_turns=N_t)
 print("Machine parameters set!")
 
 # Set up RF parameters
@@ -121,8 +121,8 @@ if TWC == True:
     plt.figure(2)
     plt.plot(TWC200_4.time_array, TWC200_4.wake, 'b', marker='.', label='wake, impedances')
     plt.plot(impResp.t_beam, impResp.W_beam, 'r', marker='.', label='wake, OTFB')
-    plt.plot(impResp.t_beam, impResp.hs_beam, 'g', marker='.', label='hs_cav, OTFB')
-    plt.plot(impResp.t_gen, impResp.hs_gen, 'purple', marker='.', label='hs_gen, OTFB')
+    plt.plot(impResp.t_beam, impResp.h_beam.real, 'g', marker='.', label='hs_cav, OTFB')
+    plt.plot(impResp.t_gen, impResp.h_gen.real, 'purple', marker='.', label='hs_gen, OTFB')
     plt.xlabel("Time [s]")
     plt.ylabel("Wake/impulse response [Ohms/s]")
     plt.legend()

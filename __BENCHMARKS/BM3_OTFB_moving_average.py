@@ -14,8 +14,6 @@ Example for llrf.filters and llrf.cavity_feedback
 """
 
 import numpy as np
-from numpy.random import randn
-from scipy.constants import e
 import matplotlib.pyplot as plt 
 
 from llrf.signal_processing import moving_average
@@ -31,7 +29,7 @@ time = np.linspace(0, 20.e-6, 2*n)
 signal = np.concatenate((signal, signal))
 
 plt.figure()
-plt.plot(time, signal)
+plt.plot(1e6*time, signal)
 prev = np.zeros(n_ma)
 
 for i in range(iterations):
@@ -40,6 +38,6 @@ for i in range(iterations):
     signal = moving_average(signal, n_ma, prev)
     prev = np.copy(tmp)
     print("Length of signal", len(signal))
-    plt.plot(time, signal)
+    plt.plot(1e6*time, signal)
 
 plt.show()
