@@ -158,28 +158,6 @@ class SPSCavityFeedback(object):
             ax1_1.set_ylim((-1,5))
             ax1_2.set_ylim((0,7))
 
-
-            from matplotlib import gridspec
-            # Colors
-            jet = plt.get_cmap('jet')
-            colors = jet(np.linspace(0, 1, self.turns))
-
-            # Plot 1: cavity voltage
-            fig1 = plt.figure(4, figsize=(8, 10))
-            gs1 = gridspec.GridSpec(2, 1)
-            ax1_1 = plt.subplot(gs1[0])
-            ax1_2 = plt.subplot(gs1[1], sharex=ax1_1)
-            plt.setp(ax1_1.get_xticklabels(), visible=False)
-            # remove last tick label for the second subplot
-            yticks = ax1_1.yaxis.get_major_ticks()
-            yticks[0].set_visible(False)
-            plt.subplots_adjust(hspace=.0)
-            ax1_1.set_ylabel(r"$Re(V_{\mathsf{cav}})$ [MV]")
-            ax1_2.set_xlabel(r"Time [$\mu$s]")
-            ax1_2.set_ylabel(r"$Im(V_{\mathsf{cav}})$ [MV]")
-            ax1_1.set_ylim((-1, 5))
-            ax1_2.set_ylim((0, 7))
-
         for i in range(self.turns):
             self.logger.debug("Pre-tracking w/o beam, iteration %d", i)
             self.OTFB_4.track_no_beam()
