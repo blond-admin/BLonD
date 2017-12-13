@@ -37,7 +37,7 @@ class BeamFeedback(object):
         self.ring = Ring
 
         #: | *Import RFStation*
-        self.rf_params = RFStation
+        self.rf_station = RFStation
         
         #: | *Import Profile*
         self.profile = Profile
@@ -80,16 +80,16 @@ class BeamFeedback(object):
             if self.gain2 != 0:
                 
                 #: | *LHC Synchronisation loop coefficient [1]*
-                self.lhc_a = 5.25 - self.rf_params.omega_s0/(np.pi*40.) 
+                self.lhc_a = 5.25 - self.rf_station.omega_s0/(np.pi*40.) 
                 #: | *LHC Synchronisation loop time constant [turns]*
-                self.lhc_t = ( 2*np.pi*self.rf_params.Qs*np.sqrt(self.lhc_a) )/ \
+                self.lhc_t = ( 2*np.pi*self.rf_station.Qs*np.sqrt(self.lhc_a) )/ \
                                np.sqrt(1 + self.gain/self.gain2* \
                                np.sqrt((1 + 1/self.lhc_a)/(1 + self.lhc_a)))
                                
             else:
                 
-                self.lhc_a = np.zeros(self.rf_params.n_turns + 1)
-                self.lhc_t = np.zeros(self.rf_params.n_turns + 1)
+                self.lhc_a = np.zeros(self.rf_station.n_turns + 1)
+                self.lhc_t = np.zeros(self.rf_station.n_turns + 1)
 
                 
         # LHC_F CONFIGURATION
@@ -198,19 +198,19 @@ class BeamFeedback(object):
         getattr(self, self.machine)()
 
         # Update the RF frequency of all systems for the next turn
-        counter = self.rf_params.counter[0] + 1
-        self.rf_params.omega_rf[:,counter] += self.domega_rf* \
-            self.rf_params.harmonic[:,counter]/self.rf_params.harmonic[0,counter]  
+        counter = self.rf_station.counter[0] + 1
+        self.rf_station.omega_rf[:,counter] += self.domega_rf* \
+            self.rf_station.harmonic[:,counter]/self.rf_station.harmonic[0,counter]  
 
         # Update the RF phase of all systems for the next turn
         # Accumulated phase offset due to PL in each RF system
-        self.rf_params.dphi_rf += 2.*np.pi*self.rf_params.harmonic[:,counter]* \
-            (self.rf_params.omega_rf[:,counter] - 
-             self.rf_params.omega_rf_d[:,counter])/ \
-             self.rf_params.omega_rf_d[:,counter] 
-
+        self.rf_station.dphi_rf += 2.*np.pi*self.rf_station.harmonic[:,counter]* \
+            (self.rf_station.omega_rf[:,counter] - 
+             self.rf_station.omega_rf_d[:,counter])/ \
+             self.rf_station.omega_rf_d[:,counter] 
+        
         # Total phase offset
-        self.rf_params.phi_rf[:,counter] += self.rf_params.dphi_rf
+        self.rf_station.phi_rf[:,counter] += self.rf_station.dphi_rf
         
 
     def precalculate_time(self, Ring):
@@ -246,8 +246,8 @@ class BeamFeedback(object):
         '''    
         
         # Main RF frequency at the present turn
-        omega_rf = self.rf_params.omega_rf[0,self.rf_params.counter[0]]
-        phi_rf = self.rf_params.phi_rf[0,self.rf_params.counter[0]]
+        omega_rf = self.rf_station.omega_rf[0,self.rf_station.counter[0]]
+        phi_rf = self.rf_station.phi_rf[0,self.rf_station.counter[0]]
 
         # Convolve with window function
         scoeff = np.trapz( np.exp(self.alpha*self.profile.bin_centers) \
@@ -267,8 +267,8 @@ class BeamFeedback(object):
         '''    
         
         # Correct for design stable phase
-        counter = self.rf_params.counter[0]
-        self.dphi = self.phi_beam - self.rf_params.phi_s[counter]
+        counter = self.rf_station.counter[0]
+        self.dphi = self.phi_beam - self.rf_station.phi_s[counter]
         
         # Possibility to add RF phase noise through the PL
         if self.RFnoise != None:
@@ -286,7 +286,7 @@ class BeamFeedback(object):
         *Radial difference between beam and design orbit.*
         '''    
         
-        counter = self.rf_params.counter[0]
+        counter = self.rf_station.counter[0]
         
         # Correct for design orbit
         self.average_dE = np.mean(self.profile.Beam.dE[(self.profile.Beam.dt >
@@ -304,25 +304,25 @@ class BeamFeedback(object):
         *Frequency and phase change for the current turn due to the radial steering program.*
         '''    
         
-        counter = self.rf_params.counter[0]
+        counter = self.rf_station.counter[0]
         
-        self.radial_steering_domega_rf = - self.rf_params.omega_rf_d[0,counter]* \
-            self.rf_params.eta_0[counter]/self.ring.alpha[0,0]* \
+        self.radial_steering_domega_rf = - self.rf_station.omega_rf_d[0,counter]* \
+            self.rf_station.eta_0[counter]/self.ring.alpha[0,0]* \
             self.reference/self.ring.ring_radius
         
-        self.rf_params.omega_rf[:,counter] += self.radial_steering_domega_rf* \
-                                self.rf_params.harmonic[:,counter]/ \
-                                self.rf_params.harmonic[0,counter]  
+        self.rf_station.omega_rf[:,counter] += self.radial_steering_domega_rf* \
+                                self.rf_station.harmonic[:,counter]/ \
+                                self.rf_station.harmonic[0,counter]  
 
         # Update the RF phase of all systems for the next turn
         # Accumulated phase offset due to PL in each RF system
-        self.rf_params.dphi_rf_steering += 2.*np.pi*self.rf_params.harmonic[:,counter]* \
-            (self.rf_params.omega_rf[:,counter] - 
-             self.rf_params.omega_rf_d[:,counter])/ \
-             self.rf_params.omega_rf_d[:,counter] 
+        self.rf_station.dphi_rf_steering += 2.*np.pi*self.rf_station.harmonic[:,counter]* \
+            (self.rf_station.omega_rf[:,counter] - 
+             self.rf_station.omega_rf_d[:,counter])/ \
+             self.rf_station.omega_rf_d[:,counter] 
                
         # Total phase offset
-        self.rf_params.phi_rf[:,counter] += self.rf_params.dphi_rf_steering
+        self.rf_station.phi_rf[:,counter] += self.rf_station.dphi_rf_steering
                 
 
     def LHC_F(self):
@@ -342,15 +342,15 @@ class BeamFeedback(object):
             \\Delta \\omega_{rf}^{FL} = - g_{FL} (\\omega_{rf} - h \\omega_{0})    
         '''
         
-        counter = self.rf_params.counter[0]
+        counter = self.rf_station.counter[0]
         
         self.beam_phase()
         self.phase_difference()
         
         # Frequency correction from phase loop and frequency loop
         self.domega_rf = - self.gain*self.dphi \
-            - self.gain2*(self.rf_params.omega_rf[0,counter] 
-               - self.rf_params.omega_rf_d[0,counter]
+            - self.gain2*(self.rf_station.omega_rf[0,counter] 
+               - self.rf_station.omega_rf_d[0,counter]
                + self.reference) 
             
             
@@ -368,7 +368,7 @@ class BeamFeedback(object):
         long-term frequency drifts
         '''
         
-        counter = self.rf_params.counter[0]
+        counter = self.rf_station.counter[0]
         
         if self.reference != 0:
             self.radial_steering_from_freq()
@@ -379,7 +379,7 @@ class BeamFeedback(object):
         
         # Frequency correction from phase loop and radial loop
         self.domega_dphi = - self.gain * self.dphi
-        self.domega_dR = - np.sign(self.rf_params.eta_0[counter])*self.gain2* \
+        self.domega_dR = - np.sign(self.rf_station.eta_0[counter])*self.gain2* \
             (self.reference - self.drho) / self.ring.ring_radius
         
         self.domega_rf = self.domega_dphi + self.domega_dR
@@ -417,8 +417,8 @@ class BeamFeedback(object):
             \\tau(f_s) \\equiv 2 \\pi Q_s \\sqrt{ \\frac{a}{1 + \\frac{g_{PL}}{g_{SL}} \\sqrt{\\frac{1 + 1/a}{1 + a}} }}
         '''
         
-        counter = self.rf_params.counter[0]
-        dphi_rf = self.rf_params.dphi_rf[0]
+        counter = self.rf_station.counter[0]
+        dphi_rf = self.rf_station.dphi_rf[0]
         
         self.beam_phase()
         self.phase_difference()
@@ -440,7 +440,7 @@ class BeamFeedback(object):
         '''
 
         # Average phase error while frequency is updated
-        counter = self.rf_params.counter[0]
+        counter = self.rf_station.counter[0]
         self.beam_phase()
         self.phase_difference()
         
@@ -463,11 +463,11 @@ class BeamFeedback(object):
             self.dphi_sum = 0.
             
             #Radial loop    
-            self.dR_over_R = (self.rf_params.omega_rf[0,counter] - 
-                         self.rf_params.omega_rf_d[0,counter])/(
-                         self.rf_params.omega_rf_d[0,counter] * 
+            self.dR_over_R = (self.rf_station.omega_rf[0,counter] - 
+                         self.rf_station.omega_rf_d[0,counter])/(
+                         self.rf_station.omega_rf_d[0,counter] * 
                          (1./(self.ring.alpha[0][0]*
-                              self.rf_params.gamma[counter]**2) - 1.))
+                              self.rf_station.gamma[counter]**2) - 1.))
             
             self.domega_RL = self.domega_RL + self.gain2[0][counter]*(self.dR_over_R - 
                 self.dR_over_R_prev) + self.gain2[1][counter]*self.dR_over_R
