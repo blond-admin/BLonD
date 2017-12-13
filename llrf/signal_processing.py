@@ -241,8 +241,7 @@ def moving_average(x, N, x_prev=None):
     x : float array
         Data to be smoothed
     N : int
-        Window size in points; rounded up to next impair value if center is 
-        True
+        Window size in points
     x_prev : float array    
         Data to pad with in front
         
