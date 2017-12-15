@@ -15,8 +15,17 @@ Unittest for llrf.filters
 
 import unittest
 import numpy as np
-from llrf.impulse_response import rectangle, triangle
+from scipy.constants import c
 
+from llrf.impulse_response import rectangle, triangle, SPS4Section200MHzTWC
+from input_parameters.ring import Ring
+from input_parameters.rf_parameters import RFStation
+from beam.beam import Beam, Proton
+from beam.distributions import bigaussian
+from beam.profile import Profile, CutOptions
+from impedances.impedance import InducedVoltageTime, TotalInducedVoltage
+from llrf.cavity_feedback import SPSOneTurnFeedback
+from impedances.impedance_sources import TravelingWaveCavity
 
 
 class TestRectangle(unittest.TestCase):
@@ -76,9 +85,97 @@ class TestTriangle(unittest.TestCase):
 
 
 
+class TestTravelingWaveCavity(unittest.TestCase):
+    
+    def test_vg(self):
+        from llrf.impulse_response import TravellingWaveCavity
+        v_g = 0.0946+1
+        
+        with self.assertRaises(RuntimeError,
+            msg="In TestTravelingWaveCavity, no exception for group velocity > 1"):
+            
+            TravellingWaveCavity(0.374, 43, 2.71e4, v_g, 2*np.pi*200.222e6)
+    
+    def test_wake(self):
+               
+        time = np.linspace(-0.1e-6, 0.7e-6, 1000)
+        
+        l_cav = 16.082
+        v_g = 0.0946
+        tau = l_cav/(v_g*c)*(1 + v_g)
+        
+        TWC_impedance_source = TravelingWaveCavity(l_cav**2 * 27.1e3 / 8,
+                                                   200.222e6, 2*np.pi*tau)
+        
+        TWC_impedance_source.wake_calc(time-time[0])
+        wake_impSource = np.around(TWC_impedance_source.wake/1e12, 12)
+        
+        TWC_impulse_response = SPS4Section200MHzTWC()
+        # omega_c not need for computation of wake function
+        TWC_impulse_response.impulse_response(2*np.pi*200.222e6, time)
+        wake_impResp = np.around(TWC_impulse_response.W_beam/1e12, 12)
+        
+        self.assertListEqual(wake_impSource.tolist(), wake_impResp.tolist(),
+            msg="In TestTravelingWaveCavity test_wake: wake fields differ")
+    
+    def test_vind(self):
+
+        # SPS parameters        
+        C = 2*np.pi*1100.009        # Ring circumference [m]
+        gamma_t = 18.0              # Gamma at transition
+        alpha = 1/gamma_t**2        # Momentum compaction factor
+        p_s = 25.92e9               # Synchronous momentum at injection [eV]
+        h = [4620]                  # 200 MHz system harmonic
+        V = [4.5e6]                 # 200 MHz RF voltage
+        phi = [0.]                  # 200 MHz RF phase
+        
+        # Beam and tracking parameters
+        N_m = 1e5                   # Number of macro-particles for tracking
+        N_b = 1.0e11                 # Bunch intensity [ppb]
+        N_t = 1                  # Number of turns to track
+        
+        ring = Ring(C, alpha, p_s, Proton(), n_turns=N_t)        
+        rf = RFStation(ring, 1, h, V, phi)
+        beam = Beam(ring, N_m, N_b)
+        bigaussian(ring, rf, beam, 3.2e-9/4, seed = 1234, reinsertion = True) 
+        
+        profile = Profile(beam, CutOptions = CutOptions(cut_left=-1.e-9, 
+            cut_right=6.e-9, n_slices = 140))
+        profile.track()
+        
+        l_cav = 16.082
+        v_g = 0.0946
+        tau = l_cav/(v_g*c)*(1 + v_g)
+        TWC_impedance_source = TravelingWaveCavity(l_cav**2 * 27.1e3 / 8,
+                                                   200.222e6, 2*np.pi*tau)
+        
+        # beam loading by convolution of beam and wake from cavity
+        inducedVoltageTWC = InducedVoltageTime(beam, profile,
+                                               [TWC_impedance_source])
+        induced_voltage = TotalInducedVoltage(beam, profile,
+                                              [inducedVoltageTWC])
+        induced_voltage.induced_voltage_sum()
+        V_ind_impSource = np.around(induced_voltage.induced_voltage, 8)
+        
+        # beam loading via feed-back system
+        OTFB_4 = SPSOneTurnFeedback(rf, beam, profile, 4, n_cavities=1)
+        OTFB_4.counter = 0 # First turn
+        np.random.seed(42) #randomly chose omega_c from allowed range
+        OTFB_4.omega_c = np.random.uniform(0.9,1.1) * OTFB_4.TWC.omega_r
+        #compute impulse response
+        OTFB_4.TWC.impulse_response(OTFB_4.omega_c, profile.bin_centers)
+        #compute induced voltage in I,Q
+        OTFB_4.beam_induced_voltage(lpf=False)
+        #convert back to time
+        V_ind_OTFB \
+            = OTFB_4.V_ind_beam.real * np.cos(OTFB_4.omega_c*profile.bin_centers) \
+            + OTFB_4.V_ind_beam.imag * np.sin(OTFB_4.omega_c*profile.bin_centers)
+        V_ind_OTFB = np.around(V_ind_OTFB, 8)
+
+        self.assertListEqual(V_ind_impSource.tolist(), V_ind_OTFB.tolist(),
+            msg="In TravelingWaveCavity test_vind: induced voltages differ")
+
+
 if __name__ == '__main__':
 
     unittest.main()
-
-
-
