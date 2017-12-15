@@ -84,11 +84,13 @@ class SPSCavityFeedback(object):
 
         # Voltage partition proportional to the number of sections
         self.OTFB_4 = SPSOneTurnFeedback(RFStation, Beam, Profile, 4,
-                                         n_cavities=2, V_part=4/9, G_llrf=float(G_llrf), G_tx=float(G_tx),
+                                         n_cavities=2, V_part=4/9,
+                                         G_llrf=float(G_llrf), G_tx=float(G_tx),
                                          a_comb=float(a_comb),
                                          Commissioning=self.Commissioning)
         self.OTFB_5 = SPSOneTurnFeedback(RFStation, Beam, Profile, 5,
-                                         n_cavities=2, V_part=5/9, G_llrf=float(G_llrf), G_tx=float(G_tx),
+                                         n_cavities=2, V_part=5/9,
+                                         G_llrf=float(G_llrf), G_tx=float(G_tx),
                                          a_comb=float(a_comb),
                                          Commissioning=self.Commissioning)
 
@@ -132,7 +134,7 @@ class SPSCavityFeedback(object):
             plt.figure(2)
             ax = plt.axes()
             ax.set_xlabel("Time [s]")
-            ax.set_ylabel("Total voltage, amplitude [V]")
+            ax.set_ylabel("Total voltage short cavity, amplitude [V]")
             ax.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
             plt.figure(3)
             ax3 = plt.axes()
@@ -170,7 +172,7 @@ class SPSCavityFeedback(object):
 #                ax.plot(self.OTFB_4.profile.bin_centers,
 #                        np.absolute(self.V_sum))
                 ax.plot(self.OTFB_4.profile.bin_centers,
-                        np.absolute(self.OTFB_4.V_tot))
+                        np.absolute(self.OTFB_4.V_tot), color=colors[i])
                 ax3.plot(np.absolute(self.OTFB_4.I_gen))
 #                 time = np.linspace(0., self.OTFB_4.n_llrf*self.OTFB_4.profile.bin_size, self.OTFB_4.n_llrf, endpoint=True)
 #                 ax1.plot(time, self.V_sum.real)
@@ -406,16 +408,16 @@ class SPSOneTurnFeedback(object):
         # Sinusoidal voltage completely in Q
 
         self.V_set = polar_to_cartesian(self.V_part* \
-            self.rf.voltage[0,self.counter], self.rf.phi_rf[0,self.counter]             + 0.5*np.pi)
-        # pi/2 needs to be subtraced from final correction in track method
+            self.rf.voltage[0,self.counter],
+            self.rf.phi_rf[0,self.counter] + 0.5*np.pi)
 
         # Convert to array
         self.V_set *= np.ones(self.n_llrf)
 
         # Difference of set point and actual voltage
         self.V_gen = self.V_set - self.open_loop*np.concatenate((self.V_tot,
-                                                                 np.zeros(self.n_diff, dtype=complex)))
-
+                                        np.zeros(self.n_diff, dtype=complex)))
+        
         # Closed-loop gain
         self.V_gen *= self.G_llrf
         self.logger.debug("Set voltage %.6f MV",
@@ -428,20 +430,26 @@ class SPSOneTurnFeedback(object):
         # One-turn delay comb filter; memorise the value of the previous turn
         self.V_gen = comb_filter(self.V_gen_prev, self.V_gen, self.a_comb)
         self.V_gen_prev = np.copy(self.V_gen)
-
+        
+        
         # Modulate from omega_rf to omega_r
         self.V_gen = modulator(self.V_gen, self.omega_c, self.omega_r,
                                self.profile.bin_size)
-
+        
         # Shift signals with the delay time
         V_gen_in = np.copy(self.V_gen)
         self.V_gen = np.concatenate((self.V_mov_av_prev[-self.n_delay:],
                                      self.V_gen[:self.n_llrf-self.n_delay]))
-
+        
         # Cavity filter: CIRCULAR moving average over filling time
         # Memorize last points of previous turn for beginning of next turn
-        self.V_gen = moving_average(
-            self.V_gen, self.n_mov_av, x_prev=self.V_mov_av_prev[-self.n_delay-self.n_mov_av:-self.n_delay])
+#        self.V_gen = moving_average(self.V_gen, self.n_mov_av,
+#                        x_prev=self.V_mov_av_prev[-self.n_delay-self.n_mov_av:\
+#                                                  -self.n_delay])
+        self.V_gen = moving_average(self.V_gen, self.n_mov_av,
+                        x_prev=self.V_mov_av_prev[-self.n_delay-self.n_mov_av+1:\
+                                                  -self.n_delay])
+
         self.V_mov_av_prev = np.copy(V_gen_in)
 
     def generator_induced_voltage(self):
@@ -462,10 +470,10 @@ class SPSOneTurnFeedback(object):
             Induced voltage [V] from generator-cavity interaction
 
         """
-
+        
         # Add correction to the drive already existing
         self.V_gen = self.open_FB*modulator(self.V_gen, self.omega_r,
-                                            self.omega_c, self.profile.bin_size) + self.open_drive*self.V_set
+            self.omega_c, self.profile.bin_size) + self.open_drive*self.V_set
 
         # Generator charge from voltage, transmitter model
         self.I_gen = self.G_tx*self.V_gen/self.TWC.R_gen*self.profile.bin_size
