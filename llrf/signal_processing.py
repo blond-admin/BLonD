@@ -67,26 +67,26 @@ def cartesian_to_polar(IQ_vector):
     return np.absolute(IQ_vector), np.angle(IQ_vector)
 
 
-def real_to_cartesian(signal):
-    """Convert a real signal to Cartesian (I,Q) coordinates.
-    
-    Parameters
-    ----------
-    signal : float array
-        Input signal, real array
-    
-    Returns
-    -------
-    complex array
-        Signal with in-phase and quadrature (I,Q) components
-    
-    """
-    
-    amplitude = np.max(signal)
-    phase = np.arccos(signal / amplitude)
-    logger.debug("Creating complex IQ array from real array")
-    
-    return signal + 1j*amplitude*np.sin(phase)
+#def real_to_cartesian(signal):
+#    """Convert a real signal to Cartesian (I,Q) coordinates.
+#    
+#    Parameters
+#    ----------
+#    signal : float array
+#        Input signal, real array
+#    
+#    Returns
+#    -------
+#    complex array
+#        Signal with in-phase and quadrature (I,Q) components
+#    
+#    """
+#    
+#    amplitude = np.max(signal)
+#    phase = np.arccos(signal / amplitude)
+#    logger.debug("Creating complex IQ array from real array")
+#    
+#    return signal + 1j*amplitude*np.sin(phase)
     
     
 def modulator(signal, omega_i, omega_f, T_sampling):
@@ -118,17 +118,13 @@ def modulator(signal, omega_i, omega_f, T_sampling):
     # precompute sine and cosine for speed up
     cs = np.cos(delta_phi)
     sn = np.sin(delta_phi)
-    try:
-        I_new = cs*signal.real - sn*signal.imag
-        Q_new = sn*signal.real + cs*signal.imag
-    except:
-        raise RuntimeError("ERROR in filters.py/demodulator: signal should" +
-                           " be complex!")
-        
+    I_new = cs*signal.real - sn*signal.imag
+    Q_new = sn*signal.real + cs*signal.imag
+    
     return I_new + 1j*Q_new
 
     
-def rf_beam_current(Profile, frequency, T_rev, lpf=True):
+def rf_beam_current(Profile, omega_c, T_rev, lpf=True):
     r"""Function calculating the beam charge at the (RF) frequency, slice by
     slice. The charge distribution [C] of the beam is determined from the beam
     profile :math:`\lambda_i`, the particle charge :math:`q_p` and the real vs.
@@ -162,7 +158,7 @@ def rf_beam_current(Profile, frequency, T_rev, lpf=True):
     ----------
     Profile : class
         A Profile type class
-    frequency : float
+    omega_c : float
         Revolution frequency [1/s] at which the current should be calculated
     T_rev : float 
         Revolution period [s] of the machine
@@ -172,7 +168,7 @@ def rf_beam_current(Profile, frequency, T_rev, lpf=True):
     Returns
     -------
     complex array
-        RF beam charge array [C] at 'frequency' frequency. To obtain current,
+        RF beam charge array [C] at 'frequency' omega_c. To obtain current,
         divide by the sampling time
         
     """
@@ -186,8 +182,8 @@ def rf_beam_current(Profile, frequency, T_rev, lpf=True):
     logger.debug("DC current is %.4e A", np.sum(charges)/T_rev)
     
     # Mix with frequency of interest; remember factor 2 demodulation
-    I_f = 2.*charges*np.cos(frequency*Profile.bin_centers)
-    Q_f = 2.*charges*np.sin(frequency*Profile.bin_centers)
+    I_f = 2.*charges*np.cos(omega_c*Profile.bin_centers)
+    Q_f = 2.*charges*np.sin(omega_c*Profile.bin_centers)
     
     # Pass through a low-pass filter
     if lpf == True:
@@ -257,8 +253,10 @@ def moving_average(x, N, x_prev=None):
     if x_prev is not None:
         # Pad in front with x_prev signal
         x = np.concatenate((x_prev, x))
-   
-    return (np.cumsum(x)[N:] - np.cumsum(x)[:-N]) / N
+    
+    ret = np.cumsum(x)
+    ret[N:] = ret[N:] - ret[:-N]
+    return ret[N-1:] / N
 
-
+#    return (np.cumsum(x)[N:] - np.cumsum(x)[:-N]) / N
 
