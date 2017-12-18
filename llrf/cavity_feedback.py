@@ -115,94 +115,17 @@ class SPSCavityFeedback(object):
         self.V_corr, self.phi_corr = cartesian_to_polar(self.V_sum)
 
         self.V_corr /= self.rf.voltage[0,self.rf.counter[0]]
-        # subtract pi/2, which was added in llrf
         self.phi_corr -= self.rf.phi_rf[0,self.rf.counter[0]] + 0.5*np.pi
 
 
     def track_init(self, debug=False):
 
-        if debug == True:
-            import matplotlib.pyplot as plt
-            f, ax1 = plt.subplots()
-            ax2 = plt.twinx(ax1)
-            ax1.set_xlabel("Time [s]")
-            ax1.set_ylabel("Total voltage, real part [V]")
-            ax2.set_ylabel("Total voltage, imaginary part (dotted) [V]")
-            ax1.ticklabel_format(style='sci', axis='x', scilimits=(0, 0))
-            ax1.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
-            ax2.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
-            plt.figure(2)
-            ax = plt.axes()
-            ax.set_xlabel("Time [s]")
-            ax.set_ylabel("Total voltage short cavity, amplitude [V]")
-            ax.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
-            plt.figure(3)
-            ax3 = plt.axes()
-            
-            from matplotlib import gridspec
-            # Colors
-            jet= plt.get_cmap('jet')
-            colors = jet(np.linspace(0,1,self.turns))
-            
-            # Plot 1: cavity voltage
-            fig1 = plt.figure(4, figsize=(8,10))
-            gs1 = gridspec.GridSpec(2, 1) 
-            ax1_1 = plt.subplot(gs1[0])
-            ax1_2 = plt.subplot(gs1[1], sharex=ax1_1)
-            plt.setp(ax1_1.get_xticklabels(), visible=False)
-            # remove last tick label for the second subplot
-            yticks = ax1_1.yaxis.get_major_ticks()
-            yticks[0].set_visible(False)
-            plt.subplots_adjust(hspace=.0)
-            ax1_1.set_ylabel(r"$Re(V_{\mathsf{cav}})$ [MV]")
-            ax1_2.set_xlabel(r"Time [$\mu$s]")
-            ax1_2.set_ylabel(r"$Im(V_{\mathsf{cav}})$ [MV]")
-            ax1_1.set_ylim((-1,5))
-            ax1_2.set_ylim((0,7))
-
         for i in range(self.turns):
             self.logger.debug("Pre-tracking w/o beam, iteration %d", i)
             self.OTFB_4.track_no_beam()
             self.OTFB_5.track_no_beam()
-            self.V_sum = self.OTFB_4.V_tot + self.OTFB_5.V_tot
-
-            if debug == True:
-                ax1.plot(self.OTFB_4.profile.bin_centers, self.V_sum.real)
-                ax2.plot(self.OTFB_4.profile.bin_centers, self.V_sum.imag, ':')
-#                ax.plot(self.OTFB_4.profile.bin_centers,
-#                        np.absolute(self.V_sum))
-                ax.plot(self.OTFB_4.profile.bin_centers,
-                        np.absolute(self.OTFB_4.V_tot), color=colors[i])
-                ax3.plot(np.absolute(self.OTFB_4.I_gen))
-#                 time = np.linspace(0., self.OTFB_4.n_llrf*self.OTFB_4.profile.bin_size, self.OTFB_4.n_llrf, endpoint=True)
-#                 ax1.plot(time, self.V_sum.real)
-#                 ax2.plot(time, self.V_sum.imag, ':')
-#                 ax.plot(time, np.absolute(self.V_sum))
-#                ax.plot(np.absolute(self.OTFB_4.I_gen))
-#                ax.plot(self.OTFB_4.profile.bin_centers,
-#                        np.absolute(self.OTFB_4.V_gen))
-
-                ax1_1.plot(1e6*self.OTFB_4.profile.bin_centers,
-                           1e-6*(self.OTFB_4.V_tot.real +
-                                 self.OTFB_5.V_tot.real),
-                           color=colors[i])
-                ax1_1.fill_between(1e6*self.OTFB_4.profile.bin_centers, 0,
-                                   1e-6*(self.OTFB_4.V_tot.real +
-                                         self.OTFB_5.V_tot.real),
-                                   alpha=0.2, color=colors[i])
-                ax1_2.plot(1e6*self.OTFB_4.profile.bin_centers,
-                           1e-6*(self.OTFB_4.V_tot.imag +
-                                 self.OTFB_5.V_tot.imag),
-                           color=colors[i])
-                ax1_2.fill_between(1e6*self.OTFB_4.profile.bin_centers, 0,
-                                   1e-6*(self.OTFB_4.V_tot.imag +
-                                         self.OTFB_5.V_tot.imag),
-                                   alpha=0.2, color=colors[i])
-                fig1.savefig("fig/V_ant_" + "%d" % (i+1) + ".png")
-
-        # if debug == True:
-            # fig.savefig("OTFB.png")
-            # plt.show()
+        
+        self.V_sum = self.OTFB_4.V_tot + self.OTFB_5.V_tot
 
 
 class SPSOneTurnFeedback(object):
@@ -318,7 +241,7 @@ class SPSOneTurnFeedback(object):
         self.n_diff = self.n_llrf - self.profile.n_slices
 
         # Initialise comb filter
-        self.V_gen_prev = np.zeros(self.n_llrf, dtype=complex)
+        self.dV_gen_prev = np.zeros(self.n_llrf, dtype=complex)
         self.a_comb = float(a_comb)
 
         # Initialise cavity filter (moving average)
@@ -327,8 +250,8 @@ class SPSOneTurnFeedback(object):
         if self.n_mov_av < 2:
             raise RuntimeError("ERROR in SPSOneTurnFeedback: profile has to" +
                                " have at least 12.5 ns resolution!")
-        self.V_mov_av_prev = np.zeros(self.n_llrf, dtype=complex)
-        self.V_mov_av_next = np.zeros(self.n_llrf, dtype=complex)
+        self.dV_mov_av_prev = np.zeros(self.n_llrf, dtype=complex)
+#        self.V_mov_av_next = np.zeros(self.n_llrf, dtype=complex)
 
         # Initialise generator-induced voltage
         self.I_gen_prev = np.zeros(self.n_mov_av, dtype=complex)
@@ -379,9 +302,9 @@ class SPSOneTurnFeedback(object):
         self.llrf_model()
 
         # Generator-induced voltage from generator current
+        self.generator_induced_voltage()
         self.logger.debug("Total voltage to generator %.3e V",
                           np.mean(np.absolute(self.V_gen)))
-        self.generator_induced_voltage()
         self.logger.debug("Total current from generator %.3e A",
                           np.mean(np.absolute(self.I_gen))/self.profile.bin_size)
 
@@ -398,9 +321,9 @@ class SPSOneTurnFeedback(object):
         V_set : complex array
             Voltage set point [V] in (I,Q); :math:`V_{\mathsf{set}}`, amplitude
             proportional to voltage partition
-        V_gen : complex array
+        dV_gen : complex array
             Generator voltage [V] in (I,Q); 
-            :math:`V_{\mathsf{gen}} = V_{\mathsf{set}} - V_{\mathsf{tot}}`
+            :math:`dV_{\mathsf{gen}} = V_{\mathsf{set}} - V_{\mathsf{tot}}`
 
         """
 
@@ -415,50 +338,50 @@ class SPSOneTurnFeedback(object):
         self.V_set *= np.ones(self.n_llrf)
 
         # Difference of set point and actual voltage
-        self.V_gen = self.V_set - self.open_loop*np.concatenate((self.V_tot,
+        self.dV_gen = self.V_set - self.open_loop*np.concatenate((self.V_tot,
                                         np.zeros(self.n_diff, dtype=complex)))
         
         # Closed-loop gain
-        self.V_gen *= self.G_llrf
+        self.dV_gen *= self.G_llrf
         self.logger.debug("Set voltage %.6f MV",
                           1e-6*np.mean(np.absolute(self.V_set)))
         self.logger.debug("Antenna voltage %.6f MV",
                           1e-6*np.mean(np.absolute(self.V_tot)))
         self.logger.debug("Voltage error %.6f MV",
-                          1e-6*np.mean(np.absolute(self.V_gen)))
+                          1e-6*np.mean(np.absolute(self.dV_gen)))
 
         # One-turn delay comb filter; memorise the value of the previous turn
-        self.V_gen = comb_filter(self.V_gen_prev, self.V_gen, self.a_comb)
-        self.V_gen_prev = np.copy(self.V_gen)
+        self.dV_gen = comb_filter(self.dV_gen_prev, self.dV_gen, self.a_comb)
+        self.dV_gen_prev = np.copy(self.dV_gen)
         
         
         # Modulate from omega_rf to omega_r
-        self.V_gen = modulator(self.V_gen, self.omega_c, self.omega_r,
-                               self.profile.bin_size)
+        self.dV_gen = modulator(self.dV_gen, self.omega_c, self.omega_r,
+                                self.profile.bin_size)
         
         # Shift signals with the delay time
-        V_gen_in = np.copy(self.V_gen)
-        self.V_gen = np.concatenate((self.V_mov_av_prev[-self.n_delay:],
-                                     self.V_gen[:self.n_llrf-self.n_delay]))
+        dV_gen_in = np.copy(self.dV_gen)
+        self.dV_gen = np.concatenate((self.dV_mov_av_prev[-self.n_delay:],
+                                     self.dV_gen[:self.n_llrf-self.n_delay]))
         
         # Cavity filter: CIRCULAR moving average over filling time
         # Memorize last points of previous turn for beginning of next turn
 #        self.V_gen = moving_average(self.V_gen, self.n_mov_av,
-#                        x_prev=self.V_mov_av_prev[-self.n_delay-self.n_mov_av:\
+#                        x_prev=self.dV_mov_av_prev[-self.n_delay-self.n_mov_av:\
 #                                                  -self.n_delay])
-        self.V_gen = moving_average(self.V_gen, self.n_mov_av,
-                        x_prev=self.V_mov_av_prev[-self.n_delay-self.n_mov_av+1:\
+        self.dV_gen = moving_average(self.dV_gen, self.n_mov_av,
+                        x_prev=self.dV_mov_av_prev[-self.n_delay-self.n_mov_av+1:\
                                                   -self.n_delay])
 
-        self.V_mov_av_prev = np.copy(V_gen_in)
+        self.dV_mov_av_prev = np.copy(dV_gen_in)
 
     def generator_induced_voltage(self):
-        """Calculates the generator-induced voltage. The transmitter model is
+        
+        r"""Calculates the generator-induced voltage. The transmitter model is
         a simple linear gain [C/V] converting voltage to charge.
 
-        
-        .. math:: I = G_{\mathsfs{tx}} \frac{V}{R_{\mathsf{gen}}},
-        
+        .. math:: I = G_{\mathsf{tx}}\,\frac{V}{R_{\mathsf{gen}}} \, ,
+            
         where :math:`R_{\mathsf{gen}}` is the generator resistance,
         :py:attr:`llrf.impulse_response.TravellingWaveCavity.R_gen`
 
@@ -472,7 +395,7 @@ class SPSOneTurnFeedback(object):
         """
         
         # Add correction to the drive already existing
-        self.V_gen = self.open_FB*modulator(self.V_gen, self.omega_r,
+        self.V_gen = self.open_FB*modulator(self.dV_gen, self.omega_r,
             self.omega_c, self.profile.bin_size) + self.open_drive*self.V_set
 
         # Generator charge from voltage, transmitter model
