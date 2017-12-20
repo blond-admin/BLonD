@@ -226,9 +226,10 @@ class TravellingWaveCavity(object):
         self.logger = logging.getLogger(__class__.__name__)
         self.logger.info("Class initialized")
         self.logger.debug("Filling time %.4e s", self.tau)
-
-    def impulse_response(self, omega_c, time):
-        """Impulse response from the cavity towards the beam and towards the 
+        
+    
+    def impulse_response(self, omega_c, time_beam, time_gen):
+        r"""Impulse response from the cavity towards the beam and towards the 
         generator. For a signal that is I,Q demodulated at a given carrier 
         frequency :math:`\omega_c`. The formulae assume that the carrier 
         frequency is be close to the central frequency 
@@ -239,8 +240,10 @@ class TravellingWaveCavity(object):
         ----------
         omega_c : float
             Carrier revolution frequency [1/s]
-        time : float
-            Time array to act on
+        time_beam : float
+            Time array of the beam to act on
+        time_gen : float
+            Time array of the generator to act on
 
         Attributes
         ----------
@@ -274,32 +277,52 @@ class TravellingWaveCavity(object):
                                " central frequency of the cavity!")
 
         # Move starting point of impulse response to correct value
-        self.t_beam = time - time[0]
-        self.t_gen = time - time[0] - 0.5*self.tau
+        self.t_beam = time_beam - time_beam[0]
+        self.t_gen = time_gen - time_gen[0] - 0.5*self.tau
 
         # Impulse response if on carrier frequency
-        # self.hs_beam = 2*self.R_beam/self.tau*triangle(self.t_beam, self.tau)
-        # self.hc_beam = None
-        # self.hs_gen = self.R_gen/self.tau*rectangle(self.t_gen, self.tau)
-        # self.hc_gen = None
-
         self.h_beam = (2*self.R_beam / self.tau *
                        triangle(self.t_beam, self.tau)).astype(np.complex128)
         self.h_gen = (self.R_gen / self.tau *
                       rectangle(self.t_gen, self.tau)).astype(np.complex128)
-
-        # Wake fields towards beam and generator
-        self.W_beam = 2*self.h_beam.real*np.cos(self.omega_r*self.t_beam)
-        self.W_gen = 2*self.h_gen.real*np.cos(self.omega_r*self.t_gen)
-
+        
         # Impulse response if not on carrier frequency
         if np.fabs((self.d_omega)/self.omega_r) > 1e-12:
+            
             self.h_beam.imag = self.h_beam.real*np.sin(self.d_omega*self.t_beam)
             self.h_beam.real *= np.cos(self.d_omega * self.t_beam)
 
             self.h_gen.imag = self.h_gen.real*np.sin(self.d_omega*self.t_gen)
             self.h_gen.real *= np.cos(self.d_omega*self.t_gen)
-
+    
+    
+    def compute_wakes(self, time_beam, time_gen):
+        r"""Computes the wake fields towards the beam and generator on the 
+        central cavity frequency.
+        
+        Parameters
+        ----------
+        time_beam : float
+            Time array of the beam to act on
+        time_gen : float
+            Time array of the generator to act on
+        
+        Attributes
+        ----------
+        W_beam : float array
+            :math:`W_b(t)` [\Omega/s] as defined above
+        W_gen : float array
+            :math:`W_g(t)` [\Omega/s] as defined above
+        
+        """
+        
+        t_beam = time_beam - time_beam[0]
+        t_gen = time_gen - time_gen[0] - 0.5*self.tau
+        
+        # Wake fields towards beam and generator
+        self.W_beam = 2*self.h_beam.real*np.cos(self.omega_r*t_beam)
+        self.W_gen = 2*self.h_gen.real*np.cos(self.omega_r*t_gen)
+        
 
 class SPS4Section200MHzTWC(TravellingWaveCavity):
 

@@ -112,14 +112,18 @@ class TestTravelingWaveCavity(unittest.TestCase):
         
         TWC_impulse_response = SPS4Section200MHzTWC()
         # omega_c not need for computation of wake function
-        TWC_impulse_response.impulse_response(2*np.pi*200.222e6, time)
+        TWC_impulse_response.impulse_response(2*np.pi*200.222e6, time, time)
+        TWC_impulse_response.compute_wakes(time, time)
         wake_impResp = np.around(TWC_impulse_response.W_beam/1e12, 12)
         
         self.assertListEqual(wake_impSource.tolist(), wake_impResp.tolist(),
             msg="In TestTravelingWaveCavity test_wake: wake fields differ")
     
     def test_vind(self):
-
+        
+        #randomly chose omega_c from allowed range
+        factor = np.random.uniform(0.9,1.1)
+        
         # SPS parameters        
         C = 2*np.pi*1100.009        # Ring circumference [m]
         gamma_t = 18.0              # Gamma at transition
@@ -160,10 +164,11 @@ class TestTravelingWaveCavity(unittest.TestCase):
         # beam loading via feed-back system
         OTFB_4 = SPSOneTurnFeedback(rf, beam, profile, 4, n_cavities=1)
         OTFB_4.counter = 0 # First turn
-        np.random.seed(42) #randomly chose omega_c from allowed range
-        OTFB_4.omega_c = np.random.uniform(0.9,1.1) * OTFB_4.TWC.omega_r
+        
+        OTFB_4.omega_c = factor * OTFB_4.TWC.omega_r
         #compute impulse response
-        OTFB_4.TWC.impulse_response(OTFB_4.omega_c, profile.bin_centers)
+        OTFB_4.TWC.impulse_response(OTFB_4.omega_c, profile.bin_centers,
+                                    profile.bin_centers)
         #compute induced voltage in I,Q
         OTFB_4.beam_induced_voltage(lpf=False)
         #convert back to time
