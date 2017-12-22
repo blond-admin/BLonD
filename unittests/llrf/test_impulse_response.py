@@ -112,8 +112,8 @@ class TestTravelingWaveCavity(unittest.TestCase):
         
         TWC_impulse_response = SPS4Section200MHzTWC()
         # omega_c not need for computation of wake function
-        TWC_impulse_response.impulse_response(2*np.pi*200.222e6, time, time)
-        TWC_impulse_response.compute_wakes(time, time)
+        TWC_impulse_response.impulse_response(2*np.pi*200.222e6, time)
+        TWC_impulse_response.compute_wakes(time)
         wake_impResp = np.around(TWC_impulse_response.W_beam/1e12, 12)
         
         self.assertListEqual(wake_impSource.tolist(), wake_impResp.tolist(),
@@ -122,7 +122,11 @@ class TestTravelingWaveCavity(unittest.TestCase):
     def test_vind(self):
         
         #randomly chose omega_c from allowed range
+        np.random.seed(1980)
         factor = np.random.uniform(0.9,1.1)
+        
+        #round results to this digits
+        digit_round = 8
         
         # SPS parameters        
         C = 2*np.pi*1100.009        # Ring circumference [m]
@@ -143,8 +147,14 @@ class TestTravelingWaveCavity(unittest.TestCase):
         beam = Beam(ring, N_m, N_b)
         bigaussian(ring, rf, beam, 3.2e-9/4, seed = 1234, reinsertion = True) 
         
-        profile = Profile(beam, CutOptions = CutOptions(cut_left=-1.e-9, 
-            cut_right=6.e-9, n_slices = 140))
+        n_shift = 5 # how many rf-buckets to shift beam
+        beam.dt += n_shift * rf.t_rf[0]
+        profile = Profile(beam, CutOptions =
+                          CutOptions(cut_left=(n_shift-1.5)*rf.t_rf[0],
+                                     cut_right=(n_shift+1.5)*rf.t_rf[0],
+                                     n_slices = 140))
+#        profile = Profile(beam, CutOptions = CutOptions(cut_left=-1.e-9, 
+#            cut_right=6.e-9, n_slices = 140))
         profile.track()
         
         l_cav = 16.082
@@ -159,26 +169,90 @@ class TestTravelingWaveCavity(unittest.TestCase):
         induced_voltage = TotalInducedVoltage(beam, profile,
                                               [inducedVoltageTWC])
         induced_voltage.induced_voltage_sum()
-        V_ind_impSource = np.around(induced_voltage.induced_voltage, 8)
+        V_ind_impSource = np.around(induced_voltage.induced_voltage, digit_round)
         
         # beam loading via feed-back system
         OTFB_4 = SPSOneTurnFeedback(rf, beam, profile, 4, n_cavities=1)
         OTFB_4.counter = 0 # First turn
         
         OTFB_4.omega_c = factor * OTFB_4.TWC.omega_r
-        #compute impulse response
-        OTFB_4.TWC.impulse_response(OTFB_4.omega_c, profile.bin_centers,
-                                    profile.bin_centers)
+        #compute impulse response done in beam_induced_voltage_track
+#        OTFB_4.TWC.impulse_response(OTFB_4.omega_c, profile.bin_centers)
+
         #compute induced voltage in I,Q
-        OTFB_4.beam_induced_voltage(lpf=False)
+        OTFB_4.beam_induced_voltage_track(lpf=False)
         #convert back to time
         V_ind_OTFB \
-            = OTFB_4.V_ind_beam.real * np.cos(OTFB_4.omega_c*profile.bin_centers) \
-            + OTFB_4.V_ind_beam.imag * np.sin(OTFB_4.omega_c*profile.bin_centers)
-        V_ind_OTFB = np.around(V_ind_OTFB, 8)
+            = OTFB_4.V_track_beam.real * np.cos(OTFB_4.omega_c*profile.bin_centers) \
+            + OTFB_4.V_track_beam.imag * np.sin(OTFB_4.omega_c*profile.bin_centers)
+        V_ind_OTFB = np.around(V_ind_OTFB, digit_round)
 
         self.assertListEqual(V_ind_impSource.tolist(), V_ind_OTFB.tolist(),
             msg="In TravelingWaveCavity test_vind: induced voltages differ")
+        
+#    def test_vind_v2(self):
+#        
+#        #randomly chose omega_c from allowed range
+#        factor = np.random.uniform(0.9,1.1)
+#        
+#        # SPS parameters        
+#        C = 2*np.pi*1100.009        # Ring circumference [m]
+#        gamma_t = 18.0              # Gamma at transition
+#        alpha = 1/gamma_t**2        # Momentum compaction factor
+#        p_s = 25.92e9               # Synchronous momentum at injection [eV]
+#        h = [4620]                  # 200 MHz system harmonic
+#        V = [4.5e6]                 # 200 MHz RF voltage
+#        phi = [0.]                  # 200 MHz RF phase
+#        
+#        # Beam and tracking parameters
+#        N_m = 1e5                   # Number of macro-particles for tracking
+#        N_b = 1.0e11                 # Bunch intensity [ppb]
+#        N_t = 1                  # Number of turns to track
+#        
+#        ring = Ring(C, alpha, p_s, Proton(), n_turns=N_t)        
+#        rf = RFStation(ring, 1, h, V, phi)
+#        beam = Beam(ring, N_m, N_b)
+#        bigaussian(ring, rf, beam, 3.2e-9/4, seed = 1234, reinsertion = True) 
+#        
+#        profile = Profile(beam, CutOptions = CutOptions(cut_left=-1.e-9, 
+#            cut_right=6.e-9, n_slices = 140))
+#        profile.track()
+#        
+#        l_cav = 16.082
+#        v_g = 0.0946
+#        tau = l_cav/(v_g*c)*(1 + v_g)
+#        TWC_impedance_source = TravelingWaveCavity(l_cav**2 * 27.1e3 / 8,
+#                                                   200.222e6, 2*np.pi*tau)
+#        
+#        # beam loading by convolution of beam and wake from cavity
+#        inducedVoltageTWC = InducedVoltageTime(beam, profile,
+#                                               [TWC_impedance_source])
+#        induced_voltage = TotalInducedVoltage(beam, profile,
+#                                              [inducedVoltageTWC])
+#        induced_voltage.induced_voltage_sum()
+#        V_ind_impSource = np.around(induced_voltage.induced_voltage, 8)
+#        
+#        # beam loading via feed-back system
+#        OTFB_4 = SPSOneTurnFeedback(rf, beam, profile, 4, n_cavities=1)
+#        OTFB_4.counter = 0 # First turn
+#        
+#        OTFB_4.track_no_beam()
+#        
+#        
+#        
+#        OTFB_4.omega_c = factor * OTFB_4.TWC.omega_r
+#        #compute impulse response
+#        OTFB_4.TWC.impulse_response(OTFB_4.omega_c, profile.bin_centers)
+#        #compute induced voltage in I,Q
+#        OTFB_4.beam_induced_voltage_track(lpf=False)
+#        #convert back to time
+#        V_ind_OTFB \
+#            = OTFB_4.V_track_beam.real * np.cos(OTFB_4.omega_c*profile.bin_centers) \
+#            + OTFB_4.V_track_beam.imag * np.sin(OTFB_4.omega_c*profile.bin_centers)
+#        V_ind_OTFB = np.around(V_ind_OTFB, 8)
+#
+#        self.assertEqual(1,1)
+
 
 
 if __name__ == '__main__':

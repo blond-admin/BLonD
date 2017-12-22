@@ -24,6 +24,8 @@ from llrf.impulse_response import SPS4Section200MHzTWC, SPS5Section200MHzTWC
 from matplotlib import pyplot as plt
 from setup_cpp import libblond
 
+from beam.profile import Profile, CutOptions
+
 
 class CavityFeedbackCommissioning(object):
 
@@ -110,7 +112,7 @@ class SPSCavityFeedback(object):
 
         self.OTFB_4.track()
         self.OTFB_5.track()
-        self.V_sum = self.OTFB_4.V_tot + self.OTFB_5.V_tot
+        self.V_sum = self.OTFB_4.V_track_tot + self.OTFB_5.V_track_tot
 
         # Calculate OTFB correction w.r.t. RF voltage and phase in RFStation
         self.V_corr, self.phi_corr = cartesian_to_polar(self.V_sum)
@@ -128,16 +130,17 @@ class SPSCavityFeedback(object):
 #        plt.grid()
         
         for i in range(self.turns):
+#            print('OTFB pre-tracking iteration ', i)
             self.logger.debug("Pre-tracking w/o beam, iteration %d", i)
             self.OTFB_4.track_no_beam()
 #            plt.plot(self.OTFB_4.profile.bin_centers*1e6, 
-#                     np.abs(self.OTFB_4.V_tot),
+#                     np.abs(self.OTFB_4.V_track_tot),
 #                     color=colors[i])
-#            plt.plot(self.OTFB_4.rf_centers*1e6, np.abs(self.OTFB_4.V_avg_tot),
+#            plt.plot(self.OTFB_4.rf_centers*1e6, np.abs(self.OTFB_4.V_llrf_tot),
 #                     color=colors[i], linestyle='', marker='.')
             self.OTFB_5.track_no_beam()
         
-        self.V_sum = self.OTFB_4.V_tot + self.OTFB_5.V_tot
+        self.V_sum = self.OTFB_4.V_track_tot + self.OTFB_5.V_track_tot
         self.V_corr, self.phi_corr = cartesian_to_polar(self.V_sum)
 
         self.V_corr /= self.rf.voltage[0,self.rf.counter[0]]
@@ -147,7 +150,9 @@ class SPSCavityFeedback(object):
 class SPSOneTurnFeedback(object):
 
     r'''Voltage feedback around a travelling wave cavity with given amount of
-    sections.
+    sections. The quantities of the LLRF system cover one turn with a coarse
+    resolution. LLRF quantities such as the beam loading voltage 
+    :math:`V_{\mathsf{llrf, beam}}` are obtained by 
 
     Parameters
     ----------
@@ -155,8 +160,8 @@ class SPSOneTurnFeedback(object):
         An RFStation type class
     Beam : class
         A Beam type class
-    Profile : class
-        A Profile type class
+    profile : class
+        Beam profile object
     n_sections : int
         Number of sections in the cavities
     n_cavities : int
@@ -178,17 +183,27 @@ class SPSOneTurnFeedback(object):
         Carrier revolution frequency [1/s] at the current time step
     omega_r : const float
         Resonant revolution frequency [1/s] of the travelling wave cavities
+    n_llrf : int
+        Number of bins for the LLRF
+    profile_llrf : class
+        Profile that is used for the LLRF. It covers one revolution with n_llrf
+        number of bins
     V_gen : complex array
         Generator voltage [V] of the present turn in (I,Q) coordinates
     V_gen_prev : complex array
         Generator voltage [V] of the previous turn in (I,Q) coordinates
-    V_ind_beam : complex array
-        Beam-induced voltage [V] in (I,Q) coordinates
-    V_ind_gen : complex array
+    V_track_beam : complex array
+        Beam-induced voltage [V] in (I,Q) coordinates used for tracking
+    V_llrf_beam : complex array
+        Beam-induced voltage [V] in (I,Q) coordinates used for tracking
+    V_llrf_gen : complex array
         Generator-induced voltage [V] in (I,Q) coordinates
-    V_tot : complex array
-        Cavity voltage [V] at present turn in (I,Q) coordinates;
-        :math:`V_{\mathsf{tot}}`
+    V_llrf_tot : complex array
+        Cavity voltage [V] at present turn in (I,Q) coordinates which is used 
+        for tracking the LLRF; :math:`V_{\mathsf{llrf, tot}}`
+    V_track_tot : complex array
+        Cavity voltage [V] at present turn in (I,Q) coordinates which is used
+        for tracking the beam; :math:`V_{\mathsf{tot}}`
     a_comb : float
         Recursion constant of the comb filter; :math:`a_{\mathsf{comb}}=15/16`
     bw_cav : const float
@@ -202,7 +217,7 @@ class SPSOneTurnFeedback(object):
 
     '''
 
-    def __init__(self, RFStation, Beam, Profile, n_sections, n_cavities=2,
+    def __init__(self, RFStation, Beam, Profile_, n_sections, n_cavities=2,
                  V_part=4/9, G_llrf=10, G_tx=0.5, a_comb=15/16,
                  Commissioning=CavityFeedbackCommissioning()):
 
@@ -220,7 +235,7 @@ class SPSOneTurnFeedback(object):
         # Read input
         self.rf = RFStation
         self.beam = Beam
-        self.profile = Profile
+        self.profile = Profile_
         self.n_cavities = int(n_cavities)
         if self.n_cavities < 1:
             raise RuntimeError("ERROR in SPSOneTurnFeedback: argument" +
@@ -248,20 +263,36 @@ class SPSOneTurnFeedback(object):
         self.omega_r = self.TWC.omega_r
 
         # Initialise bunch-by-bunch voltage array with LENGTH OF PROFILE
-        self.V_tot = np.zeros(self.profile.n_slices, dtype=complex)
+        self.V_track_tot = np.zeros(self.profile.n_slices, dtype=complex)
         
-        # Length of arrays in LLRF and V_ind_gen
+        # Length of arrays in LLRF
 #        self.n_llrf = int(self.rf.t_rev[0]/self.profile.bin_size)
         self.n_llrf = int(self.rf.harmonic[0,0])
         
         # Array to hold the bucket-by-bucket voltage with LENGTH OF LLRF
-        self.V_avg_tot = np.zeros(self.n_llrf, dtype=complex)
-        self.rf_centers = (np.arange(self.n_llrf) + 0.5) * self.rf.t_rf[0]
+        self.V_llrf_tot = np.zeros(self.n_llrf, dtype=complex)
         
-        # Which bin in profile corresponds to which RF-bucket
-        self.binToBucketIndexes = [int(binn/ self.rf.t_rf[0] // 1)
-            for binn in self.profile.bin_centers]
-        self.binsPerRFBucket = int(self.rf.t_rf[0] / self.profile.bin_size)
+        # Beam profile for LLRF
+#        self.profile_llrf_beam = np.zeros(self.n_llrf, dtype=complex)
+        self.profile_llrf = Profile(self.beam, 
+            CutOptions = CutOptions(cut_left=0.0, cut_right=self.rf.t_rev[0],
+                                    n_slices=self.n_llrf))
+        self.rf_centers = self.profile_llrf.bin_centers
+#        self.rf_centers = (np.arange(self.n_llrf) + 0.5) * self.rf.t_rf[0]
+        
+        # RF-buckets correpsonding to begining and end of beam profile
+#        self.min_bucket = int(np.floor(self.profile.bin_centers[0]/self.rf.t_rf[0]))
+#        self.max_bucket = int(np.ceil(self.profile.bin_centers[-1]/self.rf.t_rf[0]))
+        self.min_bucket = int(np.floor(
+                self.profile.bin_centers[0]/self.profile_llrf.bin_size))
+        self.max_bucket = int(np.ceil(
+                self.profile.bin_centers[-1]/self.profile_llrf.bin_size))
+        
+#        # Which bin in profile corresponds to which RF-bucket
+#        self.binToBucketIndexes = [int(binn/ self.rf.t_rf[0] // 1)
+#            for binn in self.profile.bin_centers]
+#        self.binsPerRFBucket \
+#            = int(self.profile_llrf.bin_size / self.profile.bin_size)
         
 #        if (self.profile.n_slices / self.n_llrf) % 1 != 0:
 #            self.logger.error("Number of slices must be integer multiple of harmonic")
@@ -280,7 +311,7 @@ class SPSOneTurnFeedback(object):
 #        self.n_mov_av = int(self.TWC.tau/self.profile.bin_size)
 #        self.n_mov_av = int(self.TWC.tau/(self.slices_per_n_llrf
 #                                          * self.profile.bin_size))
-        self.n_mov_av = int(self.TWC.tau/self.rf.t_rf[0])
+        self.n_mov_av = int(self.TWC.tau/self.profile_llrf.bin_size)
         self.logger.debug("Moving average over %d points", self.n_mov_av)
         # TODO: update condition for new n_mov_av
         if self.n_mov_av < 2:
@@ -304,12 +335,13 @@ class SPSOneTurnFeedback(object):
         # Present delay time
 #        self.n_delay = int((self.rf.t_rev[0] - self.TWC.tau)
 #                           / self.profile.bin_size)
+#        self.n_delay = int((self.rf.t_rev[self.counter] - self.TWC.tau)
+#                           / self.rf.t_rf[self.counter])
         self.n_delay = int((self.rf.t_rev[self.counter] - self.TWC.tau)
-                           / self.rf.t_rf[self.counter])
+                           / self.profile_llrf.bin_size)
 
         # Update the impulse response at present carrier frequency
-        self.TWC.impulse_response(self.omega_c, self.profile.bin_centers,
-                                  self.rf_centers)
+        self.TWC.impulse_response(self.omega_c, self.rf_centers)
 
         # On current measured (I,Q) voltage, apply LLRF model
         self.llrf_model()
@@ -318,15 +350,16 @@ class SPSOneTurnFeedback(object):
         self.generator_induced_voltage()
 
         # Beam-induced voltage from beam profile
-        self.beam_induced_voltage()
+        self.beam_induced_voltage(lpf=False)
+        self.beam_induced_voltage_track()
 
         # Sum and convert to voltage amplitude and phase
-#        self.V_tot = self.V_ind_beam + self.V_ind_gen[:self.profile.n_slices]
+#        self.V_track_tot = self.V_track_beam + self.V_ind_gen[:self.profile.n_slices]
         
-        self.V_avg_tot = self.V_ind_gen
-        self.V_tot = self.V_ind_beam \
+        self.V_llrf_tot = self.V_llrf_gen + self.V_llrf_beam
+        self.V_track_tot = self.V_track_beam \
                     + np.interp(self.profile.bin_centers,
-                                self.rf_centers, self.V_ind_gen)
+                                self.rf_centers, self.V_llrf_gen)
 
     def track_no_beam(self):
         """Initial tracking method, before injecting beam."""
@@ -340,11 +373,13 @@ class SPSOneTurnFeedback(object):
 #                           / self.profile.bin_size)
 #        self.n_delay = int((self.rf.t_rev[0] - self.TWC.tau)
 #            /(self.profile.bin_size * self.slices_per_n_llrf) )
-        self.n_delay = int((self.rf.t_rev[0] - self.TWC.tau) / self.rf.t_rf[0])
+        self.n_delay = int((self.rf.t_rev[0] - self.TWC.tau) 
+                            / self.profile_llrf.bin_size)
 
         # Update the impulse response at present carrier frequency
-        self.TWC.impulse_response(self.omega_c, self.profile.bin_centers,
-                                  self.rf_centers)
+#        self.TWC.impulse_response(self.omega_c, self.profile.bin_centers,
+#                                  self.rf_centers)
+        self.TWC.impulse_response(self.omega_c, self.rf_centers)
 
         # On current measured (I,Q) voltage, apply LLRF model
         self.llrf_model()
@@ -357,33 +392,58 @@ class SPSOneTurnFeedback(object):
                           np.mean(np.absolute(self.I_gen))/self.profile.bin_size)
 
         # Sum and convert to voltage amplitude and phase
-        self.V_avg_tot = self.V_ind_gen
-        self.V_tot = np.interp(self.profile.bin_centers, self.rf_centers,
-                               self.V_ind_gen)
-#        self.V_tot = self.V_ind_gen[:self.profile.n_slices]
+        self.V_llrf_tot = self.V_llrf_gen
+        self.V_track_tot = np.interp(self.profile.bin_centers, self.rf_centers,
+                               self.V_llrf_gen)
+#        self.V_track_tot = self.V_llrf_gen[:self.profile.n_slices]
         
         self.logger.debug("Average generator voltage, last half of array %.3e V",
-                          np.mean(np.absolute(self.V_ind_gen[int(0.5*self.n_llrf):])))
+                          np.mean(np.absolute(self.V_llrf_gen[int(0.5*self.n_llrf):])))
 
     def decreaseResolution(self):
-        """ Decreases resolution of V_tot from profile.n_slices to n_llrf by
-        averaging over RF buckets
+        """ Decreases resolution of V_track_tot from profile.n_slices to n_llrf
+        by averaging over RF buckets.
         """
+        self.profile_llrf.track()
 
-        for rf_bucket in np.arange(self.binToBucketIndexes[0],
-                                   self.binToBucketIndexes[-1]+1, dtype=int):
-            self.V_avg_tot[rf_bucket] = np.mean(
-                    self.V_tot[rf_bucket:rf_bucket+self.binsPerRFBucket])
+        # TODO: is this for loop needed?        
+        for bucket in range(self.min_bucket, self.max_bucket):
+            
+            left_boundary = self.profile_llrf.bin_centers[bucket]\
+                - self.profile_llrf.bin_size/2
+#                - self.rf.t_rf[self.counter]/2
+            right_boundary = self.profile_llrf.bin_centers[bucket]\
+                + self.profile_llrf.bin_size/2
+#                + self.rf.t_rf[self.counter]/2
+            indexes = (self.profile.bin_centers >= left_boundary)\
+                * (self.profile.bin_centers <= right_boundary)
+            
+            self.V_llrf_tot[bucket] = np.mean(self.V_track_tot[indexes])
 
-#        self.V_avg_tot = np.zeros(self.n_llrf, dtype=complex)
+#            if bucket == 300:
+#                print(self.V_llrf_tot[bucket]/1e6)
+#                print(np.mean(self.V_track_tot[indexes])/1e6)
+        
+
+
+#        for rf_bucket in np.arange(self.binToBucketIndexes[0],
+#                                   self.binToBucketIndexes[-1]+1, dtype=int):
+#            self.V_llrf_tot[rf_bucket] = np.mean(
+#                    self.V_track_tot[rf_bucket:rf_bucket+self.binsPerRFBucket])
+        
+#            self.profile_llrf_beam[rf_bucket] = np.mean(
+#                    self.profile.n_macroparticles\
+#                    [rf_bucket:rf_bucket+self.binsPerRFBucket])
+
+#        self.V_llrf_tot = np.zeros(self.n_llrf, dtype=complex)
 #        
 #        for binn in range(self.profile.n_slices):
-#            self.V_avg_tot[self.binToBucketIndexes[binn]] += self.V_tot[binn]
-#        self.V_avg_tot /= self.binsPerRFBucket
+#            self.V_llrf_tot[self.binToBucketIndexes[binn]] += self.V_track_tot[binn]
+#        self.V_llrf_tot /= self.binsPerRFBucket
         
-#        for rf_bucket in range(len(self.V_avg_tot)):
-#            self.V_avg_tot[rf_bucket] = np.sum(
-#                    self.V_tot[rf_bucket:rf_bucket+self.slices_per_n_llrf])\
+#        for rf_bucket in range(len(self.V_llrf_tot)):
+#            self.V_llrf_tot[rf_bucket] = np.sum(
+#                    self.V_track_tot[rf_bucket:rf_bucket+self.slices_per_n_llrf])\
 #                    / self.slices_per_n_llrf
         
     
@@ -412,10 +472,11 @@ class SPSOneTurnFeedback(object):
         self.V_set *= np.ones(self.n_llrf)
 
         self.decreaseResolution()
-        
+               
         # Difference of set point and actual voltage
-        self.dV_gen = self.V_set - self.open_loop*self.V_avg_tot
-#        self.dV_gen = self.V_set - self.open_loop*np.concatenate((self.V_tot,
+        self.dV_gen = self.V_set - self.open_loop*self.V_llrf_tot
+        
+#        self.dV_gen = self.V_set - self.open_loop*np.concatenate((self.V_track_tot,
 #                                        np.zeros(self.n_diff, dtype=complex)))
         
         # Closed-loop gain
@@ -423,7 +484,7 @@ class SPSOneTurnFeedback(object):
         self.logger.debug("Set voltage %.6f MV",
                           1e-6*np.mean(np.absolute(self.V_set)))
         self.logger.debug("Antenna voltage %.6f MV",
-                          1e-6*np.mean(np.absolute(self.V_avg_tot)))
+                          1e-6*np.mean(np.absolute(self.V_llrf_tot)))
         self.logger.debug("Voltage error %.6f MV",
                           1e-6*np.mean(np.absolute(self.dV_gen)))
 
@@ -434,8 +495,10 @@ class SPSOneTurnFeedback(object):
         # Modulate from omega_rf to omega_r
 #        self.dV_gen = modulator(self.dV_gen, self.omega_c, self.omega_r,
 #                                self.profile.bin_size)
+#        self.dV_gen = modulator(self.dV_gen, self.omega_c, self.omega_r,
+#                                self.rf.t_rf[self.counter])
         self.dV_gen = modulator(self.dV_gen, self.omega_c, self.omega_r,
-                                self.rf.t_rf[self.counter])
+                                self.profile_llrf.bin_size)
         
         # Shift signals with the delay time
         dV_gen_in = np.copy(self.dV_gen)
@@ -447,11 +510,12 @@ class SPSOneTurnFeedback(object):
 #        self.V_gen = moving_average(self.V_gen, self.n_mov_av,
 #                        x_prev=self.dV_mov_av_prev[-self.n_delay-self.n_mov_av:\
 #                                                  -self.n_delay])
-        
+#        print(np.abs(self.dV_mov_av_prev))
+#        print(np.abs(self.dV_gen))
         self.dV_gen = moving_average(self.dV_gen, self.n_mov_av,
                         x_prev=self.dV_mov_av_prev[-self.n_delay-self.n_mov_av+1:\
                                                   -self.n_delay])
-        
+#        print(np.abs(self.dV_gen))
         self.dV_mov_av_prev = np.copy(dV_gen_in)
 
     def generator_induced_voltage(self):
@@ -468,7 +532,7 @@ class SPSOneTurnFeedback(object):
         ----------
         I_gen : complex array
             RF component of the generator charge [C] at the present time step
-        V_ind_gen : complex array
+        V_llrf_gen : complex array
             Induced voltage [V] from generator-cavity interaction
 
         """
@@ -476,12 +540,15 @@ class SPSOneTurnFeedback(object):
         # Add correction to the drive already existing
 #        self.V_gen = self.open_FB*modulator(self.dV_gen, self.omega_r,
 #            self.omega_c, self.profile.bin_size) + self.open_drive*self.V_set
+#        self.V_gen = self.open_FB*modulator(self.dV_gen, self.omega_r,
+#            self.omega_c, self.rf.t_rf[self.counter]) + self.open_drive*self.V_set
         self.V_gen = self.open_FB*modulator(self.dV_gen, self.omega_r,
-            self.omega_c, self.rf.t_rf[self.counter]) + self.open_drive*self.V_set
+            self.omega_c, self.profile_llrf.bin_size) + self.open_drive*self.V_set
 
         # Generator charge from voltage, transmitter model
 #        self.I_gen = self.G_tx*self.V_gen/self.TWC.R_gen*self.profile.bin_size
-        self.I_gen = self.G_tx*self.V_gen/self.TWC.R_gen*self.rf.t_rf[self.counter]
+#        self.I_gen = self.G_tx*self.V_gen/self.TWC.R_gen*self.rf.t_rf[self.counter]
+        self.I_gen = self.G_tx*self.V_gen/self.TWC.R_gen*self.profile_llrf.bin_size
 
         # Circular convolution: attach last points of previous turn
         self.I_gen = np.concatenate((self.I_gen_prev, self.I_gen))
@@ -514,22 +581,23 @@ class SPSOneTurnFeedback(object):
         The impulse response is made to be the same length as the beam profile.
 
         """
-#        print('before', len(self.I_gen), len(self.TWC.h_gen))
-        self.__setattr__("V_ind_"+name,
+
+        self.__setattr__("V_llrf_"+name,
                          self.matr_conv(self.__getattribute__("I_"+name),
                                         self.TWC.__getattribute__("h_"+name)))
-#        print('after', len(self.V_ind_gen))
         self.logger.debug("Matrix convolution for V_ind")
 
 
         if name == "beam":
-            self.V_ind_beam = -self.n_cavities \
-                * self.V_ind_beam[:self.profile.n_slices]  # WHAT IS THE CORRECT SIGN???
+#            plt.figure('tmp')
+#            plt.plot(self.I_beam.imag)
+            self.V_llrf_beam = -self.n_cavities \
+                * self.V_llrf_beam[:self.n_llrf]
 
         elif name == "gen":
             # Circular convolution
-            self.V_ind_gen = +self.n_cavities \
-                * self.V_ind_gen[self.n_mov_av:self.n_llrf+self.n_mov_av]
+            self.V_llrf_gen = +self.n_cavities \
+                * self.V_llrf_gen[self.n_mov_av:self.n_llrf+self.n_mov_av]
 
     def beam_induced_voltage(self, lpf=True):
         """Calculates the beam-induced voltage 
@@ -548,11 +616,26 @@ class SPSOneTurnFeedback(object):
 
         """
 
-        # Beam current from profile
-        self.I_beam = rf_beam_current(self.profile, self.omega_c,
+        # Beam current from llrf profile
+        self.I_beam = rf_beam_current(self.profile_llrf, self.omega_c,
                                       self.rf.t_rev[self.counter], lpf=lpf)
+        # TODO: why factor 0.5? why factor 2 in rf_beam_current?
         # Beam-induced voltage
         self.induced_voltage('beam')
+        
+    
+    def beam_induced_voltage_track(self, lpf=False):
+        # Beam current from profile
+        self.I_track_beam = rf_beam_current(self.profile, self.omega_c,
+                                      self.rf.t_rev[self.counter], lpf=lpf)
+        
+        self.TWC.impulse_response_track(self.omega_c, self.profile.bin_centers)
+        
+        self.V_track_beam = self.matr_conv(self.I_track_beam,
+                                           self.TWC.h_track_beam)
+        self.V_track_beam = -self.n_cavities \
+                * self.V_track_beam[:self.profile.n_slices]
+
 
     def matr_conv(self, I, h):
         """Convolution of beam current with impulse response; uses a complete

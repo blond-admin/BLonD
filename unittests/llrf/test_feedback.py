@@ -41,7 +41,9 @@ class TestFeedback(unittest.TestCase):
         
         # Define beam and fill it
         beam = Beam(ring, N_m, N_b)
-        bigaussian(ring, rf, beam, 3.2e-9/4, seed = 1234, reinsertion = True) 
+        bigaussian(ring, rf, beam, 3.2e-9/4, seed = 1234, reinsertion = True)
+        n_shift = 5 # how many rf-buckets to shift beam
+        beam.dt += n_shift * rf.t_rf[0]
         profile = Profile(beam, CutOptions = CutOptions(cut_left=0.e-9, 
             cut_right=rf.t_rev[0], n_slices=4620))
         profile.track()
@@ -53,8 +55,10 @@ class TestFeedback(unittest.TestCase):
                                  a_comb=15/16, turns=25, 
                                  Commissioning=Commissioning)
         
-        Vind_mean = np.around(np.mean(np.absolute(OTFB.OTFB_4.V_tot))/1e6, 12)
-        Vind_std = np.around(np.std(np.absolute(OTFB.OTFB_4.V_tot))/1e6, 12)
+        Vind_mean = np.around(
+                np.mean(np.absolute(OTFB.OTFB_4.V_llrf_tot))/1e6, 12)
+        Vind_std = np.around(
+                np.std(np.absolute(OTFB.OTFB_4.V_llrf_tot))/1e6, 12)
         
         # Expected values from previous simulation
         Vind_mean_exp = np.around(1.9988140339387235, 12)
@@ -67,6 +71,9 @@ class TestFeedback(unittest.TestCase):
                 + 'standard deviation differs')
         
     def test_FB_commissioning_v2(self):
+        
+        digit_round = 3
+        
         C = 2*np.pi*1100.009        # Ring circumference [m]
         gamma_t = 18.0              # Gamma at transition
         alpha = 1/gamma_t**2        # Momentum compaction factor
@@ -88,9 +95,15 @@ class TestFeedback(unittest.TestCase):
         rf = RFStation(ring, 1, h, V, phi)
         
         beam = Beam(ring, N_m, N_b)
-        bigaussian(ring, rf, beam, 3.2e-9/4, seed = 1234, reinsertion = True) 
-        profile = Profile(beam, CutOptions = CutOptions(cut_left=0, 
-            cut_right=rf.t_rf[0], n_slices=256))
+        bigaussian(ring, rf, beam, 3.2e-9/4, seed = 1234, reinsertion = True)
+        n_shift = 5 # how many rf-buckets to shift beam
+        beam.dt += n_shift * rf.t_rf[0]
+        profile = Profile(beam, CutOptions =
+                          CutOptions(cut_left=(n_shift-1.5)*rf.t_rf[0],
+                                     cut_right=(n_shift+1.5)*rf.t_rf[0],
+                                     n_slices = 140))
+#        profile = Profile(beam, CutOptions = CutOptions(cut_left=0, 
+#            cut_right=rf.t_rf[0], n_slices=256))
         profile.track()
         
         Commissioning = CavityFeedbackCommissioning(debug=False,
@@ -100,15 +113,20 @@ class TestFeedback(unittest.TestCase):
                                  a_comb=15/16, turns=50, 
                                  Commissioning=Commissioning)
         
-        Vind4_mean = np.around(np.mean(np.absolute(OTFB.OTFB_4.V_tot))/1e6, 10)
-        Vind4_std = np.around(np.std(np.absolute(OTFB.OTFB_4.V_tot))/1e6, 10)
-        Vind4_mean_exp = np.around(1.99886351363, 10)
-        Vind4_std_exp = np.around(2.148426e-6, 10)
         
-        Vind5_mean = np.around(np.mean(np.absolute(OTFB.OTFB_5.V_tot))/1e6, 10)
-        Vind5_std = np.around(np.std(np.absolute(OTFB.OTFB_5.V_tot))/1e6, 10)
-        Vind5_mean_exp = np.around(2.49906605189, 10)
-        Vind5_std_exp = np.around(2.221665e-6, 10)
+        Vind4_mean = np.around(
+                np.mean(np.absolute(OTFB.OTFB_4.V_llrf_tot))/1e6, digit_round)
+        Vind4_std = np.around(
+                np.std(np.absolute(OTFB.OTFB_4.V_llrf_tot))/1e6, digit_round)
+        Vind4_mean_exp = np.around(1.99886351363, digit_round)
+        Vind4_std_exp = np.around(2.148426e-6, digit_round)
+        
+        Vind5_mean = np.around(
+                np.mean(np.absolute(OTFB.OTFB_5.V_llrf_tot))/1e6, digit_round)
+        Vind5_std = np.around(
+                np.std(np.absolute(OTFB.OTFB_5.V_llrf_tot))/1e6, digit_round)
+        Vind5_mean_exp = np.around(2.49906605189, digit_round)
+        Vind5_std_exp = np.around(2.221665e-6, digit_round)
         
         self.assertEqual(Vind4_mean, Vind4_mean_exp,
             msg='In TestFeedback test_FB_commissioning_v2: '
