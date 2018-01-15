@@ -115,7 +115,7 @@ def modulator(signal, omega_i, omega_f, T_sampling):
         raise RuntimeError("ERROR in filters.py/demodulator: signal should" +
                            " be an array!")
     delta_phi = (omega_i - omega_f)*T_sampling * np.arange(len(signal))
-    # precompute sine and cosine for speed up
+    # Pre compute sine and cosine for speed up
     cs = np.cos(delta_phi)
     sn = np.sin(delta_phi)
     I_new = cs*signal.real - sn*signal.imag
@@ -149,7 +149,7 @@ def rf_beam_current(Profile, omega_c, T_rev, lpf=True):
         \left( \begin{matrix} I_{rf,i} \\ 
         Q_{rf,i} \end{matrix} \right)
         = 2 Q_i \left( \begin{matrix} \cos(\omega_c t_i) \\
-        \cos(\omega_c t_i)\end{matrix} \right) \, ,
+        \sin(\omega_c t_i)\end{matrix} \right) \, ,
         
     where :math:`t_i` are the time coordinates of the beam profile. After de-
     modulation, a low-pass filter at 20 MHz is applied.
