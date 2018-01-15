@@ -112,7 +112,8 @@ class TestTravelingWaveCavity(unittest.TestCase):
         
         TWC_impulse_response = SPS4Section200MHzTWC()
         # omega_c not need for computation of wake function
-        TWC_impulse_response.impulse_response(2*np.pi*200.222e6, time)
+        TWC_impulse_response.impulse_response_beam(2*np.pi*200.222e6, time)
+        TWC_impulse_response.impulse_response_gen(2*np.pi*200.222e6, time)
         TWC_impulse_response.compute_wakes(time)
         wake_impResp = np.around(TWC_impulse_response.W_beam/1e12, 12)
         
@@ -153,8 +154,6 @@ class TestTravelingWaveCavity(unittest.TestCase):
                           CutOptions(cut_left=(n_shift-1.5)*rf.t_rf[0],
                                      cut_right=(n_shift+1.5)*rf.t_rf[0],
                                      n_slices = 140))
-#        profile = Profile(beam, CutOptions = CutOptions(cut_left=-1.e-9, 
-#            cut_right=6.e-9, n_slices = 140))
         profile.track()
         
         l_cav = 16.082
@@ -163,7 +162,7 @@ class TestTravelingWaveCavity(unittest.TestCase):
         TWC_impedance_source = TravelingWaveCavity(l_cav**2 * 27.1e3 / 8,
                                                    200.222e6, 2*np.pi*tau)
         
-        # beam loading by convolution of beam and wake from cavity
+        # Beam loading by convolution of beam and wake from cavity
         inducedVoltageTWC = InducedVoltageTime(beam, profile,
                                                [TWC_impedance_source])
         induced_voltage = TotalInducedVoltage(beam, profile,
@@ -171,20 +170,22 @@ class TestTravelingWaveCavity(unittest.TestCase):
         induced_voltage.induced_voltage_sum()
         V_ind_impSource = np.around(induced_voltage.induced_voltage, digit_round)
         
-        # beam loading via feed-back system
+        # Beam loading via feed-back system
         OTFB_4 = SPSOneTurnFeedback(rf, beam, profile, 4, n_cavities=1)
         OTFB_4.counter = 0 # First turn
         
         OTFB_4.omega_c = factor * OTFB_4.TWC.omega_r
-        #compute impulse response done in beam_induced_voltage_track
-#        OTFB_4.TWC.impulse_response(OTFB_4.omega_c, profile.bin_centers)
+        # Compute impulse response
+        OTFB_4.TWC.impulse_response_beam(OTFB_4.omega_c, profile.bin_centers)
 
-        #compute induced voltage in I,Q
-        OTFB_4.beam_induced_voltage_track(lpf=False)
+        # Compute induced voltage in (I,Q) coordinates
+        OTFB_4.beam_induced_voltage(lpf=False)
         #convert back to time
         V_ind_OTFB \
-            = OTFB_4.V_track_beam.real * np.cos(OTFB_4.omega_c*profile.bin_centers) \
-            + OTFB_4.V_track_beam.imag * np.sin(OTFB_4.omega_c*profile.bin_centers)
+            = OTFB_4.V_fine_ind_beam.real \
+                * np.cos(OTFB_4.omega_c*profile.bin_centers) \
+            + OTFB_4.V_fine_ind_beam.imag \
+                * np.sin(OTFB_4.omega_c*profile.bin_centers)
         V_ind_OTFB = np.around(V_ind_OTFB, digit_round)
 
         self.assertListEqual(V_ind_impSource.tolist(), V_ind_OTFB.tolist(),

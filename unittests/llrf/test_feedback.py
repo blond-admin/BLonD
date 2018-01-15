@@ -56,9 +56,9 @@ class TestFeedback(unittest.TestCase):
                                  Commissioning=Commissioning)
         
         Vind_mean = np.around(
-                np.mean(np.absolute(OTFB.OTFB_4.V_llrf_tot))/1e6, 12)
+                np.mean(np.absolute(OTFB.OTFB_4.V_coarse_tot))/1e6, 12)
         Vind_std = np.around(
-                np.std(np.absolute(OTFB.OTFB_4.V_llrf_tot))/1e6, 12)
+                np.std(np.absolute(OTFB.OTFB_4.V_coarse_tot))/1e6, 12)
         
         # Expected values from previous simulation
         Vind_mean_exp = np.around(1.9988140339387235, 12)
@@ -115,16 +115,16 @@ class TestFeedback(unittest.TestCase):
         
         
         Vind4_mean = np.around(
-                np.mean(np.absolute(OTFB.OTFB_4.V_llrf_tot))/1e6, digit_round)
+                np.mean(np.absolute(OTFB.OTFB_4.V_coarse_tot))/1e6, digit_round)
         Vind4_std = np.around(
-                np.std(np.absolute(OTFB.OTFB_4.V_llrf_tot))/1e6, digit_round)
+                np.std(np.absolute(OTFB.OTFB_4.V_coarse_tot))/1e6, digit_round)
         Vind4_mean_exp = np.around(1.99886351363, digit_round)
         Vind4_std_exp = np.around(2.148426e-6, digit_round)
         
         Vind5_mean = np.around(
-                np.mean(np.absolute(OTFB.OTFB_5.V_llrf_tot))/1e6, digit_round)
+                np.mean(np.absolute(OTFB.OTFB_5.V_coarse_tot))/1e6, digit_round)
         Vind5_std = np.around(
-                np.std(np.absolute(OTFB.OTFB_5.V_llrf_tot))/1e6, digit_round)
+                np.std(np.absolute(OTFB.OTFB_5.V_coarse_tot))/1e6, digit_round)
         Vind5_mean_exp = np.around(2.49906605189, digit_round)
         Vind5_std_exp = np.around(2.221665e-6, digit_round)
         
