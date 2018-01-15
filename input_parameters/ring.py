@@ -155,7 +155,7 @@ class Ring(object):
     def __init__(self, ring_length, alpha, synchronous_data, Particle,
                  n_turns=None, synchronous_data_type='momentum',
                  bending_radius=None, n_stations=1, RampOptions=RampOptions()):
-        print("Markus's BLonD")
+        print("Markus' BLonD")
         # Conversion of initial inputs to expected types
         self.n_stations = int(n_stations)
 
