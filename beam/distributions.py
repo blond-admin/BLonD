@@ -22,7 +22,7 @@ import warnings
 import copy
 import matplotlib.pyplot as plt
 from trackers.utilities import is_in_separatrix
-from beam.profile import Profile
+from beam.profile import Profile, CutOptions
 from scipy.integrate import cumtrapz
 from trackers.utilities import potential_well_cut, minmax_location
 
@@ -662,10 +662,14 @@ def X0_from_bunch_length(bunch_length, bunch_length_fit, X_grid, sorted_X_dE0,
                 
                 if bunch_length_fit!=None:
                     profile = Profile(
-                      full_ring_and_RF.RingAndRFSection_list[0].rf_params,
-                      beam, n_points_grid, cut_left=time_potential_low_res[0] -
-                      0.5*bin_size , cut_right=time_potential_low_res[-1] +
-                      0.5*bin_size)
+                      beam, CutOptions=CutOptions(cut_left=time_potential_low_res[0] -
+                      0.5*bin_size, cut_right=time_potential_low_res[-1] +
+                      0.5*bin_size, n_slices=n_points_grid, RFSectionParameters=full_ring_and_RF.RingAndRFSection_list[0].rf_params))
+#                     profile = Profile(
+#                       full_ring_and_RF.RingAndRFSection_list[0].rf_params,
+#                       beam, n_points_grid, cut_left=time_potential_low_res[0] -
+#                       0.5*bin_size , cut_right=time_potential_low_res[-1] +
+#                       0.5*bin_size)
                         
                     profile.n_macroparticles = line_density_
                     
@@ -677,7 +681,7 @@ def X0_from_bunch_length(bunch_length, bunch_length_fit, X_grid, sorted_X_dE0,
                         tau = profile.bl_gauss
                     elif bunch_length_fit is 'fwhm':
                         profile.fwhm()
-                        tau = profile.bl_fwhm                        
+                        tau = profile.bunchLength                        
         
         # Update of the interval for the next iteration
         if tau >= bunch_length:
