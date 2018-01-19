@@ -114,13 +114,15 @@ class SPSCavityFeedback(object):
 
         self.OTFB_4.track()
         self.OTFB_5.track()
-        self.V_sum = self.OTFB_4.V_fine_tot + self.OTFB_5.V_fine_tot
+        self.V_sum = -(self.OTFB_4.V_fine_tot \
+                       + self.OTFB_5.V_fine_tot).conjugate()
 
         # Calculate OTFB correction w.r.t. RF voltage and phase in RFStation
         self.V_corr, self.phi_corr = cartesian_to_polar(self.V_sum)
 
         self.V_corr /= self.rf.voltage[0,self.rf.counter[0]]
-        self.phi_corr -= self.rf.phi_rf[0,self.rf.counter[0]] + 0.5*np.pi
+#        self.phi_corr -= self.rf.phi_rf[0,self.rf.counter[0]] - 0.5*np.pi
+        self.phi_corr -= -self.rf.phi_rf[0,self.rf.counter[0]] + 0.5*np.pi
 
 
     def track_init(self, debug=False):
@@ -142,11 +144,14 @@ class SPSCavityFeedback(object):
 #                     color=colors[i], linestyle='', marker='.')
             self.OTFB_5.track_no_beam()
 
-        self.V_sum = self.OTFB_4.V_fine_tot + self.OTFB_5.V_fine_tot
+#        self.V_sum = self.OTFB_4.V_fine_tot + self.OTFB_5.V_fine_tot
+        self.V_sum = -(self.OTFB_4.V_fine_tot \
+                       + self.OTFB_5.V_fine_tot).conjugate()
         self.V_corr, self.phi_corr = cartesian_to_polar(self.V_sum)
 
         self.V_corr /= self.rf.voltage[0,self.rf.counter[0]]
-        self.phi_corr -= self.rf.phi_rf[0,self.rf.counter[0]] + 0.5*np.pi
+#        self.phi_corr -= self.rf.phi_rf[0,self.rf.counter[0]] + 0.5*np.pi
+        self.phi_corr -= -self.rf.phi_rf[0,self.rf.counter[0]] + 0.5*np.pi
 
 
 class SPSOneTurnFeedback(object):
@@ -385,15 +390,17 @@ class SPSOneTurnFeedback(object):
             proportional to voltage partition
         dV_gen : complex array
             Generator voltage [V] in (I,Q); 
-            :math:`dV_{\mathsf{gen}} = V_{\mathsf{set}} - V_{\mathsf{tot}}`
+            :math:`dV_{\mathsf{gen}} = V_{\mathsf{set}} - V_{\mathsf{tot}}` 
         """
-
+        
         # Voltage set point of current turn (I,Q); depends on voltage partition
         # Sinusoidal voltage completely in Q
 
-        self.V_set = polar_to_cartesian(self.V_part* \
-            self.rf.voltage[0,self.counter],
-            self.rf.phi_rf[0,self.counter] + 0.5*np.pi)
+        self.V_set = polar_to_cartesian(self.V_part \
+                                        * self.rf.voltage[0,self.counter],
+                                        0.5*np.pi - self.rf.phi_rf[0,self.counter])
+#                                        self.rf.phi_rf[0,self.counter] + 0.5*np.pi)
+            
 
         # Convert to array
         self.V_set *= np.ones(self.n_coarse)
@@ -544,19 +551,7 @@ class SPSOneTurnFeedback(object):
         # Beam-induced voltage
         self.induced_voltage('beam')
         
-    
-#    def beam_induced_voltage_fine(self, lpf=False):
-#        # Beam current from profile
-#        self.I_fine_beam = rf_beam_current(self.profile, self.omega_c,
-#                                      self.rf.t_rev[self.counter], lpf=lpf)
-#        
-#        self.TWC.impulse_response_fine(self.omega_c, self.profile.bin_centers)
-#        
-#        self.V_fine_beam = self.matr_conv(self.I_fine_beam,
-#                                           self.TWC.h_fine_beam)
-#        self.V_fine_beam = -self.n_cavities \
-#                * self.V_fine_beam[:self.profile.n_slices]
-    
+        
     def pre_compute_semi_analytic_factor(self, time):
         r""" Pre-computes factor for semi-analytic method, which is used to 
         compute the beam-induced voltage on the coarse grid.
