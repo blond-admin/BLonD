@@ -13,6 +13,7 @@
 :Authors: **Helga Timko, Konstantinos Iliakis**
 '''
 
+import sys
 import argparse
 import os
 import textwrap
@@ -153,6 +154,10 @@ def main():
                         'unit-tests found in the given files/directories')
 
     args = parser.parse_args()
+
+    # Passing a default option if no argument is given
+    if len(sys.argv) == 1:
+        args.unitTests = 'unitTests'
 
     # Call the actual sanity check
     SanityCheck(args.all, args.docs, args.pep8Files, args.unitTests)
