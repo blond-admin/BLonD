@@ -123,6 +123,24 @@ class RampOptions(object):
             raise RuntimeError("ERROR: sampling value in PreprocessRamp" +
                                " not recognised. Aborting...")
 
+    def input_check(self, data_to_check, n_turns):
+        r"""Checks whether the user input is consistent with the expectation 
+        for the Ring object.
+
+        Parameters
+        ----------
+        data_to_check : synchronous_data, alpha_0, alpha_1, alpha_2
+            Main input data for the Ring object
+
+        Returns
+        -------
+        list of arrays
+            Input data, column by column.
+
+        """
+
+        return 0
+
     def preprocess(self, mass, circumference, time, momentum):
         r"""Function to pre-process acceleration ramp data, interpolating it to
         every turn. Currently it works only if the number of RF sections is 
