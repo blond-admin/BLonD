@@ -159,11 +159,12 @@ class Ring(object):
     >>>
     >>> n_turns = 10
     >>> C = [13000, 13659]
-    >>> alpha_0 = [[3.21e-4, 2.e-5, 5.e-7], [2.89e-4, 1.e-5, 5.e-7]]
-    >>> alpha_1 = [[3.21e-4, 2.e-5, 5.e-7], [2.89e-4, 1.e-5, 5.e-7]]
-    >>> alpha_2 = [[3.21e-4, 2.e-5, 5.e-7], [2.89e-4, 1.e-5, 5.e-7]]
+    >>> alpha_0 = [[3.21e-4], [2.89e-4]]
+    >>> alpha_1 = [[2.e-5], [1.e-5]]
+    >>> alpha_2 = [[5.e-7], [5.e-7]]
     >>> momentum = 450e9
-    >>> ring = Ring(n_turns, C, alpha_0, momentum, Electron())
+    >>> ring = Ring(n_turns, C, alpha_0, momentum, Electron(),
+    >>>             alpha_order=2, alpha_1=alpha_1, alpha_2=alpha_2)
 
     """
 
