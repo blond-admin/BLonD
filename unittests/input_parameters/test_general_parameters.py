@@ -14,7 +14,6 @@ Unit-test for general_parameters.py
 
 
 import sys
-import math
 import unittest
 import numpy as np
 
