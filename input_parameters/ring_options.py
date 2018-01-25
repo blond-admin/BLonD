@@ -150,7 +150,11 @@ class RampOptions(object):
             input_data_time = np.array(input_data[0], ndmin=2, dtype=float)
             input_data = np.array(input_data[1], ndmin=2, dtype=float)
 
-            if input_data.shape[0] != n_sections:
+            for index_section in range(n_sections):
+                if len(input_data[index_section]) != len(input_data_time[index_section]):
+                    raise RuntimeError("ERROR in Ring: synchronous data does " +"not match the time data")
+
+            if len(input_data) != n_sections:
                 raise RuntimeError("ERROR in Ring: the input data " +
                                    "does not match the number of sections")
 
