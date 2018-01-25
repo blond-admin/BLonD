@@ -48,10 +48,8 @@ class TestGeneralParameters(unittest.TestCase):
         """
 
         standardMsg = "%s is not NaN" % str(value)
-        try:
-            if not math.isnan(value):
-                self.fail(self._formatMessage(msg, standardMsg))
-        except:
+
+        if not np.isnan(value):
             self.fail(self._formatMessage(msg, standardMsg))
 
     # Exception raising test --------------------------------------------------
