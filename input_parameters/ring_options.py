@@ -23,32 +23,6 @@ from scipy.constants import c
 from scipy.interpolate import splrep, splev
 
 
-def load_data(filename, ignore=0, delimiter=None):
-    r"""Helper function to load column-by-column data from a txt file to numpy
-    arrays.
-
-    Parameters
-    ----------
-    filename : str
-        Name of the file containing the data.
-    ignore : int
-        Number of lines to ignore from the head of the file.
-    delimiter : str
-        Delimiting character between columns.
-
-    Returns
-    -------
-    list of arrays
-        Input data, column by column.
-
-    """
-
-    data = np.loadtxt(str(filename), skiprows=int(ignore),
-                      delimiter=str(delimiter))
-
-    return [np.ascontiguousarray(data[:, i]) for i in range(len(data[0]))]
-
-
 class RampOptions(object):
     r""" Class to preprocess the synchronous data for Ring, interpolating it to
     every turn.
@@ -437,3 +411,29 @@ class RampOptions(object):
             plt.clf()
 
         return time_interp, momentum_interp
+
+
+def load_data(filename, ignore=0, delimiter=None):
+    r"""Helper function to load column-by-column data from a txt file to numpy
+    arrays.
+
+    Parameters
+    ----------
+    filename : str
+        Name of the file containing the data.
+    ignore : int
+        Number of lines to ignore from the head of the file.
+    delimiter : str
+        Delimiting character between columns.
+
+    Returns
+    -------
+    list of arrays
+        Input data, column by column.
+
+    """
+
+    data = np.loadtxt(str(filename), skiprows=int(ignore),
+                      delimiter=str(delimiter))
+
+    return [np.ascontiguousarray(data[:, i]) for i in range(len(data[0]))]
