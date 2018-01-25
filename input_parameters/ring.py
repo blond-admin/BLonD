@@ -229,18 +229,18 @@ class Ring(object):
         # If synchronous_data_time is defined, the RampOptions object
         # interpolates the momentum program for every machine turn
         if synchronous_data_time is not None:
-            if synchronous_data.shape[0] >1:
+            if synchronous_data.shape[0] > 1:
                 raise RuntimeError("ERROR in Ring: preprocess works just " +
                                    "for single  section, to be extended.")
             self.cycle_time, self.momentum = RampOptions.preprocess(
                 self.Particle.mass, self.ring_circumference,
                 synchronous_data_time[0], self.momentum[0])
-            
+
             self.n_turns = len(self.cycle_time)-1
 #             self.cycle_time = np.array(self.cycle_time, ndmin=2,
 #                                              dtype=float)
             self.momentum = np.array(self.momentum, ndmin=2,
-                                             dtype=float)
+                                     dtype=float)
 
         # Derived from momentum
         self.beta = np.sqrt(1/(1 + (self.Particle.mass/self.momentum)**2))
@@ -291,7 +291,8 @@ class Ring(object):
 
         # Fill unused eta arrays with zeros
         for i in range(self.alpha_order, 3):
-            setattr(self, "eta_%s" % i, np.zeros([self.n_stations, self.n_turns+1]))
+            setattr(self, "eta_%s" % i, np.zeros([self.n_stations,
+                                                  self.n_turns+1]))
 
     def _eta0(self):
         """ Function to calculate the zeroth order slippage factor eta_0 """
