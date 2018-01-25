@@ -35,14 +35,13 @@ class Ring(object):
         Length [m] of the n_sections ring segments of the synchrotron.
         An RF station, a synchrotron radiation kick, and/or an impedance kick
         can be included at the end of each ring section.
-    alpha : float (opt: float array/matrix [n_sections, alpha_order])
-        Momentum compaction factor :math:`\alpha_{k,i}` [1]; can be input as
-        single float (only 0th order element) or float array (up to 2nd order
-        elements). In case of several sections without higher orders, input:
-        [[alpha_section_1], [alpha_section_2], etc.]. In case of several
-        sections and higher order alphas, input: [alpha_array_section_1,
-        alpha_array_section_2, etc.]
-    synchronous_data : float (opt: float array/matrix [n_sections, n_turns])
+    alpha_0 : float (opt: float array/matrix [n_sections, n_turns+1])
+        Momentum compaction factor of zeroth order :math:`\alpha_{0,k,i}` [1];
+        can be input as single float or as a program of (n_turns + 1) turns
+        (should be of the same size as synchronous_data).
+        In case of higher order momentum compaction, check the
+        documentation for the inputs: alpha_order, alpha_1, alpha_2
+    synchronous_data : float (opt: float array/matrix [n_sections, n_turns+1])
         Design synchronous particle momentum (default) [eV], kinetic or
         total energy [eV] or bending field [T] on the design orbit.
         Input for each RF section :math:`p_{s,k,n}`.
@@ -57,19 +56,32 @@ class Ring(object):
         A Particle-based class defining the primary, synchronous particle (mass
         and charge) that is reference for the momentum/energy in the ring.
     synchronous_data_type : str
-        Choice of 'synchronous_data' type; can be 'momentum' (default),
-        'total energy', 'kinetic energy' or 'bending field'
+        Optional: Choice of 'synchronous_data' type; can be 'momentum'
+        (default), 'total energy', 'kinetic energy' or 'bending field'
         (requires bending_radius to be defined)
     bending_radius : float
-        Radius [m] of the bending magnets, required if 'bending field' is set
-        for the synchronous_data_type
+        Optional: Radius [m] of the bending magnets,
+        required if 'bending field' is set for the synchronous_data_type
     n_sections : int
         Optional: number of ring sections/segments; default is 1
+    alpha_order : int
+        Optional : Number of momentum compaction orders. The input value should
+        be from 0 to 2 to consider the momentum compaction from
+        zeroth order (alpha_0) to second order (alpha_2); default is 0
+    alpha_1 : float (opt: float array/matrix [n_sections, n_turns+1])
+        Momentum compaction factor of first order :math:`\alpha_{1,k,i}` [1];
+        can be input as single float or as a program of (n_turns + 1) turns
+        (should be of the same size as synchronous_data and alpha_0).
+    alpha_2 : float (opt: float array/matrix [n_sections, n_turns+1])
+        Momentum compaction factor of second order :math:`\alpha_{2,k,i}` [1];
+        can be input as single float or as a program of (n_turns + 1) turns
+        (should be of the same size as synchronous_data and alpha_0).
     RampOptions : class
-        A RampOptions-based class with default options to check the input and
-        initialize the momentum program for the simulation. This object defines
-        the interpolation scheme, plotting options, etc. The options for this
-        object can be adjusted and passed to the Ring object.
+        Optional : A RampOptions-based class with default options to check the
+        input and initialize the momentum program for the simulation.
+        This object defines the interpolation scheme, plotting options, etc.
+        The options for this object can be adjusted and passed to the Ring
+        object.
 
     Attributes
     ----------
@@ -135,9 +147,9 @@ class Ring(object):
     >>>
     >>> n_turns = 10
     >>> C = 26659
-    >>> alpha = 3.21e-4
+    >>> alpha_0 = 3.21e-4
     >>> momentum = 450e9
-    >>> ring = Ring(n_turns, C, alpha, momentum, Proton())
+    >>> ring = Ring(n_turns, C, alpha_0, momentum, Proton())
     >>>
     >>>
     >>> # To declare a two section synchrotron at constant energy and
@@ -147,15 +159,18 @@ class Ring(object):
     >>>
     >>> n_turns = 10
     >>> C = [13000, 13659]
-    >>> alpha = [[3.21e-4, 2.e-5, 5.e-7], [2.89e-4, 1.e-5, 5.e-7]]
+    >>> alpha_0 = [[3.21e-4, 2.e-5, 5.e-7], [2.89e-4, 1.e-5, 5.e-7]]
+    >>> alpha_1 = [[3.21e-4, 2.e-5, 5.e-7], [2.89e-4, 1.e-5, 5.e-7]]
+    >>> alpha_2 = [[3.21e-4, 2.e-5, 5.e-7], [2.89e-4, 1.e-5, 5.e-7]]
     >>> momentum = 450e9
-    >>> ring = Ring(n_turns, C, alpha, momentum, Electron())
+    >>> ring = Ring(n_turns, C, alpha_0, momentum, Electron())
 
     """
 
-    def __init__(self, n_turns, ring_length, alpha, synchronous_data, Particle,
-                 synchronous_data_type='momentum', bending_radius=None,
-                 n_sections=1, RampOptions=RampOptions()):
+    def __init__(self, n_turns, ring_length, alpha_0, synchronous_data,
+                 Particle, synchronous_data_type='momentum',
+                 bending_radius=None, n_sections=1, alpha_order=0,
+                 alpha_1=None, alpha_2=None, RampOptions=RampOptions()):
 
         # Conversion of initial inputs to expected types
         self.n_sections = int(n_sections)
@@ -208,7 +223,7 @@ class Ring(object):
                                         dtype=float)
 
             if synchronous_data.shape[1] == 1:
-                synchronous_data = synchronous_data*np.ones(self.n_turns + 1)
+                synchronous_data = synchronous_data*np.ones(self.n_turns+1)
 
             elif synchronous_data.shape[1] != (self.n_turns+1):
 
@@ -259,17 +274,19 @@ class Ring(object):
         self.omega_rev = 2*np.pi*self.f_rev
 
         # Momentum compaction, checks, and derived slippage factors
-        self.alpha = np.array(alpha, ndmin=2, dtype=float)
-        self.alpha_order = int(self.alpha.shape[1])
+        self.alpha_0 = np.array(alpha_0, ndmin=1, dtype=float)
+        self.alpha_1 = np.array(alpha_1, ndmin=1, dtype=float)
+        self.alpha_2 = np.array(alpha_2, ndmin=1, dtype=float)
+        self.alpha_order = int(alpha_order)
 
-        if self.alpha_order > 3:
+        if self.alpha_order > 2:
             warnings.filterwarnings("once")
             warnings.warn("WARNING in Ring: Momentum compaction factor is " +
                           "implemented only up to 2nd order. Higher orders " +
                           "are ignored.")
-            self.alpha_order = 3
+            self.alpha_order = 2
 
-        if self.n_sections != self.alpha.shape[0]:
+        if self.n_sections != self.alpha_0.shape[0]:
             raise RuntimeError("ERROR in Ring: Number of sections and size " +
                                "of momentum compaction do not match!")
 
@@ -287,11 +304,11 @@ class Ring(object):
                 Third Edition, 2012.
         """
 
-        for i in range(self.alpha_order):
+        for i in range(self.alpha_order+1):
             getattr(self, '_eta' + str(i))()
 
         # Fill unused eta arrays with zeros
-        for i in range(self.alpha_order, 3):
+        for i in range(self.alpha_order+1, 3):
             setattr(self, "eta_%s" % i, np.zeros([self.n_sections,
                                                   self.n_turns+1]))
 
@@ -300,7 +317,7 @@ class Ring(object):
 
         self.eta_0 = np.empty([self.n_sections, self.n_turns+1])
         for i in range(0, self.n_sections):
-            self.eta_0[i] = self.alpha[i, 0] - self.gamma[i]**(-2.)
+            self.eta_0[i] = self.alpha_0[i] - self.gamma[i]**(-2.)
 
     def _eta1(self):
         """ Function to calculate the first order slippage factor eta_1 """
@@ -308,7 +325,7 @@ class Ring(object):
         self.eta_1 = np.empty([self.n_sections, self.n_turns+1])
         for i in range(0, self.n_sections):
             self.eta_1[i] = 3*self.beta[i]**2/(2*self.gamma[i]**2) + \
-                self.alpha[i, 1] - self.alpha[i, 0]*self.eta_0[i]
+                self.alpha_1[i] - self.alpha_0[i]*self.eta_0[i]
 
     def _eta2(self):
         """ Function to calculate the second order slippage factor eta_2 """
@@ -316,10 +333,10 @@ class Ring(object):
         self.eta_2 = np.empty([self.n_sections, self.n_turns+1])
         for i in range(0, self.n_sections):
             self.eta_2[i] = - self.beta[i]**2*(5*self.beta[i]**2 - 1) / \
-                (2*self.gamma[i]**2) + self.alpha[i, 2] - 2*self.alpha[i, 0] *\
-                self.alpha[i, 1] + self.alpha[i, 1] / self.gamma[i]**2 + \
-                self.alpha[i, 0]**2*self.eta_0[i] - 3*self.beta[i]**2 * \
-                self.alpha[i, 0]/(2*self.gamma[i]**2)
+                (2*self.gamma[i]**2) + self.alpha_2[i] - 2*self.alpha_0[i] *\
+                self.alpha_1[i] + self.alpha_1[i] / self.gamma[i]**2 + \
+                self.alpha_0[i]**2*self.eta_0[i] - 3*self.beta[i]**2 * \
+                self.alpha_0[i]/(2*self.gamma[i]**2)
 
     def convert_data(self, synchronous_data, synchronous_data_type='momentum'):
 
