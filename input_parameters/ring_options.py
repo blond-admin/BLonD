@@ -180,6 +180,7 @@ class RampOptions(object):
         # if synchronous_data is a single value converts it into a (n_turns+1)
         # array
         else:
+            input_data = np.array(input_data, ndmin=2, dtype=float)
             output_data = np.zeros((n_sections, n_turns+1), dtype=float)
 
             if len(input_data) != n_sections:

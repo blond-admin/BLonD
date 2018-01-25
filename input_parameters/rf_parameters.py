@@ -157,9 +157,9 @@ class RFStation(object):
         order to be passed by reference
     section_index : int                    
         Unique index :math:`k` of the RF station the present class is defined 
-        for. Input in the range 1..n_stations (see 
+        for. Input in the range 1..n_sections (see 
         :py:class:`input_parameters.ring.Ring`). 
-        Inside the code, indices 0..n_stations-1 are used.
+        Inside the code, indices 0..n_sections-1 are used.
     phi_rf : float matrix
         Actual RF cavity phase of each harmonic system, 
         :math:`\phi_{rf,l,n}` [rad]. Initially the same as the designed phase.
@@ -206,7 +206,7 @@ class RFStation(object):
         self.counter = [int(0)]
         self.section_index = int(section_index - 1)
         if self.section_index < 0 \
-            or self.section_index > Ring.n_stations - 1:
+            or self.section_index > Ring.n_sections - 1:
             raise RuntimeError("ERROR in RFStation: section_index out of" +
                 " allowed range!")    
         self.n_rf = n_rf
@@ -329,12 +329,12 @@ class RFStation(object):
     
         """
         
-        if self.alpha_order == 1:
+        if self.alpha_order == 0:
             return self.eta_0[counter]
         else:
             eta = 0
             delta = dE/(beam.beta**2 * beam.energy)
-            for i in range( self.alpha_order ):
+            for i in range(self.alpha_order+1):
                 eta_i = getattr(self, 'eta_' + str(i))[counter]
                 eta  += eta_i * (delta**i)
             return eta  

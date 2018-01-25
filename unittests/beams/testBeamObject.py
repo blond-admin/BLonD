@@ -50,7 +50,7 @@ class testBeamClass(unittest.TestCase):
 
         # Define general parameters
         # --------------------------
-        self.general_params = Ring(C, alpha, p, Proton(), N_turn)
+        self.general_params = Ring(N_turn, C, alpha, p, Proton())
 
         # Define beam
         # ------------

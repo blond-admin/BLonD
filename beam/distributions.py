@@ -815,7 +815,7 @@ def bigaussian(Ring, RFStation, Beam, sigma_dt, sigma_dE = None, seed = None,
     """
     
     warnings.filterwarnings("once")
-    if Ring.n_stations > 1:
+    if Ring.n_sections > 1:
         warnings.warn("WARNING in bigaussian(): the usage of several" +
                       " sections is not yet implemented. Ignoring" +
                       " all but the first!")
