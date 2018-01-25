@@ -123,23 +123,105 @@ class RampOptions(object):
             raise RuntimeError("ERROR: sampling value in PreprocessRamp" +
                                " not recognised. Aborting...")
 
-    def input_check(self, data_to_check, n_turns):
+    def reshape_data(self, input_data, n_turns, n_sections,
+                     interp_time='t_rev', input_is_momentum=False,
+                     mass=None, circumference=None):
         r"""Checks whether the user input is consistent with the expectation
-        for the Ring object.
+        for the Ring object. The possibilites are detailed in the documentation
+        of the Ring object.
+
 
         Parameters
         ----------
-        data_to_check : synchronous_data, alpha_0, alpha_1, alpha_2
-            Main input data for the Ring object
+        input_data : Ring.synchronous_data, Ring.alpha_0,1,2
+            Main input data to reshape
+        n_turns : Ring.n_turns
+            Number of turns the simulation should be. Note that if
+            the input_data is passed as a tuple it is expected that the
+            input_data is a program. Hence, the number of turns may not
+            correspond to the input one and will be overwritten
+        n_sections : Ring.n_sections
+            The number of sections of the ring. The simulation is stopped
+            if the input_data shape does not correspond to the expected number
+            of sections.
+        interp_time : str or float or float array [n_turns+1]
+            Optional : defines the time on which the program will be
+            interpolated. If 't_rev' is passed and if the input_data is
+            momentum (see input_is_momentum option) the momentum program
+            is interpolated on the revolution period (see preprocess()
+            function). If a float or a float array is passed, the program
+            is interpolated on that input ; default is 't_rev'
+        input_is_momentum : bool
+            Optional : flags if the input_data is the momentum program, the
+            options mass and circumference become necessary
+        mass : Ring.Particle.mass
+            Optional : the mass of the particles ; default is None
+        circumference : Ring.circumference
+            Optional : the circumference of the ring ; default is None
 
         Returns
         -------
-        list of arrays
-            Input data, column by column.
+        output_data
+            Returns the data with the adequate shape for the Ring object
 
         """
 
-        return 0
+        # TO BE IMPLEMENTED: if you pass a filename the function reads the file
+        # and reshape the data
+        if isinstance(input_data, str):
+            pass
+
+        # If tuple, separate time and synchronous data and check data
+        if isinstance(input_data, tuple):
+            input_data_time = np.array(input_data[0], ndmin=2, dtype=float)
+            input_data = np.array(input_data[1], ndmin=2, dtype=float)
+
+            if input_data.shape[0] != n_sections:
+                raise RuntimeError("ERROR in Ring: the input data " +
+                                   "does not match the number of sections")
+
+            if input_is_momentum and interp_time == 't_rev':
+                output_data = RampOptions.preprocess(mass,
+                                                     circumference,
+                                                     input_data_time,
+                                                     input_data)
+            elif isinstance(interp_time, float):
+                interp_time = np.arange(input_data_time[0],
+                                        input_data_time[-1],
+                                        interp_time)
+                output_data = np.interp(interp_time,
+                                        input_data_time,
+                                        input_data)
+
+            elif isinstance(interp_time, np.ndarray):
+                output_data = np.interp(interp_time,
+                                        input_data_time,
+                                        input_data)
+
+        # If array/list or float, compares with the input number of turns and
+        # if synchronous_data is a single value converts it into a (n_turns+1)
+        # array
+        else:
+            input_data = np.array(input_data, ndmin=2, dtype=float)
+
+            if input_data.shape[0] != n_sections:
+                raise RuntimeError("ERROR in Ring: the input data " +
+                                   "does not match the number of sections")
+
+            for index_section in range(input_data.shape[0]):
+                if input_data[index_section].shape[1] == 1:
+                    input_data[index_section] = input_data[index_section] * \
+                                                np.ones(self.n_turns+1)
+
+                elif input_data.shape[1] != (n_turns+1):
+
+                    raise RuntimeError("ERROR in Ring: The momentum program " +
+                                       "does not match the proper length " +
+                                       "(n_turns+1)")
+
+            output_data = np.array(input_data)
+
+        return output_data
 
     def preprocess(self, mass, circumference, time, momentum):
         r"""Function to pre-process acceleration ramp data, interpolating it to

@@ -71,13 +71,15 @@ class Ring(object):
         be from 0 to 2 to consider the momentum compaction from
         zeroth order (alpha_0) to second order (alpha_2); default is 0
     alpha_1 : float (opt: float array/matrix [n_sections, n_turns+1])
-        Momentum compaction factor of first order :math:`\alpha_{1,k,i}` [1];
-        can be input as single float or as a program of (n_turns + 1) turns
-        (should be of the same size as synchronous_data and alpha_0).
+        Momentum compaction factor of first order
+        :math:`\alpha_{1,k,i}` [1]; can be input as single float or as a
+        program of (n_turns + 1) turns (should be of the same size as
+        synchronous_data and alpha_0).
     alpha_2 : float (opt: float array/matrix [n_sections, n_turns+1])
-        Momentum compaction factor of second order :math:`\alpha_{2,k,i}` [1];
-        can be input as single float or as a program of (n_turns + 1) turns
-        (should be of the same size as synchronous_data and alpha_0).
+        Optional : Momentum compaction factor of second order
+        :math:`\alpha_{2,k,i}` [1]; can be input as single float or as a
+        program of (n_turns + 1) turns (should be of the same size as
+        synchronous_data and alpha_0).
     RampOptions : class
         Optional : A RampOptions-based class with default options to check the
         input and initialize the momentum program for the simulation.
@@ -95,7 +97,7 @@ class Ring(object):
     bending_radius : float
         Bending radius in dipole magnets, :math:`\rho` [m]
     alpha_order : int
-        Number of orders of the momentum compaction factor
+        Number of orders of the momentum compaction factor (from 0 to 2)
     eta_0 : float matrix [n_sections, n_turns+1]
         Zeroth order slippage factor :math:`\eta_{0,k,n} = \alpha_{0,k,n} -
         \frac{1}{\gamma_{s,k,n}^2}` [1]
@@ -196,64 +198,19 @@ class Ring(object):
         # Primary particle mass and charge used for energy calculations
         self.Particle = Particle
 
-        # Initialization of the ramp
-        # If tuple, separate time and synchronous data and check data
-        if isinstance(synchronous_data, tuple):
-            synchronous_data_time = np.array(synchronous_data[0], ndmin=2,
-                                             dtype=float)
-            synchronous_data = np.array(synchronous_data[1], ndmin=2,
-                                        dtype=float)
+        # Converts the synchronous data into momentum
+        momentum = self.convert_data(synchronous_data, synchronous_data_type)
 
-            if synchronous_data_time.shape != synchronous_data.shape:
-                raise RuntimeError("ERROR in Ring: synchronous data does " +
-                                   "not match the time data")
+        # Reshaping the input synchronous data to the adequate format and
+        # get back the momentum program from RampOptions
+        self.momentum = RampOptions.reshape_data(
+            momentum, self.n_turns, self.n_sections,
+            data_type=synchronous_data_type, mass=self.Particle.mass,
+            circumference=self.ring_circumference)
 
-        # If string, loads the input file
-        elif isinstance(synchronous_data, str):
-            pass
-
-        # If array/list or float, compares with the input number of turns and
-        # if synchronous_data is a single value converts it into a (n_turns+1)
-        # array
-        else:
-            synchronous_data_time = None
-
-            synchronous_data = np.array(synchronous_data, ndmin=2,
-                                        dtype=float)
-
-            if synchronous_data.shape[1] == 1:
-                synchronous_data = synchronous_data*np.ones(self.n_turns+1)
-
-            elif synchronous_data.shape[1] != (self.n_turns+1):
-
-                raise RuntimeError("ERROR in Ring: The momentum program " +
-                                   "does not match the proper length " +
-                                   "(n_turns+1)")
-
-        # Check if the input data matches the number of sections
-        if (synchronous_data.shape[0] != self.n_sections):
-
-                raise RuntimeError("ERROR in Ring: Number of sections and " +
-                                   "synchronous data data do not match!")
-
-        # Convert synchronous data to momentum
-        self.momentum = self.convert_data(
-            synchronous_data,
-            synchronous_data_type=synchronous_data_type)
-
-        # If synchronous_data_time is defined, the RampOptions object
-        # interpolates the momentum program for every machine turn
-        if synchronous_data_time is not None:
-            if synchronous_data.shape[0] > 1:
-                raise RuntimeError("ERROR in Ring: preprocess works just " +
-                                   "for single  section, to be extended.")
-            cycle_time, momentum = RampOptions.preprocess(
-                self.Particle.mass, self.ring_circumference,
-                synchronous_data_time[0], self.momentum[0])
-
-            self.n_turns = int(len(self.cycle_time)-1)
-            self.cycle_time = np.array(cycle_time, ndmin=2, dtype=float)
-            self.momentum = np.array(momentum, ndmin=2, dtype=float)
+        # Updating the number of turns in case it was changed after ramp
+        # interpolation
+        self.n_turns = self.momentum.shape[1] - 1
 
         # Derived from momentum
         self.beta = np.sqrt(1/(1 + (self.Particle.mass/self.momentum)**2))
@@ -263,17 +220,25 @@ class Ring(object):
             self.Particle.mass
         self.delta_E = np.diff(self.energy, axis=1)
         self.t_rev = np.dot(self.ring_length, 1/(self.beta*c))
-        if synchronous_data_time is not None and RampOptions.t_start != 0:
-            pass
-        else:
-            self.cycle_time = np.cumsum(self.t_rev)  # Always starts with zero
+        self.cycle_time = np.cumsum(self.t_rev)  # Always starts with zero
         self.f_rev = 1/self.t_rev
         self.omega_rev = 2*np.pi*self.f_rev
 
         # Momentum compaction, checks, and derived slippage factors
-        self.alpha_0 = np.array(alpha_0, ndmin=2, dtype=float)
-        self.alpha_1 = np.array(alpha_1, ndmin=2, dtype=float)
-        self.alpha_2 = np.array(alpha_2, ndmin=2, dtype=float)
+        self.alpha_0 = RampOptions.reshape_data(
+            alpha_0, self.n_turns, self.n_sections,
+            interp_time=self.cycle_time)
+
+        if alpha_1 is not None:
+            self.alpha_1 = RampOptions.reshape_data(
+                alpha_1, self.n_turns, self.n_sections,
+                interp_time=self.cycle_time)
+
+        if alpha_2 is not None:
+            self.alpha_2 = RampOptions.reshape_data(
+                alpha_2, self.n_turns, self.n_sections,
+                interp_time=self.cycle_time)
+
         self.alpha_order = int(alpha_order)
 
         if self.alpha_order > 2:
@@ -365,8 +330,8 @@ class Ring(object):
         cycle_moments : float array
             Moments of time at which cycle parameters are to be calculated [s].
 
-        Attributes
-        ----------
+        Returns
+        -------
         parameters : dictionary
             Contains 'momentum', 'beta', 'gamma', 'energy', 'kin_energy',
             'f_rev', 't_rev'. 'omega_rev', 'eta_0', and 'delta_E' interpolated
