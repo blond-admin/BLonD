@@ -205,7 +205,7 @@ class Ring(object):
         # get back the momentum program from RampOptions
         self.momentum = RampOptions.reshape_data(
             momentum, self.n_turns, self.n_sections,
-            data_type=synchronous_data_type, mass=self.Particle.mass,
+            input_is_momentum=synchronous_data_type, mass=self.Particle.mass,
             circumference=self.ring_circumference)
 
         # Updating the number of turns in case it was changed after ramp

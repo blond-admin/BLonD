@@ -155,10 +155,10 @@ class RampOptions(object):
                                    "does not match the number of sections")
 
             if input_is_momentum and interp_time == 't_rev':
-                output_data = RampOptions.preprocess(mass,
-                                                     circumference,
-                                                     input_data_time,
-                                                     input_data)
+                output_data = self.preprocess(mass,
+                                              circumference,
+                                              input_data_time[0],
+                                              input_data[0])
             elif isinstance(interp_time, float):
                 interp_time = np.arange(input_data_time[0],
                                         input_data_time[-1],
@@ -176,24 +176,26 @@ class RampOptions(object):
         # if synchronous_data is a single value converts it into a (n_turns+1)
         # array
         else:
-            input_data = np.array(input_data, ndmin=2, dtype=float)
+            output_data = np.zeros((n_sections, n_turns+1), dtype=float)
 
-            if input_data.shape[0] != n_sections:
+            if len(input_data) != n_sections:
                 raise RuntimeError("ERROR in Ring: the input data " +
                                    "does not match the number of sections")
 
-            for index_section in range(input_data.shape[0]):
-                if input_data[index_section].shape[1] == 1:
-                    input_data[index_section] = input_data[index_section] * \
-                                                np.ones(self.n_turns+1)
+            for index_section in range(len(input_data)):
+                if len(input_data[index_section]) == 1:
+                    output_data[index_section] = input_data[index_section] * \
+                                                np.ones(n_turns+1)
 
-                elif input_data.shape[1] != (n_turns+1):
+                elif len(input_data[index_section]) == (n_turns+1):
+                    output_data[index_section] = np.array(
+                        input_data[index_section])
+
+                else:
 
                     raise RuntimeError("ERROR in Ring: The momentum program " +
                                        "does not match the proper length " +
                                        "(n_turns+1)")
-
-            output_data = np.array(input_data)
 
         return output_data
 
