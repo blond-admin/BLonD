@@ -83,8 +83,8 @@ class RampOptions(object):
 
     """
     def __init__(self, interpolation='linear', smoothing=0, flat_bottom=0,
-                 flat_top=0, t_start=None, t_end=None, plot=False, figdir='fig',
-                 figname='preprocess_ramp', sampling=1):
+                 flat_top=0, t_start=None, t_end=None, plot=False,
+                 figdir='fig', figname='preprocess_ramp', sampling=1):
 
         if interpolation in ['linear', 'cubic', 'derivative']:
             self.interpolation = str(interpolation)
@@ -108,7 +108,7 @@ class RampOptions(object):
 
         self.t_start = t_start
         self.t_end = t_end
-        
+
         if (plot is True) or (plot is False):
             self.plot = bool(plot)
         else:
@@ -124,7 +124,7 @@ class RampOptions(object):
                                " not recognised. Aborting...")
 
     def input_check(self, data_to_check, n_turns):
-        r"""Checks whether the user input is consistent with the expectation 
+        r"""Checks whether the user input is consistent with the expectation
         for the Ring object.
 
         Parameters
@@ -143,7 +143,7 @@ class RampOptions(object):
 
     def preprocess(self, mass, circumference, time, momentum):
         r"""Function to pre-process acceleration ramp data, interpolating it to
-        every turn. Currently it works only if the number of RF sections is 
+        every turn. Currently it works only if the number of RF sections is
         equal to one, to be extended for multiple RF sections.
 
         Parameters
@@ -165,13 +165,13 @@ class RampOptions(object):
             Interpolated momentum [eV/c]
 
         """
-        
+
         # Some checks on the options
         if (self.t_start is not None and self.t_start < time[0]) or \
-            (self.t_end is not None and self.t_end > time[-1]): 
-                raise RuntimeError("ERROR: [t_start, t_end] should be included" +
-                               " in the passed time array.")
-        
+                (self.t_end is not None and self.t_end > time[-1]):
+                raise RuntimeError("ERROR: [t_start, t_end] should be " +
+                                   "included in the passed time array.")
+
         # Obtain flat bottom data, extrapolate to constant
         beta_0 = np.sqrt(1/(1 + (mass/momentum[0])**2))
         T0 = circumference/(beta_0*c)  # Initial revolution period [s]
@@ -320,16 +320,16 @@ class RampOptions(object):
 
         # Cutting the input momentum on the desired cycle time
         if self.t_start is not None:
-            initial_index = np.min(np.where(time_interp>=self.t_start)[0])
+            initial_index = np.min(np.where(time_interp >= self.t_start)[0])
         else:
             initial_index = 0
         if self.t_end is not None:
-            final_index = np.max(np.where(time_interp<=self.t_end)[0])+1
+            final_index = np.max(np.where(time_interp <= self.t_end)[0])+1
         else:
             final_index = len(time_interp)
         time_interp = time_interp[initial_index:final_index]
         momentum_interp = momentum_interp[initial_index:final_index]
-        
+
         if self.plot:
             # Directory where longitudinal_plots will be stored
             fig_folder(self.figdir)
@@ -353,5 +353,5 @@ class RampOptions(object):
             fign = self.figdir + '/preprocess_momentum.png'
             plt.savefig(fign)
             plt.clf()
-        
+
         return time_interp, momentum_interp
