@@ -30,7 +30,9 @@ class Ring(object):
     Parameters
     ----------
     n_turns : int
-        Number of turns :math:`n` [1] to be simulated
+        Number of turns :math:`n` [1] to be simulated. If a synchrnous_data
+        program is passed as a tuple (see below), the number of turns
+        will be overwritten depending on the length in time of the program
     ring_length : float (opt: float array [n_sections])
         Length [m] of the n_sections ring segments of the synchrotron.
         An RF station, a synchrotron radiation kick, and/or an impedance kick
@@ -174,6 +176,7 @@ class Ring(object):
                  alpha_1=None, alpha_2=None, RampOptions=RampOptions()):
 
         # Conversion of initial inputs to expected types
+        self.n_turns = int(n_turns)
         self.n_sections = int(n_sections)
 
         # Ring length and checks
@@ -214,11 +217,6 @@ class Ring(object):
         # array
         else:
             synchronous_data_time = None
-            if n_turns:
-                self.n_turns = int(n_turns)
-            else:
-                raise RuntimeError("ERROR in Ring: need to define n_turns " +
-                                   "unless using the preprocess function!")
 
             synchronous_data = np.array(synchronous_data, ndmin=2,
                                         dtype=float)
@@ -249,15 +247,13 @@ class Ring(object):
             if synchronous_data.shape[0] > 1:
                 raise RuntimeError("ERROR in Ring: preprocess works just " +
                                    "for single  section, to be extended.")
-            self.cycle_time, self.momentum = RampOptions.preprocess(
+            cycle_time, momentum = RampOptions.preprocess(
                 self.Particle.mass, self.ring_circumference,
                 synchronous_data_time[0], self.momentum[0])
 
-            self.n_turns = len(self.cycle_time)-1
-#             self.cycle_time = np.array(self.cycle_time, ndmin=2,
-#                                              dtype=float)
-            self.momentum = np.array(self.momentum, ndmin=2,
-                                     dtype=float)
+            self.n_turns = int(len(self.cycle_time)-1)
+            self.cycle_time = np.array(cycle_time, ndmin=2, dtype=float)
+            self.momentum = np.array(momentum, ndmin=2, dtype=float)
 
         # Derived from momentum
         self.beta = np.sqrt(1/(1 + (self.Particle.mass/self.momentum)**2))
@@ -275,9 +271,9 @@ class Ring(object):
         self.omega_rev = 2*np.pi*self.f_rev
 
         # Momentum compaction, checks, and derived slippage factors
-        self.alpha_0 = np.array(alpha_0, ndmin=1, dtype=float)
-        self.alpha_1 = np.array(alpha_1, ndmin=1, dtype=float)
-        self.alpha_2 = np.array(alpha_2, ndmin=1, dtype=float)
+        self.alpha_0 = np.array(alpha_0, ndmin=2, dtype=float)
+        self.alpha_1 = np.array(alpha_1, ndmin=2, dtype=float)
+        self.alpha_2 = np.array(alpha_2, ndmin=2, dtype=float)
         self.alpha_order = int(alpha_order)
 
         if self.alpha_order > 2:
