@@ -248,10 +248,6 @@ class Ring(object):
                           "are ignored.")
             self.alpha_order = 2
 
-        if self.n_sections != self.alpha_0.shape[0]:
-            raise RuntimeError("ERROR in Ring: Number of sections and size " +
-                               "of momentum compaction do not match!")
-
         # Slippage factor derived from alpha, beta, gamma
         self.eta_generation()
 
