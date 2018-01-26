@@ -153,7 +153,7 @@ class Ring(object):
     >>> C = 26659
     >>> alpha_0 = 3.21e-4
     >>> momentum = 450e9
-    >>> ring = Ring(n_turns, C, alpha_0, momentum, Proton())
+    >>> ring = Ring(C, alpha_0, momentum, Proton(), n_turns)
     >>>
     >>>
     >>> # To declare a two section synchrotron at constant energy and
@@ -167,13 +167,13 @@ class Ring(object):
     >>> alpha_1 = [[2.e-5], [1.e-5]]
     >>> alpha_2 = [[5.e-7], [5.e-7]]
     >>> momentum = 450e9
-    >>> ring = Ring(n_turns, C, alpha_0, momentum, Electron(),
+    >>> ring = Ring(C, alpha_0, momentum, Electron(), n_turns,
     >>>             alpha_order=2, alpha_1=alpha_1, alpha_2=alpha_2)
 
     """
 
-    def __init__(self, n_turns, ring_length, alpha_0, synchronous_data,
-                 Particle, synchronous_data_type='momentum',
+    def __init__(self, ring_length, alpha_0, synchronous_data, Particle,
+                 n_turns=1, synchronous_data_type='momentum',
                  bending_radius=None, n_sections=1, alpha_order=0,
                  alpha_1=None, alpha_2=None, RampOptions=RampOptions()):
 
@@ -210,7 +210,11 @@ class Ring(object):
 
         # Updating the number of turns in case it was changed after ramp
         # interpolation
-        self.n_turns = self.momentum.shape[1] - 1
+        if self.momentum.shape[1] != (self.n_turns+1):
+            self.n_turns = self.momentum.shape[1] - 1
+            warnings.warn("WARNING in Ring: The number of turns for the " +
+                          "simulation was changed by passing a momentum " +
+                          "program.")
 
         # Derived from momentum
         self.beta = np.sqrt(1/(1 + (self.Particle.mass/self.momentum)**2))

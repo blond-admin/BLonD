@@ -47,7 +47,7 @@ class testProfileClass(unittest.TestCase):
         momentum = 1e9
 
         # Ring object initialization
-        self.ring = Ring(n_turns, ring_length, alpha, momentum, Proton())
+        self.ring = Ring(ring_length, alpha, momentum, Proton(), n_turns)
 
         # RF object initialization
         self.rf_params = RFStation(Ring=self.ring, n_rf=1, harmonic=[1],

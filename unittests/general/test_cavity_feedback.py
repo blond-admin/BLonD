@@ -29,8 +29,8 @@ class TestBeamCurrent(unittest.TestCase):
     def test(self):
         
         # Set up SPS conditions
-        ring = Ring(1000, 2*np.pi*1100.009, 1/18**2, 25.92e9,
-                    Proton())
+        ring = Ring(2*np.pi*1100.009, 1/18**2, 25.92e9,
+                    Proton(), 1000)
         RF = RFStation(ring, 1, 4620, 4.5e6, 0)
         beam = Beam(ring, 1e5, 1e11)
         bigaussian(ring, RF, beam, 3.2e-9/4, seed = 1234,
