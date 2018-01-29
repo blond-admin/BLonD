@@ -66,10 +66,6 @@ class Ring(object):
         required if 'bending field' is set for the synchronous_data_type
     n_sections : int
         Optional: number of ring sections/segments; default is 1
-    alpha_order : int
-        Optional : Number of momentum compaction orders. The input value should
-        be from 0 to 2 to consider the momentum compaction from
-        zeroth order (alpha_0) to second order (alpha_2); default is 0
     alpha_1 : float (opt: float array/matrix [n_sections, n_turns+1])
         Momentum compaction factor of first order
         :math:`\alpha_{1,k,i}` [1]; can be input as single float or as a
@@ -141,6 +137,9 @@ class Ring(object):
         Cumulative cycle time, turn by turn, :math:`t_n = \sum_n T_{0,n}` [s].
         Possibility to extract cycle parameters at these moments using
         'parameters_at_time'.
+    alpha_order : int
+        Highest order of momentum compaction (as defined by the input). Can
+        be 0,1,2.
 
     Examples
     --------
@@ -168,14 +167,14 @@ class Ring(object):
     >>> alpha_2 = [[5.e-7], [5.e-7]]
     >>> momentum = 450e9
     >>> ring = Ring(C, alpha_0, momentum, Electron(), n_turns,
-    >>>             alpha_order=2, alpha_1=alpha_1, alpha_2=alpha_2)
+    >>>             alpha_1=alpha_1, alpha_2=alpha_2)
 
     """
 
     def __init__(self, ring_length, alpha_0, synchronous_data, Particle,
                  n_turns=1, synchronous_data_type='momentum',
-                 bending_radius=None, n_sections=1, alpha_order=0,
-                 alpha_1=None, alpha_2=None, RampOptions=RampOptions()):
+                 bending_radius=None, n_sections=1, alpha_1=None, alpha_2=None,
+                 RampOptions=RampOptions()):
 
         # Conversion of initial inputs to expected types
         self.n_turns = int(n_turns)
@@ -232,25 +231,23 @@ class Ring(object):
         self.alpha_0 = RampOptions.reshape_data(
             alpha_0, self.n_turns, self.n_sections,
             interp_time=self.cycle_time)
+        self.alpha_order = 0
 
         if alpha_1 is not None:
             self.alpha_1 = RampOptions.reshape_data(
                 alpha_1, self.n_turns, self.n_sections,
                 interp_time=self.cycle_time)
+            self.alpha_order = 1
 
         if alpha_2 is not None:
             self.alpha_2 = RampOptions.reshape_data(
                 alpha_2, self.n_turns, self.n_sections,
                 interp_time=self.cycle_time)
-
-        self.alpha_order = int(alpha_order)
-
-        if self.alpha_order > 2:
-            warnings.filterwarnings("once")
-            warnings.warn("WARNING in Ring: Momentum compaction factor is " +
-                          "implemented only up to 2nd order. Higher orders " +
-                          "are ignored.")
             self.alpha_order = 2
+
+            # Filling alpha_1 with zeros if only alpha_2 program was set
+            if alpha_1 is None:
+                self.alpha_1 = np.zeros(self.alpha_2.shape)
 
         # Slippage factor derived from alpha, beta, gamma
         self.eta_generation()
@@ -268,11 +265,6 @@ class Ring(object):
 
         for i in range(self.alpha_order+1):
             getattr(self, '_eta' + str(i))()
-
-        # Fill unused eta arrays with zeros
-        for i in range(self.alpha_order+1, 3):
-            setattr(self, "eta_%s" % i, np.zeros([self.n_sections,
-                                                  self.n_turns+1]))
 
     def _eta0(self):
         """ Function to calculate the zeroth order slippage factor eta_0 """
