@@ -293,6 +293,24 @@ class Ring(object):
                 self.alpha_0[i]/(2*self.gamma[i]**2)
 
     def convert_data(self, synchronous_data, synchronous_data_type='momentum'):
+        """ Function to convert synchronous data (i.e. energy program of the
+        synchrotron) into momentum.
+
+        Parameters
+        ----------
+        synchronous_data : float array
+            The synchronous data to be converted to momentum
+        synchronous_data_type : str
+            Type of input for the synchronous data ; can be 'momentum',
+            'total energy', 'kinetic energy' or 'bending field' (last case
+            requires bending_radius to be defined)
+
+        Returns
+        -------
+        momentum : float array
+            The input synchronous_data converted into momentum [eV/c]
+
+        """
 
         if synchronous_data_type == 'momentum':
             momentum = synchronous_data
