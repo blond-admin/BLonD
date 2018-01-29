@@ -23,7 +23,7 @@ from scipy.constants import c
 from scipy.interpolate import splrep, splev
 
 
-class RampOptions(object):
+class RingOptions(object):
     r""" Class to preprocess the synchronous data for Ring, interpolating it to
     every turn.
 

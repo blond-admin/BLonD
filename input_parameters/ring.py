@@ -17,7 +17,7 @@ from builtins import str, range, object
 import numpy as np
 import warnings
 from scipy.constants import c
-from input_parameters.ring_options import RampOptions
+from input_parameters.ring_options import RingOptions
 
 
 class Ring(object):
@@ -174,7 +174,7 @@ class Ring(object):
     def __init__(self, ring_length, alpha_0, synchronous_data, Particle,
                  n_turns=1, synchronous_data_type='momentum',
                  bending_radius=None, n_sections=1, alpha_1=None, alpha_2=None,
-                 RampOptions=RampOptions()):
+                 RingOptions=RingOptions()):
 
         # Conversion of initial inputs to expected types
         self.n_turns = int(n_turns)
@@ -202,7 +202,7 @@ class Ring(object):
 
         # Reshaping the input synchronous data to the adequate format and
         # get back the momentum program from RampOptions
-        self.momentum = RampOptions.reshape_data(
+        self.momentum = RingOptions.reshape_data(
             momentum, self.n_turns, self.n_sections,
             input_is_momentum=synchronous_data_type, mass=self.Particle.mass,
             circumference=self.ring_circumference)
@@ -228,19 +228,19 @@ class Ring(object):
         self.omega_rev = 2*np.pi*self.f_rev
 
         # Momentum compaction, checks, and derived slippage factors
-        self.alpha_0 = RampOptions.reshape_data(
+        self.alpha_0 = RingOptions.reshape_data(
             alpha_0, self.n_turns, self.n_sections,
             interp_time=self.cycle_time)
         self.alpha_order = 0
 
         if alpha_1 is not None:
-            self.alpha_1 = RampOptions.reshape_data(
+            self.alpha_1 = RingOptions.reshape_data(
                 alpha_1, self.n_turns, self.n_sections,
                 interp_time=self.cycle_time)
             self.alpha_order = 1
 
         if alpha_2 is not None:
-            self.alpha_2 = RampOptions.reshape_data(
+            self.alpha_2 = RingOptions.reshape_data(
                 alpha_2, self.n_turns, self.n_sections,
                 interp_time=self.cycle_time)
             self.alpha_order = 2
