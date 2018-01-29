@@ -33,7 +33,6 @@ class TestGeneralParameters(unittest.TestCase):
         self.alpha_0 = [[3.21e-4], [2.89e-4]]
         self.alpha_1 = [[2.e-5], [1.e-5]]
         self.alpha_2 = [[5.e-7], [5.e-7]]
-        self.alpha_order = 2
         self.momentum = [450e9*(np.ones(self.n_turns+1)),
                          450e9*(np.ones(self.n_turns+1))]
         self.particle = Electron()
@@ -65,8 +64,7 @@ class TestGeneralParameters(unittest.TestCase):
 
             Ring(self.C, self.alpha_0, self.momentum,
                  self.particle, self.n_turns, n_sections=num_sections,
-                 alpha_order=self.alpha_order, alpha_1=self.alpha_1,
-                 alpha_2=self.alpha_2)
+                 alpha_1=self.alpha_1, alpha_2=self.alpha_2)
 
     def test_alpha_shape_exception(self):
         # Test if 'momentum compaction' RuntimeError gets thrown for wrong
