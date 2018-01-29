@@ -145,14 +145,21 @@ class RingOptions(object):
         if isinstance(input_data, str):
             pass
 
+        # If single float, expands the value to match the input number of turns
+        # and sections
+        if isinstance(input_data, float):
+            output_data = input_data * np.ones((n_sections, n_turns+1))
+
         # If tuple, separate time and synchronous data and check data
-        if isinstance(input_data, tuple):
+        elif isinstance(input_data, tuple):
             input_data_time = np.array(input_data[0], ndmin=2, dtype=float)
             input_data = np.array(input_data[1], ndmin=2, dtype=float)
 
             for index_section in range(n_sections):
-                if len(input_data[index_section]) != len(input_data_time[index_section]):
-                    raise RuntimeError("ERROR in Ring: synchronous data does " +"not match the time data")
+                if len(input_data[index_section]) \
+                        != len(input_data_time[index_section]):
+                    raise RuntimeError("ERROR in Ring: synchronous data " +
+                                       " does not match the time data")
 
             if len(input_data) != n_sections:
                 raise RuntimeError("ERROR in Ring: the input data " +
@@ -176,10 +183,12 @@ class RingOptions(object):
                                         input_data_time,
                                         input_data)
 
-        # If array/list or float, compares with the input number of turns and
+        # If array/list, compares with the input number of turns and
         # if synchronous_data is a single value converts it into a (n_turns+1)
         # array
-        else:
+        elif isinstance(input_data, np.ndarray) or \
+                isinstance(input_data, list):
+
             input_data = np.array(input_data, ndmin=2, dtype=float)
             output_data = np.zeros((n_sections, n_turns+1), dtype=float)
 
