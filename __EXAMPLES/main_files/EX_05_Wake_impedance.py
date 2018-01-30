@@ -117,6 +117,10 @@ cut_options_res = CutOptions(cut_left= 0, cut_right=2*np.pi, n_slices=number_sli
                          RFSectionParameters=ring_RF_section_res, cuts_unit = 'rad')
 slice_beam_res = Profile(my_beam_res, cut_options_res, FitOptions(fit_option='gaussian'))
 
+slice_beam.track()
+slice_beam_freq.track()
+slice_beam_res.track()
+
 # MONITOR----------------------------------------------------------------------
 
 bunchmonitor = BunchMonitor(general_params, ring_RF_section, my_beam, 
