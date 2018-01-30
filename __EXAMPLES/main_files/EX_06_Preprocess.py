@@ -17,7 +17,7 @@ main file (CERN PS Booster context).
 from __future__ import division
 import numpy as np
 from input_parameters.ring import Ring
-from input_parameters.ring_options import RampOptions
+from input_parameters.ring_options import RingOptions
 from input_parameters.rf_parameters import RFStation
 from input_parameters.rf_parameters_options import PreprocessRFParams
 from beam.beam import Proton
@@ -52,12 +52,12 @@ time_array = momentum_program[:, 0]*1e-3  # [s]
 momentum = momentum_program[:, 1]*1e9  # [eV/c]
 
 particle_type = Proton()
-ramp_opt = RampOptions(interpolation='linear', plot=True,
+ring_opt = RingOptions(interpolation='linear', plot=True,
                                   figdir='../output_files/EX_06_fig',
                                   t_start=initial_time, t_end=final_time)
 
 general_params = Ring(C, alpha, (time_array, momentum), 
-                                   particle_type, RampOptions=ramp_opt)
+                                   particle_type, RingOptions=ring_opt)
 
 # Cavities parameters
 n_rf_systems = 3                                     

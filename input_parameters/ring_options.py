@@ -154,34 +154,46 @@ class RingOptions(object):
         elif isinstance(input_data, tuple):
             input_data_time = np.array(input_data[0], ndmin=2, dtype=float)
             input_data = np.array(input_data[1], ndmin=2, dtype=float)
+            output_data = []
 
+            if len(input_data) != n_sections:
+                raise RuntimeError("ERROR in Ring: the input data " +
+                                   "does not match the number of sections")
+
+            # Loops over all the sections to interpolate the programs, appends
+            # the results on the output_data list which is afterwards
+            # converted to a numpy.array
             for index_section in range(n_sections):
                 if len(input_data[index_section]) \
                         != len(input_data_time[index_section]):
                     raise RuntimeError("ERROR in Ring: synchronous data " +
                                        "does not match the time data")
 
-            if len(input_data) != n_sections:
-                raise RuntimeError("ERROR in Ring: the input data " +
-                                   "does not match the number of sections")
+                if input_is_momentum and interp_time == 't_rev':
+                    output_data.append(self.preprocess(
+                        mass,
+                        circumference,
+                        input_data_time[index_section],
+                        input_data[index_section])[1])
 
-            if input_is_momentum and interp_time == 't_rev':
-                output_data = self.preprocess(mass,
-                                              circumference,
-                                              input_data_time[0],
-                                              input_data[0])
-            elif isinstance(interp_time, float):
-                interp_time = np.arange(input_data_time[0],
-                                        input_data_time[-1],
-                                        interp_time)
-                output_data = np.interp(interp_time,
-                                        input_data_time,
-                                        input_data)
+                elif isinstance(interp_time, float):
+                    interp_time = np.arange(
+                        input_data_time[index_section][0],
+                        input_data_time[index_section][-1],
+                        interp_time)
 
-            elif isinstance(interp_time, np.ndarray):
-                output_data = np.interp(interp_time,
-                                        input_data_time,
-                                        input_data)
+                    output_data.append(np.interp(
+                        interp_time,
+                        input_data_time[index_section],
+                        input_data[index_section]))
+
+                elif isinstance(interp_time, np.ndarray):
+                    output_data.append(np.interp(
+                        interp_time,
+                        input_data_time[index_section],
+                        input_data[index_section]))
+
+            output_data = np.array(output_data, ndmin=2, dtype=float)
 
         # If array/list, compares with the input number of turns and
         # if synchronous_data is a single value converts it into a (n_turns+1)

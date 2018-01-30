@@ -101,7 +101,7 @@ class TestGeneralParameters(unittest.TestCase):
         # Test if RuntimeError gets thrown for wrong shape of momentum
 
         cycle_time = np.linspace(0, 1, self.n_turns)
-        momentum = 450e9  # only one momentum!
+        momentum = [[450e9], [450e9]]  # only one momentum!
 
         with self.assertRaisesRegex(
                 RuntimeError, "ERROR in Ring: synchronous data " +
