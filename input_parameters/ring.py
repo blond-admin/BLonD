@@ -267,6 +267,14 @@ class Ring(object):
         for i in range(self.alpha_order+1):
             getattr(self, '_eta' + str(i))()
 
+        # Fill unused eta arrays with zeros
+        # This can be removed when the BLonD assembler is in place
+        # to avoid high order momentum compaction programs filled
+        # with zeros (should be propagated in RFStation.__init__())
+        for i in range(self.alpha_order+1, 3):
+            setattr(self, "eta_%s" % i, np.zeros([self.n_sections,
+                                                  self.n_turns+1]))
+
     def _eta0(self):
         """ Function to calculate the zeroth order slippage factor eta_0 """
 

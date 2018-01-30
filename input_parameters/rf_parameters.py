@@ -228,7 +228,7 @@ class RFStation(object):
         self.eta_1 = 0
         self.eta_2 = 0
         self.charge = self.Particle.charge
-        for i in range(self.alpha_order+1):
+        for i in range(3):
             dummy = getattr(Ring, 'eta_' + str(i))
             setattr(self, "eta_%s" %i, dummy[self.section_index])
         self.sign_eta_0 = np.sign(self.eta_0)   
