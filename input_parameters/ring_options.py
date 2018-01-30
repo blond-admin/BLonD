@@ -159,7 +159,7 @@ class RingOptions(object):
                 if len(input_data[index_section]) \
                         != len(input_data_time[index_section]):
                     raise RuntimeError("ERROR in Ring: synchronous data " +
-                                       " does not match the time data")
+                                       "does not match the time data")
 
             if len(input_data) != n_sections:
                 raise RuntimeError("ERROR in Ring: the input data " +
@@ -207,7 +207,7 @@ class RingOptions(object):
 
                 else:
 
-                    raise RuntimeError("ERROR in Ring: The momentum program " +
+                    raise RuntimeError("ERROR in Ring: The input data " +
                                        "does not match the proper length " +
                                        "(n_turns+1)")
 

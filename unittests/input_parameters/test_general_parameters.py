@@ -72,8 +72,8 @@ class TestGeneralParameters(unittest.TestCase):
         alpha = [[3.21e-4, 2.e-5, 5.e-7]]   # only one array!
 
         with self.assertRaisesRegex(
-                RuntimeError, 'ERROR in Ring: Number of sections and size ' +
-                'of momentum compaction do not match!',
+                RuntimeError, "ERROR in Ring: the input data " +
+                "does not match the number of sections",
                 msg='No RuntimeError for wrong shape of alpha!'):
 
             Ring(self.C, alpha, self.momentum, self.particle, self.n_turns,
@@ -104,8 +104,8 @@ class TestGeneralParameters(unittest.TestCase):
         momentum = 450e9  # only one momentum!
 
         with self.assertRaisesRegex(
-                RuntimeError, "ERROR in Ring: synchronous data does " +
-                "not match the time data",
+                RuntimeError, "ERROR in Ring: synchronous data " +
+                "does not match the time data",
                 msg='No RuntimeError for wrong shape of momentum!'):
 
             Ring(self.C, self.alpha_0, (cycle_time, momentum),
@@ -115,11 +115,13 @@ class TestGeneralParameters(unittest.TestCase):
         # Test if RuntimeError gets thrown for wrong length of momentum
         # Only n_turns elements per section!
 
-        momentum = np.linspace(450e9, 450e9, self.n_turns)
+        momentum = [np.linspace(450e9, 450e9, self.n_turns),
+                    np.linspace(450e9, 450e9, self.n_turns)]
 
         with self.assertRaisesRegex(
-                RuntimeError, 'ERROR in Ring: The momentum program does ' +
-                'not match the proper length \(n_turns\+1\)',
+                RuntimeError, "ERROR in Ring: The input data " +
+                "does not match the proper length " +
+                "\(n_turns\+1\)",
                 msg='No RuntimeError for wrong length of momentum array!'):
 
             Ring(self.C, self.alpha_0, momentum, self.particle,
