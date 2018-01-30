@@ -29,10 +29,6 @@ class Ring(object):
 
     Parameters
     ----------
-    n_turns : int
-        Number of turns :math:`n` [1] to be simulated. If a synchrnous_data
-        program is passed as a tuple (see below), the number of turns
-        will be overwritten depending on the length in time of the program
     ring_length : float (opt: float array [n_sections])
         Length [m] of the n_sections ring segments of the synchrotron.
         An RF station, a synchrotron radiation kick, and/or an impedance kick
@@ -57,6 +53,11 @@ class Ring(object):
     Particle : class
         A Particle-based class defining the primary, synchronous particle (mass
         and charge) that is reference for the momentum/energy in the ring.
+    n_turns : int
+        Optional: Number of turns :math:`n` [1] to be simulated.
+        If a synchronous_data program is passed as a tuple (see below),
+        the number of turns will be overwritten depending on the length in time
+        of the program
     synchronous_data_type : str
         Optional: Choice of 'synchronous_data' type; can be 'momentum'
         (default), 'total energy', 'kinetic energy' or 'bending field'
