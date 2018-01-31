@@ -22,29 +22,6 @@ from beam.beam import Proton
 #from input_parameters.rf_parameters_options import PreprocessRFParams
 
 
-
-def input_check(input_value, expected_length):
-    r"""Function to check the length of the input. The input can be a float, 
-    int, np.ndarray and list. If len(input_value) == 1, transform it to a 
-    constant array. If len(input_value) != expected_length and != 1, raise an 
-    error"""
-    
-    if isinstance(input_value, float):
-        return input_value * np.ones(expected_length)
-    elif isinstance(input_value, int):
-        return input_value * np.ones(expected_length)
-    elif isinstance(input_value, np.ndarray) and input_value.size == 1:
-        return input_value * np.ones(expected_length)
-    elif isinstance(input_value, list) and len(input_value) == 1:
-        return input_value[0] * np.ones(expected_length)
-    elif len(input_value) == expected_length:
-        return np.array(input_value)
-    else:
-        raise RuntimeError("ERROR: " + str(input_value) + " does not match " 
-                           + str(expected_length))
-    
-    
-
 class RFStation(object):
     r""" Class containing all the RF parameters for all the RF systems in one 
     ring segment or RF station.
@@ -480,5 +457,22 @@ def calculate_phi_s(RFStation, Particle=Proton(),
                            " accelerating_systems option")
 
 
+def input_check(input_value, expected_length):
+    r"""Function to check the length of the input. The input can be a float,
+    int, np.ndarray and list. If len(input_value) == 1, transform it to a
+    constant array. If len(input_value) != expected_length and != 1, raise an
+    error"""
 
-
+    if isinstance(input_value, float):
+        return input_value * np.ones(expected_length)
+    elif isinstance(input_value, int):
+        return input_value * np.ones(expected_length)
+    elif isinstance(input_value, np.ndarray) and input_value.size == 1:
+        return input_value * np.ones(expected_length)
+    elif isinstance(input_value, list) and len(input_value) == 1:
+        return input_value[0] * np.ones(expected_length)
+    elif len(input_value) == expected_length:
+        return np.array(input_value)
+    else:
+        raise RuntimeError("ERROR: " + str(input_value) + " does not match "
+                           + str(expected_length))
