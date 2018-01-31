@@ -281,10 +281,10 @@ class RFStation(object):
                 self.omega_rf = omega_rf
 
         self.empty = False
-        # Empty RFStation
-        if any(it < 0 for it in self.harmonic):
-            self.empty = True
-            self.harmonic = [ abs(it) for it in self.harmonic ]
+#         # Empty RFStation
+#         if any(it < 0 for it in self.harmonic):
+#             self.empty = True
+#             self.harmonic = [ abs(it) for it in self.harmonic ]
 
         # Run input_check() on all RF systems
         for i in range(self.n_rf):
