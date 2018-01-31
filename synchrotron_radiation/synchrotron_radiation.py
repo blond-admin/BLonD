@@ -48,7 +48,7 @@ class SynchrotronRadiation(object):
         self.I2 = 2.0 * np.pi / self.rho     # Assuming isomagnetic machine
         self.I3 = 2.0 * np.pi / self.rho**2.0
         self.I4 = (self.general_params.ring_circumference *
-                   self.general_params.alpha[0,0] / self.rho**2.0)
+                   self.general_params.alpha_0[0,0] / self.rho**2.0)
         self.jz = 2.0 + self.I4 / self.I2
         
         # Calculate synchrotron radiation parameters
