@@ -22,7 +22,7 @@ from plots.plot import fig_folder
 from scipy.interpolate import splrep, splev
 
 
-class PreprocessRFParams(object):
+class RFStationOptions(object):
     r""" Class to preprocess the RF data (voltage, phase, harmonic) for
     RFStation, interpolating it to every turn.
 

@@ -19,7 +19,7 @@ import numpy as np
 from scipy.constants import c
 from scipy.integrate import cumtrapz
 from beam.beam import Proton
-# from input_parameters.rf_parameters_options import PreprocessRFParams
+from input_parameters.rf_parameters_options import RFStationOptions
 
 
 class RFStation(object):
@@ -177,7 +177,8 @@ class RFStation(object):
 
     def __init__(self, Ring, n_rf, harmonic, voltage, phi_rf_d,
                  phi_noise=None, omega_rf=None, section_index=1,
-                 accelerating_systems='as_single', PreprocessRFParams=None):
+                 accelerating_systems='as_single',
+                 RFStationOptions=RFStationOptions()):
 
         # Different indices
         self.counter = [int(0)]
