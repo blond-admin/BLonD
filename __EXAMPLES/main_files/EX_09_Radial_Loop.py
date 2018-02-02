@@ -56,8 +56,8 @@ n_rf_systems = 1
 harmonic_numbers_1 = 1
 voltage_1 = 8000  # [V]
 phi_offset_1 = np.pi   # [rad]
-rf_params = RFStation(general_params, n_rf_systems,
-                                [harmonic_numbers_1], [voltage_1], [phi_offset_1])
+rf_params = RFStation(general_params, [harmonic_numbers_1], [voltage_1],
+                      [phi_offset_1], n_rf_systems)
 
 my_beam = Beam(general_params, n_macroparticles, n_particles)
 
