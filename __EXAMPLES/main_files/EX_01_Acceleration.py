@@ -72,7 +72,7 @@ beam = Beam(ring, N_p, N_b)
 
 
 # Define RF station parameters and corresponding tracker
-rf = RFStation(ring, 1, [h], [V], [dphi])
+rf = RFStation(ring, [h], [V], [dphi])
 long_tracker = RingAndRFTracker(rf, beam)
 
 
