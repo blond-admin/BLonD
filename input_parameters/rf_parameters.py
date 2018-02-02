@@ -390,7 +390,7 @@ def calculate_phi_s(RFStation, Particle=Proton(),
         denergy = np.append(RFStation.delta_E, RFStation.delta_E[-1])
         acceleration_ratio = denergy/(Particle.charge*RFStation.voltage[0, :])
         acceleration_test = np.where((acceleration_ratio > -1) *
-                                     (acceleration_ratio < 1) == False)[0]
+                                     (acceleration_ratio < 1) is False)[0]
 
         # Validity check on acceleration_ratio
         if acceleration_test.size > 0:
