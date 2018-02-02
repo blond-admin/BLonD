@@ -42,12 +42,6 @@ class RFStationOptions(object):
         will have figures with different indices
     sampling : int
         Decimation value for plotting; default is 1
-    harmonic : bool
-        Switch to pre-process harmonic; default is False
-    voltage : bool
-        Switch to pre-process RF voltage; default is True
-    phi_rf_d : bool
-        Switch to pre-process RF phase; default is False
 
     """
 
