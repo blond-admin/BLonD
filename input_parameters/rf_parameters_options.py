@@ -144,6 +144,15 @@ class RFStationOptions(object):
                                              input_data_time,
                                              input_data_values))
 
+                if self.interpolation == 'linear':
+                    output_data.append(np.interp(interp_time,
+                                                 input_data_time,
+                                                 input_data_values))
+                elif self.interpolation == 'cubic':
+                    interp_funtion = splrep(input_data_time, input_data_values,
+                                            s=self.smoothing)
+                    output_data.append(splev(interp_time, interp_funtion))
+
             output_data = np.array(output_data, ndmin=2, dtype=float)
 
             # Plot original and interpolated data
@@ -211,48 +220,6 @@ class RFStationOptions(object):
                                        "(n_turns+1)")
 
         return output_data
-
-    def preprocess(self, Ring, time_arrays, data_arrays):
-        r"""Function to pre-process RF data, interpolating it to every turn.
-
-        Parameters
-        ----------
-        Ring : class
-            A Ring type class
-        time_arrays : list of float arrays
-            Time corresponding to data points; input one array for each data
-            array
-        data_arrays : list of float arrays
-            Data arrays to be pre-processed; can have different units
-
-        Returns
-        -------
-        list of float arrays
-            Interpolated data [various units]
-
-        """
-
-        cumulative_time = Ring.cycle_time
-        time_arrays = time_arrays
-        data_arrays = data_arrays
-
-        # Create list where interpolated data will be appended
-        data_interp = []
-
-        # Interpolation done here
-        for i in range(len(time_arrays)):
-            if len(time_arrays[i]) != len(data_arrays[i]):
-                raise RuntimeError("ERROR: number of time and data arrays in" +
-                                   " PreprocessRFParams do not match!")
-            if self.interpolation == 'linear':
-                data_interp.append(np.interp(cumulative_time, time_arrays[i],
-                                             data_arrays[i]))
-            elif self.interpolation == 'cubic':
-                interp_funtion = splrep(time_arrays[i], data_arrays[i],
-                                        s=self.smoothing)
-                data_interp.append(splev(cumulative_time, interp_funtion))
-
-        return data_interp
 
 
 def combine_rf_functions(function_list, merge_type='linear', resolution=1e-3,
