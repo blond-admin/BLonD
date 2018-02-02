@@ -224,6 +224,13 @@ class RFStation(object):
                                                      self.n_turns,
                                                      self.n_rf,
                                                      Ring.cycle_time)
+
+        # Checking if the RFStation is empty
+        if np.sum(self.voltage) == 0:
+            self.empty = True
+        else:
+            self.empty = False
+
         # Reshape design phase
         self.phi_rf_d = RFStationOptions.reshape_data(phi_rf_d,
                                                       self.n_turns,
@@ -246,85 +253,6 @@ class RFStation(object):
                                                            self.n_turns,
                                                            self.n_rf,
                                                            Ring.cycle_time)
-
-
-#         # Process RF programs
-#         self.harmonic = harmonic
-#         self.voltage = voltage
-#         self.phi_rf_d = phi_rf_d
-#         self.omega_rf = omega_rf
-#         rf_params = ['harmonic', 'voltage', 'phi_rf_d', 'omega_rf']
-#         for rf_param in rf_params:
-#             # Option 1: pre-process
-#             if PreprocessRFParams:
-#                 if PreprocessRFParams.__getattribute__(rf_param):
-#                     if len(self.__getattribute__(rf_param)) == 2*self.n_rf:
-#                         # Overwrite with interpolated values
-#                         self.__setattribute__(
-#                             rf_param,
-#                             PreprocessRFParams.preprocess(
-#                                 Ring,
-#                                 self.__getattribute__(rf_param)[0:self.n_rf],  # time
-#                                 self.__getattribute__(rf_param)[self.n_rf:]))  # data
-#                     else:
-#                         raise RuntimeError(
-#                             "ERROR in RFStation: harmonic to" +
-#                             " be pre-processed should have length of 2*n_rf!")
-#                 else:
-#                     input_check(self.__getattribute__(rf_param))
-#         if phi_noise:
-#             input_check(phi_noise, self.n_turns+1)
-#         else:
-#             self.phi_noise = None
-# 
-#         # BEGIN MOVE TO INPUT CHECK... ****************************************
-#         # Option 2: cast the input into appropriate shape: the input is
-#         # analyzed and structured in order to have lists whose length is
-#         # matching the number of RF systems in the section.
-#         if self.n_rf == 1:
-#             self.harmonic = [harmonic]
-#             self.voltage = [voltage]
-#             self.phi_rf_d = [phi_rf_d]
-#             if phi_noise is not None:
-#                 self.phi_noise = [phi_noise]
-#             if omega_rf is not None:
-#                 self.omega_rf = [omega_rf]
-#         else:
-#             self.harmonic = harmonic
-#             self.voltage = voltage
-#             self.phi_rf_d = phi_rf_d
-#             if phi_noise is not None:
-#                 self.phi_noise = phi_noise
-#             if omega_rf is not None:
-#                 self.omega_rf = omega_rf
-# 
-#         self.empty = False
-# #         # Empty RFStation
-# #         if any(it < 0 for it in self.harmonic):
-# #             self.empty = True
-# #             self.harmonic = [ abs(it) for it in self.harmonic ]
-# 
-#         # Run input_check() on all RF systems
-#         for i in range(self.n_rf):
-#             self.harmonic[i] = input_check(self.harmonic[i], self.n_turns+1)
-#             self.voltage[i] = input_check(self.voltage[i], self.n_turns+1)
-#             self.phi_rf_d[i] = input_check(self.phi_rf_d[i],
-#                                            self.n_turns+1)
-#             if phi_noise is not None:
-#                 self.phi_noise[i] = input_check(self.phi_noise[i],
-#                                                 self.n_turns+1)
-#             if omega_rf is not None:
-#                 self.omega_rf[i] = input_check(self.omega_rf[i],
-#                                                self.n_turns+1)
-#         # Convert to 2D numpy matrix
-#         self.harmonic = np.array(self.harmonic, ndmin=2)
-#         self.voltage = np.array(self.voltage, ndmin=2)
-#         self.phi_rf_d = np.array(self.phi_rf_d, ndmin=2)
-#         if phi_noise is not None:
-#             self.phi_noise = np.array(self.phi_noise, ndmin=2)
-#         if omega_rf is not None:
-#             self.omega_rf = np.array(self.omega_rf, ndmin=2)
-#         # END MOVE TO INPUT CHECK... ******************************************
 
         # RF (feedback) properties
         self.phi_rf = np.array(self.phi_rf_d)
@@ -494,24 +422,3 @@ def calculate_phi_s(RFStation, Particle=Proton(),
     else:
         raise RuntimeError("ERROR in calculate_phi_s(): unrecognised" +
                            " accelerating_systems option")
-
-
-# def input_check(input_value, expected_length):
-#     r"""Function to check the length of the input. The input can be a float,
-#     int, np.ndarray and list. If len(input_value) == 1, transform it to a
-#     constant array. If len(input_value) != expected_length and != 1, raise an
-#     error"""
-# 
-#     if isinstance(input_value, float):
-#         return input_value * np.ones(expected_length)
-#     elif isinstance(input_value, int):
-#         return input_value * np.ones(expected_length)
-#     elif isinstance(input_value, np.ndarray) and input_value.size == 1:
-#         return input_value * np.ones(expected_length)
-#     elif isinstance(input_value, list) and len(input_value) == 1:
-#         return input_value[0] * np.ones(expected_length)
-#     elif len(input_value) == expected_length:
-#         return np.array(input_value)
-#     else:
-#         raise RuntimeError("ERROR: " + str(input_value) + " does not match "
-#                            + str(expected_length))
