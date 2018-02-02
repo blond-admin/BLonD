@@ -175,8 +175,8 @@ class RFStation(object):
 
     """
 
-    def __init__(self, Ring, n_rf, harmonic, voltage, phi_rf_d,
-                 phi_noise=None, omega_rf=None, section_index=1,
+    def __init__(self, Ring, harmonic, voltage, phi_rf_d, n_rf=1,
+                 section_index=1, omega_rf=None, phi_noise=None,
                  accelerating_systems='as_single',
                  RFStationOptions=RFStationOptions()):
 
