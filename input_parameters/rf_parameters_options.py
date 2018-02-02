@@ -146,6 +146,35 @@ class RFStationOptions(object):
 
             output_data = np.array(output_data, ndmin=2, dtype=float)
 
+            # Plot original and interpolated data
+            if self.plot:
+                # Directory where plots will be stored
+                fig_folder(self.figdir)
+
+                # Plot
+                for index_rf in range(n_rf):
+                    input_data_time = input_data[index_rf][0]
+                    input_data_values = input_data[index_rf][1]
+
+                    plt.figure(1, figsize=(8, 6))
+                    ax = plt.axes([0.15, 0.1, 0.8, 0.8])
+                    ax.plot(interp_time[::self.sampling],
+                            output_data[index_rf][::self.sampling],
+                            label='Interpolated data')
+                    ax.plot(input_data_time, input_data_values, '.',
+                            label='Input data', color='r')
+                    ax.set_xlabel('Time [s]')
+                    ax.set_ylabel("%s" % self.figname[index_rf])
+                    ax.legend = plt.legend(
+                        bbox_to_anchor=(0., 1.02, 1., .102),
+                        loc=3, ncol=2, mode='expand', borderaxespad=0.)
+
+                    # Save figure
+                    fign = self.figdir + '/preprocess_' "%s" % self.figname + \
+                        '_' "%d" % index_rf + '.png'
+                    plt.savefig(fign)
+                    plt.clf()
+
         # If array/list, compares with the input number of turns and
         # if synchronous_data is a single value converts it into a (n_turns+1)
         # array
@@ -222,32 +251,6 @@ class RFStationOptions(object):
                 interp_funtion = splrep(time_arrays[i], data_arrays[i],
                                         s=self.smoothing)
                 data_interp.append(splev(cumulative_time, interp_funtion))
-
-        # Plot original and interpolated data
-        if self.plot:
-            # Directory where plots will be stored
-            fig_folder(self.figdir)
-
-            # Plot
-            for i in range(len(time_arrays)):
-                plt.figure(1, figsize=(8, 6))
-                ax = plt.axes([0.15, 0.1, 0.8, 0.8])
-                ax.plot(cumulative_time[::self.sampling],
-                        data_interp[i][::self.sampling],
-                        label='Interpolated data')
-                ax.plot(time_arrays[i], data_arrays[i], '.',
-                        label='Input data', color='r')
-                ax.set_xlabel('Time [s]')
-                ax.set_ylabel("%s" % self.figname[i])
-                ax.legend = plt.legend(
-                    bbox_to_anchor=(0., 1.02, 1., .102),
-                    loc=3, ncol=2, mode='expand', borderaxespad=0.)
-
-                # Save figure
-                fign = self.figdir + '/preprocess_' "%s" % self.figname + \
-                    '_' "%d" % i + '.png'
-                plt.savefig(fign)
-                plt.clf()
 
         return data_interp
 
