@@ -36,14 +36,14 @@ class RFStation(object):
     * For several RF systems and varying values of V, h, or phi, input lists
       of arrays of n_turns+1 values
     * For pre-processing, pass a list of times-voltages, times-harmonics,
-      and/or times-phases for **each** RF system and define the
-      PreprocessRFParams class, i.e. [time_1, ..., time_n, data_1, ..., data_n]
+      and/or times-phases for **each** RF system as a tuple
+      ((time_1, voltage_1), (time_2, voltage_2), ...)
 
     Optional: RF frequency other than the design frequency. In this case, need
     to use a beam phase loop for correct RF phase!
 
     Optional: empty RFStation (e.g. for machines with synchrotron radiation);
-    use negative harmonic.
+    input voltage as 0.
 
     The index :math:`n` denotes time steps, :math:`l` the index of the RF
     systems in the section.
@@ -55,6 +55,44 @@ class RFStation(object):
     ----------
     Ring : class
         A Ring type class
+    harmonic : float (opt: float array/matrix, tuple of float array/matrix)
+        Harmonic number of the RF system, :math:`h_{l,n}` [1]. For input
+        options, see above
+    voltage : float (opt: float array/matrix, tuple of float array/matrix)
+        RF cavity voltage as seen by the beam, :math:`V_{l,n}` [V]. For input
+        options, see above
+    phi_rf_d : float (opt: float array/matrix, tuple of float array/matrix)
+        Programmed/designed RF cavity phase,
+        :math:`\phi_{d,l,n}` [rad]. For input options, see above
+    n_rf : int
+        Optional, Number of harmonic rf systems in the section :math:`l`.
+        Becomes mandatory for several rf systems.
+    section_index : int
+        Optional, In case of several sections in the Ring object, this
+        specifies after which section the rf station is located (to get the
+        right momentum program etc.). Value should be in the range
+        1..Ring.n_sections
+    fixed_omega_rf : float (opt: float array/matrix)
+        Optional, Sets the rf angular frequency program that does not follow
+        the harmonic condition. For input options, see above.
+    phi_noise : float (opt: float array/matrix)
+        Optional, programmed RF cavity phase noise, :math:`\phi_{N,l,n}` [rad].
+        Added to all RF systems in the station. For input options, see above
+    RFStationOptions : class
+        Optionnal, A RFStationOptions-based class defining smoothing,
+        interpolation, etc. options for harmonic, voltage, and/or
+        phi_rf_d programme to be interpolated to a turn-by-turn programme
+
+    Attributes
+    ----------
+    counter : int
+        Counter of the current simulation time step; defined as a list in
+        order to be passed by reference
+    section_index : int
+        Unique index :math:`k` of the RF station the present class is defined
+        for. Input in the range 1..n_sections (see
+        :py:class:`input_parameters.ring.Ring`).
+        Inside the code, indices 0..n_sections-1 are used.
     Particle : class
         Inherited from
         :py:attr:`input_parameters.ring.Ring.Particle`
@@ -69,83 +107,68 @@ class RFStation(object):
         :py:attr:`input_parameters.ring.Ring.ring_length`
     length_ratio : float
         Fractional RF section length :math:`L_k/C`
-    t_rev : float array
+    t_rev : float array [n_turns+1]
         Inherited from
         :py:attr:`input_parameters.ring.Ring.t_rev`
-    momentum : float array
+    momentum : float array [n_turns+1]
         Momentum program of the present RF section; inherited from
         :py:attr:`input_parameters.ring.Ring.momentum`
-    beta : float array
+    beta : float array [n_turns+1]
         Relativistic beta of the present RF section; inherited from
         :py:attr:`input_parameters.ring.Ring.beta`
-    gamma : float array
+    gamma : float array [n_turns+1]
         Relativistic gamma of the present RF section; inherited from
         :py:attr:`input_parameters.ring.Ring.gamma`
-    energy : float array
+    energy : float array [n_turns+1]
         Total energy of the present RF section; inherited from
         :py:attr:`input_parameters.ring.Ring.energy`
-    delta_E : float array
+    delta_E : float array [n_turns+1]
         Time derivative of total energy of the present section; inherited from
         :py:attr:`input_parameters.ring.Ring.delta_E`
     alpha_order : int
         Inherited from
         :py:attr:`input_parameters.ring.Ring.alpha_order`
-    eta_0 : float array
+    charge : int
+        Inherited from
+        :py:attr:`beam.Particle.charge`
+    eta_0 : float array [n_turns+1]
         Zeroth order slippage factor of the present section; inherited from
         :py:attr:`input_parameters.ring.Ring.eta_0`
-    eta_1 : float array
+    eta_1 : float array [n_turns+1]
         First order slippage factor of the present section; inherited from
         :py:attr:`input_parameters.ring.Ring.eta_1`
-    eta_2 : float array
+    eta_2 : float array [n_turns+1]
         Second order slippage factor of the present section; inherited from
         :py:attr:`input_parameters.ring.Ring.eta_2`
     sign_eta_0 : float array
         Sign of the eta_0 array
-    n_rf : int
-        Number of harmonic RF systems in the section :math:`l`
-    harmonic : float (opt: float array/matrix)
-        Harmonic number of the RF system, :math:`h_{l,n}` [1]. For input
-        options, see above
-    voltage : float (opt: float array/matrix)
-        RF cavity voltage as seen by the beam, :math:`V_{l,n}` [V]. For input
-        options, see above
-    phi_rf_d : float (opt: float array/matrix)
-        Programmed/designed RF cavity phase,
-        :math:`\phi_{d,l,n}` [rad]. For input options, see above
-    phi_noise : float (opt: float array/matrix)
-        Optional, programmed RF cavity phase noise, :math:`\phi_{N,l,n}` [rad].
-        Added to all RF systems in the station. For input options, see above
-    omega_rf : float (opt: float array/matrix)
-        Actual RF revolution frequency, :math:`\omega_{rf,l,n}` [rad].
-        For input options, see above. The default value is the design frequency
-        :math:`\omega_{rf,l,n} = \omega_{d,l,n}`
-    Particle : class
-        A Particle type class defining the primary, synchronous particle (mass
-        and charge) that is used to calculate phi_s and Qs; default is Proton()
-    PreprocessRFParams : class
-        A PreprocessRFParams-based class defining smoothing, interpolation,
-        etc. options for harmonic, voltage, and/or phi_rf_d programme to be
-        interpolated to a turn-by-turn programme
-
-    Attributes
-    ----------
-    counter : int
-        Counter of the current simulation time step; defined as a list in
-        order to be passed by reference
-    section_index : int
-        Unique index :math:`k` of the RF station the present class is defined
-        for. Input in the range 1..n_sections (see
-        :py:class:`input_parameters.ring.Ring`).
-        Inside the code, indices 0..n_sections-1 are used.
-    phi_rf : float matrix
-        Actual RF cavity phase of each harmonic system,
+    harmonic : float matrix [n_rf, n_turns+1]
+        Harmonic number for each rf system,
+        :math:`V_{rf,l,n}` [rad]
+    voltage : float matrix [n_rf, n_turns+1]
+        Actual rf voltage of each harmonic system,
+        :math:`V_{rf,l,n}` [rad]
+    empty : bool
+        Actual rf voltage of each harmonic system,
+        :math:`V_{rf,l,n}` [rad]
+    phi_rf_d : float matrix [n_rf, n_turns+1]
+        Designed rf cavity phase of each harmonic system,
+        :math:`\phi_{rf,l,n}` [rad]
+    phi_rf : float matrix [n_rf, n_turns+1]
+        Actual RF cavity phase of each harmonic system used for tracking,
         :math:`\phi_{rf,l,n}` [rad]. Initially the same as the designed phase.
+    omega_rf_d : float matrix [n_rf, n_turns+1]
+        Design RF angular frequency of the RF systems in the station
+        :math:`\omega_{d,l,n} = \frac{h_{l,n} \beta_{l,n} c}{R_{s,n}}` [Hz]
+    omega_rf : float matrix [n_rf, n_turns+1]
+        Actual RF angular frequency of the RF systems in the station
+        :math:`\omega_{d,l,n} = \frac{h_{l,n} \beta_{l,n} c}{R_{s,n}}` [Hz].
+        Initially the same as the designed angular frequency.
+    phi_noise : None or float matrix [n_rf, n_turns+1]
+        Programmed cavity phase noise for each RF harmonic.
     dphi_rf : float matrix
         Accumulated RF phase error of each harmonic system
         :math:`\Delta \phi_{rf,l,n}` [rad]
-    omega_rf_d : float matrix
-        Design RF frequency of the RF systems in the station
-        :math:`\omega_{d,l,n} = \frac{h_{l,n} \beta_{l,n} c}{R_{s,n}}` [Hz]
     t_rf : float matrix
         RF period :math:`\frac{2 \pi}{\omega_{rf,l,n}}` [s]
     phi_s : float array
@@ -237,7 +260,7 @@ class RFStation(object):
                                                       self.n_rf,
                                                       Ring.cycle_time)
 
-        # Calculating design rf pulsation
+        # Calculating design rf angular frequency
         if fixed_omega_rf is None:
             self.omega_rf_d = 2.*np.pi*self.beta*c*self.harmonic / \
                 (self.ring_circumference)
