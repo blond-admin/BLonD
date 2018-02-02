@@ -109,7 +109,7 @@ class RFStationOptions(object):
 
         # If single float, expands the value to match the input number of turns
         # and sections
-        if isinstance(input_data, float):
+        if isinstance(input_data, float) or isinstance(input_data, int):
             output_data = input_data * np.ones((n_rf, n_turns+1))
 
         # If tuple, separate time and synchronous data and check data
