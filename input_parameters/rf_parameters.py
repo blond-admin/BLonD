@@ -183,6 +183,9 @@ class RFStation(object):
         :math:`\omega_{s,0} = Q_s \omega_{\text{rev}}` [1/s], where
         :math:`\omega_{\text{rev}}` is defined in
         :py:class:`input_parameters.ring.Ring`)
+    RFStationOptions : RFStationOptions()
+        The RFStationOptions is kept as an attribute of the RFStationg object
+        for further usage.
 
 
     Examples
@@ -241,12 +244,14 @@ class RFStation(object):
         self.harmonic = RFStationOptions.reshape_data(harmonic,
                                                       self.n_turns,
                                                       self.n_rf,
-                                                      Ring.cycle_time)
+                                                      Ring.cycle_time,
+                                                      Ring.RingOptions.t_start)
         # Reshape design voltage
         self.voltage = RFStationOptions.reshape_data(voltage,
                                                      self.n_turns,
                                                      self.n_rf,
-                                                     Ring.cycle_time)
+                                                     Ring.cycle_time,
+                                                     Ring.RingOptions.t_start)
 
         # Checking if the RFStation is empty
         if np.sum(self.voltage) == 0:
@@ -258,24 +263,29 @@ class RFStation(object):
         self.phi_rf_d = RFStationOptions.reshape_data(phi_rf_d,
                                                       self.n_turns,
                                                       self.n_rf,
-                                                      Ring.cycle_time)
+                                                      Ring.cycle_time,
+                                                      Ring.RingOptions.t_start)
 
         # Calculating design rf angular frequency
         if fixed_omega_rf is None:
             self.omega_rf_d = 2.*np.pi*self.beta*c*self.harmonic / \
                 (self.ring_circumference)
         else:
-            self.omega_rf_d = RFStationOptions.reshape_data(fixed_omega_rf,
-                                                            self.n_turns,
-                                                            self.n_rf,
-                                                            Ring.cycle_time)
+            self.omega_rf_d = RFStationOptions.reshape_data(
+                fixed_omega_rf,
+                self.n_turns,
+                self.n_rf,
+                Ring.cycle_time,
+                Ring.RampOptions.t_start)
 
         # Reshape phase noise
         if phi_noise is not None:
-            self.phi_noise = RFStationOptions.reshape_data(phi_noise,
-                                                           self.n_turns,
-                                                           self.n_rf,
-                                                           Ring.cycle_time)
+            self.phi_noise = RFStationOptions.reshape_data(
+                phi_noise,
+                self.n_turns,
+                self.n_rf,
+                Ring.cycle_time,
+                Ring.RampOptions.t_start)
         else:
             self.phi_noise = None
 

@@ -72,7 +72,8 @@ class RFStationOptions(object):
             raise RuntimeError("ERROR: sampling value in PreprocessRamp" +
                                " not recognised. Aborting...")
 
-    def reshape_data(self, input_data, n_turns, n_rf, interp_time):
+    def reshape_data(self, input_data, n_turns, n_rf, interp_time,
+                     t_start=0):
         r"""Checks whether the user input is consistent with the expectation
         for the RFStation object. The possibilites are detailed in the
         documentation of the RFStation object.
@@ -94,6 +95,10 @@ class RFStationOptions(object):
         interp_time : Ring.cycle_time
             Ensure that the rf program is interpolated on the same time basis
             as the Ring.momentum program
+        t_start : Ring.RingOptions.t_start or float
+            Uses the same t_start as the one used to interpolate the momentum
+            program in Ring. This value can nevertheless be changed to a custom
+            value if necessary.
 
         Returns
         -------
@@ -116,6 +121,7 @@ class RFStationOptions(object):
         elif isinstance(input_data, tuple):
 
             output_data = []
+            interp_time = interp_time + t_start
 
             # If there is only one rf harmonic, it is expected that the user
             # passes a tuple with (time, data). However, the user can also pass
@@ -140,10 +146,6 @@ class RFStationOptions(object):
                     raise RuntimeError("ERROR in RFStation: synchronous " +
                                        "data does not match the time data")
 
-                output_data.append(np.interp(interp_time,
-                                             input_data_time,
-                                             input_data_values))
-
                 if self.interpolation == 'linear':
                     output_data.append(np.interp(interp_time,
                                                  input_data_time,
@@ -165,7 +167,8 @@ class RFStationOptions(object):
                     input_data_time = input_data[index_rf][0]
                     input_data_values = input_data[index_rf][1]
 
-                    plt.figure(1, figsize=(8, 6))
+                    plt.figure('RFStationOptions', figsize=(8, 6))
+                    plt.clf()
                     ax = plt.axes([0.15, 0.1, 0.8, 0.8])
                     ax.plot(interp_time[::self.sampling],
                             output_data[index_rf][::self.sampling],
@@ -182,7 +185,6 @@ class RFStationOptions(object):
                     fign = self.figdir + '/preprocess_' "%s" % self.figname + \
                         '_' "%d" % index_rf + '.png'
                     plt.savefig(fign)
-                    plt.clf()
 
         # If array/list, compares with the input number of turns and
         # if synchronous_data is a single value converts it into a (n_turns+1)

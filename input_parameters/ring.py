@@ -77,8 +77,8 @@ class Ring(object):
         :math:`\alpha_{2,k,i}` [1]; can be input as single float or as a
         program of (n_turns + 1) turns (should be of the same size as
         synchronous_data and alpha_0).
-    RampOptions : class
-        Optional : A RampOptions-based class with default options to check the
+    RingOptions : class
+        Optional : A RingOptions-based class with default options to check the
         input and initialize the momentum program for the simulation.
         This object defines the interpolation scheme, plotting options, etc.
         The options for this object can be adjusted and passed to the Ring
@@ -141,6 +141,9 @@ class Ring(object):
     alpha_order : int
         Highest order of momentum compaction (as defined by the input). Can
         be 0,1,2.
+    RingOptions : RingOptions()
+        The RingOptions is kept as an attribute of the Ring object for further
+        usage.
 
     Examples
     --------
@@ -200,6 +203,9 @@ class Ring(object):
 
         # Converts the synchronous data into momentum
         momentum = self.convert_data(synchronous_data, synchronous_data_type)
+
+        # Keeps RingOptions as an attribute
+        self.RingOptions = RingOptions
 
         # Reshaping the input synchronous data to the adequate format and
         # get back the momentum program from RampOptions
