@@ -204,6 +204,13 @@ class RingOptions(object):
             input_data = np.array(input_data, ndmin=2, dtype=float)
             output_data = np.zeros((n_sections, n_turns+1), dtype=float)
 
+            # If the number of points is exactly the same as n_rf, this means
+            # that the rf program for each harmonic is constant, reshaping
+            # the array so that the size is [n_sections,1] for successful
+            # reshaping
+            if input_data.size == n_sections:
+                input_data = input_data.reshape((n_sections, 1))
+
             if len(input_data) != n_sections:
                 raise RuntimeError("ERROR in Ring: the input data " +
                                    "does not match the number of sections")
