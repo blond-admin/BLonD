@@ -117,7 +117,7 @@ class RFStationOptions(object):
 
             output_data = []
 
-            # If there is only one rf harmonic, it is expected that the user 
+            # If there is only one rf harmonic, it is expected that the user
             # passes a tuple with (time, data). However, the user can also pass
             # a tuple which size is the number of section as ((time, data), ).
             # and this if condition takes this into account
