@@ -74,9 +74,8 @@ class RFStationOptions(object):
 
     def reshape_data(self, input_data, n_turns, n_rf, interp_time):
         r"""Checks whether the user input is consistent with the expectation
-        for the Ring object. The possibilites are detailed in the documentation
-        of the Ring object.
-
+        for the RFStation object. The possibilites are detailed in the
+        documentation of the RFStation object.
 
         Parameters
         ----------
