@@ -91,12 +91,16 @@ class RFStationOptions(object):
         n_turns : RFStation.n_turns
             Number of turns the simulation should be. Note that if
             the input_data is passed as a tuple it is expected that the
-            input_data is a program. Hence, the number of turns may not
-            correspond to the input one and will be overwritten
+            input_data is a program. This parameter is only relevant if the
+            rf program is passed as an array/list with the rigth size
+            (see interp_time otherwise)
         n_rf : RFStation.n_rf
             The number of rf harmonics in the station. The simulation is
             stopped if the input_data shape does not correspond to the expected
             number of rf harmonics.
+        interp_time : Ring.cycle_time
+            Ensure that the rf program is interpolated on the same time basis
+            as the Ring.momentum program
 
         Returns
         -------
