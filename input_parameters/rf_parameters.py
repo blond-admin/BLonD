@@ -176,7 +176,7 @@ class RFStation(object):
     """
 
     def __init__(self, Ring, harmonic, voltage, phi_rf_d, n_rf=1,
-                 section_index=1, omega_rf=None, phi_noise=None,
+                 section_index=1, fixed_omega_rf=None, phi_noise=None,
                  accelerating_systems='as_single',
                  RFStationOptions=RFStationOptions()):
 
@@ -214,20 +214,32 @@ class RFStation(object):
         self.sign_eta_0 = np.sign(self.eta_0)
 
         # Reshape input rf programs
+        # Reshape design harmonic
         self.harmonic = RFStationOptions.reshape_data(harmonic,
                                                       self.n_turns,
                                                       self.n_rf,
                                                       Ring.cycle_time)
-
+        # Reshape design voltage
         self.voltage = RFStationOptions.reshape_data(voltage,
                                                      self.n_turns,
                                                      self.n_rf,
                                                      Ring.cycle_time)
-
+        # Reshape design phase
         self.phi_rf_d = RFStationOptions.reshape_data(phi_rf_d,
                                                       self.n_turns,
                                                       self.n_rf,
                                                       Ring.cycle_time)
+
+        # Calculating design rf pulsation
+        if fixed_omega_rf is None:
+            self.omega_rf_d = 2.*np.pi*self.beta*c*self.harmonic / \
+                (self.ring_circumference)
+        else:
+            self.omega_rf_d = RFStationOptions.reshape_data(fixed_omega_rf,
+                                                            self.n_turns,
+                                                            self.n_rf,
+                                                            Ring.cycle_time)
+
 
 #         # Process RF programs
 #         self.harmonic = harmonic
@@ -310,10 +322,7 @@ class RFStation(object):
         # RF (feedback) properties
         self.phi_rf = np.array(self.phi_rf_d)
         self.dphi_rf = np.zeros(self.n_rf)
-        self.omega_rf_d = 2.*np.pi*self.beta*c*self.harmonic / \
-            (self.ring_circumference)
-        if omega_rf is None:
-            self.omega_rf = np.array(self.omega_rf_d)
+        self.omega_rf = np.array(self.omega_rf_d)
         self.t_rf = 2*np.pi / self.omega_rf[0]
 
         # From helper functions
