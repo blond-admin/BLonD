@@ -83,9 +83,9 @@ general_params = Ring(np.ones(n_sections) * C/n_sections,
 
 RF_sct_par = []
 for i in np.arange(n_sections)+1:
-    RF_sct_par.append(RFStation(general_params, n_rf_systems,
+    RF_sct_par.append(RFStation(general_params,
                 [harmonic_numbers], [voltage_program/n_sections],
-                [phi_offset], section_index=i) )
+                [phi_offset], n_rf_systems, section_index=i) )
 
 # DEFINE BEAM------------------------------------------------------------------
 
@@ -220,9 +220,9 @@ general_params = Ring(np.ones(n_sections) * C/n_sections,
 
 RF_sct_par = []
 for i in np.arange(n_sections)+1:
-    RF_sct_par.append(RFStation(general_params, n_rf_systems,
+    RF_sct_par.append(RFStation(general_params,
                   [harmonic_numbers], [voltage_program/n_sections],
-                  [phi_offset], section_index=i) )
+                  [phi_offset], n_rf_systems, section_index=i) )
 
 # DEFINE BEAM------------------------------------------------------------------
 

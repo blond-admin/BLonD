@@ -80,14 +80,14 @@ general_params_res = Ring(C, momentum_compaction,
                                        sync_momentum, Proton(), n_turns)
 
 
-RF_sct_par = RFStation(general_params, n_rf_systems, [harmonic_number], 
-                          [voltage_program], [phi_offset])
-RF_sct_par_freq = RFStation(general_params_freq, n_rf_systems,
+RF_sct_par = RFStation(general_params, [harmonic_number], 
+                          [voltage_program], [phi_offset], n_rf_systems)
+RF_sct_par_freq = RFStation(general_params_freq,
                                       [harmonic_number], [voltage_program],
-                                      [phi_offset])
-RF_sct_par_res = RFStation(general_params_res, n_rf_systems,
+                                      [phi_offset], n_rf_systems)
+RF_sct_par_res = RFStation(general_params_res,
                                       [harmonic_number], [voltage_program],
-                                      [phi_offset])
+                                      [phi_offset], n_rf_systems)
 
 my_beam = Beam(general_params, n_macroparticles, n_particles)
 my_beam_freq = Beam(general_params_freq, n_macroparticles, n_particles)

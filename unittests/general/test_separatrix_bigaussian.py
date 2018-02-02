@@ -71,11 +71,11 @@ class TestSeparatrixBigaussian(unittest.TestCase):
                     np.linspace(p_1f, p_1i, N_t + 1), Proton(), N_t)
         
             if singleRF == True:
-                rf_params = RFStation(general_params, 1, 9, 1.8e6, 
-                    np.pi + 1., accelerating_systems = 'as_single')
+                rf_params = RFStation(general_params, 9, 1.8e6, np.pi+1.,
+                                      n_rf=1, accelerating_systems='as_single')
             elif singleRF == False:
-                rf_params = RFStation(general_params, 2, h, V, phi_1, 
-                    accelerating_systems = 'all')
+                rf_params = RFStation(general_params, h, V, phi_1, n_rf=2,
+                    accelerating_systems='all')
         
         elif( negativeEta == False ): 
 
@@ -89,10 +89,10 @@ class TestSeparatrixBigaussian(unittest.TestCase):
                     np.linspace(p_2f, p_2i, N_t + 1), Proton(), N_t)
                 
             if singleRF == True:
-                rf_params = RFStation(general_params, 1, 9, 1.8e6, 
-                    1., accelerating_systems = 'as_single')
+                rf_params = RFStation(general_params, 9, 1.8e6, 1., n_rf=1, 
+                                      accelerating_systems = 'as_single')
             elif singleRF == False:
-                rf_params = RFStation(general_params, 2, h, V, phi_2, 
+                rf_params = RFStation(general_params, h, V, phi_2, n_rf=2,
                     accelerating_systems = 'all')
 
         # Define beam and distribution

@@ -59,7 +59,7 @@ class testRFParamClass(unittest.TestCase):
         
         # Define RF section
         # -----------------
-        self.rf_params = RFStation(self.general_params, 1, [4620], [7e6], [0.])
+        self.rf_params = RFStation(self.general_params, [4620], [7e6], [0.])
 
 
     # Run after every test

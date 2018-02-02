@@ -152,9 +152,15 @@ class RingOptions(object):
 
         # If tuple, separate time and synchronous data and check data
         elif isinstance(input_data, tuple):
-            input_data_time = np.array(input_data[0], ndmin=2, dtype=float)
-            input_data = np.array(input_data[1], ndmin=2, dtype=float)
+
             output_data = []
+
+            # If there is only one section, it is expected that the user passes
+            # a tuple with (time, data). However, the user can also pass a
+            # tuple which size is the number of section as ((time, data), ).
+            # and this if condition takes this into account
+            if (n_sections == 1) and (len(input_data) > 1):
+                input_data = (input_data, )
 
             if len(input_data) != n_sections:
                 raise RuntimeError("ERROR in Ring: the input data " +
@@ -164,8 +170,11 @@ class RingOptions(object):
             # the results on the output_data list which is afterwards
             # converted to a numpy.array
             for index_section in range(n_sections):
-                if len(input_data[index_section]) \
-                        != len(input_data_time[index_section]):
+                input_data_time = input_data[index_section][0]
+                input_data_values = input_data[index_section][1]
+
+                if len(input_data_time) \
+                        != len(input_data_values):
                     raise RuntimeError("ERROR in Ring: synchronous data " +
                                        "does not match the time data")
 
@@ -173,25 +182,25 @@ class RingOptions(object):
                     output_data.append(self.preprocess(
                         mass,
                         circumference,
-                        input_data_time[index_section],
-                        input_data[index_section])[1])
+                        input_data_time,
+                        input_data_values)[1])
 
                 elif isinstance(interp_time, float):
                     interp_time = np.arange(
-                        input_data_time[index_section][0],
-                        input_data_time[index_section][-1],
+                        input_data_time[0],
+                        input_data_time[-1],
                         interp_time)
 
                     output_data.append(np.interp(
                         interp_time,
-                        input_data_time[index_section],
-                        input_data[index_section]))
+                        input_data_time,
+                        input_data_values))
 
                 elif isinstance(interp_time, np.ndarray):
                     output_data.append(np.interp(
                         interp_time,
-                        input_data_time[index_section],
-                        input_data[index_section]))
+                        input_data_time,
+                        input_data_values))
 
             output_data = np.array(output_data, ndmin=2, dtype=float)
 
@@ -203,6 +212,13 @@ class RingOptions(object):
 
             input_data = np.array(input_data, ndmin=2, dtype=float)
             output_data = np.zeros((n_sections, n_turns+1), dtype=float)
+
+            # If the number of points is exactly the same as n_rf, this means
+            # that the rf program for each harmonic is constant, reshaping
+            # the array so that the size is [n_sections,1] for successful
+            # reshaping
+            if input_data.size == n_sections:
+                input_data = input_data.reshape((n_sections, 1))
 
             if len(input_data) != n_sections:
                 raise RuntimeError("ERROR in Ring: the input data " +

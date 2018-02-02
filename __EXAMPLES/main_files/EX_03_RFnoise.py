@@ -65,7 +65,7 @@ print("")
 general_params = Ring(C, alpha, p_s, Proton(), N_t)
 
 # Define RF station parameters and corresponding tracker
-rf_params = RFStation(general_params, 1, [h], [V], [0])
+rf_params = RFStation(general_params, [h], [V], [0])
 
 # Pre-processing: RF phase noise -----------------------------------------------
 RFnoise = FlatSpectrum(general_params, rf_params, delta_f = 1.12455000e-02, fmin_s0 = 0, 

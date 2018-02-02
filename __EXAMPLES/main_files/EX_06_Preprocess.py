@@ -19,7 +19,7 @@ import numpy as np
 from input_parameters.ring import Ring
 from input_parameters.ring_options import RingOptions
 from input_parameters.rf_parameters import RFStation
-from input_parameters.rf_parameters_options import PreprocessRFParams
+from input_parameters.rf_parameters_options import RFStationOptions
 from beam.beam import Proton
 import os
 
@@ -56,7 +56,7 @@ ring_opt = RingOptions(interpolation='linear', plot=True,
                                   figdir='../output_files/EX_06_fig',
                                   t_start=initial_time, t_end=final_time)
 
-general_params = Ring(C, alpha, (time_array, momentum), 
+general_params = Ring(C, alpha, ((time_array, momentum), ), 
                                    particle_type, RingOptions=ring_opt)
 
 # Cavities parameters
@@ -78,15 +78,15 @@ voltage_C04 = voltage_program_C04[:, 1]*1e3  # [V]
 time_C16 = voltage_program_C16[:, 0]*1e-3  # [s]
 voltage_C16 = voltage_program_C16[:, 1]*1e3  # [V]
 
-preprocess_rf = PreprocessRFParams(interpolation = 'linear', smoothing = 0, 
+rf_station_options = RFStationOptions(interpolation = 'linear', smoothing = 0, 
                                    plot = True, figdir='../output_files/EX_06_fig', 
                  figname=['voltage_C02 [V]', 'voltage_C04 [V]', 'voltage_C16 [V]'], 
-                 sampling = 1, harmonic = False, voltage = True, 
-                 phi_rf_d = False, omega_rf = False)
+                 sampling = 1)
 
-rf_params = RFStation(general_params, n_rf_systems, 
+rf_params = RFStation(general_params,
                       [harmonic_numbers_1, harmonic_numbers_2, harmonic_numbers_3], 
-                      [time_C02, time_C04, time_C16, voltage_C02, voltage_C04, voltage_C16], 
-                      [phi_rf_1, phi_rf_2, phi_rf_3], 
-                      PreprocessRFParams=preprocess_rf)
+                      ((time_C02, voltage_C02), (time_C04, voltage_C04), (time_C16, voltage_C16)), 
+                      [phi_rf_1, phi_rf_2, phi_rf_3], n_rf_systems,
+                      RFStationOptions=rf_station_options)
+
 print("Done!")

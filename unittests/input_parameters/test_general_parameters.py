@@ -94,7 +94,7 @@ class TestGeneralParameters(unittest.TestCase):
                 msg='No RuntimeError for wrong synchronous_data!'):
 
             Ring(self.C, self.alpha_0,
-                 ([cycle_time, cycle_time], self.momentum),
+                 ((cycle_time, self.momentum), (cycle_time, self.momentum)),
                  self.particle, self.n_turns, n_sections=self.num_sections)
 
     def test_momentum_shape_exception(self):
@@ -108,7 +108,8 @@ class TestGeneralParameters(unittest.TestCase):
                 "does not match the time data",
                 msg='No RuntimeError for wrong shape of momentum!'):
 
-            Ring(self.C, self.alpha_0, (cycle_time, momentum),
+            Ring(self.C, self.alpha_0,
+                 ((cycle_time, momentum[0]), (cycle_time, momentum[1])),
                  self.particle, self.n_turns, n_sections=self.num_sections)
 
     def test_momentum_length_exception(self):
