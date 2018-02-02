@@ -108,7 +108,7 @@ class RFStationOptions(object):
             pass
 
         # If single float, expands the value to match the input number of turns
-        # and sections
+        # and rf harmonics
         if isinstance(input_data, float) or isinstance(input_data, int):
             output_data = input_data * np.ones((n_rf, n_turns+1))
 
@@ -120,7 +120,7 @@ class RFStationOptions(object):
 
             if len(input_data) != n_rf:
                 raise RuntimeError("ERROR in RFStation: the input data " +
-                                   "does not match the number of sections")
+                                   "does not match the number of rf harmonics")
 
             # Loops over all the rf harmonics to interpolate the programs,
             # appends the results on the output_data list which is afterwards
@@ -148,7 +148,7 @@ class RFStationOptions(object):
 
             if len(input_data) != n_rf:
                 raise RuntimeError("ERROR in RFStation: the input data " +
-                                   "does not match the number of sections")
+                                   "does not match the number of rf harmonics")
 
             for index_rf in range(len(input_data)):
                 if len(input_data[index_rf]) == 1:
