@@ -114,9 +114,15 @@ class RFStationOptions(object):
 
         # If tuple, separate time and synchronous data and check data
         elif isinstance(input_data, tuple):
-            input_data_time = np.array(input_data[0], ndmin=2, dtype=float)
-            input_data = np.array(input_data[1], ndmin=2, dtype=float)
+
             output_data = []
+
+            # If there is only one rf harmonic, it is expected that the user 
+            # passes a tuple with (time, data). However, the user can also pass
+            # a tuple which size is the number of section as ((time, data), ).
+            # and this if condition takes this into account
+            if (n_rf == 1) and (len(input_data) > 1):
+                input_data = (input_data, )
 
             if len(input_data) != n_rf:
                 raise RuntimeError("ERROR in RFStation: the input data " +
@@ -126,14 +132,17 @@ class RFStationOptions(object):
             # appends the results on the output_data list which is afterwards
             # converted to a numpy.array
             for index_rf in range(n_rf):
-                if len(input_data[index_rf]) \
-                        != len(input_data_time[index_rf]):
+                input_data_time = input_data[index_rf][0]
+                input_data_values = input_data[index_rf][1]
+
+                if len(input_data_values) \
+                        != len(input_data_time):
                     raise RuntimeError("ERROR in RFStation: synchronous " +
                                        "data does not match the time data")
 
                 output_data.append(np.interp(interp_time,
-                                             input_data_time[index_rf],
-                                             input_data[index_rf]))
+                                             input_data_time,
+                                             input_data_values))
 
             output_data = np.array(output_data, ndmin=2, dtype=float)
 
