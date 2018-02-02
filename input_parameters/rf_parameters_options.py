@@ -265,7 +265,7 @@ def combine_rf_functions(function_list, merge_type='linear', resolution=1e-3,
     -------
     2 dimensional numpy.ndarray containing [time, value] of merged functions
 
-        """
+    """
 
     nFunctions = len(function_list)
 

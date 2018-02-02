@@ -253,8 +253,11 @@ class RFStation(object):
                                                            self.n_turns,
                                                            self.n_rf,
                                                            Ring.cycle_time)
+        else:
+            self.phi_noise = None
 
-        # RF (feedback) properties
+        # Copy of the desing rf programs in the one used for tracking
+        # and that can be changed by feedbacks
         self.phi_rf = np.array(self.phi_rf_d)
         self.dphi_rf = np.zeros(self.n_rf)
         self.omega_rf = np.array(self.omega_rf_d)

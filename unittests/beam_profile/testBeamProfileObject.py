@@ -50,8 +50,9 @@ class testProfileClass(unittest.TestCase):
         self.ring = Ring(ring_length, alpha, momentum, Proton(), n_turns)
 
         # RF object initialization
-        self.rf_params = RFStation(Ring=self.ring, n_rf=1, harmonic=[1],
-                                   voltage=[7e6], phi_rf_d=[0.])
+        self.rf_params = RFStation(Ring=self.ring, harmonic=[1],
+                                   voltage=[7e6], phi_rf_d=[0.],
+                                   n_rf=1)
 
         # Beam parameters
         n_macroparticles = 100000
