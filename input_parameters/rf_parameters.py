@@ -30,11 +30,11 @@ class RFStation(object):
 
     * For 1 RF system and constant values of V, h, or phi, input a single value
     * For 1 RF system and varying values of V, h, or phi, input an array of
-      n_turns values
+      n_turns+1 values
     * For several RF systems and constant values of V, h, or phi, input lists
       of single values
     * For several RF systems and varying values of V, h, or phi, input lists
-      of arrays of n_turns values
+      of arrays of n_turns+1 values
     * For pre-processing, pass a list of times-voltages, times-harmonics,
       and/or times-phases for **each** RF system and define the
       PreprocessRFParams class, i.e. [time_1, ..., time_n, data_1, ..., data_n]
