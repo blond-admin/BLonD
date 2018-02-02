@@ -27,7 +27,7 @@ import impedances.impedance_sources as impSClass
 import impedances.induced_voltage_analytical as indVoltAn
 import impedances.music as musClass
 from scipy.constants import m_p, e, c
-
+import os
 
 # RING PARAMETERS
 n_turns = 1
@@ -77,14 +77,14 @@ total_induced_voltage2.track()
 # DEFINE SECOND BEAM TO BE USED WITH MUSIC, AND VOLTAGE CALCULATION
 n_macroparticles2 = n_macroparticles
 if n_macroparticles2 == n_macroparticles: 
-    music = musClass.Music(my_beam, [R_S, 2*np.pi*frequency_R, Q], n_macroparticles, n_particles)
+    music = musClass.Music(my_beam, [R_S, 2*np.pi*frequency_R, Q], n_macroparticles, n_particles, rf_params.t_rev[0])
 else:
     my_beam2 = beamClass.Beam(general_params, n_macroparticles2, n_particles)
     np.random.seed(1000)
     my_beam2.dt = sigma_gaussian*np.random.randn(n_macroparticles2) + general_params.t_rev[0]/2
     my_beam2.dE = sigma_gaussian*np.random.randn(n_macroparticles2)
     music = musClass.Music(my_beam2, [R_S, 2*np.pi*frequency_R, Q], n_macroparticles2, n_particles)
-music.track()
+music.track_cpp()
 
 # ANALYTICAL VOLTAGE CALCULATION
 time_array = np.linspace(0, general_params.t_rev[0], 1000000)
@@ -99,5 +99,13 @@ plt.plot(slices_ring.bin_centers*1e9, total_induced_voltage.induced_voltage, lab
 plt.plot(slices_ring.bin_centers*1e9, total_induced_voltage2.induced_voltage, label='FFT')
 plt.plot(time_array*1e9, induced_voltage_analytical, label='analytical')
 plt.legend(loc='upper left')
-plt.show()    
+
+fig_directory = '../output_files/TC11_fig/'
+if os.path.exists(fig_directory):    
+    pass
+else:
+    os.makedirs(fig_directory)
+
+
+plt.savefig(fig_directory+'output.png')
   

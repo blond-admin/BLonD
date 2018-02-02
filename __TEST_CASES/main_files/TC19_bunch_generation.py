@@ -28,7 +28,12 @@ from beams.slices import Slices
 from impedances.impedance import InducedVoltageFreq, TotalInducedVoltage, InducedVoltageTime
 from impedances.impedance_sources import Resonators
 from scipy.constants import c, e, m_p
+import os
 
+try:
+    os.mkdir('../output_files/TC_19_fig')
+except:
+    pass
 
 # SIMULATION PARAMETERS -------------------------------------------------------
 
@@ -126,7 +131,7 @@ matched_from_distribution_function(beam, full_tracker,
                                   distribution_exponent=distribution_exponent,
                                   bunch_length=bunch_length,
                                   bunch_length_fit=bunch_length_fit,
-                                  distribution_variable='Action')
+                                  distribution_variable='Action', seed=18)
 
 plt.figure()
 slice_beam.track()
@@ -135,7 +140,7 @@ plt.plot(slice_beam.bin_centers, slice_beam.n_macroparticles, lw=2,
          
 matched_from_line_density(beam, full_tracker, bunch_length=bunch_length,
                           line_density_type=distribution_type,
-                          line_density_exponent=distribution_exponent)
+                          line_density_exponent=distribution_exponent, seed=90)
 
 slice_beam.track()
 plt.plot(slice_beam.bin_centers, slice_beam.n_macroparticles, lw=2, 
@@ -143,6 +148,7 @@ plt.plot(slice_beam.bin_centers, slice_beam.n_macroparticles, lw=2,
 
 plt.legend(loc=0, fontsize='medium')
 plt.title('Without intensity effects')
+plt.savefig('../output_files/TC_19_fig/without_int_eff.png')
 
 matched_from_distribution_function(beam, full_tracker,
                                   distribution_type=distribution_type,
@@ -150,7 +156,7 @@ matched_from_distribution_function(beam, full_tracker,
                                   bunch_length_fit=bunch_length_fit,
                                   bunch_length=bunch_length, n_iterations=10,
                                   TotalInducedVoltage=total_ind_volt,
-                                  distribution_variable='Action')
+                                  distribution_variable='Action', seed=9)
 
 plt.figure()
 slice_beam.track()
@@ -160,7 +166,7 @@ plt.plot(slice_beam.bin_centers, slice_beam.n_macroparticles, lw=2,
 matched_from_line_density(beam, full_tracker, bunch_length=bunch_length,
                           line_density_type=distribution_type,
                           line_density_exponent=distribution_exponent,
-                          TotalInducedVoltage=total_ind_volt)
+                          TotalInducedVoltage=total_ind_volt, seed=8)
 
 slice_beam.track()
 plt.plot(slice_beam.bin_centers, slice_beam.n_macroparticles, lw=2, 
@@ -168,3 +174,4 @@ plt.plot(slice_beam.bin_centers, slice_beam.n_macroparticles, lw=2,
 
 plt.legend(loc=0, fontsize='medium')
 plt.title('With intensity effects')
+plt.savefig('../output_files/TC_19_fig/with_int_eff.png')

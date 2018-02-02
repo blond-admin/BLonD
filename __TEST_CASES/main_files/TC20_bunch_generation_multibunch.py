@@ -30,7 +30,12 @@ from beams.slices import Slices
 from impedances.impedance import InducedVoltageFreq, TotalInducedVoltage
 from impedances.impedance_sources import Resonators
 from scipy.constants import c, e, m_p
+import os
 
+try:
+    os.mkdir('../output_files/TC_20_fig')
+except:
+    pass
 
 # SIMULATION PARAMETERS -------------------------------------------------------
 
@@ -123,7 +128,8 @@ matched_from_distribution_density_multibunch(beam, general_params,
                              full_tracker, distribution_options_list,
                              n_bunches, bunch_spacing_buckets,
                              intensity_list=intensity_list,
-                             minimum_n_macroparticles=minimum_n_macroparticles)
+                             minimum_n_macroparticles=minimum_n_macroparticles
+                             , seed=31331)
 
 plt.figure()
 slice_beam.track()
@@ -136,7 +142,7 @@ matched_from_distribution_density_multibunch(beam, general_params,
                              intensity_list=intensity_list,
                              minimum_n_macroparticles=minimum_n_macroparticles,
                              TotalInducedVoltage=total_ind_volt,
-                             n_iterations_input=10)
+                             n_iterations_input=10, seed=7878)
 
 
 slice_beam.track()
@@ -145,12 +151,14 @@ plt.plot(slice_beam.bin_centers, slice_beam.n_macroparticles, lw=2,
          
 plt.legend(loc=0, fontsize='medium')
 plt.title('From distribution function')
+plt.savefig('../output_files/TC_20_fig/from_distr_funct.png')
 
 line_density_options_list = distribution_options_list
 matched_from_line_density_multibunch(beam, general_params,
                         full_tracker, line_density_options_list, n_bunches,
                         bunch_spacing_buckets, intensity_list=intensity_list,
-                        minimum_n_macroparticles=minimum_n_macroparticles)
+                        minimum_n_macroparticles=minimum_n_macroparticles
+                        , seed=86867676)
                         
 plt.figure('From line density')
 slice_beam.track()
@@ -162,7 +170,7 @@ matched_from_line_density_multibunch(beam, general_params,
                         full_tracker, line_density_options_list, n_bunches,
                         bunch_spacing_buckets, intensity_list=intensity_list,
                         minimum_n_macroparticles=minimum_n_macroparticles,
-                        TotalInducedVoltage=total_ind_volt)
+                        TotalInducedVoltage=total_ind_volt, seed=12)
 
 plt.figure('From line density')
 slice_beam.track()
@@ -170,3 +178,4 @@ plt.plot(slice_beam.bin_centers, slice_beam.n_macroparticles, lw=2,
          label='with intensity effects')
 plt.title('From line density')
 plt.legend(loc=0, fontsize='medium')
+plt.savefig('../output_files/TC_20_fig/from_line_density.png')

@@ -49,7 +49,7 @@ time_cut = time_array[initial_index:(final_index+1)]
 momentum_cut = momentum[initial_index:(final_index+1)]
 
 momentum_interp = preprocess_ramp(particle_type, C, time_cut, momentum_cut,
-                                  interpolation='linear',
+                                  interpolation='linear',plot=True,
                                   figdir='../output_files/TC6_fig')
 
 n_turns = len(momentum_interp[0])-1
@@ -87,3 +87,4 @@ rf_params = RFSectionParameters(general_params, 2,
                                 [harmonic_numbers_1,harmonic_numbers_2],
                                 [data_interp[0], data_interp[1]],
                                 [phi_offset_1, phi_offset_2])
+

@@ -26,7 +26,12 @@ from input_parameters.rf_parameters import RFSectionParameters
 from beams.sparse_slices import SparseSlices
 from trackers.tracker import RingAndRFSection, FullRingAndRF
 from scipy.constants import c, e, m_e
+import os
 
+try:
+    os.mkdir('../output_files/TC_14_fig')
+except:
+    pass
 
 # SIMULATION PARAMETERS -------------------------------------------------------
 
@@ -61,7 +66,6 @@ voltage_program = [10e9]
 phi_offset = [np.pi]
 
 bucket_length = C / c / harmonic_numbers[0]
-print(bucket_length)
 
 # DEFINE RING------------------------------------------------------------------
 
@@ -95,14 +99,14 @@ filling_pattern[::bunch_spacing] = 1
 
 matched_from_distribution_function(beam, full_tracker, emittance=emittance,
                                    distribution_type=distribution_type, 
-                                   distribution_variable=distribution_variable)
+                                   distribution_variable=distribution_variable
+                                   , seed=1208)
 
 indexes = np.arange(n_macroparticles)
-#np.random.shuffle(indexes)
 
-for i in np.arange(np.sum(filling_pattern)):
-    beam.dt[indexes[i*len(beam.dt)//np.sum(filling_pattern)]: 
-        indexes[(i+1)*len(beam.dt)//np.sum(filling_pattern)-1]] += (
+for i in range(int(np.sum(filling_pattern))):
+    beam.dt[indexes[int(i*len(beam.dt)//np.sum(filling_pattern))]: 
+        indexes[int((i+1)*len(beam.dt)//np.sum(filling_pattern)-1)]] += (
         bucket_length * np.where(filling_pattern)[0][i])
 
 import time
@@ -117,7 +121,7 @@ plt.figure()
 for i in range(int(np.sum(filling_pattern))):
     plt.plot(slice_beam.slices_array[i].bin_centers,
              slice_beam.slices_array[i].n_macroparticles)
-plt.show()
+plt.savefig('../output_files/TC_14_fig/cpp_track.png')
 
 
 for i in range(int(np.sum(filling_pattern))):
@@ -134,4 +138,4 @@ plt.figure()
 for i in range(int(np.sum(filling_pattern))):
     plt.plot(slice_beam.slices_array[i].bin_centers,
              slice_beam.slices_array[i].n_macroparticles)
-plt.show()
+plt.savefig('../output_files/TC_14_fig/ind_track.png')
