@@ -202,11 +202,13 @@ class RFStation(object):
         self.energy = Ring.energy[self.section_index]
         self.delta_E = Ring.delta_E[self.section_index]
         self.alpha_order = Ring.alpha_order
-        self.eta_0 = 0
-        self.eta_1 = 0
-        self.eta_2 = 0
         self.charge = self.Particle.charge
-        for i in range(3):
+
+        # The order alpha_order used here can be replaced by Ring.alpha_order
+        # when the assembler can differentiate the cases 'simple' and 'full'
+        # for the drift
+        alpha_order = 2
+        for i in range(alpha_order+1):
             dummy = getattr(Ring, 'eta_' + str(i))
             setattr(self, "eta_%s" % i, dummy[self.section_index])
         self.sign_eta_0 = np.sign(self.eta_0)
