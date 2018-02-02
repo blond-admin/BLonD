@@ -144,16 +144,15 @@ class RFStation(object):
         Sign of the eta_0 array
     harmonic : float matrix [n_rf, n_turns+1]
         Harmonic number for each rf system,
-        :math:`V_{rf,l,n}` [rad]
+        :math:`h_{l,n}` [1]
     voltage : float matrix [n_rf, n_turns+1]
         Actual rf voltage of each harmonic system,
-        :math:`V_{rf,l,n}` [rad]
+        :math:`V_{rf,l,n}` [V]
     empty : bool
-        Actual rf voltage of each harmonic system,
-        :math:`V_{rf,l,n}` [rad]
+        Flag to specify if the RFStation is empty
     phi_rf_d : float matrix [n_rf, n_turns+1]
         Designed rf cavity phase of each harmonic system,
-        :math:`\phi_{rf,l,n}` [rad]
+        :math:`\phi_{d,l,n}` [rad]
     phi_rf : float matrix [n_rf, n_turns+1]
         Actual RF cavity phase of each harmonic system used for tracking,
         :math:`\phi_{rf,l,n}` [rad]. Initially the same as the designed phase.
@@ -162,22 +161,22 @@ class RFStation(object):
         :math:`\omega_{d,l,n} = \frac{h_{l,n} \beta_{l,n} c}{R_{s,n}}` [Hz]
     omega_rf : float matrix [n_rf, n_turns+1]
         Actual RF angular frequency of the RF systems in the station
-        :math:`\omega_{d,l,n} = \frac{h_{l,n} \beta_{l,n} c}{R_{s,n}}` [Hz].
+        :math:`\omega_{rf,l,n} = \frac{h_{l,n} \beta_{l,n} c}{R_{s,n}}` [Hz].
         Initially the same as the designed angular frequency.
     phi_noise : None or float matrix [n_rf, n_turns+1]
         Programmed cavity phase noise for each RF harmonic.
-    dphi_rf : float matrix
+    dphi_rf : float matrix [n_rf]
         Accumulated RF phase error of each harmonic system
         :math:`\Delta \phi_{rf,l,n}` [rad]
-    t_rf : float matrix
+    t_rf : float matrix [n_rf, n_turns+1]
         RF period :math:`\frac{2 \pi}{\omega_{rf,l,n}}` [s]
-    phi_s : float array
+    phi_s : float array [n_turns+1]
         Synchronous phase for this section, calculated in
         :py:func:`input_parameters.rf_parameters.calculate_phi_s`
-    Q_s : float array
+    Q_s : float array [n_turns+1]
         Synchrotron tune for this section, calculated in
         :py:func:`input_parameters.rf_parameters.calculate_Q_s`
-    omega_s0 : float array
+    omega_s0 : float array [n_turns+1]
         Central synchronous angular frequency corresponding to Q_s (single
         harmonic, no intensity effects)
         :math:`\omega_{s,0} = Q_s \omega_{\text{rev}}` [1/s], where
