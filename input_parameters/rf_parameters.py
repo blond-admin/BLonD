@@ -240,6 +240,13 @@ class RFStation(object):
                                                             self.n_rf,
                                                             Ring.cycle_time)
 
+        # Reshape phase noise
+        if phi_noise is not None:
+            self.phi_noise = RFStationOptions.reshape_data(phi_noise,
+                                                           self.n_turns,
+                                                           self.n_rf,
+                                                           Ring.cycle_time)
+
 
 #         # Process RF programs
 #         self.harmonic = harmonic
