@@ -52,9 +52,7 @@ class RFStationOptions(object):
     """
 
     def __init__(self, interpolation='linear', smoothing=0, plot=False,
-                 figdir='fig', figname=['data'], sampling=1,
-                 harmonic=False, voltage=True, phi_rf_d=False,
-                 omega_rf=False):
+                 figdir='fig', figname=['data'], sampling=1):
 
         if interpolation in ['linear', 'cubic']:
             self.interpolation = str(interpolation)
@@ -80,10 +78,97 @@ class RFStationOptions(object):
             raise RuntimeError("ERROR: sampling value in PreprocessRamp" +
                                " not recognised. Aborting...")
 
-        self.harmonic = harmonic
-        self.voltage = voltage
-        self.phi_rf_d = phi_rf_d
-        self.omega_rf = omega_rf
+    def reshape_data(self, input_data, n_turns, n_rf, interp_time):
+        r"""Checks whether the user input is consistent with the expectation
+        for the Ring object. The possibilites are detailed in the documentation
+        of the Ring object.
+
+
+        Parameters
+        ----------
+        input_data : Ring.synchronous_data, Ring.alpha_0,1,2
+            Main input data to reshape
+        n_turns : RFStation.n_turns
+            Number of turns the simulation should be. Note that if
+            the input_data is passed as a tuple it is expected that the
+            input_data is a program. Hence, the number of turns may not
+            correspond to the input one and will be overwritten
+        n_rf : RFStation.n_rf
+            The number of rf harmonics in the station. The simulation is
+            stopped if the input_data shape does not correspond to the expected
+            number of rf harmonics.
+
+        Returns
+        -------
+        output_data
+            Returns the data with the adequate shape for the RStation object
+
+        """
+
+        # TO BE IMPLEMENTED: if you pass a filename the function reads the file
+        # and reshape the data
+        if isinstance(input_data, str):
+            pass
+
+        # If single float, expands the value to match the input number of turns
+        # and sections
+        if isinstance(input_data, float):
+            output_data = input_data * np.ones((n_rf, n_turns+1))
+
+        # If tuple, separate time and synchronous data and check data
+        elif isinstance(input_data, tuple):
+            input_data_time = np.array(input_data[0], ndmin=2, dtype=float)
+            input_data = np.array(input_data[1], ndmin=2, dtype=float)
+            output_data = []
+
+            if len(input_data) != n_rf:
+                raise RuntimeError("ERROR in RFStation: the input data " +
+                                   "does not match the number of sections")
+
+            # Loops over all the rf harmonics to interpolate the programs,
+            # appends the results on the output_data list which is afterwards
+            # converted to a numpy.array
+            for index_rf in range(n_rf):
+                if len(input_data[index_rf]) \
+                        != len(input_data_time[index_rf]):
+                    raise RuntimeError("ERROR in RFStation: synchronous " +
+                                       "data does not match the time data")
+
+                output_data.append(np.interp(interp_time,
+                                             input_data_time[index_rf],
+                                             input_data[index_rf]))
+
+            output_data = np.array(output_data, ndmin=2, dtype=float)
+
+        # If array/list, compares with the input number of turns and
+        # if synchronous_data is a single value converts it into a (n_turns+1)
+        # array
+        elif isinstance(input_data, np.ndarray) or \
+                isinstance(input_data, list):
+
+            input_data = np.array(input_data, ndmin=2, dtype=float)
+            output_data = np.zeros((n_rf, n_turns+1), dtype=float)
+
+            if len(input_data) != n_rf:
+                raise RuntimeError("ERROR in RFStation: the input data " +
+                                   "does not match the number of sections")
+
+            for index_rf in range(len(input_data)):
+                if len(input_data[index_rf]) == 1:
+                    output_data[index_rf] = input_data[index_rf] * \
+                                                np.ones(n_turns+1)
+
+                elif len(input_data[index_rf]) == (n_turns+1):
+                    output_data[index_rf] = np.array(
+                        input_data[index_rf])
+
+                else:
+
+                    raise RuntimeError("ERROR in Ring: The input data " +
+                                       "does not match the proper length " +
+                                       "(n_turns+1)")
+
+        return output_data
 
     def preprocess(self, Ring, time_arrays, data_arrays):
         r"""Function to pre-process RF data, interpolating it to every turn.
