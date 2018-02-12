@@ -293,7 +293,7 @@ class RFStation(object):
         self.phi_rf = np.array(self.phi_rf_d)
         self.dphi_rf = np.zeros(self.n_rf)
         self.omega_rf = np.array(self.omega_rf_d)
-        self.t_rf = 2*np.pi / self.omega_rf[0]
+        self.t_rf = 2*np.pi / self.omega_rf
 
         # From helper functions
         self.phi_s = calculate_phi_s(self, self.Particle,
