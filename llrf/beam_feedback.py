@@ -293,7 +293,7 @@ class BeamFeedback(object):
             self.profile.bin_centers[0])*(self.profile.Beam.dt <
                                          self.profile.bin_centers[-1])])
         
-        self.drho = self.ring.alpha[0,0]* \
+        self.drho = self.ring.alpha_0[0,counter]* \
             self.ring.ring_radius*self.average_dE/ \
             (self.ring.beta[0,counter]**2.* \
              self.ring.energy[0,counter])
@@ -307,7 +307,7 @@ class BeamFeedback(object):
         counter = self.rf_params.counter[0]
         
         self.radial_steering_domega_rf = - self.rf_params.omega_rf_d[0,counter]* \
-            self.rf_params.eta_0[counter]/self.ring.alpha[0,0]* \
+            self.rf_params.eta_0[counter]/self.ring.alpha_0[0,counter]* \
             self.reference/self.ring.ring_radius
         
         self.rf_params.omega_rf[:,counter] += self.radial_steering_domega_rf* \
@@ -466,7 +466,7 @@ class BeamFeedback(object):
             self.dR_over_R = (self.rf_params.omega_rf[0,counter] - 
                          self.rf_params.omega_rf_d[0,counter])/(
                          self.rf_params.omega_rf_d[0,counter] * 
-                         (1./(self.ring.alpha[0][0]*
+                         (1./(self.ring.alpha_0[0,counter]*
                               self.rf_params.gamma[counter]**2) - 1.))
             
             self.domega_RL = self.domega_RL + self.gain2[0][counter]*(self.dR_over_R - 

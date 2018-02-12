@@ -74,8 +74,8 @@ phi_offset = np.pi
 general_params = Ring(C, momentum_compaction, sync_momentum, 
                                    Proton(), n_turns)
 
-RF_sct_par = RFStation(general_params, n_rf_systems, [harmonic_numbers], 
-                          [voltage_program], [phi_offset])
+RF_sct_par = RFStation(general_params, [harmonic_numbers], 
+                          [voltage_program], [phi_offset], n_rf_systems)
 
 my_beam = Beam(general_params, n_macroparticles, n_particles)
 

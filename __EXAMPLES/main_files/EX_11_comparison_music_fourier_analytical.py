@@ -64,8 +64,8 @@ mode = impSClass.Resonators(R_S, frequency_R, Q)
 general_params = genparClass.Ring(C, alpha, momentum,
                                                beamClass.Proton(), n_turns)
 
-rf_params = rfparClass.RFStation(general_params, n_rf_systems,
-                                           [h_1], [V_1], [phi_1])
+rf_params = rfparClass.RFStation(general_params, [h_1], [V_1],
+                                 [phi_1], n_rf_systems)
 
 # DEFINE FIRST BEAM TO BE USED WITH SLICES (t AND f DOMAINS), AND VOLTAGE CALCULATION
 n_macroparticles = 10000000

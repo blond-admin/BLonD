@@ -74,8 +74,8 @@ n_turns = 1
 general_params = Ring(C, momentum_compaction,
                                    sync_momentum, Proton(), n_turns)
 
-RF_sct_par = RFStation(general_params, n_rf_systems,
-                                 [harmonic_numbers], [voltage_program], [phi_offset])
+RF_sct_par = RFStation(general_params, [harmonic_numbers], [voltage_program],
+                       [phi_offset], n_rf_systems)
 
 bucket_length = 2.0 * np.pi / RF_sct_par.omega_rf[0,0]
 
@@ -162,8 +162,8 @@ harmonic_numbers = [35640.0, 35640.0*2.0]
 voltage_program = [16e6, 8e6]
 phi_offset = [0, 0]
 
-RF_sct_par = RFStation(general_params, n_rf_systems,
-                                 harmonic_numbers, voltage_program, phi_offset)
+RF_sct_par = RFStation(general_params, harmonic_numbers, voltage_program,
+                       phi_offset, n_rf_systems)
 
 longitudinal_tracker = RingAndRFTracker(RF_sct_par,beam)
 full_tracker = FullRingAndRF([longitudinal_tracker])
@@ -191,8 +191,8 @@ harmonic_numbers = [35640.0, 35640.0*2.0]
 voltage_program = [16e6, 8e6]
 phi_offset = [0, np.pi]
 
-RF_sct_par = RFStation(general_params, n_rf_systems,
-                                 harmonic_numbers, voltage_program, phi_offset)
+RF_sct_par = RFStation(general_params, harmonic_numbers, voltage_program,
+                       phi_offset, n_rf_systems)
 
 longitudinal_tracker = RingAndRFTracker(RF_sct_par,beam)
 full_tracker = FullRingAndRF([longitudinal_tracker])
@@ -223,8 +223,8 @@ harmonic_numbers = [35640.0]
 voltage_program = [16e6]
 phi_offset = [0]
 
-RF_sct_par = RFStation(general_params, n_rf_systems,
-                                 harmonic_numbers, voltage_program, phi_offset)
+RF_sct_par = RFStation(general_params, harmonic_numbers, voltage_program,
+                       phi_offset, n_rf_systems)
 
 longitudinal_tracker = RingAndRFTracker(RF_sct_par,beam)
 full_tracker = FullRingAndRF([longitudinal_tracker])

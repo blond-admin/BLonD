@@ -50,7 +50,7 @@ class testRFParamClass(unittest.TestCase):
 
         # Define general parameters
         # --------------------------
-        self.general_params = Ring(N_turn, C, alpha, p, Proton())
+        self.general_params = Ring(C, alpha, p, Proton(), N_turn)
 
 
         # Define beam
@@ -59,7 +59,7 @@ class testRFParamClass(unittest.TestCase):
         
         # Define RF section
         # -----------------
-        self.rf_params = RFStation(self.general_params, 1, [4620], [7e6], [0.])
+        self.rf_params = RFStation(self.general_params, [4620], [7e6], [0.])
 
 
     # Run after every test

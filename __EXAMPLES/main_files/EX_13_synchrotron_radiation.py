@@ -79,13 +79,13 @@ n_sections = 2
 general_params = Ring(np.ones(n_sections) * C/n_sections,
                                np.tile(momentum_compaction,(1,n_sections)).T,
                                np.tile(sync_momentum,(n_sections, n_turns+1)),
-                               particle_type, n_turns, n_stations = n_sections)
+                               particle_type, n_turns, n_sections = n_sections)
 
 RF_sct_par = []
 for i in np.arange(n_sections)+1:
-    RF_sct_par.append(RFStation(general_params, n_rf_systems,
+    RF_sct_par.append(RFStation(general_params,
                 [harmonic_numbers], [voltage_program/n_sections],
-                [phi_offset], section_index=i) )
+                [phi_offset], n_rf_systems, section_index=i) )
 
 # DEFINE BEAM------------------------------------------------------------------
 
@@ -216,13 +216,13 @@ n_sections = 10
 general_params = Ring(np.ones(n_sections) * C/n_sections,
                                np.tile(momentum_compaction,(1,n_sections)).T,
                                np.tile(sync_momentum,(n_sections, n_turns+1)),
-                               particle_type, n_turns, n_stations=n_sections)
+                               particle_type, n_turns, n_sections=n_sections)
 
 RF_sct_par = []
 for i in np.arange(n_sections)+1:
-    RF_sct_par.append(RFStation(general_params, n_rf_systems,
+    RF_sct_par.append(RFStation(general_params,
                   [harmonic_numbers], [voltage_program/n_sections],
-                  [phi_offset], section_index=i) )
+                  [phi_offset], n_rf_systems, section_index=i) )
 
 # DEFINE BEAM------------------------------------------------------------------
 
