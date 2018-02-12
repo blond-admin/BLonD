@@ -274,7 +274,7 @@ class RFStation(object):
                 self.n_turns,
                 self.n_rf,
                 Ring.cycle_time,
-                Ring.RampOptions.t_start)
+                Ring.RingOptions.t_start)
 
         # Reshape phase noise
         if phi_noise is not None:
@@ -283,7 +283,7 @@ class RFStation(object):
                 self.n_turns,
                 self.n_rf,
                 Ring.cycle_time,
-                Ring.RampOptions.t_start)
+                Ring.RingOptions.t_start)
         else:
             self.phi_noise = None
 
