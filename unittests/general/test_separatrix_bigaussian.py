@@ -20,7 +20,7 @@ import unittest
 import numpy as np
 
 from input_parameters.ring import Ring
-from input_parameters.rf_parameters import RFStation
+from input_parameters.rf_parameters import RFStation, calculate_phi_s
 from beam.beam import Beam, Proton
 from beam.distributions import bigaussian
 from beam.profile import Profile, CutOptions
@@ -72,9 +72,11 @@ class TestSeparatrixBigaussian(unittest.TestCase):
         
             if singleRF == True:
                 rf_params = RFStation(general_params, 9, 1.8e6, np.pi+1.,
-                                      n_rf=1, accelerating_systems='as_single')
+                                      n_rf=1)
             elif singleRF == False:
-                rf_params = RFStation(general_params, h, V, phi_1, n_rf=2,
+                rf_params = RFStation(general_params, h, V, phi_1, n_rf=2)
+                rf_params.phi_s = calculate_phi_s(
+                    rf_params, Particle=general_params.Particle,
                     accelerating_systems='all')
         
         elif( negativeEta == False ): 
@@ -89,11 +91,12 @@ class TestSeparatrixBigaussian(unittest.TestCase):
                     np.linspace(p_2f, p_2i, N_t + 1), Proton(), N_t)
                 
             if singleRF == True:
-                rf_params = RFStation(general_params, 9, 1.8e6, 1., n_rf=1, 
-                                      accelerating_systems = 'as_single')
+                rf_params = RFStation(general_params, 9, 1.8e6, 1., n_rf=1)
             elif singleRF == False:
-                rf_params = RFStation(general_params, h, V, phi_2, n_rf=2,
-                    accelerating_systems = 'all')
+                rf_params = RFStation(general_params, h, V, phi_2, n_rf=2)
+                rf_params.phi_s = calculate_phi_s(
+                    rf_params, Particle=general_params.Particle,
+                    accelerating_systems='all')
 
         # Define beam and distribution
         beam = Beam(general_params, N_p, N_b)
