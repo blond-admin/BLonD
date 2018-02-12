@@ -72,7 +72,7 @@ class RFStation(object):
         specifies after which section the rf station is located (to get the
         right momentum program etc.). Value should be in the range
         1..Ring.n_sections
-    fixed_omega_rf : float (opt: float array/matrix)
+    omega_rf : float (opt: float array/matrix)
         Optional, Sets the rf angular frequency program that does not follow
         the harmonic condition. For input options, see above.
     phi_noise : float (opt: float array/matrix)
@@ -201,7 +201,7 @@ class RFStation(object):
     """
 
     def __init__(self, Ring, harmonic, voltage, phi_rf_d, n_rf=1,
-                 section_index=1, fixed_omega_rf=None, phi_noise=None,
+                 section_index=1, omega_rf=None, phi_noise=None,
                  RFStationOptions=RFStationOptions()):
 
         # Different indices
@@ -265,12 +265,12 @@ class RFStation(object):
                                                       Ring.RingOptions.t_start)
 
         # Calculating design rf angular frequency
-        if fixed_omega_rf is None:
+        if omega_rf is None:
             self.omega_rf_d = 2.*np.pi*self.beta*c*self.harmonic / \
                 (self.ring_circumference)
         else:
             self.omega_rf_d = RFStationOptions.reshape_data(
-                fixed_omega_rf,
+                omega_rf,
                 self.n_turns,
                 self.n_rf,
                 Ring.cycle_time,
