@@ -202,7 +202,6 @@ class RFStation(object):
 
     def __init__(self, Ring, harmonic, voltage, phi_rf_d, n_rf=1,
                  section_index=1, fixed_omega_rf=None, phi_noise=None,
-                 accelerating_systems='as_single',
                  RFStationOptions=RFStationOptions()):
 
         # Different indices
@@ -296,8 +295,7 @@ class RFStation(object):
         self.t_rf = 2*np.pi / self.omega_rf
 
         # From helper functions
-        self.phi_s = calculate_phi_s(self, self.Particle,
-                                     accelerating_systems)
+        self.phi_s = calculate_phi_s(self, self.Particle)
         self.Q_s = calculate_Q_s(self, self.Particle)
         self.omega_s0 = self.Q_s*Ring.omega_rev
 
