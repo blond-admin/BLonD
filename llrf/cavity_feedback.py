@@ -55,10 +55,14 @@ class SPSCavityFeedback(object):
         A Beam type class
     Profile : class
         A Profile type class
-    G_tx_4 : float
-        Transmitter gain [1] of the 4-section cavity feedback; default is 10
-    G_tx_5 : float
-        Transmitter gain [1] of the 5-section cavity feedback; default is 10
+    G_llrf : float or list
+        LLRF Gain [1]; if passed as a float, both 4- and 5-section cavities 
+        have the same G_llrf; if passed as a list, the first and second
+        elements correspond to the G_llrf of the 4- and 5-section cavity
+        feedback; default is 10
+    G_tx : float or list
+        Transmitter gain [1] of the cavity feedback; convention same as G_llrf;
+        default is 0.5
     open_loop : int(bool)
         Open (0) or closed (1) feedback loop; default is 1
 
@@ -85,17 +89,35 @@ class SPSCavityFeedback(object):
 
         # Options for commissioning the feedback
         self.Commissioning = Commissioning
+        
         self.rf = RFStation
-
+        
+        # Parse input for G_llrf
+        if type(G_llrf) is list:
+            G_llrf_4 = G_llrf[0]
+            G_llrf_5 = G_llrf[1]
+        else:
+            G_llrf_4 = G_llrf
+            G_llrf_5 = G_llrf
+            
+        if type(G_tx) is list:
+            G_tx_4 = G_tx[0]
+            G_tx_5 = G_tx[1]
+        else:
+            G_tx_4 = G_tx
+            G_tx_5 = G_tx
+        
         # Voltage partition proportional to the number of sections
         self.OTFB_4 = SPSOneTurnFeedback(RFStation, Beam, Profile, 4,
                                          n_cavities=2, V_part=4/9,
-                                         G_llrf=float(G_llrf), G_tx=float(G_tx),
+                                         G_llrf=float(G_llrf_4),
+                                         G_tx=float(G_tx_4),
                                          a_comb=float(a_comb),
                                          Commissioning=self.Commissioning)
         self.OTFB_5 = SPSOneTurnFeedback(RFStation, Beam, Profile, 5,
                                          n_cavities=2, V_part=5/9,
-                                         G_llrf=float(G_llrf), G_tx=float(G_tx),
+                                         G_llrf=float(G_llrf_5),
+                                         G_tx=float(G_tx_5),
                                          a_comb=float(a_comb),
                                          Commissioning=self.Commissioning)
 
@@ -121,11 +143,13 @@ class SPSCavityFeedback(object):
         self.V_corr, self.phi_corr = cartesian_to_polar(self.V_sum)
 
         self.V_corr /= self.rf.voltage[0,self.rf.counter[0]]
-#        self.phi_corr -= self.rf.phi_rf[0,self.rf.counter[0]] - 0.5*np.pi
         self.phi_corr -= -self.rf.phi_rf[0,self.rf.counter[0]] + 0.5*np.pi
 
 
     def track_init(self, debug=False):
+        
+        r''' Tracking of the SPSCavityFeedback without beam.
+        '''
         
 #        cmap = plt.get_cmap('jet')
 #        colors = cmap(np.linspace(0,1, self.turns))        
@@ -270,7 +294,6 @@ class SPSOneTurnFeedback(object):
         self.V_fine_tot = np.zeros(self.profile.n_slices, dtype=complex)
         
         # Length of arrays in LLRF
-#        self.n_coarse = int(self.rf.t_rev[0]/self.profile.bin_size)
         self.n_coarse = int(self.rf.harmonic[0,0])
         
         # Array to hold the bucket-by-bucket voltage with LENGTH OF LLRF
@@ -280,17 +303,14 @@ class SPSOneTurnFeedback(object):
         self.rf_centers = (np.arange(self.n_coarse) + 0.5) * self.rf.t_rf[0]
                 
         # TODO: Bin size can change! Update affected variables!!
-        self.logger.debug("Length of arrays in generator path %d", self.n_coarse)
+        self.logger.debug("Length of arrays in generator path %d",
+                          self.n_coarse)
 
         # Initialise comb filter
         self.dV_gen_prev = np.zeros(self.n_coarse, dtype=complex)
         self.a_comb = float(a_comb)
 
         # Initialise cavity filter (moving average)
-#        self.n_mov_av = int(self.TWC.tau/self.profile.bin_size)
-#        self.n_mov_av = int(self.TWC.tau/(self.slices_per_n_coarse
-#                                          * self.profile.bin_size))
-#        self.n_mov_av = int(self.TWC.tau/self.profile_coarse.bin_size)
         self.n_mov_av = int(self.TWC.tau/self.rf.t_rf[0])
         self.logger.debug("Moving average over %d points", self.n_mov_av)
         # TODO: update condition for new n_mov_av
@@ -315,8 +335,6 @@ class SPSOneTurnFeedback(object):
         # Present carrier frequency: main RF frequency
         self.omega_c = self.rf.omega_rf[0, self.counter]
         # Present delay time
-#        self.n_delay = int((self.rf.t_rev[0] - self.TWC.tau)
-#                           / self.profile.bin_size)
         self.n_delay = int((self.rf.t_rev[self.counter] - self.TWC.tau)
                            / self.rf.t_rf[self.counter])
 
@@ -332,12 +350,10 @@ class SPSOneTurnFeedback(object):
 
         # Beam-induced voltage from beam profile
         self.beam_induced_voltage(lpf=False)
-#        self.beam_induced_voltage_fine(lpf=False)
-#        self.V_fine_tmp = -self.n_cavities\
-#            * self.beam_induced_voltage_semiAnalytic()
         
-        # Sum and generator- and beam-induced voltages for both grids
+        # Sum and generator- and beam-induced voltages for coarse grid
         self.V_coarse_tot = self.V_coarse_ind_gen + self.V_coarse_ind_beam
+        # Obtain generator-induced voltage on the fine grid by interpolation
         self.V_fine_tot = self.V_fine_ind_beam \
                     + np.interp(self.profile.bin_centers,
                                 self.rf_centers, self.V_coarse_ind_gen)
@@ -352,8 +368,6 @@ class SPSOneTurnFeedback(object):
         # Present delay time
         self.n_delay = int((self.rf.t_rev[self.counter] - self.TWC.tau)
                            / self.rf.t_rf[self.counter])
-#        self.n_delay = int((self.rf.t_rev[0] - self.TWC.tau)
-#                           / self.profile.bin_size)
 
         # Update the impulse response at present carrier frequency
         self.TWC.impulse_response_gen(self.omega_c, self.rf_centers)
@@ -377,7 +391,8 @@ class SPSOneTurnFeedback(object):
                                     self.V_coarse_ind_gen)
         
         self.logger.debug("Average generator voltage, last half of array %.3e V",
-                          np.mean(np.absolute(self.V_coarse_ind_gen[int(0.5*self.n_coarse):])))
+                          np.mean(np.absolute(self.V_coarse_ind_gen[\
+                                                    int(0.5*self.n_coarse):])))
         
     
     def llrf_model(self):
@@ -399,7 +414,6 @@ class SPSOneTurnFeedback(object):
         self.V_set = polar_to_cartesian(self.V_part \
                                         * self.rf.voltage[0,self.counter],
                                         0.5*np.pi - self.rf.phi_rf[0,self.counter])
-#                                        self.rf.phi_rf[0,self.counter] + 0.5*np.pi)
             
 
         # Convert to array
@@ -432,12 +446,9 @@ class SPSOneTurnFeedback(object):
         
         # Cavity filter: CIRCULAR moving average over filling time
         # Memorize last points of previous turn for beginning of next turn
-#        self.V_gen = moving_average(self.V_gen, self.n_mov_av,
-#                        x_prev=self.dV_mov_av_prev[-self.n_delay-self.n_mov_av:\
-#                                                  -self.n_delay])
         self.dV_gen = moving_average(self.dV_gen, self.n_mov_av,
-                        x_prev=self.dV_mov_av_prev[-self.n_delay-self.n_mov_av+1:\
-                                                  -self.n_delay])
+             x_prev=self.dV_mov_av_prev[-self.n_delay-self.n_mov_av+1\
+                                        :-self.n_delay])
             
         self.dV_mov_av_prev = np.copy(dV_gen_in)
 
@@ -461,13 +472,11 @@ class SPSOneTurnFeedback(object):
         """
         
         # Add correction to the drive already existing
-#        self.V_gen = self.open_FB*modulator(self.dV_gen, self.omega_r,
-#            self.omega_c, self.profile.bin_size) + self.open_drive*self.V_set
-        self.V_gen = self.open_FB*modulator(self.dV_gen, self.omega_r,
-            self.omega_c, self.rf.t_rf[self.counter]) + self.open_drive*self.V_set
+        self.V_gen = self.open_FB * modulator(self.dV_gen, self.omega_r,
+            self.omega_c, self.rf.t_rf[self.counter]) \
+                  + self.open_drive*self.V_set
 
         # Generator charge from voltage, transmitter model
-#        self.I_gen = self.G_tx*self.V_gen/self.TWC.R_gen*self.profile.bin_size
         self.I_gen = self.G_tx*self.V_gen/self.TWC.R_gen*self.rf.t_rf[self.counter]
 
         # Circular convolution: attach last points of previous turn
@@ -496,7 +505,7 @@ class SPSOneTurnFeedback(object):
         :math:`h(t)*x(t) = \int d\tau h(\tau)x(t-\tau)`. If the carrier
         frequency is close to the cavity resonant frequency, :math:`h_c = 0`.
 
-        :seealso: :py:class:`llrf.impulse_response.TravellingWaveCavity`
+        :see also: :py:class:`llrf.impulse_response.TravellingWaveCavity`
 
         The impulse response is made to be the same length as the beam profile.
 
@@ -547,7 +556,7 @@ class SPSOneTurnFeedback(object):
         # Beam current from profile
         self.I_beam = rf_beam_current(self.profile, self.omega_c,
                                       self.rf.t_rev[self.counter], lpf=lpf)
-        # TODO: why factor 0.5? why factor 2 in rf_beam_current?
+        
         # Beam-induced voltage
         self.induced_voltage('beam')
         
@@ -569,6 +578,8 @@ class SPSOneTurnFeedback(object):
             Factor that is used to compute the beam-induced voltage
         """
         
+        self.logger.info("Pre-computing semi-analytic factor")
+        
         n_slices_per_bucket = 20
         
         n_buckets = int(np.round(
@@ -581,7 +592,7 @@ class SPSOneTurnFeedback(object):
                 n_slices = n_buckets*n_slices_per_bucket))
         
         # pre-factor [Ohm s]
-        #TODO understand factor 2
+        
         pre_factor = 2*self.TWC.R_beam / self.TWC.tau**2 / self.omega_r**3
         
         # Matrix of time differences [1]
