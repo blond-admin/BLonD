@@ -29,12 +29,10 @@ class TestBeamCurrent(unittest.TestCase):
     def test(self):
         
         # Set up SPS conditions
-        ring = Ring(2*np.pi*1100.009, 1/18**2, 25.92e9,
-                    Proton(), 1000)
+        ring = Ring(2*np.pi*1100.009, 1/18**2, 25.92e9, Proton(), 1000)
         RF = RFStation(ring, 4620, 4.5e6, 0)
         beam = Beam(ring, 1e5, 1e11)
-        bigaussian(ring, RF, beam, 3.2e-9/4, seed = 1234,
-                   reinsertion = True) 
+        bigaussian(ring, RF, beam, 3.2e-9/4, seed = 1234, reinsertion = True) 
         profile = Profile(beam, CutOptions(cut_left=-1.e-9, cut_right=6.e-9, 
                                            n_slices=100))
         profile.track()
@@ -42,7 +40,8 @@ class TestBeamCurrent(unittest.TestCase):
             " TestBeamCurrent: particle number mismatch in Beam vs Profile")
         
         # RF current calculation with low-pass filter
-        rf_current = rf_beam_current(profile, 2*np.pi*200.222e6, ring.t_rev[0])
+        rf_current = rf_beam_current(profile, 2*np.pi*200.222e6, ring.t_rev[0],
+                                     lpf=False)
         Iref_real = np.array([ -9.4646042539e-12,  -7.9596801534e-10,  
             -2.6993572787e-10,
             2.3790828610e-09,   6.4007063190e-09,   9.5444302650e-09,

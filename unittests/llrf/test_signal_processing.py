@@ -20,6 +20,14 @@ from llrf.signal_processing import polar_to_cartesian, cartesian_to_polar
 from llrf.signal_processing import comb_filter, low_pass_filter
 from llrf.signal_processing import rf_beam_current
 
+from input_parameters.ring import Ring
+from beam.beam import Beam, Proton
+from beam.profile import Profile, CutOptions
+
+from scipy.constants import e
+
+from beam.distributions import bigaussian
+from input_parameters.rf_parameters import RFStation
 
 class TestIQ(unittest.TestCase):
 
@@ -146,9 +154,6 @@ class TestModulator(unittest.TestCase):
 class TestRFCurrent(unittest.TestCase):
 
     def setUp(self):
-        from input_parameters.ring import Ring
-        from beam.beam import Beam, Proton
-        from beam.profile import Profile, CutOptions
 
         C = 2*np.pi*1100.009        # Ring circumference [m]
         gamma_t = 18.0              # Gamma at transition
@@ -159,44 +164,139 @@ class TestRFCurrent(unittest.TestCase):
         N_b = 1.0e11                # Bunch intensity [ppb]
 
         # Set up machine parameters
-        ring = Ring(C, alpha, p_s, Proton(), n_turns=1)
-        self.t_rev = ring.t_rev[0]
-
+        self.ring = Ring(C, alpha, p_s, Proton(), n_turns=1)
+        
+        # RF-frequency at which to compute beam current
+        self.omega = 2*np.pi*200.222e6
+        
         # Create Gaussian beam
-        self.beam = Beam(ring, N_m, N_b)
-        self.profile = Profile(self.beam,
-                               CutOptions=CutOptions(cut_left=-1.e-9,
-                                                 cut_right=6.e-9, n_slices=140))
-
-        self.t = self.profile.bin_centers
-        self.profile.n_macroparticles \
-            = 2600*np.exp(-(self.t-2.5e-9)**2 / (2*0.5e-9)**2)
+        self.beam = Beam(self.ring, N_m, N_b)
+        self.profile = Profile(
+                self.beam, CutOptions=CutOptions(cut_left=-1.e-9, n_slices=100,
+                                                 cut_right=6.e-9))
 
     def test_1(self):
-        from scipy.constants import e
 
-        omega = 2*np.pi*200.222e6
+        t = self.profile.bin_centers
+        self.profile.n_macroparticles \
+            = 2600*np.exp(-(t-2.5e-9)**2 / (2*0.5e-9)**2)
 
-        rf_current = rf_beam_current(self.profile, omega, self.t_rev,
-                                     lpf=False)
+        rf_current = rf_beam_current(self.profile, self.omega,
+                                     self.ring.t_rev[0], lpf=False)
 
         rf_current_real = np.around(rf_current.real, 12)
         rf_current_imag = np.around(rf_current.imag, 12)
 
         rf_theo_real = 2*self.beam.ratio*self.profile.Beam.Particle.charge*e\
-            * 2600*np.exp(-(self.t-2.5e-9)**2/(2*0.5*1e-9)**2)\
-            * np.cos(omega*self.t)
+            * 2600*np.exp(-(t-2.5e-9)**2/(2*0.5*1e-9)**2)\
+            * np.cos(self.omega*t)
         rf_theo_real = np.around(rf_theo_real, 12)
 
         rf_theo_imag = 2*self.beam.ratio*self.profile.Beam.Particle.charge*e\
-            * 2600*np.exp(-(self.t-2.5e-9)**2/(2*0.5*1e-9)**2)\
-            * np.sin(omega*self.t)
+            * 2600*np.exp(-(t-2.5e-9)**2/(2*0.5*1e-9)**2)\
+            * np.sin(self.omega*t)
         rf_theo_imag = np.around(rf_theo_imag, 12)
 
         self.assertListEqual(rf_current_real.tolist(), rf_theo_real.tolist(),
-            msg="In TestRfCurrent test_1, real part not correct")
+            msg="In TestRfCurrent test_1, mismatch in real part of RF current")
         self.assertListEqual(rf_current_imag.tolist(), rf_theo_imag.tolist(),
-            msg="In TestRfCurrent test_1, imaginary part not correct")
+            msg="In TestRfCurrent test_1, mismatch in real part of RF current")
+
+    def test_2(self):
+        
+        RF = RFStation(self.ring, 4620, 4.5e6, 0)
+
+        bigaussian(self.ring, RF, self.beam, 3.2e-9/4, seed = 1234,
+                   reinsertion = True)
+        self.profile.track()
+        
+        rf_current = rf_beam_current(self.profile, self.omega,
+                                     self.ring.t_rev[0], lpf=False)
+
+        Iref_real = np.array(
+                [0.00000000e+00, 0.00000000e+00, 0.00000000e+00,
+                 0.00000000e+00, 4.17276535e-13, 4.58438681e-13,
+                 2.48023976e-13, 5.29812878e-13, 2.79735891e-13,
+                 0.00000000e+00, 1.21117141e-12, 9.32525023e-13,
+                 3.16481489e-13, 6.39337176e-13, 0.00000000e+00,
+                 0.00000000e+00, 4.08671434e-12, 4.92294314e-12,
+                 6.56965575e-12, 1.06279981e-11, 1.36819774e-11,
+                 2.16648778e-11, 3.09847740e-11, 3.52971849e-11,
+                 4.70378842e-11, 4.53538351e-11, 4.87255679e-11,
+                 5.36705228e-11, 5.13609263e-11, 4.32833543e-11,
+                 3.41417624e-11, 1.57452091e-11, -1.09005668e-11,
+                 -4.60465929e-11, -9.12872553e-11, -1.48257171e-10,
+                 -2.08540597e-10, -2.77630608e-10, -3.72157667e-10,
+                 -4.56272786e-10, -5.57978710e-10, -6.46554672e-10,
+                 -7.48006839e-10, -8.21493943e-10, -9.37522966e-10,
+                 -1.03729659e-09, -1.06159943e-09, -1.08434837e-09,
+                 -1.15738771e-09, -1.17887328e-09, -1.17146946e-09,
+                 -1.10964397e-09, -1.10234198e-09, -1.08852433e-09,
+                 -9.85866185e-10, -9.11727492e-10, -8.25604179e-10,
+                 -7.34122902e-10, -6.47294094e-10, -5.30372699e-10,
+                 -4.40357820e-10, -3.61273445e-10, -2.76871612e-10,
+                 -2.02227691e-10, -1.45430219e-10, -8.88675652e-11,
+                 -4.28984525e-11, -8.85451321e-12,  1.79026289e-11,
+                 3.48384211e-11,  4.50190278e-11, 5.62413467e-11,
+                 5.27322593e-11,  4.98163111e-11, 4.83288193e-11,
+                 4.18200848e-11,  3.13334266e-11, 2.44082106e-11,
+                 2.12572803e-11,  1.37397871e-11, 1.00879346e-11,
+                 7.78502206e-12,  4.00790815e-12, 2.51830412e-12,
+                 1.91301488e-12,  0.00000000e+00, 9.58518921e-13,
+                 3.16123806e-13,  1.24116545e-12, 1.20821671e-12,
+                 5.82952178e-13,  8.35917228e-13, 5.27285250e-13,
+                 4.93205915e-13,  0.00000000e+00, 2.06937011e-13,
+                 1.84618141e-13,  1.60868490e-13, 0.00000000e+00,
+                 1.09822742e-13])
+        
+        I_real = np.around(rf_current.real, 14) # round
+        Iref_real = np.around(Iref_real, 14)
+        
+        self.assertSequenceEqual(I_real.tolist(), Iref_real.tolist(),
+            msg="In TestRFCurrent test_2, mismatch in real part of RF current")
+        
+        Iref_imag = np.array([
+                0.00000000e+00,   0.00000000e+00,   0.00000000e+00,
+                0.00000000e+00,  -4.86410815e-13,  -4.47827158e-13,
+                -2.02886432e-13,  -3.60573852e-13,  -1.56290206e-13,
+                0.00000000e+00,  -4.19433613e-13,  -2.33465744e-13,
+                -5.01823105e-14,  -4.43075921e-14,   0.00000000e+00,
+                0.00000000e+00,   8.07144709e-13,   1.43192280e-12,
+                2.55659168e-12,   5.25480064e-12,   8.33669524e-12,
+                1.59729353e-11,   2.73609511e-11,   3.71844853e-11,
+                5.92134758e-11,   6.87376280e-11,   9.02226570e-11,
+                1.24465616e-10,   1.55478762e-10,   1.84035433e-10,
+                2.37241518e-10,   2.86677989e-10,   3.28265272e-10,
+                3.77882012e-10,   4.29727720e-10,   4.83759029e-10,
+                5.13978173e-10,   5.41841031e-10,   5.91537968e-10,
+                6.00658643e-10,   6.13928028e-10,   5.96367636e-10,
+                5.76920099e-10,   5.25297875e-10,   4.89104065e-10,
+                4.29776324e-10,   3.33901906e-10,   2.38690921e-10,
+                1.49673305e-10,   4.78223853e-11,  -5.57081558e-11,
+                -1.51374774e-10,  -2.50724894e-10,  -3.50731761e-10,
+                -4.16547058e-10,  -4.83765618e-10,  -5.36075032e-10,
+                -5.74421794e-10,  -6.05459147e-10,  -5.91794283e-10,
+                -5.88179055e-10,  -5.83222843e-10,  -5.49774151e-10,
+                -5.08571646e-10,  -4.86623358e-10,  -4.33179012e-10,
+                -3.73737133e-10,  -3.37622742e-10,  -2.89119788e-10,
+                -2.30660798e-10,  -1.85597518e-10,  -1.66348322e-10,
+                -1.19981335e-10,  -9.07232680e-11,  -7.21467862e-11,
+                -5.18977454e-11,  -3.25510912e-11,  -2.12524272e-11,
+                -1.54447488e-11,  -8.24107056e-12,  -4.90052047e-12,
+                -2.96720377e-12,  -1.13551262e-12,  -4.79152734e-13,
+                -1.91861296e-13,   0.00000000e+00,   7.31481456e-14,
+                5.23883203e-14,   3.19951675e-13,   4.27870459e-13,
+                2.66236636e-13,   4.74712082e-13,   3.64260145e-13,
+                4.09222572e-13,   0.00000000e+00,   2.44654594e-13,
+                2.61906356e-13,   2.77128356e-13,   0.00000000e+00,
+                3.01027843e-13])
+        
+        I_imag = np.around(rf_current.imag, 14) # round
+        Iref_imag = np.around(Iref_imag, 14)
+        
+        self.assertSequenceEqual(I_imag.tolist(), Iref_imag.tolist(),
+            msg="In TestRFCurrent test_2, mismatch in imaginary part of"
+            + " RF current")
 
 
 class TestComb(unittest.TestCase):

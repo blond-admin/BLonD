@@ -136,14 +136,15 @@ class SPSCavityFeedback(object):
 
         self.OTFB_4.track()
         self.OTFB_5.track()
-        self.V_sum = -(self.OTFB_4.V_fine_tot
-                       + self.OTFB_5.V_fine_tot).conjugate()
+
+        self.V_sum = self.OTFB_4.V_fine_tot + self.OTFB_5.V_fine_tot
+
+        self.V_corr, alpha_sum = cartesian_to_polar(self.V_sum)
 
         # Calculate OTFB correction w.r.t. RF voltage and phase in RFStation
-        self.V_corr, self.phi_corr = cartesian_to_polar(self.V_sum)
-
         self.V_corr /= self.rf.voltage[0, self.rf.counter[0]]
-        self.phi_corr -= -self.rf.phi_rf[0, self.rf.counter[0]] + 0.5*np.pi
+        self.phi_corr = 0.5*np.pi - alpha_sum \
+            - self.rf.phi_rf[0, self.rf.counter[0]]
 
     def track_init(self, debug=False):
 
@@ -168,13 +169,17 @@ class SPSCavityFeedback(object):
 #                      linestyle='', marker='.')
             self.OTFB_5.track_no_beam()
 
-        self.V_sum = -(self.OTFB_4.V_fine_tot
-                       + self.OTFB_5.V_fine_tot).conjugate()
-        self.V_corr, self.phi_corr = cartesian_to_polar(self.V_sum)
+        # Interpolate from the coarse mesh to the fine mesh of the beam
+        self.V_sum = np.interp(
+                self.OTFB_4.profile.bin_centers, self.OTFB_4.rf_centers,
+                self.OTFB_4.V_coarse_ind_gen + self.OTFB_5.V_coarse_ind_gen)
 
+        self.V_corr, alpha_sum = cartesian_to_polar(self.V_sum)
+
+        # Calculate OTFB correction w.r.t. RF voltage and phase in RFStation
         self.V_corr /= self.rf.voltage[0, self.rf.counter[0]]
-
-        self.phi_corr -= -self.rf.phi_rf[0, self.rf.counter[0]] + 0.5*np.pi
+        self.phi_corr = 0.5*np.pi - alpha_sum \
+            - self.rf.phi_rf[0, self.rf.counter[0]]
 
 
 class SPSOneTurnFeedback(object):
@@ -299,7 +304,7 @@ class SPSOneTurnFeedback(object):
         self.V_coarse_tot = np.zeros(self.n_coarse, dtype=complex)
 
         # Centers of the RF-buckets
-        self.rf_centers = (np.arange(self.n_coarse) + 0.5) * self.rf.t_rf[0]
+        self.rf_centers = (np.arange(self.n_coarse) + 0.5) * self.rf.t_rf[0, 0]
 
         # TODO: Bin size can change! Update affected variables!!
         self.logger.debug("Length of arrays in generator path %d",
@@ -310,7 +315,7 @@ class SPSOneTurnFeedback(object):
         self.a_comb = float(a_comb)
 
         # Initialise cavity filter (moving average)
-        self.n_mov_av = int(self.TWC.tau/self.rf.t_rf[0])
+        self.n_mov_av = int(self.TWC.tau/self.rf.t_rf[0, 0])
         self.logger.debug("Moving average over %d points", self.n_mov_av)
         # TODO: update condition for new n_mov_av
         if self.n_mov_av < 2:
@@ -335,7 +340,7 @@ class SPSOneTurnFeedback(object):
         self.omega_c = self.rf.omega_rf[0, self.counter]
         # Present delay time
         self.n_delay = int((self.rf.t_rev[self.counter] - self.TWC.tau)
-                           / self.rf.t_rf[self.counter])
+                           / self.rf.t_rf[0, self.counter])
 
         # Update the impulse response at present carrier frequency
         self.TWC.impulse_response_gen(self.omega_c, self.rf_centers)
@@ -366,7 +371,7 @@ class SPSOneTurnFeedback(object):
         self.omega_c = self.rf.omega_rf[0, self.counter]
         # Present delay time
         self.n_delay = int((self.rf.t_rev[self.counter] - self.TWC.tau)
-                           / self.rf.t_rf[self.counter])
+                           / self.rf.t_rf[0, self.counter])
 
         # Update the impulse response at present carrier frequency
         self.TWC.impulse_response_gen(self.omega_c, self.rf_centers)
@@ -384,11 +389,6 @@ class SPSOneTurnFeedback(object):
 
         # Without beam, total voltage equals generator-induced voltage
         self.V_coarse_tot = self.V_coarse_ind_gen
-
-        # TODO: this is not really necessary for pre-track
-        # Interpolate from the coarse mesh to the fine mesh of the beam
-        self.V_fine_tot = np.interp(self.profile.bin_centers, self.rf_centers,
-                                    self.V_coarse_ind_gen)
 
         self.logger.debug(
             "Average generator voltage, last half of array %.3e V",
@@ -435,7 +435,7 @@ class SPSOneTurnFeedback(object):
 
         # Modulate from omega_rf to omega_r
         self.dV_gen = modulator(self.dV_gen, self.omega_c, self.omega_r,
-                                self.rf.t_rf[self.counter])
+                                self.rf.t_rf[0, self.counter])
 
         # Shift signals with the delay time
         dV_gen_in = np.copy(self.dV_gen)
@@ -473,12 +473,12 @@ class SPSOneTurnFeedback(object):
         # Add correction to the drive already existing
         self.V_gen = self.open_FB * modulator(self.dV_gen, self.omega_r,
                                               self.omega_c,
-                                              self.rf.t_rf[self.counter]) \
-                                              + self.open_drive*self.V_set
+                                              self.rf.t_rf[0, self.counter]) \
+                    + self.open_drive*self.V_set
 
         # Generator charge from voltage, transmitter model
         self.I_gen = self.G_tx*self.V_gen\
-            / self.TWC.R_gen*self.rf.t_rf[self.counter]
+            / self.TWC.R_gen*self.rf.t_rf[0, self.counter]
 
         # Circular convolution: attach last points of previous turn
         self.I_gen = np.concatenate((self.I_gen_prev, self.I_gen))
@@ -586,7 +586,7 @@ class SPSOneTurnFeedback(object):
 
         n_buckets = int(np.round(
                 (self.profile.cut_right - self.profile.cut_left)
-                / self.rf.t_rf[0]))
+                / self.rf.t_rf[0, 0]))
 
         self.profile_coarse = Profile(self.beam, CutOptions=CutOptions(
                 cut_left=self.profile.cut_left,
@@ -615,7 +615,7 @@ class SPSOneTurnFeedback(object):
         tmp = (-2j - dt1 + self.TWC.tau*self.omega_r
                + (2j - dt1 + self.TWC.tau*self.omega_r) * np.exp(-1j * dt1))\
                * np.sign(dt1) \
-            - ((2j - dt1 + self.TWC.tau * self.omega_r) * np.exp(-1j * dt1) 
+            - ((2j - dt1 + self.TWC.tau * self.omega_r) * np.exp(-1j * dt1)
                + (-2j - dt1 + self.TWC.tau * self.omega_r) * phase) \
                * np.sign(dt1 - self.TWC.tau * self.omega_r) \
             - (2 - 1j*dt1) * self.TWC.tau * self.TWC.omega_r * np.sign(dt1)

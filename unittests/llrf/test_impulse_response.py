@@ -131,9 +131,9 @@ class TestTravelingWaveCavity(unittest.TestCase):
         gamma_t = 18.0              # Gamma at transition
         alpha = 1/gamma_t**2        # Momentum compaction factor
         p_s = 25.92e9               # Synchronous momentum at injection [eV]
-        h = [4620]                  # 200 MHz system harmonic
-        V = [4.5e6]                 # 200 MHz RF voltage
-        phi = [0.]                  # 200 MHz RF phase
+        h = 4620                    # 200 MHz system harmonic
+        V = 4.5e6                   # 200 MHz RF voltage
+        phi = 0.                    # 200 MHz RF phase
 
         # Beam and tracking parameters
         N_m = 1e5                   # Number of macro-particles for tracking
@@ -141,15 +141,15 @@ class TestTravelingWaveCavity(unittest.TestCase):
         N_t = 1                  # Number of turns to track
 
         ring = Ring(C, alpha, p_s, Proton(), n_turns=N_t)
-        rf = RFStation(ring, 1, h, V, phi)
+        rf = RFStation(ring, h, V, phi)
         beam = Beam(ring, N_m, N_b)
         bigaussian(ring, rf, beam, 3.2e-9/4, seed=1234, reinsertion=True)
 
         n_shift = 5     # how many rf-buckets to shift beam
-        beam.dt += n_shift * rf.t_rf[0]
+        beam.dt += n_shift * rf.t_rf[0,0]
         profile = Profile(beam, CutOptions=
-                          CutOptions(cut_left=(n_shift-1.5)*rf.t_rf[0],
-                                     cut_right=(n_shift+1.5)*rf.t_rf[0],
+                          CutOptions(cut_left=(n_shift-1.5)*rf.t_rf[0,0],
+                                     cut_right=(n_shift+1.5)*rf.t_rf[0,0],
                                      n_slices=140))
         profile.track()
 
