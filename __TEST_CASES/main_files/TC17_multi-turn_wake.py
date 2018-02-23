@@ -31,7 +31,12 @@ from impedances.impedance import InducedVoltageFreq, InducedVoltageTime
 from impedances.impedance import TotalInducedVoltage
 from impedances.impedance_sources import Resonators
 from scipy.constants import c, e, m_p
+import os
 
+try:
+    os.mkdir('../output_files/TC_17_fig')
+except:
+    pass
 
 # SIMULATION PARAMETERS -------------------------------------------------------
 
@@ -161,7 +166,7 @@ for i in range(1, n_turns+1):
 
 ind_volt = - beam.charge * e * beam.ratio * \
            np.convolve(profiles, ind_volt_time.total_wake)
-#plt.figure()
+
 plt.plot(time_array*1e9, ind_volt[:time_array.shape[0]], lw=2, alpha=0.75,
          label='"Manual" convolution')
 plt.xlim(0, bucket_length*1e9)
@@ -169,6 +174,7 @@ plt.xlabel('Time [ns]')
 plt.ylabel('Induced voltage [V]')
 plt.title('Constant revolution frequency')
 plt.legend(loc=2, fontsize='x-small')
+plt.savefig('../output_files/TC_17_fig/const_rev_f.png')
 
 # SECOND COMPARISON: DIFFERENT REVOLUTION FREQUENCIES -------------------------
 
@@ -208,5 +214,6 @@ plt.xlabel('Time [ns]')
 plt.ylabel('Induced voltage [V]')
 plt.title('Different revolution frequencies')
 plt.legend(loc=2, fontsize='medium')
+plt.savefig('../output_files/TC_17_fig/diff_rev_f.png')
 
 print("Done!")

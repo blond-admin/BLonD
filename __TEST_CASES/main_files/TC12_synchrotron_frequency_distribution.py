@@ -30,6 +30,16 @@ from trackers.tracker import RingAndRFSection, FullRingAndRF
 from trackers.utilities import synchrotron_frequency_distribution
 from scipy.constants import m_p, e, c
 from scipy.special import ellipk
+import os
+
+fig_directory = '../output_files/TC12_fig/'
+if os.path.exists(fig_directory):    
+    pass
+else:
+    os.makedirs(fig_directory)
+
+
+
 
 # RING PARAMETERS
 # Beam parameters
@@ -88,7 +98,7 @@ slice_beam = Slices(RF_sct_par, beam, number_slices, cut_left=0.,
 matched_from_distribution_function(beam, full_tracker, emittance=emittance, 
                                    distribution_type=distribution_type,
                                    distribution_variable=distribution_variable,
-                                   main_harmonic_option='lowest_freq')
+                                   main_harmonic_option='lowest_freq', seed=1256)
 
 slice_beam.track()
 
@@ -125,7 +135,7 @@ plt.legend(loc=0, fontsize='medium')
 plt.xlabel('Amplitude of particle oscillations [s]')
 plt.ylabel('Synchrotron frequency [Hz]')
 plt.title('Synchrotron frequency distribution')
-
+plt.savefig(fig_directory+'fs_distribution.png')
 
 # Particle distribution in synchrotron frequency
 fs_dist, be = np.histogram(particleDistributionFreq,100)
@@ -133,6 +143,7 @@ plt.figure('distribution_in_fs')
 plt.plot(0.5*(be[1:] + be[:-1]), fs_dist)
 plt.xlabel('Synchrotron frequency [Hz]')
 plt.title('Particle distribution in synchrotron frequency')
+plt.savefig(fig_directory+'distribution_in_fs.png')
 
 # Double RF BLM ---------------------------------------------------------------
 
@@ -159,7 +170,7 @@ beam_generation_output = matched_from_distribution_function(beam, full_tracker,
                                    distribution_type=distribution_type,
                                    emittance=emittance,
                                    distribution_variable=distribution_variable,
-                                   main_harmonic_option='lowest_freq')
+                                   main_harmonic_option='lowest_freq', seed=1256)
             
 [sync_freq_distribution_left, sync_freq_distribution_right], \
     [emittance_array_left, emittance_array_right], \
@@ -198,6 +209,7 @@ plt.legend(loc=0, fontsize='medium')
 # Value for the zero-amplitude synchrotron frequency in double RF with 
 # second harmonic
 plt.plot(0, fs0*np.sqrt(2), 'ko')
+plt.savefig(fig_directory+'fs_distribution_DRF.png')
 
 # With intensity effects ------------------------------------------------------
 
@@ -234,7 +246,7 @@ beam_generation_output = matched_from_distribution_function(beam, full_tracker,
                                    distribution_variable=distribution_variable,
                                    main_harmonic_option='lowest_freq',
                                    TotalInducedVoltage=total_induced_voltage,
-                                   n_iterations=20)
+                                   n_iterations=20, seed=1256)
 
 [sync_freq_distribution_left, sync_freq_distribution_right], \
     [emittance_array_left, emittance_array_right], \
@@ -258,6 +270,8 @@ plt.xlabel('Amplitude of particle oscillations [s]')
 plt.ylabel('Synchrotron frequency [Hz]')
 plt.title('Synchrotron frequency distribution in single RF with intensity ' +
           'effects')
+plt.savefig(fig_directory+'fs_distribution_IE.png')
+
 
 plt.figure('fs_distribution_IE_J')
 plt.plot(emittance_array_left, sync_freq_distribution_left, lw=2, label='Left')
@@ -270,3 +284,4 @@ plt.xlabel('Emittance [eVs]')
 plt.ylabel('Synchrotron frequency [Hz]')
 plt.title('Synchrotron frequency distribution in single RF with intensity ' +
           'effects')
+plt.savefig(fig_directory+'fs_distribution_IE_J.png')

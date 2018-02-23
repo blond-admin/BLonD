@@ -22,11 +22,14 @@ from beams.beams import Beam
 from beams.distributions import matched_from_distribution_function
 from input_parameters.rf_parameters import RFSectionParameters
 from beams.sparse_slices import SparseSlices
-from impedances.impedance import InducedVoltageFreq, TotalInducedVoltage
-from impedances.impedance_sources import Resonators
 from trackers.tracker import RingAndRFSection, FullRingAndRF
-from synchrotron_radiation.synchrotron_radiation import SynchrotronRadiation
 from scipy.constants import c, e, m_e
+import os
+
+try:
+    os.mkdir('../output_files/TC_15_fig')
+except:
+    pass
 
 
 # SIMULATION PARAMETERS -------------------------------------------------------
@@ -96,14 +99,14 @@ filling_pattern[::bunch_spacing] = 1
 
 matched_from_distribution_function(beam, full_tracker, emittance=emittance,
                                    distribution_type=distribution_type, 
-                                   distribution_variable=distribution_variable)
+                                   distribution_variable=distribution_variable
+                                   , seed=134253)
 
 indexes = np.arange(n_macroparticles)
-#np.random.shuffle(indexes)
 
-for i in np.arange(np.sum(filling_pattern)):
-    beam.dt[indexes[i*len(beam.dt)//np.sum(filling_pattern)]: 
-        indexes[(i+1)*len(beam.dt)//np.sum(filling_pattern)-1]] += (
+for i in range(int(np.sum(filling_pattern))):
+    beam.dt[indexes[int(i*len(beam.dt)//np.sum(filling_pattern))]: 
+        indexes[int((i+1)*len(beam.dt)//np.sum(filling_pattern)-1)]] += (
         bucket_length * np.where(filling_pattern)[0][i])
 
 import time
@@ -115,12 +118,11 @@ t0 = time.time()
 slice_beam.track()
 print( 'Time for optimized C++ track ', time.time() - t0 )
 plt.figure()
-#plt.hist(beam.dt, 1e4)
-#plt.twinx()
+
 for i in range(int(np.sum(filling_pattern))):
     plt.plot(slice_beam.slices_array[i].bin_centers,
              slice_beam.slices_array[i].n_macroparticles,'b',lw=2)
-#plt.show()
+
 
 
 for i in range(int(np.sum(filling_pattern))):
@@ -133,25 +135,8 @@ slice_beam = SparseSlices(RF_sct_par, beam, n_slices, filling_pattern,
 t0 = time.time()
 slice_beam.track()
 print( 'Time for individual tracks ', time.time() - t0 )
-#plt.figure()
+
 for i in range(int(np.sum(filling_pattern))):
     plt.plot(slice_beam.slices_array[i].bin_centers,
              slice_beam.slices_array[i].n_macroparticles,'r')
-plt.show()
-
-# ACCELERATION MAP-------------------------------------------------------------
-
-#map_ = [longitudinal_tracker] + [slice_beam]
-
-## TRACKING + PLOTS-------------------------------------------------------------
-#
-#avg_dt = np.zeros(n_turns)
-#std_dt = np.zeros(n_turns)
-#
-#for i in range(n_turns):
-#    for m in map_:
-#        m.track()
-#
-#    avg_dt[i] = np.mean(beam.dt)
-#    std_dt[i] = np.std(beam.dt)
-#        
+plt.savefig('../output_files/TC_15_fig/ind_track.png')

@@ -30,13 +30,14 @@ class SynchrotronRadiation(object):
     '''
     
     def __init__(self, GeneralParameters, RFParameters, Beam, bending_radius,
-                 n_kicks=1, quantum_excitation=True, python=False):
+                 n_kicks=1, quantum_excitation=True, python=False, seed=None):
         
         self.general_params = GeneralParameters
         self.rf_params = RFParameters
         self.beam = Beam
         self.rho = bending_radius
         self.n_kicks = n_kicks  # To apply SR in several kicks
+        np.random.seed(seed=seed)
         
         # Calculate static parameters
         self.Cgamma = 1.0 / (e**2.0 * 3.0 * epsilon_0 *

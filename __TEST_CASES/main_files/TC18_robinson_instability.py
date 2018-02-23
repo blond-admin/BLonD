@@ -28,7 +28,12 @@ from beams.slices import Slices
 from impedances.impedance import InducedVoltageFreq, TotalInducedVoltage
 from impedances.impedance_sources import Resonators
 from scipy.constants import c, e, m_p
+import os
 
+try:
+    os.mkdir('../output_files/TC_18_fig')
+except:
+    pass
 
 # SIMULATION PARAMETERS -------------------------------------------------------
 
@@ -140,7 +145,7 @@ plt.legend(('Impedance','RF frequency','Synchrotron sidebands'), loc=0,
            fontsize='medium')
 plt.xlabel('Frequency [MHz]')
 plt.ylabel(r'Impedance [$\Omega$]')
-plt.savefig('../output_files/TC18_fig/impedance.png')
+plt.savefig('../output_files/TC_18_fig/impedance.png')
 plt.close()
 
 
@@ -149,7 +154,7 @@ plt.close()
 matched_from_distribution_function(beam, full_tracker,
                                   distribution_type=distribution_type,
                                   bunch_length=bunch_length, n_iterations=20,
-                                  TotalInducedVoltage=total_ind_volt)
+                                  TotalInducedVoltage=total_ind_volt, seed=10)
 
 # ACCELERATION MAP ------------------------------------------------------------
 
@@ -164,6 +169,8 @@ bunch_std = np.zeros(n_turns)
 
 # TRACKING --------------------------------------------------------------------
 for i in range(n_turns):
+    
+    print(i)
     for m in map_:
         m.track()
     
@@ -175,7 +182,7 @@ for i in range(n_turns):
         plt.plot(beam.dt*1e9,beam.dE*1e-6,'.')
         plt.xlabel('Time [ns]')
         plt.ylabel('Energy [MeV]')
-        plt.savefig('../output_files/TC18_fig/phase_space_{0:d}.png'.format(i))
+        plt.savefig('../output_files/TC_18_fig/phase_space_{0:d}.png'.format(i))
         plt.close()
 
 print(time.time() - t0)
@@ -184,13 +191,13 @@ plt.figure()
 plt.plot(bunch_center*1e9)
 plt.xlabel('Turns')
 plt.ylabel('Bunch center [ns]')
-plt.savefig('../output_files/TC18_fig/bunch_center.png')
+plt.savefig('../output_files/TC_18_fig/bunch_center.png')
 plt.close()
 plt.figure()
 plt.plot(bunch_std*1e9)
 plt.xlabel('Turns')
 plt.ylabel('Bunch length [ns]')
-plt.savefig('../output_files/TC18_fig/bunch_length.png')
+plt.savefig('../output_files/TC_18_fig/bunch_length.png')
 plt.close()
 
 print("Done!")
