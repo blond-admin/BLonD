@@ -88,7 +88,7 @@ mass_test = general_params.Particle.mass # [eV]
 charge_test = general_params.Particle.charge # e*Z
 
 # Define RF station parameters and corresponding tracker
-rf_params = RFStation(general_params, 1, [h], [V], [dphi])
+rf_params = RFStation(general_params, [h], [V], [dphi])
 print("Initial bucket length is %.3e s" %(2.*np.pi/rf_params.omega_rf[0,0]))
 print("Final bucket length is %.3e s" %(2.*np.pi/rf_params.omega_rf[0,N_t]))
 

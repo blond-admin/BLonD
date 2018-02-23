@@ -23,33 +23,7 @@ from scipy.constants import c
 from scipy.interpolate import splrep, splev
 
 
-def load_data(filename, ignore=0, delimiter=None):
-    r"""Helper function to load column-by-column data from a txt file to numpy
-    arrays.
-
-    Parameters
-    ----------
-    filename : str
-        Name of the file containing the data.
-    ignore : int
-        Number of lines to ignore from the head of the file.
-    delimiter : str
-        Delimiting character between columns.
-
-    Returns
-    -------
-    list of arrays
-        Input data, column by column.
-
-    """
-
-    data = np.loadtxt(str(filename), skiprows=int(ignore),
-                      delimiter=str(delimiter))
-
-    return [np.ascontiguousarray(data[:, i]) for i in range(len(data[0]))]
-
-
-class RampOptions(object):
+class RingOptions(object):
     r""" Class to preprocess the synchronous data for Ring, interpolating it to
     every turn.
 
@@ -83,8 +57,8 @@ class RampOptions(object):
 
     """
     def __init__(self, interpolation='linear', smoothing=0, flat_bottom=0,
-                 flat_top=0, t_start=None, t_end=None, plot=False, figdir='fig',
-                 figname='preprocess_ramp', sampling=1):
+                 flat_top=0, t_start=None, t_end=None, plot=False,
+                 figdir='fig', figname='preprocess_ramp', sampling=1):
 
         if interpolation in ['linear', 'cubic', 'derivative']:
             self.interpolation = str(interpolation)
@@ -108,7 +82,7 @@ class RampOptions(object):
 
         self.t_start = t_start
         self.t_end = t_end
-        
+
         if (plot is True) or (plot is False):
             self.plot = bool(plot)
         else:
@@ -123,9 +97,153 @@ class RampOptions(object):
             raise RuntimeError("ERROR: sampling value in PreprocessRamp" +
                                " not recognised. Aborting...")
 
+    def reshape_data(self, input_data, n_turns, n_sections,
+                     interp_time='t_rev', input_is_momentum=False,
+                     mass=None, circumference=None):
+        r"""Checks whether the user input is consistent with the expectation
+        for the Ring object. The possibilites are detailed in the documentation
+        of the Ring object.
+
+
+        Parameters
+        ----------
+        input_data : Ring.synchronous_data, Ring.alpha_0,1,2
+            Main input data to reshape
+        n_turns : Ring.n_turns
+            Number of turns the simulation should be. Note that if
+            the input_data is passed as a tuple it is expected that the
+            input_data is a program. Hence, the number of turns may not
+            correspond to the input one and will be overwritten
+        n_sections : Ring.n_sections
+            The number of sections of the ring. The simulation is stopped
+            if the input_data shape does not correspond to the expected number
+            of sections.
+        interp_time : str or float or float array [n_turns+1]
+            Optional : defines the time on which the program will be
+            interpolated. If 't_rev' is passed and if the input_data is
+            momentum (see input_is_momentum option) the momentum program
+            is interpolated on the revolution period (see preprocess()
+            function). If a float or a float array is passed, the program
+            is interpolated on that input ; default is 't_rev'
+        input_is_momentum : bool
+            Optional : flags if the input_data is the momentum program, the
+            options mass and circumference become necessary
+        mass : Ring.Particle.mass
+            Optional : the mass of the particles ; default is None
+        circumference : Ring.circumference
+            Optional : the circumference of the ring ; default is None
+
+        Returns
+        -------
+        output_data
+            Returns the data with the adequate shape for the Ring object
+
+        """
+
+        # TO BE IMPLEMENTED: if you pass a filename the function reads the file
+        # and reshape the data
+        if isinstance(input_data, str):
+            pass
+
+        # If single float, expands the value to match the input number of turns
+        # and sections
+        if isinstance(input_data, float):
+            output_data = input_data * np.ones((n_sections, n_turns+1))
+
+        # If tuple, separate time and synchronous data and check data
+        elif isinstance(input_data, tuple):
+
+            output_data = []
+
+            # If there is only one section, it is expected that the user passes
+            # a tuple with (time, data). However, the user can also pass a
+            # tuple which size is the number of section as ((time, data), ).
+            # and this if condition takes this into account
+            if (n_sections == 1) and (len(input_data) > 1):
+                input_data = (input_data, )
+
+            if len(input_data) != n_sections:
+                raise RuntimeError("ERROR in Ring: the input data " +
+                                   "does not match the number of sections")
+
+            # Loops over all the sections to interpolate the programs, appends
+            # the results on the output_data list which is afterwards
+            # converted to a numpy.array
+            for index_section in range(n_sections):
+                input_data_time = input_data[index_section][0]
+                input_data_values = input_data[index_section][1]
+
+                if len(input_data_time) \
+                        != len(input_data_values):
+                    raise RuntimeError("ERROR in Ring: synchronous data " +
+                                       "does not match the time data")
+
+                if input_is_momentum and interp_time == 't_rev':
+                    output_data.append(self.preprocess(
+                        mass,
+                        circumference,
+                        input_data_time,
+                        input_data_values)[1])
+
+                elif isinstance(interp_time, float):
+                    interp_time = np.arange(
+                        input_data_time[0],
+                        input_data_time[-1],
+                        interp_time)
+
+                    output_data.append(np.interp(
+                        interp_time,
+                        input_data_time,
+                        input_data_values))
+
+                elif isinstance(interp_time, np.ndarray):
+                    output_data.append(np.interp(
+                        interp_time,
+                        input_data_time,
+                        input_data_values))
+
+            output_data = np.array(output_data, ndmin=2, dtype=float)
+
+        # If array/list, compares with the input number of turns and
+        # if synchronous_data is a single value converts it into a (n_turns+1)
+        # array
+        elif isinstance(input_data, np.ndarray) or \
+                isinstance(input_data, list):
+
+            input_data = np.array(input_data, ndmin=2, dtype=float)
+            output_data = np.zeros((n_sections, n_turns+1), dtype=float)
+
+            # If the number of points is exactly the same as n_rf, this means
+            # that the rf program for each harmonic is constant, reshaping
+            # the array so that the size is [n_sections,1] for successful
+            # reshaping
+            if input_data.size == n_sections:
+                input_data = input_data.reshape((n_sections, 1))
+
+            if len(input_data) != n_sections:
+                raise RuntimeError("ERROR in Ring: the input data " +
+                                   "does not match the number of sections")
+
+            for index_section in range(len(input_data)):
+                if len(input_data[index_section]) == 1:
+                    output_data[index_section] = input_data[index_section] * \
+                                                np.ones(n_turns+1)
+
+                elif len(input_data[index_section]) == (n_turns+1):
+                    output_data[index_section] = np.array(
+                        input_data[index_section])
+
+                else:
+
+                    raise RuntimeError("ERROR in Ring: The input data " +
+                                       "does not match the proper length " +
+                                       "(n_turns+1)")
+
+        return output_data
+
     def preprocess(self, mass, circumference, time, momentum):
         r"""Function to pre-process acceleration ramp data, interpolating it to
-        every turn. Currently it works only if the number of RF sections is 
+        every turn. Currently it works only if the number of RF sections is
         equal to one, to be extended for multiple RF sections.
 
         Parameters
@@ -147,13 +265,13 @@ class RampOptions(object):
             Interpolated momentum [eV/c]
 
         """
-        
+
         # Some checks on the options
         if (self.t_start is not None and self.t_start < time[0]) or \
-            (self.t_end is not None and self.t_end > time[-1]): 
-                raise RuntimeError("ERROR: [t_start, t_end] should be included" +
-                               " in the passed time array.")
-        
+                (self.t_end is not None and self.t_end > time[-1]):
+                raise RuntimeError("ERROR: [t_start, t_end] should be " +
+                                   "included in the passed time array.")
+
         # Obtain flat bottom data, extrapolate to constant
         beta_0 = np.sqrt(1/(1 + (mass/momentum[0])**2))
         T0 = circumference/(beta_0*c)  # Initial revolution period [s]
@@ -302,16 +420,16 @@ class RampOptions(object):
 
         # Cutting the input momentum on the desired cycle time
         if self.t_start is not None:
-            initial_index = np.min(np.where(time_interp>=self.t_start)[0])
+            initial_index = np.min(np.where(time_interp >= self.t_start)[0])
         else:
             initial_index = 0
         if self.t_end is not None:
-            final_index = np.max(np.where(time_interp<=self.t_end)[0])+1
+            final_index = np.max(np.where(time_interp <= self.t_end)[0])+1
         else:
             final_index = len(time_interp)
         time_interp = time_interp[initial_index:final_index]
         momentum_interp = momentum_interp[initial_index:final_index]
-        
+
         if self.plot:
             # Directory where longitudinal_plots will be stored
             fig_folder(self.figdir)
@@ -335,5 +453,31 @@ class RampOptions(object):
             fign = self.figdir + '/preprocess_momentum.png'
             plt.savefig(fign)
             plt.clf()
-        
+
         return time_interp, momentum_interp
+
+
+def load_data(filename, ignore=0, delimiter=None):
+    r"""Helper function to load column-by-column data from a txt file to numpy
+    arrays.
+
+    Parameters
+    ----------
+    filename : str
+        Name of the file containing the data.
+    ignore : int
+        Number of lines to ignore from the head of the file.
+    delimiter : str
+        Delimiting character between columns.
+
+    Returns
+    -------
+    list of arrays
+        Input data, column by column.
+
+    """
+
+    data = np.loadtxt(str(filename), skiprows=int(ignore),
+                      delimiter=str(delimiter))
+
+    return [np.ascontiguousarray(data[:, i]) for i in range(len(data[0]))]

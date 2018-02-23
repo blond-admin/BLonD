@@ -48,7 +48,7 @@ class SynchrotronRadiation(object):
         self.I2 = 2.0 * np.pi / self.rho     # Assuming isomagnetic machine
         self.I3 = 2.0 * np.pi / self.rho**2.0
         self.I4 = (self.general_params.ring_circumference *
-                   self.general_params.alpha[0,0] / self.rho**2.0)
+                   self.general_params.alpha_0[0,0] / self.rho**2.0)
         self.jz = 2.0 + self.I4 / self.I2
         
         # Calculate synchrotron radiation parameters
@@ -62,7 +62,7 @@ class SynchrotronRadiation(object):
         # synchrotron radiation (temporary until bunch generation is updated)
         if self.rf_params.section_index == 0:
             self.beam.dt -= (np.arcsin(self.U0/self.rf_params.voltage[0][0]) *
-                             self.rf_params.t_rf[0]/ (2.0*np.pi))
+                             self.rf_params.t_rf[0, 0]/ (2.0*np.pi))
         
         # Select the right method for the tracker according to the selected
         # settings

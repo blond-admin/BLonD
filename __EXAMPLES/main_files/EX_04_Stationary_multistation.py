@@ -66,23 +66,23 @@ print("")
 # Define general parameters containing data for both RF stations
 general_params = Ring([0.3*C, 0.7*C], [[alpha], [alpha]], 
                                    [p_s*np.ones(N_t+1), p_s*np.ones(N_t+1)], 
-                                   Proton(), N_t, n_stations = 2)
+                                   Proton(), N_t, n_sections = 2)
 
 
 # Define RF station parameters and corresponding tracker
 beam = Beam(general_params, N_p, N_b)
-rf_params_1 = RFStation(general_params, 1, [h], [V1], [dphi],
+rf_params_1 = RFStation(general_params, [h], [V1], [dphi],
                                   section_index=1)
 long_tracker_1 = RingAndRFTracker(rf_params_1, beam)
 
-rf_params_2 = RFStation(general_params, 1, [h], [V2], [dphi],
+rf_params_2 = RFStation(general_params, [h], [V2], [dphi],
                                   section_index=2)
 long_tracker_2 = RingAndRFTracker(rf_params_2, beam)
 
 # Define full voltage over one turn and a corresponding "overall" set of 
 #parameters, which is used for the separatrix (in plotting and losses)
 Vtot = total_voltage([rf_params_1, rf_params_2])
-rf_params_tot = RFStation(general_params, 1, [h], [Vtot], [dphi])
+rf_params_tot = RFStation(general_params, [h], [Vtot], [dphi])
 beam_dummy = Beam(general_params, 1, N_b)
 long_tracker_tot = RingAndRFTracker(rf_params_tot, beam_dummy)
 

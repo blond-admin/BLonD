@@ -80,14 +80,14 @@ general_params_res = Ring(C, momentum_compaction,
                                        sync_momentum, Proton(), n_turns)
 
 
-RF_sct_par = RFStation(general_params, n_rf_systems, [harmonic_number], 
-                          [voltage_program], [phi_offset])
-RF_sct_par_freq = RFStation(general_params_freq, n_rf_systems,
+RF_sct_par = RFStation(general_params, [harmonic_number], 
+                          [voltage_program], [phi_offset], n_rf_systems)
+RF_sct_par_freq = RFStation(general_params_freq,
                                       [harmonic_number], [voltage_program],
-                                      [phi_offset])
-RF_sct_par_res = RFStation(general_params_res, n_rf_systems,
+                                      [phi_offset], n_rf_systems)
+RF_sct_par_res = RFStation(general_params_res,
                                       [harmonic_number], [voltage_program],
-                                      [phi_offset])
+                                      [phi_offset], n_rf_systems)
 
 my_beam = Beam(general_params, n_macroparticles, n_particles)
 my_beam_freq = Beam(general_params_freq, n_macroparticles, n_particles)
@@ -116,6 +116,10 @@ slice_beam_freq = Profile(my_beam_freq, cut_options_freq, FitOptions(fit_option=
 cut_options_res = CutOptions(cut_left= 0, cut_right=2*np.pi, n_slices=number_slices, 
                          RFSectionParameters=ring_RF_section_res, cuts_unit = 'rad')
 slice_beam_res = Profile(my_beam_res, cut_options_res, FitOptions(fit_option='gaussian'))
+
+slice_beam.track()
+slice_beam_freq.track()
+slice_beam_res.track()
 
 # MONITOR----------------------------------------------------------------------
 
