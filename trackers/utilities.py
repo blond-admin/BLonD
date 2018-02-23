@@ -370,7 +370,7 @@ def hamiltonian(Ring, RFStation, Beam, dt, dE,
    
     warnings.filterwarnings("once")
     
-    if Ring.n_stations > 1:
+    if Ring.n_sections > 1:
         warnings.warn("WARNING: The Hamiltonian is not yet properly computed for several sections!")
     if RFStation.n_rf > 1:
         warnings.warn("WARNING: The Hamiltonian will be calculated for the first harmonic only!")
@@ -428,7 +428,7 @@ def separatrix(Ring, RFStation, dt):
  
     warnings.filterwarnings("once")
      
-    if Ring.n_stations > 1:
+    if Ring.n_sections > 1:
         warnings.warn("WARNING in separatrix(): the usage of several RF" +
                       " sections is not yet implemented!")
        
@@ -550,7 +550,7 @@ def is_in_separatrix(Ring, RFStation, Beam, dt, dE,
      
     warnings.filterwarnings("once")
     
-    if Ring.n_stations > 1:
+    if Ring.n_sections > 1:
         warnings.warn("WARNING: in is_in_separatrix(): the usage of several"+
                       " sections is not yet implemented!")
     if RFStation.n_rf > 1:
