@@ -337,7 +337,7 @@ def calculate_Q_s(RFStation, Particle=Proton()):
 
     """
 
-    return np.sqrt(RFStation.harmonic[0]*Particle.charge*RFStation.voltage[0] *
+    return np.sqrt(RFStation.harmonic[0]*np.abs(Particle.charge)*RFStation.voltage[0] *
                    np.abs(RFStation.eta_0*np.cos(RFStation.phi_s)) /
                    (2*np.pi*RFStation.beta**2*RFStation.energy))
 
