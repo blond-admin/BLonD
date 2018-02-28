@@ -98,7 +98,7 @@ if (__name__ == "__main__"):
     if (parallel is False):
         cpp_files += ['cpp_routines/histogram.cpp']
     elif (parallel is True):
-        cflags += ['-fopenmp', '-DPARALLEL']
+        cflags += ['-fopenmp', '-DPARALLEL', '-D_GLIBCXX_PARALLEL']
         cpp_files += ['cpp_routines/histogram_par.cpp']
 
     if ('posix' in os.name):
