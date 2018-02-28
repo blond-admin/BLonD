@@ -19,6 +19,9 @@ Project website: http://blond.web.cern.ch/
 #include <random>
 #include "synchrotron_radiation.h"
 
+    std::random_device rd;
+    std::mt19937_64 gen(rd());
+    std::normal_distribution<> d(0.0,1.0);
 // This function calculates and applies synchrotron radiation damping and
 // quantum excitation terms
 extern "C" void synchrotron_radiation_full(double * __restrict__ beam_dE, const double U0,
@@ -31,9 +34,6 @@ extern "C" void synchrotron_radiation_full(double * __restrict__ beam_dE, const 
     const double const_quantum_exc = 2.0 * sigma_dE / sqrt(tau_z) * energy;
 
     // Random number generator for the quantum excitation term
-    std::random_device rd;
-    std::mt19937_64 gen(rd());
-    std::normal_distribution<> d(0.0,1.0);
     
     for (int j=0; j<n_kicks; j++){
         // Compute synchrotron radiation damping term

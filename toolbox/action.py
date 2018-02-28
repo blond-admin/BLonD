@@ -105,7 +105,7 @@ def phase_amplitude_from_tune(tune):
 
 
 
-def oscillation_amplitude_from_coordinates(GeneralParams, RFParameters, dt, dE, 
+def oscillation_amplitude_from_coordinates(Ring, RFStation, dt, dE, 
                                            timestep = 0, Np_histogram = None):
     '''
     Returns the oscillation amplitude in time for given particle coordinates,
@@ -114,14 +114,14 @@ def oscillation_amplitude_from_coordinates(GeneralParams, RFParameters, dt, dE,
     Optional: Number of points for histogram output
     '''
     
-    omega_rf = RFParameters.omega_RF[0,timestep]
-    phi_rf = RFParameters.phi_RF[0,timestep]
-    phi_s = RFParameters.phi_s[timestep]
-    eta = RFParameters.eta_0[0]
-    T0 = GeneralParams.t_rev[0]
-    V = RFParameters.voltage[0,0]
-    beta_sq = RFParameters.beta[0]**2     
-    E = RFParameters.energy[0]
+    omega_rf = RFStation.omega_rf[0,timestep]
+    phi_rf = RFStation.phi_rf[0,timestep]
+    phi_s = RFStation.phi_s[timestep]
+    eta = RFStation.eta_0[0]
+    T0 = Ring.t_rev[0]
+    V = RFStation.voltage[0,0]
+    beta_sq = RFStation.beta[0]**2     
+    E = RFStation.energy[0]
     const = eta*T0*omega_rf/(2.*V*beta_sq*E)
 
     dtmax = np.fabs(np.arccos(np.cos(omega_rf*dt + phi_rf) + const*dE**2) 
@@ -129,7 +129,8 @@ def oscillation_amplitude_from_coordinates(GeneralParams, RFParameters, dt, dE,
 
     if Np_histogram != None:
         
-        histogram, bins = np.histogram(dtmax, Np_histogram, (0,0.5*T0))
+        histogram, bins = np.histogram(dtmax, Np_histogram, (0, 
+                                                             np.pi/omega_rf)) 
         histogram = np.double(histogram)/np.sum(histogram[:])
         bin_centres = 0.5*(bins[0:-1] + bins[1:])
         
@@ -141,7 +142,7 @@ def oscillation_amplitude_from_coordinates(GeneralParams, RFParameters, dt, dE,
  
             
 
-def action_from_oscillation_amplitude(RFParameters, dtmax, timestep = 0, 
+def action_from_oscillation_amplitude(RFStation, dtmax, timestep = 0, 
                                       Np_histogram = None):
     '''
     Returns the relative action for given oscillation amplitude in time,
@@ -151,7 +152,7 @@ def action_from_oscillation_amplitude(RFParameters, dtmax, timestep = 0,
     Optional: Number of points for histogram output
     '''
     
-    omega_rf = RFParameters.omega_RF[0,timestep]
+    omega_rf = RFStation.omega_RF[0,timestep]
     xx = x2(omega_rf*dtmax)
     action = np.zeros(len(xx))
     

@@ -23,7 +23,7 @@ import numpy.random as rnd
 from scipy.constants import c
 from plots.plot import *
 from plots.plot_llrf import *
-from input_parameters.rf_parameters import calc_phi_s
+#from input_parameters.rf_parameters import calculate_phi_s
 cfwhm = np.sqrt(2./np.log(2.))
 import matplotlib.pyplot as plt
 
@@ -31,7 +31,7 @@ import matplotlib.pyplot as plt
 
 class FlatSpectrum(object): 
     
-    def __init__(self, GeneralParameters, RFSectionParameters, delta_f = 1, 
+    def __init__(self, Ring, RFStation, delta_f = 1, 
                  corr_time = 10000, fmin_s0 = 0.8571, fmax_s0 = 1.1, 
                  initial_amplitude = 1.e-6, seed1 = 1234, seed2 = 7564, 
                  predistortion = None, continuous_phase = False, folder_plots =
@@ -46,12 +46,12 @@ class FlatSpectrum(object):
         domain. After 'corr_time' turns, the seed is changed to cut numerical
         correlated sequences of the random number generator.
         '''
-        self.total_n_turns = GeneralParameters.n_turns
+        self.total_n_turns = Ring.n_turns
         self.initial_final_turns = initial_final_turns
         if self.initial_final_turns[1]==-1:
             self.initial_final_turns[1] = self.total_n_turns+1
             
-        self.f0 = GeneralParameters.f_rev[self.initial_final_turns[0]:self.initial_final_turns[1]]  # revolution frequency in Hz
+        self.f0 = Ring.f_rev[self.initial_final_turns[0]:self.initial_final_turns[1]]  # revolution frequency in Hz
         self.delta_f = delta_f           # frequency resolution [Hz]
         self.corr = corr_time           # adjust noise every 'corr' time steps
         self.fmin_s0 = fmin_s0                # spectrum lower bound in synchr. freq.
@@ -64,7 +64,7 @@ class FlatSpectrum(object):
             # Overwrite frequencies
             self.fmin_s0 = 0.8571
             self.fmax_s0 = 1.001
-        self.fs = RFSectionParameters.omega_s0[self.initial_final_turns[0]:self.initial_final_turns[1]] / (2*np.pi) # synchrotron frequency in Hz
+        self.fs = RFStation.omega_s0[self.initial_final_turns[0]:self.initial_final_turns[1]] / (2*np.pi) # synchrotron frequency in Hz
         self.n_turns = len(self.fs)-1
         self.dphi = np.zeros(self.n_turns+1)
         self.continuous_phase = continuous_phase
@@ -126,7 +126,7 @@ class FlatSpectrum(object):
     
     def generate(self):
        
-        for i in range(0, int(self.n_turns/self.corr)):
+        for i in range(0, np.int(np.ceil(self.n_turns/self.corr))):
         
             # Scale amplitude to keep area (phase noise amplitude) constant
             k = i*self.corr       # current time step
@@ -134,18 +134,18 @@ class FlatSpectrum(object):
             
             # Calculate the frequency step
             f_max = self.f0[k]/2
-            n_points_pos_f_incl_zero = np.ceil(f_max/self.delta_f) + 1
+            n_points_pos_f_incl_zero = int(np.ceil(f_max/self.delta_f) + 1)
             nt = 2*(n_points_pos_f_incl_zero - 1)
             nt_regular = next_regular(int(nt))
             if nt_regular%2!=0 or nt_regular < self.corr:
                 raise RuntimeError('Error in noise generation!')
-            n_points_pos_f_incl_zero = nt_regular/2 + 1  
+            n_points_pos_f_incl_zero = int(nt_regular/2 + 1)  
             freq = np.linspace(0, f_max, n_points_pos_f_incl_zero)
             delta_f = f_max/(n_points_pos_f_incl_zero-1) 
 
             # Construct spectrum   
-            nmin = np.floor(self.fmin_s0*self.fs[k]/delta_f)  
-            nmax = np.ceil(self.fmax_s0*self.fs[k]/delta_f)    
+            nmin = np.int(np.floor(self.fmin_s0*self.fs[k]/delta_f))  
+            nmax = np.int(np.ceil(self.fmax_s0*self.fs[k]/delta_f))    
             
             # To compensate the notch due to PL at central frequency
             if self.predistortion == 'exponential':
@@ -183,7 +183,6 @@ class FlatSpectrum(object):
                                             np.zeros(n_points_pos_f_incl_zero-nmax-1)))
 
             else:
-    
                 spectrum = np.concatenate((np.zeros(nmin), 
                     ampl*np.ones(nmax-nmin+1), np.zeros(n_points_pos_f_incl_zero-nmax-1)))               
             
@@ -237,22 +236,22 @@ class LHCNoiseFB(object):
     blow-up using noise injection through cavity controller or phase loop.
     The feedback compares the FWHM bunch length of the bunch to a target value 
     and scales the phase noise to keep the targeted value.
-    Activate the feedback either by passing it in RFSectionParameters or in
+    Activate the feedback either by passing it in RFStation or in
     the PhaseLoop object.
     Update the noise amplitude scaling using track().
     Pass the bunch pattern (occupied bucket numbers from 0...h-1) in buckets 
     for multi-bunch simulations; the feedback uses the average bunch length.*
     '''    
 
-    def __init__(self, RFSectionParameters, Slices, bl_target, gain = 0.1e9, 
+    def __init__(self, RFStation, Profile, bl_target, gain = 0.1e9, 
                  factor = 0.93, update_frequency = 22500, variable_gain = True,
                  bunch_pattern = None):
 
-        #: | *Import RFSectionParameters*
-        self.rf_params = RFSectionParameters
+        #: | *Import RFStation*
+        self.rf_params = RFStation
 
-        #: | *Import Slices*
-        self.slices = Slices
+        #: | *Import Profile*
+        self.profile = Profile
               
         #: | *Phase noise scaling factor. Initially 0.*
         self.x = 0.
@@ -319,15 +318,15 @@ class LHCNoiseFB(object):
 
     def fwhm_interpolation(self, index, half_height):
     
-        time_resolution = self.slices.bin_centers[1]-self.slices.bin_centers[0]
+        time_resolution = self.profile.bin_centers[1]-self.profile.bin_centers[0]
         
-        left = self.slices.bin_centers[index[0]] - (self.slices.n_macroparticles[index[0]] -
-               half_height)/(self.slices.n_macroparticles[index[0]] -
-               self.slices.n_macroparticles[index[0]-1])*time_resolution
+        left = self.profile.bin_centers[index[0]] - (self.profile.n_macroparticles[index[0]] -
+               half_height)/(self.profile.n_macroparticles[index[0]] -
+               self.profile.n_macroparticles[index[0]-1])*time_resolution
                
-        right = self.slices.bin_centers[index[-1]] + (self.slices.n_macroparticles[index[-1]]
-                - half_height)/(self.slices.n_macroparticles[index[-1]] -
-                self.slices.n_macroparticles[index[-1]+1])*time_resolution
+        right = self.profile.bin_centers[index[-1]] + (self.profile.n_macroparticles[index[-1]]
+                - half_height)/(self.profile.n_macroparticles[index[-1]] -
+                self.profile.n_macroparticles[index[-1]+1])*time_resolution
 
         return cfwhm*(right - left)
         
@@ -337,8 +336,8 @@ class LHCNoiseFB(object):
         *Single-bunch FWHM bunch length calculation with interpolation.*
         '''    
         
-        half_height = np.max(self.slices.n_macroparticles)/2.
-        index = np.where(self.slices.n_macroparticles > half_height)[0]   
+        half_height = np.max(self.profile.n_macroparticles)/2.
+        index = np.where(self.profile.n_macroparticles > half_height)[0]   
     
         self.bl_meas = self.fwhm_interpolation(index, half_height)
 
@@ -357,10 +356,10 @@ class LHCNoiseFB(object):
         # Bunch-by-bunch FWHM bunch length
         for i in range(len(self.bunch_pattern)):
             
-            bind = np.where((self.slices.bin_centers - bucket_min[i])*
-                            (self.slices.bin_centers - bucket_max[i]) < 0)[0]
-            hheight = np.max(self.slices.n_macroparticles[bind])/2.
-            index = np.where(self.slices.n_macroparticles[bind] > hheight)[0]
+            bind = np.where((self.profile.bin_centers - bucket_min[i])*
+                            (self.profile.bin_centers - bucket_max[i]) < 0)[0]
+            hheight = np.max(self.profile.n_macroparticles[bind])/2.
+            index = np.where(self.profile.n_macroparticles[bind] > hheight)[0]
             self.bl_meas_bbb[i] = self.fwhm_interpolation(bind[index], hheight)
             
         # Average FWHM bunch length            
