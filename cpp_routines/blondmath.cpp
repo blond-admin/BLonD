@@ -19,10 +19,10 @@ C++ Math library
 #include "cos.h"
 #include <cmath>
 #include <algorithm>
+#include <functional>
 
 #ifdef PARALLEL
 #include <omp.h>
-#include <parallel/algorithm>
 #endif
 
 
@@ -267,36 +267,21 @@ extern "C" {
 
     void sort_double(double * __restrict__ in, const int n, bool reverse)
     {
-#ifdef PARALLEL
-        if(reverse) __gnu_parallel::sort(in, in + n, std::greater<double>());
-        else __gnu_parallel::sort(in, in + n);
-#else
         if(reverse) std::sort(in, in + n, std::greater<double>());
         else std::sort(in, in + n);
-#endif
     }
 
     void sort_int(int * __restrict__ in, const int n, bool reverse)
     {
-#ifdef PARALLEL
-        if(reverse) __gnu_parallel::sort(in, in + n, std::greater<int>());
-        else __gnu_parallel::sort(in, in + n);
-#else
         if(reverse) std::sort(in, in + n, std::greater<int>());
         else std::sort(in, in + n);
-#endif
     }
 
 
     void sort_longint(long int * __restrict__ in, const int n, bool reverse)
     {
-#ifdef PARALLEL
-        if(reverse) __gnu_parallel::sort(in, in + n, std::greater<long int>());
-        else __gnu_parallel::sort(in, in + n);
-#else
         if(reverse) std::sort(in, in + n, std::greater<long int>());
         else std::sort(in, in + n);
-#endif
     }
 
 }
