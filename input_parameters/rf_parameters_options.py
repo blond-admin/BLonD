@@ -64,7 +64,7 @@ class RFStationOptions(object):
                                " not recognised. Aborting...")
 
         self.figdir = str(figdir)
-        self.figname = str(figname)
+        self.figname = figname #str(figname)
 
         if sampling > 0:
             self.sampling = int(sampling)
@@ -182,8 +182,8 @@ class RFStationOptions(object):
                         loc=3, ncol=2, mode='expand', borderaxespad=0.)
 
                     # Save figure
-                    fign = self.figdir + '/preprocess_' "%s" % self.figname + \
-                        '_' "%d" % index_rf + '.png'
+                    fign = self.figdir + '/preprocess_' "%s" % self.figname[index_rf] + \
+                        '.png'
                     plt.savefig(fign)
 
         # If array/list, compares with the input number of turns and

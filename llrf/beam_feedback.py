@@ -82,7 +82,7 @@ class BeamFeedback(object):
                 #: | *LHC Synchronisation loop coefficient [1]*
                 self.lhc_a = 5.25 - self.rf_params.omega_s0/(np.pi*40.) 
                 #: | *LHC Synchronisation loop time constant [turns]*
-                self.lhc_t = ( 2*np.pi*self.rf_params.Qs*np.sqrt(self.lhc_a) )/ \
+                self.lhc_t = ( 2*np.pi*self.rf_params.Q_s*np.sqrt(self.lhc_a) )/ \
                                np.sqrt(1 + self.gain/self.gain2* \
                                np.sqrt((1 + 1/self.lhc_a)/(1 + self.lhc_a)))
                                
