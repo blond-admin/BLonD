@@ -450,7 +450,7 @@ class RingOptions(object):
                                    ncol=2, mode="expand", borderaxespad=0.)
 
             # Save figure
-            fign = self.figdir + '/preprocess_momentum.png'
+            fign = self.figdir + '/preprocess_' + self.figname
             plt.savefig(fign)
             plt.clf()
 
