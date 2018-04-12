@@ -1,5 +1,5 @@
-
-# Copyright 2016 CERN. This software is distributed under the
+# coding: utf8
+# Copyright 2014-2017 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3), 
 # copied verbatim in the file LICENCE.md.
 # In applying this licence, CERN does not waive the privileges and immunities 
@@ -8,54 +8,38 @@
 # Project website: http://blond.web.cern.ch/
 
 '''
-**Module gathering and processing all RF parameters used in the simulation.**
+**Scaling of longitudinal beam and machine parameters, with user interface.**
 
-:Authors: **Helga Timko**
+:Authors: **Konstantinos Iliakis**, **Helga Timko**
 '''
 
-from __future__ import division
-from future import standard_library
-standard_library.install_aliases()
-from builtins import object
-import numpy as np
-from scipy.constants import m_p, e, c
+from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5.Qt import QButtonGroup, QHBoxLayout, QGroupBox
 from scipy import integrate
-import tkinter as tk
+from scipy.constants import m_p, e, c
 
+import numpy as np
 
 
 class ParameterScaling(object):
-    '''
-    Determines longitudinal parameters to construct simulation input or simply
-    estimate different parameters. Assumes a single RF system.
-    '''
     
-    def __init__(self):
-        
-        
-        # Display dialogue window
-        self.master = tk.Tk()
-        self.dialogue_window()
-        self.master.mainloop()
-        
-
     @property
     def phi_b(self):
         
-        return self.omega_RF*self.tau/2.
+        return self.omega_rf * self.tau / 2.
 
         
     @property
     def delta_b(self):
         
-        return self.dE_b/(self.beta_sq*self.energy)
+        return self.dE_b / (self.beta_sq * self.energy)
     
     
     @property
     def dE_b(self):
         
-        return np.sqrt(self.beta_sq*self.energy*self.voltage*(1 - 
-                       np.cos(self.phi_b))/(np.pi*self.harmonic*self.eta_0))
+        return np.sqrt(self.beta_sq * self.energy * self.voltage * (1 - 
+                       np.cos(self.phi_b)) / (np.pi * self.harmonic * self.eta_0))
 
 
     @property
@@ -68,116 +52,116 @@ class ParameterScaling(object):
     @property
     def emittance(self):
                           
-        return 4.*self.energy*self.omega_s0*self.beta_sq* \
-                         self.integral/(self.omega_RF**2*self.eta_0)
+        return 4.*self.energy * self.omega_s0 * self.beta_sq * \
+                         self.integral / (self.omega_rf ** 2 * self.eta_0)
 
 
     def relativistic_quantities(self):
 
-        self.momentum = np.sqrt(self.energy**2 - self.mass**2)
-        self.textwindow.insert('end', "    Synchronous momentum: " 
-                               + np.str(self.momentum) + " eV\n")
+        self.momentum = np.sqrt(self.energy ** 2 - self.mass ** 2)
+        self.tb1.append("    Synchronous momentum: " 
+                               + np.str(self.momentum) + " eV")
 
         self.kinetic_energy = self.energy - self.mass
-        self.textwindow.insert('end', "    Synchronous kinetic energy: " 
-                               + np.str(self.kinetic_energy) + " eV\n")
+        self.tb1.append("    Synchronous kinetic energy: " 
+                               + np.str(self.kinetic_energy) + " eV")
 
-        self.gamma = self.energy/self.mass
-        self.textwindow.insert('end', "    Synchronous relativistic gamma: " 
-                               + np.str(self.gamma) + "\n")
+        self.gamma = self.energy / self.mass
+        self.tb1.append("    Synchronous relativistic gamma: " 
+                               + np.str(self.gamma) + "")
 
-        self.beta = np.sqrt(1. - 1./self.gamma**2)
-        self.textwindow.insert('end', "    Synchronous relativistic beta: " 
-                               + np.str(self.beta) + "\n")
+        self.beta = np.sqrt(1. - 1. / self.gamma ** 2)
+        self.tb1.append("    Synchronous relativistic beta: " 
+                               + np.str(self.beta) + "")
 
-        self.beta_sq = self.beta**2
-        self.textwindow.insert('end', "    Synchronous relativistic beta squared: " 
-                               + np.str(self.beta_sq) + "\n\n")
+        self.beta_sq = self.beta ** 2
+        self.tb1.append("    Synchronous relativistic beta squared: " 
+                               + np.str(self.beta_sq) + "\n")
            
     
     def frequencies(self):
         
-        self.t_rev = self.circumference/(self.beta*c)
-        self.textwindow.insert('end', "    Revolution period: " 
-                               + np.str(self.t_rev*1.e6) + " us\n")
+        self.t_rev = self.circumference / (self.beta * c)
+        self.tb1.append("    Revolution period: " 
+                               + np.str(self.t_rev * 1.e6) + " us")
 
-        self.f_rev = 1./self.t_rev
-        self.textwindow.insert('end', "    Revolution frequency: " 
-                               + np.str(self.f_rev) + " Hz\n")
+        self.f_rev = 1. / self.t_rev
+        self.tb1.append("    Revolution frequency: " 
+                               + np.str(self.f_rev) + " Hz")
 
-        self.omega_rev = 2.*np.pi*self.f_rev
-        self.textwindow.insert('end', "        Angular revolution frequency: " 
-                               + np.str(self.omega_rev) + " 1/s\n")
+        self.omega_rev = 2.*np.pi * self.f_rev
+        self.tb1.append("        Angular revolution frequency: " 
+                               + np.str(self.omega_rev) + " 1/s")
         
-        self.f_RF = self.harmonic*self.f_rev           
-        self.textwindow.insert('end', "    RF frequency: " 
-                               + np.str(self.f_RF*1.e-6) + " MHz\n")
+        self.f_RF = self.harmonic * self.f_rev           
+        self.tb1.append("    RF frequency: " 
+                               + np.str(self.f_RF * 1.e-6) + " MHz")
 
-        self.omega_RF = 2.*np.pi*self.f_RF           
-        self.textwindow.insert('end', "        Angular RF frequency: " 
-                               + np.str(self.omega_RF) + " 1/s\n\n")
+        self.omega_rf = 2.*np.pi * self.f_RF           
+        self.tb1.append("        Angular RF frequency: " 
+                               + np.str(self.omega_rf) + " 1/s\n")
     
     
     def tune(self):
     
-        self.eta_0 = np.fabs(1./self.gamma_t**2 - 1./self.gamma**2)
-        self.textwindow.insert('end', "    Slippage factor (zeroth order): " 
-                               + np.str(self.eta_0) + "\n")
+        self.eta_0 = np.fabs(1. / self.gamma_t ** 2 - 1. / self.gamma ** 2)
+        self.tb1.append("    Slippage factor (zeroth order): " 
+                               + np.str(self.eta_0) + "")
 
-        self.Q_s0 = np.sqrt(self.harmonic*self.voltage*self.eta_0/
-                           (2.*np.pi*self.beta_sq*self.energy))
-        self.textwindow.insert('end', "    Central synchrotron tune: " 
-                               + np.str(self.Q_s0) + "\n")
+        self.Q_s0 = np.sqrt(self.harmonic * self.voltage * self.eta_0 / 
+                           (2.*np.pi * self.beta_sq * self.energy))
+        self.tb1.append("    Central synchrotron tune: " 
+                               + np.str(self.Q_s0) + "")
 
-        self.f_s0 = self.Q_s0*self.f_rev
-        self.textwindow.insert('end', "    Central synchrotron frequency: " 
-                               + np.str(self.f_s0) + "\n")
+        self.f_s0 = self.Q_s0 * self.f_rev
+        self.tb1.append("    Central synchrotron frequency: " 
+                               + np.str(self.f_s0) + "")
 
-        self.omega_s0 = 2.*np.pi*self.f_s0           
-        self.textwindow.insert('end', "        Angular synchrotron frequency: " 
-                               + np.str(self.omega_s0) + " 1/s\n\n")
+        self.omega_s0 = 2.*np.pi * self.f_s0           
+        self.tb1.append("        Angular synchrotron frequency: " 
+                               + np.str(self.omega_s0) + " 1/s\n")
 
 
     def bucket_parameters(self):
         
-        self.textwindow.insert('end', "Bucket parameters assuming single RF, stationary case, and no intensity effects.\n")
+        self.tb1.append("Bucket parameters assuming single RF, stationary case, and no intensity effects.\n")
 
-        self.bucket_area = 8.*np.sqrt(2.*self.beta_sq*self.energy*self.voltage/
-                           (np.pi*self.harmonic*self.eta_0))/self.omega_RF
-        self.textwindow.insert('end', "    Bucket area: " 
-                               + np.str(self.bucket_area) + " eVs\n")
+        self.bucket_area = 8.*np.sqrt(2.*self.beta_sq * self.energy * self.voltage / 
+                           (np.pi * self.harmonic * self.eta_0)) / self.omega_rf
+        self.tb1.append("    Bucket area: " 
+                               + np.str(self.bucket_area) + " eVs")
 
-        self.dt_max = 0.5*self.t_rev/self.harmonic
-        self.textwindow.insert('end', "    Half of bucket length: " 
-                               + np.str(self.dt_max*1.e9) + " ns\n")
+        self.dt_max = 0.5 * self.t_rev / self.harmonic
+        self.tb1.append("    Half of bucket length: " 
+                               + np.str(self.dt_max * 1.e9) + " ns")
         
-        self.dE_max = np.sqrt(2.*self.beta**2*self.energy*self.voltage/
-                              (np.pi*self.eta_0*self.harmonic))
-        self.textwindow.insert('end', "    Half of bucket height: " 
-                               + np.str(self.dE_max*1.e-6) + " MeV\n")
+        self.dE_max = np.sqrt(2.*self.beta ** 2 * self.energy * self.voltage / 
+                              (np.pi * self.eta_0 * self.harmonic))
+        self.tb1.append("    Half of bucket height: " 
+                               + np.str(self.dE_max * 1.e-6) + " MeV")
        
-        self.delta_max = self.dE_max/(self.beta_sq*self.energy)
-        self.textwindow.insert('end', "        In relative momentum offset: " 
-                               + np.str(self.delta_max) + "\n\n")
+        self.delta_max = self.dE_max / (self.beta_sq * self.energy)
+        self.tb1.append("        In relative momentum offset: " 
+                               + np.str(self.delta_max) + "\n")
         
         
     def emittance_from_bunch_length(self, four_sigma_bunch_length):
         
         self.tau = four_sigma_bunch_length
         if self.tau >= 2.*self.dt_max:
-            self.textwindow.insert('end', "Chosen bunch length too large for this bucket. Aborting!")
+            self.tb1.append("Chosen bunch length too large for this bucket. Aborting!")
             raise RuntimeError("Chosen bunch length too large for this bucket. Aborting!")
-        self.textwindow.insert('end', "Calculating emittance of 4-sigma bunch length: " 
-                               + np.str(self.tau*1.e9) + " ns\n")
+        self.tb1.append("Calculating emittance of 4-sigma bunch length: " 
+                               + np.str(self.tau * 1.e9) + " ns")
 
-        self.textwindow.insert('end', "    Emittance contour in phase: " 
-                               + np.str(self.phi_b) + " rad\n")
-        self.textwindow.insert('end', "    Emittance contour in relative momentum: " 
-                               + np.str(self.delta_b) + "\n")
-        self.textwindow.insert('end', "    Emittance contour in energy offset: " 
-                               + np.str(self.dE_b*1.e-6) + " MeV\n")
-        self.textwindow.insert('end', "    Longitudinal emittance is: " 
-                               + np.str(self.emittance) + " eVs\n\n")
+        self.tb1.append("    Emittance contour in phase: " 
+                               + np.str(self.phi_b) + " rad")
+        self.tb1.append("    Emittance contour in relative momentum: " 
+                               + np.str(self.delta_b) + "")
+        self.tb1.append("    Emittance contour in energy offset: " 
+                               + np.str(self.dE_b * 1.e-6) + " MeV")
+        self.tb1.append("    Longitudinal emittance is: " 
+                               + np.str(self.emittance) + " eVs\n")
 
 
     def bunch_length_from_emittance(self, emittance):
@@ -185,192 +169,253 @@ class ParameterScaling(object):
         self.emittance_aim = emittance
         
         if self.emittance_aim >= self.bucket_area:
-            self.textwindow.insert('end', "Chosen emittance too large for this bucket. Aborting!")
+            self.tb1.append("Chosen emittance too large for this bucket. Aborting!")
             raise RuntimeError("Chosen emittance too large for this bucket. Aborting!")
-        self.textwindow.insert('end', "Calculating 4-sigma bunch length for an emittance of " 
-                               + np.str(self.emittance_aim) + " eVs\n")
+        self.tb1.append("Calculating 4-sigma bunch length for an emittance of " 
+                               + np.str(self.emittance_aim) + " eVs")
 
         # Make a guess, iterate to get closer
-        self.tau = self.dt_max/2. 
+        self.tau = self.dt_max / 2. 
         while (np.fabs((self.emittance - self.emittance_aim)
-                       /self.emittance_aim) > 0.001):   
-            self.tau *= np.sqrt(self.emittance_aim/self.emittance)
+                       / self.emittance_aim) > 0.001):   
+            self.tau *= np.sqrt(self.emittance_aim / self.emittance)
 
-        self.textwindow.insert('end', "    Bunch length is: " 
-                               + np.str(self.tau*1.e9) + " ns\n")
-        self.textwindow.insert('end', "    Corresponding matched rms relative momentum offset: " 
-                               + np.str(self.delta_b) + "\n")
-        self.textwindow.insert('end', "    Emittance contour in phase: " 
-                               + np.str(self.phi_b) + " rad\n")  
+        self.tb1.append("    Bunch length is: " 
+                               + np.str(self.tau * 1.e9) + " ns")
+        self.tb1.append("    Corresponding matched rms relative momentum offset: " 
+                               + np.str(self.delta_b) + "")
+        self.tb1.append("    Emittance contour in phase: " 
+                               + np.str(self.phi_b) + " rad")
+    
+    
+    
+    def setupUi(self, mainWindow):
+        
+        mainWindow.setObjectName("mainWindow")
+        mainWindow.resize(586, 611)
+        mainWindow.setWindowOpacity(1.0)
+        mainWindow.setFixedSize(mainWindow.size())
+#         mainWindow.setModal(True)
+        
+        self.lbMachine = QtWidgets.QLabel(mainWindow)
+        self.lbMachine.setGeometry(QtCore.QRect(20, 20, 70, 17))
+        self.lbMachine.setMinimumSize(QtCore.QSize(70, 0))
+        self.lbMachine.setMaximumSize(QtCore.QSize(16777215, 17))
+        self.lbMachine.setObjectName("lbMachine")
+        self.lbEnergy = QtWidgets.QLabel(mainWindow)
+        self.lbEnergy.setGeometry(QtCore.QRect(20, 80, 70, 17))
+        self.lbEnergy.setObjectName("lbEnergy")
+        self.leCustom = QtWidgets.QLineEdit(mainWindow)
+        self.leCustom.setEnabled(True)
+        self.leCustom.setGeometry(QtCore.QRect(125, 100, 71, 25))
+        self.leCustom.setStyleSheet("background-color: rgb(255, 255, 255);\n"
+"border-color: rgb(0, 0, 0);")
+        self.leCustom.hide()
+        self.leCustom.setText("")
+        self.leCustom.setObjectName("leCustom")
+        self.lbEV1 = QtWidgets.QLabel(mainWindow)
+        self.lbEV1.setEnabled(True)
+        self.lbEV1.setGeometry(QtCore.QRect(200, 100, 30, 25))
+        self.lbEV1.setObjectName("lbEV1")
+        self.lbEV1.hide()
+        self.lbVoltage = QtWidgets.QLabel(mainWindow)
+        self.lbVoltage.setGeometry(QtCore.QRect(20, 160, 70, 25))
+        self.lbVoltage.setObjectName("lbVoltage")
+        self.lbEV2 = QtWidgets.QLabel(mainWindow)
+        self.lbEV2.setGeometry(QtCore.QRect(150, 160, 31, 25))
+        self.lbEV2.setObjectName("lbEV2")
+        self.leVoltage = QtWidgets.QLineEdit(mainWindow)
+        self.leVoltage.setGeometry(QtCore.QRect(80, 155, 70, 25))
+        self.leVoltage.setStyleSheet("background-color: rgb(255, 255, 255);\n"
+"border-color: rgb(0, 0, 0);")
+        self.leVoltage.setText("")
+        self.leVoltage.setObjectName("leVoltage")
+        self.lbOptional = QtWidgets.QLabel(mainWindow)
+        self.lbOptional.setGeometry(QtCore.QRect(20, 230, 70, 17))
+        self.lbOptional.setObjectName("lbOptional")
+        
+        self.leEmittance = QtWidgets.QLineEdit(mainWindow)
+        self.leEmittance.setGeometry(QtCore.QRect(130, 270, 70, 25))
+        self.leEmittance.setStyleSheet("background-color: rgb(255, 255, 255);\n"
+"border-color: rgb(0, 0, 0);")
+        self.leEmittance.setText("")
+        self.leEmittance.setObjectName("leEmittance")
+        self.lbEVS1 = QtWidgets.QLabel(mainWindow)
+        self.lbEVS1.setGeometry(QtCore.QRect(200, 275, 41, 25))
+        self.lbEVS1.setObjectName("lbEVS1")
+        self.lbEVS2 = QtWidgets.QLabel(mainWindow)
+        self.lbEVS2.setGeometry(QtCore.QRect(330, 275, 41, 25))
+        self.lbEVS2.setObjectName("lbEVS2")
+        self.leBunchLength = QtWidgets.QLineEdit(mainWindow)
+        self.leBunchLength.setGeometry(QtCore.QRect(260, 270, 70, 25))
+        self.leBunchLength.setStyleSheet("background-color: rgb(255, 255, 255);\n"
+"border-color: rgb(0, 0, 0);")
+        self.leBunchLength.setText("")
+        self.leBunchLength.setObjectName("leBunchLength")
+        
+        self.pbSubmit = QtWidgets.QPushButton(mainWindow)
+        self.pbSubmit.setGeometry(QtCore.QRect(230, 320, 101, 27))
+        self.pbSubmit.setObjectName("pbSumbit")
+        self.tb1 = QtWidgets.QTextBrowser(mainWindow)
+        self.tb1.setGeometry(QtCore.QRect(10, 350, 561, 241))
+        self.tb1.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
+        self.tb1.setObjectName("tb1")
+        self.cbMachine = QtWidgets.QComboBox(mainWindow)
+        self.cbMachine.setGeometry(QtCore.QRect(20, 40, 83, 25))
+        self.cbMachine.setEditable(False)
+        self.cbMachine.setObjectName("cbMachine")
+        self.cbMachine.addItem("")
+        self.cbMachine.addItem("")
+        self.cbMachine.addItem("")
+        self.cbMachine.addItem("")
+        self.cbMachine.addItem("")
+        self.cbEnergy = QtWidgets.QComboBox(mainWindow)
+        self.cbEnergy.setGeometry(QtCore.QRect(20, 100, 100, 25))
+        self.cbEnergy.setObjectName("cbEnergy")
+        self.cbEnergy.addItem("")
+        self.cbEnergy.addItem("")
+        self.cbEnergy.addItem("")
+        
+        self.rbBunchLength = QtWidgets.QRadioButton(mainWindow)
+        self.rbBunchLength.setGeometry(QtCore.QRect(260, 250, 140, 22))
+        self.rbBunchLength.setObjectName("rbBunchLength")
+        
+        self.rbEmittance = QtWidgets.QRadioButton(mainWindow)
+        self.rbEmittance.setGeometry(QtCore.QRect(130, 250, 100, 22))
+        self.rbEmittance.setObjectName("rbEmittance")
+        
+        self.rbNoOption = QtWidgets.QRadioButton(mainWindow)
+        self.rbNoOption.setGeometry(QtCore.QRect(20, 250, 100, 22))
+        self.rbNoOption.setObjectName('rbNoOption')
+        self.rbNoOption.setChecked(True)
+#         self.rbLayout = QHBoxLayout()
+#         self.rbLayout.addWidget(self.rbBunchLength)
+#         self.rbLayout.addWidget(self.rbEmittance)
+#         self.rbLayout.addWidget(self.rbNoOptioin)
+#         self.rbLayout.setGeometry(QtCore.QRect(10, 10, 10, 10))
+#         self.rbLayout.addStretch(1)
+#         
+#         self.rbGroupBox = QGroupBox()
+#         self.rbGroupBox.setLayout(self.rbLayout)
+#         self.rbGroupBox.setGeometry(QtCore.QRect(10, 10, 10, 10))
+#         
+        self.retranslateUi(mainWindow)
+        QtCore.QMetaObject.connectSlotsByName(mainWindow)
+        self.addactions(mainWindow)
+        
+    def retranslateUi(self, mainWindow):
+        _translate = QtCore.QCoreApplication.translate
+        mainWindow.setWindowTitle(_translate("mainWindow", "Parameter Scaling"))
+        self.lbMachine.setText(_translate("mainWindow", "Machine"))
+        self.lbEnergy.setText(_translate("mainWindow", "Energy"))
+        self.lbEV1.setText(_translate("mainWindow", "[eV]"))
+        self.lbVoltage.setText(_translate("mainWindow", "Voltage"))
+        self.lbEV2.setText(_translate("mainWindow", "[V]"))
+        self.lbOptional.setText(_translate("mainWindow", "Optional"))
+        self.rbEmittance.setText(_translate("mainWindow", "Emittance"))
+        self.lbEVS1.setText(_translate("mainWindow", "[eVs]"))
+        self.lbEVS2.setText(_translate("mainWindow", "[s]"))
+        self.rbBunchLength.setText(_translate("mainWindow", "Bunch Length"))
+        self.rbNoOption.setText(_translate("mainWindow", "No Options"))
 
-
-    def dialogue_window(self):
-        """Set up password entry dialogue box"""
+        self.pbSubmit.setText(_translate("mainWindow", "Submit"))
+        self.cbEnergy.setCurrentText(_translate("mainWindow", "LHC"))
+        self.cbMachine.setItemText(0, _translate("mainWindow", "LHC"))
+        self.cbMachine.setItemText(1, _translate("mainWindow", "PSB"))
+        self.cbMachine.setItemText(2, _translate("mainWindow", "SPS, Q20"))
+        self.cbMachine.setItemText(3, _translate("mainWindow", "SPS, Q26"))
+        self.cbMachine.setItemText(4, _translate("mainWindow", "CPS"))
+        self.cbEnergy.setItemText(0, _translate("mainWindow", "Flat bottom"))
+        self.cbEnergy.setItemText(1, _translate("mainWindow", "Flat top"))
+        self.cbEnergy.setItemText(2, _translate("mainWindow", "Custom"))
+    
+    
+    def addactions(self, mainWindow):
+        self.pbSubmit.clicked.connect(self.pbHandler)
+        self.cbEnergy.activated[str].connect(self.cbEnergyHandler)
+    
+    def pbHandler(self):
+#         self.tb1.append('pbSubmit was clicked!')
         
-        # Define pop-up frame -------------------------------------------------
-        tk.Frame(self.master)
-        self.master.geometry('600x800')
-        self.master.title('Parameter Scaling')
+        self.machine = str(self.cbMachine.currentText())
+#         self.tb1.append('machine is ' + self.machine)
         
-        # Choose machine ------------------------------------------------------
-        self.machine = tk.StringVar()
-        self.machine.set('LHC') # Default
-        tk.Label(self.master, text = """Machine""", justify = tk.LEFT, 
-                 anchor = tk.W, font=(16)).place(x = 20, y = 20, width = 100, 
-                                                 height = 20)
-        machines = [("PSB",'PSB'), ("CPS",'CPS'), ("SPS, Q20",'SPS-Q20'), 
-                    ("SPS, Q26", 'SPSQ26'), ("LHC", 'LHC')]
-        dx = 0
-        for txt, val in machines:
-            tk.Radiobutton(self.master, text=txt, variable=self.machine, 
-                           value=val, padx = 10, anchor = tk.W).place(x = 20 + 
-                           dx, y = 50, width = 100, height = 20)
-            dx += 100
-        
-        # Choose energy -------------------------------------------------------
-        self.energy_type = tk.StringVar() 
-        self.energy_type.set('flat_bottom') # Default
-        tk.Label(self.master, text = """Energy""", justify = tk.LEFT, 
-                 anchor = tk.W, font=(16)).place(x = 20, y = 100, width = 100, 
-                                                 height = 20) 
-        energy_type = [("Flat bottom",'flat_bottom'), ("Flat top",'flat_top'), 
-                       ("Custom",'custom')]
-        dx = 0
-        for txt, val in energy_type:
-            tk.Radiobutton(self.master, text=txt, variable=self.energy_type, 
-                           value=val, padx = 10, anchor = tk.W).place(x = 20 + 
-                           dx, y = 130, width = 100, height = 20)
-            dx += 100
-        self.custom_energy = tk.Entry(self.master, bd = 5)
-        self.custom_energy.place(x = 20 + dx, y = 125, width = 100, 
-                                 height = 30)
-        dx += 100
-        tk.Label(self.master, text = "[eV]", justify = tk.LEFT, 
-                 anchor = tk.W).place(x = 20 + dx, y = 130, width = 100, 
-                                      height = 20)
-                 
-        # Choose voltage ------------------------------------------------------
-        tk.Label(self.master, text = """Voltage""", justify = tk.LEFT, 
-                 anchor = tk.W, font=(16)).place(x = 20, y = 180, width = 100, 
-                                                 height = 20) 
-        self.voltage = tk.Entry(self.master, bd = 5)
-        self.voltage.place(x = 120, y = 175, width = 100, height = 30)
-        tk.Label(self.master, text = "[V]", justify = tk.LEFT, 
-                 anchor = tk.W).place(x = 220, y = 180, width = 100, 
-                                      height = 20)
-
-        # Optional calculation ------------------------------------------------
-        tk.Label(self.master, text = """Optional""", justify = tk.LEFT, 
-                 anchor = tk.W, font=(16)).place(x = 20, y = 230, width = 100, 
-                                                 height = 20) 
-        self.switch = tk.IntVar()
-        self.switch.set(0) # Default: no optional calculations
-        
-        tk.Radiobutton(self.master, text="Emittance", variable=self.switch, 
-                       value=1, padx = 10, anchor = tk.W).place(x = 20, 
-                       y = 260, width = 100, height = 20)        
-        self.emittance_target = tk.Entry(self.master, bd = 5)
-        self.emittance_target.place(x = 120, y = 255, width = 100, height = 30)
-        tk.Label(self.master, text = "[eVs]", justify = tk.LEFT, 
-                 anchor = tk.W).place(x = 220, y = 260, width = 100, 
-                                      height = 20)
-        
-        tk.Radiobutton(self.master, text="Bunch length", variable=self.switch, 
-                       value=2, padx = 10, anchor = tk.W).place(x = 290, 
-                       y = 260, width = 120, height = 20)        
-        self.bunch_length_target = tk.Entry(self.master, bd = 5)
-        self.bunch_length_target.place(x = 410, y = 255, width = 100, 
-                                       height = 30)
-        tk.Label(self.master, text = "[s]", justify = tk.LEFT, 
-                 anchor = tk.W).place(x = 510, y = 260, width = 100, 
-                                      height = 20)
-        
-        # Submit button -------------------------------------------------------
-        button = tk.Button(self.master, text = "Submit", width = 10, 
-                           font = (16), justify = tk.CENTER, 
-                           command = self.callback)
-        button.place(x = 250, y = 320, width = 100, height = 40) 
-  
-        # Action at pressing enter
-        self.master.bind('<Return>', self.callback)
-               
-        # Scrollbar for output on screen --------------------------------------
-        self.scrollbar = tk.Scrollbar(self.master)
-        self.textwindow = tk.Text(self.master, height=4, width=50)
-        self.scrollbar.place(x = 580, y = 400, width = 10, height = 380)
-        self.textwindow.place(x = 10, y = 400, width = 560, height = 380)
-        self.scrollbar.config(command=self.textwindow.yview)
-        self.textwindow.config(yscrollcommand=self.scrollbar.set)
-        
-
-    def callback(self, *args):
-        """Get values from dialogue window and execute calculations"""
-        
-        self.machine = self.machine.get()
-        self.energy_type = self.energy_type.get()
-        if self.energy_type == 'custom':
-            self.custom_energy = self.custom_energy.get()
-        self.voltage = self.voltage.get()
-        self.switch = self.switch.get()
-        self.emittance_target = self.emittance_target.get()
-        self.bunch_length_target = self.bunch_length_target.get()
-
-        self.textwindow.insert('end', "Input -- chosen machine: " + 
-                               np.str(self.machine) + "\n")
-
-        # Machine-dependent parameters [SI-units] -----------------------------
-        gamma_ts = {'PSB': 4.0767, 'CPS': np.sqrt(37.2), 'SPS-Q20': 18., 
-                   'SPS-Q26': 22.83, 'LHC': 55.759505}
-        harmonics = {'PSB': 1, 'CPS': 21, 'SPS-Q20': 4620, 'SPS-Q26': 4620,
-                     'LHC': 35640}
-        circumferences = {'PSB': 2*np.pi*25, 'CPS': 2*np.pi*100., 
-                          'SPS-Q20': 2*np.pi*1100.009, 
-                          'SPS-Q26': 2*np.pi*1100.009, 'LHC': 26658.883}
-        energies_fb = {'PSB': (50.e6+m_p*c**2/e), 'CPS': 1.4e9, 'SPS-Q20': 25.94e9, 
-                       'SPS-Q26': 25.94e9, 'LHC': 450.e9}
-        energies_ft = {'PSB': (1.4e9+m_p*c**2/e), 'CPS': 25.92e9, 'SPS-Q20': 450.e9, 
-                       'SPS-Q26': 450.e9, 'LHC': 6.5e12}
-        # Machine-dependent parameters [SI-units] -----------------------------
-              
-        self.gamma_t = gamma_ts[self.machine]
-        self.alpha = 1./(self.gamma_t)**2
-        self.textwindow.insert('end', "    * with relativistic gamma at transition: " 
-                               + np.str(self.gamma_t) + "\n")
-        self.textwindow.insert('end', "    * with momentum compaction factor: " 
-                               + np.str(self.alpha) + "\n")
-        
-        self.harmonic = harmonics[self.machine]
-        self.textwindow.insert('end', "    * with main harmonic: " 
-                               + np.str(self.harmonic) + "\n")
-        
-        self.circumference = circumferences[self.machine]
-        self.textwindow.insert('end', "    * and machine circumference: " 
-                               + np.str(self.circumference) + " m\n")
-        
-        if self.energy_type == 'flat_bottom':
-            self.energy = energies_fb[self.machine]
-        elif self.energy_type == 'flat_top':
-            self.energy = energies_ft[self.machine]
-        else:
+        self.energy_type = self.cbEnergy.currentText()
+        if(self.energy_type == 'Custom'):
+            self.custom_energy = self.leCustom.text()
             try:
                 self.energy = np.double(self.custom_energy)
             except ValueError:
-                self.textwindow.insert('end', "Energy not recognised. Aborting!")
-                raise RuntimeError('Energy not recognised. Aborting!')
-        self.textwindow.insert('end', "Input -- synchronous total energy: " 
-                               + np.str(self.energy*1.e-6) + " MeV\n")
+                self.tb1.append("Energy not recognized!")
+                return
+                # raise RuntimeError('Energy not recognized. Aborting!')
+#             self.tb1.append('custom_energy is ' + self.custom_energy)
+            
+#         self.tb1.append('energy_type is ' + self.energy_type)
+        
+        
+        self.voltage = self.leVoltage.text()
+#         self.tb1.append('voltage is ' + self.voltage)
+        
+        self.emittance_target = self.leEmittance.text()
+#         self.tb1.append('emittance_target is ' + self.emittance_target)
+        
+        self.bunch_length_target = self.leBunchLength.text()
+#         self.tb1.append('bunch_length_target is ' + self.bunch_length_target)
+        
+        
+        self.tb1.append("Input -- chosen machine: " + 
+                               np.str(self.machine) + "\n")
+
+        # Machine-dependent parameters [SI-units] -----------------------------
+        gamma_ts = {'PSB': 4.0767, 'CPS': np.sqrt(37.2), 'SPS, Q20': 18.,
+                   'SPS, Q26': 22.83, 'LHC': 55.759505}
+        harmonics = {'PSB': 1, 'CPS': 21, 'SPS, Q20': 4620, 'SPS, Q26': 4620,
+                     'LHC': 35640}
+        circumferences = {'PSB': 2 * np.pi * 25, 'CPS': 2 * np.pi * 100.,
+                          'SPS, Q20': 2 * np.pi * 1100.009,
+                          'SPS, Q26': 2 * np.pi * 1100.009, 'LHC': 26658.883}
+        energies_fb = {'PSB': (50.e6 + m_p * c ** 2 / e), 'CPS': 1.4e9, 'SPS, Q20': 25.94e9,
+                       'SPS-Q26': 25.94e9, 'LHC': 450.e9}
+        energies_ft = {'PSB': (1.4e9 + m_p * c ** 2 / e), 'CPS': 25.92e9, 'SPS, Q20': 450.e9,
+                       'SPS, Q26': 450.e9, 'LHC': 6.5e12}
+        # Machine-dependent parameters [SI-units] -----------------------------
+              
+        self.gamma_t = gamma_ts[self.machine]
+        self.alpha = 1. / (self.gamma_t) ** 2
+        self.tb1.append("    * with relativistic gamma at transition: " 
+                               + np.str(self.gamma_t) + "")
+        self.tb1.append("    * with momentum compaction factor: " 
+                               + np.str(self.alpha) + "")
+        
+        self.harmonic = harmonics[self.machine]
+        self.tb1.append("    * with main harmonic: " 
+                               + np.str(self.harmonic) + "")
+        
+        self.circumference = circumferences[self.machine]
+        self.tb1.append("    * and machine circumference: " 
+                               + np.str(self.circumference) + " m\n")
+        
+        if self.energy_type == 'Flat bottom':
+            self.energy = energies_fb[self.machine]
+        elif self.energy_type == 'Flat top':
+            self.energy = energies_ft[self.machine]
+        
+        self.tb1.append("Input -- synchronous total energy: " 
+                               + np.str(self.energy * 1.e-6) + " MeV")
 
         try:
             self.voltage = np.double(self.voltage)
         except ValueError:
-            self.textwindow.insert('end', "Voltage not recognised. Aborting!")
-            raise RuntimeError('Voltage not recognised. Aborting!')
-        self.textwindow.insert('end', "Input -- RF voltage: " 
-                               + np.str(self.voltage*1.e-6) + " MV\n")
+            self.tb1.append("Voltage not recognised!")
+            return
+            # raise RuntimeError('Voltage not recognised. Aborting!')
+        self.tb1.append("Input -- RF voltage: " 
+                               + np.str(self.voltage * 1.e-6) + " MV")
 
-        self.mass = m_p*c**2/e
-        self.textwindow.insert('end', "Input -- particle mass: " 
-                               + np.str(self.mass*1.e-6) + " MeV\n\n")
+        self.mass = m_p * c ** 2 / e
+        self.tb1.append("Input -- particle mass: " 
+                               + np.str(self.mass * 1.e-6) + " MeV\n")
                 
         # Derived quantities --------------------------------------------------
         self.relativistic_quantities()
@@ -378,19 +423,41 @@ class ParameterScaling(object):
         self.tune()
         self.bucket_parameters()
         
-        if self.switch == 1:
+        if self.rbEmittance.isChecked():
             try:
                 self.emittance_target = np.double(self.emittance_target)
             except ValueError:
-                self.textwindow.insert('end', "Target emittance not recognised. Aborting!")
-                raise RuntimeError('Target emittance not recognised. Aborting!')
+                self.tb1.append("Target emittance not recognised!")
+                return 
+                # raise RuntimeError('Target emittance not recognised. Aborting!')
             self.bunch_length_from_emittance(self.emittance_target)
-        elif self.switch == 2:
+        elif self.rbBunchLength.isChecked():
             try:
                 self.bunch_length_target = np.double(self.bunch_length_target)
             except ValueError:
-                self.textwindow.insert('end', "Target bunch length not recognised. Aborting!")
-                raise RuntimeError('Target bunch length not recognised. Aborting!')
+                self.tb1.append("Target bunch length not recognised!")
+                return 
+                #raise RuntimeError('Target bunch length not recognised. Aborting!')
             self.emittance_from_bunch_length(self.bunch_length_target)
 
-        #self.master.destroy()
+    
+    def cbEnergyHandler(self, text):
+#         self.tb1.append('cbEnergy changed to ' + text)
+        if text == 'Custom':
+            self.leCustom.show()
+            self.lbEV1.show()
+        else:
+            self.leCustom.hide()
+            self.lbEV1.hide()
+            
+
+if __name__ == "__main__":
+    import sys
+    app = QtWidgets.QApplication(sys.argv)
+    mainWindow = QtWidgets.QMainWindow()
+    ui = ParameterScaling()
+    ui.setupUi(mainWindow)
+    mainWindow.show()
+    sys.exit(app.exec_())
+    
+    

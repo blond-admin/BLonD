@@ -1,42 +1,77 @@
 /*
 Copyright 2016 CERN. This software is distributed under the
-terms of the GNU General Public Licence version 3 (GPL Version 3), 
+terms of the GNU General Public Licence version 3 (GPL Version 3),
 copied verbatim in the file LICENCE.md.
-In applying this licence, CERN does not waive the privileges and immunities 
-granted to it by virtue of its status as an Intergovernmental Organization or 
+In applying this licence, CERN does not waive the privileges and immunities
+granted to it by virtue of its status as an Intergovernmental Organization or
 submit itself to any jurisdiction.
 Project website: http://blond.web.cern.ch/
 */
 
-// Authors: Juan F. Esteban Mueller, Alexandre Lasheen, D. Quartullo
+// Authors: Juan F. Esteban Mueller, Alexandre Lasheen, D. Quartullo, K. Iliakis
 
 // Optimised C++ routine that calculates the kick of a voltage array on particles
-extern "C" void linear_interp_kick(
-		double * __restrict__ beam_dt,
-		double * __restrict__ beam_dE,
-		double * __restrict__ voltage_array,
-		double * __restrict__ bin_centers,
-		const double charge,
-        const int n_slices,
-		const int n_macroparticles,
-		const double acc_kick){
 
-	
-	const double inv_bin_width = (n_slices-1) / (bin_centers[n_slices-1] - bin_centers[0]);
-    
-    #pragma omp parallel for
-    for (int i = 0; i < n_macroparticles; i++) {
-        double a;
-        double voltageKick;
-        int ffbin; 
-    	a = beam_dt[i];
-    	ffbin = (int)((a - bin_centers[0]) * inv_bin_width);
-    	if ((a < bin_centers[0])||(a > bin_centers[n_slices-1]))
-    		voltageKick = 0.;
-    	else
-    		voltageKick = voltage_array[ffbin] + (a - bin_centers[ffbin]) * (voltage_array[ffbin+1]-voltage_array[ffbin]) * inv_bin_width;
-    	beam_dE[i] = beam_dE[i] + charge*voltageKick + acc_kick;
+#include <stdlib.h>
+#include <math.h>
+
+
+extern "C" void linear_interp_kick(
+    const double * __restrict__ beam_dt,
+    double * __restrict__ beam_dE,
+    const double * __restrict__ voltage_array,
+    const double * __restrict__ bin_centers,
+    const double charge,
+    const int n_slices,
+    const int n_macroparticles,
+    const double acc_kick)
+{   
+    // Num of iterations of the inner loop
+    const int STEP = 32;
+    const double inv_bin_width = (n_slices - 1) /
+                                 (bin_centers[n_slices - 1] - bin_centers[0]);
+
+    // allocate space for voltageKick
+    double *voltageKick = (double *) malloc ((n_slices - 1) * sizeof(double));
+
+    #pragma omp parallel
+    {
+        float fbin[STEP];
+
+        // pre-calculate the voltageKick
+        #pragma omp for
+        for (int i = 0; i < n_slices - 1; i++) {
+            voltageKick[i] =  (voltage_array[i + 1] - voltage_array[i]) * inv_bin_width;
+        }
+
+        // apply the kick to the particles
+        #pragma omp for
+        for (int i = 0; i < n_macroparticles; i += STEP) {
+
+            const int loop_count = n_macroparticles - i > STEP ?
+                                   STEP : n_macroparticles - i;
+
+            // First calculate the index of the voltage_array to use
+            // directive recognized only by icc
+            #pragma simd
+            for (int j = 0; j < loop_count; j++) {
+                fbin[j] = floor((beam_dt[i + j] - bin_centers[0]) * inv_bin_width);
+                beam_dE[i + j] += acc_kick;
+            }
+
+            // Then apply kick
+            for (int j = 0; j < loop_count; j++) {
+                int bin = (int) fbin[j];
+                if (bin >= 0 && bin < n_slices - 1) {
+                    beam_dE[i + j] += charge*(voltage_array[bin]
+                                      + (beam_dt[i + j] - bin_centers[bin])
+                                      * voltageKick[bin]);
+                }
+            }
+        }
     }
+    // Free memory
+    free(voltageKick);
 
 }
 
@@ -45,22 +80,22 @@ extern "C" void linear_interp_kick(
 // Only right extrapolation is assumed; it gives zero values.
 // This routine contributes to the computation of multi-turn wake with acceleration
 extern "C" void linear_interp_time_translation(
-        double * __restrict__ xp,
-        double * __restrict__ yp,
-        double * __restrict__ x,
-        double * __restrict__ y,
-        const int len_xp){
+    double * __restrict__ xp,
+    double * __restrict__ yp,
+    double * __restrict__ x,
+    double * __restrict__ y,
+    const int len_xp) {
 
-    const double inv_bin_width = (len_xp-1) / (xp[len_xp-1] - xp[0]);
-     
+    const double inv_bin_width = (len_xp - 1) / (xp[len_xp - 1] - xp[0]);
+
     const int ffbin0 = (int)((x[0] - xp[0]) * inv_bin_width);
-    const int diff = len_xp-ffbin0;
-    
+    const int diff = len_xp - ffbin0;
+
     #pragma omp parallel for
-    for (int i = 0; i < diff-1; i++) {
-        int ffbin; 
-        ffbin = ffbin0+i;
-        y[i] = yp[ffbin] + (x[i] - xp[ffbin]) * (yp[ffbin+1]-yp[ffbin]) * inv_bin_width;
+    for (int i = 0; i < diff - 1; i++) {
+        int ffbin;
+        ffbin = ffbin0 + i;
+        y[i] = yp[ffbin] + (x[i] - xp[ffbin]) * (yp[ffbin + 1] - yp[ffbin]) * inv_bin_width;
     }
 
 }

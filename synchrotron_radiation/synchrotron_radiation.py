@@ -29,25 +29,26 @@ class SynchrotronRadiation(object):
         the track() method after tracking each section.
     '''
     
-    def __init__(self, GeneralParameters, RFParameters, Beam, bending_radius,
-                 n_kicks=1, quantum_excitation=True, python=False):
+    def __init__(self, Ring, RFParameters, Beam, bending_radius,
+                 n_kicks=1, quantum_excitation=True, python=False, seed=None):
         
-        self.general_params = GeneralParameters
+        self.general_params = Ring
         self.rf_params = RFParameters
         self.beam = Beam
         self.rho = bending_radius
         self.n_kicks = n_kicks  # To apply SR in several kicks
+        np.random.seed(seed=seed)
         
         # Calculate static parameters
         self.Cgamma = 1.0 / (e**2.0 * 3.0 * epsilon_0 *
-                             self.general_params.mass**4.0)
+                             self.general_params.Particle.mass**4.0)
         self.Cq = (55.0 / (32.0 * np.sqrt(3.0)) * hbar * c /
-                   (self.general_params.mass * e))
+                   (self.general_params.Particle.mass * e))
         
         self.I2 = 2.0 * np.pi / self.rho     # Assuming isomagnetic machine
         self.I3 = 2.0 * np.pi / self.rho**2.0
         self.I4 = (self.general_params.ring_circumference *
-                   self.general_params.alpha[0,0] / self.rho**2.0)
+                   self.general_params.alpha_0[0,0] / self.rho**2.0)
         self.jz = 2.0 + self.I4 / self.I2
         
         # Calculate synchrotron radiation parameters
@@ -61,7 +62,7 @@ class SynchrotronRadiation(object):
         # synchrotron radiation (temporary until bunch generation is updated)
         if self.rf_params.section_index == 0:
             self.beam.dt -= (np.arcsin(self.U0/self.rf_params.voltage[0][0]) *
-                             self.rf_params.t_RF[0]/ (2.0*np.pi))
+                             self.rf_params.t_rf[0, 0]/ (2.0*np.pi))
         
         # Select the right method for the tracker according to the selected
         # settings
