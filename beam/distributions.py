@@ -691,9 +691,9 @@ def X0_from_bunch_length(bunch_length, bunch_length_fit, X_grid, sorted_X_dE0,
             
         if (X_max - X0) < X_accuracy:
             print('WARNING: The bucket is too small to have the ' +
-                  'desired bunch length! Input is %.2e, the ' +
-                  'generation gave %.2e, the error is %.2e'
-                  %(bunch_length, tau, bunch_length-tau))
+                  'desired bunch length! Input is %.2e, ' % (bunch_length) +
+                  'the generation gave %.2e, ' % (tau) +
+                  'the error is %.2e' % (bunch_length-tau))
             break
         
         if (X0-X_min) < X_accuracy:
