@@ -43,6 +43,6 @@ before_script:
   - sleep 10
   - export PYTHONPATH='./'
 script:
-  - coverage run -m pytest unittests/*/test*.py
+  - coverage run -m pytest -v unittests/*/test*.py
 after_success:
 - coveralls
