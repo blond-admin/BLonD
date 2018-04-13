@@ -1,4 +1,5 @@
 [![Build Status](https://travis-ci.org/blond-admin/BLonD.svg?branch=master)](https://travis-ci.org/blond-admin/BLonD)
+[![Build status](https://ci.appveyor.com/api/projects/status/m3p1lq18s3ex6q3u/branch/master?svg=true)](https://ci.appveyor.com/project/blond-admin/blond/branch/master)
 [![Coverage Status](https://coveralls.io/repos/github/blond-admin/BLonD/badge.svg?branch=master)](https://coveralls.io/github/blond-admin/BLonD?branch=master)
 
 Copyright 2016 CERN. This software is distributed under the
