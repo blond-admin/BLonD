@@ -38,3 +38,19 @@ for (j = 0; j < n_rf; j++)
 
 }
 
+extern "C" void rf_volt_comp(const double * __restrict__ voltage,
+                             const double * __restrict__ omega_RF,
+                             const double * __restrict__ phi_RF,
+                             const double * __restrict__ bin_centers,
+                             const int n_rf,
+                             const int n_bins,
+                             double *__restrict__ rf_voltage)
+{
+    for (int j = 0; j < n_rf; j++) {
+        #pragma omp parallel for
+        for (int i = 0; i < n_bins; i++) {
+            rf_voltage[i] += voltage[j]
+                             * fast_sin(omega_RF[j] * bin_centers[i] + phi_RF[j]);
+        }
+    }
+}
