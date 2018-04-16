@@ -164,7 +164,9 @@ class TestCavityFeedback(unittest.TestCase):
             +' differs')
         
     def test_rf_voltage(self):
-
+        
+        digit_round = 8
+        
         # compute voltage
         self.cavity_tracker.rf_voltage_calculation()
 
@@ -175,8 +177,11 @@ class TestCavityFeedback(unittest.TestCase):
         # compare the maxium of the ratio
         max_ratio = np.max(self.cavity_tracker.rf_voltage
                            / self.OTFB_tracker.rf_voltage)
-
-        self.assertEqual(max_ratio, 1.0008217052569774,
+        max_ratio = np.around(max_ratio, digit_round)
+        
+        max_ratio_exp = np.around(1.0008217052569774, digit_round)
+        self.assertAlmostEqual(max_ratio, max_ratio_exp,
+                               places=digit_round,
                          msg='In TestCavityFeedback test_rf_voltage: '
                          + 'RF-voltages differ')
 
