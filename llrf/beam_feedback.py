@@ -422,18 +422,14 @@ class BeamFeedback(object):
         '''
         
         counter = self.rf_station.counter[0]
-        
-        if self.reference != 0:
-            self.radial_steering_from_freq()
-            
+                    
         self.beam_phase_sharpWindow()
         self.phase_difference()
         
         # Frequency correction from phase loop and frequency loop
         self.domega_dphi = - self.gain * self.dphi
         self.domega_df = - self.gain2*(self.rf_station.omega_rf[0,counter] 
-               - self.rf_station.omega_rf_d[0,counter]
-               + self.reference)
+               - self.rf_station.omega_rf_d[0,counter])
         
         self.domega_rf = self.domega_dphi + self.domega_df
         
