@@ -217,21 +217,21 @@ class Resonators(_ImpedanceObject):
     
     .. math::
     
-        Z(f) = \\frac{R}{1 + j Q \\left(\\frac{f}{f_r}-\\frac{f_r}{f}\\right)}
+        Z(f) = \frac{R}{1 + j Q \left(\frac{f}{f_r}-\frac{f_r}{f}\right)}
         
     .. math::
         
-        W(t>0) = 2\\alpha R e^{-\\alpha t}\\left(\\cos{\\bar{\\omega}t} - \\frac{\\alpha}{\\bar{\\omega}}\\sin{\\bar{\\omega}t}\\right)
+        W(t>0) = 2\alpha R e^{-\alpha t}\left(\cos{\bar{\omega}t} - \frac{\alpha}{\bar{\omega}}\sin{\bar{\omega}t}\right)
 
-        W(0) = \\alpha R
+        W(0) = \alpha R
         
     .. math::
         
-        \\omega_r = 2 \\pi f_r
+        \omega_r = 2 \pi f_r
         
-        \\alpha = \\frac{\\omega_r}{2Q}
+        \alpha = \frac{\omega_r}{2Q}
         
-        \\bar{\\omega} = \\sqrt{\\omega_r^2 - \\alpha^2}
+        \bar{\omega} = \sqrt{\omega_r^2 - \alpha^2}
     
     Parameters
     ----------
@@ -554,7 +554,7 @@ class ResistiveWall(_ImpedanceObject):
     
     .. math::
     
-        Z(f) = \\frac{Z_0 c L}{ \\pi } \\frac{ 1 }{ \\left[1 - i \\sign{f}\\right] 2  b  c \\sqrt{ \\frac{\\sigma_c Z_0 c }{ 4 \\pi |f| } + i 2 \\pi b^2 f }
+        Z(f) = \frac{Z_0 c L}{ \pi } \frac{ 1 }{ \left[1 - i \sign{f}\right] 2  b  c \sqrt{ \frac{\sigma_c Z_0 c }{ 4 \pi |f| } + i 2 \pi b^2 f }
      
     Parameters
     ----------
