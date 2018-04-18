@@ -99,7 +99,8 @@ class RingOptions(object):
 
     def reshape_data(self, input_data, n_turns, n_sections,
                      interp_time='t_rev', input_is_momentum=False,
-                     mass=None, circumference=None):
+                     synchronous_data_type='momentum', mass=None, charge=None,
+                     circumference=None, bending_radius=None):
         r"""Checks whether the user input is consistent with the expectation
         for the Ring object. The possibilites are detailed in the documentation
         of the Ring object.
@@ -127,11 +128,19 @@ class RingOptions(object):
             is interpolated on that input ; default is 't_rev'
         input_is_momentum : bool
             Optional : flags if the input_data is the momentum program, the
-            options mass and circumference become necessary
+            options defined below become necessary for conversion
+        synchronous_data_type : str
+            Optional : to be passed to the convert_data function if
+            input_is_momentum ; default is 'momentum'
         mass : Ring.Particle.mass
-            Optional : the mass of the particles ; default is None
+            Optional : the mass of the particles in [eV/c**2] ; default is None
+        charge : Ring.Particle.charge
+            Optional : the charge of the particles in units of [e] ;
+            default is None
         circumference : Ring.circumference
             Optional : the circumference of the ring ; default is None
+        bending_radius : Ring.bending_radis
+            Optional : the bending radius of magnets ; default is None
 
         Returns
         -------
@@ -148,6 +157,10 @@ class RingOptions(object):
         # If single float, expands the value to match the input number of turns
         # and sections
         if isinstance(input_data, float):
+            if input_is_momentum:
+                input_data = convert_data(input_data, mass, charge,
+                                          synchronous_data_type,
+                                          bending_radius)
             output_data = input_data * np.ones((n_sections, n_turns+1))
 
         # If tuple, separate time and synchronous data and check data
@@ -172,6 +185,12 @@ class RingOptions(object):
             for index_section in range(n_sections):
                 input_data_time = input_data[index_section][0]
                 input_data_values = input_data[index_section][1]
+
+                if input_is_momentum:
+                    input_data_values = convert_data(input_data_values, mass,
+                                                     charge,
+                                                     synchronous_data_type,
+                                                     bending_radius)
 
                 if len(input_data_time) \
                         != len(input_data_values):
@@ -211,6 +230,12 @@ class RingOptions(object):
                 isinstance(input_data, list):
 
             input_data = np.array(input_data, ndmin=2, dtype=float)
+
+            if input_is_momentum:
+                input_data = convert_data(input_data, mass, charge,
+                                          synchronous_data_type,
+                                          bending_radius)
+
             output_data = np.zeros((n_sections, n_turns+1), dtype=float)
 
             # If the number of points is exactly the same as n_rf, this means
@@ -466,9 +491,9 @@ def convert_data(self, synchronous_data, mass, charge,
         ----------
         synchronous_data : float array
             The synchronous data to be converted to momentum
-        mass : float
+        mass : float or Particle.mass
             The mass of the particles in [eV/c**2]
-        charge : int
+        charge : int or Particle.charge
             The charge of the particles in units of [e]
         synchronous_data_type : str
             Type of input for the synchronous data ; can be 'momentum',

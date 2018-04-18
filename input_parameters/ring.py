@@ -201,33 +201,21 @@ class Ring(object):
         # Primary particle mass and charge used for energy calculations
         self.Particle = Particle
 
-        # Converts the synchronous data into momentum
-        if isinstance(synchronous_data, tuple):
-            # If a tuple, converts each program into momentum
-            if (self.n_sections == 1) and (len(synchronous_data) > 1):
-                synchronous_data = (synchronous_data, )
-
-            momentum = ()
-
-            for index_section in range(self.n_sections):
-                momentum += (synchronous_data[index_section][0],
-                             self.convert_data(
-                                 np.array(synchronous_data[index_section][1]),
-                                 synchronous_data_type))
-        else:
-            # If whatever other type, pass as a numpy array for conversion
-            momentum = self.convert_data(synchronous_data,
-                                         np.array(synchronous_data_type))
-
         # Keeps RingOptions as an attribute
         self.RingOptions = RingOptions
 
         # Reshaping the input synchronous data to the adequate format and
-        # get back the momentum program from RampOptions
+        # get back the momentum program from RingOptions
         self.momentum = RingOptions.reshape_data(
-            momentum, self.n_turns, self.n_sections,
-            input_is_momentum=True, mass=self.Particle.mass,
-            circumference=self.ring_circumference)
+            synchronous_data,
+            self.n_turns,
+            self.n_sections,
+            input_is_momentum=True,
+            synchronous_data_type=synchronous_data_type,
+            mass=self.Particle.mass,
+            charge=self.Particle.charge,
+            circumference=self.ring_circumference,
+            bending_radius=self.bending_radius)
 
         # Updating the number of turns in case it was changed after ramp
         # interpolation
