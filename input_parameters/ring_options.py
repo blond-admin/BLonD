@@ -482,7 +482,7 @@ class RingOptions(object):
         return time_interp, momentum_interp
 
 
-def convert_data(self, synchronous_data, mass, charge,
+def convert_data(synchronous_data, mass, charge,
                  synchronous_data_type='momentum', bending_radius=None):
         """ Function to convert synchronous data (i.e. energy program of the
         synchrotron) into momentum.
