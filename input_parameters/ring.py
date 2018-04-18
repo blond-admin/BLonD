@@ -322,46 +322,6 @@ class Ring(object):
                 self.alpha_0[i]**2*self.eta_0[i] - 3*self.beta[i]**2 * \
                 self.alpha_0[i]/(2*self.gamma[i]**2)
 
-    def convert_data(self, synchronous_data, synchronous_data_type='momentum'):
-        """ Function to convert synchronous data (i.e. energy program of the
-        synchrotron) into momentum.
-
-        Parameters
-        ----------
-        synchronous_data : float array
-            The synchronous data to be converted to momentum
-        synchronous_data_type : str
-            Type of input for the synchronous data ; can be 'momentum',
-            'total energy', 'kinetic energy' or 'bending field' (last case
-            requires bending_radius to be defined)
-
-        Returns
-        -------
-        momentum : float array
-            The input synchronous_data converted into momentum [eV/c]
-
-        """
-
-        if synchronous_data_type == 'momentum':
-            momentum = synchronous_data
-        elif synchronous_data_type == 'total energy':
-            momentum = np.sqrt(synchronous_data**2 - self.Particle.mass**2)
-        elif synchronous_data_type == 'kinetic energy':
-            momentum = np.sqrt((synchronous_data+self.Particle.mass)**2 -
-                               self.Particle.mass**2)
-        elif synchronous_data_type == 'bending field':
-            if self.bending_radius is None:
-                raise RuntimeError("ERROR in Ring: bending_radius is not " +
-                                   "defined and is required to compute " +
-                                   "momentum")
-            momentum = synchronous_data*self.bending_radius * \
-                self.Particle.charge*c
-        else:
-            raise RuntimeError("ERROR in Ring: Synchronous data" +
-                               " type not recognized!")
-
-        return momentum
-
     def parameters_at_time(self, cycle_moments):
         """ Function to return various cycle parameters at a specific moment in
         time. The cycle time is defined to start at zero in turn zero.

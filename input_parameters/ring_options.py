@@ -457,6 +457,53 @@ class RingOptions(object):
         return time_interp, momentum_interp
 
 
+def convert_data(self, synchronous_data, mass, charge,
+                 synchronous_data_type='momentum', bending_radius=None):
+        """ Function to convert synchronous data (i.e. energy program of the
+        synchrotron) into momentum.
+
+        Parameters
+        ----------
+        synchronous_data : float array
+            The synchronous data to be converted to momentum
+        mass : float
+            The mass of the particles in [eV/c**2]
+        charge : int
+            The charge of the particles in units of [e]
+        synchronous_data_type : str
+            Type of input for the synchronous data ; can be 'momentum',
+            'total energy', 'kinetic energy' or 'bending field' (last case
+            requires bending_radius to be defined)
+        bending_radius : float
+            Bending radius in [m] in case synchronous_data_type is
+            'bending field'
+
+        Returns
+        -------
+        momentum : float array
+            The input synchronous_data converted into momentum [eV/c]
+
+        """
+
+        if synchronous_data_type == 'momentum':
+            momentum = synchronous_data
+        elif synchronous_data_type == 'total energy':
+            momentum = np.sqrt(synchronous_data**2 - mass**2)
+        elif synchronous_data_type == 'kinetic energy':
+            momentum = np.sqrt((synchronous_data+mass)**2 - mass**2)
+        elif synchronous_data_type == 'bending field':
+            if bending_radius is None:
+                raise RuntimeError("ERROR in Ring: bending_radius is not " +
+                                   "defined and is required to compute " +
+                                   "momentum")
+            momentum = synchronous_data*bending_radius*charge*c
+        else:
+            raise RuntimeError("ERROR in Ring: Synchronous data" +
+                               " type not recognized!")
+
+        return momentum
+
+
 def load_data(filename, ignore=0, delimiter=None):
     r"""Helper function to load column-by-column data from a txt file to numpy
     arrays.
