@@ -40,11 +40,11 @@ gamma_t = 18.0              # Gamma at transition
 alpha = 1/gamma_t**2        # Momentum compaction factor
 p_s = 25.92e9               # Synchronous momentum at injection [eV]
 h = [4620]                    # 200 MHz system harmonic
-V = [4.5e6] #2.2e6                   # 200 MHz RF voltage
+V = [4.5e6] #2.2e6            # 200 MHz RF voltage
 phi = [0.]                    # 200 MHz RF phase
 
 # Beam and tracking parameters
-N_m = 1e5                   # Number of macro-particles for tracking
+N_m = 1e5                   # Number of macro-particles per bunch for tracking
 N_b = 1.e11                 # Bunch intensity [ppb]
 N_t = 25                    # Number of turns to track
 N_pretrack = 25             # Number of turns to pre-track
@@ -66,7 +66,7 @@ colors = jet(np.linspace(0,1,N_t))
 Logger(debug = True)
 
 # Set up machine parameters
-ring = Ring(N_t, C, alpha, p_s, Particle=Proton())
+ring = Ring(C, alpha, p_s, Particle=Proton(), n_turns=N_t)
 print("Machine parameters set!")
 
 # Set up RF parameters
@@ -157,6 +157,10 @@ ax2_2.set_ylim((-1,0.4))
 OTFB.OTFB_4.V_ind_beam = np.zeros(profile.n_slices)
 OTFB.OTFB_5.V_ind_beam = np.zeros(profile.n_slices)
 
+
+ax1_1.annotate('Beam in', xy=(0,0), xytext=(0.95, 0.95),
+            textcoords='figure fraction', horizontalalignment='right',
+            verticalalignment='center')
 
 
 print("Starting to track...")

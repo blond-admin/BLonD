@@ -27,6 +27,7 @@ _CPU_func_dict = {
     'sum': butils_wrap.sum,
     'sort': butils_wrap.sort,
     'kick': bphysics_wrap.kick,
+    'rf_volt_comp': bphysics_wrap.rf_volt_comp,
     'drift': bphysics_wrap.drift,
     'linear_interp_kick': bphysics_wrap.linear_interp_kick,
     'synchrotron_radiation': bphysics_wrap.synchrotron_radiation,

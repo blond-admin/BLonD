@@ -35,7 +35,9 @@ gamma_t = 18.0              # Gamma at transition
 alpha = 1/gamma_t**2        # Momentum compaction factor
 p_s = 25.92e9               # Synchronous momentum at injection [eV]
 h = [4620]                    # 200 MHz system harmonic
-V = [4.5e6] #2.2e6                   # 200 MHz RF voltage
+V = [4.5e6]                   # 200 MHz RF voltage
+# With this setting, amplitude in the two four-section cavity must converge to
+# 4.5 MV * 4/18 * 2 = 2.0 MV
 phi = [0.]                    # 200 MHz RF phase
 
 # Beam and tracking parameters
@@ -56,7 +58,7 @@ plt.rc('legend', fontsize=12)
 Logger(debug = True)
 
 # Set up machine parameters
-ring = Ring(N_t, C, alpha, p_s, Particle=Proton())
+ring = Ring(C, alpha, p_s, Particle=Proton(), n_turns=N_t)
 print("Machine parameters set!")
 
 # Set up RF parameters

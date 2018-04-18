@@ -18,6 +18,23 @@ def __getLen(x):
     return ct.c_int(len(x))
 
 
+def rf_volt_comp(voltages, omega_rf, phi_rf, ring):
+    # voltages = np.ascontiguousarray(ring.voltage[:, ring.counter[0]])
+    # omega_rf = np.ascontiguousarray(ring.omega_rf[:, ring.counter[0]])
+    # phi_rf = np.ascontiguousarray(ring.phi_rf[:, ring.counter[0]])
+
+    rf_voltage = np.zeros(len(ring.profile.bin_centers))
+
+    __lib.rf_volt_comp(__getPointer(voltages),
+                       __getPointer(omega_rf),
+                       __getPointer(phi_rf),
+                       __getPointer(ring.profile.bin_centers),
+                       __getLen(voltages),
+                       __getLen(rf_voltage),
+                       __getPointer(rf_voltage))
+    return rf_voltage
+
+
 def kick(ring, dt, dE, turn):
     voltage_kick = np.ascontiguousarray(ring.charge*ring.voltage[:, turn])
     omegarf_kick = np.ascontiguousarray(ring.omega_rf[:, turn])
