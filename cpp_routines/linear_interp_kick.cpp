@@ -21,6 +21,7 @@ extern "C" void linear_interp_kick(double * __restrict__ beam_dt,
                                    double * __restrict__ beam_dE,
                                    const double * __restrict__ voltage_array,
                                    const double * __restrict__ bin_centers,
+                                   const double charge,
                                    const int n_slices,
                                    const int n_macroparticles,
                                    const double acc_kick)
@@ -41,8 +42,8 @@ extern "C" void linear_interp_kick(double * __restrict__ beam_dt,
 
         #pragma omp for
         for (int i = 0; i < n_slices - 1; i++) {
-            voltageKick[i] =  (voltage_array[i + 1] - voltage_array[i]) * inv_bin_width;
-            factor[i] = (voltage_array[i] - bin_centers[i] * voltageKick[i]) + acc_kick;
+            voltageKick[i] =  charge * (voltage_array[i + 1] - voltage_array[i]) * inv_bin_width;
+            factor[i] = charge * (voltage_array[i] - bin_centers[i] * voltageKick[i]) + acc_kick;
         }
 
         #pragma omp for
