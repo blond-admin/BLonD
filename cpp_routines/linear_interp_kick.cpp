@@ -14,65 +14,58 @@ Project website: http://blond.web.cern.ch/
 
 #include <stdlib.h>
 #include <math.h>
+#include <cmath>
 
 
-extern "C" void linear_interp_kick(
-    const double * __restrict__ beam_dt,
-    double * __restrict__ beam_dE,
-    const double * __restrict__ voltage_array,
-    const double * __restrict__ bin_centers,
-    const double charge,
-    const int n_slices,
-    const int n_macroparticles,
-    const double acc_kick)
-{   
-    // Num of iterations of the inner loop
-    const int STEP = 32;
-    const double inv_bin_width = (n_slices - 1) /
-                                 (bin_centers[n_slices - 1] - bin_centers[0]);
+extern "C" void linear_interp_kick(double * __restrict__ beam_dt,
+                                   double * __restrict__ beam_dE,
+                                   const double * __restrict__ voltage_array,
+                                   const double * __restrict__ bin_centers,
+                                   const int n_slices,
+                                   const int n_macroparticles,
+                                   const double acc_kick)
+{
 
-    // allocate space for voltageKick
+
+    const int STEP = 64;
+    const double inv_bin_width = (n_slices - 1)
+                                 / (bin_centers[n_slices - 1]
+                                    - bin_centers[0]);
+
     double *voltageKick = (double *) malloc ((n_slices - 1) * sizeof(double));
+    double *factor = (double *) malloc ((n_slices - 1) * sizeof(double));
 
     #pragma omp parallel
     {
-        float fbin[STEP];
+        unsigned fbin[STEP];
 
-        // pre-calculate the voltageKick
         #pragma omp for
         for (int i = 0; i < n_slices - 1; i++) {
             voltageKick[i] =  (voltage_array[i + 1] - voltage_array[i]) * inv_bin_width;
+            factor[i] = (voltage_array[i] - bin_centers[i] * voltageKick[i]) + acc_kick;
         }
 
-        // apply the kick to the particles
         #pragma omp for
         for (int i = 0; i < n_macroparticles; i += STEP) {
 
             const int loop_count = n_macroparticles - i > STEP ?
                                    STEP : n_macroparticles - i;
 
-            // First calculate the index of the voltage_array to use
-            // directive recognized only by icc
-            #pragma simd
             for (int j = 0; j < loop_count; j++) {
-                fbin[j] = floor((beam_dt[i + j] - bin_centers[0]) * inv_bin_width);
-                beam_dE[i + j] += acc_kick;
+                fbin[j] = (unsigned) std::floor((beam_dt[i + j] - bin_centers[0])
+                                                * inv_bin_width);
             }
 
-            // Then apply kick
             for (int j = 0; j < loop_count; j++) {
-                int bin = (int) fbin[j];
-                if (bin >= 0 && bin < n_slices - 1) {
-                    beam_dE[i + j] += charge*(voltage_array[bin]
-                                      + (beam_dt[i + j] - bin_centers[bin])
-                                      * voltageKick[bin]);
+                if (fbin[j] < n_slices - 1) {
+                    beam_dE[i + j] += beam_dt[i + j] * voltageKick[fbin[j]] + factor[fbin[j]];
                 }
             }
+
         }
     }
-    // Free memory
     free(voltageKick);
-
+    free(factor);
 }
 
 // Optimised C++ routine that interpolates the induced voltage
