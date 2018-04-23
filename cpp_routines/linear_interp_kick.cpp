@@ -14,6 +14,7 @@ Project website: http://blond.web.cern.ch/
 
 #include <stdlib.h>
 #include <math.h>
+#include <cmath>
 
 
 extern "C" void linear_interp_kick(double * __restrict__ beam_dt,
