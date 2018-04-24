@@ -197,7 +197,7 @@ class RingOptions(object):
                     raise RuntimeError("ERROR in Ring: synchronous data " +
                                        "does not match the time data")
 
-                if input_is_momentum and interp_time == 't_rev':
+                if input_is_momentum and (interp_time == 't_rev'):
                     output_data.append(self.preprocess(
                         mass,
                         circumference,
@@ -292,8 +292,8 @@ class RingOptions(object):
         """
 
         # Some checks on the options
-        if (self.t_start is not None and self.t_start < time[0]) or \
-                (self.t_end is not None and self.t_end > time[-1]):
+        if ((self.t_start is not None) and (self.t_start < time[0])) or \
+                ((self.t_end is not None) and (self.t_end > time[-1])):
                 raise RuntimeError("ERROR: [t_start, t_end] should be " +
                                    "included in the passed time array.")
 
