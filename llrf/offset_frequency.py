@@ -23,13 +23,16 @@ class _FrequencyOffset(object):
     Compute effect of having a different RF and design frequency
     '''
 
-    def __init__(self, Ring, RFStation):
+    def __init__(self, Ring, RFStation, System = None):
 
         #: | *Import Ring*
         self.ring = Ring
 
         #: | *Import RFStation*
         self.rf_station = RFStation
+
+        #: | *Set system to modify, if None all are modified*
+        self.system = System
 
 
     def set_frequency(self, NewFrequencyProgram):
@@ -67,7 +70,6 @@ class _FrequencyOffset(object):
 
         self.phase_slippage = np.cumsum(delta_phi, axis=1)
 
-            
 
     def apply_new_frequency(self):
 
@@ -75,16 +77,17 @@ class _FrequencyOffset(object):
         Sets the RF frequency and phase
         '''
 
-        self.rf_station.omega_rf[:, :self.end_turn] = self.rf_station.harmonic[:, :self.end_turn]*self.new_frequency
-        self.rf_station.phi_rf[:, :self.end_turn] += self.phase_slippage
+        if self.system is None:
+            self.rf_station.omega_rf[:, :self.end_turn] = self.rf_station.harmonic[:, :self.end_turn]*self.new_frequency
+            self.rf_station.phi_rf[:, :self.end_turn] += self.phase_slippage
 
-        for n in range(self.rf_station.n_rf):
-           self.rf_station.phi_rf[n, self.end_turn:] += self.phase_slippage[n,-1]
+            for n in range(self.rf_station.n_rf):
+                self.rf_station.phi_rf[n, self.end_turn:] += self.phase_slippage[n,-1]
 
-#        for n in range(self.rf_station.n_rf):
-#            harm = self.rf_station.harmonic[n]
-#            self.rf_station.omega_RF[n, :self.end_turn] = self.new_frequency*harm
-#            self.rf_station.phi_RF[n, :self.end_turn] = self.phase_slippage[n]
+        else:
+            self.rf_station.omega_rf[self.system, :self.end_turn] = self.rf_station.harmonic[self.system, :self.end_turn]*self.new_frequency
+            self.rf_station.phi_rf[self.system, :self.end_turn] += self.phase_slippage[self.system]
+            self.rf_station.phi_rf[self.system, self.end_turn:] += self.phase_slippage[self.system,-1]
 
 
 
@@ -134,13 +137,6 @@ class FixedFrequency(_FrequencyOffset):
 
         self.frequency_prog = np.concatenate((fixed_frequency_prog, \
                                              transition_frequency_prog))
-
-
-
-
-
-
-
 
 
 
