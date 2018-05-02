@@ -1,12 +1,20 @@
-# sudo: false
+sudo: false
+cache:
+  directories:
+    - $HOME/.cache/pip
+    - $HOME/download # Sufficient to add miniconda.sh to TRAVIS cache.
+    - $HOME/miniconda # Add the installation to TRAVIS cache.
+  apt: true
+  pip: true
+
 language: python
 os:
   - linux
 compiler:
   - gcc
 python:
-  - "2.7"
-  - "3.4"
+  - "3.5"
+  - "3.6"
 addons:
   apt:
     sources:
@@ -18,31 +26,43 @@ before_install:
   - export CC=/usr/bin/gcc-4.8
   - export CXX=/usr/bin/g++-4.8
 install:
-  - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
-      wget https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh -O miniconda.sh;
+  - if test -e $HOME/miniconda/bin ; then
+      echo "Miniconda already installed.";
     else
-      wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
+      echo "Installing miniconda.";
+      rm -rf $HOME/miniconda;
+      mkdir -p $HOME/download;
+      if [[ -d $HOME/download/miniconda.sh ]] ; then rm -rf $HOME/download/miniconda.sh ; fi;
+      wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O $HOME/download/miniconda.sh;
+      bash $HOME/download/miniconda.sh -b -p $HOME/miniconda;
     fi
-  - bash miniconda.sh -b -p $HOME/miniconda
   - export PATH="$HOME/miniconda/bin:$PATH"
   - hash -r
   - conda config --set always_yes yes --set changeps1 no
-  - conda update -q conda
+  - conda update -y conda
   # Useful for debugging any issues with conda
   - conda info -a
-
+  - if test -e $HOME/miniconda/envs/pyenv; then
+      echo "pyenv already exists.";
+    else
+      echo "creating pyenv.";
+      conda create -y -n pyenv python=$TRAVIS_PYTHON_VERSION;
+    fi
+  - source activate pyenv
+  - conda install -y -q pip "numpy>=1.14" scipy matplotlib future h5py
   # Replace dep1 dep2 ... with your dependencies
-  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION pip numpy scipy matplotlib future
-  - source activate test-environment
   - pip install coveralls pytest
-cache:
-  apt: true
-  pip: true
 before_script:
   - python setup_cpp.py --compiler=g++-4.8
-  - sleep 10
+  # - sleep 10
   - export PYTHONPATH='./'
 script:
-  - coverage run -m pytest -k 'Test and py' unittests/*/*
+  - coverage run -m pytest -v unittests/*/test*.py
 after_success:
 - coveralls
+
+branches:
+  only:
+  - master
+  - clean-up
+  
