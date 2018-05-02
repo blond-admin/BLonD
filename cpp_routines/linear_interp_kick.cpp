@@ -43,7 +43,7 @@ extern "C" void linear_interp_kick(double * __restrict__ beam_dt,
         #pragma omp for
         for (int i = 0; i < n_slices - 1; i++) {
             voltageKick[i] =  charge * (voltage_array[i + 1] - voltage_array[i]) * inv_bin_width;
-            factor[i] = charge * (voltage_array[i] - bin_centers[i] * voltageKick[i]) + acc_kick;
+            factor[i] = (charge * voltage_array[i] - bin_centers[i] * voltageKick[i]) + acc_kick;
         }
 
         #pragma omp for
