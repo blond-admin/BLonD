@@ -16,6 +16,7 @@ and frequency offsets**
 
 import numpy as np
 import matplotlib.pyplot as plt
+import scipy.constants as cont
 
 
 class _FrequencyOffset(object):
@@ -137,6 +138,41 @@ class FixedFrequency(_FrequencyOffset):
 
         self.frequency_prog = np.concatenate((fixed_frequency_prog, \
                                              transition_frequency_prog))
+
+
+
+    def transition_1(self):
+
+        def delta_f(a3, a2, a1, B, B0):
+            return a3*(B-B0)**3 + a2*(B-B0)**2 + a1*(B-B0)
+
+        def FofB(K1, K2, B):
+            return K1/np.sqrt(1 + (K2/B)**2)
+
+        def FofBP(K1, K2, B):
+            return (K1*K2**2)/(B**3 * (1+(K2/B)**2 )**(3/2))
+
+        fixed_frequency_prog = np.ones(self.end_fixed_turn)*self.fixed_frequency
+        BField = self.ring.momentum[0][:self.end_transition_turn]
+        eft = self.end_fixed_turn
+
+        deltaFProg = []
+
+        for t in range(self.end_fixed_turn, self.end_transition_turn):
+
+            omega_t = self.rf_station.omega_rf_d[0][t]
+            omega_in = 2*np.pi*self.fixed_frequency
+
+            a1 = 0
+            a2 = - (3*omega_in - 2*FofB(omega_in, omega_t, BField[-1]) - BField[eft]*FofBP(omega_in, omega_t, BField[-1]) + BField[-1]*FofBP(omega_in, omega_t, BField[-1])) / ((BField[eft] - BField[-1])**2)
+            a3 = - (2*omega_in - 2*FofB(omega_in, omega_t, BField[-1]) - BField[eft]*FofBP(omega_in, omega_t, BField[-1]) + BField[-1]*FofBP(omega_in, omega_t, BField[-1])) / ((BField[eft] - BField[-1])**3)
+
+            deltaFProg.append(delta_f(a3, a2, a1, BField[t], BField[eft]))
+
+        plt.plot(np.array(deltaFProg))
+        plt.plot(self.rf_station.omega_rf_d[0][eft:self.end_transition_turn])
+        plt.show()
+
 
 
 
