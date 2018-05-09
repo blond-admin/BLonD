@@ -58,9 +58,9 @@ class TestOffsetFrequency(unittest.TestCase):
                          self.injection_frequency.frequency_prog[self.injection_frequency.end_fixed_turn], \
                          msg='Fixed frequency final value wrong')
 
-        self.assertEqual(self.rf_params.omega_rf_d[0][self.injection_frequency.end_transition_turn], \
+        self.assertAlmostEqual(self.rf_params.omega_rf_d[0][self.injection_frequency.end_transition_turn-1], \
                          self.injection_frequency.frequency_prog[-1], \
-                         msg='Fixed frequency end transition value wrong')
+                         delta = 1, msg='Fixed frequency end transition value wrong')
 
         self.assertEqual(self.injection_frequency.phase_slippage[0][0], 0, \
                          msg='Phase slippage not starting at 0 for system 0')
@@ -72,9 +72,9 @@ class TestOffsetFrequency(unittest.TestCase):
                                  self.rf_params.omega_rf[0][:self.injection_frequency.end_transition_turn].tolist(),\
                                  msg='rf_params.omega_rf not equal to injection frequency')
 
-        self.assertAlmostEqual(self.rf_params.phi_rf[0][-1], -53.294098, \
+        self.assertAlmostEqual(self.rf_params.phi_rf[0][-1], -56.304959088, \
                                places = 6, msg='System 1 end phase wrong')
-        self.assertAlmostEqual(self.rf_params.phi_rf[1][-1], -109.886868, \
+        self.assertAlmostEqual(self.rf_params.phi_rf[1][-1], -115.908590462, \
                                places = 6, msg='System 1 end phase wrong')
 
 

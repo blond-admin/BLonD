@@ -99,7 +99,7 @@ class FixedFrequency(_FrequencyOffset):
     '''
 
     def __init__(self, Ring, RFStation, FixedFrequency, FixedDuration,
-                 TransitionDuration):
+                 TransitionDuration, transition = 1):
 
         _FrequencyOffset.__init__(self, Ring, RFStation)
 
@@ -119,13 +119,21 @@ class FixedFrequency(_FrequencyOffset):
 
         self.end_frequency = self.rf_station.omega_rf_d[0, self.end_transition_turn]
 
+        if transition == 1:
+            self.calculate_frequency_prog = self.transition_1
+             
+        self.compute()
+
+
+    def compute(self):
+
         self.calculate_frequency_prog()
         self.set_frequency(self.frequency_prog)
         self.calculate_phase_slip()
         self.apply_new_frequency()
 
 
-    def calculate_frequency_prog(self):
+    def linear_calculate_frequency_prog(self):
 
         '''
         Calculate the fixed and transition frequency programs turn by turn
@@ -143,37 +151,15 @@ class FixedFrequency(_FrequencyOffset):
 
     def transition_1(self):
 
-        def delta_f(a3, a2, a1, B, B0):
-            return a3*(B-B0)**3 + a2*(B-B0)**2 + a1*(B-B0)
+        t1 = self.ring.cycle_time[self.end_transition_turn] - self.ring.cycle_time[self.end_fixed_turn]
+        f1 = self.end_frequency
+        f1Prime = (np.gradient(self.rf_station.omega_rf_d[0])/np.gradient(self.ring.cycle_time))[self.end_transition_turn]
+       
+        constA = (t1*f1Prime - 2*(f1 - self.fixed_frequency))/t1**3
+        constB = - (t1*f1Prime - 3*(f1 - self.fixed_frequency))/t1**2
 
-        def FofB(K1, K2, B):
-            return K1/np.sqrt(1 + (K2/B)**2)
+        transTime = self.ring.cycle_time[self.end_fixed_turn : self.end_transition_turn] - self.ring.cycle_time[self.end_fixed_turn]
 
-        def FofBP(K1, K2, B):
-            return (K1*K2**2)/(B**3 * (1+(K2/B)**2 )**(3/2))
+        transition_freq = constA * transTime**3 + constB * transTime**2 + self.fixed_frequency
 
-        fixed_frequency_prog = np.ones(self.end_fixed_turn)*self.fixed_frequency
-        BField = self.ring.momentum[0][:self.end_transition_turn]
-        eft = self.end_fixed_turn
-
-        deltaFProg = []
-
-        for t in range(self.end_fixed_turn, self.end_transition_turn):
-
-            omega_t = self.rf_station.omega_rf_d[0][t]
-            omega_in = 2*np.pi*self.fixed_frequency
-
-            a1 = 0
-            a2 = - (3*omega_in - 2*FofB(omega_in, omega_t, BField[-1]) - BField[eft]*FofBP(omega_in, omega_t, BField[-1]) + BField[-1]*FofBP(omega_in, omega_t, BField[-1])) / ((BField[eft] - BField[-1])**2)
-            a3 = - (2*omega_in - 2*FofB(omega_in, omega_t, BField[-1]) - BField[eft]*FofBP(omega_in, omega_t, BField[-1]) + BField[-1]*FofBP(omega_in, omega_t, BField[-1])) / ((BField[eft] - BField[-1])**3)
-
-            deltaFProg.append(delta_f(a3, a2, a1, BField[t], BField[eft]))
-
-        plt.plot(np.array(deltaFProg))
-        plt.plot(self.rf_station.omega_rf_d[0][eft:self.end_transition_turn])
-        plt.show()
-
-
-
-
-
+        self.frequency_prog = np.concatenate((np.ones(self.end_fixed_turn)*self.fixed_frequency, transition_freq))
