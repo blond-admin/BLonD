@@ -201,18 +201,21 @@ class Ring(object):
         # Primary particle mass and charge used for energy calculations
         self.Particle = Particle
 
-        # Converts the synchronous data into momentum
-        momentum = self.convert_data(synchronous_data, synchronous_data_type)
-
         # Keeps RingOptions as an attribute
         self.RingOptions = RingOptions
 
         # Reshaping the input synchronous data to the adequate format and
-        # get back the momentum program from RampOptions
+        # get back the momentum program from RingOptions
         self.momentum = RingOptions.reshape_data(
-            momentum, self.n_turns, self.n_sections,
-            input_is_momentum=synchronous_data_type, mass=self.Particle.mass,
-            circumference=self.ring_circumference)
+            synchronous_data,
+            self.n_turns,
+            self.n_sections,
+            input_is_momentum=True,
+            synchronous_data_type=synchronous_data_type,
+            mass=self.Particle.mass,
+            charge=self.Particle.charge,
+            circumference=self.ring_circumference,
+            bending_radius=self.bending_radius)
 
         # Updating the number of turns in case it was changed after ramp
         # interpolation
@@ -306,45 +309,6 @@ class Ring(object):
                 self.alpha_1[i] + self.alpha_1[i] / self.gamma[i]**2 + \
                 self.alpha_0[i]**2*self.eta_0[i] - 3*self.beta[i]**2 * \
                 self.alpha_0[i]/(2*self.gamma[i]**2)
-
-    def convert_data(self, synchronous_data, synchronous_data_type='momentum'):
-        """ Function to convert synchronous data (i.e. energy program of the
-        synchrotron) into momentum.
-
-        Parameters
-        ----------
-        synchronous_data : float array
-            The synchronous data to be converted to momentum
-        synchronous_data_type : str
-            Type of input for the synchronous data ; can be 'momentum',
-            'total energy', 'kinetic energy' or 'bending field' (last case
-            requires bending_radius to be defined)
-
-        Returns
-        -------
-        momentum : float array
-            The input synchronous_data converted into momentum [eV/c]
-
-        """
-
-        if synchronous_data_type == 'momentum':
-            momentum = synchronous_data
-        elif synchronous_data_type == 'total energy':
-            momentum = np.sqrt(synchronous_data**2 - self.Particle.mass**2)
-        elif synchronous_data_type == 'kinetic energy':
-            momentum = np.sqrt((synchronous_data+self.Particle.mass)**2 -
-                               self.Particle.mass**2)
-        elif synchronous_data_type == 'bending field':
-            if self.bending_radius is None:
-                raise RuntimeError("ERROR in Ring: bending_radius is not " +
-                                   "defined and is required to compute " +
-                                   "momentum")
-            momentum = synchronous_data*self.bending_radius*c
-        else:
-            raise RuntimeError("ERROR in Ring: Synchronous data" +
-                               " type not recognized!")
-
-        return momentum
 
     def parameters_at_time(self, cycle_moments):
         """ Function to return various cycle parameters at a specific moment in
