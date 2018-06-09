@@ -1,0 +1,2 @@
+recursive-include BLonD/build *.so
+recursive-include BLonD/unittests *.py *.dat
