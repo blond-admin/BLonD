@@ -6,9 +6,8 @@ from blond._version import __version__
 import distutils
 from shutil import rmtree
 
-
 class Compile(distutils.cmd.Command):
-    """Call compile to compile all C/C++ source files."""
+    """Compile all C/C++ source files."""
 
     description = 'Compile the shared libraries'
     user_options = [
@@ -133,6 +132,14 @@ class Docs(distutils.cmd.Command):
     def run(self):
         """Run command."""
         subprocess.call(['python', 'sanity_check.py', '--docs'])
+
+if __name__ == "__main__":
+    if len(sys.argv) == 1:
+        """ Means no arguments were passed """
+        sys.argv.append('compile')
+    if ('install' in sys.argv) and ('compile' not in sys.argv):
+        """ To install, we need first to compile """
+        sys.argv = [sys.argv[0]] + ['compile'] + sys.argv[1:]
 
 
 setup(name='blond',
