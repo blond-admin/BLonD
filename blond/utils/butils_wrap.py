@@ -7,8 +7,8 @@ BLonD math wrapper functions
 
 import ctypes as ct
 import numpy as np
-from setup_cpp import libblondmath as __lib
-
+# from setup_cpp import libblondmath as __lib
+from .. import libblond as __lib
 
 def __getPointer(x):
     return x.ctypes.data_as(ct.c_void_p)

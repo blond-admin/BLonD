@@ -132,7 +132,7 @@ if (__name__ == "__main__"):
         #     ['cpp_routines/blondmath.cpp']
         # subprocess.call(command)
 
-        print('\nIF THE COMPILATION IS CORRECT A FILE NAMED result.so SHOULD'
+        print('\nIF THE COMPILATION IS CORRECT A FILE NAMED libblond.so SHOULD'
               ' APPEAR IN THE cpp_routines FOLDER. OTHERWISE YOU HAVE TO'
               ' CORRECT THE ERRORS AND COMPILE AGAIN.')
         sys.exit()
@@ -168,7 +168,7 @@ if (__name__ == "__main__"):
         #     os.getcwd() + '\\cpp_routines\\blondmath.cpp'
         # os.system(command)
 
-        print('\nIF THE COMPILATION IS CORRECT A FILE NAMED result.dll SHOULD'
+        print('\nIF THE COMPILATION IS CORRECT A FILE NAMED libblond.dll SHOULD'
               ' APPEAR IN THE cpp_routines FOLDER. OTHERWISE YOU HAVE TO'
               ' CORRECT THE ERRORS AND COMPILE AGAIN.')
         sys.exit()
