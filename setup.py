@@ -1,13 +1,13 @@
 import sys
 import os
 import ctypes
+from blond._version import __version__
 import distutils
+from setuptools import setup, find_packages
 from distutils.ccompiler import new_compiler
 from distutils import log, dir_util
 
-from setuptools import setup, find_packages
-from Cython.Distutils import build_ext
-from blond._version import __version__
+# from Cython.Distutils import build_ext
 
 log.set_verbosity(log.DEBUG)  # Set DEBUG level
 
@@ -104,27 +104,25 @@ class BuildCommand(distutils.cmd.Command):
 setup(name='blond',
       version=__version__,
       description='CERN code for the simulation of longitudinal beam dynamics in synchrotrons.',
+      keywords='Beam Longitudinal Dynamics Synchrotrons CERN',
       author='Helga Timko',
       author_email='helga.timko@cern.ch',
       maintainer='Konstantinos Iliakis',
       maintainer_email='konstantinos.iliakis@cern.ch',
       long_description=open('README.md').read(),
-      # long_description_content_type="text/markdown",
       url='https://github.com/blond-admin/BLonD',
       # cmdclass={'build_ext': BuildCommand},
       # package_dir={'': 'BLonD'},
       # packages=['BLonD/beam/', 'BLonD/impedances/', ''],
       packages=find_packages(
           exclude=['__doc', '__BENCHMARKS', '__EXAMPLES', 'unittests']),
-      # ext_modules=[module1, module2, module3, module4],
       include_package_data=True,
       setup_requires=['numpy',
                       'scipy',
                       'h5py',
                       'matplotlib'],
-      classifiers=(
+      classifiers=[
           "Programming Language :: Python :: 3",
           "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
-          "Operating System :: OS Independent",
-      )
+          "Operating System :: OS Independent"]
       )
