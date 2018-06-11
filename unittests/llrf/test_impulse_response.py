@@ -85,7 +85,7 @@ class TestTriangle(unittest.TestCase):
 class TestTravelingWaveCavity(unittest.TestCase):
 
     def test_vg(self):
-        from llrf.impulse_response import TravellingWaveCavity
+        from blond.llrf.impulse_response import TravellingWaveCavity
         v_g = 0.0946+1
 
         with self.assertRaises(RuntimeError, msg="In TestTravelingWaveCavity,"
