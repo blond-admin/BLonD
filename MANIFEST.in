@@ -1,1 +1,1 @@
-recursive-include blond/build *.so
+recursive-include blond/cpp_routines *.so
