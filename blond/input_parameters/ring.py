@@ -17,7 +17,7 @@ from builtins import str, range, object
 import numpy as np
 import warnings
 from scipy.constants import c
-from input_parameters.ring_options import RingOptions
+from ..input_parameters.ring_options import RingOptions
 
 
 class Ring(object):

@@ -19,10 +19,10 @@ from builtins import range, object
 import numpy as np
 from scipy.integrate import cumtrapz
 import ctypes
-from setup_cpp import libblond
 import logging
 
-from utils import bmath as bm
+from ..setup_cpp import libblond
+from ..utils import bmath as bm
 
 
 class FullRingAndRF(object):

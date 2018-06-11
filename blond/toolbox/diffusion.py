@@ -22,7 +22,7 @@ import scipy.integrate as int
 import matplotlib.pyplot as plt
 from pylab import cm
 
-from toolbox.action import *
+from ..toolbox.action import *
 
 
 

@@ -16,10 +16,10 @@
 from builtins import object
 import os
 import matplotlib.pyplot as plt
-from plots.plot_beams import *
-from plots.plot_slices import *
-from plots.plot_llrf import *
 import h5py as hp
+from ..plots.plot_beams import *
+from ..plots.plot_slices import *
+from ..plots.plot_llrf import *
 
 
 def fig_folder(dirname):

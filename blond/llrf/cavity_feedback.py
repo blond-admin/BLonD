@@ -18,15 +18,14 @@ import ctypes
 import logging
 import numpy as np
 import scipy
-from llrf.signal_processing import comb_filter, cartesian_to_polar, \
-    polar_to_cartesian, modulator, moving_average, rf_beam_current
-from llrf.impulse_response import SPS4Section200MHzTWC, SPS5Section200MHzTWC
 from matplotlib import pyplot as plt
-from setup_cpp import libblond
-
 from scipy.constants import e
 
-from beam.profile import Profile, CutOptions
+from ..llrf.signal_processing import comb_filter, cartesian_to_polar, \
+    polar_to_cartesian, modulator, moving_average, rf_beam_current
+from ..llrf.impulse_response import SPS4Section200MHzTWC, SPS5Section200MHzTWC
+from ..setup_cpp import libblond
+from ..beam.profile import Profile, CutOptions
 
 
 class CavityFeedbackCommissioning(object):
@@ -147,7 +146,6 @@ class SPSCavityFeedback(object):
             - self.rf.phi_rf[0, self.rf.counter[0]]
 
     def track_init(self, debug=False):
-
         r''' Tracking of the SPSCavityFeedback without beam.
         '''
 
@@ -158,7 +156,7 @@ class SPSCavityFeedback(object):
 #        plt.grid()
 
         for i in range(self.turns):
-#            print('OTFB pre-tracking iteration ', i)
+            #            print('OTFB pre-tracking iteration ', i)
             self.logger.debug("Pre-tracking w/o beam, iteration %d", i)
             self.OTFB_4.track_no_beam()
 #            plt.plot(self.OTFB_4.profile.bin_centers*1e6,
@@ -171,8 +169,8 @@ class SPSCavityFeedback(object):
 
         # Interpolate from the coarse mesh to the fine mesh of the beam
         self.V_sum = np.interp(
-                self.OTFB_4.profile.bin_centers, self.OTFB_4.rf_centers,
-                self.OTFB_4.V_coarse_ind_gen + self.OTFB_5.V_coarse_ind_gen)
+            self.OTFB_4.profile.bin_centers, self.OTFB_4.rf_centers,
+            self.OTFB_4.V_coarse_ind_gen + self.OTFB_5.V_coarse_ind_gen)
 
         self.V_corr, alpha_sum = cartesian_to_polar(self.V_sum)
 
@@ -440,7 +438,7 @@ class SPSOneTurnFeedback(object):
         # Shift signals with the delay time
         dV_gen_in = np.copy(self.dV_gen)
         self.dV_gen = np.concatenate((self.dV_mov_av_prev[-self.n_delay:],
-                                     self.dV_gen[:self.n_coarse-self.n_delay]))
+                                      self.dV_gen[:self.n_coarse-self.n_delay]))
 
         # Cavity filter: CIRCULAR moving average over filling time
         # Memorize last points of previous turn for beginning of next turn
@@ -452,7 +450,6 @@ class SPSOneTurnFeedback(object):
         self.dV_mov_av_prev = np.copy(dV_gen_in)
 
     def generator_induced_voltage(self):
-
         r"""Calculates the generator-induced voltage. The transmitter model is
         a simple linear gain [C/V] converting voltage to charge.
 
@@ -474,7 +471,7 @@ class SPSOneTurnFeedback(object):
         self.V_gen = self.open_FB * modulator(self.dV_gen, self.omega_r,
                                               self.omega_c,
                                               self.rf.t_rf[0, self.counter]) \
-                    + self.open_drive*self.V_set
+            + self.open_drive*self.V_set
 
         # Generator charge from voltage, transmitter model
         self.I_gen = self.G_tx*self.V_gen\
@@ -517,8 +514,8 @@ class SPSOneTurnFeedback(object):
         if name == "beam":
             # Compute the beam-induced voltage on the fine grid by convolution
             self.__setattr__("V_fine_ind_"+name,
-                 self.matr_conv(self.__getattribute__("I_"+name),
-                                self.TWC.__getattribute__("h_"+name)))
+                             self.matr_conv(self.__getattribute__("I_"+name),
+                                            self.TWC.__getattribute__("h_"+name)))
 
             self.V_fine_ind_beam = -self.n_cavities \
                 * self.V_fine_ind_beam[:self.profile.n_slices]
@@ -529,8 +526,8 @@ class SPSOneTurnFeedback(object):
 
         elif name == "gen":
             self.__setattr__("V_coarse_ind_"+name,
-                 self.matr_conv(self.__getattribute__("I_"+name),
-                                self.TWC.__getattribute__("h_"+name)))
+                             self.matr_conv(self.__getattribute__("I_"+name),
+                                            self.TWC.__getattribute__("h_"+name)))
 
             # Circular convolution
             self.V_coarse_ind_gen = +self.n_cavities \
@@ -585,13 +582,13 @@ class SPSOneTurnFeedback(object):
         n_slices_per_bucket = 20
 
         n_buckets = int(np.round(
-                (self.profile.cut_right - self.profile.cut_left)
-                / self.rf.t_rf[0, 0]))
+            (self.profile.cut_right - self.profile.cut_left)
+            / self.rf.t_rf[0, 0]))
 
         self.profile_coarse = Profile(self.beam, CutOptions=CutOptions(
-                cut_left=self.profile.cut_left,
-                cut_right=self.profile.cut_right,
-                n_slices=n_buckets*n_slices_per_bucket))
+            cut_left=self.profile.cut_left,
+            cut_right=self.profile.cut_right,
+            n_slices=n_buckets*n_slices_per_bucket))
 
         # pre-factor [Ohm s]
 
@@ -614,10 +611,10 @@ class SPSOneTurnFeedback(object):
 
         tmp = (-2j - dt1 + self.TWC.tau*self.omega_r
                + (2j - dt1 + self.TWC.tau*self.omega_r) * np.exp(-1j * dt1))\
-               * np.sign(dt1) \
+            * np.sign(dt1) \
             - ((2j - dt1 + self.TWC.tau * self.omega_r) * np.exp(-1j * dt1)
                + (-2j - dt1 + self.TWC.tau * self.omega_r) * phase) \
-               * np.sign(dt1 - self.TWC.tau * self.omega_r) \
+            * np.sign(dt1 - self.TWC.tau * self.omega_r) \
             - (2 - 1j*dt1) * self.TWC.tau * self.TWC.omega_r * np.sign(dt1)
 
 #        tmp = (-2j - dt1 + self.TWC.tau*self.omega_r + diff2) * np.sign(dt1) \

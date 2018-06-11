@@ -16,7 +16,7 @@ from builtins import range, object
 import numpy as np
 from scipy.constants import e
 import ctypes
-from setup_cpp import libblond
+from ..setup_cpp import libblond
 
 
 

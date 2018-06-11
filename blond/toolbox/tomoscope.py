@@ -22,7 +22,7 @@ import h5py as hp
 import os, linecache, ctypes
 from matplotlib import pyplot as plt
 import matplotlib.cm as cm
-from setup_cpp import libblond
+from ..setup_cpp import libblond
 
 
 

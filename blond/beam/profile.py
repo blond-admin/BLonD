@@ -20,8 +20,8 @@ import numpy as np
 from numpy.fft import rfft, rfftfreq
 from scipy import ndimage
 import ctypes
-from setup_cpp import libblond
-import toolbox.filters_and_fitting as ffroutines
+from ..setup_cpp import libblond
+from ..toolbox import filters_and_fitting as ffroutines
 
 
 class CutOptions(object):

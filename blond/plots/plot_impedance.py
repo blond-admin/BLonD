@@ -16,7 +16,7 @@
 from __future__ import division
 from builtins import range
 import matplotlib.pyplot as plt
-from impedances.impedance_sources import *
+from ..impedances.impedance_sources import *
 
 
 

@@ -18,7 +18,7 @@ from __future__ import division
 from builtins import object
 import numpy as np
 from scipy.constants import m_p, m_e, e, c
-from trackers.utilities import is_in_separatrix
+from ..trackers.utilities import is_in_separatrix
 
 class Particle(object):
 

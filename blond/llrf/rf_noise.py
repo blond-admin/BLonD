@@ -16,13 +16,12 @@ amplitude as a function of bunch length**
 
 from __future__ import division, print_function
 from builtins import range, object
-from toolbox.next_regular import next_regular
 import numpy as np
 import numpy.random as rnd
-
 from scipy.constants import c
-from plots.plot import *
-from plots.plot_llrf import *
+from ..plots.plot import *
+from ..plots.plot_llrf import *
+from ..toolbox.next_regular import next_regular
 #from input_parameters.rf_parameters import calculate_phi_s
 cfwhm = np.sqrt(2./np.log(2.))
 import matplotlib.pyplot as plt
