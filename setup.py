@@ -144,6 +144,7 @@ setup(name='blond',
       maintainer='Konstantinos Iliakis',
       maintainer_email='konstantinos.iliakis@cern.ch',
       long_description=open('README.md').read(),
+      long_description_content_type='text/markdown',
       url='https://github.com/kiliakis/BLonD-1',
       download_url='https://github.com/kiliakis/BLonD-1/archive/v'+__version__+'.tar.gz',
       cmdclass={
