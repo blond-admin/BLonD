@@ -25,6 +25,11 @@ import subprocess
 import ctypes
 import argparse
 
+from blond import basepath
+# path = os.path.realpath(__file__)
+# basepath = os.sep.join(path.split(os.sep)[:-1])
+
+
 parser = argparse.ArgumentParser(description='Run python setup_cpp.py to'
                                  ' compile the cpp routines needed from BLonD')
 
@@ -61,20 +66,18 @@ cflags = ['-Ofast', '-std=c++11', '-fPIC', '-shared']
 
 cpp_files = [
     # 'cpp_routines/mean_std_whereint.cpp',
-    'cpp_routines/kick.cpp',
-    'cpp_routines/drift.cpp',
-    'cpp_routines/linear_interp_kick.cpp',
-    'toolbox/tomoscope.cpp',
-    'cpp_routines/histogram.cpp',
-    # 'cpp_routines/convolution.cpp',
-    'synchrotron_radiation/synchrotron_radiation.cpp',
-    'cpp_routines/music_track.cpp',
-    'cpp_routines/fast_resonator.cpp',
-    'cpp_routines/blondmath.cpp',
-    'beam/sparse_histogram.cpp']
-
-# Select the right
-# cpp_files_SR = ['synchrotron_radiation/synchrotron_radiation.cpp']
+    # os.path.join(basepath, 'cpp_routines/convolution.cpp'),
+    os.path.join(basepath, 'cpp_routines/kick.cpp'),
+    os.path.join(basepath, 'cpp_routines/drift.cpp'),
+    os.path.join(basepath, 'cpp_routines/linear_interp_kick.cpp'),
+    os.path.join(basepath, 'cpp_routines/histogram.cpp'),
+    os.path.join(basepath, 'cpp_routines/music_track.cpp'),
+    os.path.join(basepath, 'cpp_routines/blondmath.cpp'),
+    os.path.join(basepath, 'cpp_routines/fast_resonator.cpp'),
+    os.path.join(basepath, 'toolbox/tomoscope.cpp'),
+    os.path.join(basepath, 'synchrotron_radiation/synchrotron_radiation.cpp'),
+    os.path.join(basepath, 'beam/sparse_histogram.cpp')
+]
 
 
 if (__name__ == "__main__"):
@@ -93,85 +96,35 @@ if (__name__ == "__main__"):
     print('Using boost: ', boost)
     print('Boost installation path: ', boost_path)
     print('C++ Compiler: ', compiler)
+    subprocess.call([compiler, '--version'])
 
-    # if (boost):
-    #     cpp_files_SR += ['synchrotron_radiation/quantum_excitation_boost.cpp']
-    #     cflags += ['-I', boost_path]
-    # else:
-    #     cpp_files_SR += ['synchrotron_radiation/quantum_excitation_std.cpp']
+    try:
+        os.remove(os.path.join(basepath, 'cpp_routines/libblond.so'))
+    except OSError as e:
+        pass
 
-    # if (parallel == False):
-    #     cpp_files += ['cpp_routines/histogram.cpp']
-    if (parallel == True):
+    if (parallel is True):
         cflags += ['-fopenmp', '-DPARALLEL', '-D_GLIBCXX_PARALLEL']
-        # cpp_files += ['cpp_routines/histogram_par.cpp']
 
     if ('posix' in os.name):
-        # cflags += ['-shared']
-        # if('linux' in sys.platform):
-        #     cflags += ['-fPIC']
-        subprocess.call('rm -f cpp_routines/*.so',
-                        shell=True, executable='/bin/bash')
-        # subprocess.call('rm -f synchrotron_radiation/*.so',
-        #                 shell=True, executable='/bin/bash')
-
-        command = [compiler] + cflags + \
-            ['-o', 'cpp_routines/libblond.so'] + cpp_files
+        libname = os.path.join(basepath, 'cpp_routines/libblond.so')
+        command = [compiler] + cflags + ['-o', libname] + cpp_files
         subprocess.call(command)
-
-        # command = [compiler] + cflags + \
-        #     ['-o', 'synchrotron_radiation/sync_rad.so'] + cpp_files_SR
-        # subprocess.call(command)
-
-        # command = [compiler] + cflags + \
-        #     ['-o', 'cpp_routines/libblondphysics.so'] + cpp_files_SR + cpp_files
-        # subprocess.call(command)
-
-        # command = [compiler] + cflags + \
-        #     ['-o', 'cpp_routines/libblondmath.so'] + \
-        #     ['cpp_routines/blondmath.cpp']
-        # subprocess.call(command)
 
         print('\nIF THE COMPILATION IS CORRECT A FILE NAMED libblond.so SHOULD'
               ' APPEAR IN THE cpp_routines FOLDER. OTHERWISE YOU HAVE TO'
               ' CORRECT THE ERRORS AND COMPILE AGAIN.')
-        sys.exit()
 
     elif ('win' in sys.platform):
-        os.system('gcc --version')
-        os.system('del /s/q ' + os.getcwd() + '\\cpp_routines\\*.dll')
-        # os.system('del /s/q ' + os.getcwd() + '\\synchrotron_radiation\\*.dll')
 
-        cpp_files_join_list = os.getcwd()+'\\'+' '.join(cpp_files)
-        # cpp_files_SR_join_list = os.getcwd()+'\\'+' '.join(cpp_files_SR)
-        # cflags_join_list = ' ' + ' '.join(cflags)
-        # cpp_files_bmath_join_list = ' '.join(
-        #     cpp_files)+' '+' '.join(cpp_files_SR)
+        libname = os.path.join(basepath, 'cpp_routines/libblond.so')
 
-        command = compiler + cflags_join_list + ' -o ' + \
-            os.getcwd()+'\\cpp_routines\\libblond.dll ' + \
-            cpp_files_join_list
-        os.system(command)
-
-        # command = compiler + cflags_join_list + ' -o ' + \
-        #     os.getcwd()+'\\synchrotron_radiation\\sync_rad.dll -shared ' +\
-        #     cpp_files_SR_join_list
-        # os.system(command)
-
-        # command = compiler + cflags_join_list + ' -o ' + \
-        #     os.getcwd()+'\\cpp_routines\\libblondphysics.dll -shared ' + \
-        #     cpp_files_bmath_join_list
-        # os.system(command)
-
-        # command = compiler + cflags_join_list + ' -o ' + \
-        #     os.getcwd()+'\\cpp_routines\\libblondmath.dll -shared ' + \
-        #     os.getcwd() + '\\cpp_routines\\blondmath.cpp'
-        # os.system(command)
+        command = [compiler] + cflags + ['-o', libname] + cpp_files
+        subprocess.call(command)
 
         print('\nIF THE COMPILATION IS CORRECT A FILE NAMED libblond.dll SHOULD'
               ' APPEAR IN THE cpp_routines FOLDER. OTHERWISE YOU HAVE TO'
               ' CORRECT THE ERRORS AND COMPILE AGAIN.')
-        sys.exit()
 
     else:
         print(
