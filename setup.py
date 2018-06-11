@@ -12,17 +12,18 @@ from blond._version import __version__
 log.set_verbosity(log.DEBUG)  # Set DEBUG level
 
 compiler = 'g++'
-build_dir = 'BLonD/build'
+build_dir = 'blond/build'
 cflags = ['-Ofast', '-std=c++11', '-fPIC', '-fopenmp']
 lflags = ['-fopenmp']
 
 libs = {
-    'blond': {'cfiles': ['blond/cpp_routines/mean_std_whereint.cpp',
+    'blond': {'cfiles': [
+                         # 'blond/cpp_routines/mean_std_whereint.cpp',
                          'blond/cpp_routines/kick.cpp',
                          'blond/cpp_routines/drift.cpp',
                          'blond/cpp_routines/linear_interp_kick.cpp',
                          'blond/toolbox/tomoscope.cpp',
-                         'blond/cpp_routines/convolution.cpp',
+                         # 'blond/cpp_routines/convolution.cpp',
                          'blond/cpp_routines/music_track.cpp',
                          'blond/cpp_routines/fast_resonator.cpp',
                          'blond/beam/sparse_histogram.cpp',
@@ -33,8 +34,8 @@ libs = {
     # 'syncrad': {'cfiles': ['BLonD/synchrotron_radiation/synchrotron_radiation.cpp'],
     #             'cflags': cflags, 'lflags': lflags, 'output_dir': build_dir},
 
-    # 'blondmath': {'cfiles': ['BLonD/cpp_routines/blondmath.cpp'],
-    #               'cflags': cflags, 'lflags': lflags, 'output_dir': build_dir},
+    # 'blondmath': {'cfiles': ['blond/cpp_routines/blondmath.cpp'],
+                  # 'cflags': cflags, 'lflags': lflags, 'output_dir': build_dir},
 
     # 'blondphysics': {'cfiles': ['BLonD/cpp_routines/mean_std_whereint.cpp',
     #                             'BLonD/cpp_routines/kick.cpp',
@@ -107,7 +108,7 @@ setup(name='BLonD',
       maintainer='Konstantinos Iliakis',
       maintainer_email='konstantinos.iliakis@cern.ch',
       long_description=open('README.md').read(),
-      long_description_content_type="text/markdown",
+      # long_description_content_type="text/markdown",
       url='https://github.com/blond-admin/BLonD',
       cmdclass={'build_ext': BuildCommand},
       # package_dir={'': 'BLonD'},
@@ -123,5 +124,5 @@ setup(name='BLonD',
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
         "Operating System :: OS Independent",
-    ),
+    )
       )
