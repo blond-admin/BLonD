@@ -1,2 +1,1 @@
-recursive-include BLonD/build *.so
-recursive-include BLonD/unittests *.py *.dat
+recursive-include blond/build *.so
