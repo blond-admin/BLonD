@@ -19,16 +19,16 @@ from __future__ import print_function
 from builtins import str
 import numpy as np
 import pylab as plt
-from input_parameters.ring import Ring
-from input_parameters.rf_parameters import RFStation
-from trackers.tracker import RingAndRFTracker, FullRingAndRF
-from beam.beam import Beam, Proton
-from beam.distributions_multibunch \
+from blond.input_parameters.ring import Ring
+from blond.input_parameters.rf_parameters import RFStation
+from blond.trackers.tracker import RingAndRFTracker, FullRingAndRF
+from blond.beam.beam import Beam, Proton
+from blond.beam.distributions_multibunch \
                             import matched_from_distribution_density_multibunch
-from beam.distributions_multibunch import matched_from_line_density_multibunch
-from beam.profile import Profile, CutOptions
-from impedances.impedance import InducedVoltageFreq, TotalInducedVoltage
-from impedances.impedance_sources import Resonators
+from blond.beam.distributions_multibunch import matched_from_line_density_multibunch
+from blond.beam.profile import Profile, CutOptions
+from blond.impedances.impedance import InducedVoltageFreq, TotalInducedVoltage
+from blond.impedances.impedance_sources import Resonators
 from scipy.constants import c, e, m_p
 import os
 

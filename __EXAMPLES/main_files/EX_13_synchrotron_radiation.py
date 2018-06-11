@@ -18,15 +18,15 @@ from __future__ import division
 import matplotlib.pyplot as plt
 import os
 import numpy as np
-from input_parameters.ring import Ring
-from beam.beam import Beam, Electron
-from beam.distributions import matched_from_distribution_function
-from input_parameters.rf_parameters import RFStation
-from beam.profile import Profile
-from trackers.tracker import RingAndRFTracker, FullRingAndRF
-from synchrotron_radiation.synchrotron_radiation import SynchrotronRadiation
+from blond.input_parameters.ring import Ring
+from blond.beam.beam import Beam, Electron
+from blond.beam.distributions import matched_from_distribution_function
+from blond.input_parameters.rf_parameters import RFStation
+from blond.beam.profile import Profile
+from blond.trackers.tracker import RingAndRFTracker, FullRingAndRF
+from blond.synchrotron_radiation.synchrotron_radiation import SynchrotronRadiation
 from scipy.constants import c, e, m_e
-from beam.profile import CutOptions
+from blond.beam.profile import CutOptions
 
 try:
     os.mkdir('../output_files')
