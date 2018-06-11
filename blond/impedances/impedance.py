@@ -20,7 +20,9 @@ import numpy as np
 from numpy.fft import  rfft, irfft, rfftfreq
 from ctypes import c_uint, c_double, c_void_p
 from scipy.constants import e
-from ..setup_cpp import libblond
+# from ..setup_cpp import libblond
+from .. import libblond
+
 from ..toolbox.next_regular import next_regular
 
 linear_interp_kick = libblond.linear_interp_kick

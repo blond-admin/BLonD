@@ -7,7 +7,8 @@ BLonD physics wrapper functions
 
 import ctypes as ct
 import numpy as np
-from setup_cpp import libblondphysics as __lib
+# from setup_cpp import libblondphysics as __lib
+from .. import libblond as __lib
 
 
 def __getPointer(x):

@@ -6,8 +6,8 @@ BLonD math and physics core functions
 '''
 # from functools import wraps
 import numpy as np
-from utils import butils_wrap
-from utils import bphysics_wrap
+from ..utils import butils_wrap
+from ..utils import bphysics_wrap
 
 # dictionary storing the CPU versions of the desired functions #
 _CPU_func_dict = {

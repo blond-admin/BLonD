@@ -24,7 +24,9 @@ from scipy.constants import e
 from ..llrf.signal_processing import comb_filter, cartesian_to_polar, \
     polar_to_cartesian, modulator, moving_average, rf_beam_current
 from ..llrf.impulse_response import SPS4Section200MHzTWC, SPS5Section200MHzTWC
-from ..setup_cpp import libblond
+# from ..setup_cpp import libblond
+from .. import libblond
+
 from ..beam.profile import Profile, CutOptions
 
 

@@ -18,7 +18,8 @@ from builtins import range, object
 import numpy as np
 import ctypes
 from scipy.constants import e, c, epsilon_0, hbar
-from ..setup_cpp import libsrqe
+# from ..setup_cpp import libsrqe
+from .. import libblond
 
 
 class SynchrotronRadiation(object):

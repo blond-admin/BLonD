@@ -18,7 +18,9 @@ from __future__ import division, print_function
 from builtins import range, object
 import numpy as np
 import ctypes
-from ..setup_cpp import libblond
+# from ..setup_cpp import libblond
+from .. import libblond
+
 from ..beam.profile import Profile, CutOptions
 
 

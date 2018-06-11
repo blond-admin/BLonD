@@ -20,7 +20,8 @@ import numpy as np
 from numpy.fft import rfft, rfftfreq
 from scipy import ndimage
 import ctypes
-from ..setup_cpp import libblond
+# from ..setup_cpp import libblond
+from .. import libblond
 from ..toolbox import filters_and_fitting as ffroutines
 
 

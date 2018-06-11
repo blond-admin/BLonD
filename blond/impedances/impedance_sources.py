@@ -22,7 +22,8 @@ from builtins import range, object
 import numpy as np
 from scipy.constants import c, physical_constants
 import ctypes
-from ..setup_cpp import libblond
+# from ..setup_cpp import libblond
+from .. import libblond
 
 
 class _ImpedanceObject(object):

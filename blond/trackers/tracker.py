@@ -21,7 +21,9 @@ from scipy.integrate import cumtrapz
 import ctypes
 import logging
 
-from ..setup_cpp import libblond
+# from ..setup_cpp import libblond
+from .. import libblond
+
 from ..utils import bmath as bm
 
 

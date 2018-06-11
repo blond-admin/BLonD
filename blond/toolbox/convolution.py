@@ -1,4 +1,6 @@
-from ..setup_cpp import libblond
+# from ..setup_cpp import libblond
+from .. import libblond
+
 import ctypes
 import numpy as np
 
