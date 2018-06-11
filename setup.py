@@ -6,10 +6,11 @@ from blond._version import __version__
 import distutils
 from shutil import rmtree
 
-class Build(distutils.cmd.Command):
+
+class Compile(distutils.cmd.Command):
     """Call compile to compile all C/C++ source files."""
 
-    description = 'Build the shared libraries'
+    description = 'Compile the shared libraries'
     user_options = [
         # The format is (long option, short option, description).
         ('parallel', 'p', 'Enable Multi-threaded code'),
@@ -143,12 +144,14 @@ setup(name='blond',
       maintainer='Konstantinos Iliakis',
       maintainer_email='konstantinos.iliakis@cern.ch',
       long_description=open('README.md').read(),
-      url='https://github.com/blond-admin/BLonD',
-      cmdclass={'build': Build,
-                'cleanall': CleanAll,
-                'test': Test,
-                'pep8': PEP8,
-                'docs': Docs},
+      url='https://github.com/kiliakis/BLonD-1',
+      download_url='https://github.com/kiliakis/BLonD-1/archive/'+__version__+'.tar.gz',
+      cmdclass={
+          'compile': Compile,
+          'cleanall': CleanAll,
+          'test': Test,
+          'pep8': PEP8,
+          'docs': Docs},
       packages=find_packages(
           exclude=['__doc', '__BENCHMARKS', '__EXAMPLES', 'unittests']),
       include_package_data=True,
