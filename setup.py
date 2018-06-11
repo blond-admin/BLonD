@@ -5,7 +5,7 @@ import distutils
 from distutils.ccompiler import new_compiler
 from distutils import log, dir_util
 
-from setuptools import setup, Extension, find_packages
+from setuptools import setup, find_packages
 from Cython.Distutils import build_ext
 from blond._version import __version__
 
@@ -18,24 +18,24 @@ lflags = ['-fopenmp']
 
 libs = {
     'blond': {'cfiles': [
-                         # 'blond/cpp_routines/mean_std_whereint.cpp',
-                         'blond/cpp_routines/kick.cpp',
-                         'blond/cpp_routines/drift.cpp',
-                         'blond/cpp_routines/linear_interp_kick.cpp',
-                         'blond/toolbox/tomoscope.cpp',
-                         # 'blond/cpp_routines/convolution.cpp',
-                         'blond/cpp_routines/music_track.cpp',
-                         'blond/cpp_routines/fast_resonator.cpp',
-                         'blond/beam/sparse_histogram.cpp',
-                         'blond/synchrotron_radiation/synchrotron_radiation.cpp',
-                         'blond/cpp_routines/blondmath.cpp'],
-              'cflags': cflags, 'lflags': lflags, 'output_dir': build_dir}
+        # 'blond/cpp_routines/mean_std_whereint.cpp',
+        'blond/cpp_routines/kick.cpp',
+        'blond/cpp_routines/drift.cpp',
+        'blond/cpp_routines/linear_interp_kick.cpp',
+        'blond/toolbox/tomoscope.cpp',
+        # 'blond/cpp_routines/convolution.cpp',
+        'blond/cpp_routines/music_track.cpp',
+        'blond/cpp_routines/fast_resonator.cpp',
+        'blond/beam/sparse_histogram.cpp',
+        'blond/synchrotron_radiation/synchrotron_radiation.cpp',
+        'blond/cpp_routines/blondmath.cpp'],
+        'cflags': cflags, 'lflags': lflags, 'output_dir': build_dir}
 
     # 'syncrad': {'cfiles': ['BLonD/synchrotron_radiation/synchrotron_radiation.cpp'],
     #             'cflags': cflags, 'lflags': lflags, 'output_dir': build_dir},
 
     # 'blondmath': {'cfiles': ['blond/cpp_routines/blondmath.cpp'],
-                  # 'cflags': cflags, 'lflags': lflags, 'output_dir': build_dir},
+    # 'cflags': cflags, 'lflags': lflags, 'output_dir': build_dir},
 
     # 'blondphysics': {'cfiles': ['BLonD/cpp_routines/mean_std_whereint.cpp',
     #                             'BLonD/cpp_routines/kick.cpp',
@@ -66,6 +66,7 @@ class BuildCommand(distutils.cmd.Command):
         # Each user option must be listed here with their default value.
         # self.build_rcfile = ''
         pass
+
     def finalize_options(self):
         """Post-process options."""
         pass
@@ -92,15 +93,15 @@ class BuildCommand(distutils.cmd.Command):
             exec(command)
 
 
-if __name__ == "__main__":
-    args = sys.argv[1:]
-    if 'cleanall' in args:
-        dir_util.remove_tree(build_dir)
-        sys.argv = [sys.argv[0], 'clean']
+# if __name__ == "__main__":
+#     args = sys.argv[1:]
+#     if 'cleanall' in args:
+#         dir_util.remove_tree(build_dir)
+#         sys.argv = [sys.argv[0], 'clean']
     # else:
     #     build()
 
-setup(name='BLonD',
+setup(name='blond',
       version=__version__,
       description='CERN code for the simulation of longitudinal beam dynamics in synchrotrons.',
       author='Helga Timko',
@@ -110,10 +111,11 @@ setup(name='BLonD',
       long_description=open('README.md').read(),
       # long_description_content_type="text/markdown",
       url='https://github.com/blond-admin/BLonD',
-      cmdclass={'build_ext': BuildCommand},
+      # cmdclass={'build_ext': BuildCommand},
       # package_dir={'': 'BLonD'},
       # packages=['BLonD/beam/', 'BLonD/impedances/', ''],
-      packages=find_packages(),
+      packages=find_packages(
+          exclude=['__doc', '__BENCHMARKS', '__EXAMPLES', 'unittests']),
       # ext_modules=[module1, module2, module3, module4],
       include_package_data=True,
       setup_requires=['numpy',
@@ -121,8 +123,8 @@ setup(name='BLonD',
                       'h5py',
                       'matplotlib'],
       classifiers=(
-        "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
-        "Operating System :: OS Independent",
-    )
+          "Programming Language :: Python :: 3",
+          "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+          "Operating System :: OS Independent",
+      )
       )
