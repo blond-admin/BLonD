@@ -21,12 +21,12 @@ import numpy
 
 # BLonD imports
 # --------------
-from beam.beam import Proton
-from input_parameters.ring import Ring
-from input_parameters.rf_parameters import RFStation
-from beam.beam import Beam
-from beam.distributions import matched_from_distribution_function
-from trackers.tracker import FullRingAndRF, RingAndRFTracker
+from blond.beam.beam import Proton
+from blond.input_parameters.ring import Ring
+from blond.input_parameters.rf_parameters import RFStation
+from blond.beam.beam import Beam
+from blond.beam.distributions import matched_from_distribution_function
+from blond.trackers.tracker import FullRingAndRF, RingAndRFTracker
 
 
 class testBeamClass(unittest.TestCase):

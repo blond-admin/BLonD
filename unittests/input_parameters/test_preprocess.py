@@ -16,7 +16,7 @@ import sys
 import unittest
 import numpy as np
 
-from input_parameters.ring_options import RingOptions
+from blond.input_parameters.ring_options import RingOptions
 
 
 class test_preprocess(unittest.TestCase):
