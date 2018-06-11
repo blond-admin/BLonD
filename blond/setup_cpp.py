@@ -9,7 +9,7 @@
 
 '''
 
-@author: Danilo Quartullo
+@author: Danilo Quartullo, Konstantinos Iliakis
 '''
 
 # MAKE SURE YOU HAVE GCC 4.8.1 OR LATER VERSIONS ON YOUR SYSTEM LINKED TO YOUR
@@ -57,20 +57,24 @@ boost_path = None
 
 # EXAMPLE FLAGS: -Ofast -std=c++11 -fopt-info-vec -march=native
 #                -mfma4 -fopenmp -ftree-vectorizer-verbose=1
-cflags = ['-Ofast', '-std=c++11']
+cflags = ['-Ofast', '-std=c++11', '-fPIC', '-shared']
 
-cpp_files = ['cpp_routines/mean_std_whereint.cpp',
-             'cpp_routines/kick.cpp',
-             'cpp_routines/drift.cpp',
-             'cpp_routines/linear_interp_kick.cpp',
-             'toolbox/tomoscope.cpp',
-             'cpp_routines/convolution.cpp',
-             'cpp_routines/music_track.cpp',
-             'cpp_routines/fast_resonator.cpp',
-             'beam/sparse_histogram.cpp']
+cpp_files = [
+    # 'cpp_routines/mean_std_whereint.cpp',
+    'cpp_routines/kick.cpp',
+    'cpp_routines/drift.cpp',
+    'cpp_routines/linear_interp_kick.cpp',
+    'toolbox/tomoscope.cpp',
+    'cpp_routines/histogram.cpp',
+    # 'cpp_routines/convolution.cpp',
+    'synchrotron_radiation/synchrotron_radiation.cpp',
+    'cpp_routines/music_track.cpp',
+    'cpp_routines/fast_resonator.cpp',
+    'cpp_routines/blondmath.cpp',
+    'beam/sparse_histogram.cpp']
 
 # Select the right
-cpp_files_SR = ['synchrotron_radiation/synchrotron_radiation.cpp']
+# cpp_files_SR = ['synchrotron_radiation/synchrotron_radiation.cpp']
 
 
 if (__name__ == "__main__"):
@@ -82,50 +86,51 @@ if (__name__ == "__main__"):
             boost_path = os.path.abspath(args.boost)
         else:
             boost_path = ''
+        cflags += ['-I', boost_path]
     compiler = args.compiler
 
-    print('Produce Multi-threaded code: ', parallel)
-    print('Use of boost: ', boost)
+    print('Enable Multi-threaded code: ', parallel)
+    print('Using boost: ', boost)
     print('Boost installation path: ', boost_path)
     print('C++ Compiler: ', compiler)
 
-    if (boost):
-        cpp_files_SR += ['synchrotron_radiation/quantum_excitation_boost.cpp']
-        cflags += ['-I', boost_path]
-    else:
-        cpp_files_SR += ['synchrotron_radiation/quantum_excitation_std.cpp']
+    # if (boost):
+    #     cpp_files_SR += ['synchrotron_radiation/quantum_excitation_boost.cpp']
+    #     cflags += ['-I', boost_path]
+    # else:
+    #     cpp_files_SR += ['synchrotron_radiation/quantum_excitation_std.cpp']
 
-    if (parallel is False):
-        cpp_files += ['cpp_routines/histogram.cpp']
-    elif (parallel is True):
+    # if (parallel == False):
+    #     cpp_files += ['cpp_routines/histogram.cpp']
+    if (parallel == True):
         cflags += ['-fopenmp', '-DPARALLEL', '-D_GLIBCXX_PARALLEL']
-        cpp_files += ['cpp_routines/histogram_par.cpp']
+        # cpp_files += ['cpp_routines/histogram_par.cpp']
 
     if ('posix' in os.name):
-        cflags += ['-shared']
-        if('linux' in sys.platform):
-            cflags += ['-fPIC']
-        subprocess.call('rm -rf cpp_routines/*.so',
-                         shell=True, executable='/bin/bash')
-        subprocess.call('rm -rf synchrotron_radiation/*.so',
-                         shell=True, executable='/bin/bash')
+        # cflags += ['-shared']
+        # if('linux' in sys.platform):
+        #     cflags += ['-fPIC']
+        subprocess.call('rm -f cpp_routines/*.so',
+                        shell=True, executable='/bin/bash')
+        # subprocess.call('rm -f synchrotron_radiation/*.so',
+        #                 shell=True, executable='/bin/bash')
 
         command = [compiler] + cflags + \
-            ['-o', 'cpp_routines/result.so'] + cpp_files
+            ['-o', 'cpp_routines/libblond.so'] + cpp_files
         subprocess.call(command)
 
-        command = [compiler] + cflags + \
-            ['-o', 'synchrotron_radiation/sync_rad.so'] + cpp_files_SR
-        subprocess.call(command)
+        # command = [compiler] + cflags + \
+        #     ['-o', 'synchrotron_radiation/sync_rad.so'] + cpp_files_SR
+        # subprocess.call(command)
 
-        command = [compiler] + cflags + \
-            ['-o', 'cpp_routines/libblondphysics.so'] + cpp_files_SR + cpp_files
-        subprocess.call(command)
+        # command = [compiler] + cflags + \
+        #     ['-o', 'cpp_routines/libblondphysics.so'] + cpp_files_SR + cpp_files
+        # subprocess.call(command)
 
-        command = [compiler] + cflags + \
-            ['-o', 'cpp_routines/libblondmath.so'] + \
-            ['cpp_routines/blondmath.cpp']
-        subprocess.call(command)
+        # command = [compiler] + cflags + \
+        #     ['-o', 'cpp_routines/libblondmath.so'] + \
+        #     ['cpp_routines/blondmath.cpp']
+        # subprocess.call(command)
 
         print('\nIF THE COMPILATION IS CORRECT A FILE NAMED result.so SHOULD'
               ' APPEAR IN THE cpp_routines FOLDER. OTHERWISE YOU HAVE TO'
@@ -135,32 +140,33 @@ if (__name__ == "__main__"):
     elif ('win' in sys.platform):
         os.system('gcc --version')
         os.system('del /s/q ' + os.getcwd() + '\\cpp_routines\\*.dll')
-        os.system('del /s/q ' + os.getcwd() + '\\synchrotron_radiation\\*.dll')
+        # os.system('del /s/q ' + os.getcwd() + '\\synchrotron_radiation\\*.dll')
 
         cpp_files_join_list = os.getcwd()+'\\'+' '.join(cpp_files)
-        cpp_files_SR_join_list = os.getcwd()+'\\'+' '.join(cpp_files_SR)
-        cflags_join_list = ' ' + ' '.join(cflags)
-        cpp_files_bmath_join_list = ' '.join(cpp_files)+' '+' '.join(cpp_files_SR)
+        # cpp_files_SR_join_list = os.getcwd()+'\\'+' '.join(cpp_files_SR)
+        # cflags_join_list = ' ' + ' '.join(cflags)
+        # cpp_files_bmath_join_list = ' '.join(
+        #     cpp_files)+' '+' '.join(cpp_files_SR)
 
         command = compiler + cflags_join_list + ' -o ' + \
-            os.getcwd()+'\\cpp_routines\\result.dll -shared ' + \
+            os.getcwd()+'\\cpp_routines\\libblond.dll ' + \
             cpp_files_join_list
         os.system(command)
 
-        command = compiler + cflags_join_list + ' -o ' + \
-            os.getcwd()+'\\synchrotron_radiation\\sync_rad.dll -shared ' +\
-            cpp_files_SR_join_list
-        os.system(command)
+        # command = compiler + cflags_join_list + ' -o ' + \
+        #     os.getcwd()+'\\synchrotron_radiation\\sync_rad.dll -shared ' +\
+        #     cpp_files_SR_join_list
+        # os.system(command)
 
-        command = compiler + cflags_join_list + ' -o ' + \
-            os.getcwd()+'\\cpp_routines\\libblondphysics.dll -shared ' + \
-            cpp_files_bmath_join_list
-        os.system(command)
+        # command = compiler + cflags_join_list + ' -o ' + \
+        #     os.getcwd()+'\\cpp_routines\\libblondphysics.dll -shared ' + \
+        #     cpp_files_bmath_join_list
+        # os.system(command)
 
-        command = compiler + cflags_join_list + ' -o ' + \
-            os.getcwd()+'\\cpp_routines\\libblondmath.dll -shared ' + \
-            os.getcwd() + '\\cpp_routines\\blondmath.cpp'
-        os.system(command)
+        # command = compiler + cflags_join_list + ' -o ' + \
+        #     os.getcwd()+'\\cpp_routines\\libblondmath.dll -shared ' + \
+        #     os.getcwd() + '\\cpp_routines\\blondmath.cpp'
+        # os.system(command)
 
         print('\nIF THE COMPILATION IS CORRECT A FILE NAMED result.dll SHOULD'
               ' APPEAR IN THE cpp_routines FOLDER. OTHERWISE YOU HAVE TO'
