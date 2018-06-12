@@ -14,8 +14,7 @@ compiler:
   - gcc
 python:
   - "3.5"
-  - "3.6.3"
-  - "3.6.1"
+  - "3.6"
 addons:
   apt:
     sources:
@@ -52,7 +51,8 @@ install:
     fi
   - source activate pyenv
   - conda install -y -q pip "numpy>=1.12" scipy matplotlib future h5py 
-  - conda list
+  - conda list numpy
+  - conda list python 
   # Replace dep1 dep2 ... with your dependencies
   - pip install coveralls pytest
 before_script:
