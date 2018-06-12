@@ -1,32 +1,33 @@
 import sys
 import os
 import subprocess
-from setuptools import setup, find_packages
 from blond._version import __version__
 import distutils
 from shutil import rmtree
+from distutils.command.build import build as _build
+from setuptools import setup, find_packages
+
 
 class Compile(distutils.cmd.Command):
     """Compile all C/C++ source files."""
 
     description = 'Compile the shared libraries'
     user_options = [
-        # The format is (long option, short option, description).
-        ('parallel', 'p', 'Enable Multi-threaded code'),
-        ('boost=', None, 'Compile with the Boost Library'),
-        ('compiler=', None, 'Specify the C++ compiler')
-    ]
+        ('openmp', 'o', 'Enable Multi-threaded code'),
+        ('compiler=', 'c', 'Specify the compiler type'),
+        ('boost=', None, 'Compile with the Boost Library')]
+
 
     def initialize_options(self):
         """Set default values for options."""
         # Each user option must be listed here with their default value.
-        self.parallel = None
+        self.openmp = None
         self.boost = None
         self.compiler = None
 
     def finalize_options(self):
         """Post-process options."""
-        # print('Parallel: ', self.parallel)
+        # print('Parallel: ', self.openmp)
         # print('Boost: ', self.boost)
         # print('Compiler: ', self.compiler)
         pass
@@ -34,7 +35,7 @@ class Compile(distutils.cmd.Command):
     def run(self):
         """Run command."""
         cmd = ['python', 'compile.py']
-        if self.parallel:
+        if self.openmp:
             cmd.append('-p')
         if self.boost:
             cmd += ['-b', self.boost]
@@ -42,6 +43,39 @@ class Compile(distutils.cmd.Command):
             cmd += ['-c', self.compiler]
 
         subprocess.call(cmd)
+
+
+class Compile_and_Build(_build):
+    description = 'Compile the C++ sources before executing the build step'
+    user_options = _build.user_options
+    user_options += [
+        ('openmp', 'o', 'Enable Multi-threaded code'),
+        ('compiler=', 'c', 'Specify the compiler type'),
+        ('boost=', None, 'Compile with the Boost Library')]
+
+    def initialize_options(self):
+        _build.initialize_options(self)
+        self.openmp = None
+        self.boost = None
+        pass
+
+    def finalize_options(self):
+        """Post-process options."""
+        _build.finalize_options(self)
+        pass
+
+    def run(self):
+        cmd = ['python', 'compile.py']
+        if self.openmp:
+            cmd.append('-p')
+        if self.boost:
+            cmd += ['-b', self.boost]
+        if self.compiler:
+            cmd += ['-c', self.compiler]
+
+        subprocess.call(cmd)
+        # self.run_command('compile')
+        return _build.run(self)
 
 
 class CleanAll(distutils.cmd.Command):
@@ -63,6 +97,7 @@ class CleanAll(distutils.cmd.Command):
         rmtree('build', ignore_errors=True)
         rmtree('dist', ignore_errors=True)
         rmtree('blond.egg-info', ignore_errors=True)
+
 
 
 class Test(distutils.cmd.Command):
@@ -133,13 +168,14 @@ class Docs(distutils.cmd.Command):
         """Run command."""
         subprocess.call(['python', 'sanity_check.py', '--docs'])
 
+
 if __name__ == "__main__":
     if len(sys.argv) == 1:
         """ Means no arguments were passed """
         sys.argv.append('compile')
-    if ('install' in sys.argv) and ('compile' not in sys.argv):
-        """ To install, we need first to compile """
-        sys.argv = [sys.argv[0]] + ['compile'] + sys.argv[1:]
+    # if ('install' in sys.argv) and ('compile' not in sys.argv):
+    #     """ To install, we need first to compile """
+    #     sys.argv = [sys.argv[0]] + ['compile'] + sys.argv[1:]
 
 
 setup(name='blond',
@@ -155,6 +191,7 @@ setup(name='blond',
       url='https://github.com/kiliakis/BLonD-1',
       download_url='https://github.com/kiliakis/BLonD-1/archive/v'+__version__+'.tar.gz',
       cmdclass={
+          'build': Compile_and_Build,
           'compile': Compile,
           'cleanall': CleanAll,
           'test': Test,
