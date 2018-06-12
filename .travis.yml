@@ -14,7 +14,8 @@ compiler:
   - gcc
 python:
   - "3.5"
-  - "3.6"
+  - "3.6.3"
+  - "3.6.1"
 addons:
   apt:
     sources:
@@ -41,7 +42,8 @@ install:
   - conda config --set always_yes yes --set changeps1 no
   - conda update -y conda
   # Useful for debugging any issues with conda
-  - conda info -a
+  # - conda info -a
+  # - conda list
   - if test -e $HOME/miniconda/envs/pyenv; then
       echo "pyenv already exists.";
     else
@@ -49,7 +51,8 @@ install:
       conda create -y -n pyenv python=$TRAVIS_PYTHON_VERSION;
     fi
   - source activate pyenv
-  - conda install -y -q pip "numpy>=1.14" scipy matplotlib future h5py
+  - conda install -y -q pip "numpy>=1.12" scipy matplotlib future h5py 
+  - conda list
   # Replace dep1 dep2 ... with your dependencies
   - pip install coveralls pytest
 before_script:
