@@ -1,5 +1,6 @@
 import os
 import ctypes
+import sys
 
 path = os.path.realpath(__file__)
 basepath = os.sep.join(path.split(os.sep)[:-1])

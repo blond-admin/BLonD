@@ -38,7 +38,7 @@ before_build:
 
 
 build_script:
-  - python setup.py compile install
+  - python setup.py install
   - DIR
   # - set PYTHONPATH=./
 

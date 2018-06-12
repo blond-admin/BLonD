@@ -29,9 +29,9 @@ import argparse
 path = os.path.realpath(__file__)
 basepath = os.sep.join(path.split(os.sep)[:-1])
 
-print(basepath)
-print(os.listdir(basepath))
-print(os.listdir(basepath+'/cpp_routines'))
+# print(basepath)
+# print(os.listdir(basepath))
+# print(os.listdir(basepath+'/cpp_routines'))
 
 
 parser = argparse.ArgumentParser(description='Run python setup_cpp.py to'
@@ -66,7 +66,7 @@ boost_path = None
 
 # EXAMPLE FLAGS: -Ofast -std=c++11 -fopt-info-vec -march=native
 #                -mfma4 -fopenmp -ftree-vectorizer-verbose=1
-cflags = ['-Ofast', '-std=c++11', '-fPIC', '-shared']
+cflags = ['-Ofast', '-std=c++11', '-shared']
 
 cpp_files = [
     # 'cpp_routines/mean_std_whereint.cpp',
@@ -111,6 +111,7 @@ if (__name__ == "__main__"):
         cflags += ['-fopenmp', '-DPARALLEL', '-D_GLIBCXX_PARALLEL']
 
     if ('posix' in os.name):
+        cflags += ['-fPIC']
         libname = os.path.join(basepath, 'cpp_routines/libblond.so')
         command = [compiler] + cflags + ['-o', libname] + cpp_files
         subprocess.call(command)
@@ -121,7 +122,7 @@ if (__name__ == "__main__"):
 
     elif ('win' in sys.platform):
 
-        libname = os.path.join(basepath, 'cpp_routines/libblond.so')
+        libname = os.path.join(basepath, 'cpp_routines/libblond.dll')
 
         command = [compiler] + cflags + ['-o', libname] + cpp_files
         subprocess.call(command)
@@ -134,25 +135,3 @@ if (__name__ == "__main__"):
         print(
             'YOU DO NOT HAVE A WINDOWS OR LINUX OPERATING SYSTEM. ABORTING...')
         sys.exit()
-
-
-    print(os.listdir(basepath))
-    print(os.listdir(basepath+'/cpp_routines'))
-
-# path = os.path.realpath(__file__)
-# parent_path = os.sep.join(path.split(os.sep)[:-1])
-# if ('posix' in os.name):
-#     libblond = ctypes.CDLL(parent_path+'/cpp_routines/result.so')
-#     # libsrqe = ctypes.CDLL(parent_path+'/synchrotron_radiation/sync_rad.so')
-#     # libblondmath = ctypes.CDLL(parent_path+'/cpp_routines/libblondmath.so')
-#     # libblondphysics = ctypes.CDLL(
-#     #     parent_path+'/cpp_routines/libblondphysics.so')
-# elif ('win' in sys.platform):
-#     libblond = ctypes.CDLL(parent_path+'\\cpp_routines\\result.dll')
-#     # libsrqe = ctypes.CDLL(parent_path+'\\synchrotron_radiation\\sync_rad.dll')
-#     # libblondmath = ctypes.CDLL(parent_path+'\\cpp_routines\\libblondmath.dll')
-#     # libblondphysics = ctypes.CDLL(
-#     #     parent_path+'\\cpp_routines\\libblondphysics.dll')
-# else:
-#     print('YOU DO NOT HAVE A WINDOWS OR LINUX OPERATING SYSTEM. ABORTING...')
-#     sys.exit()
