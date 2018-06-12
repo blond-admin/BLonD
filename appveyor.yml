@@ -38,9 +38,9 @@ before_build:
 
 
 build_script:
-  - python setup_cpp.py
+  - python setup.py compile install
   - DIR
-  - set PYTHONPATH=./
+  # - set PYTHONPATH=./
 
 test_script:
   - python -m pytest -v -k "unittests and test and py" unittests\
