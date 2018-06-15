@@ -194,3 +194,31 @@ def fwhm_multibunch(Y_array, X_array, n_bunches, n_slices_per_bunch,
         bl_fwhm[indexBunch], bp_fwhm[indexBunch] = fwhm(Y_array[indexes_bucket], X_array[indexes_bucket], shift)
         
     return bl_fwhm, bp_fwhm
+
+
+def rms_multibunch(Y_array, X_array, n_bunches,
+                   bunch_spacing_buckets, bucket_size_tau,
+                   bucket_tolerance=0.40, shift=0):
+    """
+    Computation of the rms bunch length (4sigma) and position.
+    """
+
+    bl_rms = np.zeros(n_bunches)
+    bp_rms = np.zeros(n_bunches)
+
+    for indexBunch in range(0, n_bunches):
+
+        left_edge = indexBunch * bunch_spacing_buckets * bucket_size_tau -\
+            bucket_tolerance * bucket_size_tau
+        right_edge = indexBunch * bunch_spacing_buckets * bucket_size_tau +\
+            bucket_size_tau + bucket_tolerance * bucket_size_tau
+
+        indexes_bucket = np.where((X_array > left_edge) *
+                                  (X_array < right_edge))[0]
+
+        bl_rms[indexBunch], bp_rms[indexBunch] = rms(
+            Y_array[indexes_bucket],
+            X_array[indexes_bucket], shift)
+
+    return bl_rms, bp_rms
+
