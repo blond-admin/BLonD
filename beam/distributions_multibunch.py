@@ -394,7 +394,7 @@ def match_beam_from_distribution(beam, FullRingAndRF, GeneralParameters,
 #------------------------------------------------------------------------
     # Slicing necessary only with intensity effects
     if TotalInducedVoltage is not None:
-        slicing = TotalInducedVoltage.slices
+        profile = TotalInducedVoltage.profile
 
     # Ring informations, Trev, energy, RF parameters ...
     rf_params = FullRingAndRF.RingAndRFSection_list[0].rf_params
@@ -462,7 +462,7 @@ def match_beam_from_distribution(beam, FullRingAndRF, GeneralParameters,
         for it in range(n_iterations):
             conv = 0.
             # Compute the induced voltage/potential for all the beam
-            slicing.track()
+            profile.track()
             TotalInducedVoltage.induced_voltage_sum()
             
             induced_voltage_coordinates = TotalInducedVoltage.time_array
@@ -496,7 +496,7 @@ def match_beam_from_distribution(beam, FullRingAndRF, GeneralParameters,
 
  
             print('iteration ' + str(it) + ', average RMS emittance (4sigma) = ' + str(4*conv/n_bunches))
-            slicing.track()
+            profile.track()
             TotalInducedVoltage.induced_voltage_sum()
 
 
@@ -534,7 +534,7 @@ def match_beam_from_distribution_multibatch(beam, FullRingAndRF, GeneralParamete
     n_rf = rf_params.n_rf
     # Slicing necessary only with intensity effects
     if TotalInducedVoltage is not None:
-        slicing = TotalInducedVoltage.slices
+        profile = TotalInducedVoltage.profile
         
         t_rev = rf_params.t_rev[0]
         beta = rf_params.beta[0]
@@ -589,30 +589,30 @@ def match_beam_from_distribution_multibatch(beam, FullRingAndRF, GeneralParamete
     plt.plot(beam.dt[::100],beam.dE[::100],'b.')
     plt.figure('temporarybatch')
     plt.plot(temporary_batch.dt[::100],temporary_batch.dE[::100],'b.')
-    plt.figure('1111slicing before induced voltage')
-    slicing.track()
-    plt.plot(slicing.bin_centers,slicing.n_macroparticles)
+    plt.figure('profile before induced voltage')
+    profile.track()
+    plt.plot(profile.bin_centers,profile.n_macroparticles)
     plt.figure('beamInSlice')
-    plt.plot(slicing.Beam.dt[::100],slicing.Beam.dE[::100],'b.')   
+    plt.plot(profile.Beam.dt[::100],profile.Beam.dE[::100],'b.')   
 #------------------------------------------------------------------------
 # REMATCH THE BUNCHES WITH INTENSITY EFFECTS
 #------------------------------------------------------------------------
     if TotalInducedVoltage is not None:
-#        TotalInducedVoltage.slices.Beam.dt[:len(beam.dt)] = beam.dt
-#        TotalInducedVoltage.slices.Beam.dE[:len(beam.dE)] = beam.dE
+#        TotalInducedVoltage.profile.Beam.dt[:len(beam.dt)] = beam.dt
+#        TotalInducedVoltage.profile.Beam.dE[:len(beam.dE)] = beam.dE
         print('Applying intensity effects ...')
         for it in range(n_iterations):
             conv = 0.
             # Compute the induced voltage/potential for all the beam
-            slicing.track()
+            profile.track()
             TotalInducedVoltage.induced_voltage_sum()
             
-            plt.figure('slicing before induced voltage')
-            slicing.track()
-            plt.plot(slicing.bin_centers,slicing.n_macroparticles)
+            plt.figure('profile before induced voltage')
+            profile.track()
+            plt.plot(profile.bin_centers,profile.n_macroparticles)
 #            
 #            plt.figure('inducedvoltage before induced voltage')
-#            slicing.track()
+#            profile.track()
 #            plt.plot(TotalInducedVoltage.time_array,TotalInducedVoltage.induced_voltage)
 #            
             induced_voltage_coordinates = TotalInducedVoltage.time_array
@@ -664,7 +664,7 @@ def match_beam_from_distribution_multibatch(beam, FullRingAndRF, GeneralParamete
 
  
             print('iteration ' + str(it) + ', average RMS emittance (4sigma) = ' + str(4*conv/n_bunches))
-            slicing.track()
+            profile.track()
             TotalInducedVoltage.induced_voltage_sum()
 
 
