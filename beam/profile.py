@@ -80,8 +80,7 @@ class CutOptions(object):
     """
 
     def __init__(self, cut_left=None, cut_right=None, n_slices=100,
-                 n_sigma=None, cuts_unit='s', RFSectionParameters=None,
-                 Beam=None):
+                 n_sigma=None, cuts_unit='s', RFSectionParameters=None):
         """
         Constructor
         """
