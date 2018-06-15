@@ -10,7 +10,7 @@
 '''
 **Module to generate distributions**
 
-:Authors: **Danilo Quartullo**, **Helga Timko**, **Alexandre Lasheen**,
+:Authors: **Danilo Quartullo**, **Helga Timko**, **Alexandre Lasheen**, 
           **Juan F. Esteban Mueller**, **Theodoros Argyropoulos**,
           **Joel Repond**
 '''
@@ -23,11 +23,9 @@ import warnings
 import copy
 import matplotlib.pyplot as plt
 from trackers.utilities import is_in_separatrix
+from beam.profile import Profile, CutOptions
 from scipy.integrate import cumtrapz
 from trackers.utilities import potential_well_cut, minmax_location
-
-# TODO: option to set potential well limits to revolution period
-
 
 def matched_from_line_density(beam, full_ring_and_RF, line_density_input=None,
                               main_harmonic_option='lowest_freq',
@@ -37,7 +35,8 @@ def matched_from_line_density(beam, full_ring_and_RF, line_density_input=None,
                               n_points_potential=1e4, n_points_grid=int(1e3),
                               dt_margin_percent=0.40, n_points_abel=1e4,
                               bunch_length=None, line_density_type=None,
-                              line_density_exponent=None, seed=None):
+                              line_density_exponent=None, seed=None,
+                              process_pot_well = True):
     '''
     *Function to generate a beam by inputing the line density. The distribution
     function is then reconstructed with the Abel transform and the particles
@@ -48,7 +47,7 @@ def matched_from_line_density(beam, full_ring_and_RF, line_density_input=None,
     slippage_factor = full_ring_and_RF.RingAndRFSection_list[0].eta_0[0]
     
     eom_factor_dE = abs(slippage_factor) / (2*beam.beta**2. * beam.energy)
-    eom_factor_potential = (np.sign(slippage_factor) * beam.charge /
+    eom_factor_potential = (np.sign(slippage_factor) * beam.Particle.charge /
                           (full_ring_and_RF.RingAndRFSection_list[0].t_rev[0]))
      
     #: *Number of points to be used in the potential well calculation*
@@ -106,17 +105,17 @@ def matched_from_line_density(beam, full_ring_and_RF, line_density_input=None,
     if TotalInducedVoltage is not None:
         # Calculating the induced voltage
         induced_voltage_object = copy.deepcopy(TotalInducedVoltage)
-        slices = induced_voltage_object.slices
+        profile = induced_voltage_object.profile
         
         # Inputing new line density
-        slices.n_slices = n_points_line_den
-        slices.n_macroparticles = line_density_
-        slices.bin_size = line_den_resolution
-        slices.cut_left = time_line_den[0] - 0.5*slices.bin_size
-        slices.cut_right = time_line_den[-1] + 0.5*slices.bin_size
-        slices.cuts_unit = 's'
-        slices.set_cuts()
-#        slices.fit_option = 'off'  # Why was that here?
+        profile.cut_options.cut_left = time_line_den[0] - 0.5*line_den_resolution
+        profile.cut_options.cut_right = time_line_den[-1] + 0.5*line_den_resolution
+        profile.cut_options.n_slices = n_points_line_den
+        profile.cut_options.cuts_unit = 's'
+        profile.cut_options.set_cuts()
+        profile.set_slices_parameters()
+        profile.n_macroparticles = line_density_
+
         
         # Re-calculating the sources of wakes/impedances according to this
         # slicing
@@ -128,24 +127,25 @@ def matched_from_line_density(beam, full_ring_and_RF, line_density_input=None,
       
         # Calculating the induced potential
         induced_potential = -(eom_factor_potential * cumtrapz(induced_voltage,
-                                                dx=slices.bin_size, initial=0))
-        
-    
+                                                dx=profile.bin_size, initial=0))
+
     # Centering the bunch in the potential well
     for i in range(0, n_iterations):        
         if TotalInducedVoltage is not None:
             # Interpolating the potential well
             induced_potential_final = np.interp(time_potential,
-                                         slices.bin_centers, induced_potential)
+                                         profile.bin_centers, induced_potential)
             
         # Induced voltage contribution
         total_potential = (potential_well + induced_potential_final +
                            extra_potential)
         
         # Potential well calculation around the separatrix
-        time_potential_sep, potential_well_sep = \
-                            potential_well_cut(time_potential, total_potential)
-        
+        if process_pot_well == False:
+            time_potential_sep, potential_well_sep = time_potential, total_potential
+        else:
+            time_potential_sep, potential_well_sep = potential_well_cut(time_potential, total_potential)
+
         minmax_positions_potential, minmax_values_potential = \
                         minmax_location(time_potential_sep, potential_well_sep)
         minmax_positions_profile, minmax_values_profile = \
@@ -179,11 +179,11 @@ def matched_from_line_density(beam, full_ring_and_RF, line_density_input=None,
             max_profile_pos -= max_profile_pos - min_potential_pos
         elif i != n_iterations-1:
             time_line_den -= max_profile_pos - min_potential_pos
-            # Update slices
-            slices.cut_left -= max_profile_pos - min_potential_pos
-            slices.cut_right -= max_profile_pos - min_potential_pos
-            slices.set_cuts()
-            
+            # Update profile
+            profile.cut_options.cut_left -= max_profile_pos - min_potential_pos
+            profile.cut_options.cut_right -= max_profile_pos - min_potential_pos
+            profile.cut_options.set_cuts()
+            profile.set_slices_parameters()
     
     # Taking the first/second half of line density and potential
     n_points_abel = int(n_points_abel)
@@ -340,13 +340,12 @@ def matched_from_line_density(beam, full_ring_and_RF, line_density_input=None,
              
     if TotalInducedVoltage is not None:
         # Inputing new line density
-        slices.n_slices = n_points_grid
-        slices.n_macroparticles = reconstructed_line_den*beam.n_macroparticles
-        slices.bin_size = time_for_grid[1]-time_for_grid[0]
-        slices.cut_left = time_for_grid[0] - 0.5*slices.bin_size
-        slices.cut_right = time_for_grid[-1] + 0.5*slices.bin_size
-        slices.set_cuts()
-#        slices.fit_option = 'off'
+        profile.cut_options.cut_left = time_for_grid[0] - 0.5*(time_for_grid[1]-time_for_grid[0])
+        profile.cut_options.cut_right = time_for_grid[-1] + 0.5*(time_for_grid[1]-time_for_grid[0])
+        profile.cut_options.n_slices = n_points_grid
+        profile.cut_options.set_cuts()
+        profile.set_slices_parameters()
+        profile.n_macroparticles = reconstructed_line_den*beam.n_macroparticles
         
         # Re-calculating the sources of wakes/impedances according to this
         # slicing
@@ -361,8 +360,6 @@ def matched_from_line_density(beam, full_ring_and_RF, line_density_input=None,
         return [hamiltonian_coord, distribution_function_],\
                [time_line_den, line_density_]
 
-
-
 def matched_from_distribution_function(beam, full_ring_and_RF,
                                distribution_function_input=None,
                                distribution_user_table=None,
@@ -376,7 +373,9 @@ def matched_from_distribution_function(beam, full_ring_and_RF,
                                distribution_type=None,
                                emittance=None, bunch_length=None,
                                bunch_length_fit=None,
-                               distribution_variable='Hamiltonian'):
+                               distribution_variable='Hamiltonian',
+                               process_pot_well = True,
+                               turn_number=0):
     '''
     *Function to generate a beam by inputing the distribution function (by
     choosing the type of distribution and the emittance).
@@ -408,17 +407,19 @@ def matched_from_distribution_function(beam, full_ring_and_RF,
         distribution_function_ = distribution_function
     
     # Initialize variables depending on the accelerator parameters
-    slippage_factor = full_ring_and_RF.RingAndRFSection_list[0].eta_0[0]
+    slippage_factor = full_ring_and_RF.RingAndRFSection_list[0].eta_0[turn_number]
+    beta = full_ring_and_RF.RingAndRFSection_list[0].rf_params.beta[turn_number]
+    energy = full_ring_and_RF.RingAndRFSection_list[0].rf_params.energy[turn_number]
     
-    eom_factor_dE = abs(slippage_factor) / (2*beam.beta**2. * beam.energy)
-    eom_factor_potential = (np.sign(slippage_factor) * beam.charge /
-                          (full_ring_and_RF.RingAndRFSection_list[0].t_rev[0]))
+    eom_factor_dE = abs(slippage_factor) / (2*beta**2. * energy)
+    eom_factor_potential = (np.sign(slippage_factor) * beam.Particle.charge /
+                          (full_ring_and_RF.RingAndRFSection_list[0].t_rev[turn_number]))
 
     #: *Number of points to be used in the potential well calculation*
     n_points_potential = int(n_points_potential)
-    n_points_grid = int(n_points_grid)
     # Generate potential well
-    full_ring_and_RF.potential_well_generation(n_points=n_points_potential, 
+    full_ring_and_RF.potential_well_generation(turn=turn_number,
+                                    n_points=n_points_potential,
                                     dt_margin_percent=dt_margin_percent, 
                                     main_harmonic_option=main_harmonic_option)
     potential_well = full_ring_and_RF.potential_well 
@@ -443,7 +444,7 @@ def matched_from_distribution_function(beam, full_ring_and_RF,
         n_iterations = 1
     else:
         induced_voltage_object = copy.deepcopy(TotalInducedVoltage)
-        slices = induced_voltage_object.slices
+        profile = induced_voltage_object.profile
         
     dE_trajectory = np.zeros(n_points_potential)
     for i in range(n_iterations):    
@@ -458,9 +459,11 @@ def matched_from_distribution_function(beam, full_ring_and_RF,
         print('Matching the bunch... (iteration: ' + str(i) + ' and sse: ' +
               str(sse) +')')
                 
-        # Potential well calculation around the separatrix
-        time_potential_sep, potential_well_sep = \
-                            potential_well_cut(time_potential, total_potential)
+        # Process the potential well in order to take a frame around the separatrix
+        if process_pot_well == False:
+            time_potential_sep, potential_well_sep = time_potential, total_potential
+        else:
+            time_potential_sep, potential_well_sep = potential_well_cut(time_potential, total_potential)
 
         # Potential is shifted to put the minimum on 0
         potential_well_sep = potential_well_sep - np.min(potential_well_sep)
@@ -552,7 +555,7 @@ def matched_from_distribution_function(beam, full_ring_and_RF,
                                 time_potential_low_res, distribution_function_, 
                                 distribution_type, distribution_exponent, beam,
                                 full_ring_and_RF)
-        
+       
         elif emittance is not None:
             if distribution_variable is 'Action':
                 X0 = emittance / (2*np.pi)
@@ -580,13 +583,13 @@ def matched_from_distribution_function(beam, full_ring_and_RF,
         # Induced voltage contribution
         if TotalInducedVoltage is not None:                      
             # Inputing new line density
-            slices.n_slices = n_points_grid
-            slices.n_macroparticles = line_density_
-            slices.bin_size = time_resolution_low
-            slices.cut_left = time_potential_low_res[0] - 0.5*slices.bin_size
-            slices.cut_right = time_potential_low_res[-1] + 0.5*slices.bin_size
-            slices.cuts_unit = 's'
-            slices.set_cuts()
+            profile.cut_options.cut_left = time_potential_low_res[0] - 0.5*time_resolution_low
+            profile.cut_options.cut_right = time_potential_low_res[-1] + 0.5*time_resolution_low
+            profile.cut_options.n_slices = n_points_grid
+            profile.cut_options.cuts_unit = 's'
+            profile.cut_options.set_cuts()
+            profile.set_slices_parameters()
+            profile.n_macroparticles = line_density_
             
             # Re-calculating the sources of wakes/impedances according to this
             # slicing
@@ -604,7 +607,7 @@ def matched_from_distribution_function(beam, full_ring_and_RF,
             induced_potential = np.interp(time_potential,
                              time_potential_low_res, induced_potential_low_res,
                              left=0, right=0)
-    
+                    
     # Populating the bunch
     populate_bunch(beam, time_grid, deltaE_grid, density_grid, 
                    time_resolution_low, deltaE_coord_array[1] -
@@ -614,7 +617,6 @@ def matched_from_distribution_function(beam, full_ring_and_RF,
         return [time_potential_low_res, line_density_], induced_voltage_object
     else:
         return [time_potential_low_res, line_density_]
-
 
 def X0_from_bunch_length(bunch_length, bunch_length_fit, X_grid, sorted_X_dE0,
                          n_points_grid, time_potential_low_res,
@@ -660,23 +662,27 @@ def X0_from_bunch_length(bunch_length, bunch_length_fit, X_grid, sorted_X_dE0,
                       np.sum(line_density_))
                 
                 if bunch_length_fit!=None:
-                    slices = Slices(
-                      full_ring_and_RF.RingAndRFSection_list[0].rf_params,
-                      beam, n_points_grid, cut_left=time_potential_low_res[0] -
-                      0.5*bin_size , cut_right=time_potential_low_res[-1] +
-                      0.5*bin_size)
+                    profile = Profile(
+                      beam, CutOptions=CutOptions(cut_left=time_potential_low_res[0] -
+                      0.5*bin_size, cut_right=time_potential_low_res[-1] +
+                      0.5*bin_size, n_slices=n_points_grid, RFSectionParameters=full_ring_and_RF.RingAndRFSection_list[0].rf_params))
+#                     profile = Profile(
+#                       full_ring_and_RF.RingAndRFSection_list[0].rf_params,
+#                       beam, n_points_grid, cut_left=time_potential_low_res[0] -
+#                       0.5*bin_size , cut_right=time_potential_low_res[-1] +
+#                       0.5*bin_size)
                         
-                    slices.n_macroparticles = line_density_
+                    profile.n_macroparticles = line_density_
                     
                     if bunch_length_fit is 'gauss':
-                        slices.bl_gauss = tau
-                        slices.bp_gauss = np.sum(line_density_ *
+                        profile.bl_gauss = tau
+                        profile.bp_gauss = np.sum(line_density_ *
                                 time_potential_low_res) / np.sum(line_density_)
-                        slices.gaussian_fit()
-                        tau = slices.bl_gauss
+                        profile.gaussian_fit()
+                        tau = profile.bl_gauss
                     elif bunch_length_fit is 'fwhm':
-                        slices.fwhm()
-                        tau = slices.bl_fwhm                        
+                        profile.fwhm()
+                        tau = profile.bunchLength                        
         
         # Update of the interval for the next iteration
         if tau >= bunch_length:
@@ -686,9 +692,9 @@ def X0_from_bunch_length(bunch_length, bunch_length_fit, X_grid, sorted_X_dE0,
             
         if (X_max - X0) < X_accuracy:
             print('WARNING: The bucket is too small to have the ' +
-                  'desired bunch length! Input is %.2e, the ' +
-                  'generation gave %.2e, the error is %.2e'
-                  %(bunch_length, tau, bunch_length-tau))
+                  'desired bunch length! Input is %.2e, ' % (bunch_length) +
+                  'the generation gave %.2e, ' % (tau) +
+                  'the error is %.2e' % (bunch_length-tau))
             break
         
         if (X0-X_min) < X_accuracy:
@@ -697,7 +703,6 @@ def X0_from_bunch_length(bunch_length, bunch_length_fit, X_grid, sorted_X_dE0,
                   
 #    return 0.5 * (X_low + X_hi)
     return X0
-
 
 def populate_bunch(beam, time_grid, deltaE_grid, density_grid, time_step,
                    deltaE_step, seed):
@@ -717,8 +722,6 @@ def populate_bunch(beam, time_grid, deltaE_grid, density_grid, time_step,
         (np.random.rand(beam.n_macroparticles) - 0.5) * time_step))
     beam.dE = (np.ascontiguousarray(deltaE_grid.flatten()[indexes] +
         (np.random.rand(beam.n_macroparticles) - 0.5) * deltaE_step))
-    
-
 
 def distribution_function(action_array, dist_type, length, exponent=None):
     '''
@@ -786,71 +789,91 @@ def line_density(coord_array, dist_type, bunch_length, bunch_position=0,
 
 
 
-def longitudinal_bigaussian(GeneralParameters, RFSectionParameters, beam, 
-                            sigma_dt, sigma_dE=None, seed=None, 
-                            reinsertion='off'):
+def bigaussian(Ring, RFStation, Beam, sigma_dt, sigma_dE = None, seed = None,
+               reinsertion = False):
+    r"""Function generating a Gaussian beam both in time and energy 
+    coordinates. Fills Beam.dt and Beam.dE arrays.
+    
+    Parameters
+    ---------- 
+    Ring : class
+        A Ring type class
+    RFStation : class
+        An RFStation type class
+    Beam : class
+        A Beam type class
+    sigma_dt : float
+        R.m.s. extension of the Gaussian in time
+    sigma_dE : float (optional)
+        R.m.s. extension of the Gaussian in energy; default is None and will
+        match the energy coordinate according to bucket height and sigma_dt
+    seed : int (optional)
+        Fixed seed to have a reproducible distribution
+    reinsertion : bool (optional)
+        Re-insert particles that are generated outside the separatrix into the
+        bucket; default in False
+    
+    """
     
     warnings.filterwarnings("once")
-    if GeneralParameters.n_sections > 1:
-        warnings.warn('WARNING: longitudinal_bigaussian is not yet properly ' +
-                      'computed for several sections!')
-    if RFSectionParameters.n_rf > 1:
-        warnings.warn('longitudinal_bigaussian for multiple RF is not yet ' +
-                      'implemented')
+    if Ring.n_sections > 1:
+        warnings.warn("WARNING in bigaussian(): the usage of several" +
+                      " sections is not yet implemented. Ignoring" +
+                      " all but the first!")
+    if RFStation.n_rf > 1:
+        warnings.warn("WARNING in bigaussian(): the usage of multiple RF" +
+                      " systems is not yet implemented. Ignoring" +
+                      " higher harmonics!")
     
-    counter = RFSectionParameters.counter[0]
+    counter = RFStation.counter[0]
     
-    harmonic = RFSectionParameters.harmonic[0,counter]
-    energy = RFSectionParameters.energy[counter]
-    beta = RFSectionParameters.beta[counter]
-    omega_rf = RFSectionParameters.omega_rf[0,counter] 
-    phi_s = RFSectionParameters.phi_s[counter]
-    phi_RF = RFSectionParameters.phi_RF[0,counter]
-    eta0 = RFSectionParameters.eta_0[counter]
+    harmonic = RFStation.harmonic[0,counter]
+    energy = RFStation.energy[counter]
+    beta = RFStation.beta[counter]
+    omega_rf = RFStation.omega_rf[0,counter] 
+    phi_s = RFStation.phi_s[counter]
+    phi_rf = RFStation.phi_rf[0,counter]
+    eta0 = RFStation.eta_0[counter]
     
+    # RF wave is shifted by Pi below transition
+    if eta0<0:
+        phi_rf -= np.pi
+    
+    # Calculate sigma_dE from sigma_dt using single-harmonic Hamiltonian
     if sigma_dE == None:
-        voltage = (RFSectionParameters.charge * 
-                  RFSectionParameters.voltage[0,counter])
-        eta0 = RFSectionParameters.eta_0[counter]
+        voltage = RFStation.charge* \
+                  RFStation.voltage[0,counter]
+        eta0 = RFStation.eta_0[counter]
         
-        if eta0>0:            
-            phi_b = omega_rf*sigma_dt + phi_s
-            sigma_dE = np.sqrt( voltage * energy * beta**2 *
-                 (np.cos(phi_b) - np.cos(phi_s) + (phi_b - phi_s) *
-                 np.sin(phi_s)) / (np.pi * harmonic * eta0) )
-        else:            
-            phi_b = omega_rf*sigma_dt + phi_s - np.pi
-            sigma_dE = np.sqrt( voltage * energy * beta**2 *
-                       (np.cos(phi_b) - np.cos(phi_s-np.pi) +
-                       (phi_b - phi_s-np.pi) * np.sin(phi_s-np.pi)) /
-                       (np.pi * harmonic * eta0) )
+        phi_b = omega_rf*sigma_dt + phi_s
+        sigma_dE = np.sqrt( voltage * energy * beta**2  
+            * (np.cos(phi_b) - np.cos(phi_s) + (phi_b - phi_s) * np.sin(phi_s)) 
+            / (np.pi * harmonic * np.fabs(eta0)) )
+                
+    Beam.sigma_dt = sigma_dt
+    Beam.sigma_dE = sigma_dE
     
-    beam.sigma_dt = sigma_dt
-    beam.sigma_dE = sigma_dE
-    
+    # Generate coordinates
     np.random.seed(seed)
     
-    if eta0 > 0:
-        beam.dt = (sigma_dt*np.random.randn(beam.n_macroparticles) +
-              (phi_s - phi_RF)/omega_rf)
-    else:
-        beam.dt = (sigma_dt*np.random.randn(beam.n_macroparticles) +
-                  (phi_s - phi_RF - np.pi)/omega_rf)
-                  
-    beam.dE = sigma_dE*np.random.randn(beam.n_macroparticles)
+    Beam.dt = sigma_dt*np.random.randn(Beam.n_macroparticles) + \
+              (phi_s - phi_rf)/omega_rf                  
+    Beam.dE = sigma_dE*np.random.randn(Beam.n_macroparticles)
     
-    if reinsertion is 'on':        
-        itemindex = np.where(is_in_separatrix(GeneralParameters, 
-                    RFSectionParameters, beam, beam.dt, beam.dE) == False)[0]
+    # Re-insert if necessary
+    if reinsertion == True:
+        
+        itemindex = np.where(is_in_separatrix(Ring, 
+            RFStation, Beam, Beam.dt, Beam.dE) == False)[0]
          
-        while itemindex.size != 0:            
-            if eta0 > 0:
-                beam.dt[itemindex] = (sigma_dt*np.random.randn(itemindex.size)+
-                                     (phi_s - phi_RF)/omega_rf)
-            else:
-                beam.dt[itemindex] = (sigma_dt*np.random.randn(itemindex.size)+
-                                     (phi_s - phi_RF - np.pi)/omega_rf)
+        while itemindex.size != 0:
+            
+            Beam.dt[itemindex] = sigma_dt*np.random.randn(itemindex.size) \
+                                 + (phi_s - phi_rf)/omega_rf
                                      
-            beam.dE[itemindex] = sigma_dE*np.random.randn(itemindex.size)
-            itemindex = np.where(is_in_separatrix(GeneralParameters, 
-                   RFSectionParameters, beam, beam.dt, beam.dE) == False)[0]
+            Beam.dE[itemindex] = sigma_dE*np.random.randn(itemindex.size)
+            itemindex = np.where(is_in_separatrix(Ring, 
+                RFStation, Beam, Beam.dt, Beam.dE) == False)[0]
+
+
+
