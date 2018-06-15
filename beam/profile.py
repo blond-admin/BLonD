@@ -490,14 +490,14 @@ class Profile(object):
             self.n_macroparticles, self.bin_centers)
 
     def rms_multibunch(self, n_bunches, bunch_spacing_buckets, bucket_size_tau,
-                       bucket_tolerance=0.40, shift=0):
+                       bucket_tolerance=0.40):
         """
         Computation of the bunch length (4sigma) and position from RMS.
         """
 
         self.bunchPosition, self.bunchLength = ffroutines.rms_multibunch(
             self.n_macroparticles, self.bin_centers, n_bunches,
-            bunch_spacing_buckets, bucket_size_tau, bucket_tolerance, shift)
+            bunch_spacing_buckets, bucket_size_tau, bucket_tolerance)
 
     def fwhm(self, shift=0):
         """

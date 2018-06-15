@@ -196,7 +196,7 @@ def fwhm_multibunch(Y_array, X_array, n_bunches,
 
 def rms_multibunch(Y_array, X_array, n_bunches,
                    bunch_spacing_buckets, bucket_size_tau,
-                   bucket_tolerance=0.40, shift=0):
+                   bucket_tolerance=0.40):
     """
     Computation of the rms bunch length (4sigma) and position.
     """
@@ -216,7 +216,7 @@ def rms_multibunch(Y_array, X_array, n_bunches,
 
         bl_rms[indexBunch], bp_rms[indexBunch] = rms(
             Y_array[indexes_bucket],
-            X_array[indexes_bucket], shift)
+            X_array[indexes_bucket])
 
     return bl_rms, bp_rms
 
