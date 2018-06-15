@@ -171,9 +171,9 @@ def fwhm(Y_array, X_array, shift=0):
     return bp_fwhm, bl_fwhm
 
 
-def fwhm_multibunch(Y_array, X_array, n_bunches, n_slices_per_bunch,
+def fwhm_multibunch(Y_array, X_array, n_bunches,
                     bunch_spacing_buckets, bucket_size_tau,
-                    bucket_tolerance=0.40, shift = 0):
+                    bucket_tolerance=0.40, shift=0):
     """
     Computation of the bunch length and position from the FWHM
     assuming Gaussian line density for multibunch case.
