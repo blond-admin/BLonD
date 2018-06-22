@@ -20,15 +20,15 @@ intensity effects. Comparison with analytical formula.
 from __future__ import division
 import matplotlib.pyplot as plt
 import numpy as np
-from input_parameters.ring import Ring
-from beam.beam import Beam, Proton
-from beam.distributions import matched_from_distribution_function
-from input_parameters.rf_parameters import RFStation
-from beam.profile import Profile, CutOptions
-from impedances.impedance import InducedVoltageFreq, TotalInducedVoltage
-from impedances.impedance_sources import Resonators
-from trackers.tracker import RingAndRFTracker, FullRingAndRF
-from trackers.utilities import synchrotron_frequency_distribution
+from blond.input_parameters.ring import Ring
+from blond.beam.beam import Beam, Proton
+from blond.beam.distributions import matched_from_distribution_function
+from blond.input_parameters.rf_parameters import RFStation
+from blond.beam.profile import Profile, CutOptions
+from blond.impedances.impedance import InducedVoltageFreq, TotalInducedVoltage
+from blond.impedances.impedance_sources import Resonators
+from blond.trackers.tracker import RingAndRFTracker, FullRingAndRF
+from blond.trackers.utilities import synchrotron_frequency_distribution
 from scipy.constants import m_p, e, c
 from scipy.special import ellipk
 import os

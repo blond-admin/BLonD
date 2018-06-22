@@ -21,19 +21,19 @@ the corresponding h5 files).
 from __future__ import division, print_function
 import numpy as np
 import matplotlib.pyplot as plt
-from input_parameters.ring import Ring
-from input_parameters.rf_parameters import RFStation
-from trackers.tracker import RingAndRFTracker
-from beam.distributions import bigaussian
-from monitors.monitors import BunchMonitor
-from beam.profile import Profile, CutOptions, FitOptions
-from impedances.impedance import InducedVoltageTime, InducedVoltageFreq
-from impedances.impedance import InducedVoltageResonator, TotalInducedVoltage
-from impedances.induced_voltage_analytical import analytical_gaussian_resonator
-from beam.beam import Beam, Proton
-from plots.plot import Plot
-from plots.plot_impedance import plot_induced_voltage_vs_bin_centers
-from impedances.impedance_sources import Resonators
+from blond.input_parameters.ring import Ring
+from blond.input_parameters.rf_parameters import RFStation
+from blond.trackers.tracker import RingAndRFTracker
+from blond.beam.distributions import bigaussian
+from blond.monitors.monitors import BunchMonitor
+from blond.beam.profile import Profile, CutOptions, FitOptions
+from blond.impedances.impedance import InducedVoltageTime, InducedVoltageFreq
+from blond.impedances.impedance import InducedVoltageResonator, TotalInducedVoltage
+from blond.impedances.induced_voltage_analytical import analytical_gaussian_resonator
+from blond.beam.beam import Beam, Proton
+from blond.plots.plot import Plot
+from blond.plots.plot_impedance import plot_induced_voltage_vs_bin_centers
+from blond.impedances.impedance_sources import Resonators
 import os
 
 try:
