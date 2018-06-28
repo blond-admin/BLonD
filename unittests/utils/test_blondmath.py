@@ -17,7 +17,7 @@ import unittest
 import numpy as np
 # import inspect
 
-from utils import bmath as bm
+from blond.utils import bmath as bm
 
 
 class TestSin(unittest.TestCase):

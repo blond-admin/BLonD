@@ -19,13 +19,13 @@ from __future__ import division, print_function
 import unittest
 import numpy as np
 
-from input_parameters.ring import Ring
-from input_parameters.rf_parameters import RFStation, calculate_phi_s
-from beam.beam import Beam, Proton
-from beam.distributions import bigaussian
-from beam.profile import Profile, CutOptions
-from llrf.beam_feedback import BeamFeedback
-from trackers.utilities import separatrix
+from blond.input_parameters.ring import Ring
+from blond.input_parameters.rf_parameters import RFStation, calculate_phi_s
+from blond.beam.beam import Beam, Proton
+from blond.beam.distributions import bigaussian
+from blond.beam.profile import Profile, CutOptions
+from blond.llrf.beam_feedback import BeamFeedback
+from blond.trackers.utilities import separatrix
 
 
 

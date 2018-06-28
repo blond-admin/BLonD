@@ -21,15 +21,15 @@ from __future__ import print_function
 from builtins import range
 import numpy as np
 import pylab as plt
-from input_parameters.ring import Ring
-from input_parameters.rf_parameters import RFStation
-from trackers.tracker import RingAndRFTracker
-from beam.beam import Beam, Proton
-from beam.distributions import bigaussian
-from beam.profile import Profile, CutOptions
-from impedances.impedance import InducedVoltageFreq, InducedVoltageTime
-from impedances.impedance import TotalInducedVoltage
-from impedances.impedance_sources import Resonators
+from blond.input_parameters.ring import Ring
+from blond.input_parameters.rf_parameters import RFStation
+from blond.trackers.tracker import RingAndRFTracker
+from blond.beam.beam import Beam, Proton
+from blond.beam.distributions import bigaussian
+from blond.beam.profile import Profile, CutOptions
+from blond.impedances.impedance import InducedVoltageFreq, InducedVoltageTime
+from blond.impedances.impedance import TotalInducedVoltage
+from blond.impedances.impedance_sources import Resonators
 from scipy.constants import c, e, m_p
 import os
 

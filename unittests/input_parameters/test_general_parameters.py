@@ -17,9 +17,9 @@ import sys
 import unittest
 import numpy as np
 
-from input_parameters.ring import Ring
-from input_parameters.ring_options import convert_data
-from beam.beam import Electron
+from blond.input_parameters.ring import Ring
+from blond.input_parameters.ring_options import convert_data
+from blond.beam.beam import Electron
 
 
 class TestGeneralParameters(unittest.TestCase):

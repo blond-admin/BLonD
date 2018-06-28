@@ -20,14 +20,14 @@ from builtins import range
 import os
 import numpy as np
 import pylab as plt
-from input_parameters.ring import Ring
-from input_parameters.rf_parameters import RFStation
-from trackers.tracker import RingAndRFTracker, FullRingAndRF
-from beam.beam import Beam, Proton
-from beam.distributions import matched_from_distribution_function
-from beam.profile import Profile, CutOptions
-from impedances.impedance import InducedVoltageFreq, TotalInducedVoltage
-from impedances.impedance_sources import Resonators
+from blond.input_parameters.ring import Ring
+from blond.input_parameters.rf_parameters import RFStation
+from blond.trackers.tracker import RingAndRFTracker, FullRingAndRF
+from blond.beam.beam import Beam, Proton
+from blond.beam.distributions import matched_from_distribution_function
+from blond.beam.profile import Profile, CutOptions
+from blond.impedances.impedance import InducedVoltageFreq, TotalInducedVoltage
+from blond.impedances.impedance_sources import Resonators
 from scipy.constants import c, e, m_p
 
 try:

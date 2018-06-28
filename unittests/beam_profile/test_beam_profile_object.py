@@ -24,11 +24,11 @@ import os
 
 # BLonD imports
 # --------------
-from beam.beam import Beam
-from input_parameters.ring import Ring
-import beam.profile as profileModule
-from beam.beam import Proton
-from input_parameters.rf_parameters import RFStation
+from blond.beam.beam import Beam
+from blond.input_parameters.ring import Ring
+import blond.beam.profile as profileModule
+from blond.beam.beam import Proton
+from blond.input_parameters.rf_parameters import RFStation
 
 
 class testProfileClass(unittest.TestCase):

@@ -17,15 +17,15 @@ import unittest
 import numpy as np
 from scipy.constants import c
 
-from llrf.impulse_response import rectangle, triangle, SPS4Section200MHzTWC
-from input_parameters.ring import Ring
-from input_parameters.rf_parameters import RFStation
-from beam.beam import Beam, Proton
-from beam.distributions import bigaussian
-from beam.profile import Profile, CutOptions
-from impedances.impedance import InducedVoltageTime, TotalInducedVoltage
-from llrf.cavity_feedback import SPSOneTurnFeedback
-from impedances.impedance_sources import TravelingWaveCavity
+from blond.llrf.impulse_response import rectangle, triangle, SPS4Section200MHzTWC
+from blond.input_parameters.ring import Ring
+from blond.input_parameters.rf_parameters import RFStation
+from blond.beam.beam import Beam, Proton
+from blond.beam.distributions import bigaussian
+from blond.beam.profile import Profile, CutOptions
+from blond.impedances.impedance import InducedVoltageTime, TotalInducedVoltage
+from blond.llrf.cavity_feedback import SPSOneTurnFeedback
+from blond.impedances.impedance_sources import TravelingWaveCavity
 
 
 class TestRectangle(unittest.TestCase):
@@ -85,7 +85,7 @@ class TestTriangle(unittest.TestCase):
 class TestTravelingWaveCavity(unittest.TestCase):
 
     def test_vg(self):
-        from llrf.impulse_response import TravellingWaveCavity
+        from blond.llrf.impulse_response import TravellingWaveCavity
         v_g = 0.0946+1
 
         with self.assertRaises(RuntimeError, msg="In TestTravelingWaveCavity,"
