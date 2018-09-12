@@ -205,8 +205,8 @@ class RingOptions(object):
                         input_data_time,
                         input_data_values)[1])
 
-                elif isinstance(interp_time, float) or
-                isinstance(interp_time, int):
+                elif isinstance(interp_time, float) or \
+                        isinstance(interp_time, int):
                     interp_time = float(interp_time)
                     interp_time = np.arange(
                         input_data_time[0],
