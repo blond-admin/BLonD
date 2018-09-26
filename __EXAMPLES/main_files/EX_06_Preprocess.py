@@ -16,11 +16,11 @@ main file (CERN PS Booster context).
 
 from __future__ import division
 import numpy as np
-from input_parameters.ring import Ring
-from input_parameters.ring_options import RingOptions
-from input_parameters.rf_parameters import RFStation
-from input_parameters.rf_parameters_options import RFStationOptions
-from beam.beam import Proton
+from blond.input_parameters.ring import Ring
+from blond.input_parameters.ring_options import RingOptions
+from blond.input_parameters.rf_parameters import RFStation
+from blond.input_parameters.rf_parameters_options import RFStationOptions
+from blond.beam.beam import Proton
 import os
 
 try:

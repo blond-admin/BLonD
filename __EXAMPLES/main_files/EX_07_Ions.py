@@ -20,14 +20,14 @@ from scipy.constants import physical_constants
 # Atomic Mass Unit [eV]
 u = physical_constants['atomic mass unit-electron volt relationship'][0] 
 import numpy as np
-from input_parameters.ring import Ring
-from input_parameters.rf_parameters import RFStation
-from trackers.tracker import RingAndRFTracker
-from beam.distributions import bigaussian
-from monitors.monitors import BunchMonitor
-from beam.profile import Profile, CutOptions
-from beam.beam import Beam, Particle
-from plots.plot import Plot
+from blond.input_parameters.ring import Ring
+from blond.input_parameters.rf_parameters import RFStation
+from blond.trackers.tracker import RingAndRFTracker
+from blond.beam.distributions import bigaussian
+from blond.monitors.monitors import BunchMonitor
+from blond.beam.profile import Profile, CutOptions
+from blond.beam.beam import Beam, Particle
+from blond.plots.plot import Plot
 import os
 
 try:

@@ -17,8 +17,9 @@ import sys
 import unittest
 import numpy as np
 
-from input_parameters.ring import Ring
-from beam.beam import Electron
+from blond.input_parameters.ring import Ring
+from blond.input_parameters.ring_options import convert_data
+from blond.beam.beam import Electron
 
 
 class TestGeneralParameters(unittest.TestCase):
@@ -157,50 +158,33 @@ class TestGeneralParameters(unittest.TestCase):
                 'ERROR in Ring: Synchronous data type not recognized!',
                 msg='No RuntimeError for wrong synchronous data type!'):
 
-            general_parameters = Ring(self.C, self.alpha_0, self.momentum,
-                                      self.particle, self.n_turns,
-                                      n_sections=self.num_sections)
-
-            general_parameters.convert_data(
-                25e9,
-                synchronous_data_type='somethingCompletelyDifferent')
+            convert_data(25e9, self.particle.mass, self.particle.charge,
+                         synchronous_data_type='somethingCompletelyDifferent')
 
     def test_convert_data_value_rest_mass(self):
 
-        general_parameters = Ring(self.C, self.alpha_0, self.momentum,
-                                  self.particle, self.n_turns,
-                                  n_sections=self.num_sections)
-
-        self.assertEqual(general_parameters.convert_data(
-                            Electron().mass,
-                            synchronous_data_type='total energy'),
-                         0.0,
-                         msg='Momentum not zero for total engery equal rest ' +
-                         'mass!')
+        self.assertEqual(
+            convert_data(
+                Electron().mass, Electron().mass, Electron().charge,
+                synchronous_data_type='total energy'),
+            0.0,
+            msg='Momentum not zero for total engery equal rest mass!')
 
     def test_convert_data_wrong_total_energy(self):
         # use energy 25 instead of 25e9
 
-        general_parameters = Ring(self.C, self.alpha_0, self.momentum,
-                                  self.particle, self.n_turns,
-                                  n_sections=self.num_sections)
-
-        self.assertIsNaN(general_parameters.convert_data(
-                            25,
-                            synchronous_data_type='total energy'),
-                         msg='No NaN for total energy less than rest mass!')
+        self.assertIsNaN(
+            convert_data(25, self.particle.mass, self.particle.charge,
+                         synchronous_data_type='total energy'),
+            msg='No NaN for total energy less than rest mass!')
 
     def test_convert_data_wrong_kinetic_energy(self):
         # use negative kinetic energy
 
-        general_parameters = Ring(self.C, self.alpha_0, self.momentum,
-                                  self.particle, self.n_turns,
-                                  n_sections=self.num_sections)
-
-        self.assertIsNaN(general_parameters.convert_data(
-                            -25,
-                            synchronous_data_type='kinetic energy'),
-                         msg='No NaN for total energy less than rest mass!')
+        self.assertIsNaN(
+            convert_data(-25, self.particle.mass, self.particle.charge,
+                         synchronous_data_type='kinetic energy'),
+            msg='No NaN for total energy less than rest mass!')
 
 
 if __name__ == '__main__':

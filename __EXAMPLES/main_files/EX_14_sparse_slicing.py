@@ -20,12 +20,12 @@ from __future__ import print_function
 from builtins import range
 import matplotlib.pyplot as plt
 import numpy as np
-from input_parameters.ring import Ring
-from beam.beam import Beam, Electron
-from beam.distributions import matched_from_distribution_function
-from input_parameters.rf_parameters import RFStation
-from beam.sparse_slices import SparseSlices
-from trackers.tracker import RingAndRFTracker, FullRingAndRF
+from blond.input_parameters.ring import Ring
+from blond.beam.beam import Beam, Electron
+from blond.beam.distributions import matched_from_distribution_function
+from blond.input_parameters.rf_parameters import RFStation
+from blond.beam.sparse_slices import SparseSlices
+from blond.trackers.tracker import RingAndRFTracker, FullRingAndRF
 from scipy.constants import c, e, m_e
 import os
 
