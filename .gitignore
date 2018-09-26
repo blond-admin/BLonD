@@ -1,22 +1,14 @@
 *.pyc
 
+*.o
 *.so
-
+*.dll
 *.project
 
 *.pydevproject
 
 .settings
 
-result.dll
-result.so
-sync_rad.dll
-
 /__doc/_build/
 /__doc/build/
 /__EXAMPLES/output_files/
-
-
-
-
-

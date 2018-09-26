@@ -17,15 +17,15 @@ No intensity effects
 from __future__ import division, print_function
 from builtins import range
 import numpy as np
-from input_parameters.ring import Ring
-from input_parameters.rf_parameters import RFStation
-from trackers.tracker import RingAndRFTracker
-from beam.beam import Beam, Proton
-from beam.distributions import bigaussian
-from beam.profile import CutOptions, Profile, FitOptions
-from monitors.monitors import BunchMonitor
-from plots.plot import Plot
-from llrf.rf_noise import FlatSpectrum
+from blond.input_parameters.ring import Ring
+from blond.input_parameters.rf_parameters import RFStation
+from blond.trackers.tracker import RingAndRFTracker
+from blond.beam.beam import Beam, Proton
+from blond.beam.distributions import bigaussian
+from blond.beam.profile import CutOptions, Profile, FitOptions
+from blond.monitors.monitors import BunchMonitor
+from blond.plots.plot import Plot
+from blond.llrf.rf_noise import FlatSpectrum
 import os
 
 try:

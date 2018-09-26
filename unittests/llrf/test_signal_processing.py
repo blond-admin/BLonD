@@ -15,19 +15,18 @@ Unittest for llrf.filters
 
 import unittest
 import numpy as np
-from llrf.signal_processing import moving_average, modulator
-from llrf.signal_processing import polar_to_cartesian, cartesian_to_polar
-from llrf.signal_processing import comb_filter, low_pass_filter
-from llrf.signal_processing import rf_beam_current
-
-from input_parameters.ring import Ring
-from beam.beam import Beam, Proton
-from beam.profile import Profile, CutOptions
-
 from scipy.constants import e
 
-from beam.distributions import bigaussian
-from input_parameters.rf_parameters import RFStation
+from blond.llrf.signal_processing import moving_average, modulator
+from blond.llrf.signal_processing import polar_to_cartesian, cartesian_to_polar
+from blond.llrf.signal_processing import comb_filter, low_pass_filter
+from blond.llrf.signal_processing import rf_beam_current
+
+from blond.input_parameters.ring import Ring
+from blond.beam.beam import Beam, Proton
+from blond.beam.profile import Profile, CutOptions
+from blond.beam.distributions import bigaussian
+from blond.input_parameters.rf_parameters import RFStation
 
 class TestIQ(unittest.TestCase):
 

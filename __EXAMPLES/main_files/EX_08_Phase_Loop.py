@@ -15,15 +15,15 @@ Test case to show how to use phase loop (CERN PS Booster context).
 
 from __future__ import division, print_function
 import numpy as np
-from input_parameters.ring import Ring
-from input_parameters.rf_parameters import RFStation
-from trackers.tracker import RingAndRFTracker, FullRingAndRF
-from beam.distributions import matched_from_distribution_function
-from monitors.monitors import BunchMonitor
-from beam.profile import Profile, CutOptions
-from beam.beam import Beam, Proton
-from plots.plot import Plot
-from llrf.beam_feedback import BeamFeedback
+from blond.input_parameters.ring import Ring
+from blond.input_parameters.rf_parameters import RFStation
+from blond.trackers.tracker import RingAndRFTracker, FullRingAndRF
+from blond.beam.distributions import matched_from_distribution_function
+from blond.monitors.monitors import BunchMonitor
+from blond.beam.profile import Profile, CutOptions
+from blond.beam.beam import Beam, Proton
+from blond.plots.plot import Plot
+from blond.llrf.beam_feedback import BeamFeedback
 import os
 
 try:

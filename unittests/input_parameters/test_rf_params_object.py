@@ -21,9 +21,9 @@ import numpy
 
 # BLonD imports
 # --------------
-from input_parameters.ring import Ring
-from input_parameters.rf_parameters import RFStation
-from beam.beam import Beam, Proton
+from blond.input_parameters.ring import Ring
+from blond.input_parameters.rf_parameters import RFStation
+from blond.beam.beam import Beam, Proton
 #from beam.distributions import matched_from_distribution_function
 #from trackers.tracker import FullRingAndRF, RingAndRFTracker
 

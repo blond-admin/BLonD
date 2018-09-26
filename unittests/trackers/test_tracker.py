@@ -17,13 +17,13 @@ import unittest
 import numpy as np
 # import inspect
 
-from utils import bmath as bm
-from input_parameters.ring import Ring
-from input_parameters.rf_parameters import RFStation
-from trackers.tracker import RingAndRFTracker
-from beam.beam import Beam, Proton
-from beam.distributions import bigaussian
-from beam.profile import CutOptions, FitOptions, Profile
+from blond.utils import bmath as bm
+from blond.input_parameters.ring import Ring
+from blond.input_parameters.rf_parameters import RFStation
+from blond.trackers.tracker import RingAndRFTracker
+from blond.beam.beam import Beam, Proton
+from blond.beam.distributions import bigaussian
+from blond.beam.profile import CutOptions, FitOptions, Profile
 import os
 
 
