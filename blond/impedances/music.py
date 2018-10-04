@@ -16,7 +16,6 @@ from builtins import range, object
 import numpy as np
 from scipy.constants import e
 import ctypes
-#  from .. import libblond
 from ..utils import bmath as bm
 
 

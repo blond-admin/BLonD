@@ -20,3 +20,4 @@ except OSError as e:
         Warning: The compiled blond library was not found.
         You can safely ignore this warning if you are in 
         the process of compiling the library.""")
+

@@ -18,7 +18,7 @@ from builtins import range, object
 import numpy as np
 import ctypes
 from scipy.constants import e, c, epsilon_0, hbar
-#  from .. import libblond
+from ..utils import bmath as bm
 
 
 class SynchrotronRadiation(object):
@@ -155,13 +155,15 @@ class SynchrotronRadiation(object):
                 self.general_params.energy[0,i_turn-1]):
             self.calculate_SR_params()
         
-        libsrqe.synchrotron_radiation(
-            self.beam.dE.ctypes.data_as(ctypes.c_void_p), 
-            ctypes.c_double(self.U0 / self.n_kicks),
-            ctypes.c_int(self.beam.n_macroparticles), 
-            ctypes.c_double(self.tau_z * self.n_kicks),
-            ctypes.c_int(self.n_kicks))
-    
+        bm.synchrotron_radiation(self, i_turn)
+
+#          libsrqe.synchrotron_radiation(
+            #  self.beam.dE.ctypes.data_as(ctypes.c_void_p), 
+            #  ctypes.c_double(self.U0 / self.n_kicks),
+            #  ctypes.c_int(self.beam.n_macroparticles), 
+            #  ctypes.c_double(self.tau_z * self.n_kicks),
+            #  ctypes.c_int(self.n_kicks))
+#      
     # Track particles with SR and quantum excitation. C implementation
     def track_full_C(self):
         i_turn = self.rf_params.counter[0]
@@ -169,13 +171,15 @@ class SynchrotronRadiation(object):
         if (i_turn != 0 and self.general_params.energy[0,i_turn] !=
                 self.general_params.energy[0,i_turn-1]):
             self.calculate_SR_params()
-        
-        libsrqe.synchrotron_radiation_full(
-            self.beam.dE.ctypes.data_as(ctypes.c_void_p), 
-            ctypes.c_double(self.U0 / self.n_kicks),
-            ctypes.c_int(self.beam.n_macroparticles), 
-            ctypes.c_double(self.sigma_dE), 
-            ctypes.c_double(self.tau_z * self.n_kicks), 
-            ctypes.c_double(self.general_params.energy[0,i_turn]),
-            self.random_array.ctypes.data_as(ctypes.c_void_p),
-            ctypes.c_int(self.n_kicks))
+
+        bm.synchrotron_radiation_full(self, i_turn)
+
+#          libsrqe.synchrotron_radiation_full(
+            #  self.beam.dE.ctypes.data_as(ctypes.c_void_p), 
+            #  ctypes.c_double(self.U0 / self.n_kicks),
+            #  ctypes.c_int(self.beam.n_macroparticles), 
+            #  ctypes.c_double(self.sigma_dE), 
+            #  ctypes.c_double(self.tau_z * self.n_kicks), 
+            #  ctypes.c_double(self.general_params.energy[0,i_turn]),
+            #  self.random_array.ctypes.data_as(ctypes.c_void_p),
+#              ctypes.c_int(self.n_kicks))

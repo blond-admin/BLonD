@@ -1,12 +1,14 @@
+# from ..setup_cpp import libblond
 #  from .. import libblond
-from ..utils import bmath as bm
+
 import ctypes
 import numpy as np
-
+from ..utils import bmath as bm
 
 def convolution(signal, kernel):
     return bm.convolve(signal, kernel)
-    #  signalLen = len(signal)
+
+#      signalLen = len(signal)
     #  kernelLen = len(kernel)
     #  result = np.empty(signalLen + kernelLen - 1)
     #  libblond.convolution(signal.ctypes.data_as(ctypes.c_void_p),
@@ -14,4 +16,4 @@ def convolution(signal, kernel):
     #                     kernel.ctypes.data_as(ctypes.c_void_p),
     #                     ctypes.c_int(kernelLen),
     #                     result.ctypes.data_as(ctypes.c_void_p))
-    #  return result
+#      return result
