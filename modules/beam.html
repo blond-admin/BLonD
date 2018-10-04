@@ -1,0 +1,1635 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>beam Package &mdash; BLonD 1.1 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="../genindex.html"/>
+        <link rel="search" title="Search" href="../search.html"/>
+    <link rel="top" title="BLonD 1.1 documentation" href="../index.html"/>
+        <link rel="next" title="impedances Package" href="impedances.html"/>
+        <link rel="prev" title="Equations of Motion" href="equations_of_motion.html"/> 
+
+  
+  <script src="../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> BLonD
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                1.1
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="equations_of_motion.html">Equations of Motion</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#definitions">Definitions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#energy-kick">Energy kick</a></li>
+<li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#arrival-time-drift">Arrival time drift</a></li>
+<li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#the-synchronous-particle">The synchronous particle</a></li>
+<li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#small-amplitude-oscillations">Small-amplitude oscillations</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="equations_of_motion.html#tracking-utilities">Tracking utilities</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#hamiltonian">Hamiltonian</a></li>
+<li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#separatrix">Separatrix</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">beam Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#module-blond.beam.beam"><code class="docutils literal notranslate"><span class="pre">beam</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-blond.beam.coasting_beam"><code class="docutils literal notranslate"><span class="pre">coasting_beam</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-blond.beam.distributions"><code class="docutils literal notranslate"><span class="pre">distributions</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-blond.beam.distributions_multibunch"><code class="docutils literal notranslate"><span class="pre">distributions_multibunch</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-blond.beam.profile"><code class="docutils literal notranslate"><span class="pre">profile</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-blond.beam.sparse_slices"><code class="docutils literal notranslate"><span class="pre">sparse_slices</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="impedances.html">impedances Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="impedances.html#module-blond.impedances.impedance"><code class="docutils literal notranslate"><span class="pre">impedance</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="impedances.html#module-blond.impedances.impedance_sources"><code class="docutils literal notranslate"><span class="pre">impedance_sources</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="impedances.html#module-blond.impedances.induced_voltage_analytical"><code class="docutils literal notranslate"><span class="pre">induced_voltage_analytical</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="impedances.html#module-blond.impedances.music"><code class="docutils literal notranslate"><span class="pre">music</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="input_parameters.html">input_parameters Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="input_parameters.html#module-blond.input_parameters.rf_parameters"><code class="docutils literal notranslate"><span class="pre">rf_parameters</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="input_parameters.html#module-blond.input_parameters.ring"><code class="docutils literal notranslate"><span class="pre">ring</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="input_parameters.html#module-blond.input_parameters.ring_options"><code class="docutils literal notranslate"><span class="pre">ring_options</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="input_parameters.html#module-blond.input_parameters.rf_parameters_options"><code class="docutils literal notranslate"><span class="pre">rf_parameters_options</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="llrf.html">llrf Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="llrf.html#module-blond.llrf.notch_filter"><code class="docutils literal notranslate"><span class="pre">notch_filter</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="llrf.html#llrf-beam-feedback-module">llrf.beam_feedback Module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="llrf.html#machine-dependent-beam-phase-loop">Machine-dependent Beam Phase Loop</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="llrf.html#module-blond.llrf.cavity_feedback"><code class="docutils literal notranslate"><span class="pre">cavity_feedback</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="llrf.html#module-blond.llrf.impulse_response"><code class="docutils literal notranslate"><span class="pre">impulse_response</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="llrf.html#module-blond.llrf.rf_modulation"><code class="docutils literal notranslate"><span class="pre">rf_modulation</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="llrf.html#llrf-rf-noise-module">llrf.rf_noise Module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="llrf.html#rf-phase-noise-generation">RF phase noise generation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="llrf.html#lhc-type-phase-noise-generation">LHC-type phase noise generation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="llrf.html#bunch-length-based-feedback-on-noise-amplitude">Bunch-length based feedback on noise amplitude</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="llrf.html#module-blond.llrf.signal_processing"><code class="docutils literal notranslate"><span class="pre">signal_processing</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="monitors.html">monitors Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="monitors.html#module-blond.monitors.monitors"><code class="docutils literal notranslate"><span class="pre">monitors</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="plots.html">plots Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="plots.html#module-blond.plots.plot"><code class="docutils literal notranslate"><span class="pre">plot</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plots.html#module-blond.plots.plot_beams"><code class="docutils literal notranslate"><span class="pre">plot_beams</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plots.html#module-blond.plots.plot_impedance"><code class="docutils literal notranslate"><span class="pre">plot_impedance</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plots.html#module-blond.plots.plot_llrf"><code class="docutils literal notranslate"><span class="pre">plot_llrf</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plots.html#module-blond.plots.plot_parameters"><code class="docutils literal notranslate"><span class="pre">plot_parameters</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plots.html#module-blond.plots.plot_slices"><code class="docutils literal notranslate"><span class="pre">plot_slices</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="synchrotron_radiation.html">synchrotron_radiation Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="synchrotron_radiation.html#module-blond.synchrotron_radiation.synchrotron_radiation"><code class="docutils literal notranslate"><span class="pre">synchrotron_radiation</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="toolbox.html">toolbox Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.action"><code class="docutils literal notranslate"><span class="pre">action</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.convolution"><code class="docutils literal notranslate"><span class="pre">convolution</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.diffusion"><code class="docutils literal notranslate"><span class="pre">diffusion</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.next_regular"><code class="docutils literal notranslate"><span class="pre">next_regular</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.parameter_scaling"><code class="docutils literal notranslate"><span class="pre">parameter_scaling</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.tomoscope"><code class="docutils literal notranslate"><span class="pre">tomoscope</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="trackers.html">trackers Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="trackers.html#module-blond.trackers.tracker"><code class="docutils literal notranslate"><span class="pre">tracker</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trackers.html#module-blond.trackers.utilities"><code class="docutils literal notranslate"><span class="pre">utilities</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="compile.html">compile Module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="compile.html#id1"><code class="docutils literal notranslate"><span class="pre">compile</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="utils.html">utils Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="utils.html#module-blond.utils.bmath"><code class="docutils literal notranslate"><span class="pre">bmath</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="utils.html#module-blond.utils.bphysics_wrap"><code class="docutils literal notranslate"><span class="pre">bphysics_wrap</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="utils.html#module-blond.utils.butils_wrap"><code class="docutils literal notranslate"><span class="pre">butils_wrap</span></code> Module</a></li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">BLonD</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html">Docs</a> &raquo;</li>
+        
+      <li>beam Package</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/modules/beam.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="beam-package">
+<h1>beam Package<a class="headerlink" href="#beam-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="module-blond.beam.beam">
+<span id="beam-module"></span><h2><code class="xref py py-mod docutils literal notranslate"><span class="pre">beam</span></code> Module<a class="headerlink" href="#module-blond.beam.beam" title="Permalink to this headline">¶</a></h2>
+<p>Module containing the fundamental beam class with methods to compute beam
+statistics</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Authors:</th><td class="field-body"><strong>Danilo Quartullo</strong>, <strong>Helga Timko</strong>, <strong>ALexandre Lasheen</strong></td>
+</tr>
+</tbody>
+</table>
+<dl class="class">
+<dt id="blond.beam.beam.Beam">
+<em class="property">class </em><code class="descclassname">blond.beam.beam.</code><code class="descname">Beam</code><span class="sig-paren">(</span><em>Ring</em>, <em>n_macroparticles</em>, <em>intensity</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.beam.Beam" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Class containing the beam properties.</p>
+<p>This class containes the beam coordinates (dt, dE) and the beam properties.</p>
+<p>The beam coordinate ‘dt’ is defined as the particle arrival time to the RF
+station w.r.t. the reference time that is the sum of turns. The beam
+coordiate ‘dE’ is defined as the particle energy offset w.r.t. the
+energy of the synchronous particle.</p>
+<p>The class creates a beam with zero dt and dE, see distributions to match
+a beam with respect to the RF and intensity effects.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>Ring</strong> (<a class="reference internal" href="input_parameters.html#blond.input_parameters.ring.Ring" title="blond.input_parameters.ring.Ring"><em>Ring</em></a>) – Used to import different quantities such as the mass and the energy.</li>
+<li><strong>n_macroparticles</strong> (<em>int</em>) – total number of macroparticles.</li>
+<li><strong>intensity</strong> (<em>float</em>) – total intensity of the beam (in number of charge).</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="attribute">
+<dt id="blond.beam.beam.Beam.mass">
+<code class="descname">mass</code><a class="headerlink" href="#blond.beam.beam.Beam.mass" title="Permalink to this definition">¶</a></dt>
+<dd><p>mass of the particle [eV].</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.beam.beam.Beam.charge">
+<code class="descname">charge</code><a class="headerlink" href="#blond.beam.beam.Beam.charge" title="Permalink to this definition">¶</a></dt>
+<dd><p>integer charge of the particle [e].</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">int</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.beam.beam.Beam.beta">
+<code class="descname">beta</code><a class="headerlink" href="#blond.beam.beam.Beam.beta" title="Permalink to this definition">¶</a></dt>
+<dd><p>relativistic velocity factor [].</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.beam.beam.Beam.gamma">
+<code class="descname">gamma</code><a class="headerlink" href="#blond.beam.beam.Beam.gamma" title="Permalink to this definition">¶</a></dt>
+<dd><p>relativistic mass factor [].</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.beam.beam.Beam.energy">
+<code class="descname">energy</code><a class="headerlink" href="#blond.beam.beam.Beam.energy" title="Permalink to this definition">¶</a></dt>
+<dd><p>energy of the synchronous particle [eV].</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.beam.beam.Beam.momentum">
+<code class="descname">momentum</code><a class="headerlink" href="#blond.beam.beam.Beam.momentum" title="Permalink to this definition">¶</a></dt>
+<dd><p>momentum of the synchronous particle [eV].</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.beam.beam.Beam.dt">
+<code class="descname">dt</code><a class="headerlink" href="#blond.beam.beam.Beam.dt" title="Permalink to this definition">¶</a></dt>
+<dd><p>beam arrival times with respect to synchronous time [s].</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">numpy_array, float</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.beam.beam.Beam.dE">
+<code class="descname">dE</code><a class="headerlink" href="#blond.beam.beam.Beam.dE" title="Permalink to this definition">¶</a></dt>
+<dd><p>beam energy offset with respect to the synchronous particle [eV].</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">numpy_array, float</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.beam.beam.Beam.mean_dt">
+<code class="descname">mean_dt</code><a class="headerlink" href="#blond.beam.beam.Beam.mean_dt" title="Permalink to this definition">¶</a></dt>
+<dd><p>average beam arrival time [s].</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.beam.beam.Beam.mean_dE">
+<code class="descname">mean_dE</code><a class="headerlink" href="#blond.beam.beam.Beam.mean_dE" title="Permalink to this definition">¶</a></dt>
+<dd><p>average beam energy offset [eV].</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.beam.beam.Beam.sigma_dt">
+<code class="descname">sigma_dt</code><a class="headerlink" href="#blond.beam.beam.Beam.sigma_dt" title="Permalink to this definition">¶</a></dt>
+<dd><p>standard deviation of beam arrival time [s].</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.beam.beam.Beam.sigma_dE">
+<code class="descname">sigma_dE</code><a class="headerlink" href="#blond.beam.beam.Beam.sigma_dE" title="Permalink to this definition">¶</a></dt>
+<dd><p>standard deviation of beam energy offset [eV].</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.beam.beam.Beam.intensity">
+<code class="descname">intensity</code><a class="headerlink" href="#blond.beam.beam.Beam.intensity" title="Permalink to this definition">¶</a></dt>
+<dd><p>total intensity of the beam in number of charges [].</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.beam.beam.Beam.n_macroparticles">
+<code class="descname">n_macroparticles</code><a class="headerlink" href="#blond.beam.beam.Beam.n_macroparticles" title="Permalink to this definition">¶</a></dt>
+<dd><p>total number of macroparticles in the beam [].</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">int</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.beam.beam.Beam.ratio">
+<code class="descname">ratio</code><a class="headerlink" href="#blond.beam.beam.Beam.ratio" title="Permalink to this definition">¶</a></dt>
+<dd><p>ratio intensity per macroparticle [].</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.beam.beam.Beam.n_macroparticles_lost">
+<code class="descname">n_macroparticles_lost</code><a class="headerlink" href="#blond.beam.beam.Beam.n_macroparticles_lost" title="Permalink to this definition">¶</a></dt>
+<dd><p>number of macro-particles marked as ‘lost’ [].</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">int</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.beam.beam.Beam.id">
+<code class="descname">id</code><a class="headerlink" href="#blond.beam.beam.Beam.id" title="Permalink to this definition">¶</a></dt>
+<dd><p>unique macro-particle ID number; zero if particle is ‘lost’.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">numpy_array, int</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<dl class="last docutils">
+<dt><code class="xref py py-class docutils literal notranslate"><span class="pre">distributions.matched_from_line_density</span></code></dt>
+<dd>match a beam with a given bunch profile.</dd>
+<dt><code class="xref py py-class docutils literal notranslate"><span class="pre">distributions.matched_from_distribution_function</span></code></dt>
+<dd>match a beam with a given distribution function in phase space.</dd>
+</dl>
+</div>
+<p class="rubric">Examples</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">input_parameters.ring</span> <span class="k">import</span> <span class="n">Ring</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">beam.beam</span> <span class="k">import</span> <span class="n">Beam</span>
+<span class="go">&gt;&gt;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">n_turns</span> <span class="o">=</span> <span class="mi">10</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">C</span> <span class="o">=</span> <span class="mi">100</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">eta</span> <span class="o">=</span> <span class="mf">0.03</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">momentum</span> <span class="o">=</span> <span class="mf">26e9</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ring</span> <span class="o">=</span> <span class="n">Ring</span><span class="p">(</span><span class="n">n_turns</span><span class="p">,</span> <span class="n">C</span><span class="p">,</span> <span class="n">eta</span><span class="p">,</span> <span class="n">momentum</span><span class="p">,</span> <span class="s1">&#39;proton&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">n_macroparticle</span> <span class="o">=</span> <span class="mf">1e6</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">intensity</span> <span class="o">=</span> <span class="mf">1e11</span>
+<span class="go">&gt;&gt;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">my_beam</span> <span class="o">=</span> <span class="n">Beam</span><span class="p">(</span><span class="n">ring</span><span class="p">,</span> <span class="n">n_macroparticle</span><span class="p">,</span> <span class="n">intensity</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="method">
+<dt id="blond.beam.beam.Beam.eliminate_lost_particles">
+<code class="descname">eliminate_lost_particles</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.beam.Beam.eliminate_lost_particles" title="Permalink to this definition">¶</a></dt>
+<dd><p>Eliminate lost particles from the beam coordinate arrays</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="blond.beam.beam.Beam.losses_below_energy">
+<code class="descname">losses_below_energy</code><span class="sig-paren">(</span><em>dE_min</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.beam.Beam.losses_below_energy" title="Permalink to this definition">¶</a></dt>
+<dd><p>Beam losses based on lower energy cut.</p>
+<p>Set to 0 all the particle’s id with dE below dE_min.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>dE_min</strong> (<em>float</em>) – minimum dE.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="blond.beam.beam.Beam.losses_energy_cut">
+<code class="descname">losses_energy_cut</code><span class="sig-paren">(</span><em>dE_min</em>, <em>dE_max</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.beam.Beam.losses_energy_cut" title="Permalink to this definition">¶</a></dt>
+<dd><p>Beam losses based on energy cuts, e.g. on collimators.</p>
+<p>Set to 0 all the particle’s id with dE not in the interval (dE_min, dE_max).</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>dE_min</strong> (<em>float</em>) – minimum dE.</li>
+<li><strong>dE_max</strong> (<em>float</em>) – maximum dE.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="blond.beam.beam.Beam.losses_longitudinal_cut">
+<code class="descname">losses_longitudinal_cut</code><span class="sig-paren">(</span><em>dt_min</em>, <em>dt_max</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.beam.Beam.losses_longitudinal_cut" title="Permalink to this definition">¶</a></dt>
+<dd><p>Beam losses based on longitudinal cuts.</p>
+<p>Set to 0 all the particle’s id with dt not in the interval
+(dt_min, dt_max).</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>dt_min</strong> (<em>float</em>) – minimum dt.</li>
+<li><strong>dt_max</strong> (<em>float</em>) – maximum dt.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="blond.beam.beam.Beam.losses_separatrix">
+<code class="descname">losses_separatrix</code><span class="sig-paren">(</span><em>Ring</em>, <em>RFStation</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.beam.Beam.losses_separatrix" title="Permalink to this definition">¶</a></dt>
+<dd><p>Beam losses based on separatrix.</p>
+<p>Set to 0 all the particle’s id not in the separatrix anymore.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>Ring</strong> (<a class="reference internal" href="input_parameters.html#blond.input_parameters.ring.Ring" title="blond.input_parameters.ring.Ring"><em>Ring</em></a>) – Used to call the function is_in_separatrix.</li>
+<li><strong>RFStation</strong> (<a class="reference internal" href="input_parameters.html#blond.input_parameters.rf_parameters.RFStation" title="blond.input_parameters.rf_parameters.RFStation"><em>RFStation</em></a>) – Used to call the function is_in_separatrix.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.beam.beam.Beam.n_macroparticles_alive">
+<code class="descname">n_macroparticles_alive</code><a class="headerlink" href="#blond.beam.beam.Beam.n_macroparticles_alive" title="Permalink to this definition">¶</a></dt>
+<dd><p>Number of transmitted macro-particles, defined as &#64;property.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body"><strong>n_macroparticles_alive</strong> – number of macroparticles not lost.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body">int</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt>
+<code class="descname">n_macroparticles_lost</code></dt>
+<dd><p>Number of lost macro-particles, defined as &#64;property.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body"><strong>n_macroparticles_lost</strong> – number of macroparticles lost.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body">int</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="blond.beam.beam.Beam.statistics">
+<code class="descname">statistics</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.beam.Beam.statistics" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculation of the mean and standard deviation of beam coordinates,
+as well as beam emittance using different definitions.
+Take no arguments, statistics stored in</p>
+<ul class="simple">
+<li>mean_dt</li>
+<li>mean_dE</li>
+<li>sigma_dt</li>
+<li>sigma_dE</li>
+</ul>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="blond.beam.beam.Electron">
+<em class="property">class </em><code class="descclassname">blond.beam.beam.</code><code class="descname">Electron</code><a class="headerlink" href="#blond.beam.beam.Electron" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#blond.beam.beam.Particle" title="blond.beam.beam.Particle"><code class="xref py py-class docutils literal notranslate"><span class="pre">blond.beam.beam.Particle</span></code></a></p>
+</dd></dl>
+
+<dl class="class">
+<dt id="blond.beam.beam.Particle">
+<em class="property">class </em><code class="descclassname">blond.beam.beam.</code><code class="descname">Particle</code><span class="sig-paren">(</span><em>user_mass</em>, <em>user_charge</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.beam.Particle" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+</dd></dl>
+
+<dl class="class">
+<dt id="blond.beam.beam.Proton">
+<em class="property">class </em><code class="descclassname">blond.beam.beam.</code><code class="descname">Proton</code><a class="headerlink" href="#blond.beam.beam.Proton" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#blond.beam.beam.Particle" title="blond.beam.beam.Particle"><code class="xref py py-class docutils literal notranslate"><span class="pre">blond.beam.beam.Particle</span></code></a></p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-blond.beam.coasting_beam">
+<span id="coasting-beam-module"></span><h2><code class="xref py py-mod docutils literal notranslate"><span class="pre">coasting_beam</span></code> Module<a class="headerlink" href="#module-blond.beam.coasting_beam" title="Permalink to this headline">¶</a></h2>
+<p><strong>Module to generate coasting beam</strong></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Authors:</th><td class="field-body"><strong>Simon Albright</strong></td>
+</tr>
+</tbody>
+</table>
+<dl class="function">
+<dt id="blond.beam.coasting_beam.generate_coasting_beam">
+<code class="descclassname">blond.beam.coasting_beam.</code><code class="descname">generate_coasting_beam</code><span class="sig-paren">(</span><em>Beam</em>, <em>t_start</em>, <em>t_stop</em>, <em>spread=0.001</em>, <em>spread_type='dp/p'</em>, <em>energy_offset=0</em>, <em>distribution='gaussian'</em>, <em>user_distribution=None</em>, <em>user_probability=None</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.coasting_beam.generate_coasting_beam" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-blond.beam.distributions">
+<span id="distributions-module"></span><h2><code class="xref py py-mod docutils literal notranslate"><span class="pre">distributions</span></code> Module<a class="headerlink" href="#module-blond.beam.distributions" title="Permalink to this headline">¶</a></h2>
+<p><strong>Module to generate distributions</strong></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Authors:</th><td class="field-body"><strong>Danilo Quartullo</strong>, <strong>Helga Timko</strong>, <strong>Alexandre Lasheen</strong>,
+<strong>Juan F. Esteban Mueller</strong>, <strong>Theodoros Argyropoulos</strong></td>
+</tr>
+</tbody>
+</table>
+<dl class="function">
+<dt id="blond.beam.distributions.X0_from_bunch_length">
+<code class="descclassname">blond.beam.distributions.</code><code class="descname">X0_from_bunch_length</code><span class="sig-paren">(</span><em>bunch_length</em>, <em>bunch_length_fit</em>, <em>X_grid</em>, <em>sorted_X_dE0</em>, <em>n_points_grid</em>, <em>time_potential_low_res</em>, <em>distribution_function_</em>, <em>distribution_type</em>, <em>distribution_exponent</em>, <em>beam</em>, <em>full_ring_and_RF</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.distributions.X0_from_bunch_length" title="Permalink to this definition">¶</a></dt>
+<dd><p>Function to find the corresponding H0 or J0 for a given bunch length.
+Used by matched_from_distribution_function()</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="blond.beam.distributions.bigaussian">
+<code class="descclassname">blond.beam.distributions.</code><code class="descname">bigaussian</code><span class="sig-paren">(</span><em>Ring</em>, <em>RFStation</em>, <em>Beam</em>, <em>sigma_dt</em>, <em>sigma_dE=None</em>, <em>seed=None</em>, <em>reinsertion=False</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.distributions.bigaussian" title="Permalink to this definition">¶</a></dt>
+<dd><p>Function generating a Gaussian beam both in time and energy
+coordinates. Fills Beam.dt and Beam.dE arrays.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>Ring</strong> (<em>class</em>) – A Ring type class</li>
+<li><strong>RFStation</strong> (<em>class</em>) – An RFStation type class</li>
+<li><strong>Beam</strong> (<em>class</em>) – A Beam type class</li>
+<li><strong>sigma_dt</strong> (<em>float</em>) – R.m.s. extension of the Gaussian in time</li>
+<li><strong>sigma_dE</strong> (<em>float</em><em> (</em><em>optional</em><em>)</em>) – R.m.s. extension of the Gaussian in energy; default is None and will
+match the energy coordinate according to bucket height and sigma_dt</li>
+<li><strong>seed</strong> (<em>int</em><em> (</em><em>optional</em><em>)</em>) – Fixed seed to have a reproducible distribution</li>
+<li><strong>reinsertion</strong> (<em>bool</em><em> (</em><em>optional</em><em>)</em>) – Re-insert particles that are generated outside the separatrix into the
+bucket; default in False</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="blond.beam.distributions.distribution_function">
+<code class="descclassname">blond.beam.distributions.</code><code class="descname">distribution_function</code><span class="sig-paren">(</span><em>action_array</em>, <em>dist_type</em>, <em>length</em>, <em>exponent=None</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.distributions.distribution_function" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Distribution function (formulas from Laclare).</em></p>
+</dd></dl>
+
+<dl class="function">
+<dt id="blond.beam.distributions.line_density">
+<code class="descclassname">blond.beam.distributions.</code><code class="descname">line_density</code><span class="sig-paren">(</span><em>coord_array</em>, <em>dist_type</em>, <em>bunch_length</em>, <em>bunch_position=0</em>, <em>exponent=None</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.distributions.line_density" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Line density</em></p>
+</dd></dl>
+
+<dl class="function">
+<dt id="blond.beam.distributions.matched_from_distribution_function">
+<code class="descclassname">blond.beam.distributions.</code><code class="descname">matched_from_distribution_function</code><span class="sig-paren">(</span><em>beam</em>, <em>full_ring_and_RF</em>, <em>distribution_function_input=None</em>, <em>distribution_user_table=None</em>, <em>main_harmonic_option='lowest_freq'</em>, <em>TotalInducedVoltage=None</em>, <em>n_iterations=1</em>, <em>n_points_potential=10000.0</em>, <em>n_points_grid=1000</em>, <em>dt_margin_percent=0.4</em>, <em>extraVoltageDict=None</em>, <em>seed=None</em>, <em>distribution_exponent=None</em>, <em>distribution_type=None</em>, <em>emittance=None</em>, <em>bunch_length=None</em>, <em>bunch_length_fit=None</em>, <em>distribution_variable='Hamiltonian'</em>, <em>process_pot_well=True</em>, <em>turn_number=0</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.distributions.matched_from_distribution_function" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Function to generate a beam by inputing the distribution function (by
+choosing the type of distribution and the emittance).
+The potential well is preprocessed to check for the min/max and center
+the frame around the separatrix.
+An error will be raised if there is not a full potential well (2 max
+and 1 min at least), or if there are several wells (more than 2 max and
+1 min, this case will be treated in the future).
+An adjustable margin (40% by default) is applied in order to be able to
+catch the min/max of the potential well that might be on the edge of the
+frame. The slippage factor should be updated to take the higher orders.
+Outputs should be added in order for the user to check step by step if
+his bunch is going to be well generated. More detailed ‘step by step’
+documentation should be implemented
+The user can input a custom distribution function by setting the parameter
+distribution_type = ‘user_input’ and passing the function in the
+parameter distribution_options[‘function’], with the following definition:
+distribution_function(action_array, dist_type, length, exponent=None).
+The user can also add an input table by setting the parameter
+distribution_type = ‘user_input_table’,
+distribution_options[‘user_table_action’] = array of action (in H or in J)
+and distribution_options[‘user_table_distribution’]</em></p>
+</dd></dl>
+
+<dl class="function">
+<dt id="blond.beam.distributions.matched_from_line_density">
+<code class="descclassname">blond.beam.distributions.</code><code class="descname">matched_from_line_density</code><span class="sig-paren">(</span><em>beam</em>, <em>full_ring_and_RF</em>, <em>line_density_input=None</em>, <em>main_harmonic_option='lowest_freq'</em>, <em>TotalInducedVoltage=None</em>, <em>plot=False</em>, <em>figdir='fig'</em>, <em>half_option='first'</em>, <em>extraVoltageDict=None</em>, <em>n_iterations=100</em>, <em>n_points_potential=10000.0</em>, <em>n_points_grid=1000</em>, <em>dt_margin_percent=0.4</em>, <em>n_points_abel=10000.0</em>, <em>bunch_length=None</em>, <em>line_density_type=None</em>, <em>line_density_exponent=None</em>, <em>seed=None</em>, <em>process_pot_well=True</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.distributions.matched_from_line_density" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Function to generate a beam by inputing the line density. The distribution
+function is then reconstructed with the Abel transform and the particles
+randomly generated.</em></p>
+</dd></dl>
+
+<dl class="function">
+<dt id="blond.beam.distributions.populate_bunch">
+<code class="descclassname">blond.beam.distributions.</code><code class="descname">populate_bunch</code><span class="sig-paren">(</span><em>beam</em>, <em>time_grid</em>, <em>deltaE_grid</em>, <em>density_grid</em>, <em>time_step</em>, <em>deltaE_step</em>, <em>seed</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.distributions.populate_bunch" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Method to populate the bunch using a random number generator from the
+particle density in phase space.</em></p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-blond.beam.distributions_multibunch">
+<span id="distributions-multibunch-module"></span><h2><code class="xref py py-mod docutils literal notranslate"><span class="pre">distributions_multibunch</span></code> Module<a class="headerlink" href="#module-blond.beam.distributions_multibunch" title="Permalink to this headline">¶</a></h2>
+<p><strong>Module to generate multibunch distributions</strong></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Authors:</th><td class="field-body"><strong>Danilo Quartullo</strong>, <strong>Alexandre Lasheen</strong>, <strong>Theodoros Argyropoulos</strong></td>
+</tr>
+</tbody>
+</table>
+<dl class="function">
+<dt id="blond.beam.distributions_multibunch.matched_from_distribution_density_multibunch">
+<code class="descclassname">blond.beam.distributions_multibunch.</code><code class="descname">matched_from_distribution_density_multibunch</code><span class="sig-paren">(</span><em>beam</em>, <em>Ring</em>, <em>FullRingAndRF</em>, <em>distribution_options_list</em>, <em>n_bunches</em>, <em>bunch_spacing_buckets</em>, <em>intensity_list=None</em>, <em>minimum_n_macroparticles=None</em>, <em>main_harmonic_option='lowest_freq'</em>, <em>TotalInducedVoltage=None</em>, <em>n_iterations_input=1</em>, <em>plot_option=False</em>, <em>seed=None</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.distributions_multibunch.matched_from_distribution_density_multibunch" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Function to generate a multi-bunch beam using the matched_from_distribution_density
+function for each bunch. The extra parameters to include are the number of
+bunches and the spacing between two bunches (assumed constant presently).
+Moreover, the distribution_options_list corresponds to the distribution_options
+of the matched_from_distribution_density function. It can be inputed as
+a dictionary just like the matched_from_distribution_density function (assuming
+the same parameters for all bunches), or as a list of length n_bunches
+to have different parameters for each bunch.</em></p>
+</dd></dl>
+
+<dl class="function">
+<dt id="blond.beam.distributions_multibunch.matched_from_line_density_multibunch">
+<code class="descclassname">blond.beam.distributions_multibunch.</code><code class="descname">matched_from_line_density_multibunch</code><span class="sig-paren">(</span><em>beam</em>, <em>Ring</em>, <em>FullRingAndRF</em>, <em>line_density_options_list</em>, <em>n_bunches</em>, <em>bunch_spacing_buckets</em>, <em>intensity_list=None</em>, <em>minimum_n_macroparticles=None</em>, <em>main_harmonic_option='lowest_freq'</em>, <em>TotalInducedVoltage=None</em>, <em>half_option='first'</em>, <em>plot_option=False</em>, <em>seed=None</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.distributions_multibunch.matched_from_line_density_multibunch" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Function to generate a multi-bunch beam using the matched_from_distribution_density
+function for each bunch. The extra parameters to include are the number of
+bunches and the spacing between two bunches (assumed constant presently).
+Moreover, the line_density_options_list corresponds to the distribution_options
+of the matched_from_line_density function. It can be inputed as
+a dictionary just like the matched_from_line_density function (assuming
+the same parameters for all bunches), or as a list of length n_bunches
+to have different parameters for each bunch.</em></p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-blond.beam.profile">
+<span id="profile-module"></span><h2><code class="xref py py-mod docutils literal notranslate"><span class="pre">profile</span></code> Module<a class="headerlink" href="#module-blond.beam.profile" title="Permalink to this headline">¶</a></h2>
+<p><strong>Module to compute the beam profile through slices</strong></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Authors:</th><td class="field-body"><strong>Danilo Quartullo</strong>, <strong>Alexandre Lasheen</strong>,
+<strong>Juan F. Esteban Mueller</strong></td>
+</tr>
+</tbody>
+</table>
+<dl class="class">
+<dt id="blond.beam.profile.CutOptions">
+<em class="property">class </em><code class="descclassname">blond.beam.profile.</code><code class="descname">CutOptions</code><span class="sig-paren">(</span><em>cut_left=None</em>, <em>cut_right=None</em>, <em>n_slices=100</em>, <em>n_sigma=None</em>, <em>cuts_unit='s'</em>, <em>RFSectionParameters=None</em>, <em>Beam=None</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.profile.CutOptions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>This class groups all the parameters necessary to slice the phase space
+distribution according to the time axis, apart from the array collecting
+the profile which is defined in the constructor of the class Profile below.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>cut_left</strong> (<em>float</em>) – Left edge of the slicing (optional). A default value will be set if
+no value is given.</li>
+<li><strong>cut_right</strong> (<em>float</em>) – Right edge of the slicing (optional). A default value will be set
+if no value is given.</li>
+<li><strong>n_slices</strong> (<em>int</em>) – Optional input parameters, corresponding to the number of
+<span class="math notranslate nohighlight">\(\sigma_{RMS}\)</span> of the Beam to slice (this will overwrite
+any input of cut_left and cut_right).</li>
+<li><strong>n_sigma</strong> (<em>float</em>) – defines the left and right extremes of the profile in case those are
+not given explicitly</li>
+<li><strong>cuts_unit</strong> (<em>str</em>) – the unit of cut_left and cut_right, it can be seconds ‘s’ or radiants
+‘rad’</li>
+<li><strong>RFSectionParameters</strong> (<em>object</em>) – RFSectionParameters[0][0] is necessary for the conversion from radians
+to seconds if cuts_unit = ‘rad’. RFSectionParameters[0][0] is the value
+of omega_rf of the main harmonic at turn number 0</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="attribute">
+<dt id="blond.beam.profile.CutOptions.cut_left">
+<code class="descname">cut_left</code><a class="headerlink" href="#blond.beam.profile.CutOptions.cut_left" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.beam.profile.CutOptions.cut_right">
+<code class="descname">cut_right</code><a class="headerlink" href="#blond.beam.profile.CutOptions.cut_right" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.beam.profile.CutOptions.n_slices">
+<code class="descname">n_slices</code><a class="headerlink" href="#blond.beam.profile.CutOptions.n_slices" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">int</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.beam.profile.CutOptions.n_sigma">
+<code class="descname">n_sigma</code><a class="headerlink" href="#blond.beam.profile.CutOptions.n_sigma" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.beam.profile.CutOptions.cuts_unit">
+<code class="descname">cuts_unit</code><a class="headerlink" href="#blond.beam.profile.CutOptions.cuts_unit" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">str</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.beam.profile.CutOptions.RFSectionParameters">
+<code class="descname">RFSectionParameters</code><a class="headerlink" href="#blond.beam.profile.CutOptions.RFSectionParameters" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">object</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.beam.profile.CutOptions.edges">
+<code class="descname">edges</code><a class="headerlink" href="#blond.beam.profile.CutOptions.edges" title="Permalink to this definition">¶</a></dt>
+<dd><p>contains the edges of the slices</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float array</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.beam.profile.CutOptions.bin_centers">
+<code class="descname">bin_centers</code><a class="headerlink" href="#blond.beam.profile.CutOptions.bin_centers" title="Permalink to this definition">¶</a></dt>
+<dd><p>contains the centres of the slices</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float array</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<p class="rubric">Examples</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">input_parameters.ring</span> <span class="k">import</span> <span class="n">Ring</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">input_parameters.rf_parameters</span> <span class="k">import</span> <span class="n">RFStation</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="bp">self</span><span class="o">.</span><span class="n">ring</span> <span class="o">=</span> <span class="n">Ring</span><span class="p">(</span><span class="n">n_turns</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="n">ring_length</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">alpha</span> <span class="o">=</span> <span class="mf">0.00001</span><span class="p">,</span> <span class="n">momentum</span> <span class="o">=</span> <span class="mf">1e9</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="bp">self</span><span class="o">.</span><span class="n">rf_params</span> <span class="o">=</span> <span class="n">RFStation</span><span class="p">(</span><span class="n">Ring</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ring</span><span class="p">,</span> <span class="n">n_rf</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">harmonic</span><span class="o">=</span><span class="p">[</span><span class="mi">4620</span><span class="p">],</span>
+<span class="gp">&gt;&gt;&gt; </span>                 <span class="n">voltage</span><span class="o">=</span><span class="p">[</span><span class="mf">7e6</span><span class="p">],</span> <span class="n">phi_rf_d</span><span class="o">=</span><span class="p">[</span><span class="mf">0.</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">CutOptions</span> <span class="o">=</span> <span class="n">profileModule</span><span class="o">.</span><span class="n">CutOptions</span><span class="p">(</span><span class="n">cut_left</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">cut_right</span><span class="o">=</span><span class="mi">2</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">,</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">n_slices</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span> <span class="n">cuts_unit</span><span class="o">=</span><span class="s1">&#39;rad&#39;</span><span class="p">,</span> <span class="n">RFSectionParameters</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rf_params</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="method">
+<dt id="blond.beam.profile.CutOptions.convert_coordinates">
+<code class="descname">convert_coordinates</code><span class="sig-paren">(</span><em>value</em>, <em>input_unit_type</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.profile.CutOptions.convert_coordinates" title="Permalink to this definition">¶</a></dt>
+<dd><p>Method to convert a value from ‘rad’ to ‘s’.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="blond.beam.profile.CutOptions.get_slices_parameters">
+<code class="descname">get_slices_parameters</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.profile.CutOptions.get_slices_parameters" title="Permalink to this definition">¶</a></dt>
+<dd><p>Reuturn all the computed parameters.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="blond.beam.profile.CutOptions.set_cuts">
+<code class="descname">set_cuts</code><span class="sig-paren">(</span><em>Beam=None</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.profile.CutOptions.set_cuts" title="Permalink to this definition">¶</a></dt>
+<dd><p>Method to set self.cut_left, self.cut_right, self.edges and
+self.bin_centers attributes.
+The frame is defined by <span class="math notranslate nohighlight">\(n\sigma_{RMS}\)</span> or manually by the user.
+If not, a default frame consisting of taking the whole bunch +5% of the
+maximum distance between two particles in the bunch will be taken
+in each side of the frame.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="blond.beam.profile.CutOptions.track_cuts">
+<code class="descname">track_cuts</code><span class="sig-paren">(</span><em>Beam</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.profile.CutOptions.track_cuts" title="Permalink to this definition">¶</a></dt>
+<dd><p>Track the slice frame (limits and slice position) as the mean of the
+bunch moves.
+Requires Beam statistics!
+Method to be refined!</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="blond.beam.profile.FilterOptions">
+<em class="property">class </em><code class="descclassname">blond.beam.profile.</code><code class="descname">FilterOptions</code><span class="sig-paren">(</span><em>filterMethod=None</em>, <em>filterExtraOptions=None</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.profile.FilterOptions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>This class defines the filter to be used turn after turn to smooth
+the bunch profile.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>filterMethod</strong> (<em>string</em>) – The only option available is ‘chebishev’</li>
+<li><strong>filterExtraOptions</strong> (<em>dictionary</em>) – Parameters for the Chebishev filter (see the method
+beam_profile_filter_chebyshev in filters_and_fitting.py in the toolbox
+package)</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="attribute">
+<dt id="blond.beam.profile.FilterOptions.filterMethod">
+<code class="descname">filterMethod</code><a class="headerlink" href="#blond.beam.profile.FilterOptions.filterMethod" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">string</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.beam.profile.FilterOptions.filterExtraOptions">
+<code class="descname">filterExtraOptions</code><a class="headerlink" href="#blond.beam.profile.FilterOptions.filterExtraOptions" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">dictionary</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="blond.beam.profile.FitOptions">
+<em class="property">class </em><code class="descclassname">blond.beam.profile.</code><code class="descname">FitOptions</code><span class="sig-paren">(</span><em>fit_option=None</em>, <em>fitExtraOptions=None</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.profile.FitOptions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>This class defines the method to be used turn after turn to obtain the
+position and length of the bunch profile.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>fit_method</strong> (<em>string</em>) – Current options are ‘gaussian’,
+‘fwhm’ (full-width-half-maximum converted to 4 sigma gaussian bunch)
+and ‘rms’. The methods ‘gaussian’ and ‘rms’ give both 4 sigma.</li>
+<li><strong>fitExtraOptions</strong> (<em>unknown</em>) – For the moment no options can be passed into fitExtraOptions</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="attribute">
+<dt id="blond.beam.profile.FitOptions.fit_method">
+<code class="descname">fit_method</code><a class="headerlink" href="#blond.beam.profile.FitOptions.fit_method" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">string</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.beam.profile.FitOptions.fitExtraOptions">
+<code class="descname">fitExtraOptions</code><a class="headerlink" href="#blond.beam.profile.FitOptions.fitExtraOptions" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">unknown</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="blond.beam.profile.OtherSlicesOptions">
+<em class="property">class </em><code class="descclassname">blond.beam.profile.</code><code class="descname">OtherSlicesOptions</code><span class="sig-paren">(</span><em>smooth=False</em>, <em>direct_slicing=False</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.profile.OtherSlicesOptions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>This class groups all the remaining options for the Profile class.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>smooth</strong> (<em>boolean</em>) – If set True, this method slices the bunch not in the
+standard way (fixed one slice all the macroparticles contribute
+with +1 or 0 depending if they are inside or not). The method assigns to
+each macroparticle a real value between 0 and +1 depending on its
+time coordinate. This method can be considered a filter able to smooth
+the profile.</li>
+<li><strong>direct_slicing</strong> (<em>boolean</em>) – If set True, the profile is calculated when the Profile class below
+is created. If False the user has to manually track the Profile object
+in the main file after its creation</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="attribute">
+<dt id="blond.beam.profile.OtherSlicesOptions.smooth">
+<code class="descname">smooth</code><a class="headerlink" href="#blond.beam.profile.OtherSlicesOptions.smooth" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">boolean</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.beam.profile.OtherSlicesOptions.direct_slicing">
+<code class="descname">direct_slicing</code><a class="headerlink" href="#blond.beam.profile.OtherSlicesOptions.direct_slicing" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">boolean</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="blond.beam.profile.Profile">
+<em class="property">class </em><code class="descclassname">blond.beam.profile.</code><code class="descname">Profile</code><span class="sig-paren">(</span><em>Beam</em>, <em>CutOptions=&lt;blond.beam.profile.CutOptions object&gt;</em>, <em>FitOptions=&lt;blond.beam.profile.FitOptions object&gt;</em>, <em>FilterOptions=&lt;blond.beam.profile.FilterOptions object&gt;</em>, <em>OtherSlicesOptions=&lt;blond.beam.profile.OtherSlicesOptions object&gt;</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.profile.Profile" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Contains the beam profile and related quantities including beam spectrum,
+profile derivative.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>Beam</strong> (<em>object</em>) – Beam from which the profile has to be calculated</li>
+<li><strong>CutOptions</strong> (<em>object</em>) – Options for profile cutting (see above)</li>
+<li><strong>FitOptions</strong> (<em>object</em>) – Options to get profile position and length (see above)</li>
+<li><strong>FilterOptions</strong> (<em>object</em>) – Options to set a filter (see above)</li>
+<li><strong>OtherSlicesOptions</strong> (<em>object</em>) – All remaining options, like smooth histogram and direct
+slicing (see above)</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="attribute">
+<dt id="blond.beam.profile.Profile.Beam">
+<code class="descname">Beam</code><a class="headerlink" href="#blond.beam.profile.Profile.Beam" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">object</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.beam.profile.Profile.n_slices">
+<code class="descname">n_slices</code><a class="headerlink" href="#blond.beam.profile.Profile.n_slices" title="Permalink to this definition">¶</a></dt>
+<dd><p>number of slices to be used</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">int</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.beam.profile.Profile.cut_left">
+<code class="descname">cut_left</code><a class="headerlink" href="#blond.beam.profile.Profile.cut_left" title="Permalink to this definition">¶</a></dt>
+<dd><p>left extreme of the profile</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.beam.profile.Profile.cut_right">
+<code class="descname">cut_right</code><a class="headerlink" href="#blond.beam.profile.Profile.cut_right" title="Permalink to this definition">¶</a></dt>
+<dd><p>right extreme of the profile</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.beam.profile.Profile.n_sigma">
+<code class="descname">n_sigma</code><a class="headerlink" href="#blond.beam.profile.Profile.n_sigma" title="Permalink to this definition">¶</a></dt>
+<dd><p>defines the left and right extremes of the profile in case those are
+not given explicitly</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.beam.profile.Profile.edges">
+<code class="descname">edges</code><a class="headerlink" href="#blond.beam.profile.Profile.edges" title="Permalink to this definition">¶</a></dt>
+<dd><p>contains the edges of the slices</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float array</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.beam.profile.Profile.bin_centers">
+<code class="descname">bin_centers</code><a class="headerlink" href="#blond.beam.profile.Profile.bin_centers" title="Permalink to this definition">¶</a></dt>
+<dd><p>contains the centres of the slices</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float array</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.beam.profile.Profile.bin_size">
+<code class="descname">bin_size</code><a class="headerlink" href="#blond.beam.profile.Profile.bin_size" title="Permalink to this definition">¶</a></dt>
+<dd><p>lenght of one bin (or slice)</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.beam.profile.Profile.n_macroparticles">
+<code class="descname">n_macroparticles</code><a class="headerlink" href="#blond.beam.profile.Profile.n_macroparticles" title="Permalink to this definition">¶</a></dt>
+<dd><p>contains the histogram (or profile); its elements are real if the
+smooth histogram tracking is used</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float array</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.beam.profile.Profile.beam_spectrum">
+<code class="descname">beam_spectrum</code><a class="headerlink" href="#blond.beam.profile.Profile.beam_spectrum" title="Permalink to this definition">¶</a></dt>
+<dd><p>contains the spectrum of the beam (arb. units)</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float array</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.beam.profile.Profile.beam_spectrum_freq">
+<code class="descname">beam_spectrum_freq</code><a class="headerlink" href="#blond.beam.profile.Profile.beam_spectrum_freq" title="Permalink to this definition">¶</a></dt>
+<dd><p>contains the frequencies on which the spectrum is computed [Hz]</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float array</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.beam.profile.Profile.operations">
+<code class="descname">operations</code><a class="headerlink" href="#blond.beam.profile.Profile.operations" title="Permalink to this definition">¶</a></dt>
+<dd><p>contains all the methods to be called every turn, like slice track,
+fitting, filtering etc.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">list</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.beam.profile.Profile.bunchPosition">
+<code class="descname">bunchPosition</code><a class="headerlink" href="#blond.beam.profile.Profile.bunchPosition" title="Permalink to this definition">¶</a></dt>
+<dd><p>profile position [s]</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.beam.profile.Profile.bunchLength">
+<code class="descname">bunchLength</code><a class="headerlink" href="#blond.beam.profile.Profile.bunchLength" title="Permalink to this definition">¶</a></dt>
+<dd><p>profile length [s]</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.beam.profile.Profile.filterExtraOptions">
+<code class="descname">filterExtraOptions</code><a class="headerlink" href="#blond.beam.profile.Profile.filterExtraOptions" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">unknown (see above)</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<p class="rubric">Examples</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">n_slices</span> <span class="o">=</span> <span class="mi">100</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">CutOptions</span> <span class="o">=</span> <span class="n">profileModule</span><span class="o">.</span><span class="n">CutOptions</span><span class="p">(</span><span class="n">cut_left</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+<span class="gp">&gt;&gt;&gt; </span>      <span class="n">cut_right</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ring</span><span class="o">.</span><span class="n">t_rev</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>  <span class="n">n_slices</span> <span class="o">=</span> <span class="n">n_slices</span><span class="p">,</span> <span class="n">cuts_unit</span><span class="o">=</span><span class="s1">&#39;s&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">FitOptions</span> <span class="o">=</span> <span class="n">profileModule</span><span class="o">.</span><span class="n">FitOptions</span><span class="p">(</span><span class="n">fit_option</span><span class="o">=</span><span class="s1">&#39;gaussian&#39;</span><span class="p">,</span>
+<span class="gp">&gt;&gt;&gt; </span>                                       <span class="n">fitExtraOptions</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">filter_option</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;pass_frequency&#39;</span><span class="p">:</span><span class="mf">1e7</span><span class="p">,</span>
+<span class="gp">&gt;&gt;&gt; </span>   <span class="s1">&#39;stop_frequency&#39;</span><span class="p">:</span><span class="mf">1e8</span><span class="p">,</span> <span class="s1">&#39;gain_pass&#39;</span><span class="p">:</span><span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;gain_stop&#39;</span><span class="p">:</span><span class="mi">2</span><span class="p">,</span>
+<span class="gp">&gt;&gt;&gt; </span>   <span class="s1">&#39;transfer_function_plot&#39;</span><span class="p">:</span><span class="kc">False</span><span class="p">}</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">FilterOptions</span> <span class="o">=</span> <span class="n">profileModule</span><span class="o">.</span><span class="n">FilterOptions</span><span class="p">(</span><span class="n">filterMethod</span><span class="o">=</span><span class="s1">&#39;chebishev&#39;</span><span class="p">,</span>
+<span class="gp">&gt;&gt;&gt; </span>        <span class="n">filterExtraOptions</span><span class="o">=</span><span class="n">filter_option</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">OtherSlicesOptions</span> <span class="o">=</span> <span class="n">profileModule</span><span class="o">.</span><span class="n">OtherSlicesOptions</span><span class="p">(</span><span class="n">smooth</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+<span class="gp">&gt;&gt;&gt; </span>                            <span class="n">direct_slicing</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="bp">self</span><span class="o">.</span><span class="n">profile4</span> <span class="o">=</span> <span class="n">profileModule</span><span class="o">.</span><span class="n">Profile</span><span class="p">(</span><span class="n">my_beam</span><span class="p">,</span> <span class="n">CutOptions</span> <span class="o">=</span> <span class="n">CutOptions</span><span class="p">,</span>
+<span class="gp">&gt;&gt;&gt; </span>                    <span class="n">FitOptions</span><span class="o">=</span> <span class="n">FitOptions</span><span class="p">,</span>
+<span class="gp">&gt;&gt;&gt; </span>                    <span class="n">FilterOptions</span><span class="o">=</span><span class="n">FilterOptions</span><span class="p">,</span>
+<span class="gp">&gt;&gt;&gt; </span>                    <span class="n">OtherSlicesOptions</span> <span class="o">=</span> <span class="n">OtherSlicesOptions</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="method">
+<dt id="blond.beam.profile.Profile.apply_filter">
+<code class="descname">apply_filter</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.profile.Profile.apply_filter" title="Permalink to this definition">¶</a></dt>
+<dd><p>It applies Chebishev filter to the profile.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="blond.beam.profile.Profile.apply_fit">
+<code class="descname">apply_fit</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.profile.Profile.apply_fit" title="Permalink to this definition">¶</a></dt>
+<dd><p>It applies Gaussian fit to the profile.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="blond.beam.profile.Profile.beam_profile_derivative">
+<code class="descname">beam_profile_derivative</code><span class="sig-paren">(</span><em>mode='gradient'</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.profile.Profile.beam_profile_derivative" title="Permalink to this definition">¶</a></dt>
+<dd><p>The input is one of the three available methods for differentiating
+a function. The two outputs are the bin centres and the discrete
+derivative of the Beam profile respectively.*</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="blond.beam.profile.Profile.beam_spectrum_freq_generation">
+<code class="descname">beam_spectrum_freq_generation</code><span class="sig-paren">(</span><em>n_sampling_fft</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.profile.Profile.beam_spectrum_freq_generation" title="Permalink to this definition">¶</a></dt>
+<dd><p>Frequency array of the beam spectrum</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="blond.beam.profile.Profile.beam_spectrum_generation">
+<code class="descname">beam_spectrum_generation</code><span class="sig-paren">(</span><em>n_sampling_fft</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.profile.Profile.beam_spectrum_generation" title="Permalink to this definition">¶</a></dt>
+<dd><p>Beam spectrum calculation</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="blond.beam.profile.Profile.fwhm">
+<code class="descname">fwhm</code><span class="sig-paren">(</span><em>shift=0</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.profile.Profile.fwhm" title="Permalink to this definition">¶</a></dt>
+<dd><p>Computation of the bunch length and position from the FWHM
+assuming Gaussian line density.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="blond.beam.profile.Profile.fwhm_multibunch">
+<code class="descname">fwhm_multibunch</code><span class="sig-paren">(</span><em>n_bunches</em>, <em>n_slices_per_bunch</em>, <em>bunch_spacing_buckets</em>, <em>bucket_size_tau</em>, <em>bucket_tolerance=0.4</em>, <em>shift=0</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.profile.Profile.fwhm_multibunch" title="Permalink to this definition">¶</a></dt>
+<dd><p>Computation of the bunch length and position from the FWHM
+assuming Gaussian line density for multibunch case.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="blond.beam.profile.Profile.rms">
+<code class="descname">rms</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.profile.Profile.rms" title="Permalink to this definition">¶</a></dt>
+<dd><p>Computation of the RMS bunch length and position from the line
+density (bunch length = 4sigma).</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="blond.beam.profile.Profile.set_slices_parameters">
+<code class="descname">set_slices_parameters</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.profile.Profile.set_slices_parameters" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="blond.beam.profile.Profile.track">
+<code class="descname">track</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.profile.Profile.track" title="Permalink to this definition">¶</a></dt>
+<dd><p>Track method in order to update the slicing along with the tracker.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-blond.beam.sparse_slices">
+<span id="sparse-slices-module"></span><h2><code class="xref py py-mod docutils literal notranslate"><span class="pre">sparse_slices</span></code> Module<a class="headerlink" href="#module-blond.beam.sparse_slices" title="Permalink to this headline">¶</a></h2>
+<p><strong>Module to compute beam slicing for a sparse beam</strong>
+<strong>Only valid for cases with constant revolution and RF frequencies</strong></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Authors:</th><td class="field-body"><strong>Juan F. Esteban Mueller</strong></td>
+</tr>
+</tbody>
+</table>
+<dl class="class">
+<dt id="blond.beam.sparse_slices.SparseSlices">
+<em class="property">class </em><code class="descclassname">blond.beam.sparse_slices.</code><code class="descname">SparseSlices</code><span class="sig-paren">(</span><em>RFStation</em>, <em>Beam</em>, <em>n_slices</em>, <em>filling_pattern</em>, <em>tracker='C'</em>, <em>direct_slicing=False</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.sparse_slices.SparseSlices" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p><em>This class instantiates a Slice object for each filled bucket according
+to the provided filling pattern. Each slice object will be of the size of
+an RF bucket and will have the same number of slices.</em></p>
+<dl class="attribute">
+<dt id="blond.beam.sparse_slices.SparseSlices.Beam">
+<code class="descname">Beam</code><em class="property"> = None</em><a class="headerlink" href="#blond.beam.sparse_slices.SparseSlices.Beam" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Import (reference) Beam</em></p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.beam.sparse_slices.SparseSlices.RFParams">
+<code class="descname">RFParams</code><em class="property"> = None</em><a class="headerlink" href="#blond.beam.sparse_slices.SparseSlices.RFParams" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Import (reference) RFStation</em></p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.beam.sparse_slices.SparseSlices.n_filled_buckets">
+<code class="descname">n_filled_buckets</code><em class="property"> = None</em><a class="headerlink" href="#blond.beam.sparse_slices.SparseSlices.n_filled_buckets" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Number of buckets to be sliced</em></p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.beam.sparse_slices.SparseSlices.n_slices">
+<code class="descname">n_slices</code><em class="property"> = None</em><a class="headerlink" href="#blond.beam.sparse_slices.SparseSlices.n_slices" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Number of slices per bucket</em></p>
+</dd></dl>
+
+<dl class="method">
+<dt id="blond.beam.sparse_slices.SparseSlices.set_cuts">
+<code class="descname">set_cuts</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.sparse_slices.SparseSlices.set_cuts" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Method to set the self.cut_left_array and self.cut_right_array
+properties, with the limits being an RF period.
+This is done as a pre-processing.</em></p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="impedances.html" class="btn btn-neutral float-right" title="impedances Package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="equations_of_motion.html" class="btn btn-neutral" title="Equations of Motion" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2017.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../',
+            VERSION:'1.1',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="../_static/jquery.js"></script>
+      <script type="text/javascript" src="../_static/underscore.js"></script>
+      <script type="text/javascript" src="../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+  
+
+  
+   
+
+</body>
+</html>

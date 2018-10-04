@@ -1,0 +1,637 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Equations of Motion &mdash; BLonD 1.1 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="../genindex.html"/>
+        <link rel="search" title="Search" href="../search.html"/>
+    <link rel="top" title="BLonD 1.1 documentation" href="../index.html"/>
+        <link rel="next" title="beam Package" href="beam.html"/>
+        <link rel="prev" title="Welcome to the BLonD documentation!" href="../index.html"/> 
+
+  
+  <script src="../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> BLonD
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                1.1
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Equations of Motion</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#definitions">Definitions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#energy-kick">Energy kick</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#arrival-time-drift">Arrival time drift</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#the-synchronous-particle">The synchronous particle</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#small-amplitude-oscillations">Small-amplitude oscillations</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="#tracking-utilities">Tracking utilities</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#hamiltonian">Hamiltonian</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#separatrix">Separatrix</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="beam.html">beam Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="beam.html#module-blond.beam.beam"><code class="docutils literal notranslate"><span class="pre">beam</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="beam.html#module-blond.beam.coasting_beam"><code class="docutils literal notranslate"><span class="pre">coasting_beam</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="beam.html#distributions-module"><code class="docutils literal notranslate"><span class="pre">distributions</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="beam.html#distributions-multibunch-module"><code class="docutils literal notranslate"><span class="pre">distributions_multibunch</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="beam.html#profile-module"><code class="docutils literal notranslate"><span class="pre">profile</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="beam.html#sparse-slices-module"><code class="docutils literal notranslate"><span class="pre">sparse_slices</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="impedances.html">impedances Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="impedances.html#impedance-module"><code class="docutils literal notranslate"><span class="pre">impedance</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="impedances.html#impedance-sources-module"><code class="docutils literal notranslate"><span class="pre">impedance_sources</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="impedances.html#module-blond.impedances.induced_voltage_analytical"><code class="docutils literal notranslate"><span class="pre">induced_voltage_analytical</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="impedances.html#music-module"><code class="docutils literal notranslate"><span class="pre">music</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="input_parameters.html">input_parameters Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="input_parameters.html#preprocess-module"><code class="docutils literal notranslate"><span class="pre">preprocess</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="input_parameters.html#module-blond.input_parameters.rf_parameters"><code class="docutils literal notranslate"><span class="pre">rf_parameters</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="input_parameters.html#module-blond.input_parameters.ring"><code class="docutils literal notranslate"><span class="pre">ring</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="llrf.html">llrf Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="llrf.html#module-blond.llrf.notch_filter"><code class="docutils literal notranslate"><span class="pre">notch_filter</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="llrf.html#llrf-beam-feedback-module">llrf.beam_feedback Module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="llrf.html#machine-dependent-beam-phase-loop">Machine-dependent Beam Phase Loop</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="llrf.html#cavity-feedback-module"><code class="docutils literal notranslate"><span class="pre">cavity_feedback</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="llrf.html#module-blond.llrf.impulse_response"><code class="docutils literal notranslate"><span class="pre">impulse_response</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="llrf.html#rf-modulation-module"><code class="docutils literal notranslate"><span class="pre">rf_modulation</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="llrf.html#llrf-rf-noise-module">llrf.rf_noise Module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="llrf.html#rf-phase-noise-generation">RF phase noise generation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="llrf.html#lhc-type-phase-noise-generation">LHC-type phase noise generation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="llrf.html#bunch-length-based-feedback-on-noise-amplitude">Bunch-length based feedback on noise amplitude</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="llrf.html#module-blond.llrf.signal_processing"><code class="docutils literal notranslate"><span class="pre">signal_processing</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="monitors.html">monitors Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="monitors.html#module-blond.monitors.monitors"><code class="docutils literal notranslate"><span class="pre">monitors</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="plots.html">plots Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="plots.html#module-blond.plots.plot"><code class="docutils literal notranslate"><span class="pre">plot</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plots.html#module-blond.plots.plot_beams"><code class="docutils literal notranslate"><span class="pre">plot_beams</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plots.html#plot-impedance-module"><code class="docutils literal notranslate"><span class="pre">plot_impedance</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plots.html#module-blond.plots.plot_llrf"><code class="docutils literal notranslate"><span class="pre">plot_llrf</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plots.html#module-blond.plots.plot_parameters"><code class="docutils literal notranslate"><span class="pre">plot_parameters</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plots.html#module-blond.plots.plot_slices"><code class="docutils literal notranslate"><span class="pre">plot_slices</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="synchrotron_radiation.html">synchrotron_radiation Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="synchrotron_radiation.html#synchrotron-radiation-module"><code class="docutils literal notranslate"><span class="pre">synchrotron_radiation</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="toolbox.html">toolbox Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.action"><code class="docutils literal notranslate"><span class="pre">action</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="toolbox.html#convolution-module"><code class="docutils literal notranslate"><span class="pre">convolution</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.diffusion"><code class="docutils literal notranslate"><span class="pre">diffusion</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.next_regular"><code class="docutils literal notranslate"><span class="pre">next_regular</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.parameter_scaling"><code class="docutils literal notranslate"><span class="pre">parameter_scaling</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="toolbox.html#tomoscope-module"><code class="docutils literal notranslate"><span class="pre">tomoscope</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="trackers.html">trackers Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="trackers.html#tracker-module"><code class="docutils literal notranslate"><span class="pre">tracker</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trackers.html#module-blond.trackers.utilities"><code class="docutils literal notranslate"><span class="pre">utilities</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="compile.html">compile Module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="compile.html#id1"><code class="docutils literal notranslate"><span class="pre">compile</span></code> Module</a></li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">BLonD</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html">Docs</a> &raquo;</li>
+        
+      <li>Equations of Motion</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/modules/equations_of_motion.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="equations-of-motion">
+<h1>Equations of Motion<a class="headerlink" href="#equations-of-motion" title="Permalink to this headline">¶</a></h1>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Authors:</th><td class="field-body"><strong>Helga Timko</strong></td>
+</tr>
+</tbody>
+</table>
+<a class="reference internal image-reference" href="../_images/ring_and_RFstation.png"><img alt="../_images/ring_and_RFstation.png" class="align-right" src="../_images/ring_and_RFstation.png" style="width: 350px; height: 350px;" /></a>
+<p>Below, we shall derive the equations of motion (EOMs) for an energy kick given
+to the particle by the RF caviti(es) of a given RF station and the subsequent
+drift of the particle during one turn, see Figure. In the case of multiple RF
+stations, the drift equation should be scaled by <span class="math notranslate nohighlight">\(\frac{L_i}{C}\)</span>, where
+<span class="math notranslate nohighlight">\(C = \sum_{i} L_i\)</span> is the machine circumference.</p>
+<div class="section" id="definitions">
+<h2>Definitions<a class="headerlink" href="#definitions" title="Permalink to this headline">¶</a></h2>
+<p><strong>Code-internal units</strong> are SI-units unless otherwise specified in the below
+table.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name" colspan="2">Code-internal units:</th></tr>
+<tr class="field-odd field"><td>&#160;</td><td class="field-body"><p class="first">Energy <span class="math notranslate nohighlight">\(E\)</span> = [eV]</p>
+<p>Momentum <span class="math notranslate nohighlight">\(p\)</span> = [eV]</p>
+<p>Mass <span class="math notranslate nohighlight">\(m\)</span> = [eV]</p>
+<p>Time <span class="math notranslate nohighlight">\(t\)</span> = [s]</p>
+<p>Frequency <span class="math notranslate nohighlight">\(f\)</span> = [Hz]</p>
+<p class="last">Angular frequency <span class="math notranslate nohighlight">\(\omega\)</span> = [rad/s]</p>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Just like in the real machine, we demand the user to define beforehand the
+energy programme, i.e. the <strong>synchronous (design) total energy</strong> at every time
+step <span class="math notranslate nohighlight">\(n\)</span> and RF station <span class="math notranslate nohighlight">\((i)\)</span>, <span class="math notranslate nohighlight">\(\left\{ E_{s,(i)}^n \right\}\)</span>.
+This will define the design momentum <span class="math notranslate nohighlight">\(p_s\)</span> through following relations:</p>
+<div class="math notranslate nohighlight" id="equation-e">
+<span class="eqno">(1)<a class="headerlink" href="#equation-e" title="Permalink to this equation">¶</a></span>\[E_s = \gamma_s m ,\]</div>
+<div class="math notranslate nohighlight" id="equation-p">
+<span class="eqno">(2)<a class="headerlink" href="#equation-p" title="Permalink to this equation">¶</a></span>\[p_s = \beta_s \gamma_s m ,\]</div>
+<div class="math notranslate nohighlight" id="equation-e-p">
+<span class="eqno">(3)<a class="headerlink" href="#equation-e-p" title="Permalink to this equation">¶</a></span>\[E_s^2 = p_s^2 + m^2 ,\]</div>
+<p>where <span class="math notranslate nohighlight">\(m\)</span> is the mass of the particle, and energy, momentum, and mass are
+given in [eV].</p>
+<p>For a given <strong>synchronous orbit with an average radius</strong> <span class="math notranslate nohighlight">\(R_s\)</span>, the
+angular frequency will be <span class="math notranslate nohighlight">\(\omega_0 \equiv \frac{\beta_s c}{R_s}\)</span> and one
+turn will take <span class="math notranslate nohighlight">\(T_0 \equiv \frac{2 \pi}{\omega_0}\)</span> at the synchronous
+energy. The magnetic field programme is assumed to be synchronised with the
+design energy turn by turn. Hence, a particle leaving the RF station with the
+synchronous energy will always be on the synchronous orbit and return to the RF
+station after exactly one period, unless the actual magnetic field differs from
+the designed one.</p>
+<p>We define then an external <strong>reference (clock) time</strong></p>
+<div class="math notranslate nohighlight" id="equation-t-ref">
+<span class="eqno">(4)<a class="headerlink" href="#equation-t-ref" title="Permalink to this equation">¶</a></span>\[t_{\mathsf{ref}}^n \equiv \sum_{i=1}^n T_0^i ,\]</div>
+<p>and as initial condition we choose the sinusoidal RF wave of the <strong>main RF
+system</strong> (harmonic <span class="math notranslate nohighlight">\(h_0\)</span> and RF frequency <span class="math notranslate nohighlight">\(\omega_{\mathsf{rf},0}\)</span>)
+to be at phase zero at time zero:</p>
+<div class="math notranslate nohighlight" id="equation-ic">
+<span class="eqno">(5)<a class="headerlink" href="#equation-ic" title="Permalink to this equation">¶</a></span>\[V_{\mathsf{rf},0}(t) = V_0 \sin(\omega_{\mathsf{rf},0} \, t \, + \phi_{\mathsf{offset},0}) \Rightarrow \phi_{\mathsf{offset},0} (t=0) = 0.\]</div>
+<p><strong>All phase offsets of all RF systems are defined w.r.t. this initial condition
+and w.r.t. to the main RF system.</strong> Phase offsets can be programmed through the
+<code class="docutils literal notranslate"><span class="pre">phi_offset</span></code> parameter. In addition, RF phase noise
+<span class="math notranslate nohighlight">\(\phi_{\mathsf{noise},k}\)</span> can be added through <code class="docutils literal notranslate"><span class="pre">phi_noise</span></code>  for each
+system. For <span class="math notranslate nohighlight">\(n_{\mathsf{rf}}\)</span> RF systems in the RF station the total
+voltage [eV] becomes:</p>
+<div class="math notranslate nohighlight" id="equation-vtot">
+<span class="eqno">(6)<a class="headerlink" href="#equation-vtot" title="Permalink to this equation">¶</a></span>\[V_{\mathsf{tot}}(t) = \sum_{k=0}^{n_{\mathsf{rf}}-1} V_k \sin(\omega_{\mathsf{rf},k} \, t + \phi_{\mathsf{offset},k}^n + \phi_{\mathsf{noise},k}^n) .\]</div>
+<p>We define the <strong>arrival time of an arbitrary particle</strong> to the RF station
+relative to the reference time in that turn,</p>
+<div class="math notranslate nohighlight" id="equation-dt">
+<span class="eqno">(7)<a class="headerlink" href="#equation-dt" title="Permalink to this equation">¶</a></span>\[\Delta t^n \equiv t^n - t_{\mathsf{ref}}^n .\]</div>
+<p>The total phase offset at the reference time is tracked in the variable
+<code class="docutils literal notranslate"><span class="pre">phi_RF</span></code>, defined through</p>
+<div class="math notranslate nohighlight" id="equation-phirf">
+<span class="eqno">(8)<a class="headerlink" href="#equation-phirf" title="Permalink to this equation">¶</a></span>\[V_{\mathsf{tot}}(t=t_{\mathsf{ref}}^n) \equiv \sum_{k=0}^{n_{\mathsf{rf}}-1} V_k \sin(\phi_{\mathsf{rf},k}^n) .\]</div>
+</div>
+<div class="section" id="energy-kick">
+<h2>Energy kick<a class="headerlink" href="#energy-kick" title="Permalink to this headline">¶</a></h2>
+<p>During the passage through an RF station, the energy <span class="math notranslate nohighlight">\(E^n\)</span> of an
+arbitrary particle is changed by the total energy kick received from the
+various RF systems in the station. The energy change due to the induced
+electric fields in the magnets is negligible and beam-induced voltage is taken
+into account in the <code class="docutils literal notranslate"><span class="pre">impedance</span></code> module. The phase of the RF voltage of system
+k at the arrival time <span class="math notranslate nohighlight">\(t^n\)</span> of any particle is:</p>
+<div class="math notranslate nohighlight" id="equation-1-0-1">
+<span class="eqno">(9)<a class="headerlink" href="#equation-1-0-1" title="Permalink to this equation">¶</a></span>\[\varphi_{\mathsf{rf},k}(t^n) = \int_{0}^{t^n} d\tau \, \omega_{\mathsf{rf}}(\tau) + \phi_{\mathsf{offset},k}^n + \phi_{\mathsf{noise},k}^n = \sum_{i=1}^{n} \omega_{\mathsf{rf},k}^i T_0^i + (t^n-t_{\mathsf{ref}}^n) \omega_{\mathsf{rf},k}^n + \phi_{\mathsf{offset},k}^n + \phi_{\mathsf{noise},k}^n .\]</div>
+<p>Subtracting multiples of <span class="math notranslate nohighlight">\(2 \pi\)</span>, which can be neglected,</p>
+<div class="math notranslate nohighlight" id="equation-1-0-2">
+<span class="eqno">(10)<a class="headerlink" href="#equation-1-0-2" title="Permalink to this equation">¶</a></span>\[\varphi_{\mathsf{rf},k}(\Delta t^n) = \sum_{i=1}^{n} \frac{\omega_{\mathsf{rf},k}^i - h_k^i \omega_0^i}{h_k^i \omega_0^i} 2 \pi h_k^i + \omega_{\mathsf{rf},k}^n \Delta t^n + \phi_{\mathsf{offset},k}^n + \phi_{\mathsf{noise},k}^n .\]</div>
+<p>Note that <code class="docutils literal notranslate"><span class="pre">phi_RF</span></code> is determined through the above equation,</p>
+<div class="math notranslate nohighlight" id="equation-1-0-3">
+<span class="eqno">(11)<a class="headerlink" href="#equation-1-0-3" title="Permalink to this equation">¶</a></span>\[\phi_{\mathsf{rf},k}^n = \varphi_{\mathsf{rf},k}(\Delta t^n = 0) .\]</div>
+<p>Thus the total energy change equation is</p>
+<div class="math notranslate nohighlight" id="equation-1-1">
+<span class="eqno">(12)<a class="headerlink" href="#equation-1-1" title="Permalink to this equation">¶</a></span>\[E^{n+1} = E^{n} + \sum_{k=0}^{n_{\mathsf{rf}}-1} V_k^n \sin \varphi_{\mathsf{rf},k}(\Delta t^n)\]</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Eq. <a class="reference internal" href="#equation-1-1">(12)</a> is intrinsically discrete; no approximation has been
+done.</p>
+</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">The RF phase (Eq. <a class="reference internal" href="#equation-1-0-3">(11)</a>) differs from the sum of phase offset
+and phase noise only if the RF frequency differs from the design RF frequency
+<span class="math notranslate nohighlight">\(\omega_{\mathsf{rf},k}^n \neq \Omega_{\mathsf{rf},k}^n \equiv h_k^n \omega_0^n\)</span>,
+i.e. when feedback loops are active.</p>
+</div>
+<p>Rather than the absolute energy, we are actually interested in the energy
+offset of a given particle w.r.t. the synchronous energy
+<span class="math notranslate nohighlight">\(\Delta E^n \equiv E^n - E_s^n, \, \forall n\)</span>. So we choose our
+coordinate system to be centred around <span class="math notranslate nohighlight">\(E_s^n \, \forall n\)</span>. Substracting
+<span class="math notranslate nohighlight">\(E_s^{n+1}\)</span> from both sides of Eq. <a class="reference internal" href="#equation-1-1">(12)</a>, we arrive at</p>
+<div class="math notranslate nohighlight" id="equation-1-2">
+<span class="eqno">(13)<a class="headerlink" href="#equation-1-2" title="Permalink to this equation">¶</a></span>\[\Delta E^{n+1} = \Delta E^{n} + \sum_{k=0}^{n_{\mathsf{rf}}-1} V_k^n \sin \varphi_{\mathsf{rf},k}(\Delta t^n) - (E_s^{n+1} - E_s^n) .\]</div>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">As a consequence, during acceleration the coordinate system is
+non-inertial and a coordinate transform is done turn by turn.</p>
+</div>
+</div>
+<div class="section" id="arrival-time-drift">
+<h2>Arrival time drift<a class="headerlink" href="#arrival-time-drift" title="Permalink to this headline">¶</a></h2>
+<div class="sidebar">
+<p class="first sidebar-title">Frequency slippage</p>
+<p>The frequency slippage of an off-momentum particle during one turn is
+defined w.r.t. the <strong>design synchronous particle</strong>,</p>
+<div class="math notranslate nohighlight" id="equation-slippage">
+<span class="eqno">(14)<a class="headerlink" href="#equation-slippage" title="Permalink to this equation">¶</a></span>\[\frac{\Delta \omega}{\omega_0} = \frac{\omega - \omega_0}{\omega_0} \equiv - \eta(\delta) \delta = - (\eta_0 + \eta_1 \delta + \eta_2 \delta^2 + ...) \delta,\]</div>
+<p>where <span class="math notranslate nohighlight">\(\delta \equiv \frac{\Delta p}{p_s} = \frac{\Delta E}{\beta_s^2 E_s}\)</span>
+is the relative off-momentum of the particle and <span class="math notranslate nohighlight">\(\eta_i\)</span> are the
+slippage factors</p>
+<div class="math notranslate nohighlight" id="equation-etas">
+<span class="eqno">(15)<a class="headerlink" href="#equation-etas" title="Permalink to this equation">¶</a></span>\[\begin{split}\eta_0 = \alpha_0 - \frac{1}{\gamma_s^2} \\
+\eta_1 = \frac{3 \beta_s^2}{2 \gamma_s^2} + \alpha_1 - \alpha_0 \eta_0 \\
+\eta_2 = - \frac{\beta_s^2(5 \beta_s^2 - 1)}{2 \gamma_s^2} + \alpha_2 - 2 \alpha_0 \alpha_1 + \frac{\alpha_1}{\gamma_s^2} + \alpha_0^2 \eta_0 - \frac{3 \beta_s^2 \alpha_0}{2 \gamma_s^2},\end{split}\]</div>
+<p class="last">which are defined via the momentum compaction factors <span class="math notranslate nohighlight">\(\alpha_i\)</span>.</p>
+</div>
+<p>The absolute arrival time of an arbitrary particle can be expressed as a
+recursion</p>
+<div class="math notranslate nohighlight" id="equation-2-1">
+<span class="eqno">(16)<a class="headerlink" href="#equation-2-1" title="Permalink to this equation">¶</a></span>\[t^{n+1} = t^n + \frac{2 \pi}{\omega^{n+1}} ,\]</div>
+<p>with initial condition <span class="math notranslate nohighlight">\(t^0 = t_0\)</span> and where the revolution frequency of
+the particle <span class="math notranslate nohighlight">\(\omega^n \equiv \frac{\beta^n c}{R^n}\)</span> can differ from
+<span class="math notranslate nohighlight">\(\omega_0^n\)</span> due to energy and orbit deviations from the synchronous
+particle.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Eq. <a class="reference internal" href="#equation-2-1">(16)</a> contains <span class="math notranslate nohighlight">\(\omega^{n+1}\)</span> as we chose to perform
+the energy kick first and the subsequent time drift happens according to the
+already updated energy.</p>
+</div>
+<p>Using Eq. <a class="reference internal" href="#equation-dt">(7)</a>, the recursion on the particle arrival time relative to the
+clock becomes</p>
+<div class="math notranslate nohighlight" id="equation-2-2">
+<span class="eqno">(17)<a class="headerlink" href="#equation-2-2" title="Permalink to this equation">¶</a></span>\[\Delta t^{n+1} = \Delta t^n + \frac{2 \pi}{\omega^{n+1}} - \frac{2 \pi}{\omega_0^{n+1}} =
+\Delta t^n + T_0^{n+1} \left( \frac{1}{\frac{\omega^{n+1}}{\omega_0^{n+1}}} - 1 \right)\]</div>
+<p>Using definition <a class="reference internal" href="#equation-slippage">(14)</a>, the arrival time drift can be calculated as</p>
+<div class="math notranslate nohighlight" id="equation-2-3">
+<span class="eqno">(18)<a class="headerlink" href="#equation-2-3" title="Permalink to this equation">¶</a></span>\[\Delta t^{n+1} = \Delta t^n + T_0^{n+1} \left( \frac{1}{1 - \eta(\delta^{n+1})\delta^{n+1}} - 1 \right) .\]</div>
+<p>If a zeroth order slippage is used, <span class="math notranslate nohighlight">\(\eta(\delta) \approx \eta_0\)</span>, the
+option <code class="docutils literal notranslate"><span class="pre">solver</span> <span class="pre">=</span> <span class="pre">'simple'</span></code> can be used to approximate the above equation as</p>
+<div class="math notranslate nohighlight" id="equation-2-3-simple">
+<span class="eqno">(19)<a class="headerlink" href="#equation-2-3-simple" title="Permalink to this equation">¶</a></span>\[\Delta t^{n+1} = \Delta t^n + \frac{\eta_0^{n+1} T_0^{n+1}}{(\beta_s^{n+1})^{2} E_s^{n+1}} \Delta E^{n+1} .\]</div>
+</div>
+<div class="section" id="the-synchronous-particle">
+<h2>The synchronous particle<a class="headerlink" href="#the-synchronous-particle" title="Permalink to this headline">¶</a></h2>
+<p>A particle is <strong>synchronous in turn n</strong> if it enters and leaves the RF station
+with zero energy offset, <span class="math notranslate nohighlight">\(\Delta E^n = \Delta E^{n+1} = 0\)</span>, and thus
+gains exactly the designed energy gain <span class="math notranslate nohighlight">\(E_s^{n+1} - E_s^n\)</span>. As a
+consequence, in the absence of induced voltage the synchronous particle will
+fulfil:</p>
+<div class="math notranslate nohighlight" id="equation-e-s">
+<span class="eqno">(20)<a class="headerlink" href="#equation-e-s" title="Permalink to this equation">¶</a></span>\[\sum_{k=0}^{n_{\mathsf{rf}}-1} V_k^n \sin \varphi_{\mathsf{rf},k}(\Delta t_s^n) = (E_s^{n+1} - E_s^n) ,\]</div>
+<p>and in the presence of intensity effects, the induced voltage from the
+particles in front should be added on the left-hand side:</p>
+<div class="math notranslate nohighlight" id="equation-e-s-2">
+<span class="eqno">(21)<a class="headerlink" href="#equation-e-s-2" title="Permalink to this equation">¶</a></span>\[\sum_{k=0}^{n_{\mathsf{rf}}-1} V_k^n \sin \varphi_{\mathsf{rf},k}(\Delta t_s^n) - e \int_{\Delta t_{\mathsf{min}}}^{\Delta t_s^n} d\tau \lambda(\tau) W(\Delta t_s^n - \tau) = (E_s^{n+1} - E_s^n) ,\]</div>
+<p>where <span class="math notranslate nohighlight">\(\lambda(t)\)</span> is the beam/bunch profile and <span class="math notranslate nohighlight">\(W(t)\)</span> the wake
+potential.</p>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p class="last"><a class="reference external" href="http://dquartul.github.io/BLonD/impedances.html">http://dquartul.github.io/BLonD/impedances.html</a></p>
+</div>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">In general, these equations have <span class="math notranslate nohighlight">\(n_{\mathsf{rf}}\)</span>
+solutions. If the synchronous energy gain <span class="math notranslate nohighlight">\(E_s^{n+1} - E_s^n\)</span> changes
+from one turn to another, also the synchronous particle changes with it.</p>
+</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p><strong>Synchronous particle arrival time</strong></p>
+<p>As a consequence, the arrival time of the synchronous particle
+<span class="math notranslate nohighlight">\(\Delta t_s\)</span> is not necessarily constant, but can change from turn to
+turn. This might be counter-intuitive, as the synchronous particle drifts
+with exactly <span class="math notranslate nohighlight">\(\omega_0\)</span> along the ring. To see this effect, consider
+two subsequent turns with different synchronous energy gains
+<span class="math notranslate nohighlight">\(E_s^{n+1} - E_s^{n} \ne E_s^{n+2} - E_s^{n+1}\)</span> in a single-RF system.
+Let particle 1 be synchronous in turn n and particle 2 be synchronous in
+turn <span class="math notranslate nohighlight">\(n+1\)</span>:</p>
+<div class="math notranslate nohighlight" id="equation-synch-1">
+<span class="eqno">(22)<a class="headerlink" href="#equation-synch-1" title="Permalink to this equation">¶</a></span>\[\begin{split}\Delta E_1^n = \Delta E_1^{n+1} = 0 \,\,\, \ne \Delta E_1^{n+2} \\
+\Delta t_1^{n-1} = \Delta t_1^n = \Delta t_1^{n+1} \,\,\, \ne \Delta t_1^{n+2}\end{split}\]</div>
+<div class="math notranslate nohighlight" id="equation-synch-2">
+<span class="eqno">(23)<a class="headerlink" href="#equation-synch-2" title="Permalink to this equation">¶</a></span>\[\begin{split}\Delta E_2^n \ne \,\,\, \Delta E_2^{n+1} = \Delta E_2^{n+2} = 0  \\
+\Delta t_2^{n-1} \ne \,\,\, \Delta t_2^n = \Delta t_2^{n+1} = \Delta t_2^{n+2}\end{split}\]</div>
+<p>The arrival time of the synchronous particles in this case will be:</p>
+<div class="math notranslate nohighlight" id="equation-synch-3">
+<span class="eqno">(24)<a class="headerlink" href="#equation-synch-3" title="Permalink to this equation">¶</a></span>\[\begin{split}\Delta t_s^n \equiv \Delta t_1^n \\
+\Delta t_s^{n+1} \equiv \Delta t_2^{n+1}\end{split}\]</div>
+<p>Thus, because the synchronous particle can be a different particle each
+turn, the recursion on the synchronous arrival time becomes in general</p>
+<div class="math notranslate nohighlight" id="equation-synch-4">
+<span class="eqno">(25)<a class="headerlink" href="#equation-synch-4" title="Permalink to this equation">¶</a></span>\[\Delta t_s^{n+1} = \Delta t_s^n + (\Delta t_2^{n+1} - \Delta t_1^n) = \Delta t_s^n + (\Delta t_2^n - \Delta t_1^n) .\]</div>
+<p>The difference in arrival time of the two particles in turn n can be
+determined from the energy equations</p>
+<div class="math notranslate nohighlight" id="equation-synch-5">
+<span class="eqno">(26)<a class="headerlink" href="#equation-synch-5" title="Permalink to this equation">¶</a></span>\[\begin{split}V^n \sin \left( \omega_{\mathsf{rf}}^n \Delta t_1^n + \varphi_{\mathsf{rf}}^n \right)= (E_s^{n+1} - E_s^n) \\
+V^{n+1} \sin \left( \omega_{\mathsf{rf}}^{n+1} \Delta t_2^{n+1} + \varphi_{\mathsf{rf}}^{n+1} \right) =  V^{n+1} \sin \left( \omega_{\mathsf{rf}}^{n+1} \Delta t_2^n + \varphi_{\mathsf{rf}}^{n+1} \right) = (E_s^{n+2} - E_s^{n+1}) ,\end{split}\]</div>
+<p>which in first-order approximation (see <em>Small-amplitude oscillations</em>)
+gives</p>
+<div class="last math notranslate nohighlight" id="equation-synch-6">
+<span class="eqno">(27)<a class="headerlink" href="#equation-synch-6" title="Permalink to this equation">¶</a></span>\[\sin{\varphi_s^{n+1}} - \sin{\varphi_s^n} \approx ( \omega_{\mathsf{rf}}^{n+1} \Delta t_2^n + \varphi_{\mathsf{rf}}^{n+1} - \omega_{\mathsf{rf}}^n \Delta t_1^n - \varphi_{\mathsf{rf}}^n) \cos{\varphi_s^n} = \frac{E_s^{n+2} - E_s^{n+1}}{V^{n+1}} - \frac{E_s^{n+1} - E_s^{n}}{V^{n}} .\]</div>
+</div>
+</div>
+<div class="section" id="small-amplitude-oscillations">
+<h2>Small-amplitude oscillations<a class="headerlink" href="#small-amplitude-oscillations" title="Permalink to this headline">¶</a></h2>
+<p>Assuming a single-RF station and a simple solver (Eq. <a class="reference internal" href="#equation-2-3-simple">(19)</a>), the
+EOMs in continous time can be written as</p>
+<div class="math notranslate nohighlight" id="equation-ho-1">
+<span class="eqno">(28)<a class="headerlink" href="#equation-ho-1" title="Permalink to this equation">¶</a></span>\[\Delta \dot{E} = \frac{V}{T_0} \left( \sin(\omega_{\mathsf{rf}} \Delta t + \varphi_{\mathsf{rf}}) - \sin{\varphi_s} \right),\]</div>
+<div class="math notranslate nohighlight" id="equation-ho-2">
+<span class="eqno">(29)<a class="headerlink" href="#equation-ho-2" title="Permalink to this equation">¶</a></span>\[\Delta \dot{t} = \frac{\eta_0}{\beta_s^2 E_s} \Delta E .\]</div>
+<p>Assuming further a constant synchronous phase
+<span class="math notranslate nohighlight">\(\sin{\varphi_s} \equiv \frac{\dot{E_s}}{V}\)</span> and expanding the RF wave
+around it</p>
+<div class="math notranslate nohighlight" id="equation-ho-3-0">
+<span class="eqno">(30)<a class="headerlink" href="#equation-ho-3-0" title="Permalink to this equation">¶</a></span>\[\omega_{\mathsf{rf}} \Delta t + \varphi_{\mathsf{rf}} = \varphi_s + (\omega_{\mathsf{rf}} \Delta t + \varphi_{\mathsf{rf}} - \varphi_s) \equiv \varphi_s + \varepsilon , \,\,\, \varepsilon \ll 1 ,\]</div>
+<p>we obtain for the sinusoidal term in first order</p>
+<div class="math notranslate nohighlight" id="equation-ho-3-1">
+<span class="eqno">(31)<a class="headerlink" href="#equation-ho-3-1" title="Permalink to this equation">¶</a></span>\[\sin (\omega_{\mathsf{rf}} \Delta t + \varphi_{\mathsf{rf}}) = \sin {\varphi_s} \cos{\varepsilon} + \cos{\varphi_s} \sin{\varepsilon} \approx \sin{\varphi_s} (1 + \mathcal{O}(\varepsilon^2)) +  \cos{\varphi_s} (\varepsilon + \mathcal{O}(\varepsilon^3)) .\]</div>
+<p>Derivating Eq. <a class="reference internal" href="#equation-ho-1">(28)</a> a second time, and using Eq. <a class="reference internal" href="#equation-ho-2">(29)</a></p>
+<div class="math notranslate nohighlight" id="equation-ho-3">
+<span class="eqno">(32)<a class="headerlink" href="#equation-ho-3" title="Permalink to this equation">¶</a></span>\[\Delta \ddot{E} = \frac{V \cos{\varphi_s} \, \omega_{\mathsf{rf}}}{T_0} \Delta \dot{t} = \frac{V \eta_0 \cos{\varphi_s} \, \omega_{\mathsf{rf}} \omega_0 }{2 \pi \beta_s^2 E_s} \Delta E .\]</div>
+<p>Vice versa, derivating <a class="reference internal" href="#equation-ho-2">(29)</a> another time, and substituting
+Eq. <a class="reference internal" href="#equation-ho-1">(28)</a>, an equivalent equation can be found for the arrival time w.r.t.
+to the arrival of the synchronous particle <span class="math notranslate nohighlight">\(\Delta t_s\)</span>:</p>
+<div class="math notranslate nohighlight" id="equation-ho-4">
+<span class="eqno">(33)<a class="headerlink" href="#equation-ho-4" title="Permalink to this equation">¶</a></span>\[\Delta \ddot{t} - \Delta \ddot{t_s} = \frac{V \eta_0 \cos{\varphi_s} \, \omega_{\mathsf{rf}} \omega_0 }{2 \pi \beta_s^2 E_s} (\Delta t - \Delta t_s) .\]</div>
+<p>Equations <a class="reference internal" href="#equation-ho-3">(32)</a> and <a class="reference internal" href="#equation-ho-4">(33)</a> describe an oscillating motion in phase
+space if <span class="math notranslate nohighlight">\(\eta_0 \cos{\varphi_s} &lt; 0\)</span>, which for
+<span class="math notranslate nohighlight">\(\omega_{\mathsf{rf}} = h \omega_0\)</span> has the synchrotron frequency</p>
+<div class="math notranslate nohighlight" id="equation-omega-s">
+<span class="eqno">(34)<a class="headerlink" href="#equation-omega-s" title="Permalink to this equation">¶</a></span>\[\omega_{s,0} = \sqrt{\frac{- h V \eta_0 \cos{\varphi_s}}{2 \pi \beta_s^2 E_s}} \omega_0 .\]</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">that energy and time are conjugate variables, whereas energy and
+phase are not. When forming time derivatives in phase, one should take into
+account the frequency correction from one turn to another:
+<span class="math notranslate nohighlight">\(\dot{\varphi} \approx \varphi^{n+1} - \frac{\omega_{\mathsf{rf}}^{n+1}}{\omega_{\mathsf{rf}}^n} \varphi^n\)</span>.</p>
+</div>
+</div>
+</div>
+<div class="section" id="tracking-utilities">
+<h1>Tracking utilities<a class="headerlink" href="#tracking-utilities" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="hamiltonian">
+<h2>Hamiltonian<a class="headerlink" href="#hamiltonian" title="Permalink to this headline">¶</a></h2>
+<p>To construct the Hamiltonian <span class="math notranslate nohighlight">\(\mathcal{H}\)</span> from the conjugate variables
+<span class="math notranslate nohighlight">\(\Delta t\)</span> and <span class="math notranslate nohighlight">\(\Delta E\)</span>, let us first rewrite the equations of
+motion in continuous time (for a zeroth-order slippage factor):</p>
+<div class="math notranslate nohighlight" id="equation-hamiltonian-1">
+<span class="eqno">(35)<a class="headerlink" href="#equation-hamiltonian-1" title="Permalink to this equation">¶</a></span>\[\dot{\Delta t} = \frac{\Delta t^{n+1} - \Delta t^n}{T_0^{n+1}} = \frac{\eta_0}{\beta_s^2 E_s} \Delta E = \frac{\partial \mathcal{H}}{\partial (\Delta E)} ,\]</div>
+<div class="math notranslate nohighlight" id="equation-hamiltonian-2">
+<span class="eqno">(36)<a class="headerlink" href="#equation-hamiltonian-2" title="Permalink to this equation">¶</a></span>\[\dot{\Delta E} = \frac{\Delta E^{n+1} - \Delta E^n}{T_0^{n+1}} = \sum_{k=0}^{n_{\mathsf{rf}}-1} \frac{q V_k}{T_0} \sin (\omega_{\mathsf{rf}}^k \Delta t + \varphi_{\mathsf{rf}}^k) - \dot{E_s} = - \frac{\partial \mathcal{H}}{\partial (\Delta t)} ,\]</div>
+<p>from which we obtain the Hamiltonian by partial integration:</p>
+<div class="math notranslate nohighlight">
+\[\mathcal{H}(\Delta t, \Delta E) = \int d(\Delta t) \partial_{\Delta t} \mathcal{H}  + \int d(\Delta E) \partial_{\Delta E} \mathcal{H}  = \int d(\Delta E) \dot{\Delta t} - \int d(\Delta t) \dot{\Delta E} ,\]</div>
+<div class="math notranslate nohighlight">
+\[\mathcal{H}(\Delta t, \Delta E) = \frac{\eta_0}{2 \beta_s^2 E_s}(\Delta E)^2 + \sum_{k=0}^{n_{\mathsf{rf}}-1} \frac{q V_k}{T_0 \omega_{\mathsf{rf}}^k} \cos (\omega_{\mathsf{rf}}^k \Delta t + \varphi_{\mathsf{rf}}^k) + \dot{E_s} \Delta t + \mathsf{const} .\]</div>
+<p>The constant of integration can be chosen such that</p>
+<div class="math notranslate nohighlight">
+\[\mathcal{H}(\Delta t = \Delta t_s, \Delta E = 0) = 0 ,\]</div>
+<p>from which the Hamiltonian becomes</p>
+<div class="math notranslate nohighlight">
+\[\mathcal{H}(\Delta t, \Delta E) = \frac{\eta_0}{2 \beta_s^2 E_s}(\Delta E)^2 + \sum_{k=0}^{n_{\mathsf{rf}}-1} \frac{q V_k}{T_0 \omega_{\mathsf{rf}}^k} \left( \cos (\omega_{\mathsf{rf}}^k \Delta t + \varphi_{\mathsf{rf}}^k) - \cos (\omega_{\mathsf{rf}}^k \Delta t_s + \varphi_{\mathsf{rf}}^k) \right) + \dot{E_s} (\Delta t - \Delta t_s) .\]</div>
+<p>In case of a single-harmonic RF system with
+<span class="math notranslate nohighlight">\(\omega_{\mathsf{rf}} = h \omega_0\)</span>, the second term can be replaced
+with <span class="math notranslate nohighlight">\(\dot{E_s} = q V \sin{\varphi_s} / T_0\)</span>, and we obtain the know
+textbook formula</p>
+<div class="math notranslate nohighlight">
+\[\mathcal{H}(\Delta t, \Delta E) = \frac{\eta_0}{2 \beta_s^2 E_s}(\Delta E)^2 + \frac{q V}{2 \pi h} \left( \cos (h \omega_0 \Delta t + \varphi_{\mathsf{rf}}) - \cos (h \omega_0 \Delta t_s + \varphi_{\mathsf{rf}}) + h \omega_0 (\Delta t - \Delta t_s) \sin{\varphi_s} \right) ,\]</div>
+<p>or in terms of particle phase <span class="math notranslate nohighlight">\(\varphi\)</span>,</p>
+<div class="math notranslate nohighlight">
+\[\mathcal{H}(\varphi, \Delta E) = \frac{\eta_0}{2 \beta_s^2 E_s}(\Delta E)^2 + \frac{q V}{2 \pi h} \left( \cos \varphi - \cos \varphi_s + (\varphi - \varphi_s) \sin{\varphi_s} \right) .\]</div>
+</div>
+<div class="section" id="separatrix">
+<h2>Separatrix<a class="headerlink" href="#separatrix" title="Permalink to this headline">¶</a></h2>
+<p>To construct the separatrix, first the unstable fixed point (UFP) needs to be
+determined. Its coordinates <span class="math notranslate nohighlight">\((\Delta t_{\mathsf{ufp}}, \Delta E = 0)\)</span> are
+calculated numerically by looking for the smallest (largest) zero crossing
+position in one period of the total voltage waveform above (below) transition.
+The separatrix is the equipotential line that goes through the UFP and is thus
+defined by the condition</p>
+<div class="math notranslate nohighlight">
+\[\mathcal{H}(\Delta t_{\mathsf{ufp}}, \Delta E = 0) = \mathcal{H}(\Delta t_{\mathsf{sep}}, \Delta E_{\mathsf{sep}}) .\]</div>
+<p>Solving this equation we obtain</p>
+<div class="math notranslate nohighlight">
+\[\Delta E_{\mathsf{sep}} =  \pm \sqrt{ \frac{2 \beta_s^2 E_s}{\eta_0} \left \{ \sum_{k=0}^{n_{\mathsf{rf}}-1} \frac{q V_k}{T_0 \omega_{\mathsf{rf}}^k} \left [ \cos (\omega_{\mathsf{rf}}^k \Delta t_{\mathsf{ufp}} + \varphi_{\mathsf{rf}}^k) - \cos (\omega_{\mathsf{rf}}^k \Delta t_{\mathsf{sep}} + \varphi_{\mathsf{rf}}^k) \right ] + \dot{E_s} (\Delta t_{\mathsf{ufp}} - \Delta t_{\mathsf{sep}}) \right \}} .\]</div>
+<p>In the case of a single-harmonic RF system with
+<span class="math notranslate nohighlight">\(\omega_{\mathsf{rf}} = h \omega_0\)</span>, the phase of the UFP is
+<span class="math notranslate nohighlight">\(\varphi_{\mathsf{ufp}} = \pi - \varphi_s\)</span>. In addition,
+<span class="math notranslate nohighlight">\(\dot{E_s} = q V \sin{\varphi_s} / T_0\)</span>, so the above equation reduces to</p>
+<div class="math notranslate nohighlight">
+\[\Delta E_{\mathsf{sep}} =  \pm \sqrt{ \frac{2 \beta_s^2 E_s q V}{2 \pi h \eta_0} \left \{ \cos (\pi - \varphi_s) - \cos \varphi + (\pi - \varphi_s - \varphi) \sin \varphi_s \right \} }.\]</div>
+<p>In practise, to calculate the separatrix for input arrays
+<span class="math notranslate nohighlight">\(\Delta t_{\mathsf{sep}}\)</span> that are longer than the period of the voltage
+waveform, the routine takes into account periodicity and projects the input
+array onto the ‘basic period’ of the waveform (that is <span class="math notranslate nohighlight">\((-\pi,\pi)\)</span> and
+<span class="math notranslate nohighlight">\((0,2 \pi)\)</span> on the first harmonic, below and above transition,
+respectively).</p>
+</div>
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="beam.html" class="btn btn-neutral float-right" title="beam Package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="../index.html" class="btn btn-neutral" title="Welcome to the BLonD documentation!" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2017.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../',
+            VERSION:'1.1',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="../_static/jquery.js"></script>
+      <script type="text/javascript" src="../_static/underscore.js"></script>
+      <script type="text/javascript" src="../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+  
+
+  
+   
+
+</body>
+</html>

@@ -1,0 +1,407 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>monitors Package &mdash; BLonD 1.1 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="../genindex.html"/>
+        <link rel="search" title="Search" href="../search.html"/>
+    <link rel="top" title="BLonD 1.1 documentation" href="../index.html"/>
+        <link rel="next" title="plots Package" href="plots.html"/>
+        <link rel="prev" title="llrf Package" href="llrf.html"/> 
+
+  
+  <script src="../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> BLonD
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                1.1
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="equations_of_motion.html">Equations of Motion</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#definitions">Definitions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#energy-kick">Energy kick</a></li>
+<li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#arrival-time-drift">Arrival time drift</a></li>
+<li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#the-synchronous-particle">The synchronous particle</a></li>
+<li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#small-amplitude-oscillations">Small-amplitude oscillations</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="equations_of_motion.html#tracking-utilities">Tracking utilities</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#hamiltonian">Hamiltonian</a></li>
+<li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#separatrix">Separatrix</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="beam.html">beam Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="beam.html#module-blond.beam.beam"><code class="docutils literal notranslate"><span class="pre">beam</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="beam.html#module-blond.beam.coasting_beam"><code class="docutils literal notranslate"><span class="pre">coasting_beam</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="beam.html#module-blond.beam.distributions"><code class="docutils literal notranslate"><span class="pre">distributions</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="beam.html#module-blond.beam.distributions_multibunch"><code class="docutils literal notranslate"><span class="pre">distributions_multibunch</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="beam.html#module-blond.beam.profile"><code class="docutils literal notranslate"><span class="pre">profile</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="beam.html#module-blond.beam.sparse_slices"><code class="docutils literal notranslate"><span class="pre">sparse_slices</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="impedances.html">impedances Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="impedances.html#module-blond.impedances.impedance"><code class="docutils literal notranslate"><span class="pre">impedance</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="impedances.html#module-blond.impedances.impedance_sources"><code class="docutils literal notranslate"><span class="pre">impedance_sources</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="impedances.html#module-blond.impedances.induced_voltage_analytical"><code class="docutils literal notranslate"><span class="pre">induced_voltage_analytical</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="impedances.html#module-blond.impedances.music"><code class="docutils literal notranslate"><span class="pre">music</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="input_parameters.html">input_parameters Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="input_parameters.html#module-blond.input_parameters.rf_parameters"><code class="docutils literal notranslate"><span class="pre">rf_parameters</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="input_parameters.html#module-blond.input_parameters.ring"><code class="docutils literal notranslate"><span class="pre">ring</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="input_parameters.html#module-blond.input_parameters.ring_options"><code class="docutils literal notranslate"><span class="pre">ring_options</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="input_parameters.html#module-blond.input_parameters.rf_parameters_options"><code class="docutils literal notranslate"><span class="pre">rf_parameters_options</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="llrf.html">llrf Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="llrf.html#module-blond.llrf.notch_filter"><code class="docutils literal notranslate"><span class="pre">notch_filter</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="llrf.html#llrf-beam-feedback-module">llrf.beam_feedback Module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="llrf.html#machine-dependent-beam-phase-loop">Machine-dependent Beam Phase Loop</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="llrf.html#module-blond.llrf.cavity_feedback"><code class="docutils literal notranslate"><span class="pre">cavity_feedback</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="llrf.html#module-blond.llrf.impulse_response"><code class="docutils literal notranslate"><span class="pre">impulse_response</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="llrf.html#module-blond.llrf.rf_modulation"><code class="docutils literal notranslate"><span class="pre">rf_modulation</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="llrf.html#llrf-rf-noise-module">llrf.rf_noise Module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="llrf.html#rf-phase-noise-generation">RF phase noise generation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="llrf.html#lhc-type-phase-noise-generation">LHC-type phase noise generation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="llrf.html#bunch-length-based-feedback-on-noise-amplitude">Bunch-length based feedback on noise amplitude</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="llrf.html#module-blond.llrf.signal_processing"><code class="docutils literal notranslate"><span class="pre">signal_processing</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">monitors Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#module-blond.monitors.monitors"><code class="docutils literal notranslate"><span class="pre">monitors</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="plots.html">plots Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="plots.html#module-blond.plots.plot"><code class="docutils literal notranslate"><span class="pre">plot</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plots.html#module-blond.plots.plot_beams"><code class="docutils literal notranslate"><span class="pre">plot_beams</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plots.html#module-blond.plots.plot_impedance"><code class="docutils literal notranslate"><span class="pre">plot_impedance</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plots.html#module-blond.plots.plot_llrf"><code class="docutils literal notranslate"><span class="pre">plot_llrf</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plots.html#module-blond.plots.plot_parameters"><code class="docutils literal notranslate"><span class="pre">plot_parameters</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plots.html#module-blond.plots.plot_slices"><code class="docutils literal notranslate"><span class="pre">plot_slices</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="synchrotron_radiation.html">synchrotron_radiation Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="synchrotron_radiation.html#module-blond.synchrotron_radiation.synchrotron_radiation"><code class="docutils literal notranslate"><span class="pre">synchrotron_radiation</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="toolbox.html">toolbox Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.action"><code class="docutils literal notranslate"><span class="pre">action</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.convolution"><code class="docutils literal notranslate"><span class="pre">convolution</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.diffusion"><code class="docutils literal notranslate"><span class="pre">diffusion</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.next_regular"><code class="docutils literal notranslate"><span class="pre">next_regular</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.parameter_scaling"><code class="docutils literal notranslate"><span class="pre">parameter_scaling</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.tomoscope"><code class="docutils literal notranslate"><span class="pre">tomoscope</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="trackers.html">trackers Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="trackers.html#module-blond.trackers.tracker"><code class="docutils literal notranslate"><span class="pre">tracker</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trackers.html#module-blond.trackers.utilities"><code class="docutils literal notranslate"><span class="pre">utilities</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="compile.html">compile Module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="compile.html#id1"><code class="docutils literal notranslate"><span class="pre">compile</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="utils.html">utils Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="utils.html#module-blond.utils.bmath"><code class="docutils literal notranslate"><span class="pre">bmath</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="utils.html#module-blond.utils.bphysics_wrap"><code class="docutils literal notranslate"><span class="pre">bphysics_wrap</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="utils.html#module-blond.utils.butils_wrap"><code class="docutils literal notranslate"><span class="pre">butils_wrap</span></code> Module</a></li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">BLonD</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html">Docs</a> &raquo;</li>
+        
+      <li>monitors Package</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/modules/monitors.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="monitors-package">
+<h1>monitors Package<a class="headerlink" href="#monitors-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="module-blond.monitors.monitors">
+<span id="monitors-module"></span><h2><code class="xref py py-mod docutils literal notranslate"><span class="pre">monitors</span></code> Module<a class="headerlink" href="#module-blond.monitors.monitors" title="Permalink to this headline">¶</a></h2>
+<p><strong>Module to save beam statistics in h5 files</strong></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Authors:</th><td class="field-body"><strong>Danilo Quartullo</strong>, <strong>Helga Timko</strong></td>
+</tr>
+</tbody>
+</table>
+<dl class="class">
+<dt id="blond.monitors.monitors.BunchMonitor">
+<em class="property">class </em><code class="descclassname">blond.monitors.monitors.</code><code class="descname">BunchMonitor</code><span class="sig-paren">(</span><em>Ring</em>, <em>RFParameters</em>, <em>Beam</em>, <em>filename</em>, <em>buffer_time=None</em>, <em>Profile=None</em>, <em>PhaseLoop=None</em>, <em>LHCNoiseFB=None</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.BunchMonitor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Class able to save bunch data into h5 file. Use ‘buffer_time’ to select
+the frequency of saving to file in number of turns.
+If in the constructor a Profile object is passed, that means that one
+wants to save the gaussian-fit bunch length as well (obviously the
+Profile object has to have the fit_option set to ‘gaussian’).</p>
+<dl class="method">
+<dt id="blond.monitors.monitors.BunchMonitor.close">
+<code class="descname">close</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.BunchMonitor.close" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="blond.monitors.monitors.BunchMonitor.init_buffer">
+<code class="descname">init_buffer</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.BunchMonitor.init_buffer" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="blond.monitors.monitors.BunchMonitor.init_data">
+<code class="descname">init_data</code><span class="sig-paren">(</span><em>filename</em>, <em>dims</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.BunchMonitor.init_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="blond.monitors.monitors.BunchMonitor.open">
+<code class="descname">open</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.BunchMonitor.open" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="blond.monitors.monitors.BunchMonitor.track">
+<code class="descname">track</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.BunchMonitor.track" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="blond.monitors.monitors.BunchMonitor.write_buffer">
+<code class="descname">write_buffer</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.BunchMonitor.write_buffer" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="blond.monitors.monitors.BunchMonitor.write_data">
+<code class="descname">write_data</code><span class="sig-paren">(</span><em>h5group</em>, <em>dims</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.BunchMonitor.write_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="blond.monitors.monitors.SlicesMonitor">
+<em class="property">class </em><code class="descclassname">blond.monitors.monitors.</code><code class="descname">SlicesMonitor</code><span class="sig-paren">(</span><em>filename</em>, <em>n_turns</em>, <em>profile</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.SlicesMonitor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Class able to save the bunch profile, i.e. the histogram derived from
+the slicing.</p>
+<dl class="method">
+<dt id="blond.monitors.monitors.SlicesMonitor.close">
+<code class="descname">close</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.SlicesMonitor.close" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="blond.monitors.monitors.SlicesMonitor.create_data">
+<code class="descname">create_data</code><span class="sig-paren">(</span><em>h5group</em>, <em>dims</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.SlicesMonitor.create_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="blond.monitors.monitors.SlicesMonitor.track">
+<code class="descname">track</code><span class="sig-paren">(</span><em>bunch</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.SlicesMonitor.track" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="blond.monitors.monitors.SlicesMonitor.write_data">
+<code class="descname">write_data</code><span class="sig-paren">(</span><em>bunch</em>, <em>h5group</em>, <em>i_turn</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.SlicesMonitor.write_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="plots.html" class="btn btn-neutral float-right" title="plots Package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="llrf.html" class="btn btn-neutral" title="llrf Package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2017.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../',
+            VERSION:'1.1',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="../_static/jquery.js"></script>
+      <script type="text/javascript" src="../_static/underscore.js"></script>
+      <script type="text/javascript" src="../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+  
+
+  
+   
+
+</body>
+</html>

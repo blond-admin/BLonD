@@ -1,0 +1,2017 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>impedances Package &mdash; BLonD 1.1 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="../genindex.html"/>
+        <link rel="search" title="Search" href="../search.html"/>
+    <link rel="top" title="BLonD 1.1 documentation" href="../index.html"/>
+        <link rel="next" title="input_parameters Package" href="input_parameters.html"/>
+        <link rel="prev" title="beam Package" href="beam.html"/> 
+
+  
+  <script src="../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> BLonD
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                1.1
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="equations_of_motion.html">Equations of Motion</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#definitions">Definitions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#energy-kick">Energy kick</a></li>
+<li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#arrival-time-drift">Arrival time drift</a></li>
+<li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#the-synchronous-particle">The synchronous particle</a></li>
+<li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#small-amplitude-oscillations">Small-amplitude oscillations</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="equations_of_motion.html#tracking-utilities">Tracking utilities</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#hamiltonian">Hamiltonian</a></li>
+<li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#separatrix">Separatrix</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="beam.html">beam Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="beam.html#module-blond.beam.beam"><code class="docutils literal notranslate"><span class="pre">beam</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="beam.html#module-blond.beam.coasting_beam"><code class="docutils literal notranslate"><span class="pre">coasting_beam</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="beam.html#module-blond.beam.distributions"><code class="docutils literal notranslate"><span class="pre">distributions</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="beam.html#module-blond.beam.distributions_multibunch"><code class="docutils literal notranslate"><span class="pre">distributions_multibunch</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="beam.html#module-blond.beam.profile"><code class="docutils literal notranslate"><span class="pre">profile</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="beam.html#module-blond.beam.sparse_slices"><code class="docutils literal notranslate"><span class="pre">sparse_slices</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">impedances Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#module-blond.impedances.impedance"><code class="docutils literal notranslate"><span class="pre">impedance</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-blond.impedances.impedance_sources"><code class="docutils literal notranslate"><span class="pre">impedance_sources</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-blond.impedances.induced_voltage_analytical"><code class="docutils literal notranslate"><span class="pre">induced_voltage_analytical</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-blond.impedances.music"><code class="docutils literal notranslate"><span class="pre">music</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="input_parameters.html">input_parameters Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="input_parameters.html#module-blond.input_parameters.rf_parameters"><code class="docutils literal notranslate"><span class="pre">rf_parameters</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="input_parameters.html#module-blond.input_parameters.ring"><code class="docutils literal notranslate"><span class="pre">ring</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="input_parameters.html#module-blond.input_parameters.ring_options"><code class="docutils literal notranslate"><span class="pre">ring_options</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="input_parameters.html#module-blond.input_parameters.rf_parameters_options"><code class="docutils literal notranslate"><span class="pre">rf_parameters_options</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="llrf.html">llrf Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="llrf.html#module-blond.llrf.notch_filter"><code class="docutils literal notranslate"><span class="pre">notch_filter</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="llrf.html#llrf-beam-feedback-module">llrf.beam_feedback Module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="llrf.html#machine-dependent-beam-phase-loop">Machine-dependent Beam Phase Loop</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="llrf.html#module-blond.llrf.cavity_feedback"><code class="docutils literal notranslate"><span class="pre">cavity_feedback</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="llrf.html#module-blond.llrf.impulse_response"><code class="docutils literal notranslate"><span class="pre">impulse_response</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="llrf.html#module-blond.llrf.rf_modulation"><code class="docutils literal notranslate"><span class="pre">rf_modulation</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="llrf.html#llrf-rf-noise-module">llrf.rf_noise Module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="llrf.html#rf-phase-noise-generation">RF phase noise generation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="llrf.html#lhc-type-phase-noise-generation">LHC-type phase noise generation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="llrf.html#bunch-length-based-feedback-on-noise-amplitude">Bunch-length based feedback on noise amplitude</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="llrf.html#module-blond.llrf.signal_processing"><code class="docutils literal notranslate"><span class="pre">signal_processing</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="monitors.html">monitors Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="monitors.html#module-blond.monitors.monitors"><code class="docutils literal notranslate"><span class="pre">monitors</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="plots.html">plots Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="plots.html#module-blond.plots.plot"><code class="docutils literal notranslate"><span class="pre">plot</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plots.html#module-blond.plots.plot_beams"><code class="docutils literal notranslate"><span class="pre">plot_beams</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plots.html#module-blond.plots.plot_impedance"><code class="docutils literal notranslate"><span class="pre">plot_impedance</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plots.html#module-blond.plots.plot_llrf"><code class="docutils literal notranslate"><span class="pre">plot_llrf</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plots.html#module-blond.plots.plot_parameters"><code class="docutils literal notranslate"><span class="pre">plot_parameters</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plots.html#module-blond.plots.plot_slices"><code class="docutils literal notranslate"><span class="pre">plot_slices</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="synchrotron_radiation.html">synchrotron_radiation Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="synchrotron_radiation.html#module-blond.synchrotron_radiation.synchrotron_radiation"><code class="docutils literal notranslate"><span class="pre">synchrotron_radiation</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="toolbox.html">toolbox Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.action"><code class="docutils literal notranslate"><span class="pre">action</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.convolution"><code class="docutils literal notranslate"><span class="pre">convolution</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.diffusion"><code class="docutils literal notranslate"><span class="pre">diffusion</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.next_regular"><code class="docutils literal notranslate"><span class="pre">next_regular</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.parameter_scaling"><code class="docutils literal notranslate"><span class="pre">parameter_scaling</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.tomoscope"><code class="docutils literal notranslate"><span class="pre">tomoscope</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="trackers.html">trackers Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="trackers.html#module-blond.trackers.tracker"><code class="docutils literal notranslate"><span class="pre">tracker</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trackers.html#module-blond.trackers.utilities"><code class="docutils literal notranslate"><span class="pre">utilities</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="compile.html">compile Module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="compile.html#id1"><code class="docutils literal notranslate"><span class="pre">compile</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="utils.html">utils Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="utils.html#module-blond.utils.bmath"><code class="docutils literal notranslate"><span class="pre">bmath</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="utils.html#module-blond.utils.bphysics_wrap"><code class="docutils literal notranslate"><span class="pre">bphysics_wrap</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="utils.html#module-blond.utils.butils_wrap"><code class="docutils literal notranslate"><span class="pre">butils_wrap</span></code> Module</a></li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">BLonD</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html">Docs</a> &raquo;</li>
+        
+      <li>impedances Package</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/modules/impedances.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="impedances-package">
+<h1>impedances Package<a class="headerlink" href="#impedances-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="module-blond.impedances.impedance">
+<span id="impedance-module"></span><h2><code class="xref py py-mod docutils literal notranslate"><span class="pre">impedance</span></code> Module<a class="headerlink" href="#module-blond.impedances.impedance" title="Permalink to this headline">¶</a></h2>
+<p><strong>Module to compute intensity effects</strong></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Authors:</th><td class="field-body"><strong>Juan F. Esteban Mueller</strong>, <strong>Danilo Quartullo</strong>,
+<strong>Alexandre Lasheen</strong>, <strong>Markus Schwarz</strong></td>
+</tr>
+</tbody>
+</table>
+<dl class="class">
+<dt id="blond.impedances.impedance.InducedVoltageFreq">
+<em class="property">class </em><code class="descclassname">blond.impedances.impedance.</code><code class="descname">InducedVoltageFreq</code><span class="sig-paren">(</span><em>Beam</em>, <em>Profile</em>, <em>impedance_source_list</em>, <em>frequency_resolution=None</em>, <em>multi_turn_wake=False</em>, <em>front_wake_length=0</em>, <em>RFParams=None</em>, <em>mtw_mode=None</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageFreq" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">blond.impedances.impedance._InducedVoltage</span></code></p>
+<p>Induced voltage derived from the sum of several impedances</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>Beam</strong> (<em>object</em>) – Beam object</li>
+<li><strong>Profile</strong> (<em>object</em>) – Profile object</li>
+<li><strong>impedance_source_list</strong> (<em>list</em>) – Impedance sources list (e.g. list of Resonator objects)</li>
+<li><strong>frequency_resolution</strong> (<em>float</em><em>, </em><em>optional</em>) – Frequency resolution of the impedance [Hz]</li>
+<li><strong>multi_turn_wake</strong> (<em>boolean</em><em>, </em><em>optional</em>) – Multi-turn wake enable flag</li>
+<li><strong>front_wake_length</strong> (<em>float</em><em>, </em><em>optional</em>) – Lenght [s] of the front wake (if any) for multi-turn wake mode</li>
+<li><strong>RFParams</strong> (<em>object</em><em>, </em><em>optional</em>) – RFStation object for turn counter and revolution period</li>
+<li><strong>mtw_mode</strong> (<em>boolean</em><em>, </em><em>optional</em>) – Multi-turn wake mode can be ‘freq’ or ‘time’ (default)</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="attribute">
+<dt id="blond.impedances.impedance.InducedVoltageFreq.impedance_source_list">
+<code class="descname">impedance_source_list</code><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageFreq.impedance_source_list" title="Permalink to this definition">¶</a></dt>
+<dd><p>Impedance sources list (e.g. list of Resonator objects)</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">list</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.impedance.InducedVoltageFreq.total_impedance">
+<code class="descname">total_impedance</code><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageFreq.total_impedance" title="Permalink to this definition">¶</a></dt>
+<dd><p>Total impedance array of all sources in* <span class="math notranslate nohighlight">\(\Omega\)</span></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float array</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.impedance.InducedVoltageFreq.front_wake_length">
+<code class="descname">front_wake_length</code><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageFreq.front_wake_length" title="Permalink to this definition">¶</a></dt>
+<dd><p>Lenght [s] of the front wake (if any) for multi-turn wake mode</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="blond.impedances.impedance.InducedVoltageFreq.process">
+<code class="descname">process</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageFreq.process" title="Permalink to this definition">¶</a></dt>
+<dd><p>Reprocess the impedance contributions. To be run when profile change</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="blond.impedances.impedance.InducedVoltageFreq.sum_impedances">
+<code class="descname">sum_impedances</code><span class="sig-paren">(</span><em>freq</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageFreq.sum_impedances" title="Permalink to this definition">¶</a></dt>
+<dd><p>Summing all the wake contributions in one total impedance.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="blond.impedances.impedance.InducedVoltageResonator">
+<em class="property">class </em><code class="descclassname">blond.impedances.impedance.</code><code class="descname">InducedVoltageResonator</code><span class="sig-paren">(</span><em>Beam</em>, <em>Profile</em>, <em>Resonators</em>, <em>timeArray=None</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageResonator" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">blond.impedances.impedance._InducedVoltage</span></code></p>
+<p><em>Calculates the induced voltage of several resonators for arbitrary
+line density. It does so by linearily interpolating the line density and
+solving the convolution integral with the resonator impedance analytically.
+The line density need NOT be sampled at equidistant points. The times where
+the induced voltage is calculated need to be the same where the line
+density is sampled. If no timeArray is passed, the induced voltage is
+evaluated at the points of the line density. This is nececassry of
+compatability with other functions that calculate the induced voltage.
+Currently, it requires the all quality factors :math:`Q&gt;0.5`
+Currently, only works for single turn.</em></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>Beam</strong> (<em>object</em>) – Beam object</li>
+<li><strong>Profile</strong> (<em>object</em>) – Profile object</li>
+<li><strong>Resonators</strong> (<em>object</em>) – Resonators object</li>
+<li><strong>timeArray</strong> (<em>float array</em><em>, </em><em>optional</em>) – Array of time values where the induced voltage is calculated.
+If left out, the induced voltage is calculated at the times of the line
+density.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="attribute">
+<dt id="blond.impedances.impedance.InducedVoltageResonator.beam">
+<code class="descname">beam</code><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageResonator.beam" title="Permalink to this definition">¶</a></dt>
+<dd><p>Copy of the Beam object in order to access the beam info.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">object</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.impedance.InducedVoltageResonator.profile">
+<code class="descname">profile</code><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageResonator.profile" title="Permalink to this definition">¶</a></dt>
+<dd><p>Copy of the Profile object in order to access the line density.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">object</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.impedance.InducedVoltageResonator.tArray">
+<code class="descname">tArray</code><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageResonator.tArray" title="Permalink to this definition">¶</a></dt>
+<dd><p>array of time values where the induced voltage is calculated.
+If left out, the induced voltage is calculated at the times of the
+line density</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float array</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.impedance.InducedVoltageResonator.atLineDensityTimes">
+<code class="descname">atLineDensityTimes</code><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageResonator.atLineDensityTimes" title="Permalink to this definition">¶</a></dt>
+<dd><p>flag indicating if the induced voltage has to be computed for timeArray
+or for the line density</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">boolean</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.impedance.InducedVoltageResonator.n_time">
+<code class="descname">n_time</code><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageResonator.n_time" title="Permalink to this definition">¶</a></dt>
+<dd><p>length of tArray</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">int</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt>
+<code class="descname">R, omega_r, Q</code></dt>
+<dd><p>Resonators parameters</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">lists of float</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.impedance.InducedVoltageResonator.n_resonators">
+<code class="descname">n_resonators</code><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageResonator.n_resonators" title="Permalink to this definition">¶</a></dt>
+<dd><p>Number of resonators</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">int</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.impedance.InducedVoltageResonator.induced_voltage">
+<code class="descname">induced_voltage</code><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageResonator.induced_voltage" title="Permalink to this definition">¶</a></dt>
+<dd><p>Computed induced voltage [V]</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float array</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="blond.impedances.impedance.InducedVoltageResonator.Heaviside">
+<code class="descname">Heaviside</code><span class="sig-paren">(</span><em>x</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageResonator.Heaviside" title="Permalink to this definition">¶</a></dt>
+<dd><p>Heaviside function, which returns 1 if x&gt;1, 0 if x&lt;0, and 1/2 if x=0</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="blond.impedances.impedance.InducedVoltageResonator.induced_voltage_1turn">
+<code class="descname">induced_voltage_1turn</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageResonator.induced_voltage_1turn" title="Permalink to this definition">¶</a></dt>
+<dd><p>Method to calculate the induced voltage through linearily
+interpolating the line density and applying the analytic equation
+to the result.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="blond.impedances.impedance.InducedVoltageResonator.process">
+<code class="descname">process</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageResonator.process" title="Permalink to this definition">¶</a></dt>
+<dd><p>Reprocess the impedance contributions. To be run when slicing changes</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="blond.impedances.impedance.InducedVoltageTime">
+<em class="property">class </em><code class="descclassname">blond.impedances.impedance.</code><code class="descname">InducedVoltageTime</code><span class="sig-paren">(</span><em>Beam</em>, <em>Profile</em>, <em>wake_source_list</em>, <em>wake_length=None</em>, <em>multi_turn_wake=False</em>, <em>RFParams=None</em>, <em>mtw_mode=None</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageTime" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">blond.impedances.impedance._InducedVoltage</span></code></p>
+<p>Induced voltage derived from the sum of several wake fields (time domain)</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>Beam</strong> (<em>object</em>) – Beam object</li>
+<li><strong>Profile</strong> (<em>object</em>) – Profile object</li>
+<li><strong>wake_source_list</strong> (<em>list</em>) – Wake sources list (e.g. list of Resonator objects)</li>
+<li><strong>wake_length</strong> (<em>float</em><em>, </em><em>optional</em>) – Wake length [s]</li>
+<li><strong>multi_turn_wake</strong> (<em>boolean</em><em>, </em><em>optional</em>) – Multi-turn wake enable flag</li>
+<li><strong>RFParams</strong> (<em>object</em><em>, </em><em>optional</em>) – RFStation object for turn counter and revolution period</li>
+<li><strong>mtw_mode</strong> (<em>boolean</em><em>, </em><em>optional</em>) – Multi-turn wake mode can be ‘freq’ or ‘time’ (default)</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="attribute">
+<dt id="blond.impedances.impedance.InducedVoltageTime.wake_source_list">
+<code class="descname">wake_source_list</code><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageTime.wake_source_list" title="Permalink to this definition">¶</a></dt>
+<dd><p>Wake sources list (e.g. list of Resonator objects)</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">list</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.impedance.InducedVoltageTime.total_wake">
+<code class="descname">total_wake</code><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageTime.total_wake" title="Permalink to this definition">¶</a></dt>
+<dd><p>Total wake array of all sources in <span class="math notranslate nohighlight">\(\Omega / s\)</span></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float array</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="blond.impedances.impedance.InducedVoltageTime.process">
+<code class="descname">process</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageTime.process" title="Permalink to this definition">¶</a></dt>
+<dd><p>Reprocess the impedance contributions. To be run when profile changes</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="blond.impedances.impedance.InducedVoltageTime.sum_wakes">
+<code class="descname">sum_wakes</code><span class="sig-paren">(</span><em>time_array</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageTime.sum_wakes" title="Permalink to this definition">¶</a></dt>
+<dd><p>Summing all the wake contributions in one total wake.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="blond.impedances.impedance.InductiveImpedance">
+<em class="property">class </em><code class="descclassname">blond.impedances.impedance.</code><code class="descname">InductiveImpedance</code><span class="sig-paren">(</span><em>Beam</em>, <em>Profile</em>, <em>Z_over_n</em>, <em>RFParams</em>, <em>deriv_mode='gradient'</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.InductiveImpedance" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">blond.impedances.impedance._InducedVoltage</span></code></p>
+<p>Constant imaginary Z/n impedance</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>Beam</strong> (<em>object</em>) – Beam object</li>
+<li><strong>Profile</strong> (<em>object</em>) – Profile object</li>
+<li><strong>Z_over_n</strong> (<em>float array</em>) – Constant imaginary Z/n program in* <span class="math notranslate nohighlight">\(\Omega\)</span>.</li>
+<li><strong>RFParams</strong> (<em>object</em>) – RFStation object for turn counter and revolution period</li>
+<li><strong>deriv_mode</strong> (<em>string</em><em>, </em><em>optional</em>) – Derivation method to compute induced voltage</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="attribute">
+<dt id="blond.impedances.impedance.InductiveImpedance.Z_over_n">
+<code class="descname">Z_over_n</code><a class="headerlink" href="#blond.impedances.impedance.InductiveImpedance.Z_over_n" title="Permalink to this definition">¶</a></dt>
+<dd><p>Constant imaginary Z/n program in* <span class="math notranslate nohighlight">\(\Omega\)</span>.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float array</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.impedance.InductiveImpedance.deriv_mode">
+<code class="descname">deriv_mode</code><a class="headerlink" href="#blond.impedances.impedance.InductiveImpedance.deriv_mode" title="Permalink to this definition">¶</a></dt>
+<dd><p>Derivation method to compute induced voltage</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">string, optional</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="blond.impedances.impedance.InductiveImpedance.induced_voltage_1turn">
+<code class="descname">induced_voltage_1turn</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.InductiveImpedance.induced_voltage_1turn" title="Permalink to this definition">¶</a></dt>
+<dd><p>Method to calculate the induced voltage through the derivative of the
+profile. The impedance must be a constant Z/n.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="blond.impedances.impedance.TotalInducedVoltage">
+<em class="property">class </em><code class="descclassname">blond.impedances.impedance.</code><code class="descname">TotalInducedVoltage</code><span class="sig-paren">(</span><em>Beam</em>, <em>Profiles</em>, <em>induced_voltage_list</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.TotalInducedVoltage" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Object gathering all the induced voltage contributions. The input is a
+list of objects able to compute induced voltages (InducedVoltageTime,
+InducedVoltageFreq, InductiveImpedance). All the induced voltages will
+be summed in order to reduce the computing time. All the induced
+voltages should have the same slicing resolution.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>Beam</strong> (<em>object</em>) – Beam object</li>
+<li><strong>Profiles</strong> (<em>object</em>) – Profiles object</li>
+<li><strong>induced_voltage_list</strong> (<em>object list</em>) – List of objects for which induced voltages have to be calculated</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="attribute">
+<dt id="blond.impedances.impedance.TotalInducedVoltage.beam">
+<code class="descname">beam</code><a class="headerlink" href="#blond.impedances.impedance.TotalInducedVoltage.beam" title="Permalink to this definition">¶</a></dt>
+<dd><p>Copy of the Beam object in order to access the beam info</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">object</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.impedance.TotalInducedVoltage.profile">
+<code class="descname">profile</code><a class="headerlink" href="#blond.impedances.impedance.TotalInducedVoltage.profile" title="Permalink to this definition">¶</a></dt>
+<dd><p>Copy of the Profiles object in order to access the profile info</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">object</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.impedance.TotalInducedVoltage.induced_voltage_list">
+<code class="descname">induced_voltage_list</code><a class="headerlink" href="#blond.impedances.impedance.TotalInducedVoltage.induced_voltage_list" title="Permalink to this definition">¶</a></dt>
+<dd><p>List of objects for which induced voltages have to be calculated</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">object list</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.impedance.TotalInducedVoltage.induced_voltage">
+<code class="descname">induced_voltage</code><a class="headerlink" href="#blond.impedances.impedance.TotalInducedVoltage.induced_voltage" title="Permalink to this definition">¶</a></dt>
+<dd><p>Array to store the computed induced voltage [V]</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float array</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.impedance.TotalInducedVoltage.time_array">
+<code class="descname">time_array</code><a class="headerlink" href="#blond.impedances.impedance.TotalInducedVoltage.time_array" title="Permalink to this definition">¶</a></dt>
+<dd><p>Time array corresponding to induced_voltage [s]</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float array</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="blond.impedances.impedance.TotalInducedVoltage.induced_voltage_sum">
+<code class="descname">induced_voltage_sum</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.TotalInducedVoltage.induced_voltage_sum" title="Permalink to this definition">¶</a></dt>
+<dd><p>Method to sum all the induced voltages in one single array.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="blond.impedances.impedance.TotalInducedVoltage.reprocess">
+<code class="descname">reprocess</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.TotalInducedVoltage.reprocess" title="Permalink to this definition">¶</a></dt>
+<dd><p>Reprocess the impedance contributions. To be run when profile changes</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="blond.impedances.impedance.TotalInducedVoltage.track">
+<code class="descname">track</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.TotalInducedVoltage.track" title="Permalink to this definition">¶</a></dt>
+<dd><p>Track method to apply the induced voltage kick on the beam.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="blond.impedances.impedance.TotalInducedVoltage.track_ghosts_particles">
+<code class="descname">track_ghosts_particles</code><span class="sig-paren">(</span><em>ghostBeam</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.TotalInducedVoltage.track_ghosts_particles" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-blond.impedances.impedance_sources">
+<span id="impedance-sources-module"></span><h2><code class="xref py py-mod docutils literal notranslate"><span class="pre">impedance_sources</span></code> Module<a class="headerlink" href="#module-blond.impedances.impedance_sources" title="Permalink to this headline">¶</a></h2>
+<p><strong>Module to describe classes for the calculation of wakes and impedances to
+be used either alone or by InducedVoltage objects described in impedance.py.
+The module consists of a parent class called _ImpedanceObject and several child
+classes, as for example InputTable, Resonators and TravelingWaveCavity.</strong></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Authors:</th><td class="field-body"><strong>Danilo Quartullo</strong>, <strong>Alexandre Lasheen</strong>,</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Juan F. Esteban Mueller</strong></p>
+<dl class="class">
+<dt id="blond.impedances.impedance_sources.InputTable">
+<em class="property">class </em><code class="descclassname">blond.impedances.impedance_sources.</code><code class="descname">InputTable</code><span class="sig-paren">(</span><em>input_1</em>, <em>input_2</em>, <em>input_3=None</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance_sources.InputTable" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">blond.impedances.impedance_sources._ImpedanceObject</span></code></p>
+<p>Intensity effects from impedance and wake tables.
+If the constructor takes just two arguments, then a wake table is passed;
+if it takes three arguments, then an impedance table is passed. Be careful
+that if you input a wake, the input wake for W(t=0) should be already
+divided by two (beam loading theorem) ; and that if you input impedance,
+only the positive  frequencies of the impedance is needed (the impedance
+will be assumed to be Hermitian (Real part symmetric and Imaginary part
+antisymmetric).Note that we add the point (f, Z(f)) = (0, 0) to the
+frequency and impedance arrays derived from the table.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>input_1</strong> (<em>float array</em>) – Time array of the wake in s or frequency array of the impedance in Hz</li>
+<li><strong>input_2</strong> (<em>float array</em>) – Wake array in <span class="math notranslate nohighlight">\(\Omega / s\)</span> or real part of impedance
+in <span class="math notranslate nohighlight">\(\Omega\)</span></li>
+<li><strong>input_3</strong> (<em>float array</em>) – Imaginary part of impedance in <span class="math notranslate nohighlight">\(\Omega\)</span></li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="attribute">
+<dt id="blond.impedances.impedance_sources.InputTable.time_array">
+<code class="descname">time_array</code><a class="headerlink" href="#blond.impedances.impedance_sources.InputTable.time_array" title="Permalink to this definition">¶</a></dt>
+<dd><p>Input time array of the wake in s</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float array</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.impedance_sources.InputTable.wake_array">
+<code class="descname">wake_array</code><a class="headerlink" href="#blond.impedances.impedance_sources.InputTable.wake_array" title="Permalink to this definition">¶</a></dt>
+<dd><p>Input wake array in <span class="math notranslate nohighlight">\(\Omega / s\)</span></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float array</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.impedance_sources.InputTable.frequency_array_loaded">
+<code class="descname">frequency_array_loaded</code><a class="headerlink" href="#blond.impedances.impedance_sources.InputTable.frequency_array_loaded" title="Permalink to this definition">¶</a></dt>
+<dd><p>Input frequency array of the impedance in Hz</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float array</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.impedance_sources.InputTable.Re_Z_array_loaded">
+<code class="descname">Re_Z_array_loaded</code><a class="headerlink" href="#blond.impedances.impedance_sources.InputTable.Re_Z_array_loaded" title="Permalink to this definition">¶</a></dt>
+<dd><p>Input real part of impedance in <span class="math notranslate nohighlight">\(\Omega\)</span></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float array</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.impedance_sources.InputTable.Im_Z_array_loaded">
+<code class="descname">Im_Z_array_loaded</code><a class="headerlink" href="#blond.impedances.impedance_sources.InputTable.Im_Z_array_loaded" title="Permalink to this definition">¶</a></dt>
+<dd><p>Input imaginary part of impedance in <span class="math notranslate nohighlight">\(\Omega\)</span></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float array</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.impedance_sources.InputTable.impedance_loaded">
+<code class="descname">impedance_loaded</code><a class="headerlink" href="#blond.impedances.impedance_sources.InputTable.impedance_loaded" title="Permalink to this definition">¶</a></dt>
+<dd><p>Input impedance array in <span class="math notranslate nohighlight">\(\Omega + j \Omega\)</span></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">complex array</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<p class="rubric">Examples</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1">##### WAKEFIELD TABLE</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">time</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">1.1</span><span class="p">,</span><span class="mf">2.2</span><span class="p">,</span><span class="mf">3.3</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">wake</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">4.4</span><span class="p">,</span><span class="mf">5.5</span><span class="p">,</span><span class="mf">6.6</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">table</span> <span class="o">=</span> <span class="n">InputTable</span><span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="n">wake</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">new_time_array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">7.7</span><span class="p">,</span><span class="mf">8.8</span><span class="p">,</span><span class="mf">9.9</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">table</span><span class="o">.</span><span class="n">wake_calc</span><span class="p">(</span><span class="n">new_time_array</span><span class="p">)</span>
+<span class="go">&gt;&gt;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1">##### IMPEDANCE TABLE</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">frequency</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">1.1</span><span class="p">,</span><span class="mf">2.2</span><span class="p">,</span><span class="mf">3.3</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">real_part</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">4.4</span><span class="p">,</span><span class="mf">5.5</span><span class="p">,</span><span class="mf">6.6</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">imaginary_part</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">7.7</span><span class="p">,</span><span class="mf">8.8</span><span class="p">,</span><span class="mf">9.9</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">table2</span> <span class="o">=</span> <span class="n">InputTable</span><span class="p">(</span><span class="n">frequency</span><span class="p">,</span> <span class="n">real_part</span><span class="p">,</span> <span class="n">imaginary_part</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">new_freq_array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">7.7</span><span class="p">,</span><span class="mf">8.8</span><span class="p">,</span><span class="mf">9.9</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">table2</span><span class="o">.</span><span class="n">imped_calc</span><span class="p">(</span><span class="n">new_freq_array</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="method">
+<dt id="blond.impedances.impedance_sources.InputTable.imped_calc">
+<code class="descname">imped_calc</code><span class="sig-paren">(</span><em>new_frequency_array</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance_sources.InputTable.imped_calc" title="Permalink to this definition">¶</a></dt>
+<dd><p>The impedance from the table is interpolated using the new frequency
+array.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>new_frequency_array</strong> (<em>float array</em>) – frequency array in <span class="math notranslate nohighlight">\(\Omega\)</span></td>
+</tr>
+</tbody>
+</table>
+<dl class="attribute">
+<dt id="blond.impedances.impedance_sources.InputTable.frequency_array">
+<code class="descname">frequency_array</code><a class="headerlink" href="#blond.impedances.impedance_sources.InputTable.frequency_array" title="Permalink to this definition">¶</a></dt>
+<dd><p>frequency array in <span class="math notranslate nohighlight">\(\Omega\)</span></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float array</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.impedance_sources.InputTable.Re_Z_array">
+<code class="descname">Re_Z_array</code><a class="headerlink" href="#blond.impedances.impedance_sources.InputTable.Re_Z_array" title="Permalink to this definition">¶</a></dt>
+<dd><p>Real part of the interpolated impedance in <span class="math notranslate nohighlight">\(\Omega\)</span></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float array</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.impedance_sources.InputTable.Im_Z_array">
+<code class="descname">Im_Z_array</code><a class="headerlink" href="#blond.impedances.impedance_sources.InputTable.Im_Z_array" title="Permalink to this definition">¶</a></dt>
+<dd><p>Imaginary part of the interpolated impedance in <span class="math notranslate nohighlight">\(\Omega\)</span></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float array</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.impedance_sources.InputTable.impedance">
+<code class="descname">impedance</code><a class="headerlink" href="#blond.impedances.impedance_sources.InputTable.impedance" title="Permalink to this definition">¶</a></dt>
+<dd><p>Output interpolated impedance array in <span class="math notranslate nohighlight">\(\Omega + j \Omega\)</span></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">complex array</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="method">
+<dt id="blond.impedances.impedance_sources.InputTable.wake_calc">
+<code class="descname">wake_calc</code><span class="sig-paren">(</span><em>new_time_array</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance_sources.InputTable.wake_calc" title="Permalink to this definition">¶</a></dt>
+<dd><p>The wake from the table is interpolated using the new time array.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>new_time_array</strong> (<em>float array</em>) – Input time array in s</td>
+</tr>
+</tbody>
+</table>
+<dl class="attribute">
+<dt id="blond.impedances.impedance_sources.InputTable.new_time_array">
+<code class="descname">new_time_array</code><a class="headerlink" href="#blond.impedances.impedance_sources.InputTable.new_time_array" title="Permalink to this definition">¶</a></dt>
+<dd><p>Input time array in s</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float array</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.impedance_sources.InputTable.wake">
+<code class="descname">wake</code><a class="headerlink" href="#blond.impedances.impedance_sources.InputTable.wake" title="Permalink to this definition">¶</a></dt>
+<dd><p>Output interpolated wake in <span class="math notranslate nohighlight">\(\Omega / s\)</span></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float array</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="blond.impedances.impedance_sources.ResistiveWall">
+<em class="property">class </em><code class="descclassname">blond.impedances.impedance_sources.</code><code class="descname">ResistiveWall</code><span class="sig-paren">(</span><em>pipe_radius</em>, <em>pipe_length</em>, <em>resistivity=None</em>, <em>conductivity=None</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance_sources.ResistiveWall" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">blond.impedances.impedance_sources._ImpedanceObject</span></code></p>
+<p>Impedance contribution from resistive wall for a cilindrical beam pipe</p>
+<p>The model is the following:</p>
+<div class="math notranslate nohighlight">
+\[Z(f) = \frac{Z_0 c L}{ \pi } \frac{ 1 }{ \left[1 - i \sign{f}\right] 2  b  c \sqrt{ \frac{\sigma_c Z_0 c }{ 4 \pi |f| } + i 2 \pi b^2 f }\]</div>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>pipe_radius</strong> (<em>float</em>) – Beam pipe radius in m</li>
+<li><strong>pipe_length</strong> (<em>float</em>) – Beam pipe length in m</li>
+<li><strong>resistivity</strong> (<em>float</em>) – Beam pipe resistivity in <span class="math notranslate nohighlight">\(m / s\)</span></li>
+<li><strong>conductivity</strong> (<em>float</em>) – Beam pipe conductivity in <span class="math notranslate nohighlight">\(s / m\)</span></li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="attribute">
+<dt id="blond.impedances.impedance_sources.ResistiveWall.pipe_radius">
+<code class="descname">pipe_radius</code><a class="headerlink" href="#blond.impedances.impedance_sources.ResistiveWall.pipe_radius" title="Permalink to this definition">¶</a></dt>
+<dd><p>Beam pipe radius in m</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.impedance_sources.ResistiveWall.pipe_length">
+<code class="descname">pipe_length</code><a class="headerlink" href="#blond.impedances.impedance_sources.ResistiveWall.pipe_length" title="Permalink to this definition">¶</a></dt>
+<dd><p>Beam pipe length in m</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.impedance_sources.ResistiveWall.conductivity">
+<code class="descname">conductivity</code><a class="headerlink" href="#blond.impedances.impedance_sources.ResistiveWall.conductivity" title="Permalink to this definition">¶</a></dt>
+<dd><p>Beam pipe conductivity in <span class="math notranslate nohighlight">\(s / m\)</span></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.impedance_sources.ResistiveWall.Z0">
+<code class="descname">Z0</code><a class="headerlink" href="#blond.impedances.impedance_sources.ResistiveWall.Z0" title="Permalink to this definition">¶</a></dt>
+<dd><p>Characteristic impedance of vacuum in* <span class="math notranslate nohighlight">\(\Omega\)</span></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<p class="rubric">Examples</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">pipe_radius</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pipe_length</span> <span class="o">=</span> <span class="mi">2</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">resistivity</span> <span class="o">=</span> <span class="mi">3</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">rw</span> <span class="o">=</span> <span class="n">ResistiveWall</span><span class="p">(</span><span class="n">pipe_radius</span><span class="p">,</span> <span class="n">pipe_length</span><span class="p">,</span> <span class="n">resistivity</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">frequency</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">rw</span><span class="o">.</span><span class="n">imped_calc</span><span class="p">(</span><span class="n">frequency</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="attribute">
+<dt>
+<code class="descname">conductivity</code></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="blond.impedances.impedance_sources.ResistiveWall.imped_calc">
+<code class="descname">imped_calc</code><span class="sig-paren">(</span><em>frequency_array</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance_sources.ResistiveWall.imped_calc" title="Permalink to this definition">¶</a></dt>
+<dd><p>Impedance calculation method as a function of frequency.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>frequency_array</strong> (<em>float array</em>) – Input frequency array in Hz</td>
+</tr>
+</tbody>
+</table>
+<dl class="attribute">
+<dt id="blond.impedances.impedance_sources.ResistiveWall.frequency_array">
+<code class="descname">frequency_array</code><a class="headerlink" href="#blond.impedances.impedance_sources.ResistiveWall.frequency_array" title="Permalink to this definition">¶</a></dt>
+<dd><p>Input frequency array in Hz</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float array</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.impedance_sources.ResistiveWall.impedance">
+<code class="descname">impedance</code><a class="headerlink" href="#blond.impedances.impedance_sources.ResistiveWall.impedance" title="Permalink to this definition">¶</a></dt>
+<dd><p>Output impedance in <span class="math notranslate nohighlight">\(\Omega + j \Omega\)</span></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">complex array</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.impedance_sources.ResistiveWall.resistivity">
+<code class="descname">resistivity</code><a class="headerlink" href="#blond.impedances.impedance_sources.ResistiveWall.resistivity" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="blond.impedances.impedance_sources.Resonators">
+<em class="property">class </em><code class="descclassname">blond.impedances.impedance_sources.</code><code class="descname">Resonators</code><span class="sig-paren">(</span><em>R_S</em>, <em>frequency_R</em>, <em>Q</em>, <em>method='c++'</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance_sources.Resonators" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">blond.impedances.impedance_sources._ImpedanceObject</span></code></p>
+<p>Impedance contribution from resonators, analytic formulas for both wake
+and impedance. The resonant modes (and the corresponding R and Q)
+can be inputed as a list in case of several modes.
+The model is the following:</p>
+<div class="math notranslate nohighlight">
+\[Z(f) = \frac{R}{1 + j Q \left(\frac{f}{f_r}-\frac{f_r}{f}\right)}\]</div>
+<div class="math notranslate nohighlight">
+\[ \begin{align}\begin{aligned}W(t&gt;0) = 2\alpha R e^{-\alpha t}\left(\cos{\bar{\omega}t} - \frac{\alpha}{\bar{\omega}}\sin{\bar{\omega}t}\right)\\W(0) = \alpha R\end{aligned}\end{align} \]</div>
+<div class="math notranslate nohighlight">
+\[ \begin{align}\begin{aligned}\omega_r = 2 \pi f_r\\\alpha = \frac{\omega_r}{2Q}\\\bar{\omega} = \sqrt{\omega_r^2 - \alpha^2}\end{aligned}\end{align} \]</div>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>R_S</strong> (<em>float list</em>) – Shunt impepdance in <span class="math notranslate nohighlight">\(\Omega\)</span></li>
+<li><strong>frequency_R</strong> (<em>float list</em>) – Resonant frequency in Hz</li>
+<li><strong>Q</strong> (<em>float list</em>) – Quality factor</li>
+<li><strong>method</strong> (<em>string</em>) – It defines which algorithm to use to calculate the impedance (C++ or
+Python)</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="attribute">
+<dt id="blond.impedances.impedance_sources.Resonators.R_S">
+<code class="descname">R_S</code><a class="headerlink" href="#blond.impedances.impedance_sources.Resonators.R_S" title="Permalink to this definition">¶</a></dt>
+<dd><p>Shunt impepdance in <span class="math notranslate nohighlight">\(\Omega\)</span></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float array</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.impedance_sources.Resonators.frequency_R">
+<code class="descname">frequency_R</code><a class="headerlink" href="#blond.impedances.impedance_sources.Resonators.frequency_R" title="Permalink to this definition">¶</a></dt>
+<dd><p>Resonant frequency in Hz</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float array</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.impedance_sources.Resonators.Q">
+<code class="descname">Q</code><a class="headerlink" href="#blond.impedances.impedance_sources.Resonators.Q" title="Permalink to this definition">¶</a></dt>
+<dd><p>Quality factor</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float array</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.impedance_sources.Resonators.n_resonators">
+<code class="descname">n_resonators</code><a class="headerlink" href="#blond.impedances.impedance_sources.Resonators.n_resonators" title="Permalink to this definition">¶</a></dt>
+<dd><p>number of resonators</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">int</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<p class="rubric">Examples</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">R_S</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">frequency_R</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">Q</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">resonators</span> <span class="o">=</span> <span class="n">Resonators</span><span class="p">(</span><span class="n">R_S</span><span class="p">,</span> <span class="n">frequency_R</span><span class="p">,</span> <span class="n">Q</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">time</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">resonators</span><span class="o">.</span><span class="n">wake_calc</span><span class="p">(</span><span class="n">time</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">frequency</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">resonators</span><span class="o">.</span><span class="n">imped_calc</span><span class="p">(</span><span class="n">frequency</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="attribute">
+<dt>
+<code class="descname">frequency_R</code></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.impedance_sources.Resonators.omega_R">
+<code class="descname">omega_R</code><a class="headerlink" href="#blond.impedances.impedance_sources.Resonators.omega_R" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="blond.impedances.impedance_sources.Resonators.wake_calc">
+<code class="descname">wake_calc</code><span class="sig-paren">(</span><em>time_array</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance_sources.Resonators.wake_calc" title="Permalink to this definition">¶</a></dt>
+<dd><p>Wake calculation method as a function of time.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>time_array</strong> (<em>float array</em>) – Input time array in s</td>
+</tr>
+</tbody>
+</table>
+<dl class="attribute">
+<dt id="blond.impedances.impedance_sources.Resonators.time_array">
+<code class="descname">time_array</code><a class="headerlink" href="#blond.impedances.impedance_sources.Resonators.time_array" title="Permalink to this definition">¶</a></dt>
+<dd><p>Input time array in s</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float array</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.impedance_sources.Resonators.wake">
+<code class="descname">wake</code><a class="headerlink" href="#blond.impedances.impedance_sources.Resonators.wake" title="Permalink to this definition">¶</a></dt>
+<dd><p>Output wake in <span class="math notranslate nohighlight">\(\Omega / s\)</span></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float array</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="blond.impedances.impedance_sources.TravelingWaveCavity">
+<em class="property">class </em><code class="descclassname">blond.impedances.impedance_sources.</code><code class="descname">TravelingWaveCavity</code><span class="sig-paren">(</span><em>R_S</em>, <em>frequency_R</em>, <em>a_factor</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance_sources.TravelingWaveCavity" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">blond.impedances.impedance_sources._ImpedanceObject</span></code></p>
+<p>Impedance contribution from travelling wave cavities, analytic formulas for
+both wake and impedance. The resonance modes (and the corresponding R and a)
+can be inputed as a list in case of several modes.</p>
+<p>The model is the following:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}Z &amp;= Z_+ + Z_- \\
+Z_-(f) &amp;= R \left[\left(\frac{\sin{\frac{a(f-f_r)}{2}}}{\frac{a(f-f_r)}{2}}\right)^2 - 2i \frac{a(f-f_r) - \sin{a(f-f_r)}}{\left(a(f-f_r)\right)^2}\right] \\
+Z_+(f) &amp;= R \left[\left(\frac{\sin{\frac{a(f+f_r)}{2}}}{\frac{a(f+f_r)}{2}}\right)^2 - 2i \frac{a(f+f_r) - \sin{a(f+f_r)}}{\left(a(f+f_r)\right)^2}\right]\end{split}\]</div>
+<div class="math notranslate nohighlight">
+\[\begin{split}W(0&lt;t&lt;\tilde{a}) &amp;= \frac{4R}{\tilde{a}}\left(1-\frac{t}{\tilde{a}}\right)\cos{\omega_r t} \\
+W(0) &amp;= \frac{2R}{\tilde{a}}\end{split}\]</div>
+<div class="math notranslate nohighlight">
+\[a = 2 \pi \tilde{a}\]</div>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>R_S</strong> (<em>float list</em>) – Shunt impepdance in <span class="math notranslate nohighlight">\(\Omega\)</span></li>
+<li><strong>frequency_R</strong> (<em>float list</em>) – Resonant frequency in Hz</li>
+<li><strong>a_factor</strong> (<em>float list</em>) – Damping time a in s</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="attribute">
+<dt id="blond.impedances.impedance_sources.TravelingWaveCavity.R_S">
+<code class="descname">R_S</code><a class="headerlink" href="#blond.impedances.impedance_sources.TravelingWaveCavity.R_S" title="Permalink to this definition">¶</a></dt>
+<dd><p>Shunt impepdance in <span class="math notranslate nohighlight">\(\Omega\)</span></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float array</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.impedance_sources.TravelingWaveCavity.frequency_R">
+<code class="descname">frequency_R</code><a class="headerlink" href="#blond.impedances.impedance_sources.TravelingWaveCavity.frequency_R" title="Permalink to this definition">¶</a></dt>
+<dd><p>Resonant frequency in Hz</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float array</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.impedance_sources.TravelingWaveCavity.a_factor">
+<code class="descname">a_factor</code><a class="headerlink" href="#blond.impedances.impedance_sources.TravelingWaveCavity.a_factor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Damping time a in s</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float array</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.impedance_sources.TravelingWaveCavity.n_twc">
+<code class="descname">n_twc</code><a class="headerlink" href="#blond.impedances.impedance_sources.TravelingWaveCavity.n_twc" title="Permalink to this definition">¶</a></dt>
+<dd><p>number of resonant modes</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">int</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<p class="rubric">Examples</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">R_S</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">frequency_R</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">a_factor</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">twc</span> <span class="o">=</span> <span class="n">TravelingWaveCavity</span><span class="p">(</span><span class="n">R_S</span><span class="p">,</span> <span class="n">frequency_R</span><span class="p">,</span> <span class="n">a_factor</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">time</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">twc</span><span class="o">.</span><span class="n">wake_calc</span><span class="p">(</span><span class="n">time</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">frequency</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">twc</span><span class="o">.</span><span class="n">imped_calc</span><span class="p">(</span><span class="n">frequency</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="method">
+<dt id="blond.impedances.impedance_sources.TravelingWaveCavity.imped_calc">
+<code class="descname">imped_calc</code><span class="sig-paren">(</span><em>frequency_array</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance_sources.TravelingWaveCavity.imped_calc" title="Permalink to this definition">¶</a></dt>
+<dd><p>Impedance calculation method as a function of frequency.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>frequency_array</strong> (<em>float array</em>) – Input frequency array in Hz</td>
+</tr>
+</tbody>
+</table>
+<dl class="attribute">
+<dt id="blond.impedances.impedance_sources.TravelingWaveCavity.frequency_array">
+<code class="descname">frequency_array</code><a class="headerlink" href="#blond.impedances.impedance_sources.TravelingWaveCavity.frequency_array" title="Permalink to this definition">¶</a></dt>
+<dd><p>nput frequency array in Hz</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float array</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.impedance_sources.TravelingWaveCavity.impedance">
+<code class="descname">impedance</code><a class="headerlink" href="#blond.impedances.impedance_sources.TravelingWaveCavity.impedance" title="Permalink to this definition">¶</a></dt>
+<dd><p>Output impedance in <span class="math notranslate nohighlight">\(\Omega + j \Omega\)</span></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">complex array</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="method">
+<dt id="blond.impedances.impedance_sources.TravelingWaveCavity.wake_calc">
+<code class="descname">wake_calc</code><span class="sig-paren">(</span><em>time_array</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance_sources.TravelingWaveCavity.wake_calc" title="Permalink to this definition">¶</a></dt>
+<dd><p>Wake calculation method as a function of time.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>time_array</strong> (<em>float array</em>) – Input time array in s</td>
+</tr>
+</tbody>
+</table>
+<dl class="attribute">
+<dt id="blond.impedances.impedance_sources.TravelingWaveCavity.time_array">
+<code class="descname">time_array</code><a class="headerlink" href="#blond.impedances.impedance_sources.TravelingWaveCavity.time_array" title="Permalink to this definition">¶</a></dt>
+<dd><p>Input time array in s</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float array</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.impedance_sources.TravelingWaveCavity.wake">
+<code class="descname">wake</code><a class="headerlink" href="#blond.impedances.impedance_sources.TravelingWaveCavity.wake" title="Permalink to this definition">¶</a></dt>
+<dd><p>Output wake in <span class="math notranslate nohighlight">\(\Omega / s\)</span></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float array</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-blond.impedances.induced_voltage_analytical">
+<span id="induced-voltage-analytical-module"></span><h2><code class="xref py py-mod docutils literal notranslate"><span class="pre">induced_voltage_analytical</span></code> Module<a class="headerlink" href="#module-blond.impedances.induced_voltage_analytical" title="Permalink to this headline">¶</a></h2>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Authors:</th><td class="field-body"><strong>Danilo Quartullo</strong>, <strong>Joel Repond</strong></td>
+</tr>
+</tbody>
+</table>
+<dl class="function">
+<dt id="blond.impedances.induced_voltage_analytical.analytical_gaussian_resonator">
+<code class="descclassname">blond.impedances.induced_voltage_analytical.</code><code class="descname">analytical_gaussian_resonator</code><span class="sig-paren">(</span><em>sigma_t</em>, <em>Q</em>, <em>R_s</em>, <em>omega_r</em>, <em>tau_array</em>, <em>n_particles</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.induced_voltage_analytical.analytical_gaussian_resonator" title="Permalink to this definition">¶</a></dt>
+<dd><p>It gives the analytical induced voltage for a gaussian bunch and a
+resonator.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>sigma_t</strong> (<em>float</em>) – Rms of the beam longitudinal coordinates [s].</li>
+<li><strong>Q</strong> (<em>float</em>) – Quality factor of the resonator [1].</li>
+<li><strong>R_s</strong> (<em>float</em>) – Shunt impedance of the resonator [<span class="math notranslate nohighlight">\(\Omega\)</span>].</li>
+<li><strong>omega_r</strong> (<em>float</em>) – Angular resonant frequency [rad/s].</li>
+<li><strong>tau_array</strong> (<em>float array</em>) – Time array [s] for which the induced voltage should be calculated.</li>
+<li><strong>n_particles</strong> (<em>int</em>) – Beam intensity [1].</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>induced_voltage</strong> – Induced voltage [V] (multiplied by -1 according to BLonD conventions).</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">float array</p>
+</td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Notes</p>
+<p>The formula can be derived using the following lines of codes in
+Mathematica:</p>
+<p>lambda = Exp[-(tau - t)^2 / (2 * sigma^2)] / ((2*Pi)^0.5 * sigma)
+wake = 2 * alpha * Rs * Exp[-alpha * t] * (Cos[ombar * t] - alpha / ombar</p>
+<blockquote>
+<div><ul class="simple">
+<li>Sin[ombar * t])</li>
+</ul>
+</div></blockquote>
+<dl class="docutils">
+<dt>output = Integrate[wake * lambda, {t, 0, Infinity},</dt>
+<dd>Assumptions -&gt; {sigma &gt; 0, alpha &gt; 0, Rs &gt; 0, ombar &gt; 0, tau in Reals}]</dd>
+<dt>outputreal = Simplify[ComplexExpand[Re[output]],</dt>
+<dd>{sigma &gt; 0, alpha &gt; 0, Rs &gt; 0, ombar &gt; 0, tau in  Reals}]</dd>
+</dl>
+<p>The imaginary part of output is identically equal to zero even if
+Mathematica cannot see that. To verify that the expression is correct
+launch:</p>
+<p>output2 = Integrate[wake * lambda, t]
+outputreal2 = Simplify[ComplexExpand[Re[output2]],</p>
+<blockquote>
+<div>{sigma &gt; 0, alpha &gt; 0, Rs &gt; 0, ombar &gt; 0, tau in Reals, t &gt; 0}]</div></blockquote>
+<p>d/dt output2;
+Simplify[ComplexExpand[Re[%]],</p>
+<blockquote>
+<div>{sigma &gt; 0, alpha &gt; 0, Rs &gt; 0, ombar &gt; 0, tau in Reals, t &gt; 0}]</div></blockquote>
+<p>and check that applying the fundamental calculus theorem to outputreal2,
+one obtains back outputreal; the formula [5] in</p>
+<p>H. E. Salzer, “Formulas for Calculating the Error Function of a Complex
+Variable”, Mathematical Tables and Other Aids to Computation, Vol. 5,
+No. 34 (Apr., 1951),pp. 67-70</p>
+<p>can be useful.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-blond.impedances.music">
+<span id="music-module"></span><h2><code class="xref py py-mod docutils literal notranslate"><span class="pre">music</span></code> Module<a class="headerlink" href="#module-blond.impedances.music" title="Permalink to this headline">¶</a></h2>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Authors:</th><td class="field-body"><strong>Danilo Quartullo, Konstantinos Iliakis</strong></td>
+</tr>
+</tbody>
+</table>
+<dl class="class">
+<dt id="blond.impedances.music.Music">
+<em class="property">class </em><code class="descclassname">blond.impedances.music.</code><code class="descname">Music</code><span class="sig-paren">(</span><em>Beam</em>, <em>resonator</em>, <em>n_macroparticles</em>, <em>n_particles</em>, <em>t_rev</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.music.Music" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Implementation of the MuSiC algorithm in C++ to calculate the exact induced
+voltage generated by resonant modes in time domain without using slices,
+cost = O(n). The corresponding methods in Python are kept for reference.
+The method track_classic, which calculates in time domain the
+exact voltage with the O(n^2) algorithm used in the usual voltage
+definition, is kept just for reference.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>Beam</strong> (<em>object</em>) – Beam object.</li>
+<li><strong>resonator</strong> (<em>float list</em>) – List of the resonator parameters:
+[shunt impedance [<span class="math notranslate nohighlight">\(\Omega\)</span>], angular resonant frequency [rad/s],
+quality factor [1]].</li>
+<li><strong>n_macroparticles</strong> (<em>int</em>) – Number of macro-particles [1].</li>
+<li><strong>n_particles</strong> (<em>float</em>) – Beam intensity [1].</li>
+<li><strong>t_rev</strong> (<em>float</em>) – Revolution period [s]</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="attribute">
+<dt id="blond.impedances.music.Music.beam">
+<code class="descname">beam</code><a class="headerlink" href="#blond.impedances.music.Music.beam" title="Permalink to this definition">¶</a></dt>
+<dd><p>Beam object.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">object</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.music.Music.R_S">
+<code class="descname">R_S</code><a class="headerlink" href="#blond.impedances.music.Music.R_S" title="Permalink to this definition">¶</a></dt>
+<dd><p>shunt impedance [<span class="math notranslate nohighlight">\(\Omega\)</span>]</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.music.Music.omega_R">
+<code class="descname">omega_R</code><a class="headerlink" href="#blond.impedances.music.Music.omega_R" title="Permalink to this definition">¶</a></dt>
+<dd><p>angular resonant frequency [rad/s]</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.music.Music.Q">
+<code class="descname">Q</code><a class="headerlink" href="#blond.impedances.music.Music.Q" title="Permalink to this definition">¶</a></dt>
+<dd><p>quality factor [1]</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.music.Music.n_macroparticles">
+<code class="descname">n_macroparticles</code><a class="headerlink" href="#blond.impedances.music.Music.n_macroparticles" title="Permalink to this definition">¶</a></dt>
+<dd><p>Number of macro-particles [1].</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">int</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.music.Music.n_particles">
+<code class="descname">n_particles</code><a class="headerlink" href="#blond.impedances.music.Music.n_particles" title="Permalink to this definition">¶</a></dt>
+<dd><p>Beam intensity [1].</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.music.Music.alpha">
+<code class="descname">alpha</code><a class="headerlink" href="#blond.impedances.music.Music.alpha" title="Permalink to this definition">¶</a></dt>
+<dd><p>Definition dependent on previously defined attributes.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.music.Music.omega_bar">
+<code class="descname">omega_bar</code><a class="headerlink" href="#blond.impedances.music.Music.omega_bar" title="Permalink to this definition">¶</a></dt>
+<dd><p>Definition dependent on previously defined attributes.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.music.Music.const">
+<code class="descname">const</code><a class="headerlink" href="#blond.impedances.music.Music.const" title="Permalink to this definition">¶</a></dt>
+<dd><p>Definition dependent on previously defined attributes.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.music.Music.induced_voltage">
+<code class="descname">induced_voltage</code><a class="headerlink" href="#blond.impedances.music.Music.induced_voltage" title="Permalink to this definition">¶</a></dt>
+<dd><p>Output induced voltage [V] (multiplied by -1 for BLonD conventions)</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float array</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.music.Music.coeff1">
+<code class="descname">coeff1</code><a class="headerlink" href="#blond.impedances.music.Music.coeff1" title="Permalink to this definition">¶</a></dt>
+<dd><p>Definition dependent on previously defined attributes.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.music.Music.coeff2">
+<code class="descname">coeff2</code><a class="headerlink" href="#blond.impedances.music.Music.coeff2" title="Permalink to this definition">¶</a></dt>
+<dd><p>Definition dependent on previously defined attributes.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.music.Music.coeff3">
+<code class="descname">coeff3</code><a class="headerlink" href="#blond.impedances.music.Music.coeff3" title="Permalink to this definition">¶</a></dt>
+<dd><p>Definition dependent on previously defined attributes.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.music.Music.coeff4">
+<code class="descname">coeff4</code><a class="headerlink" href="#blond.impedances.music.Music.coeff4" title="Permalink to this definition">¶</a></dt>
+<dd><p>Definition dependent on previously defined attributes.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.music.Music.input_first_component">
+<code class="descname">input_first_component</code><a class="headerlink" href="#blond.impedances.music.Music.input_first_component" title="Permalink to this definition">¶</a></dt>
+<dd><p>First component of vertical array in MuSiC algorithm</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.music.Music.input_second_component">
+<code class="descname">input_second_component</code><a class="headerlink" href="#blond.impedances.music.Music.input_second_component" title="Permalink to this definition">¶</a></dt>
+<dd><p>Second component of vertical array in MuSiC algorithm</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.music.Music.t_rev">
+<code class="descname">t_rev</code><a class="headerlink" href="#blond.impedances.music.Music.t_rev" title="Permalink to this definition">¶</a></dt>
+<dd><p>Revolution period [s]</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.music.Music.last_dt">
+<code class="descname">last_dt</code><a class="headerlink" href="#blond.impedances.music.Music.last_dt" title="Permalink to this definition">¶</a></dt>
+<dd><p>Last longitudinal coordinate of the beam [s]</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.impedances.music.Music.array_parameters">
+<code class="descname">array_parameters</code><a class="headerlink" href="#blond.impedances.music.Music.array_parameters" title="Permalink to this definition">¶</a></dt>
+<dd><p>Array gathering four attributes already defined to be used in the C++
+algorithm.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body">float array</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<p class="rubric">Notes</p>
+<p>The energies dE of the particles in the beam object are updated after the
+induced voltage calculation.</p>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p class="last">The MuSiC algorithm is described in:
+M. Migliorati, L. Palumbo, ‘Multibunch and multiparticle simulation code
+with an alternative approach to wakefield effects’, Phys. Rev. ST Accel.
+Beams 18, 2015.</p>
+</div>
+<dl class="method">
+<dt id="blond.impedances.music.Music.track_classic">
+<code class="descname">track_classic</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.music.Music.track_classic" title="Permalink to this definition">¶</a></dt>
+<dd><p>Voltage in time domain using the basic definition (Python code)</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="blond.impedances.music.Music.track_cpp">
+<code class="descname">track_cpp</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.music.Music.track_cpp" title="Permalink to this definition">¶</a></dt>
+<dd><p>Voltage in time domain (single-turn) using MuSiC (C++ code).
+Note: this method should also be called at turn number 1 when
+multi-turn voltage computations are needed.</p>
+<p class="rubric">Examples</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">impedances.music</span> <span class="k">as</span> <span class="nn">musClass</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">setup_cpp</span> <span class="k">import</span> <span class="n">libblond</span>
+<span class="go">&gt;&gt;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">music_cpp</span> <span class="o">=</span> <span class="n">musClass</span><span class="o">.</span><span class="n">Music</span><span class="p">(</span><span class="n">my_beam</span><span class="p">,</span> <span class="p">[</span><span class="n">R_S</span><span class="p">,</span> <span class="mi">2</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="n">frequency_R</span><span class="p">,</span> <span class="n">Q</span><span class="p">],</span>
+<span class="gp">&gt;&gt;&gt; </span>                              <span class="n">n_macroparticles</span><span class="p">,</span> <span class="n">n_particles</span><span class="p">,</span> <span class="n">t_rev</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">music_cpp</span><span class="o">.</span><span class="n">track_cpp</span><span class="p">()</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="blond.impedances.music.Music.track_cpp_multi_turn">
+<code class="descname">track_cpp_multi_turn</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.music.Music.track_cpp_multi_turn" title="Permalink to this definition">¶</a></dt>
+<dd><p>Voltage in time domain (multi-turn) using MuSiC (C++ code).
+Note: this method should be called from turn number 2 onwards when
+multi-turn voltage computations are needed..</p>
+<p class="rubric">Examples</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">impedances.music</span> <span class="k">as</span> <span class="nn">musClass</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">setup_cpp</span> <span class="k">import</span> <span class="n">libblond</span>
+<span class="go">&gt;&gt;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">music_cpp</span> <span class="o">=</span> <span class="n">musClass</span><span class="o">.</span><span class="n">Music</span><span class="p">(</span><span class="n">my_beam</span><span class="p">,</span> <span class="p">[</span><span class="n">R_S</span><span class="p">,</span> <span class="mi">2</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="n">frequency_R</span><span class="p">,</span> <span class="n">Q</span><span class="p">],</span>
+<span class="gp">&gt;&gt;&gt; </span>                              <span class="n">n_macroparticles</span><span class="p">,</span> <span class="n">n_particles</span><span class="p">,</span> <span class="n">t_rev</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">music_cpp</span><span class="o">.</span><span class="n">track_cpp</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">n_turns</span><span class="p">):</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="n">music_cpp</span><span class="o">.</span><span class="n">track_cpp_multi_turn</span><span class="p">()</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="blond.impedances.music.Music.track_py">
+<code class="descname">track_py</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.music.Music.track_py" title="Permalink to this definition">¶</a></dt>
+<dd><p>Voltage in time domain (single-turn) using MuSiC (Python code).
+Note: this method should also be called at turn number 1 when
+multi-turn voltage computations are needed.</p>
+<p class="rubric">Examples</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">impedances.music</span> <span class="k">as</span> <span class="nn">musClass</span>
+<span class="go">&gt;&gt;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">music_cpp</span> <span class="o">=</span> <span class="n">musClass</span><span class="o">.</span><span class="n">Music</span><span class="p">(</span><span class="n">my_beam</span><span class="p">,</span> <span class="p">[</span><span class="n">R_S</span><span class="p">,</span> <span class="mi">2</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="n">frequency_R</span><span class="p">,</span> <span class="n">Q</span><span class="p">],</span>
+<span class="gp">&gt;&gt;&gt; </span>                              <span class="n">n_macroparticles</span><span class="p">,</span> <span class="n">n_particles</span><span class="p">,</span> <span class="n">t_rev</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">music_cpp</span><span class="o">.</span><span class="n">track_py</span><span class="p">()</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="blond.impedances.music.Music.track_py_multi_turn">
+<code class="descname">track_py_multi_turn</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.music.Music.track_py_multi_turn" title="Permalink to this definition">¶</a></dt>
+<dd><p>Voltage in time domain (multi-turn) using MuSiC (Python code).
+Note: this method should be called from turn number 2 onwards when
+multi-turn voltage computations are needed..</p>
+<p class="rubric">Examples</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">impedances.music</span> <span class="k">as</span> <span class="nn">musClass</span>
+<span class="go">&gt;&gt;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">music_cpp</span> <span class="o">=</span> <span class="n">musClass</span><span class="o">.</span><span class="n">Music</span><span class="p">(</span><span class="n">my_beam</span><span class="p">,</span> <span class="p">[</span><span class="n">R_S</span><span class="p">,</span> <span class="mi">2</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="n">frequency_R</span><span class="p">,</span> <span class="n">Q</span><span class="p">],</span>
+<span class="gp">&gt;&gt;&gt; </span>                              <span class="n">n_macroparticles</span><span class="p">,</span> <span class="n">n_particles</span><span class="p">,</span> <span class="n">t_rev</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">music_cpp</span><span class="o">.</span><span class="n">track_py</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">n_turns</span><span class="p">):</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="n">music_cpp</span><span class="o">.</span><span class="n">track_py_multi_turn</span><span class="p">()</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="input_parameters.html" class="btn btn-neutral float-right" title="input_parameters Package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="beam.html" class="btn btn-neutral" title="beam Package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2017.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../',
+            VERSION:'1.1',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="../_static/jquery.js"></script>
+      <script type="text/javascript" src="../_static/underscore.js"></script>
+      <script type="text/javascript" src="../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+  
+
+  
+   
+
+</body>
+</html>

@@ -1,0 +1,564 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>toolbox Package &mdash; BLonD 1.1 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="../genindex.html"/>
+        <link rel="search" title="Search" href="../search.html"/>
+    <link rel="top" title="BLonD 1.1 documentation" href="../index.html"/>
+        <link rel="next" title="trackers Package" href="trackers.html"/>
+        <link rel="prev" title="synchrotron_radiation Package" href="synchrotron_radiation.html"/> 
+
+  
+  <script src="../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> BLonD
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                1.1
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="equations_of_motion.html">Equations of Motion</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#definitions">Definitions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#energy-kick">Energy kick</a></li>
+<li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#arrival-time-drift">Arrival time drift</a></li>
+<li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#the-synchronous-particle">The synchronous particle</a></li>
+<li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#small-amplitude-oscillations">Small-amplitude oscillations</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="equations_of_motion.html#tracking-utilities">Tracking utilities</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#hamiltonian">Hamiltonian</a></li>
+<li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#separatrix">Separatrix</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="beam.html">beam Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="beam.html#module-blond.beam.beam"><code class="docutils literal notranslate"><span class="pre">beam</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="beam.html#module-blond.beam.coasting_beam"><code class="docutils literal notranslate"><span class="pre">coasting_beam</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="beam.html#module-blond.beam.distributions"><code class="docutils literal notranslate"><span class="pre">distributions</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="beam.html#module-blond.beam.distributions_multibunch"><code class="docutils literal notranslate"><span class="pre">distributions_multibunch</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="beam.html#module-blond.beam.profile"><code class="docutils literal notranslate"><span class="pre">profile</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="beam.html#module-blond.beam.sparse_slices"><code class="docutils literal notranslate"><span class="pre">sparse_slices</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="impedances.html">impedances Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="impedances.html#module-blond.impedances.impedance"><code class="docutils literal notranslate"><span class="pre">impedance</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="impedances.html#module-blond.impedances.impedance_sources"><code class="docutils literal notranslate"><span class="pre">impedance_sources</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="impedances.html#module-blond.impedances.induced_voltage_analytical"><code class="docutils literal notranslate"><span class="pre">induced_voltage_analytical</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="impedances.html#module-blond.impedances.music"><code class="docutils literal notranslate"><span class="pre">music</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="input_parameters.html">input_parameters Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="input_parameters.html#module-blond.input_parameters.rf_parameters"><code class="docutils literal notranslate"><span class="pre">rf_parameters</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="input_parameters.html#module-blond.input_parameters.ring"><code class="docutils literal notranslate"><span class="pre">ring</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="input_parameters.html#module-blond.input_parameters.ring_options"><code class="docutils literal notranslate"><span class="pre">ring_options</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="input_parameters.html#module-blond.input_parameters.rf_parameters_options"><code class="docutils literal notranslate"><span class="pre">rf_parameters_options</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="llrf.html">llrf Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="llrf.html#module-blond.llrf.notch_filter"><code class="docutils literal notranslate"><span class="pre">notch_filter</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="llrf.html#llrf-beam-feedback-module">llrf.beam_feedback Module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="llrf.html#machine-dependent-beam-phase-loop">Machine-dependent Beam Phase Loop</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="llrf.html#module-blond.llrf.cavity_feedback"><code class="docutils literal notranslate"><span class="pre">cavity_feedback</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="llrf.html#module-blond.llrf.impulse_response"><code class="docutils literal notranslate"><span class="pre">impulse_response</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="llrf.html#module-blond.llrf.rf_modulation"><code class="docutils literal notranslate"><span class="pre">rf_modulation</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="llrf.html#llrf-rf-noise-module">llrf.rf_noise Module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="llrf.html#rf-phase-noise-generation">RF phase noise generation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="llrf.html#lhc-type-phase-noise-generation">LHC-type phase noise generation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="llrf.html#bunch-length-based-feedback-on-noise-amplitude">Bunch-length based feedback on noise amplitude</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="llrf.html#module-blond.llrf.signal_processing"><code class="docutils literal notranslate"><span class="pre">signal_processing</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="monitors.html">monitors Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="monitors.html#module-blond.monitors.monitors"><code class="docutils literal notranslate"><span class="pre">monitors</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="plots.html">plots Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="plots.html#module-blond.plots.plot"><code class="docutils literal notranslate"><span class="pre">plot</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plots.html#module-blond.plots.plot_beams"><code class="docutils literal notranslate"><span class="pre">plot_beams</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plots.html#module-blond.plots.plot_impedance"><code class="docutils literal notranslate"><span class="pre">plot_impedance</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plots.html#module-blond.plots.plot_llrf"><code class="docutils literal notranslate"><span class="pre">plot_llrf</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plots.html#module-blond.plots.plot_parameters"><code class="docutils literal notranslate"><span class="pre">plot_parameters</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plots.html#module-blond.plots.plot_slices"><code class="docutils literal notranslate"><span class="pre">plot_slices</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="synchrotron_radiation.html">synchrotron_radiation Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="synchrotron_radiation.html#module-blond.synchrotron_radiation.synchrotron_radiation"><code class="docutils literal notranslate"><span class="pre">synchrotron_radiation</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">toolbox Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#module-blond.toolbox.action"><code class="docutils literal notranslate"><span class="pre">action</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-blond.toolbox.convolution"><code class="docutils literal notranslate"><span class="pre">convolution</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-blond.toolbox.diffusion"><code class="docutils literal notranslate"><span class="pre">diffusion</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-blond.toolbox.next_regular"><code class="docutils literal notranslate"><span class="pre">next_regular</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-blond.toolbox.parameter_scaling"><code class="docutils literal notranslate"><span class="pre">parameter_scaling</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-blond.toolbox.tomoscope"><code class="docutils literal notranslate"><span class="pre">tomoscope</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="trackers.html">trackers Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="trackers.html#module-blond.trackers.tracker"><code class="docutils literal notranslate"><span class="pre">tracker</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trackers.html#module-blond.trackers.utilities"><code class="docutils literal notranslate"><span class="pre">utilities</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="compile.html">compile Module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="compile.html#id1"><code class="docutils literal notranslate"><span class="pre">compile</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="utils.html">utils Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="utils.html#module-blond.utils.bmath"><code class="docutils literal notranslate"><span class="pre">bmath</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="utils.html#module-blond.utils.bphysics_wrap"><code class="docutils literal notranslate"><span class="pre">bphysics_wrap</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="utils.html#module-blond.utils.butils_wrap"><code class="docutils literal notranslate"><span class="pre">butils_wrap</span></code> Module</a></li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">BLonD</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html">Docs</a> &raquo;</li>
+        
+      <li>toolbox Package</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/modules/toolbox.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="toolbox-package">
+<h1>toolbox Package<a class="headerlink" href="#toolbox-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="module-blond.toolbox.action">
+<span id="action-module"></span><h2><code class="xref py py-mod docutils literal notranslate"><span class="pre">action</span></code> Module<a class="headerlink" href="#module-blond.toolbox.action" title="Permalink to this headline">¶</a></h2>
+<p><strong>Phase-space variable conversions related to action. Single-RF case without
+intensity effects is considered.</strong></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Authors:</th><td class="field-body"><strong>Helga Timko</strong></td>
+</tr>
+</tbody>
+</table>
+<dl class="function">
+<dt id="blond.toolbox.action.action_from_oscillation_amplitude">
+<code class="descclassname">blond.toolbox.action.</code><code class="descname">action_from_oscillation_amplitude</code><span class="sig-paren">(</span><em>RFStation</em>, <em>dtmax</em>, <em>timestep=0</em>, <em>Np_histogram=None</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.action.action_from_oscillation_amplitude" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the relative action for given oscillation amplitude in time,
+assuming single-harmonic RF system and no intensity effects.
+Action is normalised to the value at the separatrix, given in units of 1.
+Optional: RF parameters at a given timestep (default = 0) are used.
+Optional: Number of points for histogram output</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="blond.toolbox.action.action_from_phase_amplitude">
+<code class="descclassname">blond.toolbox.action.</code><code class="descname">action_from_phase_amplitude</code><span class="sig-paren">(</span><em>x2</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.action.action_from_phase_amplitude" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the relative action for given oscillation amplitude in time.
+Action is normalised to the value at the separatrix, given in units of 1.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="blond.toolbox.action.oscillation_amplitude_from_coordinates">
+<code class="descclassname">blond.toolbox.action.</code><code class="descname">oscillation_amplitude_from_coordinates</code><span class="sig-paren">(</span><em>Ring</em>, <em>RFStation</em>, <em>dt</em>, <em>dE</em>, <em>timestep=0</em>, <em>Np_histogram=None</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.action.oscillation_amplitude_from_coordinates" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the oscillation amplitude in time for given particle coordinates,
+assuming single-harmonic RF system and no intensity effects.
+Optional: RF parameters at a given timestep (default = 0) are used.
+Optional: Number of points for histogram output</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="blond.toolbox.action.phase_amplitude_from_tune">
+<code class="descclassname">blond.toolbox.action.</code><code class="descname">phase_amplitude_from_tune</code><span class="sig-paren">(</span><em>tune</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.action.phase_amplitude_from_tune" title="Permalink to this definition">¶</a></dt>
+<dd><p>Find the amplitude of synchrotron oscillations in phase corresponding to a
+given tune w.r.t. the central synchrotron frequency</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="blond.toolbox.action.tune_from_phase_amplitude">
+<code class="descclassname">blond.toolbox.action.</code><code class="descname">tune_from_phase_amplitude</code><span class="sig-paren">(</span><em>phimax</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.action.tune_from_phase_amplitude" title="Permalink to this definition">¶</a></dt>
+<dd><p>Find the tune w.r.t. the central synchrotron frequency corresponding to a
+given amplitude of synchrotron oscillations in phase</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="blond.toolbox.action.x">
+<code class="descclassname">blond.toolbox.action.</code><code class="descname">x</code><span class="sig-paren">(</span><em>phimax</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.action.x" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="blond.toolbox.action.x2">
+<code class="descclassname">blond.toolbox.action.</code><code class="descname">x2</code><span class="sig-paren">(</span><em>phimax</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.action.x2" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-blond.toolbox.convolution">
+<span id="convolution-module"></span><h2><code class="xref py py-mod docutils literal notranslate"><span class="pre">convolution</span></code> Module<a class="headerlink" href="#module-blond.toolbox.convolution" title="Permalink to this headline">¶</a></h2>
+<dl class="function">
+<dt id="blond.toolbox.convolution.convolution">
+<code class="descclassname">blond.toolbox.convolution.</code><code class="descname">convolution</code><span class="sig-paren">(</span><em>signal</em>, <em>kernel</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.convolution.convolution" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-blond.toolbox.diffusion">
+<span id="diffusion-module"></span><h2><code class="xref py py-mod docutils literal notranslate"><span class="pre">diffusion</span></code> Module<a class="headerlink" href="#module-blond.toolbox.diffusion" title="Permalink to this headline">¶</a></h2>
+<p><strong>Numerical diffusion model based on Ivanov (1992). Stationary single-harmonic
+RF bucket is considered.</strong></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Authors:</th><td class="field-body"><strong>Helga Timko</strong></td>
+</tr>
+</tbody>
+</table>
+<dl class="function">
+<dt id="blond.toolbox.diffusion.phase_noise_diffusion">
+<code class="descclassname">blond.toolbox.diffusion.</code><code class="descname">phase_noise_diffusion</code><span class="sig-paren">(</span><em>Ring</em>, <em>RFStation</em>, <em>spectrum</em>, <em>distribution</em>, <em>distributionBins</em>, <em>Ngrids=200</em>, <em>M=1</em>, <em>iterations=100000</em>, <em>figdir=None</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.diffusion.phase_noise_diffusion" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate diffusion in action space according to a given double-sided phase
+noise spectrum, on a uniform grid in oscillation amplitude.
+The spectrum is defined on the grid points (Ngrids + 1 points) for all M.
+The particle distribution in action is defined on the grids (Ngrids points).
+Returns the diffused action distribution.
+Optional: define number of side-bands (M) to be taken into account, default
+is M = 1; N.B. this will only give impair modes for phase noise.
+Optional: number of iterations to track.
+Optional: save figures into directory ‘figdir’.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-blond.toolbox.next_regular">
+<span id="next-regular-module"></span><h2><code class="xref py py-mod docutils literal notranslate"><span class="pre">next_regular</span></code> Module<a class="headerlink" href="#module-blond.toolbox.next_regular" title="Permalink to this headline">¶</a></h2>
+<p><strong>Optimised next_regular routine to generate Hamming numbers:
+the output will contain at least one factor 2.</strong></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Authors:</th><td class="field-body"><strong>Alexandre Lasheen</strong>, <strong>Juan F. Esteban Mueller</strong>, <strong>Danilo Quartullo</strong></td>
+</tr>
+</tbody>
+</table>
+<dl class="function">
+<dt id="blond.toolbox.next_regular.next_regular">
+<code class="descclassname">blond.toolbox.next_regular.</code><code class="descname">next_regular</code><span class="sig-paren">(</span><em>target</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.next_regular.next_regular" title="Permalink to this definition">¶</a></dt>
+<dd><p>Find the next regular number greater than or equal to target.
+Regular numbers are composites of the prime factors 2, 3, and 5.
+Also known as 5-smooth numbers or Hamming numbers, these are the optimal
+size for inputs to FFTPACK.</p>
+<p>Target must be a positive integer.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-blond.toolbox.parameter_scaling">
+<span id="parameter-scaling-module"></span><h2><code class="xref py py-mod docutils literal notranslate"><span class="pre">parameter_scaling</span></code> Module<a class="headerlink" href="#module-blond.toolbox.parameter_scaling" title="Permalink to this headline">¶</a></h2>
+<p><strong>Scaling of longitudinal beam and machine parameters, with user interface.</strong></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Authors:</th><td class="field-body"><strong>Konstantinos Iliakis</strong>, <strong>Helga Timko</strong></td>
+</tr>
+</tbody>
+</table>
+<dl class="class">
+<dt id="blond.toolbox.parameter_scaling.ParameterScaling">
+<em class="property">class </em><code class="descclassname">blond.toolbox.parameter_scaling.</code><code class="descname">ParameterScaling</code><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="method">
+<dt id="blond.toolbox.parameter_scaling.ParameterScaling.addactions">
+<code class="descname">addactions</code><span class="sig-paren">(</span><em>mainWindow</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling.addactions" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="blond.toolbox.parameter_scaling.ParameterScaling.bucket_parameters">
+<code class="descname">bucket_parameters</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling.bucket_parameters" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="blond.toolbox.parameter_scaling.ParameterScaling.bunch_length_from_emittance">
+<code class="descname">bunch_length_from_emittance</code><span class="sig-paren">(</span><em>emittance</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling.bunch_length_from_emittance" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="blond.toolbox.parameter_scaling.ParameterScaling.cbEnergyHandler">
+<code class="descname">cbEnergyHandler</code><span class="sig-paren">(</span><em>text</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling.cbEnergyHandler" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="blond.toolbox.parameter_scaling.ParameterScaling.dE_b">
+<code class="descname">dE_b</code><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling.dE_b" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="blond.toolbox.parameter_scaling.ParameterScaling.delta_b">
+<code class="descname">delta_b</code><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling.delta_b" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="blond.toolbox.parameter_scaling.ParameterScaling.emittance">
+<code class="descname">emittance</code><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling.emittance" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="blond.toolbox.parameter_scaling.ParameterScaling.emittance_from_bunch_length">
+<code class="descname">emittance_from_bunch_length</code><span class="sig-paren">(</span><em>four_sigma_bunch_length</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling.emittance_from_bunch_length" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="blond.toolbox.parameter_scaling.ParameterScaling.frequencies">
+<code class="descname">frequencies</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling.frequencies" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="blond.toolbox.parameter_scaling.ParameterScaling.integral">
+<code class="descname">integral</code><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling.integral" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="blond.toolbox.parameter_scaling.ParameterScaling.pbHandler">
+<code class="descname">pbHandler</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling.pbHandler" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="blond.toolbox.parameter_scaling.ParameterScaling.phi_b">
+<code class="descname">phi_b</code><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling.phi_b" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="blond.toolbox.parameter_scaling.ParameterScaling.relativistic_quantities">
+<code class="descname">relativistic_quantities</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling.relativistic_quantities" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="blond.toolbox.parameter_scaling.ParameterScaling.retranslateUi">
+<code class="descname">retranslateUi</code><span class="sig-paren">(</span><em>mainWindow</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling.retranslateUi" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="blond.toolbox.parameter_scaling.ParameterScaling.setupUi">
+<code class="descname">setupUi</code><span class="sig-paren">(</span><em>mainWindow</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling.setupUi" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="blond.toolbox.parameter_scaling.ParameterScaling.tune">
+<code class="descname">tune</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling.tune" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-blond.toolbox.tomoscope">
+<span id="tomoscope-module"></span><h2><code class="xref py py-mod docutils literal notranslate"><span class="pre">tomoscope</span></code> Module<a class="headerlink" href="#module-blond.toolbox.tomoscope" title="Permalink to this headline">¶</a></h2>
+<p>** CERN Tomoscope-related functions to generate particle distribution or
+probability density.**</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Authors:</th><td class="field-body"><strong>Helga Timko</strong></td>
+</tr>
+</tbody>
+</table>
+<dl class="function">
+<dt id="blond.toolbox.tomoscope.distribution_from_tomoscope_data">
+<code class="descclassname">blond.toolbox.tomoscope.</code><code class="descname">distribution_from_tomoscope_data</code><span class="sig-paren">(</span><em>dataDir</em>, <em>nPart</em>, <em>cutoff=1000</em>, <em>seed=1234</em>, <em>plotFig=True</em>, <em>saveDistr=False</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.tomoscope.distribution_from_tomoscope_data" title="Permalink to this definition">¶</a></dt>
+<dd><p>‘dataDir’ is the directory of <em>directories</em> of offline-processed tomoscope
+data containing ‘plotinfo.data’ and ‘image001.data’
+Use ‘cutoff’ to eliminate measurement noise (use values around 50-100).
+Use ‘seed’ to change the random number seed.
+Use ‘plotFig = True’ to plot and save figures.
+Use ‘saveDistr = True’ to save particle coordinates.</p>
+</dd></dl>
+
+</div>
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="trackers.html" class="btn btn-neutral float-right" title="trackers Package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="synchrotron_radiation.html" class="btn btn-neutral" title="synchrotron_radiation Package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2017.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../',
+            VERSION:'1.1',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="../_static/jquery.js"></script>
+      <script type="text/javascript" src="../_static/underscore.js"></script>
+      <script type="text/javascript" src="../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+  
+
+  
+   
+
+</body>
+</html>
