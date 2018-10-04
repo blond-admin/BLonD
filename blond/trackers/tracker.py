@@ -22,7 +22,7 @@ import ctypes
 import logging
 
 # from ..setup_cpp import libblond
-from .. import libblond
+#from .. import libblond
 
 from ..utils import bmath as bm
 
@@ -312,7 +312,7 @@ class RingAndRFTracker(object):
         omegarf_kick = np.ascontiguousarray(self.omega_rf[:, index])
         phirf_kick = np.ascontiguousarray(self.phi_rf[:, index])
 
-        libblond.kick(beam_dt.ctypes.data_as(ctypes.c_void_p),
+        bm.kick(beam_dt.ctypes.data_as(ctypes.c_void_p),
                       beam_dE.ctypes.data_as(ctypes.c_void_p),
                       ctypes.c_int(self.n_rf),
                       voltage_kick.ctypes.data_as(ctypes.c_void_p),
@@ -337,7 +337,7 @@ class RingAndRFTracker(object):
 
         """
 
-        libblond.drift(beam_dt.ctypes.data_as(ctypes.c_void_p),
+        bm.drift(beam_dt.ctypes.data_as(ctypes.c_void_p),
                        beam_dE.ctypes.data_as(ctypes.c_void_p),
                        ctypes.c_char_p(self.solver),
                        ctypes.c_double(self.t_rev[index]),
@@ -453,7 +453,7 @@ class RingAndRFTracker(object):
                     else:
                         self.total_voltage = self.rf_voltage
 
-                    libblond.linear_interp_kick(
+                    bm.linear_interp_kick(
                         self.beam.dt.ctypes.data_as(ctypes.c_void_p),
                         self.beam.dE.ctypes.data_as(ctypes.c_void_p),
                         self.total_voltage.ctypes.data_as(ctypes.c_void_p),

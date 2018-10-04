@@ -24,9 +24,8 @@ from scipy.constants import e
 from ..llrf.signal_processing import comb_filter, cartesian_to_polar, \
     polar_to_cartesian, modulator, moving_average, rf_beam_current
 from ..llrf.impulse_response import SPS4Section200MHzTWC, SPS5Section200MHzTWC
-# from ..setup_cpp import libblond
-from .. import libblond
-
+#  from .. import libblond
+from ..utils import bmath as bm
 from ..beam.profile import Profile, CutOptions
 
 
@@ -669,10 +668,12 @@ class SPSOneTurnFeedback(object):
         kernel = np.ascontiguousarray(kernel)
 
         result = np.zeros(len(kernel) + len(signal) - 1)
-        libblond.convolution(signal.ctypes.data_as(ctypes.c_void_p),
-                             ctypes.c_int(len(signal)),
-                             kernel.ctypes.data_as(ctypes.c_void_p),
-                             ctypes.c_int(len(kernel)),
-                             result.ctypes.data_as(ctypes.c_void_p))
+        bm.convolve(signal, kernel, result)
+
+        #  libblond.convolution(signal.ctypes.data_as(ctypes.c_void_p),
+        #                       ctypes.c_int(len(signal)),
+        #                       kernel.ctypes.data_as(ctypes.c_void_p),
+        #                       ctypes.c_int(len(kernel)),
+        #                       result.ctypes.data_as(ctypes.c_void_p))
 
         return result

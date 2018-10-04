@@ -53,7 +53,7 @@ class RFStationOptions(object):
         else:
             raise RuntimeError(
                 "ERROR: Interpolation scheme in" +
-                " PreprocessRFParams not recognised. Aborting...")
+                " RFStationOptions not recognised. Aborting...")
 
         self.smoothing = float(smoothing)
 

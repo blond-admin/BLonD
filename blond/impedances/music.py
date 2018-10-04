@@ -16,9 +16,8 @@ from builtins import range, object
 import numpy as np
 from scipy.constants import e
 import ctypes
-# from ..setup_cpp import libblond
-from .. import libblond
-
+#  from .. import libblond
+from ..utils import bmath as bm
 
 
 class Music(object):
@@ -145,20 +144,21 @@ class Music(object):
         >>> music_cpp.track_cpp()
         
         """
-        
-        libblond.music_track(self.beam.dt.ctypes.data_as(ctypes.c_void_p),
-                             self.beam.dE.ctypes.data_as(ctypes.c_void_p),
-                        self.induced_voltage.ctypes.data_as(ctypes.c_void_p),
-                        self.array_parameters.ctypes.data_as(ctypes.c_void_p),
-                             ctypes.c_int(len(self.beam.dt)),
-                             ctypes.c_double(self.alpha),
-                             ctypes.c_double(self.omega_bar),
-                             ctypes.c_double(self.const),
-                             ctypes.c_double(self.coeff1),
-                             ctypes.c_double(self.coeff2),
-                             ctypes.c_double(self.coeff3),
-                             ctypes.c_double(self.coeff4))
-    
+        bm.music_track(self)
+
+#          libblond.music_track(self.beam.dt.ctypes.data_as(ctypes.c_void_p),
+                        #       self.beam.dE.ctypes.data_as(ctypes.c_void_p),
+                        #  self.induced_voltage.ctypes.data_as(ctypes.c_void_p),
+                        #  self.array_parameters.ctypes.data_as(ctypes.c_void_p),
+                        #       ctypes.c_int(len(self.beam.dt)),
+                        #       ctypes.c_double(self.alpha),
+                        #       ctypes.c_double(self.omega_bar),
+                        #       ctypes.c_double(self.const),
+                        #       ctypes.c_double(self.coeff1),
+                        #       ctypes.c_double(self.coeff2),
+                        #       ctypes.c_double(self.coeff3),
+                        #       ctypes.c_double(self.coeff4))
+#      
     
     def track_cpp_multi_turn(self):
         
@@ -179,21 +179,22 @@ class Music(object):
         >>>     music_cpp.track_cpp_multi_turn()
         
         """
-        
-        libblond.music_track_multiturn(
-                             self.beam.dt.ctypes.data_as(ctypes.c_void_p),
-                             self.beam.dE.ctypes.data_as(ctypes.c_void_p),
-                        self.induced_voltage.ctypes.data_as(ctypes.c_void_p),
-                        self.array_parameters.ctypes.data_as(ctypes.c_void_p),
-                             ctypes.c_int(len(self.beam.dt)),
-                             ctypes.c_double(self.alpha),
-                             ctypes.c_double(self.omega_bar),
-                             ctypes.c_double(self.const),
-                             ctypes.c_double(self.coeff1),
-                             ctypes.c_double(self.coeff2),
-                             ctypes.c_double(self.coeff3),
-                             ctypes.c_double(self.coeff4))
-    
+        bm.music_track_multiturn(self)
+
+#          libblond.music_track_multiturn(
+                        #       self.beam.dt.ctypes.data_as(ctypes.c_void_p),
+                        #       self.beam.dE.ctypes.data_as(ctypes.c_void_p),
+                        #  self.induced_voltage.ctypes.data_as(ctypes.c_void_p),
+                        #  self.array_parameters.ctypes.data_as(ctypes.c_void_p),
+                        #       ctypes.c_int(len(self.beam.dt)),
+                        #       ctypes.c_double(self.alpha),
+                        #       ctypes.c_double(self.omega_bar),
+                        #       ctypes.c_double(self.const),
+                        #       ctypes.c_double(self.coeff1),
+                        #       ctypes.c_double(self.coeff2),
+                        #       ctypes.c_double(self.coeff3),
+                        #       ctypes.c_double(self.coeff4))
+#      
     
     def track_py(self):
         
