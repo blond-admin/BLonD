@@ -308,15 +308,7 @@ class RingAndRFTracker(object):
         voltage_kick = np.ascontiguousarray(self.charge*self.voltage[:, index])
         omegarf_kick = np.ascontiguousarray(self.omega_rf[:, index])
         phirf_kick = np.ascontiguousarray(self.phi_rf[:, index])
-
-        bm.kick(beam_dt.ctypes.data_as(ctypes.c_void_p),
-                      beam_dE.ctypes.data_as(ctypes.c_void_p),
-                      ctypes.c_int(self.n_rf),
-                      voltage_kick.ctypes.data_as(ctypes.c_void_p),
-                      omegarf_kick.ctypes.data_as(ctypes.c_void_p),
-                      phirf_kick.ctypes.data_as(ctypes.c_void_p),
-                      ctypes.c_int(len(beam_dt)),
-                      ctypes.c_double(self.acceleration_kick[index]))
+        bm.kick(self, beam_dt, beam_dE, index)
 
     def drift(self, beam_dt, beam_dE, index):
         """Function updating the particle arrival time to the RF station 
@@ -333,19 +325,7 @@ class RingAndRFTracker(object):
             \\Delta t^{n+1} = \\Delta t^{n} + \\frac{L}{C} T_0^{n+1}\\eta_0\\delta^{n+1} \quad \\text{(simple)}
 
         """
-
-        bm.drift(beam_dt.ctypes.data_as(ctypes.c_void_p),
-                       beam_dE.ctypes.data_as(ctypes.c_void_p),
-                       ctypes.c_char_p(self.solver),
-                       ctypes.c_double(self.t_rev[index]),
-                       ctypes.c_double(self.length_ratio),
-                       ctypes.c_double(self.alpha_order),
-                       ctypes.c_double(self.eta_0[index]),
-                       ctypes.c_double(self.eta_1[index]),
-                       ctypes.c_double(self.eta_2[index]),
-                       ctypes.c_double(self.rf_params.beta[index]),
-                       ctypes.c_double(self.rf_params.energy[index]),
-                       ctypes.c_int(len(beam_dt)))
+        bm.drift(self, beam_dt, beam_dE, index)
 
     def rf_voltage_calculation(self):
         """Function calculating the total, discretised RF voltage seen by the
@@ -363,7 +343,6 @@ class RingAndRFTracker(object):
                 bm.rf_volt_comp(voltages[1:], omega_rf[1:], phi_rf[1:], self)
         else:
             self.rf_voltage = bm.rf_volt_comp(voltages, omega_rf, phi_rf, self)
-
 
     def track(self):
         """Tracking method for the section. Applies first the kick, then the 
@@ -450,17 +429,23 @@ class RingAndRFTracker(object):
                     else:
                         self.total_voltage = self.rf_voltage
 
-                    bm.linear_interp_kick(
-                        self.beam.dt.ctypes.data_as(ctypes.c_void_p),
-                        self.beam.dE.ctypes.data_as(ctypes.c_void_p),
-                        self.total_voltage.ctypes.data_as(ctypes.c_void_p),
-                        self.profile.bin_centers.ctypes.data_as(
-                            ctypes.c_void_p),
-                        ctypes.c_double(self.beam.Particle.charge),
-                        ctypes.c_int(self.profile.n_slices),
-                        ctypes.c_int(self.beam.n_macroparticles),
-                        ctypes.c_double(
-                            self.acceleration_kick[self.counter[0]]))
+                    bm.linear_interp_kick(dt=self.beam.dt, dE=self.beam.dE,
+                                          voltage=self.total_voltage,
+                                          bin_centers=self.profile.bin_centers,
+                                          charge=self.beam.Particle.charge,
+                                          acceleration_kick=self.acceleration_kick[self.counter[0]])
+
+                    #  bm.linear_interp_kick(
+                    #      self.beam.dt.ctypes.data_as(ctypes.c_void_p),
+                    #      self.beam.dE.ctypes.data_as(ctypes.c_void_p),
+                    #      self.total_voltage.ctypes.data_as(ctypes.c_void_p),
+                    #      self.profile.bin_centers.ctypes.data_as(
+                    #          ctypes.c_void_p),
+                    #      ctypes.c_double(self.beam.Particle.charge),
+                    #      ctypes.c_int(self.profile.n_slices),
+                    #      ctypes.c_int(self.beam.n_macroparticles),
+                    #      ctypes.c_double(
+                    #          self.acceleration_kick[self.counter[0]]))
 
                 else:
                     self.kick(self.beam.dt, self.beam.dE, self.counter[0])
