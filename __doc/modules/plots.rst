@@ -4,7 +4,7 @@ plots Package
 :mod:`plot` Module
 ------------------
 
-.. automodule:: plots.plot
+.. automodule:: blond.plots.plot
     :members:
     :undoc-members:
     :show-inheritance:
@@ -12,7 +12,7 @@ plots Package
 :mod:`plot_beams` Module
 ------------------------
 
-.. automodule:: plots.plot_beams
+.. automodule:: blond.plots.plot_beams
     :members:
     :undoc-members:
     :show-inheritance:
@@ -20,7 +20,7 @@ plots Package
 :mod:`plot_impedance` Module
 ----------------------------
 
-.. automodule:: plots.plot_impedance
+.. automodule:: blond.plots.plot_impedance
     :members:
     :undoc-members:
     :show-inheritance:
@@ -28,7 +28,7 @@ plots Package
 :mod:`plot_llrf` Module
 -----------------------
 
-.. automodule:: plots.plot_llrf
+.. automodule:: blond.plots.plot_llrf
     :members:
     :undoc-members:
     :show-inheritance:
@@ -36,7 +36,7 @@ plots Package
 :mod:`plot_parameters` Module
 -----------------------------
 
-.. automodule:: plots.plot_parameters
+.. automodule:: blond.plots.plot_parameters
     :members:
     :undoc-members:
     :show-inheritance:
@@ -44,7 +44,7 @@ plots Package
 :mod:`plot_slices` Module
 -------------------------
 
-.. automodule:: plots.plot_slices
+.. automodule:: blond.plots.plot_slices
     :members:
     :undoc-members:
     :show-inheritance:

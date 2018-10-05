@@ -33,7 +33,8 @@ Modules
     modules/synchrotron_radiation.rst
     modules/toolbox.rst
     modules/trackers.rst
-    modules/setup_cpp.rst
+    modules/compile.rst
+    modules/utils.rst
 
 
 

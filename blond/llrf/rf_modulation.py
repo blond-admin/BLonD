@@ -20,8 +20,8 @@ from builtins import str, range, object
 import numpy as np
 import scipy.interpolate as interp
 
-from ..input_parameters.rf_parameters_options import PreprocessRFParams
-prep = PreprocessRFParams()
+from ..input_parameters.rf_parameters_options import RFStationOptions
+prep = RFStationOptions()
 
 
 class PhaseModulation(object):

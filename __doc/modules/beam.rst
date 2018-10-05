@@ -4,7 +4,7 @@ beam Package
 :mod:`beam` Module
 ------------------
 
-.. automodule:: beam.beam
+.. automodule:: blond.beam.beam
     :members:
     :undoc-members:
     :show-inheritance:
@@ -12,7 +12,7 @@ beam Package
 :mod:`coasting_beam` Module
 ---------------------------
 
-.. automodule:: beam.coasting_beam
+.. automodule:: blond.beam.coasting_beam
     :members:
     :undoc-members:
     :show-inheritance:
@@ -20,7 +20,7 @@ beam Package
 :mod:`distributions` Module
 ---------------------------
 
-.. automodule:: beam.distributions
+.. automodule:: blond.beam.distributions
     :members:
     :undoc-members:
     :show-inheritance:
@@ -28,7 +28,7 @@ beam Package
 :mod:`distributions_multibunch` Module
 --------------------------------------
 
-.. automodule:: beam.distributions_multibunch
+.. automodule:: blond.beam.distributions_multibunch
     :members:
     :undoc-members:
     :show-inheritance:
@@ -36,7 +36,7 @@ beam Package
 :mod:`profile` Module
 ---------------------
 
-.. automodule:: beam.profile
+.. automodule:: blond.beam.profile
     :members:
     :undoc-members:
     :show-inheritance:
@@ -44,7 +44,7 @@ beam Package
 :mod:`sparse_slices` Module
 ---------------------------
 
-.. automodule:: beam.sparse_slices
+.. automodule:: blond.beam.sparse_slices
     :members:
     :undoc-members:
     :show-inheritance:

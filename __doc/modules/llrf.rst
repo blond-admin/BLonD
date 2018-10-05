@@ -4,7 +4,7 @@ llrf Package
 :mod:`notch_filter` Module
 --------------------------
 
-.. automodule:: llrf.notch_filter
+.. automodule:: blond.llrf.notch_filter
     :members:
     :undoc-members:
     :show-inheritance:
@@ -273,7 +273,7 @@ Machine-dependent Beam Phase Loop
 :mod:`cavity_feedback` Module
 -----------------------------
 
-.. automodule:: llrf.cavity_feedback
+.. automodule:: blond.llrf.cavity_feedback
     :members:
     :undoc-members:
     :show-inheritance:
@@ -281,7 +281,7 @@ Machine-dependent Beam Phase Loop
 :mod:`impulse_response` Module
 ------------------------------
 
-.. automodule:: llrf.impulse_response
+.. automodule:: blond.llrf.impulse_response
     :members:
     :undoc-members:
     :show-inheritance:
@@ -289,7 +289,7 @@ Machine-dependent Beam Phase Loop
 :mod:`rf_modulation` Module
 ---------------------------
 
-.. automodule:: llrf.rf_modulation
+.. automodule:: blond.llrf.rf_modulation
     :members:
     :undoc-members:
     :show-inheritance:
@@ -474,7 +474,7 @@ Bunch-length based feedback on noise amplitude
 :mod:`signal_processing` Module
 -------------------------------
 
-.. automodule:: llrf.signal_processing
+.. automodule:: blond.llrf.signal_processing
     :members:
     :undoc-members:
     :show-inheritance:

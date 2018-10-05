@@ -67,15 +67,17 @@ def drift(ring, dt, dE, turn):
                 __getLen(dt))
 
 
-def linear_interp_kick(ring, dt, dE, turn):
+def linear_interp_kick(dt, dE, voltage,
+                       bin_centers, charge,
+                       acceleration_kick):
     __lib.linear_interp_kick(__getPointer(dt),
                              __getPointer(dE),
-                             __getPointer(ring.total_voltage),
-                             __getPointer(ring.profile.bin_centers),
-                             ct.c_double(ring.beam.Particle.charge),
-                             ct.c_int(ring.profile.n_slices),
-                             ct.c_int(ring.beam.n_macroparticles),
-                             ct.c_double(ring.acceleration_kick[turn]))
+                             __getPointer(voltage),
+                             __getPointer(bin_centers),
+                             ct.c_double(charge),
+                             __getLen(bin_centers),
+                             __getLen(dt),
+                             ct.c_double(acceleration_kick))
 
 
 def linear_interp_time_translation(ring, dt, dE, turn):

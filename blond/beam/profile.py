@@ -20,10 +20,8 @@ import numpy as np
 from numpy.fft import rfft, rfftfreq
 from scipy import ndimage
 import ctypes
-# from ..setup_cpp import libblond
-from .. import libblond
 from ..toolbox import filters_and_fitting as ffroutines
-
+from ..utils import bmath as bm
 
 class CutOptions(object):
     r"""
@@ -433,30 +431,29 @@ class Profile(object):
 
     def _slice(self):
         """
-        Constant space slicing with a constant frame.
+        Constant space slicing with a constant frame. 
         """
-
-        libblond.histogram(
-            self.Beam.dt.ctypes.data_as(ctypes.c_void_p),
-            self.n_macroparticles.ctypes.data_as(ctypes.c_void_p),
-            ctypes.c_double(self.cut_left),
-            ctypes.c_double(self.cut_right),
-            ctypes.c_int(self.n_slices),
-            ctypes.c_int(self.Beam.n_macroparticles))
+        bm.slice(self)
+        # libblond.histogram(self.Beam.dt.ctypes.data_as(ctypes.c_void_p), 
+        #                  self.n_macroparticles.ctypes.data_as(ctypes.c_void_p), 
+        #                  ctypes.c_double(self.cut_left), 
+        #                  ctypes.c_double(self.cut_right), 
+        #                  ctypes.c_int(self.n_slices), 
+        #                  ctypes.c_int(self.Beam.n_macroparticles))
 
     def _slice_smooth(self):
         """
         At the moment 4x slower than _slice but smoother (filtered).
         """
+        bm.slice_smooth(self)
+        # libblond.smooth_histogram(self.Beam.dt.ctypes.data_as(ctypes.c_void_p), 
+        #                  self.n_macroparticles.ctypes.data_as(ctypes.c_void_p), 
+        #                  ctypes.c_double(self.cut_left), 
+        #                  ctypes.c_double(self.cut_right), 
+        #                  ctypes.c_uint(self.n_slices), 
+        #                  ctypes.c_uint(self.Beam.n_macroparticles))
 
-        libblond.smooth_histogram(
-            self.Beam.dt.ctypes.data_as(ctypes.c_void_p),
-            self.n_macroparticles.ctypes.data_as(ctypes.c_void_p),
-            ctypes.c_double(self.cut_left),
-            ctypes.c_double(self.cut_right),
-            ctypes.c_uint(self.n_slices),
-            ctypes.c_uint(self.Beam.n_macroparticles))
-
+    
     def apply_fit(self):
         """
         It applies Gaussian fit to the profile.
