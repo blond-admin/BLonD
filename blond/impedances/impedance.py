@@ -40,8 +40,8 @@ class TotalInducedVoltage(object):
     ----------
     Beam : object
         Beam object
-    Profiles : object
-        Profiles object
+    Profile : object
+        Profile object
     induced_voltage_list : object list
         List of objects for which induced voltages have to be calculated
         
@@ -50,7 +50,7 @@ class TotalInducedVoltage(object):
     beam : object
         Copy of the Beam object in order to access the beam info
     profile : object
-        Copy of the Profiles object in order to access the profile info
+        Copy of the Profile object in order to access the profile info
     induced_voltage_list : object list
         List of objects for which induced voltages have to be calculated
     induced_voltage : float array
@@ -59,15 +59,15 @@ class TotalInducedVoltage(object):
         Time array corresponding to induced_voltage [s]
     """
     
-    def __init__(self, Beam, Profiles, induced_voltage_list):
+    def __init__(self, Beam, Profile, induced_voltage_list):
         """
         Constructor.
         """
         # Copy of the Beam object in order to access the beam info.
         self.beam = Beam
         
-        # Copy of the Profiles object in order to access the profile info.
-        self.profile = Profiles
+        # Copy of the Profile object in order to access the profile info.
+        self.profile = Profile
         
         # Induced voltage list.
         self.induced_voltage_list = induced_voltage_list
@@ -141,8 +141,8 @@ class _InducedVoltage(object):
     ----------
     Beam : object
         Beam object
-    Profiles : object
-        Profiles object
+    Profile : object
+        Profile object
     frequency_resolution : float, optional
         Frequency resolution of the impedance [Hz]
     wake_length : float, optional
@@ -159,7 +159,7 @@ class _InducedVoltage(object):
     beam : object
         Copy of the Beam object in order to access the beam info
     profile : object
-        Copy of the Profiles object in order to access the profile info
+        Copy of the Profile object in order to access the profile info
     induced_voltage : float array
         Induced voltage from the sum of the wake sources in V
     wake_length_input : float
@@ -761,4 +761,5 @@ class InducedVoltageResonator(_InducedVoltage):
         """
         
         return 0.5*(np.sign(x) + 1.)
+
 
