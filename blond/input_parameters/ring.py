@@ -210,7 +210,7 @@ class Ring(object):
             synchronous_data,
             self.n_turns,
             self.n_sections,
-            input_is_momentum=True,
+            input_to_momentum=True,
             synchronous_data_type=synchronous_data_type,
             mass=self.Particle.mass,
             charge=self.Particle.charge,
