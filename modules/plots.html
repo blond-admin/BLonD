@@ -1,0 +1,733 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>plots Package &mdash; BLonD 1.1 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="../genindex.html"/>
+        <link rel="search" title="Search" href="../search.html"/>
+    <link rel="top" title="BLonD 1.1 documentation" href="../index.html"/>
+        <link rel="next" title="synchrotron_radiation Package" href="synchrotron_radiation.html"/>
+        <link rel="prev" title="monitors Package" href="monitors.html"/> 
+
+  
+  <script src="../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> BLonD
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                1.1
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="equations_of_motion.html">Equations of Motion</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#definitions">Definitions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#energy-kick">Energy kick</a></li>
+<li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#arrival-time-drift">Arrival time drift</a></li>
+<li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#the-synchronous-particle">The synchronous particle</a></li>
+<li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#small-amplitude-oscillations">Small-amplitude oscillations</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="equations_of_motion.html#tracking-utilities">Tracking utilities</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#hamiltonian">Hamiltonian</a></li>
+<li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#separatrix">Separatrix</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="beam.html">beam Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="beam.html#module-blond.beam.beam"><code class="docutils literal notranslate"><span class="pre">beam</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="beam.html#module-blond.beam.coasting_beam"><code class="docutils literal notranslate"><span class="pre">coasting_beam</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="beam.html#module-blond.beam.distributions"><code class="docutils literal notranslate"><span class="pre">distributions</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="beam.html#module-blond.beam.distributions_multibunch"><code class="docutils literal notranslate"><span class="pre">distributions_multibunch</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="beam.html#module-blond.beam.profile"><code class="docutils literal notranslate"><span class="pre">profile</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="beam.html#module-blond.beam.sparse_slices"><code class="docutils literal notranslate"><span class="pre">sparse_slices</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="impedances.html">impedances Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="impedances.html#module-blond.impedances.impedance"><code class="docutils literal notranslate"><span class="pre">impedance</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="impedances.html#module-blond.impedances.impedance_sources"><code class="docutils literal notranslate"><span class="pre">impedance_sources</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="impedances.html#module-blond.impedances.induced_voltage_analytical"><code class="docutils literal notranslate"><span class="pre">induced_voltage_analytical</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="impedances.html#module-blond.impedances.music"><code class="docutils literal notranslate"><span class="pre">music</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="input_parameters.html">input_parameters Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="input_parameters.html#module-blond.input_parameters.rf_parameters"><code class="docutils literal notranslate"><span class="pre">rf_parameters</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="input_parameters.html#module-blond.input_parameters.ring"><code class="docutils literal notranslate"><span class="pre">ring</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="input_parameters.html#module-blond.input_parameters.ring_options"><code class="docutils literal notranslate"><span class="pre">ring_options</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="input_parameters.html#module-blond.input_parameters.rf_parameters_options"><code class="docutils literal notranslate"><span class="pre">rf_parameters_options</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="llrf.html">llrf Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="llrf.html#module-blond.llrf.notch_filter"><code class="docutils literal notranslate"><span class="pre">notch_filter</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="llrf.html#llrf-beam-feedback-module">llrf.beam_feedback Module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="llrf.html#machine-dependent-beam-phase-loop">Machine-dependent Beam Phase Loop</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="llrf.html#module-blond.llrf.cavity_feedback"><code class="docutils literal notranslate"><span class="pre">cavity_feedback</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="llrf.html#module-blond.llrf.impulse_response"><code class="docutils literal notranslate"><span class="pre">impulse_response</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="llrf.html#module-blond.llrf.rf_modulation"><code class="docutils literal notranslate"><span class="pre">rf_modulation</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="llrf.html#llrf-rf-noise-module">llrf.rf_noise Module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="llrf.html#rf-phase-noise-generation">RF phase noise generation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="llrf.html#lhc-type-phase-noise-generation">LHC-type phase noise generation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="llrf.html#bunch-length-based-feedback-on-noise-amplitude">Bunch-length based feedback on noise amplitude</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="llrf.html#module-blond.llrf.signal_processing"><code class="docutils literal notranslate"><span class="pre">signal_processing</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="monitors.html">monitors Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="monitors.html#module-blond.monitors.monitors"><code class="docutils literal notranslate"><span class="pre">monitors</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">plots Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#module-blond.plots.plot"><code class="docutils literal notranslate"><span class="pre">plot</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-blond.plots.plot_beams"><code class="docutils literal notranslate"><span class="pre">plot_beams</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-blond.plots.plot_impedance"><code class="docutils literal notranslate"><span class="pre">plot_impedance</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-blond.plots.plot_llrf"><code class="docutils literal notranslate"><span class="pre">plot_llrf</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-blond.plots.plot_parameters"><code class="docutils literal notranslate"><span class="pre">plot_parameters</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-blond.plots.plot_slices"><code class="docutils literal notranslate"><span class="pre">plot_slices</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="synchrotron_radiation.html">synchrotron_radiation Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="synchrotron_radiation.html#module-blond.synchrotron_radiation.synchrotron_radiation"><code class="docutils literal notranslate"><span class="pre">synchrotron_radiation</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="toolbox.html">toolbox Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.action"><code class="docutils literal notranslate"><span class="pre">action</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.convolution"><code class="docutils literal notranslate"><span class="pre">convolution</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.diffusion"><code class="docutils literal notranslate"><span class="pre">diffusion</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.next_regular"><code class="docutils literal notranslate"><span class="pre">next_regular</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.parameter_scaling"><code class="docutils literal notranslate"><span class="pre">parameter_scaling</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.tomoscope"><code class="docutils literal notranslate"><span class="pre">tomoscope</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="trackers.html">trackers Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="trackers.html#module-blond.trackers.tracker"><code class="docutils literal notranslate"><span class="pre">tracker</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="trackers.html#module-blond.trackers.utilities"><code class="docutils literal notranslate"><span class="pre">utilities</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="compile.html">compile Module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="compile.html#id1"><code class="docutils literal notranslate"><span class="pre">compile</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="utils.html">utils Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="utils.html#module-blond.utils.bmath"><code class="docutils literal notranslate"><span class="pre">bmath</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="utils.html#module-blond.utils.bphysics_wrap"><code class="docutils literal notranslate"><span class="pre">bphysics_wrap</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="utils.html#module-blond.utils.butils_wrap"><code class="docutils literal notranslate"><span class="pre">butils_wrap</span></code> Module</a></li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">BLonD</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html">Docs</a> &raquo;</li>
+        
+      <li>plots Package</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/modules/plots.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="plots-package">
+<h1>plots Package<a class="headerlink" href="#plots-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="module-blond.plots.plot">
+<span id="plot-module"></span><h2><code class="xref py py-mod docutils literal notranslate"><span class="pre">plot</span></code> Module<a class="headerlink" href="#module-blond.plots.plot" title="Permalink to this headline">¶</a></h2>
+<p><strong>Class to choose plots and customize plot layout</strong></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Authors:</th><td class="field-body"><strong>Helga Timko</strong></td>
+</tr>
+</tbody>
+</table>
+<dl class="class">
+<dt id="blond.plots.plot.Plot">
+<em class="property">class </em><code class="descclassname">blond.plots.plot.</code><code class="descname">Plot</code><span class="sig-paren">(</span><em>Ring</em>, <em>RFStation</em>, <em>Beam</em>, <em>dt_plot</em>, <em>dt_bckp</em>, <em>xmin</em>, <em>xmax</em>, <em>ymin</em>, <em>ymax</em>, <em>xunit='s'</em>, <em>sampling=1</em>, <em>separatrix_plot=False</em>, <em>histograms_plot=True</em>, <em>Profile=None</em>, <em>h5file=None</em>, <em>output_frequency=1</em>, <em>PhaseLoop=None</em>, <em>LHCNoiseFB=None</em>, <em>format_options=None</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot.Plot" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="attribute">
+<dt id="blond.plots.plot.Plot.PL">
+<code class="descname">PL</code><em class="property"> = None</em><a class="headerlink" href="#blond.plots.plot.Plot.PL" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>Optional import of PhaseLoop</em></div>
+</div>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.plots.plot.Plot.beam">
+<code class="descname">beam</code><em class="property"> = None</em><a class="headerlink" href="#blond.plots.plot.Plot.beam" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>Import Beam</em></div>
+</div>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.plots.plot.Plot.dt_mon">
+<code class="descname">dt_mon</code><em class="property"> = None</em><a class="headerlink" href="#blond.plots.plot.Plot.dt_mon" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>Optional sampling of monitored quantities</em></div>
+</div>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.plots.plot.Plot.dt_plot">
+<code class="descname">dt_plot</code><em class="property"> = None</em><a class="headerlink" href="#blond.plots.plot.Plot.dt_plot" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>Plotting frequency in units of time steps</em></div>
+</div>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.plots.plot.Plot.general_params">
+<code class="descname">general_params</code><em class="property"> = None</em><a class="headerlink" href="#blond.plots.plot.Plot.general_params" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>Import Ring</em></div>
+</div>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.plots.plot.Plot.h5file">
+<code class="descname">h5file</code><em class="property"> = None</em><a class="headerlink" href="#blond.plots.plot.Plot.h5file" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>Optional import of Monitor file</em></div>
+</div>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.plots.plot.Plot.histogram">
+<code class="descname">histogram</code><em class="property"> = None</em><a class="headerlink" href="#blond.plots.plot.Plot.histogram" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>Histogram in phase space plot ‘True’ or ‘False’</em></div>
+</div>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.plots.plot.Plot.noiseFB">
+<code class="descname">noiseFB</code><em class="property"> = None</em><a class="headerlink" href="#blond.plots.plot.Plot.noiseFB" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>Optional import of LHCNoiseFB</em></div>
+</div>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.plots.plot.Plot.profile">
+<code class="descname">profile</code><em class="property"> = None</em><a class="headerlink" href="#blond.plots.plot.Plot.profile" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>Optional import of Profile</em></div>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="blond.plots.plot.Plot.reset_frame">
+<code class="descname">reset_frame</code><span class="sig-paren">(</span><em>xmin</em>, <em>xmax</em>, <em>ymin</em>, <em>ymax</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot.Plot.reset_frame" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="blond.plots.plot.Plot.rf_params">
+<code class="descname">rf_params</code><em class="property"> = None</em><a class="headerlink" href="#blond.plots.plot.Plot.rf_params" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>Import RFStation</em></div>
+</div>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.plots.plot.Plot.sampling">
+<code class="descname">sampling</code><em class="property"> = None</em><a class="headerlink" href="#blond.plots.plot.Plot.sampling" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>Sampling of large arrays (where applicable)</em></div>
+</div>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.plots.plot.Plot.separatix">
+<code class="descname">separatix</code><em class="property"> = None</em><a class="headerlink" href="#blond.plots.plot.Plot.separatix" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>Separatrix in phase space plot ‘True’ or ‘False’</em></div>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="blond.plots.plot.Plot.set_format">
+<code class="descname">set_format</code><span class="sig-paren">(</span><em>format_options</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot.Plot.set_format" title="Permalink to this definition">¶</a></dt>
+<dd><p>Initialize plot folder and custom plot formatting. For more options, see</p>
+<p><a class="reference external" href="http://matplotlib.org/1.3.1/users/customizing.html">http://matplotlib.org/1.3.1/users/customizing.html</a></p>
+</dd></dl>
+
+<dl class="method">
+<dt id="blond.plots.plot.Plot.track">
+<code class="descname">track</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot.Plot.track" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot in certain time steps and depending on imported objects</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.plots.plot.Plot.tstep">
+<code class="descname">tstep</code><em class="property"> = None</em><a class="headerlink" href="#blond.plots.plot.Plot.tstep" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>Import actual time step RFStation</em></div>
+</div>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.plots.plot.Plot.xmax">
+<code class="descname">xmax</code><em class="property"> = None</em><a class="headerlink" href="#blond.plots.plot.Plot.xmax" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>Plot limit (where applicable) maximum on x-axis [xunit]</em></div>
+</div>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.plots.plot.Plot.xmin">
+<code class="descname">xmin</code><em class="property"> = None</em><a class="headerlink" href="#blond.plots.plot.Plot.xmin" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>Plot limit (where applicable) minimum on x-axis [xunit]</em></div>
+</div>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.plots.plot.Plot.xunit">
+<code class="descname">xunit</code><em class="property"> = None</em><a class="headerlink" href="#blond.plots.plot.Plot.xunit" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>Choice of x-axis unit (where applicable) ‘s’ or ‘rad’</em></div>
+</div>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.plots.plot.Plot.ymax">
+<code class="descname">ymax</code><em class="property"> = None</em><a class="headerlink" href="#blond.plots.plot.Plot.ymax" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>Plot limit (where applicable) maximum on y-axis [eV]</em></div>
+</div>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.plots.plot.Plot.ymin">
+<code class="descname">ymin</code><em class="property"> = None</em><a class="headerlink" href="#blond.plots.plot.Plot.ymin" title="Permalink to this definition">¶</a></dt>
+<dd><div class="line-block">
+<div class="line"><em>Plot limit (where applicable) minimum on y-axis [eV]</em></div>
+</div>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="blond.plots.plot.fig_folder">
+<code class="descclassname">blond.plots.plot.</code><code class="descname">fig_folder</code><span class="sig-paren">(</span><em>dirname</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot.fig_folder" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create folder where plots will be stored.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-blond.plots.plot_beams">
+<span id="plot-beams-module"></span><h2><code class="xref py py-mod docutils literal notranslate"><span class="pre">plot_beams</span></code> Module<a class="headerlink" href="#module-blond.plots.plot_beams" title="Permalink to this headline">¶</a></h2>
+<p><strong>Module to plot different bunch features</strong></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Authors:</th><td class="field-body"><strong>Helga Timko</strong>, <strong>Danilo Quartullo</strong></td>
+</tr>
+</tbody>
+</table>
+<dl class="function">
+<dt id="blond.plots.plot_beams.plot_bunch_length_evol">
+<code class="descclassname">blond.plots.plot_beams.</code><code class="descname">plot_bunch_length_evol</code><span class="sig-paren">(</span><em>RFStation</em>, <em>h5data</em>, <em>output_freq=1</em>, <em>dirname='fig'</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_beams.plot_bunch_length_evol" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot of r.m.s. 4-sigma bunch length [s] as a function of time.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="blond.plots.plot_beams.plot_bunch_length_evol_gaussian">
+<code class="descclassname">blond.plots.plot_beams.</code><code class="descname">plot_bunch_length_evol_gaussian</code><span class="sig-paren">(</span><em>RFStation</em>, <em>Profile</em>, <em>h5data</em>, <em>output_freq=1</em>, <em>dirname='fig'</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_beams.plot_bunch_length_evol_gaussian" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot of Gaussian 4-sigma bunch length [s] as a function of time.
+Requires profile.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="blond.plots.plot_beams.plot_energy_evol">
+<code class="descclassname">blond.plots.plot_beams.</code><code class="descname">plot_energy_evol</code><span class="sig-paren">(</span><em>RFStation</em>, <em>h5data</em>, <em>output_freq=1</em>, <em>style='.'</em>, <em>dirname='fig'</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_beams.plot_energy_evol" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="blond.plots.plot_beams.plot_long_phase_space">
+<code class="descclassname">blond.plots.plot_beams.</code><code class="descname">plot_long_phase_space</code><span class="sig-paren">(</span><em>Ring</em>, <em>RFStation</em>, <em>Beam</em>, <em>xmin</em>, <em>xmax</em>, <em>ymin</em>, <em>ymax</em>, <em>xunit='s'</em>, <em>sampling=1</em>, <em>separatrix_plot=False</em>, <em>histograms_plot=True</em>, <em>dirname='fig'</em>, <em>alpha=1</em>, <em>color='b'</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_beams.plot_long_phase_space" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot of longitudinal phase space. Optional use of histograms and separatrix.
+Choice of units: xunit = s, rad.
+For large amount of data, use “sampling” to plot a fraction of the data.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="blond.plots.plot_beams.plot_position_evol">
+<code class="descclassname">blond.plots.plot_beams.</code><code class="descname">plot_position_evol</code><span class="sig-paren">(</span><em>RFStation</em>, <em>h5data</em>, <em>output_freq=1</em>, <em>style='.'</em>, <em>dirname='fig'</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_beams.plot_position_evol" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="blond.plots.plot_beams.plot_transmitted_particles">
+<code class="descclassname">blond.plots.plot_beams.</code><code class="descname">plot_transmitted_particles</code><span class="sig-paren">(</span><em>RFStation</em>, <em>h5data</em>, <em>output_freq=1</em>, <em>style='.'</em>, <em>dirname='fig'</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_beams.plot_transmitted_particles" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-blond.plots.plot_impedance">
+<span id="plot-impedance-module"></span><h2><code class="xref py py-mod docutils literal notranslate"><span class="pre">plot_impedance</span></code> Module<a class="headerlink" href="#module-blond.plots.plot_impedance" title="Permalink to this headline">¶</a></h2>
+<p><strong>Module to plot different bunch features</strong></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Authors:</th><td class="field-body"><strong>Helga Timko</strong>, <strong>Danilo Quartullo</strong></td>
+</tr>
+</tbody>
+</table>
+<dl class="function">
+<dt id="blond.plots.plot_impedance.plot_impedance_vs_frequency">
+<code class="descclassname">blond.plots.plot_impedance.</code><code class="descname">plot_impedance_vs_frequency</code><span class="sig-paren">(</span><em>counter</em>, <em>general_params</em>, <em>ind_volt_from_imp</em>, <em>option1='sum'</em>, <em>option2='no_spectrum'</em>, <em>option3='freq_fft'</em>, <em>style='-'</em>, <em>cut_left_right=None</em>, <em>cut_up_down=None</em>, <em>dirname='fig'</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_impedance.plot_impedance_vs_frequency" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot of impedance vs frequency.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="blond.plots.plot_impedance.plot_induced_voltage_vs_bin_centers">
+<code class="descclassname">blond.plots.plot_impedance.</code><code class="descname">plot_induced_voltage_vs_bin_centers</code><span class="sig-paren">(</span><em>counter</em>, <em>general_params</em>, <em>total_voltage</em>, <em>style='-'</em>, <em>dirname='fig'</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_impedance.plot_induced_voltage_vs_bin_centers" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot of induced voltage vs bin centers.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-blond.plots.plot_llrf">
+<span id="plot-llrf-module"></span><h2><code class="xref py py-mod docutils literal notranslate"><span class="pre">plot_llrf</span></code> Module<a class="headerlink" href="#module-blond.plots.plot_llrf" title="Permalink to this headline">¶</a></h2>
+<p><strong>Module to plot different LLRF features</strong></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Authors:</th><td class="field-body"><strong>Helga Timko</strong>, <strong>Danilo Quartullo</strong></td>
+</tr>
+</tbody>
+</table>
+<dl class="function">
+<dt id="blond.plots.plot_llrf.plot_COM_motion">
+<code class="descclassname">blond.plots.plot_llrf.</code><code class="descname">plot_COM_motion</code><span class="sig-paren">(</span><em>Ring</em>, <em>RFStation</em>, <em>h5data</em>, <em>output_freq=1</em>, <em>dirname='fig'</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_llrf.plot_COM_motion" title="Permalink to this definition">¶</a></dt>
+<dd><p>Evolution of bunch C.O.M. in longitudinal phase space.
+Optional use of histograms and separatrix.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="blond.plots.plot_llrf.plot_LHCNoiseFB">
+<code class="descclassname">blond.plots.plot_llrf.</code><code class="descname">plot_LHCNoiseFB</code><span class="sig-paren">(</span><em>RFStation</em>, <em>LHCNoiseFB</em>, <em>h5data</em>, <em>output_freq=1</em>, <em>dirname='fig'</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_llrf.plot_LHCNoiseFB" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot of the phase noise multiplication factor as a function of time.
+For large amount of data, monitor with larger ‘output_freq’.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="blond.plots.plot_llrf.plot_LHCNoiseFB_FWHM">
+<code class="descclassname">blond.plots.plot_llrf.</code><code class="descname">plot_LHCNoiseFB_FWHM</code><span class="sig-paren">(</span><em>RFStation</em>, <em>LHCNoiseFB</em>, <em>h5data</em>, <em>output_freq=1</em>, <em>dirname='fig'</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_llrf.plot_LHCNoiseFB_FWHM" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot of the FWHM bunch length used in LHCNoiseFB as a function of time.
+For large amount of data, monitor with larger ‘output_freq’.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="blond.plots.plot_llrf.plot_LHCNoiseFB_FWHM_bbb">
+<code class="descclassname">blond.plots.plot_llrf.</code><code class="descname">plot_LHCNoiseFB_FWHM_bbb</code><span class="sig-paren">(</span><em>RFStation</em>, <em>LHCNoiseFB</em>, <em>h5data</em>, <em>output_freq=1</em>, <em>dirname='fig'</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_llrf.plot_LHCNoiseFB_FWHM_bbb" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot of bunch-by-bunch FWHM bunch length used in LHCNoiseFB as a function
+of time. For large amount of data, monitor with larger ‘output_freq’.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="blond.plots.plot_llrf.plot_PL_RF_freq">
+<code class="descclassname">blond.plots.plot_llrf.</code><code class="descname">plot_PL_RF_freq</code><span class="sig-paren">(</span><em>RFStation</em>, <em>h5data</em>, <em>output_freq=1</em>, <em>dirname='fig'</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_llrf.plot_PL_RF_freq" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot of RF revolution frequency; monitored with Phase Loop.
+For large amount of data, monitor with larger ‘output_freq’.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="blond.plots.plot_llrf.plot_PL_RF_phase">
+<code class="descclassname">blond.plots.plot_llrf.</code><code class="descname">plot_PL_RF_phase</code><span class="sig-paren">(</span><em>RFStation</em>, <em>h5data</em>, <em>output_freq=1</em>, <em>dirname='fig'</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_llrf.plot_PL_RF_phase" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot of RF phase; monitored with Phase Loop.
+For large amount of data, monitor with larger ‘output_freq’.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="blond.plots.plot_llrf.plot_PL_bunch_phase">
+<code class="descclassname">blond.plots.plot_llrf.</code><code class="descname">plot_PL_bunch_phase</code><span class="sig-paren">(</span><em>RFStation</em>, <em>h5data</em>, <em>output_freq=1</em>, <em>dirname='fig'</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_llrf.plot_PL_bunch_phase" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot of bunch phase measured by the Phase Loop as a function of time.
+For large amount of data, monitor with larger ‘output_freq’.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="blond.plots.plot_llrf.plot_PL_freq_corr">
+<code class="descclassname">blond.plots.plot_llrf.</code><code class="descname">plot_PL_freq_corr</code><span class="sig-paren">(</span><em>RFStation</em>, <em>h5data</em>, <em>output_freq=1</em>, <em>dirname='fig'</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_llrf.plot_PL_freq_corr" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot of frequency correction applied by the Phase Loop as a function of time.
+For large amount of data, monitor with larger ‘output_freq’.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="blond.plots.plot_llrf.plot_PL_phase_corr">
+<code class="descclassname">blond.plots.plot_llrf.</code><code class="descname">plot_PL_phase_corr</code><span class="sig-paren">(</span><em>RFStation</em>, <em>h5data</em>, <em>output_freq=1</em>, <em>dirname='fig'</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_llrf.plot_PL_phase_corr" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot of phase correction applied by the Phase Loop as a function of time.
+For large amount of data, monitor with larger ‘output_freq’.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="blond.plots.plot_llrf.plot_RF_phase_error">
+<code class="descclassname">blond.plots.plot_llrf.</code><code class="descname">plot_RF_phase_error</code><span class="sig-paren">(</span><em>RFStation</em>, <em>h5data</em>, <em>output_freq=1</em>, <em>dirname='fig'</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_llrf.plot_RF_phase_error" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot of accumulated RF phase error; the Synchro Loop can act on this.
+For large amount of data, monitor with larger ‘output_freq’.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="blond.plots.plot_llrf.plot_RL_radial_error">
+<code class="descclassname">blond.plots.plot_llrf.</code><code class="descname">plot_RL_radial_error</code><span class="sig-paren">(</span><em>RFStation</em>, <em>h5data</em>, <em>output_freq=1</em>, <em>dirname='fig'</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_llrf.plot_RL_radial_error" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot of relative radial error; monitored with Phase Loop.
+For large amount of data, monitor with larger ‘output_freq’.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="blond.plots.plot_llrf.plot_noise_spectrum">
+<code class="descclassname">blond.plots.plot_llrf.</code><code class="descname">plot_noise_spectrum</code><span class="sig-paren">(</span><em>frequency</em>, <em>spectrum</em>, <em>sampling=1</em>, <em>dirname='fig'</em>, <em>figno=0</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_llrf.plot_noise_spectrum" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot of the phase noise spectrum.
+For large amount of data, use “sampling” to plot a fraction of the data.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="blond.plots.plot_llrf.plot_phase_noise">
+<code class="descclassname">blond.plots.plot_llrf.</code><code class="descname">plot_phase_noise</code><span class="sig-paren">(</span><em>time</em>, <em>dphi</em>, <em>sampling=1</em>, <em>dirname='fig'</em>, <em>figno=0</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_llrf.plot_phase_noise" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot of phase noise as a function of time.
+For large amount of data, use “sampling” to plot a fraction of the data.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-blond.plots.plot_parameters">
+<span id="plot-parameters-module"></span><h2><code class="xref py py-mod docutils literal notranslate"><span class="pre">plot_parameters</span></code> Module<a class="headerlink" href="#module-blond.plots.plot_parameters" title="Permalink to this headline">¶</a></h2>
+<p><strong>Functions to plot general and RF paramaters</strong></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Authors:</th><td class="field-body"><strong>Helga Timko</strong></td>
+</tr>
+</tbody>
+</table>
+<dl class="function">
+<dt id="blond.plots.plot_parameters.plot_voltage_programme">
+<code class="descclassname">blond.plots.plot_parameters.</code><code class="descname">plot_voltage_programme</code><span class="sig-paren">(</span><em>time</em>, <em>voltage</em>, <em>sampling=1</em>, <em>dirname='fig'</em>, <em>figno=0</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_parameters.plot_voltage_programme" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot of the RF voltage as a function of time.
+For large amount of data, use “sampling” to plot a fraction of the data.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-blond.plots.plot_slices">
+<span id="plot-slices-module"></span><h2><code class="xref py py-mod docutils literal notranslate"><span class="pre">plot_slices</span></code> Module<a class="headerlink" href="#module-blond.plots.plot_slices" title="Permalink to this headline">¶</a></h2>
+<p><strong>Module to plot different bunch features</strong></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Authors:</th><td class="field-body"><strong>Helga Timko</strong>, <strong>Danilo Quartullo</strong></td>
+</tr>
+</tbody>
+</table>
+<dl class="function">
+<dt id="blond.plots.plot_slices.plot_beam_profile">
+<code class="descclassname">blond.plots.plot_slices.</code><code class="descname">plot_beam_profile</code><span class="sig-paren">(</span><em>Profile</em>, <em>counter</em>, <em>style='-'</em>, <em>dirname='fig'</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_slices.plot_beam_profile" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot of longitudinal beam profile</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="blond.plots.plot_slices.plot_beam_profile_derivative">
+<code class="descclassname">blond.plots.plot_slices.</code><code class="descname">plot_beam_profile_derivative</code><span class="sig-paren">(</span><em>Profile, counter, style='-', dirname='fig', modes=['diff']</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_slices.plot_beam_profile_derivative" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot of the derivative of the longitudinal beam profile.
+Modes list should contain 1 or more of the elements below:
+1) ‘filter1d’, 2) ‘gradient’, 3) ‘diff’</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="blond.plots.plot_slices.plot_beam_spectrum">
+<code class="descclassname">blond.plots.plot_slices.</code><code class="descname">plot_beam_spectrum</code><span class="sig-paren">(</span><em>Profile</em>, <em>counter</em>, <em>style='-'</em>, <em>dirname='fig'</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_slices.plot_beam_spectrum" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot of longitudinal beam profile</p>
+</dd></dl>
+
+</div>
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="synchrotron_radiation.html" class="btn btn-neutral float-right" title="synchrotron_radiation Package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="monitors.html" class="btn btn-neutral" title="monitors Package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2017.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../',
+            VERSION:'1.1',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="../_static/jquery.js"></script>
+      <script type="text/javascript" src="../_static/underscore.js"></script>
+      <script type="text/javascript" src="../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+  
+
+  
+   
+
+</body>
+</html>
