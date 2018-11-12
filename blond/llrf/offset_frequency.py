@@ -32,8 +32,17 @@ class _FrequencyOffset(object):
         #: | *Import RFStation*
         self.rf_station = RFStation
 
-        #: | *Set system to modify, if None all are modified*
-        self.system = System
+        #: | *Set system number(s) to modify, if None all are modified*
+        if isinstance(System, int):
+            self.system = [System]
+        elif isinstance(System, list):
+            self.system = System
+        elif System is None:
+            self.system = System
+        else:
+            raise TypeError("System must be int, list of ints or None")
+        if self.system and not all((isinstance(s, int) for s in self.system)):
+            raise TypeError("System must be int, list of ints or None")
 
 
     def set_frequency(self, NewFrequencyProgram):
@@ -66,8 +75,10 @@ class _FrequencyOffset(object):
         each RF system
         '''
 
-        delta_phi = 2*np.pi*self.rf_station.harmonic[:,:self.end_turn]*(self.rf_station.harmonic[:,:self.end_turn]*self.new_frequency - self.design_frequency)/\
-                       self.design_frequency
+        delta_phi = (2*np.pi * self.rf_station.harmonic[:,:self.end_turn]
+                     * (self.rf_station.harmonic[:,:self.end_turn]
+                     * self.new_frequency - self.design_frequency)
+                     / self.design_frequency)
 
         self.phase_slippage = np.cumsum(delta_phi, axis=1)
 
@@ -79,16 +90,20 @@ class _FrequencyOffset(object):
         '''
 
         if self.system is None:
-            self.rf_station.omega_rf[:, :self.end_turn] = self.rf_station.harmonic[:, :self.end_turn]*self.new_frequency
+            self.rf_station.omega_rf[:, :self.end_turn] = \
+                 (self.rf_station.harmonic[:, :self.end_turn] 
+                 * self.new_frequency)
+
             self.rf_station.phi_rf[:, :self.end_turn] += self.phase_slippage
 
             for n in range(self.rf_station.n_rf):
                 self.rf_station.phi_rf[n, self.end_turn:] += self.phase_slippage[n,-1]
 
         else:
-            self.rf_station.omega_rf[self.system, :self.end_turn] = self.rf_station.harmonic[self.system, :self.end_turn]*self.new_frequency
-            self.rf_station.phi_rf[self.system, :self.end_turn] += self.phase_slippage[self.system]
-            self.rf_station.phi_rf[self.system, self.end_turn:] += self.phase_slippage[self.system,-1]
+            for system in self.system:
+                self.rf_station.omega_rf[system, :self.end_turn] = self.rf_station.harmonic[system, :self.end_turn]*self.new_frequency
+                self.rf_station.phi_rf[system, :self.end_turn] += self.phase_slippage[system]
+                self.rf_station.phi_rf[system, self.end_turn:] += self.phase_slippage[system,-1]
 
 
 
