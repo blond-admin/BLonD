@@ -4,7 +4,7 @@ monitors Package
 :mod:`monitors` Module
 ----------------------
 
-.. automodule:: monitors.monitors
+.. automodule:: blond.monitors.monitors
     :members:
     :undoc-members:
     :show-inheritance:

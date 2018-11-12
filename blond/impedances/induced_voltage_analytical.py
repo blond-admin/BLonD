@@ -19,7 +19,7 @@ from scipy.constants import e
 def analytical_gaussian_resonator(sigma_t, Q, R_s, omega_r, tau_array, n_particles):
     r"""It gives the analytical induced voltage for a gaussian bunch and a 
     resonator.
-
+    
     Parameters
     ----------
     sigma_t : float
@@ -36,12 +36,12 @@ def analytical_gaussian_resonator(sigma_t, Q, R_s, omega_r, tau_array, n_particl
         Beam intensity [1].
     
     Returns
-    -------    
+    -------
     induced_voltage : float array
         Induced voltage [V] (multiplied by -1 according to BLonD conventions).
-     
+
     Notes
-    -----    
+    -----
     The formula can be derived using the following lines of codes in 
     Mathematica:
     

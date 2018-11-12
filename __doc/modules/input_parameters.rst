@@ -1,18 +1,10 @@
 input_parameters Package
 ========================
 
-:mod:`preprocess` Module
-------------------------
-
-.. automodule:: input_parameters.preprocess
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 :mod:`rf_parameters` Module
 ---------------------------
 
-.. automodule:: input_parameters.rf_parameters
+.. automodule:: blond.input_parameters.rf_parameters
     :members:
     :undoc-members:
     :show-inheritance:
@@ -20,8 +12,25 @@ input_parameters Package
 :mod:`ring` Module
 ------------------
 
-.. automodule:: input_parameters.ring
+.. automodule:: blond.input_parameters.ring
     :members:
     :undoc-members:
     :show-inheritance:
+
+:mod:`ring_options` Module
+--------------------------
+
+.. automodule:: blond.input_parameters.ring_options
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+:mod:`rf_parameters_options` Module
+-----------------------------------
+
+.. automodule:: blond.input_parameters.rf_parameters_options
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 

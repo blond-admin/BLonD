@@ -72,28 +72,28 @@ class Plot(object):
         self.dt_plot = dt_plot
         self.dt_bckp = dt_bckp
         
-        #: | *Plot limit (where applicable): minimum on x-axis [xunit]*
+        #: | *Plot limit (where applicable) minimum on x-axis [xunit]*
         self.xmin = xmin
 
-        #: | *Plot limit (where applicable): maximum on x-axis [xunit]*
+        #: | *Plot limit (where applicable) maximum on x-axis [xunit]*
         self.xmax = xmax
 
-        #: | *Choice of x-axis unit (where applicable): 's' or 'rad'*        
+        #: | *Choice of x-axis unit (where applicable) 's' or 'rad'*
         self.xunit = xunit
 
-        #: | *Plot limit (where applicable): minimum on y-axis [eV]*
+        #: | *Plot limit (where applicable) minimum on y-axis [eV]*
         self.ymin = ymin
 
-        #: | *Plot limit (where applicable): maximum on y-axis [eV]*
+        #: | *Plot limit (where applicable) maximum on y-axis [eV]*
         self.ymax = ymax
 
         #: | *Sampling of large arrays (where applicable)*
         self.sampling = sampling
 
-        #: | *Separatrix in phase space plot: 'True' or 'False'*
+        #: | *Separatrix in phase space plot 'True' or 'False'*
         self.separatix = separatrix_plot
 
-        #: | *Histogram in phase space plot: 'True' or 'False'*
+        #: | *Histogram in phase space plot 'True' or 'False'*
         self.histogram = histograms_plot
 
         #: | *Optional import of Profile*
