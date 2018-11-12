@@ -1,10 +1,10 @@
-setup_cpp Module
+compile Module
 ================
 
-:mod:`setup_cpp` Module
+:mod:`compile` Module
 -----------------------
 
-.. automodule:: setup_cpp
+.. automodule:: blond.compile
     :members:
     :undoc-members:
     :show-inheritance:

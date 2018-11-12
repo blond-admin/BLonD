@@ -4,7 +4,7 @@ toolbox Package
 :mod:`action` Module
 --------------------
 
-.. automodule:: toolbox.action
+.. automodule:: blond.toolbox.action
     :members:
     :undoc-members:
     :show-inheritance:
@@ -12,7 +12,7 @@ toolbox Package
 :mod:`convolution` Module
 -------------------------
 
-.. automodule:: toolbox.convolution
+.. automodule:: blond.toolbox.convolution
     :members:
     :undoc-members:
     :show-inheritance:
@@ -20,7 +20,7 @@ toolbox Package
 :mod:`diffusion` Module
 -----------------------
 
-.. automodule:: toolbox.diffusion
+.. automodule:: blond.toolbox.diffusion
     :members:
     :undoc-members:
     :show-inheritance:
@@ -28,7 +28,7 @@ toolbox Package
 :mod:`next_regular` Module
 --------------------------
 
-.. automodule:: toolbox.next_regular
+.. automodule:: blond.toolbox.next_regular
     :members:
     :undoc-members:
     :show-inheritance:
@@ -36,7 +36,7 @@ toolbox Package
 :mod:`parameter_scaling` Module
 -------------------------------
 
-.. automodule:: toolbox.parameter_scaling
+.. automodule:: blond.toolbox.parameter_scaling
     :members:
     :undoc-members:
     :show-inheritance:
@@ -44,7 +44,7 @@ toolbox Package
 :mod:`tomoscope` Module
 -----------------------
 
-.. automodule:: toolbox.tomoscope
+.. automodule:: blond.toolbox.tomoscope
     :members:
     :undoc-members:
     :show-inheritance:

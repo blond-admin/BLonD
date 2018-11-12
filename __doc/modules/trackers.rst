@@ -4,7 +4,7 @@ trackers Package
 :mod:`tracker` Module
 ---------------------
 
-.. automodule:: trackers.tracker
+.. automodule:: blond.trackers.tracker
     :members:
     :undoc-members:
     :show-inheritance:
@@ -12,7 +12,7 @@ trackers Package
 :mod:`utilities` Module
 -----------------------
 
-.. automodule:: trackers.utilities
+.. automodule:: blond.trackers.utilities
     :members:
     :undoc-members:
     :show-inheritance:
