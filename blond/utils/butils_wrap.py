@@ -20,6 +20,7 @@ def __getLen(x):
 
 def convolve(signal, kernel, mode='full', result=None):
     if mode != 'full':
+        #ConvolutionError
         raise RuntimeError('[convolve] Only full mode is supported')
     if result is None:
         result = np.empty(len(signal) + len(kernel) - 1, dtype=float)
@@ -49,6 +50,7 @@ def sin(x, result=None):
         __lib.fast_sin.restype = ct.c_double
         return __lib.fast_sin(ct.c_double(x))
     else:
+        #TypeError
         raise RuntimeError('[sin] The type %s is not supported', type(x))
 
 
@@ -62,6 +64,7 @@ def cos(x, result=None):
         __lib.fast_cos.restype = ct.c_double
         return __lib.fast_cos(ct.c_double(x))
     else:
+        #TypeError
         raise RuntimeError('[cos] The type %s is not supported', type(x))
 
 
@@ -75,6 +78,7 @@ def exp(x, result=None):
         __lib.fast_exp.restype = ct.c_double
         return __lib.fast_exp(ct.c_double(x))
     else:
+        #TypeError
         raise RuntimeError('[exp] The type %s is not supported', type(x))
 
 
@@ -96,6 +100,7 @@ def interp(x, xp, yp, left=None, right=None, result=None):
 
 def cumtrapz(y, x=None, dx=1.0, initial=None, result=None):
     if x is not None:
+        #IntegrationError
         raise RuntimeError('[cumtrapz] x attribute is not yet supported')
     if initial:
         if result is None:
@@ -170,5 +175,6 @@ def sort(x, reverse=False):
     elif x.dtype == 'int64':
         __lib.sort_longint(__getPointer(x), __getLen(x), ct.c_bool(reverse))
     else:
+        #SortError
         raise RuntimeError('[sort] Datatype %s not supported' % x.dtype)
     return x

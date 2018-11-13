@@ -80,16 +80,56 @@ class PhaseNoiseError(Exception):
 class FeedbackError(Exception):
     pass
 
+class ImpulseError(Exception):
+    pass
 
 
+#==================
+#Toolbox Exceptions
+#==================
+
+class PhaseSpaceError(Exception):
+    pass
+
+class NoiseDiffusionError(Exception):
+    pass
 
 
+#==================
+#Tracker Exceptions
+#==================
+
+class PotentialWellError(Exception):
+    pass
+
+class SolverError(Exception):
+    pass
+
+class PeriodicityError(Exception):
+    pass
+
+class InterpolationError(Exception):
+    pass
+
+class ProfileError(Exception):
+    pass
+
+class SynchrotronMotionError(Exception):
+    pass
 
 
+#===============
+#Util Exceptions
+#===============
 
+class ConvolutionError(Exception):
+    pass
 
+class IntegrationError(Exception):
+    pass
 
-
+class SortError(Exception):
+    pass
 
 
 

@@ -97,6 +97,7 @@ def phase_amplitude_from_tune(tune):
                 difference *= 0.5
                 k += 1
                 if k > 100:
+                    #PhaseSpaceError
                     raise RuntimeError("Exceeded maximum number of iterations in phase_amplitude_from_tune()!")
             
             phimax[i] = guess

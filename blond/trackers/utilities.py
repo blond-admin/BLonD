@@ -228,6 +228,7 @@ class synchrotron_frequency_tracker(object):
             self.Beam.dt = np.linspace(theta_coordinate_range[0], theta_coordinate_range[1], n_macroparticles) * (self.Beam.ring_radius/(self.Beam.beta*c))
         else:
             if len(theta_coordinate_range) != n_macroparticles:
+                #SynchrotronMotionError
                 raise RuntimeError('The input n_macroparticles does not match with the length of the theta_coordinates')
             else:
                 self.Beam.dt = np.array(theta_coordinate_range) * (self.Beam.ring_radius/(self.Beam.beta*c))
@@ -614,8 +615,10 @@ def potential_well_cut(time_potential, potential_array):
     n_maxima = len(max_time_positions)
     
     if n_minima == 0:
+        #PotentialWellError
         raise RuntimeError('The potential well has no minima...')
     if n_minima > n_maxima and n_maxima == 1:
+        #PotentialWellError
         raise RuntimeError('The potential well has more minima than maxima, and only one maximum')
     if n_maxima == 0:
         print ('Warning: The maximum of the potential well could not be found... \
@@ -630,6 +633,7 @@ def potential_well_cut(time_potential, potential_array):
             time_potential_sep = time_potential[saved_indexes]
             potential_well_sep = potential_array[saved_indexes]
             if potential_array[-1] < potential_array[0]:
+                #PotentialWellError
                 raise RuntimeError('The potential well is not well defined. \
                                     You may reconsider the options to calculate \
                                     the potential well as the main harmonic is \
@@ -640,6 +644,7 @@ def potential_well_cut(time_potential, potential_array):
             time_potential_sep = time_potential[saved_indexes]
             potential_well_sep = potential_array[saved_indexes]
             if potential_array[-1] > potential_array[0]:
+                #PotentialWellError
                 raise RuntimeError('The potential well is not well defined. \
                                     You may reconsider the options to calculate \
                                     the potential well as the main harmonic is \

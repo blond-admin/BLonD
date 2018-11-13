@@ -90,6 +90,7 @@ def modulator(signal, omega_i, omega_f, T_sampling):
     """
 
     if len(signal) < 2:
+        #TypeError
         raise RuntimeError("ERROR in filters.py/demodulator: signal should" +
                            " be an array!")
     delta_phi = (omega_i - omega_f)*T_sampling * np.arange(len(signal))

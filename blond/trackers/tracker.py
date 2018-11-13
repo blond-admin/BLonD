@@ -92,6 +92,7 @@ class FullRingAndRF(object):
         elif isinstance(main_harmonic_option, int) or \
                 isinstance(main_harmonic_option, float):
             if omega_rf[omega_rf == main_harmonic_option].size == 0:
+                #PotentialWellError
                 raise RuntimeError("ERROR in FullRingAndRF: The desired" +
                                    " harmonic to compute the potential well does not match" +
                                    " the RF parameters...")
@@ -256,6 +257,7 @@ class RingAndRFTracker(object):
         self.beam = Beam
         self.solver = str(solver)
         if self.solver not in ['simple', 'exact']:
+            #SolverError
             raise RuntimeError("ERROR in RingAndRFTracker: Choice of" +
                                " longitudinal solver not recognised!")
         if self.alpha_order > 1:  # Set exact solver for higher orders of eta
@@ -269,22 +271,27 @@ class RingAndRFTracker(object):
         try:
             self.periodicity = bool(periodicity)
         except:
+            #PeriodicityError
             raise RuntimeError("ERROR in RingAndRFTracker: Choice of" +
                                " periodicity not recognised!")
         try:
             self.interpolation = bool(interpolation)
         except:
+            #InterpolationError
             raise RuntimeError("ERROR in RingAndRFTracker: Choice of" +
                                " interpolation not recognised!")
         self.profile = Profile
         self.totalInducedVoltage = TotalInducedVoltage
         if (self.interpolation is True) and (self.profile is None):
+            #ProfileError
             raise RuntimeError("ERROR in RingAndRFTracker: Please specify a" +
                                " Profile object to use the interpolation option")
         if (self.cavityFB is not None) and (self.profile is None):
+            #ProfileError
             raise RuntimeError("ERROR in RingAndRFTracker: Please specify a" +
                                " Profile object to use the CavityFeedback class")
         if (self.rf_params.empty is True) and (self.periodicity is True):
+            #PeriodicityError
             raise RuntimeError("ERROR in RingAndRFTracker: Empty RFStation" +
                                " with periodicity not yet implemented!")
         if (self.cavityFB is not None) and (self.interpolation is False):
