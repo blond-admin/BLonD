@@ -126,6 +126,7 @@ class SPSCavityFeedback(object):
         # Initialise OTFB without beam
         self.turns = int(turns)
         if turns < 1:
+            #FeedbackError
             raise RuntimeError("ERROR in SPSCavityFeedback: 'turns' has to" +
                                " be a positive integer!")
         self.track_init(debug=Commissioning.debug)
@@ -267,10 +268,12 @@ class SPSOneTurnFeedback(object):
         self.profile = Profile_
         self.n_cavities = int(n_cavities)
         if self.n_cavities < 1:
+            #FeedbackError
             raise RuntimeError("ERROR in SPSOneTurnFeedback: argument" +
                                " n_cavities has invalid value!")
         self.V_part = float(V_part)
         if self.V_part*(1 - self.V_part) < 0:
+            #FeedbackError
             raise RuntimeError("ERROR in SPSOneTurnFeedback: V_part" +
                                " should be in range (0,1)!")
 
@@ -282,6 +285,7 @@ class SPSOneTurnFeedback(object):
         if n_sections in [4, 5]:
             self.TWC = eval("SPS" + str(n_sections) + "Section200MHzTWC()")
         else:
+            #FeedbackError
             raise RuntimeError("ERROR in SPSOneTurnFeedback: argument" +
                                " n_sections has invalid value!")
         self.logger.debug("SPS OTFB cavities: %d, sections: %d, voltage" +
@@ -316,6 +320,7 @@ class SPSOneTurnFeedback(object):
         self.logger.debug("Moving average over %d points", self.n_mov_av)
         # TODO: update condition for new n_mov_av
         if self.n_mov_av < 2:
+            #FeedbackError
             raise RuntimeError("ERROR in SPSOneTurnFeedback: profile has to" +
                                " have at least 12.5 ns resolution!")
         self.dV_mov_av_prev = np.zeros(self.n_coarse, dtype=complex)
