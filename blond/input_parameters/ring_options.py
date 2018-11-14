@@ -98,7 +98,7 @@ class RingOptions(object):
                                " not recognised. Aborting...")
 
     def reshape_data(self, input_data, n_turns, n_sections,
-                     interp_time='t_rev', input_is_momentum=False,
+                     interp_time='t_rev', input_to_momentum=False,
                      synchronous_data_type='momentum', mass=None, charge=None,
                      circumference=None, bending_radius=None):
         r"""Checks whether the user input is consistent with the expectation
@@ -122,16 +122,16 @@ class RingOptions(object):
         interp_time : str or float or float array [n_turns+1]
             Optional : defines the time on which the program will be
             interpolated. If 't_rev' is passed and if the input_data is
-            momentum (see input_is_momentum option) the momentum program
+            momentum (see input_to_momentum option) the momentum program
             is interpolated on the revolution period (see preprocess()
             function). If a float or a float array is passed, the program
             is interpolated on that input ; default is 't_rev'
-        input_is_momentum : bool
+        input_to_momentum : bool
             Optional : flags if the input_data is the momentum program, the
             options defined below become necessary for conversion
         synchronous_data_type : str
             Optional : to be passed to the convert_data function if
-            input_is_momentum ; default is 'momentum'
+            input_to_momentum ; default is 'momentum'
         mass : Ring.Particle.mass
             Optional : the mass of the particles in [eV/c**2] ; default is None
         charge : Ring.Particle.charge
@@ -156,8 +156,9 @@ class RingOptions(object):
 
         # If single float, expands the value to match the input number of turns
         # and sections
-        if isinstance(input_data, float):
-            if input_is_momentum:
+        if isinstance(input_data, float) or isinstance(input_data, int):
+            input_data = float(input_data)
+            if input_to_momentum:
                 input_data = convert_data(input_data, mass, charge,
                                           synchronous_data_type,
                                           bending_radius)
@@ -186,7 +187,7 @@ class RingOptions(object):
                 input_data_time = input_data[index_section][0]
                 input_data_values = input_data[index_section][1]
 
-                if input_is_momentum:
+                if input_to_momentum:
                     input_data_values = convert_data(input_data_values, mass,
                                                      charge,
                                                      synchronous_data_type,
@@ -197,14 +198,16 @@ class RingOptions(object):
                     raise RuntimeError("ERROR in Ring: synchronous data " +
                                        "does not match the time data")
 
-                if input_is_momentum and (interp_time == 't_rev'):
+                if input_to_momentum and (interp_time == 't_rev'):
                     output_data.append(self.preprocess(
                         mass,
                         circumference,
                         input_data_time,
                         input_data_values)[1])
 
-                elif isinstance(interp_time, float):
+                elif isinstance(interp_time, float) or \
+                        isinstance(interp_time, int):
+                    interp_time = float(interp_time)
                     interp_time = np.arange(
                         input_data_time[0],
                         input_data_time[-1],
@@ -231,7 +234,7 @@ class RingOptions(object):
 
             input_data = np.array(input_data, ndmin=2, dtype=float)
 
-            if input_is_momentum:
+            if input_to_momentum:
                 input_data = convert_data(input_data, mass, charge,
                                           synchronous_data_type,
                                           bending_radius)

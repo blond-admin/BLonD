@@ -196,7 +196,7 @@ class RFStation(object):
     >>> alpha = 3.21e-4
     >>> momentum = 450e9
     >>> ring = Ring(n_turns, C, alpha, momentum)
-    >>> rf_station = RFStation(ring, 2, [35640, 71280], [6e6, 6e5], [0, 0])
+    >>> rf_station = RFStation(ring, [35640, 71280], [6e6, 6e5], [0, 0], 2)
 
     """
 
@@ -337,7 +337,8 @@ def calculate_Q_s(RFStation, Particle=Proton()):
 
     """
 
-    return np.sqrt(RFStation.harmonic[0]*np.abs(Particle.charge)*RFStation.voltage[0] *
+    return np.sqrt(RFStation.harmonic[0]*np.abs(Particle.charge) *
+                   RFStation.voltage[0] *
                    np.abs(RFStation.eta_0*np.cos(RFStation.phi_s)) /
                    (2*np.pi*RFStation.beta**2*RFStation.energy))
 

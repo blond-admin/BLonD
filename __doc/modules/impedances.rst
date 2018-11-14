@@ -4,7 +4,7 @@ impedances Package
 :mod:`impedance` Module
 -----------------------
 
-.. automodule:: impedances.impedance
+.. automodule:: blond.impedances.impedance
     :members:
     :undoc-members:
     :show-inheritance:
@@ -12,7 +12,7 @@ impedances Package
 :mod:`impedance_sources` Module
 -------------------------------
 
-.. automodule:: impedances.impedance_sources
+.. automodule:: blond.impedances.impedance_sources
     :members:
     :undoc-members:
     :show-inheritance:
@@ -20,7 +20,7 @@ impedances Package
 :mod:`induced_voltage_analytical` Module
 ----------------------------------------
 
-.. automodule:: impedances.induced_voltage_analytical
+.. automodule:: blond.impedances.induced_voltage_analytical
     :members:
     :undoc-members:
     :show-inheritance:
@@ -28,7 +28,7 @@ impedances Package
 :mod:`music` Module
 -------------------
 
-.. automodule:: impedances.music
+.. automodule:: blond.impedances.music
     :members:
     :undoc-members:
     :show-inheritance:

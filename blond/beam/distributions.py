@@ -10,8 +10,9 @@
 '''
 **Module to generate distributions**
 
-:Authors: **Danilo Quartullo**, **Helga Timko**, **Alexandre Lasheen**, 
-          **Juan F. Esteban Mueller**, **Theodoros Argyropoulos**
+:Authors: **Danilo Quartullo**, **Helga Timko**, **Alexandre Lasheen**,
+          **Juan F. Esteban Mueller**, **Theodoros Argyropoulos**,
+          **Joel Repond**
 '''
 
 from __future__ import division, print_function, absolute_import
