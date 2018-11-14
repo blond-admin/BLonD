@@ -35,12 +35,13 @@ class _FrequencyOffset(object):
         #: | *Set system number(s) to modify, if None all are modified*
         if isinstance(System, int):
             self.system = [System]
-        elif isinstance(System, list):
+        elif hasattr(System, '__iter__'):
+            self.system = []
+            for s in System:
+               self.system.append(s)
+        elif isinstance(System, None):
             self.system = System
-        elif System is None:
-            self.system = System
-        else:
-            raise TypeError("System must be int, list of ints or None")
+
         if self.system and not all((isinstance(s, int) for s in self.system)):
             raise TypeError("System must be int, list of ints or None")
 
@@ -97,13 +98,18 @@ class _FrequencyOffset(object):
             self.rf_station.phi_rf[:, :self.end_turn] += self.phase_slippage
 
             for n in range(self.rf_station.n_rf):
-                self.rf_station.phi_rf[n, self.end_turn:] += self.phase_slippage[n,-1]
+                self.rf_station.phi_rf[n, self.end_turn:] \
+                     += self.phase_slippage[n,-1]
 
         else:
             for system in self.system:
-                self.rf_station.omega_rf[system, :self.end_turn] = self.rf_station.harmonic[system, :self.end_turn]*self.new_frequency
-                self.rf_station.phi_rf[system, :self.end_turn] += self.phase_slippage[system]
-                self.rf_station.phi_rf[system, self.end_turn:] += self.phase_slippage[system,-1]
+                self.rf_station.omega_rf[system, :self.end_turn] \
+                     = (self.rf_station.harmonic[system, :self.end_turn]
+                        * self.new_frequency)
+                self.rf_station.phi_rf[system, :self.end_turn] \
+                     += self.phase_slippage[system]
+                self.rf_station.phi_rf[system, self.end_turn:] \
+                     += self.phase_slippage[system,-1]
 
 
 
@@ -156,8 +162,9 @@ class FixedFrequency(_FrequencyOffset):
 
         fixed_frequency_prog = np.ones(self.end_fixed_turn)*self.fixed_frequency
         transition_frequency_prog = np.linspace(self.fixed_frequency, \
-                                 self.end_frequency, \
-                                 self.end_transition_turn - self.end_fixed_turn)
+                                                self.end_frequency, \
+                                               (self.end_transition_turn
+                                                - self.end_fixed_turn))
 
         self.frequency_prog = np.concatenate((fixed_frequency_prog, \
                                              transition_frequency_prog))
@@ -166,15 +173,22 @@ class FixedFrequency(_FrequencyOffset):
 
     def transition_1(self):
 
-        t1 = self.ring.cycle_time[self.end_transition_turn] - self.ring.cycle_time[self.end_fixed_turn]
+        t1 = (self.ring.cycle_time[self.end_transition_turn] 
+              - self.ring.cycle_time[self.end_fixed_turn])
         f1 = self.end_frequency
-        f1Prime = (np.gradient(self.rf_station.omega_rf_d[0])/np.gradient(self.ring.cycle_time))[self.end_transition_turn]
+        f1Prime = (np.gradient(self.rf_station.omega_rf_d[0])
+                   /np.gradient(self.ring.cycle_time))[self.end_transition_turn]
        
         constA = (t1*f1Prime - 2*(f1 - self.fixed_frequency))/t1**3
         constB = - (t1*f1Prime - 3*(f1 - self.fixed_frequency))/t1**2
 
-        transTime = self.ring.cycle_time[self.end_fixed_turn : self.end_transition_turn] - self.ring.cycle_time[self.end_fixed_turn]
+        transTime = (self.ring.cycle_time[self.end_fixed_turn
+                                         :self.end_transition_turn]
+                    - self.ring.cycle_time[self.end_fixed_turn])
 
-        transition_freq = constA * transTime**3 + constB * transTime**2 + self.fixed_frequency
+        transition_freq = (constA * transTime**3 + constB * transTime**2
+                          + self.fixed_frequency)
 
-        self.frequency_prog = np.concatenate((np.ones(self.end_fixed_turn)*self.fixed_frequency, transition_freq))
+        self.frequency_prog = np.concatenate((np.ones(self.end_fixed_turn)
+                                              * self.fixed_frequency
+                                              , transition_freq))
