@@ -7,7 +7,8 @@
 # Project website: http://blond.web.cern.ch/
 
 '''
-**Module to generate coasting beam**
+**Module to wrap tracking into an iterator with option to call
+user specified functions every n turns**
 
 :Authors: **Simon Albright**
 '''
