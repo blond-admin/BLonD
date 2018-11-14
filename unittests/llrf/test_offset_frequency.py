@@ -8,10 +8,10 @@ import numpy as np
 
 # BLonD imports
 # --------------
-from beam.beam import Proton
-from input_parameters.ring import Ring
-from input_parameters.rf_parameters import RFStation
-import llrf.offset_frequency as offFreq
+from blond.beam.beam import Proton
+from blond.input_parameters.ring import Ring
+from blond.input_parameters.rf_parameters import RFStation
+import blond.llrf.offset_frequency as offFreq
 
 
 class TestOffsetFrequency(unittest.TestCase):
