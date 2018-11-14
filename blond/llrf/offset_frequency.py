@@ -39,11 +39,14 @@ class _FrequencyOffset(object):
             self.system = []
             for s in System:
                self.system.append(s)
-        elif isinstance(System, None):
+        elif System is None:
             self.system = System
+        else:
+            raise TypeError("System must be int, iterable of ints or None")
+
 
         if self.system and not all((isinstance(s, int) for s in self.system)):
-            raise TypeError("System must be int, list of ints or None")
+            raise TypeError("System must be int, iterable of ints or None")
 
 
     def set_frequency(self, NewFrequencyProgram):
