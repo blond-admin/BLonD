@@ -44,11 +44,11 @@ class TrackIteration(object):
             raise AttributeError("All map objects must be trackable")
             
         self._map = trackMap
-        if not isinstance(initTurn, int):
+        if isinstance(initTurn, int):
             self.turnNumber = initTurn
         else:
             raise TypeError("initTurn must be an integer")
-        if not isinstance(finalTurn, int):
+        if isinstance(finalTurn, int):
             self._finalTurn = finalTurn
         else:
             raise TypeError("finalTurn must be an integer")
