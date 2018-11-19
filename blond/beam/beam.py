@@ -287,3 +287,17 @@ class Beam(object):
 
 
 
+    def add_particles(self, other):
+
+        if not isinstance(other, np.ndarray):
+            raise TypeError("Only numpy.ndarray can be added to beam")
+
+        if other.shape[0] != 2 or len(other.shape) != 2:
+            raise ValueError("Array shape must be (2, n)")
+
+
+        self.id = np.concatenate((self.id, np.arange(self.n_macroparticles + 1, self.n_macroparticles+other.shape[1]+1, dtype=int)))
+        self.n_macroparticles += other.shape[1]
+
+        self.dt = np.concatenate((self.dt, other[0]))
+        self.dE = np.concatenate((self.dE, other[1]))
