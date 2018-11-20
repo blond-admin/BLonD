@@ -745,7 +745,8 @@ class InducedVoltageResonator(_InducedVoltage):
         # To obtain the voltage, sum the contribution of each cavity...
         self.induced_voltage = self._tmp_matrix.sum(axis=0)
         # ... and multiply with bunch charge
-        self.induced_voltage *= -self.beam.Particle.charge*e*self.beam.intensity
+        self.induced_voltage *= -self.beam.Particle.charge*e
+                                *self.beam.n_macroparticles*self.beam.ratio
 
     # Implementation of Heaviside function
     def Heaviside(self, x):
