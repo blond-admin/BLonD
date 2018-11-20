@@ -40,8 +40,8 @@ class TrackIteration(object):
     
     def __init__(self, trackMap, initTurn = 0, finalTurn = -1):
 
-        if not all((hasattr(m, 'track') for m in trackMap)):
-            raise AttributeError("All map objects must be trackable")
+        if not all((callable(m) for m in trackMap)):
+            raise AttributeError("All map objects must be callable")
             
         self._map = trackMap
         if isinstance(initTurn, int):
@@ -93,7 +93,7 @@ class TrackIteration(object):
 
         try:
             for m in self._map:
-                m.track()
+                m()
         except IndexError:
             raise StopIteration
 
