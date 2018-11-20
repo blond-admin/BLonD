@@ -38,16 +38,16 @@ def matched_from_distribution_density_multibunch(beam, Ring, FullRingAndRF, dist
 
     
     if intensity_list is None:
-        intensity_per_bunch = beam.ratio*beam.n_macroparticles/n_bunches * np.ones(n_bunches)
+        intensity_per_bunch = beam.intensity/n_bunches * np.ones(n_bunches)
         n_macroparticles_per_bunch = beam.n_macroparticles/n_bunches * np.ones(n_bunches)
     else:
         intensity_per_bunch = np.array(intensity_list)
         if minimum_n_macroparticles is None:
-            n_macroparticles_per_bunch = np.round(beam.n_macroparticles/(beam.ratio*beam.n_macroparticles) * intensity_per_bunch)
+            n_macroparticles_per_bunch = np.round(beam.n_macroparticles/beam.intensity * intensity_per_bunch)
         else:
             n_macroparticles_per_bunch = np.round(minimum_n_macroparticles/np.min(intensity_per_bunch) * intensity_per_bunch)
     
-    if np.sum(intensity_per_bunch) != beam.ratio*beam.n_macroparticles:
+    if np.sum(intensity_per_bunch) != beam.intensity:
         print('WARNING !! The total intensity per bunch does not match the total intensity of the beam, the beam.intensity will be overwritten')
         beam.intensity = np.sum(intensity_per_bunch)
     
@@ -227,16 +227,16 @@ def matched_from_line_density_multibunch(beam, Ring,
     '''
     
     if intensity_list is None:
-        intensity_per_bunch = beam.ratio*beam.n_macroparticles/n_bunches * np.ones(n_bunches)
+        intensity_per_bunch = beam.intensity/n_bunches * np.ones(n_bunches)
         n_macroparticles_per_bunch = beam.n_macroparticles/n_bunches * np.ones(n_bunches)
     else:
         intensity_per_bunch = np.array(intensity_list)
         if minimum_n_macroparticles is None:
-            n_macroparticles_per_bunch = np.round(beam.n_macroparticles/(beam.ratio*beam.n_macroparticles) * intensity_per_bunch)
+            n_macroparticles_per_bunch = np.round(beam.n_macroparticles/beam.intensity * intensity_per_bunch)
         else:
             n_macroparticles_per_bunch = np.round(minimum_n_macroparticles/np.min(intensity_per_bunch) * intensity_per_bunch)
         
-    if np.sum(intensity_per_bunch) != beam.ratio*beam.n_macroparticles:
+    if np.sum(intensity_per_bunch) != beam.intensity:
         print('WARNING !! The total intensity per bunch does not match the total intensity of the beam, the beam.intensity will be overwritten')
         beam.intensity = np.sum(intensity_per_bunch)
     
@@ -417,7 +417,7 @@ def match_beam_from_distribution(beam, FullRingAndRF, GeneralParameters,
     normalization_DeltaE = np.abs(eta_0) / (2.*beta**2*E)
     normalization_potential = np.sign(eta_0)*charge/t_rev
     
-    intensity_per_bunch = beam.ratio*beam.n_macroparticles/n_bunches
+    intensity_per_bunch = beam.intensity/n_bunches
     n_macro_per_bunch = int(beam.n_macroparticles/n_bunches)
     bucket_size_tau = 2*np.pi/(np.min(omega_rf))
 
@@ -563,7 +563,7 @@ def match_beam_from_distribution_multibatch(beam, FullRingAndRF, GeneralParamete
 #    normalization_DeltaE = np.abs(eta_0) / (2.*beta**2*E)
 #    normalization_potential = np.sign(eta_0)*charge/t_rev
     
-    intensity_per_bunch = beam.ratio*beam.n_macroparticles/n_bunches/n_batch
+    intensity_per_bunch = beam.intensity/n_bunches/n_batch
     n_macro_per_bunch = int(beam.n_macroparticles/n_bunches/n_batch)
     bucket_size_tau = 2*np.pi/(np.min(omega_rf))
 
