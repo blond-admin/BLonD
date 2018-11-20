@@ -86,6 +86,7 @@ class FlatSpectrum(object):
             nt = nf 
             dt = 1./fmax # in [s]
         else:
+            #NoiseError
             raise RuntimeError('ERROR: The choice of Fourier transform for the\
              RF noise generation could not be recognized. Use "r" or "c".')
             
@@ -137,6 +138,7 @@ class FlatSpectrum(object):
             nt = 2*(n_points_pos_f_incl_zero - 1)
             nt_regular = next_regular(int(nt))
             if nt_regular%2!=0 or nt_regular < self.corr:
+                #NoiseError
                 raise RuntimeError('Error in noise generation!')
             n_points_pos_f_incl_zero = int(nt_regular/2 + 1)  
             freq = np.linspace(0, f_max, n_points_pos_f_incl_zero)
