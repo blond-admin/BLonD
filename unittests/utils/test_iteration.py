@@ -43,7 +43,7 @@ class TestTrackIteration(unittest.TestCase):
 
         self.n_turns = self.ring.n_turns
 
-        self.map_ = [self.full_ring, self.profile]
+        self.map_ = [self.full_ring.track, self.profile.track]
 
         self.trackIt = TrackIteration(self.map_)
 
@@ -114,6 +114,30 @@ class TestTrackIteration(unittest.TestCase):
         self.assertEqual(list2[0], self.trackIt.turnNumber, msg='function should set list[0] to turn number')
         self.assertEqual(list3[0], 8, msg='function should have been called')
 
+
+    def test_exceptions(self):
+
+        testPasses = [None, 1, 'abc']
+        for t in testPasses:
+            with self.assertRaises(AttributeError, msg='Should raise AttrinuteError if non-callable object is passed in map'):
+                TrackIteration([t])
+        testPasses = [None, 1., 'abc']
+        for t in testPasses:
+            with self.assertRaises(TypeError, msg='Should raise TypeError if initTurn is non-integer'):
+                TrackIteration([lambda _ : _], t)
+            with self.assertRaises(TypeError, msg='Should raise TypeError if initTurn is non-integer'):
+                TrackIteration([lambda _ : _], 0, t)
+
+        def testItt():
+            for i in range(self.n_turns+1):
+                self.trackIt()
+
+        with self.assertRaises(StopIteration, msg='Should return StopIteration if n_turns+1 turns are attempted'):
+              testItt()
+        with self.assertRaises(StopIteration, msg='Should return StopIteration if called after turnNumber == n_turns'):
+              self.trackIt()
+        with self.assertRaises(StopIteration, msg='next(self.trackIt) should return StopIteration after turnNumber == n_turns'):
+              next(self.trackIt)
 
 
 if __name__ == '__main__':
