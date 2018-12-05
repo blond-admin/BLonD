@@ -28,12 +28,15 @@ from blond.synchrotron_radiation.synchrotron_radiation import SynchrotronRadiati
 from scipy.constants import c, e, m_e
 from blond.beam.profile import CutOptions
 
+this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
+
+
 try:
-    os.mkdir('../output_files')
+    os.mkdir(this_directory + '../output_files')
 except:
     pass
 try:
-    os.mkdir('../output_files/EX_13_fig')
+    os.mkdir(this_directory + '../output_files/EX_13_fig')
 except:
     pass
 
@@ -189,7 +192,7 @@ plt.xlabel('Turns')
 plt.ylabel('Bunch length [ps]')
 plt.legend(('Simulation','Damping time: {0:1.1f} turns (fit)'.format(1 / 
            np.abs(tau))), loc=0, fontsize='medium')
-plt.savefig('../output_files/EX_13_fig/bl_fit.png')
+plt.savefig(this_directory + '../output_files/EX_13_fig/bl_fit.png')
 plt.close()
 
 
@@ -205,7 +208,7 @@ plt.xlabel('Turns')
 plt.ylabel('Bunch position [ns]')
 plt.legend(('Simulation','Damping time: {0:1.1f} turns (fit)'.format(1 / 
             np.abs(tau))),loc=0,fontsize='medium')
-plt.savefig('../output_files/EX_13_fig/pos_fit')
+plt.savefig(this_directory + '../output_files/EX_13_fig/pos_fit')
 plt.close()
 
 ## WITH QUANTUM EXCITATION
@@ -283,7 +286,7 @@ print('Equilibrium energy spread = {0:1.3f} [MeV]'.format(1e-6 *
         std_dE[-10:].mean()))
 plt.xlabel('Turns')
 plt.ylabel('Energy spread [MeV]')
-plt.savefig('../output_files/EX_13_fig/std_dE_QE.png')
+plt.savefig(this_directory + '../output_files/EX_13_fig/std_dE_QE.png')
 plt.close()
 
 plt.figure(figsize=[6,4.5])
@@ -292,7 +295,7 @@ print('Equilibrium bunch length = {0:1.3f} [ps]'.format(4e12 *
         std_dt[-10:].mean()))
 plt.xlabel('Turns')
 plt.ylabel('Bunch length [ps]')
-plt.savefig('../output_files/EX_13_fig/bl_QE.png')
+plt.savefig(this_directory + '../output_files/EX_13_fig/bl_QE.png')
 plt.close()
 
 print("Done!")

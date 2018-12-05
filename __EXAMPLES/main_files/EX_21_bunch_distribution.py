@@ -23,13 +23,14 @@ from blond.beam.distributions import bigaussian
 from blond.beam.profile import Profile, CutOptions
 from blond.toolbox.action import oscillation_amplitude_from_coordinates
 import os
+this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 
 try:
-    os.mkdir('../output_files')
+    os.mkdir(this_directory + '../output_files')
 except:
     pass
 try:
-    os.mkdir('../output_files/EX_21_fig')
+    os.mkdir(this_directory + '../output_files/EX_21_fig')
 except:
     pass
 
@@ -82,7 +83,7 @@ plt.plot(profile.bin_centers[51:], profile.n_macroparticles[51:]*2*1.41*\
 plt.legend()
 plt.xlabel("Time [s]")
 plt.ylabel("Particle density [1/s]")
-plt.savefig('../output_files/EX_21_fig/profiles.png')
+plt.savefig(this_directory + '../output_files/EX_21_fig/profiles.png')
 
 print("Done!")
 
