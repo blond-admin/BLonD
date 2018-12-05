@@ -255,7 +255,7 @@ slice_beam.track()
 # Redefine Synchrotron radiation objects with quantum excitation
 SR = []
 for i in range(n_sections):
-    SR.append(SynchrotronRadiation(general_params, RF_sct_par[i], beam, rho, python=True, seed=7))
+    SR.append(SynchrotronRadiation(general_params, RF_sct_par[i], beam, rho, python=False, seed=7))
 
 # ACCELERATION MAP-------------------------------------------------------------
 map_ = []
