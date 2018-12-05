@@ -67,6 +67,7 @@ class BeamFeedback(object):
         try:
             self.gain = self.config['PL_gain'] 
         except:
+            #PhaseLoopError
             raise RuntimeError("You need to specify the Phase Loop gain! Aborting")
         
         # LHC CONFIGURATION
@@ -191,6 +192,7 @@ class BeamFeedback(object):
         self.RFnoise = PhaseNoise
         if (self.RFnoise != None and 
             (len(self.RFnoise.dphi) != Ring.n_turns + 1)):
+            #PhaseNoiseError
             raise RuntimeError('Phase noise has to have a length of n_turns + 1')
         
         #: | *Optional import of amplitude-scaling feedback object LHCNoiseFB*       

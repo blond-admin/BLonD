@@ -70,6 +70,7 @@ def matched_from_distribution_density_multibunch(beam, Ring, FullRingAndRF, dist
         main_harmonic = np.min(harmonics[voltages == np.max(voltages)])
     elif isinstance(main_harmonic_option, int) or isinstance(main_harmonic_option, float):
         if harmonics[harmonics == main_harmonic_option].size == 0:
+            #GenerationError
             raise RuntimeError('The desired harmonic to compute the potential well does not match the RF parameters...')
         main_harmonic = np.min(harmonics[harmonics == main_harmonic_option])
          
@@ -96,6 +97,7 @@ def matched_from_distribution_density_multibunch(beam, Ring, FullRingAndRF, dist
         elif isinstance(distribution_options_list, dict):
             distribution_options = distribution_options_list
         else:
+            #DistributionError
             raise RuntimeError('The input distribution_options_list option of the matched_from_distribution_density_multibunch \
             function should either be a dictionary as requested by the matched_from_distribution_density \
             function, or a list of dictionaries containing n_bunches elements')
@@ -258,6 +260,7 @@ def matched_from_line_density_multibunch(beam, Ring,
         main_harmonic = np.min(harmonics[voltages == np.max(voltages)])
     elif isinstance(main_harmonic_option, int) or isinstance(main_harmonic_option, float):
         if harmonics[harmonics == main_harmonic_option].size == 0:
+            #GenerationError
             raise RuntimeError('The desired harmonic to compute the potential well does not match the RF parameters...')
         main_harmonic = np.min(harmonics[harmonics == main_harmonic_option])
             
@@ -285,6 +288,7 @@ def matched_from_line_density_multibunch(beam, Ring,
         elif isinstance(line_density_options_list, dict):
             line_density_options = line_density_options_list
         else:
+            #GenerationError
             raise RuntimeError('The input line_density_options_list option ' +
                                'of the matched_from_line_density_multibunch ' +
                                'function should either be a dictionary as ' +
@@ -751,6 +755,7 @@ def match_a_bunch(normalization_DeltaE, beam, potential_well_coordinates,\
     elif distribution_variable is 'Hamiltonian':
         sorted_X = H
     else:
+        #DistributionError
         raise SystemError('distribution_variable should be Action or Hamiltonian')
 
     if bunch_length is not None:
@@ -762,6 +767,7 @@ def match_a_bunch(normalization_DeltaE, beam, potential_well_coordinates,\
     elif emittance is not None:
         X0 = compute_H0(emittance, H, J)
     else:
+        #DistributionError
         raise SystemError('You should specify either bunch_length or emittance')
 
     distribution = distribution_function(X_grid, distribution_type, X0, exponent=distribution_exponent)

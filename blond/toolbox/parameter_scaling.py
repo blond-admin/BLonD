@@ -150,6 +150,7 @@ class ParameterScaling(object):
         self.tau = four_sigma_bunch_length
         if self.tau >= 2.*self.dt_max:
             self.tb1.append("Chosen bunch length too large for this bucket. Aborting!")
+            #PhaseSpaceError
             raise RuntimeError("Chosen bunch length too large for this bucket. Aborting!")
         self.tb1.append("Calculating emittance of 4-sigma bunch length: " 
                                + np.str(self.tau * 1.e9) + " ns")
@@ -170,6 +171,7 @@ class ParameterScaling(object):
         
         if self.emittance_aim >= self.bucket_area:
             self.tb1.append("Chosen emittance too large for this bucket. Aborting!")
+            #PhaseSpaceError
             raise RuntimeError("Chosen emittance too large for this bucket. Aborting!")
         self.tb1.append("Calculating 4-sigma bunch length for an emittance of " 
                                + np.str(self.emittance_aim) + " eVs")

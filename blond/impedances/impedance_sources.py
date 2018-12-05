@@ -53,7 +53,7 @@ class _ImpedanceObject(object):
         Method required to compute the wake function. Returns an error if
         called from an object which does not implement this method.
         """
-        
+        #WrongCalcError
         raise RuntimeError('wake_calc() method not implemented in this class'+
                            '. This object is probably meant to be used in the'+
                            ' frequency domain')
@@ -64,7 +64,7 @@ class _ImpedanceObject(object):
         Method required to compute the impedance. Returns an error if called
         from an object which does not implement this method.
         """
-        
+        #WrongCalcError
         raise RuntimeError('imped_calc() method not implemented in this class'+
                            '. This object is probably meant to be used in the'+
                            ' time domain')
@@ -290,6 +290,7 @@ class Resonators(_ImpedanceObject):
         elif method == 'python':
             self.imped_calc = self._imped_calc_python
         else:
+            #WrongCalcError
             raise RuntimeError('method for impedance calculation in Resonator object not recognized')
 
 
@@ -606,6 +607,7 @@ class ResistiveWall(_ImpedanceObject):
         elif conductivity != None:
             self.conductivity = conductivity
         else:
+            #MissingParameterError
             raise RuntimeError('At least one of the following parameters ' + 
                              'should be provided: resistivity or conductivity')
                 

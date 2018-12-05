@@ -51,6 +51,7 @@ class RFStationOptions(object):
         if interpolation in ['linear', 'cubic']:
             self.interpolation = str(interpolation)
         else:
+            #InterpolationError
             raise RuntimeError(
                 "ERROR: Interpolation scheme in" +
                 " RFStationOptions not recognised. Aborting...")
@@ -60,6 +61,7 @@ class RFStationOptions(object):
         if isinstance(plot, bool):
             self.plot = bool(plot)
         else:
+            #TypeError
             raise RuntimeError("ERROR: plot value in PreprocessRamp" +
                                " not recognised. Aborting...")
 
@@ -69,6 +71,7 @@ class RFStationOptions(object):
         if sampling > 0:
             self.sampling = int(sampling)
         else:
+            #TypeError
             raise RuntimeError("ERROR: sampling value in PreprocessRamp" +
                                " not recognised. Aborting...")
 
@@ -131,6 +134,7 @@ class RFStationOptions(object):
                 input_data = (input_data, )
 
             if len(input_data) != n_rf:
+                #InputDataError
                 raise RuntimeError("ERROR in RFStation: the input data " +
                                    "does not match the number of rf harmonics")
 
@@ -143,6 +147,7 @@ class RFStationOptions(object):
 
                 if len(input_data_values) \
                         != len(input_data_time):
+                    #InputDataError
                     raise RuntimeError("ERROR in RFStation: synchronous " +
                                        "data does not match the time data")
 
@@ -203,6 +208,7 @@ class RFStationOptions(object):
                 input_data = input_data.reshape((n_rf, 1))
 
             if len(input_data) != n_rf:
+                #InputDataError
                 raise RuntimeError("ERROR in RFStation: the input data " +
                                    "does not match the number of rf harmonics")
 
@@ -216,7 +222,7 @@ class RFStationOptions(object):
                         input_data[index_rf])
 
                 else:
-
+                    #InputDataError
                     raise RuntimeError("ERROR in Ring: The input data " +
                                        "does not match the proper length " +
                                        "(n_turns+1)")
@@ -263,14 +269,17 @@ def combine_rf_functions(function_list, merge_type='linear', resolution=1e-3,
         resolution = (nFunctions-1)*[resolution]
 
     if len(merge_type) != nFunctions:
+        #InputDataError
         raise RuntimeError("ERROR: merge_type list wrong length")
     if len(resolution) != nFunctions:
+        #InputDataError
         raise RuntimeError("ERROR: resolution list wrong length")
 
     timePoints = []
     for i in range(nFunctions):
         timePoints += function_list[i][1]
     if not np.all(np.diff(timePoints)) > 0:
+        #InputDataError
         raise RuntimeError("ERROR: in combine_rf_functions, times are not" +
                            " monotonically increasing!")
 
@@ -459,6 +468,7 @@ def combine_rf_functions(function_list, merge_type='linear', resolution=1e-3,
                 fullTime += time.tolist() + funcTime
 
         else:
+            #InputDataError
             raise RuntimeError("ERROR: merge_type not recognised")
 
     returnFunction = np.zeros([2, len(fullTime)])
