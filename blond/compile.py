@@ -93,7 +93,7 @@ if (__name__ == "__main__"):
             boost_path = os.path.abspath(args.boost)
         else:
             boost_path = ''
-        cflags += ['-I', boost_path]
+        cflags += ['-I', boost_path, '-DBOOST']
     compiler = args.compiler
 
     print('Enable Multi-threaded code: ', parallel)
