@@ -21,11 +21,13 @@ from builtins import range
 import numpy as np
 import warnings
 import copy
+import gc
 import matplotlib.pyplot as plt
 from scipy.integrate import cumtrapz
 from ..trackers.utilities import is_in_separatrix
 from ..beam.profile import Profile, CutOptions
 from ..trackers.utilities import potential_well_cut, minmax_location
+
 
 def matched_from_line_density(beam, full_ring_and_RF, line_density_input=None,
                               main_harmonic_option='lowest_freq',
@@ -607,7 +609,8 @@ def matched_from_distribution_function(beam, full_ring_and_RF,
             induced_potential = np.interp(time_potential,
                              time_potential_low_res, induced_potential_low_res,
                              left=0, right=0)
-                    
+        del full_ring_and_RF2
+        gc.collect()            
     # Populating the bunch
     populate_bunch(beam, time_grid, deltaE_grid, density_grid, 
                    time_resolution_low, deltaE_coord_array[1] -
