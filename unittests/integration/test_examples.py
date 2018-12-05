@@ -47,9 +47,9 @@ class TestExamples(unittest.TestCase):
 
         # self.output.write('\nTesting file: ' + file + '\n')
         try:
-            ret = subprocess.call(['python', file], timeout=60,
-                                  stdout=self.output, stderr=subprocess.STDOUT)
-            self.output.flush()
+            ret = subprocess.call(['python', file], timeout=60)
+                                  # stdout=self.output, stderr=subprocess.STDOUT)
+            # self.output.flush()
             self.assertEqual(ret, 0)
         except subprocess.TimeoutExpired as e:
             # self.output.write(
