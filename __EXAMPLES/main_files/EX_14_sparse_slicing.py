@@ -28,13 +28,14 @@ from blond.beam.sparse_slices import SparseSlices
 from blond.trackers.tracker import RingAndRFTracker, FullRingAndRF
 from scipy.constants import c, e, m_e
 import os
+this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 
 try:
-    os.mkdir('../output_files')
+    os.mkdir(this_directory + '../output_files')
 except:
     pass
 try:
-    os.mkdir('../output_files/EX_14_fig')
+    os.mkdir(this_directory + '../output_files/EX_14_fig')
 except:
     pass
 
@@ -125,7 +126,7 @@ plt.figure()
 for i in range(int(np.sum(filling_pattern))):
     plt.plot(slice_beam.slices_array[i].bin_centers,
              slice_beam.slices_array[i].n_macroparticles)
-plt.savefig('../output_files/EX_14_fig/cpp_track.png')
+plt.savefig(this_directory + '../output_files/EX_14_fig/cpp_track.png')
 
 
 for i in range(int(np.sum(filling_pattern))):
@@ -142,6 +143,6 @@ plt.figure()
 for i in range(int(np.sum(filling_pattern))):
     plt.plot(slice_beam.slices_array[i].bin_centers,
              slice_beam.slices_array[i].n_macroparticles)
-plt.savefig('../output_files/EX_14_fig/ind_track.png')
+plt.savefig(this_directory + '../output_files/EX_14_fig/ind_track.png')
 
 print("Done!")

@@ -32,13 +32,14 @@ from blond.impedances.impedance import InductiveImpedance, TotalInducedVoltage
 from blond.impedances.impedance_sources import Resonators
 from scipy.constants import c, e, m_p
 import os
+this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 
 try:
-    os.mkdir('../output_files')
+    os.mkdir(this_directory + '../output_files')
 except:
     pass
 try:
-    os.mkdir('../output_files/EX_16_fig')
+    os.mkdir(this_directory + '../output_files/EX_16_fig')
 except:
     pass
 
@@ -153,6 +154,6 @@ plt.xlabel('Time [ns]')
 plt.ylabel('Induced voltage [V]')
 plt.legend(loc=2, fontsize='medium')
 
-plt.savefig('../output_files/EX_16_fig/fig.png')
+plt.savefig(this_directory + '../output_files/EX_16_fig/fig.png')
 
 print("Done!")

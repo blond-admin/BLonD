@@ -29,13 +29,15 @@ from blond.impedances.impedance import InducedVoltageFreq, TotalInducedVoltage
 from blond.impedances.impedance_sources import Resonators
 from scipy.constants import c, e, m_p
 import os
+this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
+
 
 try:
-    os.mkdir('../output_files')
+    os.mkdir(this_directory + '../output_files')
 except:
     pass
 try:
-    os.mkdir('../output_files/EX_19_fig')
+    os.mkdir(this_directory + '../output_files/EX_19_fig')
 except:
     pass
 
@@ -145,7 +147,7 @@ plt.plot(slice_beam.bin_centers, slice_beam.n_macroparticles, lw=2,
 
 plt.legend(loc=0, fontsize='medium')
 plt.title('Without intensity effects')
-plt.savefig('../output_files/EX_19_fig/without_int_eff.png')
+plt.savefig(this_directory + '../output_files/EX_19_fig/without_int_eff.png')
 
 matched_from_distribution_function(beam, full_tracker,
                                   distribution_type=distribution_type,
@@ -171,6 +173,6 @@ plt.plot(slice_beam.bin_centers, slice_beam.n_macroparticles, lw=2,
 
 plt.legend(loc=0, fontsize='medium')
 plt.title('With intensity effects')
-plt.savefig('../output_files/EX_19_fig/with_int_eff.png')
+plt.savefig(this_directory + '../output_files/EX_19_fig/with_int_eff.png')
 
 print("Done!")

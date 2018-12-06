@@ -29,13 +29,14 @@ from blond.beam.profile import Profile, CutOptions
 from blond.beam.beam import Beam, Particle
 from blond.plots.plot import Plot
 import os
+this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 
 try:
-    os.mkdir('../output_files')
+    os.mkdir(this_directory + '../output_files')
 except:
     pass
 try:
-    os.mkdir('../output_files/EX_07_fig')
+    os.mkdir(this_directory + '../output_files/EX_07_fig')
 except:
     pass
 
@@ -115,13 +116,13 @@ slice_beam = Profile(beam, CutOptions(n_slices=100))
 
 # Define what to save in file
 bunchmonitor = BunchMonitor(general_params, rf_params, beam,
-                            '../output_files/EX_07_output_data',
+                            this_directory + '../output_files/EX_07_output_data',
                             Profile=slice_beam)
 
-format_options = {'dirname': '../output_files/EX_07_fig'}
+format_options = {'dirname': this_directory + '../output_files/EX_07_fig'}
 plots = Plot(general_params, rf_params, beam, dt_plt, N_t, 0, 8.e-7,
              -400e6, 400e6, separatrix_plot=True, Profile=slice_beam,
-             h5file='../output_files/EX_07_output_data', 
+             h5file=this_directory + '../output_files/EX_07_output_data', 
              format_options=format_options)
 
 # Accelerator map

@@ -25,13 +25,14 @@ from blond.beam.beam import Beam, Proton
 from blond.plots.plot import Plot
 from blond.llrf.beam_feedback import BeamFeedback
 import os
+this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 
 try:
-    os.mkdir('../output_files')
+    os.mkdir(this_directory + '../output_files')
 except:
     pass
 try:
-    os.mkdir('../output_files/EX_08_fig')
+    os.mkdir(this_directory + '../output_files/EX_08_fig')
 except:
     pass
 
@@ -89,16 +90,16 @@ slices_ring.track()
 
 #Monitor
 bunch_monitor = BunchMonitor(general_params, rf_params, my_beam,
-                             '../output_files/EX_08_output_data',
+                             this_directory + '../output_files/EX_08_output_data',
                              Profile=slices_ring, PhaseLoop=phase_loop)
 
 
 #Plots
-format_options = {'dirname': '../output_files/EX_08_fig'}
+format_options = {'dirname': this_directory + '../output_files/EX_08_fig'}
 plots = Plot(general_params, rf_params, my_beam, 50, n_turns, 0.0, 2*np.pi,
              -1e6, 1e6, xunit='rad', separatrix_plot=True, Profile=slices_ring,
              format_options=format_options,
-             h5file='../output_files/EX_08_output_data', PhaseLoop=phase_loop)
+             h5file=this_directory + '../output_files/EX_08_output_data', PhaseLoop=phase_loop)
 
 # Accelerator map
 map_ = [full_ring] + [slices_ring] + [bunch_monitor] + [plots] 

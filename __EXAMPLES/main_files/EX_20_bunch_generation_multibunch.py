@@ -31,13 +31,14 @@ from blond.impedances.impedance import InducedVoltageFreq, TotalInducedVoltage
 from blond.impedances.impedance_sources import Resonators
 from scipy.constants import c, e, m_p
 import os
+this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 
 try:
-    os.mkdir('../output_files')
+    os.mkdir(this_directory + '../output_files')
 except:
     pass
 try:
-    os.mkdir('../output_files/EX_20_fig')
+    os.mkdir(this_directory + '../output_files/EX_20_fig')
 except:
     pass
 
@@ -154,7 +155,7 @@ plt.plot(slice_beam.bin_centers, slice_beam.n_macroparticles, lw=2,
          
 plt.legend(loc=0, fontsize='medium')
 plt.title('From distribution function')
-plt.savefig('../output_files/EX_20_fig/from_distr_funct.png')
+plt.savefig(this_directory + '../output_files/EX_20_fig/from_distr_funct.png')
 
 line_density_options_list = distribution_options_list
 matched_from_line_density_multibunch(beam, general_params,
@@ -181,6 +182,6 @@ plt.plot(slice_beam.bin_centers, slice_beam.n_macroparticles, lw=2,
          label='with intensity effects')
 plt.title('From line density')
 plt.legend(loc=0, fontsize='medium')
-plt.savefig('../output_files/EX_20_fig/from_line_density.png')
+plt.savefig(this_directory + '../output_files/EX_20_fig/from_line_density.png')
 
 print("Done!")
