@@ -9,6 +9,8 @@ class MassError(Exception):
 class AllParticlesLost(Exception):
     pass
 
+class ParticleAdditionError(Exception):
+    pass
 
 
 #==================================
