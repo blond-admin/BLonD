@@ -28,12 +28,14 @@ import blond.impedances.induced_voltage_analytical as indVoltAn
 import blond.impedances.music as musClass
 from scipy.constants import m_p, e, c
 import os
+this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
+
 
 try:
-    os.mkdir('../output_files')
+    os.mkdir(this_directory + '../output_files')
 except:
     pass
-fig_directory = '../output_files/EX_11_fig/'
+fig_directory = this_directory + '../output_files/EX_11_fig/'
 if os.path.exists(fig_directory):    
     pass
 else:

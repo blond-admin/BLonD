@@ -63,18 +63,21 @@ class RingOptions(object):
         if interpolation in ['linear', 'cubic', 'derivative']:
             self.interpolation = str(interpolation)
         else:
+            #InputDataError
             raise RuntimeError("ERROR: Interpolation scheme in " +
                                "PreprocessRamp not recognised. Aborting...")
 
         self.smoothing = float(smoothing)
 
         if flat_bottom < 0:
+            #MomentumError
             raise RuntimeError("ERROR: flat_bottom value in PreprocessRamp" +
                                " not recognised. Aborting...")
         else:
             self.flat_bottom = int(flat_bottom)
 
         if flat_top < 0:
+            #MomentumError
             raise RuntimeError("ERROR: flat_top value in PreprocessRamp" +
                                " not recognised. Aborting...")
         else:
@@ -86,6 +89,7 @@ class RingOptions(object):
         if (plot is True) or (plot is False):
             self.plot = bool(plot)
         else:
+            #TypeError
             raise RuntimeError("ERROR: plot value in PreprocessRamp" +
                                " not recognised. Aborting...")
 
@@ -94,6 +98,7 @@ class RingOptions(object):
         if sampling > 0:
             self.sampling = int(sampling)
         else:
+            #TypeError
             raise RuntimeError("ERROR: sampling value in PreprocessRamp" +
                                " not recognised. Aborting...")
 
@@ -177,6 +182,7 @@ class RingOptions(object):
                 input_data = (input_data, )
 
             if len(input_data) != n_sections:
+                #InputDataError
                 raise RuntimeError("ERROR in Ring: the input data " +
                                    "does not match the number of sections")
 
@@ -195,6 +201,7 @@ class RingOptions(object):
 
                 if len(input_data_time) \
                         != len(input_data_values):
+                    #InputDataError
                     raise RuntimeError("ERROR in Ring: synchronous data " +
                                        "does not match the time data")
 
@@ -249,6 +256,7 @@ class RingOptions(object):
                 input_data = input_data.reshape((n_sections, 1))
 
             if len(input_data) != n_sections:
+                #InputDataError
                 raise RuntimeError("ERROR in Ring: the input data " +
                                    "does not match the number of sections")
 
@@ -262,7 +270,7 @@ class RingOptions(object):
                         input_data[index_section])
 
                 else:
-
+                    #InputDataError
                     raise RuntimeError("ERROR in Ring: The input data " +
                                        "does not match the proper length " +
                                        "(n_turns+1)")
@@ -297,6 +305,7 @@ class RingOptions(object):
         # Some checks on the options
         if ((self.t_start is not None) and (self.t_start < time[0])) or \
                 ((self.t_end is not None) and (self.t_end > time[-1])):
+                #InputDataError
                 raise RuntimeError("ERROR: [t_start, t_end] should be " +
                                    "included in the passed time array.")
 
@@ -521,11 +530,13 @@ def convert_data(synchronous_data, mass, charge,
             momentum = np.sqrt((synchronous_data+mass)**2 - mass**2)
         elif synchronous_data_type == 'bending field':
             if bending_radius is None:
+                #InputDataError
                 raise RuntimeError("ERROR in Ring: bending_radius is not " +
                                    "defined and is required to compute " +
                                    "momentum")
             momentum = synchronous_data*bending_radius*charge*c
         else:
+            #InputDataError
             raise RuntimeError("ERROR in Ring: Synchronous data" +
                                " type not recognized!")
 

@@ -195,6 +195,7 @@ class Ring(object):
             self.bending_radius = bending_radius
 
         if self.n_sections != len(self.ring_length):
+            #InputDataError
             raise RuntimeError("ERROR in Ring: Number of sections and ring " +
                                "length size do not match!")
 

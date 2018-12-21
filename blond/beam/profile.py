@@ -106,9 +106,11 @@ class CutOptions(object):
         self.RFParams = RFSectionParameters
 
         if self.cuts_unit == 'rad' and self.RFParams is None:
+            #CutError
             raise RuntimeError('You should pass an RFParams object to ' +
                                'convert from radians to seconds')
         if self.cuts_unit != 'rad' and self.cuts_unit != 's':
+            #CutError
             raise RuntimeError('cuts_unit should be "s" or "rad"')
 
         self.edges = np.zeros(n_slices + 1, dtype=float)
@@ -552,6 +554,7 @@ class Profile(object):
             diffCenters = x[0:-1] + dist_centers/2
             derivative = np.interp(x, diffCenters, derivative)
         else:
+            #ProfileDerivativeError
             raise RuntimeError('Option for derivative is not recognized.')
 
         return x, derivative

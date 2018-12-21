@@ -41,6 +41,7 @@ def generate_coasting_beam(Beam, t_start, t_stop, spread = 1E-3, spread_type = '
 	elif spread_type == 'dE':
 		energy_spread = spread
 	else:
+                #DistributionError
 		raise RuntimeError("spread_type not recognised")
 
 
@@ -59,6 +60,7 @@ def generate_coasting_beam(Beam, t_start, t_stop, spread = 1E-3, spread_type = '
 		Beam.dE = rand.choice(user_distribution, size = Beam.n_macroparticles, p = user_probability) + (rand.rand(Beam.n_macroparticles) - 0.5) * (energyRange[1] - energyRange[0])
 
 	else:
+                #DistributionError
 		raise RuntimeError("distribution type not recognised")
 
 	Beam.dt = rand.rand(Beam.n_macroparticles)*(t_stop - t_start) + t_start

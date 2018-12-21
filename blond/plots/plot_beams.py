@@ -58,16 +58,18 @@ def plot_long_phase_space(Ring, RFStation, Beam, xmin,
         axScatter.set_xlabel(r"$\Delta t$ [s]")
         axScatter.scatter(Beam.dt[indalive], Beam.dE[indalive], 
                           s=1, edgecolor='none', alpha=alpha, color=color)
-        axScatter.scatter(Beam.dt[indlost], Beam.dE[indlost], c='0.5',
-                          s=1, edgecolor='none')
+        if len(indlost) > 0:
+            axScatter.scatter(Beam.dt[indlost], Beam.dE[indlost], color='0.5',
+                              s=1, edgecolor='none')
     elif xunit == 'rad':
         axScatter.set_xlabel(r"$\varphi$ [rad]")
         axScatter.scatter(omega_RF*Beam.dt[indalive] + phi_RF, 
                           Beam.dE[indalive], s=1, edgecolor='none', 
                           alpha=alpha, color=color)
-        axScatter.scatter(omega_RF*Beam.dt[indlost] + phi_RF, 
-                          Beam.dE[indlost], c='0.5', s=1, 
-                          edgecolor='none')
+        if len(indlost) > 0:
+            axScatter.scatter(omega_RF*Beam.dt[indlost] + phi_RF, 
+                              Beam.dE[indlost], color='0.5', s=1, 
+                              edgecolor='none')
     axScatter.set_ylabel(r"$\Delta$E [eV]")
     axScatter.yaxis.labelpad = 1     
         

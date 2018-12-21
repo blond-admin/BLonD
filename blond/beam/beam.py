@@ -28,6 +28,7 @@ class Particle(object):
             self.mass = float(user_mass)
             self.charge = float(user_charge)
         else:
+            #MassError
             raise RuntimeError('ERROR: Particle mass not recognized!')
         
 class Proton(Particle):
@@ -182,6 +183,7 @@ class Beam(object):
             self.dE = np.ascontiguousarray(self.beam.dE[indexalive])
             self.n_macroparticles = len(self.beam.dt)
         else:
+            #AllParticlesLost
             raise RuntimeError("ERROR in Beams: all particles lost and"+
                 " eliminated!")    
 

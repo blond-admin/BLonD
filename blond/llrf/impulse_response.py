@@ -50,9 +50,11 @@ def rectangle(t, tau):
     llimit = np.where(np.fabs(t + tau/2) < dt/2)[0]
     ulimit = np.where(np.fabs(t - tau/2) < dt/2)[0]
     if len(llimit) != 1:
+        #ImpulseError
         raise RuntimeError("ERROR in impulse_response.rectangle(): time" +
                            " array doesn't start at rising edge!")
     if len(ulimit) not in [0, 1]:
+        #ImpulseError
         raise RuntimeError("ERROR in impulse_response.rectangle(): time" +
                            " array has multiple falling edges!")
     logger.debug("In rectangle(), index of rising edge is %d" % llimit[0])
@@ -95,6 +97,7 @@ def triangle(t, tau):
     llimit = np.where(np.fabs(t) < dt/2)[0]
     logger.debug("In triangle(), index of rising edge is %d" % llimit[0])
     if len(llimit) != 1:
+        #ImpulseError
         raise RuntimeError("ERROR in impulse_response.triangle(): time" +
                            " array doesn't start at rising edge!")
     y = np.zeros(len(t))
@@ -213,6 +216,7 @@ class TravellingWaveCavity(object):
         if v_g > 0 and v_g < 1:
             self.v_g = float(v_g)
         else:
+            #ImpulseError
             raise RuntimeError("ERROR in TravellingWaveCavity: group" +
                                " velocity out of limits (0,1)!")
         self.omega_r = float(omega_r)
@@ -265,6 +269,7 @@ class TravellingWaveCavity(object):
         self.omega_c = float(omega_c)
         self.d_omega = self.omega_c - self.omega_r
         if np.fabs((self.d_omega)/self.omega_r) > 0.1:
+            #ImpulseError
             raise RuntimeError("ERROR in TravellingWaveCavity" +
                                " impulse_response(): carrier frequency" +
                                " should be close to central frequency of the" +
@@ -314,6 +319,7 @@ class TravellingWaveCavity(object):
         self.omega_c = float(omega_c)
         self.d_omega = self.omega_c - self.omega_r
         if np.fabs((self.d_omega)/self.omega_r) > 0.1:
+            #ImpulseError
             raise RuntimeError("ERROR in TravellingWaveCavity" +
                                " impulse_response(): carrier frequency" +
                                " should be close to central frequency of the" +

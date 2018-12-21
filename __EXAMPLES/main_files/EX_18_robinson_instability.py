@@ -30,12 +30,14 @@ from blond.impedances.impedance import InducedVoltageFreq, TotalInducedVoltage
 from blond.impedances.impedance_sources import Resonators
 from scipy.constants import c, e, m_p
 
+this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
+
 try:
-    os.mkdir('../output_files')
+    os.mkdir(this_directory + '../output_files')
 except:
     pass
 try:
-    os.mkdir('../output_files/EX_18_fig')
+    os.mkdir(this_directory + '../output_files/EX_18_fig')
 except:
     pass
 
@@ -149,7 +151,7 @@ plt.legend(('Impedance','RF frequency','Synchrotron sidebands'), loc=0,
            fontsize='medium')
 plt.xlabel('Frequency [MHz]')
 plt.ylabel(r'Impedance [$\Omega$]')
-plt.savefig('../output_files/EX_18_fig/impedance.png')
+plt.savefig(this_directory + '../output_files/EX_18_fig/impedance.png')
 plt.close()
 
 
@@ -186,7 +188,7 @@ for i in range(n_turns):
         plt.plot(beam.dt*1e9,beam.dE*1e-6,'.')
         plt.xlabel('Time [ns]')
         plt.ylabel('Energy [MeV]')
-        plt.savefig('../output_files/EX_18_fig/phase_space_{0:d}.png'.format(i))
+        plt.savefig(this_directory + '../output_files/EX_18_fig/phase_space_{0:d}.png'.format(i))
         plt.close()
 
 print(time.time() - t0)
@@ -195,13 +197,13 @@ plt.figure()
 plt.plot(bunch_center*1e9)
 plt.xlabel('Turns')
 plt.ylabel('Bunch center [ns]')
-plt.savefig('../output_files/EX_18_fig/bunch_center.png')
+plt.savefig(this_directory + '../output_files/EX_18_fig/bunch_center.png')
 plt.close()
 plt.figure()
 plt.plot(bunch_std*1e9)
 plt.xlabel('Turns')
 plt.ylabel('Bunch length [ns]')
-plt.savefig('../output_files/EX_18_fig/bunch_length.png')
+plt.savefig(this_directory + '../output_files/EX_18_fig/bunch_length.png')
 plt.close()
 
 print("Done!")

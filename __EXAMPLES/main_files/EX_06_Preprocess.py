@@ -22,13 +22,14 @@ from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.rf_parameters_options import RFStationOptions
 from blond.beam.beam import Proton
 import os
+this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 
 try:
-    os.mkdir('../output_files')
+    os.mkdir(this_directory + '../output_files')
 except FileExistsError:
     pass
 try:
-    os.mkdir('../output_files/EX_06_fig')
+    os.mkdir(this_directory + '../output_files/EX_06_fig')
 except FileExistsError:
     pass
 
@@ -46,14 +47,14 @@ C = 2*np.pi*radius  # [m]
 initial_time = 0.277  # [s]
 final_time = 0.700  # [s]
 
-momentum_program = np.loadtxt('../input_files/EX_06_Source_TOF_P.csv',
+momentum_program = np.loadtxt(this_directory + '../input_files/EX_06_Source_TOF_P.csv',
                               delimiter=',')
 time_array = momentum_program[:, 0]*1e-3  # [s]
 momentum = momentum_program[:, 1]*1e9  # [eV/c]
 
 particle_type = Proton()
 ring_opt = RingOptions(interpolation='linear', plot=True,
-                       figdir='../output_files/EX_06_fig',
+                       figdir=this_directory + '../output_files/EX_06_fig',
                        t_start=initial_time, t_end=final_time)
 
 general_params = Ring(C, alpha, (time_array, momentum), particle_type,
@@ -69,11 +70,11 @@ phi_rf_2 = np.pi  # [rad]
 phi_rf_3 = np.pi/6  # [rad]
 
 voltage_program_C02 = np.loadtxt(
-    '../input_files/EX_06_voltage_program_LHC25_c02.txt')
+    this_directory + '../input_files/EX_06_voltage_program_LHC25_c02.txt')
 voltage_program_C04 = np.loadtxt(
-    '../input_files/EX_06_voltage_program_LHC25_c04.txt')
+    this_directory + '../input_files/EX_06_voltage_program_LHC25_c04.txt')
 voltage_program_C16 = np.loadtxt(
-    '../input_files/EX_06_voltage_program_LHC25_c16.txt')
+    this_directory + '../input_files/EX_06_voltage_program_LHC25_c16.txt')
 time_C02 = voltage_program_C02[:, 0]*1e-3  # [s]
 voltage_C02 = voltage_program_C02[:, 1]*1e3  # [V]
 time_C04 = voltage_program_C04[:, 0]*1e-3  # [s]
@@ -83,7 +84,7 @@ voltage_C16 = voltage_program_C16[:, 1]*1e3  # [V]
 
 rf_station_options = RFStationOptions(
     interpolation='linear', smoothing=0,
-    plot=True, figdir='../output_files/EX_06_fig',
+    plot=True, figdir=this_directory + '../output_files/EX_06_fig',
     figname=['voltage_C02 [V]', 'voltage_C04 [V]', 'voltage_C16 [V]'],
     sampling=1)
 

@@ -220,6 +220,7 @@ class _InducedVoltage(object):
             self.n_induced_voltage = int(np.ceil(self.wake_length_input /
                                                  self.profile.bin_size))
             if self.n_induced_voltage < self.profile.n_slices:
+                #WakeLengthError
                 raise RuntimeError('Error: too short wake length. ' +
                                    'Increase it above {0:1.2e} s.'.format(self.profile.n_slices *
                                                                           self.profile.bin_size))
@@ -231,6 +232,7 @@ class _InducedVoltage(object):
             self.n_induced_voltage = int(np.ceil(1 / (self.profile.bin_size *
                                                       self.frequency_resolution_input)))
             if self.n_induced_voltage < self.profile.n_slices:
+                #FrequencyResolutionError
                 raise RuntimeError('Error: too large frequency_resolution. ' +
                                    'Reduce it below {0:1.2e} Hz.'.format(1 /
                                                                          (self.profile.cut_right - self.profile.cut_left)))
@@ -652,6 +654,7 @@ class InducedVoltageResonator(_InducedVoltage):
 
         # Test if one or more quality factors is smaller than 0.5.
         if sum(Resonators.Q < 0.5) > 0:
+            #ResonatorError
             raise RuntimeError('All quality factors Q must be larger than 0.5')
 
         # Copy of the Beam object in order to access the beam info.
@@ -745,7 +748,8 @@ class InducedVoltageResonator(_InducedVoltage):
         # To obtain the voltage, sum the contribution of each cavity...
         self.induced_voltage = self._tmp_matrix.sum(axis=0)
         # ... and multiply with bunch charge
-        self.induced_voltage *= -self.beam.Particle.charge*e*self.beam.intensity
+        self.induced_voltage *= -self.beam.Particle.charge*e \
+                                *self.beam.n_macroparticles*self.beam.ratio
 
     # Implementation of Heaviside function
     def Heaviside(self, x):

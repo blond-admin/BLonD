@@ -44,8 +44,10 @@ def phase_noise_diffusion(Ring, RFStation, spectrum, distribution,
     # Input check
     N = Ngrids
     if spectrum.shape != (M, N+1):
+        #NoiseDiffusionError
         raise RuntimeError("In phase_noise_diffusion(): spectrum has to have shape (M, Ngrids+1)!")
     if len(distribution) != N:
+        #NoiseDiffusionError
         raise RuntimeError("In phase_noise_diffusion(): distribution has to be an array of Ngrids elements!")
        
     # Some constants

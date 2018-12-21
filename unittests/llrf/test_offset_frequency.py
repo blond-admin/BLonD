@@ -79,6 +79,14 @@ class TestOffsetFrequency(unittest.TestCase):
 
 
 
+    def test_exceptions(self):
+
+        with self.assertRaises(TypeError, msg='Non-integer systems should raise TypeError'):
+            offFreq._FrequencyOffset(self.ring, self.rf_params, 1.)
+        with self.assertRaises(TypeError, msg='Non-integer memebered iterables should raise TypeError'):
+            offFreq._FrequencyOffset(self.ring, self.rf_params, ['a'])
+
+
 if __name__ == '__main__':
 
     unittest.main()
