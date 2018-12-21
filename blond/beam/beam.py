@@ -360,7 +360,7 @@ class Beam(object):
         
         '''
         Initialisation of in place addition calls add_beam(other) if other
-        is a blond beam object, calls add_particles otherwise
+        is a blond beam object, calls add_particles(other) otherwise
         
         Parameters
         ----------
