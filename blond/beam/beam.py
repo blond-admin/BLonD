@@ -290,7 +290,6 @@ class Beam(object):
             self.id[itemindex] = 0 
 
 
-
     def add_particles(self, new_particles):
         
         '''
@@ -341,8 +340,8 @@ class Beam(object):
         self.dt = np.concatenate((self.dt, other_beam.dt))
         self.dE = np.concatenate((self.dE, other_beam.dE))
         
-        counter = itl.count(self.n_macroparticles + 1)
 
+        counter = itl.count(self.n_macroparticles + 1)
         newids = np.zeros(other_beam.n_macroparticles)
         
         for i in range(other_beam.n_macroparticles):
@@ -354,7 +353,6 @@ class Beam(object):
         self.id = np.concatenate((self.id, newids))
         self.n_macroparticles += other_beam.n_macroparticles                
         
-
 
     def __iadd__(self, other):
         
