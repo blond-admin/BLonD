@@ -54,7 +54,7 @@ install:
   - conda list numpy
   - conda list python 
   # Replace dep1 dep2 ... with your dependencies
-  - pip install coveralls pytest
+  - pip install coveralls pytest parameterized
 before_script:
   # - python setup_cpp.py --compiler=g++-4.8
   # - sleep 10
@@ -65,6 +65,7 @@ script:
 after_success:
 - coveralls
 
-branches:
-  only:
-  - master
+# branches:
+#   only:
+#   - master
+  

@@ -34,7 +34,7 @@ before_build:
   - conda info -a
   - conda create -q -y -n test-environment python=3.6 pip numpy scipy matplotlib future h5py
   - activate test-environment
-  - pip install coveralls pytest
+  - pip install coveralls pytest parameterized
 
 
 build_script:
