@@ -66,7 +66,7 @@ boost_path = None
 
 # EXAMPLE FLAGS: -Ofast -std=c++11 -fopt-info-vec -march=native
 #                -mfma4 -fopenmp -ftree-vectorizer-verbose=1
-cflags = ['-Ofast', '-std=c++11', '-shared']
+cflags = ['-O3', '-ffast-math', '-std=c++11', '-shared']
 
 cpp_files = [
     # 'cpp_routines/mean_std_whereint.cpp',
