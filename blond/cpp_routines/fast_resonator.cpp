@@ -54,7 +54,7 @@ extern "C" void fast_resonator_real_imag(double *__restrict__ impedanceReal,
 
     for (int res = 0; res < n_resonators; res++) {
         const double Qsquare = Q_values[res] * Q_values[res];
-        #pragma omp parallel for
+        // #pragma omp parallel for
         for (int freq = 1; freq < n_frequencies; freq++) {
             const double commonTerm = (frequencies[freq]
                                        / resonant_frequencies[res]
