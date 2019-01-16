@@ -54,6 +54,12 @@ parser.add_argument('-c', '--compiler', type=str, default='g++',
                     help='C++ compiler that will be used to compile the'
                     ' source files. Default: g++')
 
+parser.add_argument('--libs', type=str, default='',
+                    help='Any extra libraries needed to compile')
+
+parser.add_argument('--flags', type=str, default='',
+                    help='Additional compile flags.')
+
 # If True you can launch with 'OMP_NUM_THREADS=xx python MAIN_FILE.py'
 # where xx is the number of threads that you want to launch
 parallel = False
@@ -63,6 +69,8 @@ boost = False
 # Path to the boost library if not in your CPATH (recommended to use the
 # latest version)
 boost_path = None
+
+libs = []
 
 # EXAMPLE FLAGS: -Ofast -std=c++11 -fopt-info-vec -march=native
 #                -mfma4 -fopenmp -ftree-vectorizer-verbose=1
@@ -96,42 +104,45 @@ if (__name__ == "__main__"):
         cflags += ['-I', boost_path, '-DBOOST']
     compiler = args.compiler
 
-    print('Enable Multi-threaded code: ', parallel)
-    print('Using boost: ', boost)
-    print('Boost installation path: ', boost_path)
-    print('C++ Compiler: ', compiler)
-    subprocess.call([compiler, '--version'])
-
-    try:
-        os.remove(os.path.join(basepath, 'cpp_routines/libblond.so'))
-    except OSError as e:
-        pass
+    if (args.libs):
+        libs = args.libs.split()
 
     if (parallel is True):
         cflags += ['-fopenmp', '-DPARALLEL', '-D_GLIBCXX_PARALLEL']
 
+    if (args.flags):
+        cflags += args.flags.split()
+
     if ('posix' in os.name):
         cflags += ['-fPIC']
         libname = os.path.join(basepath, 'cpp_routines/libblond.so')
-        command = [compiler] + cflags + ['-o', libname] + cpp_files
-        subprocess.call(command)
-
-        print('\nIF THE COMPILATION IS CORRECT A FILE NAMED libblond.so SHOULD'
-              ' APPEAR IN THE cpp_routines FOLDER. OTHERWISE YOU HAVE TO'
-              ' CORRECT THE ERRORS AND COMPILE AGAIN.')
-
     elif ('win' in sys.platform):
-
         libname = os.path.join(basepath, 'cpp_routines/libblond.dll')
-
-        command = [compiler] + cflags + ['-o', libname] + cpp_files
-        subprocess.call(command)
-
-        print('\nIF THE COMPILATION IS CORRECT A FILE NAMED libblond.dll SHOULD'
-              ' APPEAR IN THE cpp_routines FOLDER. OTHERWISE YOU HAVE TO'
-              ' CORRECT THE ERRORS AND COMPILE AGAIN.')
-
     else:
         print(
-            'YOU DO NOT HAVE A WINDOWS OR LINUX OPERATING SYSTEM. ABORTING...')
-        sys.exit()
+            'YOU ARE NOT USING A WINDOWS OR LINUX OPERATING SYSTEM. ABORTING...')
+        sys.exit(-1)
+
+    command = [compiler] + cflags + ['-o', libname] + cpp_files + libs
+
+    print('Enable Multi-threaded code: ', parallel)
+    print('Use of boost: ', boost)
+    print('Boost installation path: ', boost_path)
+    print('C++ Compiler: ', compiler)
+    print('Compiler flags: ', ' '.join(cflags))
+    print('Extra libraries: ', ' '.join(libs))
+    subprocess.call([compiler, '--version'])
+
+    try:
+        os.remove(libname)
+    except OSError as e:
+        pass
+
+    subprocess.call(command)
+    
+    try:
+        libblond = ctypes.CDLL(libname)
+        print('\nThe blond library has been successfully compiled.')
+    except Exception as e:
+        print('\nCompilation failed.')
+        print(e)
