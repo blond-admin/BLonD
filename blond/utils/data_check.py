@@ -16,9 +16,6 @@
 #General imports
 import numpy as np
 
-#BLonD imports
-import blond.utils.exceptions as blExcept
-
 
 #General function to check if input_data is number, or nD array
 #for each member of args the input_data is checked
