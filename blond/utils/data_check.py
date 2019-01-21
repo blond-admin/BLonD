@@ -65,10 +65,20 @@ def _check_length(input_data, length):
     
     
 #Casts input_data to numpy array and dimensions to tuple
-#compares shape of array to tuple and returns True if equal
+#compares shape of array to tuple and returns True if equal.
+#If dim[n] == -1 it is set to input_data.shape[n] to allow comprehension
+#of arrays with arbitrary length in one or more dimensions.
 def _check_dimensions(input_data, dim):
     
-    return np.array(input_data).shape == tuple(dim)
+    inputShape = np.array(input_data).shape
+        
+    if -1 in dim:
+        try:
+            dim = [inputShape[i] if dim[i] == -1 else dim[i] for i in range(len(dim))]
+        except IndexError:
+            return False
+        
+    return inputShape == tuple(dim)
     
             
             
