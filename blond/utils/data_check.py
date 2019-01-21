@@ -35,7 +35,7 @@ def check_input(variable, msg, *args):
 #integers are taken as the length of a list-like input
 #tuples or lists are taken as dimensions
 #[[1, 2], [1, 2]] will return true for length = 2 or dims = (2, 2)
-def check_dimensions(input_data, *args):
+def check_data_dimensions(input_data, *args):
     
     success = False
     
@@ -64,6 +64,8 @@ def _check_number(input_data):
     
     try:
         int(input_data)
+        if isinstance(input_data, np.ndarray):
+            raise TypeError
         return True
     except (TypeError, ValueError):
         return False
@@ -73,7 +75,13 @@ def _check_number(input_data):
 #Should this return True if n-dim > 1?
 def _check_length(input_data, length):
     
-    return len(input_data) == length
+    if not _check_number(length):
+        raise TypeError("Length must be numeric")
+    
+    try:
+        return len(input_data) == length
+    except TypeError:
+        return False
     
     
 #Casts input_data to numpy array and dimensions to tuple
@@ -82,13 +90,21 @@ def _check_length(input_data, length):
 #of arrays with arbitrary length in one or more dimensions.
 def _check_dimensions(input_data, dim):
     
+    try:
+        iter(dim)
+    except TypeError:
+        dim = [dim]
+    
     inputShape = np.array(input_data).shape
-        
-    if -1 in dim:
-        try:
-            dim = [inputShape[i] if dim[i] == -1 else dim[i] for i in range(len(dim))]
-        except IndexError:
-            return False
+    
+    try:
+        if -1 in dim:
+            try:
+                dim = [inputShape[i] if dim[i] == -1 else dim[i] for i in range(len(dim))]
+            except IndexError:
+                return False
+    except TypeError:
+        raise TypeError("dim must be number or iterable of numbers")
         
     return inputShape == tuple(dim)
     
