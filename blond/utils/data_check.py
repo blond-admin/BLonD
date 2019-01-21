@@ -23,8 +23,10 @@ import blond.utils.exceptions as blExcept
 #Check input and return InputDataError exception with user defined message if False
 def check_input(variable, msg, *args):
     
-    if check_dimensions(variable, *args)[0]:
-        return True
+    result = check_data_dimensions(variable, *args)
+    
+    if result[0]:
+        return result
     else:
         raise blExcept.InputDataError(msg)
 
