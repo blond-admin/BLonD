@@ -35,6 +35,7 @@ class TestRFModulation(unittest.TestCase):
                                msg="non-integer system number should raise \
                                        InputDataError exception"):
             rfMod.PhaseModulation(1, 1, 1, 1, 0.1)
+            
         
         
 if __name__ == '__main__':

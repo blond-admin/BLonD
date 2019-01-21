@@ -48,7 +48,9 @@ class PhaseModulation:
             raise blExcept.InputDataError("System must be None or int")
         
         
-        
+    #Make frequency etc into properties
+    #set n_rf after passing object to rf_params
+    #Getter returns functions extended to correct dimensions for interpolation
 
 
 class OldPhaseModulation:
