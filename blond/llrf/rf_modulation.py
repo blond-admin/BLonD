@@ -14,46 +14,48 @@ and offset functions**
 :Authors: **Simon Albright**
 '''
 
-from __future__ import division
-from __future__ import print_function
-#from builtins import str, range, object
+#General imports
 import numpy as np
 import scipy.interpolate as interp
 
-#from ..input_parameters.rf_parameters_options import RFStationOptions
-#prep = RFStationOptions()
+#BLonD imports
+import blond.utils.data_check as dCheck
+import blond.utils.exceptions as blExcept
 
 
 
 class PhaseModulation:
     
-    def __init__(self, frequency, amplitude, offset, multiplier = 1, system = None):
+    def __init__(self, frequency, amplitude, offset, multiplier = 1, \
+                 system = None):
         
+        msg = "must be a single numerical value or have shape (2, n)"
+        if dCheck.check_input(frequency, "Frequency " + msg, 0, (2, -1)):
+            self.frequency = frequency
+
+        if dCheck.check_input(amplitude, "Amplitude " + msg, 0, (2, -1)):
+            self.amplitude = amplitude
+
+        if dCheck.check_input(offset, "Offset " + msg, 0, (2, -1)):
+            self.offset = offset        
         
-        try:
-            if len(frequency) == 2:
-                self.frequency = frequency
-            else:
-                raise ValueError("frequency must be single valued or shape: (2, n)")
-        except TypeError:
-            try:
-                int(frequency)
-                self.frequency = frequency
-            except TypeError
-            
+        if dCheck.check_input(multiplier, "Multiplier " + msg, 0, (2, -1)):
+            self.multiplier = multiplier
+
+        if system is None or isinstance(system, int):
+            self.system = system
+        else:
+            raise blExcept.InputDataError("System must be None or int")
         
-        self.frequency = frequency
-        self.amplitude = amplitude
-        self.offset = offset
-        self.multiplier = multiplier
-        self.system = system
         
         
 
 
 class OldPhaseModulation:
 
-    def __init__(self, frequency, amplitude, offset, time, freqMultiplier = 1, interpType = 'cubic', smoothing = 1000, ontime = 0, offtime = 0):
+    def __init__(self, frequency, amplitude, offset, time, freqMultiplier = 1, \
+                 interpType = 'cubic', smoothing = 1000, \
+                 ontime = 0, offtime = 0):
 
         '''
         Generate phase modulation to be applied to phi_rf
