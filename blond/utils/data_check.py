@@ -19,7 +19,6 @@ def check_dimensions(input_data, *args):
     
     
     for a in args:
-        print(a)
         if a == 0:
             if _check_number(input_data):
                 return True
@@ -48,17 +47,12 @@ def _check_number(input_data):
     
 def _check_length(input_data, length):
     
-    if len(input_data) == length:
-        return True
-    else:
-        return False
+    return len(input_data) == length
     
     
 def _check_dimensions(input_data, dim):
     
-    nDims = len(dim)
-#recursion?
-
+    return np.array(input_data).shape == tuple(dim)
     
             
             
