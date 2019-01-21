@@ -16,6 +16,18 @@
 #General imports
 import numpy as np
 
+#BLonD imports
+import blond.utils.exceptions as blExcept
+
+
+#Check input and return InputDataError exception with user defined message if False
+def check_input(variable, msg, *args):
+    
+    if check_dimensions(variable, *args)[0]:
+        return True
+    else:
+        raise blExcept.InputDataError(msg)
+
 
 #General function to check if input_data is number, or nD array
 #for each member of args the input_data is checked
