@@ -16,9 +16,6 @@ import blond.utils.exceptions as blExcept
 
 class TestRFModulation(unittest.TestCase):
     
-    def setUp(self):
-        
-        pass
         
     def test_construct(self):
                 
@@ -35,7 +32,23 @@ class TestRFModulation(unittest.TestCase):
                                msg="non-integer system number should raise \
                                        InputDataError exception"):
             rfMod.PhaseModulation(1, 1, 1, 1, 0.1)
-            
+    
+    
+    def test_extender(self):
+        
+        testFreqProg = [[0, 1], [1E3, 5E2]]
+        testAmpProg = [[0, 0.5, 1], [0, 1, 0]]
+        testOffsetProg = [[0, 1], [0, np.pi]]
+        testMultProg = 2
+        n_rf = 5
+        
+        self.modulator = rfMod.PhaseModulation(testFreqProg, testAmpProg, \
+                                               testOffsetProg, testMultProg,\
+                                               system=None)
+        self.modulator.n_rf = n_rf
+        
+        self.assertEqual(self.modulator.multiplier, tuple([testMultProg]*n_rf))
+
         
         
 if __name__ == '__main__':

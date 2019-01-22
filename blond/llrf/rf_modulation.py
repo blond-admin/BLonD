@@ -47,10 +47,73 @@ class PhaseModulation:
         else:
             raise blExcept.InputDataError("System must be None or int")
         
+        self.n_rf = 1
+    
+
+
+
+
+
+
+
+
+
+
+
+    @property
+    def frequency(self):
+        return self._extend_to_n_rf(self._frequency)
         
-    #Make frequency etc into properties
-    #set n_rf after passing object to rf_params
-    #Getter returns functions extended to correct dimensions for interpolation
+    @frequency.setter
+    def frequency(self, parIn):
+         self._frequency = parIn
+         
+    @property
+    def amplitude(self):
+        return self._extend_to_n_rf(self._amplitude)
+        
+    @amplitude.setter
+    def amplitude(self, parIn):
+         self._amplitude = parIn
+         
+    @property
+    def offset(self):
+        return self._extend_to_n_rf(self._offset)
+        
+    @offset.setter
+    def offset(self, parIn):
+         self._offset = parIn
+         
+    @property
+    def multiplier(self):
+        return self._extend_to_n_rf(self._multiplier)
+        
+    @multiplier.setter
+    def multiplier(self, parIn):
+         self._multiplier = parIn
+    
+         
+#Extend passed parameter to requred n_rf if n_rf > 1    
+    def _extend_to_n_rf(self, param):
+        
+        if self.n_rf == 1:
+            return param
+
+        try:
+            iter(param)
+            
+        except TypeError:
+            for i in range(self.n_rf):
+                return tuple(param if self.system is None or self.system == i \
+                                   else 0 for i in range(self.n_rf))
+
+        else:
+            extendTuple = ([param[0][0], param[0][-1]], [0, 0])
+            return tuple(param if self.system is None or self.system == i \
+                               else extendTuple for i in range(self.n_rf))
+    
+
+
 
 
 class OldPhaseModulation:
