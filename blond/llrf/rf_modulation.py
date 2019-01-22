@@ -43,16 +43,16 @@ class PhaseModulation:
             self.multiplier = multiplier
 
         if system is None or isinstance(system, int):
-            self.system = system
+            self._system = system
         else:
             raise blExcept.InputDataError("System must be None or int")
         
         self.n_rf = 1
     
 
+    def calc_modulation(self):
 
-
-
+        phiAddition = (modDepth*np.sin(2*np.pi*(np.cumsum(modFreq*np.gradient(Ring.cumulative_times)))) + modOff)[0]
 
 
 
@@ -96,6 +96,9 @@ class PhaseModulation:
 #Extend passed parameter to requred n_rf if n_rf > 1    
     def _extend_to_n_rf(self, param):
         
+        if self._system is not None and self._system >= self.n_rf:
+            raise ValueError("System number higher than number of systems")
+
         if self.n_rf == 1:
             return param
 
@@ -104,15 +107,22 @@ class PhaseModulation:
             
         except TypeError:
             for i in range(self.n_rf):
-                return tuple(param if self.system is None or self.system == i \
+                return tuple(param if self._system is None or self._system == i \
                                    else 0 for i in range(self.n_rf))
 
         else:
             extendTuple = ([param[0][0], param[0][-1]], [0, 0])
-            return tuple(param if self.system is None or self.system == i \
+            return tuple(param if self._system is None or self._system == i \
                                else extendTuple for i in range(self.n_rf))
     
 
+
+#requires:
+#time.shape = (n,)
+#others.shape = (n, n_rf)
+def calc_modulation(time, freq, ampl, offset):
+
+    phiAddition = (modDepth*np.sin(2*np.pi*(np.cumsum(modFreq*np.gradient(Ring.cumulative_times)))) + modOff)[0]
 
 
 

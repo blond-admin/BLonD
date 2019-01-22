@@ -47,7 +47,38 @@ class TestRFModulation(unittest.TestCase):
                                                system=None)
         self.modulator.n_rf = n_rf
         
-        self.assertEqual(self.modulator.multiplier, tuple([testMultProg]*n_rf))
+        msg = "All members should equal original declared value"
+        self.assertEqual(self.modulator.frequency, tuple([testFreqProg]*n_rf), \
+                         msg = msg)
+        self.assertEqual(self.modulator.amplitude, tuple([testAmpProg]*n_rf), \
+                         msg = msg)
+        self.assertEqual(self.modulator.offset, tuple([testOffsetProg]*n_rf), \
+                         msg = msg)
+        self.assertEqual(self.modulator.multiplier, tuple([testMultProg]*n_rf), \
+                         msg = msg)
+
+
+        self.modulator.n_rf = 2
+        self.modulator._system = 2
+        with self.assertRaises(ValueError, msg = "n_rf <= system number should \
+                                                  raise ValueError"):
+             self.modulator.frequency
+
+        self.modulator.n_rf = 3
+
+        msg = "Only last member should be non-zero"
+        self.assertEqual(self.modulator.frequency, (([0, 1], [0, 0]), ([0, 1], [0, 0]), testFreqProg), \
+                         msg = msg)
+        self.assertEqual(self.modulator.multiplier, (0, 0, testMultProg), \
+                         msg = msg)
+
+        self.modulator._system = 0
+
+        msg = "Only first member should be non-zero"
+        self.assertEqual(self.modulator.frequency, (testFreqProg, ([0, 1], [0, 0]), ([0, 1], [0, 0])), \
+                         msg = msg)
+        self.assertEqual(self.modulator.multiplier, (testMultProg, 0, 0), \
+                         msg = msg)
 
         
         
