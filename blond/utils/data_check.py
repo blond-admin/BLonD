@@ -20,7 +20,8 @@ import numpy as np
 import blond.utils.exceptions as blExcept
 
 
-#Check input and return InputDataError exception with user defined message if False
+#Check input and return InputDataError exception with user defined
+#message if False
 def check_input(variable, msg, *args):
     
     result = check_data_dimensions(variable, *args)
@@ -102,7 +103,8 @@ def _check_dimensions(input_data, dim):
     try:
         if -1 in dim:
             try:
-                dim = [inputShape[i] if dim[i] == -1 else dim[i] for i in range(len(dim))]
+                dim = [inputShape[i] if dim[i] == -1 \
+                                     else dim[i] for i in range(len(dim))]
             except IndexError:
                 return False
     except TypeError:
