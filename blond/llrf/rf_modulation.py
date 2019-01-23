@@ -29,25 +29,21 @@ class PhaseModulation:
     def __init__(self, timebase, frequency, amplitude, offset, \
                  harmonic, multiplier = 1, modulate_frequency = True):
         
-        if dCheck.check_input(timebase, "Timebase must have shape (n)", [-1])[0]:
-            self.timebase = timebase
         
         msg = "must be a single numerical value or have shape (2, n)"
-        if dCheck.check_input(frequency, "Frequency " + msg, 0, (2, -1))[0]:
-            self.frequency = frequency
+        dCheck.check_input(timebase, "Timebase must have shape (n)", [-1])
+        dCheck.check_input(frequency, "Frequency " + msg, 0, (2, -1))
+        dCheck.check_input(amplitude, "Amplitude " + msg, 0, (2, -1))
+        dCheck.check_input(offset, "Offset " + msg, 0, (2, -1))
+        dCheck.check_input(multiplier, "Multiplier " + msg, 0, (2, -1))
+        dCheck.check_input(harmonic, "Harmonic must be single valued number", 0)
 
-        if dCheck.check_input(amplitude, "Amplitude " + msg, 0, (2, -1))[0]:
-            self.amplitude = amplitude
-
-        if dCheck.check_input(offset, "Offset " + msg, 0, (2, -1))[0]:
-            self.offset = offset        
-        
-        if dCheck.check_input(multiplier, "Multiplier " + msg, 0, (2, -1))[0]:
-            self.multiplier = multiplier
-
-        if dCheck.check_input(harmonic, "Harmonic must be single valued number", \
-                              0)[0]:
-            self.harmonic = harmonic
+        self.timebase = timebase        
+        self.frequency = frequency
+        self.amplitude = amplitude
+        self.offset = offset        
+        self.multiplier = multiplier
+        self.harmonic = harmonic
 
         if not isinstance(modulate_frequency, bool):
             raise TypeError("modulate_frequency must be boolean")
