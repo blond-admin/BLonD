@@ -183,6 +183,9 @@ class RingAndRFTracker(object):
     phi_noise : float array
         Inherited from
         :py:attr:`input_parameters.rf_parameters.RFStation.phi_noise`
+    phi_modulation : 2-tuple of float array
+        Inherited from
+        :py:attr:`input_parameters.rf_parameters.RFStation.phi_modulation`
     phi_rf : float array
         Inherited from
         :py:attr:`input_parameters.rf_parameters.RFStation.phi_rf`
@@ -244,6 +247,7 @@ class RingAndRFTracker(object):
         self.harmonic = RFStation.harmonic
         self.voltage = RFStation.voltage
         self.phi_noise = RFStation.phi_noise
+        self.phi_modulation = RFStation.phi_modulation
         self.phi_rf = RFStation.phi_rf
         self.phi_s = RFStation.phi_s
         self.omega_rf = RFStation.omega_rf
@@ -367,6 +371,14 @@ class RingAndRFTracker(object):
             else:
                 self.phi_rf[:, self.counter[0]] += \
                     self.phi_noise[:, self.counter[0]]
+                    
+        # Add phase modulation directly to the cavity RF phase
+        if self.phi_modulation is not None:
+            self.phi_rf[:, self.counter[0]] += \
+                self.phi_modulation[0][:, self.counter[0]]
+            self.omega_rf[:, self.counter[0]] += \
+                self.phi_modulation[1][:, self.counter[0]]
+
 
         # Determine phase loop correction on RF phase and frequency
         if self.beamFB is not None and self.counter[0] >= self.beamFB.delay:

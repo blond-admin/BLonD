@@ -78,6 +78,8 @@ class RFStation(object):
     phi_noise : float (opt: float array/matrix)
         Optional, programmed RF cavity phase noise, :math:`\phi_{N,l,n}` [rad].
         Added to all RF systems in the station. For input options, see above
+    phi_modulation : class (opt: iterable of classes)
+        A PhaseModulation type class (or iterable of classes)
     RFStationOptions : class
         Optionnal, A RFStationOptions-based class defining smoothing,
         interpolation, etc. options for harmonic, voltage, and/or
@@ -165,6 +167,8 @@ class RFStation(object):
         Initially the same as the designed angular frequency.
     phi_noise : None or float matrix [n_rf, n_turns+1]
         Programmed cavity phase noise for each RF harmonic.
+    phi_modulation : None or float matrix [n_rf, n_turns+1]
+        Programmed cavity phase modulation for each RF harmonic.
     dphi_rf : float matrix [n_rf]
         Accumulated RF phase error of each harmonic system
         :math:`\Delta \phi_{rf,l,n}` [rad]
@@ -202,7 +206,7 @@ class RFStation(object):
 
     def __init__(self, Ring, harmonic, voltage, phi_rf_d, n_rf=1,
                  section_index=1, omega_rf=None, phi_noise=None,
-                 RFStationOptions=RFStationOptions()):
+                 phi_modulation=None, RFStationOptions=RFStationOptions()):
 
         # Different indices
         self.counter = [int(0)]
@@ -286,6 +290,47 @@ class RFStation(object):
                 Ring.RingOptions.t_start)
         else:
             self.phi_noise = None
+            
+        if phi_modulation is not None:
+            
+            try:
+                iter(phi_modulation)
+            except TypeError:
+                phi_modulation = [phi_modulation]
+            
+            dPhi = np.zeros([self.n_rf, self.n_turns+1])
+            dOmega = np.zeros([self.n_rf, self.n_turns+1])
+            for pMod in phi_modulation:
+                system = np.where(self.harmonic[:,0] == pMod.harmonic)[0]
+                if len(system) == 0:
+                    raise ValueError("No matching harmonic in phi_modulation")
+                elif len(system) > 1:
+                    raise RuntimeError("""Phase modulation not yet 
+                                       implemented with multiple systems 
+                                       at the same harmonic.""")
+                else:
+                    system = system[0]
+                    
+                pMod.calc_modulation()
+                pMod.calc_delta_omega((Ring.cycle_time, self.omega_rf_d[system]))
+                dPhiInput, dOmegaInput =  pMod.extend_to_n_rf(self.harmonic[:,0])
+                dPhi += RFStationOptions.reshape_data(dPhiInput,
+                                                     self.n_turns,
+                                                     self.n_rf,
+                                                     Ring.cycle_time,
+                                                     Ring.RingOptions.t_start)
+                dOmega += RFStationOptions.reshape_data(dOmegaInput,
+                                                       self.n_turns,
+                                                       self.n_rf,
+                                                       Ring.cycle_time,
+                                                       Ring.RingOptions.t_start)
+                
+                
+            
+            self.phi_modulation = (dPhi, dOmega)
+        else:
+            
+            self.phi_modulation = None
 
         # Copy of the desing rf programs in the one used for tracking
         # and that can be changed by feedbacks
