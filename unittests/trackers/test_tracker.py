@@ -233,7 +233,7 @@ class TestRfVoltageCalcWCavityFB(unittest.TestCase):
         amp = np.pi
         offset = 0
         harmonic = self.h
-        phiMod = PMod(timebase, frequency, amplitude, offset, harmonic)
+        phiMod = PMod(timebase, freq, amp, offset, harmonic)
         
         self.rf = RFStation(
             self.ring, [self.h], self.V * np.linspace(1, 1.1, self.N_t+1), \
