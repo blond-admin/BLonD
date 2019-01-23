@@ -379,6 +379,7 @@ class RingAndRFTracker(object):
             self.omega_rf[:, self.counter[0]] += \
                 self.phi_modulation[1][:, self.counter[0]]
 
+
         # Determine phase loop correction on RF phase and frequency
         if self.beamFB is not None and self.counter[0] >= self.beamFB.delay:
             self.beamFB.track()

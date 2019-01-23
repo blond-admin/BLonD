@@ -15,6 +15,7 @@ Unittest for trackers.tracker.py
 
 import unittest
 import numpy as np
+import matplotlib.pyplot as plt
 # import inspect
 
 from blond.utils import bmath as bm
@@ -24,6 +25,7 @@ from blond.trackers.tracker import RingAndRFTracker
 from blond.beam.beam import Beam, Proton
 from blond.beam.distributions import bigaussian
 from blond.beam.profile import CutOptions, FitOptions, Profile
+from blond.llrf.rf_modulation import PhaseModulation as PMod
 import os
 
 
@@ -222,6 +224,30 @@ class TestRfVoltageCalcWCavityFB(unittest.TestCase):
             orig_rf_voltage = orig_rf_volt_comp(self.long_tracker)
         np.testing.assert_almost_equal(
             self.long_tracker.rf_voltage, orig_rf_voltage, decimal=8)
+        
+        
+    def test_phi_modulation(self):
+        
+        timebase = np.linspace(0, 0.2, 10000)
+        freq = 2E3
+        amp = np.pi
+        offset = 0
+        harmonic = self.h
+        phiMod = PMod(timebase, frequency, amplitude, offset, harmonic)
+        
+        self.rf = RFStation(
+            self.ring, [self.h], self.V * np.linspace(1, 1.1, self.N_t+1), \
+            [self.dphi], phi_modulation = phiMod)
+        
+        self.long_tracker = RingAndRFTracker(
+            self.rf, self.beam, Profile=self.profile)
+
+        for i in range(self.N_t):
+            self.long_tracker.track()
+            self.assertEqual( \
+                self.long_tracker.phi_rf[:, self.long_tracker.counter[0]-1], \
+                self.rf.phi_modulation[0][0][i], msg = \
+                """Phi modulation not added correctly in tracker""")
 
 
 if __name__ == '__main__':
