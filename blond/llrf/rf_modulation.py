@@ -26,8 +26,11 @@ import blond.utils.exceptions as blExcept
 
 class PhaseModulation:
     
-    def __init__(self, frequency, amplitude, offset, multiplier = 1, \
-                 system = None):
+    def __init__(self, timebase, frequency, amplitude, offset, \
+                 multiplier = 1, system = None, modulate_frequency = True):
+        
+        if dCheck.check_input(timebase, "Timebase must have shape (n)", [-1]):
+            self.timebase = timebase
         
         msg = "must be a single numerical value or have shape (2, n)"
         if dCheck.check_input(frequency, "Frequency " + msg, 0, (2, -1)):
@@ -43,86 +46,98 @@ class PhaseModulation:
             self.multiplier = multiplier
 
         if system is None or isinstance(system, int):
-            self._system = system
+            self.system = system
         else:
-            raise blExcept.InputDataError("System must be None or int")
-        
-        self.n_rf = 1
-    
+            raise TypeError("System must be None or int")
 
+        if not isinstance(modulate_frequency, bool):
+            raise TypeError("modulate_frequency must be boolean")
+        
+        self._mod_freq = modulate_frequency
+
+
+#Calculate the modulation with linear interpolation of functions
     def calc_modulation(self):
-
-        phiAddition = (modDepth*np.sin(2*np.pi*(np.cumsum(modFreq*np.gradient(Ring.cumulative_times)))) + modOff)[0]
-
-
-
-
-
-
-
-    @property
-    def frequency(self):
-        return self._extend_to_n_rf(self._frequency)
         
-    @frequency.setter
-    def frequency(self, parIn):
-         self._frequency = parIn
+        amplitude = self._interp_param(self.amplitude)
+        frequency = self._interp_param(self.frequency)
+        offset = self._interp_param(self.offset)
+        multiplier = self._interp_param(self.multiplier)
+
+        frequency *= multiplier
+
+        self.dphi = amplitude \
+                    * np.sin(2*np.pi*(np.cumsum(frequency \
+                                                *np.gradient(self.timebase))))\
+                    + offset
+
+
+
+    def calc_delta_omega(self, harmonic, omegaProg):
+
+        dCheck.check_input(omegaProg, "omegaProg must have shape (2, n)", \
+                           (2, -1))
+        dCheck.check_input(harmonic, "harmonic must be single valued number", \
+                           0)
+        
+        
+        if not self._mod_freq:
+            self.domega = np.zeros(len(self.dphi))
+        
+        else:   
+            omega = self._interp_param(omegaProg)
+            self.domega = np.gradient(self.dphi) * omega \
+                          / (2*np.pi * harmonic)
+            
+
+
+#Interpolate functions onto self.timebase
+    def _interp_param(self, param):
+        
+        if dCheck.check_data_dimensions(param, 0)[0]:
+            return np.array([param]*len(self.timebase))
+        
+        elif dCheck.check_data_dimensions(param, (2, -1))[0]:
+            return np.interp(self.timebase, param[0], param[1])
+        
+        else:
+            raise TypeError("Param must be number or have shape (2, n)")
+
          
-    @property
-    def amplitude(self):
-        return self._extend_to_n_rf(self._amplitude)
-        
-    @amplitude.setter
-    def amplitude(self, parIn):
-         self._amplitude = parIn
-         
-    @property
-    def offset(self):
-        return self._extend_to_n_rf(self._offset)
-        
-    @offset.setter
-    def offset(self, parIn):
-         self._offset = parIn
-         
-    @property
-    def multiplier(self):
-        return self._extend_to_n_rf(self._multiplier)
-        
-    @multiplier.setter
-    def multiplier(self, parIn):
-         self._multiplier = parIn
-    
-         
-#Extend passed parameter to requred n_rf if n_rf > 1    
-    def _extend_to_n_rf(self, param):
-        
-        if self._system is not None and self._system >= self.n_rf:
+#Extend passed parameter to requred n_rf if n_rf > 1 for treatment in
+#rf_parameters
+    def extend_to_n_rf(self, n_rf):
+
+        if not hasattr(self, 'domega'):
+            raise AttributeError("""domega has not yet been calculated, 
+                                 calc_delta_omega must be called first""")
+
+        if self.system is not None and self.system >= n_rf:
             raise ValueError("System number higher than number of systems")
 
-        if self.n_rf == 1:
-            return param
-
-        try:
-            iter(param)
-            
-        except TypeError:
-            for i in range(self.n_rf):
-                return tuple(param if self._system is None or self._system == i \
-                                   else 0 for i in range(self.n_rf))
+        if n_rf == 1:
+            return (self.timebase, self.dphi), (self.timebase, self.domega)
 
         else:
-            extendTuple = ([param[0][0], param[0][-1]], [0, 0])
-            return tuple(param if self._system is None or self._system == i \
-                               else extendTuple for i in range(self.n_rf))
+            extendTuple = ([self.timebase[0], self.timebase[-1]], [0, 0])
+            return (tuple([self.timebase, self.dphi] \
+                         if self.system is None or self.system == i \
+                         else extendTuple for i in range(n_rf)), 
+                         
+                    tuple([self.timebase, self.domega] \
+                         if self.system is None or self.system == i \
+                         else extendTuple for i in range(n_rf)))
+    
+    
+    
+    
+    
+    
+    
+    
+    
     
 
-
-#requires:
-#time.shape = (n,)
-#others.shape = (n, n_rf)
-def calc_modulation(time, freq, ampl, offset):
-
-    phiAddition = (modDepth*np.sin(2*np.pi*(np.cumsum(modFreq*np.gradient(Ring.cumulative_times)))) + modOff)[0]
 
 
 
