@@ -222,3 +222,8 @@ class TestRfVoltageCalcWCavityFB(unittest.TestCase):
             orig_rf_voltage = orig_rf_volt_comp(self.long_tracker)
         np.testing.assert_almost_equal(
             self.long_tracker.rf_voltage, orig_rf_voltage, decimal=8)
+
+
+if __name__ == '__main__':
+
+    unittest.main()
