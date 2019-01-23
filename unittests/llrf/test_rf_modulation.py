@@ -24,60 +24,56 @@ class TestRFModulation(unittest.TestCase):
         
         stringMsg = "Integer input should raise an InputDataError exception"
         with self.assertRaises(blExcept.InputDataError, msg=stringMsg):
-            rfMod.PhaseModulation(1, 1, 1, 1)
+            rfMod.PhaseModulation(1, 1, 1, 1, 1)
         
         stringMsg = "String input should raise an InputDataError exception"
         with self.assertRaises(blExcept.InputDataError, msg=stringMsg):
-            rfMod.PhaseModulation('a', 1, 1, 1)
+            rfMod.PhaseModulation('a', 1, 1, 1, 1)
             
         with self.assertRaises(blExcept.InputDataError, msg=stringMsg):
-            rfMod.PhaseModulation(timebase, 'a', 1, 1)
+            rfMod.PhaseModulation(timebase, 'a', 1, 1, 1)
             
         with self.assertRaises(blExcept.InputDataError, msg=stringMsg):
-            rfMod.PhaseModulation(timebase, 1, 'a', 1)    
+            rfMod.PhaseModulation(timebase, 1, 'a', 1, 1)    
             
         with self.assertRaises(blExcept.InputDataError, msg=stringMsg):
-            rfMod.PhaseModulation(timebase, 1, 1, 'a')
+            rfMod.PhaseModulation(timebase, 1, 1, 'a', 1)
             
         with self.assertRaises(blExcept.InputDataError, msg=stringMsg):
             rfMod.PhaseModulation(timebase, 1, 1, 1, 'a')    
             
-        with self.assertRaises(TypeError, msg=stringMsg):
-            rfMod.PhaseModulation(timebase, 1, 1, 1, 1, 'a')  
-        with self.assertRaises(TypeError, \
-                               msg="non-integer system number should raise \
-                                       InputDataError exception"):
-            rfMod.PhaseModulation(timebase, 1, 1, 1, 1, 0.1)
+        with self.assertRaises(blExcept.InputDataError, msg=stringMsg):
+            rfMod.PhaseModulation(timebase, 1, 1, 1, 1, 'a')
 
 
         stringMsg = "Wrong shape input should raise an InputDataError exception"
         with self.assertRaises(blExcept.InputDataError, msg=stringMsg):
-            rfMod.PhaseModulation(np.zeros([2, 2]), 1, 1, 1)
+            rfMod.PhaseModulation(np.zeros([2, 2]), 1, 1, 1, 1)
 
         with self.assertRaises(blExcept.InputDataError, msg=stringMsg):
-            rfMod.PhaseModulation(np.zeros(2), [1, 2, 3], 1, 1)
+            rfMod.PhaseModulation(np.zeros(2), [1, 2, 3], 1, 1, 1)
 
         with self.assertRaises(blExcept.InputDataError, msg=stringMsg):
-            rfMod.PhaseModulation(np.zeros(2), 1, np.zeros([3, 100]), 1, 1)
+            rfMod.PhaseModulation(np.zeros(2), 1, np.zeros([3, 100]), 1, 1, 1)
     
         modulator = rfMod.PhaseModulation(timebase, 1, 1, 1, 1)
         self.assertEqual((modulator.timebase, modulator.frequency, \
                           modulator.amplitude, modulator.offset, \
-                          modulator.multiplier, modulator.system), \
-                         (timebase, 1, 1, 1, 1, None), \
+                          modulator.multiplier, modulator.harmonic), \
+                         (timebase, 1, 1, 1, 1, 1), \
                          msg = "Input has not been applied correctly")
         
         with self.assertRaises(TypeError, \
                                msg = 'Non-boolean input should raise TypeError'):
             
-            rfMod.PhaseModulation(np.zeros(2), 1, 1, 1, 1, "Not a bool")
+            rfMod.PhaseModulation(np.zeros(2), 1, 1, 1, 1, 1, "Not a bool")
     
 
     def test_interpolation(self):
         
         timebase = np.linspace(0, 1, 1000)
         
-        modulator = rfMod.PhaseModulation(timebase, 1, 1, 1)
+        modulator = rfMod.PhaseModulation(timebase, 1, 1, 1, 1)
                 
         self.assertTrue(all(modulator._interp_param([[0, 1], [0, 1]]) \
                          == timebase), msg = 'Function interpolation incorrect')
@@ -98,10 +94,11 @@ class TestRFModulation(unittest.TestCase):
         testAmpProg = [[0, 0.5, 1], [0, 2, 0]]
         testOffsetProg = [[0, 1], [0, np.pi]]
         testMultProg = 2
+        harmonic = 8
         
         modulator = rfMod.PhaseModulation(timebase, testFreqProg, \
                                                testAmpProg, testOffsetProg, \
-                                               testMultProg)
+                                               harmonic, testMultProg)
         
         modulator.calc_modulation()
         
@@ -130,21 +127,17 @@ class TestRFModulation(unittest.TestCase):
                          
         
         with self.assertRaises(blExcept.InputDataError, \
-                               msg = 'non-number harmonic should raise Error'):
-            modulator.calc_delta_omega('a', freqProg)
-            
-        with self.assertRaises(blExcept.InputDataError, \
                                msg = 'wrong shape frequency should raise Error'):
-            modulator.calc_delta_omega(1, np.zeros([3, 100]))
+            modulator.calc_delta_omega(np.zeros([3, 100]))
 
-        modulator.calc_delta_omega(1, freqProg)
+        modulator.calc_delta_omega(freqProg)
         
         self.assertEqual(np.sum(modulator.domega), 0, \
                          msg = "Trapezoid dphi should give sum(domega) == 0")
         
         
         modulator.dphi = [np.pi/2]*1000
-        modulator.calc_delta_omega(1, freqProg)
+        modulator.calc_delta_omega(freqProg)
         
         self.assertEqual(modulator.domega.tolist(), [0]*len(timebase), \
                          msg = "Constant dphi should have domega == 0")
@@ -158,12 +151,13 @@ class TestRFModulation(unittest.TestCase):
         testAmpProg = [[0, 0.5, 1], [0, 1, 0]]
         testOffsetProg = [[0, 1], [0, np.pi]]
         testMultProg = 2
+        harmonic = 8
         freqProg = np.array([np.linspace(0, 1, 10000), \
                              np.linspace(1E6, 2E6, 10000)])
 
         modulator = rfMod.PhaseModulation(timebase, testFreqProg, \
                                                testAmpProg, testOffsetProg, \
-                                               testMultProg, system=3, \
+                                               harmonic, testMultProg, \
                                                modulate_frequency = False)
 
         modulator.calc_modulation()
@@ -173,13 +167,14 @@ class TestRFModulation(unittest.TestCase):
                                before domega has been calculated"""):
             modulator.extend_to_n_rf(4)
         
-        modulator.calc_delta_omega(1, freqProg)
+        modulator.calc_delta_omega(freqProg)
 
-        with self.assertRaises(ValueError, \
-                               msg = "n_rf too low should raise ValueError"):
-            modulator.extend_to_n_rf(1)
+        with self.assertRaises(AttributeError, \
+                               msg = """AttrubuteError should be raised if
+                               modulator.harmonic not in passed harmonics"""):
+            dPhi, dOmega = modulator.extend_to_n_rf([1, 3, 5])
 
-        dPhi, dOmega = modulator.extend_to_n_rf(5)
+        dPhi, dOmega = modulator.extend_to_n_rf([1, 3, 5, 7, 8])
 
         self.assertEqual(len(dPhi), 5, \
                          msg = "dPhi Not correctly extended to n_rf")
@@ -193,7 +188,7 @@ class TestRFModulation(unittest.TestCase):
             self.assertEqual(len(dOmega[i]), 2, \
                                  msg = "All dOmega members should have length 2")
             
-            if i != 3:
+            if i != 4:
                 
                 self.assertEqual(dPhi[i][1], [0, 0], \
                                  msg = "Unused system dPhi should be [0, 0]")

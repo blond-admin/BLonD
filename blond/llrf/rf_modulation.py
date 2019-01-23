@@ -27,28 +27,27 @@ import blond.utils.exceptions as blExcept
 class PhaseModulation:
     
     def __init__(self, timebase, frequency, amplitude, offset, \
-                 multiplier = 1, system = None, modulate_frequency = True):
+                 harmonic, multiplier = 1, modulate_frequency = True):
         
-        if dCheck.check_input(timebase, "Timebase must have shape (n)", [-1]):
+        if dCheck.check_input(timebase, "Timebase must have shape (n)", [-1])[0]:
             self.timebase = timebase
         
         msg = "must be a single numerical value or have shape (2, n)"
-        if dCheck.check_input(frequency, "Frequency " + msg, 0, (2, -1)):
+        if dCheck.check_input(frequency, "Frequency " + msg, 0, (2, -1))[0]:
             self.frequency = frequency
 
-        if dCheck.check_input(amplitude, "Amplitude " + msg, 0, (2, -1)):
+        if dCheck.check_input(amplitude, "Amplitude " + msg, 0, (2, -1))[0]:
             self.amplitude = amplitude
 
-        if dCheck.check_input(offset, "Offset " + msg, 0, (2, -1)):
+        if dCheck.check_input(offset, "Offset " + msg, 0, (2, -1))[0]:
             self.offset = offset        
         
-        if dCheck.check_input(multiplier, "Multiplier " + msg, 0, (2, -1)):
+        if dCheck.check_input(multiplier, "Multiplier " + msg, 0, (2, -1))[0]:
             self.multiplier = multiplier
 
-        if system is None or isinstance(system, int):
-            self.system = system
-        else:
-            raise TypeError("System must be None or int")
+        if dCheck.check_input(harmonic, "Harmonic must be single valued number", \
+                              0)[0]:
+            self.harmonic = harmonic
 
         if not isinstance(modulate_frequency, bool):
             raise TypeError("modulate_frequency must be boolean")
@@ -73,13 +72,10 @@ class PhaseModulation:
 
 
 
-    def calc_delta_omega(self, harmonic, omegaProg):
+    def calc_delta_omega(self, omegaProg):
 
         dCheck.check_input(omegaProg, "omegaProg must have shape (2, n)", \
                            (2, -1))
-        dCheck.check_input(harmonic, "harmonic must be single valued number", \
-                           0)
-        
         
         if not self._mod_freq:
             self.domega = np.zeros(len(self.dphi))
@@ -87,7 +83,7 @@ class PhaseModulation:
         else:   
             omega = self._interp_param(omegaProg)
             self.domega = np.gradient(self.dphi) * omega \
-                          / (2*np.pi * harmonic)
+                          / (2*np.pi * self.harmonic)
             
 
 
@@ -106,14 +102,20 @@ class PhaseModulation:
          
 #Extend passed parameter to requred n_rf if n_rf > 1 for treatment in
 #rf_parameters
-    def extend_to_n_rf(self, n_rf):
+    def extend_to_n_rf(self, harmonics):
 
+        try:
+            n_rf = len(harmonics)
+        except TypeError:
+            n_rf = 1
+            harmonics = [harmonics]
+
+        if self.harmonic not in harmonics:
+            raise AttributeError("self.harmonic not in harmonics")
+        
         if not hasattr(self, 'domega'):
             raise AttributeError("""domega has not yet been calculated, 
                                  calc_delta_omega must be called first""")
-
-        if self.system is not None and self.system >= n_rf:
-            raise ValueError("System number higher than number of systems")
 
         if n_rf == 1:
             return (self.timebase, self.dphi), (self.timebase, self.domega)
@@ -121,11 +123,11 @@ class PhaseModulation:
         else:
             extendTuple = ([self.timebase[0], self.timebase[-1]], [0, 0])
             return (tuple([self.timebase, self.dphi] \
-                         if self.system is None or self.system == i \
+                         if self.harmonic == harmonics[i] \
                          else extendTuple for i in range(n_rf)), 
                          
                     tuple([self.timebase, self.domega] \
-                         if self.system is None or self.system == i \
+                         if self.harmonic == harmonics[i] \
                          else extendTuple for i in range(n_rf)))
     
     
