@@ -165,7 +165,7 @@ class TestRFModulation(unittest.TestCase):
         with self.assertRaises(AttributeError, \
                                msg = """Attribute error should be raised
                                before domega has been calculated"""):
-            modulator.extend_to_n_rf(4)
+            modulator.extend_to_n_rf(8)
         
         modulator.calc_delta_omega(freqProg)
 
