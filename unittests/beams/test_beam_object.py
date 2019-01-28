@@ -27,6 +27,7 @@ from blond.input_parameters.rf_parameters import RFStation
 from blond.beam.beam import Beam
 from blond.beam.distributions import matched_from_distribution_function
 from blond.trackers.tracker import FullRingAndRF, RingAndRFTracker
+import blond.utils.exceptions as blExcept
 
 
 class testBeamClass(unittest.TestCase):
@@ -257,6 +258,21 @@ class testBeamClass(unittest.TestCase):
                          "coordinates of added beam not used correctly")
         self.assertEqual(12E-9, np.max(self.beam.dt), msg = \
                          "coordinates of added beam not used correctly")
+        
+        with self.assertRaises(blExcept.ParticleAdditionError, \
+                               msg = """Unequal length time and energy should 
+                               raise exception"""):
+            
+            self.beam += ([1, 2, 3], [4, 5])
+            
+        with self.assertRaises(blExcept.ParticleAdditionError, \
+                               msg = """Mising time/energy should 
+                               raise exception"""):
+            
+            self.beam += ([1, 2, 3])
+            
+        with self.assertRaises(TypeError, msg='Wrong type should raise exception'):
+            self.beam.add_beam(([1], [2]))
         
 
 if __name__ == '__main__':
