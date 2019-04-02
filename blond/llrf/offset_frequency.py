@@ -164,9 +164,9 @@ class FixedFrequency(_FrequencyOffset):
         '''
 
         fixed_frequency_prog = np.ones(self.end_fixed_turn)*self.fixed_frequency
-        transition_frequency_prog = np.linspace(self.fixed_frequency, \
-                                                self.end_frequency, \
-                                               (self.end_transition_turn
+        transition_frequency_prog = np.linspace(float(self.fixed_frequency),
+                                                float(self.end_frequency),
+                                                (self.end_transition_turn
                                                 - self.end_fixed_turn))
 
         self.frequency_prog = np.concatenate((fixed_frequency_prog, \

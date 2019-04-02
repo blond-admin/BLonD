@@ -677,7 +677,7 @@ def compute_X_grid(normalization_DeltaE, time_array, potential_well,
     
     # Delta Energy array
     max_DeltaE = np.sqrt(np.max(potential_well)/normalization_DeltaE)
-    coord_array_DeltaE = np.linspace(-max_DeltaE,max_DeltaE,len(time_array))
+    coord_array_DeltaE = np.linspace(-float(max_DeltaE),float(max_DeltaE), len(time_array))
     
     # Resolution in time and energy
     time_resolution = time_array[1]-time_array[0]

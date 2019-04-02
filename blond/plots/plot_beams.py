@@ -82,7 +82,7 @@ def plot_long_phase_space(Ring, RFStation, Beam, xmin,
             
     # Separatrix
     if separatrix_plot:
-        x_sep = np.linspace(xmin, xmax, 1000)
+        x_sep = np.linspace(float(xmin), float(xmax), 1000)
         if xunit == 's':
             y_sep = separatrix(Ring, RFStation, x_sep)
         elif xunit == 'rad':
