@@ -104,7 +104,7 @@ def synchrotron_frequency_distribution(Beam, FullRingAndRF, main_harmonic_option
         right_time = time_coord_sep[np.min((time_indexes[-1],
                                                    len(time_coord_sep)-1))]
         # Potential well calculation with high resolution in that frame
-        time_potential_high_res = np.linspace(left_time, right_time,
+        time_potential_high_res = np.linspace(float(left_time), float(right_time),
                                               n_points_potential)
         FullRingAndRF.potential_well_generation(
                                  n_points=n_points_potential,
@@ -225,7 +225,9 @@ class synchrotron_frequency_tracker(object):
         
         # Generating the distribution from the user input
         if len(theta_coordinate_range) == 2:
-            self.Beam.dt = np.linspace(theta_coordinate_range[0], theta_coordinate_range[1], n_macroparticles) * (self.Beam.ring_radius/(self.Beam.beta*c))
+            self.Beam.dt = np.linspace(float(theta_coordinate_range[0]),
+                                       float(theta_coordinate_range[1]), n_macroparticles)\
+                                       * (self.Beam.ring_radius/(self.Beam.beta*c))
         else:
             if len(theta_coordinate_range) != n_macroparticles:
                 #SynchrotronMotionError
@@ -476,8 +478,8 @@ def separatrix(Ring, RFStation, dt):
     # Unstable fixed point in multi-harmonic RF system
     else:
         
-        dt_ufp = np.linspace(-phi_rf[index]/omega_rf[index] - T_rf_0/1000, 
-            T_rf_0 - phi_rf[index]/omega_rf[index] + T_rf_0/1000, 1002)
+        dt_ufp = np.linspace(-float(phi_rf[index]/omega_rf[index] - T_rf_0/1000), 
+            float(T_rf_0 - phi_rf[index]/omega_rf[index] + T_rf_0/1000), 1002)
 
         if eta_0 < 0:
             dt_ufp += 0.5*T_rf_0 # Shift in RF phase below transition
