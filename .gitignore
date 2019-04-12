@@ -1,16 +1,19 @@
 *.pyc
 
+*.o
+*.so
+*.dll
 *.project
 
 *.pydevproject
 
-result.dll
-result.so
-sync_rad.dll
+.settings
 
+/__doc/_build/
 /__doc/build/
-/__TEST_CASES/output_files
-/PERSONAL_FOLDER/
-
-
-
+/__EXAMPLES/output_files/
+/__BENCHMARKS/debug.log
+/__BENCHMARKS/OTFB.png
+/__BENCHMARKS/2x40_2x80.hd5
+/__BENCHMARKS/fig/
+/__BENCHMARKS/animations/

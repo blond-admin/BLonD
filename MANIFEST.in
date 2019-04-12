@@ -1,0 +1,6 @@
+recursive-include blond/cpp_routines *.so
+recursive-include blond/cpp_routines *.dll
+recursive-include blond/cpp_routines *.la
+recursive-include blond/cpp_routines *.a
+recursive-include blond/cpp_routines *.cpp
+recursive-include blond/cpp_routines *.h

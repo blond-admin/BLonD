@@ -1,0 +1,46 @@
+image:
+  - Visual Studio 2017
+environment:
+  matrix:
+    - PATH: C:\Python36-x64;C:\Miniconda36-x64\Scripts;C:\mingw-w64\x86_64-7.2.0-posix-seh-rt_v5-rev1\mingw64\bin;%PATH%
+  # matrix:
+    # - VSVER: Visual Studio 14 2015
+    # - VSVER: Visual Studio 14 2015 Win64
+
+# cache: 
+#   - C:\ProgramData\chocolatey\bin -> appveyor.yml 
+#   - C:\ProgramData\chocolatey\lib -> appveyor.yml
+
+platform: 
+  - x86
+  - Any CPU
+
+configuration:
+  # - Debug
+  - Release
+
+# install:
+  # - set PATH=C:\Python36-x64;%PATH%
+  # - set PATH=C:\Miniconda36-x64;%PATH%
+  
+before_build:
+  # - git submodule update --init --recursive
+  - PATH
+  # - python --version
+  # - conda --version 
+  # - gcc --version
+  # - g++ --version
+  - conda update -q -y conda
+  - conda info -a
+  - conda create -q -y -n test-environment python=3.6 pip numpy scipy matplotlib future h5py
+  - activate test-environment
+  - pip install coveralls pytest parameterized
+
+
+build_script:
+  - python setup.py install
+  - DIR
+  # - set PYTHONPATH=./
+
+test_script:
+  - python -m pytest -v -k "unittests and test and py" unittests\
