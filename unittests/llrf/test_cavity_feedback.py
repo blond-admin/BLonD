@@ -2,7 +2,7 @@
 """
 Created on Fri Dec 15 18:57:49 2017
 
-@author: schwarz
+@author: schwarz, Helga Timko
 """
 
 import unittest
@@ -15,6 +15,7 @@ from blond.beam.beam import Beam, Proton
 from blond.beam.distributions import bigaussian
 from blond.beam.profile import Profile, CutOptions
 from blond.llrf.cavity_feedback import SPSCavityFeedback, CavityFeedbackCommissioning
+from blond.llrf.cavity_feedback import LHCCavityLoop, LHCRFFeedback
 from blond.impedances.impedance import InducedVoltageTime, TotalInducedVoltage
 from blond.impedances.impedance_sources import TravelingWaveCavity
 from blond.trackers.tracker import RingAndRFTracker
@@ -346,6 +347,81 @@ class TestCavityFeedback(unittest.TestCase):
         self.assertListEqual(V_sum.tolist(), V_sum_exp.tolist(),
             msg='In TestCavityFeedback test_Vsum_IQ: total voltage '
             +'is different from expected values!')
+
+
+
+class TestLHCOpenLoop(unittest.TestCase):
+
+    def setUp(self):
+        # Bunch parameters (dummy)
+        N_b = 1e9             # Intensity
+        N_p = 50000           # Macro-particles
+        # Machine and RF parameters
+        C = 26658.883         # Machine circumference [m]
+        p_s = 450e9           # Synchronous momentum [eV/c]
+        h = 35640             # Harmonic number
+        V = 4e6               # RF voltage [V]
+        dphi = 0              # Phase modulation/offset
+        gamma_t = 55.759505   # Transition gamma
+        alpha = 1/gamma_t**2  # First order mom. comp. factor
+
+        # Initialise necessary classes
+        ring = Ring(C, alpha, p_s, Particle=Proton(), n_turns=1)
+        self.rf = RFStation(ring, [h], [V], [dphi])
+        beam = Beam(ring, N_p, N_b)
+        self.profile = Profile(beam)
+
+        # Test in open loop, on tune
+        self.RFFB = LHCRFFeedback(open_loop=True)
+        self.f_c = self.rf.omega_rf[0,0]/(2*np.pi)
+
+
+    def test_1(self):
+        CL = LHCCavityLoop(self.rf, self.profile, G_gen=1, n_cav=8,
+                           f_c=self.f_c, I_gen_offset=0.2778, Q_L=20000,
+                           R_over_Q=45, T_s=25e-9, RFFB=self.RFFB)
+        CL.track()
+        # Steady-state antenna voltage [MV]
+        V_ant = np.mean(np.absolute(CL.V_ANT[-10:]))*1e-6
+        self.assertAlmostEqual(V_ant, 0.4981799348, places=10)
+        # Updated generator current [A]
+        I_gen = np.mean(np.absolute(CL.I_gen))
+        self.assertAlmostEqual(I_gen, 0.2778000000, places=10)
+        # Generator power [kW]
+        P_gen = CL.generator_power()*1e-3
+        self.assertAlmostEqual(P_gen, 34.72777800, places=10)
+
+
+    def test_2(self):
+        CL = LHCCavityLoop(self.rf, self.profile, G_gen=1, n_cav=8,
+                           f_c=self.f_c, I_gen_offset=0.2778, Q_L=60000,
+                           R_over_Q=45, T_s=25e-9, RFFB=self.RFFB)
+        CL.track()
+        # Steady-state antenna voltage [MV]
+        V_ant = np.mean(np.absolute(CL.V_ANT[-10:]))*1e-6
+        self.assertAlmostEqual(V_ant, 1.2674584566, places=10)
+        # Updated generator current [A]
+        I_gen = np.mean(np.absolute(CL.I_gen))
+        self.assertAlmostEqual(I_gen, 0.2778000000, places=10)
+        # Generator power [kW]
+        P_gen = CL.generator_power()*1e-3
+        self.assertAlmostEqual(P_gen, 104.1833340000, places=10)
+
+
+    def test_3(self):
+        CL = LHCCavityLoop(self.rf, self.profile, G_gen=1, n_cav=8,
+                           f_c=self.f_c, I_gen_offset=0.2778, Q_L=20000,
+                           R_over_Q=90, T_s=25e-9, RFFB=self.RFFB)
+        CL.track()
+        # Steady-state antenna voltage [MV]
+        V_ant = np.mean(np.absolute(CL.V_ANT[-10:]))*1e-6
+        self.assertAlmostEqual(V_ant, 0.9963598697, places=10)
+        # Updated generator current [A]
+        I_gen = np.mean(np.absolute(CL.I_gen))
+        self.assertAlmostEqual(I_gen, 0.2778000000, places=10)
+        # Generator power [kW]
+        P_gen = CL.generator_power()*1e-3
+        self.assertAlmostEqual(P_gen, 69.4555560000, places=10)
 
 if __name__ == '__main__':
 
