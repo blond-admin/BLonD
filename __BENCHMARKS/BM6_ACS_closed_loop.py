@@ -67,7 +67,7 @@ profile = Profile(beam, CutOptions(n_slices=100),
 logging.info('Initialising LHCCavityLoop, tuned to injection (with no beam current)')
 CL = LHCCavityLoop(rf, profile, G_gen=1, n_cav=8, f_c=rf.omega_rf[0,0]/(2*np.pi),
                    I_gen_offset=0, Q_L=20000, R_over_Q=45, T_s=25e-9,
-                   RFFB=LHCRFFeedback(open_loop=False, G_a=.1, G_d=0))
+                   RFFB=LHCRFFeedback(open_loop=False, G_a=0.1, G_d=0))
 logging.info('Initial generator current is %.4f A', np.mean(np.absolute(CL.I_GEN)))
 logging.info('Samples (omega x T_s) is %.4f', CL.samples)
 

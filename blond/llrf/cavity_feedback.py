@@ -716,7 +716,7 @@ class LHCRFFeedback(object):
         Open (0) or closed (1) RFFB; default is 1
     '''
 
-    def __init__(self, d_phi_ad=0, G_a=0.0001, G_d=10, tau_a=110e-6,
+    def __init__(self, d_phi_ad=0, G_a=0.1, G_d=10, tau_a=110e-6,
                  tau_d=400e-6, open_drive=False, open_loop=False,
                  open_rffb=False):
 
@@ -829,6 +829,8 @@ class LHCCavityLoop(object):
         self.V_ANT = np.zeros(2*self.n_coarse, dtype=complex)
         self.I_GEN = np.zeros(2*self.n_coarse, dtype=complex)
         self.I_BEAM = np.zeros(2*self.n_coarse, dtype=complex)
+        self.V_SET = np.zeros(2 * self.n_coarse, dtype=complex)
+        self.I_TEST = np.zeros(2 * self.n_coarse, dtype=complex)
 
         # Scalar variables
         self.V_a_out_prev = 0
@@ -864,19 +866,25 @@ class LHCCavityLoop(object):
         #self.I_GEN[self.ind] = self.open_drive*self.G_gen*(0.5/(self.R_over_Q*self.Q_L) \
         #    - 1j*self.detuning/self.R_over_Q)*self.V_swap_out + \
         #    self.open_drive_inv*self.I_gen_offset
-        self.I_gen = self.V_swap_out*(0.5/(self.R_over_Q*self.Q_L) - \
-            1j*self.detuning/self.R_over_Q) + \
-            (self.V_swap_out - self.V_swap_out_prev)/(self.samples*self.R_over_Q) \
-            + 0.5*self.I_BEAM[self.ind]
-        self.I_GEN[self.ind] = self.open_drive*self.G_gen*self.I_gen + \
+
+        #self.I_gen = self.V_swap_out*(0.5/(self.R_over_Q*self.Q_L) - \
+        #    1j*self.detuning/self.R_over_Q) + \
+        #    (self.V_swap_out - self.V_swap_out_prev)/(self.samples*self.R_over_Q) \
+        #    + 0.5*self.I_BEAM[self.ind]
+        #self.I_GEN[self.ind] = self.open_drive*self.G_gen*self.I_gen + \
+        #    self.open_drive_inv*self.I_gen_offset
+        #print(self.V_swap_out, self.V_swap_out_prev)
+        #print(self.I_gen)
+        self.I_GEN[self.ind] = self.open_drive*self.G_gen* \
+            0.5/(self.R_over_Q * self.Q_L)*self.V_swap_out + \
             self.open_drive_inv*self.I_gen_offset
-        print(self.V_swap_out, self.V_swap_out_prev)
-        print(self.I_gen)
+        self.I_TEST[self.ind] = self.G_gen* \
+            0.5/(self.R_over_Q * self.Q_L)*self.V_swap_out
 
 
     def generator_power(self):
 
-        return 0.5*self.R_over_Q*self.Q_L*np.absolute(self.I_gen)**2
+        return 0.5*self.R_over_Q*self.Q_L*np.absolute(self.I_GEN)**2
 
 
     def rf_beam_current(self):

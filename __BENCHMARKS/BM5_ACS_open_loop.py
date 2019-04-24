@@ -21,6 +21,7 @@ from blond.input_parameters.rf_parameters import RFStation
 from blond.beam.beam import Beam, Proton
 from blond.beam.profile import Profile, CutOptions, FitOptions
 from blond.llrf.cavity_feedback import LHCCavityLoop, LHCRFFeedback
+from blond.llrf.transfer_function import TransferFunction
 
 import logging
 import numpy as np
@@ -67,7 +68,7 @@ profile = Profile(beam, CutOptions(n_slices=100),
 logging.info('Initialising LHCCavityLoop, tuned to injection (with no beam current)')
 CL = LHCCavityLoop(rf, profile, G_gen=1, n_cav=8, f_c=rf.omega_rf[0,0]/(2*np.pi),
                    I_gen_offset=0.2778, Q_L=20000, R_over_Q=45, T_s=25e-9,
-                   RFFB=LHCRFFeedback(open_loop=True))
+                   RFFB=LHCRFFeedback(open_drive=True, G_a=0.1))
 logging.info('Initial generator current is %.4f A', np.mean(np.absolute(CL.I_GEN)))
 logging.info('Samples (omega x T_s) is %.4f', CL.samples)
 
@@ -75,9 +76,15 @@ logging.info('Cavity response to generator current')
 CL.track()
 logging.info('Antenna voltage is %.10f MV', np.mean(np.absolute(CL.V_ANT[-10:]))*1.e-6)
 
-plt.figure('Generator current')
+plt.figure('Generator current (to cav)')
 plt.plot(np.real(CL.I_GEN), label='real')
 plt.plot(np.imag(CL.I_GEN), label='imag')
+plt.xlabel('Samples [at 40 MS/s]')
+plt.ylabel('Generator current [A]')
+
+plt.figure('Generator current (to gen)')
+plt.plot(np.real(CL.I_TEST), label='real')
+plt.plot(np.imag(CL.I_TEST), label='imag')
 plt.xlabel('Samples [at 40 MS/s]')
 plt.ylabel('Generator current [A]')
 
@@ -89,6 +96,9 @@ plt.ylabel('Antenna voltage [MV]')
 plt.legend()
 plt.show()
 logging.info('RF feedback action')
-logging.info('Updated generator current is %.10f A', np.mean(np.absolute(CL.I_gen)))
+logging.info('Updated generator current is %.10f A', np.mean(np.absolute(CL.I_GEN)))
 P_gen = CL.generator_power()
 logging.info('Generator power is %.10f kW', np.mean(P_gen)*1e-3)
+
+TF = TransferFunction(CL.I_GEN, CL.I_TEST, 25e-9, plot=True)
+TF.analyse(data_cut=CL.n_coarse)
