@@ -15,9 +15,10 @@
 
 from __future__ import division
 import logging
-import numpy as np
-import scipy
 from matplotlib import pyplot as plt
+import numpy as np
+import numpy.random as rnd
+import scipy
 from scipy.constants import e
 
 from ..llrf.signal_processing import comb_filter, cartesian_to_polar, \
@@ -716,9 +717,9 @@ class LHCRFFeedback(object):
         Open (0) or closed (1) RFFB; default is 1
     '''
 
-    def __init__(self, d_phi_ad=0, G_a=0.1, G_d=10, tau_a=110e-6,
+    def __init__(self, d_phi_ad=0, G_a=0.00001, G_d=10, tau_a=110e-6,
                  tau_d=400e-6, open_drive=False, open_loop=False,
-                 open_rffb=False):
+                 open_rffb=False, excitation=False, seed1=1234, seed2=7564):
 
         # Import variables
         self.d_phi_ad = d_phi_ad*np.pi/180
@@ -726,12 +727,27 @@ class LHCRFFeedback(object):
         self.G_d = G_d
         self.tau_a = tau_a
         self.tau_d = tau_d
+        self.excitation = excitation
+        self.seed1 = seed1
+        self.seed2 = seed2
 
         # Multiply with zeros if open == True
         self.open_drive = int(np.invert(bool(open_drive)))
         self.open_drive_inv = int(bool(open_drive))
         self.open_loop = int(np.invert(bool(open_loop)))
         self.open_rffb = int(np.invert(bool(open_rffb)))
+
+
+    def generate_white_noise(self, n_points):
+
+        rnd.seed(self.seed1)
+        r1 = rnd.random_sample(n_points)
+        rnd.seed(self.seed2)
+        r2 = rnd.random_sample(n_points)
+
+        return np.exp(2*np.pi*1j*r1) * np.sqrt(-2*np.log(r2))
+
+
 
 class LHCCavityLoop(object):
     r'''Cavity loop to regulate the RF voltage in the LHC ACS cavities.
@@ -811,75 +827,52 @@ class LHCCavityLoop(object):
         self.G_d = self.RFFB.G_d
         self.tau_a = self.RFFB.tau_a
         self.tau_d = self.RFFB.tau_d
-
-        # Signal attenuation (amplification) on antenna (generator) side
-        #self.attn = 100
+        self.excitation = self.RFFB.excitation
 
         # Length of arrays in LLRF  #TODO: could change over time
-        self.n_coarse = int(self.rf.t_rev[0]/self.T_s)
+        self.n_coarse = 20*int(self.rf.t_rev[0]/self.T_s)
         self.logger.debug("Length of arrays in generator path %d",
                           self.n_coarse)
 
         # Initialise antenna voltage to set point value
         self.update_variables()
         self.logger.debug("Relative detuning is %.4e", self.detuning)
+
+        if self.excitation:
+            set_point = 1000*self.RFFB.generate_white_noise(self.n_coarse)
+        else:
+            set_point = self.open_drive * self.rf.voltage[0, 0] * np.ones(
+                     self.n_coarse) / self.n_cav + \
+                 1j * np.zeros(self.n_coarse)
+
         self.V_SET = np.concatenate((np.zeros(self.n_coarse, dtype=complex),
-            self.rf.voltage[0, 0]*np.ones(self.n_coarse)/self.n_cav + \
-            1j*np.zeros(self.n_coarse)))
+                                     set_point))
         self.V_ANT = np.zeros(2*self.n_coarse, dtype=complex)
         self.I_GEN = np.zeros(2*self.n_coarse, dtype=complex)
         self.I_BEAM = np.zeros(2*self.n_coarse, dtype=complex)
-        self.V_SET = np.zeros(2 * self.n_coarse, dtype=complex)
         self.I_TEST = np.zeros(2 * self.n_coarse, dtype=complex)
 
         # Scalar variables
         self.V_a_out_prev = 0
         self.V_d_out_prev = 0
         self.V_fb_in_prev = 0
-        self.V_swap_out = 0
+
 
     def cavity_response(self):
-
-#        self.V_ant = self.I_gen*self.R_over_Q*self.samples + \
-#            self.V_ant*(1 - 0.5*self.samples/self.Q_L +
-#                        1j*self.detuning*self.samples) - \
-#            self.I_beam*0.5*self.R_over_Q*self.samples
-
-        #if self.ind == 0:
-        #    self.V_ANT[0] = self.I_GEN_PREV[-1]* \
-        #        self.R_over_Q*self.samples + self.V_ANT_PREV[-1]* \
-        #        (1 - 0.5*self.samples/self.Q_L + 1j*self.detuning*self.samples) \
-        #        - self.I_BEAM_PREV[-1]*0.5*self.R_over_Q*self.samples
-        #else:
 
         self.V_ANT[self.ind] = self.I_GEN[self.ind-1]*self.R_over_Q* \
             self.samples + self.V_ANT[self.ind-1]*(1 - 0.5*self.samples/ \
             self.Q_L + 1j*self.detuning*self.samples) - \
             self.I_BEAM[self.ind-1]*0.5*self.R_over_Q*self.samples
-        print(self.V_ANT[self.ind])
 
 
     def generator_current(self):
 
         # From V_swap_out in closed loop, constant in open loop
         # TODO: missing terms for changing voltage and beam current
-        #self.I_GEN[self.ind] = self.open_drive*self.G_gen*(0.5/(self.R_over_Q*self.Q_L) \
-        #    - 1j*self.detuning/self.R_over_Q)*self.V_swap_out + \
-        #    self.open_drive_inv*self.I_gen_offset
-
-        #self.I_gen = self.V_swap_out*(0.5/(self.R_over_Q*self.Q_L) - \
-        #    1j*self.detuning/self.R_over_Q) + \
-        #    (self.V_swap_out - self.V_swap_out_prev)/(self.samples*self.R_over_Q) \
-        #    + 0.5*self.I_BEAM[self.ind]
-        #self.I_GEN[self.ind] = self.open_drive*self.G_gen*self.I_gen + \
-        #    self.open_drive_inv*self.I_gen_offset
-        #print(self.V_swap_out, self.V_swap_out_prev)
-        #print(self.I_gen)
-        self.I_GEN[self.ind] = self.open_drive*self.G_gen* \
-            0.5/(self.R_over_Q * self.Q_L)*self.V_swap_out + \
+        self.I_TEST[self.ind] = self.G_gen*self.V_swap_out
+        self.I_GEN[self.ind] = self.open_drive*self.I_TEST[self.ind] + \
             self.open_drive_inv*self.I_gen_offset
-        self.I_TEST[self.ind] = self.G_gen* \
-            0.5/(self.R_over_Q * self.Q_L)*self.V_swap_out
 
 
     def generator_power(self):
@@ -902,22 +895,18 @@ class LHCCavityLoop(object):
         # Calculate voltage difference to act on
         self.V_fb_in = (self.V_SET[self.ind] -
                         self.open_loop*self.V_ANT[self.ind-self.n_delay])
-        #print(self.V_fb_in_prev)
-        #print(self.V_fb_in)
 
         # Output of analog feedback (separate branch)
         self.V_a_out = self.V_a_out_prev*(1 - self.T_s/self.tau_a) + \
             self.G_a*(self.V_fb_in - self.V_fb_in_prev)
-        #print(self.V_a_out)
+
         # Output of digital feedback (separate branch)
         self.V_d_out = self.V_d_out_prev*(1 - self.T_s/self.tau_d) + \
             self.T_s/self.tau_d*self.G_a*self.G_d*np.exp(1j*self.d_phi_ad)*\
             self.V_fb_in_prev
-        #print(self.V_d_out)
 
         # Total output: sum of analog and digital feedback
-        self.V_fb_out = self.open_rffb*(self.V_a_out + self.V_d_out) + self.V_SET[self.ind] #+ self.open_rffb*self.V_ANT[self.ind-self.n_delay]#self.attn*
-        print(self.V_fb_out)
+        self.V_fb_out = self.open_rffb*(self.V_a_out + self.V_d_out)
 
         # Update memory
         self.V_a_out_prev = self.V_a_out
@@ -927,7 +916,6 @@ class LHCCavityLoop(object):
     def swap(self):
 
         #TODO: to be implemented
-        self.V_swap_out_prev = self.V_swap_out
         self.V_swap_out = self.V_fb_out
 
 

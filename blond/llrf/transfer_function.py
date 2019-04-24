@@ -64,17 +64,19 @@ class TransferFunction(object):
         self.logger.debug(f"INPUT signal: {output_signal.shape}")
 
         # Estimate transfer function
-        f_est, H_est = self.estimate_transfer_function(input_signal,
-            output_signal, self.T_s, self.plot)
+        self.f_est, self.H_est = self.estimate_transfer_function(input_signal,
+            output_signal, self.T_s, self.plot, self.logger)
 
 
     @staticmethod
-    def estimate_transfer_function(input, output, T_s, plot):
+    def estimate_transfer_function(input, output, T_s, plot, logger):
         # Calculate transfer function
         f_s = 1/T_s
         n_fft = int(np.floor(len(input)/4))
-        H_est, f_est = tf_estimate(input, output, window=np.hamming(n_fft),
+        f_est, H_est = tf_estimate(input, output, window=np.hamming(n_fft),
                                    noverlap=0, Fs=f_s, NFFT=n_fft)
+        if plot:
+            TransferFunction.plot_magnitude_and_phase(f_est, H_est)
 
         # reorder results to be form -freq to +freq
         f_est = [x + f_s/2 if x < 0 else x - f_s/2 for x in f_est]
@@ -90,10 +92,12 @@ class TransferFunction(object):
         f = np.concatenate([f_baseband[low], f_baseband[high]])
         H = np.concatenate([H_est[low], H_est[high]])
 
-        #TransferFunction.logger.debug("Transfer function reconstructed")
+        logger.debug("Transfer function reconstructed")
 
         if plot:
             TransferFunction.plot_magnitude_and_phase(f, H)
+
+        return f, H
 
 
     @staticmethod
@@ -142,7 +146,7 @@ class TransferFunction(object):
         """
         N_sp = 16
 
-        # power spectral density or power spectrum of input signal `In`.
+        # power spectral density or power spectrum of input signal `input`.
         f_m, P_ss = scs.welch(input, window='hamming', noverlap=0,
                               nperseg=int(np.floor(n / N_sp)), fs=f_s)
 
@@ -172,46 +176,29 @@ class TransferFunction(object):
         return f_max
 
     @staticmethod
-    def plot_magnitude_and_phase(freq, H1):
-        freq_power = 3 if max(
-            freq) < 1e6 else 6  # TODO: check if 6 is ever entered
+    def plot_magnitude_and_phase(freq, H):
 
-        magnitude = 20 * np.log10(np.abs(H1))
-        phases = np.unwrap(np.angle(H1))
+        magnitude = 20 * np.log10(np.abs(H))
+        phases = np.unwrap(np.angle(H))
 
-        #plot_magnitude_and_phase = Plot(nrows=2, title="Network Analyser")
+        plt.rc('axes', labelsize=12, labelweight='normal', axisbelow=True)
+        plt.rc('legend', fontsize=11, fancybox=True, framealpha=0.5)
+        plt.rc('figure', figsize=(8, 6), titlesize=14)
+        plt.rc('grid', c='lightgray')
 
-        fig = plt.figure(figsize=(8, 6))
+        fig = plt.figure()
         gs = plt.GridSpec(2, 1)
         ax1 = fig.add_subplot(gs[0, 0])
         ax1.set_title('Transfer function')
-        ax1.plot(freq / 10 ** freq_power, magnitude, 'r', linewidth=0.3)
-        ax1.set_xlabel('Frequency [kHz]')
+        ax1.plot(freq / 10**6, magnitude, 'r', linewidth=0.3)
+        ax1.set_xlabel('Frequency [MHz]')
         ax1.set_ylabel('Gain [dB]')
 
-        ax2 = fig.add_subplot(gs[1, 0])
-        ax2.plot(freq / 10 ** freq_power, (180 / np.pi) * phases, 'r',
-                     linewidth=0.3)
-        ax2.set_xlabel('Frequency [kHz]')
+        ax2 = fig.add_subplot(gs[1, 0], sharex=ax1)
+        ax2.plot(freq / 10**6, (180/np.pi)*phases, 'r', linewidth=0.3)
+        ax2.set_xlabel('Frequency [MHz]')
         ax2.set_ylabel('Phase [degrees]')
         plt.show()
-
-
-
-        #plot_1 = plot_magnitude_and_phase(0, 0,
-        #                                  xlabel="Frequency [kHz]",
-        #                                  ylabel="Gain [dB]")
-        #mag, = plot_1(freq / 10 ** freq_power, magnitude, 'r', linewidth=0.3)
-        #plot_magnitude_and_phase.legend([mag], ["measured data"])
-
-        #plot_2 = plot_magnitude_and_phase(1, 0,
-        #                                  xlabel="Frequency [kHz]",
-        #                                  ylabel="Phase [degrees]")
-        #ph, = plot_2(freq / 10 ** freq_power, (180 / pi) * phases, 'r',
-        #             linewidth=0.3)
-        #plot_magnitude_and_phase.legend([ph], ["measured data"])
-
-        #return plot_magnitude_and_phase
 
 
 def tf_estimate(x, y, *args, **kwargs):
@@ -226,32 +213,36 @@ def tf_estimate(x, y, *args, **kwargs):
     function *window*.
     *noverlap* gives the length of the overlap between segments.
 
-    :param x: 1-D arrays or sequences
+    Parameters
+    ----------
+    x : 1-D arrays or sequences
         Arrays or sequences containing the data
-    :param y: 1-D arrays or sequences
+    y : 1-D arrays or sequences
         Arrays or sequences containing the data
-    :param args: Default keyword values: None
-    :param kwargs: NFFT, Fs, detrend, window, noverlap, pad_to, sides,
-    scale_by_freq
+    args : Default keyword values: None
+    kwargs : NFFT, Fs, detrend, window, noverlap, pad_to, sides, scale_by_freq
 
-    :return: 1-D arrays or sequences
+    Returns
+    -------
+    frequency : float array
+        Frequency array
+    H : complex array
         Transfer function estimate
 
     Attributes
     ----------
-    #TODO
-    p_xy: array
-
-    p_xx: array
-
+    p_xy: float array
+        Cross spectral density
+    p_xx: float array
+        Power spectral density
     frequencies_csd: array
-
+        Frequency array for cross spectral density
     frequencies_psd: array
-
+        Frequency array for power spectral density
     """
     p_xy, frequencies_csd = csd(y, x, *args, **kwargs)
     p_xx, frequencies_psd = psd(x, *args, **kwargs)
 
-    return (p_xy / p_xx).conjugate(), frequencies_csd
+    return frequencies_csd, (p_xy/p_xx).conjugate()
 
 

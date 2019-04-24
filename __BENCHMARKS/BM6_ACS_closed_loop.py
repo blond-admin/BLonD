@@ -21,6 +21,7 @@ from blond.input_parameters.rf_parameters import RFStation
 from blond.beam.beam import Beam, Proton
 from blond.beam.profile import Profile, CutOptions, FitOptions
 from blond.llrf.cavity_feedback import LHCCavityLoop, LHCRFFeedback
+from blond.llrf.transfer_function import TransferFunction
 
 import logging
 import numpy as np
@@ -47,7 +48,7 @@ N_t = 1           # Number of turns to track
 # -----------------------------------------------------------------------------
 
 # Plot settings
-plt.rc('axes', labelsize=16, labelweight='normal')
+plt.rc('axes', labelsize=12, labelweight='normal')
 plt.rc('lines', linewidth=1.5, markersize=6)
 plt.rc('font', family='sans-serif')
 plt.rc('legend', fontsize=12)
@@ -67,7 +68,7 @@ profile = Profile(beam, CutOptions(n_slices=100),
 logging.info('Initialising LHCCavityLoop, tuned to injection (with no beam current)')
 CL = LHCCavityLoop(rf, profile, G_gen=1, n_cav=8, f_c=rf.omega_rf[0,0]/(2*np.pi),
                    I_gen_offset=0, Q_L=20000, R_over_Q=45, T_s=25e-9,
-                   RFFB=LHCRFFeedback(open_loop=False, G_a=0.1, G_d=0))
+                   RFFB=LHCRFFeedback(open_loop=False, G_a=0.00001, G_d=10, excitation=True))
 logging.info('Initial generator current is %.4f A', np.mean(np.absolute(CL.I_GEN)))
 logging.info('Samples (omega x T_s) is %.4f', CL.samples)
 
@@ -89,6 +90,35 @@ plt.ylabel('Antenna voltage [MV]')
 plt.legend()
 plt.show()
 logging.info('RF feedback action')
-logging.info('Updated generator current is %.10f A', np.mean(np.absolute(CL.I_gen)))
+logging.info('Updated generator current is %.10f A', np.mean(np.absolute(CL.I_GEN)))
 P_gen = CL.generator_power()
 logging.info('Generator power is %.10f kW', np.mean(P_gen)*1e-3)
+
+TF = TransferFunction(CL.V_SET, CL.V_ANT, 25e-9, plot=False)
+TF.analyse(data_cut=CL.n_coarse)
+
+CL60k = LHCCavityLoop(rf, profile, G_gen=1, n_cav=8, f_c=rf.omega_rf[0,0]/(2*np.pi),
+                   I_gen_offset=0, Q_L=60000, R_over_Q=45, T_s=25e-9,
+                   RFFB=LHCRFFeedback(open_loop=False, G_a=0.00001, G_d=10, excitation=True, d_phi_ad=20))
+CL60k.track()
+TF60k = TransferFunction(CL60k.V_SET, CL60k.V_ANT, 25e-9, plot=False)
+TF60k.analyse(data_cut=CL60k.n_coarse)
+
+fig = plt.figure('Transfer functions')
+gs = plt.GridSpec(2, 1)
+ax1 = fig.add_subplot(gs[0, 0])
+ax1.set_title('Transfer function')
+ax1.plot(TF.f_est/10 ** 6, 20 * np.log10(np.abs(TF.H_est)), 'b', linewidth=0.3)
+ax1.plot(TF60k.f_est/10 ** 6, 20 * np.log10(np.abs(TF60k.H_est)), 'r', linewidth=0.3)
+ax1.set_xlabel('Frequency [MHz]')
+ax1.set_ylabel('Gain [dB]')
+
+ax2 = fig.add_subplot(gs[1, 0], sharex=ax1)
+ax2.plot(TF.f_est/10**6, (180/np.pi)*np.unwrap(np.angle(TF.H_est)), 'b', linewidth=0.3)
+ax2.plot(TF60k.f_est/10**6, (180/np.pi)*np.unwrap(np.angle(TF60k.H_est)), 'r', linewidth=0.3)
+ax2.set_xlabel('Frequency [MHz]')
+ax2.set_ylabel('Phase [degrees]')
+plt.show()
+
+
+
