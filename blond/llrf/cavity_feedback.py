@@ -770,6 +770,8 @@ class LHCCavityLoop(object):
         Generator current offset [A]
     n_cav : int
         Number of cavities per beam (default is 8)
+    n_pretrack : int
+        Number of turns to pre-track without beam (default is 1)
     Q_L : float
         Cavity loaded quality factor (default is 20000)
     R_over_Q : float
@@ -795,8 +797,8 @@ class LHCCavityLoop(object):
     '''
 
     def __init__(self, RFStation, Profile, f_c=400.789e6, I_gen_offset=0,
-                 G_gen=1, n_cav=8, Q_L=20000, R_over_Q=45, tau_loop=650e-9,
-                 T_s=25e-9, RFFB=LHCRFFeedback()):
+                 G_gen=1, n_cav=8, n_pretrack=1, Q_L=20000, R_over_Q=45,
+                 tau_loop=650e-9, T_s=25e-9, RFFB=LHCRFFeedback()):
 
         # Set up logging
         self.logger = logging.getLogger(__class__.__name__)
@@ -809,6 +811,7 @@ class LHCCavityLoop(object):
         self.I_gen_offset = I_gen_offset
         self.G_gen = G_gen
         self.n_cav = n_cav
+        self.n_pretrack = n_pretrack
         self.n_delay = int(tau_loop/T_s)
         self.omega_c = 2*np.pi*f_c
         # TODO: implement optimum loaded Q
@@ -830,7 +833,7 @@ class LHCCavityLoop(object):
         self.excitation = self.RFFB.excitation
 
         # Length of arrays in LLRF  #TODO: could change over time
-        self.n_coarse = 20*int(self.rf.t_rev[0]/self.T_s)
+        self.n_coarse = int(self.rf.t_rev[0]/self.T_s) #*20
         self.logger.debug("Length of arrays in generator path %d",
                           self.n_coarse)
 
@@ -838,15 +841,15 @@ class LHCCavityLoop(object):
         self.update_variables()
         self.logger.debug("Relative detuning is %.4e", self.detuning)
 
-        if self.excitation:
-            set_point = 1000*self.RFFB.generate_white_noise(self.n_coarse)
-        else:
-            set_point = self.open_drive * self.rf.voltage[0, 0] * np.ones(
-                     self.n_coarse) / self.n_cav + \
-                 1j * np.zeros(self.n_coarse)
+#        if self.excitation:
+#            set_point = 1000*self.RFFB.generate_white_noise(self.n_coarse)
+#        else:
+#            set_point = self.set_point() #self.open_drive * self.rf.voltage[0, 0] * np.ones(
+#                     #self.n_coarse) / self.n_cav + \
+#                 #1j * np.zeros(self.n_coarse)
 
-        self.V_SET = np.concatenate((np.zeros(self.n_coarse, dtype=complex),
-                                     set_point))
+#        self.V_SET = np.concatenate((np.zeros(self.n_coarse, dtype=complex),
+#                                     set_point))
         self.V_ANT = np.zeros(2*self.n_coarse, dtype=complex)
         self.I_GEN = np.zeros(2*self.n_coarse, dtype=complex)
         self.I_BEAM = np.zeros(2*self.n_coarse, dtype=complex)
@@ -856,6 +859,12 @@ class LHCCavityLoop(object):
         self.V_a_out_prev = 0
         self.V_d_out_prev = 0
         self.V_fb_in_prev = 0
+
+        # Pre-track without beam
+        if self.excitation:
+            self.track_no_beam_excitation(self.n_pretrack)
+        else:
+            self.track_no_beam(self.n_pretrack)
 
 
     def cavity_response(self):
@@ -913,6 +922,13 @@ class LHCCavityLoop(object):
         self.V_d_out_prev = self.V_d_out
         self.V_fb_in_prev = self.V_fb_in
 
+
+    def set_point(self):
+
+        return self.open_drive*self.rf.voltage[0, self.counter]* \
+            np.ones(self.n_coarse)/self.n_cav + 1j*np.zeros(self.n_coarse) #self._set_point
+
+
     def swap(self):
 
         #TODO: to be implemented
@@ -922,16 +938,87 @@ class LHCCavityLoop(object):
     def track(self):
 
         self.update_variables()
+        self.update_arrays()
+        self.update_set_point()
         #self.rf_beam_current()
 
+        self.track_one_turn()
+
+
+    def track_one_turn(self):
+
         for i in range(self.n_coarse):
-        #for i in range(5):
             self.ind = i + self.n_coarse
-            print(self.ind)
             self.cavity_response()
             self.rf_feedback()
             self.swap()
             self.generator_current()
+
+
+    def track_no_beam_excitation(self, n_turns):
+
+        self.V_EXC_IN = 1000*self.RFFB.generate_white_noise(self.n_coarse*n_turns)
+        self.V_EXC_OUT = np.zeros(self.n_coarse*n_turns, dtype=complex)
+        self.V_SET = np.concatenate((np.zeros(self.n_coarse, dtype=complex),
+                                     self.V_EXC_IN[0:self.n_coarse]))
+        self.track_one_turn()
+        self.V_EXC_OUT[0:self.n_coarse] = self.V_ANT[self.n_coarse:2*self.n_coarse]
+        for n in range(1, n_turns):
+            self.update_arrays()
+            self.update_set_point_excitation(self.V_EXC_IN, n)
+            self.track_one_turn()
+            self.V_EXC_OUT[n*self.n_coarse:(n+1)*self.n_coarse] = \
+                self.V_ANT[self.n_coarse:2*self.n_coarse]
+
+
+    def track_no_beam(self, n_turns):
+
+        # Initialise set point voltage
+        self.V_SET = np.concatenate((np.zeros(self.n_coarse, dtype=complex),
+                                     self.set_point()))
+        self.track_one_turn()
+        for n in range(1, n_turns):
+            self.update_arrays()
+            self.update_set_point()
+            self.track_one_turn()
+            #for i in range(self.n_coarse):
+            #    self.ind = i + self.n_coarse
+            #    self.cavity_response()
+            #    self.rf_feedback()
+            #    self.swap()
+            #    self.generator_current()
+
+
+    def update_arrays(self):
+        r'''Moves the array indices by one turn (n_coarse points) from the
+        present turn to prepare the next turn. All arrays except for V_SET.
+        '''
+        self.V_ANT = np.concatenate((self.V_ANT[self.n_coarse:],
+                                    np.zeros(self.n_coarse, dtype=complex)))
+        #self.V_SET = np.concatenate((self.V_SET[self.n_coarse:],
+        #                            self.set_point()))
+        self.I_BEAM = np.concatenate((self.I_BEAM[self.n_coarse:],
+                                     np.zeros(self.n_coarse, dtype=complex)))
+        self.I_GEN = np.concatenate((self.I_GEN[self.n_coarse:],
+                                    np.zeros(self.n_coarse, dtype=complex)))
+        self.I_TEST = np.concatenate((self.I_TEST[self.n_coarse:],
+                                     np.zeros(self.n_coarse, dtype=complex)))
+
+
+    def update_set_point(self):
+        r'''Updates the set point for the next turn based on the design RF
+        voltage.
+        '''
+        self.V_SET = np.concatenate((self.V_SET[self.n_coarse:],
+                                    self.set_point()))
+
+
+    def update_set_point_excitation(self, excitation, turn):
+        r'''Updates the set point for the next turn based on the excitation to
+        be injected.
+        '''
+        self.V_SET = np.concatenate((self.V_SET[self.n_coarse:],
+            excitation[turn*self.n_coarse:(turn+1)*self.n_coarse]))
 
 
     def update_variables(self):

@@ -66,14 +66,14 @@ profile = Profile(beam, CutOptions(n_slices=100),
                  FitOptions(fit_option='gaussian'))
 
 logging.info('Initialising LHCCavityLoop, tuned to injection (with no beam current)')
-CL = LHCCavityLoop(rf, profile, G_gen=1, n_cav=8, f_c=rf.omega_rf[0,0]/(2*np.pi),
-                   I_gen_offset=0, Q_L=20000, R_over_Q=45, T_s=25e-9,
+CL = LHCCavityLoop(rf, profile, f_c=rf.omega_rf[0,0]/(2*np.pi), G_gen=1,
+                   I_gen_offset=0, n_cav=8, n_pretrack=10, Q_L=20000, R_over_Q=45, T_s=25e-9,
                    RFFB=LHCRFFeedback(open_loop=False, G_a=0.00001, G_d=10, excitation=True))
 logging.info('Initial generator current is %.4f A', np.mean(np.absolute(CL.I_GEN)))
 logging.info('Samples (omega x T_s) is %.4f', CL.samples)
 
 logging.info('Cavity response to generator current')
-CL.track()
+#CL.track_no_beam()
 logging.info('Antenna voltage is %.10f MV', np.mean(np.absolute(CL.V_ANT[-10:]))*1.e-6)
 
 plt.figure('Generator current')
@@ -94,15 +94,23 @@ logging.info('Updated generator current is %.10f A', np.mean(np.absolute(CL.I_GE
 P_gen = CL.generator_power()
 logging.info('Generator power is %.10f kW', np.mean(P_gen)*1e-3)
 
-TF = TransferFunction(CL.V_SET, CL.V_ANT, 25e-9, plot=False)
-TF.analyse(data_cut=CL.n_coarse)
+#TF = TransferFunction(CL.V_SET, CL.V_ANT, 25e-9, plot=False)
+#TF.analyse(data_cut=CL.n_coarse)
+TF = TransferFunction(CL.V_EXC_IN, CL.V_EXC_OUT, 25e-9, plot=False)
+TF.analyse(data_cut=0)
 
-CL60k = LHCCavityLoop(rf, profile, G_gen=1, n_cav=8, f_c=rf.omega_rf[0,0]/(2*np.pi),
-                   I_gen_offset=0, Q_L=60000, R_over_Q=45, T_s=25e-9,
-                   RFFB=LHCRFFeedback(open_loop=False, G_a=0.00001, G_d=10, excitation=True, d_phi_ad=20))
-CL60k.track()
-TF60k = TransferFunction(CL60k.V_SET, CL60k.V_ANT, 25e-9, plot=False)
-TF60k.analyse(data_cut=CL60k.n_coarse)
+#CL60k = LHCCavityLoop(rf, profile, G_gen=1, n_cav=8, f_c=rf.omega_rf[0,0]/(2*np.pi),
+#                   I_gen_offset=0, Q_L=60000, R_over_Q=45, T_s=25e-9,
+#                   RFFB=LHCRFFeedback(open_loop=False, G_a=0.00001, G_d=10, excitation=True, d_phi_ad=20))
+#CL60k.track_no_beam(1)
+#TF60k = TransferFunction(CL60k.V_SET, CL60k.V_ANT, 25e-9, plot=False)
+#TF60k.analyse(data_cut=CL60k.n_coarse)
+
+# Same with 60 k QL
+CL.Q_L = 60000
+CL.track_no_beam_excitation(CL.n_pretrack)
+TF60k = TransferFunction(CL.V_EXC_IN, CL.V_EXC_OUT, 25e-9, plot=False)
+TF60k.analyse(data_cut=0)
 
 fig = plt.figure('Transfer functions')
 gs = plt.GridSpec(2, 1)
