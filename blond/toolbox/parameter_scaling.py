@@ -371,7 +371,7 @@ class ParameterScaling(object):
 
         # Machine-dependent parameters [SI-units] -----------------------------
         gamma_ts = {'PSB': 4.0767, 'CPS': np.sqrt(37.2), 'SPS, Q20': 18.,
-                   'SPS, Q26': 22.83, 'LHC': 55.759505}
+                   'SPS, Q26': 22.83, 'LHC': 53.8}
         harmonics = {'PSB': 1, 'CPS': 21, 'SPS, Q20': 4620, 'SPS, Q26': 4620,
                      'LHC': 35640}
         circumferences = {'PSB': 2 * np.pi * 25, 'CPS': 2 * np.pi * 100.,
