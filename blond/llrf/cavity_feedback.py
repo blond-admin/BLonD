@@ -683,6 +683,7 @@ class SPSOneTurnFeedback(object):
         return result
 
 
+
 class LHCRFFeedback(object):
     r'''RF Feedback settings for LHC ACS cavity loop.
 
@@ -796,8 +797,8 @@ class LHCCavityLoop(object):
         Logger of the present class
     '''
 
-    def __init__(self, RFStation, Profile, f_c=400.789e6, I_gen_offset=0,
-                 G_gen=1, n_cav=8, n_pretrack=1, Q_L=20000, R_over_Q=45,
+    def __init__(self, RFStation, Profile, f_c=400.789e6, G_gen=1,
+                 I_gen_offset=0, n_cav=8, n_pretrack=1, Q_L=20000, R_over_Q=45,
                  tau_loop=650e-9, T_s=25e-9, RFFB=LHCRFFeedback()):
 
         # Set up logging
@@ -841,15 +842,6 @@ class LHCCavityLoop(object):
         self.update_variables()
         self.logger.debug("Relative detuning is %.4e", self.detuning)
 
-#        if self.excitation:
-#            set_point = 1000*self.RFFB.generate_white_noise(self.n_coarse)
-#        else:
-#            set_point = self.set_point() #self.open_drive * self.rf.voltage[0, 0] * np.ones(
-#                     #self.n_coarse) / self.n_cav + \
-#                 #1j * np.zeros(self.n_coarse)
-
-#        self.V_SET = np.concatenate((np.zeros(self.n_coarse, dtype=complex),
-#                                     set_point))
         self.V_ANT = np.zeros(2*self.n_coarse, dtype=complex)
         self.I_GEN = np.zeros(2*self.n_coarse, dtype=complex)
         self.I_BEAM = np.zeros(2*self.n_coarse, dtype=complex)
@@ -861,6 +853,7 @@ class LHCCavityLoop(object):
         self.V_fb_in_prev = 0
 
         # Pre-track without beam
+        self.logger.debug("Track without beam for %d turns", self.n_pretrack)
         if self.excitation:
             self.track_no_beam_excitation(self.n_pretrack)
         else:
@@ -868,6 +861,7 @@ class LHCCavityLoop(object):
 
 
     def cavity_response(self):
+        r'''ACS cavity reponse model'''
 
         self.V_ANT[self.ind] = self.I_GEN[self.ind-1]*self.R_over_Q* \
             self.samples + self.V_ANT[self.ind-1]*(1 - 0.5*self.samples/ \
@@ -876,6 +870,13 @@ class LHCCavityLoop(object):
 
 
     def generator_current(self):
+        r'''Generator response
+
+        Attributes
+        I_TEST : complex array
+            Test point for open loop measurements (when injecting a generator
+            offset)
+        '''
 
         # From V_swap_out in closed loop, constant in open loop
         # TODO: missing terms for changing voltage and beam current
@@ -885,11 +886,13 @@ class LHCCavityLoop(object):
 
 
     def generator_power(self):
+        r'''Calculation of generator power from generator current'''
 
         return 0.5*self.R_over_Q*self.Q_L*np.absolute(self.I_GEN)**2
 
 
     def rf_beam_current(self):
+        r'''RF beam current calculation from beam profile'''
 
         # Beam current at rf frequency from profile
         # TODO: convert from fine grid to coarse grid
@@ -900,6 +903,7 @@ class LHCCavityLoop(object):
 
 
     def rf_feedback(self):
+        r'''Analog and digital RF feedback response'''
 
         # Calculate voltage difference to act on
         self.V_fb_in = (self.V_SET[self.ind] -
@@ -924,28 +928,32 @@ class LHCCavityLoop(object):
 
 
     def set_point(self):
+        r'''Voltage set point'''
 
         return self.open_drive*self.rf.voltage[0, self.counter]* \
             np.ones(self.n_coarse)/self.n_cav + 1j*np.zeros(self.n_coarse) #self._set_point
 
 
     def swap(self):
+        r'''Model of the Switch and Protect module: clamping of the output
+        power above a given input power.'''
 
         #TODO: to be implemented
         self.V_swap_out = self.V_fb_out
 
 
     def track(self):
+        r'''Tracking with beam'''
 
         self.update_variables()
         self.update_arrays()
         self.update_set_point()
         #self.rf_beam_current()
-
         self.track_one_turn()
 
 
     def track_one_turn(self):
+        r'''Single-turn tracking, index by index.'''
 
         for i in range(self.n_coarse):
             self.ind = i + self.n_coarse
@@ -956,6 +964,18 @@ class LHCCavityLoop(object):
 
 
     def track_no_beam_excitation(self, n_turns):
+        r'''Pre-tracking for n_turns turns, without beam. With excitation; set
+        point from white noise. V_EXC_IN and V_EXC_OUT can be used to measure
+        the transfer function of the system.
+
+        Attributes
+        ----------
+        V_EXC_IN : complex array
+            Noise being played in set point; n_coarse*n_turns elements
+        V_EXC_OUT : complex array
+            System reaction to noise (accumulated from V_ANT); n_coarse*n_turns
+            elements
+        '''
 
         self.V_EXC_IN = 1000*self.RFFB.generate_white_noise(self.n_coarse*n_turns)
         self.V_EXC_OUT = np.zeros(self.n_coarse*n_turns, dtype=complex)
@@ -972,6 +992,8 @@ class LHCCavityLoop(object):
 
 
     def track_no_beam(self, n_turns):
+        r'''Pre-tracking for n_turns turns, without beam. No excitation; set
+        point from design RF voltage.'''
 
         # Initialise set point voltage
         self.V_SET = np.concatenate((np.zeros(self.n_coarse, dtype=complex),
@@ -981,22 +1003,14 @@ class LHCCavityLoop(object):
             self.update_arrays()
             self.update_set_point()
             self.track_one_turn()
-            #for i in range(self.n_coarse):
-            #    self.ind = i + self.n_coarse
-            #    self.cavity_response()
-            #    self.rf_feedback()
-            #    self.swap()
-            #    self.generator_current()
 
 
     def update_arrays(self):
         r'''Moves the array indices by one turn (n_coarse points) from the
-        present turn to prepare the next turn. All arrays except for V_SET.
-        '''
+        present turn to prepare the next turn. All arrays except for V_SET.'''
+
         self.V_ANT = np.concatenate((self.V_ANT[self.n_coarse:],
                                     np.zeros(self.n_coarse, dtype=complex)))
-        #self.V_SET = np.concatenate((self.V_SET[self.n_coarse:],
-        #                            self.set_point()))
         self.I_BEAM = np.concatenate((self.I_BEAM[self.n_coarse:],
                                      np.zeros(self.n_coarse, dtype=complex)))
         self.I_GEN = np.concatenate((self.I_GEN[self.n_coarse:],
@@ -1007,21 +1021,22 @@ class LHCCavityLoop(object):
 
     def update_set_point(self):
         r'''Updates the set point for the next turn based on the design RF
-        voltage.
-        '''
+        voltage.'''
+
         self.V_SET = np.concatenate((self.V_SET[self.n_coarse:],
                                     self.set_point()))
 
 
     def update_set_point_excitation(self, excitation, turn):
         r'''Updates the set point for the next turn based on the excitation to
-        be injected.
-        '''
+        be injected.'''
+
         self.V_SET = np.concatenate((self.V_SET[self.n_coarse:],
             excitation[turn*self.n_coarse:(turn+1)*self.n_coarse]))
 
 
     def update_variables(self):
+        r'''Update counter and frequency-dependent variables in a given turn'''
 
         # Present time step
         self.counter = self.rf.counter[0]

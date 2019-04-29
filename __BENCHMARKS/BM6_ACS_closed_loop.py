@@ -63,18 +63,22 @@ rf = RFStation(ring, [h], [V], [dphi])
 
 beam = Beam(ring, N_p, N_b)
 profile = Profile(beam, CutOptions(n_slices=100),
-                 FitOptions(fit_option='gaussian'))
+                  FitOptions(fit_option='gaussian'))
 
 logging.info('Initialising LHCCavityLoop, tuned to injection (with no beam current)')
+logging.info('CLOSED LOOP, no excitation, 1 turn tracking')
 CL = LHCCavityLoop(rf, profile, f_c=rf.omega_rf[0,0]/(2*np.pi), G_gen=1,
-                   I_gen_offset=0, n_cav=8, n_pretrack=10, Q_L=20000, R_over_Q=45, T_s=25e-9,
-                   RFFB=LHCRFFeedback(open_loop=False, G_a=0.00001, G_d=10, excitation=True))
-logging.info('Initial generator current is %.4f A', np.mean(np.absolute(CL.I_GEN)))
+                   I_gen_offset=0, n_cav=8, n_pretrack=1, Q_L=20000,
+                   R_over_Q=45, tau_loop=650e-9, T_s=25e-9,
+                   RFFB=LHCRFFeedback(open_loop=False, G_a=0.00001, G_d=10,
+                                      excitation=False))
+logging.info('Initial generator current is %.4f A', np.mean(np.absolute(CL.I_GEN[0:10])))
 logging.info('Samples (omega x T_s) is %.4f', CL.samples)
-
 logging.info('Cavity response to generator current')
-#CL.track_no_beam()
 logging.info('Antenna voltage is %.10f MV', np.mean(np.absolute(CL.V_ANT[-10:]))*1.e-6)
+logging.info('Final generator current is %.10f A', np.mean(np.absolute(CL.I_GEN[-10:])))
+P_gen = CL.generator_power()
+logging.info('Generator power is %.10f kW', np.mean(P_gen)*1e-3)
 
 plt.figure('Generator current')
 plt.plot(np.real(CL.I_GEN), label='real')
@@ -89,26 +93,32 @@ plt.xlabel('Samples [at 40 MS/s]')
 plt.ylabel('Antenna voltage [MV]')
 plt.legend()
 plt.show()
-logging.info('RF feedback action')
-logging.info('Updated generator current is %.10f A', np.mean(np.absolute(CL.I_GEN)))
-P_gen = CL.generator_power()
-logging.info('Generator power is %.10f kW', np.mean(P_gen)*1e-3)
 
-#TF = TransferFunction(CL.V_SET, CL.V_ANT, 25e-9, plot=False)
-#TF.analyse(data_cut=CL.n_coarse)
+
+logging.info('CLOSED LOOP, with excitation, 10 turns tracking')
+CL = LHCCavityLoop(rf, profile, f_c=rf.omega_rf[0,0]/(2*np.pi), G_gen=1,
+                   I_gen_offset=0, n_cav=8, n_pretrack=10, Q_L=20000,
+                   R_over_Q=45, tau_loop=650e-9, T_s=25e-9,
+                   RFFB=LHCRFFeedback(open_loop=False, G_a=0.00001, G_d=10,
+                                      excitation=True))
+
+plt.figure('Noise injected into Set Point')
+plt.plot(np.real(CL.V_EXC_IN), label='real')
+plt.plot(np.imag(CL.V_EXC_IN), label='imag')
+plt.xlabel('Samples [at 40 MS/s]')
+plt.ylabel('Set point voltage [V]')
+plt.legend()
+plt.show()
+
+logging.info('Calculating transfer function')
 TF = TransferFunction(CL.V_EXC_IN, CL.V_EXC_OUT, 25e-9, plot=False)
 TF.analyse(data_cut=0)
 
-#CL60k = LHCCavityLoop(rf, profile, G_gen=1, n_cav=8, f_c=rf.omega_rf[0,0]/(2*np.pi),
-#                   I_gen_offset=0, Q_L=60000, R_over_Q=45, T_s=25e-9,
-#                   RFFB=LHCRFFeedback(open_loop=False, G_a=0.00001, G_d=10, excitation=True, d_phi_ad=20))
-#CL60k.track_no_beam(1)
-#TF60k = TransferFunction(CL60k.V_SET, CL60k.V_ANT, 25e-9, plot=False)
-#TF60k.analyse(data_cut=CL60k.n_coarse)
-
 # Same with 60 k QL
+logging.info('Re-track with Q_L = 60k')
 CL.Q_L = 60000
 CL.track_no_beam_excitation(CL.n_pretrack)
+logging.info('Calculating transfer function')
 TF60k = TransferFunction(CL.V_EXC_IN, CL.V_EXC_OUT, 25e-9, plot=False)
 TF60k.analyse(data_cut=0)
 
@@ -116,17 +126,18 @@ fig = plt.figure('Transfer functions')
 gs = plt.GridSpec(2, 1)
 ax1 = fig.add_subplot(gs[0, 0])
 ax1.set_title('Transfer function')
-ax1.plot(TF.f_est/10 ** 6, 20 * np.log10(np.abs(TF.H_est)), 'b', linewidth=0.3)
-ax1.plot(TF60k.f_est/10 ** 6, 20 * np.log10(np.abs(TF60k.H_est)), 'r', linewidth=0.3)
+ax1.plot(TF.f_est/10 ** 6, 20 * np.log10(np.abs(TF.H_est)), 'b', linewidth=0.3, label='20k')
+ax1.plot(TF60k.f_est/10 ** 6, 20 * np.log10(np.abs(TF60k.H_est)), 'r', linewidth=0.3, label='60k')
 ax1.set_xlabel('Frequency [MHz]')
 ax1.set_ylabel('Gain [dB]')
-
+plt.legend()
 ax2 = fig.add_subplot(gs[1, 0], sharex=ax1)
-ax2.plot(TF.f_est/10**6, (180/np.pi)*np.unwrap(np.angle(TF.H_est)), 'b', linewidth=0.3)
-ax2.plot(TF60k.f_est/10**6, (180/np.pi)*np.unwrap(np.angle(TF60k.H_est)), 'r', linewidth=0.3)
+ax2.plot(TF.f_est/10**6, (180/np.pi)*np.unwrap(np.angle(TF.H_est)), 'b', linewidth=0.3, label='20k')
+ax2.plot(TF60k.f_est/10**6, (180/np.pi)*np.unwrap(np.angle(TF60k.H_est)), 'r', linewidth=0.3, label='60k')
 ax2.set_xlabel('Frequency [MHz]')
 ax2.set_ylabel('Phase [degrees]')
+plt.legend()
 plt.show()
 
 
-
+logging.info('Done.')
