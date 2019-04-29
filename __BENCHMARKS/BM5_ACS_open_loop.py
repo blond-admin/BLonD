@@ -30,9 +30,9 @@ import matplotlib.pyplot as plt
 
 # Simulation parameters -------------------------------------------------------
 # Bunch parameters
-N_b = 1e9           # Intensity
-N_p = 50000         # Macro-particles
-tau_0 = 0.4e-9          # Initial bunch length, 4 sigma [s]
+N_b = 1e9            # Intensity
+N_p = 50000          # Macro-particles
+tau_0 = 0.4e-9       # Initial bunch length, 4 sigma [s]
 
 # Machine and RF parameters
 C = 26658.883        # Machine circumference [m]
@@ -40,7 +40,7 @@ p_s = 450e9          # Synchronous momentum [eV/c]
 h = 35640            # Harmonic number
 V = 4e6              # RF voltage [V]
 dphi = 0             # Phase modulation/offset
-gamma_t = 55.759505  # Transition gamma
+gamma_t = 53.8       # Transition gamma
 alpha = 1./gamma_t/gamma_t        # First order mom. comp. factor
 
 # Tracking details

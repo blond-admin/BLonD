@@ -898,8 +898,8 @@ class LHCCavityLoop(object):
         # TODO: convert from fine grid to coarse grid
         self.I_BEAM = rf_beam_current(self.profile, self.omega,
                                       self.rf.t_rev[self.counter], lpf=False)
-        self.I_BEAM = np.concatenate((np.zeros(self.n_coarse, dtype=complex),
-            self.I_BEAM, np.zeros(self.n_coarse - self.I_BEAM.size, dtype=complex)))
+        #self.I_BEAM = np.concatenate((np.zeros(self.n_coarse, dtype=complex),
+        #    self.I_BEAM, np.zeros(self.n_coarse - self.I_BEAM.size, dtype=complex)))
 
 
     def rf_feedback(self):

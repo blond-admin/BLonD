@@ -19,6 +19,7 @@ from blond.toolbox.logger import Logger
 from blond.input_parameters.ring import Ring
 from blond.input_parameters.rf_parameters import RFStation
 from blond.beam.beam import Beam, Proton
+from blond.beam.distributions import bigaussian
 from blond.beam.profile import Profile, CutOptions, FitOptions
 from blond.llrf.cavity_feedback import LHCCavityLoop, LHCRFFeedback
 from blond.llrf.transfer_function import TransferFunction
@@ -30,8 +31,9 @@ import matplotlib.pyplot as plt
 
 # Simulation parameters -------------------------------------------------------
 # Bunch parameters
-N_b = 1e9            # Intensity
-N_p = 50000          # Macro-particles
+N_p = 2.3e11         # Intensity
+N_m = 50000          # Macro-particles
+NB = 156             # Number of bunches
 tau_0 = 0.4e-9       # Initial bunch length, 4 sigma [s]
 
 # Machine and RF parameters
@@ -61,17 +63,53 @@ Logger(debug=True)
 ring = Ring(C, alpha, p_s, Particle=Proton(), n_turns=1)
 rf = RFStation(ring, [h], [V], [dphi])
 
-beam = Beam(ring, N_p, N_b)
-profile = Profile(beam, CutOptions(n_slices=100),
+bunch = Beam(ring, N_m, N_p)
+bigaussian(ring, rf, bunch, sigma_dt=tau_0)
+
+beam = Beam(ring, N_m*NB, N_p)
+for i in range(12):
+    beam.dt[i*N_m:(i+1)*N_m] = bunch.dt[0:N_m] + i*25e-9
+    beam.dE[i*N_m:(i+1)*N_m] = bunch.dE[0:N_m]
+for i in range(12,60):
+    beam.dt[i*N_m:(i+1)*N_m] = bunch.dt[0:N_m] + i*25e-9 + 0.8e-6
+    beam.dE[i*N_m:(i+1)*N_m] = bunch.dE[0:N_m]
+for i in range(60,108):
+    beam.dt[i*N_m:(i+1)*N_m] = bunch.dt[0:N_m] + i*25e-9 + 1.2e-6
+    beam.dE[i*N_m:(i+1)*N_m] = bunch.dE[0:N_m]
+for i in range(108,156):
+    beam.dt[i*N_m:(i+1)*N_m] = bunch.dt[0:N_m] + i*25e-9 + 1.4e-6
+    beam.dE[i*N_m:(i+1)*N_m] = bunch.dE[0:N_m]
+
+buckets = 1 + 10*NB + 1.4e-6/2.5e-9
+logging.debug('Maximum of beam coordinates %.4e s', np.max(beam.dt))
+logging.info('Number of buckets considered %d', buckets)
+logging.debug('Profile cut set at %.4e s', buckets*2.5e-9)
+profile = Profile(beam, CutOptions(n_slices=int(100*buckets), cut_left=0,
+                                   cut_right=buckets*2.5e-9),
                   FitOptions(fit_option='gaussian'))
+profile.track()
+plt.figure('Bunch profile')
+plt.plot(profile.bin_centers, profile.n_macroparticles)
+plt.xlabel('Bin centers [s]')
+plt.ylabel('Macroparticles [1]')
+plt.show()
 
 logging.info('Initialising LHCCavityLoop, tuned to injection (with no beam current)')
 logging.info('CLOSED LOOP, no excitation, 1 turn tracking')
 CL = LHCCavityLoop(rf, profile, f_c=rf.omega_rf[0,0]/(2*np.pi), G_gen=1,
-                   I_gen_offset=0, n_cav=8, n_pretrack=1, Q_L=20000,
+                   I_gen_offset=0, n_cav=8, n_pretrack=2, Q_L=20000,
                    R_over_Q=45, tau_loop=650e-9, T_s=25e-9,
                    RFFB=LHCRFFeedback(open_loop=False, G_a=0.00001, G_d=10,
                                       excitation=False))
+CL.rf_beam_current()
+plt.figure('RF beam current')
+plt.plot(np.real(CL.I_BEAM), label='real')
+plt.plot(np.imag(CL.I_BEAM), label='imag')
+plt.xlabel('Samples [at 40 MS/s]')
+plt.ylabel('RF beam current [A]')
+plt.show()
+
+
 logging.info('Initial generator current is %.4f A', np.mean(np.absolute(CL.I_GEN[0:10])))
 logging.info('Samples (omega x T_s) is %.4f', CL.samples)
 logging.info('Cavity response to generator current')
@@ -94,50 +132,6 @@ plt.ylabel('Antenna voltage [MV]')
 plt.legend()
 plt.show()
 
-
-logging.info('CLOSED LOOP, with excitation, 10 turns tracking')
-CL = LHCCavityLoop(rf, profile, f_c=rf.omega_rf[0,0]/(2*np.pi), G_gen=1,
-                   I_gen_offset=0, n_cav=8, n_pretrack=10, Q_L=20000,
-                   R_over_Q=45, tau_loop=650e-9, T_s=25e-9,
-                   RFFB=LHCRFFeedback(open_loop=False, G_a=0.00001, G_d=10,
-                                      excitation=True))
-
-plt.figure('Noise injected into Set Point')
-plt.plot(np.real(CL.V_EXC_IN), label='real')
-plt.plot(np.imag(CL.V_EXC_IN), label='imag')
-plt.xlabel('Samples [at 40 MS/s]')
-plt.ylabel('Set point voltage [V]')
-plt.legend()
-plt.show()
-
-logging.info('Calculating transfer function')
-TF = TransferFunction(CL.V_EXC_IN, CL.V_EXC_OUT, 25e-9, plot=False)
-TF.analyse(data_cut=0)
-
-# Same with 60 k QL
-logging.info('Re-track with Q_L = 60k')
-CL.Q_L = 60000
-CL.track_no_beam_excitation(CL.n_pretrack)
-logging.info('Calculating transfer function')
-TF60k = TransferFunction(CL.V_EXC_IN, CL.V_EXC_OUT, 25e-9, plot=False)
-TF60k.analyse(data_cut=0)
-
-fig = plt.figure('Transfer functions')
-gs = plt.GridSpec(2, 1)
-ax1 = fig.add_subplot(gs[0, 0])
-ax1.set_title('Transfer function')
-ax1.plot(TF.f_est/10 ** 6, 20 * np.log10(np.abs(TF.H_est)), 'b', linewidth=0.3, label='20k')
-ax1.plot(TF60k.f_est/10 ** 6, 20 * np.log10(np.abs(TF60k.H_est)), 'r', linewidth=0.3, label='60k')
-ax1.set_xlabel('Frequency [MHz]')
-ax1.set_ylabel('Gain [dB]')
-plt.legend()
-ax2 = fig.add_subplot(gs[1, 0], sharex=ax1)
-ax2.plot(TF.f_est/10**6, (180/np.pi)*np.unwrap(np.angle(TF.H_est)), 'b', linewidth=0.3, label='20k')
-ax2.plot(TF60k.f_est/10**6, (180/np.pi)*np.unwrap(np.angle(TF60k.H_est)), 'r', linewidth=0.3, label='60k')
-ax2.set_xlabel('Frequency [MHz]')
-ax2.set_ylabel('Phase [degrees]')
-plt.legend()
-plt.show()
 
 
 logging.info('Done.')
