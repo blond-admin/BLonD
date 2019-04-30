@@ -102,13 +102,24 @@ CL = LHCCavityLoop(rf, profile, f_c=rf.omega_rf[0,0]/(2*np.pi), G_gen=1,
                    RFFB=LHCRFFeedback(open_loop=False, G_a=0.00001, G_d=10,
                                       excitation=False))
 CL.rf_beam_current()
-plt.figure('RF beam current')
-plt.plot(np.real(CL.I_BEAM), label='real')
-plt.plot(np.imag(CL.I_BEAM), label='imag')
+plt.figure('RF beam current, fine grid')
+plt.plot(np.real(CL.I_BEAM_FINE), 'b', alpha=0.5, label='real')
+plt.plot(np.imag(CL.I_BEAM_FINE), 'r', alpha=0.5, label='imag')
+plt.plot(np.absolute(CL.I_BEAM_FINE), 'g', alpha=0.5, label='ampl')
 plt.xlabel('Samples [at 40 MS/s]')
 plt.ylabel('RF beam current [A]')
+plt.legend()
+
+plt.figure('RF beam current, coarse grid')
+plt.plot(np.real(CL.I_BEAM[CL.n_coarse:]), 'b', alpha=0.5, label='real')
+plt.plot(np.imag(CL.I_BEAM[CL.n_coarse:]), 'r', alpha=0.5, label='imag')
+plt.plot(np.absolute(CL.I_BEAM[CL.n_coarse:]), 'g', alpha=0.5, label='ampl')
+plt.xlabel('Samples [at 40 MS/s]')
+plt.ylabel('RF beam current [A]')
+plt.legend()
 plt.show()
 
+logging.info('Total RF peak beam current %.4e A', np.absolute(np.sum(CL.I_BEAM))/rf.t_rev[0])
 
 logging.info('Initial generator current is %.4f A', np.mean(np.absolute(CL.I_GEN[0:10])))
 logging.info('Samples (omega x T_s) is %.4f', CL.samples)
@@ -130,8 +141,19 @@ plt.plot(np.imag(CL.V_ANT)*1e-6, label='imag')
 plt.xlabel('Samples [at 40 MS/s]')
 plt.ylabel('Antenna voltage [MV]')
 plt.legend()
+
+
+CL.track()
+fig = plt.figure('Antenna voltage, first turn')
+gs = plt.GridSpec(2, 1)
+ax1 = fig.add_subplot(gs[0, 0])
+ax1.plot(np.absolute(CL.V_ANT), 'b', linewidth=0.3)
+ax1.set_xlabel('Samples [at 40 MS/s]')
+ax1.set_ylabel('Antenna voltage [V]')
+ax2 = fig.add_subplot(gs[1, 0], sharex=ax1)
+ax2.plot(np.angle(CL.V_ANT, deg=True), 'b', linewidth=0.3)
+ax2.set_xlabel('Samples [at 40 MS/s]')
+ax2.set_ylabel('Phase [degrees]')
 plt.show()
-
-
 
 logging.info('Done.')

@@ -837,6 +837,8 @@ class LHCCavityLoop(object):
         self.n_coarse = int(self.rf.t_rev[0]/self.T_s) #*20
         self.logger.debug("Length of arrays in generator path %d",
                           self.n_coarse)
+        # Cumulative shift between sampling and revolution period
+        self.t_cumul = 0
 
         # Initialise antenna voltage to set point value
         self.update_variables()
@@ -895,11 +897,42 @@ class LHCCavityLoop(object):
         r'''RF beam current calculation from beam profile'''
 
         # Beam current at rf frequency from profile
-        # TODO: convert from fine grid to coarse grid
-        self.I_BEAM = rf_beam_current(self.profile, self.omega,
-                                      self.rf.t_rev[self.counter], lpf=False)
-        #self.I_BEAM = np.concatenate((np.zeros(self.n_coarse, dtype=complex),
-        #    self.I_BEAM, np.zeros(self.n_coarse - self.I_BEAM.size, dtype=complex)))
+        self.I_BEAM_FINE = rf_beam_current(self.profile, self.omega,
+            self.rf.t_rev[self.counter], lpf=False)
+
+        # Find which index in fine grid matches index in coarse grid
+        ind_fine = np.floor((self.profile.bin_centers + self.t_cumul)/self.T_s
+                           - 0.5*self.profile.bin_size)
+        ind_fine = np.array(ind_fine, dtype=int)
+        #ind_coarse = np.arange(np.max(ind_fine))
+        #print(ind_fine)
+        #print(len(ind_fine))
+        indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
+        #print(indices)
+        #print(len(indices))
+        #print(ind_fine[indices[0]])
+        #print(ind_fine[indices[0]-1])
+        #print(ind_fine[indices[0]+1])
+
+        # Pick peak RF current within the T_s grid
+        self.I_BEAM[self.n_coarse] = np.max(np.absolute(self.I_BEAM_FINE[ind_fine[indices[0]]]))
+        for i in range(1,len(indices)):
+            #print(i)
+            #print(indices[i-1])
+            #print(indices[i])
+            #print(np.arange(indices[i-1],indices[i]))
+            #print(np.absolute(self.I_BEAM_FINE[np.arange(indices[i-1],indices[i])]))
+            ind_max = np.argmax(np.absolute(
+                self.I_BEAM_FINE[np.arange(indices[i-1],indices[i])]))
+            #print(ind_max)
+            ##print(np.absolute(self.I_BEAM_FINE[ind_fine[ind_max]]))
+            self.I_BEAM[self.n_coarse + i] = self.I_BEAM_FINE[indices[i-1]+ind_max] #[ind_fine[ind_max]] #np.max(np.absolute(self.I_BEAM_FINE[ind_fine[indices[i-1]:indices[i]]]))
+            ##print(np.absolute(self.I_BEAM[self.n_coarse + i]))
+            #print("")
+        #
+
+        # Update cumulative shift between sampling and revolution period
+        self.t_cumul += self.rf.t_rev[self.counter] - self.n_coarse*self.T_s
 
 
     def rf_feedback(self):
@@ -1009,6 +1042,7 @@ class LHCCavityLoop(object):
         r'''Moves the array indices by one turn (n_coarse points) from the
         present turn to prepare the next turn. All arrays except for V_SET.'''
 
+        # TODO: update n_coarse and array sizes
         self.V_ANT = np.concatenate((self.V_ANT[self.n_coarse:],
                                     np.zeros(self.n_coarse, dtype=complex)))
         self.I_BEAM = np.concatenate((self.I_BEAM[self.n_coarse:],
