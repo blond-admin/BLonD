@@ -133,6 +133,9 @@ def rf_beam_current(Profile, omega_c, T_rev, lpf=True):
     where :math:`t_i` are the time coordinates of the beam profile. After de-
     modulation, a low-pass filter at 20 MHz is applied.
 
+    For multi-bunch cases, make sure that the real beam intensity is the total
+    number of charges in the ring.
+
     Parameters
     ----------
     Profile : class
@@ -170,7 +173,7 @@ def rf_beam_current(Profile, omega_c, T_rev, lpf=True):
         cutoff = 20.e6*2.*Profile.bin_size
         I_f = low_pass_filter(I_f, cutoff_frequency=cutoff)
         Q_f = low_pass_filter(Q_f, cutoff_frequency=cutoff)
-    logger.debug("RF total current is %.4e A", np.fabs(np.sum(I_f))/T_rev)
+    logger.debug("RF total current is %.4e A", np.sum(np.absolute(I_f))/T_rev)#np.fabs(np.sum(I_f))/T_rev)
 
     return I_f + 1j*Q_f
 
