@@ -102,8 +102,13 @@ plt.show()
 
 logging.info('Initialising LHCCavityLoop, tuned to injection (with no beam current)')
 logging.info('CLOSED LOOP, no excitation, 1 turn tracking')
-CL = LHCCavityLoop(rf, profile, f_c=rf.omega_rf[0,0]/(2*np.pi)-1000, G_gen=1,
-                   I_gen_offset=0, n_cav=8, n_pretrack=5, Q_L=40000,
+d_f = LHCCavityLoop.half_detuning(rf.omega_rf[0,0]/(2*np.pi), 2.2, 45, V/8)
+logging.info('Optimum detuning in half-detuning scheme %.4e Hz', d_f)
+power = LHCCavityLoop.half_detuning_power(2.2, V/8)
+logging.info('Optimum power in half-detuning scheme %.4e kW', power*1e-3)
+
+CL = LHCCavityLoop(rf, profile, f_c=rf.omega_rf[0,0]/(2*np.pi)+d_f, G_gen=1,
+                   I_gen_offset=0, n_cav=8, n_pretrack=5, Q_L=35000,
                    R_over_Q=45, tau_loop=650e-9, T_s=25e-9,
                    RFFB=LHCRFFeedback(open_loop=False, G_a=0.000008, G_d=10,
                                       excitation=False))
@@ -127,7 +132,7 @@ plt.show()
 
 logging.info('Total DC beam current %.4e A', np.sum(CL.profile.n_macroparticles)/beam.n_macroparticles*beam.intensity*e/ring.t_rev[0])
 
-logging.info('Total RF beam current %.4e A', np.sum(np.absolute(CL.I_BEAM))/rf.t_rev[0])
+logging.info('Maximum RF beam current %.4e A', np.max(np.absolute(CL.I_BEAM)))
 
 logging.info('Initial generator current is %.4f A', np.mean(np.absolute(CL.I_GEN[0:10])))
 logging.info('Samples (omega x T_s) is %.4f', CL.samples)
@@ -135,7 +140,7 @@ logging.info('Cavity response to generator current')
 logging.info('Antenna voltage is %.10f MV', np.mean(np.absolute(CL.V_ANT[-10:]))*1.e-6)
 logging.info('Final generator current is %.10f A', np.mean(np.absolute(CL.I_GEN[-10:])))
 P_gen = CL.generator_power()
-logging.info('Generator power is %.10f kW', np.mean(P_gen)*1e-3)
+logging.info('Average generator power before beam injection is %.10f kW', np.mean(P_gen)*1e-3)
 
 if PLOT_NO_BEAM:
     plt.figure('Generator current')
@@ -197,5 +202,7 @@ plt.ylabel('Power [kW]')
 plt.legend()
 plt.show()
 
+P_gen = CL.generator_power()
+logging.info('Average generator power after beam injection is %.10f kW', np.mean(P_gen)*1e-3)
 
 logging.info('Done.')

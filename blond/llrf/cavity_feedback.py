@@ -887,6 +887,9 @@ class LHCCavityLoop(object):
             self.open_drive_inv*self.I_gen_offset
         #self.I_GEN *= self.R_over_Q*self.samples
 
+        # test
+        self.I_GEN[self.ind] += 1e6/(self.R_over_Q)*(0.5/self.Q_L -1j*self.detuning) #-0.5*2.2*1j
+
 
     def generator_power(self):
         r'''Calculation of generator power from generator current'''
@@ -899,7 +902,7 @@ class LHCCavityLoop(object):
 
         # Beam current at rf frequency from profile
         self.I_BEAM_FINE = rf_beam_current(self.profile, self.omega,
-            self.rf.t_rev[self.counter], lpf=False)
+            self.rf.t_rev[self.counter], lpf=False)/self.T_s  #self.rf.t_rev[self.counter] #self.profile.bin_size
 
         # Find which index in fine grid matches index in coarse grid
         ind_fine = np.floor((self.profile.bin_centers + self.t_cumul)/self.T_s
@@ -922,11 +925,13 @@ class LHCCavityLoop(object):
             self.I_BEAM[self.n_coarse+i] = np.sum(self.I_BEAM_FINE[np.arange(indices[i-1],indices[i])])
 
         #self.I_BEAM *= 0.5*self.R_over_Q*self.samples #10000 #*np.exp(1j*np.pi)
-        self.I_BEAM *= 1000*self.n_coarse#10000000
+        #self.I_BEAM *= 1000*self.n_coarse#10000000
 
 
         # Update cumulative shift between sampling and revolution period
         self.t_cumul += self.rf.t_rev[self.counter] - self.n_coarse*self.T_s
+
+        #self.I_BEAM[self.n_coarse:self.n_coarse+1778] = -2.2*1j*np.ones(1778)
 
 
     def rf_feedback(self):
@@ -952,6 +957,9 @@ class LHCCavityLoop(object):
         self.V_a_out_prev = self.V_a_out
         self.V_d_out_prev = self.V_d_out
         self.V_fb_in_prev = self.V_fb_in
+
+        # TEST
+        #self.V_fb_out = self.G_a*(self.V_SET[self.ind] - self.V_ANT[self.ind-self.n_delay])
 
 
     def set_point(self):
@@ -1071,8 +1079,52 @@ class LHCCavityLoop(object):
         # Present rf frequency
         self.omega = self.rf.omega_rf[0, self.counter]
         # Present detuning
-        self.d_omega = self.omega - self.omega_c
+        self.d_omega = self.omega_c - self.omega
         # Dimensionless quantities
         self.samples = self.omega*self.T_s
         self.detuning = self.d_omega/self.omega
+
+
+    @staticmethod
+    def half_detuning(peak_beam_current, R_over_Q, rf_frequency, voltage):
+        '''Optimum detuning for half-detuning scheme
+
+        Parameters
+        ----------
+        peak_beam_current : float
+            Peak RF beam current
+        R_over_Q : float
+            Cavity R/Q
+        rf_frequency : float
+            RF frequency
+        voltage : float
+            RF voltage amplitude in the cavity
+
+        Returns
+        -------
+        float
+            Optimum detuning (revolution) frequency in the half-detuning scheme
+        '''
+
+        return -0.25*R_over_Q*peak_beam_current/voltage*rf_frequency
+
+
+    @staticmethod
+    def half_detuning_power(peak_beam_current, voltage):
+        '''RF power consumption half-detuning scheme with optimum detuning
+
+        Parameters
+        ----------
+        peak_beam_current : float
+            Peak RF beam current
+        R_over_Q : float
+            Cavity R/Q
+
+        Returns
+        -------
+        float
+            Optimum detuning (revolution) frequency in the half-detuning scheme
+        '''
+
+        return 0.125*peak_beam_current*voltage
 

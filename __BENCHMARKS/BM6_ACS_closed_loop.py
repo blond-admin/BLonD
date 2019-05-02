@@ -99,7 +99,7 @@ logging.info('CLOSED LOOP, with excitation, 10 turns tracking')
 CL = LHCCavityLoop(rf, profile, f_c=rf.omega_rf[0,0]/(2*np.pi), G_gen=1,
                    I_gen_offset=0, n_cav=8, n_pretrack=10, Q_L=20000,
                    R_over_Q=45, tau_loop=650e-9, T_s=25e-9,
-                   RFFB=LHCRFFeedback(open_loop=False, G_a=0.00001, G_d=10,
+                   RFFB=LHCRFFeedback(open_loop=False, G_a=0.000008, G_d=10,
                                       excitation=True))
 
 plt.figure('Noise injected into Set Point')
