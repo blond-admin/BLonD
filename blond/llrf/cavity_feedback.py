@@ -22,7 +22,8 @@ import scipy
 from scipy.constants import e
 
 from ..llrf.signal_processing import comb_filter, cartesian_to_polar, \
-    polar_to_cartesian, modulator, moving_average, rf_beam_current
+    polar_to_cartesian, modulator, moving_average, rf_beam_current, \
+    low_pass_filter
 from ..llrf.impulse_response import SPS4Section200MHzTWC, SPS5Section200MHzTWC
 from ..utils import bmath as bm
 from ..beam.profile import Profile, CutOptions
@@ -752,8 +753,9 @@ class LHCRFFeedback(object):
 
 class LHCCavityLoop(object):
     r'''Cavity loop to regulate the RF voltage in the LHC ACS cavities.
-    The loop contains a generator, a switch-and-protect device, an RF FB and a OTFB.
-    The quantities of the LLRF system cover one turn with a resolution given by the sampling time.
+    The loop contains a generator, a switch-and-protect device, an RF FB and a
+    OTFB. The arrays of the LLRF system cover one turn with exactly one tenth
+    of the harmonic (i.e.\ the typical sampling time is about 25 ns).
 
     Parameters
     ----------
@@ -799,7 +801,7 @@ class LHCCavityLoop(object):
 
     def __init__(self, RFStation, Profile, f_c=400.789e6, G_gen=1,
                  I_gen_offset=0, n_cav=8, n_pretrack=1, Q_L=20000, R_over_Q=45,
-                 tau_loop=650e-9, T_s=25e-9, RFFB=LHCRFFeedback()):
+                 tau_loop=650e-9, RFFB=LHCRFFeedback()):
 
         # Set up logging
         self.logger = logging.getLogger(__class__.__name__)
@@ -813,12 +815,12 @@ class LHCCavityLoop(object):
         self.G_gen = G_gen
         self.n_cav = n_cav
         self.n_pretrack = n_pretrack
-        self.n_delay = int(tau_loop/T_s)
         self.omega_c = 2*np.pi*f_c
         # TODO: implement optimum loaded Q
         self.Q_L = Q_L
         self.R_over_Q = R_over_Q
-        self.T_s = T_s
+        self.tau_loop = tau_loop
+        #self.T_s = T_s
         self.logger.debug("Cavity loaded Q is %.0f", self.Q_L)
 
         # Import RF FB properties
@@ -834,11 +836,12 @@ class LHCCavityLoop(object):
         self.excitation = self.RFFB.excitation
 
         # Length of arrays in LLRF  #TODO: could change over time
-        self.n_coarse = int(self.rf.t_rev[0]/self.T_s) #*20
+        #self.n_coarse = int(self.rf.t_rev[0]/self.T_s) #*20
+        self.n_coarse = int(self.rf.harmonic[0, 0]/10)
         self.logger.debug("Length of arrays in generator path %d",
                           self.n_coarse)
         # Cumulative shift between sampling and revolution period
-        self.t_cumul = 0
+        #self.t_cumul = 0
 
         # Initialise antenna voltage to set point value
         self.update_variables()
@@ -888,7 +891,7 @@ class LHCCavityLoop(object):
         #self.I_GEN *= self.R_over_Q*self.samples
 
         # test
-        self.I_GEN[self.ind] += 1e6/(self.R_over_Q)*(0.5/self.Q_L -1j*self.detuning) #-0.5*2.2*1j
+        self.I_GEN[self.ind] += 1e6/(self.R_over_Q)*(0.5/self.Q_L-1j*self.detuning) #-0.5*2.2*1j
 
 
     def generator_power(self):
@@ -903,9 +906,19 @@ class LHCCavityLoop(object):
         # Beam current at rf frequency from profile
         self.I_BEAM_FINE = rf_beam_current(self.profile, self.omega,
             self.rf.t_rev[self.counter], lpf=False)/self.T_s  #self.rf.t_rev[self.counter] #self.profile.bin_size
+        self.I_BEAM_FINE *= np.exp(-1j*0.5*np.pi) # 90 deg phase shift w.r.t. V_set in real
+
+        # Pass through low-pass filter
+        # Nyquist frequency 0.5*f_slices; cutoff at 1/self.T_s
+        #cutoff = 2*self.profile.bin_size/self.T_s
+        #self.I_BEAM_FINE.real = low_pass_filter(self.I_BEAM_FINE.real,
+        #                                        cutoff_frequency=cutoff)
+        #self.I_BEAM_FINE.imag = low_pass_filter(self.I_BEAM_FINE.imag,
+        #                                        cutoff_frequency=cutoff)
+
 
         # Find which index in fine grid matches index in coarse grid
-        ind_fine = np.floor((self.profile.bin_centers + self.t_cumul)/self.T_s
+        ind_fine = np.floor(self.profile.bin_centers/self.T_s
                            - 0.5*self.profile.bin_size)
         ind_fine = np.array(ind_fine, dtype=int)
         indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
@@ -924,14 +937,9 @@ class LHCCavityLoop(object):
             #print(np.arange(indices[i-1],indices[i]))
             self.I_BEAM[self.n_coarse+i] = np.sum(self.I_BEAM_FINE[np.arange(indices[i-1],indices[i])])
 
-        #self.I_BEAM *= 0.5*self.R_over_Q*self.samples #10000 #*np.exp(1j*np.pi)
-        #self.I_BEAM *= 1000*self.n_coarse#10000000
-
 
         # Update cumulative shift between sampling and revolution period
-        self.t_cumul += self.rf.t_rev[self.counter] - self.n_coarse*self.T_s
-
-        #self.I_BEAM[self.n_coarse:self.n_coarse+1778] = -2.2*1j*np.ones(1778)
+        #self.t_cumul += self.rf.t_rev[self.counter] - self.n_coarse*self.T_s
 
 
     def rf_feedback(self):
@@ -958,15 +966,15 @@ class LHCCavityLoop(object):
         self.V_d_out_prev = self.V_d_out
         self.V_fb_in_prev = self.V_fb_in
 
-        # TEST
-        #self.V_fb_out = self.G_a*(self.V_SET[self.ind] - self.V_ANT[self.ind-self.n_delay])
-
 
     def set_point(self):
         r'''Voltage set point'''
 
-        return self.open_drive*self.rf.voltage[0, self.counter]* \
-            np.ones(self.n_coarse)/self.n_cav + 1j*np.zeros(self.n_coarse) #self._set_point
+        V_set = polar_to_cartesian(self.rf.voltage[0, self.counter]/self.n_cav,
+            self.rf.phi_rf[0, self.counter])
+        #return self.open_drive*self.rf.voltage[0, self.counter]* \
+        #    np.ones(self.n_coarse)/self.n_cav + 1j*np.zeros(self.n_coarse) #self._set_point
+        return self.open_drive*V_set*np.ones(self.n_coarse)
 
 
     def swap(self):
@@ -1006,7 +1014,7 @@ class LHCCavityLoop(object):
             self.ind = i + self.n_coarse
             self.cavity_response()
             self.V_fb_out = self.G_a*(self.V_SET[self.ind] - self.V_ANT[self.ind-self.n_delay])
-            self.I_GEN[self.ind] = self.V_fb_out + self.V_SET[self.ind]/(self.R_over_Q)*(0.5/self.Q_L -1j*self.detuning)
+            self.I_GEN[self.ind] = self.V_fb_out + self.V_SET[self.ind]/(self.R_over_Q)*(0.5/self.Q_L -1j*self.detuning) + 0.5*1j*I_rf_pk
 
 
     def track_one_turn(self):
@@ -1098,6 +1106,10 @@ class LHCCavityLoop(object):
 
         # Present time step
         self.counter = self.rf.counter[0]
+        # Present sampling time
+        self.T_s = self.rf.t_rev[self.counter]/self.n_coarse
+        # Delay time
+        self.n_delay = int(self.tau_loop/self.T_s)
         # Present rf frequency
         self.omega = self.rf.omega_rf[0, self.counter]
         # Present detuning

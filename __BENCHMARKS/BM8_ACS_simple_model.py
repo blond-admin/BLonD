@@ -50,7 +50,7 @@ alpha = 1./gamma_t/gamma_t        # First order mom. comp. factor
 N_t = 1           # Number of turns to track
 # -----------------------------------------------------------------------------
 
-PLOT_NO_BEAM = False
+PLOT_NO_BEAM = True
 
 # Plot settings
 plt.rc('axes', labelsize=12, labelweight='normal')
@@ -71,7 +71,7 @@ beam = Beam(ring, N_m, N_p)
 profile = Profile(beam, CutOptions(n_slices=100, cut_left=0, cut_right=2.5e-9))
 
 # Parameter assumptions
-logging.info('Assuming following parameters')
+logging.info('Assuming following beam parameters')
 logging.info('    Form factor 1, 2.3e11 p/b, 25 ns spacing')
 logging.info('    RF peak current is %.3f A', I_rf_pk)
 d_f = LHCCavityLoop.half_detuning(rf.omega_rf[0,0]/(2*np.pi), I_rf_pk, R_over_Q, V/8)
@@ -82,12 +82,12 @@ Q_L = LHCCavityLoop.optimum_Q_L(d_f, rf.omega_rf[0,0]/(2*np.pi))
 logging.info('    Optimum loaded Q %.0f', Q_L)
 
 logging.info('Initialising LHCCavityLoop, tuned to injection (with no beam current)')
-logging.info('CLOSED LOOP, no excitation, 1 turn tracking')
+logging.info('CLOSED LOOP, no excitation, 5 turns pretracking')
 
-CL = LHCCavityLoop(rf, profile, f_c=rf.omega_rf[0,0]/(2*np.pi)+d_f, G_gen=1,
-                   I_gen_offset=0, n_cav=8, n_pretrack=5, Q_L=35000,
-                   R_over_Q=45, tau_loop=650e-9, T_s=25e-9,
-                   RFFB=LHCRFFeedback(open_loop=False, G_a=0.000008, G_d=10,
+CL = LHCCavityLoop(rf, profile, f_c=rf.omega_rf[0,0]/(2*np.pi)-d_f, G_gen=1,
+                   I_gen_offset=0, n_cav=8, n_pretrack=5, Q_L=Q_L,
+                   R_over_Q=R_over_Q, tau_loop=650e-9,
+                   RFFB=LHCRFFeedback(open_loop=False, G_a=0.000007, G_d=10,
                                       excitation=False))
 
 
@@ -106,8 +106,6 @@ if PLOT_NO_BEAM:
     plt.legend()
     plt.show()
 
-#CL.track()
-#CL.track()
 CL.track_simple(I_rf_pk)
 CL.track_simple(I_rf_pk)
 
