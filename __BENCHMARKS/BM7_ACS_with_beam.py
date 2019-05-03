@@ -20,9 +20,8 @@ from blond.input_parameters.ring import Ring
 from blond.input_parameters.rf_parameters import RFStation
 from blond.beam.beam import Beam, Proton
 from blond.beam.distributions import bigaussian
-from blond.beam.profile import Profile, CutOptions, FitOptions
+from blond.beam.profile import Profile, CutOptions
 from blond.llrf.cavity_feedback import LHCCavityLoop, LHCRFFeedback
-from blond.llrf.transfer_function import TransferFunction
 
 import logging
 import numpy as np
@@ -34,7 +33,7 @@ from scipy.constants import e
 # Bunch parameters
 N_p = 2.3e11         # Intensity
 N_m = 50000          # Macro-particles
-NB = 156+144         # Number of bunches
+NB = 156+344         # Number of bunches
 tau_0 = 0.3e-9      # Initial bunch length, 4 sigma [s]
 
 # Machine and RF parameters
@@ -84,18 +83,16 @@ for i in range(60,108):
 for i in range(108,156):
     beam.dt[i*N_m:(i+1)*N_m] = bunch.dt[0:N_m] + i*buckets  + 48*buckets
     beam.dE[i*N_m:(i+1)*N_m] = bunch.dE[0:N_m]
-for i in range(156,300):
+for i in range(156,500):
     beam.dt[i*N_m:(i+1)*N_m] = bunch.dt[0:N_m] + i*buckets + 200*buckets
     beam.dE[i*N_m:(i+1)*N_m] = bunch.dE[0:N_m]
 
-#buckets = 1 + 10*NB + 5.0e-6/2.5e-9
 tot_buckets = (NB + 32 + 40 + 48 + 200)*10
 logging.debug('Maximum of beam coordinates %.4e s', np.max(beam.dt))
 logging.info('Number of buckets considered %d', tot_buckets)
 logging.debug('Profile cut set at %.4e s', tot_buckets*rf.t_rf[0,0])
 profile = Profile(beam, CutOptions(n_slices=int(100*tot_buckets), cut_left=0,
-                                   cut_right=tot_buckets*rf.t_rf[0,0]))#,
-                  #FitOptions(fit_option='gaussian'))
+                                   cut_right=tot_buckets*rf.t_rf[0,0]))
 profile.track()
 plt.figure('Bunch profile')
 plt.plot(profile.bin_centers*1e9, profile.n_macroparticles)

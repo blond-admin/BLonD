@@ -22,9 +22,7 @@ import scipy
 from scipy.constants import e
 
 from ..llrf.signal_processing import comb_filter, cartesian_to_polar, \
-    polar_to_cartesian, modulator, moving_average, rf_beam_current, \
-    low_pass_filter
-from ..llrf.impulse_response import SPS4Section200MHzTWC, SPS5Section200MHzTWC
+    polar_to_cartesian, modulator, moving_average, rf_beam_current
 from ..utils import bmath as bm
 from ..beam.profile import Profile, CutOptions
 
@@ -836,12 +834,9 @@ class LHCCavityLoop(object):
         self.excitation = self.RFFB.excitation
 
         # Length of arrays in LLRF  #TODO: could change over time
-        #self.n_coarse = int(self.rf.t_rev[0]/self.T_s) #*20
         self.n_coarse = int(self.rf.harmonic[0, 0]/10)
         self.logger.debug("Length of arrays in generator path %d",
                           self.n_coarse)
-        # Cumulative shift between sampling and revolution period
-        #self.t_cumul = 0
 
         # Initialise antenna voltage to set point value
         self.update_variables()
@@ -888,10 +883,6 @@ class LHCCavityLoop(object):
         self.I_TEST[self.ind] = self.G_gen*self.V_swap_out
         self.I_GEN[self.ind] = self.open_drive*self.I_TEST[self.ind] + \
             self.open_drive_inv*self.I_gen_offset
-        #self.I_GEN *= self.R_over_Q*self.samples
-
-        # test
-        self.I_GEN[self.ind] += 1e6/(self.R_over_Q)*(0.5/self.Q_L-1j*self.detuning) #-0.5*2.2*1j
 
 
     def generator_power(self):
@@ -908,38 +899,16 @@ class LHCCavityLoop(object):
             self.rf.t_rev[self.counter], lpf=False)/self.T_s  #self.rf.t_rev[self.counter] #self.profile.bin_size
         self.I_BEAM_FINE *= np.exp(-1j*0.5*np.pi) # 90 deg phase shift w.r.t. V_set in real
 
-        # Pass through low-pass filter
-        # Nyquist frequency 0.5*f_slices; cutoff at 1/self.T_s
-        #cutoff = 2*self.profile.bin_size/self.T_s
-        #self.I_BEAM_FINE.real = low_pass_filter(self.I_BEAM_FINE.real,
-        #                                        cutoff_frequency=cutoff)
-        #self.I_BEAM_FINE.imag = low_pass_filter(self.I_BEAM_FINE.imag,
-        #                                        cutoff_frequency=cutoff)
-
-
         # Find which index in fine grid matches index in coarse grid
         ind_fine = np.floor(self.profile.bin_centers/self.T_s
                            - 0.5*self.profile.bin_size)
         ind_fine = np.array(ind_fine, dtype=int)
         indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
 
-        # Pick peak RF current within the T_s grid
-        #self.I_BEAM[self.n_coarse] = np.max(np.absolute(self.I_BEAM_FINE[ind_fine[indices[0]]]))
-        #for i in range(1,len(indices)):
-        #    ind_max = np.argmax(np.absolute(
-        #        self.I_BEAM_FINE[np.arange(indices[i-1],indices[i])]))
-        #    self.I_BEAM[self.n_coarse + i] = self.I_BEAM_FINE[indices[i-1]+ind_max]
-
         # Pick total current within one coarse grid
-        #print(np.arange(indices[0]))
         self.I_BEAM[self.n_coarse] = np.sum(self.I_BEAM_FINE[np.arange(indices[0])])
         for i in range(1,len(indices)):
-            #print(np.arange(indices[i-1],indices[i]))
             self.I_BEAM[self.n_coarse+i] = np.sum(self.I_BEAM_FINE[np.arange(indices[i-1],indices[i])])
-
-
-        # Update cumulative shift between sampling and revolution period
-        #self.t_cumul += self.rf.t_rev[self.counter] - self.n_coarse*self.T_s
 
 
     def rf_feedback(self):
@@ -972,8 +941,7 @@ class LHCCavityLoop(object):
 
         V_set = polar_to_cartesian(self.rf.voltage[0, self.counter]/self.n_cav,
             self.rf.phi_rf[0, self.counter])
-        #return self.open_drive*self.rf.voltage[0, self.counter]* \
-        #    np.ones(self.n_coarse)/self.n_cav + 1j*np.zeros(self.n_coarse) #self._set_point
+
         return self.open_drive*V_set*np.ones(self.n_coarse)
 
 
