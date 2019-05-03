@@ -987,6 +987,28 @@ class LHCCavityLoop(object):
         self.track_one_turn()
 
 
+    def track_simple(self, I_rf_pk):
+        r'''Simplified model with proportional gain and step beam current of
+        1000 samples lengthBM7_ACS_with_beam.py
+
+        Parameters
+        ----------
+        I_rf_peak : float
+            Peak RF current
+        '''
+
+        self.update_variables()
+        self.update_arrays()
+        self.update_set_point()
+        self.I_BEAM[self.n_coarse:self.n_coarse+1000] = 1j*I_rf_pk
+
+        for i in range(self.n_coarse):
+            self.ind = i + self.n_coarse
+            self.cavity_response()
+            self.V_fb_out = self.G_a*(self.V_SET[self.ind] - self.V_ANT[self.ind-self.n_delay])
+            self.I_GEN[self.ind] = self.V_fb_out + self.V_SET[self.ind]/(self.R_over_Q)*(0.5/self.Q_L -1j*self.detuning)
+
+
     def track_one_turn(self):
         r'''Single-turn tracking, index by index.'''
 
@@ -1086,7 +1108,7 @@ class LHCCavityLoop(object):
 
 
     @staticmethod
-    def half_detuning(peak_beam_current, R_over_Q, rf_frequency, voltage):
+    def half_detuning(imag_peak_beam_current, R_over_Q, rf_frequency, voltage):
         '''Optimum detuning for half-detuning scheme
 
         Parameters
@@ -1106,7 +1128,7 @@ class LHCCavityLoop(object):
             Optimum detuning (revolution) frequency in the half-detuning scheme
         '''
 
-        return -0.25*R_over_Q*peak_beam_current/voltage*rf_frequency
+        return -0.25*R_over_Q*imag_peak_beam_current/voltage*rf_frequency
 
 
     @staticmethod
@@ -1117,8 +1139,8 @@ class LHCCavityLoop(object):
         ----------
         peak_beam_current : float
             Peak RF beam current
-        R_over_Q : float
-            Cavity R/Q
+        voltage : float
+            Cavity voltage
 
         Returns
         -------
@@ -1127,4 +1149,46 @@ class LHCCavityLoop(object):
         '''
 
         return 0.125*peak_beam_current*voltage
+
+
+    @staticmethod
+    def optimum_Q_L(detuning, rf_frequency):
+        '''Optimum loaded Q when no real part of RF beam current is present
+
+        Parameters
+        ----------
+        detuning : float
+            Detuning frequency
+        rf_frequency : float
+            RF frequency
+
+        Returns
+        -------
+        float
+            Optimum loaded Q
+        '''
+
+        return np.fabs(0.5*rf_frequency/detuning)
+
+
+    @staticmethod
+    def optimum_Q_L_beam(R_over_Q, real_peak_beam_current, voltage):
+        '''Optimum loaded Q when a real part of RF beam current is present
+
+        Parameters
+        ----------
+        peak_beam_current : float
+            Peak RF beam current
+        R_over_Q : float
+            Cavity R/Q
+        voltage : float
+            Cavity voltage
+
+        Returns
+        -------
+        float
+            Optimum loaded Q
+        '''
+
+        return voltage/(R_over_Q*real_peak_beam_current)
 
