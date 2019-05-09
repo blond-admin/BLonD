@@ -688,12 +688,16 @@ class LHCRFFeedback(object):
 
     Parameters
     ----------
+    alpha : float
+        One-turn feedback memory parameter; default is 15/16
     d_phi_ad : float
         Phase misalignment of digital FB w.r.t. analog FB [deg]
     G_a : float
         Analog FB gain [1]
     G_d : float
         Digital FB gain, w.r.t. analog gain [1]
+    G_o : float
+        One-turn feedback gain
     tau_a : float
         Analog FB delay time [s]
     tau_d : float
@@ -702,6 +706,8 @@ class LHCRFFeedback(object):
         Open (True) or closed (False) cavity loop at drive; default is False
     open_loop : bool
         Open (True) or closed (False) cavity loop at RFFB; default is False
+    open_otfb : bool
+        Open (true) or closed (False) one-turn feedback; default is False
     open_rffb : bool
         Open (True) or closed (False) RFFB; default is False
 
@@ -717,14 +723,17 @@ class LHCRFFeedback(object):
         Open (0) or closed (1) RFFB; default is 1
     '''
 
-    def __init__(self, d_phi_ad=0, G_a=0.00001, G_d=10, tau_a=110e-6,
-                 tau_d=400e-6, open_drive=False, open_loop=False,
-                 open_rffb=False, excitation=False, seed1=1234, seed2=7564):
+    def __init__(self, alpha=15/16, d_phi_ad=0, G_a=0.00001, G_d=10, G_o=10,
+                 tau_a=110e-6, tau_d=400e-6, open_drive=False, open_loop=False,
+                 open_otfb=False, open_rffb=False, excitation=False,
+                 seed1=1234, seed2=7564):
 
         # Import variables
+        self.alpha = alpha
         self.d_phi_ad = d_phi_ad*np.pi/180
         self.G_a = G_a
         self.G_d = G_d
+        self.G_o = G_o
         self.tau_a = tau_a
         self.tau_d = tau_d
         self.excitation = excitation
@@ -735,6 +744,7 @@ class LHCRFFeedback(object):
         self.open_drive = int(np.invert(bool(open_drive)))
         self.open_drive_inv = int(bool(open_drive))
         self.open_loop = int(np.invert(bool(open_loop)))
+        self.open_otfb = int(np.invert(bool(open_otfb)))
         self.open_rffb = int(np.invert(bool(open_rffb)))
 
 
@@ -825,10 +835,13 @@ class LHCCavityLoop(object):
         self.open_drive = self.RFFB.open_drive
         self.open_drive_inv = self.RFFB.open_drive_inv
         self.open_loop = self.RFFB.open_loop
+        self.open_otfb = self.RFFB.open_otfb
         self.open_rffb = self.RFFB.open_rffb
+        self.alpha = self.RFFB.alpha
         self.d_phi_ad = self.RFFB.d_phi_ad
         self.G_a = self.RFFB.G_a
         self.G_d = self.RFFB.G_d
+        self.G_o = self.RFFB.G_o
         self.tau_a = self.RFFB.tau_a
         self.tau_d = self.RFFB.tau_d
         self.excitation = self.RFFB.excitation
@@ -843,14 +856,18 @@ class LHCCavityLoop(object):
         self.logger.debug("Relative detuning is %.4e", self.detuning)
 
         self.V_ANT = np.zeros(2*self.n_coarse, dtype=complex)
+        self.V_FB_IN = np.zeros(2*self.n_coarse, dtype=complex)
+        self.V_OTFB = np.zeros(2*self.n_coarse, dtype=complex)
         self.I_GEN = np.zeros(2*self.n_coarse, dtype=complex)
         self.I_BEAM = np.zeros(2*self.n_coarse, dtype=complex)
         self.I_TEST = np.zeros(2 * self.n_coarse, dtype=complex)
 
         # Scalar variables
+        self.V_a_in_prev = 0
         self.V_a_out_prev = 0
         self.V_d_out_prev = 0
         self.V_fb_in_prev = 0
+        self.V_otfb_prev = 0
 
         # Pre-track without beam
         self.logger.debug("Track without beam for %d turns", self.n_pretrack)
@@ -891,6 +908,13 @@ class LHCCavityLoop(object):
         return 0.5*self.R_over_Q*self.Q_L*np.absolute(self.I_GEN)**2
 
 
+    def one_turn_feedback(self):
+
+        # Update based on last turn and complement delay of signal
+        self.V_OTFB[self.ind] = self.alpha*self.V_OTFB[self.ind-self.n_coarse] + \
+            self.G_o*(1 - self.alpha)*self.V_FB_IN[self.ind-self.n_coarse+self.n_delay+1]
+
+
     def rf_beam_current(self):
         r'''RF beam current calculation from beam profile'''
 
@@ -917,10 +941,17 @@ class LHCCavityLoop(object):
         # Calculate voltage difference to act on
         self.V_fb_in = (self.V_SET[self.ind] -
                         self.open_loop*self.V_ANT[self.ind-self.n_delay])
+        self.V_FB_IN[self.ind] = self.V_fb_in
+
+        # On the analog branch, OTFB can contribute
+        self.one_turn_feedback()
+        self.V_a_in = self.V_fb_in + self.open_otfb*self.V_OTFB[self.ind]
 
         # Output of analog feedback (separate branch)
+        #self.V_a_out = self.V_a_out_prev*(1 - self.T_s/self.tau_a) + \
+        #    self.G_a*(self.V_fb_in - self.V_fb_in_prev)
         self.V_a_out = self.V_a_out_prev*(1 - self.T_s/self.tau_a) + \
-            self.G_a*(self.V_fb_in - self.V_fb_in_prev)
+            self.G_a*(self.V_a_in - self.V_a_in_prev)
 
         # Output of digital feedback (separate branch)
         self.V_d_out = self.V_d_out_prev*(1 - self.T_s/self.tau_d) + \
@@ -931,9 +962,12 @@ class LHCCavityLoop(object):
         self.V_fb_out = self.open_rffb*(self.V_a_out + self.V_d_out)
 
         # Update memory
+        self.V_a_in_prev = self.V_a_in
         self.V_a_out_prev = self.V_a_out
         self.V_d_out_prev = self.V_d_out
         self.V_fb_in_prev = self.V_fb_in
+        #self.V_FB_IN[self.ind] = (self.V_SET[self.ind] -
+        #    self.open_loop*self.V_ANT[self.ind])#self.V_fb_in
 
 
     def set_point(self):
@@ -1044,6 +1078,10 @@ class LHCCavityLoop(object):
 
         # TODO: update n_coarse and array sizes
         self.V_ANT = np.concatenate((self.V_ANT[self.n_coarse:],
+                                    np.zeros(self.n_coarse, dtype=complex)))
+        self.V_FB_IN = np.concatenate((self.V_FB_IN[self.n_coarse:],
+                                    np.zeros(self.n_coarse, dtype=complex)))
+        self.V_OTFB = np.concatenate((self.V_OTFB[self.n_coarse:],
                                     np.zeros(self.n_coarse, dtype=complex)))
         self.I_BEAM = np.concatenate((self.I_BEAM[self.n_coarse:],
                                      np.zeros(self.n_coarse, dtype=complex)))

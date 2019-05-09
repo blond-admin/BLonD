@@ -8,6 +8,7 @@
 *.pydevproject
 
 .settings
+.idea/
 
 /__doc/_build/
 /__doc/build/

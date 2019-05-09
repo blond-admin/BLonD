@@ -33,14 +33,14 @@ from scipy.constants import e
 # Bunch parameters
 N_p = 2.3e11         # Intensity
 N_m = 50000          # Macro-particles
-NB = 156+344         # Number of bunches
-tau_0 = 0.4e-9      # Initial bunch length, 4 sigma [s]
+NB = 144         # Number of bunches
+tau_0 = 0.05e-9      # Initial bunch length, 4 sigma [s]
 
 # Machine and RF parameters
 C = 26658.883        # Machine circumference [m]
 p_s = 450e9          # Synchronous momentum [eV/c]
 h = 35640            # Harmonic number
-V = 8e6              # RF voltage [V]
+V = 6e6              # RF voltage [V]
 dphi = 0             # Phase modulation/offset
 R_over_Q = 45        # Cavity R/Q [Ohms]
 gamma_t = 53.8       # Transition gamma
@@ -67,29 +67,23 @@ ring = Ring(C, alpha, p_s, Particle=Proton(), n_turns=1)
 rf = RFStation(ring, [h], [3.1e6], [dphi]) # SPS-equivalent for 0.57 eVs, 1.65 ns
 
 bunch = Beam(ring, N_m, N_p)
-bigaussian(ring, rf, bunch, sigma_dt=1.65e-9/4) #tau_0)
+bigaussian(ring, rf, bunch, sigma_dt=tau_0)
 # Real RF voltage
 rf = RFStation(ring, [h], [V], [dphi])
 
 beam = Beam(ring, N_m*NB, N_p*NB)
 buckets = rf.t_rf[0,0]*10
-for i in range(12):
-    beam.dt[i*N_m:(i+1)*N_m] = bunch.dt[0:N_m] + i*buckets
+for i in range(0,48):
+    beam.dt[i*N_m:(i+1)*N_m] = bunch.dt[0:N_m] + i*buckets + 100*buckets
     beam.dE[i*N_m:(i+1)*N_m] = bunch.dE[0:N_m]
-for i in range(12,60):
-    beam.dt[i*N_m:(i+1)*N_m] = bunch.dt[0:N_m] + i*buckets + 32*buckets
+for i in range(48,96):
+    beam.dt[i*N_m:(i+1)*N_m] = bunch.dt[0:N_m] + i*buckets + 108*buckets
     beam.dE[i*N_m:(i+1)*N_m] = bunch.dE[0:N_m]
-for i in range(60,108):
-    beam.dt[i*N_m:(i+1)*N_m] = bunch.dt[0:N_m] + i*buckets + 40*buckets
-    beam.dE[i*N_m:(i+1)*N_m] = bunch.dE[0:N_m]
-for i in range(108,156):
-    beam.dt[i*N_m:(i+1)*N_m] = bunch.dt[0:N_m] + i*buckets  + 48*buckets
-    beam.dE[i*N_m:(i+1)*N_m] = bunch.dE[0:N_m]
-for i in range(156,500):
-    beam.dt[i*N_m:(i+1)*N_m] = bunch.dt[0:N_m] + i*buckets + 200*buckets
+for i in range(96,144):
+    beam.dt[i*N_m:(i+1)*N_m] = bunch.dt[0:N_m] + i*buckets  + 116*buckets
     beam.dE[i*N_m:(i+1)*N_m] = bunch.dE[0:N_m]
 
-tot_buckets = (NB + 32 + 40 + 48 + 200)*10
+tot_buckets = (NB + 32 + 40 + 48 )*10
 logging.debug('Maximum of beam coordinates %.4e s', np.max(beam.dt))
 logging.info('Number of buckets considered %d', tot_buckets)
 logging.debug('Profile cut set at %.4e s', tot_buckets*rf.t_rf[0,0])
@@ -108,10 +102,10 @@ logging.info('CLOSED LOOP, no excitation, 1 turn tracking')
 
 # DUMMY TO CALCULATE PEAK BEAM CURRENT
 CL = LHCCavityLoop(rf, profile, f_c=rf.omega_rf[0,0]/(2*np.pi), G_gen=1,
-                   I_gen_offset=0, n_cav=8, n_pretrack=2, Q_L=35000,
+                   I_gen_offset=0, n_cav=8, n_pretrack=30, Q_L=35000,
                    R_over_Q=R_over_Q, tau_loop=650e-9,
-                   RFFB=LHCRFFeedback(open_loop=False, open_otfb=True,
-                                      G_a=6.8e-6, G_d=10,
+                   RFFB=LHCRFFeedback(open_loop=False, open_otfb=False,
+                                      G_a=6.8e-6, G_d=10, G_o=1,
                                       excitation=False))
 if PLOT_NO_BEAM:
     plt.figure('Generator current')
@@ -143,10 +137,10 @@ logging.info('    Optimum loaded Q %.0f', Q_L)
 
 # REALLY USED FOR COMPUTATION
 CL = LHCCavityLoop(rf, profile, f_c=rf.omega_rf[0,0]/(2*np.pi)-d_f, G_gen=1,
-                   I_gen_offset=0, n_cav=8, n_pretrack=5, Q_L=Q_L,
+                   I_gen_offset=0, n_cav=8, n_pretrack=30, Q_L=Q_L,
                    R_over_Q=R_over_Q, tau_loop=650e-9,
-                   RFFB=LHCRFFeedback(open_loop=False, open_otfb=True,
-                                      G_a=6.8e-6, G_d=10, excitation=False))
+                   RFFB=LHCRFFeedback(alpha=15/16, open_loop=False, open_otfb=False,
+                                      G_a=6.8e-6, G_d=10, G_o=1, excitation=False))
 CL.rf_beam_current()
 
 plt.figure('RF beam current, fine grid')
@@ -180,8 +174,7 @@ logging.info('Average generator power before beam injection is %.10f kW', np.mea
 
 CL.track()
 CL.track()
-#CL.track_simple(I_rf_pk)
-#CL.track_simple(I_rf_pk)
+
 
 fig = plt.figure('Antenna voltage, first turns with beam', figsize=(10,5))
 gs = plt.GridSpec(2,4)
