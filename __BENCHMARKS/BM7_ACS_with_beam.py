@@ -34,13 +34,13 @@ from scipy.constants import e
 N_p = 2.3e11         # Intensity
 N_m = 50000          # Macro-particles
 NB = 156+344         # Number of bunches
-tau_0 = 0.3e-9      # Initial bunch length, 4 sigma [s]
+tau_0 = 0.4e-9      # Initial bunch length, 4 sigma [s]
 
 # Machine and RF parameters
 C = 26658.883        # Machine circumference [m]
 p_s = 450e9          # Synchronous momentum [eV/c]
 h = 35640            # Harmonic number
-V = 6e6              # RF voltage [V]
+V = 8e6              # RF voltage [V]
 dphi = 0             # Phase modulation/offset
 R_over_Q = 45        # Cavity R/Q [Ohms]
 gamma_t = 53.8       # Transition gamma
@@ -64,10 +64,12 @@ Logger(debug=True)
 
 
 ring = Ring(C, alpha, p_s, Particle=Proton(), n_turns=1)
-rf = RFStation(ring, [h], [V], [dphi])
+rf = RFStation(ring, [h], [3.1e6], [dphi]) # SPS-equivalent for 0.57 eVs, 1.65 ns
 
 bunch = Beam(ring, N_m, N_p)
-bigaussian(ring, rf, bunch, sigma_dt=tau_0)
+bigaussian(ring, rf, bunch, sigma_dt=1.65e-9/4) #tau_0)
+# Real RF voltage
+rf = RFStation(ring, [h], [V], [dphi])
 
 beam = Beam(ring, N_m*NB, N_p*NB)
 buckets = rf.t_rf[0,0]*10
@@ -108,7 +110,7 @@ logging.info('CLOSED LOOP, no excitation, 1 turn tracking')
 CL = LHCCavityLoop(rf, profile, f_c=rf.omega_rf[0,0]/(2*np.pi), G_gen=1,
                    I_gen_offset=0, n_cav=8, n_pretrack=1, Q_L=35000,
                    R_over_Q=R_over_Q, tau_loop=650e-9,
-                   RFFB=LHCRFFeedback(open_loop=False, G_a=0.000008, G_d=10,
+                   RFFB=LHCRFFeedback(open_loop=False, G_a=6.8e-6, G_d=10,
                                       excitation=False))
 if PLOT_NO_BEAM:
     plt.figure('Generator current')
@@ -142,7 +144,7 @@ logging.info('    Optimum loaded Q %.0f', Q_L)
 CL = LHCCavityLoop(rf, profile, f_c=rf.omega_rf[0,0]/(2*np.pi)-d_f, G_gen=1,
                    I_gen_offset=0, n_cav=8, n_pretrack=5, Q_L=Q_L,
                    R_over_Q=R_over_Q, tau_loop=650e-9,
-                   RFFB=LHCRFFeedback(open_loop=False, G_a=0.000007, G_d=10,
+                   RFFB=LHCRFFeedback(open_loop=False, G_a=6.8e-6, G_d=10,
                                       excitation=False))
 CL.rf_beam_current()
 

@@ -32,7 +32,7 @@ from scipy.constants import e
 # Bunch parameters
 N_p = 2.3e11         # Intensity
 N_m = 50000          # Macro-particles
-I_rf_pk = 2*N_p*e/25e-9           # RF peak current [A]
+#I_rf_pk = 2*N_p*e/25e-9           # RF peak current [A]
 
 # Machine and RF parameters
 C = 26658.883        # Machine circumference [m]
@@ -67,10 +67,12 @@ rf = RFStation(ring, [h], [V], [dphi])
 # dummy beam & profile
 beam = Beam(ring, N_m, N_p)
 profile = Profile(beam, CutOptions(n_slices=100, cut_left=0, cut_right=2.5e-9))
+I_rf_pk = 2*N_p*e/(10*rf.t_rf[0,0])
 
 # Parameter assumptions
 logging.info('Assuming following beam parameters')
 logging.info('    Form factor 1, 2.3e11 p/b, 25 ns spacing')
+logging.info('    RF frequency %.8e Hz', rf.omega_rf[0,0]/(2*np.pi))
 logging.info('    RF peak current is %.3f A', I_rf_pk)
 d_f = LHCCavityLoop.half_detuning(rf.omega_rf[0,0]/(2*np.pi), I_rf_pk, R_over_Q, V/8)
 logging.info('    Optimum detuning in half-detuning scheme %.4e Hz', d_f)
@@ -83,10 +85,16 @@ logging.info('Initialising LHCCavityLoop, tuned to injection (with no beam curre
 logging.info('CLOSED LOOP, no excitation, 5 turns pretracking')
 
 CL = LHCCavityLoop(rf, profile, f_c=rf.omega_rf[0,0]/(2*np.pi)-d_f, G_gen=1,
-                   I_gen_offset=0, n_cav=8, n_pretrack=5, Q_L=Q_L,
+                   I_gen_offset=0, n_cav=8, n_pretrack=1, Q_L=Q_L,
                    R_over_Q=R_over_Q, tau_loop=650e-9,
-                   RFFB=LHCRFFeedback(open_loop=False, G_a=0.000007, G_d=10,
+                   RFFB=LHCRFFeedback(open_loop=False, G_a=6.8e-6, G_d=10,
                                       excitation=False))
+
+CL.track_simple(0)
+CL.track_simple(0)
+CL.track_simple(0)
+CL.track_simple(0)
+CL.track_simple(0)
 
 
 if PLOT_NO_BEAM:
@@ -95,6 +103,8 @@ if PLOT_NO_BEAM:
     plt.plot(np.imag(CL.I_GEN), label='imag')
     plt.xlabel('Samples [at 40 MS/s]')
     plt.ylabel('Generator current [A]')
+    plt.legend()
+    #plt.savefig('/Users/timko/Documents/BLonD/CodeToCodeComp/ACSCavLoop/Case1/I_gen_no_beam.png')
 
     plt.figure('Antenna voltage')
     plt.plot(np.real(CL.V_ANT)*1e-6, label='real')
@@ -103,6 +113,10 @@ if PLOT_NO_BEAM:
     plt.ylabel('Antenna voltage [MV]')
     plt.legend()
     plt.show()
+    #plt.savefig('/Users/timko/Documents/BLonD/CodeToCodeComp/ACSCavLoop/Case1/V_ant_no_beam.png')
+
+    logging.info('V_ant without beam %.8e + 1j * %.8e V', CL.V_ANT.real[-1], CL.V_ANT.imag[-1])
+    logging.info('I_gen without beam %.8e + 1j * %.8e A', CL.I_GEN.real[-1], CL.I_GEN.imag[-1])
 
 CL.track_simple(I_rf_pk)
 CL.track_simple(I_rf_pk)
@@ -115,6 +129,7 @@ plt.xlabel('Samples [at 40 MS/s]')
 plt.ylabel('RF beam current [A]')
 plt.legend()
 plt.show()
+#plt.savefig('/Users/timko/Documents/BLonD/CodeToCodeComp/ACSCavLoop/Case1/I_beam.png')
 
 logging.info('Total DC beam current %.4e A', np.sum(CL.profile.n_macroparticles)/beam.n_macroparticles*beam.intensity*e/ring.t_rev[0])
 
@@ -144,6 +159,7 @@ ax3.scatter(CL.V_ANT.real*1e-6, CL.V_ANT.imag*1e-6)
 ax3.set_xlabel('Voltage, I [MV]')
 ax3.set_ylabel('Voltage, Q [MV]')
 plt.tight_layout()
+#plt.savefig('/Users/timko/Documents/BLonD/CodeToCodeComp/ACSCavLoop/Case1/V_ant.png')
 
 fig = plt.figure('Generator current, first turns with beam', figsize=(10,5))
 gs = plt.GridSpec(2, 4)
@@ -161,6 +177,7 @@ ax3.set_xlabel('Current, I [A]')
 ax3.set_ylabel('Current, Q [A]')
 plt.tight_layout()
 plt.show()
+#plt.savefig('/Users/timko/Documents/BLonD/CodeToCodeComp/ACSCavLoop/Case1/I_gen.png')
 
 P_gen = CL.generator_power()
 plt.figure('Generator forward power')
@@ -170,8 +187,12 @@ plt.xlabel('Samples [at 40 MS/s]')
 plt.ylabel('Power [kW]')
 plt.legend()
 plt.show()
+#plt.savefig('/Users/timko/Documents/BLonD/CodeToCodeComp/ACSCavLoop/Case1/P_gen.png')
 
-P_gen = CL.generator_power()
+#P_gen = CL.generator_power()
 logging.info('Average generator power after beam injection is %.10f kW', np.mean(P_gen)*1e-3)
 
 logging.info('Done.')
+
+#np.savetxt('/Users/timko/Documents/BLonD/CodeToCodeComp/ACSCavLoop/Case1/BLonD_I_gen.txt', CL.I_GEN, fmt='%.8e')
+#np.savetxt('/Users/timko/Documents/BLonD/CodeToCodeComp/ACSCavLoop/Case1/BLonD_V_ant.txt', CL.V_ANT, fmt='%.8e')

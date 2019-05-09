@@ -69,8 +69,8 @@ logging.info('Initialising LHCCavityLoop, tuned to injection (with no beam curre
 logging.info('CLOSED LOOP, no excitation, 1 turn tracking')
 CL = LHCCavityLoop(rf, profile, f_c=rf.omega_rf[0,0]/(2*np.pi), G_gen=1,
                    I_gen_offset=0, n_cav=8, n_pretrack=1, Q_L=20000,
-                   R_over_Q=45, tau_loop=650e-9, T_s=25e-9,
-                   RFFB=LHCRFFeedback(open_loop=False, G_a=0.00001, G_d=10,
+                   R_over_Q=45, tau_loop=650e-9, #T_s=25e-9,
+                   RFFB=LHCRFFeedback(open_loop=False, G_a=6.8e-6, G_d=10, #G_a=0.00001, G_d=10,
                                       excitation=False))
 logging.info('Initial generator current is %.4f A', np.mean(np.absolute(CL.I_GEN[0:10])))
 logging.info('Samples (omega x T_s) is %.4f', CL.samples)
@@ -98,8 +98,8 @@ plt.show()
 logging.info('CLOSED LOOP, with excitation, 10 turns tracking')
 CL = LHCCavityLoop(rf, profile, f_c=rf.omega_rf[0,0]/(2*np.pi), G_gen=1,
                    I_gen_offset=0, n_cav=8, n_pretrack=10, Q_L=20000,
-                   R_over_Q=45, tau_loop=650e-9, T_s=25e-9,
-                   RFFB=LHCRFFeedback(open_loop=False, G_a=0.000008, G_d=10,
+                   R_over_Q=45, tau_loop=650e-9, #T_s=25e-9,
+                   RFFB=LHCRFFeedback(open_loop=False, G_a=6.8e-6, G_d=10,
                                       excitation=True))
 
 plt.figure('Noise injected into Set Point')
@@ -139,5 +139,21 @@ ax2.set_ylabel('Phase [degrees]')
 plt.legend()
 plt.show()
 
+fig = plt.figure('Closed loop response')
+gs = plt.GridSpec(2, 1)
+ax1 = fig.add_subplot(gs[0, 0])
+ax1.set_title('Transfer function')
+ax1.plot(TF60k.f_est/10 ** 3, 20 * np.log10(np.abs(TF60k.H_est)), 'b', linewidth=0.3)
+ax1.set_xlabel('Frequency [kHz]')
+ax1.set_ylabel('Gain [dB]')
+ax2 = fig.add_subplot(gs[1, 0], sharex=ax1)
+ax2.plot(TF60k.f_est/10**3, (180/np.pi)*np.unwrap(np.angle(TF60k.H_est)), 'b', linewidth=0.3)
+ax2.set_xlabel('Frequency [kHz]')
+ax2.set_ylabel('Phase [degrees]')
+ax1.set_xlim((-2000, 2000))
+ax1.set_ylim((-30, 10))
+ax2.set_ylim((-180, 180))
+plt.tight_layout()
+plt.show()
 
 logging.info('Done.')
