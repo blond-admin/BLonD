@@ -702,6 +702,8 @@ class LHCRFFeedback(object):
         Analog FB delay time [s]
     tau_d : float
         Digital FB delay time [s]
+    tau_o : float
+        AC-coupling delay time of one-turn feedback [s]
     open_drive : bool
         Open (True) or closed (False) cavity loop at drive; default is False
     open_loop : bool
@@ -724,9 +726,9 @@ class LHCRFFeedback(object):
     '''
 
     def __init__(self, alpha=15/16, d_phi_ad=0, G_a=0.00001, G_d=10, G_o=10,
-                 tau_a=110e-6, tau_d=400e-6, open_drive=False, open_loop=False,
-                 open_otfb=False, open_rffb=False, excitation=False,
-                 seed1=1234, seed2=7564):
+                 tau_a=110e-6, tau_d=400e-6, tau_o=100e-6, open_drive=False,
+                 open_loop=False, open_otfb=False, open_rffb=False,
+                 excitation=False, seed1=1234, seed2=7564):
 
         # Import variables
         self.alpha = alpha
@@ -736,6 +738,7 @@ class LHCRFFeedback(object):
         self.G_o = G_o
         self.tau_a = tau_a
         self.tau_d = tau_d
+        self.tau_o = tau_o
         self.excitation = excitation
         self.seed1 = seed1
         self.seed2 = seed2
@@ -844,6 +847,7 @@ class LHCCavityLoop(object):
         self.G_o = self.RFFB.G_o
         self.tau_a = self.RFFB.tau_a
         self.tau_d = self.RFFB.tau_d
+        self.tau_o = self.RFFB.tau_o
         self.excitation = self.RFFB.excitation
 
         # Length of arrays in LLRF  #TODO: could change over time
@@ -857,7 +861,8 @@ class LHCCavityLoop(object):
 
         self.V_ANT = np.zeros(2*self.n_coarse, dtype=complex)
         self.V_FB_IN = np.zeros(2*self.n_coarse, dtype=complex)
-        self.V_OTFB = np.zeros(2*self.n_coarse, dtype=complex)
+        self.V_OTFB = np.zeros(2*self.n_coarse+1, dtype=complex) # Need an extra point!
+        #self.V_OTFB = np.zeros(2*self.n_coarse, dtype=complex)
         self.I_GEN = np.zeros(2*self.n_coarse, dtype=complex)
         self.I_BEAM = np.zeros(2*self.n_coarse, dtype=complex)
         self.I_TEST = np.zeros(2 * self.n_coarse, dtype=complex)
@@ -911,8 +916,20 @@ class LHCCavityLoop(object):
     def one_turn_feedback(self):
 
         # Update based on last turn and complement delay of signal
-        self.V_OTFB[self.ind] = self.alpha*self.V_OTFB[self.ind-self.n_coarse] + \
-            self.G_o*(1 - self.alpha)*self.V_FB_IN[self.ind-self.n_coarse+self.n_delay+1]
+        #self.V_OTFB[self.ind] = self.alpha*self.V_OTFB[self.ind-self.n_coarse] + \
+        #    self.G_o*(1 - self.alpha)*self.V_FB_IN[self.ind-self.n_coarse+self.n_delay]
+        #self.V_otfb = self.V_OTFB[self.ind]
+
+        # OTFB array shifted w.r.t. others: 0 = last point of 2 turns ago
+        # With AC coupling
+        i1 = self.ind-self.n_coarse
+        i2 = self.ind-self.n_coarse+self.n_delay
+        self.V_OTFB[self.ind+1] = self.alpha*self.V_OTFB[i1+1] + \
+            self.tau_o/(self.T_s + self.tau_o) * (self.V_OTFB[self.ind] -
+            self.alpha*self.V_OTFB[i1] + self.G_o*(1 - self.alpha)* \
+            (self.V_FB_IN[i2+1] - self.V_FB_IN[i2]))
+        # Note, array shifted by 1 w.r.t. others
+        self.V_otfb = self.V_OTFB[self.ind+1]
 
 
     def rf_beam_current(self):
@@ -945,7 +962,8 @@ class LHCCavityLoop(object):
 
         # On the analog branch, OTFB can contribute
         self.one_turn_feedback()
-        self.V_a_in = self.V_fb_in + self.open_otfb*self.V_OTFB[self.ind]
+        #self.V_a_in = self.V_fb_in + self.open_otfb*self.V_OTFB[self.ind]
+        self.V_a_in = self.V_fb_in + self.open_otfb*self.V_otfb
 
         # Output of analog feedback (separate branch)
         #self.V_a_out = self.V_a_out_prev*(1 - self.T_s/self.tau_a) + \
@@ -1081,8 +1099,10 @@ class LHCCavityLoop(object):
                                     np.zeros(self.n_coarse, dtype=complex)))
         self.V_FB_IN = np.concatenate((self.V_FB_IN[self.n_coarse:],
                                     np.zeros(self.n_coarse, dtype=complex)))
-        self.V_OTFB = np.concatenate((self.V_OTFB[self.n_coarse:],
+        self.V_OTFB = np.concatenate((self.V_OTFB[self.n_coarse-1:],
                                     np.zeros(self.n_coarse, dtype=complex)))
+        #self.V_OTFB = np.concatenate((self.V_OTFB[self.n_coarse:],
+        #                            np.zeros(self.n_coarse, dtype=complex)))
         self.I_BEAM = np.concatenate((self.I_BEAM[self.n_coarse:],
                                      np.zeros(self.n_coarse, dtype=complex)))
         self.I_GEN = np.concatenate((self.I_GEN[self.n_coarse:],

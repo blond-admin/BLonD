@@ -137,10 +137,10 @@ logging.info('    Optimum loaded Q %.0f', Q_L)
 
 # REALLY USED FOR COMPUTATION
 CL = LHCCavityLoop(rf, profile, f_c=rf.omega_rf[0,0]/(2*np.pi)-d_f, G_gen=1,
-                   I_gen_offset=0, n_cav=8, n_pretrack=30, Q_L=Q_L,
+                   I_gen_offset=0, n_cav=8, n_pretrack=100, Q_L=Q_L,
                    R_over_Q=R_over_Q, tau_loop=650e-9,
                    RFFB=LHCRFFeedback(alpha=15/16, open_loop=False, open_otfb=False,
-                                      G_a=6.8e-6, G_d=10, G_o=1, excitation=False))
+                                      G_a=6.8e-6, G_d=10, G_o=10, excitation=False))
 CL.rf_beam_current()
 
 plt.figure('RF beam current, fine grid')
