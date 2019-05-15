@@ -811,8 +811,8 @@ class LHCCavityLoop(object):
     '''
 
     def __init__(self, RFStation, Profile, f_c=400.789e6, G_gen=1,
-                 I_gen_offset=0, n_cav=8, n_pretrack=1, Q_L=20000, R_over_Q=45,
-                 tau_loop=650e-9, RFFB=LHCRFFeedback()):
+                 I_gen_offset=0, n_cav=8, n_pretrack=200, Q_L=20000,
+                 R_over_Q=45, tau_loop=650e-9, RFFB=LHCRFFeedback()):
 
         # Set up logging
         self.logger = logging.getLogger(__class__.__name__)
@@ -924,6 +924,7 @@ class LHCCavityLoop(object):
         # With AC coupling
         i1 = self.ind-self.n_coarse
         i2 = self.ind-self.n_coarse+self.n_delay
+        #i2 = self.ind-self.n_delay
         self.V_OTFB[self.ind+1] = self.alpha*self.V_OTFB[i1+1] + \
             self.tau_o/(self.T_s + self.tau_o) * (self.V_OTFB[self.ind] -
             self.alpha*self.V_OTFB[i1] + self.G_o*(1 - self.alpha)* \

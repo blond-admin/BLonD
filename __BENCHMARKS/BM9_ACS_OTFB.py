@@ -31,10 +31,10 @@ from scipy.constants import e
 
 # Simulation parameters -------------------------------------------------------
 # Bunch parameters
-N_p = 2.3e11         # Intensity
+N_p = 1.1e11 #2.3e11         # Intensity
 N_m = 50000          # Macro-particles
 NB = 144         # Number of bunches
-tau_0 = 0.05e-9      # Initial bunch length, 4 sigma [s]
+tau_0 = 0.4e-9      # Initial bunch length, 4 sigma [s]
 
 # Machine and RF parameters
 C = 26658.883        # Machine circumference [m]
@@ -47,10 +47,10 @@ gamma_t = 53.8       # Transition gamma
 alpha = 1./gamma_t/gamma_t        # First order mom. comp. factor
 
 # Tracking details
-N_t = 1           # Number of turns to track
+N_t = 200          # Number of turns to track
 # -----------------------------------------------------------------------------
 
-PLOT_NO_BEAM = True
+PLOT_NO_BEAM = False
 
 # Plot settings
 plt.rc('axes', labelsize=12, labelweight='normal')
@@ -73,17 +73,20 @@ rf = RFStation(ring, [h], [V], [dphi])
 
 beam = Beam(ring, N_m*NB, N_p*NB)
 buckets = rf.t_rf[0,0]*10
-for i in range(0,48):
-    beam.dt[i*N_m:(i+1)*N_m] = bunch.dt[0:N_m] + i*buckets + 100*buckets
+for i in range(0,144):
+    beam.dt[i*N_m:(i+1)*N_m] = bunch.dt[0:N_m] + i*buckets + 200*buckets
     beam.dE[i*N_m:(i+1)*N_m] = bunch.dE[0:N_m]
-for i in range(48,96):
-    beam.dt[i*N_m:(i+1)*N_m] = bunch.dt[0:N_m] + i*buckets + 108*buckets
-    beam.dE[i*N_m:(i+1)*N_m] = bunch.dE[0:N_m]
-for i in range(96,144):
-    beam.dt[i*N_m:(i+1)*N_m] = bunch.dt[0:N_m] + i*buckets  + 116*buckets
-    beam.dE[i*N_m:(i+1)*N_m] = bunch.dE[0:N_m]
+#for i in range(0,48):
+#    beam.dt[i*N_m:(i+1)*N_m] = bunch.dt[0:N_m] + i*buckets + 200*buckets
+#    beam.dE[i*N_m:(i+1)*N_m] = bunch.dE[0:N_m]
+#for i in range(48,96):
+#    beam.dt[i*N_m:(i+1)*N_m] = bunch.dt[0:N_m] + i*buckets + 208*buckets
+#    beam.dE[i*N_m:(i+1)*N_m] = bunch.dE[0:N_m]
+#for i in range(96,144):
+#    beam.dt[i*N_m:(i+1)*N_m] = bunch.dt[0:N_m] + i*buckets  + 216*buckets
+#    beam.dE[i*N_m:(i+1)*N_m] = bunch.dE[0:N_m]
 
-tot_buckets = (NB + 32 + 40 + 48 )*10
+tot_buckets = (NB + 220)*10
 logging.debug('Maximum of beam coordinates %.4e s', np.max(beam.dt))
 logging.info('Number of buckets considered %d', tot_buckets)
 logging.debug('Profile cut set at %.4e s', tot_buckets*rf.t_rf[0,0])
@@ -102,7 +105,7 @@ logging.info('CLOSED LOOP, no excitation, 1 turn tracking')
 
 # DUMMY TO CALCULATE PEAK BEAM CURRENT
 CL = LHCCavityLoop(rf, profile, f_c=rf.omega_rf[0,0]/(2*np.pi), G_gen=1,
-                   I_gen_offset=0, n_cav=8, n_pretrack=30, Q_L=35000,
+                   I_gen_offset=0, n_cav=8, n_pretrack=10, Q_L=35000,
                    R_over_Q=R_over_Q, tau_loop=650e-9,
                    RFFB=LHCRFFeedback(open_loop=False, open_otfb=False,
                                       G_a=6.8e-6, G_d=10, G_o=1,
@@ -137,10 +140,11 @@ logging.info('    Optimum loaded Q %.0f', Q_L)
 
 # REALLY USED FOR COMPUTATION
 CL = LHCCavityLoop(rf, profile, f_c=rf.omega_rf[0,0]/(2*np.pi)-d_f, G_gen=1,
-                   I_gen_offset=0, n_cav=8, n_pretrack=100, Q_L=Q_L,
+                   I_gen_offset=0, n_cav=8, n_pretrack=200, Q_L=Q_L,
                    R_over_Q=R_over_Q, tau_loop=650e-9,
-                   RFFB=LHCRFFeedback(alpha=15/16, open_loop=False, open_otfb=False,
-                                      G_a=6.8e-6, G_d=10, G_o=10, excitation=False))
+                   RFFB=LHCRFFeedback(alpha=15/16, open_loop=False,
+                                      open_otfb=False,
+                                      G_a=6.8e-6, G_d=10, G_o=10))
 CL.rf_beam_current()
 
 plt.figure('RF beam current, fine grid')
@@ -172,8 +176,11 @@ logging.info('Final generator current is %.10f A', np.mean(np.absolute(CL.I_GEN[
 P_gen = CL.generator_power()
 logging.info('Average generator power before beam injection is %.10f kW', np.mean(P_gen)*1e-3)
 
-CL.track()
-CL.track()
+peakPower = np.zeros(N_t)
+for i in range(N_t):
+    CL.track()
+    P_gen = CL.generator_power()
+    peakPower[i] = np.max(P_gen[CL.n_coarse:])
 
 
 fig = plt.figure('Antenna voltage, first turns with beam', figsize=(10,5))
@@ -209,16 +216,22 @@ ax3.set_ylabel('Current, Q [A]')
 plt.tight_layout()
 plt.show()
 
-P_gen = CL.generator_power()
+
 plt.figure('Generator forward power')
 plt.plot(P_gen[:CL.n_coarse]*1e-3, 'b', label='first turn')
 plt.plot(P_gen[CL.n_coarse:]*1e-3, 'g', label='second turn')
 plt.xlabel('Samples [at 40 MS/s]')
 plt.ylabel('Power [kW]')
 plt.legend()
+
+
+plt.figure('Peak generator power')
+plt.plot(peakPower*1e-3)
+plt.xlabel('Turns [1]')
+plt.ylabel('Power [kW]')
 plt.show()
 
-P_gen = CL.generator_power()
+
 logging.info('Average generator power after beam injection is %.10f kW', np.mean(P_gen)*1e-3)
 
 logging.info('Done.')
