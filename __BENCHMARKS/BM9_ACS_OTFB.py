@@ -31,10 +31,10 @@ from scipy.constants import e
 
 # Simulation parameters -------------------------------------------------------
 # Bunch parameters
-N_p = 1.1e11 #2.3e11         # Intensity
+N_p = 2.3e11 #2.3e11         # Intensity
 N_m = 50000          # Macro-particles
 NB = 144         # Number of bunches
-tau_0 = 0.4e-9      # Initial bunch length, 4 sigma [s]
+tau_0 = 0.05e-9      # Initial bunch length, 4 sigma [s]
 
 # Machine and RF parameters
 C = 26658.883        # Machine circumference [m]
@@ -144,7 +144,7 @@ CL = LHCCavityLoop(rf, profile, f_c=rf.omega_rf[0,0]/(2*np.pi)-d_f, G_gen=1,
                    R_over_Q=R_over_Q, tau_loop=650e-9,
                    RFFB=LHCRFFeedback(alpha=15/16, open_loop=False,
                                       open_otfb=False,
-                                      G_a=6.8e-6, G_d=10, G_o=10))
+                                      G_a=6.8e-6, G_d=10, G_o=5))
 CL.rf_beam_current()
 
 plt.figure('RF beam current, fine grid')
@@ -177,13 +177,19 @@ P_gen = CL.generator_power()
 logging.info('Average generator power before beam injection is %.10f kW', np.mean(P_gen)*1e-3)
 
 peakPower = np.zeros(N_t)
+plt.figure('Generator forward power')
+plt.xlabel('Samples [at 40 MS/s]')
+plt.ylabel('Power [kW]')
+jet= plt.get_cmap('jet')
+colors = iter(jet(np.linspace(0,1,N_t)))
 for i in range(N_t):
     CL.track()
     P_gen = CL.generator_power()
     peakPower[i] = np.max(P_gen[CL.n_coarse:])
+    plt.plot(P_gen[CL.n_coarse:]*1e-3, color=next(colors))
+plt.show()
 
-
-fig = plt.figure('Antenna voltage, first turns with beam', figsize=(10,5))
+fig = plt.figure('Antenna voltage, last two turns with beam', figsize=(10,5))
 gs = plt.GridSpec(2,4)
 ax1 = fig.add_subplot(gs[0, 0:2])
 ax1.plot(np.absolute(CL.V_ANT)*1e-6, 'b', linewidth=0.3)
@@ -199,7 +205,7 @@ ax3.set_xlabel('Voltage, I [MV]')
 ax3.set_ylabel('Voltage, Q [MV]')
 plt.tight_layout()
 
-fig = plt.figure('Generator current, first turns with beam', figsize=(10,5))
+fig = plt.figure('Generator current, last two turns with beam', figsize=(10,5))
 gs = plt.GridSpec(2, 4)
 ax1 = fig.add_subplot(gs[0, 0:2])
 ax1.plot(np.absolute(CL.I_GEN), 'b', linewidth=0.3)
@@ -214,15 +220,9 @@ ax3.scatter(CL.I_GEN.real, CL.I_GEN.imag)
 ax3.set_xlabel('Current, I [A]')
 ax3.set_ylabel('Current, Q [A]')
 plt.tight_layout()
-plt.show()
 
 
-plt.figure('Generator forward power')
-plt.plot(P_gen[:CL.n_coarse]*1e-3, 'b', label='first turn')
-plt.plot(P_gen[CL.n_coarse:]*1e-3, 'g', label='second turn')
-plt.xlabel('Samples [at 40 MS/s]')
-plt.ylabel('Power [kW]')
-plt.legend()
+
 
 
 plt.figure('Peak generator power')
