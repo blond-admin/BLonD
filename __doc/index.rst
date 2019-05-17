@@ -27,6 +27,7 @@ Modules
     modules/beam.rst
     modules/impedances.rst
     modules/input_parameters.rst
+    modules/lhc_cavity_loop.rst
     modules/llrf.rst
     modules/monitors.rst
     modules/plots.rst

@@ -47,7 +47,7 @@ gamma_t = 53.8       # Transition gamma
 alpha = 1./gamma_t/gamma_t        # First order mom. comp. factor
 
 # Tracking details
-N_t = 200          # Number of turns to track
+N_t = 500          # Number of turns to track
 # -----------------------------------------------------------------------------
 
 PLOT_NO_BEAM = False
@@ -144,7 +144,7 @@ CL = LHCCavityLoop(rf, profile, f_c=rf.omega_rf[0,0]/(2*np.pi)-d_f, G_gen=1,
                    R_over_Q=R_over_Q, tau_loop=650e-9,
                    RFFB=LHCRFFeedback(alpha=15/16, open_loop=False,
                                       open_otfb=False,
-                                      G_a=6.8e-6, G_d=10, G_o=5))
+                                      G_a=6.8e-6, G_d=10, G_o=10))
 CL.rf_beam_current()
 
 plt.figure('RF beam current, fine grid')
