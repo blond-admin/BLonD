@@ -31,6 +31,7 @@ Modules
     modules/llrf.rst
     modules/monitors.rst
     modules/plots.rst
+    modules/sps_cavity_loop.rst
     modules/synchrotron_radiation.rst
     modules/toolbox.rst
     modules/trackers.rst

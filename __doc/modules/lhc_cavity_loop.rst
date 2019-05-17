@@ -110,6 +110,51 @@ In discrete time domain, the signal reads as
     \frac{T_s}{\tau_d} \, x^{(n-1)}
 
 
+One-turn feedback
+~~~~~~~~~~~~~~~~~
+
+There is the possibility to switch on the one-turn feedback to boost the gain of the analog feedback. On the branch of
+the one-turn feedback, there is a delay that is complementary to the total loop delay,
+:math:`T_0 - \tau_{\mathsf{loop}}`, where :math:`T_0` is the revolution period in that turn.
+
+The response of the one-turn feedback itself reads as follows:
+
+.. math::
+
+    \frac{Y(s)}{X(s)} = H_{\mathsf{OTFB}}(s) = G_o \frac{(1 - \alpha) e^{-T_0s}}{1 - \alpha e^{-T_0s}} \, ,
+
+where :math:`G_o = 10` and :math:`\alpha=15/16` usually.
+
+In time domain, the signal from the previous turn is used to construct the signal at the current turn,
+
+.. math::
+
+    y^{(n)} = \alpha y^{(n - N)} + G_o (1 - \alpha) x^{(n - N)} \, .
+
+Both at the input and the output, an AC coupling ensures that unwanted frequencies are filtered out,
+
+.. math::
+
+    \frac{Y(s)}{X(s)} = H_{\mathsf{AC,OTFB}}(s) = \frac{\tau_o s}{1 + \tau_o s}
+
+where the time constant is around :math:`\tau_o=110 \mathsf{\mu s}`.
+
+In time domain, this reads as
+
+.. math::
+
+    y^{(n)} = \left[ 1 - \frac{T_s}{\tau_o} \right] \, y^{(n - 1)} + x^{(n)} - x^{(n - 1)} \, .
+
+On the input side, taking into account the delay of the input signal, we get:
+
+.. math::
+
+    y^{(n)} = \left[ 1 - \frac{T_s}{\tau_o} \right] \, y^{(n - 1)} + x^{(n - N - n_{\mathsf{loop}})} -
+    x^{(n - N - n_{\mathsf{loop}} - 1)}\, ,
+
+where :math:`n_{\mathsf{loop}} = int(\tau_{\mathsf{loop}}/T_0)`.
+
+
 
 STEP 4: Switch and protect response
 -----------------------------------
