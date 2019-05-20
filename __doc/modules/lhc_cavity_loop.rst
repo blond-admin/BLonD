@@ -54,7 +54,7 @@ STEP 3: RF feedback response
 ----------------------------
 
 The RF feedback acts on the difference between measured antenna voltage and required set point voltage
-:math:`V__{\mathsf{set}}`:
+:math:`V_{\mathsf{set}}`:
 
 .. math::
 
