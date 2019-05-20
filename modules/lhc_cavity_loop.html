@@ -36,8 +36,8 @@
               href="../genindex.html"/>
         <link rel="search" title="Search" href="../search.html"/>
     <link rel="top" title="BLonD 1.1 documentation" href="../index.html"/>
-        <link rel="next" title="llrf Package" href="llrf.html"/>
-        <link rel="prev" title="input_parameters Package" href="input_parameters.html"/> 
+        <link rel="next" title="SPS Cavity Loop" href="sps_cavity_loop.html"/>
+        <link rel="prev" title="Equations of Motion" href="equations_of_motion.html"/> 
 
   
   <script src="../_static/js/modernizr.min.js"></script>
@@ -104,6 +104,22 @@
 <li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#separatrix">Separatrix</a></li>
 </ul>
 </li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">LHC Cavity Loop</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#step-1-calculate-rf-beam-current">STEP 1: Calculate RF beam current</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#step-2-cavity-generator-beam-interaction">STEP 2: Cavity-generator-beam interaction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#step-3-rf-feedback-response">STEP 3: RF feedback response</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#analog-feedback">Analog feedback</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#digital-feedback">Digital feedback</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#one-turn-feedback">One-turn feedback</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#step-4-switch-and-protect-response">STEP 4: Switch and protect response</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#step-5-generator-response">STEP 5: Generator response</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#step-6-tuner-control">STEP 6: Tuner control</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#references">References</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="sps_cavity_loop.html">SPS Cavity Loop</a></li>
 <li class="toctree-l1"><a class="reference internal" href="beam.html">beam Package</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="beam.html#module-blond.beam.beam"><code class="xref py py-mod docutils literal notranslate"><span class="pre">beam</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="beam.html#module-blond.beam.coasting_beam"><code class="xref py py-mod docutils literal notranslate"><span class="pre">coasting_beam</span></code> Module</a></li>
@@ -125,21 +141,6 @@
 <li class="toctree-l2"><a class="reference internal" href="input_parameters.html#module-blond.input_parameters.ring"><code class="xref py py-mod docutils literal notranslate"><span class="pre">ring</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="input_parameters.html#module-blond.input_parameters.ring_options"><code class="xref py py-mod docutils literal notranslate"><span class="pre">ring_options</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="input_parameters.html#module-blond.input_parameters.rf_parameters_options"><code class="xref py py-mod docutils literal notranslate"><span class="pre">rf_parameters_options</span></code> Module</a></li>
-</ul>
-</li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">LHC Cavity Loop</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#step-1-calculate-rf-beam-current">STEP 1: Calculate RF beam current</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#step-2-cavity-generator-beam-interaction">STEP 2: Cavity-generator-beam interaction</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#step-3-rf-feedback-response">STEP 3: RF feedback response</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#analog-feedback">Analog feedback</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#digital-feedback">Digital feedback</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#one-turn-feedback">One-turn feedback</a></li>
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="#step-4-switch-and-protect-response">STEP 4: Switch and protect response</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#step-5-generator-response">STEP 5: Generator response</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#step-6-tuner-control">STEP 6: Tuner control</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#references">References</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="llrf.html">llrf Package</a><ul>
@@ -173,7 +174,6 @@
 <li class="toctree-l2"><a class="reference internal" href="plots.html#module-blond.plots.plot_slices"><code class="xref py py-mod docutils literal notranslate"><span class="pre">plot_slices</span></code> Module</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="sps_cavity_loop.html">SPS Cavity Loop</a></li>
 <li class="toctree-l1"><a class="reference internal" href="synchrotron_radiation.html">synchrotron_radiation Package</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="synchrotron_radiation.html#module-blond.synchrotron_radiation.synchrotron_radiation"><code class="xref py py-mod docutils literal notranslate"><span class="pre">synchrotron_radiation</span></code> Module</a></li>
 </ul>
@@ -357,8 +357,8 @@ the one-turn feedback, there is a delay that is complementary to the total loop 
 \[y^{(n)} = \left[ 1 - \frac{T_s}{\tau_o} \right] \, y^{(n - 1)} + x^{(n)} - x^{(n - 1)} \, .\]</div>
 <p>On the input side, taking into account the delay of the input signal, we get:</p>
 <div class="math notranslate nohighlight">
-\[y^{(n)} = \left[ 1 - \frac{T_s}{\tau_o} \right] \, y^{(n - 1)} + x^{(n - N - n_{\mathsf{loop}})} -
-x^{(n - N - n_{\mathsf{loop}} - 1)}\, ,\]</div>
+\[y^{(n)} = \left[ 1 - \frac{T_s}{\tau_o} \right] \, y^{(n - 1)} + x^{(n - N + n_{\mathsf{loop}})} -
+x^{(n - N + n_{\mathsf{loop}} - 1)}\, ,\]</div>
 <p>where <span class="math notranslate nohighlight">\(n_{\mathsf{loop}} = int(\tau_{\mathsf{loop}}/T_0)\)</span>.</p>
 </div>
 </div>
@@ -392,10 +392,10 @@ CERN-ATS-Note-2011-002 TECH, CERN, Geneva, Switzerland, 2011.</p>
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="llrf.html" class="btn btn-neutral float-right" title="llrf Package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+        <a href="sps_cavity_loop.html" class="btn btn-neutral float-right" title="SPS Cavity Loop" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
-        <a href="input_parameters.html" class="btn btn-neutral" title="input_parameters Package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+        <a href="equations_of_motion.html" class="btn btn-neutral" title="Equations of Motion" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
       
     </div>
   

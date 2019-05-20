@@ -149,8 +149,8 @@ On the input side, taking into account the delay of the input signal, we get:
 
 .. math::
 
-    y^{(n)} = \left[ 1 - \frac{T_s}{\tau_o} \right] \, y^{(n - 1)} + x^{(n - N - n_{\mathsf{loop}})} -
-    x^{(n - N - n_{\mathsf{loop}} - 1)}\, ,
+    y^{(n)} = \left[ 1 - \frac{T_s}{\tau_o} \right] \, y^{(n - 1)} + x^{(n - N + n_{\mathsf{loop}})} -
+    x^{(n - N + n_{\mathsf{loop}} - 1)}\, ,
 
 where :math:`n_{\mathsf{loop}} = int(\tau_{\mathsf{loop}}/T_0)`.
 
