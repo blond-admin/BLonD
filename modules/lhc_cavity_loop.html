@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>compile Module &mdash; BLonD 1.1 documentation</title>
+  <title>LHC Cavity Loop &mdash; BLonD 1.1 documentation</title>
   
 
   
@@ -36,8 +36,8 @@
               href="../genindex.html"/>
         <link rel="search" title="Search" href="../search.html"/>
     <link rel="top" title="BLonD 1.1 documentation" href="../index.html"/>
-        <link rel="next" title="utils Package" href="utils.html"/>
-        <link rel="prev" title="trackers Package" href="trackers.html"/> 
+        <link rel="next" title="llrf Package" href="llrf.html"/>
+        <link rel="prev" title="input_parameters Package" href="input_parameters.html"/> 
 
   
   <script src="../_static/js/modernizr.min.js"></script>
@@ -127,6 +127,21 @@
 <li class="toctree-l2"><a class="reference internal" href="input_parameters.html#module-blond.input_parameters.rf_parameters_options"><code class="xref py py-mod docutils literal notranslate"><span class="pre">rf_parameters_options</span></code> Module</a></li>
 </ul>
 </li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">LHC Cavity Loop</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#step-1-calculate-rf-beam-current">STEP 1: Calculate RF beam current</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#step-2-cavity-generator-beam-interaction">STEP 2: Cavity-generator-beam interaction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#step-3-rf-feedback-response">STEP 3: RF feedback response</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#analog-feedback">Analog feedback</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#digital-feedback">Digital feedback</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#one-turn-feedback">One-turn feedback</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#step-4-switch-and-protect-response">STEP 4: Switch and protect response</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#step-5-generator-response">STEP 5: Generator response</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#step-6-tuner-control">STEP 6: Tuner control</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#references">References</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="llrf.html">llrf Package</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="llrf.html#module-blond.llrf.notch_filter"><code class="xref py py-mod docutils literal notranslate"><span class="pre">notch_filter</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="llrf.html#llrf-beam-feedback-module">llrf.beam_feedback Module</a><ul>
@@ -158,6 +173,7 @@
 <li class="toctree-l2"><a class="reference internal" href="plots.html#module-blond.plots.plot_slices"><code class="xref py py-mod docutils literal notranslate"><span class="pre">plot_slices</span></code> Module</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="sps_cavity_loop.html">SPS Cavity Loop</a></li>
 <li class="toctree-l1"><a class="reference internal" href="synchrotron_radiation.html">synchrotron_radiation Package</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="synchrotron_radiation.html#module-blond.synchrotron_radiation.synchrotron_radiation"><code class="xref py py-mod docutils literal notranslate"><span class="pre">synchrotron_radiation</span></code> Module</a></li>
 </ul>
@@ -176,8 +192,8 @@
 <li class="toctree-l2"><a class="reference internal" href="trackers.html#module-blond.trackers.utilities"><code class="xref py py-mod docutils literal notranslate"><span class="pre">utilities</span></code> Module</a></li>
 </ul>
 </li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">compile Module</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#id1"><code class="xref py py-mod docutils literal notranslate"><span class="pre">compile</span></code> Module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="compile.html">compile Module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="compile.html#id1"><code class="xref py py-mod docutils literal notranslate"><span class="pre">compile</span></code> Module</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="utils.html">utils Package</a><ul>
@@ -229,13 +245,13 @@
     
       <li><a href="../index.html">Docs</a> &raquo;</li>
         
-      <li>compile Module</li>
+      <li>LHC Cavity Loop</li>
     
     
       <li class="wy-breadcrumbs-aside">
         
             
-            <a href="../_sources/modules/compile.rst.txt" rel="nofollow"> View page source</a>
+            <a href="../_sources/modules/lhc_cavity_loop.rst.txt" rel="nofollow"> View page source</a>
           
         
       </li>
@@ -248,11 +264,121 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-  <div class="section" id="compile-module">
-<h1>compile Module<a class="headerlink" href="#compile-module" title="Permalink to this headline">¶</a></h1>
-<div class="section" id="id1">
-<h2><code class="xref py py-mod docutils literal notranslate"><span class="pre">compile</span></code> Module<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h2>
-<span class="target" id="module-blond.compile"></span><p>&#64;author: Danilo Quartullo, Konstantinos Iliakis</p>
+  <div class="section" id="lhc-cavity-loop">
+<h1>LHC Cavity Loop<a class="headerlink" href="#lhc-cavity-loop" title="Permalink to this headline">¶</a></h1>
+<dl class="field-list simple">
+<dt class="field-odd">Authors</dt>
+<dd class="field-odd"><p><strong>Helga Timko</strong></p>
+</dd>
+</dl>
+<a class="reference internal image-reference" href="../_images/ACS_cavity_loop.png"><img alt="../_images/ACS_cavity_loop.png" class="align-right" src="../_images/ACS_cavity_loop.png" style="width: 960px; height: 640px;" /></a>
+<p>The interaction of the LHC cavity loop with the beam is modelled on a turn-by-turn basis. All arrays inside the class
+<a class="reference internal" href="llrf.html#blond.llrf.cavity_feedback.LHCCavityLoop" title="blond.llrf.cavity_feedback.LHCCavityLoop"><code class="xref py py-class docutils literal notranslate"><span class="pre">blond.llrf.cavity_feedback.LHCCavityLoop</span></code></a> are complex arrays with a memory of exactly 2 turns (previous and
+present). The signals are digitised with a sampling time <span class="math notranslate nohighlight">\(T_s\)</span> that adapts to the revolution period to have
+exactly</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">N</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rf</span><span class="o">.</span><span class="n">harmonic</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">/</span><span class="mi">10</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>samples over one turn. The feedback is pre-tracked without beam.</p>
+<div class="section" id="step-1-calculate-rf-beam-current">
+<h2>STEP 1: Calculate RF beam current<a class="headerlink" href="#step-1-calculate-rf-beam-current" title="Permalink to this headline">¶</a></h2>
+<p>The RF beam current is calculated for the entire turn, based on the beam profile <span class="math notranslate nohighlight">\(\lambda_k\)</span>, where the
+sampling time is typically much smaller than T_s.</p>
+</div>
+<div class="section" id="step-2-cavity-generator-beam-interaction">
+<h2>STEP 2: Cavity-generator-beam interaction<a class="headerlink" href="#step-2-cavity-generator-beam-interaction" title="Permalink to this headline">¶</a></h2>
+<p>Within one turn, the update of parameters happens sample by sample, for <span class="math notranslate nohighlight">\(n = 0...N-1\)</span>. First, the antenna voltage
+measured in the RF cavity <span class="math notranslate nohighlight">\(V_{\mathsf{ant}}\)</span> is updated based on the time evolution derived in <a class="reference internal" href="#jt2011" id="id1"><span>[JT2011]</span></a></p>
+<div class="math notranslate nohighlight">
+\[I_{\mathsf{gen}}(t) = \frac{V_{\mathsf{ant}}(t)}{2 R/Q} \left( \frac{1}{Q_L} - 2 i \frac{\Delta \omega}{\omega} \right)
++ \frac{d V_{\mathsf{ant}}(t)}{dt} \frac{1}{\omega R/Q} + \frac{1}{2} I_{\mathsf{beam,RF}}(t)\]</div>
+<p>Here <span class="math notranslate nohighlight">\(I_{\mathsf{gen}}\)</span> is the generator forward current, <span class="math notranslate nohighlight">\(I_{\mathsf{beam,RF}}\)</span> is the RF beam current,
+<span class="math notranslate nohighlight">\(R/Q\)</span> is the cavity’s ratio of shunt impedance and quality factor, <span class="math notranslate nohighlight">\(Q_L\)</span> the loaded quality factor,
+<span class="math notranslate nohighlight">\(\omega\)</span> the rf frequency, and <span class="math notranslate nohighlight">\(\Delta \omega \equiv \omega_c - \omega\)</span> the detuning of the cavity w.r.t.the central frequency <span class="math notranslate nohighlight">\(\omega_c\)</span>. In the discrete implementation, the equation reads as follows:</p>
+<div class="math notranslate nohighlight">
+\[V_{\mathsf{ant}}^{(n)} = \frac{R}{Q} \omega T_s \, I_{\mathsf{gen}}^{(n-1)} + \left( 1 - \frac{\omega T_s}{2 Q_L} +
+i \Delta \omega T_s \right) V_{\mathsf{ant}}^{(n-1)} - \frac{1}{2} \frac{R}{Q} \omega T_s \, I_{\mathsf{beam,RF}}^{(n-1)} \, ,\]</div>
+<p>where the upper indices denote the sample number.</p>
+</div>
+<div class="section" id="step-3-rf-feedback-response">
+<h2>STEP 3: RF feedback response<a class="headerlink" href="#step-3-rf-feedback-response" title="Permalink to this headline">¶</a></h2>
+<p>The RF feedback acts on the difference between measured antenna voltage and required set point voltage
+<span class="math notranslate nohighlight">\(V_{\mathsf{set}}\)</span>:</p>
+<div class="math notranslate nohighlight">
+\[V_{\mathsf{fb,in}}^{(n)} = V_{\mathsf{set}}^{(n)} - V_{\mathsf{ant}}^{(n - n_{\mathsf{loop}})} \, ,\]</div>
+<p>where the overall loop delay <span class="math notranslate nohighlight">\(\tau_{\mathsf{loop}}=650 \mathsf{ns}\)</span> is taken into account in the antenna signal
+delayed by <span class="math notranslate nohighlight">\(n_{\mathsf{loop}} \equiv int(\tau_{\mathsf{loop}})/T_s\)</span>.</p>
+<div class="section" id="analog-feedback">
+<h3>Analog feedback<a class="headerlink" href="#analog-feedback" title="Permalink to this headline">¶</a></h3>
+<p>The analog feedback has a gain <span class="math notranslate nohighlight">\(G_a\)</span> at high frequencies and in Laplace domain its transfer function is:</p>
+<div class="math notranslate nohighlight">
+\[\frac{Y(s)}{X(s)} = H_a(s) = G_a \frac{\tau_a s}{1 + \tau_a s} ,\]</div>
+<p>where <span class="math notranslate nohighlight">\(X(s)\)</span> and <span class="math notranslate nohighlight">\(Y(s)\)</span> are the input and output signals, respectively. In the LHC, the typical delay is
+<span class="math notranslate nohighlight">\(\tau_a = 170 \mathsf{\mu s}\)</span> (based on AC coupling at demodulator exit), and the optimum gain for a flat closed-
+loop response is</p>
+<div class="math notranslate nohighlight">
+\[G_a = \frac{1}{2\frac{R}{Q} \omega \tau_{\mathsf{loop}}} \, ,\]</div>
+<p>which for a loop delay of <span class="math notranslate nohighlight">\(\tau_{\mathsf{loop}} = 650 \mathsf{ns}\)</span> results in <span class="math notranslate nohighlight">\(G_a = 6.79 \times 10^{-6}
+\mathsf{\frac{A}{V}}\)</span>. Note that <span class="math notranslate nohighlight">\(G_a\)</span> converts the voltage signal to a current signal.</p>
+<p>In discrete time domain, the output signal <span class="math notranslate nohighlight">\(y(t)\)</span> is calculated from the input signal <span class="math notranslate nohighlight">\(x(t)\)</span> as follows:</p>
+<div class="math notranslate nohighlight">
+\[y^{(n)} = \left[ 1 - \frac{T_s}{\tau_a} \right] \, y^{(n-1)} + G_a(x^{(n)} - x^{(n-1)})\]</div>
+</div>
+<div class="section" id="digital-feedback">
+<h3>Digital feedback<a class="headerlink" href="#digital-feedback" title="Permalink to this headline">¶</a></h3>
+<p>The digital feedback, opposite to the analog feedback, has a high gain at low frequencies,</p>
+<div class="math notranslate nohighlight">
+\[\frac{Y(s)}{X(s)} = H_d(s) = G_a G_d \frac{e^{i \Delta \varphi_{\mathsf{ad}}}}{1 + \tau_d s} ,\]</div>
+<p>where the digital gain is typically <span class="math notranslate nohighlight">\(G_d=10\)</span>, and the dephasing between the analog and digital feedbacks is to be
+minimized, <span class="math notranslate nohighlight">\(\Delta \varphi_{\mathsf{ad}} \approx 0\)</span>.</p>
+<p>In discrete time domain, the signal reads as</p>
+<div class="math notranslate nohighlight">
+\[y^{(n)} = \left[ 1 - \frac{T_s}{\tau_d} \right] \, y^{(n-1)} + G_a G_d e^{i \Delta \varphi_{\mathsf{ad}}}
+\frac{T_s}{\tau_d} \, x^{(n-1)}\]</div>
+</div>
+<div class="section" id="one-turn-feedback">
+<h3>One-turn feedback<a class="headerlink" href="#one-turn-feedback" title="Permalink to this headline">¶</a></h3>
+<p>There is the possibility to switch on the one-turn feedback to boost the gain of the analog feedback. On the branch of
+the one-turn feedback, there is a delay that is complementary to the total loop delay,
+<span class="math notranslate nohighlight">\(T_0 - \tau_{\mathsf{loop}}\)</span>, where <span class="math notranslate nohighlight">\(T_0\)</span> is the revolution period in that turn.</p>
+<p>The response of the one-turn feedback itself reads as follows:</p>
+<div class="math notranslate nohighlight">
+\[\frac{Y(s)}{X(s)} = H_{\mathsf{OTFB}}(s) = G_o \frac{(1 - \alpha) e^{-T_0s}}{1 - \alpha e^{-T_0s}} \, ,\]</div>
+<p>where <span class="math notranslate nohighlight">\(G_o = 10\)</span> and <span class="math notranslate nohighlight">\(\alpha=15/16\)</span> usually.</p>
+<p>In time domain, the signal from the previous turn is used to construct the signal at the current turn,</p>
+<div class="math notranslate nohighlight">
+\[y^{(n)} = \alpha y^{(n - N)} + G_o (1 - \alpha) x^{(n - N)} \, .\]</div>
+<p>Both at the input and the output, an AC coupling ensures that unwanted frequencies are filtered out,</p>
+<div class="math notranslate nohighlight">
+\[\frac{Y(s)}{X(s)} = H_{\mathsf{AC,OTFB}}(s) = \frac{\tau_o s}{1 + \tau_o s}\]</div>
+<p>where the time constant is around <span class="math notranslate nohighlight">\(\tau_o=110 \mathsf{\mu s}\)</span>.</p>
+<p>In time domain, this reads as</p>
+<div class="math notranslate nohighlight">
+\[y^{(n)} = \left[ 1 - \frac{T_s}{\tau_o} \right] \, y^{(n - 1)} + x^{(n)} - x^{(n - 1)} \, .\]</div>
+<p>On the input side, taking into account the delay of the input signal, we get:</p>
+<div class="math notranslate nohighlight">
+\[y^{(n)} = \left[ 1 - \frac{T_s}{\tau_o} \right] \, y^{(n - 1)} + x^{(n - N - n_{\mathsf{loop}})} -
+x^{(n - N - n_{\mathsf{loop}} - 1)}\, ,\]</div>
+<p>where <span class="math notranslate nohighlight">\(n_{\mathsf{loop}} = int(\tau_{\mathsf{loop}}/T_0)\)</span>.</p>
+</div>
+</div>
+<div class="section" id="step-4-switch-and-protect-response">
+<h2>STEP 4: Switch and protect response<a class="headerlink" href="#step-4-switch-and-protect-response" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="step-5-generator-response">
+<h2>STEP 5: Generator response<a class="headerlink" href="#step-5-generator-response" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="step-6-tuner-control">
+<h2>STEP 6: Tuner control<a class="headerlink" href="#step-6-tuner-control" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="references">
+<h2>References<a class="headerlink" href="#references" title="Permalink to this headline">¶</a></h2>
+<dl class="citation">
+<dt class="label" id="jt2011"><span class="brackets"><a class="fn-backref" href="#id1">JT2011</a></span></dt>
+<dd><p>Joachim Tückmantel: <em>‘Cavity-beam-transmitter interaction formula collection with derivation’</em>,
+CERN-ATS-Note-2011-002 TECH, CERN, Geneva, Switzerland, 2011.</p>
+</dd>
+</dl>
 </div>
 </div>
 
@@ -266,10 +392,10 @@
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="utils.html" class="btn btn-neutral float-right" title="utils Package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+        <a href="llrf.html" class="btn btn-neutral float-right" title="llrf Package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
-        <a href="trackers.html" class="btn btn-neutral" title="trackers Package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+        <a href="input_parameters.html" class="btn btn-neutral" title="input_parameters Package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
       
     </div>
   

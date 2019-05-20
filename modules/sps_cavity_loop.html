@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>compile Module &mdash; BLonD 1.1 documentation</title>
+  <title>SPS Cavity Loop &mdash; BLonD 1.1 documentation</title>
   
 
   
@@ -36,8 +36,8 @@
               href="../genindex.html"/>
         <link rel="search" title="Search" href="../search.html"/>
     <link rel="top" title="BLonD 1.1 documentation" href="../index.html"/>
-        <link rel="next" title="utils Package" href="utils.html"/>
-        <link rel="prev" title="trackers Package" href="trackers.html"/> 
+        <link rel="next" title="synchrotron_radiation Package" href="synchrotron_radiation.html"/>
+        <link rel="prev" title="plots Package" href="plots.html"/> 
 
   
   <script src="../_static/js/modernizr.min.js"></script>
@@ -96,10 +96,10 @@
 <li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#energy-kick">Energy kick</a></li>
 <li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#arrival-time-drift">Arrival time drift</a></li>
 <li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#the-synchronous-particle">The synchronous particle</a></li>
-<li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#small-amplitude-oscillations">Small-amplitude oscillations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#small-amplitude-oscillations">Small-amplitude oscillations</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="equations_of_motion.html#tracking-utilities">Tracking utilities</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="equations_of_motion.html#tracking-utilities">Tracking utilities</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#hamiltonian">Hamiltonian</a></li>
 <li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#separatrix">Separatrix</a></li>
 </ul>
@@ -125,6 +125,21 @@
 <li class="toctree-l2"><a class="reference internal" href="input_parameters.html#module-blond.input_parameters.ring"><code class="xref py py-mod docutils literal notranslate"><span class="pre">ring</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="input_parameters.html#module-blond.input_parameters.ring_options"><code class="xref py py-mod docutils literal notranslate"><span class="pre">ring_options</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="input_parameters.html#module-blond.input_parameters.rf_parameters_options"><code class="xref py py-mod docutils literal notranslate"><span class="pre">rf_parameters_options</span></code> Module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="lhc_cavity_loop.html">LHC Cavity Loop</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-1-calculate-rf-beam-current">STEP 1: Calculate RF beam current</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-2-cavity-generator-beam-interaction">STEP 2: Cavity-generator-beam interaction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-3-rf-feedback-response">STEP 3: RF feedback response</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="lhc_cavity_loop.html#analog-feedback">Analog feedback</a></li>
+<li class="toctree-l3"><a class="reference internal" href="lhc_cavity_loop.html#digital-feedback">Digital feedback</a></li>
+<li class="toctree-l3"><a class="reference internal" href="lhc_cavity_loop.html#one-turn-feedback">One-turn feedback</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-4-switch-and-protect-response">STEP 4: Switch and protect response</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-5-generator-response">STEP 5: Generator response</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-6-tuner-control">STEP 6: Tuner control</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#references">References</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="llrf.html">llrf Package</a><ul>
@@ -158,6 +173,7 @@
 <li class="toctree-l2"><a class="reference internal" href="plots.html#module-blond.plots.plot_slices"><code class="xref py py-mod docutils literal notranslate"><span class="pre">plot_slices</span></code> Module</a></li>
 </ul>
 </li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">SPS Cavity Loop</a></li>
 <li class="toctree-l1"><a class="reference internal" href="synchrotron_radiation.html">synchrotron_radiation Package</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="synchrotron_radiation.html#module-blond.synchrotron_radiation.synchrotron_radiation"><code class="xref py py-mod docutils literal notranslate"><span class="pre">synchrotron_radiation</span></code> Module</a></li>
 </ul>
@@ -176,8 +192,8 @@
 <li class="toctree-l2"><a class="reference internal" href="trackers.html#module-blond.trackers.utilities"><code class="xref py py-mod docutils literal notranslate"><span class="pre">utilities</span></code> Module</a></li>
 </ul>
 </li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">compile Module</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#id1"><code class="xref py py-mod docutils literal notranslate"><span class="pre">compile</span></code> Module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="compile.html">compile Module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="compile.html#id1"><code class="xref py py-mod docutils literal notranslate"><span class="pre">compile</span></code> Module</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="utils.html">utils Package</a><ul>
@@ -229,13 +245,13 @@
     
       <li><a href="../index.html">Docs</a> &raquo;</li>
         
-      <li>compile Module</li>
+      <li>SPS Cavity Loop</li>
     
     
       <li class="wy-breadcrumbs-aside">
         
             
-            <a href="../_sources/modules/compile.rst.txt" rel="nofollow"> View page source</a>
+            <a href="../_sources/modules/sps_cavity_loop.rst.txt" rel="nofollow"> View page source</a>
           
         
       </li>
@@ -248,12 +264,14 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-  <div class="section" id="compile-module">
-<h1>compile Module<a class="headerlink" href="#compile-module" title="Permalink to this headline">¶</a></h1>
-<div class="section" id="id1">
-<h2><code class="xref py py-mod docutils literal notranslate"><span class="pre">compile</span></code> Module<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h2>
-<span class="target" id="module-blond.compile"></span><p>&#64;author: Danilo Quartullo, Konstantinos Iliakis</p>
-</div>
+  <div class="section" id="sps-cavity-loop">
+<h1>SPS Cavity Loop<a class="headerlink" href="#sps-cavity-loop" title="Permalink to this headline">¶</a></h1>
+<dl class="field-list simple">
+<dt class="field-odd">Authors</dt>
+<dd class="field-odd"><p><strong>Helga Timko</strong></p>
+</dd>
+</dl>
+<a class="reference internal image-reference" href="../_images/SPS_OTFB.png"><img alt="../_images/SPS_OTFB.png" class="align-right" src="../_images/SPS_OTFB.png" style="width: 1226px; height: 451px;" /></a>
 </div>
 
 
@@ -266,10 +284,10 @@
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="utils.html" class="btn btn-neutral float-right" title="utils Package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+        <a href="synchrotron_radiation.html" class="btn btn-neutral float-right" title="synchrotron_radiation Package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
-        <a href="trackers.html" class="btn btn-neutral" title="trackers Package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+        <a href="plots.html" class="btn btn-neutral" title="plots Package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
       
     </div>
   
