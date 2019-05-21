@@ -131,6 +131,14 @@ In time domain, the signal from the previous turn is used to construct the signa
 
     y^{(n)} = \alpha y^{(n - N)} + G_o (1 - \alpha) x^{(n - N)} \, .
 
+In the implementation, the one-turn delay is ensured in the AC coupling at the input, so the one-turn feedback response
+in time domain reads as
+
+.. math::
+
+    y^{(n)} = \alpha y^{(n - N)} + G_o (1 - \alpha) x^{(n)} \, .
+
+
 Both at the input and the output, an AC coupling ensures that unwanted frequencies are filtered out,
 
 .. math::

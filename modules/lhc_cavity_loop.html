@@ -348,6 +348,10 @@ the one-turn feedback, there is a delay that is complementary to the total loop 
 <p>In time domain, the signal from the previous turn is used to construct the signal at the current turn,</p>
 <div class="math notranslate nohighlight">
 \[y^{(n)} = \alpha y^{(n - N)} + G_o (1 - \alpha) x^{(n - N)} \, .\]</div>
+<p>In the implementation, the one-turn delay is ensured in the AC coupling at the input, so the one-turn feedback response
+in time domain reads as</p>
+<div class="math notranslate nohighlight">
+\[y^{(n)} = \alpha y^{(n - N)} + G_o (1 - \alpha) x^{(n)} \, .\]</div>
 <p>Both at the input and the output, an AC coupling ensures that unwanted frequencies are filtered out,</p>
 <div class="math notranslate nohighlight">
 \[\frac{Y(s)}{X(s)} = H_{\mathsf{AC,OTFB}}(s) = \frac{\tau_o s}{1 + \tau_o s}\]</div>
