@@ -1,5 +1,5 @@
 LHC Cavity Loop
-^^^^^^^^^^^^^^^
+===============
 :Authors: **Helga Timko**
 
 .. image:: ACS_cavity_loop.png
@@ -131,6 +131,14 @@ In time domain, the signal from the previous turn is used to construct the signa
 
     y^{(n)} = \alpha y^{(n - N)} + G_o (1 - \alpha) x^{(n - N)} \, .
 
+In the implementation, the one-turn delay is ensured in the AC coupling at the input, so the one-turn feedback response
+in time domain reads as
+
+.. math::
+
+    y^{(n)} = \alpha y^{(n - N)} + G_o (1 - \alpha) x^{(n)} \, .
+
+
 Both at the input and the output, an AC coupling ensures that unwanted frequencies are filtered out,
 
 .. math::
@@ -149,8 +157,8 @@ On the input side, taking into account the delay of the input signal, we get:
 
 .. math::
 
-    y^{(n)} = \left[ 1 - \frac{T_s}{\tau_o} \right] \, y^{(n - 1)} + x^{(n - N - n_{\mathsf{loop}})} -
-    x^{(n - N - n_{\mathsf{loop}} - 1)}\, ,
+    y^{(n)} = \left[ 1 - \frac{T_s}{\tau_o} \right] \, y^{(n - 1)} + x^{(n - N + n_{\mathsf{loop}})} -
+    x^{(n - N + n_{\mathsf{loop}} - 1)}\, ,
 
 where :math:`n_{\mathsf{loop}} = int(\tau_{\mathsf{loop}}/T_0)`.
 

@@ -31,7 +31,7 @@ from scipy.constants import e
 
 # Simulation parameters -------------------------------------------------------
 # Bunch parameters
-N_p = 2.3e11 #2.3e11         # Intensity
+N_p = 1.1e11 #2.3e11         # Intensity
 N_m = 50000          # Macro-particles
 NB = 144         # Number of bunches
 tau_0 = 0.05e-9      # Initial bunch length, 4 sigma [s]
@@ -108,7 +108,7 @@ CL = LHCCavityLoop(rf, profile, f_c=rf.omega_rf[0,0]/(2*np.pi), G_gen=1,
                    I_gen_offset=0, n_cav=8, n_pretrack=10, Q_L=35000,
                    R_over_Q=R_over_Q, tau_loop=650e-9,
                    RFFB=LHCRFFeedback(open_loop=False, open_otfb=False,
-                                      G_a=6.8e-6, G_d=10, G_o=1,
+                                      G_a=6.8e-6, G_d=10, G_o=10,
                                       excitation=False))
 if PLOT_NO_BEAM:
     plt.figure('Generator current')

@@ -1,5 +1,5 @@
 SPS Cavity Loop
-^^^^^^^^^^^^^^^
+===============
 :Authors: **Helga Timko**
 
 .. image:: SPS_OTFB.png

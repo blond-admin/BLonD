@@ -24,14 +24,14 @@ Modules
     :maxdepth: 2
 
     modules/equations_of_motion.rst
+    modules/lhc_cavity_loop.rst
+    modules/sps_cavity_loop.rst
     modules/beam.rst
     modules/impedances.rst
     modules/input_parameters.rst
-    modules/lhc_cavity_loop.rst
     modules/llrf.rst
     modules/monitors.rst
     modules/plots.rst
-    modules/sps_cavity_loop.rst
     modules/synchrotron_radiation.rst
     modules/toolbox.rst
     modules/trackers.rst

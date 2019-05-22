@@ -728,7 +728,8 @@ class LHCRFFeedback(object):
     def __init__(self, alpha=15/16, d_phi_ad=0, G_a=0.00001, G_d=10, G_o=10,
                  tau_a=170e-6, tau_d=400e-6, tau_o=110e-6, open_drive=False,
                  open_loop=False, open_otfb=False, open_rffb=False,
-                 excitation=False, seed1=1234, seed2=7564):
+                 excitation=False, excitation_otfb=False, seed1=1234,
+                 seed2=7564):
 
         # Import variables
         self.alpha = alpha
@@ -740,6 +741,7 @@ class LHCRFFeedback(object):
         self.tau_d = tau_d
         self.tau_o = tau_o
         self.excitation = excitation
+        self.excitation_otfb = excitation_otfb
         self.seed1 = seed1
         self.seed2 = seed2
 
@@ -849,6 +851,7 @@ class LHCCavityLoop(object):
         self.tau_d = self.RFFB.tau_d
         self.tau_o = self.RFFB.tau_o
         self.excitation = self.RFFB.excitation
+        self.excitation_otfb = self.RFFB.excitation_otfb
 
         # Length of arrays in LLRF  #TODO: could change over time
         self.n_coarse = int(self.rf.harmonic[0, 0]/10)
@@ -860,8 +863,8 @@ class LHCCavityLoop(object):
         self.logger.debug("Relative detuning is %.4e", self.detuning)
 
         self.V_ANT = np.zeros(2*self.n_coarse, dtype=complex)
+        self.V_EXC = np.zeros(2*self.n_coarse, dtype=complex)
         self.V_FB_IN = np.zeros(2*self.n_coarse, dtype=complex)
-        #self.V_OTFB = np.zeros(2*self.n_coarse+1, dtype=complex) # Need an extra point!
         self.V_OTFB = np.zeros(2*self.n_coarse, dtype=complex)
         self.V_OTFB_INT = np.zeros(2*self.n_coarse, dtype=complex)
         self.I_GEN = np.zeros(2*self.n_coarse, dtype=complex)
@@ -878,7 +881,11 @@ class LHCCavityLoop(object):
         # Pre-track without beam
         self.logger.debug("Track without beam for %d turns", self.n_pretrack)
         if self.excitation:
+            self.logger.debug("Injecting noise in voltage set point")
             self.track_no_beam_excitation(self.n_pretrack)
+        elif self.excitation_otfb:
+            self.logger.debug("Injecting noise at OTFB output")
+            self.track_no_beam_excitation_otfb(self.n_pretrack)
         else:
             self.track_no_beam(self.n_pretrack)
 
@@ -915,39 +922,6 @@ class LHCCavityLoop(object):
 
 
     def one_turn_feedback(self):
-
-        # Update based on last turn and complement delay of signal
-        #self.V_OTFB[self.ind] = self.alpha*self.V_OTFB[self.ind-self.n_coarse] + \
-        #    self.G_o*(1 - self.alpha)*self.V_FB_IN[self.ind-self.n_coarse+self.n_delay]
-        #self.V_otfb = self.V_OTFB[self.ind]
-
-        # OTFB array shifted w.r.t. others: 0 = last point of 2 turns ago
-        # With AC coupling
-        #i1 = self.ind-self.n_coarse
-        #i2 = self.ind-self.n_coarse+self.n_delay
-        #self.V_OTFB[self.ind+1] = self.alpha*self.V_OTFB[i1+1] + \
-        #    self.tau_o/(self.T_s + self.tau_o) * (self.V_OTFB[self.ind] -
-        #    self.alpha*self.V_OTFB[i1] + self.G_o*(1 - self.alpha)* \
-        #    (self.V_FB_IN[i2] - self.V_FB_IN[i2-1])) # Indices like in other arrays
-        # Note, OTFB array shifted by 1 w.r.t. others
-        #self.V_otfb = self.V_OTFB[self.ind+1]
-
-        # Staged: OTFB response
-        #self.V_OTFB_INT[self.ind] = self.alpha*self.V_OTFB_INT[self.ind-self.n_coarse] \
-        #    + self.G_o*(1 - self.alpha)*self.V_FB_IN[self.ind-self.n_coarse+self.n_delay]
-        # AC-coupling of OTFB
-        #self.V_otfb = self.V_otfb_prev*(1 - self.T_s/self.tau_o) + \
-        #    self.V_OTFB_INT[self.ind] - self.V_OTFB_INT[self.ind-1]
-        # Update memory
-        #self.V_otfb_prev = self.V_otfb
-
-        # AC coupling of OTFB
-        #self.V_OTFB_INT[self.ind] = self.V_OTFB_INT[self.ind-1]*(1 - self.T_s/self.tau_o) + \
-        #    self.V_FB_IN[self.ind] - self.V_FB_IN[self.ind-1]
-        # OTFB response
-        #self.V_OTFB[self.ind] = self.alpha*self.V_OTFB[self.ind-self.n_coarse] \
-        #    + self.G_o*(1 - self.alpha)*self.V_OTFB_INT[self.ind-self.n_coarse+self.n_delay]
-        #self.V_otfb = self.V_OTFB[self.ind]
 
         # AC coupling at input
         self.V_OTFB_INT[self.ind] = self.V_OTFB_INT[self.ind - 1] * (
@@ -995,12 +969,11 @@ class LHCCavityLoop(object):
 
         # On the analog branch, OTFB can contribute
         self.one_turn_feedback()
-        #self.V_a_in = self.V_fb_in + self.open_otfb*self.V_OTFB[self.ind]
-        self.V_a_in = self.V_fb_in + self.open_otfb*self.V_otfb
+        self.V_a_in = int(np.invert(bool(self.excitation_otfb)))*self.V_fb_in \
+            + self.open_otfb*self.V_otfb \
+            + int(bool(self.excitation_otfb))*self.V_EXC[self.ind]
 
         # Output of analog feedback (separate branch)
-        #self.V_a_out = self.V_a_out_prev*(1 - self.T_s/self.tau_a) + \
-        #    self.G_a*(self.V_fb_in - self.V_fb_in_prev)
         self.V_a_out = self.V_a_out_prev*(1 - self.T_s/self.tau_a) + \
             self.G_a*(self.V_a_in - self.V_a_in_prev)
 
@@ -1017,8 +990,6 @@ class LHCCavityLoop(object):
         self.V_a_out_prev = self.V_a_out
         self.V_d_out_prev = self.V_d_out
         self.V_fb_in_prev = self.V_fb_in
-        #self.V_FB_IN[self.ind] = (self.V_SET[self.ind] -
-        #    self.open_loop*self.V_ANT[self.ind])#self.V_fb_in
 
 
     def set_point(self):
@@ -1084,7 +1055,7 @@ class LHCCavityLoop(object):
     def track_no_beam_excitation(self, n_turns):
         r'''Pre-tracking for n_turns turns, without beam. With excitation; set
         point from white noise. V_EXC_IN and V_EXC_OUT can be used to measure
-        the transfer function of the system.
+        the transfer function of the system at set point.
 
         Attributes
         ----------
@@ -1107,6 +1078,38 @@ class LHCCavityLoop(object):
             self.track_one_turn()
             self.V_EXC_OUT[n*self.n_coarse:(n+1)*self.n_coarse] = \
                 self.V_ANT[self.n_coarse:2*self.n_coarse]
+
+
+    def track_no_beam_excitation_otfb(self, n_turns):
+        r'''Pre-tracking for n_turns turns, without beam. With excitation; set
+        point from white noise. V_EXC_IN and V_EXC_OUT can be used to measure
+        the transfer function of the system at otfb.
+
+        Attributes
+        ----------
+        V_EXC_IN : complex array
+            Noise being played in set point; n_coarse*n_turns elements
+        V_EXC_OUT : complex array
+            System reaction to noise (accumulated from V_ANT); n_coarse*n_turns
+            elements
+        '''
+
+        self.V_EXC_IN = 10000*self.RFFB.generate_white_noise(self.n_coarse*n_turns)
+        self.V_EXC_OUT = np.zeros(self.n_coarse*n_turns, dtype=complex)
+        #self.V_SET = np.concatenate((np.zeros(self.n_coarse, dtype=complex),
+        #                             self.set_point()))
+        self.V_SET = np.zeros(2*self.n_coarse, dtype=complex)
+        self.V_EXC = np.concatenate((np.zeros(self.n_coarse, dtype=complex),
+                                     self.V_EXC_IN[0:self.n_coarse]))
+
+        self.track_one_turn()
+        self.V_EXC_OUT[0:self.n_coarse] = self.V_FB_IN[self.n_coarse:2*self.n_coarse]
+        for n in range(1, n_turns):
+            self.update_arrays()
+            self.update_set_point_excitation(self.V_EXC_IN, n)
+            self.track_one_turn()
+            self.V_EXC_OUT[n*self.n_coarse:(n+1)*self.n_coarse] = \
+                self.V_FB_IN[self.n_coarse:2*self.n_coarse]
 
 
     def track_no_beam(self, n_turns):
@@ -1132,8 +1135,6 @@ class LHCCavityLoop(object):
                                     np.zeros(self.n_coarse, dtype=complex)))
         self.V_FB_IN = np.concatenate((self.V_FB_IN[self.n_coarse:],
                                     np.zeros(self.n_coarse, dtype=complex)))
-        #self.V_OTFB = np.concatenate((self.V_OTFB[self.n_coarse-1:],
-        #                            np.zeros(self.n_coarse, dtype=complex)))
         self.V_OTFB = np.concatenate((self.V_OTFB[self.n_coarse:],
                                     np.zeros(self.n_coarse, dtype=complex)))
         self.V_OTFB_INT = np.concatenate((self.V_OTFB_INT[self.n_coarse:],
