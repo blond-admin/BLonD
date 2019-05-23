@@ -16,6 +16,7 @@ _CPU_func_dict = {
     'exp': butils_wrap.exp,
     'mean': butils_wrap.mean,
     'std': butils_wrap.std,
+    'where': butils_wrap.where,
     'interp': butils_wrap.interp,
     'cumtrapz': butils_wrap.cumtrapz,
     'trapz': butils_wrap.trapz,

@@ -20,6 +20,57 @@ import numpy as np
 from blond.utils import bmath as bm
 
 
+class TestWhere(unittest.TestCase):
+
+    # Run before every test
+    def setUp(self):
+        np.random.seed(0)
+        pass
+    # Run after every test
+
+    def tearDown(self):
+        pass
+
+    def test_where_1(self):
+        a = np.random.randn(100)
+        less_than = np.random.rand()
+        real = np.where(a < less_than)[0]
+        testing = np.nonzero(bm.where(a, less_than=less_than))[0]
+        np.testing.assert_equal(real, testing)
+
+    def test_where_2(self):
+        a = np.random.randn(100)
+        more_than = np.random.rand()
+        real = np.where(a > more_than)[0]
+        testing = np.nonzero(bm.where(a, more_than=more_than))[0]
+        np.testing.assert_equal(real, testing)
+
+    def test_where_3(self):
+        a = np.random.randn(100)
+        less_than = np.random.rand()
+        more_than = np.random.rand()
+        real = np.where(np.logical_and(a < less_than, a > more_than))[0]
+        testing = np.nonzero(bm.where(a, less_than=less_than, more_than=more_than))[0]
+        np.testing.assert_equal(real, testing)
+
+    def test_where_4(self):
+        a = np.random.randn(100)
+        less_than = np.random.rand()
+        more_than = less_than
+        real = np.where(np.logical_and(a < less_than, a > more_than))[0]
+        testing = np.nonzero(bm.where(a, less_than=less_than, more_than=more_than))[0]
+        np.testing.assert_equal(real, testing)
+
+    def test_where_5(self):
+        a = np.random.randn(100)
+        less_than = 0
+        more_than = 1
+        real = np.where(np.logical_and(a < less_than, a > more_than))[0]
+        testing = np.nonzero(bm.where(a, less_than=less_than, more_than=more_than))[0]
+        np.testing.assert_equal(real, testing)
+
+
+
 class TestSin(unittest.TestCase):
 
     # Run before every test
