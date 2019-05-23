@@ -49,6 +49,35 @@ extern "C" {
         }
     }
 
+    void where_more_than(const double *__restrict__ data, const int n,
+                         const double c1,
+                         bool *__restrict__ res)
+    {
+        #pragma omp parallel for
+        for (int i = 0; i < n; i++) {
+            res[i] = data[i] > c1;
+        }
+    }
+
+    void where_less_than(const double *__restrict__ data, const int n,
+                         const double c1,
+                         bool *__restrict__ res)
+    {
+        #pragma omp parallel for
+        for (int i = 0; i < n; i++) {
+            res[i] = data[i] < c1;
+        }
+    }
+
+    void where_more_less_than(const double *__restrict__ data, const int n,
+                         const double c1, const double c2,
+                         bool *__restrict__ res)
+    {
+        #pragma omp parallel for
+        for (int i = 0; i < n; i++) {
+            res[i] = (data[i] > c1) && (data[i] < c2);
+        }
+    }
 
     double mean(const double * __restrict__ data, const int n)
     {
@@ -267,20 +296,20 @@ extern "C" {
 
     void sort_double(double * __restrict__ in, const int n, bool reverse)
     {
-        if(reverse) std::sort(in, in + n, std::greater<double>());
+        if (reverse) std::sort(in, in + n, std::greater<double>());
         else std::sort(in, in + n);
     }
 
     void sort_int(int * __restrict__ in, const int n, bool reverse)
     {
-        if(reverse) std::sort(in, in + n, std::greater<int>());
+        if (reverse) std::sort(in, in + n, std::greater<int>());
         else std::sort(in, in + n);
     }
 
 
     void sort_longint(long int * __restrict__ in, const int n, bool reverse)
     {
-        if(reverse) std::sort(in, in + n, std::greater<long int>());
+        if (reverse) std::sort(in, in + n, std::greater<long int>());
         else std::sort(in, in + n);
     }
 
