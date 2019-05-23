@@ -794,6 +794,8 @@ class LHCCavityLoop(object):
         Cavity R/Q [Ohm] (default is 45 Ohms)
     tau_loop : float
         Total loop delay [s]
+    tau_otfb : float
+        Total loop delay as seen by OTFB [s]
     Ts : float
         Sampling time of the LLRF loops [s] (default is 25 ns)
 
@@ -814,7 +816,8 @@ class LHCCavityLoop(object):
 
     def __init__(self, RFStation, Profile, f_c=400.789e6, G_gen=1,
                  I_gen_offset=0, n_cav=8, n_pretrack=200, Q_L=20000,
-                 R_over_Q=45, tau_loop=650e-9, RFFB=LHCRFFeedback()):
+                 R_over_Q=45, tau_loop=650e-9, tau_otfb=1472e-9,
+                 RFFB=LHCRFFeedback()):
 
         # Set up logging
         self.logger = logging.getLogger(__class__.__name__)
@@ -833,6 +836,7 @@ class LHCCavityLoop(object):
         self.Q_L = Q_L
         self.R_over_Q = R_over_Q
         self.tau_loop = tau_loop
+        self.tau_otfb = tau_otfb
         #self.T_s = T_s
         self.logger.debug("Cavity loaded Q is %.0f", self.Q_L)
 
@@ -926,7 +930,9 @@ class LHCCavityLoop(object):
         # AC coupling at input
         self.V_OTFB_INT[self.ind] = self.V_OTFB_INT[self.ind - 1] * (
             1 - self.T_s / self.tau_o) + \
-            self.V_FB_IN[self.ind-self.n_coarse+self.n_delay] - self.V_FB_IN[self.ind-self.n_coarse+self.n_delay-1]
+            self.V_FB_IN[self.ind-self.n_coarse+self.n_otfb] - self.V_FB_IN[self.ind-self.n_coarse+self.n_otfb-1]
+        #self.V_FB_IN[self.ind - self.n_coarse + self.n_delay] - self.V_FB_IN[
+        #    self.ind - self.n_coarse + self.n_delay - 1]
         # OTFB response
         self.V_OTFB[self.ind] = self.alpha*self.V_OTFB[
         self.ind-self.n_coarse] \
@@ -969,8 +975,8 @@ class LHCCavityLoop(object):
 
         # On the analog branch, OTFB can contribute
         self.one_turn_feedback()
-        self.V_a_in = int(np.invert(bool(self.excitation_otfb)))*self.V_fb_in \
-            + self.open_otfb*self.V_otfb \
+        #self.V_a_in = int(np.invert(bool(self.excitation_otfb)))*self.V_fb_in \
+        self.V_a_in = self.V_fb_in + self.open_otfb*self.V_otfb \
             + int(bool(self.excitation_otfb))*self.V_EXC[self.ind]
 
         # Output of analog feedback (separate branch)
@@ -1106,7 +1112,11 @@ class LHCCavityLoop(object):
         self.V_EXC_OUT[0:self.n_coarse] = self.V_FB_IN[self.n_coarse:2*self.n_coarse]
         for n in range(1, n_turns):
             self.update_arrays()
-            self.update_set_point_excitation(self.V_EXC_IN, n)
+            self.V_EXC = np.concatenate(
+                (np.zeros(self.n_coarse, dtype=complex),
+                 self.V_EXC_IN[n*self.n_coarse:(n+1)*self.n_coarse]))
+
+            #self.update_set_point()
             self.track_one_turn()
             self.V_EXC_OUT[n*self.n_coarse:(n+1)*self.n_coarse] = \
                 self.V_FB_IN[self.n_coarse:2*self.n_coarse]
@@ -1172,6 +1182,7 @@ class LHCCavityLoop(object):
         self.T_s = self.rf.t_rev[self.counter]/self.n_coarse
         # Delay time
         self.n_delay = int(self.tau_loop/self.T_s)
+        self.n_otfb = int(self.tau_otfb/self.T_s)
         # Present rf frequency
         self.omega = self.rf.omega_rf[0, self.counter]
         # Present detuning

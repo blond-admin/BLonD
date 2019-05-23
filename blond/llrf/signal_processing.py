@@ -14,6 +14,7 @@
 '''
 
 from __future__ import division
+import matplotlib.pyplot as plt
 import numpy as np
 from scipy.constants import e
 from scipy import signal as sgn
@@ -185,6 +186,41 @@ def comb_filter(y, x, a):
     return a*y + (1 - a)*x
 
 
+def fir_filter(signal, n_taps, sampling_freq, cutoff_freq):
+    """Band-stop type FIR filter from scipy
+    http://docs.scipy.org
+
+    Parameters
+    ----------
+    signal : complex array
+        Signal to be filtered
+    n_taps : int
+        Number of taps, should be impair
+    sampling_freq : float
+        Sampling frequency [Hz]
+    cutoff_freq : float
+        Cutoff frequency [Hz]
+
+
+    Returns
+    -------
+    complex array
+        FIR filtered signal
+
+    """
+    #fPass = cutoff_freq/sampling_freq
+    #fStop = 1.5*fPass
+    fStop = 0.14
+    fPass = 0.14/1.5
+    #coeff = sgn.firwin(n_taps, [fPass, fStop], pass_zero=False)
+    #coeff = sgn.firwin(n_taps, [0, cutoff_freq, 1.5*cutoff_freq, 0.5*sampling_freq], pass_zero=False, fs=sampling_freq)
+    #coeff = sgn.firwin(n_taps, [fPass, fStop], pass_zero=True, window='blackman')
+    coeff = sgn.firwin2(n_taps, [0, 0.04, 0.08, 0.14, 0.5], [0.75, 0.8, 0.6, 0, 0], window='blackman', fs=1)
+    print(coeff)
+    return coeff
+    #return sgn.lfilter(coeff, 1.0, signal)
+
+
 def low_pass_filter(signal, cutoff_frequency=0.5):
     """Low-pass filter based on Butterworth 5th order digital filter from
     scipy,
@@ -240,3 +276,25 @@ def moving_average(x, N, x_prev=None):
     mov_avg = np.cumsum(x)
     mov_avg[N:] = mov_avg[N:] - mov_avg[:-N]
     return mov_avg[N-1:] / N
+
+
+def plot_frequency_response(b, a=1):
+    """Plotting the frequency response of a filter with coefficients a, b."""
+
+    w, H = sgn.freqz(b,a)
+    H_dB = 20*np.log10(abs(H))
+    plt.subplot(211)
+    plt.plot(w/np.max(w), np.absolute(H))#H_dB)
+    #plt.ylim(-150, 5)
+    #plt.xlim(0,0.25)
+    plt.ylabel('Amplitude [dB]')
+    plt.xlabel(r'Normalized Frequency (x$\pi$rad/sample)')
+    plt.title(r'Frequency response')
+    plt.subplot(212)
+    phase = np.unwrap(np.angle(H))
+    plt.plot(w/max(w), phase)
+    plt.ylabel('Phase [radians]')
+    plt.xlabel(r'Normalized Frequency (x$\pi$rad/sample)')
+    plt.title(r'Phase response')
+    plt.subplots_adjust(hspace=0.5)
+    plt.show()
