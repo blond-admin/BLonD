@@ -33,7 +33,7 @@
 
 static std::vector<fft_plan_t> planV;
 static bool hasBeenInit = false;
-const uint FFTW_FLAGS = FFTW_MEASURE | FFTW_DESTROY_INPUT;
+const unsigned FFTW_FLAGS = FFTW_MEASURE | FFTW_DESTROY_INPUT;
 
 using namespace std;
 // Parameters are like python's numpy.fft.rfft

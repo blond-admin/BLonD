@@ -103,7 +103,8 @@ cpp_files = [
 if (__name__ == "__main__"):
     args = parser.parse_args()
     boost_path = None
-    with_fftw = args.with_fftw or args.with_fftw_threads or args.with_fftw_omp or args.with_fftw_lib or args.with_fftw_header
+    with_fftw = args.with_fftw or args.with_fftw_threads or args.with_fftw_omp or \
+        (args.with_fftw_lib is not None) or (args.with_fftw_header is not None)
     if(args.boost is not None):
         if(args.boost):
             boost_path = os.path.abspath(args.boost)
@@ -127,13 +128,16 @@ if (__name__ == "__main__"):
             libs += ['-L', args.with_fftw_lib]
         if args.with_fftw_header is not None:
             cflags += ['-I', args.with_fftw_header]
-        libs += ['-lfftw3']
-        if args.with_fftw_omp:
-            cflags += ['-DFFTW3PARALLEL']
-            libs += ['-lfftw3_omp']
-        elif args.with_fftw_threads:
-            cflags += ['-DFFTW3PARALLEL']
-            libs += ['-lfftw3_threads']
+        if 'win' in sys.platform:
+            libs += ['-lfftw3-3']
+        else:
+            libs += ['-lfftw3']
+            if args.with_fftw_omp:
+                cflags += ['-DFFTW3PARALLEL']
+                libs += ['-lfftw3_omp']
+            elif args.with_fftw_threads:
+                cflags += ['-DFFTW3PARALLEL']
+                libs += ['-lfftw3_threads']
 
     if ('posix' in os.name):
         cflags += ['-fPIC']
