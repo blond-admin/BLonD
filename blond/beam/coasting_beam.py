@@ -49,7 +49,7 @@ def generate_coasting_beam(Beam, t_start, t_stop, spread = 1E-3, spread_type = '
 		Beam.dE = rand.normal(loc = energy_offset, scale = energy_spread, size = Beam.n_macroparticles)
 
 	elif distribution == 'parabolic':
-		energyRange = np.linspace(-energy_spread, energy_spread, 10000)
+		energyRange = np.linspace(float(-energy_spread), float(energy_spread), 10000)
 		probabilityDistribution = 1 - (energyRange/energy_spread)**2
 		probabilityDistribution /= np.cumsum(probabilityDistribution)[-1]
 		Beam.dE = rand.choice(energyRange, size = Beam.n_macroparticles, p = probabilityDistribution) + (rand.rand(Beam.n_macroparticles) - 0.5) * (energyRange[1] - energyRange[0]) + energy_offset

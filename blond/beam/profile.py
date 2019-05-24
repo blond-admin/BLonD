@@ -141,10 +141,10 @@ class CutOptions(object):
 
         else:
 
-            self.cut_left = self.convert_coordinates(self.cut_left,
-                                                     self.cuts_unit)
-            self.cut_right = self.convert_coordinates(self.cut_right,
-                                                      self.cuts_unit)
+            self.cut_left = float(self.convert_coordinates(self.cut_left,
+                                                     self.cuts_unit))
+            self.cut_right = float(self.convert_coordinates(self.cut_right,
+                                                      self.cuts_unit))
 
         self.edges = np.linspace(self.cut_left, self.cut_right,
                                  self.n_slices + 1)

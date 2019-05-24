@@ -278,7 +278,7 @@ class _InducedVoltage(object):
                 # Selecting time-shift method
                 self.shift_trev = self.shift_trev_time
                 # Time array
-                self.time_mtw = np.linspace(0, self.wake_length,
+                self.time_mtw = np.linspace(0, float(self.wake_length),
                                             self.n_mtw_memory, endpoint=False)
 
             # Array to add and shift in time the multi-turn wake over the turns

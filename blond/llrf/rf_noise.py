@@ -120,7 +120,7 @@ class FlatSpectrum(object):
             dPt = np.fft.ifft(dPf) # in [rad]
                     
         # Use only real part for the phase shift and normalize
-        self.t = np.linspace(0, nt*dt, nt) 
+        self.t = np.linspace(0, float(nt*dt), nt) 
         self.dphi_output = dPt.real
  
     
@@ -141,7 +141,7 @@ class FlatSpectrum(object):
                 #NoiseError
                 raise RuntimeError('Error in noise generation!')
             n_points_pos_f_incl_zero = int(nt_regular/2 + 1)  
-            freq = np.linspace(0, f_max, n_points_pos_f_incl_zero)
+            freq = np.linspace(0, float(f_max), n_points_pos_f_incl_zero)
             delta_f = f_max/(n_points_pos_f_incl_zero-1) 
 
             # Construct spectrum   
@@ -158,7 +158,7 @@ class FlatSpectrum(object):
             elif self.predistortion == 'linear':
                 
                 spectrum = np.concatenate((np.zeros(nmin), 
-                    np.linspace(0, ampl, nmax-nmin+1), np.zeros(n_points_pos_f_incl_zero-nmax-1)))   
+                    np.linspace(0, float(ampl), nmax-nmin+1), np.zeros(n_points_pos_f_incl_zero-nmax-1)))   
                 
             elif self.predistortion == 'hyperbolic':
 
