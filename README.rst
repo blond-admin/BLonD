@@ -95,6 +95,49 @@ Confirm proper installation
         $ python __EXAMPLES/main_files/EX_02_Main_long_ps_booster.py
         $ etc..
 
+
+Use the FFTW3 library for the FFTs
+----------------------------------
+So far only the ``rfft()``, ``irfft()`` and ``fftfreq()`` routines are supported. ``fft_convolve()`` to be added soon. 
+
+* Windows:
+
+  1. Download and unzip the pre-compiled FFTW3 library. Link: ftp://ftp.fftw.org/pub/fftw/fftw-3.3.5-dll64.zip
+
+  2. Copy the ``libfftw3-3.dll`` under your python distribution directory and under the mingw/lib directory.
+
+  3. Copy the ``fftw3.h`` file in blond/cpp_routines.
+
+  4. Run the ``blond/compile.py`` with the flag ``--with-fftw``.
+
+  5. To use the supported routines, you need to call the function ``use_fftw()`` from ``bmath.py``:
+      .. code-block:: python
+
+        from blond.utils import bmath as bm
+        bm.use_fftw()
+        bm.rfft(...)
+        bm.irfft(...)
+        bm.rfftfreq(...)
+
+* Linux:
+  
+  1. Download and compile the FFTW3 library. Link: http://www.fftw.org/fftw-3.3.8.tar.gz
+
+  2. Run the ``blond/compile.py`` with the flag: ``--with-fftw``.
+
+  3. If the FFTW3 is not installed in one of the default directories, use the ``--with-fftw-lib`` and ``--with-fftw-header`` to point to the directories where shared library and header files are stored.
+
+  4. Optionally, you can enable one of the flags ``--with-fftw-omp`` or ``--with-fftw-threads`` to use the multithreaded FFTs. 
+
+  5. To use the supported routines, you need to call the function ``use_fftw()`` from ``bmath.py``:
+      .. code-block:: python
+
+        from blond.utils import bmath as bm
+        bm.use_fftw()
+        bm.rfft(...)
+        bm.irfft(...)
+        bm.rfftfreq(...)
+
 CURRENT DEVELOPERS
 ==================
 
