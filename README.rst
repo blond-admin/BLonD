@@ -104,17 +104,18 @@ So far only the ``rfft()``, ``irfft()`` and ``fftfreq()`` routines are supported
 
   1. Download and unzip the pre-compiled FFTW3 library. Link: ftp://ftp.fftw.org/pub/fftw/fftw-3.3.5-dll64.zip
 
-  2. Copy the ``libfftw3-3.dll`` under your python distribution directory and under the mingw/lib directory.
+  2. Copy the ``libfftw3-3.dll`` under your python's distribution directory.
 
-  3. Copy the ``fftw3.h`` file in blond/cpp_routines.
+  3. Run the ``blond/compile.py`` with the flag ``--with-fftw``. 
 
-  4. Run the ``blond/compile.py`` with the flag ``--with-fftw``.
+  4. If the FFTW3 library is not installed in one of the default directories, use the ``--with-fftw-lib`` and ``--with-fftw-header`` to point to the directories where the shared library and header files are stored.
 
   5. To use the supported routines, you need to call the function ``use_fftw()`` from ``bmath.py``:
       .. code-block:: python
 
         from blond.utils import bmath as bm
         bm.use_fftw()
+        ...
         bm.rfft(...)
         bm.irfft(...)
         bm.rfftfreq(...)
@@ -125,7 +126,7 @@ So far only the ``rfft()``, ``irfft()`` and ``fftfreq()`` routines are supported
 
   2. Run the ``blond/compile.py`` with the flag: ``--with-fftw``.
 
-  3. If the FFTW3 is not installed in one of the default directories, use the ``--with-fftw-lib`` and ``--with-fftw-header`` to point to the directories where shared library and header files are stored.
+  3. If the FFTW3 library is not installed in one of the default directories, use the ``--with-fftw-lib`` and ``--with-fftw-header`` to point to the directories where the shared library and header files are stored.
 
   4. Optionally, you can enable one of the flags ``--with-fftw-omp`` or ``--with-fftw-threads`` to use the multithreaded FFTs. 
 
@@ -134,6 +135,7 @@ So far only the ``rfft()``, ``irfft()`` and ``fftfreq()`` routines are supported
 
         from blond.utils import bmath as bm
         bm.use_fftw()
+        ...
         bm.rfft(...)
         bm.irfft(...)
         bm.rfftfreq(...)
