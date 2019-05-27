@@ -209,32 +209,32 @@ def sort(x, reverse=False):
     return x
 
 
-def rfft(signal, fftsize=0, result=None):
-    if (fftsize == 0) and (result == None):
-        result = np.empty(len(signal)//2 + 1, dtype=np.complex128)
-    elif (fftsize != 0) and (result == None):
-        result = np.empty(fftsize//2 + 1, dtype=np.complex128)
+def rfft(a, n=0, result=None):
+    if (n == 0) and (result == None):
+        result = np.empty(len(a)//2 + 1, dtype=np.complex128)
+    elif (n != 0) and (result == None):
+        result = np.empty(n//2 + 1, dtype=np.complex128)
 
-    __lib.rfft(__getPointer(signal),
-               __getLen(signal),
+    __lib.rfft(__getPointer(a),
+               __getLen(a),
                __getPointer(result),
-               ct.c_int(int(fftsize)),
+               ct.c_int(int(n)),
                ct.c_int(int(os.environ.get('OMP_NUM_THREADS', 1))))
 
     return result
 
 
-def irfft(signal, fftsize=0, result=None):
+def irfft(a, n=0, result=None):
 
-    if (fftsize == 0) and (result == None):
-        result = np.empty(2*(len(signal)-1), dtype=np.float64)
-    elif (fftsize != 0) and (result == None):
-        result = np.empty(fftsize, dtype=np.float64)
+    if (n == 0) and (result == None):
+        result = np.empty(2*(len(a)-1), dtype=np.float64)
+    elif (n != 0) and (result == None):
+        result = np.empty(n, dtype=np.float64)
 
-    __lib.irfft(__getPointer(signal),
-                __getLen(signal),
+    __lib.irfft(__getPointer(a),
+                __getLen(a),
                 __getPointer(result),
-                ct.c_int(int(fftsize)),
+                ct.c_int(int(n)),
                 ct.c_int(int(os.environ.get('OMP_NUM_THREADS', 1))))
     return result
 
