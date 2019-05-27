@@ -62,8 +62,7 @@ def use_fftw():
     Replace the existing rfft and irfft implementations
     with the ones coming from butils_wrap.
     '''
-    update_active_dict(_FFTW_func_dict)
-
+    globals().update(_FFTW_func_dict)
 
 
 def update_active_dict(new_dict):
