@@ -22,6 +22,7 @@ import scipy
 from scipy.constants import e
 
 from ..llrf.signal_processing import comb_filter, cartesian_to_polar, \
+    fir_filter_lhc_otfb_coeff, \
     polar_to_cartesian, modulator, moving_average, rf_beam_current
 from ..utils import bmath as bm
 from ..beam.profile import Profile, CutOptions
@@ -862,6 +863,10 @@ class LHCCavityLoop(object):
         self.logger.debug("Length of arrays in generator path %d",
                           self.n_coarse)
 
+        # Initialise FIR filter for OTFB
+        self.fir_n_taps = 63
+        self.fir_coeff = fir_filter_lhc_otfb_coeff(n_taps=self.fir_n_taps)
+
         # Initialise antenna voltage to set point value
         self.update_variables()
         self.logger.debug("Relative detuning is %.4e", self.detuning)
@@ -931,12 +936,14 @@ class LHCCavityLoop(object):
         self.V_OTFB_INT[self.ind] = self.V_OTFB_INT[self.ind - 1] * (
             1 - self.T_s / self.tau_o) + \
             self.V_FB_IN[self.ind-self.n_coarse+self.n_otfb] - self.V_FB_IN[self.ind-self.n_coarse+self.n_otfb-1]
-        #self.V_FB_IN[self.ind - self.n_coarse + self.n_delay] - self.V_FB_IN[
-        #    self.ind - self.n_coarse + self.n_delay - 1]
         # OTFB response
         self.V_OTFB[self.ind] = self.alpha*self.V_OTFB[
         self.ind-self.n_coarse] \
            + self.G_o*(1 - self.alpha)*self.V_OTFB_INT[self.ind] #-self.n_coarse+self.n_delay]
+        # LHC FIR filter with 63 taps
+        #self.V_OTFB[self.ind] = self.fir_coeff[0]*self.V_OTFB[self.ind]
+        #for k in range(1,self.fir_n_taps):
+        #    self.V_OTFB[self.ind] += self.fir_coeff[k]*self.V_OTFB[self.ind-k]
         # AC coupling at output
         self.V_otfb = self.V_otfb_prev*(1 - self.T_s/self.tau_o) + \
             self.V_OTFB[self.ind] - self.V_OTFB[self.ind-1]
@@ -1182,7 +1189,7 @@ class LHCCavityLoop(object):
         self.T_s = self.rf.t_rev[self.counter]/self.n_coarse
         # Delay time
         self.n_delay = int(self.tau_loop/self.T_s)
-        self.n_otfb = int(self.tau_otfb/self.T_s)
+        self.n_otfb = int(self.tau_otfb/self.T_s) # + 0.5*(self.fir_n_taps-1))
         # Present rf frequency
         self.omega = self.rf.omega_rf[0, self.counter]
         # Present detuning

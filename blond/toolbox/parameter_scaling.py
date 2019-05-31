@@ -161,7 +161,11 @@ class ParameterScaling(object):
                                + np.str(self.delta_b) + "")
         self.tb1.append("    Emittance contour in energy offset: " 
                                + np.str(self.dE_b * 1.e-6) + " MeV")
-        self.tb1.append("    Longitudinal emittance is: " 
+        self.tb1.append("    R.m.s. bunch length is: "
+                               + np.str(self.tau*c/4*100) + " cm")
+        self.tb1.append("    R.m.s. energy spread is: "
+                               + np.str(0.5*self.dE_b/self.kinetic_energy) + "")
+        self.tb1.append("    Longitudinal emittance is: "
                                + np.str(self.emittance) + " eVs\n")
 
 
