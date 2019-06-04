@@ -266,6 +266,60 @@ class TestFFTS(unittest.TestCase):
         np.testing.assert_almost_equal(
             res, fft.irfft(fft.rfft(s, n=150), n=200), 8)
 
+    def test_rfftfreq_1(self):
+        delta_t = 1.0
+        n_points = 10
+        try:
+            res = bm.rfftfreq(n_points, delta_t)
+        except AttributeError as e:
+            self.skipTest('Not compiled with FFTW')
+        np.testing.assert_almost_equal(res, fft.rfftfreq(n_points, delta_t), 8)
+
+    def test_rfftfreq_2(self):
+        n_points = 10000
+        try:
+            res = bm.rfftfreq(n_points)
+        except AttributeError as e:
+            self.skipTest('Not compiled with FFTW')
+        np.testing.assert_almost_equal(res, fft.rfftfreq(n_points), 8)
+
+
+    def test_rfftfreq_3(self):
+        n_points = 1000
+        delta_t = 1.5
+        try:
+            res = bm.rfftfreq(n_points, delta_t)
+        except AttributeError as e:
+            self.skipTest('Not compiled with FFTW')
+        np.testing.assert_almost_equal(res, fft.rfftfreq(n_points, delta_t), 8)
+
+    def test_rfftfreq_4(self):
+        n_points = 1000
+        delta_t = -0.1
+        try:
+            res = bm.rfftfreq(n_points, delta_t)
+        except AttributeError as e:
+            self.skipTest('Not compiled with FFTW')
+        np.testing.assert_almost_equal(res, fft.rfftfreq(n_points, delta_t), 8)
+
+    def test_rfftfreq_5(self):
+        n_points = 1000
+        delta_t = -100
+        try:
+            res = bm.rfftfreq(n_points, delta_t)
+        except AttributeError as e:
+            self.skipTest('Not compiled with FFTW')
+        np.testing.assert_almost_equal(res, fft.rfftfreq(n_points, delta_t), 8)
+
+    def test_rfftfreq_6(self):
+        n_points = 1000
+        delta_t = 0
+        try:
+            res = bm.rfftfreq(n_points, delta_t)
+        except AttributeError as e:
+            self.skipTest('Not compiled with FFTW')
+        except ZeroDivisionError as e:
+            self.assertTrue(True, 'This testcase should raise a ZeroDivisionError')
 
 if __name__ == '__main__':
 
