@@ -240,10 +240,12 @@ def irfft(a, n=0, result=None):
 
 
 def rfftfreq(n, d=1.0, result=None):
+    if d == 0:
+        raise ZeroDivisionError('d must be non-zero')
     if result is None:
-        result = np.empty(n//2 + 1, dtype=float)
+        result = np.empty(n//2 + 1, dtype=np.float64)
 
     __lib.rfftfreq(ct.c_int(n),
-                   __getLen(result),
+                   __getPointer(result),
                    ct.c_double(d))
     return result
