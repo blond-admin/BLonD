@@ -729,8 +729,8 @@ class LHCRFFeedback(object):
     def __init__(self, alpha=15/16, d_phi_ad=0, G_a=0.00001, G_d=10, G_o=10,
                  tau_a=170e-6, tau_d=400e-6, tau_o=110e-6, open_drive=False,
                  open_loop=False, open_otfb=False, open_rffb=False,
-                 excitation=False, excitation_otfb=False, seed1=1234,
-                 seed2=7564):
+                 excitation=False, excitation_otfb_1=False,
+                 excitation_otfb_2=False, seed1=1234, seed2=7564):
 
         # Import variables
         self.alpha = alpha
@@ -742,7 +742,8 @@ class LHCRFFeedback(object):
         self.tau_d = tau_d
         self.tau_o = tau_o
         self.excitation = excitation
-        self.excitation_otfb = excitation_otfb
+        self.excitation_otfb_1 = excitation_otfb_1
+        self.excitation_otfb_2 = excitation_otfb_2
         self.seed1 = seed1
         self.seed2 = seed2
 
@@ -856,7 +857,8 @@ class LHCCavityLoop(object):
         self.tau_d = self.RFFB.tau_d
         self.tau_o = self.RFFB.tau_o
         self.excitation = self.RFFB.excitation
-        self.excitation_otfb = self.RFFB.excitation_otfb
+        self.excitation_otfb_1 = self.RFFB.excitation_otfb_1
+        self.excitation_otfb_2 = self.RFFB.excitation_otfb_2
 
         # Length of arrays in LLRF  #TODO: could change over time
         self.n_coarse = int(self.rf.harmonic[0, 0]/10)
@@ -866,6 +868,7 @@ class LHCCavityLoop(object):
         # Initialise FIR filter for OTFB
         self.fir_n_taps = 63
         self.fir_coeff = fir_filter_lhc_otfb_coeff(n_taps=self.fir_n_taps)
+        self.logger.debug('Sum of FIR coefficients %.4e' %np.sum(self.fir_coeff))
 
         # Initialise antenna voltage to set point value
         self.update_variables()
@@ -892,10 +895,12 @@ class LHCCavityLoop(object):
         if self.excitation:
             self.logger.debug("Injecting noise in voltage set point")
             self.track_no_beam_excitation(self.n_pretrack)
-        elif self.excitation_otfb:
+        elif self.excitation_otfb_1 or self.excitation_otfb_2:
+            self.excitation_otfb = True
             self.logger.debug("Injecting noise at OTFB output")
             self.track_no_beam_excitation_otfb(self.n_pretrack)
         else:
+            self.excitation_otfb = False
             self.track_no_beam(self.n_pretrack)
 
 
@@ -937,14 +942,13 @@ class LHCCavityLoop(object):
             1 - self.T_s / self.tau_o) + \
             self.V_FB_IN[self.ind-self.n_coarse+self.n_otfb] - self.V_FB_IN[self.ind-self.n_coarse+self.n_otfb-1]
         # OTFB response
-        self.V_OTFB[self.ind] = self.alpha*self.V_OTFB[
-        self.ind-self.n_coarse] \
+        self.V_OTFB[self.ind] = self.alpha*self.V_OTFB[self.ind-self.n_coarse] \
            + self.G_o*(1 - self.alpha)*self.V_OTFB_INT[self.ind] #-self.n_coarse+self.n_delay]
         # LHC FIR filter with 63 taps
-        #self.V_OTFB[self.ind] = self.fir_coeff[0]*self.V_OTFB[self.ind]
-        #for k in range(1,self.fir_n_taps):
-        #    self.V_OTFB[self.ind] += self.fir_coeff[k]*self.V_OTFB[self.ind-k]
-        # AC coupling at output
+        self.V_OTFB[self.ind] = self.fir_coeff[0]*self.V_OTFB[self.ind]
+        for k in range(1, self.fir_n_taps):
+            self.V_OTFB[self.ind] += self.fir_coeff[k]*self.V_OTFB[self.ind-k]
+        #AC coupling at output
         self.V_otfb = self.V_otfb_prev*(1 - self.T_s/self.tau_o) + \
             self.V_OTFB[self.ind] - self.V_OTFB[self.ind-1]
         # Update memory
@@ -1116,17 +1120,31 @@ class LHCCavityLoop(object):
                                      self.V_EXC_IN[0:self.n_coarse]))
 
         self.track_one_turn()
-        self.V_EXC_OUT[0:self.n_coarse] = self.V_FB_IN[self.n_coarse:2*self.n_coarse]
+        if self.excitation_otfb_1:
+            self.V_EXC_OUT[0:self.n_coarse] = self.V_FB_IN[self.n_coarse:2*self.n_coarse]
+        elif self.excitation_otfb_2:
+            self.V_EXC_OUT[0:self.n_coarse] = self.V_otfb
         for n in range(1, n_turns):
             self.update_arrays()
             self.V_EXC = np.concatenate(
                 (np.zeros(self.n_coarse, dtype=complex),
                  self.V_EXC_IN[n*self.n_coarse:(n+1)*self.n_coarse]))
 
-            #self.update_set_point()
-            self.track_one_turn()
-            self.V_EXC_OUT[n*self.n_coarse:(n+1)*self.n_coarse] = \
-                self.V_FB_IN[self.n_coarse:2*self.n_coarse]
+            #self.track_one_turn()
+            #self.V_EXC_OUT[n * self.n_coarse:(n + 1) * self.n_coarse] = \
+            #    self.V_FB_IN[self.n_coarse:2 * self.n_coarse]
+
+            for i in range(self.n_coarse):
+                self.ind = i + self.n_coarse
+                self.cavity_response()
+                self.rf_feedback()
+                self.swap()
+                self.generator_current()
+                if self.excitation_otfb_1:
+                    self.V_EXC_OUT[n*self.n_coarse+i] = \
+                        self.V_FB_IN[self.n_coarse+i]
+                elif self.excitation_otfb_2:
+                    self.V_EXC_OUT[n*self.n_coarse+i] = self.V_otfb
 
 
     def track_no_beam(self, n_turns):
@@ -1189,7 +1207,7 @@ class LHCCavityLoop(object):
         self.T_s = self.rf.t_rev[self.counter]/self.n_coarse
         # Delay time
         self.n_delay = int(self.tau_loop/self.T_s)
-        self.n_otfb = int(self.tau_otfb/self.T_s) # + 0.5*(self.fir_n_taps-1))
+        self.n_otfb = int(self.tau_otfb/self.T_s + 0.5*(self.fir_n_taps-1))
         # Present rf frequency
         self.omega = self.rf.omega_rf[0, self.counter]
         # Present detuning
