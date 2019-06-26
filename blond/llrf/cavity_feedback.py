@@ -893,6 +893,7 @@ class LHCCavityLoop(object):
         # Pre-track without beam
         self.logger.debug("Track without beam for %d turns", self.n_pretrack)
         if self.excitation:
+            self.excitation_otfb = False
             self.logger.debug("Injecting noise in voltage set point")
             self.track_no_beam_excitation(self.n_pretrack)
         elif self.excitation_otfb_1 or self.excitation_otfb_2:
@@ -901,6 +902,7 @@ class LHCCavityLoop(object):
             self.track_no_beam_excitation_otfb(self.n_pretrack)
         else:
             self.excitation_otfb = False
+            self.logger.debug("Pre-tracking without beam")
             self.track_no_beam(self.n_pretrack)
 
 
@@ -947,7 +949,7 @@ class LHCCavityLoop(object):
         # LHC FIR filter with 63 taps
         self.V_OTFB[self.ind] = self.fir_coeff[0]*self.V_OTFB[self.ind]
         for k in range(1, self.fir_n_taps):
-            self.V_OTFB[self.ind] += self.fir_coeff[k]*self.V_OTFB[self.ind-k]
+             self.V_OTFB[self.ind] += self.fir_coeff[k]*self.V_OTFB[self.ind-k]
         #AC coupling at output
         self.V_otfb = self.V_otfb_prev*(1 - self.T_s/self.tau_o) + \
             self.V_OTFB[self.ind] - self.V_OTFB[self.ind-1]
