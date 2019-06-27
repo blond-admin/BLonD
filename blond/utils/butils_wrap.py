@@ -7,9 +7,8 @@ BLonD math wrapper functions
 
 import ctypes as ct
 import numpy as np
-# from setup_cpp import libblondmath as __lib
+import os
 from .. import libblond as __lib
-
 
 def __getPointer(x):
     return x.ctypes.data_as(ct.c_void_p)
@@ -32,8 +31,10 @@ def convolve(signal, kernel, mode='full', result=None):
 
 # Similar to np.where with a condition of more_than < x < less_than
 # You need to define at least one of more_than, less_than
-# @return: a bool array, size equal to the input, 
+# @return: a bool array, size equal to the input,
 #           True: element satisfied the cond, False: otherwise
+
+
 def where(x, more_than=None, less_than=None, result=None):
     if result is None:
         result = np.empty(len(x), dtype=np.bool)
@@ -206,3 +207,45 @@ def sort(x, reverse=False):
         # SortError
         raise RuntimeError('[sort] Datatype %s not supported' % x.dtype)
     return x
+
+
+def rfft(a, n=0, result=None):
+    if (n == 0) and (result == None):
+        result = np.empty(len(a)//2 + 1, dtype=np.complex128)
+    elif (n != 0) and (result == None):
+        result = np.empty(n//2 + 1, dtype=np.complex128)
+
+    __lib.rfft(__getPointer(a),
+               __getLen(a),
+               __getPointer(result),
+               ct.c_int(int(n)),
+               ct.c_int(int(os.environ.get('OMP_NUM_THREADS', 1))))
+
+    return result
+
+
+def irfft(a, n=0, result=None):
+
+    if (n == 0) and (result == None):
+        result = np.empty(2*(len(a)-1), dtype=np.float64)
+    elif (n != 0) and (result == None):
+        result = np.empty(n, dtype=np.float64)
+
+    __lib.irfft(__getPointer(a),
+                __getLen(a),
+                __getPointer(result),
+                ct.c_int(int(n)),
+                ct.c_int(int(os.environ.get('OMP_NUM_THREADS', 1))))
+    return result
+
+
+def rfftfreq(n, d=1.0, result=None):
+    if d == 0:
+        raise ZeroDivisionError('d must be non-zero')
+    if result is None:
+        result = np.empty(n//2 + 1, dtype=np.float64)
+
+    __lib.rfftfreq(ct.c_int(n),
+                   __getPointer(result),
+                   ct.c_double(d))
+    return result
