@@ -151,3 +151,21 @@ def synchrotron_radiation_full(SyncRad, turn):
         ct.c_double(SyncRad.general_params.energy[0, turn]),
         __getPointer(SyncRad.random_array),
         ct.c_int(SyncRad.n_kicks))
+
+
+def fast_resonator(R_S, Q, frequency_array, frequency_R, impedance=None):
+    realImp = np.zeros(len(frequency_array), dtype=np.float64)
+    imagImp = np.zeros(len(frequency_array), dtype=np.float64)
+
+    __lib.fast_resonator(
+        __getPointer(realImp),
+        __getPointer(imagImp),
+        __getPointer(frequency_array),
+        __getPointer(R_S),
+        __getPointer(Q),
+        __getPointer(frequency_R),
+        __getLen(R_S),
+        __getLen(frequency_array))
+
+    impedance = realImp + 1j * imagImp
+    return impedance

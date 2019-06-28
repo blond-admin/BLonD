@@ -34,6 +34,7 @@ _CPU_func_dict = {
     'kick': bphysics_wrap.kick,
     'rf_volt_comp': bphysics_wrap.rf_volt_comp,
     'drift': bphysics_wrap.drift,
+    'fast_resonator': bphysics_wrap.fast_resonator,
     'linear_interp_kick': bphysics_wrap.linear_interp_kick,
     'synchrotron_radiation': bphysics_wrap.synchrotron_radiation,
     'synchrotron_radiation_full': bphysics_wrap.synchrotron_radiation_full,

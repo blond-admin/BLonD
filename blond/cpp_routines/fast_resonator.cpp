@@ -1,9 +1,9 @@
 /*
  * Copyright 2014-2017 CERN. This software is distributed under the
- * terms of the GNU General Public Licence version 3 (GPL Version 3), 
+ * terms of the GNU General Public Licence version 3 (GPL Version 3),
  * copied verbatim in the file LICENCE.md.
- * In applying this licence, CERN does not waive the privileges and immunities 
- * granted to it by virtue of its status as an Intergovernmental Organization or 
+ * In applying this licence, CERN does not waive the privileges and immunities
+ * granted to it by virtue of its status as an Intergovernmental Organization or
  * submit itself to any jurisdiction.
  * Project website: http://blond.web.cern.ch/
  * */
@@ -14,22 +14,22 @@
 #include <stdlib.h>
 #include <math.h>
 
+extern "C" void fast_resonator(
+    double *__restrict__ impedanceReal,
+    double *__restrict__ impedanceImag,
+    const double *__restrict__ frequencies,
+    const double *__restrict__ shunt_impedances,
+    const double *__restrict__ Q_values,
+    const double *__restrict__ resonant_frequencies,
+    const int n_resonators,
+    const int n_frequencies)
 
-extern "C" void fast_resonator_real_imag(double *__restrict__ impedanceReal,
-        double *__restrict__ impedanceImag,
-        const double *__restrict__ frequencies,
-        const double *__restrict__ shunt_impedances,
-        const double *__restrict__ Q_values,
-        const double *__restrict__ resonant_frequencies,
-        const int n_resonators,
-        const int n_frequencies)
-        
 {   /*
-    This function takes as an input a list of resonators parameters and 
+    This function takes as an input a list of resonators parameters and
     computes the impedance in an optimised way.
-    
+
     Parameters
-    ---------- 
+    ----------
     frequencies : float array
         array of frequency in Hz
     shunt_impedances : float array
@@ -42,7 +42,7 @@ extern "C" void fast_resonator_real_imag(double *__restrict__ impedanceReal,
         number of resonantors
     n_frequencies : int
         length of the array 'frequencies'
-    
+
     Returns
     -------
     impedanceReal : float array
@@ -54,20 +54,17 @@ extern "C" void fast_resonator_real_imag(double *__restrict__ impedanceReal,
 
     for (int res = 0; res < n_resonators; res++) {
         const double Qsquare = Q_values[res] * Q_values[res];
-        // #pragma omp parallel for
+        const double invResFreq = 1. / resonant_frequencies[res];
+        #pragma omp parallel for
         for (int freq = 1; freq < n_frequencies; freq++) {
-            const double commonTerm = (frequencies[freq]
-                                       / resonant_frequencies[res]
+            const double commonTerm = (frequencies[freq] * invResFreq
                                        - resonant_frequencies[res]
                                        / frequencies[freq]);
+            const double commonTerm2 = shunt_impedances[res]
+                                       / (1.0 + Qsquare * commonTerm * commonTerm);
 
-            impedanceReal[freq] += shunt_impedances[res]
-                                   / (1.0 + Qsquare * commonTerm * commonTerm);
-
-            impedanceImag[freq] -= shunt_impedances[res]
-                                   * (Q_values[res] * commonTerm)
-                                   / (1.0 + Qsquare * commonTerm * commonTerm);
+            impedanceReal[freq] += commonTerm2;
+            impedanceImag[freq] -= Q_values[res] * commonTerm * commonTerm2;
         }
     }
-
 }
