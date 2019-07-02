@@ -890,6 +890,10 @@ class LHCCavityLoop(object):
         self.V_fb_in_prev = 0
         self.V_otfb_prev = 0
 
+        # OTFB v2 implementation
+        self.V_AC1_out_prev = 0
+        self.V_FIR_out_prev = 0
+
         # Pre-track without beam
         self.logger.debug("Track without beam for %d turns", self.n_pretrack)
         if self.excitation:
@@ -937,7 +941,7 @@ class LHCCavityLoop(object):
         return 0.5*self.R_over_Q*self.Q_L*np.absolute(self.I_GEN)**2
 
 
-    def one_turn_feedback(self):
+    def one_turn_feedback(self): # ORIG
 
         # AC coupling at input
         self.V_OTFB_INT[self.ind] = self.V_OTFB_INT[self.ind - 1] * (
@@ -950,12 +954,38 @@ class LHCCavityLoop(object):
         self.V_OTFB[self.ind] = self.fir_coeff[0]*self.V_OTFB[self.ind]
         for k in range(1, self.fir_n_taps):
              self.V_OTFB[self.ind] += self.fir_coeff[k]*self.V_OTFB[self.ind-k]
-        #AC coupling at output
+        # AC coupling at output
         self.V_otfb = self.V_otfb_prev*(1 - self.T_s/self.tau_o) + \
             self.V_OTFB[self.ind] - self.V_OTFB[self.ind-1]
         # Update memory
         self.V_otfb_prev = self.V_otfb
 
+
+    def one_turn_feedback_v2(self):
+
+        # AC coupling at input
+        ind = self.ind - self.n_coarse + self.n_otfb
+        self.V_AC1_out = (1- self.T_s/self.tau_o)*self.V_AC1_out_prev + \
+            self.V_FB_IN[ind] - self.V_FB_IN[ind-1]
+
+        # OTFB itself
+        self.V_OTFB_INT[self.ind] = self.alpha*self.V_OTFB_INT[self.ind-self.n_coarse] \
+            + self.G_o*(1 - self.alpha)*self.V_AC1_out
+
+        # FIR filter
+        self.V_FIR_out = self.fir_coeff[0]*self.V_OTFB_INT[self.ind]
+        for k in range(1, self.fir_n_taps):
+             self.V_FIR_out += self.fir_coeff[k]*self.V_OTFB_INT[self.ind-k]
+        #self.V_FIR_out = self.V_OTFB_INT[self.ind]
+
+        # AC coupling at output
+        self.V_OTFB[self.ind] = (1- self.T_s/self.tau_o)* \
+            self.V_OTFB[self.ind-1] + self.V_FIR_out - self.V_FIR_out_prev
+
+        # Update memory
+        self.V_otfb = self.V_OTFB[self.ind]
+        self.V_AC1_out_prev = self.V_AC1_out
+        self.V_FIR_out_prev = self.V_FIR_out
 
 
     def rf_beam_current(self):
@@ -987,7 +1017,8 @@ class LHCCavityLoop(object):
         self.V_FB_IN[self.ind] = self.V_fb_in
 
         # On the analog branch, OTFB can contribute
-        self.one_turn_feedback()
+        #self.one_turn_feedback()
+        self.one_turn_feedback_v2()
         #self.V_a_in = int(np.invert(bool(self.excitation_otfb)))*self.V_fb_in \
         self.V_a_in = self.V_fb_in + self.open_otfb*self.V_otfb \
             + int(bool(self.excitation_otfb))*self.V_EXC[self.ind]
