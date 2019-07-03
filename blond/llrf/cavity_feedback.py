@@ -951,9 +951,9 @@ class LHCCavityLoop(object):
         self.V_OTFB[self.ind] = self.alpha*self.V_OTFB[self.ind-self.n_coarse] \
            + self.G_o*(1 - self.alpha)*self.V_OTFB_INT[self.ind] #-self.n_coarse+self.n_delay]
         # LHC FIR filter with 63 taps
-        self.V_OTFB[self.ind] = self.fir_coeff[0]*self.V_OTFB[self.ind]
-        for k in range(1, self.fir_n_taps):
-             self.V_OTFB[self.ind] += self.fir_coeff[k]*self.V_OTFB[self.ind-k]
+        #self.V_OTFB[self.ind] = self.fir_coeff[0]*self.V_OTFB[self.ind]
+        #for k in range(1, self.fir_n_taps):
+        #     self.V_OTFB[self.ind] += self.fir_coeff[k]*self.V_OTFB[self.ind-k]
         # AC coupling at output
         self.V_otfb = self.V_otfb_prev*(1 - self.T_s/self.tau_o) + \
             self.V_OTFB[self.ind] - self.V_OTFB[self.ind-1]
@@ -983,7 +983,7 @@ class LHCCavityLoop(object):
             self.V_OTFB[self.ind-1] + self.V_FIR_out - self.V_FIR_out_prev
 
         # Update memory
-        self.V_otfb = self.V_OTFB[self.ind]
+        #self.V_otfb = self.V_OTFB[self.ind]
         self.V_AC1_out_prev = self.V_AC1_out
         self.V_FIR_out_prev = self.V_FIR_out
 
@@ -1018,9 +1018,10 @@ class LHCCavityLoop(object):
 
         # On the analog branch, OTFB can contribute
         #self.one_turn_feedback()
+        #self.V_a_in = self.V_fb_in + self.open_otfb*self.V_otfb \
+        #    + int(bool(self.excitation_otfb))*self.V_EXC[self.ind]
         self.one_turn_feedback_v2()
-        #self.V_a_in = int(np.invert(bool(self.excitation_otfb)))*self.V_fb_in \
-        self.V_a_in = self.V_fb_in + self.open_otfb*self.V_otfb \
+        self.V_a_in = self.V_fb_in + self.open_otfb*self.V_OTFB[self.ind] \
             + int(bool(self.excitation_otfb))*self.V_EXC[self.ind]
 
         # Output of analog feedback (separate branch)
@@ -1156,7 +1157,8 @@ class LHCCavityLoop(object):
         if self.excitation_otfb_1:
             self.V_EXC_OUT[0:self.n_coarse] = self.V_FB_IN[self.n_coarse:2*self.n_coarse]
         elif self.excitation_otfb_2:
-            self.V_EXC_OUT[0:self.n_coarse] = self.V_otfb
+            #self.V_EXC_OUT[0:self.n_coarse] = self.V_otfb
+            self.V_EXC_OUT[0:self.n_coarse] = self.V_OTFB[self.ind]
         for n in range(1, n_turns):
             self.update_arrays()
             self.V_EXC = np.concatenate(
@@ -1177,7 +1179,8 @@ class LHCCavityLoop(object):
                     self.V_EXC_OUT[n*self.n_coarse+i] = \
                         self.V_FB_IN[self.n_coarse+i]
                 elif self.excitation_otfb_2:
-                    self.V_EXC_OUT[n*self.n_coarse+i] = self.V_otfb
+                    #self.V_EXC_OUT[n*self.n_coarse+i] = self.V_otfb
+                    self.V_EXC_OUT[n*self.n_coarse+i] = self.V_OTFB[self.ind]
 
 
     def track_no_beam(self, n_turns):
