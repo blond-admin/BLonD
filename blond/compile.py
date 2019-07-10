@@ -54,19 +54,34 @@ parser.add_argument('-c', '--compiler', type=str, default='g++',
                     help='C++ compiler that will be used to compile the'
                     ' source files. Default: g++')
 
-# If True you can launch with 'OMP_NUM_THREADS=xx python MAIN_FILE.py'
-# where xx is the number of threads that you want to launch
-parallel = False
+parser.add_argument('--with-fftw', action='store_true',
+                    help='Use the FFTs from FFTW3.')
 
-# If True, the boost library would be used
-boost = False
-# Path to the boost library if not in your CPATH (recommended to use the
-# latest version)
-boost_path = None
+parser.add_argument('--with-fftw-threads', action='store_true',
+                    help='Use the multi-threaded FFTs from FFTW3.')
+
+parser.add_argument('--with-fftw-omp', action='store_true',
+                    help='Use the OMP FFTs from FFTW3.')
+
+parser.add_argument('--with-fftw-lib', type=str,
+                    help='Path to the FFTW3 library (.so, .dll).')
+
+parser.add_argument('--with-fftw-header', type=str,
+                    help='Path to the FFTW3 header files.')
+
+parser.add_argument('--flags', type=str, default='',
+                    help='Additional compile flags.')
+
+parser.add_argument('--libs', type=str, default='',
+                    help='Any extra libraries needed to compile')
+
+# Additional libs needed to compile the blond library
+libs = []
+
 
 # EXAMPLE FLAGS: -Ofast -std=c++11 -fopt-info-vec -march=native
 #                -mfma4 -fopenmp -ftree-vectorizer-verbose=1
-cflags = ['-Ofast', '-std=c++11', '-shared']
+cflags = ['-O3', '-ffast-math', '-std=c++11', '-shared']
 
 cpp_files = [
     # 'cpp_routines/mean_std_whereint.cpp',
@@ -78,17 +93,19 @@ cpp_files = [
     os.path.join(basepath, 'cpp_routines/music_track.cpp'),
     os.path.join(basepath, 'cpp_routines/blondmath.cpp'),
     os.path.join(basepath, 'cpp_routines/fast_resonator.cpp'),
+    os.path.join(basepath, 'cpp_routines/fft.cpp'),
     os.path.join(basepath, 'toolbox/tomoscope.cpp'),
     os.path.join(basepath, 'synchrotron_radiation/synchrotron_radiation.cpp'),
-    os.path.join(basepath, 'beam/sparse_histogram.cpp')
+    os.path.join(basepath, 'beam/sparse_histogram.cpp'),
 ]
 
 
 if (__name__ == "__main__"):
     args = parser.parse_args()
-    parallel = args.parallel
+    boost_path = None
+    with_fftw = args.with_fftw or args.with_fftw_threads or args.with_fftw_omp or \
+        (args.with_fftw_lib is not None) or (args.with_fftw_header is not None)
     if(args.boost is not None):
-        boost = True
         if(args.boost):
             boost_path = os.path.abspath(args.boost)
         else:
@@ -96,42 +113,69 @@ if (__name__ == "__main__"):
         cflags += ['-I', boost_path, '-DBOOST']
     compiler = args.compiler
 
-    print('Enable Multi-threaded code: ', parallel)
-    print('Using boost: ', boost)
-    print('Boost installation path: ', boost_path)
-    print('C++ Compiler: ', compiler)
-    subprocess.call([compiler, '--version'])
+    if (args.libs):
+        libs = args.libs.split()
 
-    try:
-        os.remove(os.path.join(basepath, 'cpp_routines/libblond.so'))
-    except OSError as e:
-        pass
-
-    if (parallel is True):
+    if (args.parallel):
         cflags += ['-fopenmp', '-DPARALLEL', '-D_GLIBCXX_PARALLEL']
+
+    if (args.flags):
+        cflags += args.flags.split()
+
+    if with_fftw:
+        cflags += ['-DUSEFFTW3']
+        if args.with_fftw_lib is not None:
+            libs += ['-L', args.with_fftw_lib]
+        if args.with_fftw_header is not None:
+            cflags += ['-I', args.with_fftw_header]
+        if 'win' in sys.platform:
+            libs += ['-lfftw3-3']
+        else:
+            libs += ['-lfftw3']
+            if args.with_fftw_omp:
+                cflags += ['-DFFTW3PARALLEL']
+                libs += ['-lfftw3_omp']
+            elif args.with_fftw_threads:
+                cflags += ['-DFFTW3PARALLEL']
+                libs += ['-lfftw3_threads']
 
     if ('posix' in os.name):
         cflags += ['-fPIC']
         libname = os.path.join(basepath, 'cpp_routines/libblond.so')
-        command = [compiler] + cflags + ['-o', libname] + cpp_files
-        subprocess.call(command)
-
-        print('\nIF THE COMPILATION IS CORRECT A FILE NAMED libblond.so SHOULD'
-              ' APPEAR IN THE cpp_routines FOLDER. OTHERWISE YOU HAVE TO'
-              ' CORRECT THE ERRORS AND COMPILE AGAIN.')
-
     elif ('win' in sys.platform):
-
         libname = os.path.join(basepath, 'cpp_routines/libblond.dll')
-
-        command = [compiler] + cflags + ['-o', libname] + cpp_files
-        subprocess.call(command)
-
-        print('\nIF THE COMPILATION IS CORRECT A FILE NAMED libblond.dll SHOULD'
-              ' APPEAR IN THE cpp_routines FOLDER. OTHERWISE YOU HAVE TO'
-              ' CORRECT THE ERRORS AND COMPILE AGAIN.')
-
     else:
         print(
-            'YOU DO NOT HAVE A WINDOWS OR LINUX OPERATING SYSTEM. ABORTING...')
-        sys.exit()
+            'YOU ARE NOT USING A WINDOWS OR LINUX OPERATING SYSTEM. ABORTING...')
+        sys.exit(-1)
+
+    command = [compiler] + cflags + ['-o', libname] + cpp_files + libs
+
+    print('Enable Multi-threaded code: ', args.parallel)
+    print('Using boost: ', args.boost is not None)
+    if args.boost is not None:
+        print('Boost installation path: ', boost_path)
+    print('With FFTW3: ', with_fftw)
+    if with_fftw:
+        print('Parallel FFTW3:', args.with_fftw_threads or args.with_fftw_omp)
+    if args.with_fftw_lib or args.with_fftw_header:
+        print('FFTW3 Library path: ', args.with_fftw_lib)
+        print('FFTW3 Headers path: ', args.with_fftw_header)
+    print('C++ Compiler: ', compiler)
+    print('Compiler flags: ', ' '.join(cflags))
+    print('Extra libraries: ', ' '.join(libs))
+    subprocess.call([compiler, '--version'])
+
+    try:
+        os.remove(libname)
+    except OSError as e:
+        pass
+
+    subprocess.call(command)
+
+    try:
+        libblond = ctypes.CDLL(libname)
+        print('\nThe blond library has been successfully compiled.')
+    except Exception as e:
+        print('\nCompilation failed.')
+        print(e)

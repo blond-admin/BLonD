@@ -8,14 +8,19 @@ BLonD math and physics core functions
 import numpy as np
 from ..utils import butils_wrap
 from ..utils import bphysics_wrap
+from numpy import fft
 
 # dictionary storing the CPU versions of the desired functions #
 _CPU_func_dict = {
+    'rfft': fft.rfft,
+    'irfft': fft.irfft,
+    'rfftfreq': fft.rfftfreq,
     'sin': butils_wrap.sin,
     'cos': butils_wrap.cos,
     'exp': butils_wrap.exp,
     'mean': butils_wrap.mean,
     'std': butils_wrap.std,
+    'where': butils_wrap.where,
     'interp': butils_wrap.interp,
     'cumtrapz': butils_wrap.cumtrapz,
     'trapz': butils_wrap.trapz,
@@ -45,6 +50,20 @@ _CPU_func_dict = {
     'device': 'CPU'
 }
 
+_FFTW_func_dict = {
+    'rfft': butils_wrap.rfft,
+    'irfft': butils_wrap.irfft,
+    'rfftfreq': butils_wrap.rfftfreq
+}
+
+
+def use_fftw():
+    '''
+    Replace the existing rfft and irfft implementations
+    with the ones coming from butils_wrap.
+    '''
+    globals().update(_FFTW_func_dict)
+
 
 def update_active_dict(new_dict):
     '''
@@ -57,9 +76,13 @@ def update_active_dict(new_dict):
     if not hasattr(update_active_dict, 'active_dict'):
         update_active_dict.active_dict = new_dict
     # delete all old implementations/references from globals()
-    for key in globals().keys():
-        if key in update_active_dict.active_dict.keys():
+    
+    for key in update_active_dict.active_dict.keys():
+        if key in globals():
             del globals()[key]
+    # for key in globals().keys():
+    #     if key in update_active_dict.active_dict.keys():
+    #         del globals()[key]
     # add the new active dict to the globals()
     globals().update(new_dict)
     update_active_dict.active_dict = new_dict

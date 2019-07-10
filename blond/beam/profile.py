@@ -17,7 +17,7 @@
 from __future__ import division, print_function
 from builtins import object
 import numpy as np
-from numpy.fft import rfft, rfftfreq
+# from numpy.fft import rfft, rfftfreq
 from scipy import ndimage
 import ctypes
 from ..toolbox import filters_and_fitting as ffroutines
@@ -141,10 +141,10 @@ class CutOptions(object):
 
         else:
 
-            self.cut_left = self.convert_coordinates(self.cut_left,
-                                                     self.cuts_unit)
-            self.cut_right = self.convert_coordinates(self.cut_right,
-                                                      self.cuts_unit)
+            self.cut_left = float(self.convert_coordinates(self.cut_left,
+                                                     self.cuts_unit))
+            self.cut_right = float(self.convert_coordinates(self.cut_right,
+                                                      self.cuts_unit))
 
         self.edges = np.linspace(self.cut_left, self.cut_right,
                                  self.n_slices + 1)
@@ -524,14 +524,14 @@ class Profile(object):
         Frequency array of the beam spectrum
         """
 
-        self.beam_spectrum_freq = rfftfreq(n_sampling_fft, self.bin_size)
+        self.beam_spectrum_freq = bm.rfftfreq(n_sampling_fft, self.bin_size)
 
     def beam_spectrum_generation(self, n_sampling_fft):
         """
         Beam spectrum calculation
         """
 
-        self.beam_spectrum = rfft(self.n_macroparticles, n_sampling_fft)
+        self.beam_spectrum = bm.rfft(self.n_macroparticles, n_sampling_fft)
 
     def beam_profile_derivative(self, mode='gradient'):
         """

@@ -109,7 +109,7 @@ class SanityCheck(object):
         print("EXECUTING UNITTESTS")
         tests = []
         if isinstance(unitTests, str) and (unitTests == ''):
-            for path, _, files in os.walk("unittests"):
+            for path, _, files in os.walk("../unittests"):
                 tests += [os.path.join(path, file)
                           for file in files if file.startswith('test')]
         elif isinstance(unitTests, str):
@@ -135,7 +135,7 @@ def main():
         description=textwrap.dedent('''
         SANITY CHECKER; run before committing from BLonD folder
         E.g. > python sanity_check.py -p "llrf/signal_processing.py beam/profile.py"
-             > python sanity_check.py -u "unittests/general"
+             > python sanity_check.py -u "../unittests/general"
              > python sanity_check.py -a
              > python sanity_check.py -p "git" (pep8 report only committed or modified files)
         '''))

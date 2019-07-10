@@ -464,12 +464,12 @@ def calculate_phi_s(RFStation, Particle=Proton(),
             totalRF = 0
             if np.sign(eta0[indexTurn]) > 0:
                 phase_array = np.linspace(
-                    -RFStation.phi_rf[0, indexTurn+1],
-                    -RFStation.phi_rf[0, indexTurn+1] + 2*np.pi, 1000)
+                    -float(RFStation.phi_rf[0, indexTurn+1]),
+                    -float(RFStation.phi_rf[0, indexTurn+1]) + 2*np.pi, 1000)
             else:
                 phase_array = np.linspace(
-                    -RFStation.phi_rf[0, indexTurn+1] - np.pi,
-                    -RFStation.phi_rf[0, indexTurn+1] + np.pi, 1000)
+                    -float(RFStation.phi_rf[0, indexTurn+1]) - np.pi,
+                    -float(RFStation.phi_rf[0, indexTurn+1]) + np.pi, 1000)
 
             for indexRF in range(len(RFStation.voltage[:, indexTurn+1])):
                 totalRF += RFStation.voltage[indexRF, indexTurn+1] * \
