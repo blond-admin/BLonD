@@ -12,7 +12,7 @@ from distutils.command.clean import clean as _clean
 class Compile(distutils.cmd.Command):
     """Compile all C/C++ source files."""
 
-    description = 'Compile the shared libraries'
+    description = 'Compile the shared libraries. Use blond/compile.py for advanced options.'
     user_options = [
         ('openmp', 'o', 'Enable Multi-threaded code'),
         ('compiler=', 'c', 'Specify the compiler type'),
