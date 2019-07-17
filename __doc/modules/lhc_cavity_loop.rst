@@ -114,8 +114,9 @@ One-turn feedback
 ~~~~~~~~~~~~~~~~~
 
 There is the possibility to switch on the one-turn feedback to boost the gain of the analog feedback. On the branch of
-the one-turn feedback, there is a delay that is complementary to the total loop delay,
-:math:`T_0 - \tau_{\mathsf{loop}}`, where :math:`T_0` is the revolution period in that turn.
+the one-turn feedback (OTFB), there is a delay that is complementary to the total loop delay as seen by the OTFB
+:math:`\tau_{\mathsf{otfb}}`,
+:math:`T_0 - \tau_{\mathsf{otfb}}`, where :math:`T_0` is the revolution period in that turn.
 
 The response of the one-turn feedback itself reads as follows:
 
@@ -131,14 +132,6 @@ In time domain, the signal from the previous turn is used to construct the signa
 
     y^{(n)} = \alpha y^{(n - N)} + G_o (1 - \alpha) x^{(n - N)} \, .
 
-In the implementation, the one-turn delay is ensured in the AC coupling at the input, so the one-turn feedback response
-in time domain reads as
-
-.. math::
-
-    y^{(n)} = \alpha y^{(n - N)} + G_o (1 - \alpha) x^{(n)} \, .
-
-
 Both at the input and the output, an AC coupling ensures that unwanted frequencies are filtered out,
 
 .. math::
@@ -153,14 +146,38 @@ In time domain, this reads as
 
     y^{(n)} = \left[ 1 - \frac{T_s}{\tau_o} \right] \, y^{(n - 1)} + x^{(n)} - x^{(n - 1)} \, .
 
-On the input side, taking into account the delay of the input signal, we get:
+In addition, a 63-tap finite-impulse response (FIR) filter is used to limit the bandwidth of the overall response.
+
+The numerical implementation thus consists of the following four steps, in the below-mentioned order:
+
+1. AC coupling at input on the signal of the previous turn, combined with OTFB delay :math:`T_0 - \tau_{\mathsf{otfb}}` at input,
 
 .. math::
 
-    y^{(n)} = \left[ 1 - \frac{T_s}{\tau_o} \right] \, y^{(n - 1)} + x^{(n - N + n_{\mathsf{loop}})} -
-    x^{(n - N + n_{\mathsf{loop}} - 1)}\, ,
+       y^{(n - N)} = \left[ 1 - \frac{T_s}{\tau_o} \right] \, y^{(n - N - 1)} + x^{(n - N + n_{\mathsf{otfb}})} -
+    x^{(n - N + n_{\mathsf{otfb}} - 1)} \,
 
-where :math:`n_{\mathsf{loop}} = int(\tau_{\mathsf{loop}}/T_0)`.
+where :math:`N = \mathsf{int}(T_0/T_s)` and :math:`n_{\mathsf{otfb}} = \mathsf{int}(\tau_{\mathsf{otfb}}/T_s + (n_\mathsf{taps} - 1)/2)`,
+with :math:`n_\mathsf{taps}` being the number of taps of the FIR filter,
+
+2. OTFB response,
+
+.. math::
+
+    z^{(n)} =  \alpha z^{(n - N)} + G_o (1 - \alpha) y^{(n - N)}
+
+3. FIR filter response; N.B. this introduces an extra delay of :math:`(n_\mathsf{taps} - 1)/2` which is already compensated in step 1.
+
+.. math::
+
+    v^{(n)} = b_0 z^{(n)} + b_1 z^{(n-1)} + ... + b_{n_\mathsf{taps}} z^{(n - n_\mathsf{taps})}
+
+4. AC coupling at output.
+
+.. math::
+
+    w^{(n)} = \left[ 1 - \frac{T_s}{\tau_o} \right] \, w^{(n - 1)} + v^{(n)} -
+    v^{(n - 1)}
 
 
 
