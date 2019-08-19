@@ -334,18 +334,30 @@ class RingAndRFTracker(object):
         bm.kick(self, beam_dt, beam_dE, index)
 
     def drift(self, beam_dt, beam_dE, index):
-        """Function updating the particle arrival time to the RF station 
-        (drift). If only the zeroth order slippage factor is given, 'simple' 
-        and 'exact' solvers are available. The 'simple' solver is somewhat 
-        faster. Otherwise, the solver is automatically 'exact' and calculates 
+        """Function updating the particle arrival time to the RF station
+        (drift). If only the zeroth order slippage factor is given, 'simple'
+        and 'exact' solvers are available. The 'simple' solver is somewhat
+        faster. Otherwise, the solver is automatically 'exact' and calculates
         the frequency slippage up to second order. The corresponding equations
-        are:
+        are (nb: the n indices correspond to the turn number):
 
         .. math::
-            \\Delta t^{n+1} = \\Delta t^{n} + \\frac{L}{C} T_0^{n+1} \\left(\\frac{1}{1 - \\eta(\\delta^{n+1})\\delta^{n+1}} - 1\\right) \quad \\text{(exact)}
+            \\Delta t^{n+1} = \\Delta t^{n} + \\frac{L}{C} T_0^{n+1} \\left[ \\left(1+\\sum_{i=0}^{2}{\\alpha_i\\left(\\delta^{n+1}\\right)^{i+1}}\\right)   \\frac{1+\\left(\\Delta E/E_s\\right)^{n+1}}{1+\\delta^{n+1}}    - 1\\right] \quad \\text{(exact)}
+
+        .. math::
+            \\Delta t^{n+1} = \\Delta t^{n} + \\frac{L}{C} T_0^{n+1} \\left(\\frac{1}{1 - \\eta(\\delta^{n+1})\\delta^{n+1}} - 1\\right) \quad \\text{(legacy)}
 
         .. math::
             \\Delta t^{n+1} = \\Delta t^{n} + \\frac{L}{C} T_0^{n+1}\\eta_0\\delta^{n+1} \quad \\text{(simple)}
+
+        The relative momentum needs to be calculated from the relative energy
+        and is obtained as follow:
+
+        .. math::
+            \\delta = \\sqrt{1+\\beta_s^{-2}\\left[\\left(\\frac{\\Delta E}{E_s}\\right)^2 + 2\\frac{\\Delta E}{E_s}\\right]} - 1 \quad \\text{(exact)}
+
+        .. math::
+            \\delta = \\frac{\\Delta E}{\\beta_s^2 E_s} \quad \\text{(simple, legacy)}
 
         """
         bm.drift(self, beam_dt, beam_dE, index)
