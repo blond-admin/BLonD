@@ -16,6 +16,7 @@ Project website: http://blond.web.cern.ch/
 // Author: Danilo Quartullo, Helga Timko, Alexandre Lasheen
 
 #include <string.h>
+#include <math.h>
 
 extern "C" void drift(double * __restrict__ beam_dt, 
                       const double * __restrict__ beam_dE, 
