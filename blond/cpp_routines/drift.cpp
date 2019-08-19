@@ -23,6 +23,8 @@ extern "C" void drift(double * __restrict__ beam_dt,
 	                  const double T0, const double length_ratio, 
 	                  const double alpha_order, const double eta_zero, 
 	                  const double eta_one, const double eta_two,
+					  const double alpha_zero, const double alpha_one,
+					  const double alpha_two,
                       const double beta, const double energy, 
                       const int n_macroparticles){
 
@@ -37,7 +39,7 @@ if ( strcmp (solver,"simple") == 0 )
 			beam_dt[i] += T*coeff*beam_dE[i];
 	}
 
-else
+else if ( strcmp (solver,"legacy") == 0 )
 	{
 		const double coeff = 1./(beta*beta*energy);
 		const double eta0 = eta_zero*coeff;
@@ -56,6 +58,31 @@ else
         		beam_dt[i] += T*(1./(1. - eta0*beam_dE[i]
         		           - eta1*beam_dE[i]*beam_dE[i]
         		           - eta2*beam_dE[i]*beam_dE[i]*beam_dE[i]) - 1.);
+	}
+
+else
+	{
+
+		const double invbetasq = 1/(beta*beta);
+		const double invenesq = 1/(energy*energy);
+		double beam_delta;
+
+		#pragma omp parallel for
+		for ( i = 0; i < n_macroparticles; i++ )
+
+			{
+
+				beam_delta = sqrt(1.+invbetasq *
+						(beam_dE[i]*beam_dE[i]*invenesq+2.*beam_dE[i]/energy)) - 1.;
+
+				beam_dt[i] += T*(
+						(1.+alpha_zero*beam_delta+
+							alpha_one*(beam_delta*beam_delta)+
+							alpha_two*(beam_delta*beam_delta*beam_delta)) *
+								(1.+beam_dE[i]/energy)/(1.+beam_delta) - 1.);
+
+			}
+
 	}
 
 }
