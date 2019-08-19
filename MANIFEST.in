@@ -4,3 +4,6 @@ recursive-include blond/cpp_routines *.la
 recursive-include blond/cpp_routines *.a
 recursive-include blond/cpp_routines *.cpp
 recursive-include blond/cpp_routines *.h
+recursive-include blond/beam *.cpp
+recursive-include blond/synchrotron_radiation *.cpp
+recursive-include blond/toolbox *.cpp

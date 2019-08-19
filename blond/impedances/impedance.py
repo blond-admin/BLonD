@@ -17,7 +17,7 @@
 from __future__ import division, print_function
 from builtins import range, object
 import numpy as np
-from numpy.fft import rfft, irfft, rfftfreq
+# from numpy.fft import rfft, irfft, rfftfreq
 from ctypes import c_uint, c_double, c_void_p
 from scipy.constants import e
 from ..toolbox.next_regular import next_regular
@@ -270,7 +270,7 @@ class _InducedVoltage(object):
                 self.n_mtw_fft = next_regular(self.n_mtw_memory)
                 # Frequency and omega arrays
                 self.freq_mtw = \
-                    rfftfreq(self.n_mtw_fft, d=self.profile.bin_size)
+                    bm.rfftfreq(self.n_mtw_fft, d=self.profile.bin_size)
                 self.omegaj_mtw = 2.0j * np.pi * self.freq_mtw
                 # Selecting time-shift method
                 self.shift_trev = self.shift_trev_freq
@@ -298,7 +298,7 @@ class _InducedVoltage(object):
         self.profile.beam_spectrum_generation(self.n_fft)
 
         induced_voltage = - (self.beam.Particle.charge * e * self.beam.ratio *
-                             irfft(self.total_impedance * self.profile.beam_spectrum))
+                             bm.irfft(self.total_impedance * self.profile.beam_spectrum))
 
         self.induced_voltage = induced_voltage[:self.n_induced_voltage]
 
@@ -333,9 +333,9 @@ class _InducedVoltage(object):
 
         t_rev = self.RFParams.t_rev[self.RFParams.counter[0]]
         # Shift in frequency domain
-        induced_voltage_f = rfft(self.mtw_memory, self.n_mtw_fft)
+        induced_voltage_f = bm.rfft(self.mtw_memory, self.n_mtw_fft)
         induced_voltage_f *= np.exp(self.omegaj_mtw * t_rev)
-        self.mtw_memory = irfft(induced_voltage_f)[:self.n_mtw_memory]
+        self.mtw_memory = bm.irfft(induced_voltage_f)[:self.n_mtw_memory]
         # Setting to zero to the last part to remove the contribution from the
         # circular convolution
         self.mtw_memory[-int(self.buffer_size):] = 0
@@ -450,7 +450,7 @@ class InducedVoltageTime(_InducedVoltage):
 
         # Pseudo-impedance used to calculate linear convolution in the
         # frequency domain (padding zeros)
-        self.total_impedance = rfft(self.total_wake, self.n_fft)
+        self.total_impedance = bm.rfft(self.total_wake, self.n_fft)
 
 
 class InducedVoltageFreq(_InducedVoltage):

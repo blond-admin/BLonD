@@ -17,8 +17,10 @@ statistics
 from __future__ import division
 from builtins import object
 import numpy as np
+import itertools as itl
 from scipy.constants import m_p, m_e, e, c
 from ..trackers.utilities import is_in_separatrix
+import blond.utils.exceptions as blExcept
 
 class Particle(object):
 
@@ -287,5 +289,99 @@ class Beam(object):
         if itemindex.size != 0:          
             self.id[itemindex] = 0 
 
+
+    def add_particles(self, new_particles):
+        
+        '''
+        Method to add array of new particles to beam object
+        New particles are given id numbers sequential from last id of this beam
+        
+        Parameters
+        ----------
+        new_particles : array-like
+            (2, n) array of (dt, dE) for new particles
+        '''
+        
+        try:
+            newdt = new_particles[0]
+            newdE = new_particles[1]
+            if len(newdt) != len(newdE):
+                raise blExcept.ParticleAdditionError("new_particles must have equal number of time and energy coordinates")
+        except TypeError:
+            raise blExcept.ParticleAdditionError("new_particles shape must be (2, n)")
+
+        nNew = len(newdt)
+
+        self.id = np.concatenate((self.id, np.arange(self.n_macroparticles + 1,\
+                                                     self.n_macroparticles\
+                                                     + nNew + 1, dtype=int)))
+        self.n_macroparticles += nNew
+
+        self.dt = np.concatenate((self.dt, newdt))
+        self.dE = np.concatenate((self.dE, newdE))
+        
+    
+    def add_beam(self, other_beam):
+        
+        '''
+        Method to add the particles from another beam to this beam
+        New particles are given id numbers sequential from last id of this beam
+        Particles with id == 0 keep id == 0 and are included in addition
+        
+        Parameters
+        ----------
+        other_beam : blond beam object
+        '''
+        
+        if not isinstance(other_beam, type(self)):
+            raise TypeError("add_beam method requires a beam object as input")
+        
+       
+        self.dt = np.concatenate((self.dt, other_beam.dt))
+        self.dE = np.concatenate((self.dE, other_beam.dE))
+        
+
+        counter = itl.count(self.n_macroparticles + 1)
+        newids = np.zeros(other_beam.n_macroparticles)
+        
+        for i in range(other_beam.n_macroparticles):
+            if other_beam.id[i]:
+                newids[i] = next(counter)
+            else:
+                next(counter)
+        
+        self.id = np.concatenate((self.id, newids))
+        self.n_macroparticles += other_beam.n_macroparticles                
+        
+
+    def __iadd__(self, other):
+        
+        '''
+        Initialisation of in place addition calls add_beam(other) if other
+        is a blond beam object, calls add_particles(other) otherwise
+        
+        Parameters
+        ----------
+        other : blond beam object or (2, n) array
+        '''
+        
+        if isinstance(other, type(self)):
+            self.add_beam(other)
+            return self
+        else:
+            self.add_particles(other)
+            return self
+        
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
 
 
