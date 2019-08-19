@@ -192,6 +192,15 @@ class RingAndRFTracker(object):
     phi_s : float array
         Inherited from
         :py:attr:`input_parameters.rf_parameters.RFStation.phi_s`
+    alpha_0 : float array
+        Inherited from
+        :py:attr:`input_parameters.ring.Ring.alpha_0`
+    alpha_1 : float array
+        Inherited from
+        :py:attr:`input_parameters.ring.Ring.alpha_1`
+    alpha_2 : float array
+        Inherited from
+        :py:attr:`input_parameters.ring.Ring.alpha_2`
     eta_0 : float array
         Inherited from
         :py:attr:`input_parameters.ring.Ring.eta_0`
@@ -251,6 +260,9 @@ class RingAndRFTracker(object):
         self.phi_rf = RFStation.phi_rf
         self.phi_s = RFStation.phi_s
         self.omega_rf = RFStation.omega_rf
+        self.alpha_0 = RFStation.alpha_0
+        self.alpha_1 = RFStation.alpha_1
+        self.alpha_2 = RFStation.alpha_2
         self.eta_0 = RFStation.eta_0
         self.eta_1 = RFStation.eta_1
         self.eta_2 = RFStation.eta_2
@@ -260,11 +272,11 @@ class RingAndRFTracker(object):
         # Other imports
         self.beam = Beam
         self.solver = str(solver)
-        if self.solver not in ['simple', 'exact']:
+        if self.solver not in ['simple', 'exact', 'legacy']:
             #SolverError
             raise RuntimeError("ERROR in RingAndRFTracker: Choice of" +
                                " longitudinal solver not recognised!")
-        if self.alpha_order > 1:  # Set exact solver for higher orders of eta
+        if self.alpha_order > 1:  # Force exact solver for higher orders of eta
             self.solver = 'exact'
         self.solver = self.solver.encode(encoding='utf_8')
 

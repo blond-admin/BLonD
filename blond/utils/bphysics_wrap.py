@@ -62,6 +62,9 @@ def drift(ring, dt, dE, turn):
                 ct.c_double(ring.eta_0[turn]),
                 ct.c_double(ring.eta_1[turn]),
                 ct.c_double(ring.eta_2[turn]),
+                ct.c_double(ring.alpha_0[turn]),
+                ct.c_double(ring.alpha_1[turn]),
+                ct.c_double(ring.alpha_2[turn]),
                 ct.c_double(ring.rf_params.beta[turn]),
                 ct.c_double(ring.rf_params.energy[turn]),
                 __getLen(dt))
