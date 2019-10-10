@@ -246,15 +246,20 @@ class Ring(object):
         self.omega_rev = 2*np.pi*self.f_rev
 
         # Momentum compaction, checks, and derived slippage factors
+        if RingOptions.t_start is None:
+            interp_time = self.cycle_time
+        else:
+            interp_time = self.cycle_time+RingOptions.t_start
+
         self.alpha_0 = RingOptions.reshape_data(
             alpha_0, self.n_turns, self.n_sections,
-            interp_time=self.cycle_time+RingOptions.t_start)
+            interp_time=interp_time)
         self.alpha_order = 0
 
         if alpha_1 is not None:
             self.alpha_1 = RingOptions.reshape_data(
                 alpha_1, self.n_turns, self.n_sections,
-                interp_time=self.cycle_time+RingOptions.t_start)
+                interp_time=interp_time)
             self.alpha_order = 1
         else:
             # Filling alpha_1 with zeros
@@ -266,7 +271,7 @@ class Ring(object):
         if alpha_2 is not None:
             self.alpha_2 = RingOptions.reshape_data(
                 alpha_2, self.n_turns, self.n_sections,
-                interp_time=self.cycle_time+RingOptions.t_start)
+                interp_time=interp_time)
             self.alpha_order = 2
         else:
             # Filling alpha_2 with zeros
