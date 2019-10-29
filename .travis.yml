@@ -16,7 +16,7 @@ python:
   # - "3.5"
   - "3.6"
   - "3.7"
-  - "3.8"
+  # - "3.8"
 addons:
   apt:
     sources:
@@ -47,7 +47,7 @@ install:
   # - conda update -y conda
   # - wget https://bootstrap.pypa.io/get-pip.py
   # - python get-pip.py --user
-  - python -m pip install --upgrade pip setuptools
+  - python -m pip install --upgrade pip setuptools wheel
   # - python -m venv pyenv
   # - source pyenv/bin/activate
   # Useful for debugging any issues with conda
@@ -66,7 +66,7 @@ install:
   # - conda list numpy
   # - conda list python
   # Replace dep1 dep2 ... with your dependencies
-  - pip install coveralls pytest parameterized
+  # - pip install coveralls pytest parameterized
 before_script:
   # - python setup_cpp.py --compiler=g++-4.8
   # - sleep 10
