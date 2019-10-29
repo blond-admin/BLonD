@@ -47,7 +47,7 @@ install:
   # - conda update -y conda
   # - wget https://bootstrap.pypa.io/get-pip.py
   # - python get-pip.py --user
-  - python -m pip install --upgrade pip setuptools wheel
+  - python -m pip install --upgrade pip setuptools
   # - python -m venv pyenv
   # - source pyenv/bin/activate
   # Useful for debugging any issues with conda
