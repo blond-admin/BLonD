@@ -46,7 +46,7 @@ install:
   # - conda config --set always_yes yes --set changeps1 no
   # - conda update -y conda
   - wget https://bootstrap.pypa.io/get-pip.py
-  - python get-pip.py --prefix=/usr/local/
+  - python get-pip.py --user
   - python -m pip install --upgrade pip setuptools wheel
   - python -m venv pyenv
   - source pyenv/bin/activate
