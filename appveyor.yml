@@ -18,7 +18,7 @@ cache:
 
 platform: 
   - x86
-  - Any CPU
+  # - Any CPU
 
 configuration:
   # - Debug

@@ -52,7 +52,7 @@ install:
       conda create -y -n pyenv python=$TRAVIS_PYTHON_VERSION;
     fi
   - source activate pyenv
-  - conda install -y -q pip "numpy>=1.12" scipy matplotlib future h5py 
+  - conda install -y -q pip numpy scipy matplotlib future h5py
   - conda list numpy
   - conda list python
   - echo $TRAVIS_PYTHON_VERSION
