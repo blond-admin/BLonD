@@ -13,8 +13,10 @@ os:
 compiler:
   - gcc
 python:
-  - "3.5"
+  # - "3.5"
   - "3.6"
+  - "3.7"
+  - "3.8"
 addons:
   apt:
     sources:
@@ -52,7 +54,10 @@ install:
   - source activate pyenv
   - conda install -y -q pip "numpy>=1.12" scipy matplotlib future h5py 
   - conda list numpy
-  - conda list python 
+  - conda list python
+  - echo $TRAVIS_PYTHON_VERSION
+  - python --version
+  - gcc --version
   # Replace dep1 dep2 ... with your dependencies
   - pip install coveralls pytest parameterized
 before_script:
@@ -63,7 +68,7 @@ before_script:
 script:
   - coverage run -m pytest -v unittests/*/test*.py
 after_success:
-- coveralls
+- test $TRAVIS_PYTHON_VERSION = "3.6" && coveralls
 
 # branches:
 #   only:
