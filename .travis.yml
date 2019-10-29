@@ -38,18 +38,18 @@ install:
   #     wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O $HOME/download/miniconda.sh;
   #     bash $HOME/download/miniconda.sh -b -p $HOME/miniconda;
   #   fi
-  - export PATH="$HOME/miniconda/bin:$PATH"
+  # - export PATH="$HOME/miniconda/bin:$PATH"
   - echo $TRAVIS_PYTHON_VERSION
   - python --version
   - gcc --version
   # - hash -r
   # - conda config --set always_yes yes --set changeps1 no
   # - conda update -y conda
-  - wget https://bootstrap.pypa.io/get-pip.py
-  - python get-pip.py --user
+  # - wget https://bootstrap.pypa.io/get-pip.py
+  # - python get-pip.py --user
   - python -m pip install --upgrade pip setuptools wheel
-  - python -m venv pyenv
-  - source pyenv/bin/activate
+  # - python -m venv pyenv
+  # - source pyenv/bin/activate
   # Useful for debugging any issues with conda
   # - conda info -a
   # - conda list
