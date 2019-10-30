@@ -13,8 +13,10 @@ os:
 compiler:
   - gcc
 python:
-  - "3.5"
+  # - "3.5"
   - "3.6"
+  - "3.7"
+  # - "3.8"
 addons:
   apt:
     sources:
@@ -26,35 +28,45 @@ before_install:
   - export CC=/usr/bin/gcc-4.8
   - export CXX=/usr/bin/g++-4.8
 install:
-  - if test -e $HOME/miniconda/bin ; then
-      echo "Miniconda already installed.";
-    else
-      echo "Installing miniconda.";
-      rm -rf $HOME/miniconda;
-      mkdir -p $HOME/download;
-      if [[ -d $HOME/download/miniconda.sh ]] ; then rm -rf $HOME/download/miniconda.sh ; fi;
-      wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O $HOME/download/miniconda.sh;
-      bash $HOME/download/miniconda.sh -b -p $HOME/miniconda;
-    fi
-  - export PATH="$HOME/miniconda/bin:$PATH"
-  - hash -r
-  - conda config --set always_yes yes --set changeps1 no
-  - conda update -y conda
+  # - if test -e $HOME/miniconda/bin ; then
+  #     echo "Miniconda already installed.";
+  #   else
+  #     echo "Installing miniconda.";
+  #     rm -rf $HOME/miniconda;
+  #     mkdir -p $HOME/download;
+  #     if [[ -d $HOME/download/miniconda.sh ]] ; then rm -rf $HOME/download/miniconda.sh ; fi;
+  #     wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O $HOME/download/miniconda.sh;
+  #     bash $HOME/download/miniconda.sh -b -p $HOME/miniconda;
+  #   fi
+  # - export PATH="$HOME/miniconda/bin:$PATH"
+  - echo $TRAVIS_PYTHON_VERSION
+  - python --version
+  - gcc --version
+  # - hash -r
+  # - conda config --set always_yes yes --set changeps1 no
+  # - conda update -y conda
+  # - wget https://bootstrap.pypa.io/get-pip.py
+  # - python get-pip.py --user
+  - python -m pip install --upgrade pip setuptools wheel
+  # - python -m venv pyenv
+  # - source pyenv/bin/activate
   # Useful for debugging any issues with conda
   # - conda info -a
   # - conda list
-  - if test -e $HOME/miniconda/envs/pyenv; then
-      echo "pyenv already exists.";
-    else
-      echo "creating pyenv.";
-      conda create -y -n pyenv python=$TRAVIS_PYTHON_VERSION;
-    fi
-  - source activate pyenv
-  - conda install -y -q pip "numpy>=1.12" scipy matplotlib future h5py 
-  - conda list numpy
-  - conda list python 
+  # - if test -e $HOME/miniconda/envs/pyenv; then
+  #     echo "pyenv already exists.";
+  #   else
+  #     echo "creating pyenv.";
+  #     conda create -y -n pyenv python=$TRAVIS_PYTHON_VERSION;
+  #   fi
+  # - source activate pyenv
+  # - conda install -y -q pip numpy scipy matplotlib future h5py
+  # - conda install -y -q pip
+  - pip install numpy scipy matplotlib future h5py coveralls pytest parameterized
+  # - conda list numpy
+  # - conda list python
   # Replace dep1 dep2 ... with your dependencies
-  - pip install coveralls pytest parameterized
+  # - pip install coveralls pytest parameterized
 before_script:
   # - python setup_cpp.py --compiler=g++-4.8
   # - sleep 10
@@ -63,7 +75,7 @@ before_script:
 script:
   - coverage run -m pytest -v unittests/*/test*.py
 after_success:
-- coveralls
+- test $TRAVIS_PYTHON_VERSION = "3.6" && coveralls
 
 # branches:
 #   only:
