@@ -55,9 +55,9 @@ Windows GCC Installation Instructions
 
 3. Make sure to select: **Architecture: x86_64**, **Threads: posix** and **Exception: seh**
 
-4. Select the installation location, e.g.: ``"C:\\Users\\myname\\mingw-64"``
+4. Select the installation location, e.g.: ``"C:\Users\myname\mingw-64"``
 
-5. Wait for the installation to complete, then add the following path to your User Environment Variable Path: ``"C:\\Users\\myname\\mingw-64\\mingw64\\bin"`` 
+5. Wait for the installation to complete, then add the following path to your User Environment Variable Path: ``"C:\Users\myname\mingw-64\mingw64\bin"`` 
 
 6. To validate the correct setup of gcc, open a command prompt and type: ``gcc --version``. The first output line should contain the gcc version you just installed. 
 
