@@ -46,6 +46,22 @@ Requirements
 3. That's all!
 
 
+Windows GCC Installation Instructions
+-------------------------------------
+
+1. Download the latest mingw-w64 using this link: https://sourceforge.net/projects/mingw-w64/files/latest/download
+
+2. Run the downloaded executable.
+
+3. Make sure to select: **Architecture: x86_64**, **Threads: posix** and **Exception: seh**
+
+4. Select the installation location, e.g.: ``"C:\Users\myname\mingw-64"``
+
+5. Wait for the installation to complete, then add the following path to your User Environment Variable Path: ``"C:\Users\myname\mingw-64\mingw64\bin"`` 
+
+6. To validate the correct setup of gcc, open a command prompt and type: ``gcc --version``. The first output line should contain the gcc version you just installed. 
+
+
 Install Steps
 -------------
 
