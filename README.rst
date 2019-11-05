@@ -65,7 +65,6 @@ Windows GCC Installation Instructions
 Install Steps
 -------------
 
-
 * The easy way: 
     .. code-block:: bash
 
