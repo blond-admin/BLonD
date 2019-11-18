@@ -124,6 +124,11 @@ class RFStationOptions(object):
         elif isinstance(input_data, tuple):
 
             output_data = []
+
+            #Hot fix to safely treat t_start 
+            if t_start is None:
+                t_start = 0
+
             interp_time = interp_time + t_start
 
             # If there is only one rf harmonic, it is expected that the user
