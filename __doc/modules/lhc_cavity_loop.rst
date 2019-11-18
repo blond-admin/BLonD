@@ -157,7 +157,7 @@ The numerical implementation thus consists of the following four steps, in the b
        y^{(n - N)} = \left[ 1 - \frac{T_s}{\tau_o} \right] \, y^{(n - N - 1)} + x^{(n - N + n_{\mathsf{otfb}})} -
     x^{(n - N + n_{\mathsf{otfb}} - 1)} \,
 
-where :math:`N = \mathsf{int}(T_0/T_s)` and :math:`n_{\mathsf{otfb}} = \mathsf{int}(\tau_{\mathsf{otfb}}/T_s + (n_\mathsf{taps} - 1)/2)`,
+where :math:`N = \mathsf{int}(T_0/T_s)` and :math:`n_{\mathsf{otfb}} = \mathsf{int}(\tau_{\mathsf{otfb}}/T_s + n_\mathsf{taps} - 1)/2)`,
 with :math:`n_\mathsf{taps}` being the number of taps of the FIR filter,
 
 2. OTFB response,
