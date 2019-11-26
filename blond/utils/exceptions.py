@@ -9,6 +9,8 @@ class MassError(Exception):
 class AllParticlesLost(Exception):
     pass
 
+class ParticleAdditionError(Exception):
+    pass
 
 
 #==================================
@@ -57,12 +59,6 @@ class MissingParameterError(Exception):
 #Input Parameters Exceptions
 #===========================
 
-class InterpolationError(Exception):
-    pass
-
-class InputDataError(Exception):
-    pass
-
 class MomentumError(Exception):
     pass
 
@@ -108,9 +104,6 @@ class SolverError(Exception):
 class PeriodicityError(Exception):
     pass
 
-class InterpolationError(Exception):
-    pass
-
 class ProfileError(Exception):
     pass
 
@@ -134,3 +127,12 @@ class SortError(Exception):
 
 
 
+#=================
+#Global Exceptions
+#=================
+    
+class InterpolationError(Exception):
+    pass
+
+class InputDataError(Exception):
+    pass

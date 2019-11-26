@@ -24,6 +24,7 @@ import numpy
 from blond.input_parameters.ring import Ring
 from blond.input_parameters.rf_parameters import RFStation
 from blond.beam.beam import Beam, Proton
+from blond.llrf.rf_modulation import PhaseModulation as PMod
 #from beam.distributions import matched_from_distribution_function
 #from trackers.tracker import FullRingAndRF, RingAndRFTracker
 
@@ -152,6 +153,57 @@ class testRFParamClass(unittest.TestCase):
         self.assertIn('float', type(self.rf_params.omega_rf[0][0]).__name__,
                               msg='RFSectionParameters: omega_rf array does not contain float')
 
+
+    def test_phi_modulation(self):
+        
+        timebase = numpy.linspace(0, 1, 10000)
+        frequency = 2E2
+        amplitude = numpy.pi/2
+        offset = 0
+        harmonic = 36961
+        
+        with self.assertRaises(ValueError, \
+                               msg = """Incorrect harmonic should
+                               raise ValueError"""):
+        
+            modulator1 = PMod(timebase, frequency, amplitude, offset, harmonic)
+            self.rf_params = RFStation(self.general_params, [4620, 36960], \
+                                   [7e6, 1E6], [0., 0], \
+                                   phi_modulation = modulator1, n_rf = 2)
+
+
+        harmonic = 36960
+        modulator1 = PMod(timebase, frequency, amplitude, offset, harmonic)
+        
+        with self.assertRaises(TypeError, \
+                               msg = """Treatment in RFStation requires
+                                PhaseModulation not be iterable"""):
+            iter(modulator1)
+
+
+        self.rf_params = RFStation(self.general_params, [4620, 36960], \
+                               [7e6, 1E6], [0., 0], \
+                               phi_modulation = modulator1, n_rf = 2)
+        
+        self.rf_params = RFStation(self.general_params, [4620, 36960], \
+                               [7e6, 1E6], [0., 0], \
+                               phi_modulation = [modulator1]*2, n_rf = 2)
+
+        with self.assertRaises(RuntimeError, \
+                               msg = """Two systems with the same harmonic
+                               should return RuntimeError when using 
+                               PhaseModulation"""):
+            self.rf_params = RFStation(self.general_params, [4620, 36960, 36960], \
+                                   [7e6, 1E6, 0], [0., 0, 0], \
+                                   phi_modulation = [modulator1]*2, n_rf = 3)
+        
+        modulator2 = PMod(timebase, frequency*2, amplitude/2, offset, harmonic)
+
+        self.rf_params = RFStation(self.general_params, [4620, 36960], \
+                                   [7e6, 1E6], [0., 0], \
+                                   phi_modulation = [modulator1, modulator2], \
+                                   n_rf = 2)
+        
 
     def test_RFSectionParameters_eta_tracking(self):
 

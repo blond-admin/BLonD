@@ -28,7 +28,6 @@ from ..trackers.utilities import is_in_separatrix
 from ..beam.profile import Profile, CutOptions
 from ..trackers.utilities import potential_well_cut, minmax_location
 
-
 def matched_from_line_density(beam, full_ring_and_RF, line_density_input=None,
                               main_harmonic_option='lowest_freq',
                               TotalInducedVoltage=None, plot=False,
@@ -356,10 +355,11 @@ def matched_from_line_density(beam, full_ring_and_RF, line_density_input=None,
         
         # Calculating the induced voltage
         induced_voltage_object.induced_voltage_sum()
-        
+        gc.collect()
         return [hamiltonian_coord, distribution_function_], \
                induced_voltage_object
     else:
+        gc.collect()
         return [hamiltonian_coord, distribution_function_],\
                [time_line_den, line_density_]
 
