@@ -192,6 +192,15 @@ class RingAndRFTracker(object):
     phi_s : float array
         Inherited from
         :py:attr:`input_parameters.rf_parameters.RFStation.phi_s`
+    alpha_0 : float array
+        Inherited from
+        :py:attr:`input_parameters.ring.Ring.alpha_0`
+    alpha_1 : float array
+        Inherited from
+        :py:attr:`input_parameters.ring.Ring.alpha_1`
+    alpha_2 : float array
+        Inherited from
+        :py:attr:`input_parameters.ring.Ring.alpha_2`
     eta_0 : float array
         Inherited from
         :py:attr:`input_parameters.ring.Ring.eta_0`
@@ -251,6 +260,9 @@ class RingAndRFTracker(object):
         self.phi_rf = RFStation.phi_rf
         self.phi_s = RFStation.phi_s
         self.omega_rf = RFStation.omega_rf
+        self.alpha_0 = RFStation.alpha_0
+        self.alpha_1 = RFStation.alpha_1
+        self.alpha_2 = RFStation.alpha_2
         self.eta_0 = RFStation.eta_0
         self.eta_1 = RFStation.eta_1
         self.eta_2 = RFStation.eta_2
@@ -260,11 +272,11 @@ class RingAndRFTracker(object):
         # Other imports
         self.beam = Beam
         self.solver = str(solver)
-        if self.solver not in ['simple', 'exact']:
+        if self.solver not in ['simple', 'exact', 'legacy']:
             #SolverError
             raise RuntimeError("ERROR in RingAndRFTracker: Choice of" +
                                " longitudinal solver not recognised!")
-        if self.alpha_order > 1:  # Set exact solver for higher orders of eta
+        if self.alpha_order > 1:  # Force exact solver for higher orders of eta
             self.solver = 'exact'
         self.solver = self.solver.encode(encoding='utf_8')
 
@@ -322,18 +334,30 @@ class RingAndRFTracker(object):
         bm.kick(self, beam_dt, beam_dE, index)
 
     def drift(self, beam_dt, beam_dE, index):
-        """Function updating the particle arrival time to the RF station 
-        (drift). If only the zeroth order slippage factor is given, 'simple' 
-        and 'exact' solvers are available. The 'simple' solver is somewhat 
-        faster. Otherwise, the solver is automatically 'exact' and calculates 
+        """Function updating the particle arrival time to the RF station
+        (drift). If only the zeroth order slippage factor is given, 'simple'
+        and 'exact' solvers are available. The 'simple' solver is somewhat
+        faster. Otherwise, the solver is automatically 'exact' and calculates
         the frequency slippage up to second order. The corresponding equations
-        are:
+        are (nb: the n indices correspond to the turn number):
 
         .. math::
-            \\Delta t^{n+1} = \\Delta t^{n} + \\frac{L}{C} T_0^{n+1} \\left(\\frac{1}{1 - \\eta(\\delta^{n+1})\\delta^{n+1}} - 1\\right) \quad \\text{(exact)}
+            \\Delta t^{n+1} = \\Delta t^{n} + \\frac{L}{C} T_0^{n+1} \\left[ \\left(1+\\sum_{i=0}^{2}{\\alpha_i\\left(\\delta^{n+1}\\right)^{i+1}}\\right)   \\frac{1+\\left(\\Delta E/E_s\\right)^{n+1}}{1+\\delta^{n+1}}    - 1\\right] \quad \\text{(exact)}
+
+        .. math::
+            \\Delta t^{n+1} = \\Delta t^{n} + \\frac{L}{C} T_0^{n+1} \\left(\\frac{1}{1 - \\eta(\\delta^{n+1})\\delta^{n+1}} - 1\\right) \quad \\text{(legacy)}
 
         .. math::
             \\Delta t^{n+1} = \\Delta t^{n} + \\frac{L}{C} T_0^{n+1}\\eta_0\\delta^{n+1} \quad \\text{(simple)}
+
+        The relative momentum needs to be calculated from the relative energy
+        and is obtained as follow:
+
+        .. math::
+            \\delta = \\sqrt{1+\\beta_s^{-2}\\left[\\left(\\frac{\\Delta E}{E_s}\\right)^2 + 2\\frac{\\Delta E}{E_s}\\right]} - 1 \quad \\text{(exact)}
+
+        .. math::
+            \\delta = \\frac{\\Delta E}{\\beta_s^2 E_s} \quad \\text{(simple, legacy)}
 
         """
         bm.drift(self, beam_dt, beam_dE, index)

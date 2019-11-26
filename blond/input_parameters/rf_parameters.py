@@ -133,6 +133,18 @@ class RFStation(object):
     charge : int
         Inherited from
         :py:attr:`beam.Particle.charge`
+    alpha_0 : float array [n_turns+1]
+        Zeroth order momentum compaction factor of the present section;
+        inherited from
+        :py:attr:`input_parameters.ring.Ring.alpha_0`
+    alpha_1 : float array [n_turns+1]
+        First order momentum compaction factor of the present section;
+        inherited from
+        :py:attr:`input_parameters.ring.Ring.alpha_1`
+    alpha_2 : float array [n_turns+1]
+        Second order momentum compaction factor of the present section;
+        inherited from
+        :py:attr:`input_parameters.ring.Ring.alpha_2`
     eta_0 : float array [n_turns+1]
         Zeroth order slippage factor of the present section; inherited from
         :py:attr:`input_parameters.ring.Ring.eta_0`
@@ -233,12 +245,14 @@ class RFStation(object):
         self.charge = self.Particle.charge
 
         # The order alpha_order used here can be replaced by Ring.alpha_order
-        # when the assembler can differentiate the cases 'simple' and 'full'
+        # when the assembler can differentiate the cases 'simple' and 'exact'
         # for the drift
         alpha_order = 2
         for i in range(alpha_order+1):
             dummy = getattr(Ring, 'eta_' + str(i))
             setattr(self, "eta_%s" % i, dummy[self.section_index])
+            dummy = getattr(Ring, 'alpha_' + str(i))
+            setattr(self, "alpha_%s" % i, dummy[self.section_index])
         self.sign_eta_0 = np.sign(self.eta_0)
 
         # Reshape input rf programs

@@ -6,7 +6,7 @@
     :target: https://coveralls.io/github/blond-admin/BLonD?branch=master
 
 
-Copyright 2016 CERN. This software is distributed under the terms of the
+Copyright 2019 CERN. This software is distributed under the terms of the
 GNU General Public Licence version 3 (GPL Version 3), copied verbatim in
 the file LICENCE.txt. In applying this licence, CERN does not waive the
 privileges and immunities granted to it by virtue of its status as an
@@ -26,7 +26,7 @@ synchrotrons.
 LINKS
 =====
 
-Repository: https://github.com/dquartul/BLonD
+Repository: https://github.com/blond-admin/BLonD
 
 Documentation: http://blond-admin.github.io/BLonD/
 
