@@ -386,26 +386,27 @@ class RingAndRFTracker(object):
         of the Beam class.
 
         """
+        turn = self.counter[0]
 
         # Add phase noise directly to the cavity RF phase
         if self.phi_noise is not None:
             if self.noiseFB is not None:
-                self.phi_rf[:, self.counter[0]] += \
-                    self.noiseFB.x * self.phi_noise[:, self.counter[0]]
+                self.phi_rf[:, turn] += \
+                    self.noiseFB.x * self.phi_noise[:, turn]
             else:
-                self.phi_rf[:, self.counter[0]] += \
-                    self.phi_noise[:, self.counter[0]]
+                self.phi_rf[:, turn] += \
+                    self.phi_noise[:, turn]
                     
         # Add phase modulation directly to the cavity RF phase
         if self.phi_modulation is not None:
-            self.phi_rf[:, self.counter[0]] += \
-                self.phi_modulation[0][:, self.counter[0]]
-            self.omega_rf[:, self.counter[0]] += \
-                self.phi_modulation[1][:, self.counter[0]]
+            self.phi_rf[:, turn] += \
+                self.phi_modulation[0][:, turn]
+            self.omega_rf[:, turn] += \
+                self.phi_modulation[1][:, turn]
 
 
         # Determine phase loop correction on RF phase and frequency
-        if self.beamFB is not None and self.counter[0] >= self.beamFB.delay:
+        if self.beamFB is not None and turn >= self.beamFB.delay:
             self.beamFB.track()
 
         if self.periodicity:
@@ -413,15 +414,15 @@ class RingAndRFTracker(object):
             # Distinguish the particles inside the frame from the particles on
             # the right-hand side of the frame.
             self.indices_right_outside = \
-                np.where(self.beam.dt > self.t_rev[self.counter[0] + 1])[0]
+                np.where(self.beam.dt > self.t_rev[turn + 1])[0]
             self.indices_inside_frame = \
-                np.where(self.beam.dt < self.t_rev[self.counter[0] + 1])[0]
+                np.where(self.beam.dt < self.t_rev[turn + 1])[0]
 
             if len(self.indices_right_outside) > 0:
                 # Change reference of all the particles on the right of the
                 # current frame; these particles skip one kick and drift
                 self.beam.dt[self.indices_right_outside] -= \
-                    self.t_rev[self.counter[0] + 1]
+                    self.t_rev[turn + 1]
                 # Synchronize the bunch with the particles that are on the
                 # RHS of the current frame applying kick and drift to the
                 # bunch
@@ -430,9 +431,8 @@ class RingAndRFTracker(object):
                     self.beam.dt[self.indices_inside_frame])
                 self.insiders_dE = np.ascontiguousarray(
                     self.beam.dE[self.indices_inside_frame])
-                self.kick(self.insiders_dt, self.insiders_dE, self.counter[0])
-                self.drift(self.insiders_dt, self.insiders_dE,
-                           self.counter[0]+1)
+                self.kick(self.insiders_dt, self.insiders_dE, turn)
+                self.drift(self.insiders_dt, self.insiders_dE, turn+1)
                 self.beam.dt[self.indices_inside_frame] = self.insiders_dt
                 self.beam.dE[self.indices_inside_frame] = self.insiders_dE
                 # Check all the particles on the left of the just updated
@@ -441,8 +441,8 @@ class RingAndRFTracker(object):
                 self.indices_left_outside = np.where(self.beam.dt < 0)[0]
 
             else:
-                self.kick(self.beam.dt, self.beam.dE, self.counter[0])
-                self.drift(self.beam.dt, self.beam.dE, self.counter[0] + 1)
+                self.kick(self.beam.dt, self.beam.dE, turn)
+                self.drift(self.beam.dt, self.beam.dE, turn + 1)
                 # Check all the particles on the left of the just updated
                 # frame and apply a second kick and drift to them with the
                 # previous wave after having changed reference.
@@ -453,11 +453,9 @@ class RingAndRFTracker(object):
                     self.beam.dt[self.indices_left_outside])
                 left_outsiders_dE = np.ascontiguousarray(
                     self.beam.dE[self.indices_left_outside])
-                left_outsiders_dt += self.t_rev[self.counter[0]+1]
-                self.kick(left_outsiders_dt, left_outsiders_dE,
-                          self.counter[0])
-                self.drift(left_outsiders_dt, left_outsiders_dE,
-                           self.counter[0]+1)
+                left_outsiders_dt += self.t_rev[turn+1]
+                self.kick(left_outsiders_dt, left_outsiders_dE, turn)
+                self.drift(left_outsiders_dt, left_outsiders_dE, turn+1)
                 self.beam.dt[self.indices_left_outside] = left_outsiders_dt
                 self.beam.dE[self.indices_left_outside] = left_outsiders_dE
 
@@ -476,30 +474,31 @@ class RingAndRFTracker(object):
                                           voltage=self.total_voltage,
                                           bin_centers=self.profile.bin_centers,
                                           charge=self.beam.Particle.charge,
-                                          acceleration_kick=self.acceleration_kick[self.counter[0]])
-
-                    #  bm.linear_interp_kick(
-                    #      self.beam.dt.ctypes.data_as(ctypes.c_void_p),
-                    #      self.beam.dE.ctypes.data_as(ctypes.c_void_p),
-                    #      self.total_voltage.ctypes.data_as(ctypes.c_void_p),
-                    #      self.profile.bin_centers.ctypes.data_as(
-                    #          ctypes.c_void_p),
-                    #      ctypes.c_double(self.beam.Particle.charge),
-                    #      ctypes.c_int(self.profile.n_slices),
-                    #      ctypes.c_int(self.beam.n_macroparticles),
-                    #      ctypes.c_double(
-                    #          self.acceleration_kick[self.counter[0]]))
-
+                                          acceleration_kick=self.acceleration_kick[turn])
+                    # bm.LIKick_n_drift(self.beam.dt,
+                    #                   self.beam.dE,
+                    #                   self.total_voltage,
+                    #                   self.profile.bin_centers,
+                    #                   self.beam.Particle.charge,
+                    #                   self.acceleration_kick[turn],
+                    #                   self.solver,
+                    #                   self.t_rev[turn],
+                    #                   self.length_ratio,
+                    #                   self.alpha_order,
+                    #                   self.eta_0[turn],
+                    #                   self.eta_1[turn],
+                    #                   self.eta_2[turn],
+                    #                   self.rf_params.beta[turn],
+                    #                   self.rf_params.energy[turn])
                 else:
-                    self.kick(self.beam.dt, self.beam.dE, self.counter[0])
+                    self.kick(self.beam.dt, self.beam.dE, turn)
+                    self.drift(self.beam.dt, self.beam.dE, turn + 1)
 
-            self.drift(self.beam.dt, self.beam.dE, self.counter[0] + 1)
+        # Updating the beam synchronous momentum etc.
+        self.beam.beta = self.rf_params.beta[turn+1]
+        self.beam.gamma = self.rf_params.gamma[turn+1]
+        self.beam.energy = self.rf_params.energy[turn+1]
+        self.beam.momentum = self.rf_params.momentum[turn+1]
 
         # Increment by one the turn counter
         self.counter[0] += 1
-
-        # Updating the beam synchronous momentum etc.
-        self.beam.beta = self.rf_params.beta[self.counter[0]]
-        self.beam.gamma = self.rf_params.gamma[self.counter[0]]
-        self.beam.energy = self.rf_params.energy[self.counter[0]]
-        self.beam.momentum = self.rf_params.momentum[self.counter[0]]

@@ -19,6 +19,18 @@ def __getLen(x):
     return ct.c_int(len(x))
 
 
+def beam_phase(bin_centers, profile, alpha, omegarf, phirf, bin_size):
+    __lib.beam_phase.restype = ct.c_double
+    coeff = __lib.beam_phase(__getPointer(bin_centers),
+                             __getPointer(profile),
+                             ct.c_double(alpha),
+                             ct.c_double(omegarf),
+                             ct.c_double(phirf),
+                             ct.c_double(bin_size),
+                             __getLen(profile))
+    return coeff
+
+
 def rf_volt_comp(voltages, omega_rf, phi_rf, ring):
     # voltages = np.ascontiguousarray(ring.voltage[:, ring.counter[0]])
     # omega_rf = np.ascontiguousarray(ring.omega_rf[:, ring.counter[0]])
@@ -83,26 +95,48 @@ def linear_interp_kick(dt, dE, voltage,
                              ct.c_double(acceleration_kick))
 
 
+def linear_interp_kick_n_drift(dt, dE, total_voltage, bin_centers, charge,
+                               acc_kick, solver, t_rev, length_ratio,
+                               alpha_order, eta_0, eta_1, eta_2, beta, energy):
+    __lib.linear_interp_kick_n_drift(__getPointer(dt),
+                                     __getPointer(dE),
+                                     __getPointer(total_voltage),
+                                     __getPointer(bin_centers),
+                                     __getLen(bin_centers),
+                                     __getLen(dt),
+                                     ct.c_double(acc_kick),
+                                     ct.c_char_p(solver),
+                                     ct.c_double(t_rev),
+                                     ct.c_double(length_ratio),
+                                     ct.c_double(alpha_order),
+                                     ct.c_double(eta_0),
+                                     ct.c_double(eta_1),
+                                     ct.c_double(eta_2),
+                                     ct.c_double(beta),
+                                     ct.c_double(energy),
+                                     ct.c_double(charge))
+
+
 def linear_interp_time_translation(ring, dt, dE, turn):
     pass
 
 
-def slice(profile):
-    __lib.histogram(__getPointer(profile.Beam.dt),
-                    __getPointer(profile.n_macroparticles),
-                    ct.c_double(profile.cut_left),
-                    ct.c_double(profile.cut_right),
-                    ct.c_int(profile.n_slices),
-                    ct.c_int(profile.Beam.n_macroparticles))
+def slice(beam_dt, profile, cut_left, cut_right):
+    __lib.histogram(__getPointer(beam_dt),
+                    __getPointer(profile),
+                    ct.c_double(cut_left),
+                    ct.c_double(cut_right),
+                    __getLen(profile),
+                    __getLen(beam_dt))
 
 
-def slice_smooth(profile):
-    __lib.smooth_histogram(__getPointer(profile.Beam.dt),
-                           __getPointer(profile.n_macroparticles),
-                           ct.c_double(profile.cut_left),
-                           ct.c_double(profile.cut_right),
-                           ct.c_int(profile.n_slices),
-                           ct.c_int(profile.Beam.n_macroparticles))
+def slice_smooth(beam_dt, profile, cut_left, cut_right):
+    __lib.smooth_histogram(__getPointer(beam_dt),
+                           __getPointer(profile),
+                           ct.c_double(cut_left),
+                           ct.c_double(cut_right),
+                           __getLen(profile),
+                           __getLen(beam_dt))
 
 
 def music_track(music):
@@ -154,3 +188,20 @@ def synchrotron_radiation_full(SyncRad, turn):
         ct.c_double(SyncRad.general_params.energy[0, turn]),
         __getPointer(SyncRad.random_array),
         ct.c_int(SyncRad.n_kicks))
+
+def fast_resonator(R_S, Q, frequency_array, frequency_R, impedance=None):
+    realImp = np.zeros(len(frequency_array), dtype=np.float64)
+    imagImp = np.zeros(len(frequency_array), dtype=np.float64)
+
+    __lib.fast_resonator(
+        __getPointer(realImp),
+        __getPointer(imagImp),
+        __getPointer(frequency_array),
+        __getPointer(R_S),
+        __getPointer(Q),
+        __getPointer(frequency_R),
+        __getLen(R_S),
+        __getLen(frequency_array))
+
+    impedance = realImp + 1j * imagImp
+    return impedance

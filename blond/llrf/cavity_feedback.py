@@ -673,10 +673,4 @@ class SPSOneTurnFeedback(object):
         result = np.zeros(len(kernel) + len(signal) - 1)
         bm.convolve(signal, kernel, result)
 
-        #  libblond.convolution(signal.ctypes.data_as(ctypes.c_void_p),
-        #                       ctypes.c_int(len(signal)),
-        #                       kernel.ctypes.data_as(ctypes.c_void_p),
-        #                       ctypes.c_int(len(kernel)),
-        #                       result.ctypes.data_as(ctypes.c_void_p))
-
         return result

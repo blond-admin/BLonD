@@ -15,6 +15,7 @@ _CPU_func_dict = {
     'rfft': fft.rfft,
     'irfft': fft.irfft,
     'rfftfreq': fft.rfftfreq,
+    'irfft_packed': butils_wrap.irfft_packed,
     'sin': butils_wrap.sin,
     'cos': butils_wrap.cos,
     'exp': butils_wrap.exp,
@@ -22,6 +23,7 @@ _CPU_func_dict = {
     'std': butils_wrap.std,
     'where': butils_wrap.where,
     'interp': butils_wrap.interp,
+    'interp_const_space': butils_wrap.interp_const_space,
     'cumtrapz': butils_wrap.cumtrapz,
     'trapz': butils_wrap.trapz,
     'linspace': butils_wrap.linspace,
@@ -31,10 +33,15 @@ _CPU_func_dict = {
     'arange': butils_wrap.arange,
     'sum': butils_wrap.sum,
     'sort': butils_wrap.sort,
+    'add': butils_wrap.add,
+    'mul': butils_wrap.mul,
+    'beam_phase': bphysics_wrap.beam_phase,
+    'fast_resonator': bphysics_wrap.fast_resonator,
     'kick': bphysics_wrap.kick,
     'rf_volt_comp': bphysics_wrap.rf_volt_comp,
     'drift': bphysics_wrap.drift,
     'linear_interp_kick': bphysics_wrap.linear_interp_kick,
+    'LIKick_n_drift': bphysics_wrap.linear_interp_kick_n_drift,
     'synchrotron_radiation': bphysics_wrap.synchrotron_radiation,
     'synchrotron_radiation_full': bphysics_wrap.synchrotron_radiation_full,
     # 'linear_interp_time_translation': bphysics_wrap.linear_interp_time_translation,
@@ -75,8 +82,8 @@ def update_active_dict(new_dict):
     '''
     if not hasattr(update_active_dict, 'active_dict'):
         update_active_dict.active_dict = new_dict
+
     # delete all old implementations/references from globals()
-    
     for key in update_active_dict.active_dict.keys():
         if key in globals():
             del globals()[key]

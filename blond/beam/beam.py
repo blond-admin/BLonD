@@ -22,37 +22,38 @@ from scipy.constants import m_p, m_e, e, c
 from ..trackers.utilities import is_in_separatrix
 import blond.utils.exceptions as blExcept
 
+
 class Particle(object):
 
     def __init__(self, user_mass, user_charge):
-        
+
         if user_mass > 0.:
             self.mass = float(user_mass)
             self.charge = float(user_charge)
         else:
-            #MassError
+            # MassError
             raise RuntimeError('ERROR: Particle mass not recognized!')
-        
+
+
 class Proton(Particle):
-    
-    def __init__(self):        
-        
+
+    def __init__(self):
+
         Particle.__init__(self, float(m_p*c**2/e), np.float(1))
 
+
 class Electron(Particle):
-        
-    def __init__(self):        
-        self.mass =  float(m_e*c**2/e)
+
+    def __init__(self):
+        self.mass = float(m_e*c**2/e)
         self.charge = float(-1)
-
-
 
 
 class Beam(object):
     """Class containing the beam properties.
 
     This class containes the beam coordinates (dt, dE) and the beam properties.
-    
+
     The beam coordinate 'dt' is defined as the particle arrival time to the RF 
     station w.r.t. the reference time that is the sum of turns. The beam
     coordiate 'dE' is defined as the particle energy offset w.r.t. the
@@ -60,7 +61,7 @@ class Beam(object):
 
     The class creates a beam with zero dt and dE, see distributions to match
     a beam with respect to the RF and intensity effects.
-    
+
     Parameters
     ----------
     Ring : Ring
@@ -69,7 +70,7 @@ class Beam(object):
         total number of macroparticles.
     intensity : float
         total intensity of the beam (in number of charge).
-  
+
     Attributes
     ----------
     mass : float
@@ -106,7 +107,7 @@ class Beam(object):
         number of macro-particles marked as 'lost' [].
     id : numpy_array, int
         unique macro-particle ID number; zero if particle is 'lost'.
-        
+
     See Also
     ---------
     distributions.matched_from_line_density:
@@ -143,23 +144,25 @@ class Beam(object):
         self.mean_dE = 0.
         self.sigma_dt = 0.
         self.sigma_dE = 0.
-        self.intensity = float(intensity) 
+        self.intensity = float(intensity)
         self.n_macroparticles = int(n_macroparticles)
         self.ratio = self.intensity/self.n_macroparticles
         self.id = np.arange(1, self.n_macroparticles + 1, dtype=int)
+        # For MPI
+        self.n_total_macroparticles_lost = 0
 
     @property
     def n_macroparticles_lost(self):
         '''Number of lost macro-particles, defined as @property.
-        
+
         Returns
         -------        
         n_macroparticles_lost : int
             number of macroparticles lost.
-            
+
         '''
-        
-        return len( np.where( self.id == 0 )[0] )
+
+        return len(np.where(self.id == 0)[0])
 
     @property
     def n_macroparticles_alive(self):
@@ -169,27 +172,25 @@ class Beam(object):
         -------        
         n_macroparticles_alive : int
             number of macroparticles not lost.
-            
+
         '''
 
         return self.n_macroparticles - self.n_macroparticles_lost
 
-
     def eliminate_lost_particles(self):
         """Eliminate lost particles from the beam coordinate arrays
         """
-        
-        indexalive = np.where( self.id == 0 )[0]
+
+        indexalive = np.where(self.id == 0)[0]
         if len(indexalive) < self.n_macroparticles:
             self.dt = np.ascontiguousarray(self.beam.dt[indexalive])
             self.dE = np.ascontiguousarray(self.beam.dE[indexalive])
             self.n_macroparticles = len(self.beam.dt)
         else:
-            #AllParticlesLost
-            raise RuntimeError("ERROR in Beams: all particles lost and"+
-                " eliminated!")    
+            # AllParticlesLost
+            raise RuntimeError("ERROR in Beams: all particles lost and" +
+                               " eliminated!")
 
-        
     def statistics(self):
         '''
         Calculation of the mean and standard deviation of beam coordinates,
@@ -210,15 +211,13 @@ class Beam(object):
         self.sigma_dE = np.std(self.dE[itemindex])
 
         # R.m.s. emittance in Gaussian approximation
-        self.epsn_rms_l = np.pi*self.sigma_dE*self.sigma_dt # in eVs
-
-
+        self.epsn_rms_l = np.pi*self.sigma_dE*self.sigma_dt  # in eVs
 
     def losses_separatrix(self, Ring, RFStation):
         '''Beam losses based on separatrix.
 
         Set to 0 all the particle's id not in the separatrix anymore.
-        
+
         Parameters
         ----------
         Ring : Ring
@@ -227,19 +226,18 @@ class Beam(object):
             Used to call the function is_in_separatrix.
         '''
 
-        itemindex = np.where(is_in_separatrix(Ring, RFStation, self, 
-            self.dt, self.dE) == False)[0]
+        itemindex = np.where(is_in_separatrix(Ring, RFStation, self,
+                                              self.dt, self.dE) == False)[0]
 
         if itemindex.size != 0:
             self.id[itemindex] = 0
 
-
-    def losses_longitudinal_cut(self, dt_min, dt_max): 
+    def losses_longitudinal_cut(self, dt_min, dt_max):
         '''Beam losses based on longitudinal cuts.
 
         Set to 0 all the particle's id with dt not in the interval 
         (dt_min, dt_max).
-        
+
         Parameters
         ----------
         dt_min : float
@@ -248,13 +246,12 @@ class Beam(object):
             maximum dt.
         '''
 
-        itemindex = np.where( (self.dt - dt_min)*(dt_max - self.dt) < 0 )[0]
+        itemindex = np.where((self.dt - dt_min)*(dt_max - self.dt) < 0)[0]
 
         if itemindex.size != 0:
             self.id[itemindex] = 0
 
-
-    def losses_energy_cut(self, dE_min, dE_max): 
+    def losses_energy_cut(self, dE_min, dE_max):
         '''Beam losses based on energy cuts, e.g. on collimators.
 
         Set to 0 all the particle's id with dE not in the interval (dE_min, dE_max).
@@ -267,13 +264,12 @@ class Beam(object):
             maximum dE.
         '''
 
-        itemindex = np.where( (self.dE - dE_min)*(dE_max - self.dE) < 0 )[0]
+        itemindex = np.where((self.dE - dE_min)*(dE_max - self.dE) < 0)[0]
 
-        if itemindex.size != 0:          
-            self.id[itemindex] = 0 
+        if itemindex.size != 0:
+            self.id[itemindex] = 0
 
-
-    def losses_below_energy(self, dE_min): 
+    def losses_below_energy(self, dE_min):
         '''Beam losses based on lower energy cut.
 
         Set to 0 all the particle's id with dE below dE_min.
@@ -284,104 +280,156 @@ class Beam(object):
             minimum dE.
         '''
 
-        itemindex = np.where( (self.dE - dE_min) < 0 )[0]
+        itemindex = np.where((self.dE - dE_min) < 0)[0]
 
-        if itemindex.size != 0:          
-            self.id[itemindex] = 0 
-
+        if itemindex.size != 0:
+            self.id[itemindex] = 0
 
     def add_particles(self, new_particles):
-        
         '''
         Method to add array of new particles to beam object
         New particles are given id numbers sequential from last id of this beam
-        
+
         Parameters
         ----------
         new_particles : array-like
             (2, n) array of (dt, dE) for new particles
         '''
-        
+
         try:
             newdt = new_particles[0]
             newdE = new_particles[1]
             if len(newdt) != len(newdE):
-                raise blExcept.ParticleAdditionError("new_particles must have equal number of time and energy coordinates")
+                raise blExcept.ParticleAdditionError(
+                    "new_particles must have equal number of time and energy coordinates")
         except TypeError:
-            raise blExcept.ParticleAdditionError("new_particles shape must be (2, n)")
+            raise blExcept.ParticleAdditionError(
+                "new_particles shape must be (2, n)")
 
         nNew = len(newdt)
 
-        self.id = np.concatenate((self.id, np.arange(self.n_macroparticles + 1,\
-                                                     self.n_macroparticles\
+        self.id = np.concatenate((self.id, np.arange(self.n_macroparticles + 1,
+                                                     self.n_macroparticles
                                                      + nNew + 1, dtype=int)))
         self.n_macroparticles += nNew
 
         self.dt = np.concatenate((self.dt, newdt))
         self.dE = np.concatenate((self.dE, newdE))
-        
-    
+
     def add_beam(self, other_beam):
-        
         '''
         Method to add the particles from another beam to this beam
         New particles are given id numbers sequential from last id of this beam
         Particles with id == 0 keep id == 0 and are included in addition
-        
+
         Parameters
         ----------
         other_beam : blond beam object
         '''
-        
+
         if not isinstance(other_beam, type(self)):
             raise TypeError("add_beam method requires a beam object as input")
-        
-       
+
         self.dt = np.concatenate((self.dt, other_beam.dt))
         self.dE = np.concatenate((self.dE, other_beam.dE))
-        
 
         counter = itl.count(self.n_macroparticles + 1)
         newids = np.zeros(other_beam.n_macroparticles)
-        
+
         for i in range(other_beam.n_macroparticles):
             if other_beam.id[i]:
                 newids[i] = next(counter)
             else:
                 next(counter)
-        
+
         self.id = np.concatenate((self.id, newids))
-        self.n_macroparticles += other_beam.n_macroparticles                
-        
+        self.n_macroparticles += other_beam.n_macroparticles
 
     def __iadd__(self, other):
-        
         '''
         Initialisation of in place addition calls add_beam(other) if other
         is a blond beam object, calls add_particles(other) otherwise
-        
+
         Parameters
         ----------
         other : blond beam object or (2, n) array
         '''
-        
+
         if isinstance(other, type(self)):
             self.add_beam(other)
             return self
         else:
             self.add_particles(other)
             return self
-        
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
 
+    # Split and gather should be going in pairs, undefined behavior in case
+    # of split split or gather gather sequence
+    # When random==True shuffles the particles before split
+    def split(self, random=False):
+        from ..utils.mpi_config import worker
+        ids = np.arange(self.n_macroparticles)
+        if random:
+            import random
+            random.shuffle(ids)
 
+        ids = worker.scatter(ids, self.n_macroparticles)
+        self.dt = np.ascontiguousarray(self.dt[ids])
+        self.dE = np.ascontiguousarray(self.dE[ids])
+        self.id = np.ascontiguousarray(self.id[ids])
+        size = len(self.dt)
+        worker.indices['beam'] = {'start': 0,
+                                  'stride': 0,
+                                  'total_size': self.n_macroparticles}
+        self.n_macroparticles = size
+
+    # This function needs to be called by all workers!
+    def gather(self):
+        from ..utils.mpi_config import worker
+
+        size = worker.indices['beam']['total_size']
+        self.dt = worker.allgather(self.dt, size)
+        self.dE = worker.allgather(self.dE, size)
+        self.id = worker.allgather(self.id, size)
+        self.n_macroparticles = size
+
+    # This function needs to be called by all workers!
+    def gather_statistics(self):
+        from ..utils.mpi_config import worker
+        size = worker.workers
+
+        temp = worker.gather(np.array([self.mean_dt]), size)
+        self.mean_dt = np.mean(temp)
+
+        temp = worker.gather(np.array([self.mean_dE]), size)
+        self.mean_dE = np.mean(temp)
+
+        temp = worker.gather(np.array([self.n_macroparticles_lost]), size)
+        self.n_total_macroparticles_lost = np.sum(temp)
+
+    # # This function needs to be called by all workers!
+    # def gather_mean_dE(self):
+    #     from ..utils.mpi_config import worker
+
+    #     total_size = worker.workers
+    #     self.mean_dE = np.mean(self.dE)
+    #     mean_dE_arr = worker.gather(np.array([self.mean_dE]), total_size)
+    #     self.mean_dE = np.mean(mean_dE_arr)
+    #     return self.mean_dE
+
+    # def gather_mean_dt(self):
+    #     from ..utils.mpi_config import worker
+
+    #     total_size = worker.workers
+    #     self.mean_dt = np.mean(self.dt)
+    #     mean_dt_arr = worker.gather(np.array([self.mean_dt]), total_size)
+    #     self.mean_dt = np.mean(mean_dt_arr)
+    #     return self.mean_dt
+
+    # def gather_losses(self):
+    #     from ..utils.mpi_config import worker
+
+    #     total_size = worker.workers
+    #     losses_arr = worker.gather(
+    #         np.array([self.n_macroparticles_lost]), total_size)
+    #     self.losses = np.mean(losses_arr)
+    #     return self.losses
