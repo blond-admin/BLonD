@@ -313,7 +313,7 @@ class _InducedVoltage(object):
 
         self.induced_voltage = induced_voltage[:self.n_induced_voltage]
 
-    def induced_voltage_mtw(self):
+    def induced_voltage_mtw(self, beam_spectrum_dict={}):
         """
         Method to calculate the induced voltage taking into account the effect
         from previous passages (multi-turn wake)
@@ -323,7 +323,7 @@ class _InducedVoltage(object):
         self.shift_trev()
 
         # Induced voltage of the current turn calculation
-        self.induced_voltage_1turn()
+        self.induced_voltage_1turn(beam_spectrum_dict)
 
         # Setting to zero to the last part to remove the contribution from the
         # front wake
@@ -719,7 +719,7 @@ class InducedVoltageResonator(_InducedVoltage):
         self._kappa1 = np.zeros(int(self.profile.n_slices-1))
         self._deltaT = np.zeros((self.n_time, self.profile.n_slices))
 
-    def induced_voltage_1turn(self):
+    def induced_voltage_1turn(self, beam_spectrum_dict={}):
         r"""
         Method to calculate the induced voltage through linearily 
         interpolating the line density and applying the analytic equation

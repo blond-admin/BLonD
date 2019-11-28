@@ -4,13 +4,6 @@ from mpi4py import MPI
 import numpy as np
 import logging
 from functools import wraps
-try:
-    from pyprof import timing
-    from pyprof import mpiprof
-except ImportError:
-    from ..utils import profile_mock as timing
-    mpiprof = timing
-
 from ..utils.input_parser import parse
 from ..utils import bmath as bm
 
@@ -51,8 +44,6 @@ mpiprint = print_wrap(print)
 
 
 class Worker:
-    @timing.timeit(key='serial:init')
-    @mpiprof.traceit(key='serial:init')
     def __init__(self):
         args = parse()
         self.indices = {}
@@ -87,8 +78,6 @@ class Worker:
         return self.rank == 0
 
     # Define the begin and size numbers in order to split a variable of length size
-    @timing.timeit(key='serial:split')
-    @mpiprof.traceit(key='serial:split')
     def split(self, size):
         self.logger.debug('split')
         counts = [size // self.workers + 1 if i < size % self.workers
@@ -100,8 +89,6 @@ class Worker:
     # args are the buffers to fill with the gathered values
     # e.g. (comm, beam.dt, beam.dE)
 
-    @timing.timeit(key='comm:gather')
-    @mpiprof.traceit(key='comm:gather')
     def gather(self, var, size):
         self.logger.debug('gather')
         if self.isMaster:
@@ -119,8 +106,6 @@ class Worker:
             self.intracomm.Gatherv(var, recvbuf, root=0)
             return var
 
-    @timing.timeit(key='comm:allgather')
-    @mpiprof.traceit(key='comm:allgather')
     def allgather(self, var, size):
         self.logger.debug('allgather')
 
@@ -134,23 +119,7 @@ class Worker:
                                [recvbuf, counts, displs, recvbuf.dtype.char])
         return recvbuf
 
-        # if self.isMaster:
-        #     counts = [size // self.workers + 1 if i < size % self.workers
-        #               else size // self.workers for i in range(self.workers)]
-        #     displs = np.append([0], np.cumsum(counts[:-1]))
-        #     sendbuf = np.copy(var)
-        #     recvbuf = np.resize(var, np.sum(counts))
 
-        #     self.intracomm.Allgatherv(sendbuf,
-        #                            [recvbuf, counts, displs, recvbuf.dtype.char], root=0)
-        #     return recvbuf
-        # else:
-        #     self.intracomm.Allgatherv(var, recvbuf, root=0)
-        #     return var
-
-
-    @timing.timeit(key='comm:scatter')
-    @mpiprof.traceit(key='comm:scatter')
     def scatter(self, var, size):
         self.logger.debug('scatter')
         if self.isMaster:
@@ -170,8 +139,6 @@ class Worker:
 
         return recvbuf
 
-    @timing.timeit(key='comm:allreduce')
-    @mpiprof.traceit(key='comm:allreduce')
     def allreduce(self, sendbuf, recvbuf=None, dtype=np.uint32):
         self.logger.debug('allreduce')
 
@@ -188,14 +155,10 @@ class Worker:
         else:
             self.intracomm.Allreduce(sendbuf, recvbuf, op=op)
 
-    @timing.timeit(key='serial:sync')
-    @mpiprof.traceit(key='serial:sync')
     def sync(self):
         self.logger.debug('sync')
         self.intracomm.Barrier()
 
-    @timing.timeit(key='serial:finalize')
-    @mpiprof.traceit(key='serial:finalize')
     def finalize(self):
         self.logger.debug('finalize')
         if not self.isMaster:

@@ -264,7 +264,7 @@ class BeamFeedback(object):
             # time_offset = 0.0
             coeff = bm.beam_phase(self.profile.bin_centers,
                                   self.profile.n_macroparticles,
-                                  self.profile.alpha, omega_rf, phi_rf,
+                                  self.alpha, omega_rf, phi_rf,
                                   self.profile.bin_size)
         else:
             indexes = self.profile.bin_centers >= self.time_offset

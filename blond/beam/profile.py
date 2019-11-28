@@ -108,8 +108,8 @@ class CutOptions(object):
 
         if self.cuts_unit == 'rad' and self.RFParams is None:
             # CutError
-            raise RuntimeError('You should pass an RFParams object to ' +
-                               'convert from radians to seconds')
+            raise RuntimeError('You should pass an RFParams object to '
+                               + 'convert from radians to seconds')
         if self.cuts_unit != 'rad' and self.cuts_unit != 's':
             # CutError
             raise RuntimeError('cuts_unit should be "s" or "rad"')
@@ -436,10 +436,14 @@ class Profile(object):
         bm.slice(self.Beam.dt, self.n_macroparticles, self.cut_left,
                  self.cut_right)
 
-        if reduce:
+        if bm.mpiMode() and reduce:
             self.reduce_histo()
 
     def reduce_histo(self, dtype=np.uint32):
+        if not bm.mpiMode():
+            raise RuntimeError(
+                'ERROR: Cannot use this routine unless in MPI Mode')
+
         from ..utils.mpi_config import worker
 
         # Convert to uint32t for better performance
@@ -452,6 +456,10 @@ class Profile(object):
             np.float64, order='C')
 
     def scale_histo(self):
+        if not bm.mpiMode():
+            raise RuntimeError(
+                'ERROR: Cannot use this routine unless in MPI Mode')
+
         from ..utils.mpi_config import worker
         bm.mul(self.n_macroparticles, worker.workers, self.n_macroparticles)
 
@@ -462,7 +470,7 @@ class Profile(object):
         bm.slice_smooth(self.Beam.dt, self.n_macroparticles, self.cut_left,
                         self.cut_right)
 
-        if reduce:
+        if bm.mpiMode() and reduce:
             self.reduce_histo(dtype=np.float64)
 
     def apply_fit(self):

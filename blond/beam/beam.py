@@ -188,8 +188,8 @@ class Beam(object):
             self.n_macroparticles = len(self.beam.dt)
         else:
             # AllParticlesLost
-            raise RuntimeError("ERROR in Beams: all particles lost and" +
-                               " eliminated!")
+            raise RuntimeError("ERROR in Beams: all particles lost and"
+                               + " eliminated!")
 
     def statistics(self):
         '''
@@ -309,8 +309,8 @@ class Beam(object):
         nNew = len(newdt)
 
         self.id = np.concatenate((self.id, np.arange(self.n_macroparticles + 1,
-                                                     self.n_macroparticles
-                                                     + nNew + 1, dtype=int)))
+                                                     self.n_macroparticles +
+                                                     nNew + 1, dtype=int)))
         self.n_macroparticles += nNew
 
         self.dt = np.concatenate((self.dt, newdt))
@@ -366,6 +366,10 @@ class Beam(object):
     # of split split or gather gather sequence
     # When random==True shuffles the particles before split
     def split(self, random=False):
+        if not bm.mpiMode():
+            raise RuntimeError(
+                'ERROR: Cannot use this routine unless in MPI Mode')
+
         from ..utils.mpi_config import worker
         ids = np.arange(self.n_macroparticles)
         if random:
@@ -384,6 +388,10 @@ class Beam(object):
 
     # This function needs to be called by all workers!
     def gather(self):
+        if not bm.mpiMode():
+            raise RuntimeError(
+                'ERROR: Cannot use this routine unless in MPI Mode')
+
         from ..utils.mpi_config import worker
 
         size = worker.indices['beam']['total_size']
@@ -394,6 +402,10 @@ class Beam(object):
 
     # This function needs to be called by all workers!
     def gather_statistics(self):
+        if not bm.mpiMode():
+            raise RuntimeError(
+                'ERROR: Cannot use this routine unless in MPI Mode')
+
         from ..utils.mpi_config import worker
         size = worker.workers
 
@@ -405,31 +417,3 @@ class Beam(object):
 
         temp = worker.gather(np.array([self.n_macroparticles_lost]), size)
         self.n_total_macroparticles_lost = np.sum(temp)
-
-    # # This function needs to be called by all workers!
-    # def gather_mean_dE(self):
-    #     from ..utils.mpi_config import worker
-
-    #     total_size = worker.workers
-    #     self.mean_dE = np.mean(self.dE)
-    #     mean_dE_arr = worker.gather(np.array([self.mean_dE]), total_size)
-    #     self.mean_dE = np.mean(mean_dE_arr)
-    #     return self.mean_dE
-
-    # def gather_mean_dt(self):
-    #     from ..utils.mpi_config import worker
-
-    #     total_size = worker.workers
-    #     self.mean_dt = np.mean(self.dt)
-    #     mean_dt_arr = worker.gather(np.array([self.mean_dt]), total_size)
-    #     self.mean_dt = np.mean(mean_dt_arr)
-    #     return self.mean_dt
-
-    # def gather_losses(self):
-    #     from ..utils.mpi_config import worker
-
-    #     total_size = worker.workers
-    #     losses_arr = worker.gather(
-    #         np.array([self.n_macroparticles_lost]), total_size)
-    #     self.losses = np.mean(losses_arr)
-    #     return self.losses

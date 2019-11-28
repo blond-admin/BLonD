@@ -10,6 +10,9 @@ from ..utils import butils_wrap
 from ..utils import bphysics_wrap
 from numpy import fft
 
+__exec_mode = 'single_node'
+# Other modes: multi_node
+
 # dictionary storing the CPU versions of the desired functions #
 _CPU_func_dict = {
     'rfft': fft.rfft,
@@ -62,6 +65,22 @@ _FFTW_func_dict = {
     'irfft': butils_wrap.irfft,
     'rfftfreq': butils_wrap.rfftfreq
 }
+
+_MPI_func_dict = {
+
+}
+
+
+def use_mpi():
+    '''
+    Replace some bm functions with MPI implementations
+    '''
+    globals().update(_MPI_func_dict)
+    __exec_mode = 'multi_node'
+
+
+def mpiMode():
+    return __exec_mode == 'multi_node'
 
 
 def use_fftw():
