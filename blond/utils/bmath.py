@@ -75,11 +75,13 @@ def use_mpi():
     '''
     Replace some bm functions with MPI implementations
     '''
+    global __exec_mode
     globals().update(_MPI_func_dict)
     __exec_mode = 'multi_node'
 
 
 def mpiMode():
+    global __exec_mode
     return __exec_mode == 'multi_node'
 
 

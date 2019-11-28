@@ -20,8 +20,8 @@ import numpy as np
 import itertools as itl
 from scipy.constants import m_p, m_e, e, c
 from ..trackers.utilities import is_in_separatrix
-import blond.utils.exceptions as blExcept
-
+from ..utils import exceptions as blExcept
+from ..utils import bmath as bm
 
 class Particle(object):
 
