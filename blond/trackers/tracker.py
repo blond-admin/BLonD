@@ -92,7 +92,7 @@ class FullRingAndRF(object):
         elif isinstance(main_harmonic_option, int) or \
                 isinstance(main_harmonic_option, float):
             if omega_rf[omega_rf == main_harmonic_option].size == 0:
-                #PotentialWellError
+                # PotentialWellError
                 raise RuntimeError("ERROR in FullRingAndRF: The desired" +
                                    " harmonic to compute the potential well does not match" +
                                    " the RF parameters...")
@@ -273,7 +273,7 @@ class RingAndRFTracker(object):
         self.beam = Beam
         self.solver = str(solver)
         if self.solver not in ['simple', 'exact', 'legacy']:
-            #SolverError
+            # SolverError
             raise RuntimeError("ERROR in RingAndRFTracker: Choice of" +
                                " longitudinal solver not recognised!")
         if self.alpha_order > 1:  # Force exact solver for higher orders of eta
@@ -287,27 +287,27 @@ class RingAndRFTracker(object):
         try:
             self.periodicity = bool(periodicity)
         except:
-            #PeriodicityError
+            # PeriodicityError
             raise RuntimeError("ERROR in RingAndRFTracker: Choice of" +
                                " periodicity not recognised!")
         try:
             self.interpolation = bool(interpolation)
         except:
-            #InterpolationError
+            # InterpolationError
             raise RuntimeError("ERROR in RingAndRFTracker: Choice of" +
                                " interpolation not recognised!")
         self.profile = Profile
         self.totalInducedVoltage = TotalInducedVoltage
         if (self.interpolation is True) and (self.profile is None):
-            #ProfileError
+            # ProfileError
             raise RuntimeError("ERROR in RingAndRFTracker: Please specify a" +
                                " Profile object to use the interpolation option")
         if (self.cavityFB is not None) and (self.profile is None):
-            #ProfileError
+            # ProfileError
             raise RuntimeError("ERROR in RingAndRFTracker: Please specify a" +
                                " Profile object to use the CavityFeedback class")
         if (self.rf_params.empty is True) and (self.periodicity is True):
-            #PeriodicityError
+            # PeriodicityError
             raise RuntimeError("ERROR in RingAndRFTracker: Empty RFStation" +
                                " with periodicity not yet implemented!")
         if (self.cavityFB is not None) and (self.interpolation is False):
@@ -328,10 +328,12 @@ class RingAndRFTracker(object):
 
         """
 
-        voltage_kick = np.ascontiguousarray(self.charge*self.voltage[:, index])
-        omegarf_kick = np.ascontiguousarray(self.omega_rf[:, index])
-        phirf_kick = np.ascontiguousarray(self.phi_rf[:, index])
-        bm.kick(self, beam_dt, beam_dE, index)
+        # voltage_kick = np.ascontiguousarray(self.charge*self.voltage[:, index])
+        # omegarf_kick = np.ascontiguousarray(self.omega_rf[:, index])
+        # phirf_kick = np.ascontiguousarray(self.phi_rf[:, index])
+        bm.kick(beam_dt, beam_dE, self.voltage[:, index],
+                self.omega_rf[:, index], self.phi_rf[:, index],
+                self.charge, self.n_rf, self.acceleration_kick[index])
 
     def drift(self, beam_dt, beam_dE, index):
         """Function updating the particle arrival time to the RF station
@@ -360,7 +362,11 @@ class RingAndRFTracker(object):
             \\delta = \\frac{\\Delta E}{\\beta_s^2 E_s} \quad \\text{(simple, legacy)}
 
         """
-        bm.drift(self, beam_dt, beam_dE, index)
+        bm.drift(beam_dt, beam_dE, self.solver, self.t_rev[index],
+                 self.length_ratio, self.alpha_order, self.eta_0[index],
+                 self.eta_1[index], self.eta_2[index], self.alpha_0[index],
+                 self.alpha_1[index], self.alpha_2[index],
+                 self.rf_params.beta[index], self.rf_params.energy[index])
 
     def rf_voltage_calculation(self):
         """Function calculating the total, discretised RF voltage seen by the
@@ -375,9 +381,11 @@ class RingAndRFTracker(object):
             self.rf_voltage = voltages[0] * self.cavityFB.V_corr * \
                 bm.sin(omega_rf[0]*self.profile.bin_centers +
                        phi_rf[0] + self.cavityFB.phi_corr) + \
-                bm.rf_volt_comp(voltages[1:], omega_rf[1:], phi_rf[1:], self)
+                bm.rf_volt_comp(voltages[1:], omega_rf[1:], phi_rf[1:],
+                                self.profile.bin_centers)
         else:
-            self.rf_voltage = bm.rf_volt_comp(voltages, omega_rf, phi_rf, self)
+            self.rf_voltage = bm.rf_volt_comp(voltages, omega_rf, phi_rf,
+                                              self.profile.bin_centers)
 
     def track(self):
         """Tracking method for the section. Applies first the kick, then the 
@@ -396,14 +404,13 @@ class RingAndRFTracker(object):
             else:
                 self.phi_rf[:, turn] += \
                     self.phi_noise[:, turn]
-                    
+
         # Add phase modulation directly to the cavity RF phase
         if self.phi_modulation is not None:
             self.phi_rf[:, turn] += \
                 self.phi_modulation[0][:, turn]
             self.omega_rf[:, turn] += \
                 self.phi_modulation[1][:, turn]
-
 
         # Determine phase loop correction on RF phase and frequency
         if self.beamFB is not None and turn >= self.beamFB.delay:
@@ -475,7 +482,7 @@ class RingAndRFTracker(object):
                                           bin_centers=self.profile.bin_centers,
                                           charge=self.beam.Particle.charge,
                                           acceleration_kick=self.acceleration_kick[turn])
-                    
+
                     # self.drift(self.beam.dt, self.beam.dE, turn + 1)
 
                     # bm.LIKick_n_drift(self.beam.dt,

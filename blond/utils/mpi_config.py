@@ -4,28 +4,9 @@ from mpi4py import MPI
 import numpy as np
 import logging
 from functools import wraps
-from ..utils.input_parser import parse
 from ..utils import bmath as bm
 
 worker = None
-
-
-def c_add_uint32(xmem, ymem, dt):
-    x = np.frombuffer(xmem, dtype=np.uint32)
-    y = np.frombuffer(ymem, dtype=np.uint32)
-    bm.add(y, x, inplace=True)
-
-
-add_op_uint32 = MPI.Op.Create(c_add_uint32, commute=True)
-
-
-def c_add_uint16(xmem, ymem, dt):
-    x = np.frombuffer(xmem, dtype=np.uint16)
-    y = np.frombuffer(ymem, dtype=np.uint16)
-    bm.add(y, x, inplace=True)
-
-
-add_op_uint16 = MPI.Op.Create(c_add_uint16, commute=True)
 
 
 def print_wrap(f):
@@ -44,8 +25,8 @@ mpiprint = print_wrap(print)
 
 
 class Worker:
-    def __init__(self):
-        args = parse()
+    def __init__(self, args={}):
+        # args = parse()
         self.indices = {}
         self.intracomm = MPI.COMM_WORLD
         self.rank = self.intracomm.rank
@@ -56,22 +37,24 @@ class Worker:
         self.workers = self.intracomm.size
 
         self.hostname = MPI.Get_processor_name()
-        self.log = args['log']
-        self.trace = args['trace']
+        self.log = args.get('log', False)
+        # self.trace = args.get('trace', False)
 
         if self.log:
-            self.logger = MPILog(rank=self.rank, log_dir=args['logdir'])
+            self.logger = MPILog(
+                rank=self.rank, log_dir=args.get('logdir', './logs'))
         else:
             self.logger = MPILog(rank=self.rank)
             self.logger.disable()
 
-        if self.trace:
-            mpiprof.mode = 'tracing'
-            mpiprof.init(logfile=args['tracefile'])
+        # if self.trace:
+        #     mpiprof.mode = 'tracing'
+        #     mpiprof.init(logfile=args.get('tracefile', 'trace'))
 
     def __del__(self):
+        pass
         # if self.trace:
-        mpiprof.finalize()
+        # mpiprof.finalize()
 
     @property
     def isMaster(self):
@@ -88,7 +71,6 @@ class Worker:
 
     # args are the buffers to fill with the gathered values
     # e.g. (comm, beam.dt, beam.dE)
-
     def gather(self, var, size):
         self.logger.debug('gather')
         if self.isMaster:
@@ -116,9 +98,8 @@ class Worker:
         recvbuf = np.resize(var, np.sum(counts))
 
         self.intracomm.Allgatherv(sendbuf,
-                               [recvbuf, counts, displs, recvbuf.dtype.char])
+                                  [recvbuf, counts, displs, recvbuf.dtype.char])
         return recvbuf
-
 
     def scatter(self, var, size):
         self.logger.debug('scatter')
@@ -139,13 +120,25 @@ class Worker:
 
         return recvbuf
 
-    def allreduce(self, sendbuf, recvbuf=None, dtype=np.uint32):
+    def allreduce(self, sendbuf, recvbuf=None):
         self.logger.debug('allreduce')
-
-        if dtype == np.uint32:
-            op = add_op_uint32
-        elif dtype == np.uint16:
+        dtype = sendbuf.dtype.name
+        if dtype == 'int16':
+            op = add_op_int16
+        elif dtype == 'int32':
+            op = add_op_int32
+        elif dtype == 'int64':
+            op = add_op_int64
+        elif dtype == 'uint16':
             op = add_op_uint16
+        elif dtype == 'uint32':
+            op = add_op_uint32
+        elif dtype == 'uint64':
+            op = add_op_uint64
+        elif dtype == 'float32':
+            op = add_op_float32
+        elif dtype == 'float64':
+            op = add_op_float64
         else:
             print('Error: Not recognized dtype:{}'.format(dtype))
             exit(-1)
@@ -233,6 +226,78 @@ class MPILog(object):
     def info(self, string):
         if self.disabled == False:
             logging.info(string)
+
+
+def c_add_float32(xmem, ymem, dt):
+    x = np.frombuffer(xmem, dtype=np.float32)
+    y = np.frombuffer(ymem, dtype=np.float32)
+    bm.add(y, x, inplace=True)
+
+
+add_op_float32 = MPI.Op.Create(c_add_float32, commute=True)
+
+
+def c_add_float64(xmem, ymem, dt):
+    x = np.frombuffer(xmem, dtype=np.float64)
+    y = np.frombuffer(ymem, dtype=np.float64)
+    bm.add(y, x, inplace=True)
+
+
+add_op_float64 = MPI.Op.Create(c_add_float64, commute=True)
+
+
+def c_add_uint16(xmem, ymem, dt):
+    x = np.frombuffer(xmem, dtype=np.uint16)
+    y = np.frombuffer(ymem, dtype=np.uint16)
+    bm.add(y, x, inplace=True)
+
+
+add_op_uint16 = MPI.Op.Create(c_add_uint16, commute=True)
+
+
+def c_add_uint32(xmem, ymem, dt):
+    x = np.frombuffer(xmem, dtype=np.uint32)
+    y = np.frombuffer(ymem, dtype=np.uint32)
+    bm.add(y, x, inplace=True)
+
+
+add_op_uint32 = MPI.Op.Create(c_add_uint32, commute=True)
+
+
+def c_add_uint64(xmem, ymem, dt):
+    x = np.frombuffer(xmem, dtype=np.uint64)
+    y = np.frombuffer(ymem, dtype=np.uint64)
+    bm.add(y, x, inplace=True)
+
+
+add_op_uint64 = MPI.Op.Create(c_add_uint64, commute=True)
+
+
+def c_add_int16(xmem, ymem, dt):
+    x = np.frombuffer(xmem, dtype=np.int16)
+    y = np.frombuffer(ymem, dtype=np.int16)
+    bm.add(y, x, inplace=True)
+
+
+add_op_int16 = MPI.Op.Create(c_add_int16, commute=True)
+
+
+def c_add_int32(xmem, ymem, dt):
+    x = np.frombuffer(xmem, dtype=np.int32)
+    y = np.frombuffer(ymem, dtype=np.int32)
+    bm.add(y, x, inplace=True)
+
+
+add_op_int32 = MPI.Op.Create(c_add_int32, commute=True)
+
+
+def c_add_int64(xmem, ymem, dt):
+    x = np.frombuffer(xmem, dtype=np.int64)
+    y = np.frombuffer(ymem, dtype=np.int64)
+    bm.add(y, x, inplace=True)
+
+
+add_op_int64 = MPI.Op.Create(c_add_int64, commute=True)
 
 
 if worker is None:
