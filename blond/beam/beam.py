@@ -7,7 +7,7 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Module containing the fundamental beam class with methods to compute beam 
+"""Module containing the fundamental beam class with methods to compute beam
 statistics
 
 :Authors: **Danilo Quartullo**, **Helga Timko**, **ALexandre Lasheen**
@@ -22,6 +22,7 @@ from scipy.constants import m_p, m_e, e, c
 from ..trackers.utilities import is_in_separatrix
 from ..utils import exceptions as blExcept
 from ..utils import bmath as bm
+
 
 class Particle(object):
 
@@ -54,7 +55,7 @@ class Beam(object):
 
     This class containes the beam coordinates (dt, dE) and the beam properties.
 
-    The beam coordinate 'dt' is defined as the particle arrival time to the RF 
+    The beam coordinate 'dt' is defined as the particle arrival time to the RF
     station w.r.t. the reference time that is the sum of turns. The beam
     coordiate 'dE' is defined as the particle energy offset w.r.t. the
     energy of the synchronous particle.
@@ -156,7 +157,7 @@ class Beam(object):
         '''Number of lost macro-particles, defined as @property.
 
         Returns
-        -------        
+        -------
         n_macroparticles_lost : int
             number of macroparticles lost.
 
@@ -169,7 +170,7 @@ class Beam(object):
         '''Number of transmitted macro-particles, defined as @property.
 
         Returns
-        -------        
+        -------
         n_macroparticles_alive : int
             number of macroparticles not lost.
 
@@ -188,8 +189,8 @@ class Beam(object):
             self.n_macroparticles = len(self.beam.dt)
         else:
             # AllParticlesLost
-            raise RuntimeError("ERROR in Beams: all particles lost and"
-                               + " eliminated!")
+            raise RuntimeError("ERROR in Beams: all particles lost and" +
+                               " eliminated!")
 
     def statistics(self):
         '''
@@ -235,7 +236,7 @@ class Beam(object):
     def losses_longitudinal_cut(self, dt_min, dt_max):
         '''Beam losses based on longitudinal cuts.
 
-        Set to 0 all the particle's id with dt not in the interval 
+        Set to 0 all the particle's id with dt not in the interval
         (dt_min, dt_max).
 
         Parameters
@@ -309,8 +310,8 @@ class Beam(object):
         nNew = len(newdt)
 
         self.id = np.concatenate((self.id, np.arange(self.n_macroparticles + 1,
-                                                     self.n_macroparticles +
-                                                     nNew + 1, dtype=int)))
+                                                     self.n_macroparticles
+                                                     + nNew + 1, dtype=int)))
         self.n_macroparticles += nNew
 
         self.dt = np.concatenate((self.dt, newdt))
@@ -362,58 +363,117 @@ class Beam(object):
             self.add_particles(other)
             return self
 
-    # Split and gather should be going in pairs, undefined behavior in case
-    # of split split or gather gather sequence
-    # When random==True shuffles the particles before split
-    def split(self, random=False):
+    def split(self, random=False, fast=False):
+        '''
+        MPI ONLY ROUTINE: Splits the beam equally among the workers for
+        MPI processing.
+        Parameters
+        ----------
+        random : boolean
+            Shuffle the beam before splitting, to be used with the
+            approximation methonds.
+        fast : boolean
+            If true, it assumes that every worker has already a copy of the
+            beam so only the particle ids are distributed.
+            If false, all the coordinates are distributed by the master to all
+            the workers.
+        '''
+
         if not bm.mpiMode():
             raise RuntimeError(
                 'ERROR: Cannot use this routine unless in MPI Mode')
 
         from ..utils.mpi_config import worker
-        ids = np.arange(self.n_macroparticles)
-        if random:
-            import random
-            random.shuffle(ids)
+        if worker.isMaster:
+            if random:
+                import random
+                random.shuffle(self.id)
 
-        ids = worker.scatter(ids, self.n_macroparticles)
-        self.dt = np.ascontiguousarray(self.dt[ids])
-        self.dE = np.ascontiguousarray(self.dE[ids])
-        self.id = np.ascontiguousarray(self.id[ids])
-        size = len(self.dt)
-        worker.indices['beam'] = {'start': 0,
-                                  'stride': 0,
-                                  'total_size': self.n_macroparticles}
-        self.n_macroparticles = size
+        self.id = worker.scatter(self.id, self.n_macroparticles)
 
-    # This function needs to be called by all workers!
-    def gather(self):
+        if fast:
+            self.dt = np.ascontiguousarray(self.dt[self.id-1])
+            self.dE = np.ascontiguousarray(self.dE[self.id-1])
+        else:
+            self.dt = worker.scatter(self.dt, self.n_macroparticles)
+            self.dE = worker.scatter(self.dE, self.n_macroparticles)
+        assert (len(self.dt) == len(self.dE) and len(self.dt) == len(self.id))
+
+        self.n_macroparticles = len(self.dt)
+
+    def gather(self, all=False):
+        '''
+        MPI ONLY ROUTINE: Gather the beam coordinates to the master or all workers.
+        Parameters
+        ----------
+        all : boolean
+            If true, every worker will get a copy of the whole beam coordinates.
+            If false, only the master will gather the coordinates. 
+        '''
+        if not bm.mpiMode():
+            raise RuntimeError(
+                'ERROR: Cannot use this routine unless in MPI Mode')
+        from ..utils.mpi_config import worker
+
+        if all:
+            self.dt = worker.allgather(self.dt)
+            self.dE = worker.allgather(self.dE)
+            self.id = worker.allgather(self.id)
+        else:
+            self.dt = worker.gather(self.dt)
+            self.dE = worker.gather(self.dE)
+            self.id = worker.gather(self.id)
+
+        self.n_macroparticles = len(self.dt)
+
+    def gather_statistics(self, all=False):
+        '''
+        MPI ONLY ROUTINE: Gather beam statistics. 
+        Parameters
+        ----------
+        all : boolean
+            if true, all workers will gather the beam stats.
+            If false, only the master will get the beam stats.
+        '''
         if not bm.mpiMode():
             raise RuntimeError(
                 'ERROR: Cannot use this routine unless in MPI Mode')
 
         from ..utils.mpi_config import worker
 
-        size = worker.indices['beam']['total_size']
-        self.dt = worker.allgather(self.dt, size)
-        self.dE = worker.allgather(self.dE, size)
-        self.id = worker.allgather(self.id, size)
-        self.n_macroparticles = size
+        if all:
+            temp = worker.allgather(np.array([self.mean_dt]))
+            self.mean_dt = np.mean(temp)
+            temp = worker.allgather(np.array([self.mean_dE]))
+            self.mean_dE = np.mean(temp)
+            temp = worker.allgather(np.array([self.n_macroparticles_lost]))
+            self.n_total_macroparticles_lost = np.sum(temp)
+        else:
+            temp = worker.gather(np.array([self.mean_dt]))
+            self.mean_dt = np.mean(temp)
+            temp = worker.gather(np.array([self.mean_dE]))
+            self.mean_dE = np.mean(temp)
+            temp = worker.gather(np.array([self.n_macroparticles_lost]))
+            self.n_total_macroparticles_lost = np.sum(temp)
 
-    # This function needs to be called by all workers!
-    def gather_statistics(self):
+    def gather_losses(self, all=False):
+        '''
+        MPI ONLY ROUTINE: Gather beam losses. 
+        Parameters
+        ----------
+        all : boolean
+            if true, all workers will gather the beam stats.
+            If false, only the master will get the beam stats.
+        '''
         if not bm.mpiMode():
             raise RuntimeError(
                 'ERROR: Cannot use this routine unless in MPI Mode')
 
         from ..utils.mpi_config import worker
-        size = worker.workers
 
-        temp = worker.gather(np.array([self.mean_dt]), size)
-        self.mean_dt = np.mean(temp)
-
-        temp = worker.gather(np.array([self.mean_dE]), size)
-        self.mean_dE = np.mean(temp)
-
-        temp = worker.gather(np.array([self.n_macroparticles_lost]), size)
-        self.n_total_macroparticles_lost = np.sum(temp)
+        if all:
+            temp = worker.allgather(np.array([self.n_macroparticles_lost]))
+            self.n_total_macroparticles_lost = np.sum(temp)
+        else:
+            temp = worker.gather(np.array([self.n_macroparticles_lost]))
+            self.n_total_macroparticles_lost = np.sum(temp)

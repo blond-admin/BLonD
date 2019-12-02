@@ -1,33 +1,75 @@
 import sys
 import os
-from mpi4py import MPI
 import numpy as np
 import logging
 from functools import wraps
 from ..utils import bmath as bm
+from mpi4py import MPI
 
 worker = None
 
 
-def print_wrap(f):
+def mpiprint(*args, all=False):
+    if worker.isMaster or all:
+        print('[{}]'.format(worker.rank), *args)
+
+# def print_wrap(f):
+#     @wraps(f)
+#     def wrap(*args):
+#         msg = '[{}] '.format(worker.rank) + ' '.join([str(a) for a in args])
+#         if worker.isMaster:
+#             worker.logger.debug(msg)
+#             return f('[{}]'.format(worker.rank), *args)
+#         else:
+#             return worker.logger.debug(msg)
+#     return wrap
+
+
+# mpiprint = print_wrap(print)
+
+def master_wrap(f):
     @wraps(f)
-    def wrap(*args):
-        msg = '[{}] '.format(worker.rank) + ' '.join([str(a) for a in args])
+    def wrap(*args, **kwargs):
         if worker.isMaster:
-            worker.logger.debug(msg)
-            return f('[{}]'.format(worker.rank), *args)
+            return f(*args, **kwargs)
         else:
-            return worker.logger.debug(msg)
+            return None
+    return wrap
+
+def sequential_wrap(f, beam, split_args={}, gather_args={}):
+    @wraps(f)
+    def wrap(*args, **kw):
+        beam.gather(**gather_args)
+        if worker.isMaster:
+            result = f(*args, **kw)
+        else:
+            result = None
+        beam.split(**split_args)
+        return result
     return wrap
 
 
-mpiprint = print_wrap(print)
+
+# def sequential_wrap(beam, split_args={}, gather_args={}):
+#     def decorator(f):
+#         @wraps(f)
+#         def sequential(*args, **kw):
+#             beam.gather(**gather_args)
+#             if worker.isMaster:
+#                 result = f(*args, **kw)
+#             else:
+#                 result = None
+#             beam.split(**split_args)
+#             return result
+#         return sequential
+#     return decorator
 
 
 class Worker:
+
     def __init__(self, args={}):
         # args = parse()
-        self.indices = {}
+        # self.indices = {}
         self.intracomm = MPI.COMM_WORLD
         self.rank = self.intracomm.rank
 
@@ -61,24 +103,31 @@ class Worker:
         return self.rank == 0
 
     # Define the begin and size numbers in order to split a variable of length size
-    def split(self, size):
-        self.logger.debug('split')
-        counts = [size // self.workers + 1 if i < size % self.workers
-                  else size // self.workers for i in range(self.workers)]
-        displs = np.append([0], np.cumsum(counts[:-1])).astype(int)
+    # def split(self, size):
+    #     self.logger.debug('split')
+    #     counts = [size // self.workers + 1 if i < size % self.workers
+    #               else size // self.workers for i in range(self.workers)]
+    #     displs = np.append([0], np.cumsum(counts[:-1])).astype(int)
 
-        return displs[self.rank], counts[self.rank]
+    #     return displs[self.rank], counts[self.rank]
 
-    # args are the buffers to fill with the gathered values
-    # e.g. (comm, beam.dt, beam.dE)
-    def gather(self, var, size):
+    # The master gathers the variable var from all workers
+
+    def gather(self, var):
         self.logger.debug('gather')
+
+        # First I need to know the total size
+        counts = np.zeros(self.workers, dtype=int)
+        sendbuf = np.array([len(var)], dtype=int)
+        self.intracomm.Gather(sendbuf, counts, root=0)
+        total_size = np.sum(counts)
+
         if self.isMaster:
-            counts = [size // self.workers + 1 if i < size % self.workers
-                      else size // self.workers for i in range(self.workers)]
+            # counts = [size // self.workers + 1 if i < size % self.workers
+            #           else size // self.workers for i in range(self.workers)]
             displs = np.append([0], np.cumsum(counts[:-1]))
             sendbuf = np.copy(var)
-            recvbuf = np.resize(var, np.sum(counts))
+            recvbuf = np.resize(var, total_size)
 
             self.intracomm.Gatherv(sendbuf,
                                    [recvbuf, counts, displs, recvbuf.dtype.char], root=0)
@@ -88,14 +137,21 @@ class Worker:
             self.intracomm.Gatherv(var, recvbuf, root=0)
             return var
 
-    def allgather(self, var, size):
+    # All workers gather the variable var (from all workers)
+    def allgather(self, var):
         self.logger.debug('allgather')
 
-        counts = [size // self.workers + 1 if i < size % self.workers
-                  else size // self.workers for i in range(self.workers)]
+        # One first gather to collect all the sizes
+        counts = np.zeros(self.workers, dtype=int)
+        sendbuf = np.array([len(var)], dtype=int)
+        self.intracomm.Allgather(sendbuf, counts)
+
+        total_size = np.sum(counts)
+        # counts = [size // self.workers + 1 if i < size % self.workers
+        #           else size // self.workers for i in range(self.workers)]
         displs = np.append([0], np.cumsum(counts[:-1]))
         sendbuf = np.copy(var)
-        recvbuf = np.resize(var, np.sum(counts))
+        recvbuf = np.resize(var, total_size)
 
         self.intracomm.Allgatherv(sendbuf,
                                   [recvbuf, counts, displs, recvbuf.dtype.char])
@@ -167,6 +223,33 @@ class Worker:
         # print('[{}] Version: {}'.format(self.rank,MPI.Get_version()))
         print('[{}] Library: {}'.format(self.rank, MPI.get_vendor()))
 
+    # class sequential_context:
+    #     class SkipWithBlock(Exception):
+    #         pass
+
+    #     def __init__(self, beam, split_args={}, gather_args={}):
+    #         self.beam = beam
+    #         self.split_args = split_args
+    #         self.gather_args = gather_args
+
+    #     def __enter__(self):
+    #         self.beam.split(**self.split_args)
+    #         if not worker.isMaster:
+    #             # Do some magic
+    #             sys.settrace(lambda *args, **keys: None)
+    #             frame = sys._getframe(1)
+    #             frame.f_trace = self.trace
+
+    #     def trace(self, fname, event, arg):
+    #         raise self.SkipWithBlock()
+        
+    #     def __exit__(self, type, value, traceback):
+    #         self.beam.gather(**self.gather_args)
+    #         if type is None:
+    #             return
+    #         if issubclass(type, self.SkipWithBlock):
+    #             return True
+
 
 class MPILog(object):
     """Class to log messages coming from other classes. Messages contain 
@@ -226,6 +309,10 @@ class MPILog(object):
     def info(self, string):
         if self.disabled == False:
             logging.info(string)
+
+
+if worker is None:
+    worker = Worker()
 
 
 def c_add_float32(xmem, ymem, dt):
@@ -298,7 +385,3 @@ def c_add_int64(xmem, ymem, dt):
 
 
 add_op_int64 = MPI.Op.Create(c_add_int64, commute=True)
-
-
-if worker is None:
-    worker = Worker()
