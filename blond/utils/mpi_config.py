@@ -13,19 +13,6 @@ def mpiprint(*args, all=False):
     if worker.isMaster or all:
         print('[{}]'.format(worker.rank), *args)
 
-# def print_wrap(f):
-#     @wraps(f)
-#     def wrap(*args):
-#         msg = '[{}] '.format(worker.rank) + ' '.join([str(a) for a in args])
-#         if worker.isMaster:
-#             worker.logger.debug(msg)
-#             return f('[{}]'.format(worker.rank), *args)
-#         else:
-#             return worker.logger.debug(msg)
-#     return wrap
-
-
-# mpiprint = print_wrap(print)
 
 def master_wrap(f):
     @wraps(f)
@@ -35,6 +22,7 @@ def master_wrap(f):
         else:
             return None
     return wrap
+
 
 def sequential_wrap(f, beam, split_args={}, gather_args={}):
     @wraps(f)
@@ -47,22 +35,6 @@ def sequential_wrap(f, beam, split_args={}, gather_args={}):
         beam.split(**split_args)
         return result
     return wrap
-
-
-
-# def sequential_wrap(beam, split_args={}, gather_args={}):
-#     def decorator(f):
-#         @wraps(f)
-#         def sequential(*args, **kw):
-#             beam.gather(**gather_args)
-#             if worker.isMaster:
-#                 result = f(*args, **kw)
-#             else:
-#                 result = None
-#             beam.split(**split_args)
-#             return result
-#         return sequential
-#     return decorator
 
 
 class Worker:
@@ -102,16 +74,6 @@ class Worker:
     def isMaster(self):
         return self.rank == 0
 
-    # Define the begin and size numbers in order to split a variable of length size
-    # def split(self, size):
-    #     self.logger.debug('split')
-    #     counts = [size // self.workers + 1 if i < size % self.workers
-    #               else size // self.workers for i in range(self.workers)]
-    #     displs = np.append([0], np.cumsum(counts[:-1])).astype(int)
-
-    #     return displs[self.rank], counts[self.rank]
-
-    # The master gathers the variable var from all workers
 
     def gather(self, var):
         self.logger.debug('gather')
@@ -157,19 +119,22 @@ class Worker:
                                   [recvbuf, counts, displs, recvbuf.dtype.char])
         return recvbuf
 
-    def scatter(self, var, size):
+    def scatter(self, var):
         self.logger.debug('scatter')
+
+        # First broadcast the total_size from the master
+        total_size = int(self.intracomm.bcast(len(var), root=0))
+
+        # Then calculate the counts (size for each worker)
+        counts = [total_size // self.workers + 1 if i < total_size % self.workers
+                  else total_size // self.workers for i in range(self.workers)]
+        
         if self.isMaster:
-            counts = [size // self.workers + 1 if i < size % self.workers
-                      else size // self.workers for i in range(self.workers)]
             displs = np.append([0], np.cumsum(counts[:-1]))
-            # sendbuf = np.copy(var)
             recvbuf = np.empty(counts[worker.rank], dtype=var.dtype.char)
             self.intracomm.Scatterv([var, counts, displs, var.dtype.char],
                                     recvbuf, root=0)
         else:
-            counts = [size // self.workers + 1 if i < size % self.workers
-                      else size // self.workers for i in range(self.workers)]
             sendbuf = None
             recvbuf = np.empty(counts[worker.rank], dtype=var.dtype.char)
             self.intracomm.Scatterv(sendbuf, recvbuf, root=0)
@@ -242,7 +207,7 @@ class Worker:
 
     #     def trace(self, fname, event, arg):
     #         raise self.SkipWithBlock()
-        
+
     #     def __exit__(self, type, value, traceback):
     #         self.beam.gather(**self.gather_args)
     #         if type is None:

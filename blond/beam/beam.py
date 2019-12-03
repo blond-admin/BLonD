@@ -384,19 +384,18 @@ class Beam(object):
                 'ERROR: Cannot use this routine unless in MPI Mode')
 
         from ..utils.mpi_config import worker
-        if worker.isMaster:
-            if random:
-                import random
-                random.shuffle(self.id)
+        if worker.isMaster and random:
+            import random
+            random.shuffle(self.id)
 
-        self.id = worker.scatter(self.id, self.n_macroparticles)
+        self.id = worker.scatter(self.id)
 
         if fast:
             self.dt = np.ascontiguousarray(self.dt[self.id-1])
             self.dE = np.ascontiguousarray(self.dE[self.id-1])
         else:
-            self.dt = worker.scatter(self.dt, self.n_macroparticles)
-            self.dE = worker.scatter(self.dE, self.n_macroparticles)
+            self.dt = worker.scatter(self.dt)
+            self.dE = worker.scatter(self.dE)
         assert (len(self.dt) == len(self.dE) and len(self.dt) == len(self.id))
 
         self.n_macroparticles = len(self.dt)
