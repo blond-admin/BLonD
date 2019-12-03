@@ -124,7 +124,7 @@ for i in range(1, n_turns+1):
         m.track()
     
     my_beam.gather_statistics(all=True)
-    slices_ring.cut_options.track_cuts(my_beam)   
+    slices_ring.cut_options.track_cuts(my_beam)
     slices_ring.set_slices_parameters()   
     
     if (i % 100 == 0): 
