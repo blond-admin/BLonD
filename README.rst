@@ -155,6 +155,125 @@ So far only the ``rfft()``, ``irfft()`` and ``fftfreq()`` routines are supported
         bm.irfft(...)
         bm.rfftfreq(...)
 
+
+Using the multi-node (MPI) implementation
+=========================================
+
+Set-up Instructions
+-------------------
+
+* Add the following lines in your ~/.bashrc, then source it:
+
+  .. code-block:: bash
+    
+  # Environment variables definitions
+  export LD_LIBRARY_PATH="$HOME/install/lib"
+  
+  # User aliases
+  alias mysqueue="squeue -u $USER"
+  alias myscancel="scancel -u $USER"
+  alias mywatch="watch -n 30 'squeue -u $USER'"
+  
+  # Module loads
+  module load compiler/gcc7
+  module load slurm/be
+  module load mpi/mvapich2/2.3
+
+  
+* Download and install anaconda3:
+  
+  .. code-block:: bash
+  
+    cd ~
+    mkdir -p ~/downloads
+    cd downloads
+    wget https://repo.continuum.io/archive/Anaconda3-2018.12-Linux-x86_64.sh
+    bash Anaconda3-2018.12-Linux-x86_64.sh -b -p $HOME/install/anaconda3
+    
+* Download and install fftw3 (with the appropriate flags):
+
+  .. code-block:: bash
+  
+    cd ~
+    mkdir -p ~/downloads
+    cd downloads
+    wget http://www.fftw.org/fftw-3.3.8.tar.gz
+    tar -xzvf fftw-3.3.8.tar.gz
+    cd fftw-3.3.8
+    ./configure --prefix=$HOME/install/ --enable-openmp --enable-sse2 --enable-avx --enable-avx2 --enable-fma --enable-avx-128-fma  --with-our-malloc --disable-fortran --enable-shared --enable-mpi
+    make -j4
+    make install
+
+
+* install mpi4py with pip:
+
+  .. code-block:: bash
+  
+    pip install mpi4py
+  
+* clone this repo, compile the library and link with fftw3_omp
+  
+  .. code-block:: bash
+  
+    cd ~
+    mkdir -p git
+    cd git
+    git clone --branch=master https://github.com/blond-admin/BLonD.git
+    cd BLonD
+    python blond/compile.py -p
+  
+* adjust your main file as needed (described bellow).
+
+
+Changes required in the main file for MPI
+-----------------------------------------
+
+
+1. This statements in the beginning of the script:
+  
+ .. code-block:: python
+  
+  from blond.utils import bmath as bm
+  from blond.utils.mpi_config import worker, mpiprint
+  bm.use_mpi()  
+
+2. After having initialized the beam and preferably just before the start of the main loop:
+  
+ .. code-block:: python
+  
+    beam.split()
+
+ This line splits the beam coordinates equally among the workers.
+
+3. If there is code block that you want it to be executed by a single worker only, you need to surround it with this if condition:
+  
+ .. code-block:: python
+  
+    if worker.isMaster:
+        foo()
+        ...
+   
+4. If you need to re-assemble the whole beam back to the master worker you need to run:
+  
+ .. code-block:: python
+  
+    beam.gather()
+  
+5. Finally, in the end of the simulation main loop, you can terminate all workers except from the master with:
+
+ .. code-block:: python
+  
+    worker.finalize()
+
+6. To run your script, you need to pass it to **mpirun** or **mpiexec**. To spawn P MPI processes run:
+
+ .. code-block:: bash
+    
+    $ mpirun -n P python main_file.py
+
+7. For more examples have a look at the __EXAMPLES/mpi_main_files/ directory. 
+
+
 CURRENT DEVELOPERS
 ==================
 
