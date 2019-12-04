@@ -3,6 +3,6 @@ scipy
 matplotlib
 future
 h5py
+mpi4py
 coveralls
 pytest
-mpi4py
