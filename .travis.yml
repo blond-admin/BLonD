@@ -26,11 +26,14 @@ addons:
     # - gcc-4.8
     # - g++-4.8
     - mpich
+    - libmpich-dev
     - build-essential
 before_install:
   - echo $TRAVIS_PYTHON_VERSION
   - python --version
   - gcc --version
+  - mpicc --version
+  - mpirun --version
   - mkdir -p $HOME/install
   - export LD_LIBRARY_PATH="$HOME/install/lib:$LD_LIBRARY_PATH"
   # - export CC=/usr/bin/gcc-4.8
@@ -51,9 +54,7 @@ install:
   - python -m pip install --upgrade pip setuptools wheel
   - pip install -r requirements.txt
 before_script:
-  - python blond/compile.py -p --with-fftw-threads \
-      --with-fftw-lib=$HOME/install/lib \
-      --with-fftw-header=$HOME/install/include
+  - python blond/compile.py -p --with-fftw-threads --with-fftw-lib=$HOME/install/lib --with-fftw-header=$HOME/install/include
   - export OMP_NUM_THREADS=2
 script:
   - coverage run -m pytest -v unittests/*/test*.py
