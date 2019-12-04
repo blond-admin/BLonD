@@ -31,9 +31,10 @@ before_build:
   # - git submodule update --init --recursive
   - PATH
   - python --version
-  - conda --version 
+  # - conda --version 
   - gcc --version
   - python -m pip install --upgrade pip setuptools wheel
+  - pip install -r requirements.txt
 
   # - conda update -q -y conda
   # - conda info -a
@@ -43,7 +44,6 @@ before_build:
 
 
 build_script:
-  - pip install -r requirements.txt
   - python setup.py install
   - DIR
   # - set PYTHONPATH=./
