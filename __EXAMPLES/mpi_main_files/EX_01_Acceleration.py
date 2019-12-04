@@ -104,7 +104,7 @@ if worker.isMaster:
     map_ += [bunchmonitor] + [plots]
 
 mpiprint("Map set\n")
-beam.split(fast=True)
+beam.split()
 
 # Tracking --------------------------------------------------------------------
 for i in range(1, N_t+1):

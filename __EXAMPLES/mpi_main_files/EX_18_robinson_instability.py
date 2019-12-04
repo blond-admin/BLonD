@@ -177,7 +177,7 @@ t0 = time.time()
 bunch_center = np.zeros(n_turns)
 bunch_std = np.zeros(n_turns)
 
-beam.split(fast=True)
+beam.split()
 # TRACKING --------------------------------------------------------------------
 for i in range(n_turns):
     

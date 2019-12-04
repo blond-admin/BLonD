@@ -140,7 +140,7 @@ map_ = [slice_beam] + [total_ind_volt_freq] + [total_ind_volt_time] + \
        [total_ind_volt_ZoN] + [ring_RF_section]
 
 # TRACKING + PLOTS-------------------------------------------------------------
-beam.split(fast=True)
+beam.split()
 for i in range(n_turns):
     
     print(i)

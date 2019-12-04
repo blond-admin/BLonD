@@ -127,7 +127,7 @@ if worker.isMaster:
 
 print("Map set")
 print("")
-beam.split(fast=True)
+beam.split()
 # Tracking --------------------------------------------------------------------
 for i in np.arange(1,N_t+1):
     print(i)

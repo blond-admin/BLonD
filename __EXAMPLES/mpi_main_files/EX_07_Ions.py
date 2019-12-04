@@ -139,7 +139,7 @@ print("Map set")
 print("")
 
 
-beam.split(fast=True)
+beam.split()
 # Tracking ---------------------------------------------------------------------
 for i in range(1, N_t+1):
     

@@ -211,9 +211,9 @@ if worker.isMaster:
 
 
 # TRACKING + PLOTS-------------------------------------------------------------
-my_beam.split(fast=True)
-my_beam_freq.split(fast=True)
-my_beam_res.split(fast=True)
+my_beam.split()
+my_beam_freq.split()
+my_beam_res.split()
 
 for i in np.arange(1, n_turns+1):
     

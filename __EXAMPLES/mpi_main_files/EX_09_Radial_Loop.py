@@ -117,7 +117,7 @@ if worker.isMaster:
 
     map_ += [bunch_monitor, plots]
 
-my_beam.split(fast=True)
+my_beam.split()
 for i in range(1, n_turns+1):
     
     if i == 100:

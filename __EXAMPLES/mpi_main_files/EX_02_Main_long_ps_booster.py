@@ -171,7 +171,7 @@ if worker.isMaster:
 
 
 # TRACKING + PLOTS-------------------------------------------------------------
-my_beam.split(fast=True)
+my_beam.split()
 
 
 for i in range(1, n_turns+1):
