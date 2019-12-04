@@ -66,14 +66,14 @@ extern "C" void drift(double * __restrict__ beam_dt,
 
         const double invbetasq = 1 / (beta * beta);
         const double invenesq = 1 / (energy * energy);
-        double beam_delta;
+        // double beam_delta;
 
         #pragma omp parallel for
         for ( i = 0; i < n_macroparticles; i++ )
 
         {
 
-            beam_delta = sqrt(1. + invbetasq *
+            double beam_delta = sqrt(1. + invbetasq *
                               (beam_dE[i] * beam_dE[i] * invenesq + 2.*beam_dE[i] / energy)) - 1.;
 
             beam_dt[i] += T * (
