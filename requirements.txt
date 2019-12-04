@@ -4,5 +4,3 @@ matplotlib
 future
 h5py
 mpi4py
-coveralls
-pytest

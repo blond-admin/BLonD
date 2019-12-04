@@ -17,4 +17,7 @@ source =
 # include = 
 
 # a list of file name patterns, the files to leave out of measurement or reporting.
-# omit = 
+omit = 
+    blond/*/*.cpp
+    blond/*/*.h
+    

@@ -52,15 +52,15 @@ install:
         make install > /dev/null;
     fi
   - cd $TRAVIS_BUILD_DIR
-  - python -m pip install --upgrade pip setuptools wheel
+  - python -m pip install --upgrade pip setuptools wheel coveralls pytest cpp-coveralls
   - pip install -r requirements.txt
 before_script:
-  - python blond/compile.py -p --with-fftw-threads --with-fftw-lib=$HOME/install/lib --with-fftw-header=$HOME/install/include
+  - python blond/compile.py -p --with-fftw-threads --with-fftw-lib=$HOME/install/lib --with-fftw-header=$HOME/install/include --flags='--coverage'
   - export OMP_NUM_THREADS=2
 script:
   - coverage run -m pytest -v unittests/*/test*.py
 after_success:
-- test $TRAVIS_PYTHON_VERSION = "3.6" && coveralls
+  - test $TRAVIS_PYTHON_VERSION = "3.6" && coveralls --gcov-options='-bca -o ./'
 
 # branches:
 #   only:
