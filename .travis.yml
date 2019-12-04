@@ -36,6 +36,7 @@ before_install:
   - mpirun --version
   - mkdir -p $HOME/install
   - export LD_LIBRARY_PATH="$HOME/install/lib:$LD_LIBRARY_PATH"
+  - export PYTHONPATH=$TRAVIS_BUILD_DIR:$PYTHONPATH
   # - export CC=/usr/bin/gcc-4.8
   # - export CXX=/usr/bin/g++-4.8
 install:
