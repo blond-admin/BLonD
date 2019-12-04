@@ -31,7 +31,6 @@ before_install:
   - echo $TRAVIS_PYTHON_VERSION
   - python --version
   - gcc --version
-  - mkdir -p $HOME/downloads
   - mkdir -p $HOME/install
   - export LD_LIBRARY_PATH="$HOME/install/lib:$LD_LIBRARY_PATH"
   # - export CC=/usr/bin/gcc-4.8
@@ -41,7 +40,6 @@ install:
         echo "FFTW3 already installed.";
     else
         echo "Installing FFTW3.";
-        cd $HOME/downloads;
         wget http://www.fftw.org/fftw-3.3.8.tar.gz;
         tar -xzvf fftw-3.3.8.tar.gz > /dev/null;
         cd fftw-3.3.8;
@@ -49,7 +47,6 @@ install:
         make -j4 > /dev/null;
         make install > /dev/null;
     fi
-  - cd
   - python -m pip install --upgrade pip setuptools wheel
   - pip install -r requirements.txt
 before_script:
