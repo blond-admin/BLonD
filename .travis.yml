@@ -9,6 +9,9 @@ cache:
 language: python
 os:
   - linux
+arch: 
+  - amd64
+
 compiler:
   - gcc
 python:
@@ -41,12 +44,9 @@ install:
         mkdir -p $HOME/install;
         cd downloads;
         wget http://www.fftw.org/fftw-3.3.8.tar.gz;
-        tar -xzvf fftw-3.3.8.tar.gz;
+        tar -xzvf fftw-3.3.8.tar.gz &> /dev/null;
         cd fftw-3.3.8;
-        ./configure --prefix=$HOME/install/ --enable-openmp \
-            --enable-sse2 --enable-avx --enable-avx2 \
-            --enable-fma --enable-avx-128-fma \
-            --with-our-malloc --disable-fortran --enable-shared;
+        ./configure --prefix=$HOME/install/ --enable-openmp --enable-sse2 --enable-avx --enable-avx2 --enable-fma --enable-avx-128-fma --with-our-malloc --disable-fortran --enable-shared;
         make -j4;
         make install;
     fi
