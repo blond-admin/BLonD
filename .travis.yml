@@ -1,7 +1,8 @@
 cache:
   directories:
     - $HOME/.cache/pip
-    - $HOME/downloads # Sufficient to add miniconda.sh to TRAVIS cache.
+    - $HOME/install
+    # - $HOME/downloads # Sufficient to add miniconda.sh to TRAVIS cache.
     # - $HOME/miniconda # Add the installation to TRAVIS cache.
   apt: true
   pip: true
@@ -40,15 +41,13 @@ install:
         echo "FFTW3 already installed.";
     else
         echo "Installing FFTW3.";
-        mkdir -p $HOME/downloads;
-        mkdir -p $HOME/install;
-        cd downloads;
+        cd $HOME/downloads;
         wget http://www.fftw.org/fftw-3.3.8.tar.gz;
-        tar -xzvf fftw-3.3.8.tar.gz &> /dev/null;
+        tar -xzvf fftw-3.3.8.tar.gz > /dev/null;
         cd fftw-3.3.8;
-        ./configure --prefix=$HOME/install/ --enable-openmp --enable-sse2 --enable-avx --enable-avx2 --enable-fma --enable-avx-128-fma --with-our-malloc --disable-fortran --enable-shared;
-        make -j4;
-        make install;
+        ./configure --prefix=$HOME/install/ --enable-openmp --enable-sse2 --enable-avx --enable-avx2 --enable-fma --enable-avx-128-fma --with-our-malloc --disable-fortran --enable-shared > /dev/null;
+        make -j4 > /dev/null;
+        make install > /dev/null;
     fi
   - cd
   - python -m pip install --upgrade pip setuptools wheel
