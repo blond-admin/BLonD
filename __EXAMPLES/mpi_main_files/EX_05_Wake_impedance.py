@@ -42,11 +42,11 @@ print = mpiprint
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 
 try:
-    os.mkdir(this_directory + '../output_files')
+    os.mkdir(this_directory + '../mpi_output_files')
 except:
     pass
 try:
-    os.mkdir(this_directory + '../output_files/EX_05_fig')
+    os.mkdir(this_directory + '../mpi_output_files/EX_05_fig')
 except:
     pass
 
@@ -172,36 +172,36 @@ if worker.isMaster:
     # MONITOR----------------------------------------------------------------------
 
     bunchmonitor = BunchMonitor(general_params, ring_RF_section, my_beam, 
-                                this_directory + '../output_files/EX_05_output_data',
+                                this_directory + '../mpi_output_files/EX_05_output_data',
                                 Profile=slice_beam, buffer_time=1)
 
     bunchmonitor_freq = BunchMonitor(general_params_freq, ring_RF_section_freq,
-                             my_beam_freq, this_directory + '../output_files/EX_05_output_data_freq',
+                             my_beam_freq, this_directory + '../mpi_output_files/EX_05_output_data_freq',
                              Profile=slice_beam_freq, buffer_time=1)
     bunchmonitor_res = BunchMonitor(general_params_res, ring_RF_section_res,
-                             my_beam_res, this_directory + '../output_files/EX_05_output_data_res',
+                             my_beam_res, this_directory + '../mpi_output_files/EX_05_output_data_res',
                              Profile=slice_beam_res, buffer_time=1)
 
     # PLOTS
-    format_options = {'dirname': this_directory + '../output_files/EX_05_fig/1', 'linestyle': '.'}
+    format_options = {'dirname': this_directory + '../mpi_output_files/EX_05_fig/1', 'linestyle': '.'}
     plots = Plot(general_params, RF_sct_par, my_beam, dt_plt, n_turns, 0, 
                  0.0014*harmonic_number, -1.5e8, 1.5e8, xunit='rad',
                  separatrix_plot=True, Profile=slice_beam,
-                 h5file=this_directory + '../output_files/EX_05_output_data', 
+                 h5file=this_directory + '../mpi_output_files/EX_05_output_data', 
                  histograms_plot=True, sampling=50, format_options=format_options)
 
-    format_options = {'dirname': this_directory + '../output_files/EX_05_fig/2', 'linestyle': '.'}
+    format_options = {'dirname': this_directory + '../mpi_output_files/EX_05_fig/2', 'linestyle': '.'}
     plots_freq = Plot(general_params_freq, RF_sct_par_freq, my_beam_freq, dt_plt,
                       n_turns, 0, 0.0014*harmonic_number, -1.5e8, 1.5e8,
                       xunit='rad', separatrix_plot=True, Profile=slice_beam_freq, 
-                      h5file=this_directory + '../output_files/EX_05_output_data_freq', 
+                      h5file=this_directory + '../mpi_output_files/EX_05_output_data_freq', 
                       histograms_plot=True, sampling=50,
                       format_options=format_options)
-    format_options = {'dirname': this_directory + '../output_files/EX_05_fig/3', 'linestyle': '.'}
+    format_options = {'dirname': this_directory + '../mpi_output_files/EX_05_fig/3', 'linestyle': '.'}
     plots_res = Plot(general_params_res, RF_sct_par_res, my_beam_res, dt_plt,
                       n_turns, 0, 0.0014*harmonic_number, -1.5e8, 1.5e8,
                       xunit='rad', separatrix_plot=True, Profile=slice_beam_res, 
-                      h5file=this_directory + '../output_files/EX_05_output_data_res', 
+                      h5file=this_directory + '../mpi_output_files/EX_05_output_data_res', 
                       histograms_plot=True, sampling=50,
                       format_options=format_options)
     map_ += [bunchmonitor, plots]
@@ -228,11 +228,11 @@ for i in np.arange(1, n_turns+1):
     # Plots
     if (i % dt_plt) == 0 and (worker.isMaster):
         plot_induced_voltage_vs_bin_centers(i, general_params, tot_vol,
-                                style='.', dirname=this_directory + '../output_files/EX_05_fig/1')
+                                style='.', dirname=this_directory + '../mpi_output_files/EX_05_fig/1')
         plot_induced_voltage_vs_bin_centers(i, general_params_freq,
-                  tot_vol_freq, style='.', dirname=this_directory + '../output_files/EX_05_fig/2')
+                  tot_vol_freq, style='.', dirname=this_directory + '../mpi_output_files/EX_05_fig/2')
         plot_induced_voltage_vs_bin_centers(i, general_params_res,
-                  tot_vol_res, style='.', dirname=this_directory + '../output_files/EX_05_fig/3')
+                  tot_vol_res, style='.', dirname=this_directory + '../mpi_output_files/EX_05_fig/3')
 
 my_beam.gather()
 my_beam_freq.gather()
@@ -250,7 +250,7 @@ plt.plot(1e9*slice_beam_res.bin_centers,tot_vol_res.induced_voltage,\
          label='Resonator')
 plt.plot(1e9*slice_beam.bin_centers,VindGauss,label='Analytic')
 plt.legend()
-dirname=this_directory + '../output_files/EX_05_fig'
+dirname=this_directory + '../mpi_output_files/EX_05_fig'
 fign = dirname +'/comparison_induced_voltage.png'
 plt.savefig(fign)
 

@@ -40,11 +40,11 @@ print = mpiprint
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 
 try:
-    os.mkdir(this_directory + '../output_files')
+    os.mkdir(this_directory + '../mpi_output_files')
 except:
     pass
 try:
-    os.mkdir(this_directory + '../output_files/EX_16_fig')
+    os.mkdir(this_directory + '../mpi_output_files/EX_16_fig')
 except:
     pass
 
@@ -160,6 +160,6 @@ plt.xlabel('Time [ns]')
 plt.ylabel('Induced voltage [V]')
 plt.legend(loc=2, fontsize='medium')
 
-plt.savefig(this_directory + '../output_files/EX_16_fig/fig.png')
+plt.savefig(this_directory + '../mpi_output_files/EX_16_fig/fig.png')
 
 print("Done!")

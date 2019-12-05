@@ -33,11 +33,11 @@ print = mpiprint
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 
 try:
-    os.mkdir(this_directory + '../output_files')
+    os.mkdir(this_directory + '../mpi_output_files')
 except:
     pass
 try:
-    os.mkdir(this_directory + '../output_files/EX_09_fig')
+    os.mkdir(this_directory + '../mpi_output_files/EX_09_fig')
 except:
     pass
 
@@ -104,16 +104,16 @@ map_ = [long_tracker] + [slices_ring]
 if worker.isMaster:
     #Monitor
     bunch_monitor = BunchMonitor(general_params, rf_params, my_beam,
-                                 this_directory + '../output_files/EX_09_output_data',
+                                 this_directory + '../mpi_output_files/EX_09_output_data',
                                  Profile=slices_ring, PhaseLoop=phase_loop)
 
 
     #Plots
-    format_options = {'dirname': this_directory + '../output_files/EX_09_fig'}
+    format_options = {'dirname': this_directory + '../mpi_output_files/EX_09_fig'}
     plots = Plot(general_params, rf_params, my_beam, 100, n_turns, 0.0, 2.0*0.9e-6,
                  -1.e6, 1.e6, separatrix_plot=True, Profile=slices_ring,
                  format_options=format_options,
-                 h5file=this_directory + '../output_files/EX_09_output_data', PhaseLoop=phase_loop)
+                 h5file=this_directory + '../mpi_output_files/EX_09_output_data', PhaseLoop=phase_loop)
 
     map_ += [bunch_monitor, plots]
 

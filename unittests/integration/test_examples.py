@@ -21,6 +21,7 @@ this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 main_files_dir = '__EXAMPLES/main_files'
 timeout = 60
 
+
 class TestExamples(unittest.TestCase):
 
     # Run before every test
@@ -198,6 +199,62 @@ class TestExamples(unittest.TestCase):
             self.assertEqual(ret, 0)
         except subprocess.TimeoutExpired as e:
             raise unittest.SkipTest('Timed out (timeout={}s)'.format(e.timeout))
+
+
+# class TestMPICorrectness(unittest.TestCase):
+
+#     # Run before every test
+#     def setUp(self):
+#         pass
+
+#     # Run after every test
+#     def tearDown(self):
+#         pass
+
+#     def test_EX_05_Wake_impedance(self):
+#         file = main_files_dir + '/../output_files/EX_05_fig/comparison_induced_voltage.png'
+#         mpi_file = main_files_dir + \
+#             '/../mpi_output_files/EX_05_fig/comparison_induced_voltage.png'
+#         # Check if both files exist
+#         if os.path.isfile(file) and os.path.isfile(mpi_file):
+#             # if yes compare them
+#             import filecmp
+#             ret = filecmp.cmp(file, mpi_file)
+#             self.assertEqual(ret, True)
+#         else:
+#             # otherwise skip
+#             raise unittest.SkipTest('Regular and/or MPI file do not exist')
+
+#     def test_EX_16_impedance_test(self):
+#         file = main_files_dir + '/../output_files/EX_16_fig/fig.png'
+#         mpi_file = main_files_dir + '/../mpi_output_files/EX_16_fig/fig.png'
+#         # Check if both files exist
+#         if os.path.isfile(file) and os.path.isfile(mpi_file):
+#             # if yes compare them
+#             import filecmp
+#             ret = filecmp.cmp(file, mpi_file)
+#             self.assertEqual(ret, True)
+#         else:
+#             # otherwise skip
+#             raise unittest.SkipTest('Regular and/or MPI file do not exist')
+
+#     def test_EX_18_robinson_instability(self):
+#         file1 = main_files_dir + '/../output_files/EX_18_fig/bunch_center.png'
+#         file2 = main_files_dir + '/../output_files/EX_18_fig/bunch_length.png'
+#         mpi_file1 = main_files_dir + '/../mpi_output_files/EX_18_fig/bunch_center.png'
+#         mpi_file2 = main_files_dir + '/../mpi_output_files/EX_18_fig/bunch_length.png'
+#         # Check if both files exist
+#         if os.path.isfile(file1) and os.path.isfile(file2) and \
+#                 os.path.isfile(mpi_file1) and os.path.isfile(mpi_file2):
+#             # if yes compare them
+#             import filecmp
+#             ret = filecmp.cmp(file1, mpi_file1)
+#             self.assertEqual(ret, True)
+#             ret = filecmp.cmp(file2, mpi_file2)
+#             self.assertEqual(ret, True)
+#         else:
+#             # otherwise skip
+#             raise unittest.SkipTest('Regular and/or MPI file do not exist')
 
 
 if __name__ == '__main__':

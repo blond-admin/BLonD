@@ -37,11 +37,11 @@ this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 
 
 try:
-    os.mkdir(this_directory + '../output_files')
+    os.mkdir(this_directory + '../mpi_output_files')
 except:
     pass
 try:
-    os.mkdir(this_directory + '../output_files/EX_02_fig')
+    os.mkdir(this_directory + '../mpi_output_files/EX_02_fig')
 except:
     pass
 
@@ -157,15 +157,15 @@ map_ = [total_induced_voltage] + [ring_RF_section] + [slice_beam]
 if worker.isMaster:
     # MONITOR----------------------------------------------------------------------
     bunchmonitor = BunchMonitor(general_params, RF_sct_par, my_beam,
-                                this_directory + '../output_files/EX_02_output_data', buffer_time=1)
+                                this_directory + '../mpi_output_files/EX_02_output_data', buffer_time=1)
 
 
     # PLOTS
 
-    format_options = {'dirname': this_directory + '../output_files/EX_02_fig', 'linestyle': '.'}
+    format_options = {'dirname': this_directory + '../mpi_output_files/EX_02_fig', 'linestyle': '.'}
     plots = Plot(general_params, RF_sct_par, my_beam, 1, n_turns, 0, 
                  5.72984173562e-7, - my_beam.sigma_dE * 4.2, my_beam.sigma_dE * 4.2, xunit= 's',
-                 separatrix_plot= True, Profile = slice_beam, h5file = this_directory + '../output_files/EX_02_output_data', 
+                 separatrix_plot= True, Profile = slice_beam, h5file = this_directory + '../mpi_output_files/EX_02_output_data', 
                  histograms_plot = True, format_options = format_options)
     map_ += [bunchmonitor] + [plots]
 
@@ -185,9 +185,9 @@ for i in range(1, n_turns+1):
     if (i% n_turns_between_two_plots) == 0:
         
         plot_impedance_vs_frequency(i, general_params, ind_volt_freq, 
-          option1 = "single", style = '-', option3 = "freq_table", option2 = "spectrum", dirname = this_directory + '../output_files/EX_02_fig')
+          option1 = "single", style = '-', option3 = "freq_table", option2 = "spectrum", dirname = this_directory + '../mpi_output_files/EX_02_fig')
          
-        plot_induced_voltage_vs_bin_centers(i, general_params, total_induced_voltage, style = '.', dirname = this_directory + '../output_files/EX_02_fig')
+        plot_induced_voltage_vs_bin_centers(i, general_params, total_induced_voltage, style = '.', dirname = this_directory + '../mpi_output_files/EX_02_fig')
 
 my_beam.gather()
 worker.finalize()

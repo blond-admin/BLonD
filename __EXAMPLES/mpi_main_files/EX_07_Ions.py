@@ -37,11 +37,11 @@ print = mpiprint
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 
 try:
-    os.mkdir(this_directory + '../output_files')
+    os.mkdir(this_directory + '../mpi_output_files')
 except:
     pass
 try:
-    os.mkdir(this_directory + '../output_files/EX_07_fig')
+    os.mkdir(this_directory + '../mpi_output_files/EX_07_fig')
 except:
     pass
 
@@ -126,13 +126,13 @@ if worker.isMaster:
 
     # Define what to save in file
     bunchmonitor = BunchMonitor(general_params, rf_params, beam,
-                                this_directory + '../output_files/EX_07_output_data',
+                                this_directory + '../mpi_output_files/EX_07_output_data',
                                 Profile=slice_beam)
 
-    format_options = {'dirname': this_directory + '../output_files/EX_07_fig'}
+    format_options = {'dirname': this_directory + '../mpi_output_files/EX_07_fig'}
     plots = Plot(general_params, rf_params, beam, dt_plt, N_t, 0, 8.e-7,
                  -400e6, 400e6, separatrix_plot=True, Profile=slice_beam,
-                 h5file=this_directory + '../output_files/EX_07_output_data', 
+                 h5file=this_directory + '../mpi_output_files/EX_07_output_data', 
                  format_options=format_options)
     map_ += [bunchmonitor, plots]
 print("Map set")

@@ -35,11 +35,11 @@ this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 
 
 try:
-    os.mkdir(this_directory + '../output_files')
+    os.mkdir(this_directory + '../mpi_output_files')
 except:
     pass
 try:
-    os.mkdir(this_directory + '../output_files/EX_04_fig')
+    os.mkdir(this_directory + '../mpi_output_files/EX_04_fig')
 except:
     pass
 
@@ -113,15 +113,15 @@ map_ = [long_tracker_1] + [long_tracker_2] + [slice_beam]
 if worker.isMaster:
     # Define what to save in file
     bunchmonitor = BunchMonitor(general_params, rf_params_tot, beam,
-                                this_directory + '../output_files/EX_04_output_data',
+                                this_directory + '../mpi_output_files/EX_04_output_data',
                                 Profile=slice_beam, buffer_time=1)
 
     # PLOTS
-    format_options = {'dirname': this_directory + '../output_files/EX_04_fig', 'linestyle': '.'}
+    format_options = {'dirname': this_directory + '../mpi_output_files/EX_04_fig', 'linestyle': '.'}
     plots = Plot(general_params, rf_params_tot, beam, dt_plt, dt_plt, 0, 
                  0.0001763*h, -450e6, 450e6, xunit='rad',
                  separatrix_plot=True, Profile=slice_beam,
-                 h5file=this_directory + '../output_files/EX_04_output_data',
+                 h5file=this_directory + '../mpi_output_files/EX_04_output_data',
                  histograms_plot=True, format_options=format_options)
     map_ += [bunchmonitor, plots]
 
