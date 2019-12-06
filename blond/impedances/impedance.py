@@ -17,7 +17,6 @@
 from __future__ import division, print_function
 from builtins import range, object
 import numpy as np
-# from numpy.fft import rfft, irfft, rfftfreq
 from ctypes import c_uint, c_double, c_void_p
 from scipy.constants import e
 from ..toolbox.next_regular import next_regular
@@ -54,6 +53,7 @@ class TotalInducedVoltage(object):
     time_array : float array
         Time array corresponding to induced_voltage [s]
     """
+
     def __init__(self, Beam, Profile, induced_voltage_list):
         """
         Constructor.
@@ -63,7 +63,7 @@ class TotalInducedVoltage(object):
 
         # Copy of the Profile object in order to access the profile info.
         self.profile = Profile
-        
+
         # Induced voltage list.
         self.induced_voltage_list = induced_voltage_list
 
@@ -85,15 +85,41 @@ class TotalInducedVoltage(object):
         """
         Method to sum all the induced voltages in one single array.
         """
-
+        # For MPI, to avoid calulating beam spectrum multiple times
+        beam_spectrum_dict = {}
         temp_induced_voltage = 0
 
         for induced_voltage_object in self.induced_voltage_list:
-            induced_voltage_object.induced_voltage_generation()
+            induced_voltage_object.induced_voltage_generation(
+                beam_spectrum_dict)
             temp_induced_voltage += \
                 induced_voltage_object.induced_voltage[:self.profile.n_slices]
 
         self.induced_voltage = temp_induced_voltage
+
+    # Can be faster than the normal induced voltage sum
+    def induced_voltage_sum_packed(self):
+        """
+        Method to sum all the induced voltages in one single array.
+        """
+
+        # Assuming the same n_fft for all, we take only the first one
+        self.induced_voltage_list[0].profile.beam_spectrum_generation(
+            self.induced_voltage_list[0].n_fft)
+        beam_spectrum = self.induced_voltage_list[0].profile.beam_spectrum
+
+        self.induced_voltage = []
+        min_idx = self.profile.n_slices
+        for obj in self.induced_voltage_list:
+            self.induced_voltage.append(
+                bm.mul(obj.total_impedance, beam_spectrum))
+            min_idx = min(obj.n_induced_voltage, min_idx)
+
+        self.induced_voltage = bm.irfft_packed(
+            self.induced_voltage)[:, :min_idx]
+        self.induced_voltage = -self.beam.Particle.charge * \
+            e * self.beam.ratio * self.induced_voltage
+        self.induced_voltage = np.sum(self.induced_voltage, axis=0)
 
     def track(self):
         """
@@ -107,33 +133,14 @@ class TotalInducedVoltage(object):
                               charge=self.beam.Particle.charge,
                               acceleration_kick=0.)
 
-        #  linear_interp_kick(self.beam.dt.ctypes.data_as(c_void_p),
-        #  self.beam.dE.ctypes.data_as(c_void_p),
-        #  self.induced_voltage.ctypes.data_as(c_void_p),
-        #  self.profile.bin_centers.ctypes.data_as(c_void_p),
-        #  c_double(self.beam.Particle.charge),
-        #  c_uint(self.profile.n_slices),
-        #  c_uint(self.beam.n_macroparticles),
-        #  c_double(0.))
-#
     def track_ghosts_particles(self, ghostBeam):
-        
+
         bm.linear_interp_kick(dt=ghostBeam.dt, dE=ghostBeam.dE,
                               voltage=self.induced_voltage,
                               bin_centers=self.profile.bin_centers,
                               charge=self.beam.Particle.charge,
                               acceleration_kick=0.)
 
-
-        #  linear_interp_kick(ghostBeam.dt.ctypes.data_as(c_void_p),
-        #                     ghostBeam.dE.ctypes.data_as(c_void_p),
-        #                     self.induced_voltage.ctypes.data_as(c_void_p),
-        #                     self.profile.bin_centers.ctypes.data_as(c_void_p),
-        #                     c_double(self.beam.Particle.charge),
-        #                     c_uint(self.profile.n_slices),
-        #                     c_uint(ghostBeam.n_macroparticles),
-        #                     c_double(0.))
-        #  
 
 class _InducedVoltage(object):
     r"""
@@ -220,10 +227,10 @@ class _InducedVoltage(object):
             self.n_induced_voltage = int(np.ceil(self.wake_length_input /
                                                  self.profile.bin_size))
             if self.n_induced_voltage < self.profile.n_slices:
-                #WakeLengthError
+                # WakeLengthError
                 raise RuntimeError('Error: too short wake length. ' +
                                    'Increase it above {0:1.2e} s.'.format(self.profile.n_slices *
-                                                                          self.profile.bin_size))
+                                                                            self.profile.bin_size))
             # Wake length in s, rounded up to the next multiple of bin size
             self.wake_length = self.n_induced_voltage * self.profile.bin_size
         elif (self.frequency_resolution_input != None
@@ -231,10 +238,10 @@ class _InducedVoltage(object):
             self.n_induced_voltage = int(np.ceil(1 / (self.profile.bin_size *
                                                       self.frequency_resolution_input)))
             if self.n_induced_voltage < self.profile.n_slices:
-                #FrequencyResolutionError
+                # FrequencyResolutionError
                 raise RuntimeError('Error: too large frequency_resolution. ' +
                                    'Reduce it below {0:1.2e} Hz.'.format(1 /
-                                                                         (self.profile.cut_right - self.profile.cut_left)))
+                                                                           (self.profile.cut_right - self.profile.cut_left)))
             self.wake_length = self.n_induced_voltage * self.profile.bin_size
             # Frequency resolution in Hz
         elif (self.wake_length_input == None
@@ -286,11 +293,15 @@ class _InducedVoltage(object):
         else:
             self.induced_voltage_generation = self.induced_voltage_1turn
 
-    def induced_voltage_1turn(self):
+    def induced_voltage_1turn(self, beam_spectrum_dict={}):
         """
-        Method to calculate the induced voltage at the current turn. DFTs are 
+        Method to calculate the induced voltage at the current turn. DFTs are
         used for calculations in time and frequency domain (see classes below)
         """
+
+        if self.n_fft not in beam_spectrum_dict:
+            self.profile.beam_spectrum_generation(self.n_fft)
+            beam_spectrum_dict[self.n_fft] = self.profile.beam_spectrum
 
         self.profile.beam_spectrum_generation(self.n_fft)
 
@@ -299,7 +310,7 @@ class _InducedVoltage(object):
 
         self.induced_voltage = induced_voltage[:self.n_induced_voltage]
 
-    def induced_voltage_mtw(self):
+    def induced_voltage_mtw(self, beam_spectrum_dict={}):
         """
         Method to calculate the induced voltage taking into account the effect
         from previous passages (multi-turn wake)
@@ -309,7 +320,7 @@ class _InducedVoltage(object):
         self.shift_trev()
 
         # Induced voltage of the current turn calculation
-        self.induced_voltage_1turn()
+        self.induced_voltage_1turn(beam_spectrum_dict)
 
         # Setting to zero to the last part to remove the contribution from the
         # front wake
@@ -344,8 +355,9 @@ class _InducedVoltage(object):
         """
 
         t_rev = self.RFParams.t_rev[self.RFParams.counter[0]]
-        self.mtw_memory = np.interp(self.time_mtw + t_rev, self.time_mtw,
-                                    self.mtw_memory, left=0, right=0)
+        self.mtw_memory = bm.interp_const_space(self.time_mtw + t_rev,
+                                                self.time_mtw, self.mtw_memory,
+                                                left=0, right=0)
 
     def _track(self):
         """
@@ -360,15 +372,6 @@ class _InducedVoltage(object):
                               charge=self.beam.Particle.charge,
                               acceleration_kick=0.)
 
-
-        #  linear_interp_kick(self.beam.dt.ctypes.data_as(c_void_p),
-        #                     self.beam.dE.ctypes.data_as(c_void_p),
-        #                     self.induced_voltage.ctypes.data_as(c_void_p),
-        #                     self.profile.bin_centers.ctypes.data_as(c_void_p),
-        #                     c_double(self.beam.Particle.charge),
-        #                     c_uint(self.profile.n_slices),
-        #                     c_uint(self.beam.n_macroparticles),
-        #                     c_double(0.))
 
 class InducedVoltageTime(_InducedVoltage):
     r"""
@@ -586,7 +589,7 @@ class InductiveImpedance(_InducedVoltage):
         # Call the __init__ method of the parent class
         _InducedVoltage.__init__(self, Beam, Profile, RFParams=RFParams)
 
-    def induced_voltage_1turn(self):
+    def induced_voltage_1turn(self, beam_spectrum_dict={}):
         """
         Method to calculate the induced voltage through the derivative of the
         profile. The impedance must be a constant Z/n.
@@ -655,7 +658,7 @@ class InducedVoltageResonator(_InducedVoltage):
 
         # Test if one or more quality factors is smaller than 0.5.
         if sum(Resonators.Q < 0.5) > 0:
-            #ResonatorError
+            # ResonatorError
             raise RuntimeError('All quality factors Q must be larger than 0.5')
 
         # Copy of the Beam object in order to access the beam info.
@@ -717,7 +720,7 @@ class InducedVoltageResonator(_InducedVoltage):
         self._kappa1 = np.zeros(int(self.profile.n_slices-1))
         self._deltaT = np.zeros((self.n_time, self.profile.n_slices))
 
-    def induced_voltage_1turn(self):
+    def induced_voltage_1turn(self, beam_spectrum_dict={}):
         r"""
         Method to calculate the induced voltage through linearily 
         interpolating the line density and applying the analytic equation
@@ -736,12 +739,12 @@ class InducedVoltageResonator(_InducedVoltage):
 
         # For each cavity compute the induced voltage and store in the r-th row
         for r in range(self.n_resonators):
-            tmp_sum = ((((2
-                          * np.cos(self._reOmegaP[r] * self._deltaT)
-                          + np.sin(self._reOmegaP[r] * self._deltaT)/self._Qtilde[r])
-                         * np.exp(-self._imOmegaP[r] * self._deltaT))
-                        * self.Heaviside(self._deltaT))
-                       - np.sign(self._deltaT))
+            tmp_sum = ((((2 *
+                          np.cos(self._reOmegaP[r] * self._deltaT)
+                          + np.sin(self._reOmegaP[r] * self._deltaT)/self._Qtilde[r]) *
+                         np.exp(-self._imOmegaP[r] * self._deltaT)) *
+                        self.Heaviside(self._deltaT)) -
+                       np.sign(self._deltaT))
             # np.sum performs the sum over the points of the line density
             self._tmp_matrix[r] = self.R[r]/(2*self.omega_r[r]*self.Q[r]) \
                 * np.sum(self._kappa1 * np.diff(tmp_sum), axis=1)
@@ -750,7 +753,7 @@ class InducedVoltageResonator(_InducedVoltage):
         self.induced_voltage = self._tmp_matrix.sum(axis=0)
         # ... and multiply with bunch charge
         self.induced_voltage *= -self.beam.Particle.charge*e \
-                                *self.beam.n_macroparticles*self.beam.ratio
+            * self.beam.n_macroparticles*self.beam.ratio
 
     # Implementation of Heaviside function
     def Heaviside(self, x):
