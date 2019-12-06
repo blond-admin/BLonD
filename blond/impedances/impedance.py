@@ -226,7 +226,6 @@ class _InducedVoltage(object):
                                                                           self.profile.bin_size))
             # Wake length in s, rounded up to the next multiple of bin size
             self.wake_length = self.n_induced_voltage * self.profile.bin_size
-            self.frequency_resolution = 1 / self.wake_length
         elif (self.frequency_resolution_input != None
                 and self.wake_length_input == None):
             self.n_induced_voltage = int(np.ceil(1 / (self.profile.bin_size *
@@ -238,13 +237,11 @@ class _InducedVoltage(object):
                                                                          (self.profile.cut_right - self.profile.cut_left)))
             self.wake_length = self.n_induced_voltage * self.profile.bin_size
             # Frequency resolution in Hz
-            self.frequency_resolution = 1 / self.wake_length
         elif (self.wake_length_input == None
                 and self.frequency_resolution_input == None):
             # By default the wake_length is the slicing frame length
             self.wake_length = (self.profile.cut_right -
                                 self.profile.cut_left)
-            self.frequency_resolution = 1 / self.wake_length
             self.n_induced_voltage = self.profile.n_slices
         else:
             raise RuntimeError('Error: only one of wake_length or ' +
@@ -431,10 +428,13 @@ class InducedVoltageTime(_InducedVoltage):
         self.n_fft = next_regular(int(self.n_induced_voltage) +
                                   int(self.profile.n_slices) - 1)
 
+        # Frequency resolution in Hz
+        self.frequency_resolution = 1 / (self.n_fft * self.profile.bin_size)
+
         # Time array of the wake in s
         self.time = np.arange(0, self.wake_length, self.wake_length /
                               self.n_induced_voltage)
-
+        
         # Processing the wakes
         self.sum_wakes(self.time)
 
@@ -522,9 +522,10 @@ class InducedVoltageFreq(_InducedVoltage):
 
         self.profile.beam_spectrum_freq_generation(self.n_fft)
 
-        # Frequency array of the impedance in Hz
+        # Frequency array and resolution of the impedance in Hz
         self.freq = self.profile.beam_spectrum_freq
-
+        self.frequency_resolution = 1 / (self.n_fft * self.profile.bin_size)
+        
         # Length of the front wake in frequency domain calculations
         if self.front_wake_length:
             self.front_wake_buffer = int(np.ceil(
