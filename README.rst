@@ -163,23 +163,22 @@ Set-up Instructions
 -------------------
 
 * Add the following lines in your ~/.bashrc, then source it:
-
+  
   .. code-block:: bash
     
-  # Environment variables definitions
-  export LD_LIBRARY_PATH="$HOME/install/lib"
+    # Environment variables definitions
+    export LD_LIBRARY_PATH="$HOME/install/lib"
   
-  # User aliases
-  alias mysqueue="squeue -u $USER"
-  alias myscancel="scancel -u $USER"
-  alias mywatch="watch -n 30 'squeue -u $USER'"
+    # User aliases
+    alias mysqueue="squeue -u $USER"
+    alias myscancel="scancel -u $USER"
+    alias mywatch="watch -n 30 'squeue -u $USER'"
   
-  # Module loads
-  module load compiler/gcc7
-  module load slurm/be
-  module load mpi/mvapich2/2.3
+    # Module loads
+    module load compiler/gcc7
+    module load slurm/be
+    module load mpi/mvapich2/2.3
 
-  
 * Download and install anaconda3:
   
   .. code-block:: bash
