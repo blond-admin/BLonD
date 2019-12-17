@@ -340,9 +340,10 @@ class RFStation(object):
         self.t_rf = 2*np.pi / self.omega_rf
 
         # From helper functions
-        self.phi_s = calculate_phi_s(self, self.Particle)
-        self.Q_s = calculate_Q_s(self, self.Particle)
-        self.omega_s0 = self.Q_s*Ring.omega_rev
+        if not self.empty:
+            self.phi_s = calculate_phi_s(self, self.Particle)
+            self.Q_s = calculate_Q_s(self, self.Particle)
+            self.omega_s0 = self.Q_s*Ring.omega_rev
 
     def eta_tracking(self, beam, counter, dE):
         r"""Function to calculate the slippage factor as a function of the
