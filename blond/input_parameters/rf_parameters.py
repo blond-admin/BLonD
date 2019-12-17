@@ -175,10 +175,10 @@ class RFStation(object):
     t_rf : float matrix [n_rf, n_turns+1]
         RF period :math:`\frac{2 \pi}{\omega_{rf,l,n}}` [s]
     phi_s : float array [n_turns+1]
-        Synchronous phase for this section, calculated in
+        Synchronous phase for this section (if not empty), calculated in
         :py:func:`input_parameters.rf_parameters.calculate_phi_s`
     Q_s : float array [n_turns+1]
-        Synchrotron tune for this section, calculated in
+        Synchrotron tune for this section (if not empty), calculated in
         :py:func:`input_parameters.rf_parameters.calculate_Q_s`
     omega_s0 : float array [n_turns+1]
         Central synchronous angular frequency corresponding to Q_s (single
