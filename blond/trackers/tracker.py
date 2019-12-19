@@ -249,7 +249,8 @@ class RingAndRFTracker(object):
         self.phi_noise = RFStation.phi_noise
         self.phi_modulation = RFStation.phi_modulation
         self.phi_rf = RFStation.phi_rf
-        self.phi_s = RFStation.phi_s
+        if not self.rf_params.empty:
+            self.phi_s = RFStation.phi_s
         self.omega_rf = RFStation.omega_rf
         self.eta_0 = RFStation.eta_0
         self.eta_1 = RFStation.eta_1
