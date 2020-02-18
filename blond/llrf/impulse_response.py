@@ -1,5 +1,5 @@
 # coding: utf8
-# Copyright 2014-2017 CERN. This software is distributed under the
+# Copyright 2014-2020 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
 # copied verbatim in the file LICENCE.md.
 # In applying this licence, CERN does not waive the privileges and immunities
@@ -364,6 +364,14 @@ class TravellingWaveCavity(object):
         # Wake fields towards beam and generator
         self.W_beam = 2*self.h_beam.real*np.cos(self.omega_r*t_beam)
         self.W_gen = 2*self.h_gen.real*np.cos(self.omega_r*t_gen)
+
+
+class SPS3Section200MHzTWC(TravellingWaveCavity):
+
+    def __init__(self):
+
+        TravellingWaveCavity.__init__(self, 0.374, 32, 2.71e4, 0.0946,
+                                      2*np.pi*200.222e6)
 
 
 class SPS4Section200MHzTWC(TravellingWaveCavity):

@@ -1,5 +1,5 @@
 # coding: utf8
-# Copyright 2014-2017 CERN. This software is distributed under the
+# Copyright 2014-2020 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
 # copied verbatim in the file LICENCE.md.
 # In applying this licence, CERN does not waive the privileges and immunities
@@ -22,7 +22,6 @@ from scipy.constants import e
 
 from ..llrf.signal_processing import comb_filter, cartesian_to_polar, \
     polar_to_cartesian, modulator, moving_average, rf_beam_current
-from ..llrf.impulse_response import SPS4Section200MHzTWC, SPS5Section200MHzTWC
 from ..utils import bmath as bm
 from ..beam.profile import Profile, CutOptions
 
@@ -30,6 +29,19 @@ class CavityFeedbackCommissioning(object):
 
     def __init__(self, debug=False, open_loop=False, open_FB=False,
                  open_drive=False):
+        """Class containing commissioning settings for the cavity feedback
+
+        Parameters
+        ----------
+        debug : bool
+            Debugging output active (True/False); default is False
+        open_loop : int(bool)
+            Open (True) or closed (False) cavity loop; default is False
+        open_FB : int(bool)
+            Open (True) or closed (False) feedback; default is False
+        open_drive : int(bool)
+            Open (True) or closed (False) drive; default is False
+        """
 
         self.debug = bool(debug)
         # Multiply with zeros if open == True
@@ -41,8 +53,9 @@ class CavityFeedbackCommissioning(object):
 class SPSCavityFeedback(object):
     """Class determining the turn-by-turn total RF voltage and phase correction
     originating from the individual cavity feedbacks. Assumes two 4-section and
-    two 5-section travelling wave cavities and a voltage partition proportional
-    to the number of sections.
+    two 5-section travelling wave cavities in the pre-LS2 scenario and four
+    3-section and two 4-section cavities in the post-LS2 scenario. The voltage
+    partitioning is proportional to the number of sections.
 
     Parameters
     ----------
@@ -53,22 +66,33 @@ class SPSCavityFeedback(object):
     Profile : class
         A Profile type class
     G_llrf : float or list
-        LLRF Gain [1]; if passed as a float, both 4- and 5-section cavities
-        have the same G_llrf; if passed as a list, the first and second
-        elements correspond to the G_llrf of the 4- and 5-section cavity
-        feedback; default is 10
+        LLRF Gain [1]; if passed as a float, both 3- and 4-section (4- and
+        5-section) cavities have the same G_llrf in the post- (pre-)LS2
+        scenario. If passed as a list, the first and second elements correspond
+        to the G_llrf of the 3- and 4-section (4- and 5-section) cavity
+        feedback in the post- (pre-)LS2 scenario; default is 10
     G_tx : float or list
         Transmitter gain [1] of the cavity feedback; convention same as G_llrf;
         default is 0.5
-    open_loop : int(bool)
-        Open (0) or closed (1) feedback loop; default is 1
+    a_comb : float
+        Comb filter ratio [1]; default is 15/16
+    turns :  int
+        Number of turns to pre-track without beam
+    post_LS2 : bool
+        Activates pre-LS2 scenario (False) or post-LS2 scenario (True); default
+        is True
+    V_part : float
+        Voltage partitioning of the shorter cavities; has to be in the range
+        (0,1). Default is None and will result in 6/10 for the 3-section
+        cavities in the post-LS2 scenario and 4/9 for the 4-section cavities in
+        the pre-LS2 scenario
 
     Attributes
     ----------
-    OTFB_4 : class
-        An SPSOneTurnFeedback type class
-    OTFB_5 : class
-        An SPSOneTurnFeedback type class
+    OTFB_1 : class
+        An SPSOneTurnFeedback type class; 3/4-section cavity for post/pre-LS2
+    OTFB_2 : class
+        An SPSOneTurnFeedback type class; 4/5-section cavity for post/pre-LS2
     V_sum : complex array
         Vector sum of RF voltage from all the cavities
     V_corr : float array
@@ -81,7 +105,7 @@ class SPSCavityFeedback(object):
     """
 
     def __init__(self, RFStation, Beam, Profile, G_llrf=10, G_tx=0.5,
-                 a_comb=15/16, turns=1000,
+                 a_comb=15/16, turns=1000, post_LS2=True, V_part=None,
                  Commissioning=CavityFeedbackCommissioning()):
 
         # Options for commissioning the feedback
@@ -91,32 +115,54 @@ class SPSCavityFeedback(object):
 
         # Parse input for G_llrf
         if type(G_llrf) is list:
-            G_llrf_4 = G_llrf[0]
-            G_llrf_5 = G_llrf[1]
+            G_llrf_1 = G_llrf[0]
+            G_llrf_2 = G_llrf[1]
         else:
-            G_llrf_4 = G_llrf
-            G_llrf_5 = G_llrf
+            G_llrf_1 = G_llrf
+            G_llrf_2 = G_llrf
 
         if type(G_tx) is list:
-            G_tx_4 = G_tx[0]
-            G_tx_5 = G_tx[1]
+            G_tx_1 = G_tx[0]
+            G_tx_2 = G_tx[1]
         else:
-            G_tx_4 = G_tx
-            G_tx_5 = G_tx
+            G_tx_1 = G_tx
+            G_tx_2 = G_tx
+
+        # Voltage partitioning has to be a fraction
+        if V_part*(1 - V_part) < 0:
+            raise RuntimeError("SPS cavity feedback: voltage partitioning has to be in the range (0,1)!")
 
         # Voltage partition proportional to the number of sections
-        self.OTFB_4 = SPSOneTurnFeedback(RFStation, Beam, Profile, 4,
-                                         n_cavities=2, V_part=4/9,
-                                         G_llrf=float(G_llrf_4),
-                                         G_tx=float(G_tx_4),
-                                         a_comb=float(a_comb),
-                                         Commissioning=self.Commissioning)
-        self.OTFB_5 = SPSOneTurnFeedback(RFStation, Beam, Profile, 5,
-                                         n_cavities=2, V_part=5/9,
-                                         G_llrf=float(G_llrf_5),
-                                         G_tx=float(G_tx_5),
-                                         a_comb=float(a_comb),
-                                         Commissioning=self.Commissioning)
+        if post_LS2:
+            if not V_part:
+                V_part = 6/10
+            self.OTFB_1 = SPSOneTurnFeedback(RFStation, Beam, Profile, 3,
+                                             n_cavities=4, V_part=V_part,
+                                             G_llrf=float(G_llrf_1),
+                                             G_tx=float(G_tx_1),
+                                             a_comb=float(a_comb),
+                                             Commissioning=self.Commissioning)
+            self.OTFB_2 = SPSOneTurnFeedback(RFStation, Beam, Profile, 4,
+                                             n_cavities=2, V_part=1-V_part,
+                                             G_llrf=float(G_llrf_2),
+                                             G_tx=float(G_tx_2),
+                                             a_comb=float(a_comb),
+                                             Commissioning=self.Commissioning)
+        else:
+            if not V_part:
+                V_part = 4/9
+            self.OTFB_1 = SPSOneTurnFeedback(RFStation, Beam, Profile, 4,
+                                             n_cavities=2, V_part=V_part,
+                                             G_llrf=float(G_llrf_1),
+                                             G_tx=float(G_tx_1),
+                                             a_comb=float(a_comb),
+                                             Commissioning=self.Commissioning)
+            self.OTFB_2 = SPSOneTurnFeedback(RFStation, Beam, Profile, 5,
+                                             n_cavities=2, V_part=1-V_part,
+                                             G_llrf=float(G_llrf_2),
+                                             G_tx=float(G_tx_2),
+                                             a_comb=float(a_comb),
+                                             Commissioning=self.Commissioning)
 
         # Set up logging
         self.logger = logging.getLogger(__class__.__name__)
@@ -132,10 +178,10 @@ class SPSCavityFeedback(object):
 
     def track(self):
 
-        self.OTFB_4.track()
-        self.OTFB_5.track()
+        self.OTFB_1.track()
+        self.OTFB_2.track()
 
-        self.V_sum = self.OTFB_4.V_fine_tot + self.OTFB_5.V_fine_tot
+        self.V_sum = self.OTFB_1.V_fine_tot + self.OTFB_2.V_fine_tot
 
         self.V_corr, alpha_sum = cartesian_to_polar(self.V_sum)
 
@@ -158,19 +204,19 @@ class SPSCavityFeedback(object):
         for i in range(self.turns):
             #            print('OTFB pre-tracking iteration ', i)
             self.logger.debug("Pre-tracking w/o beam, iteration %d", i)
-            self.OTFB_4.track_no_beam()
+            self.OTFB_1.track_no_beam()
             if debug:
-                plt.plot(self.OTFB_4.profile.bin_centers*1e6,
-                         np.abs(self.OTFB_4.V_fine_tot), color=colors[i])
-                plt.plot(self.OTFB_4.rf_centers*1e6,
-                         np.abs(self.OTFB_4.V_coarse_tot), color=colors[i],
+                plt.plot(self.OTFB_1.profile.bin_centers*1e6,
+                         np.abs(self.OTFB_1.V_fine_tot), color=colors[i])
+                plt.plot(self.OTFB_1.rf_centers*1e6,
+                         np.abs(self.OTFB_1.V_coarse_tot), color=colors[i],
                          linestyle='', marker='.')
-            self.OTFB_5.track_no_beam()
+            self.OTFB_2.track_no_beam()
 
         # Interpolate from the coarse mesh to the fine mesh of the beam
         self.V_sum = np.interp(
-            self.OTFB_4.profile.bin_centers, self.OTFB_4.rf_centers,
-            self.OTFB_4.V_coarse_ind_gen + self.OTFB_5.V_coarse_ind_gen)
+            self.OTFB_1.profile.bin_centers, self.OTFB_1.rf_centers,
+            self.OTFB_1.V_coarse_ind_gen + self.OTFB_2.V_coarse_ind_gen)
 
         self.V_corr, alpha_sum = cartesian_to_polar(self.V_sum)
 
