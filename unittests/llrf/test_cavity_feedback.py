@@ -187,7 +187,7 @@ class TestCavityFeedback(unittest.TestCase):
 
     def test_beam_loading(self):
 
-        digit_round = 10
+        digit_round = 9
         
         # Compute voltage with beam loading
         self.cavity_tracker.rf_voltage_calculation()

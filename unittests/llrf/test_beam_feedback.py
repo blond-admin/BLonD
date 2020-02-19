@@ -62,7 +62,7 @@ class TestBeamFeedback(unittest.TestCase):
     def test_SPS_RL(self):
         
         PL_gain = 1000  # gain of phase loop
-        round_digit = 5  # to how many digits round the result
+        round_digit = 4  # to how many digits round the result
         
         # Phase loop setup
         

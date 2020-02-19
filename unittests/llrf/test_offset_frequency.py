@@ -73,9 +73,9 @@ class TestOffsetFrequency(unittest.TestCase):
                                  msg='rf_params.omega_rf not equal to injection frequency')
 
         self.assertAlmostEqual(self.rf_params.phi_rf[0][-1], -56.304959088, \
-                               places = 6, msg='System 1 end phase wrong')
+                               places = 5, msg='System 1 end phase wrong')
         self.assertAlmostEqual(self.rf_params.phi_rf[1][-1], -115.908590462, \
-                               places = 6, msg='System 1 end phase wrong')
+                               places = 5, msg='System 1 end phase wrong')
 
 
 

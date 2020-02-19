@@ -160,7 +160,7 @@ class testProfileClass(unittest.TestCase):
     def test(self):
 
         self.assertAlmostEqual(self.ring.t_rev[0], 5.71753954209e-07,
-                               delta=1e-16, msg='Ring: t_rev[0] not correct')
+                               delta=1e-15, msg='Ring: t_rev[0] not correct')
 
         self.assertSequenceEqual(
             self.profile1.n_macroparticles.tolist(),
