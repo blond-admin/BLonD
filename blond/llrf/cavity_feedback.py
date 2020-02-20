@@ -22,6 +22,8 @@ from scipy.constants import e
 
 from ..llrf.signal_processing import comb_filter, cartesian_to_polar, \
     polar_to_cartesian, modulator, moving_average, rf_beam_current
+from ..llrf.impulse_response import SPS3Section200MHzTWC, \
+    SPS4Section200MHzTWC, SPS5Section200MHzTWC
 from ..utils import bmath as bm
 from ..beam.profile import Profile, CutOptions
 
@@ -328,7 +330,7 @@ class SPSOneTurnFeedback(object):
         self.G_tx = float(G_tx)
 
         # 200 MHz travelling wave cavity (TWC) model
-        if n_sections in [4, 5]:
+        if n_sections in [3, 4, 5]:
             self.TWC = eval("SPS" + str(n_sections) + "Section200MHzTWC()")
         else:
             #FeedbackError
