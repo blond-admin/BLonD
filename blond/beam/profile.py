@@ -108,8 +108,8 @@ class CutOptions(object):
 
         if self.cuts_unit == 'rad' and self.RFParams is None:
             # CutError
-            raise RuntimeError('You should pass an RFParams object to '
-                               + 'convert from radians to seconds')
+            raise RuntimeError('You should pass an RFParams object to ' +
+                               'convert from radians to seconds')
         if self.cuts_unit != 'rad' and self.cuts_unit != 's':
             # CutError
             raise RuntimeError('cuts_unit should be "s" or "rad"')
@@ -421,15 +421,17 @@ class Profile(object):
             self.edges, self.bin_centers, self.bin_size = \
             self.cut_options.get_slices_parameters()
 
-    def track(self):
+    def track(self, **kwargs):
         """
         Track method in order to update the slicing along with the tracker.
+        The kwargs are currently only needed to forward the reduce kw argument
+        needed for the MPI version.
         """
 
         for op in self.operations:
-            op()
+            op(**kwargs)
 
-    def _slice(self, reduce=True):
+    def _slice(self, reduce=True, **kwargs):
         """
         Constant space slicing with a constant frame.
         """
@@ -455,7 +457,7 @@ class Profile(object):
         self.n_macroparticles = self.n_macroparticles.astype(
             np.float64, order='C')
 
-    def scale_histo(self):
+    def scale_histo(self, **kwargs):
         if not bm.mpiMode():
             raise RuntimeError(
                 'ERROR: Cannot use this routine unless in MPI Mode')
@@ -463,7 +465,7 @@ class Profile(object):
         from ..utils.mpi_config import worker
         bm.mul(self.n_macroparticles, worker.workers, self.n_macroparticles)
 
-    def _slice_smooth(self, reduce=True):
+    def _slice_smooth(self, reduce=True, **kwargs):
         """
         At the moment 4x slower than _slice but smoother (filtered).
         """
@@ -473,7 +475,7 @@ class Profile(object):
         if bm.mpiMode() and reduce:
             self.reduce_histo(dtype=np.float64)
 
-    def apply_fit(self):
+    def apply_fit(self, **kwargs):
         """
         It applies Gaussian fit to the profile.
         """
@@ -490,14 +492,14 @@ class Profile(object):
         self.bunchPosition = self.fitExtraOptions[1]
         self.bunchLength = 4*self.fitExtraOptions[2]
 
-    def apply_filter(self):
+    def apply_filter(self, **kwargs):
         """
         It applies Chebishev filter to the profile.
         """
         self.n_macroparticles = ffroutines.beam_profile_filter_chebyshev(
             self.n_macroparticles, self.bin_centers, self.filterExtraOptions)
 
-    def rms(self):
+    def rms(self, **kwargs):
         """
         Computation of the RMS bunch length and position from the line
         density (bunch length = 4sigma).
@@ -507,7 +509,7 @@ class Profile(object):
             self.n_macroparticles, self.bin_centers)
 
     def rms_multibunch(self, n_bunches, bunch_spacing_buckets, bucket_size_tau,
-                       bucket_tolerance=0.40):
+                       bucket_tolerance=0.40, **kwargs):
         """
         Computation of the bunch length (4sigma) and position from RMS.
         """
@@ -516,7 +518,7 @@ class Profile(object):
             self.n_macroparticles, self.bin_centers, n_bunches,
             bunch_spacing_buckets, bucket_size_tau, bucket_tolerance)
 
-    def fwhm(self, shift=0):
+    def fwhm(self, shift=0, **kwargs):
         """
         Computation of the bunch length and position from the FWHM
         assuming Gaussian line density.
@@ -526,7 +528,8 @@ class Profile(object):
             self.n_macroparticles, self.bin_centers, shift)
 
     def fwhm_multibunch(self, n_bunches, bunch_spacing_buckets,
-                        bucket_size_tau, bucket_tolerance=0.40, shift=0):
+                        bucket_size_tau, bucket_tolerance=0.40, shift=0,
+                        **kwargs):
         """
         Computation of the bunch length and position from the FWHM
         assuming Gaussian line density for multibunch case.
