@@ -65,15 +65,18 @@ Windows GCC Installation Instructions
 Install Steps
 -------------
 
-* The easy way: 
+Installing BLonD as a python package.
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+* Using the pip package manager: 
     .. code-block:: bash
 
         $ pip install blond
 
 
-* If this fails try this:
+* If this fails try to:
 
-  1. Clone the repository from github or download and extract the zip from here_.
+  1. Clone the repository from github or download and extract the zip from https://github.com/blond-admin/BLonD/archive/master.zip.
 
   2. Navigate to the downloaded BLonD directory and run:
 
@@ -92,8 +95,20 @@ Install Steps
   2. Then you have to use the PYTHONPATH variable or some other mechanism to point to the BLonD installation.
 
 
-* In the extremely rare occassion that it continues to fail, you can submit an issue and we will handle it ASAP. 
+* In the extremely rare occasion that it continues to fail, you can submit an issue and we will handle it ASAP. 
 
+
+For advanced users or developers.
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+1. You are advised to install git in your system.
+2. Clone the repository or download and extract it.
+3. From within the BLonD directory run:
+
+  .. code-block:: bash
+
+     $ python blond/compile.py
+4. Adjust the PYTHONPATH to contain the path to the cloned repository.
 
 Confirm proper installation
 ---------------------------
@@ -109,6 +124,35 @@ Confirm proper installation
         $ python __EXAMPLES/main_files/EX_01_Acceleration.py
         $ python __EXAMPLES/main_files/EX_02_Main_long_ps_booster.py
         $ etc..
+
+
+Performace Optimizations
+------------------------
+There are some easy ways to reduce the execution time of your simulation:
+
+1. Use the multi-threaded C library. To use it you have to add the -p flag when compiling the C library:
+    .. code-block:: bash
+    
+        $ python blond/compile.py --parallel
+
+2. Enable processor specific compiler optimizations:
+    .. code-block:: bash
+        
+        $ python blond/compile.py --flags='-march=native'
+
+3. If you are test-case is calling the synchrotron radiation tracking method, you can accelerate it by using the Boost library. To do so you have to:
+    1. Download Boost: https://www.boost.org/. Let's say the version you downloaded is boost_1_70.
+    2. Extract it, let's say in ``/user/path/to/boost_1_70``.
+    3. Pass the boost installation path when compiling BLonD:
+        .. code-block:: bash
+
+         $ python blond/compile.py --boost=/user/path/to/boost_1_7_70/include
+
+4. Check the following section about the FFTW3 library.
+
+5. *All the above can be combined.* 
+
+
 
 
 Use the FFTW3 library for the FFTs
@@ -318,3 +362,4 @@ VERSION CONTENTS
 
 
 .. _here: https://github.com/blond-admin/BLonD/archive/master.zip
+
