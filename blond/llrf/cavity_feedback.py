@@ -131,7 +131,7 @@ class SPSCavityFeedback(object):
             G_tx_2 = G_tx
 
         # Voltage partitioning has to be a fraction
-        if V_part*(1 - V_part) < 0:
+        if V_part and V_part*(1 - V_part) < 0:
             raise RuntimeError("SPS cavity feedback: voltage partitioning has to be in the range (0,1)!")
 
         # Voltage partition proportional to the number of sections
@@ -195,7 +195,7 @@ class SPSCavityFeedback(object):
     def track_init(self, debug=False):
         r''' Tracking of the SPSCavityFeedback without beam.
         '''
-        
+
         if debug:
             cmap = plt.get_cmap('jet')
             colors = cmap(np.linspace(0,1, self.turns))
@@ -214,6 +214,8 @@ class SPSCavityFeedback(object):
                          np.abs(self.OTFB_1.V_coarse_tot), color=colors[i],
                          linestyle='', marker='.')
             self.OTFB_2.track_no_beam()
+        if debug:
+            plt.show()
 
         # Interpolate from the coarse mesh to the fine mesh of the beam
         self.V_sum = np.interp(
@@ -377,7 +379,7 @@ class SPSOneTurnFeedback(object):
         self.I_gen_prev = np.zeros(self.n_mov_av, dtype=complex)
 
         # Pre-compute factor for semi-analytic method
-        self.pre_compute_semi_analytic_factor(self.rf_centers)
+        #self.pre_compute_semi_analytic_factor(self.rf_centers)
 
         self.logger.info("Class initialized")
 
@@ -388,6 +390,10 @@ class SPSOneTurnFeedback(object):
         self.counter = self.rf.counter[0]
         # Present carrier frequency: main RF frequency
         self.omega_c = self.rf.omega_rf[0, self.counter]
+# TODO: NEW, TEST!
+        # Sampling time
+        self.T_s = self.rf.t_rev[self.counter]/self.n_coarse
+# TODO: END
         # Present delay time
         self.n_delay = int((self.rf.t_rev[self.counter] - self.TWC.tau)
                            / self.rf.t_rf[0, self.counter])
@@ -419,6 +425,10 @@ class SPSOneTurnFeedback(object):
         self.counter = int(0)
         # Present carrier frequency: main RF frequency
         self.omega_c = self.rf.omega_rf[0, self.counter]
+# TODO: NEW, TEST!
+        # Sampling time
+        self.T_s = self.rf.t_rev[self.counter] / self.n_coarse
+# TODO: END
         # Present delay time
         self.n_delay = int((self.rf.t_rev[self.counter] - self.TWC.tau)
                            / self.rf.t_rf[0, self.counter])
@@ -573,8 +583,28 @@ class SPSOneTurnFeedback(object):
                 * self.V_fine_ind_beam[:self.profile.n_slices]
 
             # Beam-induced voltage on the coarse grid from semi-analytic method
-            self.V_coarse_ind_beam = -self.n_cavities \
-                * self.beam_induced_voltage_semi_analytic()
+#            self.V_coarse_ind_beam = -self.n_cavities \
+#                * self.beam_induced_voltage_semi_analytic()
+
+# TODO: ADAPT LHC METHOD FOR COARSE GRID
+
+            # Find which index in fine grid matches index in coarse grid
+            ind_fine = np.floor((self.profile.bin_centers -
+                                 0.5*self.profile.bin_size)/ self.T_s)
+            ind_fine = np.array(ind_fine, dtype=int)
+            indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
+
+            # Pick total current within one coarse grid
+            rf_current_coarse = np.zeros(int(rf.harmonic[0, 0]))
+            rf_current_coarse[0] = np.sum(
+                rf_current_fine[np.arange(indices[0])])
+            for i in range(1, len(indices)):
+                rf_current_coarse[i] = np.sum(
+                    rf_current_fine[np.arange(indices[i - 1], indices[i])])
+            t_coarse = 5 * rf.t_rev[0] / int(rf.harmonic[0, 0]) * (
+                        np.arange(int(rf.harmonic[0, 0])) + 0.5)
+# TODO: END
+
 
         elif name == "gen":
             self.__setattr__("V_coarse_ind_"+name,

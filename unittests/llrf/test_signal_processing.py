@@ -303,18 +303,25 @@ class TestRFCurrent(unittest.TestCase):
     def test_3(self):
         
         # Set up SPS conditions
-        ring = Ring(2*np.pi*1100.009, 1/18**2, 25.92e9, Proton(), 1000)
-        RF = RFStation(ring, 4620, 4.5e6, 0)
-        beam = Beam(ring, 1e5, 1e11)
-        bigaussian(ring, RF, beam, 3.2e-9/4, seed = 1234, reinsertion = True) 
-        profile = Profile(beam, CutOptions(cut_left=-1.e-9, cut_right=6.e-9, 
-                                           n_slices=100))
-        profile.track()
-        self.assertEqual(len(beam.dt), np.sum(profile.n_macroparticles), "In" +
+        #ring = Ring(2*np.pi*1100.009, 1/18**2, 25.92e9, Proton(), 1000)
+        #RF = RFStation(ring, 4620, 4.5e6, 0)
+        #beam = Beam(ring, 1e5, 1e11)
+        #bigaussian(ring, RF, beam, 3.2e-9/4, seed=1234, reinsertion=True)
+        #profile = Profile(beam, CutOptions(cut_left=-1.e-9, cut_right=6.e-9,
+        #                                   n_slices=100))
+        #profile.track()
+        RF = RFStation(self.ring, 4620, 4.5e6, 0)
+
+        bigaussian(self.ring, RF, self.beam, 3.2e-9/4, seed = 1234,
+                   reinsertion = True)
+        self.profile.track()
+        self.assertEqual(len(self.beam.dt), np.sum(self.profile.n_macroparticles), "In" +
             " TestBeamCurrent: particle number mismatch in Beam vs Profile")
         
         # RF current calculation with low-pass filter
-        rf_current = rf_beam_current(profile, 2*np.pi*200.222e6, ring.t_rev[0])
+        rf_current = rf_beam_current(self.profile, 2*np.pi*200.222e6, self.ring.t_rev[0],
+                                     lpf=True)
+        print(rf_current.real)
         Iref_real = np.array([ -9.4646042539e-12,  -7.9596801534e-10,  
             -2.6993572787e-10,
             2.3790828610e-09,   6.4007063190e-09,   9.5444302650e-09,
@@ -350,10 +357,14 @@ class TestRFCurrent(unittest.TestCase):
              8.1230022648e-09,   3.7428821201e-09,   2.8368110506e-09,
              3.6536247240e-09,   2.8429736524e-09,   1.6640835314e-09,
              2.3960087967e-09])
-        I_real = np.around(rf_current.real, 9) # round
-        Iref_real = np.around(Iref_real, 9) 
-        self.assertSequenceEqual(I_real.tolist(), Iref_real.tolist(),
-            msg="In TestRFCurrent test_3, mismatch in real part of RF current")
+        #I_real = rf_current.real
+        #I_real = np.around(rf_current.real, 9) # round
+        #Iref_real = np.around(Iref_real, 9)
+        #self.assertSequenceEqual(I_real.tolist(), Iref_real.tolist(),
+        #                         rtol=1e-9, atol=0,
+        #                         msg="In TestRFCurrent test_3, mismatch in real part of RF current")
+        np.testing.assert_allclose(rf_current.real, Iref_real, rtol=1e-9, atol=0,
+                                   err_msg="In TestRFCurrent test_3, mismatch in real part of RF current")
         Iref_imag = np.array([ -1.3134886055e-11,   1.0898262206e-09,   
             3.9806900984e-10,
             -3.0007980073e-09,  -7.4404909183e-09,  -9.5619658077e-09,
@@ -389,11 +400,56 @@ class TestRFCurrent(unittest.TestCase):
              5.8909590412e-09,   3.5957212556e-09,   4.3347189168e-09,
              5.3331969589e-09,   3.9322184713e-09,   3.3616434953e-09,
              6.5154351819e-09])
-        I_imag = np.around(rf_current.imag, 9) # round
-        Iref_imag = np.around(Iref_imag, 9)
-        self.assertSequenceEqual(I_imag.tolist(), Iref_imag.tolist(),
-            msg="In TestRFCurrent test_3, mismatch in imaginary part of RF current")
+        #I_imag = rf_current.imag
+#        I_imag = np.around(rf_current.imag, 9) # round
+#        Iref_imag = np.around(Iref_imag, 9)
+        #self.assertSequenceEqual(I_imag.tolist(), Iref_imag.tolist(),
+        #                         rtol=1e-9, atol=0,
+        #                         msg="In TestRFCurrent test_3, mismatch in imaginary part of RF current")
+        np.testing.assert_allclose(rf_current.imag, Iref_imag, rtol=1e-9, atol=0,
+                                   err_msg="In TestRFCurrent test_3, mismatch in imaginary part of RF current")
 
+    def test_4(self):
+
+        # Compare coarse and fine-grid results of beam current
+        rf = RFStation(self.ring, 4620, 4.5e6, 0, n_rf=1)
+        bunches = 100
+        Ts = 5*rf.t_rev[0]/rf.harmonic[0, 0]
+        N_m = 1e5
+        N_b = 2.3e11
+        bigaussian(self.ring, rf, self.beam, 0.1e-9, seed=1234, reinsertion=True)
+        beam2 = Beam(self.ring, bunches*N_m, bunches*N_b)
+        bunchSpacing = 5*rf.t_rf[0, 0]
+        buckets = 5*bunches
+        for i in range(bunches):
+            indMin = int(i * N_m)
+            indMax = int((i + 1) * N_m)
+            beam2.dt[indMin:indMax] = self.beam.dt + i * bunchSpacing
+            beam2.dE[indMin:indMax] = self.beam.dE
+        profile2 = Profile(beam2, CutOptions=CutOptions(cut_left=0,
+            cut_right=bunches*bunchSpacing, n_slices=1000*buckets))
+        profile2.track()
+
+        totCharges = np.sum(profile2.n_macroparticles)/\
+                     beam2.n_macroparticles*beam2.intensity
+        self.assertAlmostEqual(totCharges, 2.3000000000e+13, 9)
+
+        rf_current_fine = rf_beam_current(profile2, rf.omega_rf[0, 0],
+                                          self.ring.t_rev[0], lpf=False)/Ts
+
+        # Find which index in fine grid matches index in coarse grid
+        ind_fine = np.floor((profile2.bin_centers - 0.5*profile2.bin_size)/Ts)
+        ind_fine = np.array(ind_fine, dtype=int)
+        indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
+
+        # Pick total current within one coarse grid
+        rf_current_coarse = np.zeros(int(rf.harmonic[0,0])) + 1j*np.zeros(int(rf.harmonic[0,0]))
+        rf_current_coarse[0] = np.sum(rf_current_fine[np.arange(indices[0])])
+        for i in range(1, len(indices)):
+            rf_current_coarse[i] = np.sum(rf_current_fine[np.arange(indices[i-1], indices[i])])
+
+        peakRFCurrent = np.max(np.absolute(rf_current_coarse))
+        self.assertAlmostEqual(peakRFCurrent, 2.9285808008, 9)
 
 
 class TestComb(unittest.TestCase):

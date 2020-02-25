@@ -43,15 +43,16 @@ f_rf = 200.222e6            # Operational frequency of TWC, range ~200.1-200.36 
 
 # Beam and tracking parameters
 N_m = 1e5                   # Number of macro-particles for tracking
-N_b = 1.e11                 # Bunch intensity [ppb]
+N_b = 2.3e11                # Bunch intensity [ppb]
 N_t = 1000                  # Number of turns to track
 # CERN SPS --------------------------------------------------------------------
 
 # OPTIONS TO TEST -------------------------------------------------------------
 LOGGING = True              # Logging messages
 RF_CURRENT = True           # RF beam current
-IMP_RESP = True             # Impulse response of travelling wave cavity
-VIND_BEAM = True            # Beam-induced voltage
+RF_CURRENT2 = True          # RF beam current
+IMP_RESP = False             # Impulse response of travelling wave cavity
+VIND_BEAM = False            # Beam-induced voltage
 
 # OPTIONS TO TEST -------------------------------------------------------------
 
@@ -103,6 +104,79 @@ if RF_CURRENT == True:
     ax2.plot(profile.bin_centers, rf_current.imag, 'r', label='current, imag')
     ax2.set_ylabel("RF current, charge count [C]")
     ax2.legend()
+
+
+if RF_CURRENT2 == True:
+
+    bunches = 100
+    Ts = 5*rf.t_rev[0]/rf.harmonic[0,0]
+    bigaussian(ring, rf, beam, 0.1e-9, seed=1234, reinsertion=True)
+    beam2 = Beam(ring, bunches*N_m, bunches*N_b)
+    bunchSpacing = 5*rf.t_rf[0,0]
+    buckets = 5*bunches
+    for i in range(bunches):
+        indMin = int(i*N_m)
+        indMax = int((i+1)*N_m)
+        beam2.dt[indMin:indMax] = beam.dt + i*bunchSpacing
+        beam2.dE[indMin:indMax] = beam.dE
+    profile2 = Profile(beam2, CutOptions=CutOptions(cut_left=0,
+        cut_right=bunches*bunchSpacing, n_slices=1000*buckets))
+    profile2.track()
+    print("Total number of charges %.10e p" %(np.sum(profile2.n_macroparticles)/beam2.n_macroparticles*beam2.intensity))
+
+    rf_current_fine = rf_beam_current(profile2, rf.omega_rf[0,0], ring.t_rev[0],
+                                      lpf=False)/Ts
+#    rf_current_filt = rf_beam_current(profile2, 2*np.pi*f_rf, ring.t_rev[0],
+#                                      lpf=True)/Ts
+
+    fig, ax1 = plt.subplots()
+    ax1.plot(profile2.bin_centers, profile2.n_macroparticles, 'g')
+    ax1.set_xlabel("Time [s]")
+    ax1.set_ylabel("Macro-particle count [1]")
+    ax2 = ax1.twinx()
+    ax2.plot(profile2.bin_centers, rf_current_fine.real, 'b', label='fine, real')
+    ax2.plot(profile2.bin_centers, rf_current_fine.imag, 'r', label='fine, imag')
+    ax2.set_ylabel("RF current [A]")
+    ax2.legend()
+
+#    fig, ax1 = plt.subplots()
+#    ax1.plot(profile2.bin_centers, profile2.n_macroparticles, 'g')
+#    ax1.set_xlabel("Time [s]")
+#    ax1.set_ylabel("Macro-particle count [1]")
+#    ax2 = ax1.twinx()
+#    ax2.plot(profile2.bin_centers, rf_current_filt.real, 'b', label='filtered, real')
+#    ax2.plot(profile2.bin_centers, rf_current_filt.imag, 'r', label='filtered, imag')
+#    ax2.set_ylabel("RF current [A]")
+#    ax2.legend()
+
+    # Find which index in fine grid matches index in coarse grid
+    ind_fine = np.floor((profile2.bin_centers - 0.5*profile2.bin_size)/Ts)
+    print(ind_fine)
+    ind_fine = np.array(ind_fine, dtype=int)
+    indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
+    print(indices)
+    print(len(indices))
+
+    # Pick total current within one coarse grid
+    rf_current_coarse = np.zeros(int(rf.harmonic[0,0])) + 1j*np.zeros(int(rf.harmonic[0,0]))
+    rf_current_coarse[0] = np.sum(rf_current_fine[np.arange(indices[0])])
+    for i in range(1, len(indices)):
+        rf_current_coarse[i] = np.sum(rf_current_fine[np.arange(indices[i-1], indices[i])])
+    t_coarse = 5*rf.t_rev[0]/int(rf.harmonic[0,0])*(np.arange(int(rf.harmonic[0,0]))+0.5)
+
+    fig, ax1 = plt.subplots()
+    ax1.plot(profile2.bin_centers, profile2.n_macroparticles, 'g')
+    ax1.set_xlabel("Time [s]")
+    ax1.set_ylabel("Macro-particle count [1]")
+    ax2 = ax1.twinx()
+    ax2.plot(t_coarse, rf_current_coarse.real, 'b', label='coarse, real')
+    ax2.plot(t_coarse, rf_current_coarse.imag, 'r', label='coarse, imag')
+    ax2.plot(t_coarse, np.absolute(rf_current_coarse), 'p', label='coarse, abs')
+    ax2.set_ylabel("RF current [A]")
+    ax2.legend()
+    print("Peak beam current, meas %.10f A" %(np.max(np.absolute(rf_current_coarse))))
+    print("Peak beam current, theor %.4f A" %(2*N_b*e/bunchSpacing))
+
 
 
 if IMP_RESP == True:
