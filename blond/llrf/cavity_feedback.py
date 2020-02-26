@@ -350,12 +350,20 @@ class SPSOneTurnFeedback(object):
 
         # Length of arrays in LLRF
         self.n_coarse = int(self.rf.harmonic[0, 0])
+# TODO: NEW, TEST!
+        # Sampling time
+        self.T_s = self.rf.t_rev[0]/self.n_coarse
+# TODO: END
 
         # Array to hold the bucket-by-bucket voltage with LENGTH OF LLRF
         self.V_coarse_tot = np.zeros(self.n_coarse, dtype=complex)
 
         # Centers of the RF-buckets
-        self.rf_centers = (np.arange(self.n_coarse) + 0.5) * self.rf.t_rf[0, 0]
+        #self.rf_centers = (np.arange(self.n_coarse) + 0.5) * self.rf.t_rf[0, 0]
+# TODO: NEW, TEST!
+        self.rf_centers = (np.arange(self.n_coarse) + 0.5)*self.rf.t_rev[0]/ \
+                          self.rf.harmonic[0, 0]
+# TODO: END
 
         # TODO: Bin size can change! Update affected variables!!
         self.logger.debug("Length of arrays in generator path %d",
@@ -391,8 +399,11 @@ class SPSOneTurnFeedback(object):
         # Present carrier frequency: main RF frequency
         self.omega_c = self.rf.omega_rf[0, self.counter]
 # TODO: NEW, TEST!
-        # Sampling time
+        # Present sampling time
         self.T_s = self.rf.t_rev[self.counter]/self.n_coarse
+        # Present coarse grid
+        self.rf_centers = (np.arange(self.n_coarse) + 0.5)* \
+            self.rf.t_rev[self.counter]/self.rf.harmonic[0, self.counter]
 # TODO: END
         # Present delay time
         self.n_delay = int((self.rf.t_rev[self.counter] - self.TWC.tau)
@@ -400,7 +411,9 @@ class SPSOneTurnFeedback(object):
 
         # Update the impulse response at present carrier frequency
         self.TWC.impulse_response_gen(self.omega_c, self.rf_centers)
-        self.TWC.impulse_response_beam(self.omega_c, self.profile.bin_centers)
+        #self.TWC.impulse_response_beam(self.omega_c, self.profile.bin_centers)
+        self.TWC.impulse_response_beam(self.omega_c, self.profile.bin_centers,
+                                       self.rf_centers)
 
         # On current measured (I,Q) voltage, apply LLRF model
         self.llrf_model()
@@ -425,10 +438,6 @@ class SPSOneTurnFeedback(object):
         self.counter = int(0)
         # Present carrier frequency: main RF frequency
         self.omega_c = self.rf.omega_rf[0, self.counter]
-# TODO: NEW, TEST!
-        # Sampling time
-#        self.T_s = self.rf.t_rev[self.counter] / self.n_coarse
-# TODO: END
         # Present delay time
         self.n_delay = int((self.rf.t_rev[self.counter] - self.TWC.tau)
                            / self.rf.t_rf[0, self.counter])
@@ -575,42 +584,35 @@ class SPSOneTurnFeedback(object):
 
         if name == "beam":
             # Compute the beam-induced voltage on the fine grid by convolution
+#            self.__setattr__("V_fine_ind_"+name,
+#                             self.matr_conv(self.__getattribute__("I_"+name),
+#                                            self.TWC.__getattribute__("h_"+name)))
+#
+#            self.V_fine_ind_beam = -self.n_cavities \
+#                * self.V_fine_ind_beam[:self.profile.n_slices]
+
+# TODO: TEST
             self.__setattr__("V_fine_ind_"+name,
-                             self.matr_conv(self.__getattribute__("I_"+name),
-                                            self.TWC.__getattribute__("h_"+name)))
-
-            self.V_fine_ind_beam = -self.n_cavities \
-                * self.V_fine_ind_beam[:self.profile.n_slices]
-
-            # Beam-induced voltage on the coarse grid from semi-analytic method
-#            self.V_coarse_ind_beam = -self.n_cavities \
-#                * self.beam_induced_voltage_semi_analytic()
-
-# TODO: ADAPT LHC METHOD FOR COARSE GRID
-
-            # Find which index in fine grid matches index in coarse grid
-#            ind_fine = np.floor((self.profile.bin_centers -
-#                                 0.5*self.profile.bin_size)/ self.T_s)
-#            ind_fine = np.array(ind_fine, dtype=int)
-#            indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
-
-            # Pick total current within one coarse grid
-#            rf_current_coarse = np.zeros(int(rf.harmonic[0, 0]))
-#            rf_current_coarse[0] = np.sum(
-#                rf_current_fine[np.arange(indices[0])])
-#            for i in range(1, len(indices)):
-#                rf_current_coarse[i] = np.sum(
-#                    rf_current_fine[np.arange(indices[i - 1], indices[i])])
-#            t_coarse = 5 * rf.t_rev[0] / int(rf.harmonic[0, 0]) * (
-#                        np.arange(int(rf.harmonic[0, 0])) + 0.5)
+                self.matr_conv(self.__getattribute__("I_"+name+"_fine"),
+                               self.TWC.__getattribute__("h_"+name)))
+            self.V_fine_ind_beam *= -self.n_cavities
 # TODO: END
 
 
-        elif name == "gen":
+# TODO: TEST
+        if name == "beam_coarse" and self.TWC.h_beam_coarse:
+                # Compute the beam-induced voltage on the coarse grid by convolution
+                self.__setattr__("V_coarse_ind_" + name,
+                    self.matr_conv(self.__getattribute__("I_"+name),
+                                   self.TWC.__getattribute__("h_"+name)))
+                self.V_coarse_ind_beam *= -self.n_cavities
+# TODO: END
+
+        if name == "gen":
             self.__setattr__("V_coarse_ind_"+name,
                              self.matr_conv(self.__getattribute__("I_"+name),
                                             self.TWC.__getattribute__("h_"+name)))
-
+# TODO: TEST AGAIN since convolution changed
             # Circular convolution
             self.V_coarse_ind_gen = +self.n_cavities \
                 * self.V_coarse_ind_gen[self.n_mov_av:
@@ -627,8 +629,14 @@ class SPSOneTurnFeedback(object):
 
         Attributes
         ----------
-        I_beam : complex array
-            RF component of the beam charge [C] at the present time step
+#        I_beam : complex array
+#            RF component of the beam charge [C] at the present time step
+        I_beam_coarse : complex array
+            RF component of the beam charge [C] at the present time step,
+            calculated in coarse grid
+        I_beam_fine : complex array
+            RF component of the beam charge [C] at the present time step,
+            calculated in fine grid
         V_coarse_ind_beam : complex array
             Induced voltage [V] from beam-cavity interaction on the coarse grid
         V_fine_ind_beam : complex array
@@ -636,11 +644,21 @@ class SPSOneTurnFeedback(object):
         """
 
         # Beam current from profile
-        self.I_beam = rf_beam_current(self.profile, self.omega_c,
-                                      self.rf.t_rev[self.counter], lpf=lpf)
+#        self.I_beam = rf_beam_current(self.profile, self.omega_c,
+#                                      self.rf.t_rev[self.counter], lpf=lpf)
+# TODO: TEST
+        self.I_beam_fine, self.I_beam_coarse = \
+            rf_beam_current(self.profile,
+                            self.omega_c, self.rf.t_rev[self.counter], lpf=lpf,
+                            downsample={'Ts': self.T_s,
+                                        'points': self.n_coarse})
+# TODO: END
 
         # Beam-induced voltage
         self.induced_voltage('beam')
+# TODO: TEST
+        self.induced_voltage('beam_coarse')
+# TODO: END
 
     def pre_compute_semi_analytic_factor(self, time):
         r""" Pre-computes factor for semi-analytic method, which is used to

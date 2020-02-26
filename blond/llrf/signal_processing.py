@@ -103,7 +103,7 @@ def modulator(signal, omega_i, omega_f, T_sampling):
     return I_new + 1j*Q_new
 
 
-def rf_beam_current(Profile, omega_c, T_rev, lpf=True):
+def rf_beam_current(Profile, omega_c, T_rev, lpf=True, downsample=None):
     r"""Function calculating the beam charge at the (RF) frequency, slice by
     slice. The charge distribution [C] of the beam is determined from the beam
     profile :math:`\lambda_i`, the particle charge :math:`q_p` and the real vs.
@@ -143,12 +143,19 @@ def rf_beam_current(Profile, omega_c, T_rev, lpf=True):
         Revolution period [s] of the machine
     lpf : bool
         Apply low-pass filter; default is True
+    downsample : dict
+        Dictionary containing float value for 'Ts' sampling time and int value
+        for 'points'. Will downsample the RF beam charge onto a coarse time
+        grid with 'Ts' sampling time and 'points' points.
 
     Returns
     -------
     complex array
-        RF beam charge array [C] at 'frequency' omega_c. To obtain current,
-        divide by the sampling time
+        RF beam charge array [C] at 'frequency' omega_c, with the sampling time
+        of the Profile object. To obtain current, divide by the sampling time
+    (complex array)
+        If time_coarse is specified, returns also the RF beam charge array [C]
+        on the coarse time grid
 
     """
 
@@ -172,7 +179,29 @@ def rf_beam_current(Profile, omega_c, T_rev, lpf=True):
         Q_f = low_pass_filter(Q_f, cutoff_frequency=cutoff)
     logger.debug("RF total current is %.4e A", np.fabs(np.sum(I_f))/T_rev)
 
-    return I_f + 1j*Q_f
+    charges_fine = I_f + 1j*Q_f
+    if downsample:
+        try:
+            T_s = float(downsample['Ts'])
+            n_points = int(downsample['points'])
+        except:
+            raise RuntimeError('Downsampling input erroneous in rf_beam_current')
+
+        # Find which index in fine grid matches index in coarse grid
+        ind_fine = np.floor((Profile.bin_centers - 0.5*Profile.bin_size)/T_s)
+        ind_fine = np.array(ind_fine, dtype=int)
+        indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
+
+        # Pick total current within one coarse grid
+        charges_coarse = np.zeros(n_points, dtype=np.complex) #+ 1j*np.zeros(n_points)
+        charges_coarse[0] = np.sum(charges_fine[np.arange(indices[0])])
+        for i in range(1, len(indices)):
+            charges_coarse[i] = np.sum(charges_fine[np.arange(indices[i-1],
+                                                              indices[i])])
+        return charges_fine, charges_coarse
+
+    else:
+        return charges_fine
 
 
 def comb_filter(y, x, a):

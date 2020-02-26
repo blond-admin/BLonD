@@ -259,11 +259,8 @@ class TravellingWaveCavity(object):
         t_gen : float array
             time array for generator wake and impulse response; starts from
             :math:`- \tau/2`
-        hs_gen : float array
-            :math:`h_{s,g}(t)` [\Omega/s] as defined above
-        hc_gen : float array
-            :math:`h_{c,g}(t)` [\Omega/s] as defined above
-
+        h_gen : complex array
+            :math:`h_{s,b}(t) + i*h_{c,b}(t)` [\Omega/s] as defined above
         """
 
         self.omega_c = float(omega_c)
@@ -288,7 +285,7 @@ class TravellingWaveCavity(object):
             self.h_gen.imag = self.h_gen.real*np.sin(self.d_omega * t_gen)
             self.h_gen.real *= np.cos(self.d_omega * t_gen)
 
-    def impulse_response_beam(self, omega_c, time_fine):
+    def impulse_response_beam(self, omega_c, time_fine, time_coarse=None):
         r"""Impulse response from the cavity towards the beam. For a signal
         that is I,Q demodulated at a given carrier
         frequency :math:`\omega_c`. The formulae assume that the carrier
@@ -302,6 +299,8 @@ class TravellingWaveCavity(object):
             Carrier revolution frequency [1/s]
         time_fine : float
             Time array of the beam profile to act on
+        time_coarse : float
+            Time array of the LLRF to act on
 
         Attributes
         ----------
@@ -309,17 +308,15 @@ class TravellingWaveCavity(object):
             :math:`\omega_c - \omega_r` [1/s]
         t_beam : float array
             time array for beam wake and impulse response; starts from zero
-        hs_beam : float array
-            :math:`h_{s,b}(t)` [\Omega/s] as defined above
-        hc_beam : float array
-            :math:`h_{c,b}(t)` [\Omega/s] as defined above
-
+        h_beam : complex array
+            :math:`h_{s,b}(t) + i*h_{c,b}(t)` [\Omega/s] as defined above
+        h_beam_coarse : complex array
+            Impulse response evaluated on the coarse grid
         """
 
         self.omega_c = float(omega_c)
         self.d_omega = self.omega_c - self.omega_r
         if np.fabs((self.d_omega)/self.omega_r) > 0.1:
-            #ImpulseError
             raise RuntimeError("ERROR in TravellingWaveCavity" +
                                " impulse_response(): carrier frequency" +
                                " should be close to central frequency of the" +
@@ -334,9 +331,25 @@ class TravellingWaveCavity(object):
 
         # Impulse response if not on carrier frequency
         if np.fabs((self.d_omega)/self.omega_r) > 1e-12:
-
             self.h_beam.imag = self.h_beam.real*np.sin(self.d_omega*t_beam)
             self.h_beam.real *= np.cos(self.d_omega * t_beam)
+
+        if time_coarse:
+            # Move starting point of impulse response to correct value
+            t_beam = time_coarse - time_coarse[0]
+
+            # Impulse response if on carrier frequency
+            self.h_beam_coarse = (2*self.R_beam/self.tau*
+                                  triangle(t_beam, self.tau)).astype(np.complex128)
+
+            # Impulse response if not on carrier frequency
+            if np.fabs((self.d_omega)/self.omega_r) > 1e-12:
+                self.h_beam_coarse.imag = self.h_beam_coarse.real*np.sin(
+                    self.d_omega*t_beam)
+                self.h_beam_coarse.real *= np.cos(self.d_omega*t_beam)
+        else:
+            self.h_beam_coarse = None
+
 
     def compute_wakes(self, time):
         r"""Computes the wake fields towards the beam and generator on the

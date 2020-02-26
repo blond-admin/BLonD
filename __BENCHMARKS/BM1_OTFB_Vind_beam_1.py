@@ -49,11 +49,11 @@ N_t = 1000                  # Number of turns to track
 
 # OPTIONS TO TEST -------------------------------------------------------------
 LOGGING = True              # Logging messages
-RF_CURRENT = False           # RF beam current
-RF_CURRENT2 = False          # RF beam current
-IMP_RESP = True              # Impulse response of travelling wave cavity
-FINE_COARSE = True           # Beam-induced voltage on fine/coarse grid
-VIND_BEAM = False            # Beam-induced voltage
+RF_CURRENT = True           # RF beam current
+RF_CURRENT2 = True          # RF beam current
+IMP_RESP = True             # Impulse response of travelling wave cavity
+FINE_COARSE = True          # Beam-induced voltage on fine/coarse grid
+VIND_BEAM = True            # Beam-induced voltage
 
 # OPTIONS TO TEST -------------------------------------------------------------
 
@@ -110,15 +110,15 @@ if RF_CURRENT == True:
     ax2.set_ylabel("RF current, charge count [C]")
     ax2.legend()
 
-    fig, ax1 = plt.subplots()
-    ax1.plot(profile.bin_centers, profile.n_macroparticles, 'g')
-    ax1.set_xlabel("Time [s]")
-    ax1.set_ylabel("Macro-particle count [1]")
-    ax2 = ax1.twinx()
-    ax2.plot(profile.bin_centers, rf_current_filt.real, 'b', label='filtered, real')
-    ax2.plot(profile.bin_centers, rf_current_filt.imag, 'r', label='filtered, imag')
-    ax2.set_ylabel("RF current, charge count [C]")
-    ax2.legend()
+    fig, ax3 = plt.subplots()
+    ax3.plot(profile.bin_centers, profile.n_macroparticles, 'g')
+    ax3.set_xlabel("Time [s]")
+    ax3.set_ylabel("Macro-particle count [1]")
+    ax4 = ax3.twinx()
+    ax4.plot(profile.bin_centers, rf_current_filt.real, 'b', label='filtered, real')
+    ax4.plot(profile.bin_centers, rf_current_filt.imag, 'r', label='filtered, imag')
+    ax4.set_ylabel("RF current, charge count [C]")
+    ax4.legend()
 
 
 
@@ -126,7 +126,7 @@ if RF_CURRENT2 == True:
 
     # Create a batch of 100 equal, short bunches at HL-LHC intensity
     bunches = 100
-    T_s = 5 * rf.t_rev[0]/rf.harmonic[0, 0]
+    T_s = 5*rf.t_rev[0]/rf.harmonic[0, 0]
     N_m = int(1e5)
     N_b = 2.3e11
     bigaussian(ring, rf, beam, 0.1e-9, seed=1234, reinsertion=True)
@@ -145,45 +145,52 @@ if RF_CURRENT2 == True:
     print("Total number of charges %.10e p" %(np.sum(profile2.n_macroparticles)/beam2.n_macroparticles*beam2.intensity))
 
     # Calculate fine-grid RF current
-    rf_current_fine = rf_beam_current(profile2, rf.omega_rf[0, 0],
-                                      ring.t_rev[0], lpf=False)/T_s
-    fig, ax1 = plt.subplots()
-    ax1.plot(profile2.bin_centers, profile2.n_macroparticles, 'g')
-    ax1.set_xlabel("Time [s]")
-    ax1.set_ylabel("Macro-particle count [1]")
-    ax2 = ax1.twinx()
-    ax2.plot(profile2.bin_centers, rf_current_fine.real, 'b', label='fine, real')
-    ax2.plot(profile2.bin_centers, rf_current_fine.imag, 'r', label='fine, imag')
-    ax2.set_ylabel("RF current [A]")
-    ax2.legend()
+#    rf_current_fine = rf_beam_current(profile2, rf.omega_rf[0, 0],
+#                                      ring.t_rev[0], lpf=False)/T_s
+    # Calculate fine- and coarse-grid RF current
+    rf_current_fine, rf_current_coarse = rf_beam_current(profile2,
+        rf.omega_rf[0, 0], ring.t_rev[0], lpf=False,
+        downsample={'Ts': T_s, 'points': rf.harmonic[0, 0]/5})
+    rf_current_coarse /= T_s
+
+    fig, ax5 = plt.subplots()
+    ax5.plot(profile2.bin_centers*1e6, profile2.n_macroparticles, 'g')
+    ax5.set_xlabel("Time [us]")
+    ax5.set_ylabel("Macro-particle count [1]")
+    ax6 = ax5.twinx()
+    ax6.plot(profile2.bin_centers*1e6, rf_current_fine.real, 'b', label='fine, real')
+    ax6.plot(profile2.bin_centers*1e6, rf_current_fine.imag, 'r', label='fine, imag')
+    ax6.set_ylabel("RF charge distribution [C]")
+    ax6.legend()
 
     # Find which index in fine grid matches index in coarse grid
-    ind_fine = np.floor((profile2.bin_centers - 0.5*profile2.bin_size)/T_s)
-    ind_fine = np.array(ind_fine, dtype=int)
-    indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
+#    ind_fine = np.floor((profile2.bin_centers - 0.5*profile2.bin_size)/T_s)
+#    ind_fine = np.array(ind_fine, dtype=int)
+#    indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
 
     # Pick total current within one coarse grid
-    rf_current_coarse = np.zeros(int(rf.harmonic[0, 0])) + \
-                        1j * np.zeros(int(rf.harmonic[0, 0]))
-    rf_current_coarse[0] = np.sum(rf_current_fine[np.arange(indices[0])])
-    for i in range(1, len(indices)):
-        rf_current_coarse[i] = np.sum(
-            rf_current_fine[np.arange(indices[i - 1], indices[i])])
-    t_coarse = 5*rf.t_rev[0]/int(rf.harmonic[0,0])*(np.arange(int(rf.harmonic[0,0]))+0.5)
+#    rf_current_coarse = np.zeros(int(rf.harmonic[0, 0])) + \
+#                        1j * np.zeros(int(rf.harmonic[0, 0]))
+#    rf_current_coarse[0] = np.sum(rf_current_fine[np.arange(indices[0])])
+#    for i in range(1, len(indices)):
+#        rf_current_coarse[i] = np.sum(
+#            rf_current_fine[np.arange(indices[i - 1], indices[i])])
+#    t_coarse = 5*rf.t_rev[0]/int(rf.harmonic[0,0])*(np.arange(int(rf.harmonic[0,0]))+0.5)
+    t_coarse = np.linspace(0, rf.t_rev[0], num=int(rf.harmonic[0,0]/5))
 
     # Peak RF current on coarse grid
     peak_rf_current = np.max(np.absolute(rf_current_coarse))
 
-    fig, ax1 = plt.subplots()
-    ax1.plot(profile2.bin_centers, profile2.n_macroparticles, 'g')
-    ax1.set_xlabel("Time [s]")
-    ax1.set_ylabel("Macro-particle count [1]")
-    ax2 = ax1.twinx()
-    ax2.plot(t_coarse, rf_current_coarse.real, 'b', label='coarse, real')
-    ax2.plot(t_coarse, rf_current_coarse.imag, 'r', label='coarse, imag')
-    ax2.plot(t_coarse, np.absolute(rf_current_coarse), 'purple', label='coarse, abs')
-    ax2.set_ylabel("RF current [A]")
-    ax2.legend()
+    fig, ax7 = plt.subplots()
+    ax7.plot(profile2.bin_centers*1e6, profile2.n_macroparticles, 'g', label='beam profile')
+    ax7.set_xlabel("Time [us]")
+    ax7.set_ylabel("Macro-particle count [1]")
+    ax8 = ax7.twinx()
+    ax8.plot(t_coarse*1e6, rf_current_coarse.real, 'b', label='coarse, real')
+    ax8.plot(t_coarse*1e6, rf_current_coarse.imag, 'r', label='coarse, imag')
+    ax8.plot(t_coarse*1e6, np.absolute(rf_current_coarse), 'purple', label='coarse, abs')
+    ax8.set_ylabel("RF current [A]")
+    ax8.legend()
     print("Peak beam current, meas %.10f A" %(peak_rf_current))
     print("Peak beam current, theor %.4f A" %(2*N_b*e/bunch_spacing))
 
@@ -217,7 +224,7 @@ if FINE_COARSE == True:
 
     # Create a batch of 100 equal, short bunches at HL-LHC intensity
     bunches = 100
-    T_s = rf.t_rev[0]/rf.harmonic[0, 0]
+    #T_s = rf.t_rev[0]/rf.harmonic[0, 0]
     N_m = int(1e5)
     N_b = 2.3e11
     bigaussian(ring, rf, beam, 0.1e-9, seed=1234, reinsertion=True)
@@ -244,30 +251,36 @@ if FINE_COARSE == True:
     print(len(time_coarse), len(h_beam_coarse))
 
     plt.figure()
-    plt.plot(time_fine, h_beam_fine.real, 'b', marker='.', label='h_beam, fine, real')
-    plt.plot(time_coarse, h_beam_coarse.real, 'teal', marker='.', label='h_beam, coarse, real')
-    plt.plot(time_fine, h_beam_fine.imag, 'r', marker='.', label='h_beam, fine, imag')
-    plt.plot(time_coarse, h_beam_coarse.imag, 'orange', marker='.', label='h_beam, coarse, imag')
-    plt.xlabel("Time [s]")
+    plt.plot(time_fine*1e6, h_beam_fine.real, 'b', marker='.', label='h_beam, fine, real')
+    plt.plot(time_coarse*1e6, h_beam_coarse.real, 'teal', marker='.', label='h_beam, coarse, real')
+    plt.plot(time_fine*1e6, h_beam_fine.imag, 'r', marker='.', label='h_beam, fine, imag')
+    plt.plot(time_coarse*1e6, h_beam_coarse.imag, 'orange', marker='.', label='h_beam, coarse, imag')
+    plt.xlabel("Time [us]")
     plt.ylabel("Wake/impulse response [Ohms/s]")
     plt.legend()
 
+
+    # Calculate fine- and coarse-grid RF charge distribution
+    rf_current_fine, rf_current_coarse = rf_beam_current(profile2,
+        rf.omega_rf[0, 0], ring.t_rev[0], lpf=False,
+        downsample={'Ts': rf.t_rev[0]/rf.harmonic[0, 0], 'points': rf.harmonic[0, 0]})
+
     # Calculate fine-grid RF charge distribution
-    rf_current_fine = rf_beam_current(profile2, rf.omega_rf[0, 0],
-                                      ring.t_rev[0], lpf=False)
+#    rf_current_fine = rf_beam_current(profile2, rf.omega_rf[0, 0],
+#                                      ring.t_rev[0], lpf=False)
 
     # Find which index in fine grid matches index in coarse grid
-    ind_fine = np.floor((profile2.bin_centers - 0.5*profile2.bin_size)/T_s)
-    ind_fine = np.array(ind_fine, dtype=int)
-    indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
+#    ind_fine = np.floor((profile2.bin_centers - 0.5*profile2.bin_size)/T_s)
+#    ind_fine = np.array(ind_fine, dtype=int)
+#    indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
 
     # Pick total current within one coarse grid
-    rf_current_coarse = np.zeros(int(rf.harmonic[0, 0])) + \
-                        1j * np.zeros(int(rf.harmonic[0, 0]))
-    rf_current_coarse[0] = np.sum(rf_current_fine[np.arange(indices[0])])
-    for i in range(1, len(indices)):
-        rf_current_coarse[i] = np.sum(
-            rf_current_fine[np.arange(indices[i - 1], indices[i])])
+#    rf_current_coarse = np.zeros(int(rf.harmonic[0, 0])) + \
+#                        1j * np.zeros(int(rf.harmonic[0, 0]))
+#    rf_current_coarse[0] = np.sum(rf_current_fine[np.arange(indices[0])])
+#    for i in range(1, len(indices)):
+#        rf_current_coarse[i] = np.sum(
+#            rf_current_fine[np.arange(indices[i - 1], indices[i])])
     #rf_current_coarse[2310:2500] = 1
 
     OTFB = SPSOneTurnFeedback(rf, beam2, profile2, 3)
@@ -277,10 +290,10 @@ if FINE_COARSE == True:
     print(len(time_coarse), rf_current_coarse.shape, V_beam_coarse.shape)
 
     plt.figure()
-    plt.plot(time_fine*1e-6, V_beam_fine.real*1e-6, 'b', marker='.', label='V_beam, fine, real')
-    plt.plot(time_coarse*1e-6, V_beam_coarse.real*1e-6, 'teal', marker='.', label='V_beam, coarse, real')
-    plt.plot(time_fine*1e-6, V_beam_fine.imag*1e-6, 'r', marker='.', label='V_beam, fine, imag')
-    plt.plot(time_coarse*1e-6, V_beam_coarse.imag*1e-6, 'orange', marker='.', label='V_beam, coarse, imag')
+    plt.plot(time_fine*1e6, V_beam_fine.real*1e-6, 'b', marker='.', label='V_beam, fine, real')
+    plt.plot(time_coarse*1e6, V_beam_coarse.real*1e-6, 'teal', marker='.', label='V_beam, coarse, real')
+    plt.plot(time_fine*1e6, V_beam_fine.imag*1e-6, 'r', marker='.', label='V_beam, fine, imag')
+    plt.plot(time_coarse*1e6, V_beam_coarse.imag*1e-6, 'orange', marker='.', label='V_beam, coarse, imag')
     plt.xlabel("Time [us]")
     plt.ylabel("Induced voltage [MV]")
     plt.legend()
