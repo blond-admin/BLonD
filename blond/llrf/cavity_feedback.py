@@ -427,7 +427,7 @@ class SPSOneTurnFeedback(object):
         self.omega_c = self.rf.omega_rf[0, self.counter]
 # TODO: NEW, TEST!
         # Sampling time
-        self.T_s = self.rf.t_rev[self.counter] / self.n_coarse
+#        self.T_s = self.rf.t_rev[self.counter] / self.n_coarse
 # TODO: END
         # Present delay time
         self.n_delay = int((self.rf.t_rev[self.counter] - self.TWC.tau)
@@ -589,20 +589,20 @@ class SPSOneTurnFeedback(object):
 # TODO: ADAPT LHC METHOD FOR COARSE GRID
 
             # Find which index in fine grid matches index in coarse grid
-            ind_fine = np.floor((self.profile.bin_centers -
-                                 0.5*self.profile.bin_size)/ self.T_s)
-            ind_fine = np.array(ind_fine, dtype=int)
-            indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
+#            ind_fine = np.floor((self.profile.bin_centers -
+#                                 0.5*self.profile.bin_size)/ self.T_s)
+#            ind_fine = np.array(ind_fine, dtype=int)
+#            indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
 
             # Pick total current within one coarse grid
-            rf_current_coarse = np.zeros(int(rf.harmonic[0, 0]))
-            rf_current_coarse[0] = np.sum(
-                rf_current_fine[np.arange(indices[0])])
-            for i in range(1, len(indices)):
-                rf_current_coarse[i] = np.sum(
-                    rf_current_fine[np.arange(indices[i - 1], indices[i])])
-            t_coarse = 5 * rf.t_rev[0] / int(rf.harmonic[0, 0]) * (
-                        np.arange(int(rf.harmonic[0, 0])) + 0.5)
+#            rf_current_coarse = np.zeros(int(rf.harmonic[0, 0]))
+#            rf_current_coarse[0] = np.sum(
+#                rf_current_fine[np.arange(indices[0])])
+#            for i in range(1, len(indices)):
+#                rf_current_coarse[i] = np.sum(
+#                    rf_current_fine[np.arange(indices[i - 1], indices[i])])
+#            t_coarse = 5 * rf.t_rev[0] / int(rf.harmonic[0, 0]) * (
+#                        np.arange(int(rf.harmonic[0, 0])) + 0.5)
 # TODO: END
 
 
@@ -739,7 +739,7 @@ class SPSOneTurnFeedback(object):
         """Convolution of beam current with impulse response; uses a complete
         matrix with off-diagonal elements."""
 
-        return scipy.signal.fftconvolve(I, h, mode='full')
+        return scipy.signal.fftconvolve(I, h, mode='full')[:I.shape[0]]
 
     def call_conv(self, signal, kernel):
         """Routine to call optimised C++ convolution"""
