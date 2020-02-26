@@ -43,7 +43,7 @@ f_rf = 200.222e6            # Operational frequency of TWC, range ~200.1-200.36 
 
 # Beam and tracking parameters
 N_m = 1e5                   # Number of macro-particles for tracking
-N_b = 2.3e11                # Bunch intensity [ppb]
+N_b = 1.0e11                # Bunch intensity [ppb]
 N_t = 1000                  # Number of turns to track
 # CERN SPS --------------------------------------------------------------------
 
@@ -85,7 +85,7 @@ print("Time coordinates are in range %.4e to %.4e s" %(np.min(beam.dt),
                                                        np.max(beam.dt)))
 
 profile = Profile(beam, CutOptions=CutOptions(cut_left=-1.e-9,
-                                              cut_right=6.e-9, n_slices = 140))
+                                              cut_right=6.e-9, n_slices=100))
 profile.track()
 
 if RF_CURRENT == True:
@@ -93,7 +93,11 @@ if RF_CURRENT == True:
     # RF current calculation for Gaussian profile
     rf_current = rf_beam_current(profile, 2*np.pi*f_rf, ring.t_rev[0],
                                  lpf=False)
-    np.set_printoptions(precision=10)
+    rf_current_filt = rf_beam_current(profile, 2*np.pi*f_rf, ring.t_rev[0],
+                                      lpf=True)
+    #np.set_printoptions(precision=10)
+    #print(repr(rf_current_filt.real))
+    #print(repr(rf_current_filt.imag))
 
     fig, ax1 = plt.subplots()
     ax1.plot(profile.bin_centers, profile.n_macroparticles, 'g')
@@ -105,30 +109,43 @@ if RF_CURRENT == True:
     ax2.set_ylabel("RF current, charge count [C]")
     ax2.legend()
 
+    fig, ax1 = plt.subplots()
+    ax1.plot(profile.bin_centers, profile.n_macroparticles, 'g')
+    ax1.set_xlabel("Time [s]")
+    ax1.set_ylabel("Macro-particle count [1]")
+    ax2 = ax1.twinx()
+    ax2.plot(profile.bin_centers, rf_current_filt.real, 'b', label='filtered, real')
+    ax2.plot(profile.bin_centers, rf_current_filt.imag, 'r', label='filtered, imag')
+    ax2.set_ylabel("RF current, charge count [C]")
+    ax2.legend()
+
+
 
 if RF_CURRENT2 == True:
 
+    # Create a batch of 100 equal, short bunches at HL-LHC intensity
     bunches = 100
-    Ts = 5*rf.t_rev[0]/rf.harmonic[0,0]
+    T_s = 5 * rf.t_rev[0]/rf.harmonic[0, 0]
+    N_m = int(1e5)
+    N_b = 2.3e11
     bigaussian(ring, rf, beam, 0.1e-9, seed=1234, reinsertion=True)
     beam2 = Beam(ring, bunches*N_m, bunches*N_b)
-    bunchSpacing = 5*rf.t_rf[0,0]
-    buckets = 5*bunches
+    bunch_spacing = 5*rf.t_rf[0, 0]
+    buckets = 5 * bunches
     for i in range(bunches):
-        indMin = int(i*N_m)
-        indMax = int((i+1)*N_m)
-        beam2.dt[indMin:indMax] = beam.dt + i*bunchSpacing
-        beam2.dE[indMin:indMax] = beam.dE
+        beam2.dt[i*N_m:(i+1)*N_m] = beam.dt + i*bunch_spacing
+        beam2.dE[i*N_m:(i+1)*N_m] = beam.dE
     profile2 = Profile(beam2, CutOptions=CutOptions(cut_left=0,
-        cut_right=bunches*bunchSpacing, n_slices=1000*buckets))
+        cut_right=bunches*bunch_spacing, n_slices=1000*buckets))
     profile2.track()
+
+    tot_charges = np.sum(profile2.n_macroparticles) / \
+                  beam2.n_macroparticles*beam2.intensity
     print("Total number of charges %.10e p" %(np.sum(profile2.n_macroparticles)/beam2.n_macroparticles*beam2.intensity))
 
-    rf_current_fine = rf_beam_current(profile2, rf.omega_rf[0,0], ring.t_rev[0],
-                                      lpf=False)/Ts
-#    rf_current_filt = rf_beam_current(profile2, 2*np.pi*f_rf, ring.t_rev[0],
-#                                      lpf=True)/Ts
-
+    # Calculate fine-grid RF current
+    rf_current_fine = rf_beam_current(profile2, rf.omega_rf[0, 0],
+                                      ring.t_rev[0], lpf=False)/T_s
     fig, ax1 = plt.subplots()
     ax1.plot(profile2.bin_centers, profile2.n_macroparticles, 'g')
     ax1.set_xlabel("Time [s]")
@@ -139,30 +156,22 @@ if RF_CURRENT2 == True:
     ax2.set_ylabel("RF current [A]")
     ax2.legend()
 
-#    fig, ax1 = plt.subplots()
-#    ax1.plot(profile2.bin_centers, profile2.n_macroparticles, 'g')
-#    ax1.set_xlabel("Time [s]")
-#    ax1.set_ylabel("Macro-particle count [1]")
-#    ax2 = ax1.twinx()
-#    ax2.plot(profile2.bin_centers, rf_current_filt.real, 'b', label='filtered, real')
-#    ax2.plot(profile2.bin_centers, rf_current_filt.imag, 'r', label='filtered, imag')
-#    ax2.set_ylabel("RF current [A]")
-#    ax2.legend()
-
     # Find which index in fine grid matches index in coarse grid
-    ind_fine = np.floor((profile2.bin_centers - 0.5*profile2.bin_size)/Ts)
-    print(ind_fine)
+    ind_fine = np.floor((profile2.bin_centers - 0.5*profile2.bin_size)/T_s)
     ind_fine = np.array(ind_fine, dtype=int)
     indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
-    print(indices)
-    print(len(indices))
 
     # Pick total current within one coarse grid
-    rf_current_coarse = np.zeros(int(rf.harmonic[0,0])) + 1j*np.zeros(int(rf.harmonic[0,0]))
+    rf_current_coarse = np.zeros(int(rf.harmonic[0, 0])) + \
+                        1j * np.zeros(int(rf.harmonic[0, 0]))
     rf_current_coarse[0] = np.sum(rf_current_fine[np.arange(indices[0])])
     for i in range(1, len(indices)):
-        rf_current_coarse[i] = np.sum(rf_current_fine[np.arange(indices[i-1], indices[i])])
+        rf_current_coarse[i] = np.sum(
+            rf_current_fine[np.arange(indices[i - 1], indices[i])])
     t_coarse = 5*rf.t_rev[0]/int(rf.harmonic[0,0])*(np.arange(int(rf.harmonic[0,0]))+0.5)
+
+    # Peak RF current on coarse grid
+    peak_rf_current = np.max(np.absolute(rf_current_coarse))
 
     fig, ax1 = plt.subplots()
     ax1.plot(profile2.bin_centers, profile2.n_macroparticles, 'g')
@@ -174,9 +183,8 @@ if RF_CURRENT2 == True:
     ax2.plot(t_coarse, np.absolute(rf_current_coarse), 'p', label='coarse, abs')
     ax2.set_ylabel("RF current [A]")
     ax2.legend()
-    print("Peak beam current, meas %.10f A" %(np.max(np.absolute(rf_current_coarse))))
-    print("Peak beam current, theor %.4f A" %(2*N_b*e/bunchSpacing))
-
+    print("Peak beam current, meas %.10f A" %(peak_rf_current))
+    print("Peak beam current, theor %.4f A" %(2*N_b*e/bunch_spacing))
 
 
 if IMP_RESP == True:
