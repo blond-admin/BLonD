@@ -520,6 +520,7 @@ class SPSOneTurnFeedback(object):
 
         self.dV_mov_av_prev = np.copy(dV_gen_in)
 
+
     def generator_induced_voltage(self):
         r"""Calculates the generator-induced voltage. The transmitter model is
         a simple linear gain [C/V] converting voltage to charge.
@@ -555,6 +556,7 @@ class SPSOneTurnFeedback(object):
         self.induced_voltage('gen')
         # Update memory of previous turn
         self.I_gen_prev = self.I_gen[-self.n_mov_av:]
+
 
     def induced_voltage(self, name):
         r"""Generation of beam- or generator-induced voltage from the beam or
@@ -629,8 +631,6 @@ class SPSOneTurnFeedback(object):
 
         Attributes
         ----------
-#        I_beam : complex array
-#            RF component of the beam charge [C] at the present time step
         I_beam_coarse : complex array
             RF component of the beam charge [C] at the present time step,
             calculated in coarse grid

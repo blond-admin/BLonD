@@ -144,9 +144,6 @@ if RF_CURRENT2 == True:
                   beam2.n_macroparticles*beam2.intensity
     print("Total number of charges %.10e p" %(np.sum(profile2.n_macroparticles)/beam2.n_macroparticles*beam2.intensity))
 
-    # Calculate fine-grid RF current
-#    rf_current_fine = rf_beam_current(profile2, rf.omega_rf[0, 0],
-#                                      ring.t_rev[0], lpf=False)/T_s
     # Calculate fine- and coarse-grid RF current
     rf_current_fine, rf_current_coarse = rf_beam_current(profile2,
         rf.omega_rf[0, 0], ring.t_rev[0], lpf=False,
@@ -163,19 +160,6 @@ if RF_CURRENT2 == True:
     ax6.set_ylabel("RF charge distribution [C]")
     ax6.legend()
 
-    # Find which index in fine grid matches index in coarse grid
-#    ind_fine = np.floor((profile2.bin_centers - 0.5*profile2.bin_size)/T_s)
-#    ind_fine = np.array(ind_fine, dtype=int)
-#    indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
-
-    # Pick total current within one coarse grid
-#    rf_current_coarse = np.zeros(int(rf.harmonic[0, 0])) + \
-#                        1j * np.zeros(int(rf.harmonic[0, 0]))
-#    rf_current_coarse[0] = np.sum(rf_current_fine[np.arange(indices[0])])
-#    for i in range(1, len(indices)):
-#        rf_current_coarse[i] = np.sum(
-#            rf_current_fine[np.arange(indices[i - 1], indices[i])])
-#    t_coarse = 5*rf.t_rev[0]/int(rf.harmonic[0,0])*(np.arange(int(rf.harmonic[0,0]))+0.5)
     t_coarse = np.linspace(0, rf.t_rev[0], num=int(rf.harmonic[0,0]/5))
 
     # Peak RF current on coarse grid
@@ -224,7 +208,6 @@ if FINE_COARSE == True:
 
     # Create a batch of 100 equal, short bunches at HL-LHC intensity
     bunches = 100
-    #T_s = rf.t_rev[0]/rf.harmonic[0, 0]
     N_m = int(1e5)
     N_b = 2.3e11
     bigaussian(ring, rf, beam, 0.1e-9, seed=1234, reinsertion=True)
@@ -239,7 +222,7 @@ if FINE_COARSE == True:
     profile2.track()
 
     # Compare beam response on coarse and fine grid
-    time_fine = profile2.bin_centers - 0.5*profile2.bin_size #np.linspace(0, 100*5e-9, 100*100)
+    time_fine = profile2.bin_centers - 0.5*profile2.bin_size
     time_coarse = np.linspace(0, rf.t_rev[0], 4620)
 
     TWC = SPS3Section200MHzTWC()
@@ -264,24 +247,6 @@ if FINE_COARSE == True:
     rf_current_fine, rf_current_coarse = rf_beam_current(profile2,
         rf.omega_rf[0, 0], ring.t_rev[0], lpf=False,
         downsample={'Ts': rf.t_rev[0]/rf.harmonic[0, 0], 'points': rf.harmonic[0, 0]})
-
-    # Calculate fine-grid RF charge distribution
-#    rf_current_fine = rf_beam_current(profile2, rf.omega_rf[0, 0],
-#                                      ring.t_rev[0], lpf=False)
-
-    # Find which index in fine grid matches index in coarse grid
-#    ind_fine = np.floor((profile2.bin_centers - 0.5*profile2.bin_size)/T_s)
-#    ind_fine = np.array(ind_fine, dtype=int)
-#    indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
-
-    # Pick total current within one coarse grid
-#    rf_current_coarse = np.zeros(int(rf.harmonic[0, 0])) + \
-#                        1j * np.zeros(int(rf.harmonic[0, 0]))
-#    rf_current_coarse[0] = np.sum(rf_current_fine[np.arange(indices[0])])
-#    for i in range(1, len(indices)):
-#        rf_current_coarse[i] = np.sum(
-#            rf_current_fine[np.arange(indices[i - 1], indices[i])])
-    #rf_current_coarse[2310:2500] = 1
 
     OTFB = SPSOneTurnFeedback(rf, beam2, profile2, 3)
     V_beam_fine = OTFB.matr_conv(rf_current_fine, h_beam_fine)
