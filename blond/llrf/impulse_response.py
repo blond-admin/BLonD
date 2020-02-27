@@ -334,7 +334,9 @@ class TravellingWaveCavity(object):
             self.h_beam.imag = self.h_beam.real*np.sin(self.d_omega*t_beam)
             self.h_beam.real *= np.cos(self.d_omega * t_beam)
 
-        if time_coarse:
+        if time_coarse is None:
+            self.h_beam_coarse = None
+        else:
             # Move starting point of impulse response to correct value
             t_beam = time_coarse - time_coarse[0]
 
@@ -347,8 +349,6 @@ class TravellingWaveCavity(object):
                 self.h_beam_coarse.imag = self.h_beam_coarse.real*np.sin(
                     self.d_omega*t_beam)
                 self.h_beam_coarse.real *= np.cos(self.d_omega*t_beam)
-        else:
-            self.h_beam_coarse = None
 
 
     def compute_wakes(self, time):

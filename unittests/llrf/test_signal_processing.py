@@ -418,22 +418,6 @@ class TestRFCurrent(unittest.TestCase):
             downsample={'Ts': T_s, 'points': self.rf.harmonic[0, 0]/5})
         rf_current_coarse /= T_s
 
-        # Calculate fine-grid RF current
-#        rf_current_fine = rf_beam_current(profile2, self.rf.omega_rf[0, 0],
-#                                          self.ring.t_rev[0], lpf=False)/T_s
-
-        # Find which index in fine grid matches index in coarse grid
-#        ind_fine = np.floor((profile2.bin_centers - 0.5*profile2.bin_size)/T_s)
-#        ind_fine = np.array(ind_fine, dtype=int)
-#        indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
-
-        # Pick total current within one coarse grid
-#        rf_current_coarse = np.zeros(int(self.rf.harmonic[0,0])) + \
-#                            1j*np.zeros(int(self.rf.harmonic[0,0]))
-#        rf_current_coarse[0] = np.sum(rf_current_fine[np.arange(indices[0])])
-#        for i in range(1, len(indices)):
-#            rf_current_coarse[i] = np.sum(rf_current_fine[np.arange(indices[i-1], indices[i])])
-
         # Peak RF current on coarse grid
         peak_rf_current = np.max(np.absolute(rf_current_coarse))
         self.assertAlmostEqual(peak_rf_current, 2.9285808008, 9)

@@ -350,22 +350,17 @@ class SPSOneTurnFeedback(object):
 
         # Length of arrays in LLRF
         self.n_coarse = int(self.rf.harmonic[0, 0])
-# TODO: NEW, TEST!
+        # Initialise turn-by-turn variables
+        self.update_variables()
         # Sampling time
-        self.T_s = self.rf.t_rev[0]/self.n_coarse
-# TODO: END
+        #self.T_s = self.rf.t_rev[0]/self.n_coarse
+        # Centers of the RF-buckets
+        #self.rf_centers = (np.arange(self.n_coarse) + 0.5)*self.rf.t_rev[0]/ \
+        #                  self.rf.harmonic[0, 0]
 
         # Array to hold the bucket-by-bucket voltage with LENGTH OF LLRF
         self.V_coarse_tot = np.zeros(self.n_coarse, dtype=complex)
 
-        # Centers of the RF-buckets
-        #self.rf_centers = (np.arange(self.n_coarse) + 0.5) * self.rf.t_rf[0, 0]
-# TODO: NEW, TEST!
-        self.rf_centers = (np.arange(self.n_coarse) + 0.5)*self.rf.t_rev[0]/ \
-                          self.rf.harmonic[0, 0]
-# TODO: END
-
-        # TODO: Bin size can change! Update affected variables!!
         self.logger.debug("Length of arrays in generator path %d",
                           self.n_coarse)
 
@@ -394,20 +389,20 @@ class SPSOneTurnFeedback(object):
     def track(self):
         """Turn-by-turn tracking method."""
 
+        # Update turn-by-turn variables
+        self.update_variables()
         # Present time step
-        self.counter = self.rf.counter[0]
+        #self.counter = self.rf.counter[0]
         # Present carrier frequency: main RF frequency
-        self.omega_c = self.rf.omega_rf[0, self.counter]
-# TODO: NEW, TEST!
+        #self.omega_c = self.rf.omega_rf[0, self.counter]
         # Present sampling time
-        self.T_s = self.rf.t_rev[self.counter]/self.n_coarse
+        #self.T_s = self.rf.t_rev[self.counter]/self.n_coarse
         # Present coarse grid
-        self.rf_centers = (np.arange(self.n_coarse) + 0.5)* \
-            self.rf.t_rev[self.counter]/self.rf.harmonic[0, self.counter]
-# TODO: END
+        #self.rf_centers = (np.arange(self.n_coarse) + 0.5)* \
+        #    self.rf.t_rev[self.counter]/self.rf.harmonic[0, self.counter]
         # Present delay time
-        self.n_delay = int((self.rf.t_rev[self.counter] - self.TWC.tau)
-                           / self.rf.t_rf[0, self.counter])
+        #self.n_delay = int((self.rf.t_rev[self.counter] - self.TWC.tau)
+        #                   / self.rf.t_rf[0, self.counter])
 
         # Update the impulse response at present carrier frequency
         self.TWC.impulse_response_gen(self.omega_c, self.rf_centers)
@@ -434,13 +429,15 @@ class SPSOneTurnFeedback(object):
     def track_no_beam(self):
         """Initial tracking method, before injecting beam."""
 
+        # Update turn-by-turn variables
+        self.update_variables()
         # Present time step
-        self.counter = int(0)
+        #self.counter = int(0)
         # Present carrier frequency: main RF frequency
-        self.omega_c = self.rf.omega_rf[0, self.counter]
+        #self.omega_c = self.rf.omega_rf[0, self.counter]
         # Present delay time
-        self.n_delay = int((self.rf.t_rev[self.counter] - self.TWC.tau)
-                           / self.rf.t_rf[0, self.counter])
+        #self.n_delay = int((self.rf.t_rev[self.counter] - self.TWC.tau)
+        #                   / self.rf.t_rf[0, self.counter])
 
         # Update the impulse response at present carrier frequency
         self.TWC.impulse_response_gen(self.omega_c, self.rf_centers)
@@ -462,6 +459,24 @@ class SPSOneTurnFeedback(object):
         self.logger.debug(
             "Average generator voltage, last half of array %.3e V",
             np.mean(np.absolute(self.V_coarse_ind_gen[int(0.5*self.n_coarse):])))
+
+
+    def update_variables(self):
+        '''Update counter and frequency-dependent variables in a given turn'''
+
+        # Present time step
+        self.counter = self.rf.counter[0]
+        # Present carrier frequency: main RF frequency
+        self.omega_c = self.rf.omega_rf[0, self.counter]
+        # Present sampling time
+        self.T_s = self.rf.t_rev[self.counter]/self.n_coarse
+        # Present coarse grid
+        self.rf_centers = (np.arange(self.n_coarse) + 0.5)* \
+            self.rf.t_rev[self.counter]/self.rf.harmonic[0, self.counter]
+        # Present delay time
+        self.n_delay = int((self.rf.t_rev[self.counter] - self.TWC.tau)
+                           / self.rf.t_rf[0, self.counter])
+
 
     def llrf_model(self):
         """Models the LLRF part of the OTFB.
@@ -644,15 +659,11 @@ class SPSOneTurnFeedback(object):
         """
 
         # Beam current from profile
-#        self.I_beam = rf_beam_current(self.profile, self.omega_c,
-#                                      self.rf.t_rev[self.counter], lpf=lpf)
-# TODO: TEST
         self.I_beam_fine, self.I_beam_coarse = \
             rf_beam_current(self.profile,
                             self.omega_c, self.rf.t_rev[self.counter], lpf=lpf,
                             downsample={'Ts': self.T_s,
                                         'points': self.n_coarse})
-# TODO: END
 
         # Beam-induced voltage
         self.induced_voltage('beam')

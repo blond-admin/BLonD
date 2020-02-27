@@ -226,10 +226,13 @@ if FINE_COARSE == True:
     time_coarse = np.linspace(0, rf.t_rev[0], 4620)
 
     TWC = SPS3Section200MHzTWC()
-    TWC.impulse_response_beam(2*np.pi*f_rf, time_fine)
+    TWC.impulse_response_beam(2*np.pi*f_rf, time_fine, time_coarse)
     h_beam_fine = TWC.h_beam
-    TWC.impulse_response_beam(2*np.pi*f_rf, time_coarse)
-    h_beam_coarse = TWC.h_beam
+    h_beam_coarse = TWC.h_beam_coarse
+#    TWC.impulse_response_beam(2*np.pi*f_rf, time_fine)
+#    h_beam_fine = TWC.h_beam
+#    TWC.impulse_response_beam(2*np.pi*f_rf, time_coarse)
+#    h_beam_coarse = TWC.h_beam
     print(len(time_fine), len(h_beam_fine))
     print(len(time_coarse), len(h_beam_coarse))
 
