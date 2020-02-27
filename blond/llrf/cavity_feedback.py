@@ -365,7 +365,6 @@ class SPSOneTurnFeedback(object):
         self.logger.debug("Moving average over %d points", self.n_mov_av)
         # Initialise moving average
         if self.n_mov_av < 2:
-            #FeedbackError
             raise RuntimeError("ERROR in SPSOneTurnFeedback: profile has to" +
                                " have at least 12.5 ns resolution!")
         self.dV_mov_av_prev = np.zeros(self.n_coarse, dtype=complex)
@@ -408,9 +407,7 @@ class SPSOneTurnFeedback(object):
 
         # Beam-induced voltage
         self.induced_voltage('beam')
-# TODO: TEST
         self.induced_voltage('beam_coarse')
-# TODO: END
 
     def call_conv(self, signal, kernel):
         """Routine to call optimised C++ convolution"""
@@ -490,38 +487,26 @@ class SPSOneTurnFeedback(object):
         self.logger.debug("Matrix convolution for V_ind")
 
         if name == "beam":
-            # Compute the beam-induced voltage on the fine grid by
-            # convolution
-#            self.__setattr__("V_fine_ind_"+name,
-#                             self.matr_conv(
-#                             self.__getattribute__("I_"+name),
-#                                            self.TWC.__getattribute__("h_"+name)))
-#
-#            self.V_fine_ind_beam = -self.n_cavities \
-#                * self.V_fine_ind_beam[:self.profile.n_slices]
-
-# TODO: TEST
+            # Compute the beam-induced voltage on the fine grid
             self.__setattr__("V_fine_ind_"+name,
                 self.matr_conv(self.__getattribute__("I_"+name+"_fine"),
                                self.TWC.__getattribute__("h_"+name)))
             self.V_fine_ind_beam *= -self.n_cavities
-# TODO: END
 
-# TODO: TEST
-        if name == "beam_coarse" and self.TWC.h_beam_coarse:
-            # Compute the beam-induced voltage on the coarse grid by
-            # convolution
-            self.__setattr__("V_coarse_ind_"+name,
+        if self.TWC.h_beam_coarse is None:
+            pass
+        elif name == "beam_coarse":
+            # Compute the beam-induced voltage on the coarse grid
+            self.__setattr__("V_coarse_ind_beam",
                 self.matr_conv(self.__getattribute__("I_"+name),
                                self.TWC.__getattribute__("h_"+name)))
             self.V_coarse_ind_beam *= -self.n_cavities
-# TODO: END
 
         if name == "gen":
+            # Compute the generator-induced voltage on the coarse frid
             self.__setattr__("V_coarse_ind_" + name,
                 self.matr_conv(self.__getattribute__("I_"+name),
                                self.TWC.__getattribute__("h_"+name)))
-            # TODO: TEST AGAIN since convolution changed
             # Circular convolution
             self.V_coarse_ind_gen = +self.n_cavities \
                 *self.V_coarse_ind_gen[self.n_mov_av:self.n_coarse+self.n_mov_av]

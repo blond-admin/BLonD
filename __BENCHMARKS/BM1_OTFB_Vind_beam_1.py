@@ -210,7 +210,7 @@ if FINE_COARSE == True:
     bunches = 100
     N_m = int(1e5)
     N_b = 2.3e11
-    bigaussian(ring, rf, beam, 0.1e-9, seed=1234, reinsertion=True)
+    bigaussian(ring, rf, beam, 1.8e-9/4, seed=1234, reinsertion=True)
     beam2 = Beam(ring, bunches*N_m, bunches*N_b)
     bunch_spacing = 5*rf.t_rf[0, 0]
     buckets = 5 * bunches
@@ -221,49 +221,64 @@ if FINE_COARSE == True:
         cut_right=bunches*bunch_spacing, n_slices=1000*buckets))
     profile2.track()
 
-    # Compare beam response on coarse and fine grid
+    # Compare beam impulse response on coarse and fine grid
     time_fine = profile2.bin_centers - 0.5*profile2.bin_size
     time_coarse = np.linspace(0, rf.t_rev[0], 4620)
 
     TWC = SPS3Section200MHzTWC()
-    TWC.impulse_response_beam(2*np.pi*f_rf, time_fine, time_coarse)
+    TWC.impulse_response_beam(rf.omega_rf[0,0], time_fine, time_coarse)
     h_beam_fine = TWC.h_beam
     h_beam_coarse = TWC.h_beam_coarse
-#    TWC.impulse_response_beam(2*np.pi*f_rf, time_fine)
-#    h_beam_fine = TWC.h_beam
-#    TWC.impulse_response_beam(2*np.pi*f_rf, time_coarse)
-#    h_beam_coarse = TWC.h_beam
     print(len(time_fine), len(h_beam_fine))
     print(len(time_coarse), len(h_beam_coarse))
-
-    plt.figure()
-    plt.plot(time_fine*1e6, h_beam_fine.real, 'b', marker='.', label='h_beam, fine, real')
-    plt.plot(time_coarse*1e6, h_beam_coarse.real, 'teal', marker='.', label='h_beam, coarse, real')
-    plt.plot(time_fine*1e6, h_beam_fine.imag, 'r', marker='.', label='h_beam, fine, imag')
-    plt.plot(time_coarse*1e6, h_beam_coarse.imag, 'orange', marker='.', label='h_beam, coarse, imag')
-    plt.xlabel("Time [us]")
-    plt.ylabel("Wake/impulse response [Ohms/s]")
-    plt.legend()
-
 
     # Calculate fine- and coarse-grid RF charge distribution
     rf_current_fine, rf_current_coarse = rf_beam_current(profile2,
         rf.omega_rf[0, 0], ring.t_rev[0], lpf=False,
         downsample={'Ts': rf.t_rev[0]/rf.harmonic[0, 0], 'points': rf.harmonic[0, 0]})
 
-    OTFB = SPSOneTurnFeedback(rf, beam2, profile2, 3)
-    V_beam_fine = OTFB.matr_conv(rf_current_fine, h_beam_fine)
-    V_beam_coarse = OTFB.matr_conv(rf_current_coarse, h_beam_coarse)
+    OTFB = SPSOneTurnFeedback(rf, beam2, profile2, 3, n_cavities=1)
+    V_beam_fine = -OTFB.matr_conv(rf_current_fine, h_beam_fine)
+    V_beam_coarse = -OTFB.matr_conv(rf_current_coarse, h_beam_coarse)
     print(len(time_fine), rf_current_fine.shape, V_beam_fine.shape)
     print(len(time_coarse), rf_current_coarse.shape, V_beam_coarse.shape)
 
+    # Impulse response and induced voltage through OTFB object
+    OTFB.TWC.impulse_response_beam(OTFB.omega_c, OTFB.profile.bin_centers,
+                                   OTFB.rf_centers)
+    OTFB.beam_induced_voltage(lpf=False)
+    np.set_printoptions(precision=10)
+    #print(repr((OTFB.TWC.h_beam[::1000])[:100]))
+    #print(repr(OTFB.TWC.h_beam_coarse[:100]))
+    #print(repr((OTFB.V_fine_ind_beam[::1000])[:100]))
+    #print(repr(OTFB.V_coarse_ind_beam[:100]))
+
+    plt.figure()
+    plt.plot(time_fine*1e6, h_beam_fine.real, 'b', marker='.', label='h_beam, fine, real')
+    plt.plot(time_fine*1e6, OTFB.TWC.h_beam.real, 'b', marker='.', alpha=0.5, label='h_beam, fine, real')
+    plt.plot(time_coarse*1e6, h_beam_coarse.real, 'teal', marker='.', label='h_beam, coarse, real')
+    plt.plot(time_coarse*1e6, OTFB.TWC.h_beam_coarse.real, 'teal', marker='.', alpha=0.5, label='h_beam, coarse, real')
+    plt.plot(time_fine*1e6, h_beam_fine.imag, 'r', marker='.', label='h_beam, fine, imag')
+    plt.plot(time_fine*1e6, OTFB.TWC.h_beam.imag, 'r', marker='.', alpha=0.5, label='h_beam, fine, imag')
+    plt.plot(time_coarse*1e6, h_beam_coarse.imag, 'orange', marker='.', label='h_beam, coarse, imag')
+    plt.plot(time_coarse*1e6, OTFB.TWC.h_beam_coarse.imag, 'orange', marker='.', alpha=0.5, label='h_beam, coarse, imag')
+    plt.xlabel("Time [us]")
+    plt.ylabel("Wake/impulse response [Ohms/s]")
+    plt.xlim((-1,5))
+    plt.legend()
+
     plt.figure()
     plt.plot(time_fine*1e6, V_beam_fine.real*1e-6, 'b', marker='.', label='V_beam, fine, real')
+    plt.plot(time_fine*1e6, OTFB.V_fine_ind_beam.real*1e-6, 'b', marker='.', alpha=0.5, label='V_beam, fine, real')
     plt.plot(time_coarse*1e6, V_beam_coarse.real*1e-6, 'teal', marker='.', label='V_beam, coarse, real')
+    plt.plot(time_coarse*1e6, OTFB.V_coarse_ind_beam.real*1e-6, 'teal', marker='.', alpha=0.5, label='V_beam, coarse, real')
     plt.plot(time_fine*1e6, V_beam_fine.imag*1e-6, 'r', marker='.', label='V_beam, fine, imag')
+    plt.plot(time_fine*1e6, OTFB.V_fine_ind_beam.imag*1e-6, 'r', marker='.', alpha=0.5, label='V_beam, fine, imag')
     plt.plot(time_coarse*1e6, V_beam_coarse.imag*1e-6, 'orange', marker='.', label='V_beam, coarse, imag')
+    plt.plot(time_coarse*1e6, OTFB.V_coarse_ind_beam.imag*1e-6, 'orange', marker='.', alpha=0.5, label='V_beam, coarse, imag')
     plt.xlabel("Time [us]")
-    plt.ylabel("Induced voltage [MV]")
+    plt.ylabel("Induced voltage per cavity [MV]")
+    plt.xlim((-1,5))
     plt.legend()
 
 
