@@ -445,8 +445,12 @@ class SPSOneTurnFeedback(object):
             + self.open_drive*self.V_set
 
         # Generator charge from voltage, transmitter model
+# TODO: TEST
         self.I_gen = self.G_tx*self.V_gen \
-            / self.TWC.R_gen*self.rf.t_rf[0, self.counter]
+            / self.TWC.R_gen*self.T_s
+# TODO: END
+#        self.I_gen = self.G_tx*self.V_gen \
+#            / self.TWC.R_gen*self.rf.t_rf[0, self.counter]
 
         # Circular convolution: attach last points of previous turn
         self.I_gen = np.concatenate((self.I_gen_prev, self.I_gen))

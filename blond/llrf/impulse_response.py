@@ -281,9 +281,8 @@ class TravellingWaveCavity(object):
 
         # Impulse response if not on carrier frequency
         if np.fabs((self.d_omega)/self.omega_r) > 1e-12:
-
-            self.h_gen.imag = self.h_gen.real*np.sin(self.d_omega * t_gen)
-            self.h_gen.real *= np.cos(self.d_omega * t_gen)
+            self.h_gen = self.h_gen.real*(np.cos(self.d_omega*t_gen) +
+                                          1j*np.sin(self.d_omega*t_gen))
 
     def impulse_response_beam(self, omega_c, time_fine, time_coarse=None):
         r"""Impulse response from the cavity towards the beam. For a signal
@@ -331,8 +330,9 @@ class TravellingWaveCavity(object):
 
         # Impulse response if not on carrier frequency
         if np.fabs((self.d_omega)/self.omega_r) > 1e-12:
-            self.h_beam.imag = self.h_beam.real*np.sin(self.d_omega*t_beam)
-            self.h_beam.real *= np.cos(self.d_omega * t_beam)
+            self.h_beam = self.h_beam.real*(np.cos(self.d_omega*t_beam) +
+                                            1j*np.sin(self.d_omega*t_beam))
+
 
         if time_coarse is None:
             self.h_beam_coarse = None
@@ -346,10 +346,9 @@ class TravellingWaveCavity(object):
 
             # Impulse response if not on carrier frequency
             if np.fabs((self.d_omega)/self.omega_r) > 1e-12:
-                self.h_beam_coarse.imag = self.h_beam_coarse.real*np.sin(
-                    self.d_omega*t_beam)
-                self.h_beam_coarse.real *= np.cos(self.d_omega*t_beam)
-
+                self.h_beam_coarse = self.h_beam_coarse.real* \
+                                     (np.cos(self.d_omega*t_beam) +
+                                      1j*np.sin(self.d_omega*t_beam))
 
     def compute_wakes(self, time):
         r"""Computes the wake fields towards the beam and generator on the
