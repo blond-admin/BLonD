@@ -197,6 +197,13 @@ option ``solver = 'simple'`` can be used to approximate the above equation as
 .. math:: \Delta t^{n+1} = \Delta t^n + \frac{\eta_0^{n+1} T_0^{n+1}}{(\beta_s^{n+1})^{2} E_s^{n+1}} \Delta E^{n+1} .
    :label: 2-3-simple
 
+In a newer implementation of the drift equation, default since 2020, we use the momentum compaction factors directly,
+instead of the slippage factors, to calculate the time slippage,
+
+.. math:: \Delta t^{n+1} = \Delta t^n + T_0^{n+1} \left[(1 + \alpha_0^{n+1}\delta^{n+1} + \alpha_1^{n+1}(\delta^{n+1})^2 +
+    \alpha_2^{n+1}(\delta^{n+1})^3) \left( \frac{1 + \frac{\Delta E^{n+1}}{E_s^{n+1}}}{1 + \delta^{n+1}} \right) - 1 \right]
+    :label: 2-alpha
+
 
 The synchronous particle
 ------------------------
