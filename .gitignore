@@ -8,6 +8,7 @@
 *.pydevproject
 
 .settings
+.pytest_cache
 
 /__doc/_build/
 /__doc/build/
