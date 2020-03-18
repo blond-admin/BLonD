@@ -158,9 +158,11 @@ class testProfileClass(unittest.TestCase):
             OtherSlicesOptions=OtherSlicesOptions)
 
     def test(self):
-
+        rtol = 1e-6             # relative tolerance
+        atol = 0                # absolute tolerance
+        delta = 1e-14
         self.assertAlmostEqual(self.ring.t_rev[0], 5.71753954209e-07,
-                               delta=1e-16, msg='Ring: t_rev[0] not correct')
+                               delta=delta, msg='Ring: t_rev[0] not correct')
 
         self.assertSequenceEqual(
             self.profile1.n_macroparticles.tolist(),
@@ -222,7 +224,7 @@ class testProfileClass(unittest.TestCase):
              0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
              0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
              0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-            1e-10, 0,
+            rtol=rtol, atol=atol,
             err_msg="Profile3 not correct")
 
         np.testing.assert_allclose(
@@ -257,7 +259,7 @@ class testProfileClass(unittest.TestCase):
              5.95936750584e-08, 2.82479541435e-08, 1.33897925887e-08,
              6.34688728235e-09, 3.00848674436e-09, 1.42605775497e-09,
              6.75979730414e-10, 3.20452612975e-10],
-            1e-10, 0,
+            rtol=rtol, atol=atol,
             err_msg="Profile4 not correct")
 
         np.testing.assert_allclose(
@@ -265,8 +267,7 @@ class testProfileClass(unittest.TestCase):
                       self.profile3.bunchPosition,
                       self.profile4.bunchPosition]),
             [2.86004598801e-07, 2.86942707778e-07, 2.86090181555e-07],
-            1e-10,
-            0,
+            rtol=rtol, atol=atol,
             err_msg='Bunch position values not correct')
 
         np.testing.assert_allclose(
@@ -274,8 +275,7 @@ class testProfileClass(unittest.TestCase):
                       self.profile3.bunchLength,
                       self.profile4.bunchLength]),
             [9.27853156526e-08, 9.24434506817e-08, 9.18544356769e-08],
-            1e-10,
-            0,
+            rtol=rtol, atol=atol,
             err_msg='Bunch length values not correct')
 
 
