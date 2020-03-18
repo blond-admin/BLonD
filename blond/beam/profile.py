@@ -17,11 +17,12 @@
 from __future__ import division, print_function
 from builtins import object
 import numpy as np
-from numpy.fft import rfft, rfftfreq
+# from numpy.fft import rfft, rfftfreq
 from scipy import ndimage
 import ctypes
 from ..toolbox import filters_and_fitting as ffroutines
 from ..utils import bmath as bm
+
 
 class CutOptions(object):
     r"""
@@ -106,11 +107,11 @@ class CutOptions(object):
         self.RFParams = RFSectionParameters
 
         if self.cuts_unit == 'rad' and self.RFParams is None:
-            #CutError
-            raise RuntimeError('You should pass an RFParams object to ' +
-                               'convert from radians to seconds')
+            # CutError
+            raise RuntimeError('You should pass an RFParams object to '
+                               + 'convert from radians to seconds')
         if self.cuts_unit != 'rad' and self.cuts_unit != 's':
-            #CutError
+            # CutError
             raise RuntimeError('cuts_unit should be "s" or "rad"')
 
         self.edges = np.zeros(n_slices + 1, dtype=float)
@@ -141,10 +142,10 @@ class CutOptions(object):
 
         else:
 
-            self.cut_left = self.convert_coordinates(self.cut_left,
-                                                     self.cuts_unit)
-            self.cut_right = self.convert_coordinates(self.cut_right,
-                                                      self.cuts_unit)
+            self.cut_left = float(self.convert_coordinates(self.cut_left,
+                                                           self.cuts_unit))
+            self.cut_right = float(self.convert_coordinates(self.cut_right,
+                                                            self.cuts_unit))
 
         self.edges = np.linspace(self.cut_left, self.cut_right,
                                  self.n_slices + 1)
@@ -209,7 +210,6 @@ class FitOptions(object):
     """
 
     def __init__(self, fit_option=None, fitExtraOptions=None):
-
         """
         Constructor
         """
@@ -243,7 +243,6 @@ class FilterOptions(object):
     """
 
     def __init__(self, filterMethod=None, filterExtraOptions=None):
-
         """
         Constructor
         """
@@ -281,7 +280,6 @@ class OtherSlicesOptions(object):
     """
 
     def __init__(self, smooth=False, direct_slicing=False):
-
         """
         Constructor
         """
@@ -420,8 +418,8 @@ class Profile(object):
 
     def set_slices_parameters(self):
         self.n_slices, self.cut_left, self.cut_right, self.n_sigma, \
-                self.edges, self.bin_centers, self.bin_size = \
-                self.cut_options.get_slices_parameters()
+            self.edges, self.bin_centers, self.bin_size = \
+            self.cut_options.get_slices_parameters()
 
     def track(self):
         """
@@ -431,31 +429,50 @@ class Profile(object):
         for op in self.operations:
             op()
 
-    def _slice(self):
+    def _slice(self, reduce=True):
         """
-        Constant space slicing with a constant frame. 
+        Constant space slicing with a constant frame.
         """
-        bm.slice(self)
-        # libblond.histogram(self.Beam.dt.ctypes.data_as(ctypes.c_void_p), 
-        #                  self.n_macroparticles.ctypes.data_as(ctypes.c_void_p), 
-        #                  ctypes.c_double(self.cut_left), 
-        #                  ctypes.c_double(self.cut_right), 
-        #                  ctypes.c_int(self.n_slices), 
-        #                  ctypes.c_int(self.Beam.n_macroparticles))
+        bm.slice(self.Beam.dt, self.n_macroparticles, self.cut_left,
+                 self.cut_right)
 
-    def _slice_smooth(self):
+        if bm.mpiMode() and reduce:
+            self.reduce_histo()
+
+    def reduce_histo(self, dtype=np.uint32):
+        if not bm.mpiMode():
+            raise RuntimeError(
+                'ERROR: Cannot use this routine unless in MPI Mode')
+
+        from ..utils.mpi_config import worker
+
+        # Convert to uint32t for better performance
+        self.n_macroparticles = self.n_macroparticles.astype(dtype, order='C')
+
+        worker.allreduce(self.n_macroparticles)
+
+        # Convert back to float64
+        self.n_macroparticles = self.n_macroparticles.astype(
+            np.float64, order='C')
+
+    def scale_histo(self):
+        if not bm.mpiMode():
+            raise RuntimeError(
+                'ERROR: Cannot use this routine unless in MPI Mode')
+
+        from ..utils.mpi_config import worker
+        bm.mul(self.n_macroparticles, worker.workers, self.n_macroparticles)
+
+    def _slice_smooth(self, reduce=True):
         """
         At the moment 4x slower than _slice but smoother (filtered).
         """
-        bm.slice_smooth(self)
-        # libblond.smooth_histogram(self.Beam.dt.ctypes.data_as(ctypes.c_void_p), 
-        #                  self.n_macroparticles.ctypes.data_as(ctypes.c_void_p), 
-        #                  ctypes.c_double(self.cut_left), 
-        #                  ctypes.c_double(self.cut_right), 
-        #                  ctypes.c_uint(self.n_slices), 
-        #                  ctypes.c_uint(self.Beam.n_macroparticles))
+        bm.slice_smooth(self.Beam.dt, self.n_macroparticles, self.cut_left,
+                        self.cut_right)
 
-    
+        if bm.mpiMode() and reduce:
+            self.reduce_histo(dtype=np.float64)
+
     def apply_fit(self):
         """
         It applies Gaussian fit to the profile.
@@ -524,14 +541,14 @@ class Profile(object):
         Frequency array of the beam spectrum
         """
 
-        self.beam_spectrum_freq = rfftfreq(n_sampling_fft, self.bin_size)
+        self.beam_spectrum_freq = bm.rfftfreq(n_sampling_fft, self.bin_size)
 
     def beam_spectrum_generation(self, n_sampling_fft):
         """
         Beam spectrum calculation
         """
 
-        self.beam_spectrum = rfft(self.n_macroparticles, n_sampling_fft)
+        self.beam_spectrum = bm.rfft(self.n_macroparticles, n_sampling_fft)
 
     def beam_profile_derivative(self, mode='gradient'):
         """
@@ -554,7 +571,7 @@ class Profile(object):
             diffCenters = x[0:-1] + dist_centers/2
             derivative = np.interp(x, diffCenters, derivative)
         else:
-            #ProfileDerivativeError
+            # ProfileDerivativeError
             raise RuntimeError('Option for derivative is not recognized.')
 
         return x, derivative

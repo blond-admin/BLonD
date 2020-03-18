@@ -44,7 +44,10 @@ class SanityCheck(object):
     def compile_docs(self):
 
         print("COMPILING DOCUMENTATION...")
-        os.chdir("__doc")
+        if os.path.isdir("__doc"):
+            os.chdir("__doc")
+        else:
+            os.chdir("../__doc")
         os.system("make html")
         os.chdir("..")
         print("DOCUMENTATION COMPILED")
@@ -62,7 +65,7 @@ class SanityCheck(object):
             try:
                 print("~~~ EXECUTING PEP8 CHECK ON: %s ~~~" % x)
                 subprocess.check_output(
-                    ['pep8', '--ignore', 'W291,W293,W391,E303,E128', x])
+                    ['pycodestyle', '--ignore', 'W291,W293,W391,E303,E128', x])
             except subprocess.CalledProcessError as e:
                 print(e.output.decode())
         files = []
@@ -109,7 +112,7 @@ class SanityCheck(object):
         print("EXECUTING UNITTESTS")
         tests = []
         if isinstance(unitTests, str) and (unitTests == ''):
-            for path, _, files in os.walk("unittests"):
+            for path, _, files in os.walk("../unittests"):
                 tests += [os.path.join(path, file)
                           for file in files if file.startswith('test')]
         elif isinstance(unitTests, str):
@@ -135,7 +138,7 @@ def main():
         description=textwrap.dedent('''
         SANITY CHECKER; run before committing from BLonD folder
         E.g. > python sanity_check.py -p "llrf/signal_processing.py beam/profile.py"
-             > python sanity_check.py -u "unittests/general"
+             > python sanity_check.py -u "../unittests/general"
              > python sanity_check.py -a
              > python sanity_check.py -p "git" (pep8 report only committed or modified files)
         '''))
@@ -157,7 +160,10 @@ def main():
 
     # Passing a default option if no argument is given
     if len(sys.argv) == 1:
-        args.unitTests = 'unitTests'
+        if os.path.isdir('unittests'):
+            args.unitTests = 'unittests'
+        else:
+            args.unitTests = '../unittests'
 
     # Call the actual sanity check
     SanityCheck(args.all, args.docs, args.pep8Files, args.unitTests)

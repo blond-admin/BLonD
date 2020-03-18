@@ -28,7 +28,6 @@ from ..trackers.utilities import is_in_separatrix
 from ..beam.profile import Profile, CutOptions
 from ..trackers.utilities import potential_well_cut, minmax_location
 
-
 def matched_from_line_density(beam, full_ring_and_RF, line_density_input=None,
                               main_harmonic_option='lowest_freq',
                               TotalInducedVoltage=None, plot=False,
@@ -76,7 +75,7 @@ def matched_from_line_density(beam, full_ring_and_RF, line_density_input=None,
     if line_density_type is not 'user_input':
         # Time coordinates for the line density
         n_points_line_den = int(1e4)
-        time_line_den = np.linspace(time_potential[0], time_potential[-1],
+        time_line_den = np.linspace(float(time_potential[0]), float(time_potential[-1]),
                                     n_points_line_den)
         line_den_resolution = time_line_den[1] - time_line_den[0]
                         
@@ -226,7 +225,7 @@ def matched_from_line_density(beam, full_ring_and_RF, line_density_input=None,
     
         # Interpolating the line density derivative and potential well for
         # Abel transform
-        time_abel = np.linspace(time_half[0], time_half[-1], n_points_abel)
+        time_abel = np.linspace(float(time_half[0]), float(time_half[-1]), n_points_abel)
         line_den_diff_abel = np.interp(time_abel, time_half, line_den_diff)
         potential_abel = np.interp(time_abel, time_half, potential_half)
         
@@ -296,9 +295,9 @@ def matched_from_line_density(beam, full_ring_and_RF, line_density_input=None,
 
     # Initializing the grids by reducing the resolution to a 
     # n_points_grid*n_points_grid frame
-    time_for_grid = np.linspace(time_line_den[0], time_line_den[-1],
+    time_for_grid = np.linspace(float(time_line_den[0]), float(time_line_den[-1]),
                                 n_points_grid)
-    deltaE_for_grid = np.linspace(-max_deltaE, max_deltaE, n_points_grid)
+    deltaE_for_grid = np.linspace(-float(max_deltaE), float(max_deltaE), n_points_grid)
     potential_well_for_grid = np.interp(time_for_grid, time_potential_sep,
                                         potential_well_sep)
     potential_well_for_grid = (potential_well_for_grid - 
@@ -356,10 +355,11 @@ def matched_from_line_density(beam, full_ring_and_RF, line_density_input=None,
         
         # Calculating the induced voltage
         induced_voltage_object.induced_voltage_sum()
-        
+        gc.collect()
         return [hamiltonian_coord, distribution_function_], \
                induced_voltage_object
     else:
+        gc.collect()
         return [hamiltonian_coord, distribution_function_],\
                [time_line_den, line_density_]
 
@@ -477,12 +477,12 @@ def matched_from_distribution_function(beam, full_ring_and_RF,
         
         # Initializing the grids by reducing the resolution to a
         # n_points_grid*n_points_grid frame
-        time_potential_low_res = np.linspace(time_potential_sep[0],
-                                             time_potential_sep[-1],
+        time_potential_low_res = np.linspace(float(time_potential_sep[0]),
+                                             float(time_potential_sep[-1]),
                                              n_points_grid)
         time_resolution_low = (time_potential_low_res[1] -
                                time_potential_low_res[0])
-        deltaE_coord_array = np.linspace(-max_deltaE, max_deltaE,
+        deltaE_coord_array = np.linspace(-float(max_deltaE), float(max_deltaE),
                                          n_points_grid)
         potential_well_low_res = np.interp(time_potential_low_res,
                                         time_potential_sep, potential_well_sep)
@@ -504,7 +504,7 @@ def matched_from_distribution_function(beam, full_ring_and_RF,
             right_time = time_potential_low_res[np.min((time_indexes[-1],
                                                         n_points_grid-1))]
             # Potential well calculation with high resolution in that frame
-            time_potential_high_res = np.linspace(left_time, right_time,
+            time_potential_high_res = np.linspace(float(left_time), float(right_time),
                                                   n_points_potential)
             full_ring_and_RF2.potential_well_generation(
                                      n_points=n_points_potential,

@@ -24,7 +24,7 @@ class _FrequencyOffset(object):
     Compute effect of having a different RF and design frequency
     '''
 
-    def __init__(self, Ring, RFStation, System = None):
+    def __init__(self, Ring, RFStation, System = None, MainH = None):
 
         #: | *Import Ring*
         self.ring = Ring
@@ -48,6 +48,13 @@ class _FrequencyOffset(object):
         if self.system and not all((isinstance(s, int) for s in self.system)):
             raise TypeError("System must be int, iterable of ints or None")
 
+        #: | *Main harmonic the delta F is taken as being in reference to, 
+        #: |  if None RFStation.harmonic[0][0] is taken as the main*
+        if MainH is not None:
+            self.mainH = MainH
+        else:
+            self.mainH = RFStation.harmonic[0][0]
+
 
     def set_frequency(self, NewFrequencyProgram):
 
@@ -63,8 +70,8 @@ class _FrequencyOffset(object):
                 NewFrequencyProgram = np.interp(self.ring.cycle_time[:end_turn],\
                                  NewFrequencyProgram[0], NewFrequencyProgram[1])
 
-        #: | *Store new frequency as numpy array*
-        self.new_frequency = np.array(NewFrequencyProgram)
+        #: | *Store new frequency as numpy array relative to the main harmonic*
+        self.new_frequency = np.array(NewFrequencyProgram)/self.mainH
 
         self.end_turn = len(self.new_frequency)
 
@@ -79,11 +86,11 @@ class _FrequencyOffset(object):
         each RF system
         '''
 
-        delta_phi = (2*np.pi * self.rf_station.harmonic[:,:self.end_turn]
-                     * (self.rf_station.harmonic[:,:self.end_turn]
-                     * self.new_frequency - self.design_frequency)
+        delta_phi = (2*np.pi * self.rf_station.harmonic[:,:self.end_turn] 
+                     * (self.rf_station.harmonic[:,:self.end_turn] 
+                         * self.new_frequency
+                         - self.design_frequency)
                      / self.design_frequency)
-
         self.phase_slippage = np.cumsum(delta_phi, axis=1)
 
 
@@ -164,9 +171,9 @@ class FixedFrequency(_FrequencyOffset):
         '''
 
         fixed_frequency_prog = np.ones(self.end_fixed_turn)*self.fixed_frequency
-        transition_frequency_prog = np.linspace(self.fixed_frequency, \
-                                                self.end_frequency, \
-                                               (self.end_transition_turn
+        transition_frequency_prog = np.linspace(float(self.fixed_frequency),
+                                                float(self.end_frequency),
+                                                (self.end_transition_turn
                                                 - self.end_fixed_turn))
 
         self.frequency_prog = np.concatenate((fixed_frequency_prog, \

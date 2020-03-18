@@ -124,6 +124,11 @@ class RFStationOptions(object):
         elif isinstance(input_data, tuple):
 
             output_data = []
+
+            #Hot fix to safely treat t_start 
+            if t_start is None:
+                t_start = 0
+
             interp_time = interp_time + t_start
 
             # If there is only one rf harmonic, it is expected that the user
@@ -339,8 +344,8 @@ def combine_rf_functions(function_list, merge_type='linear', resolution=1e-3,
                 k = (1./tDur)*(1-(1.*Vinit/Vfin)**0.5)
 
                 nSteps = int(tDur/resolution[i-1])
-                time = np.linspace(fullTime[-1], function_list[i][1][0],
-                                   nSteps)
+                time = np.linspace(float(fullTime[-1]),
+                                   float(function_list[i][1][0]), nSteps)
                 volts = Vinit/((1-k*(time-time[0]))**2)
 
                 fullFunction += volts.tolist() + 2*[function_list[i][0]]
@@ -365,7 +370,7 @@ def combine_rf_functions(function_list, merge_type='linear', resolution=1e-3,
                 k = (1./tDur)*(1-(1.*Vinit/Vfin)**0.5)
 
                 nSteps = int(tDur/resolution[i-1])
-                time = np.linspace(fullTime[-1], funcTime[0], nSteps)
+                time = np.linspace(float(fullTime[-1]), float(funcTime[0]), nSteps)
                 volts = Vinit/((1-k*(time-time[0]))**2)
 
                 fullFunction += volts.tolist() + funcProg.tolist()
@@ -398,9 +403,9 @@ def combine_rf_functions(function_list, merge_type='linear', resolution=1e-3,
 
                 tDur = function_list[i][1][0] - fullTime[-1]
                 nSteps = int(tDur/resolution[i-1])
-                time = np.linspace(fullTime[-1], function_list[i][1][0],
+                time = np.linspace(float(fullTime[-1]), float(function_list[i][1][0]),
                                    nSteps)
-                tuneInterp = np.linspace(initTune, finalTune, nSteps)
+                tuneInterp = np.linspace(float(initTune), float(finalTune), nSteps)
 
                 mergePars = Ring.parameters_at_time(time)
 
@@ -430,7 +435,7 @@ def combine_rf_functions(function_list, merge_type='linear', resolution=1e-3,
 
                 tDur = funcTime[0] - fullTime[-1]
                 nSteps = int(tDur/resolution[i-1])
-                time = np.linspace(fullTime[-1], funcTime[0], nSteps)
+                time = np.linspace(float(fullTime[-1]), float(funcTime[0]), nSteps)
 
                 initPars = Ring.parameters_at_time(fullTime[-1])
                 finalPars = Ring.parameters_at_time(funcTime[0])
@@ -452,7 +457,7 @@ def combine_rf_functions(function_list, merge_type='linear', resolution=1e-3,
                      np.sqrt(1 - (finalPars['delta_E']/vFin)**2)) /
                     (finalPars['beta']**2 * finalPars['energy']))
 
-                tuneInterp = np.linspace(initTune, finalTune, nSteps)
+                tuneInterp = np.linspace(float(initTune), float(finalTune), nSteps)
 
                 mergePars = Ring.parameters_at_time(time)
 
