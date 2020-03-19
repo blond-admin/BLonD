@@ -118,7 +118,20 @@
 <li class="toctree-l2"><a class="reference internal" href="modules/lhc_cavity_loop.html#references">References</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="modules/sps_cavity_loop.html">SPS Cavity Loop</a></li>
+<li class="toctree-l1"><a class="reference internal" href="modules/sps_cavity_loop.html">SPS Cavity Loop</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="modules/sps_cavity_loop.html#travelling-wave-cavity">TRAVELLING WAVE CAVITY</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="modules/sps_cavity_loop.html#induced-voltage-calculation">Induced-voltage calculation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="modules/sps_cavity_loop.html#the-cavity-controller">THE CAVITY CONTROLLER</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="modules/sps_cavity_loop.html#low-level-rf">Low-level RF</a></li>
+<li class="toctree-l3"><a class="reference internal" href="modules/sps_cavity_loop.html#id1">Generator-induced voltage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="modules/sps_cavity_loop.html#id2">Beam-induced voltage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="modules/sps_cavity_loop.html#from-coarse-to-fine-grid-and-back">From coarse to fine grid and back</a></li>
+</ul>
+</li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="modules/beam.html">beam Package</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="modules/beam.html#module-blond.beam.beam"><code class="xref py py-mod docutils literal notranslate"><span class="pre">beam</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="modules/beam.html#module-blond.beam.coasting_beam"><code class="xref py py-mod docutils literal notranslate"><span class="pre">coasting_beam</span></code> Module</a></li>
@@ -179,8 +192,9 @@
 </li>
 <li class="toctree-l1"><a class="reference internal" href="modules/toolbox.html">toolbox Package</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="modules/toolbox.html#module-blond.toolbox.action"><code class="xref py py-mod docutils literal notranslate"><span class="pre">action</span></code> Module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="modules/toolbox.html#module-blond.toolbox.convolution"><code class="xref py py-mod docutils literal notranslate"><span class="pre">convolution</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="modules/toolbox.html#module-blond.toolbox.diffusion"><code class="xref py py-mod docutils literal notranslate"><span class="pre">diffusion</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/toolbox.html#module-blond.toolbox.filters_and_fitting"><code class="xref py py-mod docutils literal notranslate"><span class="pre">filters_and_fitting</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/toolbox.html#module-blond.toolbox.logger"><code class="xref py py-mod docutils literal notranslate"><span class="pre">logger</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="modules/toolbox.html#module-blond.toolbox.next_regular"><code class="xref py py-mod docutils literal notranslate"><span class="pre">next_regular</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="modules/toolbox.html#module-blond.toolbox.parameter_scaling"><code class="xref py py-mod docutils literal notranslate"><span class="pre">parameter_scaling</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="modules/toolbox.html#module-blond.toolbox.tomoscope"><code class="xref py py-mod docutils literal notranslate"><span class="pre">tomoscope</span></code> Module</a></li>
@@ -303,18 +317,42 @@
 </li>
       <li><a href="modules/toolbox.html#blond.toolbox.action.action_from_phase_amplitude">action_from_phase_amplitude() (in module blond.toolbox.action)</a>
 </li>
+      <li><a href="modules/utils.html#blond.utils.butils_wrap.add">add() (in module blond.utils.butils_wrap)</a>
+</li>
+      <li><a href="modules/beam.html#blond.beam.beam.Beam.add_beam">add_beam() (blond.beam.beam.Beam method)</a>
+</li>
+      <li><a href="modules/beam.html#blond.beam.beam.Beam.add_particles">add_particles() (blond.beam.beam.Beam method)</a>
+</li>
       <li><a href="modules/toolbox.html#blond.toolbox.parameter_scaling.ParameterScaling.addactions">addactions() (blond.toolbox.parameter_scaling.ParameterScaling method)</a>
 </li>
       <li><a href="modules/impedances.html#blond.impedances.music.Music.alpha">alpha (blond.impedances.music.Music attribute)</a>
 </li>
-      <li><a href="modules/input_parameters.html#blond.input_parameters.rf_parameters.RFStation.alpha_order">alpha_order (blond.input_parameters.rf_parameters.RFStation attribute)</a>
+      <li><a href="modules/input_parameters.html#blond.input_parameters.rf_parameters.RFStation.alpha_0">alpha_0 (blond.input_parameters.rf_parameters.RFStation attribute)</a>
 
       <ul>
-        <li><a href="modules/input_parameters.html#blond.input_parameters.ring.Ring.alpha_order">(blond.input_parameters.ring.Ring attribute)</a>, <a href="modules/input_parameters.html#blond.input_parameters.ring.Ring.alpha_order">[1]</a>
+        <li><a href="modules/input_parameters.html#blond.input_parameters.ring.Ring.alpha_0">(blond.input_parameters.ring.Ring attribute)</a>
+</li>
+      </ul></li>
+      <li><a href="modules/input_parameters.html#blond.input_parameters.rf_parameters.RFStation.alpha_1">alpha_1 (blond.input_parameters.rf_parameters.RFStation attribute)</a>
+
+      <ul>
+        <li><a href="modules/input_parameters.html#blond.input_parameters.ring.Ring.alpha_1">(blond.input_parameters.ring.Ring attribute)</a>
 </li>
       </ul></li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="modules/input_parameters.html#blond.input_parameters.rf_parameters.RFStation.alpha_2">alpha_2 (blond.input_parameters.rf_parameters.RFStation attribute)</a>
+
+      <ul>
+        <li><a href="modules/input_parameters.html#blond.input_parameters.ring.Ring.alpha_2">(blond.input_parameters.ring.Ring attribute)</a>
+</li>
+      </ul></li>
+      <li><a href="modules/input_parameters.html#blond.input_parameters.rf_parameters.RFStation.alpha_order">alpha_order (blond.input_parameters.rf_parameters.RFStation attribute)</a>
+
+      <ul>
+        <li><a href="modules/input_parameters.html#blond.input_parameters.ring.Ring.alpha_order">(blond.input_parameters.ring.Ring attribute)</a>
+</li>
+      </ul></li>
       <li><a href="modules/impedances.html#blond.impedances.induced_voltage_analytical.analytical_gaussian_resonator">analytical_gaussian_resonator() (in module blond.impedances.induced_voltage_analytical)</a>
 </li>
       <li><a href="modules/beam.html#blond.beam.profile.Profile.apply_filter">apply_filter() (blond.beam.profile.Profile method)</a>
@@ -364,8 +402,14 @@
       <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.SPSOneTurnFeedback.beam_induced_voltage_semi_analytic">beam_induced_voltage_semi_analytic() (blond.llrf.cavity_feedback.SPSOneTurnFeedback method)</a>
 </li>
       <li><a href="modules/llrf.html#blond.llrf.notch_filter.llrf.phase_loop.PhaseLoop.beam_phase">beam_phase() (blond.llrf.notch_filter.llrf.phase_loop.PhaseLoop method)</a>
+
+      <ul>
+        <li><a href="modules/utils.html#blond.utils.bphysics_wrap.beam_phase">(in module blond.utils.bphysics_wrap)</a>
 </li>
+      </ul></li>
       <li><a href="modules/beam.html#blond.beam.profile.Profile.beam_profile_derivative">beam_profile_derivative() (blond.beam.profile.Profile method)</a>
+</li>
+      <li><a href="modules/toolbox.html#blond.toolbox.filters_and_fitting.beam_profile_filter_chebyshev">beam_profile_filter_chebyshev() (in module blond.toolbox.filters_and_fitting)</a>
 </li>
       <li><a href="modules/beam.html#blond.beam.profile.Profile.beam_spectrum">beam_spectrum (blond.beam.profile.Profile attribute)</a>
 </li>
@@ -413,10 +457,10 @@
 </li>
       <li><a href="modules/impedances.html#module-blond.impedances.impedance_sources">blond.impedances.impedance_sources (module)</a>
 </li>
-      <li><a href="modules/impedances.html#module-blond.impedances.induced_voltage_analytical">blond.impedances.induced_voltage_analytical (module)</a>
-</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="modules/impedances.html#module-blond.impedances.induced_voltage_analytical">blond.impedances.induced_voltage_analytical (module)</a>
+</li>
       <li><a href="modules/impedances.html#module-blond.impedances.music">blond.impedances.music (module)</a>
 </li>
       <li><a href="modules/input_parameters.html#module-blond.input_parameters.rf_parameters">blond.input_parameters.rf_parameters (module)</a>
@@ -455,9 +499,11 @@
 </li>
       <li><a href="modules/toolbox.html#module-blond.toolbox.action">blond.toolbox.action (module)</a>
 </li>
-      <li><a href="modules/toolbox.html#module-blond.toolbox.convolution">blond.toolbox.convolution (module)</a>
-</li>
       <li><a href="modules/toolbox.html#module-blond.toolbox.diffusion">blond.toolbox.diffusion (module)</a>
+</li>
+      <li><a href="modules/toolbox.html#module-blond.toolbox.filters_and_fitting">blond.toolbox.filters_and_fitting (module)</a>
+</li>
+      <li><a href="modules/toolbox.html#module-blond.toolbox.logger">blond.toolbox.logger (module)</a>
 </li>
       <li><a href="modules/toolbox.html#module-blond.toolbox.next_regular">blond.toolbox.next_regular (module)</a>
 </li>
@@ -491,6 +537,14 @@
 <h2 id="C">C</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="modules/utils.html#blond.utils.butils_wrap.c_complex128">c_complex128 (class in blond.utils.butils_wrap)</a>
+</li>
+      <li><a href="modules/utils.html#blond.utils.butils_wrap.c_complex64">c_complex64 (class in blond.utils.butils_wrap)</a>
+</li>
+      <li><a href="modules/llrf.html#blond.llrf.rf_modulation.PhaseModulation.calc_delta_omega">calc_delta_omega() (blond.llrf.rf_modulation.PhaseModulation method)</a>
+</li>
+      <li><a href="modules/llrf.html#blond.llrf.rf_modulation.PhaseModulation.calc_modulation">calc_modulation() (blond.llrf.rf_modulation.PhaseModulation method)</a>
+</li>
       <li><a href="modules/input_parameters.html#blond.input_parameters.rf_parameters.calculate_phi_s">calculate_phi_s() (in module blond.input_parameters.rf_parameters)</a>
 </li>
       <li><a href="modules/input_parameters.html#blond.input_parameters.rf_parameters.calculate_Q_s">calculate_Q_s() (in module blond.input_parameters.rf_parameters)</a>
@@ -501,11 +555,11 @@
 </li>
       <li><a href="modules/llrf.html#blond.llrf.signal_processing.cartesian_to_polar">cartesian_to_polar() (in module blond.llrf.signal_processing)</a>
 </li>
-      <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.LHCCavityLoop.cavity_response">cavity_response() (blond.llrf.cavity_feedback.LHCCavityLoop method)</a>
-</li>
       <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.CavityFeedbackCommissioning">CavityFeedbackCommissioning (class in blond.llrf.cavity_feedback)</a>
 </li>
       <li><a href="modules/toolbox.html#blond.toolbox.parameter_scaling.ParameterScaling.cbEnergyHandler">cbEnergyHandler() (blond.toolbox.parameter_scaling.ParameterScaling method)</a>
+</li>
+      <li><a href="modules/toolbox.html#blond.toolbox.parameter_scaling.ParameterScaling.cbGammaTHandler">cbGammaTHandler() (blond.toolbox.parameter_scaling.ParameterScaling method)</a>
 </li>
       <li><a href="modules/beam.html#blond.beam.beam.Beam.charge">charge (blond.beam.beam.Beam attribute)</a>
 
@@ -516,6 +570,8 @@
       <li><a href="modules/monitors.html#blond.monitors.monitors.BunchMonitor.close">close() (blond.monitors.monitors.BunchMonitor method)</a>
 
       <ul>
+        <li><a href="modules/monitors.html#blond.monitors.monitors.MultiBunchMonitor.close">(blond.monitors.monitors.MultiBunchMonitor method)</a>
+</li>
         <li><a href="modules/monitors.html#blond.monitors.monitors.SlicesMonitor.close">(blond.monitors.monitors.SlicesMonitor method)</a>
 </li>
       </ul></li>
@@ -529,14 +585,14 @@
 </li>
       <li><a href="modules/llrf.html#blond.llrf.signal_processing.comb_filter">comb_filter() (in module blond.llrf.signal_processing)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="modules/input_parameters.html#blond.input_parameters.rf_parameters_options.combine_rf_functions">combine_rf_functions() (in module blond.input_parameters.rf_parameters_options)</a>
 </li>
       <li><a href="modules/beam.html#blond.beam.distributions_multibunch.compute_H0">compute_H0() (in module blond.beam.distributions_multibunch)</a>
 </li>
       <li><a href="modules/llrf.html#blond.llrf.impulse_response.TravellingWaveCavity.compute_wakes">compute_wakes() (blond.llrf.impulse_response.TravellingWaveCavity method)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="modules/beam.html#blond.beam.distributions_multibunch.compute_X_grid">compute_X_grid() (in module blond.beam.distributions_multibunch)</a>
 </li>
       <li><a href="modules/impedances.html#blond.impedances.impedance_sources.ResistiveWall.conductivity">conductivity (blond.impedances.impedance_sources.ResistiveWall attribute)</a>, <a href="modules/impedances.html#blond.impedances.impedance_sources.ResistiveWall.conductivity">[1]</a>
@@ -546,8 +602,6 @@
       <li><a href="modules/beam.html#blond.beam.profile.CutOptions.convert_coordinates">convert_coordinates() (blond.beam.profile.CutOptions method)</a>
 </li>
       <li><a href="modules/input_parameters.html#blond.input_parameters.ring_options.convert_data">convert_data() (in module blond.input_parameters.ring_options)</a>
-</li>
-      <li><a href="modules/toolbox.html#blond.toolbox.convolution.convolution">convolution() (in module blond.toolbox.convolution)</a>
 </li>
       <li><a href="modules/utils.html#blond.utils.butils_wrap.convolve">convolve() (in module blond.utils.butils_wrap)</a>
 </li>
@@ -561,8 +615,12 @@
         <li><a href="modules/trackers.html#blond.trackers.utilities.synchrotron_frequency_tracker.counter">(blond.trackers.utilities.synchrotron_frequency_tracker attribute)</a>
 </li>
       </ul></li>
-      <li><a href="modules/monitors.html#blond.monitors.monitors.SlicesMonitor.create_data">create_data() (blond.monitors.monitors.SlicesMonitor method)</a>
+      <li><a href="modules/monitors.html#blond.monitors.monitors.MultiBunchMonitor.create_data">create_data() (blond.monitors.monitors.MultiBunchMonitor method)</a>
+
+      <ul>
+        <li><a href="modules/monitors.html#blond.monitors.monitors.SlicesMonitor.create_data">(blond.monitors.monitors.SlicesMonitor method)</a>
 </li>
+      </ul></li>
       <li><a href="modules/utils.html#blond.utils.butils_wrap.cumtrapz">cumtrapz() (in module blond.utils.butils_wrap)</a>
 </li>
       <li><a href="modules/beam.html#blond.beam.profile.CutOptions.cut_left">cut_left (blond.beam.profile.CutOptions attribute)</a>
@@ -591,8 +649,6 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="modules/llrf.html#blond.llrf.impulse_response.TravellingWaveCavity.d_omega">d_omega (blond.llrf.impulse_response.TravellingWaveCavity attribute)</a>, <a href="modules/llrf.html#blond.llrf.impulse_response.TravellingWaveCavity.d_omega">[1]</a>
 </li>
-      <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.LHCRFFeedback.d_phi_ad">d_phi_ad (blond.llrf.cavity_feedback.LHCRFFeedback attribute)</a>
-</li>
       <li><a href="modules/beam.html#blond.beam.beam.Beam.dE">dE (blond.beam.beam.Beam attribute)</a>
 </li>
       <li><a href="modules/toolbox.html#blond.toolbox.parameter_scaling.ParameterScaling.dE_b">dE_b (blond.toolbox.parameter_scaling.ParameterScaling attribute)</a>
@@ -609,9 +665,11 @@
       </ul></li>
       <li><a href="modules/impedances.html#blond.impedances.impedance.InductiveImpedance.deriv_mode">deriv_mode (blond.impedances.impedance.InductiveImpedance attribute)</a>
 </li>
+      <li><a href="modules/beam.html#blond.beam.profile.OtherSlicesOptions.direct_slicing">direct_slicing (blond.beam.profile.OtherSlicesOptions attribute)</a>
+</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="modules/beam.html#blond.beam.profile.OtherSlicesOptions.direct_slicing">direct_slicing (blond.beam.profile.OtherSlicesOptions attribute)</a>
+      <li><a href="modules/toolbox.html#blond.toolbox.logger.Logger.disable">disable() (blond.toolbox.logger.Logger method)</a>
 </li>
       <li><a href="modules/toolbox.html#blond.toolbox.tomoscope.distribution_from_tomoscope_data">distribution_from_tomoscope_data() (in module blond.toolbox.tomoscope)</a>
 </li>
@@ -689,6 +747,8 @@
 </li>
       <li><a href="modules/utils.html#blond.utils.butils_wrap.exp">exp() (in module blond.utils.butils_wrap)</a>
 </li>
+      <li><a href="modules/llrf.html#blond.llrf.rf_modulation.PhaseModulation.extend_to_n_rf">extend_to_n_rf() (blond.llrf.rf_modulation.PhaseModulation method)</a>
+</li>
   </ul></td>
 </tr></table>
 
@@ -696,6 +756,8 @@
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="modules/input_parameters.html#blond.input_parameters.ring.Ring.f_rev">f_rev (blond.input_parameters.ring.Ring attribute)</a>
+</li>
+      <li><a href="modules/utils.html#blond.utils.bphysics_wrap.fast_resonator">fast_resonator() (in module blond.utils.bphysics_wrap)</a>
 </li>
       <li><a href="modules/llrf.html#blond.llrf.rf_modulation.llrf.rf_noise.LHCNoiseFB.FB">FB() (blond.llrf.rf_modulation.llrf.rf_noise.LHCNoiseFB method)</a>
 </li>
@@ -752,9 +814,15 @@
       <ul>
         <li><a href="modules/llrf.html#blond.llrf.rf_modulation.fwhm">(in module blond.llrf.rf_modulation)</a>
 </li>
+        <li><a href="modules/toolbox.html#blond.toolbox.filters_and_fitting.fwhm">(in module blond.toolbox.filters_and_fitting)</a>
+</li>
       </ul></li>
       <li><a href="modules/beam.html#blond.beam.profile.Profile.fwhm_multibunch">fwhm_multibunch() (blond.beam.profile.Profile method)</a>
+
+      <ul>
+        <li><a href="modules/toolbox.html#blond.toolbox.filters_and_fitting.fwhm_multibunch">(in module blond.toolbox.filters_and_fitting)</a>
 </li>
+      </ul></li>
   </ul></td>
 </tr></table>
 
@@ -769,21 +837,25 @@
         <li><a href="modules/input_parameters.html#blond.input_parameters.ring.Ring.gamma">(blond.input_parameters.ring.Ring attribute)</a>
 </li>
       </ul></li>
+      <li><a href="modules/beam.html#blond.beam.beam.Beam.gather">gather() (blond.beam.beam.Beam method)</a>
+</li>
+      <li><a href="modules/beam.html#blond.beam.beam.Beam.gather_losses">gather_losses() (blond.beam.beam.Beam method)</a>
+</li>
+      <li><a href="modules/beam.html#blond.beam.beam.Beam.gather_statistics">gather_statistics() (blond.beam.beam.Beam method)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="modules/toolbox.html#blond.toolbox.filters_and_fitting.gauss">gauss() (in module blond.toolbox.filters_and_fitting)</a>
+</li>
+      <li><a href="modules/toolbox.html#blond.toolbox.filters_and_fitting.gaussian_fit">gaussian_fit() (in module blond.toolbox.filters_and_fitting)</a>
+</li>
       <li><a href="modules/plots.html#blond.plots.plot.Plot.general_params">general_params (blond.plots.plot.Plot attribute)</a>
 </li>
       <li><a href="modules/llrf.html#blond.llrf.rf_modulation.llrf.rf_noise.LHCFlatSpectrum.generate">generate() (blond.llrf.rf_modulation.llrf.rf_noise.LHCFlatSpectrum method)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="modules/beam.html#blond.beam.coasting_beam.generate_coasting_beam">generate_coasting_beam() (in module blond.beam.coasting_beam)</a>
 </li>
-      <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.LHCRFFeedback.generate_white_noise">generate_white_noise() (blond.llrf.cavity_feedback.LHCRFFeedback method)</a>
-</li>
-      <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.LHCCavityLoop.generator_current">generator_current() (blond.llrf.cavity_feedback.LHCCavityLoop method)</a>
-</li>
       <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.SPSOneTurnFeedback.generator_induced_voltage">generator_induced_voltage() (blond.llrf.cavity_feedback.SPSOneTurnFeedback method)</a>
-</li>
-      <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.LHCCavityLoop.generator_power">generator_power() (blond.llrf.cavity_feedback.LHCCavityLoop method)</a>
 </li>
       <li><a href="modules/beam.html#blond.beam.profile.CutOptions.get_slices_parameters">get_slices_parameters() (blond.beam.profile.CutOptions method)</a>
 </li>
@@ -795,18 +867,14 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="modules/plots.html#blond.plots.plot.Plot.h5file">h5file (blond.plots.plot.Plot attribute)</a>
 </li>
-      <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.LHCCavityLoop.half_detuning">half_detuning() (blond.llrf.cavity_feedback.LHCCavityLoop static method)</a>
-</li>
-      <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.LHCCavityLoop.half_detuning_power">half_detuning_power() (blond.llrf.cavity_feedback.LHCCavityLoop static method)</a>
-</li>
       <li><a href="modules/trackers.html#blond.trackers.utilities.hamiltonian">hamiltonian() (in module blond.trackers.utilities)</a>
 </li>
       <li><a href="modules/input_parameters.html#blond.input_parameters.rf_parameters.RFStation.harmonic">harmonic (blond.input_parameters.rf_parameters.RFStation attribute)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="modules/llrf.html#blond.llrf.impulse_response.TravellingWaveCavity.hc_beam">hc_beam (blond.llrf.impulse_response.TravellingWaveCavity attribute)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="modules/llrf.html#blond.llrf.impulse_response.TravellingWaveCavity.hc_gen">hc_gen (blond.llrf.impulse_response.TravellingWaveCavity attribute)</a>
 </li>
       <li><a href="modules/impedances.html#blond.impedances.impedance.InducedVoltageResonator.Heaviside">Heaviside() (blond.impedances.impedance.InducedVoltageResonator method)</a>
@@ -833,6 +901,12 @@
 </li>
       <li><a href="modules/impedances.html#blond.impedances.impedance_sources.InputTable.Im_Z_array_loaded">Im_Z_array_loaded (blond.impedances.impedance_sources.InputTable attribute)</a>
 </li>
+      <li><a href="modules/utils.html#blond.utils.butils_wrap.c_complex128.imag">imag (blond.utils.butils_wrap.c_complex128 attribute)</a>
+
+      <ul>
+        <li><a href="modules/utils.html#blond.utils.butils_wrap.c_complex64.imag">(blond.utils.butils_wrap.c_complex64 attribute)</a>
+</li>
+      </ul></li>
       <li><a href="modules/impedances.html#blond.impedances.impedance_sources.InputTable.imped_calc">imped_calc() (blond.impedances.impedance_sources.InputTable method)</a>
 
       <ul>
@@ -881,6 +955,8 @@
 </li>
       <li><a href="modules/impedances.html#blond.impedances.impedance.TotalInducedVoltage.induced_voltage_sum">induced_voltage_sum() (blond.impedances.impedance.TotalInducedVoltage method)</a>
 </li>
+      <li><a href="modules/impedances.html#blond.impedances.impedance.TotalInducedVoltage.induced_voltage_sum_packed">induced_voltage_sum_packed() (blond.impedances.impedance.TotalInducedVoltage method)</a>
+</li>
       <li><a href="modules/impedances.html#blond.impedances.impedance.InducedVoltageFreq">InducedVoltageFreq (class in blond.impedances.impedance)</a>
 </li>
       <li><a href="modules/impedances.html#blond.impedances.impedance.InducedVoltageResonator">InducedVoltageResonator (class in blond.impedances.impedance)</a>
@@ -904,6 +980,12 @@
       <li><a href="modules/beam.html#blond.beam.beam.Beam.intensity">intensity (blond.beam.beam.Beam attribute)</a>
 </li>
       <li><a href="modules/utils.html#blond.utils.butils_wrap.interp">interp() (in module blond.utils.butils_wrap)</a>
+</li>
+      <li><a href="modules/utils.html#blond.utils.butils_wrap.interp_const_space">interp_const_space() (in module blond.utils.butils_wrap)</a>
+</li>
+      <li><a href="modules/utils.html#blond.utils.butils_wrap.irfft">irfft() (in module blond.utils.butils_wrap)</a>
+</li>
+      <li><a href="modules/utils.html#blond.utils.butils_wrap.irfft_packed">irfft_packed() (in module blond.utils.butils_wrap)</a>
 </li>
       <li><a href="modules/trackers.html#blond.trackers.utilities.is_in_separatrix">is_in_separatrix() (in module blond.trackers.utilities)</a>
 </li>
@@ -937,13 +1019,11 @@
 </li>
       <li><a href="modules/llrf.html#blond.llrf.notch_filter.llrf.phase_loop.PhaseLoop.LHC">LHC() (blond.llrf.notch_filter.llrf.phase_loop.PhaseLoop method)</a>
 </li>
-      <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.LHCCavityLoop">LHCCavityLoop (class in blond.llrf.cavity_feedback)</a>
-</li>
-      <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.LHCRFFeedback">LHCRFFeedback (class in blond.llrf.cavity_feedback)</a>
-</li>
       <li><a href="modules/beam.html#blond.beam.distributions.line_density">line_density() (in module blond.beam.distributions)</a>
 </li>
       <li><a href="modules/utils.html#blond.utils.bphysics_wrap.linear_interp_kick">linear_interp_kick() (in module blond.utils.bphysics_wrap)</a>
+</li>
+      <li><a href="modules/utils.html#blond.utils.bphysics_wrap.linear_interp_kick_n_drift">linear_interp_kick_n_drift() (in module blond.utils.bphysics_wrap)</a>
 </li>
       <li><a href="modules/utils.html#blond.utils.bphysics_wrap.linear_interp_time_translation">linear_interp_time_translation() (in module blond.utils.bphysics_wrap)</a>
 </li>
@@ -963,14 +1043,14 @@
 </li>
       <li><a href="modules/input_parameters.html#blond.input_parameters.ring_options.load_data">load_data() (in module blond.input_parameters.ring_options)</a>
 </li>
-      <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.LHCCavityLoop.logger">logger (blond.llrf.cavity_feedback.LHCCavityLoop attribute)</a>
+      <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.SPSCavityFeedback.logger">logger (blond.llrf.cavity_feedback.SPSCavityFeedback attribute)</a>
 
       <ul>
-        <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.SPSCavityFeedback.logger">(blond.llrf.cavity_feedback.SPSCavityFeedback attribute)</a>
-</li>
         <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.SPSOneTurnFeedback.logger">(blond.llrf.cavity_feedback.SPSOneTurnFeedback attribute)</a>
 </li>
       </ul></li>
+      <li><a href="modules/toolbox.html#blond.toolbox.logger.Logger">Logger (class in blond.toolbox.logger)</a>
+</li>
       <li><a href="modules/beam.html#blond.beam.beam.Beam.losses_below_energy">losses_below_energy() (blond.beam.beam.Beam method)</a>
 </li>
       <li><a href="modules/beam.html#blond.beam.beam.Beam.losses_energy_cut">losses_energy_cut() (blond.beam.beam.Beam method)</a>
@@ -1009,13 +1089,11 @@
 </li>
       <li><a href="modules/beam.html#blond.beam.beam.Beam.mean_dE">mean_dE (blond.beam.beam.Beam attribute)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="modules/beam.html#blond.beam.beam.Beam.mean_dt">mean_dt (blond.beam.beam.Beam attribute)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="modules/trackers.html#blond.trackers.utilities.minmax_location">minmax_location() (in module blond.trackers.utilities)</a>
-</li>
-      <li><a href="modules/llrf.html#blond.llrf.rf_modulation.ModulateHarmonic">ModulateHarmonic() (in module blond.llrf.rf_modulation)</a>
 </li>
       <li><a href="modules/llrf.html#blond.llrf.signal_processing.modulator">modulator() (in module blond.llrf.signal_processing)</a>
 </li>
@@ -1029,6 +1107,12 @@
       </ul></li>
       <li><a href="modules/llrf.html#blond.llrf.signal_processing.moving_average">moving_average() (in module blond.llrf.signal_processing)</a>
 </li>
+      <li><a href="modules/utils.html#blond.utils.bmath.mpiMode">mpiMode() (in module blond.utils.bmath)</a>
+</li>
+      <li><a href="modules/utils.html#blond.utils.butils_wrap.mul">mul() (in module blond.utils.butils_wrap)</a>
+</li>
+      <li><a href="modules/monitors.html#blond.monitors.monitors.MultiBunchMonitor">MultiBunchMonitor (class in blond.monitors.monitors)</a>
+</li>
       <li><a href="modules/impedances.html#blond.impedances.music.Music">Music (class in blond.impedances.music)</a>
 </li>
       <li><a href="modules/utils.html#blond.utils.bphysics_wrap.music_track">music_track() (in module blond.utils.bphysics_wrap)</a>
@@ -1041,12 +1125,8 @@
 <h2 id="N">N</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.LHCCavityLoop.n_coarse">n_coarse (blond.llrf.cavity_feedback.LHCCavityLoop attribute)</a>
-
-      <ul>
-        <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.SPSOneTurnFeedback.n_coarse">(blond.llrf.cavity_feedback.SPSOneTurnFeedback attribute)</a>
+      <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.SPSOneTurnFeedback.n_coarse">n_coarse (blond.llrf.cavity_feedback.SPSOneTurnFeedback attribute)</a>
 </li>
-      </ul></li>
       <li><a href="modules/beam.html#blond.beam.sparse_slices.SparseSlices.n_filled_buckets">n_filled_buckets (blond.beam.sparse_slices.SparseSlices attribute)</a>
 </li>
       <li><a href="modules/beam.html#blond.beam.beam.Beam.n_macroparticles">n_macroparticles (blond.beam.beam.Beam attribute)</a>
@@ -1111,12 +1191,8 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="modules/impedances.html#blond.impedances.music.Music.omega_bar">omega_bar (blond.impedances.music.Music attribute)</a>
 </li>
-      <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.LHCCavityLoop.omega_c">omega_c (blond.llrf.cavity_feedback.LHCCavityLoop attribute)</a>
-
-      <ul>
-        <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.SPSOneTurnFeedback.omega_c">(blond.llrf.cavity_feedback.SPSOneTurnFeedback attribute)</a>
+      <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.SPSOneTurnFeedback.omega_c">omega_c (blond.llrf.cavity_feedback.SPSOneTurnFeedback attribute)</a>
 </li>
-      </ul></li>
       <li><a href="modules/impedances.html#blond.impedances.impedance_sources.Resonators.omega_R">omega_R (blond.impedances.impedance_sources.Resonators attribute)</a>
 
       <ul>
@@ -1129,27 +1205,15 @@
 </li>
       <li><a href="modules/input_parameters.html#blond.input_parameters.rf_parameters.RFStation.omega_rf">omega_rf (blond.input_parameters.rf_parameters.RFStation attribute)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="modules/input_parameters.html#blond.input_parameters.rf_parameters.RFStation.omega_rf_d">omega_rf_d (blond.input_parameters.rf_parameters.RFStation attribute)</a>
 </li>
       <li><a href="modules/input_parameters.html#blond.input_parameters.rf_parameters.RFStation.omega_s0">omega_s0 (blond.input_parameters.rf_parameters.RFStation attribute)</a>
 </li>
-      <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.LHCCavityLoop.one_turn_feedback">one_turn_feedback() (blond.llrf.cavity_feedback.LHCCavityLoop method)</a>
-</li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="modules/monitors.html#blond.monitors.monitors.BunchMonitor.open">open() (blond.monitors.monitors.BunchMonitor method)</a>
 </li>
-      <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.LHCRFFeedback.open_drive">open_drive (blond.llrf.cavity_feedback.LHCRFFeedback attribute)</a>
-</li>
-      <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.LHCRFFeedback.open_loop">open_loop (blond.llrf.cavity_feedback.LHCRFFeedback attribute)</a>
-</li>
-      <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.LHCRFFeedback.open_rffb">open_rffb (blond.llrf.cavity_feedback.LHCRFFeedback attribute)</a>
-</li>
       <li><a href="modules/beam.html#blond.beam.profile.Profile.operations">operations (blond.beam.profile.Profile attribute)</a>
-</li>
-      <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.LHCCavityLoop.optimum_Q_L">optimum_Q_L() (blond.llrf.cavity_feedback.LHCCavityLoop static method)</a>
-</li>
-      <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.LHCCavityLoop.optimum_Q_L_beam">optimum_Q_L_beam() (blond.llrf.cavity_feedback.LHCCavityLoop static method)</a>
 </li>
       <li><a href="modules/toolbox.html#blond.toolbox.action.oscillation_amplitude_from_coordinates">oscillation_amplitude_from_coordinates() (in module blond.toolbox.action)</a>
 </li>
@@ -1192,6 +1256,8 @@
       <li><a href="modules/toolbox.html#blond.toolbox.parameter_scaling.ParameterScaling.phi_b">phi_b (blond.toolbox.parameter_scaling.ParameterScaling attribute)</a>
 </li>
       <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.SPSCavityFeedback.phi_corr">phi_corr (blond.llrf.cavity_feedback.SPSCavityFeedback attribute)</a>
+</li>
+      <li><a href="modules/input_parameters.html#blond.input_parameters.rf_parameters.RFStation.phi_modulation">phi_modulation (blond.input_parameters.rf_parameters.RFStation attribute)</a>
 </li>
       <li><a href="modules/input_parameters.html#blond.input_parameters.rf_parameters.RFStation.phi_noise">phi_noise (blond.input_parameters.rf_parameters.RFStation attribute)</a>
 </li>
@@ -1343,7 +1409,15 @@
 </li>
       <li><a href="modules/impedances.html#blond.impedances.impedance_sources.InputTable.Re_Z_array_loaded">Re_Z_array_loaded (blond.impedances.impedance_sources.InputTable attribute)</a>
 </li>
+      <li><a href="modules/utils.html#blond.utils.butils_wrap.c_complex128.real">real (blond.utils.butils_wrap.c_complex128 attribute)</a>
+
+      <ul>
+        <li><a href="modules/utils.html#blond.utils.butils_wrap.c_complex64.real">(blond.utils.butils_wrap.c_complex64 attribute)</a>
+</li>
+      </ul></li>
       <li><a href="modules/llrf.html#blond.llrf.impulse_response.rectangle">rectangle() (in module blond.llrf.impulse_response)</a>
+</li>
+      <li><a href="modules/beam.html#blond.beam.profile.Profile.reduce_histo">reduce_histo() (blond.beam.profile.Profile method)</a>
 </li>
       <li><a href="modules/toolbox.html#blond.toolbox.parameter_scaling.ParameterScaling.relativistic_quantities">relativistic_quantities() (blond.toolbox.parameter_scaling.ParameterScaling method)</a>
 </li>
@@ -1365,21 +1439,19 @@
 </li>
       <li><a href="modules/toolbox.html#blond.toolbox.parameter_scaling.ParameterScaling.retranslateUi">retranslateUi() (blond.toolbox.parameter_scaling.ParameterScaling method)</a>
 </li>
-      <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.LHCCavityLoop.rf_beam_current">rf_beam_current() (blond.llrf.cavity_feedback.LHCCavityLoop method)</a>
-
-      <ul>
-        <li><a href="modules/llrf.html#blond.llrf.signal_processing.rf_beam_current">(in module blond.llrf.signal_processing)</a>
-</li>
-      </ul></li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.LHCCavityLoop.rf_feedback">rf_feedback() (blond.llrf.cavity_feedback.LHCCavityLoop method)</a>
+      <li><a href="modules/llrf.html#blond.llrf.signal_processing.rf_beam_current">rf_beam_current() (in module blond.llrf.signal_processing)</a>
 </li>
       <li><a href="modules/plots.html#blond.plots.plot.Plot.rf_params">rf_params (blond.plots.plot.Plot attribute)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="modules/utils.html#blond.utils.bphysics_wrap.rf_volt_comp">rf_volt_comp() (in module blond.utils.bphysics_wrap)</a>
 </li>
       <li><a href="modules/trackers.html#blond.trackers.tracker.RingAndRFTracker.rf_voltage_calculation">rf_voltage_calculation() (blond.trackers.tracker.RingAndRFTracker method)</a>
+</li>
+      <li><a href="modules/utils.html#blond.utils.butils_wrap.rfft">rfft() (in module blond.utils.butils_wrap)</a>
+</li>
+      <li><a href="modules/utils.html#blond.utils.butils_wrap.rfftfreq">rfftfreq() (in module blond.utils.butils_wrap)</a>
 </li>
       <li><a href="modules/beam.html#blond.beam.sparse_slices.SparseSlices.RFParams">RFParams (blond.beam.sparse_slices.SparseSlices attribute)</a>
 </li>
@@ -1420,9 +1492,17 @@
 </li>
       </ul></li>
       <li><a href="modules/beam.html#blond.beam.profile.Profile.rms">rms() (blond.beam.profile.Profile method)</a>
+
+      <ul>
+        <li><a href="modules/toolbox.html#blond.toolbox.filters_and_fitting.rms">(in module blond.toolbox.filters_and_fitting)</a>
 </li>
+      </ul></li>
       <li><a href="modules/beam.html#blond.beam.profile.Profile.rms_multibunch">rms_multibunch() (blond.beam.profile.Profile method)</a>
+
+      <ul>
+        <li><a href="modules/toolbox.html#blond.toolbox.filters_and_fitting.rms_multibunch">(in module blond.toolbox.filters_and_fitting)</a>
 </li>
+      </ul></li>
   </ul></td>
 </tr></table>
 
@@ -1430,6 +1510,8 @@
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="modules/plots.html#blond.plots.plot.Plot.sampling">sampling (blond.plots.plot.Plot attribute)</a>
+</li>
+      <li><a href="modules/beam.html#blond.beam.profile.Profile.scale_histo">scale_histo() (blond.beam.profile.Profile method)</a>
 </li>
       <li><a href="modules/input_parameters.html#blond.input_parameters.rf_parameters.RFStation.section_index">section_index (blond.input_parameters.rf_parameters.RFStation attribute)</a>
 </li>
@@ -1448,8 +1530,6 @@
 </li>
       </ul></li>
       <li><a href="modules/plots.html#blond.plots.plot.Plot.set_format">set_format() (blond.plots.plot.Plot method)</a>
-</li>
-      <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.LHCCavityLoop.set_point">set_point() (blond.llrf.cavity_feedback.LHCCavityLoop method)</a>
 </li>
       <li><a href="modules/beam.html#blond.beam.profile.Profile.set_slices_parameters">set_slices_parameters() (blond.beam.profile.Profile method)</a>
 </li>
@@ -1479,6 +1559,8 @@
 </li>
       <li><a href="modules/llrf.html#blond.llrf.rf_modulation.llrf.rf_noise.PhaseNoise.spectrum_to_phase_noise">spectrum_to_phase_noise() (blond.llrf.rf_modulation.llrf.rf_noise.PhaseNoise method)</a>
 </li>
+      <li><a href="modules/beam.html#blond.beam.beam.Beam.split">split() (blond.beam.beam.Beam method)</a>
+</li>
       <li><a href="modules/llrf.html#blond.llrf.impulse_response.SPS4Section200MHzTWC">SPS4Section200MHzTWC (class in blond.llrf.impulse_response)</a>
 </li>
       <li><a href="modules/llrf.html#blond.llrf.impulse_response.SPS5Section200MHzTWC">SPS5Section200MHzTWC (class in blond.llrf.impulse_response)</a>
@@ -1497,8 +1579,6 @@
 </li>
       <li><a href="modules/impedances.html#blond.impedances.impedance.InducedVoltageTime.sum_wakes">sum_wakes() (blond.impedances.impedance.InducedVoltageTime method)</a>
 </li>
-      <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.LHCCavityLoop.swap">swap() (blond.llrf.cavity_feedback.LHCCavityLoop method)</a>
-</li>
       <li><a href="modules/trackers.html#blond.trackers.utilities.synchrotron_frequency_distribution">synchrotron_frequency_distribution() (in module blond.trackers.utilities)</a>
 </li>
       <li><a href="modules/trackers.html#blond.trackers.utilities.synchrotron_frequency_tracker">synchrotron_frequency_tracker (class in blond.trackers.utilities)</a>
@@ -1516,8 +1596,6 @@
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="modules/llrf.html#blond.llrf.impulse_response.TravellingWaveCavity.t_beam">t_beam (blond.llrf.impulse_response.TravellingWaveCavity attribute)</a>
-</li>
-      <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.LHCCavityLoop.t_centers">t_centers (blond.llrf.cavity_feedback.LHCCavityLoop attribute)</a>
 </li>
       <li><a href="modules/llrf.html#blond.llrf.impulse_response.TravellingWaveCavity.t_gen">t_gen (blond.llrf.impulse_response.TravellingWaveCavity attribute)</a>
 </li>
@@ -1551,6 +1629,12 @@
 </li>
       <li><a href="modules/trackers.html#blond.trackers.utilities.synchrotron_frequency_tracker.timeStep">timeStep (blond.trackers.utilities.synchrotron_frequency_tracker attribute)</a>
 </li>
+      <li><a href="modules/utils.html#blond.utils.butils_wrap.c_complex128.to_complex">to_complex() (blond.utils.butils_wrap.c_complex128 method)</a>
+
+      <ul>
+        <li><a href="modules/utils.html#blond.utils.butils_wrap.c_complex64.to_complex">(blond.utils.butils_wrap.c_complex64 method)</a>
+</li>
+      </ul></li>
       <li><a href="modules/impedances.html#blond.impedances.impedance.InducedVoltageFreq.total_impedance">total_impedance (blond.impedances.impedance.InducedVoltageFreq attribute)</a>
 </li>
       <li><a href="modules/trackers.html#blond.trackers.utilities.total_voltage">total_voltage() (in module blond.trackers.utilities)</a>
@@ -1568,8 +1652,6 @@
       <ul>
         <li><a href="modules/impedances.html#blond.impedances.impedance.TotalInducedVoltage.track">(blond.impedances.impedance.TotalInducedVoltage method)</a>
 </li>
-        <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.LHCCavityLoop.track">(blond.llrf.cavity_feedback.LHCCavityLoop method)</a>
-</li>
         <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.SPSCavityFeedback.track">(blond.llrf.cavity_feedback.SPSCavityFeedback method)</a>
 </li>
         <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.SPSOneTurnFeedback.track">(blond.llrf.cavity_feedback.SPSOneTurnFeedback method)</a>
@@ -1577,6 +1659,8 @@
         <li><a href="modules/llrf.html#blond.llrf.notch_filter.llrf.phase_loop.PhaseLoop.track">(blond.llrf.notch_filter.llrf.phase_loop.PhaseLoop method)</a>
 </li>
         <li><a href="modules/monitors.html#blond.monitors.monitors.BunchMonitor.track">(blond.monitors.monitors.BunchMonitor method)</a>
+</li>
+        <li><a href="modules/monitors.html#blond.monitors.monitors.MultiBunchMonitor.track">(blond.monitors.monitors.MultiBunchMonitor method)</a>
 </li>
         <li><a href="modules/monitors.html#blond.monitors.monitors.SlicesMonitor.track">(blond.monitors.monitors.SlicesMonitor method)</a>
 </li>
@@ -1607,21 +1691,11 @@
 </li>
       <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.SPSCavityFeedback.track_init">track_init() (blond.llrf.cavity_feedback.SPSCavityFeedback method)</a>
 </li>
-      <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.LHCCavityLoop.track_no_beam">track_no_beam() (blond.llrf.cavity_feedback.LHCCavityLoop method)</a>
-
-      <ul>
-        <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.SPSOneTurnFeedback.track_no_beam">(blond.llrf.cavity_feedback.SPSOneTurnFeedback method)</a>
-</li>
-      </ul></li>
-      <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.LHCCavityLoop.track_no_beam_excitation">track_no_beam_excitation() (blond.llrf.cavity_feedback.LHCCavityLoop method)</a>
-</li>
-      <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.LHCCavityLoop.track_one_turn">track_one_turn() (blond.llrf.cavity_feedback.LHCCavityLoop method)</a>
+      <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.SPSOneTurnFeedback.track_no_beam">track_no_beam() (blond.llrf.cavity_feedback.SPSOneTurnFeedback method)</a>
 </li>
       <li><a href="modules/impedances.html#blond.impedances.music.Music.track_py">track_py() (blond.impedances.music.Music method)</a>
 </li>
       <li><a href="modules/impedances.html#blond.impedances.music.Music.track_py_multi_turn">track_py_multi_turn() (blond.impedances.music.Music method)</a>
-</li>
-      <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.LHCCavityLoop.track_simple">track_simple() (blond.llrf.cavity_feedback.LHCCavityLoop method)</a>
 </li>
       <li><a href="modules/synchrotron_radiation.html#blond.synchrotron_radiation.synchrotron_radiation.SynchrotronRadiation.track_SR_C">track_SR_C() (blond.synchrotron_radiation.synchrotron_radiation.SynchrotronRadiation method)</a>
 </li>
@@ -1651,15 +1725,11 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="modules/utils.html#blond.utils.bmath.update_active_dict">update_active_dict() (in module blond.utils.bmath)</a>
 </li>
-      <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.LHCCavityLoop.update_arrays">update_arrays() (blond.llrf.cavity_feedback.LHCCavityLoop method)</a>
-</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.LHCCavityLoop.update_set_point">update_set_point() (blond.llrf.cavity_feedback.LHCCavityLoop method)</a>
+      <li><a href="modules/utils.html#blond.utils.bmath.use_fftw">use_fftw() (in module blond.utils.bmath)</a>
 </li>
-      <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.LHCCavityLoop.update_set_point_excitation">update_set_point_excitation() (blond.llrf.cavity_feedback.LHCCavityLoop method)</a>
-</li>
-      <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.LHCCavityLoop.update_variables">update_variables() (blond.llrf.cavity_feedback.LHCCavityLoop method)</a>
+      <li><a href="modules/utils.html#blond.utils.bmath.use_mpi">use_mpi() (in module blond.utils.bmath)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -1671,22 +1741,14 @@
 </li>
       <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.SPSOneTurnFeedback.V_coarse_ind_gen">V_coarse_ind_gen (blond.llrf.cavity_feedback.SPSOneTurnFeedback attribute)</a>, <a href="modules/llrf.html#blond.llrf.cavity_feedback.SPSOneTurnFeedback.V_coarse_ind_gen">[1]</a>
 </li>
-      <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.LHCCavityLoop.V_coarse_tot">V_coarse_tot (blond.llrf.cavity_feedback.LHCCavityLoop attribute)</a>
-
-      <ul>
-        <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.SPSOneTurnFeedback.V_coarse_tot">(blond.llrf.cavity_feedback.SPSOneTurnFeedback attribute)</a>
+      <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.SPSOneTurnFeedback.V_coarse_tot">V_coarse_tot (blond.llrf.cavity_feedback.SPSOneTurnFeedback attribute)</a>
 </li>
-      </ul></li>
       <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.SPSCavityFeedback.V_corr">V_corr (blond.llrf.cavity_feedback.SPSCavityFeedback attribute)</a>
 </li>
-      <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.LHCCavityLoop.V_EXC_IN">V_EXC_IN (blond.llrf.cavity_feedback.LHCCavityLoop attribute)</a>
-</li>
-      <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.LHCCavityLoop.V_EXC_OUT">V_EXC_OUT (blond.llrf.cavity_feedback.LHCCavityLoop attribute)</a>
+      <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.SPSOneTurnFeedback.V_fine_ind_beam">V_fine_ind_beam (blond.llrf.cavity_feedback.SPSOneTurnFeedback attribute)</a>, <a href="modules/llrf.html#blond.llrf.cavity_feedback.SPSOneTurnFeedback.V_fine_ind_beam">[1]</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.SPSOneTurnFeedback.V_fine_ind_beam">V_fine_ind_beam (blond.llrf.cavity_feedback.SPSOneTurnFeedback attribute)</a>, <a href="modules/llrf.html#blond.llrf.cavity_feedback.SPSOneTurnFeedback.V_fine_ind_beam">[1]</a>
-</li>
       <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.SPSOneTurnFeedback.V_fine_tot">V_fine_tot (blond.llrf.cavity_feedback.SPSOneTurnFeedback attribute)</a>
 </li>
       <li><a href="modules/llrf.html#blond.llrf.cavity_feedback.SPSOneTurnFeedback.V_gen">V_gen (blond.llrf.cavity_feedback.SPSOneTurnFeedback attribute)</a>
@@ -1719,8 +1781,6 @@
       </ul></li>
       <li><a href="modules/impedances.html#blond.impedances.impedance_sources.InputTable.wake_array">wake_array (blond.impedances.impedance_sources.InputTable attribute)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="modules/impedances.html#blond.impedances.impedance_sources.InputTable.wake_calc">wake_calc() (blond.impedances.impedance_sources.InputTable method)</a>
 
       <ul>
@@ -1729,13 +1789,23 @@
         <li><a href="modules/impedances.html#blond.impedances.impedance_sources.TravelingWaveCavity.wake_calc">(blond.impedances.impedance_sources.TravelingWaveCavity method)</a>
 </li>
       </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="modules/impedances.html#blond.impedances.impedance.InducedVoltageTime.wake_source_list">wake_source_list (blond.impedances.impedance.InducedVoltageTime attribute)</a>
 </li>
-      <li><a href="modules/monitors.html#blond.monitors.monitors.BunchMonitor.write_buffer">write_buffer() (blond.monitors.monitors.BunchMonitor method)</a>
+      <li><a href="modules/utils.html#blond.utils.butils_wrap.where">where() (in module blond.utils.butils_wrap)</a>
 </li>
+      <li><a href="modules/monitors.html#blond.monitors.monitors.BunchMonitor.write_buffer">write_buffer() (blond.monitors.monitors.BunchMonitor method)</a>
+
+      <ul>
+        <li><a href="modules/monitors.html#blond.monitors.monitors.MultiBunchMonitor.write_buffer">(blond.monitors.monitors.MultiBunchMonitor method)</a>
+</li>
+      </ul></li>
       <li><a href="modules/monitors.html#blond.monitors.monitors.BunchMonitor.write_data">write_data() (blond.monitors.monitors.BunchMonitor method)</a>
 
       <ul>
+        <li><a href="modules/monitors.html#blond.monitors.monitors.MultiBunchMonitor.write_data">(blond.monitors.monitors.MultiBunchMonitor method)</a>
+</li>
         <li><a href="modules/monitors.html#blond.monitors.monitors.SlicesMonitor.write_data">(blond.monitors.monitors.SlicesMonitor method)</a>
 </li>
       </ul></li>

@@ -36,7 +36,7 @@
               href="../genindex.html"/>
         <link rel="search" title="Search" href="../search.html"/>
     <link rel="top" title="BLonD 1.1 documentation" href="../index.html"/>
-        <link rel="next" title="beam Package" href="beam.html"/>
+        <link rel="next" title="LHC Cavity Loop" href="lhc_cavity_loop.html"/>
         <link rel="prev" title="Welcome to the BLonD documentation!" href="../index.html"/> 
 
   
@@ -104,6 +104,32 @@
 <li class="toctree-l2"><a class="reference internal" href="#separatrix">Separatrix</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="lhc_cavity_loop.html">LHC Cavity Loop</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-1-calculate-rf-beam-current">STEP 1: Calculate RF beam current</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-2-cavity-generator-beam-interaction">STEP 2: Cavity-generator-beam interaction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-3-rf-feedback-response">STEP 3: RF feedback response</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="lhc_cavity_loop.html#analog-feedback">Analog feedback</a></li>
+<li class="toctree-l3"><a class="reference internal" href="lhc_cavity_loop.html#digital-feedback">Digital feedback</a></li>
+<li class="toctree-l3"><a class="reference internal" href="lhc_cavity_loop.html#one-turn-feedback">One-turn feedback</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-4-switch-and-protect-response">STEP 4: Switch and protect response</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-5-generator-response">STEP 5: Generator response</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-6-tuner-control">STEP 6: Tuner control</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#references">References</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="sps_cavity_loop.html">SPS Cavity Loop</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="sps_cavity_loop.html#introduction-travelling-wave-cavity">INTRODUCTION: Travelling Wave Cavity</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sps_cavity_loop.html#principles-the-cavity-controller">PRINCIPLES: The Cavity Controller</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#low-level-rf">Low-level RF</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#generator-induced-voltage">Generator-induced voltage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#beam-induced-voltage">Beam-induced voltage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#travelling-wave-cavity-induced-voltage-calculation">Travelling-wave cavity induced-voltage calculation</a></li>
+</ul>
+</li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="beam.html">beam Package</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="beam.html#module-blond.beam.beam"><code class="xref py py-mod docutils literal notranslate"><span class="pre">beam</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="beam.html#module-blond.beam.coasting_beam"><code class="xref py py-mod docutils literal notranslate"><span class="pre">coasting_beam</span></code> Module</a></li>
@@ -125,21 +151,6 @@
 <li class="toctree-l2"><a class="reference internal" href="input_parameters.html#module-blond.input_parameters.ring"><code class="xref py py-mod docutils literal notranslate"><span class="pre">ring</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="input_parameters.html#module-blond.input_parameters.ring_options"><code class="xref py py-mod docutils literal notranslate"><span class="pre">ring_options</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="input_parameters.html#module-blond.input_parameters.rf_parameters_options"><code class="xref py py-mod docutils literal notranslate"><span class="pre">rf_parameters_options</span></code> Module</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="lhc_cavity_loop.html">LHC Cavity Loop</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-1-calculate-rf-beam-current">STEP 1: Calculate RF beam current</a></li>
-<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-2-cavity-generator-beam-interaction">STEP 2: Cavity-generator-beam interaction</a></li>
-<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-3-rf-feedback-response">STEP 3: RF feedback response</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="lhc_cavity_loop.html#analog-feedback">Analog feedback</a></li>
-<li class="toctree-l3"><a class="reference internal" href="lhc_cavity_loop.html#digital-feedback">Digital feedback</a></li>
-<li class="toctree-l3"><a class="reference internal" href="lhc_cavity_loop.html#one-turn-feedback">One-turn feedback</a></li>
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-4-switch-and-protect-response">STEP 4: Switch and protect response</a></li>
-<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-5-generator-response">STEP 5: Generator response</a></li>
-<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-6-tuner-control">STEP 6: Tuner control</a></li>
-<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#references">References</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="llrf.html">llrf Package</a><ul>
@@ -173,7 +184,6 @@
 <li class="toctree-l2"><a class="reference internal" href="plots.html#module-blond.plots.plot_slices"><code class="xref py py-mod docutils literal notranslate"><span class="pre">plot_slices</span></code> Module</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="sps_cavity_loop.html">SPS Cavity Loop</a></li>
 <li class="toctree-l1"><a class="reference internal" href="synchrotron_radiation.html">synchrotron_radiation Package</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="synchrotron_radiation.html#module-blond.synchrotron_radiation.synchrotron_radiation"><code class="xref py py-mod docutils literal notranslate"><span class="pre">synchrotron_radiation</span></code> Module</a></li>
 </ul>
@@ -423,6 +433,11 @@ clock becomes</p>
 option <code class="docutils literal notranslate"><span class="pre">solver</span> <span class="pre">=</span> <span class="pre">'simple'</span></code> can be used to approximate the above equation as</p>
 <div class="math notranslate nohighlight" id="equation-2-3-simple">
 <span class="eqno">(19)<a class="headerlink" href="#equation-2-3-simple" title="Permalink to this equation">¶</a></span>\[\Delta t^{n+1} = \Delta t^n + \frac{\eta_0^{n+1} T_0^{n+1}}{(\beta_s^{n+1})^{2} E_s^{n+1}} \Delta E^{n+1} .\]</div>
+<p>In a newer implementation of the drift equation, default since 2020, we use the momentum compaction factors directly,
+instead of the slippage factors, to calculate the time slippage,</p>
+<div class="math notranslate nohighlight" id="equation-2-alpha">
+<span class="eqno">(20)<a class="headerlink" href="#equation-2-alpha" title="Permalink to this equation">¶</a></span>\[\Delta t^{n+1} = \Delta t^n + T_0^{n+1} \left[(1 + \alpha_0^{n+1}\delta^{n+1} + \alpha_1^{n+1}(\delta^{n+1})^2 +
+\alpha_2^{n+1}(\delta^{n+1})^3) \left( \frac{1 + \frac{\Delta E^{n+1}}{E_s^{n+1}}}{1 + \delta^{n+1}} \right) - 1 \right]\]</div>
 </div>
 <div class="section" id="the-synchronous-particle">
 <h2>The synchronous particle<a class="headerlink" href="#the-synchronous-particle" title="Permalink to this headline">¶</a></h2>
@@ -432,11 +447,11 @@ gains exactly the designed energy gain <span class="math notranslate nohighlight
 consequence, in the absence of induced voltage the synchronous particle will
 fulfil:</p>
 <div class="math notranslate nohighlight" id="equation-e-s">
-<span class="eqno">(20)<a class="headerlink" href="#equation-e-s" title="Permalink to this equation">¶</a></span>\[\sum_{k=0}^{n_{\mathsf{rf}}-1} V_k^n \sin \varphi_{\mathsf{rf},k}(\Delta t_s^n) = (E_s^{n+1} - E_s^n) ,\]</div>
+<span class="eqno">(21)<a class="headerlink" href="#equation-e-s" title="Permalink to this equation">¶</a></span>\[\sum_{k=0}^{n_{\mathsf{rf}}-1} V_k^n \sin \varphi_{\mathsf{rf},k}(\Delta t_s^n) = (E_s^{n+1} - E_s^n) ,\]</div>
 <p>and in the presence of intensity effects, the induced voltage from the
 particles in front should be added on the left-hand side:</p>
 <div class="math notranslate nohighlight" id="equation-e-s-2">
-<span class="eqno">(21)<a class="headerlink" href="#equation-e-s-2" title="Permalink to this equation">¶</a></span>\[\sum_{k=0}^{n_{\mathsf{rf}}-1} V_k^n \sin \varphi_{\mathsf{rf},k}(\Delta t_s^n) - e \int_{\Delta t_{\mathsf{min}}}^{\Delta t_s^n} d\tau \lambda(\tau) W(\Delta t_s^n - \tau) = (E_s^{n+1} - E_s^n) ,\]</div>
+<span class="eqno">(22)<a class="headerlink" href="#equation-e-s-2" title="Permalink to this equation">¶</a></span>\[\sum_{k=0}^{n_{\mathsf{rf}}-1} V_k^n \sin \varphi_{\mathsf{rf},k}(\Delta t_s^n) - e \int_{\Delta t_{\mathsf{min}}}^{\Delta t_s^n} d\tau \lambda(\tau) W(\Delta t_s^n - \tau) = (E_s^{n+1} - E_s^n) ,\]</div>
 <p>where <span class="math notranslate nohighlight">\(\lambda(t)\)</span> is the beam/bunch profile and <span class="math notranslate nohighlight">\(W(t)\)</span> the wake
 potential.</p>
 <div class="admonition seealso">
@@ -461,28 +476,28 @@ two subsequent turns with different synchronous energy gains
 Let particle 1 be synchronous in turn n and particle 2 be synchronous in
 turn <span class="math notranslate nohighlight">\(n+1\)</span>:</p>
 <div class="math notranslate nohighlight" id="equation-synch-1">
-<span class="eqno">(22)<a class="headerlink" href="#equation-synch-1" title="Permalink to this equation">¶</a></span>\[\begin{split}\Delta E_1^n = \Delta E_1^{n+1} = 0 \,\,\, \ne \Delta E_1^{n+2} \\
+<span class="eqno">(23)<a class="headerlink" href="#equation-synch-1" title="Permalink to this equation">¶</a></span>\[\begin{split}\Delta E_1^n = \Delta E_1^{n+1} = 0 \,\,\, \ne \Delta E_1^{n+2} \\
 \Delta t_1^{n-1} = \Delta t_1^n = \Delta t_1^{n+1} \,\,\, \ne \Delta t_1^{n+2}\end{split}\]</div>
 <div class="math notranslate nohighlight" id="equation-synch-2">
-<span class="eqno">(23)<a class="headerlink" href="#equation-synch-2" title="Permalink to this equation">¶</a></span>\[\begin{split}\Delta E_2^n \ne \,\,\, \Delta E_2^{n+1} = \Delta E_2^{n+2} = 0  \\
+<span class="eqno">(24)<a class="headerlink" href="#equation-synch-2" title="Permalink to this equation">¶</a></span>\[\begin{split}\Delta E_2^n \ne \,\,\, \Delta E_2^{n+1} = \Delta E_2^{n+2} = 0  \\
 \Delta t_2^{n-1} \ne \,\,\, \Delta t_2^n = \Delta t_2^{n+1} = \Delta t_2^{n+2}\end{split}\]</div>
 <p>The arrival time of the synchronous particles in this case will be:</p>
 <div class="math notranslate nohighlight" id="equation-synch-3">
-<span class="eqno">(24)<a class="headerlink" href="#equation-synch-3" title="Permalink to this equation">¶</a></span>\[\begin{split}\Delta t_s^n \equiv \Delta t_1^n \\
+<span class="eqno">(25)<a class="headerlink" href="#equation-synch-3" title="Permalink to this equation">¶</a></span>\[\begin{split}\Delta t_s^n \equiv \Delta t_1^n \\
 \Delta t_s^{n+1} \equiv \Delta t_2^{n+1}\end{split}\]</div>
 <p>Thus, because the synchronous particle can be a different particle each
 turn, the recursion on the synchronous arrival time becomes in general</p>
 <div class="math notranslate nohighlight" id="equation-synch-4">
-<span class="eqno">(25)<a class="headerlink" href="#equation-synch-4" title="Permalink to this equation">¶</a></span>\[\Delta t_s^{n+1} = \Delta t_s^n + (\Delta t_2^{n+1} - \Delta t_1^n) = \Delta t_s^n + (\Delta t_2^n - \Delta t_1^n) .\]</div>
+<span class="eqno">(26)<a class="headerlink" href="#equation-synch-4" title="Permalink to this equation">¶</a></span>\[\Delta t_s^{n+1} = \Delta t_s^n + (\Delta t_2^{n+1} - \Delta t_1^n) = \Delta t_s^n + (\Delta t_2^n - \Delta t_1^n) .\]</div>
 <p>The difference in arrival time of the two particles in turn n can be
 determined from the energy equations</p>
 <div class="math notranslate nohighlight" id="equation-synch-5">
-<span class="eqno">(26)<a class="headerlink" href="#equation-synch-5" title="Permalink to this equation">¶</a></span>\[\begin{split}V^n \sin \left( \omega_{\mathsf{rf}}^n \Delta t_1^n + \varphi_{\mathsf{rf}}^n \right)= (E_s^{n+1} - E_s^n) \\
+<span class="eqno">(27)<a class="headerlink" href="#equation-synch-5" title="Permalink to this equation">¶</a></span>\[\begin{split}V^n \sin \left( \omega_{\mathsf{rf}}^n \Delta t_1^n + \varphi_{\mathsf{rf}}^n \right)= (E_s^{n+1} - E_s^n) \\
 V^{n+1} \sin \left( \omega_{\mathsf{rf}}^{n+1} \Delta t_2^{n+1} + \varphi_{\mathsf{rf}}^{n+1} \right) =  V^{n+1} \sin \left( \omega_{\mathsf{rf}}^{n+1} \Delta t_2^n + \varphi_{\mathsf{rf}}^{n+1} \right) = (E_s^{n+2} - E_s^{n+1}) ,\end{split}\]</div>
 <p>which in first-order approximation (see <em>Small-amplitude oscillations</em>)
 gives</p>
 <div class="math notranslate nohighlight" id="equation-synch-6">
-<span class="eqno">(27)<a class="headerlink" href="#equation-synch-6" title="Permalink to this equation">¶</a></span>\[\sin{\varphi_s^{n+1}} - \sin{\varphi_s^n} \approx ( \omega_{\mathsf{rf}}^{n+1} \Delta t_2^n + \varphi_{\mathsf{rf}}^{n+1} - \omega_{\mathsf{rf}}^n \Delta t_1^n - \varphi_{\mathsf{rf}}^n) \cos{\varphi_s^n} = \frac{E_s^{n+2} - E_s^{n+1}}{V^{n+1}} - \frac{E_s^{n+1} - E_s^{n}}{V^{n}} .\]</div>
+<span class="eqno">(28)<a class="headerlink" href="#equation-synch-6" title="Permalink to this equation">¶</a></span>\[\sin{\varphi_s^{n+1}} - \sin{\varphi_s^n} \approx ( \omega_{\mathsf{rf}}^{n+1} \Delta t_2^n + \varphi_{\mathsf{rf}}^{n+1} - \omega_{\mathsf{rf}}^n \Delta t_1^n - \varphi_{\mathsf{rf}}^n) \cos{\varphi_s^n} = \frac{E_s^{n+2} - E_s^{n+1}}{V^{n+1}} - \frac{E_s^{n+1} - E_s^{n}}{V^{n}} .\]</div>
 </div>
 </div>
 <div class="section" id="small-amplitude-oscillations">
@@ -490,30 +505,30 @@ gives</p>
 <p>Assuming a single-RF station and a simple solver (Eq. <a class="reference internal" href="#equation-2-3-simple">(19)</a>), the
 EOMs in continous time can be written as</p>
 <div class="math notranslate nohighlight" id="equation-ho-1">
-<span class="eqno">(28)<a class="headerlink" href="#equation-ho-1" title="Permalink to this equation">¶</a></span>\[\Delta \dot{E} = \frac{V}{T_0} \left( \sin(\omega_{\mathsf{rf}} \Delta t + \varphi_{\mathsf{rf}}) - \sin{\varphi_s} \right),\]</div>
+<span class="eqno">(29)<a class="headerlink" href="#equation-ho-1" title="Permalink to this equation">¶</a></span>\[\Delta \dot{E} = \frac{V}{T_0} \left( \sin(\omega_{\mathsf{rf}} \Delta t + \varphi_{\mathsf{rf}}) - \sin{\varphi_s} \right),\]</div>
 <div class="math notranslate nohighlight" id="equation-ho-2">
-<span class="eqno">(29)<a class="headerlink" href="#equation-ho-2" title="Permalink to this equation">¶</a></span>\[\Delta \dot{t} = \frac{\eta_0}{\beta_s^2 E_s} \Delta E .\]</div>
+<span class="eqno">(30)<a class="headerlink" href="#equation-ho-2" title="Permalink to this equation">¶</a></span>\[\Delta \dot{t} = \frac{\eta_0}{\beta_s^2 E_s} \Delta E .\]</div>
 <p>Assuming further a constant synchronous phase
 <span class="math notranslate nohighlight">\(\sin{\varphi_s} \equiv \frac{\dot{E_s}}{V}\)</span> and expanding the RF wave
 around it</p>
 <div class="math notranslate nohighlight" id="equation-ho-3-0">
-<span class="eqno">(30)<a class="headerlink" href="#equation-ho-3-0" title="Permalink to this equation">¶</a></span>\[\omega_{\mathsf{rf}} \Delta t + \varphi_{\mathsf{rf}} = \varphi_s + (\omega_{\mathsf{rf}} \Delta t + \varphi_{\mathsf{rf}} - \varphi_s) \equiv \varphi_s + \varepsilon , \,\,\, \varepsilon \ll 1 ,\]</div>
+<span class="eqno">(31)<a class="headerlink" href="#equation-ho-3-0" title="Permalink to this equation">¶</a></span>\[\omega_{\mathsf{rf}} \Delta t + \varphi_{\mathsf{rf}} = \varphi_s + (\omega_{\mathsf{rf}} \Delta t + \varphi_{\mathsf{rf}} - \varphi_s) \equiv \varphi_s + \varepsilon , \,\,\, \varepsilon \ll 1 ,\]</div>
 <p>we obtain for the sinusoidal term in first order</p>
 <div class="math notranslate nohighlight" id="equation-ho-3-1">
-<span class="eqno">(31)<a class="headerlink" href="#equation-ho-3-1" title="Permalink to this equation">¶</a></span>\[\sin (\omega_{\mathsf{rf}} \Delta t + \varphi_{\mathsf{rf}}) = \sin {\varphi_s} \cos{\varepsilon} + \cos{\varphi_s} \sin{\varepsilon} \approx \sin{\varphi_s} (1 + \mathcal{O}(\varepsilon^2)) +  \cos{\varphi_s} (\varepsilon + \mathcal{O}(\varepsilon^3)) .\]</div>
-<p>Derivating Eq. <a class="reference internal" href="#equation-ho-1">(28)</a> a second time, and using Eq. <a class="reference internal" href="#equation-ho-2">(29)</a></p>
+<span class="eqno">(32)<a class="headerlink" href="#equation-ho-3-1" title="Permalink to this equation">¶</a></span>\[\sin (\omega_{\mathsf{rf}} \Delta t + \varphi_{\mathsf{rf}}) = \sin {\varphi_s} \cos{\varepsilon} + \cos{\varphi_s} \sin{\varepsilon} \approx \sin{\varphi_s} (1 + \mathcal{O}(\varepsilon^2)) +  \cos{\varphi_s} (\varepsilon + \mathcal{O}(\varepsilon^3)) .\]</div>
+<p>Derivating Eq. <a class="reference internal" href="#equation-ho-1">(29)</a> a second time, and using Eq. <a class="reference internal" href="#equation-ho-2">(30)</a></p>
 <div class="math notranslate nohighlight" id="equation-ho-3">
-<span class="eqno">(32)<a class="headerlink" href="#equation-ho-3" title="Permalink to this equation">¶</a></span>\[\Delta \ddot{E} = \frac{V \cos{\varphi_s} \, \omega_{\mathsf{rf}}}{T_0} \Delta \dot{t} = \frac{V \eta_0 \cos{\varphi_s} \, \omega_{\mathsf{rf}} \omega_0 }{2 \pi \beta_s^2 E_s} \Delta E .\]</div>
-<p>Vice versa, derivating <a class="reference internal" href="#equation-ho-2">(29)</a> another time, and substituting
-Eq. <a class="reference internal" href="#equation-ho-1">(28)</a>, an equivalent equation can be found for the arrival time w.r.t.
+<span class="eqno">(33)<a class="headerlink" href="#equation-ho-3" title="Permalink to this equation">¶</a></span>\[\Delta \ddot{E} = \frac{V \cos{\varphi_s} \, \omega_{\mathsf{rf}}}{T_0} \Delta \dot{t} = \frac{V \eta_0 \cos{\varphi_s} \, \omega_{\mathsf{rf}} \omega_0 }{2 \pi \beta_s^2 E_s} \Delta E .\]</div>
+<p>Vice versa, derivating <a class="reference internal" href="#equation-ho-2">(30)</a> another time, and substituting
+Eq. <a class="reference internal" href="#equation-ho-1">(29)</a>, an equivalent equation can be found for the arrival time w.r.t.
 to the arrival of the synchronous particle <span class="math notranslate nohighlight">\(\Delta t_s\)</span>:</p>
 <div class="math notranslate nohighlight" id="equation-ho-4">
-<span class="eqno">(33)<a class="headerlink" href="#equation-ho-4" title="Permalink to this equation">¶</a></span>\[\Delta \ddot{t} - \Delta \ddot{t_s} = \frac{V \eta_0 \cos{\varphi_s} \, \omega_{\mathsf{rf}} \omega_0 }{2 \pi \beta_s^2 E_s} (\Delta t - \Delta t_s) .\]</div>
-<p>Equations <a class="reference internal" href="#equation-ho-3">(32)</a> and <a class="reference internal" href="#equation-ho-4">(33)</a> describe an oscillating motion in phase
+<span class="eqno">(34)<a class="headerlink" href="#equation-ho-4" title="Permalink to this equation">¶</a></span>\[\Delta \ddot{t} - \Delta \ddot{t_s} = \frac{V \eta_0 \cos{\varphi_s} \, \omega_{\mathsf{rf}} \omega_0 }{2 \pi \beta_s^2 E_s} (\Delta t - \Delta t_s) .\]</div>
+<p>Equations <a class="reference internal" href="#equation-ho-3">(33)</a> and <a class="reference internal" href="#equation-ho-4">(34)</a> describe an oscillating motion in phase
 space if <span class="math notranslate nohighlight">\(\eta_0 \cos{\varphi_s} &lt; 0\)</span>, which for
 <span class="math notranslate nohighlight">\(\omega_{\mathsf{rf}} = h \omega_0\)</span> has the synchrotron frequency</p>
 <div class="math notranslate nohighlight" id="equation-omega-s">
-<span class="eqno">(34)<a class="headerlink" href="#equation-omega-s" title="Permalink to this equation">¶</a></span>\[\omega_{s,0} = \sqrt{\frac{- h V \eta_0 \cos{\varphi_s}}{2 \pi \beta_s^2 E_s}} \omega_0 .\]</div>
+<span class="eqno">(35)<a class="headerlink" href="#equation-omega-s" title="Permalink to this equation">¶</a></span>\[\omega_{s,0} = \sqrt{\frac{- h V \eta_0 \cos{\varphi_s}}{2 \pi \beta_s^2 E_s}} \omega_0 .\]</div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>that energy and time are conjugate variables, whereas energy and
@@ -531,9 +546,9 @@ account the frequency correction from one turn to another:
 <span class="math notranslate nohighlight">\(\Delta t\)</span> and <span class="math notranslate nohighlight">\(\Delta E\)</span>, let us first rewrite the equations of
 motion in continuous time (for a zeroth-order slippage factor):</p>
 <div class="math notranslate nohighlight" id="equation-hamiltonian-1">
-<span class="eqno">(35)<a class="headerlink" href="#equation-hamiltonian-1" title="Permalink to this equation">¶</a></span>\[\dot{\Delta t} = \frac{\Delta t^{n+1} - \Delta t^n}{T_0^{n+1}} = \frac{\eta_0}{\beta_s^2 E_s} \Delta E = \frac{\partial \mathcal{H}}{\partial (\Delta E)} ,\]</div>
+<span class="eqno">(36)<a class="headerlink" href="#equation-hamiltonian-1" title="Permalink to this equation">¶</a></span>\[\dot{\Delta t} = \frac{\Delta t^{n+1} - \Delta t^n}{T_0^{n+1}} = \frac{\eta_0}{\beta_s^2 E_s} \Delta E = \frac{\partial \mathcal{H}}{\partial (\Delta E)} ,\]</div>
 <div class="math notranslate nohighlight" id="equation-hamiltonian-2">
-<span class="eqno">(36)<a class="headerlink" href="#equation-hamiltonian-2" title="Permalink to this equation">¶</a></span>\[\dot{\Delta E} = \frac{\Delta E^{n+1} - \Delta E^n}{T_0^{n+1}} = \sum_{k=0}^{n_{\mathsf{rf}}-1} \frac{q V_k}{T_0} \sin (\omega_{\mathsf{rf}}^k \Delta t + \varphi_{\mathsf{rf}}^k) - \dot{E_s} = - \frac{\partial \mathcal{H}}{\partial (\Delta t)} ,\]</div>
+<span class="eqno">(37)<a class="headerlink" href="#equation-hamiltonian-2" title="Permalink to this equation">¶</a></span>\[\dot{\Delta E} = \frac{\Delta E^{n+1} - \Delta E^n}{T_0^{n+1}} = \sum_{k=0}^{n_{\mathsf{rf}}-1} \frac{q V_k}{T_0} \sin (\omega_{\mathsf{rf}}^k \Delta t + \varphi_{\mathsf{rf}}^k) - \dot{E_s} = - \frac{\partial \mathcal{H}}{\partial (\Delta t)} ,\]</div>
 <p>from which we obtain the Hamiltonian by partial integration:</p>
 <div class="math notranslate nohighlight">
 \[\mathcal{H}(\Delta t, \Delta E) = \int d(\Delta t) \partial_{\Delta t} \mathcal{H}  + \int d(\Delta E) \partial_{\Delta E} \mathcal{H}  = \int d(\Delta E) \dot{\Delta t} - \int d(\Delta t) \dot{\Delta E} ,\]</div>
@@ -593,7 +608,7 @@ respectively).</p>
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="beam.html" class="btn btn-neutral float-right" title="beam Package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+        <a href="lhc_cavity_loop.html" class="btn btn-neutral float-right" title="LHC Cavity Loop" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
         <a href="../index.html" class="btn btn-neutral" title="Welcome to the BLonD documentation!" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>

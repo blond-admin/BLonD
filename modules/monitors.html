@@ -104,6 +104,35 @@
 <li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#separatrix">Separatrix</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="lhc_cavity_loop.html">LHC Cavity Loop</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-1-calculate-rf-beam-current">STEP 1: Calculate RF beam current</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-2-cavity-generator-beam-interaction">STEP 2: Cavity-generator-beam interaction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-3-rf-feedback-response">STEP 3: RF feedback response</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="lhc_cavity_loop.html#analog-feedback">Analog feedback</a></li>
+<li class="toctree-l3"><a class="reference internal" href="lhc_cavity_loop.html#digital-feedback">Digital feedback</a></li>
+<li class="toctree-l3"><a class="reference internal" href="lhc_cavity_loop.html#one-turn-feedback">One-turn feedback</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-4-switch-and-protect-response">STEP 4: Switch and protect response</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-5-generator-response">STEP 5: Generator response</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-6-tuner-control">STEP 6: Tuner control</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#references">References</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="sps_cavity_loop.html">SPS Cavity Loop</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="sps_cavity_loop.html#introduction-travelling-wave-cavity">INTRODUCTION: Travelling Wave Cavity</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#induced-voltage-calculation">Induced-voltage calculation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sps_cavity_loop.html#beam-induced-voltage">Beam-induced voltage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sps_cavity_loop.html#principles-the-cavity-controller">PRINCIPLES: The Cavity Controller</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#low-level-rf">Low-level RF</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#generator-induced-voltage">Generator-induced voltage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#id1">Beam-induced voltage</a></li>
+</ul>
+</li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="beam.html">beam Package</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="beam.html#module-blond.beam.beam"><code class="xref py py-mod docutils literal notranslate"><span class="pre">beam</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="beam.html#module-blond.beam.coasting_beam"><code class="xref py py-mod docutils literal notranslate"><span class="pre">coasting_beam</span></code> Module</a></li>
@@ -164,7 +193,7 @@
 </li>
 <li class="toctree-l1"><a class="reference internal" href="toolbox.html">toolbox Package</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.action"><code class="xref py py-mod docutils literal notranslate"><span class="pre">action</span></code> Module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.convolution"><code class="xref py py-mod docutils literal notranslate"><span class="pre">convolution</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="toolbox.html#convolution-module"><code class="xref py py-mod docutils literal notranslate"><span class="pre">convolution</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.diffusion"><code class="xref py py-mod docutils literal notranslate"><span class="pre">diffusion</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.next_regular"><code class="xref py py-mod docutils literal notranslate"><span class="pre">next_regular</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.parameter_scaling"><code class="xref py py-mod docutils literal notranslate"><span class="pre">parameter_scaling</span></code> Module</a></li>
@@ -300,6 +329,39 @@ Profile object has to have the fit_option set to ‘gaussian’).</p>
 <dl class="method">
 <dt id="blond.monitors.monitors.BunchMonitor.write_data">
 <code class="descname">write_data</code><span class="sig-paren">(</span><em>h5group</em>, <em>dims</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.BunchMonitor.write_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="blond.monitors.monitors.MultiBunchMonitor">
+<em class="property">class </em><code class="descclassname">blond.monitors.monitors.</code><code class="descname">MultiBunchMonitor</code><span class="sig-paren">(</span><em>filename</em>, <em>n_turns</em>, <em>profile</em>, <em>rf</em>, <em>Nbunches</em>, <em>buffer_size=100</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.MultiBunchMonitor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Class able to save multi-bunch profile, i.e. the histogram derived from
+the slicing.</p>
+<dl class="method">
+<dt id="blond.monitors.monitors.MultiBunchMonitor.close">
+<code class="descname">close</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.MultiBunchMonitor.close" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="blond.monitors.monitors.MultiBunchMonitor.create_data">
+<code class="descname">create_data</code><span class="sig-paren">(</span><em>name</em>, <em>h5group</em>, <em>dims</em>, <em>dtype</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.MultiBunchMonitor.create_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="blond.monitors.monitors.MultiBunchMonitor.track">
+<code class="descname">track</code><span class="sig-paren">(</span><em>turn</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.MultiBunchMonitor.track" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="blond.monitors.monitors.MultiBunchMonitor.write_buffer">
+<code class="descname">write_buffer</code><span class="sig-paren">(</span><em>turn</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.MultiBunchMonitor.write_buffer" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="blond.monitors.monitors.MultiBunchMonitor.write_data">
+<code class="descname">write_data</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.MultiBunchMonitor.write_data" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 </dd></dl>

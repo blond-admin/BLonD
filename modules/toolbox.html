@@ -104,6 +104,34 @@
 <li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#separatrix">Separatrix</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="lhc_cavity_loop.html">LHC Cavity Loop</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-1-calculate-rf-beam-current">STEP 1: Calculate RF beam current</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-2-cavity-generator-beam-interaction">STEP 2: Cavity-generator-beam interaction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-3-rf-feedback-response">STEP 3: RF feedback response</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="lhc_cavity_loop.html#analog-feedback">Analog feedback</a></li>
+<li class="toctree-l3"><a class="reference internal" href="lhc_cavity_loop.html#digital-feedback">Digital feedback</a></li>
+<li class="toctree-l3"><a class="reference internal" href="lhc_cavity_loop.html#one-turn-feedback">One-turn feedback</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-4-switch-and-protect-response">STEP 4: Switch and protect response</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-5-generator-response">STEP 5: Generator response</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-6-tuner-control">STEP 6: Tuner control</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#references">References</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="sps_cavity_loop.html">SPS Cavity Loop</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="sps_cavity_loop.html#introduction-travelling-wave-cavity">INTRODUCTION: Travelling Wave Cavity</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#induced-voltage-calculation">Induced-voltage calculation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sps_cavity_loop.html#principles-the-cavity-controller">PRINCIPLES: The Cavity Controller</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#low-level-rf">Low-level RF</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#id1">Generator-induced voltage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#id2">Beam-induced voltage</a></li>
+</ul>
+</li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="beam.html">beam Package</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="beam.html#module-blond.beam.beam"><code class="xref py py-mod docutils literal notranslate"><span class="pre">beam</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="beam.html#module-blond.beam.coasting_beam"><code class="xref py py-mod docutils literal notranslate"><span class="pre">coasting_beam</span></code> Module</a></li>
@@ -164,8 +192,9 @@
 </li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">toolbox Package</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#module-blond.toolbox.action"><code class="xref py py-mod docutils literal notranslate"><span class="pre">action</span></code> Module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#module-blond.toolbox.convolution"><code class="xref py py-mod docutils literal notranslate"><span class="pre">convolution</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#module-blond.toolbox.diffusion"><code class="xref py py-mod docutils literal notranslate"><span class="pre">diffusion</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-blond.toolbox.filters_and_fitting"><code class="xref py py-mod docutils literal notranslate"><span class="pre">filters_and_fitting</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-blond.toolbox.logger"><code class="xref py py-mod docutils literal notranslate"><span class="pre">logger</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#module-blond.toolbox.next_regular"><code class="xref py py-mod docutils literal notranslate"><span class="pre">next_regular</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#module-blond.toolbox.parameter_scaling"><code class="xref py py-mod docutils literal notranslate"><span class="pre">parameter_scaling</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#module-blond.toolbox.tomoscope"><code class="xref py py-mod docutils literal notranslate"><span class="pre">tomoscope</span></code> Module</a></li>
@@ -310,14 +339,6 @@ given amplitude of synchrotron oscillations in phase</p>
 <dd></dd></dl>
 
 </div>
-<div class="section" id="module-blond.toolbox.convolution">
-<span id="convolution-module"></span><h2><code class="xref py py-mod docutils literal notranslate"><span class="pre">convolution</span></code> Module<a class="headerlink" href="#module-blond.toolbox.convolution" title="Permalink to this headline">¶</a></h2>
-<dl class="function">
-<dt id="blond.toolbox.convolution.convolution">
-<code class="descclassname">blond.toolbox.convolution.</code><code class="descname">convolution</code><span class="sig-paren">(</span><em>signal</em>, <em>kernel</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.convolution.convolution" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-</div>
 <div class="section" id="module-blond.toolbox.diffusion">
 <span id="diffusion-module"></span><h2><code class="xref py py-mod docutils literal notranslate"><span class="pre">diffusion</span></code> Module<a class="headerlink" href="#module-blond.toolbox.diffusion" title="Permalink to this headline">¶</a></h2>
 <p><strong>Numerical diffusion model based on Ivanov (1992). Stationary single-harmonic
@@ -339,6 +360,105 @@ Optional: define number of side-bands (M) to be taken into account, default
 is M = 1; N.B. this will only give impair modes for phase noise.
 Optional: number of iterations to track.
 Optional: save figures into directory ‘figdir’.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-blond.toolbox.filters_and_fitting">
+<span id="filters-and-fitting-module"></span><h2><code class="xref py py-mod docutils literal notranslate"><span class="pre">filters_and_fitting</span></code> Module<a class="headerlink" href="#module-blond.toolbox.filters_and_fitting" title="Permalink to this headline">¶</a></h2>
+<dl class="simple">
+<dt><a href="#id1"><span class="problematic" id="id2">**</span></a>Fitting and filters routines to be used alone or with the Profile class in</dt><dd><p>the beam package. **</p>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd">Authors</dt>
+<dd class="field-odd"><p><strong>Danilo Quartullo</strong>, <strong>Alexandre Lasheen</strong>,
+<strong>Juan F. Esteban Mueller</strong></p>
+</dd>
+</dl>
+<dl class="function">
+<dt id="blond.toolbox.filters_and_fitting.beam_profile_filter_chebyshev">
+<code class="descclassname">blond.toolbox.filters_and_fitting.</code><code class="descname">beam_profile_filter_chebyshev</code><span class="sig-paren">(</span><em>Y_array</em>, <em>X_array</em>, <em>filter_option</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.filters_and_fitting.beam_profile_filter_chebyshev" title="Permalink to this definition">¶</a></dt>
+<dd><p>This routine is filtering the beam profile with a type II Chebyshev
+filter. The input is a library having the following structure and
+informations:</p>
+<p>filter_option = {‘type’:’chebyshev’, ‘pass_frequency’:pass_frequency,
+‘stop_frequency’:stop_frequency, ‘gain_pass’:gain_pass,
+‘gain_stop’:gain_stop}</p>
+<p>The function returns nCoefficients, the number of coefficients used
+in the filter. You can also add the following option to plot and return
+the filter transfer function:</p>
+<p>filter_option = {…, ‘transfer_function_plot’:True}</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="blond.toolbox.filters_and_fitting.fwhm">
+<code class="descclassname">blond.toolbox.filters_and_fitting.</code><code class="descname">fwhm</code><span class="sig-paren">(</span><em>Y_array</em>, <em>X_array</em>, <em>shift=0</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.filters_and_fitting.fwhm" title="Permalink to this definition">¶</a></dt>
+<dd><p>Computation of the bunch length and position from the FWHM
+assuming Gaussian line density.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="blond.toolbox.filters_and_fitting.fwhm_multibunch">
+<code class="descclassname">blond.toolbox.filters_and_fitting.</code><code class="descname">fwhm_multibunch</code><span class="sig-paren">(</span><em>Y_array</em>, <em>X_array</em>, <em>n_bunches</em>, <em>bunch_spacing_buckets</em>, <em>bucket_size_tau</em>, <em>bucket_tolerance=0.4</em>, <em>shift=0</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.filters_and_fitting.fwhm_multibunch" title="Permalink to this definition">¶</a></dt>
+<dd><p>Computation of the bunch length and position from the FWHM
+assuming Gaussian line density for multibunch case.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="blond.toolbox.filters_and_fitting.gauss">
+<code class="descclassname">blond.toolbox.filters_and_fitting.</code><code class="descname">gauss</code><span class="sig-paren">(</span><em>x</em>, <em>*p</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.filters_and_fitting.gauss" title="Permalink to this definition">¶</a></dt>
+<dd><p>Defined as:</p>
+<div class="math notranslate nohighlight">
+\[A \, e^{\frac{\left(x-x_0\right)^2}{2\sigma_x^2}}\]</div>
+</dd></dl>
+
+<dl class="function">
+<dt id="blond.toolbox.filters_and_fitting.gaussian_fit">
+<code class="descclassname">blond.toolbox.filters_and_fitting.</code><code class="descname">gaussian_fit</code><span class="sig-paren">(</span><em>Y_array</em>, <em>X_array</em>, <em>p0</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.filters_and_fitting.gaussian_fit" title="Permalink to this definition">¶</a></dt>
+<dd><p>Gaussian fit of the profile, in order to get the bunch length and
+position. Returns fit values in units of s.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="blond.toolbox.filters_and_fitting.rms">
+<code class="descclassname">blond.toolbox.filters_and_fitting.</code><code class="descname">rms</code><span class="sig-paren">(</span><em>Y_array</em>, <em>X_array</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.filters_and_fitting.rms" title="Permalink to this definition">¶</a></dt>
+<dd><p>Computation of the RMS bunch length and position from the line
+density (bunch length = 4sigma).</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="blond.toolbox.filters_and_fitting.rms_multibunch">
+<code class="descclassname">blond.toolbox.filters_and_fitting.</code><code class="descname">rms_multibunch</code><span class="sig-paren">(</span><em>Y_array</em>, <em>X_array</em>, <em>n_bunches</em>, <em>bunch_spacing_buckets</em>, <em>bucket_size_tau</em>, <em>bucket_tolerance=0.4</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.filters_and_fitting.rms_multibunch" title="Permalink to this definition">¶</a></dt>
+<dd><p>Computation of the rms bunch length (4sigma) and position.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-blond.toolbox.logger">
+<span id="logger-module"></span><h2><code class="xref py py-mod docutils literal notranslate"><span class="pre">logger</span></code> Module<a class="headerlink" href="#module-blond.toolbox.logger" title="Permalink to this headline">¶</a></h2>
+<p><strong>Logging messages</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Authors</dt>
+<dd class="field-odd"><p><strong>Helga Timko</strong></p>
+</dd>
+</dl>
+<dl class="class">
+<dt id="blond.toolbox.logger.Logger">
+<em class="property">class </em><code class="descclassname">blond.toolbox.logger.</code><code class="descname">Logger</code><span class="sig-paren">(</span><em>debug=False</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.logger.Logger" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Class to log messages coming from other classes. Messages contain
+{Time stamp} {Class name} {Log level} {Message}. Errors, warnings and info
+are logged into the console. To disable logging, call Logger().disable()</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>debug</strong> (<em>bool</em>) – Log DEBUG messages in ‘debug.log’; default is False</p>
+</dd>
+</dl>
+<dl class="method">
+<dt id="blond.toolbox.logger.Logger.disable">
+<code class="descname">disable</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.logger.Logger.disable" title="Permalink to this definition">¶</a></dt>
+<dd><p>Disables all logging.</p>
+</dd></dl>
+
 </dd></dl>
 
 </div>
@@ -392,6 +512,11 @@ size for inputs to FFTPACK.</p>
 <dl class="method">
 <dt id="blond.toolbox.parameter_scaling.ParameterScaling.cbEnergyHandler">
 <code class="descname">cbEnergyHandler</code><span class="sig-paren">(</span><em>text</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling.cbEnergyHandler" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="blond.toolbox.parameter_scaling.ParameterScaling.cbGammaTHandler">
+<code class="descname">cbGammaTHandler</code><span class="sig-paren">(</span><em>text</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling.cbGammaTHandler" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="attribute">

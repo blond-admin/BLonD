@@ -104,6 +104,35 @@
 <li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#separatrix">Separatrix</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="lhc_cavity_loop.html">LHC Cavity Loop</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-1-calculate-rf-beam-current">STEP 1: Calculate RF beam current</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-2-cavity-generator-beam-interaction">STEP 2: Cavity-generator-beam interaction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-3-rf-feedback-response">STEP 3: RF feedback response</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="lhc_cavity_loop.html#analog-feedback">Analog feedback</a></li>
+<li class="toctree-l3"><a class="reference internal" href="lhc_cavity_loop.html#digital-feedback">Digital feedback</a></li>
+<li class="toctree-l3"><a class="reference internal" href="lhc_cavity_loop.html#one-turn-feedback">One-turn feedback</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-4-switch-and-protect-response">STEP 4: Switch and protect response</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-5-generator-response">STEP 5: Generator response</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-6-tuner-control">STEP 6: Tuner control</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#references">References</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="sps_cavity_loop.html">SPS Cavity Loop</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="sps_cavity_loop.html#introduction-travelling-wave-cavity">INTRODUCTION: Travelling Wave Cavity</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#induced-voltage-calculation">Induced-voltage calculation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sps_cavity_loop.html#beam-induced-voltage">Beam-induced voltage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sps_cavity_loop.html#principles-the-cavity-controller">PRINCIPLES: The Cavity Controller</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#low-level-rf">Low-level RF</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#generator-induced-voltage">Generator-induced voltage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#id1">Beam-induced voltage</a></li>
+</ul>
+</li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="beam.html">beam Package</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="beam.html#module-blond.beam.beam"><code class="xref py py-mod docutils literal notranslate"><span class="pre">beam</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="beam.html#module-blond.beam.coasting_beam"><code class="xref py py-mod docutils literal notranslate"><span class="pre">coasting_beam</span></code> Module</a></li>
@@ -164,7 +193,7 @@
 </li>
 <li class="toctree-l1"><a class="reference internal" href="toolbox.html">toolbox Package</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.action"><code class="xref py py-mod docutils literal notranslate"><span class="pre">action</span></code> Module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.convolution"><code class="xref py py-mod docutils literal notranslate"><span class="pre">convolution</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="toolbox.html#convolution-module"><code class="xref py py-mod docutils literal notranslate"><span class="pre">convolution</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.diffusion"><code class="xref py py-mod docutils literal notranslate"><span class="pre">diffusion</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.next_regular"><code class="xref py py-mod docutils literal notranslate"><span class="pre">next_regular</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.parameter_scaling"><code class="xref py py-mod docutils literal notranslate"><span class="pre">parameter_scaling</span></code> Module</a></li>
@@ -361,10 +390,18 @@ loops is tracked as well.</p>
 <code class="xref py py-attr docutils literal notranslate"><span class="pre">input_parameters.rf_parameters.RFStation.voltage</span></code></p></li>
 <li><p><strong>phi_noise</strong> (<em>float array</em>) – Inherited from
 <code class="xref py py-attr docutils literal notranslate"><span class="pre">input_parameters.rf_parameters.RFStation.phi_noise</span></code></p></li>
+<li><p><strong>phi_modulation</strong> (<em>2-tuple of float array</em>) – Inherited from
+<code class="xref py py-attr docutils literal notranslate"><span class="pre">input_parameters.rf_parameters.RFStation.phi_modulation</span></code></p></li>
 <li><p><strong>phi_rf</strong> (<em>float array</em>) – Inherited from
 <code class="xref py py-attr docutils literal notranslate"><span class="pre">input_parameters.rf_parameters.RFStation.phi_rf</span></code></p></li>
 <li><p><strong>phi_s</strong> (<em>float array</em>) – Inherited from
 <code class="xref py py-attr docutils literal notranslate"><span class="pre">input_parameters.rf_parameters.RFStation.phi_s</span></code></p></li>
+<li><p><strong>alpha_0</strong> (<em>float array</em>) – Inherited from
+<code class="xref py py-attr docutils literal notranslate"><span class="pre">input_parameters.ring.Ring.alpha_0</span></code></p></li>
+<li><p><strong>alpha_1</strong> (<em>float array</em>) – Inherited from
+<code class="xref py py-attr docutils literal notranslate"><span class="pre">input_parameters.ring.Ring.alpha_1</span></code></p></li>
+<li><p><strong>alpha_2</strong> (<em>float array</em>) – Inherited from
+<code class="xref py py-attr docutils literal notranslate"><span class="pre">input_parameters.ring.Ring.alpha_2</span></code></p></li>
 <li><p><strong>eta_0</strong> (<em>float array</em>) – Inherited from
 <code class="xref py py-attr docutils literal notranslate"><span class="pre">input_parameters.ring.Ring.eta_0</span></code></p></li>
 <li><p><strong>eta_1</strong> (<em>float array</em>) – Inherited from
@@ -397,11 +434,19 @@ is False</p></li>
 and ‘exact’ solvers are available. The ‘simple’ solver is somewhat
 faster. Otherwise, the solver is automatically ‘exact’ and calculates
 the frequency slippage up to second order. The corresponding equations
-are:</p>
+are (nb: the n indices correspond to the turn number):</p>
 <div class="math notranslate nohighlight">
-\[\Delta t^{n+1} = \Delta t^{n} + \frac{L}{C} T_0^{n+1} \left(\frac{1}{1 - \eta(\delta^{n+1})\delta^{n+1}} - 1\right) \quad \text{(exact)}\]</div>
+\[\Delta t^{n+1} = \Delta t^{n} + \frac{L}{C} T_0^{n+1} \left[ \left(1+\sum_{i=0}^{2}{\alpha_i\left(\delta^{n+1}\right)^{i+1}}\right)   \frac{1+\left(\Delta E/E_s\right)^{n+1}}{1+\delta^{n+1}}    - 1\right] \quad \text{(exact)}\]</div>
+<div class="math notranslate nohighlight">
+\[\Delta t^{n+1} = \Delta t^{n} + \frac{L}{C} T_0^{n+1} \left(\frac{1}{1 - \eta(\delta^{n+1})\delta^{n+1}} - 1\right) \quad \text{(legacy)}\]</div>
 <div class="math notranslate nohighlight">
 \[\Delta t^{n+1} = \Delta t^{n} + \frac{L}{C} T_0^{n+1}\eta_0\delta^{n+1} \quad \text{(simple)}\]</div>
+<p>The relative momentum needs to be calculated from the relative energy
+and is obtained as follow:</p>
+<div class="math notranslate nohighlight">
+\[\delta = \sqrt{1+\beta_s^{-2}\left[\left(\frac{\Delta E}{E_s}\right)^2 + 2\frac{\Delta E}{E_s}\right]} - 1 \quad \text{(exact)}\]</div>
+<div class="math notranslate nohighlight">
+\[\delta = \frac{\Delta E}{\beta_s^2 E_s} \quad \text{(simple, legacy)}\]</div>
 </dd></dl>
 
 <dl class="method">

@@ -9,18 +9,26 @@ toolbox Package
     :undoc-members:
     :show-inheritance:
 
-:mod:`convolution` Module
--------------------------
-
-.. automodule:: blond.toolbox.convolution
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 :mod:`diffusion` Module
 -----------------------
 
 .. automodule:: blond.toolbox.diffusion
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+:mod:`filters_and_fitting` Module
+---------------------------------
+
+.. automodule:: blond.toolbox.filters_and_fitting
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+:mod:`logger` Module
+--------------------
+
+.. automodule:: blond.toolbox.logger
     :members:
     :undoc-members:
     :show-inheritance:

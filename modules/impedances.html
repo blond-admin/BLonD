@@ -104,6 +104,35 @@
 <li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#separatrix">Separatrix</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="lhc_cavity_loop.html">LHC Cavity Loop</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-1-calculate-rf-beam-current">STEP 1: Calculate RF beam current</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-2-cavity-generator-beam-interaction">STEP 2: Cavity-generator-beam interaction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-3-rf-feedback-response">STEP 3: RF feedback response</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="lhc_cavity_loop.html#analog-feedback">Analog feedback</a></li>
+<li class="toctree-l3"><a class="reference internal" href="lhc_cavity_loop.html#digital-feedback">Digital feedback</a></li>
+<li class="toctree-l3"><a class="reference internal" href="lhc_cavity_loop.html#one-turn-feedback">One-turn feedback</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-4-switch-and-protect-response">STEP 4: Switch and protect response</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-5-generator-response">STEP 5: Generator response</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-6-tuner-control">STEP 6: Tuner control</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#references">References</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="sps_cavity_loop.html">SPS Cavity Loop</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="sps_cavity_loop.html#introduction-travelling-wave-cavity">INTRODUCTION: Travelling Wave Cavity</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#induced-voltage-calculation">Induced-voltage calculation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sps_cavity_loop.html#beam-induced-voltage">Beam-induced voltage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sps_cavity_loop.html#principles-the-cavity-controller">PRINCIPLES: The Cavity Controller</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#low-level-rf">Low-level RF</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#generator-induced-voltage">Generator-induced voltage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#id1">Beam-induced voltage</a></li>
+</ul>
+</li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="beam.html">beam Package</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="beam.html#module-blond.beam.beam"><code class="xref py py-mod docutils literal notranslate"><span class="pre">beam</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="beam.html#module-blond.beam.coasting_beam"><code class="xref py py-mod docutils literal notranslate"><span class="pre">coasting_beam</span></code> Module</a></li>
@@ -164,7 +193,7 @@
 </li>
 <li class="toctree-l1"><a class="reference internal" href="toolbox.html">toolbox Package</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.action"><code class="xref py py-mod docutils literal notranslate"><span class="pre">action</span></code> Module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.convolution"><code class="xref py py-mod docutils literal notranslate"><span class="pre">convolution</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="toolbox.html#convolution-module"><code class="xref py py-mod docutils literal notranslate"><span class="pre">convolution</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.diffusion"><code class="xref py py-mod docutils literal notranslate"><span class="pre">diffusion</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.next_regular"><code class="xref py py-mod docutils literal notranslate"><span class="pre">next_regular</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.parameter_scaling"><code class="xref py py-mod docutils literal notranslate"><span class="pre">parameter_scaling</span></code> Module</a></li>
@@ -450,7 +479,7 @@ or for the line density</p>
 
 <dl class="method">
 <dt id="blond.impedances.impedance.InducedVoltageResonator.induced_voltage_1turn">
-<code class="descname">induced_voltage_1turn</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageResonator.induced_voltage_1turn" title="Permalink to this definition">¶</a></dt>
+<code class="descname">induced_voltage_1turn</code><span class="sig-paren">(</span><em>beam_spectrum_dict={}</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageResonator.induced_voltage_1turn" title="Permalink to this definition">¶</a></dt>
 <dd><p>Method to calculate the induced voltage through linearily
 interpolating the line density and applying the analytic equation
 to the result.</p>
@@ -558,7 +587,7 @@ to the result.</p>
 
 <dl class="method">
 <dt id="blond.impedances.impedance.InductiveImpedance.induced_voltage_1turn">
-<code class="descname">induced_voltage_1turn</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.InductiveImpedance.induced_voltage_1turn" title="Permalink to this definition">¶</a></dt>
+<code class="descname">induced_voltage_1turn</code><span class="sig-paren">(</span><em>beam_spectrum_dict={}</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.InductiveImpedance.induced_voltage_1turn" title="Permalink to this definition">¶</a></dt>
 <dd><p>Method to calculate the induced voltage through the derivative of the
 profile. The impedance must be a constant Z/n.</p>
 </dd></dl>
@@ -641,6 +670,12 @@ voltages should have the same slicing resolution.</p>
 <dl class="method">
 <dt id="blond.impedances.impedance.TotalInducedVoltage.induced_voltage_sum">
 <code class="descname">induced_voltage_sum</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.TotalInducedVoltage.induced_voltage_sum" title="Permalink to this definition">¶</a></dt>
+<dd><p>Method to sum all the induced voltages in one single array.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="blond.impedances.impedance.TotalInducedVoltage.induced_voltage_sum_packed">
+<code class="descname">induced_voltage_sum_packed</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.TotalInducedVoltage.induced_voltage_sum_packed" title="Permalink to this definition">¶</a></dt>
 <dd><p>Method to sum all the induced voltages in one single array.</p>
 </dd></dl>
 

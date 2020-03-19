@@ -104,6 +104,35 @@
 <li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#separatrix">Separatrix</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="lhc_cavity_loop.html">LHC Cavity Loop</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-1-calculate-rf-beam-current">STEP 1: Calculate RF beam current</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-2-cavity-generator-beam-interaction">STEP 2: Cavity-generator-beam interaction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-3-rf-feedback-response">STEP 3: RF feedback response</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="lhc_cavity_loop.html#analog-feedback">Analog feedback</a></li>
+<li class="toctree-l3"><a class="reference internal" href="lhc_cavity_loop.html#digital-feedback">Digital feedback</a></li>
+<li class="toctree-l3"><a class="reference internal" href="lhc_cavity_loop.html#one-turn-feedback">One-turn feedback</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-4-switch-and-protect-response">STEP 4: Switch and protect response</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-5-generator-response">STEP 5: Generator response</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-6-tuner-control">STEP 6: Tuner control</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#references">References</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="sps_cavity_loop.html">SPS Cavity Loop</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="sps_cavity_loop.html#introduction-travelling-wave-cavity">INTRODUCTION: Travelling Wave Cavity</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#induced-voltage-calculation">Induced-voltage calculation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sps_cavity_loop.html#beam-induced-voltage">Beam-induced voltage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sps_cavity_loop.html#principles-the-cavity-controller">PRINCIPLES: The Cavity Controller</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#low-level-rf">Low-level RF</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#generator-induced-voltage">Generator-induced voltage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#id1">Beam-induced voltage</a></li>
+</ul>
+</li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="beam.html">beam Package</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="beam.html#module-blond.beam.beam"><code class="xref py py-mod docutils literal notranslate"><span class="pre">beam</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="beam.html#module-blond.beam.coasting_beam"><code class="xref py py-mod docutils literal notranslate"><span class="pre">coasting_beam</span></code> Module</a></li>
@@ -164,7 +193,7 @@
 </li>
 <li class="toctree-l1"><a class="reference internal" href="toolbox.html">toolbox Package</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.action"><code class="xref py py-mod docutils literal notranslate"><span class="pre">action</span></code> Module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.convolution"><code class="xref py py-mod docutils literal notranslate"><span class="pre">convolution</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="toolbox.html#convolution-module"><code class="xref py py-mod docutils literal notranslate"><span class="pre">convolution</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.diffusion"><code class="xref py py-mod docutils literal notranslate"><span class="pre">diffusion</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.next_regular"><code class="xref py py-mod docutils literal notranslate"><span class="pre">next_regular</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.parameter_scaling"><code class="xref py py-mod docutils literal notranslate"><span class="pre">parameter_scaling</span></code> Module</a></li>
@@ -260,7 +289,7 @@
 </dl>
 <dl class="class">
 <dt id="blond.input_parameters.rf_parameters.RFStation">
-<em class="property">class </em><code class="descclassname">blond.input_parameters.rf_parameters.</code><code class="descname">RFStation</code><span class="sig-paren">(</span><em>Ring</em>, <em>harmonic</em>, <em>voltage</em>, <em>phi_rf_d</em>, <em>n_rf=1</em>, <em>section_index=1</em>, <em>omega_rf=None</em>, <em>phi_noise=None</em>, <em>RFStationOptions=&lt;blond.input_parameters.rf_parameters_options.RFStationOptions object&gt;</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.input_parameters.rf_parameters.RFStation" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="descclassname">blond.input_parameters.rf_parameters.</code><code class="descname">RFStation</code><span class="sig-paren">(</span><em>Ring</em>, <em>harmonic</em>, <em>voltage</em>, <em>phi_rf_d</em>, <em>n_rf=1</em>, <em>section_index=1</em>, <em>omega_rf=None</em>, <em>phi_noise=None</em>, <em>phi_modulation=None</em>, <em>RFStationOptions=&lt;blond.input_parameters.rf_parameters_options.RFStationOptions object&gt;</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.input_parameters.rf_parameters.RFStation" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>Class containing all the RF parameters for all the RF systems in one
 ring segment or RF station.</p>
@@ -305,6 +334,7 @@ right momentum program etc.). Value should be in the range
 the harmonic condition. For input options, see above.</p></li>
 <li><p><strong>phi_noise</strong> (<em>float</em><em> (</em><em>opt: float array/matrix</em><em>)</em>) – Optional, programmed RF cavity phase noise, <span class="math notranslate nohighlight">\(\phi_{N,l,n}\)</span> [rad].
 Added to all RF systems in the station. For input options, see above</p></li>
+<li><p><strong>phi_modulation</strong> (<em>class</em><em> (</em><em>opt: iterable of classes</em><em>)</em>) – A PhaseModulation type class (or iterable of classes)</p></li>
 <li><p><strong>RFStationOptions</strong> (<em>class</em>) – Optionnal, A RFStationOptions-based class defining smoothing,
 interpolation, etc. options for harmonic, voltage, and/or
 phi_rf_d programme to be interpolated to a turn-by-turn programme</p></li>
@@ -493,6 +523,45 @@ Inside the code, indices 0..n_sections-1 are used.</p>
 </dd></dl>
 
 <dl class="attribute">
+<dt id="blond.input_parameters.rf_parameters.RFStation.alpha_0">
+<code class="descname">alpha_0</code><a class="headerlink" href="#blond.input_parameters.rf_parameters.RFStation.alpha_0" title="Permalink to this definition">¶</a></dt>
+<dd><p>Zeroth order momentum compaction factor of the present section;
+inherited from
+<code class="xref py py-attr docutils literal notranslate"><span class="pre">input_parameters.ring.Ring.alpha_0</span></code></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>float array [n_turns+1]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.input_parameters.rf_parameters.RFStation.alpha_1">
+<code class="descname">alpha_1</code><a class="headerlink" href="#blond.input_parameters.rf_parameters.RFStation.alpha_1" title="Permalink to this definition">¶</a></dt>
+<dd><p>First order momentum compaction factor of the present section;
+inherited from
+<code class="xref py py-attr docutils literal notranslate"><span class="pre">input_parameters.ring.Ring.alpha_1</span></code></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>float array [n_turns+1]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.input_parameters.rf_parameters.RFStation.alpha_2">
+<code class="descname">alpha_2</code><a class="headerlink" href="#blond.input_parameters.rf_parameters.RFStation.alpha_2" title="Permalink to this definition">¶</a></dt>
+<dd><p>Second order momentum compaction factor of the present section;
+inherited from
+<code class="xref py py-attr docutils literal notranslate"><span class="pre">input_parameters.ring.Ring.alpha_2</span></code></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>float array [n_turns+1]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
 <dt id="blond.input_parameters.rf_parameters.RFStation.eta_0">
 <code class="descname">eta_0</code><a class="headerlink" href="#blond.input_parameters.rf_parameters.RFStation.eta_0" title="Permalink to this definition">¶</a></dt>
 <dd><p>Zeroth order slippage factor of the present section; inherited from
@@ -627,6 +696,17 @@ Initially the same as the designed angular frequency.</p>
 <dt id="blond.input_parameters.rf_parameters.RFStation.phi_noise">
 <code class="descname">phi_noise</code><a class="headerlink" href="#blond.input_parameters.rf_parameters.RFStation.phi_noise" title="Permalink to this definition">¶</a></dt>
 <dd><p>Programmed cavity phase noise for each RF harmonic.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>None or float matrix [n_rf, n_turns+1]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.input_parameters.rf_parameters.RFStation.phi_modulation">
+<code class="descname">phi_modulation</code><a class="headerlink" href="#blond.input_parameters.rf_parameters.RFStation.phi_modulation" title="Permalink to this definition">¶</a></dt>
+<dd><p>Programmed cavity phase modulation for each RF harmonic.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
 <dd class="field-odd"><p>None or float matrix [n_rf, n_turns+1]</p>
@@ -896,10 +976,47 @@ object.</p></li>
 <dl class="attribute">
 <dt id="blond.input_parameters.ring.Ring.alpha_order">
 <code class="descname">alpha_order</code><a class="headerlink" href="#blond.input_parameters.ring.Ring.alpha_order" title="Permalink to this definition">¶</a></dt>
-<dd><p>Number of orders of the momentum compaction factor (from 0 to 2)</p>
+<dd><p>Highest order of momentum compaction (as defined by the input). Can
+be 0,1,2.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
 <dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.input_parameters.ring.Ring.alpha_0">
+<code class="descname">alpha_0</code><a class="headerlink" href="#blond.input_parameters.ring.Ring.alpha_0" title="Permalink to this definition">¶</a></dt>
+<dd><p>Zeroth order momentum compaction factor
+<span class="math notranslate nohighlight">\(\alpha_{0,k,n}\)</span></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>float matrix [n_sections, n_turns+1]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.input_parameters.ring.Ring.alpha_1">
+<code class="descname">alpha_1</code><a class="headerlink" href="#blond.input_parameters.ring.Ring.alpha_1" title="Permalink to this definition">¶</a></dt>
+<dd><p>First order momentum compaction factor
+<span class="math notranslate nohighlight">\(\alpha_{1,k,n}\)</span></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>float matrix [n_sections, n_turns+1]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="blond.input_parameters.ring.Ring.alpha_2">
+<code class="descname">alpha_2</code><a class="headerlink" href="#blond.input_parameters.ring.Ring.alpha_2" title="Permalink to this definition">¶</a></dt>
+<dd><p>Second order momentum compaction factor
+<span class="math notranslate nohighlight">\(\alpha_{2,k,n}\)</span></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>float matrix [n_sections, n_turns+1]</p>
 </dd>
 </dl>
 </dd></dl>
@@ -1060,18 +1177,6 @@ Possibility to extract cycle parameters at these moments using
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
 <dd class="field-odd"><p>float array [n_turns+1]</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="attribute">
-<dt>
-<code class="descname">alpha_order</code></dt>
-<dd><p>Highest order of momentum compaction (as defined by the input). Can
-be 0,1,2.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Type</dt>
-<dd class="field-odd"><p>int</p>
 </dd>
 </dl>
 </dd></dl>

@@ -36,8 +36,8 @@
               href="../genindex.html"/>
         <link rel="search" title="Search" href="../search.html"/>
     <link rel="top" title="BLonD 1.1 documentation" href="../index.html"/>
-        <link rel="next" title="synchrotron_radiation Package" href="synchrotron_radiation.html"/>
-        <link rel="prev" title="plots Package" href="plots.html"/> 
+        <link rel="next" title="beam Package" href="beam.html"/>
+        <link rel="prev" title="LHC Cavity Loop" href="lhc_cavity_loop.html"/> 
 
   
   <script src="../_static/js/modernizr.min.js"></script>
@@ -96,12 +96,41 @@
 <li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#energy-kick">Energy kick</a></li>
 <li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#arrival-time-drift">Arrival time drift</a></li>
 <li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#the-synchronous-particle">The synchronous particle</a></li>
-<li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#small-amplitude-oscillations">Small-amplitude oscillations</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="equations_of_motion.html#tracking-utilities">Tracking utilities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#small-amplitude-oscillations">Small-amplitude oscillations</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="equations_of_motion.html#tracking-utilities">Tracking utilities</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#hamiltonian">Hamiltonian</a></li>
 <li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#separatrix">Separatrix</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="lhc_cavity_loop.html">LHC Cavity Loop</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-1-calculate-rf-beam-current">STEP 1: Calculate RF beam current</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-2-cavity-generator-beam-interaction">STEP 2: Cavity-generator-beam interaction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-3-rf-feedback-response">STEP 3: RF feedback response</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="lhc_cavity_loop.html#analog-feedback">Analog feedback</a></li>
+<li class="toctree-l3"><a class="reference internal" href="lhc_cavity_loop.html#digital-feedback">Digital feedback</a></li>
+<li class="toctree-l3"><a class="reference internal" href="lhc_cavity_loop.html#one-turn-feedback">One-turn feedback</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-4-switch-and-protect-response">STEP 4: Switch and protect response</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-5-generator-response">STEP 5: Generator response</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-6-tuner-control">STEP 6: Tuner control</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#references">References</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">SPS Cavity Loop</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#travelling-wave-cavity">TRAVELLING WAVE CAVITY</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#induced-voltage-calculation">Induced-voltage calculation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#the-cavity-controller">THE CAVITY CONTROLLER</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#low-level-rf">Low-level RF</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id1">Generator-induced voltage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id2">Beam-induced voltage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#from-coarse-to-fine-grid-and-back">From coarse to fine grid and back</a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="beam.html">beam Package</a><ul>
@@ -125,21 +154,6 @@
 <li class="toctree-l2"><a class="reference internal" href="input_parameters.html#module-blond.input_parameters.ring"><code class="xref py py-mod docutils literal notranslate"><span class="pre">ring</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="input_parameters.html#module-blond.input_parameters.ring_options"><code class="xref py py-mod docutils literal notranslate"><span class="pre">ring_options</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="input_parameters.html#module-blond.input_parameters.rf_parameters_options"><code class="xref py py-mod docutils literal notranslate"><span class="pre">rf_parameters_options</span></code> Module</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="lhc_cavity_loop.html">LHC Cavity Loop</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-1-calculate-rf-beam-current">STEP 1: Calculate RF beam current</a></li>
-<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-2-cavity-generator-beam-interaction">STEP 2: Cavity-generator-beam interaction</a></li>
-<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-3-rf-feedback-response">STEP 3: RF feedback response</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="lhc_cavity_loop.html#analog-feedback">Analog feedback</a></li>
-<li class="toctree-l3"><a class="reference internal" href="lhc_cavity_loop.html#digital-feedback">Digital feedback</a></li>
-<li class="toctree-l3"><a class="reference internal" href="lhc_cavity_loop.html#one-turn-feedback">One-turn feedback</a></li>
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-4-switch-and-protect-response">STEP 4: Switch and protect response</a></li>
-<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-5-generator-response">STEP 5: Generator response</a></li>
-<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-6-tuner-control">STEP 6: Tuner control</a></li>
-<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#references">References</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="llrf.html">llrf Package</a><ul>
@@ -173,15 +187,15 @@
 <li class="toctree-l2"><a class="reference internal" href="plots.html#module-blond.plots.plot_slices"><code class="xref py py-mod docutils literal notranslate"><span class="pre">plot_slices</span></code> Module</a></li>
 </ul>
 </li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">SPS Cavity Loop</a></li>
 <li class="toctree-l1"><a class="reference internal" href="synchrotron_radiation.html">synchrotron_radiation Package</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="synchrotron_radiation.html#module-blond.synchrotron_radiation.synchrotron_radiation"><code class="xref py py-mod docutils literal notranslate"><span class="pre">synchrotron_radiation</span></code> Module</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="toolbox.html">toolbox Package</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.action"><code class="xref py py-mod docutils literal notranslate"><span class="pre">action</span></code> Module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.convolution"><code class="xref py py-mod docutils literal notranslate"><span class="pre">convolution</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.diffusion"><code class="xref py py-mod docutils literal notranslate"><span class="pre">diffusion</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.filters_and_fitting"><code class="xref py py-mod docutils literal notranslate"><span class="pre">filters_and_fitting</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.logger"><code class="xref py py-mod docutils literal notranslate"><span class="pre">logger</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.next_regular"><code class="xref py py-mod docutils literal notranslate"><span class="pre">next_regular</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.parameter_scaling"><code class="xref py py-mod docutils literal notranslate"><span class="pre">parameter_scaling</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.tomoscope"><code class="xref py py-mod docutils literal notranslate"><span class="pre">tomoscope</span></code> Module</a></li>
@@ -271,7 +285,162 @@
 <dd class="field-odd"><p><strong>Helga Timko</strong></p>
 </dd>
 </dl>
+<div class="section" id="travelling-wave-cavity">
+<h2>TRAVELLING WAVE CAVITY<a class="headerlink" href="#travelling-wave-cavity" title="Permalink to this headline">¶</a></h2>
+<p>The voltage in the SPS travelling-wave cavities (TWC) is the sum of the generator-induced voltage
+<span class="math notranslate nohighlight">\(V_\mathsf{gen}\)</span> and the beam-induced voltage <span class="math notranslate nohighlight">\(V_\mathsf{beam}\)</span>,</p>
+<div class="math notranslate nohighlight">
+\[V_\mathsf{ant} = V_\mathsf{gen} + V_\mathsf{beam} = I_\mathsf{gen} Z_\mathsf{gen} + I_\mathsf{beam} Z_\mathsf{beam}\, ,\]</div>
+<p>where <span class="math notranslate nohighlight">\(I\)</span> represents currents and <span class="math notranslate nohighlight">\(Z\)</span> represent impedances. As shown by
+<a class="reference external" href="https://cds.cern.ch/record/319440">G. Dome</a>, the impedance of the beam towards the TWC can be expressed as</p>
+<div class="math notranslate nohighlight">
+\[Z_\mathsf{beam} (\omega) =
+\frac{\rho l^2}{8} \left[
+\left( \frac{\sin \left(\frac{\tau(\omega - \omega_r)}{2}\right)}{\frac{\tau(\omega - \omega_r)}{2}} \right)^2
+- 2i \frac{\tau(\omega - \omega_r) - \sin(\tau(\omega - \omega_r))}{(\tau(\omega - \omega_r))^2}
++ \left( \frac{\sin \left(\frac{\tau(\omega + \omega_r)}{2}\right)}{\frac{\tau(\omega + \omega_r)}{2}} \right)^2
++ 2i \frac{\tau(\omega + \omega_r) - \sin(\tau(\omega + \omega_r))}{(\tau(\omega + \omega_r))^2}
+\right] \, .\]</div>
+<p>Here, the TWC has the following properties:</p>
+<ul class="simple">
+<li><p><span class="math notranslate nohighlight">\(\rho = 27.1 \frac{\mathsf{k\Omega}}{\mathsf{m}^2}\)</span> is the series impedance</p></li>
+<li><p><span class="math notranslate nohighlight">\(l = (11 n_\mathsf{sections} - 1) \times 0.374 \mathsf{m}\)</span> is the accelerating length of the cavity, depending
+on the number of sections <span class="math notranslate nohighlight">\(n_\mathsf{sections}\)</span></p></li>
+<li><p><span class="math notranslate nohighlight">\(\tau = \frac{l}{v_g} \left( 1 + \frac{v_g}{c} \right)\)</span> is the cavity filling time, where the group velocity is
+<span class="math notranslate nohighlight">\(v_g = 0.0946 c\)</span></p></li>
+<li><p><span class="math notranslate nohighlight">\(\omega_r = 200.222 \mathsf{MHz}\)</span> is the resonant frequency of the TWC</p></li>
+</ul>
+<p>The impedance of the generator towards the TWC is</p>
+<div class="math notranslate nohighlight">
+\[Z_\mathsf{gen} (\omega) =
+l \sqrt{\frac{\rho Z_0}{2}}
+\left[ \frac{\sin \left(\frac{\tau(\omega - \omega_r)}{2}\right)}{\frac{\tau(\omega - \omega_r)}{2}}  +
+\frac{\sin \left(\frac{\tau(\omega + \omega_r)}{2}\right)}{\frac{\tau(\omega + \omega_r)}{2}} \right] \, ,\]</div>
+<p>where <span class="math notranslate nohighlight">\(Z_0\)</span> is the shunt impedance when measuring the generator current; assumed to be 50 <span class="math notranslate nohighlight">\(\Omega\)</span>.</p>
+<div class="section" id="induced-voltage-calculation">
+<h3>Induced-voltage calculation<a class="headerlink" href="#induced-voltage-calculation" title="Permalink to this headline">¶</a></h3>
+<p>In the discrete time system, the induced voltage <span class="math notranslate nohighlight">\(V(t)\)</span> is obtained from the impulse response <span class="math notranslate nohighlight">\(h(t)\)</span> and the
+complex (cavity or generator) current <span class="math notranslate nohighlight">\(I(t)\)</span>, broken down to in-phase (I) and quadrature (Q) components. The
+induced-voltage calculation can be written in matrix form,</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\left( \begin{matrix} V_I(t) \\
+V_Q(t) \end{matrix} \right)
+= \left( \begin{matrix} h_s(t) &amp; - h_c(t) \\
+h_c(t) &amp; h_s(t) \end{matrix} \right)
+* \left( \begin{matrix} I_I(t) \\
+I_Q(t) \end{matrix} \right) \, ,\end{split}\]</div>
+<p>where <span class="math notranslate nohighlight">\(*\)</span> denotes convolution,
+<span class="math notranslate nohighlight">\(h(t)*x(t) = \int d\tau h(\tau)x(t-\tau)\)</span>.</p>
+<div class="section" id="beam-induced-voltage">
+<span id="beam-ind-v"></span><h4>Beam-induced voltage<a class="headerlink" href="#beam-induced-voltage" title="Permalink to this headline">¶</a></h4>
+<p>For the voltage induced by the beam towards the TWC, we define the short-hand notation</p>
+<div class="math notranslate nohighlight">
+\[R_\mathsf{beam} \equiv \frac{\rho l^2}{8} \, .\]</div>
+<p>The beam-induced wake is</p>
+<div class="math notranslate nohighlight">
+\[W_\mathsf{beam}(t) = \frac{4 R_\mathsf{beam}}{\tau} \mathsf{tri}\left(\frac{t}{\tau}\right) \cos(\omega_r t)\]</div>
+<p>and the impulse response components are</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}h_{s,\mathsf{beam}}(t) &amp;= \frac{2 R_\mathsf{beam}}{\tau} \mathsf{tri}\left(\frac{t}{\tau}\right)
+ \cos((\omega_c - \omega_r)t) \, , \\
+h_{c,\mathsf{beam}}(t) &amp;= \frac{2 R_\mathsf{beam}}{\tau} \mathsf{tri}\left(\frac{t}{\tau}\right)
+\sin((\omega_c - \omega_r)t) \, ,\end{split}\]</div>
+<p>where <span class="math notranslate nohighlight">\(\mathsf{tri}(x)\)</span> is the triangular function and <span class="math notranslate nohighlight">\(\omega_c\)</span> is the carrier revolution frequency of the
+I,Q demodulated current signal. On the resonant frequency of the cavity, <span class="math notranslate nohighlight">\(\omega_c = \omega_r\)</span>,</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}h_{s,\mathsf{beam}}(t) &amp;= \frac{2 R_\mathsf{beam}}{\tau} \mathsf{tri}\left(\frac{t}{\tau}\right) \\
+h_{c,\mathsf{beam}}(t) &amp;= 0 \, .\end{split}\]</div>
+</div>
+<div class="section" id="generator-induced-voltage">
+<span id="gen-ind-v"></span><h4>Generator-induced voltage<a class="headerlink" href="#generator-induced-voltage" title="Permalink to this headline">¶</a></h4>
+<p>For the voltage induced by the generator towards the TWC, we define</p>
+<div class="math notranslate nohighlight">
+\[R_\mathsf{gen} \equiv l \sqrt{\frac{\rho Z_0}{2}} \, .\]</div>
+<p>The generator-induced wake is</p>
+<div class="math notranslate nohighlight">
+\[W_\mathsf{gen}(t) = \frac{2 R_\mathsf{gen}}{\tau} \mathsf{rect}\left(\frac{t}{\tau}\right)\cos(\omega_r t)\]</div>
+<p>and the impulse-response components are</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}h_{s,\mathsf{gen}}(t) &amp;= \frac{R_\mathsf{gen}}{\tau} \mathsf{rect}\left(\frac{t}{\tau}\right)
+\cos((\omega_c - \omega_r)t) \, , \\
+h_{c,\mathsf{gen}}(t) &amp;= \frac{R_\mathsf{gen}}{\tau} \mathsf{rect}\left(\frac{t}{\tau}\right)
+\sin((\omega_c - \omega_r)t) \, ,\end{split}\]</div>
+<p>where <span class="math notranslate nohighlight">\(\mathsf{rect}(x)\)</span> is the rectangular function. On the resonant frequency of the TWC,
+<span class="math notranslate nohighlight">\(\omega_c = \omega_r\)</span>,</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}h_{s,\mathsf{gen}}(t) &amp;= \frac{R_\mathsf{gen}}{\tau} \mathsf{rect}\left(\frac{t}{\tau}\right) \\
+h_{c,\mathsf{gen}}(t) &amp;= 0 \, .\end{split}\]</div>
+</div>
+</div>
+</div>
+<div class="section" id="the-cavity-controller">
+<h2>THE CAVITY CONTROLLER<a class="headerlink" href="#the-cavity-controller" title="Permalink to this headline">¶</a></h2>
+<p>The cavity controller is a one-turn feedback, measuring in one turn and correcting in the turn after. It works on the
+carrier frequency of the present RF frequency <span class="math notranslate nohighlight">\(f_{c}=f_{\mathsf{rf}}\)</span>. The cavity response is applied at
+the central or resonant frequency of the cavity <span class="math notranslate nohighlight">\(f_{r}\)</span>, requiring and up- and down-modulation before and after.
+The controller loop is built of three entities in the code, see Figure.</p>
 <a class="reference internal image-reference" href="../_images/SPS_OTFB.png"><img alt="../_images/SPS_OTFB.png" class="align-right" src="../_images/SPS_OTFB.png" style="width: 1226px; height: 451px;" /></a>
+<p>For beam particle tracking, the voltage amplitude and phase correction are calculated w.r.t.the values specified by
+the user in the RFStation object (voltage amplitude and phase set points). This correction is calculated on the time
+range and with the resolution of the beam Profile object; in the context of the cavity controller, we call it the
+<em>fine grid</em>.</p>
+<p>The generator-induced voltage towards the cavity, as well as the low-level RF part are resolved on a bucket-by-bucket
+basis, which we call the <em>coarse grid</em>. The arrays cover the full ring, and keep in memory the previous turn for the
+tracking of the feedback. The sampling time <span class="math notranslate nohighlight">\(T_s\)</span> is defined as</p>
+<div class="math notranslate nohighlight">
+\[T_s = \frac{V_{\mathsf{gen}}}{h} \, ,\]</div>
+<p>where <span class="math notranslate nohighlight">\(V_{\mathsf{gen}}\)</span> is the revolution period and <span class="math notranslate nohighlight">\(h\)</span> is the harmonic number in the given turn.</p>
+<p>To pass information back and forth between the cavity controller and the voltage corrections to be applied, information
+from the coarse grid has to be interpolated to the fine grid, and information on the fine grid has to be evaluated also
+on the coarse grid.</p>
+<div class="section" id="low-level-rf">
+<h3>Low-level RF<a class="headerlink" href="#low-level-rf" title="Permalink to this headline">¶</a></h3>
+<p>The low-level RF (LLRF) contains the comparison between the desired set-point voltage <span class="math notranslate nohighlight">\(V_{\mathsf{set}}\)</span> and the
+actual antenna voltage <span class="math notranslate nohighlight">\(V_{\mathsf{ant}}\)</span> in the travelling wave cavity (TWC), and acts on the difference
+<span class="math notranslate nohighlight">\(dV_{\mathsf{gen}}=V_{\mathsf{set}}-V_{\mathsf{ant}}\)</span> with the gain <span class="math notranslate nohighlight">\(G_{\mathsf{llrf}}\)</span>. The comb filter
+<span class="math notranslate nohighlight">\(H_{\mathsf{comb}}\)</span> represents the LLRF filter that reduces the beam loading seen by the beam. It acts bunch by
+bunch, and with exactly one turn delay,</p>
+<div class="math notranslate nohighlight">
+\[dV_{\mathsf{gen,out}, k, n} = a_{\mathsf{comb}} \, dV_{\mathsf{gen,out}, k, n-1} + (1 - a) \, dV_{\mathsf{gen,in}, k, n} \, ,\]</div>
+<p>where <span class="math notranslate nohighlight">\(V_{\mathsf{gen,in}}\)</span> and <span class="math notranslate nohighlight">\(V_{\mathsf{gen,out}}\)</span> are at the input and output of the comb filter,
+respectively, <span class="math notranslate nohighlight">\(k\)</span> is the index of the bucket along the ring, and <span class="math notranslate nohighlight">\(n\)</span> is the index of the turn. The comb
+filter constant is <span class="math notranslate nohighlight">\(a_{\mathsf{comb}}=15/16\)</span> operationally. The output of the comb filter is filtered by the
+cavity response <span class="math notranslate nohighlight">\(H_{\mathsf{cav}}\)</span> represented as a moving average at 40~MS/s. The moving average over <span class="math notranslate nohighlight">\(K\)</span>
+points is</p>
+<div class="math notranslate nohighlight">
+\[dV_{\mathsf{gen,out}, k} = \frac{1}{K} \sum_{i=k-K}^{k} dV_{\mathsf{gen,in}, i} \, .\]</div>
+</div>
+<div class="section" id="id1">
+<h3>Generator-induced voltage<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h3>
+<p>On the generator branch, the transmitter gain <span class="math notranslate nohighlight">\(G_\mathsf{tx}\)</span> is applied and the voltage signal is converted into
+a charge distribution signal according to the transmitter model,</p>
+<div class="math notranslate nohighlight">
+\[I_{\mathsf{gen}} = G_\mathsf{tx} \frac{V_{\mathsf{gen}}}{R_{\mathsf{gen}}} T_s \, ,\]</div>
+<p>where the units are <span class="math notranslate nohighlight">\([G_\mathsf{tx}] = 1\)</span>, <span class="math notranslate nohighlight">\([V_\mathsf{gen}] = V\)</span>, <span class="math notranslate nohighlight">\([R_\mathsf{gen}] = \Omega\)</span>, and
+<span class="math notranslate nohighlight">\([T_s] = s\)</span>. The resulting charge distribution is given in <span class="math notranslate nohighlight">\([I_{\mathsf{gen}}] = C\)</span>. The generator-induced
+voltage <span class="math notranslate nohighlight">\(V_\mathsf{ind,gen}\)</span> is then calculated from <span class="math notranslate nohighlight">\(I_{\mathsf{gen}}\)</span> with the matrix convolution through
+the generator impulse response, as explained above in <a class="reference internal" href="#gen-ind-v"><span class="std std-ref">Generator-induced voltage</span></a>.</p>
+<p>Both the voltage and the current are calculated on the <em>coarse</em> grid.</p>
+</div>
+<div class="section" id="id2">
+<h3>Beam-induced voltage<a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h3>
+<p>On the beam-induced voltage branch, the beam profile is used as an input to calculate the RF component of the beam
+current, <span class="math notranslate nohighlight">\(I_{\mathsf{beam}}:\)</span>. Just like on the generator branch, this complex (I,Q) current is then matrix-
+convolved with the beam response, as described in <a class="reference internal" href="#beam-ind-v"><span class="std std-ref">Beam-induced voltage</span></a>, to obtain the beam-induced voltage
+<span class="math notranslate nohighlight">\(V_\mathsf{ind,beam}\)</span>.</p>
+<p>The voltage and the current are calculated both on the <em>fine</em> and the <em>coarse</em> grid.</p>
+</div>
+<div class="section" id="from-coarse-to-fine-grid-and-back">
+<h3>From coarse to fine grid and back<a class="headerlink" href="#from-coarse-to-fine-grid-and-back" title="Permalink to this headline">¶</a></h3>
+<p>For beam particle tracking, the voltage amplitude and phase correction w.r.t.the set point values is applied on the
+grid of the beam profile, slice by slice. In order to calculate this correction, the generator-induced voltage is
+interpolated to the fine grid, and added to the beam-induced voltage already evaluated on the fine grid.</p>
+<p>To track the SPS one-turn feedback itself, the generator- and beam-induced voltages are summed on the coarse grid that
+covers the entire turn,</p>
+<div class="math notranslate nohighlight">
+\[V_\mathsf{ant} = V_\mathsf{ind,gen} + V_\mathsf{ind,beam} \, .\]</div>
+</div>
+</div>
 </div>
 
 
@@ -284,10 +453,10 @@
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="synchrotron_radiation.html" class="btn btn-neutral float-right" title="synchrotron_radiation Package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+        <a href="beam.html" class="btn btn-neutral float-right" title="beam Package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
-        <a href="plots.html" class="btn btn-neutral" title="plots Package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+        <a href="lhc_cavity_loop.html" class="btn btn-neutral" title="LHC Cavity Loop" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
       
     </div>
   

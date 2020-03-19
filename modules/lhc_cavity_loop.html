@@ -119,7 +119,17 @@
 <li class="toctree-l2"><a class="reference internal" href="#references">References</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="sps_cavity_loop.html">SPS Cavity Loop</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sps_cavity_loop.html">SPS Cavity Loop</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="sps_cavity_loop.html#introduction-travelling-wave-cavity">INTRODUCTION: Travelling Wave Cavity</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sps_cavity_loop.html#principles-the-cavity-controller">PRINCIPLES: The Cavity Controller</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#low-level-rf">Low-level RF</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#generator-induced-voltage">Generator-induced voltage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#beam-induced-voltage">Beam-induced voltage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#travelling-wave-cavity-induced-voltage-calculation">Travelling-wave cavity induced-voltage calculation</a></li>
+</ul>
+</li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="beam.html">beam Package</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="beam.html#module-blond.beam.beam"><code class="xref py py-mod docutils literal notranslate"><span class="pre">beam</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="beam.html#module-blond.beam.coasting_beam"><code class="xref py py-mod docutils literal notranslate"><span class="pre">coasting_beam</span></code> Module</a></li>
@@ -273,7 +283,7 @@
 </dl>
 <a class="reference internal image-reference" href="../_images/ACS_cavity_loop.png"><img alt="../_images/ACS_cavity_loop.png" class="align-right" src="../_images/ACS_cavity_loop.png" style="width: 960px; height: 640px;" /></a>
 <p>The interaction of the LHC cavity loop with the beam is modelled on a turn-by-turn basis. All arrays inside the class
-<a class="reference internal" href="llrf.html#blond.llrf.cavity_feedback.LHCCavityLoop" title="blond.llrf.cavity_feedback.LHCCavityLoop"><code class="xref py py-class docutils literal notranslate"><span class="pre">blond.llrf.cavity_feedback.LHCCavityLoop</span></code></a> are complex arrays with a memory of exactly 2 turns (previous and
+<code class="xref py py-class docutils literal notranslate"><span class="pre">blond.llrf.cavity_feedback.LHCCavityLoop</span></code> are complex arrays with a memory of exactly 2 turns (previous and
 present). The signals are digitised with a sampling time <span class="math notranslate nohighlight">\(T_s\)</span> that adapts to the revolution period to have
 exactly</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">N</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rf</span><span class="o">.</span><span class="n">harmonic</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">/</span><span class="mi">10</span><span class="p">)</span>
@@ -339,8 +349,9 @@ minimized, <span class="math notranslate nohighlight">\(\Delta \varphi_{\mathsf{
 <div class="section" id="one-turn-feedback">
 <h3>One-turn feedback<a class="headerlink" href="#one-turn-feedback" title="Permalink to this headline">¶</a></h3>
 <p>There is the possibility to switch on the one-turn feedback to boost the gain of the analog feedback. On the branch of
-the one-turn feedback, there is a delay that is complementary to the total loop delay,
-<span class="math notranslate nohighlight">\(T_0 - \tau_{\mathsf{loop}}\)</span>, where <span class="math notranslate nohighlight">\(T_0\)</span> is the revolution period in that turn.</p>
+the one-turn feedback (OTFB), there is a delay that is complementary to the total loop delay as seen by the OTFB
+<span class="math notranslate nohighlight">\(\tau_{\mathsf{otfb}}\)</span>,
+<span class="math notranslate nohighlight">\(T_0 - \tau_{\mathsf{otfb}}\)</span>, where <span class="math notranslate nohighlight">\(T_0\)</span> is the revolution period in that turn.</p>
 <p>The response of the one-turn feedback itself reads as follows:</p>
 <div class="math notranslate nohighlight">
 \[\frac{Y(s)}{X(s)} = H_{\mathsf{OTFB}}(s) = G_o \frac{(1 - \alpha) e^{-T_0s}}{1 - \alpha e^{-T_0s}} \, ,\]</div>
@@ -348,10 +359,6 @@ the one-turn feedback, there is a delay that is complementary to the total loop 
 <p>In time domain, the signal from the previous turn is used to construct the signal at the current turn,</p>
 <div class="math notranslate nohighlight">
 \[y^{(n)} = \alpha y^{(n - N)} + G_o (1 - \alpha) x^{(n - N)} \, .\]</div>
-<p>In the implementation, the one-turn delay is ensured in the AC coupling at the input, so the one-turn feedback response
-in time domain reads as</p>
-<div class="math notranslate nohighlight">
-\[y^{(n)} = \alpha y^{(n - N)} + G_o (1 - \alpha) x^{(n)} \, .\]</div>
 <p>Both at the input and the output, an AC coupling ensures that unwanted frequencies are filtered out,</p>
 <div class="math notranslate nohighlight">
 \[\frac{Y(s)}{X(s)} = H_{\mathsf{AC,OTFB}}(s) = \frac{\tau_o s}{1 + \tau_o s}\]</div>
@@ -359,11 +366,32 @@ in time domain reads as</p>
 <p>In time domain, this reads as</p>
 <div class="math notranslate nohighlight">
 \[y^{(n)} = \left[ 1 - \frac{T_s}{\tau_o} \right] \, y^{(n - 1)} + x^{(n)} - x^{(n - 1)} \, .\]</div>
-<p>On the input side, taking into account the delay of the input signal, we get:</p>
+<p>In addition, a 63-tap finite-impulse response (FIR) filter is used to limit the bandwidth of the overall response.</p>
+<p>The numerical implementation thus consists of the following four steps, in the below-mentioned order:</p>
+<ol class="arabic simple">
+<li><p>AC coupling at input on the signal of the previous turn, combined with OTFB delay <span class="math notranslate nohighlight">\(T_0 - \tau_{\mathsf{otfb}}\)</span> at input,</p></li>
+</ol>
 <div class="math notranslate nohighlight">
-\[y^{(n)} = \left[ 1 - \frac{T_s}{\tau_o} \right] \, y^{(n - 1)} + x^{(n - N + n_{\mathsf{loop}})} -
-x^{(n - N + n_{\mathsf{loop}} - 1)}\, ,\]</div>
-<p>where <span class="math notranslate nohighlight">\(n_{\mathsf{loop}} = int(\tau_{\mathsf{loop}}/T_0)\)</span>.</p>
+\[   y^{(n - N)} = \left[ 1 - \frac{T_s}{\tau_o} \right] \, y^{(n - N - 1)} + x^{(n - N + n_{\mathsf{otfb}})} -
+x^{(n - N + n_{\mathsf{otfb}} - 1)} \,\]</div>
+<p>where <span class="math notranslate nohighlight">\(N = \mathsf{int}(T_0/T_s)\)</span> and <span class="math notranslate nohighlight">\(n_{\mathsf{otfb}} = \mathsf{int}(\tau_{\mathsf{otfb}}/T_s + n_\mathsf{taps} - 1)/2)\)</span>,
+with <span class="math notranslate nohighlight">\(n_\mathsf{taps}\)</span> being the number of taps of the FIR filter,</p>
+<ol class="arabic simple" start="2">
+<li><p>OTFB response,</p></li>
+</ol>
+<div class="math notranslate nohighlight">
+\[z^{(n)} =  \alpha z^{(n - N)} + G_o (1 - \alpha) y^{(n - N)}\]</div>
+<ol class="arabic simple" start="3">
+<li><p>FIR filter response; N.B. this introduces an extra delay of <span class="math notranslate nohighlight">\((n_\mathsf{taps} - 1)/2\)</span> which is already compensated in step 1.</p></li>
+</ol>
+<div class="math notranslate nohighlight">
+\[v^{(n)} = b_0 z^{(n)} + b_1 z^{(n-1)} + ... + b_{n_\mathsf{taps}} z^{(n - n_\mathsf{taps})}\]</div>
+<ol class="arabic simple" start="4">
+<li><p>AC coupling at output.</p></li>
+</ol>
+<div class="math notranslate nohighlight">
+\[w^{(n)} = \left[ 1 - \frac{T_s}{\tau_o} \right] \, w^{(n - 1)} + v^{(n)} -
+v^{(n - 1)}\]</div>
 </div>
 </div>
 <div class="section" id="step-4-switch-and-protect-response">

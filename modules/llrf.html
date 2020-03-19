@@ -104,6 +104,35 @@
 <li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#separatrix">Separatrix</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="lhc_cavity_loop.html">LHC Cavity Loop</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-1-calculate-rf-beam-current">STEP 1: Calculate RF beam current</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-2-cavity-generator-beam-interaction">STEP 2: Cavity-generator-beam interaction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-3-rf-feedback-response">STEP 3: RF feedback response</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="lhc_cavity_loop.html#analog-feedback">Analog feedback</a></li>
+<li class="toctree-l3"><a class="reference internal" href="lhc_cavity_loop.html#digital-feedback">Digital feedback</a></li>
+<li class="toctree-l3"><a class="reference internal" href="lhc_cavity_loop.html#one-turn-feedback">One-turn feedback</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-4-switch-and-protect-response">STEP 4: Switch and protect response</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-5-generator-response">STEP 5: Generator response</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-6-tuner-control">STEP 6: Tuner control</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#references">References</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="sps_cavity_loop.html">SPS Cavity Loop</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="sps_cavity_loop.html#introduction-travelling-wave-cavity">INTRODUCTION: Travelling Wave Cavity</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#induced-voltage-calculation">Induced-voltage calculation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sps_cavity_loop.html#beam-induced-voltage">Beam-induced voltage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sps_cavity_loop.html#principles-the-cavity-controller">PRINCIPLES: The Cavity Controller</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#low-level-rf">Low-level RF</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#generator-induced-voltage">Generator-induced voltage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#id1">Beam-induced voltage</a></li>
+</ul>
+</li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="beam.html">beam Package</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="beam.html#module-blond.beam.beam"><code class="xref py py-mod docutils literal notranslate"><span class="pre">beam</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="beam.html#module-blond.beam.coasting_beam"><code class="xref py py-mod docutils literal notranslate"><span class="pre">coasting_beam</span></code> Module</a></li>
@@ -164,7 +193,7 @@
 </li>
 <li class="toctree-l1"><a class="reference internal" href="toolbox.html">toolbox Package</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.action"><code class="xref py py-mod docutils literal notranslate"><span class="pre">action</span></code> Module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.convolution"><code class="xref py py-mod docutils literal notranslate"><span class="pre">convolution</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="toolbox.html#convolution-module"><code class="xref py py-mod docutils literal notranslate"><span class="pre">convolution</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.diffusion"><code class="xref py py-mod docutils literal notranslate"><span class="pre">diffusion</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.next_regular"><code class="xref py py-mod docutils literal notranslate"><span class="pre">next_regular</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.parameter_scaling"><code class="xref py py-mod docutils literal notranslate"><span class="pre">parameter_scaling</span></code> Module</a></li>
@@ -526,390 +555,6 @@ with a simple product.</p>
 <dt id="blond.llrf.cavity_feedback.CavityFeedbackCommissioning">
 <em class="property">class </em><code class="descclassname">blond.llrf.cavity_feedback.</code><code class="descname">CavityFeedbackCommissioning</code><span class="sig-paren">(</span><em>debug=False</em>, <em>open_loop=False</em>, <em>open_FB=False</em>, <em>open_drive=False</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.llrf.cavity_feedback.CavityFeedbackCommissioning" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
-</dd></dl>
-
-<dl class="class">
-<dt id="blond.llrf.cavity_feedback.LHCCavityLoop">
-<em class="property">class </em><code class="descclassname">blond.llrf.cavity_feedback.</code><code class="descname">LHCCavityLoop</code><span class="sig-paren">(</span><em>RFStation</em>, <em>Profile</em>, <em>f_c=400789000.0</em>, <em>G_gen=1</em>, <em>I_gen_offset=0</em>, <em>n_cav=8</em>, <em>n_pretrack=200</em>, <em>Q_L=20000</em>, <em>R_over_Q=45</em>, <em>tau_loop=6.5e-07</em>, <em>RFFB=&lt;blond.llrf.cavity_feedback.LHCRFFeedback object&gt;</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.llrf.cavity_feedback.LHCCavityLoop" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
-<p>Cavity loop to regulate the RF voltage in the LHC ACS cavities.
-The loop contains a generator, a switch-and-protect device, an RF FB and a
-OTFB. The arrays of the LLRF system cover one turn with exactly one tenth
-of the harmonic (i.e.the typical sampling time is about 25 ns).</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>RFStation</strong> (<em>class</em>) – An RFStation type class</p></li>
-<li><p><strong>Profile</strong> (<em>class</em>) – Beam profile object</p></li>
-<li><p><strong>RFFB</strong> (<em>class</em>) – LHCRFFeedback type class containing RF FB gains and delays</p></li>
-<li><p><strong>f_c</strong> (<em>float</em>) – Central cavity frequency [Hz]</p></li>
-<li><p><strong>G_gen</strong> (<em>float</em>) – Overall driver chain gain [1]</p></li>
-<li><p><strong>I_gen_offset</strong> (<em>float</em>) – Generator current offset [A]</p></li>
-<li><p><strong>n_cav</strong> (<em>int</em>) – Number of cavities per beam (default is 8)</p></li>
-<li><p><strong>n_pretrack</strong> (<em>int</em>) – Number of turns to pre-track without beam (default is 1)</p></li>
-<li><p><strong>Q_L</strong> (<em>float</em>) – Cavity loaded quality factor (default is 20000)</p></li>
-<li><p><strong>R_over_Q</strong> (<em>float</em>) – Cavity R/Q [Ohm] (default is 45 Ohms)</p></li>
-<li><p><strong>tau_loop</strong> (<em>float</em>) – Total loop delay [s]</p></li>
-<li><p><strong>Ts</strong> (<em>float</em>) – Sampling time of the LLRF loops [s] (default is 25 ns)</p></li>
-</ul>
-</dd>
-</dl>
-<dl class="attribute">
-<dt id="blond.llrf.cavity_feedback.LHCCavityLoop.n_coarse">
-<code class="descname">n_coarse</code><a class="headerlink" href="#blond.llrf.cavity_feedback.LHCCavityLoop.n_coarse" title="Permalink to this definition">¶</a></dt>
-<dd><p>Number of bins for the coarse grid (equals harmonic number)</p>
-<dl class="field-list simple">
-<dt class="field-odd">Type</dt>
-<dd class="field-odd"><p>int</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="blond.llrf.cavity_feedback.LHCCavityLoop.t_centers">
-<code class="descname">t_centers</code><a class="headerlink" href="#blond.llrf.cavity_feedback.LHCCavityLoop.t_centers" title="Permalink to this definition">¶</a></dt>
-<dd><p>Time shift w.r.t. clock, corresponding to voltage arrays</p>
-<dl class="field-list simple">
-<dt class="field-odd">Type</dt>
-<dd class="field-odd"><p>float array</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="blond.llrf.cavity_feedback.LHCCavityLoop.omega_c">
-<code class="descname">omega_c</code><a class="headerlink" href="#blond.llrf.cavity_feedback.LHCCavityLoop.omega_c" title="Permalink to this definition">¶</a></dt>
-<dd><p>Central cavity revolution frequency [1/s]</p>
-<dl class="field-list simple">
-<dt class="field-odd">Type</dt>
-<dd class="field-odd"><p>float</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="blond.llrf.cavity_feedback.LHCCavityLoop.V_coarse_tot">
-<code class="descname">V_coarse_tot</code><a class="headerlink" href="#blond.llrf.cavity_feedback.LHCCavityLoop.V_coarse_tot" title="Permalink to this definition">¶</a></dt>
-<dd><p>Cavity voltage [V] at present turn in (I,Q) coordinates which is used
-for tracking the LLRF</p>
-<dl class="field-list simple">
-<dt class="field-odd">Type</dt>
-<dd class="field-odd"><p>complex array</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="blond.llrf.cavity_feedback.LHCCavityLoop.logger">
-<code class="descname">logger</code><a class="headerlink" href="#blond.llrf.cavity_feedback.LHCCavityLoop.logger" title="Permalink to this definition">¶</a></dt>
-<dd><p>Logger of the present class</p>
-<dl class="field-list simple">
-<dt class="field-odd">Type</dt>
-<dd class="field-odd"><p>logger</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="method">
-<dt id="blond.llrf.cavity_feedback.LHCCavityLoop.cavity_response">
-<code class="descname">cavity_response</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.llrf.cavity_feedback.LHCCavityLoop.cavity_response" title="Permalink to this definition">¶</a></dt>
-<dd><p>ACS cavity reponse model</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="blond.llrf.cavity_feedback.LHCCavityLoop.generator_current">
-<code class="descname">generator_current</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.llrf.cavity_feedback.LHCCavityLoop.generator_current" title="Permalink to this definition">¶</a></dt>
-<dd><p>Generator response</p>
-<p>Attributes
-I_TEST : complex array</p>
-<blockquote>
-<div><p>Test point for open loop measurements (when injecting a generator
-offset)</p>
-</div></blockquote>
-</dd></dl>
-
-<dl class="method">
-<dt id="blond.llrf.cavity_feedback.LHCCavityLoop.generator_power">
-<code class="descname">generator_power</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.llrf.cavity_feedback.LHCCavityLoop.generator_power" title="Permalink to this definition">¶</a></dt>
-<dd><p>Calculation of generator power from generator current</p>
-</dd></dl>
-
-<dl class="staticmethod">
-<dt id="blond.llrf.cavity_feedback.LHCCavityLoop.half_detuning">
-<em class="property">static </em><code class="descname">half_detuning</code><span class="sig-paren">(</span><em>imag_peak_beam_current</em>, <em>R_over_Q</em>, <em>rf_frequency</em>, <em>voltage</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.llrf.cavity_feedback.LHCCavityLoop.half_detuning" title="Permalink to this definition">¶</a></dt>
-<dd><p>Optimum detuning for half-detuning scheme</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>peak_beam_current</strong> (<em>float</em>) – Peak RF beam current</p></li>
-<li><p><strong>R_over_Q</strong> (<em>float</em>) – Cavity R/Q</p></li>
-<li><p><strong>rf_frequency</strong> (<em>float</em>) – RF frequency</p></li>
-<li><p><strong>voltage</strong> (<em>float</em>) – RF voltage amplitude in the cavity</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>Optimum detuning (revolution) frequency in the half-detuning scheme</p>
-</dd>
-<dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>float</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="staticmethod">
-<dt id="blond.llrf.cavity_feedback.LHCCavityLoop.half_detuning_power">
-<em class="property">static </em><code class="descname">half_detuning_power</code><span class="sig-paren">(</span><em>peak_beam_current</em>, <em>voltage</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.llrf.cavity_feedback.LHCCavityLoop.half_detuning_power" title="Permalink to this definition">¶</a></dt>
-<dd><p>RF power consumption half-detuning scheme with optimum detuning</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>peak_beam_current</strong> (<em>float</em>) – Peak RF beam current</p></li>
-<li><p><strong>voltage</strong> (<em>float</em>) – Cavity voltage</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>Optimum detuning (revolution) frequency in the half-detuning scheme</p>
-</dd>
-<dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>float</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="method">
-<dt id="blond.llrf.cavity_feedback.LHCCavityLoop.one_turn_feedback">
-<code class="descname">one_turn_feedback</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.llrf.cavity_feedback.LHCCavityLoop.one_turn_feedback" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="staticmethod">
-<dt id="blond.llrf.cavity_feedback.LHCCavityLoop.optimum_Q_L">
-<em class="property">static </em><code class="descname">optimum_Q_L</code><span class="sig-paren">(</span><em>detuning</em>, <em>rf_frequency</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.llrf.cavity_feedback.LHCCavityLoop.optimum_Q_L" title="Permalink to this definition">¶</a></dt>
-<dd><p>Optimum loaded Q when no real part of RF beam current is present</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>detuning</strong> (<em>float</em>) – Detuning frequency</p></li>
-<li><p><strong>rf_frequency</strong> (<em>float</em>) – RF frequency</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>Optimum loaded Q</p>
-</dd>
-<dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>float</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="staticmethod">
-<dt id="blond.llrf.cavity_feedback.LHCCavityLoop.optimum_Q_L_beam">
-<em class="property">static </em><code class="descname">optimum_Q_L_beam</code><span class="sig-paren">(</span><em>R_over_Q</em>, <em>real_peak_beam_current</em>, <em>voltage</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.llrf.cavity_feedback.LHCCavityLoop.optimum_Q_L_beam" title="Permalink to this definition">¶</a></dt>
-<dd><p>Optimum loaded Q when a real part of RF beam current is present</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>peak_beam_current</strong> (<em>float</em>) – Peak RF beam current</p></li>
-<li><p><strong>R_over_Q</strong> (<em>float</em>) – Cavity R/Q</p></li>
-<li><p><strong>voltage</strong> (<em>float</em>) – Cavity voltage</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>Optimum loaded Q</p>
-</dd>
-<dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>float</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="method">
-<dt id="blond.llrf.cavity_feedback.LHCCavityLoop.rf_beam_current">
-<code class="descname">rf_beam_current</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.llrf.cavity_feedback.LHCCavityLoop.rf_beam_current" title="Permalink to this definition">¶</a></dt>
-<dd><p>RF beam current calculation from beam profile</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="blond.llrf.cavity_feedback.LHCCavityLoop.rf_feedback">
-<code class="descname">rf_feedback</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.llrf.cavity_feedback.LHCCavityLoop.rf_feedback" title="Permalink to this definition">¶</a></dt>
-<dd><p>Analog and digital RF feedback response</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="blond.llrf.cavity_feedback.LHCCavityLoop.set_point">
-<code class="descname">set_point</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.llrf.cavity_feedback.LHCCavityLoop.set_point" title="Permalink to this definition">¶</a></dt>
-<dd><p>Voltage set point</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="blond.llrf.cavity_feedback.LHCCavityLoop.swap">
-<code class="descname">swap</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.llrf.cavity_feedback.LHCCavityLoop.swap" title="Permalink to this definition">¶</a></dt>
-<dd><p>Model of the Switch and Protect module: clamping of the output
-power above a given input power.</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="blond.llrf.cavity_feedback.LHCCavityLoop.track">
-<code class="descname">track</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.llrf.cavity_feedback.LHCCavityLoop.track" title="Permalink to this definition">¶</a></dt>
-<dd><p>Tracking with beam</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="blond.llrf.cavity_feedback.LHCCavityLoop.track_no_beam">
-<code class="descname">track_no_beam</code><span class="sig-paren">(</span><em>n_turns</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.llrf.cavity_feedback.LHCCavityLoop.track_no_beam" title="Permalink to this definition">¶</a></dt>
-<dd><p>Pre-tracking for n_turns turns, without beam. No excitation; set
-point from design RF voltage.</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="blond.llrf.cavity_feedback.LHCCavityLoop.track_no_beam_excitation">
-<code class="descname">track_no_beam_excitation</code><span class="sig-paren">(</span><em>n_turns</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.llrf.cavity_feedback.LHCCavityLoop.track_no_beam_excitation" title="Permalink to this definition">¶</a></dt>
-<dd><p>Pre-tracking for n_turns turns, without beam. With excitation; set
-point from white noise. V_EXC_IN and V_EXC_OUT can be used to measure
-the transfer function of the system.</p>
-<dl class="attribute">
-<dt id="blond.llrf.cavity_feedback.LHCCavityLoop.V_EXC_IN">
-<code class="descname">V_EXC_IN</code><a class="headerlink" href="#blond.llrf.cavity_feedback.LHCCavityLoop.V_EXC_IN" title="Permalink to this definition">¶</a></dt>
-<dd><p>Noise being played in set point; n_coarse*n_turns elements</p>
-<dl class="field-list simple">
-<dt class="field-odd">Type</dt>
-<dd class="field-odd"><p>complex array</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="blond.llrf.cavity_feedback.LHCCavityLoop.V_EXC_OUT">
-<code class="descname">V_EXC_OUT</code><a class="headerlink" href="#blond.llrf.cavity_feedback.LHCCavityLoop.V_EXC_OUT" title="Permalink to this definition">¶</a></dt>
-<dd><p>System reaction to noise (accumulated from V_ANT); n_coarse*n_turns
-elements</p>
-<dl class="field-list simple">
-<dt class="field-odd">Type</dt>
-<dd class="field-odd"><p>complex array</p>
-</dd>
-</dl>
-</dd></dl>
-
-</dd></dl>
-
-<dl class="method">
-<dt id="blond.llrf.cavity_feedback.LHCCavityLoop.track_one_turn">
-<code class="descname">track_one_turn</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.llrf.cavity_feedback.LHCCavityLoop.track_one_turn" title="Permalink to this definition">¶</a></dt>
-<dd><p>Single-turn tracking, index by index.</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="blond.llrf.cavity_feedback.LHCCavityLoop.track_simple">
-<code class="descname">track_simple</code><span class="sig-paren">(</span><em>I_rf_pk</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.llrf.cavity_feedback.LHCCavityLoop.track_simple" title="Permalink to this definition">¶</a></dt>
-<dd><p>Simplified model with proportional gain and step beam current of
-1000 samples lengthBM7_ACS_with_beam.py</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>I_rf_peak</strong> (<em>float</em>) – Peak RF current</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="method">
-<dt id="blond.llrf.cavity_feedback.LHCCavityLoop.update_arrays">
-<code class="descname">update_arrays</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.llrf.cavity_feedback.LHCCavityLoop.update_arrays" title="Permalink to this definition">¶</a></dt>
-<dd><p>Moves the array indices by one turn (n_coarse points) from the
-present turn to prepare the next turn. All arrays except for V_SET.</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="blond.llrf.cavity_feedback.LHCCavityLoop.update_set_point">
-<code class="descname">update_set_point</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.llrf.cavity_feedback.LHCCavityLoop.update_set_point" title="Permalink to this definition">¶</a></dt>
-<dd><p>Updates the set point for the next turn based on the design RF
-voltage.</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="blond.llrf.cavity_feedback.LHCCavityLoop.update_set_point_excitation">
-<code class="descname">update_set_point_excitation</code><span class="sig-paren">(</span><em>excitation</em>, <em>turn</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.llrf.cavity_feedback.LHCCavityLoop.update_set_point_excitation" title="Permalink to this definition">¶</a></dt>
-<dd><p>Updates the set point for the next turn based on the excitation to
-be injected.</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="blond.llrf.cavity_feedback.LHCCavityLoop.update_variables">
-<code class="descname">update_variables</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.llrf.cavity_feedback.LHCCavityLoop.update_variables" title="Permalink to this definition">¶</a></dt>
-<dd><p>Update counter and frequency-dependent variables in a given turn</p>
-</dd></dl>
-
-</dd></dl>
-
-<dl class="class">
-<dt id="blond.llrf.cavity_feedback.LHCRFFeedback">
-<em class="property">class </em><code class="descclassname">blond.llrf.cavity_feedback.</code><code class="descname">LHCRFFeedback</code><span class="sig-paren">(</span><em>alpha=0.9375</em>, <em>d_phi_ad=0</em>, <em>G_a=1e-05</em>, <em>G_d=10</em>, <em>G_o=10</em>, <em>tau_a=0.00017</em>, <em>tau_d=0.0004</em>, <em>tau_o=0.00011</em>, <em>open_drive=False</em>, <em>open_loop=False</em>, <em>open_otfb=False</em>, <em>open_rffb=False</em>, <em>excitation=False</em>, <em>seed1=1234</em>, <em>seed2=7564</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.llrf.cavity_feedback.LHCRFFeedback" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
-<p>RF Feedback settings for LHC ACS cavity loop.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>alpha</strong> (<em>float</em>) – One-turn feedback memory parameter; default is 15/16</p></li>
-<li><p><strong>d_phi_ad</strong> (<em>float</em>) – Phase misalignment of digital FB w.r.t. analog FB [deg]</p></li>
-<li><p><strong>G_a</strong> (<em>float</em>) – Analog FB gain [1]</p></li>
-<li><p><strong>G_d</strong> (<em>float</em>) – Digital FB gain, w.r.t. analog gain [1]</p></li>
-<li><p><strong>G_o</strong> (<em>float</em>) – One-turn feedback gain</p></li>
-<li><p><strong>tau_a</strong> (<em>float</em>) – Analog FB delay time [s]</p></li>
-<li><p><strong>tau_d</strong> (<em>float</em>) – Digital FB delay time [s]</p></li>
-<li><p><strong>tau_o</strong> (<em>float</em>) – AC-coupling delay time of one-turn feedback [s]</p></li>
-<li><p><strong>open_drive</strong> (<em>bool</em>) – Open (True) or closed (False) cavity loop at drive; default is False</p></li>
-<li><p><strong>open_loop</strong> (<em>bool</em>) – Open (True) or closed (False) cavity loop at RFFB; default is False</p></li>
-<li><p><strong>open_otfb</strong> (<em>bool</em>) – Open (true) or closed (False) one-turn feedback; default is False</p></li>
-<li><p><strong>open_rffb</strong> (<em>bool</em>) – Open (True) or closed (False) RFFB; default is False</p></li>
-</ul>
-</dd>
-</dl>
-<dl class="attribute">
-<dt id="blond.llrf.cavity_feedback.LHCRFFeedback.d_phi_ad">
-<code class="descname">d_phi_ad</code><a class="headerlink" href="#blond.llrf.cavity_feedback.LHCRFFeedback.d_phi_ad" title="Permalink to this definition">¶</a></dt>
-<dd><p>Phase misalignment of digital FB w.r.t. analog FB [rad]</p>
-<dl class="field-list simple">
-<dt class="field-odd">Type</dt>
-<dd class="field-odd"><p>float</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="blond.llrf.cavity_feedback.LHCRFFeedback.open_drive">
-<code class="descname">open_drive</code><a class="headerlink" href="#blond.llrf.cavity_feedback.LHCRFFeedback.open_drive" title="Permalink to this definition">¶</a></dt>
-<dd><p>Open (0) or closed (1) cavity loop at drive; default is 1</p>
-<dl class="field-list simple">
-<dt class="field-odd">Type</dt>
-<dd class="field-odd"><p>int(bool)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="blond.llrf.cavity_feedback.LHCRFFeedback.open_loop">
-<code class="descname">open_loop</code><a class="headerlink" href="#blond.llrf.cavity_feedback.LHCRFFeedback.open_loop" title="Permalink to this definition">¶</a></dt>
-<dd><p>Open (0) or closed (1) cavity loop at RFFB; default is 1</p>
-<dl class="field-list simple">
-<dt class="field-odd">Type</dt>
-<dd class="field-odd"><p>int(bool)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="blond.llrf.cavity_feedback.LHCRFFeedback.open_rffb">
-<code class="descname">open_rffb</code><a class="headerlink" href="#blond.llrf.cavity_feedback.LHCRFFeedback.open_rffb" title="Permalink to this definition">¶</a></dt>
-<dd><p>Open (0) or closed (1) RFFB; default is 1</p>
-<dl class="field-list simple">
-<dt class="field-odd">Type</dt>
-<dd class="field-odd"><p>int(bool)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="method">
-<dt id="blond.llrf.cavity_feedback.LHCRFFeedback.generate_white_noise">
-<code class="descname">generate_white_noise</code><span class="sig-paren">(</span><em>n_points</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.llrf.cavity_feedback.LHCRFFeedback.generate_white_noise" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
 </dd></dl>
 
 <dl class="class">
@@ -1791,24 +1436,25 @@ and offset functions</strong></p>
 <dd class="field-odd"><p><strong>Simon Albright</strong></p>
 </dd>
 </dl>
-<dl class="function">
-<dt id="blond.llrf.rf_modulation.ModulateHarmonic">
-<code class="descclassname">blond.llrf.rf_modulation.</code><code class="descname">ModulateHarmonic</code><span class="sig-paren">(</span><em>Ring</em>, <em>RFStation</em>, <em>modulationList</em>, <em>harmonic</em>, <em>includeFreq=True</em>, <em>preshift=0</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.llrf.rf_modulation.ModulateHarmonic" title="Permalink to this definition">¶</a></dt>
-<dd><p>Method to apply modulation(s) to RFStation
-modulationList is a list of modulation objects applied
-sequentially to RFStation.</p>
-<p>harmonicList specifies which harmonic of RFStation
-will be modulated</p>
-<p>includeFreq flag determines if effect of modulation on
-RF frequency should be included.  False will treat
-modulation as pure phase shift, True will include the
-small frequency shift needed to adjust the phase.</p>
-</dd></dl>
-
 <dl class="class">
 <dt id="blond.llrf.rf_modulation.PhaseModulation">
-<em class="property">class </em><code class="descclassname">blond.llrf.rf_modulation.</code><code class="descname">PhaseModulation</code><span class="sig-paren">(</span><em>frequency</em>, <em>amplitude</em>, <em>offset</em>, <em>time</em>, <em>freqMultiplier=1</em>, <em>interpType='cubic'</em>, <em>smoothing=1000</em>, <em>ontime=0</em>, <em>offtime=0</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.llrf.rf_modulation.PhaseModulation" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="descclassname">blond.llrf.rf_modulation.</code><code class="descname">PhaseModulation</code><span class="sig-paren">(</span><em>timebase</em>, <em>frequency</em>, <em>amplitude</em>, <em>offset</em>, <em>harmonic</em>, <em>multiplier=1</em>, <em>modulate_frequency=True</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.llrf.rf_modulation.PhaseModulation" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="method">
+<dt id="blond.llrf.rf_modulation.PhaseModulation.calc_delta_omega">
+<code class="descname">calc_delta_omega</code><span class="sig-paren">(</span><em>omegaProg</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.llrf.rf_modulation.PhaseModulation.calc_delta_omega" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="blond.llrf.rf_modulation.PhaseModulation.calc_modulation">
+<code class="descname">calc_modulation</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.llrf.rf_modulation.PhaseModulation.calc_modulation" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="blond.llrf.rf_modulation.PhaseModulation.extend_to_n_rf">
+<code class="descname">extend_to_n_rf</code><span class="sig-paren">(</span><em>harmonics</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.llrf.rf_modulation.PhaseModulation.extend_to_n_rf" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
 </dd></dl>
 
 </div>
@@ -2166,8 +1812,6 @@ Q_{rf,i} \end{matrix} \right)
 \sin(\omega_c t_i)\end{matrix} \right) \, ,\end{split}\]</div>
 <p>where <span class="math notranslate nohighlight">\(t_i\)</span> are the time coordinates of the beam profile. After de-
 modulation, a low-pass filter at 20 MHz is applied.</p>
-<p>For multi-bunch cases, make sure that the real beam intensity is the total
-number of charges in the ring.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">

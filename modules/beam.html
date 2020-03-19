@@ -37,7 +37,7 @@
         <link rel="search" title="Search" href="../search.html"/>
     <link rel="top" title="BLonD 1.1 documentation" href="../index.html"/>
         <link rel="next" title="impedances Package" href="impedances.html"/>
-        <link rel="prev" title="Equations of Motion" href="equations_of_motion.html"/> 
+        <link rel="prev" title="SPS Cavity Loop" href="sps_cavity_loop.html"/> 
 
   
   <script src="../_static/js/modernizr.min.js"></script>
@@ -104,6 +104,35 @@
 <li class="toctree-l2"><a class="reference internal" href="equations_of_motion.html#separatrix">Separatrix</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="lhc_cavity_loop.html">LHC Cavity Loop</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-1-calculate-rf-beam-current">STEP 1: Calculate RF beam current</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-2-cavity-generator-beam-interaction">STEP 2: Cavity-generator-beam interaction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-3-rf-feedback-response">STEP 3: RF feedback response</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="lhc_cavity_loop.html#analog-feedback">Analog feedback</a></li>
+<li class="toctree-l3"><a class="reference internal" href="lhc_cavity_loop.html#digital-feedback">Digital feedback</a></li>
+<li class="toctree-l3"><a class="reference internal" href="lhc_cavity_loop.html#one-turn-feedback">One-turn feedback</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-4-switch-and-protect-response">STEP 4: Switch and protect response</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-5-generator-response">STEP 5: Generator response</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#step-6-tuner-control">STEP 6: Tuner control</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lhc_cavity_loop.html#references">References</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="sps_cavity_loop.html">SPS Cavity Loop</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="sps_cavity_loop.html#introduction-travelling-wave-cavity">INTRODUCTION: Travelling Wave Cavity</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#induced-voltage-calculation">Induced-voltage calculation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="sps_cavity_loop.html#beam-induced-voltage">Beam-induced voltage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sps_cavity_loop.html#principles-the-cavity-controller">PRINCIPLES: The Cavity Controller</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#low-level-rf">Low-level RF</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#generator-induced-voltage">Generator-induced voltage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#id1">Beam-induced voltage</a></li>
+</ul>
+</li>
+</ul>
+</li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">beam Package</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#module-blond.beam.beam"><code class="xref py py-mod docutils literal notranslate"><span class="pre">beam</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#module-blond.beam.coasting_beam"><code class="xref py py-mod docutils literal notranslate"><span class="pre">coasting_beam</span></code> Module</a></li>
@@ -164,7 +193,7 @@
 </li>
 <li class="toctree-l1"><a class="reference internal" href="toolbox.html">toolbox Package</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.action"><code class="xref py py-mod docutils literal notranslate"><span class="pre">action</span></code> Module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.convolution"><code class="xref py py-mod docutils literal notranslate"><span class="pre">convolution</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="toolbox.html#convolution-module"><code class="xref py py-mod docutils literal notranslate"><span class="pre">convolution</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.diffusion"><code class="xref py py-mod docutils literal notranslate"><span class="pre">diffusion</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.next_regular"><code class="xref py py-mod docutils literal notranslate"><span class="pre">next_regular</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.parameter_scaling"><code class="xref py py-mod docutils literal notranslate"><span class="pre">parameter_scaling</span></code> Module</a></li>
@@ -492,9 +521,70 @@ a beam with respect to the RF and intensity effects.</p>
 </pre></div>
 </div>
 <dl class="method">
+<dt id="blond.beam.beam.Beam.add_beam">
+<code class="descname">add_beam</code><span class="sig-paren">(</span><em>other_beam</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.beam.Beam.add_beam" title="Permalink to this definition">¶</a></dt>
+<dd><p>Method to add the particles from another beam to this beam
+New particles are given id numbers sequential from last id of this beam
+Particles with id == 0 keep id == 0 and are included in addition</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>other_beam</strong> (<em>blond beam object</em>) – </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="blond.beam.beam.Beam.add_particles">
+<code class="descname">add_particles</code><span class="sig-paren">(</span><em>new_particles</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.beam.Beam.add_particles" title="Permalink to this definition">¶</a></dt>
+<dd><p>Method to add array of new particles to beam object
+New particles are given id numbers sequential from last id of this beam</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>new_particles</strong> (<em>array-like</em>) – (2, n) array of (dt, dE) for new particles</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
 <dt id="blond.beam.beam.Beam.eliminate_lost_particles">
 <code class="descname">eliminate_lost_particles</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.beam.Beam.eliminate_lost_particles" title="Permalink to this definition">¶</a></dt>
 <dd><p>Eliminate lost particles from the beam coordinate arrays</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="blond.beam.beam.Beam.gather">
+<code class="descname">gather</code><span class="sig-paren">(</span><em>all=False</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.beam.Beam.gather" title="Permalink to this definition">¶</a></dt>
+<dd><p>MPI ONLY ROUTINE: Gather the beam coordinates to the master or all workers.
+:param all: If true, every worker will get a copy of the whole beam coordinates.</p>
+<blockquote>
+<div><p>If false, only the master will gather the coordinates.</p>
+</div></blockquote>
+<dl class="field-list simple">
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="blond.beam.beam.Beam.gather_losses">
+<code class="descname">gather_losses</code><span class="sig-paren">(</span><em>all=False</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.beam.Beam.gather_losses" title="Permalink to this definition">¶</a></dt>
+<dd><p>MPI ONLY ROUTINE: Gather beam losses.
+:param all: if true, all workers will gather the beam stats.</p>
+<blockquote>
+<div><p>If false, only the master will get the beam stats.</p>
+</div></blockquote>
+<dl class="field-list simple">
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="blond.beam.beam.Beam.gather_statistics">
+<code class="descname">gather_statistics</code><span class="sig-paren">(</span><em>all=False</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.beam.Beam.gather_statistics" title="Permalink to this definition">¶</a></dt>
+<dd><p>MPI ONLY ROUTINE: Gather beam statistics.
+:param all: if true, all workers will gather the beam stats.</p>
+<blockquote>
+<div><p>If false, only the master will get the beam stats.</p>
+</div></blockquote>
+<dl class="field-list simple">
+</dl>
 </dd></dl>
 
 <dl class="method">
@@ -579,6 +669,25 @@ a beam with respect to the RF and intensity effects.</p>
 </dd>
 <dt class="field-even">Return type</dt>
 <dd class="field-even"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="blond.beam.beam.Beam.split">
+<code class="descname">split</code><span class="sig-paren">(</span><em>random=False</em>, <em>fast=False</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.beam.Beam.split" title="Permalink to this definition">¶</a></dt>
+<dd><p>MPI ONLY ROUTINE: Splits the beam equally among the workers for
+MPI processing.
+:param random: Shuffle the beam before splitting, to be used with the</p>
+<blockquote>
+<div><p>approximation methonds.</p>
+</div></blockquote>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>fast</strong> (<em>boolean</em>) – If true, it assumes that every worker has already a copy of the
+beam so only the particle ids are distributed.
+If false, all the coordinates are distributed by the master to all
+the workers.</p>
 </dd>
 </dl>
 </dd></dl>
@@ -1339,6 +1448,11 @@ assuming Gaussian line density for multibunch case.</p>
 </dd></dl>
 
 <dl class="method">
+<dt id="blond.beam.profile.Profile.reduce_histo">
+<code class="descname">reduce_histo</code><span class="sig-paren">(</span><em>dtype=&lt;class 'numpy.uint32'&gt;</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.profile.Profile.reduce_histo" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
 <dt id="blond.beam.profile.Profile.rms">
 <code class="descname">rms</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.profile.Profile.rms" title="Permalink to this definition">¶</a></dt>
 <dd><p>Computation of the RMS bunch length and position from the line
@@ -1350,6 +1464,11 @@ density (bunch length = 4sigma).</p>
 <code class="descname">rms_multibunch</code><span class="sig-paren">(</span><em>n_bunches</em>, <em>bunch_spacing_buckets</em>, <em>bucket_size_tau</em>, <em>bucket_tolerance=0.4</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.profile.Profile.rms_multibunch" title="Permalink to this definition">¶</a></dt>
 <dd><p>Computation of the bunch length (4sigma) and position from RMS.</p>
 </dd></dl>
+
+<dl class="method">
+<dt id="blond.beam.profile.Profile.scale_histo">
+<code class="descname">scale_histo</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.profile.Profile.scale_histo" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
 
 <dl class="method">
 <dt id="blond.beam.profile.Profile.set_slices_parameters">
@@ -1431,7 +1550,7 @@ This is done as a pre-processing.</em></p>
         <a href="impedances.html" class="btn btn-neutral float-right" title="impedances Package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
-        <a href="equations_of_motion.html" class="btn btn-neutral" title="Equations of Motion" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+        <a href="sps_cavity_loop.html" class="btn btn-neutral" title="SPS Cavity Loop" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
       
     </div>
   
