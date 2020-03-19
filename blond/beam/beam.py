@@ -40,14 +40,20 @@ class Proton(Particle):
 
     def __init__(self):
 
-        Particle.__init__(self, float(m_p*c**2/e), np.float(1))
+        Particle.__init__(self, m_p*c**2/e, 1)
 
 
 class Electron(Particle):
 
     def __init__(self):
-        self.mass = float(m_e*c**2/e)
-        self.charge = float(-1)
+        Particle.__init__(self, m_e*c**2/e, -1)
+
+
+class Positron(Particle):
+
+    def __init__(self):
+
+        Particle.__init__(self, m_e*c**2/e, 1)
 
 
 class Beam(object):
