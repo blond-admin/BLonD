@@ -3,8 +3,8 @@ SPS Cavity Loop
 :Authors: **Helga Timko**
 
 
-INTRODUCTION: Travelling Wave Cavity
-------------------------------------
+TRAVELLING WAVE CAVITY
+----------------------
 
 The voltage in the SPS travelling-wave cavities (TWC) is the sum of the generator-induced voltage
 :math:`V_\mathsf{gen}` and the beam-induced voltage :math:`V_\mathsf{beam}`,
@@ -29,8 +29,8 @@ where :math:`I` represents currents and :math:`Z` represent impedances. As shown
 Here, the TWC has the following properties:
 
 * :math:`\rho = 27.1 \frac{\mathsf{k\Omega}}{\mathsf{m}^2}` is the series impedance
-* :math:`l = (11 n_\mathsf{sections} - 1) \times 0.374 \mathsf{m}` is the length on the cavity, depending on the number
-  of sections :math:`n_\mathsf{sections}`
+* :math:`l = (11 n_\mathsf{sections} - 1) \times 0.374 \mathsf{m}` is the accelerating length of the cavity, depending
+  on the number of sections :math:`n_\mathsf{sections}`
 * :math:`\tau = \frac{l}{v_g} \left( 1 + \frac{v_g}{c} \right)` is the cavity filling time, where the group velocity is
   :math:`v_g = 0.0946 c`
 * :math:`\omega_r = 200.222 \mathsf{MHz}` is the resonant frequency of the TWC
@@ -42,10 +42,95 @@ The impedance of the generator towards the TWC is
     Z_\mathsf{gen} (\omega) =
     l \sqrt{\frac{\rho Z_0}{2}}
     \left[ \frac{\sin \left(\frac{\tau(\omega - \omega_r)}{2}\right)}{\frac{\tau(\omega - \omega_r)}{2}}  +
-    \frac{\sin \left(\frac{\tau(\omega + \omega_r)}{2}\right)}{\frac{\tau(\omega + \omega_r)}{2}} \right]
+    \frac{\sin \left(\frac{\tau(\omega + \omega_r)}{2}\right)}{\frac{\tau(\omega + \omega_r)}{2}} \right] \, ,
 
-PRINCIPLES: The Cavity Controller
----------------------------------
+where :math:`Z_0` is the shunt impedance when measuring the generator current; assumed to be 50 :math:`\Omega`.
+
+
+Induced-voltage calculation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In the discrete time system, the induced voltage :math:`V(t)` is obtained from the impulse response :math:`h(t)` and the
+complex (cavity or generator) current :math:`I(t)`, broken down to in-phase (I) and quadrature (Q) components. The
+induced-voltage calculation can be written in matrix form,
+
+.. math::
+    \left( \begin{matrix} V_I(t) \\
+    V_Q(t) \end{matrix} \right)
+    = \left( \begin{matrix} h_s(t) & - h_c(t) \\
+    h_c(t) & h_s(t) \end{matrix} \right)
+    * \left( \begin{matrix} I_I(t) \\
+    I_Q(t) \end{matrix} \right) \, ,
+
+where :math:`*` denotes convolution,
+:math:`h(t)*x(t) = \int d\tau h(\tau)x(t-\tau)`.
+
+
+.. _beam-ind-V:
+
+Beam-induced voltage
+^^^^^^^^^^^^^^^^^^^^
+
+For the voltage induced by the beam towards the TWC, we define the short-hand notation
+
+.. math::
+    R_\mathsf{beam} \equiv \frac{\rho l^2}{8} \, .
+
+The beam-induced wake is
+
+.. math::
+    W_\mathsf{beam}(t) = \frac{4 R_\mathsf{beam}}{\tau} \mathsf{tri}\left(\frac{t}{\tau}\right) \cos(\omega_r t)
+
+and the impulse response components are
+
+.. math::
+    h_{s,\mathsf{beam}}(t) &= \frac{2 R_\mathsf{beam}}{\tau} \mathsf{tri}\left(\frac{t}{\tau}\right)
+     \cos((\omega_c - \omega_r)t) \, , \\
+    h_{c,\mathsf{beam}}(t) &= \frac{2 R_\mathsf{beam}}{\tau} \mathsf{tri}\left(\frac{t}{\tau}\right)
+    \sin((\omega_c - \omega_r)t) \, ,
+
+where :math:`\mathsf{tri}(x)` is the triangular function and :math:`\omega_c` is the carrier revolution frequency of the
+I,Q demodulated current signal. On the resonant frequency of the cavity, :math:`\omega_c = \omega_r`,
+
+.. math::
+    h_{s,\mathsf{beam}}(t) &= \frac{2 R_\mathsf{beam}}{\tau} \mathsf{tri}\left(\frac{t}{\tau}\right) \\
+    h_{c,\mathsf{beam}}(t) &= 0 \, .
+
+
+.. _gen-ind-V:
+
+Generator-induced voltage
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For the voltage induced by the generator towards the TWC, we define
+
+.. math::
+    R_\mathsf{gen} \equiv l \sqrt{\frac{\rho Z_0}{2}} \, .
+
+The generator-induced wake is
+
+.. math::
+    W_\mathsf{gen}(t) = \frac{2 R_\mathsf{gen}}{\tau} \mathsf{rect}\left(\frac{t}{\tau}\right)\cos(\omega_r t)
+
+and the impulse-response components are
+
+.. math::
+    h_{s,\mathsf{gen}}(t) &= \frac{R_\mathsf{gen}}{\tau} \mathsf{rect}\left(\frac{t}{\tau}\right)
+    \cos((\omega_c - \omega_r)t) \, , \\
+    h_{c,\mathsf{gen}}(t) &= \frac{R_\mathsf{gen}}{\tau} \mathsf{rect}\left(\frac{t}{\tau}\right)
+    \sin((\omega_c - \omega_r)t) \, ,
+
+where :math:`\mathsf{rect}(x)` is the rectangular function. On the resonant frequency of the TWC,
+:math:`\omega_c = \omega_r`,
+
+.. math::
+    h_{s,\mathsf{gen}}(t) &= \frac{R_\mathsf{gen}}{\tau} \mathsf{rect}\left(\frac{t}{\tau}\right) \\
+    h_{c,\mathsf{gen}}(t) &= 0 \, .
+
+
+
+THE CAVITY CONTROLLER
+---------------------
 
 The cavity controller is a one-turn feedback, measuring in one turn and correcting in the turn after. It works on the
 carrier frequency of the present RF frequency :math:`f_{c}=f_{\mathsf{rf}}`. The cavity response is applied at
@@ -73,8 +158,8 @@ tracking of the feedback. The sampling time :math:`T_s` is defined as
 where :math:`V_{\mathsf{gen}}` is the revolution period and :math:`h` is the harmonic number in the given turn.
 
 To pass information back and forth between the cavity controller and the voltage corrections to be applied, information
-from the coarse grid has to be interpolated to the fine grid, and information from the fine grid has to be integrated
-to the coarse grid.
+from the coarse grid has to be interpolated to the fine grid, and information on the fine grid has to be evaluated also
+on the coarse grid.
 
 Low-level RF
 ~~~~~~~~~~~~
@@ -111,83 +196,34 @@ a charge distribution signal according to the transmitter model,
     I_{\mathsf{gen}} = G_\mathsf{tx} \frac{V_{\mathsf{gen}}}{R_{\mathsf{gen}}} T_s \, ,
 
 where the units are :math:`[G_\mathsf{tx}] = 1`, :math:`[V_\mathsf{gen}] = V`, :math:`[R_\mathsf{gen}] = \Omega`, and
-:math:`[T_s] = s`. The resulting charge distribution is given in :math:`[I_{\mathsf{gen}}] = C`.
+:math:`[T_s] = s`. The resulting charge distribution is given in :math:`[I_{\mathsf{gen}}] = C`. The generator-induced
+voltage :math:`V_\mathsf{ind,gen}` is then calculated from :math:`I_{\mathsf{gen}}` with the matrix convolution through
+the generator impulse response, as explained above in :ref:`gen-ind-V`.
+
+Both the voltage and the current are calculated on the *coarse* grid.
 
 
 Beam-induced voltage
 ~~~~~~~~~~~~~~~~~~~~
 
-Travelling-wave cavity induced-voltage calculation
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+On the beam-induced voltage branch, the beam profile is used as an input to calculate the RF component of the beam
+current, :math:`I_{\mathsf{beam}}:`. Just like on the generator branch, this complex (I,Q) current is then matrix-
+convolved with the beam response, as described in :ref:`beam-ind-V`, to obtain the beam-induced voltage
+:math:`V_\mathsf{ind,beam}`.
 
-Impulse responses of a travelling wave cavity. The induced voltage
-    :math:`V(t)` from the impulse response :math:`h(t)` and the I,Q (cavity or
-    generator) current :math:`I(t)` can be written in matrix form,
+The voltage and the current are calculated both on the *fine* and the *coarse* grid.
 
-    .. math::
-        \left( \begin{matrix} V_I(t) \\
-        V_Q(t) \end{matrix} \right)
-        = \left( \begin{matrix} h_s(t) & - h_c(t) \\
-        h_c(t) & h_s(t) \end{matrix} \right)
-        * \left( \begin{matrix} I_I(t) \\
-        I_Q(t) \end{matrix} \right) \, ,
 
-    where :math:`*` denotes convolution,
-    :math:`h(t)*x(t) = \int d\tau h(\tau)x(t-\tau)`.
+From coarse to fine grid and back
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    For the **cavity-to-beam induced voltage**, we define
+For beam particle tracking, the voltage amplitude and phase correction w.r.t.\ the set point values is applied on the
+grid of the beam profile, slice by slice. In order to calculate this correction, the generator-induced voltage is
+interpolated to the fine grid, and added to the beam-induced voltage already evaluated on the fine grid.
 
-    .. math::
-        R_b \equiv \frac{\rho l^2}{8} \,
+To track the SPS one-turn feedback itself, the generator- and beam-induced voltages are summed on the coarse grid that
+covers the entire turn,
 
-    where :math:`\rho` is the series impedance, :math:`l` the accelerating
-    length, :math:`\tau` the filling time. The cavity-to-beam wake is
+.. math::
 
-    .. math::
-        W_b(t) = \frac{4 R_b}{\tau} \mathsf{tri}\left(\frac{t}{\tau}\right)
-         \cos(\omega_r t)
-
-    and the impulse response components are
-
-    .. math::
-        h_{s,b}(t) &= \frac{2 R_b}{\tau} \mathsf{tri}\left(\frac{t}{\tau}\right)
-         \cos((\omega_c - \omega_r)t) \, , \\
-        h_{c,b}(t) &= \frac{2 R_b}{\tau} \mathsf{tri}\left(\frac{t}{\tau}\right)
-        \sin((\omega_c - \omega_r)t) \, ,
-
-    where :math:`\mathsf{tri}(x)` is the triangular function, :math:`\omega_r`
-    is the central revolution frequency of the cavity, and :math:`\omega_c` is
-    the carrier revolution frequency of the I,Q demodulated current signal. On
-    the carrier frequency, :math:`\omega_c = \omega_r`,
-
-    .. math::
-        h_{s,b}(t) &= \frac{2 R_b}{\tau} \mathsf{tri}\left(\frac{t}{\tau}\right) \\
-        h_{c,b}(t) &= 0 \, .
-
-    For the **cavity-to-generator induced voltage**, we define
-
-    .. math::
-        R_g \equiv l \sqrt{\frac{\rho Z_0}{2}} \,
-
-    where :math:`Z_0` is the shunt impedance when measuring the generator
-    current; assumed to be 50 :math:`\Omega`. The cavity-to-generator wake is
-
-    .. math::
-        W_g(t) = \frac{2 R_g}{\tau} \mathsf{rect}\left(\frac{t}{\tau}\right)
-        \cos(\omega_r t)
-
-    and the impulse response components are
-
-    .. math::
-        h_{s,g}(t) &= \frac{R_g}{\tau} \mathsf{rect}\left(\frac{t}{\tau}\right)
-        \cos((\omega_c - \omega_r)t) \, , \\
-        h_{c,g}(t) &= \frac{R_g}{\tau} \mathsf{rect}\left(\frac{t}{\tau}\right)
-        \sin((\omega_c - \omega_r)t) \, ,
-
-    where :math:`\mathsf{rect}(x)` is the rectangular function. On the carrier
-    frequency, :math:`\omega_c = \omega_r`,
-
-    .. math::
-        h_{s,g}(t) &= \frac{R_g}{\tau} \mathsf{rect}\left(\frac{t}{\tau}\right) \\
-        h_{c,g}(t) &= 0 \, .
-
+    V_\mathsf{ant} = V_\mathsf{ind,gen} + V_\mathsf{ind,beam} \, .
