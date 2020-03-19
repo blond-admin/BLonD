@@ -29,15 +29,19 @@ from blond.beam.profile import Profile, CutOptions
 from blond.impedances.impedance import InducedVoltageFreq, TotalInducedVoltage
 from blond.impedances.impedance_sources import Resonators
 from scipy.constants import c, e, m_p
+from blond.utils import bmath as bm
+from blond.utils.mpi_config import worker, mpiprint
+bm.use_mpi()
+print = mpiprint
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 
 try:
-    os.mkdir(this_directory + '../output_files')
+    os.mkdir(this_directory + '../mpi_output_files')
 except:
     pass
 try:
-    os.mkdir(this_directory + '../output_files/EX_18_fig')
+    os.mkdir(this_directory + '../mpi_output_files/EX_18_fig')
 except:
     pass
 
@@ -140,19 +144,20 @@ ind_volt_freq = InducedVoltageFreq(beam, slice_beam, imp_list,
 total_ind_volt = TotalInducedVoltage(beam, slice_beam, [ind_volt_freq])
 
 f_rf = RF_sct_par.omega_rf[0,0] / 2.0 / np.pi
-plt.figure()
-plt.plot(ind_volt_freq.freq*1e-6, np.abs(ind_volt_freq.total_impedance * \
-                                         slice_beam.bin_size), lw=2)
-plt.plot([f_rf*1e-6]*2, plt.ylim(), 'k', lw=2)
-plt.plot([f_rf*1e-6 + fs*1e-6]*2, plt.ylim(), 'k--', lw=2)
-plt.plot([f_rf*1e-6 - fs*1e-6]*2, plt.ylim(), 'k--', lw=2)
-plt.xlim(1.74,1.76)
-plt.legend(('Impedance','RF frequency','Synchrotron sidebands'), loc=0, 
-           fontsize='medium')
-plt.xlabel('Frequency [MHz]')
-plt.ylabel(r'Impedance [$\Omega$]')
-plt.savefig(this_directory + '../output_files/EX_18_fig/impedance.png')
-plt.close()
+if worker.isMaster:
+    plt.figure()
+    plt.plot(ind_volt_freq.freq*1e-6, np.abs(ind_volt_freq.total_impedance * \
+                                             slice_beam.bin_size), lw=2)
+    plt.plot([f_rf*1e-6]*2, plt.ylim(), 'k', lw=2)
+    plt.plot([f_rf*1e-6 + fs*1e-6]*2, plt.ylim(), 'k--', lw=2)
+    plt.plot([f_rf*1e-6 - fs*1e-6]*2, plt.ylim(), 'k--', lw=2)
+    plt.xlim(1.74,1.76)
+    plt.legend(('Impedance','RF frequency','Synchrotron sidebands'), loc=0, 
+               fontsize='medium')
+    plt.xlabel('Frequency [MHz]')
+    plt.ylabel(r'Impedance [$\Omega$]')
+    plt.savefig(this_directory + '../mpi_output_files/EX_18_fig/impedance.png')
+    plt.close()
 
 
 # BEAM GENERATION -------------------------------------------------------------
@@ -172,38 +177,47 @@ t0 = time.time()
 bunch_center = np.zeros(n_turns)
 bunch_std = np.zeros(n_turns)
 
-
+beam.split()
 # TRACKING --------------------------------------------------------------------
 for i in range(n_turns):
     
     print(i)
     for m in map_:
         m.track()
+
+    beam.statistics()
+    beam.gather_statistics()
+    bunch_center[i] = beam.mean_dt
     
-    bunch_center[i] = beam.dt.mean()
+    # Not supported!
     bunch_std[i] = beam.dt.std()
     
     if i % n_turns_between_two_plots == 0:
-        plt.figure()
-        plt.plot(beam.dt*1e9,beam.dE*1e-6,'.')
-        plt.xlabel('Time [ns]')
-        plt.ylabel('Energy [MeV]')
-        plt.savefig(this_directory + '../output_files/EX_18_fig/phase_space_{0:d}.png'.format(i))
-        plt.close()
+        beam.gather()
+        if worker.isMaster:
+            plt.figure()
+            plt.plot(beam.dt*1e9,beam.dE*1e-6,'.')
+            plt.xlabel('Time [ns]')
+            plt.ylabel('Energy [MeV]')
+            plt.savefig(this_directory + '../mpi_output_files/EX_18_fig/phase_space_{0:d}.png'.format(i))
+            plt.close()
+        beam.split()
 
+beam.gather()
+worker.finalize()
 print(time.time() - t0)
 
 plt.figure()
 plt.plot(bunch_center*1e9)
 plt.xlabel('Turns')
 plt.ylabel('Bunch center [ns]')
-plt.savefig(this_directory + '../output_files/EX_18_fig/bunch_center.png')
+plt.savefig(this_directory + '../mpi_output_files/EX_18_fig/bunch_center.png')
 plt.close()
 plt.figure()
 plt.plot(bunch_std*1e9)
 plt.xlabel('Turns')
 plt.ylabel('Bunch length [ns]')
-plt.savefig(this_directory + '../output_files/EX_18_fig/bunch_length.png')
+plt.savefig(this_directory + '../mpi_output_files/EX_18_fig/bunch_length.png')
 plt.close()
 
 print("Done!")

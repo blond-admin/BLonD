@@ -20,13 +20,126 @@ C++ Math library
 #include <cmath>
 #include <algorithm>
 #include <functional>
+#include "blondmath.h"
 
 #ifdef PARALLEL
 #include <omp.h>
 #endif
 
+using namespace std;
 
 extern "C" {
+
+    void add_int_vector(const int *__restrict__ a,
+                        const int *__restrict__ b,
+                        const int size,
+                        int *__restrict__ result)
+    {
+        #pragma omp parallel for
+        for (int i = 0; i < size; ++i) {
+            result[i] = a[i] + b[i];
+        }
+    }
+
+    void add_uint16_vector(const uint16_t *__restrict__ a,
+                           const uint16_t *__restrict__ b,
+                           const int size,
+                           uint16_t *__restrict__ result)
+    {
+        #pragma omp parallel for
+        for (int i = 0; i < size; ++i) {
+            result[i] = a[i] + b[i];
+        }
+    }
+
+    void add_uint32_vector(const uint32_t *__restrict__ a,
+                           const uint32_t *__restrict__ b,
+                           const int size,
+                           uint32_t *__restrict__ result)
+    {
+        #pragma omp parallel for
+        for (int i = 0; i < size; ++i) {
+            result[i] = a[i] + b[i];
+        }
+    }
+
+
+    void add_longint_vector(const long *__restrict__ a,
+                            const long *__restrict__ b,
+                            const int size,
+                            long *__restrict__ result)
+    {
+        #pragma omp parallel for
+        for (int i = 0; i < size; ++i) {
+            result[i] = a[i] + b[i];
+        }
+    }
+
+
+    void add_double_vector(const double * __restrict__ a,
+                           const double * __restrict__ b,
+                           const int size,
+                           double * __restrict__ result)
+    {
+        #pragma omp parallel for
+        for (int i = 0; i < size; ++i) {
+            result[i] = a[i] + b[i];
+        }
+    }
+
+
+    void add_int_vector_inplace(int *__restrict__ a,
+                                const int *__restrict__ b,
+                                const int size)
+    {
+        #pragma omp parallel for
+        for (int i = 0; i < size; ++i) {
+            a[i] = a[i] + b[i];
+        }
+    }
+
+    void add_uint16_vector_inplace(uint16_t *__restrict__ a,
+                                   const uint16_t *__restrict__ b,
+                                   const int size)
+    {
+        #pragma omp parallel for
+        for (int i = 0; i < size; ++i) {
+            a[i] = a[i] + b[i];
+        }
+    }
+
+    void add_uint32_vector_inplace(uint32_t *__restrict__ a,
+                                   const uint32_t *__restrict__ b,
+                                   const int size)
+    {
+        #pragma omp parallel for
+        for (int i = 0; i < size; ++i) {
+            a[i] = a[i] + b[i];
+        }
+    }
+
+
+    void add_longint_vector_inplace(long *__restrict__ a,
+                                    const long *__restrict__ b,
+                                    const int size)
+    {
+        #pragma omp parallel for
+        for (int i = 0; i < size; ++i) {
+            a[i] = a[i] + b[i];
+        }
+    }
+
+
+    void add_double_vector_inplace(double * __restrict__ a,
+                                   const double * __restrict__ b,
+                                   const int size)
+    {
+        #pragma omp parallel for
+        for (int i = 0; i < size; ++i) {
+            a[i] = a[i] + b[i];
+        }
+    }
+
 
     void convolution(const double * __restrict__ signal,
                      const int SignalLen,
@@ -178,6 +291,40 @@ extern "C" {
     }
 
 
+    /**
+    @x: x-coordinates of the interpolated values
+    @N: The x array size
+    @xp: The x-coords of the data points, !!must be sorted!!
+    @M: The xp array size
+    @yp: the y-coords of the data points
+    @left: value to return for x < xp[0]
+    @right: value to return for x > xp[last]
+    @y: the interpolated values, same shape as x
+    */
+    void interp_const_space(const double * __restrict__ x,
+                            const int N,
+                            const double * __restrict__ xp,
+                            const int M,
+                            const double * __restrict__ yp,
+                            const double left,
+                            const double right,
+                            double * __restrict__ y)
+    {
+
+        const int offset = std::lower_bound(xp, xp + M, x[0]) - xp;
+        const double c = (x[0] - xp[0] + (1 - offset) * (xp[1] - xp[0]))
+                         / (xp[1] - xp[0]);
+
+        #pragma omp parallel for
+        for (int i = 0; i < N; ++i) {
+            const int pos = i + offset;
+            if (pos >= M)
+                y[i] = right;
+            else
+                y[i] = yp[pos - 1] + (yp[pos] - yp[pos - 1]) * c;
+        }
+    }
+
     // Function to implement integration of f(x) over the interval
     // [a,b] using the trapezoid rule with nsub subdivisions.
     void cumtrapz_wo_initial(const double * __restrict__ f,
@@ -311,6 +458,134 @@ extern "C" {
     {
         if (reverse) std::sort(in, in + n, std::greater<long int>());
         else std::sort(in, in + n);
+    }
+
+    void scalar_mul_int32(const int * __restrict__ a, const int b,
+                          const int n, int * __restrict__ res)
+    {
+        #pragma omp parallel for
+        for (int i = 0; i < n; ++i) {
+            res[i] = a[i] * b;
+        }
+        // std::transform(a, a + n, res, bind2nd(multiplies<int>(), b));
+    }
+
+    void scalar_mul_int64(const long * __restrict__ a, const long b,
+                          const int n, long * __restrict__ res)
+    {
+        #pragma omp parallel for
+        for (int i = 0; i < n; ++i) {
+            res[i] = a[i] * b;
+        }
+        // std::transform(a, a + n, res, bind2nd(multiplies<long>(), b));
+    }
+
+    void scalar_mul_float32(const float * __restrict__ a, const float b,
+                            const int n, float * __restrict__ res)
+    {
+        #pragma omp parallel for
+        for (int i = 0; i < n; ++i) {
+            res[i] = a[i] * b;
+        }
+        // std::transform(a, a + n, res, bind2nd(multiplies<float>(), b));
+    }
+
+    void scalar_mul_float64(const double * __restrict__ a, const double b,
+                            const int n, double * __restrict__ res)
+    {
+        #pragma omp parallel for
+        for (int i = 0; i < n; ++i) {
+            res[i] = a[i] * b;
+        }
+        // std::transform(a, a + n, res, bind2nd(multiplies<double>(), b));
+    }
+
+    void scalar_mul_complex64(const complex<float> * __restrict__ a,
+                              const complex<float> b,
+                              const int n, complex<float> * __restrict__ res)
+    {
+        #pragma omp parallel for
+        for (int i = 0; i < n; ++i) {
+            res[i] = a[i] * b;
+        }
+        // std::transform(a, a + n, res, bind2nd(multiplies<complex<float>>(), b));
+    }
+
+    void scalar_mul_complex128(const complex<double> * __restrict__ a,
+                               const complex<double> b,
+                               const int n, complex<double> * __restrict__ res)
+    {
+        #pragma omp parallel for
+        for (int i = 0; i < n; ++i) {
+            res[i] = a[i] * b;
+        }
+        // std::transform(a, a + n, res, bind2nd(multiplies<complex<double>>(), b));
+    }
+
+    void vector_mul_int32(const int * __restrict__ a, const int *__restrict__ b,
+                          const int n, int * __restrict__ res)
+    {
+        #pragma omp parallel for
+        for (int i = 0; i < n; ++i) {
+            res[i] = a[i] * b[i];
+        }
+        // std::transform(a, a + n, b, res, multiplies<int>());
+    }
+
+    void vector_mul_int64(const long * __restrict__ a, const long *__restrict__ b,
+                          const int n, long * __restrict__ res)
+    {
+        #pragma omp parallel for
+        for (int i = 0; i < n; ++i) {
+            res[i] = a[i] * b[i];
+        }
+        // std::transform(a, a + n, b, res, multiplies<long>());
+    }
+
+    void vector_mul_float32(const float * __restrict__ a, const float *__restrict__ b,
+                            const int n, float * __restrict__ res)
+    {
+        #pragma omp parallel for
+        for (int i = 0; i < n; ++i) {
+            res[i] = a[i] * b[i];
+        }
+        // std::transform(a, a + n, b, res, multiplies<float>());
+
+    }
+
+    void vector_mul_float64(const double * __restrict__ a, const double *__restrict__ b,
+                            const int n, double * __restrict__ res)
+    {
+        #pragma omp parallel for
+        for (int i = 0; i < n; ++i) {
+            res[i] = a[i] * b[i];
+        }        
+        // std::transform(a, a + n, b, res, multiplies<double>());
+
+    }
+
+    void vector_mul_complex64(const complex<float> * __restrict__ a,
+                              const complex<float> *__restrict__ b,
+                              const int n, complex<float> * __restrict__ res)
+    {
+        #pragma omp parallel for
+        for (int i = 0; i < n; ++i) {
+            res[i] = a[i] * b[i];
+        }
+        // std::transform(a, a + n, b, res, multiplies<complex<float>>());
+
+    }
+
+    void vector_mul_complex128(const complex<double> * __restrict__ a,
+                               const complex<double> *__restrict__ b,
+                               const int n, complex<double> * __restrict__ res)
+    {
+        #pragma omp parallel for
+        for (int i = 0; i < n; ++i) {
+            res[i] = a[i] * b[i];
+        }
+        // std::transform(a, a + n, b, res, multiplies<complex<double>>());
+
     }
 
 }

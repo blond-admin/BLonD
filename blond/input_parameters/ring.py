@@ -94,7 +94,17 @@ class Ring(object):
     bending_radius : float
         Bending radius in dipole magnets, :math:`\rho` [m]
     alpha_order : int
-        Number of orders of the momentum compaction factor (from 0 to 2)
+        Highest order of momentum compaction (as defined by the input). Can
+        be 0,1,2.
+    alpha_0 : float matrix [n_sections, n_turns+1]
+        Zeroth order momentum compaction factor
+        :math:`\alpha_{0,k,n}`
+    alpha_1 : float matrix [n_sections, n_turns+1]
+        First order momentum compaction factor
+        :math:`\alpha_{1,k,n}`
+    alpha_2 : float matrix [n_sections, n_turns+1]
+        Second order momentum compaction factor
+        :math:`\alpha_{2,k,n}`
     eta_0 : float matrix [n_sections, n_turns+1]
         Zeroth order slippage factor :math:`\eta_{0,k,n} = \alpha_{0,k,n} -
         \frac{1}{\gamma_{s,k,n}^2}` [1]
@@ -138,9 +148,6 @@ class Ring(object):
         Cumulative cycle time, turn by turn, :math:`t_n = \sum_n T_{0,n}` [s].
         Possibility to extract cycle parameters at these moments using
         'parameters_at_time'.
-    alpha_order : int
-        Highest order of momentum compaction (as defined by the input). Can
-        be 0,1,2.
     RingOptions : RingOptions()
         The RingOptions is kept as an attribute of the Ring object for further
         usage.
@@ -239,26 +246,39 @@ class Ring(object):
         self.omega_rev = 2*np.pi*self.f_rev
 
         # Momentum compaction, checks, and derived slippage factors
+        if RingOptions.t_start is None:
+            interp_time = self.cycle_time
+        else:
+            interp_time = self.cycle_time+RingOptions.t_start
+
         self.alpha_0 = RingOptions.reshape_data(
             alpha_0, self.n_turns, self.n_sections,
-            interp_time=self.cycle_time)
+            interp_time=interp_time)
         self.alpha_order = 0
 
         if alpha_1 is not None:
             self.alpha_1 = RingOptions.reshape_data(
                 alpha_1, self.n_turns, self.n_sections,
-                interp_time=self.cycle_time)
+                interp_time=interp_time)
             self.alpha_order = 1
+        else:
+            # Filling alpha_1 with zeros
+            # This can be removed when the BLonD assembler is in place
+            # to avoid high order momentum compaction programs filled
+            # with zeros (should be propagated in RFStation.__init__())
+            self.alpha_1 = np.zeros(self.alpha_0.shape)
 
         if alpha_2 is not None:
             self.alpha_2 = RingOptions.reshape_data(
                 alpha_2, self.n_turns, self.n_sections,
-                interp_time=self.cycle_time)
+                interp_time=interp_time)
             self.alpha_order = 2
-
-            # Filling alpha_1 with zeros if only alpha_2 program was set
-            if alpha_1 is None:
-                self.alpha_1 = np.zeros(self.alpha_2.shape)
+        else:
+            # Filling alpha_2 with zeros
+            # This can be removed when the BLonD assembler is in place
+            # to avoid high order momentum compaction programs filled
+            # with zeros (should be propagated in RFStation.__init__())
+            self.alpha_2 = np.zeros(self.alpha_0.shape)
 
         # Slippage factor derived from alpha, beta, gamma
         self.eta_generation()
