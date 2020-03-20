@@ -24,6 +24,8 @@ Modules
     :maxdepth: 2
 
     modules/equations_of_motion.rst
+    modules/lhc_cavity_loop.rst
+    modules/sps_cavity_loop.rst
     modules/beam.rst
     modules/impedances.rst
     modules/input_parameters.rst
