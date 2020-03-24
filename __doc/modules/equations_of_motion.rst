@@ -1,5 +1,5 @@
 Equations of Motion
-^^^^^^^^^^^^^^^^^^^
+===================
 :Authors: **Helga Timko**
 
 .. image:: ring_and_RFstation.png
@@ -15,7 +15,7 @@ stations, the drift equation should be scaled by :math:`\frac{L_i}{C}`, where
 
 
 Definitions
-"""""""""""
+-----------
 
 **Code-internal units** are SI-units unless otherwise specified in the below 
 table.
@@ -94,7 +94,7 @@ The total phase offset at the reference time is tracked in the variable
 
 
 Energy kick
-"""""""""""
+-----------
 
 During the passage through an RF station, the energy :math:`E^n` of an 
 arbitrary particle is changed by the total energy kick received from the 
@@ -143,7 +143,7 @@ coordinate system to be centred around :math:`E_s^n \, \forall n`. Substracting
 
 
 Arrival time drift
-""""""""""""""""""
+------------------
 
 .. sidebar:: Frequency slippage
 
@@ -197,9 +197,16 @@ option ``solver = 'simple'`` can be used to approximate the above equation as
 .. math:: \Delta t^{n+1} = \Delta t^n + \frac{\eta_0^{n+1} T_0^{n+1}}{(\beta_s^{n+1})^{2} E_s^{n+1}} \Delta E^{n+1} .
    :label: 2-3-simple
 
+In a newer implementation of the drift equation, default since 2020, we use the momentum compaction factors directly,
+instead of the slippage factors, to calculate the time slippage,
+
+.. math:: \Delta t^{n+1} = \Delta t^n + T_0^{n+1} \left[(1 + \alpha_0^{n+1}\delta^{n+1} + \alpha_1^{n+1}(\delta^{n+1})^2 +
+    \alpha_2^{n+1}(\delta^{n+1})^3) \left( \frac{1 + \frac{\Delta E^{n+1}}{E_s^{n+1}}}{1 + \delta^{n+1}} \right) - 1 \right]
+    :label: 2-alpha
+
 
 The synchronous particle
-""""""""""""""""""""""""
+------------------------
 
 A particle is **synchronous in turn n** if it enters and leaves the RF station
 with zero energy offset, :math:`\Delta E^n = \Delta E^{n+1} = 0`, and thus 
@@ -271,7 +278,7 @@ potential.
 
 
 Small-amplitude oscillations
-""""""""""""""""""""""""""""
+----------------------------
 
 Assuming a single-RF station and a simple solver (Eq. :eq:`2-3-simple`), the 
 EOMs in continous time can be written as
@@ -321,10 +328,10 @@ space if :math:`\eta_0 \cos{\varphi_s} < 0`, which for
 
 
 Tracking utilities
-^^^^^^^^^^^^^^^^^^
+==================
 
 Hamiltonian
-"""""""""""
+-----------
 
 To construct the Hamiltonian :math:`\mathcal{H}` from the conjugate variables 
 :math:`\Delta t` and :math:`\Delta E`, let us first rewrite the equations of 
@@ -363,7 +370,7 @@ or in terms of particle phase :math:`\varphi`,
 
 
 Separatrix
-""""""""""
+----------
 
 To construct the separatrix, first the unstable fixed point (UFP) needs to be
 determined. Its coordinates :math:`(\Delta t_{\mathsf{ufp}}, \Delta E = 0)` are
