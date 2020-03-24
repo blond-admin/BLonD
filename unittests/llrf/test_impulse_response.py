@@ -422,10 +422,10 @@ class TestTravelingWaveCavity(unittest.TestCase):
             0.0000000000e+00+0.0000000000e+00j,
             0.0000000000e+00+0.0000000000e+00j])
 
-        np.testing.assert_allclose(imp_fine_meas, imp_fine_ref, rtol=1e-9,
+        np.testing.assert_allclose(imp_fine_meas[:-7], imp_fine_ref[:-7], rtol=1e-8,
             atol=0, err_msg="In TestTravelingWaveCavity test_beam_fine_coarse,"
                             "mismatch in beam impulse response on fine grid")
-        np.testing.assert_allclose(imp_coarse_meas, imp_coarse_ref, rtol=1e-9,
+        np.testing.assert_allclose(imp_coarse_meas[:-7], imp_coarse_ref[:-7], rtol=1e-8,
             atol=0, err_msg="In TestTravelingWaveCavity test_beam_fine_coarse,"
                             "mismatch in beam impulse response on coarse grid")
 
@@ -634,10 +634,10 @@ class TestTravelingWaveCavity(unittest.TestCase):
             1204906.2187303246+5.0020048879e+04j,
             1179237.3930148345+5.0018909302e+04j])
 
-        np.testing.assert_allclose(Vind_fine_meas, Vind_fine_ref, rtol=1e-9,
-            atol=0, err_msg="In TestTravelingWaveCavity test_beam_fine_coarse,"
+        np.testing.assert_allclose(Vind_fine_meas, Vind_fine_ref, rtol=1e-8,
+            atol=1e-9, err_msg="In TestTravelingWaveCavity test_beam_fine_coarse,"
                             "mismatch in beam-induced voltage on fine grid")
-        np.testing.assert_allclose(Vind_coarse_meas, Vind_coarse_ref, rtol=1e-9,
+        np.testing.assert_allclose(Vind_coarse_meas, Vind_coarse_ref, rtol=1e-8,
             atol=0, err_msg="In TestTravelingWaveCavity test_beam_fine_coarse,"
                             "mismatch in beam-induced voltage on coarse grid")
 
