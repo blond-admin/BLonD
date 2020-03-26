@@ -449,7 +449,7 @@ class TestSynchRad(unittest.TestCase):
         os.environ['OMP_NUM_THREADS'] = '2'
         turns = 10
         atol = 0
-        rtol_avg = 1e-3
+        rtol_avg = 1e-2
         rtol_std = 1e-1
         SR = []
         SR_cpp = []
