@@ -15,7 +15,7 @@ Unittest for trackers.tracker.py
 
 import unittest
 import numpy as np
-# import os
+import os
 
 from blond.utils import bmath as bm
 from blond.input_parameters.ring import Ring
@@ -80,9 +80,9 @@ class TestSynchRad(unittest.TestCase):
                                                  self.voltage_program/self.n_sections],
                                              [self.phi_offset], self.n_rf_systems, section_index=i))
             self.RF_sct_par_cpp.append(RFStation(self.general_params,
-                                             [self.harmonic_numbers], [
-                                                 self.voltage_program/self.n_sections],
-                                             [self.phi_offset], self.n_rf_systems, section_index=i))
+                                                 [self.harmonic_numbers], [
+                                                     self.voltage_program/self.n_sections],
+                                                 [self.phi_offset], self.n_rf_systems, section_index=i))
 
         # DEFINE BEAM------------------------------------------------------------------
 
@@ -131,6 +131,7 @@ class TestSynchRad(unittest.TestCase):
         pass
 
     def test_no_quant_exc_10t(self):
+        os.environ['OMP_NUM_THREADS'] = '1'
         turns = 10
         atol = 0
         rtol_avg = 1e-7
@@ -192,8 +193,8 @@ class TestSynchRad(unittest.TestCase):
         np.testing.assert_allclose(std_dE, std_dE_cpp, atol=atol, rtol=rtol_std,
                                    err_msg="Pyhton and C++ std beam dE arrays not close")
 
-
     def test_with_quant_exc_10t(self):
+        os.environ['OMP_NUM_THREADS'] = '1'
         turns = 10
         atol = 0
         rtol_avg = 1e-3
@@ -255,8 +256,8 @@ class TestSynchRad(unittest.TestCase):
         np.testing.assert_allclose(std_dE, std_dE_cpp, atol=atol, rtol=rtol_std,
                                    err_msg="Pyhton and C++ std beam dE arrays not close")
 
-
     def test_no_quant_exc_100t(self):
+        os.environ['OMP_NUM_THREADS'] = '1'
         turns = 100
         atol = 0
         rtol_avg = 1e-7
@@ -318,8 +319,8 @@ class TestSynchRad(unittest.TestCase):
         np.testing.assert_allclose(std_dE, std_dE_cpp, atol=atol, rtol=rtol_std,
                                    err_msg="Pyhton and C++ std beam dE arrays not close")
 
-
     def test_with_quant_exc_100t(self):
+        os.environ['OMP_NUM_THREADS'] = '1'
         turns = 100
         atol = 0
         rtol_avg = 1e-2
@@ -381,6 +382,257 @@ class TestSynchRad(unittest.TestCase):
         np.testing.assert_allclose(std_dE, std_dE_cpp, atol=atol, rtol=rtol_std,
                                    err_msg="Pyhton and C++ std beam dE arrays not close")
 
+    def test_no_quant_exc_10t_parallel(self):
+        os.environ['OMP_NUM_THREADS'] = '2'
+        turns = 10
+        atol = 0
+        rtol_avg = 1e-7
+        rtol_std = 1e-7
+        SR = []
+        SR_cpp = []
+        rho = 11e3
+
+        for i in range(self.n_sections):
+            SR.append(SynchrotronRadiation(self.general_params, self.RF_sct_par[i],
+                                           self.beam, rho,
+                                           quantum_excitation=False, python=True))
+
+            SR_cpp.append(SynchrotronRadiation(self.general_params, self.RF_sct_par[i],
+                                               self.beam_cpp, rho,
+                                               quantum_excitation=False, python=False))
+        map_ = []
+        for i in range(self.n_sections):
+            map_ += [self.longitudinal_tracker[i]] + [SR[i]]
+        map_ += [self.slice_beam]
+
+        map_cpp = []
+        for i in range(self.n_sections):
+            map_cpp += [self.longitudinal_tracker_cpp[i]] + [SR_cpp[i]]
+        map_cpp += [self.slice_beam_cpp]
+
+        avg_dt = np.zeros(turns)
+        std_dt = np.zeros(turns)
+        avg_dE = np.zeros(turns)
+        std_dE = np.zeros(turns)
+
+        avg_dt_cpp = np.zeros(turns)
+        std_dt_cpp = np.zeros(turns)
+        avg_dE_cpp = np.zeros(turns)
+        std_dE_cpp = np.zeros(turns)
+
+        for i in range(turns):
+            for m in map_:
+                m.track()
+            for m in map_cpp:
+                m.track()
+            avg_dt[i] = np.mean(self.beam.dt)
+            std_dt[i] = np.std(self.beam.dt)
+            avg_dE[i] = np.mean(self.beam.dE)
+            std_dE[i] = np.std(self.beam.dE)
+
+            avg_dt_cpp[i] = np.mean(self.beam_cpp.dt)
+            std_dt_cpp[i] = np.std(self.beam_cpp.dt)
+            avg_dE_cpp[i] = np.mean(self.beam_cpp.dE)
+            std_dE_cpp[i] = np.std(self.beam_cpp.dE)
+
+        np.testing.assert_allclose(avg_dt, avg_dt_cpp, atol=atol, rtol=rtol_avg,
+                                   err_msg="Pyhton and C++ avg beam dt arrays not close")
+        np.testing.assert_allclose(std_dt, std_dt_cpp, atol=atol, rtol=rtol_std,
+                                   err_msg="Pyhton and C++ std beam dt arrays not close")
+
+        np.testing.assert_allclose(avg_dE, avg_dE_cpp, atol=atol, rtol=rtol_avg,
+                                   err_msg="Pyhton and C++ avg beam dE arrays not close")
+        np.testing.assert_allclose(std_dE, std_dE_cpp, atol=atol, rtol=rtol_std,
+                                   err_msg="Pyhton and C++ std beam dE arrays not close")
+
+    def test_with_quant_exc_10t_parallel(self):
+        os.environ['OMP_NUM_THREADS'] = '2'
+        turns = 10
+        atol = 0
+        rtol_avg = 1e-3
+        rtol_std = 1e-1
+        SR = []
+        SR_cpp = []
+        rho = 11e3
+
+        for i in range(self.n_sections):
+            SR.append(SynchrotronRadiation(self.general_params, self.RF_sct_par[i],
+                                           self.beam, rho,
+                                           quantum_excitation=False, python=True))
+
+            SR_cpp.append(SynchrotronRadiation(self.general_params, self.RF_sct_par[i],
+                                               self.beam_cpp, rho,
+                                               quantum_excitation=True, python=False))
+        map_ = []
+        for i in range(self.n_sections):
+            map_ += [self.longitudinal_tracker[i]] + [SR[i]]
+        map_ += [self.slice_beam]
+
+        map_cpp = []
+        for i in range(self.n_sections):
+            map_cpp += [self.longitudinal_tracker_cpp[i]] + [SR_cpp[i]]
+        map_cpp += [self.slice_beam_cpp]
+
+        avg_dt = np.zeros(turns)
+        std_dt = np.zeros(turns)
+        avg_dE = np.zeros(turns)
+        std_dE = np.zeros(turns)
+
+        avg_dt_cpp = np.zeros(turns)
+        std_dt_cpp = np.zeros(turns)
+        avg_dE_cpp = np.zeros(turns)
+        std_dE_cpp = np.zeros(turns)
+
+        for i in range(turns):
+            for m in map_:
+                m.track()
+            for m in map_cpp:
+                m.track()
+            avg_dt[i] = np.mean(self.beam.dt)
+            std_dt[i] = np.std(self.beam.dt)
+            avg_dE[i] = np.mean(self.beam.dE)
+            std_dE[i] = np.std(self.beam.dE)
+
+            avg_dt_cpp[i] = np.mean(self.beam_cpp.dt)
+            std_dt_cpp[i] = np.std(self.beam_cpp.dt)
+            avg_dE_cpp[i] = np.mean(self.beam_cpp.dE)
+            std_dE_cpp[i] = np.std(self.beam_cpp.dE)
+
+        np.testing.assert_allclose(avg_dt, avg_dt_cpp, atol=atol, rtol=rtol_avg,
+                                   err_msg="Pyhton and C++ avg beam dt arrays not close")
+        np.testing.assert_allclose(std_dt, std_dt_cpp, atol=atol, rtol=rtol_std,
+                                   err_msg="Pyhton and C++ std beam dt arrays not close")
+
+        np.testing.assert_allclose(avg_dE, avg_dE_cpp, atol=atol, rtol=rtol_avg,
+                                   err_msg="Pyhton and C++ avg beam dE arrays not close")
+        np.testing.assert_allclose(std_dE, std_dE_cpp, atol=atol, rtol=rtol_std,
+                                   err_msg="Pyhton and C++ std beam dE arrays not close")
+
+    def test_no_quant_exc_100t_parallel(self):
+        os.environ['OMP_NUM_THREADS'] = '2'
+        turns = 100
+        atol = 0
+        rtol_avg = 1e-7
+        rtol_std = 1e-7
+        SR = []
+        SR_cpp = []
+        rho = 11e3
+
+        for i in range(self.n_sections):
+            SR.append(SynchrotronRadiation(self.general_params, self.RF_sct_par[i],
+                                           self.beam, rho,
+                                           quantum_excitation=False, python=True))
+
+            SR_cpp.append(SynchrotronRadiation(self.general_params, self.RF_sct_par[i],
+                                               self.beam_cpp, rho,
+                                               quantum_excitation=False, python=False))
+        map_ = []
+        for i in range(self.n_sections):
+            map_ += [self.longitudinal_tracker[i]] + [SR[i]]
+        map_ += [self.slice_beam]
+
+        map_cpp = []
+        for i in range(self.n_sections):
+            map_cpp += [self.longitudinal_tracker_cpp[i]] + [SR_cpp[i]]
+        map_cpp += [self.slice_beam_cpp]
+
+        avg_dt = np.zeros(turns)
+        std_dt = np.zeros(turns)
+        avg_dE = np.zeros(turns)
+        std_dE = np.zeros(turns)
+
+        avg_dt_cpp = np.zeros(turns)
+        std_dt_cpp = np.zeros(turns)
+        avg_dE_cpp = np.zeros(turns)
+        std_dE_cpp = np.zeros(turns)
+
+        for i in range(turns):
+            for m in map_:
+                m.track()
+            for m in map_cpp:
+                m.track()
+            avg_dt[i] = np.mean(self.beam.dt)
+            std_dt[i] = np.std(self.beam.dt)
+            avg_dE[i] = np.mean(self.beam.dE)
+            std_dE[i] = np.std(self.beam.dE)
+
+            avg_dt_cpp[i] = np.mean(self.beam_cpp.dt)
+            std_dt_cpp[i] = np.std(self.beam_cpp.dt)
+            avg_dE_cpp[i] = np.mean(self.beam_cpp.dE)
+            std_dE_cpp[i] = np.std(self.beam_cpp.dE)
+
+        np.testing.assert_allclose(avg_dt, avg_dt_cpp, atol=atol, rtol=rtol_avg,
+                                   err_msg="Pyhton and C++ avg beam dt arrays not close")
+        np.testing.assert_allclose(std_dt, std_dt_cpp, atol=atol, rtol=rtol_std,
+                                   err_msg="Pyhton and C++ std beam dt arrays not close")
+
+        np.testing.assert_allclose(avg_dE, avg_dE_cpp, atol=atol, rtol=rtol_avg,
+                                   err_msg="Pyhton and C++ avg beam dE arrays not close")
+        np.testing.assert_allclose(std_dE, std_dE_cpp, atol=atol, rtol=rtol_std,
+                                   err_msg="Pyhton and C++ std beam dE arrays not close")
+
+    def test_with_quant_exc_100t_parallel(self):
+        os.environ['OMP_NUM_THREADS'] = '2'
+        turns = 100
+        atol = 0
+        rtol_avg = 1e-2
+        rtol_std = 1e-0
+        SR = []
+        SR_cpp = []
+        rho = 11e3
+
+        for i in range(self.n_sections):
+            SR.append(SynchrotronRadiation(self.general_params, self.RF_sct_par[i],
+                                           self.beam, rho,
+                                           quantum_excitation=False, python=True))
+
+            SR_cpp.append(SynchrotronRadiation(self.general_params, self.RF_sct_par[i],
+                                               self.beam_cpp, rho,
+                                               quantum_excitation=True, python=False))
+        map_ = []
+        for i in range(self.n_sections):
+            map_ += [self.longitudinal_tracker[i]] + [SR[i]]
+        map_ += [self.slice_beam]
+
+        map_cpp = []
+        for i in range(self.n_sections):
+            map_cpp += [self.longitudinal_tracker_cpp[i]] + [SR_cpp[i]]
+        map_cpp += [self.slice_beam_cpp]
+
+        avg_dt = np.zeros(turns)
+        std_dt = np.zeros(turns)
+        avg_dE = np.zeros(turns)
+        std_dE = np.zeros(turns)
+
+        avg_dt_cpp = np.zeros(turns)
+        std_dt_cpp = np.zeros(turns)
+        avg_dE_cpp = np.zeros(turns)
+        std_dE_cpp = np.zeros(turns)
+
+        for i in range(turns):
+            for m in map_:
+                m.track()
+            for m in map_cpp:
+                m.track()
+            avg_dt[i] = np.mean(self.beam.dt)
+            std_dt[i] = np.std(self.beam.dt)
+            avg_dE[i] = np.mean(self.beam.dE)
+            std_dE[i] = np.std(self.beam.dE)
+
+            avg_dt_cpp[i] = np.mean(self.beam_cpp.dt)
+            std_dt_cpp[i] = np.std(self.beam_cpp.dt)
+            avg_dE_cpp[i] = np.mean(self.beam_cpp.dE)
+            std_dE_cpp[i] = np.std(self.beam_cpp.dE)
+
+        np.testing.assert_allclose(avg_dt, avg_dt_cpp, atol=atol, rtol=rtol_avg,
+                                   err_msg="Pyhton and C++ avg beam dt arrays not close")
+        np.testing.assert_allclose(std_dt, std_dt_cpp, atol=atol, rtol=rtol_std,
+                                   err_msg="Pyhton and C++ std beam dt arrays not close")
+
+        np.testing.assert_allclose(avg_dE, avg_dE_cpp, atol=atol, rtol=rtol_avg,
+                                   err_msg="Pyhton and C++ avg beam dE arrays not close")
+        np.testing.assert_allclose(std_dE, std_dE_cpp, atol=atol, rtol=rtol_std,
+                                   err_msg="Pyhton and C++ std beam dE arrays not close")
 
 
 if __name__ == '__main__':
