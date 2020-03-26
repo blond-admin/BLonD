@@ -20,6 +20,156 @@ import numpy as np
 from blond.utils import bmath as bm
 
 
+class TestFastResonator(unittest.TestCase):
+
+    # Run before every test
+    def setUp(self):
+        np.random.seed(0)
+        pass
+    # Run after every test
+
+    def tearDown(self):
+        pass
+
+    def test_fast_resonator_py_V_C_1(self):
+        n_resonators = 5
+        size = 10
+        decimal = 14
+
+        freq_a = np.random.randn(size)
+        R_S = np.random.randn(n_resonators)
+        Q = np.random.randn(n_resonators)
+        freq_R = np.random.randn(n_resonators)
+        impedance_py = np.zeros(len(freq_a), complex)
+        for i in range(0, n_resonators):
+            impedance_py[1:] += R_S[i] / (1 + 1j * Q[i] *
+                                          (freq_a[1:] / freq_R[i] -
+                                             freq_R[i] / freq_a[1:]))
+
+        impedance_c = bm.fast_resonator(R_S, Q, freq_a, freq_R)
+
+        np.testing.assert_almost_equal(
+            impedance_py, impedance_c, decimal=decimal)
+
+    def test_fast_resonator_py_V_C_2(self):
+        n_resonators = 5
+        size = 1000
+        decimal = 14
+
+        freq_a = np.random.randn(size)
+        R_S = np.random.randn(n_resonators)
+        Q = np.random.randn(n_resonators)
+        freq_R = np.random.randn(n_resonators)
+        impedance_py = np.zeros(len(freq_a), complex)
+        for i in range(0, n_resonators):
+            impedance_py[1:] += R_S[i] / (1 + 1j * Q[i] *
+                                          (freq_a[1:] / freq_R[i] -
+                                             freq_R[i] / freq_a[1:]))
+
+        impedance_c = bm.fast_resonator(R_S, Q, freq_a, freq_R)
+
+        np.testing.assert_almost_equal(
+            impedance_py, impedance_c, decimal=decimal)
+
+    def test_fast_resonator_py_V_C_3(self):
+        n_resonators = 20
+        size = 1000
+        decimal = 14
+
+        freq_a = np.random.randn(size)
+        R_S = np.random.randn(n_resonators)
+        Q = np.random.randn(n_resonators)
+        freq_R = np.random.randn(n_resonators)
+        impedance_py = np.zeros(len(freq_a), complex)
+        for i in range(0, n_resonators):
+            impedance_py[1:] += R_S[i] / (1 + 1j * Q[i] *
+                                          (freq_a[1:] / freq_R[i] -
+                                             freq_R[i] / freq_a[1:]))
+
+        impedance_c = bm.fast_resonator(R_S, Q, freq_a, freq_R)
+
+        np.testing.assert_almost_equal(
+            impedance_py, impedance_c, decimal=decimal)
+
+
+    def test_fast_resonator_py2_V_C_4(self):
+        n_resonators = 20
+        size = 1000
+        decimal = 14
+
+        freq_a = np.random.randn(size)
+        R_S = np.random.randn(n_resonators)
+        Q = np.random.randn(n_resonators)
+        freq_R = np.random.randn(n_resonators)
+        impedance_py = np.zeros(len(freq_a), complex)
+        for res in range(0, n_resonators):
+            Qsquare = Q[res] * Q[res]
+            for freq in range(1, len(freq_a)):
+                commonTerm = (freq_a[freq] / freq_R[res]
+                              - freq_R[res]/freq_a[freq])
+                impedance_py.real[freq] += R_S[res] \
+                    / (1. + Qsquare * commonTerm * commonTerm)
+                impedance_py.imag[freq] -= R_S[res] * (Q[res] * commonTerm) \
+                    / (1. + Qsquare * commonTerm * commonTerm)
+            # impedance_py[1:] += R_S[i] / (1 + 1j * Q[i] *
+            #                               (freq_a[1:] / freq_R[i] -
+            #                                  freq_R[i] / freq_a[1:]))
+
+        impedance_c = bm.fast_resonator(R_S, Q, freq_a, freq_R)
+
+        np.testing.assert_almost_equal(
+            impedance_py, impedance_c, decimal=decimal)
+
+    def test_fast_resonator_py_V_C_5(self):
+        n_resonators = 100
+        size = 100000
+        decimal = 14
+
+        freq_a = np.random.randn(size)
+        R_S = np.random.randn(n_resonators)
+        Q = np.random.randn(n_resonators)
+        freq_R = np.random.randn(n_resonators)
+        impedance_py = np.zeros(len(freq_a), complex)
+        for i in range(0, n_resonators):
+            impedance_py[1:] += R_S[i] / (1 + 1j * Q[i] *
+                                          (freq_a[1:] / freq_R[i] -
+                                             freq_R[i] / freq_a[1:]))
+
+        impedance_c = bm.fast_resonator(R_S, Q, freq_a, freq_R)
+
+        np.testing.assert_almost_equal(
+            impedance_py, impedance_c, decimal=decimal)
+
+    def test_fast_resonator_py_V_py_1(self):
+        n_resonators = 20
+        size = 1000
+        decimal = 14
+
+        freq_a = np.random.randn(size)
+        R_S = np.random.randn(n_resonators)
+        Q = np.random.randn(n_resonators)
+        freq_R = np.random.randn(n_resonators)
+        impedance_py1 = np.zeros(len(freq_a), complex)
+        impedance_py2 = np.zeros(len(freq_a), complex)
+        for res in range(0, n_resonators):
+            Qsquare = Q[res] * Q[res]
+            for freq in range(1, len(freq_a)):
+                commonTerm = (freq_a[freq] / freq_R[res]
+                              - freq_R[res]/freq_a[freq])
+                impedance_py1.real[freq] += R_S[res] \
+                    / (1. + Qsquare * commonTerm * commonTerm)
+                impedance_py1.imag[freq] -= R_S[res] * (Q[res] * commonTerm) \
+                    / (1. + Qsquare * commonTerm * commonTerm)
+
+        for i in range(n_resonators):
+            impedance_py2[1:] += R_S[i] / (1 + 1j * Q[i]
+                                          * (freq_a[1:] / freq_R[i]
+                                           - freq_R[i] / freq_a[1:]))
+
+        np.testing.assert_almost_equal(
+            impedance_py1, impedance_py2, decimal=decimal)
+
+
 class TestWhere(unittest.TestCase):
 
     # Run before every test
