@@ -20,7 +20,7 @@ import os
 from blond.utils import bmath as bm
 from blond.input_parameters.ring import Ring
 from blond.beam.beam import Beam, Electron
-from blond.beam.distributions import matched_from_distribution_function
+from blond.beam.distributions import bigaussian, matched_from_distribution_function
 from blond.input_parameters.rf_parameters import RFStation
 from blond.beam.profile import Profile
 from blond.trackers.tracker import RingAndRFTracker, FullRingAndRF
