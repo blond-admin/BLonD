@@ -16,7 +16,6 @@
 from __future__ import division, print_function
 from builtins import range, object
 import numpy as np
-import ctypes
 from scipy.constants import e, c, epsilon_0, hbar
 from ..utils import bmath as bm
 
@@ -43,7 +42,7 @@ class SynchrotronRadiation(object):
         self.Cgamma = 1.0 / (e**2.0 * 3.0 * epsilon_0
                              * self.general_params.Particle.mass**4.0)
         self.Cq = (55.0 / (32.0 * np.sqrt(3.0)) * hbar * c
-                   / (self.general_params.Particle.mass * e))
+                   / (self.general_params.Particle.mass * e))   # [m]
 
         self.I2 = 2.0 * np.pi / self.rho     # Assuming isomagnetic machine
         self.I3 = 2.0 * np.pi / self.rho**2.0
@@ -63,7 +62,12 @@ class SynchrotronRadiation(object):
         if self.rf_params.section_index == 0:
             self.beam.dt -= (np.arcsin(self.U0/self.rf_params.voltage[0][0])
                              * self.rf_params.t_rf[0, 0] / (2.0*np.pi))
-
+            self.beam_phase_to_compensate_SR = np.arcsin(self.U0/self.rf_params[0][0])
+            self.beam_position_to_compensate_SR = self.beam_phase_to_compensate_SR \
+                * self.rf_params.t_rf[0, 0] / (2.0*np.pi)
+                
+            self.beam.dt -= self.beam_position_to_compensate_SR
+            
         # Select the right method for the tracker according to the selected
         # settings
         if python:
