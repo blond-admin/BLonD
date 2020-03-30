@@ -65,31 +65,45 @@ class TestSynchtrotronRadiation(unittest.TestCase):
 
     def test_initial_beam(self):
         atol = 0
-        rtol = 1e-10
-        np.testing.assert_allclose(
-            [self.beam.dt[0], self.beam.dt[-1]],
-            [1.0054066581358374e-09, 9.95573493407244e-10], 
-            # 9.981322445127657e-10],
-            atol=atol, rtol=rtol,
-            err_msg='Initial beam.dt wrong')
-        np.testing.assert_allclose(
-            [self.beam.dE[0], self.beam.dE[-1]],
-            [132782.5987169414, -479476.31494762405],
-            atol=atol, rtol=rtol,
-            # [337945.02937447827, -193066.62344453152], decimal=10,
-            err_msg='Initial beam.dE wrong')
+        rtol = 1e-7
+        np.testing.assert_allclose([np.mean(self.beam.dt)], [1.0010434293297664e-09],
+                                   atol=atol, rtol=rtol,
+                                   err_msg='Initial avg beam.dt wrong')
+        np.testing.assert_allclose([np.std(self.beam.dt)], [9.956848503354043e-12],
+                                   atol=atol, rtol=rtol,
+                                   err_msg='Initial std beam.dt wrong')
+
+        np.testing.assert_allclose([np.mean(self.beam.dE)], [-22869.066735787248],
+                                   atol=atol, rtol=rtol,
+                                   err_msg='Initial avg beam.dE wrong')
+        np.testing.assert_allclose([np.std(self.beam.dE)], [446199.02910303336],
+                                   atol=atol, rtol=rtol,
+                                   err_msg='Initial std beam.dE wrong')
 
     def test_affect_only_dE(self):
+        atol = 0
+        rtol = 1e-7
+
         # incoherent synchrotron radiation, no displacement of beam
         iSR = SynchrotronRadiation(self.ring, self.rf_station, self.beam, self.R_bend,
                                    seed=self.seed, n_kicks=1, shift_beam=False,
                                    python=True, quantum_excitation=False)
         iSR.track()
-        np.testing.assert_almost_equal(
-            self.beam.dt[0], 1.0054066581358374e-09, decimal=10,
-            err_msg='SR affected beam.dt')
+        np.testing.assert_allclose([np.mean(self.beam.dt)], [1.0010434293297664e-09],
+                                   atol=atol, rtol=rtol,
+                                   err_msg='SR affected mean beam.dt')
+        np.testing.assert_allclose([np.std(self.beam.dt)], [9.956848503354043e-12],
+                                   atol=atol, rtol=rtol,
+                                   err_msg='SR affected std beam.dt')
+
+        # np.testing.assert_almost_equal(
+        #     self.beam.dt[0], 1.0054066581358374e-09, decimal=10,
+        #     err_msg='SR affected beam.dt')
 
     def test_synchrotron_radiation_python_vs_C(self):
+        atol = 0
+        rtol = 1e-7
+
         iSR = SynchrotronRadiation(self.ring, self.rf_station, self.beam, self.R_bend,
                                    n_kicks=1, shift_beam=False,
                                    python=True, quantum_excitation=False, seed=self.seed)
@@ -104,10 +118,21 @@ class TestSynchtrotronRadiation(unittest.TestCase):
                                    python=False, quantum_excitation=False, seed=self.seed)
         iSR.track()  # C implementation
 
-        np.testing.assert_almost_equal(self.beam.dE, beam_C.dE, decimal=8,
-                                       err_msg='SR: Python and C implementations yield different results for single kick')
+        np.testing.assert_allclose([np.mean(self.beam.dE)], [np.mean(beam_C.dE)],
+                                   atol=atol, rtol=rtol,
+                                   err_msg='Python anc C yield different avg beam.dE for single kick')
+        np.testing.assert_allclose([np.std(self.beam.dE)], [np.std(beam_C.dE)],
+                                   atol=atol, rtol=rtol,
+                                   err_msg='Python anc C yield different std beam.dE for single kick')
+
+
+        # np.testing.assert_almost_equal(self.beam.dE, beam_C.dE, decimal=8,
+        #                                err_msg='SR: Python and C implementations yield different results for single kick')
 
     def test_synchrotron_radiation_python_vs_C_double_kick(self):
+        atol = 0
+        rtol = 1e-7
+
         iSR = SynchrotronRadiation(self.ring, self.rf_station, self.beam, self.R_bend,
                                    n_kicks=2, shift_beam=False,
                                    python=True, quantum_excitation=False, seed=self.seed)
@@ -122,8 +147,17 @@ class TestSynchtrotronRadiation(unittest.TestCase):
                                    python=False, quantum_excitation=False, seed=self.seed)
         iSR.track()  # C implementation
 
-        np.testing.assert_almost_equal(self.beam.dE, beam_C.dE, decimal=8,
-                                       err_msg='SR: Python and C implementations yield different results for two kicks')
+
+        np.testing.assert_allclose([np.mean(self.beam.dE)], [np.mean(beam_C.dE)],
+                                   atol=atol, rtol=rtol,
+                                   err_msg='Python anc C yield different avg beam.dE for two kicks')
+        np.testing.assert_allclose([np.std(self.beam.dE)], [np.std(beam_C.dE)],
+                                   atol=atol, rtol=rtol,
+                                   err_msg='Python anc C yield different std beam.dE for two kicks')
+
+
+        # np.testing.assert_almost_equal(self.beam.dE, beam_C.dE, decimal=8,
+        #                                err_msg='SR: Python and C implementations yield different results for two kicks')
 
 
 class TestSynchRad(unittest.TestCase):
