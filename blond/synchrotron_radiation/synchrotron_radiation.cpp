@@ -17,6 +17,7 @@ Project website: http://blond.web.cern.ch/
 #include <random>
 #include <thread>
 #include <chrono>
+#include "openmp.h"
 
 #ifdef BOOST
 #include <boost/random.hpp>
@@ -28,6 +29,7 @@ using namespace std;
 
 #endif
 
+long unsigned int seed = clock();
 
 // This function calculates and applies only the synchrotron radiation damping term
 extern "C" void synchrotron_radiation(double * __restrict__ beam_dE, const double U0,
@@ -76,7 +78,7 @@ extern "C" void synchrotron_radiation_full(double * __restrict__ beam_dE, const 
         #pragma omp parallel
         {
             static __thread mt19937_64 *gen = nullptr;
-            if (!gen) gen = new mt19937_64(clock() + hash(std::this_thread::get_id()));
+            if (!gen) gen = new mt19937_64(seed + omp_get_thread_num());
             static __thread normal_distribution<> dist(0.0, 1.0);
             #pragma omp for
             for (int i = 0; i < n_macroparticles; i++) {
@@ -86,4 +88,8 @@ extern "C" void synchrotron_radiation_full(double * __restrict__ beam_dE, const 
             }
         }
     }
+}
+
+extern "C" void set_random_seed(const int _seed) {
+    seed = _seed;
 }
