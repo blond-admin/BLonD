@@ -76,6 +76,8 @@ class SynchrotronRadiation(object):
                 self.track = self.track_SR_python
         else:
             if quantum_excitation:
+                if seed is not None:
+                    bm.set_random_seed(seed)
                 self.track = self.track_full_C
             else:
                 self.track = self.track_SR_C
