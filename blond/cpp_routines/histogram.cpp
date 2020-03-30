@@ -14,14 +14,8 @@
 #include <string.h>     // memset()
 #include <stdlib.h>     // mmalloc()
 #include <math.h>
+#include "openmp.h"
 
-#ifdef PARALLEL
-#include <omp.h>        // omp_get_thread_num(), omp_get_num_threads()
-#else
-int omp_get_max_threads() {return 1;}
-int omp_get_num_threads() {return 1;}
-int omp_get_thread_num() {return 0;}
-#endif
 
 extern "C" void histogram(const double *__restrict__ input,
                           double *__restrict__ output, const double cut_left,
