@@ -36,15 +36,15 @@ extern "C" void synchrotron_radiation(double * __restrict__ beam_dE, const doubl
                                       const int n_macroparticles, const double tau_z,
                                       const int n_kicks) {
 
-    // SR damping constant
-    const double const_synch_rad = 2.0 / tau_z;
+    // SR damping constant, adjusted for better performance
+    const double const_synch_rad = 1.0 - 2.0 / tau_z;
 
     for (int j = 0; j < n_kicks; j++) {
         // SR damping term due to energy spread and
         // Average energy change due to SR
         #pragma omp parallel for
         for (int i = 0; i < n_macroparticles; i++)
-            beam_dE[i] = beam_dE[i] - const_synch_rad * beam_dE[i] - U0;
+            beam_dE[i] = beam_dE[i] * const_synch_rad - U0;
 
         // #pragma omp parallel for
         // for (int i = 0; i < n_macroparticles; i++)
