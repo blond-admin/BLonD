@@ -19,7 +19,6 @@ from builtins import object
 import numpy as np
 # from numpy.fft import rfft, rfftfreq
 from scipy import ndimage
-import ctypes
 from ..toolbox import filters_and_fitting as ffroutines
 from ..utils import bmath as bm
 
@@ -421,7 +420,7 @@ class Profile(object):
             self.edges, self.bin_centers, self.bin_size = \
             self.cut_options.get_slices_parameters()
 
-    def track(self, **kwargs):
+    def track(self):
         """
         Track method in order to update the slicing along with the tracker.
         The kwargs are currently only needed to forward the reduce kw argument
@@ -429,16 +428,16 @@ class Profile(object):
         """
 
         for op in self.operations:
-            op(**kwargs)
+            op()
 
-    def _slice(self, reduce=True, **kwargs):
+    def _slice(self):
         """
         Constant space slicing with a constant frame.
         """
         bm.slice(self.Beam.dt, self.n_macroparticles, self.cut_left,
                  self.cut_right)
 
-        if bm.mpiMode() and reduce:
+        if bm.mpiMode():
             self.reduce_histo()
 
     def reduce_histo(self, dtype=np.uint32):
@@ -448,34 +447,36 @@ class Profile(object):
 
         from ..utils.mpi_config import worker
 
-        # Convert to uint32t for better performance
-        self.n_macroparticles = self.n_macroparticles.astype(dtype, order='C')
+        if self.Beam.is_splitted:
+            # Convert to uint32t for better performance
+            self.n_macroparticles = self.n_macroparticles.astype(dtype, order='C')
 
-        worker.allreduce(self.n_macroparticles)
+            worker.allreduce(self.n_macroparticles)
 
-        # Convert back to float64
-        self.n_macroparticles = self.n_macroparticles.astype(
-            np.float64, order='C')
+            # Convert back to float64
+            self.n_macroparticles = self.n_macroparticles.astype(
+                np.float64, order='C')
 
-    def scale_histo(self, **kwargs):
+    def scale_histo(self):
         if not bm.mpiMode():
             raise RuntimeError(
                 'ERROR: Cannot use this routine unless in MPI Mode')
 
         from ..utils.mpi_config import worker
-        bm.mul(self.n_macroparticles, worker.workers, self.n_macroparticles)
+        if self.Beam.is_splitted:
+            bm.mul(self.n_macroparticles, worker.workers, self.n_macroparticles)
 
-    def _slice_smooth(self, reduce=True, **kwargs):
+    def _slice_smooth(self, reduce=True):
         """
         At the moment 4x slower than _slice but smoother (filtered).
         """
         bm.slice_smooth(self.Beam.dt, self.n_macroparticles, self.cut_left,
                         self.cut_right)
 
-        if bm.mpiMode() and reduce:
+        if bm.mpiMode():
             self.reduce_histo(dtype=np.float64)
 
-    def apply_fit(self, **kwargs):
+    def apply_fit(self):
         """
         It applies Gaussian fit to the profile.
         """
@@ -492,14 +493,14 @@ class Profile(object):
         self.bunchPosition = self.fitExtraOptions[1]
         self.bunchLength = 4*self.fitExtraOptions[2]
 
-    def apply_filter(self, **kwargs):
+    def apply_filter(self):
         """
         It applies Chebishev filter to the profile.
         """
         self.n_macroparticles = ffroutines.beam_profile_filter_chebyshev(
             self.n_macroparticles, self.bin_centers, self.filterExtraOptions)
 
-    def rms(self, **kwargs):
+    def rms(self):
         """
         Computation of the RMS bunch length and position from the line
         density (bunch length = 4sigma).
@@ -509,7 +510,7 @@ class Profile(object):
             self.n_macroparticles, self.bin_centers)
 
     def rms_multibunch(self, n_bunches, bunch_spacing_buckets, bucket_size_tau,
-                       bucket_tolerance=0.40, **kwargs):
+                       bucket_tolerance=0.40):
         """
         Computation of the bunch length (4sigma) and position from RMS.
         """
@@ -518,7 +519,7 @@ class Profile(object):
             self.n_macroparticles, self.bin_centers, n_bunches,
             bunch_spacing_buckets, bucket_size_tau, bucket_tolerance)
 
-    def fwhm(self, shift=0, **kwargs):
+    def fwhm(self, shift=0):
         """
         Computation of the bunch length and position from the FWHM
         assuming Gaussian line density.
@@ -528,8 +529,7 @@ class Profile(object):
             self.n_macroparticles, self.bin_centers, shift)
 
     def fwhm_multibunch(self, n_bunches, bunch_spacing_buckets,
-                        bucket_size_tau, bucket_tolerance=0.40, shift=0,
-                        **kwargs):
+                        bucket_size_tau, bucket_tolerance=0.40, shift=0):
         """
         Computation of the bunch length and position from the FWHM
         assuming Gaussian line density for multibunch case.

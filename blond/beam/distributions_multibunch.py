@@ -171,7 +171,7 @@ def matched_from_distribution_density_multibunch(beam, Ring, FullRingAndRF, dist
         
         
         if TotalInducedVoltage is not None:
-            TotalInducedVoltageIteration.profile.track(reduce=False)
+            TotalInducedVoltageIteration.profile.track()
             TotalInducedVoltageIteration.induced_voltage_sum()
 
             left_edge = ((indexBunch + 1) * bunch_spacing_buckets * 
@@ -343,7 +343,7 @@ def matched_from_line_density_multibunch(beam, Ring,
         beamIteration.ratio = beamIteration.intensity/beamIteration.n_macroparticles
         
         if TotalInducedVoltage is not None:
-            TotalInducedVoltageIteration.profile.track(reduce=False)
+            TotalInducedVoltageIteration.profile.track()
             TotalInducedVoltageIteration.induced_voltage_sum()        
             
             bucket_tolerance = 0.40  
@@ -466,7 +466,7 @@ def match_beam_from_distribution(beam, FullRingAndRF, GeneralParameters,
         for it in range(n_iterations):
             conv = 0.
             # Compute the induced voltage/potential for all the beam
-            profile.track(reduce=False)
+            profile.track()
             TotalInducedVoltage.induced_voltage_sum()
             
             induced_voltage_coordinates = TotalInducedVoltage.time_array
@@ -500,7 +500,7 @@ def match_beam_from_distribution(beam, FullRingAndRF, GeneralParameters,
 
  
             print('iteration ' + str(it) + ', average RMS emittance (4sigma) = ' + str(4*conv/n_bunches))
-            profile.track(reduce=False)
+            profile.track()
             TotalInducedVoltage.induced_voltage_sum()
 
 
@@ -594,7 +594,7 @@ def match_beam_from_distribution_multibatch(beam, FullRingAndRF, GeneralParamete
     plt.figure('temporarybatch')
     plt.plot(temporary_batch.dt[::100],temporary_batch.dE[::100],'b.')
     plt.figure('profile before induced voltage')
-    profile.track(reduce=False)
+    profile.track()
     plt.plot(profile.bin_centers,profile.n_macroparticles)
     plt.figure('beamInSlice')
     plt.plot(profile.Beam.dt[::100],profile.Beam.dE[::100],'b.')   
@@ -608,11 +608,11 @@ def match_beam_from_distribution_multibatch(beam, FullRingAndRF, GeneralParamete
         for it in range(n_iterations):
             conv = 0.
             # Compute the induced voltage/potential for all the beam
-            profile.track(reduce=False)
+            profile.track()
             TotalInducedVoltage.induced_voltage_sum()
             
             plt.figure('profile before induced voltage')
-            profile.track(reduce=False)
+            profile.track()
             plt.plot(profile.bin_centers,profile.n_macroparticles)
 #            
 #            plt.figure('inducedvoltage before induced voltage')
@@ -668,7 +668,7 @@ def match_beam_from_distribution_multibatch(beam, FullRingAndRF, GeneralParamete
 
  
             print('iteration ' + str(it) + ', average RMS emittance (4sigma) = ' + str(4*conv/n_bunches))
-            profile.track(reduce=False)
+            profile.track()
             TotalInducedVoltage.induced_voltage_sum()
 
 
