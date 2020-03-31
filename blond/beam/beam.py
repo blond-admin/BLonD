@@ -151,6 +151,7 @@ class Beam(object):
         self.id = np.arange(1, self.n_macroparticles + 1, dtype=int)
         # For MPI
         self.n_total_macroparticles_lost = 0
+        self.is_splitted = False
 
     @property
     def n_macroparticles_lost(self):
@@ -399,6 +400,7 @@ class Beam(object):
         assert (len(self.dt) == len(self.dE) and len(self.dt) == len(self.id))
 
         self.n_macroparticles = len(self.dt)
+        self.is_splitted = True
 
     def gather(self, all=False):
         '''
@@ -418,10 +420,13 @@ class Beam(object):
             self.dt = worker.allgather(self.dt)
             self.dE = worker.allgather(self.dE)
             self.id = worker.allgather(self.id)
+            self.is_splitted = False
         else:
             self.dt = worker.gather(self.dt)
             self.dE = worker.gather(self.dE)
             self.id = worker.gather(self.id)
+            if worker.isMaster:
+                self.is_splitted = False
 
         self.n_macroparticles = len(self.dt)
 
