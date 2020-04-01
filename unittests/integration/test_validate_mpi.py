@@ -32,10 +32,14 @@ class TestMPICorrectness(unittest.TestCase):
         if os.path.isfile(file) and os.path.isfile(mpi_file):
             # Parse the regular blond data
             data = np.genfromtxt(file, dtype=str, delimiter='\t')
+            if len(data) == 0:
+                raise unittest.SkipTest('[{}] Non-MPI test file empty'.format(example))
             header, data = data[0], np.array(data[1:], dtype=float)
 
             # Parse the mpi blond data
             datampi = np.genfromtxt(mpi_file, dtype=str, delimiter='\t')
+            if len(datampi) == 0:
+                raise unittest.SkipTest('[{}] MPI test file empty'.format(example))
             headermpi, datampi = datampi[0], np.array(datampi[1:], dtype=float)
 
             # Make sure the headers agree
