@@ -179,7 +179,7 @@ class TestSynchRad(unittest.TestCase):
     C = 2 * np.pi * radius  # [m]
 
     # Tracking details
-    n_turns = int(100)
+    n_turns = int(200)
 
     # Derived parameters
     E_0 = m_e * c**2 / e    # [eV]
@@ -194,6 +194,7 @@ class TestSynchRad(unittest.TestCase):
 
     bucket_length = C / c / harmonic_numbers
     n_sections = 2
+    rho = 11e3
 
     # Run before every testn_turns
     def setUp(self):
@@ -249,6 +250,7 @@ class TestSynchRad(unittest.TestCase):
         matched_from_distribution_function(self.beam, full_tracker, emittance=self.emittance,
                                            distribution_type=self.distribution_type,
                                            distribution_variable=self.distribution_variable, seed=1000)
+        
         matched_from_distribution_function(self.beam_cpp, full_tracker_cpp, emittance=self.emittance,
                                            distribution_type=self.distribution_type,
                                            distribution_variable=self.distribution_variable, seed=1000)
@@ -269,15 +271,14 @@ class TestSynchRad(unittest.TestCase):
         rtol_std = 1e-7
         SR = []
         SR_cpp = []
-        rho = 11e3
 
         for i in range(self.n_sections):
             SR.append(SynchrotronRadiation(self.general_params, self.RF_sct_par[i],
-                                           self.beam, rho,
+                                           self.beam, self.rho,
                                            quantum_excitation=False, python=True))
 
-            SR_cpp.append(SynchrotronRadiation(self.general_params, self.RF_sct_par[i],
-                                               self.beam_cpp, rho,
+            SR_cpp.append(SynchrotronRadiation(self.general_params, self.RF_sct_par_cpp[i],
+                                               self.beam_cpp, self.rho,
                                                quantum_excitation=False, python=False))
         map_ = []
         for i in range(self.n_sections):
@@ -332,15 +333,14 @@ class TestSynchRad(unittest.TestCase):
         rtol_std = 1e-2
         SR = []
         SR_cpp = []
-        rho = 11e3
 
         for i in range(self.n_sections):
             SR.append(SynchrotronRadiation(self.general_params, self.RF_sct_par[i],
-                                           self.beam, rho,
+                                           self.beam, self.rho,
                                            quantum_excitation=True, python=True))
 
-            SR_cpp.append(SynchrotronRadiation(self.general_params, self.RF_sct_par[i],
-                                               self.beam_cpp, rho,
+            SR_cpp.append(SynchrotronRadiation(self.general_params, self.RF_sct_par_cpp[i],
+                                               self.beam_cpp, self.rho,
                                                quantum_excitation=True, python=False))
         map_ = []
         for i in range(self.n_sections):
@@ -395,15 +395,14 @@ class TestSynchRad(unittest.TestCase):
         rtol_std = 1e-7
         SR = []
         SR_cpp = []
-        rho = 11e3
 
         for i in range(self.n_sections):
             SR.append(SynchrotronRadiation(self.general_params, self.RF_sct_par[i],
-                                           self.beam, rho,
+                                           self.beam, self.rho,
                                            quantum_excitation=False, python=True))
 
-            SR_cpp.append(SynchrotronRadiation(self.general_params, self.RF_sct_par[i],
-                                               self.beam_cpp, rho,
+            SR_cpp.append(SynchrotronRadiation(self.general_params, self.RF_sct_par_cpp[i],
+                                               self.beam_cpp, self.rho,
                                                quantum_excitation=False, python=False))
         map_ = []
         for i in range(self.n_sections):
@@ -458,15 +457,14 @@ class TestSynchRad(unittest.TestCase):
         rtol_std = 1e-1
         SR = []
         SR_cpp = []
-        rho = 11e3
 
         for i in range(self.n_sections):
             SR.append(SynchrotronRadiation(self.general_params, self.RF_sct_par[i],
-                                           self.beam, rho,
+                                           self.beam, self.rho,
                                            quantum_excitation=True, python=True))
 
-            SR_cpp.append(SynchrotronRadiation(self.general_params, self.RF_sct_par[i],
-                                               self.beam_cpp, rho,
+            SR_cpp.append(SynchrotronRadiation(self.general_params, self.RF_sct_par_cpp[i],
+                                               self.beam_cpp, self.rho,
                                                quantum_excitation=True, python=False))
         map_ = []
         for i in range(self.n_sections):
@@ -517,19 +515,18 @@ class TestSynchRad(unittest.TestCase):
         os.environ['OMP_NUM_THREADS'] = '2'
         turns = 10
         atol = 0
-        rtol_avg = 1e-6
+        rtol_avg = 1e-7
         rtol_std = 1e-7
         SR = []
         SR_cpp = []
-        rho = 11e3
 
         for i in range(self.n_sections):
             SR.append(SynchrotronRadiation(self.general_params, self.RF_sct_par[i],
-                                           self.beam, rho,
+                                           self.beam, self.rho,
                                            quantum_excitation=False, python=True))
 
-            SR_cpp.append(SynchrotronRadiation(self.general_params, self.RF_sct_par[i],
-                                               self.beam_cpp, rho,
+            SR_cpp.append(SynchrotronRadiation(self.general_params, self.RF_sct_par_cpp[i],
+                                               self.beam_cpp, self.rho,
                                                quantum_excitation=False, python=False))
         map_ = []
         for i in range(self.n_sections):
@@ -584,15 +581,14 @@ class TestSynchRad(unittest.TestCase):
         rtol_std = 1e-2
         SR = []
         SR_cpp = []
-        rho = 11e3
 
         for i in range(self.n_sections):
             SR.append(SynchrotronRadiation(self.general_params, self.RF_sct_par[i],
-                                           self.beam, rho,
+                                           self.beam, self.rho,
                                            quantum_excitation=True, python=True))
 
-            SR_cpp.append(SynchrotronRadiation(self.general_params, self.RF_sct_par[i],
-                                               self.beam_cpp, rho,
+            SR_cpp.append(SynchrotronRadiation(self.general_params, self.RF_sct_par_cpp[i],
+                                               self.beam_cpp, self.rho,
                                                quantum_excitation=True, python=False))
         map_ = []
         for i in range(self.n_sections):
@@ -647,15 +643,14 @@ class TestSynchRad(unittest.TestCase):
         rtol_std = 1e-7
         SR = []
         SR_cpp = []
-        rho = 11e3
 
         for i in range(self.n_sections):
             SR.append(SynchrotronRadiation(self.general_params, self.RF_sct_par[i],
-                                           self.beam, rho,
+                                           self.beam, self.rho,
                                            quantum_excitation=False, python=True))
 
-            SR_cpp.append(SynchrotronRadiation(self.general_params, self.RF_sct_par[i],
-                                               self.beam_cpp, rho,
+            SR_cpp.append(SynchrotronRadiation(self.general_params, self.RF_sct_par_cpp[i],
+                                               self.beam_cpp, self.rho,
                                                quantum_excitation=False, python=False))
         map_ = []
         for i in range(self.n_sections):
@@ -710,15 +705,14 @@ class TestSynchRad(unittest.TestCase):
         rtol_std = 1e-1
         SR = []
         SR_cpp = []
-        rho = 11e3
 
         for i in range(self.n_sections):
             SR.append(SynchrotronRadiation(self.general_params, self.RF_sct_par[i],
-                                           self.beam, rho,
+                                           self.beam, self.rho,
                                            quantum_excitation=True, python=True))
 
-            SR_cpp.append(SynchrotronRadiation(self.general_params, self.RF_sct_par[i],
-                                               self.beam_cpp, rho,
+            SR_cpp.append(SynchrotronRadiation(self.general_params, self.RF_sct_par_cpp[i],
+                                               self.beam_cpp, self.rho,
                                                quantum_excitation=True, python=False))
         map_ = []
         for i in range(self.n_sections):
