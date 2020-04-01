@@ -14,7 +14,6 @@ Integration tests for the MPI mode.
 """
 
 import unittest
-import numpy as np
 import os
 import subprocess
 
@@ -23,11 +22,15 @@ main_files_dir = '__EXAMPLES/mpi_main_files'
 timeout = 90
 exec_args = ['mpirun', '-n', '2', 'python']
 
+
 class TestMpiExamples(unittest.TestCase):
 
     # Run before every test
     def setUp(self):
-        pass
+        try:
+            subprocess.call(['mpirun', '--version'])
+        except FileNotFoundError:
+            self.skipTest('mpirun not found, skipping tests')
 
     # Run after every test
     def tearDown(self):
