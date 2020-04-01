@@ -171,6 +171,16 @@ matched_from_distribution_function(beam, full_tracker,
 
 map_ = [slice_beam] + [total_ind_volt] + [ring_RF_section]
 
+if worker.isMaster:
+    # For testing purposes
+    outfile = open(this_directory +
+                   '../mpi_output_files/EX_18_test_data.txt', 'w')
+    outfile.write('{:<17}\t{:<17}\t{:<17}\t{:<17}\n'.format(
+        'mean_dE', 'std_dE', 'mean_dt', 'std_dt'))
+    outfile.write('{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
+        np.mean(beam.dE), np.std(beam.dE), np.mean(beam.dt), np.std(beam.dt)))
+
+
 import time
 t0 = time.time()
 
@@ -219,5 +229,11 @@ plt.xlabel('Turns')
 plt.ylabel('Bunch length [ns]')
 plt.savefig(this_directory + '../mpi_output_files/EX_18_fig/bunch_length.png')
 plt.close()
+
+# For testing purposes
+outfile.write('{:10.10e}\t{:10.10e}\t{:10.10e}\t{:10.10e}\n'.format(
+    np.mean(beam.dE), np.std(beam.dE), np.mean(beam.dt), np.std(beam.dt)))
+outfile.close()
+
 
 print("Done!")

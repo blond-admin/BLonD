@@ -139,6 +139,16 @@ total_ind_volt_ZoN = TotalInducedVoltage(beam, slice_beam, [ZoN])
 map_ = [slice_beam] + [total_ind_volt_freq] + [total_ind_volt_time] + \
        [total_ind_volt_ZoN] + [ring_RF_section]
 
+if worker.isMaster:
+    # For testing purposes
+    outfile = open(this_directory +
+                   '../mpi_output_files/EX_16_test_data.txt', 'w')
+    outfile.write('{:<17}\t{:<17}\t{:<17}\t{:<17}\n'.format(
+        'mean_dE', 'std_dE', 'mean_dt', 'std_dt'))
+    outfile.write('{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
+        np.mean(beam.dE), np.std(beam.dE), np.mean(beam.dt), np.std(beam.dt)))
+
+
 # TRACKING + PLOTS-------------------------------------------------------------
 beam.split()
 for i in range(n_turns):
@@ -161,5 +171,11 @@ plt.ylabel('Induced voltage [V]')
 plt.legend(loc=2, fontsize='medium')
 
 plt.savefig(this_directory + '../mpi_output_files/EX_16_fig/fig.png')
+
+# For testing purposes
+outfile.write('{:10.10e}\t{:10.10e}\t{:10.10e}\t{:10.10e}\n'.format(
+    np.mean(beam.dE), np.std(beam.dE), np.mean(beam.dt), np.std(beam.dt)))
+outfile.close()
+
 
 print("Done!")

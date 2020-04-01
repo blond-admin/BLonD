@@ -121,6 +121,15 @@ if worker.isMaster:
                  separatrix_plot= True, Profile = slice_beam, h5file = this_directory + '../mpi_output_files/EX_03_output_data', 
                  histograms_plot = True, format_options = format_options)
     map_ += [bunchmonitor, plots]
+
+    # For testing purposes
+    outfile = open(this_directory +
+                   '../mpi_output_files/EX_03_test_data.txt', 'w')
+    outfile.write('{:<17}\t{:<17}\t{:<17}\t{:<17}\n'.format(
+        'mean_dE', 'std_dE', 'mean_dt', 'std_dt'))
+    outfile.write('{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
+        np.mean(beam.dE), np.std(beam.dE), np.mean(beam.dt), np.std(beam.dt)))
+
 # Accelerator map
 mpiprint("Map set")
 mpiprint("")
@@ -156,6 +165,11 @@ for i in range(1,N_t+1):
 
 beam.gather()
 worker.finalize()
+
+# For testing purposes
+outfile.write('{:10.10e}\t{:10.10e}\t{:10.10e}\t{:10.10e}\n'.format(
+    np.mean(beam.dE), np.std(beam.dE), np.mean(beam.dt), np.std(beam.dt)))
+outfile.close()
 
 mpiprint("Done!")
 

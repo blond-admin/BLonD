@@ -169,6 +169,14 @@ if worker.isMaster:
                  histograms_plot = True, format_options = format_options)
     map_ += [bunchmonitor] + [plots]
 
+    # For testing purposes
+    outfile = open(this_directory +
+                   '../mpi_output_files/EX_02_test_data.txt', 'w')
+    outfile.write('{:<17}\t{:<17}\t{:<17}\t{:<17}\n'.format(
+        'mean_dE', 'std_dE', 'mean_dt', 'std_dt'))
+    outfile.write('{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
+        np.mean(my_beam.dE), np.std(my_beam.dE), np.mean(my_beam.dt), np.std(my_beam.dt)))
+
 
 # TRACKING + PLOTS-------------------------------------------------------------
 my_beam.split()
@@ -191,5 +199,11 @@ for i in range(1, n_turns+1):
 
 my_beam.gather()
 worker.finalize()
+
+# For testing purposes
+outfile.write('{:10.10e}\t{:10.10e}\t{:10.10e}\t{:10.10e}\n'.format(
+    np.mean(my_beam.dE), np.std(my_beam.dE), np.mean(my_beam.dt), np.std(my_beam.dt)))
+outfile.close()
+
 
 mpiprint("Done!")

@@ -116,6 +116,15 @@ if worker.isMaster:
                  h5file=this_directory + '../mpi_output_files/EX_10_output_data', PhaseLoop=phase_loop)
     map_ += [bunch_monitor, plots]
 
+    # For testing purposes
+    outfile = open(this_directory +
+                   '../mpi_output_files/EX_10_test_data.txt', 'w')
+    outfile.write('{:<17}\t{:<17}\t{:<17}\t{:<17}\n'.format(
+        'mean_dE', 'std_dE', 'mean_dt', 'std_dt'))
+    outfile.write('{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
+        np.mean(my_beam.dE), np.std(my_beam.dE), np.mean(my_beam.dt), np.std(my_beam.dt)))
+
+
 
 my_beam.split()
 for i in range(1, n_turns+1):
@@ -139,4 +148,11 @@ for i in range(1, n_turns+1):
         
 my_beam.gather()
 worker.finalize()
+
+# For testing purposes
+outfile.write('{:10.10e}\t{:10.10e}\t{:10.10e}\t{:10.10e}\n'.format(
+    np.mean(my_beam.dE), np.std(my_beam.dE), np.mean(my_beam.dt), np.std(my_beam.dt)))
+outfile.close()
+
+
 print("Done!")

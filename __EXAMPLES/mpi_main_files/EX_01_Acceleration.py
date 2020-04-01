@@ -87,6 +87,7 @@ bigaussian(ring, rf, beam, tau_0/4, reinsertion=True, seed=1)
 profile = Profile(beam, CutOptions(n_slices=100),
                   FitOptions(fit_option='gaussian'))
 
+
 # Accelerator map
 map_ = [long_tracker] + [profile]
 
@@ -95,13 +96,23 @@ if worker.isMaster:
     bunchmonitor = BunchMonitor(ring, rf, beam,
                                 this_directory + '../mpi_output_files/EX_01_output_data',
                                 Profile=profile)
-    format_options = {'dirname': this_directory + '../mpi_output_files/EX_01_fig'}
+    format_options = {'dirname': this_directory +
+                      '../mpi_output_files/EX_01_fig'}
     plots = Plot(ring, rf, beam, dt_plt, N_t, 0, 0.0001763*h,
                  -400e6, 400e6, xunit='rad', separatrix_plot=True,
                  Profile=profile, h5file=this_directory + '../mpi_output_files/EX_01_output_data',
                  format_options=format_options)
 
     map_ += [bunchmonitor] + [plots]
+
+    # For testing purposes
+    outfile = open(this_directory +
+                   '../mpi_output_files/EX_01_test_data.txt', 'w')
+    outfile.write('{:<17}\t{:<17}\t{:<17}\t{:<17}\n'.format(
+        'mean_dE', 'std_dE', 'mean_dt', 'std_dt'))
+    outfile.write('{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
+        np.mean(beam.dE), np.std(beam.dE), np.mean(beam.dt), np.std(beam.dt)))
+
 
 mpiprint("Map set\n")
 beam.split()
@@ -132,4 +143,9 @@ for i in range(1, N_t+1):
 beam.gather()
 worker.finalize()
 
-mpiprint("Done!")
+# For testing purposes
+outfile.write('{:10.10e}\t{:10.10e}\t{:10.10e}\t{:10.10e}\n'.format(
+    np.mean(beam.dE), np.std(beam.dE), np.mean(beam.dt), np.std(beam.dt)))
+outfile.close()
+
+print("Done!")

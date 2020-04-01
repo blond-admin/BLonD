@@ -106,6 +106,11 @@ plots = Plot(general_params, rf_params, my_beam, 100, n_turns, 0.0, 2.0*0.9e-6,
              format_options=format_options,
              h5file=this_directory + '../output_files/EX_09_output_data', PhaseLoop=phase_loop)
 
+# For testing purposes
+outfile = open(this_directory + '../output_files/EX_01_test_data.txt', 'w')
+outfile.write('{:<17}\t{:<17}\t{:<17}\t{:<17}\n'.format('mean_dE', 'std_dE', 'mean_dt', 'std_dt'))
+outfile.write('{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
+    np.mean(my_beam.dE), np.std(my_beam.dE), np.mean(my_beam.dt), np.std(my_beam.dt)))
 
 # Accelerator map
 map_ = [long_tracker] + [slices_ring] + [bunch_monitor] + [plots] 
@@ -127,5 +132,12 @@ for i in range(1, n_turns+1):
               %(phase_loop.domega_rf))
         print("    RF phase %.4f rad" %(rf_params.phi_rf[0,i]))
         print("    RF frequency %.6e 1/s" %(rf_params.omega_rf[0,i]))
+
+# For testing purposes
+outfile.write('{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
+    np.mean(my_beam.dE), np.std(my_beam.dE), np.mean(my_beam.dt), np.std(my_beam.dt)))
+outfile.close()
+    
+
 
 print("Done!")
