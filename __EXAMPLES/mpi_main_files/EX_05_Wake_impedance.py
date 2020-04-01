@@ -208,13 +208,12 @@ if worker.isMaster:
     map_freq += [bunchmonitor_freq, plots_freq]
     map_res += [bunchmonitor_res, plots_res]
 
-      # For testing purposes
-    outfile = open(this_directory +
-                   '../mpi_output_files/EX_05_test_data.txt', 'w')
-    outfile.write('{:<17}\t{:<17}\t{:<17}\t{:<17}\n'.format(
-        'mean_dE', 'std_dE', 'mean_dt', 'std_dt'))
-    outfile.write('{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
-        np.mean(my_beam.dE), np.std(my_beam.dE), np.mean(my_beam.dt), np.std(my_beam.dt)))
+    # For testing purposes
+    test_string = ''
+    test_string += '{:<17}\t{:<17}\t{:<17}\t{:<17}\n'.format(
+        'mean_dE', 'std_dE', 'mean_dt', 'std_dt')
+    test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
+        np.mean(my_beam.dE), np.std(my_beam.dE), np.mean(my_beam.dt), np.std(my_beam.dt))
 
 
 
@@ -264,9 +263,10 @@ fign = dirname +'/comparison_induced_voltage.png'
 plt.savefig(fign)
 
 # For testing purposes
-outfile.write('{:10.10e}\t{:10.10e}\t{:10.10e}\t{:10.10e}\n'.format(
-    np.mean(my_beam.dE), np.std(my_beam.dE), np.mean(my_beam.dt), np.std(my_beam.dt)))
-outfile.close()
+test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
+    np.mean(my_beam.dE), np.std(my_beam.dE), np.mean(my_beam.dt), np.std(my_beam.dt))
+with open(this_directory + '../mpi_output_files/EX_05_test_data.txt', 'w') as f:
+    f.write(test_string)
 
 
 print("Done!")

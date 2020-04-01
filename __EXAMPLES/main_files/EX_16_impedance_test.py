@@ -131,10 +131,11 @@ total_ind_volt_ZoN = TotalInducedVoltage(beam, slice_beam, [ZoN])
 
 
 # For testing purposes
-outfile = open(this_directory + '../output_files/EX_16_test_data.txt', 'w')
-outfile.write('{:<17}\t{:<17}\t{:<17}\t{:<17}\n'.format('mean_dE', 'std_dE', 'mean_dt', 'std_dt'))
-outfile.write('{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
-    np.mean(beam.dE), np.std(beam.dE), np.mean(beam.dt), np.std(beam.dt)))
+test_string = ''
+test_string += '{:<17}\t{:<17}\t{:<17}\t{:<17}\n'.format(
+    'mean_dE', 'std_dE', 'mean_dt', 'std_dt')
+test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
+    np.mean(beam.dE), np.std(beam.dE), np.mean(beam.dt), np.std(beam.dt))
 
 # ACCELERATION MAP-------------------------------------------------------------
 
@@ -164,9 +165,11 @@ plt.legend(loc=2, fontsize='medium')
 plt.savefig(this_directory + '../output_files/EX_16_fig/fig.png')
 
 # For testing purposes
-outfile.write('{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
-    np.mean(beam.dE), np.std(beam.dE), np.mean(beam.dt), np.std(beam.dt)))
-outfile.close()
+test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
+    np.mean(beam.dE), np.std(beam.dE), np.mean(beam.dt), np.std(beam.dt))
+with open(this_directory + '../output_files/EX_16_test_data.txt', 'w') as f:
+    f.write(test_string)
+
     
 
 

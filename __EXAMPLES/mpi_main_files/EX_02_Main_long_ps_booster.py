@@ -170,13 +170,11 @@ if worker.isMaster:
     map_ += [bunchmonitor] + [plots]
 
     # For testing purposes
-    outfile = open(this_directory +
-                   '../mpi_output_files/EX_02_test_data.txt', 'w')
-    outfile.write('{:<17}\t{:<17}\t{:<17}\t{:<17}\n'.format(
-        'mean_dE', 'std_dE', 'mean_dt', 'std_dt'))
-    outfile.write('{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
-        np.mean(my_beam.dE), np.std(my_beam.dE), np.mean(my_beam.dt), np.std(my_beam.dt)))
-
+    test_string = ''
+    test_string += '{:<17}\t{:<17}\t{:<17}\t{:<17}\n'.format(
+        'mean_dE', 'std_dE', 'mean_dt', 'std_dt')
+    test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
+        np.mean(my_beam.dE), np.std(my_beam.dE), np.mean(my_beam.dt), np.std(my_beam.dt))
 
 # TRACKING + PLOTS-------------------------------------------------------------
 my_beam.split()
@@ -201,9 +199,10 @@ my_beam.gather()
 worker.finalize()
 
 # For testing purposes
-outfile.write('{:10.10e}\t{:10.10e}\t{:10.10e}\t{:10.10e}\n'.format(
-    np.mean(my_beam.dE), np.std(my_beam.dE), np.mean(my_beam.dt), np.std(my_beam.dt)))
-outfile.close()
+test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
+    np.mean(my_beam.dE), np.std(my_beam.dE), np.mean(my_beam.dt), np.std(my_beam.dt))
+with open(this_directory + '../mpi_output_files/EX_02_test_data.txt', 'w') as f:
+    f.write(test_string)
 
 
 mpiprint("Done!")
