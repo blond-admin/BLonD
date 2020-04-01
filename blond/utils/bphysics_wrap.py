@@ -191,6 +191,10 @@ def synchrotron_radiation_full(dE, U0, n_kicks, tau_z, sigma_dE, energy,
         ct.c_int(n_kicks))
 
 
+def set_random_seed(seed):
+    __lib.set_random_seed(ct.c_int(seed))
+
+
 def fast_resonator(R_S, Q, frequency_array, frequency_R, impedance=None):
     realImp = np.zeros(len(frequency_array), dtype=np.float64)
     imagImp = np.zeros(len(frequency_array), dtype=np.float64)

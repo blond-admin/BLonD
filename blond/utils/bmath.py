@@ -47,6 +47,7 @@ _CPU_func_dict = {
     'LIKick_n_drift': bphysics_wrap.linear_interp_kick_n_drift,
     'synchrotron_radiation': bphysics_wrap.synchrotron_radiation,
     'synchrotron_radiation_full': bphysics_wrap.synchrotron_radiation_full,
+    'set_random_seed': bphysics_wrap.set_random_seed,
     # 'linear_interp_time_translation': bphysics_wrap.linear_interp_time_translation,
     'slice': bphysics_wrap.slice,
     'slice_smooth': bphysics_wrap.slice_smooth,

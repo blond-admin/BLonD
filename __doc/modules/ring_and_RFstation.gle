@@ -1,0 +1,67 @@
+size 8 8
+
+set font texcmss hei 0.4
+set just center
+
+set lwidth 0.2 color gray20
+amove 4 4 
+circle 3
+
+
+set lwidth 0.03 color blue
+!set fill shade
+set fill blue
+amove 3.5 6.8
+box 1 0.4
+amove 6.75 3.5
+box 0.4 1 
+amove 1.95 1.55
+begin rotate -30
+box  1 0.4
+end rotate
+
+amove 4 7.5
+text RF Station 1
+amove 7.45 4
+begin rotate -90
+text RF Station 2
+end rotate
+amove 2.1 .9
+begin rotate -30
+text RF Station 3
+end rotate
+
+set lwidth 0.1 color red
+amove 3.5 7.5
+rline 0 -1.0
+amove 7.45 4.5
+rline -1.0 0
+amove 2.7 0.8
+rline 0.45 0.8
+
+set lwidth 0.05 lstyle 2
+amove 4 4
+arc 2.5 40 80 arrow start
+arc 2.5 275 345 arrow start
+arc 2.5 125 215 arrow start
+
+set color black
+amove 4 6.3
+text \tex{$p_{d,(1)}^{n}$}
+amove 6. 4.3
+begin rotate -90
+text \tex{$p_{d,(1)}^{n+1} = p_{d,(2)}^{n}$}
+end rotate
+amove 3.05 1.85
+begin rotate -30
+text \tex{$p_{d,(3)}^{n} = p_{d,(2)}^{n+1}$}
+end rotate
+amove 3.05 6.1
+text \tex{$p_{d,(3)}^{n+1}$}
+
+amove 6.5 6.5
+text L_1
+amove 6.5 1.5
+text L_2
+amove 0.5 4.
+text L_3
