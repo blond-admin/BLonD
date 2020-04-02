@@ -54,7 +54,7 @@ install:
         make install > /dev/null;
     fi
   - cd $TRAVIS_BUILD_DIR
-  - python -m pip install --upgrade pip setuptools wheel coveralls pytest # cpp-coveralls
+  - python -m pip install --upgrade pip setuptools wheel coverage coveralls pytest # cpp-coveralls
   - pip install -r requirements.txt
 before_script:
   - python blond/compile.py -p --with-fftw-threads --with-fftw-lib=$HOME/install/lib --with-fftw-header=$HOME/install/include --flags='--coverage'
