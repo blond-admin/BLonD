@@ -62,6 +62,7 @@ before_script:
 script:
   - coverage run -m pytest --ignore=unittests/integration/test_validate_mpi.py -v unittests/*/test*.py && coverage run -m pytest -v unittests/integration/test_validate_mpi.py
 after_success:
+  - coverage report
   - test $TRAVIS_PYTHON_VERSION = "3.6" && coveralls
 
 # branches:
