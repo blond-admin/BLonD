@@ -60,7 +60,7 @@ before_script:
   - python blond/compile.py -p --with-fftw-threads --with-fftw-lib=$HOME/install/lib --with-fftw-header=$HOME/install/include --flags='--coverage'
   - export OMP_NUM_THREADS=2
 script:
-  - coverage run -m pytest -v --ignore=unittests/integration/test_validate_mpi.py unittests/*/test*.py && coverage run --append -m pytest -v unittests/integration/test_validate_mpi.py
+  - coverage run -m pytest -v --ignore=unittests/integration/test_validate_mpi.py unittests/ && coverage run --append -m pytest -v unittests/integration/test_validate_mpi.py
 after_success:
   - coverage report
   - test $TRAVIS_PYTHON_VERSION = "3.6" && coveralls
