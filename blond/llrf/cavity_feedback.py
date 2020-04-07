@@ -345,7 +345,10 @@ class SPSOneTurnFeedback(object):
         # TWC resonant frequency
         self.omega_r = self.TWC.omega_r
         # Length of arrays in LLRF
-        self.n_coarse = int(self.rf.harmonic[0, 0])
+# TODO: TEST
+        #self.n_coarse = int(self.rf.harmonic[0, 0])
+        self.n_coarse = int(self.rf.t_rev[0]/self.rf.t_rf[0, 0])
+# TODO: TEST
         # Initialise turn-by-turn variables
         self.update_variables()
 
@@ -353,8 +356,7 @@ class SPSOneTurnFeedback(object):
         self.V_fine_tot = np.zeros(self.profile.n_slices, dtype=complex)
         # Array to hold the bucket-by-bucket voltage with LENGTH OF LLRF
         self.V_coarse_tot = np.zeros(self.n_coarse, dtype=complex)
-        self.logger.debug("Length of arrays in generator path %d",
-                          self.n_coarse)
+        self.logger.debug("Length of arrays on coarse grid %d", self.n_coarse)
 
         # Initialise comb filter
         self.dV_gen_prev = np.zeros(self.n_coarse, dtype=complex)
@@ -446,8 +448,7 @@ class SPSOneTurnFeedback(object):
 
         # Generator charge from voltage, transmitter model
 # TODO: TEST
-        self.I_gen = self.G_tx*self.V_gen \
-            / self.TWC.R_gen*self.T_s
+        self.I_gen = self.G_tx*self.V_gen/self.TWC.R_gen*self.T_s
 # TODO: END
 #        self.I_gen = self.G_tx*self.V_gen \
 #            / self.TWC.R_gen*self.rf.t_rf[0, self.counter]
@@ -638,12 +639,21 @@ class SPSOneTurnFeedback(object):
         # Present time step
         self.counter = self.rf.counter[0]
         # Present carrier frequency: main RF frequency
-        self.omega_c = self.rf.omega_rf[0, self.counter]
+        self.omega_c = self.rf.omega_rf[0,self.counter]
         # Present sampling time
-        self.T_s = self.rf.t_rev[self.counter]/self.n_coarse
+# TODO: TEST
+        #self.T_s = self.rf.t_rev[self.counter]/self.n_coarse
+        self.T_s = self.rf.t_rf[0,self.counter]
         # Present coarse grid
-        self.rf_centers = (np.arange(self.n_coarse) + 0.5)* \
-            self.rf.t_rev[self.counter]/self.rf.harmonic[0, self.counter]
+        #self.rf_centers = (np.arange(self.n_coarse) + 0.5)* \
+        #    self.rf.t_rev[self.counter]/self.rf.harmonic[0, self.counter]
+        self.rf_centers = (np.arange(self.n_coarse) + 0.5) * self.T_s
+        # Check number of samples required per turn
+        n_coarse = int(self.rf.t_rev[self.counter]/self.T_s)
+        if self.n_coarse != n_coarse:
+            raise RuntimeError("Error in SPSOneTurnFeedback: changing number" +
+                " of coarse samples. This option isnot yet implemented!")
+# TODO: TEST
         # Present delay time
         self.n_delay = int((self.rf.t_rev[self.counter] - self.TWC.tau)
                            / self.rf.t_rf[0, self.counter])
