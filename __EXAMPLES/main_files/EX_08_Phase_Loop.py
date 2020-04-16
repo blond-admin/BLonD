@@ -101,6 +101,14 @@ plots = Plot(general_params, rf_params, my_beam, 50, n_turns, 0.0, 2*np.pi,
              format_options=format_options,
              h5file=this_directory + '../output_files/EX_08_output_data', PhaseLoop=phase_loop)
 
+# For testing purposes
+test_string = ''
+test_string += '{:<17}\t{:<17}\t{:<17}\t{:<17}\n'.format(
+    'mean_dE', 'std_dE', 'mean_dt', 'std_dt')
+test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
+    np.mean(my_beam.dE), np.std(my_beam.dE), np.mean(my_beam.dt), np.std(my_beam.dt))
+
+
 # Accelerator map
 map_ = [full_ring] + [slices_ring] + [bunch_monitor] + [plots] 
 
@@ -110,5 +118,12 @@ for i in range(1, n_turns+1):
     
     for m in map_:
         m.track()      
-    
+
+# For testing purposes
+test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
+    np.mean(my_beam.dE), np.std(my_beam.dE), np.mean(my_beam.dt), np.std(my_beam.dt))
+with open(this_directory + '../output_files/EX_08_test_data.txt', 'w') as f:
+    f.write(test_string)
+
+
 print("Done!")

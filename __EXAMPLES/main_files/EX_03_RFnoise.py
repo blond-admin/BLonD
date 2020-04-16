@@ -116,6 +116,14 @@ plots = Plot(general_params, rf_params, beam, dt_plt, N_t, 0,
              separatrix_plot= True, Profile = slice_beam, h5file = this_directory + '../output_files/EX_03_output_data', 
              histograms_plot = True, format_options = format_options)
 
+# For testing purposes
+test_string = ''
+test_string += '{:<17}\t{:<17}\t{:<17}\t{:<17}\n'.format(
+    'mean_dE', 'std_dE', 'mean_dt', 'std_dt')
+test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
+    np.mean(beam.dE), np.std(beam.dE), np.mean(beam.dt), np.std(beam.dt))
+
+
 # Accelerator map
 map_ = [long_tracker] + [slice_beam] + [bunchmonitor] + [plots]
 print("Map set")
@@ -147,6 +155,15 @@ for i in range(1,N_t+1):
     # Define losses according to separatrix and/or longitudinal position
     beam.losses_separatrix(general_params, rf_params)
     beam.losses_longitudinal_cut(0., 2.5e-9)
+
+# For testing purposes
+test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
+    np.mean(beam.dE), np.std(beam.dE), np.mean(beam.dt), np.std(beam.dt))
+with open(this_directory + '../output_files/EX_03_test_data.txt', 'w') as f:
+    f.write(test_string)
+
+    
+
 
 print("Done!")
 

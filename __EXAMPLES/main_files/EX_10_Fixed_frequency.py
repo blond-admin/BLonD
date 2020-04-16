@@ -107,6 +107,12 @@ plots = Plot(general_params, rf_params, my_beam, 1000, 10000, 0.0, 2.0*0.9e-6,
              format_options=format_options,
              h5file=this_directory + '../output_files/EX_10_output_data', PhaseLoop=phase_loop)
 
+# For testing purposes
+test_string = ''
+test_string += '{:<17}\t{:<17}\t{:<17}\t{:<17}\n'.format(
+    'mean_dE', 'std_dE', 'mean_dt', 'std_dt')
+test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
+    np.mean(my_beam.dE), np.std(my_beam.dE), np.mean(my_beam.dt), np.std(my_beam.dt))
 
 # Accelerator map
 map_ = [long_tracker] + [slices_ring] + [bunch_monitor] + [plots] 
@@ -127,5 +133,14 @@ for i in range(1, n_turns+1):
         print("    RF frequency %.6e 1/s" %(rf_params.omega_rf[0,i]))
         print("    Tracker phase %.4f rad" %(long_tracker.phi_rf[0,i]))
         print("    Tracker frequency %.6e 1/s" %(long_tracker.omega_rf[0,i]))
+
+# For testing purposes
+test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
+    np.mean(my_beam.dE), np.std(my_beam.dE), np.mean(my_beam.dt), np.std(my_beam.dt))
+with open(this_directory + '../output_files/EX_10_test_data.txt', 'w') as f:
+    f.write(test_string)
+
+    
+
         
 print("Done!")

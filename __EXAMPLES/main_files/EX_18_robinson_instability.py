@@ -162,6 +162,14 @@ matched_from_distribution_function(beam, full_tracker,
                                   bunch_length=bunch_length, n_iterations=20,
                                   TotalInducedVoltage=total_ind_volt, seed=10)
 
+# For testing purposes
+test_string = ''
+test_string += '{:<17}\t{:<17}\t{:<17}\t{:<17}\n'.format(
+    'mean_dE', 'std_dE', 'mean_dt', 'std_dt')
+test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
+    np.mean(beam.dE), np.std(beam.dE), np.mean(beam.dt), np.std(beam.dt))
+
+
 # ACCELERATION MAP ------------------------------------------------------------
 
 map_ = [slice_beam] + [total_ind_volt] + [ring_RF_section]
@@ -205,5 +213,14 @@ plt.xlabel('Turns')
 plt.ylabel('Bunch length [ns]')
 plt.savefig(this_directory + '../output_files/EX_18_fig/bunch_length.png')
 plt.close()
+
+# For testing purposes
+test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
+    np.mean(beam.dE), np.std(beam.dE), np.mean(beam.dt), np.std(beam.dt))
+with open(this_directory + '../output_files/EX_18_test_data.txt', 'w') as f:
+    f.write(test_string)
+
+    
+
 
 print("Done!")
