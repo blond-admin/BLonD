@@ -417,6 +417,16 @@ class RingAndRFTracker(object):
         if self.beamFB is not None and turn >= self.beamFB.delay:
             self.beamFB.track()
 
+        # Update the RF phase of all systems for the next turn
+        # Accumulated phase offset due to beam phase loop or frequency offset
+        self.rf_params.dphi_rf += 2.*np.pi*self.rf_params.harmonic[:,turn+1]* \
+                                  (self.rf_params.omega_rf[:,turn+1] -
+                                   self.rf_params.omega_rf_d[:,turn+1]) / \
+                                  self.rf_params.omega_rf_d[:,turn+1]
+
+        # Total phase offset
+        self.rf_params.phi_rf[:,turn+1] += self.rf_params.dphi_rf
+
         if self.periodicity:
 
             # Distinguish the particles inside the frame from the particles on
