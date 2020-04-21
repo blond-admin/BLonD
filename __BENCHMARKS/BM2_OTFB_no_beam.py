@@ -83,23 +83,23 @@ if CLOSED_LOOP:
     Commissioning = CavityFeedbackCommissioning(debug=True, open_loop=False,
                                                 open_FB=False, open_drive=False)
     OTFB = SPSCavityFeedback(rf, beam, profile, G_llrf=5, G_tx=0.5,
-                             a_comb=15/16, turns=50,
+                             a_comb=15/16, turns=50, post_LS2=False,
                              Commissioning=Commissioning)
 
 if OPEN_LOOP:
     Commissioning = CavityFeedbackCommissioning(debug=True, open_loop=True,
                                                 open_FB=False, open_drive=True)
     OTFB = SPSCavityFeedback(rf, beam, profile, G_llrf=5, G_tx=0.5,
-                             a_comb=15/16, turns=50,
+                             a_comb=15/16, turns=50, post_LS2=False,
                              Commissioning=Commissioning)
 
 if OPEN_FB:
     Commissioning = CavityFeedbackCommissioning(debug=True, open_loop=False,
                                                 open_FB=True, open_drive=False)
     OTFB = SPSCavityFeedback(rf, beam, profile, G_llrf=5, G_tx=0.5,
-                             a_comb=15/16, turns=50,
+                             a_comb=15/16, turns=50, post_LS2=False,
                              Commissioning=Commissioning)
-    
+
 print("Done!")
 print("")
 
