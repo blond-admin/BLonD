@@ -21,7 +21,7 @@ import numpy
 
 # BLonD imports
 # --------------
-from blond.beam.beam import Proton
+from blond.beam.beam import Particle, Proton
 from blond.input_parameters.ring import Ring
 from blond.input_parameters.rf_parameters import RFStation
 from blond.beam.beam import Beam
@@ -29,6 +29,26 @@ from blond.beam.distributions import matched_from_distribution_function
 from blond.trackers.tracker import FullRingAndRF, RingAndRFTracker
 import blond.utils.exceptions as blExcept
 
+
+class testParticleClass(unittest.TestCase):
+    
+    def setUp(self):
+        self.test_particle = Particle(1,2)
+
+    def test_particle_attributes(self):
+        for attribute in ['mass', 'charge']:
+            self.assertTrue(hasattr(self.test_particle, 'mass'),
+                            msg=f"Particle: no '{attribute}' attribute")
+        
+    def test_attribute_types(self):
+
+        for attribute in ['mass', 'charge']:            
+            self.assertIsInstance(getattr(self.test_particle, attribute), float,
+                                  msg=f"Particle: {attribute} is not a float")
+    
+    def test_negative_restmass_exception(self):
+        with self.assertRaises(RuntimeError):
+            Particle(-1,2)
 
 class testBeamClass(unittest.TestCase):
 

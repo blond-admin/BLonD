@@ -19,7 +19,6 @@ from builtins import object
 import numpy as np
 # from numpy.fft import rfft, rfftfreq
 from scipy import ndimage
-import ctypes
 from ..toolbox import filters_and_fitting as ffroutines
 from ..utils import bmath as bm
 
@@ -108,8 +107,8 @@ class CutOptions(object):
 
         if self.cuts_unit == 'rad' and self.RFParams is None:
             # CutError
-            raise RuntimeError('You should pass an RFParams object to '
-                               + 'convert from radians to seconds')
+            raise RuntimeError('You should pass an RFParams object to ' +
+                               'convert from radians to seconds')
         if self.cuts_unit != 'rad' and self.cuts_unit != 's':
             # CutError
             raise RuntimeError('cuts_unit should be "s" or "rad"')
@@ -424,19 +423,21 @@ class Profile(object):
     def track(self):
         """
         Track method in order to update the slicing along with the tracker.
+        The kwargs are currently only needed to forward the reduce kw argument
+        needed for the MPI version.
         """
 
         for op in self.operations:
             op()
 
-    def _slice(self, reduce=True):
+    def _slice(self):
         """
         Constant space slicing with a constant frame.
         """
         bm.slice(self.Beam.dt, self.n_macroparticles, self.cut_left,
                  self.cut_right)
 
-        if bm.mpiMode() and reduce:
+        if bm.mpiMode():
             self.reduce_histo()
 
     def reduce_histo(self, dtype=np.uint32):
@@ -446,14 +447,15 @@ class Profile(object):
 
         from ..utils.mpi_config import worker
 
-        # Convert to uint32t for better performance
-        self.n_macroparticles = self.n_macroparticles.astype(dtype, order='C')
+        if self.Beam.is_splitted:
+            # Convert to uint32t for better performance
+            self.n_macroparticles = self.n_macroparticles.astype(dtype, order='C')
 
-        worker.allreduce(self.n_macroparticles)
+            worker.allreduce(self.n_macroparticles)
 
-        # Convert back to float64
-        self.n_macroparticles = self.n_macroparticles.astype(
-            np.float64, order='C')
+            # Convert back to float64
+            self.n_macroparticles = self.n_macroparticles.astype(
+                np.float64, order='C')
 
     def scale_histo(self):
         if not bm.mpiMode():
@@ -461,7 +463,8 @@ class Profile(object):
                 'ERROR: Cannot use this routine unless in MPI Mode')
 
         from ..utils.mpi_config import worker
-        bm.mul(self.n_macroparticles, worker.workers, self.n_macroparticles)
+        if self.Beam.is_splitted:
+            bm.mul(self.n_macroparticles, worker.workers, self.n_macroparticles)
 
     def _slice_smooth(self, reduce=True):
         """
@@ -470,7 +473,7 @@ class Profile(object):
         bm.slice_smooth(self.Beam.dt, self.n_macroparticles, self.cut_left,
                         self.cut_right)
 
-        if bm.mpiMode() and reduce:
+        if bm.mpiMode():
             self.reduce_histo(dtype=np.float64)
 
     def apply_fit(self):
