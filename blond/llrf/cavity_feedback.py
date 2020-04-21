@@ -359,7 +359,8 @@ class SPSOneTurnFeedback(object):
         self.logger.debug("Length of arrays on coarse grid %d", self.n_coarse)
 
         # Initialise comb filter
-        self.dV_gen_prev = np.zeros(self.n_coarse, dtype=complex)
+#        self.dV_gen_prev = np.zeros(self.n_coarse, dtype=complex)
+        self.dV_comb_out_prev = np.zeros(self.n_coarse, dtype=complex)
         self.a_comb = float(a_comb)
 
         # Initialise cavity filter (moving average)
@@ -369,7 +370,8 @@ class SPSOneTurnFeedback(object):
         if self.n_mov_av < 2:
             raise RuntimeError("ERROR in SPSOneTurnFeedback: profile has to" +
                                " have at least 12.5 ns resolution!")
-        self.dV_mov_av_prev = np.zeros(self.n_coarse, dtype=complex)
+#        self.dV_mov_av_prev = np.zeros(self.n_coarse, dtype=complex)
+        self.dV_ma_in_prev = np.zeros(self.n_coarse, dtype=complex)
         # Initialise generator-induced voltage
         self.I_gen_prev = np.zeros(self.n_mov_av, dtype=complex)
         self.logger.info("Class initialized")
@@ -447,11 +449,7 @@ class SPSOneTurnFeedback(object):
             + self.open_drive*self.V_set
 
         # Generator charge from voltage, transmitter model
-# TODO: TEST
         self.I_gen = self.G_tx*self.V_gen/self.TWC.R_gen*self.T_s
-# TODO: END
-#        self.I_gen = self.G_tx*self.V_gen \
-#            / self.TWC.R_gen*self.rf.t_rf[0, self.counter]
 
         # Circular convolution: attach last points of previous turn
         self.I_gen = np.concatenate((self.I_gen_prev, self.I_gen))
@@ -552,25 +550,51 @@ class SPSOneTurnFeedback(object):
                           1e-6*np.mean(np.absolute(self.dV_gen)))
 
         # One-turn delay comb filter; memorise the value of the previous turn
-        self.dV_gen = comb_filter(self.dV_gen_prev, self.dV_gen, self.a_comb)
-        self.dV_gen_prev = np.copy(self.dV_gen)
+#        self.dV_gen = comb_filter(self.dV_gen_prev, self.dV_gen, self.a_comb)
+#        self.dV_gen_prev = np.copy(self.dV_gen)
+
+        # Modulate from omega_rf to omega_r
+#        self.dV_gen = modulator(self.dV_gen, self.omega_c, self.omega_r,
+#                                self.rf.t_rf[0, self.counter])
+
+        # Shift signals with the delay time
+#        dV_gen_in = np.copy(self.dV_gen)
+#        self.dV_gen = np.concatenate((self.dV_mov_av_prev[-self.n_delay:],
+#                                      self.dV_gen[:self.n_coarse-self.n_delay]))
+
+        # Cavity filter: CIRCULAR moving average over filling time
+        # Memorize last points of previous turn for beginning of next turn
+#        self.dV_gen = moving_average(self.dV_gen, self.n_mov_av,
+#            x_prev=self.dV_mov_av_prev[-self.n_delay-self.n_mov_av+1:
+#                                       -self.n_delay])
+
+#        self.dV_mov_av_prev = np.copy(dV_gen_in)
+
+#TODO: TEST
+        # One-turn delay comb filter; memorise the value of the previous turn
+        self.dV_comb_out = comb_filter(self.dV_comb_out_prev, self.dV_gen, self.a_comb)
+
+        # Shift signals with the delay time (to make exactly one turn)
+#        dV_gen_in = np.copy(self.dV_gen)
+        self.dV_gen = np.concatenate((self.dV_comb_out_prev[-self.n_delay:],
+                                      self.dV_comb_out[:self.n_coarse-self.n_delay]))
+
+        # For comb filter, update memory of previous turn
+        self.dV_comb_out_prev = np.copy(self.dV_comb_out)
 
         # Modulate from omega_rf to omega_r
         self.dV_gen = modulator(self.dV_gen, self.omega_c, self.omega_r,
                                 self.rf.t_rf[0, self.counter])
 
-        # Shift signals with the delay time
-        dV_gen_in = np.copy(self.dV_gen)
-        self.dV_gen = np.concatenate((self.dV_mov_av_prev[-self.n_delay:],
-                                      self.dV_gen[:self.n_coarse-self.n_delay]))
 
         # Cavity filter: CIRCULAR moving average over filling time
         # Memorize last points of previous turn for beginning of next turn
+        self.dV_ma_in = np.copy(self.dV_gen)
         self.dV_gen = moving_average(self.dV_gen, self.n_mov_av,
-            x_prev=self.dV_mov_av_prev[-self.n_delay-self.n_mov_av+1:
-                                       -self.n_delay])
+            x_prev=self.dV_ma_in_prev[-self.n_mov_av+1:])
+        self.dV_ma_in_prev = np.copy(self.dV_ma_in)
 
-        self.dV_mov_av_prev = np.copy(dV_gen_in)
+# TODO: TEST
 
     def matr_conv(self, I, h):
         """Convolution of beam current with impulse response; uses a complete
