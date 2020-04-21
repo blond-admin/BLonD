@@ -496,9 +496,10 @@ class SPSOneTurnFeedback(object):
                                self.TWC.__getattribute__("h_"+name)))
             self.V_fine_ind_beam *= -self.n_cavities
 
-        if self.TWC.h_beam_coarse is None:
-            pass
-        elif name == "beam_coarse":
+#        if self.TWC.h_beam_coarse is None:
+#            pass
+#        elif name == "beam_coarse":
+        if name == "beam_coarse" and hasattr(self.TWC, h_beam_coarse):
             # Compute the beam-induced voltage on the coarse grid
             self.__setattr__("V_coarse_ind_beam",
                 self.matr_conv(self.__getattribute__("I_"+name),

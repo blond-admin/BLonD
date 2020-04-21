@@ -50,6 +50,9 @@ plt.rc('lines', linewidth=1.5, markersize=6)
 plt.rc('font', family='sans-serif')  
 plt.rc('legend', fontsize=12)  
 
+CLOSED_LOOP = True
+OPEN_LOOP = True
+OPEN_FB = True
 
 # Logger for messages on console & in file
 Logger(debug = True)
@@ -76,14 +79,27 @@ profile = Profile(beam, CutOptions = CutOptions(cut_left=0.e-9,
     cut_right=rf.t_rev[0], n_slices=4620))
 profile.track()
 
-Commissioning = CavityFeedbackCommissioning(debug=True, open_loop=False,
-                                            open_FB=False, open_drive=False)
-#Commissioning = CavityFeedbackCommissioning(debug=True, open_loop=True,
-#                                            open_FB=False, open_drive=True)
-#Commissioning = CavityFeedbackCommissioning(debug=True, open_loop=False,
-#                                            open_FB=True, open_drive=False)
-OTFB = SPSCavityFeedback(rf, beam, profile, G_llrf=5, G_tx=0.5, a_comb=15/16, 
-                         turns=50, Commissioning=Commissioning)
+if CLOSED_LOOP:
+    Commissioning = CavityFeedbackCommissioning(debug=True, open_loop=False,
+                                                open_FB=False, open_drive=False)
+    OTFB = SPSCavityFeedback(rf, beam, profile, G_llrf=5, G_tx=0.5,
+                             a_comb=15/16, turns=50,
+                             Commissioning=Commissioning)
+
+if OPEN_LOOP:
+    Commissioning = CavityFeedbackCommissioning(debug=True, open_loop=True,
+                                                open_FB=False, open_drive=True)
+    OTFB = SPSCavityFeedback(rf, beam, profile, G_llrf=5, G_tx=0.5,
+                             a_comb=15/16, turns=50,
+                             Commissioning=Commissioning)
+
+if OPEN_FB:
+    Commissioning = CavityFeedbackCommissioning(debug=True, open_loop=False,
+                                                open_FB=True, open_drive=False)
+    OTFB = SPSCavityFeedback(rf, beam, profile, G_llrf=5, G_tx=0.5,
+                             a_comb=15/16, turns=50,
+                             Commissioning=Commissioning)
+    
 print("Done!")
 print("")
 
