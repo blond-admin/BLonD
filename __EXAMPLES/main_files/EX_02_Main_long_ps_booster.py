@@ -159,6 +159,13 @@ plots = Plot(general_params, RF_sct_par, my_beam, 1, n_turns, 0,
              separatrix_plot= True, Profile = slice_beam, h5file = this_directory + '../output_files/EX_02_output_data', 
              histograms_plot = True, format_options = format_options)
  
+# For testing purposes
+test_string = ''
+test_string += '{:<17}\t{:<17}\t{:<17}\t{:<17}\n'.format(
+    'mean_dE', 'std_dE', 'mean_dt', 'std_dt')
+test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
+    np.mean(my_beam.dE), np.std(my_beam.dE), np.mean(my_beam.dt), np.std(my_beam.dt))
+
 
 # ACCELERATION MAP-------------------------------------------------------------
 
@@ -180,5 +187,13 @@ for i in range(1, n_turns+1):
           option1 = "single", style = '-', option3 = "freq_table", option2 = "spectrum", dirname = this_directory + '../output_files/EX_02_fig')
          
         plot_induced_voltage_vs_bin_centers(i, general_params, total_induced_voltage, style = '.', dirname = this_directory + '../output_files/EX_02_fig')
+
+# For testing purposes
+test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
+    np.mean(my_beam.dE), np.std(my_beam.dE), np.mean(my_beam.dt), np.std(my_beam.dt))
+with open(this_directory + '../output_files/EX_02_test_data.txt', 'w') as f:
+    f.write(test_string)
+    
+
          
 print("Done!")

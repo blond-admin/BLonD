@@ -87,6 +87,7 @@ cpp_files = [
     os.path.join(basepath, 'cpp_routines/fast_resonator.cpp'),
     os.path.join(basepath, 'cpp_routines/beam_phase.cpp'),
     os.path.join(basepath, 'cpp_routines/fft.cpp'),
+    os.path.join(basepath, 'cpp_routines/openmp.cpp'),
     os.path.join(basepath, 'toolbox/tomoscope.cpp'),
     os.path.join(basepath, 'synchrotron_radiation/synchrotron_radiation.cpp'),
     os.path.join(basepath, 'beam/sparse_histogram.cpp'),

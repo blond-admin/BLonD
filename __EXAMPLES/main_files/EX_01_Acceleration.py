@@ -1,8 +1,8 @@
 
 # Copyright 2014-2017 CERN. This software is distributed under the
-# terms of the GNU General Public Licence version 3 (GPL Version 3), 
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
 # copied verbatim in the file LICENCE.md.
-# In applying this licence, CERN does not waive the privileges and immunities 
+# In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
@@ -78,22 +78,30 @@ rf = RFStation(ring, [h], [V], [dphi])
 long_tracker = RingAndRFTracker(rf, beam)
 
 
-bigaussian(ring, rf, beam, tau_0/4, reinsertion = True, seed=1)
+bigaussian(ring, rf, beam, tau_0/4, reinsertion=True, seed=1)
 
 
 # Need slices for the Gaussian fit
 profile = Profile(beam, CutOptions(n_slices=100),
-                 FitOptions(fit_option='gaussian'))         
-                     
+                  FitOptions(fit_option='gaussian'))
+
 # Define what to save in file
 bunchmonitor = BunchMonitor(ring, rf, beam,
-                          this_directory + '../output_files/EX_01_output_data', Profile=profile)
+                            this_directory + '../output_files/EX_01_output_data', Profile=profile)
 
 format_options = {'dirname': this_directory + '../output_files/EX_01_fig'}
 plots = Plot(ring, rf, beam, dt_plt, N_t, 0, 0.0001763*h,
-             -400e6, 400e6, xunit='rad', separatrix_plot=True, 
-             Profile=profile, h5file=this_directory + '../output_files/EX_01_output_data', 
+             -400e6, 400e6, xunit='rad', separatrix_plot=True,
+             Profile=profile, h5file=this_directory + '../output_files/EX_01_output_data',
              format_options=format_options)
+
+# For testing purposes
+test_string = ''
+test_string += '{:<17}\t{:<17}\t{:<17}\t{:<17}\n'.format(
+    'mean_dE', 'std_dE', 'mean_dt', 'std_dt')
+test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
+    np.mean(beam.dE), np.std(beam.dE), np.mean(beam.dt), np.std(beam.dt))
+
 
 # Accelerator map
 map_ = [long_tracker] + [profile] + [bunchmonitor] + [plots]
@@ -102,25 +110,30 @@ print("")
 
 # Tracking --------------------------------------------------------------------
 for i in range(1, N_t+1):
-    
-    
+
     # Plot has to be done before tracking (at least for cases with separatrix)
     if (i % dt_plt) == 0:
-        print("Outputting at time step %d..." %i)
-        print("   Beam momentum %.6e eV" %beam.momentum)
-        print("   Beam gamma %3.3f" %beam.gamma)
-        print("   Beam beta %3.3f" %beam.beta)
-        print("   Beam energy %.6e eV" %beam.energy)
-        print("   Four-times r.m.s. bunch length %.4e s" %(4.*beam.sigma_dt))
-        print("   Gaussian bunch length %.4e s" %profile.bunchLength)
+        print("Outputting at time step %d..." % i)
+        print("   Beam momentum %.6e eV" % beam.momentum)
+        print("   Beam gamma %3.3f" % beam.gamma)
+        print("   Beam beta %3.3f" % beam.beta)
+        print("   Beam energy %.6e eV" % beam.energy)
+        print("   Four-times r.m.s. bunch length %.4e s" % (4.*beam.sigma_dt))
+        print("   Gaussian bunch length %.4e s" % profile.bunchLength)
         print("")
-        
+
     # Track
     for m in map_:
         m.track()
-        
+
     # Define losses according to separatrix and/or longitudinal position
     beam.losses_separatrix(ring, rf)
     beam.losses_longitudinal_cut(0., 2.5e-9)
-    
+
+# For testing purposes
+test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
+    np.mean(beam.dE), np.std(beam.dE), np.mean(beam.dt), np.std(beam.dt))
+with open(this_directory + '../output_files/EX_01_test_data.txt', 'w') as f:
+    f.write(test_string)
+
 print("Done!")

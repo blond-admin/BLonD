@@ -135,6 +135,14 @@ if worker.isMaster:
                  h5file=this_directory + '../mpi_output_files/EX_07_output_data', 
                  format_options=format_options)
     map_ += [bunchmonitor, plots]
+
+    # For testing purposes
+    test_string = ''
+    test_string += '{:<17}\t{:<17}\t{:<17}\t{:<17}\n'.format(
+        'mean_dE', 'std_dE', 'mean_dt', 'std_dt')
+    test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
+        np.mean(beam.dE), np.std(beam.dE), np.mean(beam.dt), np.std(beam.dt))
+
 print("Map set")
 print("")
 
@@ -165,4 +173,11 @@ for i in range(1, N_t+1):
 beam.gather()
 worker.finalize()
    
+# For testing purposes
+test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
+    np.mean(beam.dE), np.std(beam.dE), np.mean(beam.dt), np.std(beam.dt))
+with open(this_directory + '../mpi_output_files/EX_07_test_data.txt', 'w') as f:
+    f.write(test_string)
+
+
 print("Done!")
