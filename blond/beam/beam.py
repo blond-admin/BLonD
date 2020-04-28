@@ -374,6 +374,7 @@ class Beam(object):
         '''
         MPI ONLY ROUTINE: Splits the beam equally among the workers for
         MPI processing.
+
         Parameters
         ----------
         random : boolean
@@ -411,6 +412,7 @@ class Beam(object):
     def gather(self, all=False):
         '''
         MPI ONLY ROUTINE: Gather the beam coordinates to the master or all workers.
+
         Parameters
         ----------
         all : boolean
@@ -438,7 +440,8 @@ class Beam(object):
 
     def gather_statistics(self, all=False):
         '''
-        MPI ONLY ROUTINE: Gather beam statistics. 
+        MPI ONLY ROUTINE: Gather beam statistics.
+
         Parameters
         ----------
         all : boolean
@@ -468,7 +471,8 @@ class Beam(object):
 
     def gather_losses(self, all=False):
         '''
-        MPI ONLY ROUTINE: Gather beam losses. 
+        MPI ONLY ROUTINE: Gather beam losses.
+        
         Parameters
         ----------
         all : boolean
