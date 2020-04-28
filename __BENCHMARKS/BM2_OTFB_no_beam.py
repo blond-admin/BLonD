@@ -59,20 +59,21 @@ Logger(debug = True)
 
 # Set up machine parameters
 ring = Ring(C, alpha, p_s, Particle=Proton(), n_turns=N_t)
-print("Machine parameters set!")
+logging.info("...... Machine parameters set!")
 
 # Set up RF parameters
 rf = RFStation(ring, h, V, phi, n_rf=1)
 #rf.omega_rf[0,0] = 2*np.pi*200.222e6 # cavity central frequency
 logging.debug("RF frequency %.6e Hz", rf.omega_rf[0,0]/(2*np.pi))
 logging.debug("Revolution period %.6e s", rf.t_rev[0])
-print("RF parameters set!")
+logging.info("...... RF parameters set!")
 
 # Define beam and fill it
 beam = Beam(ring, N_m, N_b)
 bigaussian(ring, rf, beam, 3.2e-9/4, seed=1234, reinsertion=True)
-print("Beam set! Number of particles %d" %len(beam.dt))
-print("Time coordinates are in range %.4e to %.4e s" %(np.min(beam.dt), 
+logging.info("......Beam set!")
+logging.info("Number of particles %d" %len(beam.dt))
+logging.info("Time coordinates are in range %.4e to %.4e s" %(np.min(beam.dt),
                                                      np.max(beam.dt)))
 
 profile = Profile(beam, CutOptions = CutOptions(cut_left=0.e-9, 
@@ -80,8 +81,7 @@ profile = Profile(beam, CutOptions = CutOptions(cut_left=0.e-9,
 profile.track()
 
 if CLOSED_LOOP:
-    print("CLOSED LOOP test")
-    print("")
+    logging.info("...... CLOSED LOOP test")
     Commissioning = CavityFeedbackCommissioning(debug=True, open_loop=False,
                                                 open_FB=False, open_drive=False)
     OTFB = SPSCavityFeedback(rf, beam, profile, G_llrf=5, G_tx=0.5,
@@ -89,8 +89,7 @@ if CLOSED_LOOP:
                              Commissioning=Commissioning)
 
 if OPEN_LOOP:
-    print("OPEN LOOP test")
-    print("")
+    logging.info("...... OPEN LOOP test")
     Commissioning = CavityFeedbackCommissioning(debug=True, open_loop=True,
                                                 open_FB=False, open_drive=True)
     OTFB = SPSCavityFeedback(rf, beam, profile, G_llrf=5, G_tx=0.5,
@@ -98,14 +97,13 @@ if OPEN_LOOP:
                              Commissioning=Commissioning)
 
 if OPEN_FB:
-    print("OPEN FEEDBACK test")
-    print("")
+    logging.info("...... OPEN FEEDBACK test")
     Commissioning = CavityFeedbackCommissioning(debug=True, open_loop=False,
                                                 open_FB=True, open_drive=False)
     OTFB = SPSCavityFeedback(rf, beam, profile, G_llrf=5, G_tx=0.5,
                              a_comb=15/16, turns=50, post_LS2=False,
                              Commissioning=Commissioning)
 
-print("Done!")
-print("")
+logging.info("")
+logging.info("Done!")
 

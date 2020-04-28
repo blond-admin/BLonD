@@ -199,18 +199,19 @@ class SPSCavityFeedback(object):
         if debug:
             cmap = plt.get_cmap('jet')
             colors = cmap(np.linspace(0,1, self.turns))
-            plt.figure('voltage')
-            plt.clf()
-            plt.grid()
+            plt.figure('Pre-tracking without beam')
+            ax = plt.axes([0.18, 0.1, 0.8, 0.8])
+            ax.grid()
+            ax.set_ylabel('Voltage [V]')
 
         for i in range(self.turns):
             #            print('OTFB pre-tracking iteration ', i)
             self.logger.debug("Pre-tracking w/o beam, iteration %d", i)
             self.OTFB_1.track_no_beam()
             if debug:
-                plt.plot(self.OTFB_1.profile.bin_centers*1e6,
+                ax.plot(self.OTFB_1.profile.bin_centers*1e6,
                          np.abs(self.OTFB_1.V_fine_tot), color=colors[i])
-                plt.plot(self.OTFB_1.rf_centers*1e6,
+                ax.plot(self.OTFB_1.rf_centers*1e6,
                          np.abs(self.OTFB_1.V_coarse_tot), color=colors[i],
                          linestyle='', marker='.')
             self.OTFB_2.track_no_beam()

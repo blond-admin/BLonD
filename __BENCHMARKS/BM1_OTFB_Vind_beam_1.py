@@ -15,7 +15,8 @@ Example for llrf.filters and llrf.cavity_feedback
 
 import numpy as np
 from scipy.constants import e
-import matplotlib.pyplot as plt 
+import matplotlib.pyplot as plt
+import logging
 
 from blond.toolbox.logger import Logger
 from blond.input_parameters.ring import Ring
@@ -72,18 +73,19 @@ else:
 
 # Set up machine parameters
 ring = Ring(C, alpha, p_s, Particle=Proton(), n_turns=N_t)
-print("Machine parameters set!")
+logging.info("...... Machine parameters set!")
 
 # Set up RF parameters
 rf = RFStation(ring, h, V, phi, n_rf=1)
-print("RF parameters set!")
+logging.info("...... RF parameters set!")
 
 # Define beam and fill it
 beam = Beam(ring, N_m, N_b)
 bigaussian(ring, rf, beam, 3.2e-9/4, seed = 1234, reinsertion = True)
-print("Beam set! Number of particles %d" %len(beam.dt))
-print("Time coordinates are in range %.4e to %.4e s" %(np.min(beam.dt),
-                                                       np.max(beam.dt)))
+logging.info("...... Beam set!")
+logging.info("Number of particles %d" %len(beam.dt))
+logging.info("Time coordinates are in range %.4e to %.4e s" %(np.min(beam.dt),
+                                                              np.max(beam.dt)))
 
 profile = Profile(beam, CutOptions=CutOptions(cut_left=-1.e-9,
                                               cut_right=6.e-9, n_slices=100))
@@ -142,7 +144,7 @@ if RF_CURRENT2 == True:
 
     tot_charges = np.sum(profile2.n_macroparticles) / \
                   beam2.n_macroparticles*beam2.intensity
-    print("Total number of charges %.10e p" %(np.sum(profile2.n_macroparticles)/beam2.n_macroparticles*beam2.intensity))
+    logging.info("Total number of charges %.10e p" %(np.sum(profile2.n_macroparticles)/beam2.n_macroparticles*beam2.intensity))
 
     # Calculate fine- and coarse-grid RF current
     rf_current_fine, rf_current_coarse = rf_beam_current(profile2,
@@ -175,8 +177,8 @@ if RF_CURRENT2 == True:
     ax8.plot(t_coarse*1e6, np.absolute(rf_current_coarse), 'purple', label='coarse, abs')
     ax8.set_ylabel("RF current [A]")
     ax8.legend()
-    print("Peak beam current, meas %.10f A" %(peak_rf_current))
-    print("Peak beam current, theor %.4f A" %(2*N_b*e/bunch_spacing))
+    logging.info("Peak beam current, meas %.10f A" %(peak_rf_current))
+    logging.info("Peak beam current, theor %.4f A" %(2*N_b*e/bunch_spacing))
 
 
 if IMP_RESP == True:
@@ -358,8 +360,8 @@ if VIND_BEAM == True:
 
 
 plt.show()
-print("")
-print("Done!")
+logging.info("")
+logging.info("Done!")
 
 
 
