@@ -63,7 +63,6 @@ logging.info("...... Machine parameters set!")
 
 # Set up RF parameters
 rf = RFStation(ring, h, V, phi, n_rf=1)
-#rf.omega_rf[0,0] = 2*np.pi*200.222e6 # cavity central frequency
 logging.debug("RF frequency %.6e Hz", rf.omega_rf[0,0]/(2*np.pi))
 logging.debug("Revolution period %.6e s", rf.t_rev[0])
 logging.info("...... RF parameters set!")
