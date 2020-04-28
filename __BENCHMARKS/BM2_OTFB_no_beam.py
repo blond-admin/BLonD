@@ -80,6 +80,8 @@ profile = Profile(beam, CutOptions = CutOptions(cut_left=0.e-9,
 profile.track()
 
 if CLOSED_LOOP:
+    print("CLOSED LOOP test")
+    print("")
     Commissioning = CavityFeedbackCommissioning(debug=True, open_loop=False,
                                                 open_FB=False, open_drive=False)
     OTFB = SPSCavityFeedback(rf, beam, profile, G_llrf=5, G_tx=0.5,
@@ -87,6 +89,8 @@ if CLOSED_LOOP:
                              Commissioning=Commissioning)
 
 if OPEN_LOOP:
+    print("OPEN LOOP test")
+    print("")
     Commissioning = CavityFeedbackCommissioning(debug=True, open_loop=True,
                                                 open_FB=False, open_drive=True)
     OTFB = SPSCavityFeedback(rf, beam, profile, G_llrf=5, G_tx=0.5,
@@ -94,6 +98,8 @@ if OPEN_LOOP:
                              Commissioning=Commissioning)
 
 if OPEN_FB:
+    print("OPEN FEEDBACK test")
+    print("")
     Commissioning = CavityFeedbackCommissioning(debug=True, open_loop=False,
                                                 open_FB=True, open_drive=False)
     OTFB = SPSCavityFeedback(rf, beam, profile, G_llrf=5, G_tx=0.5,

@@ -333,10 +333,7 @@ class TravellingWaveCavity(object):
             self.h_beam = self.h_beam.real*(np.cos(self.d_omega*t_beam) +
                                             1j*np.sin(self.d_omega*t_beam))
 
-
-        if time_coarse is None:
-            self.h_beam_coarse = None
-        else:
+        if time_coarse is not None:
             # Move starting point of impulse response to correct value
             t_beam = time_coarse - time_coarse[0]
 
