@@ -18,10 +18,11 @@ import numpy as np
 from scipy.constants import e
 from scipy import signal as sgn
 
-
 # Set up logging
 import logging
 logger = logging.getLogger(__name__)
+
+from blond.llrf.impulse_response import TravellingWaveCavity
 
 
 def polar_to_cartesian(amplitude, phase):
@@ -266,3 +267,41 @@ def moving_average(x, N, x_prev=None):
     mov_avg = np.cumsum(x)
     mov_avg[N:] = mov_avg[N:] - mov_avg[:-N]
     return mov_avg[N-1:] / N
+
+
+def feedforward_filter(TWC: TravellingWaveCavity, T_s):
+
+
+#    step_current = np.concatenate((np.zeros(1000) + np.ones(1000)))
+    n_taps = 31
+    n_taps_2 = int(0.5*(n_taps+1))
+
+    # Filling time in samples
+    n_filling = int(TWC.tau/T_s)
+    logger.debug("Filling time in samples: %d", n_filling)
+    print(n_filling)
+
+    # Fitting samples
+    n_fit = int(n_taps + n_filling)
+    logger.debug("Fitting samples: %d", n_fit)
+
+
+    # Even-symmetric feed-forward filter: coefficients
+#    h_ff_even = np.zeros(shape=(n_taps,1))
+    # Even-symmetric feed-forward filter: matrix
+    even = np.matrix(np.zeros(shape=(n_taps,n_taps_2)))
+    for i in range(n_taps):
+        even[i,abs(n_taps_2-i-1)] = 1
+    print(even)
+
+
+    # Odd-symmetric feed-forward filter: coefficients
+#    h_ff_odd = np.zeros(shape=(n_taps, 1))
+    # Odd-symmetric feed-forward filter: matrix
+    odd = np.matrix(np.zeros(shape=(n_taps, n_taps_2-1)))
+    for i in range(n_taps_2-1):
+        odd[i,abs(n_taps_2-i-2)] = -1
+        odd[n_taps-i-1, abs(n_taps_2 - i - 2)] = -1
+    print(odd)
+
+    return even
