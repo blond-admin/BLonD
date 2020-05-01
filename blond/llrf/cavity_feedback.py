@@ -205,7 +205,6 @@ class SPSCavityFeedback(object):
             ax.set_ylabel('Voltage [V]')
 
         for i in range(self.turns):
-            #            print('OTFB pre-tracking iteration ', i)
             self.logger.debug("Pre-tracking w/o beam, iteration %d", i)
             self.OTFB_1.track_no_beam()
             if debug:
@@ -319,12 +318,10 @@ class SPSOneTurnFeedback(object):
         self.profile = Profile_
         self.n_cavities = int(n_cavities)
         if self.n_cavities < 1:
-            #FeedbackError
             raise RuntimeError("ERROR in SPSOneTurnFeedback: argument" +
                                " n_cavities has invalid value!")
         self.V_part = float(V_part)
         if self.V_part*(1 - self.V_part) < 0:
-            #FeedbackError
             raise RuntimeError("ERROR in SPSOneTurnFeedback: V_part" +
                                " should be in range (0,1)!")
 
@@ -336,7 +333,6 @@ class SPSOneTurnFeedback(object):
         if n_sections in [3, 4, 5]:
             self.TWC = eval("SPS" + str(n_sections) + "Section200MHzTWC()")
         else:
-            #FeedbackError
             raise RuntimeError("ERROR in SPSOneTurnFeedback: argument" +
                                " n_sections has invalid value!")
         self.logger.debug("SPS OTFB cavities: %d, sections: %d, voltage" +
@@ -346,10 +342,7 @@ class SPSOneTurnFeedback(object):
         # TWC resonant frequency
         self.omega_r = self.TWC.omega_r
         # Length of arrays in LLRF
-# TODO: TEST
-        #self.n_coarse = int(self.rf.harmonic[0, 0])
         self.n_coarse = int(self.rf.t_rev[0]/self.rf.t_rf[0, 0])
-# TODO: TEST
         # Initialise turn-by-turn variables
         self.update_variables()
 
@@ -360,7 +353,6 @@ class SPSOneTurnFeedback(object):
         self.logger.debug("Length of arrays on coarse grid %d", self.n_coarse)
 
         # Initialise comb filter
-#        self.dV_gen_prev = np.zeros(self.n_coarse, dtype=complex)
         self.dV_comb_out_prev = np.zeros(self.n_coarse, dtype=complex)
         self.a_comb = float(a_comb)
 
@@ -371,7 +363,6 @@ class SPSOneTurnFeedback(object):
         if self.n_mov_av < 2:
             raise RuntimeError("ERROR in SPSOneTurnFeedback: profile has to" +
                                " have at least 12.5 ns resolution!")
-#        self.dV_mov_av_prev = np.zeros(self.n_coarse, dtype=complex)
         self.dV_ma_in_prev = np.zeros(self.n_coarse, dtype=complex)
         # Initialise generator-induced voltage
         self.I_gen_prev = np.zeros(self.n_mov_av, dtype=complex)
@@ -549,34 +540,12 @@ class SPSOneTurnFeedback(object):
                           1e-6*np.mean(np.absolute(self.dV_gen)))
 
         # One-turn delay comb filter; memorise the value of the previous turn
-#        self.dV_gen = comb_filter(self.dV_gen_prev, self.dV_gen, self.a_comb)
-#        self.dV_gen_prev = np.copy(self.dV_gen)
-
-        # Modulate from omega_rf to omega_r
-#        self.dV_gen = modulator(self.dV_gen, self.omega_c, self.omega_r,
-#                                self.rf.t_rf[0, self.counter])
-
-        # Shift signals with the delay time
-#        dV_gen_in = np.copy(self.dV_gen)
-#        self.dV_gen = np.concatenate((self.dV_mov_av_prev[-self.n_delay:],
-#                                      self.dV_gen[:self.n_coarse-self.n_delay]))
-
-        # Cavity filter: CIRCULAR moving average over filling time
-        # Memorize last points of previous turn for beginning of next turn
-#        self.dV_gen = moving_average(self.dV_gen, self.n_mov_av,
-#            x_prev=self.dV_mov_av_prev[-self.n_delay-self.n_mov_av+1:
-#                                       -self.n_delay])
-
-#        self.dV_mov_av_prev = np.copy(dV_gen_in)
-
-#TODO: TEST
-        # One-turn delay comb filter; memorise the value of the previous turn
-        self.dV_comb_out = comb_filter(self.dV_comb_out_prev, self.dV_gen, self.a_comb)
+        self.dV_comb_out = comb_filter(self.dV_comb_out_prev, self.dV_gen,
+                                       self.a_comb)
 
         # Shift signals with the delay time (to make exactly one turn)
-#        dV_gen_in = np.copy(self.dV_gen)
         self.dV_gen = np.concatenate((self.dV_comb_out_prev[-self.n_delay:],
-                                      self.dV_comb_out[:self.n_coarse-self.n_delay]))
+            self.dV_comb_out[:self.n_coarse-self.n_delay]))
 
         # For comb filter, update memory of previous turn
         self.dV_comb_out_prev = np.copy(self.dV_comb_out)
@@ -593,8 +562,6 @@ class SPSOneTurnFeedback(object):
             x_prev=self.dV_ma_in_prev[-self.n_mov_av+1:])
         self.dV_ma_in_prev = np.copy(self.dV_ma_in)
 
-# TODO: TEST
-
     def matr_conv(self, I, h):
         """Convolution of beam current with impulse response; uses a complete
         matrix with off-diagonal elements."""
@@ -609,7 +576,6 @@ class SPSOneTurnFeedback(object):
 
         # Update the impulse response at present carrier frequency
         self.TWC.impulse_response_gen(self.omega_c, self.rf_centers)
-        #self.TWC.impulse_response_beam(self.omega_c, self.profile.bin_centers)
         self.TWC.impulse_response_beam(self.omega_c, self.profile.bin_centers,
                                        self.rf_centers)
 
@@ -664,19 +630,14 @@ class SPSOneTurnFeedback(object):
         # Present carrier frequency: main RF frequency
         self.omega_c = self.rf.omega_rf[0,self.counter]
         # Present sampling time
-# TODO: TEST
-        #self.T_s = self.rf.t_rev[self.counter]/self.n_coarse
         self.T_s = self.rf.t_rf[0,self.counter]
         # Present coarse grid
-        #self.rf_centers = (np.arange(self.n_coarse) + 0.5)* \
-        #    self.rf.t_rev[self.counter]/self.rf.harmonic[0, self.counter]
         self.rf_centers = (np.arange(self.n_coarse) + 0.5) * self.T_s
         # Check number of samples required per turn
         n_coarse = int(self.rf.t_rev[self.counter]/self.T_s)
         if self.n_coarse != n_coarse:
             raise RuntimeError("Error in SPSOneTurnFeedback: changing number" +
                 " of coarse samples. This option isnot yet implemented!")
-# TODO: TEST
         # Present delay time
         self.n_delay = int((self.rf.t_rev[self.counter] - self.TWC.tau)
                            / self.rf.t_rf[0, self.counter])
