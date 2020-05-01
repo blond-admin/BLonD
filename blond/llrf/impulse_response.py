@@ -299,7 +299,7 @@ class TravellingWaveCavity(object):
         time_fine : float
             Time array of the beam profile to act on
         time_coarse : float
-            Time array of the LLRF to act on
+            Time array of the LLRF to act on; default is None
 
         Attributes
         ----------
@@ -325,7 +325,7 @@ class TravellingWaveCavity(object):
         t_beam = time_fine - time_fine[0]
 
         # Impulse response if on carrier frequency
-        self.h_beam = (2*self.R_beam / self.tau *
+        self.h_beam = (2*self.R_beam/self.tau*
                        triangle(t_beam, self.tau)).astype(np.complex128)
 
         # Impulse response if not on carrier frequency

@@ -30,7 +30,7 @@ from ..beam.profile import Profile, CutOptions
 class CavityFeedbackCommissioning(object):
 
     def __init__(self, debug=False, open_loop=False, open_FB=False,
-                 open_drive=False):
+                 open_drive=False, open_FF=False):
         """Class containing commissioning settings for the cavity feedback
 
         Parameters
@@ -43,6 +43,8 @@ class CavityFeedbackCommissioning(object):
             Open (True) or closed (False) feedback; default is False
         open_drive : int(bool)
             Open (True) or closed (False) drive; default is False
+        open_FF : int(bool)
+            Open (True) or closed (False) feed-forward; default is False
         """
 
         self.debug = bool(debug)
@@ -50,6 +52,7 @@ class CavityFeedbackCommissioning(object):
         self.open_loop = int(np.invert(bool(open_loop)))
         self.open_FB = int(np.invert(bool(open_FB)))
         self.open_drive = int(np.invert(bool(open_drive)))
+        self.open_FF = int(np.invert(bool(open_FF)))
 
 
 class SPSCavityFeedback(object):
@@ -250,6 +253,10 @@ class SPSOneTurnFeedback(object):
         Number of cavities of the same type
     V_part : float
         Voltage partition for the given n_cavities; in range (0,1)
+    G_ff : float
+        FF gain [1]; default is 1
+    G_llrf : float
+        LLRF gain [1]; default is 10
     G_tx : float
         Transmitter gain [A/V]; default is :math:`(50 \Omega)^{-1}`
     open_loop : int(bool)
@@ -298,7 +305,7 @@ class SPSOneTurnFeedback(object):
     '''
 
     def __init__(self, RFStation, Beam, Profile_, n_sections, n_cavities=2,
-                 V_part=4/9, G_llrf=10, G_tx=0.5, a_comb=15/16,
+                 V_part=4/9, G_ff=1, G_llrf=10, G_tx=0.5, a_comb=15/16,
                  Commissioning=CavityFeedbackCommissioning()):
 
         # Set up logging
@@ -311,6 +318,8 @@ class SPSOneTurnFeedback(object):
         self.logger.debug("Opening feedback of drive correction")
         self.open_drive = Commissioning.open_drive
         self.logger.debug("Opening drive to generator")
+        self.open_FF = Commissioning.open_FF
+        self.logger.debug("Opening feed-forward on beam current")
 
         # Read input
         self.rf = RFStation
@@ -326,6 +335,7 @@ class SPSOneTurnFeedback(object):
                                " should be in range (0,1)!")
 
         # Gain settings
+        self.G_ff = float(G_ff)
         self.G_llrf = float(G_llrf)
         self.G_tx = float(G_tx)
 
@@ -368,6 +378,10 @@ class SPSOneTurnFeedback(object):
         self.I_gen_prev = np.zeros(self.n_mov_av, dtype=complex)
         self.logger.info("Class initialized")
 
+        # Initialise feed-forward
+        if not self.open_FF:
+            self.I_beam_coarse_prev = np.zeros(self.n_coarse, dtype=complex)
+
     def beam_induced_voltage(self, lpf=False):
         """Calculates the beam-induced voltage
 
@@ -404,6 +418,16 @@ class SPSOneTurnFeedback(object):
         # Beam-induced voltage
         self.induced_voltage('beam')
         self.induced_voltage('beam_coarse')
+
+        if not self.open_FF:
+            # Calculate correction based on previous turn on coarse grid
+
+            # Interpolate to fine grid
+
+            # Add to voltage
+
+            # Update vector from previous turn
+            self.I_beam_coarse_prev = np.copy(self.I_beam_coarse)
 
     def call_conv(self, signal, kernel):
         """Routine to call optimised C++ convolution"""
@@ -482,17 +506,29 @@ class SPSOneTurnFeedback(object):
         self.logger.debug("Matrix convolution for V_ind")
 
         if name == "beam":
-            # Compute the beam-induced voltage on the fine grid
-            self.__setattr__("V_fine_ind_"+name,
-                self.matr_conv(self.__getattribute__("I_"+name+"_fine"),
-                               self.TWC.__getattribute__("h_"+name)))
+            if self.open_FF:
+                # Compute the beam-induced voltage on the fine grid
+                self.__setattr__("V_fine_ind_"+name,
+                    self.matr_conv(self.__getattribute__("I_"+name+"_fine"),
+                                   self.TWC.__getattribute__("h_"+name)))
+#            else:
+#                # Compute fine beam-induced voltage with feed-forward
+#                self.__setattr__("V_fine_ind_"+name,
+#                    self.matr_conv(self.__getattribute__("I_"+name+"_fine"),
+#                                     self.TWC.__getattribute__("h_ff")))
             self.V_fine_ind_beam *= -self.n_cavities
 
         if name == "beam_coarse" and hasattr(self.TWC, "h_beam_coarse"):
-            # Compute the beam-induced voltage on the coarse grid
-            self.__setattr__("V_coarse_ind_beam",
-                self.matr_conv(self.__getattribute__("I_"+name),
-                               self.TWC.__getattribute__("h_"+name)))
+            if self.open_FF:
+                # Compute the beam-induced voltage on the coarse grid
+                self.__setattr__("V_coarse_ind_beam",
+                    self.matr_conv(self.__getattribute__("I_"+name),
+                                   self.TWC.__getattribute__("h_"+name)))
+#            else:
+#                # Compute coarse beam-induced voltage with feed-forward
+#                self.__setattr__("V_coarse_ind_beam",
+#                    self.matr_conv(self.__getattribute__("I_"+name),
+#                                   self.TWC.__getattribute__("h_ff_coarse")))
             self.V_coarse_ind_beam *= -self.n_cavities
 
         if name == "gen":
