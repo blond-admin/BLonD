@@ -65,7 +65,7 @@ if FILTER_DESIGN:
 
     logging.info("...... Filter design test")
     TWC3 = SPS3Section200MHzTWC()
-    even = feedforward_filter(TWC3, 25e-9)
+    even = feedforward_filter(TWC3, 25e-9, plot=True)
 
 
 

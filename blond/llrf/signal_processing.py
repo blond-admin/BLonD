@@ -17,6 +17,7 @@ from __future__ import division
 import numpy as np
 from scipy.constants import e
 from scipy import signal as sgn
+import matplotlib.pyplot as plt
 
 # Set up logging
 import logging
@@ -269,16 +270,18 @@ def moving_average(x, N, x_prev=None):
     return mov_avg[N-1:] / N
 
 
-def feedforward_filter(TWC: TravellingWaveCavity, T_s):
+def feedforward_filter(TWC: TravellingWaveCavity, T_s, plot=False):
 
 
 #    step_current = np.concatenate((np.zeros(1000) + np.ones(1000)))
     n_taps = 31
     n_taps_2 = int(0.5*(n_taps+1))
+    logger.debug("Number of taps: %d", n_taps)
 
-    # Filling time in samples
+# Filling time in samples
     n_filling = int(TWC.tau/T_s)
     logger.debug("Filling time in samples: %d", n_filling)
+    np.set_printoptions(threshold=10000, linewidth=100)
     print(n_filling)
 
     # Fitting samples
@@ -286,22 +289,119 @@ def feedforward_filter(TWC: TravellingWaveCavity, T_s):
     logger.debug("Fitting samples: %d", n_fit)
 
 
-    # Even-symmetric feed-forward filter: coefficients
-#    h_ff_even = np.zeros(shape=(n_taps,1))
-    # Even-symmetric feed-forward filter: matrix
+    # Even-symmetric feed-forward filter matrix
     even = np.matrix(np.zeros(shape=(n_taps,n_taps_2)))
     for i in range(n_taps):
         even[i,abs(n_taps_2-i-1)] = 1
     print(even)
 
 
-    # Odd-symmetric feed-forward filter: coefficients
-#    h_ff_odd = np.zeros(shape=(n_taps, 1))
-    # Odd-symmetric feed-forward filter: matrix
+    # Odd-symmetric feed-forward filter matrix
     odd = np.matrix(np.zeros(shape=(n_taps, n_taps_2-1)))
     for i in range(n_taps_2-1):
         odd[i,abs(n_taps_2-i-2)] = -1
-        odd[n_taps-i-1, abs(n_taps_2 - i - 2)] = -1
+        odd[n_taps-i-1, abs(n_taps_2 - i - 2)] = 1
     print(odd)
 
+    # Generator-cavity response matrix: non-zero during filling time
+    resp = np.matrix(np.zeros(shape=(n_fit, n_fit+n_filling-1)))
+    for i in range(n_fit):
+        resp[i,i:i+n_filling] = 1
+    print(resp)
+#    print(resp.shape)
+#    print(resp.transpose().shape)
+
+    # Convolution with beam step current
+    conv = np.matrix(np.zeros(shape=(n_fit+n_filling-1, n_taps)))
+    print(conv.shape)
+    print(conv.transpose().shape)
+    for i in range(n_taps):
+        conv[i+n_filling, 0:i] = 1
+    conv[n_taps+n_filling:, :] = 1
+    print(conv)
+
+
+    # Impulse response from cavity towards beam
+    time_array = np.linspace(0, n_fit*T_s, num=n_fit) - TWC.tau/2
+    TWC.impulse_response_beam(TWC.omega_r, time_array)
+    h_beam_real = TWC.h_beam.real
+    h_beam_even = np.zeros(n_fit)
+    h_beam_odd = np.zeros(n_fit)
+    n_c = int((n_fit-1)*0.5)
+    print(n_c)
+    h_beam_even[n_c] = h_beam_real[0]
+    h_beam_even[n_c+1:] = 0.5*h_beam_real[1:n_c+1]
+    h_beam_even[:n_c] = 0.5*(h_beam_real[1:n_c+1])[::-1]
+    h_beam_odd[n_c] = 0
+    h_beam_odd[n_c+1:] = 0.5*h_beam_real[1:n_c+1]
+    h_beam_odd[:n_c] = 0.5*(-h_beam_real[1:n_c+1])[::-1]
+
+    I_beam_step = np.ones(n_fit)
+
+    V_beam_even = sgn.fftconvolve(I_beam_step, h_beam_even, mode='full')[:I_beam_step.shape[0]]
+    V_beam_odd = sgn.fftconvolve(I_beam_step, h_beam_odd, mode='full')[:I_beam_step.shape[0]]
+#    print(h_beam_even)
+
+    if plot:
+        plt.rc('lines', linewidth=1.5, markersize=3)
+        plt.rc('axes', labelsize=12, labelweight='normal')
+
+        plt.figure("Impulse response")
+        plt.plot(time_array*1e6, h_beam_even, 'bo')
+        plt.plot(time_array*1e6, h_beam_odd, 'ro')
+        plt.axhline(0, color='grey', alpha=0.5)
+        plt.xlabel("Time [us]")
+
+        plt.figure("Beam-induced voltage")
+        plt.plot(V_beam_even, 'bo')
+        plt.plot(V_beam_odd, 'ro')
+        plt.plot(V_beam_even+V_beam_odd, 'go')
+        plt.axhline(0, color='grey', alpha=0.5)
+        plt.xlabel("Samples [1]")
+        plt.show()
+
+    temp_1 = np.matmul(even.transpose(),
+                       np.matmul(conv.transpose(), resp.transpose()))
+    temp_2 = np.matmul(resp, np.matmul(conv, even))
+    temp_3 = np.linalg.inv(np.matmul(temp_1, temp_2))
+
+    print("")
+    print(even.shape)
+    print(conv.shape)
+    print(resp.shape)
+    print("")
+    print(temp_1.shape)
+    print(temp_2.shape)
+    print(temp_3.shape)
+    V_beam_even = np.matrix(V_beam_even).transpose()
+    print(V_beam_even.shape)
+
+#    h_ff_even = np.matmul(even, np.matmul(np.matmul(temp_3, temp_1), V_beam_even))
+    h_ff_even = np.matmul(even, np.matmul(temp_3, np.matmul(temp_1, V_beam_even)))
+    print(h_ff_even.shape)
+
+
+    temp_1 = np.matmul(odd.transpose(),
+                       np.matmul(conv.transpose(), resp.transpose()))
+    temp_2 = np.matmul(resp, np.matmul(conv, odd))
+    temp_3 = np.linalg.inv(np.matmul(temp_1, temp_2))
+
+
+    V_beam_odd = np.matrix(V_beam_odd).transpose()
+    h_ff_odd = np.matmul(odd, np.matmul(temp_3, np.matmul(temp_1, V_beam_odd)))
+
+    if plot:
+        plt.rc('lines', linewidth=1.5, markersize=3)
+        plt.rc('axes', labelsize=12, labelweight='normal')
+
+        plt.figure("FF filter")
+        plt.plot(h_ff_even, 'bo--')
+        plt.plot(h_ff_odd, 'ro--')
+        plt.plot(h_ff_even + h_ff_odd, 'go--')
+        plt.axhline(0, color='grey', alpha=0.5)
+        plt.xlabel("Samples [1]")
+        plt.show()
+
     return even
+
+
