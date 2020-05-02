@@ -272,25 +272,23 @@ def moving_average(x, N, x_prev=None):
 
 def feedforward_filter(TWC: TravellingWaveCavity, T_s, debug=False):
 
+    # Filling time in samples
+    n_filling = int(TWC.tau/T_s)
+    logger.debug("Filling time in samples: %d", n_filling)
     # Number of FIR filter taps
-    n_taps = 31
+    n_taps = 2*int(0.5*n_filling) + 13 #31
     n_taps_2 = int(0.5*(n_taps+1))
     if n_taps % 2 == 0:
         raise RuntimeError("Number of taps in feedforward filter must be odd!")
     logger.debug("Number of taps: %d", n_taps)
-    # Filling time in samples
-    n_filling = 13 #int(TWC.tau/T_s)
-    logger.debug("Filling time in samples: %d", n_filling)
     # Fitting samples
     n_fit = int(n_taps + n_filling)
     logger.debug("Fitting samples: %d", n_fit)
-
 
     # Even-symmetric feed-forward filter matrix
     even = np.matrix(np.zeros(shape=(n_taps,n_taps_2)), dtype=np.float64)
     for i in range(n_taps):
         even[i,abs(n_taps_2-i-1)] = 1
-
 
     # Odd-symmetric feed-forward filter matrix
     odd = np.matrix(np.zeros(shape=(n_taps, n_taps_2-1)), dtype=np.float64)
@@ -319,22 +317,29 @@ def feedforward_filter(TWC: TravellingWaveCavity, T_s, debug=False):
         print(resp)
         print("Convolution matrix shape", conv.shape)
         print(conv)
+        print("\n\n")
 
 
     # Impulse response from cavity towards beam
+#    TWC.tau = (n_filling + 0.5)*T_s
     time_array = np.linspace(0, n_fit*T_s, num=n_fit) - TWC.tau/2
+#    time_array = np.linspace(-n_filling/2*T_s, n_fit*T_s-n_filling/2*T_s, num=n_fit)
     TWC.impulse_response_beam(TWC.omega_r, time_array)
     h_beam_real = TWC.h_beam.real/TWC.R_beam*TWC.tau
+#    h_beam_real = np.zeros(n_fit)
+#    h_beam_real[0:14] = np.linspace(2,0,num=14)
+#    h_beam_real[0] = 1
+    print(h_beam_real)
     h_beam_even = np.zeros(n_fit)
     h_beam_odd = np.zeros(n_fit)
     if n_filling % 2 == 0:
         n_c = int((n_fit-1)*0.5)
         h_beam_even[n_c] = h_beam_real[0]
-        h_beam_even[n_c + 1:] = 0.5 * h_beam_real[1:n_c + 1]
-        h_beam_even[:n_c] = 0.5 * (h_beam_real[1:n_c + 1])[::-1]
+        h_beam_even[n_c + 1:] = 0.5*h_beam_real[1:n_c + 1]
+        h_beam_even[:n_c] = 0.5*(h_beam_real[1:n_c + 1])[::-1]
         h_beam_odd[n_c] = 0
-        h_beam_odd[n_c + 1:] = 0.5 * h_beam_real[1:n_c + 1]
-        h_beam_odd[:n_c] = 0.5 * (-h_beam_real[1:n_c + 1])[::-1]
+        h_beam_odd[n_c + 1:] = 0.5*h_beam_real[1:n_c + 1]
+        h_beam_odd[:n_c] = 0.5*(-h_beam_real[1:n_c + 1])[::-1]
     else:
         n_c = int(n_fit*0.5)
         h_beam_even[n_c:] = 0.5*h_beam_real[1:n_c+1]
@@ -379,31 +384,31 @@ def feedforward_filter(TWC: TravellingWaveCavity, T_s, debug=False):
         plt.xlabel("Samples [1]")
         plt.legend()
 
-    temp_1 = even.transpose() @ conv.transpose() @ resp.transpose()
-    temp_2 = resp @ conv @ even
-    temp_4 = temp_1 @ temp_2
-    temp_3 = np.linalg.inv(temp_4/np.max(temp_4))/np.max(temp_4)
+#    temp_1 = even.transpose() @ conv.transpose() @ resp.transpose()
+#    temp_2 = resp @ conv @ even
+#    temp_4 = temp_1 @ temp_2
+#    temp_3 = np.linalg.inv(temp_4/np.max(temp_4))/np.max(temp_4)
 
-    print(temp_1)
-    print(temp_2)
-    print(temp_4)
-    print(temp_3)
-    print("\n \n \n ")
-    print(temp_3 @ temp_4)
-    print(temp_3.shape)
-    print(temp_4.shape)
-    print((temp_3 @ temp_4).shape)
+#    print(temp_1)
+#    print(temp_2)
+#    print(temp_4)
+#    print(temp_3)
+#    print("\n \n \n ")
+#    print(temp_3 @ temp_4)
+#    print(temp_3.shape)
+#    print(temp_4.shape)
+#    print((temp_3 @ temp_4).shape)
 
-    print("")
-    print(even.shape)
-    print(conv.shape)
-    print(resp.shape)
-    print("")
-    print(temp_1.shape)
-    print(temp_2.shape)
-    print(temp_3.shape)
+#    print("")
+#    print(even.shape)
+#    print(conv.shape)
+#    print(resp.shape)
+#    print("")
+#    print(temp_1.shape)
+#    print(temp_2.shape)
+#    print(temp_3.shape)
     V_beam_even = np.matrix(V_beam_even).transpose()
-    print(V_beam_even.shape)
+#    print(V_beam_even.shape)
 
 #    h_ff_even = np.matmul(even, np.matmul(temp_3, np.matmul(temp_1, V_beam_even)))
 #    h_ff_even = even @ temp_3 @ temp_1 @ V_beam_even
@@ -412,36 +417,42 @@ def feedforward_filter(TWC: TravellingWaveCavity, T_s, debug=False):
 #    h_ff_even = even @ np.linalg.inv(even.transpose() @ conv.transpose() @
 #                                     resp.transpose() @ weight @ resp @ conv @ even) @ \
 #        even.transpose() @ conv.transpose() @ resp.transpose() @ weight @ V_beam_even
-    weight = np.matrix(np.zeros(shape=(n_fit, n_fit)))
-    for i in range(20):
-        weight[i,i] = 1
-    h_ff_even = even * (even.T * conv.T * resp.T * weight * resp * conv * even).I * \
-        even.T * conv.T * resp.T * weight * V_beam_even
+
+
+#    weight = np.matrix(np.zeros(shape=(n_fit, n_fit)))
+#    for i in range(20):
+#        weight[i,i] = 1
+    h_ff_even = even * (even.T * conv.T * resp.T * resp * conv * even).I * \
+        even.T * conv.T * resp.T * V_beam_even
     print(h_ff_even.shape)
+    print((even.T * conv.T * resp.T * resp * conv * even))
+    print((even.T * conv.T * resp.T * resp * conv * even).I * (even.T * conv.T * resp.T * resp * conv * even))
 
     # TEMPORARY
-    h_ff_even_id = np.copy(h_ff_even)
-    h_ff_even_id[0:8] = 0
-    h_ff_even_id[8] = 0.0008
-    h_ff_even_id[9] = 0.0052
-    h_ff_even_id[10:-10] = 0.0058
-    h_ff_even_id[-10] = 0.0052
-    h_ff_even_id[-9] = 0.0008
-    h_ff_even_id[-8:] = 0
+#    h_ff_even_id = np.copy(h_ff_even)
+#    h_ff_even_id[0:8] = 0
+#    h_ff_even_id[8] = 0.0008
+#    h_ff_even_id[9] = 0.0052
+#    h_ff_even_id[10:-10] = 0.0058
+#    h_ff_even_id[-10] = 0.0052
+#    h_ff_even_id[-9] = 0.0008
+#    h_ff_even_id[-8:] = 0
 
-    temp_1 = np.matmul(odd.transpose(),
-                       np.matmul(conv.transpose(), resp.transpose()))
-    temp_2 = np.matmul(resp, np.matmul(conv, odd))
-    temp_3 = np.linalg.inv(np.matmul(temp_1, temp_2))
+#    temp_1 = np.matmul(odd.transpose(),
+#                       np.matmul(conv.transpose(), resp.transpose()))
+#    temp_2 = np.matmul(resp, np.matmul(conv, odd))
+#    temp_3 = np.linalg.inv(np.matmul(temp_1, temp_2))
 
 
     V_beam_odd = np.matrix(V_beam_odd).transpose()
-    h_ff_odd = np.matmul(odd, np.matmul(temp_3, np.matmul(temp_1, V_beam_odd)))
+#    h_ff_odd = np.matmul(odd, np.matmul(temp_3, np.matmul(temp_1, V_beam_odd)))
+    h_ff_odd = odd * (odd.T * conv.T * resp.T * resp * conv * odd).I * \
+        odd.T * conv.T * resp.T * V_beam_odd
 
     if debug:
         plt.figure("FF filter")
         plt.plot(h_ff_even, 'bo-', label='even')
-        plt.plot(h_ff_even_id, color='grey', label='ideal')
+#        plt.plot(h_ff_even_id, color='grey', label='ideal')
         plt.plot(h_ff_odd, 'ro-', label='odd')
         plt.plot(h_ff_even+h_ff_odd, 'go-', label='total')
         plt.axhline(0, color='grey', alpha=0.5)
@@ -461,6 +472,6 @@ def feedforward_filter(TWC: TravellingWaveCavity, T_s, debug=False):
         plt.legend()
         plt.show()
 
-    return even
+    return h_ff_even + h_ff_odd
 
 
