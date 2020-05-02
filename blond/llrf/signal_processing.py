@@ -279,7 +279,7 @@ def feedforward_filter(TWC: TravellingWaveCavity, T_s, debug=False):
         raise RuntimeError("Number of taps in feedforward filter must be odd!")
     logger.debug("Number of taps: %d", n_taps)
     # Filling time in samples
-    n_filling = int(TWC.tau/T_s)-1
+    n_filling = 13 #int(TWC.tau/T_s)
     logger.debug("Filling time in samples: %d", n_filling)
     # Fitting samples
     n_fit = int(n_taps + n_filling)
@@ -287,24 +287,24 @@ def feedforward_filter(TWC: TravellingWaveCavity, T_s, debug=False):
 
 
     # Even-symmetric feed-forward filter matrix
-    even = np.matrix(np.zeros(shape=(n_taps,n_taps_2)))
+    even = np.matrix(np.zeros(shape=(n_taps,n_taps_2)), dtype=np.float64)
     for i in range(n_taps):
         even[i,abs(n_taps_2-i-1)] = 1
 
 
     # Odd-symmetric feed-forward filter matrix
-    odd = np.matrix(np.zeros(shape=(n_taps, n_taps_2-1)))
+    odd = np.matrix(np.zeros(shape=(n_taps, n_taps_2-1)), dtype=np.float64)
     for i in range(n_taps_2-1):
         odd[i,abs(n_taps_2-i-2)] = -1
         odd[n_taps-i-1, abs(n_taps_2 - i - 2)] = 1
 
     # Generator-cavity response matrix: non-zero during filling time
-    resp = np.matrix(np.zeros(shape=(n_fit, n_fit+n_filling-1)))
+    resp = np.matrix(np.zeros(shape=(n_fit, n_fit+n_filling-1)), dtype=np.float64)
     for i in range(n_fit):
         resp[i,i:i+n_filling] = 1
 
     # Convolution with beam step current
-    conv = np.matrix(np.zeros(shape=(n_fit+n_filling-1, n_taps)))
+    conv = np.matrix(np.zeros(shape=(n_fit+n_filling-1, n_taps)), dtype=np.float64)
     for i in range(n_taps):
         conv[i+n_filling, 0:i] = 1
     conv[n_taps+n_filling:, :] = 1
@@ -379,10 +379,20 @@ def feedforward_filter(TWC: TravellingWaveCavity, T_s, debug=False):
         plt.xlabel("Samples [1]")
         plt.legend()
 
-    temp_1 = np.matmul(even.transpose(),
-                       np.matmul(conv.transpose(), resp.transpose()))
-    temp_2 = np.matmul(resp, np.matmul(conv, even))
-    temp_3 = np.linalg.inv(np.matmul(temp_1, temp_2))
+    temp_1 = even.transpose() @ conv.transpose() @ resp.transpose()
+    temp_2 = resp @ conv @ even
+    temp_4 = temp_1 @ temp_2
+    temp_3 = np.linalg.inv(temp_4/np.max(temp_4))/np.max(temp_4)
+
+    print(temp_1)
+    print(temp_2)
+    print(temp_4)
+    print(temp_3)
+    print("\n \n \n ")
+    print(temp_3 @ temp_4)
+    print(temp_3.shape)
+    print(temp_4.shape)
+    print((temp_3 @ temp_4).shape)
 
     print("")
     print(even.shape)
@@ -395,9 +405,29 @@ def feedforward_filter(TWC: TravellingWaveCavity, T_s, debug=False):
     V_beam_even = np.matrix(V_beam_even).transpose()
     print(V_beam_even.shape)
 
-    h_ff_even = np.matmul(even, np.matmul(temp_3, np.matmul(temp_1, V_beam_even)))
+#    h_ff_even = np.matmul(even, np.matmul(temp_3, np.matmul(temp_1, V_beam_even)))
+#    h_ff_even = even @ temp_3 @ temp_1 @ V_beam_even
+
+#    weight = np.identity(n_fit)
+#    h_ff_even = even @ np.linalg.inv(even.transpose() @ conv.transpose() @
+#                                     resp.transpose() @ weight @ resp @ conv @ even) @ \
+#        even.transpose() @ conv.transpose() @ resp.transpose() @ weight @ V_beam_even
+    weight = np.matrix(np.zeros(shape=(n_fit, n_fit)))
+    for i in range(20):
+        weight[i,i] = 1
+    h_ff_even = even * (even.T * conv.T * resp.T * weight * resp * conv * even).I * \
+        even.T * conv.T * resp.T * weight * V_beam_even
     print(h_ff_even.shape)
 
+    # TEMPORARY
+    h_ff_even_id = np.copy(h_ff_even)
+    h_ff_even_id[0:8] = 0
+    h_ff_even_id[8] = 0.0008
+    h_ff_even_id[9] = 0.0052
+    h_ff_even_id[10:-10] = 0.0058
+    h_ff_even_id[-10] = 0.0052
+    h_ff_even_id[-9] = 0.0008
+    h_ff_even_id[-8:] = 0
 
     temp_1 = np.matmul(odd.transpose(),
                        np.matmul(conv.transpose(), resp.transpose()))
@@ -411,6 +441,7 @@ def feedforward_filter(TWC: TravellingWaveCavity, T_s, debug=False):
     if debug:
         plt.figure("FF filter")
         plt.plot(h_ff_even, 'bo-', label='even')
+        plt.plot(h_ff_even_id, color='grey', label='ideal')
         plt.plot(h_ff_odd, 'ro-', label='odd')
         plt.plot(h_ff_even+h_ff_odd, 'go-', label='total')
         plt.axhline(0, color='grey', alpha=0.5)
