@@ -65,9 +65,9 @@ if FILTER_DESIGN:
 
     logging.info("...... Filter design test")
     TWC3 = SPS3Section200MHzTWC()
-    FF_3 = feedforward_filter(TWC3, 25e-9, debug=True)
+#    FF_3 = feedforward_filter(TWC3, 25e-9, debug=True)
     #FF_3 = feedforward_filter(TWC3, 1/31.25e6, debug=True)
-#    FF_3 = feedforward_filter(TWC3, 4/120*1e-6, debug=True)
+    FF_3 = feedforward_filter(TWC3, 4/125*1e-6, debug=True)
 
 #    TWC4 = SPS4Section200MHzTWC()
 #    FF_4 = feedforward_filter(TWC4, 25e-9, debug=True)
