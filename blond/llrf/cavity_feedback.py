@@ -19,11 +19,14 @@ import numpy as np
 import scipy
 from matplotlib import pyplot as plt
 from scipy.constants import e
+import sys
 
 from ..llrf.signal_processing import comb_filter, cartesian_to_polar, \
     polar_to_cartesian, modulator, moving_average, rf_beam_current
 from ..llrf.impulse_response import SPS3Section200MHzTWC, \
     SPS4Section200MHzTWC, SPS5Section200MHzTWC
+from ..llrf.signal_processing import feedforward_filter_TWC3, \
+    feedforward_filter_TWC4, feedforward_filter_TWC5
 from ..utils import bmath as bm
 from ..beam.profile import Profile, CutOptions
 
@@ -342,6 +345,12 @@ class SPSOneTurnFeedback(object):
         # 200 MHz travelling wave cavity (TWC) model
         if n_sections in [3, 4, 5]:
             self.TWC = eval("SPS" + str(n_sections) + "Section200MHzTWC()")
+            if not self.open_FF:
+                # Feed-forward filter
+                self.coeff_FF = getattr(sys.modules[__name__],
+                    "feedforward_filter_TWC" + str(n_sections))
+                self.n_FF = len(self.coeff_FF)
+#                self.n_FF_delay = int(0.5*(self.n_FF - 1))
         else:
             raise RuntimeError("ERROR in SPSOneTurnFeedback: argument" +
                                " n_sections has invalid value!")
@@ -378,9 +387,12 @@ class SPSOneTurnFeedback(object):
         self.I_gen_prev = np.zeros(self.n_mov_av, dtype=complex)
         self.logger.info("Class initialized")
 
-        # Initialise feed-forward
+        # Initialise feed-forward; sampled every 5 buckets
         if not self.open_FF:
-            self.I_beam_coarse_prev = np.zeros(self.n_coarse, dtype=complex)
+            self.n_coarse_FF = int(self.n_coarse/5)
+            self.I_beam_coarse_prev = np.zeros(self.n_coarse_FF, dtype=complex)
+            self.I_ff_corr = np.zeros(self.n_coarse_FF, dtype=complex)
+            self.V_ff_corr = np.zeros(self.n_coarse_FF, dtype=complex)
 
     def beam_induced_voltage(self, lpf=False):
         """Calculates the beam-induced voltage
@@ -421,10 +433,28 @@ class SPSOneTurnFeedback(object):
 
         if not self.open_FF:
             # Calculate correction based on previous turn on coarse grid
+            for ind in range(self.n_coarse_FF):
+                self.I_ff_corr[ind] = self.coeff_FF[0]*self.I_beam_coarse_prev[ind]
+                for k in range(self.n_FF):
+                    self.I_ff_corr[ind] += self.coeff_FF[k] * \
+                                           self.I_beam_coarse_prev[ind-k]
+            self.V_ff_corr = self.matr_conv(self.I_ff_corr, self.TWC.h_gen[::5])
 
-            # Interpolate to fine grid
+            # Compensate for FIR filter delay
+#            self.dV_ff = np.concatenate(
+#                (self.V_ff_corr_prev[-self.n_FF_delay:],
+#                 self.V_ff_corr[:self.n_coarse_FF - self.n_FF_delay]))
+#            self.V_ff_corr_prev = np.copy(self.V_ff_corr)
 
-            # Add to voltage
+            # Interpolate to finer grids
+            self.V_ff_corr_coarse = np.interp(self.rf_centers,
+                self.rf_centers[::5], self.V_ff_corr)
+            self.V_ff_corr_fine = np.interp(self.profile.bin_centers,
+                self.rf_centers[::5], self.V_ff_corr)
+
+            # Add to beam-induced voltage (opposite sign)
+            self.V_coarse_ind_beam += self.n_cavities*self.V_ff_corr_coarse
+            self.V_fine_ind_beam += self.n_cavities*self.V_ff_corr_fine
 
             # Update vector from previous turn
             self.I_beam_coarse_prev = np.copy(self.I_beam_coarse)
@@ -506,33 +536,21 @@ class SPSOneTurnFeedback(object):
         self.logger.debug("Matrix convolution for V_ind")
 
         if name == "beam":
-            if self.open_FF:
-                # Compute the beam-induced voltage on the fine grid
-                self.__setattr__("V_fine_ind_"+name,
-                    self.matr_conv(self.__getattribute__("I_"+name+"_fine"),
-                                   self.TWC.__getattribute__("h_"+name)))
-#            else:
-#                # Compute fine beam-induced voltage with feed-forward
-#                self.__setattr__("V_fine_ind_"+name,
-#                    self.matr_conv(self.__getattribute__("I_"+name+"_fine"),
-#                                     self.TWC.__getattribute__("h_ff")))
+            # Compute the beam-induced voltage on the fine grid
+            self.__setattr__("V_fine_ind_"+name,
+                self.matr_conv(self.__getattribute__("I_"+name+"_fine"),
+                               self.TWC.__getattribute__("h_"+name)))
             self.V_fine_ind_beam *= -self.n_cavities
 
         if name == "beam_coarse" and hasattr(self.TWC, "h_beam_coarse"):
-            if self.open_FF:
-                # Compute the beam-induced voltage on the coarse grid
-                self.__setattr__("V_coarse_ind_beam",
-                    self.matr_conv(self.__getattribute__("I_"+name),
-                                   self.TWC.__getattribute__("h_"+name)))
-#            else:
-#                # Compute coarse beam-induced voltage with feed-forward
-#                self.__setattr__("V_coarse_ind_beam",
-#                    self.matr_conv(self.__getattribute__("I_"+name),
-#                                   self.TWC.__getattribute__("h_ff_coarse")))
+            # Compute the beam-induced voltage on the coarse grid
+            self.__setattr__("V_coarse_ind_beam",
+                self.matr_conv(self.__getattribute__("I_"+name),
+                               self.TWC.__getattribute__("h_"+name)))
             self.V_coarse_ind_beam *= -self.n_cavities
 
         if name == "gen":
-            # Compute the generator-induced voltage on the coarse frid
+            # Compute the generator-induced voltage on the coarse grid
             self.__setattr__("V_coarse_ind_" + name,
                 self.matr_conv(self.__getattribute__("I_"+name),
                                self.TWC.__getattribute__("h_"+name)))

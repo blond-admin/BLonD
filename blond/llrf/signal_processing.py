@@ -272,49 +272,69 @@ def moving_average(x, N, x_prev=None):
 
 def feedforward_filter(TWC: TravellingWaveCavity, T_s, debug=False, taps=None,
                        opt_output=False):
+    """Function to design n-tap FIR filter for SPS TravellingWaveCavity.
 
-    # TEMP!!
-#    TWC.tau=420e-9
-#    print(TWC.tau)
-#    print(T_s)
+    Parameters
+    ----------
+    TWC : TravellingWaveCavity
+        TravellingWaveCavity type class
+    T_s : float
+        Sampling time [s]
+    debug : bool
+        When True, activates printouts and plots; default is False
+    taps : int
+        User-defined number of taps; default is None and number of taps is
+        calculated from the filling time
+    opt_output : bool
+        When True, activates optional output; default is False
+
+    Returns
+    -------
+    float array
+        FIR filter coefficients
+    int
+        Optional output: Number of FIR filter taps
+    int
+        Optional output: Filling time in samples
+    int
+        Optional output: Fitting time in samples, n_filling, n_fit
+    """
 
     # Filling time in samples
     n_filling = int(TWC.tau/T_s)
     logger.debug("Filling time in samples: %d", n_filling)
+
     # Number of FIR filter taps
     if taps is not None:
-        n_taps = taps
+        n_taps = int(taps)
     else:
         n_taps = 2*int(0.5*n_filling) + 13 #31
     n_taps_2 = int(0.5*(n_taps+1))
     if n_taps % 2 == 0:
         raise RuntimeError("Number of taps in feedforward filter must be odd!")
     logger.debug("Number of taps: %d", n_taps)
+
     # Fitting samples
     n_fit = int(n_taps + n_filling)
     logger.debug("Fitting samples: %d", n_fit)
 
     # Even-symmetric feed-forward filter matrix
-#    even = np.matrix(np.zeros(shape=(n_taps,n_taps_2)), dtype=np.float64)
     even = np.zeros(shape=(n_taps,n_taps_2), dtype=np.float64)
     for i in range(n_taps):
         even[i,abs(n_taps_2-i-1)] = 1
 
     # Odd-symmetric feed-forward filter matrix
-#    odd = np.matrix(np.zeros(shape=(n_taps, n_taps_2-1)), dtype=np.float64)
     odd = np.zeros(shape=(n_taps, n_taps_2-1), dtype=np.float64)
     for i in range(n_taps_2-1):
         odd[i,abs(n_taps_2-i-2)] = -1
         odd[n_taps-i-1, abs(n_taps_2 - i - 2)] = 1
 
     # Generator-cavity response matrix: non-zero during filling time
-#    resp = np.matrix(np.zeros(shape=(n_fit, n_fit+n_filling-1)), dtype=np.float64)
     resp = np.zeros(shape=(n_fit, n_fit+n_filling-1), dtype=np.float64)
     for i in range(n_fit):
         resp[i,i:i+n_filling] = 1
 
     # Convolution with beam step current
-#    conv = np.matrix(np.zeros(shape=(n_fit+n_filling-1, n_taps)), dtype=np.float64)
     conv = np.zeros(shape=(n_fit+n_filling-1, n_taps), dtype=np.float64)
     for i in range(n_taps):
         conv[i+n_filling, 0:i] = 1
@@ -332,17 +352,12 @@ def feedforward_filter(TWC: TravellingWaveCavity, T_s, debug=False, taps=None,
         print(conv)
         print("\n\n")
 
-
     # Impulse response from cavity towards beam
-#    TWC.tau = (n_filling + 0.5)*T_s
     time_array = np.linspace(0, n_fit*T_s, num=n_fit) - TWC.tau/2
-#    time_array = np.linspace(-n_filling/2*T_s, n_fit*T_s-n_filling/2*T_s, num=n_fit)
     TWC.impulse_response_beam(TWC.omega_r, time_array)
     h_beam_real = TWC.h_beam.real/TWC.R_beam*TWC.tau
-#    h_beam_real = np.zeros(n_fit)
-#    h_beam_real[0:14] = np.linspace(2,0,num=14)
-#    h_beam_real[0] = 1
-    print(h_beam_real)
+
+    # Even and odd parts of impulse response
     h_beam_even = np.zeros(n_fit)
     h_beam_odd = np.zeros(n_fit)
     if n_filling % 2 == 0:
@@ -359,24 +374,19 @@ def feedforward_filter(TWC: TravellingWaveCavity, T_s, debug=False, taps=None,
         h_beam_even[:n_c] = 0.5*(h_beam_real[1:n_c+1])[::-1]
         h_beam_odd[n_c:] = 0.5*h_beam_real[1:n_c+1]
         h_beam_odd[:n_c] = 0.5*(-h_beam_real[1:n_c+1])[::-1]
-    print(n_c)
 
+    # Beam current step for step response
     I_beam_step = np.ones(n_fit)
-#    I_beam_step = np.zeros(n_fit)
-#    I_beam_step[int(n_filling/2):int(n_filling/2)+n_taps] = 1
-#    I_beam_step[0:n_filling] = 1
-#    I_beam_step[int(n_filling/2):] = 1
-#    I_beam_step[1:] = 1
-    I_beam_step[0] = 0 #0.5
-    I_beam_step[1] = 0.5 #0.5
+    I_beam_step[0] = 0
+    I_beam_step[1] = 0.5
 
+    # Even and odd parts of induced voltage
     V_beam_even = sgn.fftconvolve(I_beam_step, h_beam_even, mode='full')[:I_beam_step.shape[0]]
     V_beam_odd = sgn.fftconvolve(I_beam_step, h_beam_odd, mode='full')[:I_beam_step.shape[0]]
-    # Normalised respons
+    # Normalised response
     norm = np.max(V_beam_even)
     V_beam_even /= norm
     V_beam_odd /= norm
-#    print(h_beam_even)
 
     if debug:
         plt.rc('lines', linewidth=0.5, markersize=3)
@@ -398,37 +408,13 @@ def feedforward_filter(TWC: TravellingWaveCavity, T_s, debug=False, taps=None,
         plt.xlabel("Samples [1]")
         plt.legend()
 
-#    h_ff_even_old = even * (even.T * conv.T * resp.T * resp * conv * even).I * \
-#        even.T * conv.T * resp.T * V_beam_even
-
-    print(V_beam_even.shape)
-
-#    V_beam_even = np.matrix(V_beam_even).transpose()
-#    V_beam_even = np.ndarray(V_beam_even, shape=(1,len(V_beam_even)))
-#    V_beam_even[:7] = 0
-    print(V_beam_even)
-    print(V_beam_even.shape)
-#    print((resp*conv*even).shape)
-#    h_ff_even = even * (resp * conv * even).I * V_beam_even
-    print((resp @ conv @ even).shape)
+    # FIR filter even and odd parts
     h_ff_even = even @ np.linalg.pinv(resp @ conv @ even) @ V_beam_even
-#    h_ff_even = (resp * conv).I * V_beam_even
-
-
-#    V_beam_odd = np.matrix(V_beam_odd).transpose()
-#    h_ff_odd_old = odd * (odd.T * conv.T * resp.T * resp * conv * odd).I * \
-#        odd.T * conv.T * resp.T * V_beam_odd
-
-#    h_ff_odd = odd * (resp * conv * odd).I * V_beam_odd
     h_ff_odd = odd @ np.linalg.pinv(resp @ conv @ odd) @ V_beam_odd
-#    h_ff_odd = (resp*conv).I * V_beam_odd
-
 
     if debug:
         plt.figure("FF filter")
         plt.plot(h_ff_even, 'bo-', label='even')
-#        plt.plot(h_ff_even_2, 'yo-', label='even')
-#        plt.plot(h_ff_even_id, color='grey', label='ideal')
         plt.plot(h_ff_odd, 'ro-', label='odd')
         plt.plot(h_ff_even+h_ff_odd, 'go-', label='total')
         plt.axhline(0, color='grey', alpha=0.5)
@@ -436,8 +422,6 @@ def feedforward_filter(TWC: TravellingWaveCavity, T_s, debug=False, taps=None,
         plt.legend()
 
         # Reconstructed signal
-#        V_even = np.matmul(resp, np.matmul(conv, h_ff_even))
-#        V_odd = np.matmul(resp, np.matmul(conv, h_ff_odd))
         V_even = resp @ conv @ h_ff_even
         V_odd = resp @ conv @ h_ff_odd
 
@@ -450,11 +434,44 @@ def feedforward_filter(TWC: TravellingWaveCavity, T_s, debug=False, taps=None,
         plt.legend()
         plt.show()
 
-#    h_ff = np.array((h_ff_even + h_ff_odd).T)[0]
-
+    # Return with or without optional output
     if opt_output:
         return h_ff_even + h_ff_odd, n_taps, n_filling, n_fit
     else:
         return h_ff_even + h_ff_odd
 
 
+feedforward_filter_TWC3 = np.array(
+    [-0.0070484734, 0.0161859736, 0.0020289928, 0.0020289928,
+      0.0020289928, -0.0071641302, -0.0162319424, -0.0070388194,
+      0.0020289928, 0.0020289928, 0.0020289928, - 0.0050718734,
+      0.0065971343, 0.0030434892, 0.0030434892, 0.0030434892,
+      0.0030434892, 0.0030434892, -0.0004807475, 0.011136476,
+      0.0040579856, 0.0040579856, 0.0040579856, 0.0132511086,
+      0.019651364, 0.0074147518, -0.0020289928, -0.0020289928,
+     -0.0020289928, -0.0162307252, 0.0071072903])
+
+feedforward_filter_TWC4 = np.array(
+    [0.0048142895, 0.0035544775, 0.0011144336, 0.0011144336,
+     0.0011144336, -0.0056984584, -0.0122587698, -0.0054458778,
+     0.0011144336, 0.0011144336, 0.0011144336, -0.0001684528,
+     -0.000662115, 0.0016716504, 0.0016716504, 0.0016716504,
+     0.0016716504, 0.0016716504, 0.0016716504, 0.0016716504,
+     0.0016716504, 0.0016716504, 0.0016716504, 0.0016716504,
+     0.0040787952, 0.0034488892, 0.0022288672, 0.0022288672,
+     0.0022288672, 0.0090417593, 0.0146881621, 0.0062036196,
+     -0.0011144336, -0.0011144336, -0.0011144336, -0.0036802064,
+     -0.0046675309])
+
+feedforward_filter_TWC5 = np.array(
+    [0.0189205535, -0.0105637125, 0.0007262783, 0.0007262783,
+     0.0006531768, -0.0105310359, -0.0104579343, 0.0007262783,
+     0.0007262783, 0.0007262783, 0.0063272331, -0.0083221785,
+     0.0010894175, 0.0010894175, 0.0010894175, 0.0010894175,
+     0.0010894175, 0.0010894175, 0.0010894175, 0.0010894175,
+     0.0010894175, 0.0010894175, 0.0010894175, 0.0010894175,
+     0.0010894175, 0.0010894175, 0.0010894175, 0.0010894175,
+     0.0010894175, 0.0010894175, 0.0010894175, 0.0105496942,
+     -0.0041924387, 0.0014525567, 0.0014525567, 0.0013063535,
+     0.0114011487, 0.0104579343, -0.0007262783, -0.0007262783,
+     -0.0007262783, 0.0104756312, -0.018823192])

@@ -82,7 +82,7 @@ profile.track()
 if CLOSED_LOOP:
     logging.info("...... CLOSED LOOP test")
     Commissioning = CavityFeedbackCommissioning(debug=True, open_loop=False,
-                                                open_FB=False, open_drive=False)
+        open_FB=False, open_drive=False, open_FF=True)
     OTFB = SPSCavityFeedback(rf, beam, profile, G_llrf=5, G_tx=0.5,
                              a_comb=15/16, turns=50, post_LS2=False,
                              Commissioning=Commissioning)
@@ -90,7 +90,7 @@ if CLOSED_LOOP:
 if OPEN_LOOP:
     logging.info("...... OPEN LOOP test")
     Commissioning = CavityFeedbackCommissioning(debug=True, open_loop=True,
-                                                open_FB=False, open_drive=True)
+        open_FB=False, open_drive=True, open_FF=True)
     OTFB = SPSCavityFeedback(rf, beam, profile, G_llrf=5, G_tx=0.5,
                              a_comb=15/16, turns=50, post_LS2=False,
                              Commissioning=Commissioning)
@@ -98,7 +98,7 @@ if OPEN_LOOP:
 if OPEN_FB:
     logging.info("...... OPEN FEEDBACK test")
     Commissioning = CavityFeedbackCommissioning(debug=True, open_loop=False,
-                                                open_FB=True, open_drive=False)
+        open_FB=True, open_drive=False, open_FF=True)
     OTFB = SPSCavityFeedback(rf, beam, profile, G_llrf=5, G_tx=0.5,
                              a_comb=15/16, turns=50, post_LS2=False,
                              Commissioning=Commissioning)
