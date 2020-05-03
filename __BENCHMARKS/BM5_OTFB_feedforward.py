@@ -20,8 +20,12 @@ import logging
 import os
 
 from blond.toolbox.logger import Logger
+from blond.input_parameters.ring import Ring
+from blond.input_parameters.rf_parameters import RFStation
+from blond.beam.beam import Beam, Proton
 from blond.llrf.impulse_response import SPS3Section200MHzTWC, SPS4Section200MHzTWC, SPS5Section200MHzTWC
 from blond.llrf.signal_processing import feedforward_filter
+
 
 # CERN SPS --------------------------------------------------------------------
 # Machine and RF parameters
@@ -58,28 +62,46 @@ colors = jet(np.linspace(0,1,N_t))
 # Logger for messages on console & in file
 Logger(debug=True)
 
+np.set_printoptions(linewidth=70, precision=10)
 
+# Set up machine parameters
+ring = Ring(C, alpha, p_s, Particle=Proton(), n_turns=N_t)
+logging.info("...... Machine parameters set!")
+
+# Set up RF parameters
+rf = RFStation(ring, h, V, phi, n_rf=1)
+logging.info("...... RF parameters set!")
+T_s = bunch_spacing*rf.t_rf[0,0]
+logging.info("RF period %.6e s", rf.t_rf[0,0])
+logging.info("Sampling period %.6e s", T_s)
 
 
 if FILTER_DESIGN:
 
     logging.info("...... Filter design test")
-    logging.info("3-section cavity with modified filling time")
+    logging.info("3-section cavity filter design with modified filling time"+
+                 " and fixed n_taps")
     TWC = SPS3Section200MHzTWC()
     TWC.tau = 420e-9
-#    FF_3 = feedforward_filter(TWC3, 25e-9, debug=True)
-    #FF_3 = feedforward_filter(TWC3, 1/31.25e6, debug=True)
     filter, n_taps, n_filling, n_fit = feedforward_filter(TWC, 4/125*1e-6,
         debug=True, taps=31, opt_output=True)
-    np.set_printoptions(linewidth=70, precision=10)
+#    print(filter)
+
+    logging.info("3-section cavity filter design")
+    TWC_3 = SPS3Section200MHzTWC()
+    filter = feedforward_filter(TWC_3, T_s, debug=True)
+#    print(filter)
+
+    logging.info("4-section cavity filter design")
+    TWC_4 = SPS4Section200MHzTWC()
+    filter = feedforward_filter(TWC_4, T_s, debug=True)
+#    print(filter)
+
+    logging.info("5-section cavity filter design")
+    TWC_5 = SPS5Section200MHzTWC()
+    filter = feedforward_filter(TWC_5, T_s, debug=True)
     print(filter)
 
-
-#    TWC4 = SPS4Section200MHzTWC()
-#    FF_4 = feedforward_filter(TWC4, 25e-9, debug=True)
-
-#    TWC5 = SPS5Section200MHzTWC()
-#    FF_5 = feedforward_filter(TWC5, 25e-9, debug=True)
 
 
 logging.info("")

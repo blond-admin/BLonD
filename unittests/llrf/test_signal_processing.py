@@ -512,6 +512,14 @@ class TestMovingAverage(unittest.TestCase):
 
 class TestFeedforwardFilter(unittest.TestCase):
 
+    # Run before every test
+    def setUp(self):
+
+        # Ring and RF definitions
+        ring = Ring(2*np.pi*1100.009, 1/18**2, 25.92e9, Particle=Proton())
+        rf = RFStation(ring, [4620], [4.5e6], [0.], n_rf=1)
+        self.T_s = 5*rf.t_rf[0, 0]
+
     def test_1(self):
 
         # Modified filling time to match reference case
@@ -538,6 +546,94 @@ class TestFeedforwardFilter(unittest.TestCase):
 
         np.testing.assert_allclose(filter, filter_ref, rtol=1e-8, atol=1e-9,
             err_msg="In TestFeedforwardFilter, test_1: filter array incorrect")
+
+        del TWC
+
+    def test_2(self):
+
+        TWC = SPS3Section200MHzTWC()
+        filter, n_taps, n_filling, n_fit = feedforward_filter(TWC, self.T_s,
+            debug=False, opt_output=True)
+        self.assertEqual(n_taps, 31,
+            msg="In TestFeedforwardFilter, test_2: n_taps incorrect")
+        self.assertEqual(n_filling, 18,
+            msg="In TestFeedforwardFilter, test_2: n_filling incorrect")
+        self.assertEqual(n_fit, 49,
+            msg="In TestFeedforwardFilter, test_2: n_fit incorrect")
+
+        filter_ref = np.array(
+            [-0.0070484734, 0.0161859736, 0.0020289928, 0.0020289928,
+              0.0020289928, -0.0071641302, -0.0162319424, -0.0070388194,
+              0.0020289928, 0.0020289928, 0.0020289928, - 0.0050718734,
+              0.0065971343, 0.0030434892, 0.0030434892, 0.0030434892,
+              0.0030434892, 0.0030434892, -0.0004807475, 0.011136476,
+              0.0040579856, 0.0040579856, 0.0040579856, 0.0132511086,
+              0.019651364, 0.0074147518, -0.0020289928, -0.0020289928,
+             -0.0020289928, -0.0162307252, 0.0071072903])
+
+        np.testing.assert_allclose(filter, filter_ref, rtol=1e-8, atol=1e-9,
+            err_msg="In TestFeedforwardFilter, test_2: filter array incorrect")
+
+        del TWC
+
+    def test_3(self):
+
+        TWC = SPS4Section200MHzTWC()
+        filter, n_taps, n_filling, n_fit = feedforward_filter(TWC, self.T_s,
+            debug=False, opt_output=True)
+        self.assertEqual(n_taps, 37,
+            msg="In TestFeedforwardFilter, test_3: n_taps incorrect")
+        self.assertEqual(n_filling, 24,
+            msg="In TestFeedforwardFilter, test_3: n_filling incorrect")
+        self.assertEqual(n_fit, 61,
+            msg="In TestFeedforwardFilter, test_3: n_fit incorrect")
+
+        filter_ref = np.array(
+            [ 0.0048142895, 0.0035544775, 0.0011144336, 0.0011144336,
+              0.0011144336, -0.0056984584, -0.0122587698, -0.0054458778,
+              0.0011144336, 0.0011144336, 0.0011144336, -0.0001684528,
+             -0.000662115, 0.0016716504, 0.0016716504, 0.0016716504,
+              0.0016716504, 0.0016716504, 0.0016716504, 0.0016716504,
+              0.0016716504, 0.0016716504, 0.0016716504, 0.0016716504,
+              0.0040787952, 0.0034488892, 0.0022288672, 0.0022288672,
+              0.0022288672, 0.0090417593, 0.0146881621, 0.0062036196,
+             -0.0011144336, -0.0011144336, -0.0011144336, -0.0036802064,
+             -0.0046675309])
+
+        np.testing.assert_allclose(filter, filter_ref, rtol=1e-8, atol=1e-9,
+            err_msg="In TestFeedforwardFilter, test_3: filter array incorrect")
+
+        del TWC
+
+    def test_4(self):
+
+        TWC = SPS5Section200MHzTWC()
+        filter, n_taps, n_filling, n_fit = feedforward_filter(TWC, self.T_s,
+            debug=False, opt_output=True)
+        self.assertEqual(n_taps, 43,
+            msg="In TestFeedforwardFilter, test_4: n_taps incorrect")
+        self.assertEqual(n_filling, 31,
+            msg="In TestFeedforwardFilter, test_4: n_filling incorrect")
+        self.assertEqual(n_fit, 74,
+            msg="In TestFeedforwardFilter, test_4: n_fit incorrect")
+
+        filter_ref = np.array(
+            [ 0.0189205535, -0.0105637125, 0.0007262783, 0.0007262783,
+              0.0006531768, -0.0105310359, -0.0104579343, 0.0007262783,
+              0.0007262783, 0.0007262783, 0.0063272331, -0.0083221785,
+              0.0010894175, 0.0010894175, 0.0010894175, 0.0010894175,
+              0.0010894175, 0.0010894175, 0.0010894175, 0.0010894175,
+              0.0010894175, 0.0010894175, 0.0010894175, 0.0010894175,
+              0.0010894175, 0.0010894175, 0.0010894175, 0.0010894175,
+              0.0010894175, 0.0010894175, 0.0010894175, 0.0105496942,
+             -0.0041924387, 0.0014525567, 0.0014525567, 0.0013063535,
+              0.0114011487, 0.0104579343, -0.0007262783, -0.0007262783,
+             -0.0007262783, 0.0104756312, -0.018823192])
+
+        np.testing.assert_allclose(filter, filter_ref, rtol=1e-8, atol=1e-9,
+            err_msg="In TestFeedforwardFilter, test_4: filter array incorrect")
+
+        del TWC
 
     #    TWC4 = SPS4Section200MHzTWC()
     #    FF_4 = feedforward_filter(TWC4, 25e-9, debug=True)

@@ -436,8 +436,10 @@ def feedforward_filter(TWC: TravellingWaveCavity, T_s, debug=False, taps=None,
         plt.legend()
 
         # Reconstructed signal
-        V_even = np.matmul(resp, np.matmul(conv, h_ff_even))
-        V_odd = np.matmul(resp, np.matmul(conv, h_ff_odd))
+#        V_even = np.matmul(resp, np.matmul(conv, h_ff_even))
+#        V_odd = np.matmul(resp, np.matmul(conv, h_ff_odd))
+        V_even = resp @ conv @ h_ff_even
+        V_odd = resp @ conv @ h_ff_odd
 
         plt.figure("Reconstructed signal")
         plt.plot(V_even, 'bo-', label='even')
