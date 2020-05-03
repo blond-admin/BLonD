@@ -257,3 +257,18 @@ covers the entire turn,
 .. math::
 
     V_\mathsf{ant} = V_\mathsf{ind,gen} + V_\mathsf{ind,beam} \, .
+
+
+Feed-forward
+~~~~~~~~~~~~
+
+Optionally, an n-tap FIR filter can be activated as feed-forward on the beam-induced voltage calculation. The
+feed-forward is used in open loop, to correct the generator current in the next turn based on the beam-induced
+voltage measured in the current turn. The ideal feed-forward filter :math:`H_\mathsf{FF}` would perfectly compensate the
+beam loading if
+
+.. math::
+    Z_\mathsf{gen}(f) H_\mathsf{FF}(f) = - Z_\mathsf{beam}(f) \, .
+
+The FIR filters for the 3-, 4-, 5-section cavities are designed by minimising the error between these two quantities,
+using the least-squares method and the FIR filter coefficients can be found in :mod:`blond.llrf.signal_processing`.

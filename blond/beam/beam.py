@@ -472,7 +472,7 @@ class Beam(object):
     def gather_losses(self, all=False):
         '''
         MPI ONLY ROUTINE: Gather beam losses.
-        
+
         Parameters
         ----------
         all : boolean
