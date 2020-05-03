@@ -274,9 +274,9 @@ def feedforward_filter(TWC: TravellingWaveCavity, T_s, debug=False, taps=None,
                        opt_output=False):
 
     # TEMP!!
-    TWC.tau=420e-9
-    print(TWC.tau)
-    print(T_s)
+#    TWC.tau=420e-9
+#    print(TWC.tau)
+#    print(T_s)
 
     # Filling time in samples
     n_filling = int(TWC.tau/T_s)
@@ -295,23 +295,27 @@ def feedforward_filter(TWC: TravellingWaveCavity, T_s, debug=False, taps=None,
     logger.debug("Fitting samples: %d", n_fit)
 
     # Even-symmetric feed-forward filter matrix
-    even = np.matrix(np.zeros(shape=(n_taps,n_taps_2)), dtype=np.float64)
+#    even = np.matrix(np.zeros(shape=(n_taps,n_taps_2)), dtype=np.float64)
+    even = np.zeros(shape=(n_taps,n_taps_2), dtype=np.float64)
     for i in range(n_taps):
         even[i,abs(n_taps_2-i-1)] = 1
 
     # Odd-symmetric feed-forward filter matrix
-    odd = np.matrix(np.zeros(shape=(n_taps, n_taps_2-1)), dtype=np.float64)
+#    odd = np.matrix(np.zeros(shape=(n_taps, n_taps_2-1)), dtype=np.float64)
+    odd = np.zeros(shape=(n_taps, n_taps_2-1), dtype=np.float64)
     for i in range(n_taps_2-1):
         odd[i,abs(n_taps_2-i-2)] = -1
         odd[n_taps-i-1, abs(n_taps_2 - i - 2)] = 1
 
     # Generator-cavity response matrix: non-zero during filling time
-    resp = np.matrix(np.zeros(shape=(n_fit, n_fit+n_filling-1)), dtype=np.float64)
+#    resp = np.matrix(np.zeros(shape=(n_fit, n_fit+n_filling-1)), dtype=np.float64)
+    resp = np.zeros(shape=(n_fit, n_fit+n_filling-1), dtype=np.float64)
     for i in range(n_fit):
         resp[i,i:i+n_filling] = 1
 
     # Convolution with beam step current
-    conv = np.matrix(np.zeros(shape=(n_fit+n_filling-1, n_taps)), dtype=np.float64)
+#    conv = np.matrix(np.zeros(shape=(n_fit+n_filling-1, n_taps)), dtype=np.float64)
+    conv = np.zeros(shape=(n_fit+n_filling-1, n_taps), dtype=np.float64)
     for i in range(n_taps):
         conv[i+n_filling, 0:i] = 1
     conv[n_taps+n_filling:, :] = 1
@@ -394,86 +398,29 @@ def feedforward_filter(TWC: TravellingWaveCavity, T_s, debug=False, taps=None,
         plt.xlabel("Samples [1]")
         plt.legend()
 
-#    temp_1 = even.transpose() @ conv.transpose() @ resp.transpose()
-#    temp_2 = resp @ conv @ even
-#    temp_4 = temp_1 @ temp_2
-#    temp_3 = np.linalg.inv(temp_4/np.max(temp_4))/np.max(temp_4)
-
-#    print(temp_1)
-#    print(temp_2)
-#    print(temp_4)
-#    print(temp_3)
-#    print("\n \n \n ")
-#    print(temp_3 @ temp_4)
-#    print(temp_3.shape)
-#    print(temp_4.shape)
-#    print((temp_3 @ temp_4).shape)
-
-#    print("")
-#    print(even.shape)
-#    print(conv.shape)
-#    print(resp.shape)
-#    print("")
-#    print(temp_1.shape)
-#    print(temp_2.shape)
-#    print(temp_3.shape)
-
-#    h_ff_even = np.matmul(even, np.matmul(temp_3, np.matmul(temp_1, V_beam_even)))
-#    h_ff_even = even @ temp_3 @ temp_1 @ V_beam_even
-
-#    weight = np.identity(n_fit)
-#    h_ff_even = even @ np.linalg.inv(even.transpose() @ conv.transpose() @
-#                                     resp.transpose() @ weight @ resp @ conv @ even) @ \
-#        even.transpose() @ conv.transpose() @ resp.transpose() @ weight @ V_beam_even
-
-
-#    weight = np.matrix(np.zeros(shape=(n_fit, n_fit)))
-#    for i in range(20):
-#        weight[i,i] = 1
-
 #    h_ff_even_old = even * (even.T * conv.T * resp.T * resp * conv * even).I * \
 #        even.T * conv.T * resp.T * V_beam_even
 
-    V_beam_even = np.matrix(V_beam_even).transpose()
+    print(V_beam_even.shape)
+
+#    V_beam_even = np.matrix(V_beam_even).transpose()
+#    V_beam_even = np.ndarray(V_beam_even, shape=(1,len(V_beam_even)))
 #    V_beam_even[:7] = 0
     print(V_beam_even)
     print(V_beam_even.shape)
-    print((resp*conv*even).shape)
-    h_ff_even = even * (resp * conv * even).I * V_beam_even
+#    print((resp*conv*even).shape)
+#    h_ff_even = even * (resp * conv * even).I * V_beam_even
+    print((resp @ conv @ even).shape)
+    h_ff_even = even @ np.linalg.pinv(resp @ conv @ even) @ V_beam_even
 #    h_ff_even = (resp * conv).I * V_beam_even
 
-#    h_ff_even_2, residuals, rank, singular_vals = np.linalg.lstsq(resp*conv*even, V_beam_even, rcond=None)
-#    h_ff_even_2 = even*h_ff_even_2
-#    print(h_ff_even_2)
-#    print(h_ff_even_2.shape)
 
-
-#    print(h_ff_even.shape)
-#    print((even.T * conv.T * resp.T * resp * conv * even))
-#    print((even.T * conv.T * resp.T * resp * conv * even).I * (even.T * conv.T * resp.T * resp * conv * even))
-
-    # TEMPORARY
-#    h_ff_even_id = np.copy(h_ff_even)
-#    h_ff_even_id[0:8] = 0
-#    h_ff_even_id[8] = 0.0008
-#    h_ff_even_id[9] = 0.0052
-#    h_ff_even_id[10:-10] = 0.0058
-#    h_ff_even_id[-10] = 0.0052
-#    h_ff_even_id[-9] = 0.0008
-#    h_ff_even_id[-8:] = 0
-
-#    temp_1 = np.matmul(odd.transpose(),
-#                       np.matmul(conv.transpose(), resp.transpose()))
-#    temp_2 = np.matmul(resp, np.matmul(conv, odd))
-#    temp_3 = np.linalg.inv(np.matmul(temp_1, temp_2))
-
-
-    V_beam_odd = np.matrix(V_beam_odd).transpose()
-#    h_ff_odd = np.matmul(odd, np.matmul(temp_3, np.matmul(temp_1, V_beam_odd)))
+#    V_beam_odd = np.matrix(V_beam_odd).transpose()
 #    h_ff_odd_old = odd * (odd.T * conv.T * resp.T * resp * conv * odd).I * \
 #        odd.T * conv.T * resp.T * V_beam_odd
 
-    h_ff_odd = odd * (resp * conv * odd).I * V_beam_odd
+#    h_ff_odd = odd * (resp * conv * odd).I * V_beam_odd
+    h_ff_odd = odd @ np.linalg.pinv(resp @ conv @ odd) @ V_beam_odd
 #    h_ff_odd = (resp*conv).I * V_beam_odd
 
 
@@ -501,11 +448,11 @@ def feedforward_filter(TWC: TravellingWaveCavity, T_s, debug=False, taps=None,
         plt.legend()
         plt.show()
 
-    h_ff = np.array((h_ff_even + h_ff_odd).T)[0]
+#    h_ff = np.array((h_ff_even + h_ff_odd).T)[0]
 
     if opt_output:
-        return h_ff, n_taps, n_filling, n_fit
+        return h_ff_even + h_ff_odd, n_taps, n_filling, n_fit
     else:
-        return h_ff
+        return h_ff_even + h_ff_odd
 
 
