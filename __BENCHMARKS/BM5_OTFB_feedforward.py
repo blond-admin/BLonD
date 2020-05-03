@@ -64,10 +64,16 @@ Logger(debug=True)
 if FILTER_DESIGN:
 
     logging.info("...... Filter design test")
-    TWC3 = SPS3Section200MHzTWC()
+    logging.info("3-section cavity with modified filling time")
+    TWC = SPS3Section200MHzTWC()
+    TWC.tau = 420e-9
 #    FF_3 = feedforward_filter(TWC3, 25e-9, debug=True)
     #FF_3 = feedforward_filter(TWC3, 1/31.25e6, debug=True)
-    FF_3 = feedforward_filter(TWC3, 4/125*1e-6, debug=True)
+    filter, n_taps, n_filling, n_fit = feedforward_filter(TWC, 4/125*1e-6,
+        debug=True, taps=31, opt_output=True)
+    np.set_printoptions(linewidth=70, precision=10)
+    print(filter)
+
 
 #    TWC4 = SPS4Section200MHzTWC()
 #    FF_4 = feedforward_filter(TWC4, 25e-9, debug=True)

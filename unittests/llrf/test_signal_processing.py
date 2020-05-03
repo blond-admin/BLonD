@@ -20,7 +20,10 @@ from scipy.constants import e
 from blond.llrf.signal_processing import moving_average, modulator
 from blond.llrf.signal_processing import polar_to_cartesian, cartesian_to_polar
 from blond.llrf.signal_processing import comb_filter, low_pass_filter
-from blond.llrf.signal_processing import rf_beam_current
+from blond.llrf.signal_processing import rf_beam_current, feedforward_filter
+
+from blond.llrf.impulse_response import SPS3Section200MHzTWC, \
+    SPS4Section200MHzTWC, SPS5Section200MHzTWC
 
 from blond.input_parameters.ring import Ring
 from blond.beam.beam import Beam, Proton
@@ -505,6 +508,42 @@ class TestMovingAverage(unittest.TestCase):
         self.assertSequenceEqual(self.y.tolist(),
             np.array([1, 2, 3, 4, 3, 2, 3, 4, 3], dtype=float).tolist(),
             msg="In TestMovingAverage, test_3: arrays differ")
+
+
+class TestFeedforwardFilter(unittest.TestCase):
+
+    def test_1(self):
+
+        # Modified filling time to match reference case
+        TWC = SPS3Section200MHzTWC()
+        TWC.tau = 420e-9
+        filter, n_taps, n_filling, n_fit = feedforward_filter(TWC, 4/125*1e-6,
+            debug=False, taps=31, opt_output=True)
+        self.assertEqual(n_taps, 31,
+            msg="In TestFeedforwardFilter, test_1: n_taps incorrect")
+        self.assertEqual(n_filling, 13,
+            msg="In TestFeedforwardFilter, test_1: n_filling incorrect")
+        self.assertEqual(n_fit, 44,
+            msg="In TestFeedforwardFilter, test_1: n_fit incorrect")
+
+        filter_ref = np.array(
+            [-0.0227533635, 0.0211514102, 0.0032929202, -0.0026111554,
+              0.0119559316, 0.0043905603, 0.0043905603, 0.0040101282,
+             -0.0241480816, -0.0237676496, 0.0043905603, 0.0043905603,
+              0.0043905603, -0.0107783487, 0.0184915005, 0.0065858404,
+             -0.0052223108, 0.0239118633, 0.0087811206, 0.0087811206,
+              0.0080202564, 0.0295926259, 0.0237676496, -0.0043905603,
+             -0.0043905603, -0.0043905603, -0.0119750148, 0.0026599098,
+             -0.0032929202, -0.021005147,  0.022696114])
+
+        np.testing.assert_allclose(filter, filter_ref, rtol=1e-8, atol=1e-9,
+            err_msg="In TestFeedforwardFilter, test_1: filter array incorrect")
+
+    #    TWC4 = SPS4Section200MHzTWC()
+    #    FF_4 = feedforward_filter(TWC4, 25e-9, debug=True)
+
+    #    TWC5 = SPS5Section200MHzTWC()
+    #    FF_5 = feedforward_filter(TWC5, 25e-9, debug=True)
 
 
 if __name__ == '__main__':

@@ -270,7 +270,8 @@ def moving_average(x, N, x_prev=None):
     return mov_avg[N-1:] / N
 
 
-def feedforward_filter(TWC: TravellingWaveCavity, T_s, debug=False):
+def feedforward_filter(TWC: TravellingWaveCavity, T_s, debug=False, taps=None,
+                       opt_output=False):
 
     # TEMP!!
     TWC.tau=420e-9
@@ -281,7 +282,10 @@ def feedforward_filter(TWC: TravellingWaveCavity, T_s, debug=False):
     n_filling = int(TWC.tau/T_s)
     logger.debug("Filling time in samples: %d", n_filling)
     # Number of FIR filter taps
-    n_taps = 31 #2*int(0.5*n_filling) + 13 #31
+    if taps is not None:
+        n_taps = taps
+    else:
+        n_taps = 2*int(0.5*n_filling) + 13 #31
     n_taps_2 = int(0.5*(n_taps+1))
     if n_taps % 2 == 0:
         raise RuntimeError("Number of taps in feedforward filter must be odd!")
@@ -497,6 +501,11 @@ def feedforward_filter(TWC: TravellingWaveCavity, T_s, debug=False):
         plt.legend()
         plt.show()
 
-    return h_ff_even + h_ff_odd
+    h_ff = np.array((h_ff_even + h_ff_odd).T)[0]
+
+    if opt_output:
+        return h_ff, n_taps, n_filling, n_fit
+    else:
+        return h_ff
 
 
