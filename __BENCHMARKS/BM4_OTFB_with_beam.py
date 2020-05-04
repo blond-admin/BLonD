@@ -41,7 +41,7 @@ V = [4.5e6]                 # 200 MHz RF voltage
 phi = [0.]                  # 200 MHz RF phase
 
 # Beam and tracking parameters
-N_m = 1e5                   # Number of macro-particles per bunch for tracking
+N_m = 1e4                   # Number of macro-particles per bunch for tracking
 N_b = 1.e11                 # Bunch intensity [ppb]
 N_t = 25                    # Number of turns to track
 N_pretrack = 25             # Number of turns to pre-track

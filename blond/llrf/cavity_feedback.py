@@ -30,6 +30,7 @@ from ..llrf.signal_processing import feedforward_filter_TWC3, \
 from ..utils import bmath as bm
 from ..beam.profile import Profile, CutOptions
 
+
 class CavityFeedbackCommissioning(object):
 
     def __init__(self, debug=False, open_loop=False, open_FB=False,
@@ -112,7 +113,7 @@ class SPSCavityFeedback(object):
 
     """
 
-    def __init__(self, RFStation, Beam, Profile, G_llrf=10, G_tx=0.5,
+    def __init__(self, RFStation, Beam, Profile, G_ff=1, G_llrf=10, G_tx=0.5,
                  a_comb=15/16, turns=1000, post_LS2=True, V_part=None,
                  Commissioning=CavityFeedbackCommissioning()):
 
@@ -121,7 +122,14 @@ class SPSCavityFeedback(object):
 
         self.rf = RFStation
 
-        # Parse input for G_llrf
+        # Parse input for gains
+        if type(G_llrf) is list:
+            G_ff_1 = G_ff[0]
+            G_ff_2 = G_ff[1]
+        else:
+            G_ff_1 = G_ff
+            G_ff_2 = G_ff
+
         if type(G_llrf) is list:
             G_llrf_1 = G_llrf[0]
             G_llrf_2 = G_llrf[1]
@@ -146,12 +154,14 @@ class SPSCavityFeedback(object):
                 V_part = 6/10
             self.OTFB_1 = SPSOneTurnFeedback(RFStation, Beam, Profile, 3,
                                              n_cavities=4, V_part=V_part,
+                                             G_ff=float(G_ff_1),
                                              G_llrf=float(G_llrf_1),
                                              G_tx=float(G_tx_1),
                                              a_comb=float(a_comb),
                                              Commissioning=self.Commissioning)
             self.OTFB_2 = SPSOneTurnFeedback(RFStation, Beam, Profile, 4,
                                              n_cavities=2, V_part=1-V_part,
+                                             G_ff=float(G_ff_2),
                                              G_llrf=float(G_llrf_2),
                                              G_tx=float(G_tx_2),
                                              a_comb=float(a_comb),
@@ -161,12 +171,14 @@ class SPSCavityFeedback(object):
                 V_part = 4/9
             self.OTFB_1 = SPSOneTurnFeedback(RFStation, Beam, Profile, 4,
                                              n_cavities=2, V_part=V_part,
+                                             G_ff=float(G_ff_1),
                                              G_llrf=float(G_llrf_1),
                                              G_tx=float(G_tx_1),
                                              a_comb=float(a_comb),
                                              Commissioning=self.Commissioning)
             self.OTFB_2 = SPSOneTurnFeedback(RFStation, Beam, Profile, 5,
                                              n_cavities=2, V_part=1-V_part,
+                                             G_ff=float(G_ff_2),
                                              G_llrf=float(G_llrf_2),
                                              G_tx=float(G_tx_2),
                                              a_comb=float(a_comb),
@@ -316,13 +328,25 @@ class SPSOneTurnFeedback(object):
 
         # Commissioning options
         self.open_loop = Commissioning.open_loop
-        self.logger.debug("Opening overall OTFB loop")
+        if self.open_loop == 0:
+            self.logger.debug("Opening overall OTFB loop")
+        elif self.open_loop == 1:
+            self.logger.debug("Closing overall OTFB loop")
         self.open_FB = Commissioning.open_FB
-        self.logger.debug("Opening feedback of drive correction")
+        if self.open_FB == 0:
+            self.logger.debug("Opening feedback of drive correction")
+        elif self.open_FB == 1:
+            self.logger.debug("Closing feedback of drive correction")
         self.open_drive = Commissioning.open_drive
-        self.logger.debug("Opening drive to generator")
+        if self.open_drive == 0:
+            self.logger.debug("Opening drive to generator")
+        elif self.open_drive == 1:
+            self.logger.debug("Closing drive to generator")
         self.open_FF = Commissioning.open_FF
-        self.logger.debug("Opening feed-forward on beam current")
+        if self.open_FF == 0:
+            self.logger.debug("Opening feed-forward on beam current")
+        elif self.open_FF == 1:
+            self.logger.debug("Closing feed-forward on beam current")
 
         # Read input
         self.rf = RFStation
@@ -345,7 +369,7 @@ class SPSOneTurnFeedback(object):
         # 200 MHz travelling wave cavity (TWC) model
         if n_sections in [3, 4, 5]:
             self.TWC = eval("SPS" + str(n_sections) + "Section200MHzTWC()")
-            if not self.open_FF:
+            if self.open_FF == 1:
                 # Feed-forward filter
                 self.coeff_FF = getattr(sys.modules[__name__],
                     "feedforward_filter_TWC" + str(n_sections))
@@ -388,7 +412,8 @@ class SPSOneTurnFeedback(object):
         self.logger.info("Class initialized")
 
         # Initialise feed-forward; sampled every 5 buckets
-        if not self.open_FF:
+        if self.open_FF == 1:
+            self.logger.debug("Feed-forward active")
             self.n_coarse_FF = int(self.n_coarse/5)
             self.I_beam_coarse_prev = np.zeros(self.n_coarse_FF, dtype=complex)
             self.I_ff_corr = np.zeros(self.n_coarse_FF, dtype=complex)
@@ -431,14 +456,21 @@ class SPSOneTurnFeedback(object):
         self.induced_voltage('beam')
         self.induced_voltage('beam_coarse')
 
-        if not self.open_FF:
+        if self.open_FF == 1:
             # Calculate correction based on previous turn on coarse grid
             for ind in range(self.n_coarse_FF):
-                self.I_ff_corr[ind] = self.coeff_FF[0]*self.I_beam_coarse_prev[ind]
+                self.I_ff_corr[ind] = self.coeff_FF[0]* \
+                                      self.I_beam_coarse_prev[ind]
                 for k in range(self.n_FF):
                     self.I_ff_corr[ind] += self.coeff_FF[k] * \
                                            self.I_beam_coarse_prev[ind-k]
-            self.V_ff_corr = self.matr_conv(self.I_ff_corr, self.TWC.h_gen[::5])
+            self.V_ff_corr = self.G_ff* \
+                self.matr_conv(self.I_ff_corr, self.TWC.h_gen[::5])
+
+            print(self.coeff_FF)
+            print(self.TWC.h_gen[::5])
+            print(self.I_ff_corr)
+            print(self.V_ff_corr)
 
             # Compensate for FIR filter delay
 #            self.dV_ff = np.concatenate(
@@ -451,6 +483,12 @@ class SPSOneTurnFeedback(object):
                 self.rf_centers[::5], self.V_ff_corr)
             self.V_ff_corr_fine = np.interp(self.profile.bin_centers,
                 self.rf_centers[::5], self.V_ff_corr)
+
+            import matplotlib.pyplot as plt
+            plt.figure()
+            plt.plot(self.n_cavities*self.V_ff_corr_coarse, 'bo')
+            plt.plot(self.n_cavities*self.V_coarse_ind_beam, 'ro')
+            plt.show()
 
             # Add to beam-induced voltage (opposite sign)
             self.V_coarse_ind_beam += self.n_cavities*self.V_ff_corr_coarse

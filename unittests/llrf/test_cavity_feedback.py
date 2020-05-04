@@ -87,7 +87,7 @@ class TestCavityFeedback(unittest.TestCase):
         self.OTFB = SPSCavityFeedback(
             self.rf, self.beam, self.profile, G_llrf=5, G_tx=0.5, a_comb=15/16,
             turns=50, post_LS2=False,
-            Commissioning=CavityFeedbackCommissioning())
+            Commissioning=CavityFeedbackCommissioning(open_FF=True))
 
         self.OTFB_tracker = RingAndRFTracker(self.rf, self.beam,
                                              Profile=self.profile,
