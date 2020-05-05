@@ -24,7 +24,8 @@ from blond.input_parameters.rf_parameters import RFStation
 from blond.beam.beam import Beam, Proton
 from blond.beam.distributions import bigaussian
 from blond.beam.profile import Profile, CutOptions
-from blond.llrf.cavity_feedback import SPSOneTurnFeedback
+from blond.llrf.cavity_feedback import SPSOneTurnFeedback, \
+    CavityFeedbackCommissioning
 from blond.llrf.signal_processing import rf_beam_current
 from blond.impedances.impedance_sources import TravelingWaveCavity
 from blond.llrf.impulse_response import SPS3Section200MHzTWC, SPS4Section200MHzTWC
@@ -239,7 +240,8 @@ if FINE_COARSE == True:
         rf.omega_rf[0, 0], ring.t_rev[0], lpf=False,
         downsample={'Ts': rf.t_rev[0]/rf.harmonic[0, 0], 'points': rf.harmonic[0, 0]})
 
-    OTFB = SPSOneTurnFeedback(rf, beam2, profile2, 3, n_cavities=1)
+    OTFB = SPSOneTurnFeedback(rf, beam2, profile2, 3, n_cavities=1,
+        Commissioning=CavityFeedbackCommissioning(open_FF=True))
     V_beam_fine = -OTFB.matr_conv(rf_current_fine, h_beam_fine)
     V_beam_coarse = -OTFB.matr_conv(rf_current_coarse, h_beam_coarse)
     print(len(time_fine), rf_current_fine.shape, V_beam_fine.shape)
@@ -292,9 +294,12 @@ if VIND_BEAM == True:
 
     # One-turn feedback around 3-, 4-, and 5-section cavities
     omega_c = 2*np.pi*f_rf
-    OTFB_3 = SPSOneTurnFeedback(rf, beam, profile, 3)
-    OTFB_4 = SPSOneTurnFeedback(rf, beam, profile, 4)
-    OTFB_5 = SPSOneTurnFeedback(rf, beam, profile, 5)
+    OTFB_3 = SPSOneTurnFeedback(rf, beam, profile, 3,
+        Commissioning=CavityFeedbackCommissioning(open_FF=True))
+    OTFB_4 = SPSOneTurnFeedback(rf, beam, profile, 4,
+        Commissioning=CavityFeedbackCommissioning(open_FF=True))
+    OTFB_5 = SPSOneTurnFeedback(rf, beam, profile, 5,
+        Commissioning=CavityFeedbackCommissioning(open_FF=True))
     OTFB_3.counter = 0 # First turn
     OTFB_4.counter = 0 # First turn
     OTFB_5.counter = 0 # First turn

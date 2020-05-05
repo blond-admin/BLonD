@@ -225,8 +225,9 @@ if FEEDFORWARD:
                            alpha=0.2, color=colors[i])
         fig2.savefig("fig/V_ind_beam_" + "%d" % (i + 1) + ".png")
 
-#        plot_long_phase_space(ring, rf, beam, 0, 5e-9, -2e8, 2e8,
-#                              dirname='fig', alpha=0.5, color=colors[i])
+        # This plot is slow, comment out to speed up
+        plot_long_phase_space(ring, rf, beam, 0, 5e-9, -2e8, 2e8,
+                              dirname='fig', alpha=0.5, color=colors[i])
 
 logging.info("")
 logging.info("Done!")

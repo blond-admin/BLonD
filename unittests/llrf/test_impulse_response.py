@@ -17,14 +17,16 @@ import unittest
 import numpy as np
 from scipy.constants import c
 
-from blond.llrf.impulse_response import rectangle, triangle, SPS4Section200MHzTWC
+from blond.llrf.impulse_response import rectangle, triangle, \
+    SPS4Section200MHzTWC
 from blond.input_parameters.ring import Ring
 from blond.input_parameters.rf_parameters import RFStation
 from blond.beam.beam import Beam, Proton
 from blond.beam.distributions import bigaussian
 from blond.beam.profile import Profile, CutOptions
 from blond.impedances.impedance import InducedVoltageTime, TotalInducedVoltage
-from blond.llrf.cavity_feedback import SPSOneTurnFeedback
+from blond.llrf.cavity_feedback import SPSOneTurnFeedback, \
+    CavityFeedbackCommissioning
 from blond.impedances.impedance_sources import TravelingWaveCavity
 
 
@@ -169,7 +171,8 @@ class TestTravelingWaveCavity(unittest.TestCase):
                                     digit_round)
 
         # Beam loading via feed-back system
-        OTFB_4 = SPSOneTurnFeedback(rf, beam, profile, 4, n_cavities=1)
+        OTFB_4 = SPSOneTurnFeedback(rf, beam, profile, 4, n_cavities=1,
+            Commissioning=CavityFeedbackCommissioning(open_FF=True))
         OTFB_4.counter = 0  # First turn
 
         OTFB_4.omega_c = factor * OTFB_4.TWC.omega_r
@@ -213,7 +216,8 @@ class TestTravelingWaveCavity(unittest.TestCase):
         profile2.track()
 
         # Calculate impulse response and induced voltage
-        OTFB = SPSOneTurnFeedback(rf, beam2, profile2, 3, n_cavities=1)
+        OTFB = SPSOneTurnFeedback(rf, beam2, profile2, 3, n_cavities=1,
+            Commissioning=CavityFeedbackCommissioning(open_FF=True))
         OTFB.TWC.impulse_response_beam(OTFB.omega_c, OTFB.profile.bin_centers,
                                        OTFB.rf_centers)
         OTFB.beam_induced_voltage(lpf=False)

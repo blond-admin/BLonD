@@ -178,8 +178,9 @@ for i in range(N_t):
     ax2_2.fill_between(1e6*profile.bin_centers, 0, 1e-6*OTFB.OTFB_1.V_fine_ind_beam.imag + 1e-6*OTFB.OTFB_2.V_fine_ind_beam.imag, alpha=0.2, color=colors[i])
     fig2.savefig("fig/V_ind_beam_"+"%d"%(i+1)+".png")
 
-#    plot_long_phase_space(ring, rf, beam, 0, 5e-9, -2e8, 2e8,
-#                          dirname='fig', alpha=0.5, color=colors[i])
+    # This plot is slow, comment out to speed up
+    plot_long_phase_space(ring, rf, beam, 0, 5e-9, -2e8, 2e8,
+                          dirname='fig', alpha=0.5, color=colors[i])
 
     
 logging.info("")
