@@ -130,7 +130,7 @@ if FEEDFORWARD:
     profile.track()
     logging.debug("Beam q/m ratio %.3e", profile.Beam.ratio)
 
-    OTFB = SPSCavityFeedback(rf, beam, profile, G_ff=1, G_llrf=5, G_tx=0.5,
+    OTFB = SPSCavityFeedback(rf, beam, profile, G_ff=0.5, G_llrf=5, G_tx=0.5,
         a_comb=15/16, turns=N_pretrack, post_LS2=False,
         Commissioning=CavityFeedbackCommissioning(debug=True, open_FF=False))
 
@@ -158,7 +158,7 @@ if FEEDFORWARD:
     ax1_1.set_ylabel(r"$Re(V_{\mathsf{cav}})$ [MV]")
     ax1_2.set_xlabel(r"Time [$\mu$s]")
     ax1_2.set_ylabel(r"$Im(V_{\mathsf{cav}})$ [MV]")
-    ax1_1.set_ylim((-1, 5))
+    ax1_1.set_ylim((-5, 5))
     ax1_2.set_ylim((0, 7))
     ax1_1.plot(1e6 * profile.bin_centers, 1e-6 * OTFB.V_sum.real, color='grey')
     ax1_1.fill_between(1e6 * profile.bin_centers, 0, 1e-6 * OTFB.V_sum.real,
@@ -180,7 +180,7 @@ if FEEDFORWARD:
     ax2_1.set_ylabel(r"$Re(V_{\mathsf{ind,beam}})$ [MV]")
     ax2_2.set_xlabel(r"Time [$\mu$s]")
     ax2_2.set_ylabel(r"$Im(V_{\mathsf{ind,beam}})$ [MV]")
-    ax2_1.set_ylim((-1, 5))
+    ax2_1.set_ylim((-5, 5))
     ax2_2.set_ylim((-1, 0.4))
 
     OTFB.OTFB_1.V_ind_beam = np.zeros(profile.n_slices)

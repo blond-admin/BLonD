@@ -200,6 +200,7 @@ def rf_beam_current(Profile, omega_c, T_rev, lpf=True, downsample=None):
         for i in range(1, len(indices)):
             charges_coarse[i] = np.sum(charges_fine[np.arange(indices[i-1],
                                                               indices[i])])
+
         return charges_fine, charges_coarse
 
     else:

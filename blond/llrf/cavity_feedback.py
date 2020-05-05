@@ -319,7 +319,7 @@ class SPSOneTurnFeedback(object):
 
     '''
 
-    def __init__(self, RFStation, Beam, Profile_, n_sections, n_cavities=2,
+    def __init__(self, RFStation, Beam, Profile, n_sections, n_cavities=2,
                  V_part=4/9, G_ff=1, G_llrf=10, G_tx=0.5, a_comb=15/16,
                  Commissioning=CavityFeedbackCommissioning()):
 
@@ -351,7 +351,7 @@ class SPSOneTurnFeedback(object):
         # Read input
         self.rf = RFStation
         self.beam = Beam
-        self.profile = Profile_
+        self.profile = Profile
         self.n_cavities = int(n_cavities)
         if self.n_cavities < 1:
             raise RuntimeError("ERROR in SPSOneTurnFeedback: argument" +
@@ -374,7 +374,14 @@ class SPSOneTurnFeedback(object):
                 self.coeff_FF = getattr(sys.modules[__name__],
                     "feedforward_filter_TWC" + str(n_sections))
                 self.n_FF = len(self.coeff_FF)
-#                self.n_FF_delay = int(0.5*(self.n_FF - 1))
+                self.n_FF_delay = int(0.5*(self.n_FF - 1) +
+                                      0.5*self.TWC.tau/self.rf.t_rf[0, 0]/5)
+                self.logger.debug("Feed-forward delay in samples %d",
+                                  self.n_FF_delay)
+                # Multiply gain by normalisation factors from filter and
+                # beam-to generator current
+                self.G_ff *= self.TWC.R_beam/(self.TWC.R_gen *
+                                              np.sum(self.coeff_FF))
         else:
             raise RuntimeError("ERROR in SPSOneTurnFeedback: argument" +
                                " n_sections has invalid value!")
@@ -415,9 +422,11 @@ class SPSOneTurnFeedback(object):
         if self.open_FF == 1:
             self.logger.debug("Feed-forward active")
             self.n_coarse_FF = int(self.n_coarse/5)
-            self.I_beam_coarse_prev = np.zeros(self.n_coarse_FF, dtype=complex)
+#            self.I_beam_coarse_prev = np.zeros(self.n_coarse_FF, dtype=complex)
+            self.I_beam_coarse_prev = np.zeros(self.n_coarse_FF+self.n_FF_delay, dtype=complex)
             self.I_ff_corr = np.zeros(self.n_coarse_FF, dtype=complex)
             self.V_ff_corr = np.zeros(self.n_coarse_FF, dtype=complex)
+            self.V_ff_corr_prev = np.zeros(self.n_coarse_FF, dtype=complex)
 
     def beam_induced_voltage(self, lpf=False):
         """Calculates the beam-induced voltage
@@ -467,35 +476,32 @@ class SPSOneTurnFeedback(object):
             self.V_ff_corr = self.G_ff* \
                 self.matr_conv(self.I_ff_corr, self.TWC.h_gen[::5])
 
-            print(self.coeff_FF)
-            print(self.TWC.h_gen[::5])
-            print(self.I_ff_corr)
-            print(self.V_ff_corr)
-
             # Compensate for FIR filter delay
 #            self.dV_ff = np.concatenate(
 #                (self.V_ff_corr_prev[-self.n_FF_delay:],
-#                 self.V_ff_corr[:self.n_coarse_FF - self.n_FF_delay]))
+#                 self.V_ff_corr[:self.n_coarse_FF-self.n_FF_delay]))
+            self.dV_ff = np.concatenate((self.V_ff_corr[self.n_FF_delay:],
+                np.zeros(self.n_FF_delay, dtype=np.complex)))
 #            self.V_ff_corr_prev = np.copy(self.V_ff_corr)
 
             # Interpolate to finer grids
             self.V_ff_corr_coarse = np.interp(self.rf_centers,
-                self.rf_centers[::5], self.V_ff_corr)
+                self.rf_centers[::5], self.dV_ff)
             self.V_ff_corr_fine = np.interp(self.profile.bin_centers,
-                self.rf_centers[::5], self.V_ff_corr)
-
-            import matplotlib.pyplot as plt
-            plt.figure()
-            plt.plot(self.n_cavities*self.V_ff_corr_coarse, 'bo')
-            plt.plot(self.n_cavities*self.V_coarse_ind_beam, 'ro')
-            plt.show()
+                self.rf_centers[::5], self.dV_ff)
+#            self.V_ff_corr_coarse = np.interp(self.rf_centers,
+#                self.rf_centers[::5], self.V_ff_corr)
+#            self.V_ff_corr_fine = np.interp(self.profile.bin_centers,
+#                self.rf_centers[::5], self.V_ff_corr)
 
             # Add to beam-induced voltage (opposite sign)
             self.V_coarse_ind_beam += self.n_cavities*self.V_ff_corr_coarse
             self.V_fine_ind_beam += self.n_cavities*self.V_ff_corr_fine
 
             # Update vector from previous turn
-            self.I_beam_coarse_prev = np.copy(self.I_beam_coarse)
+            self.I_beam_coarse_prev = np.copy(self.I_beam_coarse[::5])
+#            self.I_beam_coarse_prev = np.concatenate((self.I_beam_coarse_prev[-self.n_FF_delay:],
+#                                                      np.copy(self.I_beam_coarse[::5])))
 
     def call_conv(self, signal, kernel):
         """Routine to call optimised C++ convolution"""
