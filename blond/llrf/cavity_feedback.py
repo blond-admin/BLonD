@@ -422,11 +422,9 @@ class SPSOneTurnFeedback(object):
         if self.open_FF == 1:
             self.logger.debug("Feed-forward active")
             self.n_coarse_FF = int(self.n_coarse/5)
-#            self.I_beam_coarse_prev = np.zeros(self.n_coarse_FF, dtype=complex)
-            self.I_beam_coarse_prev = np.zeros(self.n_coarse_FF+self.n_FF_delay, dtype=complex)
+            self.I_beam_coarse_prev = np.zeros(self.n_coarse_FF, dtype=complex)
             self.I_ff_corr = np.zeros(self.n_coarse_FF, dtype=complex)
             self.V_ff_corr = np.zeros(self.n_coarse_FF, dtype=complex)
-            self.V_ff_corr_prev = np.zeros(self.n_coarse_FF, dtype=complex)
 
     def beam_induced_voltage(self, lpf=False):
         """Calculates the beam-induced voltage
@@ -477,22 +475,14 @@ class SPSOneTurnFeedback(object):
                 self.matr_conv(self.I_ff_corr, self.TWC.h_gen[::5])
 
             # Compensate for FIR filter delay
-#            self.dV_ff = np.concatenate(
-#                (self.V_ff_corr_prev[-self.n_FF_delay:],
-#                 self.V_ff_corr[:self.n_coarse_FF-self.n_FF_delay]))
             self.dV_ff = np.concatenate((self.V_ff_corr[self.n_FF_delay:],
                 np.zeros(self.n_FF_delay, dtype=np.complex)))
-#            self.V_ff_corr_prev = np.copy(self.V_ff_corr)
 
             # Interpolate to finer grids
             self.V_ff_corr_coarse = np.interp(self.rf_centers,
                 self.rf_centers[::5], self.dV_ff)
             self.V_ff_corr_fine = np.interp(self.profile.bin_centers,
                 self.rf_centers[::5], self.dV_ff)
-#            self.V_ff_corr_coarse = np.interp(self.rf_centers,
-#                self.rf_centers[::5], self.V_ff_corr)
-#            self.V_ff_corr_fine = np.interp(self.profile.bin_centers,
-#                self.rf_centers[::5], self.V_ff_corr)
 
             # Add to beam-induced voltage (opposite sign)
             self.V_coarse_ind_beam += self.n_cavities*self.V_ff_corr_coarse
@@ -500,8 +490,6 @@ class SPSOneTurnFeedback(object):
 
             # Update vector from previous turn
             self.I_beam_coarse_prev = np.copy(self.I_beam_coarse[::5])
-#            self.I_beam_coarse_prev = np.concatenate((self.I_beam_coarse_prev[-self.n_FF_delay:],
-#                                                      np.copy(self.I_beam_coarse[::5])))
 
     def call_conv(self, signal, kernel):
         """Routine to call optimised C++ convolution"""

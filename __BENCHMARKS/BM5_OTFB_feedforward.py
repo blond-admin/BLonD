@@ -158,7 +158,7 @@ if FEEDFORWARD:
     ax1_1.set_ylabel(r"$Re(V_{\mathsf{cav}})$ [MV]")
     ax1_2.set_xlabel(r"Time [$\mu$s]")
     ax1_2.set_ylabel(r"$Im(V_{\mathsf{cav}})$ [MV]")
-    ax1_1.set_ylim((-5, 5))
+    ax1_1.set_ylim((-2.5, 5))
     ax1_2.set_ylim((0, 7))
     ax1_1.plot(1e6 * profile.bin_centers, 1e-6 * OTFB.V_sum.real, color='grey')
     ax1_1.fill_between(1e6 * profile.bin_centers, 0, 1e-6 * OTFB.V_sum.real,
@@ -180,8 +180,8 @@ if FEEDFORWARD:
     ax2_1.set_ylabel(r"$Re(V_{\mathsf{ind,beam}})$ [MV]")
     ax2_2.set_xlabel(r"Time [$\mu$s]")
     ax2_2.set_ylabel(r"$Im(V_{\mathsf{ind,beam}})$ [MV]")
-    ax2_1.set_ylim((-5, 5))
-    ax2_2.set_ylim((-1, 0.4))
+    ax2_1.set_ylim((-2.5, 5))
+    ax2_2.set_ylim((-0.4, 0.4))
 
     OTFB.OTFB_1.V_ind_beam = np.zeros(profile.n_slices)
     OTFB.OTFB_2.V_ind_beam = np.zeros(profile.n_slices)
@@ -225,8 +225,8 @@ if FEEDFORWARD:
                            alpha=0.2, color=colors[i])
         fig2.savefig("fig/V_ind_beam_" + "%d" % (i + 1) + ".png")
 
-        plot_long_phase_space(ring, rf, beam, 0, 5e-9, -2e8, 2e8,
-                              dirname='fig', alpha=0.5, color=colors[i])
+#        plot_long_phase_space(ring, rf, beam, 0, 5e-9, -2e8, 2e8,
+#                              dirname='fig', alpha=0.5, color=colors[i])
 
 logging.info("")
 logging.info("Done!")
