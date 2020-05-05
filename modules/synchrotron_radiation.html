@@ -120,15 +120,17 @@
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="sps_cavity_loop.html">SPS Cavity Loop</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="sps_cavity_loop.html#introduction-travelling-wave-cavity">INTRODUCTION: Travelling Wave Cavity</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="sps_cavity_loop.html#travelling-wave-cavity">TRAVELLING WAVE CAVITY</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#induced-voltage-calculation">Induced-voltage calculation</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="sps_cavity_loop.html#beam-induced-voltage">Beam-induced voltage</a></li>
-<li class="toctree-l2"><a class="reference internal" href="sps_cavity_loop.html#principles-the-cavity-controller">PRINCIPLES: The Cavity Controller</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="sps_cavity_loop.html#the-cavity-controller">THE CAVITY CONTROLLER</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#signal-sampling">Signal sampling</a></li>
 <li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#low-level-rf">Low-level RF</a></li>
-<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#generator-induced-voltage">Generator-induced voltage</a></li>
-<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#id1">Beam-induced voltage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#id1">Generator-induced voltage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#id2">Beam-induced voltage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#from-coarse-to-fine-grid-and-back">From coarse to fine grid and back</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#feed-forward">Feed-forward</a></li>
 </ul>
 </li>
 </ul>
@@ -193,8 +195,9 @@
 </li>
 <li class="toctree-l1"><a class="reference internal" href="toolbox.html">toolbox Package</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.action"><code class="xref py py-mod docutils literal notranslate"><span class="pre">action</span></code> Module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="toolbox.html#convolution-module"><code class="xref py py-mod docutils literal notranslate"><span class="pre">convolution</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.diffusion"><code class="xref py py-mod docutils literal notranslate"><span class="pre">diffusion</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.filters_and_fitting"><code class="xref py py-mod docutils literal notranslate"><span class="pre">filters_and_fitting</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.logger"><code class="xref py py-mod docutils literal notranslate"><span class="pre">logger</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.next_regular"><code class="xref py py-mod docutils literal notranslate"><span class="pre">next_regular</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.parameter_scaling"><code class="xref py py-mod docutils literal notranslate"><span class="pre">parameter_scaling</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.tomoscope"><code class="xref py py-mod docutils literal notranslate"><span class="pre">tomoscope</span></code> Module</a></li>
@@ -289,7 +292,7 @@
 </dl>
 <dl class="class">
 <dt id="blond.synchrotron_radiation.synchrotron_radiation.SynchrotronRadiation">
-<em class="property">class </em><code class="descclassname">blond.synchrotron_radiation.synchrotron_radiation.</code><code class="descname">SynchrotronRadiation</code><span class="sig-paren">(</span><em>Ring</em>, <em>RFParameters</em>, <em>Beam</em>, <em>bending_radius</em>, <em>n_kicks=1</em>, <em>quantum_excitation=True</em>, <em>python=False</em>, <em>seed=None</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.synchrotron_radiation.synchrotron_radiation.SynchrotronRadiation" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="descclassname">blond.synchrotron_radiation.synchrotron_radiation.</code><code class="descname">SynchrotronRadiation</code><span class="sig-paren">(</span><em>Ring</em>, <em>RFParameters</em>, <em>Beam</em>, <em>bending_radius</em>, <em>n_kicks=1</em>, <em>quantum_excitation=True</em>, <em>python=False</em>, <em>seed=None</em>, <em>shift_beam=True</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.synchrotron_radiation.synchrotron_radiation.SynchrotronRadiation" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>Class to compute synchrotron radiation effects, including radiation
 damping and quantum excitation.

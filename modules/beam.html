@@ -120,15 +120,17 @@
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="sps_cavity_loop.html">SPS Cavity Loop</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="sps_cavity_loop.html#introduction-travelling-wave-cavity">INTRODUCTION: Travelling Wave Cavity</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="sps_cavity_loop.html#travelling-wave-cavity">TRAVELLING WAVE CAVITY</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#induced-voltage-calculation">Induced-voltage calculation</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="sps_cavity_loop.html#beam-induced-voltage">Beam-induced voltage</a></li>
-<li class="toctree-l2"><a class="reference internal" href="sps_cavity_loop.html#principles-the-cavity-controller">PRINCIPLES: The Cavity Controller</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="sps_cavity_loop.html#the-cavity-controller">THE CAVITY CONTROLLER</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#signal-sampling">Signal sampling</a></li>
 <li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#low-level-rf">Low-level RF</a></li>
-<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#generator-induced-voltage">Generator-induced voltage</a></li>
-<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#id1">Beam-induced voltage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#id1">Generator-induced voltage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#id2">Beam-induced voltage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#from-coarse-to-fine-grid-and-back">From coarse to fine grid and back</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#feed-forward">Feed-forward</a></li>
 </ul>
 </li>
 </ul>
@@ -193,8 +195,9 @@
 </li>
 <li class="toctree-l1"><a class="reference internal" href="toolbox.html">toolbox Package</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.action"><code class="xref py py-mod docutils literal notranslate"><span class="pre">action</span></code> Module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="toolbox.html#convolution-module"><code class="xref py py-mod docutils literal notranslate"><span class="pre">convolution</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.diffusion"><code class="xref py py-mod docutils literal notranslate"><span class="pre">diffusion</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.filters_and_fitting"><code class="xref py py-mod docutils literal notranslate"><span class="pre">filters_and_fitting</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.logger"><code class="xref py py-mod docutils literal notranslate"><span class="pre">logger</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.next_regular"><code class="xref py py-mod docutils literal notranslate"><span class="pre">next_regular</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.parameter_scaling"><code class="xref py py-mod docutils literal notranslate"><span class="pre">parameter_scaling</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.tomoscope"><code class="xref py py-mod docutils literal notranslate"><span class="pre">tomoscope</span></code> Module</a></li>
@@ -554,36 +557,36 @@ New particles are given id numbers sequential from last id of this beam</p>
 <dl class="method">
 <dt id="blond.beam.beam.Beam.gather">
 <code class="descname">gather</code><span class="sig-paren">(</span><em>all=False</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.beam.Beam.gather" title="Permalink to this definition">¶</a></dt>
-<dd><p>MPI ONLY ROUTINE: Gather the beam coordinates to the master or all workers.
-:param all: If true, every worker will get a copy of the whole beam coordinates.</p>
-<blockquote>
-<div><p>If false, only the master will gather the coordinates.</p>
-</div></blockquote>
+<dd><p>MPI ONLY ROUTINE: Gather the beam coordinates to the master or all workers.</p>
 <dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>all</strong> (<em>boolean</em>) – If true, every worker will get a copy of the whole beam coordinates.
+If false, only the master will gather the coordinates.</p>
+</dd>
 </dl>
 </dd></dl>
 
 <dl class="method">
 <dt id="blond.beam.beam.Beam.gather_losses">
 <code class="descname">gather_losses</code><span class="sig-paren">(</span><em>all=False</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.beam.Beam.gather_losses" title="Permalink to this definition">¶</a></dt>
-<dd><p>MPI ONLY ROUTINE: Gather beam losses.
-:param all: if true, all workers will gather the beam stats.</p>
-<blockquote>
-<div><p>If false, only the master will get the beam stats.</p>
-</div></blockquote>
+<dd><p>MPI ONLY ROUTINE: Gather beam losses.</p>
 <dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>all</strong> (<em>boolean</em>) – if true, all workers will gather the beam stats.
+If false, only the master will get the beam stats.</p>
+</dd>
 </dl>
 </dd></dl>
 
 <dl class="method">
 <dt id="blond.beam.beam.Beam.gather_statistics">
 <code class="descname">gather_statistics</code><span class="sig-paren">(</span><em>all=False</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.beam.Beam.gather_statistics" title="Permalink to this definition">¶</a></dt>
-<dd><p>MPI ONLY ROUTINE: Gather beam statistics.
-:param all: if true, all workers will gather the beam stats.</p>
-<blockquote>
-<div><p>If false, only the master will get the beam stats.</p>
-</div></blockquote>
+<dd><p>MPI ONLY ROUTINE: Gather beam statistics.</p>
 <dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>all</strong> (<em>boolean</em>) – if true, all workers will gather the beam stats.
+If false, only the master will get the beam stats.</p>
+</dd>
 </dl>
 </dd></dl>
 
@@ -677,17 +680,17 @@ New particles are given id numbers sequential from last id of this beam</p>
 <dt id="blond.beam.beam.Beam.split">
 <code class="descname">split</code><span class="sig-paren">(</span><em>random=False</em>, <em>fast=False</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.beam.Beam.split" title="Permalink to this definition">¶</a></dt>
 <dd><p>MPI ONLY ROUTINE: Splits the beam equally among the workers for
-MPI processing.
-:param random: Shuffle the beam before splitting, to be used with the</p>
-<blockquote>
-<div><p>approximation methonds.</p>
-</div></blockquote>
+MPI processing.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>fast</strong> (<em>boolean</em>) – If true, it assumes that every worker has already a copy of the
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>random</strong> (<em>boolean</em>) – Shuffle the beam before splitting, to be used with the
+approximation methonds.</p></li>
+<li><p><strong>fast</strong> (<em>boolean</em>) – If true, it assumes that every worker has already a copy of the
 beam so only the particle ids are distributed.
 If false, all the coordinates are distributed by the master to all
-the workers.</p>
+the workers.</p></li>
+</ul>
 </dd>
 </dl>
 </dd></dl>
@@ -718,6 +721,12 @@ Take no arguments, statistics stored in</p>
 <dt id="blond.beam.beam.Particle">
 <em class="property">class </em><code class="descclassname">blond.beam.beam.</code><code class="descname">Particle</code><span class="sig-paren">(</span><em>user_mass</em>, <em>user_charge</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.beam.Particle" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+</dd></dl>
+
+<dl class="class">
+<dt id="blond.beam.beam.Positron">
+<em class="property">class </em><code class="descclassname">blond.beam.beam.</code><code class="descname">Positron</code><a class="headerlink" href="#blond.beam.beam.Positron" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#blond.beam.beam.Particle" title="blond.beam.beam.Particle"><code class="xref py py-class docutils literal notranslate"><span class="pre">blond.beam.beam.Particle</span></code></a></p>
 </dd></dl>
 
 <dl class="class">
@@ -1478,7 +1487,9 @@ density (bunch length = 4sigma).</p>
 <dl class="method">
 <dt id="blond.beam.profile.Profile.track">
 <code class="descname">track</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.beam.profile.Profile.track" title="Permalink to this definition">¶</a></dt>
-<dd><p>Track method in order to update the slicing along with the tracker.</p>
+<dd><p>Track method in order to update the slicing along with the tracker.
+The kwargs are currently only needed to forward the reduce kw argument
+needed for the MPI version.</p>
 </dd></dl>
 
 </dd></dl>

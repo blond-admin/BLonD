@@ -142,6 +142,9 @@ The controller loop is built of three entities in the code, see Figure.
     :width: 1226
     :height: 451
 
+Signal sampling
+~~~~~~~~~~~~~~~
+
 For beam particle tracking, the voltage amplitude and phase correction are calculated w.r.t.\ the values specified by
 the user in the RFStation object (voltage amplitude and phase set points). This correction is calculated on the time
 range and with the resolution of the beam Profile object; in the context of the cavity controller, we call it the
@@ -149,13 +152,40 @@ range and with the resolution of the beam Profile object; in the context of the 
 
 The generator-induced voltage towards the cavity, as well as the low-level RF part are resolved on a bucket-by-bucket
 basis, which we call the *coarse grid*. The arrays cover the full ring, and keep in memory the previous turn for the
-tracking of the feedback. The sampling time :math:`T_s` is defined as
+tracking of the feedback. The sampling time :math:`T_s` in turn :math:`n` is defined as
 
 .. math::
 
-    T_s = \frac{V_{\mathsf{gen}}}{h} \, ,
+    T_{s,n} = T_{\mathsf{rf},n} \, ,
 
-where :math:`V_{\mathsf{gen}}` is the revolution period and :math:`h` is the harmonic number in the given turn.
+where :math:`T_{\mathsf{rf},n}` is the RF period of the main RF system in the given turn. Arrays on the coarse grid have
+
+.. math::
+
+    n_{\mathsf{coarse}} \equiv \mathsf{int} \left( \frac{T_{\mathsf{rev},0}}{T_{\mathsf{rf},0}} \right)
+
+sampling points, defined based on the initial revolution (:math:`T_{\mathsf{rev},0}`) and RF periods. The centres of the
+sample number :math:`k` along the time axis are
+
+.. math::
+
+    \mathsf{rf\_centers}_{k,n} = (i + \frac{1}{2}) T_{s,n} \, .
+
+.. note::
+    When the RF frequency is not an integer multiple of the revolution frequency (as a result of the user declaring a
+    non-harmonic RF frequency, or a beam feedback making a correction on the RF frequency, or both), a fraction of an RF
+    period will be unsampled, and in the next turn, the RF signals are again sampled w.r.t. the beginning of the turn
+    :math:`t_\mathsf{ref}`, as declared in the :doc:`equations_of_motion`. The non-harmonic RF frequency also results in
+    the RF system :math:`s` in an accumulated phase shift of
+
+    .. math::
+        \sum_{i=1}^{n} \frac{\omega_{\mathsf{rf},s}^i - h_s^i \omega_0^i}{h_s^i \omega_0^i} 2 \pi h_s^i
+
+    between the signals of one turn to another. This phase shift is tracked in the :mod:`blond.trackers.tracker`; the
+    the signal processing in the one-turn feedback, however, is performed w.r.t. the zero phase of the reference clock,
+    and up- and down-modulation of (I,Q) signals does therefore not require a phase shift. In addition, the non-harmonic
+    RF frequency can lead to a changing number of sampling points :math:`n_{\mathsf{coarse}}` over time; this feature is
+    presently not implemented in the SPS one-turn feedback and will thus result in a Runtime Error.
 
 To pass information back and forth between the cavity controller and the voltage corrections to be applied, information
 from the coarse grid has to be interpolated to the fine grid, and information on the fine grid has to be evaluated also
@@ -175,7 +205,7 @@ bunch, and with exactly one turn delay,
     dV_{\mathsf{gen,out}, k, n} = a_{\mathsf{comb}} \, dV_{\mathsf{gen,out}, k, n-1} + (1 - a) \, dV_{\mathsf{gen,in}, k, n} \, ,
 
 where :math:`V_{\mathsf{gen,in}}` and :math:`V_{\mathsf{gen,out}}` are at the input and output of the comb filter,
-respectively, :math:`k` is the index of the bucket along the ring, and :math:`n` is the index of the turn. The comb
+respectively, :math:`k` is the sample number along the ring (in time), and :math:`n` is the index of the turn. The comb
 filter constant is :math:`a_{\mathsf{comb}}=15/16` operationally. The output of the comb filter is filtered by the
 cavity response :math:`H_{\mathsf{cav}}` represented as a moving average at 40~MS/s. The moving average over :math:`K`
 points is
@@ -207,7 +237,7 @@ Beam-induced voltage
 ~~~~~~~~~~~~~~~~~~~~
 
 On the beam-induced voltage branch, the beam profile is used as an input to calculate the RF component of the beam
-current, :math:`I_{\mathsf{beam}}:`. Just like on the generator branch, this complex (I,Q) current is then matrix-
+current, :math:`I_{\mathsf{beam}}`. Just like on the generator branch, this complex (I,Q) current is then matrix-
 convolved with the beam response, as described in :ref:`beam-ind-V`, to obtain the beam-induced voltage
 :math:`V_\mathsf{ind,beam}`.
 
@@ -227,3 +257,18 @@ covers the entire turn,
 .. math::
 
     V_\mathsf{ant} = V_\mathsf{ind,gen} + V_\mathsf{ind,beam} \, .
+
+
+Feed-forward
+~~~~~~~~~~~~
+
+Optionally, an n-tap FIR filter can be activated as feed-forward on the beam-induced voltage calculation. The
+feed-forward is used in open loop, to correct the generator current in the next turn based on the beam-induced
+voltage measured in the current turn. The ideal feed-forward filter :math:`H_\mathsf{FF}` would perfectly compensate the
+beam loading if
+
+.. math::
+    Z_\mathsf{gen}(f) H_\mathsf{FF}(f) = - Z_\mathsf{beam}(f) \, .
+
+The FIR filters for the 3-, 4-, 5-section cavities are designed by minimising the error between these two quantities,
+using the least-squares method and the FIR filter coefficients can be found in :mod:`blond.llrf.signal_processing`.

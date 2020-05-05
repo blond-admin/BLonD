@@ -125,10 +125,12 @@
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#the-cavity-controller">THE CAVITY CONTROLLER</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#signal-sampling">Signal sampling</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#low-level-rf">Low-level RF</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#id1">Generator-induced voltage</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#id2">Beam-induced voltage</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#from-coarse-to-fine-grid-and-back">From coarse to fine grid and back</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#feed-forward">Feed-forward</a></li>
 </ul>
 </li>
 </ul>
@@ -380,19 +382,43 @@ carrier frequency of the present RF frequency <span class="math notranslate nohi
 the central or resonant frequency of the cavity <span class="math notranslate nohighlight">\(f_{r}\)</span>, requiring and up- and down-modulation before and after.
 The controller loop is built of three entities in the code, see Figure.</p>
 <a class="reference internal image-reference" href="../_images/SPS_OTFB.png"><img alt="../_images/SPS_OTFB.png" class="align-right" src="../_images/SPS_OTFB.png" style="width: 1226px; height: 451px;" /></a>
+<div class="section" id="signal-sampling">
+<h3>Signal sampling<a class="headerlink" href="#signal-sampling" title="Permalink to this headline">¶</a></h3>
 <p>For beam particle tracking, the voltage amplitude and phase correction are calculated w.r.t.the values specified by
 the user in the RFStation object (voltage amplitude and phase set points). This correction is calculated on the time
 range and with the resolution of the beam Profile object; in the context of the cavity controller, we call it the
 <em>fine grid</em>.</p>
 <p>The generator-induced voltage towards the cavity, as well as the low-level RF part are resolved on a bucket-by-bucket
 basis, which we call the <em>coarse grid</em>. The arrays cover the full ring, and keep in memory the previous turn for the
-tracking of the feedback. The sampling time <span class="math notranslate nohighlight">\(T_s\)</span> is defined as</p>
+tracking of the feedback. The sampling time <span class="math notranslate nohighlight">\(T_s\)</span> in turn <span class="math notranslate nohighlight">\(n\)</span> is defined as</p>
 <div class="math notranslate nohighlight">
-\[T_s = \frac{V_{\mathsf{gen}}}{h} \, ,\]</div>
-<p>where <span class="math notranslate nohighlight">\(V_{\mathsf{gen}}\)</span> is the revolution period and <span class="math notranslate nohighlight">\(h\)</span> is the harmonic number in the given turn.</p>
+\[T_{s,n} = T_{\mathsf{rf},n} \, ,\]</div>
+<p>where <span class="math notranslate nohighlight">\(T_{\mathsf{rf},n}\)</span> is the RF period of the main RF system in the given turn. Arrays on the coarse grid have</p>
+<div class="math notranslate nohighlight">
+\[n_{\mathsf{coarse}} \equiv \mathsf{int} \left( \frac{T_{\mathsf{rev},0}}{T_{\mathsf{rf},0}} \right)\]</div>
+<p>sampling points, defined based on the initial revolution (<span class="math notranslate nohighlight">\(T_{\mathsf{rev},0}\)</span>) and RF periods. The centres of the
+sample number <span class="math notranslate nohighlight">\(k\)</span> along the time axis are</p>
+<div class="math notranslate nohighlight">
+\[\mathsf{rf\_centers}_{k,n} = (i + \frac{1}{2}) T_{s,n} \, .\]</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>When the RF frequency is not an integer multiple of the revolution frequency (as a result of the user declaring a
+non-harmonic RF frequency, or a beam feedback making a correction on the RF frequency, or both), a fraction of an RF
+period will be unsampled, and in the next turn, the RF signals are again sampled w.r.t. the beginning of the turn
+<span class="math notranslate nohighlight">\(t_\mathsf{ref}\)</span>, as declared in the <a class="reference internal" href="equations_of_motion.html"><span class="doc">Equations of Motion</span></a>. The non-harmonic RF frequency also results in
+the RF system <span class="math notranslate nohighlight">\(s\)</span> in an accumulated phase shift of</p>
+<div class="math notranslate nohighlight">
+\[\sum_{i=1}^{n} \frac{\omega_{\mathsf{rf},s}^i - h_s^i \omega_0^i}{h_s^i \omega_0^i} 2 \pi h_s^i\]</div>
+<p>between the signals of one turn to another. This phase shift is tracked in the <a class="reference internal" href="trackers.html#module-blond.trackers.tracker" title="blond.trackers.tracker"><code class="xref py py-mod docutils literal notranslate"><span class="pre">blond.trackers.tracker</span></code></a>; the
+the signal processing in the one-turn feedback, however, is performed w.r.t. the zero phase of the reference clock,
+and up- and down-modulation of (I,Q) signals does therefore not require a phase shift. In addition, the non-harmonic
+RF frequency can lead to a changing number of sampling points <span class="math notranslate nohighlight">\(n_{\mathsf{coarse}}\)</span> over time; this feature is
+presently not implemented in the SPS one-turn feedback and will thus result in a Runtime Error.</p>
+</div>
 <p>To pass information back and forth between the cavity controller and the voltage corrections to be applied, information
 from the coarse grid has to be interpolated to the fine grid, and information on the fine grid has to be evaluated also
 on the coarse grid.</p>
+</div>
 <div class="section" id="low-level-rf">
 <h3>Low-level RF<a class="headerlink" href="#low-level-rf" title="Permalink to this headline">¶</a></h3>
 <p>The low-level RF (LLRF) contains the comparison between the desired set-point voltage <span class="math notranslate nohighlight">\(V_{\mathsf{set}}\)</span> and the
@@ -403,7 +429,7 @@ bunch, and with exactly one turn delay,</p>
 <div class="math notranslate nohighlight">
 \[dV_{\mathsf{gen,out}, k, n} = a_{\mathsf{comb}} \, dV_{\mathsf{gen,out}, k, n-1} + (1 - a) \, dV_{\mathsf{gen,in}, k, n} \, ,\]</div>
 <p>where <span class="math notranslate nohighlight">\(V_{\mathsf{gen,in}}\)</span> and <span class="math notranslate nohighlight">\(V_{\mathsf{gen,out}}\)</span> are at the input and output of the comb filter,
-respectively, <span class="math notranslate nohighlight">\(k\)</span> is the index of the bucket along the ring, and <span class="math notranslate nohighlight">\(n\)</span> is the index of the turn. The comb
+respectively, <span class="math notranslate nohighlight">\(k\)</span> is the sample number along the ring (in time), and <span class="math notranslate nohighlight">\(n\)</span> is the index of the turn. The comb
 filter constant is <span class="math notranslate nohighlight">\(a_{\mathsf{comb}}=15/16\)</span> operationally. The output of the comb filter is filtered by the
 cavity response <span class="math notranslate nohighlight">\(H_{\mathsf{cav}}\)</span> represented as a moving average at 40~MS/s. The moving average over <span class="math notranslate nohighlight">\(K\)</span>
 points is</p>
@@ -425,7 +451,7 @@ the generator impulse response, as explained above in <a class="reference intern
 <div class="section" id="id2">
 <h3>Beam-induced voltage<a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h3>
 <p>On the beam-induced voltage branch, the beam profile is used as an input to calculate the RF component of the beam
-current, <span class="math notranslate nohighlight">\(I_{\mathsf{beam}}:\)</span>. Just like on the generator branch, this complex (I,Q) current is then matrix-
+current, <span class="math notranslate nohighlight">\(I_{\mathsf{beam}}\)</span>. Just like on the generator branch, this complex (I,Q) current is then matrix-
 convolved with the beam response, as described in <a class="reference internal" href="#beam-ind-v"><span class="std std-ref">Beam-induced voltage</span></a>, to obtain the beam-induced voltage
 <span class="math notranslate nohighlight">\(V_\mathsf{ind,beam}\)</span>.</p>
 <p>The voltage and the current are calculated both on the <em>fine</em> and the <em>coarse</em> grid.</p>
@@ -439,6 +465,17 @@ interpolated to the fine grid, and added to the beam-induced voltage already eva
 covers the entire turn,</p>
 <div class="math notranslate nohighlight">
 \[V_\mathsf{ant} = V_\mathsf{ind,gen} + V_\mathsf{ind,beam} \, .\]</div>
+</div>
+<div class="section" id="feed-forward">
+<h3>Feed-forward<a class="headerlink" href="#feed-forward" title="Permalink to this headline">¶</a></h3>
+<p>Optionally, an n-tap FIR filter can be activated as feed-forward on the beam-induced voltage calculation. The
+feed-forward is used in open loop, to correct the generator current in the next turn based on the beam-induced
+voltage measured in the current turn. The ideal feed-forward filter <span class="math notranslate nohighlight">\(H_\mathsf{FF}\)</span> would perfectly compensate the
+beam loading if</p>
+<div class="math notranslate nohighlight">
+\[Z_\mathsf{gen}(f) H_\mathsf{FF}(f) = - Z_\mathsf{beam}(f) \, .\]</div>
+<p>The FIR filters for the 3-, 4-, 5-section cavities are designed by minimising the error between these two quantities,
+using the least-squares method and the FIR filter coefficients can be found in <a class="reference internal" href="llrf.html#module-blond.llrf.signal_processing" title="blond.llrf.signal_processing"><code class="xref py py-mod docutils literal notranslate"><span class="pre">blond.llrf.signal_processing</span></code></a>.</p>
 </div>
 </div>
 </div>

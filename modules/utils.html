@@ -119,15 +119,17 @@
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="sps_cavity_loop.html">SPS Cavity Loop</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="sps_cavity_loop.html#introduction-travelling-wave-cavity">INTRODUCTION: Travelling Wave Cavity</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="sps_cavity_loop.html#travelling-wave-cavity">TRAVELLING WAVE CAVITY</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#induced-voltage-calculation">Induced-voltage calculation</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="sps_cavity_loop.html#beam-induced-voltage">Beam-induced voltage</a></li>
-<li class="toctree-l2"><a class="reference internal" href="sps_cavity_loop.html#principles-the-cavity-controller">PRINCIPLES: The Cavity Controller</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="sps_cavity_loop.html#the-cavity-controller">THE CAVITY CONTROLLER</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#signal-sampling">Signal sampling</a></li>
 <li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#low-level-rf">Low-level RF</a></li>
-<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#generator-induced-voltage">Generator-induced voltage</a></li>
-<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#id1">Beam-induced voltage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#id1">Generator-induced voltage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#id2">Beam-induced voltage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#from-coarse-to-fine-grid-and-back">From coarse to fine grid and back</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sps_cavity_loop.html#feed-forward">Feed-forward</a></li>
 </ul>
 </li>
 </ul>
@@ -192,8 +194,9 @@
 </li>
 <li class="toctree-l1"><a class="reference internal" href="toolbox.html">toolbox Package</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.action"><code class="xref py py-mod docutils literal notranslate"><span class="pre">action</span></code> Module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="toolbox.html#convolution-module"><code class="xref py py-mod docutils literal notranslate"><span class="pre">convolution</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.diffusion"><code class="xref py py-mod docutils literal notranslate"><span class="pre">diffusion</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.filters_and_fitting"><code class="xref py py-mod docutils literal notranslate"><span class="pre">filters_and_fitting</span></code> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.logger"><code class="xref py py-mod docutils literal notranslate"><span class="pre">logger</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.next_regular"><code class="xref py py-mod docutils literal notranslate"><span class="pre">next_regular</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.parameter_scaling"><code class="xref py py-mod docutils literal notranslate"><span class="pre">parameter_scaling</span></code> Module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="toolbox.html#module-blond.toolbox.tomoscope"><code class="xref py py-mod docutils literal notranslate"><span class="pre">tomoscope</span></code> Module</a></li>
@@ -364,6 +367,11 @@ with the ones coming from butils_wrap.</p>
 <dl class="function">
 <dt id="blond.utils.bphysics_wrap.rf_volt_comp">
 <code class="descclassname">blond.utils.bphysics_wrap.</code><code class="descname">rf_volt_comp</code><span class="sig-paren">(</span><em>voltages</em>, <em>omega_rf</em>, <em>phi_rf</em>, <em>bin_centers</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.utils.bphysics_wrap.rf_volt_comp" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="blond.utils.bphysics_wrap.set_random_seed">
+<code class="descclassname">blond.utils.bphysics_wrap.</code><code class="descname">set_random_seed</code><span class="sig-paren">(</span><em>seed</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.utils.bphysics_wrap.set_random_seed" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="function">
