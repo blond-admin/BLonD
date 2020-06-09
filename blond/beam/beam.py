@@ -213,10 +213,16 @@ class Beam(object):
 
         # Statistics only for particles that are not flagged as lost
         itemindex = np.where(self.id != 0)[0]
-        self.mean_dt = np.mean(self.dt[itemindex])
-        self.mean_dE = np.mean(self.dE[itemindex])
-        self.sigma_dt = np.std(self.dt[itemindex])
-        self.sigma_dE = np.std(self.dE[itemindex])
+        # itemindex = bm.where(self.id, 0)
+        self.mean_dt = bm.mean(self.dt[itemindex])
+        self.sigma_dt = bm.std(self.dt[itemindex])
+        self.min_dt = np.min(self.dt[itemindex])
+        self.max_dt = np.max(self.dt[itemindex])
+
+        self.mean_dE = bm.mean(self.dE[itemindex])
+        self.sigma_dE = bm.std(self.dE[itemindex])
+        self.min_dE = np.min(self.dE[itemindex])
+        self.max_dE = np.max(self.dE[itemindex])
 
         # R.m.s. emittance in Gaussian approximation
         self.epsn_rms_l = np.pi*self.sigma_dE*self.sigma_dt  # in eVs
@@ -453,21 +459,45 @@ class Beam(object):
                 'ERROR: Cannot use this routine unless in MPI Mode')
 
         from ..utils.mpi_config import worker
-
         if all:
-            temp = worker.allgather(np.array([self.mean_dt]))
-            self.mean_dt = np.mean(temp)
-            temp = worker.allgather(np.array([self.mean_dE]))
-            self.mean_dE = np.mean(temp)
-            temp = worker.allgather(np.array([self.n_macroparticles_lost]))
-            self.n_total_macroparticles_lost = np.sum(temp)
+            # temp = worker.allgather(np.array([self.mean_dt]))
+            # self.mean_dt = bm.mean(temp)
+
+            self.mean_dt = worker.allreduce(
+                np.array([self.mean_dt]), operator='mean')[0]
+            
+            self.sigma_dt = worker.allreduce(
+                np.array([self.mean_dt, self.sigma_dt, self.n_macroparticles_alive]),
+                operator='std')[0]
+
+            self.mean_dE = worker.allreduce(
+                np.array([self.mean_dE]), operator='mean')[0]
+
+            self.sigma_dE = worker.allreduce(
+                np.array([self.mean_dE, self.sigma_dE, self.n_macroparticles_alive]),
+                operator='std')[0]
+
+            self.n_total_macroparticles_lost = worker.allreduce(
+                np.array([self.n_macroparticles_lost]), operator='sum')[0]
+
+
         else:
-            temp = worker.gather(np.array([self.mean_dt]))
-            self.mean_dt = np.mean(temp)
-            temp = worker.gather(np.array([self.mean_dE]))
-            self.mean_dE = np.mean(temp)
-            temp = worker.gather(np.array([self.n_macroparticles_lost]))
-            self.n_total_macroparticles_lost = np.sum(temp)
+            self.mean_dt = worker.reduce(
+                np.array([self.mean_dt]), operator='mean')[0]
+            
+            self.sigma_dt = worker.reduce(
+                np.array([self.mean_dt, self.sigma_dt, self.n_macroparticles_alive]),
+                operator='std')[0]
+
+            self.mean_dE = worker.reduce(
+                np.array([self.mean_dE]), operator='mean')[0]
+
+            self.sigma_dE = worker.reduce(
+                np.array([self.mean_dE, self.sigma_dE, self.n_macroparticles_alive]),
+                operator='std')[0]
+
+            self.n_total_macroparticles_lost = worker.reduce(
+                np.array([self.n_macroparticles_lost]), operator='sum')[0]
 
     def gather_losses(self, all=False):
         '''
