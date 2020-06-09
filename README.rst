@@ -212,7 +212,9 @@ Set-up Instructions
     
     # Environment variables definitions
     export LD_LIBRARY_PATH="$HOME/install/lib"
-  
+    export INSTALL_DIR="$HOME/install"
+    export BLONDHOME="$HOME/git/BLonD"
+
     # User aliases
     alias mysqueue="squeue -u $USER"
     alias myscancel="scancel -u $USER"
@@ -220,7 +222,6 @@ Set-up Instructions
   
     # Module loads
     module load compiler/gcc7
-    module load slurm/be
     module load mpi/mvapich2/2.3
 
 * Download and install anaconda3:
@@ -243,7 +244,7 @@ Set-up Instructions
     wget http://www.fftw.org/fftw-3.3.8.tar.gz
     tar -xzvf fftw-3.3.8.tar.gz
     cd fftw-3.3.8
-    ./configure --prefix=$HOME/install/ --enable-openmp --enable-sse2 --enable-avx --enable-avx2 --enable-fma --enable-avx-128-fma  --with-our-malloc --disable-fortran --enable-shared --enable-mpi
+    ./configure --prefix=$HOME/install/ --enable-openmp --enable-sse2 --enable-avx --enable-avx2 --enable-fma --enable-avx-128-fma  --with-our-malloc --disable-fortran --enable-shared
     make -j4
     make install
 
@@ -263,10 +264,11 @@ Set-up Instructions
     cd git
     git clone --branch=master https://github.com/blond-admin/BLonD.git
     cd BLonD
-    python blond/compile.py -p
+    python blond/compile.py -p --with-fftw --with-fftw-threads --with-fftw-lib=$INSTALL_DIR/lib --with-fftw-header=$INSTALL_DIR/include
   
 * adjust your main file as needed (described bellow).
 
+* example scripts to setup and run a parameter scan in the HPC Slurm cluster: https://cernbox.cern.ch/index.php/s/dS1hwr7E1eIdsne
 
 Changes required in the main file for MPI
 -----------------------------------------

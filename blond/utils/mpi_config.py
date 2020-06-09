@@ -42,13 +42,13 @@ class Worker:
     def __init__(self, args={}):
         # args = parse()
         # self.indices = {}
-        self.intracomm = MPI.COMM_WORLD
-        self.rank = self.intracomm.rank
+        self.intercomm = MPI.COMM_WORLD
+        self.rank = self.intercomm.rank
 
         # self.intercomm = MPI.COMM_WORLD.Split(self.rank == 0, self.rank)
         # self.intercomm = self.intercomm.Create_intercomm(0, MPI.COMM_WORLD, 1)
 
-        self.workers = self.intracomm.size
+        self.workers = self.intercomm.size
 
         self.hostname = MPI.Get_processor_name()
         self.log = args.get('log', False)
@@ -81,7 +81,7 @@ class Worker:
         # First I need to know the total size
         counts = np.zeros(self.workers, dtype=int)
         sendbuf = np.array([len(var)], dtype=int)
-        self.intracomm.Gather(sendbuf, counts, root=0)
+        self.intercomm.Gather(sendbuf, counts, root=0)
         total_size = np.sum(counts)
 
         if self.isMaster:
@@ -91,12 +91,12 @@ class Worker:
             sendbuf = np.copy(var)
             recvbuf = np.resize(var, total_size)
 
-            self.intracomm.Gatherv(sendbuf,
+            self.intercomm.Gatherv(sendbuf,
                                    [recvbuf, counts, displs, recvbuf.dtype.char], root=0)
             return recvbuf
         else:
             recvbuf = None
-            self.intracomm.Gatherv(var, recvbuf, root=0)
+            self.intercomm.Gatherv(var, recvbuf, root=0)
             return var
 
     # All workers gather the variable var (from all workers)
@@ -106,7 +106,7 @@ class Worker:
         # One first gather to collect all the sizes
         counts = np.zeros(self.workers, dtype=int)
         sendbuf = np.array([len(var)], dtype=int)
-        self.intracomm.Allgather(sendbuf, counts)
+        self.intercomm.Allgather(sendbuf, counts)
 
         total_size = np.sum(counts)
         # counts = [size // self.workers + 1 if i < size % self.workers
@@ -115,7 +115,7 @@ class Worker:
         sendbuf = np.copy(var)
         recvbuf = np.resize(var, total_size)
 
-        self.intracomm.Allgatherv(sendbuf,
+        self.intercomm.Allgatherv(sendbuf,
                                   [recvbuf, counts, displs, recvbuf.dtype.char])
         return recvbuf
 
@@ -123,7 +123,7 @@ class Worker:
         self.logger.debug('scatter')
 
         # First broadcast the total_size from the master
-        total_size = int(self.intracomm.bcast(len(var), root=0))
+        total_size = int(self.intercomm.bcast(len(var), root=0))
 
         # Then calculate the counts (size for each worker)
         counts = [total_size // self.workers + 1 if i < total_size % self.workers
@@ -132,46 +132,166 @@ class Worker:
         if self.isMaster:
             displs = np.append([0], np.cumsum(counts[:-1]))
             recvbuf = np.empty(counts[worker.rank], dtype=var.dtype.char)
-            self.intracomm.Scatterv([var, counts, displs, var.dtype.char],
+            self.intercomm.Scatterv([var, counts, displs, var.dtype.char],
                                     recvbuf, root=0)
         else:
             sendbuf = None
             recvbuf = np.empty(counts[worker.rank], dtype=var.dtype.char)
-            self.intracomm.Scatterv(sendbuf, recvbuf, root=0)
+            self.intercomm.Scatterv(sendbuf, recvbuf, root=0)
 
         return recvbuf
 
-    def allreduce(self, sendbuf, recvbuf=None):
-        self.logger.debug('allreduce')
-        dtype = sendbuf.dtype.name
-        if dtype == 'int16':
-            op = add_op_int16
-        elif dtype == 'int32':
-            op = add_op_int32
-        elif dtype == 'int64':
-            op = add_op_int64
-        elif dtype == 'uint16':
-            op = add_op_uint16
-        elif dtype == 'uint32':
-            op = add_op_uint32
-        elif dtype == 'uint64':
-            op = add_op_uint64
-        elif dtype == 'float32':
-            op = add_op_float32
-        elif dtype == 'float64':
-            op = add_op_float64
+    # def allreduce(self, sendbuf, recvbuf=None):
+    #     self.logger.debug('allreduce')
+    #     dtype = sendbuf.dtype.name
+    #     if dtype == 'int16':
+    #         op = add_op_int16
+    #     elif dtype == 'int32':
+    #         op = add_op_int32
+    #     elif dtype == 'int64':
+    #         op = add_op_int64
+    #     elif dtype == 'uint16':
+    #         op = add_op_uint16
+    #     elif dtype == 'uint32':
+    #         op = add_op_uint32
+    #     elif dtype == 'uint64':
+    #         op = add_op_uint64
+    #     elif dtype == 'float32':
+    #         op = add_op_float32
+    #     elif dtype == 'float64':
+    #         op = add_op_float64
+    #     else:
+    #         print('Error: Not recognized dtype:{}'.format(dtype))
+    #         exit(-1)
+
+    #     if (recvbuf is None) or (sendbuf is recvbuf):
+    #         self.intercomm.Allreduce(MPI.IN_PLACE, sendbuf, op=op)
+    #     else:
+    #         self.intercomm.Allreduce(sendbuf, recvbuf, op=op)
+
+    def reduce(self, sendbuf, recvbuf=None, dtype=np.uint32, operator='custom_sum'):
+        # supported ops:
+        # sum, mean, std, max, min, prod, custom_sum
+        if self.log:
+            self.logger.debug('reduce')
+        operator = operator.lower()
+        if operator == 'custom_sum':
+            dtype = sendbuf.dtype.name
+            if dtype == 'int16':
+                op = add_op_int16
+            elif dtype == 'int32':
+                op = add_op_int32
+            elif dtype == 'int64':
+                op = add_op_int64
+            elif dtype == 'uint16':
+                op = add_op_uint16
+            elif dtype == 'uint32':
+                op = add_op_uint32
+            elif dtype == 'uint64':
+                op = add_op_uint64
+            elif dtype == 'float32':
+                op = add_op_float32
+            elif dtype == 'float64':
+                op = add_op_float64
+            else:
+                print('Error: Not recognized dtype:{}'.format(dtype))
+                exit(-1)
+        elif operator == 'sum':
+            op = MPI.SUM
+        elif operator == 'max':
+            op = MPI.MAX
+        elif operator == 'min':
+            op = MPI.MIN
+        elif operator == 'prod':
+            op = MPI.PROD
+        elif operator in ['mean', 'avg']:
+            op = MPI.SUM
+        elif operator == 'std':
+            recvbuf = self.gather(sendbuf)
+            if worker.isMaster:
+                assert len(recvbuf) == 3 * self.workers
+                totals = np.sum((recvbuf[2::3] - 1) * recvbuf[1::3]**2 +
+                                recvbuf[2::3] * (recvbuf[1::3] - bm.mean(recvbuf[0::3]))**2)
+                return np.array([np.sqrt(totals / (np.sum(recvbuf[2::3]) - 1))])
+            else:
+                return np.array([sendbuf[1]])
+
+        if worker.isMaster:
+            if (recvbuf is None) or (sendbuf is recvbuf):
+                self.intercomm.Reduce(MPI.IN_PLACE, sendbuf, op=op, root=0)
+                recvbuf = sendbuf
+            else:
+                self.intercomm.Reduce(sendbuf, recvbuf, op=op, root=0)
+
+            if operator in ['mean', 'avg']:
+                return recvbuf / self.workers
+            else:
+                return recvbuf
         else:
-            print('Error: Not recognized dtype:{}'.format(dtype))
-            exit(-1)
+            recvbuf = None
+            self.intercomm.Reduce(sendbuf, recvbuf, op=op, root=0)
+            return sendbuf
+
+    def allreduce(self, sendbuf, recvbuf=None, dtype=np.uint32, operator='custom_sum'):
+        # supported ops:
+        # sum, mean, std, max, min, prod, custom_sum
+        if self.log:
+            self.logger.debug('allreduce')
+        operator = operator.lower()
+        if operator == 'custom_sum':
+            dtype = sendbuf.dtype.name
+            if dtype == 'int16':
+                op = add_op_int16
+            elif dtype == 'int32':
+                op = add_op_int32
+            elif dtype == 'int64':
+                op = add_op_int64
+            elif dtype == 'uint16':
+                op = add_op_uint16
+            elif dtype == 'uint32':
+                op = add_op_uint32
+            elif dtype == 'uint64':
+                op = add_op_uint64
+            elif dtype == 'float32':
+                op = add_op_float32
+            elif dtype == 'float64':
+                op = add_op_float64
+            else:
+                print('Error: Not recognized dtype:{}'.format(dtype))
+                exit(-1)
+        elif operator == 'sum':
+            op = MPI.SUM
+        elif operator == 'max':
+            op = MPI.MAX
+        elif operator == 'min':
+            op = MPI.MIN
+        elif operator == 'prod':
+            op = MPI.PROD
+        elif operator in ['mean', 'avg']:
+            op = MPI.SUM
+        elif operator == 'std':
+            recvbuf = self.allgather(sendbuf)
+            assert len(recvbuf) == 3 * self.workers
+            totals = np.sum((recvbuf[2::3] - 1) * recvbuf[1::3]**2 +
+                            recvbuf[2::3] * (recvbuf[1::3] - bm.mean(recvbuf[::3]))**2)
+            return np.array([np.sqrt(totals / (np.sum(recvbuf[2::3]) - 1))])
 
         if (recvbuf is None) or (sendbuf is recvbuf):
-            self.intracomm.Allreduce(MPI.IN_PLACE, sendbuf, op=op)
+            self.intercomm.Allreduce(MPI.IN_PLACE, sendbuf, op=op)
+            recvbuf = sendbuf
         else:
-            self.intracomm.Allreduce(sendbuf, recvbuf, op=op)
+            self.intercomm.Allreduce(sendbuf, recvbuf, op=op)
+
+        if operator in ['mean', 'avg']:
+
+            return recvbuf / self.workers
+        else:
+            return recvbuf
+
 
     def sync(self):
         self.logger.debug('sync')
-        self.intracomm.Barrier()
+        self.intercomm.Barrier()
 
     def finalize(self):
         self.logger.debug('finalize')
@@ -234,8 +354,7 @@ class MPILog(object):
         self.disabled = False
         self.root_logger = logging.getLogger()
         self.root_logger.setLevel(logging.DEBUG)
-        if not os.path.exists(log_dir):
-            os.makedirs(log_dir)
+        os.makedirs(log_dir, exist_ok=True)
 
         if rank < 0:
             log_name = log_dir+'/master.log'
