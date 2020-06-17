@@ -101,4 +101,4 @@ deploy:
   github_token: $GITHUB_TOKEN
   keep_history: true
   on:
-    branch: add-auto-docs
+    branch: master
