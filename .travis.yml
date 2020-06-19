@@ -65,40 +65,29 @@ script:
 after_success:
   # echo "Success"
   - coverage report
-  - test $TRAVIS_PYTHON_VERSION = "3.6" && coveralls
-  # - test $TRAVIS_PYTHON_VERSION != "3.6" && exit 0
-  # - if ! [[ "$TRAVIS_PULL_REQUEST" = ^[0-9]+$ ]]; then exit 0 ; fi ;
-  # - python -m pip install --upgrade sphinx sphinxcontrib-napoleon sphinx-autopackagesummary
-  # - mkdir -p ~/.ssh
-  # # Needs ssh key generated using "ssh-keygen -f key_fname -t rsa"
-  # # Env variable is private key encoded using "cat privatekey | base64 -w0" to avoid str manipulations
-  # - (echo "$GITHUB_TOKEN_DOCS" | base64 -d) > ~/.ssh/id_rsa
-  # - chmod 700 ~/.ssh/id_rsa
-  # - eval "$(ssh-agent -s)"
-  # - ssh-add ~/.ssh/id_rsa
-  # - ssh-keyscan -t rsa 'github.com' >> ~/.ssh/known_hosts 
-  # - git config --global user.name ${USER_LOGIN}
-  # - git config --global user.email ${USER_EMAIL}
-  # - cd __doc
-  # - make html
-  # - git clone git@github.com:${USER_LOGIN}/BLonD.git BLonD
-  # - cd BLonD
-  # - git checkout gh-pages
-  # - rm -r *
-  # - cp -r ../build/html/* .
-  # - git add -A
-  # - git status
-  # - git diff-index --quiet HEAD || git commit -m "Updated documentation"
-  # - git push
+  - if [[ $TRAVIS_PYTHON_VERSION = "3.6" ]]; then coveralls; else exit 0; fi;
+  - if ! [[ "$TRAVIS_PULL_REQUEST" = ^[0-9]+$ ]]; then exit 0 ; fi ;
+  - python -m pip install --upgrade pyqt5 sphinx sphinxcontrib-napoleon sphinx-autopackagesummary
+  - mkdir -p ~/.ssh
+  # Needs ssh key generated using "ssh-keygen -f key_fname -t rsa"
+  # Env variable is private key encoded using "cat privatekey | base64 -w0" to avoid str manipulations
+  - (echo "$GITHUB_TOKEN_DOCS" | base64 -d) > ~/.ssh/id_rsa
+  - chmod 700 ~/.ssh/id_rsa
+  - eval "$(ssh-agent -s)"
+  - ssh-add ~/.ssh/id_rsa
+  - ssh-keyscan -t rsa 'github.com' >> ~/.ssh/known_hosts 
+  - git config --global user.name ${USER_LOGIN}
+  - git config --global user.email ${USER_EMAIL}
+  - cd __doc
+  - make html
+  - git clone --branch=gh-pages git@github.com:${USER_LOGIN}/BLonD.git BLonD
+  - cd BLonD
+  - cp -r ../_build/html/* .
+  - git add -A
+  - git status
+  - git diff-index --quiet HEAD || git commit -m "Updated documentation" -n
+  - git push
 
 # branches:
 #   only:
 #   - master
-
-deploy:
-  provider: pages
-  cleanup: true
-  github_token: $GITHUB_TOKEN
-  keep_history: true
-  on:
-    branch: master
