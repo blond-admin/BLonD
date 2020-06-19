@@ -82,7 +82,7 @@ after_success:
   - git config --global user.email ${USER_EMAIL}
   - cd __doc
   - make html
-  - git clone --branch=gh-pages git@github.com:${USER_LOGIN}/BLonD.git BLonD
+  - git clone --branch=gh-pages https://github.com/"$USER_LOGIN"/BLonD.git BLonD
   - cd BLonD
   - git remote rm origin
   - git remote add origin https://"$USER_LOGIN":"$GITHUB_TOKEN"@github.com/"$USER_LOGIN"/BLonD.git
