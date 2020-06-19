@@ -290,42 +290,42 @@
 <dd class="field-odd"><p><strong>Juan F. Esteban Mueller</strong></p>
 </dd>
 </dl>
-<dl class="class">
+<dl class="py class">
 <dt id="blond.synchrotron_radiation.synchrotron_radiation.SynchrotronRadiation">
-<em class="property">class </em><code class="descclassname">blond.synchrotron_radiation.synchrotron_radiation.</code><code class="descname">SynchrotronRadiation</code><span class="sig-paren">(</span><em>Ring</em>, <em>RFParameters</em>, <em>Beam</em>, <em>bending_radius</em>, <em>n_kicks=1</em>, <em>quantum_excitation=True</em>, <em>python=False</em>, <em>seed=None</em>, <em>shift_beam=True</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.synchrotron_radiation.synchrotron_radiation.SynchrotronRadiation" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">blond.synchrotron_radiation.synchrotron_radiation.</code><code class="sig-name descname">SynchrotronRadiation</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">Ring</span></em>, <em class="sig-param"><span class="n">RFParameters</span></em>, <em class="sig-param"><span class="n">Beam</span></em>, <em class="sig-param"><span class="n">bending_radius</span></em>, <em class="sig-param"><span class="n">n_kicks</span><span class="o">=</span><span class="default_value">1</span></em>, <em class="sig-param"><span class="n">quantum_excitation</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">python</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">seed</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">shift_beam</span><span class="o">=</span><span class="default_value">True</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.synchrotron_radiation.synchrotron_radiation.SynchrotronRadiation" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>Class to compute synchrotron radiation effects, including radiation
 damping and quantum excitation.
 For multiple RF section, instanciate one object per RF section an call
 the track() method after tracking each section.</p>
-<dl class="method">
+<dl class="py method">
 <dt id="blond.synchrotron_radiation.synchrotron_radiation.SynchrotronRadiation.calculate_SR_params">
-<code class="descname">calculate_SR_params</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.synchrotron_radiation.synchrotron_radiation.SynchrotronRadiation.calculate_SR_params" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">calculate_SR_params</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.synchrotron_radiation.synchrotron_radiation.SynchrotronRadiation.calculate_SR_params" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.synchrotron_radiation.synchrotron_radiation.SynchrotronRadiation.print_SR_params">
-<code class="descname">print_SR_params</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.synchrotron_radiation.synchrotron_radiation.SynchrotronRadiation.print_SR_params" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">print_SR_params</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.synchrotron_radiation.synchrotron_radiation.SynchrotronRadiation.print_SR_params" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.synchrotron_radiation.synchrotron_radiation.SynchrotronRadiation.track_SR_C">
-<code class="descname">track_SR_C</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.synchrotron_radiation.synchrotron_radiation.SynchrotronRadiation.track_SR_C" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">track_SR_C</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.synchrotron_radiation.synchrotron_radiation.SynchrotronRadiation.track_SR_C" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.synchrotron_radiation.synchrotron_radiation.SynchrotronRadiation.track_SR_python">
-<code class="descname">track_SR_python</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.synchrotron_radiation.synchrotron_radiation.SynchrotronRadiation.track_SR_python" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">track_SR_python</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.synchrotron_radiation.synchrotron_radiation.SynchrotronRadiation.track_SR_python" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.synchrotron_radiation.synchrotron_radiation.SynchrotronRadiation.track_full_C">
-<code class="descname">track_full_C</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.synchrotron_radiation.synchrotron_radiation.SynchrotronRadiation.track_full_C" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">track_full_C</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.synchrotron_radiation.synchrotron_radiation.SynchrotronRadiation.track_full_C" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.synchrotron_radiation.synchrotron_radiation.SynchrotronRadiation.track_full_python">
-<code class="descname">track_full_python</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.synchrotron_radiation.synchrotron_radiation.SynchrotronRadiation.track_full_python" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">track_full_python</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.synchrotron_radiation.synchrotron_radiation.SynchrotronRadiation.track_full_python" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 </dd></dl>
@@ -388,7 +388,7 @@ the track() method after tracking each section.</p>
       <script type="text/javascript" src="../_static/underscore.js"></script>
       <script type="text/javascript" src="../_static/doctools.js"></script>
       <script type="text/javascript" src="../_static/language_data.js"></script>
-      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
   
 
   

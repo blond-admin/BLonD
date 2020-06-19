@@ -291,9 +291,9 @@ intensity effects is considered.</strong></p>
 <dd class="field-odd"><p><strong>Helga Timko</strong></p>
 </dd>
 </dl>
-<dl class="function">
+<dl class="py function">
 <dt id="blond.toolbox.action.action_from_oscillation_amplitude">
-<code class="descclassname">blond.toolbox.action.</code><code class="descname">action_from_oscillation_amplitude</code><span class="sig-paren">(</span><em>RFStation</em>, <em>dtmax</em>, <em>timestep=0</em>, <em>Np_histogram=None</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.action.action_from_oscillation_amplitude" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.toolbox.action.</code><code class="sig-name descname">action_from_oscillation_amplitude</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">RFStation</span></em>, <em class="sig-param"><span class="n">dtmax</span></em>, <em class="sig-param"><span class="n">timestep</span><span class="o">=</span><span class="default_value">0</span></em>, <em class="sig-param"><span class="n">Np_histogram</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.action.action_from_oscillation_amplitude" title="Permalink to this definition">¶</a></dt>
 <dd><p>Returns the relative action for given oscillation amplitude in time,
 assuming single-harmonic RF system and no intensity effects.
 Action is normalised to the value at the separatrix, given in units of 1.
@@ -301,44 +301,44 @@ Optional: RF parameters at a given timestep (default = 0) are used.
 Optional: Number of points for histogram output</p>
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="blond.toolbox.action.action_from_phase_amplitude">
-<code class="descclassname">blond.toolbox.action.</code><code class="descname">action_from_phase_amplitude</code><span class="sig-paren">(</span><em>x2</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.action.action_from_phase_amplitude" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.toolbox.action.</code><code class="sig-name descname">action_from_phase_amplitude</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">x2</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.action.action_from_phase_amplitude" title="Permalink to this definition">¶</a></dt>
 <dd><p>Returns the relative action for given oscillation amplitude in time.
 Action is normalised to the value at the separatrix, given in units of 1.</p>
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="blond.toolbox.action.oscillation_amplitude_from_coordinates">
-<code class="descclassname">blond.toolbox.action.</code><code class="descname">oscillation_amplitude_from_coordinates</code><span class="sig-paren">(</span><em>Ring</em>, <em>RFStation</em>, <em>dt</em>, <em>dE</em>, <em>timestep=0</em>, <em>Np_histogram=None</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.action.oscillation_amplitude_from_coordinates" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.toolbox.action.</code><code class="sig-name descname">oscillation_amplitude_from_coordinates</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">Ring</span></em>, <em class="sig-param"><span class="n">RFStation</span></em>, <em class="sig-param"><span class="n">dt</span></em>, <em class="sig-param"><span class="n">dE</span></em>, <em class="sig-param"><span class="n">timestep</span><span class="o">=</span><span class="default_value">0</span></em>, <em class="sig-param"><span class="n">Np_histogram</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.action.oscillation_amplitude_from_coordinates" title="Permalink to this definition">¶</a></dt>
 <dd><p>Returns the oscillation amplitude in time for given particle coordinates,
 assuming single-harmonic RF system and no intensity effects.
 Optional: RF parameters at a given timestep (default = 0) are used.
 Optional: Number of points for histogram output</p>
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="blond.toolbox.action.phase_amplitude_from_tune">
-<code class="descclassname">blond.toolbox.action.</code><code class="descname">phase_amplitude_from_tune</code><span class="sig-paren">(</span><em>tune</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.action.phase_amplitude_from_tune" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.toolbox.action.</code><code class="sig-name descname">phase_amplitude_from_tune</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">tune</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.action.phase_amplitude_from_tune" title="Permalink to this definition">¶</a></dt>
 <dd><p>Find the amplitude of synchrotron oscillations in phase corresponding to a
 given tune w.r.t. the central synchrotron frequency</p>
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="blond.toolbox.action.tune_from_phase_amplitude">
-<code class="descclassname">blond.toolbox.action.</code><code class="descname">tune_from_phase_amplitude</code><span class="sig-paren">(</span><em>phimax</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.action.tune_from_phase_amplitude" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.toolbox.action.</code><code class="sig-name descname">tune_from_phase_amplitude</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">phimax</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.action.tune_from_phase_amplitude" title="Permalink to this definition">¶</a></dt>
 <dd><p>Find the tune w.r.t. the central synchrotron frequency corresponding to a
 given amplitude of synchrotron oscillations in phase</p>
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="blond.toolbox.action.x">
-<code class="descclassname">blond.toolbox.action.</code><code class="descname">x</code><span class="sig-paren">(</span><em>phimax</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.action.x" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.toolbox.action.</code><code class="sig-name descname">x</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">phimax</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.action.x" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="blond.toolbox.action.x2">
-<code class="descclassname">blond.toolbox.action.</code><code class="descname">x2</code><span class="sig-paren">(</span><em>phimax</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.action.x2" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.toolbox.action.</code><code class="sig-name descname">x2</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">phimax</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.action.x2" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 </div>
@@ -351,9 +351,9 @@ RF bucket is considered.</strong></p>
 <dd class="field-odd"><p><strong>Helga Timko</strong></p>
 </dd>
 </dl>
-<dl class="function">
+<dl class="py function">
 <dt id="blond.toolbox.diffusion.phase_noise_diffusion">
-<code class="descclassname">blond.toolbox.diffusion.</code><code class="descname">phase_noise_diffusion</code><span class="sig-paren">(</span><em>Ring</em>, <em>RFStation</em>, <em>spectrum</em>, <em>distribution</em>, <em>distributionBins</em>, <em>Ngrids=200</em>, <em>M=1</em>, <em>iterations=100000</em>, <em>figdir=None</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.diffusion.phase_noise_diffusion" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.toolbox.diffusion.</code><code class="sig-name descname">phase_noise_diffusion</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">Ring</span></em>, <em class="sig-param"><span class="n">RFStation</span></em>, <em class="sig-param"><span class="n">spectrum</span></em>, <em class="sig-param"><span class="n">distribution</span></em>, <em class="sig-param"><span class="n">distributionBins</span></em>, <em class="sig-param"><span class="n">Ngrids</span><span class="o">=</span><span class="default_value">200</span></em>, <em class="sig-param"><span class="n">M</span><span class="o">=</span><span class="default_value">1</span></em>, <em class="sig-param"><span class="n">iterations</span><span class="o">=</span><span class="default_value">100000</span></em>, <em class="sig-param"><span class="n">figdir</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.diffusion.phase_noise_diffusion" title="Permalink to this definition">¶</a></dt>
 <dd><p>Calculate diffusion in action space according to a given double-sided phase
 noise spectrum, on a uniform grid in oscillation amplitude.
 The spectrum is defined on the grid points (Ngrids + 1 points) for all M.
@@ -378,9 +378,9 @@ Optional: save figures into directory ‘figdir’.</p>
 <strong>Juan F. Esteban Mueller</strong></p>
 </dd>
 </dl>
-<dl class="function">
+<dl class="py function">
 <dt id="blond.toolbox.filters_and_fitting.beam_profile_filter_chebyshev">
-<code class="descclassname">blond.toolbox.filters_and_fitting.</code><code class="descname">beam_profile_filter_chebyshev</code><span class="sig-paren">(</span><em>Y_array</em>, <em>X_array</em>, <em>filter_option</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.filters_and_fitting.beam_profile_filter_chebyshev" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.toolbox.filters_and_fitting.</code><code class="sig-name descname">beam_profile_filter_chebyshev</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">Y_array</span></em>, <em class="sig-param"><span class="n">X_array</span></em>, <em class="sig-param"><span class="n">filter_option</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.filters_and_fitting.beam_profile_filter_chebyshev" title="Permalink to this definition">¶</a></dt>
 <dd><p>This routine is filtering the beam profile with a type II Chebyshev
 filter. The input is a library having the following structure and
 informations:</p>
@@ -393,45 +393,45 @@ the filter transfer function:</p>
 <p>filter_option = {…, ‘transfer_function_plot’:True}</p>
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="blond.toolbox.filters_and_fitting.fwhm">
-<code class="descclassname">blond.toolbox.filters_and_fitting.</code><code class="descname">fwhm</code><span class="sig-paren">(</span><em>Y_array</em>, <em>X_array</em>, <em>shift=0</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.filters_and_fitting.fwhm" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.toolbox.filters_and_fitting.</code><code class="sig-name descname">fwhm</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">Y_array</span></em>, <em class="sig-param"><span class="n">X_array</span></em>, <em class="sig-param"><span class="n">shift</span><span class="o">=</span><span class="default_value">0</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.filters_and_fitting.fwhm" title="Permalink to this definition">¶</a></dt>
 <dd><p>Computation of the bunch length and position from the FWHM
 assuming Gaussian line density.</p>
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="blond.toolbox.filters_and_fitting.fwhm_multibunch">
-<code class="descclassname">blond.toolbox.filters_and_fitting.</code><code class="descname">fwhm_multibunch</code><span class="sig-paren">(</span><em>Y_array</em>, <em>X_array</em>, <em>n_bunches</em>, <em>bunch_spacing_buckets</em>, <em>bucket_size_tau</em>, <em>bucket_tolerance=0.4</em>, <em>shift=0</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.filters_and_fitting.fwhm_multibunch" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.toolbox.filters_and_fitting.</code><code class="sig-name descname">fwhm_multibunch</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">Y_array</span></em>, <em class="sig-param"><span class="n">X_array</span></em>, <em class="sig-param"><span class="n">n_bunches</span></em>, <em class="sig-param"><span class="n">bunch_spacing_buckets</span></em>, <em class="sig-param"><span class="n">bucket_size_tau</span></em>, <em class="sig-param"><span class="n">bucket_tolerance</span><span class="o">=</span><span class="default_value">0.4</span></em>, <em class="sig-param"><span class="n">shift</span><span class="o">=</span><span class="default_value">0</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.filters_and_fitting.fwhm_multibunch" title="Permalink to this definition">¶</a></dt>
 <dd><p>Computation of the bunch length and position from the FWHM
 assuming Gaussian line density for multibunch case.</p>
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="blond.toolbox.filters_and_fitting.gauss">
-<code class="descclassname">blond.toolbox.filters_and_fitting.</code><code class="descname">gauss</code><span class="sig-paren">(</span><em>x</em>, <em>*p</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.filters_and_fitting.gauss" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.toolbox.filters_and_fitting.</code><code class="sig-name descname">gauss</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">x</span></em>, <em class="sig-param"><span class="o">*</span><span class="n">p</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.filters_and_fitting.gauss" title="Permalink to this definition">¶</a></dt>
 <dd><p>Defined as:</p>
 <div class="math notranslate nohighlight">
 \[A \, e^{\frac{\left(x-x_0\right)^2}{2\sigma_x^2}}\]</div>
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="blond.toolbox.filters_and_fitting.gaussian_fit">
-<code class="descclassname">blond.toolbox.filters_and_fitting.</code><code class="descname">gaussian_fit</code><span class="sig-paren">(</span><em>Y_array</em>, <em>X_array</em>, <em>p0</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.filters_and_fitting.gaussian_fit" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.toolbox.filters_and_fitting.</code><code class="sig-name descname">gaussian_fit</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">Y_array</span></em>, <em class="sig-param"><span class="n">X_array</span></em>, <em class="sig-param"><span class="n">p0</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.filters_and_fitting.gaussian_fit" title="Permalink to this definition">¶</a></dt>
 <dd><p>Gaussian fit of the profile, in order to get the bunch length and
 position. Returns fit values in units of s.</p>
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="blond.toolbox.filters_and_fitting.rms">
-<code class="descclassname">blond.toolbox.filters_and_fitting.</code><code class="descname">rms</code><span class="sig-paren">(</span><em>Y_array</em>, <em>X_array</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.filters_and_fitting.rms" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.toolbox.filters_and_fitting.</code><code class="sig-name descname">rms</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">Y_array</span></em>, <em class="sig-param"><span class="n">X_array</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.filters_and_fitting.rms" title="Permalink to this definition">¶</a></dt>
 <dd><p>Computation of the RMS bunch length and position from the line
 density (bunch length = 4sigma).</p>
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="blond.toolbox.filters_and_fitting.rms_multibunch">
-<code class="descclassname">blond.toolbox.filters_and_fitting.</code><code class="descname">rms_multibunch</code><span class="sig-paren">(</span><em>Y_array</em>, <em>X_array</em>, <em>n_bunches</em>, <em>bunch_spacing_buckets</em>, <em>bucket_size_tau</em>, <em>bucket_tolerance=0.4</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.filters_and_fitting.rms_multibunch" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.toolbox.filters_and_fitting.</code><code class="sig-name descname">rms_multibunch</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">Y_array</span></em>, <em class="sig-param"><span class="n">X_array</span></em>, <em class="sig-param"><span class="n">n_bunches</span></em>, <em class="sig-param"><span class="n">bunch_spacing_buckets</span></em>, <em class="sig-param"><span class="n">bucket_size_tau</span></em>, <em class="sig-param"><span class="n">bucket_tolerance</span><span class="o">=</span><span class="default_value">0.4</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.filters_and_fitting.rms_multibunch" title="Permalink to this definition">¶</a></dt>
 <dd><p>Computation of the rms bunch length (4sigma) and position.</p>
 </dd></dl>
 
@@ -444,9 +444,9 @@ density (bunch length = 4sigma).</p>
 <dd class="field-odd"><p><strong>Helga Timko</strong></p>
 </dd>
 </dl>
-<dl class="class">
+<dl class="py class">
 <dt id="blond.toolbox.logger.Logger">
-<em class="property">class </em><code class="descclassname">blond.toolbox.logger.</code><code class="descname">Logger</code><span class="sig-paren">(</span><em>debug=False</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.logger.Logger" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">blond.toolbox.logger.</code><code class="sig-name descname">Logger</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">debug</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.logger.Logger" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>Class to log messages coming from other classes. Messages contain
 {Time stamp} {Class name} {Log level} {Message}. Errors, warnings and info
@@ -456,9 +456,9 @@ are logged into the console. To disable logging, call Logger().disable()</p>
 <dd class="field-odd"><p><strong>debug</strong> (<em>bool</em>) – Log DEBUG messages in ‘debug.log’; default is False</p>
 </dd>
 </dl>
-<dl class="method">
+<dl class="py method">
 <dt id="blond.toolbox.logger.Logger.disable">
-<code class="descname">disable</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.logger.Logger.disable" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">disable</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.logger.Logger.disable" title="Permalink to this definition">¶</a></dt>
 <dd><p>Disables all logging.</p>
 </dd></dl>
 
@@ -474,9 +474,9 @@ the output will contain at least one factor 2.</strong></p>
 <dd class="field-odd"><p><strong>Alexandre Lasheen</strong>, <strong>Juan F. Esteban Mueller</strong>, <strong>Danilo Quartullo</strong></p>
 </dd>
 </dl>
-<dl class="function">
+<dl class="py function">
 <dt id="blond.toolbox.next_regular.next_regular">
-<code class="descclassname">blond.toolbox.next_regular.</code><code class="descname">next_regular</code><span class="sig-paren">(</span><em>target</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.next_regular.next_regular" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.toolbox.next_regular.</code><code class="sig-name descname">next_regular</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">target</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.next_regular.next_regular" title="Permalink to this definition">¶</a></dt>
 <dd><p>Find the next regular number greater than or equal to target.
 Regular numbers are composites of the prime factors 2, 3, and 5.
 Also known as 5-smooth numbers or Hamming numbers, these are the optimal
@@ -493,93 +493,93 @@ size for inputs to FFTPACK.</p>
 <dd class="field-odd"><p><strong>Konstantinos Iliakis</strong>, <strong>Helga Timko</strong></p>
 </dd>
 </dl>
-<dl class="class">
+<dl class="py class">
 <dt id="blond.toolbox.parameter_scaling.ParameterScaling">
-<em class="property">class </em><code class="descclassname">blond.toolbox.parameter_scaling.</code><code class="descname">ParameterScaling</code><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">blond.toolbox.parameter_scaling.</code><code class="sig-name descname">ParameterScaling</code><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
-<dl class="method">
+<dl class="py method">
 <dt id="blond.toolbox.parameter_scaling.ParameterScaling.addactions">
-<code class="descname">addactions</code><span class="sig-paren">(</span><em>mainWindow</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling.addactions" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">addactions</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">mainWindow</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling.addactions" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.toolbox.parameter_scaling.ParameterScaling.bucket_parameters">
-<code class="descname">bucket_parameters</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling.bucket_parameters" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">bucket_parameters</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling.bucket_parameters" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.toolbox.parameter_scaling.ParameterScaling.bunch_length_from_emittance">
-<code class="descname">bunch_length_from_emittance</code><span class="sig-paren">(</span><em>emittance</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling.bunch_length_from_emittance" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">bunch_length_from_emittance</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">emittance</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling.bunch_length_from_emittance" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.toolbox.parameter_scaling.ParameterScaling.cbEnergyHandler">
-<code class="descname">cbEnergyHandler</code><span class="sig-paren">(</span><em>text</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling.cbEnergyHandler" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">cbEnergyHandler</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">text</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling.cbEnergyHandler" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.toolbox.parameter_scaling.ParameterScaling.cbGammaTHandler">
-<code class="descname">cbGammaTHandler</code><span class="sig-paren">(</span><em>text</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling.cbGammaTHandler" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">cbGammaTHandler</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">text</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling.cbGammaTHandler" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
-<dl class="attribute">
+<dl class="py method">
 <dt id="blond.toolbox.parameter_scaling.ParameterScaling.dE_b">
-<code class="descname">dE_b</code><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling.dE_b" title="Permalink to this definition">¶</a></dt>
+<em class="property">property </em><code class="sig-name descname">dE_b</code><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling.dE_b" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
-<dl class="attribute">
+<dl class="py method">
 <dt id="blond.toolbox.parameter_scaling.ParameterScaling.delta_b">
-<code class="descname">delta_b</code><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling.delta_b" title="Permalink to this definition">¶</a></dt>
+<em class="property">property </em><code class="sig-name descname">delta_b</code><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling.delta_b" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
-<dl class="attribute">
+<dl class="py method">
 <dt id="blond.toolbox.parameter_scaling.ParameterScaling.emittance">
-<code class="descname">emittance</code><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling.emittance" title="Permalink to this definition">¶</a></dt>
+<em class="property">property </em><code class="sig-name descname">emittance</code><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling.emittance" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.toolbox.parameter_scaling.ParameterScaling.emittance_from_bunch_length">
-<code class="descname">emittance_from_bunch_length</code><span class="sig-paren">(</span><em>four_sigma_bunch_length</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling.emittance_from_bunch_length" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">emittance_from_bunch_length</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">four_sigma_bunch_length</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling.emittance_from_bunch_length" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.toolbox.parameter_scaling.ParameterScaling.frequencies">
-<code class="descname">frequencies</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling.frequencies" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">frequencies</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling.frequencies" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
-<dl class="attribute">
+<dl class="py method">
 <dt id="blond.toolbox.parameter_scaling.ParameterScaling.integral">
-<code class="descname">integral</code><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling.integral" title="Permalink to this definition">¶</a></dt>
+<em class="property">property </em><code class="sig-name descname">integral</code><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling.integral" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.toolbox.parameter_scaling.ParameterScaling.pbHandler">
-<code class="descname">pbHandler</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling.pbHandler" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">pbHandler</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling.pbHandler" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
-<dl class="attribute">
+<dl class="py method">
 <dt id="blond.toolbox.parameter_scaling.ParameterScaling.phi_b">
-<code class="descname">phi_b</code><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling.phi_b" title="Permalink to this definition">¶</a></dt>
+<em class="property">property </em><code class="sig-name descname">phi_b</code><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling.phi_b" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.toolbox.parameter_scaling.ParameterScaling.relativistic_quantities">
-<code class="descname">relativistic_quantities</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling.relativistic_quantities" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">relativistic_quantities</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling.relativistic_quantities" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.toolbox.parameter_scaling.ParameterScaling.retranslateUi">
-<code class="descname">retranslateUi</code><span class="sig-paren">(</span><em>mainWindow</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling.retranslateUi" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">retranslateUi</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">mainWindow</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling.retranslateUi" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.toolbox.parameter_scaling.ParameterScaling.setupUi">
-<code class="descname">setupUi</code><span class="sig-paren">(</span><em>mainWindow</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling.setupUi" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">setupUi</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">mainWindow</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling.setupUi" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.toolbox.parameter_scaling.ParameterScaling.tune">
-<code class="descname">tune</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling.tune" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">tune</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.parameter_scaling.ParameterScaling.tune" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 </dd></dl>
@@ -594,9 +594,9 @@ probability density.**</p>
 <dd class="field-odd"><p><strong>Helga Timko</strong></p>
 </dd>
 </dl>
-<dl class="function">
+<dl class="py function">
 <dt id="blond.toolbox.tomoscope.distribution_from_tomoscope_data">
-<code class="descclassname">blond.toolbox.tomoscope.</code><code class="descname">distribution_from_tomoscope_data</code><span class="sig-paren">(</span><em>dataDir</em>, <em>nPart</em>, <em>cutoff=1000</em>, <em>seed=1234</em>, <em>plotFig=True</em>, <em>saveDistr=False</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.tomoscope.distribution_from_tomoscope_data" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.toolbox.tomoscope.</code><code class="sig-name descname">distribution_from_tomoscope_data</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">dataDir</span></em>, <em class="sig-param"><span class="n">nPart</span></em>, <em class="sig-param"><span class="n">cutoff</span><span class="o">=</span><span class="default_value">1000</span></em>, <em class="sig-param"><span class="n">seed</span><span class="o">=</span><span class="default_value">1234</span></em>, <em class="sig-param"><span class="n">plotFig</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">saveDistr</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.toolbox.tomoscope.distribution_from_tomoscope_data" title="Permalink to this definition">¶</a></dt>
 <dd><p>‘dataDir’ is the directory of <em>directories</em> of offline-processed tomoscope
 data containing ‘plotinfo.data’ and ‘image001.data’
 Use ‘cutoff’ to eliminate measurement noise (use values around 50-100).
@@ -663,7 +663,7 @@ Use ‘saveDistr = True’ to save particle coordinates.</p>
       <script type="text/javascript" src="../_static/underscore.js"></script>
       <script type="text/javascript" src="../_static/doctools.js"></script>
       <script type="text/javascript" src="../_static/language_data.js"></script>
-      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
   
 
   

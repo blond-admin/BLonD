@@ -291,33 +291,33 @@ and the beam coordinates in phase space.</strong></p>
 <dd class="field-odd"><p><strong>Helga Timko</strong>, <strong>Alexandre Lasheen</strong>, <strong>Danilo Quartullo</strong></p>
 </dd>
 </dl>
-<dl class="class">
+<dl class="py class">
 <dt id="blond.trackers.tracker.FullRingAndRF">
-<em class="property">class </em><code class="descclassname">blond.trackers.tracker.</code><code class="descname">FullRingAndRF</code><span class="sig-paren">(</span><em>RingAndRFSection_list</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.trackers.tracker.FullRingAndRF" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">blond.trackers.tracker.</code><code class="sig-name descname">FullRingAndRF</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">RingAndRFSection_list</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.trackers.tracker.FullRingAndRF" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p><em>Definition of the full ring and RF parameters in order to be able to have
 a full turn information (used in the hamiltonian for example).</em></p>
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.trackers.tracker.FullRingAndRF.RingAndRFSection_list">
-<code class="descname">RingAndRFSection_list</code><em class="property"> = None</em><a class="headerlink" href="#blond.trackers.tracker.FullRingAndRF.RingAndRFSection_list" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">RingAndRFSection_list</code><a class="headerlink" href="#blond.trackers.tracker.FullRingAndRF.RingAndRFSection_list" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>List of the total RingAndRFSection objects</em></p>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.trackers.tracker.FullRingAndRF.potential_well">
-<code class="descname">potential_well</code><em class="property"> = None</em><a class="headerlink" href="#blond.trackers.tracker.FullRingAndRF.potential_well" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">potential_well</code><a class="headerlink" href="#blond.trackers.tracker.FullRingAndRF.potential_well" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Total potential well in [V]</em></p>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.trackers.tracker.FullRingAndRF.potential_well_coordinates">
-<code class="descname">potential_well_coordinates</code><em class="property"> = None</em><a class="headerlink" href="#blond.trackers.tracker.FullRingAndRF.potential_well_coordinates" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">potential_well_coordinates</code><a class="headerlink" href="#blond.trackers.tracker.FullRingAndRF.potential_well_coordinates" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Total potential well theta coordinates in [rad]</em></p>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.trackers.tracker.FullRingAndRF.potential_well_generation">
-<code class="descname">potential_well_generation</code><span class="sig-paren">(</span><em>turn=0</em>, <em>n_points=100000.0</em>, <em>main_harmonic_option='lowest_freq'</em>, <em>dt_margin_percent=0.0</em>, <em>time_array=None</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.trackers.tracker.FullRingAndRF.potential_well_generation" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">potential_well_generation</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">turn</span><span class="o">=</span><span class="default_value">0</span></em>, <em class="sig-param"><span class="n">n_points</span><span class="o">=</span><span class="default_value">100000.0</span></em>, <em class="sig-param"><span class="n">main_harmonic_option</span><span class="o">=</span><span class="default_value">'lowest_freq'</span></em>, <em class="sig-param"><span class="n">dt_margin_percent</span><span class="o">=</span><span class="default_value">0.0</span></em>, <em class="sig-param"><span class="n">time_array</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.trackers.tracker.FullRingAndRF.potential_well_generation" title="Permalink to this definition">¶</a></dt>
 <dd><p>Method to generate the potential well out of the RF systems. The
 assumption made is that all the RF voltages are averaged over one turn.
 The potential well is then approximated over one turn, which is not the
@@ -333,29 +333,29 @@ is set to 0 by default. It assumes also that the slippage factor is the
 same in the whole ring.</p>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.trackers.tracker.FullRingAndRF.ring_circumference">
-<code class="descname">ring_circumference</code><em class="property"> = None</em><a class="headerlink" href="#blond.trackers.tracker.FullRingAndRF.ring_circumference" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">ring_circumference</code><a class="headerlink" href="#blond.trackers.tracker.FullRingAndRF.ring_circumference" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Ring circumference in [m]</em></p>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.trackers.tracker.FullRingAndRF.ring_radius">
-<code class="descname">ring_radius</code><em class="property"> = None</em><a class="headerlink" href="#blond.trackers.tracker.FullRingAndRF.ring_radius" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">ring_radius</code><a class="headerlink" href="#blond.trackers.tracker.FullRingAndRF.ring_radius" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Ring radius in [m]</em></p>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.trackers.tracker.FullRingAndRF.track">
-<code class="descname">track</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.trackers.tracker.FullRingAndRF.track" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">track</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.trackers.tracker.FullRingAndRF.track" title="Permalink to this definition">¶</a></dt>
 <dd><p>Function to loop over all the RingAndRFSection.track methods</p>
 </dd></dl>
 
 </dd></dl>
 
-<dl class="class">
+<dl class="py class">
 <dt id="blond.trackers.tracker.RingAndRFTracker">
-<em class="property">class </em><code class="descclassname">blond.trackers.tracker.</code><code class="descname">RingAndRFTracker</code><span class="sig-paren">(</span><em>RFStation</em>, <em>Beam</em>, <em>solver='simple'</em>, <em>BeamFeedback=None</em>, <em>NoiseFeedback=None</em>, <em>CavityFeedback=None</em>, <em>periodicity=False</em>, <em>interpolation=False</em>, <em>Profile=None</em>, <em>TotalInducedVoltage=None</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.trackers.tracker.RingAndRFTracker" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">blond.trackers.tracker.</code><code class="sig-name descname">RingAndRFTracker</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">RFStation</span></em>, <em class="sig-param"><span class="n">Beam</span></em>, <em class="sig-param"><span class="n">solver</span><span class="o">=</span><span class="default_value">'simple'</span></em>, <em class="sig-param"><span class="n">BeamFeedback</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">NoiseFeedback</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">CavityFeedback</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">periodicity</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">interpolation</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">Profile</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">TotalInducedVoltage</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.trackers.tracker.RingAndRFTracker" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>Class taking care of basic particle coordinate tracking for a given
 RF station and the part of the ring until the next station, see figure.</p>
@@ -429,9 +429,9 @@ is False</p></li>
 </ul>
 </dd>
 </dl>
-<dl class="method">
+<dl class="py method">
 <dt id="blond.trackers.tracker.RingAndRFTracker.drift">
-<code class="descname">drift</code><span class="sig-paren">(</span><em>beam_dt</em>, <em>beam_dE</em>, <em>index</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.trackers.tracker.RingAndRFTracker.drift" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">drift</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">beam_dt</span></em>, <em class="sig-param"><span class="n">beam_dE</span></em>, <em class="sig-param"><span class="n">index</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.trackers.tracker.RingAndRFTracker.drift" title="Permalink to this definition">¶</a></dt>
 <dd><p>Function updating the particle arrival time to the RF station
 (drift). If only the zeroth order slippage factor is given, ‘simple’
 and ‘exact’ solvers are available. The ‘simple’ solver is somewhat
@@ -452,9 +452,9 @@ and is obtained as follow:</p>
 \[\delta = \frac{\Delta E}{\beta_s^2 E_s} \quad \text{(simple, legacy)}\]</div>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.trackers.tracker.RingAndRFTracker.kick">
-<code class="descname">kick</code><span class="sig-paren">(</span><em>beam_dt</em>, <em>beam_dE</em>, <em>index</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.trackers.tracker.RingAndRFTracker.kick" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">kick</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">beam_dt</span></em>, <em class="sig-param"><span class="n">beam_dE</span></em>, <em class="sig-param"><span class="n">index</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.trackers.tracker.RingAndRFTracker.kick" title="Permalink to this definition">¶</a></dt>
 <dd><p>Function updating the particle energy due to the RF kick in a given
 RF station. The kicks are summed over the different harmonic RF systems
 in the station. The cavity phase can be shifted by the user via
@@ -466,16 +466,16 @@ discrete equation of motion:</p>
 \[\Delta E^{n+1} = \Delta E^n + \sum_{k=0}^{n_{\mathsf{rf}}-1}{e V_k^n \sin{\left(\omega_{\mathsf{rf,k}}^n \Delta t^n + \phi_{\mathsf{rf,k}}^n \right)}} - (E_s^{n+1} - E_s^n)\]</div>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.trackers.tracker.RingAndRFTracker.rf_voltage_calculation">
-<code class="descname">rf_voltage_calculation</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.trackers.tracker.RingAndRFTracker.rf_voltage_calculation" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">rf_voltage_calculation</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.trackers.tracker.RingAndRFTracker.rf_voltage_calculation" title="Permalink to this definition">¶</a></dt>
 <dd><p>Function calculating the total, discretised RF voltage seen by the
 beam at a given turn. Requires a Profile object.</p>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.trackers.tracker.RingAndRFTracker.track">
-<code class="descname">track</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.trackers.tracker.RingAndRFTracker.track" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">track</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.trackers.tracker.RingAndRFTracker.track" title="Permalink to this definition">¶</a></dt>
 <dd><p>Tracking method for the section. Applies first the kick, then the
 drift. Calls also RF/beam feedbacks if applicable. Updates the counter
 of the corresponding RFStation class and the energy-related variables
@@ -493,18 +493,18 @@ of the Beam class.</p>
 <dd class="field-odd"><p><strong>Danilo Quartullo</strong>, <strong>Helga Timko</strong>, <strong>Alexandre Lasheen</strong></p>
 </dd>
 </dl>
-<dl class="function">
+<dl class="py function">
 <dt id="blond.trackers.utilities.hamiltonian">
-<code class="descclassname">blond.trackers.utilities.</code><code class="descname">hamiltonian</code><span class="sig-paren">(</span><em>Ring</em>, <em>RFStation</em>, <em>Beam</em>, <em>dt</em>, <em>dE</em>, <em>total_voltage=None</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.trackers.utilities.hamiltonian" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.trackers.utilities.</code><code class="sig-name descname">hamiltonian</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">Ring</span></em>, <em class="sig-param"><span class="n">RFStation</span></em>, <em class="sig-param"><span class="n">Beam</span></em>, <em class="sig-param"><span class="n">dt</span></em>, <em class="sig-param"><span class="n">dE</span></em>, <em class="sig-param"><span class="n">total_voltage</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.trackers.utilities.hamiltonian" title="Permalink to this definition">¶</a></dt>
 <dd><p>Single RF sinusoidal Hamiltonian.
 For the time being, for single RF section only or from total voltage.
 Uses beta, energy averaged over the turn.
 To be generalized.</p>
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="blond.trackers.utilities.is_in_separatrix">
-<code class="descclassname">blond.trackers.utilities.</code><code class="descname">is_in_separatrix</code><span class="sig-paren">(</span><em>Ring</em>, <em>RFStation</em>, <em>Beam</em>, <em>dt</em>, <em>dE</em>, <em>total_voltage=None</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.trackers.utilities.is_in_separatrix" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.trackers.utilities.</code><code class="sig-name descname">is_in_separatrix</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">Ring</span></em>, <em class="sig-param"><span class="n">RFStation</span></em>, <em class="sig-param"><span class="n">Beam</span></em>, <em class="sig-param"><span class="n">dt</span></em>, <em class="sig-param"><span class="n">dE</span></em>, <em class="sig-param"><span class="n">total_voltage</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.trackers.utilities.is_in_separatrix" title="Permalink to this definition">¶</a></dt>
 <dd><p>Function checking whether coordinate pair(s) are inside the separatrix.
 Uses the single-RF sinusoidal Hamiltonian.</p>
 <dl class="field-list simple">
@@ -527,34 +527,34 @@ Uses the single-RF sinusoidal Hamiltonian.</p>
 </dl>
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="blond.trackers.utilities.minmax_location">
-<code class="descclassname">blond.trackers.utilities.</code><code class="descname">minmax_location</code><span class="sig-paren">(</span><em>x</em>, <em>f</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.trackers.utilities.minmax_location" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.trackers.utilities.</code><code class="sig-name descname">minmax_location</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">x</span></em>, <em class="sig-param"><span class="n">f</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.trackers.utilities.minmax_location" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Function to locate the minima and maxima of the f(x) numerical function.</em></p>
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="blond.trackers.utilities.phase_modulo_above_transition">
-<code class="descclassname">blond.trackers.utilities.</code><code class="descname">phase_modulo_above_transition</code><span class="sig-paren">(</span><em>phi</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.trackers.utilities.phase_modulo_above_transition" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.trackers.utilities.</code><code class="sig-name descname">phase_modulo_above_transition</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">phi</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.trackers.utilities.phase_modulo_above_transition" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Projects a phase array into the range -Pi/2 to +3*Pi/2.</em></p>
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="blond.trackers.utilities.phase_modulo_below_transition">
-<code class="descclassname">blond.trackers.utilities.</code><code class="descname">phase_modulo_below_transition</code><span class="sig-paren">(</span><em>phi</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.trackers.utilities.phase_modulo_below_transition" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.trackers.utilities.</code><code class="sig-name descname">phase_modulo_below_transition</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">phi</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.trackers.utilities.phase_modulo_below_transition" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Projects a phase array into the range -Pi/2 to +3*Pi/2.</em></p>
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="blond.trackers.utilities.potential_well_cut">
-<code class="descclassname">blond.trackers.utilities.</code><code class="descname">potential_well_cut</code><span class="sig-paren">(</span><em>time_potential</em>, <em>potential_array</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.trackers.utilities.potential_well_cut" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.trackers.utilities.</code><code class="sig-name descname">potential_well_cut</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">time_potential</span></em>, <em class="sig-param"><span class="n">potential_array</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.trackers.utilities.potential_well_cut" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Function to cut the potential well in order to take only the separatrix
 (several cases according to the number of min/max).</em></p>
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="blond.trackers.utilities.separatrix">
-<code class="descclassname">blond.trackers.utilities.</code><code class="descname">separatrix</code><span class="sig-paren">(</span><em>Ring</em>, <em>RFStation</em>, <em>dt</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.trackers.utilities.separatrix" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.trackers.utilities.</code><code class="sig-name descname">separatrix</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">Ring</span></em>, <em class="sig-param"><span class="n">RFStation</span></em>, <em class="sig-param"><span class="n">dt</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.trackers.utilities.separatrix" title="Permalink to this definition">¶</a></dt>
 <dd><p>Function to calculate the ideal separatrix without intensity effects.
 For single or multiple RF systems. For the time being, multiple RF sections
 are not yet implemented.</p>
@@ -575,9 +575,9 @@ are not yet implemented.</p>
 </dl>
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="blond.trackers.utilities.synchrotron_frequency_distribution">
-<code class="descclassname">blond.trackers.utilities.</code><code class="descname">synchrotron_frequency_distribution</code><span class="sig-paren">(</span><em>Beam</em>, <em>FullRingAndRF</em>, <em>main_harmonic_option='lowest_freq'</em>, <em>turn=0</em>, <em>TotalInducedVoltage=None</em>, <em>smoothOption=None</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.trackers.utilities.synchrotron_frequency_distribution" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.trackers.utilities.</code><code class="sig-name descname">synchrotron_frequency_distribution</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">Beam</span></em>, <em class="sig-param"><span class="n">FullRingAndRF</span></em>, <em class="sig-param"><span class="n">main_harmonic_option</span><span class="o">=</span><span class="default_value">'lowest_freq'</span></em>, <em class="sig-param"><span class="n">turn</span><span class="o">=</span><span class="default_value">0</span></em>, <em class="sig-param"><span class="n">TotalInducedVoltage</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">smoothOption</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.trackers.utilities.synchrotron_frequency_distribution" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Function to compute the frequency distribution of a distribution for a certain
 RF system and optional intensity effects. The potential well (and induced
 potential) are not updated by this function, thus it has to be called</em>
@@ -596,9 +596,9 @@ number of pixels to smooth with smoothOption = N.</em></p>
 outputed.</em></p>
 </dd></dl>
 
-<dl class="class">
+<dl class="py class">
 <dt id="blond.trackers.utilities.synchrotron_frequency_tracker">
-<em class="property">class </em><code class="descclassname">blond.trackers.utilities.</code><code class="descname">synchrotron_frequency_tracker</code><span class="sig-paren">(</span><em>Ring</em>, <em>n_macroparticles</em>, <em>theta_coordinate_range</em>, <em>FullRingAndRF</em>, <em>TotalInducedVoltage=None</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.trackers.utilities.synchrotron_frequency_tracker" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">blond.trackers.utilities.</code><code class="sig-name descname">synchrotron_frequency_tracker</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">Ring</span></em>, <em class="sig-param"><span class="n">n_macroparticles</span></em>, <em class="sig-param"><span class="n">theta_coordinate_range</span></em>, <em class="sig-param"><span class="n">FullRingAndRF</span></em>, <em class="sig-param"><span class="n">TotalInducedVoltage</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.trackers.utilities.synchrotron_frequency_tracker" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p><em>This class can be added to the tracking map to track a certain
 number of particles (defined by the user) and to store the evolution
@@ -612,43 +612,43 @@ option as [min, max]. The input n_macroparticles will be generated with
 linear spacing between these values. One can also input the theta_coordinate_range
 as the coordinates of all particles, but the length of the array should
 match the n_macroparticles value.</em></p>
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.trackers.utilities.synchrotron_frequency_tracker.Beam">
-<code class="descname">Beam</code><em class="property"> = None</em><a class="headerlink" href="#blond.trackers.utilities.synchrotron_frequency_tracker.Beam" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">Beam</code><a class="headerlink" href="#blond.trackers.utilities.synchrotron_frequency_tracker.Beam" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Beam object containing the same physical information as the real beam,
 but containing only the coordinates of the particles for which the
 synchrotron frequency are computed.</em></p>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.trackers.utilities.synchrotron_frequency_tracker.FullRingAndRF">
-<code class="descname">FullRingAndRF</code><em class="property"> = None</em><a class="headerlink" href="#blond.trackers.utilities.synchrotron_frequency_tracker.FullRingAndRF" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">FullRingAndRF</code><a class="headerlink" href="#blond.trackers.utilities.synchrotron_frequency_tracker.FullRingAndRF" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Copy of the input FullRingAndRF object to retrieve the accelerator programs</em></p>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.trackers.utilities.synchrotron_frequency_tracker.TotalInducedVoltage">
-<code class="descname">TotalInducedVoltage</code><em class="property"> = None</em><a class="headerlink" href="#blond.trackers.utilities.synchrotron_frequency_tracker.TotalInducedVoltage" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">TotalInducedVoltage</code><a class="headerlink" href="#blond.trackers.utilities.synchrotron_frequency_tracker.TotalInducedVoltage" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Copy of the input TotalInducedVoltage object to retrieve the intensity effects
 (the synchrotron_frequency_tracker particles are not contributing to the
 induced voltage).</em></p>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.trackers.utilities.synchrotron_frequency_tracker.counter">
-<code class="descname">counter</code><em class="property"> = None</em><a class="headerlink" href="#blond.trackers.utilities.synchrotron_frequency_tracker.counter" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">counter</code><a class="headerlink" href="#blond.trackers.utilities.synchrotron_frequency_tracker.counter" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Tracking counter</em></p>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.trackers.utilities.synchrotron_frequency_tracker.dE_save">
-<code class="descname">dE_save</code><em class="property"> = None</em><a class="headerlink" href="#blond.trackers.utilities.synchrotron_frequency_tracker.dE_save" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">dE_save</code><a class="headerlink" href="#blond.trackers.utilities.synchrotron_frequency_tracker.dE_save" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Saving the dE coordinates of the particles while tracking</em></p>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.trackers.utilities.synchrotron_frequency_tracker.frequency_calculation">
-<code class="descname">frequency_calculation</code><span class="sig-paren">(</span><em>n_sampling=100000</em>, <em>start_turn=None</em>, <em>end_turn=None</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.trackers.utilities.synchrotron_frequency_tracker.frequency_calculation" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">frequency_calculation</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">n_sampling</span><span class="o">=</span><span class="default_value">100000</span></em>, <em class="sig-param"><span class="n">start_turn</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">end_turn</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.trackers.utilities.synchrotron_frequency_tracker.frequency_calculation" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Method to compute the fft of the particle oscillations in theta and dE
 to obtain their synchrotron frequencies. The particles for which
 the amplitude of oscillations is extending the minimum and maximum
@@ -656,47 +656,47 @@ theta from user input are considered to be lost and their synchrotron
 frequencies are not calculated.</em></p>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.trackers.utilities.synchrotron_frequency_tracker.nTurns">
-<code class="descname">nTurns</code><em class="property"> = None</em><a class="headerlink" href="#blond.trackers.utilities.synchrotron_frequency_tracker.nTurns" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">nTurns</code><a class="headerlink" href="#blond.trackers.utilities.synchrotron_frequency_tracker.nTurns" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Number of turns of the simulation (+1 to include the input parameters)</em></p>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.trackers.utilities.synchrotron_frequency_tracker.n_macroparticles">
-<code class="descname">n_macroparticles</code><em class="property"> = None</em><a class="headerlink" href="#blond.trackers.utilities.synchrotron_frequency_tracker.n_macroparticles" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">n_macroparticles</code><a class="headerlink" href="#blond.trackers.utilities.synchrotron_frequency_tracker.n_macroparticles" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Number of macroparticles used in the synchrotron_frequency_tracker method</em></p>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.trackers.utilities.synchrotron_frequency_tracker.theta_save">
-<code class="descname">theta_save</code><em class="property"> = None</em><a class="headerlink" href="#blond.trackers.utilities.synchrotron_frequency_tracker.theta_save" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">theta_save</code><a class="headerlink" href="#blond.trackers.utilities.synchrotron_frequency_tracker.theta_save" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Saving the theta coordinates of the particles while tracking</em></p>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.trackers.utilities.synchrotron_frequency_tracker.timeStep">
-<code class="descname">timeStep</code><em class="property"> = None</em><a class="headerlink" href="#blond.trackers.utilities.synchrotron_frequency_tracker.timeStep" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">timeStep</code><a class="headerlink" href="#blond.trackers.utilities.synchrotron_frequency_tracker.timeStep" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Revolution period in [s]</em></p>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.trackers.utilities.synchrotron_frequency_tracker.track">
-<code class="descname">track</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.trackers.utilities.synchrotron_frequency_tracker.track" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">track</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.trackers.utilities.synchrotron_frequency_tracker.track" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Method to track the particles with or without intensity effects.</em></p>
 </dd></dl>
 
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="blond.trackers.utilities.time_modulo">
-<code class="descclassname">blond.trackers.utilities.</code><code class="descname">time_modulo</code><span class="sig-paren">(</span><em>dt</em>, <em>dt_offset</em>, <em>T</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.trackers.utilities.time_modulo" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.trackers.utilities.</code><code class="sig-name descname">time_modulo</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">dt</span></em>, <em class="sig-param"><span class="n">dt_offset</span></em>, <em class="sig-param"><span class="n">T</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.trackers.utilities.time_modulo" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Returns dt projected onto the desired interval.</em></p>
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="blond.trackers.utilities.total_voltage">
-<code class="descclassname">blond.trackers.utilities.</code><code class="descname">total_voltage</code><span class="sig-paren">(</span><em>RFsection_list</em>, <em>harmonic='first'</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.trackers.utilities.total_voltage" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.trackers.utilities.</code><code class="sig-name descname">total_voltage</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">RFsection_list</span></em>, <em class="sig-param"><span class="n">harmonic</span><span class="o">=</span><span class="default_value">'first'</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.trackers.utilities.total_voltage" title="Permalink to this definition">¶</a></dt>
 <dd><p>Total voltage from all the RF stations and systems in the ring.
 To be generalized.</p>
 </dd></dl>
@@ -759,7 +759,7 @@ To be generalized.</p>
       <script type="text/javascript" src="../_static/underscore.js"></script>
       <script type="text/javascript" src="../_static/doctools.js"></script>
       <script type="text/javascript" src="../_static/language_data.js"></script>
-      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
   
 
   

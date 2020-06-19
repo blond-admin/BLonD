@@ -290,167 +290,167 @@
 <dd class="field-odd"><p><strong>Helga Timko</strong></p>
 </dd>
 </dl>
-<dl class="class">
+<dl class="py class">
 <dt id="blond.plots.plot.Plot">
-<em class="property">class </em><code class="descclassname">blond.plots.plot.</code><code class="descname">Plot</code><span class="sig-paren">(</span><em>Ring</em>, <em>RFStation</em>, <em>Beam</em>, <em>dt_plot</em>, <em>dt_bckp</em>, <em>xmin</em>, <em>xmax</em>, <em>ymin</em>, <em>ymax</em>, <em>xunit='s'</em>, <em>sampling=1</em>, <em>separatrix_plot=False</em>, <em>histograms_plot=True</em>, <em>Profile=None</em>, <em>h5file=None</em>, <em>output_frequency=1</em>, <em>PhaseLoop=None</em>, <em>LHCNoiseFB=None</em>, <em>format_options=None</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot.Plot" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">blond.plots.plot.</code><code class="sig-name descname">Plot</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">Ring</span></em>, <em class="sig-param"><span class="n">RFStation</span></em>, <em class="sig-param"><span class="n">Beam</span></em>, <em class="sig-param"><span class="n">dt_plot</span></em>, <em class="sig-param"><span class="n">dt_bckp</span></em>, <em class="sig-param"><span class="n">xmin</span></em>, <em class="sig-param"><span class="n">xmax</span></em>, <em class="sig-param"><span class="n">ymin</span></em>, <em class="sig-param"><span class="n">ymax</span></em>, <em class="sig-param"><span class="n">xunit</span><span class="o">=</span><span class="default_value">'s'</span></em>, <em class="sig-param"><span class="n">sampling</span><span class="o">=</span><span class="default_value">1</span></em>, <em class="sig-param"><span class="n">separatrix_plot</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">histograms_plot</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">Profile</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">h5file</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">output_frequency</span><span class="o">=</span><span class="default_value">1</span></em>, <em class="sig-param"><span class="n">PhaseLoop</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">LHCNoiseFB</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">format_options</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot.Plot" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.plots.plot.Plot.PL">
-<code class="descname">PL</code><em class="property"> = None</em><a class="headerlink" href="#blond.plots.plot.Plot.PL" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">PL</code><a class="headerlink" href="#blond.plots.plot.Plot.PL" title="Permalink to this definition">¶</a></dt>
 <dd><div class="line-block">
 <div class="line"><em>Optional import of PhaseLoop</em></div>
 </div>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.plots.plot.Plot.beam">
-<code class="descname">beam</code><em class="property"> = None</em><a class="headerlink" href="#blond.plots.plot.Plot.beam" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">beam</code><a class="headerlink" href="#blond.plots.plot.Plot.beam" title="Permalink to this definition">¶</a></dt>
 <dd><div class="line-block">
 <div class="line"><em>Import Beam</em></div>
 </div>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.plots.plot.Plot.dt_mon">
-<code class="descname">dt_mon</code><em class="property"> = None</em><a class="headerlink" href="#blond.plots.plot.Plot.dt_mon" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">dt_mon</code><a class="headerlink" href="#blond.plots.plot.Plot.dt_mon" title="Permalink to this definition">¶</a></dt>
 <dd><div class="line-block">
 <div class="line"><em>Optional sampling of monitored quantities</em></div>
 </div>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.plots.plot.Plot.dt_plot">
-<code class="descname">dt_plot</code><em class="property"> = None</em><a class="headerlink" href="#blond.plots.plot.Plot.dt_plot" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">dt_plot</code><a class="headerlink" href="#blond.plots.plot.Plot.dt_plot" title="Permalink to this definition">¶</a></dt>
 <dd><div class="line-block">
 <div class="line"><em>Plotting frequency in units of time steps</em></div>
 </div>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.plots.plot.Plot.general_params">
-<code class="descname">general_params</code><em class="property"> = None</em><a class="headerlink" href="#blond.plots.plot.Plot.general_params" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">general_params</code><a class="headerlink" href="#blond.plots.plot.Plot.general_params" title="Permalink to this definition">¶</a></dt>
 <dd><div class="line-block">
 <div class="line"><em>Import Ring</em></div>
 </div>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.plots.plot.Plot.h5file">
-<code class="descname">h5file</code><em class="property"> = None</em><a class="headerlink" href="#blond.plots.plot.Plot.h5file" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">h5file</code><a class="headerlink" href="#blond.plots.plot.Plot.h5file" title="Permalink to this definition">¶</a></dt>
 <dd><div class="line-block">
 <div class="line"><em>Optional import of Monitor file</em></div>
 </div>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.plots.plot.Plot.histogram">
-<code class="descname">histogram</code><em class="property"> = None</em><a class="headerlink" href="#blond.plots.plot.Plot.histogram" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">histogram</code><a class="headerlink" href="#blond.plots.plot.Plot.histogram" title="Permalink to this definition">¶</a></dt>
 <dd><div class="line-block">
 <div class="line"><em>Histogram in phase space plot ‘True’ or ‘False’</em></div>
 </div>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.plots.plot.Plot.noiseFB">
-<code class="descname">noiseFB</code><em class="property"> = None</em><a class="headerlink" href="#blond.plots.plot.Plot.noiseFB" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">noiseFB</code><a class="headerlink" href="#blond.plots.plot.Plot.noiseFB" title="Permalink to this definition">¶</a></dt>
 <dd><div class="line-block">
 <div class="line"><em>Optional import of LHCNoiseFB</em></div>
 </div>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.plots.plot.Plot.profile">
-<code class="descname">profile</code><em class="property"> = None</em><a class="headerlink" href="#blond.plots.plot.Plot.profile" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">profile</code><a class="headerlink" href="#blond.plots.plot.Plot.profile" title="Permalink to this definition">¶</a></dt>
 <dd><div class="line-block">
 <div class="line"><em>Optional import of Profile</em></div>
 </div>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.plots.plot.Plot.reset_frame">
-<code class="descname">reset_frame</code><span class="sig-paren">(</span><em>xmin</em>, <em>xmax</em>, <em>ymin</em>, <em>ymax</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot.Plot.reset_frame" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">reset_frame</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">xmin</span></em>, <em class="sig-param"><span class="n">xmax</span></em>, <em class="sig-param"><span class="n">ymin</span></em>, <em class="sig-param"><span class="n">ymax</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot.Plot.reset_frame" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.plots.plot.Plot.rf_params">
-<code class="descname">rf_params</code><em class="property"> = None</em><a class="headerlink" href="#blond.plots.plot.Plot.rf_params" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">rf_params</code><a class="headerlink" href="#blond.plots.plot.Plot.rf_params" title="Permalink to this definition">¶</a></dt>
 <dd><div class="line-block">
 <div class="line"><em>Import RFStation</em></div>
 </div>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.plots.plot.Plot.sampling">
-<code class="descname">sampling</code><em class="property"> = None</em><a class="headerlink" href="#blond.plots.plot.Plot.sampling" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">sampling</code><a class="headerlink" href="#blond.plots.plot.Plot.sampling" title="Permalink to this definition">¶</a></dt>
 <dd><div class="line-block">
 <div class="line"><em>Sampling of large arrays (where applicable)</em></div>
 </div>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.plots.plot.Plot.separatix">
-<code class="descname">separatix</code><em class="property"> = None</em><a class="headerlink" href="#blond.plots.plot.Plot.separatix" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">separatix</code><a class="headerlink" href="#blond.plots.plot.Plot.separatix" title="Permalink to this definition">¶</a></dt>
 <dd><div class="line-block">
 <div class="line"><em>Separatrix in phase space plot ‘True’ or ‘False’</em></div>
 </div>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.plots.plot.Plot.set_format">
-<code class="descname">set_format</code><span class="sig-paren">(</span><em>format_options</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot.Plot.set_format" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">set_format</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">format_options</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot.Plot.set_format" title="Permalink to this definition">¶</a></dt>
 <dd><p>Initialize plot folder and custom plot formatting. For more options, see</p>
 <p><a class="reference external" href="http://matplotlib.org/1.3.1/users/customizing.html">http://matplotlib.org/1.3.1/users/customizing.html</a></p>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.plots.plot.Plot.track">
-<code class="descname">track</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot.Plot.track" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">track</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot.Plot.track" title="Permalink to this definition">¶</a></dt>
 <dd><p>Plot in certain time steps and depending on imported objects</p>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.plots.plot.Plot.tstep">
-<code class="descname">tstep</code><em class="property"> = None</em><a class="headerlink" href="#blond.plots.plot.Plot.tstep" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">tstep</code><a class="headerlink" href="#blond.plots.plot.Plot.tstep" title="Permalink to this definition">¶</a></dt>
 <dd><div class="line-block">
 <div class="line"><em>Import actual time step RFStation</em></div>
 </div>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.plots.plot.Plot.xmax">
-<code class="descname">xmax</code><em class="property"> = None</em><a class="headerlink" href="#blond.plots.plot.Plot.xmax" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">xmax</code><a class="headerlink" href="#blond.plots.plot.Plot.xmax" title="Permalink to this definition">¶</a></dt>
 <dd><div class="line-block">
 <div class="line"><em>Plot limit (where applicable) maximum on x-axis [xunit]</em></div>
 </div>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.plots.plot.Plot.xmin">
-<code class="descname">xmin</code><em class="property"> = None</em><a class="headerlink" href="#blond.plots.plot.Plot.xmin" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">xmin</code><a class="headerlink" href="#blond.plots.plot.Plot.xmin" title="Permalink to this definition">¶</a></dt>
 <dd><div class="line-block">
 <div class="line"><em>Plot limit (where applicable) minimum on x-axis [xunit]</em></div>
 </div>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.plots.plot.Plot.xunit">
-<code class="descname">xunit</code><em class="property"> = None</em><a class="headerlink" href="#blond.plots.plot.Plot.xunit" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">xunit</code><a class="headerlink" href="#blond.plots.plot.Plot.xunit" title="Permalink to this definition">¶</a></dt>
 <dd><div class="line-block">
 <div class="line"><em>Choice of x-axis unit (where applicable) ‘s’ or ‘rad’</em></div>
 </div>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.plots.plot.Plot.ymax">
-<code class="descname">ymax</code><em class="property"> = None</em><a class="headerlink" href="#blond.plots.plot.Plot.ymax" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">ymax</code><a class="headerlink" href="#blond.plots.plot.Plot.ymax" title="Permalink to this definition">¶</a></dt>
 <dd><div class="line-block">
 <div class="line"><em>Plot limit (where applicable) maximum on y-axis [eV]</em></div>
 </div>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.plots.plot.Plot.ymin">
-<code class="descname">ymin</code><em class="property"> = None</em><a class="headerlink" href="#blond.plots.plot.Plot.ymin" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">ymin</code><a class="headerlink" href="#blond.plots.plot.Plot.ymin" title="Permalink to this definition">¶</a></dt>
 <dd><div class="line-block">
 <div class="line"><em>Plot limit (where applicable) minimum on y-axis [eV]</em></div>
 </div>
@@ -458,9 +458,9 @@
 
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="blond.plots.plot.fig_folder">
-<code class="descclassname">blond.plots.plot.</code><code class="descname">fig_folder</code><span class="sig-paren">(</span><em>dirname</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot.fig_folder" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.plots.plot.</code><code class="sig-name descname">fig_folder</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">dirname</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot.fig_folder" title="Permalink to this definition">¶</a></dt>
 <dd><p>Create folder where plots will be stored.</p>
 </dd></dl>
 
@@ -473,40 +473,40 @@
 <dd class="field-odd"><p><strong>Helga Timko</strong>, <strong>Danilo Quartullo</strong></p>
 </dd>
 </dl>
-<dl class="function">
+<dl class="py function">
 <dt id="blond.plots.plot_beams.plot_bunch_length_evol">
-<code class="descclassname">blond.plots.plot_beams.</code><code class="descname">plot_bunch_length_evol</code><span class="sig-paren">(</span><em>RFStation</em>, <em>h5data</em>, <em>output_freq=1</em>, <em>dirname='fig'</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_beams.plot_bunch_length_evol" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.plots.plot_beams.</code><code class="sig-name descname">plot_bunch_length_evol</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">RFStation</span></em>, <em class="sig-param"><span class="n">h5data</span></em>, <em class="sig-param"><span class="n">output_freq</span><span class="o">=</span><span class="default_value">1</span></em>, <em class="sig-param"><span class="n">dirname</span><span class="o">=</span><span class="default_value">'fig'</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_beams.plot_bunch_length_evol" title="Permalink to this definition">¶</a></dt>
 <dd><p>Plot of r.m.s. 4-sigma bunch length [s] as a function of time.</p>
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="blond.plots.plot_beams.plot_bunch_length_evol_gaussian">
-<code class="descclassname">blond.plots.plot_beams.</code><code class="descname">plot_bunch_length_evol_gaussian</code><span class="sig-paren">(</span><em>RFStation</em>, <em>Profile</em>, <em>h5data</em>, <em>output_freq=1</em>, <em>dirname='fig'</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_beams.plot_bunch_length_evol_gaussian" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.plots.plot_beams.</code><code class="sig-name descname">plot_bunch_length_evol_gaussian</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">RFStation</span></em>, <em class="sig-param"><span class="n">Profile</span></em>, <em class="sig-param"><span class="n">h5data</span></em>, <em class="sig-param"><span class="n">output_freq</span><span class="o">=</span><span class="default_value">1</span></em>, <em class="sig-param"><span class="n">dirname</span><span class="o">=</span><span class="default_value">'fig'</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_beams.plot_bunch_length_evol_gaussian" title="Permalink to this definition">¶</a></dt>
 <dd><p>Plot of Gaussian 4-sigma bunch length [s] as a function of time.
 Requires profile.</p>
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="blond.plots.plot_beams.plot_energy_evol">
-<code class="descclassname">blond.plots.plot_beams.</code><code class="descname">plot_energy_evol</code><span class="sig-paren">(</span><em>RFStation</em>, <em>h5data</em>, <em>output_freq=1</em>, <em>style='.'</em>, <em>dirname='fig'</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_beams.plot_energy_evol" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.plots.plot_beams.</code><code class="sig-name descname">plot_energy_evol</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">RFStation</span></em>, <em class="sig-param"><span class="n">h5data</span></em>, <em class="sig-param"><span class="n">output_freq</span><span class="o">=</span><span class="default_value">1</span></em>, <em class="sig-param"><span class="n">style</span><span class="o">=</span><span class="default_value">'.'</span></em>, <em class="sig-param"><span class="n">dirname</span><span class="o">=</span><span class="default_value">'fig'</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_beams.plot_energy_evol" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="blond.plots.plot_beams.plot_long_phase_space">
-<code class="descclassname">blond.plots.plot_beams.</code><code class="descname">plot_long_phase_space</code><span class="sig-paren">(</span><em>Ring</em>, <em>RFStation</em>, <em>Beam</em>, <em>xmin</em>, <em>xmax</em>, <em>ymin</em>, <em>ymax</em>, <em>xunit='s'</em>, <em>sampling=1</em>, <em>separatrix_plot=False</em>, <em>histograms_plot=True</em>, <em>dirname='fig'</em>, <em>alpha=1</em>, <em>color='b'</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_beams.plot_long_phase_space" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.plots.plot_beams.</code><code class="sig-name descname">plot_long_phase_space</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">Ring</span></em>, <em class="sig-param"><span class="n">RFStation</span></em>, <em class="sig-param"><span class="n">Beam</span></em>, <em class="sig-param"><span class="n">xmin</span></em>, <em class="sig-param"><span class="n">xmax</span></em>, <em class="sig-param"><span class="n">ymin</span></em>, <em class="sig-param"><span class="n">ymax</span></em>, <em class="sig-param"><span class="n">xunit</span><span class="o">=</span><span class="default_value">'s'</span></em>, <em class="sig-param"><span class="n">sampling</span><span class="o">=</span><span class="default_value">1</span></em>, <em class="sig-param"><span class="n">separatrix_plot</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">histograms_plot</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">dirname</span><span class="o">=</span><span class="default_value">'fig'</span></em>, <em class="sig-param"><span class="n">alpha</span><span class="o">=</span><span class="default_value">1</span></em>, <em class="sig-param"><span class="n">color</span><span class="o">=</span><span class="default_value">'b'</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_beams.plot_long_phase_space" title="Permalink to this definition">¶</a></dt>
 <dd><p>Plot of longitudinal phase space. Optional use of histograms and separatrix.
 Choice of units: xunit = s, rad.
 For large amount of data, use “sampling” to plot a fraction of the data.</p>
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="blond.plots.plot_beams.plot_position_evol">
-<code class="descclassname">blond.plots.plot_beams.</code><code class="descname">plot_position_evol</code><span class="sig-paren">(</span><em>RFStation</em>, <em>h5data</em>, <em>output_freq=1</em>, <em>style='.'</em>, <em>dirname='fig'</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_beams.plot_position_evol" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.plots.plot_beams.</code><code class="sig-name descname">plot_position_evol</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">RFStation</span></em>, <em class="sig-param"><span class="n">h5data</span></em>, <em class="sig-param"><span class="n">output_freq</span><span class="o">=</span><span class="default_value">1</span></em>, <em class="sig-param"><span class="n">style</span><span class="o">=</span><span class="default_value">'.'</span></em>, <em class="sig-param"><span class="n">dirname</span><span class="o">=</span><span class="default_value">'fig'</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_beams.plot_position_evol" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="blond.plots.plot_beams.plot_transmitted_particles">
-<code class="descclassname">blond.plots.plot_beams.</code><code class="descname">plot_transmitted_particles</code><span class="sig-paren">(</span><em>RFStation</em>, <em>h5data</em>, <em>output_freq=1</em>, <em>style='.'</em>, <em>dirname='fig'</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_beams.plot_transmitted_particles" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.plots.plot_beams.</code><code class="sig-name descname">plot_transmitted_particles</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">RFStation</span></em>, <em class="sig-param"><span class="n">h5data</span></em>, <em class="sig-param"><span class="n">output_freq</span><span class="o">=</span><span class="default_value">1</span></em>, <em class="sig-param"><span class="n">style</span><span class="o">=</span><span class="default_value">'.'</span></em>, <em class="sig-param"><span class="n">dirname</span><span class="o">=</span><span class="default_value">'fig'</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_beams.plot_transmitted_particles" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 </div>
@@ -518,15 +518,15 @@ For large amount of data, use “sampling” to plot a fraction of the data.</p>
 <dd class="field-odd"><p><strong>Helga Timko</strong>, <strong>Danilo Quartullo</strong></p>
 </dd>
 </dl>
-<dl class="function">
+<dl class="py function">
 <dt id="blond.plots.plot_impedance.plot_impedance_vs_frequency">
-<code class="descclassname">blond.plots.plot_impedance.</code><code class="descname">plot_impedance_vs_frequency</code><span class="sig-paren">(</span><em>counter</em>, <em>general_params</em>, <em>ind_volt_from_imp</em>, <em>option1='sum'</em>, <em>option2='no_spectrum'</em>, <em>option3='freq_fft'</em>, <em>style='-'</em>, <em>cut_left_right=None</em>, <em>cut_up_down=None</em>, <em>dirname='fig'</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_impedance.plot_impedance_vs_frequency" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.plots.plot_impedance.</code><code class="sig-name descname">plot_impedance_vs_frequency</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">counter</span></em>, <em class="sig-param"><span class="n">general_params</span></em>, <em class="sig-param"><span class="n">ind_volt_from_imp</span></em>, <em class="sig-param"><span class="n">option1</span><span class="o">=</span><span class="default_value">'sum'</span></em>, <em class="sig-param"><span class="n">option2</span><span class="o">=</span><span class="default_value">'no_spectrum'</span></em>, <em class="sig-param"><span class="n">option3</span><span class="o">=</span><span class="default_value">'freq_fft'</span></em>, <em class="sig-param"><span class="n">style</span><span class="o">=</span><span class="default_value">'-'</span></em>, <em class="sig-param"><span class="n">cut_left_right</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">cut_up_down</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">dirname</span><span class="o">=</span><span class="default_value">'fig'</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_impedance.plot_impedance_vs_frequency" title="Permalink to this definition">¶</a></dt>
 <dd><p>Plot of impedance vs frequency.</p>
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="blond.plots.plot_impedance.plot_induced_voltage_vs_bin_centers">
-<code class="descclassname">blond.plots.plot_impedance.</code><code class="descname">plot_induced_voltage_vs_bin_centers</code><span class="sig-paren">(</span><em>counter</em>, <em>general_params</em>, <em>total_voltage</em>, <em>style='-'</em>, <em>dirname='fig'</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_impedance.plot_induced_voltage_vs_bin_centers" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.plots.plot_impedance.</code><code class="sig-name descname">plot_induced_voltage_vs_bin_centers</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">counter</span></em>, <em class="sig-param"><span class="n">general_params</span></em>, <em class="sig-param"><span class="n">total_voltage</span></em>, <em class="sig-param"><span class="n">style</span><span class="o">=</span><span class="default_value">'-'</span></em>, <em class="sig-param"><span class="n">dirname</span><span class="o">=</span><span class="default_value">'fig'</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_impedance.plot_induced_voltage_vs_bin_centers" title="Permalink to this definition">¶</a></dt>
 <dd><p>Plot of induced voltage vs bin centers.</p>
 </dd></dl>
 
@@ -539,93 +539,93 @@ For large amount of data, use “sampling” to plot a fraction of the data.</p>
 <dd class="field-odd"><p><strong>Helga Timko</strong>, <strong>Danilo Quartullo</strong></p>
 </dd>
 </dl>
-<dl class="function">
+<dl class="py function">
 <dt id="blond.plots.plot_llrf.plot_COM_motion">
-<code class="descclassname">blond.plots.plot_llrf.</code><code class="descname">plot_COM_motion</code><span class="sig-paren">(</span><em>Ring</em>, <em>RFStation</em>, <em>h5data</em>, <em>output_freq=1</em>, <em>dirname='fig'</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_llrf.plot_COM_motion" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.plots.plot_llrf.</code><code class="sig-name descname">plot_COM_motion</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">Ring</span></em>, <em class="sig-param"><span class="n">RFStation</span></em>, <em class="sig-param"><span class="n">h5data</span></em>, <em class="sig-param"><span class="n">output_freq</span><span class="o">=</span><span class="default_value">1</span></em>, <em class="sig-param"><span class="n">dirname</span><span class="o">=</span><span class="default_value">'fig'</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_llrf.plot_COM_motion" title="Permalink to this definition">¶</a></dt>
 <dd><p>Evolution of bunch C.O.M. in longitudinal phase space.
 Optional use of histograms and separatrix.</p>
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="blond.plots.plot_llrf.plot_LHCNoiseFB">
-<code class="descclassname">blond.plots.plot_llrf.</code><code class="descname">plot_LHCNoiseFB</code><span class="sig-paren">(</span><em>RFStation</em>, <em>LHCNoiseFB</em>, <em>h5data</em>, <em>output_freq=1</em>, <em>dirname='fig'</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_llrf.plot_LHCNoiseFB" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.plots.plot_llrf.</code><code class="sig-name descname">plot_LHCNoiseFB</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">RFStation</span></em>, <em class="sig-param"><span class="n">LHCNoiseFB</span></em>, <em class="sig-param"><span class="n">h5data</span></em>, <em class="sig-param"><span class="n">output_freq</span><span class="o">=</span><span class="default_value">1</span></em>, <em class="sig-param"><span class="n">dirname</span><span class="o">=</span><span class="default_value">'fig'</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_llrf.plot_LHCNoiseFB" title="Permalink to this definition">¶</a></dt>
 <dd><p>Plot of the phase noise multiplication factor as a function of time.
 For large amount of data, monitor with larger ‘output_freq’.</p>
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="blond.plots.plot_llrf.plot_LHCNoiseFB_FWHM">
-<code class="descclassname">blond.plots.plot_llrf.</code><code class="descname">plot_LHCNoiseFB_FWHM</code><span class="sig-paren">(</span><em>RFStation</em>, <em>LHCNoiseFB</em>, <em>h5data</em>, <em>output_freq=1</em>, <em>dirname='fig'</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_llrf.plot_LHCNoiseFB_FWHM" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.plots.plot_llrf.</code><code class="sig-name descname">plot_LHCNoiseFB_FWHM</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">RFStation</span></em>, <em class="sig-param"><span class="n">LHCNoiseFB</span></em>, <em class="sig-param"><span class="n">h5data</span></em>, <em class="sig-param"><span class="n">output_freq</span><span class="o">=</span><span class="default_value">1</span></em>, <em class="sig-param"><span class="n">dirname</span><span class="o">=</span><span class="default_value">'fig'</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_llrf.plot_LHCNoiseFB_FWHM" title="Permalink to this definition">¶</a></dt>
 <dd><p>Plot of the FWHM bunch length used in LHCNoiseFB as a function of time.
 For large amount of data, monitor with larger ‘output_freq’.</p>
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="blond.plots.plot_llrf.plot_LHCNoiseFB_FWHM_bbb">
-<code class="descclassname">blond.plots.plot_llrf.</code><code class="descname">plot_LHCNoiseFB_FWHM_bbb</code><span class="sig-paren">(</span><em>RFStation</em>, <em>LHCNoiseFB</em>, <em>h5data</em>, <em>output_freq=1</em>, <em>dirname='fig'</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_llrf.plot_LHCNoiseFB_FWHM_bbb" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.plots.plot_llrf.</code><code class="sig-name descname">plot_LHCNoiseFB_FWHM_bbb</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">RFStation</span></em>, <em class="sig-param"><span class="n">LHCNoiseFB</span></em>, <em class="sig-param"><span class="n">h5data</span></em>, <em class="sig-param"><span class="n">output_freq</span><span class="o">=</span><span class="default_value">1</span></em>, <em class="sig-param"><span class="n">dirname</span><span class="o">=</span><span class="default_value">'fig'</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_llrf.plot_LHCNoiseFB_FWHM_bbb" title="Permalink to this definition">¶</a></dt>
 <dd><p>Plot of bunch-by-bunch FWHM bunch length used in LHCNoiseFB as a function
 of time. For large amount of data, monitor with larger ‘output_freq’.</p>
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="blond.plots.plot_llrf.plot_PL_RF_freq">
-<code class="descclassname">blond.plots.plot_llrf.</code><code class="descname">plot_PL_RF_freq</code><span class="sig-paren">(</span><em>RFStation</em>, <em>h5data</em>, <em>output_freq=1</em>, <em>dirname='fig'</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_llrf.plot_PL_RF_freq" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.plots.plot_llrf.</code><code class="sig-name descname">plot_PL_RF_freq</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">RFStation</span></em>, <em class="sig-param"><span class="n">h5data</span></em>, <em class="sig-param"><span class="n">output_freq</span><span class="o">=</span><span class="default_value">1</span></em>, <em class="sig-param"><span class="n">dirname</span><span class="o">=</span><span class="default_value">'fig'</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_llrf.plot_PL_RF_freq" title="Permalink to this definition">¶</a></dt>
 <dd><p>Plot of RF revolution frequency; monitored with Phase Loop.
 For large amount of data, monitor with larger ‘output_freq’.</p>
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="blond.plots.plot_llrf.plot_PL_RF_phase">
-<code class="descclassname">blond.plots.plot_llrf.</code><code class="descname">plot_PL_RF_phase</code><span class="sig-paren">(</span><em>RFStation</em>, <em>h5data</em>, <em>output_freq=1</em>, <em>dirname='fig'</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_llrf.plot_PL_RF_phase" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.plots.plot_llrf.</code><code class="sig-name descname">plot_PL_RF_phase</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">RFStation</span></em>, <em class="sig-param"><span class="n">h5data</span></em>, <em class="sig-param"><span class="n">output_freq</span><span class="o">=</span><span class="default_value">1</span></em>, <em class="sig-param"><span class="n">dirname</span><span class="o">=</span><span class="default_value">'fig'</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_llrf.plot_PL_RF_phase" title="Permalink to this definition">¶</a></dt>
 <dd><p>Plot of RF phase; monitored with Phase Loop.
 For large amount of data, monitor with larger ‘output_freq’.</p>
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="blond.plots.plot_llrf.plot_PL_bunch_phase">
-<code class="descclassname">blond.plots.plot_llrf.</code><code class="descname">plot_PL_bunch_phase</code><span class="sig-paren">(</span><em>RFStation</em>, <em>h5data</em>, <em>output_freq=1</em>, <em>dirname='fig'</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_llrf.plot_PL_bunch_phase" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.plots.plot_llrf.</code><code class="sig-name descname">plot_PL_bunch_phase</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">RFStation</span></em>, <em class="sig-param"><span class="n">h5data</span></em>, <em class="sig-param"><span class="n">output_freq</span><span class="o">=</span><span class="default_value">1</span></em>, <em class="sig-param"><span class="n">dirname</span><span class="o">=</span><span class="default_value">'fig'</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_llrf.plot_PL_bunch_phase" title="Permalink to this definition">¶</a></dt>
 <dd><p>Plot of bunch phase measured by the Phase Loop as a function of time.
 For large amount of data, monitor with larger ‘output_freq’.</p>
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="blond.plots.plot_llrf.plot_PL_freq_corr">
-<code class="descclassname">blond.plots.plot_llrf.</code><code class="descname">plot_PL_freq_corr</code><span class="sig-paren">(</span><em>RFStation</em>, <em>h5data</em>, <em>output_freq=1</em>, <em>dirname='fig'</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_llrf.plot_PL_freq_corr" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.plots.plot_llrf.</code><code class="sig-name descname">plot_PL_freq_corr</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">RFStation</span></em>, <em class="sig-param"><span class="n">h5data</span></em>, <em class="sig-param"><span class="n">output_freq</span><span class="o">=</span><span class="default_value">1</span></em>, <em class="sig-param"><span class="n">dirname</span><span class="o">=</span><span class="default_value">'fig'</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_llrf.plot_PL_freq_corr" title="Permalink to this definition">¶</a></dt>
 <dd><p>Plot of frequency correction applied by the Phase Loop as a function of time.
 For large amount of data, monitor with larger ‘output_freq’.</p>
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="blond.plots.plot_llrf.plot_PL_phase_corr">
-<code class="descclassname">blond.plots.plot_llrf.</code><code class="descname">plot_PL_phase_corr</code><span class="sig-paren">(</span><em>RFStation</em>, <em>h5data</em>, <em>output_freq=1</em>, <em>dirname='fig'</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_llrf.plot_PL_phase_corr" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.plots.plot_llrf.</code><code class="sig-name descname">plot_PL_phase_corr</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">RFStation</span></em>, <em class="sig-param"><span class="n">h5data</span></em>, <em class="sig-param"><span class="n">output_freq</span><span class="o">=</span><span class="default_value">1</span></em>, <em class="sig-param"><span class="n">dirname</span><span class="o">=</span><span class="default_value">'fig'</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_llrf.plot_PL_phase_corr" title="Permalink to this definition">¶</a></dt>
 <dd><p>Plot of phase correction applied by the Phase Loop as a function of time.
 For large amount of data, monitor with larger ‘output_freq’.</p>
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="blond.plots.plot_llrf.plot_RF_phase_error">
-<code class="descclassname">blond.plots.plot_llrf.</code><code class="descname">plot_RF_phase_error</code><span class="sig-paren">(</span><em>RFStation</em>, <em>h5data</em>, <em>output_freq=1</em>, <em>dirname='fig'</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_llrf.plot_RF_phase_error" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.plots.plot_llrf.</code><code class="sig-name descname">plot_RF_phase_error</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">RFStation</span></em>, <em class="sig-param"><span class="n">h5data</span></em>, <em class="sig-param"><span class="n">output_freq</span><span class="o">=</span><span class="default_value">1</span></em>, <em class="sig-param"><span class="n">dirname</span><span class="o">=</span><span class="default_value">'fig'</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_llrf.plot_RF_phase_error" title="Permalink to this definition">¶</a></dt>
 <dd><p>Plot of accumulated RF phase error; the Synchro Loop can act on this.
 For large amount of data, monitor with larger ‘output_freq’.</p>
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="blond.plots.plot_llrf.plot_RL_radial_error">
-<code class="descclassname">blond.plots.plot_llrf.</code><code class="descname">plot_RL_radial_error</code><span class="sig-paren">(</span><em>RFStation</em>, <em>h5data</em>, <em>output_freq=1</em>, <em>dirname='fig'</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_llrf.plot_RL_radial_error" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.plots.plot_llrf.</code><code class="sig-name descname">plot_RL_radial_error</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">RFStation</span></em>, <em class="sig-param"><span class="n">h5data</span></em>, <em class="sig-param"><span class="n">output_freq</span><span class="o">=</span><span class="default_value">1</span></em>, <em class="sig-param"><span class="n">dirname</span><span class="o">=</span><span class="default_value">'fig'</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_llrf.plot_RL_radial_error" title="Permalink to this definition">¶</a></dt>
 <dd><p>Plot of relative radial error; monitored with Phase Loop.
 For large amount of data, monitor with larger ‘output_freq’.</p>
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="blond.plots.plot_llrf.plot_noise_spectrum">
-<code class="descclassname">blond.plots.plot_llrf.</code><code class="descname">plot_noise_spectrum</code><span class="sig-paren">(</span><em>frequency</em>, <em>spectrum</em>, <em>sampling=1</em>, <em>dirname='fig'</em>, <em>figno=0</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_llrf.plot_noise_spectrum" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.plots.plot_llrf.</code><code class="sig-name descname">plot_noise_spectrum</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">frequency</span></em>, <em class="sig-param"><span class="n">spectrum</span></em>, <em class="sig-param"><span class="n">sampling</span><span class="o">=</span><span class="default_value">1</span></em>, <em class="sig-param"><span class="n">dirname</span><span class="o">=</span><span class="default_value">'fig'</span></em>, <em class="sig-param"><span class="n">figno</span><span class="o">=</span><span class="default_value">0</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_llrf.plot_noise_spectrum" title="Permalink to this definition">¶</a></dt>
 <dd><p>Plot of the phase noise spectrum.
 For large amount of data, use “sampling” to plot a fraction of the data.</p>
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="blond.plots.plot_llrf.plot_phase_noise">
-<code class="descclassname">blond.plots.plot_llrf.</code><code class="descname">plot_phase_noise</code><span class="sig-paren">(</span><em>time</em>, <em>dphi</em>, <em>sampling=1</em>, <em>dirname='fig'</em>, <em>figno=0</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_llrf.plot_phase_noise" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.plots.plot_llrf.</code><code class="sig-name descname">plot_phase_noise</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">time</span></em>, <em class="sig-param"><span class="n">dphi</span></em>, <em class="sig-param"><span class="n">sampling</span><span class="o">=</span><span class="default_value">1</span></em>, <em class="sig-param"><span class="n">dirname</span><span class="o">=</span><span class="default_value">'fig'</span></em>, <em class="sig-param"><span class="n">figno</span><span class="o">=</span><span class="default_value">0</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_llrf.plot_phase_noise" title="Permalink to this definition">¶</a></dt>
 <dd><p>Plot of phase noise as a function of time.
 For large amount of data, use “sampling” to plot a fraction of the data.</p>
 </dd></dl>
@@ -639,9 +639,9 @@ For large amount of data, use “sampling” to plot a fraction of the data.</p>
 <dd class="field-odd"><p><strong>Helga Timko</strong></p>
 </dd>
 </dl>
-<dl class="function">
+<dl class="py function">
 <dt id="blond.plots.plot_parameters.plot_voltage_programme">
-<code class="descclassname">blond.plots.plot_parameters.</code><code class="descname">plot_voltage_programme</code><span class="sig-paren">(</span><em>time</em>, <em>voltage</em>, <em>sampling=1</em>, <em>dirname='fig'</em>, <em>figno=0</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_parameters.plot_voltage_programme" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.plots.plot_parameters.</code><code class="sig-name descname">plot_voltage_programme</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">time</span></em>, <em class="sig-param"><span class="n">voltage</span></em>, <em class="sig-param"><span class="n">sampling</span><span class="o">=</span><span class="default_value">1</span></em>, <em class="sig-param"><span class="n">dirname</span><span class="o">=</span><span class="default_value">'fig'</span></em>, <em class="sig-param"><span class="n">figno</span><span class="o">=</span><span class="default_value">0</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_parameters.plot_voltage_programme" title="Permalink to this definition">¶</a></dt>
 <dd><p>Plot of the RF voltage as a function of time.
 For large amount of data, use “sampling” to plot a fraction of the data.</p>
 </dd></dl>
@@ -655,23 +655,23 @@ For large amount of data, use “sampling” to plot a fraction of the data.</p>
 <dd class="field-odd"><p><strong>Helga Timko</strong>, <strong>Danilo Quartullo</strong></p>
 </dd>
 </dl>
-<dl class="function">
+<dl class="py function">
 <dt id="blond.plots.plot_slices.plot_beam_profile">
-<code class="descclassname">blond.plots.plot_slices.</code><code class="descname">plot_beam_profile</code><span class="sig-paren">(</span><em>Profile</em>, <em>counter</em>, <em>style='-'</em>, <em>dirname='fig'</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_slices.plot_beam_profile" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.plots.plot_slices.</code><code class="sig-name descname">plot_beam_profile</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">Profile</span></em>, <em class="sig-param"><span class="n">counter</span></em>, <em class="sig-param"><span class="n">style</span><span class="o">=</span><span class="default_value">'-'</span></em>, <em class="sig-param"><span class="n">dirname</span><span class="o">=</span><span class="default_value">'fig'</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_slices.plot_beam_profile" title="Permalink to this definition">¶</a></dt>
 <dd><p>Plot of longitudinal beam profile</p>
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="blond.plots.plot_slices.plot_beam_profile_derivative">
-<code class="descclassname">blond.plots.plot_slices.</code><code class="descname">plot_beam_profile_derivative</code><span class="sig-paren">(</span><em>Profile, counter, style='-', dirname='fig', modes=['diff']</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_slices.plot_beam_profile_derivative" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.plots.plot_slices.</code><code class="sig-name descname">plot_beam_profile_derivative</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">Profile</span></em>, <em class="sig-param"><span class="n">counter</span></em>, <em class="sig-param"><span class="n">style</span><span class="o">=</span><span class="default_value">'-'</span></em>, <em class="sig-param"><span class="n">dirname</span><span class="o">=</span><span class="default_value">'fig'</span></em>, <em class="sig-param"><span class="n">modes</span><span class="o">=</span><span class="default_value">['diff']</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_slices.plot_beam_profile_derivative" title="Permalink to this definition">¶</a></dt>
 <dd><p>Plot of the derivative of the longitudinal beam profile.
 Modes list should contain 1 or more of the elements below:
 1) ‘filter1d’, 2) ‘gradient’, 3) ‘diff’</p>
 </dd></dl>
 
-<dl class="function">
+<dl class="py function">
 <dt id="blond.plots.plot_slices.plot_beam_spectrum">
-<code class="descclassname">blond.plots.plot_slices.</code><code class="descname">plot_beam_spectrum</code><span class="sig-paren">(</span><em>Profile</em>, <em>counter</em>, <em>style='-'</em>, <em>dirname='fig'</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_slices.plot_beam_spectrum" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.plots.plot_slices.</code><code class="sig-name descname">plot_beam_spectrum</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">Profile</span></em>, <em class="sig-param"><span class="n">counter</span></em>, <em class="sig-param"><span class="n">style</span><span class="o">=</span><span class="default_value">'-'</span></em>, <em class="sig-param"><span class="n">dirname</span><span class="o">=</span><span class="default_value">'fig'</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.plots.plot_slices.plot_beam_spectrum" title="Permalink to this definition">¶</a></dt>
 <dd><p>Plot of longitudinal beam profile</p>
 </dd></dl>
 
@@ -733,7 +733,7 @@ Modes list should contain 1 or more of the elements below:
       <script type="text/javascript" src="../_static/underscore.js"></script>
       <script type="text/javascript" src="../_static/doctools.js"></script>
       <script type="text/javascript" src="../_static/language_data.js"></script>
-      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
   
 
   

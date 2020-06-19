@@ -290,109 +290,109 @@
 <dd class="field-odd"><p><strong>Danilo Quartullo</strong>, <strong>Helga Timko</strong></p>
 </dd>
 </dl>
-<dl class="class">
+<dl class="py class">
 <dt id="blond.monitors.monitors.BunchMonitor">
-<em class="property">class </em><code class="descclassname">blond.monitors.monitors.</code><code class="descname">BunchMonitor</code><span class="sig-paren">(</span><em>Ring</em>, <em>RFParameters</em>, <em>Beam</em>, <em>filename</em>, <em>buffer_time=None</em>, <em>Profile=None</em>, <em>PhaseLoop=None</em>, <em>LHCNoiseFB=None</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.BunchMonitor" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">blond.monitors.monitors.</code><code class="sig-name descname">BunchMonitor</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">Ring</span></em>, <em class="sig-param"><span class="n">RFParameters</span></em>, <em class="sig-param"><span class="n">Beam</span></em>, <em class="sig-param"><span class="n">filename</span></em>, <em class="sig-param"><span class="n">buffer_time</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">Profile</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">PhaseLoop</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">LHCNoiseFB</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.BunchMonitor" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>Class able to save bunch data into h5 file. Use ‘buffer_time’ to select
 the frequency of saving to file in number of turns.
 If in the constructor a Profile object is passed, that means that one
 wants to save the gaussian-fit bunch length as well (obviously the
 Profile object has to have the fit_option set to ‘gaussian’).</p>
-<dl class="method">
+<dl class="py method">
 <dt id="blond.monitors.monitors.BunchMonitor.close">
-<code class="descname">close</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.BunchMonitor.close" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">close</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.BunchMonitor.close" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.monitors.monitors.BunchMonitor.init_buffer">
-<code class="descname">init_buffer</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.BunchMonitor.init_buffer" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">init_buffer</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.BunchMonitor.init_buffer" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.monitors.monitors.BunchMonitor.init_data">
-<code class="descname">init_data</code><span class="sig-paren">(</span><em>filename</em>, <em>dims</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.BunchMonitor.init_data" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">init_data</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">filename</span></em>, <em class="sig-param"><span class="n">dims</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.BunchMonitor.init_data" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.monitors.monitors.BunchMonitor.open">
-<code class="descname">open</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.BunchMonitor.open" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">open</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.BunchMonitor.open" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.monitors.monitors.BunchMonitor.track">
-<code class="descname">track</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.BunchMonitor.track" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">track</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.BunchMonitor.track" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.monitors.monitors.BunchMonitor.write_buffer">
-<code class="descname">write_buffer</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.BunchMonitor.write_buffer" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">write_buffer</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.BunchMonitor.write_buffer" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.monitors.monitors.BunchMonitor.write_data">
-<code class="descname">write_data</code><span class="sig-paren">(</span><em>h5group</em>, <em>dims</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.BunchMonitor.write_data" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">write_data</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">h5group</span></em>, <em class="sig-param"><span class="n">dims</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.BunchMonitor.write_data" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 </dd></dl>
 
-<dl class="class">
+<dl class="py class">
 <dt id="blond.monitors.monitors.MultiBunchMonitor">
-<em class="property">class </em><code class="descclassname">blond.monitors.monitors.</code><code class="descname">MultiBunchMonitor</code><span class="sig-paren">(</span><em>filename</em>, <em>n_turns</em>, <em>profile</em>, <em>rf</em>, <em>Nbunches</em>, <em>buffer_size=100</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.MultiBunchMonitor" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">blond.monitors.monitors.</code><code class="sig-name descname">MultiBunchMonitor</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">filename</span></em>, <em class="sig-param"><span class="n">n_turns</span></em>, <em class="sig-param"><span class="n">profile</span></em>, <em class="sig-param"><span class="n">rf</span></em>, <em class="sig-param"><span class="n">Nbunches</span></em>, <em class="sig-param"><span class="n">buffer_size</span><span class="o">=</span><span class="default_value">100</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.MultiBunchMonitor" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>Class able to save multi-bunch profile, i.e. the histogram derived from
 the slicing.</p>
-<dl class="method">
+<dl class="py method">
 <dt id="blond.monitors.monitors.MultiBunchMonitor.close">
-<code class="descname">close</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.MultiBunchMonitor.close" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">close</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.MultiBunchMonitor.close" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.monitors.monitors.MultiBunchMonitor.create_data">
-<code class="descname">create_data</code><span class="sig-paren">(</span><em>name</em>, <em>h5group</em>, <em>dims</em>, <em>dtype</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.MultiBunchMonitor.create_data" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">create_data</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">name</span></em>, <em class="sig-param"><span class="n">h5group</span></em>, <em class="sig-param"><span class="n">dims</span></em>, <em class="sig-param"><span class="n">dtype</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.MultiBunchMonitor.create_data" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.monitors.monitors.MultiBunchMonitor.track">
-<code class="descname">track</code><span class="sig-paren">(</span><em>turn</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.MultiBunchMonitor.track" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">track</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">turn</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.MultiBunchMonitor.track" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.monitors.monitors.MultiBunchMonitor.write_buffer">
-<code class="descname">write_buffer</code><span class="sig-paren">(</span><em>turn</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.MultiBunchMonitor.write_buffer" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">write_buffer</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">turn</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.MultiBunchMonitor.write_buffer" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.monitors.monitors.MultiBunchMonitor.write_data">
-<code class="descname">write_data</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.MultiBunchMonitor.write_data" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">write_data</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.MultiBunchMonitor.write_data" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 </dd></dl>
 
-<dl class="class">
+<dl class="py class">
 <dt id="blond.monitors.monitors.SlicesMonitor">
-<em class="property">class </em><code class="descclassname">blond.monitors.monitors.</code><code class="descname">SlicesMonitor</code><span class="sig-paren">(</span><em>filename</em>, <em>n_turns</em>, <em>profile</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.SlicesMonitor" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">blond.monitors.monitors.</code><code class="sig-name descname">SlicesMonitor</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">filename</span></em>, <em class="sig-param"><span class="n">n_turns</span></em>, <em class="sig-param"><span class="n">profile</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.SlicesMonitor" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>Class able to save the bunch profile, i.e. the histogram derived from
 the slicing.</p>
-<dl class="method">
+<dl class="py method">
 <dt id="blond.monitors.monitors.SlicesMonitor.close">
-<code class="descname">close</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.SlicesMonitor.close" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">close</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.SlicesMonitor.close" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.monitors.monitors.SlicesMonitor.create_data">
-<code class="descname">create_data</code><span class="sig-paren">(</span><em>h5group</em>, <em>dims</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.SlicesMonitor.create_data" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">create_data</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">h5group</span></em>, <em class="sig-param"><span class="n">dims</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.SlicesMonitor.create_data" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.monitors.monitors.SlicesMonitor.track">
-<code class="descname">track</code><span class="sig-paren">(</span><em>bunch</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.SlicesMonitor.track" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">track</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">bunch</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.SlicesMonitor.track" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.monitors.monitors.SlicesMonitor.write_data">
-<code class="descname">write_data</code><span class="sig-paren">(</span><em>bunch</em>, <em>h5group</em>, <em>i_turn</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.SlicesMonitor.write_data" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">write_data</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">bunch</span></em>, <em class="sig-param"><span class="n">h5group</span></em>, <em class="sig-param"><span class="n">i_turn</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.monitors.monitors.SlicesMonitor.write_data" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 </dd></dl>
@@ -455,7 +455,7 @@ the slicing.</p>
       <script type="text/javascript" src="../_static/underscore.js"></script>
       <script type="text/javascript" src="../_static/doctools.js"></script>
       <script type="text/javascript" src="../_static/language_data.js"></script>
-      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
   
 
   

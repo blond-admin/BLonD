@@ -291,9 +291,9 @@
 <strong>Alexandre Lasheen</strong>, <strong>Markus Schwarz</strong></p>
 </dd>
 </dl>
-<dl class="class">
+<dl class="py class">
 <dt id="blond.impedances.impedance.InducedVoltageFreq">
-<em class="property">class </em><code class="descclassname">blond.impedances.impedance.</code><code class="descname">InducedVoltageFreq</code><span class="sig-paren">(</span><em>Beam</em>, <em>Profile</em>, <em>impedance_source_list</em>, <em>frequency_resolution=None</em>, <em>multi_turn_wake=False</em>, <em>front_wake_length=0</em>, <em>RFParams=None</em>, <em>mtw_mode=None</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageFreq" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">blond.impedances.impedance.</code><code class="sig-name descname">InducedVoltageFreq</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">Beam</span></em>, <em class="sig-param"><span class="n">Profile</span></em>, <em class="sig-param"><span class="n">impedance_source_list</span></em>, <em class="sig-param"><span class="n">frequency_resolution</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">multi_turn_wake</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">front_wake_length</span><span class="o">=</span><span class="default_value">0</span></em>, <em class="sig-param"><span class="n">RFParams</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">mtw_mode</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageFreq" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">blond.impedances.impedance._InducedVoltage</span></code></p>
 <p>Induced voltage derived from the sum of several impedances</p>
 <dl class="field-list simple">
@@ -310,9 +310,9 @@
 </ul>
 </dd>
 </dl>
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.impedance.InducedVoltageFreq.impedance_source_list">
-<code class="descname">impedance_source_list</code><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageFreq.impedance_source_list" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">impedance_source_list</code><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageFreq.impedance_source_list" title="Permalink to this definition">¶</a></dt>
 <dd><p>Impedance sources list (e.g. list of Resonator objects)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -321,9 +321,9 @@
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.impedance.InducedVoltageFreq.total_impedance">
-<code class="descname">total_impedance</code><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageFreq.total_impedance" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">total_impedance</code><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageFreq.total_impedance" title="Permalink to this definition">¶</a></dt>
 <dd><p>Total impedance array of all sources in* <span class="math notranslate nohighlight">\(\Omega\)</span></p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -332,9 +332,9 @@
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.impedance.InducedVoltageFreq.front_wake_length">
-<code class="descname">front_wake_length</code><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageFreq.front_wake_length" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">front_wake_length</code><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageFreq.front_wake_length" title="Permalink to this definition">¶</a></dt>
 <dd><p>Lenght [s] of the front wake (if any) for multi-turn wake mode</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -343,23 +343,23 @@
 </dl>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.impedances.impedance.InducedVoltageFreq.process">
-<code class="descname">process</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageFreq.process" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">process</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageFreq.process" title="Permalink to this definition">¶</a></dt>
 <dd><p>Reprocess the impedance contributions. To be run when profile change</p>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.impedances.impedance.InducedVoltageFreq.sum_impedances">
-<code class="descname">sum_impedances</code><span class="sig-paren">(</span><em>freq</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageFreq.sum_impedances" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">sum_impedances</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">freq</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageFreq.sum_impedances" title="Permalink to this definition">¶</a></dt>
 <dd><p>Summing all the wake contributions in one total impedance.</p>
 </dd></dl>
 
 </dd></dl>
 
-<dl class="class">
+<dl class="py class">
 <dt id="blond.impedances.impedance.InducedVoltageResonator">
-<em class="property">class </em><code class="descclassname">blond.impedances.impedance.</code><code class="descname">InducedVoltageResonator</code><span class="sig-paren">(</span><em>Beam</em>, <em>Profile</em>, <em>Resonators</em>, <em>timeArray=None</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageResonator" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">blond.impedances.impedance.</code><code class="sig-name descname">InducedVoltageResonator</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">Beam</span></em>, <em class="sig-param"><span class="n">Profile</span></em>, <em class="sig-param"><span class="n">Resonators</span></em>, <em class="sig-param"><span class="n">timeArray</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageResonator" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">blond.impedances.impedance._InducedVoltage</span></code></p>
 <p><em>Calculates the induced voltage of several resonators for arbitrary
 line density. It does so by linearily interpolating the line density and
@@ -383,9 +383,9 @@ density.</p></li>
 </ul>
 </dd>
 </dl>
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.impedance.InducedVoltageResonator.beam">
-<code class="descname">beam</code><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageResonator.beam" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">beam</code><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageResonator.beam" title="Permalink to this definition">¶</a></dt>
 <dd><p>Copy of the Beam object in order to access the beam info.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -394,9 +394,9 @@ density.</p></li>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.impedance.InducedVoltageResonator.profile">
-<code class="descname">profile</code><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageResonator.profile" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">profile</code><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageResonator.profile" title="Permalink to this definition">¶</a></dt>
 <dd><p>Copy of the Profile object in order to access the line density.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -405,9 +405,9 @@ density.</p></li>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.impedance.InducedVoltageResonator.tArray">
-<code class="descname">tArray</code><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageResonator.tArray" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">tArray</code><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageResonator.tArray" title="Permalink to this definition">¶</a></dt>
 <dd><p>array of time values where the induced voltage is calculated.
 If left out, the induced voltage is calculated at the times of the
 line density</p>
@@ -418,9 +418,9 @@ line density</p>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.impedance.InducedVoltageResonator.atLineDensityTimes">
-<code class="descname">atLineDensityTimes</code><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageResonator.atLineDensityTimes" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">atLineDensityTimes</code><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageResonator.atLineDensityTimes" title="Permalink to this definition">¶</a></dt>
 <dd><p>flag indicating if the induced voltage has to be computed for timeArray
 or for the line density</p>
 <dl class="field-list simple">
@@ -430,9 +430,9 @@ or for the line density</p>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.impedance.InducedVoltageResonator.n_time">
-<code class="descname">n_time</code><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageResonator.n_time" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">n_time</code><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageResonator.n_time" title="Permalink to this definition">¶</a></dt>
 <dd><p>length of tArray</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -441,9 +441,9 @@ or for the line density</p>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt>
-<code class="descname">R, omega_r, Q</code></dt>
+<code class="sig-name descname">R, omega_r, Q</code></dt>
 <dd><p>Resonators parameters</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -452,9 +452,9 @@ or for the line density</p>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.impedance.InducedVoltageResonator.n_resonators">
-<code class="descname">n_resonators</code><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageResonator.n_resonators" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">n_resonators</code><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageResonator.n_resonators" title="Permalink to this definition">¶</a></dt>
 <dd><p>Number of resonators</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -463,9 +463,9 @@ or for the line density</p>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.impedance.InducedVoltageResonator.induced_voltage">
-<code class="descname">induced_voltage</code><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageResonator.induced_voltage" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">induced_voltage</code><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageResonator.induced_voltage" title="Permalink to this definition">¶</a></dt>
 <dd><p>Computed induced voltage [V]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -474,31 +474,31 @@ or for the line density</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.impedances.impedance.InducedVoltageResonator.Heaviside">
-<code class="descname">Heaviside</code><span class="sig-paren">(</span><em>x</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageResonator.Heaviside" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">Heaviside</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">x</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageResonator.Heaviside" title="Permalink to this definition">¶</a></dt>
 <dd><p>Heaviside function, which returns 1 if x&gt;1, 0 if x&lt;0, and 1/2 if x=0</p>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.impedances.impedance.InducedVoltageResonator.induced_voltage_1turn">
-<code class="descname">induced_voltage_1turn</code><span class="sig-paren">(</span><em>beam_spectrum_dict={}</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageResonator.induced_voltage_1turn" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">induced_voltage_1turn</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">beam_spectrum_dict</span><span class="o">=</span><span class="default_value">{}</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageResonator.induced_voltage_1turn" title="Permalink to this definition">¶</a></dt>
 <dd><p>Method to calculate the induced voltage through linearily
 interpolating the line density and applying the analytic equation
 to the result.</p>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.impedances.impedance.InducedVoltageResonator.process">
-<code class="descname">process</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageResonator.process" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">process</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageResonator.process" title="Permalink to this definition">¶</a></dt>
 <dd><p>Reprocess the impedance contributions. To be run when slicing changes</p>
 </dd></dl>
 
 </dd></dl>
 
-<dl class="class">
+<dl class="py class">
 <dt id="blond.impedances.impedance.InducedVoltageTime">
-<em class="property">class </em><code class="descclassname">blond.impedances.impedance.</code><code class="descname">InducedVoltageTime</code><span class="sig-paren">(</span><em>Beam</em>, <em>Profile</em>, <em>wake_source_list</em>, <em>wake_length=None</em>, <em>multi_turn_wake=False</em>, <em>RFParams=None</em>, <em>mtw_mode=None</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageTime" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">blond.impedances.impedance.</code><code class="sig-name descname">InducedVoltageTime</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">Beam</span></em>, <em class="sig-param"><span class="n">Profile</span></em>, <em class="sig-param"><span class="n">wake_source_list</span></em>, <em class="sig-param"><span class="n">wake_length</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">multi_turn_wake</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">RFParams</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">mtw_mode</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageTime" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">blond.impedances.impedance._InducedVoltage</span></code></p>
 <p>Induced voltage derived from the sum of several wake fields (time domain)</p>
 <dl class="field-list simple">
@@ -514,9 +514,9 @@ to the result.</p>
 </ul>
 </dd>
 </dl>
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.impedance.InducedVoltageTime.wake_source_list">
-<code class="descname">wake_source_list</code><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageTime.wake_source_list" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">wake_source_list</code><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageTime.wake_source_list" title="Permalink to this definition">¶</a></dt>
 <dd><p>Wake sources list (e.g. list of Resonator objects)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -525,9 +525,9 @@ to the result.</p>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.impedance.InducedVoltageTime.total_wake">
-<code class="descname">total_wake</code><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageTime.total_wake" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">total_wake</code><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageTime.total_wake" title="Permalink to this definition">¶</a></dt>
 <dd><p>Total wake array of all sources in <span class="math notranslate nohighlight">\(\Omega / s\)</span></p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -536,23 +536,23 @@ to the result.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.impedances.impedance.InducedVoltageTime.process">
-<code class="descname">process</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageTime.process" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">process</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageTime.process" title="Permalink to this definition">¶</a></dt>
 <dd><p>Reprocess the impedance contributions. To be run when profile changes</p>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.impedances.impedance.InducedVoltageTime.sum_wakes">
-<code class="descname">sum_wakes</code><span class="sig-paren">(</span><em>time_array</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageTime.sum_wakes" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">sum_wakes</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">time_array</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.InducedVoltageTime.sum_wakes" title="Permalink to this definition">¶</a></dt>
 <dd><p>Summing all the wake contributions in one total wake.</p>
 </dd></dl>
 
 </dd></dl>
 
-<dl class="class">
+<dl class="py class">
 <dt id="blond.impedances.impedance.InductiveImpedance">
-<em class="property">class </em><code class="descclassname">blond.impedances.impedance.</code><code class="descname">InductiveImpedance</code><span class="sig-paren">(</span><em>Beam</em>, <em>Profile</em>, <em>Z_over_n</em>, <em>RFParams</em>, <em>deriv_mode='gradient'</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.InductiveImpedance" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">blond.impedances.impedance.</code><code class="sig-name descname">InductiveImpedance</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">Beam</span></em>, <em class="sig-param"><span class="n">Profile</span></em>, <em class="sig-param"><span class="n">Z_over_n</span></em>, <em class="sig-param"><span class="n">RFParams</span></em>, <em class="sig-param"><span class="n">deriv_mode</span><span class="o">=</span><span class="default_value">'gradient'</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.InductiveImpedance" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">blond.impedances.impedance._InducedVoltage</span></code></p>
 <p>Constant imaginary Z/n impedance</p>
 <dl class="field-list simple">
@@ -566,9 +566,9 @@ to the result.</p>
 </ul>
 </dd>
 </dl>
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.impedance.InductiveImpedance.Z_over_n">
-<code class="descname">Z_over_n</code><a class="headerlink" href="#blond.impedances.impedance.InductiveImpedance.Z_over_n" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">Z_over_n</code><a class="headerlink" href="#blond.impedances.impedance.InductiveImpedance.Z_over_n" title="Permalink to this definition">¶</a></dt>
 <dd><p>Constant imaginary Z/n program in* <span class="math notranslate nohighlight">\(\Omega\)</span>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -577,9 +577,9 @@ to the result.</p>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.impedance.InductiveImpedance.deriv_mode">
-<code class="descname">deriv_mode</code><a class="headerlink" href="#blond.impedances.impedance.InductiveImpedance.deriv_mode" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">deriv_mode</code><a class="headerlink" href="#blond.impedances.impedance.InductiveImpedance.deriv_mode" title="Permalink to this definition">¶</a></dt>
 <dd><p>Derivation method to compute induced voltage</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -588,18 +588,18 @@ to the result.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.impedances.impedance.InductiveImpedance.induced_voltage_1turn">
-<code class="descname">induced_voltage_1turn</code><span class="sig-paren">(</span><em>beam_spectrum_dict={}</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.InductiveImpedance.induced_voltage_1turn" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">induced_voltage_1turn</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">beam_spectrum_dict</span><span class="o">=</span><span class="default_value">{}</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.InductiveImpedance.induced_voltage_1turn" title="Permalink to this definition">¶</a></dt>
 <dd><p>Method to calculate the induced voltage through the derivative of the
 profile. The impedance must be a constant Z/n.</p>
 </dd></dl>
 
 </dd></dl>
 
-<dl class="class">
+<dl class="py class">
 <dt id="blond.impedances.impedance.TotalInducedVoltage">
-<em class="property">class </em><code class="descclassname">blond.impedances.impedance.</code><code class="descname">TotalInducedVoltage</code><span class="sig-paren">(</span><em>Beam</em>, <em>Profile</em>, <em>induced_voltage_list</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.TotalInducedVoltage" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">blond.impedances.impedance.</code><code class="sig-name descname">TotalInducedVoltage</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">Beam</span></em>, <em class="sig-param"><span class="n">Profile</span></em>, <em class="sig-param"><span class="n">induced_voltage_list</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.TotalInducedVoltage" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>Object gathering all the induced voltage contributions. The input is a
 list of objects able to compute induced voltages (InducedVoltageTime,
@@ -615,9 +615,9 @@ voltages should have the same slicing resolution.</p>
 </ul>
 </dd>
 </dl>
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.impedance.TotalInducedVoltage.beam">
-<code class="descname">beam</code><a class="headerlink" href="#blond.impedances.impedance.TotalInducedVoltage.beam" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">beam</code><a class="headerlink" href="#blond.impedances.impedance.TotalInducedVoltage.beam" title="Permalink to this definition">¶</a></dt>
 <dd><p>Copy of the Beam object in order to access the beam info</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -626,9 +626,9 @@ voltages should have the same slicing resolution.</p>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.impedance.TotalInducedVoltage.profile">
-<code class="descname">profile</code><a class="headerlink" href="#blond.impedances.impedance.TotalInducedVoltage.profile" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">profile</code><a class="headerlink" href="#blond.impedances.impedance.TotalInducedVoltage.profile" title="Permalink to this definition">¶</a></dt>
 <dd><p>Copy of the Profile object in order to access the profile info</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -637,9 +637,9 @@ voltages should have the same slicing resolution.</p>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.impedance.TotalInducedVoltage.induced_voltage_list">
-<code class="descname">induced_voltage_list</code><a class="headerlink" href="#blond.impedances.impedance.TotalInducedVoltage.induced_voltage_list" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">induced_voltage_list</code><a class="headerlink" href="#blond.impedances.impedance.TotalInducedVoltage.induced_voltage_list" title="Permalink to this definition">¶</a></dt>
 <dd><p>List of objects for which induced voltages have to be calculated</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -648,9 +648,9 @@ voltages should have the same slicing resolution.</p>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.impedance.TotalInducedVoltage.induced_voltage">
-<code class="descname">induced_voltage</code><a class="headerlink" href="#blond.impedances.impedance.TotalInducedVoltage.induced_voltage" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">induced_voltage</code><a class="headerlink" href="#blond.impedances.impedance.TotalInducedVoltage.induced_voltage" title="Permalink to this definition">¶</a></dt>
 <dd><p>Array to store the computed induced voltage [V]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -659,9 +659,9 @@ voltages should have the same slicing resolution.</p>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.impedance.TotalInducedVoltage.time_array">
-<code class="descname">time_array</code><a class="headerlink" href="#blond.impedances.impedance.TotalInducedVoltage.time_array" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">time_array</code><a class="headerlink" href="#blond.impedances.impedance.TotalInducedVoltage.time_array" title="Permalink to this definition">¶</a></dt>
 <dd><p>Time array corresponding to induced_voltage [s]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -670,33 +670,33 @@ voltages should have the same slicing resolution.</p>
 </dl>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.impedances.impedance.TotalInducedVoltage.induced_voltage_sum">
-<code class="descname">induced_voltage_sum</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.TotalInducedVoltage.induced_voltage_sum" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">induced_voltage_sum</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.TotalInducedVoltage.induced_voltage_sum" title="Permalink to this definition">¶</a></dt>
 <dd><p>Method to sum all the induced voltages in one single array.</p>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.impedances.impedance.TotalInducedVoltage.induced_voltage_sum_packed">
-<code class="descname">induced_voltage_sum_packed</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.TotalInducedVoltage.induced_voltage_sum_packed" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">induced_voltage_sum_packed</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.TotalInducedVoltage.induced_voltage_sum_packed" title="Permalink to this definition">¶</a></dt>
 <dd><p>Method to sum all the induced voltages in one single array.</p>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.impedances.impedance.TotalInducedVoltage.reprocess">
-<code class="descname">reprocess</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.TotalInducedVoltage.reprocess" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">reprocess</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.TotalInducedVoltage.reprocess" title="Permalink to this definition">¶</a></dt>
 <dd><p>Reprocess the impedance contributions. To be run when profile changes</p>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.impedances.impedance.TotalInducedVoltage.track">
-<code class="descname">track</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.TotalInducedVoltage.track" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">track</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.TotalInducedVoltage.track" title="Permalink to this definition">¶</a></dt>
 <dd><p>Track method to apply the induced voltage kick on the beam.</p>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.impedances.impedance.TotalInducedVoltage.track_ghosts_particles">
-<code class="descname">track_ghosts_particles</code><span class="sig-paren">(</span><em>ghostBeam</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.TotalInducedVoltage.track_ghosts_particles" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">track_ghosts_particles</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">ghostBeam</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance.TotalInducedVoltage.track_ghosts_particles" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 </dd></dl>
@@ -714,9 +714,9 @@ classes, as for example InputTable, Resonators and TravelingWaveCavity.</strong>
 </dd>
 </dl>
 <p><strong>Juan F. Esteban Mueller</strong></p>
-<dl class="class">
+<dl class="py class">
 <dt id="blond.impedances.impedance_sources.InputTable">
-<em class="property">class </em><code class="descclassname">blond.impedances.impedance_sources.</code><code class="descname">InputTable</code><span class="sig-paren">(</span><em>input_1</em>, <em>input_2</em>, <em>input_3=None</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance_sources.InputTable" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">blond.impedances.impedance_sources.</code><code class="sig-name descname">InputTable</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">input_1</span></em>, <em class="sig-param"><span class="n">input_2</span></em>, <em class="sig-param"><span class="n">input_3</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance_sources.InputTable" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">blond.impedances.impedance_sources._ImpedanceObject</span></code></p>
 <p>Intensity effects from impedance and wake tables.
 If the constructor takes just two arguments, then a wake table is passed;
@@ -737,9 +737,9 @@ in <span class="math notranslate nohighlight">\(\Omega\)</span></p></li>
 </ul>
 </dd>
 </dl>
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.impedance_sources.InputTable.time_array">
-<code class="descname">time_array</code><a class="headerlink" href="#blond.impedances.impedance_sources.InputTable.time_array" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">time_array</code><a class="headerlink" href="#blond.impedances.impedance_sources.InputTable.time_array" title="Permalink to this definition">¶</a></dt>
 <dd><p>Input time array of the wake in s</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -748,9 +748,9 @@ in <span class="math notranslate nohighlight">\(\Omega\)</span></p></li>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.impedance_sources.InputTable.wake_array">
-<code class="descname">wake_array</code><a class="headerlink" href="#blond.impedances.impedance_sources.InputTable.wake_array" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">wake_array</code><a class="headerlink" href="#blond.impedances.impedance_sources.InputTable.wake_array" title="Permalink to this definition">¶</a></dt>
 <dd><p>Input wake array in <span class="math notranslate nohighlight">\(\Omega / s\)</span></p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -759,9 +759,9 @@ in <span class="math notranslate nohighlight">\(\Omega\)</span></p></li>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.impedance_sources.InputTable.frequency_array_loaded">
-<code class="descname">frequency_array_loaded</code><a class="headerlink" href="#blond.impedances.impedance_sources.InputTable.frequency_array_loaded" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">frequency_array_loaded</code><a class="headerlink" href="#blond.impedances.impedance_sources.InputTable.frequency_array_loaded" title="Permalink to this definition">¶</a></dt>
 <dd><p>Input frequency array of the impedance in Hz</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -770,9 +770,9 @@ in <span class="math notranslate nohighlight">\(\Omega\)</span></p></li>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.impedance_sources.InputTable.Re_Z_array_loaded">
-<code class="descname">Re_Z_array_loaded</code><a class="headerlink" href="#blond.impedances.impedance_sources.InputTable.Re_Z_array_loaded" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">Re_Z_array_loaded</code><a class="headerlink" href="#blond.impedances.impedance_sources.InputTable.Re_Z_array_loaded" title="Permalink to this definition">¶</a></dt>
 <dd><p>Input real part of impedance in <span class="math notranslate nohighlight">\(\Omega\)</span></p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -781,9 +781,9 @@ in <span class="math notranslate nohighlight">\(\Omega\)</span></p></li>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.impedance_sources.InputTable.Im_Z_array_loaded">
-<code class="descname">Im_Z_array_loaded</code><a class="headerlink" href="#blond.impedances.impedance_sources.InputTable.Im_Z_array_loaded" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">Im_Z_array_loaded</code><a class="headerlink" href="#blond.impedances.impedance_sources.InputTable.Im_Z_array_loaded" title="Permalink to this definition">¶</a></dt>
 <dd><p>Input imaginary part of impedance in <span class="math notranslate nohighlight">\(\Omega\)</span></p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -792,9 +792,9 @@ in <span class="math notranslate nohighlight">\(\Omega\)</span></p></li>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.impedance_sources.InputTable.impedance_loaded">
-<code class="descname">impedance_loaded</code><a class="headerlink" href="#blond.impedances.impedance_sources.InputTable.impedance_loaded" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">impedance_loaded</code><a class="headerlink" href="#blond.impedances.impedance_sources.InputTable.impedance_loaded" title="Permalink to this definition">¶</a></dt>
 <dd><p>Input impedance array in <span class="math notranslate nohighlight">\(\Omega + j \Omega\)</span></p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -804,7 +804,7 @@ in <span class="math notranslate nohighlight">\(\Omega\)</span></p></li>
 </dd></dl>
 
 <p class="rubric">Examples</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1">##### WAKEFIELD TABLE</span>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1">##### WAKEFIELD TABLE</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">time</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">1.1</span><span class="p">,</span><span class="mf">2.2</span><span class="p">,</span><span class="mf">3.3</span><span class="p">])</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">wake</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">4.4</span><span class="p">,</span><span class="mf">5.5</span><span class="p">,</span><span class="mf">6.6</span><span class="p">])</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">table</span> <span class="o">=</span> <span class="n">InputTable</span><span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="n">wake</span><span class="p">)</span>
@@ -820,9 +820,9 @@ in <span class="math notranslate nohighlight">\(\Omega\)</span></p></li>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">table2</span><span class="o">.</span><span class="n">imped_calc</span><span class="p">(</span><span class="n">new_freq_array</span><span class="p">)</span>
 </pre></div>
 </div>
-<dl class="method">
+<dl class="py method">
 <dt id="blond.impedances.impedance_sources.InputTable.imped_calc">
-<code class="descname">imped_calc</code><span class="sig-paren">(</span><em>new_frequency_array</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance_sources.InputTable.imped_calc" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">imped_calc</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">new_frequency_array</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance_sources.InputTable.imped_calc" title="Permalink to this definition">¶</a></dt>
 <dd><p>The impedance from the table is interpolated using the new frequency
 array.</p>
 <dl class="field-list simple">
@@ -830,9 +830,9 @@ array.</p>
 <dd class="field-odd"><p><strong>new_frequency_array</strong> (<em>float array</em>) – frequency array in <span class="math notranslate nohighlight">\(\Omega\)</span></p>
 </dd>
 </dl>
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.impedance_sources.InputTable.frequency_array">
-<code class="descname">frequency_array</code><a class="headerlink" href="#blond.impedances.impedance_sources.InputTable.frequency_array" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">frequency_array</code><a class="headerlink" href="#blond.impedances.impedance_sources.InputTable.frequency_array" title="Permalink to this definition">¶</a></dt>
 <dd><p>frequency array in <span class="math notranslate nohighlight">\(\Omega\)</span></p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -841,9 +841,9 @@ array.</p>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.impedance_sources.InputTable.Re_Z_array">
-<code class="descname">Re_Z_array</code><a class="headerlink" href="#blond.impedances.impedance_sources.InputTable.Re_Z_array" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">Re_Z_array</code><a class="headerlink" href="#blond.impedances.impedance_sources.InputTable.Re_Z_array" title="Permalink to this definition">¶</a></dt>
 <dd><p>Real part of the interpolated impedance in <span class="math notranslate nohighlight">\(\Omega\)</span></p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -852,9 +852,9 @@ array.</p>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.impedance_sources.InputTable.Im_Z_array">
-<code class="descname">Im_Z_array</code><a class="headerlink" href="#blond.impedances.impedance_sources.InputTable.Im_Z_array" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">Im_Z_array</code><a class="headerlink" href="#blond.impedances.impedance_sources.InputTable.Im_Z_array" title="Permalink to this definition">¶</a></dt>
 <dd><p>Imaginary part of the interpolated impedance in <span class="math notranslate nohighlight">\(\Omega\)</span></p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -863,9 +863,9 @@ array.</p>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.impedance_sources.InputTable.impedance">
-<code class="descname">impedance</code><a class="headerlink" href="#blond.impedances.impedance_sources.InputTable.impedance" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">impedance</code><a class="headerlink" href="#blond.impedances.impedance_sources.InputTable.impedance" title="Permalink to this definition">¶</a></dt>
 <dd><p>Output interpolated impedance array in <span class="math notranslate nohighlight">\(\Omega + j \Omega\)</span></p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -876,18 +876,18 @@ array.</p>
 
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.impedances.impedance_sources.InputTable.wake_calc">
-<code class="descname">wake_calc</code><span class="sig-paren">(</span><em>new_time_array</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance_sources.InputTable.wake_calc" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">wake_calc</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">new_time_array</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance_sources.InputTable.wake_calc" title="Permalink to this definition">¶</a></dt>
 <dd><p>The wake from the table is interpolated using the new time array.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><p><strong>new_time_array</strong> (<em>float array</em>) – Input time array in s</p>
 </dd>
 </dl>
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.impedance_sources.InputTable.new_time_array">
-<code class="descname">new_time_array</code><a class="headerlink" href="#blond.impedances.impedance_sources.InputTable.new_time_array" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">new_time_array</code><a class="headerlink" href="#blond.impedances.impedance_sources.InputTable.new_time_array" title="Permalink to this definition">¶</a></dt>
 <dd><p>Input time array in s</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -896,9 +896,9 @@ array.</p>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.impedance_sources.InputTable.wake">
-<code class="descname">wake</code><a class="headerlink" href="#blond.impedances.impedance_sources.InputTable.wake" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">wake</code><a class="headerlink" href="#blond.impedances.impedance_sources.InputTable.wake" title="Permalink to this definition">¶</a></dt>
 <dd><p>Output interpolated wake in <span class="math notranslate nohighlight">\(\Omega / s\)</span></p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -911,9 +911,9 @@ array.</p>
 
 </dd></dl>
 
-<dl class="class">
+<dl class="py class">
 <dt id="blond.impedances.impedance_sources.ResistiveWall">
-<em class="property">class </em><code class="descclassname">blond.impedances.impedance_sources.</code><code class="descname">ResistiveWall</code><span class="sig-paren">(</span><em>pipe_radius</em>, <em>pipe_length</em>, <em>resistivity=None</em>, <em>conductivity=None</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance_sources.ResistiveWall" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">blond.impedances.impedance_sources.</code><code class="sig-name descname">ResistiveWall</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">pipe_radius</span></em>, <em class="sig-param"><span class="n">pipe_length</span></em>, <em class="sig-param"><span class="n">resistivity</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">conductivity</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance_sources.ResistiveWall" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">blond.impedances.impedance_sources._ImpedanceObject</span></code></p>
 <p>Impedance contribution from resistive wall for a cilindrical beam pipe</p>
 <p>The model is the following:</p>
@@ -929,9 +929,9 @@ array.</p>
 </ul>
 </dd>
 </dl>
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.impedance_sources.ResistiveWall.pipe_radius">
-<code class="descname">pipe_radius</code><a class="headerlink" href="#blond.impedances.impedance_sources.ResistiveWall.pipe_radius" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">pipe_radius</code><a class="headerlink" href="#blond.impedances.impedance_sources.ResistiveWall.pipe_radius" title="Permalink to this definition">¶</a></dt>
 <dd><p>Beam pipe radius in m</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -940,9 +940,9 @@ array.</p>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.impedance_sources.ResistiveWall.pipe_length">
-<code class="descname">pipe_length</code><a class="headerlink" href="#blond.impedances.impedance_sources.ResistiveWall.pipe_length" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">pipe_length</code><a class="headerlink" href="#blond.impedances.impedance_sources.ResistiveWall.pipe_length" title="Permalink to this definition">¶</a></dt>
 <dd><p>Beam pipe length in m</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -951,9 +951,9 @@ array.</p>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.impedance_sources.ResistiveWall.conductivity">
-<code class="descname">conductivity</code><a class="headerlink" href="#blond.impedances.impedance_sources.ResistiveWall.conductivity" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">conductivity</code><a class="headerlink" href="#blond.impedances.impedance_sources.ResistiveWall.conductivity" title="Permalink to this definition">¶</a></dt>
 <dd><p>Beam pipe conductivity in <span class="math notranslate nohighlight">\(s / m\)</span></p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -962,9 +962,9 @@ array.</p>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.impedance_sources.ResistiveWall.Z0">
-<code class="descname">Z0</code><a class="headerlink" href="#blond.impedances.impedance_sources.ResistiveWall.Z0" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">Z0</code><a class="headerlink" href="#blond.impedances.impedance_sources.ResistiveWall.Z0" title="Permalink to this definition">¶</a></dt>
 <dd><p>Characteristic impedance of vacuum in* <span class="math notranslate nohighlight">\(\Omega\)</span></p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -974,7 +974,7 @@ array.</p>
 </dd></dl>
 
 <p class="rubric">Examples</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">pipe_radius</span> <span class="o">=</span> <span class="mi">1</span>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">pipe_radius</span> <span class="o">=</span> <span class="mi">1</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">pipe_length</span> <span class="o">=</span> <span class="mi">2</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">resistivity</span> <span class="o">=</span> <span class="mi">3</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">rw</span> <span class="o">=</span> <span class="n">ResistiveWall</span><span class="p">(</span><span class="n">pipe_radius</span><span class="p">,</span> <span class="n">pipe_length</span><span class="p">,</span> <span class="n">resistivity</span><span class="p">)</span>
@@ -982,23 +982,23 @@ array.</p>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">rw</span><span class="o">.</span><span class="n">imped_calc</span><span class="p">(</span><span class="n">frequency</span><span class="p">)</span>
 </pre></div>
 </div>
-<dl class="attribute">
-<dt>
-<code class="descname">conductivity</code></dt>
+<dl class="py method">
+<dt id="id0">
+<em class="property">property </em><code class="sig-name descname">conductivity</code><a class="headerlink" href="#id0" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.impedances.impedance_sources.ResistiveWall.imped_calc">
-<code class="descname">imped_calc</code><span class="sig-paren">(</span><em>frequency_array</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance_sources.ResistiveWall.imped_calc" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">imped_calc</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">frequency_array</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance_sources.ResistiveWall.imped_calc" title="Permalink to this definition">¶</a></dt>
 <dd><p>Impedance calculation method as a function of frequency.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><p><strong>frequency_array</strong> (<em>float array</em>) – Input frequency array in Hz</p>
 </dd>
 </dl>
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.impedance_sources.ResistiveWall.frequency_array">
-<code class="descname">frequency_array</code><a class="headerlink" href="#blond.impedances.impedance_sources.ResistiveWall.frequency_array" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">frequency_array</code><a class="headerlink" href="#blond.impedances.impedance_sources.ResistiveWall.frequency_array" title="Permalink to this definition">¶</a></dt>
 <dd><p>Input frequency array in Hz</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -1007,9 +1007,9 @@ array.</p>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.impedance_sources.ResistiveWall.impedance">
-<code class="descname">impedance</code><a class="headerlink" href="#blond.impedances.impedance_sources.ResistiveWall.impedance" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">impedance</code><a class="headerlink" href="#blond.impedances.impedance_sources.ResistiveWall.impedance" title="Permalink to this definition">¶</a></dt>
 <dd><p>Output impedance in <span class="math notranslate nohighlight">\(\Omega + j \Omega\)</span></p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -1020,16 +1020,16 @@ array.</p>
 
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py method">
 <dt id="blond.impedances.impedance_sources.ResistiveWall.resistivity">
-<code class="descname">resistivity</code><a class="headerlink" href="#blond.impedances.impedance_sources.ResistiveWall.resistivity" title="Permalink to this definition">¶</a></dt>
+<em class="property">property </em><code class="sig-name descname">resistivity</code><a class="headerlink" href="#blond.impedances.impedance_sources.ResistiveWall.resistivity" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 </dd></dl>
 
-<dl class="class">
+<dl class="py class">
 <dt id="blond.impedances.impedance_sources.Resonators">
-<em class="property">class </em><code class="descclassname">blond.impedances.impedance_sources.</code><code class="descname">Resonators</code><span class="sig-paren">(</span><em>R_S</em>, <em>frequency_R</em>, <em>Q</em>, <em>method='c++'</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance_sources.Resonators" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">blond.impedances.impedance_sources.</code><code class="sig-name descname">Resonators</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">R_S</span></em>, <em class="sig-param"><span class="n">frequency_R</span></em>, <em class="sig-param"><span class="n">Q</span></em>, <em class="sig-param"><span class="n">method</span><span class="o">=</span><span class="default_value">'c++'</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance_sources.Resonators" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">blond.impedances.impedance_sources._ImpedanceObject</span></code></p>
 <p>Impedance contribution from resonators, analytic formulas for both wake
 and impedance. The resonant modes (and the corresponding R and Q)
@@ -1052,9 +1052,9 @@ Python)</p></li>
 </ul>
 </dd>
 </dl>
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.impedance_sources.Resonators.R_S">
-<code class="descname">R_S</code><a class="headerlink" href="#blond.impedances.impedance_sources.Resonators.R_S" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">R_S</code><a class="headerlink" href="#blond.impedances.impedance_sources.Resonators.R_S" title="Permalink to this definition">¶</a></dt>
 <dd><p>Shunt impepdance in <span class="math notranslate nohighlight">\(\Omega\)</span></p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -1063,9 +1063,9 @@ Python)</p></li>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.impedance_sources.Resonators.frequency_R">
-<code class="descname">frequency_R</code><a class="headerlink" href="#blond.impedances.impedance_sources.Resonators.frequency_R" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">frequency_R</code><a class="headerlink" href="#blond.impedances.impedance_sources.Resonators.frequency_R" title="Permalink to this definition">¶</a></dt>
 <dd><p>Resonant frequency in Hz</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -1074,9 +1074,9 @@ Python)</p></li>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.impedance_sources.Resonators.Q">
-<code class="descname">Q</code><a class="headerlink" href="#blond.impedances.impedance_sources.Resonators.Q" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">Q</code><a class="headerlink" href="#blond.impedances.impedance_sources.Resonators.Q" title="Permalink to this definition">¶</a></dt>
 <dd><p>Quality factor</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -1085,9 +1085,9 @@ Python)</p></li>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.impedance_sources.Resonators.n_resonators">
-<code class="descname">n_resonators</code><a class="headerlink" href="#blond.impedances.impedance_sources.Resonators.n_resonators" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">n_resonators</code><a class="headerlink" href="#blond.impedances.impedance_sources.Resonators.n_resonators" title="Permalink to this definition">¶</a></dt>
 <dd><p>number of resonators</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -1097,7 +1097,7 @@ Python)</p></li>
 </dd></dl>
 
 <p class="rubric">Examples</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">R_S</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">R_S</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">frequency_R</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">Q</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">resonators</span> <span class="o">=</span> <span class="n">Resonators</span><span class="p">(</span><span class="n">R_S</span><span class="p">,</span> <span class="n">frequency_R</span><span class="p">,</span> <span class="n">Q</span><span class="p">)</span>
@@ -1107,28 +1107,28 @@ Python)</p></li>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">resonators</span><span class="o">.</span><span class="n">imped_calc</span><span class="p">(</span><span class="n">frequency</span><span class="p">)</span>
 </pre></div>
 </div>
-<dl class="attribute">
-<dt>
-<code class="descname">frequency_R</code></dt>
+<dl class="py method">
+<dt id="id1">
+<em class="property">property </em><code class="sig-name descname">frequency_R</code><a class="headerlink" href="#id1" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
-<dl class="attribute">
+<dl class="py method">
 <dt id="blond.impedances.impedance_sources.Resonators.omega_R">
-<code class="descname">omega_R</code><a class="headerlink" href="#blond.impedances.impedance_sources.Resonators.omega_R" title="Permalink to this definition">¶</a></dt>
+<em class="property">property </em><code class="sig-name descname">omega_R</code><a class="headerlink" href="#blond.impedances.impedance_sources.Resonators.omega_R" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.impedances.impedance_sources.Resonators.wake_calc">
-<code class="descname">wake_calc</code><span class="sig-paren">(</span><em>time_array</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance_sources.Resonators.wake_calc" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">wake_calc</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">time_array</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance_sources.Resonators.wake_calc" title="Permalink to this definition">¶</a></dt>
 <dd><p>Wake calculation method as a function of time.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><p><strong>time_array</strong> (<em>float array</em>) – Input time array in s</p>
 </dd>
 </dl>
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.impedance_sources.Resonators.time_array">
-<code class="descname">time_array</code><a class="headerlink" href="#blond.impedances.impedance_sources.Resonators.time_array" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">time_array</code><a class="headerlink" href="#blond.impedances.impedance_sources.Resonators.time_array" title="Permalink to this definition">¶</a></dt>
 <dd><p>Input time array in s</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -1137,9 +1137,9 @@ Python)</p></li>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.impedance_sources.Resonators.wake">
-<code class="descname">wake</code><a class="headerlink" href="#blond.impedances.impedance_sources.Resonators.wake" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">wake</code><a class="headerlink" href="#blond.impedances.impedance_sources.Resonators.wake" title="Permalink to this definition">¶</a></dt>
 <dd><p>Output wake in <span class="math notranslate nohighlight">\(\Omega / s\)</span></p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -1152,9 +1152,9 @@ Python)</p></li>
 
 </dd></dl>
 
-<dl class="class">
+<dl class="py class">
 <dt id="blond.impedances.impedance_sources.TravelingWaveCavity">
-<em class="property">class </em><code class="descclassname">blond.impedances.impedance_sources.</code><code class="descname">TravelingWaveCavity</code><span class="sig-paren">(</span><em>R_S</em>, <em>frequency_R</em>, <em>a_factor</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance_sources.TravelingWaveCavity" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">blond.impedances.impedance_sources.</code><code class="sig-name descname">TravelingWaveCavity</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">R_S</span></em>, <em class="sig-param"><span class="n">frequency_R</span></em>, <em class="sig-param"><span class="n">a_factor</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance_sources.TravelingWaveCavity" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">blond.impedances.impedance_sources._ImpedanceObject</span></code></p>
 <p>Impedance contribution from travelling wave cavities, analytic formulas for
 both wake and impedance. The resonance modes (and the corresponding R and a)
@@ -1178,9 +1178,9 @@ W(0) &amp;= \frac{2R}{\tilde{a}}\end{split}\]</div>
 </ul>
 </dd>
 </dl>
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.impedance_sources.TravelingWaveCavity.R_S">
-<code class="descname">R_S</code><a class="headerlink" href="#blond.impedances.impedance_sources.TravelingWaveCavity.R_S" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">R_S</code><a class="headerlink" href="#blond.impedances.impedance_sources.TravelingWaveCavity.R_S" title="Permalink to this definition">¶</a></dt>
 <dd><p>Shunt impepdance in <span class="math notranslate nohighlight">\(\Omega\)</span></p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -1189,9 +1189,9 @@ W(0) &amp;= \frac{2R}{\tilde{a}}\end{split}\]</div>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.impedance_sources.TravelingWaveCavity.frequency_R">
-<code class="descname">frequency_R</code><a class="headerlink" href="#blond.impedances.impedance_sources.TravelingWaveCavity.frequency_R" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">frequency_R</code><a class="headerlink" href="#blond.impedances.impedance_sources.TravelingWaveCavity.frequency_R" title="Permalink to this definition">¶</a></dt>
 <dd><p>Resonant frequency in Hz</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -1200,9 +1200,9 @@ W(0) &amp;= \frac{2R}{\tilde{a}}\end{split}\]</div>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.impedance_sources.TravelingWaveCavity.a_factor">
-<code class="descname">a_factor</code><a class="headerlink" href="#blond.impedances.impedance_sources.TravelingWaveCavity.a_factor" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">a_factor</code><a class="headerlink" href="#blond.impedances.impedance_sources.TravelingWaveCavity.a_factor" title="Permalink to this definition">¶</a></dt>
 <dd><p>Damping time a in s</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -1211,9 +1211,9 @@ W(0) &amp;= \frac{2R}{\tilde{a}}\end{split}\]</div>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.impedance_sources.TravelingWaveCavity.n_twc">
-<code class="descname">n_twc</code><a class="headerlink" href="#blond.impedances.impedance_sources.TravelingWaveCavity.n_twc" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">n_twc</code><a class="headerlink" href="#blond.impedances.impedance_sources.TravelingWaveCavity.n_twc" title="Permalink to this definition">¶</a></dt>
 <dd><p>number of resonant modes</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -1223,7 +1223,7 @@ W(0) &amp;= \frac{2R}{\tilde{a}}\end{split}\]</div>
 </dd></dl>
 
 <p class="rubric">Examples</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">R_S</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">R_S</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">frequency_R</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">a_factor</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">twc</span> <span class="o">=</span> <span class="n">TravelingWaveCavity</span><span class="p">(</span><span class="n">R_S</span><span class="p">,</span> <span class="n">frequency_R</span><span class="p">,</span> <span class="n">a_factor</span><span class="p">)</span>
@@ -1233,18 +1233,18 @@ W(0) &amp;= \frac{2R}{\tilde{a}}\end{split}\]</div>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">twc</span><span class="o">.</span><span class="n">imped_calc</span><span class="p">(</span><span class="n">frequency</span><span class="p">)</span>
 </pre></div>
 </div>
-<dl class="method">
+<dl class="py method">
 <dt id="blond.impedances.impedance_sources.TravelingWaveCavity.imped_calc">
-<code class="descname">imped_calc</code><span class="sig-paren">(</span><em>frequency_array</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance_sources.TravelingWaveCavity.imped_calc" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">imped_calc</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">frequency_array</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance_sources.TravelingWaveCavity.imped_calc" title="Permalink to this definition">¶</a></dt>
 <dd><p>Impedance calculation method as a function of frequency.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><p><strong>frequency_array</strong> (<em>float array</em>) – Input frequency array in Hz</p>
 </dd>
 </dl>
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.impedance_sources.TravelingWaveCavity.frequency_array">
-<code class="descname">frequency_array</code><a class="headerlink" href="#blond.impedances.impedance_sources.TravelingWaveCavity.frequency_array" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">frequency_array</code><a class="headerlink" href="#blond.impedances.impedance_sources.TravelingWaveCavity.frequency_array" title="Permalink to this definition">¶</a></dt>
 <dd><p>nput frequency array in Hz</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -1253,9 +1253,9 @@ W(0) &amp;= \frac{2R}{\tilde{a}}\end{split}\]</div>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.impedance_sources.TravelingWaveCavity.impedance">
-<code class="descname">impedance</code><a class="headerlink" href="#blond.impedances.impedance_sources.TravelingWaveCavity.impedance" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">impedance</code><a class="headerlink" href="#blond.impedances.impedance_sources.TravelingWaveCavity.impedance" title="Permalink to this definition">¶</a></dt>
 <dd><p>Output impedance in <span class="math notranslate nohighlight">\(\Omega + j \Omega\)</span></p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -1266,18 +1266,18 @@ W(0) &amp;= \frac{2R}{\tilde{a}}\end{split}\]</div>
 
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.impedances.impedance_sources.TravelingWaveCavity.wake_calc">
-<code class="descname">wake_calc</code><span class="sig-paren">(</span><em>time_array</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance_sources.TravelingWaveCavity.wake_calc" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">wake_calc</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">time_array</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.impedance_sources.TravelingWaveCavity.wake_calc" title="Permalink to this definition">¶</a></dt>
 <dd><p>Wake calculation method as a function of time.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><p><strong>time_array</strong> (<em>float array</em>) – Input time array in s</p>
 </dd>
 </dl>
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.impedance_sources.TravelingWaveCavity.time_array">
-<code class="descname">time_array</code><a class="headerlink" href="#blond.impedances.impedance_sources.TravelingWaveCavity.time_array" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">time_array</code><a class="headerlink" href="#blond.impedances.impedance_sources.TravelingWaveCavity.time_array" title="Permalink to this definition">¶</a></dt>
 <dd><p>Input time array in s</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -1286,9 +1286,9 @@ W(0) &amp;= \frac{2R}{\tilde{a}}\end{split}\]</div>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.impedance_sources.TravelingWaveCavity.wake">
-<code class="descname">wake</code><a class="headerlink" href="#blond.impedances.impedance_sources.TravelingWaveCavity.wake" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">wake</code><a class="headerlink" href="#blond.impedances.impedance_sources.TravelingWaveCavity.wake" title="Permalink to this definition">¶</a></dt>
 <dd><p>Output wake in <span class="math notranslate nohighlight">\(\Omega / s\)</span></p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -1309,9 +1309,9 @@ W(0) &amp;= \frac{2R}{\tilde{a}}\end{split}\]</div>
 <dd class="field-odd"><p><strong>Danilo Quartullo</strong>, <strong>Joel Repond</strong></p>
 </dd>
 </dl>
-<dl class="function">
+<dl class="py function">
 <dt id="blond.impedances.induced_voltage_analytical.analytical_gaussian_resonator">
-<code class="descclassname">blond.impedances.induced_voltage_analytical.</code><code class="descname">analytical_gaussian_resonator</code><span class="sig-paren">(</span><em>sigma_t</em>, <em>Q</em>, <em>R_s</em>, <em>omega_r</em>, <em>tau_array</em>, <em>n_particles</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.induced_voltage_analytical.analytical_gaussian_resonator" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">blond.impedances.induced_voltage_analytical.</code><code class="sig-name descname">analytical_gaussian_resonator</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">sigma_t</span></em>, <em class="sig-param"><span class="n">Q</span></em>, <em class="sig-param"><span class="n">R_s</span></em>, <em class="sig-param"><span class="n">omega_r</span></em>, <em class="sig-param"><span class="n">tau_array</span></em>, <em class="sig-param"><span class="n">n_particles</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.induced_voltage_analytical.analytical_gaussian_resonator" title="Permalink to this definition">¶</a></dt>
 <dd><p>It gives the analytical induced voltage for a gaussian bunch and a
 resonator.</p>
 <dl class="field-list simple">
@@ -1377,9 +1377,9 @@ No. 34 (Apr., 1951),pp. 67-70</p>
 <dd class="field-odd"><p><strong>Danilo Quartullo, Konstantinos Iliakis</strong></p>
 </dd>
 </dl>
-<dl class="class">
+<dl class="py class">
 <dt id="blond.impedances.music.Music">
-<em class="property">class </em><code class="descclassname">blond.impedances.music.</code><code class="descname">Music</code><span class="sig-paren">(</span><em>Beam</em>, <em>resonator</em>, <em>n_macroparticles</em>, <em>n_particles</em>, <em>t_rev</em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.music.Music" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">blond.impedances.music.</code><code class="sig-name descname">Music</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">Beam</span></em>, <em class="sig-param"><span class="n">resonator</span></em>, <em class="sig-param"><span class="n">n_macroparticles</span></em>, <em class="sig-param"><span class="n">n_particles</span></em>, <em class="sig-param"><span class="n">t_rev</span></em><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.music.Music" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>Implementation of the MuSiC algorithm in C++ to calculate the exact induced
 voltage generated by resonant modes in time domain without using slices,
@@ -1400,9 +1400,9 @@ quality factor [1]].</p></li>
 </ul>
 </dd>
 </dl>
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.music.Music.beam">
-<code class="descname">beam</code><a class="headerlink" href="#blond.impedances.music.Music.beam" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">beam</code><a class="headerlink" href="#blond.impedances.music.Music.beam" title="Permalink to this definition">¶</a></dt>
 <dd><p>Beam object.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -1411,9 +1411,9 @@ quality factor [1]].</p></li>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.music.Music.R_S">
-<code class="descname">R_S</code><a class="headerlink" href="#blond.impedances.music.Music.R_S" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">R_S</code><a class="headerlink" href="#blond.impedances.music.Music.R_S" title="Permalink to this definition">¶</a></dt>
 <dd><p>shunt impedance [<span class="math notranslate nohighlight">\(\Omega\)</span>]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -1422,9 +1422,9 @@ quality factor [1]].</p></li>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.music.Music.omega_R">
-<code class="descname">omega_R</code><a class="headerlink" href="#blond.impedances.music.Music.omega_R" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">omega_R</code><a class="headerlink" href="#blond.impedances.music.Music.omega_R" title="Permalink to this definition">¶</a></dt>
 <dd><p>angular resonant frequency [rad/s]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -1433,9 +1433,9 @@ quality factor [1]].</p></li>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.music.Music.Q">
-<code class="descname">Q</code><a class="headerlink" href="#blond.impedances.music.Music.Q" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">Q</code><a class="headerlink" href="#blond.impedances.music.Music.Q" title="Permalink to this definition">¶</a></dt>
 <dd><p>quality factor [1]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -1444,9 +1444,9 @@ quality factor [1]].</p></li>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.music.Music.n_macroparticles">
-<code class="descname">n_macroparticles</code><a class="headerlink" href="#blond.impedances.music.Music.n_macroparticles" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">n_macroparticles</code><a class="headerlink" href="#blond.impedances.music.Music.n_macroparticles" title="Permalink to this definition">¶</a></dt>
 <dd><p>Number of macro-particles [1].</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -1455,9 +1455,9 @@ quality factor [1]].</p></li>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.music.Music.n_particles">
-<code class="descname">n_particles</code><a class="headerlink" href="#blond.impedances.music.Music.n_particles" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">n_particles</code><a class="headerlink" href="#blond.impedances.music.Music.n_particles" title="Permalink to this definition">¶</a></dt>
 <dd><p>Beam intensity [1].</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -1466,9 +1466,9 @@ quality factor [1]].</p></li>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.music.Music.alpha">
-<code class="descname">alpha</code><a class="headerlink" href="#blond.impedances.music.Music.alpha" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">alpha</code><a class="headerlink" href="#blond.impedances.music.Music.alpha" title="Permalink to this definition">¶</a></dt>
 <dd><p>Definition dependent on previously defined attributes.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -1477,9 +1477,9 @@ quality factor [1]].</p></li>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.music.Music.omega_bar">
-<code class="descname">omega_bar</code><a class="headerlink" href="#blond.impedances.music.Music.omega_bar" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">omega_bar</code><a class="headerlink" href="#blond.impedances.music.Music.omega_bar" title="Permalink to this definition">¶</a></dt>
 <dd><p>Definition dependent on previously defined attributes.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -1488,9 +1488,9 @@ quality factor [1]].</p></li>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.music.Music.const">
-<code class="descname">const</code><a class="headerlink" href="#blond.impedances.music.Music.const" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">const</code><a class="headerlink" href="#blond.impedances.music.Music.const" title="Permalink to this definition">¶</a></dt>
 <dd><p>Definition dependent on previously defined attributes.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -1499,9 +1499,9 @@ quality factor [1]].</p></li>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.music.Music.induced_voltage">
-<code class="descname">induced_voltage</code><a class="headerlink" href="#blond.impedances.music.Music.induced_voltage" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">induced_voltage</code><a class="headerlink" href="#blond.impedances.music.Music.induced_voltage" title="Permalink to this definition">¶</a></dt>
 <dd><p>Output induced voltage [V] (multiplied by -1 for BLonD conventions)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -1510,9 +1510,9 @@ quality factor [1]].</p></li>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.music.Music.coeff1">
-<code class="descname">coeff1</code><a class="headerlink" href="#blond.impedances.music.Music.coeff1" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">coeff1</code><a class="headerlink" href="#blond.impedances.music.Music.coeff1" title="Permalink to this definition">¶</a></dt>
 <dd><p>Definition dependent on previously defined attributes.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -1521,9 +1521,9 @@ quality factor [1]].</p></li>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.music.Music.coeff2">
-<code class="descname">coeff2</code><a class="headerlink" href="#blond.impedances.music.Music.coeff2" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">coeff2</code><a class="headerlink" href="#blond.impedances.music.Music.coeff2" title="Permalink to this definition">¶</a></dt>
 <dd><p>Definition dependent on previously defined attributes.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -1532,9 +1532,9 @@ quality factor [1]].</p></li>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.music.Music.coeff3">
-<code class="descname">coeff3</code><a class="headerlink" href="#blond.impedances.music.Music.coeff3" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">coeff3</code><a class="headerlink" href="#blond.impedances.music.Music.coeff3" title="Permalink to this definition">¶</a></dt>
 <dd><p>Definition dependent on previously defined attributes.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -1543,9 +1543,9 @@ quality factor [1]].</p></li>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.music.Music.coeff4">
-<code class="descname">coeff4</code><a class="headerlink" href="#blond.impedances.music.Music.coeff4" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">coeff4</code><a class="headerlink" href="#blond.impedances.music.Music.coeff4" title="Permalink to this definition">¶</a></dt>
 <dd><p>Definition dependent on previously defined attributes.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -1554,9 +1554,9 @@ quality factor [1]].</p></li>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.music.Music.input_first_component">
-<code class="descname">input_first_component</code><a class="headerlink" href="#blond.impedances.music.Music.input_first_component" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">input_first_component</code><a class="headerlink" href="#blond.impedances.music.Music.input_first_component" title="Permalink to this definition">¶</a></dt>
 <dd><p>First component of vertical array in MuSiC algorithm</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -1565,9 +1565,9 @@ quality factor [1]].</p></li>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.music.Music.input_second_component">
-<code class="descname">input_second_component</code><a class="headerlink" href="#blond.impedances.music.Music.input_second_component" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">input_second_component</code><a class="headerlink" href="#blond.impedances.music.Music.input_second_component" title="Permalink to this definition">¶</a></dt>
 <dd><p>Second component of vertical array in MuSiC algorithm</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -1576,9 +1576,9 @@ quality factor [1]].</p></li>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.music.Music.t_rev">
-<code class="descname">t_rev</code><a class="headerlink" href="#blond.impedances.music.Music.t_rev" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">t_rev</code><a class="headerlink" href="#blond.impedances.music.Music.t_rev" title="Permalink to this definition">¶</a></dt>
 <dd><p>Revolution period [s]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -1587,9 +1587,9 @@ quality factor [1]].</p></li>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.music.Music.last_dt">
-<code class="descname">last_dt</code><a class="headerlink" href="#blond.impedances.music.Music.last_dt" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">last_dt</code><a class="headerlink" href="#blond.impedances.music.Music.last_dt" title="Permalink to this definition">¶</a></dt>
 <dd><p>Last longitudinal coordinate of the beam [s]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Type</dt>
@@ -1598,9 +1598,9 @@ quality factor [1]].</p></li>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
+<dl class="py attribute">
 <dt id="blond.impedances.music.Music.array_parameters">
-<code class="descname">array_parameters</code><a class="headerlink" href="#blond.impedances.music.Music.array_parameters" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">array_parameters</code><a class="headerlink" href="#blond.impedances.music.Music.array_parameters" title="Permalink to this definition">¶</a></dt>
 <dd><p>Array gathering four attributes already defined to be used in the C++
 algorithm.</p>
 <dl class="field-list simple">
@@ -1620,21 +1620,21 @@ M. Migliorati, L. Palumbo, ‘Multibunch and multiparticle simulation code
 with an alternative approach to wakefield effects’, Phys. Rev. ST Accel.
 Beams 18, 2015.</p>
 </div>
-<dl class="method">
+<dl class="py method">
 <dt id="blond.impedances.music.Music.track_classic">
-<code class="descname">track_classic</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.music.Music.track_classic" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">track_classic</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.music.Music.track_classic" title="Permalink to this definition">¶</a></dt>
 <dd><p>Voltage in time domain using the basic definition (Python code)</p>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.impedances.music.Music.track_cpp">
-<code class="descname">track_cpp</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.music.Music.track_cpp" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">track_cpp</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.music.Music.track_cpp" title="Permalink to this definition">¶</a></dt>
 <dd><p>Voltage in time domain (single-turn) using MuSiC (C++ code).
 Note: this method should also be called at turn number 1 when
 multi-turn voltage computations are needed.</p>
 <p class="rubric">Examples</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">impedances.music</span> <span class="k">as</span> <span class="nn">musClass</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">setup_cpp</span> <span class="k">import</span> <span class="n">libblond</span>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">impedances.music</span> <span class="k">as</span> <span class="nn">musClass</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">setup_cpp</span> <span class="kn">import</span> <span class="n">libblond</span>
 <span class="go">&gt;&gt;&gt;</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">music_cpp</span> <span class="o">=</span> <span class="n">musClass</span><span class="o">.</span><span class="n">Music</span><span class="p">(</span><span class="n">my_beam</span><span class="p">,</span> <span class="p">[</span><span class="n">R_S</span><span class="p">,</span> <span class="mi">2</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="n">frequency_R</span><span class="p">,</span> <span class="n">Q</span><span class="p">],</span>
 <span class="gp">&gt;&gt;&gt; </span>                              <span class="n">n_macroparticles</span><span class="p">,</span> <span class="n">n_particles</span><span class="p">,</span> <span class="n">t_rev</span><span class="p">)</span>
@@ -1643,15 +1643,15 @@ multi-turn voltage computations are needed.</p>
 </div>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.impedances.music.Music.track_cpp_multi_turn">
-<code class="descname">track_cpp_multi_turn</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.music.Music.track_cpp_multi_turn" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">track_cpp_multi_turn</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.music.Music.track_cpp_multi_turn" title="Permalink to this definition">¶</a></dt>
 <dd><p>Voltage in time domain (multi-turn) using MuSiC (C++ code).
 Note: this method should be called from turn number 2 onwards when
 multi-turn voltage computations are needed..</p>
 <p class="rubric">Examples</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">impedances.music</span> <span class="k">as</span> <span class="nn">musClass</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">setup_cpp</span> <span class="k">import</span> <span class="n">libblond</span>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">impedances.music</span> <span class="k">as</span> <span class="nn">musClass</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">setup_cpp</span> <span class="kn">import</span> <span class="n">libblond</span>
 <span class="go">&gt;&gt;&gt;</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">music_cpp</span> <span class="o">=</span> <span class="n">musClass</span><span class="o">.</span><span class="n">Music</span><span class="p">(</span><span class="n">my_beam</span><span class="p">,</span> <span class="p">[</span><span class="n">R_S</span><span class="p">,</span> <span class="mi">2</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="n">frequency_R</span><span class="p">,</span> <span class="n">Q</span><span class="p">],</span>
 <span class="gp">&gt;&gt;&gt; </span>                              <span class="n">n_macroparticles</span><span class="p">,</span> <span class="n">n_particles</span><span class="p">,</span> <span class="n">t_rev</span><span class="p">)</span>
@@ -1662,14 +1662,14 @@ multi-turn voltage computations are needed..</p>
 </div>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.impedances.music.Music.track_py">
-<code class="descname">track_py</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.music.Music.track_py" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">track_py</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.music.Music.track_py" title="Permalink to this definition">¶</a></dt>
 <dd><p>Voltage in time domain (single-turn) using MuSiC (Python code).
 Note: this method should also be called at turn number 1 when
 multi-turn voltage computations are needed.</p>
 <p class="rubric">Examples</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">impedances.music</span> <span class="k">as</span> <span class="nn">musClass</span>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">impedances.music</span> <span class="k">as</span> <span class="nn">musClass</span>
 <span class="go">&gt;&gt;&gt;</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">music_cpp</span> <span class="o">=</span> <span class="n">musClass</span><span class="o">.</span><span class="n">Music</span><span class="p">(</span><span class="n">my_beam</span><span class="p">,</span> <span class="p">[</span><span class="n">R_S</span><span class="p">,</span> <span class="mi">2</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="n">frequency_R</span><span class="p">,</span> <span class="n">Q</span><span class="p">],</span>
 <span class="gp">&gt;&gt;&gt; </span>                              <span class="n">n_macroparticles</span><span class="p">,</span> <span class="n">n_particles</span><span class="p">,</span> <span class="n">t_rev</span><span class="p">)</span>
@@ -1678,14 +1678,14 @@ multi-turn voltage computations are needed.</p>
 </div>
 </dd></dl>
 
-<dl class="method">
+<dl class="py method">
 <dt id="blond.impedances.music.Music.track_py_multi_turn">
-<code class="descname">track_py_multi_turn</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.music.Music.track_py_multi_turn" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">track_py_multi_turn</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#blond.impedances.music.Music.track_py_multi_turn" title="Permalink to this definition">¶</a></dt>
 <dd><p>Voltage in time domain (multi-turn) using MuSiC (Python code).
 Note: this method should be called from turn number 2 onwards when
 multi-turn voltage computations are needed..</p>
 <p class="rubric">Examples</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">impedances.music</span> <span class="k">as</span> <span class="nn">musClass</span>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">impedances.music</span> <span class="k">as</span> <span class="nn">musClass</span>
 <span class="go">&gt;&gt;&gt;</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">music_cpp</span> <span class="o">=</span> <span class="n">musClass</span><span class="o">.</span><span class="n">Music</span><span class="p">(</span><span class="n">my_beam</span><span class="p">,</span> <span class="p">[</span><span class="n">R_S</span><span class="p">,</span> <span class="mi">2</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="n">frequency_R</span><span class="p">,</span> <span class="n">Q</span><span class="p">],</span>
 <span class="gp">&gt;&gt;&gt; </span>                              <span class="n">n_macroparticles</span><span class="p">,</span> <span class="n">n_particles</span><span class="p">,</span> <span class="n">t_rev</span><span class="p">)</span>
@@ -1756,7 +1756,7 @@ multi-turn voltage computations are needed..</p>
       <script type="text/javascript" src="../_static/underscore.js"></script>
       <script type="text/javascript" src="../_static/doctools.js"></script>
       <script type="text/javascript" src="../_static/language_data.js"></script>
-      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
   
 
   
