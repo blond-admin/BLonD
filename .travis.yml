@@ -80,18 +80,18 @@ after_success:
   # - ssh-keyscan -t rsa 'github.com' >> ~/.ssh/known_hosts 
   - git config --global user.name travis-ci
   - git config --global user.email travis@example.org
-  - cd __doc || exit -1
-  - make html || exit -1
-  - git clone --branch=gh-pages https://github.com/${TRAVIS_REPO_SLUG}.git BLonD || exit -1
-  - cd BLonD || exit -1
-  - git remote rm origin || exit -1
-  - git remote add origin https://blond-admin:${GITHUB_TOKEN}@github.com/${TRAVIS_REPO_SLUG}.git || exit -1
-  - cp -r ../_build/html/* . || exit -1
-  - git add -A || exit -1
-  - git status || exit -1
-  - git diff-index --quiet HEAD || git commit -m "Updated documentation" -n || exit -1
-  # - git push
-  - cd $TRAVIS_BUILD_DIR || exit -1
+  - cd __doc
+  - make html
+  - git clone --branch=gh-pages https://github.com/${TRAVIS_REPO_SLUG}.git BLonD
+  - cd BLonD
+  - git remote rm origin
+  - git remote add origin https://blond-admin:${GITHUB_TOKEN}@github.com/${TRAVIS_REPO_SLUG}.git && \
+      cp -r ../_build/html/* . && \
+      git add -A && \
+      git status && \
+      git diff-index --quiet HEAD || git commit -m "Updated documentation" -n && \
+      git push
+  - cd $TRAVIS_BUILD_DIR
   - coveralls
 # branches:
 #   only:
