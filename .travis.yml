@@ -60,34 +60,34 @@ before_script:
   - python blond/compile.py -p --with-fftw-threads --with-fftw-lib=$HOME/install/lib --with-fftw-header=$HOME/install/include --flags='--coverage'
   - export OMP_NUM_THREADS=2
 script:
-  # echo "Running tests"
+  # - echo "Running tests"
   - coverage run -m pytest -v --ignore=unittests/integration/test_validate_mpi.py unittests/ && coverage run --append -m pytest -v unittests/integration/test_validate_mpi.py
+  # - coverage run -m pytest -v unittests/utils/test_blondmath.py
 after_success:
   # echo "Success"
   - coverage report
-  - if [[ $TRAVIS_PYTHON_VERSION = "3.6" ]]; then coveralls; else exit 0; fi;
-  - if ! [[ "$TRAVIS_PULL_REQUEST" = ^[0-9]+$ ]]; then exit 0 ; fi ;
+  - if [[ $TRAVIS_PYTHON_VERSION != "3.6" ]]; then exit 0; fi;
+  # - if [[ $TRAVIS_PYTHON_VERSION = "3.6" ]]; then coveralls; else exit 0; fi;
+  # - if ! [[ "$TRAVIS_PULL_REQUEST" = ^[0-9]+$ ]]; then exit 0 ; fi ;
   - python -m pip install --upgrade pyqt5 sphinx sphinxcontrib-napoleon sphinx-autopackagesummary
-  - mkdir -p ~/.ssh
+  # - mkdir -p ~/.ssh
   # Needs ssh key generated using "ssh-keygen -f key_fname -t rsa"
   # Env variable is private key encoded using "cat privatekey | base64 -w0" to avoid str manipulations
-  - (echo "$GITHUB_TOKEN_DOCS" | base64 -d) > ~/.ssh/id_rsa
-  - chmod 700 ~/.ssh/id_rsa
-  - eval "$(ssh-agent -s)"
-  - ssh-add ~/.ssh/id_rsa
-  - ssh-keyscan -t rsa 'github.com' >> ~/.ssh/known_hosts 
-  - git config --global user.name ${USER_LOGIN}
-  - git config --global user.email ${USER_EMAIL}
+  # - (echo "$GITHUB_TOKEN_DOCS" | base64 -d) > ~/.ssh/id_rsa
+  # - chmod 700 ~/.ssh/id_rsa
+  # - eval "$(ssh-agent -s)"
+  # - ssh-add ~/.ssh/id_rsa
+  # - ssh-keyscan -t rsa 'github.com' >> ~/.ssh/known_hosts 
+  - git config --global user.name travis-ci
+  - git config --global user.email travis@example.org
   - cd __doc
   - make html
-  - git clone --branch=gh-pages git@github.com:${USER_LOGIN}/BLonD.git BLonD
+  - git clone --branch=gh-pages https://github.com/${TRAVIS_REPO_SLUG}.git BLonD
   - cd BLonD
-  - cp -r ../_build/html/* .
-  - git add -A
-  - git status
-  - git diff-index --quiet HEAD || git commit -m "Updated documentation" -n
-  - git push
-
+  - git remote rm origin
+  - git remote add origin https://blond-admin:${GITHUB_TOKEN}@github.com/${TRAVIS_REPO_SLUG}.git && git remote -v && cp -r ../_build/html/* . && git add -A && git status && git commit -m "Updated documentation" -n && git push origin gh-pages
+  - cd $TRAVIS_BUILD_DIR
+  - coveralls
 # branches:
 #   only:
 #   - master
