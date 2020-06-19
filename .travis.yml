@@ -60,12 +60,13 @@ before_script:
   - python blond/compile.py -p --with-fftw-threads --with-fftw-lib=$HOME/install/lib --with-fftw-header=$HOME/install/include --flags='--coverage'
   - export OMP_NUM_THREADS=2
 script:
-  # echo "Running tests"
-  - coverage run -m pytest -v --ignore=unittests/integration/test_validate_mpi.py unittests/ && coverage run --append -m pytest -v unittests/integration/test_validate_mpi.py
+  - echo "Running tests"
+  # - coverage run -m pytest -v --ignore=unittests/integration/test_validate_mpi.py unittests/ && coverage run --append -m pytest -v unittests/integration/test_validate_mpi.py
 after_success:
   # echo "Success"
   - coverage report
-  - if [[ $TRAVIS_PYTHON_VERSION = "3.6" ]]; then coveralls; else exit 0; fi;
+  - if [[ $TRAVIS_PYTHON_VERSION != "3.6" ]]; then exit 0; fi;
+  # - if [[ $TRAVIS_PYTHON_VERSION = "3.6" ]]; then coveralls; else exit 0; fi;
   - if ! [[ "$TRAVIS_PULL_REQUEST" = ^[0-9]+$ ]]; then exit 0 ; fi ;
   - python -m pip install --upgrade pyqt5 sphinx sphinxcontrib-napoleon sphinx-autopackagesummary
   - mkdir -p ~/.ssh
@@ -87,7 +88,8 @@ after_success:
   - git status
   - git diff-index --quiet HEAD || git commit -m "Updated documentation" -n
   - git push
-
+  - cd $TRAVIS_BUILD_DIR
+  - coveralls
 # branches:
 #   only:
 #   - master
