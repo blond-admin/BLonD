@@ -60,8 +60,9 @@ before_script:
   - python blond/compile.py -p --with-fftw-threads --with-fftw-lib=$HOME/install/lib --with-fftw-header=$HOME/install/include --flags='--coverage'
   - export OMP_NUM_THREADS=2
 script:
-  - echo "Running tests"
+  # - echo "Running tests"
   # - coverage run -m pytest -v --ignore=unittests/integration/test_validate_mpi.py unittests/ && coverage run --append -m pytest -v unittests/integration/test_validate_mpi.py
+  - coverage run -m pytest -v unittests/utils/test_blondmath.py
 after_success:
   # echo "Success"
   - coverage report
