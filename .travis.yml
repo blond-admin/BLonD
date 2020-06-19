@@ -85,7 +85,7 @@ after_success:
   - git clone --branch=gh-pages https://github.com/${TRAVIS_REPO_SLUG}.git BLonD
   - cd BLonD
   - git remote rm origin
-  - git remote add origin https://blond-admin:${GITHUB_TOKEN}@github.com/${TRAVIS_REPO_SLUG}.git && cp -r ../_build/html/* . && git add -A && git status && git diff-index --quiet HEAD || git commit -m "Updated documentation" -n && git push
+  - git remote add origin https://blond-admin:${GITHUB_TOKEN}@github.com/${TRAVIS_REPO_SLUG}.git && git remote -v && cp -r ../_build/html/* . && git add -A && git status && git diff-index --quiet HEAD || git commit -m "Updated documentation" -n && git push origin gh-pages
   - cd $TRAVIS_BUILD_DIR
   - coveralls
 # branches:
