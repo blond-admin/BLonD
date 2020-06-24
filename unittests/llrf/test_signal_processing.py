@@ -20,7 +20,12 @@ from scipy.constants import e
 from blond.llrf.signal_processing import moving_average, modulator
 from blond.llrf.signal_processing import polar_to_cartesian, cartesian_to_polar
 from blond.llrf.signal_processing import comb_filter, low_pass_filter
-from blond.llrf.signal_processing import rf_beam_current
+from blond.llrf.signal_processing import rf_beam_current, feedforward_filter
+from blond.llrf.signal_processing import feedforward_filter_TWC3, \
+    feedforward_filter_TWC4, feedforward_filter_TWC5
+
+from blond.llrf.impulse_response import SPS3Section200MHzTWC, \
+    SPS4Section200MHzTWC, SPS5Section200MHzTWC
 
 from blond.input_parameters.ring import Ring
 from blond.beam.beam import Beam, Proton
@@ -164,16 +169,18 @@ class TestRFCurrent(unittest.TestCase):
 
         # Set up machine parameters
         self.ring = Ring(C, alpha, p_s, Proton(), n_turns=1)
-        
+        self.rf = RFStation(self.ring, 4620, 4.5e6, 0)
+
         # RF-frequency at which to compute beam current
         self.omega = 2*np.pi*200.222e6
         
         # Create Gaussian beam
         self.beam = Beam(self.ring, N_m, N_b)
-        self.profile = Profile(
-                self.beam, CutOptions=CutOptions(cut_left=-1.e-9, n_slices=100,
-                                                 cut_right=6.e-9))
+        self.profile = Profile(self.beam, CutOptions=CutOptions(cut_left=-1e-9,
+            cut_right=6e-9, n_slices=100))
 
+    # Test charge distribution with analytic functions
+    # Compare with theoretical value
     def test_1(self):
 
         t = self.profile.bin_centers
@@ -201,14 +208,14 @@ class TestRFCurrent(unittest.TestCase):
         self.assertListEqual(rf_current_imag.tolist(), rf_theo_imag.tolist(),
             msg="In TestRfCurrent test_1, mismatch in real part of RF current")
 
+    # Test charge distribution of a bigaussian profile, without LPF
+    # Compare to simulation data
     def test_2(self):
-        
-        RF = RFStation(self.ring, 4620, 4.5e6, 0)
 
-        bigaussian(self.ring, RF, self.beam, 3.2e-9/4, seed = 1234,
-                   reinsertion = True)
+        bigaussian(self.ring, self.rf, self.beam, 3.2e-9/4, seed=1234,
+                   reinsertion=True)
         self.profile.track()
-        
+
         rf_current = rf_beam_current(self.profile, self.omega,
                                      self.ring.t_rev[0], lpf=False)
 
@@ -297,103 +304,128 @@ class TestRFCurrent(unittest.TestCase):
             msg="In TestRFCurrent test_2, mismatch in imaginary part of"
             + " RF current")
     
-    # Skip this unit test, since its reference values are obsolete;
-    # This test used to be in /unittests/general/test_cavity_feedback.py
-    @unittest.skip('Skipping because of obsolete reference values!')
+    # Test charge distribution of a bigaussian profile, with LPF
+    # Compare to simulation data
     def test_3(self):
         
-        # Set up SPS conditions
-        ring = Ring(2*np.pi*1100.009, 1/18**2, 25.92e9, Proton(), 1000)
-        RF = RFStation(ring, 4620, 4.5e6, 0)
-        beam = Beam(ring, 1e5, 1e11)
-        bigaussian(ring, RF, beam, 3.2e-9/4, seed = 1234, reinsertion = True) 
-        profile = Profile(beam, CutOptions(cut_left=-1.e-9, cut_right=6.e-9, 
-                                           n_slices=100))
-        profile.track()
-        self.assertEqual(len(beam.dt), np.sum(profile.n_macroparticles), "In" +
+        bigaussian(self.ring, self.rf, self.beam, 3.2e-9/4, seed=1234,
+                   reinsertion=True)
+        self.profile.track()
+        self.assertEqual(len(self.beam.dt), np.sum(self.profile.n_macroparticles), "In" +
             " TestBeamCurrent: particle number mismatch in Beam vs Profile")
-        
-        # RF current calculation with low-pass filter
-        rf_current = rf_beam_current(profile, 2*np.pi*200.222e6, ring.t_rev[0])
-        Iref_real = np.array([ -9.4646042539e-12,  -7.9596801534e-10,  
-            -2.6993572787e-10,
-            2.3790828610e-09,   6.4007063190e-09,   9.5444302650e-09,
-            9.6957462918e-09,   6.9944771120e-09,   5.0040512366e-09,
-            8.2427583408e-09,   1.6487066238e-08,   2.2178930587e-08,
-            1.6497620890e-08,   1.9878201568e-09,  -2.4862807497e-09,
-            2.0862096916e-08,   6.6115473293e-08,   1.1218114710e-07,
-             1.5428441607e-07,   2.1264254596e-07,   3.1213935713e-07,
-             4.6339212948e-07,   6.5039440158e-07,   8.2602190806e-07,
-             9.4532001396e-07,   1.0161170159e-06,   1.0795840334e-06,
-             1.1306004256e-06,   1.1081141333e-06,   9.7040873320e-07,
-             7.1863437325e-07,   3.3833950889e-07,  -2.2273124358e-07,
-            -1.0035204008e-06,  -1.9962696992e-06,  -3.1751183137e-06,
-            -4.5326227784e-06,  -6.0940850385e-06,  -7.9138578879e-06,
-            -9.9867317826e-06,  -1.2114906338e-05,  -1.4055138779e-05,
-            -1.5925650405e-05,  -1.8096693885e-05,  -2.0418813156e-05,
-            -2.2142865862e-05,  -2.3038234657e-05,  -2.3822481250e-05,
-            -2.4891969829e-05,  -2.5543384520e-05,  -2.5196086909e-05,
-            -2.4415522211e-05,  -2.3869116251e-05,  -2.3182951665e-05,
-            -2.1723128723e-05,  -1.9724625363e-05,  -1.7805112266e-05,
-            -1.5981218737e-05,  -1.3906226012e-05,  -1.1635865568e-05,
-            -9.5381189596e-06,  -7.7236624815e-06,  -6.0416822483e-06,
-            -4.4575806261e-06,  -3.0779237834e-06,  -1.9274519396e-06,
-            -9.5699993457e-07,  -1.7840768971e-07,   3.7780452612e-07,
-             7.5625231388e-07,   1.0158886027e-06,   1.1538975409e-06,
-             1.1677937652e-06,   1.1105424636e-06,   1.0216131672e-06,
-             8.8605026541e-07,   7.0783694846e-07,   5.4147914020e-07,
-             4.1956457226e-07,   3.2130062098e-07,   2.2762751268e-07,
-             1.4923020411e-07,   9.5683463322e-08,   5.8942895620e-08,
-             3.0515695233e-08,   1.2444834300e-08,   8.9413517889e-09,
-             1.6154761941e-08,   2.3261993674e-08,   2.3057968490e-08,
-             1.8354179928e-08,   1.4938991667e-08,   1.2506841004e-08,
-             8.1230022648e-09,   3.7428821201e-09,   2.8368110506e-09,
-             3.6536247240e-09,   2.8429736524e-09,   1.6640835314e-09,
-             2.3960087967e-09])
-        I_real = np.around(rf_current.real, 9) # round
-        Iref_real = np.around(Iref_real, 9) 
-        self.assertSequenceEqual(I_real.tolist(), Iref_real.tolist(),
-            msg="In TestRFCurrent test_3, mismatch in real part of RF current")
-        Iref_imag = np.array([ -1.3134886055e-11,   1.0898262206e-09,   
-            3.9806900984e-10,
-            -3.0007980073e-09,  -7.4404909183e-09,  -9.5619658077e-09,
-            -7.9029982105e-09,  -4.5153699012e-09,  -2.8337010673e-09,
-            -4.0605999910e-09,  -5.7035811935e-09,  -4.9421561822e-09,
-            -2.6226262365e-09,  -1.0904425703e-09,   1.5886725829e-10,
-             3.6061564044e-09,   1.2213233410e-08,   3.0717134774e-08,
-             6.2263860975e-08,   1.0789908935e-07,   1.8547368321e-07,
-             3.3758410599e-07,   5.8319210090e-07,   8.7586115583e-07,
-             1.1744525681e-06,   1.5330067491e-06,   2.0257108185e-06,
-             2.6290348930e-06,   3.3065045701e-06,   4.1218136471e-06,
-             5.1059358251e-06,   6.1421308306e-06,   7.1521192647e-06,
-             8.2164613957e-06,   9.3474086978e-06,   1.0368027059e-05,
-             1.1176114701e-05,   1.1892303251e-05,   1.2600522466e-05,
-             1.3142991032e-05,   1.3286611961e-05,   1.2972067098e-05,
-             1.2344251145e-05,   1.1561930031e-05,   1.0577353622e-05,
-             9.1838382917e-06,   7.3302333455e-06,   5.2367297732e-06,
-             3.1309520147e-06,   1.0396785645e-06,  -1.1104442284e-06,
-            -3.3300486963e-06,  -5.5129705406e-06,  -7.4742790081e-06,
-            -9.1003715719e-06,  -1.0458342224e-05,  -1.1632423668e-05,
-            -1.2513736332e-05,  -1.2942309414e-05,  -1.2975831165e-05,
-            -1.2799952495e-05,  -1.2469945465e-05,  -1.1941176358e-05,
-            -1.1222986380e-05,  -1.0349594257e-05,  -9.3491445482e-06,
-            -8.2956327726e-06,  -7.2394219079e-06,  -6.1539590898e-06,
-            -5.0802321519e-06,  -4.1512021086e-06,  -3.3868884793e-06,
-            -2.6850344653e-06,  -2.0327038471e-06,  -1.5048854341e-06,
-            -1.0965986189e-06,  -7.4914749272e-07,  -4.7128817088e-07,
-            -2.9595396024e-07,  -1.9387567373e-07,  -1.1597751838e-07,
-            -5.5766761837e-08,  -2.3991059778e-08,  -1.1910924971e-08,
-            -4.7797889603e-09,   9.0715301612e-11,   1.5744084129e-09,
-             2.8217939283e-09,   5.5919203984e-09,   7.7259433940e-09,
-             8.5033504655e-09,   9.1509256107e-09,   8.6746085156e-09,
-             5.8909590412e-09,   3.5957212556e-09,   4.3347189168e-09,
-             5.3331969589e-09,   3.9322184713e-09,   3.3616434953e-09,
-             6.5154351819e-09])
-        I_imag = np.around(rf_current.imag, 9) # round
-        Iref_imag = np.around(Iref_imag, 9)
-        self.assertSequenceEqual(I_imag.tolist(), Iref_imag.tolist(),
-            msg="In TestRFCurrent test_3, mismatch in imaginary part of RF current")
 
+        # RF current calculation with low-pass filter
+        rf_current = rf_beam_current(self.profile, self.omega,
+                                     self.ring.t_rev[0], lpf=True)
+
+        Iref_real = np.array([-7.1511909689e-12, -7.1512708858e-12, -7.1513482919e-12,
+            -7.1514232388e-12, -7.1514957777e-12, -7.1515659593e-12,
+            -7.1516338342e-12, -7.1516994523e-12, -7.1517628634e-12,
+            -7.1518241168e-12, -7.1518832613e-12, -7.1519403454e-12,
+            -7.1519954170e-12, -7.1520485239e-12, -7.1520997131e-12,
+            -7.1521490313e-12, -7.1521965247e-12, -7.1522422392e-12,
+            -7.1522862199e-12, -7.1523285117e-12, -7.1523691587e-12,
+            -7.1524082048e-12, -7.1524456933e-12, -7.1524816668e-12,
+            -7.1525161676e-12, -7.1525492372e-12, -7.1525809169e-12,
+            -7.1526112471e-12, -7.1526402679e-12, -7.1526680187e-12,
+            -7.1526945383e-12, -7.1527198650e-12, -7.1527440365e-12,
+            -7.1527670898e-12, -7.1527890615e-12, -7.1528099874e-12,
+            -7.1528299028e-12, -7.1528488424e-12, -7.1528668402e-12,
+            -7.1528839295e-12, -7.1529001433e-12, -7.1529155136e-12,
+            -7.1529300719e-12, -7.1529438491e-12, -7.1529568755e-12,
+            -7.1529691807e-12, -7.1529807935e-12, -7.1529917422e-12,
+            -7.1530020545e-12, -7.1530117574e-12, -7.1530208772e-12,
+            -7.1530294395e-12, -7.1530374694e-12, -7.1530449913e-12,
+            -7.1530520287e-12, -7.1530586049e-12, -7.1530647421e-12,
+            -7.1530704621e-12, -7.1530757860e-12, -7.1530807343e-12,
+            -7.1530853267e-12, -7.1530895824e-12, -7.1530935199e-12,
+            -7.1530971572e-12, -7.1531005114e-12, -7.1531035991e-12,
+            -7.1531064365e-12, -7.1531090389e-12, -7.1531114211e-12,
+            -7.1531135972e-12, -7.1531155809e-12, -7.1531173853e-12,
+            -7.1531190226e-12, -7.1531205049e-12, -7.1531218433e-12,
+            -7.1531230488e-12, -7.1531241314e-12, -7.1531251010e-12,
+            -7.1531259666e-12, -7.1531267370e-12, -7.1531274203e-12,
+            -7.1531280242e-12, -7.1531285560e-12, -7.1531290223e-12,
+            -7.1531294297e-12, -7.1531297839e-12, -7.1531300904e-12,
+            -7.1531303544e-12, -7.1531305805e-12, -7.1531307730e-12,
+            -7.1531309360e-12, -7.1531310731e-12, -7.1531311875e-12,
+            -7.1531312824e-12, -7.1531313603e-12, -7.1531314238e-12,
+            -7.1531314750e-12, -7.1531315159e-12, -7.1531315482e-12,
+            -7.1531315733e-12])
+        np.testing.assert_allclose(rf_current.real, Iref_real, rtol=1e-7,
+            atol=0, err_msg="In TestRFCurrent test_3, mismatch in real part of RF current")
+
+        Iref_imag = np.array([-2.1797211489e-12, -2.1796772456e-12, -2.1796347792e-12,
+            -2.1795937182e-12, -2.1795540314e-12, -2.1795156879e-12,
+            -2.1794786570e-12, -2.1794429085e-12, -2.1794084122e-12,
+            -2.1793751384e-12, -2.1793430575e-12, -2.1793121404e-12,
+            -2.1792823581e-12, -2.1792536822e-12, -2.1792260843e-12,
+            -2.1791995365e-12, -2.1791740112e-12, -2.1791494811e-12,
+            -2.1791259193e-12, -2.1791032992e-12, -2.1790815944e-12,
+            -2.1790607792e-12, -2.1790408280e-12, -2.1790217154e-12,
+            -2.1790034169e-12, -2.1789859077e-12, -2.1789691639e-12,
+            -2.1789531618e-12, -2.1789378779e-12, -2.1789232894e-12,
+            -2.1789093736e-12, -2.1788961083e-12, -2.1788834718e-12,
+            -2.1788714425e-12, -2.1788599995e-12, -2.1788491222e-12,
+            -2.1788387903e-12, -2.1788289840e-12, -2.1788196838e-12,
+            -2.1788108708e-12, -2.1788025262e-12, -2.1787946320e-12,
+            -2.1787871702e-12, -2.1787801236e-12, -2.1787734750e-12,
+            -2.1787672079e-12, -2.1787613061e-12, -2.1787557538e-12,
+            -2.1787505357e-12, -2.1787456369e-12, -2.1787410427e-12,
+            -2.1787367390e-12, -2.1787327121e-12, -2.1787289486e-12,
+            -2.1787254356e-12, -2.1787221605e-12, -2.1787191111e-12,
+            -2.1787162758e-12, -2.1787136430e-12, -2.1787112020e-12,
+            -2.1787089419e-12, -2.1787068527e-12, -2.1787049244e-12,
+            -2.1787031475e-12, -2.1787015131e-12, -2.1787000122e-12,
+            -2.1786986365e-12, -2.1786973779e-12, -2.1786962288e-12,
+            -2.1786951818e-12, -2.1786942299e-12, -2.1786933662e-12,
+            -2.1786925846e-12, -2.1786918789e-12, -2.1786912433e-12,
+            -2.1786906724e-12, -2.1786901610e-12, -2.1786897043e-12,
+            -2.1786892977e-12, -2.1786889367e-12, -2.1786886175e-12,
+            -2.1786883361e-12, -2.1786880890e-12, -2.1786878729e-12,
+            -2.1786876847e-12, -2.1786875215e-12, -2.1786873806e-12,
+            -2.1786872597e-12, -2.1786871564e-12, -2.1786870686e-12,
+            -2.1786869946e-12, -2.1786869325e-12, -2.1786868808e-12,
+            -2.1786868381e-12, -2.1786868031e-12, -2.1786867746e-12,
+            -2.1786867517e-12, -2.1786867335e-12, -2.1786867192e-12,
+            -2.1786867081e-12])
+        np.testing.assert_allclose(rf_current.imag, Iref_imag, rtol=1e-7,
+            atol=0, err_msg="In TestRFCurrent test_3, mismatch in imaginary part of RF current")
+
+    # Test RF beam current on coarse grid integrated from fine grid
+    # Compare to simulation data for peak RF current
+    def test_4(self):
+
+        # Create a batch of 100 equal, short bunches
+        bunches = 100
+        T_s = 5*self.rf.t_rev[0]/self.rf.harmonic[0, 0]
+        N_m = int(1e5)
+        N_b = 2.3e11
+        bigaussian(self.ring, self.rf, self.beam, 0.1e-9, seed=1234,
+                   reinsertion=True)
+        beam2 = Beam(self.ring, bunches*N_m, bunches*N_b)
+        bunch_spacing = 5*self.rf.t_rf[0, 0]
+        buckets = 5*bunches
+        for i in range(bunches):
+            beam2.dt[i*N_m:(i+1)*N_m] = self.beam.dt + i*bunch_spacing
+            beam2.dE[i*N_m:(i+1)*N_m] = self.beam.dE
+        profile2 = Profile(beam2, CutOptions=CutOptions(cut_left=0,
+            cut_right=bunches*bunch_spacing, n_slices=1000*buckets))
+        profile2.track()
+
+        tot_charges = np.sum(profile2.n_macroparticles)/\
+                     beam2.n_macroparticles*beam2.intensity
+        self.assertAlmostEqual(tot_charges, 2.3000000000e+13, 9)
+
+        # Calculate fine- and coarse-grid RF current
+        rf_current_fine, rf_current_coarse = rf_beam_current(profile2,
+            self.rf.omega_rf[0, 0], self.ring.t_rev[0], lpf=False,
+            downsample={'Ts': T_s, 'points': self.rf.harmonic[0, 0]/5})
+        rf_current_coarse /= T_s
+
+        # Peak RF current on coarse grid
+        peak_rf_current = np.max(np.absolute(rf_current_coarse))
+        self.assertAlmostEqual(peak_rf_current, 2.9285808008, 7)
 
 
 class TestComb(unittest.TestCase):
@@ -478,6 +510,141 @@ class TestMovingAverage(unittest.TestCase):
         self.assertSequenceEqual(self.y.tolist(),
             np.array([1, 2, 3, 4, 3, 2, 3, 4, 3], dtype=float).tolist(),
             msg="In TestMovingAverage, test_3: arrays differ")
+
+
+class TestFeedforwardFilter(unittest.TestCase):
+
+    # Run before every test
+    def setUp(self):
+
+        # Ring and RF definitions
+        ring = Ring(2*np.pi*1100.009, 1/18**2, 25.92e9, Particle=Proton())
+        rf = RFStation(ring, [4620], [4.5e6], [0.], n_rf=1)
+        self.T_s = 5*rf.t_rf[0, 0]
+
+    def test_1(self):
+
+        # Modified filling time to match reference case
+        TWC = SPS3Section200MHzTWC()
+        TWC.tau = 420e-9
+        filter, n_taps, n_filling, n_fit = feedforward_filter(TWC, 4/125*1e-6,
+            debug=False, taps=31, opt_output=True)
+        self.assertEqual(n_taps, 31,
+            msg="In TestFeedforwardFilter, test_1: n_taps incorrect")
+        self.assertEqual(n_filling, 13,
+            msg="In TestFeedforwardFilter, test_1: n_filling incorrect")
+        self.assertEqual(n_fit, 44,
+            msg="In TestFeedforwardFilter, test_1: n_fit incorrect")
+
+        filter_ref = np.array(
+            [-0.0227533635, 0.0211514102, 0.0032929202, -0.0026111554,
+              0.0119559316, 0.0043905603, 0.0043905603, 0.0040101282,
+             -0.0241480816, -0.0237676496, 0.0043905603, 0.0043905603,
+              0.0043905603, -0.0107783487, 0.0184915005, 0.0065858404,
+             -0.0052223108, 0.0239118633, 0.0087811206, 0.0087811206,
+              0.0080202564, 0.0295926259, 0.0237676496, -0.0043905603,
+             -0.0043905603, -0.0043905603, -0.0119750148, 0.0026599098,
+             -0.0032929202, -0.021005147,  0.022696114])
+
+        np.testing.assert_allclose(filter, filter_ref, rtol=1e-8, atol=1e-9,
+            err_msg="In TestFeedforwardFilter, test_1: filter array incorrect")
+
+        del TWC
+
+    def test_2(self):
+
+        TWC = SPS3Section200MHzTWC()
+        filter, n_taps, n_filling, n_fit = feedforward_filter(TWC, self.T_s,
+            debug=False, opt_output=True)
+        self.assertEqual(n_taps, 31,
+            msg="In TestFeedforwardFilter, test_2: n_taps incorrect")
+        self.assertEqual(n_filling, 18,
+            msg="In TestFeedforwardFilter, test_2: n_filling incorrect")
+        self.assertEqual(n_fit, 49,
+            msg="In TestFeedforwardFilter, test_2: n_fit incorrect")
+
+#        filter_ref = np.array(
+#            [-0.0070484734, 0.0161859736, 0.0020289928, 0.0020289928,
+#              0.0020289928, -0.0071641302, -0.0162319424, -0.0070388194,
+#              0.0020289928, 0.0020289928, 0.0020289928, - 0.0050718734,
+#              0.0065971343, 0.0030434892, 0.0030434892, 0.0030434892,
+#              0.0030434892, 0.0030434892, -0.0004807475, 0.011136476,
+#              0.0040579856, 0.0040579856, 0.0040579856, 0.0132511086,
+#              0.019651364, 0.0074147518, -0.0020289928, -0.0020289928,
+#             -0.0020289928, -0.0162307252, 0.0071072903])
+        filter_ref = np.copy(feedforward_filter_TWC3)
+
+        np.testing.assert_allclose(filter, filter_ref, rtol=1e-8, atol=1e-9,
+            err_msg="In TestFeedforwardFilter, test_2: filter array incorrect")
+
+        del TWC
+
+    def test_3(self):
+
+        TWC = SPS4Section200MHzTWC()
+        filter, n_taps, n_filling, n_fit = feedforward_filter(TWC, self.T_s,
+            debug=False, opt_output=True)
+        self.assertEqual(n_taps, 37,
+            msg="In TestFeedforwardFilter, test_3: n_taps incorrect")
+        self.assertEqual(n_filling, 24,
+            msg="In TestFeedforwardFilter, test_3: n_filling incorrect")
+        self.assertEqual(n_fit, 61,
+            msg="In TestFeedforwardFilter, test_3: n_fit incorrect")
+
+#        filter_ref = np.array(
+#            [ 0.0048142895, 0.0035544775, 0.0011144336, 0.0011144336,
+#              0.0011144336, -0.0056984584, -0.0122587698, -0.0054458778,
+#              0.0011144336, 0.0011144336, 0.0011144336, -0.0001684528,
+#             -0.000662115, 0.0016716504, 0.0016716504, 0.0016716504,
+#              0.0016716504, 0.0016716504, 0.0016716504, 0.0016716504,
+#              0.0016716504, 0.0016716504, 0.0016716504, 0.0016716504,
+#              0.0040787952, 0.0034488892, 0.0022288672, 0.0022288672,
+#              0.0022288672, 0.0090417593, 0.0146881621, 0.0062036196,
+#             -0.0011144336, -0.0011144336, -0.0011144336, -0.0036802064,
+#             -0.0046675309])
+        filter_ref = np.copy(feedforward_filter_TWC4)
+
+        np.testing.assert_allclose(filter, filter_ref, rtol=1e-8, atol=1e-9,
+            err_msg="In TestFeedforwardFilter, test_3: filter array incorrect")
+
+        del TWC
+
+    def test_4(self):
+
+        TWC = SPS5Section200MHzTWC()
+        filter, n_taps, n_filling, n_fit = feedforward_filter(TWC, self.T_s,
+            debug=False, opt_output=True)
+        self.assertEqual(n_taps, 43,
+            msg="In TestFeedforwardFilter, test_4: n_taps incorrect")
+        self.assertEqual(n_filling, 31,
+            msg="In TestFeedforwardFilter, test_4: n_filling incorrect")
+        self.assertEqual(n_fit, 74,
+            msg="In TestFeedforwardFilter, test_4: n_fit incorrect")
+
+#        filter_ref = np.array(
+#            [ 0.0189205535, -0.0105637125, 0.0007262783, 0.0007262783,
+#              0.0006531768, -0.0105310359, -0.0104579343, 0.0007262783,
+#              0.0007262783, 0.0007262783, 0.0063272331, -0.0083221785,
+#              0.0010894175, 0.0010894175, 0.0010894175, 0.0010894175,
+#              0.0010894175, 0.0010894175, 0.0010894175, 0.0010894175,
+#              0.0010894175, 0.0010894175, 0.0010894175, 0.0010894175,
+#              0.0010894175, 0.0010894175, 0.0010894175, 0.0010894175,
+#              0.0010894175, 0.0010894175, 0.0010894175, 0.0105496942,
+#             -0.0041924387, 0.0014525567, 0.0014525567, 0.0013063535,
+#              0.0114011487, 0.0104579343, -0.0007262783, -0.0007262783,
+#             -0.0007262783, 0.0104756312, -0.018823192])
+        filter_ref = np.copy(feedforward_filter_TWC5)
+
+        np.testing.assert_allclose(filter, filter_ref, rtol=1e-8, atol=1e-9,
+            err_msg="In TestFeedforwardFilter, test_4: filter array incorrect")
+
+        del TWC
+
+    #    TWC4 = SPS4Section200MHzTWC()
+    #    FF_4 = feedforward_filter(TWC4, 25e-9, debug=True)
+
+    #    TWC5 = SPS5Section200MHzTWC()
+    #    FF_5 = feedforward_filter(TWC5, 25e-9, debug=True)
 
 
 if __name__ == '__main__':

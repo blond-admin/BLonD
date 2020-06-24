@@ -49,4 +49,4 @@ build_script:
   # - set PYTHONPATH=./
 
 test_script:
-  - python -m pytest -v unittests\ --ignore=unittests\integration\test_mpi_examples.py
+  - python -m pytest -v unittests\ --ignore-glob=unittests\integration\*mpi*.py

@@ -129,6 +129,14 @@ total_ind_volt_ZoN = TotalInducedVoltage(beam, slice_beam, [ZoN])
 
 # PLOTS 
 
+
+# For testing purposes
+test_string = ''
+test_string += '{:<17}\t{:<17}\t{:<17}\t{:<17}\n'.format(
+    'mean_dE', 'std_dE', 'mean_dt', 'std_dt')
+test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
+    np.mean(beam.dE), np.std(beam.dE), np.mean(beam.dt), np.std(beam.dt))
+
 # ACCELERATION MAP-------------------------------------------------------------
 
 map_ = [slice_beam] + [total_ind_volt_freq] + [total_ind_volt_time] + \
@@ -155,5 +163,14 @@ plt.ylabel('Induced voltage [V]')
 plt.legend(loc=2, fontsize='medium')
 
 plt.savefig(this_directory + '../output_files/EX_16_fig/fig.png')
+
+# For testing purposes
+test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
+    np.mean(beam.dE), np.std(beam.dE), np.mean(beam.dt), np.std(beam.dt))
+with open(this_directory + '../output_files/EX_16_test_data.txt', 'w') as f:
+    f.write(test_string)
+
+    
+
 
 print("Done!")
