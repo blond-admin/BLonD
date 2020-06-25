@@ -316,12 +316,12 @@ def sin(x, result=None):
             result = np.empty(len(x), dtype=np.float32, order='C')
         __lib.fast_sinvf(__getPointer(x), __getLen(x), __getPointer(result))
         return result
-    elif isinstance(x, np.float64) or isinstance(x, np.float32) or isinstance(x, int):
+    elif isinstance(x, float) or isinstance(x, np.float32) or isinstance(x, int):
         __lib.fast_sin.restype = ct.c_double
         return __lib.fast_sin(ct.c_double(x))
     else:
         # TypeError
-        raise RuntimeError('[sin] The type %s is not supported', type(x))
+        raise RuntimeError('[sin] The type %s is not supported' % type(x))
 
 
 def cos(x, result=None):
@@ -335,12 +335,12 @@ def cos(x, result=None):
             result = np.empty(len(x), dtype=np.float32, order='C')
         __lib.fast_cosvf(__getPointer(x), __getLen(x), __getPointer(result))
         return result
-    elif isinstance(x, np.float64) or isinstance(x, np.float32) or isinstance(x, int):
+    elif isinstance(x, float) or isinstance(x, np.float32) or isinstance(x, int):
         __lib.fast_cos.restype = ct.c_double
         return __lib.fast_cos(ct.c_double(x))
     else:
         # TypeError
-        raise RuntimeError('[cos] The type %s is not supported', type(x))
+        raise RuntimeError('[cos] The type %s is not supported' % type(x))
 
 
 def exp(x, result=None):
@@ -354,12 +354,12 @@ def exp(x, result=None):
             result = np.empty(len(x), dtype=np.float32, order='C')
         __lib.fast_expvf(__getPointer(x), __getLen(x), __getPointer(result))
         return result
-    elif isinstance(x, np.float64) or isinstance(x, np.float32) or isinstance(x, int):
+    elif isinstance(x, float) or isinstance(x, np.float32) or isinstance(x, int):
         __lib.fast_exp.restype = ct.c_double
         return __lib.fast_exp(ct.c_double(x))
     else:
         # TypeError
-        raise RuntimeError('[exp] The type %s is not supported', type(x))
+        raise RuntimeError('[exp] The type %s is not supported' % type(x))
 
 
 def interp(x, xp, yp, left=None, right=None, result=None):
@@ -821,111 +821,116 @@ def slice_smooth(dt, profile, cut_left, cut_right):
 
 def sparse_histogram(dt, profile, cut_left, cut_right, bunch_indexes):
     assert isinstance(dt[0], precision.real_t)
-    assert isinstance(profile[0], precision.real_t)
-
+    assert isinstance(profile[0][0], precision.real_t)
 
     if precision.num == 1:
         __lib.sparse_histogramf(__getPointer(dt),
-                         __getPointer(profile),
-                         __getPointer(cut_left),
-                         __getPointer(cut_right),
-                         __getPointer(bunch_indexes),
-                         __getLen(profile),
-                         __getLen(cut_left),
-                         __getLen(dt))
+                                __getPointer(profile),
+                                __getPointer(cut_left),
+                                __getPointer(cut_right),
+                                __getPointer(bunch_indexes),
+                                __getLen(profile),
+                                __getLen(cut_left),
+                                __getLen(dt))
     else:
         __lib.sparse_histogram(__getPointer(dt),
-                        __getPointer(profile),
-                        __c_real(cut_left),
-                        __c_real(cut_right),
-                        __getLen(profile),
-                        __getLen(dt))
+                               __getPointer(profile),
+                               __getPointer(cut_left),
+                               __getPointer(cut_right),
+                               __getPointer(bunch_indexes),
+                               __getLen(profile),
+                               __getLen(cut_left),
+                               __getLen(dt))
 
 
-def music_track(music):
-    assert isinstance(music.beam.dt[0], precision.real_t)
-    assert isinstance(music.beam.dE[0], precision.real_t)
-    assert isinstance(music.induced_voltage[0], precision.real_t)
-    assert isinstance(music.array_parameters[0], precision.real_t)
+def music_track(dt, dE, induced_voltage, array_parameters,
+                alpha, omega_bar,
+                const, coeff1, coeff2, coeff3, coeff4):
+    assert isinstance(dt[0], precision.real_t)
+    assert isinstance(dE[0], precision.real_t)
+    assert isinstance(induced_voltage[0], precision.real_t)
+    assert isinstance(array_parameters[0], precision.real_t)
 
-    # music.beam.dt = music.beam.dt.astype(
+    # beam.dt = beam.dt.astype(
     #     dtype=precision.real_t, order='C', copy=False)
-    # music.beam.dE = music.beam.dE.astype(
+    # beam.dE = beam.dE.astype(
     #     dtype=precision.real_t, order='C', copy=False)
-    # music.induced_voltage = music.induced_voltage.astype(
+    # induced_voltage = induced_voltage.astype(
     #     dtype=precision.real_t, order='C', copy=False)
-    # music.array_parameters = music.array_parameters.astype(
-    #     dtype=precision.real_t, order='C', copy=False)
-
-    if precision.num == 1:
-        __lib.music_trackf(__getPointer(music.beam.dt),
-                           __getPointer(music.beam.dE),
-                           __getPointer(music.induced_voltage),
-                           __getPointer(music.array_parameters),
-                           __getLen(music.beam.dt),
-                           __c_real(music.alpha),
-                           __c_real(music.omega_bar),
-                           __c_real(music.const),
-                           __c_real(music.coeff1),
-                           __c_real(music.coeff2),
-                           __c_real(music.coeff3),
-                           __c_real(music.coeff4))
-    else:
-        __lib.music_track(__getPointer(music.beam.dt),
-                          __getPointer(music.beam.dE),
-                          __getPointer(music.induced_voltage),
-                          __getPointer(music.array_parameters),
-                          __getLen(music.beam.dt),
-                          __c_real(music.alpha),
-                          __c_real(music.omega_bar),
-                          __c_real(music.const),
-                          __c_real(music.coeff1),
-                          __c_real(music.coeff2),
-                          __c_real(music.coeff3),
-                          __c_real(music.coeff4))
-
-
-def music_track_multiturn(music):
-    assert isinstance(music.beam.dt[0], precision.real_t)
-    assert isinstance(music.beam.dE[0], precision.real_t)
-    assert isinstance(music.induced_voltage[0], precision.real_t)
-    assert isinstance(music.array_parameters[0], precision.real_t)
-
-    # music.beam.dt = music.beam.dt.astype(
-    #     dtype=precision.real_t, order='C', copy=False)
-    # music.beam.dE = music.beam.dE.astype(
-    #     dtype=precision.real_t, order='C', copy=False)
-    # music.induced_voltage = music.induced_voltage.astype(
-    #     dtype=precision.real_t, order='C', copy=False)
-    # music.array_parameters = music.array_parameters.astype(
+    # array_parameters = array_parameters.astype(
     #     dtype=precision.real_t, order='C', copy=False)
 
     if precision.num == 1:
-        __lib.music_track_multiturnf(__getPointer(music.beam.dt),
-                                     __getPointer(music.beam.dE),
-                                     __getPointer(music.induced_voltage),
-                                     __getPointer(music.array_parameters),
-                                     __getLen(music.beam.dt),
-                                     __c_real(music.alpha),
-                                     __c_real(music.omega_bar),
-                                     __c_real(music.const),
-                                     __c_real(music.coeff1),
-                                     __c_real(music.coeff2),
-                                     __c_real(music.coeff3),
-                                     __c_real(music.coeff4))
+        __lib.music_trackf(__getPointer(dt),
+                           __getPointer(dE),
+                           __getPointer(induced_voltage),
+                           __getPointer(array_parameters),
+                           __getLen(dt),
+                           __c_real(alpha),
+                           __c_real(omega_bar),
+                           __c_real(const),
+                           __c_real(coeff1),
+                           __c_real(coeff2),
+                           __c_real(coeff3),
+                           __c_real(coeff4))
     else:
-        __lib.music_track_multiturn(__getPointer(music.beam.dt),
-                                    __getPointer(music.beam.dE),
-                                    __getPointer(music.induced_voltage),
-                                    __getPointer(music.array_parameters),
-                                    __getLen(music.beam.dt),
-                                    __c_real(music.alpha),
-                                    __c_real(music.omega_bar),
-                                    __c_real(music.const),
-                                    __c_real(music.coeff1),
-                                    __c_real(music.coeff2),
-                                    __c_real(music.coeff3),
-                                    __c_real(music.coeff4))
+        __lib.music_track(__getPointer(dt),
+                          __getPointer(dE),
+                          __getPointer(induced_voltage),
+                          __getPointer(array_parameters),
+                          __getLen(dt),
+                          __c_real(alpha),
+                          __c_real(omega_bar),
+                          __c_real(const),
+                          __c_real(coeff1),
+                          __c_real(coeff2),
+                          __c_real(coeff3),
+                          __c_real(coeff4))
+
+
+def music_track_multiturn(dt, dE, induced_voltage, array_parameters,
+                          alpha, omega_bar,
+                          const, coeff1, coeff2, coeff3, coeff4):
+    assert isinstance(dt[0], precision.real_t)
+    assert isinstance(dE[0], precision.real_t)
+    assert isinstance(induced_voltage[0], precision.real_t)
+    assert isinstance(array_parameters[0], precision.real_t)
+
+    # beam.dt = beam.dt.astype(
+    #     dtype=precision.real_t, order='C', copy=False)
+    # beam.dE = beam.dE.astype(
+    #     dtype=precision.real_t, order='C', copy=False)
+    # induced_voltage = induced_voltage.astype(
+    #     dtype=precision.real_t, order='C', copy=False)
+    # array_parameters = array_parameters.astype(
+    #     dtype=precision.real_t, order='C', copy=False)
+
+    if precision.num == 1:
+        __lib.music_track_multiturnf(__getPointer(dt),
+                                     __getPointer(dE),
+                                     __getPointer(induced_voltage),
+                                     __getPointer(array_parameters),
+                                     __getLen(dt),
+                                     __c_real(alpha),
+                                     __c_real(omega_bar),
+                                     __c_real(const),
+                                     __c_real(coeff1),
+                                     __c_real(coeff2),
+                                     __c_real(coeff3),
+                                     __c_real(coeff4))
+    else:
+        __lib.music_track_multiturn(__getPointer(dt),
+                                    __getPointer(dE),
+                                    __getPointer(induced_voltage),
+                                    __getPointer(array_parameters),
+                                    __getLen(dt),
+                                    __c_real(alpha),
+                                    __c_real(omega_bar),
+                                    __c_real(const),
+                                    __c_real(coeff1),
+                                    __c_real(coeff2),
+                                    __c_real(coeff3),
+                                    __c_real(coeff4))
 
 
 def synchrotron_radiation(dE, U0, n_kicks, tau_z):
