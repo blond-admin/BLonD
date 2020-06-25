@@ -27,6 +27,7 @@ from scipy.integrate import cumtrapz
 from ..trackers.utilities import is_in_separatrix
 from ..beam.profile import Profile, CutOptions
 from ..trackers.utilities import potential_well_cut, minmax_location
+from ..utils import bmath as bm
 
 def matched_from_line_density(beam, full_ring_and_RF, line_density_input=None,
                               main_harmonic_option='lowest_freq',
