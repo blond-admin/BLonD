@@ -67,8 +67,8 @@ after_success:
   # echo "Success"
   - coverage report
   - if [[ $TRAVIS_PYTHON_VERSION != "3.6" ]]; then exit 0; fi;
-  # - if [[ $TRAVIS_PYTHON_VERSION = "3.6" ]]; then coveralls; else exit 0; fi;
-  # - if ! [[ "$TRAVIS_PULL_REQUEST" = ^[0-9]+$ ]]; then exit 0 ; fi ;
+  - if ! [[ "$TRAVIS_PULL_REQUEST" = ^[0-9]+$ ]]; then exit 0 ; fi ;
+  - if [[ "$TRAVIS_BRANCH" != "master" ]]; then exit 0 ; fi ;
   - python -m pip install --upgrade pyqt5 sphinx sphinxcontrib-napoleon sphinx-autopackagesummary
   # - mkdir -p ~/.ssh
   # Needs ssh key generated using "ssh-keygen -f key_fname -t rsa"
