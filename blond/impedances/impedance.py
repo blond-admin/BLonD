@@ -307,7 +307,8 @@ class _InducedVoltage(object):
             self.profile.beam_spectrum_generation(self.n_fft)
             beam_spectrum_dict[self.n_fft] = self.profile.beam_spectrum
 
-        self.profile.beam_spectrum_generation(self.n_fft)
+        # self.profile.beam_spectrum_generation(self.n_fft)
+        beam_spectrum = beam_spectrum_dict[self.n_fft]
 
         induced_voltage = - (self.beam.Particle.charge * e * self.beam.ratio
                              * bm.irfft(self.total_impedance.astype(dtype=bm.precision.complex_t, order='C', copy=False) * beam_spectrum))
