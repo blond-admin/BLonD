@@ -1,56 +1,54 @@
 /*
 Copyright 2016 CERN. This software is distributed under the
-terms of the GNU General Public Licence version 3 (GPL Version 3), 
+terms of the GNU General Public Licence version 3 (GPL Version 3),
 copied verbatim in the file LICENCE.md.
-In applying this licence, CERN does not waive the privileges and immunities 
-granted to it by virtue of its status as an Intergovernmental Organization or 
+In applying this licence, CERN does not waive the privileges and immunities
+granted to it by virtue of its status as an Intergovernmental Organization or
 submit itself to any jurisdiction.
 Project website: http://blond.web.cern.ch/
 */
 
 // Optimised C++ routine that calculates and applies synchrotron radiation (SR)
 // damping term
-// Author: Juan F. Esteban Mueller
+// Author: Juan F. Esteban Mueller, Konstantinos Iliakis
 
 #include <math.h>
 #include <stdlib.h>
 #include <random>
+#include <thread>
+#include <chrono>
+#include "../cpp_routines/openmp.h"
 
 #ifdef BOOST
 #include <boost/random.hpp>
 #include <boost/random/normal_distribution.hpp>
+using namespace boost;
 
-std::random_device rd;
-boost::mt19937_64 gen(rd());
-boost::normal_distribution<> dist(0.0, 1.0);
-// gen.seed(std::random_device{}());
-// boost::variate_generator< boost::mt19937_64, boost::normal_distribution<> > dist(gen, distribution);
-    
 #else
-std::random_device rd;
-std::mt19937_64 gen(rd());
-std::normal_distribution<> dist(0.0,1.0);
+using namespace std;
+
 #endif
 
+long unsigned int seed = clock();
 
 // This function calculates and applies only the synchrotron radiation damping term
-extern "C" void synchrotron_radiation(double * __restrict__ beam_dE, const double U0, 
-                            const int n_macroparticles, const double tau_z, 
-                            const int n_kicks){
+extern "C" void synchrotron_radiation(double * __restrict__ beam_dE, const double U0,
+                                      const int n_macroparticles, const double tau_z,
+                                      const int n_kicks) {
 
-    // SR damping constant
-    const double const_synch_rad = 2.0 / tau_z;
+    // SR damping constant, adjusted for better performance
+    const double const_synch_rad = 1.0 - 2.0 / tau_z;
 
-    for (int j=0; j<n_kicks; j++){
-        // SR damping term due to energy spread
-        #pragma omp parallel for
-        for (int i = 0; i < n_macroparticles; i++)
-            beam_dE[i] -= const_synch_rad * beam_dE[i];
-    
+    for (int j = 0; j < n_kicks; j++) {
+        // SR damping term due to energy spread and
         // Average energy change due to SR
         #pragma omp parallel for
         for (int i = 0; i < n_macroparticles; i++)
-            beam_dE[i] -= U0;
+            beam_dE[i] = beam_dE[i] * const_synch_rad - U0;
+
+        // #pragma omp parallel for
+        // for (int i = 0; i < n_macroparticles; i++)
+        //     beam_dE[i] -= U0;
     }
 }
 
@@ -58,29 +56,40 @@ extern "C" void synchrotron_radiation(double * __restrict__ beam_dE, const doubl
 // This function calculates and applies synchrotron radiation damping and
 // quantum excitation terms
 extern "C" void synchrotron_radiation_full(double * __restrict__ beam_dE, const double U0,
-                                        const int n_macroparticles, const double sigma_dE,
-                                        const double tau_z,const double energy,
-                                        double * __restrict__ random_array,
-                                        const int n_kicks){
-    
+        const int n_macroparticles, const double sigma_dE,
+        const double tau_z, const double energy,
+        double * __restrict__ random_array,
+        const int n_kicks)
+{
+
+    std::hash<std::thread::id> hash;
+
     // Quantum excitation constant
     const double const_quantum_exc = 2.0 * sigma_dE / sqrt(tau_z) * energy;
 
+    // Adjusted SR damping constant
+    const double const_synch_rad = 1.0 - 2.0 / tau_z;
+
     // Random number generator for the quantum excitation term
-    
-    for (int j=0; j<n_kicks; j++){
-        // Compute synchrotron radiation damping term
-        synchrotron_radiation(beam_dE, U0, n_macroparticles, tau_z, 1);
-    
-        // Re-calculate the random (Gaussian) number array
-        for (int i = 0; i < n_macroparticles; i++){
-            random_array[i] = dist(gen);
-        }
-        
+
+    for (int j = 0; j < n_kicks; j++) {
+        // Compute synchrotron radiation damping term and
         // Applies the quantum excitation term
-        #pragma omp parallel for
-        for (int i = 0; i < n_macroparticles; i++){
-            beam_dE[i] += const_quantum_exc * random_array[i];
+        #pragma omp parallel
+        {
+            static __thread mt19937_64 *gen = nullptr;
+            if (!gen) gen = new mt19937_64(seed + omp_get_thread_num());
+            static __thread normal_distribution<> dist(0.0, 1.0);
+            #pragma omp for
+            for (int i = 0; i < n_macroparticles; i++) {
+                beam_dE[i] = beam_dE[i] * const_synch_rad
+                             + const_quantum_exc * dist(*gen)
+                             - U0;
+            }
         }
     }
+}
+
+extern "C" void set_random_seed(const int _seed) {
+    seed = _seed;
 }

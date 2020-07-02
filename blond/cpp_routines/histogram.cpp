@@ -14,14 +14,8 @@
 #include <string.h>     // memset()
 #include <stdlib.h>     // mmalloc()
 #include <math.h>
+#include "openmp.h"
 
-#ifdef PARALLEL
-#include <omp.h>        // omp_get_thread_num(), omp_get_num_threads()
-#else
-int omp_get_max_threads() {return 1;}
-int omp_get_num_threads() {return 1;}
-int omp_get_thread_num() {return 0;}
-#endif
 
 extern "C" void histogram(const double *__restrict__ input,
                           double *__restrict__ output, const double cut_left,
@@ -81,41 +75,58 @@ extern "C" void smooth_histogram(const double *__restrict__ input,
                                  const double cut_right, const int n_slices,
                                  const int n_macroparticles)
 {
-
-    int i;
-    double a;
-    double fbin;
-    double ratioffbin;
-    double ratiofffbin;
-    double distToCenter;
-    int ffbin;
-    int fffbin;
+    // Constants init
     const double inv_bin_width = n_slices / (cut_right - cut_left);
     const double bin_width = (cut_right - cut_left) / n_slices;
+    const double const1 = (cut_left + bin_width * 0.5);
+    const double const2 = (cut_right - bin_width * 0.5);
 
-    for (i = 0; i < n_slices; i++) {
-        output[i] = 0.0;
-    }
+    // memory alloc for per thread histo
+    double **histo = (double **) malloc(omp_get_max_threads() * sizeof(double *));
+    histo[0] = (double *) malloc (omp_get_max_threads() * n_slices * sizeof(double));
+    for (int i = 0; i < omp_get_max_threads(); i++)
+        histo[i] = (*histo + n_slices * i);
+    
 
-    for (i = 0; i < n_macroparticles; i++) {
-        a = input[i];
-        if ((a < (cut_left + bin_width * 0.5))
-                || (a > (cut_right - bin_width * 0.5)))
-            continue;
-        fbin = (a - cut_left) * inv_bin_width;
-        ffbin = (int)(fbin);
-        distToCenter = fbin - (double)(ffbin);
-        if (distToCenter > 0.5)
-            fffbin = (int)(fbin + 1.0);
-        ratioffbin = 1.5 - distToCenter;
-        ratiofffbin = 1 - ratioffbin;
-        if (distToCenter < 0.5)
-            fffbin = (int)(fbin - 1.0);
-        ratioffbin = 0.5 - distToCenter;
-        ratiofffbin = 1 - ratioffbin;
-        output[ffbin] = output[ffbin] + ratioffbin;
-        output[fffbin] = output[fffbin] + ratiofffbin;
+    #pragma omp parallel
+    {
+        const int id = omp_get_thread_num();
+        const int threads = omp_get_num_threads();
+        memset(histo[id], 0., n_slices * sizeof(double));
+        
+        // main caclulation
+        #pragma omp for
+        for (int i = 0; i < n_macroparticles; i++) {
+            int fffbin = 0;
+            double a = input[i];
+            if ((a < const1) || (a > const2))
+                continue;
+            double fbin = (a - cut_left) * inv_bin_width;
+            int ffbin = (int)(fbin);
+            double distToCenter = fbin - (double)(ffbin);
+            if (distToCenter > 0.5)
+                fffbin = (int)(fbin + 1.0);
+            else
+                fffbin = (int)(fbin - 1.0);
+
+            histo[id][ffbin] = histo[id][ffbin] + 0.5 - distToCenter;
+            histo[id][fffbin] = histo[id][fffbin] + 0.5 + distToCenter;
+        }
+
+        // Reduce to a single histogram
+        #pragma omp for
+        for (int i = 0; i < n_slices; i++) {
+            output[i] = 0.;
+            for (int t = 0; t < threads; t++)
+                output[i] += histo[t][i];
+        }
+
+
     }
+    // free memory
+    free(histo[0]);
+    free(histo);
+
 }
 
 

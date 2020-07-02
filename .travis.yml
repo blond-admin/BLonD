@@ -1,83 +1,93 @@
-sudo: false
+dist: xenial
+
 cache:
   directories:
     - $HOME/.cache/pip
-    - $HOME/download # Sufficient to add miniconda.sh to TRAVIS cache.
-    - $HOME/miniconda # Add the installation to TRAVIS cache.
+    - $HOME/install
+    # - $HOME/downloads # Sufficient to add miniconda.sh to TRAVIS cache.
+    # - $HOME/miniconda # Add the installation to TRAVIS cache.
   apt: true
   pip: true
 
 language: python
 os:
   - linux
+arch: 
+  - amd64
+
 compiler:
   - gcc
 python:
-  # - "3.5"
   - "3.6"
   - "3.7"
-  # - "3.8"
 addons:
   apt:
     sources:
     - ubuntu-toolchain-r-test
     packages:
-    - gcc-4.8
-    - g++-4.8
+    # - gcc-4.8
+    # - g++-4.8
+    - mpich
+    - libmpich-dev
+    - build-essential
 before_install:
-  - export CC=/usr/bin/gcc-4.8
-  - export CXX=/usr/bin/g++-4.8
-install:
-  # - if test -e $HOME/miniconda/bin ; then
-  #     echo "Miniconda already installed.";
-  #   else
-  #     echo "Installing miniconda.";
-  #     rm -rf $HOME/miniconda;
-  #     mkdir -p $HOME/download;
-  #     if [[ -d $HOME/download/miniconda.sh ]] ; then rm -rf $HOME/download/miniconda.sh ; fi;
-  #     wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O $HOME/download/miniconda.sh;
-  #     bash $HOME/download/miniconda.sh -b -p $HOME/miniconda;
-  #   fi
-  # - export PATH="$HOME/miniconda/bin:$PATH"
   - echo $TRAVIS_PYTHON_VERSION
   - python --version
   - gcc --version
-  # - hash -r
-  # - conda config --set always_yes yes --set changeps1 no
-  # - conda update -y conda
-  # - wget https://bootstrap.pypa.io/get-pip.py
-  # - python get-pip.py --user
-  - python -m pip install --upgrade pip setuptools wheel
-  # - python -m venv pyenv
-  # - source pyenv/bin/activate
-  # Useful for debugging any issues with conda
-  # - conda info -a
-  # - conda list
-  # - if test -e $HOME/miniconda/envs/pyenv; then
-  #     echo "pyenv already exists.";
-  #   else
-  #     echo "creating pyenv.";
-  #     conda create -y -n pyenv python=$TRAVIS_PYTHON_VERSION;
-  #   fi
-  # - source activate pyenv
-  # - conda install -y -q pip numpy scipy matplotlib future h5py
-  # - conda install -y -q pip
-  - pip install numpy scipy matplotlib future h5py coveralls pytest parameterized
-  # - conda list numpy
-  # - conda list python
-  # Replace dep1 dep2 ... with your dependencies
-  # - pip install coveralls pytest parameterized
+  - mpicc --version
+  - mpirun --version
+  - mkdir -p $HOME/install
+  - export LD_LIBRARY_PATH="$HOME/install/lib:$LD_LIBRARY_PATH"
+  - export PYTHONPATH=$TRAVIS_BUILD_DIR:$PYTHONPATH
+  # - export CC=/usr/bin/gcc-4.8
+  # - export CXX=/usr/bin/g++-4.8
+install:
+  - if [[ -f $HOME/install/lib/libfftw3.so && -f $HOME/install/include/fftw3.h ]]; then
+        echo "FFTW3 already installed.";
+    else
+        echo "Installing FFTW3.";
+        wget http://www.fftw.org/fftw-3.3.8.tar.gz;
+        tar -xzvf fftw-3.3.8.tar.gz > /dev/null;
+        cd fftw-3.3.8;
+        ./configure --prefix=$HOME/install/ --enable-openmp --enable-threads --enable-sse2 --enable-avx --enable-avx2 --enable-fma --enable-avx-128-fma --with-our-malloc --disable-fortran --enable-shared > /dev/null;
+        make -j4 > /dev/null;
+        make install > /dev/null;
+    fi
+  - cd $TRAVIS_BUILD_DIR
+  - python -m pip install --upgrade pip setuptools wheel coverage coveralls pytest # cpp-coveralls
+  - pip install -r requirements.txt
 before_script:
-  # - python setup_cpp.py --compiler=g++-4.8
-  # - sleep 10
-  # - export PYTHONPATH='./'
-  - python setup.py compile install
+  - python blond/compile.py -p --with-fftw-threads --with-fftw-lib=$HOME/install/lib --with-fftw-header=$HOME/install/include --flags='--coverage'
+  - export OMP_NUM_THREADS=2
 script:
-  - coverage run -m pytest -v unittests/*/test*.py
+  # - echo "Running tests"
+  - coverage run -m pytest -v --ignore=unittests/integration/test_validate_mpi.py unittests/ && coverage run --append -m pytest -v unittests/integration/test_validate_mpi.py
+  # - coverage run -m pytest -v unittests/utils/test_blondmath.py
 after_success:
-- test $TRAVIS_PYTHON_VERSION = "3.6" && coveralls
-
+  # echo "Success"
+  - coverage report
+  - if [[ $TRAVIS_PYTHON_VERSION != "3.6" ]]; then exit 0; fi;
+  # - if [[ $TRAVIS_PYTHON_VERSION = "3.6" ]]; then coveralls; else exit 0; fi;
+  # - if ! [[ "$TRAVIS_PULL_REQUEST" = ^[0-9]+$ ]]; then exit 0 ; fi ;
+  - python -m pip install --upgrade pyqt5 sphinx sphinxcontrib-napoleon sphinx-autopackagesummary
+  # - mkdir -p ~/.ssh
+  # Needs ssh key generated using "ssh-keygen -f key_fname -t rsa"
+  # Env variable is private key encoded using "cat privatekey | base64 -w0" to avoid str manipulations
+  # - (echo "$GITHUB_TOKEN_DOCS" | base64 -d) > ~/.ssh/id_rsa
+  # - chmod 700 ~/.ssh/id_rsa
+  # - eval "$(ssh-agent -s)"
+  # - ssh-add ~/.ssh/id_rsa
+  # - ssh-keyscan -t rsa 'github.com' >> ~/.ssh/known_hosts 
+  - git config --global user.name travis-ci
+  - git config --global user.email travis@example.org
+  - cd __doc
+  - make html
+  - git clone --branch=gh-pages https://github.com/${TRAVIS_REPO_SLUG}.git BLonD
+  - cd BLonD
+  - git remote rm origin
+  - git remote add origin https://blond-admin:${GITHUB_TOKEN}@github.com/${TRAVIS_REPO_SLUG}.git && git remote -v && cp -r ../_build/html/* . && git add -A && git status && git commit -m "Updated documentation" -n && git push origin gh-pages
+  - cd $TRAVIS_BUILD_DIR
+  - coveralls
 # branches:
 #   only:
 #   - master
-  

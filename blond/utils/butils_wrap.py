@@ -10,12 +10,155 @@ import numpy as np
 import os
 from .. import libblond as __lib
 
+
 def __getPointer(x):
     return x.ctypes.data_as(ct.c_void_p)
 
 
 def __getLen(x):
     return ct.c_int(len(x))
+
+
+class c_complex128(ct.Structure):
+    # Complex number, compatible with std::complex layout
+    _fields_ = [("real", ct.c_double), ("imag", ct.c_double)]
+
+    def __init__(self, pycomplex):
+        # Init from Python complex
+        self.real = pycomplex.real.astype(np.float64, order='C')
+        self.imag = pycomplex.imag.astype(np.float64, order='C')
+
+    def to_complex(self):
+        # Convert to Python complex
+        return self.real + (1.j) * self.imag
+
+
+class c_complex64(ct.Structure):
+    # Complex number, compatible with std::complex layout
+    _fields_ = [("real", ct.c_float), ("imag", ct.c_float)]
+
+    def __init__(self, pycomplex):
+        # Init from Python complex
+        self.real = pycomplex.real.astype(np.float32, order='C')
+        self.imag = pycomplex.imag.astype(np.float32, order='C')
+
+    def to_complex(self):
+        # Convert to Python complex
+        return self.real + (1.j) * self.imag
+
+
+def add(a, b, result=None, inplace=False):
+    if(len(a) != len(b)):
+        raise ValueError(
+            'operands could not be broadcast together with shapes ',
+            a.shape, b.shape)
+    if a.dtype != b.dtype:
+        raise TypeError(
+            'given arrays not of the same type ', a.dtype(), b.dtype())
+
+    if (result is None) and (inplace == False):
+        result = np.empty_like(a, order='C')
+
+    if (a.dtype == 'int32'):
+        if inplace:
+            __lib.add_int_vector_inplace(__getPointer(a), __getPointer(b),
+                                         __getLen(a))
+        else:
+            __lib.add_int_vector(__getPointer(a), __getPointer(b),
+                                 __getLen(a), __getPointer(result))
+    elif (a.dtype == 'int64'):
+        if inplace:
+            __lib.add_longint_vector_inplace(__getPointer(a), __getPointer(b),
+                                             __getLen(a))
+        else:
+            __lib.add_longint_vector(__getPointer(a), __getPointer(b),
+                                     __getLen(a), __getPointer(result))
+
+    elif (a.dtype == 'float64'):
+        if inplace:
+            __lib.add_double_vector_inplace(__getPointer(a), __getPointer(b),
+                                            __getLen(a))
+        else:
+            __lib.add_double_vector(__getPointer(a), __getPointer(b),
+                                    __getLen(a), __getPointer(result))
+
+    elif (a.dtype == 'uint16'):
+        if inplace:
+            __lib.add_uint16_vector_inplace(__getPointer(a), __getPointer(b),
+                                            __getLen(a))
+        else:
+            __lib.add_uint16_vector(__getPointer(a), __getPointer(b),
+                                    __getLen(a), __getPointer(result))
+    elif (a.dtype == 'uint32'):
+        if inplace:
+            __lib.add_uint32_vector_inplace(__getPointer(a), __getPointer(b),
+                                            __getLen(a))
+        else:
+            __lib.add_uint32_vector(__getPointer(a), __getPointer(b),
+                                    __getLen(a), __getPointer(result))
+
+    else:
+        raise TypeError('type ', a.dtype, ' is not supported')
+
+    return result
+
+
+def mul(a, b, result=None):
+    if(type(a) == np.ndarray and type(b) != np.ndarray):
+        if result is None:
+            result = np.empty_like(a, order='C')
+
+        if (a.dtype == 'int32'):
+            __lib.scalar_mul_int32(__getPointer(a), ct.c_int32(np.int32(b)),
+                                   __getLen(a), __getPointer(result))
+        elif (a.dtype == 'int64'):
+            __lib.scalar_mul_int64(__getPointer(a), ct.c_int64(np.int64(b)),
+                                   __getLen(a), __getPointer(result))
+        elif (a.dtype == 'float32'):
+            __lib.scalar_mul_float64(__getPointer(a), ct.c_float(np.float32(b)),
+                                     __getLen(a), __getPointer(result))
+        elif (a.dtype == 'float64'):
+            __lib.scalar_mul_float64(__getPointer(a), ct.c_double(np.float64(b)),
+                                     __getLen(a), __getPointer(result))
+        elif (a.dtype == 'complex64'):
+            __lib.scalar_mul_compex64(__getPointer(a), c_complex64(np.complex64(b)),
+                                      __getLen(a), __getPointer(result))
+        elif (a.dtype == 'complex128'):
+            __lib.scalar_mul_complex128(__getPointer(a), c_complex128(np.complex128(b)),
+                                        __getLen(a), __getPointer(result))
+        else:
+            raise TypeError('type ', a.dtype, ' is not supported')
+
+    elif(type(b) == np.ndarray and type(a) != np.ndarray):
+        return mul(b, a, result)
+    elif(type(a) == np.ndarray and type(b) == np.ndarray):
+        if result is None:
+            result = np.empty_like(a, order='C')
+
+        if (a.dtype == 'int32'):
+            __lib.vector_mul_int32(__getPointer(a), __getPointer(b),
+                                   __getLen(a), __getPointer(result))
+        elif (a.dtype == 'int64'):
+            __lib.vector_mul_int64(__getPointer(a), __getPointer(b),
+                                   __getLen(a), __getPointer(result))
+        elif (a.dtype == 'float32'):
+            __lib.vector_mul_float64(__getPointer(a), __getPointer(b),
+                                     __getLen(a), __getPointer(result))
+        elif (a.dtype == 'float64'):
+            __lib.vector_mul_float64(__getPointer(a), __getPointer(b),
+                                     __getLen(a), __getPointer(result))
+        elif (a.dtype == 'complex64'):
+            __lib.vector_mul_compex64(__getPointer(a), __getPointer(b),
+                                      __getLen(a), __getPointer(result))
+        elif (a.dtype == 'complex128'):
+            __lib.vector_mul_complex128(__getPointer(a), __getPointer(b),
+                                        __getLen(a), __getPointer(result))
+        else:
+            raise TypeError('type ', a.dtype, ' is not supported')
+    else:
+        raise TypeError(
+            'types {} and {} are not supported'.format(type(a), type(b)))
+    return result
 
 
 def convolve(signal, kernel, mode='full', result=None):
@@ -126,6 +269,23 @@ def interp(x, xp, yp, left=None, right=None, result=None):
                  __getPointer(result))
     return result
 
+
+def interp_const_space(x, xp, yp, left=None, right=None, result=None):
+    if not left:
+        left = yp[0]
+    if not right:
+        right = yp[-1]
+    if result is None:
+        result = np.empty_like(x, order='C')
+
+    __lib.interp_const_space(__getPointer(x), __getLen(x),
+                             __getPointer(xp), __getLen(xp),
+                             __getPointer(yp),
+                             ct.c_double(left),
+                             ct.c_double(right),
+                             __getPointer(result))
+    return result
+    
 
 def cumtrapz(y, x=None, dx=1.0, initial=None, result=None):
     if x is not None:
@@ -248,4 +408,28 @@ def rfftfreq(n, d=1.0, result=None):
     __lib.rfftfreq(ct.c_int(n),
                    __getPointer(result),
                    ct.c_double(d))
+    return result
+
+
+def irfft_packed(signal, fftsize=0, result=None):
+
+    n0 = len(signal[0])
+    howmany = len(signal)
+
+    signal = np.ascontiguousarray(np.reshape(signal, -1))
+
+    if (fftsize == 0) and (result == None):
+        result = np.empty(howmany * 2*(n0-1), dtype=np.float64)
+    elif (fftsize != 0) and (result == None):
+        result = np.empty(howmany * fftsize, dtype=np.float64)
+
+    __lib.irfft_packed(__getPointer(signal),
+                       n0,
+                       howmany,
+                       __getPointer(result),
+                       ct.c_int(int(fftsize)),
+                       ct.c_int(int(os.environ.get('OMP_NUM_THREADS', 1))))
+
+    result = np.reshape(result, (howmany, -1))
+
     return result

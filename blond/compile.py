@@ -25,14 +25,8 @@ import subprocess
 import ctypes
 import argparse
 
-# from blond import basepath
 path = os.path.realpath(__file__)
 basepath = os.sep.join(path.split(os.sep)[:-1])
-
-# print(basepath)
-# print(os.listdir(basepath))
-# print(os.listdir(basepath+'/cpp_routines'))
-
 
 parser = argparse.ArgumentParser(description='Run python setup_cpp.py to'
                                  ' compile the cpp routines needed from BLonD')
@@ -84,8 +78,6 @@ libs = []
 cflags = ['-O3', '-ffast-math', '-std=c++11', '-shared']
 
 cpp_files = [
-    # 'cpp_routines/mean_std_whereint.cpp',
-    # os.path.join(basepath, 'cpp_routines/convolution.cpp'),
     os.path.join(basepath, 'cpp_routines/kick.cpp'),
     os.path.join(basepath, 'cpp_routines/drift.cpp'),
     os.path.join(basepath, 'cpp_routines/linear_interp_kick.cpp'),
@@ -93,7 +85,9 @@ cpp_files = [
     os.path.join(basepath, 'cpp_routines/music_track.cpp'),
     os.path.join(basepath, 'cpp_routines/blondmath.cpp'),
     os.path.join(basepath, 'cpp_routines/fast_resonator.cpp'),
+    os.path.join(basepath, 'cpp_routines/beam_phase.cpp'),
     os.path.join(basepath, 'cpp_routines/fft.cpp'),
+    os.path.join(basepath, 'cpp_routines/openmp.cpp'),
     os.path.join(basepath, 'toolbox/tomoscope.cpp'),
     os.path.join(basepath, 'synchrotron_radiation/synchrotron_radiation.cpp'),
     os.path.join(basepath, 'beam/sparse_histogram.cpp'),
