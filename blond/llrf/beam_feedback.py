@@ -117,6 +117,12 @@ class BeamFeedback(object):
             else:
                 self.gain2 = self.config['RL_gain']
 
+            #: | *Number of particles to sample from dE for orbit calculation*
+            if 'sample_dE' not in self.config:
+                self.sample_dE = 1
+            else:
+                self.sample_dE = self.config['sample_dE']
+
         elif self.machine == 'SPS_F':
             #: | *Frequency loop gain.*
             if 'FL_gain' not in self.config:
@@ -345,7 +351,7 @@ class BeamFeedback(object):
 #        self.average_dE = np.mean(self.profile.Beam.dE[(self.profile.Beam.dt >
 #            self.profile.bin_centers[0])*(self.profile.Beam.dt <
 #                                         self.profile.bin_centers[-1])])
-        self.average_dE = np.mean(self.profile.Beam.dE)
+        self.average_dE = np.mean(self.profile.Beam.dE[::self.sample_dE])   
 
         self.drho = self.ring.alpha_0[0, counter] * \
             self.ring.ring_radius*self.average_dE / \
@@ -546,4 +552,3 @@ class BeamFeedback(object):
 
         # Apply frequency correction
         self.domega_rf = - self.domega_PL - self.domega_RL
-
