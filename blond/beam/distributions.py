@@ -638,7 +638,7 @@ def X0_from_bunch_length(bunch_length, bunch_length_fit, X_grid, sorted_X_dE0,
     X_hi = sorted_X_dE0[-1]
     X_min = sorted_X_dE0[0]
     X_max = sorted_X_dE0[-1]
-    X_accuracy = sorted_X_dE0[1] - sorted_X_dE0[0] / 2.0
+    X_accuracy = (sorted_X_dE0[1] - sorted_X_dE0[0]) / 2.0
     
     bin_size = (time_potential_low_res[1] - time_potential_low_res[0])
     
