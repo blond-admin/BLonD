@@ -753,12 +753,12 @@ def match_a_bunch(normalization_DeltaE, beam, potential_well_coordinates,\
         distribution_type = distribution_options['type']
     else:
         distribution_type = None
-#
+
     if 'exponent' in distribution_options:
         distribution_exponent = distribution_options['exponent']
     else:
         distribution_exponent = None
-#
+
     if 'emittance' in distribution_options:
         emittance = distribution_options['emittance']
     else:
@@ -812,6 +812,3 @@ def match_a_bunch(normalization_DeltaE, beam, potential_well_coordinates,\
     
     return (time_grid, deltaE_grid, distribution, time_resolution,
             energy_resolution, profile)
-
-#     populate_bunch(beam, time_grid, deltaE_grid, distribution, time_resolution,
-#                    energy_resolution, seed)
