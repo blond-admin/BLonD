@@ -10,6 +10,8 @@ import numpy as np
 import copy
 import matplotlib.pyplot as plt
 from scipy.integrate import cumtrapz
+import gc
+from ..utils import bmath as bm
 
 from ..beam.beam import Beam
 from ..beam.distributions import matched_from_distribution_function,\
@@ -204,10 +206,10 @@ def matched_from_distribution_density_multibunch(beam, Ring, FullRingAndRF, dist
             plt.plot(TotalInducedVoltageIteration.profile.bin_centers,
                      TotalInducedVoltageIteration.induced_voltage)
             plt.show()
-
-    beam.dt = beamIteration.dt
-
-    beam.dE = beamIteration.dE
+                
+    beam.dt = beamIteration.dt.astype(dtype=bm.precision.real_t, order='C', copy=False)
+    beam.dE = beamIteration.dE.astype(dtype=bm.precision.real_t, order='C', copy=False)
+    gc.collect()    
 
 
 def matched_from_line_density_multibunch(beam, Ring,
@@ -365,9 +367,10 @@ def matched_from_line_density_multibunch(beam, Ring,
         plt.plot(TotalInducedVoltageIteration.profile.bin_centers, TotalInducedVoltageIteration.profile.n_macroparticles / (1.*np.max(TotalInducedVoltageIteration.profile.n_macroparticles))*np.max(TotalInducedVoltageIteration.induced_voltage))
         plt.plot(TotalInducedVoltageIteration.profile.bin_centers, TotalInducedVoltageIteration.induced_voltage)
         plt.show()
-
-    beam.dt = beamIteration.dt
-    beam.dE = beamIteration.dE
+                
+    beam.dt = beamIteration.dt.astype(dtype=bm.precision.real_t, order='C', copy=False)
+    beam.dE = beamIteration.dE.astype(dtype=bm.precision.real_t, order='C', copy=False)
+    gc.collect()
 
 
 def match_beam_from_distribution(beam, FullRingAndRF, GeneralParameters,
@@ -536,6 +539,10 @@ def match_beam_from_distribution(beam, FullRingAndRF, GeneralParameters,
             temporary_beam.dt)+(indexBunch *bunch_spacing_buckets *bucket_size_tau)
         beam.dE[indexBunch*length_dE:(indexBunch+1)*length_dE] = np.array(
             temporary_beam.dE)
+    
+    beam.dt = beam.dt.astype(dtype=bm.precision.real_t, order='C', copy=False)
+    beam.dE = beam.dE.astype(dtype=bm.precision.real_t, order='C', copy=False)
+    gc.collect()
 
 
 def match_beam_from_distribution_multibatch(beam, FullRingAndRF, GeneralParameters,
