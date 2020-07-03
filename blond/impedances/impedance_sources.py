@@ -325,7 +325,7 @@ class Resonators(_ImpedanceObject):
         """
 
         self.time_array = time_array
-        self.wake = np.zeros(self.time_array.shape)
+        self.wake = np.zeros(self.time_array.shape, dtype=bm.precision.real_t, order='C')
 
         for i in range(0, self.n_resonators):
 
@@ -355,7 +355,7 @@ class Resonators(_ImpedanceObject):
         """
 
         self.frequency_array = frequency_array
-        self.impedance = np.zeros(len(self.frequency_array), complex)
+        self.impedance = np.zeros(len(self.frequency_array), dtype=bm.precision.complex_t, order='C')
 
         for i in range(0, self.n_resonators):
 
@@ -472,6 +472,7 @@ class TravelingWaveCavity(_ImpedanceObject):
         """
 
         self.time_array = time_array
+        self.wake = np.zeros(self.time_array.shape, dtype=bm.precision.real_t, order='C')
         self.wake = np.zeros(self.time_array.shape)
 
         for i in range(0, self.n_twc):
@@ -501,7 +502,7 @@ class TravelingWaveCavity(_ImpedanceObject):
         """
 
         self.frequency_array = frequency_array
-        self.impedance = np.zeros(len(self.frequency_array), complex)
+        self.impedance = np.zeros(len(self.frequency_array), dtype=bm.precision.complex_t, order='C')
 
         for i in range(0, self.n_twc):
 
@@ -629,10 +630,10 @@ class ResistiveWall(_ImpedanceObject):
 
         self.frequency_array = frequency_array
 
-        self.impedance = (self.Z0 * c * self.pipe_length
-                          / (np.pi * (1.0 - 1j*np.sign(self.frequency_array)) * 2 *
-                             self.pipe_radius * c * np.sqrt(self.conductivity * self.Z0 * c
-                                                            / (4.0 * np.pi * np.abs(self.frequency_array)) ) +
-                           1j * self.pipe_radius**2.0 * 2.0 * np.pi * self.frequency_array))
+        self.impedance = (self.Z0 * c * self.pipe_length /
+                          (np.pi * (1.0 - 1j*np.sign(self.frequency_array)) * 2 *
+                           self.pipe_radius * c * np.sqrt(self.conductivity * self.Z0 * c /
+                                                          (4.0 * np.pi * np.abs(self.frequency_array)))
+                           + 1j * self.pipe_radius**2.0 * 2.0 * np.pi * self.frequency_array)).astype(dtype=bm.precision.complex_t, order='C', copy=False)
 
         self.impedance[np.isnan(self.impedance)] = 0.0

@@ -88,3 +88,74 @@ extern "C" void drift(double * __restrict__ beam_dt,
 
 }
 
+
+extern "C" void driftf(float * __restrict__ beam_dt,
+                       const float * __restrict__ beam_dE,
+                       const char * __restrict__ solver,
+                       const float T0, const float length_ratio,
+                       const float alpha_order, const float eta_zero,
+                       const float eta_one, const float eta_two,
+                       const float alpha_zero, const float alpha_one,
+                       const float alpha_two,
+                       const float beta, const float energy,
+                       const int n_macroparticles) {
+
+  int i;
+  float T = T0 * length_ratio;
+
+  if ( strcmp (solver, "simple") == 0 )
+  {
+    float coeff = eta_zero / (beta * beta * energy);
+    #pragma omp parallel for
+    for (int i = 0; i < n_macroparticles; i++)
+      beam_dt[i] += T * coeff * beam_dE[i];
+  }
+
+  else if ( strcmp (solver, "legacy") == 0 )
+  {
+    const float coeff = 1. / (beta * beta * energy);
+    const float eta0 = eta_zero * coeff;
+    const float eta1 = eta_one * coeff * coeff;
+    const float eta2 = eta_two * coeff * coeff * coeff;
+
+    if (alpha_order == 0)
+      for ( i = 0; i < n_macroparticles; i++ )
+        beam_dt[i] += T * (1. / (1. - eta0 * beam_dE[i]) - 1.);
+    else if (alpha_order == 1)
+      for ( i = 0; i < n_macroparticles; i++ )
+        beam_dt[i] += T * (1. / (1. - eta0 * beam_dE[i]
+                                 - eta1 * beam_dE[i] * beam_dE[i]) - 1.);
+    else
+      for ( i = 0; i < n_macroparticles; i++ )
+        beam_dt[i] += T * (1. / (1. - eta0 * beam_dE[i]
+                                 - eta1 * beam_dE[i] * beam_dE[i]
+                                 - eta2 * beam_dE[i] * beam_dE[i] * beam_dE[i]) - 1.);
+  }
+
+  else
+  {
+
+    const float invbetasq = 1 / (beta * beta);
+    const float invenesq = 1 / (energy * energy);
+    // float beam_delta;
+
+    #pragma omp parallel for
+    for ( i = 0; i < n_macroparticles; i++ )
+
+    {
+
+      float beam_delta = sqrt(1. + invbetasq *
+                              (beam_dE[i] * beam_dE[i] * invenesq + 2.*beam_dE[i] / energy)) - 1.;
+
+      beam_dt[i] += T * (
+                      (1. + alpha_zero * beam_delta +
+                       alpha_one * (beam_delta * beam_delta) +
+                       alpha_two * (beam_delta * beam_delta * beam_delta)) *
+                      (1. + beam_dE[i] / energy) / (1. + beam_delta) - 1.);
+
+    }
+
+  }
+
+}
+

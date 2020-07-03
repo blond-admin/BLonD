@@ -69,6 +69,9 @@ parser.add_argument('--flags', type=str, default='',
 parser.add_argument('--libs', type=str, default='',
                     help='Any extra libraries needed to compile')
 
+parser.add_argument('-libname', '--libname', type=str, default=os.path.join(basepath, 'cpp_routines/libblond'),
+                    help='The blond library name, without the file extension.')
+
 # Additional libs needed to compile the blond library
 libs = []
 
@@ -125,24 +128,29 @@ if (__name__ == "__main__"):
         if 'win' in sys.platform:
             libs += ['-lfftw3-3']
         else:
-            libs += ['-lfftw3']
+            libs += ['-lfftw3', '-lfftw3f']
             if args.with_fftw_omp:
                 cflags += ['-DFFTW3PARALLEL']
-                libs += ['-lfftw3_omp']
+                libs += ['-lfftw3_omp', '-lfftw3f_omp']
             elif args.with_fftw_threads:
                 cflags += ['-DFFTW3PARALLEL']
-                libs += ['-lfftw3_threads']
+                libs += ['-lfftw3_threads', '-lfftw3f_threads']
 
     if ('posix' in os.name):
         cflags += ['-fPIC']
-        libname = os.path.join(basepath, 'cpp_routines/libblond.so')
+        root, ext = os.path.splitext(args.libname)
+        if not ext:
+            ext = '.so'
+        libname = root + ext
     elif ('win' in sys.platform):
-        libname = os.path.join(basepath, 'cpp_routines/libblond.dll')
+        root, ext = os.path.splitext(args.libname)
+        if not ext:
+            ext = '.dll'
+        libname = root + ext
     else:
         print(
             'YOU ARE NOT USING A WINDOWS OR LINUX OPERATING SYSTEM. ABORTING...')
         sys.exit(-1)
-
     command = [compiler] + cflags + ['-o', libname] + cpp_files + libs
 
     print('Enable Multi-threaded code: ', args.parallel)

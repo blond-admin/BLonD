@@ -113,8 +113,8 @@ class CutOptions(object):
             # CutError
             raise RuntimeError('cuts_unit should be "s" or "rad"')
 
-        self.edges = np.zeros(n_slices + 1, dtype=float)
-        self.bin_centers = np.zeros(n_slices, dtype=float)
+        self.edges = np.zeros(n_slices + 1, dtype=bm.precision.real_t, order='C')
+        self.bin_centers = np.zeros(n_slices, dtype=bm.precision.real_t, order='C')
 
     def set_cuts(self, Beam=None):
         """
@@ -147,7 +147,7 @@ class CutOptions(object):
                                                             self.cuts_unit))
 
         self.edges = np.linspace(self.cut_left, self.cut_right,
-                                 self.n_slices + 1)
+                                 self.n_slices + 1).astype(dtype=bm.precision.real_t, order='C', copy=False)
         self.bin_centers = (self.edges[:-1] + self.edges[1:])/2
         self.bin_size = (self.cut_right - self.cut_left) / self.n_slices
 
@@ -386,11 +386,11 @@ class Profile(object):
         self.set_slices_parameters()
 
         # Initialize profile array as zero array
-        self.n_macroparticles = np.zeros(self.n_slices, dtype=float)
+        self.n_macroparticles = np.zeros(self.n_slices, dtype=bm.precision.real_t, order='C')
 
         # Initialize beam_spectrum and beam_spectrum_freq as empty arrays
-        self.beam_spectrum = np.array([], dtype=float)
-        self.beam_spectrum_freq = np.array([], dtype=float)
+        self.beam_spectrum = np.array([], dtype=bm.precision.real_t, order='C')
+        self.beam_spectrum_freq = np.array([], dtype=bm.precision.real_t, order='C')
 
         if OtherSlicesOptions.smooth:
             self.operations = [self._slice_smooth]
@@ -454,9 +454,9 @@ class Profile(object):
             worker.allreduce(self.n_macroparticles)
 
             # Convert back to float64
-            self.n_macroparticles = self.n_macroparticles.astype(
-                np.float64, order='C')
+            self.n_macroparticles = self.n_macroparticles.astype(dtype=bm.precision.real_t, order='C', copy=False)
 
+        
     def scale_histo(self):
         if not bm.mpiMode():
             raise RuntimeError(
