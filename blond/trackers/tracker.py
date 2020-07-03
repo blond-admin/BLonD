@@ -49,18 +49,18 @@ class FullRingAndRF(object):
         #: *Ring radius in [m]*
         self.ring_radius = self.ring_circumference / (2*np.pi)
 
-    def potential_well_generation(self, turn=0, n_points=1e5,
+    def potential_well_generation(self, turn=0, n_points=int(1e5),
                                   main_harmonic_option='lowest_freq',
                                   dt_margin_percent=0., time_array=None):
-        """Method to generate the potential well out of the RF systems. The 
+        """Method to generate the potential well out of the RF systems. The
         assumption made is that all the RF voltages are averaged over one turn.
         The potential well is then approximated over one turn, which is not the
         exact potential. This approximation should be fine enough to generate a
-        bunch (the mismatch should be small and damped fast enough). The 
+        bunch (the mismatch should be small and damped fast enough). The
         default main harmonic is defined to be the lowest one in frequency. The
         user can change this option if it is not the case for his simulations
         (other options are: 'highest_voltage', or inputing directly the value
-        of the desired main harmonic). A margin on the time array can be 
+        of the desired main harmonic). A margin on the time array can be
         applied in order to be able to see the min/max that might be exactly on
         the edges of the frame (by adding a % to the length of the frame, this
         is set to 0 by default. It assumes also that the slippage factor is the
@@ -139,39 +139,39 @@ class RingAndRFTracker(object):
         :width: 600
         :height: 600
 
-    The time step is fixed to be one turn, but the tracking can consist of 
-    multiple RingAndRFTracker objects. In this case, the user should make sure 
+    The time step is fixed to be one turn, but the tracking can consist of
+    multiple RingAndRFTracker objects. In this case, the user should make sure
     that the lengths of the stations sum up exactly to the circumference or use
-    the FullRingAndRF object in order to let the code pre-process the 
-    parameters. Each RF station may contain several RF harmonic systems which 
+    the FullRingAndRF object in order to let the code pre-process the
+    parameters. Each RF station may contain several RF harmonic systems which
     are considered to be in the same location. First, the energy kick of the RF
     station is applied, and then the particle arrival time to the next station
-    is updated. The change in RF phase, voltage, and frequency due to control 
+    is updated. The change in RF phase, voltage, and frequency due to control
     loops is tracked as well.
 
     Parameters
     ----------
     RFStation : class
         A RFStation type class
-    counter : [int] 
+    counter : [int]
         Inherited from
         :py:attr:`input_parameters.rf_parameters.RFStation.counter`
-    length_ratio : float 
+    length_ratio : float
         Inherited from
         :py:attr:`input_parameters.ring.Ring.length_ratio`
-    section_length : float 
+    section_length : float
         Inherited from
         :py:attr:`input_parameters.ring.Ring.section_length`
-    t_rev : float 
+    t_rev : float
         Inherited from
         :py:attr:`input_parameters.ring.Ring.t_rev`
-    n_rf : float 
+    n_rf : float
         Inherited from
         :py:attr:`input_parameters.rf_parameters.RFStation.n_rf`
-    beta : float 
+    beta : float
         Inherited from
         :py:attr:`input_parameters.ring.Ring.beta`
-    charge : float 
+    charge : float
         Inherited from
         :py:attr:`input_parameters.ring.Ring.Particle.charge`
     harmonic : float array
@@ -231,7 +231,7 @@ class RingAndRFTracker(object):
     periodicity : bool (optional)
         Option to switch periodic solver on/off; default is False (off)
     interpolation : bool (optional)
-        Option to use sliced and interpolated voltage for the kicker; default 
+        Option to use sliced and interpolated voltage for the kicker; default
         is False
 
     """
@@ -318,14 +318,14 @@ class RingAndRFTracker(object):
     def kick(self, beam_dt, beam_dE, index):
         """Function updating the particle energy due to the RF kick in a given
         RF station. The kicks are summed over the different harmonic RF systems
-        in the station. The cavity phase can be shifted by the user via 
-        phi_offset. The main RF (harmonic[0]) has by definition phase = 0 at 
-        time = 0 below transition. The phases of all other RF systems are 
+        in the station. The cavity phase can be shifted by the user via
+        phi_offset. The main RF (harmonic[0]) has by definition phase = 0 at
+        time = 0 below transition. The phases of all other RF systems are
         defined w.r.t.\ to the main RF. The increment in energy is given by the
         discrete equation of motion:
 
         .. math::
-            \Delta E^{n+1} = \Delta E^n + \sum_{k=0}^{n_{\mathsf{rf}}-1}{e V_k^n \\sin{\\left(\omega_{\mathsf{rf,k}}^n \\Delta t^n + \phi_{\mathsf{rf,k}}^n \\right)}} - (E_s^{n+1} - E_s^n) 
+            \Delta E^{n+1} = \Delta E^n + \sum_{k=0}^{n_{\mathsf{rf}}-1}{e V_k^n \\sin{\\left(\omega_{\mathsf{rf,k}}^n \\Delta t^n + \phi_{\mathsf{rf,k}}^n \\right)}} - (E_s^{n+1} - E_s^n)
 
         """
 
@@ -389,7 +389,7 @@ class RingAndRFTracker(object):
                                               self.profile.bin_centers)
 
     def track(self):
-        """Tracking method for the section. Applies first the kick, then the 
+        """Tracking method for the section. Applies first the kick, then the
         drift. Calls also RF/beam feedbacks if applicable. Updates the counter
         of the corresponding RFStation class and the energy-related variables
         of the Beam class.
