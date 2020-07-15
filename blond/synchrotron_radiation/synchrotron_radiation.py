@@ -48,7 +48,7 @@ class SynchrotronRadiation(object):
         self.I2 = 2.0 * np.pi / self.rho     # Assuming isomagnetic machine
         self.I3 = 2.0 * np.pi / self.rho**2.0
         self.I4 = (self.ring.ring_circumference
-                   * self.ring.alpha_0[0, 0] / self.rho**2.0)
+                    * self.ring.alpha_0[0, 0] / self.rho**2.0)
         self.jz = 2.0 + self.I4 / self.I2
 
         # Calculate synchrotron radiation parameters
@@ -106,12 +106,11 @@ class SynchrotronRadiation(object):
         i_turn = self.rf_params.counter[0]
 
         print('------- Synchrotron radiation parameters -------')
-        print('jz = {0:1.8f} '.format(self.jz))
+        print(f'jz = {self.jz:1.8f}')
         if (self.rf_params.section_length
                 == self.ring.ring_circumference):
-            print('Energy loss per turn = {0:1.4f} GeV/turn'.format(
-                self.U0*1e-9))
-            print('Damping time = {0:1.4f} turns'.format(self.tau_z))
+            print(f'Energy loss per turn = {self.U0/1e9:1.4f} GeV/turn')
+            print(f'Damping time = {self.tau_z:1.4f} turns')
         else:
             print('Energy loss per RF section = {0:1.4f} GeV/section'.format(
                 self.U0*1e-9))
@@ -121,9 +120,8 @@ class SynchrotronRadiation(object):
             print('Damping time = {0:1.4f} turns'.format(self.tau_z
                                                          * self.rf_params.section_length
                                                          / self.ring.ring_circumference) )
-        print('Equilibrium energy spread = {0:1.4f}% ({1:1.4f} MeV)'.format(
-            self.sigma_dE * 100, self.sigma_dE *
-            self.ring.energy[0, i_turn]*1e-6)  )
+        print(f'Equilibrium energy spread = {self.sigma_dE * 100:1.4f}%'
+              +f' ({self.sigma_dE * self.ring.energy[0, i_turn]*1e-6:1.4f}) MeV')
         print('------------------------------------------------')
 
     # Track particles with SR only (without quantum excitation)
