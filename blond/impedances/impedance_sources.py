@@ -24,6 +24,7 @@ from scipy.constants import c, physical_constants
 from scipy.special import gamma as gamma_func
 from scipy.special import kv, airy, polygamma
 from scipy import integrate
+import mpmath as mp
 from ..utils import bmath as bm
 
 class _ImpedanceObject(object):
@@ -690,9 +691,9 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
         
         # test for input consistency
         if self.chamber_height <= 0.0:
-            raise ValueError(f'chamber_height must be greater 0')
+            raise ValueError('chamber_height must be greater 0')
         if self.gamma is not None and self.gamma <= 1.0:
-            raise ValueError(f'gamma must be greater 1 when using the full spectrum')
+            raise ValueError('gamma must be greater 1 when using the full spectrum')
         
         #TODO check factor 2 in chamber_height
         if not np.isinf(self.chamber_height):
@@ -707,83 +708,22 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
             self.imped_calc = self._fs_low_frequency_wrapper
         
         elif self.gamma is not None and np.isinf(self.chamber_height):
-            self.imped_calc = self._fs_full_spectrum
+            self.imped_calc = self._fs_exact_spectrum
         
         elif self.gamma is None and not np.isinf(self.chamber_height):
             self.imped_calc = self._pp_low_frequency
             
         elif self.gamma is not None and not np.isinf(self.chamber_height):
-            self.imped_calc = self._pp_full_spectrum
+            self.imped_calc = self._pp_exact_spectrum
 
         else:
             # WrongCalcError
             raise RuntimeError(
                 'method for impedance calculation in CoherentSynchrotronRadiation object '
                 +'not recognized')
-
-                
-    # def _pp_low_frequency(self, frequency_array, pMax=10):
-    #     # based on eq. 8 of [Y. Cai]
-        
-    #     ns = frequency_array / self.f_0
-    #     # fcut = np.sqrt(2/3) * (np.pi * self.r_bend/self.chamber_height)**(3/2) * self.f_0
-    #     # # x_array = (self.r_bend/self.chamber_height)**2 / n**(4/3)
-    #     x_array = (1/self.Delta)**2 / ns**(4/3)
-                    
-    #     p_array = np.arange(0,pMax)
-    #     u_array = np.pi**2 / 2**(2/3) * np.outer(x_array, (2*p_array+1)**2)
-    #     #TODO: try to use approximate expressions for products...
-    #     # airy(z) for z>100 is either 0 or np.nan, so 100 is about the maximum you can get
-    #     u_array[ bm.where(u_array, more_than=100) ] = 100
-        
-    #     # u_array[ u_array>100 ] = 100
-        
-    #     airy_array = airy(u_array)  # returns Ai(u), Ai'(u), Bi(u), Bi'(u)
-    #     # airy_array[ frequency_array < 0.1 * fcut] = 0
-    #     Ci_array = airy_array[0] - 1j * airy_array[2]
-    #     Ci_prime = airy_array[1] - 1j * airy_array[3]
-        
-    #     # indexes = frequency_array > 0.1 * fcut
-        
-    #     # self.impedance = np.zeros_like(frequency_array, dtype=complex)
-
-    #     # self.impedance[indexes] = np.sum(airy_array[1] * Ci_prime + u_array * airy_array[0] * Ci_array,
-    #     #                                  axis=1)[indexes]
-        
-    #     self.impedance = np.sum(airy_array[1] * Ci_prime + u_array * airy_array[0] * Ci_array,
-    #                             axis=1)
-    #     # self.impedance += 1j * 2**(5/3) / (4096*np.pi**6) * (self.Delta * ns**(2/3))**5 \
-    #     #     * polygamma(4, pMax+1)
-
-    #     self.impedance *= self.Z0 * 4*np.pi**2 * 2**(1/3) * 1/self.Delta / ns**(1/3)
-
-    # def _pp_low_frequency2(self, frequency_array, u_max=5):
-    #     # based on eq. 8 of [Y. Cai]
-        
-    #     ns = frequency_array / self.f_0
-    #     # # x_array = (self.r_bend/self.chamber_height)**2 / n**(4/3)
-    #     x_array = (1/self.Delta)**2 / ns**(4/3)
-        
-    #     self.impedance = np.zeros_like(frequency_array, dtype=complex)
-        
-    #     for it, n in enumerate(ns):
-    #         # the summands are negligable for u > 5, and it's sufficient to cut the sum
-    #         # at _pMax(n)
-    #         _pMax = int(np.ceil(self.Delta * n**(2/3) * np.sqrt(u_max) / (2**(2/3)*np.pi) - 0.5))\
-    #             + 1
             
-    #         p_array = np.arange(0,_pMax)
-            
-    #         u_array = np.pi**2 / 2**(2/3) * x_array[it] * (2*p_array+1)**2
-    #         airy_array = airy(u_array)  # returns Ai(u), Ai'(u), Bi(u), Bi'(u)
+        self.hyper_vec = np.vectorize(mp.hyper, excluded=[0,1], otypes=[float])
 
-    #         Ci_array = airy_array[0] - 1j * airy_array[2]
-    #         Ci_prime = airy_array[1] - 1j * airy_array[3]
-            
-    #         self.impedance[it] = np.sum(airy_array[1] * Ci_prime 
-    #                                     + u_array * airy_array[0] * Ci_array)
-
-    #     self.impedance *= self.Z0 * 4*np.pi**2 * 2**(1/3) * 1/self.Delta / ns**(1/3)
 
     def _pp_low_frequency(self, frequency_array, u_max=10, high_frequency_transition=np.inf):
         # based on eq. 8 of [Y. Cai]
@@ -822,7 +762,7 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
         
         for nit, n in enumerate(n_array):
             # first element of p_matrix is 1 to ensure evaluation at u_min...
-            #... if n is large enough so that u_min < 100, (i.e. airy(u_min) does not yiel np.nan)
+            #... if n is large enough so that u_min < 100, (i.e. airy(u_min) does not yield np.nan)
             if pMax_array[nit] == 0 and n > (np.pi/self.Delta)**1.5 / np.sqrt(2) / 100**0.75:
                 p_matrix[nit,0] = 1
             else:
@@ -855,50 +795,151 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
         self.impedance[exact_indexes] *= self.Z0 * 4*np.pi**2 * 2**(1/3) * 1/self.Delta / n_array**(1/3)
 
 
-    def _pp_full_spectrum(self, frequency_array):
+    # def _pp_exact_spectrum(self, frequency_array, zeta_max=9,
+    #                        fs_low_frequency_transition=0, fs_high_frequency_transition=np.inf):
+    def _pp_exact_spectrum(self, frequency_array, zeta_max=9, **kwargs):
+
         """
         Implements on eq. B13 of [Murphy et al.]
         """
         
         ns = frequency_array / self.f_0
         
+        # Murphy et al. convention has plates at +/-h, wheras we use h for the full chamber height
+        # => we need to use 0.5*self.Delta in their equations
+        
         # based an eq. B8
-        alphas = np.sqrt(2) * np.exp(-1j*np.pi/6) * ns**(2/3) * self.Delta / 3**(1/6)
+        alphas = np.sqrt(2) * np.exp(-1j*np.pi/6) * ns**(2/3) * 0.5*self.Delta / 3**(1/6)
         
         # sets self.impedance to the full free-space impedance
-        self._fs_full_spectrum(frequency_array)
+        # self._fs_exact_spectrum(frequency_array,
+        #                         low_frequency_transition=fs_low_frequency_transition,
+        #                         high_frequency_transition=fs_high_frequency_transition)
+        self._fs_exact_spectrum(frequency_array, **kwargs)
+
+
         # subtract low-frequency free-space impedance
         self.impedance -= self._fs_low_frequency(frequency_array)
             
         # parallel plates part
         Z_pp = np.zeros_like(ns, dtype=complex)
 
+        # for it, n in enumerate(ns):
+        #     pMax = int(np.ceil(np.sqrt(9 *2 / 3**(1/3))/np.pi  * 0.5*self.Delta * n**(2/3) - 0.5))
+        #     # print(pMax)
+        #     if pMax == 0:
+        #         continue
+        #     # maximum p ensures that Re(z_array)<9; see documentation of _hFun
+        #     p_array = np.arange(pMax)
+        # #     # z_array = 0.25 * 3**(1/3) * np.pi**2 * np.exp(1j*np.pi/3) \
+        # #     #     * ( (2*p_array+1) * self.r_bend / self.chamber_height / n**(2/3) )**2
+        # #     print(it, len(p_array))
+        #     z_array = 0.5 * ( np.pi * (2*p_array+1) / alphas[it] )**2
+        #     # print(pMax, z_array[-1])
+        #     Z_pp[it] = np.sum( self._hFunNum(z_array) )
+        #     # Z_pp[it] = np.sum( self._hFun(z_array) )
+        #     Z_pp[it] += np.sqrt(np.pi) / (32*3**(5/6)) * np.exp(1j*np.pi/6) * (0.5*self.Delta * n**(2/3) / np.pi)**5\
+        #         * polygamma(4, pMax+0.5)
+        
+        # maximum p(n) to have zeta(p,n)<zeta_max(n)
+        pMax_array = np.array(np.ceil(np.sqrt(zeta_max / 3**(1/3))/np.pi * 0.5*self.Delta * ns**(2/3)
+                                      - 0.5), dtype=int)
+        # print(pMax_array[-1])
+
         for it, n in enumerate(ns):
-            # maximum p ensures that Re(z_array)<9; see documentation of _hFun
-            p_array = np.arange(np.floor(np.sqrt(9*2 / (3**(1/3)*np.pi**2)) 
-                                         * self.Delta * n**(2/3) - 0.5))
-            # z_array = 0.25 * 3**(1/3) * np.pi**2 * np.exp(1j*np.pi/3) \
-            #     * ( (2*p_array+1) * self.r_bend / self.chamber_height / n**(2/3) )**2
-            z_array = 0.5 * ( np.pi * (2*p_array+1) / alphas )**2
+            # # maximum p ensures that Re(z_array)<15; see documentation of _hFun
+            # pMax = int(np.ceil(np.sqrt(9 / 3**(1/3))/np.pi  * 0.5*self.Delta * n**(2/3) - 0.5))
+            pMax = pMax_array[it]
+            # print(pMax)
+            if pMax <= 0:
+                continue
+            p_array = np.arange(pMax)
+        #     # z_array = 0.25 * 3**(1/3) * np.pi**2 * np.exp(1j*np.pi/3) \
+        #     #     * ( (2*p_array+1) * self.r_bend / self.chamber_height / n**(2/3) )**2
+        #     print(it, len(p_array))
+            z_array = 0.5 * ( np.pi * (2*p_array+1) / alphas[it] )**2
+            # print(z_array[0] * np.exp(-1j*np.pi/3), z_array[-1] * np.exp(-1j*np.pi/3))
             Z_pp[it] = np.sum( self._hFun(z_array) )
-            
+        
+        Z_pp += np.sqrt(np.pi) / (32*3**(5/6)) * np.exp(1j*np.pi/6) * (0.5*self.Delta * ns**(2/3) / np.pi)**5\
+            * polygamma(4, pMax_array+0.5)
+        
         Z_pp *= self.Z0 * 2*(2*np.pi)**0.5 * 3**(2/3) * np.exp(1j*np.pi/6) * ns**(1/3) / alphas
 
         self.impedance += Z_pp
-        
-    def _hFun(z):
+
+    def _pp_exact_spectrum2(self, frequency_array, zeta_max=9, **kwargs):
         """
+        Implements on eq. B13 of [Murphy et al.]
+        """
+        
+        n_array = frequency_array / self.f_0
+        
+        # Murphy et al. convention has plates at +/-h, wheras we use h for the full chamber height
+        # => we need to use 0.5*self.Delta in their equations
+        
+        # based an eq. B8
+        alphas = np.sqrt(2) * np.exp(-1j*np.pi/6) * n_array**(2/3) * 0.5*self.Delta / 3**(1/6)
+        
+        # sets self.impedance to the full free-space impedance
+        self._fs_exact_spectrum2(frequency_array, **kwargs)
+
+        # subtract low-frequency free-space impedance
+        self.impedance -= self._fs_low_frequency(frequency_array)
+            
+        # parallel plates part
+        
+        # maximum p(n) to have zeta(p,n)<zeta_max(n)
+        pMax_array = np.array(np.ceil(np.sqrt(zeta_max / 3**(1/3))/np.pi * 0.5*self.Delta
+                                      * n_array**(2/3) - 0.5), dtype=int)
+
+        pMax = pMax_array[-1]  # maximum p; assumes largest frequency is at last array element
+        
+        p_matrix = np.zeros(shape=(len(n_array),pMax), dtype=int)
+
+        # matrix to store the summands
+        Z_matrix = np.zeros_like(p_matrix, dtype=complex)
+
+        for nit, n in enumerate(n_array):
+            # first element of p_matrix is 1 to ensure evaluation at zeta_min...
+            #... if n is large enough so that zeta_min < zeta_max
+            if pMax_array[nit] == 0 and n > 3**0.25 * (np.pi/(0.5*self.Delta))**1.5 / zeta_max**0.75:
+                p_matrix[nit,0] = 1
+            else:
+                p_matrix[nit,:pMax_array[nit]] = (2*np.arange(pMax_array[nit])+1)**2
+
+        # evaluate h function only at these values of p
+        indexes = p_matrix > 0
+
+        z_matrix = (0.5 * ( np.pi / alphas )**2 * p_matrix.T).T
+        
+        Z_matrix[indexes] = self._hFun(z_matrix[indexes])
+        
+        Z_pp = np.sum(Z_matrix, axis=1)
+        
+        Z_pp += np.sqrt(np.pi) / (32*3**(5/6)) * np.exp(1j*np.pi/6)\
+                * (0.5*self.Delta * n_array**(2/3) / np.pi)**5\
+                * polygamma(4, pMax_array+0.5)
+        
+        Z_pp *= self.Z0 * 2*(2*np.pi)**0.5 * 3**(2/3) * np.exp(1j*np.pi/6) * n_array**(1/3) / alphas
+
+        self.impedance += Z_pp    
+
+
+    def _hFun(self, z):
+        r"""
         Implements eq. B14 of [Murphy et al.]. 
         
         The integral in eq. B14 was solved analytically by Mathematica 12.1.0.0. However,
-        the analytic solution in terms of Airy functions ist numerically unstable for Re z > 10.0.
-        Numerically solving eq. B14, gives a negligable contribution for Re z > 10.0, and the 
-        analytic solution is, thus, sufficient for our purposes.
+        the analytic solution in terms of Airy functions ist numerically unstable for $\zeta>15$,
+        with $z=\exp(\i\pi/3)\zeta$. Numerically solving eq. B14, gives a negligable contribution 
+        for $zeta > 15.0$, and the analytic solution is, thus, sufficient for our purposes.
 
         Parameters
         ----------
         z : complex array
-            Argument of the function, with Re z < 10.0
+            Argument of the function. Numerically unstable for Re z > 10.0.
+            This condition is not checked.
 
         Returns
         -------
@@ -911,11 +952,18 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
         return - np.pi**1.5 / (2**(2/3) * 3**(5/6))\
             * (z * (airy_array[0]**2 + airy_array[2]**2) / 12**(1/3)
                - airy_array[1]**2 - airy_array[3]**2)
+    
+    def _hFunNum(self, z):
+        re = integrate.quad_vec(lambda nu: np.real(nu**1.5 * np.exp(-nu**3 - nu*z)), 0, np.inf)[0]
+        im = integrate.quad_vec(lambda nu: np.imag(nu**1.5 * np.exp(-nu**3 - nu*z)), 0, np.inf)[0]
+        
+        return re + 1j*im
 
-    def _fs_full_spectrum(self, frequency_array,
-                          high_frequency_transition=np.inf, low_frequency_transition=0):
+
+    def _fs_exact_spectrum(self, frequency_array,
+                           low_frequency_transition=0, high_frequency_transition=np.inf):
         """
-        Computes the full free-space synchrotron radiation impedance, based on eqs. A4 and A5 of 
+        Computes the exact free-space synchrotron radiation impedance, based on eqs. A4 and A5 of 
         [Murphy et. al]. For computation speed and numerical stability, the approximate expressions
         are used for frequencies lower / higher than the critical frequency f_c. 
 
@@ -941,16 +989,17 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
         None.
 
         """
-                
-        if high_frequency_transition <= low_frequency_transition:
-            raise ValueError('high_frequency_transition ratio must be larger than the'
-                             +'low_frequency_transition rato')
         
+        # check for input consistency        
         if high_frequency_transition < 1.0:
             raise ValueError('high_frequency_transition ratio must be greater than 1')
 
         if low_frequency_transition > 1.0:
             raise ValueError('low_frequency_transition ratio must be smaller than 1')
+
+        if high_frequency_transition <= low_frequency_transition:
+            raise ValueError('high_frequency_transition ratio must be larger than the'
+                             +'low_frequency_transition rato')
 
         
         self.impedance = np.zeros_like(frequency_array, dtype=complex)
@@ -960,25 +1009,103 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
         # use the low frequency approximation where f < LFT * f_c
         low_indexes = bm.where(l_array, less_than=low_frequency_transition)
         self.impedance[low_indexes] = self._fs_low_frequency(frequency_array[low_indexes])
-        # index from which to start computing the spectrum properly
-        start_index = np.sum(low_indexes)
+        # index from which to start compute the  exact spectrum
+        exact_start_index = np.sum(low_indexes)
 
         # use the high frequency approximation where f > HFT * f_c
         high_indexes = bm.where(l_array, more_than=high_frequency_transition)
         self.impedance[high_indexes] = self._fs_high_frequency(frequency_array[high_indexes])
 
         # use full integration for frequencies inbetween
-        indexes = np.invert(low_indexes + high_indexes)
+        exact_indexes = np.invert(low_indexes + high_indexes)
         
         # need to loop over frequencies because integrade.quad does not accept arrays :(
-        for it, l in enumerate(l_array[indexes]):
-            self.impedance[start_index + it] = \
+        for it, l in enumerate(l_array[exact_indexes]):
+            self.impedance[exact_start_index + it] = \
                 0.25 * np.sqrt(3) * integrate.quad(self._fs_integrandReZ, l, np.inf)[0]\
                 + 1j * (integrate.quad(self._fs_integrandImZ1, 0, 1, args=l)[0] 
                         - integrate.quad(self._fs_integrandImZ2, 1, np.inf, args=l)[0] ) 
         
-        self.impedance[indexes] *= self.Z0 * self.gamma * l_array[indexes]
+        self.impedance[exact_indexes] *= self.Z0 * self.gamma * l_array[exact_indexes]
 
+    def _fs_exact_spectrum2(self, frequency_array, epsilon=1e-6,
+                           low_frequency_transition=0, high_frequency_transition=np.inf):
+        """
+        Computes the exact free-space synchrotron radiation impedance, based on eqs. A4 and A5 of 
+        [Murphy et. al]. For computation speed and numerical stability, the approximate expressions
+        are used for frequencies lower / higher than the critical frequency f_c. 
+
+        Parameters
+        ----------
+        frequency_array : float array
+            Frequencies at which to evaluate the impedance
+        high_frequency_transition : float, optional
+            Ratio of f/f_c above which the high frequency approximation is used. If it is smaller
+            than 1, a `ValueError` is raised. The default is `np.inf`, i.e. the approximation is not 
+            used.
+        low_frequency_transition : float, optional
+            Ratio of f/f_c below which the low frequency approximation is used. If it is greater
+            than 1, a `ValueError` is raised. The default is 0, i.e. the approximation is not used.
+
+        Raises
+        ------
+        ValueError
+            Raised if high_frequency_transition is smaller than the low_frequency_transition
+
+        Returns
+        -------
+        None.
+
+        """
+        
+        # check for input consistency        
+        if high_frequency_transition < 1.0:
+            raise ValueError('high_frequency_transition ratio must be greater than 1')
+
+        if low_frequency_transition > 1.0:
+            raise ValueError('low_frequency_transition ratio must be smaller than 1')
+
+        if high_frequency_transition <= low_frequency_transition:
+            raise ValueError('high_frequency_transition ratio must be larger than the'
+                             +'low_frequency_transition rato')
+        
+        if epsilon < 0 or epsilon > 1:
+            raise ValueError('epsilon must be a small positive value')
+
+        
+        self.impedance = np.zeros_like(frequency_array, dtype=complex)
+        
+        l_array = frequency_array / self.f_crit
+        
+        # use the low frequency approximation where f < LFT * f_c
+        low_indexes = bm.where(l_array, less_than=low_frequency_transition)
+        self.impedance[low_indexes] = self._fs_low_frequency(frequency_array[low_indexes])
+        # # index from which to start compute the  exact spectrum
+        # exact_start_index = np.sum(low_indexes)
+
+        # use the high frequency approximation where f > HFT * f_c
+        high_indexes = bm.where(l_array, more_than=high_frequency_transition)
+        self.impedance[high_indexes] = self._fs_high_frequency(frequency_array[high_indexes])
+
+        # use full integration for frequencies inbetween
+        exact_indexes = np.invert(low_indexes + high_indexes)
+        
+        # Real part: eq. A4, is solved analytically with Mathematica 12.0 in terms of 
+        # generalized hypergeometric functions
+        # Imaginary part: quad_vec can't handle the integrable singularity at y=1 for y<1, we need
+        # to integrate up to 1-epsilon
+        self.impedance[exact_indexes] =\
+            np.sqrt(3) * gamma_func(2/3) / l_array[exact_indexes]**(2/3) / 2**(4/3)\
+                * self.hyper_vec([-1/3], [-2/3,2/3], 0.25*l_array[exact_indexes]**2) \
+            + 81*np.pi * l_array[exact_indexes]**(8/3) / (640*2**(2/3)*gamma_func(-1/3))\
+                * self.hyper_vec([4/3], [7/3,8/3], 0.25*l_array[exact_indexes]**2)\
+            - 0.25 * np.pi\
+            + 1j* (integrate.quad_vec(lambda y: self._fs_integrandImZ1(y, l_array[exact_indexes]),
+                                      0, 1-epsilon)[0]
+                   - integrate.quad_vec(lambda y: self._fs_integrandImZ2(y, l_array[exact_indexes]),
+                                        1, np.inf)[0])
+        
+        self.impedance[exact_indexes] *= self.Z0 * self.gamma * l_array[exact_indexes]
     
     def _fs_low_frequency_wrapper(self, frequency_array):
         """
