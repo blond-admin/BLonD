@@ -19,9 +19,11 @@ from __future__ import division, print_function
 import unittest
 import numpy
 
+from scipy.constants import physical_constants
+
 # BLonD imports
 # --------------
-from blond.beam.beam import Particle, Proton
+from blond.beam.beam import Particle, Proton, Electron
 from blond.input_parameters.ring import Ring
 from blond.input_parameters.rf_parameters import RFStation
 from blond.beam.beam import Beam
@@ -31,24 +33,46 @@ import blond.utils.exceptions as blExcept
 
 
 class testParticleClass(unittest.TestCase):
-    
+
     def setUp(self):
-        self.test_particle = Particle(1,2)
+        self.test_particle = Particle(1, 2)
 
     def test_particle_attributes(self):
         for attribute in ['mass', 'charge']:
             self.assertTrue(hasattr(self.test_particle, 'mass'),
                             msg=f"Particle: no '{attribute}' attribute")
-        
+
     def test_attribute_types(self):
 
-        for attribute in ['mass', 'charge']:            
+        for attribute in ['mass', 'charge']:
             self.assertIsInstance(getattr(self.test_particle, attribute), float,
                                   msg=f"Particle: {attribute} is not a float")
-    
+
     def test_negative_restmass_exception(self):
         with self.assertRaises(RuntimeError):
-            Particle(-1,2)
+            Particle(-1, 2)
+
+
+class testElectron(unittest.TestCase):
+
+    def setUp(self):
+        self.electron = Electron()
+
+    def test_classical_electron_radius(self):
+        self.assertAlmostEqual(self.electron.radius_cl,
+                               physical_constants['classical electron radius'][0], delta=1e-10,
+                               msg='Electron: wrong classical elctron radius')
+
+    def test_Sand_radiation_constant(self):
+        # value from A. Wolski: Beam Dynamics in High Energy Accelerators, p.
+        self.assertAlmostEqual(self.electron.C_gamma, 8.846e-5 / (1e9)**3, delta=1e-3,
+                               msg='Electron: wrong classical elctron radius')
+
+    def test_quantum_radiation_constant(self):
+        # value from A. Wolski: Beam Dynamics in High Energy Accelerators, p. 233
+        self.assertAlmostEqual(self.electron.C_q, 3.832e-13, delta=1e-3,
+                               msg='Electron: wrong classical elctron radius')
+
 
 class testBeamClass(unittest.TestCase):
 
@@ -119,7 +143,7 @@ class testBeamClass(unittest.TestCase):
         self.assertIsInstance(self.beam.id, numpy.ndarray,
                               msg='Beam: id is not a numpy.array')
         self.assertIn('int', type(self.beam.id[0]).__name__,
-                              msg='Beam: id array does not contain int')
+                      msg='Beam: id array does not contain int')
         self.assertIsInstance(self.beam.n_macroparticles_lost, int,
                               msg='Beam: n_macroparticles_lost is not an int')
         self.assertIsInstance(self.beam.n_macroparticles_alive, int,
@@ -129,9 +153,9 @@ class testBeamClass(unittest.TestCase):
         self.assertIsInstance(self.beam.dE, numpy.ndarray,
                               msg='Beam: dE is not a numpy.array')
         self.assertIn('float', type(self.beam.dt[0]).__name__,
-                              msg='Beam: dt does not contain float')
+                      msg='Beam: dt does not contain float')
         self.assertIn('float', type(self.beam.dE[0]).__name__,
-                              msg='Beam: dE does not contain float')
+                      msg='Beam: dE does not contain float')
 
     def test_beam_statistic(self):
 
@@ -153,7 +177,6 @@ class testBeamClass(unittest.TestCase):
 
     def test_losses_separatrix(self):
 
-
         longitudinal_tracker = RingAndRFTracker(self.rf_params, self.beam)
         full_tracker = FullRingAndRF([longitudinal_tracker])
         try:
@@ -165,7 +188,8 @@ class testBeamClass(unittest.TestCase):
                                                bunch_length_fit='fwhm',
                                                distribution_variable='Hamiltonian')
         except TypeError as te:
-            self.skipTest("Skipped because of known bug in deepcopy. Exception message %s" % str(te))
+            self.skipTest("Skipped because of known bug in deepcopy. Exception message %s"
+                          % str(te))
         self.beam.losses_separatrix(self.general_params, self.rf_params)
         self.assertEqual(len(self.beam.id[self.beam.id == 0]), 0,
                          msg='Beam: Failed losses_sepatrix, first')
@@ -176,9 +200,7 @@ class testBeamClass(unittest.TestCase):
                          self.beam.n_macroparticles,
                          msg='Beam: Failed losses_sepatrix, second')
 
-
     def test_losses_longitudinal_cut(self):
-
 
         longitudinal_tracker = RingAndRFTracker(self.rf_params, self.beam)
         full_tracker = FullRingAndRF([longitudinal_tracker])
@@ -191,7 +213,8 @@ class testBeamClass(unittest.TestCase):
                                                bunch_length_fit='fwhm',
                                                distribution_variable='Hamiltonian')
         except TypeError as te:
-            self.skipTest("Skipped because of known bug in deepcopy. Exception message %s" % str(te))
+            self.skipTest("Skipped because of known bug in deepcopy. Exception message %s"
+                          % str(te))
         self.beam.losses_longitudinal_cut(0., 5e-9)
         self.assertEqual(len(self.beam.id[self.beam.id == 0]), 0,
                          msg='Beam: Failed losses_longitudinal_cut, first')
@@ -202,12 +225,11 @@ class testBeamClass(unittest.TestCase):
                          self.beam.n_macroparticles,
                          msg='Beam: Failed losses_longitudinal_cut, second')
 
-
     def test_losses_energy_cut(self):
 
         longitudinal_tracker = RingAndRFTracker(self.rf_params, self.beam)
         full_tracker = FullRingAndRF([longitudinal_tracker])
-            
+
         try:
             matched_from_distribution_function(self.beam,
                                                full_tracker,
@@ -217,8 +239,9 @@ class testBeamClass(unittest.TestCase):
                                                bunch_length_fit='fwhm',
                                                distribution_variable='Hamiltonian')
         except TypeError as te:
-            self.skipTest("Skipped because of known bug in deepcopy. Exception message %s" % str(te))
-            
+            self.skipTest("Skipped because of known bug in deepcopy. Exception message %s"
+                          % str(te))
+
         self.beam.losses_energy_cut(-3e8, 3e8)
         self.assertEqual(len(self.beam.id[self.beam.id == 0]), 0,
                          msg='Beam: Failed losses_energy_cut, first')
@@ -229,71 +252,66 @@ class testBeamClass(unittest.TestCase):
                          self.beam.n_macroparticles,
                          msg='Beam: Failed losses_energy_cut, second')
 
-
-
     def test_addition(self):
-        
         np = numpy
-        
+
         testdEs = np.linspace(-1E6, 1E6, 2000000)
         testdts = np.linspace(0, 10E-9, 2000000)
         self.beam.dE = testdEs
         self.beam.dt = testdts
-        
+
         testdEs = np.linspace(-2E6, 2E6, 100000)
         testdts = np.linspace(-1E-9, 12E-9, 100000)
-        
+
         self.beam.add_particles([testdts, testdEs])
-        
-        self.assertEqual(self.beam.n_macroparticles, 2100000, msg = \
-                         "n_macroparticles not incremented correctly")
-        
+
+        self.assertEqual(self.beam.n_macroparticles, 2100000,
+                         msg="n_macroparticles not incremented correctly")
+
         testBeam = Beam(self.general_params, 200, 0)
-        
+
         testBeam.id[:100] = 0
-        
+
         self.beam.add_beam(testBeam)
-        
-        self.assertEqual(self.beam.id[2100000:2100100].tolist(), [0]*100, \
-                         msg = "particle ids not applied correctly")
-        
-        self.assertEqual(self.beam.n_macroparticles, 2100200, msg = \
-                         "Added macroparticles not incremented n_macro correctly")
-        
+
+        self.assertEqual(self.beam.id[2100000:2100100].tolist(), [0]*100,
+                         msg="particle ids not applied correctly")
+
+        self.assertEqual(self.beam.n_macroparticles, 2100200,
+                         msg="Added macroparticles not incremented n_macro correctly")
+
         self.beam += testBeam
-        
-        self.assertEqual(self.beam.n_macroparticles, 2100400, msg = \
-                         "Added macroparticles not incremented n_macro correctly")
-        
+
+        self.assertEqual(self.beam.n_macroparticles, 2100400,
+                         msg="Added macroparticles not incremented n_macro correctly")
+
         self.beam += (testdts, testdEs)
-        
-        self.assertEqual(self.beam.n_macroparticles, 2200400, msg = \
-                 "Added macroparticles not incremented n_macro correctly")
-        
-        self.assertEqual(-2E6, np.min(self.beam.dE), msg = \
-                         "coordinates of added beam not used correctly")
-        self.assertEqual(2E6, np.max(self.beam.dE), msg = \
-                         "coordinates of added beam not used correctly")
-        self.assertEqual(-1E-9, np.min(self.beam.dt), msg = \
-                         "coordinates of added beam not used correctly")
-        self.assertEqual(12E-9, np.max(self.beam.dt), msg = \
-                         "coordinates of added beam not used correctly")
-        
-        with self.assertRaises(blExcept.ParticleAdditionError, \
-                               msg = """Unequal length time and energy should 
-                               raise exception"""):
-            
+
+        self.assertEqual(self.beam.n_macroparticles, 2200400,
+                         msg="Added macroparticles not incremented n_macro correctly")
+
+        self.assertEqual(-2E6, np.min(self.beam.dE),
+                         msg="coordinates of added beam not used correctly")
+        self.assertEqual(2E6, np.max(self.beam.dE),
+                         msg="coordinates of added beam not used correctly")
+        self.assertEqual(-1E-9, np.min(self.beam.dt),
+                         msg="coordinates of added beam not used correctly")
+        self.assertEqual(12E-9, np.max(self.beam.dt),
+                         msg="coordinates of added beam not used correctly")
+
+        with self.assertRaises(blExcept.ParticleAdditionError,
+                               msg="""Unequal length time and energy should raise exception"""):
+
             self.beam += ([1, 2, 3], [4, 5])
-            
-        with self.assertRaises(blExcept.ParticleAdditionError, \
-                               msg = """Mising time/energy should 
-                               raise exception"""):
-            
+
+        with self.assertRaises(blExcept.ParticleAdditionError,
+                               msg="""Mising time/energy should raise exception"""):
+
             self.beam += ([1, 2, 3])
-            
+
         with self.assertRaises(TypeError, msg='Wrong type should raise exception'):
             self.beam.add_beam(([1], [2]))
-        
+
 
 if __name__ == '__main__':
 
