@@ -16,6 +16,8 @@ Unittest for impedances.impedance_sources
 import unittest
 import numpy as np
 
+from scipy.constants import e as elCharge
+from blond.beam.beam import Electron
 from blond.impedances.impedance_sources import _ImpedanceObject, Resonators, ResistiveWall,\
     CoherentSynchrotronRadiation
 
@@ -106,6 +108,24 @@ class TestCoherentSynchrotronRadiation(unittest.TestCase):
 
         self.assertRaises(ValueError, csr_imped.imped_calc, np.arange(5),
                           high_frequency_transition=0.2)
+
+    def test_energyLoss(self):
+        # based on Example 22: Coherent Radiation
+
+        r_bend, energy = 1.273, 40e6  # bending radius [m], particle energy [eV]
+        gamma = energy / Electron().mass  # Lorentz factor
+
+        # frequencies at which to compute impedance (from 1e8 to 1e15 Hz)
+        frequencies = 10**np.linspace(8, 15, num=200)
+
+        Z_fs = CoherentSynchrotronRadiation(r_bend, gamma=gamma)
+        Z_fs.imped_calc(frequencies, low_frequency_transition=1e-4)
+
+        energy_loss = 2 * np.trapz(Z_fs.impedance.real, frequencies) * elCharge  # [eV]
+
+        energy_loss_textbook = Electron().C_gamma * energy**4 / r_bend  # [eV]
+
+        self.assertAlmostEqual(energy_loss, energy_loss_textbook, places=4)
 
 
 if __name__ == '__main__':
