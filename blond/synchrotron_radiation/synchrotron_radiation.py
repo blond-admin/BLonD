@@ -16,7 +16,7 @@
 from __future__ import division, print_function
 from builtins import range, object
 import numpy as np
-from scipy.constants import e, c, epsilon_0, hbar
+from scipy.constants import e
 from ..utils import bmath as bm
 
 
@@ -40,10 +40,8 @@ class SynchrotronRadiation(object):
         np.random.seed(seed=seed)
 
         # Calculate static parameters
-        self.Cgamma = 1.0 / (e**2.0 * 3.0 * epsilon_0
-                             * self.ring.Particle.mass**4.0)
-        self.Cq = (55.0 / (32.0 * np.sqrt(3.0)) * hbar * c
-                   / (self.ring.Particle.mass * e))   # [m]
+        self.C_gamma = self.ring.Particle.C_gamma
+        self.C_q = self.ring.Particle.C_q
 
         self.I2 = 2.0 * np.pi / self.rho     # Assuming isomagnetic machine
         self.I3 = 2.0 * np.pi / self.rho**2.0
@@ -87,7 +85,7 @@ class SynchrotronRadiation(object):
         i_turn = self.rf_params.counter[0]
 
         # Energy loss per turn/RF section [eV]
-        self.U0 = (self.Cgamma * self.ring.energy[0, i_turn]**4.0
+        self.U0 = (self.C_gamma * self.ring.energy[0, i_turn]**4.0
                    * self.I2 / (2.0 * np. pi) * e**3.0
                   * self.rf_params.section_length
                    / self.ring.ring_circumference)
@@ -97,7 +95,7 @@ class SynchrotronRadiation(object):
                       self.U0)
 
         # Equilibrium energy spread
-        self.sigma_dE = np.sqrt(self.Cq *
+        self.sigma_dE = np.sqrt(self.C_q *
                                 self.ring.gamma[0, i_turn]**2.0 *
                                 self.I3 / (self.jz * self.I2))
 

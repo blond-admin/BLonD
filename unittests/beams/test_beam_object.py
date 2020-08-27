@@ -38,8 +38,8 @@ class testParticleClass(unittest.TestCase):
         self.test_particle = Particle(1, 2)
 
     def test_particle_attributes(self):
-        for attribute in ['mass', 'charge']:
-            self.assertTrue(hasattr(self.test_particle, 'mass'),
+        for attribute in ['mass', 'charge', 'radius_cl', 'C_gamma', 'C_q']:
+            self.assertTrue(hasattr(self.test_particle, attribute),
                             msg=f"Particle: no '{attribute}' attribute")
 
     def test_attribute_types(self):
@@ -60,18 +60,36 @@ class testElectron(unittest.TestCase):
 
     def test_classical_electron_radius(self):
         self.assertAlmostEqual(self.electron.radius_cl,
-                               physical_constants['classical electron radius'][0], delta=1e-10,
+                               physical_constants['classical electron radius'][0], delta=1e-24,
                                msg='Electron: wrong classical elctron radius')
 
     def test_Sand_radiation_constant(self):
-        # value from A. Wolski: Beam Dynamics in High Energy Accelerators, p.
-        self.assertAlmostEqual(self.electron.C_gamma, 8.846e-5 / (1e9)**3, delta=1e-3,
-                               msg='Electron: wrong classical elctron radius')
+        # value from S. Lee: Accelerator Physics, 2nd ed., eq (4.5)
+        # convert from GeV^3 to eV^3
+        self.assertAlmostEqual(self.electron.C_gamma, 8.846e-5 / (1e9)**3, delta=1e-35,
+                               msg='Electron: wrong radiation constant')
 
     def test_quantum_radiation_constant(self):
         # value from A. Wolski: Beam Dynamics in High Energy Accelerators, p. 233
-        self.assertAlmostEqual(self.electron.C_q, 3.832e-13, delta=1e-3,
-                               msg='Electron: wrong classical elctron radius')
+        self.assertAlmostEqual(self.electron.C_q, 3.832e-13, delta=1e-16,
+                               msg='Electron: wrong quantum excitation constant')
+
+
+class testProton(unittest.TestCase):
+
+    def setUp(self):
+        self.proton = Proton()
+
+    def test_classical_proton_radius(self):
+        # value from S. Lee: Accelerator Physics, 2nd ed., p. 560
+        self.assertAlmostEqual(self.proton.radius_cl, 1.5346986e-18, delta=1e-24,
+                               msg='Proton: wrong classical proton radius')
+
+    def test_Sand_radiation_constant(self):
+        # value from S. Lee: Accelerator Physics, 2nd ed., eq (4.5)
+        # convert from GeV^3 to eV^3
+        self.assertAlmostEqual(self.proton.C_gamma, 7.783e-18 / (1e9)**3, delta=1e-48,
+                               msg='Proton: wrong radiation constant')
 
 
 class testBeamClass(unittest.TestCase):
@@ -114,10 +132,6 @@ class testBeamClass(unittest.TestCase):
 
     def test_variables_types(self):
 
-        self.assertIsInstance(self.beam.Particle.mass, float,
-                              msg='Beam: mass is not a float')
-        self.assertIsInstance(self.beam.Particle.charge, float,
-                              msg='Beam: charge is not an float')
         self.assertIsInstance(self.beam.beta, float,
                               msg='Beam: beta is not a float')
         self.assertIsInstance(self.beam.gamma, float,

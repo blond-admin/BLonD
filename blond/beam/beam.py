@@ -25,33 +25,33 @@ from ..utils import bmath as bm
 
 
 class Particle(object):
+    """Class containing basic parameters, e.g. mass, of the particles to be tracked.
+
+    Parameters
+    ----------
+    user_mass : float
+        Energy equivalent of particle rest mass in eV
+    user_charge : float
+        Particle charge in units of the elementary charge
+
+
+    Attributes
+    ----------
+    radius_cl : float
+        Classical particle radius in :math:`m`
+    C_gamma : float
+        Sand's radiation constant :math:`C_\gamma` in :math:`m / eV^3`
+    C_q : float
+        Quantum radiation constant :math:`C_q` in :math:`m`
+
+    Returns
+    -------
+    None.
+
+    """
 
     def __init__(self, user_mass, user_charge):
-        """
-        Class that contains basic parameters, e.g. mass, of the particles to be tracked.
 
-        Parameters
-        ----------
-        user_mass : float
-            Energy equivalent of particle rest mass in eV
-        user_charge : float
-            Particle charge in units of the elementary charge
-
-
-        Attributes
-        ----------
-        radius_cl : float
-            Classical particle radius [m]
-        C_gamma : float
-            Sand's radiation constant :math:`C_\gamma` [m / eV^3]
-        C_q : float
-            Quantum radiation constant :math:`C_q` [m]
-
-        Returns
-        -------
-        None.
-
-        """
         if user_mass > 0.:
             self.mass = float(user_mass)
             self.charge = float(user_charge)
@@ -462,7 +462,7 @@ class Beam(object):
         ----------
         all : boolean
             If true, every worker will get a copy of the whole beam coordinates.
-            If false, only the master will gather the coordinates. 
+            If false, only the master will gather the coordinates.
         '''
         if not bm.mpiMode():
             raise RuntimeError(
@@ -544,7 +544,6 @@ class Beam(object):
 
             self.n_total_macroparticles_lost = worker.reduce(
                 np.array([self.n_macroparticles_lost]), operator='sum')[0]
-
 
             self.sigma_dt = worker.reduce(
                 np.array([self._sumsq_dt]), operator='sum')[0]
