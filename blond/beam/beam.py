@@ -27,6 +27,8 @@ from ..utils import bmath as bm
 class Particle(object):
     """Class containing basic parameters, e.g. mass, of the particles to be tracked.
 
+    The following particles are already implemented: proton, electron, positron
+
     Parameters
     ----------
     user_mass : float
@@ -34,19 +36,28 @@ class Particle(object):
     user_charge : float
         Particle charge in units of the elementary charge
 
-
     Attributes
     ----------
+    mass : float
+        Energy equivalent of particle rest mass in eV.
+    charge : float
+        Particle charge in units of the elementary charge.
     radius_cl : float
-        Classical particle radius in :math:`m`
+        Classical particle radius in :math:`m`.
     C_gamma : float
-        Sand's radiation constant :math:`C_\gamma` in :math:`m / eV^3`
+        Sand's radiation constant :math:`C_\gamma` in :math:`m / eV^3`.
     C_q : float
-        Quantum radiation constant :math:`C_q` in :math:`m`
+        Quantum radiation constant :math:`C_q` in :math:`m`.
 
-    Returns
-    -------
-    None.
+    Examples
+    --------
+    >>> from blond.beam.beam import Proton
+    >>> particle = Proton()
+
+    Usually, a `Particle` is used to construct a :class:`~blond.input_parameters.ring.Ring` object,
+    e.g.
+
+    >>> Ring(circumference, momentum_compaction, sync_momentum, Proton())
 
     """
 
@@ -70,6 +81,8 @@ class Particle(object):
 
 
 class Proton(Particle):
+    """ Implements a proton `Particle`.
+    """
 
     def __init__(self):
 
@@ -77,12 +90,16 @@ class Proton(Particle):
 
 
 class Electron(Particle):
+    """ Implements an electron `Particle`.
+    """
 
     def __init__(self):
         Particle.__init__(self, m_e*c**2/e, -1)
 
 
 class Positron(Particle):
+    """ Implements a positron `Particle`.
+    """
 
     def __init__(self):
 
