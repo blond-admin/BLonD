@@ -125,7 +125,7 @@ class TestCoherentSynchrotronRadiation(unittest.TestCase):
 
         energy_loss_textbook = Electron().C_gamma * energy**4 / r_bend  # [eV]
 
-        self.assertAlmostEqual(energy_loss, energy_loss_textbook, places=4)
+        self.assertAlmostEqual(energy_loss, energy_loss_textbook, places=3)
 
 
 if __name__ == '__main__':
