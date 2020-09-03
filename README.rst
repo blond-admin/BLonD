@@ -153,6 +153,17 @@ There are some easy ways to reduce the execution time of your simulation:
 5. *All the above can be combined.* 
 
 
+Changing the floating point precision (32 bit floats or 64 bit floats)
+----------------------------------------------------------------------
+
+* By default BLonD uses double precision calculations (float64). To change to single precision, for faster calculations, in the beginning of your mainfile you will have to add the code lines:
+    .. code-block:: python
+
+      from blond.utils import bmath as bm
+      bm.use_precision('single') 
+
+* No other modifications are needed.
+
 
 
 Use the FFTW3 library for the FFTs
@@ -244,7 +255,7 @@ Set-up Instructions
     wget http://www.fftw.org/fftw-3.3.8.tar.gz
     tar -xzvf fftw-3.3.8.tar.gz
     cd fftw-3.3.8
-    ./configure --prefix=$HOME/install/ --enable-openmp --enable-sse2 --enable-avx --enable-avx2 --enable-fma --enable-avx-128-fma  --with-our-malloc --disable-fortran --enable-shared
+    ./configure --prefix=$HOME/install/ --enable-openmp --enable-single --enable-sse2 --enable-avx --enable-avx2 --enable-fma --enable-avx-128-fma  --with-our-malloc --disable-fortran --enable-shared
     make -j4
     make install
 
@@ -364,4 +375,3 @@ VERSION CONTENTS
 
 
 .. _here: https://github.com/blond-admin/BLonD/archive/master.zip
-
