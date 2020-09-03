@@ -168,5 +168,4 @@ class SynchrotronRadiation(object):
 
         bm.synchrotron_radiation_full(self.beam.dE, self.U0, self.n_kicks,
                                       self.tau_z, self.sigma_dE,
-                                      self.ring.energy[0, i_turn],
-                                      self.random_array)
+                                      self.ring.energy[0, i_turn])

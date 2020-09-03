@@ -16,6 +16,36 @@ C++ Math library
 #include <complex>
 
 extern "C" {
+  void where_more_than(const double *__restrict__ data, const int n,
+                       const double c1,
+                       bool *__restrict__ res);
+
+  void where_less_than(const double *__restrict__ data, const int n,
+                       const double c1,
+                       bool *__restrict__ res);
+
+  void where_more_less_than(const double *__restrict__ data, const int n,
+                            const double c1, const double c2,
+                            bool *__restrict__ res);
+
+  void where_more_thanf(const float *__restrict__ data, const int n,
+                        const float c1,
+                        bool *__restrict__ res);
+
+  void where_less_thanf(const float *__restrict__ data, const int n,
+                        const float c1,
+                        bool *__restrict__ res);
+
+  void where_more_less_thanf(const float *__restrict__ data, const int n,
+                             const float c1, const float c2,
+                             bool *__restrict__ res);
+
+  int where(const double *__restrict__ dt, const int n_macroparticles,
+            const double constant1, const double constant2);
+
+  int wheref(const float *__restrict__ dt, const int n_macroparticles,
+             const float constant1, const float constant2);
+
 
   void where_more_than(const double *__restrict__ data, const int n,
                        const double c1,
@@ -50,6 +80,30 @@ extern "C" {
   void fast_expv(const double * __restrict__ in,
                  const int size,
                  double * __restrict__ out);
+
+
+  void convolutionf(const float * __restrict__ signal,
+                    const int SignalLen,
+                    const float * __restrict__ kernel,
+                    const int KernelLen,
+                    float * __restrict__ res);
+
+  float meanf(const float * __restrict__ data, const int n);
+  float stdevf(const float * __restrict__ data,
+               const int n);
+  float fast_sinf(float x);
+  float fast_cosf(float x);
+  float fast_expf(float x);
+  void fast_sinvf(const float * __restrict__ in,
+                  const int size,
+                  float * __restrict__ out);
+  void fast_cosvf(const float * __restrict__ in,
+                  const int size,
+                  float * __restrict__ out);
+  void fast_expvf(const float * __restrict__ in,
+                  const int size,
+                  float * __restrict__ out);
+
 
   void add_int_vector(const int *__restrict__ a,
                       const int *__restrict__ b,
@@ -99,6 +153,15 @@ extern "C" {
                                  const double *__restrict__ b,
                                  const int size);
 
+
+  void add_float_vector(const float *__restrict__ a,
+                        const float *__restrict__ b,
+                        const int size,
+                        float *__restrict__ result);
+
+  void add_float_vector_inplace(float *__restrict__ a,
+                                const float *__restrict__ b,
+                                const int size);
 
   /**
   Parameters are like python's np.interp
@@ -162,12 +225,68 @@ extern "C" {
                      const double step,
                      double * __restrict__ out);
 
+  void interpf(const float * __restrict__ x,
+               const int N,
+               const float * __restrict__ xp,
+               const int M,
+               const float * __restrict__ yp,
+               const float left,
+               const float right,
+               float * __restrict__ y);
+
+  void interp_const_spacef(const float * __restrict__ x,
+                           const int N,
+                           const float * __restrict__ xp,
+                           const int M,
+                           const float * __restrict__ yp,
+                           const float left,
+                           const float right,
+                           float * __restrict__ y);
+
+  // Function to implement integration of f(x); over the interval
+  // [a,b] using the trapezoid rule with nsub subdivisions.
+  void cumtrapz_wo_initialf(const float * __restrict__ f,
+                            const float deltaX,
+                            const int nsub,
+                            float * __restrict__ psum);
+
+  // Function to implement integration of f(x); over the interval
+  // [a,b] using the trapezoid rule with nsub subdivisions.
+  void cumtrapz_w_initialf(const float * __restrict__ f,
+                           const float deltaX,
+                           const float initial,
+                           const int nsub,
+                           float * __restrict__ psum);
+
+  float trapz_var_deltaf(const float * __restrict__ f,
+                         const float * __restrict__ deltaX,
+                         const int nsub);
+
+  float trapz_const_deltaf(const float * __restrict__ f,
+                           const float deltaX,
+                           const int nsub);
+
+  int min_idxf(const float * __restrict__ a, int size);
+  int max_idxf(const float * __restrict__ a, int size);
+  void linspacef(const float start, const float end, const int n,
+                 float *__restrict__ out);
+
+  void arange_float(const float start, const float stop,
+                    const float step,
+                    float * __restrict__ out);
+
+
   void arange_int(const int start, const int stop,
                   const int step,
                   int * __restrict__ out);
 
   double sum(const double * __restrict__ data, const int n);
   void sort_double(double * __restrict__ in, const int n, bool reverse);
+
+  float sumf(const float * __restrict__ data, const int n);
+  void sort_float(float * __restrict__ in, const int n, bool reverse);
+
+
   void sort_int(int * __restrict__ in, const int n, bool reverse);
   void sort_longint(long int * __restrict__ in, const int n, bool reverse);
 
