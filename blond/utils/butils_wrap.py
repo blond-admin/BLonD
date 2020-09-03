@@ -79,18 +79,18 @@ class c_complex64(ct.Structure):
 
 def where(x, more_than=None, less_than=None, result=None):
     if result is None:
-        result = np.empty(len(x), dtype=np.bool)
+        result = np.empty_like(x, dtype=np.bool)
     if more_than is None and less_than is not None:
-        __lib.where_less_than(__getPointer(x), __getLen(x),
+        __lib.where_less_than(__getPointer(x), x.size,
                               ct.c_double(less_than),
                               __getPointer(result))
     elif more_than is not None and less_than is None:
-        __lib.where_more_than(__getPointer(x), __getLen(x),
+        __lib.where_more_than(__getPointer(x), x.size,
                               ct.c_double(more_than),
                               __getPointer(result))
 
     elif more_than is not None and less_than is not None:
-        __lib.where_more_less_than(__getPointer(x), __getLen(x),
+        __lib.where_more_less_than(__getPointer(x), x.size,
                                    ct.c_double(more_than),
                                    ct.c_double(less_than),
                                    __getPointer(result))
