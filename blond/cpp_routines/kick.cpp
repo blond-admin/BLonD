@@ -54,3 +54,45 @@ extern "C" void rf_volt_comp(const double * __restrict__ voltage,
         }
     }
 }
+
+
+extern "C" void kickf(const float * __restrict__ beam_dt,
+                      float * __restrict__ beam_dE, const int n_rf,
+                      const float * __restrict__ voltage,
+                      const float * __restrict__ omega_RF,
+                      const float * __restrict__ phi_RF,
+                      const int n_macroparticles,
+                      const float acc_kick) {
+    int j;
+
+// KICK
+    for (j = 0; j < n_rf; j++)
+        #pragma omp parallel for
+        for (int i = 0; i < n_macroparticles; i++)
+            beam_dE[i] = beam_dE[i] + voltage[j]
+                         * fast_sinf(omega_RF[j] * beam_dt[i] + phi_RF[j]);
+
+// SYNCHRONOUS ENERGY CHANGE
+    #pragma omp parallel for
+    for (int i = 0; i < n_macroparticles; i++)
+        beam_dE[i] = beam_dE[i] + acc_kick;
+
+}
+
+extern "C" void rf_volt_compf(const float * __restrict__ voltage,
+                              const float * __restrict__ omega_RF,
+                              const float * __restrict__ phi_RF,
+                              const float * __restrict__ bin_centers,
+                              const int n_rf,
+                              const int n_bins,
+                              float *__restrict__ rf_voltage)
+{
+    for (int j = 0; j < n_rf; j++) {
+        #pragma omp parallel for
+        for (int i = 0; i < n_bins; i++) {
+            rf_voltage[i] += voltage[j]
+                             * fast_sinf(omega_RF[j] * bin_centers[i] + phi_RF[j]);
+        }
+    }
+}
+

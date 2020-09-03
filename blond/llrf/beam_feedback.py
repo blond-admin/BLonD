@@ -546,3 +546,4 @@ class BeamFeedback(object):
 
         # Apply frequency correction
         self.domega_rf = - self.domega_PL - self.domega_RL
+

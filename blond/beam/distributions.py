@@ -27,6 +27,7 @@ from scipy.integrate import cumtrapz
 from ..trackers.utilities import is_in_separatrix
 from ..beam.profile import Profile, CutOptions
 from ..trackers.utilities import potential_well_cut, minmax_location
+from ..utils import bmath as bm
 
 def matched_from_line_density(beam, full_ring_and_RF, line_density_input=None,
                               main_harmonic_option='lowest_freq',
@@ -724,9 +725,9 @@ def populate_bunch(beam, time_grid, deltaE_grid, density_grid, time_step,
     
     # Randomize particles inside each grid cell (uniform distribution)
     beam.dt = (np.ascontiguousarray(time_grid.flatten()[indexes] +
-        (np.random.rand(beam.n_macroparticles) - 0.5) * time_step))
+                                    (np.random.rand(beam.n_macroparticles) - 0.5) * time_step)).astype(dtype=bm.precision.real_t, order='C', copy=False)
     beam.dE = (np.ascontiguousarray(deltaE_grid.flatten()[indexes] +
-        (np.random.rand(beam.n_macroparticles) - 0.5) * deltaE_step))
+                                    (np.random.rand(beam.n_macroparticles) - 0.5) * deltaE_step)).astype(dtype=bm.precision.real_t, order='C', copy=False)
 
 def distribution_function(action_array, dist_type, length, exponent=None):
     '''
@@ -862,9 +863,11 @@ def bigaussian(Ring, RFStation, Beam, sigma_dt, sigma_dE = None, seed = None,
     # Generate coordinates
     np.random.seed(seed)
     
-    Beam.dt = sigma_dt*np.random.randn(Beam.n_macroparticles) + \
-              (phi_s - phi_rf)/omega_rf                  
-    Beam.dE = sigma_dE*np.random.randn(Beam.n_macroparticles)
+    Beam.dt = sigma_dt*np.random.randn(Beam.n_macroparticles).astype(dtype=bm.precision.real_t, order='C', copy=False) + \
+        (phi_s - phi_rf)/omega_rf
+    Beam.dE = sigma_dE * \
+        np.random.randn(Beam.n_macroparticles).astype(
+            dtype=bm.precision.real_t, order='C')
     
     # Re-insert if necessary
     if reinsertion == True:
@@ -873,13 +876,12 @@ def bigaussian(Ring, RFStation, Beam, sigma_dt, sigma_dE = None, seed = None,
             RFStation, Beam, Beam.dt, Beam.dE) == False)[0]
          
         while itemindex.size != 0:
-            
-            Beam.dt[itemindex] = sigma_dt*np.random.randn(itemindex.size) \
-                                 + (phi_s - phi_rf)/omega_rf
-                                     
-            Beam.dE[itemindex] = sigma_dE*np.random.randn(itemindex.size)
-            itemindex = np.where(is_in_separatrix(Ring, 
-                RFStation, Beam, Beam.dt, Beam.dE) == False)[0]
 
+            Beam.dt[itemindex] = sigma_dt*np.random.randn(itemindex.size).astype(dtype=bm.precision.real_t, order='C', copy=False) \
+                + (phi_s - phi_rf)/omega_rf
 
-
+            Beam.dE[itemindex] = sigma_dE * \
+                np.random.randn(itemindex.size).astype(
+                    dtype=bm.precision.real_t, order='C')
+            itemindex = np.where(is_in_separatrix(Ring,
+                                                  RFStation, Beam, Beam.dt, Beam.dE) == False)[0]

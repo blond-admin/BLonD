@@ -57,3 +57,50 @@ extern "C" void sparse_histogram(const double * __restrict__ input,
         output[ffbin] = output[ffbin] + 1.0;
     }
 }
+
+
+
+extern "C" void sparse_histogramf(const float * __restrict__ input,
+            float * __restrict__ output,
+               const float * __restrict__ cut_left_array,
+               const float * __restrict__ cut_right_array,
+               const float * __restrict__ bunch_indexes,
+               const int n_slices,
+               const int n_filled_buckets,
+               const int n_macroparticles){
+    
+    int i;
+    int j;
+    int i_bucket;
+    float a;
+    float fbin;
+    float fbunch;
+    int ffbin;
+    int ffbunch;
+    
+    // Only valid for cut_edges = edges
+    const float inv_bucket_length = 1.0 / (cut_right_array[0] - cut_left_array[0]);
+    const float inv_bin_width = inv_bucket_length * (float) n_slices;
+    
+    // Initialises all slicing arrays to zero
+    for (i = 0; i < n_filled_buckets*n_slices; i++){
+        output[i] = 0.0;
+    }
+    
+    // Histogram loop
+    for (i = 0; j < n_macroparticles; j++){
+        a = input[j];   // Particle dt
+        if ((a < cut_left_array[0])||(a > cut_right_array[n_filled_buckets-1]))
+            continue;
+        // Find bucket in which the particle is and its index
+        fbunch = (a - cut_left_array[0]) * inv_bucket_length;
+        ffbunch = (int) fbunch;
+        i_bucket = (int) bunch_indexes[ffbunch];
+        if (i_bucket == -1)
+            continue;
+        // Find the bin inside the corresponding bucket
+        fbin = (a - cut_left_array[i_bucket]) * inv_bin_width;
+        ffbin = i_bucket*n_slices + (int) fbin;
+        output[ffbin] = output[ffbin] + 1.0;
+    }
+}
