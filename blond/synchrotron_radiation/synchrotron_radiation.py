@@ -16,7 +16,6 @@
 from __future__ import division, print_function
 from builtins import range, object
 import numpy as np
-from scipy.constants import e
 from ..utils import bmath as bm
 
 
@@ -61,7 +60,7 @@ class SynchrotronRadiation(object):
             self.beam_phase_to_compensate_SR = np.arcsin(self.U0/self.rf_params.voltage[0][0])
             self.beam_position_to_compensate_SR = self.beam_phase_to_compensate_SR \
                 * self.rf_params.t_rf[0, 0] / (2.0*np.pi)
-                
+
             self.beam.dt -= self.beam_position_to_compensate_SR
 
         # Select the right method for the tracker according to the selected
@@ -85,8 +84,8 @@ class SynchrotronRadiation(object):
 
         # Energy loss per turn/RF section [eV]
         self.U0 = (self.C_gamma * self.ring.energy[0, i_turn]**4.0
-                   * self.I2 / (2.0 * np. pi) * e**3.0
-                  * self.rf_params.section_length
+                   * self.I2 / (2.0 * np. pi)
+                   * self.rf_params.section_length
                    / self.ring.ring_circumference)
 
         # Damping time [turns]
@@ -113,12 +112,12 @@ class SynchrotronRadiation(object):
                 self.U0*1e-9))
             print('Energy loss per turn = {0:1.4f} GeV/turn'.format(
                 self.U0*1e-9 * self.ring.ring_circumference
-                / self.rf_params.section_length) )
+                / self.rf_params.section_length))
             print('Damping time = {0:1.4f} turns'.format(self.tau_z
                                                          * self.rf_params.section_length
-                                                         / self.ring.ring_circumference) )
+                                                         / self.ring.ring_circumference))
         print(f'Equilibrium energy spread = {self.sigma_dE * 100:1.4f}%'
-              +f' ({self.sigma_dE * self.ring.energy[0, i_turn]*1e-6:1.4f}) MeV')
+              + f' ({self.sigma_dE * self.ring.energy[0, i_turn]*1e-6:1.4f}) MeV')
         print('------------------------------------------------')
 
     # Track particles with SR only (without quantum excitation)

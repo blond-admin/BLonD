@@ -345,7 +345,9 @@ PREVIOUS DEVELOPERS
 ===================
 
 Juan Esteban Muller
+
 Joel Repond
+
 Danilo Quartullo
 
 STRUCTURE

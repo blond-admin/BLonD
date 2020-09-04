@@ -73,7 +73,7 @@ class Particle(object):
         # classical particle radius [m]
         self.radius_cl = 0.25 / (np.pi * epsilon_0) * e**2 * self.charge**2 / (self.mass * e)
 
-        # Sand's radiation constant [ m / ev^3]
+        # Sand's radiation constant [ m / eV^3]
         self.C_gamma = 4*np.pi/3 * self.radius_cl / self.mass**3
 
         # Quantum radiation constant [m]
