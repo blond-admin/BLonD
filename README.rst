@@ -338,14 +338,15 @@ CURRENT DEVELOPERS
 * Konstantinos Iliakis (konstantinos.iliakis (at) cern.ch)
 * Ivan Karpov (ivan.karpov (at) cern.ch)
 * Alexandre Lasheen (alexandre.lasheen (at) cern.ch)
-* Danilo Quartullo (danilo.quartullo (at) cern.ch)
-* Joel Repond (joel.repond (at) cern.ch)
+* Markus Schwarz (markus.schwarz (at) kit.edu)
 * Helga Timko (Helga.Timko (at) cern.ch)
 
 PREVIOUS DEVELOPERS
 ===================
 
 Juan Esteban Muller
+Joel Repond
+Danilo Quartullo
 
 STRUCTURE
 =========
