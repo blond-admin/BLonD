@@ -792,8 +792,10 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
         # TODO use f_0 = f_rev (from ring length) or f_0 = c/r_bend/2pi (only path in dipoles)?
         self.f_0 = 0.5 * c / self.r_bend / np.pi  # assumes beta == 1
 
-        if not np.isinf(self.chamber_height):
+        if self.chamber_height < np.inf:
             self.Delta = self.chamber_height / self.r_bend
+            # parallel plates cut-off frequency
+            self.f_cut = np.sqrt(2/3) * (np.pi / self.Delta)**1.5 * self.f_0
 
         if self.gamma is not None:
             # critical frequency in Hz
@@ -1037,7 +1039,7 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
                - airy_array[1]**2 - airy_array[3]**2)
 
     def _fs_spectrum(self, frequency_array, epsilon=1e-6,
-                     low_frequency_transition=0, high_frequency_transition=np.inf):
+                     low_frequency_transition=0, high_frequency_transition=10):
         """
         Computes the exact free-space synchrotron radiation impedance, based on eqs. A4 and A5 of
         [Murphy1997]_. For computation speed and numerical stability, the approximate expressions
@@ -1049,8 +1051,7 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
             Frequencies at which to evaluate the impedance
         high_frequency_transition : float, optional
             Ratio of f/f_crit above which the high-frequency approximation is used. If it is smaller
-            than 1, a `ValueError` is raised. The default is `np.inf`, i.e. the approximation is not
-            used.
+            than 1, a `ValueError` is raised. The default is 10.
         low_frequency_transition : float, optional
             Ratio of f/f_crit below which the low-frequency approximation is used. If it is greater
             than 1, a `ValueError` is raised. The default is 0, i.e. the approximation is not used.

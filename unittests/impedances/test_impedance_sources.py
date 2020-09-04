@@ -78,18 +78,22 @@ class TestCoherentSynchrotronRadiation(unittest.TestCase):
     def test_correctImpedanceFuncion2(self):
         csr_imped = CoherentSynchrotronRadiation(1, gamma=42)
 
+        self.assertTrue(hasattr(csr_imped, 'f_crit'))
         self.assertEqual(csr_imped.imped_calc.__func__,
                          CoherentSynchrotronRadiation._fs_spectrum)
 
     def test_correctImpedanceFuncion3(self):
         csr_imped = CoherentSynchrotronRadiation(1, chamber_height=42)
 
+        self.assertTrue(hasattr(csr_imped, 'f_cut'))
         self.assertEqual(csr_imped.imped_calc.__func__,
                          CoherentSynchrotronRadiation._pp_low_frequency)
 
     def test_correctImpedanceFuncion4(self):
         csr_imped = CoherentSynchrotronRadiation(1, gamma=42, chamber_height=4.2)
 
+        self.assertTrue(hasattr(csr_imped, 'f_crit'))
+        self.assertTrue(hasattr(csr_imped, 'f_cut'))
         self.assertEqual(csr_imped.imped_calc.__func__,
                          CoherentSynchrotronRadiation._pp_spectrum)
 
