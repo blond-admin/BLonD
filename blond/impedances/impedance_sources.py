@@ -24,7 +24,7 @@ from scipy.constants import c, physical_constants
 from scipy.special import gamma as gamma_func
 from scipy.special import kv, airy, polygamma
 from scipy import integrate
-import mpmath as mp
+import mpmath
 from ..utils import bmath as bm
 
 
@@ -802,7 +802,7 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
             self.f_crit = 0.75 * self.gamma**3 * c / self.r_bend / np.pi
 
             # used for the computation of the free-space impedance
-            self.hyper_vec = np.vectorize(mp.hyper, excluded=[0,1], otypes=[float])
+            self.hyper_vec = np.vectorize(mpmath.hyper, excluded=[0,1], otypes=[float])
 
         # chose proper impedance method based on input
         if self.gamma is None and np.isinf(self.chamber_height):
