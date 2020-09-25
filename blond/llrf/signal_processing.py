@@ -156,8 +156,8 @@ def rf_beam_current(Profile, omega_c, T_rev, lpf=True, downsample=None):
     Returns
     -------
     complex array
-        RF beam charge array [C] at 'frequency' omega_c. To obtain current,
-        divide by the sampling time
+        RF beam charge array [C] at 'frequency' omega_c, with the sampling time
+        of the Profile object. To obtain current, divide by the sampling time
     (complex array)
         If time_coarse is specified, returns also the RF beam charge array [C]
         on the coarse time grid

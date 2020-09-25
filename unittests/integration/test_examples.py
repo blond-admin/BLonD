@@ -8,54 +8,122 @@
 # Project website: http://blond.web.cern.ch/
 
 """
-Unittest for utils.bmath
-
+Integration tests, execute all __EXAMPLES main files. 
 :Authors: **Konstantinos Iliakis**
 """
 
 import unittest
-import numpy as np
 import os
-import glob
 import subprocess
-# from functools import wraps
-from parameterized import parameterized
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
-main_files_dir = '__EXAMPLES/main_files'
-main_files_pattern = 'EX_*.py'
-
-os.chdir(this_directory + '../../')
-
-main_files = glob.glob(os.path.join(main_files_dir, main_files_pattern))
+main_files_dir = os.path.join(this_directory, '../../__EXAMPLES/main_files')
+exec_args = ['python']
 
 
 class TestExamples(unittest.TestCase):
 
+    def _runExample(self, example, timeout=90):
+        file = os.path.join(main_files_dir, example)
+        try:
+            ret = subprocess.call(exec_args + [file], timeout=timeout)
+            self.assertEqual(ret, 0)
+        except subprocess.TimeoutExpired as e:
+            raise unittest.SkipTest(
+                '[{}] Timed out (timeout={}s)'.format(example, e.timeout))
+
     # Run before every test
+
     def setUp(self):
         pass
-        # self.output = open(this_directory + 'output.txt', 'w')
 
     # Run after every test
     def tearDown(self):
         pass
-        # self.output.close()
 
-    @parameterized.expand(main_files)
-    def test_example(self, file):
+    def test_EX_01_Acceleration(self):
+        example = 'EX_01_Acceleration.py'
+        self._runExample(example)
 
-        # self.output.write('\nTesting file: ' + file + '\n')
-        try:
-            ret = subprocess.call(['python', file], timeout=60)
-                                  # stdout=self.output, stderr=subprocess.STDOUT)
-            # self.output.flush()
-            self.assertEqual(ret, 0)
-        except subprocess.TimeoutExpired as e:
-            # self.output.write(
-            #     'Timed out (timeout={}s)\n'.format(e.timeout))
-            raise unittest.SkipTest('Timed out (timeout={}s)'.format(e.timeout))
-        # self.output.write('Finished Testing.\n\n')
+    def test_EX_02_Main_long_ps_booster(self):
+        example = 'EX_02_Main_long_ps_booster.py'
+        self._runExample(example)
+
+    def test_EX_03_RFnoise(self):
+        example = 'EX_03_RFnoise.py'
+        self._runExample(example)
+
+    def test_EX_04_Stationary_multistation(self):
+        example = 'EX_04_Stationary_multistation.py'
+        self._runExample(example)
+
+    def test_EX_05_Wake_impedance(self):
+        example = 'EX_05_Wake_impedance.py'
+        self._runExample(example)
+
+    def test_EX_06_Preprocess(self):
+        example = 'EX_06_Preprocess.py'
+        self._runExample(example)
+
+    def test_EX_07_Ions(self):
+        example = 'EX_07_Ions.py'
+        self._runExample(example)
+
+    def test_EX_08_Phase_Loop(self):
+        example = 'EX_08_Phase_Loop.py'
+        self._runExample(example)
+
+    def test_EX_09_Radial_Loop(self):
+        example = 'EX_09_Radial_Loop.py'
+        self._runExample(example)
+
+    def test_EX_10_Fixed_frequency(self):
+        example = 'EX_10_Fixed_frequency.py'
+        self._runExample(example)
+
+    def test_EX_11_comparison_music_fourier_analytical(self):
+        example = 'EX_11_comparison_music_fourier_analytical.py'
+        self._runExample(example)
+
+    def test_EX_12_synchrotron_frequency_distribution(self):
+        example = 'EX_12_synchrotron_frequency_distribution.py'
+        self._runExample(example)
+
+    def test_EX_13_synchrotron_radiation(self):
+        example = 'EX_13_synchrotron_radiation.py'
+        self._runExample(example)
+
+    def test_EX_14_sparse_slicing(self):
+        example = 'EX_14_sparse_slicing.py'
+        self._runExample(example)
+
+    def test_EX_15_sparse_multi_bunch(self):
+        example = 'EX_15_sparse_multi_bunch.py'
+        self._runExample(example)
+
+    def test_EX_16_impedance_test(self):
+        example = 'EX_16_impedance_test.py'
+        self._runExample(example)
+
+    def test_EX_17_multi_turn_wake(self):
+        example = 'EX_17_multi_turn_wake.py'
+        self._runExample(example)
+
+    def test_EX_18_robinson_instability(self):
+        example = 'EX_18_robinson_instability.py'
+        self._runExample(example)
+
+    def test_EX_19_bunch_generation(self):
+        example = 'EX_19_bunch_generation.py'
+        self._runExample(example)
+
+    def test_EX_20_bunch_generation_multibunch(self):
+        example = 'EX_20_bunch_generation_multibunch.py'
+        self._runExample(example)
+
+    def test_EX_21_bunch_distribution(self):
+        example = 'EX_21_bunch_distribution.py'
+        self._runExample(example)
 
 
 if __name__ == '__main__':

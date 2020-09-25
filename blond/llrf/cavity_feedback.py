@@ -1,5 +1,5 @@
 # coding: utf8
-# Copyright 2014-2017 CERN. This software is distributed under the
+# Copyright 2014-2020 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
 # copied verbatim in the file LICENCE.md.
 # In applying this licence, CERN does not waive the privileges and immunities
@@ -20,6 +20,7 @@ import numpy as np
 import numpy.random as rnd
 import scipy
 from scipy.constants import e
+import sys
 
 from ..llrf.signal_processing import comb_filter, cartesian_to_polar, \
     fir_filter_lhc_otfb_coeff, \

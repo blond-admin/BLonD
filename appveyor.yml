@@ -2,7 +2,9 @@ image:
   - Visual Studio 2017
 environment:
   matrix:
-    - PATH: C:\Python36-x64;C:\Miniconda36-x64\Scripts;C:\mingw-w64\x86_64-7.2.0-posix-seh-rt_v5-rev1\mingw64\bin;%PATH%
+    - PATH: C:\Python36-x64;C:\mingw-w64\x86_64-7.2.0-posix-seh-rt_v5-rev1\mingw64\bin;%PATH%
+    - PATH: C:\Python37-x64;C:\mingw-w64\x86_64-7.2.0-posix-seh-rt_v5-rev1\mingw64\bin;%PATH%
+    # - PATH: C:\Python38-x64;C:\Miniconda38-x64\Scripts;C:\mingw-w64\x86_64-7.2.0-posix-seh-rt_v5-rev1\mingw64\bin;%PATH%
   # matrix:
     # - VSVER: Visual Studio 14 2015
     # - VSVER: Visual Studio 14 2015 Win64
@@ -10,10 +12,12 @@ environment:
 # cache: 
 #   - C:\ProgramData\chocolatey\bin -> appveyor.yml 
 #   - C:\ProgramData\chocolatey\lib -> appveyor.yml
+cache:
+  - '%LOCALAPPDATA%\pip\Cache'
 
 platform: 
   - x86
-  - Any CPU
+  # - Any CPU
 
 configuration:
   # - Debug
@@ -26,15 +30,17 @@ configuration:
 before_build:
   # - git submodule update --init --recursive
   - PATH
-  # - python --version
+  - python --version
   # - conda --version 
-  # - gcc --version
-  # - g++ --version
-  - conda update -q -y conda
-  - conda info -a
-  - conda create -q -y -n test-environment python=3.6 pip numpy scipy matplotlib future h5py
-  - activate test-environment
-  - pip install coveralls pytest parameterized
+  - gcc --version
+  - python -m pip install --upgrade pip setuptools wheel pytest 
+  - python -m pip install -r requirements.txt
+
+  # - conda update -q -y conda
+  # - conda info -a
+  # - conda create -q -y -n test-environment pip numpy scipy matplotlib future h5py
+  # - activate test-environment
+  # - pip install coveralls pytest parameterized
 
 
 build_script:
@@ -43,4 +49,4 @@ build_script:
   # - set PYTHONPATH=./
 
 test_script:
-  - python -m pytest -v -k "unittests and test and py" unittests\
+  - python -m pytest -v unittests\ --ignore-glob=unittests\integration\*mpi*.py
