@@ -1,8 +1,8 @@
 # coding: utf8
 # Copyright 2014-2020 CERN. This software is distributed under the
-# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# terms of the GNU General Public Licence version 3 (GPL Version 3), 
 # copied verbatim in the file LICENCE.md.
-# In applying this licence, CERN does not waive the privileges and immunities
+# In applying this licence, CERN does not waive the privileges and immunities 
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
@@ -140,7 +140,7 @@ class ParameterScaling(object):
 
 
     def bucket_parameters(self):
-
+        
         self.tb1.append("Bucket parameters assume: single RF, stationary case, and no intensity effects.\n")
 
         self.bucket_area = 8.*np.sqrt(2.*self.beta_sq*self.energy*self.voltage /
@@ -184,9 +184,9 @@ class ParameterScaling(object):
 
 
     def bunch_length_from_emittance(self, emittance):
-
+        
         self.emittance_aim = emittance
-
+        
         if self.emittance_aim >= self.bucket_area:
             self.tb1.append("Chosen emittance too large for this bucket. Aborting!")
             raise RuntimeError("Chosen emittance too large for this bucket. Aborting!")
@@ -207,7 +207,7 @@ class ParameterScaling(object):
 
     
     def setupUi(self, mainWindow):
-
+        
         mainWindow.setObjectName("mainWindow")
         mainWindow.resize(586, 611)
         mainWindow.setWindowOpacity(1.0)
@@ -229,7 +229,7 @@ class ParameterScaling(object):
         self.leCustom.setEnabled(True)
         self.leCustom.setGeometry(QtCore.QRect(145, 100, 70, 25))
         self.leCustom.setStyleSheet("background-color: rgb(255, 255, 255);\n"
-                                    "border-color: rgb(0, 0, 0);")
+"border-color: rgb(0, 0, 0);")
         self.leCustom.hide()
         self.leCustom.setText("")
         self.leCustom.setObjectName("leCustom")
@@ -264,7 +264,7 @@ class ParameterScaling(object):
         self.leVoltage = QtWidgets.QLineEdit(mainWindow)
         self.leVoltage.setGeometry(QtCore.QRect(80, 155, 70, 25))
         self.leVoltage.setStyleSheet("background-color: rgb(255, 255, 255);\n"
-                                     "border-color: rgb(0, 0, 0);")
+"border-color: rgb(0, 0, 0);")
         self.leVoltage.setText("")
         self.leVoltage.setObjectName("leVoltage")
 
@@ -276,9 +276,8 @@ class ParameterScaling(object):
         # Label "Emittance" with units
         self.leEmittance = QtWidgets.QLineEdit(mainWindow)
         self.leEmittance.setGeometry(QtCore.QRect(130, 270, 70, 25))
-        self.leEmittance.setStyleSheet(
-            "background-color: rgb(255, 255, 255);\n"
-            "border-color: rgb(0, 0, 0);")
+        self.leEmittance.setStyleSheet("background-color: rgb(255, 255, 255);\n"
+"border-color: rgb(0, 0, 0);")
         self.leEmittance.setText("")
         self.leEmittance.setObjectName("leEmittance")
         self.lbEVS1 = QtWidgets.QLabel(mainWindow)
@@ -291,9 +290,8 @@ class ParameterScaling(object):
         # Label "Bunch Length" with units
         self.leBunchLength = QtWidgets.QLineEdit(mainWindow)
         self.leBunchLength.setGeometry(QtCore.QRect(260, 270, 70, 25))
-        self.leBunchLength.setStyleSheet(
-            "background-color: rgb(255, 255, 255);\n"
-            "border-color: rgb(0, 0, 0);")
+        self.leBunchLength.setStyleSheet("background-color: rgb(255, 255, 255);\n"
+"border-color: rgb(0, 0, 0);")
         self.leBunchLength.setText("")
         self.leBunchLength.setObjectName("leBunchLength")
 
@@ -329,12 +327,12 @@ class ParameterScaling(object):
         self.rbBunchLength = QtWidgets.QRadioButton(mainWindow)
         self.rbBunchLength.setGeometry(QtCore.QRect(260, 250, 140, 22))
         self.rbBunchLength.setObjectName("rbBunchLength")
-
+        
         # Radio button Emittance
         self.rbEmittance = QtWidgets.QRadioButton(mainWindow)
         self.rbEmittance.setGeometry(QtCore.QRect(130, 250, 100, 22))
         self.rbEmittance.setObjectName("rbEmittance")
-
+        
         # Radio button No option
         self.rbNoOption = QtWidgets.QRadioButton(mainWindow)
         self.rbNoOption.setGeometry(QtCore.QRect(20, 250, 100, 22))
@@ -375,7 +373,7 @@ class ParameterScaling(object):
         self.cbGammaT.setItemText(0, _translate("mainWindow", "Default"))
         self.cbGammaT.setItemText(1, _translate("mainWindow", "Custom"))
 
-
+    
     def addactions(self, mainWindow):
 
         self.pbSubmit.clicked.connect(self.pbHandler)
@@ -409,7 +407,7 @@ class ParameterScaling(object):
         self.voltage = self.leVoltage.text()
         self.emittance_target = self.leEmittance.text()
         self.bunch_length_target = self.leBunchLength.text()
-
+        
         self.tb1.append("\n\n"+"**************************** BEAM PARAMETER CALCULATOR ****************************"+"\n")
         self.tb1.append("Input -- chosen machine/optics: "+
                         np.str(self.machine)+"\n")
@@ -453,23 +451,23 @@ class ParameterScaling(object):
         self.frequencies()
         self.tune()
         self.bucket_parameters()
-
+        
         if self.rbEmittance.isChecked():
             try:
                 self.emittance_target = np.double(self.emittance_target)
             except ValueError:
                 self.tb1.append("Target emittance not recognised!")
-                return
+                return 
             self.bunch_length_from_emittance(self.emittance_target)
         elif self.rbBunchLength.isChecked():
             try:
                 self.bunch_length_target = np.double(self.bunch_length_target)
             except ValueError:
                 self.tb1.append("Target bunch length not recognised!")
-                return
+                return 
             self.emittance_from_bunch_length(self.bunch_length_target)
 
-
+    
     def cbEnergyHandler(self, text):
         if text == 'Custom':
             self.leCustom.show()
@@ -477,6 +475,7 @@ class ParameterScaling(object):
         else:
             self.leCustom.hide()
             self.lbEV1.hide()
+            
 
     def cbGammaTHandler(self, text):
         if text == 'Custom':
@@ -488,7 +487,6 @@ class ParameterScaling(object):
 
 if __name__ == "__main__":
     import sys
-
     app = QtWidgets.QApplication(sys.argv)
     mainWindow = QtWidgets.QMainWindow()
     ui = ParameterScaling()
