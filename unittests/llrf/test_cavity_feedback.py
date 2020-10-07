@@ -353,7 +353,7 @@ class TestCavityFeedback(unittest.TestCase):
 
 
 
-class TestLHCOpenLoop(unittest.TestCase):
+class TestLHCOpenDrive(unittest.TestCase):
 
     def setUp(self):
         # Bunch parameters (dummy)
@@ -375,55 +375,58 @@ class TestLHCOpenLoop(unittest.TestCase):
         self.profile = Profile(beam)
 
         # Test in open loop, on tune
-        self.RFFB = LHCRFFeedback(open_loop=True)
+        self.RFFB = LHCRFFeedback(open_drive=True)
         self.f_c = self.rf.omega_rf[0,0]/(2*np.pi)
 
 
     def test_1(self):
-        CL = LHCCavityLoop(self.rf, self.profile, G_gen=1, n_cav=8,
-                           f_c=self.f_c, I_gen_offset=0.2778, Q_L=20000,
-                           R_over_Q=45, T_s=25e-9, RFFB=self.RFFB)
-        CL.track()
+        CL = LHCCavityLoop(self.rf, self.profile, f_c=self.f_c, G_gen=1,
+                           I_gen_offset=0.2778, n_cav=8, n_pretrack=0,
+                           Q_L=20000, R_over_Q=45, tau_loop=650e-9,
+                           tau_otfb=1472e-9, RFFB=self.RFFB)
+        CL.track_one_turn()
         # Steady-state antenna voltage [MV]
         V_ant = np.mean(np.absolute(CL.V_ANT[-10:]))*1e-6
-        self.assertAlmostEqual(V_ant, 0.4981799348, places=10)
+        self.assertAlmostEqual(V_ant, 0.4981799, places=6)
         # Updated generator current [A]
-        I_gen = np.mean(np.absolute(CL.I_gen))
+        I_gen = np.mean(np.absolute(CL.I_GEN[-CL.n_coarse:]))
         self.assertAlmostEqual(I_gen, 0.2778000000, places=10)
         # Generator power [kW]
-        P_gen = CL.generator_power()*1e-3
-        self.assertAlmostEqual(P_gen, 34.72777800, places=10)
+        P_gen = CL.generator_power()[-1]*1e-3
+        self.assertAlmostEqual(P_gen, 34.7277780000, places=10)
 
 
     def test_2(self):
-        CL = LHCCavityLoop(self.rf, self.profile, G_gen=1, n_cav=8,
-                           f_c=self.f_c, I_gen_offset=0.2778, Q_L=60000,
-                           R_over_Q=45, T_s=25e-9, RFFB=self.RFFB)
-        CL.track()
+        CL = LHCCavityLoop(self.rf, self.profile, f_c=self.f_c, G_gen=1,
+                           I_gen_offset=0.2778, n_cav=8, n_pretrack=0,
+                           Q_L=60000, R_over_Q=45, tau_loop=650e-9,
+                           tau_otfb=1472e-9, RFFB=self.RFFB)
+        CL.track_one_turn()
         # Steady-state antenna voltage [MV]
         V_ant = np.mean(np.absolute(CL.V_ANT[-10:]))*1e-6
-        self.assertAlmostEqual(V_ant, 1.2674584566, places=10)
+        self.assertAlmostEqual(V_ant, 1.2674579, places=6)
         # Updated generator current [A]
-        I_gen = np.mean(np.absolute(CL.I_gen))
+        I_gen = np.mean(np.absolute(CL.I_GEN[-CL.n_coarse:]))
         self.assertAlmostEqual(I_gen, 0.2778000000, places=10)
         # Generator power [kW]
-        P_gen = CL.generator_power()*1e-3
+        P_gen = CL.generator_power()[-1]*1e-3
         self.assertAlmostEqual(P_gen, 104.1833340000, places=10)
 
 
     def test_3(self):
-        CL = LHCCavityLoop(self.rf, self.profile, G_gen=1, n_cav=8,
-                           f_c=self.f_c, I_gen_offset=0.2778, Q_L=20000,
-                           R_over_Q=90, T_s=25e-9, RFFB=self.RFFB)
-        CL.track()
+        CL = LHCCavityLoop(self.rf, self.profile, f_c=self.f_c, G_gen=1,
+                           I_gen_offset=0.2778, n_cav=8, n_pretrack=0,
+                           Q_L=20000, R_over_Q=90, tau_loop=650e-9,
+                           tau_otfb=1472e-9, RFFB=self.RFFB)
+        CL.track_one_turn()
         # Steady-state antenna voltage [MV]
         V_ant = np.mean(np.absolute(CL.V_ANT[-10:]))*1e-6
-        self.assertAlmostEqual(V_ant, 0.9963598697, places=10)
+        self.assertAlmostEqual(V_ant, 0.9963598, places=6)
         # Updated generator current [A]
-        I_gen = np.mean(np.absolute(CL.I_gen))
+        I_gen = np.mean(np.absolute(CL.I_GEN[-CL.n_coarse:]))
         self.assertAlmostEqual(I_gen, 0.2778000000, places=10)
         # Generator power [kW]
-        P_gen = CL.generator_power()*1e-3
+        P_gen = CL.generator_power()[-1]*1e-3
         self.assertAlmostEqual(P_gen, 69.4555560000, places=10)
 
 if __name__ == '__main__':
