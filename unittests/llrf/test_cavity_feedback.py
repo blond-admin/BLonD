@@ -365,7 +365,7 @@ class TestLHCOpenDrive(unittest.TestCase):
         h = 35640             # Harmonic number
         V = 4e6               # RF voltage [V]
         dphi = 0              # Phase modulation/offset
-        gamma_t = 55.759505   # Transition gamma
+        gamma_t = 53.8        # Transition gamma
         alpha = 1/gamma_t**2  # First order mom. comp. factor
 
         # Initialise necessary classes
@@ -387,7 +387,7 @@ class TestLHCOpenDrive(unittest.TestCase):
         CL.track_one_turn()
         # Steady-state antenna voltage [MV]
         V_ant = np.mean(np.absolute(CL.V_ANT[-10:]))*1e-6
-        self.assertAlmostEqual(V_ant, 0.4981799, places=6)
+        self.assertAlmostEqual(V_ant, 0.49817991, places=7)
         # Updated generator current [A]
         I_gen = np.mean(np.absolute(CL.I_GEN[-CL.n_coarse:]))
         self.assertAlmostEqual(I_gen, 0.2778000000, places=10)
@@ -404,7 +404,7 @@ class TestLHCOpenDrive(unittest.TestCase):
         CL.track_one_turn()
         # Steady-state antenna voltage [MV]
         V_ant = np.mean(np.absolute(CL.V_ANT[-10:]))*1e-6
-        self.assertAlmostEqual(V_ant, 1.2674579, places=6)
+        self.assertAlmostEqual(V_ant, 1.26745787, places=7)
         # Updated generator current [A]
         I_gen = np.mean(np.absolute(CL.I_GEN[-CL.n_coarse:]))
         self.assertAlmostEqual(I_gen, 0.2778000000, places=10)
@@ -421,7 +421,7 @@ class TestLHCOpenDrive(unittest.TestCase):
         CL.track_one_turn()
         # Steady-state antenna voltage [MV]
         V_ant = np.mean(np.absolute(CL.V_ANT[-10:]))*1e-6
-        self.assertAlmostEqual(V_ant, 0.9963598, places=6)
+        self.assertAlmostEqual(V_ant, 0.99635982, places=7)
         # Updated generator current [A]
         I_gen = np.mean(np.absolute(CL.I_GEN[-CL.n_coarse:]))
         self.assertAlmostEqual(I_gen, 0.2778000000, places=10)

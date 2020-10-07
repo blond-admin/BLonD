@@ -110,8 +110,10 @@ plt.ylabel('Set point voltage [V]')
 plt.legend()
 plt.show()
 
+T_s = CL.T_s
+
 logging.info('Calculating transfer function')
-TF = TransferFunction(CL.V_EXC_IN, CL.V_EXC_OUT, 25e-9, plot=False)
+TF = TransferFunction(CL.V_EXC_IN, CL.V_EXC_OUT, T_s, plot=False)
 TF.analyse(data_cut=0)
 
 # Same with 60 k QL
@@ -119,7 +121,7 @@ logging.info('Re-track with Q_L = 60k')
 CL.Q_L = 60000
 CL.track_no_beam_excitation(CL.n_pretrack)
 logging.info('Calculating transfer function')
-TF60k = TransferFunction(CL.V_EXC_IN, CL.V_EXC_OUT, 25e-9, plot=False)
+TF60k = TransferFunction(CL.V_EXC_IN, CL.V_EXC_OUT, T_s, plot=False)
 TF60k.analyse(data_cut=0)
 
 fig = plt.figure('Transfer functions')
