@@ -135,6 +135,9 @@ def rf_beam_current(Profile, omega_c, T_rev, lpf=True, downsample=None):
     where :math:`t_i` are the time coordinates of the beam profile. After de-
     modulation, a low-pass filter at 20 MHz is applied.
 
+    For multi-bunch cases, make sure that the real beam intensity is the total
+    number of charges in the ring.
+
     Parameters
     ----------
     Profile : class
@@ -212,6 +215,113 @@ def comb_filter(y, x, a):
     """
 
     return a*y + (1 - a)*x
+
+
+def fir_filter_coefficients(signal, n_taps, sampling_freq, cutoff_freq):
+    """Band-stop type FIR filter from scipy
+    http://docs.scipy.org
+
+    Parameters
+    ----------
+    signal : complex array
+        Signal to be filtered
+    n_taps : int
+        Number of taps, should be impair
+    sampling_freq : float
+        Sampling frequency [Hz]
+    cutoff_freq : float
+        Cutoff frequency [Hz]
+
+
+    Returns
+    -------
+    complex array
+        FIR filtered signal
+
+    """
+    fPass = cutoff_freq/sampling_freq
+    fStop = 1.5*fPass
+    print(fPass)
+    print(fStop)
+    #fStop = 0.14
+    #fPass = 0.14/1.5
+    coeff = sgn.firwin(n_taps, [fPass], pass_zero=True)
+
+    #coeff = sgn.firwin(n_taps, [fPass/2, fStop/2], width=(fStop-fPass)/2, pass_zero=False, fs=1)
+    #coeff = sgn.firwin(n_taps, [0, fPass, fStop, 0.5], pass_zero=True, fs=1)
+    #coeff = sgn.firwin(n_taps, [fPass, fStop], pass_zero=True, window='blackman')
+    #coeff = sgn.firwin2(n_taps, [0, 0.04, 0.08, 0.14, 0.5], [0.75, 0.8, 0.6, 0, 0], window='blackman', fs=1)
+
+    #coeff = sgn.firls(n_taps, [0, fPass/2, fStop/2, 0.5], [1, 1, 0.1, 0.1], fs=1)
+
+    #coeff = sgn.firwin2(n_taps, [0, fPass, fStop, 0.5], [0.8, 0.6, 0.1, 0], window='hamming', fs=1)
+
+    print(coeff)
+
+    return coeff
+
+
+def fir_filter_lhc_otfb_coeff(n_taps=63):
+    '''FIR filter designed for the LHC OTFB, for a sampling frequency of
+    40 MS/s, with 63 taps.
+
+    Parameters
+    ----------
+    n_taps : int
+        Number of taps. 63 for 40 MS/s or 15 for 10 MS/s
+
+    Returns
+    -------
+    double array
+        Coefficients of LHC-type FIR filter
+    '''
+
+    if n_taps == 15:
+        coeff = [-0.0469, -0.016, 0.001, 0.0321, 0.0724, 0.1127, 0.1425,
+                 0.1534, 0.1425, 0.1127, 0.0724, 0.0321, 0.001, -0.016, -0.0469]
+    elif n_taps == 63:
+
+        coeff = [-0.038636, -0.00687283, -0.00719296, -0.00733319, -0.00726159,
+            -0.00694037, -0.00634775, -0.00548098, -0.00432789, -0.00288188,
+            -0.0011339, 0.00090253, 0.00321323, 0.00577238, 0.00856464,
+            0.0115605, 0.0147307, 0.0180265, 0.0214057, 0.0248156, 0.0282116,
+            0.0315334, 0.0347311, 0.0377502, 0.0405575, 0.0431076, 0.0453585,
+            0.047243, 0.0487253, 0.049782, 0.0504816, 0.0507121, 0.0504816,
+            0.049782, 0.0487253, 0.047243, 0.0453585, 0.0431076, 0.0405575,
+            0.0377502, 0.0347311, 0.0315334, 0.0282116, 0.0248156, 0.0214057,
+            0.0180265, 0.0147307, 0.0115605, 0.00856464, 0.00577238, 0.00321323,
+            0.00090253, -0.0011339, -0.00288188, -0.00432789, -0.00548098,
+            -0.00634775, -0.00694037, -0.00726159, -0.00733319, -0.00719296,
+            -0.00687283, -0.038636]
+    else:
+        raise ValueError("In LHC FIR filter, number of taps has to be 15 or 63")
+
+    return coeff
+
+
+def fir_filter(coeff, signal):
+    '''Apply FIR filter on discrete time signal.
+
+    Paramters
+    ---------
+    coeff : double array
+        Coefficients of FIR filter with length of number of taps
+    signal : complex or double array
+        Input signal to be filtered
+
+    Returns
+    -------
+    complex or double array
+        Filtered signal of length len(signal) - len(coeff)
+    '''
+
+    n_taps = len(coeff)
+    filtered_signal = np.zeros(len(signal) - n_taps)
+    for i in range(n_taps, len(signal)):
+        for k in range(n_taps):
+            filtered_signal[i-n_taps] += coeff[k] * signal[i - k]
+
+    return filtered_signal
 
 
 def low_pass_filter(signal, cutoff_frequency=0.5):
@@ -476,3 +586,22 @@ feedforward_filter_TWC5 = np.array(
      -0.0041924387, 0.0014525567, 0.0014525567, 0.0013063535,
      0.0114011487, 0.0104579343, -0.0007262783, -0.0007262783,
      -0.0007262783, 0.0104756312, -0.018823192])
+
+
+def plot_frequency_response(b, a=1):
+    """Plotting the frequency response of a filter with coefficients a, b."""
+
+    w, H = sgn.freqz(b,a)
+    plt.subplot(211)
+    plt.plot(2*w/np.max(w), np.absolute(H))#H_dB)
+    plt.ylabel('Amplitude [linear]')
+    plt.xlabel(r'Frequency w.r.t. sampling frequency')
+    plt.title(r'Frequency response')
+    plt.subplot(212)
+    phase = np.unwrap(np.angle(H))
+    plt.plot(w/max(w), phase)
+    plt.ylabel('Phase [radians]')
+    plt.xlabel(r'Frequency w.r.t. sampling frequency')
+    plt.title(r'Phase response')
+    plt.subplots_adjust(hspace=0.5)
+    plt.show()
