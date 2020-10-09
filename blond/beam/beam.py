@@ -18,13 +18,48 @@ from __future__ import division
 from builtins import object
 import numpy as np
 import itertools as itl
-from scipy.constants import m_p, m_e, e, c
+from scipy.constants import m_p, m_e, e, c, epsilon_0, hbar
 from ..trackers.utilities import is_in_separatrix
 from ..utils import exceptions as blExcept
 from ..utils import bmath as bm
 
 
 class Particle(object):
+    """Class containing basic parameters, e.g. mass, of the particles to be tracked.
+
+    The following particles are already implemented: proton, electron, positron
+
+    Parameters
+    ----------
+    user_mass : float
+        Energy equivalent of particle rest mass in eV
+    user_charge : float
+        Particle charge in units of the elementary charge
+
+    Attributes
+    ----------
+    mass : float
+        Energy equivalent of particle rest mass in eV.
+    charge : float
+        Particle charge in units of the elementary charge.
+    radius_cl : float
+        Classical particle radius in :math:`m`.
+    C_gamma : float
+        Sand's radiation constant :math:`C_\gamma` in :math:`m / eV^3`.
+    C_q : float
+        Quantum radiation constant :math:`C_q` in :math:`m`.
+
+    Examples
+    --------
+    >>> from blond.beam.beam import Proton
+    >>> particle = Proton()
+
+    Usually, a `Particle` is used to construct a :class:`~blond.input_parameters.ring.Ring` object,
+    e.g.
+
+    >>> Ring(circumference, momentum_compaction, sync_momentum, Proton())
+
+    """
 
     def __init__(self, user_mass, user_charge):
 
@@ -35,8 +70,19 @@ class Particle(object):
             # MassError
             raise RuntimeError('ERROR: Particle mass not recognized!')
 
+        # classical particle radius [m]
+        self.radius_cl = 0.25 / (np.pi * epsilon_0) * e**2 * self.charge**2 / (self.mass * e)
+
+        # Sand's radiation constant [ m / eV^3]
+        self.C_gamma = 4*np.pi/3 * self.radius_cl / self.mass**3
+
+        # Quantum radiation constant [m]
+        self.C_q = (55.0 / (32.0 * np.sqrt(3.0)) * hbar * c / (self.mass * e))
+
 
 class Proton(Particle):
+    """ Implements a proton `Particle`.
+    """
 
     def __init__(self):
 
@@ -44,12 +90,16 @@ class Proton(Particle):
 
 
 class Electron(Particle):
+    """ Implements an electron `Particle`.
+    """
 
     def __init__(self):
         Particle.__init__(self, m_e*c**2/e, -1)
 
 
 class Positron(Particle):
+    """ Implements a positron `Particle`.
+    """
 
     def __init__(self):
 
@@ -431,7 +481,7 @@ class Beam(object):
         ----------
         all : boolean
             If true, every worker will get a copy of the whole beam coordinates.
-            If false, only the master will gather the coordinates. 
+            If false, only the master will gather the coordinates.
         '''
         if not bm.mpiMode():
             raise RuntimeError(
@@ -513,7 +563,6 @@ class Beam(object):
 
             self.n_total_macroparticles_lost = worker.reduce(
                 np.array([self.n_macroparticles_lost]), operator='sum')[0]
-
 
             self.sigma_dt = worker.reduce(
                 np.array([self._sumsq_dt]), operator='sum')[0]
