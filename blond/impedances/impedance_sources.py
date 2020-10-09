@@ -1039,7 +1039,7 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
                - airy_array[1]**2 - airy_array[3]**2)
 
     def _fs_spectrum(self, frequency_array, epsilon=1e-6,
-                     low_frequency_transition=0, high_frequency_transition=10):
+                     low_frequency_transition=1e-5, high_frequency_transition=10):
         """
         Computes the exact free-space synchrotron radiation impedance, based on eqs. A4 and A5 of
         [Murphy1997]_. For computation speed and numerical stability, the approximate expressions
@@ -1104,6 +1104,8 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
 
         # use full integration for frequencies inbetween
         exact_indexes = np.invert(low_indexes + high_indexes)
+        if np.count_nonzero(exact_indexes) == 0:
+            return
 
         # Real part: eq. A4, is solved analytically with Mathematica 12.1.0.0 in terms of
         # generalized hypergeometric functions

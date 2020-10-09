@@ -465,8 +465,11 @@ def calculate_phi_s(RFStation, Particle=Proton(),
         index_below = np.where(eta0_middle_points < 0)[0]
 
         # Project phi_s in correct range
-        phi_s[index] = (np.pi - phi_s[index]) % (2*np.pi)
-        phi_s[index_below] = (np.pi + phi_s[index_below]) % (2*np.pi)
+        phi_s[index] = (np.heaviside(np.sign(Particle.charge),0) * np.pi - phi_s[index]) % (2*np.pi)
+        phi_s[index_below] = (np.heaviside(np.sign(Particle.charge),0) * np.pi + phi_s[index_below])\
+            % (2*np.pi)
+        # phi_s[index] = (np.pi - phi_s[index]) % (2*np.pi)
+        # phi_s[index_below] = (np.pi + phi_s[index_below]) % (2*np.pi)
 
         return phi_s
 

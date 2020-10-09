@@ -552,9 +552,9 @@ class InducedVoltageFreq(_InducedVoltage):
         self.total_impedance = np.zeros(
             freq.shape, dtype=bm.precision.complex_t, order='C')
 
-        for i in range(len(self.impedance_source_list)):
-            self.impedance_source_list[i].imped_calc(freq)
-            self.total_impedance += self.impedance_source_list[i].impedance
+        for impedance_source in self.impedance_source_list:
+            impedance_source.imped_calc(freq)
+            self.total_impedance += impedance_source.impedance
 
         # Factor relating Fourier transform and DFT
         self.total_impedance /= self.profile.bin_size
