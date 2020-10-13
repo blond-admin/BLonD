@@ -78,7 +78,7 @@ extern "C" void synchrotron_radiation_full(double * __restrict__ beam_dE, const 
         {
             static __thread mt19937_64 *gen = nullptr;
             if (!gen) gen = new mt19937_64(seed + omp_get_thread_num());
-            static __thread normal_distribution<> dist(0.0, 1.0);
+            static thread_local normal_distribution<> dist(0.0, 1.0);
             #pragma omp for
             for (int i = 0; i < n_macroparticles; i++) {
                 beam_dE[i] = beam_dE[i] * const_synch_rad
@@ -137,7 +137,7 @@ extern "C" void synchrotron_radiation_fullf(float * __restrict__ beam_dE, const 
         {
             static __thread mt19937_64 *gen = nullptr;
             if (!gen) gen = new mt19937_64(seed + omp_get_thread_num());
-            static __thread normal_distribution<> dist(0.0, 1.0);
+            static thread_local normal_distribution<> dist(0.0, 1.0);
             #pragma omp for
             for (int i = 0; i < n_macroparticles; i++) {
                 beam_dE[i] = beam_dE[i] * const_synch_rad
