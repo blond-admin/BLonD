@@ -322,7 +322,7 @@ class SPSOneTurnFeedback(object):
     '''
 
     def __init__(self, RFStation, Beam, Profile, n_sections, n_cavities=2,
-                 V_part=4/9, G_ff=1, G_llrf=10, G_tx=0.5, a_comb=15/16,
+                 V_part=4/9, G_ff=1, G_llrf=10, G_tx=0.99520546, a_comb=15/16,
                  Commissioning=CavityFeedbackCommissioning()):
 
         # Set up logging
@@ -523,12 +523,12 @@ class SPSOneTurnFeedback(object):
 
         """
 
-        # Add correction to the drive already existing
+        # Add correction to the drive already existing, for all cavities
         self.V_gen = self.open_FB*modulator(self.dV_gen, self.omega_r,
             self.omega_c, self.rf.t_rf[0, self.counter]) \
             + self.open_drive*self.V_set
 
-        # Generator charge from voltage, transmitter model
+        # Generator charge from voltage, transmitter model, for all cavities
         self.I_gen = self.G_tx*self.V_gen/self.TWC.R_gen*self.T_s
 
         # Circular convolution: attach last points of previous turn
@@ -571,6 +571,7 @@ class SPSOneTurnFeedback(object):
 
         if name == "beam":
             # Compute the beam-induced voltage on the fine grid
+            # For one cavity
             self.__setattr__("V_fine_ind_"+name,
                 self.matr_conv(self.__getattribute__("I_"+name+"_fine"),
                                self.TWC.__getattribute__("h_"+name)))
@@ -578,6 +579,7 @@ class SPSOneTurnFeedback(object):
 
         if name == "beam_coarse" and hasattr(self.TWC, "h_beam_coarse"):
             # Compute the beam-induced voltage on the coarse grid
+            # For one cavity
             self.__setattr__("V_coarse_ind_beam",
                 self.matr_conv(self.__getattribute__("I_"+name),
                                self.TWC.__getattribute__("h_"+name)))
@@ -585,12 +587,12 @@ class SPSOneTurnFeedback(object):
 
         if name == "gen":
             # Compute the generator-induced voltage on the coarse grid
+            # For all cavities
             self.__setattr__("V_coarse_ind_" + name,
                 self.matr_conv(self.__getattribute__("I_"+name),
                                self.TWC.__getattribute__("h_"+name)))
             # Circular convolution
-            self.V_coarse_ind_gen = +self.n_cavities \
-                *self.V_coarse_ind_gen[self.n_mov_av:self.n_coarse+self.n_mov_av]
+            self.V_coarse_ind_gen = self.V_coarse_ind_gen[self.n_mov_av:self.n_coarse+self.n_mov_av]
 
     def llrf_model(self):
         """Models the LLRF part of the OTFB.

@@ -23,7 +23,8 @@ from blond.input_parameters.rf_parameters import RFStation
 from blond.beam.beam import Beam, Proton
 from blond.beam.distributions import bigaussian
 from blond.beam.profile import Profile, CutOptions
-from blond.llrf.cavity_feedback import SPSCavityFeedback, CavityFeedbackCommissioning
+from blond.llrf.cavity_feedback import SPSCavityFeedback, \
+    SPSOneTurnFeedback, CavityFeedbackCommissioning
 
 
 # CERN SPS --------------------------------------------------------------------
@@ -34,8 +35,10 @@ alpha = 1/gamma_t**2        # Momentum compaction factor
 p_s = 25.92e9               # Synchronous momentum at injection [eV]
 h = [4620]                  # 200 MHz system harmonic
 V = [4.5e6]                 # 200 MHz RF voltage
-# With this setting, amplitude in the two four-section cavity must converge to
-# 4.5 MV * 4/18 * 2 = 2.0 MV
+# With this setting, amplitude in the two four-section cavities must converge
+# to 4.5 MV * 4/9 * 2 = 2.0 MV
+# With this setting, amplitude in the four three-section cavities must converge
+# to 4.5 MV * 6/10 * 2 = 2.7 MV
 phi = [0.]                  # 200 MHz RF phase
 
 # Beam and tracking parameters
@@ -53,9 +56,10 @@ plt.rc('legend', fontsize=12)
 CLOSED_LOOP = True
 OPEN_LOOP = True
 OPEN_FB = True
+POST_LS2 = False
 
 # Logger for messages on console & in file
-Logger(debug = True)
+Logger(debug=True)
 
 # Set up machine parameters
 ring = Ring(C, alpha, p_s, Particle=Proton(), n_turns=N_t)
@@ -63,6 +67,7 @@ logging.info("...... Machine parameters set!")
 
 # Set up RF parameters
 rf = RFStation(ring, h, V, phi, n_rf=1)
+rf.omega_rf[0,0] = 200.222e6*2*np.pi
 logging.debug("RF frequency %.6e Hz", rf.omega_rf[0,0]/(2*np.pi))
 logging.debug("Revolution period %.6e s", rf.t_rev[0])
 logging.info("...... RF parameters set!")
@@ -83,25 +88,45 @@ if CLOSED_LOOP:
     logging.info("...... CLOSED LOOP test")
     Commissioning = CavityFeedbackCommissioning(debug=True, open_loop=False,
         open_FB=False, open_drive=False, open_FF=True)
-    OTFB = SPSCavityFeedback(rf, beam, profile, G_llrf=5, G_tx=0.5,
-                             a_comb=15/16, turns=50, post_LS2=False,
+    OTFB = SPSCavityFeedback(rf, beam, profile, G_llrf=5, G_tx=0.99520546,
+                             a_comb=15/16, turns=50, post_LS2=POST_LS2,
                              Commissioning=Commissioning)
+    logging.info("Final voltage %.8e V"
+                 %np.average(np.absolute(OTFB.OTFB_1.V_coarse_tot[-10])))
+    OTFB = SPSOneTurnFeedback(rf, beam, profile, 3, n_cavities=4,
+                              V_part=6/10, G_ff=0, G_llrf=5, G_tx=0.99520546,
+                              a_comb=15/16, Commissioning=Commissioning)
+    for i in range(50):
+        OTFB.track_no_beam()
+    logging.info("  Final voltage, post-LS2 3-section cavities %.8e V"
+                 %np.average(np.absolute(OTFB.V_coarse_tot[-10])))
+    OTFB = SPSOneTurnFeedback(rf, beam, profile, 4, n_cavities=2,
+                              V_part=4/9, G_ff=0, G_llrf=5, G_tx=0.99520546,
+                              a_comb=15/16, Commissioning=Commissioning)
+    for i in range(50):
+        OTFB.track_no_beam()
+    logging.info("  Final voltage, pre-LS2 4-section cavities %.8e V"
+                 %np.average(np.absolute(OTFB.V_coarse_tot[-10])))
 
 if OPEN_LOOP:
     logging.info("...... OPEN LOOP test")
     Commissioning = CavityFeedbackCommissioning(debug=True, open_loop=True,
         open_FB=False, open_drive=True, open_FF=True)
-    OTFB = SPSCavityFeedback(rf, beam, profile, G_llrf=5, G_tx=0.5,
-                             a_comb=15/16, turns=50, post_LS2=False,
+    OTFB = SPSCavityFeedback(rf, beam, profile, G_llrf=5, G_tx=0.99520546,
+                             a_comb=15/16, turns=50, post_LS2=POST_LS2,
                              Commissioning=Commissioning)
+    logging.info("Final voltage %.8e V"
+                 %np.average(np.absolute(OTFB.OTFB_1.V_coarse_tot[-10])))
 
 if OPEN_FB:
     logging.info("...... OPEN FEEDBACK test")
     Commissioning = CavityFeedbackCommissioning(debug=True, open_loop=False,
         open_FB=True, open_drive=False, open_FF=True)
-    OTFB = SPSCavityFeedback(rf, beam, profile, G_llrf=5, G_tx=0.5,
-                             a_comb=15/16, turns=50, post_LS2=False,
+    OTFB = SPSCavityFeedback(rf, beam, profile, G_llrf=5, G_tx=0.99520546,
+                             a_comb=15/16, turns=50, post_LS2=POST_LS2,
                              Commissioning=Commissioning)
+    logging.info("Final voltage %.8e V"
+                 %np.average(np.absolute(OTFB.OTFB_1.V_coarse_tot[-10])))
 
 logging.info("")
 logging.info("Done!")

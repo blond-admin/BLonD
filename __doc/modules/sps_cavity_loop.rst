@@ -243,6 +243,10 @@ convolved with the beam response, as described in :ref:`beam-ind-V`, to obtain t
 
 The voltage and the current are calculated both on the *fine* and the *coarse* grid.
 
+.. warning::
+    The generator-induced voltage and current are calculated for all :math:`n_{\mathsf{cavities}}` with the same amount
+    of sections. The beam-induced voltage is calculated for one cavity and is multiplied with the number of cavities
+    afterwards.
 
 From coarse to fine grid and back
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
