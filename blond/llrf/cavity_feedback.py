@@ -82,9 +82,6 @@ class SPSCavityFeedback(object):
         scenario. If passed as a list, the first and second elements correspond
         to the G_llrf of the 3- and 4-section (4- and 5-section) cavity
         feedback in the post- (pre-)LS2 scenario; default is 10
-    G_tx : float or list
-        Transmitter gain [1] of the cavity feedback; convention same as G_llrf;
-        default is 0.5
     a_comb : float
         Comb filter ratio [1]; default is 15/16
     turns :  int
@@ -100,6 +97,9 @@ class SPSCavityFeedback(object):
 
     Attributes
     ----------
+    G_tx : float or list
+        Transmitter gain [1] of the cavity feedback; convention same as G_llrf;
+        fine-tuned via benchmark in open_feedback mode
     OTFB_1 : class
         An SPSOneTurnFeedback type class; 3/4-section cavity for post/pre-LS2
     OTFB_2 : class
@@ -115,7 +115,7 @@ class SPSCavityFeedback(object):
 
     """
 
-    def __init__(self, RFStation, Beam, Profile, G_ff=1, G_llrf=10, G_tx=0.5,
+    def __init__(self, RFStation, Beam, Profile, G_ff=1, G_llrf=10, #G_tx=0.5,
                  a_comb=15/16, turns=1000, post_LS2=True, V_part=None,
                  Commissioning=CavityFeedbackCommissioning()):
 
@@ -139,12 +139,12 @@ class SPSCavityFeedback(object):
             G_llrf_1 = G_llrf
             G_llrf_2 = G_llrf
 
-        if type(G_tx) is list:
-            G_tx_1 = G_tx[0]
-            G_tx_2 = G_tx[1]
-        else:
-            G_tx_1 = G_tx
-            G_tx_2 = G_tx
+#        if type(G_tx) is list:
+#            G_tx_1 = G_tx[0]
+#            G_tx_2 = G_tx[1]
+#        else:
+#            G_tx_1 = G_tx
+#            G_tx_2 = G_tx
 
         # Voltage partitioning has to be a fraction
         if V_part and V_part*(1 - V_part) < 0:
@@ -158,14 +158,16 @@ class SPSCavityFeedback(object):
                                              n_cavities=4, V_part=V_part,
                                              G_ff=float(G_ff_1),
                                              G_llrf=float(G_llrf_1),
-                                             G_tx=float(G_tx_1),
+#                                             G_tx=float(G_tx_1),
+                                             G_tx=0.99468245,
                                              a_comb=float(a_comb),
                                              Commissioning=self.Commissioning)
             self.OTFB_2 = SPSOneTurnFeedback(RFStation, Beam, Profile, 4,
                                              n_cavities=2, V_part=1-V_part,
                                              G_ff=float(G_ff_2),
                                              G_llrf=float(G_llrf_2),
-                                             G_tx=float(G_tx_2),
+#                                             G_tx=float(G_tx_2),
+                                             G_tx = 1.002453405,
                                              a_comb=float(a_comb),
                                              Commissioning=self.Commissioning)
         else:
@@ -175,14 +177,16 @@ class SPSCavityFeedback(object):
                                              n_cavities=2, V_part=V_part,
                                              G_ff=float(G_ff_1),
                                              G_llrf=float(G_llrf_1),
-                                             G_tx=float(G_tx_1),
+#                                             G_tx=float(G_tx_1),
+                                             G_tx=1.002453405,
                                              a_comb=float(a_comb),
                                              Commissioning=self.Commissioning)
             self.OTFB_2 = SPSOneTurnFeedback(RFStation, Beam, Profile, 5,
                                              n_cavities=2, V_part=1-V_part,
                                              G_ff=float(G_ff_2),
                                              G_llrf=float(G_llrf_2),
-                                             G_tx=float(G_tx_2),
+#                                             G_tx=float(G_tx_2),
+                                             G_tx=1.00066015,
                                              a_comb=float(a_comb),
                                              Commissioning=self.Commissioning)
 
@@ -322,7 +326,7 @@ class SPSOneTurnFeedback(object):
     '''
 
     def __init__(self, RFStation, Beam, Profile, n_sections, n_cavities=2,
-                 V_part=4/9, G_ff=1, G_llrf=10, G_tx=0.99520546, a_comb=15/16,
+                 V_part=4/9, G_ff=1, G_llrf=10, G_tx=1, a_comb=15/16,
                  Commissioning=CavityFeedbackCommissioning()):
 
         # Set up logging

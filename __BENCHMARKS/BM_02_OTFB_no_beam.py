@@ -1,8 +1,8 @@
 # coding: utf8
-# Copyright 2014-2017 CERN. This software is distributed under the
-# terms of the GNU General Public Licence version 3 (GPL Version 3), 
+# Copyright 2014-2020 CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
 # copied verbatim in the file LICENCE.md.
-# In applying this licence, CERN does not waive the privileges and immunities 
+# In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
@@ -87,32 +87,18 @@ if CLOSED_LOOP:
     logging.info("...... CLOSED LOOP test")
     Commissioning = CavityFeedbackCommissioning(debug=True, open_loop=False,
         open_FB=False, open_drive=False, open_FF=True)
-    OTFB = SPSCavityFeedback(rf, beam, profile, G_llrf=5, G_tx=0.99520546,
-                             a_comb=15/16, turns=50, post_LS2=POST_LS2,
+    OTFB = SPSCavityFeedback(rf, beam, profile, G_llrf=5, a_comb=15/16,
+                             turns=50, post_LS2=POST_LS2,
                              Commissioning=Commissioning)
     logging.info("Final voltage %.8e V"
                  %np.average(np.absolute(OTFB.OTFB_1.V_coarse_tot[-10])))
-    OTFB = SPSOneTurnFeedback(rf, beam, profile, 3, n_cavities=4,
-                              V_part=6/10, G_ff=0, G_llrf=5, G_tx=0.99520546,
-                              a_comb=15/16, Commissioning=Commissioning)
-    for i in range(50):
-        OTFB.track_no_beam()
-    logging.info("  Final voltage, post-LS2 3-section cavities %.8e V"
-                 %np.average(np.absolute(OTFB.V_coarse_tot[-10])))
-    OTFB = SPSOneTurnFeedback(rf, beam, profile, 4, n_cavities=2,
-                              V_part=4/9, G_ff=0, G_llrf=5, G_tx=0.99520546,
-                              a_comb=15/16, Commissioning=Commissioning)
-    for i in range(50):
-        OTFB.track_no_beam()
-    logging.info("  Final voltage, pre-LS2 4-section cavities %.8e V"
-                 %np.average(np.absolute(OTFB.V_coarse_tot[-10])))
 
 if OPEN_LOOP:
     logging.info("...... OPEN LOOP test")
     Commissioning = CavityFeedbackCommissioning(debug=True, open_loop=True,
         open_FB=False, open_drive=True, open_FF=True)
-    OTFB = SPSCavityFeedback(rf, beam, profile, G_llrf=5, G_tx=0.99520546,
-                             a_comb=15/16, turns=50, post_LS2=POST_LS2,
+    OTFB = SPSCavityFeedback(rf, beam, profile, G_llrf=5, a_comb=15/16,
+                             turns=50, post_LS2=POST_LS2,
                              Commissioning=Commissioning)
     logging.info("Final voltage %.8e V"
                  %np.average(np.absolute(OTFB.OTFB_1.V_coarse_tot[-10])))
@@ -121,8 +107,8 @@ if OPEN_FB:
     logging.info("...... OPEN FEEDBACK test")
     Commissioning = CavityFeedbackCommissioning(debug=True, open_loop=False,
         open_FB=True, open_drive=False, open_FF=True)
-    OTFB = SPSCavityFeedback(rf, beam, profile, G_llrf=5, G_tx=0.99520546,
-                             a_comb=15/16, turns=50, post_LS2=POST_LS2,
+    OTFB = SPSCavityFeedback(rf, beam, profile, G_llrf=5, a_comb=15/16,
+                             turns=50, post_LS2=POST_LS2,
                              Commissioning=Commissioning)
     logging.info("Final voltage %.8e V"
                  %np.average(np.absolute(OTFB.OTFB_1.V_coarse_tot[-10])))

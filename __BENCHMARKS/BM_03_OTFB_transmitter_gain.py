@@ -1,5 +1,5 @@
 # coding: utf8
-# Copyright 2014-2017 CERN. This software is distributed under the
+# Copyright 2014-2020 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
 # copied verbatim in the file LICENCE.md.
 # In applying this licence, CERN does not waive the privileges and immunities
@@ -9,9 +9,10 @@
 
 """
 Benchmarking SPS OTFB transmitter gain G_tx for every cavity. For this, at the
-central frequency 200.222 MHz, the measured values of a generator current
-I_gen = 52.5 A for an input generator voltage of V_gen = 1.76 MV should be
-reproduced in open feedback response.
+central frequency 200.222 MHz, the feedback is opened, and the measured values
+of antenna voltage, which correspond to the generator voltage in this case,
+are compared to the set point voltage. The gain is fine-tuned to give the
+voltage asked for.
 
 :Authors: **Helga Timko**
 """
@@ -54,14 +55,30 @@ N_b = 1.e11                 # Bunch intensity [ppb]
 N_t = 1                     # Number of turns to track
 # CERN SPS --------------------------------------------------------------------
 
+
 # Printouts
-def logging_info():
+def logging_info(OTFB):
+
     logging.info("  Generator resistance R_gen %.8f kOhms", OTFB.TWC.R_gen/1e3)
     voltage = np.average(np.absolute(OTFB.V_coarse_tot[-10]))
     logging.info("  Final voltage cavities %.8e V" %voltage)
     current = np.average(np.absolute(OTFB.I_gen[-10]/OTFB.T_s))
     logging.info("  Final generator current %.8e A" %current)
     logging.info("  Calculated resistance %.8f kOhms" %(voltage/current/1e3))
+
+
+# Cavity-group pre-tracking
+def init_otfb(no_sections, no_cavities, V_part, G_tx):
+
+    OTFB = SPSOneTurnFeedback(rf, beam, profile, no_sections,
+                              n_cavities=no_cavities, V_part=V_part, G_ff=0,
+                              G_llrf=5, G_tx=G_tx, a_comb=15/16,
+                              Commissioning=Commissioning)
+    for i in range(50):
+        OTFB.track_no_beam()
+
+    return OTFB
+
 
 # Plot settings
 plt.rc('axes', labelsize=16, labelweight='normal')
@@ -106,45 +123,42 @@ Commissioning = CavityFeedbackCommissioning(debug=True, open_loop=False,
 
 if PRE_LS2_4SEC:
     logging.info("...... PRE-LS2 4-SECTION cavities")
-    OTFB = SPSOneTurnFeedback(rf, beam, profile, 4, n_cavities=2,
-                              V_part=4/9, G_ff=0, G_llrf=5, G_tx=1.002453405,
-                              a_comb=15/16, Commissioning=Commissioning)
-    for i in range(50):
-        OTFB.track_no_beam()
-    logging_info()
+    OTFB = init_otfb(4, 2, 4/9, 1.002453405)
+    logging_info(OTFB)
 
 if PRE_LS2_5SEC:
     logging.info("...... PRE-LS2 5-SECTION cavities")
-    OTFB = SPSOneTurnFeedback(rf, beam, profile, 5, n_cavities=2,
-                              V_part=5/9, G_ff=0, G_llrf=5, G_tx=1.00066015,
-                              a_comb=15/16, Commissioning=Commissioning)
-    for i in range(50):
-        OTFB.track_no_beam()
-    logging_info()
+    OTFB = init_otfb(5, 2, 5/9, 1.00066015)
+    logging_info(OTFB)
 
 if POST_LS2_3SEC:
     logging.info("...... POST-LS2 3-SECTION cavities")
-    OTFB = SPSOneTurnFeedback(rf, beam, profile, 3, n_cavities=4,
-                              V_part=6/10, G_ff=0, G_llrf=5, G_tx=0.99468245,
-                              a_comb=15/16, Commissioning=Commissioning)
-    for i in range(50):
-        OTFB.track_no_beam()
-    logging_info()
+    OTFB = init_otfb(3, 4, 6/10, 0.99468245)
+    logging_info(OTFB)
 
 if POST_LS2_4SEC:
     logging.info("...... POST-LS2 4-SECTION cavities")
-    OTFB = SPSOneTurnFeedback(rf, beam, profile, 4, n_cavities=2,
-                              V_part=4/10, G_ff=0, G_llrf=5, G_tx=1.002453405,
-                              a_comb=15/16, Commissioning=Commissioning)
-    for i in range(50):
-        OTFB.track_no_beam()
-    logging_info()
+    OTFB = init_otfb(4, 2, 4/10, 1.002453405)
+    logging_info(OTFB)
 
 
+# Check that the cavities altogether also give the desired voltage
+# BEFORE LS2
+logging.info("...... ALL PRE-LS2 CAVITIES")
+OTFB = SPSCavityFeedback(rf, beam, profile, G_llrf=5, a_comb=15/16, turns=50,
+                         post_LS2=False, Commissioning=Commissioning)
+logging.info("Final voltage, 4-section cavities %.8e V"
+             %np.average(np.absolute(OTFB.OTFB_1.V_coarse_tot[-10])))
+logging.info("Final voltage, 5-section cavities %.8e V"
+             %np.average(np.absolute(OTFB.OTFB_2.V_coarse_tot[-10])))
+
+# AFTER LS2
+logging.info("...... ALL POST-LS2 CAVITIES")
+OTFB = SPSCavityFeedback(rf, beam, profile, G_llrf=5, a_comb=15/16, turns=50,
+                         post_LS2=True, Commissioning=Commissioning)
+logging.info("Final voltage, 3-section cavities %.8e V"
+             %np.average(np.absolute(OTFB.OTFB_1.V_coarse_tot[-10])))
+logging.info("Final voltage, 4-section cavities %.8e V"
+             %np.average(np.absolute(OTFB.OTFB_2.V_coarse_tot[-10])))
 
 
-#OTFB = SPSCavityFeedback(rf, beam, profile, G_llrf=5, G_tx=0.99520546,
-#                         a_comb=15/16, turns=50, post_LS2=False,
-#                         Commissioning=Commissioning)
-#logging.info("Final voltage %.8e V"
-#             %np.average(np.absolute(OTFB.OTFB_1.V_coarse_tot[-10])))
