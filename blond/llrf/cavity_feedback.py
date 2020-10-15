@@ -115,7 +115,7 @@ class SPSCavityFeedback(object):
 
     """
 
-    def __init__(self, RFStation, Beam, Profile, G_ff=1, G_llrf=10, #G_tx=0.5,
+    def __init__(self, RFStation, Beam, Profile, G_ff=1, G_llrf=10,
                  a_comb=15/16, turns=1000, post_LS2=True, V_part=None,
                  Commissioning=CavityFeedbackCommissioning()):
 
@@ -139,13 +139,6 @@ class SPSCavityFeedback(object):
             G_llrf_1 = G_llrf
             G_llrf_2 = G_llrf
 
-#        if type(G_tx) is list:
-#            G_tx_1 = G_tx[0]
-#            G_tx_2 = G_tx[1]
-#        else:
-#            G_tx_1 = G_tx
-#            G_tx_2 = G_tx
-
         # Voltage partitioning has to be a fraction
         if V_part and V_part*(1 - V_part) < 0:
             raise RuntimeError("SPS cavity feedback: voltage partitioning has to be in the range (0,1)!")
@@ -158,7 +151,6 @@ class SPSCavityFeedback(object):
                                              n_cavities=4, V_part=V_part,
                                              G_ff=float(G_ff_1),
                                              G_llrf=float(G_llrf_1),
-#                                             G_tx=float(G_tx_1),
                                              G_tx=0.99468245,
                                              a_comb=float(a_comb),
                                              Commissioning=self.Commissioning)
@@ -166,7 +158,6 @@ class SPSCavityFeedback(object):
                                              n_cavities=2, V_part=1-V_part,
                                              G_ff=float(G_ff_2),
                                              G_llrf=float(G_llrf_2),
-#                                             G_tx=float(G_tx_2),
                                              G_tx = 1.002453405,
                                              a_comb=float(a_comb),
                                              Commissioning=self.Commissioning)
@@ -177,7 +168,6 @@ class SPSCavityFeedback(object):
                                              n_cavities=2, V_part=V_part,
                                              G_ff=float(G_ff_1),
                                              G_llrf=float(G_llrf_1),
-#                                             G_tx=float(G_tx_1),
                                              G_tx=1.002453405,
                                              a_comb=float(a_comb),
                                              Commissioning=self.Commissioning)
@@ -185,7 +175,6 @@ class SPSCavityFeedback(object):
                                              n_cavities=2, V_part=1-V_part,
                                              G_ff=float(G_ff_2),
                                              G_llrf=float(G_llrf_2),
-#                                             G_tx=float(G_tx_2),
                                              G_tx=1.00066015,
                                              a_comb=float(a_comb),
                                              Commissioning=self.Commissioning)
