@@ -23,7 +23,8 @@ import numpy
 # --------------
 from blond.input_parameters.ring import Ring
 from blond.input_parameters.rf_parameters import RFStation
-from blond.beam.beam import Beam, Proton
+from blond.input_parameters.rf_parameters import calculate_phi_s
+from blond.beam.beam import Beam, Proton, Electron
 from blond.llrf.rf_modulation import PhaseModulation as PMod
 #from beam.distributions import matched_from_distribution_function
 #from trackers.tracker import FullRingAndRF, RingAndRFTracker
@@ -217,9 +218,11 @@ class testRFParamClass(unittest.TestCase):
 
     def test_rf_parameters_calculate_phi_s(self):
 
-        # To be written
-        pass
-    
+        self.assertEqual(calculate_phi_s(self.rf_params, Particle=Proton())[0], numpy.pi,
+                         msg="Wrong phi_s for Proton")
+        self.assertEqual(calculate_phi_s(self.rf_params, Particle=Electron())[0], 0.0,
+                         msg="Wrong phi_s for Electron") 
+
     # Tests of empty RF station
     def test_rf_parameters_is_empty_station(self):
         
