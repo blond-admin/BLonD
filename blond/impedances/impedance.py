@@ -165,6 +165,10 @@ class _InducedVoltage(object):
         Multi-turn wake mode can be 'freq' or 'time' (default)
     RFParams : object, optional
         RFStation object for turn counter and revolution period
+    use_regular_fft : boolean
+        use the next_regular function to ensure regular number for FFT
+        calculations (default is True for efficient calculations, for
+        better control of the sampling frequency False is preferred)
 
     Attributes
     ----------
@@ -184,11 +188,13 @@ class _InducedVoltage(object):
         Multi-turn wake enable flag
     mtw_mode : boolean
         Multi-turn wake mode can be 'freq' or 'time' (default)
+    use_regular_fft : boolean
+        User set value to use (default) or not regular numbers for FFTs
     """
 
     def __init__(self, Beam, Profile, frequency_resolution=None,
                  wake_length=None, multi_turn_wake=False, mtw_mode='time',
-                 RFParams=None):
+                 RFParams=None, use_regular_fft=True):
 
         # Beam object in order to access the beam info
         self.beam = Beam
@@ -204,6 +210,9 @@ class _InducedVoltage(object):
 
         # Frequency resolution of the impedance (optional)
         self.frequency_resolution_input = frequency_resolution
+
+        # Use regular numbers for fft (optional)
+        self.use_regular_fft = use_regular_fft
 
         # RFStation object for turn counter and revolution period
         self.RFParams = RFParams
@@ -273,7 +282,10 @@ class _InducedVoltage(object):
                     np.ceil(np.max(self.buffer_extra) / self.profile.bin_size)
                 self.n_mtw_memory += int(self.buffer_size)
                 # Using next regular for FFTs speedup
-                self.n_mtw_fft = next_regular(self.n_mtw_memory)
+                if self.use_regular_fft:
+                    self.n_mtw_fft = next_regular(self.n_mtw_memory)
+                else:
+                    self.n_mtw_fft = self.n_mtw_memory
                 # Frequency and omega arrays
                 self.freq_mtw = \
                     bm.rfftfreq(self.n_mtw_fft, d=self.profile.bin_size)
@@ -399,6 +411,10 @@ class InducedVoltageTime(_InducedVoltage):
         RFStation object for turn counter and revolution period
     mtw_mode : boolean, optional
         Multi-turn wake mode can be 'freq' or 'time' (default)
+    use_regular_fft : boolean
+        use the next_regular function to ensure regular number for FFT
+        calculations (default is True for efficient calculations, for
+        better control of the sampling frequency False is preferred)
 
     Attributes
     ----------
@@ -406,10 +422,13 @@ class InducedVoltageTime(_InducedVoltage):
         Wake sources list (e.g. list of Resonator objects)
     total_wake : float array
         Total wake array of all sources in :math:`\Omega / s`
+    use_regular_fft : boolean
+        User set value to use (default) or not regular numbers for FFTs
     """
 
     def __init__(self, Beam, Profile, wake_source_list, wake_length=None,
-                 multi_turn_wake=False, RFParams=None, mtw_mode=None):
+                 multi_turn_wake=False, RFParams=None, mtw_mode=None,
+                 use_regular_fft=True):
 
         # Wake sources list (e.g. list of Resonator objects)
         self.wake_source_list = wake_source_list
@@ -420,7 +439,8 @@ class InducedVoltageTime(_InducedVoltage):
         # Call the __init__ method of the parent class [calls process()]
         _InducedVoltage.__init__(self, Beam, Profile, frequency_resolution=None,
                                  wake_length=wake_length, multi_turn_wake=multi_turn_wake,
-                                 RFParams=RFParams, mtw_mode=mtw_mode)
+                                 RFParams=RFParams, mtw_mode=mtw_mode,
+                                 use_regular_fft=use_regular_fft)
 
     def process(self):
         """
@@ -434,8 +454,12 @@ class InducedVoltageTime(_InducedVoltage):
         # in the frequency domain. The next regular number is used for speed,
         # therefore the frequency resolution is always equal or finer than
         # the input value
-        self.n_fft = next_regular(int(self.n_induced_voltage) +
-                                  int(self.profile.n_slices) - 1)
+        if self.use_regular_fft:
+            self.n_fft = next_regular(int(self.n_induced_voltage) +
+                                      int(self.profile.n_slices) - 1)
+        else:
+            self.n_fft = int(self.n_induced_voltage) + \
+                int(self.profile.n_slices) - 1
 
         # Frequency resolution in Hz
         self.frequency_resolution = 1 / (self.n_fft * self.profile.bin_size)
@@ -485,6 +509,10 @@ class InducedVoltageFreq(_InducedVoltage):
         RFStation object for turn counter and revolution period
     mtw_mode : boolean, optional
         Multi-turn wake mode can be 'freq' or 'time' (default)
+    use_regular_fft : boolean
+        use the next_regular function to ensure regular number for FFT
+        calculations (default is True for efficient calculations, for
+        better control of the sampling frequency False is preferred)
 
     Attributes
     ----------
@@ -494,11 +522,14 @@ class InducedVoltageFreq(_InducedVoltage):
         Total impedance array of all sources in* :math:`\Omega`
     front_wake_length : float
         Lenght [s] of the front wake (if any) for multi-turn wake mode
+    use_regular_fft : boolean
+        User set value to use (default) or not regular numbers for FFTs
     """
 
     def __init__(self, Beam, Profile, impedance_source_list,
                  frequency_resolution=None, multi_turn_wake=False,
-                 front_wake_length=0, RFParams=None, mtw_mode=None):
+                 front_wake_length=0, RFParams=None, mtw_mode=None,
+                 use_regular_fft=True):
 
         # Impedance sources list (e.g. list of Resonator objects)
         self.impedance_source_list = impedance_source_list
@@ -516,7 +547,7 @@ class InducedVoltageFreq(_InducedVoltage):
         _InducedVoltage.__init__(self, Beam, Profile, wake_length=None,
                                  frequency_resolution=frequency_resolution,
                                  multi_turn_wake=multi_turn_wake, RFParams=RFParams,
-                                 mtw_mode=mtw_mode)
+                                 mtw_mode=mtw_mode, use_regular_fft=use_regular_fft)
 
     def process(self):
         """
@@ -528,7 +559,10 @@ class InducedVoltageFreq(_InducedVoltage):
         # Number of points for the FFT. The next regular number is used for
         # speed, therefore the frequency resolution is always equal or finer
         # than the input value
-        self.n_fft = next_regular(self.n_induced_voltage)
+        if self.use_regular_fft:
+            self.n_fft = next_regular(self.n_induced_voltage)
+        else:
+            self.n_fft = self.n_induced_voltage
 
         self.profile.beam_spectrum_freq_generation(self.n_fft)
 
@@ -552,9 +586,9 @@ class InducedVoltageFreq(_InducedVoltage):
         self.total_impedance = np.zeros(
             freq.shape, dtype=bm.precision.complex_t, order='C')
 
-        for i in range(len(self.impedance_source_list)):
-            self.impedance_source_list[i].imped_calc(freq)
-            self.total_impedance += self.impedance_source_list[i].impedance
+        for impedance_source in self.impedance_source_list:
+            impedance_source.imped_calc(freq)
+            self.total_impedance += impedance_source.impedance
 
         # Factor relating Fourier transform and DFT
         self.total_impedance /= self.profile.bin_size

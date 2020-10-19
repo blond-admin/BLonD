@@ -123,7 +123,7 @@ class SPSCavityFeedback(object):
         self.rf = RFStation
 
         # Parse input for gains
-        if type(G_llrf) is list:
+        if type(G_ff) is list:
             G_ff_1 = G_ff[0]
             G_ff_2 = G_ff[1]
         else:
