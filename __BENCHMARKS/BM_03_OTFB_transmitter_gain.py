@@ -128,7 +128,7 @@ if PRE_LS2_4SEC:
 
 if PRE_LS2_5SEC:
     logging.info("...... PRE-LS2 5-SECTION cavities")
-    OTFB = init_otfb(5, 2, 5/9, 1.00066015)
+    OTFB = init_otfb(5, 2, 5/9, 1.00066011)
     logging_info(OTFB)
 
 if POST_LS2_3SEC:

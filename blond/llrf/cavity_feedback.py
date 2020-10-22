@@ -175,7 +175,7 @@ class SPSCavityFeedback(object):
                                              n_cavities=2, V_part=1-V_part,
                                              G_ff=float(G_ff_2),
                                              G_llrf=float(G_llrf_2),
-                                             G_tx=1.00066015,
+                                             G_tx=1.00066011,
                                              a_comb=float(a_comb),
                                              Commissioning=self.Commissioning)
 

@@ -14,7 +14,8 @@ from blond.input_parameters.rf_parameters import RFStation
 from blond.beam.beam import Beam, Proton
 from blond.beam.distributions import bigaussian
 from blond.beam.profile import Profile, CutOptions
-from blond.llrf.cavity_feedback import SPSCavityFeedback, CavityFeedbackCommissioning
+from blond.llrf.cavity_feedback import CavityFeedbackCommissioning, \
+    SPSCavityFeedback, SPSOneTurnFeedback, CavityFeedbackCommissioning
 from blond.llrf.cavity_feedback import LHCCavityLoop, LHCRFFeedback
 from blond.impedances.impedance import InducedVoltageTime, TotalInducedVoltage
 from blond.impedances.impedance_sources import TravelingWaveCavity
@@ -476,6 +477,71 @@ class TestCavityFeedback(unittest.TestCase):
                                    err_msg='In TestCavityFeedback test_Vsum_IQ: total voltage ' +
                                    'is different from expected values!')
 
+
+
+class TestSPSTransmitterGain(unittest.TestCase):
+
+    def setUp(self):
+        # Set up machine parameters
+        self.ring = Ring(2*np.pi*1100.009, 1/18.0**2, 25.92e9, Particle=Proton(),
+                    n_turns=1)
+        # Set up RF parameters
+        self.rf = RFStation(self.ring, [4620], [4.5e6], [0.], n_rf=1)
+        self.rf.omega_rf[0, 0] = 200.222e6*2*np.pi
+        # Define beam and fill it
+        self.beam = Beam(self.ring, 1e5, 1.e11)
+        bigaussian(self.ring, self.rf, self.beam, 3.2e-9/4, seed=1234,
+                   reinsertion=True)
+        self.profile = Profile(self.beam, CutOptions=CutOptions(cut_left=0.e-9,
+            cut_right=self.rf.t_rev[0], n_slices=4620))
+        self.profile.track()
+        # Commissioning options for the cavity feedback
+        self.commissioning = CavityFeedbackCommissioning(debug=True,
+            open_loop=False, open_FB=True, open_drive=False, open_FF=True)
+
+    def init_otfb(self, rf, beam, profile, commissioning,
+                  no_sections, no_cavities, V_part, G_tx):
+
+        OTFB = SPSOneTurnFeedback(rf, beam, profile, no_sections,
+                                  n_cavities=no_cavities, V_part=V_part,
+                                  G_ff=0,
+                                  G_llrf=5, G_tx=G_tx, a_comb=15/16,
+                                  Commissioning=commissioning)
+        for i in range(50):
+            OTFB.track_no_beam()
+
+        V = np.average(np.absolute(OTFB.V_coarse_tot[-10]))*1e-6  # in MV
+        I = np.average(np.absolute(OTFB.I_gen[-10]/OTFB.T_s))*1e-2  # in 100 A
+
+        return OTFB, V, I
+
+    def test_preLS24sec(self):
+
+        OTFB, V, I = self.init_otfb(self.rf, self.beam, self.profile,
+                                    self.commissioning, 4, 2, 4/9, 1.002453405)
+        self.assertAlmostEqual(V, 2.00000000, places=7)
+        self.assertAlmostEqual(I, 1.51460534, places=7)
+
+    def test_preLS25sec(self):
+
+        OTFB, V, I = self.init_otfb(self.rf, self.beam, self.profile,
+                                    self.commissioning, 5, 2, 5/9, 1.00066011)
+        self.assertAlmostEqual(V, 2.50000000, places=7)
+        self.assertAlmostEqual(I, 1.50489633, places=7)
+
+    def test_postLS23sec(self):
+
+        OTFB, V, I = self.init_otfb(self.rf, self.beam, self.profile,
+                                    self.commissioning, 3, 4, 6/10, 0.99468245)
+        self.assertAlmostEqual(V, 2.70000000, places=7)
+        self.assertAlmostEqual(I, 2.72628962, places=7)
+
+    def test_postLS24sec(self):
+
+        OTFB, V, I = self.init_otfb(self.rf, self.beam, self.profile,
+                                    self.commissioning, 4, 2, 4/10, 1.002453405)
+        self.assertAlmostEqual(V, 1.80000000, places=7)
+        self.assertAlmostEqual(I, 1.36314481, places=7)
 
 
 class TestLHCOpenDrive(unittest.TestCase):
