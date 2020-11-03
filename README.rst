@@ -279,7 +279,7 @@ Set-up Instructions
   
 * adjust your main file as needed (described bellow).
 
-* example scripts to setup and run a parameter scan in the HPC Slurm cluster: https://cernbox.cern.ch/index.php/s/dS1hwr7E1eIdsne
+* example scripts to setup and run a parameter scan in the HPC Slurm cluster: https://cernbox.cern.ch/index.php/s/shqtotwyn4rm8ws
 
 Changes required in the main file for MPI
 -----------------------------------------
