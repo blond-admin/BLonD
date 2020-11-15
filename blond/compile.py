@@ -51,6 +51,10 @@ parser.add_argument('-c', '--compiler', type=str, default='g++',
 parser.add_argument('--with-fftw', action='store_true',
                     help='Use the FFTs from FFTW3.')
 
+parser.add_argument('-gpu', '--gpu', action='store_true',
+                    help='Compile the GPU kernels too.'
+                    'Default: Only compile the C++ library.')
+
 parser.add_argument('--with-fftw-threads', action='store_true',
                     help='Use the multi-threaded FFTs from FFTW3.')
 
@@ -95,6 +99,8 @@ cpp_files = [
     os.path.join(basepath, 'synchrotron_radiation/synchrotron_radiation.cpp'),
     os.path.join(basepath, 'beam/sparse_histogram.cpp'),
 ]
+
+nvccflags = ['nvcc', '--cubin', '-arch', 'sm_52', '-O3', '--use_fast_math']
 
 
 if (__name__ == "__main__"):
@@ -181,3 +187,36 @@ if (__name__ == "__main__"):
     except Exception as e:
         print('\nCompilation failed.')
         print(e)
+
+    # Compile the GPU library
+    if args.gpu:
+        print('\nCompiling the CUDA library.')
+        if 'sm_xx' in nvccflags:
+            raise Exception("You need to replace the sm_xx with the compute capability "
+                            "of your GPU in the blond/compile.py file.\n" +
+                            "To find your GPU model type nvidia-smi in a terminal and " +
+                            "and search for it in this link: https://en.wikipedia.org/wiki/CUDA\n" +
+                            "For example if your GPU has compute capability 7.2 replace the sm_xx with sm_72.")
+        libname_double = os.path.join(basepath, 'gpu/cuda_kernels/kernels_double.cubin')
+        libname_single = os.path.join(basepath, 'gpu/cuda_kernels/kernels_single.cubin')
+        # we need to get the header files location
+        output = subprocess.run('pip3 show pycuda | grep Location', shell=True,
+                                stdout=subprocess.PIPE,
+                                encoding='utf-8')
+        pycudaloc = os.path.join(output.stdout.split(
+            'Location:')[1].strip(), 'pycuda/cuda')
+
+        command = nvccflags + ['-o', libname_single, '-I'+pycudaloc,
+                               os.path.join(basepath, 'gpu/cuda_kernels/kernels_single.cu')]
+        subprocess.call(command)
+
+        command = nvccflags + ['-o', libname_double, '-I'+pycudaloc,
+                               os.path.join(basepath, 'gpu/cuda_kernels/kernels_double.cu')]
+        subprocess.call(command)
+
+
+        if os.path.isfile(libname_single) and os.path.isfile(libname_double):
+            print('\nThe CUDA library has been compiled.')
+        else:
+            print('\nThe CUDA library compilation failed.')
+
