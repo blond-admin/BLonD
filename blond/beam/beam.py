@@ -212,21 +212,6 @@ class Beam(object):
         self._sumsq_dt = 0.
         self._sumsq_dE = 0.
 
-    def use_gpu(self):
-        # There has to be a previous call to bm.use_gpu() to enable gpu mode
-        from ..gpu.gpu_cpu_array import CGA
-        from ..gpu import gpu_beam as gb
-        if self.__class__ == gb.GpuBeam:
-            return
-
-        self.dE_obj = CGA(self.dE)
-
-        self.dt_obj = CGA(self.dt)
-
-        self.id_obj = CGA(self.id, dtype2=bm.precision.real_t)
-        self.__class__ = gb.GpuBeam
-
-
     @property
     def n_macroparticles_lost(self):
         '''Number of lost macro-particles, defined as @property.

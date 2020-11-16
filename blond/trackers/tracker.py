@@ -316,25 +316,7 @@ class RingAndRFTracker(object):
             warnings.warn('Setting interpolation to TRUE')
             # self.logger.warning("Setting interpolation to TRUE")
 
-    def use_gpu(self):
-        # There has to be a previous call to bm.use_gpu() to enable gpu mode
-        if bm.gpuMode():
-            from ..gpu.gpu_tracker import GpuRingAndRFTracker
-            from ..gpu.gpu_cpu_array import CGA
 
-            self.rf_voltage_obj = CGA(np.array([]))
-            self.__class__ = GpuRingAndRFTracker
-            if self.profile:
-                self.profile.use_gpu()
-            if self.totalInducedVoltage:
-                self.totalInducedVoltage.use_gpu()
-            if self.beam:
-                self.beam.use_gpu()
-            if self.beamFB:
-                self.beamFB.use_gpu()
-            if self.rf_params:
-                self.rf_params.use_gpu()
-            self.dev_phi_modulation = self.rf_params.dev_phi_modulation
 
     def kick(self, beam_dt, beam_dE, index):
         """Function updating the particle energy due to the RF kick in a given

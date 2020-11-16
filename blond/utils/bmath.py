@@ -209,7 +209,8 @@ class GPUDev:
         return self.mod
 
 
-def use_gpu(comps=[], gpu_id=0):
+def use_gpu(gpu_id=0):
+
     if gpu_id < 0:
         return
 
@@ -223,10 +224,8 @@ def use_gpu(comps=[], gpu_id=0):
     from ..gpu import gpu_physics_wrap
     from ..gpu import gpu_butils_wrap
 
-    for obj in comps:
-        if (hasattr(obj, "use_gpu")):
-            print("using gpu")
-            obj.use_gpu()
+    # now we have to add use_gpu methods to our objects
+    from ..gpu import gpu_activation
 
     _GPU_func_dict = {
         'rfft': gpu_butils_wrap.gpu_rfft,
@@ -275,6 +274,8 @@ def use_gpu(comps=[], gpu_id=0):
         'device': 'GPU'
     }
     update_active_dict(_GPU_func_dict)
+
+
 # print ('Available functions on GPU:\n' + str(_CPU_numpy_func_dict.keys()))
 # print ('Available functions on CPU:\n' + str(_GPU_func_dict.keys()))
 

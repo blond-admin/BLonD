@@ -359,44 +359,6 @@ class RFStation(object):
             self.Q_s = calculate_Q_s(self, self.Particle)
             self.omega_s0 = self.Q_s*Ring.omega_rev
 
-    def use_gpu(self):
-        from ..gpu.gpu_cpu_array import CGA
-        from ..gpu.gpu_rf_parameters import GpuRFStation
-        from pycuda import gpuarray
-        if self.__class__ == GpuRFStation:
-            return
-
-        if not self.phi_modulation:
-            self.dev_phi_modulation = None
-        else:
-            self.dev_phi_modulation = (gpuarray.to_gpu(self.phi_modulation[0]), gpuarray.to_gpu(self.phi_modulation[1]))
-
-        if (self.phi_noise is None):
-            self.dev_phi_noise = None
-        else:
-            self.dev_phi_noise = gpuarray.to_gpu(self.phi_noise.flatten())
-
-        ## gpu properties
-
-        # voltage to gpu
-        self.voltage_obj = CGA(self.voltage)
-
-        # omega_rf to gpu
-        self.omega_rf_obj = CGA(self.omega_rf)
-
-        # phi_rf to gpu
-        self.phi_rf_obj = CGA(self.phi_rf)
-
-        # omega_rf_d to gpu
-        self.omega_rf_d_obj = CGA(self.omega_rf_d)
-        # assert self.omega_rf_d.dtype == bm.precision.real_t
-
-        # harmonic to gpu
-        self.harmonic_obj = CGA(self.harmonic)
-
-        # dphi_rf to gpu
-        self.dphi_rf_obj = CGA(self.dphi_rf)
-        self.__class__ = GpuRFStation
 
     def eta_tracking(self, beam, counter, dE):
         r"""Function to calculate the slippage factor as a function of the
