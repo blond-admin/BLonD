@@ -57,6 +57,19 @@ class GpuTotalInducedVoltage(TotalInducedVoltage):
             add_array(self.dev_induced_voltage, induced_voltage_object.dev_induced_voltage,
                       slice=slice(0, self.profile.n_slices))
 
+    def track(self):
+        """
+        GPU implementation of TotalInducedVoltage.track
+        """
+
+        self.induced_voltage_sum()
+        bm.linear_interp_kick(self.beam.dev_dt, self.beam.dev_dE,
+                              self.dev_induced_voltage,
+                              self.profile.dev_bin_centers,
+                              self.beam.Particle.charge,
+                              acceleration_kick=0.)
+        self.beam.dE_obj.invalidate_cpu()
+
 
 class GpuInducedVoltage(_InducedVoltage):
 

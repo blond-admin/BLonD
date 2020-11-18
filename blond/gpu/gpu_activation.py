@@ -1,5 +1,6 @@
 from ..beam.profile import Profile
 from ..input_parameters.rf_parameters import RFStation
+from ..llrf.beam_feedback import BeamFeedback
 from ..trackers.tracker import RingAndRFTracker
 from ..utils import bmath as bm
 from ..beam import beam
@@ -170,7 +171,7 @@ InductiveImpedance.use_gpu = use_gpu_inductive_impedance
 
 
 # InducedVoltageResonator
-def use_gpu_inductive_voltage_resonator():
+def use_gpu_inductive_voltage_resonator(self):
     pass
 
 
@@ -217,3 +218,11 @@ def use_gpu_rf_station(self):
 
 
 RFStation.use_gpu = use_gpu_rf_station
+
+# BeamFeedback
+def use_gpu_beamfeedback(self):
+    from ..gpu.gpu_beamfeedback import GpuBeamFeedback
+    self.__class__ = GpuBeamFeedback
+
+
+BeamFeedback.use_gpu = use_gpu_beamfeedback

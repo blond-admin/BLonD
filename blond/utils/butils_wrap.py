@@ -624,7 +624,6 @@ def kick(dt, dE, voltage, omega_rf, phi_rf, charge, n_rf, acceleration_kick):
     omegarf_kick = omega_rf.astype(
         dtype=precision.real_t, order='C', copy=False)
     phirf_kick = phi_rf.astype(dtype=precision.real_t, order='C', copy=False)
-
     if precision.num == 1:
         __lib.kickf(__getPointer(dt),
                     __getPointer(dE),

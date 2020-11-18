@@ -37,32 +37,31 @@ def gpu_rf_volt_comp(dev_voltage, dev_omega_rf, dev_phi_rf, dev_bin_centers, dev
         block=block_size, grid=grid_size, time_kernel=True)
 
 
-def gpu_kick(dev_voltage, dev_omega_rf, dev_phi_rf, charge, n_rf, acceleration_kick, beam):
+def gpu_kick(dev_dt, dev_dE, dev_voltage, dev_omega_rf, dev_phi_rf, charge, n_rf, acceleration_kick):
     dev_voltage_kick = get_gpuarray(
         (dev_voltage.size, bm.precision.real_t, 0, 'vK'))
 
-    assert beam.dev_dt.dtype == bm.precision.real_t
-    assert beam.dev_dE.dtype == bm.precision.real_t
+    assert dev_dt.dtype == bm.precision.real_t
+    assert dev_dE.dtype == bm.precision.real_t
     assert dev_voltage_kick.dtype == bm.precision.real_t
     assert dev_omega_rf.dtype == bm.precision.real_t
     assert dev_phi_rf.dtype == bm.precision.real_t
 
     d_multscalar(dev_voltage_kick, dev_voltage, charge)
 
-    kick_kernel(beam.dev_dt,
-                beam.dev_dE,
+    kick_kernel(dev_dt,
+                dev_dE,
                 np.int32(n_rf),
                 dev_voltage_kick,
                 dev_omega_rf,
                 dev_phi_rf,
-                np.int32(beam.dev_dt.size),
+                np.int32(dev_dt.size),
                 bm.precision.real_t(acceleration_kick),
                 block=block_size, grid=grid_size, time_kernel=True)
-    beam.dE_obj.invalidate_cpu()
 
 
-def gpu_drift(solver_utf8, t_rev, length_ratio, alpha_order, eta_0,
-              eta_1, eta_2, alpha_0, alpha_1, alpha_2, beta, energy, beam):
+def gpu_drift(dev_dt, dev_dE, solver_utf8, t_rev, length_ratio, alpha_order, eta_0,
+              eta_1, eta_2, alpha_0, alpha_1, alpha_2, beta, energy):
     solver = solver_utf8.decode('utf-8')
     if solver == "simple":
         solver = np.int32(0)
@@ -71,8 +70,8 @@ def gpu_drift(solver_utf8, t_rev, length_ratio, alpha_order, eta_0,
     else:
         solver = np.int32(2)
 
-    drift(beam.dev_dt,
-          beam.dev_dE,
+    drift(dev_dt,
+          dev_dE,
           solver,
           bm.precision.real_t(t_rev), bm.precision.real_t(length_ratio),
           bm.precision.real_t(alpha_order), bm.precision.real_t(eta_0),
@@ -80,27 +79,25 @@ def gpu_drift(solver_utf8, t_rev, length_ratio, alpha_order, eta_0,
           bm.precision.real_t(alpha_0), bm.precision.real_t(alpha_1),
           bm.precision.real_t(alpha_2),
           bm.precision.real_t(beta), bm.precision.real_t(energy),
-          np.int32(beam.dev_dt.size),
+          np.int32(dev_dt.size),
           block=block_size, grid=grid_size, time_kernel=True)
 
-    beam.dt_obj.invalidate_cpu()
 
-
-def gpu_linear_interp_kick(dev_voltage,
+def gpu_linear_interp_kick(dev_dt, dev_dE, dev_voltage,
                            dev_bin_centers, charge,
-                           acceleration_kick, beam=None):
-    assert beam.dev_dt.dtype == bm.precision.real_t
-    assert beam.dev_dE.dtype == bm.precision.real_t
+                           acceleration_kick):
+    assert dev_dt.dtype == bm.precision.real_t
+    assert dev_dE.dtype == bm.precision.real_t
     assert dev_voltage.dtype == bm.precision.real_t
     assert dev_bin_centers.dtype == bm.precision.real_t
 
-    macros = beam.dev_dt.size
+    macros = dev_dt.size
     slices = dev_bin_centers.size
 
     dev_voltage_kick = get_gpuarray((slices - 1, bm.precision.real_t, 0, 'vK'))
     dev_factor = get_gpuarray((slices - 1, bm.precision.real_t, 0, 'dF'))
-    gm_linear_interp_kick_help(beam.dev_dt,
-                               beam.dev_dE,
+    gm_linear_interp_kick_help(dev_dt,
+                               dev_dE,
                                dev_voltage,
                                dev_bin_centers,
                                bm.precision.real_t(charge),
@@ -112,8 +109,8 @@ def gpu_linear_interp_kick(dev_voltage,
                                grid=grid_size, block=block_size,
                                time_kernel=True)
 
-    gm_linear_interp_kick_comp(beam.dev_dt,
-                               beam.dev_dE,
+    gm_linear_interp_kick_comp(dev_dt,
+                               dev_dE,
                                dev_voltage,
                                dev_bin_centers,
                                bm.precision.real_t(charge),
@@ -124,7 +121,6 @@ def gpu_linear_interp_kick(dev_voltage,
                                dev_factor,
                                grid=grid_size, block=block_size,
                                time_kernel=True)
-    beam.dE_obj.invalidate_cpu()
 
 
 def gpu_linear_interp_kick_drift(dev_voltage,

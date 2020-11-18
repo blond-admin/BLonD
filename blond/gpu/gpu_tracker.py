@@ -95,11 +95,13 @@ class GpuRingAndRFTracker(RingAndRFTracker):
                                        self.totalInducedVoltage.dev_induced_voltage)
                         else:
                             self.dev_total_voltage = self.dev_rf_voltage
-                        bm.linear_interp_kick(dev_voltage=self.dev_total_voltage,
-                                              dev_bin_centers=self.profile.dev_bin_centers,
-                                              charge=self.beam.Particle.charge,
-                                              acceleration_kick=self.acceleration_kick[turn],
-                                              beam=self.beam)
+                        bm.linear_interp_kick(self.beam.dev_dt, self.beam.dev_dt,
+                                              self.dev_total_voltage,
+                                              self.profile.dev_bin_centers,
+                                              self.beam.Particle.charge,
+                                              self.acceleration_kick[turn],
+                                              )
+                        self.beam.dE_obj.invalidate_cpu()
                         # bm.LIKick_n_drift(dev_voltage=self.dev_total_voltage,
                         #                   dev_bin_centers=self.profile.dev_bin_centers,
                         #                   charge=self.beam.Particle.charge,
@@ -188,9 +190,9 @@ class GpuRingAndRFTracker(RingAndRFTracker):
         dev_omega_rf[:] = self.rf_params.dev_omega_rf[index:my_end:self.rf_params.n_turns + 1]
         dev_phi_rf[:] = self.rf_params.dev_phi_rf[index:my_end:self.rf_params.n_turns + 1]
 
-        bm.kick(dev_voltage, dev_omega_rf, dev_phi_rf,
-                self.charge, self.n_rf,
-                self.acceleration_kick[index], self.beam)
+        bm.kick(self.beam.dev_dt, self.beam.dev_dE, dev_voltage, dev_omega_rf,
+                dev_phi_rf, self.charge, self.n_rf,
+                self.acceleration_kick[index])
         self.beam.dE_obj.invalidate_cpu()
 
     @timing.timeit(key='comp:drift')
@@ -198,9 +200,9 @@ class GpuRingAndRFTracker(RingAndRFTracker):
         """
         Gpu Equivalent for drift
         """
-        bm.drift(self.solver, self.t_rev[index],
+        bm.drift(self.beam.dev_dt, self.beam.dev_dE, self.solver, self.t_rev[index],
                  self.length_ratio, self.alpha_order, self.eta_0[index],
                  self.eta_1[index], self.eta_2[index], self.alpha_0[index],
                  self.alpha_1[index], self.alpha_2[index],
-                 self.rf_params.beta[index], self.rf_params.energy[index], self.beam)
+                 self.rf_params.beta[index], self.rf_params.energy[index])
         self.beam.dt_obj.invalidate_cpu()

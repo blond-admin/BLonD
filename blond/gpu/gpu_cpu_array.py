@@ -3,6 +3,7 @@ from pycuda import gpuarray
 from ..utils import bmath as bm
 
 
+
 try:
     from pyprof import timing
 except ImportError:
@@ -54,6 +55,7 @@ class MyCpuarray(np.ndarray):
 
     def cpu_validate(self):
         if hasattr(self, 'dev_array') and (not hasattr(self, "cpu_valid") or not self.cpu_valid):
+        # if not self.cpu_valid:
                 self.cpu_valid = True
                 dummy = self.dev_array.get().reshape(self.sp).astype(self.dtype1)
                 super().__setitem__(slice(None, None, None), dummy)
@@ -73,10 +75,10 @@ class MyCpuarray(np.ndarray):
             self.gpu_valid = False
         super(MyCpuarray, self).__setitem__(key, value)
 
-    def __getitem__(self, key):
-        self.cpu_validate()
-        temp = super(MyCpuarray, self).__getitem__(key)
-        return temp
+    # We dont need this
+    # def __getitem__(self, key):
+    #     temp = super(MyCpuarray, self).__getitem__(key)
+    #     return temp
 
 
 class CGA:
@@ -129,7 +131,7 @@ class CGA:
 
 
 # # To test this implementation
-#
+# import pycuda.autoinit
 # class ExampleClass:
 #     def __init__(self, bin_centers):
 #         self.bin_centers_obj = CGA(bin_centers)
@@ -158,40 +160,46 @@ class CGA:
 # C.bin_centers[0][0] = 5
 # print(C.bin_centers)
 # print(C.dev_bin_centers)
-#
 # print("....................")
+#
 # C.dev_bin_centers = gpuarray.zeros(8, np.float64)
 # print(C.bin_centers)
 # print(C.dev_bin_centers)
-#
 # print("....................")
+#
 # C.bin_centers[0][:3] = np.array([1, 2, 3])
 # print(C.bin_centers)
 # print(C.dev_bin_centers)
-#
 # print("....................")
+#
 # C.bin_centers *= C.bin_centers + C.bin_centers
 # print(C.bin_centers)
 # print(C.dev_bin_centers)
+# print("....................")
 #
-# # Testing with a 2d array
-#
+# # Testing with a 1d array
 # D = ExampleClass(np.array([1, 2, 3, 4, 5, 6, 7, 8]).astype(np.float64))
 # D.bin_centers[0] = 5
 # print(D.bin_centers)
 # print(D.dev_bin_centers)
-#
 # print("....................")
+#
 # D.dev_bin_centers = gpuarray.zeros(8, np.float64)
 # print(D.bin_centers)
 # print(D.dev_bin_centers)
-#
 # print("....................")
+#
 # D.bin_centers[:3] = np.array([1, 2, 3])
 # print(D.bin_centers)
 # print(D.dev_bin_centers)
-#
 # print("....................")
+#
 # D.bin_centers *= D.bin_centers + D.bin_centers
 # print(D.bin_centers)
 # print(D.dev_bin_centers)
+# print("....................")
+#
+# D.dev_bin_centers *= D.dev_bin_centers + D.dev_bin_centers
+# print(D.bin_centers)
+# # print(D.dev_bin_centers)
+
