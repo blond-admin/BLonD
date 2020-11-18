@@ -51,7 +51,7 @@ parser.add_argument('-c', '--compiler', type=str, default='g++',
 parser.add_argument('--with-fftw', action='store_true',
                     help='Use the FFTs from FFTW3.')
 
-parser.add_argument('-gpu', '--gpu', action='store_true',
+parser.add_argument('-gpu', '--gpu', default=None,
                     help='Compile the GPU kernels too.'
                     'Default: Only compile the C++ library.')
 
@@ -100,7 +100,7 @@ cpp_files = [
     os.path.join(basepath, 'beam/sparse_histogram.cpp'),
 ]
 
-nvccflags = ['nvcc', '--cubin', '-arch', 'sm_52', '-O3', '--use_fast_math']
+nvccflags = ['nvcc', '--cubin', '-arch', 'sm_xx', '-O3', '--use_fast_math']
 
 
 if (__name__ == "__main__"):
@@ -190,13 +190,8 @@ if (__name__ == "__main__"):
 
     # Compile the GPU library
     if args.gpu:
-        print('\nCompiling the CUDA library.')
-        if 'sm_xx' in nvccflags:
-            raise Exception("You need to replace the sm_xx with the compute capability "
-                            "of your GPU in the blond/compile.py file.\n" +
-                            "To find your GPU model type nvidia-smi in a terminal and " +
-                            "and search for it in this link: https://en.wikipedia.org/wiki/CUDA\n" +
-                            "For example if your GPU has compute capability 7.2 replace the sm_xx with sm_72.")
+        print('\nCompiling the CUDA library for architecture {}.{}.'.format(args.gpu[0], args.gpu[1]))
+        nvccflags[3] = 'sm_{}'.format(args.gpu)
         libname_double = os.path.join(basepath, 'gpu/cuda_kernels/kernels_double.cubin')
         libname_single = os.path.join(basepath, 'gpu/cuda_kernels/kernels_single.cubin')
         # we need to get the header files location

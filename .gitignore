@@ -4,12 +4,12 @@
 *.so
 *.dll
 *.project
-
+*.cubin
 *.pydevproject
 
 .settings
 .pytest_cache
-
+__pycache__/
 /__doc/_build/
 /__doc/build/
 /__EXAMPLES/output_files/
