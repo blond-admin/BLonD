@@ -205,16 +205,4 @@ print('profile mean: ', np.mean(slice_beam.n_macroparticles))
 print('profile std: ', np.std(slice_beam.n_macroparticles))
 
 
-test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
-    np.mean(my_beam.dE), np.std(my_beam.dE), np.mean(my_beam.dt), np.std(my_beam.dt))
-with open(this_directory + '../output_files/EX_02_test_data.txt', 'w') as f:
-    f.write(test_string)
-    
 
-print("Done!")
-import matplotlib
-import matplotlib.pyplot as plt
-import numpy as np
-fig, ax = plt.subplots()
-ax.plot(my_beam.dt)
-plt.show()
