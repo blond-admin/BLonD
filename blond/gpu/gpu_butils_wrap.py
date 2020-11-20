@@ -64,6 +64,14 @@ elw.get_elwise_range_module = custom_get_elwise_range_module
 elw.get_elwise_module = custom_get_elwise_no_range_module
 elw.get_elwise_kernel_and_types = custom_get_elwise_kernel_and_types
 
+
+def get_reduction_module(*args, **kwargs):
+    return central_mod
+
+
+red.get_reduction_module = get_reduction_module
+
+
 ElementwiseKernel = elw.ElementwiseKernel
 ReductionKernel = red.ReductionKernel
 
