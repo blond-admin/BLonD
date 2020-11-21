@@ -13,13 +13,14 @@ from .. import libblond as __lib
 
 class Precision:
     def __init__(self, precision='double'):
-        self.str = precision
         if precision in ['single', 's', '32', 'float32', 'float', 'f']:
+            self.str = 'float'
             self.real_t = np.float32
             self.c_real_t = ct.c_float
             self.complex_t = np.complex64
             self.num = 1
         elif precision in ['double', 'd', '64', 'float64']:
+            self.str = 'double'
             self.real_t = np.float64
             self.c_real_t = ct.c_double
             self.complex_t = np.complex128

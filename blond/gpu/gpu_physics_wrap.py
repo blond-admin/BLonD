@@ -172,25 +172,24 @@ def gpu_linear_interp_kick_drift(dev_voltage,
     beam.dt_obj.invalidate_cpu()
 
 
-def gpu_slice(cut_left, cut_right, beam, profile):
+def gpu_slice(dev_dt, dev_n_macroparticles, cut_left, cut_right):
 
-    assert beam.dev_dt.dtype == bm.precision.real_t
+    assert dev_dt.dtype == bm.precision.real_t
 
-    n_slices = profile.dev_n_macroparticles.size
-    set_zero_int(profile.dev_n_macroparticles)
+    n_slices = dev_n_macroparticles.size
+    set_zero_int(dev_n_macroparticles)
     if 4*n_slices < my_gpu.MAX_SHARED_MEMORY_PER_BLOCK:
-        sm_histogram(beam.dev_dt, profile.dev_n_macroparticles, bm.precision.real_t(cut_left),
+        sm_histogram(dev_dt, dev_n_macroparticles, bm.precision.real_t(cut_left),
                      bm.precision.real_t(cut_right), np.uint32(n_slices),
-                     np.uint32(beam.dev_dt.size),
+                     np.uint32(dev_dt.size),
                      grid=grid_size, block=block_size, shared=4*n_slices, time_kernel=True)
     else:
-        hybrid_histogram(beam.dev_dt, profile.dev_n_macroparticles, bm.precision.real_t(cut_left),
+        hybrid_histogram(dev_dt, dev_n_macroparticles, bm.precision.real_t(cut_left),
                          bm.precision.real_t(cut_right), np.uint32(n_slices),
-                         np.uint32(beam.dev_dt.size), np.int32(
+                         np.uint32(dev_dt.size), np.int32(
                              my_gpu.MAX_SHARED_MEMORY_PER_BLOCK/4),
                          grid=grid_size, block=block_size, shared=my_gpu.MAX_SHARED_MEMORY_PER_BLOCK, time_kernel=True)
-    profile.n_macroparticles_obj.invalidate_cpu()
-    return profile.dev_n_macroparticles
+    return dev_n_macroparticles
 
 
 def gpu_synchrotron_radiation(dE, U0, n_kicks, tau_z):

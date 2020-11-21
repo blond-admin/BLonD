@@ -98,7 +98,7 @@ class GpuProfile(Profile):
         Gpu Equivalent for _slice
         """
 
-        bm.slice(self.cut_left, self.cut_right, self.Beam, self)
+        bm.slice(self.Beam.dev_dt, self.dev_n_macroparticles, self.cut_left, self.cut_right)
         self.n_macroparticles_obj.invalidate_cpu()
 
     @timing.timeit(key='serial:beam_spectrum_gen')

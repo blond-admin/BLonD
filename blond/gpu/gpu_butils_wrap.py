@@ -334,9 +334,9 @@ def inverse_find_plan(size):
 
 
 def gpu_rfft(dev_a, n=0, result=None, caller_id=None):
-    if n == 0 and result == None:
+    if n == 0 and result is None:
         n = dev_a.size
-    elif (n != 0) and (result == None):
+    elif n != 0 and result is None:
         pass
     if caller_id is None:
         result = gpuarray.empty(n // 2 + 1, bm.precision.complex_t)
@@ -365,9 +365,9 @@ def gpu_rfft(dev_a, n=0, result=None, caller_id=None):
 
 
 def gpu_irfft(dev_a, n=0, result=None, caller_id=None):
-    if (n == 0) and (result == None):
+    if n == 0 and result is None:
         n = 2 * (dev_a.size - 1)
-    elif (n != 0) and (result == None):
+    elif n != 0 and result is None:
         pass
 
     if caller_id is None:
