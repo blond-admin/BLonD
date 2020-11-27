@@ -1,7 +1,7 @@
 import numpy as np
 from ..utils import bmath as bm
 from ..gpu.gpu_cache import get_gpuarray
-from ..gpu.gpu_butils_wrap import gpu_diff, cugradient, gpu_copy_d2d, gpu_interp
+from ..gpu.gpu_butils_wrap import gpu_diff, cugradient, gpu_copy_d2d, gpu_interp, d_multscalar
 
 from ..beam.profile import Profile
 from pycuda import gpuarray
@@ -166,6 +166,20 @@ class GpuProfile(Profile):
                 self.n_macroparticles = my_n_macroparticles.astype(dtype=bm.precision.real_t, order='C', copy=False)
 
     @timing.timeit(key='serial:scale_histo')
+    def old_scale_histo(self):
+        """
+        Gpu Equivalent for scale_histo
+        """
+        if not bm.mpiMode():
+            raise RuntimeError(
+                'ERROR: Cannot use this routine unless in MPI Mode')
+
+        from ..utils.mpi_config import worker
+        if self.Beam.is_splitted:
+            self.n_macroparticles = self.n_macroparticles * worker.workers
+            self.n_macroparticles_obj.invalidate_gpu()
+    
+    @timing.timeit(key='serial:scale_histo')
     def scale_histo(self):
         """
         Gpu Equivalent for scale_histo
@@ -176,5 +190,5 @@ class GpuProfile(Profile):
 
         from ..utils.mpi_config import worker
         if self.Beam.is_splitted:
-            bm.mul(self.n_macroparticles, worker.workers, self.n_macroparticles)
-            self.n_macroparticles_obj.invalidate_gpu()
+            d_multscalar(self.dev_n_macroparticles, self.dev_n_macroparticles, bm.precision.real_t(worker.workers))
+            self.n_macroparticles_obj.invalidate_cpu()

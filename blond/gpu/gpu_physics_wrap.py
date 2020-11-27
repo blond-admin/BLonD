@@ -19,7 +19,6 @@ gm_linear_interp_kick_drift_comp = ker.get_function("lik_drift_only_gm_comp")
 halve_edges = ker.get_function("halve_edges")
 beam_phase_v2 = ker.get_function("beam_phase_v2")
 beam_phase_sum = ker.get_function("beam_phase_sum")
-
 synch_rad = ker.get_function("synchrotron_radiation")
 synch_rad_full = ker.get_function("synchrotron_radiation_full")
 
@@ -207,7 +206,6 @@ def gpu_synchrotron_radiation_full(dE, U0, n_kicks, tau_z, sigma_dE, energy):
 
 
 def gpu_beam_phase(bin_centers, profile, alpha, omega_rf, phi_rf, ind, bin_size):
-
     assert bin_centers.dtype == bm.precision.real_t
     assert profile.dtype == np.int32
     assert omega_rf.dtype == bm.precision.real_t

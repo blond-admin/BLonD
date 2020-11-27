@@ -726,7 +726,7 @@ def linear_interp_kick_n_drift(dt, dE, total_voltage, bin_centers, charge, acc_k
                                eta_2, beta, energy):
     assert isinstance(dt[0], precision.real_t)
     assert isinstance(dE[0], precision.real_t)
-    assert isinstance(voltage[0], precision.real_t)
+    assert isinstance(total_voltage[0], precision.real_t)
     assert isinstance(bin_centers[0], precision.real_t)
 
     # dt = dt.astype(dtype=precision.real_t, order='C', copy=False)

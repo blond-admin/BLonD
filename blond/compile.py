@@ -100,7 +100,7 @@ cpp_files = [
     os.path.join(basepath, 'beam/sparse_histogram.cpp'),
 ]
 
-nvccflags = ['nvcc', '--cubin', '-arch', 'sm_xx', '-O3', '--use_fast_math']
+nvccflags = ['nvcc', '--cubin', '-arch', 'sm_xx', '-O3', '--use_fast_math', '-maxrregcount', '32']
 
 
 if (__name__ == "__main__"):

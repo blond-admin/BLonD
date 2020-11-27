@@ -20,3 +20,4 @@ __pycache__/
 /__BENCHMARKS/animations/
 *.DS_Store
 .idea
+scripts/

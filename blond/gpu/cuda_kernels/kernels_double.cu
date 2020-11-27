@@ -9,7 +9,8 @@
 // For example, atomicAdd() for double-precision floating-point numbers is not
 // available on devices with compute capability lower than 6.0 but it can be implemented
 // as follows:
-#if __CUDA_ARCH__ < 600
+#if !defined(__CUDA_ARCH__) || __CUDA_ARCH__ >= 600
+#else
 __device__ double atomicAdd(double* address, double val)
 {
     unsigned long long int* address_as_ull =
@@ -196,12 +197,12 @@ __global__ void halve_edges(double *my_array, int size) {
 
 extern "C"
 __global__ void simple_kick(
-    const double  *beam_dt,
-    double        *beam_dE,
+    double  * __restrict__ beam_dt,
+    double        * __restrict__ beam_dE,
     const int n_rf,
-    const double  *voltage,
-    const double  *omega_RF,
-    const double  *phi_RF,
+    const double  * __restrict__ voltage,
+    const double  * __restrict__ omega_RF,
+    const double  * __restrict__ phi_RF,
     const int n_macroparticles,
     const double acc_kick
 )
@@ -221,14 +222,14 @@ __global__ void simple_kick(
 }
 
 extern "C"
-__global__ void rf_volt_comp(  double *voltage,
-                               double *omega_rf,
-                               double *phi_rf,
-                               double *bin_centers,
-                               int n_rf,
-                               int n_bins,
-                               int f_rf,
-                               double *rf_voltage)
+__global__ void rf_volt_comp(const double * __restrict__ voltage,
+                             const double * __restrict__ omega_rf,
+                             const double * __restrict__ phi_rf,
+                             const double * __restrict__ bin_centers,
+                             const int n_rf,
+                             const int n_bins,
+                             const int f_rf,
+                             double * __restrict__ rf_voltage)
 {
     int tid = threadIdx.x + blockDim.x * blockIdx.x;
 
@@ -239,16 +240,16 @@ __global__ void rf_volt_comp(  double *voltage,
 }
 
 extern "C"
-__global__ void drift(double *beam_dt,
-        const double  *beam_dE,
-        const int solver,
-        const double T0, const double length_ratio,
-        const double alpha_order, const double eta_zero,
-        const double eta_one, const double eta_two,
-        const double alpha_zero, const double alpha_one,
-        const double alpha_two,
-        const double beta, const double energy,
-        const int n_macroparticles)
+__global__ void drift(double * __restrict__ beam_dt,
+                     double  * __restrict__ beam_dE,
+                     const int solver,
+                     const double T0, const double length_ratio,
+                     const double alpha_order, const double eta_zero,
+                     const double eta_one, const double eta_two,
+                     const double alpha_zero, const double alpha_one,
+                     const double alpha_two,
+                     const double beta, const double energy,
+                     const int n_macroparticles)
 {
     double T = T0 * length_ratio;
     int tid = threadIdx.x + blockDim.x * blockIdx.x;
@@ -300,18 +301,15 @@ __global__ void drift(double *beam_dt,
                                alpha_one * (beam_delta * beam_delta) +
                                alpha_two * (beam_delta * beam_delta * beam_delta)) *
                               (1. + beam_dE[i] / energy) / (1. + beam_delta) - 1.);
-
         }
-
     }
-
 }
 
 
 
 extern "C"
-__global__ void histogram(double * input,
-                          int * output, const double cut_left,
+__global__ void histogram(double * __restrict__  input,
+                          int * __restrict__  output, const double cut_left,
                           const double cut_right, const int n_slices,
                           const int n_macroparticles)
 {
@@ -327,8 +325,8 @@ __global__ void histogram(double * input,
 }
 
 extern "C"
-__global__ void hybrid_histogram(double * input,
-                                 int * output, const double cut_left,
+__global__ void hybrid_histogram(const double * __restrict__  input,
+                                 int * __restrict__  output, const double cut_left,
                                  const double cut_right, const unsigned int n_slices,
                                  const int n_macroparticles, const int capacity)
 {
@@ -362,8 +360,8 @@ __global__ void hybrid_histogram(double * input,
 
 
 extern "C"
-__global__ void sm_histogram(double * input,
-                             int * output, const double cut_left,
+__global__ void sm_histogram(const double * __restrict__  input,
+                             int * __restrict__  output, const double cut_left,
                              const double cut_right, const unsigned int n_slices,
                              const int n_macroparticles)
 {
@@ -388,16 +386,16 @@ __global__ void sm_histogram(double * input,
 
 extern "C"
 __global__ void lik_only_gm_copy(
-    double *beam_dt,
-    double *beam_dE,
-    const double *voltage_array,
-    const double *bin_centers,
+    double * __restrict__ beam_dt,
+    double * __restrict__ beam_dE,
+    const double * __restrict__ voltage_array,
+    const double * __restrict__ bin_centers,
     const double charge,
     const int n_slices,
     const int n_macroparticles,
     const double acc_kick,
-    double *glob_voltageKick,
-    double *glob_factor
+    double * __restrict__ glob_voltageKick,
+    double * __restrict__ glob_factor
 )
 {
     int tid = threadIdx.x + blockDim.x * blockIdx.x;
@@ -416,16 +414,16 @@ __global__ void lik_only_gm_copy(
 
 extern "C"
 __global__ void lik_only_gm_comp(
-    double *beam_dt,
-    double *beam_dE,
-    const double *voltage_array,
-    const double *bin_centers,
+    double * __restrict__ beam_dt,
+    double * __restrict__ beam_dE,
+    const double * __restrict__ voltage_array,
+    const double * __restrict__ bin_centers,
     const double charge,
     const int n_slices,
     const int n_macroparticles,
     const double acc_kick,
-    double *glob_voltageKick,
-    double *glob_factor
+    double * __restrict__ glob_voltageKick,
+    double * __restrict__ glob_factor
 )
 {
     int tid = threadIdx.x + blockDim.x * blockIdx.x;

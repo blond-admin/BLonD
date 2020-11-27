@@ -84,7 +84,6 @@ class GpuBeamFeedback(BeamFeedback):
         triple_kernel(self.rf_station.dev_omega_rf, self.rf_station.dev_harmonic,
                       self.rf_station.dev_dphi_rf, self.rf_station.dev_omega_rf_d,
                       self.rf_station.dev_phi_rf,
-                      # bm.precision.real_t(np.pi),
                       bm.precision.real_t(self.domega_rf),
                       np.int32(self.rf_station.n_turns + 1),
                       np.int32(counter), np.int32(self.rf_station.n_rf),

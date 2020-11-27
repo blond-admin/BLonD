@@ -95,7 +95,7 @@ class GpuRingAndRFTracker(RingAndRFTracker):
                                        self.totalInducedVoltage.dev_induced_voltage)
                         else:
                             self.dev_total_voltage = self.dev_rf_voltage
-                        bm.linear_interp_kick(self.beam.dev_dt, self.beam.dev_dt,
+                        bm.linear_interp_kick(self.beam.dev_dt, self.beam.dev_dE,
                                               self.dev_total_voltage,
                                               self.profile.dev_bin_centers,
                                               self.beam.Particle.charge,

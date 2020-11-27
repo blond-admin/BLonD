@@ -196,12 +196,12 @@ __global__ void halve_edges(float *my_array, int size) {
 
 extern "C"
 __global__ void simple_kick(
-    const float  *beam_dt,
-    float        *beam_dE,
+    const float  * __restrict__ beam_dt,
+    float        * __restrict__ beam_dE,
     const int n_rf,
-    const float  *voltage,
-    const float  *omega_RF,
-    const float  *phi_RF,
+    const float  * __restrict__ voltage,
+    const float  * __restrict__ omega_RF,
+    const float  * __restrict__ phi_RF,
     const int n_macroparticles,
     const float acc_kick
 )
@@ -221,14 +221,14 @@ __global__ void simple_kick(
 }
 
 extern "C"
-__global__ void rf_volt_comp(  float *voltage,
-                               float *omega_rf,
-                               float *phi_rf,
-                               float *bin_centers,
-                               int n_rf,
-                               int n_bins,
-                               int f_rf,
-                               float *rf_voltage)
+__global__ void rf_volt_comp(const float * __restrict__ voltage,
+                             const float * __restrict__ omega_rf,
+                             const float * __restrict__ phi_rf,
+                             const float * __restrict__ bin_centers,
+                             const int n_rf,
+                             const int n_bins,
+                             const int f_rf,
+                             float * __restrict__ rf_voltage)
 {
     int tid = threadIdx.x + blockDim.x * blockIdx.x;
 
@@ -363,8 +363,8 @@ __global__ void hybrid_histogram(float * input,
 
 
 extern "C"
-__global__ void sm_histogram(float * input,
-                             int * output, const float cut_left,
+__global__ void sm_histogram(const float * __restrict__ input,
+                             int * __restrict__ output, const float cut_left,
                              const float cut_right, const unsigned int n_slices,
                              const int n_macroparticles)
 {
@@ -389,16 +389,16 @@ __global__ void sm_histogram(float * input,
 
 extern "C"
 __global__ void lik_only_gm_copy(
-    float *beam_dt,
-    float *beam_dE,
-    const float *voltage_array,
-    const float *bin_centers,
+    float * __restrict__ beam_dt,
+    float * __restrict__ beam_dE,
+    const float * __restrict__ voltage_array,
+    const float * __restrict__ bin_centers,
     const float charge,
     const int n_slices,
     const int n_macroparticles,
     const float acc_kick,
-    float *glob_voltageKick,
-    float *glob_factor
+    float * __restrict__ glob_voltageKick,
+    float * __restrict__ glob_factor
 )
 {
     int tid = threadIdx.x + blockDim.x * blockIdx.x;
@@ -417,16 +417,16 @@ __global__ void lik_only_gm_copy(
 
 extern "C"
 __global__ void lik_only_gm_comp(
-    float *beam_dt,
-    float *beam_dE,
-    const float *voltage_array,
-    const float *bin_centers,
+    float * __restrict__ beam_dt,
+    float * __restrict__ beam_dE,
+    const float * __restrict__ voltage_array,
+    const float * __restrict__ bin_centers,
     const float charge,
     const int n_slices,
     const int n_macroparticles,
     const float acc_kick,
-    float *glob_voltageKick,
-    float *glob_factor
+    float * __restrict__ glob_voltageKick,
+    float * __restrict__ glob_factor
 )
 {
     int tid = threadIdx.x + blockDim.x * blockIdx.x;
@@ -476,15 +476,15 @@ __global__ void lik_drift_only_gm_comp(
 
 extern "C"
 __global__ void beam_phase_v2(
-    const float *bin_centers,
-    const int *profile,
+    const float * __restrict__ bin_centers,
+    const int * __restrict__ profile,
     const float alpha,
-    const float *omega_rf_ar,
-    const float *phi_rf_ar,
+    const float * __restrict__ omega_rf_ar,
+    const float * __restrict__ phi_rf_ar,
     const int ind,
     const float bin_size,
-    float *array1,
-    float *array2,
+    float * __restrict__ array1,
+    float * __restrict__ array2,
     const int n_bins)
 {
     float omega_rf = omega_rf_ar[ind];
@@ -506,10 +506,10 @@ __global__ void beam_phase_v2(
 
 extern "C"
 __global__ void beam_phase_sum(
-    const float *ar1,
-    const float *ar2,
-    float *scoeff,
-    float *coeff,
+    const float * __restrict__ ar1,
+    const float * __restrict__ ar2,
+    float * __restrict__ scoeff,
+    float * __restrict__ coeff,
     int n_bins)
 {
     int tid = threadIdx.x + blockDim.x * blockIdx.x;

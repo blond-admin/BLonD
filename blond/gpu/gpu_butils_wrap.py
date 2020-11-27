@@ -136,7 +136,7 @@ set_zero_int = ElementwiseKernel(
 set_zero_complex64 = ElementwiseKernel(
     f"pycuda::complex<float> *x",
     "x[i] = 0",
-    "set_zero_complex",
+    "set_zero_complex64",
     preamble="#include <pycuda-complex.hpp>")
 
 set_zero_complex128 = ElementwiseKernel(
