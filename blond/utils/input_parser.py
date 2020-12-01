@@ -70,6 +70,9 @@ parser.add_argument('-gpu', '--gpu', type=int, default=0,
                     help='Use the GPU to run the computational core: 0 (OFF), num (ON, number of gpus to use)'
                     'Default: 0 (OFF)')
 
+parser.add_argument('-gpucache', '--gpucache', type=int, default=1,
+                    help='Use the gpucache feature: 0 (OFF), 1 (ON)'
+                    'Default: 1 (ON)')
 
 parser.add_argument('-trace', '--trace', type=int, default=0, choices=[0, 1],
                     help='Trace the specified regions of interest (MPE).'
