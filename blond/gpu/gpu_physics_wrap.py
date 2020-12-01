@@ -11,6 +11,7 @@ ker = bm.getMod()
 drift = ker.get_function("drift")
 kick_kernel = ker.get_function("simple_kick")
 rvc = ker.get_function("rf_volt_comp")
+dumb_histogram = ker.get_function("histogram")
 hybrid_histogram = ker.get_function("hybrid_histogram")
 sm_histogram = ker.get_function("sm_histogram")
 gm_linear_interp_kick_help = ker.get_function("lik_only_gm_copy")
@@ -169,6 +170,18 @@ def gpu_linear_interp_kick_drift(dev_voltage,
                                      time_kernel=True)
     beam.dE_obj.invalidate_cpu()
     beam.dt_obj.invalidate_cpu()
+
+
+def gpu_dumb_slice(dev_dt, dev_n_macroparticles, cut_left, cut_right):
+    """This is only here for benchmarks"""
+
+    n_slices = dev_n_macroparticles.size
+    set_zero_int(dev_n_macroparticles)
+    dumb_histogram(dev_dt, dev_n_macroparticles, bm.precision.real_t(cut_left),
+                   bm.precision.real_t(cut_right), np.uint32(n_slices),
+                   np.uint32(dev_dt.size),
+                   grid=grid_size, block=block_size, time_kernel=True)
+    return dev_n_macroparticles
 
 
 def gpu_slice(dev_dt, dev_n_macroparticles, cut_left, cut_right):

@@ -51,7 +51,7 @@ parser.add_argument('-c', '--compiler', type=str, default='g++',
 parser.add_argument('--with-fftw', action='store_true',
                     help='Use the FFTs from FFTW3.')
 
-parser.add_argument('-gpu', '--gpu', default=None,
+parser.add_argument('-gpu', '--gpu', nargs='?', const='discover', default=None,
                     help='Compile the GPU kernels too.'
                     'Default: Only compile the C++ library.')
 
@@ -190,8 +190,19 @@ if (__name__ == "__main__"):
 
     # Compile the GPU library
     if args.gpu:
-        print('\nCompiling the CUDA library for architecture {}.{}.'.format(args.gpu[0], args.gpu[1]))
-        nvccflags[3] = 'sm_{}'.format(args.gpu)
+        if args.gpu == 'discover':
+            print('\nDiscovering the device compute capability..')
+            import pycuda.driver as drv
+
+            drv.init()
+            dev = drv.Device(0)
+            print('Device name {}'.format(dev.name()))
+            comp_capability = ('%d%d' % dev.compute_capability())
+        elif args.gpu is not None:
+            comp_capability = args.gpu
+
+        print('\nCompiling the CUDA library for architecture {}.'.format(comp_capability))
+        nvccflags[3] = 'sm_{}'.format(comp_capability)
         libname_double = os.path.join(basepath, 'gpu/cuda_kernels/kernels_double.cubin')
         libname_single = os.path.join(basepath, 'gpu/cuda_kernels/kernels_single.cubin')
         # we need to get the header files location
