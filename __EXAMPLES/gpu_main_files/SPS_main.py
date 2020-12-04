@@ -486,7 +486,8 @@ if args['gpu'] > 0:
     profile.use_gpu()
     tracker.use_gpu()
     phaseLoop.use_gpu()
-    bm.enable_gpucache()
+    if args['gpucache']==1:
+        bm.enable_gpucache()
 
 print(f'Glob rank: [{worker.rank}], Node rank: [{worker.noderank}], Intra rank: [{worker.intrarank}], GPU rank: [{worker.gpucommrank}], hasGPU: {worker.hasGPU}')
 
@@ -497,106 +498,109 @@ delta = 0
 worker.sync()
 timing.reset()
 start_t = time.time()
+import cuprof.cuprof as cp
 
-# for turn in range(ring.n_turns):
-for turn in range(n_iterations):
+cp.enable()
 
-    if ring.n_turns <= 450 and turn % 10 == 0:
-        mpiprint('turn: '+str(turn))
-    elif turn % 1000 == 0:
-        mpiprint('turn: '+str(turn))
+with cp.region_timer('main_loop'):
+    for turn in range(n_iterations):
 
-    # Update profile
-    if (approx == 0):
-        profile.track()
-        # worker.sync()
-        profile.reduce_histo()
-    elif (approx == 1) and (turn % n_turns_reduce == 0):
-        profile.track()
-        # worker.sync()
-        profile.reduce_histo()
-    elif (approx == 2):
-        profile.track()
-        profile.scale_histo()
+        if ring.n_turns <= 450 and turn % 10 == 0:
+            mpiprint('turn: '+str(turn))
+        elif turn % 1000 == 0:
+            mpiprint('turn: '+str(turn))
 
-    # If we are in a gpu group, with tp
-    if withtp and worker.gpu_id >= 0:
-        if worker.hasGPU:
-            if (turn < 8*int(FBtime)):
-                longCavityImpedanceReduction.track()
-                shortCavityImpedanceReduction.track()
-            if (approx == 0) or (approx == 2):
-                inducedVoltage.induced_voltage_sum()
-            elif (approx == 1) and (turn % n_turns_reduce == 0):
-                inducedVoltage.induced_voltage_sum()
-            tracker.pre_track()
-        
-        worker.gpuSync()
-        
-        # Here I need to broadcast the calculated stuff
-        inducedVoltage.induced_voltage = worker.broadcast(inducedVoltage.induced_voltage)
-        tracker.rf_voltage = worker.broadcast(tracker.rf_voltage)
-    # else just do the normal task-parallelism
-    elif withtp:
-        if worker.isFirst:
-            if (turn < 8*int(FBtime)):
-                longCavityImpedanceReduction.track()
-                shortCavityImpedanceReduction.track()
-            if (approx == 0) or (approx == 2):
-                inducedVoltage.induced_voltage_sum()
-            elif (approx == 1) and (turn % n_turns_reduce == 0):
-                inducedVoltage.induced_voltage_sum()
-        if worker.isLast:
-            tracker.pre_track()
-
-        worker.intraSync()
-        worker.sendrecv(inducedVoltage.induced_voltage, tracker.rf_voltage)
-    else:
-        if (turn < 8*int(FBtime)):
-            longCavityImpedanceReduction.track()
-            shortCavityImpedanceReduction.track()
-        if (approx == 0) or (approx == 2):
-            inducedVoltage.induced_voltage_sum()
+        # Update profile
+        if (approx == 0):
+            profile.track()
+            # worker.sync()
+            profile.reduce_histo()
         elif (approx == 1) and (turn % n_turns_reduce == 0):
-            inducedVoltage.induced_voltage_sum()
-        tracker.pre_track()
+            profile.track()
+            # worker.sync()
+            profile.reduce_histo()
+        elif (approx == 2):
+            profile.track()
+            profile.scale_histo()
 
-    tracker.track_only()
+        # If we are in a gpu group, with tp
+        if withtp and worker.gpu_id >= 0:
+            if worker.hasGPU:
+                if (turn < 8*int(FBtime)):
+                    longCavityImpedanceReduction.track()
+                    shortCavityImpedanceReduction.track()
+                if (approx == 0) or (approx == 2):
+                    inducedVoltage.induced_voltage_sum()
+                elif (approx == 1) and (turn % n_turns_reduce == 0):
+                    inducedVoltage.induced_voltage_sum()
+                tracker.pre_track()
+            
+            worker.gpuSync()
+            
+            # Here I need to broadcast the calculated stuff
+            inducedVoltage.induced_voltage = worker.broadcast(inducedVoltage.induced_voltage)
+            tracker.rf_voltage = worker.broadcast(tracker.rf_voltage)
+        # else just do the normal task-parallelism
+        elif withtp:
+            if worker.isFirst:
+                if (turn < 8*int(FBtime)):
+                    longCavityImpedanceReduction.track()
+                    shortCavityImpedanceReduction.track()
+                if (approx == 0) or (approx == 2):
+                    inducedVoltage.induced_voltage_sum()
+                elif (approx == 1) and (turn % n_turns_reduce == 0):
+                    inducedVoltage.induced_voltage_sum()
+            if worker.isLast:
+                tracker.pre_track()
 
-    if SPS_PHASELOOP is True:
-        if turn % PL_save_turns == 0 and turn > 0:
-            with timing.timed_region('serial:binShift') as tr:
+            worker.intraSync()
+            worker.sendrecv(inducedVoltage.induced_voltage, tracker.rf_voltage)
+        else:
+            if (turn < 8*int(FBtime)):
+                longCavityImpedanceReduction.track()
+                shortCavityImpedanceReduction.track()
+            if (approx == 0) or (approx == 2):
+                inducedVoltage.induced_voltage_sum()
+            elif (approx == 1) and (turn % n_turns_reduce == 0):
+                inducedVoltage.induced_voltage_sum()
+            tracker.pre_track()
 
-                # present beam position
-                beamPosFromPhase = (phaseLoop.phi_beam - rf_station.phi_rf[0, turn])\
-                    / rf_station.omega_rf[0, turn] + t_batch_begin
-                # how much to shift the bin_centers
-                delta = beamPosPrev - beamPosFromPhase
-                beamPosPrev = beamPosFromPhase
+        tracker.track_only()
 
-                profile.bin_centers -= delta
-                profile.cut_left -= delta
-                profile.cut_right -= delta
-                profile.edges -= delta
+        if SPS_PHASELOOP is True:
+            if turn % PL_save_turns == 0 and turn > 0:
+                with timing.timed_region('serial:binShift') as tr:
 
-                # shift time_offset of phase loop as well, so that it starts at correct
-                # bin_center corresponding to time_offset
-                if phaseLoop.alpha != 0:
-                    phaseLoop.time_offset -= delta
+                    # present beam position
+                    beamPosFromPhase = (phaseLoop.phi_beam - rf_station.phi_rf[0, turn])\
+                        / rf_station.omega_rf[0, turn] + t_batch_begin
+                    # how much to shift the bin_centers
+                    delta = beamPosPrev - beamPosFromPhase
+                    beamPosPrev = beamPosFromPhase
 
-    if (args['monitor'] > 0) and (turn % args['monitor'] == 0):
-        beam.statistics()
-        beam.gather_statistics()
-        profile.fwhm_multibunch(n_bunches, bunch_spacing,
-                                rf_station.t_rf[0, turn], bucket_tolerance=0)
-                                # shiftX=rf_station.phi_rf[0, turn]/rf_station.omega_rf[0, turn])
+                    profile.bin_centers -= delta
+                    profile.cut_left -= delta
+                    profile.cut_right -= delta
+                    profile.edges -= delta
 
-        if worker.isMaster:
-            # profile.fwhm()
-            slicesMonitor.track(turn)
+                    # shift time_offset of phase loop as well, so that it starts at correct
+                    # bin_center corresponding to time_offset
+                    if phaseLoop.alpha != 0:
+                        phaseLoop.time_offset -= delta
 
-    worker.DLB(turn, beam)
+        if (args['monitor'] > 0) and (turn % args['monitor'] == 0):
+            beam.statistics()
+            beam.gather_statistics()
+            profile.fwhm_multibunch(n_bunches, bunch_spacing,
+                                    rf_station.t_rf[0, turn], bucket_tolerance=0)
+                                    # shiftX=rf_station.phi_rf[0, turn]/rf_station.omega_rf[0, turn])
 
+            if worker.isMaster:
+                # profile.fwhm()
+                slicesMonitor.track(turn)
+
+        worker.DLB(turn, beam)
+cp.report()
 
 beam.gather()
 end_t = time.time()

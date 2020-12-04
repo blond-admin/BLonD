@@ -257,7 +257,8 @@ if worker.hasGPU:
     totVoltage.use_gpu()
     beam.use_gpu()
     PL.use_gpu()
-    bm.enable_gpucache()
+    if args['gpucache']==1:
+        bm.enable_gpucache()
 
 print(f'Glob rank: [{worker.rank}], Node rank: [{worker.noderank}], Intra rank: [{worker.intrarank}], GPU rank: [{worker.gpucommrank}], hasGPU: {worker.hasGPU}')
 
@@ -268,71 +269,75 @@ timing.reset()
 start_t = time.time()
 
 
+import cuprof.cuprof as cp
 
-for turn in range(n_iterations):
-    # After the first 2/3 of the ramp, regulate down the bunch length
-    if turn == 9042249:
-        noiseFB.bl_targ = 1.1e-9
+cp.enable()
+with cp.region_timer('main_loop'):
+    for turn in range(n_iterations):
+        # After the first 2/3 of the ramp, regulate down the bunch length
+        if turn == 9042249:
+            noiseFB.bl_targ = 1.1e-9
 
-    # Update profile
-    if (approx == 0):
-        profile.track()
-        # worker.sync()
-        profile.reduce_histo()
-    elif (approx == 1) and (turn % n_turns_reduce == 0):
-        profile.track()
-        # worker.sync()
-        profile.reduce_histo()
-    elif (approx == 2):
-        profile.track()
-        profile.scale_histo()
-
-    # If we are in a gpu group, with tp
-    if withtp and worker.gpu_id >= 0:
-        if worker.hasGPU:
-            if (approx == 0) or (approx == 2):
-                totVoltage.induced_voltage_sum()
-            elif (approx == 1) and (turn % n_turns_reduce == 0):
-                totVoltage.induced_voltage_sum()
-        else:
-            tracker.pre_track()
-
-        worker.gpuSync()
-
-        # Here I need to broadcast the calculated stuff
-        totVoltage.induced_voltage = worker.broadcast(totVoltage.induced_voltage)
-        tracker.rf_voltage = worker.broadcast(tracker.rf_voltage, root=1)
-    # else just do the normal task-parallelism
-    elif withtp:
-        if worker.isFirst:
-            if (approx == 0) or (approx == 2):
-                totVoltage.induced_voltage_sum()
-            elif (approx == 1) and (turn % n_turns_reduce == 0):
-                totVoltage.induced_voltage_sum()
-        if worker.isLast:
-            tracker.pre_track()
-
-        worker.intraSync()
-        worker.sendrecv(totVoltage.induced_voltage, tracker.rf_voltage)
-    else:
-        if (approx == 0) or (approx == 2):
-            totVoltage.induced_voltage_sum()
+        # Update profile
+        if (approx == 0):
+            profile.track()
+            # worker.sync()
+            profile.reduce_histo()
         elif (approx == 1) and (turn % n_turns_reduce == 0):
-            totVoltage.induced_voltage_sum()
-        tracker.pre_track()
-        
-    tracker.track_only()
+            profile.track()
+            # worker.sync()
+            profile.reduce_histo()
+        elif (approx == 2):
+            profile.track()
+            profile.scale_histo()
 
-    if (args['monitor'] > 0) and (turn % args['monitor'] == 0):
-        beam.statistics()
-        beam.gather_statistics()
-        profile.fwhm_multibunch(n_bunches, bunch_spacing_buckets,
-                                rf.t_rf[0, turn], bucket_tolerance=0,
-                                shiftX=rf.phi_rf[0, turn]/rf.omega_rf[0, turn])
-        if worker.isMaster:
-            slicesMonitor.track(turn)
+        # If we are in a gpu group, with tp
+        if withtp and worker.gpu_id >= 0:
+            if worker.hasGPU:
+                if (approx == 0) or (approx == 2):
+                    totVoltage.induced_voltage_sum()
+                elif (approx == 1) and (turn % n_turns_reduce == 0):
+                    totVoltage.induced_voltage_sum()
+            else:
+                tracker.pre_track()
 
-    worker.DLB(turn, beam)
+            worker.gpuSync()
+
+            # Here I need to broadcast the calculated stuff
+            totVoltage.induced_voltage = worker.broadcast(totVoltage.induced_voltage)
+            tracker.rf_voltage = worker.broadcast(tracker.rf_voltage, root=1)
+        # else just do the normal task-parallelism
+        elif withtp:
+            if worker.isFirst:
+                if (approx == 0) or (approx == 2):
+                    totVoltage.induced_voltage_sum()
+                elif (approx == 1) and (turn % n_turns_reduce == 0):
+                    totVoltage.induced_voltage_sum()
+            if worker.isLast:
+                tracker.pre_track()
+
+            worker.intraSync()
+            worker.sendrecv(totVoltage.induced_voltage, tracker.rf_voltage)
+        else:
+            if (approx == 0) or (approx == 2):
+                totVoltage.induced_voltage_sum()
+            elif (approx == 1) and (turn % n_turns_reduce == 0):
+                totVoltage.induced_voltage_sum()
+            tracker.pre_track()
+            
+        tracker.track_only()
+
+        if (args['monitor'] > 0) and (turn % args['monitor'] == 0):
+            beam.statistics()
+            beam.gather_statistics()
+            profile.fwhm_multibunch(n_bunches, bunch_spacing_buckets,
+                                    rf.t_rf[0, turn], bucket_tolerance=0,
+                                    shiftX=rf.phi_rf[0, turn]/rf.omega_rf[0, turn])
+            if worker.isMaster:
+                slicesMonitor.track(turn)
+
+        worker.DLB(turn, beam)
+cp.report()
 
 
 beam.gather()
