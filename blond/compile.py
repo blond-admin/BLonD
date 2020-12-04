@@ -181,7 +181,7 @@ if (__name__ == "__main__"):
     subprocess.call(command)
 
     try:
-        if ('win' in sys.platform) and ('add_dll_directory' in dir(os)):
+        if ('win' in sys.platform) and hasattr(os, 'add_dll_directory'):
             libblond = ctypes.CDLL(libname, winmode=0)
         else:
             libblond = ctypes.CDLL(libname)

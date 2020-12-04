@@ -11,7 +11,7 @@ try:
             basepath, 'cpp_routines/libblond.so'))
     elif ('win' in sys.platform):
         dllpath = os.path.join(basepath, 'cpp_routines')
-        if 'add_dll_directory' in dir(os):
+        if hasattr(os, 'add_dll_directory'):
             os.add_dll_directory(dllpath)
             libblond = ctypes.CDLL(os.path.join(dllpath, 'libblond.dll'), winmode=0)
         else:
