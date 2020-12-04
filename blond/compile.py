@@ -148,7 +148,7 @@ if (__name__ == "__main__"):
             ext = '.dll'
         libname = root + ext
 
-        if ('add_dll_directory' in dir(os)):
+        if hasattr(os, 'add_dll_directory'):
             directory, filename = os.path.split(libname)
             os.add_dll_directory(directory)
 
