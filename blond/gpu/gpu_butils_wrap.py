@@ -354,7 +354,7 @@ def gpu_rfft(dev_a, n=0, result=None, caller_id=None):
         dev_in = get_gpuarray((n, bm.precision.real_t, 0, 'rfft'))
         gpu_copy(dev_in, dev_a, slice=slice(0, n))
     else:
-        dev_in = get_gpuarray((n, bm.precision.real_t, 0, 'rfft'), zero_fills=False)
+        dev_in = get_gpuarray((n, bm.precision.real_t, 0, 'rfft'), zero_fills=True)
         if n < in_size:
             gpu_copy(dev_in, dev_a, slice=slice(0, n))
         else:
@@ -386,7 +386,7 @@ def gpu_irfft(dev_a, n=0, result=None, caller_id=None):
     if n == in_size:
         dev_in = dev_a
     else:
-        dev_in = get_gpuarray((n, bm.precision.complex_t, 0, 'irfft'))
+        dev_in = get_gpuarray((n, bm.precision.complex_t, 0, 'irfft'), zero_fills=True)
         if n < in_size:
             gpu_complex_copy(dev_in, dev_a, slice=slice(0, n))
         else:

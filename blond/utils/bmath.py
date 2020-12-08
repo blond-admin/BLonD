@@ -140,18 +140,25 @@ def gpuMode():
     return globals()['device'] == 'GPU'
 
 
-def enable_gpucache():
+def enable_gpucache(capacity=-1):
     """
     Enables the feature called gpucache
     Arrays are stored in a dictionary to be reused
     """
     from ..gpu import gpu_cache as cc
-    cc.enable_cache()
-
+    cc.enable_cache(capacity=capacity)
 
 def disable_gpucache():
     from ..gpu import gpu_cache as cc
     cc.disable_cache()
+
+def curr_cache_size():
+    """
+    Enables the feature called gpucache
+    Arrays are stored in a dictionary to be reused
+    """
+    from ..gpu import gpu_cache as cc
+    return cc.get_size()
 
 
 def gpuId():

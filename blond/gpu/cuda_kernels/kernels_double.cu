@@ -512,6 +512,7 @@ __global__ void beam_phase_sum(
         scoeff[0] = 0;
         coeff[0] = 0;
     }
+    __syncthreads();
     double my_sum_1 = 0;
     double my_sum_2 = 0;
     if (tid == 0) {

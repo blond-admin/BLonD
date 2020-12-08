@@ -234,10 +234,10 @@ def gpu_beam_phase(bin_centers, profile, alpha, omega_rf, phi_rf, ind, bin_size)
                   bm.precision.real_t(alpha), omega_rf, phi_rf,
                   np.int32(ind), bm.precision.real_t(bin_size),
                   array1, array2, np.int32(bin_centers.size),
-                  block=block_size)  # , grid=grid_size)
+                  block=block_size, grid=grid_size)
 
     beam_phase_sum(array1, array2, dev_scoeff, dev_coeff,
-                   np.int32(bin_centers.size), block=block_size,
+                   np.int32(bin_centers.size), block=(512, 1, 1),
                    grid=(1, 1, 1), time_kernel=True)
     to_ret = dev_scoeff[0].get()
     return to_ret
