@@ -459,15 +459,18 @@ class Beam(object):
         if worker.isMaster and random:
             import random
             random.shuffle(self.id)
+            if fast == False:
+                self.dt = self.dt[self.id-1]
+                self.dE = self.dE[self.id-1]
 
         self.id = worker.scatter(self.id)
-
         if fast:
             self.dt = np.ascontiguousarray(self.dt[self.id-1])
             self.dE = np.ascontiguousarray(self.dE[self.id-1])
         else:
             self.dt = worker.scatter(self.dt)
             self.dE = worker.scatter(self.dE)
+
         assert (len(self.dt) == len(self.dE) and len(self.dt) == len(self.id))
 
         self.n_macroparticles = len(self.dt)
