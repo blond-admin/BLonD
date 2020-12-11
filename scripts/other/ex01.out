@@ -1,0 +1,79 @@
+/apps/applications/python/anaconda3/5.0.1/bin/python
+gcc (GCC) 5.5.0
+Copyright (C) 2015 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+/apps/parallel/openmpi/4.0.1/gnu/bin/mpicc
+nvcc: NVIDIA (R) Cuda compiler driver
+Copyright (c) 2005-2016 NVIDIA Corporation
+Built on Tue_Jan_10_13:22:03_CST_2017
+Cuda compilation tools, release 8.0, V8.0.61
+Fri Jul 17 14:34:59 2020       
++-----------------------------------------------------------------------------+
+| NVIDIA-SMI 418.67       Driver Version: 418.67       CUDA Version: 10.1     |
+|-------------------------------+----------------------+----------------------+
+| GPU  Name        Persistence-M| Bus-Id        Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp  Perf  Pwr:Usage/Cap|         Memory-Usage | GPU-Util  Compute M. |
+|===============================+======================+======================|
+|   0  Tesla K40m          On   | 00000000:04:00.0 Off |                    0 |
+| N/A   29C    P8    20W / 235W |      0MiB / 11441MiB |      0%      Default |
++-------------------------------+----------------------+----------------------+
+|   1  Tesla K40m          On   | 00000000:82:00.0 Off |                    0 |
+| N/A   29C    P8    22W / 235W |      0MiB / 11441MiB |      0%      Default |
++-------------------------------+----------------------+----------------------+
+                                                                               
++-----------------------------------------------------------------------------+
+| Processes:                                                       GPU Memory |
+|  GPU       PID   Type   Process name                             Usage      |
+|=============================================================================|
+|  No running processes found                                                 |
++-----------------------------------------------------------------------------+
+gcc (GCC) 5.5.0
+Copyright (C) 2015 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+gcc (GCC) 5.5.0
+Copyright (C) 2015 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+[1]@gpu44: Hello World!
+USING GPU
+[0]@gpu44: Hello World!
+[0] Library: ('Open MPI', (4, 0, 1))
+[0] {'particles': None, 'slices': None, 'bunches': None, 'reduce': 1, 'turns': 100, 'mtw': None, 'beginafter': None, 'precision': 'double', 'approx': 0, 'withtp': 0, 'omp': 1, 'log': None, 'logdir': './logs/', 'time': 'disabled', 'timedir': './timings/', 'monitor': 0, 'monitorfile': None, 'seed': 0, 'gpu': 1, 'trace': 0, 'tracefile': 'mpe-trace', 'loadbalance': 'off', 'artificialdelay': 'off'}
+[0] Setting up the simulation...
+[0] 
+[0] Flat top momentum 6.5000e+12 eV
+[0] Flat top voltage 1.2000e+07 V
+[0] Momentum and voltage loaded...
+[0] General parameters set...
+[0] RF parameters set...
+[0] RF phase noise loaded...
+[0] Beam generated, profile set...
+[0] Using 144 slices
+[0] Phase noise feedback set...
+[0]    PL gain is 2.2491e+03 1/s for initial turn T0 = 8.8925e-05 s
+[0]    SL gain is 2.2491e+02 turns
+[0]    Omega_s0 = 3.4612e+02 s at flat bottom, 3.4630e+02 s at flat top
+[0]    SL a_i = 2.4956 a_f = 2.4943
+[0]    SL t_i = 0.0180 t_f = 0.0180
+[0] PL, SL, and tracker set...
+[0] dE mean:  854994.399879
+[0] dE std:  135771930.952
+[0] dt mean:  854994.399879
+[0] dt std:  135771930.952
+[0] dt mean, 1st bunch:  1.24118370523e-09
+[0] shift  0.0
+[0] Statistics set...
+[0] Map set
+USING GPU
+[0] dE mean:  1074709.810980504
+[0] dE std:  127191846.18999
+[0] dt mean:  1.248885394508331e-09
+[0] dt std:  3.169672325923821e-10
+[0] profile mean:  69.44444444444444
+[0] profile std:  104.17291833091865
+[0] Done!

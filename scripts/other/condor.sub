@@ -1,0 +1,23 @@
+####################
+#
+# Simple HTCondor submit description file
+# Everything with a leading # is a comment
+####################
+
+
+
+
+# +MaxRuntime = 60
+#request_memory = 1024
+
+# executable 		= condor.sh
+# arguments    	= "python --version"
+# output       	= output.$(ClusterId)
+# error        	= error.$(ClusterId)
+# log          	= log.$(ClusterId)
+# request_cpus   	= 1
+# +MaxRuntime 	= 3600
+notification 	= Always
+getenv 			= True
+should_transfer_files = IF_NEEDED
+queue

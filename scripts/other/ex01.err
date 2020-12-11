@@ -1,0 +1,12 @@
+/apps/applications/python/anaconda3/5.0.1/lib/python3.6/importlib/_bootstrap_external.py:426: ImportWarning: Not importing directory /users/pa20/kiliakis/.local/lib/python3.6/site-packages/scikits: missing __init__
+  _warnings.warn(msg.format(portions[0]), ImportWarning)
+/apps/applications/python/anaconda3/5.0.1/lib/python3.6/importlib/_bootstrap_external.py:426: ImportWarning: Not importing directory /apps/applications/python/anaconda3/5.0.1/lib/python3.6/site-packages/mpl_toolkits: missing __init__
+  _warnings.warn(msg.format(portions[0]), ImportWarning)
+/apps/applications/python/anaconda3/5.0.1/lib/python3.6/importlib/_bootstrap_external.py:426: ImportWarning: Not importing directory /users/apps/applications/python/anaconda3/5.0.1/lib/python3.6/site-packages/mpl_toolkits: missing __init__
+  _warnings.warn(msg.format(portions[0]), ImportWarning)
+/apps/applications/python/anaconda3/5.0.1/lib/python3.6/importlib/_bootstrap_external.py:426: ImportWarning: Not importing directory /users/pa20/kiliakis/.local/lib/python3.6/site-packages/scikits: missing __init__
+  _warnings.warn(msg.format(portions[0]), ImportWarning)
+/apps/applications/python/anaconda3/5.0.1/lib/python3.6/importlib/_bootstrap_external.py:426: ImportWarning: Not importing directory /apps/applications/python/anaconda3/5.0.1/lib/python3.6/site-packages/mpl_toolkits: missing __init__
+  _warnings.warn(msg.format(portions[0]), ImportWarning)
+/apps/applications/python/anaconda3/5.0.1/lib/python3.6/importlib/_bootstrap_external.py:426: ImportWarning: Not importing directory /users/apps/applications/python/anaconda3/5.0.1/lib/python3.6/site-packages/mpl_toolkits: missing __init__
+  _warnings.warn(msg.format(portions[0]), ImportWarning)

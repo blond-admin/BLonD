@@ -1,0 +1,9 @@
+executable = /bin/bash
+output  = interactive.$(Procid).out
+error   = interactive.$(ProcId).err
+log     = interactive.$(ProcId).log
+should_transfer_files = YES
+when_to_transfer_output = ON_EXIT
+request_GPUs = 1
++MaxRuntime = 3600
+queue
