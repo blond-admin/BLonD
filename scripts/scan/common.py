@@ -45,7 +45,9 @@ condor = {
     'jobname': '-batch-name',
     'time': '+MaxRuntime=',
     'cores': 'request_cpus=',
+    'gpus': 'request_GPUs=',
     'default_args': [
+        # 'requirements=regexp("V100", TARGET.CUDADeviceName)'
         # 'environment="PATH={PATH} PYTHONPATH={PYTHONPATH}"',
         # 'getenv=True',
         # 'should_transfer_files=IF_NEEDED'
