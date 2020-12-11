@@ -285,6 +285,12 @@ d_multscalar = ElementwiseKernel(
     "a[i] = c*b[i]",
     "d_multscalar")
 
+d_multscalar_int = ElementwiseKernel(
+    "int *a, int *b, int c",
+    "a[i] = c*b[i]",
+    "d_multscalar_int")
+
+
 # ffts dicts, a cache for the plans of the ffts
 
 plans_dict = {}

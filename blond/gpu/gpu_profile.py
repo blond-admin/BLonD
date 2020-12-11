@@ -1,7 +1,7 @@
 import numpy as np
 from ..utils import bmath as bm
 from ..gpu.gpu_cache import get_gpuarray
-from ..gpu.gpu_butils_wrap import gpu_diff, cugradient, gpu_copy_d2d, gpu_interp, d_multscalar
+from ..gpu.gpu_butils_wrap import gpu_diff, cugradient, gpu_copy_d2d, gpu_interp, d_multscalar, d_multscalar_int
 
 from ..beam.profile import Profile
 from pycuda import gpuarray
@@ -187,8 +187,7 @@ class GpuProfile(Profile):
         if not bm.mpiMode():
             raise RuntimeError(
                 'ERROR: Cannot use this routine unless in MPI Mode')
-
         from ..utils.mpi_config import worker
         if self.Beam.is_splitted:
-            d_multscalar(self.dev_n_macroparticles, self.dev_n_macroparticles, bm.precision.real_t(worker.workers))
+            d_multscalar_int(self.dev_n_macroparticles, self.dev_n_macroparticles, np.int32(worker.workers))
             self.n_macroparticles_obj.invalidate_cpu()

@@ -1,5 +1,6 @@
 #include <pycuda-complex.hpp>
 #include <curand_kernel.h>
+#include <stdio.h>
 #define REDUCE(a, b) (a+b)
 #define BLOCK_SIZE 512
 #define PI 3.141592653589793238462643383279502884197169399375105820974944592307816406286
@@ -1503,6 +1504,21 @@ __global__ void d_multscalar(float *a, float *b, float c, long n)
     ;
 }
 
+
+extern "C"
+__global__ void d_multscalar_int(int *a, int *b, int c, long n)
+{
+    unsigned tid = threadIdx.x;
+    unsigned total_threads = gridDim.x * blockDim.x;
+    unsigned cta_start = blockDim.x * blockIdx.x;
+    unsigned i;
+    ;
+    for (i = cta_start + tid; i < n; i += total_threads)
+    {
+        a[i] = c * b[i];
+    }
+    ;
+}
 
 
 extern "C"
