@@ -46,20 +46,42 @@ if not os.path.exists(images_dir):
 
 gconfig = {
     'approx': {
-        '0': '',
+        '0': 'exact',
         '1': 'SRP',
         '2': 'RDS',
     },
     'label': {
-        'double': 'base',
-        'single': 'f32',
-        'singleSRP': 'f32-SRP',
-        'doubleSRP': 'SRP',
-        'singleRDS': 'f32-RDS',
-        'doubleRDS': 'RDS',
+        'double-exact-gpu1': 'base',
+        'single-exact-gpu1': 'f32',
+        'single-SRP-2-gpu1': 'f32-SRP-2',
+        'single-SRP-3-gpu1': 'f32-SRP-3',
+        'single-RDS-gpu1': 'f32-RDS',
+        'double-SRP-2-gpu1': 'f64-SRP-2',
+        'double-SRP-3-gpu1': 'f64-SRP-3',
+        'double-RDS-gpu1': 'f64-RDS',
     },
-    'markers': ['x', 'o', '^'],
-    'edgecolors': ['xkcd:red', 'xkcd:blue'],
+    # 'hatches': ['', '', 'xx', '', 'xx', '', 'xx', '', 'xx'],
+    'colors': {
+        'base': 'xkcd:blue',
+        'f32': 'xkcd:blue',
+        'f32-SRP-2': 'xkcd:red',
+        'f32-SRP-3': 'xkcd:red',
+        'f64-SRP-2': 'xkcd:orange',
+        'f64-SRP-3': 'xkcd:orange',
+        'f32-RDS': 'xkcd:purple',
+        'f64-RDS': 'xkcd:purple',
+    },
+    'markers': {
+        'base': 'o',
+        'f32': '^',
+        'f32-SRP-2': '^',
+        'f32-SRP-3': '^',
+        'f64-SRP-2': 'x',
+        'f64-SRP-3': 'x',
+        'f32-RDS': '^',
+        'f64-RDS': 'x',
+    },
+    # 'edgecolors': ['xkcd:red', 'xkcd:blue'],
     'f_name': 'function',
     'x_name': 'n',
     # 'x_to_keep': [4, 8, 16, 32, 64],
@@ -112,10 +134,11 @@ gconfig = {
     ],
     'files': [
         '{}/{}/exact-timing-gpu/avg-report.csv',
-        # '{}/{}/rds-timing-gpu/avg-report.csv',
-        # '{}/{}/srp-timing-gpu/avg-report.csv',
+        '{}/{}/rds-timing-gpu/avg-report.csv',
+        '{}/{}/srp-timing-gpu/avg-report.csv',
         '{}/{}/float32-timing-gpu/avg-report.csv',
-        # '{}/{}/f32-rds-timing-gpu/avg-report.csv',
+        '{}/{}/f32-rds-timing-gpu/avg-report.csv',
+        '{}/{}/f32-srp-timing-gpu/avg-report.csv',
         # '{}/{}/lb-tp-approx1-strong-scaling/comm-comp-report.csv',
     ],
     'lines': {
@@ -123,9 +146,10 @@ gconfig = {
         # 'lb': ['reportonly'],
         'approx': ['0', '1', '2'],
         # 'red': ['1', '2', '3', '4'],
-        'red': ['1', '2', '3'],
+        'red': ['1', '3'],
         'prec': ['single', 'double'],
         'omp': ['20'],
+        'gpu': ['0', '1', '2'],
         # 'ppb': ['4000000'],
         # 'lba': ['500'],
         # 'b': ['96', '48', '72', '21'],
@@ -136,7 +160,7 @@ gconfig = {
         'LIKick': ['comp:LIKick'],
         'kick': ['comp:kick'],
         'drift': ['comp:drift'],
-        # 'histo': ['comp:histo', 'serial:scale_histo'],
+        'histo': ['comp:histo', 'serial:scale_histo'],
         'iv1turn': ['serial:indVolt1Turn'],
         'bspectr': ['serial:beam_spectrum_gen'],
         # 'indVolt': ['serial:InductiveImped', 'serial:beam_spectrum_gen',
@@ -151,7 +175,7 @@ gconfig = {
         'total': ['0.1', ''],
         'kick': ['0.1', 'xx'],
         'drift': ['0.3', ''],
-        # 'histo': ['0.3', 'xx'],
+        'histo': ['0.3', 'xx'],
         # 'indVolt': ['0.5', ''],
         'iv1turn': ['0.3', 'xx'],
         'bspectr': ['0.5', ''],
@@ -163,14 +187,12 @@ gconfig = {
 
 }
 
-# plt.rcParams['ps.useafm'] = True
-# plt.rcParams['pdf.use14corefonts'] = True
-# plt.rcParams['text.usetex'] = True  # Let TeX do the typsetting
-# # Force sans-serif math mode (for axes labels)
-# plt.rcParams['text.latex.preamble'] = [r'\usepackage{sansmath}', r'\sansmath']
-# plt.rcParams['font.family'] = 'sans-serif'  # ... for regular text
-# plt.rcParams['font.sans-serif'] = 'Helvetica'
-
+plt.rcParams['ps.useafm'] = True
+plt.rcParams['pdf.use14corefonts'] = True
+plt.rcParams['text.usetex'] = True  # Let TeX do the typsetting
+plt.rcParams['text.latex.preamble'] = [r'\usepackage{sansmath}', r'\sansmath']
+plt.rcParams['font.family'] = 'sans-serif'  # ... for regular text
+plt.rcParams['font.sans-serif'] = 'Helvetica'
 
 if __name__ == '__main__':
     for col, case in enumerate(args.cases):
@@ -192,20 +214,30 @@ if __name__ == '__main__':
                              exclude=gconfig.get('exclude', []),
                              prefix=True)
             for key in temp.keys():
-                plots_dir['_{}'.format(key)] = temp[key].copy()
+                approx = key.split('approx')[1].split('_')[0]
+                approx = gconfig['approx'][approx]
+                red = key.split('red')[1].split('_')[0]
+                prec = key.split('prec')[1].split('_')[0]
+                gpu = key.split('gpu')[1].split('_')[0]
+                if approx == 'SRP':
+                    label = f'{prec}-{approx}-{red}-gpu{gpu}'
+                else:
+                    label = f'{prec}-{approx}-gpu{gpu}'
+                label = gconfig['label'][label]
+                plots_dir[label] = temp[key].copy()
 
 
             final_dir = {}
             for idx, k in enumerate(plots_dir.keys()):
-                approx = k.split('approx')[1].split('_')[0]
-                red = k.split('red')[1].split('_')[0]
-                experiment = k.split('_')[-1]
-                prec = k.split('prec')[1].split('_')[0]
-                approx = gconfig['approx'][approx]
-                name = gconfig['label'][prec+approx]
-                if approx == 'SRP':
-                    name += '-{}'.format(red)
-
+                # approx = k.split('approx')[1].split('_')[0]
+                # red = k.split('red')[1].split('_')[0]
+                # experiment = k.split('_')[-1]
+                # prec = k.split('prec')[1].split('_')[0]
+                # approx = gconfig['approx'][approx]
+                # name = gconfig['label'][prec+approx]
+                # if approx == 'SRP':
+                #     name += '-{}'.format(red)
+                name = k
                 if name not in final_dir:
                     final_dir[name] = {}
                 for row in plots_dir[k]:

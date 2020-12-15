@@ -100,7 +100,7 @@ cpp_files = [
     os.path.join(basepath, 'beam/sparse_histogram.cpp'),
 ]
 
-nvccflags = ['nvcc', '--cubin', '-arch', 'sm_xx', '-O3', '--use_fast_math', '-maxrregcount', '32']
+nvccflags = ['nvcc', '--cubin', '-O3', '--use_fast_math', '-maxrregcount', '32']
 # nvccflags = ['nvcc', '--cubin', '-arch', 'sm_xx', '-O3', '--use_fast_math']
 
 if (__name__ == "__main__"):
@@ -202,11 +202,12 @@ if (__name__ == "__main__"):
             comp_capability = args.gpu
 
         print('\nCompiling the CUDA library for architecture {}.'.format(comp_capability))
-        nvccflags[3] = 'sm_{}'.format(comp_capability)
+        # Add the -arch required argument
+        nvccflags += ['-arch', 'sm_{}'.format(comp_capability)]
         libname_double = os.path.join(basepath, 'gpu/cuda_kernels/kernels_double.cubin')
         libname_single = os.path.join(basepath, 'gpu/cuda_kernels/kernels_single.cubin')
         # we need to get the header files location
-        output = subprocess.run('pip3 show pycuda | grep Location', shell=True,
+        output = subprocess.run('python3 -m pip show pycuda | grep Location', shell=True,
                                 stdout=subprocess.PIPE,
                                 encoding='utf-8')
         pycudaloc = os.path.join(output.stdout.split(

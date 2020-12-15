@@ -93,9 +93,9 @@ gconfig = {
     'errorfile': 'comm-comp-std-report.csv',
     'datafile': 'comm-comp-report.csv',
     'files': [
-        '{}/{}/lb-tp-approx0-strong-scaling/{}',
-        '{}/{}/lb-tp-approx2-strong-scaling/{}',
-        '{}/{}/lb-tp-approx1-strong-scaling/{}',
+        '{}/{}/tp-approx0-strong-scaling/{}',
+        # '{}/{}/lb-tp-approx2-strong-scaling/{}',
+        # '{}/{}/lb-tp-approx1-strong-scaling/{}',
     ],
     'lines': {
         'approx': ['0', '1', '2'],

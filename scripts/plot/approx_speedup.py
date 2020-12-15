@@ -61,13 +61,13 @@ gconfig = {
     'omp_name': 'omp',
     'y_name': 'avg_time(sec)',
     'xlabel': {
-        'xlabel': 'Workers (x10 Cores)'},
+        'xlabel': 'Nodes (x20 Cores/ x1 GPU)'},
     'ylabel': 'Norm. Runtime',
     'title': {
-        's': '',
-        'fontsize': 10,
-        'y': 0.74,
-        # 'x': 0.55,
+        # 's': '',
+        'fontsize': 9,
+        'y': .96,
+        'x': 0.1,
         'fontweight': 'bold',
     },
     'figsize': [5, 2.2],
@@ -82,7 +82,7 @@ gconfig = {
     'fontsize': 10,
     'legend': {
         'loc': 'upper right', 'ncol': 9, 'handlelength': 1.2, 'fancybox': True,
-        'framealpha': 0., 'fontsize': 8.5, 'labelspacing': 0, 'borderpad': 0.5,
+        'framealpha': 0., 'fontsize': 9, 'labelspacing': 0, 'borderpad': 0.5,
         'handletextpad': 0.2, 'borderaxespad': 0.1, 'columnspacing': 0.4,
         'bbox_to_anchor': (1, 1.17)
     },
@@ -114,15 +114,15 @@ gconfig = {
         '{}/{}/rds-timing-gpu/comm-comp-report.csv',
         '{}/{}/srp-timing-gpu/comm-comp-report.csv',
         '{}/{}/float32-timing-gpu/comm-comp-report.csv',
-        '{}/{}/f32-rds-timing-gpu/comm-comp-report.csv',
-        # '{}/{}/f32-srp-timing-gpu/comm-comp-report.csv',
+        # '{}/{}/f32-rds-timing-gpu/comm-comp-report.csv',
+        '{}/{}/f32-srp-timing-gpu/comm-comp-report.csv',
     ],
     'lines': {
         # 'mpi': ['mpich3', 'mvapich2', 'openmpi3'],
         # 'lb': ['reportonly'],
         'approx': ['0', '1', '2'],
         # 'red': ['1', '2', '3', '4'],
-        'red': ['1', '2', '3'],
+        'red': ['1', '3'],
         'prec': ['single', 'double'],
         'omp': ['20'],
         # 'ppb': ['4000000'],
@@ -135,12 +135,12 @@ gconfig = {
 }
 
 # Force sans-serif math mode (for axes labels)
-# plt.rcParams['ps.useafm'] = True
-# plt.rcParams['pdf.use14corefonts'] = True
-# plt.rcParams['text.usetex'] = True  # Let TeX do the typsetting
-# plt.rcParams['text.latex.preamble'] = [r'\usepackage{sansmath}', r'\sansmath']
-# plt.rcParams['font.family'] = 'sans-serif'  # ... for regular text
-# plt.rcParams['font.sans-serif'] = 'Helvetica'
+plt.rcParams['ps.useafm'] = True
+plt.rcParams['pdf.use14corefonts'] = True
+plt.rcParams['text.usetex'] = True  # Let TeX do the typsetting
+plt.rcParams['text.latex.preamble'] = [r'\usepackage{sansmath}', r'\sansmath']
+plt.rcParams['font.family'] = 'sans-serif'  # ... for regular text
+plt.rcParams['font.sans-serif'] = 'Helvetica'
 # 'Helvetica, Avant Garde, Computer Modern Sans serif' # Choose a nice font here
 
 # plt.rcParams['font.family'] = gconfig['fontname']
@@ -149,20 +149,20 @@ gconfig = {
 
 if __name__ == '__main__':
 
-    fig, ax = plt.subplots(ncols=1, nrows=1,
-                           sharex=True, sharey=True,
-                           figsize=gconfig['figsize'])
-    plt.sca(ax)
-    plt.ylabel(gconfig['ylabel'], labelpad=3,
-               fontweight='bold',
-               fontsize=gconfig['fontsize'])
-    pos = 0
-    step = 1.
-    labels = set()
-    avg = {}
-    xticks = []
-    xtickspos = []
     for col, case in enumerate(args.cases):
+        fig, ax = plt.subplots(ncols=1, nrows=1,
+                               sharex=True, sharey=True,
+                               figsize=gconfig['figsize'])
+        plt.sca(ax)
+        plt.ylabel(gconfig['ylabel'], labelpad=3,
+                   fontweight='bold',
+                   fontsize=gconfig['fontsize'])
+        pos = 0
+        step = 1.
+        labels = set()
+        avg = {}
+        xticks = []
+        xtickspos = []
         print('[{}] tc: {}: {}'.format(
             this_filename[:-3], case, 'Reading data'))
         plots_dir = {}
@@ -294,51 +294,44 @@ if __name__ == '__main__':
                     color=gconfig['colors'][idx])
             if k != keyref:
                 for i in np.arange(len(speedup)):
+                    if speedup[i] > 0.9:
+                        continue
                     ax.annotate('{:.2f}'.format(speedup[i]),
                                 xy=(pos+idx*width+i, speedup[i]),
                                 rotation='90', **gconfig['annotate'])
             idx += 1
         pos += step
 
-    # vals = np.mean(avg, axis=0)
-    # for idx, key in enumerate(avg.keys()):
-    #     vals = avg[key]
-    #     val = np.mean(vals)
-    #     plt.bar(pos + idx*width, val, width=0.9*width,
-    #             edgecolor='0.', label=None, hatch=gconfig['hatches'][idx],
-    #             color=gconfig['colors'][idx])
-    #     text = '{:.2f}'.format(val)
-    #     if idx == 0:
-    #         text = ''
-    #     else:
-    #         text = text[:]
-    #     ax.annotate(text, xy=(pos + idx*width, 0.01 + val),
-    #                 rotation='90',
-    #                 **gconfig['annotate'])
-    # pos += step
 
-    # plt.ylim(gconfig['ylim'])
-    handles, labels = ax.get_legend_handles_labels()
-    # print(labels)
+        # plt.ylim(gconfig['ylim'])
+        handles, labels = ax.get_legend_handles_labels()
+        # print(labels)
 
-    plt.legend(handles=handles, labels=labels, **gconfig['legend'])
-    _, xmax = plt.xlim()
-    # plt.xlim(xmin=0-width, xmax=xmax-3*width/2)
-    plt.yticks(gconfig['yticks'], **gconfig['ticks'])
+        plt.grid(True, which='major', alpha=0.5)
+        plt.grid(False, which='major', axis='x')
+        plt.gca().set_axisbelow(True)
 
-    plt.xticks(np.arange(len(xref)), np.array(xref, int), **gconfig['xticks'])
-    plt.xlabel(**gconfig['xlabel'])
-    # plt.xticks(np.arange(pos) + step/2,
-    #            [c.upper() for c in args.cases] + ['AVG'], **gconfig['xticks'])
+        plt.title('{}'.format(case.upper()), **gconfig['title'])
 
-    ax.tick_params(**gconfig['tick_params'])
-    plt.tight_layout()
-    # plt.subplots_adjust(**gconfig['subplots_adjust'])
-    for file in gconfig['outfiles']:
-        file = file.format(
-            images_dir, this_filename[:-3], '-'.join(args.cases))
-        print('[{}] {}: {}'.format(this_filename[:-3], 'Saving figure', file))
-        save_and_crop(fig, file, dpi=600, bbox_inches='tight')
-    if args.show:
-        plt.show()
-    plt.close()
+
+        plt.legend(handles=handles, labels=labels, **gconfig['legend'])
+        _, xmax = plt.xlim()
+        # plt.xlim(xmin=0-width, xmax=xmax-3*width/2)
+        plt.yticks(gconfig['yticks'], **gconfig['ticks'])
+
+        plt.xticks(np.arange(len(xref))+(pos-width)/2, np.array(xref, int), **gconfig['xticks'])
+        plt.xlabel(**gconfig['xlabel'])
+        # plt.xticks(np.arange(pos) + step/2,
+        #            [c.upper() for c in args.cases] + ['AVG'], **gconfig['xticks'])
+
+        ax.tick_params(**gconfig['tick_params'])
+        plt.tight_layout()
+        # plt.subplots_adjust(**gconfig['subplots_adjust'])
+        for file in gconfig['outfiles']:
+            file = file.format(
+                images_dir, this_filename[:-3], '-'.join(args.cases))
+            print('[{}] {}: {}'.format(this_filename[:-3], 'Saving figure', file))
+            save_and_crop(fig, file, dpi=600, bbox_inches='tight')
+        if args.show:
+            plt.show()
+        plt.close()
