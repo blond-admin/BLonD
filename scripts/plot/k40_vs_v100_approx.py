@@ -13,10 +13,10 @@ project_dir = this_directory + '../../'
 parser = argparse.ArgumentParser(description='Generate the figure of the weak scaling experiment.',
                                  usage='python {} -i results/'.format(this_filename))
 
-parser.add_argument('-i', '--inputdirs', type=str, nargs='3',
+parser.add_argument('-i', '--inputdirs', type=str, nargs=3,
                     help='The input directories (gpu1, gpu2, cpu).')
 
-parser.add_argument('-m', '--models', type=str, nargs='3', default=['k40', 'v100', 'xeon'],
+parser.add_argument('-m', '--models', type=str, nargs=3, default=['k40', 'v100', 'xeon'],
                     help='The platform names.')
 
 parser.add_argument('-o', '--outdir', type=str, default=None,
@@ -181,7 +181,7 @@ gconfig = {
         # '{}/{}/lb-tp-approx2-weak-scaling/comm-comp-report.csv',
         # '{}/{}/lb-tp-approx1-weak-scaling/comm-comp-report.csv',
     },
-    'cpu_files_conf': [
+    'cpu_files_conf': {
         'files': '{}/{}/cpu-baseline/comm-comp-report.csv',
         'lines': {
             'b': ['12', '21', '18'],
@@ -189,7 +189,7 @@ gconfig = {
             # 't': ['5000'],
             'type': ['total'],
         },
-    ],
+    },
 
 }
 
@@ -197,7 +197,7 @@ gconfig = {
 plt.rcParams['ps.useafm'] = True
 plt.rcParams['pdf.use14corefonts'] = True
 plt.rcParams['text.usetex'] = True  # Let TeX do the typsetting
-plt.rcParams['text.latex.preamble'] = [r'\usepackage{sansmath}', r'\sansmath']
+plt.rcParams['text.latex.preamble'] = [r'\usepackage{sansmath}']
 plt.rcParams['font.family'] = 'sans-serif'  # ... for regular text
 plt.rcParams['font.sans-serif'] = 'Helvetica'
 # 'Helvetica, Avant Garde, Computer Modern Sans serif' # Choose a nice font here
@@ -246,15 +246,20 @@ if __name__ == '__main__':
                 for key in temp.keys():
                     approx = key.split('approx')[1].split('_')[0]
                     approx = gconfig['approx'][approx]
+                    red = key.split('red')[1].split('_')[0]
+                    prec = key.split('prec')[1].split('_')[0]
                     gpu = key.split('gpu')[1].split('_')[0]
-                    tp = '0'
+                    if approx == 'SRP':
+                        label = f'{prec}-{approx}-{red}-gpu{gpu}'
+                    else:
+                        label = f'{prec}-{approx}-gpu{gpu}'
                     if 'tp-approx' in file:
-                        tp = '1'
-                    label = f'{approx}-gpu{gpu}-tp{tp}'
+                        label = 'tp-' + label
+                    if label not in gconfig['label']:
+                        continue
                     label = gconfig['label'][label]
-                    plots_dir[label] = temp[key].copy()
-                    # key = '{}-gpu{}-tp{}'.format(approx, gpu, tp)
-                    # label = gconfig['label'][key]
+                    plots_dir[model][label] = temp[key].copy()
+
 
         plt.grid(True, which='major', alpha=0.5)
         plt.grid(False, which='major', axis='x')
