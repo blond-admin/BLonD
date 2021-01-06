@@ -87,7 +87,7 @@ if __name__ == '__main__':
             precs = config['precision']
             artdels = config['artificialdelay']
             gpus = config['gpu']
-            partitions = config.get(['partition'], ['default']*len(ps))
+            partitions = config.get('partition', ['default']*len(ps))
             cores_per_cpu_lst = config.get(
                 ['cores_per_cpu'], [common.cores_per_cpu]*len(ps))
             nodes = config.get('nodes', [0]*len(ps))
