@@ -42,7 +42,6 @@ this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 inputDir = os.path.join(this_directory, '../input_files/PS/')
 
 
-
 # Simulation parameters -------------------------------------------------------
 
 # Output parameters
@@ -110,7 +109,7 @@ n_turns_memory = 100
 n_turns_reduce = 1
 n_turns = 378708
 n_iterations = n_turns
-seed = 0 
+seed = 0
 args = parse()
 
 
@@ -434,7 +433,7 @@ if worker.hasGPU:
     bm.use_gpu(gpu_id=worker.gpu_id)
     PS_longitudinal_intensity.use_gpu()
     tracker.use_gpu()
-    if args['gpucache']==1:
+    if args['gpucache'] == 1:
         bm.enable_gpucache()
 
 print(f'Glob rank: [{worker.rank}], Node rank: [{worker.noderank}], Intra rank: [{worker.intrarank}], GPU rank: [{worker.gpucommrank}], hasGPU: {worker.hasGPU}')
@@ -446,86 +445,88 @@ worker.sync()
 timing.reset()
 start_t = time.time()
 
-import cuprof.cuprof as cp
+# import cuprof.cuprof as cp
 
-cp.enable()
+# cp.enable()
 
-with cp.region_timer('main_loop'):
-    for turn in range(n_iterations):
+# with cp.region_timer('main_loop'):
+for turn in range(n_iterations):
 
-        # if (i > 0) and (i % datamatrix_output_step) == 0:
-        #     t0 = time.time()
+    # if (i > 0) and (i % datamatrix_output_step) == 0:
+    #     t0 = time.time()
 
-        if (approx == 0):
-            profile.track()
-            # worker.sync()
-            profile.reduce_histo()
-        elif (approx == 1) and (turn % n_turns_reduce == 0):
-            profile.track()
-            # worker.sync()
-            profile.reduce_histo()
-        elif (approx == 2):
-            profile.track()
-            profile.scale_histo()
+    if (approx == 0):
+        profile.track()
+        # worker.sync()
+        profile.reduce_histo()
+    elif (approx == 1) and (turn % n_turns_reduce == 0):
+        profile.track()
+        # worker.sync()
+        profile.reduce_histo()
+    elif (approx == 2):
+        profile.track()
+        profile.scale_histo()
 
-        # Change impedance of 10 MHz only if it changes
-        # if (i > 0) and (R_S_program_10MHz[i] != R_S_program_10MHz[i-1]):
-        #     PS_intensity_freq_10MHz.impedance_source_list[0].R_S[:] = \
-        #         R_S_10MHz_save * R_S_program_10MHz[i]
-        #     PS_intensity_freq_10MHz.sum_impedances(PS_intensity_freq_10MHz.freq)
+    # Change impedance of 10 MHz only if it changes
+    # if (i > 0) and (R_S_program_10MHz[i] != R_S_program_10MHz[i-1]):
+    #     PS_intensity_freq_10MHz.impedance_source_list[0].R_S[:] = \
+    #         R_S_10MHz_save * R_S_program_10MHz[i]
+    #     PS_intensity_freq_10MHz.sum_impedances(PS_intensity_freq_10MHz.freq)
 
-        # If we are in a gpu group, with tp
-        if withtp and worker.gpu_id >= 0:
-            if worker.hasGPU:
-                if (approx == 0) or (approx == 2):
-                    PS_longitudinal_intensity.induced_voltage_sum()
-                elif (approx == 1) and (turn % n_turns_reduce == 0):
-                    PS_longitudinal_intensity.induced_voltage_sum()
-                tracker.pre_track()
-            # else:
-            #     pass
-            
-            worker.gpuSync()
-            
-            # Here I need to broadcast the calculated stuff
-            PS_longitudinal_intensity.induced_voltage = worker.broadcast(PS_longitudinal_intensity.induced_voltage)
-            tracker.rf_voltage = worker.broadcast(tracker.rf_voltage)
-        # else just do the normal task-parallelism
-        elif withtp:
-            if worker.isFirst:
-                if (approx == 0) or (approx == 2):
-                    PS_longitudinal_intensity.induced_voltage_sum()
-                elif (approx == 1) and (turn % n_turns_reduce == 0):
-                    PS_longitudinal_intensity.induced_voltage_sum()
-            if worker.isLast:
-                tracker.pre_track()
-
-            worker.intraSync()
-            worker.sendrecv(PS_longitudinal_intensity.induced_voltage, tracker.rf_voltage)
-        else:
+    # If we are in a gpu group, with tp
+    if withtp and worker.gpu_id >= 0:
+        if worker.hasGPU:
             if (approx == 0) or (approx == 2):
                 PS_longitudinal_intensity.induced_voltage_sum()
             elif (approx == 1) and (turn % n_turns_reduce == 0):
                 PS_longitudinal_intensity.induced_voltage_sum()
-            # PS_longitudinal_intensity.induced_voltage_sum()
             tracker.pre_track()
-            
-        tracker.track_only()
+        # else:
+        #     pass
 
-        if (args['monitor'] > 0) and (turn % args['monitor'] == 0):
-            beam.statistics()
-            beam.gather_statistics()
-            profile.fwhm_multibunch(n_bunches, bunch_spacing_buckets,
-                                    rf_params.t_rf[0, turn], bucket_tolerance=0)
-                                    # shiftX=rf_params.phi_rf[0, turn]/rf_params.omega_rf[0, turn])
+        worker.gpuSync()
 
-            if worker.isMaster:
-                # profile.fwhm()
-                slicesMonitor.track(turn)
-        
-        worker.DLB(turn, beam)
+        # Here I need to broadcast the calculated stuff
+        PS_longitudinal_intensity.induced_voltage = worker.broadcast(
+            PS_longitudinal_intensity.induced_voltage)
+        tracker.rf_voltage = worker.broadcast(tracker.rf_voltage)
+    # else just do the normal task-parallelism
+    elif withtp:
+        if worker.isFirst:
+            if (approx == 0) or (approx == 2):
+                PS_longitudinal_intensity.induced_voltage_sum()
+            elif (approx == 1) and (turn % n_turns_reduce == 0):
+                PS_longitudinal_intensity.induced_voltage_sum()
+        if worker.isLast:
+            tracker.pre_track()
 
-cp.report()
+        worker.intraSync()
+        worker.sendrecv(
+            PS_longitudinal_intensity.induced_voltage, tracker.rf_voltage)
+    else:
+        if (approx == 0) or (approx == 2):
+            PS_longitudinal_intensity.induced_voltage_sum()
+        elif (approx == 1) and (turn % n_turns_reduce == 0):
+            PS_longitudinal_intensity.induced_voltage_sum()
+        # PS_longitudinal_intensity.induced_voltage_sum()
+        tracker.pre_track()
+
+    tracker.track_only()
+
+    if (args['monitor'] > 0) and (turn % args['monitor'] == 0):
+        beam.statistics()
+        beam.gather_statistics()
+        profile.fwhm_multibunch(n_bunches, bunch_spacing_buckets,
+                                rf_params.t_rf[0, turn], bucket_tolerance=0)
+        # shiftX=rf_params.phi_rf[0, turn]/rf_params.omega_rf[0, turn])
+
+        if worker.isMaster:
+            # profile.fwhm()
+            slicesMonitor.track(turn)
+
+    worker.DLB(turn, beam)
+
+# cp.report()
 beam.gather()
 end_t = time.time()
 timing.report(total_time=1e3*(end_t-start_t),

@@ -10,6 +10,34 @@ mpirun = 'mpirun'
 python = 'python'
 
 cores_per_cpu = 20
+
+# Evolve SLURM flags
+evolve = {
+    'script': os.path.join(blond_home, 'scripts/other/evolve-slurm-simple.sh'),
+    'submit': 'sbatch',
+    'run': 'srun',
+    'nodes': '--nodes',
+    'workers': '--ntasks',
+    'tasks_per_node': '--ntasks-per-node',
+    'cores': '--cpus-per-task',
+    'time': '-t',
+    'output': '-o',
+    'error': '-e',
+    'jobname': '-J',
+    'partition': '--partition',
+    # 'gpu': '--gres=gpu:',
+    'default_args': [
+            '--mem', '0',
+            '--export', 'ALL',
+            '--hint', 'nomultithread',
+            '--gres', 'gpu:2'
+            # '--overcommit'
+            # '--partition', 'inf-short'
+    ]
+}
+
+
+
 # SLURM flags
 slurm = {
     'script': os.path.join(blond_home, 'scripts/other/batch-simple.sh'),

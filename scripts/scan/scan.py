@@ -15,7 +15,7 @@ this_filename = sys.argv[0].split('/')[-1]
 parser = argparse.ArgumentParser(description='Run locally the MPI experiments.',
                                  usage='python {} -t lhc sps ps'.format(this_filename[:-3]))
 
-parser.add_argument('-e', '--environment', type=str, default='local', choices=['local', 'slurm', 'condor'],
+parser.add_argument('-e', '--environment', type=str, default='local', choices=['local', 'slurm', 'condor', 'evolve'],
                     help='The environment to run the scan.')
 
 parser.add_argument('-t', '--testcases', type=str, default=['lhc,sps,ps'],
@@ -40,7 +40,7 @@ if __name__ == '__main__':
 
         result_dir = top_result_dir + '/{}/{}/{}/{}/{}'
 
-        job_name_form = '_p{}_b{}_s{}_t{}_w{}_o{}_N{}_red{}_mtw{}_seed{}_approx{}_mpi{}_lb{}_monitor{}_tp{}_prec{}_artdel{}_gpu{}_'
+        job_name_form = '_p{}_b{}_s{}_t{}_w{}_o{}_N{}_red{}_mtw{}_seed{}_approx{}_mpi{}_lb{}_monitor{}_tp{}_prec{}_artdel{}_gpu{}_partition_{}'
 
         total_sims = 0
         for rc in yc['run_configs']:
@@ -87,23 +87,28 @@ if __name__ == '__main__':
             precs = config['precision']
             artdels = config['artificialdelay']
             gpus = config['gpu']
-
+            partitions = config.get(['partition'], ['default']*len(ps))
+            cores_per_cpu_lst = config.get(
+                ['cores_per_cpu'], [common.cores_per_cpu]*len(ps))
             nodes = config.get('nodes', [0]*len(ps))
 
             for (N, p, b, s, t, r, w, o, time,
                  mtw, m, seed, exe, approx,
                  timing, mpi, log, lb,  # lba,
-                 tp, prec, reps, artdel, gpu) in zip(nodes, ps, bs, ss, ts, rs, ws,
-                                                     oss, times, mtws, ms, seeds,
-                                                     exes, approxs, timings, mpis,
-                                                     logs, lbs, tps, precs,
-                                                     repeats, artdels, gpus):
+                 tp, prec, reps, artdel, gpu,
+                 partition, cores_per_cpu) in zip(nodes, ps, bs, ss, ts, rs, ws,
+                                                  oss, times, mtws, ms, seeds,
+                                                  exes, approxs, timings, mpis,
+                                                  logs, lbs, tps, precs,
+                                                  repeats, artdels, gpus, partitions,
+                                                  cores_per_cpu_lst):
                 if N == 0:
-                    N = int(max(np.ceil(w * o / common.cores_per_cpu), 1))
+                    N = int(max(np.ceil(w * o / cores_per_cpu), 1))
 
                 job_name = job_name_form.format(p, b, s, t, w, o, N,
                                                 r, mtw, seed, approx, mpi,
-                                                lb, m, tp, prec, artdel, gpu)
+                                                lb, m, tp, prec, artdel, gpu,
+                                                partition)
 
                 for i in range(reps):
                     timestr = datetime.now().strftime('%d%b%y.%H-%M-%S')
@@ -153,6 +158,23 @@ if __name__ == '__main__':
                     if args.environment == 'local':
                         batch_args = [common.mpirun, '-n', str(w),
                                       '-bind-to', 'socket']
+                        all_args = batch_args + exe_args
+                    elif args.environment == 'evolve':
+                        batch_args = [
+                            common.evolve['submit'],
+                            common.evolve['nodes'], str(N),
+                            common.evolve['workers'], str(w),
+                            common.evolve['tasks_per_node'], str(
+                                int(np.ceil(w/N))),
+                            common.evolve['cores'], str(o),  # str(o),
+                            common.evolve['partition'], str(partition),
+                            common.evolve['time'], str(time),
+                            common.evolve['output'], output,
+                            common.evolve['error'], error,
+                            common.evolve['jobname'], tc + '-' + analysis + job_name.split('/')[0] + '-' + str(i)]
+                        batch_args += common.evolve['default_args']
+                        batch_args += [common.evolve['script'],
+                                       common.evolve['run']]
                         all_args = batch_args + exe_args
 
                     elif args.environment == 'slurm':
