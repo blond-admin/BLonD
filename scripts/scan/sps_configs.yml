@@ -34,7 +34,7 @@ evolve:
             'mpi': ['openmpi4'],
             'time': [60],
             'partition': ['computes_gpu_p40', 'computes_gpu_k20'],
-            'cores_per_cpu': [16, 16]
+            'cores_per_cpu': [16, 16],
 
             'repeats': 3
         },
@@ -62,7 +62,7 @@ evolve:
             'mpi': ['openmpi4'],
             'time': [60],
             'partition': ['computes_gpu_p40', 'computes_gpu_k20'],
-            'cores_per_cpu': [16, 16]
+            'cores_per_cpu': [16, 16],
 
             'repeats': 3
         },
@@ -94,7 +94,7 @@ evolve:
             'mpi': ['openmpi4'],
             'time': [60],
             'partition': ['computes_gpu_p40', 'computes_gpu_k20'],
-            'cores_per_cpu': [16, 16]
+            'cores_per_cpu': [16, 16],
 
             'repeats': 3
         },
@@ -124,7 +124,7 @@ evolve:
             'mpi': ['openmpi4'],
             'time': [60],
             'partition': ['computes_gpu_p40', 'computes_gpu_k20'],
-            'cores_per_cpu': [16, 16]
+            'cores_per_cpu': [16, 16],
 
             'repeats': 3
         },
@@ -154,7 +154,7 @@ evolve:
             'mpi': ['openmpi4'],
             'time': [60],
             'partition': ['computes_gpu_p40', 'computes_gpu_k20'],
-            'cores_per_cpu': [16, 16]
+            'cores_per_cpu': [16, 16],
 
             'repeats': 3
         },
@@ -183,7 +183,7 @@ evolve:
             'mpi': ['openmpi4'],
             'time': [60],
             'partition': ['computes_gpu_p40', 'computes_gpu_k20'],
-            'cores_per_cpu': [16, 16]
+            'cores_per_cpu': [16, 16],
 
             'repeats': 3
         },
