@@ -13,7 +13,7 @@ evolve:
         # Approximate
         'f32-srp-timing-gpu': {
             'exe': ['PS_main.py'],
-            'particles': [16000000],
+            'particles': [10000000],
             'bunches': [21],  # 192
 
             'slices': [256],
@@ -43,7 +43,7 @@ evolve:
 
         'f32-rds-timing-gpu': {
             'exe': ['PS_main.py'],
-            'particles': [16000000],
+            'particles': [10000000],
             'bunches': [21],  # 192
 
             'slices': [256],
@@ -73,7 +73,7 @@ evolve:
 
         'srp-timing-gpu': {
             'exe': ['PS_main.py'],
-            'particles': [16000000],
+            'particles': [10000000],
             'bunches': [21],  # 192
 
             'slices': [256],
@@ -103,7 +103,7 @@ evolve:
 
         'rds-timing-gpu': {
             'exe': ['PS_main.py'],
-            'particles': [16000000],
+            'particles': [10000000],
             'bunches': [21],  # 192
 
             'slices': [256],
@@ -132,7 +132,7 @@ evolve:
 
         'exact-timing-gpu': {
             'exe': ['PS_main.py'],
-            'particles': [16000000],
+            'particles': [10000000],
             'bunches': [21],  # 192
 
             'slices': [256],
@@ -163,7 +163,7 @@ evolve:
 
         'float32-timing-gpu': {
             'exe': ['PS_main.py'],
-            'particles': [16000000],
+            'particles': [10000000],
             'bunches': [21],  # 192
 
             'slices': [256],
