@@ -175,7 +175,8 @@ if __name__ == '__main__':
                         batch_args += common.evolve['default_args']
                         batch_args += [common.evolve['script'],
                                        common.evolve['run']]
-                        all_args = batch_args + exe_args
+                        all_args = batch_args + \
+                            [common.mpirun, '-n', str(w)] + exe_args
 
                     elif args.environment == 'slurm':
                         batch_args = [
@@ -214,10 +215,10 @@ if __name__ == '__main__':
                         all_args = batch_args
 
                     print(job_name, timestr)
-                    print(job_name, timestr, file=analysis_file)
+                    print(job_name, timestr, "\n", file=analysis_file)
 
                     all_args = ' '.join(all_args)
-                    print(all_args, file=analysis_file)
+                    print(all_args, "\n", file=analysis_file)
 
                     if args.limit > 0 and args.environment == 'slurm':
                         # Calculate the number of jobs currently running
@@ -242,7 +243,7 @@ if __name__ == '__main__':
 
                     # sleep(5)
                     current_sim += 1
-                    print("%lf %% is completed" % (100.0 * current_sim /
-                                                   total_sims))
+                    print("%lf %% is completed" % (100.0 * current_sim
+                                                   / total_sims))
 
                     analysis_file.close()
