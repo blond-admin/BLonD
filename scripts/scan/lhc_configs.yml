@@ -62,7 +62,7 @@ evolve:
             'gpu': [1],
             'workers': [1],
             'omp': [16],
-            'partition': [computes_gpu_k20'],
+            'partition': ['computes_gpu_k20'],
             'cores_per_cpu': [16],
 
             'mpi': ['openmpi4'],
@@ -91,7 +91,7 @@ evolve:
             'workers': [1],
             'omp': [16],
             'mpi': ['openmpi4'],
-            'partition': [computes_gpu_k20'],
+            'partition': ['computes_gpu_k20'],
             'cores_per_cpu': [16],
 
             'time': [60],
@@ -119,7 +119,7 @@ evolve:
             'workers': [1],
             'omp': [16],
             'mpi': ['openmpi4'],
-            'partition': [computes_gpu_k20'],
+            'partition': ['computes_gpu_k20'],
             'cores_per_cpu': [16],
 
             'time': [60],
@@ -147,7 +147,7 @@ evolve:
             'workers': [1],
             'omp': [16],
             'mpi': ['openmpi4'],
-            'partition': [computes_gpu_k20'],
+            'partition': ['computes_gpu_k20'],
             'cores_per_cpu': [16],
 
             'time': [60],
@@ -175,7 +175,7 @@ evolve:
             'workers': [1],
             'omp': [16],
             'mpi': ['openmpi4'],
-            'partition': [computes_gpu_k20'],
+            'partition': ['computes_gpu_k20'],
             'cores_per_cpu': [16],
 
             'time': [60],
