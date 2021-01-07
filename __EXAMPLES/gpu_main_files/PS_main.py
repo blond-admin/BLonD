@@ -540,6 +540,8 @@ if args['monitor'] > 0:
 
 mpiprint('dE mean: ', np.mean(beam.dE))
 mpiprint('dE std: ', np.std(beam.dE))
+
+mpiprint('profile sum: ', np.sum(profile.n_macroparticles))
 mpiprint('profile mean: ', np.mean(profile.n_macroparticles))
 mpiprint('profile std: ', np.std(profile.n_macroparticles))
 
