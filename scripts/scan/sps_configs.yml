@@ -1,17 +1,21 @@
 evolve: 
 
     run_configs: 
-        
         # Approximate 
-        - 'srp-timing-gpu' 
-        - 'exact-timing-gpu' 
-        - 'float32-timing-gpu' 
-        - 'f32-srp-timing-gpu' 
+        - 'srp-timing-gpu-k20'
+        - 'exact-timing-gpu-k20' 
+        - 'float32-timing-gpu-k20'  
+        - 'f32-srp-timing-gpu-k20'
+
+        - 'srp-timing-gpu-p40'
+        - 'exact-timing-gpu-p40' 
+        - 'float32-timing-gpu-p40'  
+        - 'f32-srp-timing-gpu-p40'
 
     configs: {
 
         # Approximate 
-        'f32-srp-timing-gpu': {
+        'f32-srp-timing-gpu-p40': {
             'exe': ['SPS_main.py'],
             'particles': [1000000],
             'bunches': [36],  # 192
@@ -39,7 +43,7 @@ evolve:
             'repeats': 3
         },
 
-        'f32-rds-timing-gpu': {
+        'f32-rds-timing-gpu-p40': {
             'exe': ['SPS_main.py'],
             'particles': [1000000],
             'bunches': [36],  # 192
@@ -69,7 +73,7 @@ evolve:
 
 
 
-        'srp-timing-gpu': {
+        'srp-timing-gpu-p40': {
             'exe': ['SPS_main.py'],
 
             'particles': [1000000],
@@ -99,7 +103,7 @@ evolve:
             'repeats': 3
         },
 
-        'rds-timing-gpu': {
+        'rds-timing-gpu-p40': {
             'exe': ['SPS_main.py'],
 
             'particles': [1000000],
@@ -129,7 +133,7 @@ evolve:
             'repeats': 3
         },
 
-        'exact-timing-gpu': {
+        'exact-timing-gpu-p40': {
             'exe': ['SPS_main.py'],
 
             'particles': [1000000],
@@ -160,7 +164,7 @@ evolve:
         },
 
 
-        'float32-timing-gpu': {
+        'float32-timing-gpu-p40': {
             'exe': ['SPS_main.py'],
             'particles': [1000000],
             'bunches': [36],  # 192
@@ -187,6 +191,185 @@ evolve:
 
             'repeats': 3
         },
+
+
+        # Approximate  K20
+        'f32-srp-timing-gpu-k20': {
+            'exe': ['SPS_main.py'],
+            'particles': [1000000],
+            'bunches': [36],  # 192
+            'slices': [1408],
+            'turns': [10000],
+            'monitor': [0],
+            'seed': [0],
+            'mtw': [0],
+            'precision': ['single'],
+            'withtp': [0],
+            'reduce': [3],
+            'approx': [1],
+            'log': [1],
+            'loadbalance': ['reportonly,,,,'],
+            'artificialdelay': ['off'],
+            'timing': ['timing'],
+            'gpu': [1],
+            'workers': [1],
+            'omp': [16],
+            'mpi': ['openmpi4'],
+            'time': [60],
+            'partition': ['computes_gpu_k20'],
+            'cores_per_cpu': [16],
+
+            'repeats': 3
+        },
+
+        'f32-rds-timing-gpu-k20': {
+            'exe': ['SPS_main.py'],
+            'particles': [1000000],
+            'bunches': [36],  # 192
+            'slices': [1408],
+            'turns': [10000],
+            'monitor': [0],
+            'seed': [0],
+            'mtw': [0],
+            'precision': ['single'],
+            'withtp': [0],
+            'reduce': [1],
+            'approx': [2],
+            'log': [1],
+            'loadbalance': ['reportonly,,,,'],
+            'artificialdelay': ['off'],
+            'timing': ['timing'],
+            'gpu': [1],
+            'workers': [1],
+            'omp': [16],
+            'mpi': ['openmpi4'],
+            'time': [60],
+            'partition': ['computes_gpu_k20'],
+            'cores_per_cpu': [16],
+
+            'repeats': 3
+        },
+
+
+
+        'srp-timing-gpu-k20': {
+            'exe': ['SPS_main.py'],
+
+            'particles': [1000000],
+            'bunches': [36],  # 192
+
+            'slices': [1408],
+            'turns': [10000],
+            'monitor': [0],
+            'seed': [0],
+            'mtw': [0],
+            'precision': ['double'],
+            'withtp': [0],
+            'reduce': [3],
+            'approx': [1],
+            'log': [1],
+            'loadbalance': ['reportonly,,,,'],
+            'artificialdelay': ['off'],
+            'timing': ['timing'],
+            'gpu': [1],
+            'workers': [1],
+            'omp': [16],
+            'mpi': ['openmpi4'],
+            'time': [60],
+            'partition': ['computes_gpu_k20'],
+            'cores_per_cpu': [16],
+
+            'repeats': 3
+        },
+
+        'rds-timing-gpu-k20': {
+            'exe': ['SPS_main.py'],
+
+            'particles': [1000000],
+            'bunches': [36],  # 192
+
+            'slices': [1408],
+            'turns': [10000],
+            'monitor': [0],
+            'seed': [0],
+            'mtw': [0],
+            'precision': ['double'],
+            'withtp': [0],
+            'reduce': [1],
+            'approx': [2],
+            'log': [1],
+            'loadbalance': ['reportonly,,,,'],
+            'artificialdelay': ['off'],
+            'timing': ['timing'],
+            'gpu': [1],
+            'workers': [1],
+            'omp': [16],
+            'mpi': ['openmpi4'],
+            'time': [60],
+            'partition': ['computes_gpu_k20'],
+            'cores_per_cpu': [16],
+
+            'repeats': 3
+        },
+
+        'exact-timing-gpu-k20': {
+            'exe': ['SPS_main.py'],
+
+            'particles': [1000000],
+            'bunches': [36],  # 192
+
+            'slices': [1408],
+            'turns': [10000],
+            'monitor': [0],
+            'seed': [0],
+            'mtw': [0],
+            'precision': ['double'],
+            'withtp': [0],
+            'reduce': [1],
+            'approx': [0],
+            'log': [1],
+            'loadbalance': ['reportonly,,,,'],
+            'artificialdelay': ['off'],
+            'timing': ['timing'],
+            'gpu': [1],
+            'workers': [1],
+            'omp': [16],
+            'mpi': ['openmpi4'],
+            'time': [60],
+            'partition': ['computes_gpu_k20'],
+            'cores_per_cpu': [16],
+
+            'repeats': 3
+        },
+
+
+        'float32-timing-gpu-k20': {
+            'exe': ['SPS_main.py'],
+            'particles': [1000000],
+            'bunches': [36],  # 192
+            'slices': [1408],
+            'turns': [10000],
+            'monitor': [0],
+            'seed': [0],
+            'mtw': [0],
+            'precision': ['single'],
+            'withtp': [0],
+            'reduce': [1],
+            'approx': [0],
+            'log': [1],
+            'loadbalance': ['reportonly,,,,'],
+            'artificialdelay': ['off'],
+            'timing': ['timing'],
+            'gpu': [1],
+            'workers': [1],
+            'omp': [16],
+            'mpi': ['openmpi4'],
+            'time': [60],
+            'partition': ['computes_gpu_k20'],
+            'cores_per_cpu': [16],
+
+            'repeats': 3
+        },        
     }
 
 

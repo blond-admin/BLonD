@@ -23,7 +23,6 @@ fi
 export CUDA_VISIBLE_DEVICES=0,1
 
 source $HOME/.bashrc
-
-cd $BLONDHOME
+# cd $BLONDHOME
 
 $@
