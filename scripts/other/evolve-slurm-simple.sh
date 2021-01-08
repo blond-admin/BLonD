@@ -6,7 +6,7 @@
 # Submit script: sbatch filename   #
 #                                  #
 ####################################
-
+#SBATCH --exclude=ns64
 
 which python
 gcc --version
