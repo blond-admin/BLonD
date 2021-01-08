@@ -18,7 +18,7 @@ evolve:
         # Approximate Weak-Scaling P40
         'f32-srp-timing-gpu-p40': {
             'exe': ['LHC_main.py'],
-            'particles': [1500000],
+            'particles': [1000000],
             'bunches': [96],
             'slices': [1000],
             'turns': [10000],
@@ -45,7 +45,7 @@ evolve:
 
         'f32-rds-timing-gpu-p40': {
             'exe': ['LHC_main.py'],
-            'particles': [1500000],
+            'particles': [1000000],
             'bunches': [96],
             'slices': [1000],
             'turns': [10000],
@@ -72,7 +72,7 @@ evolve:
 
         'srp-timing-gpu-p40': {
             'exe': ['LHC_main.py'],
-            'particles': [1500000],
+            'particles': [1000000],
             'bunches': [96],
             'slices': [1000],
             'turns': [10000],
@@ -102,7 +102,7 @@ evolve:
 
         'rds-timing-gpu-p40': {
             'exe': ['LHC_main.py'],
-            'particles': [1500000],
+            'particles': [1000000],
             'bunches': [96],
             'slices': [1000],
             'turns': [10000],
@@ -132,7 +132,7 @@ evolve:
 
         'exact-timing-gpu-p40': {
             'exe': ['LHC_main.py'],
-            'particles': [1500000],
+            'particles': [1000000],
             'bunches': [96],
             'slices': [1000],
             'turns': [10000],
@@ -162,7 +162,7 @@ evolve:
 
         'float32-timing-gpu-p40': {
             'exe': ['LHC_main.py'],
-            'particles': [1500000],
+            'particles': [1000000],
             'bunches': [96],
             'slices': [1000],
             'turns': [10000],
@@ -193,7 +193,7 @@ evolve:
         # Approximate Weak-Scaling K20
         'f32-srp-timing-gpu-k20': {
             'exe': ['LHC_main.py'],
-            'particles': [1500000],
+            'particles': [1000000],
             'bunches': [96],
             'slices': [1000],
             'turns': [10000],
@@ -220,7 +220,7 @@ evolve:
 
         'f32-rds-timing-gpu-k20': {
             'exe': ['LHC_main.py'],
-            'particles': [1500000],
+            'particles': [1000000],
             'bunches': [96],
             'slices': [1000],
             'turns': [10000],
@@ -246,7 +246,7 @@ evolve:
 
         'srp-timing-gpu-k20': {
             'exe': ['LHC_main.py'],
-            'particles': [1500000],
+            'particles': [1000000],
             'bunches': [96],
             'slices': [1000],
             'turns': [10000],
@@ -273,7 +273,7 @@ evolve:
 
         'rds-timing-gpu-k20': {
             'exe': ['LHC_main.py'],
-            'particles': [1500000],
+            'particles': [1000000],
             'bunches': [96],
             'slices': [1000],
             'turns': [10000],
@@ -300,7 +300,7 @@ evolve:
 
         'exact-timing-gpu-k20': {
             'exe': ['LHC_main.py'],
-            'particles': [1500000],
+            'particles': [1000000],
             'bunches': [96],
             'slices': [1000],
             'turns': [10000],
@@ -327,7 +327,7 @@ evolve:
 
         'float32-timing-gpu-k20': {
             'exe': ['LHC_main.py'],
-            'particles': [1500000],
+            'particles': [1000000],
             'bunches': [96],
             'slices': [1000],
             'turns': [10000],
@@ -454,7 +454,7 @@ slurm:
         # Approximate Weak-Scaling
         'f32-srp-timing-gpu': {
             'exe': ['LHC_main.py'],
-            'particles': [1500000],
+            'particles': [1000000],
             'bunches': [12],
             'slices': [1000],
             'turns': [10000],
@@ -479,7 +479,7 @@ slurm:
 
         'f32-rds-timing-gpu': {
             'exe': ['LHC_main.py'],
-            'particles': [1500000],
+            'particles': [1000000],
             'bunches': [12],
             'slices': [1000],
             'turns': [10000],
@@ -504,7 +504,7 @@ slurm:
 
         'srp-timing-gpu': {
             'exe': ['LHC_main.py'],
-            'particles': [1500000],
+            'particles': [1000000],
             'bunches': [12],
             'slices': [1000],
             'turns': [10000],
@@ -529,7 +529,7 @@ slurm:
 
         'rds-timing-gpu': {
             'exe': ['LHC_main.py'],
-            'particles': [1500000],
+            'particles': [1000000],
             'bunches': [12],
             'slices': [1000],
             'turns': [10000],
@@ -555,7 +555,7 @@ slurm:
 
         'exact-timing-gpu': {
             'exe': ['LHC_main.py'],
-            'particles': [1500000],
+            'particles': [1000000],
             'bunches': [12],
             'slices': [1000],
             'turns': [10000],
@@ -581,7 +581,7 @@ slurm:
 
         'float32-timing-gpu': {
             'exe': ['LHC_main.py'],
-            'particles': [1500000],
+            'particles': [1000000],
             'bunches': [12],
             'slices': [1000],
             'turns': [10000],
@@ -608,7 +608,7 @@ slurm:
         # Approximate Weak-Scaling
         'f32-srp-weak-scaling-timing-gpu': {
             'exe': ['LHC_main.py'],
-            'particles': [1500000],
+            'particles': [1000000],
             'bunches': [12, 24, 48, 96, 192],
             'slices': [1000],
             'turns': [10000],
@@ -633,7 +633,7 @@ slurm:
 
         'f32-rds-weak-scaling-timing-gpu': {
             'exe': ['LHC_main.py'],
-            'particles': [1500000],
+            'particles': [1000000],
             'bunches': [12, 24, 48, 96, 192],
             'slices': [1000],
             'turns': [10000],
@@ -659,7 +659,7 @@ slurm:
 
         'srp-weak-scaling-timing-gpu': {
             'exe': ['LHC_main.py'],
-            'particles': [1500000],
+            'particles': [1000000],
             'bunches': [12, 24, 48, 96, 192],
             'slices': [1000],
             'turns': [10000],
@@ -684,7 +684,7 @@ slurm:
 
         'rds-weak-scaling-timing-gpu': {
             'exe': ['LHC_main.py'],
-            'particles': [1500000],
+            'particles': [1000000],
             'bunches': [12, 24, 48, 96, 192],
             'slices': [1000],
             'turns': [10000],
@@ -709,7 +709,7 @@ slurm:
 
         'exact-weak-scaling-timing-gpu': {
             'exe': ['LHC_main.py'],
-            'particles': [1500000],
+            'particles': [1000000],
             'bunches': [12, 24, 48, 96, 192],
             'slices': [1000],
             'turns': [10000],
@@ -734,7 +734,7 @@ slurm:
 
         'float32-weak-scaling-timing-gpu': {
             'exe': ['LHC_main.py'],
-            'particles': [1500000],
+            'particles': [1000000],
             'bunches': [12, 24, 48, 96, 192],
             'slices': [1000],
             'turns': [10000],
@@ -761,7 +761,7 @@ slurm:
         # Approximate Weak-Scaling
         'f32-srp-timing-cpu': {
             'exe': ['LHC_main.py'],
-            'particles': [1500000],
+            'particles': [1000000],
             'bunches': [12, 24, 48, 96, 192],
             'slices': [1000],
             'turns': [10000],
@@ -786,7 +786,7 @@ slurm:
 
         'f32-rds-timing-cpu': {
             'exe': ['LHC_main.py'],
-            'particles': [1500000],
+            'particles': [1000000],
             'bunches': [12, 24, 48, 96, 192],
             'slices': [1000],
             'turns': [10000],
@@ -812,7 +812,7 @@ slurm:
 
         'srp-timing-cpu': {
             'exe': ['LHC_main.py'],
-            'particles': [1500000],
+            'particles': [1000000],
             'bunches': [12, 24, 48, 96, 192],
             'slices': [1000],
             'turns': [10000],
@@ -838,7 +838,7 @@ slurm:
 
         'rds-timing-cpu': {
             'exe': ['LHC_main.py'],
-            'particles': [1500000],
+            'particles': [1000000],
             'bunches': [192],
             'slices': [1000],
             'turns': [10000],
@@ -863,7 +863,7 @@ slurm:
 
         'exact-timing-cpu': {
             'exe': ['LHC_main.py'],
-            'particles': [1500000],
+            'particles': [1000000],
             'bunches': [192],
             'slices': [1000],
             'turns': [10000],
@@ -888,7 +888,7 @@ slurm:
 
         'float32-timing-cpu': {
             'exe': ['LHC_main.py'],
-            'particles': [1500000],
+            'particles': [1000000],
             'bunches': [12, 24, 48, 96, 192],
             'slices': [1000],
             'turns': [10000],
@@ -1099,7 +1099,7 @@ slurm:
 
         'tp-approx0-weak-scaling': {
             'exe': ['LHC_main.py'],
-            'particles': [1500000], #, 2000000],
+            'particles': [1000000], #, 2000000],
             'bunches': [12, 24, 48, 96, 192], #96],  # 96
             'slices': [1000],
             'turns': [10000],
@@ -1125,7 +1125,7 @@ slurm:
 
         'approx0-weak-scaling': {
             'exe': ['LHC_main.py'],
-            'particles': [1500000], #, 2000000],
+            'particles': [1000000], #, 2000000],
             'bunches': [12, 24, 48, 96, 192], #96],  # 96
 
             'slices': [1000],
@@ -1152,7 +1152,7 @@ slurm:
         },
         'cpu-baseline': {
             'exe': ['LHC_main.py'],
-            'particles': [1500000], #, 2000000],
+            'particles': [1000000], #, 2000000],
             'bunches': [12, 192], #96],  # 96
 
             'slices': [1000],
@@ -1181,7 +1181,7 @@ slurm:
 
         'tp-approx0-strong-scaling': {
             'exe': ['LHC_main.py'],
-            'particles': [1500000], #, 2000000],
+            'particles': [1000000], #, 2000000],
             'bunches': [192], #96],  # 96
             'slices': [1000],
             'turns': [10000],
@@ -1207,7 +1207,7 @@ slurm:
 
         'approx0-strong-scaling': {
             'exe': ['LHC_main.py'],
-            'particles': [1500000], #, 2000000],
+            'particles': [1000000], #, 2000000],
             'bunches': [192], #96],  # 96
             'slices': [1000],
             'turns': [10000],
@@ -1236,7 +1236,7 @@ slurm:
         # Weak scaling
         'approx0-weak-scaling-gpu-1pn': {
             'exe': ['LHC_main.py'],
-            'particles': [1500000],
+            'particles': [1000000],
             'bunches': [12, 24, 48, 96, 192],
 
             'slices': [1000],
@@ -1262,7 +1262,7 @@ slurm:
 
         'approx0-weak-scaling-gpu-2pn': {
             'exe': ['LHC_main.py'],
-            'particles': [1500000],
+            'particles': [1000000],
             'bunches': [12, 24, 48, 96, 192],
             'slices': [1000],
             'turns': [10000],
@@ -1290,7 +1290,7 @@ slurm:
         # Strong scaling GPU only
         'approx0-strong-scaling-gpu-1pn': {
             'exe': ['LHC_main.py'],
-            'particles': [1500000],
+            'particles': [1000000],
             'bunches': [192],
 
             'slices': [1000],
@@ -1316,7 +1316,7 @@ slurm:
 
         'approx0-strong-scaling-gpu-2pn': {
             'exe': ['LHC_main.py'],
-            'particles': [1500000],
+            'particles': [1000000],
             'bunches': [192],
             'slices': [1000],
             'turns': [10000],
@@ -1485,7 +1485,7 @@ condor:
         # Approximate Weak-Scaling
         'f32-srp-timing-gpu': {
             'exe': ['LHC_main.py'],
-            'particles': [1500000],
+            'particles': [1000000],
             'bunches': [12],
             'slices': [1000],
             'turns': [10000],
@@ -1510,7 +1510,7 @@ condor:
 
         'f32-rds-timing-gpu': {
             'exe': ['LHC_main.py'],
-            'particles': [1500000],
+            'particles': [1000000],
             'bunches': [12],
             'slices': [1000],
             'turns': [10000],
@@ -1536,7 +1536,7 @@ condor:
 
         'srp-timing-gpu': {
             'exe': ['LHC_main.py'],
-            'particles': [1500000],
+            'particles': [1000000],
             'bunches': [12],
             'slices': [1000],
             'turns': [10000],
@@ -1561,7 +1561,7 @@ condor:
 
         'rds-timing-gpu': {
             'exe': ['LHC_main.py'],
-            'particles': [1500000],
+            'particles': [1000000],
             'bunches': [12],
             'slices': [1000],
             'turns': [10000],
@@ -1586,7 +1586,7 @@ condor:
 
         'exact-timing-gpu': {
             'exe': ['LHC_main.py'],
-            'particles': [1500000],
+            'particles': [1000000],
             'bunches': [12],
             'slices': [1000],
             'turns': [10000],
@@ -1611,7 +1611,7 @@ condor:
 
         'float32-timing-gpu': {
             'exe': ['LHC_main.py'],
-            'particles': [1500000],
+            'particles': [1000000],
             'bunches': [12],
             'slices': [1000],
             'turns': [10000],
