@@ -30,11 +30,11 @@ evolve:
             'timing': ['timing'],
             'gpu': [1],
             'workers': [1],
-            'omp': [16],
+            'omp': [8],
             'mpi': ['openmpi4'],
             'time': [60],
             'partition': ['computes_gpu_p40'],
-            'cores_per_cpu': [16],
+            'cores_per_cpu': [8],
 
             'repeats': 3
         },
@@ -58,11 +58,11 @@ evolve:
             'timing': ['timing'],
             'gpu': [1],
             'workers': [1],
-            'omp': [16],
+            'omp': [8],
             'mpi': ['openmpi4'],
             'time': [60],
             'partition': ['computes_gpu_p40'],
-            'cores_per_cpu': [16],
+            'cores_per_cpu': [8],
 
             'repeats': 3
         },
@@ -90,11 +90,11 @@ evolve:
             'timing': ['timing'],
             'gpu': [1],
             'workers': [1],
-            'omp': [16],
+            'omp': [8],
             'mpi': ['openmpi4'],
             'time': [60],
             'partition': ['computes_gpu_p40'],
-            'cores_per_cpu': [16],
+            'cores_per_cpu': [8],
 
             'repeats': 3
         },
@@ -120,11 +120,11 @@ evolve:
             'timing': ['timing'],
             'gpu': [1],
             'workers': [1],
-            'omp': [16],
+            'omp': [8],
             'mpi': ['openmpi4'],
             'time': [60],
             'partition': ['computes_gpu_p40'],
-            'cores_per_cpu': [16],
+            'cores_per_cpu': [8],
 
             'repeats': 3
         },
@@ -150,11 +150,11 @@ evolve:
             'timing': ['timing'],
             'gpu': [1],
             'workers': [1],
-            'omp': [16],
+            'omp': [8],
             'mpi': ['openmpi4'],
             'time': [60],
             'partition': ['computes_gpu_p40'],
-            'cores_per_cpu': [16],
+            'cores_per_cpu': [8],
 
             'repeats': 3
         },
@@ -179,11 +179,11 @@ evolve:
             'timing': ['timing'],
             'gpu': [1],
             'workers': [1],
-            'omp': [16],
+            'omp': [8],
             'mpi': ['openmpi4'],
             'time': [60],
             'partition': ['computes_gpu_p40'],
-            'cores_per_cpu': [16],
+            'cores_per_cpu': [8],
 
             'repeats': 3
         },
@@ -900,7 +900,7 @@ slurm:
             'artificialdelay': ['off'],
             'precision': ['double'],
             'timing': ['timing'],
-            'workers': [16], #16],
+            'workers': [8], #16],
             'omp': [10],
             'mpi': ['openmpi4'],
             'time': [60],
