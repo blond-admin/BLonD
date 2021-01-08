@@ -2,10 +2,10 @@ evolve:
 
     run_configs: 
         # Approximate 
-        - 'srp-timing-gpu-k20'
-        - 'exact-timing-gpu-k20' 
-        - 'float32-timing-gpu-k20'  
-        - 'f32-srp-timing-gpu-k20'
+        # - 'srp-timing-gpu-k20'
+        # - 'exact-timing-gpu-k20' 
+        # - 'float32-timing-gpu-k20'  
+        # - 'f32-srp-timing-gpu-k20'
 
         - 'srp-timing-gpu-p40'
         - 'exact-timing-gpu-p40' 
@@ -19,7 +19,7 @@ evolve:
         'f32-srp-timing-gpu-p40': {
             'exe': ['LHC_main.py'],
             'particles': [1000000],
-            'bunches': [96],
+            'bunches': [48],
             'slices': [1000],
             'turns': [10000],
             'monitor': [0],
@@ -46,7 +46,7 @@ evolve:
         'f32-rds-timing-gpu-p40': {
             'exe': ['LHC_main.py'],
             'particles': [1000000],
-            'bunches': [96],
+            'bunches': [48],
             'slices': [1000],
             'turns': [10000],
             'monitor': [0],
@@ -73,7 +73,7 @@ evolve:
         'srp-timing-gpu-p40': {
             'exe': ['LHC_main.py'],
             'particles': [1000000],
-            'bunches': [96],
+            'bunches': [48],
             'slices': [1000],
             'turns': [10000],
             'monitor': [0],
@@ -103,7 +103,7 @@ evolve:
         'rds-timing-gpu-p40': {
             'exe': ['LHC_main.py'],
             'particles': [1000000],
-            'bunches': [96],
+            'bunches': [48],
             'slices': [1000],
             'turns': [10000],
             'monitor': [0],
@@ -133,7 +133,7 @@ evolve:
         'exact-timing-gpu-p40': {
             'exe': ['LHC_main.py'],
             'particles': [1000000],
-            'bunches': [96],
+            'bunches': [48],
             'slices': [1000],
             'turns': [10000],
             'monitor': [0],
@@ -163,7 +163,7 @@ evolve:
         'float32-timing-gpu-p40': {
             'exe': ['LHC_main.py'],
             'particles': [1000000],
-            'bunches': [96],
+            'bunches': [48],
             'slices': [1000],
             'turns': [10000],
             'monitor': [0],
