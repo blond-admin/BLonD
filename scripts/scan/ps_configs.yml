@@ -31,11 +31,11 @@ evolve:
             'timing': ['timing'],
             'gpu': [1],
             'workers': [1],
-            'omp': [],
+            'omp': [8],
             'mpi': ['openmpi4'],
             'time': [60],
             'partition': ['computes_gpu_p40'],
-            'cores_per_cpu': [],
+            'cores_per_cpu': [8],
 
             'repeats': 3
         },
@@ -61,11 +61,11 @@ evolve:
             'timing': ['timing'],
             'gpu': [1],
             'workers': [1],
-            'omp': [],
+            'omp': [8],
             'mpi': ['openmpi4'],
             'time': [60],
             'partition': ['computes_gpu_p40'],
-            'cores_per_cpu': [],
+            'cores_per_cpu': [8],
 
             'repeats': 3
         },
@@ -91,11 +91,11 @@ evolve:
             'timing': ['timing'],
             'gpu': [1],
             'workers': [1],
-            'omp': [],
+            'omp': [8],
             'mpi': ['openmpi4'],
             'time': [60],
             'partition': ['computes_gpu_p40'],
-            'cores_per_cpu': [],
+            'cores_per_cpu': [8],
 
             'repeats': 3
         },
@@ -121,11 +121,11 @@ evolve:
             'timing': ['timing'],
             'gpu': [1],
             'workers': [1],
-            'omp': [],
+            'omp': [8],
             'mpi': ['openmpi4'],
             'time': [60],
             'partition': ['computes_gpu_p40'],
-            'cores_per_cpu': [],
+            'cores_per_cpu': [8],
 
             'repeats': 3
         },
@@ -148,14 +148,14 @@ evolve:
             'loadbalance': ['reportonly,,,,'],
             'artificialdelay': ['off'],
             'timing': ['timing'],
-            'gpu': [1],8
+            'gpu': [1],
             #'workers': [1, 2, 4],
             'workers': [1],
-            'omp': [],
+            'omp': [8],
             'mpi': ['openmpi4'],
             'time': [60],
             'partition': ['computes_gpu_p40'],
-            'cores_per_cpu': [],
+            'cores_per_cpu': [8],
 
             'repeats': 3
         },
@@ -182,11 +182,11 @@ evolve:
             'gpu': [1],
             #'workers': [1, 2, 4],
             'workers': [1],
-            'omp': [],
+            'omp': [8],
             'mpi': ['openmpi4'],
             'time': [60],
             'partition': ['computes_gpu_p40'],
-            'cores_per_cpu': [],
+            'cores_per_cpu': [8],
 
             'repeats': 3
         },
@@ -290,7 +290,7 @@ slurm:
             'timing': ['timing'],
             'gpu': [1],
             'workers': [1],
-            'omp': [],
+            'omp': [8],
             'mpi': ['openmpi4'],
             'time': [60],
 
@@ -318,7 +318,7 @@ slurm:
             'timing': ['timing'],
             'gpu': [1],
             'workers': [1],
-            'omp': [],
+            'omp': [8],
             'mpi': ['openmpi4'],
             'time': [60],
 
@@ -346,7 +346,7 @@ slurm:
             'timing': ['timing'],
             'gpu': [1],
             'workers': [1],
-            'omp': [],
+            'omp': [8],
             'mpi': ['openmpi4'],
             'time': [60],
 
@@ -374,7 +374,7 @@ slurm:
             'timing': ['timing'],
             'gpu': [1],
             'workers': [1],
-            'omp': [],
+            'omp': [8],
             'mpi': ['openmpi4'],
             'time': [60],
 
@@ -402,7 +402,7 @@ slurm:
             'gpu': [1],
             #'workers': [1, 2, 4],
             'workers': [1],
-            'omp': [],
+            'omp': [8],
             'mpi': ['openmpi4'],
             'time': [60],
 
@@ -431,7 +431,7 @@ slurm:
             'gpu': [1],
             #'workers': [1, 2, 4],
             'workers': [1],
-            'omp': [],
+            'omp': [8],
             'mpi': ['openmpi4'],
             'time': [60],
 
@@ -937,7 +937,7 @@ slurm:
             'precision': ['double'],
             'gpu': [0],
             'timing': ['timing'],
-            'workers': [], #, 16],
+            'workers': [8], #, 16],
             'omp': [10],
             'mpi': ['openmpi4'],
             'time': [60],
