@@ -19,7 +19,7 @@ evolve:
         'f32-srp-timing-gpu-p40': {
             'exe': ['LHC_main.py'],
             'particles': [1000000],
-            'bunches': [48],
+            'bunches': [96],
             'slices': [1000],
             'turns': [10000],
             'monitor': [0],
@@ -40,13 +40,13 @@ evolve:
             'time': [60],
             'partition': ['computes_gpu_p40'],
             'cores_per_cpu': [8],
-            'repeats': 1
+            'repeats': 2
         },
 
         'f32-rds-timing-gpu-p40': {
             'exe': ['LHC_main.py'],
             'particles': [1000000],
-            'bunches': [48],
+            'bunches': [96],
             'slices': [1000],
             'turns': [10000],
             'monitor': [0],
@@ -67,13 +67,13 @@ evolve:
             'cores_per_cpu': [8],
             'mpi': ['openmpi4'],
             'time': [60],
-            'repeats': 1
+            'repeats': 2
         },
 
         'srp-timing-gpu-p40': {
             'exe': ['LHC_main.py'],
             'particles': [1000000],
-            'bunches': [48],
+            'bunches': [96],
             'slices': [1000],
             'turns': [10000],
             'monitor': [0],
@@ -97,13 +97,13 @@ evolve:
             'cores_per_cpu': [8],
 
             'time': [60],
-            'repeats': 1
+            'repeats': 2
         },
 
         'rds-timing-gpu-p40': {
             'exe': ['LHC_main.py'],
             'particles': [1000000],
-            'bunches': [48],
+            'bunches': [96],
             'slices': [1000],
             'turns': [10000],
             'monitor': [0],
@@ -127,13 +127,13 @@ evolve:
             'cores_per_cpu': [8],
 
             'time': [60],
-            'repeats': 1
+            'repeats': 2
         },
 
         'exact-timing-gpu-p40': {
             'exe': ['LHC_main.py'],
             'particles': [1000000],
-            'bunches': [48],
+            'bunches': [96],
             'slices': [1000],
             'turns': [10000],
             'monitor': [0],
@@ -157,13 +157,13 @@ evolve:
             'cores_per_cpu': [8],
 
             'time': [60],
-            'repeats': 1
+            'repeats': 2
         },
 
         'float32-timing-gpu-p40': {
             'exe': ['LHC_main.py'],
             'particles': [1000000],
-            'bunches': [48],
+            'bunches': [96],
             'slices': [1000],
             'turns': [10000],
             'monitor': [0],
@@ -187,7 +187,7 @@ evolve:
             'cores_per_cpu': [8],
 
             'time': [60],
-            'repeats': 1
+            'repeats': 2
         },
 
         # Approximate Weak-Scaling K20

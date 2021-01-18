@@ -17,7 +17,7 @@ evolve:
         # Approximate
         'f32-srp-timing-gpu-p40': {
             'exe': ['PS_main.py'],
-            'particles': [2000000],
+            'particles': [4000000],
             'bunches': [21],  # 192
 
             'slices': [256],
@@ -41,13 +41,13 @@ evolve:
             'partition': ['computes_gpu_p40'],
             'cores_per_cpu': [8],
 
-            'repeats': 1
+            'repeats': 2
         },
 
 
         'f32-rds-timing-gpu-p40': {
             'exe': ['PS_main.py'],
-            'particles': [2000000],
+            'particles': [4000000],
             'bunches': [21],  # 192
 
             'slices': [256],
@@ -71,13 +71,13 @@ evolve:
             'partition': ['computes_gpu_p40'],
             'cores_per_cpu': [8],
 
-            'repeats': 1
+            'repeats': 2
         },
 
 
         'srp-timing-gpu-p40': {
             'exe': ['PS_main.py'],
-            'particles': [2000000],
+            'particles': [4000000],
             'bunches': [21],  # 192
 
             'slices': [256],
@@ -101,13 +101,13 @@ evolve:
             'partition': ['computes_gpu_p40'],
             'cores_per_cpu': [8],
 
-            'repeats': 1
+            'repeats': 2
         },
 
 
         'rds-timing-gpu-p40': {
             'exe': ['PS_main.py'],
-            'particles': [2000000],
+            'particles': [4000000],
             'bunches': [21],  # 192
 
             'slices': [256],
@@ -131,12 +131,12 @@ evolve:
             'partition': ['computes_gpu_p40'],
             'cores_per_cpu': [8],
 
-            'repeats': 1
+            'repeats': 2
         },
 
         'exact-timing-gpu-p40': {
             'exe': ['PS_main.py'],
-            'particles': [2000000],
+            'particles': [4000000],
             'bunches': [21],  # 192
 
             'slices': [256],
@@ -161,13 +161,13 @@ evolve:
             'partition': ['computes_gpu_p40'],
             'cores_per_cpu': [8],
 
-            'repeats': 1
+            'repeats': 2
         },
 
 
         'float32-timing-gpu-p40': {
             'exe': ['PS_main.py'],
-            'particles': [2000000],
+            'particles': [4000000],
             'bunches': [21],  # 192
 
             'slices': [256],
@@ -627,7 +627,7 @@ slurm:
         # Approximate
         'f32-srp-timing-cpu': {
             'exe': ['PS_main.py'],
-            'particles': [1000000, 2000000, 4000000, 8000000, 16000000],
+            'particles': [1000000, 4000000, 4000000, 8000000, 16000000],
             'bunches': [21],  # 96
             'slices': [256],
             'turns': [10000],

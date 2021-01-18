@@ -372,8 +372,8 @@ if __name__ == '__main__':
         plt.tight_layout()
         # plt.subplots_adjust(**gconfig['subplots_adjust'])
         for file in gconfig['outfiles']:
-            file = file.format(images_dir, this_filename[:-3], case)
-            print('[{}] {}: {}'.format(this_filename[:-3], 'Saving figure', file))
+            file = file.format(images_dir, f'{args.models[0]}_vs_{args.models[1]}', case)
+            print('[{}] {}: {}'.format(f'{args.models[0]}_vs_{args.models[1]}', 'Saving figure', file))
             fig.savefig(file, dpi=600, bbox_inches='tight')
         if args.show:
             plt.show()
