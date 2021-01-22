@@ -655,7 +655,7 @@ class MultiBunchMonitor(object):
 
         self.b_turns[idx] = turn
         self.b_profile[idx] = self.profile.n_macroparticles.astype(np.int32)
-        self.b_losses[idx] = self.beam.losses
+        self.b_losses[idx] = self.beam.n_total_macroparticles_lost
         self.b_fwhm_bunch_position[idx] = self.profile.bunchPosition
         self.b_fwhm_bunch_length[idx] = self.profile.bunchLength
 
