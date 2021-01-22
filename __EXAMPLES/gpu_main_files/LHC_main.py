@@ -15,7 +15,7 @@ except ImportError:
     from blond.utils import profile_mock as timing
     mpiprof = timing
 
-from blond.monitors.monitors import SlicesMonitor
+from blond.monitors.monitors import MultiBunchMonitor
 from blond.toolbox.next_regular import next_regular
 from blond.impedances.impedance import InducedVoltageFreq, TotalInducedVoltage
 from blond.impedances.impedance_sources import InputTable
@@ -242,12 +242,12 @@ if args['monitor'] > 0 and worker.isMaster:
         filename = 'monitorfiles/lhc-t{}-p{}-b{}-sl{}-approx{}-prec{}-r{}-m{}-se{}-w{}'.format(
             n_iterations, n_particles, n_bunches, n_slices, approx, args['precision'],
             n_turns_reduce, args['monitor'], seed, worker.workers)
-    slicesMonitor = SlicesMonitor(filename=filename,
-                                  n_turns=np.ceil(
-                                      n_iterations / args['monitor']),
-                                  profile=profile,
-                                  rf=rf,
-                                  Nbunches=n_bunches)
+    multiBunchMonitor = MultiBunchMonitor(filename=filename,
+                                      n_turns=np.ceil(
+                                          n_iterations / args['monitor']),
+                                      profile=profile,
+                                      rf=rf,
+                                      Nbunches=n_bunches)
 
 # bm.GPU(args['gpu'])
 if worker.hasGPU:
@@ -335,7 +335,7 @@ for turn in range(n_iterations):
                                 rf.t_rf[0, turn], bucket_tolerance=0,
                                 shiftX=rf.phi_rf[0, turn]/rf.omega_rf[0, turn])
         if worker.isMaster:
-            slicesMonitor.track(turn)
+            multiBunchMonitor.track(turn)
 
     worker.DLB(turn, beam)
 # cp.report()
@@ -351,7 +351,7 @@ timing.report(total_time=1e3*(end_t-start_t),
 worker.finalize()
 
 if args['monitor'] > 0:
-    slicesMonitor.close()
+    multiBunchMonitor.close()
 
 
 mpiprint('dE mean: ', np.mean(beam.dE))

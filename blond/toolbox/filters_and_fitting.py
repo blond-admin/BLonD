@@ -137,25 +137,25 @@ def rms(Y_array, X_array):
     return bp_rms, bl_rms
 
 
-def fwhm(Y_array, X_array, shift=0):
+def fwhm(Y_array, X_array, shift=0, shiftX=0):
     """
     Computation of the bunch length and position from the FWHM
     assuming Gaussian line density.
     """
 
-    half_max = shift + 0.5 * (Y_array.max() - shift)
-
-    # First aproximation for the half maximum values
-    taux = np.where(Y_array >= half_max)
-    t1 = taux[0][0]
-    t2 = taux[0][-1]
-    # Interpolation of the time where the line density is half the maximum
-    bin_size = X_array[1]-X_array[0]
     try:
-        t_left = X_array[t1] - bin_size * \
+        half_max = shift + 0.5 * (Y_array.max() - shift)
+
+        # First aproximation for the half maximum values
+        taux = np.where(Y_array >= half_max)
+        t1 = taux[0][0]
+        t2 = taux[0][-1]
+        # Interpolation of the time where the line density is half the maximum
+        bin_size = X_array[1]-X_array[0]
+        t_left = shiftX + X_array[t1] - bin_size * \
             (Y_array[t1] - half_max) / \
             (Y_array[t1] - Y_array[t1-1])
-        t_right = X_array[t2] + bin_size * \
+        t_right = shiftX + X_array[t2] + bin_size * \
             (Y_array[t2] - half_max) / \
             (Y_array[t2]-Y_array[t2+1])
 
@@ -170,7 +170,7 @@ def fwhm(Y_array, X_array, shift=0):
 
 def fwhm_multibunch(Y_array, X_array, n_bunches,
                     bunch_spacing_buckets, bucket_size_tau,
-                    bucket_tolerance=0.40, shift=0):
+                    bucket_tolerance=0.40, shift=0, shiftX=0):
     """
     Computation of the bunch length and position from the FWHM
     assuming Gaussian line density for multibunch case.
@@ -181,15 +181,16 @@ def fwhm_multibunch(Y_array, X_array, n_bunches,
 
     for indexBunch in range(0, n_bunches):
 
-        left_edge = indexBunch * bunch_spacing_buckets * bucket_size_tau -\
+        left_edge = shiftX + indexBunch * bunch_spacing_buckets * bucket_size_tau -\
             bucket_tolerance * bucket_size_tau
-        right_edge = indexBunch * bunch_spacing_buckets * bucket_size_tau +\
+        right_edge = shiftX + indexBunch * bunch_spacing_buckets * bucket_size_tau +\
             bucket_size_tau + bucket_tolerance * bucket_size_tau
-        indexes_bucket = np.where((X_array > left_edge) *
-                                  (X_array < right_edge))[0]
+        indexes_bucket = np.where((X_array > left_edge)
+                                  * (X_array < right_edge))[0]
 
         bl_fwhm[indexBunch], bp_fwhm[indexBunch] = fwhm(
-            Y_array[indexes_bucket], X_array[indexes_bucket], shift)
+            Y_array[indexes_bucket], X_array[indexes_bucket],
+            shift=shift, shiftX=shiftX)
 
     return bl_fwhm, bp_fwhm
 

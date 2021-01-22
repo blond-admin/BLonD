@@ -113,8 +113,10 @@ class CutOptions(object):
             # CutError
             raise RuntimeError('cuts_unit should be "s" or "rad"')
 
-        self.edges = np.zeros(n_slices + 1, dtype=bm.precision.real_t, order='C')
-        self.bin_centers = np.zeros(n_slices, dtype=bm.precision.real_t, order='C')
+        self.edges = np.zeros(
+            n_slices + 1, dtype=bm.precision.real_t, order='C')
+        self.bin_centers = np.zeros(
+            n_slices, dtype=bm.precision.real_t, order='C')
 
     def set_cuts(self, Beam=None):
         """
@@ -386,11 +388,13 @@ class Profile(object):
         self.set_slices_parameters()
 
         # Initialize profile array as zero array
-        self.n_macroparticles = np.zeros(self.n_slices, dtype=bm.precision.real_t, order='C')
+        self.n_macroparticles = np.zeros(
+            self.n_slices, dtype=bm.precision.real_t, order='C')
 
         # Initialize beam_spectrum and beam_spectrum_freq as empty arrays
         self.beam_spectrum = np.array([], dtype=bm.precision.real_t, order='C')
-        self.beam_spectrum_freq = np.array([], dtype=bm.precision.real_t, order='C')
+        self.beam_spectrum_freq = np.array(
+            [], dtype=bm.precision.real_t, order='C')
 
         if OtherSlicesOptions.smooth:
             self.operations = [self._slice_smooth]
@@ -414,8 +418,6 @@ class Profile(object):
 
         if OtherSlicesOptions.direct_slicing:
             self.track()
-
-
 
     def set_slices_parameters(self):
         self.n_slices, self.cut_left, self.cut_right, self.n_sigma, \
@@ -451,14 +453,15 @@ class Profile(object):
 
         if self.Beam.is_splitted:
             # Convert to uint32t for better performance
-            self.n_macroparticles = self.n_macroparticles.astype(dtype, order='C')
+            self.n_macroparticles = self.n_macroparticles.astype(
+                dtype, order='C')
 
             worker.allreduce(self.n_macroparticles)
 
             # Convert back to float64
-            self.n_macroparticles = self.n_macroparticles.astype(dtype=bm.precision.real_t, order='C', copy=False)
+            self.n_macroparticles = self.n_macroparticles.astype(
+                dtype=bm.precision.real_t, order='C', copy=False)
 
-        
     def scale_histo(self):
         if not bm.mpiMode():
             raise RuntimeError(
@@ -531,7 +534,8 @@ class Profile(object):
             self.n_macroparticles, self.bin_centers, shift)
 
     def fwhm_multibunch(self, n_bunches, bunch_spacing_buckets,
-                        bucket_size_tau, bucket_tolerance=0.40, shift=0):
+                        bucket_size_tau, bucket_tolerance=0.40,
+                        shift=0, shiftX=0):
         """
         Computation of the bunch length and position from the FWHM
         assuming Gaussian line density for multibunch case.
@@ -539,7 +543,8 @@ class Profile(object):
 
         self.bunchPosition, self.bunchLength = ffroutines.fwhm_multibunch(
             self.n_macroparticles, self.bin_centers, n_bunches,
-            bunch_spacing_buckets, bucket_size_tau, bucket_tolerance, shift)
+            bunch_spacing_buckets, bucket_size_tau, bucket_tolerance,
+            shift=shift, shiftX=shiftX)
 
     def beam_spectrum_freq_generation(self, n_sampling_fft):
         """
