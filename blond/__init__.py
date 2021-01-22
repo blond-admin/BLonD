@@ -10,8 +10,12 @@ try:
         libblond = ctypes.CDLL(os.path.join(
             basepath, 'cpp_routines/libblond.so'))
     elif ('win' in sys.platform):
-        libblond = ctypes.CDLL(os.path.join(
-            basepath, 'cpp_routines\\libblond.dll'))
+        dllpath = os.path.join(basepath, 'cpp_routines')
+        if hasattr(os, 'add_dll_directory'):
+            os.add_dll_directory(dllpath)
+            libblond = ctypes.CDLL(os.path.join(dllpath, 'libblond.dll'), winmode=0)
+        else:
+            libblond = ctypes.CDLL(os.path.join(dllpath, 'libblond.dll'))
     else:
         print('YOU DO NOT HAVE A WINDOWS OR LINUX OPERATING SYSTEM. ABORTING...')
         sys.exit()
