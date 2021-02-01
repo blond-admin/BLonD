@@ -280,7 +280,7 @@ class Resonators(_ImpedanceObject):
         self.Q = np.array([Q], dtype=float).flatten()
 
         # Test if one or more quality factors is smaller than 0.5.
-        if np.count_nonzero(self.Q <= 0.5) > 0:
+        if np.count_nonzero(self.Q < 0.5) > 0:
             # ResonatorError
             raise RuntimeError('All quality factors Q must be greater or equal 0.5')
 
