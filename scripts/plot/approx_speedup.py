@@ -114,7 +114,7 @@ gconfig = {
         '{}/{}/rds-timing-gpu/comm-comp-report.csv',
         '{}/{}/srp-timing-gpu/comm-comp-report.csv',
         '{}/{}/float32-timing-gpu/comm-comp-report.csv',
-        # '{}/{}/f32-rds-timing-gpu/comm-comp-report.csv',
+        '{}/{}/f32-rds-timing-gpu/comm-comp-report.csv',
         '{}/{}/f32-srp-timing-gpu/comm-comp-report.csv',
     ],
     'lines': {
