@@ -26,7 +26,19 @@ logger = logging.getLogger(__name__)
 from blond.llrf.impulse_response import TravellingWaveCavity
 
 
-def polar_to_cartesian(amplitude, phase):
+def remove_noise_cartesian(IQ_vector, threshold):
+    if isinstance(IQ_vector, np.ndarray):
+        IQ_vector.real[ np.where(np.abs(IQ_vector.real) <= threshold) ] = 0.
+        IQ_vector.imag[ np.where(np.abs(IQ_vector.imag) <= threshold) ] = 0.
+    else:
+        if np.abs(IQ_vector.real) <= threshold: IQ_vector = 0.+IQ_vector.imag
+        if np.abs(IQ_vector.imag) <= threshold: IQ_vector = IQ_vector.real+0j
+    return IQ_vector
+
+def cartesian_rotation(IQ_vector, angle=0):
+    return polar_to_cartesian(np.absolute(IQ_vector), np.angle(IQ_vector)+angle) + 0+0j
+    
+def polar_to_cartesian(amplitude, phase, threshold=0.):
     """Convert data from polar to cartesian (I,Q) coordinates.
 
     Parameters
@@ -44,7 +56,21 @@ def polar_to_cartesian(amplitude, phase):
 
     logger.debug("Converting from polar to Cartesian")
 
-    return amplitude*(np.cos(phase) + 1j*np.sin(phase))
+    if isinstance(amplitude, np.ndarray):
+        amplitude[ np.where(amplitude <= threshold) ] = 0.
+    else:
+        if amplitude <= threshold: amplitude = 0.
+    
+    Q = np.sin(phase)
+    I = np.cos(phase)
+    #I = np.sqrt(1. - Q*Q) # np.cos(phase)
+
+    # print(f'i = {I}, q = {I}')
+    # print(f'I = {I*amplitude}, Q = {Q*amplitude}')
+    # print('')
+    
+    #return amplitude*(np.cos(phase) + 1j*np.sin(phase))
+    return amplitude*(I + 1j*Q)
 
 
 def cartesian_to_polar(IQ_vector):
@@ -65,8 +91,19 @@ def cartesian_to_polar(IQ_vector):
     """
 
     logger.debug("Converting from Cartesian to polar")
+    
+    # if isinstance(IQ_vector, np.ndarray):
+    #     IQ_vector.real[ np.where(IQ_vector.real <= threshold) ] = 0.
+    #     IQ_vector.imag[ np.where(IQ_vector.imag <= threshold) ] = 0.
+    # else:
+    #     if IQ_vector.real <= threshold: IQ_vector = 0.+IQ_vector.imag
+    #     if IQ_vector.imag <= threshold: IQ_vector = IQ_vector.real+0j
+    amplt = np.absolute(IQ_vector)
+    phase = np.angle(IQ_vector)
 
-    return np.absolute(IQ_vector), np.angle(IQ_vector)
+    #return np.absolute(IQ_vector), np.angle(IQ_vector)
+    return amplt, phase
+
 
 
 def modulator(signal, omega_i, omega_f, T_sampling):
@@ -97,8 +134,11 @@ def modulator(signal, omega_i, omega_f, T_sampling):
                            " be an array!")
     delta_phi = (omega_i - omega_f)*T_sampling * np.arange(len(signal))
     # Pre compute sine and cosine for speed up
-    cs = np.cos(delta_phi)
     sn = np.sin(delta_phi)
+    cs = np.cos(delta_phi)
+    # cs = np.sqrt(1. - sn*sn) # np.cos(delta_phi)
+    # sn = np.sqrt(1. - cs*cs) # np.sin(delta_phi)
+    
     I_new = cs*signal.real - sn*signal.imag
     Q_new = sn*signal.real + cs*signal.imag
 
@@ -170,9 +210,13 @@ def rf_beam_current(Profile, omega_c, T_rev, lpf=True, downsample=None):
     logger.debug("DC current is %.4e A", np.sum(charges)/T_rev)
 
     # Mix with frequency of interest; remember factor 2 demodulation
-    I_f = 2.*charges*np.cos(omega_c*Profile.bin_centers)
-    Q_f = 2.*charges*np.sin(omega_c*Profile.bin_centers)
+    Q_f = np.sin(omega_c*Profile.bin_centers)
+    I_f = np.cos(omega_c*Profile.bin_centers)
+    #I_f = np.sqrt(1. - Q_f*Q_f) # np.cos(omega_c*Profile.bin_centers)
 
+    Q_f *= 2.*charges
+    I_f *= 2.*charges
+    
     # Pass through a low-pass filter
     if lpf is True:
         # Nyquist frequency 0.5*f_slices; cutoff at 20 MHz

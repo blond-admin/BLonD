@@ -210,6 +210,8 @@ def matched_from_distribution_density_multibunch(beam, Ring, FullRingAndRF, dist
     beam.dt = beamIteration.dt.astype(dtype=bm.precision.real_t, order='C', copy=False)
     beam.dE = beamIteration.dE.astype(dtype=bm.precision.real_t, order='C', copy=False)
     gc.collect()    
+    
+    return n_macroparticles_per_bunch.astype(int)
 
 
 def matched_from_line_density_multibunch(beam, Ring,
