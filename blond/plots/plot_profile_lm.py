@@ -14,8 +14,6 @@ import pickle
 import os
 import pathlib
 
-import matplotlib as mpl
-mpl.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FormatStrFormatter
 from matplotlib.ticker import MultipleLocator #  AutoLocator, FormatStrFormatter,
@@ -39,6 +37,10 @@ elif(myenv == 'batch'): dirhome = '/afs/cern.ch/work/l/lmedinam' # When running 
 elif(myenv == 'hpc'):   pass                                     # When running with Slurm, no need to re-assign dirhome, as a local copy of the full BLonD_simulations exist in the Slurh home directory
 elif(myenv == 'Mac'):   pass                                     # When running with Slurm, no need to re-assign dirhome. The BLonD_simulations directory must exist there
 else:                   sys.exit('\n[!] ERROR in plot_profile_lm: NOT IMPLEMENTED!\n')
+
+if myenv in ['afs', 'batch', 'hpc']:
+    import matplotlib as mpl
+    mpl.use('Agg')
 
 dirbase = 'BLonD_simulations/sps_lhc_losses'
 dirin   = f'{dirhome}/{dirbase}/sps_lhc_losses'

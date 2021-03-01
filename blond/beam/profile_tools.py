@@ -13,13 +13,30 @@ from scipy.constants import c as clight
 #from scipy.stats import linregress
 #import time
 from warnings import filterwarnings
+import pathlib
 
-import matplotlib as mpl
-mpl.use('Agg')
 import matplotlib.pyplot as plt
 
 from blond.toolbox import filters_and_fitting as ffroutines
 from blond.utils import bmath as bm
+
+dirhome = str(pathlib.Path.home())
+
+if(  dirhome.startswith('/afs')  ):       myenv = 'afs'       # RUNNING LOCALLY (AFS)
+elif(dirhome.startswith('/pool') ):       myenv = 'batch'     # RUNNING WITH HTCONDOR
+elif(dirhome.startswith('/hpcscratch') ): myenv = 'hpc'       # RUNNING WITH SLURM
+elif(dirhome.startswith('/home') ):       myenv = 'Ubuntu'    # RUNNING LOCALLY (UBUNTU)
+elif(dirhome.startswith('/Users')):       myenv = 'Mac'       # RUNNING LOCALLY (MAC)
+
+if(  myenv == 'afs'):   dirhome = '/afs/cern.ch/work/l/lmedinam' # When running locally in AFS, re-assign dirhome so that we use the original version of the scripts in AFS work
+elif(myenv == 'batch'): dirhome = '/afs/cern.ch/work/l/lmedinam' # When running with HTCondor,  re-assign dirhome so that we use the original version of the scripts in AFS work (we do not transfer input files, as this way it's faster)
+elif(myenv == 'hpc'):   pass                                     # When running with Slurm, no need to re-assign dirhome, as a local copy of the full BLonD_simulations exist in the Slurh home directory
+elif(myenv == 'Mac'):   pass                                     # When running with Slurm, no need to re-assign dirhome. The BLonD_simulations directory must exist there
+else:                   sys.exit('\n[!] ERROR in plot_beam_lm: NOT IMPLEMENTED!\n')
+
+if myenv in ['afs', 'batch', 'hpc']:
+    import matplotlib as mpl
+    mpl.use('Agg')
 
 ###############################################################################
 
@@ -82,7 +99,7 @@ class ProfileTools(object):
 
     def stats_bunch(profile_obj, idxP_BF_bunch, bucket_centres, nbs, maxbktl, marginoffset0, rfstation_obj, Fbsymmetric=True):
         '''
-        Calculation of the FWHM and RMS bunch length, bunch position, and 
+        Calculation of the FWHM and RMS bunch length, bunch position, and
         bunch position offsets (from bucket centres, fit, and beam phase - RF)
 
         Input:
@@ -93,7 +110,7 @@ class ProfileTools(object):
         - marginoffset0
         - rfstation_obj
         - idxP_BF_bunch
-    
+
         Returns:
         - FWHM bunchPosition
         - FWHM bunchLength
@@ -107,20 +124,20 @@ class ProfileTools(object):
         - RMS bunchPositionOff_fit (w.r.t. batch fit evaluated at the corresponding bunch no., returns [NaN] for single bunch)
         - RMS bunchPositionOff_brf (beam phase - RF)
         '''
-        
+
         nbf = len(bucket_centres)
-        
+
         # indices = np.where(profile_obj.bin_centers > profile_obj.cut_left + marginoffset0)[0]
         # print(f'profile_obj.bin_centers = {profile_obj.bin_centers}, shape = {profile_obj.bin_centers.shape}')
         # print(f'profile_obj.cut_left = {profile_obj.cut_left}')
         # print(f'marginoffset0 = {marginoffset0}')
         # print(f'indices = {indices}, shape = {indices.shape}')
-        
+
         profile_cut_left_to_zero = profile_obj.cut_left + marginoffset0
-        
+
         # print('> Calling profile stats_bunch...')
         # print(f'profile_obj.bin_centers = [{profile_obj.bin_centers[0]},...]')
-        # print(f'> Correcting by {profile_cut_left_to_zero}...')        
+        # print(f'> Correcting by {profile_cut_left_to_zero}...')
         profile_obj.bin_centers -= profile_cut_left_to_zero
         # print(f'profile_obj.bin_centers = [{profile_obj.bin_centers[0]},...]')
         if(nbf == 1):
@@ -130,23 +147,23 @@ class ProfileTools(object):
             profile_obj.fwhm_multibunch(nbf, nbs, maxbktl)
             profile_obj_bunchPosition_RMS, profile_obj_bunchLength_RMS = ffroutines.rms_multibunch(profile_obj.n_macroparticles, profile_obj.bin_centers, nbf,nbs, maxbktl) #bucket_tolerance)
         #print('> Results...')
-        #print(f'profile_obj.bunchPosition     = {profile_obj.bunchPosition}')     
+        #print(f'profile_obj.bunchPosition     = {profile_obj.bunchPosition}')
         #print(f'profile_obj_bunchPosition_RMS = {profile_obj_bunchPosition_RMS}')
         #quit()
-        
+
         profile_obj.bin_centers += profile_cut_left_to_zero
         profile_obj.bunchPosition     += profile_cut_left_to_zero
         profile_obj_bunchPosition_RMS += profile_cut_left_to_zero
-        # print('> Reverting margin in profile and displacement result by same margin...')       
+        # print('> Reverting margin in profile and displacement result by same margin...')
         # print(f'profile_obj.bin_centers       = [{profile_obj.bin_centers[0]},...]')
-        
+
         # # print(f'profile_obj.bunchPosition     = [{profile_obj.bunchPosition[0]},...]')
         # # print(f'profile_obj_bunchPosition_RMS = [{profile_obj_bunchPosition_RMS[0]},...]')
         # print(f'profile_obj.bunchPosition     = {profile_obj.bunchPosition}')
         # print(f'profile_obj_bunchPosition_RMS = {profile_obj_bunchPosition_RMS}')
-        
+
         # BUNCH POSITION OFFSETS:
-            
+
         bunchlist = np.arange(nbf)
         #print(f'bunchlist = {bunchlist}')
         idxbunches = np.logical_not( np.logical_or(np.isnan(profile_obj.bunchPosition), np.isnan(profile_obj_bunchPosition_RMS)) )
@@ -155,35 +172,35 @@ class ProfileTools(object):
         #print(f'bunchlist = {bunchlist}')
         if(len(bunchlist) > 0):
             #print('[!] NaN bunches:', bunchlist[ np.logical_or(np.isnan(profile_obj.bunchPosition), np.isnan(profile_obj_bunchPosition_RMS)) ] )
-            pass 
-        
+            pass
+
         # w.r.t. bucket centres:
-        
+
         profile_obj_bunchPositionOff_ctr_FWHM = profile_obj.bunchPosition     - bucket_centres
         profile_obj_bunchPositionOff_ctr_RMS  = profile_obj_bunchPosition_RMS - bucket_centres
         # print(f'profile_obj_bunchPositionOff_ctr_FWHM = {profile_obj_bunchPositionOff_ctr_FWHM/1e-12}ps, shape = {profile_obj_bunchPositionOff_ctr_FWHM.shape}')
         # print(f'profile_obj_bunchPositionOff_ctr_RMS  = {profile_obj_bunchPositionOff_ctr_RMS/1e-12}ps,  shape = {profile_obj_bunchPositionOff_ctr_RMS.shape}')
-        
+
         # w.r.t. fit: New method for computation of mean_dtOff_fit (the same that the one beam_profiles, where other options where studied first)
-        
+
         if nbf == 1:
-        
+
             profile_obj_bunchPositionOff_fit_FWHM = np.array([ np.NaN ])
             profile_obj_bunchPositionOff_fit_RMS  = np.array([ np.NaN ])
-            
+
         else:
-            
-            ## print('SciPy optimize') 
+
+            ## print('SciPy optimize')
             ###m0 = (bucket_centres[-1]-bucket_centres[0])/nbf  # bucket_centres is actually NOT needed, as these m0 and b0 are only used as initial guess for the fit in the new method of computation of mean_dtOff_fit. Moreover, we could compute very similar inital guesses from mean_dt
             ###b0 =  bucket_centres[0]
-            m0 = (profile_obj.bunchPosition[-1]-profile_obj.bunchPosition[0])/nbf 
+            m0 = (profile_obj.bunchPosition[-1]-profile_obj.bunchPosition[0])/nbf
             b0 =  profile_obj.bunchPosition[0]
             # print('> Guess for fit...')
             # print(f'bucket_centres = [{bucket_centres[0]},...]')
             # print(f'm0 = {m0}')
             # print(f'b0 = {b0}')
-            
-            fit_m,     fit_b     = optimize.curve_fit(linear_fit, np.arange(nbf), profile_obj.bunchPosition[idxbunches],     p0=[m0, b0])[0] # alternatively, we could add beampattern to the arguments of the fucntion, and use fillpattern instead of np.arange(nbf) 
+
+            fit_m,     fit_b     = optimize.curve_fit(linear_fit, np.arange(nbf), profile_obj.bunchPosition[idxbunches],     p0=[m0, b0])[0] # alternatively, we could add beampattern to the arguments of the fucntion, and use fillpattern instead of np.arange(nbf)
             fit_m_RMS, fit_b_RMS = optimize.curve_fit(linear_fit, np.arange(nbf), profile_obj_bunchPosition_RMS[idxbunches], p0=[m0, b0])[0] # (same)
             fit     = linear_fit(np.arange(nbf), fit_m,     fit_b)
             fit_RMS = linear_fit(np.arange(nbf), fit_m_RMS, fit_b_RMS)
@@ -193,22 +210,22 @@ class ProfileTools(object):
             # print(f'fit     = {fit}')
             # print(f'fit_RMS = {fit_RMS}')
             # print('')
-            
+
             profile_obj_bunchPositionOff_fit_FWHM = profile_obj.bunchPosition     - fit
             profile_obj_bunchPositionOff_fit_RMS  = profile_obj_bunchPosition_RMS - fit_RMS
             # print(f'profile_obj_bunchPositionOff_fit_FWHM = {profile_obj_bunchPositionOff_fit_FWHM/1e-12}ps, shape = {profile_obj_bunchPositionOff_fit_FWHM.shape}')
             # print(f'profile_obj_bunchPositionOff_fit_RMS  = {profile_obj_bunchPositionOff_fit_RMS/1e-12}ps,  shape = {profile_obj_bunchPositionOff_fit_RMS.shape}')
-            
+
         # beam phase - RF:
-        
+
         # Based on llrf/beam_feedback/ beam_phase and_phase difference:
-        # * Beam phase measured at the main RF frequency and phase. The beam is 
-        # convolved with the window function of the band-pass filter of the 
-        # machine. The coefficients of sine and cosine components determine the 
+        # * Beam phase measured at the main RF frequency and phase. The beam is
+        # convolved with the window function of the band-pass filter of the
+        # machine. The coefficients of sine and cosine components determine the
         # beam phase, projected to the range -Pi/2 to 3/2 Pi. Note that this beam
         # phase is already w.r.t. the instantaneous RF phase. Then:
         # * Phase difference between beam and RF phase of the main RF system.
-        
+
         # Main RF frequency at the present turn
         counter  = rfstation_obj.counter[0]
         omega_rf = rfstation_obj.omega_rf[0, counter] # single RF
@@ -220,31 +237,31 @@ class ProfileTools(object):
         # print(f'phi_rf = {phi_rf}')
         # print(f'phi_s = {phi_s}')
         # print(f'print = {dphi_rf}')
-        
+
         profile_obj_bunchPositionOff_brf = np.empty(nbf)
 
         #Fbsymmetric = False # For tests
         if not Fbsymmetric:
             # Half is OK (i.e. = 2 for nbs = 5) to resolve in frequency well
-            # enough for the computation of the complex form factor: 
+            # enough for the computation of the complex form factor:
             nbext = 0.5*(nbs-1)
             fr = 200.222e6
         profile_obj_bunchFormFactor_brf = np.empty(nbf)
-        
+
         for i in range(nbf):
-            
+
             # print(i)
             # if time_offset is None:
             indexes = idxP_BF_bunch[i]
             # print(f'indexes = {indexes}')
-            
+
             profile_bin_centers      = profile_obj.bin_centers[indexes]
             profile_n_macroparticles = profile_obj.n_macroparticles[indexes]
             # print(f'profile_bin_centers = {profile_bin_centers}, shape = {profile_bin_centers.shape}')
             # print(f'profile_obj.bin_centers[indexes-profile_bin_centers[0] = {profile_bin_centers-profile_bin_centers[0]}, shape = (same)')
             # print(f'profile_n_macroparticles = {profile_n_macroparticles}, shape = {profile_n_macroparticles.shape}, sum = {np.sum(profile_n_macroparticles)}')
             # print(f'profile_obj.bin_size = {profile_obj.bin_size}')
-            
+
             # Window cofficient is always zero (= single bunch). Time offset is
             # always zero (since we are already feeding the computation of the
             # beam phase with the extracted profile for  each single bunch. It
@@ -252,47 +269,47 @@ class ProfileTools(object):
             # formula where this is the assumption (no time_offset):
             alpha = 0
             time_offset = 0
-            
+
             coeff = bm.beam_phase(profile_bin_centers, #-profile_bin_centers[0],
                                   profile_n_macroparticles,
                                   alpha, omega_rf, phi_rf,
                                   profile_obj.bin_size)
             # print(f'coeff = {coeff}')
-    
+
             # Project bunch phase to (pi/2,3pi/2) range
             phiOff = np.arctan(coeff) + np.pi
             # print(f'phiOff = {phiOff}rad = {phiOff/np.pi*180.}deg = {phiOff/2./np.pi*maxbktl/1e-12}ps')
-            
+
             # Correct for design stable phase
             phiOff -= phi_s
             # print(f'phiOff = {phiOff}rad = {phiOff/np.pi*180.}deg = {phiOff/2./np.pi*maxbktl/1e-12}ps')
-            
+
             profile_obj_bunchPositionOff_brf[i] = phiOff/2./np.pi*maxbktl
-            
-            # RELATIVE BUNCH FACTOR: 
-                    
+
+            # RELATIVE BUNCH FACTOR:
+
             if Fbsymmetric:
-                    
+
                 # Method 1: Simplified for even-symmetric profile
-                
+
                 # Normalized profile: Formally, we have to take into account the
-                # profile.bin_centers[i+1]-profile_obj.bin_centers[i] i.e.: 
+                # profile.bin_centers[i+1]-profile_obj.bin_centers[i] i.e.:
                 # profile_n_macroparticles_norm = profile_n_macroparticles/np.sum( profile_n_macroparticles * profile_obj.bin_size )
                 # Fbc = np.sum( profile_n_macroparticles_norm * np.cos(omega_rf*profile_bin_centers) ) * profile_obj.bin_size
                 # (see below for FBc and Fbs), but since all bins have the same profile_obj.bin_size we simplify:
                 profile_n_macroparticles_norm = profile_n_macroparticles/np.sum( profile_n_macroparticles )
-               
+
                 Fbc = np.sum( profile_n_macroparticles_norm * np.cos(omega_rf*profile_bin_centers + dphi_rf) )
                 Fbs = np.sum( profile_n_macroparticles_norm * np.sin(omega_rf*profile_bin_centers + dphi_rf) )
                 # print(f'Fbc = {Fbc}')
                 # print(f'Fbs = {Fbs}')
                 Fb  = np.sqrt( Fbc**2 + Fbs**2 )
                 #print(f'Fb = {Fb}')
-                
+
             else:
 
                 # Method 2: General
-                    
+
                 # Extended profile: Formally, nbext*len(profile_bin_centers)-1)
                 # will go extend beyond the actual sparation (in time because
                 # len(profile_bin_centers) include the margins, but it's fine
@@ -305,7 +322,7 @@ class ProfileTools(object):
                 # print(f't_right = {t_right}, shape = {t_right.shape}, delta_t_right = {delta_t_right}')
                 n_left_right  = np.zeros(int(nbext*len(profile_bin_centers)))
                 # print(f'n_left_right = {n_left_right}, shape = {n_left_right.shape}')
-                
+
                 # Extend:
                 profile_bin_centers_ext = np.hstack( (t_left-profile_obj.bin_size, profile_bin_centers))
                 profile_bin_centers_ext = np.hstack( (profile_bin_centers_ext,     t_right+profile_obj.bin_size))
@@ -313,7 +330,7 @@ class ProfileTools(object):
                 profile_n_macroparticles_ext = np.hstack( (profile_n_macroparticles_ext, n_left_right))
                 # print(f'profile_bin_centers_ext = {profile_bin_centers_ext}, shape = {profile_bin_centers_ext.shape}')
                 # print(f'profile_n_macroparticles_ext = {profile_n_macroparticles_ext}, shape = {profile_n_macroparticles_ext.shape}, sum = {np.sum(profile_n_macroparticles_ext)}')
-                
+
                 npts = len(profile_n_macroparticles_ext)
                 T = profile_bin_centers_ext[-1] - profile_bin_centers_ext[0]
                 fres = 1./T
@@ -336,7 +353,7 @@ class ProfileTools(object):
                 # print(f'idx_fr   = {idx_fr}, FT_frq[idx_fr] = {FT_frq[idx_fr]}, FT_val[idx_fr] = {FT_val[idx_fr]}')
                 # print(f'idx_fr-1 = {idx_fr-1}, FT_frq[idx_fr-1] = {FT_frq[idx_fr-1]}, FT_val[idx_fr-1] = {FT_val[idx_fr-1]}')
                 # print(f'idx_f0   = {idx_f0}, FT_frq[idx_f0] = {FT_frq[idx_f0]}, FT_val[idx_f0] = {FT_val[idx_f0]}')
-                # With interpolation 
+                # With interpolation
                 #FT_val_fr = (FT_val[idx_fr] - FT_val[idx_fr-1])/(FT_frq[idx_fr] - FT_frq[idx_fr-1])*(fr - FT_frq[idx_fr-1]) + FT_val[idx_fr-1]
                 # Without interpolation
                 FT_val_fr = FT_val[idx_fr]
@@ -348,7 +365,7 @@ class ProfileTools(object):
                 # print(f'FT_val_f0 = {FT_val_f0}')
                 # print(f'Fb_complex = {Fb_complex}')
                 # print(f'Fb = {Fb}')
-                
+
                 # fig, ax = plt.subplots(1,3)
                 # fig.set_size_inches(8.00*3, 6.00*1)
                 # ax[0].plot(profile_bin_centers_ext/1e-9, profile_n_macroparticles_ext)
@@ -365,21 +382,21 @@ class ProfileTools(object):
                 # plt.cla()
                 # plt.close(fig)
                 # quit()
-                
+
                 #
-            
+
             profile_obj_bunchFormFactor_brf[i] = Fb
-        
+
         # print(f'profile_obj_bunchPositionOff_brf = {profile_obj_bunchPositionOff_brf/1e-12}ps, shape = {profile_obj_bunchPositionOff_brf.shape}')
         # print(f'profile_obj_bunchPositionOff_brf -mean(profile_obj_bunchPositionOff_brf) = {(profile_obj_bunchPositionOff_brf-profile_obj_bunchPositionOff_brf.mean())/1e-12}ps, shape = {profile_obj_bunchPositionOff_brf.shape}')
-        
+
         # print(f'profile_obj_bunchFormFactor_brf = {profile_obj_bunchFormFactor_brf}, shape = {profile_obj_bunchFormFactor_brf.shape}')
         # quit()
-        
+
         #
-        
+
         # Emittances:
-        
+
         energy   = rfstation_obj.energy[counter]
         energy_k = energy - rfstation_obj.Particle.mass
         omega_s0 = rfstation_obj.omega_s0[counter]
@@ -388,40 +405,40 @@ class ProfileTools(object):
         eta_0    = rfstation_obj.eta_0[counter]
         voltage  = rfstation_obj.voltage[0,counter] # single RF
         harmonic = rfstation_obj.harmonic[0,counter] # single RF
-        
+
         profile_obj_bunchEnergySpread_FWHM = np.empty(nbf)
         profile_obj_bunchEnergySpread_RMS  = np.empty(nbf)
-        
+
         profile_obj_bunchEmittance_FWHM = np.empty(nbf)
         profile_obj_bunchEmittance_RMS  = np.empty(nbf)
-        
-        for i in range(nbf): 
-            
+
+        for i in range(nbf):
+
             #print(i)
             # Based on emittance_from_bunch_length (bunch lengths: 4-sigma
-            # from FWHM bunch length and RMS bunch length [s]): 
-                            
+            # from FWHM bunch length and RMS bunch length [s]):
+
             if nbf == 1:
                 #print(f'profile_obj.bunchLength     = {profile_obj.bunchLength/1e-9} ns')
                 #print(f'profile_obj_bunchLength_RMS = {profile_obj_bunchLength_RMS/1e-9} ns')
                 # Emittance contour in phase [rad]
                 phi_b     = omega_rf * 0.5*profile_obj.bunchLength
                 phi_b_RMS = omega_rf * 0.5*profile_obj_bunchLength_RMS
-            
+
             else:
                 #print(f'profile_obj.bunchLength[i]     = {profile_obj.bunchLength[i]/1e-9} ns')
                 #print(f'profile_obj_bunchLength_RMS[i] = {profile_obj_bunchLength_RMS[i]/1e-9} ns')
                 # Emittance contour in phase [rad]
                 phi_b     = omega_rf * 0.5*profile_obj.bunchLength[i]
                 phi_b_RMS = omega_rf * 0.5*profile_obj_bunchLength_RMS[i]
-                
+
             # print(f'phi_b     = {phi_b} rad')
             # print(f'phi_b_RMS = {phi_b_RMS} rad')
-            
+
             # Emittance contour in energy offset [eV]: \Delta E_b
             dE_b     = np.sqrt(beta_sq * energy * voltage*(1 - np.cos(phi_b    )) / (np.pi*harmonic*eta_0))
             dE_b_RMS = np.sqrt(beta_sq * energy * voltage*(1 - np.cos(phi_b_RMS)) / (np.pi*harmonic*eta_0))
-            
+
             # print(f'dE_b     = {dE_b/1e6} MeV')
             # print(f'dE_b_RMS = {dE_b_RMS/1e6} MeV')
             # Emittance contour in relative momentum [1]: Delta d_p
@@ -434,10 +451,10 @@ class ProfileTools(object):
             sigmaE_RMS = np.str(0.5*dE_b_RMS) #/energy_k)
             # print(f'sigmaE     = {sigmaE}')
             # print(f'sigmaE_RMS = {sigmaE_RMS}')
-            
+
             profile_obj_bunchEnergySpread_FWHM[i] = sigmaE
             profile_obj_bunchEnergySpread_RMS[i]  = sigmaE_RMS
-            
+
             # Emittance:
             filterwarnings("ignore")
             integral     = integrate.quad(lambda x: np.sqrt(2.*(np.cos(x) -  np.cos(phi_b    ))), 0, phi_b    )[0]
@@ -450,11 +467,11 @@ class ProfileTools(object):
 
             profile_obj_bunchEmittance_FWHM[i] = emit
             profile_obj_bunchEmittance_RMS[i]  = emit_RMS
-        
+
         #
-        
+
         gc.collect()
-        
+
         result = {'FWHM': {'bunchPosition':        profile_obj.bunchPosition,
                            'bunchLength':          profile_obj.bunchLength,
                            'bunchPositionOff_ctr': profile_obj_bunchPositionOff_ctr_FWHM,
@@ -485,7 +502,7 @@ class ProfileTools(object):
         gc.collect()
         return result
 
-        
+
 ###############################################################################
 
 class ProfilePattern(object):

@@ -18,8 +18,8 @@ import logging
 import time
 import numpy as np
 import scipy
-import matplotlib
-matplotlib.use('Agg')
+# import matplotlib
+# matplotlib.use('Agg')
 from matplotlib import pyplot as plt
 from scipy.constants import e
 import sys
@@ -72,7 +72,7 @@ class CavityFeedbackCommissioning(object):
         self.open_drive = int(np.invert(bool(open_drive)))
         self.open_FF = int(np.invert(bool(open_FF)))
 
-        self.use_pretrack_ramp = False
+        self.use_pretrack_ramp = True
         self.use_gen_fine = False #True
 
 
@@ -136,9 +136,9 @@ class SPSCavityFeedback(object):
     def __init__(self, RFStation, Beam, Profile, G_ff=1, G_llrf=10, G_tx=0.5,
                  a_comb=15/16, turns=1000, post_LS2=True, V_part=None,
                  Commissioning=CavityFeedbackCommissioning(), deltaf0=0,
-                 fillpattern=None):
+                 fillpattern=None, power_clamp=False):
 
-        for varnamei in [None]: #'V_ind_gen']: #'Q_gen', 'V_ind_gen']: #['V_set', 'dV_err', 'dV_comb', 'dV_del', 'dV_mod', 'dV_Hcav', 'dV_gen', 'V_gen', 'Q_gen', 'V_ind_gen']:
+        for varnamei in ['Q_gen']: #['Q_gen']: #'V_ind_gen']: #'Q_gen', 'V_ind_gen']: #['V_set', 'dV_err', 'dV_comb', 'dV_del', 'dV_mod', 'dV_Hcav', 'dV_gen', 'V_gen', 'Q_gen', 'V_ind_gen']:
             # Options for commissioning the feedback
             self.Commissioning = Commissioning
 
@@ -167,6 +167,8 @@ class SPSCavityFeedback(object):
             #    G_tx_1 = G_tx
             #    G_tx_2 = G_tx
 
+
+
             # Voltage partitioning has to be a fraction
             if V_part and V_part*(1 - V_part) < 0:
                 raise RuntimeError("SPS cavity feedback: voltage partitioning has to be in the range (0,1)!")
@@ -191,6 +193,14 @@ class SPSCavityFeedback(object):
                 Gtx1 = 0.9953399221282384  # To get exactly Vset in abs(Vant = Vtot = Vind_gen_coarse) = im() for no-beam, optimized with Gllrf = 10 and phi_TWC = phi_c = phi_rf
                 Gtx2 = 1.0031159935705447  # To get exactly Vset in abs(Vant = Vtot = Vind_gen_coarse) = im() for no-beam, optimized with Gllrf = 10 and phi_TWC = phi_c = phi_rf
 
+                # Power clamps per cavity
+                if power_clamp:
+                    power_clamp_1 = 1.0e6
+                    power_clamp_2 = 1.6e6
+                else:
+                    power_clamp_1 = False
+                    power_clamp_2 = False
+
 
             else:
                 ncav1 = 2; ncell1 = 4 # Note that by default each of the 2 4-section cavities contributes with  8/18 = 4/9
@@ -199,6 +209,9 @@ class SPSCavityFeedback(object):
                 # Gtx2 = 1.00066015
                 Gtx1 = 1.0031159998252943 # To get exactly Vset in abs(Vant = Vtot = Vind_gen_coarse) = im() for no-beam, optimized with Gllrf = 10 and phi_TWC = phi_c = phi_rf
                 Gtx2 = 1.0013215173032060 # To get exactly Vset in abs(Vant = Vtot = Vind_gen_coarse) = im() for no-beam, optimized with Gllrf = 10 and phi_TWC = phi_c = phi_rf
+
+                power_clamp_1 = False
+                power_clamp_2 = False
 
             if not V_part:
                 # For post_LS2: V_part = 4*3/(4*3 + 2*4) = 12/20 = 6/10 (original) = 0.600
@@ -213,7 +226,8 @@ class SPSCavityFeedback(object):
                                              a_comb=float(a_comb),
                                              Commissioning=self.Commissioning,
                                              deltaf0=deltaf0,
-                                             fillpattern = self.fillpattern)
+                                             fillpattern=self.fillpattern,
+                                             power_clamp=power_clamp_1)
             self.OTFB_2 = SPSOneTurnFeedback(RFStation, Beam, Profile, ncell2,
                                              n_cavities=ncav2, V_part=1-V_part,
                                              G_ff=float(G_ff_2),
@@ -222,7 +236,8 @@ class SPSCavityFeedback(object):
                                              a_comb=float(a_comb),
                                              Commissioning=self.Commissioning,
                                              deltaf0=deltaf0,
-                                             fillpattern = self.fillpattern)
+                                             fillpattern=self.fillpattern,
+                                             power_clamp=power_clamp_2)
 
             # Set up logging
             self.logger = logging.getLogger(__class__.__name__)
@@ -490,16 +505,16 @@ class SPSCavityFeedback(object):
                     if spi == nrows-1:
                         ax[spi,spj].set_xlabel(r'Time [$\mu$s]')
 
-            #turns_to_plot = np.arange(self.turns)                       # All turns
+            # turns_to_plot = np.arange(self.turns)                       # All turns
             # turns_to_plot = np.array([0])                               # First turn
             # turns_to_plot = np.array([1])                               # Second turn
             # turns_to_plot = np.array([self.turns-1])                      # Last turn
             # turns_to_plot = np.array([0, self.turns-1])                 # All turns
             # turns_to_plot = np.arange(0,self.turns)                     # First and last turns
-            turns_to_plot = np.arange(self.turns-5,self.turns)          # Last few turns
+            # turns_to_plot = np.arange(self.turns-5,self.turns)          # Last few turns
             # turns_to_plot = np.array([self.turns-2,self.turns-1])          # Last two turns
             # turns_to_plot = np.arange(0,self.turns,int(self.turns/10))  # All turns, but plot only 10 turns evenly spaced
-            # turns_to_plot = np.concatenate((np.arange(0,5), np.arange(self.turns-5,self.turns))) # First few and last few turns
+            turns_to_plot = np.concatenate((np.arange(0,5), np.arange(self.turns-5,self.turns))) # First few and last few turns
             # print(f'turns_to_plot = {turns_to_plot}')
 
             cmap = plt.get_cmap('coolwarm') # 'jet': rainbow, 'coolwarm': blur to red
@@ -581,20 +596,20 @@ class SPSCavityFeedback(object):
 
                 # Re
                 ax[0,0].plot(time_array_i,  np.real(array1)/yfact,               color=color_i, ls='-', label=None) #linestyle='', marker='.')
-                ax[0,1].plot(time_array_i,  np.real(array2)/yfact,               color=color_i, ls='-', label=None) #linestyle='', marker='.')
+                ax[0,1].plot(time_array_i,  np.real(array2)/yfact,               color=color_i, ls='-', label=labeli) #linestyle='', marker='.')
                 # ax[0,2].plot(time_array_i,  np.real(array1 + array2)/yfact,      color=color_i, ls='-', label=None) #linestyle='', marker='.')
                 # Im
                 ax[1,0].plot(time_array_i,  np.imag(array1)/yfact,               color=color_i, ls='-', label=None) #linestyle='', marker='.')
-                ax[1,1].plot(time_array_i,  np.imag(array2)/yfact,               color=color_i, ls='-', label=None) #linestyle='', marker='.')
+                ax[1,1].plot(time_array_i,  np.imag(array2)/yfact,               color=color_i, ls='-', label=labeli) #linestyle='', marker='.')
                 # ax[1,2].plot(time_array_i,  np.imag(array1 + array2)/yfact,      color=color_i, ls='-', label=None) #linestyle='', marker='.')
                 # Abs
                 ax[2,0].plot(time_array_i,   np.abs(array1)/yfact,               color=color_i, ls='-', label=None) #linestyle='', marker='.')
-                ax[2,1].plot(time_array_i,   np.abs(array2)/yfact,               color=color_i, ls='-', label=None) #linestyle='', marker='.')
-                # ax[2,2].plot(time_array_i,   np.abs(array1 + array2)/yfact,      color=color_i, ls='-', label=None) #linestyle='', marker='.')
+                ax[2,1].plot(time_array_i,   np.abs(array2)/yfact,               color=color_i, ls='-', label=labeli) #linestyle='', marker='.')
+                # ax[2,2].plot(time_array_i,   np.abs(array1 + array2)/yfact,      color=color_i, ls='-', label=labeli) #linestyle='', marker='.')
                 # Ang
-                ax[3,0].plot(time_array_i, np.angle(array1)/np.pi*180.,          color=color_i, ls='-', label=labeli) #linestyle='', marker='.')
+                ax[3,0].plot(time_array_i, np.angle(array1)/np.pi*180.,          color=color_i, ls='-', label=None) #linestyle='', marker='.')
                 ax[3,1].plot(time_array_i, np.angle(array2)/np.pi*180.,          color=color_i, ls='-', label=labeli) #linestyle='', marker='.')
-                # ax[3,2].plot(time_array_i, np.angle(array1 + array2)/np.pi*180., color=color_i, ls='-', label=labeli) #linestyle='', marker='.')
+                # ax[3,2].plot(time_array_i, np.angle(array1 + array2)/np.pi*180., color=color_i, ls='-', label=None) #linestyle='', marker='.')
 
         # if debug and False: #0 not in turns_to_plot: # Hide set-point for a better yscale of the result (for numerical errors inspection)
         #     for spj in range(ncols):
@@ -627,7 +642,7 @@ class SPSCavityFeedback(object):
 
         print('')
 
-        #quit()
+        # quit()
 
         # # Interpolate from the coarse mesh to the fine mesh of the beam
         # # MYEDIT: 2020.12.14: Important that t_fine and t_coarse have the same
@@ -637,8 +652,8 @@ class SPSCavityFeedback(object):
             self.V_sum = np.copy(self.OTFB_1.V_ind_gen_fine) + np.copy(self.OTFB_2.V_ind_gen_fine)
         else:
             self.V_sum = np.interp(self.OTFB_1.t_fine,   # self.OTFB_1.profile.bin_centers,
-                                    self.OTFB_1.t_coarse, # self.OTFB_1.rf_centers,
-                                    self.OTFB_1.V_ind_gen_coarse + self.OTFB_2.V_ind_gen_coarse)
+                                   self.OTFB_1.t_coarse, # self.OTFB_1.rf_centers,
+                                   self.OTFB_1.V_ind_gen_coarse + self.OTFB_2.V_ind_gen_coarse)
 
         self.V_corr, alpha_sum = cartesian_to_polar(self.V_sum)
 
@@ -670,6 +685,8 @@ class SPSCavityFeedback(object):
             fig.clf()
             print(f'Saving {fnamefull}.png ...')
 
+        # print(f'OTFB_1: Q_gen_abs_max_coarse = {self.OTFB_1.Q_gen_abs_max_coarse}')
+        # print(f'OTFB_2: Q_gen_abs_max_coarse = {self.OTFB_2.Q_gen_abs_max_coarse}')
         # quit()
 
         # Calculate OTFB correction w.r.t. RF voltage and phase in RFStation
@@ -776,7 +793,8 @@ class SPSOneTurnFeedback(object):
                  Commissioning=CavityFeedbackCommissioning(),
                  deltaf0=0, # MYEDIT 2020.11.24: Added central (resonance) frequency offset
                  fillpattern=None, # MYEDIT 2020.02.02: Added fillpattern
-                 dV_Hcav_opt='0'
+                 dV_Hcav_opt='0',
+                 power_clamp=False
                  ):
 
         # Set up logging
@@ -837,7 +855,7 @@ class SPSOneTurnFeedback(object):
 
         self.use_gen_fine = Commissioning.use_gen_fine
 
-        self.dV_Hcav_opt = dV_Hcav_opt
+        self.dV_Hcav_opt = str(dV_Hcav_opt)
 
         ######
 
@@ -962,6 +980,9 @@ class SPSOneTurnFeedback(object):
             ##self.n_coarseFF = int(round(self.rf.t_rev[0]/self.rf.t_rf[0, 0]/self.nbs_FF))  ##### MYEDIT 2020.09.08
             self.n_coarseFF = len(self.indices_coarseFF)
 
+        self.power_clamp = power_clamp
+        # if self.power_clamp = float (not False), self.Q_gen_abs_max_fine (if
+        # applicable) and self.Q_gen_abs_max_coarse will be created in update_variables
 
         # Initialise turn-by-turn variables
         # MYEDIT: Also created and/or updated the time grid arrays. Added fillpattern
@@ -1044,7 +1065,7 @@ class SPSOneTurnFeedback(object):
             rf_beam_current(self.profile,
                             self.omega_c,self.rf.t_rev[self.counter],
                             lpf=lpf,
-                            downsample={'Ts': self.T_s,
+                            downsample={'Ts': self.T_s_coarse,
                                         'points': self.n_coarse})
         self.Q_beam_fine   += 0.+0j
         self.Q_beam_coarse += 0.+0j
@@ -1160,8 +1181,8 @@ class SPSOneTurnFeedback(object):
 
         # Add correction to the drive already existing: V_gen_coarse is the full generator voltage (all cavities)
         if self.use_gen_fine:
-            self.dV_gen_fine = self.open_FB * modulator(self.dV_Hcav_fine,   self.omega_r, self.omega_c, self.profile.bin_size)
-        self.dV_gen_coarse   = self.open_FB * modulator(self.dV_Hcav_coarse, self.omega_r, self.omega_c, self.rf.t_rf[0, self.counter])
+            self.dV_gen_fine = self.open_FB * modulator(self.dV_Hcav_fine,   self.omega_r, self.omega_c, self.T_s_fine  )
+        self.dV_gen_coarse   = self.open_FB * modulator(self.dV_Hcav_coarse, self.omega_r, self.omega_c, self.T_s_coarse)
 
         if self.use_gen_fine:
             self.V_gen_fine = self.open_drive * np.copy(self.V_set_fine)   + self.dV_gen_fine
@@ -1171,11 +1192,59 @@ class SPSOneTurnFeedback(object):
         # Generator charge from voltage, transmitter model: Q_gen_coarse is the full generator charge (all cavities)
 
         if self.use_gen_fine:
-            self.Q_gen_fine = self.G_tx*np.copy(self.V_gen_fine)  /self.TWC.R_gen*self.profile.bin_size
-        self.Q_gen_coarse   = self.G_tx*np.copy(self.V_gen_coarse)/self.TWC.R_gen*self.T_s
+            self.Q_gen_fine = self.G_tx*np.copy(self.V_gen_fine)  /self.TWC.R_gen*self.T_s_fine
+        self.Q_gen_coarse   = self.G_tx*np.copy(self.V_gen_coarse)/self.TWC.R_gen*self.T_s_coarse
         #print(f'mean(|Q_gen_coarse|) = {np.mean(np.absolute(self.Q_gen_coarse))/1e-9:6.2f} [nC]') # MYEDIT 2020.10.02
         # print(f'Q_gen_fine   = {self.Q_gen_fine},   shape = {self.Q_gen_fine.shape}')
-        # print(f'Q_gen_coarse = {self.Q_gen_coarse}, shape = {self.Q_gen_coarse.shape}')
+        # print(f'Q_gen_coarse = {self.Q_gen_coarse},\n       abs^2 = {np.abs(self.Q_gen_coarse)**2}, shape = {self.Q_gen_coarse.shape}')
+
+        #########3
+
+        if self.power_clamp:
+
+            # print(f'\n{self.cavtype}')
+
+            if self.use_gen_fine:
+
+                # print(f'Clamp threshold Q_gen_abs_max_fine = {self.Q_gen_abs_max_fine}')
+                Q_gen_abs_fine, Q_gen_ang_fine = cartesian_to_polar(self.Q_gen_fine)
+                indices_clamp_fine = np.where( Q_gen_abs_fine >= self.Q_gen_abs_max_fine)[0]
+                # print(f'Clamping fine indices = {indices_clamp_fine}, shape = {indices_clamp_fine.shape}')
+                Q_gen_abs_fine[ indices_clamp_fine ] = self.Q_gen_abs_max_fine
+                # print(f'Q_gen_fine = {self.Q_gen_fine},\n       abs = {np.abs(self.Q_gen_fine)}, shape = {self.Q_gen_fine.shape}')
+                self.Q_gen_fine = polar_to_cartesian( Q_gen_abs_fine, Q_gen_ang_fine)
+                # print(f'Q_gen_fine = {self.Q_gen_fine},\n       abs = {np.abs(self.Q_gen_fine)}, shape = {self.Q_gen_fine.shape}')
+
+            # print(f'Clamp threshold Q_gen_abs_max_coarse = {self.Q_gen_abs_max_coarse}')
+            Q_gen_abs_coarse, Q_gen_ang_coarse = cartesian_to_polar(self.Q_gen_coarse)
+            indices_clamp_coarse = np.where( Q_gen_abs_coarse >= self.Q_gen_abs_max_coarse)[0]
+            # print(f'Clamping coarse indices = {indices_clamp_coarse}, shape = {indices_clamp_coarse.shape}')
+            Q_gen_abs_coarse[ indices_clamp_coarse ] = self.Q_gen_abs_max_coarse
+            # print(f'Q_gen_coarse = {self.Q_gen_coarse},\n       abs = {np.abs(self.Q_gen_coarse)}, shape = {self.Q_gen_coarse.shape}')
+            self.Q_gen_coarse = polar_to_cartesian( Q_gen_abs_coarse, Q_gen_ang_coarse )
+            # print(f'Q_gen_coarse = {self.Q_gen_coarse},\n       abs = {np.abs(self.Q_gen_coarse)}, shape = {self.Q_gen_coarse.shape}')
+
+            # if len(indices_clamp_coarse) > 0:
+
+            #     fig, ax = plt.subplots(4, 1, sharex=True)
+
+            #     ax[0].plot(np.real(self.Q_gen_coarse),  label='Q_gen_coarse')
+            #     ax[1].plot(np.imag(self.Q_gen_coarse),  label='Q_gen_coarse')
+            #     ax[2].plot(np.abs(self.Q_gen_coarse),   label='Q_gen_coarse')
+            #     ax[3].plot(np.angle(self.Q_gen_coarse), label='Q_gen_coarse')
+
+            #     ax[0].legend()
+
+            #     ax[0].set_ylabel('Real')
+            #     ax[1].set_ylabel('Imag')
+            #     ax[2].set_ylabel('Abs')
+            #     ax[3].set_ylabel('Angle')
+
+            #     plt.show()
+
+        #########3
+
+        # quit()
 
         # Circular convolution: attach last points of previous turn
         if self.use_gen_fine:
@@ -1391,13 +1460,13 @@ class SPSOneTurnFeedback(object):
         ### Modulate from omega_rf to omega_r:
 
         # if self.use_gen_fine:
-        #     self.dV_mod_fine = modulator(self.dV_del_fine,   self.omega_c, self.omega_r, self.profile.bin_size)
+        #     self.dV_mod_fine = modulator(self.dV_del_fine,   self.omega_c, self.omega_r, self.T_s_fine)
         if self.dV_Hcav_opt == '0':
             # OPT0
-            self.dV_mod_coarse = modulator(self.dV_del_coarse, self.omega_c, self.omega_r, self.rf.t_rf[0, self.counter])
+            self.dV_mod_coarse = modulator(self.dV_del_coarse, self.omega_c, self.omega_r, self.T_s_coarse)
         elif self.dV_Hcav_opt == '1' or self.dV_Hcav_opt == '2a' or self.dV_Hcav_opt == '2b':
             # OPT1 HTIMKO 2021-02 and OPT2
-            self.dV_mod_coarse_long = modulator(self.dV_del_coarse_long, self.omega_c, self.omega_r, self.rf.t_rf[0, self.counter])
+            self.dV_mod_coarse_long = modulator(self.dV_del_coarse_long, self.omega_c, self.omega_r, self.T_s_coarse)
 
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -1586,13 +1655,14 @@ class SPSOneTurnFeedback(object):
         # On current measured (I,Q) voltage, apply LLRF model
         self.llrf_model(V_part_rampfact_fine_i, V_part_rampfact_coarse_i)
 
-        # Generator-induced voltage from generator current
+        # Generator-induced voltage from generator current (totals, divide by
+        # n_cavities for single cavity)
         self.generator_induced_voltage()
         self.logger.debug("Total voltage to generator %.3e V",
                           np.mean(np.absolute(self.V_gen_coarse)))
         self.logger.debug("Total current from generator %.3e A",
                           np.mean(np.absolute(self.Q_gen_coarse))
-                          / self.profile.bin_size) # BUG
+                          / self.T_s_coarse)
 
         # Without beam, total voltage equals generator-induced voltage
         if self.use_gen_fine:
@@ -1612,18 +1682,26 @@ class SPSOneTurnFeedback(object):
         # Present carrier frequency: main RF frequency
         self.omega_c = self.rf.omega_rf[0,self.counter]
         # Present sampling time
-        self.T_s = self.rf.t_rf[0,self.counter]
+        self.T_s_fine = self.profile.bin_size # always needed even if not use_gen_fine
+        self.T_s_coarse   = self.rf.t_rf[0,self.counter]
+
+        if self.power_clamp:
+            # Pg = 0.5 * Z_0 * |Ig|^2 = 0.5 * Z_0 * ( |Qg|^2 / (ts*ncav)^2 ) -> |Qg_max|^2 = 2 * Pg/Z_0 * (ts*ncav)^2
+            # Clamp in total current based on power clamp per cavity
+            if self.use_gen_fine:
+                self.Q_gen_abs_max_fine = np.sqrt(2 * self.power_clamp / self.TWC.Z_0) *  self.T_s_fine   * self.n_cavities
+            self.Q_gen_abs_max_coarse   = np.sqrt(2 * self.power_clamp / self.TWC.Z_0) *  self.T_s_coarse * self.n_cavities
 
         # MYEDIT: 2020.12.14: t_fine and t_coarse (rename of rf_centers)
         # definitions and possible phase reference corrections:
         self.t_fine = np.copy(self.profile.bin_centers)
-        self.t_coarse = (np.arange(self.n_coarse) + 0.5) * self.T_s # renamed from self.rf_centers
+        self.t_coarse = (np.arange(self.n_coarse) + 0.5) * self.T_s_coarse # renamed from self.rf_centers
         #
         if self.dphi_rf_opt == 0:
             # Correct t_fine to have phase reference zero since profile.bin_centers
             # might include an offset due to dphi_rf. t_coarse is already defined
             # w.r.t. phase reference zero:
-            #self.t_fine += self.rf.dphi_rf[0]/2./np.pi*self.T_s
+            #self.t_fine += self.rf.dphi_rf[0]/2./np.pi*self.T_s_coarse
             # TODO
             pass
            #self.t_fine -= self.t_fine[0] #- 0.5*(self.t_fine[1]-self.t_fine[0])
@@ -1631,13 +1709,13 @@ class SPSOneTurnFeedback(object):
             # Correct t_coarse to have the same phase offset due to dphi_rf that
             # profile.bin_centers might have. t_fine is already defined with
             # this same offset:
-            self.t_coarse -= self.rf.dphi_rf[0]/2./np.pi*self.T_s
+            self.t_coarse -= self.rf.dphi_rf[0]/2./np.pi*self.T_s_coarse
         if self.open_FF == 1:
             self.t_coarseFF = self.t_coarse[self.indices_coarseFF]
 
         # In both cases (for a "V_gen_fine" and for "Q_gen_coarse_coarse", respectively):
-        self.t_fine_long   = np.concatenate( (self.t_fine,   self.t_fine[-1]   + np.arange(1, self.n_fine_long   - self.n_fine   + 1) * self.profile.bin_size) )
-        self.t_coarse_long = np.concatenate( (self.t_coarse, self.t_coarse[-1] + np.arange(1, self.n_coarse_long - self.n_coarse + 1) * self.T_s) )
+        self.t_fine_long   = np.concatenate( (self.t_fine,   self.t_fine[-1]   + np.arange(1, self.n_fine_long   - self.n_fine   + 1) * self.T_s_fine  ) )
+        self.t_coarse_long = np.concatenate( (self.t_coarse, self.t_coarse[-1] + np.arange(1, self.n_coarse_long - self.n_coarse + 1) * self.T_s_coarse) )
 
         # print(f't_fine = {self.t_fine}, shape = {self.t_fine.shape}')
         # print(f't_fine_long = {self.t_fine_long}, shape = {self.t_fine_long.shape}')
@@ -1648,20 +1726,20 @@ class SPSOneTurnFeedback(object):
         # Present coarse grid
         #if self.dphi_rf_opt == 0: # MYEDIT: 2020.12.09
         #    # Keep the rf_centers w.r.t. to a profile starting at zero
-        #    self.profile.cut_left    -= self.rf.dphi_rf[0]/2./np.pi* self.T_s
-        #    self.profile.cut_right   -= self.rf.dphi_rf[0]/2./np.pi* self.T_s
-        #    self.profile.edges       -= self.rf.dphi_rf[0]/2./np.pi* self.T_s
-        #    self.profile.bin_centers -= self.rf.dphi_rf[0]/2./np.pi* self.T_s
-        #    self.rf_centers = (np.arange(self.n_coarse) + 0.5) * self.T_s
+        #    self.profile.cut_left    -= self.rf.dphi_rf[0]/2./np.pi* self.T_s_coarse
+        #    self.profile.cut_right   -= self.rf.dphi_rf[0]/2./np.pi* self.T_s_coarse
+        #    self.profile.edges       -= self.rf.dphi_rf[0]/2./np.pi* self.T_s_coarse
+        #    self.profile.bin_centers -= self.rf.dphi_rf[0]/2./np.pi* self.T_s_coarse
+        #    self.rf_centers = (np.arange(self.n_coarse) + 0.5) * self.T_s_coarse
         #else:
 
         # Check number of samples required per turn
         if self.use_gen_fine:
-            n_fine = int(self.rf.t_rev[self.counter]/self.profile.bin_size)
+            n_fine = int(self.rf.t_rev[self.counter]/self.T_s_fine)
             if self.n_fine != n_fine:
                 raise RuntimeError("Error in SPSOneTurnFeedback: changing number" +
                     " of fine samples. This option is not yet implemented!")
-        n_coarse = int(self.rf.t_rev[self.counter]/self.T_s)
+        n_coarse = int(self.rf.t_rev[self.counter]/self.T_s_coarse)
         if self.n_coarse != n_coarse:
             raise RuntimeError("Error in SPSOneTurnFeedback: changing number" +
                 " of coarse samples. This option is not yet implemented!")
@@ -1669,15 +1747,15 @@ class SPSOneTurnFeedback(object):
         # VS HTIMKO 2021-02: Added to match it
         # Present moving average window
         if self.use_gen_fine:
-            self.n_mov_av_fine = int(np.rint(self.TWC.tau/self.profile.bin_size))
-        self.n_mov_av_coarse   = int(np.rint(self.TWC.tau/self.rf.t_rf[0,self.counter]))
+            self.n_mov_av_fine = int(np.rint(self.TWC.tau/self.T_s_fine  ))
+        self.n_mov_av_coarse   = int(np.rint(self.TWC.tau/self.T_s_coarse))
 
         # Present delay time = This is the ONE TURN in the "one turn delay feedback (OTFB)", although
         # it is not exactly one turn, as we substract the TWC filling time thus counting only the
         # necessary time to make up one turn
         if self.use_gen_fine:
-            self.n_delay_fine = self.n_fine   - self.n_mov_av_fine   # VS HTIMKO 2021-02: changing to new definition. Old: int((self.rf.t_rev[self.counter] - self.TWC.tau) / self.profile.bin_size)
-        self.n_delay_coarse   = self.n_coarse - self.n_mov_av_coarse # VS HTIMKO 2021-02: changing to new definition. Old: int((self.rf.t_rev[self.counter] - self.TWC.tau) / self.rf.t_rf[0, self.counter])
+            self.n_delay_fine = self.n_fine   - self.n_mov_av_fine   # VS HTIMKO 2021-02: changing to new definition. Old: int((self.rf.t_rev[self.counter] - self.TWC.tau) / self.T_s_fine  )
+        self.n_delay_coarse   = self.n_coarse - self.n_mov_av_coarse # VS HTIMKO 2021-02: changing to new definition. Old: int((self.rf.t_rev[self.counter] - self.TWC.tau) / self.T_s_coarse)
 
 
 #    def pre_compute_semi_analytic_factor(self, time):

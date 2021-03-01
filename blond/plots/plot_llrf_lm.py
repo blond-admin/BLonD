@@ -8,12 +8,34 @@ Created on Fri Jun 12 16:24:59 2020
 
 import numpy as np
 import h5py as hp
+import pathlib
 
-import matplotlib as mpl
-mpl.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FormatStrFormatter
 from cycler import cycler
+
+dirhome = str(pathlib.Path.home())
+
+if(  dirhome.startswith('/afs')  ):       myenv = 'afs'       # RUNNING LOCALLY (AFS)
+elif(dirhome.startswith('/pool') ):       myenv = 'batch'     # RUNNING WITH HTCONDOR
+elif(dirhome.startswith('/hpcscratch') ): myenv = 'hpc'       # RUNNING WITH SLURM
+elif(dirhome.startswith('/home') ):       myenv = 'Ubuntu'    # RUNNING LOCALLY (UBUNTU)
+elif(dirhome.startswith('/Users')):       myenv = 'Mac'       # RUNNING LOCALLY (MAC)
+
+if(  myenv == 'afs'):   dirhome = '/afs/cern.ch/work/l/lmedinam' # When running locally in AFS, re-assign dirhome so that we use the original version of the scripts in AFS work
+elif(myenv == 'batch'): dirhome = '/afs/cern.ch/work/l/lmedinam' # When running with HTCondor,  re-assign dirhome so that we use the original version of the scripts in AFS work (we do not transfer input files, as this way it's faster)
+elif(myenv == 'hpc'):   pass                                     # When running with Slurm, no need to re-assign dirhome, as a local copy of the full BLonD_simulations exist in the Slurh home directory
+elif(myenv == 'Mac'):   pass                                     # When running with Slurm, no need to re-assign dirhome. The BLonD_simulations directory must exist there
+else:                   sys.exit('\n[!] ERROR in plot_profile_lm: NOT IMPLEMENTED!\n')
+
+if myenv in ['afs', 'batch', 'hpc']:
+    import matplotlib as mpl
+    mpl.use('Agg')
+
+dirbase = 'BLonD_simulations/sps_lhc_losses'
+dirin   = f'{dirhome}/{dirbase}/sps_lhc_losses'
+dirinp  = f'{dirin}/inp'
+dirinpbench  = f'{dirinp}/benchmark'
 
 # CavityFeedback parameters all turns -----------------------------------------
 
@@ -36,7 +58,7 @@ def plot_cavityfeedback_allturns(outdir, t0R, t1L, bin_size=None, vrf_phirf_d=No
         key_list = ['V_sum', 'V_corr', 'phi_corr']
 
         nVsumextraplots = 3 # From V_sum, we plot Re, Im, abs, angle
-        
+
         fig, ax = plt.subplots(len(key_list)+nVsumextraplots, 2, sharex='col', sharey='row')
         fig.set_size_inches(8.0,2.0*(len(key_list)+nVsumextraplots))
         #plt.subplots_adjust(wspace=0.1)
@@ -144,7 +166,7 @@ def plot_cavityfeedback_allturns(outdir, t0R, t1L, bin_size=None, vrf_phirf_d=No
                     for spj in range(2):
                         ax[spi+2,spj].axhline(vrf_phirf_i[0]/unit_factor_1, ls='--', color='#000000', alpha=1.0)
                         ax[spi+3,spj].axhline(vrf_phirf_i[1]/unit_factor_2, ls='--', color='#000000', alpha=1.0)
-                          
+
                 ax[spi+2,1].legend(loc=1)
                 ax[spi,  0].set_xlim(0., t0R)
                 ax[spi,  1].set_xlim(t1L, time_array[-1])
@@ -203,7 +225,7 @@ def plot_cavityfeedback_allturns(outdir, t0R, t1L, bin_size=None, vrf_phirf_d=No
         plt.close(fig)
 
         # Polar:
-        
+
         # radar green, solid grid lines
         #plt.rc('grid', color='#aaaaaa', linewidth=1, linestyle='-')
         #plt.rc('xtick', labelsize=15)
@@ -211,11 +233,11 @@ def plot_cavityfeedback_allturns(outdir, t0R, t1L, bin_size=None, vrf_phirf_d=No
 
         fig = plt.figure()
         fig.set_size_inches(6.0, 6.0)
-        
+
         ax = fig.add_axes([0.075, 0.050, 0.875, 0.850], projection='polar')
 
         key = 'V_sum'
-        
+
         data_CavityFeedback_key = h5File[f'/CavityFeedback/{key}'][idxfirstturn:idxlastturn+1]
         #print(f'{key}, data_CavityFeedback_key = {data_CavityFeedback_key}, shape = {data_CavityFeedback_key.shape}')
 
@@ -252,9 +274,9 @@ def plot_cavityfeedback_allturns(outdir, t0R, t1L, bin_size=None, vrf_phirf_d=No
             ax.plot(vrf_phirf_i[1]/unit_factor_2, vrf_phirf_i[0]/unit_factor_1, 'o', markerfacecolor='#000000', markeredgecolor='#888888', markeredgewidth=1.0, alpha=1.0, label=f'SP: turn {data_turns[nturns-1]}')
 
         #plt.gca().set_prop_cycle(cycler('color', color_cycle_nturns))
-        
+
         ax.set_ylim(0.5*vrf_phirf_d[0]/unit_factor_1, 1.5*vrf_phirf_d[0]/unit_factor_1)
-        
+
         ax.set_title(r'$V_\mathsf{sum}$ = ( |$V_\mathsf{sum}$| [MV],  $\frac{\pi}{2}$ - $\mathsf{tan}^{-1}$($V_\mathsf{sum}$) [deg] ) ')
         ax.legend(loc=3, framealpha=1.0)
 
@@ -262,7 +284,7 @@ def plot_cavityfeedback_allturns(outdir, t0R, t1L, bin_size=None, vrf_phirf_d=No
         fig.savefig(f'{outdir}/plot_cavityfeedback_polar_allturns.png')
         plt.cla()
         plt.close(fig)
-        
+
 
     try:    h5File.close()
     except: pass
@@ -496,8 +518,8 @@ def plot_beamfeedback_vs_turn(outdir):
                 ax[spi].plot(data_turns, np.array(data_BeamFeedback_key)/unit_factor, mymarker, color='k', alpha=1.00)
 
 
-            #ax[spi].set_xlim(left=0) # Omit turn -1 to better observe the variation of the parameters vs turn, since they are all zero at turn -1 and this needlessly streches the yrange 
-            
+            #ax[spi].set_xlim(left=0) # Omit turn -1 to better observe the variation of the parameters vs turn, since they are all zero at turn -1 and this needlessly streches the yrange
+
             spi += 1
             #print('')
 

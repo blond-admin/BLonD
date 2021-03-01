@@ -47,6 +47,10 @@ elif(myenv == 'hpc'):   pass                                     # When running 
 elif(myenv == 'Mac'):   pass                                     # When running with Slurm, no need to re-assign dirhome. The BLonD_simulations directory must exist there
 else:                   sys.exit('\n[!] ERROR in impedance_tools: NOT IMPLEMENTED!\n')
 
+if myenv in ['afs', 'batch', 'hpc']:
+    import matplotlib as mpl
+    mpl.use('Agg')
+
 dirimp = f'{dirhome}/BLonD_simulations/sps_lhc_losses/sps_lhc_losses/rep/Impedance'
 
 sys.path.insert(0, f'{dirimp}/SPS_jr/SPS-clean-up')

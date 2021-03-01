@@ -11,14 +11,35 @@ Created on Mon Nov 25 18:31:00 2019
 from __future__ import division, print_function
 import numpy as np
 from copy import copy
-
+import pathlib
 from scipy.constants import c
 
-import matplotlib as mpl
-mpl.use('Agg')
 import matplotlib.pyplot as plt
 
 from blond.impedances.impedance_sources import TravelingWaveCavity
+
+dirhome = str(pathlib.Path.home())
+
+if(  dirhome.startswith('/afs')  ):       myenv = 'afs'       # RUNNING LOCALLY (AFS)
+elif(dirhome.startswith('/pool') ):       myenv = 'batch'     # RUNNING WITH HTCONDOR
+elif(dirhome.startswith('/hpcscratch') ): myenv = 'hpc'       # RUNNING WITH SLURM
+elif(dirhome.startswith('/home') ):       myenv = 'Ubuntu'    # RUNNING LOCALLY (UBUNTU)
+elif(dirhome.startswith('/Users')):       myenv = 'Mac'       # RUNNING LOCALLY (MAC)
+
+if(  myenv == 'afs'):   dirhome = '/afs/cern.ch/work/l/lmedinam' # When running locally in AFS, re-assign dirhome so that we use the original version of the scripts in AFS work
+elif(myenv == 'batch'): dirhome = '/afs/cern.ch/work/l/lmedinam' # When running with HTCondor,  re-assign dirhome so that we use the original version of the scripts in AFS work (we do not transfer input files, as this way it's faster)
+elif(myenv == 'hpc'):   pass                                     # When running with Slurm, no need to re-assign dirhome, as a local copy of the full BLonD_simulations exist in the Slurh home directory
+elif(myenv == 'Mac'):   pass                                     # When running with Slurm, no need to re-assign dirhome. The BLonD_simulations directory must exist there
+else:                   sys.exit('\n[!] ERROR in plot_profile_lm: NOT IMPLEMENTED!\n')
+
+if myenv in ['afs', 'batch', 'hpc']:
+    import matplotlib as mpl
+    mpl.use('Agg')
+
+dirbase = 'BLonD_simulations/sps_lhc_losses'
+dirin   = f'{dirhome}/{dirbase}/sps_lhc_losses'
+dirinp  = f'{dirin}/inp'
+dirinpbench  = f'{dirinp}/benchmark'
 
 ##########################
 
@@ -96,7 +117,7 @@ def reduce_impedance_feedforward_feedback(profile, freqres, impedanceScenario, o
         # For future       imp: [3-sec cavs, 4-sec cavs]
         Gfblist = copy(Gfb)
         pass
-    
+
     if type(gff) is not list:
         if(gff == 0.): gfflist = [None, None]
         else:          gfflist = [gff,  gff ]
@@ -105,13 +126,13 @@ def reduce_impedance_feedforward_feedback(profile, freqres, impedanceScenario, o
         # For future       imp: [3-sec cavs, 4-sec cavs]
         gfflist = copy(gff)
         pass
-    
+
     ##gfb = # 1/(4.*50)*10. #4.*50. * 0.1
     #gfb = 1e-2 #1.5e-2 #0.86e6/2. # 1e-3 # None #1e-6 # with Zr
-    
+
     #print(f'impedanceScenario = {impedanceScenario}')
     print(f'impedanceScenario.scenarioFileName = {impedanceScenario.scenarioFileName}')
-    
+
     if('future' in impedanceScenario.scenarioFileName):
         Gfb3or5sec = Gfblist[0]
         Gfb4sec    = Gfblist[1]

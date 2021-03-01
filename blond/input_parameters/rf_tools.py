@@ -10,30 +10,30 @@ TOOLS BASED ON BLOND_COMMON, NOT BLOND
 
 import gc
 import numpy as np
+import pathlib
 
-import matplotlib as mpl
 import matplotlib.pyplot as plt
-mpl.use('Agg')
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter #AutoLocator
 
-# ###############################################################################
-# # Retrieve home path and re-assign if running in afs or batch
-# ###############################################################################
-# print('')
-# home = str(pathlib.Path.home())
-# print('home =', home)
 
-# if(  home.startswith('/home') ): myenv = 'homeUbu'
-# elif(home.startswith('/Users')): myenv = 'homeMac'
-# elif(home.startswith('/afs')  ): myenv = 'afs'
-# elif(home.startswith('/pool') ): myenv = 'batch'
-# print('myenv =', myenv)
+dirhome = str(pathlib.Path.home())
 
-# if(myenv == 'afs'):   home = '/afs/cern.ch/work/l/lmedinam'
-# if(myenv == 'batch'): home = '/afs/cern.ch/work/l/lmedinam'
-# print('home =', home)
-# print('')
-# ###############################################################################
+if(  dirhome.startswith('/afs')  ):       myenv = 'afs'       # RUNNING LOCALLY (AFS)
+elif(dirhome.startswith('/pool') ):       myenv = 'batch'     # RUNNING WITH HTCONDOR
+elif(dirhome.startswith('/hpcscratch') ): myenv = 'hpc'       # RUNNING WITH SLURM
+elif(dirhome.startswith('/home') ):       myenv = 'Ubuntu'    # RUNNING LOCALLY (UBUNTU)
+elif(dirhome.startswith('/Users')):       myenv = 'Mac'       # RUNNING LOCALLY (MAC)
+
+if(  myenv == 'afs'):   dirhome = '/afs/cern.ch/work/l/lmedinam' # When running locally in AFS, re-assign dirhome so that we use the original version of the scripts in AFS work
+elif(myenv == 'batch'): dirhome = '/afs/cern.ch/work/l/lmedinam' # When running with HTCondor,  re-assign dirhome so that we use the original version of the scripts in AFS work (we do not transfer input files, as this way it's faster)
+elif(myenv == 'hpc'):   pass                                     # When running with Slurm, no need to re-assign dirhome, as a local copy of the full BLonD_simulations exist in the Slurh home directory
+elif(myenv == 'Mac'):   pass                                     # When running with Slurm, no need to re-assign dirhome. The BLonD_simulations directory must exist there
+else:                   sys.exit('\n[!] ERROR in plot_beam_lm: NOT IMPLEMENTED!\n')
+
+if myenv in ['afs', 'batch', 'hpc']:
+    import matplotlib as mpl
+    mpl.use('Agg')
+
 
 # BLonD-based tools
 from blond_common.rf_functions.potential import rf_voltage_generation
