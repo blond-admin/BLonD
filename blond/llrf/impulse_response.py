@@ -237,6 +237,20 @@ class TravellingWaveCavity(object):
         self.logger.info("Class initialized")
         self.logger.debug("Filling time %.4e s", self.tau)
 
+    def impedance_gen(self, omega_array): #time_coarse):
+
+        ## Move starting point of impulse response to correct value
+        #t_gen = time_coarse - time_coarse[0] - 0.5*self.tau
+
+        #omega_array = 2*np.pi/t_gen
+
+        self.d_omega = omega_array - self.omega_r
+        self.d_tau =self.d_omega * self.tau
+
+        self.Z_gen = self.R_gen * np.sin(0.5*self.d_tau) / (0.5*self.d_tau)
+
+
+
     def impulse_response_gen(self, omega_c, time_coarse):
         r"""Impulse response from the cavity towards the
         generator. For a signal that is I,Q demodulated at a given carrier

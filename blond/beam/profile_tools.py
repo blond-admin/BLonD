@@ -240,12 +240,13 @@ class ProfileTools(object):
 
         profile_obj_bunchPositionOff_brf = np.empty(nbf)
 
-        #Fbsymmetric = False # For tests
+        # Fbsymmetric = False # For tests
         if not Fbsymmetric:
             # Half is OK (i.e. = 2 for nbs = 5) to resolve in frequency well
             # enough for the computation of the complex form factor:
             nbext = 0.5*(nbs-1)
             fr = 200.222e6
+            # fr = 200.100e6
         profile_obj_bunchFormFactor_brf = np.empty(nbf)
 
         for i in range(nbf):
@@ -540,6 +541,8 @@ class ProfilePattern(object):
         self.bucket_centres = self.bucket_centres.astype(int)
         #print(f'bucket_centres = {self.bucket_centres}')
 
+        # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+
         # Samples corresponding to each FILLED bucket:
 
         # Per main bunch:
@@ -563,6 +566,36 @@ class ProfilePattern(object):
         idx_BF_beam.sort()
         idx_BF_beam = np.array(idx_BF_beam)
         #print(f'idx_BF_beam = {idx_BF_beam}, shape = {idx_BF_beam.shape}, dtype = {idx_BF_beam.dtype}')
+
+        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+        # For some application, we might want the samples of filled bunches
+        # WITHOUT the margin (for example, to calculate the average of a given
+        # parameter signal like rf beam current in the beam segment) -- necessary?
+
+        # Per main bunch:
+        if self.Ns % 2 == 0: istart_list = self.bucket_centres - int((self.Ns  )/2) - self.Nsmargin # Even no. of slices per bunch (then the bucket centre is half-bucket in front of the real centre: e.g. 6: m m o o o x o o m m )
+        else:                istart_list = self.bucket_centres - int((self.Ns-1)/2) - self.Nsmargin # Odd  no. of slices per bunch (then the bucket centre is *really* at the centre:                  e.g. 5: m m o o x o o m m )
+        #print(f'istart_list = {istart_list}')
+        idx_nomargin_BF_bunch = []
+        for i in range(nbf):
+            istart = istart_list[i]
+            iend   = istart_list[i] + self.maxbklt
+            #print(istart_list[i] + self.maxbklt)
+            if(istart < 0):          istart = 0 # Check that we don't start below the zero index (e.g. when no margin was requested)
+            if(iend >= self.Ns_tot): iend   = self.Ns_tot # Check that we don't go above the max. no. of indices (e.g. when no margin was requested)
+            idx_nomargin_BF_bunch.append( np.arange(istart, iend ).astype('int32') )
+        idx_nomargin_BF_bunch = np.array(idx_nomargin_BF_bunch)
+        #print(f'idx_nomargin_BF_bunch = {idx_nomargin_BF_bunch}, shape = {idx_nomargin_BF_bunch.shape}, dtype = {idx_nomargin_BF_bunch.dtype}')
+
+        # Per beam
+        idx_nomargin_BF_beam = np.hstack(idx_nomargin_BF_bunch) #.astype('int32')
+        idx_nomargin_BF_beam = list(set(idx_nomargin_BF_beam)) # Remove possible overlaps
+        idx_nomargin_BF_beam.sort()
+        idx_nomargin_BF_beam = np.array(idx_nomargin_BF_beam)
+        #print(f'idx_nomargin_BF_beam = {idx_nomargin_BF_beam}, shape = {idx_nomargin_BF_beam.shape}, dtype = {idx_nomargin_BF_beam.dtype}')
+
+        # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 
         # Samples corresponding to SATELLITE buckets:
 
@@ -613,6 +646,8 @@ class ProfilePattern(object):
         idx_BS_beam.sort()
         idx_BS_beam = np.array(idx_BS_beam)
         #print(f'idx_BS_beam = {idx_BS_beam}, shape = {idx_BS_beam.shape}, dtype = {idx_BS_beam.dtype}')
+
+        # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 
         # Samples corresponding to GHOST buckets:
 
@@ -667,6 +702,10 @@ class ProfilePattern(object):
                             'beam':  idx_BS_beam},
                      'BG': {'bunch': idx_BG_bunch,
                             'beam':  idx_BG_beam} }
+
+        # Without sample margins
+        self.idxP_nomargin = {'BF': {'bunch': idx_nomargin_BF_bunch,
+                                     'beam':  idx_nomargin_BF_beam} }
 
 #     # idxP (for BF/BS, per bunch/beam) ========================================
 

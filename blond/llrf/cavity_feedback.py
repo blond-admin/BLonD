@@ -72,7 +72,7 @@ class CavityFeedbackCommissioning(object):
         self.open_drive = int(np.invert(bool(open_drive)))
         self.open_FF = int(np.invert(bool(open_FF)))
 
-        self.use_pretrack_ramp = True
+        self.use_pretrack_ramp = True #True
         self.use_gen_fine = False #True
 
 
@@ -136,11 +136,12 @@ class SPSCavityFeedback(object):
     def __init__(self, RFStation, Beam, Profile, G_ff=1, G_llrf=10, G_tx=0.5,
                  a_comb=15/16, turns=1000, post_LS2=True, V_part=None,
                  Commissioning=CavityFeedbackCommissioning(), deltaf0=0,
-                 fillpattern=None, power_clamp=False):
+                 fillpattern=None, power_clamp=False, nollrf=False):
 
-        for varnamei in ['Q_gen']: #['Q_gen']: #'V_ind_gen']: #'Q_gen', 'V_ind_gen']: #['V_set', 'dV_err', 'dV_comb', 'dV_del', 'dV_mod', 'dV_Hcav', 'dV_gen', 'V_gen', 'Q_gen', 'V_ind_gen']:
+        # for varnamei in [None]: #['V_ind_gen']: #['Q_gen']: #'V_ind_gen']: #'Q_gen', 'V_ind_gen']: #['V_set', 'dV_err', 'dV_comb', 'dV_del', 'dV_mod', 'dV_Hcav', 'dV_gen', 'V_gen', 'Q_gen', 'V_ind_gen']:
             # Options for commissioning the feedback
             self.Commissioning = Commissioning
+            self.nollrf = nollrf
 
             self.rf = RFStation
             self.fillpattern = fillpattern
@@ -227,7 +228,8 @@ class SPSCavityFeedback(object):
                                              Commissioning=self.Commissioning,
                                              deltaf0=deltaf0,
                                              fillpattern=self.fillpattern,
-                                             power_clamp=power_clamp_1)
+                                             power_clamp=power_clamp_1,
+                                             nollrf=self.nollrf)
             self.OTFB_2 = SPSOneTurnFeedback(RFStation, Beam, Profile, ncell2,
                                              n_cavities=ncav2, V_part=1-V_part,
                                              G_ff=float(G_ff_2),
@@ -237,7 +239,8 @@ class SPSCavityFeedback(object):
                                              Commissioning=self.Commissioning,
                                              deltaf0=deltaf0,
                                              fillpattern=self.fillpattern,
-                                             power_clamp=power_clamp_2)
+                                             power_clamp=power_clamp_2,
+                                             nollrf=self.nollrf)
 
             # Set up logging
             self.logger = logging.getLogger(__class__.__name__)
@@ -250,12 +253,16 @@ class SPSCavityFeedback(object):
                 raise RuntimeError("ERROR in SPSCavityFeedback: 'turns' has to" +
                                    " bfe a positive integer!")
 
-            self.track_init(varname=varnamei, debug=Commissioning.debug)
+            self.track_init(debug=Commissioning.debug) # varname=varnamei,
 
     def track(self):
 
-        self.OTFB_1.track()
-        self.OTFB_2.track()
+        if self.nollrf:
+            self.OTFB_1.track_nollrf()
+            self.OTFB_2.track_nollrf()
+        else:
+            self.OTFB_1.track()
+            self.OTFB_2.track()
 
         self.V_sum = np.copy(self.OTFB_1.V_tot_fine) + np.copy(self.OTFB_2.V_tot_fine)
 
@@ -347,7 +354,7 @@ class SPSCavityFeedback(object):
 
         return x, y, [(x0,y0), (x1,y1), (x2,y2), (xf,yf)]
 
-    def track_init(self, varname=None, debug=False):
+    def track_init(self, varname=None, debug=False): #
         r''' Tracking of the SPSCavityFeedback without beam.
         '''
 
@@ -485,10 +492,13 @@ class SPSCavityFeedback(object):
             # Check also the fnamefull below, where a label (e.g. variable name) might be appended
             # as well as turns_to_plot
             if varname is None:
-                fname = 'plot_SPSCavityFeedback_pretrack_wo_beam'
+                fname = 'plot_cavityfeedback_pretrack'
             else:
                 # fname = 'plot_pretrack_360bm-fmeas-conv4-rampNo-genfineNo'
                 fname = 'plot_pretrack_powertest'
+
+            # Overrride varname (remove the _coarse at the end) to get a plot for debugging
+            # varname = 'Q_gen'
 
             nrows = 4
             ncols = 3
@@ -508,13 +518,13 @@ class SPSCavityFeedback(object):
             # turns_to_plot = np.arange(self.turns)                       # All turns
             # turns_to_plot = np.array([0])                               # First turn
             # turns_to_plot = np.array([1])                               # Second turn
-            # turns_to_plot = np.array([self.turns-1])                      # Last turn
-            # turns_to_plot = np.array([0, self.turns-1])                 # All turns
-            # turns_to_plot = np.arange(0,self.turns)                     # First and last turns
+            turns_to_plot = np.array([self.turns-1])                    # Last turn
+            # turns_to_plot = np.array([0, self.turns-1])                 # First and last turns
+            # turns_to_plot = np.arange(0,self.turns)                     # All turns
             # turns_to_plot = np.arange(self.turns-5,self.turns)          # Last few turns
-            # turns_to_plot = np.array([self.turns-2,self.turns-1])          # Last two turns
+            # turns_to_plot = np.array([self.turns-2,self.turns-1])       # Last two turns
             # turns_to_plot = np.arange(0,self.turns,int(self.turns/10))  # All turns, but plot only 10 turns evenly spaced
-            turns_to_plot = np.concatenate((np.arange(0,5), np.arange(self.turns-5,self.turns))) # First few and last few turns
+            # turns_to_plot = np.concatenate((np.arange(0,5), np.arange(self.turns-5,self.turns))) # First few and last few turns
             # print(f'turns_to_plot = {turns_to_plot}')
 
             cmap = plt.get_cmap('coolwarm') # 'jet': rainbow, 'coolwarm': blur to red
@@ -533,23 +543,23 @@ class SPSCavityFeedback(object):
 
                 # print(f'i = {i}')
 
-                # proctime0 = time.process_time()
-                self.OTFB_1.track_no_beam()
-                # proctime1 = time.process_time()
-                self.OTFB_2.track_no_beam()
-                # proctime2 = time.process_time()
-                # print(f'i = {i}: {proctime1 - proctime0} + {proctime2 - proctime1}')
+                if self.nollrf:
+                    self.OTFB_1.track_no_beam_nollrf()
+                    self.OTFB_2.track_no_beam_nollrf()
+                else:
+                    self.OTFB_1.track_no_beam()
+                    self.OTFB_2.track_no_beam()
 
             else:
 
                 # print(f'i = {i}: Using ramp')
 
-                # proctime0 = time.process_time()
-                self.OTFB_1.track_no_beam(self.OTFB_1_V_part_rampfact_fine_0 if self.Commissioning.use_gen_fine else None, self.OTFB_1_V_part_rampfact_coarse_0)
-                # proctime1 = time.process_time()
-                self.OTFB_2.track_no_beam(self.OTFB_2_V_part_rampfact_fine_0 if self.Commissioning.use_gen_fine else None, self.OTFB_2_V_part_rampfact_coarse_0)
-                # proctime2 = time.process_time()
-                # print(f'i = {i}: {proctime1 - proctime0} + {proctime2 - proctime1}')
+                if self.nollrf:
+                    self.OTFB_1.track_no_beam_nollrf(self.OTFB_1_V_part_rampfact_fine_0 if self.Commissioning.use_gen_fine else None, self.OTFB_1_V_part_rampfact_coarse_0)
+                    self.OTFB_2.track_no_beam_nollrf(self.OTFB_2_V_part_rampfact_fine_0 if self.Commissioning.use_gen_fine else None, self.OTFB_2_V_part_rampfact_coarse_0)
+                else:
+                    self.OTFB_1.track_no_beam(self.OTFB_1_V_part_rampfact_fine_0 if self.Commissioning.use_gen_fine else None, self.OTFB_1_V_part_rampfact_coarse_0)
+                    self.OTFB_2.track_no_beam(self.OTFB_2_V_part_rampfact_fine_0 if self.Commissioning.use_gen_fine else None, self.OTFB_2_V_part_rampfact_coarse_0)
 
             if i < 3 or i > self.turns - 3:
                 print('{0:6d}'.format(i), end=' | ')
@@ -674,13 +684,16 @@ class SPSCavityFeedback(object):
             ax[3,0].set_ylabel(f'Angle [deg]')
 
             fig.suptitle(var)
-            ax[nrows-1,ncols-1].legend(loc=4)
+            ax[nrows-1,1].legend(loc=4)
 
             # plt.show()
             fig.tight_layout(rect=[0.0, 0.0, 1.00, 0.950]) #rect=[0.0, 0.0, 1.00, 0.95])
-            fnamefull = f'{fname}_{var}' #'_500'
-            #fnamefull = f'{fname}_{var}_movaveprev' #'_500'
-            #fnamefull = f'{fname}_{var}_movaveprev2' #'_500'
+            if fname == 'plot_cavityfeedback_pretrack':
+                fnamefull = fname[:]
+            else:
+                fnamefull = f'{fname}_{var}' #'_500'
+                #fnamefull = f'{fname}_{var}_movaveprev' #'_500'
+                #fnamefull = f'{fname}_{var}_movaveprev2' #'_500'
             fig.savefig(f'{fnamefull}')
             fig.clf()
             print(f'Saving {fnamefull}.png ...')
@@ -794,7 +807,8 @@ class SPSOneTurnFeedback(object):
                  deltaf0=0, # MYEDIT 2020.11.24: Added central (resonance) frequency offset
                  fillpattern=None, # MYEDIT 2020.02.02: Added fillpattern
                  dV_Hcav_opt='0',
-                 power_clamp=False
+                 power_clamp=False,
+                 nollrf=False
                  ):
 
         # Set up logging
@@ -854,6 +868,7 @@ class SPSOneTurnFeedback(object):
         #self.Vindbeamsign = +1 # -1 Original, +1 for tests: the good one, permanently changed now
 
         self.use_gen_fine = Commissioning.use_gen_fine
+        self.nollrf = nollrf
 
         self.dV_Hcav_opt = str(dV_Hcav_opt)
 
@@ -980,7 +995,7 @@ class SPSOneTurnFeedback(object):
             ##self.n_coarseFF = int(round(self.rf.t_rev[0]/self.rf.t_rf[0, 0]/self.nbs_FF))  ##### MYEDIT 2020.09.08
             self.n_coarseFF = len(self.indices_coarseFF)
 
-        self.power_clamp = power_clamp
+        self.power_clamp_val = power_clamp
         # if self.power_clamp = float (not False), self.Q_gen_abs_max_fine (if
         # applicable) and self.Q_gen_abs_max_coarse will be created in update_variables
 
@@ -1084,6 +1099,7 @@ class SPSOneTurnFeedback(object):
                 for k in range(self.n_FF):
                     self.Q_coarseFF_ff[ind] += self.coeff_FF[k] * self.Q_beam_coarseFF_prev[ind-k]
 
+            # print(f'{self.cavtype}, i = {self.counter}, Q_coarseFF_ff = {self.Q_coarseFF_ff}, shape = {self.Q_coarseFF_ff.shape}, max(abs) = {np.max(np.abs(self.Q_coarseFF_ff))}')
             self.dV_coarseFF_ff = self.G_ff * self.matr_conv(self.Q_coarseFF_ff, self.TWC.h_gen_coarse[self.indices_coarseFF]) # h_gen[::5]
 
             # Compensate for FIR filter delay
@@ -1200,12 +1216,8 @@ class SPSOneTurnFeedback(object):
 
         #########3
 
-        if self.power_clamp:
-
-            # print(f'\n{self.cavtype}')
-
-            if self.use_gen_fine:
-
+        if self.use_gen_fine:
+            if self.Q_gen_abs_max_fine:
                 # print(f'Clamp threshold Q_gen_abs_max_fine = {self.Q_gen_abs_max_fine}')
                 Q_gen_abs_fine, Q_gen_ang_fine = cartesian_to_polar(self.Q_gen_fine)
                 indices_clamp_fine = np.where( Q_gen_abs_fine >= self.Q_gen_abs_max_fine)[0]
@@ -1214,7 +1226,10 @@ class SPSOneTurnFeedback(object):
                 # print(f'Q_gen_fine = {self.Q_gen_fine},\n       abs = {np.abs(self.Q_gen_fine)}, shape = {self.Q_gen_fine.shape}')
                 self.Q_gen_fine = polar_to_cartesian( Q_gen_abs_fine, Q_gen_ang_fine)
                 # print(f'Q_gen_fine = {self.Q_gen_fine},\n       abs = {np.abs(self.Q_gen_fine)}, shape = {self.Q_gen_fine.shape}')
+            else:
+                pass
 
+        if self.Q_gen_abs_max_coarse:
             # print(f'Clamp threshold Q_gen_abs_max_coarse = {self.Q_gen_abs_max_coarse}')
             Q_gen_abs_coarse, Q_gen_ang_coarse = cartesian_to_polar(self.Q_gen_coarse)
             indices_clamp_coarse = np.where( Q_gen_abs_coarse >= self.Q_gen_abs_max_coarse)[0]
@@ -1223,24 +1238,24 @@ class SPSOneTurnFeedback(object):
             # print(f'Q_gen_coarse = {self.Q_gen_coarse},\n       abs = {np.abs(self.Q_gen_coarse)}, shape = {self.Q_gen_coarse.shape}')
             self.Q_gen_coarse = polar_to_cartesian( Q_gen_abs_coarse, Q_gen_ang_coarse )
             # print(f'Q_gen_coarse = {self.Q_gen_coarse},\n       abs = {np.abs(self.Q_gen_coarse)}, shape = {self.Q_gen_coarse.shape}')
-
             # if len(indices_clamp_coarse) > 0:
-
             #     fig, ax = plt.subplots(4, 1, sharex=True)
-
             #     ax[0].plot(np.real(self.Q_gen_coarse),  label='Q_gen_coarse')
             #     ax[1].plot(np.imag(self.Q_gen_coarse),  label='Q_gen_coarse')
             #     ax[2].plot(np.abs(self.Q_gen_coarse),   label='Q_gen_coarse')
             #     ax[3].plot(np.angle(self.Q_gen_coarse), label='Q_gen_coarse')
-
             #     ax[0].legend()
-
             #     ax[0].set_ylabel('Real')
             #     ax[1].set_ylabel('Imag')
             #     ax[2].set_ylabel('Abs')
             #     ax[3].set_ylabel('Angle')
-
             #     plt.show()
+        else:
+            # self.Q_gen_abs_max_coarse is always False if use_power_clamp was
+            # False when update_variavbles was called before this module. This
+            # is always done in pretracking, and in tracking with beam when
+            # no power_clamp requested in SPSCavityFeedback
+            pass
 
         #########3
 
@@ -1342,18 +1357,7 @@ class SPSOneTurnFeedback(object):
             #print(f'max(|V_ind_gen_coarse|)  = {max(np.absolute(self.V_ind_gen_coarse))/1e6:6.2f} MV') # MYEDIT 2020.10.01
 
 
-    def llrf_model(self, V_part_rampfact_fine_i=None, V_part_rampfact_coarse_i=None): # V_part_rampfact_coarse_i = (1,0) means full magnitude of V_part (1), and the exact phi_rf (+0)
-        """Models the LLRF part of the OTFB.
-
-        Attributes
-        ----------
-        V_set_coarse : complex array
-            Voltage set point [V] in (I,Q); :math:`V_{\mathsf{set}}`, amplitude
-            proportional to voltage partition
-        dV_Hcav_coarse : complex array
-            Generator voltage [V] in (I,Q);
-            :math:`dV_{\mathsf{gen}} = V_{\mathsf{set}} - V_{\mathsf{tot}}`
-        """
+    def set_point(self, V_part_rampfact_fine_i=None, V_part_rampfact_coarse_i=None): # V_part_rampfact_coarse_i = (1,0) means full magnitude of V_part (1), and the exact phi_rf (+0)
 
         # Voltage set point of current turn (I,Q); depends on voltage partition
         # Sinusoidal voltage completely in Q
@@ -1403,6 +1407,19 @@ class SPSOneTurnFeedback(object):
                 0.5*np.pi - (self.rf.phi_rf[0,self.counter]+V_part_rampfact_coarse_i[1]))
 
         # print(f'V_set_coarse = {self.V_set_coarse}, shape = {self.V_set_coarse.shape}')
+
+    def llrf_model(self):
+        """Models the LLRF part of the OTFB.
+
+        Attributes
+        ----------
+        V_set_coarse : complex array
+            Voltage set point [V] in (I,Q); :math:`V_{\mathsf{set}}`, amplitude
+            proportional to voltage partition
+        dV_Hcav_coarse : complex array
+            Generator voltage [V] in (I,Q);
+            :math:`dV_{\mathsf{gen}} = V_{\mathsf{set}} - V_{\mathsf{tot}}`
+        """
 
         # VS HTIMKO 2021-02: V_set is zero for n_mov_av points, then it is linearly
         # ramped until reaching V_set at the end of the turn
@@ -1547,40 +1564,52 @@ class SPSOneTurnFeedback(object):
         """Convolution of beam current with impulse response; uses a complete
         matrix with off-diagonal elements."""
 
+        use_res = 1
+
         # SCIPY routines:
 
-        res1 = scipy.signal.fftconvolve(I, h, mode='full')[:I.shape[0]] # ORIGINAL: FAST even in fine but large numeric error in real part of V_ind = I conv h,
-        # print(I, I.shape[0], I[int(0.50*self.n_coarse)], np.angle(I[int(0.50*self.n_coarse)], deg=True))
-        # print(h, h.shape[0], h[int(0.50*self.n_coarse)], np.angle(h[int(0.50*self.n_coarse)], deg=True))
-        # print(res1, res1.shape, res1[int(0.50*self.n_coarse)], np.angle(res1[int(0.50*self.n_coarse)], deg=True))
-        # quit()
+        if use_res == 1:
+            res1 = scipy.signal.fftconvolve(I, h, mode='full')[:I.shape[0]] # ORIGINAL: FAST even in fine but large numeric error in real part of V_ind = I conv h,
+            # print(I, I.shape[0], I[int(0.50*self.n_coarse)], np.angle(I[int(0.50*self.n_coarse)], deg=True))
+            # print(h, h.shape[0], h[int(0.50*self.n_coarse)], np.angle(h[int(0.50*self.n_coarse)], deg=True))
+            # print(res1, res1.shape, res1[int(0.50*self.n_coarse)], np.angle(res1[int(0.50*self.n_coarse)], deg=True))
+            # quit()
 
-        # res2 = scipy.signal.convolve(I, h, mode='full', method='fft')[:I.shape[0]] # EQUIVALENT TO ORIGINAL: FAST but large numeric error in real part of V_ind = I conv h
-        # # res12 = res1/res2
-        # # print('conv:')
-        # # print('1:  ', res1,  ', midnobeam =',  res1[int(0.5*self.n_coarse)], '->', np.abs( res1[int(0.5*self.n_coarse)]), 'V', np.angle( res1[int(0.5*self.n_coarse)], deg=True), 'deg')
-        # # print('2:  ', res2,  ', midnobeam =',  res2[int(0.5*self.n_coarse)], '->', np.abs( res2[int(0.5*self.n_coarse)]), 'V', np.angle( res2[int(0.5*self.n_coarse)], deg=True), 'deg')
-        # # print('1/2:', res12, ', midnobeam =', res12[int(0.5*self.n_coarse)], '->', np.abs(res12[int(0.5*self.n_coarse)]), 'V', np.angle(res12[int(0.5*self.n_coarse)], deg=True), 'deg')
+        elif use_res == 2:
+            res2 = scipy.signal.convolve(I, h, mode='full', method='fft')[:I.shape[0]] # EQUIVALENT TO ORIGINAL: FAST but large numeric error in real part of V_ind = I conv h
+            # # res12 = res1/res2
+            # # print('conv:')
+            # # print('1:  ', res1,  ', midnobeam =',  res1[int(0.5*self.n_coarse)], '->', np.abs( res1[int(0.5*self.n_coarse)]), 'V', np.angle( res1[int(0.5*self.n_coarse)], deg=True), 'deg')
+            # # print('2:  ', res2,  ', midnobeam =',  res2[int(0.5*self.n_coarse)], '->', np.abs( res2[int(0.5*self.n_coarse)]), 'V', np.angle( res2[int(0.5*self.n_coarse)], deg=True), 'deg')
+            # # print('1/2:', res12, ', midnobeam =', res12[int(0.5*self.n_coarse)], '->', np.abs(res12[int(0.5*self.n_coarse)]), 'V', np.angle(res12[int(0.5*self.n_coarse)], deg=True), 'deg')
 
-        # res3 = scipy.signal.convolve(I, h, mode='full', method='direct')[:I.shape[0]]  # FAST/SLOW in ccoarse/fine, Formal definition, the SLOWEST
+        elif use_res == 3:
+            res3 = scipy.signal.convolve(I, h, mode='full', method='direct')[:I.shape[0]]  # FAST/SLOW in coarse/fine, Formal definition, the SLOWEST
 
         # NUMPY routines: always uses FFT:
 
-        # res4 = np.convolve(I, h, mode='full')[:I.shape[0]]  # FAST/SLOW in ccoarse/fine, it returns the proper convolution (mirrored arround center) in and array with len = len(I)+len(M)-1. We then take just part we are interested / ~half (note boundary effects might be visible)
-        # print(f'res4 = {res4}, shape = {res4.shape}')
-        # res5 = np.convolve(I, h, mode='same')[:I.shape[0]]  # FAST, but NOT APPLICABLE anyway since convolution is SQUEEZED into an array with len = max(I,M) (note boundary effects might be visible)
-        # print(f'res5 = {res5}, shape = {res5.shape}')
-        # res6 = np.ones(I.shape[0]) * np.convolve(I, h, mode='valid')[0] # Only the center point (in res4), converted into an array
-        # print(f'res6 = {res6}, shape = {res6.shape}')
-        # quit()
+        elif use_res == 4:
+            res4 = np.convolve(I, h, mode='full')[:I.shape[0]]  # FAST/SLOW in coarse/fine, it returns the proper convolution (mirrored arround center) in and array with len = len(I)+len(M)-1. We then take just part we are interested / ~half (note boundary effects might be visible)
+            # print(f'res4 = {res4}, shape = {res4.shape}')
+            # res5 = np.convolve(I, h, mode='same')[:I.shape[0]]  # FAST, but NOT APPLICABLE anyway since convolution is SQUEEZED into an array with len = max(I,M) (note boundary effects might be visible)
+            # print(f'res5 = {res5}, shape = {res5.shape}')
+            # res6 = np.ones(I.shape[0]) * np.convolve(I, h, mode='valid')[0] # Only the center point (in res4), converted into an array
+            # print(f'res6 = {res6}, shape = {res6.shape}')
+            # quit()
 
-        return res1
+        if   use_res == 1: return res1
+        elif use_res == 2: return res2
+        elif use_res == 3: return res3
+        elif use_res == 4: return res4
+        else: sys.error('\n[!] ERROR: Wrong matr_conv option!\n')
 
     def track(self):
         """Turn-by-turn tracking method."""
 
         # Update turn-by-turn variables
-        self.update_variables()
+        # Compute internally the Q_gen_abs_max_coarse corresponding to
+        # power_clamp_val, if applicable
+        self.update_variables(use_power_clamp=self.power_clamp_val)
 
         # Update the impulse response at present carrier frequency
         # MYEDIT: 2020.12.14: Independent of the phase references of t_coarse
@@ -1598,6 +1627,7 @@ class SPSOneTurnFeedback(object):
         delattr(self.TWC, 'h_beam')
 
         # On current measured (I,Q) voltage, apply LLRF model
+        self.set_point()
         self.llrf_model()
 
         # Generator-induced voltage from generator current
@@ -1608,7 +1638,6 @@ class SPSOneTurnFeedback(object):
 
         # Sum and generator- and beam-induced voltages for coarse grid
         self.V_tot_coarse = np.copy(self.V_ind_beam_coarse) + np.copy(self.V_ind_gen_coarse)
-
 
         # Sum and generator- and beam-induced voltages for fine grid. Note:
         # Obtain generator-induced voltage on the fine grid by interpolation
@@ -1622,12 +1651,58 @@ class SPSOneTurnFeedback(object):
                             self.t_coarse, # self.rf_centers,
                             self.V_ind_gen_coarse)
 
+    def track_nollrf(self, V_part_rampfact_fine_i=None, V_part_rampfact_coarse_i=None):
+        """Initial tracking method, before injecting beam, w/o llrf and generator
+        current therefore straight from generator (total-beam) voltage and Zg """
+
+        # Update turn-by-turn variables
+        # Compute internally the Q_gen_abs_max_coarse corresponding to
+        # power_clamp_val, if applicable
+        self.update_variables(use_power_clamp=self.power_clamp_val)
+
+        # Generate Z_gen (instead of impulse response)
+        self.TWC.impedance_gen(self.t_coarse)
+        self.Z_gen_coarse = np.copy(self.TWC.Z_gen)
+        delattr(self.TWC, 'Z_gen')
+        print(f'self.Z_gen_coarse = {self.Z_gen_coarse}, shape = {self.Z_gen_coarse.shape}')
+
+        # Update the impulse response at present carrier frequency (beam only)
+        self.TWC.impulse_response_beam(self.omega_c, self.t_fine, self.t_coarse)  # self.profile.bin_centers, self.rf_centers)
+        self.TWC.h_beam_fine = np.copy(self.TWC.h_beam) + 0+0j
+        delattr(self.TWC, 'h_beam')
+
+        # Update set-point (no LLRF)
+        self.set_point(V_part_rampfact_fine_i, V_part_rampfact_coarse_i)
+
+        # Beam-induced voltage from beam profile
+        self.beam_induced_voltage(lpf=False)
+
+        # Assuming perfect feedback compensation, the total voltage is equal to
+        # the set point voltage
+        self.V_tot_coarse = np.copy(self.V_set_coarse)
+        self.V_tot_fine   = np.interp(self.t_fine,
+                                      self.t_coarse,
+                                      self.V_tot_coarse)
+
+        # With beam, generator si the difference between the total and beam-induced voltage
+        self.V_ind_gen_coarse = self.V_tot_coarse  - self.V_ind_beam_coarse
+
+        # Generator current from generator voltage (i.e. diff total-beam voltage when beam)
+        # Opt A:
+        self.Q_gen_coarse = np.ifft( np.fft(self.V_ind_gen_coarse) / self.Z_gen_coarse )
+        print(f'self.Q_gen_coarse = {self.Q_gen_coarse}, shape = {self.Q_gen_coarse.shape}')
+        # Opt B:
+        self.Q_gen_coarse = self.V_ind_gen_coarse / np.fft.ifft(1./self.Z_gen_coarse)
+        print(f'self.Q_gen_coarse = {self.Q_gen_coarse}, shape = {self.Q_gen_coarse.shape}')
+
+
     def track_no_beam(self, V_part_rampfact_fine_i=None, V_part_rampfact_coarse_i=None):
         """Initial tracking method, before injecting beam."""
         ### TAKES AROUND 0.004 s (and 0.14 s w/ plot)
 
         # Update turn-by-turn variables
-        self.update_variables()
+        # Power clamp does not apply in pretracking
+        self.update_variables(use_power_clamp=False)
 
         # Update the impulse response at present carrier frequency
         # MYEDIT: 2020.12.4: Independent of the phase reference of t_coarse since
@@ -1653,7 +1728,8 @@ class SPSOneTurnFeedback(object):
         # print(f'self.TWC.h_gen[self.n_coarse-1] = {self.TWC.h_gen[self.n_coarse-1]}')
 
         # On current measured (I,Q) voltage, apply LLRF model
-        self.llrf_model(V_part_rampfact_fine_i, V_part_rampfact_coarse_i)
+        self.set_point(V_part_rampfact_fine_i, V_part_rampfact_coarse_i)
+        self.llrf_model()
 
         # Generator-induced voltage from generator current (totals, divide by
         # n_cavities for single cavity)
@@ -1674,7 +1750,60 @@ class SPSOneTurnFeedback(object):
             "Average generator voltage, last half of array %.3e V",
             np.mean(np.absolute(self.V_ind_gen_coarse[int(0.5*self.n_coarse):])))
 
-    def update_variables(self):
+    def track_no_beam_nollrf(self, V_part_rampfact_fine_i=None, V_part_rampfact_coarse_i=None):
+        """Initial tracking method, before injecting beam, w/o llrf and generator
+        current therefore straight from generator (total) voltage and Zg """
+
+        # Update turn-by-turn variables
+        # Power clamp does not apply in pretracking
+        self.update_variables(use_power_clamp=False)
+
+        # From TotalInducedVoltage
+        n_fft = 300000
+        # * freq = [0.00000000e+00 4.27508267e+04 8.55016533e+04 ... 6.41253850e+09 6.41258125e+09 6.41262400e+09]
+        frequency_resolution = 42750.82666666667
+        freq = np.linspace(0.0, n_fft*frequency_resolution, n_fft, endpoint=True)
+
+        # Generate Z_gen (instead of impulse response)
+        self.TWC.impedance_gen(omega_array=2*np.pi*freq) #self.t_fine)
+        self.Z_gen_coarse = np.copy(self.TWC.Z_gen)
+        delattr(self.TWC, 'Z_gen')
+        print(f'self.Z_gen_coarse = {self.Z_gen_coarse}, shape = {self.Z_gen_coarse.shape}')
+
+        fig, ax = plt.subplots()
+        ax.plot(self.Z_gen_coarse, label='Z_g_coarse')
+        plt.show()
+
+        quit()
+
+        # Update set-point (no LLRF)
+        self.set_point(V_part_rampfact_fine_i, V_part_rampfact_coarse_i)
+        print(f'self.V_set_coarse = {self.V_set_coarse}, shape = {self.V_set_coarse.shape}')
+
+        # Assuming perfect feedback compensation, the total voltage is equal to
+        # the set point voltage
+        self.V_tot_coarse = np.copy(self.V_set_coarse)
+        self.V_tot_fine   = np.interp(self.t_fine,
+                                      self.t_coarse,
+                                      self.V_tot_coarse)
+        print(f'self.V_tot_coarse = {self.V_tot_coarse}, shape = {self.V_tot_coarse.shape}')
+        print(f'self.V_tot_fine = {self.V_tot_fine}, shape = {self.V_tot_fine.shape}')
+
+        # Without beam, total voltage comes entirely from the generator
+        self.V_ind_gen_coarse = np.copy(self.V_tot_coarse)
+        print(f'self.V_ind_gen_coarse = {self.V_ind_gen_coarse}, shape = {self.V_ind_gen_coarse.shape}')
+
+        # Generator current from generatpr voltage (i.e. total voltage when no beam)
+        # Opt A:
+        self.Q_gen_coarse = np.fft.ifft( np.fft.fft(self.V_ind_gen_coarse) / self.Z_gen_coarse )
+        print(f'self.Q_gen_coarse = {self.Q_gen_coarse}, shape = {self.Q_gen_coarse.shape}')
+        # Opt B:
+        self.Q_gen_coarse = self.V_ind_gen_coarse / np.fft.ifft(1./self.Z_gen_coarse)
+        print(f'self.Q_gen_coarse = {self.Q_gen_coarse}, shape = {self.Q_gen_coarse.shape}')
+        quit()
+
+
+    def update_variables(self,use_power_clamp=False):
         '''Update counter and frequency-dependent variables in a given turn'''
 
         # Present time step
@@ -1682,15 +1811,17 @@ class SPSOneTurnFeedback(object):
         # Present carrier frequency: main RF frequency
         self.omega_c = self.rf.omega_rf[0,self.counter]
         # Present sampling time
-        self.T_s_fine = self.profile.bin_size # always needed even if not use_gen_fine
+        self.T_s_fine = self.profile.bin_size # always needed even if not self.use_gen_fine
         self.T_s_coarse   = self.rf.t_rf[0,self.counter]
 
-        if self.power_clamp:
-            # Pg = 0.5 * Z_0 * |Ig|^2 = 0.5 * Z_0 * ( |Qg|^2 / (ts*ncav)^2 ) -> |Qg_max|^2 = 2 * Pg/Z_0 * (ts*ncav)^2
+        # Power clamp:
+        # Pg = 0.5 * Z_0 * |Ig|^2 = 0.5 * Z_0 * ( |Qg|^2 / (ts*ncav)^2 ) -> |Qg_max|^2 = 2 * Pg/Z_0 * (ts*ncav)^2
+        if self.use_gen_fine:
             # Clamp in total current based on power clamp per cavity
-            if self.use_gen_fine:
-                self.Q_gen_abs_max_fine = np.sqrt(2 * self.power_clamp / self.TWC.Z_0) *  self.T_s_fine   * self.n_cavities
-            self.Q_gen_abs_max_coarse   = np.sqrt(2 * self.power_clamp / self.TWC.Z_0) *  self.T_s_coarse * self.n_cavities
+            if use_power_clamp: self.Q_gen_abs_max_fine   = np.sqrt(2 * self.power_clamp_val / self.TWC.Z_0) *  self.T_s_fine   * self.n_cavities
+            else:               self.Q_gen_abs_max_fine   = False
+        if use_power_clamp:     self.Q_gen_abs_max_coarse = np.sqrt(2 * self.power_clamp_val / self.TWC.Z_0) *  self.T_s_coarse * self.n_cavities
+        else:                   self.Q_gen_abs_max_coarse = False
 
         # MYEDIT: 2020.12.14: t_fine and t_coarse (rename of rf_centers)
         # definitions and possible phase reference corrections:
