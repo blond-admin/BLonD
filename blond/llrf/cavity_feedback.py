@@ -136,11 +136,13 @@ class SPSCavityFeedback(object):
     def __init__(self, RFStation, Beam, Profile, G_ff=1, G_llrf=10, G_tx=0.5,
                  a_comb=15/16, turns=1000, post_LS2=True, V_part=None,
                  Commissioning=CavityFeedbackCommissioning(), deltaf0=0,
-                 fillpattern=None, power_clamp=False, nollrf=False):
+                 fillpattern=None, power_clamp=False, nollrf=False, outdir='.'):
 
         # for varnamei in [None]: #['V_ind_gen']: #['Q_gen']: #'V_ind_gen']: #'Q_gen', 'V_ind_gen']: #['V_set', 'dV_err', 'dV_comb', 'dV_del', 'dV_mod', 'dV_Hcav', 'dV_gen', 'V_gen', 'Q_gen', 'V_ind_gen']:
             # Options for commissioning the feedback
             self.Commissioning = Commissioning
+            self.outdir = outdir
+
             self.nollrf = nollrf
 
             self.rf = RFStation
@@ -694,7 +696,7 @@ class SPSCavityFeedback(object):
                 fnamefull = f'{fname}_{var}' #'_500'
                 #fnamefull = f'{fname}_{var}_movaveprev' #'_500'
                 #fnamefull = f'{fname}_{var}_movaveprev2' #'_500'
-            fig.savefig(f'{fnamefull}')
+            fig.savefig(f'{self.outdir}/{fnamefull}')
             fig.clf()
             print(f'Saving {fnamefull}.png ...')
 
@@ -1091,6 +1093,26 @@ class SPSOneTurnFeedback(object):
 
         if self.open_FF == 1 and not self.use_gen_fine: # Not yet implemented for fine generator
 
+            # print(f'{self.cavtype}')
+            # print(f'self.fillpattern = {self.fillpattern}, shape = {self.fillpattern.shape}')
+            # print(f'self.Q_beam_coarse = {self.Q_beam_coarse}, shape = {self.Q_beam_coarse.shape}, max(abs) = {np.max(np.abs(self.Q_beam_coarse))}')
+            # for i in range(len(self.Q_beam_coarse)):
+            #     if (i >= self.fillpattern[0]-5 and  i <= self.fillpattern[0]+5) or (i >= self.fillpattern[-1]-5 and i <= self.fillpattern[-1]+5):
+            #         print(i, self.Q_beam_coarse[i])
+            # pos_peaks_fine   = np.where(np.abs(self.Q_beam_fine)   > 0.99*np.max(np.abs(self.Q_beam_fine)))[0]
+            # pos_peaks_coarse = np.where(np.abs(self.Q_beam_coarse) > 0.99*np.max(np.abs(self.Q_beam_coarse)))[0]
+            pos_peaks_coarse = np.nonzero(self.Q_beam_coarse)[0] # Simplified, just see which samples are not zero. It will work even when the bunches (and their peaks) are different, which can potentially set an unrealistic threshold (max) for the peaks for smaller bunches
+            # Ns = int(self.n_fine/self.n_coarse)
+            # print(f'pos_peaks_fine = {pos_peaks_fine} -> /Ns = {pos_peaks_fine/Ns}')
+            # print(f'pos_peaks_coarse = {pos_peaks_coarse}')
+            if pos_peaks_coarse[0] != self.fillpattern[0]:
+                sys.exit('\n[!] ERROR: Coarse downsampling of beam current does not match the fill pattern (possibly an offset by one bucket)!\n')
+            #
+            # print(f'self.indices_coarseFF = {self.indices_coarseFF}, shape = {self.indices_coarseFF.shape}')
+            # print(f'self.Q_beam_coarse[self.indices_coarseFF] = {self.Q_beam_coarse[self.indices_coarseFF]}, shape = {self.Q_beam_coarse[self.indices_coarseFF].shape}, max(abs) = {np.max(np.abs(self.Q_beam_coarse[self.indices_coarseFF]))}')
+            # print(f'self.Q_beam_coarseFF_prev =  = {self.Q_beam_coarseFF_prev}, shape = {self.Q_beam_coarseFF_prev.shape}, max(abs) = {np.max(np.abs(self.Q_beam_coarseFF_prev))}')
+            # quit()
+
             # Calculate correction based on previous turn on coarse grid.
             # At first turn, Q_beam_coarseFF_prev is zero
             for ind in range(self.n_coarseFF):
@@ -1101,6 +1123,8 @@ class SPSOneTurnFeedback(object):
 
             # print(f'{self.cavtype}, i = {self.counter}, Q_coarseFF_ff = {self.Q_coarseFF_ff}, shape = {self.Q_coarseFF_ff.shape}, max(abs) = {np.max(np.abs(self.Q_coarseFF_ff))}')
             self.dV_coarseFF_ff = self.G_ff * self.matr_conv(self.Q_coarseFF_ff, self.TWC.h_gen_coarse[self.indices_coarseFF]) # h_gen[::5]
+
+            # print(f'self.Q_coarseFF_ff =  = {self.Q_coarseFF_ff}, shape = {self.Q_coarseFF_ff.shape}, max(abs) = {np.max(np.abs(self.Q_coarseFF_ff))}')
 
             # Compensate for FIR filter delay
 
