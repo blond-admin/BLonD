@@ -8,9 +8,13 @@ Created on Fri Jun 12 16:24:59 2020
 
 import gc
 import os
+import sys
 import h5py as hp
 import numpy as np
 #import pathlib
+import pickle as pkl
+
+from blond.llrf.cavity_feedback import get_power_gen_0, get_power_gen_VI, get_power_gen_I2, get_power_gen_V2
 
 # My custom functions for BLonD
 from blond.beam.beam_tools import BeamTools
@@ -886,3 +890,552 @@ class MonitorProfile(object):
         self.close()
 
 ###############################################################################
+
+
+class MonitorOTFB(object):
+
+    def __init__(self, cavityfeedback, fillpattern_beam, fillpattern_profile, list_params='short', i0=0, hof=0.5, profile=None,):
+
+        # For the computation for beam-average parameters:
+        # hof = 0.5# Take the second Half of the batch
+        # hof = 0.0 # Take the Full batch
+
+        self.cavityfeedback = cavityfeedback
+
+        self.hof = hof
+        self.profile = profile # If not None, the bunch profiles will be plotted too
+
+        self.with_FF = bool( self.cavityfeedback.OTFB_1.open_FF or self.cavityfeedback.OTFB_2.open_FF ) # The flags are inversed at self.cavityfeedback instatiation, so 1.0 -> True  means WITH ACTIVE FF. One of the two OTFB_1 having active FF is enought to create the FF parameters for all
+
+        self.time_arrays_dict = {}
+
+        for ot in ['1','2']:
+
+            # n_samples:
+            setattr(self, f'n_mov_av_fine_{ot}',   getattr(self.cavityfeedback, f'OTFB_{ot}').n_mov_av_fine)
+            setattr(self, f'n_mov_av_coarse_{ot}', getattr(self.cavityfeedback, f'OTFB_{ot}').n_mov_av_coarse)
+            setattr(self, f'n_fine_{ot}',          getattr(self.cavityfeedback, f'OTFB_{ot}').n_fine)
+            setattr(self, f'n_coarse_{ot}',        getattr(self.cavityfeedback, f'OTFB_{ot}').n_coarse)
+            if not self.cavityfeedback.nollrf:
+                setattr(self, f'n_fine_long_{ot}',     getattr(self.cavityfeedback, f'OTFB_{ot}').n_fine_long) # = n_fine_{ot} + n_mov_av_coarse_{ot} * profilepattern.Ns
+                setattr(self, f'n_coarse_long_{ot}',   getattr(self.cavityfeedback, f'OTFB_{ot}').n_coarse_long)
+            if self.with_FF:
+                setattr(self, f'n_coarseFF_{ot}', getattr(self.cavityfeedback, f'OTFB_{ot}').n_coarseFF)
+
+            # Generator-, beam-, and total (gen+beam) charges/currents/induced voltages:
+            for qiv in ['Q', 'I', 'Vind']:
+                gbt_list = ['gen', 'beam'] if qiv in ['Q', 'I'] else ['gen', 'beam', 'tot']
+                for gbt in gbt_list:
+                    #fc_list = ['coarse'] if gbt in ['gen'] and qiv in ['Q', 'I'] else ['coarse', 'fine']
+                    fc_list = ['coarse', 'fine']
+                    for fc in fc_list:
+                        if qiv == 'Vind':
+                            # i.e. for Vind_[gen|beam|tot]_[fine|coarse]
+                            samples = getattr(self, f'n_{fc}_{ot}')
+                            self.time_arrays_dict[f'OTFB_{ot}_{qiv}_{gbt}_{fc}'] = f'OTFB_{ot}_t_{fc}'
+                        else:
+                            if gbt == 'gen' and not self.cavityfeedback.nollrf:
+                                # i.e. for [Q,I]_gen_[fine|coarse]
+                                samples = getattr(self, f'n_{fc}_long_{ot}')
+                                self.time_arrays_dict[f'OTFB_{ot}_{qiv}_{gbt}_{fc}'] = f'OTFB_{ot}_t_{fc}_long'
+                            else: # i.e. beam
+                                # i.e. for [Q,I]_beam_[fine|coarse]
+                                samples = getattr(self, f'n_{fc}_{ot}')
+                                self.time_arrays_dict[f'OTFB_{ot}_{qiv}_{gbt}_{fc}'] = f'OTFB_{ot}_t_{fc}'
+
+                        setattr(self, f'OTFB_{ot}_{qiv}_{gbt}_{fc}', np.empty( shape=(0,samples) ))
+                        #print(f'OTFB_{ot}_{qiv}_{gbt}_{fc} = {getattr(self, f"OTFB_{ot}_{qiv}_{gbt}_{fc}")}, shape = {getattr(self, f"OTFB_{ot}_{qiv}_{gbt}_{fc}").shape}')
+
+            # FF parameters:
+            if self.with_FF:
+                for qiv in ['Q', 'dV']:
+                    gbt = 'ff'
+                    fc_list = ['coarseFF'] if qiv in ['Q'] else ['coarseFF', 'fine']
+                    for fc in fc_list:
+                        samples = getattr(self, f'n_{fc}_{ot}')
+                        self.time_arrays_dict[f'OTFB_{ot}_{qiv}_{gbt}_{fc}'] = f'OTFB_{ot}_t_{fc}'
+                        setattr(self, f'OTFB_{ot}_{qiv}_{gbt}_{fc}', np.empty( shape=(0,samples) ))
+                # Missing interval FF parameters:
+                #setattr(self, f'OTFB_{ot}_dV_coarseFF_ff_del', np.empty( shape=(0,samples) ))
+                #setattr(self, f'OTFB_{ot}_dV_coarse_ff',       np.empty( shape=(0,getattr(self, f'n_coarse_{ot}')) ))
+
+            # Set-point voltage and different stages of the calculation of the generator voltage in LLRF:
+            for param in ['V_set', 'dV_err', 'dV_err_gain', 'dV_comb', 'dV_del', 'dV_mod', 'dV_Hcav', 'dV_gen', 'V_gen']:
+                fc_list = ['coarse']
+                for fc in fc_list:
+                    setattr(self, f'OTFB_{ot}_{param}_{fc}', np.empty( shape=getattr(self, f'OTFB_{ot}_Vind_gen_{fc}').shape ))
+                    self.time_arrays_dict[f'OTFB_{ot}_{param}_{fc}'] = f'OTFB_{ot}_t_{fc}'
+
+            # Generator power:
+            for fc in ['coarse', 'fine']:
+                ### Power from current
+                #setattr(self, f'OTFB_{ot}_P_gen_{fc}', np.empty( shape=getattr(self, f'OTFB_{ot}_Q_gen_{fc}').shape ))
+                #self.time_arrays_dict[f'OTFB_{ot}_P_gen_{fc}'] = f't_{fc}_long_{ot}'
+                ## Power from current
+                setattr(self, f'OTFB_{ot}_P_gen_i2_{fc}', np.empty( shape=getattr(self, f'OTFB_{ot}_Q_gen_{fc}').shape ))
+                if not self.cavityfeedback.nollrf: self.time_arrays_dict[f'OTFB_{ot}_P_gen_i2_{fc}'] = f'OTFB_{ot}_t_{fc}_long'
+                else:                         self.time_arrays_dict[f'OTFB_{ot}_P_gen_i2_{fc}'] = f'OTFB_{ot}_t_{fc}'
+                # Power from voltage
+                setattr(self, f'OTFB_{ot}_P_gen_v2_{fc}', np.empty( shape=getattr(self, f'OTFB_{ot}_Vind_gen_{fc}').shape ))
+                self.time_arrays_dict[f'OTFB_{ot}_P_gen_v2_{fc}'] = f'OTFB_{ot}_t_{fc}'
+
+        # Sum (OTFB1+OTFB2) of total (gen+beam) induced voltages :
+        setattr(self, 'OTFB_sum_Vind_tot_fine', np.empty( shape=(0,self.n_fine_1) )) # self.n_fine_1 = profile.n_slices = self.n_fine_2  # Only in fine grid
+        self.time_arrays_dict['OTFB_sum_Vind_tot_fine'] = 't_fine'
+
+        # Actual RF voltage and actual RF voltage + induced voltage from impedance model (all except TWCs):
+        setattr(self, 'tracker_Vrf_fine', np.empty( shape=(0,self.n_fine_1) )) # Only in fine grid
+        self.time_arrays_dict['tracker_Vrf_fine'] = 'profile_bin_centers' #'t_fine'
+        setattr(self, 'tracker_Vtot_fine', np.empty( shape=(0,self.n_fine_1) )) # Only in fine grid
+        self.time_arrays_dict['tracker_Vtot_fine'] = 'profile_bin_centers' #'t_fine'
+        setattr(self, 'tracker_Vrfnocorr_fine', np.empty( shape=(0,self.n_fine_1) )) # Only in fine grid
+        self.time_arrays_dict['tracker_Vrfnocorr_fine'] = 'profile_bin_centers' #'t_fine'
+
+        # Indices of beam/no-beam segments
+        self.indices_beam_fine   = fillpattern_profile[ int(hof*len(fillpattern_profile)): ] # idxP_nomargin does not include the samples of spacing buckets between filled buckets. We use idxP_nomargin instead of idxP to ignore the margins around the bucket (margins meant for beam stats and losses)
+        self.indices_beam_coarse = fillpattern_beam[ int(hof*len(fillpattern_beam)): ]
+        if self.with_FF:
+            nbs = fillpattern_beam[1] - fillpattern_beam[0]
+            self.indices_beam_coarseFF = (self.indices_beam_coarse/nbs).astype(int)
+        # print(self.indices_beam_fine)
+        # print(self.indices_beam_coarse)
+        # print(self.indices_beam_coarseFF)
+        # quit()
+        fc_list = ['fine', 'coarse', 'coarseFF'] if self.with_FF else ['fine', 'coarse']
+        for fc in fc_list:
+            # Note that while the indices in the beam segment have jumps between the bunches contanied in beam,
+            # in the no beam segment the indices will span a continuosly around the 3/4-portion of the ring
+            setattr(self, f'n_samples_beam_{fc}', len( getattr(self, f'indices_beam_{fc}')))
+            setattr(self, f'indices_nobeam_{fc}', np.arange( int(0.75*getattr(self, f'n_{fc}_1') - 0.5*getattr(self, f'n_samples_beam_{fc}')),
+                                                             int(0.75*getattr(self, f'n_{fc}_1') + 0.5*getattr(self, f'n_samples_beam_{fc}')) ))
+
+
+        # Time arrays:
+        for ot in ['1','2']:
+            setattr(self, f'OTFB_{ot}_t_fine',        np.empty( shape=(0,getattr(self, f'n_fine_{ot}')) ))
+            setattr(self, f'OTFB_{ot}_t_coarse',      np.empty( shape=(0,getattr(self, f'n_coarse_{ot}')) ))
+            if not self.cavityfeedback.nollrf:
+                setattr(self, f'OTFB_{ot}_t_fine_long',   np.empty( shape=(0,getattr(self, f'n_fine_long_{ot}')) ))
+                setattr(self, f'OTFB_{ot}_t_coarse_long', np.empty( shape=(0,getattr(self, f'n_coarse_long_{ot}')) ))
+            if self.with_FF:
+                setattr(self, f'OTFB_{ot}_t_coarseFF', np.empty( shape=(0,getattr(self, f'n_coarseFF_{ot}')) ))
+        self.t_fine   = np.empty( shape=(0,self.n_fine_1) )   # 1 and 2 are by definition the same, doesn't apply for fine long
+        self.t_coarse = np.empty( shape=(0,self.n_coarse_1) ) # 1 and 2 are by definition the same, doesn't apply for coarse long
+        if self.with_FF:
+            self.t_coarseFF = np.empty( shape=(0,self.n_coarseFF_1) )
+
+        self.turns = np.empty( shape=(0,), dtype=int )
+
+        # Profile (for testing):
+        if self.profile is not None:
+            self.profile_bin_centers      = np.empty( shape=(0,self.profile.n_slices) )
+            self.profile_n_macroparticles = np.empty( shape=(0,self.profile.n_slices) )
+
+        #
+
+        if list_params == 'short':
+
+            self.list_params  = ['OTFB_1_V_set_coarse',
+                                        'OTFB_1_dV_err_coarse',
+                                        # 'OTFB_1_dV_err_gain_coarse',
+                                        # 'OTFB_1_dV_comb_coarse',
+                                        # 'OTFB_1_dV_del_coarse',
+                                        # 'OTFB_1_dV_mod_coarse',
+                                        # 'OTFB_1_dV_Hcav_coarse',
+                                        # 'OTFB_1_dV_gen_coarse',
+                                        # 'OTFB_1_V_gen_coarse',
+                                        'OTFB_1_Q_gen_coarse',
+                                        # 'OTFB_1_I_gen_coarse',
+                                        'OTFB_1_Vind_gen_coarse',
+                                        # 'OTFB_1_Vind_gen_fine',
+                                        'OTFB_1_P_gen_i2_coarse',
+                                        # 'OTFB_1_P_gen_v2_coarse',
+                                        # 'OTFB_1_P_gen_0_fine',
+                                        # 'OTFB_1_Q_beam_coarse',
+                                        'OTFB_1_Q_beam_fine',
+                                        # 'OTFB_1_I_beam_coarse',
+                                        # 'OTFB_1_I_beam_fine',
+                                        'OTFB_1_Q_ff_coarseFF',
+                                        # 'OTFB_1_dV_ff_coarseFF',
+                                        'OTFB_1_dV_ff_fine',
+                                        # 'OTFB_1_Vind_beam_coarse',
+                                        'OTFB_1_Vind_beam_fine',
+                                        # 'OTFB_1_Vind_tot_coarse',
+                                        'OTFB_1_Vind_tot_fine',
+                                        'OTFB_2_V_set_coarse',
+                                        'OTFB_2_dV_err_coarse',
+                                        # 'OTFB_2_dV_err_gain_coarse',
+                                        # 'OTFB_2_dV_comb_coarse',
+                                        # 'OTFB_2_dV_del_coarse',
+                                        # 'OTFB_2_dV_mod_coarse',
+                                        # 'OTFB_2_dV_Hcav_coarse',
+                                        # 'OTFB_2_dV_gen_coarse',
+                                        # 'OTFB_2_V_gen_coarse',
+                                        'OTFB_2_Q_gen_coarse',
+                                        # 'OTFB_2_I_gen_coarse',
+                                        'OTFB_2_Vind_gen_coarse',
+                                        # 'OTFB_2_Vind_gen_fine',
+                                        'OTFB_2_P_gen_i2_coarse',
+                                        # 'OTFB_2_P_gen_v2_coarse',
+                                        # 'OTFB_2_P_gen_0_fine',
+                                        # 'OTFB_2_Q_beam_coarse',
+                                        'OTFB_2_Q_beam_fine',
+                                        # 'OTFB_2_I_beam_coarse',
+                                        #'OTFB_2_I_beam_fine',
+                                        'OTFB_2_Q_ff_coarseFF',
+                                        # 'OTFB_2_dV_ff_coarseFF',
+                                        'OTFB_2_dV_ff_fine',
+                                        # 'OTFB_2_Vind_beam_coarse',
+                                        'OTFB_2_Vind_beam_fine',
+                                        # 'OTFB_2_Vind_tot_coarse',
+                                        'OTFB_2_Vind_tot_fine',
+                                        'OTFB_sum_Vind_tot_fine'] #,
+                                        # 'tracker_Vrfnocorr_fine',
+                                        # 'tracker_Vrf_fine',
+                                        # 'tracker_Vtot_fine']
+
+        else:
+
+            sys.exit('\n[!] ERROR in MonitorOTFB: list_params to be implemeneted!\n')
+
+        # Check the list_params and remove FF params if not active:
+
+        if not self.with_FF:
+            # Remove ff parameters
+            self.list_params = [param for param in self.list_params if 'ff' not in param]
+        #print(self.list_params)
+        #quit()
+
+        # Create associated beam and nobeam parameters:
+
+        for param in self.list_params:
+            setattr(self, f'{param}_ave_beam',   np.empty(shape=(0,), dtype=complex))
+            setattr(self, f'{param}_ave_nobeam', np.empty(shape=(0,), dtype=complex))
+
+        #
+
+        self.i0 = i0
+
+
+    def track(self, i):
+        ''' i is the current turn in the "for" tracking loop '''
+
+        # All data is saved on a turn-by-tun basis below turn no. monitorotfb_i0. AAbova that thereshold, it's only saved
+        # every Nt_mn2 turns, and at the last turn
+
+        # #if (i % MAC['Nt_mn2'] == 0 or i == MAC['Nt_trk'] - 2):
+        # synch_period = rfstation.omega_s0[rfstation.counter[0]]/2./np.pi
+        # n_synch_period = int(MAC['Nt_trk']//synch_period)
+        # sets_of_turns_to_saveplot = []
+        # #print(f'synch_period = {synch_period}')
+        # #print(f'n_synch_period = {n_synch_period}')
+        # if n_synch_period > 0 and MAC['Nt_trk']-1 >= int(n_synch_period*synch_period)+4:
+        #     for nsp_i in range(n_synch_period):
+        #         sets_of_turns_to_saveplot.append( list(range(int(nsp_i*synch_period), int(nsp_i*synch_period)+4)) )
+        # # print(f'sets_of_turns_to_saveplot = {sets_of_turns_to_saveplot}')
+
+        # sets_of_turns_to_saveplot_flatten = [turni for seti in sets_of_turns_to_saveplot for turni in seti]
+        # # print(f'sets_of_turns_to_saveplot_flatten = {sets_of_turns_to_saveplot_flatten}')
+        # #quit()
+
+        #if i in sets_of_turns_to_saveplot_flatten:
+        #if i % MAC['Nt_mn2'] == 0:
+        #if True:
+
+        # print(f'profile.bin_centers = {profile.bin_centers}, shape = {profile.bin_centers.shape}')
+        # print(f'self.cavityfeedback.OTFB_1.n_cavities = {self.cavityfeedback.OTFB_1.n_cavities}')
+        # print(f'self.cavityfeedback.OTFB_1.V_gen_coarse = {self.cavityfeedback.OTFB_1.V_gen_coarse}, shape = {self.cavityfeedback.OTFB_1.V_gen_coarse.shape}')
+        # print(f'self.cavityfeedback.OTFB_1.Q_gen_coarse = {self.cavityfeedback.OTFB_1.Q_gen_coarse}, shape = {self.cavityfeedback.OTFB_1.Q_gen_coarse.shape}')
+        # print(f'self.cavityfeedback.OTFB_1.V_ind_gen_coarse = {self.cavityfeedback.OTFB_1.V_ind_gen_coarse}, shape = {self.cavityfeedback.OTFB_1.V_ind_gen_coarse.shape}')
+        # print(f'self.cavityfeedback.OTFB_1.Q_beam_fine = {self.cavityfeedback.OTFB_1.Q_beam_fine}, shape = {self.cavityfeedback.OTFB_1.Q_beam_fine.shape}')
+        # print(f'self.cavityfeedback.OTFB_1.Q_beam_coarse = {self.cavityfeedback.OTFB_1.Q_beam_coarse}, shape = {self.cavityfeedback.OTFB_1.Q_beam_coarse.shape}')
+        # print(f'self.cavityfeedback.OTFB_1.V_ind_beam_fine = {self.cavityfeedback.OTFB_1.V_ind_beam_fine}, shape = {self.cavityfeedback.OTFB_1.V_ind_beam_fine.shape}')
+        # print(f'self.cavityfeedback.OTFB_1.V_ind_beam_coarse = {self.cavityfeedback.OTFB_1.V_ind_beam_coarse}, shape = {self.cavityfeedback.OTFB_1.V_ind_beam_coarse.shape}')
+        # print(f'self.cavityfeedback.OTFB_1.V_tot_fine = {self.cavityfeedback.OTFB_1.V_tot_fine}, shape = {self.cavityfeedback.OTFB_1.V_tot_fine.shape}')
+        # print(f'self.cavityfeedback.OTFB_1.V_tot_coarse = {self.cavityfeedback.OTFB_1.V_tot_coarse}, shape = {self.cavityfeedback.OTFB_1.V_tot_coarse.shape}')
+
+        self.turns = np.concatenate( (self.turns, np.array([int(i)])) )
+
+        # e = 1.60217662e-19
+        # print(f'OTFB_1_Q_beam_fine   = {self.cavityfeedback.OTFB_1.Q_beam_fine},   sum = {np.sum(self.cavityfeedback.OTFB_1.Q_beam_fine)},   abs(sum) = {abs(np.sum(self.cavityfeedback.OTFB_1.Q_beam_fine))},   abs(sum)/e/nbf = {abs(np.sum(self.cavityfeedback.OTFB_1.Q_beam_fine))/e/beampattern.nbf},   sum(abs) = {np.sum(np.abs(self.cavityfeedback.OTFB_1.Q_beam_fine))},   sum(abs)/e/nbf = {np.sum(np.abs(self.cavityfeedback.OTFB_1.Q_beam_fine))/e/beampattern.nbf}')
+        # print(f'OTFB_1_Q_beam_coarse = {self.cavityfeedback.OTFB_1.Q_beam_coarse}, sum = {np.sum(self.cavityfeedback.OTFB_1.Q_beam_coarse)}, abs(sum) = {abs(np.sum(self.cavityfeedback.OTFB_1.Q_beam_coarse))}, abs(sum)/e/nbf = {abs(np.sum(self.cavityfeedback.OTFB_1.Q_beam_coarse))/e/beampattern.nbf}, sum(abs) = {np.sum(np.abs(self.cavityfeedback.OTFB_1.Q_beam_coarse))}, sum(abs)/e/nbf = {np.sum(np.abs(self.cavityfeedback.OTFB_1.Q_beam_coarse))/e/beampattern.nbf}')
+        # quit()
+
+        for ot in ['1','2']:
+
+            # ## Extrapolation of Q_gen_coarse (coarse) to create Q_gen_fine -- To compare with running directly with use_genfine
+            # OTFB_ot_Q_gen_fine = np.zeros( getattr(self, f'n_fine_long_{ot}'), dtype=complex)
+            # OTFB_ot_I_gen_fine = np.zeros( getattr(self, f'n_fine_long_{ot}'), dtype=complex)
+            # for j in range( 0, int(getattr(self, f'n_coarse_long_{ot}')), int(beampattern.nbs)):
+            #     indices_j = np.arange( int((j+0.5)*profilepattern.Ns - 0.5*profilepattern.Ns), int((j+0.5)*profilepattern.Ns + 0.5*profilepattern.Ns) )
+            #     #print(j, indices_j, len(getattr(self.cavityfeedback, f'OTFB_{ot}').Q_gen_coarse) )
+            #     OTFB_ot_Q_gen_fine[ indices_j ] = getattr(self.cavityfeedback, f'OTFB_{ot}').Q_gen_coarse[j] / profilepattern.Ns
+            #     OTFB_ot_I_gen_fine[ indices_j ] = getattr(self.cavityfeedback, f'OTFB_{ot}').Q_gen_coarse[j] / profilepattern.Ns # At this point I_gen_coarse is still charge
+
+            setattr(self, f'OTFB_{ot}_t_fine',         np.vstack( (getattr(self, f'OTFB_{ot}_t_fine'),        getattr(self.cavityfeedback, f'OTFB_{ot}').t_fine[:]) ))
+            setattr(self, f'OTFB_{ot}_t_coarse',       np.vstack( (getattr(self, f'OTFB_{ot}_t_coarse'),      getattr(self.cavityfeedback, f'OTFB_{ot}').t_coarse[:]) ))
+            setattr(self, f'OTFB_{ot}_t_fine_long',    np.vstack( (getattr(self, f'OTFB_{ot}_t_fine_long'),   getattr(self.cavityfeedback, f'OTFB_{ot}').t_fine_long[:]) ))
+            setattr(self, f'OTFB_{ot}_t_coarse_long',  np.vstack( (getattr(self, f'OTFB_{ot}_t_coarse_long'), getattr(self.cavityfeedback, f'OTFB_{ot}').t_coarse_long[:]) ))
+            if self.with_FF:
+                setattr(self, f'OTFB_{ot}_t_coarseFF', np.vstack( (getattr(self, f'OTFB_{ot}_t_coarseFF'),    getattr(self.cavityfeedback, f'OTFB_{ot}').t_coarseFF[:]) ))
+            # print('self:', ot)
+            # print( getattr(self, f'OTFB_{ot}_t_fine') )
+            # print( getattr(self, f'OTFB_{ot}_t_fine_long') )
+            # print( getattr(self, f'OTFB_{ot}_t_coarse') )
+            # print( getattr(self, f'OTFB_{ot}_t_coarse_long') )
+            if ot == '1':
+                self.t_fine   = np.vstack( (self.t_fine,   self.OTFB_1_t_fine[-1]) )
+                self.t_coarse = np.vstack( (self.t_coarse, self.OTFB_1_t_coarse[-1]) )
+                if self.with_FF:
+                    self.t_coarseFF = np.vstack( (self.t_coarseFF, self.OTFB_1_t_coarseFF[-1]) )
+                # print( self.t_fine )
+                # print( self.t_coarse )
+                # print( self.t_coarseFF )
+                #
+                if self.profile is not None:
+                    self.profile_bin_centers      = np.vstack( (self.profile_bin_centers,      self.profile.bin_centers[:]) )
+                    self.profile_n_macroparticles = np.vstack( (self.profile_n_macroparticles, self.profile.n_macroparticles[:]) )
+                    # print( self.profile_bin_centers )
+                    # print( self.profile_n_macroparticles )
+
+            #
+            setattr(self, f'OTFB_{ot}_V_set_coarse',       np.vstack( (getattr(self, f'OTFB_{ot}_V_set_coarse'),       getattr(self.cavityfeedback, f'OTFB_{ot}').V_set_coarse)[:] ))
+            setattr(self, f'OTFB_{ot}_dV_err_coarse',      np.vstack( (getattr(self, f'OTFB_{ot}_dV_err_coarse'),      getattr(self.cavityfeedback, f'OTFB_{ot}').dV_err_coarse)[:] ))
+            setattr(self, f'OTFB_{ot}_dV_err_gain_coarse', np.vstack( (getattr(self, f'OTFB_{ot}_dV_err_gain_coarse'), getattr(self.cavityfeedback, f'OTFB_{ot}').dV_err_gain_coarse)[:] ))
+            setattr(self, f'OTFB_{ot}_dV_comb_coarse',     np.vstack( (getattr(self, f'OTFB_{ot}_dV_comb_coarse'),     getattr(self.cavityfeedback, f'OTFB_{ot}').dV_comb_coarse)[:] ))
+            setattr(self, f'OTFB_{ot}_dV_del_coarse',      np.vstack( (getattr(self, f'OTFB_{ot}_dV_del_coarse'),      getattr(self.cavityfeedback, f'OTFB_{ot}').dV_del_coarse)[:] ))
+            setattr(self, f'OTFB_{ot}_dV_mod_coarse',      np.vstack( (getattr(self, f'OTFB_{ot}_dV_mod_coarse'),      getattr(self.cavityfeedback, f'OTFB_{ot}').dV_mod_coarse)[:] ))
+            setattr(self, f'OTFB_{ot}_dV_Hcav_coarse',     np.vstack( (getattr(self, f'OTFB_{ot}_dV_Hcav_coarse'),     getattr(self.cavityfeedback, f'OTFB_{ot}').dV_Hcav_coarse)[:] ))
+            setattr(self, f'OTFB_{ot}_dV_gen_coarse',      np.vstack( (getattr(self, f'OTFB_{ot}_dV_gen_coarse'),      getattr(self.cavityfeedback, f'OTFB_{ot}').dV_gen_coarse)[:] ))
+            setattr(self, f'OTFB_{ot}_V_gen_coarse',       np.vstack( (getattr(self, f'OTFB_{ot}_V_gen_coarse'),       getattr(self.cavityfeedback, f'OTFB_{ot}').V_gen_coarse)[:] ))
+            #
+            # Note that generator- charge and current are for all cavitites/generators (to divide by no. cavities if using for power):
+            # setattr(self, f'OTFB_{ot}_Q_gen_fine',   np.vstack( (getattr(self, f'OTFB_{ot}_Q_gen_fine'),   OTFB_ot_Q_gen_fine ) ))                                                         # Derived OTFB_{ot}_Vind_gen_fine (below), assuming all slices having the same charge (rectangular beam): at the end, this is equivalent to Q_beam_cooarse T_s_coarse = Ns * T_s_fine
+            # setattr(self, f'OTFB_{ot}_I_gen_fine',   np.vstack( (getattr(self, f'OTFB_{ot}_I_gen_fine'),   OTFB_ot_Q_gen_fine / getattr(self.cavityfeedback, f'OTFB_{ot}').T_s_fine ) )) # Derived OTFB_{ot}_Vind_gen_fine (below), assuming all slices having the same charge (rectangular beam): at the end, this is equivalent to I_beam_cooarse T_s_coarse = Ns * T_s_fine
+            setattr(self, f'OTFB_{ot}_Q_gen_coarse', np.vstack( (getattr(self, f'OTFB_{ot}_Q_gen_coarse'), getattr(self.cavityfeedback, f'OTFB_{ot}').Q_gen_coarse[:] ) ))                                                                                # Qn the coarse grid, the time step is equal to t_rf (at present step); in the fine grid, the time step is T_s_fine
+            setattr(self, f'OTFB_{ot}_I_gen_coarse', np.vstack( (getattr(self, f'OTFB_{ot}_I_gen_coarse'), getattr(self.cavityfeedback, f'OTFB_{ot}').Q_gen_coarse[:] / getattr(self.cavityfeedback, f'OTFB_{ot}').T_s_coarse ) )) # In the coarse grid, the time step is equal to t_rf (at present step); in the fine grid, the time step is T_s_fine
+            if False:
+                # print(f'OTFB_{ot}_Q_gen_fine   = {getattr(self, f"OTFB_{ot}_Q_gen_fine")[-1]}, shape = {getattr(self, f"OTFB_{ot}_Q_gen_fine")[-1].shape}')
+                print(f'OTFB_{ot}_Q_gen_coarse = {getattr(self, f"OTFB_{ot}_Q_gen_coarse")[-1]}, shape = {getattr(self, f"OTFB_{ot}_Q_gen_coarse")[-1].shape}')
+                # print(f'OTFB_{ot}_I_gen_fine   = {getattr(self, f"OTFB_{ot}_I_gen_fine")[-1]}, shape = {getattr(self, f"OTFB_{ot}_I_gen_fine")[-1].shape}')
+                # print(f'OTFB_{ot}_I_gen_coarse = {getattr(self, f"OTFB_{ot}_I_gen_coarse")[-1]}, shape = {getattr(self, f"OTFB_{ot}_I_gen_coarse")[-1].shape}')
+                #quit()
+            # Note that generator- induced voltage is for all cavities/generators (to divide by no. cavities if using for power):
+            # setattr(self, f'OTFB_{ot}_Vind_gen_fine',   np.vstack( (getattr(self, f'OTFB_{ot}_Vind_gen_fine'),   getattr(self.cavityfeedback, f'OTFB_{ot}').V_tot_fine[:] - getattr(self.cavityfeedback, f'OTFB_{ot}').V_ind_beam_fine[:] ) )) # Doesn't exit: has to be interpolated (this is actually done internally in SPSCavityFeedback, but it is not saved)
+            setattr(self, f'OTFB_{ot}_Vind_gen_coarse', np.vstack( (getattr(self, f'OTFB_{ot}_Vind_gen_coarse'), getattr(self.cavityfeedback, f'OTFB_{ot}').V_ind_gen_coarse[:]) ))
+            if False:
+                print(f'OTFB_{ot}_Vind_gen_coarse = {getattr(self, f"OTFB_{ot}_Vind_gen_coarse")}, shape = {getattr(self, f"OTFB_{ot}_Vind_gen_coarse").shape}')
+
+            #
+
+            P_gen_0_cav_coarse_ot  = get_power_gen_0(  getattr(self, f'OTFB_{ot}_Vind_gen_coarse')[-1] / getattr(self.cavityfeedback, f'OTFB_{ot}').n_cavities, getattr(self.cavityfeedback, f'OTFB_{ot}').TWC.Z_0, getattr(self.cavityfeedback, f'OTFB_{ot}').TWC.R_gen )
+            # P_gen_0_cav_fine_ot    = get_power_gen_0(  getattr(self, f'OTFB_{ot}_Vind_gen_fine'  )[-1] / getattr(self.cavityfeedback, f'OTFB_{ot}').n_cavities, getattr(self.cavityfeedback, f'OTFB_{ot}').TWC.Z_0, getattr(self.cavityfeedback, f'OTFB_{ot}').TWC.R_gen )
+
+            P_gen_i2_cav_coarse_ot = get_power_gen_I2( getattr(self, f'OTFB_{ot}_I_gen_coarse')[-1] / getattr(self.cavityfeedback, f'OTFB_{ot}').n_cavities, getattr(self.cavityfeedback, f'OTFB_{ot}').TWC.Z_0 )
+            # P_gen_i2_cav_fine_ot   = get_power_gen_I2( getattr(self, f'OTFB_{ot}_I_gen_fine'  )[-1] / getattr(self.cavityfeedback, f'OTFB_{ot}').n_cavities, getattr(self.cavityfeedback, f'OTFB_{ot}').TWC.Z_0 )
+
+            P_gen_vi_cav_coarse_ot = get_power_gen_VI( getattr(self, f'OTFB_{ot}_Vind_gen_coarse')[-1] / getattr(self.cavityfeedback, f'OTFB_{ot}').n_cavities, getattr(self, f'OTFB_{ot}_I_gen_coarse')[-1][ getattr(self, f'n_mov_av_coarse_{ot}'): ] / getattr(self.cavityfeedback, f'OTFB_{ot}').n_cavities )
+            # P_gen_vi_cav_fine_ot   = get_power_gen_VI( getattr(self, f'OTFB_{ot}_Vind_gen_fine')  [-1] / getattr(self.cavityfeedback, f'OTFB_{ot}').n_cavities, getattr(self, f'OTFB_{ot}_I_gen_fine'  )[-1][ getattr(self, f'n_mov_av_fine_{ot}'):   ] / getattr(self.cavityfeedback, f'OTFB_{ot}').n_cavities )
+
+            P_gen_v2_cav_coarse_ot = get_power_gen_V2( getattr(self, f'OTFB_{ot}_Vind_gen_coarse')[-1] / getattr(self.cavityfeedback, f'OTFB_{ot}').n_cavities, getattr(self.cavityfeedback, f'OTFB_{ot}').TWC.Z_0, getattr(self.cavityfeedback, f'OTFB_{ot}').TWC.R_gen, getattr(self.cavityfeedback, f'OTFB_{ot}').TWC.tau, getattr(self.cavityfeedback, f'OTFB_{ot}').TWC.d_omega )
+            # P_gen_v2_cav_fine_ot   = get_power_gen_V2( getattr(self, f'OTFB_{ot}_Vind_gen_fine'  )[-1] / getattr(self.cavityfeedback, f'OTFB_{ot}').n_cavities, getattr(self.cavityfeedback, f'OTFB_{ot}').TWC.Z_0, getattr(self.cavityfeedback, f'OTFB_{ot}').TWC.R_gen, getattr(self.cavityfeedback, f'OTFB_{ot}').TWC.tau, getattr(self.cavityfeedback, f'OTFB_{ot}').TWC.d_omega )
+
+            ##################################################################
+            # if False and (i%MAC["Nt_plt"] == 0 or i == MAC['Nt_trk']-2):
+
+            #     # print(f'ot = {ot}')
+            #     # print(f'P_gen_0_cav_coarse_ot = {P_gen_0_cav_coarse_ot}, shape = {P_gen_0_cav_coarse_ot.shape}')
+            #     # # print(f'P_gen_0_cav_fine_ot   = {P_gen_0_cav_fine_ot}, shape = {P_gen_0_cav_fine_ot.shape}')
+            #     # print(f'P_gen_i2_cav_coarse_ot = {P_gen_i2_cav_coarse_ot}, shape = {P_gen_i2_cav_coarse_ot.shape}')
+            #     # # print(f'P_gen_i2_cav_fine_ot   = {P_gen_i2_cav_fine_ot}, shape = {P_gen_i2_cav_fine_ot.shape}')
+            #     # print(f'P_gen_vi_cav_coarse_ot = {P_gen_vi_cav_coarse_ot}, shape = {P_gen_vi_cav_coarse_ot.shape}')
+            #     # # print(f'P_gen_vi_cav_fine_ot   = {P_gen_vi_cav_fine_ot}, shape = {P_gen_vi_cav_fine_ot.shape}')
+            #     # print(f'P_gen_v2_cav_coarse_ot = {P_gen_v2_cav_coarse_ot}, shape = {P_gen_v2_cav_coarse_ot.shape}')
+            #     # # print(f'P_gen_v2_cav_fine_ot   = {P_gen_v2_cav_fine_ot}, shape = {P_gen_v2_cav_fine_ot.shape}')
+
+            #     nptsplot = int(1e6) # int(0.25*len(Pgen_opt1)) or a large number e.g. int(1e6) for all
+            #     fig, ax = plt.subplots() #2, 1)
+            #     fig.set_size_inches(8.0, 6.0) #18.0,6.0)
+            #     #fig.subplots_adjust(left=0.090, right=0.70)
+            #     #
+            #     # ax2 = ax.twinx()
+            #     # ax3 = ax.twinx()
+            #     # ax4 = ax.twinx()
+            #     # ax5 = ax.twinx()
+            #     #
+            #     # ax3.spines["right"].set_position(("axes", 1.10))
+            #     # ax4.spines["right"].set_position(("axes", 1.25))
+            #     # ax5.spines["right"].set_position(("axes", 1.35))
+
+            #     # l5a, = ax5.plot(P_gen_i2_coarse_ot[-getattr(self, f'n_coarse_{ot}'):], '-', c='lime', label='P_gen_i2_coarse_ot', alpha=0.5) # Remove the delay in the current signal from which P is derived
+            #     # # l5b, = ax5.plot(np.arange(0, len(P_gen_i2_fine_ot))/profilepattern.Ns, P_gen_i2_fine_ot, ':',  c='green', label='P_gen_i2_coarse_ot', alpha=0.5)
+            #     # #ax3.tick_params(axis='y', colors='magenta')
+            #     # #
+            #     # l3a, = ax3.plot(Pgen_opt0a[-getattr(self, f'n_coarse_{ot}'):], '--', c='magenta', label='Pgen_opt0a', alpha=0.5) # Remove the delay in the current signal from which P is derived
+            #     # # l3b, = ax3.plot(np.arange(0, len(Pgen_opt0b))/profilepattern.Ns, Pgen_opt0b, '-',  c='r',      label='Pgen_opt0a', alpha=0.5)
+            #     # #ax3.tick_params(axis='y', colors='r')
+            #     # #
+            #     # l1a, = ax.plot(Pgen_opt1, c='k', label='Pgen_opt1', alpha=0.5)
+            #     # #
+            #     # # l2a, = ax2.plot(Pgen_opt2, '-',  c='b',    label='Pgen_opt2', alpha=0.5)
+            #     # # l2b, = ax2.plot(Pgen_opt5, '--', c='cyan', label='Pgen_opt5', alpha=0.5)
+            #     # # # ax2.plot(Pgen_opt3,  label='Pgen_opt3')
+            #     # # # ax2.plot(Pgen_opt4,  label='Pgen_opt4')
+            #     # #
+            #     # l4a, = ax4.plot(Pgen_opt6, c='orange', label='Pgen_opt6', alpha=0.5)
+            #     # #ax4.tick_params(axis='y', colors='g')
+            #     # #
+            #     # # lines = [l1a, l2a, l2b, l3a, l3b, l4a, l5a, l5b]
+            #     # # lines = [l1a, l2a, l2b, l3a, l4a, l5a]
+            #     # lines = [l1a, l3a, l4a, l5a]
+            #     # ax.legend(lines, [l.get_label() for l in lines])
+            #     # #
+            #     # # for axi, pi in [(ax2, l2a), (ax3, l3a), (ax4, l4a), (ax5, l5a)]:
+            #     # for axi, pi in [(ax3, l3a), (ax4, l4a), (ax5, l5a)]:
+            #     #     axi.set_frame_on(True)
+            #     #     axi.patch.set_visible(False)
+            #     #     plt.setp(axi.spines.values(), visible=False)
+            #     #     axi.spines["right"].set_visible(True)
+            #     #     axi.spines["right"].set_edgecolor(pi.get_color())
+
+            #     # # for axi, pi in [(ax, l1a), (ax2, l2a), (ax3, l3a), (ax4, l4a), (ax5, l5a)]:
+            #     # for axi, pi in [(ax, l1a), (ax3, l3a), (ax4, l4a), (ax5, l5a)]:
+            #     #     axi.yaxis.label.set_color(pi.get_color())
+            #     #     axi.tick_params(axis='y', colors=pi.get_color())
+            #     #     axi.ticklabel_format(useOffset=False, style='plain') # disable offset (e.g. +4.309e5 at the top of the yaxis) and scientific notation (e.g. 1e-7 at top of yaxis())
+            #     #
+
+            #     ax.plot( np.arange(getattr(self, f'n_coarse_{ot}')),                                                    P_gen_0_cav_coarse_ot/ 1e6, ':',  label='P_gen_0_cav_coarse_ot')
+            #     ax.plot( np.arange(getattr(self, f'n_coarse_long_{ot}'))-getattr(self, f'n_mov_av_coarse_{ot}'), P_gen_i2_cav_coarse_ot/1e6, '-',  label='P_gen_i2_cav_coarse_ot')
+            #     ax.plot( np.arange(getattr(self, f'n_coarse_{ot}')),                                                    P_gen_v2_cav_coarse_ot/1e6, '--', label='P_gen_v2_cav_coarse_ot')
+            #     # ax2.plot(P_gen_vi_cav_coarse_ot/1e6, '--', c='grey', label='P_gen_vi_cav_coarse_ot')
+            #     ax.legend(loc=1)
+            #     # ax2.legend(loc=7)
+
+            #     ax.set_xlabel('RF bucket')
+            #     ax.set_ylabel('RF generator power [MW]')
+
+            #     ax.set_title(f'OTFB{ot}, turn {i}')
+            #     # ax.set_xlim(0, int(2*beampattern.fillpattern[-1]))
+            #     fig.tight_layout()
+            #     fname = f'{MAC["outdir"]}/plot_track_P_gen_{ot}_turn_{i}.png'
+            #     print(f'Saving {fname} ... (turn {i})')
+            #     fig.savefig(fname)
+            #     plt.close()
+            #     #
+            # quit()
+            ##################################################################
+
+            setattr(self, f'OTFB_{ot}_P_gen_i2_coarse', np.vstack( (getattr(self, f'OTFB_{ot}_P_gen_i2_coarse'),  P_gen_i2_cav_coarse_ot) ))
+            setattr(self, f'OTFB_{ot}_P_gen_v2_coarse', np.vstack( (getattr(self, f'OTFB_{ot}_P_gen_v2_coarse'),  P_gen_v2_cav_coarse_ot) ))
+            if False:
+                print(f'OTFB_{ot}_P_gen_i2_coarse = {getattr(self, f"OTFB_{ot}_P_gen_i2_coarse")}, shape = {getattr(self, f"OTFB_{ot}_P_gen_i2_coarse").shape}')
+                print(f'OTFB_{ot}_P_gen_v2_coarse = {getattr(self, f"OTFB_{ot}_P_gen_v2_coarse")}, shape = {getattr(self, f"OTFB_{ot}_P_gen_v2_coarse").shape}')
+
+            setattr(self, f'OTFB_{ot}_Q_beam_fine',      np.vstack( (getattr(self, f'OTFB_{ot}_Q_beam_fine'),      getattr(self.cavityfeedback, f'OTFB_{ot}').Q_beam_fine[:] )   ))
+           #setattr(self, f'OTFB_{ot}_I_beam_fine',      np.vstack( (getattr(self, f'OTFB_{ot}_I_beam_fine'),      getattr(self.cavityfeedback, f'OTFB_{ot}').Q_beam_fine[:] / getattr(self.cavityfeedback, f'OTFB_{ot}').T_s_fine ) ))
+           #setattr(self, f'OTFB_{ot}_Q_beam_coarse',    np.vstack( (getattr(self, f'OTFB_{ot}_Q_beam_coarse'),    getattr(self.cavityfeedback, f'OTFB_{ot}').Q_beam_coarse[:] ) )) # Q_beam_coarse was properly computed as the sum of all the Q_bean_fine contributions per coarse point: Indeed, the full charge per coarse sample (i.e. bucket) is np.abs(getattr(self.cavityfeedback, f'OTFB_{ot}').Q_beam_coarse[0] = np.abs(np.sum(getattr(self.cavityfeedback, f'OTFB_{ot}').Q_beam_fine[:64]))
+           #setattr(self, f'OTFB_{ot}_I_beam_coarse',    np.vstack( (getattr(self, f'OTFB_{ot}_I_beam_coarse'),    getattr(self.cavityfeedback, f'OTFB_{ot}').Q_beam_coarse[:] / getattr(self.cavityfeedback, f'OTFB_{ot}').T_s_coarse ) )) # I_beam_coarse was properly computed as the sum of all the I_bean_fine contributions per coarse point: Indeed, the full charge per coarse sample (i.e. bucket) is np.abs(getattr(self.cavityfeedback, f'OTFB_{ot}').I_beam_coarse[0] = np.abs(np.sum(getattr(self.cavityfeedback, f'OTFB_{ot}').I_beam_fine[:64]))
+            if self.with_FF:
+                setattr(self, f'OTFB_{ot}_Q_ff_coarseFF',  np.vstack( (getattr(self, f'OTFB_{ot}_Q_ff_coarseFF'),  getattr(self.cavityfeedback, f'OTFB_{ot}').Q_coarseFF_ff[:]) ))
+                setattr(self, f'OTFB_{ot}_dV_ff_coarseFF', np.vstack( (getattr(self, f'OTFB_{ot}_dV_ff_coarseFF'), getattr(self.cavityfeedback, f'OTFB_{ot}').dV_coarseFF_ff[:]) ))
+                setattr(self, f'OTFB_{ot}_dV_ff_fine',     np.vstack( (getattr(self, f'OTFB_{ot}_dV_ff_fine'),     getattr(self.cavityfeedback, f'OTFB_{ot}').dV_fine_ff[:]) ))
+                if False:
+                    print(f'OTFB_{ot}_Q_ff_coarseFF  = {getattr(self, f"OTFB_{ot}_Q_ff_coarseFF")}, shape = {getattr(self, f"OTFB_{ot}_Q_ff_coarseFF").shape}')
+                    print(f'OTFB_{ot}_dV_ff_coarseFF = {getattr(self, f"OTFB_{ot}_dV_ff_coarseFF")}, shape = {getattr(self, f"OTFB_{ot}_dV_ff_coarseFF").shape}')
+                    print(f'OTFB_{ot}_dV_ff_fine     = {getattr(self, f"OTFB_{ot}_dV_ff_fine")}, shape = {getattr(self, f"OTFB_{ot}_dV_ff_fine").shape}')
+            setattr(self, f'OTFB_{ot}_Vind_beam_fine',   np.vstack( (getattr(self, f'OTFB_{ot}_Vind_beam_fine'),   getattr(self.cavityfeedback, f'OTFB_{ot}').V_ind_beam_fine[:]) ))
+            #setattr(self, f'OTFB_{ot}_Vind_beam_coarse', np.vstack( (getattr(self, f'OTFB_{ot}_Vind_beam_coarse'), getattr(self.cavityfeedback, f'OTFB_{ot}').V_ind_beam_coarse[:]) ))
+            if False:
+                print(f'OTFB_{ot}_Q_beam_fine   = {getattr(self, f"OTFB_{ot}_Q_beam_fine")}, shape = {getattr(self, f"OTFB_{ot}_Q_beam_fine").shape}')
+                #print(f'OTFB_{ot}_Q_beam_coarse = {getattr(self, f"OTFB_{ot}_Q_beam_coarse")}, shape = {getattr(self, f"OTFB_{ot}_Q_beam_coarse").shape}')
+                #print(f'OTFB_{ot}_I_beam_fine   = {getattr(self, f"OTFB_{ot}_I_beam_fine")}, shape = {getattr(self, f"OTFB_{ot}_I_beam_fine").shape}')
+                #print(f'OTFB_{ot}_I_beam_coarse = {getattr(self, f"OTFB_{ot}_I_beam_coarse")}, shape = {getattr(self, f"OTFB_{ot}_I_beam_coarse").shape}')
+                print(f'OTFB_{ot}_Vind_beam_fine = {getattr(self, f"OTFB_{ot}_Vind_beam_fine")}, shape = {getattr(self, f"OTFB_{ot}_Vind_beam_fine").shape}')
+
+            setattr(self, f'OTFB_{ot}_Vind_tot_fine',   np.vstack( (getattr(self, f'OTFB_{ot}_Vind_tot_fine'),   getattr(self.cavityfeedback, f'OTFB_{ot}').V_tot_fine[:]) ))
+            #setattr(self, f'OTFB_{ot}_Vind_tot_coarse', np.vstack( (getattr(self, f'OTFB_{ot}_Vind_tot_coarse'), getattr(self.cavityfeedback, f'OTFB_{ot}').V_tot_coarse[:]) ))
+
+        self.OTFB_sum_Vind_tot_fine = np.vstack( (self.OTFB_sum_Vind_tot_fine, self.cavityfeedback.V_sum) )
+
+        if self.profile is not None:
+            # For testing, not mantained anymore
+            # We need to add zeros at 1st turn for the ringandrftracker quantities since we are tracking self.cavityfeedback before beamfeedback
+            self.tracker_Vrf_fine  = np.vstack( (self.tracker_Vrf_fine,  ringandrftracker.rf_voltage    if i > 0 else np.zeros(self.profile.n_slices)) )
+            self.tracker_Vtot_fine = np.vstack( (self.tracker_Vtot_fine, ringandrftracker.total_voltage if i > 0 else np.zeros(self.profile.n_slices) ) )
+            # This is the voltage that would be created in the trakcer if we don't have self.cavityfeedback
+            tmp_voltage  = np.ascontiguousarray(rfstation.voltage[:, rfstation.counter[0]])
+            tmp_omega_rf = np.ascontiguousarray(rfstation.omega_rf[:, rfstation.counter[0]])
+            tmp_phi_rf   = np.ascontiguousarray(rfstation.phi_rf[:, rfstation.counter[0]])
+            self.tracker_Vrfnocorr_fine = np.vstack( (self.tracker_Vrfnocorr_fine, (tmp_voltage[0] * bm.sin(tmp_omega_rf[0]*self.profile.bin_centers + tmp_phi_rf[0]) + bm.rf_volt_comp(tmp_voltage[1:], tmp_omega_rf[1:], tmp_phi_rf[1:], self.profile.bin_centers) if i > 0 else np.zeros(self.profile.n_slices)) ) )
+
+        #print(self.turns)
+
+
+    def track_ave(self):
+
+        for param in self.list_params: # all of the above, regardless of if they are to be plotted or not (beacuse we are removing to save space)
+
+            ot = '1' if '1' in param else '2'
+            if   'fine'     in param: fc = 'fine'
+            elif 'coarseFF' in param: fc = 'coarseFF'
+            else:                     fc = 'coarse'
+
+            param_ii = getattr(self, param)[-1]
+            # print(f'{param}:, {param_ii}, shape = {param_ii}')
+            indices_beam_ii   = np.copy(getattr(self, f'indices_beam_{fc}'))
+            indices_nobeam_ii = np.copy(getattr(self, f'indices_nobeam_{fc}'))
+            # For quantities in the long arrays, we need to shift this indices by n_mov_av_[fine|coarse] (the TWC tau)
+            if 'long' in self.time_arrays_dict[param]:
+                indices_beam_ii += getattr(self, f'n_mov_av_{fc}_{ot}')
+            param_ii_ave_beam   = np.average(param_ii[ indices_beam_ii ])
+            param_ii_ave_nobeam = np.average(param_ii[ indices_nobeam_ii ])
+
+            #print(f'{i} {param}')
+            #print(f'param_ii = {param_ii}, shape = {param_ii.shape}')
+            #print(f'param_ii_ave_beam   = {param_ii_ave_beam}')
+            #print(f'param_ii_ave_nobeam = {param_ii_ave_nobeam}')
+
+            setattr(self, f'{param}_ave_beam',   np.hstack( (getattr(self, f'{param}_ave_beam'),   np.array(param_ii_ave_beam)) ))
+            setattr(self, f'{param}_ave_nobeam', np.hstack( (getattr(self, f'{param}_ave_nobeam'), np.array(param_ii_ave_nobeam)) ))
+
+            #print(f'{param}_ave_beam   = {getattr(self, f"{param}_ave_beam")}')
+            #print(f'{param}_ave_nobeam = {getattr(self, f"{param}_ave_nobeam")}')
+
+            # #if MAC['Nt_trk'] > monitorotfb_i0:
+            # if i > monitorotfb_i0:
+            #     ##### CAREFULLLLL HERE!
+            #     # When testing with amny turns, we can only look at the average beam data, since it's to heavy to keep the full data in memory..
+            #     #print(f'{param} = {getattr(self, f"{param}")}, shape = {getattr(self, f"{param}").shape}')
+            #     #setattr(self, param, np.empty( shape=(getattr(self, param).shape) )) # WRONG: the arrays are rewritten as empty, but they still have the same size at the current step (i.e. after appending) so we are not really emptying memory)
+            #     setattr(self, param, np.empty( shape=(0,getattr(self, param).shape[1]) ))
+            #     #print(f'{param} = {getattr(self, f"{param}")}, shape = {getattr(self, f"{param}").shape}')
+
+        gc.collect()
+
+    def save_pickle(self, outdir):
+
+        dicmonitorotfb = {}
+        dicmonitorotfb['turns'] = np.copy(self.turns)
+
+        # for key in list_monitorotfb_params:
+        #     if '1' in key:
+        #         dicmonitorotfb[key] = getattr(monitorotfb, key)
+        # for key in [param for param in list(dir(monitorotfb)) if 't_'  in param]:
+        #     if '1' in key:
+        #         dicmonitorotfb[key] = getattr(monitorotfb, key)
+
+        for key in self.list_params:
+            if 'ave' in key:
+                dicmonitorotfb[key] = getattr(self, key)
+
+        with open(f'{outdir}/monitor_otfb.pkl', 'wb') as foutgen:
+            pkl.dump(dicmonitorotfb, foutgen)
+
+        print(f'dicmonitorotfb:')
+        for key in dicmonitorotfb.keys():
+            if key == 'turns':
+                print(f'{key}: {dicmonitorotfb[key]}, shape = {dicmonitorotfb[key].shape}')
+            else:
+                for i in [0,-1]:
+                    print(f'{key}[{i}]: {dicmonitorotfb[key][i]}, abs = {np.abs(dicmonitorotfb[key][i])}, ang = {np.angle(dicmonitorotfb[key][i])}')

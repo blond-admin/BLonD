@@ -43,6 +43,22 @@ def eq_line(x, m, x0, y0):
 def eq_parabola(x, p, x0, y0):
     return p*(x - x0)**2 + y0
 
+def get_power_gen_0(Vind_gen_per_cav, Z_0, R_gen):
+    ''' RF generator power for f_r = f_rf = 0 (and thus tau = 0) '''
+    return 0.5 * Z_0/R_gen**2 * np.abs(Vind_gen_per_cav)**2
+
+def get_power_gen_VI(Vind_tot_per_cav, I_gen_per_cav):
+    ''' RF generator power from the product of total voltage and generator current -- TO BENCHMARK '''
+    return 0.5 * np.real( Vind_tot_per_cav * np.conjugate(I_gen_per_cav) ) # The imaginary is zero
+
+def get_power_gen_I2(I_gen_per_cav, Z_0):
+    ''' RF generator power from generator current, for any f_r (and thus any tau) '''
+    return 0.5 * Z_0 * np.abs(I_gen_per_cav)**2
+
+def get_power_gen_V2(Vind_gen_per_cav, Z_0, R_gen, tau, d_omega):
+    ''' RF generator power from generator voltage, for any f_r (and thus any tau) '''
+    return get_power_gen_0(Vind_gen_per_cav, Z_0, R_gen) * ( 1./np.sinc(0.5*tau*d_omega/np.pi) )**2 # the 1. is exp(-1j*phi)
+
 ######
 
 class CavityFeedbackCommissioning(object):
@@ -1106,7 +1122,7 @@ class SPSOneTurnFeedback(object):
             # print(f'pos_peaks_fine = {pos_peaks_fine} -> /Ns = {pos_peaks_fine/Ns}')
             # print(f'pos_peaks_coarse = {pos_peaks_coarse}')
             if pos_peaks_coarse[0] != self.fillpattern[0]:
-                sys.exit('\n[!] ERROR: Coarse downsampling of beam current does not match the fill pattern (possibly an offset by one bucket)!\n')
+                sys.exit(f'\n[!] ERROR: Coarse downsampling of beam current ({pos_peaks_coarse}) does not match the fill pattern ({self.fillpattern})!\n')
             #
             # print(f'self.indices_coarseFF = {self.indices_coarseFF}, shape = {self.indices_coarseFF.shape}')
             # print(f'self.Q_beam_coarse[self.indices_coarseFF] = {self.Q_beam_coarse[self.indices_coarseFF]}, shape = {self.Q_beam_coarse[self.indices_coarseFF].shape}, max(abs) = {np.max(np.abs(self.Q_beam_coarse[self.indices_coarseFF]))}')
