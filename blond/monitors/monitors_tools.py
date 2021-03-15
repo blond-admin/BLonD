@@ -1020,7 +1020,7 @@ class MonitorOTFB(object):
         # print(self.indices_beam_fine)
         # print(self.indices_beam_coarse)
         # print(self.indices_beam_coarseFF)
-        # quit()
+
         fc_list = ['fine', 'coarse', 'coarseFF'] if (self.with_FF_1 or self.with_FF_2) else ['fine', 'coarse']
         for fc in fc_list:
             # Note that while the indices in the beam segment have jumps between the bunches contanied in beam,
@@ -1030,8 +1030,23 @@ class MonitorOTFB(object):
             # setattr(self, f'n_samples_beamF_{fc}', len( getattr(self, f'indices_beamF_{fc}')))
             # setattr(self, f'n_samples_beamM_{fc}', len( getattr(self, f'indices_beamM_{fc}')))
             # setattr(self, f'n_samples_beamH_{fc}', len( getattr(self, f'indices_beam_H{fc}')))
-            setattr(self, f'indices_nobeam_{fc}', np.arange( int(0.75*getattr(self, f'n_{fc}_1') - 0.25*getattr(self, f'n_samples_beam_{fc}')),
-                                                             int(0.75*getattr(self, f'n_{fc}_1') + 0.25*getattr(self, f'n_samples_beam_{fc}')) ) )
+
+        if self.n_samples_beam_coarse < int(self.n_coarse_1/nbs): # n_coarse_1 = n_coarse_2:
+
+            fc_list = ['fine', 'coarse', 'coarseFF'] if (self.with_FF_1 or self.with_FF_2) else ['fine', 'coarse']
+            for fc in fc_list:
+                # The middle sample of the no-beam segment (from right after the beam ends and until the end of the turn)
+                setattr(self, f'indices_nobeam_{fc}', int( np.average( np.arange( getattr(self, f'indices_beamF_{fc}')[-1] + nbs, getattr(self, f'n_coarse_{ot}') ) ) ) )
+                # setattr(self, f'indices_nobeam_{fc}', np.arange( int(0.75*getattr(self, f'n_{fc}_1') - 0.25*getattr(self, f'n_samples_beam_{fc}')),
+                #                                                  int(0.75*getattr(self, f'n_{fc}_1') + 0.25*getattr(self, f'n_samples_beam_{fc}')) ) )
+
+        else:
+            # Ring full (assumes an == above, is it goes above then something is wrong):
+
+            fc_list = ['fine', 'coarse', 'coarseFF'] if (self.with_FF_1 or self.with_FF_2) else ['fine', 'coarse']
+            for fc in fc_list:
+                setattr(self, f'indices_nobeam_{fc}', np.array([], dtype=int))
+
 
         # Time arrays:
         for ot in ['1','2']:
@@ -1422,7 +1437,7 @@ class MonitorOTFB(object):
             param_ii_ave_beamF  = np.average(param_ii[ indices_beamF_ii ])
             param_ii_ave_beamM  = np.average(param_ii[ indices_beamM_ii ])
             param_ii_ave_beamH  = np.average(param_ii[ indices_beamH_ii ])
-            param_ii_ave_nobeam = np.average(param_ii[ indices_nobeam_ii ])
+            param_ii_ave_nobeam = np.average(param_ii[ indices_nobeam_ii ]) if len(indices_nobeam_ii) > 0 else np.nan
 
             #print(f'{i} {param}')
             #print(f'param_ii = {param_ii}, shape = {param_ii.shape}')
