@@ -604,8 +604,8 @@ def plot_cavityfeedback_allparams(outdir, monitorotfb, cavityfeedback, profile, 
         #print( ( 0/unit_t, twindow/unit_t ) )
         #print( ( (tarraymax - twindow)/unit_t, tarraymax/unit_t ) )
 
-        twindow = profile.bin_centers[ monitorotfb.indices_beam_fine[-1] ] \
-            + 1.00*(profile.bin_centers[ monitorotfb.indices_beam_fine[-1] ] - profile.bin_centers[ monitorotfb.indices_beam_fine[0] ])
+        twindow = profile.bin_centers[ monitorotfb.indices_beamH_fine[-1] ] \
+            + 1.00*(profile.bin_centers[ monitorotfb.indices_beamH_fine[-1] ] - profile.bin_centers[ monitorotfb.indices_beamH_fine[0] ])
 
         #plotfuncs = (np.real, np.imag, np.abs, np.angle)
 
@@ -702,13 +702,34 @@ def plot_cavityfeedback_allparams(outdir, monitorotfb, cavityfeedback, profile, 
                 time_ii  = getattr(monitorotfb, monitorotfb.time_arrays_dict[param])[ii] - bucket_centres_shift
                #print(param, param_ii.shape, monitorotfb.time_arrays_dict[param], time_ii.shape)
 
-                param_ii_ave_beam   = getattr(monitorotfb, f'{param}_ave_beam')[ii]   # np.average(param_ii[ getattr(monitorotfb, f'indices_beam_{fc}') ])
-                param_ii_ave_nobeam = getattr(monitorotfb, f'{param}_ave_nobeam')[ii] # np.average(param_ii[ getattr(monitorotfb, f'indices_nobeam_{fc}')])
-                #print(param_ii_ave_beam, param_ii_ave_nobeam)
+                if monitorotfb.track_max and param in monitorotfb.list_params_max_beam:
+                    param_ii_max_beam   = getattr(monitorotfb, f'{param}_max_beam')[ii]
+                    t_ii_max_beam  = time_ii[ getattr(monitorotfb,  f'index_max_beam_{param}')[ii] ] # Doesnt need the correction, the index for max for Q_gen and P_gen (long params) was already saved in the proper array
+                else:
+                    param_ii_max_beam = np.NaN
+                    t_ii_max_beam     = np.NaN
+                if monitorotfb.track_ave:
+                    param_ii_ave_beamM  = getattr(monitorotfb, f'{param}_ave_beamM' )[ii]
+                    param_ii_ave_beamH  = getattr(monitorotfb, f'{param}_ave_beamH' )[ii] # np.average(param_ii[ getattr(monitorotfb, f'indices_beamH_{fc}') ])
+                    param_ii_ave_nobeam = getattr(monitorotfb, f'{param}_ave_nobeam')[ii] # np.average(param_ii[ getattr(monitorotfb, f'indices_nobeam_{fc}')])
+                    t_ii_ave_beamM  = time_ii[ int(np.average( getattr(monitorotfb,  f'indices_beamM_{fc}') + (getattr(monitorotfb, f'n_mov_av_{fc}_{ot}') if 'long' in monitorotfb.time_arrays_dict[param] else 0) ))  ]
+                    t_ii_ave_beamH  = time_ii[ int(np.average( getattr(monitorotfb,  f'indices_beamH_{fc}') + (getattr(monitorotfb, f'n_mov_av_{fc}_{ot}') if 'long' in monitorotfb.time_arrays_dict[param] else 0) ))  ]
+                   #t_ii_ave_nobeam = time_ii[ int(np.average( getattr(monitorotfb, f'indices_nobeam_{fc}'))) ]
+                    t_ii_ave_nobeam  = (tarraymax - 0.95*twindow)
 
                 if monitorotfb.profile is not None:
-                    profile_bin_centers_ii = monitorotfb.profile_bin_centers[ii]
+                    # Profile stored at the corresponding turn in monitorotfb
+                    profile_bin_centers_ii      = monitorotfb.profile_bin_centers[ii]
                     profile_n_macroparticles_ii = monitorotfb.profile_n_macroparticles[ii]
+                else:
+                    # Profile at the current turn only: should not be used with PL
+                    if ii == idx_turns_to_plot[-1]:
+                        profile_bin_centers_ii      = profile.bin_centers[:]
+                        profile_n_macroparticles_ii = profile.n_macroparticles[:]
+                    else:
+                        profile_bin_centers_ii      = None
+                        profile_n_macroparticles_ii = None
+
 
                 # if   len(param_ii) == profile.n_slices:
                 #     # Vind_tot_sum_fine falls here too
@@ -744,9 +765,9 @@ def plot_cavityfeedback_allparams(outdir, monitorotfb, cavityfeedback, profile, 
                     # Polar: no need to add unit_angle to 1st array, as polar plots already are shown in deg
                     ax4.plot(np.angle(param_ii), np.abs(param_ii + total_induced_voltage_extra)/unit_param, color='green', alpha=0.5)
 
-                ## FOR TEST: Show the bunch profile during the testing to compare positions w.r.t. current/coltage/etc signals
-                # Show window spanned by the beam segment
-                if monitorotfb.profile is not None and profile_bucket_centres is not None: #True: #twindow < 100e-9: # Show profiles when window include only 4 bunches:
+                # Show the bunch profile during the testing to compare positions w.r.t. current/coltage/etc signals
+                # It also shows window spanned by the beam segment
+                if profile_bin_centers_ii is not None and profile_bucket_centres is not None: #True: #twindow < 100e-9: # Show profiles when window include only 4 bunches:
                     mymark = '|' if twindow < 100e-9 else None
                     for axiab2 in [[ax0a2, ax1a2, ax2a2, ax3a2], [ax0b2, ax1b2, ax2b2, ax3b2]]:
                         for ifunc in range(4):
@@ -760,7 +781,7 @@ def plot_cavityfeedback_allparams(outdir, monitorotfb, cavityfeedback, profile, 
                             # #
                             # #axiab2[ifunc].plot(profile_bin_centers_ii[profile_bucket_centres]/unit_t, profile_n_macroparticles_ii_toplot[profile_bucket_centres], '.', color=color_ii, lw=1.0, alpha=1./(turns_to_plot+1))
                             #
-                            # For a parameter in a longa array, either shit the batch, or the xlim
+                            # For a parameter in a long array, either shit the batch, or the xlim
                             # bucket_centres_shift = getattr(cavityfeedback, f'OTFB_{ot}').TWC.tau if 'long' in monitorotfb.time_arrays_dict[param] else 0.0
                             # # Window:
                             # #axiab2[ifunc].vlines(profile_bin_centers_ii[profile_bucket_centres]/unit_t, ymin=0, ymax=1, color=color_ii, lw=1.0, alpha=max(1./(turns_to_plot+1), 1./(monitorotfb.i0+1))) #, transform=trans)
@@ -792,51 +813,71 @@ def plot_cavityfeedback_allparams(outdir, monitorotfb, cavityfeedback, profile, 
                         for ifunc in range(4):
                             unitparam_i = unit_param if ifunc < 3 else unit_angle
                             # To map this floats we need to make the iterable (i.e. a list), then just simply take the single 0-th element
-                            #val_beam   = list(map(func, [param_ii_ave_beam]  ))[0]/unitparam_i
-                            if   ifunc == 0: val_beam   = np.real( param_ii_ave_beam)/unitparam_i
-                            elif ifunc == 1: val_beam   = np.imag( param_ii_ave_beam)/unitparam_i
-                            elif ifunc == 2: val_beam   = np.abs(  param_ii_ave_beam)/unitparam_i
-                            elif ifunc == 3: val_beam   = np.angle(param_ii_ave_beam)/unitparam_i
-                            #if ifunc == 3 and np.abs(val_beam) > 0.999*np.pi: val_beam = 0. # to make the +pi/-pi jumps go to zero
-                            #val_nobeam = list(map(func, [param_ii_ave_nobeam]))[0]/unitparam_i
-                            if   ifunc == 0: val_nobeam = np.real( param_ii_ave_nobeam)/unitparam_i
-                            elif ifunc == 1: val_nobeam = np.imag( param_ii_ave_nobeam)/unitparam_i
-                            elif ifunc == 2: val_nobeam = np.abs(  param_ii_ave_nobeam)/unitparam_i
-                            elif ifunc == 3: val_nobeam = np.angle(param_ii_ave_nobeam)/unitparam_i
-                            #if ifunc == 3 and np.abs(val_nobeam) > 0.999*np.pi: val_nobeam = 0. # to make the +pi/-pi jumps go to zero
-                            axiab[ifunc].axhline(val_beam,   color=color_ii, ls='--', alpha=0.5)
-                            axiab[ifunc].axhline(val_nobeam, color=color_ii, ls=':',  alpha=0.5)
-                            #
-                            #
-                            axiab[ifunc].plot( time_ii[ int(np.average( getattr(monitorotfb,  f'indices_beam_{fc}') + (getattr(monitorotfb, f'n_mov_av_{fc}_{ot}') if 'long' in monitorotfb.time_arrays_dict[param] else 0) ))  ]/unit_t, val_beam,   's', markersize=ms_ii, markerfacecolor=color_ii, markeredgecolor='white')
-                           #axiab[ifunc].plot( time_ii[ int(np.average(getattr(monitorotfb, f'indices_nobeam_{fc}'))) ]/unit_t, val_nobeam, 'o', markersize=ms_ii, markerfacecolor=color_ii, markeredgecolor='white')
-                            axiab[ifunc].plot( (tarraymax - 0.95*twindow)/unit_t,                                               val_nobeam, 'o', markersize=ms_ii, markerfacecolor=color_ii, markeredgecolor='white')
+                            if monitorotfb.track_max and param in monitorotfb.list_params_max_beam:
+                                #val_max   = list(map(func, [param_ii_max_beam]  ))[0]/unitparam_i
+                                if   ifunc == 0: val_max  = np.real( param_ii_max_beam)/unitparam_i
+                                elif ifunc == 1: val_max  = np.imag( param_ii_max_beam)/unitparam_i
+                                elif ifunc == 2: val_max  = np.abs(  param_ii_max_beam)/unitparam_i
+                                elif ifunc == 3: val_max  = np.angle(param_ii_max_beam)/unitparam_i
+                            if monitorotfb.track_ave:
+                                #val_beamM   = list(map(func, [param_ii_ave_beamM]  ))[0]/unitparam_i
+                                if   ifunc == 0: val_beamM  = np.real( param_ii_ave_beamM)/unitparam_i
+                                elif ifunc == 1: val_beamM  = np.imag( param_ii_ave_beamM)/unitparam_i
+                                elif ifunc == 2: val_beamM  = np.abs(  param_ii_ave_beamM)/unitparam_i
+                                elif ifunc == 3: val_beamM  = np.angle(param_ii_ave_beamM)/unitparam_i
+                                #val_beamH   = list(map(func, [param_ii_ave_beamH]  ))[0]/unitparam_i
+                                if   ifunc == 0: val_beamH  = np.real( param_ii_ave_beamH)/unitparam_i
+                                elif ifunc == 1: val_beamH  = np.imag( param_ii_ave_beamH)/unitparam_i
+                                elif ifunc == 2: val_beamH  = np.abs(  param_ii_ave_beamH)/unitparam_i
+                                elif ifunc == 3: val_beamH  = np.angle(param_ii_ave_beamH)/unitparam_i
+                                #if ifunc == 3 and np.abs(val_beamH) > 0.999*np.pi: val_beamH = 0. # to make the +pi/-pi jumps go to zero
+                                #val_nobeam = list(map(func, [param_ii_ave_nobeam]))[0]/unitparam_i
+                                if   ifunc == 0: val_nobeam = np.real( param_ii_ave_nobeam)/unitparam_i
+                                elif ifunc == 1: val_nobeam = np.imag( param_ii_ave_nobeam)/unitparam_i
+                                elif ifunc == 2: val_nobeam = np.abs(  param_ii_ave_nobeam)/unitparam_i
+                                elif ifunc == 3: val_nobeam = np.angle(param_ii_ave_nobeam)/unitparam_i
+                                #if ifunc == 3 and np.abs(val_nobeam) > 0.999*np.pi: val_nobeam = 0. # to make the +pi/-pi jumps go to zero
+                            if monitorotfb.track_max and param in monitorotfb.list_params_max_beam:
+                                axiab[ifunc].axhline(val_max,  color=color_ii, ls='--', alpha=0.75)
+                                axiab[ifunc].plot( t_ii_max_beam /unit_t, val_max,  '^', markersize=ms_ii, markerfacecolor=color_ii, markeredgecolor='white')
+                            if monitorotfb.track_ave:
+                                axiab[ifunc].axhline(val_beamM,  color=color_ii, ls=':',  alpha=0.50)
+                                axiab[ifunc].axhline(val_beamH,  color=color_ii, ls='--', alpha=0.25)
+                                axiab[ifunc].axhline(val_nobeam, color=color_ii, ls=':',  alpha=0.50)
+                                axiab[ifunc].plot( t_ii_ave_beamM /unit_t, val_beamM,  'D', markersize=ms_ii, markerfacecolor=color_ii, markeredgecolor='white')
+                                axiab[ifunc].plot( t_ii_ave_beamH /unit_t, val_beamH,  's', markersize=ms_ii, markerfacecolor=color_ii, markeredgecolor='white')
+                                axiab[ifunc].plot( t_ii_ave_nobeam/unit_t, val_nobeam, 'o', markersize=ms_ii, markerfacecolor=color_ii, markeredgecolor='white')
 
                 # Polar: no need to add unit_angle to 1st array, as polar plots already are shown in deg
                 ms_ii = 7.5 #5.0
+                labelmax    = None
+                labelbeamM  = None
+                labelbeamH  = None
+                labelnobeam = None
                 if ii == idx_turns_to_plot[0]:
                     ms_ii = 10.0
-                    labelturn = f'Turn {turns_to_plot[ii]}'
-                    if(i == 0):
-                        labelbeam   = 'Ave. beam'
-                        labelnobeam = 'Ave. no-beam'
-                    else:
-                        labelbeam   = None
-                        labelnobeam = None
+                    labelturn = None #f'Turn {turns_to_plot[ii]}'
+                    if i == 0:
+                        if monitorotfb.track_ave:
+                            labelmax    = 'Beam (max)'
+                        if monitorotfb.track_max and param in monitorotfb.list_params_max_beam:
+                            labelbeamM  = 'Beam (mid)'
+                            labelbeamH  = 'Beam (ave)'
+                            labelnobeam = 'No beam'
                 elif ii == idx_turns_to_plot[-1]:
-                    labelturn = f'Turn {turns_to_plot[ii]}'
-                    if(i == 0):
-                        labelbeam   = None
-                        labelnobeam = None
-                    else:
-                        labelbeam   = 'Ave. beam'
-                        labelnobeam = 'Ave. no-beam'
-                else:
-                    labelturn = None
-                    labelbeam   = None
-                    labelnobeam = None
+                    labelturn = None #f'Turn {turns_to_plot[ii]}'
+                    if i != 0:
+                        if monitorotfb.track_max and param in monitorotfb.list_params_max_beam:
+                            labelmax    = 'Beam (max)'
+                        if monitorotfb.track_ave:
+                            labelbeamM  = 'Beam (mid)'
+                            labelbeamH  = 'Beam (ave)'
+                            labelnobeam = 'No beam'
+
                 ax4.plot(np.angle(param_ii),            np.abs(param_ii)/unit_param,            color=color_ii, alpha=0.5, label=labelturn)
-                ax4.plot(np.angle(param_ii_ave_beam),   np.abs(param_ii_ave_beam)/unit_param,   's', markerfacecolor=color_ii, markeredgecolor='white', markersize=ms_ii, label=labelbeam)
+                ax4.plot(np.angle(param_ii_max_beam),   np.abs(param_ii_max_beam) /unit_param,  '^', markerfacecolor=color_ii, markeredgecolor='white', markersize=ms_ii, label=labelmax)
+                ax4.plot(np.angle(param_ii_ave_beamM),  np.abs(param_ii_ave_beamM)/unit_param,  'D', markerfacecolor=color_ii, markeredgecolor='white', markersize=ms_ii, label=labelbeamM)
+                ax4.plot(np.angle(param_ii_ave_beamH),  np.abs(param_ii_ave_beamH)/unit_param,  's', markerfacecolor=color_ii, markeredgecolor='white', markersize=ms_ii, label=labelbeamH)
                 ax4.plot(np.angle(param_ii_ave_nobeam), np.abs(param_ii_ave_nobeam)/unit_param, 'o', markerfacecolor=color_ii, markeredgecolor='white', markersize=ms_ii, label=labelnobeam)
 
                 # Vertical line at the end of the turn: t_rev
@@ -992,12 +1033,32 @@ def plot_cavityfeedback_allparams_continuous(outdir, monitorotfb, cavityfeedback
                 time_ii  = getattr(monitorotfb, monitorotfb.time_arrays_dict[param])[ii] - bucket_centres_shift
                #print(param, param_ii.shape, monitorotfb.time_arrays_dict[param], time_ii.shape)
 
-                param_ii_ave_beam   = getattr(monitorotfb, f'{param}_ave_beam')[ii]   # np.average(param_ii[ getattr(monitorotfb, f'indices_beam_{fc}') ])
-                param_ii_ave_nobeam = getattr(monitorotfb, f'{param}_ave_nobeam')[ii] # np.average(param_ii[ getattr(monitorotfb, f'indices_nobeam_{fc}')])
+                if monitorotfb.track_max and param in monitorotfb.list_params_max_beam:
+                    param_ii_max_beam   = getattr(monitorotfb, f'{param}_max_beam')[ii]
+                    t_ii_max_beam  = turn_ii*t_rev_0/unit_t + time_ii[ getattr(monitorotfb, f'index_max_beam_{param}')[ii] ] # Doesnt need the correction, the index for max for Q_gen and P_gen (long params) was already saved in the proper array
+                else:
+                    param_ii_max_beam = np.NaN
+                    t_ii_max_beam     = np.NaN
+                if monitorotfb.track_ave:
+                    param_ii_ave_beamM  = getattr(monitorotfb, f'{param}_ave_beamM' )[ii]
+                    param_ii_ave_beamH  = getattr(monitorotfb, f'{param}_ave_beamH' )[ii] # np.average(param_ii[ getattr(monitorotfb, f'indices_beamH_{fc}') ])
+                    param_ii_ave_nobeam = getattr(monitorotfb, f'{param}_ave_nobeam')[ii] # np.average(param_ii[ getattr(monitorotfb, f'indices_nobeam_{fc}')])
+                    t_ii_ave_beamM  = turn_ii*t_rev_0/unit_t + time_ii[ int(np.average( getattr(monitorotfb, f'indices_beamM_{fc}')  + (getattr(monitorotfb, f'n_mov_av_{fc}_{ot}') if 'long' in monitorotfb.time_arrays_dict[param] else 0) )) ]
+                    t_ii_ave_beamH  = turn_ii*t_rev_0/unit_t + time_ii[ int(np.average( getattr(monitorotfb, f'indices_beamH_{fc}')  + (getattr(monitorotfb, f'n_mov_av_{fc}_{ot}') if 'long' in monitorotfb.time_arrays_dict[param] else 0) )) ]
+                    t_ii_ave_nobeam = turn_ii*t_rev_0/unit_t + time_ii[ int(np.average( getattr(monitorotfb, f'indices_nobeam_{fc}') + (getattr(monitorotfb, f'n_mov_av_{fc}_{ot}') if 'long' in monitorotfb.time_arrays_dict[param] else 0) )) ]
 
                 if monitorotfb.profile is not None:
-                    profile_bin_centers_ii = monitorotfb.profile_bin_centers[ii]
+                    # Profile stored at the corresponding turn in monitorotfb
+                    profile_bin_centers_ii      = monitorotfb.profile_bin_centers[ii]
                     profile_n_macroparticles_ii = monitorotfb.profile_n_macroparticles[ii]
+                else:
+                    # Profile at the current turn only: should not be used with PL
+                    if ii == idx_turns_to_plot[-1]:
+                        profile_bin_centers_ii      = profile.bin_centers[:]
+                        profile_n_macroparticles_ii = profile.n_macroparticles[:]
+                    else:
+                        profile_bin_centers_ii      = None
+                        profile_n_macroparticles_ii = None
 
                 # SPECIAL CASE: totalinducedvoltage + Vind_tot_fine, so it is at the background
                 if total_induced_voltage_extra is not None and param in ['OTFB_sum_Vind_tot_fine'] and ii == idx_turns_to_plot[-1]: # Only for last (current) turn
@@ -1015,9 +1076,9 @@ def plot_cavityfeedback_allparams_continuous(outdir, monitorotfb, cavityfeedback
                             # Shift the corresponding time array by one t_rev
                             axiab[ifunc].plot(turn_ii*t_rev_0/unit_t + time_ii/unit_t, val, color='green', alpha=0.5)
 
-                ## FOR TEST: Show the bunch profile during the testing to compare positions w.r.t. current/coltage/etc signals
-                # Show window spanned by the beam segment
-                if monitorotfb.profile is not None and profile_bucket_centres is not None: #True: #twindow < 100e-9: # Show profiles when window include only 4 bunches:
+                # Show the bunch profile during the testing to compare positions w.r.t. current/coltage/etc signals
+                # It also shows window spanned by the beam segment
+                if profile_bin_centers_ii is not None and profile_bucket_centres is not None: #True: #twindow < 100e-9: # Show profiles when window include only 4 bunches:
                     mymark = None #'|' if twindow < 100e-9 else None
                     for axia2 in [[ax0a2, ax1a2, ax2a2, ax3a2]]:
                         for ifunc in range(4):
@@ -1065,28 +1126,44 @@ def plot_cavityfeedback_allparams_continuous(outdir, monitorotfb, cavityfeedback
                     for ifunc in range(4):
                         unitparam_i = unit_param if ifunc < 3 else unit_angle
                         # To map this floats we need to make the iterable (i.e. a list), then just simply take the single 0-th element
-                        #val_beam   = list(map(func, [param_ii_ave_beam]  ))[0]/unitparam_i
-                        if   ifunc == 0: val_beam   = np.real( param_ii_ave_beam)/unitparam_i
-                        elif ifunc == 1: val_beam   = np.imag( param_ii_ave_beam)/unitparam_i
-                        elif ifunc == 2: val_beam   = np.abs(  param_ii_ave_beam)/unitparam_i
-                        elif ifunc == 3: val_beam   = np.angle(param_ii_ave_beam)/unitparam_i
-                        #if ifunc == 3 and np.abs(val_beam) > 0.999*np.pi: val_beam = 0. # to make the +pi/-pi jumps go to zero
-                        #val_nobeam = list(map(func, [param_ii_ave_nobeam]))[0]/unitparam_i
-                        if   ifunc == 0: val_nobeam = np.real( param_ii_ave_nobeam)/unitparam_i
-                        elif ifunc == 1: val_nobeam = np.imag( param_ii_ave_nobeam)/unitparam_i
-                        elif ifunc == 2: val_nobeam = np.abs(  param_ii_ave_nobeam)/unitparam_i
-                        elif ifunc == 3: val_nobeam = np.angle(param_ii_ave_nobeam)/unitparam_i
-                        #if ifunc == 3 and np.abs(val_nobeam) > 0.999*np.pi: val_nobeam = 0. # to make the +pi/-pi jumps go to zero
-                        # The lines cannot be axhline any more, but extend only over the turn (except for 1st and last, for reference)
-                        if ii == idx_turns_to_plot[0] or ii == idx_turns_to_plot[-1]:
-                            axiab[ifunc].axhline(val_beam,   color=color_ii, ls='--', alpha=0.5)
-                            axiab[ifunc].axhline(val_nobeam, color=color_ii, ls=':',  alpha=0.5)
-                        # else:
-                            # axiab[ifunc].plot([turn_ii*t_rev_0/unit_t, (turn_ii+1)*t_rev_0/unit_t], np.ones(2)*val_beam,   color=color_ii, ls='--')
-                            # axiab[ifunc].plot([turn_ii*t_rev_0/unit_t, (turn_ii+1)*t_rev_0/unit_t], np.ones(2)*val_nobeam, color=color_ii, ls=':')
-                        #
-                        axiab[ifunc].plot( turn_ii*t_rev_0/unit_t + time_ii[ int(np.average( getattr(monitorotfb,  f'indices_beam_{fc}')  + (getattr(monitorotfb, f'n_mov_av_{fc}_{ot}') if 'long' in monitorotfb.time_arrays_dict[param] else 0) ))  ]/unit_t, val_beam,   's', markersize=10.0, markerfacecolor=color_ii, markeredgecolor='white')
-                        axiab[ifunc].plot( turn_ii*t_rev_0/unit_t + time_ii[ int(np.average( getattr(monitorotfb, f'indices_nobeam_{fc}') + (getattr(monitorotfb, f'n_mov_av_{fc}_{ot}') if 'long' in monitorotfb.time_arrays_dict[param] else 0) )) ]/unit_t, val_nobeam, 'o', markersize= 7.5, markerfacecolor=color_ii, markeredgecolor='white')
+                        if monitorotfb.track_max and param in monitorotfb.list_params_max_beam:
+                            #val_max   = list(map(func, [param_ii_max_beam]  ))[0]/unitparam_i
+                            if   ifunc == 0: val_max   = np.real( param_ii_max_beam)/unitparam_i
+                            elif ifunc == 1: val_max   = np.imag( param_ii_max_beam)/unitparam_i
+                            elif ifunc == 2: val_max   = np.abs(  param_ii_max_beam)/unitparam_i
+                            elif ifunc == 3: val_max   = np.angle(param_ii_max_beam)/unitparam_i
+                        if monitorotfb.track_ave:
+                            #val_beamM   = list(map(func, [param_ii_ave_beamM]  ))[0]/unitparam_i
+                            if   ifunc == 0: val_beamM   = np.real( param_ii_ave_beamM)/unitparam_i
+                            elif ifunc == 1: val_beamM   = np.imag( param_ii_ave_beamM)/unitparam_i
+                            elif ifunc == 2: val_beamM   = np.abs(  param_ii_ave_beamM)/unitparam_i
+                            elif ifunc == 3: val_beamM   = np.angle(param_ii_ave_beamM)/unitparam_i
+                            #val_beamH   = list(map(func, [param_ii_ave_beamH]  ))[0]/unitparam_i
+                            if   ifunc == 0: val_beamH   = np.real( param_ii_ave_beamH)/unitparam_i
+                            elif ifunc == 1: val_beamH   = np.imag( param_ii_ave_beamH)/unitparam_i
+                            elif ifunc == 2: val_beamH   = np.abs(  param_ii_ave_beamH)/unitparam_i
+                            elif ifunc == 3: val_beamH   = np.angle(param_ii_ave_beamH)/unitparam_i
+                            #if ifunc == 3 and np.abs(val_beamH) > 0.999*np.pi: val_beamH = 0. # to make the +pi/-pi jumps go to zero
+                            #val_nobeam = list(map(func, [param_ii_ave_nobeam]))[0]/unitparam_i
+                            if   ifunc == 0: val_nobeam = np.real( param_ii_ave_nobeam)/unitparam_i
+                            elif ifunc == 1: val_nobeam = np.imag( param_ii_ave_nobeam)/unitparam_i
+                            elif ifunc == 2: val_nobeam = np.abs(  param_ii_ave_nobeam)/unitparam_i
+                            elif ifunc == 3: val_nobeam = np.angle(param_ii_ave_nobeam)/unitparam_i
+                            #if ifunc == 3 and np.abs(val_nobeam) > 0.999*np.pi: val_nobeam = 0. # to make the +pi/-pi jumps go to zero
+                        if monitorotfb.track_max and param in monitorotfb.list_params_max_beam:
+                            # The lines cannot be axhline any more, but extend only over the turn (except for 1st and last, for reference)
+                            if ii == idx_turns_to_plot[0] or ii == idx_turns_to_plot[-1]:
+                                axiab[ifunc].axhline(val_max,  color=color_ii, ls='--', alpha=0.75)
+                            axiab[ifunc].plot( t_ii_max_beam/unit_t, val_max,  '^', markersize=10.0, markerfacecolor=color_ii, markeredgecolor='white')
+                        if monitorotfb.track_ave:
+                            # The lines cannot be axhline any more, but extend only over the turn (except for 1st and last, for reference)
+                            if ii == idx_turns_to_plot[0] or ii == idx_turns_to_plot[-1]:
+                                axiab[ifunc].axhline(val_beamM,  color=color_ii, ls=':',  alpha=0.50)
+                                axiab[ifunc].axhline(val_beamH,  color=color_ii, ls='--', alpha=0.25)
+                                axiab[ifunc].axhline(val_nobeam, color=color_ii, ls=':',  alpha=0.50)
+                            axiab[ifunc].plot( t_ii_ave_beamM /unit_t, val_beamM,  'D', markersize=10.0, markerfacecolor=color_ii, markeredgecolor='white')
+                            axiab[ifunc].plot( t_ii_ave_beamH /unit_t, val_beamH,  's', markersize=10.0, markerfacecolor=color_ii, markeredgecolor='white')
+                            axiab[ifunc].plot( t_ii_ave_nobeam/unit_t, val_nobeam, 'o', markersize= 7.5, markerfacecolor=color_ii, markeredgecolor='white')
 
                     # Vertical line at the end of each turn: t_rev
                     for axi in [ax0a, ax1a, ax2a, ax3a]: #[ax0b, ax1b, ax2b, ax3b]:
@@ -1148,15 +1225,17 @@ def plot_cavityfeedback_allparams_ave_continuous_turns(outdir, monitorotfb, cavi
             else:                     fc = 'coarse'
 
             nrows = 4
-            ncols = 1
+            ncols = 2
 
-            fig, ax = plt.subplots(nrows, ncols, sharex=True)
-            fig.set_size_inches(ncols*20.00, nrows*2.50)
+            fig = plt.figure(constrained_layout=True) # fig, ax = plt.subplots(nrows, ncols, sharex=True)
+            fig.set_size_inches(ncols*10.00, nrows*2.50)
 
-            ax0a = ax[0]
-            ax1a = ax[1]
-            ax2a = ax[2]
-            ax3a = ax[3]
+            gs = fig.add_gridspec(nrows, ncols)
+            ax0a = fig.add_subplot(gs[0,0])
+            ax1a = fig.add_subplot(gs[1,0])
+            ax2a = fig.add_subplot(gs[2,0])
+            ax3a = fig.add_subplot(gs[3,0])
+            ax4 = fig.add_subplot(gs[:,1], projection='polar')
 
             turns_to_plot = monitorotfb.turns[:] # e.g. turns 0, 2, 4, etc
             idx_turns_to_plot = np.arange(len(turns_to_plot)) # would correspond to 0, 1, 2, etc.
@@ -1196,40 +1275,66 @@ def plot_cavityfeedback_allparams_ave_continuous_turns(outdir, monitorotfb, cavi
             #turns_all = turns_all.reshape(turns_all.shape[0],1)
             #print(f'turns_all = {turns_all}, shape = {turns_all.shape}')
 
-            param_all_ave_beam   = getattr(monitorotfb, f'{param}_ave_beam')[idx_turns_to_plot]
-            param_all_ave_nobeam = getattr(monitorotfb, f'{param}_ave_nobeam')[idx_turns_to_plot]
-            #param_all_ave_beam   = param_all_ave_beam.reshape(  param_all_ave_beam.shape[0],1)
-            #param_all_ave_nobeam = param_all_ave_nobeam.reshape(param_all_ave_nobeam.shape[0],1)
-            #print(f'param_all_ave_beam = {param_all_ave_beam}, shape = {param_all_ave_beam.shape}')
+            if monitorotfb.track_max and param in monitorotfb.list_params_max_beam:
+                param_all_max_beam  = getattr(monitorotfb, f'{param}_max_beam' )[idx_turns_to_plot]
+            else:
+                param_all_max_beam = np.empty(len(idx_turns_to_plot)) * np.NaN
+            if monitorotfb.track_ave:
+                param_all_ave_beamM  = getattr(monitorotfb, f'{param}_ave_beamM' )[idx_turns_to_plot]
+                param_all_ave_beamH  = getattr(monitorotfb, f'{param}_ave_beamH' )[idx_turns_to_plot]
+                param_all_ave_nobeam = getattr(monitorotfb, f'{param}_ave_nobeam')[idx_turns_to_plot]
+                #param_all_ave_beamH  = param_all_ave_beamH.reshape(  param_all_ave_beamH.shape[0],1)
+                #param_all_ave_nobeam = param_all_ave_nobeam.reshape(param_all_ave_nobeam.shape[0],1)
+                #print(f'param_all_ave_beamH = {param_all_ave_beamH}, shape = {param_all_ave_beamH.shape}')
 
+            # ALL
+            # Cartesian
             for axiab in [[ax0a, ax1a, ax2a, ax3a]]:
                 for ifunc in range(4):
                     unitparam_i = unit_param if ifunc < 3 else unit_angle
                     # To map this floats we need to make the iterable (i.e. a list), then just simply take the single 0-th element
-                    #val_beam   = list(map(func, [param_all_ave_beam]  ))[0]/unitparam_i
-                    if   ifunc == 0: val_beam   = np.real( param_all_ave_beam)/unitparam_i
-                    elif ifunc == 1: val_beam   = np.imag( param_all_ave_beam)/unitparam_i
-                    elif ifunc == 2: val_beam   = np.abs(  param_all_ave_beam)/unitparam_i
-                    elif ifunc == 3: val_beam   = np.angle(param_all_ave_beam)/unitparam_i
-                    #if ifunc == 3 and np.abs(val_beam) > 0.999*np.pi: val_beam = 0. # to make the +pi/-pi jumps go to zero
-                    #val_nobeam = list(map(func, [param_all_ave_nobeam]))[0]/unitparam_i
-                    if   ifunc == 0: val_nobeam = np.real( param_all_ave_nobeam)/unitparam_i
-                    elif ifunc == 1: val_nobeam = np.imag( param_all_ave_nobeam)/unitparam_i
-                    elif ifunc == 2: val_nobeam = np.abs(  param_all_ave_nobeam)/unitparam_i
-                    elif ifunc == 3: val_nobeam = np.angle(param_all_ave_nobeam)/unitparam_i
-                    #if ifunc == 3 and np.abs(val_nobeam) > 0.999*np.pi: val_nobeam = 0. # to make the +pi/-pi jumps go to zero
-                    labelbeam   = 'Ave. beam'    if ifunc == 3 else None
-                    labelnobeam = 'Ave. no-beam' if ifunc == 3 else None
+                    if monitorotfb.track_max and param in monitorotfb.list_params_max_beam:
+                        #val_max   = list(map(func, [param_all_max_beam]  ))[0]/unitparam_i
+                        if   ifunc == 0: val_max   = np.real( param_all_max_beam)/unitparam_i
+                        elif ifunc == 1: val_max   = np.imag( param_all_max_beam)/unitparam_i
+                        elif ifunc == 2: val_max   = np.abs(  param_all_max_beam)/unitparam_i
+                        elif ifunc == 3: val_max   = np.angle(param_all_max_beam)/unitparam_i
+                        labelmax  = 'Beam (max)' if ifunc == 3 else None
+                    if monitorotfb.track_ave:
+                        #val_beamM   = list(map(func, [param_all_ave_beamM]  ))[0]/unitparam_i
+                        if   ifunc == 0: val_beamM   = np.real( param_all_ave_beamM)/unitparam_i
+                        elif ifunc == 1: val_beamM   = np.imag( param_all_ave_beamM)/unitparam_i
+                        elif ifunc == 2: val_beamM   = np.abs(  param_all_ave_beamM)/unitparam_i
+                        elif ifunc == 3: val_beamM   = np.angle(param_all_ave_beamM)/unitparam_i
+                        #val_beamH   = list(map(func, [param_all_ave_beamH]  ))[0]/unitparam_i
+                        if   ifunc == 0: val_beamH   = np.real( param_all_ave_beamH)/unitparam_i
+                        elif ifunc == 1: val_beamH   = np.imag( param_all_ave_beamH)/unitparam_i
+                        elif ifunc == 2: val_beamH   = np.abs(  param_all_ave_beamH)/unitparam_i
+                        elif ifunc == 3: val_beamH   = np.angle(param_all_ave_beamH)/unitparam_i
+                        #if ifunc == 3 and np.abs(val_beamH) > 0.999*np.pi: val_beamH = 0. # to make the +pi/-pi jumps go to zero
+                        #val_nobeam = list(map(func, [param_all_ave_nobeam]))[0]/unitparam_i
+                        if   ifunc == 0: val_nobeam = np.real( param_all_ave_nobeam)/unitparam_i
+                        elif ifunc == 1: val_nobeam = np.imag( param_all_ave_nobeam)/unitparam_i
+                        elif ifunc == 2: val_nobeam = np.abs(  param_all_ave_nobeam)/unitparam_i
+                        elif ifunc == 3: val_nobeam = np.angle(param_all_ave_nobeam)/unitparam_i
+                        #if ifunc == 3 and np.abs(val_nobeam) > 0.999*np.pi: val_nobeam = 0. # to make the +pi/-pi jumps go to zero
+                        labelbeamM  = 'Beam (mid)' if ifunc == 3 else None
+                        labelbeamH  = 'Beam (ave)' if ifunc == 3 else None
+                        labelnobeam = 'No beam'    if ifunc == 3 else None
                     #
-                    axiab[ifunc].plot(turns_all/unit_t,     val_beam,   's--', label=labelbeam)   # color='k', alpha=0.50,
-                    axiab[ifunc].plot(turns_all/unit_t+0.1, val_nobeam, 'o:',  label=labelnobeam) # color='k', alpha=0.25,
-                    #for ii in range(len(val_beam)):
-                    #    # The nobeam segement is displaced by 0.1 to avoid overlap and bettter see the points in the plot
-                    #    axiab[ifunc].plot(turns_all[ii]/unit_t,     val_beam[ii],   's', color=color_cycle_nb[ii], alpha=1.00, markersize=5.0, label=labelbeam)
-                    #    axiab[ifunc].plot(turns_all[ii]/unit_t+0.1, val_nobeam[ii], 'o', color=color_cycle_nb[ii], alpha=0.50, markersize=3.3, label=labelnobeam)
+                    if monitorotfb.track_max and param in monitorotfb.list_params_max_beam:
+                        axiab[ifunc].plot(turns_all/unit_t, val_max,    '^-',  label=labelmax,    alpha=0.75, color='#0022dd')   # color='k', alpha=0.50,
+                    if monitorotfb.track_ave:
+                        axiab[ifunc].plot(turns_all/unit_t, val_beamM,  'D:',  label=labelbeamM,  alpha=0.50, color='#0033cc')  # color='k', alpha=0.50,
+                        axiab[ifunc].plot(turns_all/unit_t, val_beamH,  's--', label=labelbeamH,  alpha=0.25, color='#0044bb')  # color='k', alpha=0.50,
+                        axiab[ifunc].plot(turns_all/unit_t, val_nobeam, 'o:',  label=labelnobeam, alpha=0.50, color='#dd0000') # color='k', alpha=0.25,
+                        #for ii in range(len(val_beamH)):
+                        #    # The nobeam segement is displaced by 0.1 to avoid overlap and bettter see the points in the plot
+                        #    axiab[ifunc].plot(turns_all[ii]/unit_t,     val_beamH[ii],   's', color=color_cycle_nb[ii], alpha=1.00, markersize=5.0, label=labelbeamH)
+                        #    axiab[ifunc].plot(turns_all[ii]/unit_t+0.1, val_nobeam[ii], 'o', color=color_cycle_nb[ii], alpha=0.50, markersize=3.3, label=labelnobeam)
 
                     ####
-                    # points_beam   = np.array([turns_all/unit_t,     param_all_ave_beam  ]).T.reshape(-1,1,2)
+                    # points_beam   = np.array([turns_all/unit_t,     param_all_ave_beamH  ]).T.reshape(-1,1,2)
                     # points_nobeam = np.array([turns_all/unit_t+0.5, param_all_ave_nobeam]).T.reshape(-1,1,2)
                     # segments_beam = np.concatenate([points_beam[:-1],points_beam[1:]], axis=1)
                     # segments_nobeam = np.concatenate([points_nobeam[:-1],points_nobeam[1:]], axis=1)
@@ -1246,6 +1351,16 @@ def plot_cavityfeedback_allparams_ave_continuous_turns(outdir, monitorotfb, cavi
                     # #axiab[ifunc].autoscale()
                     # #plt.show()
 
+            # Polar: no need to add unit_angle to 1st array, as polar plots already are shown in deg
+            ms_ii = 7.5 #5.0
+
+            ax4.plot(np.angle(param_all_max_beam),   np.abs(param_all_max_beam) /unit_param,  '^-',  alpha=0.75, color='#0022dd', markerfacecolor='#0022dd', markeredgecolor='white', markersize=ms_ii) #, label=labelmax)
+            ax4.plot(np.angle(param_all_ave_beamM),  np.abs(param_all_ave_beamM)/unit_param,  'D:',  alpha=0.50, color='#0033cc', markerfacecolor='#0033cc', markeredgecolor='white', markersize=ms_ii) #, label=labelbeamM)
+            ax4.plot(np.angle(param_all_ave_beamH),  np.abs(param_all_ave_beamH)/unit_param,  's--', alpha=0.25, color='#0044bb', markerfacecolor='#0044bb', markeredgecolor='white', markersize=ms_ii) #, label=labelbeamH)
+            ax4.plot(np.angle(param_all_ave_nobeam), np.abs(param_all_ave_nobeam)/unit_param, 'o:',  alpha=0.50, color='#dd0000', markerfacecolor='#dd0000', markeredgecolor='white', markersize=ms_ii) #, label=labelnobeam)
+
+            ax4.set_ylim(0.0, 1.1*ax4.get_ylim()[-1])
+
             ax3a.set_xlabel('Turns')
 
             ax0a.set_ylabel(f'Real [{symb_param}]')
@@ -1256,6 +1371,7 @@ def plot_cavityfeedback_allparams_ave_continuous_turns(outdir, monitorotfb, cavi
             ax3a.legend(loc=1)
 
             # ax4.legend(loc=3, framealpha=1.0)
+
             figtitle = f'{param} '
             if 'sum' not in param and 'tracker' not in param:
                 if   '1' in param: ot = '1'
@@ -1263,8 +1379,8 @@ def plot_cavityfeedback_allparams_ave_continuous_turns(outdir, monitorotfb, cavi
                 cavtype_ot = getattr(getattr(cavityfeedback, f'OTFB_{ot}'), 'cavtype')
                 figtitle = figtitle + f'(1x{cavtype_ot[2:]})' if 'P' in param else figtitle + f'({cavtype_ot})'
 
-            ax0a.set_title(figtitle)
-            fig.tight_layout()
+            fig.suptitle(figtitle)
+            # fig.tight_layout()
             #fname = f'{outdir}/plot_cavityfeedback_{param}.png'
             #print(f'Saving {fname} ...')
             #fig.savefig(fname)
