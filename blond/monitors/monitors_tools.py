@@ -1031,6 +1031,9 @@ class MonitorOTFB(object):
             # setattr(self, f'n_samples_beamM_{fc}', len( getattr(self, f'indices_beamM_{fc}')))
             # setattr(self, f'n_samples_beamH_{fc}', len( getattr(self, f'indices_beam_H{fc}')))
 
+        print(self.n_samples_beam_coarse)
+        print(int(self.n_coarse_1/nbs))
+        quit()
         if self.n_samples_beam_coarse < int(self.n_coarse_1/nbs): # n_coarse_1 = n_coarse_2:
 
             fc_list = ['fine', 'coarse', 'coarseFF'] if (self.with_FF_1 or self.with_FF_2) else ['fine', 'coarse']

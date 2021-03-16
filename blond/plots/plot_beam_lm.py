@@ -34,11 +34,12 @@ elif(dirhome.startswith('/hpcscratch') ): myenv = 'hpc'       # RUNNING WITH SLU
 elif(dirhome.startswith('/home') ):       myenv = 'Ubuntu'    # RUNNING LOCALLY (UBUNTU)
 elif(dirhome.startswith('/Users')):       myenv = 'Mac'       # RUNNING LOCALLY (MAC)
 
-if(  myenv == 'afs'):   dirhome = '/afs/cern.ch/work/l/lmedinam' # When running locally in AFS, re-assign dirhome so that we use the original version of the scripts in AFS work
-elif(myenv == 'batch'): dirhome = '/afs/cern.ch/work/l/lmedinam' # When running with HTCondor,  re-assign dirhome so that we use the original version of the scripts in AFS work (we do not transfer input files, as this way it's faster)
-elif(myenv == 'hpc'):   pass                                     # When running with Slurm, no need to re-assign dirhome, as a local copy of the full BLonD_simulations exist in the Slurh home directory
-elif(myenv == 'Mac'):   pass                                     # When running with Slurm, no need to re-assign dirhome. The BLonD_simulations directory must exist there
-else:                   sys.exit('\n[!] ERROR in plot_beam_lm: NOT IMPLEMENTED!\n')
+if(  myenv == 'afs'):     dirhome = '/afs/cern.ch/work/l/lmedinam' # When running locally in AFS, re-assign dirhome so that we use the original version of the scripts in AFS work
+elif(myenv == 'batch'):   dirhome = '/afs/cern.ch/work/l/lmedinam' # When running with HTCondor,  re-assign dirhome so that we use the original version of the scripts in AFS work (we do not transfer input files, as this way it's faster)
+elif(myenv == 'hpc'):     pass                                     # When running with Slurm, no need to re-assign dirhome, as a local copy of the full BLonD_simulations exist in the Slurh home directory
+elif(myenv == 'Ubuntu'):  pass                                     # When running with Slurm, no need to re-assign dirhome. The BLonD_simulations directory must exist there
+elif(myenv == 'Mac'):     pass                                     # When running with Slurm, no need to re-assign dirhome. The BLonD_simulations directory must exist there
+else:                     sys.exit('\n[!] ERROR in plot_beam_lm: NOT IMPLEMENTED!\n')
 
 if myenv in ['afs', 'batch', 'hpc']:
     import matplotlib as mpl
