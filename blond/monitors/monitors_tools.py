@@ -1031,17 +1031,23 @@ class MonitorOTFB(object):
             # setattr(self, f'n_samples_beamM_{fc}', len( getattr(self, f'indices_beamM_{fc}')))
             # setattr(self, f'n_samples_beamH_{fc}', len( getattr(self, f'indices_beam_H{fc}')))
 
-        print(self.n_samples_beam_coarse)
-        print(int(self.n_coarse_1/nbs))
-        quit()
+        #print(self.n_samples_beam_coarse)
+        #print(int(self.n_coarse_1/nbs))
+        
         if self.n_samples_beam_coarse < int(self.n_coarse_1/nbs): # n_coarse_1 = n_coarse_2:
 
             fc_list = ['fine', 'coarse', 'coarseFF'] if (self.with_FF_1 or self.with_FF_2) else ['fine', 'coarse']
             for fc in fc_list:
                 # The middle sample of the no-beam segment (from right after the beam ends and until the end of the turn)
-                setattr(self, f'indices_nobeam_{fc}', int( np.average( np.arange( getattr(self, f'indices_beamF_{fc}')[-1] + nbs, getattr(self, f'n_coarse_{ot}') ) ) ) )
+                if fc == 'fine':
+                    self.indices_nobeam_fine     = np.array([ int( np.average( np.arange(self.indices_beamF_fine[-1]     + nbs*64, getattr(self, f'n_fine_{ot}'))   )  ) ])
+                elif fc == 'coarse':
+                    self.indices_nobeam_coarse   = np.array([ int( np.average( np.arange(self.indices_beamF_coarse[-1]   + nbs,    getattr(self, f'n_coarse_{ot}')) )  ) ])
+                elif fc == 'coarseFF':
+                    self.indices_nobeam_coarseFF = np.array([ int( np.average( np.arange(self.indices_beamF_coarseFF[-1] + nbs*5,  getattr(self, f'n_coarseFF_{ot}')) )  ) ])  # To change 5 for cavityfeedback.OTFB_ot.nbs_FF
                 # setattr(self, f'indices_nobeam_{fc}', np.arange( int(0.75*getattr(self, f'n_{fc}_1') - 0.25*getattr(self, f'n_samples_beam_{fc}')),
                 #                                                  int(0.75*getattr(self, f'n_{fc}_1') + 0.25*getattr(self, f'n_samples_beam_{fc}')) ) )
+                #print(f'indices_nobeam_{fc} =', getattr(self, f'indices_nobeam_{fc}'))
 
         else:
             # Ring full (assumes an == above, is it goes above then something is wrong):
@@ -1049,8 +1055,10 @@ class MonitorOTFB(object):
             fc_list = ['fine', 'coarse', 'coarseFF'] if (self.with_FF_1 or self.with_FF_2) else ['fine', 'coarse']
             for fc in fc_list:
                 setattr(self, f'indices_nobeam_{fc}', np.array([], dtype=int))
+                #print(f'indices_nobeam_{fc}', getattr(self, f'indices_nobeam_{fc}'))
 
-
+        #quit()
+        
         # Time arrays:
         for ot in ['1','2']:
             setattr(self, f'OTFB_{ot}_t_fine',        np.empty( shape=(0,getattr(self, f'n_fine_{ot}')) ))
