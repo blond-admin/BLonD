@@ -114,11 +114,11 @@ gconfig = {
     'title': {
                 # 's': '{}: {} vs {} vs {}',
                 'fontsize': 10,
-                # 'y': 0.83,
+                'y': 0.95,
                 # 'x': 0.55,
                 'fontweight': 'bold',
     },
-    'figsize': [5, 2.],
+    'figsize': [9, 2.],
     'annotate': {
         'fontsize': 9,
         'textcoords': 'data',
@@ -148,7 +148,7 @@ gconfig = {
     },
     'fontname': 'DejaVu Sans Mono',
 
-    'ylim': [0., 1.1],
+    'ylim': [0., 60],
     # 'ylim2': [0, 110],
     'yticks': [0, 0.2, 0.4, 0.6, 0.8, 1.0],
     # 'yticks2': [0, 20, 40, 60, 80, 100],
@@ -162,7 +162,7 @@ gconfig = {
             # '{}/{}/f32-rds-timing-gpu/comm-comp-report.csv',
             # '{}/{}/rds-timing-gpu/comm-comp-report.csv',
             '{}/{}/f32-srp-timing-gpu/comm-comp-report.csv',
-            '{}/{}/srp-timing-gpu/comm-comp-report.csv',
+            # '{}/{}/srp-timing-gpu/comm-comp-report.csv',
         ],
         'lines': {
             # 'mpi': ['mpich3', 'mvapich2', 'openmpi3'],
@@ -292,6 +292,7 @@ if __name__ == '__main__':
         # yref = yref[list(x).index(4)]
 
         pos = 0
+        vline = 0
         # step = 0.1
         width = 1.
         # width = 1. / (1*len(plots_dir.keys())+0.4)
@@ -306,6 +307,8 @@ if __name__ == '__main__':
 
             # xticks_edges.append((pos, 0))
             # dic = plots_dir[model]
+            alpha = 0.5
+            alpha_step = (1 - alpha) / (len(plots_dir.keys()) -1)
             for idx, k in enumerate(gconfig['label'].values()):
                 if k not in plots_dir[model]:
                     continue
@@ -334,17 +337,25 @@ if __name__ == '__main__':
                     legend = model
                     labels.add(model)
 
-                plt.bar(pos, speedup, width=0.95*width,
+                plt.bar(pos, speedup, width=0.9*width,
+                        color=color, alpha = alpha,
                         edgecolor=color, label=legend,
-                        hatch=gconfig['hatches'][k],
-                        color='0.75')
-
+                        # hatch=gconfig['hatches'][k],
+                        # color='0.75'
+                        )
                 ax.annotate('{:.2f}'.format(speedup),
                             xy=(pos, speedup),
                             **gconfig['annotate'])
                 xtickspos.append(pos)
                 xticks.append(label.replace('-', ''))
                 pos += width
+                alpha += alpha_step
+            ax.annotate(f'{model}',
+                        xy=((pos-width/4 + vline)/2, 0.95 * gconfig['ylim'][1]),
+                        ha='right', va='top', color=color, fontsize=10)
+            vline = pos - width/4
+            if model != gpu_models[-1]:
+                plt.axvline(vline, ls='--', color='black')
             pos += 0.5 * width
             # xticks_edges[-1][1] = pos
 
@@ -352,7 +363,8 @@ if __name__ == '__main__':
         plt.grid(False, which='major', axis='x')
         plt.gca().set_axisbelow(True)
         title = ' vs '.join(args.models)
-        plt.title(f'{case.upper()}: {title}', **gconfig['title'])
+        # plt.title(f'{case.upper()}: {title}', **gconfig['title'])
+        plt.title(f'{case.upper()}', **gconfig['title'])
         # if col == 1:
         # plt.xlabel(gconfig['xlabel'], labelpad=3,
         #            fontweight='bold',
@@ -364,10 +376,11 @@ if __name__ == '__main__':
 
         plt.xticks(xtickspos, xticks, **gconfig['xticks'])
         ax.tick_params(**gconfig['tick_params_left'])
-        plt.legend(**gconfig['legend'])
+        # plt.legend(**gconfig['legend'])
         ylims = plt.gca().get_ylim()
-        plt.ylim(ymax=ylims[1]+2)
-        # plt.ylim(gconfig['ylim'])
+        # plt.ylim(ymax=ylims[1]+2)
+        # plt.ylim(ymax=ylims[1]+2)
+        plt.ylim(gconfig['ylim'])
         # plt.yticks(gconfig['yticks'], **gconfig['ticks'])
 
         plt.tight_layout()

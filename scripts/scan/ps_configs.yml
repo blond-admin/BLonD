@@ -1339,10 +1339,15 @@ slurm:
 
 local: 
     run_configs: 
-
+        - 'srp-monitor'
+        - 'rds-monitor'
+        - 'exact'
+        - 'float32'
+        - 'f32-srp-monitor'
+        - 'f32-rds-monitor'
         # - 'precision-monitor'
         # - 'precision-seed'
-        - 'precision-timing'
+        # - 'precision-timing'
 
         # Intermediate stages
         # - 'approx0-interm'
@@ -1367,6 +1372,159 @@ local:
 
 
     configs: {
+
+        'f32-srp-monitor': {
+            'exe': ['PS_main.py'],
+            'particles': [10000000],
+            'bunches': [1],  # 192
+            'slices': [256],
+            'turns': [40000],
+            'monitor': [100],
+            'seed': [0],
+            'mtw': [50],
+            'precision': ['single'],
+            'withtp': [0],
+            'reduce': [3],
+            'approx': [1],
+            'log': [1],
+            'loadbalance': ['reportonly,,,,'],
+            'artificialdelay': ['off'],
+            'gpu': [0],
+            'timing': ['timing'],
+            'workers': [1],
+            'omp': [10],
+            'mpi': ['openmpi4'],
+            'time': [180],
+            'repeats': 1
+        },
+
+
+        'f32-rds-monitor': {
+            'exe': ['PS_main.py'],
+            'particles': [10000000],
+            'bunches': [1],  # 192
+            'slices': [256],
+            'turns': [40000],
+            'monitor': [100],
+            'seed': [0],
+            'mtw': [50],
+            'precision': ['single'],
+            'withtp': [0],
+            'reduce': [1],
+            'approx': [2],
+            'log': [1],
+            'loadbalance': ['reportonly,,,,'],
+            'artificialdelay': ['off'],
+            'gpu': [0],
+            'timing': ['timing'],
+            'workers': [4, 8],
+            'omp': [4, 2],
+            'mpi': ['openmpi4'],
+            'time': [180],
+            'repeats': 1
+        },
+
+        'srp-monitor': {
+            'exe': ['PS_main.py'],
+            'particles': [10000000],
+            'bunches': [1],  # 192
+            'slices': [256],
+            'turns': [40000],
+            'monitor': [100],
+            'seed': [0],
+            'mtw': [50],
+            'precision': ['double'],
+            'withtp': [0],
+            'reduce': [3],
+            'approx': [1],
+            'log': [1],
+            'loadbalance': ['reportonly,,,,'],
+            'artificialdelay': ['off'],
+            'gpu': [0],
+            'timing': ['timing'],
+            'workers': [1],
+            'omp': [10],
+            'mpi': ['openmpi4'],
+            'time': [180],
+            'repeats': 1
+        },
+
+
+        'rds-monitor': {
+            'exe': ['PS_main.py'],
+            'particles': [10000000],
+            'bunches': [1],  # 192
+            'slices': [256],
+            'turns': [40000],
+            'monitor': [100],
+            'seed': [0],
+            'mtw': [50],
+            'precision': ['double'],
+            'withtp': [0],
+            'reduce': [1],
+            'approx': [2],
+            'log': [1],
+            'loadbalance': ['reportonly,,,,'],
+            'artificialdelay': ['off'],
+            'gpu': [0],
+            'timing': ['timing'],
+            'workers': [4, 8],
+            'omp': [4, 2],
+            'mpi': ['openmpi4'],
+            'time': [180],
+            'repeats': 1
+        },
+
+        'exact': {
+            'exe': ['PS_main.py'],
+            'particles': [10000000],
+            'bunches': [1],  # 192
+            'slices': [256],
+            'turns': [40000],
+            'monitor': [100],
+            'seed': [0, 1, 2],
+            'mtw': [50],
+            'precision': ['double'],
+            'withtp': [0],
+            'reduce': [1],
+            'approx': [0],
+            'log': [1],
+            'loadbalance': ['reportonly,,,,'],
+            'artificialdelay': ['off'],
+            'gpu': [0],
+            'timing': ['timing'],
+            'workers': [1],
+            'omp': [10],
+            'mpi': ['openmpi4'],
+            'time': [180],
+            'repeats': 1
+        },
+
+        'float32': {
+            'exe': ['PS_main.py'],
+            'particles': [10000000],
+            'bunches': [1],  # 192
+            'slices': [256],
+            'turns': [40000],
+            'monitor': [100],
+            'seed': [0],
+            'mtw': [50],
+            'precision': ['single'],
+            'withtp': [0],
+            'reduce': [1],
+            'approx': [0],
+            'log': [1],
+            'loadbalance': ['reportonly,,,,'],
+            'artificialdelay': ['off'],
+            'gpu': [0],
+            'timing': ['timing'],
+            'workers': [1],
+            'omp': [10],
+            'mpi': ['openmpi4'],
+            'time': [180],
+            'repeats': 1
+        },
+
 
         'precision-monitor': {
             'exe': ['PS_main.py'],
