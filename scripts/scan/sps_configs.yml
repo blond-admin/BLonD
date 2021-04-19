@@ -1434,6 +1434,7 @@ local:
             'omp': [10],
             'mpi': ['mpich3'],
             'time': [180],
+            'gpu': [0],
             'repeats': 1
         },
 
