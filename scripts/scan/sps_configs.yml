@@ -1365,7 +1365,7 @@ local:
     configs: {
         'f32-srp-monitor': {
             'exe': ['SPS_main.py'],
-            'particles': [10000000],
+            'particles': [4000000],
             'bunches': [1],  # 192
             'slices': [1408],
             'turns': [40000],
@@ -1381,7 +1381,7 @@ local:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'workers': [1],
-            'omp': [10],
+            'omp': [4],
             'mpi': ['mpich3'],
             'time': [180],
             'gpu': [0],
@@ -1390,7 +1390,7 @@ local:
 
         'f32-rds-monitor': {
             'exe': ['SPS_main.py'],
-            'particles': [10000000],
+            'particles': [4000000],
             'bunches': [1],  # 192
             'slices': [1408],
             'turns': [40000],
@@ -1406,8 +1406,8 @@ local:
             'artificialdelay': ['off'],
             'gpu': [0],
             'timing': ['timing'],
-            'workers': [4, 8],
-            'omp': [4, 2],
+            'workers': [4],
+            'omp': [1],
             'mpi': ['mpich3'],
             'time': [180],
             'repeats': 1
@@ -1415,7 +1415,7 @@ local:
 
         'srp-monitor': {
             'exe': ['SPS_main.py'],
-            'particles': [10000000],
+            'particles': [4000000],
             'bunches': [1],  # 192
             'slices': [1408],
             'turns': [40000],
@@ -1431,7 +1431,7 @@ local:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'workers': [1],
-            'omp': [10],
+            'omp': [4],
             'mpi': ['mpich3'],
             'time': [180],
             'gpu': [0],
@@ -1440,7 +1440,7 @@ local:
 
         'rds-monitor': {
             'exe': ['SPS_main.py'],
-            'particles': [10000000],
+            'particles': [4000000],
             'bunches': [1],  # 192
             'slices': [1408],
             'turns': [40000],
@@ -1456,8 +1456,8 @@ local:
             'artificialdelay': ['off'],
             'gpu': [0],
             'timing': ['timing'],
-            'workers': [4, 8],
-            'omp': [4, 2],
+            'workers': [4],
+            'omp': [1],
             'mpi': ['mpich3'],
             'time': [180],
             'repeats': 1
@@ -1465,7 +1465,7 @@ local:
 
         'exact': {
             'exe': ['SPS_main.py'],
-            'particles': [10000000],
+            'particles': [4000000],
             'bunches': [1],  # 192
             'slices': [1408],
             'turns': [40000],
@@ -1482,7 +1482,7 @@ local:
             'gpu': [0],
             'timing': ['timing'],
             'workers': [1],
-            'omp': [10],
+            'omp': [4],
             'mpi': ['mpich3'],
             'time': [180],
             'repeats': 1
@@ -1490,7 +1490,7 @@ local:
 
         'float32': {
             'exe': ['SPS_main.py'],
-            'particles': [10000000],
+            'particles': [4000000],
             'bunches': [1],  # 192
             'slices': [1408],
             'turns': [40000],
@@ -1507,7 +1507,7 @@ local:
             'gpu': [0],
             'timing': ['timing'],
             'workers': [1],
-            'omp': [10],
+            'omp': [4],
             'mpi': ['mpich3'],
             'time': [180],
             'repeats': 1
