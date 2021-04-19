@@ -128,7 +128,7 @@ precision = args['precision']
 bm.use_precision(precision)
 
 bm.use_mpi()
-# bm.use_fftw()
+bm.use_fftw()
 
 worker.assignGPUs(num_gpus=args['gpu'])
 
@@ -456,15 +456,15 @@ for turn in range(n_iterations):
     #     t0 = time.time()
 
     if (approx == 0):
-        profile.track()
+        profile._slice(doReduce=False)
         # worker.sync()
         profile.reduce_histo()
     elif (approx == 1) and (turn % n_turns_reduce == 0):
-        profile.track()
+        profile._slice(doReduce=False)
         # worker.sync()
         profile.reduce_histo()
     elif (approx == 2):
-        profile.track()
+        profile._slice(doReduce=False)
         profile.scale_histo()
 
     # Change impedance of 10 MHz only if it changes

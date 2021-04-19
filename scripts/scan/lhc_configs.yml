@@ -1638,11 +1638,11 @@ condor:
 
 local: 
     run_configs: 
-        - 'srp-monitor'
+        # - 'srp-monitor'
         - 'rds-monitor'
-        - 'exact'
-        - 'float32'
-        - 'f32-srp-monitor'
+        # - 'exact'
+        # - 'float32'
+        # - 'f32-srp-monitor'
         - 'f32-rds-monitor'
         # - 'precision-monitor'
         # - 'precision-seed'
