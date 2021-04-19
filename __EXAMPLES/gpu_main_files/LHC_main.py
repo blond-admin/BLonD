@@ -227,7 +227,7 @@ mpiprint('dt std: ', np.std(beam.dE))
 mpiprint('dt mean, 1st bunch: ', np.mean(beam.dt[:n_particles]))
 mpiprint('shift ', rf.phi_rf[0, 0]/rf.omega_rf[0, 0])
 
-beam.split(random=False)
+beam.split(random=True)
 
 mpiprint("Statistics set...")
 

@@ -25,7 +25,7 @@ from blond.beam.distributions_multibunch import match_beam_from_distribution
 from blond.trackers.tracker import RingAndRFTracker, FullRingAndRF
 from blond.impedances.impedance import InducedVoltageTime, InducedVoltageFreq, TotalInducedVoltage, InductiveImpedance
 from blond.impedances.impedance_sources import Resonators
-from blond.monitors.monitors import SlicesMonitor
+from blond.monitors.monitors import MultiBunchMonitor
 from blond.utils import bmath as bm
 # Other imports
 from colormap import colormap
@@ -407,7 +407,7 @@ match_beam_from_distribution(beam, full_tracker, ring,
 mpiprint('dE mean:', np.mean(beam.dE))
 mpiprint('dE std:', np.std(beam.dE))
 
-beam.split(random=False)
+beam.split(random=True)
 
 # Tracking -------------------------------------------------------------------
 
@@ -421,12 +421,12 @@ if args['monitor'] > 0 and worker.isMaster:
         filename = 'monitorfiles/ps-t{}-p{}-b{}-sl{}-approx{}-prec{}-r{}-m{}-se{}-w{}'.format(
             n_iterations, n_particles, n_bunches, n_slices, approx, args['precision'],
             n_turns_reduce, args['monitor'], seed, worker.workers)
-    slicesMonitor = SlicesMonitor(filename=filename,
-                                  n_turns=np.ceil(
-                                      n_iterations / args['monitor']),
-                                  profile=profile,
-                                  rf=rf_params,
-                                  Nbunches=n_bunches)
+    slicesMonitor = MultiBunchMonitor(filename=filename,
+                                      n_turns=np.ceil(
+                                          n_iterations / args['monitor']),
+                                      profile=profile,
+                                      rf=rf_params,
+                                      Nbunches=n_bunches)
 
 
 if worker.hasGPU:

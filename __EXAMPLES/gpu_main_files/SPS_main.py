@@ -31,7 +31,7 @@ from blond.impedances.impedance_sources import TravelingWaveCavity
 from blond.trackers.tracker import RingAndRFTracker, FullRingAndRF
 from blond.llrf.beam_feedback import BeamFeedback
 from blond.utils.input_parser import parse
-from blond.monitors.monitors import SlicesMonitor
+from blond.monitors.monitors import MultiBunchMonitor
 from blond.utils.mpi_config import worker, mpiprint
 from blond.utils import bmath as bm
 
@@ -446,6 +446,12 @@ for copy in range(n_bunches):
     beam.dE[beginIndex:endIndex] = PS_beam.dE
     beginIndex = endIndex
 
+i = 0
+min_dt = (bunch_spacing * i + 0.5) * \
+    rf_station.t_rf[0, 0] - 0.9 * rf_station.t_rf[0, 0]
+max_dt = (bunch_spacing * i + 0.5) * \
+    rf_station.t_rf[0, 0] + 0.9 * rf_station.t_rf[0, 0]
+
 mpiprint('dE mean: ', np.mean(beam.dE))
 mpiprint('dE std: ', np.std(beam.dE))
 # profile.track()
@@ -473,12 +479,12 @@ if args['monitor'] > 0 and worker.isMaster:
         filename = 'monitorfiles/sps-t{}-p{}-b{}-sl{}-approx{}-prec{}-r{}-m{}-se{}-w{}'.format(
             n_iterations, n_particles, n_bunches, n_slices, approx, args['precision'],
             n_turns_reduce, args['monitor'], seed, worker.workers)
-    slicesMonitor = SlicesMonitor(filename=filename,
-                                  n_turns=np.ceil(
-                                      n_iterations / args['monitor']),
-                                  profile=profile,
-                                  rf=rf_station,
-                                  Nbunches=n_bunches)
+    slicesMonitor = MultiBunchMonitor(filename=filename,
+                                      n_turns=np.ceil(
+                                          n_iterations / args['monitor']),
+                                      profile=profile,
+                                      rf=rf_station,
+                                      Nbunches=n_bunches)
 
 
 if args['gpu'] > 0:
@@ -589,7 +595,11 @@ for turn in range(n_iterations):
                 if phaseLoop.alpha != 0:
                     phaseLoop.time_offset -= delta
 
+                min_dt -= delta
+                max_dt -= delta
+
     if (args['monitor'] > 0) and (turn % args['monitor'] == 0):
+        beam.losses_longitudinal_cut(min_dt, max_dt)
         beam.statistics()
         beam.gather_statistics()
         profile.fwhm_multibunch(n_bunches, bunch_spacing,
