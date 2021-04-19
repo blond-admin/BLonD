@@ -289,7 +289,7 @@ for turn in range(n_iterations):
         profile.reduce_histo()
     elif (approx == 2):
         profile.track()
-        profile.scale_histo()
+        # profile.scale_histo()
 
     # If we are in a gpu group, with tp
     if withtp and worker.gpu_id >= 0:

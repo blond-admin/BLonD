@@ -177,7 +177,7 @@ def mul(a, b, result=None):
             __lib.scalar_mul_int64(__getPointer(a), ct.c_int64(np.int64(b)),
                                    __getLen(a), __getPointer(result))
         elif (a.dtype == 'float32'):
-            __lib.scalar_mul_float64(__getPointer(a), ct.c_float(np.float32(b)),
+            __lib.scalar_mul_float32(__getPointer(a), ct.c_float(np.float32(b)),
                                      __getLen(a), __getPointer(result))
         elif (a.dtype == 'float64'):
             __lib.scalar_mul_float64(__getPointer(a), ct.c_double(np.float64(b)),
@@ -204,7 +204,7 @@ def mul(a, b, result=None):
             __lib.vector_mul_int64(__getPointer(a), __getPointer(b),
                                    __getLen(a), __getPointer(result))
         elif (a.dtype == 'float32'):
-            __lib.vector_mul_float64(__getPointer(a), __getPointer(b),
+            __lib.vector_mul_float32(__getPointer(a), __getPointer(b),
                                      __getLen(a), __getPointer(result))
         elif (a.dtype == 'float64'):
             __lib.vector_mul_float64(__getPointer(a), __getPointer(b),

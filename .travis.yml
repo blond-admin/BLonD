@@ -93,6 +93,6 @@ after_success:
   - git remote add origin https://blond-admin:${GITHUB_TOKEN}@github.com/${TRAVIS_REPO_SLUG}.git && git remote -v && cp -r ../_build/html/* . && git add -A && git status && git commit -m "Updated documentation" -n && git push origin gh-pages
   - cd $TRAVIS_BUILD_DIR
   - coveralls
-# branches:
-#   only:
-#   - master
+branches:
+  except:
+  - gpu-dev
