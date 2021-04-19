@@ -141,7 +141,7 @@ extern "C" void histogramf(const float *__restrict__ input,
 
     // allocate memory for the thread_private histogram
     // static float **histo = nullptr;
-    histo = (float **) malloc(omp_get_max_threads() * sizeof(float *));
+    float **histo = (float **) malloc(omp_get_max_threads() * sizeof(float *));
     histo[0] = (float *) malloc (omp_get_max_threads() * n_slices * sizeof(float));
     for (int i = 0; i < omp_get_max_threads(); i++)
         histo[i] = (*histo + n_slices * i);
