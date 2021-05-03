@@ -19,6 +19,7 @@ import os
 import numpy as np
 from ..utils import bmath as bm
 
+
 class BunchMonitor(object):
 
     ''' Class able to save bunch data into h5 file. Use 'buffer_time' to select 
@@ -518,13 +519,11 @@ class SlicesMonitor(object):
         self.h5group['min_dE'][i1_h5:i2_h5] = self.b_min_dE[i1_b:i2_b]
         self.h5group['max_dE'][i1_h5:i2_h5] = self.b_max_dE[i1_b:i2_b]
 
-
         self.h5group['mean_dt'][i1_h5:i2_h5] = self.b_mean_dt[i1_b:i2_b]
         self.h5group['norm_dt'][i1_h5:i2_h5] = self.b_norm_dt[i1_b:i2_b]
         self.h5group['std_dt'][i1_h5:i2_h5] = self.b_std_dt[i1_b:i2_b]
         self.h5group['min_dt'][i1_h5:i2_h5] = self.b_min_dt[i1_b:i2_b]
         self.h5group['max_dt'][i1_h5:i2_h5] = self.b_max_dt[i1_b:i2_b]
-
 
     def track(self, turn):
 
@@ -618,6 +617,19 @@ class MultiBunchMonitor(object):
                 'std_dt', self.h5file['default'], (self.n_turns, self.Nbunches),
                 dtype='float64')
 
+            self.create_data(
+                'max_dt', self.h5file['default'], (self.n_turns, self.Nbunches),
+                dtype='float64')
+            self.create_data(
+                'min_dt', self.h5file['default'], (self.n_turns, self.Nbunches),
+                dtype='float64')
+            self.create_data(
+                'max_dE', self.h5file['default'], (self.n_turns, self.Nbunches),
+                dtype='float64')
+            self.create_data(
+                'min_dE', self.h5file['default'], (self.n_turns, self.Nbunches),
+                dtype='float64')
+
             self.b_mean_dE = np.zeros(
                 (self.buffer_size, self.Nbunches), dtype=float)
             self.b_mean_dt = np.zeros(
@@ -632,6 +644,16 @@ class MultiBunchMonitor(object):
                 (self.buffer_size, self.Nbunches), dtype=float)
             self.b_std_dt = np.zeros(
                 (self.buffer_size, self.Nbunches), dtype=float)
+
+            self.b_max_dE = np.zeros(
+                (self.buffer_size, self.Nbunches), dtype=float)
+            self.b_min_dE = np.zeros(
+                (self.buffer_size, self.Nbunches), dtype=float)
+            self.b_max_dt = np.zeros(
+                (self.buffer_size, self.Nbunches), dtype=float)
+            self.b_min_dt = np.zeros(
+                (self.buffer_size, self.Nbunches), dtype=float)
+
 
     def __del__(self):
         if self.i_turn > self.last_save:
@@ -665,6 +687,10 @@ class MultiBunchMonitor(object):
             self.b_std_dE[idx] = self.beam.sigma_dE
             self.b_std_dt[idx] = self.beam.sigma_dt
             self.b_dE_norm[idx] = self.rf.voltage[0, turn]
+            self.b_min_dE[idx] = self.beam.min_dE
+            self.b_max_dE[idx] = self.beam.max_dE
+            self.b_min_dt[idx] = self.beam.min_dt
+            self.b_max_dt[idx] = self.beam.max_dt
 
             if turn == 0:
                 self.b_dt_norm[idx] = self.rf.t_rev[0] * self.rf.eta_0[0] * \
@@ -697,6 +723,10 @@ class MultiBunchMonitor(object):
             self.h5group['mean_dt'][i1_h5:i2_h5] = self.b_mean_dt[i1_b:i2_b]
             self.h5group['std_dE'][i1_h5:i2_h5] = self.b_std_dE[i1_b:i2_b]
             self.h5group['std_dt'][i1_h5:i2_h5] = self.b_std_dt[i1_b:i2_b]
+            self.h5group['min_dE'][i1_h5:i2_h5] = self.b_min_dE[i1_b:i2_b]
+            self.h5group['max_dE'][i1_h5:i2_h5] = self.b_max_dE[i1_b:i2_b]
+            self.h5group['min_dt'][i1_h5:i2_h5] = self.b_min_dt[i1_b:i2_b]
+            self.h5group['max_dt'][i1_h5:i2_h5] = self.b_max_dt[i1_b:i2_b]
 
     def track(self, turn):
 
