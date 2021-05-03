@@ -434,15 +434,15 @@ class Profile(object):
         for op in self.operations:
             op()
 
-    def _slice(self, doReduce=True):
+    def _slice(self):
         """
         Constant space slicing with a constant frame.
         """
         bm.slice(self.Beam.dt, self.n_macroparticles, self.cut_left,
                  self.cut_right)
 
-        if bm.mpiMode() and doReduce:
-            self.reduce_histo()
+        # if bm.mpiMode():
+            # self.reduce_histo()
 
     def reduce_histo(self, dtype=np.uint32):
         if not bm.mpiMode():

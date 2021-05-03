@@ -518,15 +518,15 @@ for turn in range(n_iterations):
 
     # Update profile
     if (approx == 0):
-        profile._slice(doReduce=False)
+        profile._slice()
         # worker.sync()
         profile.reduce_histo()
     elif (approx == 1) and (turn % n_turns_reduce == 0):
-        profile._slice(doReduce=False)
+        profile._slice()
         # worker.sync()
         profile.reduce_histo()
     elif (approx == 2):
-        profile._slice(doReduce=False)
+        profile._slice()
         profile.scale_histo()
 
     # If we are in a gpu group, with tp
