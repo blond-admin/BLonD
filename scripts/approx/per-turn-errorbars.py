@@ -62,8 +62,9 @@ parser.add_argument('-s', '--show', action='store_true',
 
 parser.add_argument('-e', '--error', choices=['mean_dt1', 'mean_dE1',
                                               'mean_dt2', 'mean_dE2',
-                                              'mean_dt4', 'mean_dE4',
-                                              'mean_dt3', 'mean_dE3'],
+                                              'mean_dt3', 'mean_dE3',
+                                              'mean_dt4', 'mean_dt5',
+                                              ],
                     nargs='+',
                     default=['mean_dt1', 'mean_dE1'], help='Which variable to use for the error plotting.')
 
@@ -90,7 +91,7 @@ gconfig = {
         # 'x': 0.45,
         'fontweight': 'bold',
     },
-    'figsize': [3, 3],
+    'figsize': [5, 3],
     'annotate': {
         'fontsize': 9,
         'textcoords': 'data',
@@ -106,7 +107,7 @@ gconfig = {
         # 'bbox_to_anchor': (0., 1.05)
     },
     'subplots_adjust': {
-        'wspace': 0.0, 'hspace': 0.1, 'top': 0.93
+        'wspace': 0.1, 'hspace': 0.1, 'top': 0.93
     },
     'tick_params': {
         'pad': 1, 'top': 0, 'bottom': 1, 'left': 1,
@@ -184,8 +185,14 @@ gconfig = {
             'y': 'np.abs(np.mean(inputd["mean_dt"]/gconfig["norm"]["dt"][case]))',
             'yerr': 'np.std(inputd["mean_dt"]/gconfig["norm"]["dt"][case])',
         },
+        'mean_dt5': {
+            'label': r'$\overline{t} / t_{rev}$',
+            'y': 'np.abs(np.mean((inputd["mean_dt"] - based["mean_dt"])/gconfig["norm"]["dt"][case]))',
+            'yerr': 'np.std(inputd["mean_dt"]/gconfig["norm"]["dt"][case])',
+            'ylim': [-0.015, 0.015],
+        },
     },
-    'norm':{
+    'norm': {
         'dt': {
             'sps': 5e-9,
             'lhc': 2.5e-9,
@@ -201,13 +208,14 @@ gconfig = {
     'errorbar': {
         'ecolor': 'xkcd:blue',
         'elinewidth': 1,
-        'capsize': 5,
+        'capsize': 6,
         'color': 'xkcd:black',
-        'marker': 'D',
+        'marker': 'x',
         'markersize': 5,
         'ls': '',
     },
     # 'xlim': [1.6, 36],
+    'ylim': [0.35, 0.5],
     # 'yticks': [0.00001, 0.0001, 0.001, 0.01, 0.1, 1],
     'outfiles': ['{}/{}-{}.png',
                  # '{}/{}-{}.pdf'
@@ -222,6 +230,16 @@ gconfig = {
         'rds': 'rds-monitor',
         'f32-rds': 'f32-rds-monitor',
         'base': 'exact',
+    },
+    'xlabels': {
+        'f32': 'f32',
+        'f32-srp': 'SRP-f32',
+        'seed1': 'Ref1',
+        'seed2': 'Ref2',
+        'srp': 'SRP',
+        'rds': 'RDS',
+        'f32-rds': 'RDS-f32',
+        'base': 'Base',
     },
     'plots': {
         'ps-f32': {
@@ -437,16 +455,52 @@ if __name__ == '__main__':
     # techniques = args.techniques
 
     # There will be one plot per testcase
-    for case in args.cases:
-        for err_name in args.error:
-            fig, ax = plt.subplots(ncols=1, nrows=1,
-                                   sharex=True, sharey=True,
-                                   figsize=gconfig['figsize'])
+    for err_name in args.error:
+        fig, axarr = plt.subplots(ncols=len(args.cases), nrows=1,
+                               sharex=False, sharey=True,
+                               figsize=gconfig['figsize'])
+        for case, ax in zip(args.cases, axarr):
+            plt.sca(ax)
             pos = 0
             step = 1
             width = .7 * step
             xtickspos = []
             xticks = []
+
+            # read basefile
+            tech = 'base'
+            rootdir = os.path.join(indir, case, gconfig['techniques'][tech])
+            fullfile = None
+            for root, dirs, files in os.walk(rootdir):
+                if 'monitor.h5' not in files:
+                    continue
+                if tech == 'base' and 'seed0' not in root:
+                    continue
+                if 'seed' in tech and tech not in root:
+                    continue
+                fullfile = os.path.join(root, 'monitor.h5')
+                break
+
+            tempd = {}
+
+            # Read basefile
+            if fullfile is None:
+                print(f'File:{case}-{tech} not found')
+                continue
+            # assert fullfile is not None,
+            h5file = h5py.File(fullfile, 'r')
+            for key in h5file[gconfig['group']]:
+                val = h5file[gconfig['group']][key][()]
+                if key not in tempd:
+                    # tempd[keyf][key] = val.reshape(len(val))
+                    tempd[key] = val.flatten()
+                tempd[key] = tempd[key][first_t:]
+                if last_t:
+                    tempd[key] = tempd[key][:last_t]
+            h5file.close()
+            based = tempd.copy()
+            turns = based[gconfig['x_name']]
+
             # I need to collect the data
             # It's best if I collect, plot, then continue
             for tech in args.techniques:
@@ -464,28 +518,14 @@ if __name__ == '__main__':
                     fullfile = os.path.join(root, 'monitor.h5')
                     break
 
-                # inkey = f'{case}-{tech}'
-                # infiles = gconfig['plots'][inkey]['in']
-
-                # for infk, infv in infiles.items():
-                #     infiles[infk] = infv.format(indir, case)
-
                 tempd = {}
 
                 # Read infile
-                # keyf = infiles.keys()
-                # assert len(keyf) == 1, 'This script needs only 1 key per input'
-                # keyf = list(infiles.keys())[0]
-                # fullfile = infiles[keyf]
-                # for keyf, infile in infiles.items():
-                # fullfile = infile
                 if fullfile is None:
                     print(f'File:{case}-{tech} not found')
                     continue
-                # assert fullfile is not None, 
+                # assert fullfile is not None,
                 h5file = h5py.File(fullfile, 'r')
-                # if keyf not in tempd:
-                #     tempd[keyf] = {}
                 for key in h5file[gconfig['group']]:
                     val = h5file[gconfig['group']][key][()]
                     if key not in tempd:
@@ -494,12 +534,10 @@ if __name__ == '__main__':
                     tempd[key] = tempd[key][first_t:]
                     if last_t:
                         tempd[key] = tempd[key][:last_t]
-
                 h5file.close()
-                # assert np.array_equal(turns, tempd[keyf][gconfig['x_name']])
-                # del tempd[keyf][gconfig['x_name']]
                 inputd = tempd.copy()
-                turns = inputd[gconfig['x_name']]
+
+                assert np.array_equal(turns, inputd[gconfig['x_name']])
 
                 points = min(len(turns), points) if points > 0 else len(turns)
                 intv = int(np.ceil(len(turns)/points))
@@ -514,41 +552,27 @@ if __name__ == '__main__':
                 plt.errorbar(y, pos, xerr=yerr, **gconfig['errorbar'])
                 print("yerr:", yerr)
                 xtickspos.append(pos)
-                xticks.append(tech)
+                xticks.append(gconfig['xlabels'][tech])
                 pos += step
-            # plt.yscale('log')
+            
             plt.grid(True, which='both', axis='both', alpha=0.5)
-            # plt.grid(False, which='major', axis='x')
             title = '{}-{}'.format(case.upper(),
                                    gconfig['formulas'][err_name]['label'])
             plt.title(title, **gconfig['title'])
-            # plt.xlabel(**gconfig['xlabel'])
-            # plt.ylabel(**gconfig['ylabel'])
-            # if gconfig['boxplot']['vert'] == True:
-
-            # plt.ylim(gconfig['ylim'])
+            # ylim = gconfig['formulas'][err_name].get('ylim', gconfig.get('ylim', []))
+            # plt.xlim(ylim)
             plt.yticks(xtickspos, xticks, **gconfig['ticks'])
-            # yticks = ['{:1.0e}'.format(10**i) for i in range(gconfig['ylim'][0],
-            #                                                  gconfig['ylim'][1]+1)]
-            # plt.yticks(np.arange(gconfig['ylim'][0],
-            #                      gconfig['ylim'][1]+1), yticks, **gconfig['ticks'])
-            # else:
-            #     plt.yticks(xtickspos, xticks, **gconfig['ticks'])
-            #     ylims = gconfig['ylim'][case]
-            #     yticks = ['{:1.0e}'.format(10**i) for i in range(ylims[0], ylims[1]+1)]
-            #     plt.xlim(ylims)
-            #     plt.xticks(np.arange(ylims[0], ylims[1]+1),
-            #                yticks, **gconfig['ticks'])
+            plt.ticklabel_format(axis='x', style='scientific', scilimits=(0,0))
+            plt.tight_layout()
 
             ax.tick_params(**gconfig['tick_params'])
-            plt.tight_layout()
-            # plt.subplots_adjust(**gconfig['subplots_adjust'])
-            for file in gconfig['outfiles']:
-                file = file.format(images_dir, this_filename[: -3], f'{case.upper()}-{err_name}')
-                print('[{}] {}: {}'.format(
-                    this_filename[: -3], 'Saving figure', file))
+        plt.subplots_adjust(**gconfig['subplots_adjust'])
+        for file in gconfig['outfiles']:
+            file = file.format(images_dir, this_filename[: -3], f'{case.upper()}-{err_name}')
+            print('[{}] {}: {}'.format(
+                this_filename[: -3], 'Saving figure', file))
 
-                save_and_crop(fig, file, dpi=600, bbox_inches='tight')
-            if args.show:
-                plt.show()
-            plt.close()
+            save_and_crop(fig, file, dpi=600, bbox_inches='tight')
+        if args.show:
+            plt.show()
+        plt.close()
