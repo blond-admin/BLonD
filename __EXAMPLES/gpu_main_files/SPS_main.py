@@ -97,16 +97,21 @@ withtp = bool(args['withtp'])
 precision = args['precision']
 
 if args['monitor']:
-    monitor_interval, monitor_firstturn, monitor_lastturn = args['monitor'].split(
-        ',')
+    split_args = args['monitor'].split(',')
+    monitor_interval = split_args[0]
     monitor_interval = int(monitor_interval) if monitor_interval else 0
-    monitor_firstturn = int(monitor_firstturn) if monitor_firstturn else 0
-    monitor_firstturn = monitor_firstturn if monitor_firstturn >= 0 else n_iterations+monitor_firstturn
-    monitor_lastturn = int(
-        monitor_lastturn) if monitor_lastturn else n_iterations - 1
-    monitor_lastturn = monitor_lastturn if monitor_lastturn >= 0 else n_iterations+monitor_lastturn
     assert (monitor_interval >= 0)
-    # assert (monitor_firstturn >= 0 and monitor_firstturn <= monitor_lastturn)
+
+    if len(split_args) > 1:
+        monitor_firstturn = int(split_args[1])
+        monitor_firstturn = monitor_firstturn if monitor_firstturn >= 0 else n_iterations+monitor_firstturn
+    else:
+        monitor_firstturn = 0
+    if len(split_args) > 2:
+        monitor_lastturn = int(split_args[2])
+        monitor_lastturn = monitor_lastturn if monitor_lastturn >= 0 else n_iterations+monitor_lastturn+1
+    else:
+        monitor_lastturn = n_iterations
 
 bm.use_precision(precision)
 
@@ -613,7 +618,7 @@ for turn in range(n_iterations):
                 max_dt -= delta
 
     if (args['monitor'] and monitor_interval > 0) and \
-            (turn >= monitor_firstturn and turn <= monitor_lastturn) and
+            (turn >= monitor_firstturn and turn < monitor_lastturn) and \
             (turn % monitor_interval == 0):
         beam.losses_longitudinal_cut(min_dt, max_dt)
         beam.statistics()
@@ -639,7 +644,7 @@ timing.report(total_time=1e3*(end_t-start_t),
 
 worker.finalize()
 
-if args['monitor']:
+if args['monitor'] and monitor_interval > 0:
     slicesMonitor.close()
 
 mpiprint('dE mean: ', np.mean(beam.dE))
