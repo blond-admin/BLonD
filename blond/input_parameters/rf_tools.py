@@ -325,8 +325,8 @@ class RFTools(object):
                                                                                                                       eta0,
                                                                                                                       beta,
                                                                                                                       energy)
-            list_separatrix_time.append(np.ascontiguosarray(separatrix_time_i))
-            list_separatrix.append(np.ascontiguosarray(separatrix_i))
+            list_separatrix_time.append(np.ascontiguousarray(separatrix_time_i))
+            list_separatrix.append(np.ascontiguousarray(separatrix_i))
             list_H.append(H_i)
             list_A.append(A_i)
             list_BucketHalfHeight.append(BucketHalfHeight_i)

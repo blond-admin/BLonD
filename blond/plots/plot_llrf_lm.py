@@ -1006,6 +1006,8 @@ def plot_cavityfeedback_allparams_continuous(outdir, monitorotfb, cavityfeedback
                 mycm = plt.get_cmap('coolwarm')
                 color_cycle_nb = [mycm(ii/(len(turns_to_plot)-1.)) for ii in idx_turns_to_plot]
                 color_cycle_nb[-1] = 'k' # Last (current) turn always black
+                # color_cycle_nb = [mycm(ii/(len(turns_to_plot[:-1])-1.)) for ii in idx_turns_to_plot[:-1]]
+                # color_cycle_nb.append('k') # Last (current) turn always black
 
             if 'coarse' in param: #and twindow <= 551e-9:
                 mysty = '.-'
@@ -1037,17 +1039,18 @@ def plot_cavityfeedback_allparams_continuous(outdir, monitorotfb, cavityfeedback
             for ii in idx_turns_to_plot:
 
                 turn_ii = turns_to_plot[ii]
+                # print(ii, turn_ii)
 
                 color_ii = color_cycle_nb[ii] # To use the color map
 
                 param_ii = getattr(monitorotfb, param)[ii]
                 bucket_centres_shift = getattr(cavityfeedback, f'OTFB_{ot}').TWC.tau if 'long' in monitorotfb.time_arrays_dict[param] else 0.0
                 time_ii  = getattr(monitorotfb, monitorotfb.time_arrays_dict[param])[ii] - bucket_centres_shift
-               #print(param, param_ii.shape, monitorotfb.time_arrays_dict[param], time_ii.shape)
+                # print(param, param_ii.shape, monitorotfb.time_arrays_dict[param], time_ii.shape)
 
                 if monitorotfb.track_max and param in monitorotfb.list_params_max_beam:
                     param_ii_max_beam   = getattr(monitorotfb, f'{param}_max_beam')[ii]
-                    t_ii_max_beam  = turn_ii*t_rev_0/unit_t + time_ii[ getattr(monitorotfb, f'index_max_beam_{param}')[ii] ] # Doesnt need the correction, the index for max for Q_gen and P_gen (long params) was already saved in the proper array
+                    t_ii_max_beam  = turn_ii*t_rev_0 + time_ii[ getattr(monitorotfb, f'index_max_beam_{param}')[ii] ] # Doesnt need the correction, the index for max for Q_gen and P_gen (long params) was already saved in the proper array
                 else:
                     param_ii_max_beam = np.NaN
                     t_ii_max_beam     = np.NaN
@@ -1055,10 +1058,10 @@ def plot_cavityfeedback_allparams_continuous(outdir, monitorotfb, cavityfeedback
                     param_ii_ave_beamM  = getattr(monitorotfb, f'{param}_ave_beamM' )[ii]
                     param_ii_ave_beamH  = getattr(monitorotfb, f'{param}_ave_beamH' )[ii] # np.average(param_ii[ getattr(monitorotfb, f'indices_beamH_{fc}') ])
                     param_ii_ave_nobeam = getattr(monitorotfb, f'{param}_ave_nobeam')[ii] # np.average(param_ii[ getattr(monitorotfb, f'indices_nobeam_{fc}')])
-                    t_ii_ave_beamM  = turn_ii*t_rev_0/unit_t + time_ii[ int(np.average( getattr(monitorotfb, f'indices_beamM_{fc}')  + (getattr(monitorotfb, f'n_mov_av_{fc}_{ot}') if 'long' in monitorotfb.time_arrays_dict[param] else 0) )) ]
-                    t_ii_ave_beamH  = turn_ii*t_rev_0/unit_t + time_ii[ int(np.average( getattr(monitorotfb, f'indices_beamH_{fc}')  + (getattr(monitorotfb, f'n_mov_av_{fc}_{ot}') if 'long' in monitorotfb.time_arrays_dict[param] else 0) )) ]
+                    t_ii_ave_beamM  = turn_ii*t_rev_0 + time_ii[ int(np.average( getattr(monitorotfb, f'indices_beamM_{fc}')  + (getattr(monitorotfb, f'n_mov_av_{fc}_{ot}') if 'long' in monitorotfb.time_arrays_dict[param] else 0) )) ]
+                    t_ii_ave_beamH  = turn_ii*t_rev_0 + time_ii[ int(np.average( getattr(monitorotfb, f'indices_beamH_{fc}')  + (getattr(monitorotfb, f'n_mov_av_{fc}_{ot}') if 'long' in monitorotfb.time_arrays_dict[param] else 0) )) ]
                     if not np.isnan(param_ii_ave_nobeam):
-                        t_ii_ave_nobeam = turn_ii*t_rev_0/unit_t + time_ii[ int(np.average( getattr(monitorotfb, f'indices_nobeam_{fc}') + (getattr(monitorotfb, f'n_mov_av_{fc}_{ot}') if 'long' in monitorotfb.time_arrays_dict[param] else 0) )) ]
+                        t_ii_ave_nobeam = turn_ii*t_rev_0 + time_ii[ int(np.average( getattr(monitorotfb, f'indices_nobeam_{fc}') + (getattr(monitorotfb, f'n_mov_av_{fc}_{ot}') if 'long' in monitorotfb.time_arrays_dict[param] else 0) )) ]
 
                 if monitorotfb.profile is not None:
                     # Profile stored at the corresponding turn in monitorotfb
@@ -1066,12 +1069,12 @@ def plot_cavityfeedback_allparams_continuous(outdir, monitorotfb, cavityfeedback
                     profile_n_macroparticles_ii = monitorotfb.profile_n_macroparticles[ii]
                 else:
                     # Profile at the current turn only: should not be used with PL
-                    if ii == idx_turns_to_plot[-1]:
-                        profile_bin_centers_ii      = profile.bin_centers[:]
-                        profile_n_macroparticles_ii = profile.n_macroparticles[:]
-                    else:
-                        profile_bin_centers_ii      = None
-                        profile_n_macroparticles_ii = None
+                    # if ii == idx_turns_to_plot[-1]:
+                    profile_bin_centers_ii      = profile.bin_centers[:]
+                    profile_n_macroparticles_ii = profile.n_macroparticles[:]
+                    # else:
+                    #     profile_bin_centers_ii      = None
+                    #     profile_n_macroparticles_ii = None
 
                 # SPECIAL CASE: totalinducedvoltage + Vind_tot_fine, so it is at the background
                 if total_induced_voltage_extra is not None and param in ['OTFB_sum_Vind_tot_fine'] and ii == idx_turns_to_plot[-1]: # Only for last (current) turn
@@ -1116,8 +1119,8 @@ def plot_cavityfeedback_allparams_continuous(outdir, monitorotfb, cavityfeedback
                             # # Edges
                             # axia2[ifunc].axvline(turn_ii*t_rev_0/unit_t + (profile_bin_centers_ii[profile_bucket_centres[0]]  + bucket_centres_shift)/unit_t, color=color_ii, alpha=0.5/(len(turns_to_plot)+1), zorder=1) # max(1.0/(len(turns_to_plot)+1), 1.0/(monitorotfb.i0+1)), zorder=0)
                             # axia2[ifunc].axvline(turn_ii*t_rev_0/unit_t + (profile_bin_centers_ii[profile_bucket_centres[-1]] + bucket_centres_shift)/unit_t, color=color_ii, alpha=0.5/(len(turns_to_plot)+1), zorder=1) # max(1.0/(len(turns_to_plot)+1), 1.0/(monitorotfb.i0+1)), zorder=0)
-                            axia2[ifunc].axvline(turn_ii*t_rev_0/unit_t + profile_bin_centers_ii[profile_bucket_centres[0]] /unit_t, color=color_ii, alpha=0.5/(len(turns_to_plot)+1) if monitorotfb.profile is not None else 0.125, zorder=1) # max(1.0/(len(turns_to_plot)+1), 1.0/(monitorotfb.i0+1)), zorder=0)
-                            axia2[ifunc].axvline(turn_ii*t_rev_0/unit_t + profile_bin_centers_ii[profile_bucket_centres[-1]]/unit_t, color=color_ii, alpha=0.5/(len(turns_to_plot)+1) if monitorotfb.profile is not None else 0.125, zorder=1) # max(1.0/(len(turns_to_plot)+1), 1.0/(monitorotfb.i0+1)), zorder=0)
+                            axia2[ifunc].axvline(turn_ii*t_rev_0/unit_t + profile_bin_centers_ii[profile_bucket_centres[0]] /unit_t, color=color_ii, alpha=0.125, zorder=1) # max(1.0/(len(turns_to_plot)+1), 1.0/(monitorotfb.i0+1)), zorder=0)
+                            axia2[ifunc].axvline(turn_ii*t_rev_0/unit_t + profile_bin_centers_ii[profile_bucket_centres[-1]]/unit_t, color=color_ii, alpha=0.125, zorder=1) # max(1.0/(len(turns_to_plot)+1), 1.0/(monitorotfb.i0+1)), zorder=0)
 
                 # ALL
                 # Cartesian
@@ -1165,21 +1168,21 @@ def plot_cavityfeedback_allparams_continuous(outdir, monitorotfb, cavityfeedback
                                 elif ifunc == 3: val_nobeam = np.angle(param_ii_ave_nobeam)/unitparam_i
                                 #if ifunc == 3 and np.abs(val_nobeam) > 0.999*np.pi: val_nobeam = 0. # to make the +pi/-pi jumps go to zero
                         if monitorotfb.track_max and param in monitorotfb.list_params_max_beam:
-                            # The lines cannot be axhline any more, but extend only over the turn (except for 1st and last, for reference)
-                            if ii == idx_turns_to_plot[0] or ii == idx_turns_to_plot[-1]:
-                                axiab[ifunc].axhline(val_max,  color=color_ii, ls='--', alpha=0.75)
+                            # # The lines cannot be axhline any more, but extend only over the turn (except for 1st and last, for reference)
+                            # if ii == idx_turns_to_plot[0] or ii == idx_turns_to_plot[-1]:
+                            #     axiab[ifunc].axhline(val_max,  color=color_ii, ls='--', alpha=0.75)
                             axiab[ifunc].plot( t_ii_max_beam/unit_t, val_max,  '^', markersize=10.0, markerfacecolor=color_ii, markeredgecolor='white')
                         if monitorotfb.track_ave:
-                            # The lines cannot be axhline any more, but extend only over the turn (except for 1st and last, for reference)
-                            if ii == idx_turns_to_plot[0] or ii == idx_turns_to_plot[-1]:
-                                axiab[ifunc].axhline(val_beamM,  color=color_ii, ls=':',  alpha=0.50)
-                                axiab[ifunc].axhline(val_beamH,  color=color_ii, ls='--', alpha=0.25)
-                                if not np.isnan(param_ii_ave_nobeam):
-                                    axiab[ifunc].axhline(val_nobeam, color=color_ii, ls=':',  alpha=0.50)
-                            axiab[ifunc].plot( t_ii_ave_beamM /unit_t, val_beamM,  'D', markersize=10.0, markerfacecolor=color_ii, markeredgecolor='white')
-                            axiab[ifunc].plot( t_ii_ave_beamH /unit_t, val_beamH,  's', markersize=10.0, markerfacecolor=color_ii, markeredgecolor='white')
+                            # # The lines cannot be axhline any more, but extend only over the turn (except for 1st and last, for reference)
+                            # if ii == idx_turns_to_plot[0] or ii == idx_turns_to_plot[-1]:
+                            #     axiab[ifunc].axhline(val_beamM,  color=color_ii, ls=':',  alpha=0.50)
+                            #     axiab[ifunc].axhline(val_beamH,  color=color_ii, ls='--', alpha=0.25)
+                            #     if not np.isnan(param_ii_ave_nobeam):
+                            #         axiab[ifunc].axhline(val_nobeam, color=color_ii, ls=':',  alpha=0.50)
+                            axiab[ifunc].plot( t_ii_ave_beamM /unit_t, val_beamM,  'D', markersize=7.5, markerfacecolor=color_ii, markeredgecolor='white')
+                            axiab[ifunc].plot( t_ii_ave_beamH /unit_t, val_beamH,  's', markersize=7.5, markerfacecolor=color_ii, markeredgecolor='white')
                             if not np.isnan(param_ii_ave_nobeam):
-                                axiab[ifunc].plot( t_ii_ave_nobeam/unit_t, val_nobeam, 'o', markersize= 7.5, markerfacecolor=color_ii, markeredgecolor='white')
+                                axiab[ifunc].plot( t_ii_ave_nobeam/unit_t, val_nobeam, 'o', markersize=7.5, markerfacecolor=color_ii, markeredgecolor='white')
 
                     # Vertical line at the end of each turn: t_rev
                     for axi in [ax0a, ax1a, ax2a, ax3a]: #[ax0b, ax1b, ax2b, ax3b]:

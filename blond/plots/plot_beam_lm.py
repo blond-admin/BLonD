@@ -327,7 +327,7 @@ def plot_beam_vs_turn(attr, outdir, scalefactor=None):  # Formally, we should pa
 
             if(attr == 'nmacrop'):
                 if(spi == 0):
-                    ax1[spi, 0].legend(loc=3, ncol=2)
+                    ax1[spi, 0].legend(loc=1, ncol=2)
             else:
                 if(  spi == 0): ax1[spi, 0].legend(loc=2, ncol=2)
 
@@ -776,7 +776,7 @@ def plot_beam_vs_bn(attr, outdir, turn_bn=None, scalefactor=None):  # Formally, 
 
             if(attr == 'nmacrop'):
                 if(spi == 0):
-                    ax1[spi, 0].legend(loc=3, ncol=2)
+                    ax1[spi, 0].legend(loc=1, ncol=2)
             else:
                 if(  spi == 0): ax1[spi, 0].legend(loc=2, ncol=2)
                 elif(spi == 1): ax1[spi, 0].legend(loc=1, ncol=2)

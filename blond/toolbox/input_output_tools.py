@@ -28,7 +28,7 @@ def move_directory_content(root_src_dir, root_dst_dir):
                     continue
                 os.remove(dst_file)
             shutil.move(src_file, dst_dir)
-            
+
 # Print object parameters =====================================================
 
 def print_object_attributes(obj, ok=True, onlyattr=False):
@@ -60,6 +60,27 @@ def print_object_attributes(obj, ok=True, onlyattr=False):
         print('')
 
     return None
+
+def print_complex_parameter(name, x, fact_unit=None, deg=True):
+    ''' fact_unit is a tuple (fact=float, unit=str) '''
+
+    if isinstance(fact_unit, tuple) and len(fact_unit):
+        fact = float(fact_unit[0])
+        unit = ' '+str(fact_unit[1])
+    else:
+        fact = 1
+        unit = ''
+    if deg:
+        unit_deg = ' '+'deg'
+    else:
+        unit_deg = ' '+'rad'
+    print(f'{name}: {x/fact}{unit}, abs = {np.abs(x)/fact}{unit}, ang = {np.angle(x, deg=deg)}{unit_deg}', end='')
+    if isinstance(x, np.ndarray):
+        print(f', shape = {x.shape}')
+    else:
+        print('')
+
+
 
 ###############################################################################
 
