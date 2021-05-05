@@ -85,6 +85,19 @@ timing.mode = args['time']
 os.environ['OMP_NUM_THREADS'] = str(args['omp'])
 withtp = bool(args['withtp'])
 precision = args['precision']
+if args['monitor']:
+    monitor_interval, monitor_firstturn, monitor_lastturn = args['monitor'].split(
+        ',')
+    monitor_interval = int(monitor_interval) if monitor_interval else 0
+    monitor_firstturn = int(monitor_firstturn) if monitor_firstturn else 0
+    monitor_firstturn = monitor_firstturn if monitor_firstturn >= 0 else n_iterations+monitor_firstturn
+    monitor_lastturn = int(
+        monitor_lastturn) if monitor_lastturn else n_iterations - 1
+    monitor_lastturn = monitor_lastturn if monitor_lastturn >= 0 else n_iterations+monitor_lastturn
+
+    assert (monitor_interval >= 0)
+    # assert (monitor_firstturn >= 0 and monitor_firstturn <= monitor_lastturn)
+
 bm.use_precision(precision)
 
 bm.use_mpi()
@@ -235,7 +248,7 @@ mpiprint("Statistics set...")
 mpiprint("Map set")
 
 
-if args['monitor'] > 0 and worker.isMaster:
+if args['monitor'] and monitor_interval > 0 and worker.isMaster:
     if args.get('monitorfile', None):
         filename = args['monitorfile']
     else:
@@ -243,11 +256,12 @@ if args['monitor'] > 0 and worker.isMaster:
             n_iterations, n_particles, n_bunches, n_slices, approx, args['precision'],
             n_turns_reduce, args['monitor'], seed, worker.workers)
     multiBunchMonitor = MultiBunchMonitor(filename=filename,
-                                      n_turns=np.ceil(
-                                          n_iterations / args['monitor']),
-                                      profile=profile,
-                                      rf=rf,
-                                      Nbunches=n_bunches)
+                                          n_turns=np.ceil(
+                                              (monitor_lastturn-monitor_firstturn) /
+                                              monitor_interval),
+                                          profile=profile,
+                                          rf=rf,
+                                          Nbunches=n_bunches)
 
 # bm.GPU(args['gpu'])
 if worker.hasGPU:
@@ -330,7 +344,9 @@ for turn in range(n_iterations):
 
     tracker.track_only()
 
-    if (args['monitor'] > 0) and (turn % args['monitor'] == 0):
+    if (args['monitor'] and monitor_interval > 0) and \
+            (turn >= monitor_firstturn and turn <= monitor_lastturn) and
+            (turn % monitor_interval == 0):
         beam.statistics()
         beam.gather_statistics()
         profile.fwhm_multibunch(n_bunches, bunch_spacing_buckets,
@@ -352,7 +368,7 @@ timing.report(total_time=1e3*(end_t-start_t),
 
 worker.finalize()
 
-if args['monitor'] > 0:
+if args['monitor']:
     multiBunchMonitor.close()
 
 

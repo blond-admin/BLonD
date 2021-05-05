@@ -54,13 +54,14 @@ parser.add_argument('-timedir', '--timedir', type=str, default='./timings/',
                     help='Directory to store the timing reports.'
                     '\nDefault: ./timings')
 
-parser.add_argument('-m', '--monitor', type=int, default=0,
-                    help='Monitoring interval (0: no monitor).'
-                    '\nDefault: 0')
+parser.add_argument('-m', '--monitor', type=str, default=None,
+                    help='Monitoring_interval,fist_turn,last_turn (0: no monitor).'
+                    '\nDefault: None (No monitor)')
 
 parser.add_argument('-monitorfile', '--monitorfile', type=str, default=None,
                     help='h5 file to store the monitoring data.'
                     '\nDefault: Descriptive name based on simulation config.')
+
 
 parser.add_argument('-seed', '--seed', type=int, default=0,
                     help='Seed value for the particle distribution generation.'

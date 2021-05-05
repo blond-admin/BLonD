@@ -550,7 +550,7 @@ class MultiBunchMonitor(object):
         the slicing.
     '''
 
-    def __init__(self, filename, n_turns, profile, rf, Nbunches, buffer_size=100):
+    def __init__(self, filename, profile, rf, Nbunches, n_turns=None, buffer_size=100):
 
         self.h5file = hp.File(filename + '.h5', 'w')
         self.n_turns = n_turns
@@ -653,7 +653,6 @@ class MultiBunchMonitor(object):
                 (self.buffer_size, self.Nbunches), dtype=float)
             self.b_min_dt = np.zeros(
                 (self.buffer_size, self.Nbunches), dtype=float)
-
 
     def __del__(self):
         if self.i_turn > self.last_save:

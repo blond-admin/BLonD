@@ -1379,7 +1379,8 @@ local:
             'bunches': [1],  # 192
             'slices': [256],
             'turns': [40000],
-            'monitor': [100],
+            'monitor': ['1,-500'],
+            # 'monitor': [100],
             'seed': [0],
             'mtw': [50],
             'precision': ['single'],
@@ -1405,7 +1406,8 @@ local:
             'bunches': [1],  # 192
             'slices': [256],
             'turns': [40000],
-            'monitor': [100],
+            'monitor': ['1,-500'],
+            # 'monitor': [100],
             'seed': [0],
             'mtw': [50],
             'precision': ['single'],
@@ -1430,7 +1432,8 @@ local:
             'bunches': [1],  # 192
             'slices': [256],
             'turns': [40000],
-            'monitor': [100],
+            'monitor': ['1,-500'],
+            # 'monitor': [100],
             'seed': [0],
             'mtw': [50],
             'precision': ['double'],
@@ -1456,7 +1459,8 @@ local:
             'bunches': [1],  # 192
             'slices': [256],
             'turns': [40000],
-            'monitor': [100],
+            'monitor': ['1,-500'],
+            # 'monitor': [100],
             'seed': [0],
             'mtw': [50],
             'precision': ['double'],
@@ -1481,7 +1485,8 @@ local:
             'bunches': [1],  # 192
             'slices': [256],
             'turns': [40000],
-            'monitor': [100],
+            'monitor': ['1,-500'],
+            # 'monitor': [100],
             'seed': [0, 1, 2],
             'mtw': [50],
             'precision': ['double'],
@@ -1506,7 +1511,8 @@ local:
             'bunches': [1],  # 192
             'slices': [256],
             'turns': [40000],
-            'monitor': [100],
+            'monitor': ['1,-500'],
+            # 'monitor': [100],
             'seed': [0],
             'mtw': [50],
             'precision': ['single'],

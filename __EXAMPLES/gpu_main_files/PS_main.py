@@ -14,7 +14,7 @@ except ImportError:
     mpiprof = timing
 
 # BLonD imports
-#from blond.beams.distributions import matched_from_line_density
+# from blond.beams.distributions import matched_from_line_density
 from blond.utils.input_parser import parse
 from blond.utils.mpi_config import worker, mpiprint
 from blond.beam.beam import Proton, Beam
@@ -99,7 +99,7 @@ harmonic_ratio = 4
 # Beam parameters
 n_bunches = 21
 n_particles = 1e6
-#exponent = 1.0
+# exponent = 1.0
 
 # Profile parameters PS
 n_slices = 2**7
@@ -125,6 +125,20 @@ timing.mode = args['time']
 os.environ['OMP_NUM_THREADS'] = str(args['omp'])
 withtp = bool(args['withtp'])
 precision = args['precision']
+
+if args['monitor']:
+    monitor_interval, monitor_firstturn, monitor_lastturn = args['monitor'].split(
+        ',')
+    monitor_interval = int(monitor_interval) if monitor_interval else 0
+    monitor_firstturn = int(monitor_firstturn) if monitor_firstturn else 0
+    monitor_firstturn = monitor_firstturn if monitor_firstturn >= 0 else n_iterations+monitor_firstturn
+    monitor_lastturn = int(
+        monitor_lastturn) if monitor_lastturn else n_iterations - 1
+    monitor_lastturn = monitor_lastturn if monitor_lastturn >= 0 else n_iterations+monitor_lastturn
+
+    assert (monitor_interval >= 0)
+    # assert (monitor_firstturn >= 0 and monitor_firstturn <= monitor_lastturn)
+
 bm.use_precision(precision)
 
 bm.use_mpi()
@@ -414,7 +428,7 @@ beam.split(random=True)
 
 mpiprint("Ready for tracking!\n")
 
-if args['monitor'] > 0 and worker.isMaster:
+if args['monitor'] and monitor_interval > 0 and worker.isMaster:
     if args.get('monitorfile', None):
         filename = args['monitorfile']
     else:
@@ -423,7 +437,8 @@ if args['monitor'] > 0 and worker.isMaster:
             n_turns_reduce, args['monitor'], seed, worker.workers)
     slicesMonitor = MultiBunchMonitor(filename=filename,
                                       n_turns=np.ceil(
-                                          n_iterations / args['monitor']),
+                                              (monitor_lastturn-monitor_firstturn) /
+                                              monitor_interval),
                                       profile=profile,
                                       rf=rf_params,
                                       Nbunches=n_bunches)
@@ -513,7 +528,9 @@ for turn in range(n_iterations):
 
     tracker.track_only()
 
-    if (args['monitor'] > 0) and (turn % args['monitor'] == 0):
+    if (args['monitor'] and monitor_interval > 0) and \
+            (turn >= monitor_firstturn and turn <= monitor_lastturn) and
+            (turn % monitor_interval == 0):
         beam.statistics()
         beam.gather_statistics()
         profile.fwhm_multibunch(n_bunches, bunch_spacing_buckets,
@@ -535,7 +552,7 @@ timing.report(total_time=1e3*(end_t-start_t),
 
 worker.finalize()
 
-if args['monitor'] > 0:
+if args['monitor']:
     slicesMonitor.close()
 
 mpiprint('dE mean: ', np.mean(beam.dE))
