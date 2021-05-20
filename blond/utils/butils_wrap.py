@@ -726,7 +726,7 @@ def linear_interp_kick_n_drift(dt, dE, total_voltage, bin_centers, charge, acc_k
                                eta_2, beta, energy):
     assert isinstance(dt[0], precision.real_t)
     assert isinstance(dE[0], precision.real_t)
-    assert isinstance(voltage[0], precision.real_t)
+    assert isinstance(total_voltage[0], precision.real_t)
     assert isinstance(bin_centers[0], precision.real_t)
 
     # dt = dt.astype(dtype=precision.real_t, order='C', copy=False)
@@ -819,7 +819,7 @@ def slice_smooth(dt, profile, cut_left, cut_right):
                                __getLen(dt))
 
 
-def sparse_histogram(dt, profile, cut_left, cut_right, bunch_indexes):
+def sparse_histogram(dt, profile, cut_left, cut_right, bunch_indexes, n_slices_bucket):
     assert isinstance(dt[0], precision.real_t)
     assert isinstance(profile[0][0], precision.real_t)
 
@@ -829,7 +829,7 @@ def sparse_histogram(dt, profile, cut_left, cut_right, bunch_indexes):
                                 __getPointer(cut_left),
                                 __getPointer(cut_right),
                                 __getPointer(bunch_indexes),
-                                __getLen(profile),
+                                ct.c_int(n_slices_bucket),
                                 __getLen(cut_left),
                                 __getLen(dt))
     else:
@@ -838,7 +838,7 @@ def sparse_histogram(dt, profile, cut_left, cut_right, bunch_indexes):
                                __getPointer(cut_left),
                                __getPointer(cut_right),
                                __getPointer(bunch_indexes),
-                               __getLen(profile),
+                               ct.c_int(n_slices_bucket),
                                __getLen(cut_left),
                                __getLen(dt))
 
