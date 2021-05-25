@@ -14,7 +14,7 @@ import numpy as np
 #import pathlib
 import pickle as pkl
 
-from blond.llrf.cavity_feedback import get_power_gen_0, get_power_gen_VI, get_power_gen_I2, get_power_gen_V2
+from blond.llrf.cavity_feedback import get_power_gen_I2, get_power_gen_V2 # get_power_gen_0, get_power_gen_VI
 
 # My custom functions for BLonD
 from blond.beam.beam_tools import BeamTools
@@ -927,7 +927,7 @@ class MonitorOTFB(object):
             # Generator-, beam-, and total (gen+beam) charges/currents/induced voltages:
             qiv_list = ['Q', 'I', 'Vind']
             for qiv in qiv_list:
-                gbt_list = ['gen', 'beam'] if (qiv == 'Q' or qiv == 'I') else ['gen', 'beam', 'tot']
+                gbt_list = ['gen', 'beam'] if (qiv == 'Q' or qiv == 'I') else ['gen', 'beam', 'beam_noff', 'tot']
                 for gbt in gbt_list:
                     fc_list = ['coarse'] if (gbt in ['gen'] and qiv in ['Q', 'I']) else ['coarse', 'fine']
                     # fc_list = ['coarse', 'fine']
@@ -954,9 +954,9 @@ class MonitorOTFB(object):
 
             # FF parameters:
             if getattr(self, f'with_FF_{ot}'):
-                for qiv in ['Q', 'dV']:
+                for qiv in ['Q_beam', 'dVind_beam']:
                     gbt = 'ff'
-                    fc_list = ['coarseFF'] if qiv in ['Q'] else ['coarseFF', 'fine']
+                    fc_list = ['coarseFF'] if qiv in ['Q_beam'] else ['coarseFF', 'coarse', 'fine']
                     for fc in fc_list:
                         param = f'OTFB_{ot}_{qiv}_{gbt}_{fc}'
                         if param in self.list_params:
@@ -1011,9 +1011,9 @@ class MonitorOTFB(object):
         self.indices_beamF_coarse = np.copy(fillpattern_beam)
         self.indices_beamM_coarse = fillpattern_beam[    int(0.5*len(fillpattern_beam))  ]
         self.indices_beamH_coarse = fillpattern_beam[    int(0.5*len(fillpattern_beam)): ]
+        if len(fillpattern_beam) > 1: nbs = fillpattern_beam[1] - fillpattern_beam[0]
+        else:                         nbs = 1 # For 1 bunch, we use a "bunch separation" of 1
         if self.with_FF_1 or self.with_FF_2:
-            if len(fillpattern_beam) > 1: nbs = fillpattern_beam[1] - fillpattern_beam[0]
-            else:                         nbs = 1 # For 1 bunch, we use a "bunch separation" of 1
             self.indices_beamF_coarseFF = (self.indices_beamF_coarse/nbs).astype(int)
             self.indices_beamM_coarseFF = (self.indices_beamM_coarse/nbs).astype(int)
             self.indices_beamH_coarseFF = (self.indices_beamH_coarse/nbs).astype(int)
@@ -1033,7 +1033,7 @@ class MonitorOTFB(object):
 
         #print(self.n_samples_beam_coarse)
         #print(int(self.n_coarse_1/nbs))
-        
+
         if self.n_samples_beam_coarse < int(self.n_coarse_1/nbs): # n_coarse_1 = n_coarse_2:
 
             fc_list = ['fine', 'coarse', 'coarseFF'] if (self.with_FF_1 or self.with_FF_2) else ['fine', 'coarse']
@@ -1058,7 +1058,7 @@ class MonitorOTFB(object):
                 #print(f'indices_nobeam_{fc}', getattr(self, f'indices_nobeam_{fc}'))
 
         #quit()
-        
+
         # Time arrays:
         for ot in ['1','2']:
             setattr(self, f'OTFB_{ot}_t_fine',        np.empty( shape=(0,getattr(self, f'n_fine_{ot}')) ))
@@ -1072,8 +1072,8 @@ class MonitorOTFB(object):
         self.t_coarse = np.empty( shape=(0,self.n_coarse_1) ) # 1 and 2 are by definition the same, doesn't apply for coarse long
         if self.with_FF_1:
             self.t_coarseFF = np.empty( shape=(0,self.n_coarseFF_1) )
-        elif self.FF_2:
-            self.t_coarseFF = np.empty( shape=(0,self.n_coarseFF_2) ) # The results is the same, but n_coarseFF_{ot} must exist (either in 1 or 2)
+        elif self.with_FF_2:
+            self.t_coarseFF = np.empty( shape=(0,self.n_coarseFF_2) ) # The results is the same, but n_coarseFF_{ot} must exist if FF in either in 1 or 2
 
         self.turns = np.empty( shape=(0,), dtype=int )
 
@@ -1107,7 +1107,73 @@ class MonitorOTFB(object):
 
     def list_params(self, name):
 
-        if name == 'short':
+        if name == 'full':
+            self.list_params = ['OTFB_1_V_set_coarse',
+                                'OTFB_1_dV_err_coarse',
+                                'OTFB_1_dV_err_gain_coarse',
+                                'OTFB_1_dV_comb_coarse',
+                                'OTFB_1_dV_del_coarse',
+                                'OTFB_1_dV_mod_coarse',
+                                'OTFB_1_dV_Hcav_coarse',
+                                'OTFB_1_dV_gen_coarse',
+                                'OTFB_1_V_gen_coarse',
+                                'OTFB_1_Q_gen_coarse',
+                                # 'OTFB_1_I_gen_coarse',    # Must come after OTFB_1_Q_gen_coarse
+                                'OTFB_1_Vind_gen_coarse',
+                                # 'OTFB_1_Vind_gen_fine',
+                                'OTFB_1_P_gen_i2_coarse',  # Must come after OTFB_1_Q_gen_coarse
+                                # 'OTFB_1_P_gen_v2_coarse',  # Must come after OTFB_1_Vind_gen_coarse
+                                # 'OTFB_1_P_gen_0_fine',
+                                'OTFB_1_Q_beam_coarse',
+                                'OTFB_1_Q_beam_fine',
+                                # 'OTFB_1_I_beam_coarse',
+                                # 'OTFB_1_I_beam_fine',
+                                'OTFB_1_Q_beam_ff_coarseFF',
+                                'OTFB_1_dVind_beam_ff_coarseFF',
+                                'OTFB_1_dVind_beam_ff_coarse',
+                                'OTFB_1_dVind_beam_ff_fine',
+                                'OTFB_1_Vind_beam_noff_coarse',
+                                'OTFB_1_Vind_beam_noff_fine',
+                                'OTFB_1_Vind_beam_coarse',
+                                'OTFB_1_Vind_beam_fine',
+                                'OTFB_1_Vind_tot_coarse',
+                                'OTFB_1_Vind_tot_fine',
+                                'OTFB_2_V_set_coarse',
+                                'OTFB_2_dV_err_coarse',
+                                'OTFB_2_dV_err_gain_coarse',
+                                'OTFB_2_dV_comb_coarse',
+                                'OTFB_2_dV_del_coarse',
+                                'OTFB_2_dV_mod_coarse',
+                                'OTFB_2_dV_Hcav_coarse',
+                                'OTFB_2_dV_gen_coarse',
+                                'OTFB_2_V_gen_coarse',
+                                'OTFB_2_Q_gen_coarse',
+                                # 'OTFB_2_I_gen_coarse',
+                                'OTFB_2_Vind_gen_coarse',
+                                # 'OTFB_2_Vind_gen_fine',
+                                'OTFB_2_P_gen_i2_coarse',
+                                # 'OTFB_2_P_gen_v2_coarse',
+                                # 'OTFB_2_P_gen_0_fine',
+                                'OTFB_2_Q_beam_coarse',
+                                'OTFB_2_Q_beam_fine',
+                                # 'OTFB_2_I_beam_coarse',
+                                # 'OTFB_2_I_beam_fine',
+                                'OTFB_2_Q_beam_ff_coarseFF',
+                                'OTFB_2_dVind_beam_ff_coarseFF',
+                                'OTFB_2_dVind_beam_ff_coarse',
+                                'OTFB_2_dVind_beam_ff_fine',
+                                'OTFB_2_Vind_beam_noff_coarse',
+                                'OTFB_2_Vind_beam_noff_fine',
+                                'OTFB_2_Vind_beam_coarse',
+                                'OTFB_2_Vind_beam_fine',
+                                'OTFB_2_Vind_tot_coarse',
+                                'OTFB_2_Vind_tot_fine',
+                                'OTFB_sum_Vind_tot_fine']  # ,
+            # 'tracker_Vrfnocorr_fine',
+            # 'tracker_Vrf_fine',
+            # 'tracker_Vtot_fine']
+
+        elif name == 'short':
 
             self.list_params = ['OTFB_1_V_set_coarse',
                                 'OTFB_1_dV_err_coarse',
@@ -1126,16 +1192,19 @@ class MonitorOTFB(object):
                                 # 'OTFB_1_P_gen_v2_coarse', # Must come after OTFB_1_Vind_gen_coarse
                                 # 'OTFB_1_P_gen_0_fine',
                                 'OTFB_1_Q_beam_coarse',
-#                                'OTFB_1_Q_beam_fine',
+                             # 'OTFB_1_Q_beam_fine',
                                 # 'OTFB_1_I_beam_coarse',
                                 # 'OTFB_1_I_beam_fine',
-                                'OTFB_1_Q_ff_coarseFF',
-                                'OTFB_1_dV_ff_coarseFF',
-                                # 'OTFB_1_dV_ff_fine',
+                                'OTFB_1_Q_beam_ff_coarseFF',
+                                'OTFB_1_dVind_beam_ff_coarseFF',
+                                # 'OTFB_1_dVind_beam_ff_coarse',
+                                # 'OTFB_1_dVind_beam_ff_fine',
+                                'OTFB_1_Vind_beam_noff_coarse',
+                                # 'OTFB_1_Vind_beam_noff_fine',
                                 'OTFB_1_Vind_beam_coarse',
-#                               'OTFB_1_Vind_beam_fine',
+                                # 'OTFB_1_Vind_beam_fine',
                                 'OTFB_1_Vind_tot_coarse',
-#                               'OTFB_1_Vind_tot_fine',
+                                # 'OTFB_1_Vind_tot_fine',
                                 'OTFB_2_V_set_coarse',
                                 'OTFB_2_dV_err_coarse',
                                 # 'OTFB_2_dV_err_gain_coarse',
@@ -1153,24 +1222,45 @@ class MonitorOTFB(object):
                                 # 'OTFB_2_P_gen_v2_coarse',
                                 # 'OTFB_2_P_gen_0_fine',
                                 'OTFB_2_Q_beam_coarse',
-#                               'OTFB_2_Q_beam_fine',
+                                # 'OTFB_2_Q_beam_fine',
                                 # 'OTFB_2_I_beam_coarse',
                                 #'OTFB_2_I_beam_fine',
-                                'OTFB_2_Q_ff_coarseFF',
-                                'OTFB_2_dV_ff_coarseFF',
-                                # 'OTFB_2_dV_ff_fine',
+                                'OTFB_2_Q_beam_ff_coarseFF',
+                                'OTFB_2_dVind_beam_ff_coarseFF',
+                                # 'OTFB_2_dVind_beam_ff_coarse',
+                                # 'OTFB_2_dVind_beam_ff_fine',
+                                'OTFB_2_Vind_beam_noff_coarse',
+                                # 'OTFB_2_Vind_beam_noff_fine',
                                 'OTFB_2_Vind_beam_coarse',
-#                               'OTFB_2_Vind_beam_fine',
+                                # 'OTFB_2_Vind_beam_fine',
                                 'OTFB_2_Vind_tot_coarse',
-#                               'OTFB_2_Vind_tot_fine',
+                                # 'OTFB_2_Vind_tot_fine',
                                 'OTFB_sum_Vind_tot_fine'] #,
                                 # 'tracker_Vrfnocorr_fine',
                                 # 'tracker_Vrf_fine',
                                 # 'tracker_Vtot_fine']
 
+        elif name == 'shortest':
+
+            self.list_params = ['OTFB_1_dV_err_coarse',
+                                'OTFB_1_dV_comb_coarse',
+                                'OTFB_1_dV_del_coarse',
+                                'OTFB_1_dV_Hcav_coarse',
+                                'OTFB_1_dV_gen_coarse',
+                                'OTFB_1_V_gen_coarse',
+                                'OTFB_1_Q_gen_coarse',
+                                'OTFB_1_Vind_gen_coarse',
+                                'OTFB_1_Q_beam_coarse',
+                                'OTFB_1_Q_beam_ff_coarseFF',
+                                'OTFB_1_dVind_beam_ff_coarseFF',
+                                'OTFB_1_Vind_beam_noff_coarse',
+                                'OTFB_1_Vind_beam_coarse',
+                                'OTFB_1_Vind_tot_coarse']
+
+
         else:
 
-            sys.exit('\n[!] ERROR in MonitorOTFB: list_params to be implemeneted!\n')
+            sys.exit('\n[!] ERROR in MonitorOTFB: list_params to be implemented!\n')
 
         # Check the list_params and remove FF params if not active
 
@@ -1280,7 +1370,7 @@ class MonitorOTFB(object):
 
             # Note that generator- charge and current are for all cavitites/generators (to divide by no. cavities if using for power):
             if hasattr(self, f'OTFB_{ot}_Q_gen_coarse'):    setattr(self, f'OTFB_{ot}_Q_gen_coarse',    np.vstack( (getattr(self, f'OTFB_{ot}_Q_gen_coarse'), getattr(self.cavityfeedback, f'OTFB_{ot}').Q_gen_coarse[:] ) ))                                                                                # Qn the coarse grid, the time step is equal to t_rf (at present step); in the fine grid, the time step is T_s_fine
-            if hasattr(self, f'OTFB_{ot}_I_gen_coarse'):    setattr(self, f'OTFB_{ot}_I_gen_coarse',    np.vstack( (getattr(self, f'OTFB_{ot}_I_gen_coarse'), getattr(self.cavityfeedback, f'OTFB_{ot}').Q_gen_coarse[:] / getattr(self.cavityfeedback, f'OTFB_{ot}').T_s_coarse ) )) # In the coarse grid, the time step is equal to t_rf (at present step); in the fine grid, the time step is T_s_fine
+            # if hasattr(self, f'OTFB_{ot}_I_gen_coarse'):    setattr(self, f'OTFB_{ot}_I_gen_coarse',    np.vstack( (getattr(self, f'OTFB_{ot}_I_gen_coarse'), getattr(self.cavityfeedback, f'OTFB_{ot}').Q_gen_coarse[:] / getattr(self.cavityfeedback, f'OTFB_{ot}').T_s_coarse ) )) # In the coarse grid, the time step is equal to t_rf (at present step); in the fine grid, the time step is T_s_fine
             if hasattr(self, f'OTFB_{ot}_Vind_gen_coarse'): setattr(self, f'OTFB_{ot}_Vind_gen_coarse', np.vstack( (getattr(self, f'OTFB_{ot}_Vind_gen_coarse'), getattr(self.cavityfeedback, f'OTFB_{ot}').V_ind_gen_coarse[:]) ))
             # Not presently available. To check implementation: when generator is also computed directly by the cavityfeedback in the firn grid,
             # the could be just read directly from cavityfeedback. When it isn't, then we need to computed as implemented before (to be debugged)
@@ -1396,12 +1486,15 @@ class MonitorOTFB(object):
             if hasattr(self, f'OTFB_{ot}_I_beam_coarse'): setattr(self, f'OTFB_{ot}_I_beam_coarse', np.vstack( (getattr(self, f'OTFB_{ot}_I_beam_coarse'), getattr(self.cavityfeedback, f'OTFB_{ot}').Q_beam_coarse[:] / getattr(self.cavityfeedback, f'OTFB_{ot}').T_s_coarse ) )) # I_beam_coarse was properly computed as the sum of all the I_bean_fine contributions per coarse point: Indeed, the full charge per coarse sample (i.e. bucket) is np.abs(getattr(self.cavityfeedback, f'OTFB_{ot}').I_beam_coarse[0] = np.abs(np.sum(getattr(self.cavityfeedback, f'OTFB_{ot}').I_beam_fine[:64]))
 
             if getattr(self, f'with_FF_{ot}'):
-                if hasattr(self, f'OTFB_{ot}_Q_ff_coarseFF'):  setattr(self, f'OTFB_{ot}_Q_ff_coarseFF',  np.vstack( (getattr(self, f'OTFB_{ot}_Q_ff_coarseFF'),  getattr(self.cavityfeedback, f'OTFB_{ot}').Q_coarseFF_ff[:]) ))
-                if hasattr(self, f'OTFB_{ot}_dV_ff_coarseFF'): setattr(self, f'OTFB_{ot}_dV_ff_coarseFF', np.vstack( (getattr(self, f'OTFB_{ot}_dV_ff_coarseFF'), getattr(self.cavityfeedback, f'OTFB_{ot}').dV_coarseFF_ff[:]) ))
-                if hasattr(self, f'OTFB_{ot}_dV_ff_fine'):     setattr(self, f'OTFB_{ot}_dV_ff_fine',     np.vstack( (getattr(self, f'OTFB_{ot}_dV_ff_fine'),     getattr(self.cavityfeedback, f'OTFB_{ot}').dV_fine_ff[:]) ))
+                if hasattr(self, f'OTFB_{ot}_Q_beam_ff_coarseFF'):     setattr(self, f'OTFB_{ot}_Q_beam_ff_coarseFF',     np.vstack( (getattr(self, f'OTFB_{ot}_Q_beam_ff_coarseFF'),     getattr(self.cavityfeedback, f'OTFB_{ot}').Q_beam_ff_coarseFF[:]) ))
+                if hasattr(self, f'OTFB_{ot}_dVind_beam_ff_coarseFF'): setattr(self, f'OTFB_{ot}_dVind_beam_ff_coarseFF', np.vstack( (getattr(self, f'OTFB_{ot}_dVind_beam_ff_coarseFF'), getattr(self.cavityfeedback, f'OTFB_{ot}').dV_ind_beam_ff_coarseFF[:]) ))
+                if hasattr(self, f'OTFB_{ot}_dVind_beam_ff_coarse'):   setattr(self, f'OTFB_{ot}_dVind_beam_ff_coarse',   np.vstack( (getattr(self, f'OTFB_{ot}_dVind_beam_ff_coarse'),   getattr(self.cavityfeedback, f'OTFB_{ot}').dV_ind_beam_ff_coarse[:]) ))
+                if hasattr(self, f'OTFB_{ot}_dVind_beam_ff_fine'):     setattr(self, f'OTFB_{ot}_dVind_beam_ff_fine',     np.vstack( (getattr(self, f'OTFB_{ot}_dVind_beam_ff_fine'),     getattr(self.cavityfeedback, f'OTFB_{ot}').dV_ind_beam_ff_fine[:]) ))
 
-            if hasattr(self, f'OTFB_{ot}_Vind_beam_fine'):   setattr(self, f'OTFB_{ot}_Vind_beam_fine',   np.vstack( (getattr(self, f'OTFB_{ot}_Vind_beam_fine'),   getattr(self.cavityfeedback, f'OTFB_{ot}').V_ind_beam_fine[:]) ))
-            if hasattr(self, f'OTFB_{ot}_Vind_beam_coarse'): setattr(self, f'OTFB_{ot}_Vind_beam_coarse', np.vstack( (getattr(self, f'OTFB_{ot}_Vind_beam_coarse'), getattr(self.cavityfeedback, f'OTFB_{ot}').V_ind_beam_coarse[:]) ))
+            if hasattr(self, f'OTFB_{ot}_Vind_beam_noff_fine'):   setattr(self, f'OTFB_{ot}_Vind_beam_noff_fine',   np.vstack( (getattr(self, f'OTFB_{ot}_Vind_beam_noff_fine'),   getattr(self.cavityfeedback, f'OTFB_{ot}').V_ind_beam_noff_fine[:]) ))
+            if hasattr(self, f'OTFB_{ot}_Vind_beam_noff_coarse'): setattr(self, f'OTFB_{ot}_Vind_beam_noff_coarse', np.vstack( (getattr(self, f'OTFB_{ot}_Vind_beam_noff_coarse'), getattr(self.cavityfeedback, f'OTFB_{ot}').V_ind_beam_noff_coarse[:]) ))
+            if hasattr(self, f'OTFB_{ot}_Vind_beam_fine'):        setattr(self, f'OTFB_{ot}_Vind_beam_fine',        np.vstack( (getattr(self, f'OTFB_{ot}_Vind_beam_fine'),        getattr(self.cavityfeedback, f'OTFB_{ot}').V_ind_beam_fine[:]) ))
+            if hasattr(self, f'OTFB_{ot}_Vind_beam_coarse'):      setattr(self, f'OTFB_{ot}_Vind_beam_coarse',      np.vstack( (getattr(self, f'OTFB_{ot}_Vind_beam_coarse'),      getattr(self.cavityfeedback, f'OTFB_{ot}').V_ind_beam_coarse[:]) ))
 
             # Total beam + generator array:
 
@@ -1524,21 +1617,24 @@ class MonitorOTFB(object):
             #     print(getattr(self, f'{param}_max_beam'))
 
 
-    def save_pickle(self, outdir):
+    def save_pickle(self, outdir, full=False, onlyavemax=True):
 
         dicmonitorotfb = {}
 
         print(f'dicmonitorotfb:')
         for key in list(dir(self)): #self.list_params:
-            if key == 'turns':
+            if full:
                 dicmonitorotfb[key] = getattr(self, key)
-                print(f'{key}: {dicmonitorotfb[key]}, shape = {dicmonitorotfb[key].shape}')
-            elif 'OTFB' in key and ('ave' in key or 'max' in key):
-                dicmonitorotfb[key] = getattr(self, key)
-                for i in [0,-1]:
-                    print(f'{key}[{i}]: {dicmonitorotfb[key][i]}', end='')
-                    if key[:4] == 'OTFB': print(f', abs = {np.abs(dicmonitorotfb[key][i])}, ang = {np.angle(dicmonitorotfb[key][i], deg=True)}')
-                    else:                 print('') # No abs/ang for indices arrays
+            else:
+                if key == 'turns':
+                    dicmonitorotfb[key] = getattr(self, key)
+                    print(f'{key}: {dicmonitorotfb[key]}, shape = {dicmonitorotfb[key].shape}')
+                elif 'OTFB' in key and (not onlyavemax or (onlyavemax and ('ave' in key or 'max' in key))):
+                    dicmonitorotfb[key] = getattr(self, key)
+                    for i in [0,-1]:
+                        print(f'{key}[{i}]: {dicmonitorotfb[key][i]}', end='')
+                        if key[:4] == 'OTFB': print(f', abs = {np.abs(dicmonitorotfb[key][i])}, ang = {np.angle(dicmonitorotfb[key][i], deg=True)}')
+                        else:                 print('') # No abs/ang for indices arrays
 
         with open(f'{outdir}/monitor_otfb.pkl', 'wb') as foutgen:
             pkl.dump(dicmonitorotfb, foutgen)

@@ -106,7 +106,7 @@ def cartesian_to_polar(IQ_vector):
 
 
 
-def modulator(signal, omega_i, omega_f, T_sampling):
+def modulator(signal, omega_i, omega_f, T_sampling, phi_0=0):
     """Demodulate a signal from initial frequency to final frequency. The two
     frequencies should be close.
 
@@ -134,15 +134,15 @@ def modulator(signal, omega_i, omega_f, T_sampling):
                            " be an array!")
     delta_phi = (omega_i - omega_f)*T_sampling * np.arange(len(signal))
     # Pre compute sine and cosine for speed up
-    sn = np.sin(delta_phi)
-    cs = np.cos(delta_phi)
+    sn = np.sin(delta_phi + phi_0)
+    cs = np.cos(delta_phi + phi_0)
     # cs = np.sqrt(1. - sn*sn) # np.cos(delta_phi)
     # sn = np.sqrt(1. - cs*cs) # np.sin(delta_phi)
 
     I_new = cs*signal.real - sn*signal.imag
     Q_new = sn*signal.real + cs*signal.imag
 
-    return I_new + 1j*Q_new
+    return I_new + 1j*Q_new #, delta_phi[-1]
 
 
 def rf_beam_current(Profile, omega_c, T_rev, lpf=True, downsample=None):
