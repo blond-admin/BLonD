@@ -400,11 +400,12 @@ slurm:
         # - 'lb-tp-approx2-weak-scaling'
 
         # Intermediate stages
-        # - 'approx0-interm'
+        - 'approx0-interm'
         # - 'approx1-interm'
         # - 'approx2-interm'
-        # - 'tp-approx0-interm'
-        # - 'lb-tp-approx0-interm'
+        - 'tp-approx0-interm'
+        - 'lb-approx0-interm'
+        - 'lb-tp-approx0-interm'
         # - 'lb-tp-approx1-interm'
         # - 'lb-tp-approx2-interm'
 
@@ -435,11 +436,11 @@ slurm:
         # - 'lb-approx0-weak-scaling-cpu-gpu'
         
         # Approximate 
-        - 'srp-timing-gpu' # DONE
+        # - 'srp-timing-gpu' # DONE
         # - 'rds-timing-gpu' # DONE 
-        - 'exact-timing-gpu' # DONE 
-        - 'float32-timing-gpu'  # DONE 
-        - 'f32-srp-timing-gpu' # DONE
+        # - 'exact-timing-gpu' # DONE 
+        # - 'float32-timing-gpu'  # DONE 
+        # - 'f32-srp-timing-gpu' # DONE
         # - 'f32-rds-timing-gpu' # DONE
 
         # Approximate CPU
@@ -454,6 +455,109 @@ slurm:
 
 
     configs: {
+
+        'approx0-interm': {
+            'exe': ['PS_main.py'],
+            'particles': [4000000],
+            'bunches': [21],  # 192
+            'slices': [256],
+            'turns': [10000],
+            'monitor': [0],
+            'seed': [0],
+            'mtw': [50],
+            'precision': ['double'],
+            'withtp': [0],
+            'reduce': [1],
+            'approx': [0],
+            'log': [1],
+            'loadbalance': ['reportonly,,,,'],
+            'artificialdelay': ['off'],
+            'timing': ['timing'],
+            'gpu': [0],
+            'workers': [8],
+            'omp': [10],
+            'mpi': ['mvapich2'],
+            'time': [60],
+            'repeats': 3
+        },
+
+        'tp-approx0-interm': {
+            'exe': ['PS_main.py'],
+            'particles': [4000000],
+            'bunches': [21],  # 192
+            'slices': [256],
+            'turns': [10000],
+            'monitor': [0],
+            'seed': [0],
+            'mtw': [50],
+            'precision': ['double'],
+            'withtp': [1],
+            'reduce': [1],
+            'approx': [0],
+            'log': [1],
+            'loadbalance': ['reportonly,,,,'],
+            'artificialdelay': ['off'],
+            'timing': ['timing'],
+            'gpu': [0],
+            'workers': [8],
+            'omp': [10],
+            'mpi': ['mvapich2'],
+            'time': [60],
+            'repeats': 3
+        },
+
+        'lb-approx0-interm': {
+            'exe': ['PS_main.py'],
+            'particles': [4000000],
+            'bunches': [21],  # 192
+            'slices': [256],
+            'turns': [10000],
+            'monitor': [0],
+            'seed': [0],
+            'mtw': [50],
+            'precision': ['double'],
+            'withtp': [0],
+            'reduce': [1],
+            'approx': [0],
+            'log': [1],
+            'loadbalance': ['interval,500,0.03,5,20'],
+            'artificialdelay': ['off'],
+            'timing': ['timing'],
+            'gpu': [0],
+            'workers': [8],
+            'omp': [10],
+            'mpi': ['mvapich2'],
+            'time': [60],
+            'repeats': 3
+        },
+
+        'lb-tp-approx0-interm': {
+            'exe': ['PS_main.py'],
+            'particles': [4000000],
+            'bunches': [21],  # 192
+            'slices': [256],
+            'turns': [10000],
+            'monitor': [0],
+            'seed': [0],
+            'mtw': [50],
+            'precision': ['double'],
+            'withtp': [1],
+            'reduce': [3],
+            'approx': [1],
+            'log': [1],
+            'loadbalance': ['interval,500,0.03,5,20'],
+            'artificialdelay': ['off'],
+            'timing': ['timing'],
+            'gpu': [0],
+            'workers': [8],
+            'omp': [10],
+            'mpi': ['mvapich2'],
+            'time': [60],
+            'repeats': 3
+        },
+
+
+
 
         # Approximate
         'f32-srp-timing-gpu': {

@@ -64,6 +64,7 @@ parser.add_argument('-e', '--error', choices=['mean_dt1', 'mean_dE1',
                                               'mean_dt2', 'mean_dE2',
                                               'mean_dt3', 'mean_dE3',
                                               'mean_dt4', 'mean_dt5',
+                                              'mean_dE4', 'mean_dE5',
                                               ],
                     nargs='+',
                     default=['mean_dt1', 'mean_dE1'], help='Which variable to use for the error plotting.')
@@ -87,11 +88,11 @@ gconfig = {
     'title': {
         # 's': '{}'.format(case.upper()),
         'fontsize': 10,
-        # 'y': .95,
+        # 'y': .97,
         # 'x': 0.45,
         'fontweight': 'bold',
     },
-    'figsize': [5, 3],
+    'figsize': [5, 2.8],
     'annotate': {
         'fontsize': 9,
         'textcoords': 'data',
@@ -107,7 +108,7 @@ gconfig = {
         # 'bbox_to_anchor': (0., 1.05)
     },
     'subplots_adjust': {
-        'wspace': 0.1, 'hspace': 0.1, 'top': 0.93
+        'wspace': 0.2, 'hspace': 0.15, 'top': 0.93
     },
     'tick_params': {
         'pad': 1, 'top': 0, 'bottom': 1, 'left': 1,
@@ -191,12 +192,28 @@ gconfig = {
             'yerr': 'np.std(inputd["mean_dt"]/gconfig["norm"]["dt"][case])',
             'ylim': [-0.015, 0.015],
         },
+        'mean_dE4': {
+            'label': r'$\overline{E} / E_{ref}$',
+            'y': 'np.abs(np.mean(inputd["mean_dE"]/gconfig["norm"]["dE"][case]))',
+            'yerr': 'np.std(inputd["mean_dE"]/gconfig["norm"]["dE"][case])',
+        },
+        'mean_dE5': {
+            'label': r'$\overline{E} / E_{ref}$',
+            'y': 'np.abs(np.mean((inputd["mean_dE"] - based["mean_dE"])/gconfig["norm"]["dE"][case]))',
+            'yerr': 'np.std(inputd["mean_dE"]/gconfig["norm"]["dE"][case])',
+            # 'ylim': [-0.015, 0.015],
+        },
     },
     'norm': {
         'dt': {
-            'sps': 5e-9,
-            'lhc': 2.5e-9,
-            'ps': 100e-9
+            'sps': 4.99342e-9,
+            'lhc': 2.49508e-9,
+            'ps': 100.18e-9
+        },
+        'dE': {
+            'sps': 77.4e6,
+            'lhc': 390e6,
+            'ps': 53.93e6
         }
     },
     # 'ylim': [-7, -2],
@@ -206,7 +223,7 @@ gconfig = {
         'sps': [-2, 1],
     },
     'errorbar': {
-        'ecolor': 'xkcd:blue',
+        # 'ecolor': 'xkcd:blue',
         'elinewidth': 1,
         'capsize': 6,
         'color': 'xkcd:black',
@@ -218,7 +235,7 @@ gconfig = {
     'ylim': [0.35, 0.5],
     # 'yticks': [0.00001, 0.0001, 0.001, 0.01, 0.1, 1],
     'outfiles': ['{}/{}-{}.png',
-                 # '{}/{}-{}.pdf'
+                 '{}/{}-{}.pdf'
                  ],
 
     'techniques': {
@@ -457,8 +474,8 @@ if __name__ == '__main__':
     # There will be one plot per testcase
     for err_name in args.error:
         fig, axarr = plt.subplots(ncols=len(args.cases), nrows=1,
-                               sharex=False, sharey=True,
-                               figsize=gconfig['figsize'])
+                                  sharex=False, sharey=True,
+                                  figsize=gconfig['figsize'])
         for case, ax in zip(args.cases, axarr):
             plt.sca(ax)
             pos = 0
@@ -549,12 +566,18 @@ if __name__ == '__main__':
                     print(e)
                     continue
                 # plt.errorbar(pos, y,  yerr=yerr, **gconfig['errorbar'])
-                plt.errorbar(y, pos, xerr=yerr, **gconfig['errorbar'])
+                if tech in ['seed1', 'seed2', 'base']:
+                    plt.errorbar(y, pos, xerr=yerr, ecolor='xkcd:blue',
+                                 **gconfig['errorbar'])
+                else:
+                    plt.errorbar(y, pos, xerr=yerr, ecolor='xkcd:red',
+                                 **gconfig['errorbar'])
+
                 print("yerr:", yerr)
                 xtickspos.append(pos)
                 xticks.append(gconfig['xlabels'][tech])
                 pos += step
-            
+
             plt.grid(True, which='both', axis='both', alpha=0.5)
             title = '{}-{}'.format(case.upper(),
                                    gconfig['formulas'][err_name]['label'])
@@ -562,13 +585,14 @@ if __name__ == '__main__':
             # ylim = gconfig['formulas'][err_name].get('ylim', gconfig.get('ylim', []))
             # plt.xlim(ylim)
             plt.yticks(xtickspos, xticks, **gconfig['ticks'])
-            plt.ticklabel_format(axis='x', style='scientific', scilimits=(0,0))
+            plt.ticklabel_format(axis='x', style='scientific', scilimits=(0, 0))
+
             plt.tight_layout()
 
             ax.tick_params(**gconfig['tick_params'])
         plt.subplots_adjust(**gconfig['subplots_adjust'])
         for file in gconfig['outfiles']:
-            file = file.format(images_dir, this_filename[: -3], f'{case.upper()}-{err_name}')
+            file = file.format(images_dir, this_filename[: -3], f'{"-".join(args.cases)}-{err_name}')
             print('[{}] {}: {}'.format(
                 this_filename[: -3], 'Saving figure', file))
 

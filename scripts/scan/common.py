@@ -40,7 +40,7 @@ evolve = {
 
 # SLURM flags
 slurm = {
-    'script': os.path.join(blond_home, 'scripts/other/batch-simple.sh'),
+    'script': os.path.join(blond_home, 'scripts/other/hpcbatch-simple.sh'),
     'submit': 'sbatch',
     'run': 'srun',
     'nodes': '--nodes',
@@ -55,9 +55,9 @@ slurm = {
     'default_args': [
             '--mem', '56G',
             '--export', 'ALL',
-            '--overcommit'
-            # '--hint', 'nomultithread',
-            # '--partition', 'inf-short'
+            # '--overcommit'
+            '--hint', 'nomultithread',
+            '--partition', 'inf-short'
     ]
 }
 
