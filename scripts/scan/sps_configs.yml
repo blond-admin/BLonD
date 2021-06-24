@@ -476,7 +476,7 @@ slurm:
             'workers': [8], #16],
             'omp': [10],
             'mpi': ['mvapich2'],
-            'time': [60],
+            'time': [90],
             'repeats': 3
         },
 
@@ -502,7 +502,7 @@ slurm:
             'workers': [8], #16],
             'omp': [10],
             'mpi': ['mvapich2'],
-            'time': [60],
+            'time': [90],
             'repeats': 3
         },
         
@@ -528,7 +528,7 @@ slurm:
             'workers': [8], #16],
             'omp': [10],
             'mpi': ['mvapich2'],
-            'time': [60],
+            'time': [90],
             'repeats': 3
         },
 
@@ -554,7 +554,7 @@ slurm:
             'workers': [8], #16],
             'omp': [10],
             'mpi': ['mvapich2'],
-            'time': [60],
+            'time': [90],
             'repeats': 3
         },
 

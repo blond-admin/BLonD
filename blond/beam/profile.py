@@ -450,7 +450,7 @@ class Profile(object):
         # if bm.mpiMode():
             # self.reduce_histo()
 
-    @timing.timeit(key='comp:histo')
+    # @timing.timeit(key='comp:histo')
     def reduce_histo(self, dtype=np.uint32):
         if not bm.mpiMode():
             raise RuntimeError(
