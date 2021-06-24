@@ -21,7 +21,12 @@ import numpy as np
 from scipy import ndimage
 from ..toolbox import filters_and_fitting as ffroutines
 from ..utils import bmath as bm
-
+try:
+    from pyprof import timing
+    # from pyprof import mpiprof
+except ImportError:
+    from blond.utils import profile_mock as timing
+    # mpiprof = timing
 
 class CutOptions(object):
     r"""
@@ -434,6 +439,7 @@ class Profile(object):
         for op in self.operations:
             op()
 
+    @timing.timeit(key='comp:histo')
     def _slice(self):
         """
         Constant space slicing with a constant frame.
@@ -444,6 +450,7 @@ class Profile(object):
         # if bm.mpiMode():
             # self.reduce_histo()
 
+    @timing.timeit(key='comp:histo')
     def reduce_histo(self, dtype=np.uint32):
         if not bm.mpiMode():
             raise RuntimeError(
@@ -453,15 +460,19 @@ class Profile(object):
 
         if self.Beam.is_splitted:
             # Convert to uint32t for better performance
-            self.n_macroparticles = self.n_macroparticles.astype(
-                dtype, order='C')
+            with timing.timed_region('serial:conversion'):
+
+                self.n_macroparticles = self.n_macroparticles.astype(
+                    dtype, order='C')
 
             worker.allreduce(self.n_macroparticles)
 
             # Convert back to float64
-            self.n_macroparticles = self.n_macroparticles.astype(
-                dtype=bm.precision.real_t, order='C', copy=False)
-
+            with timing.timed_region('serial:conversion'):
+                self.n_macroparticles = self.n_macroparticles.astype(
+                    dtype=bm.precision.real_t, order='C', copy=False)
+    
+    @timing.timeit(key='serial:scale_histo')
     def scale_histo(self):
         if not bm.mpiMode():
             raise RuntimeError(
@@ -552,7 +563,8 @@ class Profile(object):
         """
 
         self.beam_spectrum_freq = bm.rfftfreq(n_sampling_fft, self.bin_size)
-
+    
+    @timing.timeit(key='serial:beam_spectrum_gen')
     def beam_spectrum_generation(self, n_sampling_fft):
         """
         Beam spectrum calculation
