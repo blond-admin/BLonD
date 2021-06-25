@@ -376,10 +376,10 @@ slurm:
         # - 'lb-tp-approx2-weak-scaling'
 
         # Intermediate stages
-        # - 'approx0-interm'
-        - 'lb-approx0-interm'
-        # - 'tp-approx0-interm'
-        - 'lb-tp-approx0-interm'
+        - 'approx0-interm'
+        - 'tp-approx0-interm'
+        # - 'lb-approx0-interm'
+        # - 'lb-tp-approx0-interm'
         # - 'approx2-interm'
         # - 'approx1-interm'
         # - 'lb-tp-approx1-interm'
