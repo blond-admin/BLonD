@@ -404,8 +404,8 @@ slurm:
         # - 'approx1-interm'
         # - 'approx2-interm'
         - 'tp-approx0-interm'
-        - 'lb-approx0-interm'
-        - 'lb-tp-approx0-interm'
+        # - 'lb-approx0-interm'
+        # - 'lb-tp-approx0-interm'
         # - 'lb-tp-approx1-interm'
         # - 'lb-tp-approx2-interm'
 
