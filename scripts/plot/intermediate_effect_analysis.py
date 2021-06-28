@@ -83,13 +83,15 @@ gconfig = {
     # 'yticks2': [0, 20, 40, 60, 80, 100],
     'outfiles': ['{}/{}-{}.png'],
     'files': [
-        '{}/{}/approx0-interm/comm-comp-report.csv',
-        '{}/{}/approx2-interm/comm-comp-report.csv',
-        '{}/{}/approx1-interm/comm-comp-report.csv',
-        '{}/{}/tp-approx0-interm/comm-comp-report.csv',
-        '{}/{}/lb-tp-approx0-interm/comm-comp-report.csv',
-        '{}/{}/lb-tp-approx2-interm/comm-comp-report.csv',
-        '{}/{}/lb-tp-approx1-interm/comm-comp-report.csv',
+        '{}/{}/approx0-mvapich2-interm/comm-comp-report.csv',
+        '{}/{}/approx2-mvapich2-interm/comm-comp-report.csv',
+        '{}/{}/approx1-mvapich2-interm/comm-comp-report.csv',
+        '{}/{}/tp-approx0-mvapich2-interm/comm-comp-report.csv',
+        '{}/{}/lb-tp-approx0-mvapich2-interm/comm-comp-report.csv',
+        '{}/{}/lb-tp-approx2-mvapich2-interm/comm-comp-report.csv',
+        '{}/{}/lb-tp-approx1-mvapich2-interm/comm-comp-report.csv',
+
+
     ],
     'lines': {
         # 'mpi': ['mpich3', 'mvapich2', 'openmpi3'],
