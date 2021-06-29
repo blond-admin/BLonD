@@ -54,12 +54,12 @@ gconfig = {
         'doubleRDS': 'RDS',
     },
     'colors': {
-        'Base': 'xkcd:red',
-        'F32': 'xkcd:red',
-        'F32-SRP': 'xkcd:blue',
-        'SRP': 'xkcd:blue',
-        'F32-RDS': 'xkcd:green',
-        'RDS': 'xkcd:green',
+        'Base': 'tab:orange',
+        'F32': 'tab:orange',
+        'F32-SRP': 'tab:blue',
+        'SRP': 'tab:blue',
+        'F32-RDS': 'tab:green',
+        'RDS': 'tab:green',
     },
     'hatches': {
         'Base': '',
