@@ -444,10 +444,10 @@ slurm:
         # - 'f32-rds-timing-gpu' # DONE
 
         # Approximate CPU
-        - 'srp-timing-cpu' DONE
-        - 'rds-timing-cpu'  DONE
+        - 'srp-timing-cpu' #DONE
+        - 'rds-timing-cpu'  #DONE
         - 'exact-timing-cpu' # DONE
-        - 'float32-timing-cpu'  DONE
+        - 'float32-timing-cpu'  #DONE
         - 'f32-srp-timing-cpu' 
         - 'f32-rds-timing-cpu' 
 
