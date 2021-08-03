@@ -454,7 +454,8 @@ slurm:
         # Approximate Weak-Scaling
         'f32-srp-timing-cpu': {
             'exe': ['LHC_main.py'],
-            'particles': [3000000],
+            # 'particles': [3000000],
+            'particles': [1500000],
             'bunches': [192],
             'slices': [1000],
             'turns': [10000],
@@ -470,16 +471,18 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [64],
+            # 'workers': [64],
+            'workers': [2],
             'omp': [10],            
             'mpi': ['mvapich2'],
-            'time': [30],
-            'repeats': 1
+            'time': [120],
+            'repeats': 3
         },
 
         'f32-rds-timing-cpu': {
             'exe': ['LHC_main.py'],
-            'particles': [3000000],
+            # 'particles': [3000000],
+            'particles': [1500000],
             'bunches': [192],
             'slices': [1000],
             'turns': [10000],
@@ -495,17 +498,18 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [64],
+            # 'workers': [64],
+            'workers': [2],
             'omp': [10],
 
             'mpi': ['mvapich2'],
-            'time': [30],
-            'repeats': 1
+            'time': [120],
+            'repeats': 3
         },
 
         'srp-timing-cpu': {
             'exe': ['LHC_main.py'],
-            'particles': [3000000],
+            'particles': [1500000],
             'bunches': [192],
             'slices': [1000],
             'turns': [10000],
@@ -521,17 +525,17 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [64],
+            'workers': [2],
             'omp': [10],
 
             'mpi': ['mvapich2'],
-            'time': [30],
-            'repeats': 1
+            'time': [120],
+            'repeats': 3
         },
 
         'rds-timing-cpu': {
             'exe': ['LHC_main.py'],
-            'particles': [3000000],
+            'particles': [1500000],
             'bunches': [192],
             'slices': [1000],
             'turns': [10000],
@@ -547,16 +551,16 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [64],
+            'workers': [2],
             'omp': [10],
             'mpi': ['mvapich2'],
-            'time': [30],
-            'repeats': 1
+            'time': [120],
+            'repeats': 3
         },
 
         'exact-timing-cpu': {
             'exe': ['LHC_main.py'],
-            'particles': [3000000],
+            'particles': [1500000],
             'bunches': [192],
             'slices': [1000],
             'turns': [10000],
@@ -572,16 +576,16 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [64],
+            'workers': [2],
             'omp': [10],
             'mpi': ['mvapich2'],
-            'time': [30],
-            'repeats': 1
+            'time': [120],
+            'repeats': 3
         },
 
         'float32-timing-cpu': {
             'exe': ['LHC_main.py'],
-            'particles': [3000000],
+            'particles': [1500000],
             'bunches': [192],
             'slices': [1000],
             'turns': [10000],
@@ -597,11 +601,11 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [64],
+            'workers': [2],
             'omp': [10],
             'mpi': ['mvapich2'],
-            'time': [30],
-            'repeats': 1
+            'time': [120],
+            'repeats': 3
         },
 
         'approx0-interm': {

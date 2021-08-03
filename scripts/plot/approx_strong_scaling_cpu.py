@@ -301,7 +301,7 @@ if __name__ == '__main__':
                 legend = None
             else:
                 labels.add(label)
-
+            print("{}:{}:{:.2f}".format(case, label, speedup[-1]))
             plt.errorbar(pos+np.arange(len(x)), speedup,
                          yerr=None,
                          label=legend,

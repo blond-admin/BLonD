@@ -65,22 +65,35 @@ gconfig = {
         'F32-RDS': 'tab:green',
         'RDS': 'tab:green',
     },
-    'edgecolors': {
-        'Base': 'tab:orange',
-        'F32': 'tab:orange',
-        'F32-SRP': 'tab:blue',
-        'SRP': 'tab:blue',
-        'F32-RDS': 'tab:green',
-        'RDS': 'tab:green',
+    'alpha': {
+        'Base': 1,
+        'F32': 0.5,
+        'F32-SRP': 1,
+        'SRP': 0.5,
+        'F32-RDS': 1,
+        'RDS': 0.5,
     },
+    # 'edgecolors': {
+    #     'Base': 'tab:orange',
+    #     'F32': 'tab:orange',
+    #     'F32-SRP': 'tab:blue',
+    #     'SRP': 'tab:blue',
+    #     'F32-RDS': 'tab:green',
+    #     'RDS': 'tab:green',
+    # },
+    # 'hatches': {
+    #     'Base': '',
+    #     'F32': 'xx',
+    #     'F32-SRP': 'xx',
+    #     'SRP': '',
+    #     'F32-RDS': 'xx',
+    #     'RDS': '',
+    # },
     'hatches': {
-        'Base': '',
-        'F32': 'xx',
-        'F32-SRP': 'xx',
-        'SRP': '',
-        'F32-RDS': 'xx',
-        'RDS': '',
+        'comm': '',
+        'serial': 'xx',
     },
+
     'x_name': 'n',
     # 'x_to_keep': [4, 8, 16, 32, 64],
     'omp_name': 'omp',
@@ -217,7 +230,6 @@ if __name__ == '__main__':
             for phase in gconfig['phases']:
 
                 values = final_dir[k][phase]
-            # for phase, values in final_dir[k].items():
                 y = get_values(values, header, gconfig['y_name'])
                 x = get_values(values, header, gconfig['x_name'])
                 omp = get_values(values, header, gconfig['omp_name'])
@@ -225,27 +237,22 @@ if __name__ == '__main__':
                     y += get_values(final_dir[k]['other'],
                                     header, gconfig['y_name'])
 
-                # x_new = []
-                # y_new = []
-                # for i, xi in enumerate(gconfig['x_to_keep']):
-                #     # if xi in x:
-                #     x_new.append(xi)
-                #     y_new.append(y[list(x).index(xi)])
-                # x = np.array(x_new)
-                # y = np.array(y_new)
                 x = x * omp[0] // 20
                 x = x[[0,-1]]
                 y = y[[0,-1]]
                 if len(bottom) == 0:
                     bottom = np.zeros(len(y))
-
+                print('Case: {}, Phase: {}, Percent:'.format(case, phase), y)
                 plt.bar(np.arange(len(x)) + pos, y, bottom=bottom, width=0.9*width,
                         label=None,
                         linewidth=1.5,
-                        edgecolor=gconfig['edgecolors'][label],
-                        hatch=gconfig['hatches'][label],
+                        # edgecolor=gconfig['edgecolors'][label],
+                        edgecolor='black',
+                        hatch=gconfig['hatches'][phase],
                         color=gconfig['colors'][label],
+                        alpha=gconfig['alpha'][label],
                         zorder=2)
+
                 j += 1
                 bottom += y
             pos += width
