@@ -5,6 +5,8 @@ import sys
 from plot.plotting_utilities import *
 import argparse
 
+# python scripts/plot/workers_per_node_evaluation.py -i results/compfront/ -c lhc,sps,ps -s
+
 this_directory = os.path.dirname(os.path.realpath(__file__)) + "/"
 this_filename = sys.argv[0].split('/')[-1]
 
@@ -35,10 +37,10 @@ if not os.path.exists(images_dir):
     os.makedirs(images_dir)
 
 gconfig = {
-    'hatches': ['', '', 'xx', '', 'xx'],
-    'colors': ['tab:orange', 'tab:blue', 'tab:green', 'tab:green', 'tab:green'],
+    'hatches': ['', '', '', '', ''],
+    'colors': ['tab:orange', 'tab:blue', 'tab:green', 'tab:brown', 'tab:purple'],
     'x_name': 'omp',
-    # 'x_to_keep': [2, 5, 10, 20],
+    'x_to_keep': [2, 5, 10, 20],
     # 'x_to_keep': [8, 16],
     'omp_name': 'n',
     'y_name': 'avg_time(sec)',
@@ -66,11 +68,11 @@ gconfig = {
     'xticks': {'fontsize': 10, 'rotation': '0', 'fontweight': 'bold'},
     'fontsize': 10,
     'legend': {
-        'loc': 'upper right', 'ncol': 5, 'handlelength': 1.5, 'fancybox': True,
+        'loc': 'upper left', 'ncol': 6, 'handlelength': 1.5, 'fancybox': True,
         'framealpha': 0., 'fontsize': 10, 'labelspacing': 0, 'borderpad': 0.5,
         'handletextpad': 0.5, 'borderaxespad': 0.1, 'columnspacing': 0.8,
         # 'title': 'Worker-Per-Node',
-        # 'bbox_to_anchor': (0, 1.25)
+        'bbox_to_anchor': (0, 1.15)
     },
     'subplots_adjust': {
         'wspace': 0.0, 'hspace': 0.1, 'top': 0.93
@@ -80,9 +82,9 @@ gconfig = {
         'direction': 'out', 'length': 3, 'width': 1,
     },
     'fontname': 'DejaVu Sans Mono',
-    'ylim': [.5, 1.1],
+    'ylim': [.5, 1.05],
     'yticks': [.5, .6, .7, .8, .9, 1.],
-    'outfiles': ['{}/{}-{}.png'],
+    'outfiles': ['{}/{}-{}.png', '{}/{}-{}.pdf'],
     'files': [
         '{}/{}/approx0-mvapich2-workers/comm-comp-report.csv',
     ],
@@ -94,8 +96,12 @@ gconfig = {
 
 }
 
+plt.rcParams['ps.useafm'] = True
+plt.rcParams['pdf.use14corefonts'] = True
+plt.rcParams['text.usetex'] = True  # Let TeX do the typsetting
+plt.rcParams['text.latex.preamble'] = r'\usepackage{sansmath}'
 plt.rcParams['font.family'] = gconfig['fontname']
-# plt.rcParams['text.usetex'] = True
+
 
 
 if __name__ == '__main__':
@@ -145,16 +151,18 @@ if __name__ == '__main__':
         print('[{}] tc: {}: {}'.format(
             this_filename[:-3], case, 'Plotting data'))
 
-        for idx, k in enumerate(plots_dir.keys()):
+        idx = 0
+        for k in plots_dir.keys():
             values = plots_dir[k]
 
             x = get_values(values, header, gconfig['x_name'])
             x = np.array(x, int)
             sortidx = np.argsort(x)
             x = x[sortidx]
+            print(x)
             omp = get_values(values, header, gconfig['omp_name'])[sortidx]
-            if omp[0] not in [10, 5, 2, 1]:
-                continue
+            # if omp[0] not in [10, 5, 2, 1]:
+            #     continue
             y = get_values(values, header, gconfig['y_name'])[sortidx]
             parts = get_values(values, header, 'ppb')[sortidx]
             bunches = get_values(values, header, 'b')[sortidx]
@@ -164,20 +172,20 @@ if __name__ == '__main__':
             # This is the throughput
             y = parts * bunches * turns / y
             speedup = y
-            # x_new = []
-            # sp_new = []
-            # omp_new = []
-            # for i, xi in enumerate(gconfig['x_to_keep']):
-            #     x_new.append(xi)
-            #     if xi in x:
-            #         sp_new.append(speedup[list(x).index(xi)])
-            #         omp_new.append(omp[list(x).index(xi)])
-            #     else:
-            #         sp_new.append(0)
-            #         omp_new.append(0)
-            # x = np.array(x_new)
-            # omp = np.array(omp_new)
-            # speedup = np.array(sp_new)
+            x_new = []
+            sp_new = []
+            omp_new = []
+            for i, xi in enumerate(gconfig['x_to_keep']):
+                x_new.append(xi)
+                if xi in x:
+                    sp_new.append(speedup[list(x).index(xi)])
+                    omp_new.append(omp[list(x).index(xi)])
+                else:
+                    sp_new.append(0)
+                    omp_new.append(0)
+            x = np.array(x_new)
+            omp = np.array(omp_new)
+            speedup = np.array(sp_new)
 
             # efficiency = 100 * speedup / (x * omp / ompref)
             # x = x * omp
@@ -190,6 +198,14 @@ if __name__ == '__main__':
                 plt.bar(pos + width*ii, sp, width=0.9*width,
                         edgecolor='0.', label=None, hatch=gconfig['hatches'][ii],
                         color=gconfig['colors'][ii])
+                text = '{:.2f}'.format(sp)
+                # if ii == 0:
+                #     text = ''
+                # else:
+                # text = text[1:]
+                ax.annotate(text, xy=(pos + ii*width, sp),
+                            **gconfig['annotate'])
+            idx += 1
         pos += step
         # I plot the averages here
 
@@ -199,10 +215,10 @@ if __name__ == '__main__':
                 edgecolor='0.', label=str(int(20//x[idx])), hatch=gconfig['hatches'][idx],
                 color=gconfig['colors'][idx])
         text = '{:.2f}'.format(val)
-        if idx == 0:
-            text = ''
-        else:
-            text = text[1:]
+        # if idx == 0:
+        #     text = ''
+        # else:
+        #     text = text[1:]
         ax.annotate(text, xy=(pos + idx*width, val),
                     **gconfig['annotate'])
 
@@ -222,7 +238,7 @@ if __name__ == '__main__':
         file = file.format(
             images_dir, this_filename[:-3], '-'.join(args.cases))
         print('[{}] {}: {}'.format(this_filename[:-3], 'Saving figure', file))
-        fig.savefig(file, dpi=600, bbox_inches='tight')
+        save_and_crop(fig, file, dpi=600, bbox_inches='tight')
     if args.show:
         plt.show()
     plt.close()

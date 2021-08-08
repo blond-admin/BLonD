@@ -6,6 +6,9 @@ import sys
 from plot.plotting_utilities import *
 import argparse
 
+# python scripts/plot/mpi_implementations_bench.py -i results/compfront/ -c lhc,sps,ps -s
+
+
 this_directory = os.path.dirname(os.path.realpath(__file__)) + "/"
 this_filename = sys.argv[0].split('/')[-1]
 
@@ -39,7 +42,7 @@ gconfig = {
         '2': 'RDS',
     },
     'hatches': ['', '', ''],
-    'colors': ['0.1', '0.5', '0.8'],
+    'colors': ['tab:orange', 'tab:green', 'tab:blue'],
     'x_name': 'n',
     'x_to_keep': [8],
     'omp_name': 'omp',
@@ -78,9 +81,11 @@ gconfig = {
     'fontname': 'DejaVu Sans Mono',
     'ylim': [.9, 1.4],
     'yticks': [.9, 1., 1.1, 1.2, 1.3, 1.4],
-    'outfiles': ['{}/{}-{}.png'],
+    'outfiles': ['{}/{}-{}.png', '{}/{}-{}.pdf'],
     'files': [
-        '{}/{}/approx0-impl/comm-comp-report.csv',
+        '{}/{}/approx0-openmpi3-impl/comm-comp-report.csv',
+        '{}/{}/approx0-mpich3-impl/comm-comp-report.csv',
+        '{}/{}/approx0-mvapich2-impl/comm-comp-report.csv',
     ],
     'lines': {
         'mpi': ['mvapich2', 'mpich3', 'openmpi3'],
@@ -89,8 +94,11 @@ gconfig = {
 
 }
 
+plt.rcParams['ps.useafm'] = True
+plt.rcParams['pdf.use14corefonts'] = True
+plt.rcParams['text.usetex'] = True  # Let TeX do the typsetting
+plt.rcParams['text.latex.preamble'] = r'\usepackage{sansmath}'
 plt.rcParams['font.family'] = gconfig['fontname']
-# plt.rcParams['text.usetex'] = True
 
 
 if __name__ == '__main__':
@@ -152,7 +160,7 @@ if __name__ == '__main__':
             values = plots_dir[k]
             mpiv = k.split('_mpi')[1].split('_')[0]
             experiment = k.split('_')[-1]
-            label = '{}'.format(mpiv)
+            label = '{}'.format(mpiv).upper()
             if label in labels:
                 label = None
             else:
@@ -217,7 +225,7 @@ if __name__ == '__main__':
     for file in gconfig['outfiles']:
         file = file.format(images_dir, this_filename[:-3], '-'.join(args.cases))
         print('[{}] {}: {}'.format(this_filename[:-3], 'Saving figure', file))
-        fig.savefig(file, dpi=600, bbox_inches='tight')
+        save_and_crop(fig, file, dpi=600, bbox_inches='tight')
     if args.show:
         plt.show()
     plt.close()

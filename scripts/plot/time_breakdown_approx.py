@@ -6,6 +6,8 @@ import sys
 from plot.plotting_utilities import *
 import argparse
 
+# python scripts/plot/time_breakdown_approx.py -i results/cpu-time-breakdown/ -o results/cpu-time-breakdown/plots -c lhc,sps,ps -s
+
 this_directory = os.path.dirname(os.path.realpath(__file__)) + "/"
 this_filename = sys.argv[0].split('/')[-1]
 
@@ -91,7 +93,7 @@ gconfig = {
     # },
     'hatches': {
         'comm': '',
-        'serial': 'xx',
+        'serial': '///',
     },
 
     'x_name': 'n',
@@ -107,7 +109,7 @@ gconfig = {
                 # 'x': 0.55,
                 'fontweight': 'bold',
     },
-    'figsize': [5, 2.5],
+    'figsize': [5, 2.],
     'annotate': {
         'fontsize': 9,
         'textcoords': 'data',
@@ -117,10 +119,10 @@ gconfig = {
     'ticks': {'fontsize': 10},
     'fontsize': 10,
     'legend': {
-        'loc': 'upper left', 'ncol': 1, 'handlelength': 1.5, 'fancybox': False,
-        'framealpha': 0.8, 'fontsize': 10, 'labelspacing': 0, 'borderpad': 0.5,
-        'handletextpad': 0.5, 'borderaxespad': 0.1, 'columnspacing': 0.8,
-        'bbox_to_anchor': (0., 0.85)
+        'loc': 'upper left', 'ncol': 10, 'handlelength': 1.5, 'fancybox': False,
+        'framealpha': 0., 'fontsize': 10, 'labelspacing': 0, 'borderpad': 0.5,
+        'handletextpad': 0.5, 'borderaxespad': 0.1, 'columnspacing': 0.5,
+        'bbox_to_anchor': (0., 1.14)
     },
     'subplots_adjust': {
         'wspace': 0.05, 'hspace': 0.1, 'top': 0.93
@@ -138,14 +140,15 @@ gconfig = {
     'ylim': [0, 100],
     'xlim': [1.6, 36],
     'yticks': [0, 20, 40, 60, 80, 100],
-    'outfiles': ['{}/{}-{}.png'],
+    'outfiles': ['{}/{}-{}.png',
+                '{}/{}-{}.pdf'],
     'files': [
         '{}/{}/exact-timing-cpu/comm-comp-report.csv',
         # '{}/{}/rds-timing-cpu/comm-comp-report.csv',
         # '{}/{}/srp-timing-cpu/comm-comp-report.csv',
         # '{}/{}/float32-timing-cpu/comm-comp-report.csv',
-        '{}/{}/f32-rds-timing-cpu/comm-comp-report.csv',
         '{}/{}/f32-srp-timing-cpu/comm-comp-report.csv',
+        '{}/{}/f32-rds-timing-cpu/comm-comp-report.csv',
     ],
     'lines': {
         'approx': ['0', '1', '2'],
@@ -171,7 +174,8 @@ if __name__ == '__main__':
     ax_arr = np.atleast_1d(ax_arr)
     labels = set()
     for col, case in enumerate(args.cases):
-        print('[{}] tc: {}: {}'.format(this_filename[:-3], case, 'Reading data'))
+        print('[{}] tc: {}: {}'.format(
+            this_filename[:-3], case, 'Reading data'))
 
         ax = ax_arr[col]
         plt.sca(ax)
@@ -213,8 +217,9 @@ if __name__ == '__main__':
         pos = 0
         step = 1
         width = 0.85 * step / (len(final_dir.keys()))
-        print('[{}] tc: {}: {}'.format(this_filename[:-3], case, 'Plotting data'))
-
+        print('[{}] tc: {}: {}'.format(
+            this_filename[:-3], case, 'Plotting data'))
+        plotted_lines = []
         for idx, k in enumerate(final_dir.keys()):
             approx = k.split('approx')[1].split('_')[0]
             red = k.split('red')[1].split('_')[0]
@@ -222,7 +227,7 @@ if __name__ == '__main__':
             prec = k.split('prec')[1].split('_')[0]
             approx = gconfig['approx'][approx]
             label = gconfig['label'][prec+approx]
-
+            plotted_lines.append(label)
             # labels.add(label)
             bottom = []
             # colors = gconfig['colors'][idx]
@@ -238,14 +243,14 @@ if __name__ == '__main__':
                                     header, gconfig['y_name'])
 
                 x = x * omp[0] // 20
-                x = x[[0,-1]]
-                y = y[[0,-1]]
+                x = x[[0, -1]]
+                y = y[[0, -1]]
                 if len(bottom) == 0:
                     bottom = np.zeros(len(y))
                 print('Case: {}, Phase: {}, Percent:'.format(case, phase), y)
-                plt.bar(np.arange(len(x)) + pos, y, bottom=bottom, width=0.9*width,
+                plt.bar(np.arange(len(x)) + pos, y, bottom=bottom, width=0.8*width,
                         label=None,
-                        linewidth=1.5,
+                        linewidth=1.,
                         # edgecolor=gconfig['edgecolors'][label],
                         edgecolor='black',
                         hatch=gconfig['hatches'][phase],
@@ -260,7 +265,7 @@ if __name__ == '__main__':
                    np.array(x, int), **gconfig['ticks'])
 
         plt.ylim(gconfig['ylim'])
-        plt.xlim(0-width, len(x))
+        plt.xlim(0-width, len(x)-width/2)
         if col == 0:
             ax.tick_params(**gconfig['tick_params_left'])
         else:
@@ -269,18 +274,19 @@ if __name__ == '__main__':
         plt.xticks(**gconfig['ticks'])
         plt.yticks(gconfig['yticks'], gconfig['yticks'], **gconfig['ticks'])
 
-        # if col == 0:
-        #     handles = []
-        #     for c, p in zip(gconfig['colors'], ['comm', 'intra', 'other']):
-        #         patch = mpatches.Patch(label=p, edgecolor='black', facecolor=c,
-        #                                linewidth=1.,)
-        #         handles.append(patch)
+        if col == 0:
+            handles = []
+            for label in plotted_lines:
+                patch = mpatches.Patch(label=label, edgecolor='black',
+                                       facecolor=gconfig['colors'][label],
+                                       linewidth=1.,)
+                handles.append(patch)
 
-        #     for h, tc, e in zip(gconfig['hatches'], labels, gconfig['edgecolors']):
-        #         patch = mpatches.Patch(label=tc, edgecolor=e,
-        #                                facecolor='1', hatch=h, linewidth=1.5,)
-        #         handles.append(patch)
-        #     plt.legend(handles=handles, **gconfig['legend'])
+            for tc, h in gconfig['hatches'].items():
+                patch = mpatches.Patch(label=tc, edgecolor='black',
+                                       facecolor='0.6', hatch=h, linewidth=1.,)
+                handles.append(patch)
+            plt.legend(handles=handles, **gconfig['legend'])
     plt.tight_layout()
     plt.subplots_adjust(**gconfig['subplots_adjust'])
     for file in gconfig['outfiles']:
