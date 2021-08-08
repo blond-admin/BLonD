@@ -36,7 +36,7 @@ if not os.path.exists(images_dir):
 
 gconfig = {
     'hatches': ['', '', 'xx', '', 'xx'],
-    'colors': ['0.3', '0.6', '0.6', '0.9', '0.9'],
+    'colors': ['tab:orange', 'tab:blue', 'tab:green', 'tab:green', 'tab:green'],
     'x_name': 'omp',
     # 'x_to_keep': [2, 5, 10, 20],
     # 'x_to_keep': [8, 16],
@@ -84,11 +84,12 @@ gconfig = {
     'yticks': [.5, .6, .7, .8, .9, 1.],
     'outfiles': ['{}/{}-{}.png'],
     'files': [
-        '{}/{}/approx0-workers/comm-comp-report.csv',
+        '{}/{}/approx0-mvapich2-workers/comm-comp-report.csv',
     ],
     'lines': {
         'mpi': ['mpich3', 'mvapich2', 'openmpi3'],
         'type': ['total'],
+        # 'omp': ['20', '10', '5', '2'],
     }
 
 }
@@ -152,6 +153,8 @@ if __name__ == '__main__':
             sortidx = np.argsort(x)
             x = x[sortidx]
             omp = get_values(values, header, gconfig['omp_name'])[sortidx]
+            if omp[0] not in [10, 5, 2, 1]:
+                continue
             y = get_values(values, header, gconfig['y_name'])[sortidx]
             parts = get_values(values, header, 'ppb')[sortidx]
             bunches = get_values(values, header, 'b')[sortidx]

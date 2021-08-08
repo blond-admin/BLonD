@@ -141,9 +141,9 @@ gconfig = {
     'outfiles': ['{}/{}-{}.png'],
     'files': [
         '{}/{}/exact-timing-cpu/comm-comp-report.csv',
-        '{}/{}/rds-timing-cpu/comm-comp-report.csv',
-        '{}/{}/srp-timing-cpu/comm-comp-report.csv',
-        '{}/{}/float32-timing-cpu/comm-comp-report.csv',
+        # '{}/{}/rds-timing-cpu/comm-comp-report.csv',
+        # '{}/{}/srp-timing-cpu/comm-comp-report.csv',
+        # '{}/{}/float32-timing-cpu/comm-comp-report.csv',
         '{}/{}/f32-rds-timing-cpu/comm-comp-report.csv',
         '{}/{}/f32-srp-timing-cpu/comm-comp-report.csv',
     ],
