@@ -427,10 +427,10 @@ slurm:
         # - 'f32-srp-weak-scaling-timing-gpu'
         # - 'f32-rds-weak-scaling-timing-gpu' 
 
-        - 'srp-timing-cpu' # Done 
-        - 'rds-timing-cpu' # In progress
+        # - 'srp-timing-cpu' # Done 
+        # - 'rds-timing-cpu' # In progress
         - 'exact-timing-cpu' # In progress
-        - 'float32-timing-cpu'
+        # - 'float32-timing-cpu'
         - 'f32-srp-timing-cpu' 
         - 'f32-rds-timing-cpu' 
 
@@ -472,7 +472,7 @@ slurm:
             'timing': ['timing'],
             'gpu': [0],
             # 'workers': [64],
-            'workers': [2],
+            'workers': [16],
             'omp': [10],            
             'mpi': ['mvapich2'],
             'time': [120],
@@ -499,7 +499,7 @@ slurm:
             'timing': ['timing'],
             'gpu': [0],
             # 'workers': [64],
-            'workers': [2],
+            'workers': [16],
             'omp': [10],
 
             'mpi': ['mvapich2'],
@@ -525,7 +525,7 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [2],
+            'workers': [16],
             'omp': [10],
 
             'mpi': ['mvapich2'],
@@ -551,7 +551,7 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [2],
+            'workers': [16],
             'omp': [10],
             'mpi': ['mvapich2'],
             'time': [120],
@@ -576,7 +576,7 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [2],
+            'workers': [16],
             'omp': [10],
             'mpi': ['mvapich2'],
             'time': [120],
@@ -601,7 +601,7 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [2],
+            'workers': [16],
             'omp': [10],
             'mpi': ['mvapich2'],
             'time': [120],

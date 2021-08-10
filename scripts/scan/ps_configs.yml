@@ -448,8 +448,8 @@ slurm:
         # - 'rds-timing-cpu'  #DONE
         - 'exact-timing-cpu' # DONE
         # - 'float32-timing-cpu'  #DONE
-        # - 'f32-srp-timing-cpu' 
-        # - 'f32-rds-timing-cpu' 
+        - 'f32-srp-timing-cpu' 
+        - 'f32-rds-timing-cpu' 
 
 
 
@@ -476,7 +476,7 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [2], #, 16],
+            'workers': [16], #, 16],
             'omp': [10],
             'mpi': ['mvapich2'],
             'time': [120],
@@ -502,7 +502,7 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [2], #, 16],
+            'workers': [16], #, 16],
             'omp': [10],
             'mpi': ['mvapich2'],
             'time': [120],
@@ -528,7 +528,7 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [2], #, 16],
+            'workers': [16], #, 16],
             'omp': [10],
             'mpi': ['mvapich2'],
             'time': [120],
@@ -554,7 +554,7 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [2], #, 16],
+            'workers': [16], #, 16],
             'omp': [10],
             'mpi': ['mvapich2'],
             'time': [120],
@@ -579,7 +579,7 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [2], #, 16],
+            'workers': [16], #, 16],
             'omp': [10],
             'mpi': ['mvapich2'],
             'time': [120],
@@ -605,7 +605,7 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [2], #, 16],
+            'workers': [16], #, 16],
             'omp': [10],
             'mpi': ['mvapich2'],
             'time': [120],
