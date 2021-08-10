@@ -38,9 +38,9 @@ gconfig = {
         '1': 'SRP',
         '2': 'RDS',
     },
-    'hatches': ['', '', '//'],
+    'hatches': ['', '', ''],
     'markers': ['x', 'o', '^'],
-    'colors': ['0.25', '0.55', '0.9'],
+    'colors': ['tab:orange', 'tab:green', 'tab:blue'],
     'ecolor': 'xkcd:red',
     'capsize': 4,
     'x_name': 'n',
@@ -49,7 +49,7 @@ gconfig = {
     'y_name': 'total_time(sec)',
     'percent_name': 'global_percentage',
     'xlabel': 'Nodes (x20 Cores)',
-    'ylabel': r'Time Spread(%)',
+    'ylabel': r'Time Spread(\%)',
     'title': {
                 # 's': '{}'.format(case.upper()),
                 'fontsize': 10,
@@ -89,12 +89,12 @@ gconfig = {
     'ylim': [0, 40],
     'xlim': [1.6, 36],
     'yticks': [0, 8, 16, 24, 32, 40],
-    'outfiles': ['{}/{}-{}.png'],
+    'outfiles': ['{}/{}-{}.png', '{}/{}-{}.pdf'],
     'errorfile': 'delta-std-report.csv',
     'deltafile': 'delta-report.csv',
     'datafile': 'avg-report.csv',
     'files': [
-        '{}/{}/approx0-spread/{}',
+        '{}/{}/approx0-mvapich2-spread/{}',
     ],
     'lines': {
         # 'mpi': ['mpich3', 'mvapich2', 'openmpi3'],
@@ -110,8 +110,11 @@ gconfig = {
 
 }
 
+plt.rcParams['ps.useafm'] = True
+plt.rcParams['pdf.use14corefonts'] = True
+plt.rcParams['text.usetex'] = True  # Let TeX do the typsetting
+plt.rcParams['text.latex.preamble'] = r'\usepackage{sansmath}'
 plt.rcParams['font.family'] = gconfig['fontname']
-# plt.rcParams['text.usetex'] = True
 
 if __name__ == '__main__':
     fig, ax = plt.subplots(ncols=1, nrows=1,
@@ -248,7 +251,7 @@ if __name__ == '__main__':
     for file in gconfig['outfiles']:
         file = file.format(images_dir, this_filename[:-3], '-'.join(args.cases))
         print('[{}] {}: {}'.format(this_filename[:-3], 'Saving figure', file))
-        fig.savefig(file, dpi=600, bbox_inches='tight')
+        save_and_crop(fig, file, dpi=600, bbox_inches='tight')
     if args.show:
         plt.show()
     plt.close()
