@@ -429,10 +429,10 @@ slurm:
 
         # - 'srp-timing-cpu' # Done 
         # - 'rds-timing-cpu' # In progress
-        - 'exact-timing-cpu' # In progress
+        # - 'exact-timing-cpu' # In progress
         # - 'float32-timing-cpu'
         - 'f32-srp-timing-cpu' 
-        - 'f32-rds-timing-cpu' 
+        # - 'f32-rds-timing-cpu' 
 
         # - f32-rds-monitor
         # - f32-srp-monitor

@@ -92,8 +92,9 @@ gconfig = {
     #     'RDS': '',
     # },
     'hatches': {
-        'comm': '',
+        'comm': '...',
         'serial': '///',
+        'comp': ''
     },
 
     'x_name': 'n',
@@ -120,10 +121,10 @@ gconfig = {
     'ticks': {'fontsize': 10},
     'fontsize': 10,
     'legend': {
-        'loc': 'upper left', 'ncol': 10, 'handlelength': 1.5, 'fancybox': False,
-        'framealpha': 0., 'fontsize': 10, 'labelspacing': 0, 'borderpad': 0.5,
-        'handletextpad': 0.5, 'borderaxespad': 0.1, 'columnspacing': 0.5,
-        'bbox_to_anchor': (0., 1.14)
+        'loc': 'upper left', 'ncol': 10, 'handlelength': 1.2, 'fancybox': False,
+        'framealpha': 0., 'fontsize': 9.5, 'labelspacing': 0, 'borderpad': 0.5,
+        'handletextpad': 0.2, 'borderaxespad': 0.1, 'columnspacing': 0.4,
+        'bbox_to_anchor': (0, 1.14)
     },
     'subplots_adjust': {
         'wspace': 0.05, 'hspace': 0.1, 'top': 0.93
@@ -137,8 +138,8 @@ gconfig = {
         'direction': 'out', 'length': 3, 'width': 1,
     },
     'fontname': 'DejaVu Sans Mono',
-    'phases': ['comm', 'serial'],
-    'ylim': [0, 100],
+    'phases': ['comm', 'serial', 'comp'],
+    'ylim': [0, 105],
     'xlim': [1.6, 36],
     'yticks': [0, 20, 40, 60, 80, 100],
     'outfiles': ['{}/{}-{}.png',
@@ -148,8 +149,8 @@ gconfig = {
         # '{}/{}/rds-timing-cpu/comm-comp-report.csv',
         # '{}/{}/srp-timing-cpu/comm-comp-report.csv',
         # '{}/{}/float32-timing-cpu/comm-comp-report.csv',
-        '{}/{}/f32-rds-timing-cpu/comm-comp-report.csv',
         '{}/{}/f32-srp-timing-cpu/comm-comp-report.csv',
+        '{}/{}/f32-rds-timing-cpu/comm-comp-report.csv',
     ],
     'lines': {
         'approx': ['0', '1', '2'],
@@ -248,6 +249,8 @@ if __name__ == '__main__':
                     final_dir[k]['total'], header, gconfig['y_name'])
                 y = 100 * y / ynorm
 
+                if phase == 'comp':
+                    y = 100 - bottom
                 x = get_values(values, header, gconfig['x_name'])
                 omp = get_values(values, header, gconfig['omp_name'])
 
@@ -257,21 +260,34 @@ if __name__ == '__main__':
                 if len(bottom) == 0:
                     bottom = np.zeros(len(y))
                 print('Case: {}, Phase: {}, Percent:'.format(case, phase), y)
-                plt.bar(np.arange(len(x)) + pos, y, bottom=bottom, width=0.8*width,
-                        label=None,
-                        linewidth=1.,
-                        # edgecolor=gconfig['edgecolors'][label],
-                        edgecolor='black',
-                        hatch=gconfig['hatches'][phase],
-                        color=gconfig['colors'][label],
-                        alpha=gconfig['alpha'][label],
-                        zorder=2)
+                if phase == 'comp':
+                    plt.bar(np.arange(len(x)) + pos, y, bottom=bottom, width=0.8*width,
+                            label=None,
+                            linewidth=1.,
+                            # edgecolor=gconfig['edgecolors'][label],
+                            edgecolor='black',
+                            hatch=gconfig['hatches'][phase],
+                            color=gconfig['colors'][label],
+                            alpha=0.2,
+                            zorder=2)
+
+                else:
+                    plt.bar(np.arange(len(x)) + pos, y, bottom=bottom, width=0.8*width,
+                            label=None,
+                            linewidth=1.,
+                            # edgecolor=gconfig['edgecolors'][label],
+                            edgecolor='black',
+                            hatch=gconfig['hatches'][phase],
+                            color=gconfig['colors'][label],
+                            alpha=gconfig['alpha'][label],
+                            zorder=2)
 
                 j += 1
                 bottom += y
-            for xi, yi in zip(np.arange(len(x)) + pos, bottom):
-                plt.gca().annotate('{:.1f}'.format(yi),
-                                   xy=(xi, yi + 1), **gconfig['annotate'])
+                if phase == 'serial':
+                    for xi, yi in zip(np.arange(len(x)) + pos, bottom):
+                        plt.gca().annotate('{:.1f}'.format(yi),
+                                           xy=(xi, yi + 1), **gconfig['annotate'])
             pos += width
         plt.xticks(np.arange(len(x))+step/4,
                    np.array(x, int), **gconfig['ticks'])
@@ -295,8 +311,13 @@ if __name__ == '__main__':
                 handles.append(patch)
 
             for tc, h in gconfig['hatches'].items():
+                if tc =='comp':
+                    alpha = 0.2
+                else:
+                    alpha = 1
                 patch = mpatches.Patch(label=tc, edgecolor='black',
-                                       facecolor='0.6', hatch=h, linewidth=1.,)
+                                       facecolor='0.6', hatch=h, linewidth=1.,
+                                       alpha=alpha)
                 handles.append(patch)
             plt.legend(handles=handles, **gconfig['legend'])
     plt.tight_layout()

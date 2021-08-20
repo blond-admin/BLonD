@@ -443,7 +443,7 @@ slurm:
         - 'exact-timing-cpu' 
         # - 'float32-timing-cpu' 
         - 'f32-srp-timing-cpu'
-        - 'f32-rds-timing-cpu'
+        # - 'f32-rds-timing-cpu'
 
         # - f32-rds-monitor
         # - f32-srp-monitor
