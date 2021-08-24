@@ -82,7 +82,7 @@ libs = []
 
 # EXAMPLE FLAGS: -Ofast -std=c++11 -fopt-info-vec -march=native
 #                -mfma4 -fopenmp -ftree-vectorizer-verbose=1
-cflags = ['-O3', '-ffast-math', '-std=c++11', '-shared']
+cflags = ['-O3', '-ffast-math', '-march=native', '-std=c++11', '-shared']
 
 cpp_files = [
     os.path.join(basepath, 'cpp_routines/kick.cpp'),
