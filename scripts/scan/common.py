@@ -53,11 +53,11 @@ slurm = {
     'jobname': '-J',
 
     'default_args': [
-            '--mem', '56G',
+            '--mem', '0',
             '--export', 'ALL',
             # '--overcommit'
             '--hint', 'nomultithread',
-            '--partition', 'inf-short'
+            # '--partition', 'inf-short'
     ]
 }
 
