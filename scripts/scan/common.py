@@ -51,6 +51,7 @@ slurm = {
     'output': '-o',
     'error': '-e',
     'jobname': '-J',
+    'partition': '--partition',
 
     'default_args': [
             '--mem', '0',

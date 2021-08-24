@@ -189,7 +189,8 @@ if __name__ == '__main__':
                             common.slurm['time'], str(time),
                             common.slurm['output'], output,
                             common.slurm['error'], error,
-                            common.slurm['jobname'], tc + '-' + analysis + job_name.split('/')[0] + '-' + str(i)]
+                            common.slurm['jobname'], tc + '-' + analysis + job_name.split('/')[0] + '-' + str(i),
+                            common.slurm['partition'], str(partition)]
                         batch_args += common.slurm['default_args']
                         batch_args += [common.slurm['script'],
                                        common.slurm['run']]
