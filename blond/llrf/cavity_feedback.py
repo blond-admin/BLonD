@@ -522,12 +522,15 @@ class SPSOneTurnFeedback(object):
         """
 
         # Add correction to the drive already existing
-        self.V_gen = self.open_FB*modulator(self.dV_gen, self.omega_r,
-            self.omega_c, self.rf.t_rf[0, self.counter]) \
-            + self.open_drive*self.V_set
+        self.DV_MOD_FRF = modulator(self.dV_gen, self.omega_r,
+            self.omega_c, self.rf.t_rf[0, self.counter])
+        self.V_gen = self.open_FB * self.DV_MOD_FRF + self.open_drive*self.V_set
 
         # Generator charge from voltage, transmitter model
         self.I_gen = self.G_tx*self.V_gen/self.TWC.R_gen*self.T_s
+
+        # TODO: Same here.
+        self.I_GEN = np.copy(self.I_gen)
 
         # Circular convolution: attach last points of previous turn
         self.I_gen = np.concatenate((self.I_gen_prev, self.I_gen))
@@ -536,6 +539,9 @@ class SPSOneTurnFeedback(object):
         self.induced_voltage('gen')
         # Update memory of previous turn
         self.I_gen_prev = self.I_gen[-self.n_mov_av:]
+
+        # TODO: Same here.
+        self.V_IND_COARSE_GEN = np.copy(self.V_coarse_ind_gen)
 
     def induced_voltage(self, name):
         r"""Generation of beam- or generator-induced voltage from the
@@ -625,13 +631,24 @@ class SPSOneTurnFeedback(object):
         self.logger.debug("Voltage error %.6f MV",
                           1e-6*np.mean(np.absolute(self.dV_gen)))
 
+        # TODO: Saving some arrays for plotting outside the object.
+        self.DV_GEN = np.copy(self.dV_gen)
+        self.V_SET = np.copy(self.V_set)
+        self.V_ANT = np.copy(self.V_coarse_tot)
+
         # One-turn delay comb filter; memorise the value of the previous turn
         self.dV_comb_out = comb_filter(self.dV_comb_out_prev, self.dV_gen,
                                        self.a_comb)
 
+        # TODO: Same here.
+        self.DV_COMB_OUT = np.copy(self.dV_comb_out)
+
         # Shift signals with the delay time (to make exactly one turn)
         self.dV_gen = np.concatenate((self.dV_comb_out_prev[-self.n_delay:],
             self.dV_comb_out[:self.n_coarse-self.n_delay]))
+
+        # TODO: Same here.
+        self.DV_DELAYED = np.copy(self.dV_gen)
 
         # For comb filter, update memory of previous turn
         self.dV_comb_out_prev = np.copy(self.dV_comb_out)
@@ -640,6 +657,9 @@ class SPSOneTurnFeedback(object):
         self.dV_gen = modulator(self.dV_gen, self.omega_c, self.omega_r,
                                 self.rf.t_rf[0, self.counter])
 
+        # TODO: Here.
+        self.DV_MOD_FR = np.copy(self.dV_gen)
+
 
         # Cavity filter: CIRCULAR moving average over filling time
         # Memorize last points of previous turn for beginning of next turn
@@ -647,6 +667,9 @@ class SPSOneTurnFeedback(object):
         self.dV_gen = moving_average(self.dV_gen, self.n_mov_av,
             x_prev=self.dV_ma_in_prev[-self.n_mov_av+1:])
         self.dV_ma_in_prev = np.copy(self.dV_ma_in)
+
+        # TODO: Here.
+        self.DV_MOV_AVG = np.copy(self.dV_gen)
 
     def matr_conv(self, I, h):
         """Convolution of beam current with impulse response; uses a complete

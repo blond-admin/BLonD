@@ -69,7 +69,7 @@ def cartesian_to_polar(IQ_vector):
     return np.absolute(IQ_vector), np.angle(IQ_vector)
 
 
-def modulator(signal, omega_i, omega_f, T_sampling):
+def modulator(signal, omega_i, omega_f, T_sampling, phi_0=0):
     """Demodulate a signal from initial frequency to final frequency. The two
     frequencies should be close.
 
@@ -97,8 +97,8 @@ def modulator(signal, omega_i, omega_f, T_sampling):
                            " be an array!")
     delta_phi = (omega_i - omega_f)*T_sampling * np.arange(len(signal))
     # Pre compute sine and cosine for speed up
-    cs = np.cos(delta_phi)
-    sn = np.sin(delta_phi)
+    cs = np.cos(delta_phi + phi_0)
+    sn = np.sin(delta_phi + phi_0)
     I_new = cs*signal.real - sn*signal.imag
     Q_new = sn*signal.real + cs*signal.imag
 
