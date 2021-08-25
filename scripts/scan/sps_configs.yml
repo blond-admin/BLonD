@@ -438,12 +438,12 @@ slurm:
         # - 'f32-rds-timing-gpu' 
 
         # Approximate 
-        # - 'srp-timing-cpu'
-        # - 'rds-timing-cpu' 
+        - 'srp-timing-cpu'
+        - 'rds-timing-cpu' 
         - 'exact-timing-cpu' 
-        # - 'float32-timing-cpu' 
+        - 'float32-timing-cpu' 
         - 'f32-srp-timing-cpu'
-        # - 'f32-rds-timing-cpu'
+        - 'f32-rds-timing-cpu'
 
         # - f32-rds-monitor
         # - f32-srp-monitor
@@ -456,7 +456,7 @@ slurm:
 
         'f32-srp-timing-cpu': {
             'exe': ['SPS_main.py'],
-            'particles': [1000000], # 2000000],
+            'particles': [1250000], # 2000000],
             'bunches': [288], #72],
             'slices': [1408],
             'turns': [10000],
@@ -472,16 +472,19 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [32], #16],
+            'workers': [40], #16],
             'omp': [10],
             'mpi': ['mvapich2'],
+            'cores_per_cpu': [20],
+            'partition': ['inf-short'],
+
             'time': [240],
             'repeats': 3
         },
 
         'f32-rds-timing-cpu': {
             'exe': ['SPS_main.py'],
-            'particles': [1000000], # 2000000],
+            'particles': [1250000], # 2000000],
             'bunches': [288], #72],
             'slices': [1408],
             'turns': [10000],
@@ -497,9 +500,12 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [32], #16],
+            'workers': [40], #16],
             'omp': [10],
             'mpi': ['mvapich2'],
+            'cores_per_cpu': [20],
+            'partition': ['inf-short'],
+
             'time': [240],
             'repeats': 3
         },
@@ -507,7 +513,7 @@ slurm:
         'srp-timing-cpu': {
             'exe': ['SPS_main.py'],
 
-            'particles': [1000000], # 2000000],
+            'particles': [1250000], # 2000000],
             'bunches': [288], #72],
 
             'slices': [1408],
@@ -524,9 +530,12 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [32], #16],
+            'workers': [40], #16],
             'omp': [10],
             'mpi': ['mvapich2'],
+            'cores_per_cpu': [20],
+            'partition': ['inf-short'],
+
             'time': [240],
             'repeats': 3
         },
@@ -534,7 +543,7 @@ slurm:
         'rds-timing-cpu': {
             'exe': ['SPS_main.py'],
 
-            'particles': [1000000], # 2000000],
+            'particles': [1250000], # 2000000],
             'bunches': [288], #72],
 
             'slices': [1408],
@@ -551,9 +560,12 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [32], #16],
+            'workers': [40], #16],
             'omp': [10],
             'mpi': ['mvapich2'],
+            'cores_per_cpu': [20],
+            'partition': ['inf-short'],
+
             'time': [240],
             'repeats': 3
         },
@@ -561,7 +573,7 @@ slurm:
         'exact-timing-cpu': {
             'exe': ['SPS_main.py'],
 
-            'particles': [1000000], # 2000000],
+            'particles': [1250000], # 2000000],
             'bunches': [288], #72],
 
             'slices': [1408],
@@ -578,9 +590,12 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [32], #16],
+            'workers': [40], #16],
             'omp': [10],
             'mpi': ['mvapich2'],
+            'cores_per_cpu': [20],
+            'partition': ['inf-short'],
+
             'time': [240],
             'repeats': 3
         },
@@ -588,7 +603,7 @@ slurm:
 
         'float32-timing-cpu': {
             'exe': ['SPS_main.py'],
-            'particles': [1000000], # 2000000],
+            'particles': [1250000], # 2000000],
             'bunches': [288], #72],
             'slices': [1408],
             'turns': [10000],
@@ -604,9 +619,12 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [32], #16],
+            'workers': [40], #16],
             'omp': [10],
             'mpi': ['mvapich2'],
+            'cores_per_cpu': [20],
+            'partition': ['inf-short'],
+
             'time': [240],
             'repeats': 3
         },
@@ -615,7 +633,7 @@ slurm:
 
         'approx0-interm': {
             'exe': ['SPS_main.py'],
-            'particles': [1000000], # 2000000],
+            'particles': [1250000], # 2000000],
             'bunches': [72], #72],
             'slices': [1408],
             'turns': [10000],
