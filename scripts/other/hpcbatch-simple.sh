@@ -10,7 +10,18 @@
 
 # module load mpi/mvapich2/2.3
 
-source $HOME/.bashrc
+# source $HOME/.bashrc
+
+module purge
+module load mpi/mvapich2/2.3
+module load compiler/gcc7
+
+export PYTHONPATH="$HOME/install/:$HOME/git/pymodules/:$HOME/scripts/:$PYTHONPATH"
+export PATH="$HOME/install/miniconda3-mvapich2.3/bin:$PATH"
+export LD_LIBRARY_PATH="$HOME/install/lib:$LD_LIBRARY_PATH"
+export MV2_HOMOGENEOUS_CLUSTER=1
+export MV2_ENABLE_AFFINITY="0"
+
 
 which python
 gcc --version
