@@ -1,5 +1,5 @@
 '''
-Author: Birk Emil Karlsen-Bæck
+Author: Helga Timko, Birk Emil Karlsen-Bæck
 
 Rewriting the cavity feedback objects for the SPS machine for easier debugging.
 '''
