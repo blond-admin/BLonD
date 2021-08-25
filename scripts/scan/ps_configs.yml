@@ -1,3 +1,187 @@
+cloud: 
+
+    run_configs: 
+
+        # Approximate CPU
+        - 'srp-timing-cpu' #DONE
+        - 'rds-timing-cpu'  #DONE
+        - 'exact-timing-cpu' # DONE
+        - 'float32-timing-cpu'  #DONE
+        - 'f32-srp-timing-cpu' 
+        - 'f32-rds-timing-cpu' 
+
+
+
+
+    configs: {
+
+        # Approximate
+        'f32-srp-timing-cpu': {
+            'exe': ['PS_main.py'],
+            'particles': [1000000],
+            'bunches': [21],  # 96
+            'slices': [256],
+            'turns': [10000],
+            'monitor': [0],
+            'seed': [0],
+            'mtw': [50],
+            'precision': ['single'],
+            'withtp': [0],
+            'reduce': [3],
+            'approx': [1],
+            'log': [1],
+            'loadbalance': ['reportonly,,,,'],
+            'artificialdelay': ['off'],
+            'timing': ['timing'],
+            'gpu': [0],
+            'workers': [2], #, 16],
+            'omp': [32],
+            'mpi': ['mvapich2'],
+            'cores_per_cpu': [64],
+            'partition': ['cloud'],
+            'time': [120],
+            'repeats': 3
+        },
+
+
+        'f32-rds-timing-cpu': {
+            'exe': ['PS_main.py'],
+            'particles': [1000000], #, 400000],
+            'bunches': [21],  # 96
+            'slices': [256],
+            'turns': [10000],
+            'monitor': [0],
+            'seed': [0],
+            'mtw': [50],
+            'precision': ['single'],
+            'withtp': [0],
+            'reduce': [1],
+            'approx': [2],
+            'log': [1],
+            'loadbalance': ['reportonly,,,,'],
+            'artificialdelay': ['off'],
+            'timing': ['timing'],
+            'gpu': [0],
+            'workers': [2], #, 16],
+            'omp': [32],
+            'mpi': ['mvapich2'],
+            'cores_per_cpu': [64],
+            'partition': ['cloud'],
+            'time': [120],
+            'repeats': 3
+        },
+
+
+        'srp-timing-cpu': {
+            'exe': ['PS_main.py'],
+            'particles': [1000000],
+            'bunches': [21],  # 96
+            'slices': [256],
+            'turns': [10000],
+            'monitor': [0],
+            'seed': [0],
+            'mtw': [50],
+            'precision': ['double'],
+            'withtp': [0],
+            'reduce': [3],
+            'approx': [1],
+            'log': [1],
+            'loadbalance': ['reportonly,,,,'],
+            'artificialdelay': ['off'],
+            'timing': ['timing'],
+            'gpu': [0],
+            'workers': [2], #, 16],
+            'omp': [32],
+            'mpi': ['mvapich2'],
+            'cores_per_cpu': [64],
+            'partition': ['cloud'],
+            'time': [120],
+            'repeats': 3
+        },
+
+
+        'rds-timing-cpu': {
+            'exe': ['PS_main.py'],
+            'particles': [1000000], #, 400000],
+            'bunches': [21],  # 96
+            'slices': [256],
+            'turns': [10000],
+            'monitor': [0],
+            'seed': [0],
+            'mtw': [50],
+            'precision': ['double'],
+            'withtp': [0],
+            'reduce': [1],
+            'approx': [2],
+            'log': [1],
+            'loadbalance': ['reportonly,,,,'],
+            'artificialdelay': ['off'],
+            'timing': ['timing'],
+            'gpu': [0],
+            'workers': [2], #, 16],
+            'omp': [32],
+            'mpi': ['mvapich2'],
+            'cores_per_cpu': [64],
+            'partition': ['cloud'],
+            'time': [120],
+            'repeats': 3
+        },
+
+        'exact-timing-cpu': {
+            'exe': ['PS_main.py'],
+            'particles': [1000000], #, 400000],
+            'bunches': [21],  # 96
+            'slices': [256],
+            'turns': [10000],
+            'monitor': [0],
+            'seed': [0],
+            'mtw': [50],
+            'precision': ['double'],
+            'withtp': [0],
+            'reduce': [1],
+            'approx': [0],
+            'log': [1],
+            'loadbalance': ['reportonly,,,,'],
+            'artificialdelay': ['off'],
+            'timing': ['timing'],
+            'gpu': [0],
+            'workers': [2], #, 16],
+            'omp': [32],
+            'mpi': ['mvapich2'],
+            'cores_per_cpu': [64],
+            'partition': ['cloud'],
+            'time': [120],
+            'repeats': 3
+        },
+
+
+        'float32-timing-cpu': {
+            'exe': ['PS_main.py'],
+            'particles': [1000000],
+            'bunches': [21],  # 96
+            'slices': [256],
+            'turns': [10000],
+            'monitor': [0],
+            'seed': [0],
+            'mtw': [50],
+            'precision': ['single'],
+            'withtp': [0],
+            'reduce': [1],
+            'approx': [0],
+            'log': [1],
+            'loadbalance': ['reportonly,,,,'],
+            'artificialdelay': ['off'],
+            'timing': ['timing'],
+            'gpu': [0],
+            'workers': [2], #, 16],
+            'omp': [32],
+            'mpi': ['mvapich2'],
+            'cores_per_cpu': [64],
+            'partition': ['cloud'],
+            'time': [120],
+            'repeats': 3
+        },
+
 evolve: 
 
     run_configs: 

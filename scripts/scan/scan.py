@@ -15,7 +15,7 @@ this_filename = sys.argv[0].split('/')[-1]
 parser = argparse.ArgumentParser(description='Run locally the MPI experiments.',
                                  usage='python {} -t lhc sps ps'.format(this_filename[:-3]))
 
-parser.add_argument('-e', '--environment', type=str, default='local', choices=['local', 'slurm', 'condor', 'evolve'],
+parser.add_argument('-e', '--environment', type=str, default='local', choices=['local', 'slurm', 'condor', 'evolve', 'cloud'],
                     help='The environment to run the scan.')
 
 parser.add_argument('-t', '--testcases', type=str, default=['lhc,sps,ps'],
@@ -178,7 +178,7 @@ if __name__ == '__main__':
                         all_args = batch_args + \
                             [common.mpirun, '-n', str(w)] + exe_args
 
-                    elif args.environment == 'slurm':
+                    elif args.environment in ['slurm', 'cloud']:
                         batch_args = [
                             common.slurm['submit'],
                             common.slurm['nodes'], str(N),
