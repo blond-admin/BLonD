@@ -173,6 +173,7 @@ cloud:
             'time': [120],
             'repeats': 3
         },
+    }
 
 evolve: 
 
