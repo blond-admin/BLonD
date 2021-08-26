@@ -724,7 +724,7 @@ slurm:
         'exact-timing-cpu': {
             'exe': ['LHC_main.py'],
             'particles': [1500000],
-            'bunches': [192],
+            'bunches': [12, 24],
             'slices': [1000],
             'turns': [10000],
             'monitor': [0],

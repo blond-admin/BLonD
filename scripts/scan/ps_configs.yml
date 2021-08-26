@@ -749,7 +749,7 @@ slurm:
 
         'exact-timing-cpu': {
             'exe': ['PS_main.py'],
-            'particles': [16000000], #, 400000],
+            'particles': [1000000, 2000000], #, 400000],
             'bunches': [21],  # 96
             'slices': [256],
             'turns': [10000],
@@ -771,7 +771,7 @@ slurm:
             'cores_per_cpu': [20],
             'partition': ['inf-short'],
             'time': [120],
-            'repeats': 2
+            'repeats': 3
         },
 
 

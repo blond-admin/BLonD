@@ -16,6 +16,10 @@ parser = argparse.ArgumentParser(description='Generate the figure of the interme
 parser.add_argument('-i', '--inputdir', type=str, default=os.path.join(project_dir, 'results'),
                     help='The directory with the results.')
 
+parser.add_argument('-b', '--basedir', type=str, default=os.path.join(project_dir, 'results'),
+                    help='The directory with the baseline results.')
+
+
 parser.add_argument('-o', '--outdir', type=str, default=None,
                     help='The directory to store the plots.'
                     'Default: In a plots directory inside the input results directory.')
@@ -35,6 +39,9 @@ if args.outdir is None:
     images_dir = os.path.join(res_dir, 'plots')
 else:
     images_dir = args.outdir
+
+if args.basedir is None:
+    args.basedir = args.inputdir
 
 if not os.path.exists(images_dir):
     os.makedirs(images_dir)
@@ -113,9 +120,9 @@ gconfig = {
     },
     'fontname': 'DejaVu Sans Mono',
     # 'ylim': [0.5, 35],
-    'ylim': [0, 90],
-    # 'yticks': [0, 5, 10, 15, 20, 25, 30, 35],
-    'yticks': [0, 10, 20, 30, 40, 50, 60, 70, 80, 90],
+    'ylim': [0, 40],
+    'yticks': [0, 5, 10, 15, 20, 25, 30, 35],
+    # 'yticks': [0, 10, 20, 30, 40, 50, 60, 70, 80, 90],
     'outfiles': [
         '{}/{}-{}.png',
         '{}/{}-{}.pdf'
@@ -151,7 +158,7 @@ gconfig = {
         'type': ['total'],
     },
     'reference': {
-        'file': '{}/{}/cpu-baseline/comm-comp-report.csv',
+        'file': '{}/{}/comm-comp-report.csv',
         'lines': {
             # 'b': ['12', '21', '18'],
             'b': ['192', '288', '21'],
@@ -204,7 +211,7 @@ if __name__ == '__main__':
 
         width = .85 * step / (len(plots_dir.keys()))
 
-        data = np.genfromtxt(gconfig['reference']['file'].format(res_dir, case),
+        data = np.genfromtxt(gconfig['reference']['file'].format(args.basedir, case),
                              delimiter='\t', dtype=str)
         header, data = list(data[0]), data[1:]
         ref_dir = get_plots(header, data, gconfig['reference']['lines'],

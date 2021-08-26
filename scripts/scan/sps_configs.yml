@@ -736,7 +736,7 @@ slurm:
         'exact-timing-cpu': {
             'exe': ['SPS_main.py'],
             'particles': [1000000], # 2000000],
-            'bunches': [288], #72],
+            'bunches': [18, 36], #72],
             'slices': [1408],
             'turns': [10000],
             'monitor': [0],
