@@ -740,9 +740,9 @@ slurm:
             'timing': ['timing'],
             'gpu': [0],
             'workers': [64],
-            'omp': [20],
+            'omp': [10],
             'mpi': ['mvapich2'],
-            'time': [240],
+            'time': [120],
             'cores_per_cpu': [20],
             'partition': ['inf-short'],
             'repeats': 2

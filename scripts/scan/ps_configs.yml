@@ -710,13 +710,13 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [1], #, 16],
-            'omp': [20],
+            'workers': [64], #, 16],
+            'omp': [10],
             'mpi': ['mvapich2'],
             'cores_per_cpu': [20],
             'partition': ['inf-short'],
-            'time': [240],
-            'repeats': 3
+            'time': [120],
+            'repeats': 2
         },
 
 
@@ -766,7 +766,7 @@ slurm:
             'timing': ['timing'],
             'gpu': [0],
             'workers': [64], #, 16],
-            'omp': [20],
+            'omp': [10],
             'mpi': ['mvapich2'],
             'cores_per_cpu': [20],
             'partition': ['inf-short'],
