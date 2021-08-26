@@ -13,8 +13,8 @@ cloud:
 
         'f32-srp-timing-cpu': {
             'exe': ['LHC_main.py'],
-            'particles': [1500000],
-            'bunches': [48, 96, 192],
+            'particles': [1875000],
+            'bunches': [192],
             'slices': [1000],
             'turns': [10000],
             'monitor': [0],
@@ -29,19 +29,19 @@ cloud:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [8, 16, 32],
+            'workers': [40],
             'omp': [32],            
             'mpi': ['mvapich2'],
             'cores_per_cpu': [64],
             'partition': ['cloud'],
             'time': [60],
-            'repeats': 3
+            'repeats': 2
         },
 
         'f32-rds-timing-cpu': {
             'exe': ['LHC_main.py'],
-            'particles': [1500000],
-            'bunches': [48, 96, 192],
+            'particles': [1875000],
+            'bunches': [192],
             'slices': [1000],
             'turns': [10000],
             'monitor': [0],
@@ -56,19 +56,19 @@ cloud:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [8, 16, 32],
+            'workers': [40],
             'omp': [32],
             'mpi': ['mvapich2'],
             'cores_per_cpu': [64],
             'partition': ['cloud'],
             'time': [60],
-            'repeats': 3
+            'repeats': 2
         },
 
         'srp-timing-cpu': {
             'exe': ['LHC_main.py'],
-            'particles': [1500000],
-            'bunches': [48, 96, 192],
+            'particles': [1875000],
+            'bunches': [192],
             'slices': [1000],
             'turns': [10000],
             'monitor': [0],
@@ -83,19 +83,19 @@ cloud:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [8, 16, 32],
+            'workers': [40],
             'omp': [32],
             'mpi': ['mvapich2'],
             'cores_per_cpu': [64],
             'partition': ['cloud'],
             'time': [60],
-            'repeats': 3
+            'repeats': 2
         },
 
         'rds-timing-cpu': {
             'exe': ['LHC_main.py'],
-            'particles': [1500000],
-            'bunches': [48, 96, 192],
+            'particles': [1875000],
+            'bunches': [192],
             'slices': [1000],
             'turns': [10000],
             'monitor': [0],
@@ -110,19 +110,19 @@ cloud:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [8, 16, 32],
+            'workers': [40],
             'omp': [32],
             'mpi': ['mvapich2'],
             'cores_per_cpu': [64],
             'partition': ['cloud'],
             'time': [60],
-            'repeats': 3
+            'repeats': 2
         },
 
         'exact-timing-cpu': {
             'exe': ['LHC_main.py'],
-            'particles': [1500000],
-            'bunches': [48, 96, 192],
+            'particles': [1875000],
+            'bunches': [192],
             'slices': [1000],
             'turns': [10000],
             'monitor': [0],
@@ -137,19 +137,19 @@ cloud:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [8, 16, 32],
+            'workers': [40],
             'omp': [32],
             'mpi': ['mvapich2'],
             'time': [60],
             'cores_per_cpu': [64],
             'partition': ['cloud'],
-            'repeats': 3
+            'repeats': 2
         },
 
         'float32-timing-cpu': {
             'exe': ['LHC_main.py'],
-            'particles': [1500000],
-            'bunches': [48, 96, 192],
+            'particles': [1875000],
+            'bunches': [192],
             'slices': [1000],
             'turns': [10000],
             'monitor': [0],
@@ -164,13 +164,13 @@ cloud:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [8, 16, 32],
+            'workers': [40],
             'omp': [32],
             'mpi': ['mvapich2'],
             'cores_per_cpu': [64],
             'partition': ['cloud'],
             'time': [60],
-            'repeats': 3
+            'repeats': 2
         },
     }
 
