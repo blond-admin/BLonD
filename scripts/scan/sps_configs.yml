@@ -14,7 +14,7 @@ cloud:
         'f32-srp-timing-cpu': {
             'exe': ['SPS_main.py'],
             'particles': [1000000], # 2000000],
-            'bunches': [36], #72],
+            'bunches': [72, 144, 288], #72],
             'slices': [1408],
             'turns': [10000],
             'monitor': [0],
@@ -29,19 +29,19 @@ cloud:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [4], #16],
+            'workers': [8, 16, 32], #16],
             'omp': [32],
             'mpi': ['mvapich2'],
             'cores_per_cpu': [64],
             'partition': ['cloud'],
-            'time': [120],
+            'time': [60],
             'repeats': 3
         },
 
         'f32-rds-timing-cpu': {
             'exe': ['SPS_main.py'],
             'particles': [1000000], # 2000000],
-            'bunches': [36], #72],
+            'bunches': [72, 144, 288], #72],
             'slices': [1408],
             'turns': [10000],
             'monitor': [0],
@@ -56,21 +56,19 @@ cloud:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [4], #16],
+            'workers': [8, 16, 32], #16],
             'omp': [32],
             'mpi': ['mvapich2'],
             'cores_per_cpu': [64],
             'partition': ['cloud'],
-            'time': [120],
+            'time': [60],
             'repeats': 3
         },
 
         'srp-timing-cpu': {
             'exe': ['SPS_main.py'],
-
             'particles': [1000000], # 2000000],
-            'bunches': [36], #72],
-
+            'bunches': [72, 144, 288], #72],
             'slices': [1408],
             'turns': [10000],
             'monitor': [0],
@@ -85,22 +83,19 @@ cloud:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [4], #16],
+            'workers': [8, 16, 32], #16],
             'omp': [32],
             'mpi': ['mvapich2'],
             'cores_per_cpu': [64],
             'partition': ['cloud'],
-
-            'time': [120],
+            'time': [60],
             'repeats': 3
         },
 
         'rds-timing-cpu': {
             'exe': ['SPS_main.py'],
-
             'particles': [1000000], # 2000000],
-            'bunches': [36], #72],
-
+            'bunches': [72, 144, 288], #72],
             'slices': [1408],
             'turns': [10000],
             'monitor': [0],
@@ -115,22 +110,19 @@ cloud:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [4], #16],
+            'workers': [8, 16, 32], #16],
             'omp': [32],
             'mpi': ['mvapich2'],
             'cores_per_cpu': [64],
             'partition': ['cloud'],
-
-            'time': [120],
+            'time': [60],
             'repeats': 3
         },
 
         'exact-timing-cpu': {
             'exe': ['SPS_main.py'],
-
             'particles': [1000000], # 2000000],
-            'bunches': [36], #72],
-
+            'bunches': [72, 144, 288], #72],
             'slices': [1408],
             'turns': [10000],
             'monitor': [0],
@@ -145,13 +137,12 @@ cloud:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [4], #16],
+            'workers': [8, 16, 32], #16],
             'omp': [32],
             'mpi': ['mvapich2'],
             'cores_per_cpu': [64],
             'partition': ['cloud'],
-
-            'time': [120],
+            'time': [60],
             'repeats': 3
         },
 
@@ -159,7 +150,7 @@ cloud:
         'float32-timing-cpu': {
             'exe': ['SPS_main.py'],
             'particles': [1000000], # 2000000],
-            'bunches': [36], #72],
+            'bunches': [72, 144, 288], #72],
             'slices': [1408],
             'turns': [10000],
             'monitor': [0],
@@ -174,13 +165,12 @@ cloud:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [4], #16],
+            'workers': [8, 16, 32], #16],
             'omp': [32],
             'mpi': ['mvapich2'],
             'cores_per_cpu': [64],
             'partition': ['cloud'],
-
-            'time': [120],
+            'time': [60],
             'repeats': 3
         },
     }
