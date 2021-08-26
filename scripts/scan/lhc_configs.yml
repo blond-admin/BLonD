@@ -632,9 +632,8 @@ slurm:
         # Approximate Weak-Scaling
         'f32-srp-timing-cpu': {
             'exe': ['LHC_main.py'],
-            # 'particles': [3000000],
-            'particles': [1875000],
-            'bunches': [192],
+            'particles': [1500000],
+            'bunches': [48, 96],
             'slices': [1000],
             'turns': [10000],
             'monitor': [0],
@@ -649,22 +648,19 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            # 'workers': [64],
-            'workers': [40],
+            'workers': [8, 16],
             'omp': [10],            
             'mpi': ['mvapich2'],
             'cores_per_cpu': [20],
             'partition': ['inf-short'],
-
             'time': [120],
-            'repeats': 3
+            'repeats': 2
         },
 
         'f32-rds-timing-cpu': {
             'exe': ['LHC_main.py'],
-            # 'particles': [3000000],
-            'particles': [1875000],
-            'bunches': [192],
+            'particles': [1500000],
+            'bunches': [48, 96],
             'slices': [1000],
             'turns': [10000],
             'monitor': [0],
@@ -679,22 +675,19 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            # 'workers': [64],
-            'workers': [40],
+            'workers': [8, 16],
             'omp': [10],
-
             'mpi': ['mvapich2'],
             'cores_per_cpu': [20],
             'partition': ['inf-short'],
-
             'time': [120],
-            'repeats': 3
+            'repeats': 2
         },
 
         'srp-timing-cpu': {
             'exe': ['LHC_main.py'],
-            'particles': [1875000],
-            'bunches': [192],
+            'particles': [1500000],
+            'bunches': [48, 96],
             'slices': [1000],
             'turns': [10000],
             'monitor': [0],
@@ -709,21 +702,19 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [40],
+            'workers': [8, 16],
             'omp': [10],
-
             'mpi': ['mvapich2'],
             'cores_per_cpu': [20],
             'partition': ['inf-short'],
-
             'time': [120],
-            'repeats': 3
+            'repeats': 2
         },
 
         'rds-timing-cpu': {
             'exe': ['LHC_main.py'],
-            'particles': [1875000],
-            'bunches': [192],
+            'particles': [1500000],
+            'bunches': [48, 96],
             'slices': [1000],
             'turns': [10000],
             'monitor': [0],
@@ -738,21 +729,19 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [40],
+            'workers': [8, 16],
             'omp': [10],
             'mpi': ['mvapich2'],
             'cores_per_cpu': [20],
             'partition': ['inf-short'],
-
             'time': [120],
-            'repeats': 3
+            'repeats': 2
         },
 
         'exact-timing-cpu': {
             'exe': ['LHC_main.py'],
-            'particles': [1875000],
-            # 'particles': [3000000],
-            'bunches': [192],
+            'particles': [1500000],
+            'bunches': [48, 96],
             'slices': [1000],
             'turns': [10000],
             'monitor': [0],
@@ -767,23 +756,19 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [40],
+            'workers': [8, 16],
             'omp': [10],
-
             'mpi': ['mvapich2'],
             'time': [120],
             'cores_per_cpu': [20],
             'partition': ['inf-short'],
-
-            # 'cores_per_cpu': [64],
-            # 'partition': ['cloud'],
-            'repeats': 3
+            'repeats': 2
         },
 
         'float32-timing-cpu': {
             'exe': ['LHC_main.py'],
-            'particles': [1875000],
-            'bunches': [192],
+            'particles': [1500000],
+            'bunches': [48, 96],
             'slices': [1000],
             'turns': [10000],
             'monitor': [0],
@@ -798,13 +783,13 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [40],
+            'workers': [8, 16],
             'omp': [10],
             'mpi': ['mvapich2'],
             'cores_per_cpu': [20],
             'partition': ['inf-short'],
             'time': [120],
-            'repeats': 3
+            'repeats': 2
         },
 
         'approx0-interm': {

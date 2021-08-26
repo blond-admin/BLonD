@@ -113,7 +113,7 @@ gconfig = {
     },
     'fontname': 'DejaVu Sans Mono',
     # 'ylim': [0.5, 48],
-    'ylim': [0, 35],
+    'ylim': [0, 90],
     # 'ylim2': [10, 90],
     'yticks': [0, 5, 10, 15, 20, 25, 30, 35],
     # 'yticks': [1, 2, 4, 8, 16, 32],
