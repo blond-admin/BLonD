@@ -18,7 +18,7 @@ cloud:
         # Approximate
         'f32-srp-timing-cpu': {
             'exe': ['PS_main.py'],
-            'particles': [1000000],
+            'particles': [2000000],
             'bunches': [21],  # 96
             'slices': [256],
             'turns': [10000],
@@ -34,7 +34,7 @@ cloud:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [2], #, 16],
+            'workers': [4], #, 16],
             'omp': [32],
             'mpi': ['mvapich2'],
             'cores_per_cpu': [64],
@@ -46,7 +46,7 @@ cloud:
 
         'f32-rds-timing-cpu': {
             'exe': ['PS_main.py'],
-            'particles': [1000000], #, 400000],
+            'particles': [2000000], #, 400000],
             'bunches': [21],  # 96
             'slices': [256],
             'turns': [10000],
@@ -62,7 +62,7 @@ cloud:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [2], #, 16],
+            'workers': [4], #, 16],
             'omp': [32],
             'mpi': ['mvapich2'],
             'cores_per_cpu': [64],
@@ -74,7 +74,7 @@ cloud:
 
         'srp-timing-cpu': {
             'exe': ['PS_main.py'],
-            'particles': [1000000],
+            'particles': [2000000],
             'bunches': [21],  # 96
             'slices': [256],
             'turns': [10000],
@@ -90,7 +90,7 @@ cloud:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [2], #, 16],
+            'workers': [4], #, 16],
             'omp': [32],
             'mpi': ['mvapich2'],
             'cores_per_cpu': [64],
@@ -102,7 +102,7 @@ cloud:
 
         'rds-timing-cpu': {
             'exe': ['PS_main.py'],
-            'particles': [1000000], #, 400000],
+            'particles': [2000000], #, 400000],
             'bunches': [21],  # 96
             'slices': [256],
             'turns': [10000],
@@ -118,7 +118,7 @@ cloud:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [2], #, 16],
+            'workers': [4], #, 16],
             'omp': [32],
             'mpi': ['mvapich2'],
             'cores_per_cpu': [64],
@@ -129,7 +129,7 @@ cloud:
 
         'exact-timing-cpu': {
             'exe': ['PS_main.py'],
-            'particles': [1000000], #, 400000],
+            'particles': [2000000], #, 400000],
             'bunches': [21],  # 96
             'slices': [256],
             'turns': [10000],
@@ -145,7 +145,7 @@ cloud:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [2], #, 16],
+            'workers': [4], #, 16],
             'omp': [32],
             'mpi': ['mvapich2'],
             'cores_per_cpu': [64],
@@ -157,7 +157,7 @@ cloud:
 
         'float32-timing-cpu': {
             'exe': ['PS_main.py'],
-            'particles': [1000000],
+            'particles': [2000000],
             'bunches': [21],  # 96
             'slices': [256],
             'turns': [10000],
@@ -173,7 +173,7 @@ cloud:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [2], #, 16],
+            'workers': [4], #, 16],
             'omp': [32],
             'mpi': ['mvapich2'],
             'cores_per_cpu': [64],
