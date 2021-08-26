@@ -616,18 +616,18 @@ slurm:
         # - 'f32-rds-timing-gpu' 
 
         # Approximate 
-        # - 'srp-timing-cpu'
-        # - 'rds-timing-cpu' 
+        - 'srp-timing-cpu'
+        - 'rds-timing-cpu' 
         - 'exact-timing-cpu' 
-        # - 'float32-timing-cpu' 
-        # - 'f32-srp-timing-cpu'
-        # - 'f32-rds-timing-cpu'
+        - 'float32-timing-cpu' 
+        - 'f32-srp-timing-cpu'
+        - 'f32-rds-timing-cpu'
 
     configs: {
 
         'f32-srp-timing-cpu': {
             'exe': ['SPS_main.py'],
-            'particles': [1000000], # 2000000],
+            'particles': [2000000], # 2000000],
             'bunches': [288], #72],
             'slices': [1408],
             'turns': [10000],
@@ -643,7 +643,7 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [32], #16],
+            'workers': [64], #16],
             'omp': [10],
             'mpi': ['mvapich2'],
             'cores_per_cpu': [20],
@@ -654,7 +654,7 @@ slurm:
 
         'f32-rds-timing-cpu': {
             'exe': ['SPS_main.py'],
-            'particles': [1000000], # 2000000],
+            'particles': [2000000], # 2000000],
             'bunches': [288], #72],
             'slices': [1408],
             'turns': [10000],
@@ -670,7 +670,7 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [32], #16],
+            'workers': [64], #16],
             'omp': [10],
             'mpi': ['mvapich2'],
             'cores_per_cpu': [20],
@@ -681,7 +681,7 @@ slurm:
 
         'srp-timing-cpu': {
             'exe': ['SPS_main.py'],
-            'particles': [1000000], # 2000000],
+            'particles': [2000000], # 2000000],
             'bunches': [288], #72],
             'slices': [1408],
             'turns': [10000],
@@ -697,7 +697,7 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [32], #16],
+            'workers': [64], #16],
             'omp': [10],
             'mpi': ['mvapich2'],
             'cores_per_cpu': [20],
@@ -708,7 +708,7 @@ slurm:
 
         'rds-timing-cpu': {
             'exe': ['SPS_main.py'],
-            'particles': [1000000], # 2000000],
+            'particles': [2000000], # 2000000],
             'bunches': [288], #72],
             'slices': [1408],
             'turns': [10000],
@@ -724,7 +724,7 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [32], #16],
+            'workers': [64], #16],
             'omp': [10],
             'mpi': ['mvapich2'],
             'cores_per_cpu': [20],
@@ -735,8 +735,8 @@ slurm:
 
         'exact-timing-cpu': {
             'exe': ['SPS_main.py'],
-            'particles': [1000000], # 2000000],
-            'bunches': [18, 36], #72],
+            'particles': [2000000], # 2000000],
+            'bunches': [288], #72],
             'slices': [1408],
             'turns': [10000],
             'monitor': [0],
@@ -751,19 +751,19 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [1], #16],
+            'workers': [64], #16],
             'omp': [20],
             'mpi': ['mvapich2'],
             'cores_per_cpu': [20],
             'partition': ['inf-short'],
             'time': [240],
-            'repeats': 3
+            'repeats': 2
         },
 
 
         'float32-timing-cpu': {
             'exe': ['SPS_main.py'],
-            'particles': [1000000], # 2000000],
+            'particles': [2000000], # 2000000],
             'bunches': [288], #72],
             'slices': [1408],
             'turns': [10000],
@@ -779,7 +779,7 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [32], #16],
+            'workers': [64], #16],
             'omp': [10],
             'mpi': ['mvapich2'],
             'cores_per_cpu': [20],
