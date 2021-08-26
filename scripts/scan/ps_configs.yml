@@ -626,15 +626,12 @@ slurm:
         # - 'f32-rds-timing-gpu' # DONE
 
         # Approximate CPU
-        - 'srp-timing-cpu' #DONE
-        - 'rds-timing-cpu'  #DONE
+        # - 'srp-timing-cpu' #DONE
+        # - 'rds-timing-cpu'  #DONE
         - 'exact-timing-cpu' # DONE
-        - 'float32-timing-cpu'  #DONE
-        - 'f32-srp-timing-cpu' 
-        - 'f32-rds-timing-cpu' 
-
-
-
+        # - 'float32-timing-cpu'  #DONE
+        # - 'f32-srp-timing-cpu' 
+        # - 'f32-rds-timing-cpu' 
 
     configs: {
 
@@ -713,13 +710,13 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [32], #, 16],
-            'omp': [10],
+            'workers': [1], #, 16],
+            'omp': [20],
             'mpi': ['mvapich2'],
             'cores_per_cpu': [20],
             'partition': ['inf-short'],
-            'time': [120],
-            'repeats': 2
+            'time': [240],
+            'repeats': 3
         },
 
 

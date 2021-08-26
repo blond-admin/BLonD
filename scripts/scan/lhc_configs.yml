@@ -603,27 +603,12 @@ slurm:
         # - 'f32-srp-weak-scaling-timing-gpu'
         # - 'f32-rds-weak-scaling-timing-gpu' 
 
-        - 'srp-timing-cpu' # Done 
-        - 'rds-timing-cpu' # In progress
+        # - 'srp-timing-cpu' # Done 
+        # - 'rds-timing-cpu' # In progress
         - 'exact-timing-cpu' # In progress
-        - 'float32-timing-cpu'
-        - 'f32-srp-timing-cpu' 
-        - 'f32-rds-timing-cpu' 
-
-        # - f32-rds-monitor
-        # - f32-srp-monitor
-        # - exact-monitor
-        # - srp-monitor
-        # - rds-monitor
-        # - f32-monitor
-
-        # Approximate Weak Scaling GPU
-        # - 'srp-timing-gpu' 
-        # - 'rds-timing-gpu' 
-        # - 'exact-timing-gpu'  
-        # - 'float32-timing-gpu'
-        # - 'f32-srp-timing-gpu'
-        # - 'f32-rds-timing-gpu' 
+        # - 'float32-timing-cpu'
+        # - 'f32-srp-timing-cpu' 
+        # - 'f32-rds-timing-cpu' 
 
     configs: {
 
@@ -754,13 +739,13 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [32],
-            'omp': [10],
+            'workers': [1],
+            'omp': [20],
             'mpi': ['mvapich2'],
-            'time': [120],
+            'time': [240],
             'cores_per_cpu': [20],
             'partition': ['inf-short'],
-            'repeats': 2
+            'repeats': 3
         },
 
         'float32-timing-cpu': {
