@@ -119,8 +119,8 @@ gconfig = {
     # 'ylim': [0, 35],
     # 'yticks': [0, 5, 10, 15, 20, 25, 30, 35],
     'outfiles': [
-        '{}/{}-{}.png',
-        '{}/{}-{}.pdf'
+        '{}/{}-{}-nodes-{}.png',
+        '{}/{}-{}-nodes-{}.pdf'
     ],
     'files': [
         '{}/{}/exact-timing-cpu/comm-comp-report.csv',
@@ -372,7 +372,7 @@ if __name__ == '__main__':
 
     for file in gconfig['outfiles']:
         file = file.format(
-            images_dir, this_filename[:-3], '-'.join(args.cases))
+            images_dir, this_filename[:-3], int(xticks[-1]), '-'.join(args.cases))
         print('[{}] {}: {}'.format(this_filename[:-3], 'Saving figure', file))
         save_and_crop(fig, file, dpi=600, bbox_inches='tight')
     if args.show:
