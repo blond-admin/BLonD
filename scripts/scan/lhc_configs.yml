@@ -616,7 +616,7 @@ slurm:
         'f32-srp-timing-cpu': {
             'exe': ['LHC_main.py'],
             'particles': [1500000],
-            'bunches': [12, 24, 48],
+            'bunches': [12],
             'slices': [1000],
             'turns': [10000],
             'monitor': [0],
@@ -631,19 +631,19 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [2, 4, 8],
+            'workers': [2],
             'omp': [10],            
             'mpi': ['mvapich2'],
             'cores_per_cpu': [20],
             'partition': ['inf-short'],
             'time': [120],
-            'repeats': 2
+            'repeats': 4
         },
 
         'f32-rds-timing-cpu': {
             'exe': ['LHC_main.py'],
             'particles': [1500000],
-            'bunches': [12, 24, 48],
+            'bunches': [12],
             'slices': [1000],
             'turns': [10000],
             'monitor': [0],
@@ -658,19 +658,19 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [2, 4, 8],
+            'workers': [2],
             'omp': [10],
             'mpi': ['mvapich2'],
             'cores_per_cpu': [20],
             'partition': ['inf-short'],
             'time': [120],
-            'repeats': 2
+            'repeats': 4
         },
 
         'srp-timing-cpu': {
             'exe': ['LHC_main.py'],
             'particles': [1500000],
-            'bunches': [12, 24, 48],
+            'bunches': [12],
             'slices': [1000],
             'turns': [10000],
             'monitor': [0],
@@ -685,19 +685,19 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [2, 4, 8],
+            'workers': [2],
             'omp': [10],
             'mpi': ['mvapich2'],
             'cores_per_cpu': [20],
             'partition': ['inf-short'],
             'time': [120],
-            'repeats': 2
+            'repeats': 4
         },
 
         'rds-timing-cpu': {
             'exe': ['LHC_main.py'],
             'particles': [1500000],
-            'bunches': [12, 24, 48],
+            'bunches': [12],
             'slices': [1000],
             'turns': [10000],
             'monitor': [0],
@@ -712,19 +712,19 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [2, 4, 8],
+            'workers': [2],
             'omp': [10],
             'mpi': ['mvapich2'],
             'cores_per_cpu': [20],
             'partition': ['inf-short'],
             'time': [120],
-            'repeats': 2
+            'repeats': 4
         },
 
         'exact-timing-cpu': {
             'exe': ['LHC_main.py'],
             'particles': [1500000],
-            'bunches': [12, 24, 48],
+            'bunches': [12],
             'slices': [1000],
             'turns': [10000],
             'monitor': [0],
@@ -739,19 +739,19 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [2, 4, 8],
+            'workers': [2],
             'omp': [10],
             'mpi': ['mvapich2'],
             'time': [120],
             'cores_per_cpu': [20],
             'partition': ['inf-short'],
-            'repeats': 2
+            'repeats': 4
         },
 
         'float32-timing-cpu': {
             'exe': ['LHC_main.py'],
             'particles': [1500000],
-            'bunches': [12, 24, 48],
+            'bunches': [12],
             'slices': [1000],
             'turns': [10000],
             'monitor': [0],
@@ -766,13 +766,13 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [0],
-            'workers': [2, 4, 8],
+            'workers': [2],
             'omp': [10],
             'mpi': ['mvapich2'],
             'cores_per_cpu': [20],
             'partition': ['inf-short'],
             'time': [120],
-            'repeats': 2
+            'repeats': 4
         },
 
         'approx0-interm': {

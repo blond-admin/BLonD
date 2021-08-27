@@ -108,7 +108,7 @@ gconfig = {
         'wspace': 0.0, 'hspace': 0.1, 'top': 0.93
     },
     'tick_params': {
-        'pad': 1, 'top': 0, 'bottom': 0, 'left': 1,
+        'pad': 2, 'top': 0, 'bottom': 1, 'left': 1,
         'direction': 'out', 'length': 3, 'width': 1,
     },
     'fontname': 'DejaVu Sans Mono',
@@ -152,15 +152,9 @@ gconfig = {
         # 't': ['40000'],
         'type': ['total'],
     },
-    # 'reference': {
-    #     'file': '{}/{}/cpu-baseline/comm-comp-report.csv',
-    #     'lines': {
-    #         'b': ['12', '21', '18'],
-    #         'ppb': ['1000000', '1500000', '16000000'],
-    #         # 't': ['5000'],
-    #         'type': ['total'],
-    #     },
-    # }
+    'linefilter': [
+        {'N': ['20']},
+    ],
 
 }
 
@@ -196,6 +190,7 @@ if __name__ == '__main__':
             header, data = list(data[0]), data[1:]
             temp = get_plots(header, data, gconfig['lines'],
                              exclude=gconfig.get('exclude', []),
+                             linefilter=gconfig.get('linefilter', {}),
                              prefix=True)
             for key in temp.keys():
                 if 'tp-approx' in file:
@@ -367,9 +362,8 @@ if __name__ == '__main__':
     plt.ylim(gconfig['ylim'])
     plt.yticks(gconfig['yticks'], **gconfig['ticks'])
     plt.xticks(xtickspos, np.array(xticks, int), **gconfig['xticks'])
-    # plt.xticks(np.arange(pos) + step/3,
-    #            [c.upper() for c in args.cases] + ['AVG'], **gconfig['xticks'])
-    # plt.xlim(0-1.3*width/2, pos-2.6*width/2)
+    plt.xlim(xtickspos[0]-0.5, xtickspos[-1]+0.5)
+
     plt.xlabel(**gconfig['xlabel'])
 
     ax.tick_params(**gconfig['tick_params'])

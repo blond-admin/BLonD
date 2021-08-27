@@ -5,6 +5,8 @@ import sys
 from plot.plotting_utilities import *
 import argparse
 
+# python scripts/plot/approx_strong_scaling_cpu.py -i results/weak-scaling-cpu/ -b results/baselinecpu/ -o results/weak-scaling-cpu/plots -s
+
 this_directory = os.path.dirname(os.path.realpath(__file__)) + "/"
 this_filename = sys.argv[0].split('/')[-1]
 
@@ -115,13 +117,13 @@ gconfig = {
         'wspace': 0.0, 'hspace': 0.1, 'top': 0.93
     },
     'tick_params': {
-        'pad': 1, 'top': 0, 'bottom': 0, 'left': 1,
+        'pad': 2, 'top': 0, 'bottom': 1, 'left': 1,
         'direction': 'out', 'length': 3, 'width': 1,
     },
     'fontname': 'DejaVu Sans Mono',
     # 'ylim': [0.5, 35],
-    'ylim': [0, 40],
-    'yticks': [0, 5, 10, 15, 20, 25, 30, 35],
+    'ylim': [0, 50],
+    'yticks': [0, 10,  20, 30,  40, 50],
     # 'yticks': [0, 10, 20, 30, 40, 50, 60, 70, 80, 90],
     'outfiles': [
         '{}/{}-{}.png',
@@ -150,13 +152,16 @@ gconfig = {
         'red': ['1', '3'],
         'prec': ['single', 'double'],
         'omp': ['10', '32'],
-        # 'N': ['8'],
+        # 'N': ['1', '2', '4', '8', '16', '32'],
         # 'ppb': ['4000000'],
         # 'lba': ['500'],
         # 'b': ['96', '48', '72', '21'],
         # 't': ['40000'],
         'type': ['total'],
     },
+    'linefilter': [
+        {'N': ['20']},
+    ],
     'reference': {
         'file': '{}/{}/comm-comp-report.csv',
         'lines': {
@@ -203,6 +208,7 @@ if __name__ == '__main__':
             header, data = list(data[0]), data[1:]
             temp = get_plots(header, data, gconfig['lines'],
                              exclude=gconfig.get('exclude', []),
+                             linefilter=gconfig.get('linefilter', {}),
                              prefix=True)
             for key in temp.keys():
                 if 'tp-approx' in file:
@@ -217,6 +223,7 @@ if __name__ == '__main__':
         header, data = list(data[0]), data[1:]
         ref_dir = get_plots(header, data, gconfig['reference']['lines'],
                             exclude=gconfig.get('exclude', []),
+                            linefilter=gconfig.get('linefilter', []),
                             prefix=True)
 
         print('Ref keys: ', ref_dir.keys())
@@ -370,7 +377,7 @@ if __name__ == '__main__':
     plt.xticks(xtickspos, np.array(xticks, int), **gconfig['xticks'])
     # plt.xticks(np.arange(pos) + step/3,
     #            [c.upper() for c in args.cases] + ['AVG'], **gconfig['xticks'])
-    # plt.xlim(0-1.3*width/2, pos-2.6*width/2)
+    plt.xlim(xtickspos[0]-0.5, xtickspos[-1]+0.5)
     plt.xlabel(**gconfig['xlabel'])
 
     ax.tick_params(**gconfig['tick_params'])
