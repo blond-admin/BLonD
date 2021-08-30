@@ -67,8 +67,8 @@ cloud:
 
         'srp-timing-cpu': {
             'exe': ['LHC_main.py'],
-            'particles': [12, 24, 48, 96, 192],
-            'bunches': [192],
+            'particles': [1500000],
+            'bunches': [12, 24, 48, 96, 192],
             'slices': [1000],
             'turns': [10000],
             'monitor': [0],
