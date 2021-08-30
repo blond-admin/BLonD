@@ -82,7 +82,7 @@ gconfig = {
 
     # 'hatches': ['', '', 'xx', '', 'xx', '', 'xx', '', 'xx'],
     # 'colors': ['0.1', '0.3', '0.3', '0.5', '0.5', '0.7', '0.7', '0.95', '0.95'],
-    'x_name': 'n',
+    'x_name': 'N',
     # 'x_to_keep': [16],
     'omp_name': 'omp',
     'y_name': 'avg_time(sec)',
@@ -284,7 +284,7 @@ if __name__ == '__main__':
             #     label = label[:-1]
 
             x = get_values(values, header, gconfig['x_name'])
-            omp = get_values(values, header, gconfig['omp_name'])
+            # omp = get_values(values, header, gconfig['omp_name'])
             y = get_values(values, header, gconfig['y_name'])
             parts = get_values(values, header, 'ppb')
             bunches = get_values(values, header, 'b')
@@ -294,7 +294,7 @@ if __name__ == '__main__':
             y = parts * bunches * turns / y
 
             speedup = y / yref
-            x = x * omp // 20
+            # x = x * omp // 20
             # speedup = []
             # j = 0
             # for i, xiref in enumerate(xref):
