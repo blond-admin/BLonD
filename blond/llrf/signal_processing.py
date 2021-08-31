@@ -271,6 +271,31 @@ def moving_average(x, N, x_prev=None):
     return mov_avg[N-1:] / N
 
 
+def moving_average_improved(x, N, x_prev=None):
+
+    if x_prev is not None:
+        x = np.concatenate((x_prev, x))
+
+    # TODO: PLOTS HERE
+    #plt.plot(x.real, label='x real')
+    #plt.plot(x.imag, label='y imag')
+
+    mov_avg = np.zeros(len(x) - N + 1, dtype=complex)
+
+    for k in range(len(mov_avg)):
+        for i in range(N):
+            mov_avg[k] += x[k + i]
+
+    #plt.plot((mov_avg / N).real, label='mov_avg real')
+    #plt.plot((mov_avg / N).imag, label='mov_avg imag')
+    #plt.legend()
+    #plt.show()
+
+    return mov_avg / N
+
+
+
+
 def feedforward_filter(TWC: TravellingWaveCavity, T_s, debug=False, taps=None,
                        opt_output=False):
     """Function to design n-tap FIR filter for SPS TravellingWaveCavity.

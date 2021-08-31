@@ -12,7 +12,8 @@ import scipy.signal
 import matplotlib.pyplot as plt
 
 from blond.llrf.signal_processing import comb_filter, cartesian_to_polar,\
-    polar_to_cartesian, modulator, moving_average, rf_beam_current
+    polar_to_cartesian, modulator, moving_average, moving_average_improved,\
+    rf_beam_current
 from blond.llrf.impulse_response import SPS3Section200MHzTWC, \
     SPS4Section200MHzTWC, SPS5Section200MHzTWC
 from blond.llrf.signal_processing import feedforward_filter_TWC3, \
@@ -24,7 +25,8 @@ from blond.utils import bmath as bm
 class CavityFeedbackCommissioning_new(object):
 
     def __init__(self, debug=False, open_loop=False, open_FB=False,
-                 open_drive=False, open_FF=False, V_SET=None):
+                 open_drive=False, open_FF=False, V_SET=None,
+                 cpp_conv = False):
         """Class containing commissioning settings for the cavity feedback
 
         Parameters
@@ -50,6 +52,7 @@ class CavityFeedbackCommissioning_new(object):
         self.open_drive = int(np.invert(bool(open_drive)))
         self.open_FF = int(np.invert(bool(open_FF)))
         self.V_SET = V_SET
+        self.cpp_conv = cpp_conv
 
 
 class SPSOneTurnFeedback_new(object):
@@ -87,6 +90,8 @@ class SPSOneTurnFeedback_new(object):
             self.set_point_modulation = False
         else:
             self.set_point_modulation = True
+
+        self.cpp_conv = Commissioning.cpp_conv
 
         # Read input
         self.rf = RFStation
@@ -131,6 +136,11 @@ class SPSOneTurnFeedback_new(object):
                           " partition %.2f, gain: %.2e", self.n_cavities,
                           n_sections, self.V_part, self.G_tx)
 
+        if self.cpp_conv:
+            self.conv = getattr(self, 'call_conv')
+        else:
+            self.conv = getattr(self, 'matr_conv')
+
         # TWC resonant frequency
         self.omega_r = self.TWC.omega_r
         # Length of arrays in LLRF
@@ -146,13 +156,13 @@ class SPSOneTurnFeedback_new(object):
             self.set_point = getattr(self, "set_point_mod")
         else:
             self.set_point = getattr(self, "set_point_std")
+            self.V_SET = np.zeros(2 * self.n_coarse, dtype=complex)
 
         # TODO: Initialize bunch-by-bunch voltage array with lenght of profile
 
         # Array to hold the bucket-by-bucket voltage with length LLRF
         self.V_ANT = np.zeros(2 * self.n_coarse, dtype=complex)
         self.DV_GEN = np.zeros(2 * self.n_coarse, dtype=complex)
-        self.V_SET = np.zeros(2 * self.n_coarse, dtype=complex)
         self.logger.debug("Length of arrays on coarse grid 2x %d", self.n_coarse)
 
         # LLRF MODEL ARRAYS
@@ -290,14 +300,13 @@ class SPSOneTurnFeedback_new(object):
         self.DV_MOD_FR[-self.n_coarse:] = modulator(self.DV_DELAYED[-self.n_coarse:],
                                                     self.omega_c, self.omega_r,
                                                     self.rf.t_rf[0, self.counter],
-                                                    phi_0=self.dphi_mod + self.rf.dphi_rf[0])
-
+                                                    phi_0= self.dphi_mod + self.rf.dphi_rf[0])
 
     def mov_avg(self):
-
+        #self.n_mov_av = 50
         self.DV_MOV_AVG[:self.n_coarse] = self.DV_MOV_AVG[-self.n_coarse:]
-        self.DV_MOV_AVG[-self.n_coarse:] = moving_average(self.DV_MOD_FR[-self.n_coarse:], self.n_mov_av,
-                                                x_prev=self.DV_MOD_FR[self.n_coarse-self.n_mov_av + 1:self.n_coarse])
+        self.DV_MOV_AVG[-self.n_coarse:] = moving_average(self.DV_MOD_FR[-self.n_mov_av - self.n_coarse + 1:], self.n_mov_av)#,
+                                                #x_prev=self.DV_MOD_FR[self.n_coarse-self.n_mov_av + 1:self.n_coarse])
 
 
     def mod_to_frf(self):
@@ -320,9 +329,11 @@ class SPSOneTurnFeedback_new(object):
     def gen_response(self):
 
         self.V_IND_COARSE_GEN[:self.n_coarse] = self.V_IND_COARSE_GEN[-self.n_coarse:]
-        self.V_IND_COARSE_GEN[-self.n_coarse:] = self.n_cavities * self.matr_conv(self.I_GEN[-(self.n_mov_av + self.n_coarse + 1):],
+        self.V_IND_COARSE_GEN[-self.n_coarse:] = self.n_cavities * self.matr_conv(self.I_GEN,        # TODO: originally self.n_mov_av + self.n_coarse + 1
                                                                     self.TWC.h_gen)[-self.n_coarse:]
-
+        # TODO: This
+        #self.V_IND_COARSE_GEN[-self.n_coarse:] = self.n_cavities * self.conv(self.I_GEN[-self.n_coarse:],
+        #                                                           self.TWC.h_gen)[-self.n_coarse:]
 
     def matr_conv(self, I, h):
         """Convolution of beam current with impulse response; uses a complete
@@ -339,7 +350,7 @@ class SPSOneTurnFeedback_new(object):
         kernel = np.ascontiguousarray(kernel)
 
         result = np.zeros(len(kernel) + len(signal) - 1)
-        bm.convolve(signal, kernel, result)
+        bm.convolve(signal, kernel, result=result, mode='full')
 
         return result
 
@@ -353,7 +364,7 @@ class SPSOneTurnFeedback_new(object):
         # Present sampling time
         self.T_s = self.rf.t_rf[0, self.counter]
         # Phase offset at the end of a 1-turn modulated signal (for demodulated, multiply by -1 as c and r reversed)
-        self.phi_mod_0 = (self.omega_c - self.omega_r) * self.T_s * (self.n_coarse-1)
+        self.phi_mod_0 = (self.omega_c - self.omega_r) * self.T_s * (self.n_coarse) % (2 * np.pi) # TODO: self.n_coarse - 1
         self.dphi_mod += self.phi_mod_0
         # Present coarse grid
         self.rf_centers = (np.arange(self.n_coarse) + 0.5) * self.T_s
@@ -365,7 +376,6 @@ class SPSOneTurnFeedback_new(object):
         # Present delay time
         self.n_mov_av = int(self.TWC.tau / self.rf.t_rf[0, self.counter])
         self.n_delay = self.n_coarse - self.n_mov_av
-
 
 
 
