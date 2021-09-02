@@ -5,6 +5,8 @@ import sys
 from plot.plotting_utilities import *
 import argparse
 
+# python scripts/plot/approx_weak_scaling_cpu.py -c lhc,sps,ps -s -o results/weak-scaling-cpu/plots/ -i results/weak-scaling-cpu/
+
 this_directory = os.path.dirname(os.path.realpath(__file__)) + "/"
 this_filename = sys.argv[0].split('/')[-1]
 
@@ -54,20 +56,23 @@ gconfig = {
         'doubleRDS': 'RDS',
     },
     'colors': {
-        'Base': 'tab:orange',
-        'F32': 'tab:orange',
-        'F32-SRP': 'tab:blue',
-        'SRP': 'tab:blue',
-        'F32-RDS': 'tab:green',
-        'RDS': 'tab:green',
+        'Base': '0.5',
+        'SRP': '0.5',
+        'RDS': '0.5',
+
+        'F32': '0',
+        'F32-SRP': '0.',
+        'F32-RDS': '0',
     },
     'markers': {
         'Base': '',
-        'F32': 'x',
-        'F32-SRP': 'x',
-        'SRP': '',
-        'F32-RDS': 'x',
-        'RDS': '',
+        'F32': '',
+
+        'SRP': '.',
+        'F32-SRP': '.',
+
+        'RDS': '*',
+        'F32-RDS': '*',
     },
 
 

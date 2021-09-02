@@ -5,6 +5,9 @@ import sys
 from plot.plotting_utilities import *
 import argparse
 
+# python scripts/plot/tp_lb_effect.py -i results/compfront/ -c lhc,sps,ps -s
+
+
 this_directory = os.path.dirname(os.path.realpath(__file__)) + "/"
 this_filename = sys.argv[0].split('/')[-1]
 
@@ -39,9 +42,13 @@ gconfig = {
         '2': 'RDS',
     },
     'colors': {
-        'Base': 'tab:orange',
-        'LB-TP': 'tab:green',
-        'TP': 'tab:blue'
+        # 'Base': 'tab:orange',
+        # 'LB-TP': 'tab:green',
+        # 'TP': 'tab:blue'
+        'Base': '0.1',
+        'TP': '0.5',
+        'LB-TP': '0.9',
+
     },
     'hatches': ['', '', 'xx', '', 'xx', '', 'xx'],
     # 'colors': ['0.1', '0.45', '0.45', '0.7', '0.7', '0.95', '0.95'],
@@ -58,7 +65,7 @@ gconfig = {
         # 'x': 0.55,
         'fontweight': 'bold',
     },
-    'figsize': [5, 2.1],
+    'figsize': [5, 2],
     'annotate': {
         'fontsize': 10,
         'textcoords': 'data',

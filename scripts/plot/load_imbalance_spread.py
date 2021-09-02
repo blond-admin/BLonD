@@ -6,6 +6,8 @@ import sys
 from plot.plotting_utilities import *
 import argparse
 
+# python scripts/plot/load_imbalance_spread.py -i results/compfront/ -c lhc,sps,ps -s
+
 this_directory = os.path.dirname(os.path.realpath(__file__)) + "/"
 this_filename = sys.argv[0].split('/')[-1]
 
@@ -40,7 +42,8 @@ gconfig = {
     },
     'hatches': ['', '', ''],
     'markers': ['x', 'o', '^'],
-    'colors': ['tab:orange', 'tab:green', 'tab:blue'],
+    # 'colors': ['tab:orange', 'tab:green', 'tab:blue'],
+    'colors': ['0.1', '0.5', '0.9'],
     'ecolor': 'xkcd:red',
     'capsize': 4,
     'x_name': 'n',

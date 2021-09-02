@@ -60,12 +60,12 @@ gconfig = {
         'doubleRDS': 'RDS',
     },
     'colors': {
-        'Base': 'tab:orange',
-        'F32': 'tab:orange',
-        'F32-SRP': 'tab:blue',
-        'SRP': 'tab:blue',
-        'F32-RDS': 'tab:green',
-        'RDS': 'tab:green',
+        'Base': '0.8',
+        'F32': '0.8',
+        'F32-SRP': '0.5',
+        'SRP': '0.5',
+        'F32-RDS': '0.2',
+        'RDS': '0.2',
     },
     'alpha': {
         'Base': 1,
@@ -94,7 +94,7 @@ gconfig = {
     'hatches': {
         'comm': '...',
         'serial': '///',
-        'comp': ''
+        'comp': 'x'
     },
 
     'x_name': 'n',
@@ -123,7 +123,7 @@ gconfig = {
     'legend': {
         'loc': 'upper left', 'ncol': 10, 'handlelength': 1.2, 'fancybox': False,
         'framealpha': 0., 'fontsize': 9.5, 'labelspacing': 0, 'borderpad': 0.5,
-        'handletextpad': 0.2, 'borderaxespad': 0.1, 'columnspacing': 0.4,
+        'handletextpad': 0.2, 'borderaxespad': 0.1, 'columnspacing': 0.5,
         'bbox_to_anchor': (0, 1.14)
     },
     'subplots_adjust': {
@@ -149,8 +149,8 @@ gconfig = {
         # '{}/{}/rds-timing-cpu/comm-comp-report.csv',
         # '{}/{}/srp-timing-cpu/comm-comp-report.csv',
         # '{}/{}/float32-timing-cpu/comm-comp-report.csv',
-        '{}/{}/f32-srp-timing-cpu/comm-comp-report.csv',
         '{}/{}/f32-rds-timing-cpu/comm-comp-report.csv',
+        '{}/{}/f32-srp-timing-cpu/comm-comp-report.csv',
     ],
     'lines': {
         'approx': ['0', '1', '2'],
@@ -311,13 +311,15 @@ if __name__ == '__main__':
                 handles.append(patch)
 
             for tc, h in gconfig['hatches'].items():
-                if tc =='comp':
-                    alpha = 0.2
+                if tc == 'comp':
+                    patch = mpatches.Patch(label=tc, edgecolor='0',
+                                           facecolor='0', hatch=h, linewidth=1.,
+                                           alpha=0.2)
+
                 else:
-                    alpha = 1
-                patch = mpatches.Patch(label=tc, edgecolor='black',
-                                       facecolor='0.6', hatch=h, linewidth=1.,
-                                       alpha=alpha)
+                    patch = mpatches.Patch(label=tc, edgecolor='0',
+                                           facecolor='1', hatch=h, linewidth=0.,
+                                           alpha=1)
                 handles.append(patch)
             plt.legend(handles=handles, **gconfig['legend'])
     plt.tight_layout()

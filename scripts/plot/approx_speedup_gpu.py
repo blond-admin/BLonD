@@ -93,7 +93,7 @@ gconfig = {
         # 'x': 0.1,
         'fontweight': 'bold',
     },
-    'figsize': [5, 2.1],
+    'figsize': [5, 2.],
     'annotate': {
         'fontsize': 10,
         'textcoords': 'data',
@@ -119,7 +119,7 @@ gconfig = {
     'fontname': 'DejaVu Sans Mono',
     # 'ylim': [0.2, 1.0],
     # 'yticks': [0.2, 0.4, 0.6, 0.8, 1],
-    'ylim': [0.25, 1.105],
+    'ylim': [0.25, 1.05],
     'yticks': [0.25, 0.5, 0.75, 1],
     'outfiles': [
         '{}/{}-{}-gpu.png',
@@ -322,8 +322,8 @@ if __name__ == '__main__':
         plt.ylim(*gconfig['ylim'])
         plt.yticks(gconfig['yticks'], **gconfig['ticks'])
 
-        if col == 1:
-            plt.xlabel(**gconfig['xlabel'])
+        # if col == 1:
+        #     plt.xlabel(**gconfig['xlabel'])
 
         ax.tick_params(**gconfig['tick_params'])
         plt.tight_layout()

@@ -37,8 +37,10 @@ if not os.path.exists(images_dir):
     os.makedirs(images_dir)
 
 gconfig = {
-    'hatches': ['', '', '', '', ''],
-    'colors': ['tab:orange', 'tab:blue', 'tab:green', 'tab:brown', 'tab:purple'],
+    # 'hatches': ['', '', '', '', ''],
+    # 'colors': ['tab:orange', 'tab:blue', 'tab:green', 'tab:brown', 'tab:purple'],
+    'hatches': ['', '', '///', '', '///'],
+    'colors': ['0.1', '0.5', '0.5', '0.9', '0.9'],
     'x_name': 'omp',
     'x_to_keep': [2, 5, 10, 20],
     # 'x_to_keep': [8, 16],

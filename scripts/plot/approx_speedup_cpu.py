@@ -5,6 +5,8 @@ import sys
 from plot.plotting_utilities import *
 import argparse
 
+# python scripts/plot/approx_speedup_cpu.py -i results/cpu -c lhc,sps,ps -s -o results/cpu/plots/
+
 this_directory = os.path.dirname(os.path.realpath(__file__)) + "/"
 this_filename = sys.argv[0].split('/')[-1]
 
@@ -54,19 +56,26 @@ gconfig = {
         'doubleRDS': 'RDS',
     },
     'colors': {
-        'Base': 'tab:orange',
-        'F32': 'tab:orange',
-        'F32-SRP': 'tab:blue',
-        'SRP': 'tab:blue',
-        'F32-RDS': 'tab:green',
-        'RDS': 'tab:green',
+        'Base': '0.8',
+        'F32': '0.8',
+        'F32-SRP': '0.5',
+        'SRP': '0.5',
+        'F32-RDS': '0.3',
+        'RDS': '0.3',
+
+        # 'Base': 'tab:orange',
+        # 'F32': 'tab:orange',
+        # 'F32-SRP': 'tab:blue',
+        # 'SRP': 'tab:blue',
+        # 'F32-RDS': 'tab:green',
+        # 'RDS': 'tab:green',
     },
     'hatches': {
         'Base': '',
-        'F32': 'xx',
-        'F32-SRP': 'xx',
+        'F32': '///',
+        'F32-SRP': '///',
         'SRP': '',
-        'F32-RDS': 'xx',
+        'F32-RDS': '///',
         'RDS': '',
     },
 
@@ -78,7 +87,7 @@ gconfig = {
     'omp_name': 'omp',
     'y_name': 'avg_time(sec)',
     'xlabel': {
-        'xlabel': '8 Nodes 160 Cores'
+        'xlabel': '8 Nodes (160 Cores)'
     },
     'ylabel': 'Norm. Runtime',
     'title': {
@@ -88,7 +97,7 @@ gconfig = {
         'x': 0.1,
         'fontweight': 'bold',
     },
-    'figsize': [5, 2.1],
+    'figsize': [5, 2.],
     'annotate': {
         'fontsize': 10,
         'textcoords': 'data',
