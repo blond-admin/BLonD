@@ -21,6 +21,13 @@ from blond.llrf.signal_processing import feedforward_filter_TWC3, \
 from blond.utils import bmath as bm
 
 
+# Functions -------------------------------------------------------------------
+def get_power_gen_I2(I_gen_per_cav, Z_0): # Main in use
+    ''' RF generator power from generator current (physical, in [A]), for any f_r (and thus any tau) '''
+    return 0.5 * Z_0 * np.abs(I_gen_per_cav)**2
+
+
+
 # Classes ---------------------------------------------------------------------
 class CavityFeedbackCommissioning_new(object):
 
@@ -158,8 +165,8 @@ class SPSOneTurnFeedback_new(object):
             self.set_point = getattr(self, "set_point_std")
             self.V_SET = np.zeros(2 * self.n_coarse, dtype=complex)
 
-        # TODO: Initialize bunch-by-bunch voltage array with lenght of profile
-
+        # Initialize bunch-by-bunch voltage array with lenght of profile
+        self.V_ANT_FINE = np.zeros(2 * self.profile.n_slices, dtype=complex)
         # Array to hold the bucket-by-bucket voltage with length LLRF
         self.V_ANT = np.zeros(2 * self.n_coarse, dtype=complex)
         self.DV_GEN = np.zeros(2 * self.n_coarse, dtype=complex)
@@ -193,9 +200,60 @@ class SPSOneTurnFeedback_new(object):
 
         # Initialize induced voltage on coarse grid
         self.V_IND_COARSE_GEN = np.zeros(2 * self.n_coarse, dtype=complex)
+        self.CONV_RES = np.zeros(2 * self.n_coarse, dtype=complex)
+        self.CONV_PREV = np.zeros(self.n_coarse, dtype=complex)
+
+        # BEAM MODEL ARRAYS
+        # Initialize beam current coarse and fine
+        self.I_FINE_BEAM = np.zeros(2 * self.profile.n_slices, dtype=complex)
+        self.I_COARSE_BEAM = np.zeros(2 * self.n_coarse, dtype=complex)
+
+        # Initialize induced beam voltage coarse and fine
+        self.V_IND_FINE_BEAM = np.zeros(2 * self.profile.n_slices, dtype=complex)
+        self.V_IND_COARSE_BEAM = np.zeros(2 * self.n_coarse, dtype=complex)
+
+        # Initialise feed-forward; sampled every fifth bucket
+        if self.open_FF == 1:
+            self.logger.debug('Feed-forward active')
+            self.n_coarse_FF = int(self.n_coarse/5)
+            self.I_BEAM_COARSE_FF = np.zeros(self.n_coarse_FF, dtype=complex)
+            self.I_FF_CORR = np.zeros(self.n_coarse_FF, dtype=complex)
+            self.V_FF_CORR = np.zeros(self.n_coarse_FF, dtype=complex)
 
         self.logger.info("Class initialized")
 
+
+    def track(self):
+
+        # Update turn-by-turn variables
+        self.update_variables()
+
+        # Update the impulse response at present carrier frequency
+        self.TWC.impulse_response_gen(self.omega_c, self.rf_centers)
+        self.TWC.impulse_response_beam(self.omega_c, self.profile.bin_centers,
+                                       self.rf_centers)
+
+        # On current measured (I,Q) voltage, apply LLRF model
+        self.llrf_model()
+
+        # Generator-induced voltage from generator current
+        self.gen_model()
+
+        # Beam-induced voltage from beam profile
+        self.beam_model(lpf=False)
+
+        # Sum generator- and beam-induced voltages for coarse grid
+        self.V_ANT_START = np.copy(self.V_ANT)
+        self.V_ANT[:self.n_coarse] = self.V_ANT[-self.n_coarse:]
+        self.V_ANT[-self.n_coarse:] = self.V_IND_COARSE_GEN[-self.n_coarse:] \
+                                      + self.V_IND_COARSE_BEAM[-self.n_coarse:]
+
+        # Obtain generator-induced voltage on the fine grid by interpolation
+        self.V_ANT_FINE_START = np.copy(self.V_ANT_FINE)
+        self.V_ANT_FINE[:self.profile.n_slices] = self.V_ANT_FINE[-self.profile.n_slices:]
+        self.V_ANT_FINE[-self.profile.n_slices:] = self.V_IND_FINE_BEAM[-self.profile.n_slices:] \
+                                                   + np.interp(self.profile.bin_centers, self.rf_centers,
+                                                               self.V_IND_COARSE_GEN[-self.n_coarse:])
 
     def track_no_beam(self):
 
@@ -242,7 +300,56 @@ class SPSOneTurnFeedback_new(object):
         self.sum_and_gain()
         self.gen_response()
 
+    def beam_model(self, lpf=False):
 
+        # Beam current from profile
+        self.I_COARSE_BEAM[:self.n_coarse] = self.I_COARSE_BEAM[-self.n_coarse:]
+        self.I_FINE_BEAM[:self.profile.n_slices] = self.I_FINE_BEAM[-self.profile.n_slices:]
+        self.I_FINE_BEAM[-self.profile.n_slices:], self.I_COARSE_BEAM[-self.n_coarse:] = \
+                rf_beam_current(self.profile, self.omega_c, self.rf.t_rev[self.counter],
+                                lpf=lpf, downsample={'Ts': self.T_s, 'points': self.n_coarse})
+
+        self.I_FINE_BEAM[-self.profile.n_slices:] *= -1
+        self.I_COARSE_BEAM[-self.n_coarse:] *= -1
+
+        # Beam-induced voltage
+        self.beam_response(coarse=False)
+        self.beam_response(coarse=True)
+
+        # Feed-forward
+        if self.open_FF == 1:
+            # Calculate correction based on previous turn on coarse grid
+            for ind in range(self.n_coarse_FF):
+                self.I_FF_CORR[ind] = self.coeff_FF[0] \
+                                      * self.I_BEAM_COARSE_FF[ind]
+
+                for k in range(self.n_FF):
+                    self.I_FF_CORR += self.coeff_FF[k] \
+                                      * self.I_BEAM_COARSE_FF[ind-k]
+
+                self.V_FF_CORR = self.G_ff \
+                                 * self.matr_conv(self.I_BEAM_COARSE_FF,
+                                                  self.TWC.h_gen[::5])
+
+                # Compensate for FIR filter delay
+                self.DV_FF = np.concatenate((self.V_FF_CORR[self.n_FF_delay:],
+                                             np.zeros(self.n_FF_delay, dtype=complex)))
+
+                # Interpolate to finer grids
+                self.V_FF_CORR_COARSE = np.interp(self.rf_centers, self.rf_centers[::5], self.DV_FF)
+                self.V_FF_CORR_FINE = np.interp(self.profile.bin_centers, self.rf_centers[::5], self.DV_FF)
+
+                # Add to beam-induced voltage (opposite sign)
+                self.V_IND_COARSE_BEAM[-self.n_coarse:] += self.n_cavities * self.V_FF_CORR_COARSE
+                self.V_IND_FINE_BEAM[-self.profile.n_slices:] += self.n_cavities * self.V_FF_CORR_FINE
+
+                # Update vector from previous turn
+                self.I_BEAM_COARSE_FF = np.copy(self.I_COARSE_BEAM[-self.n_coarse::5])
+
+
+    # INDIVIDUAL COMPONENTS ---------------------------------------------------
+
+    # LLRF MODEL
     def set_point_std(self):
 
         self.logger.debug("Entering %s function" %sys._getframe(0).f_code.co_name)
@@ -302,13 +409,14 @@ class SPSOneTurnFeedback_new(object):
                                                     self.rf.t_rf[0, self.counter],
                                                     phi_0= self.dphi_mod + self.rf.dphi_rf[0])
 
+
     def mov_avg(self):
-        #self.n_mov_av = 50
         self.DV_MOV_AVG[:self.n_coarse] = self.DV_MOV_AVG[-self.n_coarse:]
         self.DV_MOV_AVG[-self.n_coarse:] = moving_average(self.DV_MOD_FR[-self.n_mov_av - self.n_coarse + 1:], self.n_mov_av)#,
                                                 #x_prev=self.DV_MOD_FR[self.n_coarse-self.n_mov_av + 1:self.n_coarse])
 
 
+    # GENERATOR MODEL
     def mod_to_frf(self):
 
         self.DV_MOD_FRF[:self.n_coarse] = self.DV_MOD_FRF[-self.n_coarse:]
@@ -329,11 +437,31 @@ class SPSOneTurnFeedback_new(object):
     def gen_response(self):
 
         self.V_IND_COARSE_GEN[:self.n_coarse] = self.V_IND_COARSE_GEN[-self.n_coarse:]
-        self.V_IND_COARSE_GEN[-self.n_coarse:] = self.n_cavities * self.matr_conv(self.I_GEN,        # TODO: originally self.n_mov_av + self.n_coarse + 1
-                                                                    self.TWC.h_gen)[-self.n_coarse:]
+        # TODO: originally self.n_mov_av + self.n_coarse + 1
+        self.V_IND_COARSE_GEN[-self.n_coarse:] = self.n_cavities * self.matr_conv(self.I_GEN,
+                                                                                  self.TWC.h_gen)[-self.n_coarse:]
+
+        #self.V_IND_COARSE_GEN[-self.n_coarse:] = self.CONV_RES[:self.n_coarse] + self.CONV_PREV
+        #self.CONV_PREV = self.CONV_RES[-self.n_coarse:]
+
         # TODO: This
         #self.V_IND_COARSE_GEN[-self.n_coarse:] = self.n_cavities * self.conv(self.I_GEN[-self.n_coarse:],
         #                                                           self.TWC.h_gen)[-self.n_coarse:]
+
+
+    # BEAM MODEL
+    def beam_response(self, coarse=False):
+        self.logger.debug('Matrix convolution for V_ind')
+
+        if coarse:
+            self.V_IND_COARSE_BEAM[:self.n_coarse] = self.V_IND_COARSE_BEAM[-self.n_coarse:]
+            self.V_IND_COARSE_BEAM[-self.n_coarse:] = self.n_cavities * self.matr_conv(self.I_COARSE_BEAM,
+                                                                            self.TWC.h_beam_coarse)[-self.n_coarse:]
+        else:
+            self.V_IND_FINE_BEAM[:self.profile.n_slices] = self.V_IND_FINE_BEAM[-self.profile.n_slices:]
+            self.V_IND_FINE_BEAM[-self.profile.n_slices:] = self.n_cavities * self.matr_conv(self.I_FINE_BEAM,
+                                                                            self.TWC.h_beam)[-self.profile.n_slices:]
+
 
     def matr_conv(self, I, h):
         """Convolution of beam current with impulse response; uses a complete
@@ -378,6 +506,9 @@ class SPSOneTurnFeedback_new(object):
         self.n_delay = self.n_coarse - self.n_mov_av
 
 
+    def calc_power(self):
+        self.II_COARSE_GEN = np.copy(self.I_GEN) / self.T_s / self.n_cavities
+        self.P_GEN = get_power_gen_I2(self.II_COARSE_GEN, 50)
 
 
 

@@ -195,7 +195,7 @@ def rf_beam_current(Profile, omega_c, T_rev, lpf=True, downsample=None):
         indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
 
         # Pick total current within one coarse grid
-        charges_coarse = np.zeros(n_points, dtype=np.complex) #+ 1j*np.zeros(n_points)
+        charges_coarse = np.zeros(n_points, dtype=complex) #+ 1j*np.zeros(n_points)
         charges_coarse[0] = np.sum(charges_fine[np.arange(indices[0])])
         for i in range(1, len(indices)):
             charges_coarse[i] = np.sum(charges_fine[np.arange(indices[i-1],
@@ -276,20 +276,11 @@ def moving_average_improved(x, N, x_prev=None):
     if x_prev is not None:
         x = np.concatenate((x_prev, x))
 
-    # TODO: PLOTS HERE
-    #plt.plot(x.real, label='x real')
-    #plt.plot(x.imag, label='y imag')
-
     mov_avg = np.zeros(len(x) - N + 1, dtype=complex)
 
     for k in range(len(mov_avg)):
         for i in range(N):
             mov_avg[k] += x[k + i]
-
-    #plt.plot((mov_avg / N).real, label='mov_avg real')
-    #plt.plot((mov_avg / N).imag, label='mov_avg imag')
-    #plt.legend()
-    #plt.show()
 
     return mov_avg / N
 

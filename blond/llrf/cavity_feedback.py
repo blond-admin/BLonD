@@ -416,7 +416,13 @@ class SPSOneTurnFeedback(object):
         self.dV_ma_in_prev = np.zeros(self.n_coarse, dtype=complex)
         # Initialise generator-induced voltage
         self.I_gen_prev = np.zeros(self.n_mov_av, dtype=complex)
+
+        # TODO: Here
+        self.V_IND_COARSE_BEAM = np.zeros(2 * self.n_coarse, dtype=complex)
+        self.V_ANT = np.zeros(2 * self.n_coarse, dtype=complex)
+
         self.logger.info("Class initialized")
+
 
         # Initialise feed-forward; sampled every 5 buckets
         if self.open_FF == 1:
@@ -462,6 +468,10 @@ class SPSOneTurnFeedback(object):
         # Beam-induced voltage
         self.induced_voltage('beam')
         self.induced_voltage('beam_coarse')
+
+        # TODO: HERE
+        self.V_IND_COARSE_BEAM[:self.n_coarse] = self.V_IND_COARSE_BEAM[-self.n_coarse:]
+        self.V_IND_COARSE_BEAM[-self.n_coarse:] = np.copy(self.V_coarse_ind_beam)
 
         if self.open_FF == 1:
             # Calculate correction based on previous turn on coarse grid
@@ -634,7 +644,8 @@ class SPSOneTurnFeedback(object):
         # TODO: Saving some arrays for plotting outside the object.
         self.DV_GEN = np.copy(self.dV_gen)
         self.V_SET = np.copy(self.V_set)
-        self.V_ANT = np.copy(self.V_coarse_tot)
+        self.V_ANT[:self.n_coarse] = self.V_ANT[-self.n_coarse:]
+        self.V_ANT[-self.n_coarse:] = np.copy(self.V_coarse_tot)
 
         # One-turn delay comb filter; memorise the value of the previous turn
         self.dV_comb_out = comb_filter(self.dV_comb_out_prev, self.dV_gen,
