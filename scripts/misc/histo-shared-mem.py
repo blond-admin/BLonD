@@ -5,7 +5,7 @@ import sys
 from plot.plotting_utilities import *
 import argparse
 
-# python scripts/misc/gpu-cache-onoff.py -i=results/misc/gpu-cache-on-off.csv -o results/misc/plots -s
+# python scripts/misc/histo-shared-mem.py -i=results/misc/histo_sm/histo_sm_onoff.csv -o results/misc/plots/ -s
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + "/"
 this_filename = sys.argv[0].split('/')[-1]
@@ -54,7 +54,7 @@ gconfig = {
     'x_name': 'size(1e6)',
     'y_name': 'time',
     'xlabel': {
-        'xlabel': r'\#Partciles (x$10^6$)'
+        'xlabel': r'Number of Macro-Partciles (x$10^6$)'
     },
     'ylabel': 'Norm. Runtime',
     'title': {
@@ -158,7 +158,7 @@ if __name__ == '__main__':
             for xi, nt in zip(x, normtime):
                 ax.annotate('{:.2f}'.format(nt),
                             xy=(xi, nt),
-                            rotation='90',
+                            rotation='0',
                              **gconfig['annotate'])
         pos += width
 

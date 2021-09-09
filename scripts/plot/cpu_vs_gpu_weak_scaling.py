@@ -113,20 +113,19 @@ gconfig = {
     },
     'fontname': 'DejaVu Sans Mono',
 
-    'ylim': [0., 10],
-    'yticks': [0, 2, 4, 6, 8, 10],
+    'ylim': [0., 12.2],
+    'yticks': [0, 2, 4, 6, 8, 10, 12],
     # 'yticks2': [0, 20, 40, 60, 80, 100],
     'outfiles': ['{}/{}-{}.png', '{}/{}-{}.pdf'],
     'files': [
         # '{}/{}/tp-approx0-weak-scaling/comm-comp-report.csv',
         '{}/{}/approx0-weak-scaling/comm-comp-report.csv',
-        '{}/{}/exact-timing-gpu/comm-comp-report.csv',
-        # '{}/{}/exact-timing-gpu-512x160/comm-comp-report.csv',
-        '{}/{}/approx0-weak-scaling-gpu-2pn/comm-comp-report.csv',
-        # '{}/{}/approx0-weak-scaling-gpu-1pn/comm-comp-report.csv',
-        # '{}/{}/approx0-weak-scaling/comm-comp-report.csv',
-        # '{}/{}/lb-tp-approx2-weak-scaling/comm-comp-report.csv',
-        # '{}/{}/lb-tp-approx1-weak-scaling/comm-comp-report.csv',
+
+        '{}/{}/approx0-strong-scaling-gpu-1pn/comm-comp-report.csv',
+        '{}/{}/approx0-strong-scaling-gpu-2pn/comm-comp-report.csv',
+
+        # '{}/{}/exact-timing-gpu/comm-comp-report.csv',
+        # '{}/{}/approx0-weak-scaling-gpu-2pn/comm-comp-report.csv',
     ],
     'lines': {
         # 'mpi': ['mpich3', 'mvapich2', 'openmpi3'],
