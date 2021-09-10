@@ -53,21 +53,21 @@ gconfig = {
     'label': {
         'exact-gpu0-tp0': 'HBLonD',
         # 'exact-gpu0-tp1': 'CPU-TP',
-        'exact-gpu1-tp0': 'CuBLonD-1PN',
-        'exact-gpu2-tp0': 'CuBLonD-2PN',
+        'exact-gpu1-tp0': 'CuBLonD-1xK40',
+        'exact-gpu2-tp0': 'CuBLonD-2xK40',
 
     },
 
     'colors': {
         'HBLonD': '0.9',
-        'CuBLonD-1PN': '0.5',
-        'CuBLonD-2PN': '0.2',
+        'CuBLonD-1xK40': '0.5',
+        'CuBLonD-2xK40': '0.2',
 
     },
     'hatches': {
         'HBLonD': '',
-        'CuBLonD-1PN': '',
-        'CuBLonD-2PN': '',
+        'CuBLonD-1xK40': '',
+        'CuBLonD-2xK40': '',
 
     },
 
