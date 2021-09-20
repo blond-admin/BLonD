@@ -63,8 +63,8 @@ gconfig = {
     'markers': ['x', 'o', '^'],
     'boxcolor': 'xkcd:light blue',
     'linecolor': 'xkcd:blue',
-    'colors': ['xkcd:orange', 'xkcd:green', 'xkcd:blue'],
-    # 'colors': ['.7', '0.4', '0.1'],
+    # 'colors': ['xkcd:orange', 'xkcd:green', 'xkcd:blue'],
+    'colors': ['.5', '0.4', '0.1'],
     'group': '/default',
     'labels': {'std_profile': r'$s_{profile}$',
                'std_dE': r'$s_{dE}$',
@@ -79,8 +79,8 @@ gconfig = {
         # 'mean_dt'
     ],
     # 'y_err_name': 'std',
-    'xlabel': {'xlabel': r'Time', 'labelpad': 2, 'fontsize': 10},
-    'ylabel': {'ylabel': r'Beam Profile', 'labelpad': 2, 'fontsize': 10},
+    'xlabel': {'xlabel': r'Histogram Bins', 'labelpad': 5, 'fontsize': 10},
+    'ylabel': {'ylabel': r'Bin Frequency', 'labelpad': 4, 'fontsize': 10},
     'title': {
         # 's': '{}'.format(case.upper()),
         'fontsize': 10,
@@ -98,9 +98,10 @@ gconfig = {
     'ticks': {'fontsize': 10},
     'fontsize': 10,
     'legend': {
-        'loc': 'best', 'ncol': 1, 'handlelength': 1.5, 'fancybox': False,
-        'framealpha': .7, 'fontsize': 10, 'labelspacing': 0, 'borderpad': 0.5,
-        'handletextpad': 0.5, 'borderaxespad': 0.1, 'columnspacing': 0.8,
+        'loc': 'upper left', 'ncol': 1, 'handlelength': 1.5, 'fancybox': True,
+        'frameon': True,
+        'framealpha': .7, 'fontsize': 10, 'labelspacing': 0.5, 'borderpad': 0.3,
+        'handletextpad': 0.3, 'borderaxespad': 0.2, 'columnspacing': 0.8,
         # 'bbox_to_anchor': (0., 1.05)
     },
     'subplots_adjust': {
@@ -121,10 +122,8 @@ gconfig = {
 plt.rcParams['ps.useafm'] = True
 plt.rcParams['pdf.use14corefonts'] = True
 plt.rcParams['text.usetex'] = True  # Let TeX do the typsetting
-# Force sans-serif math mode (for axes labels)
-plt.rcParams['text.latex.preamble'] = [r'\usepackage{sansmath}', r'\sansmath']
-plt.rcParams['font.family'] = 'sans-serif'  # ... for regular text
-plt.rcParams['font.sans-serif'] = 'Helvetica'
+plt.rcParams['text.latex.preamble'] = r'\usepackage{sansmath}'
+plt.rcParams['font.family'] = gconfig['fontname']
 
 
 if __name__ == '__main__':
@@ -166,30 +165,56 @@ if __name__ == '__main__':
                            sharex=True, sharey=True,
                            figsize=gconfig['figsize'])
     offset = 0
+    avg = []
     for turn, profile in zip(turns[::intv], tempd['profile'][::intv]):
-        # plt.hist(profile, bins=len(profile), alpha=0.5)
-        # plt.bar(np.arange(len(profile)), profile,
-                 # color=gconfig['colors'][turn % len(gconfig['colors'])],
-                 # color=gconfig['colors'][turn % len(gconfig['colors'])],
-                 # facecolor='0.5',
-                 # edgecolor=gconfig['colors'][turn % len(gconfig['colors'])],
-                 # width=0.7,
-                 # alpha=0.9,
-                 # label='turn-{}'.format(turn))
-        # plt.plot(np.arange(len(profile)), profile,
+        avg.append(profile)
+    profile = np.mean(avg, axis=0)
+    plt.bar(np.arange(len(profile)) + offset, profile,
+             # color=gconfig['colors'][turn % len(gconfig['colors'])],
+             color=gconfig['colors'][0],
+             # yerr=np.std(avg, axis=0),
+             # capsize=3,
+             # error_kw={'ecolor': 'tab:red', 'elinewidth':2},
+             # color=gconfig['colors'][turn % len(gconfig['colors'])],
+             # facecolor='0.5',
+             edgecolor='black',
+             width=0.9,
+             # alpha=0.9,
+             label='{}-Turn AVG'.format(last_t-first_t+1))
+
+    plt.errorbar(np.arange(len(profile)) + offset, profile,
+             color='tab:red',
+             ls='',
+             yerr=np.std(avg, axis=0),
+             capsize=3,
+             ecolor = 'tab:red',
+             elinewidth = 2,
+             label='{}-Turn STD'.format(last_t-first_t+1))
+
+
+        # # plt.hist(profile, bins=len(profile), alpha=0.5)
+        # # plt.bar(np.arange(len(profile)), profile,
+        #          # color=gconfig['colors'][turn % len(gconfig['colors'])],
+        #          # color=gconfig['colors'][turn % len(gconfig['colors'])],
+        #          # facecolor='0.5',
+        #          # edgecolor=gconfig['colors'][turn % len(gconfig['colors'])],
+        #          # width=0.7,
+        #          # alpha=0.9,
+        #          # label='turn-{}'.format(turn))
+        # # plt.plot(np.arange(len(profile)), profile,
+        # #          color=gconfig['colors'][turn % len(gconfig['colors'])],
+        # #          # marker='_', 
+        # #          ls='-',
+        # #          label='turn-{}'.format(turn))
+        # plt.bar(np.arange(len(profile)) + offset, profile,
         #          color=gconfig['colors'][turn % len(gconfig['colors'])],
-        #          # marker='_', 
-        #          ls='-',
+        #          # color=gconfig['colors'][turn % len(gconfig['colors'])],
+        #          # facecolor='0.5',
+        #          # edgecolor=gconfig['colors'][turn % len(gconfig['colors'])],
+        #          width=0.25,
+        #          # alpha=0.9,
         #          label='turn-{}'.format(turn))
-        plt.bar(np.arange(len(profile)) + offset, profile,
-                 color=gconfig['colors'][turn % len(gconfig['colors'])],
-                 # color=gconfig['colors'][turn % len(gconfig['colors'])],
-                 # facecolor='0.5',
-                 # edgecolor=gconfig['colors'][turn % len(gconfig['colors'])],
-                 width=0.25,
-                 # alpha=0.9,
-                 label='turn-{}'.format(turn))
-        offset += 0.25
+        # offset += 0.25
 
         # plt.fill_between(np.arange(len(profile)), profile, 0, 
         #     # color=gconfig['colors'][turn % len(gconfig['colors'])],

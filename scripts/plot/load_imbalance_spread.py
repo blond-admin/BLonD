@@ -43,7 +43,7 @@ gconfig = {
     'hatches': ['', '', ''],
     'markers': ['x', 'o', '^'],
     # 'colors': ['tab:orange', 'tab:green', 'tab:blue'],
-    'colors': ['0.1', '0.5', '0.9'],
+    'colors': ['0.85', '0.5', '0.2'],
     'ecolor': 'xkcd:red',
     'capsize': 4,
     'x_name': 'n',
@@ -60,7 +60,7 @@ gconfig = {
                 # 'x': 0.55,
                 'fontweight': 'bold',
     },
-    'figsize': [5, 2.],
+    'figsize': [2.4, 2.],
     'annotate': {
         'fontsize': 9,
         'textcoords': 'data',
@@ -70,8 +70,8 @@ gconfig = {
     'ticks': {'fontsize': 10},
     'fontsize': 10,
     'legend': {
-        'loc': 'upper left', 'ncol': 3, 'handlelength': 2, 'fancybox': False,
-        'framealpha': .0, 'fontsize': 10, 'labelspacing': 0, 'borderpad': 0.5,
+        'loc': 'upper left', 'ncol': 3, 'handlelength': 1.2, 'fancybox': False,
+        'framealpha': .0, 'fontsize': 10, 'labelspacing': 0, 'borderpad': 0.2,
         'handletextpad': 0.5, 'borderaxespad': 0.1, 'columnspacing': 0.8,
         # 'bbox_to_anchor': (0., 0.85)
     },
@@ -91,13 +91,16 @@ gconfig = {
     # 'ylim': [0, 28],
     'ylim': [0, 40],
     'xlim': [1.6, 36],
-    'yticks': [0, 8, 16, 24, 32, 40],
-    'outfiles': ['{}/{}-{}.png', '{}/{}-{}.pdf'],
+    # 'yticks': [0, 8, 16, 24, 32, 40],
+    'yticks': [0, 10, 20, 30, 40],
+    'outfiles': ['{}/{}-{}-{}.png', '{}/{}-{}-{}.pdf'],
     'errorfile': 'delta-std-report.csv',
     'deltafile': 'delta-report.csv',
     'datafile': 'avg-report.csv',
     'files': [
         '{}/{}/approx0-mvapich2-spread/{}',
+        # '{}/{}/lb-tp-approx0-mvapich2-weak-scaling/{}',
+        # '{}/{}/lb-tp-approx0-mvapich2-strong-scaling/{}',
     ],
     'lines': {
         # 'mpi': ['mpich3', 'mvapich2', 'openmpi3'],
@@ -109,7 +112,10 @@ gconfig = {
         #       '72', '144', '288'],
         # 't': ['5000'],
         'function': ['serial:sync'],
-    }
+    },
+    'linefilter': [
+        {'N': ['1', '2', '32']},
+    ],
 
 }
 
@@ -153,6 +159,7 @@ if __name__ == '__main__':
             header, data = list(data[0]), data[1:]
             temp = get_plots(header, data, gconfig['lines'],
                              exclude=gconfig.get('exclude', []),
+                             linefilter=gconfig.get('linefilter', {}),    
                              prefix=True)
             for key in temp.keys():
                 plots_dir['_{}'.format(key)] = temp[key].copy()
@@ -163,6 +170,7 @@ if __name__ == '__main__':
             header, data = list(data[0]), data[1:]
             temp = get_plots(header, data, gconfig['lines'],
                              exclude=gconfig.get('exclude', []),
+                          linefilter=gconfig.get('linefilter', {}),    
                              prefix=True)
             for key in temp.keys():
                 deltas_dir['_{}'.format(key)] = temp[key].copy()
@@ -173,6 +181,7 @@ if __name__ == '__main__':
             header, data = list(data[0]), data[1:]
             temp = get_plots(header, data, gconfig['lines'],
                              exclude=gconfig.get('exclude', []),
+                              linefilter=gconfig.get('linefilter', {}),
                              prefix=True)
             for key in temp.keys():
                 errors_dir['_{}'.format(key)] = temp[key].copy()
@@ -220,7 +229,8 @@ if __name__ == '__main__':
             yerrmin = np.minimum(yerr, ydelta)
 
             x = x * omp[0]
-
+            print("{}:{}:".format(case, k))
+            print(ydelta)
             plt.bar(np.arange(len(x)) + pos, ydelta, width=0.9*width,
                     edgecolor='0.', label=case.upper(),
                     hatch=gconfig['hatches'][col],
@@ -252,7 +262,9 @@ if __name__ == '__main__':
     plt.tight_layout()
     plt.subplots_adjust(**gconfig['subplots_adjust'])
     for file in gconfig['outfiles']:
-        file = file.format(images_dir, this_filename[:-3], '-'.join(args.cases))
+        file = file.format(images_dir, this_filename[:-3], 
+            gconfig['files'][0].split('/')[-2],
+            '-'.join(args.cases))
         print('[{}] {}: {}'.format(this_filename[:-3], 'Saving figure', file))
         save_and_crop(fig, file, dpi=600, bbox_inches='tight')
     if args.show:

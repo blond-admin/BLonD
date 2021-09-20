@@ -236,6 +236,7 @@ def collect_reports(input, outfile, filename):
         # print(dirs)
         try:
             config = dirs.split('/')[-1]
+
             ts = config.split('_t')[1].split('_')[0]
             ps = config.split('_p')[1].split('_')[0]
             bs = config.split('_b')[1].split('_')[0]
@@ -247,13 +248,26 @@ def collect_reports(input, outfile, filename):
             mtw = config.split('_mtw')[1].split('_')[0]
             seed = config.split('_seed')[1].split('_')[0]
             approx = config.split('_approx')[1].split('_')[0]
-            prec = config.split('_prec')[1].split('_')[0]
             mpiv = config.split('_mpi')[1].split('_')[0]
             lb = config.split('_lb')[1].split('_')[0]
-            artdel = config.split('_artdel')[1].split('_')[0]
-            gpu = config.split('_gpu')[1].split('_')[0]
-            # lba = config.split('_lba')[1].split('_')[0]
-            tp = config.split('_tp')[1].split('_')[0]
+            
+            # These might not be in the title, use defautls
+            if '_prec' in config:
+                prec = config.split('_prec')[1].split('_')[0]
+            else:
+                prec = 'double'
+            if '_artdel' in config:
+                artdel = config.split('_artdel')[1].split('_')[0]
+            else:
+                artdel = 'off'
+            if '_gpu' in config:
+                gpu = config.split('_gpu')[1].split('_')[0]
+            else:
+                gpu = '0'
+            if '_tp' in config:
+                tp = config.split('_tp')[1].split('_')[0]
+            else:
+                tp = '0'
 
             data = np.genfromtxt(os.path.join(dirs, filename),
                                  dtype=str, delimiter='\t')

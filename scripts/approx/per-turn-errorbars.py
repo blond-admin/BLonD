@@ -88,11 +88,11 @@ gconfig = {
     'title': {
         # 's': '{}'.format(case.upper()),
         'fontsize': 10,
-        # 'y': .97,
+        'y': .97,
         # 'x': 0.45,
         'fontweight': 'bold',
     },
-    'figsize': [5, 2.8],
+    'figsize': [5, 2.],
     'annotate': {
         'fontsize': 9,
         'textcoords': 'data',
@@ -225,7 +225,7 @@ gconfig = {
     'errorbar': {
         # 'ecolor': 'xkcd:blue',
         'elinewidth': 1,
-        'capsize': 6,
+        'capsize': 4,
         'color': 'xkcd:black',
         'marker': 'x',
         'markersize': 5,
@@ -441,13 +441,12 @@ gconfig = {
 
 }
 
+# Force sans-serif math mode (for axes labels)
 plt.rcParams['ps.useafm'] = True
 plt.rcParams['pdf.use14corefonts'] = True
 plt.rcParams['text.usetex'] = True  # Let TeX do the typsetting
-# Force sans-serif math mode (for axes labels)
-plt.rcParams['text.latex.preamble'] = [r'\usepackage{sansmath}', r'\sansmath']
-plt.rcParams['font.family'] = 'sans-serif'  # ... for regular text
-plt.rcParams['font.sans-serif'] = 'Helvetica'
+plt.rcParams['text.latex.preamble'] = r'\usepackage{sansmath}'
+plt.rcParams['font.family'] = gconfig['fontname']
 
 
 if __name__ == '__main__':
