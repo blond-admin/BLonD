@@ -61,27 +61,37 @@ gconfig = {
     },
     'label': {
         'doublecpu': 'HBLonD',
-        'singlecpu': 'HBLonD-F32',
         'singleSRPcpu': 'HBLonD-F32-SRP',
-        'doubleSRPcpu': 'HBLonD-SRP',
         'singleRDScpu': 'HBLonD-F32-RDS',
-        'doubleRDScpu': 'HBLonD-RDS',
+        # 'singlecpu': 'HBLonD-F32',
+        # 'doubleSRPcpu': 'HBLonD-SRP',
+        # 'doubleRDScpu': 'HBLonD-RDS',
         'doublegpu': 'CuBLonD',
-        'singlegpu': 'CuBLonD-F32',
         'singleSRPgpu': 'CuBLonD-F32-SRP',
-        'doubleSRPgpu': 'CuBLonD-SRP',
         'singleRDSgpu': 'CuBLonD-F32-RDS',
-        'doubleRDSgpu': 'CuBLonD-RDS',
+        # 'singlegpu': 'CuBLonD-F32',
+        # 'doubleSRPgpu': 'CuBLonD-SRP',
+        # 'doubleRDSgpu': 'CuBLonD-RDS',
 
 
     },
-    'colors': {
-        'HBLonD': '0.5',
-        'HBLonD-F32-RDS': '0.5',
-        'HBLonD-F32-SRP': '0.5',
+    'legends':{
+        'HBLonD': 'HBLonD',
+        'HBLonD-F32-SRP': 'F32-SRP',
+        'HBLonD-F32-RDS': 'F32-RDS',
 
-        'CuBLonD': '0.8',
-        'CuBLonD-F32-SRP': '0.5',
+        'CuBLonD': 'CuBLonD',
+        'CuBLonD-F32-SRP': 'F32-SRP',
+        'CuBLonD-F32-RDS': 'F32-RDS',
+
+    },
+    'colors': {
+        'HBLonD': '0.85',
+        'HBLonD-F32-SRP': '0.6',
+        'HBLonD-F32-RDS': '0.3',
+
+        'CuBLonD': '0.85',
+        'CuBLonD-F32-SRP': '0.6',
         'CuBLonD-F32-RDS': '0.3',
     },
     # 'markers': {
@@ -99,6 +109,9 @@ gconfig = {
         'CuBLonD': '',
         'CuBLonD-F32-SRP': '///',
         'CuBLonD-F32-RDS': '///',
+        'HBLonD': '',
+        'HBLonD-F32-SRP': '///',
+        'HBLonD-F32-RDS': '///',
     },
 
 
@@ -107,38 +120,38 @@ gconfig = {
     'omp_name': 'omp',
     'y_name': 'avg_time(sec)',
     'xlabel': {
-        'xlabel': 'Nodes (x1 GPU)'
+        'xlabel': 'Nodes (x20 Cores/ x1 GPU)'
     },
     'ylabel': 'Speedup',
     'title': {
         # 's': '',
         'fontsize': 10,
-        'y': 0.85,
+        'y': 0.95,
         'x': 0.5,
         'fontweight': 'bold',
     },
-    'figsize': [5, 2.],
+    'figsize': [5, 3.5],
     'annotate': {
         'fontsize': 10,
         'textcoords': 'data',
         'va': 'top',
-        'ha': 'center'
+        'ha': 'right'
     },
     'xticks': {'fontsize': 10, 'rotation': '0'},
     'ticks': {'fontsize': 10, 'rotation': '0'},
     'fontsize': 10,
     'legend': {
-        'loc': 'upper left', 'ncol': 3, 'handlelength': 1.5, 'fancybox': True,
-        'framealpha': 0., 'fontsize': 10, 'labelspacing': 0, 'borderpad': 0.5,
+        'loc': 'upper left', 'ncol': 1, 'handlelength': 1.3, 'fancybox': True,
+        'framealpha': .8, 'fontsize': 10, 'labelspacing': 0, 'borderpad': 0.3,
         'handletextpad': 0.2, 'borderaxespad': 0.1, 'columnspacing': 0.3,
-        'bbox_to_anchor': (-0.04, 1.16)
+        # 'bbox_to_anchor': (-0.04, 1.16)
     },
     'subplots_adjust': {
-        'wspace': 0.05, 'hspace': 0.1, 'top': 0.93
+        'wspace': 0.05, 'hspace': 0.12, 'top': .95
     },
     'tick_params': {
         'pad': 2, 'top': 0, 'bottom': 1, 'left': 1,
-        'direction': 'out', 'length': 3, 'width': 1,
+        'direction': 'inout', 'length': 2, 'width': 1,
     },
     'fontname': 'DejaVu Sans Mono',
     'xlim': [-0.37025, 4.97025],
@@ -181,7 +194,7 @@ gconfig = {
         'type': ['total'],
     },
     'linefilter': [
-        {'N': ['1', '20', '32']},
+        {'N': ['1', '20']},
     ],
     'reference': {
         'file': '{}/{}/comm-comp-report.csv',
@@ -207,8 +220,8 @@ plt.rcParams['font.family'] = gconfig['fontname']
 
 if __name__ == '__main__':
 
-    fig, ax_arr = plt.subplots(ncols=len(args.cases), nrows=1,
-                           sharex=False, sharey=True,
+    fig, ax_arr = plt.subplots(ncols=len(args.cases), nrows=2,
+                           sharex=True, sharey=True,
                            figsize=gconfig['figsize'])
     # pos = 0
     step = 1.
@@ -216,13 +229,13 @@ if __name__ == '__main__':
     xticks = []
     xtickspos = []
     for col, case in enumerate(args.cases):
-        ax = ax_arr[col]
-        plt.sca(ax)
+        # ax = ax_arr[col]
+        # plt.sca(ax)
 
         print('[{}] tc: {}: {}'.format(
             this_filename[:-3], case, 'Reading data'))
         plots_dir = {}
-        for indir, platform in zip([args.inputcpu, args.inputgpu], ['cpu', 'gpu']):
+        for row, indir, platform in zip([0, 1], [args.inputcpu, args.inputgpu], ['cpu', 'gpu']):
             if not indir:
                 continue
             plots_dir[platform] = {}
@@ -271,9 +284,11 @@ if __name__ == '__main__':
         # keys = ['_'.join(a.split('_')[1:4]) for a in list(plots_dir[platform].keys())]
         # print(keys)
         # keys = np.array(list(plots_dir[platform].keys()))[np.argsort(keys)]
-        for platform in plots_dir.keys():
-            width = .9 * step / (len(plots_dir[platform].keys()))
+        for row, platform in enumerate(['cpu', 'gpu']):
+            ax = ax_arr[row][col]
+            plt.sca(ax)
 
+            width = .9 * step / (len(plots_dir[platform].keys()))
             for idx, k in enumerate(plots_dir[platform].keys()):
                 values = plots_dir[platform][k]
                 approx = k.split('approx')[1].split('_')[0]
@@ -305,7 +320,7 @@ if __name__ == '__main__':
                 plt.bar(xpos, speedup,
                         edgecolor='black',
                         width=0.85 * width,
-                        label=legend,
+                        label=gconfig['legends'].get(legend, None),
                         hatch=gconfig['hatches'][label],
                         color=gconfig['colors'][label])
                 for xi, yi in zip(xpos, speedup):
@@ -313,50 +328,34 @@ if __name__ == '__main__':
                         plt.gca().annotate('{:.1f}'.format(yi),
                                            xy=(xi-0.2, gconfig['ylim'][1]-1),
                                            **gconfig['annotate'])                    
-                # plt.errorbar(np.arange(len(x)), speedup,
-                #              yerr=None,
-                #              label=legend,
-                #              lw=1.2,
-                #              color=gconfig['colors'][label],
-                #              marker=gconfig['markers'][label],
-                #              capsize=2)
+            plt.grid(True, which='major', alpha=0.5)
+            plt.grid(False, which='major', axis='x')
+            plt.gca().set_axisbelow(True)
+            if row == 0:
+                plt.title('{}'.format(case.upper()), **gconfig['title'])
+
+            if col == 0:
+                handles, labs = ax.get_legend_handles_labels()
+                plt.ylabel(gconfig['ylabel'], labelpad=3)
+                plt.legend(handles = handles, labels=labs, **gconfig['legend'])
+
+
+            plt.ylim(gconfig['ylim'])
+            plt.yticks(gconfig['yticks'], **gconfig['ticks'])
+            plt.xticks(xtickspos, np.array(xticks, int), **gconfig['xticks'])
+            plt.xlim(gconfig['xlim'])
+            
+
+            if row==1 and col == 1:
+                plt.xlabel(**gconfig['xlabel'])
+
+            ax.tick_params(**gconfig['tick_params'])
+            plt.tight_layout()
+
         xticks += list(x) + [32]
         xtickspos += list(width + np.arange(len(x)+1))
-        # if case != args.cases[-1]:
-        #     plt.axvline(x=pos + len(x)-step/2, color='black', ls='--')
-        # ax.annotate('{}'.format(case.upper()),
-        #             xy=(pos + (len(x)-1)/2, gconfig['ylim'][-1]-2),
-        #             **gconfig['annotate'])
-        # pos += len(x)
 
 
-        # print(labels)
-        plt.grid(True, which='major', alpha=0.5)
-        plt.grid(False, which='major', axis='x')
-        plt.gca().set_axisbelow(True)
-
-        if col == 0:
-            handles, labs = ax.get_legend_handles_labels()
-            # for i in range(len(labs)):
-            #     print('{}:{}'.format(i, labs[i]))
-            # handles = [handles[i//2] if (i % 2 == 0) else handles[i+(len(handles)-i)//2] for i in range(len(handles))]
-            # labs = [labs[i//2] if (i % 2 == 0) else labs[i+(len(labs)-i)//2] for i in range(len(labs))]
-
-            plt.ylabel(gconfig['ylabel'], labelpad=3)
-            plt.legend(handles = handles, labels=labs, **gconfig['legend'])
-
-        plt.title('{}'.format(case.upper()), **gconfig['title'])
-
-        plt.ylim(gconfig['ylim'])
-        plt.yticks(gconfig['yticks'], **gconfig['ticks'])
-        plt.xticks(xtickspos, np.array(xticks, int), **gconfig['xticks'])
-        # plt.xlim(xtickspos[0]-0.5, xtickspos[-1]+0.5)
-        plt.xlim(gconfig['xlim'])
-        if col == 1:
-            plt.xlabel(**gconfig['xlabel'])
-
-        ax.tick_params(**gconfig['tick_params'])
-        plt.tight_layout()
     plt.subplots_adjust(**gconfig['subplots_adjust'])
 
     for file in gconfig['outfiles']:

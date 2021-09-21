@@ -11,6 +11,8 @@ from scipy import stats
 from cycler import cycle
 import bisect
 
+# python scripts/approx/per-turn-errorbars.py -i results/approx-eval-5/ -c lhc sps ps -o results/approx-eval-5/plots/ -e mean_dE4 mean_dt4 -s
+
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + "/"
 this_filename = sys.argv[0].split('/')[-1]

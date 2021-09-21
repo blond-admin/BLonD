@@ -93,11 +93,11 @@ gconfig = {
     'title': {
         # 's': '',
         'fontsize': 10,
-        'y': .96,
+        'y': .98,
         'x': 0.1,
         'fontweight': 'bold',
     },
-    'figsize': [5, 2.],
+    'figsize': [5, 1.8],
     'annotate': {
         'fontsize': 10,
         'textcoords': 'data',
@@ -110,8 +110,8 @@ gconfig = {
     'legend': {
         'loc': 'upper left', 'ncol': 9, 'handlelength': 1.6, 'fancybox': True,
         'framealpha': 0., 'fontsize': 10, 'labelspacing': 0, 'borderpad': 0.5,
-        'handletextpad': 0.2, 'borderaxespad': 0.1, 'columnspacing': 0.3,
-        'bbox_to_anchor': (-0.01, 1.15)
+        'handletextpad': 0.3, 'borderaxespad': 0.1, 'columnspacing': 0.35,
+        'bbox_to_anchor': (-0.01, 1.16)
     },
     'subplots_adjust': {
         'wspace': 0.0, 'hspace': 0.1, 'top': 0.93
@@ -121,7 +121,7 @@ gconfig = {
         'direction': 'out', 'length': 3, 'width': 1,
     },
     'fontname': 'DejaVu Sans Mono',
-    'ylim': [0.2, 1.105],
+    'ylim': [0.2, 1.05],
     # 'ylim2': [10, 90],
     'yticks': [0.2, 0.4, 0.6, 0.8, 1],
     # 'yticks2': [0, 20, 40, 60, 80, 100],

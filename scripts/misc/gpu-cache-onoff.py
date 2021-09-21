@@ -54,7 +54,7 @@ gconfig = {
     'x_name': 'size(M)',
     'y_name': 'time',
     'xlabel': {
-        'xlabel': r'\#Partciles (x$10^6$)'
+        'xlabel': r'Number of Macro-Particles (x$10^6$)'
     },
     'ylabel': 'Norm. Runtime',
     'title': {
@@ -78,7 +78,7 @@ gconfig = {
         'loc': 'upper left', 'ncol': 9, 'handlelength': 1.6, 'fancybox': True,
         'framealpha': 0., 'fontsize': 10, 'labelspacing': 0, 'borderpad': 0.5,
         'handletextpad': 0.2, 'borderaxespad': 0.1, 'columnspacing': 0.5,
-        'bbox_to_anchor': (-0.01, 1.21)
+        'bbox_to_anchor': (-0.01, 1.22)
     },
     'subplots_adjust': {
         'wspace': 0.0, 'hspace': 0.1, 'top': 0.93
@@ -145,7 +145,7 @@ if __name__ == '__main__':
     xtickspos = []
 
     for tc in plots_dir.keys():
-        width = 1. / (len(plots_dir[tc]))
+        width = .9 / (len(plots_dir[tc]))
         for cache, vals in plots_dir[tc].items():
             sizes = get_values(vals, header, gconfig['x_name'])
             times = get_values(vals, header, gconfig['y_name'])
@@ -164,19 +164,45 @@ if __name__ == '__main__':
                     edgecolor='0.', label=legend,
                     hatch=gconfig['hatches'][label],
                     color=gconfig['colors'][label])
-            if cache == 'on':
-                for xi, nt in zip(x, normtime):
-                    ax.annotate('{:.2f}'.format(nt),
-                                xy=(xi, nt),
-                                rotation='90',
-                                 **gconfig['annotate'])
+            if label not in avg:
+                avg[label] = []
+
+            avg[label].append(normtime)
+            # if cache == 'on':
+            #     for xi, nt in zip(x, normtime):
+            #         ax.annotate('{:.2f}'.format(nt),
+            #                     xy=(xi, nt),
+            #                     rotation='90',
+            #                      **gconfig['annotate'])
 
             pos += width
         xtickspos += list(pos - 0.75 + np.arange(len(sizes)))
         xticks += list(np.array(sizes, int))
         ax.annotate(tc, xy=(pos-2.5*width + len(sizes)/2, 1.),
                     rotation='0', **gconfig['annotate'])
-        pos += len(sizes) - width
+        pos += len(sizes) - 1.5 * width
+        plt.axvline(x=pos-0.75*width, color='black', ls='--')
+
+    # xticks.append('AVG')
+    for idx, key in enumerate(avg.keys()):
+        vals = avg[key]
+        val = np.mean(vals, axis=0)
+        x = pos + np.arange(len(sizes))
+        plt.bar(x, val, width=.85 * width,
+                edgecolor='0.', label=None,
+                hatch=gconfig['hatches'][key],
+                color=gconfig['colors'][key])
+        if key == 'on':
+            for xi, nt in zip(x, val):
+                ax.annotate('{:.2f}'.format(nt),
+                            xy=(xi, nt),
+                            rotation='90',
+                             **gconfig['annotate'])
+        pos += width
+
+    xtickspos += list(pos - 0.75 + np.arange(len(sizes)))
+    ax.annotate('AVG', xy=(pos-2.5*width + len(sizes)/2, 1.),
+                rotation='0', **gconfig['annotate'])
 
     plt.grid(True, which='major', alpha=0.5)
     plt.grid(False, which='major', axis='x')
@@ -188,9 +214,10 @@ if __name__ == '__main__':
 
     plt.ylim(gconfig['ylim'])
     plt.yticks(gconfig['yticks'], **gconfig['ticks'])
-    plt.xticks(xtickspos, xticks, **gconfig['ticks'])
+    # plt.xticks(xtickspos, xticks, **gconfig['ticks'])
+    plt.xticks(xtickspos, [12, 24, 36]*4, **gconfig['ticks'])
     plt.xlabel(**gconfig['xlabel'])
-    # plt.xlim(0, pos-width)
+    plt.xlim(0-width, xtickspos[-1]+1.5*width)
 
     ax.tick_params(**gconfig['tick_params'])
     plt.tight_layout()

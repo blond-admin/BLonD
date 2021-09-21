@@ -12,6 +12,9 @@ from cycler import cycle
 import bisect
 
 
+# python scripts/profiles/multi-turn-profiles.py -i=monitorfiles/ex01-t100-p100000-b1-sl100-approx0-precdouble-r1-m1-se0-w1.h5 -o results/profiles/ -s -f 1 -l 3
+
+
 this_directory = os.path.dirname(os.path.realpath(__file__)) + "/"
 this_filename = sys.argv[0].split('/')[-1]
 
