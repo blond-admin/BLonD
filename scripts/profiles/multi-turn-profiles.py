@@ -83,7 +83,7 @@ gconfig = {
     ],
     # 'y_err_name': 'std',
     'xlabel': {'xlabel': r'Histogram Bins', 'labelpad': 5, 'fontsize': 10},
-    'ylabel': {'ylabel': r'Bin Frequency', 'labelpad': 4, 'fontsize': 10},
+    'ylabel': {'ylabel': r'Bin Count', 'labelpad': 4, 'fontsize': 10},
     'title': {
         # 's': '{}'.format(case.upper()),
         'fontsize': 10,
@@ -91,7 +91,7 @@ gconfig = {
         # 'x': 0.45,
         'fontweight': 'bold',
     },
-    'figsize': [5, 2.],
+    'figsize': [5, 1.8],
     'annotate': {
         'fontsize': 9,
         'textcoords': 'data',
@@ -115,7 +115,7 @@ gconfig = {
         'direction': 'out', 'length': 3, 'width': 1,
     },
     'fontname': 'DejaVu Sans Mono',
-    'ylim': [700, 3000],
+    'ylim': [800, 3000],
     'xlim': [38, 84],
     'outfiles': ['{}/{}-{}.png',
                  '{}/{}-{}.pdf'
