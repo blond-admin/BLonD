@@ -62,9 +62,207 @@ class CavityFeedbackCommissioning_new(object):
         self.cpp_conv = cpp_conv
 
 
+class SPSCavityFeedback_new(object):
+    """Class determining the turn-by-turn total RF voltage and phase correction
+    originating from the individual cavity feedbacks. Assumes two 4-section and
+    two 5-section travelling wave cavities in the pre-LS2 scenario and four
+    3-section and two 4-section cavities in the post-LS2 scenario. The voltage
+    partitioning is proportional to the number of sections.
+
+    Parameters
+    ----------
+    RFStation : class
+        An RFStation type class
+    Beam : class
+        A Beam type class
+    Profile : class
+        A Profile type class
+    G_llrf : float or list
+        LLRF Gain [1]; if passed as a float, both 3- and 4-section (4- and
+        5-section) cavities have the same G_llrf in the post- (pre-)LS2
+        scenario. If passed as a list, the first and second elements correspond
+        to the G_llrf of the 3- and 4-section (4- and 5-section) cavity
+        feedback in the post- (pre-)LS2 scenario; default is 10
+    G_tx : float or list
+        Transmitter gain [1] of the cavity feedback; convention same as G_llrf;
+        default is 0.5
+    a_comb : float
+        Comb filter ratio [1]; default is 15/16
+    turns :  int
+        Number of turns to pre-track without beam
+    post_LS2 : bool
+        Activates pre-LS2 scenario (False) or post-LS2 scenario (True); default
+        is True
+    V_part : float
+        Voltage partitioning of the shorter cavities; has to be in the range
+        (0,1). Default is None and will result in 6/10 for the 3-section
+        cavities in the post-LS2 scenario and 4/9 for the 4-section cavities in
+        the pre-LS2 scenario
+
+    Attributes
+    ----------
+    OTFB_1 : class
+        An SPSOneTurnFeedback type class; 3/4-section cavity for post/pre-LS2
+    OTFB_2 : class
+        An SPSOneTurnFeedback type class; 4/5-section cavity for post/pre-LS2
+    V_sum : complex array
+        Vector sum of RF voltage from all the cavities
+    V_corr : float array
+        RF voltage correction array to be applied in the tracker
+    phi_corr : float array
+        RF phase correction array to be applied in the tracker
+    logger : logger
+        Logger of the present class
+
+    """
+
+    def __init__(self, RFStation, Beam, Profile, G_ff=1, G_llrf=10, G_tx=0.5,
+                 a_comb=None, turns=1000, post_LS2=True, V_part=None,
+                 Commissioning=CavityFeedbackCommissioning_new()):
+
+
+        # Options for commissioning the feedback
+        self.Commissioning = Commissioning
+
+        self.rf = RFStation
+
+        # Parse input for gains
+        if type(G_ff) is list:
+            G_ff_1 = G_ff[0]
+            G_ff_2 = G_ff[1]
+        else:
+            G_ff_1 = G_ff
+            G_ff_2 = G_ff
+
+        if type(G_llrf) is list:
+            G_llrf_1 = G_llrf[0]
+            G_llrf_2 = G_llrf[1]
+        else:
+            G_llrf_1 = G_llrf
+            G_llrf_2 = G_llrf
+
+        if type(G_tx) is list:
+            G_tx_1 = G_tx[0]
+            G_tx_2 = G_tx[1]
+        else:
+            G_tx_1 = G_tx
+            G_tx_2 = G_tx
+
+        # Voltage partitioning has to be a fraction
+        if V_part and V_part*(1 - V_part) < 0:
+            raise RuntimeError("SPS cavity feedback: voltage partitioning has to be in the range (0,1)!")
+
+        # Voltage partition proportional to the number of sections
+        if post_LS2:
+            if not a_comb:
+                a_comb = 63/64
+
+            if not V_part:
+                V_part = 6/10
+            self.OTFB_1 = SPSOneTurnFeedback_new(RFStation, Beam, Profile, 3,
+                                             n_cavities=4, V_part=V_part,
+                                             G_ff=float(G_ff_1),
+                                             G_llrf=float(G_llrf_1),
+                                             G_tx=float(G_tx_1),
+                                             a_comb=float(a_comb),
+                                             Commissioning=self.Commissioning)
+            self.OTFB_2 = SPSOneTurnFeedback_new(RFStation, Beam, Profile, 4,
+                                             n_cavities=2, V_part=1-V_part,
+                                             G_ff=float(G_ff_2),
+                                             G_llrf=float(G_llrf_2),
+                                             G_tx=float(G_tx_2),
+                                             a_comb=float(a_comb),
+                                             Commissioning=self.Commissioning)
+        else:
+            if not a_comb:
+                a_comb = 15/16
+
+            if not V_part:
+                V_part = 4/9
+            self.OTFB_1 = SPSOneTurnFeedback_new(RFStation, Beam, Profile, 4,
+                                             n_cavities=2, V_part=V_part,
+                                             G_ff=float(G_ff_1),
+                                             G_llrf=float(G_llrf_1),
+                                             G_tx=float(G_tx_1),
+                                             a_comb=float(a_comb),
+                                             Commissioning=self.Commissioning)
+            self.OTFB_2 = SPSOneTurnFeedback_new(RFStation, Beam, Profile, 5,
+                                             n_cavities=2, V_part=1-V_part,
+                                             G_ff=float(G_ff_2),
+                                             G_llrf=float(G_llrf_2),
+                                             G_tx=float(G_tx_2),
+                                             a_comb=float(a_comb),
+                                             Commissioning=self.Commissioning)
+
+        # Set up logging
+        self.logger = logging.getLogger(__class__.__name__)
+        self.logger.info("Class initialized")
+
+        # Initialise OTFB without beam
+        self.turns = int(turns)
+        if turns < 1:
+            #FeedbackError
+            raise RuntimeError("ERROR in SPSCavityFeedback: 'turns' has to" +
+                               " be a positive integer!")
+        self.track_init(debug=Commissioning.debug)
+
+    def track(self):
+
+        self.OTFB_1.track()
+        self.OTFB_2.track()
+
+        self.V_sum = self.OTFB_1.V_ANT_FINE[-self.OTFB_1.profile.n_slices:] \
+                     + self.OTFB_2.V_ANT_FINE[-self.OTFB_2.profile.n_slices:]
+
+        self.V_corr, alpha_sum = cartesian_to_polar(self.V_sum)
+
+        # Calculate OTFB correction w.r.t. RF voltage and phase in RFStation
+        self.V_corr /= self.rf.voltage[0, self.rf.counter[0]]
+        self.phi_corr = 0.5*np.pi - alpha_sum \
+            - self.rf.phi_rf[0, self.rf.counter[0]]
+
+    def track_init(self, debug=False):
+        r''' Tracking of the SPSCavityFeedback without beam.
+        '''
+
+        if debug:
+            cmap = plt.get_cmap('jet')
+            colors = cmap(np.linspace(0,1, self.turns))
+            plt.figure('Pre-tracking without beam')
+            ax = plt.axes([0.18, 0.1, 0.8, 0.8])
+            ax.grid()
+            ax.set_ylabel('Voltage [V]')
+
+        for i in range(self.turns):
+            self.logger.debug("Pre-tracking w/o beam, iteration %d", i)
+            self.OTFB_1.track_no_beam()
+            if debug:
+                ax.plot(self.OTFB_1.profile.bin_centers*1e6,
+                         np.abs(self.OTFB_1.V_ANT_FINE[-self.OTFB_1.profile.n_slices:]), color=colors[i])
+                ax.plot(self.OTFB_1.rf_centers*1e6,
+                         np.abs(self.OTFB_1.V_ANT[-self.OTFB_1.n_coarse:]), color=colors[i],
+                         linestyle='', marker='.')
+            self.OTFB_2.track_no_beam()
+        if debug:
+            plt.show()
+
+        # Interpolate from the coarse mesh to the fine mesh of the beam
+        self.V_sum = np.interp(
+            self.OTFB_1.profile.bin_centers, self.OTFB_1.rf_centers,
+            self.OTFB_1.V_IND_COARSE_GEN[-self.OTFB_1.n_coarse:] + self.OTFB_2.V_IND_COARSE_GEN[-self.OTFB_2.n_coarse:])
+
+        self.V_corr, alpha_sum = cartesian_to_polar(self.V_sum)
+
+        # Calculate OTFB correction w.r.t. RF voltage and phase in RFStation
+        self.V_corr /= self.rf.voltage[0, self.rf.counter[0]]
+        self.phi_corr = 0.5*np.pi - alpha_sum \
+            - self.rf.phi_rf[0, self.rf.counter[0]]
+
+
+
 class SPSOneTurnFeedback_new(object):
 
-    def __init__(self, RFStation, Beam, Profile, n_sections, n_cavities=2,
+    def __init__(self, RFStation, Beam, Profile, n_sections, n_cavities=4,
                  V_part=4/9, G_ff=1, G_llrf=10, G_tx=0.5, a_comb=63/64,
                  Commissioning=CavityFeedbackCommissioning_new()):
 
@@ -441,13 +639,6 @@ class SPSOneTurnFeedback_new(object):
         self.V_IND_COARSE_GEN[-self.n_coarse:] = self.n_cavities * self.matr_conv(self.I_GEN,
                                                                                   self.TWC.h_gen)[-self.n_coarse:]
 
-        #self.V_IND_COARSE_GEN[-self.n_coarse:] = self.CONV_RES[:self.n_coarse] + self.CONV_PREV
-        #self.CONV_PREV = self.CONV_RES[-self.n_coarse:]
-
-        # TODO: This
-        #self.V_IND_COARSE_GEN[-self.n_coarse:] = self.n_cavities * self.conv(self.I_GEN[-self.n_coarse:],
-        #                                                           self.TWC.h_gen)[-self.n_coarse:]
-
 
     # BEAM MODEL
     def beam_response(self, coarse=False):
@@ -507,7 +698,7 @@ class SPSOneTurnFeedback_new(object):
 
 
     def calc_power(self):
-        self.II_COARSE_GEN = np.copy(self.I_GEN) / self.T_s / self.n_cavities
+        self.II_COARSE_GEN = np.copy(self.I_GEN) / self.T_s
         self.P_GEN = get_power_gen_I2(self.II_COARSE_GEN, 50)
 
 
