@@ -632,9 +632,11 @@ for turn in range(n_iterations):
             slicesMonitor.track(turn)
 
     worker.DLB(turn, beam)
-# cp.report()
 
-beam.gather()
+# cp.report()
+if False:
+    beam.gather()
+
 end_t = time.time()
 mpiprint('Total time: ', end_t - start_t)
 

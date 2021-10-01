@@ -362,8 +362,9 @@ for turn in range(n_iterations):
     worker.DLB(turn, beam)
 # cp.report()
 
+if False:
+    beam.gather()
 
-beam.gather()
 end_t = time.time()
 
 timing.report(total_time=1e3*(end_t-start_t),

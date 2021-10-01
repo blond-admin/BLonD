@@ -588,9 +588,13 @@ slurm:
         # - 'lb-approx0-weak-scaling-cpu-gpu'
         
         # Approximate 
-        # - 'exact-timing-gpu'
-        - 'f32-srp-timing-strong-gpu'
-        - 'f32-rds-timing-strong-gpu'
+        # - 'exact-timing-strong-gpu'
+        # - 'f32-srp-timing-strong-gpu'
+        # - 'f32-rds-timing-strong-gpu'
+        - 'exact-timing-strong-gpu-2pn'
+        - 'f32-srp-timing-strong-gpu-2pn'
+        - 'f32-rds-timing-strong-gpu-2pn'
+
         # - 'srp-timing-cpu'
         # - 'rds-timing-gpu'
         # - 'float32-timing-gpu'
@@ -613,10 +617,10 @@ slurm:
     configs: {
 
         # Approximate Weak-Scaling
-        'exact-timing-gpu': {
+        'exact-timing-strong-gpu': {
             'exe': ['LHC_main.py'],
             'particles': [3000000],
-            'bunches': [24, 48, 96, 192],
+            'bunches': [192],
             'slices': [1000],
             'turns': [10000],
             'monitor': [0],
@@ -636,7 +640,7 @@ slurm:
             'mpi': ['openmpi4'],
             'cores_per_cpu': [20],
             'partition': ['gpu'],
-            'time': [30],
+            'time': [120],
             'repeats': 2
         },
 
@@ -659,7 +663,7 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [1],
-            'workers': [2, 4, 8],
+            'workers': [2],
             'omp': [20],            
             'mpi': ['openmpi4'],
             'cores_per_cpu': [20],
@@ -686,7 +690,7 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [1],
-            'workers': [2, 4, 8],
+            'workers': [2],
             'omp': [20],
             'mpi': ['openmpi4'],
             'cores_per_cpu': [20],
@@ -694,6 +698,91 @@ slurm:
             'time': [120],
             'repeats': 2
         },
+
+        'exact-timing-strong-gpu-2pn': {
+            'exe': ['LHC_main.py'],
+            'particles': [6000000],
+            'bunches': [192],
+            'slices': [1000],
+            'turns': [10000],
+            'monitor': [0],
+            'seed': [0],
+            'mtw': [0],
+            'precision': ['double'],
+            'withtp': [0],
+            'reduce': [1],
+            'approx': [0],
+            'log': [1],
+            'loadbalance': ['reportonly,,,,'],
+            'artificialdelay': ['off'],
+            'timing': ['timing'],
+            'gpu': [2],
+            'workers': [4, 8, 16, 32],
+            'omp': [10],
+            'mpi': ['openmpi4'],
+            'cores_per_cpu': [20],
+            'partition': ['gpu'],
+            'time': [120],
+            'repeats': 2
+        },
+
+
+        'f32-srp-timing-strong-gpu-2pn': {
+            'exe': ['LHC_main.py'],
+            'particles': [6000000],
+            'bunches': [192],
+            'slices': [1000],
+            'turns': [10000],
+            'monitor': [0],
+            'seed': [0],
+            'mtw': [0],
+            'precision': ['single'],
+            'withtp': [0],
+            'reduce': [3],
+            'approx': [1],
+            'log': [1],
+            'loadbalance': ['reportonly,,,,'],
+            'artificialdelay': ['off'],
+            'timing': ['timing'],
+            'gpu': [2],
+            'workers': [4, 8, 16, 32],
+            'omp': [10],            
+            'mpi': ['openmpi4'],
+            'cores_per_cpu': [20],
+            'partition': ['gpu'],
+            'time': [120],
+            'repeats': 2
+        },
+
+        'f32-rds-timing-strong-gpu-2pn': {
+            'exe': ['LHC_main.py'],
+            'particles': [6000000],
+            'bunches': [192],
+            'slices': [1000],
+            'turns': [10000],
+            'monitor': [0],
+            'seed': [0],
+            'mtw': [0],
+            'precision': ['single'],
+            'withtp': [0],
+            'reduce': [1],
+            'approx': [2],
+            'log': [1],
+            'loadbalance': ['reportonly,,,,'],
+            'artificialdelay': ['off'],
+            'timing': ['timing'],
+            'gpu': [2],
+            'workers': [4, 8, 16, 32],
+            'omp': [10],
+            'mpi': ['openmpi4'],
+            'cores_per_cpu': [20],
+            'partition': ['gpu'],
+            'time': [120],
+            'repeats': 2
+        },
+
+
+
 
         'srp-timing-gpu': {
             'exe': ['LHC_main.py'],

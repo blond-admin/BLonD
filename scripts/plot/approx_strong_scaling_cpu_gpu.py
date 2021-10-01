@@ -155,14 +155,14 @@ gconfig = {
     },
     'fontname': 'DejaVu Sans Mono',
     'xlim': [-0.37025, 4.97025],
-    'ylim': [0, 45],
-    'yticks': [0, 5, 10, 15, 20, 25, 30, 35, 40, 45],
-    # 'yticks': [0, 10, 20, 30, 40, 50, 60, 70, 80, 90],
+    'ylim': [0, 60],
+    # 'yticks': [0, 5, 10, 15, 20, 25, 30, 35, 40, 45],
+    'yticks': [0, 10, 20, 30, 40, 50, 60],
     'outfiles': [
         '{}/{}-{}-nodes-{}.png',
         '{}/{}-{}-nodes-{}.pdf'
     ],
-    'files': [
+    'files-cpu': [
         '{}/{}/exact-timing-{}/comm-comp-report.csv',
         # '{}/{}/rds-timing-gpu/comm-comp-report.csv',
         # '{}/{}/srp-timing-gpu/comm-comp-report.csv',
@@ -170,13 +170,17 @@ gconfig = {
         '{}/{}/f32-rds-timing-{}/comm-comp-report.csv',
         '{}/{}/f32-srp-timing-{}/comm-comp-report.csv',
 
-        # '{}/{}/exact-timing-gpu/comm-comp-report.csv',
+    ],
+    'files-gpu': [
+        '{}/{}/exact-timing-strong-{}/comm-comp-report.csv',
         # '{}/{}/rds-timing-gpu/comm-comp-report.csv',
         # '{}/{}/srp-timing-gpu/comm-comp-report.csv',
         # '{}/{}/float32-timing-gpu/comm-comp-report.csv',
-        # '{}/{}/f32-rds-timing-gpu/comm-comp-report.csv',
-        # '{}/{}/f32-srp-timing-gpu/comm-comp-report.csv',
+        '{}/{}/f32-rds-timing-strong-{}/comm-comp-report.csv',
+        '{}/{}/f32-srp-timing-strong-{}/comm-comp-report.csv',
+
     ],
+
     'lines': {
         # 'mpi': ['mpich3', 'mvapich2', 'openmpi3'],
         # 'lb': ['reportonly'],
@@ -201,8 +205,8 @@ gconfig = {
         'lines': {
             # 'b': ['12', '21', '18'],
             # 'b': ['192', '288', '21'],
-            'b': ['24', '36', '21'],
-            'ppb': ['1500000', '1000000', '2000000'],
+            'b': ['12', '18', '21'],
+            'ppb': ['1500000', '1000000'],
             # 't': ['5000'],
             'type': ['total'],
         },
@@ -239,7 +243,7 @@ if __name__ == '__main__':
             if not indir:
                 continue
             plots_dir[platform] = {}
-            for file in gconfig['files']:
+            for file in gconfig['files-{}'.format(platform)]:
                 file = file.format(indir, case, platform)
                 # print(file)
                 data = np.genfromtxt(file, delimiter='\t', dtype=str)
