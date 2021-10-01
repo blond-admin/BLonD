@@ -234,7 +234,8 @@ fullring = FullRingAndRF([tracker])
 #    distribution_variable = 'Action')
 
 # Initial losses, slicing, statistics
-beam.losses_separatrix(ring, rf)
+if False:
+    beam.losses_separatrix(ring, rf)
 
 mpiprint('dE mean: ', np.mean(beam.dE))
 mpiprint('dE std: ', np.std(beam.dE))
