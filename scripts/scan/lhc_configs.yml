@@ -588,9 +588,9 @@ slurm:
         # - 'lb-approx0-weak-scaling-cpu-gpu'
         
         # Approximate 
-        # - 'exact-timing-strong-gpu'
-        # - 'f32-srp-timing-strong-gpu'
-        # - 'f32-rds-timing-strong-gpu'
+        - 'exact-timing-strong-gpu'
+        - 'f32-srp-timing-strong-gpu'
+        - 'f32-rds-timing-strong-gpu'
         - 'exact-timing-strong-gpu-2pn'
         - 'f32-srp-timing-strong-gpu-2pn'
         - 'f32-rds-timing-strong-gpu-2pn'
@@ -619,7 +619,7 @@ slurm:
         # Approximate Weak-Scaling
         'exact-timing-strong-gpu': {
             'exe': ['LHC_main.py'],
-            'particles': [3000000],
+            'particles': [4000000],
             'bunches': [192],
             'slices': [1000],
             'turns': [10000],
@@ -641,13 +641,13 @@ slurm:
             'cores_per_cpu': [20],
             'partition': ['gpu'],
             'time': [120],
-            'repeats': 2
+            'repeats': 1
         },
 
 
         'f32-srp-timing-strong-gpu': {
             'exe': ['LHC_main.py'],
-            'particles': [3000000],
+            'particles': [4000000],
             'bunches': [192],
             'slices': [1000],
             'turns': [10000],
@@ -663,18 +663,18 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [1],
-            'workers': [2],
+            'workers': [2, 4, 8, 16],
             'omp': [20],            
             'mpi': ['openmpi4'],
             'cores_per_cpu': [20],
             'partition': ['gpu'],
             'time': [120],
-            'repeats': 2
+            'repeats': 1
         },
 
         'f32-rds-timing-strong-gpu': {
             'exe': ['LHC_main.py'],
-            'particles': [3000000],
+            'particles': [4000000],
             'bunches': [192],
             'slices': [1000],
             'turns': [10000],
@@ -690,18 +690,18 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [1],
-            'workers': [2],
+            'workers': [2, 4, 8, 16],
             'omp': [20],
             'mpi': ['openmpi4'],
             'cores_per_cpu': [20],
             'partition': ['gpu'],
             'time': [120],
-            'repeats': 2
+            'repeats': 1
         },
 
         'exact-timing-strong-gpu-2pn': {
             'exe': ['LHC_main.py'],
-            'particles': [6000000],
+            'particles': [4000000],
             'bunches': [192],
             'slices': [1000],
             'turns': [10000],
@@ -723,13 +723,13 @@ slurm:
             'cores_per_cpu': [20],
             'partition': ['gpu'],
             'time': [120],
-            'repeats': 2
+            'repeats': 1
         },
 
 
         'f32-srp-timing-strong-gpu-2pn': {
             'exe': ['LHC_main.py'],
-            'particles': [6000000],
+            'particles': [4000000],
             'bunches': [192],
             'slices': [1000],
             'turns': [10000],
@@ -751,12 +751,12 @@ slurm:
             'cores_per_cpu': [20],
             'partition': ['gpu'],
             'time': [120],
-            'repeats': 2
+            'repeats': 1
         },
 
         'f32-rds-timing-strong-gpu-2pn': {
             'exe': ['LHC_main.py'],
-            'particles': [6000000],
+            'particles': [4000000],
             'bunches': [192],
             'slices': [1000],
             'turns': [10000],
@@ -778,7 +778,7 @@ slurm:
             'cores_per_cpu': [20],
             'partition': ['gpu'],
             'time': [120],
-            'repeats': 2
+            'repeats': 1
         },
 
 

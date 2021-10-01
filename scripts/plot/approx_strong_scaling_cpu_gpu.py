@@ -135,7 +135,7 @@ gconfig = {
         'fontsize': 10,
         'textcoords': 'data',
         'va': 'top',
-        'ha': 'right'
+        # 'ha': 'right'
     },
     'xticks': {'fontsize': 10, 'rotation': '0'},
     'ticks': {'fontsize': 10, 'rotation': '0'},
@@ -181,22 +181,28 @@ gconfig = {
 
     ],
 
-    'lines': {
-        # 'mpi': ['mpich3', 'mvapich2', 'openmpi3'],
-        # 'lb': ['reportonly'],
+    'lines-cpu': {
         'approx': ['0', '1', '2'],
-        # 'red': ['1', '2', '3', '4'],
         'red': ['1', '3'],
         'prec': ['single', 'double'],
         'omp': ['10', '20'],
         'gpu': ['0', '1'],
-        # 'N': ['1', '2', '4', '8', '16', '32'],
-        # 'ppb': ['4000000'],
-        # 'lba': ['500'],
-        # 'b': ['96', '48', '72', '21'],
-        # 't': ['40000'],
+        # 'ppb': ['3000000', '2000000', '32000000'],
+        # 'b': ['192', '288', '21'],
         'type': ['total'],
     },
+
+    'lines-gpu': {
+        'approx': ['0', '1', '2'],
+        'red': ['1', '3'],
+        'prec': ['single', 'double'],
+        'omp': ['10', '20'],
+        'gpu': ['0', '1'],
+        'ppb': ['3000000', '2000000', '32000000'],
+        'b': ['192', '288', '21'],
+        'type': ['total'],
+    },
+
     'linefilter': [
         {'N': ['1', '20']},
     ],
@@ -248,7 +254,7 @@ if __name__ == '__main__':
                 # print(file)
                 data = np.genfromtxt(file, delimiter='\t', dtype=str)
                 header, data = list(data[0]), data[1:]
-                temp = get_plots(header, data, gconfig['lines'],
+                temp = get_plots(header, data, gconfig['lines-{}'.format(platform)],
                                  exclude=gconfig.get('exclude', []),
                                  linefilter=gconfig.get('linefilter', {}),
                                  prefix=True)
@@ -329,8 +335,15 @@ if __name__ == '__main__':
                         color=gconfig['colors'][label])
                 for xi, yi in zip(xpos, speedup):
                     if yi > gconfig['ylim'][1]:
-                        plt.gca().annotate('{:.1f}'.format(yi),
-                                           xy=(xi-0.2, gconfig['ylim'][1]-1),
+                        if idx == 1:
+                            ha = 'right'
+                            offset = -0.2
+                        else:
+                            ha = 'left'
+                            offset = 0.2
+                        plt.gca().annotate('{:.0f}'.format(yi),
+                                           xy=(xi+offset, gconfig['ylim'][1]-1),
+                                           ha=ha,
                                            **gconfig['annotate'])                    
             plt.grid(True, which='major', alpha=0.5)
             plt.grid(False, which='major', axis='x')
