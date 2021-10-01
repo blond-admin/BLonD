@@ -608,13 +608,13 @@ slurm:
         # - 'lb-approx0-weak-scaling-cpu-gpu'
         
         # Approximate 
-        - 'exact-timing-strong-gpu' 
-        - 'f32-srp-timing-strong-gpu' 
-        - 'f32-rds-timing-strong-gpu' 
+        # - 'exact-timing-strong-gpu' 
+        # - 'f32-srp-timing-strong-gpu' 
+        # - 'f32-rds-timing-strong-gpu' 
 
-        # - 'exact-timing-strong-gpu-2pn' 
-        # - 'f32-srp-timing-strong-gpu-2pn' 
-        # - 'f32-rds-timing-strong-gpu-2pn' 
+        - 'exact-timing-strong-gpu-2pn'
+        - 'f32-srp-timing-strong-gpu-2pn' 
+        - 'f32-rds-timing-strong-gpu-2pn' 
 
         # - 'srp-timing-gpu' 
         # - 'rds-timing-gpu' 
@@ -717,7 +717,7 @@ slurm:
 
         'exact-timing-strong-gpu-2pn': {
             'exe': ['SPS_main.py'],
-            'particles': [4000000],
+            'particles': [2000000],
             'bunches': [288],  # 192
             'slices': [1408],
             'turns': [10000],
@@ -738,15 +738,15 @@ slurm:
             'mpi': ['openmpi4'],
             'cores_per_cpu': [20],
             'partition': ['gpu'],
-            'time': [30],
-            'repeats': 2
+            'time': [60],
+            'repeats': 1
         },
 
 
         
         'f32-srp-timing-strong-gpu-2pn': {
             'exe': ['SPS_main.py'],
-            'particles': [4000000],
+            'particles': [2000000],
             'bunches': [288],  # 192
             'slices': [1408],
             'turns': [10000],
@@ -767,13 +767,13 @@ slurm:
             'mpi': ['openmpi4'],
             'cores_per_cpu': [20],
             'partition': ['gpu'],
-            'time': [120],
-            'repeats': 2
+            'time': [60],
+            'repeats': 1
         },
 
         'f32-rds-timing-strong-gpu-2pn': {
             'exe': ['SPS_main.py'],
-            'particles': [4000000],
+            'particles': [2000000],
             'bunches': [288],  # 192
             'slices': [1408],
             'turns': [10000],
@@ -794,8 +794,8 @@ slurm:
             'mpi': ['openmpi4'],
             'cores_per_cpu': [20],
             'partition': ['gpu'],
-            'time': [120],
-            'repeats': 2
+            'time': [60],
+            'repeats': 1
         },
 
 

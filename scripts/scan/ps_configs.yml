@@ -618,12 +618,12 @@ slurm:
         # - 'lb-approx0-weak-scaling-cpu-gpu'
         
         # Approximate 
-        - 'exact-timing-strong-gpu'
-        - 'f32-srp-timing-strong-gpu'
-        - 'f32-rds-timing-strong-gpu'
-        # - 'exact-timing-gpu-2pn'
-        # - 'f32-srp-timing-strong-gpu-2pn'
-        # - 'f32-rds-timing-strong-gpu-2pn'
+        # - 'exact-timing-strong-gpu'
+        # - 'f32-srp-timing-strong-gpu'
+        # - 'f32-rds-timing-strong-gpu'
+        - 'exact-timing-strong-gpu-2pn'
+        - 'f32-srp-timing-strong-gpu-2pn'
+        - 'f32-rds-timing-strong-gpu-2pn'
 
         # - 'srp-timing-gpu' # DONE
         # - 'rds-timing-gpu' # DONE 
@@ -731,7 +731,7 @@ slurm:
 
         'exact-timing-strong-gpu-2pn': {
             'exe': ['PS_main.py'],
-            'particles': [64000000],
+            'particles': [32000000],
             'bunches': [21],  # 192
             'slices': [256],
             'turns': [10000],
@@ -752,15 +752,15 @@ slurm:
             'mpi': ['openmpi4'],
             'cores_per_cpu': [20],
             'partition': ['gpu'],
-            'time': [30],
-            'repeats': 2
+            'time': [120],
+            'repeats': 1
         },
 
 
 
         'f32-srp-timing-strong-gpu-2pn': {
             'exe': ['PS_main.py'],
-            'particles': [64000000],
+            'particles': [32000000],
             'bunches': [21],  # 192
             'slices': [256],
             'turns': [10000],
@@ -782,13 +782,13 @@ slurm:
             'cores_per_cpu': [20],
             'partition': ['gpu'],
             'time': [120],
-            'repeats': 2
+            'repeats': 1
         },
 
 
         'f32-rds-timing-strong-gpu-2pn': {
             'exe': ['PS_main.py'],
-            'particles': [64000000],
+            'particles': [32000000],
             'bunches': [21],  # 192
             'slices': [256],
             'turns': [10000],
@@ -810,7 +810,7 @@ slurm:
             'cores_per_cpu': [20],
             'partition': ['gpu'],
             'time': [120],
-            'repeats': 2
+            'repeats': 1
         },
 
 
