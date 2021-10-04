@@ -608,13 +608,13 @@ slurm:
         # - 'lb-approx0-weak-scaling-cpu-gpu'
         
         # Approximate 
-        # - 'exact-timing-strong-gpu' 
-        # - 'f32-srp-timing-strong-gpu' 
-        # - 'f32-rds-timing-strong-gpu' 
+        - 'exact-timing-strong-gpu' 
+        - 'f32-srp-timing-strong-gpu' 
+        - 'f32-rds-timing-strong-gpu' 
 
-        - 'exact-timing-strong-gpu-2pn'
-        - 'f32-srp-timing-strong-gpu-2pn' 
-        - 'f32-rds-timing-strong-gpu-2pn' 
+        # - 'exact-timing-strong-gpu-2pn'
+        # - 'f32-srp-timing-strong-gpu-2pn' 
+        # - 'f32-rds-timing-strong-gpu-2pn' 
 
         # - 'srp-timing-gpu' 
         # - 'rds-timing-gpu' 
@@ -633,10 +633,10 @@ slurm:
         # Approximate 
         'exact-timing-strong-gpu': {
             'exe': ['SPS_main.py'],
-            'particles': [2000000],
+            'particles': [1000000],
             'bunches': [288],  # 192
             'slices': [1408],
-            'turns': [10000],
+            'turns': [5000],
             'monitor': [0],
             'seed': [0],
             'mtw': [0],
@@ -649,23 +649,24 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [1],
-            'workers': [2, 4, 8, 16],
+            # 'workers': [2, 4, 8, 16],
+            'workers': [1],
             'omp': [20],
             'mpi': ['openmpi4'],
             'cores_per_cpu': [20],
             'partition': ['gpu'],
             'time': [120],
-            'repeats': 2
+            'repeats': 1
         },
 
 
         
         'f32-srp-timing-strong-gpu': {
             'exe': ['SPS_main.py'],
-            'particles': [2000000],
+            'particles': [1000000],
             'bunches': [288],  # 192
             'slices': [1408],
-            'turns': [10000],
+            'turns': [5000],
             'monitor': [0],
             'seed': [0],
             'mtw': [0],
@@ -678,21 +679,22 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [1],
-            'workers': [2, 4, 8, 16],
+            # 'workers': [2, 4, 8, 16],
+            'workers': [1],
             'omp': [20],
             'mpi': ['openmpi4'],
             'cores_per_cpu': [20],
             'partition': ['gpu'],
             'time': [120],
-            'repeats': 2
+            'repeats': 1
         },
 
         'f32-rds-timing-strong-gpu': {
             'exe': ['SPS_main.py'],
-            'particles': [2000000],
+            'particles': [1000000],
             'bunches': [288],  # 192
             'slices': [1408],
-            'turns': [10000],
+            'turns': [5000],
             'monitor': [0],
             'seed': [0],
             'mtw': [0],
@@ -705,13 +707,14 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [1],
-            'workers': [2, 4, 8, 16],
+            # 'workers': [2, 4, 8, 16],
+            'workers': [1],
             'omp': [20],
             'mpi': ['openmpi4'],
             'cores_per_cpu': [20],
             'partition': ['gpu'],
             'time': [120],
-            'repeats': 2
+            'repeats': 1
         },
 
 
@@ -733,12 +736,13 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [2],
-            'workers': [4, 8, 16, 32],
+            # 'workers': [4, 8, 16, 32],
+            'workers': [64],
             'omp': [10],
             'mpi': ['openmpi4'],
             'cores_per_cpu': [20],
             'partition': ['gpu'],
-            'time': [60],
+            'time': [90],
             'repeats': 1
         },
 
@@ -762,12 +766,13 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [2],
-            'workers': [4, 8, 16, 32],
+            # 'workers': [4, 8, 16, 32],
+            'workers': [64],
             'omp': [10],
             'mpi': ['openmpi4'],
             'cores_per_cpu': [20],
             'partition': ['gpu'],
-            'time': [60],
+            'time': [90],
             'repeats': 1
         },
 
@@ -789,12 +794,13 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [2],
-            'workers': [4, 8, 16, 32],
+            # 'workers': [4, 8, 16, 32],
+            'workers': [64],
             'omp': [10],
             'mpi': ['openmpi4'],
             'cores_per_cpu': [20],
             'partition': ['gpu'],
-            'time': [60],
+            'time': [90],
             'repeats': 1
         },
 

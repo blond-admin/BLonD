@@ -113,7 +113,7 @@ gconfig = {
         # 'x': 0.55,
         'fontweight': 'bold',
     },
-    'figsize': [5, 2.],
+    'figsize': [5, 1.8],
     'annotate': {
         'fontsize': 10,
         'textcoords': 'data',
@@ -305,7 +305,7 @@ if __name__ == '__main__':
 
                 if len(plots_dir[model]):
                     xtickspos.append(pos)
-                    xticks.append(model)
+                    xticks.append(model.upper())
                 # xticks_edges.append((pos, 0))
                 # dic = plots_dir[model]
                 for idx, k in enumerate(gconfig['label'].values()):
@@ -359,7 +359,7 @@ if __name__ == '__main__':
 
                 if len(plots_dir[model]):
                     xtickspos.append(pos)
-                    xticks.append(model)
+                    xticks.append(model.upper())
 
                 for idx, key in enumerate(avg[model].keys()):
                     vals = avg[model][key]

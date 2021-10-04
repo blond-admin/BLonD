@@ -591,9 +591,9 @@ slurm:
         - 'exact-timing-strong-gpu'
         - 'f32-srp-timing-strong-gpu'
         - 'f32-rds-timing-strong-gpu'
-        - 'exact-timing-strong-gpu-2pn'
-        - 'f32-srp-timing-strong-gpu-2pn'
-        - 'f32-rds-timing-strong-gpu-2pn'
+        # - 'exact-timing-strong-gpu-2pn'
+        # - 'f32-srp-timing-strong-gpu-2pn'
+        # - 'f32-rds-timing-strong-gpu-2pn'
 
         # - 'srp-timing-cpu'
         # - 'rds-timing-gpu'
@@ -619,10 +619,10 @@ slurm:
         # Approximate Weak-Scaling
         'exact-timing-strong-gpu': {
             'exe': ['LHC_main.py'],
-            'particles': [4000000],
+            'particles': [1500000, 3000000],
             'bunches': [192],
             'slices': [1000],
-            'turns': [10000],
+            'turns': [5000],
             'monitor': [0],
             'seed': [0],
             'mtw': [0],
@@ -635,7 +635,8 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [1],
-            'workers': [2, 4, 8, 16],
+            # 'workers': [2, 4, 8, 16],
+            'workers': [1],
             'omp': [20],
             'mpi': ['openmpi4'],
             'cores_per_cpu': [20],
@@ -647,10 +648,10 @@ slurm:
 
         'f32-srp-timing-strong-gpu': {
             'exe': ['LHC_main.py'],
-            'particles': [4000000],
+            'particles': [1500000, 3000000],
             'bunches': [192],
             'slices': [1000],
-            'turns': [10000],
+            'turns': [5000],
             'monitor': [0],
             'seed': [0],
             'mtw': [0],
@@ -663,7 +664,8 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [1],
-            'workers': [2, 4, 8, 16],
+            # 'workers': [2, 4, 8, 16],
+            'workers': [1],
             'omp': [20],            
             'mpi': ['openmpi4'],
             'cores_per_cpu': [20],
@@ -674,10 +676,10 @@ slurm:
 
         'f32-rds-timing-strong-gpu': {
             'exe': ['LHC_main.py'],
-            'particles': [4000000],
+            'particles': [1500000, 3000000],
             'bunches': [192],
             'slices': [1000],
-            'turns': [10000],
+            'turns': [5000],
             'monitor': [0],
             'seed': [0],
             'mtw': [0],
@@ -690,7 +692,8 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [1],
-            'workers': [2, 4, 8, 16],
+            # 'workers': [2, 4, 8, 16],
+            'workers': [1],
             'omp': [20],
             'mpi': ['openmpi4'],
             'cores_per_cpu': [20],
@@ -717,12 +720,13 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [2],
-            'workers': [4, 8, 16, 32],
+            # 'workers': [4, 8, 16, 32],
+            'workers': [64],
             'omp': [10],
             'mpi': ['openmpi4'],
             'cores_per_cpu': [20],
             'partition': ['gpu'],
-            'time': [120],
+            'time': [60],
             'repeats': 1
         },
 
@@ -745,12 +749,13 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [2],
-            'workers': [4, 8, 16, 32],
+            # 'workers': [4, 8, 16, 32],
+            'workers': [64],
             'omp': [10],            
             'mpi': ['openmpi4'],
             'cores_per_cpu': [20],
             'partition': ['gpu'],
-            'time': [120],
+            'time': [60],
             'repeats': 1
         },
 
@@ -772,12 +777,13 @@ slurm:
             'artificialdelay': ['off'],
             'timing': ['timing'],
             'gpu': [2],
-            'workers': [4, 8, 16, 32],
+            # 'workers': [4, 8, 16, 32],
+            'workers': [64],
             'omp': [10],
             'mpi': ['openmpi4'],
             'cores_per_cpu': [20],
             'partition': ['gpu'],
-            'time': [120],
+            'time': [60],
             'repeats': 1
         },
 

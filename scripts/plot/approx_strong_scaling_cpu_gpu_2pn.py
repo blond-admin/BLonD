@@ -6,7 +6,7 @@ from plot.plotting_utilities import *
 import argparse
 
 
-# python scripts/plot/approx_strong_scaling_gpu.py -icpu results/weak-scaling-cpu/ -igpu results/final-v2/ -b results/baselinecpu/ -o results/multiplatform/plots/ -s
+# python scripts/plot/approx_strong_scaling_cpu_gpu_2pn.py -icpu results/weak-scaling-cpu/ -igpu results/aris2/ -igpu2 results/aris2/ -b results/baselinecpu/ -o results/multiplatform/plots -s
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + "/"
 this_filename = sys.argv[0].split('/')[-1]
@@ -21,6 +21,10 @@ parser.add_argument('-icpu', '--inputcpu', type=str, default=None,
 
 parser.add_argument('-igpu', '--inputgpu', type=str, default=None,
                     help='The directory with the GPU results.')
+
+
+parser.add_argument('-igpu2', '--inputgpu2', type=str, default=None,
+                    help='The directory with the GPU 2pn results.')
 
 
 parser.add_argument('-b', '--basedir', type=str, default=None,
@@ -63,26 +67,30 @@ gconfig = {
         'doublecpu': 'HBLonD',
         'singleSRPcpu': 'HBLonD-F32-SRP',
         'singleRDScpu': 'HBLonD-F32-RDS',
-        # 'singlecpu': 'HBLonD-F32',
-        # 'doubleSRPcpu': 'HBLonD-SRP',
-        # 'doubleRDScpu': 'HBLonD-RDS',
-        'doublegpu': 'CuBLonD',
-        'singleSRPgpu': 'CuBLonD-F32-SRP',
-        'singleRDSgpu': 'CuBLonD-F32-RDS',
-        # 'singlegpu': 'CuBLonD-F32',
-        # 'doubleSRPgpu': 'CuBLonD-SRP',
-        # 'doubleRDSgpu': 'CuBLonD-RDS',
+
+        'doublegpu': 'CuBLonD-1',
+        'singleSRPgpu': 'CuBLonD-1-F32-SRP',
+        'singleRDSgpu': 'CuBLonD-1-F32-RDS',
+
+        'doublegpu2': 'CuBLonD-2',
+        'singleSRPgpu2': 'CuBLonD-2-F32-SRP',
+        'singleRDSgpu2': 'CuBLonD-2-F32-RDS',
 
 
     },
-    'legends':{
+    'legends': {
         'HBLonD': 'HBLonD',
         'HBLonD-F32-SRP': 'F32-SRP',
         'HBLonD-F32-RDS': 'F32-RDS',
 
-        'CuBLonD': 'CuBLonD',
-        'CuBLonD-F32-SRP': 'F32-SRP',
-        'CuBLonD-F32-RDS': 'F32-RDS',
+        'CuBLonD-1': 'CuBLonD-1GPU',
+        'CuBLonD-1-F32-SRP': 'F32-SRP',
+        'CuBLonD-1-F32-RDS': 'F32-RDS',
+
+        'CuBLonD-2': 'CuBLonD-2GPU',
+        'CuBLonD-2-F32-SRP': 'F32-SRP',
+        'CuBLonD-2-F32-RDS': 'F32-RDS',
+
 
     },
     'colors': {
@@ -90,25 +98,25 @@ gconfig = {
         'HBLonD-F32-SRP': '0.6',
         'HBLonD-F32-RDS': '0.3',
 
-        'CuBLonD': '0.85',
-        'CuBLonD-F32-SRP': '0.6',
-        'CuBLonD-F32-RDS': '0.3',
-    },
-    # 'markers': {
-    #     'HBLonD': '',
-    #     'HBLonD-F32-SRP': '.',
-    #     'HBLonD-F32-RDS': '*',
-        
-    #     'CuBLonD': '',
-    #     'CuBLonD-F32-SRP': '.',
-    #     'CuBLonD-F32-RDS': '*',
+        'CuBLonD-1': '0.85',
+        'CuBLonD-1-F32-SRP': '0.6',
+        'CuBLonD-1-F32-RDS': '0.3',
 
-    # },
+        'CuBLonD-2': '0.85',
+        'CuBLonD-2-F32-SRP': '0.6',
+        'CuBLonD-2-F32-RDS': '0.3',
+
+    },
 
     'hatches': {
-        'CuBLonD': '',
-        'CuBLonD-F32-SRP': '///',
-        'CuBLonD-F32-RDS': '///',
+        'CuBLonD-1': '',
+        'CuBLonD-1-F32-SRP': '///',
+        'CuBLonD-1-F32-RDS': '///',
+
+        'CuBLonD-2': '',
+        'CuBLonD-2-F32-SRP': '///',
+        'CuBLonD-2-F32-RDS': '///',
+        
         'HBLonD': '',
         'HBLonD-F32-SRP': '///',
         'HBLonD-F32-RDS': '///',
@@ -116,21 +124,20 @@ gconfig = {
 
 
     'x_name': 'N',
-    # 'x_to_keep': [16],
     'omp_name': 'omp',
     'y_name': 'avg_time(sec)',
     'xlabel': {
-        'xlabel': 'Nodes (x20 Cores/ x1 GPU)'
+        'xlabel': 'Nodes'
     },
     'ylabel': 'Speedup',
     'title': {
         # 's': '',
-        'fontsize': 10,
-        'y': 0.95,
-        'x': 0.5,
+        'fontsize': 11,
+        'y': 0.8,
+        # 'x': 0.8,
         'fontweight': 'bold',
     },
-    'figsize': [5, 3.5],
+    'figsize': [5, 5],
     'annotate': {
         'fontsize': 10,
         'textcoords': 'data',
@@ -142,7 +149,7 @@ gconfig = {
     'fontsize': 10,
     'legend': {
         'loc': 'upper left', 'ncol': 1, 'handlelength': 1.3, 'fancybox': True,
-        'framealpha': .8, 'fontsize': 10, 'labelspacing': 0, 'borderpad': 0.3,
+        'framealpha': .5, 'fontsize': 10, 'labelspacing': 0, 'borderpad': 0.3,
         'handletextpad': 0.2, 'borderaxespad': 0.1, 'columnspacing': 0.3,
         # 'bbox_to_anchor': (-0.04, 1.16)
     },
@@ -155,31 +162,46 @@ gconfig = {
     },
     'fontname': 'DejaVu Sans Mono',
     'xlim': [-0.37025, 4.97025],
-    'ylim': [0, 60],
-    # 'yticks': [0, 5, 10, 15, 20, 25, 30, 35, 40, 45],
-    'yticks': [0, 10, 20, 30, 40, 50, 60],
+    'cpu': {
+        'ylim': [0, 60],
+        # 'ylim': [0,100],
+        'yticks': [0, 10, 20, 30, 40, 50, 60],
+        # 'yticks': [0, 20, 40, 60, 80, 100]
+    },
+    'gpu':{
+        'ylim': [0,90],
+        # 'yticks': [0, 20, 40, 60, 80, 100]
+        'yticks': [0, 15, 30, 45, 60, 75, 90]
+
+    },
+    'gpu2':{
+        'ylim': [0,90],
+        'yticks': [0, 15, 30, 45, 60, 75, 90]
+        # 'yticks': [0, 20, 40, 60, 80, 100]
+    },
+
+    # 'ylim': [0, 60],
+    # 'yticks': [0, 10, 20, 30, 40, 50, 60],
     'outfiles': [
         '{}/{}-{}-nodes-{}.png',
         '{}/{}-{}-nodes-{}.pdf'
     ],
     'files-cpu': [
-        '{}/{}/exact-timing-{}/comm-comp-report.csv',
-        # '{}/{}/rds-timing-gpu/comm-comp-report.csv',
-        # '{}/{}/srp-timing-gpu/comm-comp-report.csv',
-        # '{}/{}/float32-timing-gpu/comm-comp-report.csv',
-        '{}/{}/f32-rds-timing-{}/comm-comp-report.csv',
-        '{}/{}/f32-srp-timing-{}/comm-comp-report.csv',
+        '{}/{}/exact-timing-cpu/comm-comp-report.csv',
+        '{}/{}/f32-rds-timing-cpu/comm-comp-report.csv',
+        '{}/{}/f32-srp-timing-cpu/comm-comp-report.csv',
 
     ],
     'files-gpu': [
-        '{}/{}/exact-timing-strong-{}-2pn/comm-comp-report.csv',
-        '{}/{}/f32-rds-timing-strong-{}-2pn/comm-comp-report.csv',
-        '{}/{}/f32-srp-timing-strong-{}-2pn/comm-comp-report.csv',
+        '{}/{}/exact-timing-strong-gpu/comm-comp-report.csv',
+        '{}/{}/f32-rds-timing-strong-gpu/comm-comp-report.csv',
+        '{}/{}/f32-srp-timing-strong-gpu/comm-comp-report.csv',
+    ],
 
-        # '{}/{}/exact-timing-strong-{}-2pn/comm-comp-report.csv',
-        # '{}/{}/f32-rds-timing-strong-{}-2pn/comm-comp-report.csv',
-        # '{}/{}/f32-srp-timing-strong-{}-2pn/comm-comp-report.csv',
-
+    'files-gpu2': [
+        '{}/{}/exact-timing-strong-gpu-2pn/comm-comp-report.csv',
+        '{}/{}/f32-rds-timing-strong-gpu-2pn/comm-comp-report.csv',
+        '{}/{}/f32-srp-timing-strong-gpu-2pn/comm-comp-report.csv',
     ],
 
     'lines-cpu': {
@@ -198,14 +220,31 @@ gconfig = {
         'red': ['1', '3'],
         'prec': ['single', 'double'],
         'omp': ['10', '20'],
-        'gpu': ['1', '2'],
+        'gpu': ['1'],
         'ppb': ['4000000', '2000000', '32000000'],
         'b': ['192', '288', '21'],
         'type': ['total'],
     },
 
-    'linefilter': [
+    'lines-gpu2': {
+        'approx': ['0', '1', '2'],
+        'red': ['1', '3'],
+        'prec': ['single', 'double'],
+        'omp': ['10', '20'],
+        'gpu': ['2'],
+        'ppb': ['4000000', '2000000', '32000000'],
+        'b': ['192', '288', '21'],
+        'type': ['total'],
+    },
+
+    'linefilter-cpu': [
         {'N': ['1', '20']},
+    ],
+    'linefilter-gpu': [
+        {'N': ['1', '32']},
+    ],
+    'linefilter-gpu2': [
+        {'N': ['1', '32']},
     ],
     'reference': {
         'file': '{}/{}/comm-comp-report.csv',
@@ -231,9 +270,9 @@ plt.rcParams['font.family'] = gconfig['fontname']
 
 if __name__ == '__main__':
 
-    fig, ax_arr = plt.subplots(ncols=len(args.cases), nrows=2,
-                           sharex=True, sharey=True,
-                           figsize=gconfig['figsize'])
+    fig, ax_arr = plt.subplots(ncols=len(args.cases), nrows=3,
+                               sharex=True, sharey=False,
+                               figsize=gconfig['figsize'])
     # pos = 0
     step = 1.
     labels = set()
@@ -246,33 +285,33 @@ if __name__ == '__main__':
         print('[{}] tc: {}: {}'.format(
             this_filename[:-3], case, 'Reading data'))
         plots_dir = {}
-        for row, indir, platform in zip([0, 1], [args.inputcpu, args.inputgpu], ['cpu', 'gpu']):
+        for row, indir, platform in zip([0, 1, 2], [args.inputcpu, args.inputgpu, args.inputgpu2],
+                                        ['cpu', 'gpu', 'gpu2']):
             if not indir:
                 continue
             plots_dir[platform] = {}
             for file in gconfig['files-{}'.format(platform)]:
-                file = file.format(indir, case, platform)
+                file = file.format(indir, case)
                 # print(file)
                 data = np.genfromtxt(file, delimiter='\t', dtype=str)
                 header, data = list(data[0]), data[1:]
                 temp = get_plots(header, data, gconfig['lines-{}'.format(platform)],
                                  exclude=gconfig.get('exclude', []),
-                                 linefilter=gconfig.get('linefilter', {}),
+                                 linefilter=gconfig.get(f'linefilter-{platform}', {}),
                                  prefix=True)
                 for key in temp.keys():
                     if 'tp-approx' in file:
-                        plots_dir[platform]['_{}_tp1'.format(key)] = temp[key].copy()
+                        plots_dir[platform]['_{}_tp1'.format(
+                            key)] = temp[key].copy()
                     else:
-                        plots_dir[platform]['_{}_tp0'.format(key)] = temp[key].copy()
-
-
+                        plots_dir[platform]['_{}_tp0'.format(
+                            key)] = temp[key].copy()
 
         data = np.genfromtxt(gconfig['reference']['file'].format(args.basedir, case),
                              delimiter='\t', dtype=str)
         header, data = list(data[0]), data[1:]
         ref_dir = get_plots(header, data, gconfig['reference']['lines'],
                             exclude=gconfig.get('exclude', []),
-                            # linefilter=gconfig.get('linefilter', []),
                             prefix=True)
 
         print('Ref keys: ', ref_dir.keys())
@@ -295,7 +334,7 @@ if __name__ == '__main__':
         # keys = ['_'.join(a.split('_')[1:4]) for a in list(plots_dir[platform].keys())]
         # print(keys)
         # keys = np.array(list(plots_dir[platform].keys()))[np.argsort(keys)]
-        for row, platform in enumerate(['cpu', 'gpu']):
+        for row, platform in enumerate(['cpu', 'gpu', 'gpu2']):
             ax = ax_arr[row][col]
             plt.sca(ax)
 
@@ -306,6 +345,8 @@ if __name__ == '__main__':
                 red = k.split('red')[1].split('_')[0]
                 experiment = k.split('_')[-1]
                 prec = k.split('prec')[1].split('_')[0]
+                # gpus = k.split('gpu')[1].split('_')[0]
+
                 approx = gconfig['approx'][approx]
                 label = gconfig['label'][prec+approx+platform]
 
@@ -326,7 +367,11 @@ if __name__ == '__main__':
                 else:
                     labels.add(label)
 
-                print("{}:{}:{}:{:.2f}".format(platform, case, label, speedup[-1]))
+                print("{}:{}:{}:".format(
+                    platform, case, label))
+                print(x)
+                print(speedup)
+
                 xpos = idx * width + np.arange(len(x))
                 plt.bar(xpos, speedup,
                         edgecolor='black',
@@ -335,7 +380,7 @@ if __name__ == '__main__':
                         hatch=gconfig['hatches'][label],
                         color=gconfig['colors'][label])
                 for xi, yi in zip(xpos, speedup):
-                    if yi > gconfig['ylim'][1]:
+                    if yi > gconfig[platform]['ylim'][1]:
                         if idx == 1:
                             ha = 'right'
                             offset = -0.2
@@ -343,28 +388,34 @@ if __name__ == '__main__':
                             ha = 'left'
                             offset = 0.2
                         plt.gca().annotate('{:.0f}'.format(yi),
-                                           xy=(xi+offset, gconfig['ylim'][1]-1),
+                                           xy=(xi+offset, gconfig[platform]['ylim'][1]-1),
                                            ha=ha,
-                                           **gconfig['annotate'])                    
+                                           **gconfig['annotate'])
             plt.grid(True, which='major', alpha=0.5)
             plt.grid(False, which='major', axis='x')
             plt.gca().set_axisbelow(True)
-            if row == 0:
-                plt.title('{}'.format(case.upper()), **gconfig['title'])
+            # plt.gca().set_yscale('log', base=10)
+            if row == 0 and col == 0:
+                plt.title(r'\textbf{'+'{}'.format(case.upper())+'}', x=0.8, **gconfig['title'])
+            elif row == 0 and col > 0:
+                plt.title(r'\textbf{'+'{}'.format(case.upper())+'}', x=0.5, **gconfig['title'])
 
             if col == 0:
                 handles, labs = ax.get_legend_handles_labels()
-                plt.ylabel(gconfig['ylabel'], labelpad=3)
-                plt.legend(handles = handles, labels=labs, **gconfig['legend'])
+                plt.ylabel(gconfig['ylabel'], labelpad=1)
+                plt.legend(handles=handles, labels=labs, **gconfig['legend'])
 
+            if col == 0:
+                plt.ylim(gconfig[platform]['ylim'])
+                plt.yticks(gconfig[platform]['yticks'], **gconfig['ticks'])
+            else:
+                plt.ylim(gconfig[platform]['ylim'])
+                plt.yticks(gconfig[platform]['yticks'], fontsize=0)
 
-            plt.ylim(gconfig['ylim'])
-            plt.yticks(gconfig['yticks'], **gconfig['ticks'])
             plt.xticks(xtickspos, np.array(xticks, int), **gconfig['xticks'])
             plt.xlim(gconfig['xlim'])
-            
 
-            if row==1 and col == 1:
+            if row == 2 and col == 1:
                 plt.xlabel(**gconfig['xlabel'])
 
             ax.tick_params(**gconfig['tick_params'])
@@ -373,12 +424,11 @@ if __name__ == '__main__':
         xticks += list(x) + [32]
         xtickspos += list(width + np.arange(len(x)+1))
 
-
     plt.subplots_adjust(**gconfig['subplots_adjust'])
 
     for file in gconfig['outfiles']:
         file = file.format(
-            images_dir, this_filename[:-3], int(xticks[-1]),'-'.join(args.cases))
+            images_dir, this_filename[:-3], int(xticks[-1]), '-'.join(args.cases))
         print('[{}] {}: {}'.format(this_filename[:-3], 'Saving figure', file))
         save_and_crop(fig, file, dpi=600, bbox_inches='tight')
     if args.show:
