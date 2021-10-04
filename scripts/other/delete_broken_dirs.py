@@ -51,13 +51,18 @@ if __name__ == '__main__':
                 if args.dontask:
                     ans = 'y'
                 else:
-                    ans = input('Print ouput and error files? (Y/N) << ').lower()
+                    ans = input('Print ouput file? (Y/N) << ').lower()
+                if ans in ['yes', 'y']:
+                    print('---- Output file ----')
+                    os.system('cat {}'.format(os.path.join(dirs, 'output.txt')))
+
+                if args.dontask:
+                    ans = 'y'
+                else:
+                    ans = input('Print error file? (Y/N) << ').lower()
                 if ans in ['yes', 'y']:
                     print('---- Error file ----')
                     os.system('cat {}'.format(os.path.join(dirs, 'error.txt')))
-                    print('')
-                    print('---- Output file ----')
-                    os.system('cat {}'.format(os.path.join(dirs, 'output.txt')))
 
     for directory in to_remove:
         sh.rmtree(directory)
