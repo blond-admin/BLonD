@@ -18,6 +18,7 @@
 /__BENCHMARKS/2x40_2x80.hd5
 /__BENCHMARKS/fig/
 /__BENCHMARKS/animations/
-/Simulations/
+/Simulations/Tests/debug.log
+
 *.DS_Store
 .idea

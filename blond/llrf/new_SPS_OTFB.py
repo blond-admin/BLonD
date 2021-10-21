@@ -12,8 +12,8 @@ import scipy.signal
 import matplotlib.pyplot as plt
 
 from blond.llrf.signal_processing import comb_filter, cartesian_to_polar,\
-    polar_to_cartesian, modulator, moving_average, moving_average_improved,\
-    rf_beam_current
+    polar_to_cartesian, modulator, moving_average, H_cav,\
+    rf_beam_current, moving_average_improved
 from blond.llrf.impulse_response import SPS3Section200MHzTWC, \
     SPS4Section200MHzTWC, SPS5Section200MHzTWC
 from blond.llrf.signal_processing import feedforward_filter_TWC3, \
@@ -33,7 +33,7 @@ class CavityFeedbackCommissioning_new(object):
 
     def __init__(self, debug=False, open_loop=False, open_FB=False,
                  open_drive=False, open_FF=False, V_SET=None,
-                 cpp_conv = False):
+                 cpp_conv = False, pwr_clamp = False):
         """Class containing commissioning settings for the cavity feedback
 
         Parameters
@@ -60,6 +60,7 @@ class CavityFeedbackCommissioning_new(object):
         self.open_FF = int(np.invert(bool(open_FF)))
         self.V_SET = V_SET
         self.cpp_conv = cpp_conv
+        self.pwr_clamp = pwr_clamp
 
 
 class SPSCavityFeedback_new(object):
@@ -303,6 +304,7 @@ class SPSOneTurnFeedback_new(object):
         self.beam = Beam
         self.profile = Profile
         self.n_cavities = int(n_cavities)
+        self.n_sections = int(n_sections)
         if self.n_cavities < 1:
             raise RuntimeError("ERROR in SPSOneTurnFeedback: argument" +
                                " n_cavities has invalid value!")
@@ -610,8 +612,13 @@ class SPSOneTurnFeedback_new(object):
 
     def mov_avg(self):
         self.DV_MOV_AVG[:self.n_coarse] = self.DV_MOV_AVG[-self.n_coarse:]
-        self.DV_MOV_AVG[-self.n_coarse:] = moving_average(self.DV_MOD_FR[-self.n_mov_av - self.n_coarse + 1:], self.n_mov_av)#,
-                                                #x_prev=self.DV_MOD_FR[self.n_coarse-self.n_mov_av + 1:self.n_coarse])
+        self.DV_MOV_AVG[-self.n_coarse:] = moving_average(self.DV_MOD_FR[-self.n_mov_av - self.n_coarse + 1:], self.n_mov_av)
+
+
+    def h_cav(self):
+        self.DV_MOV_AVG[:self.n_coarse] = self.DV_MOV_AVG[-self.n_coarse:]
+        self.DV_MOV_AVG[-self.n_coarse:] = H_cav(self.DV_MOD_FR[-38 - self.n_coarse:],
+                                                          self.n_sections)
 
 
     # GENERATOR MODEL
@@ -635,7 +642,6 @@ class SPSOneTurnFeedback_new(object):
     def gen_response(self):
 
         self.V_IND_COARSE_GEN[:self.n_coarse] = self.V_IND_COARSE_GEN[-self.n_coarse:]
-        # TODO: originally self.n_mov_av + self.n_coarse + 1
         self.V_IND_COARSE_GEN[-self.n_coarse:] = self.n_cavities * self.matr_conv(self.I_GEN,
                                                                                   self.TWC.h_gen)[-self.n_coarse:]
 
@@ -683,7 +689,7 @@ class SPSOneTurnFeedback_new(object):
         # Present sampling time
         self.T_s = self.rf.t_rf[0, self.counter]
         # Phase offset at the end of a 1-turn modulated signal (for demodulated, multiply by -1 as c and r reversed)
-        self.phi_mod_0 = (self.omega_c - self.omega_r) * self.T_s * (self.n_coarse) % (2 * np.pi) # TODO: self.n_coarse - 1
+        self.phi_mod_0 = (self.omega_c - self.omega_r) * self.T_s * (self.n_coarse) % (2 * np.pi)
         self.dphi_mod += self.phi_mod_0
         # Present coarse grid
         self.rf_centers = (np.arange(self.n_coarse) + 0.5) * self.T_s
@@ -696,12 +702,16 @@ class SPSOneTurnFeedback_new(object):
         self.n_mov_av = int(self.TWC.tau / self.rf.t_rf[0, self.counter])
         self.n_delay = self.n_coarse - self.n_mov_av
 
-
+    # Power related functions
     def calc_power(self):
         self.II_COARSE_GEN = np.copy(self.I_GEN) / self.T_s
         self.P_GEN = get_power_gen_I2(self.II_COARSE_GEN, 50)
 
+    def wo_clamping(self):
+        pass
 
+    def w_clamping(self):
+        pass
 
 
 
