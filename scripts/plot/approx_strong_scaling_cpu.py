@@ -63,11 +63,16 @@ gconfig = {
         'doubleRDS': 'RDS',
     },
     'colors': {
-        'HBLonD': '0.8',
+        # 'HBLonD': '0.85',
+        # 'HBLonD-F32-SRP': '0.6',
+        # 'HBLonD-F32-RDS': '0.3',
+
+        'HBLonD': 'tab:orange',
+        'HBLonD-F32-SRP': 'tab:blue',
+        'HBLonD-F32-RDS': 'tab:green',
+        
         'F32': '0.8',
-        'HBLonD-F32-SRP': '0.5',
         'SRP': '0.5',
-        'HBLonD-F32-RDS': '0.3',
         'RDS': '0.3',
     },
     'markers': {
@@ -82,10 +87,10 @@ gconfig = {
     },
     'hatches': {
         'HBLonD': '',
-        'F32': '///',
         'HBLonD-F32-SRP': '///',
-        'SRP': '',
         'HBLonD-F32-RDS': '///',
+        'F32': '///',
+        'SRP': '',
         'RDS': '',
     },
 
@@ -131,8 +136,10 @@ gconfig = {
     },
     'fontname': 'DejaVu Sans Mono',
     'xlim': [-0.37025, 4.97025],
-    'ylim': [0, 45],
-    'yticks': [0, 5, 10, 15, 20, 25, 30, 35, 40, 45],
+    'ylim': [0, 60],
+    'yticks': [0, 10, 20, 30, 40, 50, 60],
+
+    # 'yticks': [0, 5, 10, 15, 20, 25, 30, 35, 40, 45],
     # 'yticks': [0, 10, 20, 30, 40, 50, 60, 70, 80, 90],
     'outfiles': [
         '{}/{}-{}-nodes-{}.png',
@@ -153,7 +160,7 @@ gconfig = {
         # 'red': ['1', '2', '3', '4'],
         'red': ['1', '3'],
         'prec': ['single', 'double'],
-        'omp': ['10', '32'],
+        'omp': ['10', '20'],
         # 'N': ['1', '2', '4', '8', '16', '32'],
         # 'ppb': ['4000000'],
         # 'lba': ['500'],
@@ -167,10 +174,10 @@ gconfig = {
     'reference': {
         'file': '{}/{}/comm-comp-report.csv',
         'lines': {
-            # 'b': ['12', '21', '18'],
             # 'b': ['192', '288', '21'],
-            'b': ['24', '36', '21'],
-            'ppb': ['1500000', '1000000', '2000000'],
+            # 'b': ['24', '36', '21'],
+            'b': ['12', '18', '21'],
+            'ppb': ['1500000', '1000000'],
             # 't': ['5000'],
             'type': ['total'],
         },
@@ -245,13 +252,13 @@ if __name__ == '__main__':
         print('[{}] tc: {}: {}'.format(
             this_filename[:-3], case, 'Plotting data'))
         # To sort the keys, by approx and then reduce value
-        print(plots_dir.keys())
-        keys = ['_'.join(a.split('_')[1:4]) for a in list(plots_dir.keys())]
-        print(keys)
-        keys = np.array(list(plots_dir.keys()))[np.argsort(keys)]
+        # print(plots_dir.keys())
+        # keys = ['_'.join(a.split('_')[1:4]) for a in list(plots_dir.keys())]
+        # print(keys)
+        # keys = np.array(list(plots_dir.keys()))[np.argsort(keys)]
         # pos = 0
 
-        for idx, k in enumerate(keys):
+        for idx, k in enumerate(plots_dir.keys()):
             values = plots_dir[k]
             # mpiv = k.split('_mpi')[1].split('_')[0]
             # lb = k.split('lb')[1].split('_')[0]
