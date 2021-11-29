@@ -5,9 +5,8 @@ import sys
 from plot.plotting_utilities import *
 import argparse
 
-# python scripts/plot/approx_strong_scaling_cpu.py -i results/weak-scaling-cpu/ -b results/baselinecpu/ -o results/weak-scaling-cpu/plots/ -s -c lhc,sps,ps
 
-
+# python scripts/plot/approx_weak_scaling_cpu_bars.py -i results/weak-scaling-cpu/ -o results/weak-scaling-cpu/plots/ -s
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + "/"
 this_filename = sys.argv[0].split('/')[-1]
@@ -62,20 +61,18 @@ gconfig = {
         'HBLonD': 'tab:orange',
         'HBLonD-F32-SRP': 'tab:blue',
         'HBLonD-F32-RDS': 'tab:green',
-        
+
         'F32': '0',
         'F32-SRP': '0.',
         'F32-RDS': '0',
     },
-    'markers': {
+    'hatches': {
         'HBLonD': '',
-        'F32': '',
-
-        'SRP': '.',
-        'HBLonD-F32-SRP': '.',
-
-        'RDS': '*',
-        'HBLonD-F32-RDS': '*',
+        'HBLonD-F32-SRP': '',
+        'HBLonD-F32-RDS': '',
+        'F32': '///',
+        'SRP': '',
+        'RDS': '',
     },
 
 
@@ -92,8 +89,8 @@ gconfig = {
     'title': {
         # 's': '',
         'fontsize': 10,
-        'y': .96,
-        'x': 0.1,
+        'y': .87,
+        'x': 0.5,
         'fontweight': 'bold',
     },
     'figsize': [5, 2.],
@@ -107,13 +104,13 @@ gconfig = {
     'ticks': {'fontsize': 10, 'rotation': '0'},
     'fontsize': 10,
     'legend': {
-        'loc': 'upper left', 'ncol': 9, 'handlelength': 1.6, 'fancybox': True,
+        'loc': 'upper left', 'ncol': 9, 'handlelength': 1.5, 'fancybox': True,
         'framealpha': 0., 'fontsize': 10, 'labelspacing': 0, 'borderpad': 0.5,
         'handletextpad': 0.2, 'borderaxespad': 0.1, 'columnspacing': 0.3,
-        'bbox_to_anchor': (-0.01, 1.17)
+        'bbox_to_anchor': (-0.04, 1.16)
     },
     'subplots_adjust': {
-        'wspace': 0.0, 'hspace': 0.1, 'top': 0.93
+        'wspace': 0.05, 'hspace': 0.1, 'top': 0.93
     },
     'tick_params': {
         'pad': 2, 'top': 0, 'bottom': 1, 'left': 1,
@@ -176,18 +173,18 @@ plt.rcParams['font.family'] = gconfig['fontname']
 
 if __name__ == '__main__':
 
-    fig, ax = plt.subplots(ncols=1, nrows=1,
-                           sharex=True, sharey=True,
+    fig, ax_arr = plt.subplots(ncols=len(args.cases), nrows=1,
+                           sharex=False, sharey=True,
                            figsize=gconfig['figsize'])
-    plt.sca(ax)
 
-    pos = 0
     step = 1.
     labels = set()
     avg = {}
     xticks = []
     xtickspos = []
     for col, case in enumerate(args.cases):
+        ax = ax_arr[col]
+        plt.sca(ax)
         print('[{}] tc: {}: {}'.format(
             this_filename[:-3], case, 'Reading data'))
         plots_dir = {}
@@ -205,8 +202,6 @@ if __name__ == '__main__':
                     plots_dir['_{}_tp1'.format(key)] = temp[key].copy()
                 else:
                     plots_dir['_{}_tp0'.format(key)] = temp[key].copy()
-
-        width = .85 * step / (len(plots_dir.keys()))
 
         # data = np.genfromtxt(gconfig['reference']['file'].format(res_dir, case),
         #                      delimiter='\t', dtype=str)
@@ -229,7 +224,6 @@ if __name__ == '__main__':
         # yref = parts * bunches * turns / y
         # yref /= (x * omp // 20)
 
-
         print('[{}] tc: {}: {}'.format(
             this_filename[:-3], case, 'Plotting data'))
         # To sort the keys, by approx and then reduce value
@@ -237,6 +231,9 @@ if __name__ == '__main__':
         # keys = ['_'.join(a.split('_')[1:4]) for a in list(plots_dir.keys())]
         # print(keys)
         # keys = np.array(list(plots_dir.keys()))[np.argsort(keys)]
+
+        width = .85 * step / (len(plots_dir.keys()))
+
         for idx, k in enumerate(plots_dir.keys()):
             values = plots_dir[k]
             # mpiv = k.split('_mpi')[1].split('_')[0]
@@ -283,7 +280,7 @@ if __name__ == '__main__':
 
             # This is the throughput
             y = parts * bunches * turns / y
-            y /= (x * omp //20)
+            y /= (x * omp // 20)
             # y = y[1:]
             speedup = y / y[0]
             x = x * omp // 20
@@ -308,16 +305,15 @@ if __name__ == '__main__':
                 legend = None
             else:
                 labels.add(label)
+            print("{}:{}:{:.2f}".format(case, label, speedup[-1]))
 
-            # x = x[1:]
-            # speedup = speedup[1:]
-            plt.errorbar(pos+np.arange(len(x)), speedup,
-                         yerr=None,
-                         label=legend,
-                         lw=1.2,
-                         color=gconfig['colors'][label],
-                         marker=gconfig['markers'][label],
-                         capsize=2)
+            xpos = idx * width + np.arange(len(x))
+            plt.bar(xpos, speedup,
+                    edgecolor='black',
+                    width= 0.85 * width,
+                    label=legend,
+                    color=gconfig['colors'][label],
+                    hatch=gconfig['hatches'][label])
             # if k != keyref:
             #     for i in np.arange(len(speedup)):
             #         if speedup[i] > 0.9:
@@ -326,56 +322,58 @@ if __name__ == '__main__':
             #                     xy=(pos+idx*width+i, speedup[i]),
             #                     rotation='90', **gconfig['annotate'])
         xticks += list(x)
-        xtickspos += list(pos + np.arange(len(x)))
-        if case != args.cases[-1]:
-            plt.axvline(x=pos + len(x)-step/2, color='black', ls='--')
-        ax.annotate('{}'.format(case.upper()),
-                    xy=(pos + (len(x)-1)/2, gconfig['ylim'][0]+0.3),
-                    **gconfig['annotate'])
-        pos += len(x)
+        xtickspos += list(width + np.arange(len(x)))
+        # if case != args.cases[-1]:
+        #     plt.axvline(x=pos + len(x)-step/2, color='black', ls='--')
+        # ax.annotate('{}'.format(case.upper()),
+        #             xy=(pos + (len(x)-1)/2, gconfig['ylim'][0]+0.3),
+        #             **gconfig['annotate'])
+        # pos += len(x)
 
-    # for idx, key in enumerate(avg.keys()):
-    #     vals = avg[key]
-    #     val = np.mean(vals)
-    #     plt.bar(pos + idx*width, val, width=.75 * width,
-    #             edgecolor='0.', label=None,
-    #             hatch=gconfig['hatches'][key],
-    #             color=gconfig['colors'][key])
-    #     text = '{:.2f}'.format(val)
-    #     if idx == 0:
-    #         text = ''
-    #     else:
-    #         text = text[:]
-    #     ax.annotate(text, xy=(pos + idx*width, 0.01 + val),
-    #                 rotation='90',
-    #                 **gconfig['annotate'])
-    # pos += step
+        # for idx, key in enumerate(avg.keys()):
+        #     vals = avg[key]
+        #     val = np.mean(vals)
+        #     plt.bar(pos + idx*width, val, width=.75 * width,
+        #             edgecolor='0.', label=None,
+        #             hatch=gconfig['hatches'][key],
+        #             color=gconfig['colors'][key])
+        #     text = '{:.2f}'.format(val)
+        #     if idx == 0:
+        #         text = ''
+        #     else:
+        #         text = text[:]
+        #     ax.annotate(text, xy=(pos + idx*width, 0.01 + val),
+        #                 rotation='90',
+        #                 **gconfig['annotate'])
+        # pos += step
 
-    # plt.yscale('log', base=2)
+        # plt.yscale('log', base=2)
 
-    handles, labels = ax.get_legend_handles_labels()
-    # print(labels)
-    plt.grid(True, which='major', alpha=0.5)
-    plt.grid(False, which='major', axis='x')
-    plt.gca().set_axisbelow(True)
+        # print(labels)
+        plt.grid(True, which='major', alpha=0.5)
+        plt.grid(False, which='major', axis='x')
+        plt.gca().set_axisbelow(True)
 
-    plt.ylabel(gconfig['ylabel'], labelpad=3)
-               # fontweight='bold',
-               # fontsize=gconfig['fontsize'])
+        if col == 0:
+            plt.ylabel(gconfig['ylabel'], labelpad=3)
+            handles, labels = ax.get_legend_handles_labels()
+            plt.legend(handles=handles, labels=labels, **gconfig['legend'])
+        # fontweight='bold',
+        # fontsize=gconfig['fontsize'])
 
-    # plt.title('{}'.format(case.upper()), **gconfig['title'])
+        plt.title('{}'.format(case.upper()), **gconfig['title'])
 
-    plt.legend(handles=handles, labels=labels, **gconfig['legend'])
 
-    plt.ylim(gconfig['ylim'])
-    plt.yticks(gconfig['yticks'], **gconfig['ticks'])
-    plt.xticks(xtickspos, np.array(xticks, int), **gconfig['xticks'])
-    plt.xlim(xtickspos[0]-0.5, xtickspos[-1]+0.5)
+        plt.ylim(gconfig['ylim'])
+        plt.yticks(gconfig['yticks'], **gconfig['ticks'])
+        plt.xticks(xtickspos, np.array(xticks, int), **gconfig['xticks'])
+        plt.xlim(xtickspos[0]-0.75, xtickspos[-1]+0.75)
 
-    plt.xlabel(**gconfig['xlabel'])
+        if col == 1:
+            plt.xlabel(**gconfig['xlabel'])
 
-    ax.tick_params(**gconfig['tick_params'])
-    plt.tight_layout()
+        ax.tick_params(**gconfig['tick_params'])
+        plt.tight_layout()
     plt.subplots_adjust(**gconfig['subplots_adjust'])
 
     for file in gconfig['outfiles']:
