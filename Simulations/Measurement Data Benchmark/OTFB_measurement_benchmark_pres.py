@@ -104,11 +104,12 @@ G_llrf_ls = [41.751786, 35.24865]
 
 Commissioning = CavityFeedbackCommissioning_new(open_FF=True, debug=False)
 OTFB = SPSCavityFeedback_new(rfstation, beam, profile, post_LS2=True, V_part=V_part,
-                              Commissioning=Commissioning, G_tx=G_tx_ls, G_llrf=G_llrf_ls)
+                              Commissioning=Commissioning, G_tx=G_tx_ls)
 
 print(OTFB.OTFB_1.V_set / 4, OTFB.OTFB_2.V_set / 2)
 
 Ipeak = 2 * Proton().charge * 1.60218e-19 * N_b / OTFB.OTFB_1.T_s / 5
+
 
 # Simulation ------------------------------------------------------------------
 print('Simulating...\n')
@@ -211,22 +212,6 @@ if PLOT_STATIC:
     plt.ylabel(f'P [MW]')
 
     # Phase deviation phase
-    # V_ANT_batch = OTFB.OTFB_1.V_ANT[-h + first_bunch * bunch_spacing:-h + first_bunch * bunch_spacing + N_bunches * bunch_spacing:bunch_spacing]
-    # V_IND_COARSE_BEAM_batch = OTFB.OTFB_1.V_IND_COARSE_BEAM[-h + first_bunch * bunch_spacing:-h + first_bunch * bunch_spacing + N_bunches * bunch_spacing:bunch_spacing]
-    # phase = np.angle(V_ANT_batch, deg=True) - np.angle(V_IND_COARSE_BEAM_batch, deg=True)
-    #
-    # plt.figure(3)
-    # plt.title(f'Static Beam - Phase Deviation')
-    # plt.scatter(np.linspace(0, N_bunches, N_bunches), phase, marker='.',
-    #             label='phase')
-    # plt.scatter(np.linspace(0, N_bunches, N_bunches), np.angle(V_ANT_batch, deg=True), marker='.',
-    #             label=r'$V_{ant}$')
-    # plt.scatter(np.linspace(0, N_bunches, N_bunches), np.angle(V_IND_COARSE_BEAM_batch, deg=True), marker='.',
-    #             label=r'$V_{ind,beam}$')
-    # plt.legend()
-    # plt.ylabel(f'Phase [Degrees]')
-    # plt.xlabel(f'Bunch number [-]')
-    # plt.show()
 
     phi_beam = pd.beam_phase_multibunch(profile, rfstation, OTFB, N_bunches, rfstation.t_rf[0,0],
                                         bunch_pos)
@@ -244,23 +229,26 @@ if PLOT_STATIC:
     plt.legend()
     plt.show()
 
-# Calculate the phase deviation along the batch
-prof = profile.n_macroparticles
-dt = profile.bin_centers
 
-peaks, peaks_t = pd.get_peaks(prof, dt)
-n_bunch = np.linspace(0, N_bunches, N_bunches)
+RUN_LOL = False
+if RUN_LOL:
+    # Calculate the phase deviation along the batch
+    prof = profile.n_macroparticles
+    dt = profile.bin_centers
 
-peaks_t = peaks_t - peaks_t[0]
+    peaks, peaks_t = pd.get_peaks(prof, dt)
+    n_bunch = np.linspace(0, N_bunches, N_bunches)
 
-slope, intercept, r_val, p_val, stderr = spst.linregress(n_bunch, peaks_t)
+    peaks_t = peaks_t - peaks_t[0]
 
-x__ = np.linspace(0, N_bunches, N_bunches)
+    slope, intercept, r_val, p_val, stderr = spst.linregress(n_bunch, peaks_t)
 
-regcurv = slope * x__ + intercept
+    x__ = np.linspace(0, N_bunches, N_bunches)
 
-diff = peaks_t - regcurv
+    regcurv = slope * x__ + intercept
 
-np.save('deviations', diff)
+    diff = peaks_t - regcurv
+
+    np.save('deviations', diff)
 
 print('Done!')

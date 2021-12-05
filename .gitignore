@@ -19,6 +19,6 @@
 /__BENCHMARKS/fig/
 /__BENCHMARKS/animations/
 /Simulations/Tests/debug.log
-
+/Simulations/
 *.DS_Store
 .idea
