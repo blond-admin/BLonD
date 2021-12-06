@@ -171,10 +171,10 @@ class CutOptions(object):
         Method to convert a value from 'rad' to 's'.
         """
 
-        if input_unit_type is 's':
+        if input_unit_type == 's':
             return value
 
-        elif input_unit_type is 'rad':
+        elif input_unit_type == 'rad':
             return value /\
                 self.RFParams.omega_rf[0, self.RFParams.counter[0]]
 
@@ -563,13 +563,13 @@ class Profile(object):
         x = self.bin_centers
         dist_centers = x[1] - x[0]
 
-        if mode is 'filter1d':
+        if mode == 'filter1d':
             derivative = ndimage.gaussian_filter1d(
                 self.n_macroparticles, sigma=1, order=1, mode='wrap') / \
                 dist_centers
-        elif mode is 'gradient':
+        elif mode == 'gradient':
             derivative = np.gradient(self.n_macroparticles, dist_centers)
-        elif mode is 'diff':
+        elif mode == 'diff':
             derivative = np.diff(self.n_macroparticles) / dist_centers
             diffCenters = x[0:-1] + dist_centers/2
             derivative = np.interp(x, diffCenters, derivative)

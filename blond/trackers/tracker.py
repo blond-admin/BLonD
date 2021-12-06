@@ -85,9 +85,9 @@ class FullRingAndRF(object):
         omega_rf = np.array(omega_rf, ndmin=2)
         phi_offsets = np.array(phi_offsets, ndmin=2)
 
-        if main_harmonic_option is 'lowest_freq':
+        if main_harmonic_option == 'lowest_freq':
             main_omega_rf = np.min(omega_rf)
-        elif main_harmonic_option is 'highest_voltage':
+        elif main_harmonic_option == 'highest_voltage':
             main_omega_rf = np.min(omega_rf[voltages == np.max(voltages)])
         elif isinstance(main_harmonic_option, int) or \
                 isinstance(main_harmonic_option, float):
