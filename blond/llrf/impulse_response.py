@@ -281,7 +281,8 @@ class TravellingWaveCavity(object):
 
         # Impulse response if not on carrier frequency
         if np.fabs((self.d_omega)/self.omega_r) > 1e-12:
-            self.h_gen = self.h_gen.real*(np.cos(self.d_omega*t_gen) +
+            # TODO: minus
+            self.h_gen = self.h_gen.real*(np.cos(self.d_omega*t_gen) -
                                           1j*np.sin(self.d_omega*t_gen))
 
     def impulse_response_beam(self, omega_c, time_fine, time_coarse=None):
@@ -325,12 +326,12 @@ class TravellingWaveCavity(object):
         t_beam = time_fine - time_fine[0]
 
         # Impulse response if on carrier frequency
-        self.h_beam = (2*self.R_beam/self.tau*
+        self.h_beam = (-2*self.R_beam/self.tau*                                 # TODO: minus
                        triangle(t_beam, self.tau)).astype(np.complex128)
 
         # Impulse response if not on carrier frequency
         if np.fabs((self.d_omega)/self.omega_r) > 1e-12:
-            self.h_beam = self.h_beam.real*(np.cos(self.d_omega*t_beam) +
+            self.h_beam = self.h_beam.real*(np.cos(self.d_omega*t_beam) -           # TODO: minus
                                             1j*np.sin(self.d_omega*t_beam))
 
         if time_coarse is not None:
@@ -338,13 +339,13 @@ class TravellingWaveCavity(object):
             t_beam = time_coarse - time_coarse[0]
 
             # Impulse response if on carrier frequency
-            self.h_beam_coarse = (2*self.R_beam/self.tau*
+            self.h_beam_coarse = (-2*self.R_beam/self.tau*                          # TODO: minus
                                   triangle(t_beam, self.tau)).astype(np.complex128)
 
             # Impulse response if not on carrier frequency
             if np.fabs((self.d_omega)/self.omega_r) > 1e-12:
                 self.h_beam_coarse = self.h_beam_coarse.real* \
-                                     (np.cos(self.d_omega*t_beam) +
+                                     (np.cos(self.d_omega*t_beam) -                 # TODO: MINUS
                                       1j*np.sin(self.d_omega*t_beam))
 
     def compute_wakes(self, time):
@@ -380,7 +381,7 @@ class SPS3Section200MHzTWC(TravellingWaveCavity):
     def __init__(self):
 
         TravellingWaveCavity.__init__(self, 0.374, 32, 2.71e4, 0.0946,
-                                      2*np.pi*200.222e6)
+                                      2*np.pi*200.1e6)
 
 
 class SPS4Section200MHzTWC(TravellingWaveCavity):
@@ -388,7 +389,7 @@ class SPS4Section200MHzTWC(TravellingWaveCavity):
     def __init__(self):
 
         TravellingWaveCavity.__init__(self, 0.374, 43, 2.71e4, 0.0946,
-                                      2*np.pi*200.222e6)
+                                      2*np.pi*200.1e6)
 
 
 class SPS5Section200MHzTWC(TravellingWaveCavity):
@@ -396,4 +397,4 @@ class SPS5Section200MHzTWC(TravellingWaveCavity):
     def __init__(self):
 
         TravellingWaveCavity.__init__(self, 0.374, 54, 2.71e4, 0.0946,
-                                      2*np.pi*200.222e6)
+                                      2*np.pi*200.1e6)
