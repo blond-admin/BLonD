@@ -1,3 +1,6 @@
+.gitignore
+/.kdev4/
+*.kdev4
 *.pyc
 
 *.o
