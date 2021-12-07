@@ -186,14 +186,14 @@ class SPSCavityFeedback(object):
 
             if not V_part:
                 V_part = 4/9
-            self.OTFB_1 = SPSOneTurnFeedback_new(RFStation, Beam, Profile, 4,
+            self.OTFB_1 = SPSOneTurnFeedback(RFStation, Beam, Profile, 4,
                                              n_cavities=2, V_part=V_part,
                                              G_ff=float(G_ff_1),
                                              G_llrf=float(G_llrf_1),
                                              G_tx=float(G_tx_1),
                                              a_comb=float(a_comb),
                                              Commissioning=self.Commissioning)
-            self.OTFB_2 = SPSOneTurnFeedback_new(RFStation, Beam, Profile, 5,
+            self.OTFB_2 = SPSOneTurnFeedback(RFStation, Beam, Profile, 5,
                                              n_cavities=2, V_part=1-V_part,
                                              G_ff=float(G_ff_2),
                                              G_llrf=float(G_llrf_2),
@@ -324,11 +324,11 @@ class SPSOneTurnFeedback(object):
         self.G_llrf = float(G_llrf)
         self.G_tx = float(G_tx)
 
-        # 200 Hz travelling wave cavity (TWC) model
+        # 200 MHz travelling wave cavity (TWC) model
         if n_sections in [3, 4, 5]:
             self.TWC = eval("SPS" + str(n_sections) + "Section200MHzTWC()")
             if self.open_FF == 1:
-                # Feed-forward fitler
+                # Feed-forward filter
                 self.coeff_FF = getattr(sys.modules[__name__],
                                 "feedforward_filter_TWC" + str(n_sections))
                 self.n_FF = len(self.coeff_FF)          # Number of coefficients for FF
