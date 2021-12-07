@@ -1,15 +1,24 @@
-'''
-Author: Helga Timko, Birk Emil Karlsen-Bæck
+# coding: utf8
+# Copyright 2014-2017 CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.md.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
 
-Rewriting the cavity feedback objects for the SPS machine for easier debugging.
+'''
+**Various cavity loops for the CERN machines**
+
+:Authors: **Birk Emil Karlsen-Baeck**, **Helga Timko**
 '''
 
-# Imports ---------------------------------------------------------------------
 import logging
-import numpy as np
-import sys
-import scipy.signal
 import matplotlib.pyplot as plt
+import numpy as np
+import scipy.signal
+import sys
+
 
 from blond.llrf.signal_processing import comb_filter, cartesian_to_polar,\
     polar_to_cartesian, modulator, moving_average, H_cav,\
@@ -21,14 +30,11 @@ from blond.llrf.signal_processing import feedforward_filter_TWC3, \
 from blond.utils import bmath as bm
 
 
-# Functions -------------------------------------------------------------------
 def get_power_gen_I2(I_gen_per_cav, Z_0): # Main in use
     ''' RF generator power from generator current (physical, in [A]), for any f_r (and thus any tau) '''
     return 0.5 * Z_0 * np.abs(I_gen_per_cav)**2
 
 
-
-# Classes ---------------------------------------------------------------------
 class CavityFeedbackCommissioning(object):
 
     def __init__(self, debug=False, open_loop=False, open_FB=False,
@@ -701,6 +707,7 @@ class SPSOneTurnFeedback(object):
         # Present delay time
         self.n_mov_av = int(self.TWC.tau / self.rf.t_rf[0, self.counter])
         self.n_delay = self.n_coarse - self.n_mov_av
+
 
     # Power related functions
     def calc_power(self):

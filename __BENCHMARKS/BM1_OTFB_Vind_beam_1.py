@@ -50,11 +50,11 @@ N_t = 1000                  # Number of turns to track
 # CERN SPS --------------------------------------------------------------------
 
 # OPTIONS TO TEST -------------------------------------------------------------
-LOGGING = False              # Logging messages
-RF_CURRENT = False           # RF beam current
-RF_CURRENT2 = False          # RF beam current
-IMP_RESP = False             # Impulse response of travelling wave cavity
-FINE_COARSE = False          # Beam-induced voltage on fine/coarse grid
+LOGGING = True              # Logging messages
+RF_CURRENT = True           # RF beam current
+RF_CURRENT2 = True          # RF beam current
+IMP_RESP = True             # Impulse response of travelling wave cavity
+FINE_COARSE = True          # Beam-induced voltage on fine/coarse grid
 VIND_BEAM = True            # Beam-induced voltage
 
 # OPTIONS TO TEST -------------------------------------------------------------
