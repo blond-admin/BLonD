@@ -1,8 +1,8 @@
 # coding: utf8
-# Copyright 2014-2017 CERN. This software is distributed under the
-# terms of the GNU General Public Licence version 3 (GPL Version 3), 
+# Copyright 2014-2020 CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
 # copied verbatim in the file LICENCE.md.
-# In applying this licence, CERN does not waive the privileges and immunities 
+# In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
@@ -91,7 +91,7 @@ profile.track()
 logging.debug("Beam q/m ratio %.3e", profile.Beam.ratio)
 
 
-OTFB = SPSCavityFeedback(rf, beam, profile, G_llrf=5, G_tx=0.5, a_comb=15/16,
+OTFB = SPSCavityFeedback(rf, beam, profile, G_llrf=5, a_comb=15/16,
                          turns=N_pretrack, post_LS2=False,
                          Commissioning=CavityFeedbackCommissioning(debug=True,
                                                                    open_FF=True))

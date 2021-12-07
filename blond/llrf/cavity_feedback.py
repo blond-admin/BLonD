@@ -16,13 +16,14 @@
 import logging
 import matplotlib.pyplot as plt
 import numpy as np
+import numpy.random as rnd
 import scipy.signal
 import sys
 
 
 from blond.llrf.signal_processing import comb_filter, cartesian_to_polar,\
     polar_to_cartesian, modulator, moving_average, H_cav,\
-    rf_beam_current, moving_average_improved
+    rf_beam_current, moving_average_improved, fir_filter_lhc_otfb_coeff
 from blond.llrf.impulse_response import SPS3Section200MHzTWC, \
     SPS4Section200MHzTWC, SPS5Section200MHzTWC
 from blond.llrf.signal_processing import feedforward_filter_TWC3, \
@@ -90,9 +91,6 @@ class SPSCavityFeedback(object):
         scenario. If passed as a list, the first and second elements correspond
         to the G_llrf of the 3- and 4-section (4- and 5-section) cavity
         feedback in the post- (pre-)LS2 scenario; default is 10
-    G_tx : float or list
-        Transmitter gain [1] of the cavity feedback; convention same as G_llrf;
-        default is 0.5
     a_comb : float
         Comb filter ratio [1]; default is 15/16
     turns :  int
@@ -108,6 +106,9 @@ class SPSCavityFeedback(object):
 
     Attributes
     ----------
+    G_tx : float or list
+        Transmitter gain [1] of the cavity feedback; convention same as G_llrf;
+        fine-tuned via benchmark in open_feedback mode
     OTFB_1 : class
         An SPSOneTurnFeedback type class; 3/4-section cavity for post/pre-LS2
     OTFB_2 : class
@@ -148,13 +149,6 @@ class SPSCavityFeedback(object):
             G_llrf_1 = G_llrf
             G_llrf_2 = G_llrf
 
-        if type(G_tx) is list:
-            G_tx_1 = G_tx[0]
-            G_tx_2 = G_tx[1]
-        else:
-            G_tx_1 = G_tx
-            G_tx_2 = G_tx
-
         # Voltage partitioning has to be a fraction
         if V_part and V_part*(1 - V_part) < 0:
             raise RuntimeError("SPS cavity feedback: voltage partitioning has to be in the range (0,1)!")
@@ -170,14 +164,14 @@ class SPSCavityFeedback(object):
                                              n_cavities=4, V_part=V_part,
                                              G_ff=float(G_ff_1),
                                              G_llrf=float(G_llrf_1),
-                                             G_tx=float(G_tx_1),
+                                             G_tx=0.99468245,
                                              a_comb=float(a_comb),
                                              Commissioning=self.Commissioning)
             self.OTFB_2 = SPSOneTurnFeedback(RFStation, Beam, Profile, 4,
                                              n_cavities=2, V_part=1-V_part,
                                              G_ff=float(G_ff_2),
                                              G_llrf=float(G_llrf_2),
-                                             G_tx=float(G_tx_2),
+                                             G_tx = 1.002453405,
                                              a_comb=float(a_comb),
                                              Commissioning=self.Commissioning)
         else:
@@ -190,14 +184,14 @@ class SPSCavityFeedback(object):
                                              n_cavities=2, V_part=V_part,
                                              G_ff=float(G_ff_1),
                                              G_llrf=float(G_llrf_1),
-                                             G_tx=float(G_tx_1),
+                                             G_tx=1.002453405,
                                              a_comb=float(a_comb),
                                              Commissioning=self.Commissioning)
             self.OTFB_2 = SPSOneTurnFeedback(RFStation, Beam, Profile, 5,
                                              n_cavities=2, V_part=1-V_part,
                                              G_ff=float(G_ff_2),
                                              G_llrf=float(G_llrf_2),
-                                             G_tx=float(G_tx_2),
+                                             G_tx=1.00066011,
                                              a_comb=float(a_comb),
                                              Commissioning=self.Commissioning)
 
@@ -721,4 +715,658 @@ class SPSOneTurnFeedback(object):
         pass
 
 
+
+class LHCRFFeedback(object):
+    r'''RF Feedback settings for LHC ACS cavity loop.
+
+    Parameters
+    ----------
+    alpha : float
+        One-turn feedback memory parameter; default is 15/16
+    d_phi_ad : float
+        Phase misalignment of digital FB w.r.t. analog FB [deg]
+    G_a : float
+        Analog FB gain [1]
+    G_d : float
+        Digital FB gain, w.r.t. analog gain [1]
+    G_o : float
+        One-turn feedback gain
+    tau_a : float
+        Analog FB delay time [s]
+    tau_d : float
+        Digital FB delay time [s]
+    tau_o : float
+        AC-coupling delay time of one-turn feedback [s]
+    open_drive : bool
+        Open (True) or closed (False) cavity loop at drive; default is False
+    open_loop : bool
+        Open (True) or closed (False) cavity loop at RFFB; default is False
+    open_otfb : bool
+        Open (true) or closed (False) one-turn feedback; default is False
+    open_rffb : bool
+        Open (True) or closed (False) RFFB; default is False
+
+    Attributes
+    ----------
+    d_phi_ad : float
+        Phase misalignment of digital FB w.r.t. analog FB [rad]
+    open_drive : int(bool)
+        Open (0) or closed (1) cavity loop at drive; default is 1
+    open_loop : int(bool)
+        Open (0) or closed (1) cavity loop at RFFB; default is 1
+    open_rffb : int(bool)
+        Open (0) or closed (1) RFFB; default is 1
+    '''
+
+    def __init__(self, alpha=15/16, d_phi_ad=0, G_a=0.00001, G_d=10, G_o=10,
+                 tau_a=170e-6, tau_d=400e-6, tau_o=110e-6, open_drive=False,
+                 open_loop=False, open_otfb=False, open_rffb=False,
+                 excitation=False, excitation_otfb_1=False,
+                 excitation_otfb_2=False, seed1=1234, seed2=7564):
+
+        # Import variables
+        self.alpha = alpha
+        self.d_phi_ad = d_phi_ad*np.pi/180
+        self.G_a = G_a
+        self.G_d = G_d
+        self.G_o = G_o
+        self.tau_a = tau_a
+        self.tau_d = tau_d
+        self.tau_o = tau_o
+        self.excitation = excitation
+        self.excitation_otfb_1 = excitation_otfb_1
+        self.excitation_otfb_2 = excitation_otfb_2
+        self.seed1 = seed1
+        self.seed2 = seed2
+
+        # Multiply with zeros if open == True
+        self.open_drive = int(np.invert(bool(open_drive)))
+        self.open_drive_inv = int(bool(open_drive))
+        self.open_loop = int(np.invert(bool(open_loop)))
+        self.open_otfb = int(np.invert(bool(open_otfb)))
+        self.open_rffb = int(np.invert(bool(open_rffb)))
+
+
+    def generate_white_noise(self, n_points):
+
+        rnd.seed(self.seed1)
+        r1 = rnd.random_sample(n_points)
+        rnd.seed(self.seed2)
+        r2 = rnd.random_sample(n_points)
+
+        return np.exp(2*np.pi*1j*r1) * np.sqrt(-2*np.log(r2))
+
+
+
+class LHCCavityLoop(object):
+    r'''Cavity loop to regulate the RF voltage in the LHC ACS cavities.
+    The loop contains a generator, a switch-and-protect device, an RF FB and a
+    OTFB. The arrays of the LLRF system cover one turn with exactly one tenth
+    of the harmonic (i.e.\ the typical sampling time is about 25 ns).
+
+    Parameters
+    ----------
+    RFStation : class
+        An RFStation type class
+    Profile : class
+        Beam profile object
+    RFFB : class
+        LHCRFFeedback type class containing RF FB gains and delays
+    f_c : float
+        Central cavity frequency [Hz]
+    G_gen : float
+        Overall driver chain gain [1]
+    I_gen_offset : float
+        Generator current offset [A]
+    n_cav : int
+        Number of cavities per beam (default is 8)
+    n_pretrack : int
+        Number of turns to pre-track without beam (default is 1)
+    Q_L : float
+        Cavity loaded quality factor (default is 20000)
+    R_over_Q : float
+        Cavity R/Q [Ohm] (default is 45 Ohms)
+    tau_loop : float
+        Total loop delay [s]
+    tau_otfb : float
+        Total loop delay as seen by OTFB [s]
+    Ts : float
+        Sampling time of the LLRF loops [s] (default is 25 ns)
+
+    Attributes
+    ----------
+    n_coarse : int
+        Number of bins for the coarse grid (equals harmonic number)
+    t_centers : float array
+        Time shift w.r.t. clock, corresponding to voltage arrays
+    omega_c : float
+        Central cavity revolution frequency [1/s]
+    V_coarse_tot : complex array
+        Cavity voltage [V] at present turn in (I,Q) coordinates which is used
+        for tracking the LLRF
+    logger : logger
+        Logger of the present class
+    '''
+
+    def __init__(self, RFStation, Profile, f_c=400.789e6, G_gen=1,
+                 I_gen_offset=0, n_cav=8, n_pretrack=200, Q_L=20000,
+                 R_over_Q=45, tau_loop=650e-9, tau_otfb=1472e-9,
+                 RFFB=LHCRFFeedback()):
+
+        # Set up logging
+        self.logger = logging.getLogger(__class__.__name__)
+        self.logger.info("LHCCavityLoop class initialized")
+
+        # Import classes and parameters
+        self.rf = RFStation
+        self.profile = Profile
+        self.RFFB = RFFB
+        self.I_gen_offset = I_gen_offset
+        self.G_gen = G_gen
+        self.n_cav = n_cav
+        self.n_pretrack = n_pretrack
+        self.omega_c = 2*np.pi*f_c
+        # TODO: implement optimum loaded Q
+        self.Q_L = Q_L
+        self.R_over_Q = R_over_Q
+        self.tau_loop = tau_loop
+        self.tau_otfb = tau_otfb
+        #self.T_s = T_s
+        self.logger.debug("Cavity loaded Q is %.0f", self.Q_L)
+
+        # Import RF FB properties
+        self.open_drive = self.RFFB.open_drive
+        self.open_drive_inv = self.RFFB.open_drive_inv
+        self.open_loop = self.RFFB.open_loop
+        self.open_otfb = self.RFFB.open_otfb
+        self.open_rffb = self.RFFB.open_rffb
+        self.alpha = self.RFFB.alpha
+        self.d_phi_ad = self.RFFB.d_phi_ad
+        self.G_a = self.RFFB.G_a
+        self.G_d = self.RFFB.G_d
+        self.G_o = self.RFFB.G_o
+        self.tau_a = self.RFFB.tau_a
+        self.tau_d = self.RFFB.tau_d
+        self.tau_o = self.RFFB.tau_o
+        self.excitation = self.RFFB.excitation
+        self.excitation_otfb_1 = self.RFFB.excitation_otfb_1
+        self.excitation_otfb_2 = self.RFFB.excitation_otfb_2
+
+        # Length of arrays in LLRF  #TODO: could change over time
+        self.n_coarse = int(self.rf.harmonic[0, 0]/10)
+        self.logger.debug("Length of arrays in generator path %d",
+                          self.n_coarse)
+
+        # Initialise FIR filter for OTFB
+        self.fir_n_taps = 63
+        self.fir_coeff = fir_filter_lhc_otfb_coeff(n_taps=self.fir_n_taps)
+        self.logger.debug('Sum of FIR coefficients %.4e' %np.sum(self.fir_coeff))
+
+        # Initialise antenna voltage to set point value
+        self.update_variables()
+        self.logger.debug("Relative detuning is %.4e", self.detuning)
+
+        self.V_ANT = np.zeros(2*self.n_coarse, dtype=complex)
+        self.V_EXC = np.zeros(2*self.n_coarse, dtype=complex)
+        self.V_FB_IN = np.zeros(2*self.n_coarse, dtype=complex)
+        self.V_OTFB = np.zeros(2*self.n_coarse, dtype=complex)
+        self.V_OTFB_INT = np.zeros(2*self.n_coarse, dtype=complex)
+        self.I_GEN = np.zeros(2*self.n_coarse, dtype=complex)
+        self.I_BEAM = np.zeros(2*self.n_coarse, dtype=complex)
+        self.I_TEST = np.zeros(2 * self.n_coarse, dtype=complex)
+
+        # Scalar variables
+        self.V_a_in_prev = 0
+        self.V_a_out_prev = 0
+        self.V_d_out_prev = 0
+        self.V_fb_in_prev = 0
+        self.V_otfb_prev = 0
+
+        # OTFB v2 implementation
+        self.V_AC1_out_prev = 0
+        self.V_FIR_out_prev = 0
+
+        # Pre-track without beam
+        self.logger.debug("Track without beam for %d turns", self.n_pretrack)
+        if self.excitation:
+            self.excitation_otfb = False
+            self.logger.debug("Injecting noise in voltage set point")
+            self.track_no_beam_excitation(self.n_pretrack)
+        elif self.excitation_otfb_1 or self.excitation_otfb_2:
+            self.excitation_otfb = True
+            self.logger.debug("Injecting noise at OTFB output")
+            self.track_no_beam_excitation_otfb(self.n_pretrack)
+        else:
+            self.excitation_otfb = False
+            self.logger.debug("Pre-tracking without beam")
+            self.track_no_beam(self.n_pretrack)
+
+
+    def cavity_response(self):
+        r'''ACS cavity reponse model'''
+
+        self.V_ANT[self.ind] = self.I_GEN[self.ind-1]*self.R_over_Q* \
+            self.samples + self.V_ANT[self.ind-1]*(1 - 0.5*self.samples/ \
+            self.Q_L + 1j*self.detuning*self.samples) - \
+            self.I_BEAM[self.ind-1]*0.5*self.R_over_Q*self.samples
+
+
+    def generator_current(self):
+        r'''Generator response
+
+        Attributes
+        I_TEST : complex array
+            Test point for open loop measurements (when injecting a generator
+            offset)
+        '''
+
+        # From V_swap_out in closed loop, constant in open loop
+        # TODO: missing terms for changing voltage and beam current
+        self.I_TEST[self.ind] = self.G_gen*self.V_swap_out
+        self.I_GEN[self.ind] = self.open_drive*self.I_TEST[self.ind] + \
+            self.open_drive_inv*self.I_gen_offset
+
+
+    def generator_power(self):
+        r'''Calculation of generator power from generator current'''
+
+        return 0.5*self.R_over_Q*self.Q_L*np.absolute(self.I_GEN)**2
+
+
+    def one_turn_feedback(self): # ORIG
+
+        # AC coupling at input
+        self.V_OTFB_INT[self.ind] = self.V_OTFB_INT[self.ind - 1] * (
+            1 - self.T_s / self.tau_o) + \
+            self.V_FB_IN[self.ind-self.n_coarse+self.n_otfb] - self.V_FB_IN[self.ind-self.n_coarse+self.n_otfb-1]
+        # OTFB response
+        self.V_OTFB[self.ind] = self.alpha*self.V_OTFB[self.ind-self.n_coarse] \
+           + self.G_o*(1 - self.alpha)*self.V_OTFB_INT[self.ind] #-self.n_coarse+self.n_delay]
+        # LHC FIR filter with 63 taps
+        #self.V_OTFB[self.ind] = self.fir_coeff[0]*self.V_OTFB[self.ind]
+        #for k in range(1, self.fir_n_taps):
+        #     self.V_OTFB[self.ind] += self.fir_coeff[k]*self.V_OTFB[self.ind-k]
+        # AC coupling at output
+        self.V_otfb = self.V_otfb_prev*(1 - self.T_s/self.tau_o) + \
+            self.V_OTFB[self.ind] - self.V_OTFB[self.ind-1]
+        # Update memory
+        self.V_otfb_prev = self.V_otfb
+
+
+    def one_turn_feedback_v2(self):
+
+        # AC coupling at input
+        ind = self.ind - self.n_coarse + self.n_otfb
+        self.V_AC1_out = (1- self.T_s/self.tau_o)*self.V_AC1_out_prev + \
+            self.V_FB_IN[ind] - self.V_FB_IN[ind-1]
+
+        # OTFB itself
+        self.V_OTFB_INT[self.ind] = self.alpha*self.V_OTFB_INT[self.ind-self.n_coarse] \
+            + self.G_o*(1 - self.alpha)*self.V_AC1_out
+
+        # FIR filter
+        self.V_FIR_out = self.fir_coeff[0]*self.V_OTFB_INT[self.ind]
+        for k in range(1, self.fir_n_taps):
+             self.V_FIR_out += self.fir_coeff[k]*self.V_OTFB_INT[self.ind-k]
+        #self.V_FIR_out = self.V_OTFB_INT[self.ind]
+
+        # AC coupling at output
+        self.V_OTFB[self.ind] = (1- self.T_s/self.tau_o)* \
+            self.V_OTFB[self.ind-1] + self.V_FIR_out - self.V_FIR_out_prev
+
+        # Update memory
+        #self.V_otfb = self.V_OTFB[self.ind]
+        self.V_AC1_out_prev = self.V_AC1_out
+        self.V_FIR_out_prev = self.V_FIR_out
+
+
+    def rf_beam_current(self):
+        r'''RF beam current calculation from beam profile'''
+
+        # Beam current at rf frequency from profile
+        self.I_BEAM_FINE = rf_beam_current(self.profile, self.omega,
+            self.rf.t_rev[self.counter], lpf=False)/self.T_s  #self.rf.t_rev[self.counter] #self.profile.bin_size
+        self.I_BEAM_FINE *= np.exp(-1j*0.5*np.pi) # 90 deg phase shift w.r.t. V_set in real
+
+        # Find which index in fine grid matches index in coarse grid
+        ind_fine = np.floor(self.profile.bin_centers/self.T_s
+                           - 0.5*self.profile.bin_size)
+        ind_fine = np.array(ind_fine, dtype=int)
+        indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
+
+        # Pick total current within one coarse grid
+        self.I_BEAM[self.n_coarse] = np.sum(self.I_BEAM_FINE[np.arange(indices[0])])
+        for i in range(1,len(indices)):
+            self.I_BEAM[self.n_coarse+i] = np.sum(self.I_BEAM_FINE[np.arange(indices[i-1],indices[i])])
+
+
+    def rf_feedback(self):
+        r'''Analog and digital RF feedback response'''
+
+        # Calculate voltage difference to act on
+        self.V_fb_in = (self.V_SET[self.ind] -
+                        self.open_loop*self.V_ANT[self.ind-self.n_delay])
+        self.V_FB_IN[self.ind] = self.V_fb_in
+
+        # On the analog branch, OTFB can contribute
+        #self.one_turn_feedback()
+        #self.V_a_in = self.V_fb_in + self.open_otfb*self.V_otfb \
+        #    + int(bool(self.excitation_otfb))*self.V_EXC[self.ind]
+        self.one_turn_feedback_v2()
+        self.V_a_in = self.V_fb_in + self.open_otfb*self.V_OTFB[self.ind] \
+            + int(bool(self.excitation_otfb))*self.V_EXC[self.ind]
+
+        # Output of analog feedback (separate branch)
+        self.V_a_out = self.V_a_out_prev*(1 - self.T_s/self.tau_a) + \
+            self.G_a*(self.V_a_in - self.V_a_in_prev)
+
+        # Output of digital feedback (separate branch)
+        self.V_d_out = self.V_d_out_prev*(1 - self.T_s/self.tau_d) + \
+            self.T_s/self.tau_d*self.G_a*self.G_d*np.exp(1j*self.d_phi_ad)*\
+            self.V_fb_in_prev
+
+        # Total output: sum of analog and digital feedback
+        self.V_fb_out = self.open_rffb*(self.V_a_out + self.V_d_out)
+
+        # Update memory
+        self.V_a_in_prev = self.V_a_in
+        self.V_a_out_prev = self.V_a_out
+        self.V_d_out_prev = self.V_d_out
+        self.V_fb_in_prev = self.V_fb_in
+
+
+    def set_point(self):
+        r'''Voltage set point'''
+
+        V_set = polar_to_cartesian(self.rf.voltage[0, self.counter]/self.n_cav,
+            self.rf.phi_rf[0, self.counter])
+
+        return self.open_drive*V_set*np.ones(self.n_coarse)
+
+
+    def swap(self):
+        r'''Model of the Switch and Protect module: clamping of the output
+        power above a given input power.'''
+
+        #TODO: to be implemented
+        self.V_swap_out = self.V_fb_out
+
+
+    def track(self):
+        r'''Tracking with beam'''
+
+        self.update_variables()
+        self.update_arrays()
+        self.update_set_point()
+        self.rf_beam_current()
+        self.track_one_turn()
+
+
+    def track_simple(self, I_rf_pk):
+        r'''Simplified model with proportional gain and step beam current of
+        1000 samples lengthBM7_ACS_with_beam.py
+
+        Parameters
+        ----------
+        I_rf_peak : float
+            Peak RF current
+        '''
+
+        self.update_variables()
+        self.update_arrays()
+        self.update_set_point()
+        self.I_BEAM[self.n_coarse:self.n_coarse+1000] = 1j*I_rf_pk
+
+        for i in range(self.n_coarse):
+            self.ind = i + self.n_coarse
+            self.cavity_response()
+            self.V_fb_out = self.G_a*(self.V_SET[self.ind] - self.V_ANT[self.ind-self.n_delay])
+            self.I_GEN[self.ind] = self.V_fb_out + self.V_SET[self.ind]/(self.R_over_Q)*(0.5/self.Q_L -1j*self.detuning) + 0.5*1j*I_rf_pk
+
+
+    def track_one_turn(self):
+        r'''Single-turn tracking, index by index.'''
+
+        for i in range(self.n_coarse):
+            self.ind = i + self.n_coarse
+            self.cavity_response()
+            self.rf_feedback()
+            self.swap()
+            self.generator_current()
+
+
+    def track_no_beam_excitation(self, n_turns):
+        r'''Pre-tracking for n_turns turns, without beam. With excitation; set
+        point from white noise. V_EXC_IN and V_EXC_OUT can be used to measure
+        the transfer function of the system at set point.
+
+        Attributes
+        ----------
+        V_EXC_IN : complex array
+            Noise being played in set point; n_coarse*n_turns elements
+        V_EXC_OUT : complex array
+            System reaction to noise (accumulated from V_ANT); n_coarse*n_turns
+            elements
+        '''
+
+        self.V_EXC_IN = 1000*self.RFFB.generate_white_noise(self.n_coarse*n_turns)
+        self.V_EXC_OUT = np.zeros(self.n_coarse*n_turns, dtype=complex)
+        self.V_SET = np.concatenate((np.zeros(self.n_coarse, dtype=complex),
+                                     self.V_EXC_IN[0:self.n_coarse]))
+        self.track_one_turn()
+        self.V_EXC_OUT[0:self.n_coarse] = self.V_ANT[self.n_coarse:2*self.n_coarse]
+        for n in range(1, n_turns):
+            self.update_arrays()
+            self.update_set_point_excitation(self.V_EXC_IN, n)
+            self.track_one_turn()
+            self.V_EXC_OUT[n*self.n_coarse:(n+1)*self.n_coarse] = \
+                self.V_ANT[self.n_coarse:2*self.n_coarse]
+
+
+    def track_no_beam_excitation_otfb(self, n_turns):
+        r'''Pre-tracking for n_turns turns, without beam. With excitation; set
+        point from white noise. V_EXC_IN and V_EXC_OUT can be used to measure
+        the transfer function of the system at otfb.
+
+        Attributes
+        ----------
+        V_EXC_IN : complex array
+            Noise being played in set point; n_coarse*n_turns elements
+        V_EXC_OUT : complex array
+            System reaction to noise (accumulated from V_ANT); n_coarse*n_turns
+            elements
+        '''
+
+        self.V_EXC_IN = 10000*self.RFFB.generate_white_noise(self.n_coarse*n_turns)
+        self.V_EXC_OUT = np.zeros(self.n_coarse*n_turns, dtype=complex)
+        #self.V_SET = np.concatenate((np.zeros(self.n_coarse, dtype=complex),
+        #                             self.set_point()))
+        self.V_SET = np.zeros(2*self.n_coarse, dtype=complex)
+        self.V_EXC = np.concatenate((np.zeros(self.n_coarse, dtype=complex),
+                                     self.V_EXC_IN[0:self.n_coarse]))
+
+        self.track_one_turn()
+        if self.excitation_otfb_1:
+            self.V_EXC_OUT[0:self.n_coarse] = self.V_FB_IN[self.n_coarse:2*self.n_coarse]
+        elif self.excitation_otfb_2:
+            #self.V_EXC_OUT[0:self.n_coarse] = self.V_otfb
+            self.V_EXC_OUT[0:self.n_coarse] = self.V_OTFB[self.ind]
+        for n in range(1, n_turns):
+            self.update_arrays()
+            self.V_EXC = np.concatenate(
+                (np.zeros(self.n_coarse, dtype=complex),
+                 self.V_EXC_IN[n*self.n_coarse:(n+1)*self.n_coarse]))
+
+            #self.track_one_turn()
+            #self.V_EXC_OUT[n * self.n_coarse:(n + 1) * self.n_coarse] = \
+            #    self.V_FB_IN[self.n_coarse:2 * self.n_coarse]
+
+            for i in range(self.n_coarse):
+                self.ind = i + self.n_coarse
+                self.cavity_response()
+                self.rf_feedback()
+                self.swap()
+                self.generator_current()
+                if self.excitation_otfb_1:
+                    self.V_EXC_OUT[n*self.n_coarse+i] = \
+                        self.V_FB_IN[self.n_coarse+i]
+                elif self.excitation_otfb_2:
+                    #self.V_EXC_OUT[n*self.n_coarse+i] = self.V_otfb
+                    self.V_EXC_OUT[n*self.n_coarse+i] = self.V_OTFB[self.ind]
+
+
+    def track_no_beam(self, n_turns):
+        r'''Pre-tracking for n_turns turns, without beam. No excitation; set
+        point from design RF voltage.'''
+
+        # Initialise set point voltage
+        self.V_SET = np.concatenate((np.zeros(self.n_coarse, dtype=complex),
+                                     self.set_point()))
+        self.track_one_turn()
+        for n in range(1, n_turns):
+            self.update_arrays()
+            self.update_set_point()
+            self.track_one_turn()
+
+
+    def update_arrays(self):
+        r'''Moves the array indices by one turn (n_coarse points) from the
+        present turn to prepare the next turn. All arrays except for V_SET.'''
+
+        # TODO: update n_coarse and array sizes
+        self.V_ANT = np.concatenate((self.V_ANT[self.n_coarse:],
+                                    np.zeros(self.n_coarse, dtype=complex)))
+        self.V_FB_IN = np.concatenate((self.V_FB_IN[self.n_coarse:],
+                                    np.zeros(self.n_coarse, dtype=complex)))
+        self.V_OTFB = np.concatenate((self.V_OTFB[self.n_coarse:],
+                                    np.zeros(self.n_coarse, dtype=complex)))
+        self.V_OTFB_INT = np.concatenate((self.V_OTFB_INT[self.n_coarse:],
+                                    np.zeros(self.n_coarse, dtype=complex)))
+        self.I_BEAM = np.concatenate((self.I_BEAM[self.n_coarse:],
+                                     np.zeros(self.n_coarse, dtype=complex)))
+        self.I_GEN = np.concatenate((self.I_GEN[self.n_coarse:],
+                                    np.zeros(self.n_coarse, dtype=complex)))
+        self.I_TEST = np.concatenate((self.I_TEST[self.n_coarse:],
+                                     np.zeros(self.n_coarse, dtype=complex)))
+
+
+    def update_set_point(self):
+        r'''Updates the set point for the next turn based on the design RF
+        voltage.'''
+
+        self.V_SET = np.concatenate((self.V_SET[self.n_coarse:],
+                                    self.set_point()))
+
+
+    def update_set_point_excitation(self, excitation, turn):
+        r'''Updates the set point for the next turn based on the excitation to
+        be injected.'''
+
+        self.V_SET = np.concatenate((self.V_SET[self.n_coarse:],
+            excitation[turn*self.n_coarse:(turn+1)*self.n_coarse]))
+
+
+    def update_variables(self):
+        r'''Update counter and frequency-dependent variables in a given turn'''
+
+        # Present time step
+        self.counter = self.rf.counter[0]
+        # Present sampling time
+        self.T_s = self.rf.t_rev[self.counter]/self.n_coarse
+        # Delay time
+        self.n_delay = int(self.tau_loop/self.T_s)
+        self.n_otfb = int(self.tau_otfb/self.T_s + 0.5*(self.fir_n_taps-1))
+        # Present rf frequency
+        self.omega = self.rf.omega_rf[0, self.counter]
+        # Present detuning
+        self.d_omega = self.omega_c - self.omega
+        # Dimensionless quantities
+        self.samples = self.omega*self.T_s
+        self.detuning = self.d_omega/self.omega
+
+
+    @staticmethod
+    def half_detuning(imag_peak_beam_current, R_over_Q, rf_frequency, voltage):
+        '''Optimum detuning for half-detuning scheme
+
+        Parameters
+        ----------
+        peak_beam_current : float
+            Peak RF beam current
+        R_over_Q : float
+            Cavity R/Q
+        rf_frequency : float
+            RF frequency
+        voltage : float
+            RF voltage amplitude in the cavity
+
+        Returns
+        -------
+        float
+            Optimum detuning (revolution) frequency in the half-detuning scheme
+        '''
+
+        return -0.25*R_over_Q*imag_peak_beam_current/voltage*rf_frequency
+
+
+    @staticmethod
+    def half_detuning_power(peak_beam_current, voltage):
+        '''RF power consumption half-detuning scheme with optimum detuning
+
+        Parameters
+        ----------
+        peak_beam_current : float
+            Peak RF beam current
+        voltage : float
+            Cavity voltage
+
+        Returns
+        -------
+        float
+            Optimum detuning (revolution) frequency in the half-detuning scheme
+        '''
+
+        return 0.125*peak_beam_current*voltage
+
+
+    @staticmethod
+    def optimum_Q_L(detuning, rf_frequency):
+        '''Optimum loaded Q when no real part of RF beam current is present
+
+        Parameters
+        ----------
+        detuning : float
+            Detuning frequency
+        rf_frequency : float
+            RF frequency
+
+        Returns
+        -------
+        float
+            Optimum loaded Q
+        '''
+
+        return np.fabs(0.5*rf_frequency/detuning)
+
+
+    @staticmethod
+    def optimum_Q_L_beam(R_over_Q, real_peak_beam_current, voltage):
+        '''Optimum loaded Q when a real part of RF beam current is present
+
+        Parameters
+        ----------
+        peak_beam_current : float
+            Peak RF beam current
+        R_over_Q : float
+            Cavity R/Q
+        voltage : float
+            Cavity voltage
+
+        Returns
+        -------
+        float
+            Optimum loaded Q
+        '''
+
+        return voltage/(R_over_Q*real_peak_beam_current)
 

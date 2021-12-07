@@ -1,8 +1,8 @@
 # coding: utf8
-# Copyright 2014-2017 CERN. This software is distributed under the
-# terms of the GNU General Public Licence version 3 (GPL Version 3), 
+# Copyright 2014-2020 CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
 # copied verbatim in the file LICENCE.md.
-# In applying this licence, CERN does not waive the privileges and immunities 
+# In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
@@ -23,7 +23,8 @@ from blond.input_parameters.rf_parameters import RFStation
 from blond.beam.beam import Beam, Proton
 from blond.beam.distributions import bigaussian
 from blond.beam.profile import Profile, CutOptions
-from blond.llrf.cavity_feedback import SPSCavityFeedback, CavityFeedbackCommissioning
+from blond.llrf.cavity_feedback import SPSCavityFeedback, \
+    SPSOneTurnFeedback, CavityFeedbackCommissioning
 
 
 # CERN SPS --------------------------------------------------------------------
@@ -34,8 +35,10 @@ alpha = 1/gamma_t**2        # Momentum compaction factor
 p_s = 25.92e9               # Synchronous momentum at injection [eV]
 h = [4620]                  # 200 MHz system harmonic
 V = [4.5e6]                 # 200 MHz RF voltage
-# With this setting, amplitude in the two four-section cavity must converge to
-# 4.5 MV * 4/18 * 2 = 2.0 MV
+# With this setting, amplitude in the two four-section cavities must converge
+# to 4.5 MV * 4/9 * 2 = 2.0 MV
+# With this setting, amplitude in the four three-section cavities must converge
+# to 4.5 MV * 6/10 * 2 = 2.7 MV
 phi = [0.]                  # 200 MHz RF phase
 
 # Beam and tracking parameters
@@ -53,9 +56,10 @@ plt.rc('legend', fontsize=12)
 CLOSED_LOOP = True
 OPEN_LOOP = True
 OPEN_FB = True
+POST_LS2 = False
 
 # Logger for messages on console & in file
-Logger(debug = True)
+Logger(debug=True)
 
 # Set up machine parameters
 ring = Ring(C, alpha, p_s, Particle=Proton(), n_turns=N_t)
@@ -83,25 +87,31 @@ if CLOSED_LOOP:
     logging.info("...... CLOSED LOOP test")
     Commissioning = CavityFeedbackCommissioning(debug=True, open_loop=False,
         open_FB=False, open_drive=False, open_FF=True)
-    OTFB = SPSCavityFeedback(rf, beam, profile, G_llrf=5, G_tx=0.5,
-                             a_comb=15/16, turns=50, post_LS2=False,
+    OTFB = SPSCavityFeedback(rf, beam, profile, G_llrf=5, a_comb=15/16,
+                             turns=50, post_LS2=POST_LS2,
                              Commissioning=Commissioning)
+    logging.info("Final voltage %.8e V"
+                 %np.average(np.absolute(OTFB.OTFB_1.V_coarse_tot[-10])))
 
 if OPEN_LOOP:
     logging.info("...... OPEN LOOP test")
     Commissioning = CavityFeedbackCommissioning(debug=True, open_loop=True,
         open_FB=False, open_drive=True, open_FF=True)
-    OTFB = SPSCavityFeedback(rf, beam, profile, G_llrf=5, G_tx=0.5,
-                             a_comb=15/16, turns=50, post_LS2=False,
+    OTFB = SPSCavityFeedback(rf, beam, profile, G_llrf=5, a_comb=15/16,
+                             turns=50, post_LS2=POST_LS2,
                              Commissioning=Commissioning)
+    logging.info("Final voltage %.8e V"
+                 %np.average(np.absolute(OTFB.OTFB_1.V_coarse_tot[-10])))
 
 if OPEN_FB:
     logging.info("...... OPEN FEEDBACK test")
     Commissioning = CavityFeedbackCommissioning(debug=True, open_loop=False,
         open_FB=True, open_drive=False, open_FF=True)
-    OTFB = SPSCavityFeedback(rf, beam, profile, G_llrf=5, G_tx=0.5,
-                             a_comb=15/16, turns=50, post_LS2=False,
+    OTFB = SPSCavityFeedback(rf, beam, profile, G_llrf=5, a_comb=15/16,
+                             turns=50, post_LS2=POST_LS2,
                              Commissioning=Commissioning)
+    logging.info("Final voltage %.8e V"
+                 %np.average(np.absolute(OTFB.OTFB_1.V_coarse_tot[-10])))
 
 logging.info("")
 logging.info("Done!")
