@@ -381,7 +381,7 @@ class SPS3Section200MHzTWC(TravellingWaveCavity):
     def __init__(self):
 
         TravellingWaveCavity.__init__(self, 0.374, 32, 2.71e4, 0.0946,
-                                      2*np.pi*200.1e6)
+                                      2*np.pi*200.03766667e6)
 
 
 class SPS4Section200MHzTWC(TravellingWaveCavity):
@@ -389,7 +389,7 @@ class SPS4Section200MHzTWC(TravellingWaveCavity):
     def __init__(self):
 
         TravellingWaveCavity.__init__(self, 0.374, 43, 2.71e4, 0.0946,
-                                      2*np.pi*200.1e6)
+                                      2*np.pi*199.9945e6)
 
 
 class SPS5Section200MHzTWC(TravellingWaveCavity):
