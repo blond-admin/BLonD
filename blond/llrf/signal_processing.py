@@ -69,7 +69,7 @@ def cartesian_to_polar(IQ_vector):
     return np.absolute(IQ_vector), np.angle(IQ_vector)
 
 
-def modulator(signal, omega_i, omega_f, T_sampling):
+def modulator(signal, omega_i, omega_f, T_sampling, phi_0=0):
     """Demodulate a signal from initial frequency to final frequency. The two
     frequencies should be close.
 
@@ -97,8 +97,8 @@ def modulator(signal, omega_i, omega_f, T_sampling):
                            " be an array!")
     delta_phi = (omega_i - omega_f)*T_sampling * np.arange(len(signal))
     # Pre compute sine and cosine for speed up
-    cs = np.cos(delta_phi)
-    sn = np.sin(delta_phi)
+    cs = np.cos(delta_phi + phi_0)
+    sn = np.sin(delta_phi + phi_0)
     I_new = cs*signal.real - sn*signal.imag
     Q_new = sn*signal.real + cs*signal.imag
 
@@ -195,7 +195,7 @@ def rf_beam_current(Profile, omega_c, T_rev, lpf=True, downsample=None):
         indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
 
         # Pick total current within one coarse grid
-        charges_coarse = np.zeros(n_points, dtype=np.complex) #+ 1j*np.zeros(n_points)
+        charges_coarse = np.zeros(n_points, dtype=complex) #+ 1j*np.zeros(n_points)
         charges_coarse[0] = np.sum(charges_fine[np.arange(indices[0])])
         for i in range(1, len(indices)):
             charges_coarse[i] = np.sum(charges_fine[np.arange(indices[i-1],
@@ -269,6 +269,43 @@ def moving_average(x, N, x_prev=None):
     mov_avg = np.cumsum(x)
     mov_avg[N:] = mov_avg[N:] - mov_avg[:-N]
     return mov_avg[N-1:] / N
+
+
+def moving_average_improved(x, N, x_prev=None):
+
+    if x_prev is not None:
+        x = np.concatenate((x_prev, x))
+
+
+    mov_avg = sgn.fftconvolve(x, (1/N)*np.ones(N), mode='full')[-x.shape[0]:]
+
+    return mov_avg[:x.shape[0] - N + 1]
+
+def H_cav(x, n_sections, x_prev=None):
+
+    if x_prev is not None:
+        x = np.concatenate((x_prev, x))
+
+    if n_sections == 3:
+        h = np.array([-0.04120219, -0.00765499, -0.00724786, -0.00600952, -0.00380694, -0.00067663,
+                      0.00343537, 0.0084533, 0.01421418, 0.02071802, 0.02764441, 0.03476114,
+                      0.04193753, 0.04882965, 0.05522681, 0.06083675, 0.0654471, 0.06887487,
+                      0.07100091, 0.09043617, 0.07100091, 0.06887487, 0.0654471, 0.06083675,
+                      0.05522681, 0.04882965, 0.04193753, 0.03476114, 0.02764441, 0.02071802,
+                      0.01421418, 0.0084533, 0.00343537, -0.00067663, -0.00380694, -0.00600952,
+                      -0.00724786, -0.00765499, -0.04120219])
+    else:
+        h = np.array([-0.0671217,   0.01355402,  0.01365686,  0.01444814,  0.01571424,  0.01766679,
+                      0.01996413,  0.02251791,  0.02529718,  0.02817416,  0.03113348,  0.03398052,
+                      0.03674144,  0.03924433,  0.04153931,  0.04344182,  0.04502165,  0.04612467,
+                      0.04685122,  0.06409968,  0.04685122,  0.04612467,  0.04502165,  0.04344182,
+                      0.04153931,  0.03924433,  0.03674144,  0.03398052,  0.03113348,  0.02817416,
+                      0.02529718,  0.02251791,  0.01996413,  0.01766679,  0.01571424,  0.01444814,
+                      0.01365686,  0.01355402, -0.0671217 ])
+
+    resp = sgn.fftconvolve(x, h, mode='full')[-x.shape[0]:]
+
+    return resp[:x.shape[0] - h.shape[0] + 1]
 
 
 def feedforward_filter(TWC: TravellingWaveCavity, T_s, debug=False, taps=None,
