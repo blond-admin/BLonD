@@ -141,6 +141,21 @@ class Worker:
 
         return recvbuf
 
+    def broadcast(self, var):
+        self.logger.debug('broadcast')
+
+        # First broadcast the size and dtype from the master
+        recvbuf = self.intercomm.bcast([len(var), var.dtype.char], root=0)
+        size, dtype = recvbuf[0], recvbuf[1]
+
+        if self.isMaster:   
+            recvbuf = self.intercomm.bcast(var, root=0)
+        else:
+            recvbuf = np.empty(size, dtype=dtype)
+            recvbuf = self.intercomm.bcast(var, root=0)
+
+        return recvbuf
+
     # def allreduce(self, sendbuf, recvbuf=None):
     #     self.logger.debug('allreduce')
     #     dtype = sendbuf.dtype.name

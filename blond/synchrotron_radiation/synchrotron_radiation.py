@@ -16,7 +16,6 @@
 from __future__ import division, print_function
 from builtins import range, object
 import numpy as np
-from scipy.constants import e, c, epsilon_0, hbar
 from ..utils import bmath as bm
 
 
@@ -40,15 +39,12 @@ class SynchrotronRadiation(object):
         np.random.seed(seed=seed)
 
         # Calculate static parameters
-        self.Cgamma = 1.0 / (e**2.0 * 3.0 * epsilon_0
-                             * self.ring.Particle.mass**4.0)
-        self.Cq = (55.0 / (32.0 * np.sqrt(3.0)) * hbar * c
-                   / (self.ring.Particle.mass * e))   # [m]
+        self.C_gamma = self.ring.Particle.C_gamma
+        self.C_q = self.ring.Particle.C_q
 
         self.I2 = 2.0 * np.pi / self.rho     # Assuming isomagnetic machine
         self.I3 = 2.0 * np.pi / self.rho**2.0
-        self.I4 = (self.ring.ring_circumference
-                   * self.ring.alpha_0[0, 0] / self.rho**2.0)
+        self.I4 = self.ring.ring_circumference * self.ring.alpha_0[0, 0] / self.rho**2.0
         self.jz = 2.0 + self.I4 / self.I2
 
         # Calculate synchrotron radiation parameters
@@ -61,10 +57,11 @@ class SynchrotronRadiation(object):
         # Displace the beam in phase to account for the energy loss due to
         # synchrotron radiation (temporary until bunch generation is updated)
         if (shift_beam) and (self.rf_params.section_index == 0):
-            self.beam_phase_to_compensate_SR = np.arcsin(self.U0/self.rf_params.voltage[0][0])
+            self.beam_phase_to_compensate_SR = np.abs(np.arcsin(
+                self.U0 / (self.ring.Particle.charge * self.rf_params.voltage[0][0]) ))
             self.beam_position_to_compensate_SR = self.beam_phase_to_compensate_SR \
                 * self.rf_params.t_rf[0, 0] / (2.0*np.pi)
-                
+
             self.beam.dt -= self.beam_position_to_compensate_SR
 
         # Select the right method for the tracker according to the selected
@@ -87,9 +84,9 @@ class SynchrotronRadiation(object):
         i_turn = self.rf_params.counter[0]
 
         # Energy loss per turn/RF section [eV]
-        self.U0 = (self.Cgamma * self.ring.energy[0, i_turn]**4.0
-                   * self.I2 / (2.0 * np. pi) * e**3.0
-                  * self.rf_params.section_length
+        self.U0 = (self.C_gamma * self.ring.energy[0, i_turn]**4.0
+                   * self.I2 / (2.0 * np. pi)
+                   * self.rf_params.section_length
                    / self.ring.ring_circumference)
 
         # Damping time [turns]
@@ -97,7 +94,7 @@ class SynchrotronRadiation(object):
                       self.U0)
 
         # Equilibrium energy spread
-        self.sigma_dE = np.sqrt(self.Cq *
+        self.sigma_dE = np.sqrt(self.C_q *
                                 self.ring.gamma[0, i_turn]**2.0 *
                                 self.I3 / (self.jz * self.I2))
 
@@ -106,24 +103,22 @@ class SynchrotronRadiation(object):
         i_turn = self.rf_params.counter[0]
 
         print('------- Synchrotron radiation parameters -------')
-        print('jz = {0:1.8f} '.format(self.jz))
+        print(f'jz = {self.jz:1.8f}')
         if (self.rf_params.section_length
                 == self.ring.ring_circumference):
-            print('Energy loss per turn = {0:1.4f} GeV/turn'.format(
-                self.U0*1e-9))
-            print('Damping time = {0:1.4f} turns'.format(self.tau_z))
+            print(f'Energy loss per turn = {self.U0/1e9:1.4f} GeV/turn')
+            print(f'Damping time = {self.tau_z:1.4f} turns')
         else:
             print('Energy loss per RF section = {0:1.4f} GeV/section'.format(
                 self.U0*1e-9))
             print('Energy loss per turn = {0:1.4f} GeV/turn'.format(
                 self.U0*1e-9 * self.ring.ring_circumference
-                / self.rf_params.section_length) )
+                / self.rf_params.section_length))
             print('Damping time = {0:1.4f} turns'.format(self.tau_z
                                                          * self.rf_params.section_length
-                                                         / self.ring.ring_circumference) )
-        print('Equilibrium energy spread = {0:1.4f}% ({1:1.4f} MeV)'.format(
-            self.sigma_dE * 100, self.sigma_dE *
-            self.ring.energy[0, i_turn]*1e-6)  )
+                                                         / self.ring.ring_circumference))
+        print(f'Equilibrium energy spread = {self.sigma_dE * 100:1.4f}%'
+              + f' ({self.sigma_dE * self.ring.energy[0, i_turn]*1e-6:1.4f}) MeV')
         print('------------------------------------------------')
 
     # Track particles with SR only (without quantum excitation)

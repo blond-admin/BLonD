@@ -147,6 +147,11 @@ if (__name__ == "__main__"):
         if not ext:
             ext = '.dll'
         libname = root + ext
+
+        if hasattr(os, 'add_dll_directory'):
+            directory, filename = os.path.split(libname)
+            os.add_dll_directory(directory)
+
     else:
         print(
             'YOU ARE NOT USING A WINDOWS OR LINUX OPERATING SYSTEM. ABORTING...')
@@ -176,7 +181,10 @@ if (__name__ == "__main__"):
     subprocess.call(command)
 
     try:
-        libblond = ctypes.CDLL(libname)
+        if ('win' in sys.platform) and hasattr(os, 'add_dll_directory'):
+            libblond = ctypes.CDLL(libname, winmode=0)
+        else:
+            libblond = ctypes.CDLL(libname)
         print('\nThe blond library has been successfully compiled.')
     except Exception as e:
         print('\nCompilation failed.')

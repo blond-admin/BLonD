@@ -9,8 +9,8 @@
 
 '''
 Unit-tests for the RFSectionParameters class.
-Run as python testRFParamsObject.py in console or via travis
-:Authors: **Joel Repond**
+Run as python test_rf_params_object.py in console or via travis
+:Authors: **Joel Repond**, **Markus Schwarz**
 '''
 
 # General imports
@@ -23,7 +23,8 @@ import numpy
 # --------------
 from blond.input_parameters.ring import Ring
 from blond.input_parameters.rf_parameters import RFStation
-from blond.beam.beam import Beam, Proton
+from blond.input_parameters.rf_parameters import calculate_phi_s
+from blond.beam.beam import Beam, Proton, Electron
 from blond.llrf.rf_modulation import PhaseModulation as PMod
 #from beam.distributions import matched_from_distribution_function
 #from trackers.tracker import FullRingAndRF, RingAndRFTracker
@@ -51,22 +52,22 @@ class testRFParamClass(unittest.TestCase):
 
         # Define general parameters
         # --------------------------
-        self.general_params = Ring(C, alpha, p, Proton(), N_turn)
+        self.ring = Ring(C, alpha, p, Proton(), N_turn)
 
 
         # Define beam
         # ------------
-        self.beam = Beam(self.general_params, N_p, N_b)
+        self.beam = Beam(self.ring, N_p, N_b)
         
         # Define RF section
         # -----------------
-        self.rf_params = RFStation(self.general_params, [4620], [7e6], [0.])
+        self.rf_params = RFStation(self.ring, [4620], [7e6], [0.])
 
 
     # Run after every test
     def tearDown(self):
 
-        del self.general_params
+        del self.ring
         del self.beam
         del self.rf_params
 
@@ -167,7 +168,7 @@ class testRFParamClass(unittest.TestCase):
                                raise ValueError"""):
         
             modulator1 = PMod(timebase, frequency, amplitude, offset, harmonic)
-            self.rf_params = RFStation(self.general_params, [4620, 36960], \
+            self.rf_params = RFStation(self.ring, [4620, 36960], \
                                    [7e6, 1E6], [0., 0], \
                                    phi_modulation = modulator1, n_rf = 2)
 
@@ -181,11 +182,11 @@ class testRFParamClass(unittest.TestCase):
             iter(modulator1)
 
 
-        self.rf_params = RFStation(self.general_params, [4620, 36960], \
+        self.rf_params = RFStation(self.ring, [4620, 36960], \
                                [7e6, 1E6], [0., 0], \
                                phi_modulation = modulator1, n_rf = 2)
         
-        self.rf_params = RFStation(self.general_params, [4620, 36960], \
+        self.rf_params = RFStation(self.ring, [4620, 36960], \
                                [7e6, 1E6], [0., 0], \
                                phi_modulation = [modulator1]*2, n_rf = 2)
 
@@ -193,13 +194,13 @@ class testRFParamClass(unittest.TestCase):
                                msg = """Two systems with the same harmonic
                                should return RuntimeError when using 
                                PhaseModulation"""):
-            self.rf_params = RFStation(self.general_params, [4620, 36960, 36960], \
+            self.rf_params = RFStation(self.ring, [4620, 36960, 36960], \
                                    [7e6, 1E6, 0], [0., 0, 0], \
                                    phi_modulation = [modulator1]*2, n_rf = 3)
         
         modulator2 = PMod(timebase, frequency*2, amplitude/2, offset, harmonic)
 
-        self.rf_params = RFStation(self.general_params, [4620, 36960], \
+        self.rf_params = RFStation(self.ring, [4620, 36960], \
                                    [7e6, 1E6], [0., 0], \
                                    phi_modulation = [modulator1, modulator2], \
                                    n_rf = 2)
@@ -215,11 +216,37 @@ class testRFParamClass(unittest.TestCase):
         # To be written
         pass
 
-
     def test_rf_parameters_calculate_phi_s(self):
 
-        # To be written
-        pass
+        self.assertEqual(calculate_phi_s(self.rf_params, Particle=Proton())[0], numpy.pi,
+                         msg="Wrong phi_s for Proton")
+        self.assertEqual(calculate_phi_s(self.rf_params, Particle=Electron())[0], 0.0,
+                         msg="Wrong phi_s for Electron")
+
+    # Tests of empty RF station
+    def test_rf_parameters_is_empty_station(self):
+        
+        # create empty RF station
+        rf_params = RFStation(self.ring, [4620], [0], [0.])
+        self.assertTrue(rf_params.empty)
+
+    def test_rf_parameters_no_phi_s_for_empty_station(self):
+        
+        #create empty RF station
+        rf_params = RFStation(self.ring, [4620], [0], [0.])
+        self.assertFalse(hasattr(rf_params, 'phi_s'))
+
+    def test_rf_parameters_no_Q_s_for_empty_station(self):
+        
+        # create empty RF station
+        rf_params = RFStation(self.ring, [4620], [0], [0.])
+        self.assertFalse(hasattr(rf_params, 'Q_s'))
+
+    def test_rf_parameters_no_omegaS0_s_for_empty_station(self):
+        
+        # create empty RF station
+        rf_params = RFStation(self.ring, [4620], [0], [0.])
+        self.assertFalse(hasattr(rf_params, 'omega_s0'))        
 
 
 if __name__ == '__main__':

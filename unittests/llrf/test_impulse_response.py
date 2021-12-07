@@ -107,17 +107,17 @@ class TestTravelingWaveCavity(unittest.TestCase):
                                                    200.222e6, 2*np.pi*tau)
 
         TWC_impedance_source.wake_calc(time-time[0])
-        wake_impSource = np.around(TWC_impedance_source.wake/1e12, 12)
+        wake_impSource = np.around(TWC_impedance_source.wake/1e12, 10)
 
         TWC_impulse_response = SPS4Section200MHzTWC()
         # omega_c not need for computation of wake function
         TWC_impulse_response.impulse_response_beam(2*np.pi*200.222e6, time)
         TWC_impulse_response.impulse_response_gen(2*np.pi*200.222e6, time)
         TWC_impulse_response.compute_wakes(time)
-        wake_impResp = np.around(TWC_impulse_response.W_beam/1e12, 12)
+        wake_impResp = np.around(TWC_impulse_response.W_beam/1e12, 10)
 
         self.assertListEqual(wake_impSource.tolist(), wake_impResp.tolist(),
-            msg="In TestTravelingWaveCavity test_wake: wake fields differ")
+                             msg="In TestTravelingWaveCavity test_wake: wake fields differ")
 
     def test_vind(self):
 

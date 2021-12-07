@@ -17,7 +17,6 @@ import unittest
 import numpy as np
 import os
 
-from blond.utils import bmath as bm
 from blond.input_parameters.ring import Ring
 from blond.beam.beam import Beam, Electron, Positron
 from blond.beam.distributions import bigaussian, matched_from_distribution_function
@@ -125,10 +124,6 @@ class TestSynchtrotronRadiation(unittest.TestCase):
                                    atol=atol, rtol=rtol,
                                    err_msg='Python anc C yield different std beam.dE for single kick')
 
-
-        # np.testing.assert_almost_equal(self.beam.dE, beam_C.dE, decimal=8,
-        #                                err_msg='SR: Python and C implementations yield different results for single kick')
-
     def test_synchrotron_radiation_python_vs_C_double_kick(self):
         atol = 0
         rtol = 1e-7
@@ -147,7 +142,6 @@ class TestSynchtrotronRadiation(unittest.TestCase):
                                    python=False, quantum_excitation=False, seed=self.seed)
         iSR.track()  # C implementation
 
-
         np.testing.assert_allclose([np.mean(self.beam.dE)], [np.mean(beam_C.dE)],
                                    atol=atol, rtol=rtol,
                                    err_msg='Python anc C yield different avg beam.dE for two kicks')
@@ -155,9 +149,23 @@ class TestSynchtrotronRadiation(unittest.TestCase):
                                    atol=atol, rtol=rtol,
                                    err_msg='Python anc C yield different std beam.dE for two kicks')
 
+    def test_U0(self):
 
-        # np.testing.assert_almost_equal(self.beam.dE, beam_C.dE, decimal=8,
-        #                                err_msg='SR: Python and C implementations yield different results for two kicks')
+        # LEP, values from S. Lee 2nd ed., table 4.2
+        circumference = 26658.9  # [m]
+        energy = 55e9  # [eV]
+        R_bend = 3096.2  # bending radius [m]
+        alpha = 1e-3  # dummy value
+
+        ring = Ring(circumference, alpha, energy, Positron(),
+                    synchronous_data_type='total energy', n_turns=1)
+
+        rf_station_dummy = RFStation(ring, 42, 1e6, 0, n_rf=1)
+
+        iSR = SynchrotronRadiation(ring, rf_station_dummy, None, R_bend, shift_beam=False,
+                                   quantum_excitation=False)
+
+        self.assertEqual(int(iSR.U0 / 1e6), 261, msg="Wrong U0")
 
 
 class TestSynchRad(unittest.TestCase):
@@ -213,8 +221,9 @@ class TestSynchRad(unittest.TestCase):
                                              [self.phi_offset], self.n_rf_systems, section_index=i))
             self.RF_sct_par_cpp.append(RFStation(self.general_params,
                                                  [self.harmonic_numbers], [
-                                                     self.voltage_program/self.n_sections],
-                                                 [self.phi_offset], self.n_rf_systems, section_index=i))
+                                                      self.voltage_program/self.n_sections],
+                                                 [self.phi_offset], self.n_rf_systems,
+                                                 section_index=i))
 
         # DEFINE BEAM------------------------------------------------------------------
 
@@ -249,11 +258,13 @@ class TestSynchRad(unittest.TestCase):
 
         matched_from_distribution_function(self.beam, full_tracker, emittance=self.emittance,
                                            distribution_type=self.distribution_type,
-                                           distribution_variable=self.distribution_variable, seed=1000)
-        
-        matched_from_distribution_function(self.beam_cpp, full_tracker_cpp, emittance=self.emittance,
+                                           distribution_variable=self.distribution_variable,
+                                           seed=1000)
+
+        matched_from_distribution_function(self.beam_cpp, full_tracker_cpp,
+                                           emittance=self.emittance, seed=1000,
                                            distribution_type=self.distribution_type,
-                                           distribution_variable=self.distribution_variable, seed=1000)
+                                           distribution_variable=self.distribution_variable)
 
         self.slice_beam.track()
         self.slice_beam_cpp.track()

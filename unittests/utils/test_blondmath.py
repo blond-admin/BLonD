@@ -219,7 +219,17 @@ class TestWhere(unittest.TestCase):
         testing = np.nonzero(bm.where(a, less_than=less_than, more_than=more_than))[0]
         np.testing.assert_equal(real, testing)
 
-
+    def test_where_6(self):
+        a = np.arange(100).reshape(10,10)
+        testing = bm.where(a, less_than=0)
+        np.testing.assert_equal(a.shape, testing.shape, err_msg='Shapes do not match.')
+        
+    def test_where_7(self):
+        a = np.arange(9, dtype=np.float).reshape(3,3)
+        threshold = 4
+        real = a < threshold
+        testing = bm.where(a, less_than=threshold)
+        np.testing.assert_equal(real, testing)
 
 class TestSin(unittest.TestCase):
 

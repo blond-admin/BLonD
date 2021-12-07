@@ -187,10 +187,10 @@ class RFStation(object):
     t_rf : float matrix [n_rf, n_turns+1]
         RF period :math:`\frac{2 \pi}{\omega_{rf,l,n}}` [s]
     phi_s : float array [n_turns+1]
-        Synchronous phase for this section, calculated in
+        Synchronous phase for this section (if not empty), calculated in
         :py:func:`input_parameters.rf_parameters.calculate_phi_s`
     Q_s : float array [n_turns+1]
-        Synchrotron tune for this section, calculated in
+        Synchrotron tune for this section (if not empty), calculated in
         :py:func:`input_parameters.rf_parameters.calculate_Q_s`
     omega_s0 : float array [n_turns+1]
         Central synchronous angular frequency corresponding to Q_s (single
@@ -354,9 +354,10 @@ class RFStation(object):
         self.t_rf = 2*np.pi / self.omega_rf
 
         # From helper functions
-        self.phi_s = calculate_phi_s(self, self.Particle)
-        self.Q_s = calculate_Q_s(self, self.Particle)
-        self.omega_s0 = self.Q_s*Ring.omega_rev
+        if not self.empty:
+            self.phi_s = calculate_phi_s(self, self.Particle)
+            self.Q_s = calculate_Q_s(self, self.Particle)
+            self.omega_s0 = self.Q_s*Ring.omega_rev
 
     def eta_tracking(self, beam, counter, dE):
         r"""Function to calculate the slippage factor as a function of the
@@ -464,8 +465,11 @@ def calculate_phi_s(RFStation, Particle=Proton(),
         index_below = np.where(eta0_middle_points < 0)[0]
 
         # Project phi_s in correct range
-        phi_s[index] = (np.pi - phi_s[index]) % (2*np.pi)
-        phi_s[index_below] = (np.pi + phi_s[index_below]) % (2*np.pi)
+        phi_s[index] = (np.heaviside(np.sign(Particle.charge),0) * np.pi - phi_s[index]) % (2*np.pi)
+        phi_s[index_below] = (np.heaviside(np.sign(Particle.charge),0) * np.pi + phi_s[index_below])\
+            % (2*np.pi)
+        # phi_s[index] = (np.pi - phi_s[index]) % (2*np.pi)
+        # phi_s[index_below] = (np.pi + phi_s[index_below]) % (2*np.pi)
 
         return phi_s
 

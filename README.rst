@@ -279,7 +279,7 @@ Set-up Instructions
   
 * adjust your main file as needed (described bellow).
 
-* example scripts to setup and run a parameter scan in the HPC Slurm cluster: https://cernbox.cern.ch/index.php/s/dS1hwr7E1eIdsne
+* example scripts to setup and run a parameter scan in the HPC Slurm cluster: https://cernbox.cern.ch/index.php/s/shqtotwyn4rm8ws
 
 Changes required in the main file for MPI
 -----------------------------------------
@@ -338,14 +338,17 @@ CURRENT DEVELOPERS
 * Konstantinos Iliakis (konstantinos.iliakis (at) cern.ch)
 * Ivan Karpov (ivan.karpov (at) cern.ch)
 * Alexandre Lasheen (alexandre.lasheen (at) cern.ch)
-* Danilo Quartullo (danilo.quartullo (at) cern.ch)
-* Joel Repond (joel.repond (at) cern.ch)
+* Markus Schwarz (markus.schwarz (at) kit.edu)
 * Helga Timko (Helga.Timko (at) cern.ch)
 
 PREVIOUS DEVELOPERS
 ===================
 
 Juan Esteban Muller
+
+Joel Repond
+
+Danilo Quartullo
 
 STRUCTURE
 =========
