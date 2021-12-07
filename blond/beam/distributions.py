@@ -73,7 +73,7 @@ def matched_from_line_density(beam, full_ring_and_RF, line_density_input=None,
         extra_potential = np.interp(time_potential, extra_voltage_time_input,
                                     extra_potential_input)
     
-    if line_density_type is not 'user_input':
+    if line_density_type != 'user_input':
         # Time coordinates for the line density
         n_points_line_den = int(1e4)
         time_line_den = np.linspace(float(time_potential[0]), float(time_potential[-1]),
@@ -88,7 +88,7 @@ def matched_from_line_density(beam, full_ring_and_RF, line_density_input=None,
         line_density_ -= np.min(line_density_)
         line_density_ *= beam.n_macroparticles / np.sum(line_density_)
 
-    elif line_density_type is 'user_input':
+    elif line_density_type != 'user_input':
         # Time coordinates for the line density
         time_line_den = line_density_input['time_line_den']
         n_points_line_den = len(time_line_den)
@@ -192,22 +192,22 @@ def matched_from_line_density(beam, full_ring_and_RF, line_density_input=None,
     n_points_abel = int(n_points_abel)
     
     abel_both_step = 1
-    if half_option is 'both':
+    if half_option == 'both':
         abel_both_step = 2
         distribution_function_average = np.zeros((n_points_abel,2))
         hamiltonian_average = np.zeros((n_points_abel,2))
         
     for abel_index in range(0, abel_both_step):
-        if half_option is 'first':
+        if half_option == 'first':
             half_indexes = np.where((time_line_den >= time_line_den[0]) *
                                     (time_line_den <= max_profile_pos))
-        if half_option is 'second':
+        if half_option == 'second':
             half_indexes = np.where((time_line_den >= max_profile_pos) *
                                     (time_line_den <= time_line_den[-1]))
-        if half_option is 'both' and abel_index == 0:
+        if half_option == 'both' and abel_index == 0:
             half_indexes = np.where((time_line_den >= time_line_den[0]) *
                                     (time_line_den <= max_profile_pos))
-        if half_option is 'both' and abel_index == 1:
+        if half_option == 'both' and abel_index == 1:
             half_indexes = np.where((time_line_den >= max_profile_pos) *
                                     (time_line_den <= time_line_den[-1]))
         
@@ -236,7 +236,7 @@ def matched_from_line_density(beam, full_ring_and_RF, line_density_input=None,
         # Abel transform
         warnings.filterwarnings("ignore")
         
-        if (half_option is 'first') or (half_option is 'both' and
+        if (half_option == 'first') or (half_option == 'both' and
                                         abel_index == 0):
             for i in range(0, n_points_abel):
                 integrand = (line_den_diff_abel[:i+1] /
@@ -255,7 +255,7 @@ def matched_from_line_density(beam, full_ring_and_RF, line_density_input=None,
         
                 hamiltonian_coord[i] = potential_abel[i]
                 
-        if (half_option is 'second') or (half_option is 'both' and
+        if (half_option == 'second') or (half_option == 'both' and
                                          abel_index == 1):
             for i in range(0, n_points_abel):
                 integrand = (line_den_diff_abel[i:] /
@@ -278,13 +278,13 @@ def matched_from_line_density(beam, full_ring_and_RF, line_density_input=None,
         distribution_function_[np.isnan(distribution_function_)] = 0
         distribution_function_[distribution_function_<0] = 0
         
-        if half_option is 'both':
+        if half_option == 'both':
             hamiltonian_average[:,abel_index] = hamiltonian_coord
             distribution_function_average[:,abel_index] = \
                                                          distribution_function_
             
             
-    if half_option is 'both':
+    if half_option == 'both':
         hamiltonian_coord = hamiltonian_average[:,0]
         distribution_function_ = (distribution_function_average[:,0] +
                          np.interp(hamiltonian_coord, hamiltonian_average[:,1],
@@ -330,9 +330,9 @@ def matched_from_line_density(beam, full_ring_and_RF, line_density_input=None,
         plt.plot(time_for_grid, reconstructed_line_den / 
                         np.max(reconstructed_line_den) * np.max(line_density_))
         plt.title('Line densities')
-        if plot is 'show':
+        if plot == 'show':
             plt.show()
-        elif plot is 'savefig':
+        elif plot == 'savefig':
             fign = figdir + '/generated_bunch.png'
             plt.savefig(fign)
     
@@ -541,10 +541,10 @@ def matched_from_distribution_function(beam, full_ring_and_RF,
                            right=np.inf)
         
         # Choice of either H or J as the variable used
-        if distribution_variable is 'Action':
+        if distribution_variable == 'Action':
             sorted_X_dE0 = sorted_J_dE0
             X_grid = J_grid
-        elif distribution_variable is 'Hamiltonian':
+        elif distribution_variable == 'Hamiltonian':
             sorted_X_dE0 = sorted_H_dE0
             X_grid = H_grid
         else:
@@ -562,9 +562,9 @@ def matched_from_distribution_function(beam, full_ring_and_RF,
                                 full_ring_and_RF)
        
         elif emittance is not None:
-            if distribution_variable is 'Action':
+            if distribution_variable == 'Action':
                 X0 = emittance / (2*np.pi)
-            elif distribution_variable is 'Hamiltonian':
+            elif distribution_variable == 'Hamiltonian':
                 X0 = np.interp(emittance / (2*np.pi), sorted_J_dE0,
                                sorted_H_dE0)
         
@@ -648,7 +648,7 @@ def X0_from_bunch_length(bunch_length, bunch_length_fit, X_grid, sorted_X_dE0,
         # Takes middle point of the interval [X_low,X_hi]
         X0 = 0.5 * (X_low + X_hi)
         
-        if bunch_length_fit is 'full':
+        if bunch_length_fit == 'full':
             bunchIndices = np.where(np.sum(X_grid<=X0, axis=0))[0]
             tau = (time_potential_low_res[bunchIndices][-1] -
                    time_potential_low_res[bunchIndices][0])
@@ -680,13 +680,13 @@ def X0_from_bunch_length(bunch_length, bunch_length_fit, X_grid, sorted_X_dE0,
                         
                     profile.n_macroparticles = line_density_
                     
-                    if bunch_length_fit is 'gauss':
+                    if bunch_length_fit == 'gauss':
                         profile.bl_gauss = tau
                         profile.bp_gauss = np.sum(line_density_ *
                                 time_potential_low_res) / np.sum(line_density_)
                         profile.gaussian_fit()
                         tau = profile.bl_gauss
-                    elif bunch_length_fit is 'fwhm':
+                    elif bunch_length_fit == 'fwhm':
                         profile.fwhm()
                         tau = profile.bunchLength                        
         
@@ -736,11 +736,11 @@ def distribution_function(action_array, dist_type, length, exponent=None):
     
     if dist_type in ['binomial', 'waterbag', 'parabolic_amplitude',
                      'parabolic_line']:
-        if dist_type is 'waterbag':
+        if dist_type == 'waterbag':
             exponent = 0
-        elif dist_type is 'parabolic_amplitude':
+        elif dist_type == 'parabolic_amplitude':
             exponent = 1
-        elif dist_type is 'parabolic_line':
+        elif dist_type == 'parabolic_line':
             exponent = 0.5
 
         warnings.filterwarnings("ignore")
@@ -749,7 +749,7 @@ def distribution_function(action_array, dist_type, length, exponent=None):
         distribution_function_[action_array > length] = 0
         return distribution_function_
     
-    elif dist_type is 'gaussian':
+    elif dist_type == 'gaussian':
         distribution_function_ = np.exp(- 2 * action_array / length)
         return distribution_function_
 
@@ -767,11 +767,11 @@ def line_density(coord_array, dist_type, bunch_length, bunch_position=0,
     
     if dist_type in ['binomial', 'waterbag', 'parabolic_amplitude',
                      'parabolic_line']:
-        if dist_type is 'waterbag':
+        if dist_type == 'waterbag':
             exponent = 0
-        elif dist_type is 'parabolic_amplitude':
+        elif dist_type == 'parabolic_amplitude':
             exponent = 1
-        elif dist_type is 'parabolic_line':
+        elif dist_type == 'parabolic_line':
             exponent = 0.5
         
         warnings.filterwarnings("ignore")
@@ -781,12 +781,12 @@ def line_density(coord_array, dist_type, bunch_length, bunch_position=0,
         line_density_[np.abs(coord_array-bunch_position) > bunch_length/2] = 0
         return line_density_
     
-    elif dist_type is 'gaussian':
+    elif dist_type == 'gaussian':
         sigma = bunch_length/4
         line_density_ = np.exp(-(coord_array-bunch_position)**2 / (2*sigma**2))
         return line_density_
     
-    elif dist_type is 'cosine_squared':
+    elif dist_type == 'cosine_squared':
         warnings.filterwarnings("ignore")
         line_density_ = ( np.cos(np.pi * (coord_array - bunch_position) /
                                  bunch_length)**2 )
