@@ -180,14 +180,14 @@ class SPSCavityFeedback(object):
 
             if not V_part:
                 V_part = 4/9
-            self.OTFB_1 = SPSOneTurnFeedback_new(RFStation, Beam, Profile, 4,
+            self.OTFB_1 = SPSOneTurnFeedback(RFStation, Beam, Profile, 4,
                                              n_cavities=2, V_part=V_part,
                                              G_ff=float(G_ff_1),
                                              G_llrf=float(G_llrf_1),
                                              G_tx=float(G_tx_1),
                                              a_comb=float(a_comb),
                                              Commissioning=self.Commissioning)
-            self.OTFB_2 = SPSOneTurnFeedback_new(RFStation, Beam, Profile, 5,
+            self.OTFB_2 = SPSOneTurnFeedback(RFStation, Beam, Profile, 5,
                                              n_cavities=2, V_part=1-V_part,
                                              G_ff=float(G_ff_2),
                                              G_llrf=float(G_llrf_2),
