@@ -118,7 +118,7 @@ class SPSCavityFeedback(object):
     """
 
     def __init__(self, RFStation, Beam, Profile, G_ff=1, G_llrf=10, G_tx=0.5,
-                 a_comb=None, turns=1000, post_LS2=True, V_part=None,
+                 a_comb=None, turns=1000, post_LS2=True, V_part=None, domega = None,
                  Commissioning=CavityFeedbackCommissioning()):
 
 
@@ -148,6 +148,13 @@ class SPSCavityFeedback(object):
         else:
             G_tx_1 = G_tx
             G_tx_2 = G_tx
+
+        if type(domega) is list:
+            domega_1 = domega[0]
+            domega_2 = domega[1]
+        else:
+            domega_1 = domega
+            domega_2 = domega
 
         # Voltage partitioning has to be a fraction
         if V_part and V_part*(1 - V_part) < 0:
@@ -186,6 +193,7 @@ class SPSCavityFeedback(object):
                                              G_llrf=float(G_llrf_1),
                                              G_tx=float(G_tx_1),
                                              a_comb=float(a_comb),
+                                             domega=domega_1,
                                              Commissioning=self.Commissioning)
             self.OTFB_2 = SPSOneTurnFeedback(RFStation, Beam, Profile, 5,
                                              n_cavities=2, V_part=1-V_part,
@@ -193,6 +201,7 @@ class SPSCavityFeedback(object):
                                              G_llrf=float(G_llrf_2),
                                              G_tx=float(G_tx_2),
                                              a_comb=float(a_comb),
+                                             domega=domega_2,
                                              Commissioning=self.Commissioning)
 
         # Set up logging
@@ -264,7 +273,7 @@ class SPSCavityFeedback(object):
 class SPSOneTurnFeedback(object):
 
     def __init__(self, RFStation, Beam, Profile, n_sections, n_cavities=4,
-                 V_part=4/9, G_ff=1, G_llrf=10, G_tx=0.5, a_comb=63/64,
+                 V_part=4/9, G_ff=1, G_llrf=10, G_tx=0.5, a_comb=63/64, domega=0,
                  Commissioning=CavityFeedbackCommissioning()):
 
         # Set up logging
@@ -320,7 +329,7 @@ class SPSOneTurnFeedback(object):
 
         # 200 Hz travelling wave cavity (TWC) model
         if n_sections in [3, 4, 5]:
-            self.TWC = eval("SPS" + str(n_sections) + "Section200MHzTWC()")
+            self.TWC = eval("SPS" + str(n_sections) + "Section200MHzTWC(" + str(domega) + ")")
             if self.open_FF == 1:
                 # Feed-forward fitler
                 self.coeff_FF = getattr(sys.modules[__name__],
