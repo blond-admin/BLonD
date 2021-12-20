@@ -173,6 +173,7 @@ class SPSCavityFeedback(object):
                                              G_llrf=float(G_llrf_1),
                                              G_tx=float(G_tx_1),
                                              a_comb=float(a_comb),
+                                             domega=float(domega_1),
                                              Commissioning=self.Commissioning)
             self.OTFB_2 = SPSOneTurnFeedback(RFStation, Beam, Profile, 4,
                                              n_cavities=2, V_part=1-V_part,
@@ -180,6 +181,7 @@ class SPSCavityFeedback(object):
                                              G_llrf=float(G_llrf_2),
                                              G_tx=float(G_tx_2),
                                              a_comb=float(a_comb),
+                                             domega=float(domega_2),
                                              Commissioning=self.Commissioning)
         else:
             if not a_comb:
@@ -193,7 +195,7 @@ class SPSCavityFeedback(object):
                                              G_llrf=float(G_llrf_1),
                                              G_tx=float(G_tx_1),
                                              a_comb=float(a_comb),
-                                             domega=domega_1,
+                                             domega=float(domega_1),
                                              Commissioning=self.Commissioning)
             self.OTFB_2 = SPSOneTurnFeedback(RFStation, Beam, Profile, 5,
                                              n_cavities=2, V_part=1-V_part,
@@ -201,7 +203,7 @@ class SPSCavityFeedback(object):
                                              G_llrf=float(G_llrf_2),
                                              G_tx=float(G_tx_2),
                                              a_comb=float(a_comb),
-                                             domega=domega_2,
+                                             domega=float(domega_2),
                                              Commissioning=self.Commissioning)
 
         # Set up logging
