@@ -118,7 +118,7 @@ class SPSCavityFeedback(object):
     """
 
     def __init__(self, RFStation, Beam, Profile, G_ff=1, G_llrf=10, G_tx=0.5,
-                 a_comb=None, turns=1000, post_LS2=True, V_part=None, domega = None,
+                 a_comb=None, turns=1000, post_LS2=True, V_part=None, domega=0,
                  Commissioning=CavityFeedbackCommissioning()):
 
 
