@@ -42,12 +42,12 @@ gconfig = {
         '2': 'RDS',
     },
     'colors': {
-        # 'Base': 'tab:orange',
-        # 'LB-TP': 'tab:green',
-        # 'TP': 'tab:blue'
-        'Base': '0.1',
-        'TP': '0.5',
-        'LB-TP': '0.9',
+        'Base': 'tab:orange',
+        'LB-TP': 'tab:green',
+        'TP': 'tab:blue'
+        # 'Base': '0.1',
+        # 'TP': '0.5',
+        # 'LB-TP': '0.9',
 
     },
     'hatches': ['', '', 'xx', '', 'xx', '', 'xx'],
@@ -65,7 +65,7 @@ gconfig = {
         # 'x': 0.55,
         'fontweight': 'bold',
     },
-    'figsize': [5, 2],
+    'figsize': [4, 2.75],
     'annotate': {
         'fontsize': 10,
         'textcoords': 'data',
@@ -79,7 +79,7 @@ gconfig = {
         'loc': 'upper left', 'ncol': 7, 'handlelength': 2, 'fancybox': True,
         'framealpha': 0., 'fontsize': 10, 'labelspacing': 0, 'borderpad': 0.5,
         'handletextpad': 0.2, 'borderaxespad': 0.1, 'columnspacing': 0.5,
-        'bbox_to_anchor': (-0.01, 1.15)
+        'bbox_to_anchor': (-0.01, 1.12)
     },
     'subplots_adjust': {
         'wspace': 0.0, 'hspace': 0.1, 'top': 0.93
@@ -89,9 +89,9 @@ gconfig = {
         'direction': 'out', 'length': 3, 'width': 1,
     },
     'fontname': 'DejaVu Sans Mono',
-    'ylim': [0.5, 1.05],
+    'ylim': [0.2, 1.05],
     # 'ylim2': [10, 90],
-    'yticks': [0.5, 0.6, 0.7, .8, .9, 1.],
+    'yticks': [0.2, 0.4, 0.6, .8, 1.],
     # 'yticks2': [0, 20, 40, 60, 80, 100],
     'outfiles': ['{}/{}-{}.png',
                 '{}/{}-{}.pdf'],

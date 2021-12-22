@@ -56,19 +56,19 @@ gconfig = {
         'doubleRDS': 'RDS',
     },
     'colors': {
-        'Base': '0.8',
-        'F32': '0.8',
-        'F32-SRP': '0.5',
-        'SRP': '0.5',
-        'F32-RDS': '0.3',
-        'RDS': '0.3',
+        # 'Base': '0.8',
+        # 'F32': '0.8',
+        # 'F32-SRP': '0.5',
+        # 'SRP': '0.5',
+        # 'F32-RDS': '0.3',
+        # 'RDS': '0.3',
 
-        # 'Base': 'tab:orange',
-        # 'F32': 'tab:orange',
-        # 'F32-SRP': 'tab:blue',
-        # 'SRP': 'tab:blue',
-        # 'F32-RDS': 'tab:green',
-        # 'RDS': 'tab:green',
+        'Base': 'tab:orange',
+        'F32': 'tab:orange',
+        'F32-SRP': 'tab:blue',
+        'SRP': 'tab:blue',
+        'F32-RDS': 'tab:green',
+        'RDS': 'tab:green',
     },
     'hatches': {
         'Base': '',
@@ -97,7 +97,7 @@ gconfig = {
         'x': 0.1,
         'fontweight': 'bold',
     },
-    'figsize': [5, 1.8],
+    'figsize': [4, 2.75],
     'annotate': {
         'fontsize': 10,
         'textcoords': 'data',
@@ -108,10 +108,10 @@ gconfig = {
     'ticks': {'fontsize': 10, 'rotation': '0'},
     'fontsize': 10,
     'legend': {
-        'loc': 'upper left', 'ncol': 9, 'handlelength': 1.6, 'fancybox': True,
-        'framealpha': 0., 'fontsize': 10, 'labelspacing': 0, 'borderpad': 0.5,
-        'handletextpad': 0.3, 'borderaxespad': 0.1, 'columnspacing': 0.35,
-        'bbox_to_anchor': (-0.01, 1.16)
+        'loc': 'upper left', 'ncol': 5, 'handlelength': 1.3, 'fancybox': True,
+        'framealpha': 1, 'fontsize': 10, 'labelspacing': 0, 'borderpad': 0.4,
+        'handletextpad': 0.1, 'borderaxespad': 0.1, 'columnspacing': 0.25,
+        # 'bbox_to_anchor': (-0.01, 1.16)
     },
     'subplots_adjust': {
         'wspace': 0.0, 'hspace': 0.1, 'top': 0.93
@@ -205,7 +205,7 @@ if __name__ == '__main__':
                 else:
                     plots_dir['_{}_tp0'.format(key)] = temp[key].copy()
 
-        width = .85 * step / (len(plots_dir.keys()))
+        width = .85 * step / (len(plots_dir.keys()) -1)
 
         # First the reference value
         keyref = ''
@@ -234,7 +234,8 @@ if __name__ == '__main__':
         keys = ['_'.join(a.split('_')[1:4]) for a in list(plots_dir.keys())]
         print(keys)
         keys = np.array(list(plots_dir.keys()))[np.argsort(keys)]
-        for idx, k in enumerate(keys):
+        idx = 0
+        for k in (keys):
             values = plots_dir[k]
             # mpiv = k.split('_mpi')[1].split('_')[0]
             # lb = k.split('lb')[1].split('_')[0]
@@ -253,6 +254,8 @@ if __name__ == '__main__':
             #     tp = ''
             approx = gconfig['approx'][approx]
             label = gconfig['label'][prec+approx]
+            if label == 'Base':
+                continue
             # if prec == 'single':
             #     label = 'f32'
             # if approx == '':
@@ -308,6 +311,7 @@ if __name__ == '__main__':
                     edgecolor='0.', label=legend, 
                     hatch=gconfig['hatches'][label],
                     color=gconfig['colors'][label])
+            idx += 1
             # if k != keyref:
             #     for i in np.arange(len(speedup)):
             #         if speedup[i] > 0.9:
@@ -315,6 +319,7 @@ if __name__ == '__main__':
             #         ax.annotate('{:.2f}'.format(speedup[i]),
             #                     xy=(pos+idx*width+i, speedup[i]),
             #                     rotation='90', **gconfig['annotate'])
+        idx = idx - 1
         plt.axvline(x=(pos+idx*width + pos+step)/2, color='black', ls='--')
         pos += step
 
