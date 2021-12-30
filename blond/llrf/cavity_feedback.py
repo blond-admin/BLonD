@@ -33,7 +33,7 @@ class CavityFeedbackCommissioning(object):
 
     def __init__(self, debug=False, open_loop=False, open_FB=False,
                  open_drive=False, open_FF=False, V_SET=None,
-                 cpp_conv = False, pwr_clamp = False):
+                 cpp_conv = False, pwr_clamp = False, phase_corr_sign = +1):
         """Class containing commissioning settings for the cavity feedback
 
         Parameters
@@ -61,6 +61,7 @@ class CavityFeedbackCommissioning(object):
         self.V_SET = V_SET
         self.cpp_conv = cpp_conv
         self.pwr_clamp = pwr_clamp
+        self.phase_corr_sign = phase_corr_sign
 
 
 class SPSCavityFeedback(object):
@@ -124,6 +125,7 @@ class SPSCavityFeedback(object):
 
         # Options for commissioning the feedback
         self.Commissioning = Commissioning
+        self.phase_corr_sign = Commissioning.phase_corr_sign
 
         self.rf = RFStation
 
@@ -230,8 +232,7 @@ class SPSCavityFeedback(object):
 
         # Calculate OTFB correction w.r.t. RF voltage and phase in RFStation
         self.V_corr /= self.rf.voltage[0, self.rf.counter[0]]
-        self.phi_corr = 0.5*np.pi - alpha_sum \
-            - self.rf.phi_rf[0, self.rf.counter[0]]
+        self.phi_corr = self.phase_corr_sign * (0.5*np.pi - alpha_sum - self.rf.phi_rf[0, self.rf.counter[0]])
 
     def track_init(self, debug=False):
         r''' Tracking of the SPSCavityFeedback without beam.
