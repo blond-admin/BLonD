@@ -335,7 +335,7 @@ class SPSOneTurnFeedback(object):
 
         # 200 Hz travelling wave cavity (TWC) model
         if n_sections in [3, 4, 5]:
-            self.TWC = eval("SPS" + str(n_sections) + "Section200MHzTWC(" + str(domega) + ")")
+            self.TWC = eval("SPS" + str(n_sections) + "Section200MHzTWC(" + str(df) + ")")
             if self.open_FF == 1:
                 # Feed-forward fitler
                 self.coeff_FF = getattr(sys.modules[__name__],
