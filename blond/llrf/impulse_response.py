@@ -326,7 +326,7 @@ class TravellingWaveCavity(object):
         t_beam = time_fine - time_fine[0]
 
         # Impulse response if on carrier frequency
-        self.h_beam = -(-2*self.R_beam/self.tau*                                 # TODO: minus (without minus wake from impedance matches)
+        self.h_beam = (-2*self.R_beam/self.tau*                                 # TODO: minus (without minus wake from impedance matches)
                        triangle(t_beam, self.tau)).astype(np.complex128)
 
         # Impulse response if not on carrier frequency
