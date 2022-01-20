@@ -208,7 +208,7 @@ class TravellingWaveCavity(object):
 
     """
 
-    def __init__(self, l_cell, N_cells, rho, v_g, omega_r, domega = 0):
+    def __init__(self, l_cell, N_cells, rho, v_g, omega_r, df = 0):
 
         self.l_cell = float(l_cell)
         self.N_cells = int(N_cells)
@@ -219,7 +219,7 @@ class TravellingWaveCavity(object):
             #ImpulseError
             raise RuntimeError("ERROR in TravellingWaveCavity: group" +
                                " velocity out of limits (0,1)!")
-        self.omega_r = float(omega_r) + 2 * np.pi * float(domega)
+        self.omega_r = float(omega_r) + 2 * np.pi * float(df)
 
         # Calculated
         self.l_cav = float(self.l_cell*self.N_cells)
@@ -326,7 +326,7 @@ class TravellingWaveCavity(object):
         t_beam = time_fine - time_fine[0]
 
         # Impulse response if on carrier frequency
-        self.h_beam = (-2*self.R_beam/self.tau*                                 # TODO: minus
+        self.h_beam = -(-2*self.R_beam/self.tau*                                 # TODO: minus (without minus wake from impedance matches)
                        triangle(t_beam, self.tau)).astype(np.complex128)
 
         # Impulse response if not on carrier frequency
@@ -378,23 +378,23 @@ class TravellingWaveCavity(object):
 
 class SPS3Section200MHzTWC(TravellingWaveCavity):
 
-    def __init__(self, domega = 0):
+    def __init__(self, df = 0):
 
         TravellingWaveCavity.__init__(self, 0.374, 32, 2.71e4, 0.0946,
-                                      2*np.pi*200.03766667e6, domega = domega)
+                                      2*np.pi*200.03766667e6, df = df)
 
 
 class SPS4Section200MHzTWC(TravellingWaveCavity):
 
-    def __init__(self, domega = 0):
+    def __init__(self, df = 0):
 
         TravellingWaveCavity.__init__(self, 0.374, 43, 2.71e4, 0.0946,
-                                      2*np.pi*199.9945e6, domega = domega)
+                                      2*np.pi*199.9945e6, df = df)
 
 
 class SPS5Section200MHzTWC(TravellingWaveCavity):
 
-    def __init__(self, domega = 0):
+    def __init__(self, df = 0):
 
         TravellingWaveCavity.__init__(self, 0.374, 54, 2.71e4, 0.0946,
-                                      2*np.pi*200.1e6, domega = domega)
+                                      2*np.pi*200.1e6, df = df)

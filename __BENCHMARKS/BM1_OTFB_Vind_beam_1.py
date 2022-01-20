@@ -51,10 +51,10 @@ N_t = 1000                  # Number of turns to track
 
 # OPTIONS TO TEST -------------------------------------------------------------
 LOGGING = False              # Logging messages
-RF_CURRENT = False           # RF beam current
-RF_CURRENT2 = False          # RF beam current
-IMP_RESP = False             # Impulse response of travelling wave cavity
-FINE_COARSE = False          # Beam-induced voltage on fine/coarse grid
+RF_CURRENT = True           # RF beam current
+RF_CURRENT2 = True          # RF beam current
+IMP_RESP = True             # Impulse response of travelling wave cavity
+FINE_COARSE = True          # Beam-induced voltage on fine/coarse grid
 VIND_BEAM = True            # Beam-induced voltage
 
 # OPTIONS TO TEST -------------------------------------------------------------
@@ -250,7 +250,7 @@ if FINE_COARSE == True:
     # Impulse response and induced voltage through OTFB object
     OTFB.TWC.impulse_response_beam(OTFB.omega_c, OTFB.profile.bin_centers,
                                    OTFB.rf_centers)
-    OTFB.beam_induced_voltage(lpf=False)
+    OTFB.beam_response()
     np.set_printoptions(precision=10)
     #print(repr((OTFB.TWC.h_beam[::1000])[:100]))
     #print(repr(OTFB.TWC.h_beam_coarse[:100]))
@@ -273,13 +273,13 @@ if FINE_COARSE == True:
 
     plt.figure()
     plt.plot(time_fine*1e6, V_beam_fine.real*1e-6, 'b', marker='.', label='V_beam, fine, real')
-    plt.plot(time_fine*1e6, OTFB.V_fine_ind_beam.real*1e-6, 'b', marker='.', alpha=0.5, label='V_beam, fine, real')
+    plt.plot(time_fine*1e6, OTFB.V_IND_FINE_BEAM[-OTFB.profile.n_slices:].real*1e-6, 'b', marker='.', alpha=0.5, label='V_beam, fine, real')
     plt.plot(time_coarse*1e6, V_beam_coarse.real*1e-6, 'teal', marker='.', label='V_beam, coarse, real')
-    plt.plot(time_coarse*1e6, OTFB.V_coarse_ind_beam.real*1e-6, 'teal', marker='.', alpha=0.5, label='V_beam, coarse, real')
+    plt.plot(time_coarse*1e6, OTFB.V_IND_COARSE_BEAM[-h[0]:].real*1e-6, 'teal', marker='.', alpha=0.5, label='V_beam, coarse, real')
     plt.plot(time_fine*1e6, V_beam_fine.imag*1e-6, 'r', marker='.', label='V_beam, fine, imag')
-    plt.plot(time_fine*1e6, OTFB.V_fine_ind_beam.imag*1e-6, 'r', marker='.', alpha=0.5, label='V_beam, fine, imag')
+    plt.plot(time_fine*1e6, OTFB.V_IND_FINE_BEAM[-OTFB.profile.n_slices:].imag*1e-6, 'r', marker='.', alpha=0.5, label='V_beam, fine, imag')
     plt.plot(time_coarse*1e6, V_beam_coarse.imag*1e-6, 'orange', marker='.', label='V_beam, coarse, imag')
-    plt.plot(time_coarse*1e6, OTFB.V_coarse_ind_beam.imag*1e-6, 'orange', marker='.', alpha=0.5, label='V_beam, coarse, imag')
+    plt.plot(time_coarse*1e6, OTFB.V_IND_COARSE_BEAM[-h[0]:].imag*1e-6, 'orange', marker='.', alpha=0.5, label='V_beam, coarse, imag')
     plt.xlabel("Time [us]")
     plt.ylabel("Induced voltage per cavity [MV]")
     plt.xlim((-1,5))
@@ -306,13 +306,14 @@ if VIND_BEAM == True:
     OTFB_3.omega_c = omega_c
     OTFB_4.omega_c = omega_c
     OTFB_5.omega_c = omega_c
-    OTFB_3.TWC.impulse_response_beam(omega_c, profile.bin_centers)
-    OTFB_4.TWC.impulse_response_beam(omega_c, profile.bin_centers)
-    OTFB_5.TWC.impulse_response_beam(omega_c, profile.bin_centers)
-    OTFB_3.beam_induced_voltage(lpf=False)
-    OTFB_4.beam_induced_voltage(lpf=False)
-    OTFB_5.beam_induced_voltage(lpf=False)
-    V_ind_beam = OTFB_3.V_fine_ind_beam +OTFB_4.V_fine_ind_beam + OTFB_5.V_fine_ind_beam
+    #OTFB_3.TWC.impulse_response_beam(omega_c, profile.bin_centers)
+    #OTFB_4.TWC.impulse_response_beam(omega_c, profile.bin_centers)
+    #OTFB_5.TWC.impulse_response_beam(omega_c, profile.bin_centers)
+    OTFB_3.track()
+    OTFB_4.track()
+    OTFB_5.track()
+    V_ind_beam = OTFB_3.V_IND_FINE_BEAM[-OTFB_3.profile.n_slices:] + OTFB_4.V_IND_FINE_BEAM[-OTFB_4.profile.n_slices:] + \
+                 OTFB_5.V_IND_FINE_BEAM[-OTFB_5.profile.n_slices:]
     plt.figure()
     convtime = np.linspace(-1e-9, -1e-9+len(V_ind_beam.real)*
                            profile.bin_size, len(V_ind_beam.real))

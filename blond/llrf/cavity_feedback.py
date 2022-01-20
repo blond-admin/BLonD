@@ -33,7 +33,8 @@ class CavityFeedbackCommissioning(object):
 
     def __init__(self, debug=False, open_loop=False, open_FB=False,
                  open_drive=False, open_FF=False, V_SET=None,
-                 cpp_conv = False, pwr_clamp = False, phase_corr_sign = +1):
+                 cpp_conv = False, pwr_clamp = False, phase_corr_sign = +1,
+                 rot_IQ = 1):
         """Class containing commissioning settings for the cavity feedback
 
         Parameters
@@ -62,6 +63,7 @@ class CavityFeedbackCommissioning(object):
         self.cpp_conv = cpp_conv
         self.pwr_clamp = pwr_clamp
         self.phase_corr_sign = phase_corr_sign
+        self.rot_IQ = rot_IQ
 
 
 class SPSCavityFeedback(object):
@@ -119,7 +121,7 @@ class SPSCavityFeedback(object):
     """
 
     def __init__(self, RFStation, Beam, Profile, G_ff=1, G_llrf=10, G_tx=0.5,
-                 a_comb=None, turns=1000, post_LS2=True, V_part=None, domega=0,
+                 a_comb=None, turns=1000, post_LS2=True, V_part=None, df=0,
                  Commissioning=CavityFeedbackCommissioning()):
 
 
@@ -151,12 +153,12 @@ class SPSCavityFeedback(object):
             G_tx_1 = G_tx
             G_tx_2 = G_tx
 
-        if type(domega) is list:
-            domega_1 = domega[0]
-            domega_2 = domega[1]
+        if type(df) is list:
+            df_1 = df[0]
+            df_2 = df[1]
         else:
-            domega_1 = domega
-            domega_2 = domega
+            df_1 = df
+            df_2 = df
 
         # Voltage partitioning has to be a fraction
         if V_part and V_part*(1 - V_part) < 0:
@@ -175,7 +177,7 @@ class SPSCavityFeedback(object):
                                              G_llrf=float(G_llrf_1),
                                              G_tx=float(G_tx_1),
                                              a_comb=float(a_comb),
-                                             domega=float(domega_1),
+                                             df=float(df_1),
                                              Commissioning=self.Commissioning)
             self.OTFB_2 = SPSOneTurnFeedback(RFStation, Beam, Profile, 4,
                                              n_cavities=2, V_part=1-V_part,
@@ -183,7 +185,7 @@ class SPSCavityFeedback(object):
                                              G_llrf=float(G_llrf_2),
                                              G_tx=float(G_tx_2),
                                              a_comb=float(a_comb),
-                                             domega=float(domega_2),
+                                             df=float(df_2),
                                              Commissioning=self.Commissioning)
         else:
             if not a_comb:
@@ -197,7 +199,7 @@ class SPSCavityFeedback(object):
                                              G_llrf=float(G_llrf_1),
                                              G_tx=float(G_tx_1),
                                              a_comb=float(a_comb),
-                                             domega=float(domega_1),
+                                             df=float(df_1),
                                              Commissioning=self.Commissioning)
             self.OTFB_2 = SPSOneTurnFeedback(RFStation, Beam, Profile, 5,
                                              n_cavities=2, V_part=1-V_part,
@@ -205,7 +207,7 @@ class SPSCavityFeedback(object):
                                              G_llrf=float(G_llrf_2),
                                              G_tx=float(G_tx_2),
                                              a_comb=float(a_comb),
-                                             domega=float(domega_2),
+                                             df=float(df_2),
                                              Commissioning=self.Commissioning)
 
         # Set up logging
@@ -276,7 +278,7 @@ class SPSCavityFeedback(object):
 class SPSOneTurnFeedback(object):
 
     def __init__(self, RFStation, Beam, Profile, n_sections, n_cavities=4,
-                 V_part=4/9, G_ff=1, G_llrf=10, G_tx=0.5, a_comb=63/64, domega=0,
+                 V_part=4/9, G_ff=1, G_llrf=10, G_tx=0.5, a_comb=63/64, df=0,
                  Commissioning=CavityFeedbackCommissioning()):
 
         # Set up logging
@@ -310,6 +312,7 @@ class SPSOneTurnFeedback(object):
             self.set_point_modulation = True
 
         self.cpp_conv = Commissioning.cpp_conv
+        self.rot_IQ = Commissioning.rot_IQ
 
         # Read input
         self.rf = RFStation
@@ -572,7 +575,7 @@ class SPSOneTurnFeedback(object):
 
         # Convert to array
         self.V_SET[:self.n_coarse] = self.V_SET[-self.n_coarse]
-        self.V_SET[-self.n_coarse:] = self.V_set * np.ones(self.n_coarse)
+        self.V_SET[-self.n_coarse:] = self.V_set * np.ones(self.n_coarse) * self.rot_IQ
 
 
     def set_point_mod(self):
@@ -664,11 +667,13 @@ class SPSOneTurnFeedback(object):
 
         if coarse:
             self.V_IND_COARSE_BEAM[:self.n_coarse] = self.V_IND_COARSE_BEAM[-self.n_coarse:]
-            self.V_IND_COARSE_BEAM[-self.n_coarse:] = self.n_cavities * self.matr_conv(self.I_COARSE_BEAM,
+            self.V_IND_COARSE_BEAM[-self.n_coarse:] = self.rot_IQ * self.n_cavities * \
+                                                      self.matr_conv(self.I_COARSE_BEAM,
                                                                             self.TWC.h_beam_coarse)[-self.n_coarse:]
         else:
             self.V_IND_FINE_BEAM[:self.profile.n_slices] = self.V_IND_FINE_BEAM[-self.profile.n_slices:]
-            self.V_IND_FINE_BEAM[-self.profile.n_slices:] = self.n_cavities * self.matr_conv(self.I_FINE_BEAM,
+            self.V_IND_FINE_BEAM[-self.profile.n_slices:] = self.rot_IQ * self.n_cavities * \
+                                                            self.matr_conv(self.I_FINE_BEAM,
                                                                             self.TWC.h_beam)[-self.profile.n_slices:]
 
 

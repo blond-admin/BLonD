@@ -271,9 +271,9 @@ def matched_from_distribution_density_multibunch(beam, Ring, FullRingAndRF, dist
             voltages = np.append(voltages, RingAndRFSectionElement.voltage[rf_system, 0])
             harmonics = np.append(harmonics, RingAndRFSectionElement.harmonic[rf_system, 0])
 
-    if main_harmonic_option is 'lowest_freq':
+    if main_harmonic_option == 'lowest_freq':
         main_harmonic = np.min(harmonics)
-    elif main_harmonic_option is 'highest_voltage':
+    elif main_harmonic_option == 'highest_voltage':
         main_harmonic = np.min(harmonics[voltages == np.max(voltages)])
     elif isinstance(main_harmonic_option, int) or isinstance(main_harmonic_option, float):
         if harmonics[harmonics == main_harmonic_option].size == 0:
@@ -340,12 +340,12 @@ def matched_from_distribution_density_multibunch(beam, Ring, FullRingAndRF, dist
         else:
             distribution_variable = None
 
-        if distribution_options['type'] is 'user_input':
+        if distribution_options['type'] == 'user_input':
             distribution_function_input = distribution_options['function']
         else:
             distribution_function_input = None
 
-        if distribution_options['type'] is 'user_input_table':
+        if distribution_options['type'] == 'user_input_table':
             distribution_user_table = {
                 'user_table_action': distribution_options['user_table_action'],
                 'user_table_density': distribution_options['user_table_density']}
