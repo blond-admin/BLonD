@@ -268,12 +268,12 @@ class SPSCavityFeedback(object):
             self.OTFB_1.profile.bin_centers, self.OTFB_1.rf_centers,
             self.OTFB_1.V_IND_COARSE_GEN[-self.OTFB_1.n_coarse:] + self.OTFB_2.V_IND_COARSE_GEN[-self.OTFB_2.n_coarse:])
 
-        self.V_corr, alpha_sum = cartesian_to_polar(self.V_sum)
+        self.V_corr, self.alpha_sum = cartesian_to_polar(self.V_sum)
 
         # Calculate OTFB correction w.r.t. RF voltage and phase in RFStation
         self.V_corr /= self.rf.voltage[0, self.rf.counter[0]]
-        self.phi_corr = 0.5*np.pi - alpha_sum \
-            - self.rf.phi_rf[0, self.rf.counter[0]]
+        self.phi_corr = self.phase_corr_sign * (np.angle(self.OTFB_1.V_SET[-self.OTFB_1.n_coarse]) - self.alpha_sum -
+                                                self.rf.phi_rf[0, self.rf.counter[0]])
 
 
 
@@ -573,7 +573,7 @@ class SPSOneTurnFeedback(object):
         # Read RF voltage from rf object
         self.V_set = polar_to_cartesian(
             self.V_part * self.rf.voltage[0, self.counter],
-            0.5 * np.pi - self.rf.phi_rf[0, self.counter] + np.angle(self.rot_IQ)) # TODO: +np.pi
+            0.5 * np.pi - self.rf.phi_rf[0, self.counter] + np.angle(self.rot_IQ))
 
         # Convert to array
         self.V_SET[:self.n_coarse] = self.V_SET[-self.n_coarse:]

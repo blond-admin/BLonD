@@ -282,7 +282,7 @@ class TravellingWaveCavity(object):
         # Impulse response if not on carrier frequency
         if np.fabs((self.d_omega)/self.omega_r) > 1e-12:
             # TODO: minus
-            self.h_gen = self.h_gen.real*(np.cos(self.d_omega*t_gen) -
+            self.h_gen = self.h_gen.real*(np.cos(self.d_omega*t_gen) -  # TODO: is this minus sign supposed to be here?
                                           1j*np.sin(self.d_omega*t_gen))
 
     def impulse_response_beam(self, omega_c, time_fine, time_coarse=None):
