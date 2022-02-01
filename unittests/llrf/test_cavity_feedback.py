@@ -15,7 +15,6 @@ Unittest for llrf.cavity_feedback
 
 import unittest
 import numpy as np
-import matplotlib.pyplot as plt
 from scipy.constants import c
 
 from blond.llrf.cavity_feedback import SPSOneTurnFeedback, SPSCavityFeedback, CavityFeedbackCommissioning
@@ -187,7 +186,6 @@ class TestSPSCavityFeedback(unittest.TestCase):
         # compare the maxium of the ratio
         max_ratio = np.max(self.cavity_tracker.rf_voltage
                            / self.OTFB_tracker.rf_voltage)
-        max_ratio = max_ratio
 
         max_ratio_exp = 1.0001336336515099
         self.assertAlmostEqual(max_ratio, max_ratio_exp,
