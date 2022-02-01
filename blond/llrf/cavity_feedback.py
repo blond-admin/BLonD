@@ -1,18 +1,27 @@
-'''
-Author: Helga Timko, Birk Emil Karlsen-Bæck
+# coding: utf8
+# Copyright 2014-2017 CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.md.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
 
-Rewriting the cavity feedback objects for the SPS machine for easier debugging.
+'''
+**Various cavity loops for the CERN machines**
+:Authors: **Birk Emil Karlsen-Baeck**, **Helga Timko**
 '''
 
-# Imports ---------------------------------------------------------------------
+
 import logging
-import numpy as np
-import sys
-import scipy.signal
 import matplotlib.pyplot as plt
+import numpy as np
+import scipy.signal
+import sys
+
 
 from blond.llrf.signal_processing import comb_filter, cartesian_to_polar,\
-    polar_to_cartesian, modulator, moving_average, H_cav,\
+    polar_to_cartesian, modulator, moving_average,\
     rf_beam_current, moving_average_improved
 from blond.llrf.impulse_response import SPS3Section200MHzTWC, \
     SPS4Section200MHzTWC, SPS5Section200MHzTWC
@@ -21,19 +30,16 @@ from blond.llrf.signal_processing import feedforward_filter_TWC3, \
 from blond.utils import bmath as bm
 
 
-# Functions -------------------------------------------------------------------
-def get_power_gen_I2(I_gen_per_cav, Z_0): # Main in use
+def get_power_gen_I2(I_gen_per_cav, Z_0):
     ''' RF generator power from generator current (physical, in [A]), for any f_r (and thus any tau) '''
     return 0.5 * Z_0 * np.abs(I_gen_per_cav)**2
 
 
-
-# Classes ---------------------------------------------------------------------
 class CavityFeedbackCommissioning(object):
 
     def __init__(self, debug=False, open_loop=False, open_FB=False,
                  open_drive=False, open_FF=False, V_SET=None,
-                 cpp_conv = False, pwr_clamp = False, rot_IQ = 1):
+                 cpp_conv=False, pwr_clamp=False, rot_IQ=1):
         """Class containing commissioning settings for the cavity feedback
 
         Parameters
@@ -50,6 +56,12 @@ class CavityFeedbackCommissioning(object):
             Open (True) or closed (False) feed-forward; default is False
         V_SET : complex array
             Array set point voltage; default is False
+        cpp_conv : bool
+            Enable (True) or disable (False) convolutions using a C++ implementation; default is False
+        pwr_clamp : bool
+            Enable (True) or disable (False) power clamping; default is False
+        rot_IQ : complex
+            Option to rotate the set point and beam induced voltages in the complex plane.
         """
 
         self.debug = bool(debug)
@@ -625,12 +637,6 @@ class SPSOneTurnFeedback(object):
     def mov_avg(self):
         self.DV_MOV_AVG[:self.n_coarse] = self.DV_MOV_AVG[-self.n_coarse:]
         self.DV_MOV_AVG[-self.n_coarse:] = moving_average(self.DV_MOD_FR[-self.n_mov_av - self.n_coarse + 1:], self.n_mov_av)
-
-
-    def h_cav(self):
-        self.DV_MOV_AVG[:self.n_coarse] = self.DV_MOV_AVG[-self.n_coarse:]
-        self.DV_MOV_AVG[-self.n_coarse:] = H_cav(self.DV_MOD_FR[-38 - self.n_coarse:],
-                                                          self.n_sections)
 
 
     # GENERATOR MODEL

@@ -16,6 +16,7 @@ Unittest for llrf.filters
 import unittest
 import numpy as np
 from scipy.constants import c
+import matplotlib.pyplot as plt
 
 from blond.llrf.impulse_response import rectangle, triangle, \
     SPS4Section200MHzTWC
@@ -109,12 +110,12 @@ class TestTravelingWaveCavity(unittest.TestCase):
         TWC_impedance_source.wake_calc(time-time[0])
         wake_impSource = np.around(TWC_impedance_source.wake/1e12, 10)
 
-        TWC_impulse_response = SPS4Section200MHzTWC()
+        TWC_impulse_response = SPS4Section200MHzTWC(df=0.2275e6)
         # omega_c not need for computation of wake function
         TWC_impulse_response.impulse_response_beam(2*np.pi*200.222e6, time)
         TWC_impulse_response.impulse_response_gen(2*np.pi*200.222e6, time)
         TWC_impulse_response.compute_wakes(time)
-        wake_impResp = np.around(TWC_impulse_response.W_beam/1e12, 10)
+        wake_impResp = -np.around(TWC_impulse_response.W_beam/1e12, 10)
 
         self.assertListEqual(wake_impSource.tolist(), wake_impResp.tolist(),
                              msg="In TestTravelingWaveCavity test_wake: wake fields differ")
@@ -172,22 +173,26 @@ class TestTravelingWaveCavity(unittest.TestCase):
 
         # Beam loading via feed-back system
         OTFB_4 = SPSOneTurnFeedback(rf, beam, profile, 4, n_cavities=1,
-            Commissioning=CavityFeedbackCommissioning(open_FF=True))
+            Commissioning=CavityFeedbackCommissioning(open_FF=True, rot_IQ=-1), df=0.2275e6)
         OTFB_4.counter = 0  # First turn
 
+        factor = 1
         OTFB_4.omega_c = factor * OTFB_4.TWC.omega_r
         # Compute impulse response
         OTFB_4.TWC.impulse_response_beam(OTFB_4.omega_c, profile.bin_centers)
 
         # Compute induced voltage in (I,Q) coordinates
-        OTFB_4.beam_induced_voltage(lpf=False)
+        OTFB_4.track()
         # convert back to time
         V_ind_OTFB \
-            = OTFB_4.V_fine_ind_beam.real \
+            = OTFB_4.V_IND_FINE_BEAM[-OTFB_4.profile.n_slices:].real \
                 * np.cos(OTFB_4.omega_c*profile.bin_centers) \
-            + OTFB_4.V_fine_ind_beam.imag \
+            + OTFB_4.V_IND_FINE_BEAM[-OTFB_4.profile.n_slices:].imag \
                 * np.sin(OTFB_4.omega_c*profile.bin_centers)
         V_ind_OTFB = np.around(V_ind_OTFB, digit_round)
+
+        plt.plot((np.array(V_ind_impSource.tolist()) - np.array(V_ind_OTFB.tolist())))
+        plt.show()
 
         self.assertListEqual(V_ind_impSource.tolist(), V_ind_OTFB.tolist(),
             msg="In TravelingWaveCavity test_vind: induced voltages differ")

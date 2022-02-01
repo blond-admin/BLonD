@@ -1,6 +1,6 @@
 SPS Cavity Loop
 ===============
-:Authors: **Helga Timko**
+:Authors: **Birk Emil Karlsen-Bæck**, **Helga Timko**
 
 
 TRAVELLING WAVE CAVITY
