@@ -15,6 +15,7 @@ Unittest for llrf.cavity_feedback
 
 import unittest
 import numpy as np
+import matplotlib.pyplot as plt
 from scipy.constants import c
 
 from blond.llrf.cavity_feedback import SPSOneTurnFeedback, SPSCavityFeedback, CavityFeedbackCommissioning
@@ -49,7 +50,7 @@ class TestSPSCavityFeedback(unittest.TestCase):
         self.rf = RFStation(self.ring, h, V, phi)
 
         N_m = 1e6                   # Number of macro-particles for tracking
-        N_b = 72*1.0e11             # Bunch intensity [ppb]
+        N_b = 2.3e11               # Bunch intensity [ppb]
 
         # Gaussian beam profile
         self.beam = Beam(self.ring, N_m, N_b)
@@ -207,6 +208,10 @@ class TestSPSCavityFeedback(unittest.TestCase):
 
         max_ratio = np.max(cavity_tracker_total_voltage[162:] /
                            OTFB_tracker_total_voltage[162:])
+
+        plt.plot(OTFB_tracker_total_voltage)
+        plt.plot(cavity_tracker_total_voltage)
+        plt.show()
 
         max_ration_exp = 1.0660218070889864 #1.0055233047525063
 
