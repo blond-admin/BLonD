@@ -244,7 +244,7 @@ class SPSCavityFeedback(object):
 
         # Calculate OTFB correction w.r.t. RF voltage and phase in RFStation
         self.V_corr /= self.rf.voltage[0, self.rf.counter[0]]
-        self.phi_corr = self.alpha_sum - np.angle(self.OTFB_1.V_SET[-self.OTFB_1.n_coarse])
+        self.phi_corr = -(self.alpha_sum - np.angle(self.OTFB_1.V_SET[-self.OTFB_1.n_coarse])) # TODO: Added a minus 02/01/2022
 
     def track_init(self, debug=False):
         r''' Tracking of the SPSCavityFeedback without beam.
@@ -280,7 +280,7 @@ class SPSCavityFeedback(object):
 
         # Calculate OTFB correction w.r.t. RF voltage and phase in RFStation
         self.V_corr /= self.rf.voltage[0, self.rf.counter[0]]
-        self.phi_corr = self.alpha_sum - np.angle(self.OTFB_1.V_SET[-self.OTFB_1.n_coarse])
+        self.phi_corr = -(self.alpha_sum - np.angle(self.OTFB_1.V_SET[-self.OTFB_1.n_coarse])) # TODO: Added a minus 02/01/2022
 
 
 
@@ -478,7 +478,6 @@ class SPSOneTurnFeedback(object):
         self.V_ANT_FINE[-self.profile.n_slices:] = self.V_IND_FINE_BEAM[-self.profile.n_slices:] \
                                                    + np.interp(self.profile.bin_centers, self.rf_centers,
                                                                self.V_IND_COARSE_GEN[-self.n_coarse:])
-        # TODO: Look at V_IND_FINE_BEAM and V_IND_COARSE_GEN individually
 
     def track_no_beam(self):
 
@@ -675,7 +674,8 @@ class SPSOneTurnFeedback(object):
                                                                             self.TWC.h_beam_coarse)[-self.n_coarse:]
         else:
             self.V_IND_FINE_BEAM[:self.profile.n_slices] = self.V_IND_FINE_BEAM[-self.profile.n_slices:]
-            self.V_IND_FINE_BEAM[-self.profile.n_slices:] = self.n_cavities * self.matr_conv(self.I_FINE_BEAM,
+            self.V_IND_FINE_BEAM[-self.profile.n_slices:] = self.n_cavities \
+                                                            * self.matr_conv(self.I_FINE_BEAM[-self.profile.n_slices:],
                                                                             self.TWC.h_beam)[-self.profile.n_slices:]
 
 

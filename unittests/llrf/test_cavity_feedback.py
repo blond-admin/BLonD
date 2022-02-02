@@ -50,7 +50,7 @@ class TestSPSCavityFeedback(unittest.TestCase):
         self.rf = RFStation(self.ring, h, V, phi)
 
         N_m = 1e6                   # Number of macro-particles for tracking
-        N_b = 2.3e11               # Bunch intensity [ppb]
+        N_b = 72 * 2.3e11               # Bunch intensity [ppb]
 
         # Gaussian beam profile
         self.beam = Beam(self.ring, N_m, N_b)
@@ -206,8 +206,8 @@ class TestSPSCavityFeedback(unittest.TestCase):
         self.OTFB_tracker.rf_voltage_calculation()
         OTFB_tracker_total_voltage = self.OTFB_tracker.rf_voltage
 
-        max_ratio = np.max(cavity_tracker_total_voltage[162:] /
-                           OTFB_tracker_total_voltage[162:])
+        max_ratio = np.max(cavity_tracker_total_voltage /
+                           OTFB_tracker_total_voltage)
 
         plt.plot(OTFB_tracker_total_voltage)
         plt.plot(cavity_tracker_total_voltage)

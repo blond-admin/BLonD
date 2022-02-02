@@ -281,8 +281,8 @@ class TravellingWaveCavity(object):
 
         # Impulse response if not on carrier frequency
         if np.fabs((self.d_omega)/self.omega_r) > 1e-12:
-            self.h_gen = self.h_gen.real*(np.cos(self.d_omega*t_gen) -  # TODO: is this minus sign supposed to be here?
-                                          1j*np.sin(self.d_omega*t_gen))
+            self.h_gen = self.h_gen.real*(np.cos(self.d_omega*t_gen) +          # TODO:
+                                          1j*np.sin(self.d_omega*t_gen)) # TODO: is this minus sign supposed to be here?
 
     def impulse_response_beam(self, omega_c, time_fine, time_coarse=None):
         r"""Impulse response from the cavity towards the beam. For a signal
@@ -325,12 +325,12 @@ class TravellingWaveCavity(object):
         t_beam = time_fine - time_fine[0]
 
         # Impulse response if on carrier frequency
-        self.h_beam = (-2*self.R_beam/self.tau*
+        self.h_beam = (2*self.R_beam/self.tau*                                      # TODO: Removed overall minus
                        triangle(t_beam, self.tau)).astype(np.complex128)
 
         # Impulse response if not on carrier frequency
         if np.fabs((self.d_omega)/self.omega_r) > 1e-12:
-            self.h_beam = self.h_beam.real*(np.cos(self.d_omega*t_beam) -
+            self.h_beam = self.h_beam.real*(np.cos(self.d_omega*t_beam) +
                                             1j*np.sin(self.d_omega*t_beam))
 
         if time_coarse is not None:
@@ -338,13 +338,13 @@ class TravellingWaveCavity(object):
             t_beam = time_coarse - time_coarse[0]
 
             # Impulse response if on carrier frequency
-            self.h_beam_coarse = (-2*self.R_beam/self.tau*
+            self.h_beam_coarse = (2*self.R_beam/self.tau*                          # TODO: Removed overall minus
                                   triangle(t_beam, self.tau)).astype(np.complex128)
 
             # Impulse response if not on carrier frequency
             if np.fabs((self.d_omega)/self.omega_r) > 1e-12:
                 self.h_beam_coarse = self.h_beam_coarse.real* \
-                                     (np.cos(self.d_omega*t_beam) -
+                                     (np.cos(self.d_omega*t_beam) +
                                       1j*np.sin(self.d_omega*t_beam))
 
     def compute_wakes(self, time):

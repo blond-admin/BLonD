@@ -196,9 +196,9 @@ def rf_beam_current(Profile, omega_c, T_rev, lpf=True, downsample=None):
 
         # Pick total current within one coarse grid
         charges_coarse = np.zeros(n_points, dtype=complex) #+ 1j*np.zeros(n_points)
-        charges_coarse[0] = np.sum(charges_fine[np.arange(indices[0])])
+        charges_coarse[ind_fine[0]] = np.sum(charges_fine[np.arange(indices[0])])
         for i in range(1, len(indices)):
-            charges_coarse[i] = np.sum(charges_fine[np.arange(indices[i-1],
+            charges_coarse[i + ind_fine[0]] = np.sum(charges_fine[np.arange(indices[i-1],
                                                               indices[i])])
 
         return charges_fine, charges_coarse
