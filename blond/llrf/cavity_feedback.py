@@ -244,7 +244,7 @@ class SPSCavityFeedback(object):
 
         # Calculate OTFB correction w.r.t. RF voltage and phase in RFStation
         self.V_corr /= self.rf.voltage[0, self.rf.counter[0]]
-        self.phi_corr = -(self.alpha_sum - np.angle(self.OTFB_1.V_SET[-self.OTFB_1.n_coarse])) # TODO: Added a minus 02/01/2022
+        self.phi_corr = (self.alpha_sum - np.angle(self.OTFB_1.V_SET[-self.OTFB_1.n_coarse])) # TODO: Added a minus 02/02/2022
 
     def track_init(self, debug=False):
         r''' Tracking of the SPSCavityFeedback without beam.
@@ -280,7 +280,7 @@ class SPSCavityFeedback(object):
 
         # Calculate OTFB correction w.r.t. RF voltage and phase in RFStation
         self.V_corr /= self.rf.voltage[0, self.rf.counter[0]]
-        self.phi_corr = -(self.alpha_sum - np.angle(self.OTFB_1.V_SET[-self.OTFB_1.n_coarse])) # TODO: Added a minus 02/01/2022
+        self.phi_corr = (self.alpha_sum - np.angle(self.OTFB_1.V_SET[-self.OTFB_1.n_coarse])) # TODO: Added a minus 02/02/2022
 
 
 
@@ -533,8 +533,9 @@ class SPSOneTurnFeedback(object):
                 rf_beam_current(self.profile, self.omega_c, self.rf.t_rev[self.counter],
                                 lpf=lpf, downsample={'Ts': self.T_s, 'points': self.n_coarse})
 
-        self.I_FINE_BEAM[-self.profile.n_slices:] = -self.rot_IQ * self.I_FINE_BEAM[-self.profile.n_slices:]
-        self.I_COARSE_BEAM[-self.n_coarse:] = -self.rot_IQ * self.I_COARSE_BEAM[-self.n_coarse:]
+        # TODO: Took out minus sign 03/02
+        self.I_FINE_BEAM[-self.profile.n_slices:] = self.rot_IQ * self.I_FINE_BEAM[-self.profile.n_slices:]
+        self.I_COARSE_BEAM[-self.n_coarse:] = self.rot_IQ * self.I_COARSE_BEAM[-self.n_coarse:]
 
         # Beam-induced voltage
         self.beam_response(coarse=False)
@@ -674,6 +675,8 @@ class SPSOneTurnFeedback(object):
                                                                             self.TWC.h_beam_coarse)[-self.n_coarse:]
         else:
             self.V_IND_FINE_BEAM[:self.profile.n_slices] = self.V_IND_FINE_BEAM[-self.profile.n_slices:]
+            # Only convolve the slices for the current turn because the fine grid points can be less
+            # than one turn in length
             self.V_IND_FINE_BEAM[-self.profile.n_slices:] = self.n_cavities \
                                                             * self.matr_conv(self.I_FINE_BEAM[-self.profile.n_slices:],
                                                                             self.TWC.h_beam)[-self.profile.n_slices:]

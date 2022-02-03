@@ -196,7 +196,8 @@ class TestSPSCavityFeedback(unittest.TestCase):
 
     def test_beam_loading(self):
         digit_round = 7
-        # TODO: Fix or delete this benchmark
+        # TODO: Fix or delete this benchmark.
+        # TODO: Do this unittest with the beam induced voltage only.
         # Compute voltage with beam loading
         self.cavity_tracker.rf_voltage_calculation()
         cavity_tracker_total_voltage = self.cavity_tracker.rf_voltage \
