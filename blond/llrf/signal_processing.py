@@ -105,7 +105,7 @@ def modulator(signal, omega_i, omega_f, T_sampling, phi_0=0):
     return I_new + 1j*Q_new
 
 
-def rf_beam_current(Profile, omega_c, T_rev, lpf=True, downsample=None):
+def rf_beam_current(Profile, omega_c, T_rev, lpf=True, downsample=None, external_reference=True):
     r"""Function calculating the beam charge at the (RF) frequency, slice by
     slice. The charge distribution [C] of the beam is determined from the beam
     profile :math:`\lambda_i`, the particle charge :math:`q_p` and the real vs.
@@ -182,6 +182,12 @@ def rf_beam_current(Profile, omega_c, T_rev, lpf=True, downsample=None):
     logger.debug("RF total current is %.4e A", np.fabs(np.sum(I_f))/T_rev)
 
     charges_fine = I_f + 1j*Q_f
+    if external_reference:
+        # Phase correction
+        bucket = 2 * np.pi/(omega_c)
+        phase = (Profile.bin_centers[0] - 0.5*bucket)/bucket*2*np.pi + np.angle(charges_fine)[0]
+        charges_fine = charges_fine * np.exp(-1j * phase)
+
     if downsample:
         try:
             T_s = float(downsample['Ts'])
