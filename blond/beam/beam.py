@@ -243,12 +243,13 @@ class Beam(object):
         """
 
         indexalive = np.where(self.id != 0)[0]
-        if len(indexalive) < self.n_macroparticles:
+        if len(indexalive) > 0:
             self.dt = np.ascontiguousarray(
-                self.dt[indexalive], dtype=bm.precision.real_t, order='C')
+                self.dt[indexalive], dtype=bm.precision.real_t)
             self.dE = np.ascontiguousarray(
-                self.dE[indexalive], dtype=bm.precision.real_t, order='C')
-            self.n_macroparticles = len(self.beam.dt)
+                self.dE[indexalive], dtype=bm.precision.real_t)
+            self.n_macroparticles = len(self.dt)
+            self.id = np.arange(1, self.n_macroparticles + 1, dtype=int)
         else:
             # AllParticlesLost
             raise RuntimeError("ERROR in Beams: all particles lost and" +
