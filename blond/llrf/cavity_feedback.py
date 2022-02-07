@@ -534,8 +534,8 @@ class SPSOneTurnFeedback(object):
                                 lpf=lpf, downsample={'Ts': self.T_s, 'points': self.n_coarse})
 
         # TODO: Took out minus sign 03/02
-        self.I_FINE_BEAM[-self.profile.n_slices:] = self.rot_IQ * self.I_FINE_BEAM[-self.profile.n_slices:]
-        self.I_COARSE_BEAM[-self.n_coarse:] = self.rot_IQ * self.I_COARSE_BEAM[-self.n_coarse:]
+        self.I_FINE_BEAM[-self.profile.n_slices:] = -self.rot_IQ * self.I_FINE_BEAM[-self.profile.n_slices:]
+        self.I_COARSE_BEAM[-self.n_coarse:] = -self.rot_IQ * self.I_COARSE_BEAM[-self.n_coarse:]
 
         # Beam-induced voltage
         self.beam_response(coarse=False)
