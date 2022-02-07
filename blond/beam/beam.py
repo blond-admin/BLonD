@@ -242,12 +242,12 @@ class Beam(object):
         """Eliminate lost particles from the beam coordinate arrays
         """
 
-        indexalive = np.where(self.id == 0)[0]
+        indexalive = np.where(self.id != 0)[0]
         if len(indexalive) < self.n_macroparticles:
             self.dt = np.ascontiguousarray(
-                self.beam.dt[indexalive], dtype=bm.precision.real_t, order='C')
+                self.dt[indexalive], dtype=bm.precision.real_t, order='C')
             self.dE = np.ascontiguousarray(
-                self.beam.dE[indexalive], dtype=bm.precision.real_t, order='C')
+                self.dE[indexalive], dtype=bm.precision.real_t, order='C')
             self.n_macroparticles = len(self.beam.dt)
         else:
             # AllParticlesLost
