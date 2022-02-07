@@ -276,7 +276,7 @@ class TravellingWaveCavity(object):
         t_gen = time_coarse - time_coarse[0] - 0.5*self.tau
 
         # Impulse response if on carrier frequency
-        self.h_gen = (self.R_gen / self.tau *
+        self.h_gen = (-self.R_gen / self.tau *
                       rectangle(t_gen, self.tau)).astype(np.complex128)
 
         # Impulse response if not on carrier frequency
@@ -325,7 +325,7 @@ class TravellingWaveCavity(object):
         t_beam = time_fine - time_fine[0]
 
         # Impulse response if on carrier frequency
-        self.h_beam = (2*self.R_beam/self.tau*                                      # TODO: Removed overall minus
+        self.h_beam = (-2*self.R_beam/self.tau*                                      # TODO: Removed overall minus
                        triangle(t_beam, self.tau)).astype(np.complex128)
 
         # Impulse response if not on carrier frequency
@@ -338,7 +338,7 @@ class TravellingWaveCavity(object):
             t_beam = time_coarse - time_coarse[0]
 
             # Impulse response if on carrier frequency
-            self.h_beam_coarse = (2*self.R_beam/self.tau*                          # TODO: Removed overall minus
+            self.h_beam_coarse = (-2*self.R_beam/self.tau*                          # TODO: Removed overall minus
                                   triangle(t_beam, self.tau)).astype(np.complex128)
 
             # Impulse response if not on carrier frequency
