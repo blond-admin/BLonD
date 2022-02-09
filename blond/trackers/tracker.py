@@ -486,10 +486,8 @@ class RingAndRFTracker(object):
                     if self.totalInducedVoltage is not None:
                         self.total_voltage = self.rf_voltage \
                             + self.totalInducedVoltage.induced_voltage
-                        print('Calc total voltage with imp')
                     else:
                         self.total_voltage = self.rf_voltage
-                        print('Calc total voltage without imp')
 
                     bm.linear_interp_kick(dt=self.beam.dt, dE=self.beam.dE,
                                           voltage=self.total_voltage,
