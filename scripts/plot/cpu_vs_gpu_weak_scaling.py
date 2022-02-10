@@ -59,9 +59,12 @@ gconfig = {
     },
 
     'colors': {
-        'HBLonD': '0.9',
-        'CuBLonD-1xK40': '0.5',
-        'CuBLonD-2xK40': '0.2',
+        # 'HBLonD': '0.9',
+        # 'CuBLonD-1xK40': '0.5',
+        # 'CuBLonD-2xK40': '0.2',
+        'HBLonD': 'tab:orange',
+        'CuBLonD-1xK40': 'tab:blue',
+        'CuBLonD-2xK40': 'tab:green',
 
     },
     'hatches': {
@@ -84,7 +87,7 @@ gconfig = {
                 # 'x': 0.55,
                 'fontweight': 'bold',
     },
-    'figsize': [5, 2.],
+    'figsize': [5, 2.2],
     'annotate': {
         'fontsize': 10,
         'textcoords': 'data',

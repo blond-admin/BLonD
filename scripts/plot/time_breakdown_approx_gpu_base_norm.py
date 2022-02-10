@@ -5,7 +5,8 @@ import matplotlib.patches as mpatches
 import sys
 from plot.plotting_utilities import *
 import argparse
-# python scripts/plot/time_breakdown_approx_gpu.py -i results/aris-time-breakdown/ -s -o results/aris-time-breakdown/plots/
+
+# python scripts/plot/time_breakdown_approx_gpu_base_norm.py -i results/aris-time-breakdown/ -s -o results/aris-time-breakdown/plots/
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + "/"
 this_filename = sys.argv[0].split('/')[-1]
@@ -59,12 +60,15 @@ gconfig = {
         # 'doubleRDS': 'RDS',
     },
     'colors': {
-        'Base': '0.85',
-        'F32': '0.85',
-        'F32-SRP': '0.55',
-        'SRP': '0.55',
-        'F32-RDS': '0.3',
-        'RDS': '0.3',
+        # 'Base': '0.85',
+        # 'F32': '0.85',
+        # 'F32-SRP': '0.55',
+        # 'SRP': '0.55',
+        # 'F32-RDS': '0.3',
+        # 'RDS': '0.3',
+        'Base': 'tab:orange',
+        'F32-SRP': 'tab:blue',
+        'F32-RDS': 'tab:green',
     },
     'alpha': {
         'Base': 1,
@@ -109,7 +113,7 @@ gconfig = {
                 # 'x': 0.55,
                 'fontweight': 'bold',
     },
-    'figsize': [5, 1.8],
+    'figsize': [5, 2.2],
     'annotate': {
         'fontsize': 10,
         'textcoords': 'data',

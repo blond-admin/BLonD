@@ -73,9 +73,9 @@ gconfig = {
 
     'colors': {
         'F64-cpu': '0.8',
-        'F64-gpu': '0.8',
-        'F32-gpu': '0.8',
-        'F32-SRP-gpu': '0.5',
+        'F64-gpu': 'tab:orange',
+        'F32-gpu': 'tab:green',
+        'F32-SRP-gpu': 'tab:blue',
     },
 
     'hatches': {
@@ -109,11 +109,11 @@ gconfig = {
     'title': {
         # 's': '{}: {} vs {} vs {}',
         'fontsize': 10,
-        'y': 0.95,
+        # 'y': 0.95,
         # 'x': 0.55,
         'fontweight': 'bold',
     },
-    'figsize': [5, 1.8],
+    'figsize': [5, 2.2],
     'annotate': {
         'fontsize': 10,
         'textcoords': 'data',
@@ -386,10 +386,11 @@ if __name__ == '__main__':
 
         # plt.title(f'{case.upper()}: {cpu_model.upper()} vs {base_gpu_model.upper()} vs {gpu_model.upper()}',
         #           **gconfig['title'])
-        # if col == 1:
-        # plt.xlabel(gconfig['xlabel'], labelpad=3,
-        #            fontweight='bold',
-        #            fontsize=gconfig['fontsize'])
+        if col == 1:
+            plt.xlabel('GPU Model', labelpad=3,
+                   fontweight='bold',
+                   x=1.1,
+                   fontsize=gconfig['fontsize'])
         if col == 0:
             handles, labels = ax.get_legend_handles_labels()
             plt.ylabel(**gconfig['ylabel'])

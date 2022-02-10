@@ -145,7 +145,7 @@ gconfig = {
     'omp_name': 'omp',
     'y_name': 'avg_time(sec)',
     'xlabel': {
-        'xlabel': 'Nodes'
+        'xlabel': 'Nodes (x1 or x2 GPUs Per Node)'
     },
     'ylabel': 'Speedup',
     'title': {
@@ -155,7 +155,7 @@ gconfig = {
         # 'x': 0.8,
         'fontweight': 'bold',
     },
-    'figsize': [5, 5],
+    'figsize': [5, 4],
     'annotate': {
         'fontsize': 10,
         'textcoords': 'data',
@@ -435,7 +435,7 @@ if __name__ == '__main__':
             plt.xticks(xtickspos, np.array(xticks, int), **gconfig['xticks'])
             # plt.xlim(gconfig['xlim'])
 
-            if row == 2 and col == 1:
+            if row == 1 and col == 1:
                 plt.xlabel(**gconfig['xlabel'])
 
             ax.tick_params(**gconfig['tick_params'])
