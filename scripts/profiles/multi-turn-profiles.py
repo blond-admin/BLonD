@@ -173,57 +173,61 @@ if __name__ == '__main__':
         avg.append(profile)
     profile = np.mean(avg, axis=0)
     plt.bar(np.arange(len(profile)) + offset, profile,
-             # color=gconfig['colors'][turn % len(gconfig['colors'])],
-             color=gconfig['colors'][0],
-             # yerr=np.std(avg, axis=0),
-             # capsize=3,
-             # error_kw={'ecolor': 'tab:red', 'elinewidth':2},
-             # color=gconfig['colors'][turn % len(gconfig['colors'])],
-             # facecolor='0.5',
-             edgecolor='black',
-             width=0.9,
-             # alpha=0.9,
-             label='{}-Turn AVG'.format(last_t-first_t+1))
-
+            # color=gconfig['colors'][turn % len(gconfig['colors'])],
+            color=gconfig['colors'][0],
+            # yerr=np.std(avg, axis=0),
+            # capsize=3,
+            # error_kw={'ecolor': 'tab:red', 'elinewidth':2},
+            # color=gconfig['colors'][turn % len(gconfig['colors'])],
+            # facecolor='0.5',
+            edgecolor='black',
+            width=0.9,
+            # alpha=0.9,
+            label='{}-Turn AVG'.format(last_t-first_t+1))
+    yerr=np.std(avg, axis=0)
     plt.errorbar(np.arange(len(profile)) + offset, profile,
-             color='tab:red',
-             ls='',
-             yerr=np.std(avg, axis=0),
-             capsize=3,
-             ecolor = 'tab:red',
-             elinewidth = 2,
-             label='{}-Turn STD'.format(last_t-first_t+1))
+                 color='tab:red',
+                 ls='',
+                 yerr=yerr,
+                 capsize=3,
+                 ecolor='tab:red',
+                 elinewidth=2,
+                 label='{}-Turn STD'.format(last_t-first_t+1))
+    # yerr=yerr[~np.isnan(profile)]
+    # profile = profile[~np.isnan(profile)]
+    temp = (yerr/profile)
+    temp = temp[~np.isnan(temp)]
+    print(f'STD: Max: {np.max(temp)}, AVG:{np.mean(temp)}, Median:{np.median(temp)}')
 
+    # # plt.hist(profile, bins=len(profile), alpha=0.5)
+    # # plt.bar(np.arange(len(profile)), profile,
+    #          # color=gconfig['colors'][turn % len(gconfig['colors'])],
+    #          # color=gconfig['colors'][turn % len(gconfig['colors'])],
+    #          # facecolor='0.5',
+    #          # edgecolor=gconfig['colors'][turn % len(gconfig['colors'])],
+    #          # width=0.7,
+    #          # alpha=0.9,
+    #          # label='turn-{}'.format(turn))
+    # # plt.plot(np.arange(len(profile)), profile,
+    # #          color=gconfig['colors'][turn % len(gconfig['colors'])],
+    # #          # marker='_',
+    # #          ls='-',
+    # #          label='turn-{}'.format(turn))
+    # plt.bar(np.arange(len(profile)) + offset, profile,
+    #          color=gconfig['colors'][turn % len(gconfig['colors'])],
+    #          # color=gconfig['colors'][turn % len(gconfig['colors'])],
+    #          # facecolor='0.5',
+    #          # edgecolor=gconfig['colors'][turn % len(gconfig['colors'])],
+    #          width=0.25,
+    #          # alpha=0.9,
+    #          label='turn-{}'.format(turn))
+    # offset += 0.25
 
-        # # plt.hist(profile, bins=len(profile), alpha=0.5)
-        # # plt.bar(np.arange(len(profile)), profile,
-        #          # color=gconfig['colors'][turn % len(gconfig['colors'])],
-        #          # color=gconfig['colors'][turn % len(gconfig['colors'])],
-        #          # facecolor='0.5',
-        #          # edgecolor=gconfig['colors'][turn % len(gconfig['colors'])],
-        #          # width=0.7,
-        #          # alpha=0.9,
-        #          # label='turn-{}'.format(turn))
-        # # plt.plot(np.arange(len(profile)), profile,
-        # #          color=gconfig['colors'][turn % len(gconfig['colors'])],
-        # #          # marker='_', 
-        # #          ls='-',
-        # #          label='turn-{}'.format(turn))
-        # plt.bar(np.arange(len(profile)) + offset, profile,
-        #          color=gconfig['colors'][turn % len(gconfig['colors'])],
-        #          # color=gconfig['colors'][turn % len(gconfig['colors'])],
-        #          # facecolor='0.5',
-        #          # edgecolor=gconfig['colors'][turn % len(gconfig['colors'])],
-        #          width=0.25,
-        #          # alpha=0.9,
-        #          label='turn-{}'.format(turn))
-        # offset += 0.25
-
-        # plt.fill_between(np.arange(len(profile)), profile, 0, 
-        #     # color=gconfig['colors'][turn % len(gconfig['colors'])],
-        #     facecolor='1',
-        #     alpha=0.5, hatch='x',
-        #     edgecolor=gconfig['colors'][turn % len(gconfig['colors'])])
+    # plt.fill_between(np.arange(len(profile)), profile, 0,
+    #     # color=gconfig['colors'][turn % len(gconfig['colors'])],
+    #     facecolor='1',
+    #     alpha=0.5, hatch='x',
+    #     edgecolor=gconfig['colors'][turn % len(gconfig['colors'])])
 
     # exit()
 
@@ -232,15 +236,15 @@ if __name__ == '__main__':
     # plt.title(case.upper(), **gconfig['title'])
     plt.xlabel(**gconfig['xlabel'])
     plt.ylabel(**gconfig['ylabel'])
-    plt.xticks([],[])
-    plt.yticks([],[])
+    plt.xticks([], [])
+    plt.yticks([], [])
     plt.xlim(gconfig['xlim'])
     plt.ylim(gconfig['ylim'])
     # plt.xticks(xtickspos, xticks, **gconfig['ticks'])
     # yticks = ['{:1.0e}'.format(10**i) for i in range(gconfig['ylim'][0],
-                                                     # gconfig['ylim'][1]+1)]
+    # gconfig['ylim'][1]+1)]
     # plt.yticks(np.arange(gconfig['ylim'][0],
-                         # gconfig['ylim'][1]+1), yticks, **gconfig['ticks'])
+    # gconfig['ylim'][1]+1), yticks, **gconfig['ticks'])
     # print('{} Median: {:e}'.format(inkey, np.median(errordist)))
     # for patch in bplot['boxes']:
     #     patch.set_facecolor(gconfig['boxcolor'])
@@ -261,7 +265,8 @@ if __name__ == '__main__':
     plt.tight_layout()
     # plt.subplots_adjust(**gconfig['subplots_adjust'])
     for file in gconfig['outfiles']:
-        file = file.format(images_dir, this_filename[: -3], args.input.split('/')[-1].replace('.h5', ''))
+        file = file.format(
+            images_dir, this_filename[: -3], args.input.split('/')[-1].replace('.h5', ''))
         print('[{}] {}: {}'.format(
             this_filename[: -3], 'Saving figure', file))
 
