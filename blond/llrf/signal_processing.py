@@ -171,7 +171,7 @@ def rf_beam_current(Profile, omega_c, T_rev, lpf=True, downsample=None, external
 
     # Mix with frequency of interest; remember factor 2 demodulation
     I_f = 2.*charges*np.cos(omega_c*Profile.bin_centers)
-    Q_f = 2.*charges*np.sin(omega_c*Profile.bin_centers)
+    Q_f = -2.*charges*np.sin(omega_c*Profile.bin_centers)
 
     # Pass through a low-pass filter
     if lpf is True:
