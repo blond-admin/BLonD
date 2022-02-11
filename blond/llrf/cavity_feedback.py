@@ -242,9 +242,14 @@ class SPSCavityFeedback(object):
 
         self.V_corr, self.alpha_sum = cartesian_to_polar(self.V_sum)
 
+        self.gen_corr = np.interp(
+            self.OTFB_1.profile.bin_centers, self.OTFB_1.rf_centers,
+            self.OTFB_1.V_IND_COARSE_GEN[-self.OTFB_1.n_coarse:] + self.OTFB_2.V_IND_COARSE_GEN[-self.OTFB_2.n_coarse:])
+
         # Calculate OTFB correction w.r.t. RF voltage and phase in RFStation
         self.V_corr /= self.rf.voltage[0, self.rf.counter[0]]
-        self.phi_corr = (self.alpha_sum - np.angle(self.OTFB_1.V_SET[-self.OTFB_1.n_coarse])) # TODO: Added a minus 02/02/2022
+        self.phi_corr = (self.alpha_sum + np.angle(self.OTFB_1.V_SET[-self.OTFB_1.n_coarse]) -
+                         2 * (np.angle(self.gen_corr))) # TODO: Added a minus 02/02/2022
 
     def track_init(self, debug=False):
         r''' Tracking of the SPSCavityFeedback without beam.
@@ -534,7 +539,6 @@ class SPSOneTurnFeedback(object):
                                 lpf=lpf, downsample={'Ts': self.T_s, 'points': self.n_coarse},
                                 external_reference=True)
 
-        # TODO: Took out minus sign 03/02
         self.I_FINE_BEAM[-self.profile.n_slices:] = -self.rot_IQ * self.I_FINE_BEAM[-self.profile.n_slices:]
         self.I_COARSE_BEAM[-self.n_coarse:] = -self.rot_IQ * self.I_COARSE_BEAM[-self.n_coarse:]
 
