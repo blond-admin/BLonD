@@ -14,6 +14,8 @@
 '''
 
 from __future__ import division
+
+import matplotlib.pyplot as plt
 import numpy as np
 from scipy.constants import c
 
@@ -273,11 +275,11 @@ class TravellingWaveCavity(object):
                                " cavity!")
 
         # Move starting point of impulse response to correct value
-        t_gen = time_coarse - time_coarse[0] - 0.5*self.tau
+        t_gen = time_coarse - time_coarse[0]
 
         # Impulse response if on carrier frequency
         self.h_gen = (self.R_gen / self.tau *
-                      rectangle(t_gen, self.tau)).astype(np.complex128)
+                      rectangle(t_gen - 0.5*self.tau, self.tau)).astype(np.complex128)
 
         # Impulse response if not on carrier frequency
         if np.fabs((self.d_omega)/self.omega_r) > 1e-12:
