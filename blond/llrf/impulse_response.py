@@ -283,7 +283,7 @@ class TravellingWaveCavity(object):
 
         # Impulse response if not on carrier frequency
         if np.fabs((self.d_omega)/self.omega_r) > 1e-12:
-            self.h_gen = self.h_gen.real*(np.cos(self.d_omega*t_gen) -          # TODO:
+            self.h_gen = self.h_gen.real*(np.cos(self.d_omega*t_gen) +          # TODO:
                                           1j*np.sin(self.d_omega*t_gen)) # TODO: is this minus sign supposed to be here?
 
     def impulse_response_beam(self, omega_c, time_fine, time_coarse=None):
@@ -332,7 +332,7 @@ class TravellingWaveCavity(object):
 
         # Impulse response if not on carrier frequency
         if np.fabs((self.d_omega)/self.omega_r) > 1e-12:
-            self.h_beam = self.h_beam.real*(np.cos(self.d_omega*t_beam) -
+            self.h_beam = self.h_beam.real*(np.cos(self.d_omega*t_beam) +
                                             1j*np.sin(self.d_omega*t_beam))
 
         if time_coarse is not None:
@@ -346,7 +346,7 @@ class TravellingWaveCavity(object):
             # Impulse response if not on carrier frequency
             if np.fabs((self.d_omega)/self.omega_r) > 1e-12:
                 self.h_beam_coarse = self.h_beam_coarse.real* \
-                                     (np.cos(self.d_omega*t_beam) -
+                                     (np.cos(self.d_omega*t_beam) +
                                       1j*np.sin(self.d_omega*t_beam))
 
     def compute_wakes(self, time):

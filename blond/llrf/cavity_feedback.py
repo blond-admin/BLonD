@@ -248,8 +248,7 @@ class SPSCavityFeedback(object):
 
         # Calculate OTFB correction w.r.t. RF voltage and phase in RFStation
         self.V_corr /= self.rf.voltage[0, self.rf.counter[0]]
-        self.phi_corr = (self.alpha_sum + np.angle(self.OTFB_1.V_SET[-self.OTFB_1.n_coarse]) -
-                         2 * (np.angle(self.gen_corr))) # TODO: Added a minus 02/02/2022
+        self.phi_corr = -(self.alpha_sum - np.angle(self.OTFB_1.V_SET[-self.OTFB_1.n_coarse])) # TODO: Added a minus 02/02/2022
 
     def track_init(self, debug=False):
         r''' Tracking of the SPSCavityFeedback without beam.
@@ -285,7 +284,7 @@ class SPSCavityFeedback(object):
 
         # Calculate OTFB correction w.r.t. RF voltage and phase in RFStation
         self.V_corr /= self.rf.voltage[0, self.rf.counter[0]]
-        self.phi_corr = (self.alpha_sum - np.angle(self.OTFB_1.V_SET[-self.OTFB_1.n_coarse])) # TODO: Added a minus 02/02/2022
+        self.phi_corr = -(self.alpha_sum - np.angle(self.OTFB_1.V_SET[-self.OTFB_1.n_coarse])) # TODO: Added a minus 02/02/2022
 
 
 
