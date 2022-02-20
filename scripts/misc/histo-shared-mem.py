@@ -43,8 +43,8 @@ gconfig = {
         'off': 'Without Shared Memory',
     },
     'colors': {
-        'on': 'tab:green',
-        'off': 'tab:red',
+        'on': 'tab:blue',
+        'off': 'tab:orange',
     },
     'hatches': {
         'on': '',
@@ -64,7 +64,7 @@ gconfig = {
         'x': 0.1,
         'fontweight': 'bold',
     },
-    'figsize': [5, 2.2],
+    'figsize': [5, 3.2],
     'annotate': {
         'fontsize': 10,
         'textcoords': 'data',

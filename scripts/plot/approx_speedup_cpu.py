@@ -97,7 +97,7 @@ gconfig = {
         'x': 0.1,
         'fontweight': 'bold',
     },
-    'figsize': [4, 2.75],
+    'figsize': [5, 1.6],
     'annotate': {
         'fontsize': 10,
         'textcoords': 'data',
