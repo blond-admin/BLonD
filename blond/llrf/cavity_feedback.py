@@ -179,7 +179,7 @@ class SPSCavityFeedback(object):
             if not a_comb:
                 a_comb = 63/64
 
-            if not V_part:
+            if V_part is None:
                 V_part = 6/10
             self.OTFB_1 = SPSOneTurnFeedback(RFStation, Beam, Profile, 3,
                                              n_cavities=4, V_part=V_part,
@@ -201,7 +201,7 @@ class SPSCavityFeedback(object):
             if not a_comb:
                 a_comb = 15/16
 
-            if not V_part:
+            if V_part is None:
                 V_part = 4/9
             self.OTFB_1 = SPSOneTurnFeedback(RFStation, Beam, Profile, 4,
                                              n_cavities=2, V_part=V_part,
