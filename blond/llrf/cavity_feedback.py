@@ -179,7 +179,7 @@ class SPSCavityFeedback(object):
             if not a_comb:
                 a_comb = 63/64
 
-            if not V_part:
+            if V_part is None:
                 V_part = 6/10
             self.OTFB_1 = SPSOneTurnFeedback(RFStation, Beam, Profile, 3,
                                              n_cavities=4, V_part=V_part,
@@ -201,7 +201,7 @@ class SPSCavityFeedback(object):
             if not a_comb:
                 a_comb = 15/16
 
-            if not V_part:
+            if V_part is None:
                 V_part = 4/9
             self.OTFB_1 = SPSOneTurnFeedback(RFStation, Beam, Profile, 4,
                                              n_cavities=2, V_part=V_part,
@@ -549,31 +549,27 @@ class SPSOneTurnFeedback(object):
         if self.open_FF == 1:
             # Calculate correction based on previous turn on coarse grid
             for ind in range(self.n_coarse_FF):
-                self.I_FF_CORR[ind] = self.coeff_FF[0] \
-                                      * self.I_BEAM_COARSE_FF[ind]
-
                 for k in range(self.n_FF):
-                    self.I_FF_CORR += self.coeff_FF[k] \
+                    self.I_FF_CORR[ind] += self.coeff_FF[k] \
                                       * self.I_BEAM_COARSE_FF[ind-k]
 
-                self.V_FF_CORR = self.G_ff \
-                                 * self.matr_conv(self.I_BEAM_COARSE_FF,
-                                                  self.TWC.h_gen[::5])
+            self.V_FF_CORR = self.G_ff \
+                            * self.matr_conv(self.I_BEAM_COARSE_FF, self.TWC.h_gen[::5])
 
-                # Compensate for FIR filter delay
-                self.DV_FF = np.concatenate((self.V_FF_CORR[self.n_FF_delay:],
-                                             np.zeros(self.n_FF_delay, dtype=complex)))
+            # Compensate for FIR filter delay
+            self.DV_FF = np.concatenate((self.V_FF_CORR[self.n_FF_delay:],
+                                        np.zeros(self.n_FF_delay, dtype=complex)))
 
-                # Interpolate to finer grids
-                self.V_FF_CORR_COARSE = np.interp(self.rf_centers, self.rf_centers[::5], self.DV_FF)
-                self.V_FF_CORR_FINE = np.interp(self.profile.bin_centers, self.rf_centers[::5], self.DV_FF)
+            # Interpolate to finer grids
+            self.V_FF_CORR_COARSE = np.interp(self.rf_centers, self.rf_centers[::5], self.DV_FF)
+            self.V_FF_CORR_FINE = np.interp(self.profile.bin_centers, self.rf_centers[::5], self.DV_FF)
 
-                # Add to beam-induced voltage (opposite sign)
-                self.V_IND_COARSE_BEAM[-self.n_coarse:] += self.n_cavities * self.V_FF_CORR_COARSE
-                self.V_IND_FINE_BEAM[-self.profile.n_slices:] += self.n_cavities * self.V_FF_CORR_FINE
+            # Add to beam-induced voltage (opposite sign)
+            self.V_IND_COARSE_BEAM[-self.n_coarse:] += self.n_cavities * self.V_FF_CORR_COARSE
+            self.V_IND_FINE_BEAM[-self.profile.n_slices:] += self.n_cavities * self.V_FF_CORR_FINE
 
-                # Update vector from previous turn
-                self.I_BEAM_COARSE_FF = np.copy(self.I_COARSE_BEAM[-self.n_coarse::5])
+            # Update vector from previous turn
+            self.I_BEAM_COARSE_FF = np.copy(self.I_COARSE_BEAM[-self.n_coarse::5])
 
 
     # INDIVIDUAL COMPONENTS ---------------------------------------------------

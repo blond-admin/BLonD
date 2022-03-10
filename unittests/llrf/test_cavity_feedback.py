@@ -50,7 +50,7 @@ class TestSPSCavityFeedback(unittest.TestCase):
         self.rf = RFStation(self.ring, h, V, phi)
 
         N_m = 1e6                   # Number of macro-particles for tracking
-        N_b = 72 * 2.3e11               # Bunch intensity [ppb]
+        N_b = 288 * 2.3e11               # Bunch intensity [ppb]
 
         # Gaussian beam profile
         self.beam = Beam(self.ring, N_m, N_b)
@@ -94,7 +94,7 @@ class TestSPSCavityFeedback(unittest.TestCase):
             TotalInducedVoltage=self.induced_voltage)
 
         self.OTFB = SPSCavityFeedback(
-            self.rf, self.beam, self.profile, G_llrf=20, G_tx=[0.251402590786449, 0.511242728131293],
+            self.rf, self.beam, self.profile, G_llrf=20, G_tx=[0.22909261332041, 0.429420301179296],
             a_comb=63/64, turns=1000, post_LS2=True, df=[0.18433333e6, 0.2275e6],
             Commissioning=CavityFeedbackCommissioning(open_FF=True))
 
@@ -111,13 +111,13 @@ class TestSPSCavityFeedback(unittest.TestCase):
 
         Vind3_mean = np.mean(np.absolute(self.OTFB.OTFB_1.V_ANT[-self.OTFB.OTFB_1.n_coarse:]))/1e6
         Vind3_std = np.std(np.absolute(self.OTFB.OTFB_1.V_ANT[-self.OTFB.OTFB_1.n_coarse:]))/1e6
-        Vind3_mean_exp = 2.7013204381879006
-        Vind3_std_exp = 2.337165366743567e-12
+        Vind3_mean_exp = 2.689700267145197
+        Vind3_std_exp = 2.388168848303381e-12
 
         Vind4_mean = np.mean(np.absolute(self.OTFB.OTFB_2.V_ANT[-self.OTFB.OTFB_2.n_coarse:]))/1e6
         Vind4_std = np.std(np.absolute(self.OTFB.OTFB_2.V_ANT[-self.OTFB.OTFB_2.n_coarse:]))/1e6
-        Vind4_mean_exp = 1.8015844072467853
-        Vind4_std_exp = 1.784565362514454e-12
+        Vind4_mean_exp = 1.7866100616589826
+        Vind4_std_exp = 1.854813485950122e-12
 
         self.assertAlmostEqual(Vind3_mean, Vind3_mean_exp,
                                places=digit_round,
@@ -138,7 +138,7 @@ class TestSPSCavityFeedback(unittest.TestCase):
                                + 'deviation of five-section cavity differs')
 
     def test_FB_pre_tracking_IQ_v1(self):
-        rtol = 1e-3         # relative tolerance
+        rtol = 1e-2         # relative tolerance
         atol = 0            # absolute tolerance
         # interpolate from coarse mesh to fine mesh
         V_fine_tot_3 = np.interp(
@@ -188,7 +188,7 @@ class TestSPSCavityFeedback(unittest.TestCase):
         max_ratio = np.max(self.cavity_tracker.rf_voltage
                            / self.OTFB_tracker.rf_voltage)
 
-        max_ratio_exp = 1.0001336336515099
+        max_ratio_exp = 1.0953022998660298#1.0001336336515099
         self.assertAlmostEqual(max_ratio, max_ratio_exp,
                                places=digit_round,
                                msg='In TestCavityFeedback test_rf_voltage: '
@@ -196,8 +196,6 @@ class TestSPSCavityFeedback(unittest.TestCase):
 
     def test_beam_loading(self):
         digit_round = 7
-        # TODO: Fix or delete this benchmark.
-        # TODO: Do this unittest with the beam induced voltage only.
         # Compute voltage with beam loading
         self.cavity_tracker.rf_voltage_calculation()
         cavity_tracker_total_voltage = self.cavity_tracker.rf_voltage \
@@ -210,11 +208,11 @@ class TestSPSCavityFeedback(unittest.TestCase):
         max_ratio = np.max(cavity_tracker_total_voltage /
                            OTFB_tracker_total_voltage)
 
-        plt.plot(OTFB_tracker_total_voltage)
-        plt.plot(cavity_tracker_total_voltage)
-        plt.show()
+        #plt.plot(OTFB_tracker_total_voltage)
+        #plt.plot(cavity_tracker_total_voltage)
+        #plt.show()
 
-        max_ration_exp = 1.0660218070889864 #1.0055233047525063
+        max_ration_exp = 1.0953022998625235 #1.0055233047525063
 
         self.assertAlmostEqual(max_ratio, max_ration_exp, places=digit_round,
                                msg='In TestCavityFeedback test_beam_loading: '
