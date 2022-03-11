@@ -630,9 +630,9 @@ class SPSOneTurnFeedback(object):
         self.DV_MOD_FR[:self.n_coarse] = self.DV_MOD_FR[-self.n_coarse:]
         # Note here that dphi_rf is already accumulated somewhere else (i.e. in the tracker).
         self.DV_MOD_FR[-self.n_coarse:] = modulator(self.DV_DELAYED[-self.n_coarse:],
-                                                    self.omega_c, self.omega_r,
+                                                    -self.omega_c, -self.omega_r,
                                                     self.rf.t_rf[0, self.counter],
-                                                    phi_0= self.dphi_mod + self.rf.dphi_rf[0])
+                                                    phi_0= -(self.dphi_mod + self.rf.dphi_rf[0]))
 
 
     def mov_avg(self):
@@ -646,9 +646,9 @@ class SPSOneTurnFeedback(object):
         self.DV_MOD_FRF[:self.n_coarse] = self.DV_MOD_FRF[-self.n_coarse:]
         # Note here that dphi_rf is already accumulated somewhere else (i.e. in the tracker).
         self.DV_MOD_FRF[-self.n_coarse:] = self.open_FB * modulator(self.DV_MOV_AVG[-self.n_coarse:],
-                                                                    self.omega_r, self.omega_c,
+                                                                    -self.omega_r, -self.omega_c,
                                                                     self.rf.t_rf[0, self.counter],
-                                                                    phi_0=-(self.dphi_mod + self.rf.dphi_rf[0]))
+                                                                    phi_0=+(self.dphi_mod + self.rf.dphi_rf[0]))
 
 
     def sum_and_gain(self):
