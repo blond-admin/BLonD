@@ -548,6 +548,12 @@ class SPSOneTurnFeedback(object):
         # Feed-forward
         if self.open_FF == 1:
             # Calculate correction based on previous turn on coarse grid
+            # TODO: introduce up- and down-modulation (from rf to central frequency and back)
+            # TODO: Beam current sampled every 5 bucket (integrate over 5 and 5 buckets and divied by sampling)
+            # TODO: Sum FF voltage directory to the summing point in self.track function
+            # TODO: implement two-turn arrays and introduce FF delay
+            # TODO: do a test where central frequency is at the RF frequency
+
             for ind in range(self.n_coarse_FF):
                 for k in range(self.n_FF):
                     self.I_FF_CORR[ind] += self.coeff_FF[k] \
@@ -565,8 +571,8 @@ class SPSOneTurnFeedback(object):
             self.V_FF_CORR_FINE = np.interp(self.profile.bin_centers, self.rf_centers[::5], self.DV_FF)
 
             # Add to beam-induced voltage (opposite sign)
-            self.V_IND_COARSE_BEAM[-self.n_coarse:] += self.n_cavities * self.V_FF_CORR_COARSE
-            self.V_IND_FINE_BEAM[-self.profile.n_slices:] += self.n_cavities * self.V_FF_CORR_FINE
+            #self.V_IND_COARSE_BEAM[-self.n_coarse:] += self.n_cavities * self.V_FF_CORR_COARSE
+            #self.V_IND_FINE_BEAM[-self.profile.n_slices:] += self.n_cavities * self.V_FF_CORR_FINE
 
             # Update vector from previous turn
             self.I_BEAM_COARSE_FF = np.copy(self.I_COARSE_BEAM[-self.n_coarse::5])
