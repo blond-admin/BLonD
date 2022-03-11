@@ -285,6 +285,12 @@ class SPSCavityFeedback(object):
 
 
 class SPSOneTurnFeedback(object):
+    '''
+
+
+    Note: All currents are in units of charge because the sampling time drops out during the convolution calculation
+    '''
+    # TODO: If I want currents in units of Amperes I need to divide the output of rf_beam_current by T_s, multiply by T_s in matrix convolution and take away T_s factor in generator gain.
 
     def __init__(self, RFStation, Beam, Profile, n_sections, n_cavities=4,
                  V_part=4/9, G_ff=1, G_llrf=10, G_tx=0.5, a_comb=63/64, df=0,
@@ -440,9 +446,9 @@ class SPSOneTurnFeedback(object):
         if self.open_FF == 1:
             self.logger.debug('Feed-forward active')
             self.n_coarse_FF = int(self.n_coarse/5)
-            self.I_BEAM_COARSE_FF = np.zeros(self.n_coarse_FF, dtype=complex)
-            self.I_FF_CORR = np.zeros(self.n_coarse_FF, dtype=complex)
-            self.V_FF_CORR = np.zeros(self.n_coarse_FF, dtype=complex)
+            self.I_BEAM_COARSE_FF = np.zeros(2 * self.n_coarse_FF, dtype=complex)
+            self.I_FF_CORR = np.zeros(2 * self.n_coarse_FF, dtype=complex)
+            self.V_FF_CORR = np.zeros(2 * self.n_coarse_FF, dtype=complex)
 
         self.logger.info("Class initialized")
 
@@ -550,6 +556,13 @@ class SPSOneTurnFeedback(object):
             # TODO: Sum FF voltage directory to the summing point in self.track function
             # TODO: implement two-turn arrays and introduce FF delay
             # TODO: do a test where central frequency is at the RF frequency
+
+            # Resample RF beam current to FF sampling frequency
+            self.I_BEAM_COARSE_FF[:self.n_coarse_FF] = self.I_BEAM_COARSE_FF[-self.n_coarse_FF:]
+            I_COARSE_BEAM_RESHAPED = np.copy(self.I_COARSE_BEAM[-self.n_coarse:])
+            I_COARSE_BEAM_RESHAPED = I_COARSE_BEAM_RESHAPED.reshape((self.n_coarse//self.n_coarse_FF, self.n_coarse_FF))
+            self.I_BEAM_COARSE_FF[-self.n_coarse_FF:] = np.sum(I_COARSE_BEAM_RESHAPED, axis=0)
+
 
             for ind in range(self.n_coarse_FF):
                 for k in range(self.n_FF):

@@ -70,6 +70,7 @@ def cartesian_to_polar(IQ_vector):
 
 
 def modulator(signal, omega_i, omega_f, T_sampling, phi_0=0):
+    # TODO: check this modulation between frequencies that are far apart.
     """Demodulate a signal from initial frequency to final frequency. The two
     frequencies should be close.
 
