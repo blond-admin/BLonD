@@ -249,7 +249,7 @@ class SPSCavityFeedback(object):
 
         # Calculate OTFB correction w.r.t. RF voltage and phase in RFStation
         self.V_corr /= self.rf.voltage[0, self.rf.counter[0]]
-        self.phi_corr = (self.alpha_sum - np.angle(self.OTFB_1.V_SET[-self.OTFB_1.n_coarse])) # TODO: Added a minus 02/02/2022
+        self.phi_corr = (self.alpha_sum - np.angle(self.OTFB_1.V_SET[-self.OTFB_1.n_coarse]))
 
     def track_init(self, debug=False):
         r''' Tracking of the SPSCavityFeedback without beam.
@@ -352,7 +352,6 @@ class SPSOneTurnFeedback(object):
 
     Note: All currents are in units of charge because the sampling time drops out during the convolution calculation
     """
-    # TODO: If I want currents in units of Amperes I need to divide the output of rf_beam_current by T_s, multiply by T_s in matrix convolution and take away T_s factor in generator gain.
 
     def __init__(self, RFStation, Beam, Profile, n_sections, n_cavities=4,
                  V_part=4/9, G_ff=1, G_llrf=10, G_tx=0.5, a_comb=63/64, df=0,
@@ -623,8 +622,11 @@ class SPSOneTurnFeedback(object):
             self.I_BEAM_COARSE_FF[:self.n_coarse_FF] = self.I_BEAM_COARSE_FF[-self.n_coarse_FF:]
             I_COARSE_BEAM_RESHAPED = np.copy(self.I_COARSE_BEAM[-self.n_coarse:])
             I_COARSE_BEAM_RESHAPED = I_COARSE_BEAM_RESHAPED.reshape((self.n_coarse//self.n_coarse_FF, self.n_coarse_FF))
-            self.I_BEAM_COARSE_FF[-self.n_coarse_FF:] = np.sum(I_COARSE_BEAM_RESHAPED, axis=0)
+            self.I_BEAM_COARSE_FF[-self.n_coarse_FF:] = np.sum(I_COARSE_BEAM_RESHAPED, axis=0) / 5
 
+            # Do a down-modulation to the resonant frequency of the TWC
+            self.I_BEAM_COARSE_FF[-self.n_coarse_FF:] = modulator(self.I_BEAM_COARSE_FF[-self.n_coarse_FF:],
+                                                                  )
 
             for ind in range(self.n_coarse_FF):
                 for k in range(self.n_FF):
@@ -639,8 +641,8 @@ class SPSOneTurnFeedback(object):
                                         np.zeros(self.n_FF_delay, dtype=complex)))
 
             # Interpolate to finer grids
-            self.V_FF_CORR_COARSE = np.interp(self.rf_centers, self.rf_centers[::5], self.DV_FF)
-            self.V_FF_CORR_FINE = np.interp(self.profile.bin_centers, self.rf_centers[::5], self.DV_FF)
+            self.V_FF_CORR_COARSE = np.interp(self.rf_centers, self.rf_centers[::5], self.DV_FF[-self.n_coarse_FF:])
+            self.V_FF_CORR_FINE = np.interp(self.profile.bin_centers, self.rf_centers[::5], self.DV_FF[-self.n_coarse_FF:])
 
             # Add to beam-induced voltage (opposite sign)
             #self.V_IND_COARSE_BEAM[-self.n_coarse:] += self.n_cavities * self.V_FF_CORR_COARSE
