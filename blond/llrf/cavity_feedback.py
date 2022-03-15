@@ -512,6 +512,7 @@ class SPSOneTurnFeedback(object):
             self.I_FF_CORR_MOD = np.zeros(2 * self.n_coarse_FF, dtype=complex)
             self.I_FF_CORR = np.zeros(2 * self.n_coarse_FF, dtype=complex)
             self.V_FF_CORR = np.zeros(2 * self.n_coarse_FF, dtype=complex)
+            self.DV_FF = np.zeros(2 * self.n_coarse_FF, dtype=complex)
 
         self.logger.info("Class initialized")
 
@@ -650,7 +651,7 @@ class SPSOneTurnFeedback(object):
             # Find voltage from convolution with generator response
             self.V_FF_CORR[:self.n_coarse_FF] = self.V_FF_CORR[-self.n_coarse_FF:]
             self.V_FF_CORR[-self.n_coarse_FF:] = self.G_ff \
-                            * self.matr_conv(self.I_FF_CORR_MOD, self.TWC.h_gen[::5])[-self.n_coarse_FF:] * 5 * T_s
+                            * self.matr_conv(self.I_FF_CORR_MOD, self.TWC.h_gen[::5])[-self.n_coarse_FF:] * 5 * self.T_s
 
             # Compensate for FIR filter delay
             self.DV_FF[:self.n_coarse_FF] = self.DV_FF[-self.n_coarse_FF:]
