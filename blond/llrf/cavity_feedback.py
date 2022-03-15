@@ -508,6 +508,8 @@ class SPSOneTurnFeedback(object):
             self.logger.debug('Feed-forward active')
             self.n_coarse_FF = int(self.n_coarse/5)
             self.I_BEAM_COARSE_FF = np.zeros(2 * self.n_coarse_FF, dtype=complex)
+            self.I_BEAM_COARSE_FF_MOD = np.zeros(2 * self.n_coarse_FF, dtype=complex)
+            self.I_FF_CORR_MOD = np.zeros(2 * self.n_coarse_FF, dtype=complex)
             self.I_FF_CORR = np.zeros(2 * self.n_coarse_FF, dtype=complex)
             self.V_FF_CORR = np.zeros(2 * self.n_coarse_FF, dtype=complex)
 
@@ -545,6 +547,11 @@ class SPSOneTurnFeedback(object):
         self.V_ANT_FINE[-self.profile.n_slices:] = self.V_IND_FINE_BEAM[-self.profile.n_slices:] \
                                                    + np.interp(self.profile.bin_centers, self.rf_centers,
                                                                self.V_IND_COARSE_GEN[-self.n_coarse:])
+
+        # Feed-forward corrections
+        if self.open_FF == 1:
+            self.V_ANT[-self.n_coarse:] = self.V_FF_CORR_COARSE + self.V_ANT[-self.n_coarse:]
+            self.V_ANT_FINE[-self.profile.n_slices:] = self.V_FF_CORR_FINE + self.V_ANT_FINE[-self.profile.n_slices:]
 
     def track_no_beam(self):
 
@@ -612,10 +619,6 @@ class SPSOneTurnFeedback(object):
         # Feed-forward
         if self.open_FF == 1:
             # Calculate correction based on previous turn on coarse grid
-            # TODO: introduce up- and down-modulation (from rf to central frequency and back)
-            # TODO: Beam current sampled every 5 bucket (integrate over 5 and 5 buckets and divied by sampling)
-            # TODO: Sum FF voltage directory to the summing point in self.track function
-            # TODO: implement two-turn arrays and introduce FF delay
             # TODO: do a test where central frequency is at the RF frequency
 
             # Resample RF beam current to FF sampling frequency
@@ -625,31 +628,37 @@ class SPSOneTurnFeedback(object):
             self.I_BEAM_COARSE_FF[-self.n_coarse_FF:] = np.sum(I_COARSE_BEAM_RESHAPED, axis=0) / 5
 
             # Do a down-modulation to the resonant frequency of the TWC
-            self.I_BEAM_COARSE_FF[-self.n_coarse_FF:] = modulator(self.I_BEAM_COARSE_FF[-self.n_coarse_FF:],
-                                                                  )
+            self.I_BEAM_COARSE_FF_MOD[:self.n_coarse_FF] = self.I_BEAM_COARSE_FF_MOD[-self.n_coarse_FF:]
+            self.I_BEAM_COARSE_FF_MOD[-self.n_coarse_FF:] = modulator(self.I_BEAM_COARSE_FF[-self.n_coarse_FF:],
+                                                                  omega_i=self.omega_c, omega_f=self.omega_r,
+                                                                  T_sampling= 5 * self.T_s,
+                                                                  phi_0=(self.dphi_mod + self.rf.dphi_rf[0]))
 
-            for ind in range(self.n_coarse_FF):
+            self.I_FF_CORR[:self.n_coarse_FF] = self.I_FF_CORR[-self.n_coarse_FF:]
+            for ind in range(self.n_coarse_FF, 2 * self.n_coarse_FF):
                 for k in range(self.n_FF):
                     self.I_FF_CORR[ind] += self.coeff_FF[k] \
-                                      * self.I_BEAM_COARSE_FF[ind-k]
+                                      * self.I_BEAM_COARSE_FF_MOD[ind-k]
 
-            self.V_FF_CORR = self.G_ff \
-                            * self.matr_conv(self.I_BEAM_COARSE_FF, self.TWC.h_gen[::5])
+            # Do a down-modulation to the resonant frequency of the TWC
+            self.I_FF_CORR_MOD[:self.n_coarse_FF] = self.I_FF_CORR_MOD[-self.n_coarse_FF:]
+            self.I_FF_CORR_MOD[-self.n_coarse_FF:] = modulator(self.I_FF_CORR[-self.n_coarse_FF:],
+                                                           omega_i=self.omega_r, omega_f=self.omega_c,
+                                                           T_sampling=5 * self.T_s,
+                                                           phi_0=-(self.dphi_mod + self.rf.dphi_rf[0]))
+
+            # Find voltage from convolution with generator response
+            self.V_FF_CORR[:self.n_coarse_FF] = self.V_FF_CORR[-self.n_coarse_FF:]
+            self.V_FF_CORR[-self.n_coarse_FF:] = self.G_ff \
+                            * self.matr_conv(self.I_FF_CORR_MOD, self.TWC.h_gen[::5])[-self.n_coarse_FF:] * 5 * T_s
 
             # Compensate for FIR filter delay
-            self.DV_FF = np.concatenate((self.V_FF_CORR[self.n_FF_delay:],
-                                        np.zeros(self.n_FF_delay, dtype=complex)))
+            self.DV_FF[:self.n_coarse_FF] = self.DV_FF[-self.n_coarse_FF:]
+            self.DV_FF[-self.n_coarse_FF:] = self.V_FF_CORR[self.n_coarse_FF - self.n_FF_delay: - self.n_FF_delay]
 
             # Interpolate to finer grids
             self.V_FF_CORR_COARSE = np.interp(self.rf_centers, self.rf_centers[::5], self.DV_FF[-self.n_coarse_FF:])
             self.V_FF_CORR_FINE = np.interp(self.profile.bin_centers, self.rf_centers[::5], self.DV_FF[-self.n_coarse_FF:])
-
-            # Add to beam-induced voltage (opposite sign)
-            #self.V_IND_COARSE_BEAM[-self.n_coarse:] += self.n_cavities * self.V_FF_CORR_COARSE
-            #self.V_IND_FINE_BEAM[-self.profile.n_slices:] += self.n_cavities * self.V_FF_CORR_FINE
-
-            # Update vector from previous turn
-            self.I_BEAM_COARSE_FF = np.copy(self.I_COARSE_BEAM[-self.n_coarse::5])
 
 
     # INDIVIDUAL COMPONENTS ---------------------------------------------------
