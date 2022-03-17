@@ -39,12 +39,12 @@ if not os.path.exists(images_dir):
 
 gconfig = {
     'label': {
-        'on': 'With Caching',
-        'off': 'Without Caching',
+        'on': 'With Memory Pool',
+        'off': 'Without Memory Pool',
     },
     'colors': {
-        'on': 'tab:green',
-        'off': 'tab:red',
+        'on': 'tab:blue',
+        'off': 'tab:orange',
     },
     'hatches': {
         'on': '',
@@ -60,11 +60,11 @@ gconfig = {
     'title': {
         # 's': '',
         'fontsize': 10,
-        'y': .96,
+        'y': .98,
         'x': 0.1,
         'fontweight': 'bold',
     },
-    'figsize': [5, 2.2],
+    'figsize': [5, 2.8],
     'annotate': {
         'fontsize': 10,
         'textcoords': 'data',
@@ -78,7 +78,7 @@ gconfig = {
         'loc': 'upper left', 'ncol': 9, 'handlelength': 1.6, 'fancybox': True,
         'framealpha': 0., 'fontsize': 10, 'labelspacing': 0, 'borderpad': 0.5,
         'handletextpad': 0.2, 'borderaxespad': 0.1, 'columnspacing': 0.5,
-        'bbox_to_anchor': (-0.01, 1.22)
+        'bbox_to_anchor': (-0.01, 1.12)
     },
     'subplots_adjust': {
         'wspace': 0.0, 'hspace': 0.1, 'top': 0.93
@@ -178,7 +178,7 @@ if __name__ == '__main__':
             pos += width
         xtickspos += list(pos - 0.75 + np.arange(len(sizes)))
         xticks += list(np.array(sizes, int))
-        ax.annotate(tc, xy=(pos-2.5*width + len(sizes)/2, 1.),
+        ax.annotate(tc, xy=(pos-2.5*width + len(sizes)/2, 1.05),
                     rotation='0', **gconfig['annotate'])
         pos += len(sizes) - 1.5 * width
         plt.axvline(x=pos-0.75*width, color='black', ls='--')
@@ -201,7 +201,7 @@ if __name__ == '__main__':
         pos += width
 
     xtickspos += list(pos - 0.75 + np.arange(len(sizes)))
-    ax.annotate('AVG', xy=(pos-2.5*width + len(sizes)/2, 1.),
+    ax.annotate('AVG', xy=(pos-2.5*width + len(sizes)/2, 1.05),
                 rotation='0', **gconfig['annotate'])
 
     plt.grid(True, which='major', alpha=0.5)

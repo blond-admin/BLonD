@@ -1,0 +1,51 @@
+# This config is used to evaluate a feature for every kernel
+figure:
+    # colors: {'control_stalls': 'xkcd:green', 'scoreboard_stalls':'xkcd:orange',
+    #         'pipeline_stalls': 'xkcd:sky blue'}
+    colors: ['xkcd:light blue', 'xkcd:blue', 'xkcd:light orange', 'xkcd:orange',
+             'xkcd:light green', 'xkcd:green', 'xkcd:light red', 'xkcd:red',
+             'xkcd:light purple', 'xkcd:purple', 'xkcd:light brown', 'xkcd:brown',
+             'xkcd:light pink', 'xkcd:pink', 'xkcd:light grey', 'xkcd:grey']
+    figure:
+        nrows: 3
+        ncols: 3
+        sharex: 'all'
+        # sharey: 'row'
+        # figsize: [9,6]
+    ticks:
+        x:
+            fontsize: '9'
+        y: 
+            fontsize: '9'
+    legend:
+        loc: 'upper left'
+        ncol: 1
+        handlelength: 1
+        fancybox: True
+        framealpha: 0.3
+        frameon: False
+        fontsize: 8
+        labelspacing: 0
+        borderpad: 0.5
+        handletextpad: 0.5
+        borderaxespad: 0
+    subplots_adjust:
+        wspace: 0.05
+        hspace: 0.05
+        top: 0.95
+    tick_params:
+        labelbottom: False
+        labelleft: False
+        pad: 0
+        top: 0
+        bottom: 0
+        left: 0
+        direction: 'inout'
+        length: 3
+        width: 0.5
+    suptitle:
+        fontsize: 9
+    title:
+        fontsize: 9
+phases: ['tcomm', 'tcomp', 'tconst']
+workers: [4, 8, 12]

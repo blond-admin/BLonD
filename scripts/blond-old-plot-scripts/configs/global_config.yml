@@ -1,0 +1,921 @@
+global:
+    knobs_shorts: 
+        gpgpu_max_insn_issue_per_warp: "mxiipw"
+        gpgpu_num_sched_per_core: "nspc"
+        gpgpu_shader_core_pipeline: "scp"
+        gpgpu_shader_registers: "sr"
+        gpgpu_shader_cta: "sc"
+        gpgpu_num_reg_banks: "nrb"
+        gpgpu_shmem_num_banks: "snb" 
+        gpgpu_shmem_size: "ss"
+        gpgpu_n_clusters: "nc"
+        gpgpu_n_cores_per_cluster: "ncpc"
+        gpgpu_operand_collector_num_units_sp: "ocnusp"
+        gpgpu_operand_collector_num_units_sfu: "ocnusfu"
+        gpgpu_operand_collector_num_units_mem: "ocnum"
+        gpgpu_operand_collector_num_in_ports_sp: "ocnipsp"
+        gpgpu_operand_collector_num_in_ports_sfu: "ocnipsfu"
+        gpgpu_operand_collector_num_in_ports_mem: "ocnipm"
+        gpgpu_operand_collector_num_out_ports_sp: "ocnopsp"
+        gpgpu_operand_collector_num_out_ports_sfu: "ocnopsfu"
+        gpgpu_operand_collector_num_out_ports_mem: "ocnopm"
+        gpgpu_num_sp_units: "nspu"
+        gpgpu_num_sfu_units: "nsfu"
+        gpgpu_num_mem_units: "nmu"
+        gpgpu_cache:dl1: "cdl1"
+        gpgpu_cache:dl2: "cdl2"
+        gpgpu_dispatch_scheduler_sp: "dssp"
+        gpgpu_dispatch_scheduler_sfu: "dssfu"
+        gpgpu_dispatch_scheduler_mem: "dsmem"
+    
+    knobs: 
+        mxiipw: "max_insn_issue_per_warp"
+        nspc: "sched_per_core"
+        scp: "shader_core_pipe"
+        sr: "shader_registers"
+        sc: "shader_cta"
+        nrb: "num_reg_banks"
+        snb: "shmem_banks" 
+        ss: "shmem_size"
+        nc: "clusters"
+        pw: "pipe_width"
+        ncpc: "cores_per_cluster"
+        ocnusp: "ocu_sp"
+        ocnusfu: "ocu_sfu"
+        ocnum: "ocu_mem"
+        ocnipsp: "oc_in_ports_sp"
+        ocnipsfu: "oc_num_in_ports_sfu"
+        ocnipm: "oc_in_ports_mem"
+        ocnopsp: "oc_out_ports_sp"
+        ocnopsfu: "oc_out_ports_sfu"
+        ocnopm: "oc_out_ports_mem"
+        nspu: "sp_units"
+        nsfu: "sfu_units"
+        nmu: "mem_units"
+        cdl1: "l1D_size" 
+        cdl2: "l2D_size" 
+        dssp: "sched_sp" 
+        dssfu: "sched_sfu" 
+        dsmem: "sched_mem" 
+
+    stat_shorts:
+        kernel_launch_uid: "kernel_id"
+        kernel_name: "kernel"
+        "gpgpu_simulation_time(sec)": "time(sec)" 
+        gpu_tot_sim_insn: "tot_insn"
+        gpu_sim_insn: "insn"
+        gpu_sim_cycle: "cycles"
+        gpu_tot_sim_cycle: "tot_cycles"
+        gpu_tot_ipc: "tot_ipc"
+        L2_total_cache_misses: "tot_L2_misses"
+        L1D_total_cache_misses: "tot_L1D_misses"
+        L1D_total_cache_accesses: "tot_L1D_accesses"
+        L2_total_cache_accesses: "tot_L2_accesses"
+        L1D_total_cache_miss_rate: "tot_L1D_miss_rate"
+        L2_total_cache_miss_rate: "tot_L2_miss_rate"
+        L1I_total_cache_accesses: "tot_L1I_accesses"
+        L1I_total_cache_misses: "tot_L1I_misses"
+        L1I_total_cache_miss_rate: "tot_L1I_miss_rate"
+        averagemflatency: "mem_fetch_latency"
+        Stall: "warp_stall_cycles"
+        W0_Idle: "warp_idle_cycles"
+        W0_Scoreboard: "warp_scoreboard_idle"
+        W_Occupancy: "warp_occupancy"
+        Utilization: "warp_utilization"
+        "L2_BW(GBps)": "L2_BW(GBps)"
+        "L2_BW_total(GBps)": "tot_L2_BW(GBps)"
+        gpgpu_n_load_insn: "load_insn"
+        bw_util: "bw_util"
+        gpgpu_n_store_insn: "store_insn"
+        gpgpu_n_mem_read_local: "local_mem_reads"
+        gpgpu_n_mem_read_global: "global_mem_reads"
+        gpgpu_n_mem_write_local: "local_mem_writes"
+        gpgpu_n_mem_write_global: "global_mem_writes"
+        gpgpu_n_stall_shd_mem_stall: "memory_stalls"
+        gpgpu_n_tot_thrd_icount: "tot_thread_insn"
+        gpgpu_n_tot_w_icount: "tot_w_insn"
+        gpgpu_cycles_in_cu_to_dispatch_SP_CUS: cu_wait_SP
+        gpgpu_cycles_in_cu_to_dispatch_MEM_CUS: cu_wait_MEM
+        gpgpu_cycles_in_cu_to_dispatch_SFU_CUS: cu_wait_SFU
+        gpgpu_cycles_in_cu_total_SP_CUS: cu_tot_SP
+        gpgpu_cycles_in_cu_total_MEM_CUS: cu_tot_MEM
+        gpgpu_cycles_in_cu_total_SFU_CUS: cu_tot_SFU
+        gpgpu_tot_num_winsn_SP_CUS: winsn_SP
+        gpgpu_tot_num_winsn_MEM_CUS: winsn_MEM
+        gpgpu_tot_num_winsn_SFU_CUS: winsn_SFU
+
+    bench_shorts:
+        backprop-rodinia-2.0-ft: bp-rod
+        bfs-rodinia-2.0-ft: bfs-rod
+        hotspot-rodinia-2.0-ft: hs-rod
+        heartwall-rodinia-2.0-ft: hw-rod
+        kmeans-rodinia-2.0-ft: km-rod
+        lud-rodinia-2.0-ft: lud-rod
+        nw-rodinia-2.0-ft: nw-rod
+        nn-rodinia-2.0-ft: nn-rod
+        pathfinder-rodinia-2.0-ft: pf-rod
+        srad_v2-rodinia-2.0-ft: sr2-rod
+        streamcluster-rodinia-2.0-ft: sc-rod
+        BlackScholes-sdk-4.1.15: bs-sdk
+        MonteCarlo-sdk-4.1.15: mc-sdk
+        SobolQRNG-sdk-4.1.15: sq-sdk
+        binomialOptions-sdk-4.1.15: bo-sdk
+        convolutionSeparable-sdk-4.1.15: cs-sdk
+        fastWalshTransform-sdk-4.1.15: fwt-sdk
+        histogram-sdk-4.1.15: hst-sdk
+        mergeSort-sdk-4.1.15: ms-sdk
+        quasirandomGenerator-sdk-4.1.15: qg-sdk
+        reduction-sdk-4.1.15: red-sdk
+        scalarProd-sdk-4.1.15: sp-sdk
+        scan-sdk-4.1.15: sca-sdk
+        sortingNetworks-sdk-4.1.15: sn-sdk
+        transpose-sdk-4.1.15: tra-sdk
+        vectorAdd-sdk-4.1.15: vec-sdk
+        nbody-sdk-4.1.15: nbo-sdk
+        Mandelbrot-sdk-4.1.15: mb-sdk
+        AES-ispass2009-1.0: aes-isp
+        BFS-ispass2009-1.0: bfs-isp
+        LIB-ispass2009-1.0: lib-isp 
+        LPS-ispass2009-1.0: lps-isp
+        MUM-ispass2009-1.0: mum-isp
+        NN-ispass2009-1.0: nn-isp
+        RAY-ispass2009-1.0: ray-isp
+        NQU-ispass2009-1.0: nqu-isp
+        STO-ispass2009-1.0: sto-isp
+        spmv-parboil-0.2: spm-par
+        stencil-parboil-0.2: ste-par
+        tpacf-parboil-0.2: tpac-par
+        sad-parboil-0.2: sad-par
+        histo-parboil-0.2: hst-par
+        sgemm-parboil-0.2: sge-par
+        mri-q-parboil-0.2: mri-par
+        cutcp-parboil-0.2: cut-par
+        average: avg
+
+    requires_conversion:
+        - gpgpu_cycles_dispatch_stalls_SP
+        - gpgpu_cycles_dispatch_stalls_SFU
+        - gpgpu_cycles_dispatch_stalls_LDST
+        - gpgpu_cycles_in_cu_total_SP_CUS
+        - gpgpu_cycles_in_cu_total_MEM_CUS
+        - gpgpu_cycles_in_cu_total_SFU_CUS
+        - gpgpu_cycles_in_cu_to_dispatch_SP_CUS
+        - gpgpu_cycles_in_cu_to_dispatch_MEM_CUS
+        - gpgpu_cycles_in_cu_to_dispatch_SFU_CUS
+        - gpgpu_cycles_no_cu_alloc_SP_CUS
+        - gpgpu_cycles_no_cu_alloc_MEM_CUS
+        - gpgpu_cycles_no_cu_alloc_SFU_CUS
+        - gpgpu_tot_num_winsn_SP_CUS
+        - gpgpu_tot_num_winsn_MEM_CUS
+        - gpgpu_tot_num_winsn_SFU_CUS
+        - gpgpu_tot_num_insn_SP_CUS
+        - gpgpu_tot_num_insn_MEM_CUS
+        - gpgpu_tot_num_insn_SFU_CUS
+        - W0_Scoreboard
+        - W0_Idle
+        - gpu_num_cu_stalls
+        - Stall
+        - gpgpu_saved_cycles_long_issue
+        # - gpgpu_total_checked_insn_long_issue
+        - gpgpu_not_saved_cycles_control
+        - gpgpu_not_saved_cycles_pipeline
+        - gpgpu_not_saved_cycles_scoreboard   
+        - gpgpu_cycles_with_fetch     
+
+    metrics:
+        not_saved_scoreboard: 'gpgpu_not_saved_cycles_scoreboard / (W0_Scoreboard + W0_Idle + Stall)'
+        not_saved_pipeline: 'gpgpu_not_saved_cycles_pipeline / (W0_Scoreboard + W0_Idle + Stall)'
+        not_saved_control: 'gpgpu_not_saved_cycles_control / (W0_Scoreboard + W0_Idle + Stall)'
+        saved_stalls: 'gpgpu_saved_cycles_long_issue / (W0_Scoreboard + W0_Idle + Stall)'
+        not_saved_stalls: '1 - gpgpu_saved_cycles_long_issue / (W0_Scoreboard + W0_Idle + Stall)'
+        all_stalls: '(W0_Scoreboard + W0_Idle + Stall)/(gpu_tot_shader_cycles*schedulers)'
+        scoreboard_stalls: 'W0_Scoreboard/(gpu_tot_shader_cycles*schedulers)'
+        control_stalls: 'W0_Idle/(gpu_tot_shader_cycles*schedulers)'
+        pipeline_stalls: 'Stall/(gpu_tot_shader_cycles*schedulers)'
+        gpu_sim_ipc: 'gpu_sim_insn/gpu_sim_cycle'
+        gpu_sim_cpi: 'gpu_sim_cycle/gpu_sim_insn'
+        gpu_sim_insn: 'gpu_sim_insn'
+        gpu_sim_cycle: 'gpu_sim_cycle'
+        
+        SP%: 'gpgpu_tot_num_insn_SP_CUS / (gpgpu_tot_num_insn_SP_CUS + gpgpu_tot_num_insn_MEM_CUS + gpgpu_tot_num_insn_SFU_CUS)'
+        MEM%: 'gpgpu_tot_num_insn_MEM_CUS / (gpgpu_tot_num_insn_SP_CUS + gpgpu_tot_num_insn_MEM_CUS + gpgpu_tot_num_insn_SFU_CUS)'
+        SFU%: 'gpgpu_tot_num_insn_SFU_CUS / (gpgpu_tot_num_insn_SP_CUS + gpgpu_tot_num_insn_MEM_CUS + gpgpu_tot_num_insn_SFU_CUS)'
+
+        cu_stalls: 'gpu_num_cu_stalls / (gpu_tot_shader_cycles)'
+        # cu_stalls: 'gpu_num_cu_stalls / (gpgpu_tot_num_winsn_SP_CUS + gpgpu_tot_num_winsn_SFU_CUS + gpgpu_tot_num_winsn_MEM_CUS)'
+
+        stalls_dispatch_SP: 'gpgpu_cycles_dispatch_stalls_SP / gpgpu_tot_num_winsn_SP_CUS'
+        stalls_dispatch_SFU: 'gpgpu_cycles_dispatch_stalls_SFU / gpgpu_tot_num_winsn_SFU_CUS'
+        stalls_dispatch_MEM: 'gpgpu_cycles_dispatch_stalls_LDST / gpgpu_tot_num_winsn_MEM_CUS'
+
+        cycles_wait_cu_SP: 'gpgpu_cycles_in_cu_to_dispatch_SP_CUS / gpgpu_tot_num_winsn_SP_CUS'
+        cycles_wait_cu_MEM: 'gpgpu_cycles_in_cu_to_dispatch_MEM_CUS / gpgpu_tot_num_winsn_MEM_CUS'
+        cycles_wait_cu_SFU: 'gpgpu_cycles_in_cu_to_dispatch_SFU_CUS / gpgpu_tot_num_winsn_SFU_CUS'
+        
+        cycles_tot_cu_SP: 'gpgpu_cycles_in_cu_total_SP_CUS / gpgpu_tot_num_winsn_SP_CUS'
+        cycles_tot_cu_MEM: 'gpgpu_cycles_in_cu_total_MEM_CUS / gpgpu_tot_num_winsn_MEM_CUS'
+        cycles_tot_cu_SFU: 'gpgpu_cycles_in_cu_total_SFU_CUS / gpgpu_tot_num_winsn_SFU_CUS'
+
+        cycles_cu_after_disp_SP: '(gpgpu_cycles_in_cu_total_SP_CUS - gpgpu_cycles_in_cu_to_dispatch_SP_CUS)/ gpgpu_tot_num_winsn_SP_CUS'
+        cycles_cu_after_disp_MEM: '(gpgpu_cycles_in_cu_total_MEM_CUS - gpgpu_cycles_in_cu_to_dispatch_MEM_CUS)/ gpgpu_tot_num_winsn_MEM_CUS'
+        cycles_cu_after_disp_SFU: '(gpgpu_cycles_in_cu_total_SFU_CUS - gpgpu_cycles_in_cu_to_dispatch_SFU_CUS)/ gpgpu_tot_num_winsn_SFU_CUS'
+
+        stalls_no_cu_SP: 'gpgpu_cycles_no_cu_alloc_SP_CUS / (gpgpu_tot_num_winsn_SP_CUS)'
+        stalls_no_cu_MEM: 'gpgpu_cycles_no_cu_alloc_MEM_CUS / (gpgpu_tot_num_winsn_MEM_CUS)'
+        stalls_no_cu_SFU: 'gpgpu_cycles_no_cu_alloc_SFU_CUS / (gpgpu_tot_num_winsn_SFU_CUS)'
+
+        tot_stalls_SP: '(gpgpu_cycles_no_cu_alloc_SP_CUS + gpgpu_cycles_dispatch_stalls_SP) / gpgpu_tot_num_winsn_SP_CUS'
+        tot_stalls_SFU: '(gpgpu_cycles_no_cu_alloc_SFU_CUS + gpgpu_cycles_dispatch_stalls_SFU) / gpgpu_tot_num_winsn_SFU_CUS'
+        tot_stalls_MEM: '(gpgpu_cycles_no_cu_alloc_MEM_CUS + gpgpu_cycles_dispatch_stalls_LDST) / gpgpu_tot_num_winsn_MEM_CUS'
+        
+        deps_SP: 'gpgpu_num_deps_SP_CUS / gpgpu_tot_num_winsn_SP_CUS'
+        deps_SFU: 'gpgpu_num_deps_SFU_CUS / gpgpu_tot_num_winsn_SFU_CUS'
+        deps_MEM: 'gpgpu_num_deps_MEM_CUS / gpgpu_tot_num_winsn_MEM_CUS'
+
+        last_dep_SP%: 'gpgpu_num_last_dep_SP_CUS / (gpgpu_num_last_dep_SP_CUS + gpgpu_num_last_dep_SFU_CUS + gpgpu_num_last_dep_MEM_CUS)'
+        last_dep_SFU%: 'gpgpu_num_last_dep_SFU_CUS / (gpgpu_num_last_dep_SP_CUS + gpgpu_num_last_dep_SFU_CUS + gpgpu_num_last_dep_MEM_CUS)'
+        last_dep_MEM%: 'gpgpu_num_last_dep_MEM_CUS / (gpgpu_num_last_dep_SP_CUS + gpgpu_num_last_dep_SFU_CUS + gpgpu_num_last_dep_MEM_CUS)'
+
+        fetch_ready_warps%: 'gpgpu_warps_ready_to_fetch_percent / gpgpu_cycles_with_fetch'
+
+        # saved_stalls: 'gpgpu_saved_cycles_long_issue / (gpu_tot_shader_cycles*schedulers)'
+
+    most_stall_kernels:
+        - sortingNetworks-sdk-4.1.15/NO_ARGS/_Z18bitonicMergeGlobalPjS_S_S_jjjj
+        - nw-rodinia-2.0-ft/256_10___data_result_256_10_txt/_Z20needle_cuda_shared_2PiS_S_iiii
+        - fastWalshTransform-sdk-4.1.15/NO_ARGS/_Z15fwtBatch2KernelPfS_i
+        - RAY-ispass2009-1.0/64_64/_Z6renderPjP4Nodejjff
+        - histo-parboil-0.2/_i___data_default_input_img_bin____1/_Z18histo_final_kerneljjjjPjS_S_S_
+        - convolutionSeparable-sdk-4.1.15/NO_ARGS/_Z21convolutionRowsKernelPfS_iii
+        - histogram-sdk-4.1.15/NO_ARGS/_Z22mergeHistogram64KernelPjS_j
+        - nbody-sdk-4.1.15/_n_512__compare__benchmark/_Z15integrateBodiesIfLb1EEvPN4vec4IT_E4TypeES4_S4_jjffi
+        # - MUM-ispass2009-1.0/__data_NC_003997_20k_fna___data_NC_003997_q25bp_10k_fna/_Z15mummergpuKernelP10MatchCoordPcPKiS3_ii
+        - fastWalshTransform-sdk-4.1.15/NO_ARGS/_Z14modulateKernelPfS_i
+        - vectorAdd-sdk-4.1.15/NO_ARGS/_Z6VecAddPKfS0_Pfi
+        - histo-parboil-0.2/_i___data_default_input_img_bin____1/_Z26histo_intermediates_kernelP5uint2jjjP6uchar4
+        - nn-rodinia-2.0-ft/__data_filelist_4_3_30_90___data_filelist_4_3_30_90_result_txt/_Z6euclidPcffPfiii
+        - transpose-sdk-4.1.15/__dimY_128___dimX_128/_Z14transposeNaivePfS_iii
+        - BFS-ispass2009-1.0/__data_graph65536_txt/_Z6KernelP4NodePiPbS2_S1_S2_i
+        - sad-parboil-0.2/_i___data_default_input_reference_bin___data_default_input_frame_bin/_Z17larger_sad_calc_8Ptii
+        - sad-parboil-0.2/_i___data_default_input_reference_bin___data_default_input_frame_bin/_Z18larger_sad_calc_16Ptii
+        - histogram-sdk-4.1.15/NO_ARGS/_Z23mergeHistogram256KernelPjS_j
+    best_kernels_OOO:
+        - NQU-ispass2009-1.0/10/_Z24solve_nqueen_cuda_kerneliiPjS_S_S_i
+        # - lud-rodinia-2.0-ft/_v__b__i___data_256_dat/_Z12lud_diagonalPfii
+        - LIB-ispass2009-1.0/NO_ARGS/_Z28Pathcalc_Portfolio_KernelGPUPfS_
+        # - reduction-sdk-4.1.15/__type_int/_Z7reduce6IiLj32ELb1EEvPT_S1_j
+        - LIB-ispass2009-1.0/NO_ARGS/_Z29Pathcalc_Portfolio_KernelGPU2Pf
+        - lud-rodinia-2.0-ft/_v__b__i___data_256_dat/_Z13lud_perimeterPfii
+        # - tpacf-parboil-0.2/_i___data_small_input_Datapnts_1___data_small_input_Randompnts_1_____p487__n1/_Z9gen_histsPmPfS0_S0_ii
+        - nw-rodinia-2.0-ft/256_10___data_result_256_10_txt/_Z20needle_cuda_shared_1PiS_S_iiii
+    worst_kernels_OOO:
+        - LPS-ispass2009-1.0/__nx_100___ny_100___nz_100___repeat_1/_Z13GPU_laplace3diiiiPfS_
+        - fastWalshTransform-sdk-4.1.15/NO_ARGS/_Z14modulateKernelPfS_i
+        - histo-parboil-0.2/_i___data_default_input_img_bin____1/_Z17histo_main_kernelP6uchar4jjjjjPjS1_S1_
+        - heartwall-rodinia-2.0-ft/__data_test_avi_1___data_result_1_txt/_Z6kernelv
+        - scalarProd-sdk-4.1.15/NO_ARGS/_Z13scalarProdGPUPfS_S_ii
+
+
+subplots_one_line_per_bench.py:
+    stats_to_plot:
+        - gpu_tot_sim_cycle
+        - gpu_tot_ipc
+        # - L1D_total_cache_miss_rate
+        # - L2_total_cache_miss_rate
+        - Utilization
+        # - "gpgpu_simulation_time(sec)"
+        # - W_Occupancy
+        # - L1I_total_cache_miss_rate
+        # - averagemflatency
+        # - "L2_BW(GBpersec)"
+        # - "L2_BW_total(GBpersec)"
+        # - gpgpu_n_store_insn
+        # - gpgpu_n_mem_read_local
+        # - gpgpu_n_mem_read_global
+        # - gpgpu_n_mem_write_local
+        # - gpgpu_n_mem_write_global
+        # - gpgpu_n_stall_shd_mem_stall
+    parboil:
+        grid:
+            columns: 3
+            rows: 3
+    sdk:
+        grid:
+            columns: 5
+            rows: 4
+    rodinia:
+        grid:
+            columns: 4
+            rows: 3
+    ispass:
+        grid:
+            columns: 4
+            rows: 3
+    figsize: 
+        w: 8
+        h: 6
+    nticks:
+        x: 3
+        y: 3
+    ticks:
+        x:
+            fontsize: '8'
+        y: 
+            fontsize: '8'
+    marker: '+'
+    legend:
+        loc: 'best'
+        handlelength: 0
+        fancybox: True
+        framealpha: 0.5
+        fontsize: 9.5
+        labelspacing: 0
+        borderpad: 0.5
+        handletextpad: 0.5
+        borderaxespad: 0
+    subplots_adjust:
+        wspace: 0.16
+        hspace: 0.15
+        top: 0.93
+    tick_params:
+        pad: 1
+        top: 1
+        bottom: 1
+        left: 1
+        direction: 'inout'
+        length: 3
+        width: 0.5
+    set_title:
+        fontsize: 7
+        pad: 2
+    xaxis_format: "{:1.1s},{:1.1s}"
+    knobs_to_plot:
+        - mxiipw
+        - nspc
+        - scp
+        - sr
+        - sc
+        - nrb
+        - snb 
+        - ss
+        - nspu
+        - nsfu
+        - nmu
+        - "mxiipw,nspu,nsfu,nmu,pw"
+        - "mxiipw,nspu,nsfu,nmu,pw,scp"
+        - "ocnusp,ocnusfu,ocnum,ocnipsp,ocnipsfu,ocnipm,ocnopsp,ocnopsfu,ocnopm,nrb"
+
+
+subplots_one_line_per_bench_multi_knobs.py:
+    stats_to_plot:
+        - gpu_tot_sim_cycle
+        - gpu_tot_ipc
+        - Utilization
+    parboil:
+        grid:
+            columns: 3
+            rows: 3
+    sdk:
+        grid:
+            columns: 5
+            rows: 4
+    rodinia:
+        grid:
+            columns: 4
+            rows: 3
+        skip:
+            km-rod
+    ispass:
+        grid:
+            columns: 4
+            rows: 3
+    figsize: 
+        w: 8
+        h: 6
+    nticks:
+        x: 3
+        y: 3
+    ticks:
+        x:
+            fontsize: '5'
+        y: 
+            fontsize: '5'
+    marker: '+'
+    legend:
+        loc: 'best'
+        handlelength: 0
+        fancybox: True
+        framealpha: 0.5
+        fontsize: 9.5
+        labelspacing: 0
+        borderpad: 0.5
+        handletextpad: 0.5
+        borderaxespad: 0
+    subplots_adjust:
+        wspace: 0.16
+        hspace: 0.15
+        top: 0.93
+    tick_params:
+        pad: 1
+        top: 1
+        bottom: 1
+        left: 1
+        direction: 'inout'
+        length: 3
+        width: 0.5
+    set_title:
+        fontsize: 7
+        pad: 2
+    xaxis_format: "{:2.2s}"
+    knobs_to_plot:
+        - nrb
+        - nspu
+        - ocnusp
+        - ocnipsp
+        - ocnopsp
+        - pw
+
+subplots_multiple_lines_per_bench.py:
+    stats_to_plot:
+        - gpu_tot_sim_cycle
+        - gpu_tot_ipc
+        - L1D_total_cache_miss_rate
+        - L2_total_cache_miss_rate
+        - Utilization
+    parboil:
+        grid:
+            columns: 3
+            rows: 3
+    sdk:
+        grid:
+            columns: 5
+            rows: 4
+    rodinia:
+        grid:
+            columns: 4
+            rows: 3
+        skip:
+            km-rod
+    ispass:
+        grid:
+            columns: 4
+            rows: 3
+    figsize: 
+        w: 8.8
+        h: 6.1
+    nticks:
+        x: 3
+        y: 3
+    ticks:
+        x:
+            fontsize: '5'
+        y: 
+            fontsize: '5'
+    marker: '+'
+    legend:
+        loc: 'lower center'
+        ncol: 6
+        handlelength: 0
+        fancybox: True
+        framealpha: 0.5
+        fontsize: 9.5
+        labelspacing: 0
+        borderpad: 0.5
+        handletextpad: 0.5
+        borderaxespad: 0
+    subplots_adjust:
+        wspace: 0.16
+        hspace: 0.15
+        top: 0.93
+    tick_params:
+        pad: 1
+        top: 1
+        bottom: 1
+        left: 1
+        direction: 'inout'
+        length: 3
+        width: 0.5
+    set_title:
+        fontsize: 7
+        pad: 2
+    ylines:
+        - ocnusp
+    knobs_to_plot:
+        - "pw,nrb"
+    xaxis_format: "{:1.1s},{:1.1s}"
+    sort_knobs:
+        - "nrb"
+        - "pw"
+
+histo_distribution.py:
+    figures: 
+        # separate:
+        #     figsize: {w: 2.5, h: 2.5}
+        #     num_bins: 40
+        subplots:
+            nrows: 2
+            ncols: 2
+            figsize: {w: 5.5, h: 5.5}
+            figname: 'stall_cycles_subplots'
+            num_bins: 40
+            percentiles: [.80, .85, .90, .95]
+            linestyles: ['--', '--', '--', '--']
+            colors: ['k', 'k', 'k', 'k']
+            # percentiles: []
+            # linestyles: []
+            # colors: []
+
+            # linestyles: [':', ':', '--', '--']
+            # colors: ['k', 'blue', 'k', 'blue']
+    metrics_to_plot:
+        all_stalls:
+            min: 0
+            max: 1
+        # not_saved_scoreboard: 
+        #     min: 0
+        #     max: 1
+        # not_saved_control: 
+        #     min: 0
+        #     max: 1
+        # not_saved_pipeline: 
+        #     min: 0
+        #     max: 1
+        # saved_stalls:
+        #     min: 0
+        #     max: 1
+        scoreboard_stalls: 
+            min: 0
+            max: 1
+        control_stalls: 
+            min: 0
+            max: 1
+        pipeline_stalls: 
+            min: 0
+            max: 1
+        # saved_stalls:
+        #     min: 0
+        #     max: 1
+    stats_to_keep: 
+        - gpu_sim_cycle
+        - W0_Scoreboard
+        - W0_Idle
+        - Stall
+        # - gpgpu_total_checked_insn_long_issue
+        - gpgpu_not_saved_cycles_control
+        - gpgpu_not_saved_cycles_scoreboard
+        - gpgpu_not_saved_cycles_pipeline
+        - gpgpu_saved_cycles_long_issue
+    constants:
+        shaders: '15'
+        schedulers: '1'
+    metrics_to_calc:
+        - all_stalls
+        - scoreboard_stalls
+        - control_stalls
+        - pipeline_stalls
+        # - not_saved_scoreboard
+        # - not_saved_pipeline
+        # - not_saved_control
+        # - saved_stalls
+    requires_conversion:
+        - W0_Scoreboard
+        - W0_Idle
+        - Stall
+        - gpgpu_saved_cycles_long_issue
+        # - gpgpu_total_checked_insn_long_issue
+        - gpgpu_not_saved_cycles_control
+        - gpgpu_not_saved_cycles_pipeline
+        - gpgpu_not_saved_cycles_scoreboard
+    legend:
+        loc: 'lower center'
+        ncol: 1
+        handlelength: 0
+        fancybox: True
+        framealpha: 0.5
+        fontsize: 9.5
+        labelspacing: 0
+        borderpad: 0.5
+        handletextpad: 0.5
+        borderaxespad: 0
+    subplots_adjust:
+        wspace: 0.22
+        hspace: 0.15
+        top: 0.93
+    tick_params:
+        pad: 1
+        top: 1
+        bottom: 1
+        left: 1
+        direction: 'inout'
+        length: 3
+        width: 0.5
+    set_title:
+        fontsize: 8
+        pad: 2
+
+
+
+subplots_top_percent_scan.py:
+    knob_to_plot: 'mifb,mibes'
+    metric_to_sort: all_stalls
+    top_percent: 0.20
+    figures: 
+        nrows: 2
+        ncols: 2
+        figsize: [5.5, 5.5]
+        figname: 'saved_cycles_per_kernel'
+        # percentiles: []
+        # linestyles: []
+        # colors: []
+        # subplots:
+        #     stalled_cycles:
+        #         bars: [scoreboard_stalls, pipeline_stalls, control_stalls]
+        #     saved_cycles:
+        #         bars: [saved_cycles, not_saved_scoreboard, not_saved_pipeline, not_saved_control]
+
+    metrics_to_plot:
+        all_stalls:
+            min: 0
+            max: 1
+        pipeline_stalls: 
+            min: 0
+            max: 1
+        scoreboard_stalls: 
+            min: 0
+            max: 1
+        saved_cycles:
+            min: 0
+            max: 1
+        
+        # not_saved_scoreboard: 
+        #     min: 0
+        #     max: 1
+        # not_saved_control: 
+        #     min: 0
+        #     max: 1
+        # not_saved_pipeline: 
+        #     min: 0
+        #     max: 1
+        # control_stalls: 
+        #     min: 0
+        #     max: 1
+        # saved_stalls:
+        #     min: 0
+        #     max: 1
+    stats_to_keep: 
+        - kernel_id
+        - gpu_sim_cycle
+        - W0_Scoreboard
+        - W0_Idle
+        - Stall
+        - gpgpu_total_checked_insn_long_issue
+        - gpgpu_not_saved_cycles_control
+        - gpgpu_not_saved_cycles_scoreboard
+        - gpgpu_not_saved_cycles_pipeline
+        - gpgpu_saved_cycles_long_issue
+    constants:
+        shaders: '15'
+        schedulers: '1'
+    metrics_to_calc:
+        - not_saved_scoreboard 
+        - not_saved_pipeline 
+        - not_saved_control 
+        - saved_stalls
+        - not_saved_stalls
+        - all_stalls  
+        - scoreboard_stalls 
+        - control_stalls
+        - pipeline_stalls
+    requires_conversion:
+        - W0_Scoreboard
+        - W0_Idle
+        - Stall
+        - gpgpu_saved_cycles_long_issue
+        - gpgpu_total_checked_insn_long_issue
+        - gpgpu_not_saved_cycles_control
+        - gpgpu_not_saved_cycles_pipeline
+        - gpgpu_not_saved_cycles_scoreboard
+    legend:
+        loc: 'best'
+        ncol: 1
+        handlelength: 2
+        fancybox: True
+        framealpha: 0.5
+        fontsize: 8.
+        labelspacing: 0
+        borderpad: 0.5
+        handletextpad: 0.5
+        borderaxespad: 0
+        frameon: False
+    subplots_adjust:
+        wspace: 0.22
+        hspace: 0.17
+        top: 0.93
+    tick_params:
+        pad: 1
+        top: 1
+        bottom: 1
+        left: 1
+        direction: 'inout'
+        length: 3
+        width: 0.5
+    font: 
+        fontsize: 8
+    set_title:
+        fontsize: 8
+        # pad: 2
+
+
+
+
+
+subplots_top_percent.py:
+    metric_to_sort: all_stalls
+    top_percent: 0.2
+    figures: 
+        # separate:
+        #     figsize: {w: 2.5, h: 2.5}
+        #     num_bins: 40
+        subplots:
+            nrows: 2
+            ncols: 2
+            figsize: {w: 5.5, h: 5.5}
+            figname: 'saved_cycles_per_kernel_base'
+            num_bins: 40
+            # percentiles: [.80, .85, .90, .95]
+            # linestyles: ['--', '--', '--', '--']
+            # colors: ['k', 'k', 'k', 'k']
+            percentiles: []
+            linestyles: []
+            colors: []
+
+            # linestyles: [':', ':', '--', '--']
+            # colors: ['k', 'blue', 'k', 'blue']
+    metrics_to_plot:
+        all_stalls:
+            min: 0
+            max: 1
+        pipeline_stalls: 
+            min: 0
+            max: 1
+        scoreboard_stalls: 
+            min: 0
+            max: 1
+        saved_cycles:
+            min: 0
+            max: 1
+        
+        # not_saved_scoreboard: 
+        #     min: 0
+        #     max: 1
+        # not_saved_control: 
+        #     min: 0
+        #     max: 1
+        # not_saved_pipeline: 
+        #     min: 0
+        #     max: 1
+        # control_stalls: 
+        #     min: 0
+        #     max: 1
+        # saved_stalls:
+        #     min: 0
+        #     max: 1
+    stats_to_keep: 
+        - kernel_id
+        - gpu_sim_cycle
+        - W0_Scoreboard
+        - W0_Idle
+        - Stall
+        - gpgpu_total_checked_insn_long_issue
+        - gpgpu_not_saved_cycles_control
+        - gpgpu_not_saved_cycles_scoreboard
+        - gpgpu_not_saved_cycles_pipeline
+        - gpgpu_saved_cycles_long_issue
+    constants:
+        shaders: '15'
+        schedulers: '2'
+    metrics_to_calc:
+        - not_saved_scoreboard 
+        - not_saved_pipeline 
+        - not_saved_control 
+        - saved_cycles 
+        - all_stalls  
+        - scoreboard_stalls 
+        - control_stalls
+        - pipeline_stalls
+        # saved_stalls: 'gpgpu_saved_cycles_long_issue / (gpu_tot_shader_cycles*schedulers)'
+    requires_conversion:
+        - W0_Scoreboard
+        - W0_Idle
+        - Stall
+        - gpgpu_saved_cycles_long_issue
+        - gpgpu_total_checked_insn_long_issue
+        - gpgpu_not_saved_cycles_control
+        - gpgpu_not_saved_cycles_pipeline
+        - gpgpu_not_saved_cycles_scoreboard
+    legend:
+        loc: 'lower center'
+        ncol: 1
+        handlelength: 0
+        fancybox: True
+        framealpha: 0.5
+        fontsize: 9.5
+        labelspacing: 0
+        borderpad: 0.5
+        handletextpad: 0.5
+        borderaxespad: 0
+    subplots_adjust:
+        wspace: 0.22
+        hspace: 0.15
+        top: 0.93
+    tick_params:
+        pad: 1
+        top: 1
+        bottom: 1
+        left: 1
+        direction: 'inout'
+        length: 3
+        width: 0.5
+    set_title:
+        fontsize: 8
+        # pad: 2
+
+
+
+
+histo_distribution_kernel_invocations.py:
+    figures: 
+        separate:
+            figsize: {w: 2.5, h: 2.5}
+            num_bins: 40
+        subplots:
+            figsize: {w: 5.5, h: 5.5}
+            figname: 'all_subplots_sched2'
+            num_bins: 40
+            percentiles: [.80, .85, .90, .95]
+            linestyles: ['--', '--', '--', '--']
+            colors: ['k', 'k', 'k', 'k']
+
+            # linestyles: [':', ':', '--', '--']
+            # colors: ['k', 'blue', 'k', 'blue']
+    metrics_to_plot:
+        all_stalls:
+            min: 0
+            max: 1
+            num_bins: 20
+        scoreboard_stalls: 
+            min: 0
+            max: 1
+            num_bins: 20
+        control_stalls: 
+            min: 0
+            max: 1
+            num_bins: 20
+        pipeline_stalls: 
+            min: 0
+            max: 1
+            num_bins: 20
+    stats_to_keep: 
+        - gpu_sim_cycle
+        - W0_Scoreboard
+        - W0_Idle
+        - Stall
+    constants:
+        shaders: '15'
+        schedulers: '1'
+    metrics_to_calc:
+        all_stalls: '(W0_Scoreboard + W0_Idle + Stall)/(gpu_tot_shader_cycles*schedulers)'
+        scoreboard_stalls: W0_Scoreboard/(gpu_tot_shader_cycles*schedulers)
+        control_stalls: W0_Idle/(gpu_tot_shader_cycles*schedulers)
+        pipeline_stalls: Stall/(gpu_tot_shader_cycles*schedulers)
+    requires_conversion:
+        - W0_Scoreboard
+        - W0_Idle
+        - Stall
+    legend:
+        loc: 'lower center'
+        ncol: 1
+        handlelength: 0
+        fancybox: True
+        framealpha: 0.5
+        fontsize: 9.5
+        labelspacing: 0
+        borderpad: 0.5
+        handletextpad: 0.5
+        borderaxespad: 0
+    subplots_adjust:
+        wspace: 0.16
+        hspace: 0.15
+        top: 0.93
+    tick_params:
+        pad: 1
+        top: 1
+        bottom: 1
+        left: 1
+        direction: 'inout'
+        length: 3
+        width: 0.5
+    set_title:
+        fontsize: 7
+        pad: 2
+

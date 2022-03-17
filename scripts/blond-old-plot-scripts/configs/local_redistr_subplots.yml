@@ -1,0 +1,69 @@
+# This config is used to evaluate a feature for every kernel
+keep_only: 
+    bunches: [4]
+    turns: [10000]
+
+to_plot: ['tcomp', 'tconst', 'tcomp+tconst', 'tsync', 'tcomm', 'total']
+figure:
+    colors: {'interval-0': 'xkcd:light blue', 'interval-1':'xkcd:blue',
+             'reportonly-0': 'xkcd:light orange', 'reportonly-1':'xkcd:orange'}
+    # colors: ['xkcd:light blue', 'xkcd:blue', 'xkcd:light orange', 'xkcd:orange',
+    #          'xkcd:light green', 'xkcd:green', 'xkcd:light red', 'xkcd:red',
+    #          'xkcd:light purple', 'xkcd:purple', 'xkcd:light brown', 'xkcd:brown',
+    #          'xkcd:light pink', 'xkcd:pink', 'xkcd:light grey', 'xkcd:grey']
+    # markers: ['o', 's', '*']
+    markers: {'interval': '+', 'reportonly': 'x'}
+    labels: 
+        'interval-0': 'LB w:0'
+        'interval-1': 'LB w:1'
+        'reportonly-0': 'NO LB w:0'
+        'reportonly-1': 'NO LB w:1'
+    figure:
+        nrows: 2
+        ncols: 3
+        sharex: 'all'
+        sharey: 'all'
+        # figsize: [9,6]
+    ticks:
+        x:
+            fontsize: '9'
+        y: 
+            fontsize: '9'
+    legend:
+        loc: 'best'
+        ncol: 1
+        handlelength: 1
+        fancybox: True
+        framealpha: 1
+        frameon: True
+        fontsize: 10
+        labelspacing: 0
+        borderpad: 0.1
+        handletextpad: 0.1
+        borderaxespad: 0.2
+    subplots_adjust:
+        wspace: 0.03
+        hspace: 0.08
+        top: 0.92
+    tick_params:
+        pad: 1
+        top: 0
+        bottom: 1
+        left: 1
+        direction: 'inout'
+        length: 3
+        width: 0.5
+    suptitle:
+        fontsize: 10
+    title:
+        fontsize: 10
+        y: 0.96
+    label:
+        fontsize: 10
+        labelpad: 0
+    grid:
+        b: True
+        which: both
+        axis: y
+    annotate:
+        fontsize: 10
