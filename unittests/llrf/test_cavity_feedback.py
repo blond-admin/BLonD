@@ -7,11 +7,11 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 Unittest for llrf.cavity_feedback
 
-:Authors: **Birk Emil Karlsen-Bæck**, **Helga Timko**
-'''
+:Authors: **Birk Emil Karlsen-Baeck**, **Helga Timko**
+"""
 
 import unittest
 import numpy as np
