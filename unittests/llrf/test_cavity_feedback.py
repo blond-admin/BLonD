@@ -15,15 +15,19 @@ Unittest for llrf.cavity_feedback
 
 import unittest
 import numpy as np
-import matplotlib.pyplot as plt
+from scipy.constants import c
 
-from blond.llrf.cavity_feedback import SPSOneTurnFeedback, CavityFeedbackCommissioning
+from blond.llrf.cavity_feedback import SPSOneTurnFeedback, SPSCavityFeedback, CavityFeedbackCommissioning
 from blond.beam.beam import Beam, Proton
 from blond.beam.profile import Profile, CutOptions
+from blond.beam.distributions import bigaussian
 from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
+from blond.trackers.tracker import RingAndRFTracker
+from blond.impedances.impedance import TotalInducedVoltage, InducedVoltageTime
+from blond.impedances.impedance_sources import TravelingWaveCavity
 
-class TestCavityFeedback(unittest.TestCase):
+class TestSPSCavityFeedback(unittest.TestCase):
 
     def setUp(self):
         C = 2*np.pi*1100.009        # Ring circumference [m]
@@ -45,7 +49,7 @@ class TestCavityFeedback(unittest.TestCase):
         self.rf = RFStation(self.ring, h, V, phi)
 
         N_m = 1e6                   # Number of macro-particles for tracking
-        N_b = 72*1.0e11             # Bunch intensity [ppb]
+        N_b = 288 * 2.3e11               # Bunch intensity [ppb]
 
         # Gaussian beam profile
         self.beam = Beam(self.ring, N_m, N_b)
@@ -64,19 +68,20 @@ class TestCavityFeedback(unittest.TestCase):
         self.profile.track()
 
         # Cavities
-        l_cav = 43*0.374
+        l_cav = 32*0.374
         v_g = 0.0946
         tau = l_cav/(v_g*c)*(1 + v_g)
         f_cav = 200.222e6
-        n_cav = 2   # factor 2 because of two four/five-sections cavities
+        n_cav = 4   # factor 2 because of two four/five-sections cavities
         short_cavity = TravelingWaveCavity(l_cav**2 * n_cav * 27.1e3 / 8,
-                                           f_cav, 2*np.pi*tau)
+                                            f_cav, 2*np.pi*tau)
         shortInducedVoltage = InducedVoltageTime(self.beam, self.profile,
                                                  [short_cavity])
-        l_cav = 54*0.374
+        l_cav = 43*0.374
         tau = l_cav/(v_g*c)*(1 + v_g)
-        long_cavity = TravelingWaveCavity(l_cav**2 * n_cav * 27.1e3 / 8, f_cav,
-                                          2*np.pi*tau)
+        n_cav = 2
+        long_cavity = TravelingWaveCavity(l_cav**2 * n_cav * 27.1e3 / 8,
+                                           f_cav, 2*np.pi*tau)
         longInducedVoltage = InducedVoltageTime(self.beam, self.profile,
                                                 [long_cavity])
         self.induced_voltage = TotalInducedVoltage(
@@ -88,9 +93,10 @@ class TestCavityFeedback(unittest.TestCase):
             TotalInducedVoltage=self.induced_voltage)
 
         self.OTFB = SPSCavityFeedback(
-            self.rf, self.beam, self.profile, G_llrf=5, G_tx=0.5, a_comb=15/16,
-            turns=50, post_LS2=False,
+            self.rf, self.beam, self.profile, G_llrf=20, G_tx=[1.0355739238973907, 1.078403005653143],
+            a_comb=63/64, turns=1000, post_LS2=True, df=[0.18433333e6, 0.2275e6],
             Commissioning=CavityFeedbackCommissioning(open_FF=True))
+
 
         self.OTFB_tracker = RingAndRFTracker(self.rf, self.beam,
                                              Profile=self.profile,
@@ -102,63 +108,61 @@ class TestCavityFeedback(unittest.TestCase):
 
         digit_round = 3
 
-        Vind4_mean = np.mean(np.absolute(self.OTFB.OTFB_1.V_coarse_tot))/1e6
-        Vind4_std = np.std(np.absolute(self.OTFB.OTFB_1.V_coarse_tot))/1e6
-        Vind4_mean_exp = 1.99886351363
-        Vind4_std_exp = 2.148426e-6
+        Vind3_mean = np.mean(np.absolute(self.OTFB.OTFB_1.V_ANT[-self.OTFB.OTFB_1.n_coarse:]))/1e6
+        Vind3_std = np.std(np.absolute(self.OTFB.OTFB_1.V_ANT[-self.OTFB.OTFB_1.n_coarse:]))/1e6
+        Vind3_mean_exp = 2.7047955940118764
+        Vind3_std_exp = 2.4121534046270847e-12
 
-        Vind5_mean = np.mean(np.absolute(self.OTFB.OTFB_2.V_coarse_tot))/1e6
+        Vind4_mean = np.mean(np.absolute(self.OTFB.OTFB_2.V_ANT[-self.OTFB.OTFB_2.n_coarse:]))/1e6
+        Vind4_std = np.std(np.absolute(self.OTFB.OTFB_2.V_ANT[-self.OTFB.OTFB_2.n_coarse:]))/1e6
+        Vind4_mean_exp = 1.8057100857806163
+        Vind4_std_exp = 1.89451253314611e-12
 
-        Vind5_std = np.std(np.absolute(self.OTFB.OTFB_2.V_coarse_tot))/1e6
-
-        Vind5_mean_exp = 2.49906605189
-        Vind5_std_exp = 2.221665e-6
-
-        self.assertAlmostEqual(Vind4_mean, Vind4_mean_exp,
+        self.assertAlmostEqual(Vind3_mean, Vind3_mean_exp,
                                places=digit_round,
                                msg='In TestCavityFeedback test_FB_pretracking: ' +
                                'mean value of four-section cavity differs')
-        self.assertAlmostEqual(Vind4_std, Vind4_std_exp,
+        self.assertAlmostEqual(Vind3_std, Vind3_std_exp,
                                places=digit_round,
                                msg='In TestCavityFeedback test_FB_pretracking: standard ' +
                                'deviation of four-section cavity differs')
 
-        self.assertAlmostEqual(Vind5_mean, Vind5_mean_exp,
+        self.assertAlmostEqual(Vind4_mean, Vind4_mean_exp,
                                places=digit_round,
                                msg='In TestCavityFeedback test_FB_pretracking: ' +
                                'mean value of five-section cavity differs')
-        self.assertAlmostEqual(Vind5_std, Vind5_std_exp,
+        self.assertAlmostEqual(Vind4_std, Vind4_std_exp,
                                places=digit_round,
                                msg='In TestCavityFeedback test_FB_pretracking: standard '
                                + 'deviation of five-section cavity differs')
 
     def test_FB_pre_tracking_IQ_v1(self):
-        rtol = 1e-3         # relative tolerance
+        rtol = 1e-2         # relative tolerance
         atol = 0            # absolute tolerance
         # interpolate from coarse mesh to fine mesh
-        V_fine_tot_4 = np.interp(
+        V_fine_tot_3 = np.interp(
             self.profile.bin_centers, self.OTFB.OTFB_1.rf_centers,
-            self.OTFB.OTFB_1.V_coarse_ind_gen)
-        V_fine_tot_5 = np.interp(
+            self.OTFB.OTFB_1.V_IND_COARSE_GEN[-self.OTFB.OTFB_1.n_coarse:])
+        V_fine_tot_4 = np.interp(
             self.profile.bin_centers, self.OTFB.OTFB_2.rf_centers,
-            self.OTFB.OTFB_2.V_coarse_ind_gen)
+            self.OTFB.OTFB_2.V_IND_COARSE_GEN[-self.OTFB.OTFB_2.n_coarse:])
 
+        V_tot_3 = V_fine_tot_3/1e6
         V_tot_4 = V_fine_tot_4/1e6
-        V_tot_5 = V_fine_tot_5/1e6
 
         V_sum = self.OTFB.V_sum/1e6
 
         # expected generator voltage is only in Q
-        V_tot_4_exp = 2.0j*np.ones(256)
-        V_tot_5_exp = 2.5j*np.ones(256)
+        V_tot_3_exp = 2.7j*np.ones(256)
+        V_tot_4_exp = 1.8j*np.ones(256)
         V_sum_exp = 4.5j*np.ones(256)
 
-        np.testing.assert_allclose(V_tot_4, V_tot_4_exp,
+        np.testing.assert_allclose(V_tot_3, V_tot_3_exp,
                                    rtol=rtol, atol=atol,
                                    err_msg='In TestCavityFeedback test_FB_pretracking_IQ: total voltage ' +
                                    'in four-section cavity differs')
 
-        np.testing.assert_allclose(V_tot_5, V_tot_5_exp,
+        np.testing.assert_allclose(V_tot_4, V_tot_4_exp,
                                    rtol=rtol, atol=atol,
                                    err_msg='In TestCavityFeedback test_FB_pretracking_IQ: total voltage ' +
                                    'in five-section cavity differs')
@@ -182,9 +186,8 @@ class TestCavityFeedback(unittest.TestCase):
         # compare the maxium of the ratio
         max_ratio = np.max(self.cavity_tracker.rf_voltage
                            / self.OTFB_tracker.rf_voltage)
-        max_ratio = max_ratio
 
-        max_ratio_exp = 1.0016540193319539
+        max_ratio_exp = 1.0690779399272086#1.0001336336515099
         self.assertAlmostEqual(max_ratio, max_ratio_exp,
                                places=digit_round,
                                msg='In TestCavityFeedback test_rf_voltage: '
@@ -192,7 +195,6 @@ class TestCavityFeedback(unittest.TestCase):
 
     def test_beam_loading(self):
         digit_round = 7
-
         # Compute voltage with beam loading
         self.cavity_tracker.rf_voltage_calculation()
         cavity_tracker_total_voltage = self.cavity_tracker.rf_voltage \
@@ -204,7 +206,9 @@ class TestCavityFeedback(unittest.TestCase):
 
         max_ratio = np.max(cavity_tracker_total_voltage /
                            OTFB_tracker_total_voltage)
-        max_ration_exp = 1.0055233047525063
+
+
+        max_ration_exp = 1.0690779399245092 #1.0055233047525063
 
         self.assertAlmostEqual(max_ratio, max_ration_exp, places=digit_round,
                                msg='In TestCavityFeedback test_beam_loading: '
@@ -218,142 +222,142 @@ class TestCavityFeedback(unittest.TestCase):
 
         V_sum = self.OTFB.V_sum/1e6
 
-        V_sum_exp = np.array([2.5827763187e-04+4.497826566j ,  2.5827763187e-04+4.497826566j ,
-            2.5827763187e-04+4.497826566j ,  2.5827763187e-04+4.497826566j ,
-            2.5827763187e-04+4.497826566j ,  2.5827763187e-04+4.497826566j ,
-            2.5827763187e-04+4.497826566j ,  2.5827763187e-04+4.497826566j ,
-            2.5827763187e-04+4.497826566j ,  2.5827763187e-04+4.497826566j ,
-            2.5827763187e-04+4.497826566j ,  2.5827763186e-04+4.497826566j ,
-            2.5827763186e-04+4.497826566j ,  2.5827763186e-04+4.497826566j ,
-            2.5827763186e-04+4.497826566j ,  2.5827763186e-04+4.497826566j ,
-            2.5827763186e-04+4.497826566j ,  2.5827763187e-04+4.497826566j ,
-            2.5827763186e-04+4.497826566j ,  2.5827763187e-04+4.497826566j ,
-            2.5827763186e-04+4.497826566j ,  2.5827763186e-04+4.497826566j ,
-            2.5827763186e-04+4.497826566j ,  2.5827763186e-04+4.497826566j ,
-            2.5827763186e-04+4.497826566j ,  2.5827763186e-04+4.497826566j ,
-            2.5827763186e-04+4.497826566j ,  2.5827763186e-04+4.497826566j ,
-            2.5827763186e-04+4.497826566j ,  2.5827763186e-04+4.497826566j ,
-            2.5827763186e-04+4.497826566j ,  2.5827763186e-04+4.497826566j ,
-            2.5827763186e-04+4.497826566j ,  2.5827763186e-04+4.497826566j ,
-            2.5827763186e-04+4.497826566j ,  2.5827763186e-04+4.497826566j ,
-            2.5827763186e-04+4.497826566j ,  2.5827763186e-04+4.497826566j ,
-            2.5827763186e-04+4.497826566j ,  2.5827763186e-04+4.497826566j ,
-            2.5827763186e-04+4.497826566j ,  2.5827763186e-04+4.497826566j ,
-            2.5827763186e-04+4.497826566j ,  2.5827763186e-04+4.497826566j ,
-            2.5827763186e-04+4.497826566j ,  2.5827763186e-04+4.497826566j ,
-            2.5827763186e-04+4.497826566j ,  2.5827763185e-04+4.497826566j ,
-            2.5827763185e-04+4.497826566j ,  2.5827763186e-04+4.497826566j ,
-            2.5827763185e-04+4.497826566j ,  2.5827763185e-04+4.497826566j ,
-            2.5827763185e-04+4.497826566j ,  2.5827763185e-04+4.497826566j ,
-            2.5827763186e-04+4.497826566j ,  2.5827763185e-04+4.497826566j ,
-            2.5827763185e-04+4.497826566j ,  2.5827763185e-04+4.497826566j ,
-            2.5827763185e-04+4.497826566j ,  2.5827763185e-04+4.497826566j ,
-            2.5827763185e-04+4.497826566j ,  2.5827763185e-04+4.497826566j ,
-            2.5827763185e-04+4.497826566j ,  2.5827763185e-04+4.497826566j ,
-            2.5827763185e-04+4.497826566j ,  2.5827763185e-04+4.497826566j ,
-            2.5827763185e-04+4.497826566j ,  2.7211082903e-04+4.4978315156j,
-            3.1250362304e-04+4.4978490279j,  3.5165856346e-04+4.4978691422j,
-            3.7604825623e-04+4.497885444j ,  4.0960534138e-04+4.4979139243j,
-            4.4122258209e-04+4.4979445351j,  4.6856908981e-04+4.4979790123j,
-            5.1625702452e-04+4.4980530059j,  5.9040367398e-04+4.4981963582j,
-            6.7887023817e-04+4.4984137831j,  7.5904893974e-04+4.4986807294j,
-            8.2700402474e-04+4.4990411418j,  8.7582505677e-04+4.4995964993j,
-            8.6994404643e-04+4.5003886916j,  7.5045903432e-04+4.5014972574j,
-            4.3912456953e-04+4.5030058729j, -1.8600403500e-04+4.5050084589j,
-           -1.1622444406e-03+4.5073509979j, -2.6792961680e-03+4.510132916j ,
-           -4.9961691195e-03+4.5135600289j, -8.4133537603e-03+4.5176631561j,
-           -1.3338780932e-02+4.5225295511j, -2.0294488240e-02+4.5281591475j,
-           -3.0386532228e-02+4.534786012j , -4.3938181865e-02+4.5419516034j,
-           -6.1132819357e-02+4.5489680266j, -8.1997700093e-02+4.555224796j ,
-           -1.0908920882e-01+4.5603819179j, -1.4355354441e-01+4.563641761j ,
-           -1.8547605734e-01+4.5633974273j, -2.3587594114e-01+4.5582228127j,
-           -2.9450459410e-01+4.5462841072j, -3.6298551422e-01+4.5251466487j,
-           -4.4144673453e-01+4.4922598897j, -5.2864469287e-01+4.4452108361j,
-           -6.2409501545e-01+4.3808677563j, -7.2823812612e-01+4.2946179162j,
-           -8.4108073134e-01+4.1807386917j, -9.5833446725e-01+4.0368637895j,
-           -1.0745640376e+00+3.8616018131j, -1.1865884525e+00+3.6501645292j,
-           -1.2883489836e+00+3.4025749042j, -1.3747012172e+00+3.1138816921j,
-           -1.4401444574e+00+2.779426695j , -1.4761084477e+00+2.4028289162j,
-           -1.4748944532e+00+1.9850557907j, -1.4286473441e+00+1.5284378922j,
-           -1.3289802158e+00+1.0348188495j, -1.1687970402e+00+0.5112753421j,
-           -9.4301279117e-01-0.0303928583j, -6.4421157600e-01-0.5859581106j,
-           -2.6756604191e-01-1.1470275079j,  1.8797976613e-01-1.6997257125j,
-            7.1991811737e-01-2.229842275j ,  1.3268637215e+00-2.7259522866j,
-            2.0072428849e+00-3.1788356601j,  2.7576198052e+00-3.5780623532j,
-            3.5626421776e+00-3.910426641j ,  4.4044185457e+00-4.164562411j ,
-            5.2860593337e+00-4.3382136891j,  6.1975280356e+00-4.4267736087j,
-            7.1131024791e+00-4.4257941618j,  8.0172589410e+00-4.3357168878j,
-            8.8979905908e+00-4.1595593025j,  9.7471694742e+00-3.9007504938j,
-            1.0556332353e+01-3.5644671627j,  1.1302204198e+01-3.1653817869j,
-            1.1978432945e+01-2.7122544408j,  1.2583653215e+01-2.214881745j ,
-            1.3111542557e+01-1.6857213733j,  1.3564375350e+01-1.1327477406j,
-            1.3937488096e+01-0.5734824569j,  1.4232635792e+01-0.0198698203j,
-            1.4456282704e+01+0.5218254956j,  1.4613743064e+01+1.0432039982j,
-            1.4710869799e+01+1.5341295769j,  1.4755258991e+01+1.9940972717j,
-            1.4754875217e+01+2.4166162655j,  1.4717028262e+01+2.7942558651j,
-            1.4649727975e+01+3.1297934963j,  1.4559635450e+01+3.4244797961j,
-            1.4454306808e+01+3.6777300792j,  1.4340466575e+01+3.8896579027j,
-            1.4222822357e+01+4.0649958801j,  1.4106706208e+01+4.2059792929j,
-            1.3994943602e+01+4.3172579991j,  1.3888950886e+01+4.4038968093j,
-            1.3789806400e+01+4.4698748453j,  1.3699260758e+01+4.5182083265j,
-            1.3619464079e+01+4.5513193917j,  1.3549894368e+01+4.5725377973j,
-            1.3490642575e+01+4.5846114651j,  1.3440962949e+01+4.5898280233j,
-            1.3398020086e+01+4.5902344013j,  1.3361834669e+01+4.587269337j ,
-            1.3333035076e+01+4.5822676661j,  1.3309945479e+01+4.5760843538j,
-            1.3291507676e+01+4.5694497063j,  1.3277184880e+01+4.5629416638j,
-            1.3266021743e+01+4.5568244337j,  1.3257425068e+01+4.5513230024j,
-            1.3250804652e+01+4.5465163095j,  1.3245657754e+01+4.5423680337j,
-            1.3241804048e+01+4.5391726907j,  1.3238935683e+01+4.5368872108j,
-            1.3236534668e+01+4.534963213j ,  1.3234483934e+01+4.5334110108j,
-            1.3232694545e+01+4.5321552208j,  1.3231076317e+01+4.5311697743j,
-            1.3229581752e+01+4.530646752j ,  1.3228131824e+01+4.5305065364j,
-            1.3226714601e+01+4.5304598301j,  1.3225322516e+01+4.5304194047j,
-            1.3223940546e+01+4.5304446878j,  1.3222581996e+01+4.530481022j ,
-            1.3221175647e+01+4.5306250559j,  1.3219721045e+01+4.530860676j ,
-            1.3218268568e+01+4.5310981753j,  1.3216831753e+01+4.5313311328j,
-            1.3215384039e+01+4.5315739034j,  1.3213900918e+01+4.5318428696j,
-            1.3212417791e+01+4.5321117752j,  1.3210934659e+01+4.5323806201j,
-            1.3209451521e+01+4.5326494045j,  1.3207968378e+01+4.5329181282j,
-            1.3206499904e+01+4.5331875122j,  1.3205031421e+01+4.533456836j ,
-            1.3203548258e+01+4.5337253784j,  1.3202065089e+01+4.5339938601j,
-            1.3200581916e+01+4.5342622812j,  1.3199098736e+01+4.5345306417j,
-            1.3197615552e+01+4.5347989416j,  1.3196132362e+01+4.5350671808j,
-            1.3194649166e+01+4.5353353595j,  1.3193165965e+01+4.5356034775j,
-            1.3191682758e+01+4.5358715349j,  1.3190199546e+01+4.5361395317j,
-            1.3188716329e+01+4.5364074679j,  1.3187233106e+01+4.5366753435j,
-            1.3185749878e+01+4.5369431585j,  1.3184266644e+01+4.5372109128j,
-            1.3182783405e+01+4.5374786066j,  1.3181300161e+01+4.5377462397j,
-            1.3179816911e+01+4.5380138122j,  1.3178333655e+01+4.5382813241j,
-            1.3176850394e+01+4.5385487754j,  1.3175367128e+01+4.538816166j ,
-            1.3173883856e+01+4.5390834961j,  1.3172400579e+01+4.5393507655j,
-            1.3170917296e+01+4.5396179743j,  1.3169434008e+01+4.5398851225j,
-            1.3167950715e+01+4.5401522101j,  1.3166467416e+01+4.5404192371j,
-            1.3164984112e+01+4.5406862034j,  1.3163500802e+01+4.5409531092j,
-            1.3162017487e+01+4.5412199543j,  1.3160534167e+01+4.5414867388j,
-            1.3159050841e+01+4.5417534627j,  1.3157567510e+01+4.542020126j ,
-            1.3156084173e+01+4.5422867287j,  1.3154600831e+01+4.5425532707j,
-            1.3153117483e+01+4.5428197521j,  1.3151634130e+01+4.5430861729j,
-            1.3150150772e+01+4.5433525331j,  1.3148667409e+01+4.5436188327j,
-            1.3147184039e+01+4.5438850717j,  1.3145700665e+01+4.54415125j  ,
-            1.3144217285e+01+4.5444173677j,  1.3142733900e+01+4.5446834249j,
-            1.3141250509e+01+4.5449494213j,  1.3139767113e+01+4.5452153572j,
-            1.3138283712e+01+4.5454812325j,  1.3136800305e+01+4.5457470471j,
-            1.3135316893e+01+4.5460128011j,  1.3133833476e+01+4.5462784945j,
-            1.3132350053e+01+4.5465441273j,  1.3130866624e+01+4.5468096995j,
-            1.3129383191e+01+4.5470752111j,  1.3127899752e+01+4.547340662j ,
-            1.3126416308e+01+4.5476060523j,  1.3124932858e+01+4.547871382j ,
-            1.3123449403e+01+4.5481366511j,  1.3121965942e+01+4.5484018595j,
-            1.3120482476e+01+4.5486670074j,  1.3118999005e+01+4.5489320946j,
-            1.3117515529e+01+4.5491971212j,  1.3116032047e+01+4.5494620872j,
-            1.3114548560e+01+4.5497269925j,  1.3113065067e+01+4.5499918373j])
+
+        V_sum_exp = np.array([0.014799274843711883+4.510480895814642j, 0.014799274843691887+4.510480895814651j,
+                            0.014799274843711838+4.510480895814639j, 0.014799274843711817+4.510480895814646j,
+                            0.014799274843701804+4.5104808958146405j, 0.014799274843686804+4.510480895814651j,
+                            0.014799274843716742+4.5104808958146485j, 0.01479927484370174+4.5104808958146485j,
+                            0.014799274843721691+4.510480895814649j, 0.014799274843711683+4.5104808958146565j,
+                            0.014799274843706668+4.510480895814642j, 0.014799274843731612+4.510480895814646j,
+                            0.014799274843731593+4.510480895814661j, 0.014799274843696617+4.510480895814666j,
+                            0.014799274843721559+4.510480895814642j, 0.014799274843721536+4.510480895814652j,
+                            0.014799274843706536+4.510480895814652j, 0.01479927484371151+4.510480895814663j,
+                            0.01479927484371648+4.510480895814657j, 0.014799274843711463+4.510480895814652j,
+                            0.014799274843716436+4.510480895814651j, 0.014799274843701433+4.510480895814666j,
+                            0.014799274843721384+4.510480895814657j, 0.01479927484370139+4.510480895814652j,
+                            0.014799274843706361+4.510480895814659j, 0.01479927484372132+4.510480895814663j,
+                            0.014799274843716305+4.510480895814658j, 0.01479927484371129+4.510480895814655j,
+                            0.014799274843736233+4.510480895814659j, 0.014799274843711246+4.510480895814666j,
+                            0.01479927484370623+4.5104808958146645j, 0.014799274843716195+4.510480895814659j,
+                            0.014799274843706184+4.510480895814668j, 0.014799274843696177+4.510480895814672j,
+                            0.014799274843711137+4.510480895814659j, 0.014799274843701127+4.510480895814666j,
+                            0.014799274843716084+4.510480895814665j, 0.014799274843701082+4.510480895814676j,
+                            0.014799274843706054+4.510480895814664j, 0.014799274843711024+4.51048089581467j,
+                            0.014799274843730977+4.510480895814666j, 0.01479927484372596+4.510480895814677j,
+                            0.01479927484372594+4.510480895814669j, 0.014799274843710937+4.510480895814666j,
+                            0.014799274843725896+4.51048089581468j, 0.014799274843705901+4.510480895814686j,
+                            0.014799274843715866+4.510480895814668j, 0.014799274843720837+4.510480895814669j,
+                            0.014799274843710826+4.510480895814677j, 0.014799274843710807+4.5104808958146805j,
+                            0.014799274843695804+4.510480895814671j, 0.014799274843710762+4.51048089581468j,
+                            0.014799274843705749+4.51048089581468j, 0.014799274843695738+4.510480895814682j,
+                            0.01479927484371569+4.510480895814678j, 0.014799274843695694+4.510480895814668j,
+                            0.01479927484372064+4.5104808958146805j, 0.01479927484371063+4.510480895814674j,
+                            0.01479927484371061+4.510480895814678j, 0.01479927484373056+4.510480895814678j,
+                            0.014799274843735532+4.5104808958146805j, 0.014799274843710544+4.510480895814687j,
+                            0.014799274843730495+4.51048089581469j, 0.014799274843720485+4.5104808958146725j,
+                            0.014799274843725466+4.510480895814684j, 0.014799274843715472+4.510480895814689j,
+                            0.014799274843725455+4.510480895814673j, 0.014658889283833644+4.5105311265711965j,
+                            0.014248976146476367+4.510708845986652j, 0.013851646927663488+4.510912960468902j,
+                            0.01360417239558314+4.511078378408325j, 0.013263672610738925+4.511367381656121j,
+                            0.012942876965929885+4.511677990482388j, 0.012665430685210689+4.51202782788558j,
+                            0.012181564620148118+4.512778677298704j, 0.011429208102346598+4.514233368039539j,
+                            0.010531562376192436+4.51643970684789j, 0.009718061885618317+4.519148508935177j,
+                            0.00902864124141807+4.522805731768613j, 0.008533427944443032+4.5284411689923525j,
+                            0.008593369252332348+4.536479837065873j, 0.009806197270317413+4.547728837772571j,
+                            0.012965921541985453+4.563037192477819j, 0.019309996667349005+4.583357886430505j,
+                            0.029216979136955694+4.607127644048769j, 0.04461189992360321+4.635355447107408j,
+                            0.06812299450682953+4.6701296876299825j, 0.10279943973905167+4.711762929851321j,
+                            0.15278054368861294+4.761140316724495j, 0.223363511926328+4.8182608982066j,
+                            0.32577212378488807+4.885499744128283j, 0.46328549009994474+4.958202903070531j,
+                            0.63776340903079+5.0293893324729275j, 0.8494807617866049+5.09286363948396j,
+                            1.1243796301342157+5.145175939526339j, 1.4740883605058082+5.178231877645256j,
+                            1.8994709242847085+5.175725099883707j, 2.410866690096992+5.123184531009498j,
+                            3.0057497008307137+5.002002171506081j, 3.7005922826289663+4.787473138877127j,
+                            4.496689416706626+4.453717636455056j, 5.381417097037591+3.976252754341861j,
+                            6.349856334092241+3.3233025423270495j, 7.406473369726965+2.448062682383963j,
+                            8.551332560395378+1.2924674280781654j, 9.740910259580367+-0.16748498004641105j,
+                            10.920046401272337+-1.9459030954391583j, 12.056459897411518+-4.091366489783575j,
+                            13.088666399645325+-6.603626219369836j, 13.964464036247506+-9.532916197077226j,
+                            14.628035814593206+-12.92649002604683j, 14.992417335426559+-16.747603046562297j,
+                            14.979491887144365+-20.986420330314765j, 14.50955877141081+-25.61927356800518j,
+                            13.497523815343527+-30.62743771277803j, 11.871396859940578+-35.939080320516304j,
+                            9.579598474932784+-41.434442646983435j, 6.5468965132122+-47.0706151837596j,
+                            2.7243325738122173+-52.76241703674196j, -1.8987780215315229+-58.36903632775433j,
+                            -7.296953052629184+-63.74626439694516j, -13.456104367254394+-68.77816899734592j,
+                            -20.3602298975143+-73.37119523433002j, -27.974433240235513+-77.41951472320127j,
+                            -36.14288352255647+-80.7891330044604j, -44.68399429644744+-83.36473278576285j,
+                            -53.62931739590642+-85.12345190110167j, -62.87697944028692+-86.01857079708142j,
+                            -72.16593416179133+-86.0049853098913j, -81.33864234399393+-85.08721302911619j,
+                            -90.2732598689588+-83.2959129612618j, -98.88731291126743+-80.66591924629697j,
+                            -107.09492595352097+-77.24980049700667j, -114.65991268048072+-73.19648966642923j,
+                            -121.51784166930014+-68.59490913112872j, -127.6548808424254+-63.54450230690343j,
+                            -133.0069004448795+-58.171708517504136j, -137.59701146222258+-52.55746847059092j,
+                            -141.37791809088407+-46.8796061241762j, -144.3674642000868+-41.2593361004134j,
+                            -146.63128216197546+-35.760232137413375j, -148.22333134029688+-30.467529461669727j,
+                            -149.20303561833512+-25.484084071308775j, -149.64750684568196+-20.81500564293486j,
+                            -149.63759273456972+-16.526155666102802j, -149.24749316692285+-12.69292401550595j,
+                            -148.55850935618002+-9.287107794223967j, -147.63825147048664+-6.295997054164775j,
+                            -146.5634106401422+-3.7255101426639063j, -145.40223462457695+-1.5744762345069667j,
+                            -144.2025010764714+0.2051485963983133j, -143.0183224858328+1.6360635468544744j,
+                            -141.87837141087462+2.765470886668634j, -140.7970196851828+3.644781378958509j,
+                            -139.78520801754027+4.314386234793984j, -138.86069964021908+4.804902948304536j,
+                            -138.0453107284997+5.1409193109713565j, -137.3337393155524+5.356232758441748j,
+                            -136.72690461905825+5.478734568362141j, -136.21723381103192+5.531643951366212j,
+                            -135.7759487486148+5.535736333844168j, -135.40325701858524+5.505614338603859j,
+                            -135.10553249910936+5.454825571005634j, -134.86576531565393+5.392047177307719j,
+                            -134.67321453146758+5.324691025739685j, -134.52243061563024+5.258622294334678j,
+                            -134.40371688867938+5.196522199860245j, -134.31105212942018+5.140673768141151j,
+                            -134.2384457880603+5.091877851140164j, -134.1807951057739+5.049765542312797j,
+                            -134.1362695689274+5.0173254869787876j, -134.10174439936466+4.994120052449075j,
+                            -134.0719625613446+4.974583821565376j, -134.04573583172086+4.958821364030993j,
+                            -134.02216151881981+4.94606744774473j, -134.0003243121118+4.936057482621122j,
+                            -133.97974210967863+4.9307406046551465j, -133.95961288697004+4.929308628785965j,
+                            -133.939815571267+4.928825512025661j, -133.92027331157462+4.928406066592057j,
+                            -133.90083367978656+4.928653340899114j, -133.88163167254706+4.929012642959638j,
+                            -133.86194452583945+4.9304648010887755j, -133.84176768147861+4.932846206003178j,
+                            -133.8216123873659+4.9352464786444745j, -133.80161602591124+4.937600444621707j,
+                            -133.78150903429483+4.940053800016984j, -133.76104270925114+4.942772777826079j,
+                            -133.74057632896336+4.94549091920606j, -133.72010989345716+4.94820822415581j,
+                            -133.6996434027582+4.950924692674183j, -133.67917685689204+4.9536403247600385j,
+                            -133.65885917770817+4.956362436472391j, -133.63854139797277+4.959083715619173j,
+                            -133.61807464132346+4.961796842268201j, -133.59760782960947+4.964509132478421j,
+                            -133.5771409628565+4.967220586248702j, -133.55667404109022+4.969931203577941j,
+                            -133.53620706433625+4.972640984465001j, -133.51574003262024+4.9753499289087815j,
+                            -133.49527294596786+4.9780580369081795j, -133.47480580440467+4.980765308462055j,
+                            -133.45433860795637+4.983471743569327j, -133.43387135664858+4.986177342228841j,
+                            -133.41340405050698+4.988882104439528j, -133.39293668955716+4.991586030200257j,
+                            -133.37246927382483+4.994289119509905j, -133.35200180333555+4.996991372367376j,
+                            -133.33153427811502+4.99969278877157j, -133.31106669818885+5.002393368721354j,
+                            -133.29059906358273+5.005093112215658j, -133.27013137432223+5.007792019253332j,
+                            -133.24966363043305+5.010490089833296j, -133.22919583194079+5.013187323954451j,
+                            -133.20872797887114+5.015883721615655j, -133.1882600712497+5.018579282815844j,
+                            -133.16779210910212+5.021274007553907j, -133.14732409245406+5.023967895828711j,
+                            -133.12685602133115+5.026660947639206j, -133.10638789575907+5.029353162984246j,
+                            -133.08591971576337+5.032044541862752j, -133.06545148136976+5.034735084273613j,
+                            -133.0449831926039+5.037424790215743j, -133.02451484949137+5.040113659688021j,
+                            -133.00404645205785+5.042801692689391j, -132.98357800032898+5.045488889218693j,
+                            -132.96310949433044+5.048175249274901j, -132.9426409340878+5.050860772856868j,
+                            -132.92217231962672+5.053545459963516j, -132.90170365097285+5.056229310593759j,
+                            -132.88123492815188+5.0589123247464824j, -132.8607661511894+5.061594502420611j,
+                            -132.84029732011106+5.064275843615067j, -132.81982843494248+5.066956348328711j,
+                            -132.79935949570938+5.069636016560496j, -132.77889050243732+5.072314848309307j,
+                            -132.75842145515193+5.074992843574076j, -132.7379523538789+5.077670002353692j,
+                            -132.71748319864398+5.08034632464708j, -132.69701398947262+5.083021810453148j,
+                            -132.67654472639055+5.085696459770818j, -132.6560754094234+5.088370272598987j,
+                            -132.63560603859682+5.091043248936602j, -132.61513661393647+5.0937153887825355j,
+                            -132.59466713546797+5.0963866921357415j, -132.57419760321696+5.099057158995106j,
+                            -132.55372801720912+5.101726789359567j, -132.53325837747002+5.104395583228046j,
+                            -132.51278868402537+5.107063540599446j, -132.49231893690074+5.109730661472694j,
+                            -132.47184913612193+5.11239694584672j, -132.4513792817144+5.115062393720419j,
+                            -132.43090937370386+5.117727005092745j, -132.41043941211598+5.120390779962594j,
+                            -132.38996939697637+5.1230537183289j, -132.36949932831072+5.125715820190601j])
 
         np.testing.assert_allclose(V_sum_exp, V_sum,
                                    rtol=rtol, atol=atol,
                                    err_msg='In TestCavityFeedback test_Vsum_IQ: total voltage ' +
                                    'is different from expected values!')
 
-
-class TestSPSCavityFeedback(unittest.TestCase):
+class TestSPSOneTurnFeedback(unittest.TestCase):
 
     def setUp(self):
         # Parameters ----------------------------------------------------------
@@ -389,150 +393,150 @@ class TestSPSCavityFeedback(unittest.TestCase):
         self.Commissioning = CavityFeedbackCommissioning()
 
 
-        self.OTFB_new = SPSOneTurnFeedback(self.rfstation, self.beam, self.profile, 3, a_comb=63 / 64,
+        self.OTFB = SPSOneTurnFeedback(self.rfstation, self.beam, self.profile, 3, a_comb=63 / 64,
                                           Commissioning=self.Commissioning)
 
-        self.OTFB_new.update_variables()
+        self.OTFB.update_variables()
 
-        self.turn_array = np.linspace(0, 2 * self.rfstation.t_rev[0], 2 * self.OTFB_new.n_coarse)
+        self.turn_array = np.linspace(0, 2 * self.rfstation.t_rev[0], 2 * self.OTFB.n_coarse)
 
     def test_set_point(self):
-        self.OTFB_new.set_point()
-        t_sig = np.zeros(2 * self.OTFB_new.n_coarse, dtype=complex)
-        t_sig[-self.OTFB_new.n_coarse:] = (4/9) * 10e6 * np.exp(1j * (np.pi/2 - self.rfstation.phi_rf[0,0]))
+        self.OTFB.set_point()
+        t_sig = np.zeros(2 * self.OTFB.n_coarse, dtype=complex)
+        t_sig[-self.OTFB.n_coarse:] = (4/9) * 10e6 * np.exp(1j * (np.pi/2 - self.rfstation.phi_rf[0,0]))
 
-        np.testing.assert_allclose(self.OTFB_new.V_SET, t_sig)
+        np.testing.assert_allclose(self.OTFB.V_SET, t_sig)
 
 
     def test_error_and_gain(self):
-        self.OTFB_new.error_and_gain()
+        self.OTFB.error_and_gain()
 
-        np.testing.assert_allclose(self.OTFB_new.DV_GEN, self.OTFB_new.V_SET * self.OTFB_new.G_llrf)
+        np.testing.assert_allclose(self.OTFB.DV_GEN, self.OTFB.V_SET * self.OTFB.G_llrf)
 
 
     def test_comb(self):
-        sig = np.zeros(self.OTFB_new.n_coarse)
-        self.OTFB_new.DV_COMB_OUT = np.sin(2 * np.pi * self.turn_array / self.rfstation.t_rev[0])
-        self.OTFB_new.DV_GEN = -np.sin(2 * np.pi * self.turn_array / self.rfstation.t_rev[0])
-        self.OTFB_new.a_comb = 0.5
+        sig = np.zeros(self.OTFB.n_coarse)
+        self.OTFB.DV_COMB_OUT = np.sin(2 * np.pi * self.turn_array / self.rfstation.t_rev[0])
+        self.OTFB.DV_GEN = -np.sin(2 * np.pi * self.turn_array / self.rfstation.t_rev[0])
+        self.OTFB.a_comb = 0.5
 
-        self.OTFB_new.comb()
+        self.OTFB.comb()
 
-        np.testing.assert_allclose(self.OTFB_new.DV_COMB_OUT[-self.OTFB_new.n_coarse:], sig)
+        np.testing.assert_allclose(self.OTFB.DV_COMB_OUT[-self.OTFB.n_coarse:], sig)
 
 
     def test_one_turn_delay(self):
-        self.OTFB_new.DV_COMB_OUT = np.zeros(2 * self.OTFB_new.n_coarse, dtype=complex)
-        self.OTFB_new.DV_COMB_OUT[self.OTFB_new.n_coarse] = 1
+        self.OTFB.DV_COMB_OUT = np.zeros(2 * self.OTFB.n_coarse, dtype=complex)
+        self.OTFB.DV_COMB_OUT[self.OTFB.n_coarse] = 1
 
-        self.OTFB_new.one_turn_delay()
+        self.OTFB.one_turn_delay()
 
-        self.assertEqual(np.argmax(self.OTFB_new.DV_DELAYED), 2 * self.OTFB_new.n_coarse - self.OTFB_new.n_mov_av)
+        self.assertEqual(np.argmax(self.OTFB.DV_DELAYED), 2 * self.OTFB.n_coarse - self.OTFB.n_mov_av)
 
 
     def test_mod_to_fr(self):
-        self.OTFB_new.DV_DELAYED = np.zeros(2 * self.OTFB_new.n_coarse, dtype=complex)
-        self.OTFB_new.DV_DELAYED[-self.OTFB_new.n_coarse:] = 1 + 1j * 0
+        self.OTFB.DV_DELAYED = np.zeros(2 * self.OTFB.n_coarse, dtype=complex)
+        self.OTFB.DV_DELAYED[-self.OTFB.n_coarse:] = 1 + 1j * 0
 
-        self.mod_phi = np.copy(self.OTFB_new.dphi_mod)
-        self.OTFB_new.mod_to_fr()
-
+        self.mod_phi = np.copy(self.OTFB.dphi_mod)
+        self.OTFB.mod_to_fr()
         ref_DV_MOD_FR = np.load("ref_DV_MOD_FR.npy")
 
-        np.testing.assert_allclose(self.OTFB_new.DV_MOD_FR[-self.OTFB_new.n_coarse:], ref_DV_MOD_FR)
+        np.testing.assert_allclose(self.OTFB.DV_MOD_FR[-self.OTFB.n_coarse:], ref_DV_MOD_FR)
 
-        self.OTFB_new.DV_DELAYED = np.zeros(2 * self.OTFB_new.n_coarse, dtype=complex)
-        self.OTFB_new.DV_DELAYED[-self.OTFB_new.n_coarse:] = 1 + 1j * 0
+        self.OTFB.DV_DELAYED = np.zeros(2 * self.OTFB.n_coarse, dtype=complex)
+        self.OTFB.DV_DELAYED[-self.OTFB.n_coarse:] = 1 + 1j * 0
 
-        self.OTFB_new.dphi_mod = 0
-        self.OTFB_new.mod_to_fr()
+        self.OTFB.dphi_mod = 0
+        self.OTFB.mod_to_fr()
 
-        time_array = self.OTFB_new.rf_centers - 0.5*self.OTFB_new.T_s
-        ref_sig = np.cos((self.OTFB_new.omega_c - self.OTFB_new.omega_r) * time_array[:self.OTFB_new.n_coarse]) + \
-                  1j * np.sin((self.OTFB_new.omega_c - self.OTFB_new.omega_r) * time_array[:self.OTFB_new.n_coarse])
+        time_array = self.OTFB.rf_centers - 0.5*self.OTFB.T_s
+        ref_sig = np.cos((self.OTFB.omega_c - self.OTFB.omega_r) * time_array[:self.OTFB.n_coarse]) - \
+                  1j * np.sin((self.OTFB.omega_c - self.OTFB.omega_r) * time_array[:self.OTFB.n_coarse])
 
-        np.testing.assert_allclose(self.OTFB_new.DV_MOD_FR[-self.OTFB_new.n_coarse:], ref_sig)
+        np.testing.assert_allclose(self.OTFB.DV_MOD_FR[-self.OTFB.n_coarse:], ref_sig)
 
-        self.OTFB_new.dphi_mod = self.mod_phi
+        self.OTFB.dphi_mod = self.mod_phi
 
 
     def test_mov_avg(self):
-        sig = np.zeros(self.OTFB_new.n_coarse-1)
-        sig[:self.OTFB_new.n_mov_av] = 1
-        self.OTFB_new.DV_MOD_FR = np.zeros(2 * self.OTFB_new.n_coarse)
-        self.OTFB_new.DV_MOD_FR[-self.OTFB_new.n_coarse + 1:] = sig
+        sig = np.zeros(self.OTFB.n_coarse-1)
+        sig[:self.OTFB.n_mov_av] = 1
+        self.OTFB.DV_MOD_FR = np.zeros(2 * self.OTFB.n_coarse)
+        self.OTFB.DV_MOD_FR[-self.OTFB.n_coarse + 1:] = sig
 
-        self.OTFB_new.mov_avg()
+        self.OTFB.mov_avg()
 
-        sig = np.zeros(self.OTFB_new.n_coarse)
-        sig[:self.OTFB_new.n_mov_av] = (1/self.OTFB_new.n_mov_av) * np.array(range(self.OTFB_new.n_mov_av))
-        sig[self.OTFB_new.n_mov_av: 2 * self.OTFB_new.n_mov_av] = (1/self.OTFB_new.n_mov_av) * (self.OTFB_new.n_mov_av - np.array(range(self.OTFB_new.n_mov_av)))
+        sig = np.zeros(self.OTFB.n_coarse)
+        sig[:self.OTFB.n_mov_av] = (1/self.OTFB.n_mov_av) * np.array(range(self.OTFB.n_mov_av))
+        sig[self.OTFB.n_mov_av: 2 * self.OTFB.n_mov_av] = (1/self.OTFB.n_mov_av) * (self.OTFB.n_mov_av
+                                                                                    - np.array(range(self.OTFB.n_mov_av)))
 
-        np.testing.assert_allclose(np.abs(self.OTFB_new.DV_MOV_AVG[-self.OTFB_new.n_coarse:]), sig)
+        np.testing.assert_allclose(np.abs(self.OTFB.DV_MOV_AVG[-self.OTFB.n_coarse:]), sig)
 
 
     def test_mod_to_frf(self):
-        self.OTFB_new.DV_MOV_AVG = np.zeros(2 * self.OTFB_new.n_coarse, dtype=complex)
-        self.OTFB_new.DV_MOV_AVG[-self.OTFB_new.n_coarse:] = 1 + 1j * 0
+        self.OTFB.DV_MOV_AVG = np.zeros(2 * self.OTFB.n_coarse, dtype=complex)
+        self.OTFB.DV_MOV_AVG[-self.OTFB.n_coarse:] = 1 + 1j * 0
 
-        self.mod_phi = np.copy(self.OTFB_new.dphi_mod)
-        self.OTFB_new.mod_to_frf()
-
+        self.mod_phi = np.copy(self.OTFB.dphi_mod)
+        self.OTFB.mod_to_frf()
         ref_DV_MOD_FRF = np.load("ref_DV_MOD_FRF.npy")
 
-        np.testing.assert_allclose(self.OTFB_new.DV_MOD_FRF[-self.OTFB_new.n_coarse:], ref_DV_MOD_FRF)
+        np.testing.assert_allclose(self.OTFB.DV_MOD_FRF[-self.OTFB.n_coarse:], ref_DV_MOD_FRF)
 
-        self.OTFB_new.DV_MOV_AVG = np.zeros(2 * self.OTFB_new.n_coarse, dtype=complex)
-        self.OTFB_new.DV_MOV_AVG[-self.OTFB_new.n_coarse:] = 1 + 1j * 0
+        self.OTFB.DV_MOV_AVG = np.zeros(2 * self.OTFB.n_coarse, dtype=complex)
+        self.OTFB.DV_MOV_AVG[-self.OTFB.n_coarse:] = 1 + 1j * 0
 
-        self.OTFB_new.dphi_mod = 0
-        self.OTFB_new.mod_to_frf()
+        self.OTFB.dphi_mod = 0
+        self.OTFB.mod_to_frf()
 
-        time_array = self.OTFB_new.rf_centers - 0.5*self.OTFB_new.T_s
-        ref_sig = np.cos(-(self.OTFB_new.omega_c - self.OTFB_new.omega_r) * time_array[:self.OTFB_new.n_coarse]) + \
-                  1j * np.sin(-(self.OTFB_new.omega_c - self.OTFB_new.omega_r) * time_array[:self.OTFB_new.n_coarse])
+        time_array = self.OTFB.rf_centers - 0.5*self.OTFB.T_s
+        ref_sig = np.cos(-(self.OTFB.omega_c - self.OTFB.omega_r) * time_array[:self.OTFB.n_coarse]) - \
+                  1j * np.sin(-(self.OTFB.omega_c - self.OTFB.omega_r) * time_array[:self.OTFB.n_coarse])
 
-        np.testing.assert_allclose(self.OTFB_new.DV_MOD_FRF[-self.OTFB_new.n_coarse:], ref_sig)
+        np.testing.assert_allclose(self.OTFB.DV_MOD_FRF[-self.OTFB.n_coarse:], ref_sig)
 
-        self.OTFB_new.dphi_mod = self.mod_phi
+        self.OTFB.dphi_mod = self.mod_phi
 
     def test_sum_and_gain(self):
-        self.OTFB_new.V_SET[-self.OTFB_new.n_coarse:] = np.ones(self.OTFB_new.n_coarse, dtype=complex)
-        self.OTFB_new.DV_MOD_FRF[-self.OTFB_new.n_coarse:] = np.ones(self.OTFB_new.n_coarse, dtype=complex)
+        self.OTFB.V_SET[-self.OTFB.n_coarse:] = np.ones(self.OTFB.n_coarse, dtype=complex)
+        self.OTFB.DV_MOD_FRF[-self.OTFB.n_coarse:] = np.ones(self.OTFB.n_coarse, dtype=complex)
 
-        self.OTFB_new.sum_and_gain()
+        self.OTFB.sum_and_gain()
 
-        sig = 2 * np.ones(self.OTFB_new.n_coarse) * self.OTFB_new.G_tx * self.OTFB_new.T_s / self.OTFB_new.TWC.R_gen
+        sig = 2 * np.ones(self.OTFB.n_coarse) * self.OTFB.G_tx / self.OTFB.TWC.R_gen
 
-        np.testing.assert_allclose(self.OTFB_new.I_GEN[-self.OTFB_new.n_coarse:], sig)
+        np.testing.assert_allclose(self.OTFB.I_GEN[-self.OTFB.n_coarse:], sig)
 
 
     def test_gen_response(self):
         # Tests generator response at resonant frequency.
-        self.OTFB_new.I_GEN = np.zeros(2 * self.OTFB_new.n_coarse, dtype=complex)
-        self.OTFB_new.I_GEN[self.OTFB_new.n_coarse] = 1
+        self.OTFB.I_GEN = np.zeros(2 * self.OTFB.n_coarse, dtype=complex)
+        self.OTFB.I_GEN[self.OTFB.n_coarse] = 1
 
-        self.OTFB_new.TWC.impulse_response_gen(self.OTFB_new.TWC.omega_r, self.OTFB_new.rf_centers)
-        self.OTFB_new.gen_response()
+        self.OTFB.TWC.impulse_response_gen(self.OTFB.TWC.omega_r, self.OTFB.rf_centers)
+        self.OTFB.gen_response()
 
-        sig = np.zeros(self.OTFB_new.n_coarse)
-        sig[1:1 + self.OTFB_new.n_mov_av] = 2 * self.OTFB_new.TWC.R_gen / self.OTFB_new.TWC.tau
-        sig[0] = self.OTFB_new.TWC.R_gen / self.OTFB_new.TWC.tau
-        sig[self.OTFB_new.n_mov_av + 1] = self.OTFB_new.TWC.R_gen / self.OTFB_new.TWC.tau
+        sig = np.zeros(self.OTFB.n_coarse)
+        sig[1:1 + self.OTFB.n_mov_av] = 4 * self.OTFB.TWC.R_gen / self.OTFB.TWC.tau
+        sig[0] = 2 * self.OTFB.TWC.R_gen / self.OTFB.TWC.tau
+        sig[self.OTFB.n_mov_av + 1] = 2 * self.OTFB.TWC.R_gen / self.OTFB.TWC.tau
+        sig *= self.OTFB.T_s
 
-        np.testing.assert_allclose(np.abs(self.OTFB_new.V_IND_COARSE_GEN[-self.OTFB_new.n_coarse:]), sig,
-                                   atol=1e-5)
+        np.testing.assert_allclose(np.abs(self.OTFB.V_IND_COARSE_GEN[-self.OTFB.n_coarse:]), sig,
+                                   atol=5e-5)
 
         # Tests generator response at carrier frequency.
-        self.OTFB_new.TWC.impulse_response_gen(self.OTFB_new.omega_c, self.OTFB_new.rf_centers)
+        self.OTFB.TWC.impulse_response_gen(self.OTFB.omega_c, self.OTFB.rf_centers)
 
-        self.OTFB_new.I_GEN = np.zeros(2 * self.OTFB_new.n_coarse, dtype=complex)
-        self.OTFB_new.I_GEN[self.OTFB_new.n_coarse] = 1
+        self.OTFB.I_GEN = np.zeros(2 * self.OTFB.n_coarse, dtype=complex)
+        self.OTFB.I_GEN[self.OTFB.n_coarse] = 1
 
-        self.OTFB_new.gen_response()
+        self.OTFB.gen_response()
 
         ref_V_IND_COARSE_GEN = np.load("ref_V_IND_COARSE_GEN.npy")
-        np.testing.assert_allclose(self.OTFB_new.V_IND_COARSE_GEN[-self.OTFB_new.n_coarse:], ref_V_IND_COARSE_GEN)
+        np.testing.assert_allclose(self.OTFB.V_IND_COARSE_GEN[-self.OTFB.n_coarse:], ref_V_IND_COARSE_GEN)
 
 
 

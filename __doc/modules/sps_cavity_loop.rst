@@ -1,6 +1,6 @@
 SPS Cavity Loop
 ===============
-:Authors: **Helga Timko**
+:Authors: **Birk Emil Karlsen-Bæck**, **Helga Timko**
 
 
 TRAVELLING WAVE CAVITY
@@ -258,6 +258,49 @@ covers the entire turn,
 
     V_\mathsf{ant} = V_\mathsf{ind,gen} + V_\mathsf{ind,beam} \, .
 
+Feeding corrections into the tracker
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Without the OTFB present in the code, the RF voltage that the particles in the simulations will see is
+given by
+
+.. math::
+
+    V_\mathsf{eff}(t) = \left | V_\mathsf{RF} \right |
+    \sin{\left (\omega_\mathsf{RF} \Delta t + \varphi_\mathsf{RF} \right )}.
+
+However, when the OTFB is active the particles will in reality see the antenna voltage, hence
+
+.. math::
+
+    V_\mathsf{eff}(t) = \left | V_\mathsf{ant} \right |
+    \sin{\left (\omega_\mathsf{RF} \Delta t + \varphi_\mathsf{ant} \right )}.
+
+The antenna voltage is given by :math:`V_{\mathsf{ant}} = V_{\mathsf{gen}} + V_{\mathsf{beam}}`
+and the set point is exactly equal to :math:`V_{\mathsf{set}} = V_{\mathsf{rf}}` where :math:`V_{\mathsf{rf}}`
+is the RF voltage inside the tracker object without any OTFB corrections. By defining a correction voltage
+:math:`V_\mathsf{corr}` as
+
+.. math::
+
+    \left | V_\mathsf{ant} \right | e^{i \varphi_\mathsf{ant}} =
+    \left | V_\mathsf{corr} \right | e^{i \varphi_\mathsf{corr}}
+    \left | V_\mathsf{set} \right | e^{i \varphi_\mathsf{set}}
+
+and using the fact that the set point in the OTFB is equal to the uncorrected RF voltage in the
+tracker, we can express
+
+.. math::
+    V_\mathsf{eff}(t) = \left | V_\mathsf{ant} \right |
+    \sin{\left (\omega_\mathsf{RF} \Delta t + \varphi_\mathsf{ant} \right )} =
+    \left | V_\mathsf{RF} \right | \left | V_\mathsf{corr} \right |
+    \sin{\left (\omega_\mathsf{RF} \Delta t + \varphi_\mathsf{RF} + \varphi_\mathsf{corr} \right )},
+
+where :math:`\left | V_\mathsf{corr} \right | = \left | V_\mathsf{ant} \right | / \left | V_\mathsf{set} \right |`
+and :math:`\varphi_\mathsf{corr} = \varphi_\mathsf{ant} - \varphi_\mathsf{set}`. The amplitude
+:math:`\left | V_\mathsf{corr} \right |` and phase :math:`\varphi_\mathsf{corr}` is computed in the OTFB
+and applied to the effective voltage that the particles sees in the tracker through the expression
+given above.
 
 Feed-forward
 ~~~~~~~~~~~~
