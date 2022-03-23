@@ -50,7 +50,7 @@ N_t = 1000                  # Number of turns to track
 # CERN SPS --------------------------------------------------------------------
 
 # OPTIONS TO TEST -------------------------------------------------------------
-LOGGING = False              # Logging messages
+LOGGING = True              # Logging messages
 RF_CURRENT = True           # RF beam current
 RF_CURRENT2 = True          # RF beam current
 IMP_RESP = True             # Impulse response of travelling wave cavity

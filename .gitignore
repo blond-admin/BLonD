@@ -1,3 +1,6 @@
+.gitignore
+/.kdev4/
+*.kdev4
 *.pyc
 
 *.o
@@ -18,7 +21,6 @@
 /__BENCHMARKS/2x40_2x80.hd5
 /__BENCHMARKS/fig/
 /__BENCHMARKS/animations/
-/__Simulations/
 
 *.DS_Store
 .idea
