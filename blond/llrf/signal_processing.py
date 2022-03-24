@@ -95,17 +95,17 @@ def modulator(signal, omega_i, omega_f, T_sampling, phi_0=0):
         #TypeError
         raise RuntimeError("ERROR in filters.py/demodulator: signal should" +
                            " be an array!")
-    delta_phi = (omega_i - omega_f)*T_sampling * np.arange(len(signal))
+    delta_phi = (omega_i - omega_f) * T_sampling * np.arange(len(signal))
     # Pre compute sine and cosine for speed up
     cs = np.cos(delta_phi + phi_0)
     sn = np.sin(delta_phi + phi_0)
-    I_new = cs*signal.real - sn*signal.imag
-    Q_new = sn*signal.real + cs*signal.imag
+    I_new = cs*signal.real + sn*signal.imag
+    Q_new = - sn*signal.real + cs*signal.imag
 
     return I_new + 1j*Q_new
 
 
-def rf_beam_current(Profile, omega_c, T_rev, lpf=True, downsample=None):
+def rf_beam_current(Profile, omega_c, T_rev, lpf=True, downsample=None, external_reference=True):
     r"""Function calculating the beam charge at the (RF) frequency, slice by
     slice. The charge distribution [C] of the beam is determined from the beam
     profile :math:`\lambda_i`, the particle charge :math:`q_p` and the real vs.
@@ -174,7 +174,7 @@ def rf_beam_current(Profile, omega_c, T_rev, lpf=True, downsample=None):
 
     # Mix with frequency of interest; remember factor 2 demodulation
     I_f = 2.*charges*np.cos(omega_c*Profile.bin_centers)
-    Q_f = 2.*charges*np.sin(omega_c*Profile.bin_centers)
+    Q_f = -2.*charges*np.sin(omega_c*Profile.bin_centers)
 
     # Pass through a low-pass filter
     if lpf is True:
@@ -185,6 +185,16 @@ def rf_beam_current(Profile, omega_c, T_rev, lpf=True, downsample=None):
     logger.debug("RF total current is %.4e A", np.fabs(np.sum(I_f))/T_rev)
 
     charges_fine = I_f + 1j*Q_f
+    if external_reference:
+        # Phase correction
+        bucket = 2 * np.pi/(omega_c)
+        # This term takes into account where the sampling of the profile starts
+        add_corr = Profile.bin_centers[0] / (bucket/2) - int(Profile.bin_centers[0] / (bucket/2)) \
+                   - Profile.bin_size / bucket
+        phase = (Profile.bin_centers[0] - Profile.bin_size/2 - 0.5*bucket)/bucket*2*np.pi \
+                + np.angle(charges_fine)[0] - np.pi * add_corr
+        charges_fine = charges_fine * np.exp(-1j * phase)  # TODO: plus or minus
+
     if downsample:
         try:
             T_s = float(downsample['Ts'])
@@ -199,9 +209,9 @@ def rf_beam_current(Profile, omega_c, T_rev, lpf=True, downsample=None):
 
         # Pick total current within one coarse grid
         charges_coarse = np.zeros(n_points, dtype=complex) #+ 1j*np.zeros(n_points)
-        charges_coarse[0] = np.sum(charges_fine[np.arange(indices[0])])
+        charges_coarse[ind_fine[0]] = np.sum(charges_fine[np.arange(indices[0])])
         for i in range(1, len(indices)):
-            charges_coarse[i] = np.sum(charges_fine[np.arange(indices[i-1],
+            charges_coarse[i + ind_fine[0]] = np.sum(charges_fine[np.arange(indices[i-1],
                                                               indices[i])])
 
         return charges_fine, charges_coarse
@@ -590,26 +600,26 @@ def feedforward_filter(TWC: TravellingWaveCavity, T_s, debug=False, taps=None,
 
 
 feedforward_filter_TWC3 = np.array(
-    [-0.0070484734, 0.0161859736, 0.0020289928, 0.0020289928,
-      0.0020289928, -0.0071641302, -0.0162319424, -0.0070388194,
-      0.0020289928, 0.0020289928, 0.0020289928, - 0.0050718734,
-      0.0065971343, 0.0030434892, 0.0030434892, 0.0030434892,
-      0.0030434892, 0.0030434892, -0.0004807475, 0.011136476,
-      0.0040579856, 0.0040579856, 0.0040579856, 0.0132511086,
-      0.019651364, 0.0074147518, -0.0020289928, -0.0020289928,
-     -0.0020289928, -0.0162307252, 0.0071072903])
+    [-0.00760838, 0.01686764, 0.00205761, 0.00205761,
+     0.00205761, 0.00205761, -0.03497942, 0.00205761,
+     0.00205761, 0.00205761, 0.00205761, -0.0053474,
+     0.00689061, 0.00308642, 0.00308642, 0.00308642,
+     0.00308642, 0.00308642, -0.00071777, 0.01152024,
+     0.00411523, 0.00411523, 0.00411523, 0.00411523,
+     0.03806584, -0.00205761, -0.00205761, -0.00205761,
+     -0.00205761, -0.01686764, 0.00760838])
 
 feedforward_filter_TWC4 = np.array(
-    [0.0048142895, 0.0035544775, 0.0011144336, 0.0011144336,
-     0.0011144336, -0.0056984584, -0.0122587698, -0.0054458778,
-     0.0011144336, 0.0011144336, 0.0011144336, -0.0001684528,
-     -0.000662115, 0.0016716504, 0.0016716504, 0.0016716504,
-     0.0016716504, 0.0016716504, 0.0016716504, 0.0016716504,
-     0.0016716504, 0.0016716504, 0.0016716504, 0.0016716504,
-     0.0040787952, 0.0034488892, 0.0022288672, 0.0022288672,
-     0.0022288672, 0.0090417593, 0.0146881621, 0.0062036196,
-     -0.0011144336, -0.0011144336, -0.0011144336, -0.0036802064,
-     -0.0046675309])
+    [0.01050256, -0.0014359, 0.00106667, 0.00106667,
+     0.00106667, -0.01226667, -0.01226667, 0.00106667,
+     0.00106667, 0.00106667, 0.00231795, -0.00365128,
+     0.0016, 0.0016, 0.0016, 0.0016,
+     0.0016, 0.0016, 0.0016, 0.0016,
+     0.0016, 0.0016, 0.0016, 0.0016,
+     0.0016, 0.00685128, 0.00088205, 0.00213333,
+     0.00213333, 0.00213333, 0.01506667, 0.01266667,
+     -0.00106667, -0.00106667, -0.00106667, 0.0014359,
+     -0.01050256])
 
 feedforward_filter_TWC5 = np.array(
     [0.0189205535, -0.0105637125, 0.0007262783, 0.0007262783,

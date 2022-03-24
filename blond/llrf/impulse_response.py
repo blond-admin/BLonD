@@ -14,6 +14,8 @@
 '''
 
 from __future__ import division
+
+import matplotlib.pyplot as plt
 import numpy as np
 from scipy.constants import c
 
@@ -208,7 +210,7 @@ class TravellingWaveCavity(object):
 
     """
 
-    def __init__(self, l_cell, N_cells, rho, v_g, omega_r):
+    def __init__(self, l_cell, N_cells, rho, v_g, omega_r, df = 0):
 
         self.l_cell = float(l_cell)
         self.N_cells = int(N_cells)
@@ -219,7 +221,7 @@ class TravellingWaveCavity(object):
             #ImpulseError
             raise RuntimeError("ERROR in TravellingWaveCavity: group" +
                                " velocity out of limits (0,1)!")
-        self.omega_r = float(omega_r)
+        self.omega_r = float(omega_r) + 2 * np.pi * float(df)
 
         # Calculated
         self.l_cav = float(self.l_cell*self.N_cells)
@@ -273,16 +275,15 @@ class TravellingWaveCavity(object):
                                " cavity!")
 
         # Move starting point of impulse response to correct value
-        t_gen = time_coarse - time_coarse[0] - 0.5*self.tau
+        t_gen = time_coarse - time_coarse[0]
 
         # Impulse response if on carrier frequency
         self.h_gen = (self.R_gen / self.tau *
-                      rectangle(t_gen, self.tau)).astype(np.complex128)
+                      rectangle(t_gen - 0.5*self.tau, self.tau)).astype(np.complex128)
 
         # Impulse response if not on carrier frequency
         if np.fabs((self.d_omega)/self.omega_r) > 1e-12:
-            # TODO: minus
-            self.h_gen = self.h_gen.real*(np.cos(self.d_omega*t_gen) -
+            self.h_gen = self.h_gen.real*(np.cos(self.d_omega*t_gen) -          # TODO: Introduced a plus here
                                           1j*np.sin(self.d_omega*t_gen))
 
     def impulse_response_beam(self, omega_c, time_fine, time_coarse=None):
@@ -326,12 +327,12 @@ class TravellingWaveCavity(object):
         t_beam = time_fine - time_fine[0]
 
         # Impulse response if on carrier frequency
-        self.h_beam = (-2*self.R_beam/self.tau*                                 # TODO: minus
+        self.h_beam = (-2*self.R_beam/self.tau*
                        triangle(t_beam, self.tau)).astype(np.complex128)
 
         # Impulse response if not on carrier frequency
         if np.fabs((self.d_omega)/self.omega_r) > 1e-12:
-            self.h_beam = self.h_beam.real*(np.cos(self.d_omega*t_beam) -           # TODO: minus
+            self.h_beam = self.h_beam.real*(np.cos(self.d_omega*t_beam) -           # TODO: Introduced a plus here
                                             1j*np.sin(self.d_omega*t_beam))
 
         if time_coarse is not None:
@@ -339,13 +340,13 @@ class TravellingWaveCavity(object):
             t_beam = time_coarse - time_coarse[0]
 
             # Impulse response if on carrier frequency
-            self.h_beam_coarse = (-2*self.R_beam/self.tau*                          # TODO: minus
+            self.h_beam_coarse = (-2*self.R_beam/self.tau*
                                   triangle(t_beam, self.tau)).astype(np.complex128)
 
             # Impulse response if not on carrier frequency
             if np.fabs((self.d_omega)/self.omega_r) > 1e-12:
                 self.h_beam_coarse = self.h_beam_coarse.real* \
-                                     (np.cos(self.d_omega*t_beam) -                 # TODO: MINUS
+                                     (np.cos(self.d_omega*t_beam) -                 # TODO: Introduced a plus here
                                       1j*np.sin(self.d_omega*t_beam))
 
     def compute_wakes(self, time):
@@ -378,23 +379,23 @@ class TravellingWaveCavity(object):
 
 class SPS3Section200MHzTWC(TravellingWaveCavity):
 
-    def __init__(self):
+    def __init__(self, df = 0):
 
         TravellingWaveCavity.__init__(self, 0.374, 32, 2.71e4, 0.0946,
-                                      2*np.pi*200.03766667e6)
+                                      2*np.pi*200.03766667e6, df = df)
 
 
 class SPS4Section200MHzTWC(TravellingWaveCavity):
 
-    def __init__(self):
+    def __init__(self, df = 0):
 
         TravellingWaveCavity.__init__(self, 0.374, 43, 2.71e4, 0.0946,
-                                      2*np.pi*199.9945e6)
+                                      2*np.pi*199.9945e6, df = df)
 
 
 class SPS5Section200MHzTWC(TravellingWaveCavity):
 
-    def __init__(self):
+    def __init__(self, df = 0):
 
         TravellingWaveCavity.__init__(self, 0.374, 54, 2.71e4, 0.0946,
-                                      2*np.pi*200.1e6)
+                                      2*np.pi*200.1e6, df = df)

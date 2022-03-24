@@ -860,14 +860,13 @@ def bigaussian(Ring, RFStation, Beam, sigma_dt, sigma_dE = None, seed = None,
     Beam.sigma_dt = sigma_dt
     Beam.sigma_dE = sigma_dE
     
-    # Generate coordinates
-    np.random.seed(seed)
+    # Generate coordinates. For reproducibility, a separate random number stream is used for dt and dE
+    rng_dt = np.random.default_rng(seed)
+    rng_dE = np.random.default_rng(seed+1)
     
-    Beam.dt = sigma_dt*np.random.randn(Beam.n_macroparticles).astype(dtype=bm.precision.real_t, order='C', copy=False) + \
+    Beam.dt = sigma_dt * rng_dt.normal(size=Beam.n_macroparticles).astype(dtype=bm.precision.real_t, order='C', copy=False) + \
         (phi_s - phi_rf)/omega_rf
-    Beam.dE = sigma_dE * \
-        np.random.randn(Beam.n_macroparticles).astype(
-            dtype=bm.precision.real_t, order='C')
+    Beam.dE = sigma_dE * rng_dE.normal(size=Beam.n_macroparticles).astype(dtype=bm.precision.real_t, order='C')
     
     # Re-insert if necessary
     if reinsertion == True:
@@ -876,12 +875,11 @@ def bigaussian(Ring, RFStation, Beam, sigma_dt, sigma_dE = None, seed = None,
             RFStation, Beam, Beam.dt, Beam.dE) == False)[0]
          
         while itemindex.size != 0:
-
-            Beam.dt[itemindex] = sigma_dt*np.random.randn(itemindex.size).astype(dtype=bm.precision.real_t, order='C', copy=False) \
+            
+            Beam.dt[itemindex] = sigma_dt * rng_dt.normal(size=itemindex.size).astype(dtype=bm.precision.real_t, order='C', copy=False) \
                 + (phi_s - phi_rf)/omega_rf
-
-            Beam.dE[itemindex] = sigma_dE * \
-                np.random.randn(itemindex.size).astype(
-                    dtype=bm.precision.real_t, order='C')
+            
+            Beam.dE[itemindex] = sigma_dE * rng_dE.normal(size=itemindex.size).astype(dtype=bm.precision.real_t, order='C')
+            
             itemindex = np.where(is_in_separatrix(Ring,
                                                   RFStation, Beam, Beam.dt, Beam.dE) == False)[0]
