@@ -255,7 +255,10 @@ Set-up Instructions
     wget http://www.fftw.org/fftw-3.3.8.tar.gz
     tar -xzvf fftw-3.3.8.tar.gz
     cd fftw-3.3.8
-    ./configure --prefix=$HOME/install/ --enable-openmp --enable-single --enable-sse2 --enable-avx --enable-avx2 --enable-fma --enable-avx-128-fma  --with-our-malloc --disable-fortran --enable-shared
+    ./configure --prefix=$HOME/install/ --enable-openmp --enable-single --enable-avx --enable-avx2 --enable-fma --with-our-malloc --disable-fortran --enable-shared
+    make -j4
+    make install
+    ./configure --prefix=$HOME/install/ --enable-openmp --enable-avx --enable-avx2 --enable-fma --with-our-malloc --disable-fortran --enable-shared
     make -j4
     make install
 
