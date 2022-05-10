@@ -252,9 +252,9 @@ Set-up Instructions
     cd ~
     mkdir -p ~/downloads
     cd downloads
-    wget http://www.fftw.org/fftw-3.3.8.tar.gz
-    tar -xzvf fftw-3.3.8.tar.gz
-    cd fftw-3.3.8
+    wget http://www.fftw.org/fftw-3.3.10.tar.gz
+    tar -xzvf fftw-3.3.10.tar.gz
+    cd fftw-3.3.10
     ./configure --prefix=$HOME/install/ --enable-openmp --enable-single --enable-avx --enable-avx2 --enable-fma --with-our-malloc --disable-fortran --enable-shared
     make -j4
     make install
