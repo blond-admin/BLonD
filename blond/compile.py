@@ -140,8 +140,10 @@ if __name__ == "__main__":
         cflags += ['-fPIC']
         if args.optimize:
             # Check compiler defined directives
+            # This is compatible with python3.6 - python 3.9
+            # The universal_newlines argument transforms output to text (from binary)
             ret = subprocess.run([compiler + ' -march=native -dM -E - < /dev/null | egrep "SSE|AVX|FMA"'],
-                                 shell=True, capture_output=True, text=True)
+                                 shell=True, stdout=subprocess.PIPE, universal_newlines=True)
 
             # If we have an error
             if ret.returncode != 0:
