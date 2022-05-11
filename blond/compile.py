@@ -207,7 +207,7 @@ if (__name__ == "__main__"):
         libname_double = os.path.join(basepath, 'gpu/cuda_kernels/kernels_double.cubin')
         libname_single = os.path.join(basepath, 'gpu/cuda_kernels/kernels_single.cubin')
         # we need to get the header files location
-        output = subprocess.run('python3 -m pip show pycuda | grep Location', shell=True,
+        output = subprocess.run(f'{sys.executable} -m pip show pycuda | grep Location', shell=True,
                                 stdout=subprocess.PIPE,
                                 encoding='utf-8')
         pycudaloc = os.path.join(output.stdout.split(
