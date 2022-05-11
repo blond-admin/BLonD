@@ -136,9 +136,9 @@ class TotalInducedVoltage(object):
         """
 
         self.induced_voltage_sum()
-        with timing.timed_region('comp:LIKick'):    
+        #with timing.timed_region('comp:LIKick'):    
 
-            bm.linear_interp_kick(dt=self.beam.dt, dE=self.beam.dE,
+        bm.linear_interp_kick(dt=self.beam.dt, dE=self.beam.dE,
                                   voltage=self.induced_voltage,
                                   bin_centers=self.profile.bin_centers,
                                   charge=self.beam.Particle.charge,
@@ -331,9 +331,9 @@ class _InducedVoltage(object):
         # self.profile.beam_spectrum_generation(self.n_fft)
         beam_spectrum = beam_spectrum_dict[self.n_fft]
 
-        with timing.timed_region('serial:indVolt1Turn'):
+        #with timing.timed_region('serial:indVolt1Turn'):
 
-            induced_voltage = - (self.beam.Particle.charge * e * self.beam.ratio
+        induced_voltage = - (self.beam.Particle.charge * e * self.beam.ratio
                                  * bm.irfft(self.total_impedance.astype(dtype=bm.precision.complex_t, order='C', copy=False) * beam_spectrum))
 
         self.induced_voltage = induced_voltage[:self.n_induced_voltage].astype(
@@ -362,7 +362,7 @@ class _InducedVoltage(object):
 
         self.induced_voltage = self.mtw_memory[:self.n_induced_voltage]
 
-    @timing.timeit(key='serial:shift_trev_freq')
+    #@timing.timeit(key='serial:shift_trev_freq')
     def shift_trev_freq(self):
         """
         Method to shift the induced voltage by a revolution period in the
@@ -378,7 +378,7 @@ class _InducedVoltage(object):
         # circular convolution
         self.mtw_memory[-int(self.buffer_size):] = 0
 
-    @timing.timeit(key='serial:shift_trev_time')
+    #@timing.timeit(key='serial:shift_trev_time')
     def shift_trev_time(self):
         """
         Method to shift the induced voltage by a revolution period in the
@@ -644,7 +644,7 @@ class InductiveImpedance(_InducedVoltage):
         # Call the __init__ method of the parent class
         _InducedVoltage.__init__(self, Beam, Profile, RFParams=RFParams)
 
-    @timing.timeit(key='serial:InductiveImped')
+    #@timing.timeit(key='serial:InductiveImped')
     def induced_voltage_1turn(self, beam_spectrum_dict={}):
         """
         Method to calculate the induced voltage through the derivative of the

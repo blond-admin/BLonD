@@ -130,7 +130,7 @@ class GpuRingAndRFTracker(RingAndRFTracker):
         self.pre_track()
         self.track_only()
 
-    @timing.timeit(key='serial:RFVCalc')
+    #@timing.timeit(key='serial:RFVCalc')
     def rf_voltage_calculation(self):
         """
         Gpu Equivalent for rf_voltage_calculation
@@ -171,7 +171,7 @@ class GpuRingAndRFTracker(RingAndRFTracker):
             bm.rf_volt_comp(dev_voltages, dev_omega_rf, dev_phi_rf,
                             self.profile.dev_bin_centers, self.dev_rf_voltage)
 
-    @timing.timeit(key='comp:kick')
+    #@timing.timeit(key='comp:kick')
     def kick(self, index):
         """
         Gpu Equivalent for kick
@@ -195,7 +195,7 @@ class GpuRingAndRFTracker(RingAndRFTracker):
                 self.acceleration_kick[index])
         self.beam.dE_obj.invalidate_cpu()
 
-    @timing.timeit(key='comp:drift')
+    #@timing.timeit(key='comp:drift')
     def drift(self, index):
         """
         Gpu Equivalent for drift

@@ -15,7 +15,7 @@ except ImportError:
 
 class GpuBeamFeedback(BeamFeedback):
 
-    @timing.timeit(key='serial:beam_phase')
+    #@timing.timeit(key='serial:beam_phase')
     def beam_phase(self):
         """
         GPU implementation of beam_phase
@@ -93,7 +93,7 @@ class GpuBeamFeedback(BeamFeedback):
         self.rf_station.dphi_rf_obj.invalidate_cpu()
         self.rf_station.phi_rf_obj.invalidate_cpu()
 
-    @timing.timeit(key='serial:beam_phase_sharpWindow')
+    #@timing.timeit(key='serial:beam_phase_sharpWindow')
     def beam_phase_sharpWindow(self):
         """
         GPU implementation of beam_phase_sharpWindow

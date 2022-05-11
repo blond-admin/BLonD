@@ -260,7 +260,7 @@ class BeamFeedback(object):
         else:
             self.on_time = np.arange(Ring.t_rev.size)
 
-    @timing.timeit(key='serial:beam_phase')    
+    #@timing.timeit(key='serial:beam_phase')    
     def beam_phase(self):
         '''
         *Beam phase measured at the main RF frequency and phase. The beam is 
@@ -302,7 +302,7 @@ class BeamFeedback(object):
         # Project beam phase to (pi/2,3pi/2) range
         self.phi_beam = np.arctan(coeff) + np.pi
 
-    @timing.timeit(key='serial:beam_phase_sharpWindow')
+    #@timing.timeit(key='serial:beam_phase_sharpWindow')
     def beam_phase_sharpWindow(self):
         '''
         *Beam phase measured at the main RF frequency and phase. The beam is
@@ -338,7 +338,7 @@ class BeamFeedback(object):
         # Project beam phase to (pi/2,3pi/2) range
         self.phi_beam = np.arctan(scoeff/ccoeff) + np.pi
 
-    @timing.timeit(key='serial:phase_difference')
+    #@timing.timeit(key='serial:phase_difference')
     def phase_difference(self):
         '''
         *Phase difference between beam and RF phase of the main RF system.

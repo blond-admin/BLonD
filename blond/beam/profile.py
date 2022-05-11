@@ -439,7 +439,7 @@ class Profile(object):
         for op in self.operations:
             op()
 
-    @timing.timeit(key='comp:histo')
+    #@timing.timeit(key='comp:histo')
     def _slice(self):
         """
         Constant space slicing with a constant frame.
@@ -460,19 +460,19 @@ class Profile(object):
 
         if self.Beam.is_splitted:
             # Convert to uint32t for better performance
-            with timing.timed_region('serial:conversion'):
+            #with timing.timed_region('serial:conversion'):
 
-                self.n_macroparticles = self.n_macroparticles.astype(
+            self.n_macroparticles = self.n_macroparticles.astype(
                     dtype, order='C')
 
             worker.allreduce(self.n_macroparticles)
 
             # Convert back to float64
-            with timing.timed_region('serial:conversion'):
-                self.n_macroparticles = self.n_macroparticles.astype(
+            #with timing.timed_region('serial:conversion'):
+            self.n_macroparticles = self.n_macroparticles.astype(
                     dtype=bm.precision.real_t, order='C', copy=False)
     
-    @timing.timeit(key='serial:scale_histo')
+    #@timing.timeit(key='serial:scale_histo')
     def scale_histo(self):
         if not bm.mpiMode():
             raise RuntimeError(
@@ -564,7 +564,7 @@ class Profile(object):
 
         self.beam_spectrum_freq = bm.rfftfreq(n_sampling_fft, self.bin_size)
     
-    @timing.timeit(key='serial:beam_spectrum_gen')
+    #@timing.timeit(key='serial:beam_spectrum_gen')
     def beam_spectrum_generation(self, n_sampling_fft):
         """
         Beam spectrum calculation

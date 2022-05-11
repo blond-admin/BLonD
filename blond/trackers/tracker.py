@@ -324,7 +324,7 @@ class RingAndRFTracker(object):
             # self.logger.warning("Setting interpolation to TRUE")
 
 
-    @timing.timeit(key='comp:kick')
+    #@timing.timeit(key='comp:kick')
     def kick(self, beam_dt, beam_dE, index):
         """Function updating the particle energy due to the RF kick in a given
         RF station. The kicks are summed over the different harmonic RF systems
@@ -346,7 +346,7 @@ class RingAndRFTracker(object):
                 self.omega_rf[:, index], self.phi_rf[:, index],
                 self.charge, self.n_rf, self.acceleration_kick[index])
 
-    @timing.timeit(key='comp:drift')
+    #@timing.timeit(key='comp:drift')
     def drift(self, beam_dt, beam_dE, index):
         """Function updating the particle arrival time to the RF station
         (drift). If only the zeroth order slippage factor is given, 'simple'
@@ -380,7 +380,7 @@ class RingAndRFTracker(object):
                  self.alpha_1[index], self.alpha_2[index],
                  self.rf_params.beta[index], self.rf_params.energy[index])
 
-    @timing.timeit(key='serial:RFVCalc')
+    #@timing.timeit(key='serial:RFVCalc')
     def rf_voltage_calculation(self):
         """Function calculating the total, discretised RF voltage seen by the
         beam at a given turn. Requires a Profile object.
@@ -412,20 +412,20 @@ class RingAndRFTracker(object):
 
         # Add phase noise directly to the cavity RF phase
         if self.phi_noise is not None:
-            with timing.timed_region('serial:pretrack_phirf'):
-                if self.noiseFB is not None:
-                    self.phi_rf[:, turn] += \
-                        self.noiseFB.x * self.phi_noise[:, turn]
-                else:
-                    self.phi_rf[:, turn] += \
-                        self.phi_noise[:, turn]
+            #with timing.timed_region('serial:pretrack_phirf'):
+            if self.noiseFB is not None:
+                self.phi_rf[:, turn] += \
+                    self.noiseFB.x * self.phi_noise[:, turn]
+            else:
+                self.phi_rf[:, turn] += \
+                    self.phi_noise[:, turn]
 
         # Add phase modulation directly to the cavity RF phase
         if self.phi_modulation is not None:
-            with timing.timed_region('serial:pretrack_phimodulation'):
-                self.phi_rf[:, turn] += \
+            #with timing.timed_region('serial:pretrack_phimodulation'):
+            self.phi_rf[:, turn] += \
                     self.phi_modulation[0][:, turn]
-                self.omega_rf[:, turn] += \
+            self.omega_rf[:, turn] += \
                     self.phi_modulation[1][:, turn]
 
         # Determine phase loop correction on RF phase and frequency
@@ -518,9 +518,9 @@ class RingAndRFTracker(object):
                     else:
                         self.total_voltage = self.rf_voltage
 
-                    with timing.timed_region('comp:LIKick'):
+                    #with timing.timed_region('comp:LIKick'):
                         # with mpiprof.traced_region('comp:LIKick'):
-                        bm.linear_interp_kick(dt=self.beam.dt, dE=self.beam.dE,
+                    bm.linear_interp_kick(dt=self.beam.dt, dE=self.beam.dE,
                                               voltage=self.total_voltage,
                                               bin_centers=self.profile.bin_centers,
                                               charge=self.beam.Particle.charge,

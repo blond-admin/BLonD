@@ -92,7 +92,7 @@ class GpuProfile(Profile):
     def dev_beam_spectrum_freq(self, value):
         self.beam_spectrum_freq_obj.dev_my_array = value
 
-    @timing.timeit(key='comp:histo')
+    #@timing.timeit(key='comp:histo')
     def _slice(self, reduce=True):
         """
         Gpu Equivalent for _slice
@@ -101,7 +101,7 @@ class GpuProfile(Profile):
         bm.slice(self.Beam.dev_dt, self.dev_n_macroparticles, self.cut_left, self.cut_right)
         self.n_macroparticles_obj.invalidate_cpu()
 
-    @timing.timeit(key='serial:beam_spectrum_gen')
+    #@timing.timeit(key='serial:beam_spectrum_gen')
     def beam_spectrum_generation(self, n_sampling_fft):
         """
         Gpu Equivalent for beam_spectrum_generation
@@ -165,7 +165,7 @@ class GpuProfile(Profile):
             with timing.timed_region('serial:conversion'):
                 self.n_macroparticles = my_n_macroparticles.astype(dtype=bm.precision.real_t, order='C', copy=False)
 
-    @timing.timeit(key='serial:scale_histo')
+    #@timing.timeit(key='serial:scale_histo')
     def old_scale_histo(self):
         """
         Gpu Equivalent for scale_histo
@@ -179,7 +179,7 @@ class GpuProfile(Profile):
             self.n_macroparticles = self.n_macroparticles * worker.workers
             self.n_macroparticles_obj.invalidate_gpu()
     
-    @timing.timeit(key='serial:scale_histo')
+    #@timing.timeit(key='serial:scale_histo')
     def scale_histo(self):
         """
         Gpu Equivalent for scale_histo

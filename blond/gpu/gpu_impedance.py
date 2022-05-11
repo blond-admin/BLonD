@@ -116,14 +116,14 @@ class GpuInducedVoltage(_InducedVoltage):
             self.profile.beam_spectrum_generation(self.n_fft)
             beam_spectrum_dict[self.n_fft] = self.profile.dev_beam_spectrum
         beam_spectrum = beam_spectrum_dict[self.n_fft]
-        with timing.timed_region('serial:indVolt1Turn'):
-            inp = get_gpuarray((beam_spectrum.size, bm.precision.complex_t,
+        #with timing.timed_region('serial:indVolt1Turn'):
+        inp = get_gpuarray((beam_spectrum.size, bm.precision.complex_t,
                                 id(self), 'inp'))
-            complex_mul(self.dev_total_impedance, beam_spectrum, inp)
-            my_res = bm.irfft(inp, caller_id=id(self))
-            self.dev_induced_voltage = get_gpuarray(
+        complex_mul(self.dev_total_impedance, beam_spectrum, inp)
+        my_res = bm.irfft(inp, caller_id=id(self))
+        self.dev_induced_voltage = get_gpuarray(
                 (self.n_induced_voltage, bm.precision.real_t, id(self), 'iv'))
-            gpu_mul(self.dev_induced_voltage,
+        gpu_mul(self.dev_induced_voltage,
                     my_res, bm.precision.real_t(-self.beam.Particle.charge *
                                                 e * self.beam.ratio), slice=slice(0, self.n_induced_voltage))
 
@@ -145,7 +145,7 @@ class GpuInducedVoltage(_InducedVoltage):
         gpu_copy_d2d(self.dev_induced_voltage, self.dev_mtw_memory,
                      slice=slice(0, self.n_induced_voltage))
 
-    @timing.timeit(key='serial:shift_trev_freq')
+    #@timing.timeit(key='serial:shift_trev_freq')
     def shift_trev_freq(self):
         """
         GPU implementation of shift_trev_freq
@@ -161,7 +161,7 @@ class GpuInducedVoltage(_InducedVoltage):
         set_zero_real(self.dev_mtw_memory,
                       slice=slice(-int(self.buffer_size), None, None))
 
-    @timing.timeit(key='serial:shift_trev_time')
+    #@timing.timeit(key='serial:shift_trev_time')
     def shift_trev_time(self):
         """
         GPU implementation of shift_trev_time
@@ -194,7 +194,7 @@ class GpuInducedVoltageTime(GpuInducedVoltage, InducedVoltageTime):
 
 class GpuInductiveImpedance(GpuInducedVoltage, InductiveImpedance):
 
-    @timing.timeit(key='serial:InductiveImped')
+    #@timing.timeit(key='serial:InductiveImped')
     def induced_voltage_1turn(self, beam_spectrum_dict={}):
         """
         GPU implementation for induced_voltage_1turn
