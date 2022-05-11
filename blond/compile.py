@@ -210,6 +210,8 @@ if (__name__ == "__main__"):
         output = subprocess.run(f'{sys.executable} -m pip show pycuda | grep Location', shell=True,
                                 stdout=subprocess.PIPE,
                                 encoding='utf-8')
+        print('pycuda ', output.stdout)
+        
         pycudaloc = os.path.join(output.stdout.split(
             'Location:')[1].strip(), 'pycuda/cuda')
 
