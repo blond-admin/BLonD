@@ -201,6 +201,10 @@ class Beam(object):
         self.mean_dE = 0.
         self.sigma_dt = 0.
         self.sigma_dE = 0.
+        self.min_dt = 0.
+        self.max_dt = 0.
+        self.min_dE = 0.
+        self.max_dE = 0.
         self.intensity = float(intensity)
         self.n_macroparticles = int(n_macroparticles)
         self.ratio = self.intensity/self.n_macroparticles
@@ -273,15 +277,15 @@ class Beam(object):
         self.mean_dt = bm.mean(self.dt[itemindex])
         self.sigma_dt = bm.std(self.dt[itemindex])
         self._sumsq_dt = np.dot(self.dt[itemindex], self.dt[itemindex])
-        # self.min_dt = np.min(self.dt[itemindex])
-        # self.max_dt = np.max(self.dt[itemindex])
+        self.min_dt = np.min(self.dt[itemindex])
+        self.max_dt = np.max(self.dt[itemindex])
 
         self.mean_dE = bm.mean(self.dE[itemindex])
         self.sigma_dE = bm.std(self.dE[itemindex])
         self._sumsq_dE = np.dot(self.dE[itemindex], self.dE[itemindex])
 
-        # self.min_dE = np.min(self.dE[itemindex])
-        # self.max_dE = np.max(self.dE[itemindex])
+        self.min_dE = np.min(self.dE[itemindex])
+        self.max_dE = np.max(self.dE[itemindex])
 
         # R.m.s. emittance in Gaussian approximation
         self.epsn_rms_l = np.pi*self.sigma_dE*self.sigma_dt  # in eVs
@@ -549,6 +553,19 @@ class Beam(object):
                                self.n_total_macroparticles_lost)
                 - self.mean_dE**2)
 
+            self.min_dt = worker.allreduce(
+                np.array([self.min_dt]), operator='min')[0]
+
+            self.min_dE = worker.allreduce(
+                np.array([self.min_dE]), operator='min')[0]
+
+            self.max_dt = worker.allreduce(
+                np.array([self.max_dt]), operator='max')[0]
+
+            self.max_dE = worker.allreduce(
+                np.array([self.max_dE]), operator='max')[0]
+
+
             # self.sigma_dt = worker.allreduce(
             #     np.array([self.mean_dt, self.sigma_dt, self.n_macroparticles_alive]),
             #     operator='std')[0]
@@ -581,6 +598,18 @@ class Beam(object):
                 self.sigma_dE/(self.n_total_macroparticles -
                                self.n_total_macroparticles_lost)
                 - self.mean_dE**2)
+
+            self.min_dt = worker.reduce(
+                np.array([self.min_dt]), operator='min')[0]
+
+            self.min_dE = worker.reduce(
+                np.array([self.min_dE]), operator='min')[0]
+
+            self.max_dt = worker.reduce(
+                np.array([self.max_dt]), operator='max')[0]
+
+            self.max_dE = worker.reduce(
+                np.array([self.max_dE]), operator='max')[0]
 
             # self.sigma_dt = worker.reduce(
             #     np.array([self.mean_dt, self.sigma_dt,

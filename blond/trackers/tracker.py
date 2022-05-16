@@ -23,7 +23,11 @@ import ctypes
 import warnings
 from ..utils import bmath as bm
 
-
+try:
+    from pyprof import timing
+except ImportError:
+    from ..utils import profile_mock as timing
+    
 class FullRingAndRF(object):
     """
     *Definition of the full ring and RF parameters in order to be able to have
@@ -303,6 +307,9 @@ class RingAndRFTracker(object):
             # ProfileError
             raise RuntimeError("ERROR in RingAndRFTracker: Please specify a" +
                                " Profile object to use the interpolation option")
+        elif (self.interpolation is True) and (self.profile):
+            self.rf_voltage = np.zeros(self.profile.n_slices, dtype=bm.precision.real_t, order='C')
+
         if (self.cavityFB is not None) and (self.profile is None):
             # ProfileError
             raise RuntimeError("ERROR in RingAndRFTracker: Please specify a" +
@@ -316,6 +323,8 @@ class RingAndRFTracker(object):
             warnings.warn('Setting interpolation to TRUE')
             # self.logger.warning("Setting interpolation to TRUE")
 
+
+    #@timing.timeit(key='comp:kick')
     def kick(self, beam_dt, beam_dE, index):
         """Function updating the particle energy due to the RF kick in a given
         RF station. The kicks are summed over the different harmonic RF systems
@@ -337,6 +346,7 @@ class RingAndRFTracker(object):
                 self.omega_rf[:, index], self.phi_rf[:, index],
                 self.charge, self.n_rf, self.acceleration_kick[index])
 
+    #@timing.timeit(key='comp:drift')
     def drift(self, beam_dt, beam_dE, index):
         """Function updating the particle arrival time to the RF station
         (drift). If only the zeroth order slippage factor is given, 'simple'
@@ -370,6 +380,7 @@ class RingAndRFTracker(object):
                  self.alpha_1[index], self.alpha_2[index],
                  self.rf_params.beta[index], self.rf_params.energy[index])
 
+    #@timing.timeit(key='serial:RFVCalc')
     def rf_voltage_calculation(self):
         """Function calculating the total, discretised RF voltage seen by the
         beam at a given turn. Requires a Profile object.
@@ -389,17 +400,19 @@ class RingAndRFTracker(object):
             self.rf_voltage = bm.rf_volt_comp(voltages, omega_rf, phi_rf,
                                               self.profile.bin_centers)
 
-    def track(self):
-        """Tracking method for the section. Applies first the kick, then the
+    def pre_track(self):
+        """Tracking method for the section. Applies first the kick, then the 
         drift. Calls also RF/beam feedbacks if applicable. Updates the counter
         of the corresponding RFStation class and the energy-related variables
         of the Beam class.
-
         """
+
+        # Add phase noise directly to the cavity RF phase
         turn = self.counter[0]
 
         # Add phase noise directly to the cavity RF phase
         if self.phi_noise is not None:
+            #with timing.timed_region('serial:pretrack_phirf'):
             if self.noiseFB is not None:
                 self.phi_rf[:, turn] += \
                     self.noiseFB.x * self.phi_noise[:, turn]
@@ -409,10 +422,11 @@ class RingAndRFTracker(object):
 
         # Add phase modulation directly to the cavity RF phase
         if self.phi_modulation is not None:
+            #with timing.timed_region('serial:pretrack_phimodulation'):
             self.phi_rf[:, turn] += \
-                self.phi_modulation[0][:, turn]
+                    self.phi_modulation[0][:, turn]
             self.omega_rf[:, turn] += \
-                self.phi_modulation[1][:, turn]
+                    self.phi_modulation[1][:, turn]
 
         # Determine phase loop correction on RF phase and frequency
         if self.beamFB is not None and turn >= self.beamFB.delay:
@@ -420,13 +434,29 @@ class RingAndRFTracker(object):
 
         # Update the RF phase of all systems for the next turn
         # Accumulated phase offset due to beam phase loop or frequency offset
-        self.rf_params.dphi_rf += 2.*np.pi*self.rf_params.harmonic[:,turn+1]* \
-                                  (self.rf_params.omega_rf[:,turn+1] -
-                                   self.rf_params.omega_rf_d[:,turn+1]) / \
-                                  self.rf_params.omega_rf_d[:,turn+1]
+        # self.rf_params.dphi_rf += 2.*np.pi*self.rf_params.harmonic[:,turn+1]* \
+        #                           (self.rf_params.omega_rf[:,turn+1] -
+        #                            self.rf_params.omega_rf_d[:,turn+1]) / \
+        #                           self.rf_params.omega_rf_d[:,turn+1]
 
         # Total phase offset
-        self.rf_params.phi_rf[:,turn+1] += self.rf_params.dphi_rf
+        # self.rf_params.phi_rf[:,turn+1] += self.rf_params.dphi_rf
+
+        if self.periodicity:
+            pass
+        else:
+            if self.rf_params.empty is False:
+                if self.interpolation:
+                    self.rf_voltage_calculation()
+
+
+    def track_only(self):
+        """Tracking method for the section. Applies first the kick, then the 
+        drift. Calls also RF/beam feedbacks if applicable. Updates the counter
+        of the corresponding RFStation class and the energy-related variables
+        of the Beam class.
+        """
+        turn = self.counter[0]
 
         if self.periodicity:
 
@@ -482,36 +512,19 @@ class RingAndRFTracker(object):
 
             if self.rf_params.empty is False:
                 if self.interpolation:
-                    self.rf_voltage_calculation()
                     if self.totalInducedVoltage is not None:
                         self.total_voltage = self.rf_voltage \
                             + self.totalInducedVoltage.induced_voltage
                     else:
                         self.total_voltage = self.rf_voltage
 
+                    #with timing.timed_region('comp:LIKick'):
+                        # with mpiprof.traced_region('comp:LIKick'):
                     bm.linear_interp_kick(dt=self.beam.dt, dE=self.beam.dE,
-                                          voltage=self.total_voltage,
-                                          bin_centers=self.profile.bin_centers,
-                                          charge=self.beam.Particle.charge,
-                                          acceleration_kick=self.acceleration_kick[turn])
-
-                    # self.drift(self.beam.dt, self.beam.dE, turn + 1)
-
-                    # bm.LIKick_n_drift(self.beam.dt,
-                    #                   self.beam.dE,
-                    #                   self.total_voltage,
-                    #                   self.profile.bin_centers,
-                    #                   self.beam.Particle.charge,
-                    #                   self.acceleration_kick[turn],
-                    #                   self.solver,
-                    #                   self.t_rev[turn],
-                    #                   self.length_ratio,
-                    #                   self.alpha_order,
-                    #                   self.eta_0[turn],
-                    #                   self.eta_1[turn],
-                    #                   self.eta_2[turn],
-                    #                   self.rf_params.beta[turn],
-                    #                   self.rf_params.energy[turn])
+                                              voltage=self.total_voltage,
+                                              bin_centers=self.profile.bin_centers,
+                                              charge=self.beam.Particle.charge,
+                                              acceleration_kick=self.acceleration_kick[turn])
                 else:
                     self.kick(self.beam.dt, self.beam.dE, turn)
 
@@ -525,3 +538,7 @@ class RingAndRFTracker(object):
 
         # Increment by one the turn counter
         self.counter[0] += 1
+
+    def track(self):
+        self.pre_track()
+        self.track_only()

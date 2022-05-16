@@ -18,7 +18,12 @@ from __future__ import division
 from builtins import object
 import numpy as np
 from ..utils import bmath as bm
-
+try:
+    from pyprof import timing
+    # from pyprof import mpiprof
+except ImportError:
+    from ..utils import profile_mock as timing
+    # mpiprof = timing
 
 class BeamFeedback(object):
     '''
@@ -208,10 +213,8 @@ class BeamFeedback(object):
 
     def track(self):
         '''
-        Calculate PL correction on main RF frequency depending on machine and
-        propagate it to other RF systems.
-        The update of the RF phase and frequency for the next turn,
-        for all systems is done in the tracker.
+        Calculate PL correction on main RF frequency depending on machine.
+        Update the RF phase and frequency of the next turn for all systems.
         '''
 
         # Calculate PL correction on RF frequency
@@ -219,10 +222,23 @@ class BeamFeedback(object):
 
         # Update the RF frequency of all systems for the next turn
         counter = self.rf_station.counter[0] + 1
+        
+        #self.domega_rf = np.float64(counter)
+        
         self.rf_station.omega_rf[:, counter] += self.domega_rf * \
             self.rf_station.harmonic[:, counter] / \
             self.rf_station.harmonic[0, counter]
+        # Update the RF phase of all systems for the next turn
+        # Accumulated phase offset due to PL in each RF system
 
+        self.rf_station.dphi_rf += 2.*np.pi*self.rf_station.harmonic[:, counter] * \
+            (self.rf_station.omega_rf[:, counter] -
+             self.rf_station.omega_rf_d[:, counter]) / \
+            self.rf_station.omega_rf_d[:, counter]
+
+        
+        # Total phase offset
+        self.rf_station.phi_rf[:, counter] += self.rf_station.dphi_rf
     def precalculate_time(self, Ring):
         '''
         *For machines like the PSB, where the PL acts only in certain time
@@ -244,6 +260,7 @@ class BeamFeedback(object):
         else:
             self.on_time = np.arange(Ring.t_rev.size)
 
+    #@timing.timeit(key='serial:beam_phase')    
     def beam_phase(self):
         '''
         *Beam phase measured at the main RF frequency and phase. The beam is 
@@ -285,6 +302,7 @@ class BeamFeedback(object):
         # Project beam phase to (pi/2,3pi/2) range
         self.phi_beam = np.arctan(coeff) + np.pi
 
+    #@timing.timeit(key='serial:beam_phase_sharpWindow')
     def beam_phase_sharpWindow(self):
         '''
         *Beam phase measured at the main RF frequency and phase. The beam is
@@ -320,6 +338,7 @@ class BeamFeedback(object):
         # Project beam phase to (pi/2,3pi/2) range
         self.phi_beam = np.arctan(scoeff/ccoeff) + np.pi
 
+    #@timing.timeit(key='serial:phase_difference')
     def phase_difference(self):
         '''
         *Phase difference between beam and RF phase of the main RF system.
@@ -520,35 +539,37 @@ class BeamFeedback(object):
         self.dphi_sum += self.dphi
 
         # Phase and radial loop active on certain turns
-        if counter == self.on_time[self.PL_counter] and counter >= self.delay:
-            # Phase loop
-            self.dphi_av = self.dphi_sum / (self.on_time[self.PL_counter]
-                                            - self.on_time[self.PL_counter-1])
+        with timing.timed_region('serial:PSBBeamFB'):
 
-            if self.RFnoise != None:
-                self.dphi_av += self.RFnoise.dphi[counter]
+            if counter == self.on_time[self.PL_counter] and counter >= self.delay:
+                # Phase loop
+                self.dphi_av = self.dphi_sum / (self.on_time[self.PL_counter]
+                                                - self.on_time[self.PL_counter-1])
 
-            self.domega_PL = 0.99803799*self.domega_PL \
-                + self.gain[counter]*(0.99901903*self.dphi_av -
-                                      0.99901003*self.dphi_av_prev)
+                if self.RFnoise != None:
+                    self.dphi_av += self.RFnoise.dphi[counter]
 
-            self.dphi_av_prev = self.dphi_av
-            self.dphi_sum = 0.
+                self.domega_PL = 0.99803799*self.domega_PL \
+                    + self.gain[counter]*(0.99901903*self.dphi_av -
+                                          0.99901003*self.dphi_av_prev)
 
-            # Radial loop
-            self.dR_over_R = (self.rf_station.omega_rf[0, counter] -
-                              self.rf_station.omega_rf_d[0, counter])/(
-                self.rf_station.omega_rf_d[0, counter] *
-                         (1./(self.ring.alpha_0[0, counter] *
-                              self.rf_station.gamma[counter]**2) - 1.))
+                self.dphi_av_prev = self.dphi_av
+                self.dphi_sum = 0.
 
-            self.domega_RL = self.domega_RL + self.gain2[0][counter]*(self.dR_over_R
-                                                                      - self.dR_over_R_prev) + self.gain2[1][counter]*self.dR_over_R
+                # Radial loop
+                self.dR_over_R = (self.rf_station.omega_rf[0, counter] -
+                                  self.rf_station.omega_rf_d[0, counter])/(
+                    self.rf_station.omega_rf_d[0, counter] *
+                             (1./(self.ring.alpha_0[0, counter] *
+                                  self.rf_station.gamma[counter]**2) - 1.))
 
-            self.dR_over_R_prev = self.dR_over_R
+                self.domega_RL = self.domega_RL + self.gain2[0][counter]*(self.dR_over_R
+                                                                          - self.dR_over_R_prev) + self.gain2[1][counter]*self.dR_over_R
 
-            # Counter to pick the next time step when the PL & RL will be active
-            self.PL_counter += 1
+                self.dR_over_R_prev = self.dR_over_R
 
-        # Apply frequency correction
-        self.domega_rf = - self.domega_PL - self.domega_RL
+                # Counter to pick the next time step when the PL & RL will be active
+                self.PL_counter += 1
+
+            # Apply frequency correction
+            self.domega_rf = - self.domega_PL - self.domega_RL

@@ -330,6 +330,89 @@ Changes required in the main file for MPI
 7. For more examples have a look at the __EXAMPLES/mpi_main_files/ directory. 
 
 
+Using the GPU Implementation
+=============================
+
+Setup Instructions
+------------------
+
+Install **Cuda** from the following link https://developer.nvidia.com/cuda-downloads.
+
+Install the python module pycuda and scikit-cuda with 
+
+.. code-block:: bash
+    
+    $ pip install pycuda
+    $ pip install scikit-cuda
+
+To verify your installation open a python terminal and execute the following script
+
+.. code-block:: python
+
+    import pycuda.autoinit 
+    from pycuda import gpuarray 
+    import numpy as np 
+    a = gpuarray.to_gpu(np.zeros(1000,np.float64)) 
+
+To compile the Cuda files add the flag --gpu and pass the Compute Capability of your GPU as
+an argument. You can find your GPU's compute capability in this link https://en.wikipedia.org/wiki/CUDA.
+For example if your GPU is the GTX 1050 Ti and so you Compute Capability is 6.1, you need to run 
+.. code-block:: bash
+
+    $ python blond/compile --gpu 61
+
+Changes required in the main file for GPU
+-----------------------------------------
+
+1. Right before your main loop you need to add:
+
+.. code-block:: python
+
+    from blond.utils import bmath as bm
+    bm.use_gpu() # change some of the basic functions(kick, drift, ffts etc) to their GPU equivalent
+    bm.use_cucache() # enable a feature for better GPU performance
+
+2. Also for every object you are using in your main loop that is in the following list
+
++--------------------------------------+
+| GPU objects                          |
++======================================+
+| Beam                                 |
++--------------------------------------+
+|Profile                               |
++--------------------------------------+
+|RingAndRFTracker                      |
++--------------------------------------+
+|TotalInducedVoltage                   |
++--------------------------------------+
+|_InducedVoltage                       |
++--------------------------------------+
+|InducedVoltageFreq                    |
++--------------------------------------+
+|InductiveImpedance                    |
++--------------------------------------+
+|InducedVoltageResonator               |
++--------------------------------------+
+|RFStation                             |
++--------------------------------------+
+|BeamFeedback                          |
++--------------------------------------+
+
+you need to call their use_gpu() method. The following is a typical example from the
+__EXAMPLES/gpu_main_files/EX_01_Acceleration.py mainfile. 
+
+.. code-block:: python
+
+    beam.use_gpu()
+    long_tracker.use_gpu()
+    profile.use_gpu()
+
+If an object of this list is contained inside a different one you don't need to use the use_gpu() 
+for the contained object. In the previous example, we don't the first and the third line 
+since beam, and profile is contained inside the tracker. The same would apply in a TotalInducedVoltage
+object and the objects in its induced_voltage_list.
+
+
 CURRENT DEVELOPERS
 ==================
 

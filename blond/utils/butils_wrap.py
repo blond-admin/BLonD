@@ -13,13 +13,14 @@ from .. import libblond as __lib
 
 class Precision:
     def __init__(self, precision='double'):
-        self.str = precision
         if precision in ['single', 's', '32', 'float32', 'float', 'f']:
+            self.str = 'float'
             self.real_t = np.float32
             self.c_real_t = ct.c_float
             self.complex_t = np.complex64
             self.num = 1
         elif precision in ['double', 'd', '64', 'float64']:
+            self.str = 'double'
             self.real_t = np.float64
             self.c_real_t = ct.c_double
             self.complex_t = np.complex128
@@ -176,7 +177,7 @@ def mul(a, b, result=None):
             __lib.scalar_mul_int64(__getPointer(a), ct.c_int64(np.int64(b)),
                                    __getLen(a), __getPointer(result))
         elif (a.dtype == 'float32'):
-            __lib.scalar_mul_float64(__getPointer(a), ct.c_float(np.float32(b)),
+            __lib.scalar_mul_float32(__getPointer(a), ct.c_float(np.float32(b)),
                                      __getLen(a), __getPointer(result))
         elif (a.dtype == 'float64'):
             __lib.scalar_mul_float64(__getPointer(a), ct.c_double(np.float64(b)),
@@ -203,7 +204,7 @@ def mul(a, b, result=None):
             __lib.vector_mul_int64(__getPointer(a), __getPointer(b),
                                    __getLen(a), __getPointer(result))
         elif (a.dtype == 'float32'):
-            __lib.vector_mul_float64(__getPointer(a), __getPointer(b),
+            __lib.vector_mul_float32(__getPointer(a), __getPointer(b),
                                      __getLen(a), __getPointer(result))
         elif (a.dtype == 'float64'):
             __lib.vector_mul_float64(__getPointer(a), __getPointer(b),
@@ -624,7 +625,6 @@ def kick(dt, dE, voltage, omega_rf, phi_rf, charge, n_rf, acceleration_kick):
     omegarf_kick = omega_rf.astype(
         dtype=precision.real_t, order='C', copy=False)
     phirf_kick = phi_rf.astype(dtype=precision.real_t, order='C', copy=False)
-
     if precision.num == 1:
         __lib.kickf(__getPointer(dt),
                     __getPointer(dE),

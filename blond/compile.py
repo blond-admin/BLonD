@@ -51,6 +51,10 @@ parser.add_argument('-c', '--compiler', type=str, default='g++',
 parser.add_argument('--with-fftw', action='store_true',
                     help='Use the FFTs from FFTW3.')
 
+parser.add_argument('-gpu', '--gpu', nargs='?', const='discover', default=None,
+                    help='Compile the GPU kernels too.'
+                    'Default: Only compile the C++ library.')
+
 parser.add_argument('--with-fftw-threads', action='store_true',
                     help='Use the multi-threaded FFTs from FFTW3.')
 
@@ -78,7 +82,7 @@ libs = []
 
 # EXAMPLE FLAGS: -Ofast -std=c++11 -fopt-info-vec -march=native
 #                -mfma4 -fopenmp -ftree-vectorizer-verbose=1
-cflags = ['-O3', '-ffast-math', '-std=c++11', '-shared']
+cflags = ['-O3', '-ffast-math', '-march=native', '-std=c++11', '-shared']
 
 cpp_files = [
     os.path.join(basepath, 'cpp_routines/kick.cpp'),
@@ -96,6 +100,8 @@ cpp_files = [
     os.path.join(basepath, 'beam/sparse_histogram.cpp'),
 ]
 
+nvccflags = ['nvcc', '--cubin', '-O3', '--use_fast_math', '-maxrregcount', '32']
+# nvccflags = ['nvcc', '--cubin', '-arch', 'sm_xx', '-O3', '--use_fast_math']
 
 if (__name__ == "__main__"):
     args = parser.parse_args()
@@ -189,3 +195,45 @@ if (__name__ == "__main__"):
     except Exception as e:
         print('\nCompilation failed.')
         print(e)
+
+    # Compile the GPU library
+    if args.gpu:
+        if args.gpu == 'discover':
+            print('\nDiscovering the device compute capability..')
+            import pycuda.driver as drv
+
+            drv.init()
+            dev = drv.Device(0)
+            print('Device name {}'.format(dev.name()))
+            comp_capability = ('%d%d' % dev.compute_capability())
+        elif args.gpu is not None:
+            comp_capability = args.gpu
+
+        print('\nCompiling the CUDA library for architecture {}.'.format(comp_capability))
+        # Add the -arch required argument
+        nvccflags += ['-arch', 'sm_{}'.format(comp_capability)]
+        libname_double = os.path.join(basepath, 'gpu/cuda_kernels/kernels_double.cubin')
+        libname_single = os.path.join(basepath, 'gpu/cuda_kernels/kernels_single.cubin')
+        # we need to get the header files location
+        output = subprocess.run(f'{sys.executable} -m pip show pycuda | grep Location', shell=True,
+                                stdout=subprocess.PIPE,
+                                encoding='utf-8')
+        print('pycuda ', output.stdout)
+        
+        pycudaloc = os.path.join(output.stdout.split(
+            'Location:')[1].strip(), 'pycuda/cuda')
+
+        command = nvccflags + ['-o', libname_single, '-I'+pycudaloc,
+                               os.path.join(basepath, 'gpu/cuda_kernels/kernels_single.cu')]
+        subprocess.call(command)
+
+        command = nvccflags + ['-o', libname_double, '-I'+pycudaloc,
+                               os.path.join(basepath, 'gpu/cuda_kernels/kernels_double.cu')]
+        subprocess.call(command)
+
+
+        if os.path.isfile(libname_single) and os.path.isfile(libname_double):
+            print('\nThe CUDA library has been compiled.')
+        else:
+            print('\nThe CUDA library compilation failed.')
+

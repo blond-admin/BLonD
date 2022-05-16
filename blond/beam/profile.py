@@ -21,7 +21,12 @@ import numpy as np
 from scipy import ndimage
 from ..toolbox import filters_and_fitting as ffroutines
 from ..utils import bmath as bm
-
+try:
+    from pyprof import timing
+    # from pyprof import mpiprof
+except ImportError:
+    from blond.utils import profile_mock as timing
+    # mpiprof = timing
 
 class CutOptions(object):
     r"""
@@ -113,8 +118,10 @@ class CutOptions(object):
             # CutError
             raise RuntimeError('cuts_unit should be "s" or "rad"')
 
-        self.edges = np.zeros(n_slices + 1, dtype=bm.precision.real_t, order='C')
-        self.bin_centers = np.zeros(n_slices, dtype=bm.precision.real_t, order='C')
+        self.edges = np.zeros(
+            n_slices + 1, dtype=bm.precision.real_t, order='C')
+        self.bin_centers = np.zeros(
+            n_slices, dtype=bm.precision.real_t, order='C')
 
     def set_cuts(self, Beam=None):
         """
@@ -386,11 +393,13 @@ class Profile(object):
         self.set_slices_parameters()
 
         # Initialize profile array as zero array
-        self.n_macroparticles = np.zeros(self.n_slices, dtype=bm.precision.real_t, order='C')
+        self.n_macroparticles = np.zeros(
+            self.n_slices, dtype=bm.precision.real_t, order='C')
 
         # Initialize beam_spectrum and beam_spectrum_freq as empty arrays
         self.beam_spectrum = np.array([], dtype=bm.precision.real_t, order='C')
-        self.beam_spectrum_freq = np.array([], dtype=bm.precision.real_t, order='C')
+        self.beam_spectrum_freq = np.array(
+            [], dtype=bm.precision.real_t, order='C')
 
         if OtherSlicesOptions.smooth:
             self.operations = [self._slice_smooth]
@@ -430,6 +439,7 @@ class Profile(object):
         for op in self.operations:
             op()
 
+    #@timing.timeit(key='comp:histo')
     def _slice(self):
         """
         Constant space slicing with a constant frame.
@@ -437,9 +447,10 @@ class Profile(object):
         bm.slice(self.Beam.dt, self.n_macroparticles, self.cut_left,
                  self.cut_right)
 
-        if bm.mpiMode():
-            self.reduce_histo()
+        # if bm.mpiMode():
+            # self.reduce_histo()
 
+    # @timing.timeit(key='comp:histo')
     def reduce_histo(self, dtype=np.uint32):
         if not bm.mpiMode():
             raise RuntimeError(
@@ -449,14 +460,19 @@ class Profile(object):
 
         if self.Beam.is_splitted:
             # Convert to uint32t for better performance
-            self.n_macroparticles = self.n_macroparticles.astype(dtype, order='C')
+            #with timing.timed_region('serial:conversion'):
+
+            self.n_macroparticles = self.n_macroparticles.astype(
+                    dtype, order='C')
 
             worker.allreduce(self.n_macroparticles)
 
             # Convert back to float64
-            self.n_macroparticles = self.n_macroparticles.astype(dtype=bm.precision.real_t, order='C', copy=False)
-
-        
+            #with timing.timed_region('serial:conversion'):
+            self.n_macroparticles = self.n_macroparticles.astype(
+                    dtype=bm.precision.real_t, order='C', copy=False)
+    
+    #@timing.timeit(key='serial:scale_histo')
     def scale_histo(self):
         if not bm.mpiMode():
             raise RuntimeError(
@@ -529,7 +545,8 @@ class Profile(object):
             self.n_macroparticles, self.bin_centers, shift)
 
     def fwhm_multibunch(self, n_bunches, bunch_spacing_buckets,
-                        bucket_size_tau, bucket_tolerance=0.40, shift=0):
+                        bucket_size_tau, bucket_tolerance=0.40,
+                        shift=0, shiftX=0):
         """
         Computation of the bunch length and position from the FWHM
         assuming Gaussian line density for multibunch case.
@@ -537,7 +554,8 @@ class Profile(object):
 
         self.bunchPosition, self.bunchLength = ffroutines.fwhm_multibunch(
             self.n_macroparticles, self.bin_centers, n_bunches,
-            bunch_spacing_buckets, bucket_size_tau, bucket_tolerance, shift)
+            bunch_spacing_buckets, bucket_size_tau, bucket_tolerance,
+            shift=shift, shiftX=shiftX)
 
     def beam_spectrum_freq_generation(self, n_sampling_fft):
         """
@@ -545,7 +563,8 @@ class Profile(object):
         """
 
         self.beam_spectrum_freq = bm.rfftfreq(n_sampling_fft, self.bin_size)
-
+    
+    #@timing.timeit(key='serial:beam_spectrum_gen')
     def beam_spectrum_generation(self, n_sampling_fft):
         """
         Beam spectrum calculation

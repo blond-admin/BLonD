@@ -5,3 +5,6 @@ future
 h5py
 mpi4py
 mpmath
+scikit-cuda
+pycuda
+
