@@ -130,12 +130,8 @@ def update_active_dict(new_dict):
 update_active_dict(_CPU_func_dict)
 ################################################################################
 
-# print ('Available functions on GPU:\n' + str(_CPU_numpy_func_dict.keys()))
-# print ('Available functions on CPU:\n' + str(_GPU_func_dict.keys()))
 
-# GPU STAFF
-
-
+# GPU Related Utilities
 def gpuMode():
     return globals()['device'] == 'GPU'
 

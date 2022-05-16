@@ -21,12 +21,7 @@ from ctypes import c_uint, c_double, c_void_p
 from scipy.constants import e
 from ..toolbox.next_regular import next_regular
 from ..utils import bmath as bm
-try:
-    from pyprof import timing
-    # from pyprof import mpiprof
-except ImportError:
-    from ..utils import profile_mock as timing
-    # mpiprof = timing
+
 
 class TotalInducedVoltage(object):
     r"""
@@ -115,20 +110,18 @@ class TotalInducedVoltage(object):
             self.induced_voltage_list[0].n_fft)
         beam_spectrum = self.induced_voltage_list[0].profile.beam_spectrum
 
-        with timing.timed_region('serial:ind_volt_sum_packed'):
+        self.induced_voltage = []
+        min_idx = self.profile.n_slices
+        for obj in self.induced_voltage_list:
+            self.induced_voltage.append(
+                bm.mul(obj.total_impedance, beam_spectrum))
+            min_idx = min(obj.n_induced_voltage, min_idx)
 
-            self.induced_voltage = []
-            min_idx = self.profile.n_slices
-            for obj in self.induced_voltage_list:
-                self.induced_voltage.append(
-                    bm.mul(obj.total_impedance, beam_spectrum))
-                min_idx = min(obj.n_induced_voltage, min_idx)
-
-            self.induced_voltage = bm.irfft_packed(
-                self.induced_voltage.astype(dtype=bm.precision.real_t, order='C', copy=False))[:, :min_idx]
-            self.induced_voltage = -self.beam.Particle.charge * \
-                e * self.beam.ratio * self.induced_voltage
-            self.induced_voltage = np.sum(self.induced_voltage, axis=0)
+        self.induced_voltage = bm.irfft_packed(
+            self.induced_voltage.astype(dtype=bm.precision.real_t, order='C', copy=False))[:, :min_idx]
+        self.induced_voltage = -self.beam.Particle.charge * \
+            e * self.beam.ratio * self.induced_voltage
+        self.induced_voltage = np.sum(self.induced_voltage, axis=0)
 
     def track(self):
         """
@@ -136,8 +129,6 @@ class TotalInducedVoltage(object):
         """
 
         self.induced_voltage_sum()
-        #with timing.timed_region('comp:LIKick'):    
-
         bm.linear_interp_kick(dt=self.beam.dt, dE=self.beam.dE,
                                   voltage=self.induced_voltage,
                                   bin_centers=self.profile.bin_centers,
@@ -331,8 +322,6 @@ class _InducedVoltage(object):
         # self.profile.beam_spectrum_generation(self.n_fft)
         beam_spectrum = beam_spectrum_dict[self.n_fft]
 
-        #with timing.timed_region('serial:indVolt1Turn'):
-
         induced_voltage = - (self.beam.Particle.charge * e * self.beam.ratio
                                  * bm.irfft(self.total_impedance.astype(dtype=bm.precision.complex_t, order='C', copy=False) * beam_spectrum))
 
@@ -362,7 +351,6 @@ class _InducedVoltage(object):
 
         self.induced_voltage = self.mtw_memory[:self.n_induced_voltage]
 
-    #@timing.timeit(key='serial:shift_trev_freq')
     def shift_trev_freq(self):
         """
         Method to shift the induced voltage by a revolution period in the
@@ -378,7 +366,6 @@ class _InducedVoltage(object):
         # circular convolution
         self.mtw_memory[-int(self.buffer_size):] = 0
 
-    #@timing.timeit(key='serial:shift_trev_time')
     def shift_trev_time(self):
         """
         Method to shift the induced voltage by a revolution period in the
@@ -644,7 +631,6 @@ class InductiveImpedance(_InducedVoltage):
         # Call the __init__ method of the parent class
         _InducedVoltage.__init__(self, Beam, Profile, RFParams=RFParams)
 
-    #@timing.timeit(key='serial:InductiveImped')
     def induced_voltage_1turn(self, beam_spectrum_dict={}):
         """
         Method to calculate the induced voltage through the derivative of the
