@@ -237,9 +237,10 @@ if __name__ == "__main__":
 
     # Compile the GPU library
     if args.gpu:
-        print('Compiling the CUDA library')
+        print('\n'+''.join(['=']*80))
+        print('\nCompiling the CUDA library')
         if args.gpu == 'discover':
-            print('\nDiscovering the device compute capability..')
+            print('Discovering the device compute capability..')
             import pycuda.driver as drv
 
             drv.init()
@@ -249,7 +250,7 @@ if __name__ == "__main__":
         elif args.gpu is not None:
             comp_capability = args.gpu
 
-        print('\nCompiling the CUDA library for architecture {}.'.format(comp_capability))
+        print('Compiling the CUDA library for architecture {}.'.format(comp_capability))
         # Add the -arch required argument
         nvccflags += ['-arch', 'sm_{}'.format(comp_capability)]
         libname_double = os.path.join(basepath, 'gpu/cuda_kernels/kernels_double.cubin')
@@ -258,7 +259,7 @@ if __name__ == "__main__":
         output = subprocess.run(f'{sys.executable} -m pip show pycuda | grep Location', shell=True,
                                 stdout=subprocess.PIPE,
                                 encoding='utf-8')
-        print('pycuda ', output.stdout)
+        print('pycuda', output.stdout)
         
         pycudaloc = os.path.join(output.stdout.split(
             'Location:')[1].strip(), 'pycuda/cuda')
@@ -273,7 +274,7 @@ if __name__ == "__main__":
 
 
         if os.path.isfile(libname_single) and os.path.isfile(libname_double):
-            print('\nThe CUDA library has been successfully compiled.')
+            print('The CUDA library has been successfully compiled.')
         else:
-            print('\nThe CUDA library compilation failed.')
+            print('The CUDA library compilation failed.')
 
