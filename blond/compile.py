@@ -104,7 +104,7 @@ cpp_files = [
 nvccflags = ['nvcc', '--cubin', '-O3', '--use_fast_math', '-maxrregcount', '32']
 # nvccflags = ['nvcc', '--cubin', '-arch', 'sm_xx', '-O3', '--use_fast_math']
 
-if name__ == "__main__":
+if __name__ == "__main__":
     args = parser.parse_args()
     boost_path = None
     with_fftw = args.with_fftw or args.with_fftw_threads or args.with_fftw_omp or \
