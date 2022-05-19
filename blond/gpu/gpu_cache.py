@@ -5,9 +5,9 @@ import pycuda
 # we have to define this method, to use the cubin file instead of jit compile
 def fill(self, value):
     from ..gpu import gpu_butils_wrap as gpu_utils
-    if self.dtype in [np.int, np.int32]:
+    if self.dtype in [int, np.int32]:
         gpu_utils.set_zero_int(self)
-    elif self.dtype in [np.float, np.float64]:
+    elif self.dtype in [float, np.float64]:
         gpu_utils.set_zero_double(self)
     elif self.dtype in [np.float32]:
         gpu_utils.set_zero_float(self)

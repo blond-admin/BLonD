@@ -16,16 +16,20 @@ main file (CERN PS Booster context).
 
 from __future__ import division
 import numpy as np
+import os
+import matplotlib as mpl
+mpl.use('Agg')
+
 from blond.input_parameters.ring import Ring
 from blond.input_parameters.ring_options import RingOptions
 from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.rf_parameters_options import RFStationOptions
 from blond.beam.beam import Proton
-import os
-from blond.utils import input_parser
-args = input_parser.parse()
+import blond.utils.bmath as bm
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
+
+USE_GPU = 1
 
 try:
     os.mkdir(this_directory + '../output_files')

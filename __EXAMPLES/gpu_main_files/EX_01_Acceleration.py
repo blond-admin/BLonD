@@ -17,6 +17,10 @@ No intensity effects
 from __future__ import division, print_function
 from builtins import range
 import numpy as np
+import os
+import matplotlib as mpl
+mpl.use('Agg')
+
 
 #  BLonD Imports
 from blond.input_parameters.ring import Ring
@@ -27,9 +31,12 @@ from blond.beam.distributions import bigaussian
 from blond.beam.profile import CutOptions, FitOptions, Profile
 from blond.monitors.monitors import BunchMonitor
 from blond.plots.plot import Plot
-import os
+import blond.utils.bmath as bm
+
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
+
+USE_GPU = 1
 
 try:
     os.mkdir(this_directory + '../output_files')
@@ -113,9 +120,7 @@ print("Map set")
 print("")
 
 # This is the way to enable the GPU
-GPU = 1
-if GPU:
-    import blond.utils.bmath as bm
+if USE_GPU:
     bm.use_gpu()
     beam.use_gpu()
     long_tracker.use_gpu()

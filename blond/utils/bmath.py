@@ -103,6 +103,7 @@ def use_precision(_precision='double'):
     butils_wrap.precision = butils_wrap.Precision(_precision)
     precision = butils_wrap.precision
 
+
 def update_active_dict(new_dict):
     '''
     Update the currently active dictionary. Removes the keys of the currently
@@ -144,9 +145,11 @@ def enable_gpucache(capacity=-1):
     from ..gpu import gpu_cache as cc
     cc.enable_cache(capacity=capacity)
 
+
 def disable_gpucache():
     from ..gpu import gpu_cache as cc
     cc.disable_cache()
+
 
 def curr_cache_size():
     """
@@ -217,18 +220,20 @@ def use_gpu(gpu_id=0):
     if gpu_id < 0:
         return
 
-    print(''.join(['#']*30) +
-          ' Using GPU: {} '.format(gpu_id) + ''.join(['#']*30),flush=True)
     from pycuda import driver as drv
-
     global __gpu_dev
     __gpu_dev = GPUDev(gpu_id)
-    globals()['device'] = 'GPU'
     from ..gpu import gpu_physics_wrap
     from ..gpu import gpu_butils_wrap
-
     # now we have to add use_gpu methods to our objects
     from ..gpu import gpu_activation
+
+    print(''.join(['#']*20) +
+          ' Using GPU: id {}, name {}, Compute Capability {} '.format(
+              gpuId(), gpuDev().name(), gpuDev().compute_capability())
+          + ''.join(['#']*20), flush=True)
+    
+    globals()['device'] = 'GPU'
 
     _GPU_func_dict = {
         'rfft': gpu_butils_wrap.gpu_rfft,
@@ -281,17 +286,3 @@ def use_gpu(gpu_id=0):
 
 # print ('Available functions on GPU:\n' + str(_CPU_numpy_func_dict.keys()))
 # print ('Available functions on CPU:\n' + str(_GPU_func_dict.keys()))
-
-
-
-
-
-
-
-
-
-
-
-
-
-

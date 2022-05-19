@@ -16,6 +16,10 @@ Example script to take into account intensity effects from impedance tables
 from __future__ import division, print_function
 from builtins import str, range, bytes
 import numpy as np
+import os
+import matplotlib as mpl
+mpl.use('Agg')
+
 from blond.input_parameters.ring import Ring
 from blond.input_parameters.rf_parameters import RFStation
 from blond.trackers.tracker import RingAndRFTracker
@@ -28,12 +32,11 @@ from blond.plots.plot_impedance import plot_impedance_vs_frequency, plot_induced
 from blond.impedances.impedance_sources import InputTable
 from blond.impedances.impedance import InductiveImpedance, InducedVoltageFreq, TotalInducedVoltage
 from scipy.constants import m_p, e, c
-import os
-from blond.utils import input_parser
-args = input_parser.parse()
+import blond.utils.bmath as bm
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 
+USE_GPU = 1
 
 try:
     os.mkdir(this_directory + '../output_files')
@@ -168,8 +171,7 @@ test_string += '{:<17}\t{:<17}\t{:<17}\t{:<17}\n'.format(
 test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
     np.mean(my_beam.dE), np.std(my_beam.dE), np.mean(my_beam.dt), np.std(my_beam.dt))
 
-if args['gpu'] == 1:
-    import blond.utils.bmath as bm
+if USE_GPU:
     bm.use_gpu()
     bm.enable_gpucache()
     total_induced_voltage.use_gpu()

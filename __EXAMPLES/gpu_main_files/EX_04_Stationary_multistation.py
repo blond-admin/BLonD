@@ -16,6 +16,10 @@ No intensity effects
 
 from __future__ import division, print_function
 import numpy as np
+import os
+import matplotlib as mpl
+mpl.use('Agg')
+
 from blond.input_parameters.ring import Ring
 from blond.input_parameters.rf_parameters import RFStation
 from blond.trackers.tracker import RingAndRFTracker
@@ -26,11 +30,11 @@ from blond.beam.profile import CutOptions, Profile, FitOptions
 from blond.monitors.monitors import BunchMonitor
 from blond.plots.plot import Plot
 from blond.utils import input_parser
+import blond.utils.bmath as bm
 
-import os
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 
-args = input_parser.parse()
+USE_GPU = 1
 
 try:
     os.mkdir(this_directory + '../output_files')
@@ -130,14 +134,8 @@ map_ = [long_tracker_1] + [long_tracker_2] + [slice_beam] #+ [bunchmonitor] + \
        #[plots]
 print("Map set")
 print("")
-# import argparse
-# parser = argparse.ArgumentParser()
-# parser.add_argument('-g', default = False, action='store_true')
-# parser.add_argument('-d', default = False, action='store_true')
-# args = parser.parse_args()
-# print(args)
-if (args['gpu'] == 1):
-    import blond.utils.bmath as bm
+
+if USE_GPU:
     bm.use_gpu()
     long_tracker_1.use_gpu()
     long_tracker_2.use_gpu()

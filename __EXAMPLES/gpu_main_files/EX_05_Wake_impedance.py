@@ -20,7 +20,11 @@ the corresponding h5 files).
 
 from __future__ import division, print_function
 import numpy as np
+import os
 import matplotlib.pyplot as plt
+import matplotlib as mpl
+mpl.use('Agg')
+
 from blond.input_parameters.ring import Ring
 from blond.input_parameters.rf_parameters import RFStation
 from blond.trackers.tracker import RingAndRFTracker
@@ -34,12 +38,12 @@ from blond.beam.beam import Beam, Proton
 from blond.plots.plot import Plot
 from blond.plots.plot_impedance import plot_induced_voltage_vs_bin_centers
 from blond.impedances.impedance_sources import Resonators
-import os
-from blond.utils import input_parser
+import blond.utils.bmath as bm
+
+
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 
-
-args = input_parser.parse()
+USE_GPU = 1
 
 try:
     os.mkdir(this_directory + '../output_files')
@@ -213,8 +217,7 @@ map_res = [tot_vol_res] + [ring_RF_section_res] + [slice_beam_res] \
     #+ [bunchmonitor_res] + [plots_res]
 
 
-if (args['gpu'] == 1):
-    import blond.utils.bmath as bm
+if USE_GPU:
     bm.use_gpu()
     tot_vol.use_gpu()
     tot_vol_freq.use_gpu()
