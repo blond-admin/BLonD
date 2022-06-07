@@ -105,7 +105,7 @@ class GpuBeam(Beam):
         self.mean_dt = bm.precision.real_t(cp.sum(self.dev_dt * self.dev_id)) / ones_sum
         self.mean_dE = bm.precision.real_t(cp.sum(self.dev_dE * self.dev_id)) / ones_sum
 
-        self.sigma_dt = np.sqrt(stdKernel(self.dev_dt, self.dev_id, self.mean_dt).get() / ones_sum)
-        self.sigma_dE = np.sqrt(stdKernel(self.dev_dE, self.dev_id, self.mean_dE).get() / ones_sum)
+        self.sigma_dt = np.sqrt(stdKernel(self.dev_dt, self.dev_id, self.mean_dt) / ones_sum)
+        self.sigma_dE = np.sqrt(stdKernel(self.dev_dE, self.dev_id, self.mean_dE) / ones_sum)
 
         self.epsn_rms_l = np.pi * self.sigma_dE * self.sigma_dt  # in eVs

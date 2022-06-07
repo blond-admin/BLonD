@@ -76,9 +76,8 @@ ElementwiseKernel = cp.ElementwiseKernel
 ReductionKernel = cp.ReductionKernel
 
 
-stdKernel = cp.ReductionKernel(in_params = f"raw {bm.precision.str} x, {bm.precision.str} m, raw {bm.precision.str} y",
-            out_params = f"{bm.precision.str} z" , map_expr = "(y[i]!=0)*(x[i]-m)*(x[i]-m)",
-            reduce_expr = "a+b", post_map_expr = 'z = a', identity = "0", name = "stdKernel")
+def stdKernel(x,y,x_mean):
+    return bm.precision.real_t( (y * ((x-x_mean)**2)).sum() )
 
 
 cugradient = central_mod.get_function("cugradient")
