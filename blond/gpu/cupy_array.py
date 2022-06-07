@@ -6,21 +6,24 @@ import blond.utils.bmath as bm
 class MyGpuarray(cp.ndarray):
 
     def __init__(self, input_array, dtype):
-        super().__init__(input_array.shape, dtype=dtype)
-        self.set(input_array.astype(dtype))
+        self.array = cp.array(input_array, dtype = dtype)
+        self.parent = None
 
     def set_parent(self, parent):
         self.parent = parent
 
-    def __setitem__(self, key, value):
+    @property
+    def data(self):
+        if self.parent is not None:
+            self.parent.gpu_validate()
+        return self.array
+    
+    @data.setter
+    def data(self, key, value):
         self.parent.gpu_validate()
-        super().__setitem__(key, value)
+        self.array[key] = value
         self.parent.cpu_valid = False
-        return self
 
-    def __getitem__(self, key):
-        self.parent.gpu_validate()
-        return super(MyGpuarray, self).__getitem__(key)
 
 class MyCpuarray(np.ndarray):
 
@@ -42,8 +45,9 @@ class MyCpuarray(np.ndarray):
         obj.gpu_valid = False
         obj.sp = input_array.shape
 
-        obj.dev_array = MyGpuarray(input_array.flatten(), obj.dtype2)
-        obj.dev_array.set_parent(obj)
+        obj.dev_class = MyGpuarray(input_array.flatten(), obj.dtype2)
+        obj.dev_array = obj.dev_class.data
+        obj.dev_class.set_parent(obj)
         obj.gpu_valid = True
 
         return obj
