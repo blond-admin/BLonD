@@ -1,4 +1,4 @@
-#include <pycuda-complex.hpp>
+#include <cupy/complex.cuh>
 #include <curand_kernel.h>
 #include <stdio.h>
 #define REDUCE(a, b) (a+b)
@@ -969,7 +969,7 @@ __global__ void gpu_copy_d2d(float *x, float *y, long n)
 
 
 extern "C"
-__global__ void gpu_complex_copy(pycuda::complex<float> *x, pycuda::complex<float> *y, long n)
+__global__ void gpu_complex_copy(complex<float> *x, complex<float> *y, long n)
 {
     unsigned tid = threadIdx.x;
     unsigned total_threads = gridDim.x * blockDim.x;
@@ -1051,7 +1051,7 @@ __global__ void set_zero_int(int *x, long n)
 
 
 extern "C"
-__global__ void set_zero_complex64(pycuda::complex<float> *x, long n)
+__global__ void set_zero_complex64(complex<float> *x, long n)
 {
     unsigned tid = threadIdx.x;
     unsigned total_threads = gridDim.x * blockDim.x;
@@ -1067,7 +1067,7 @@ __global__ void set_zero_complex64(pycuda::complex<float> *x, long n)
 
 
 extern "C"
-__global__ void set_zero_complex128(pycuda::complex<double> *x, long n)
+__global__ void set_zero_complex128(complex<double> *x, long n)
 {
     unsigned tid = threadIdx.x;
     unsigned total_threads = gridDim.x * blockDim.x;
@@ -1117,7 +1117,7 @@ __global__ void add_array(float *x, float *y, long n)
 
 
 extern "C"
-__global__ void complex_mul(pycuda::complex<float> *x, pycuda::complex<float> *y, pycuda::complex<float> *z, long n)
+__global__ void complex_mul(complex<float> *x, complex<float> *y, complex<float> *z, long n)
 {
     unsigned tid = threadIdx.x;
     unsigned total_threads = gridDim.x * blockDim.x;
@@ -1629,7 +1629,7 @@ __global__ void gpu_copy_d2d_range(float *x, float *y , long start, long stop, l
 
 
 extern "C"
-__global__ void gpu_complex_copy_range(pycuda::complex<float> *x, pycuda::complex<float> *y , long start, long stop, long step)
+__global__ void gpu_complex_copy_range(complex<float> *x, complex<float> *y , long start, long stop, long step)
 {
     unsigned tid = threadIdx.x;
     unsigned total_threads = gridDim.x * blockDim.x;
@@ -1770,7 +1770,7 @@ __global__ void set_zero_int_range(int *x , long start, long stop, long step)
 
 
 extern "C"
-__global__ void set_zero_complex64_range(pycuda::complex<float> *x , long start, long stop, long step)
+__global__ void set_zero_complex64_range(complex<float> *x , long start, long stop, long step)
 {
     unsigned tid = threadIdx.x;
     unsigned total_threads = gridDim.x * blockDim.x;
@@ -1797,7 +1797,7 @@ __global__ void set_zero_complex64_range(pycuda::complex<float> *x , long start,
 }
 
 extern "C"
-__global__ void set_zero_complex128_range(pycuda::complex<double> *x , long start, long stop, long step)
+__global__ void set_zero_complex128_range(complex<double> *x , long start, long stop, long step)
 {
     unsigned tid = threadIdx.x;
     unsigned total_threads = gridDim.x * blockDim.x;
@@ -1884,7 +1884,7 @@ __global__ void add_array_range(float *x, float *y , long start, long stop, long
 
 
 extern "C"
-__global__ void complex_mul_range(pycuda::complex<float> *x, pycuda::complex<float> *y, pycuda::complex<float> *z , long start, long stop, long step)
+__global__ void complex_mul_range(complex<float> *x, complex<float> *y, complex<float> *z , long start, long stop, long step)
 {
     unsigned tid = threadIdx.x;
     unsigned total_threads = gridDim.x * blockDim.x;

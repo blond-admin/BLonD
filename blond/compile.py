@@ -241,12 +241,12 @@ if __name__ == "__main__":
         print('\nCompiling the CUDA library')
         if args.gpu == 'discover':
             print('Discovering the device compute capability..')
-            import pycuda.driver as drv
+            import cupy as cp
 
-            drv.init()
-            dev = drv.Device(0)
-            print('Device name {}'.format(dev.name()))
-            comp_capability = ('%d%d' % dev.compute_capability())
+            dev = cp.cuda.Device(0)
+            dev_name =  cp.cuda.runtime.getDeviceProperties(dev)['name']
+            comp_capability = dev.compute_capability
+            print('Device name {}'.format(dev_name))
         elif args.gpu is not None:
             comp_capability = args.gpu
 
@@ -256,19 +256,20 @@ if __name__ == "__main__":
         libname_double = os.path.join(basepath, 'gpu/cuda_kernels/kernels_double.cubin')
         libname_single = os.path.join(basepath, 'gpu/cuda_kernels/kernels_single.cubin')
         # we need to get the header files location
-        output = subprocess.run(f'{sys.executable} -m pip show pycuda | grep Location', shell=True,
+        drv_version = str(cp.cuda.runtime.driverGetVersion()).replace('0','')
+        output = subprocess.run(f'{sys.executable} -m pip show cupy-cuda{drv_version} | grep Location', shell=True,
                                 stdout=subprocess.PIPE,
                                 encoding='utf-8')
-        print('pycuda', output.stdout)
+        print('cupy', output.stdout)
         
-        pycudaloc = os.path.join(output.stdout.split(
-            'Location:')[1].strip(), 'pycuda/cuda')
+        cupyloc = os.path.join(output.stdout.split(
+            'Location:')[1].strip(), 'cupy/_core/include')
 
-        command = nvccflags + ['-o', libname_single, '-I'+pycudaloc,
+        command = nvccflags + ['-o', libname_single, '-I'+cupyloc,
                                os.path.join(basepath, 'gpu/cuda_kernels/kernels_single.cu')]
         subprocess.call(command)
 
-        command = nvccflags + ['-o', libname_double, '-I'+pycudaloc,
+        command = nvccflags + ['-o', libname_double, '-I'+cupyloc,
                                os.path.join(basepath, 'gpu/cuda_kernels/kernels_double.cu')]
         subprocess.call(command)
 

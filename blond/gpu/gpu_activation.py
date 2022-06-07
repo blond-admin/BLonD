@@ -13,7 +13,7 @@ import numpy as np
 def use_gpu_beam(self):
     # There has to be a previous call to bm.use_gpu() to enable gpu mode
     from ..gpu import gpu_beam as gb
-    from ..gpu.gpu_cpu_array import CGA
+    from ..gpu.cupy_array import CGA
 
     if self.__class__ == gb.GpuBeam:
         return
@@ -33,8 +33,8 @@ beam.Beam.use_gpu = use_gpu_beam
 def use_gpu_profile(self):
     # There has to be a previous call to bm.use_gpu() to enable gpu mode
 
-    from ..gpu.gpu_cpu_array import CGA
-    from ..gpu.gpu_profile import GpuProfile
+    from ..gpu.cupy_array import CGA
+    from ..gpu.cupy_profile import GpuProfile
     if self.__class__ == GpuProfile:
         return
     old_slice = self._slice
@@ -65,8 +65,8 @@ Profile.use_gpu = use_gpu_profile
 
 # Tracker
 def use_gpu_tracker(self):
-    from ..gpu.gpu_tracker import GpuRingAndRFTracker
-    from ..gpu.gpu_cpu_array import CGA
+    from ..gpu.cupy_tracker import GpuRingAndRFTracker
+    from ..gpu.cupy_array import CGA
 
     self.rf_voltage_obj = CGA(np.array([]))
     self.__class__ = GpuRingAndRFTracker
@@ -88,8 +88,8 @@ RingAndRFTracker.use_gpu = use_gpu_tracker
 
 # TotalInducedVoltage
 def use_gpu_total_induced_voltage(self):
-    from ..gpu.gpu_cpu_array import CGA
-    from ..gpu.gpu_impedance import GpuTotalInducedVoltage
+    from ..gpu.cupy_array import CGA
+    from ..gpu.cupy_impedance import GpuTotalInducedVoltage
 
     if self.__class__ == GpuTotalInducedVoltage:
         return
@@ -106,9 +106,9 @@ TotalInducedVoltage.use_gpu = use_gpu_total_induced_voltage
 
 # _InducedVoltage
 def use_gpu_induced_voltage(self, child=False, new_class=None):
-    from pycuda import gpuarray
-    from ..gpu.gpu_cpu_array import CGA
-    from ..gpu.gpu_impedance import (GpuInducedVoltage, GpuInducedVoltageFreq,
+    import cupy as cp
+    from ..gpu.cupy_array import CGA
+    from ..gpu.cupy_impedance import (GpuInducedVoltage, GpuInducedVoltageFreq,
                                      GpuInducedVoltageTime, GpuInductiveImpedance)
 
     if (self.__class__ in [GpuInducedVoltage, GpuInducedVoltageFreq,
@@ -137,7 +137,7 @@ def use_gpu_induced_voltage(self, child=False, new_class=None):
         self.induced_voltage_generation = self.induced_voltage_1turn
 
     if hasattr(self, "time_mtw"):
-        self.dev_time_mtw = gpuarray.to_gpu(self.time_mtw)
+        self.dev_time_mtw = cp.array(self.time_mtw)
 
 
 _InducedVoltage.use_gpu = use_gpu_induced_voltage
@@ -145,7 +145,7 @@ _InducedVoltage.use_gpu = use_gpu_induced_voltage
 
 # InducedVoltageTime
 def use_gpu_induced_voltage_time(self):
-    from ..gpu.gpu_impedance import GpuInducedVoltageTime
+    from ..gpu.cupy_impedance import GpuInducedVoltageTime
     super(InducedVoltageTime, self).use_gpu(child=True, new_class=GpuInducedVoltageTime)
 
 
@@ -154,7 +154,7 @@ InducedVoltageTime.use_gpu = use_gpu_induced_voltage_time
 
 # InducedVoltageFreq
 def use_gpu_induced_voltage_freq(self):
-    from ..gpu.gpu_impedance import GpuInducedVoltageFreq
+    from ..gpu.cupy_impedance import GpuInducedVoltageFreq
     super(InducedVoltageFreq, self).use_gpu(child=True, new_class=GpuInducedVoltageFreq)
 
 
@@ -163,7 +163,7 @@ InducedVoltageFreq.use_gpu = use_gpu_induced_voltage_freq
 
 # InductiveImpedance
 def use_gpu_inductive_impedance(self):
-    from ..gpu.gpu_impedance import GpuInductiveImpedance
+    from ..gpu.cupy_impedance import GpuInductiveImpedance
     super(InductiveImpedance, self).use_gpu(child=True, new_class=GpuInductiveImpedance)
 
 
@@ -180,7 +180,7 @@ InducedVoltageResonator.use_gpu = use_gpu_inductive_voltage_resonator
 
 # RF_parameters
 def use_gpu_rf_station(self):
-    from ..gpu.gpu_cpu_array import CGA
+    from ..gpu.cupy_array import CGA
     from ..gpu.gpu_rf_parameters import GpuRFStation
     from pycuda import gpuarray
     if self.__class__ == GpuRFStation:
@@ -221,7 +221,7 @@ RFStation.use_gpu = use_gpu_rf_station
 
 # BeamFeedback
 def use_gpu_beamfeedback(self):
-    from ..gpu.gpu_beamfeedback import GpuBeamFeedback
+    from ..gpu.cupy_beamfeedback import GpuBeamFeedback
     self.__class__ = GpuBeamFeedback
 
 

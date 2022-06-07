@@ -117,24 +117,3 @@ class CGA:
 
         self.array_obj.cpu_valid = False
         self.array_obj.gpu_valid = True
-
-
-
-### TESTING
-'''input_array = np.array([[1.1,2.2,3.3],[4.4,5.5,6.6]])
-
-a = CGA(input_array)
-
-print(a.my_array,'\n')
-print(a.dev_my_array, '\n')
-
-a.my_array[0][2] = 8.8
-print(a.my_array,'\n')
-
-a.dev_my_array[2] = 8.8
-print(a.dev_my_array,'\n')
-
-import inspect
-print('parent:')
-print(a.dev_my_array.parent,'\n')
-print(inspect.getmro(a.dev_my_array.__class__))'''

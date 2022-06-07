@@ -184,18 +184,21 @@ class GPUDev:
             raise Exception("The GPUDev class is a singleton!")
         else:
             GPUDev.__instance = self
+        import cupy as cp
+        import cupy_backends.cuda.api.driver as driver
         from pycuda import driver as drv
-        drv.init()
+        #drv.init()
         self.id = _gpu_num
-        self.dev = drv.Device(self.id)
-        self.ctx = self.dev.make_context()
+        self.dev =cp.cuda.Device(self.id)
+        self.dev.use()
+        #self.ctx = driver.ctxCreate(self.dev)
         this_dir = os.path.dirname(os.path.realpath(__file__)) + "/"
 
         if precision.num == 1:
-            self.mod = drv.module_from_file(os.path.join(
+            self.mod = cp.RawModule(path = os.path.join(
                 this_dir, '../gpu/cuda_kernels/kernels_single.cubin'))
         else:
-            self.mod = drv.module_from_file(os.path.join(
+            self.mod = cp.RawModule(path = os.path.join(
                 this_dir, '../gpu/cuda_kernels/kernels_double.cubin'))
 
     def report_attributes(self):
@@ -208,7 +211,10 @@ class GPUDev:
         return self.mod.get_function(name)
 
     def __del__(self):
-        self.ctx.pop()
+        #import cupy_backends.cuda.api.driver as driver
+        #gpuDev().use()
+        #driver.ctxDestroy(self.ctx)
+        self.ctx = None
         update_active_dict(_CPU_func_dict)
 
     def my_mod(self):
@@ -220,35 +226,35 @@ def use_gpu(gpu_id=0):
     if gpu_id < 0:
         return
 
-    from pycuda import driver as drv
     global __gpu_dev
     __gpu_dev = GPUDev(gpu_id)
-    from ..gpu import gpu_physics_wrap
-    from ..gpu import gpu_butils_wrap
+    from ..gpu import cupy_physics_wrap
+    from ..gpu import cupy_butils_wrap
+    import cupy as cp
     # now we have to add use_gpu methods to our objects
     from ..gpu import gpu_activation
-
+    dev_name = cp.cuda.runtime.getDeviceProperties(gpuDev())['name']
     print(''.join(['#']*20) +
           ' Using GPU: id {}, name {}, Compute Capability {} '.format(
-              gpuId(), gpuDev().name(), gpuDev().compute_capability())
+              gpuId(), dev_name, gpuDev().compute_capability)
           + ''.join(['#']*20), flush=True)
     
     globals()['device'] = 'GPU'
 
     _GPU_func_dict = {
-        'rfft': gpu_butils_wrap.gpu_rfft,
-        'irfft': gpu_butils_wrap.gpu_irfft,
-        'convolve': gpu_butils_wrap.gpu_convolve,
-        'beam_phase': gpu_physics_wrap.gpu_beam_phase,
-        'kick': gpu_physics_wrap.gpu_kick,
-        'rf_volt_comp': gpu_physics_wrap.gpu_rf_volt_comp,
-        'drift': gpu_physics_wrap.gpu_drift,
-        'linear_interp_kick': gpu_physics_wrap.gpu_linear_interp_kick,
-        'LIKick_n_drift': gpu_physics_wrap.gpu_linear_interp_kick_drift,
-        'synchrotron_radiation': gpu_physics_wrap.gpu_synchrotron_radiation,
-        'synchrotron_radiation_full': gpu_physics_wrap.gpu_synchrotron_radiation_full,
+        'rfft': cupy_butils_wrap.gpu_rfft,
+        'irfft': cupy_butils_wrap.gpu_irfft,
+        'convolve': cupy_butils_wrap.gpu_convolve,
+        'beam_phase': cupy_physics_wrap.gpu_beam_phase,
+        'kick': cupy_physics_wrap.gpu_kick,
+        'rf_volt_comp': cupy_physics_wrap.gpu_rf_volt_comp,
+        'drift': cupy_physics_wrap.gpu_drift,
+        'linear_interp_kick': cupy_physics_wrap.gpu_linear_interp_kick,
+        'LIKick_n_drift': cupy_physics_wrap.gpu_linear_interp_kick_drift,
+        'synchrotron_radiation': cupy_physics_wrap.gpu_synchrotron_radiation,
+        'synchrotron_radiation_full': cupy_physics_wrap.gpu_synchrotron_radiation_full,
         # 'linear_interp_time_translation': butils_wrap.linear_interp_time_translation,
-        'slice': gpu_physics_wrap.gpu_slice,
+        'slice': cupy_physics_wrap.gpu_slice,
         'slice_smooth': butils_wrap.slice_smooth,
         # 'rfftfreq': gpu_butils_wrap.gpu_rfftfreq,
         'rfftfreq': np.fft.rfftfreq,
