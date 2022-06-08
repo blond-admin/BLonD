@@ -76,10 +76,6 @@ ElementwiseKernel = cp.ElementwiseKernel
 ReductionKernel = cp.ReductionKernel
 
 
-def stdKernel(x,y,x_mean):
-    return bm.precision.real_t( (y * ((x-x_mean)**2)).sum() )
-
-
 cugradient = central_mod.get_function("cugradient")
 
 custom_gpu_trapz = central_mod.get_function("gpu_trapz_custom")

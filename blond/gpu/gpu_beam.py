@@ -4,7 +4,6 @@ import cupy as cp
 from ..utils import bmath as bm
 # , driver as drv, tools
 from types import MethodType
-from ..gpu.cupy_butils_wrap import stdKernel
 from ..gpu import grid_size, block_size
 
 from ..beam.beam import Beam
@@ -101,11 +100,7 @@ class GpuBeam(Beam):
         """
         Gpu Equivalent for statistics
         """
-        ones_sum = bm.precision.real_t(cp.sum(self.dev_id))
-        self.mean_dt = bm.precision.real_t(cp.sum(self.dev_dt * self.dev_id)) / ones_sum
-        self.mean_dE = bm.precision.real_t(cp.sum(self.dev_dE * self.dev_id)) / ones_sum
-
-        self.sigma_dt = np.sqrt(stdKernel(self.dev_dt, self.dev_id, self.mean_dt) / ones_sum)
-        self.sigma_dE = np.sqrt(stdKernel(self.dev_dE, self.dev_id, self.mean_dE) / ones_sum)
+        self.sigma_dt = bm.precision.real_t(self.dev_dt.std())
+        self.sigma_dE = bm.precision.real_t(self.dev_dE.std())
 
         self.epsn_rms_l = np.pi * self.sigma_dE * self.sigma_dt  # in eVs
