@@ -182,19 +182,19 @@ InducedVoltageResonator.use_gpu = use_gpu_inductive_voltage_resonator
 def use_gpu_rf_station(self):
     from ..gpu.cupy_array import CGA
     from ..gpu.gpu_rf_parameters import GpuRFStation
-    from pycuda import gpuarray
+    import cupy as cp
     if self.__class__ == GpuRFStation:
         return
 
     if not self.phi_modulation:
         self.dev_phi_modulation = None
     else:
-        self.dev_phi_modulation = (gpuarray.to_gpu(self.phi_modulation[0]), gpuarray.to_gpu(self.phi_modulation[1]))
+        self.dev_phi_modulation = (cp.array(self.phi_modulation[0]), cp.array(self.phi_modulation[1]))
 
     if (self.phi_noise is None):
         self.dev_phi_noise = None
     else:
-        self.dev_phi_noise = gpuarray.to_gpu(self.phi_noise.flatten())
+        self.dev_phi_noise = cp.array(self.phi_noise.flatten())
 
     # voltage to gpu
     self.voltage_obj = CGA(self.voltage)
