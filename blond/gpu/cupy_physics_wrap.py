@@ -30,10 +30,10 @@ def gpu_rf_volt_comp(dev_voltage, dev_omega_rf, dev_phi_rf, dev_bin_centers, dev
     assert dev_bin_centers.dtype == bm.precision.real_t
     assert dev_rf_voltage.dtype == bm.precision.real_t
 
-    rvc(dev_voltage, dev_omega_rf, dev_phi_rf, dev_bin_centers,
+    rvc(args = (dev_voltage, dev_omega_rf, dev_phi_rf, dev_bin_centers,
         np.int32(dev_voltage.size), np.int32(
-            dev_bin_centers.size), np.int32(f_rf), dev_rf_voltage,
-        block=block_size, grid=grid_size, time_kernel=True)
+            dev_bin_centers.size), np.int32(f_rf), dev_rf_voltage),
+        block=block_size, grid=grid_size)#, time_kernel=True)
 
 
 def gpu_kick(dev_dt, dev_dE, dev_voltage, dev_omega_rf, dev_phi_rf, charge, n_rf, acceleration_kick):
@@ -201,16 +201,16 @@ def gpu_slice(dev_dt, dev_n_macroparticles, cut_left, cut_right):
 
 def gpu_synchrotron_radiation(dE, U0, n_kicks, tau_z):
     assert dE.dtype == bm.precision.real_t
-    synch_rad(dE, bm.precision.real_t(U0), np.int32(dE.size), bm.precision.real_t(tau_z),
-              np.int32(n_kicks), block=block_size, grid=(my_gpu.MULTIPROCESSOR_COUNT, 1, 1))
+    synch_rad(args = (dE, bm.precision.real_t(U0), np.int32(dE.size), bm.precision.real_t(tau_z),
+              np.int32(n_kicks)), block=block_size, grid=(my_gpu.attributes['MultiProcessorCount'], 1, 1))
 
 
 def gpu_synchrotron_radiation_full(dE, U0, n_kicks, tau_z, sigma_dE, energy):
     assert dE.dtype == bm.precision.real_t
 
-    synch_rad_full(dE, bm.precision.real_t(U0), np.int32(dE.size),
+    synch_rad_full(args = (dE, bm.precision.real_t(U0), np.int32(dE.size),
                    bm.precision.real_t(sigma_dE), bm.precision.real_t(energy),
-                   np.int32(n_kicks), np.int32(1), block=block_size, grid=grid_size)
+                   np.int32(n_kicks), np.int32(1)), block=block_size, grid=grid_size)
 
 
 def gpu_beam_phase(bin_centers, profile, alpha, omega_rf, phi_rf, ind, bin_size):
@@ -225,14 +225,14 @@ def gpu_beam_phase(bin_centers, profile, alpha, omega_rf, phi_rf, ind, bin_size)
     dev_scoeff = get_gpuarray((1, bm.precision.real_t, 0, 'sc'))
     dev_coeff = get_gpuarray((1, bm.precision.real_t, 0, 'co'))
 
-    beam_phase_v2(bin_centers, profile,
+    beam_phase_v2(args = (bin_centers, profile,
                   bm.precision.real_t(alpha), omega_rf, phi_rf,
                   np.int32(ind), bm.precision.real_t(bin_size),
-                  array1, array2, np.int32(bin_centers.size),
+                  array1, array2, np.int32(bin_centers.size)),
                   block=block_size, grid=grid_size)
 
-    beam_phase_sum(array1, array2, dev_scoeff, dev_coeff,
-                   np.int32(bin_centers.size), block=(512, 1, 1),
-                   grid=(1, 1, 1), time_kernel=True)
+    beam_phase_sum(args = (array1, array2, dev_scoeff, dev_coeff,
+                   np.int32(bin_centers.size)), block=(512, 1, 1),
+                   grid=(1, 1, 1))#, time_kernel=True)
     to_ret = dev_scoeff[0].get()
     return to_ret

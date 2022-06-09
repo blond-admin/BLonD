@@ -80,12 +80,12 @@ class GpuBeamFeedback(BeamFeedback):
         # Update the RF frequency of all systems for the next turn
         counter = self.rf_station.counter[0] + 1
 
-        triple_kernel(self.rf_station.dev_omega_rf, self.rf_station.dev_harmonic,
+        triple_kernel(args = (self.rf_station.dev_omega_rf, self.rf_station.dev_harmonic,
                       self.rf_station.dev_dphi_rf, self.rf_station.dev_omega_rf_d,
                       self.rf_station.dev_phi_rf,
                       bm.precision.real_t(self.domega_rf),
                       np.int32(self.rf_station.n_turns + 1),
-                      np.int32(counter), np.int32(self.rf_station.n_rf),
+                      np.int32(counter), np.int32(self.rf_station.n_rf)),
                       block=(32, 1, 1), grid=(1, 1, 1))
 
         self.rf_station.omega_rf_obj.invalidate_cpu()
