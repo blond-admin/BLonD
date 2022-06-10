@@ -113,9 +113,9 @@ class CGA:
             self.array_obj.dev_array[:] = value
         else:
             self.array_obj = MyCpuarray(value.get())
-            self.array_obj.dev_array = value
-            self.array_obj.dev_array.__class__ = MyGpuarray
-            self.array_obj.dev_array.set_parent(self.array_obj)
+            self.array_obj.dev_class = MyGpuarray(value.get(), value.get().dtype)
+            self.array_obj.dev_array = self.array_obj.dev_class.data
+            self.array_obj.dev_class.set_parent(self.array_obj)
             self.array_obj.gpu_valid = True
             self.array_obj.cpu_valid = False
 
