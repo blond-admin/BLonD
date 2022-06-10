@@ -44,14 +44,12 @@ class GpuRingAndRFTracker(RingAndRFTracker):
                     first_kernel_tracker(self.rf_params.dev_phi_rf,
                                          self.noiseFB.x, self.dev_phi_noise,
                                          self.rf_params.dev_phi_rf.shape[0],
-                                         turn,
-                                         slice=slice(0, self.rf_params.n_rf))
+                                         turn, limit = self.rf_params.n_rf)
                 else:
                     first_kernel_tracker(self.rf_params.dev_phi_rf, 1.0,
                                          self.rf_params.dev_phi_noise,
                                          self.rf_params.dev_phi_rf.shape[0],
-                                         turn,
-                                         slice=slice(0, self.rf_params.n_rf))
+                                         turn, limit = self.rf_params.n_rf)
                     # self.phi_rf[:, turn] += \
                     #     self.phi_noise[:, turn]
 

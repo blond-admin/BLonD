@@ -5,7 +5,8 @@ import cupy as cp
 import pycuda.elementwise as elw
 import pycuda.reduction as red
 from pycuda.tools import ScalarArg
-from skcuda import fft
+#from skcuda import fft
+import cupyx.scipy.fft as fft
 
 from ..gpu import grid_size, block_size
 from ..gpu.cupy_cache import get_gpuarray
@@ -135,36 +136,31 @@ sincos_mul_add_2 = ElementwiseKernel(
 
 # The following functions are being used for the methods of the tracker
 
-first_kernel_tracker = ElementwiseKernel(
-    f"{bm.precision.str} x, raw {bm.precision.str} phi_noise, int32 len, int32 turn",
-    f"raw {bm.precision.str} phi_rf",
-    "phi_rf[len*i + turn] += x * phi_noise[len*i + turn]",
-    "first_kernel_tracker")
+def first_kernel_tracker(phi_rf, x, phi_noise, length, turn, limit = None):
+    index = len(phi_rf) if limit is None else limit
+    for i in range(index):
+        phi_rf[length*i + turn] += x * phi_noise[length*i + turn]
 
-second_kernel_tracker = ElementwiseKernel(
-    f" raw {bm.precision.str} omega_rf, raw {bm.precision.str} phi_mod0, raw {bm.precision.str} phi_mod1, int32 size, int32 turn",
-    f"raw {bm.precision.str} phi_rf",
-    "phi_rf[i*size+turn] += phi_mod0[i*size+turn]; omega_rf[i*size+turn] += phi_mod1[i*size+turn]",
-    "second_kernel_tracker")
+def second_kernel_tracker(phi_rf, omega_rf, phi_mod0, phi_mod1, size, turn, limit = None):
+    index = len(phi_rf) if limit is None else limit
+    for i in range(index):
+        phi_rf[i*size+turn] += phi_mod0[i*size+turn] 
+        omega_rf[i*size+turn] += phi_mod1[i*size+turn]
 
-copy_column = ElementwiseKernel(
-    f"raw {bm.precision.str} y, int32 size, int32 column",
-    f"raw {bm.precision.str} x",
-    "x[i] = y[i*size + column]",
-    "copy_column")
+def copy_column(x, y, size, column):
+    for i in range(len(x)):
+        x[i] = y[i*size + column]
 
-rf_voltage_calculation_kernel = ElementwiseKernel(
-    f"raw {bm.precision.str} y, int32 size, int32 column",
-    f"raw {bm.precision.str} x",
-    "x[i] = y[i*size + column]",
-    "rf_voltage_calculation_kernel")
 
-cavityFB_case = ElementwiseKernel(
-    f"raw {bm.precision.str} voltage, raw {bm.precision.str} omega_rf, raw {bm.precision.str} phi_rf,\
-        raw {bm.precision.str} bin_centers, {bm.precision.str} V_corr, {bm.precision.str} phi_corr, int32 size, int32 column",
-    f"raw {bm.precision.str} rf_voltage",
-    "rf_voltage[i] = voltage[0] * V_corr * sin(omega_rf[0] * bin_centers[i]+phi_rf[0]+phi_corr)",
-    "cavityFB_case")
+rf_voltage_calculation_kernel = copy_column
+
+
+def cavityFB_case(rf_voltage, voltage, omega_rf, phi_rf, bin_centers, 
+                    V_corr, phi_corr, size, column):
+    from cupy import sin 
+    for i in range(len(rf_voltage)):
+        rf_voltage[i] = voltage[0] * V_corr * sin(omega_rf[0] * bin_centers[i]+phi_rf[0]+phi_corr)
+
 
 gpu_rf_voltage_calc_mem_ops = central_mod.get_function("gpu_rf_voltage_calc_mem_ops")
 
@@ -222,19 +218,18 @@ def _get_scale_kernel(dtype):
         return scale_int
 
 
-fft._get_scale_kernel = _get_scale_kernel
+#fft._get_scale_kernel = _get_scale_kernel
 
 
-def find_plan(my_size):
+def find_plan(arr, my_size):
     if my_size not in plans_dict:
-        plans_dict[my_size] = fft.Plan(my_size, bm.precision.real_t, bm.precision.complex_t)
+        plans_dict[my_size] = fft.get_fft_plan(a=arr, shape=my_size)
     return plans_dict[my_size]
 
 
-def inverse_find_plan(size):
+def inverse_find_plan(arr, size):
     if size not in inverse_plans_dict:
-        inverse_plans_dict[size] = fft.Plan(
-            size, in_dtype=bm.precision.complex_t, out_dtype=bm.precision.real_t)
+        inverse_plans_dict[size] = fft.get_fft_plan(a=arr, shape=size)
     return inverse_plans_dict[size]
 
 
@@ -259,8 +254,8 @@ def gpu_rfft(dev_a, n=0, result=None, caller_id=None):
             dev_in = dev_a[:n].astype(dev_in.dtype)
         else:
              dev_in[:in_size] = dev_a.astype(dev_in.dtype)
-    plan = find_plan(dev_in.shape)
-    fft.fft(dev_in, result, plan)
+    plan = find_plan(dev_in, dev_in.shape)
+    result = fft.fft(dev_in, plan = plan)
     return result
 
 
@@ -292,8 +287,8 @@ def gpu_irfft(dev_a, n=0, result=None, caller_id=None):
         else:
             dev_in[:in_size] = dev_a
 
-    inverse_plan = inverse_find_plan(out_size)
-    fft.ifft(dev_in, result, inverse_plan, scale=True)
+    inverse_plan = inverse_find_plan(dev_in, out_size)
+    result = fft.ifft(dev_in, plan = inverse_plan)
     return result
 
 
