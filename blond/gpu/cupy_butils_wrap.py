@@ -229,7 +229,7 @@ def find_plan(arr, my_size):
 
 def inverse_find_plan(arr, size):
     if size not in inverse_plans_dict:
-        inverse_plans_dict[size] = fft.get_fft_plan(a=arr, shape=size)
+        inverse_plans_dict[size] = fft.get_fft_plan(a=arr, shape=size, value_type='C2R')
     return inverse_plans_dict[size]
 
 
