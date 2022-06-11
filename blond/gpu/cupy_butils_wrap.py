@@ -176,8 +176,8 @@ bm_phase_exp_times_scalar = ElementwiseKernel(
     "bm_phase_exp_times_scalar")
 
 bm_sin_cos = ElementwiseKernel(
-    f"raw {bm.precision.str} a, raw {bm.precision.str} b, raw {bm.precision.str} c",
-    '',
+    f"raw {bm.precision.str} b, raw {bm.precision.str} c",
+    f"raw {bm.precision.str} a",
     "sincos(a[i],&b[i], &c[i])",
     "bm_sin_cos")
 
@@ -255,7 +255,7 @@ def gpu_rfft(dev_a, n=0, result=None, caller_id=None):
         else:
              dev_in[:in_size] = dev_a.astype(dev_in.dtype)
     plan = find_plan(dev_in, dev_in.shape)
-    result = fft.fft(dev_in, plan = plan)
+    result = fft.fft(dev_in, plan = plan)[:result.size]
     return result
 
 
@@ -287,11 +287,16 @@ def gpu_irfft(dev_a, n=0, result=None, caller_id=None):
         else:
             dev_in[:in_size] = dev_a
 
-    inverse_plan = inverse_find_plan(dev_in, out_size)
-    result = fft.ifft(dev_in, plan = inverse_plan)
+    old_sz = dev_in.size
+    dev_in_resized = cp.resize(dev_in, (out_size,))
+    dev_in_resized[old_sz:] = 0
+
+    inverse_plan = inverse_find_plan(dev_in_resized, out_size)
+    result = fft.ifft(dev_in_resized, plan = inverse_plan).astype(bm.precision.real_t)
+
     func=_get_scale_kernel(result.dtype)
     scale_factor = (result.size) / (inverse_plan.batch)
-    func(scale_factor, result)
+    func(scale_factor, result, size = result.size)
     return result
 
 
