@@ -289,6 +289,9 @@ def gpu_irfft(dev_a, n=0, result=None, caller_id=None):
 
     inverse_plan = inverse_find_plan(dev_in, out_size)
     result = fft.ifft(dev_in, plan = inverse_plan)
+    func=_get_scale_kernel(result.dtype)
+    scale_factor = (result.size) / (inverse_plan.batch)
+    func(scale_factor, result)
     return result
 
 
