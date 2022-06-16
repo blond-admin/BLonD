@@ -5,8 +5,7 @@ import cupy as cp
 import pycuda.elementwise as elw
 import pycuda.reduction as red
 from pycuda.tools import ScalarArg
-#from skcuda import fft
-import cupyx.scipy.fft as fft
+import cupy.fft as fft
 
 from ..gpu import grid_size, block_size
 from ..gpu.cupy_cache import get_gpuarray
@@ -14,63 +13,6 @@ from ..utils import bmath as bm
 
 central_mod = bm.getMod()
 basedir = os.path.dirname(os.path.realpath(__file__)) + "/cuda_kernels/"
-
-
-# Since we use compiled versions of functions, we override
-# some functions of pycuda to use the cubin we have created
-
-
-'''def custom_get_elwise_range_module(arguments, operation,
-                                   name="kernel", keep=False, options=None,
-                                   preamble="", loop_prep="", after_loop=""):
-    return central_mod
-
-
-def custom_get_elwise_no_range_module(arguments, operation,
-                                      name="kernel", keep=False, options=None,
-                                      preamble="", loop_prep="", after_loop=""):
-    return central_mod
-
-
-def custom_get_elwise_kernel_and_types(arguments, operation,
-                                       name="kernel", keep=False, options=None, use_range=False, **kwargs):
-    if isinstance(arguments, str):
-        from pycuda.tools import parse_c_arg
-        arguments = [parse_c_arg(arg) for arg in arguments.split(",")]
-
-    if use_range:
-        arguments.extend([
-            ScalarArg(np.intp, "start"),
-            ScalarArg(np.intp, "stop"),
-            ScalarArg(np.intp, "step"),
-        ])
-    else:
-        arguments.append(ScalarArg(np.uintp, "n"))
-
-    if use_range:
-        module_builder = custom_get_elwise_range_module
-    else:
-        module_builder = custom_get_elwise_no_range_module
-
-    mod = module_builder(arguments, operation, name,
-                         keep, options, **kwargs)
-
-    func = mod.get_function(name + use_range * "_range")
-    func.prepare("".join(arg.struct_char for arg in arguments))
-
-    return mod, func, arguments
-
-
-elw.get_elwise_range_module = custom_get_elwise_range_module
-elw.get_elwise_module = custom_get_elwise_no_range_module
-elw.get_elwise_kernel_and_types = custom_get_elwise_kernel_and_types
-
-
-def get_reduction_module(*args, **kwargs):
-    return central_mod
-
-
-red.get_reduction_module = get_reduction_module'''
 
 
 ElementwiseKernel = cp.ElementwiseKernel
@@ -128,10 +70,15 @@ sincos_mul_add_2 = ElementwiseKernel(
     "s[i] = cos(a*ar[i]+b-pi/2); c[i] = cos(a*ar[i]+b)",
     "sincos_mul_add_2")
 
-'''gpu_trapz = ReductionKernel(reduce_type = bm.precision.real_t, identity="0", reduce_expr="a+b",
-                            args=f"{bm.precision.str} *y, {bm.precision.str} x, int32 sz",
-                            map_expr="(i<sz-1) ? x*(y[i]+y[i+1])/2.0 : 0.0",
-                            name="gpu_trapz")'''
+gpu_trapz = ReductionKernel(
+    in_params = f"raw {bm.precision.str} *y, {bm.precision.str} x, int32 sz",
+    out_params = f"{bm.precision.str} z",
+    map_expr = "(i<sz-1) ? x*(y[i]+y[i+1])/2.0 : 0.0",
+    reduce_expr = "a+b",
+    post_map_expr = "z = a",
+    identity="0",
+    name="gpu_trapz"
+)
 
 
 # The following functions are being used for the methods of the tracker
@@ -188,50 +135,6 @@ bm_sin_cos = ElementwiseKernel(
 plans_dict = {}
 inverse_plans_dict = {}
 
-# scale kernels
-
-scale_int = ElementwiseKernel(
-    "int32 a",
-    "raw int32 b",
-    "b[i] /= a ",
-    "scale_kernel_int")
-
-scale_double = ElementwiseKernel(
-    f"{bm.precision.str} a",
-    f"raw {bm.precision.str} b",
-    "b[i] /= a ",
-    "scale_kernel_double")
-
-scale_float = ElementwiseKernel(
-    f"{bm.precision.str} a",
-    f"raw {bm.precision.str} b",
-    "b[i] /= a ",
-    "scale_kernel_float")
-
-
-def _get_scale_kernel(dtype):
-    if dtype == np.float64:
-        return scale_double
-    elif dtype == np.float32:
-        return scale_float
-    elif dtype in [np.int, np.int32]:
-        return scale_int
-
-
-#fft._get_scale_kernel = _get_scale_kernel
-
-
-def find_plan(arr, my_size):
-    if my_size not in plans_dict:
-        plans_dict[my_size] = fft.get_fft_plan(a=arr, shape=my_size)
-    return plans_dict[my_size]
-
-
-def inverse_find_plan(arr, size):
-    if size not in inverse_plans_dict:
-        inverse_plans_dict[size] = fft.get_fft_plan(a=arr, shape=size, value_type='C2R')
-    return inverse_plans_dict[size]
-
 
 def gpu_rfft(dev_a, n=0, result=None, caller_id=None):
     if n == 0 and result is None:
@@ -254,8 +157,7 @@ def gpu_rfft(dev_a, n=0, result=None, caller_id=None):
             dev_in = dev_a[:n].astype(dev_in.dtype)
         else:
              dev_in[:in_size] = dev_a.astype(dev_in.dtype)
-    plan = find_plan(dev_in, dev_in.shape)
-    result = fft.fft(dev_in, plan = plan)[:result.size]
+    result = fft.rfft(dev_in)
     return result
 
 
@@ -287,16 +189,7 @@ def gpu_irfft(dev_a, n=0, result=None, caller_id=None):
         else:
             dev_in[:in_size] = dev_a
 
-    old_sz = dev_in.size
-    dev_in_resized = cp.resize(dev_in, (out_size,))
-    dev_in_resized[old_sz:] = 0
-
-    inverse_plan = inverse_find_plan(dev_in_resized, out_size)
-    result = fft.ifft(dev_in_resized, plan = inverse_plan).astype(bm.precision.real_t)
-
-    func=_get_scale_kernel(result.dtype)
-    scale_factor = (result.size) / (inverse_plan.batch)
-    func(scale_factor, result, size = result.size)
+    result = fft.irfft(dev_in)
     return result
 
 
