@@ -3,7 +3,7 @@ import cupy as cp
 #from ..utils import bmath as bm
 import blond.utils.bmath as bm
 
-class MyGpuarray(cp.ndarray):
+class MyGpuarray():
 
     def __init__(self, input_array, dtype):
         self.array = cp.array(input_array, dtype = dtype)
