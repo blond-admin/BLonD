@@ -256,14 +256,12 @@ if __name__ == "__main__":
         libname_double = os.path.join(basepath, 'gpu/cuda_kernels/kernels_double.cubin')
         libname_single = os.path.join(basepath, 'gpu/cuda_kernels/kernels_single.cubin')
         # we need to get the header files location
-        drv_version = str(cp.cuda.runtime.driverGetVersion()).replace('0','')
-        output = subprocess.run(f'{sys.executable} -m pip show cupy-cuda{drv_version} | grep Location', shell=True,
-                                stdout=subprocess.PIPE,
-                                encoding='utf-8')
-        print('cupy', output.stdout)
+        path = cp.__file__.split('/')[:-1] # remove __init__.py from path
+        path.extend(['_core','include'])
         
-        cupyloc = os.path.join(output.stdout.split(
-            'Location:')[1].strip(), 'cupy/_core/include')
+        cupyloc = os.path.join('/'.join(path))
+
+        print('cupy: ', cupyloc)
 
         command = nvccflags + ['-o', libname_single, '-I'+cupyloc,
                                os.path.join(basepath, 'gpu/cuda_kernels/kernels_single.cu')]
