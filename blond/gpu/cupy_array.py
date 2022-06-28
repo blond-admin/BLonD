@@ -3,26 +3,26 @@ import cupy as cp
 #from ..utils import bmath as bm
 import blond.utils.bmath as bm
 
-class MyGpuarray():
+class MyGpuarray(cp.ndarray):
 
-    def __init__(self, input_array, dtype):
-        self.array = cp.array(input_array, dtype = dtype)
-        self.parent = None
+    def __new__(cls, shape, dtype, memptr=None):
+        obj = super(MyGpuarray,cls).__new__(cls, shape, dtype, memptr)
+        obj.__class__ = MyGpuarray
+        return obj
 
     def set_parent(self, parent):
         self.parent = parent
 
-    @property
-    def data(self):
-        if self.parent is not None:
-            self.parent.gpu_validate()
-        return self.array
-    
-    @data.setter
-    def data(self, key, value):
+   
+    def __getitem__(self,key):
         self.parent.gpu_validate()
-        self.array[key] = value
+        return super(MyGpuarray,self).__getitem__(key)
+    
+    def __setitem__(self,key,value):
+        self.parent.gpu_validate()
+        super(MyGpuarray,self).__setitem__(key,value)
         self.parent.cpu_valid = False
+
 
 
 class MyCpuarray(np.ndarray):
@@ -32,23 +32,18 @@ class MyCpuarray(np.ndarray):
             input_array = np.array([], dtype=bm.precision.real_t)
 
         obj = np.asarray(input_array).view(cls)
-        if dtype1 is None:
-            obj.dtype1 = input_array.dtype
-        else:
-            obj.dtype1 = dtype1
-        if dtype2 is None:
-            obj.dtype2 = input_array.dtype
-        else:
-            obj.dtype2 = dtype2
+
+        obj.dtype1 = input_array.dtype if dtype1 is None else dtype1
+        obj.dtype2 = input_array.dtype if dtype2 is None else dtype2
+        
         obj.__class__ = MyCpuarray
         obj.cpu_valid = True
-        obj.gpu_valid = False
+        obj.gpu_valid = True
         obj.sp = input_array.shape
 
-        obj.dev_class = MyGpuarray(input_array.flatten(), obj.dtype2)
-        obj.dev_array = obj.dev_class.data
-        obj.dev_class.set_parent(obj)
-        obj.gpu_valid = True
+        obj.dev_array = MyGpuarray(input_array.flatten().shape, obj.dtype2)
+        obj.dev_array.set_parent(obj)
+        obj.dev_array[:] = cp.asarray(input_array.flatten())
 
         return obj
 
@@ -98,13 +93,13 @@ class CGA:
         else:
             self.array_obj = MyCpuarray(value)
 
-        self.array_obj.gpu_valid = False
         self.array_obj.cpu_valid = True
+        self.array_obj.gpu_valid = False
 
     @property
     def dev_my_array(self):
         self.array_obj.gpu_validate()
-        return self.array_obj.dev_array
+        return self.array_obj.dev_array[:]
 
     @dev_my_array.setter
     def dev_my_array(self, value):
@@ -113,11 +108,6 @@ class CGA:
             self.array_obj.dev_array[:] = value
         else:
             self.array_obj = MyCpuarray(value.get())
-            self.array_obj.dev_class = MyGpuarray(value.get(), value.get().dtype)
-            self.array_obj.dev_array = self.array_obj.dev_class.data
-            self.array_obj.dev_class.set_parent(self.array_obj)
-            self.array_obj.gpu_valid = True
-            self.array_obj.cpu_valid = False
 
         self.array_obj.cpu_valid = False
         self.array_obj.gpu_valid = True
