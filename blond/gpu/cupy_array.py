@@ -1,113 +1,83 @@
 import numpy as np
 import cupy as cp
-#from ..utils import bmath as bm
-import blond.utils.bmath as bm
-
-class MyGpuarray(cp.ndarray):
-
-    def __new__(cls, shape, dtype, memptr=None):
-        obj = super(MyGpuarray,cls).__new__(cls, shape, dtype, memptr)
-        obj.__class__ = MyGpuarray
-        return obj
-
-    def set_parent(self, parent):
-        self.parent = parent
-
-   
-    def __getitem__(self,key):
-        self.parent.gpu_validate()
-        return super(MyGpuarray,self).__getitem__(key)
-    
-    def __setitem__(self,key,value):
-        self.parent.gpu_validate()
-        super(MyGpuarray,self).__setitem__(key,value)
-        self.parent.cpu_valid = False
-
-
-
-class MyCpuarray(np.ndarray):
-
-    def __new__(cls, input_array, dtype1=None, dtype2=None):
-        if input_array is None:
-            input_array = np.array([], dtype=bm.precision.real_t)
-
-        obj = np.asarray(input_array).view(cls)
-
-        obj.dtype1 = input_array.dtype if dtype1 is None else dtype1
-        obj.dtype2 = input_array.dtype if dtype2 is None else dtype2
-        
-        obj.__class__ = MyCpuarray
-        obj.cpu_valid = True
-        obj.gpu_valid = True
-        obj.sp = input_array.shape
-
-        obj.dev_array = MyGpuarray(input_array.flatten().shape, obj.dtype2)
-        obj.dev_array.set_parent(obj)
-        obj.dev_array[:] = cp.asarray(input_array.flatten())
-
-        return obj
-
-    def cpu_validate(self):
-        if hasattr(self, 'dev_array') and (not hasattr(self, "cpu_valid") or not self.cpu_valid):
-        # if not self.cpu_valid:
-                self.cpu_valid = True
-                dummy = self.dev_array.get().reshape(self.sp).astype(self.dtype1)
-                super().__setitem__(slice(None, None, None), dummy)
-                self.cpu_valid = True
-
-    def gpu_validate(self):
-        if not self.gpu_valid:
-            self.dev_array.set(np.array(self.flatten(), dtype = self.dtype2))
-            self.gpu_valid = True
-
-    def __setitem__(self, key, value):
-        self.cpu_validate()
-        # we either update the base array or this one
-        if hasattr(self.base, 'gpu_valid'):
-            self.base.gpu_valid = False
-        else:
-            self.gpu_valid = False
-        super(MyCpuarray, self).__setitem__(key, value)
+from ..utils import bmath as bm
 
 class CGA:
-    def __init__(self, input_array, dtype1=None, dtype2=None):
-        self.array_obj = MyCpuarray(input_array, dtype1=dtype1, dtype2=dtype2)
-        self._dev_array = self.array_obj.dev_array
+    def __init__(self, input_array=None, shape=None, dtype=None):
+
+        if input_array is None and shape is None and dtype is None:
+            self.dtype = bm.precision.real_t
+            self._cpu_array = np.array([], dtype=self.dtype)
+            self._dev_array = cp.array([], dtype=self.dtype)
+        else:
+            self.dtype = input_array.dtype if dtype is None else dtype
+            self.dev = cp.cuda.Device(0)
+            if input_array is None:
+                self.sp = shape
+                gpu_shape = np.prod(shape) # flatten
+                self._cpu_array = np.ndarray(shape, dtype=self.dtype)
+                self._dev_array = cp.ndarray(gpu_shape, dtype=self.dtype)
+            else:
+                self.sp = input_array.shape
+                self._cpu_array = np.array(input_array, dtype=self.dtype)
+                self._dev_array = cp.array(input_array.flatten(), dtype=self.dtype)
+        
+        self.cpu_valid = True
+        self.gpu_valid = True
+
 
     def invalidate_cpu(self):
-        self.array_obj.cpu_valid = False
+        # Must be called after _dev_array change through indexing
+        self.cpu_valid = False
 
     def invalidate_gpu(self):
-        self.array_obj.gpu_valid = False
+        # Must be called after _cpu_array change through indexing
+        self.gpu_valid = False
 
     @property
     def my_array(self):
-        self.array_obj.cpu_validate()
-        return self.array_obj
+        self.cpu_validate()
+        return self._cpu_array
 
     @my_array.setter
-    def my_array(self, value):
-        if self.array_obj.size != 0 and value.dtype == self.array_obj.dtype1 and\
-                self.array_obj.shape == value.shape:
-            super(MyCpuarray, self.array_obj).__setitem__(slice(None, None, None), value)
+    def my_array(self, new_array):
+        if self._cpu_array.shape == new_array.shape and new_array.dtype == self._cpu_array.dtype:
+                self._cpu_array[:] = new_array 
         else:
-            self.array_obj = MyCpuarray(value)
+            self.dtype = new_array.dtype
+            self.sp = new_array.shape
+            self._cpu_array = np.array(new_array, dtype=self.dtype)
+            self._dev_array = cp.array(new_array.flatten(), dtype=self.dtype)
 
-        self.array_obj.cpu_valid = True
-        self.array_obj.gpu_valid = False
+        self.cpu_valid = True
+        self.gpu_valid = False
 
     @property
     def dev_my_array(self):
-        self.array_obj.gpu_validate()
-        return self.array_obj.dev_array[:]
+        self.gpu_validate()
+        return self._dev_array
 
     @dev_my_array.setter
-    def dev_my_array(self, value):
-        if self.array_obj.dev_array.size != 0 and value.dtype == self.array_obj.dtype2 and\
-                self.array_obj.dev_array.shape == value.shape:
-            self.array_obj.dev_array[:] = value
+    def dev_my_array(self, new_array):
+        if self._dev_array.shape == new_array.shape and new_array.dtype == self._dev_array.dtype:
+                self._dev_array[:] = new_array
         else:
-            self.array_obj = MyCpuarray(value.get())
+            self.dtype = new_array.dtype
+            self.sp = new_array.shape
+            self._cpu_array = np.array(new_array.get(), dtype=self.dtype)
+            self._dev_array = cp.array(new_array, dtype=self.dtype)
 
-        self.array_obj.cpu_valid = False
-        self.array_obj.gpu_valid = True
+        self.cpu_valid = False
+        self.gpu_valid = True
+
+
+    def cpu_validate(self):
+        if not self.cpu_valid:
+            dummy = self._dev_array.get().reshape(self.sp).astype(self.dtype)
+            self._cpu_array.__setitem__(slice(None, None, None), dummy)
+            self.cpu_valid = True
+
+    def gpu_validate(self):
+        if not self.gpu_valid:
+            self._dev_array.set(self._cpu_array.flatten())
+            self.gpu_valid = True

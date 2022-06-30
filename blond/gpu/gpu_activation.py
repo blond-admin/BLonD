@@ -22,7 +22,7 @@ def use_gpu_beam(self):
 
     self.dt_obj = CGA(self.dt)
 
-    self.id_obj = CGA(self.id, dtype2=bm.precision.real_t)
+    self.id_obj = CGA(self.id, dtype=bm.precision.real_t)
     self.__class__ = gb.GpuBeam
 
 
@@ -43,7 +43,7 @@ def use_gpu_profile(self):
     self.bin_centers_obj = CGA(self.bin_centers)
 
     # n_macroparticles to gpu
-    self.n_macroparticles_obj = CGA(self.n_macroparticles, dtype2=np.int32)
+    self.n_macroparticles_obj = CGA(self.n_macroparticles, dtype=np.int32)
     # self.n_macroparticles_obj = CGA(self.n_macroparticles)
 
     # beam_spectrum to gpu
