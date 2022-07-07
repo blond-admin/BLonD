@@ -84,9 +84,9 @@ class GpuBeamFeedback(BeamFeedback):
                       np.int32(counter), np.int32(self.rf_station.n_rf)),
                       block=(32, 1, 1), grid=(1, 1, 1))
 
-        self.rf_station.omega_rf_obj.invalidate_cpu()
-        self.rf_station.dphi_rf_obj.invalidate_cpu()
-        self.rf_station.phi_rf_obj.invalidate_cpu()
+        #self.rf_station.omega_rf_obj.invalidate_cpu()
+        #self.rf_station.dphi_rf_obj.invalidate_cpu()
+        #self.rf_station.phi_rf_obj.invalidate_cpu()
 
     #@timing.timeit(key='serial:beam_phase_sharpWindow')
     def beam_phase_sharpWindow(self):

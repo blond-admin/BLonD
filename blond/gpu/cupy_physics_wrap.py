@@ -162,8 +162,8 @@ def gpu_linear_interp_kick_drift(dev_voltage,
                                      bm.precision.real_t(beta),
                                      bm.precision.real_t(energy)),
                                      grid=grid_size, block=block_size)#,time_kernel=True)
-    beam.dE_obj.invalidate_cpu()
-    beam.dt_obj.invalidate_cpu()
+    #beam.dE_obj.invalidate_cpu()
+    #beam.dt_obj.invalidate_cpu()
 
 
 def gpu_dumb_slice(dev_dt, dev_n_macroparticles, cut_left, cut_right):

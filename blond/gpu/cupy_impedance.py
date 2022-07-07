@@ -64,7 +64,7 @@ class GpuTotalInducedVoltage(TotalInducedVoltage):
                               self.profile.dev_bin_centers,
                               self.beam.Particle.charge,
                               acceleration_kick=0.)
-        self.beam.dE_obj.invalidate_cpu()
+        #self.beam.dE_obj.invalidate_cpu()
 
 
 class GpuInducedVoltage(_InducedVoltage):

@@ -77,7 +77,7 @@ class GpuBeam(Beam):
         gllc(args = (self.dev_dt, self.dev_id, np.int32(self.n_macroparticles), bm.precision.real_t(dt_min),
              bm.precision.real_t(dt_max)),
              grid=grid_size, block=block_size)
-        self.id_obj.invalidate_cpu()
+        #self.id_obj.invalidate_cpu()
 
     def losses_energy_cut(self, dE_min, dE_max):
         """
@@ -86,7 +86,7 @@ class GpuBeam(Beam):
         glec(args = (self.dev_dE, self.dev_id, np.int32(self.n_macroparticles), bm.precision.real_t(dE_min),
              bm.precision.real_t(dE_max)),
              grid=grid_size, block=block_size)
-        self.id_obj.invalidate_cpu()
+        #self.id_obj.invalidate_cpu()
 
     def losses_below_energy(self, dE_min):
         """
@@ -94,7 +94,7 @@ class GpuBeam(Beam):
         """
         glbe(args = (self.dev_dE, self.dev_id, np.int32(self.n_macroparticles), bm.precision.real_t(dE_min)),
              grid=grid_size, block=block_size)
-        self.id_obj.invalidate_cpu()
+        #self.id_obj.invalidate_cpu()
 
     def statistics(self):
         """

@@ -97,7 +97,7 @@ class GpuRingAndRFTracker(RingAndRFTracker):
                                               self.beam.Particle.charge,
                                               self.acceleration_kick[turn],
                                               )
-                        self.beam.dE_obj.invalidate_cpu()
+                        #self.beam.dE_obj.invalidate_cpu()
                         # bm.LIKick_n_drift(dev_voltage=self.dev_total_voltage,
                         #                   dev_bin_centers=self.profile.dev_bin_centers,
                         #                   charge=self.beam.Particle.charge,
@@ -182,7 +182,7 @@ class GpuRingAndRFTracker(RingAndRFTracker):
         bm.kick(self.beam.dev_dt, self.beam.dev_dE, dev_voltage, dev_omega_rf,
                 dev_phi_rf, self.charge, self.n_rf,
                 self.acceleration_kick[index])
-        self.beam.dE_obj.invalidate_cpu()
+        #self.beam.dE_obj.invalidate_cpu()
 
     #@timing.timeit(key='comp:drift')
     def drift(self, index):
@@ -194,4 +194,4 @@ class GpuRingAndRFTracker(RingAndRFTracker):
                  self.eta_1[index], self.eta_2[index], self.alpha_0[index],
                  self.alpha_1[index], self.alpha_2[index],
                  self.rf_params.beta[index], self.rf_params.energy[index])
-        self.beam.dt_obj.invalidate_cpu()
+        #self.beam.dt_obj.invalidate_cpu()

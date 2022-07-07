@@ -99,7 +99,7 @@ class GpuProfile(Profile):
         """
 
         bm.slice(self.Beam.dev_dt, self.dev_n_macroparticles, self.cut_left, self.cut_right)
-        self.n_macroparticles_obj.invalidate_cpu()
+        #self.n_macroparticles_obj.invalidate_cpu()
 
     #@timing.timeit(key='serial:beam_spectrum_gen')
     def beam_spectrum_generation(self, n_sampling_fft):
@@ -174,7 +174,7 @@ class GpuProfile(Profile):
         from ..utils.mpi_config import worker
         if self.Beam.is_splitted:
             self.n_macroparticles = self.n_macroparticles * worker.workers
-            self.n_macroparticles_obj.invalidate_gpu()
+            #self.n_macroparticles_obj.invalidate_gpu()
     
     #@timing.timeit(key='serial:scale_histo')
     def scale_histo(self):
@@ -187,4 +187,4 @@ class GpuProfile(Profile):
         from ..utils.mpi_config import worker
         if self.Beam.is_splitted:
             self.dev_n_macroparticles = np.int32(worker.workers) * self.dev_n_macroparticles
-            self.n_macroparticles_obj.invalidate_cpu()
+            #self.n_macroparticles_obj.invalidate_cpu()
