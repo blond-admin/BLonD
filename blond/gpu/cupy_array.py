@@ -40,18 +40,20 @@ class MyCpuarray(np.ndarray):
         return obj
 
     def __getitem__(self, key):
-        if hasattr(self.parent, 'sync_needed') and (self.parent.sync_needed):
-            self.dev.synchronize()
-            self.parent.sync_needed = False
+        if hasattr(self.parent, 'sync_needed'):
+            if self.parent.sync_needed:
+                self.dev.synchronize()
+                self.parent.sync_needed = False
         elif hasattr(self.parent, 'cpu_valid'):
             self.parent.cpu_validate()
 
         return super(MyCpuarray, self).__getitem__(key)
 
     def __setitem__(self, key, value):
-        if hasattr(self.parent, 'sync_needed') and (self.parent.sync_needed):
-            self.dev.synchronize()
-            self.parent.sync_needed = False
+        if hasattr(self.parent, 'sync_needed'):
+            if self.parent.sync_needed:
+                self.dev.synchronize()
+                self.parent.sync_needed = False
         elif hasattr(self.parent, 'cpu_valid'):
             self.parent.cpu_validate()
             self.parent.gpu_valid = False
@@ -109,7 +111,7 @@ class CGA:
         # input_obj can either be shape tuple or numpy array_like object
         sp = input_obj.shape if hasattr(input_obj,'shape') else input_obj
 
-        if np.issubdtype(self.dtype, np.complexfloating):
+        if np.issubdtype(self.dtype, np.complexfloating) or sp==(0,):
             # unified memory pointer to np_array with complex dtype
             # can't be initiated as ctypeslib doesn't support it
             self.cpu_valid = self.gpu_valid = True
@@ -120,7 +122,7 @@ class CGA:
                 self._dev_array[:] = cp.array(input_obj)
         else:
             self.sync_needed = False
-            self._cpu_array, self._dev_array = self.unified_arrays(shape=sp, dtype=dtype)
+            self.unified_arrays(shape=sp, dtype=dtype)
             if hasattr(input_obj,'shape'):
                 self._cpu_array[:] = input_obj
 
@@ -135,11 +137,11 @@ class CGA:
         ctp = np.ctypeslib.as_ctypes_type(np.dtype(dtype))
         # cast pointers value to ctype POINTER of c_float  
         c_ptr = ctypes.cast(ptr.ptr,ctypes.POINTER(ctp))
+        
         # create numpy array from POINTER
-        np_arr = MyCpuarray(shape=shape, parent=self, ptr=c_ptr)
+        self._cpu_array = MyCpuarray(shape=shape, parent=self, ptr=c_ptr)
         gpu_shape = (np.prod(shape),) # flatten array
-        cp_arr = MyGpuarray(shape=gpu_shape, dtype=dtype, parent=self, ptr=ptr)
-        return np_arr, cp_arr
+        self._dev_array = MyGpuarray(shape=gpu_shape, dtype=dtype, parent=self, ptr=ptr)
 
     def cpu_validate(self):
         if not self.cpu_valid:
