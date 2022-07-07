@@ -276,8 +276,6 @@ if worker.hasGPU:
     totVoltage.use_gpu()
     beam.use_gpu()
     PL.use_gpu()
-    if args['gpucache'] == 1:
-        bm.enable_gpucache()
 
 print(f'Glob rank: [{worker.rank}], Node rank: [{worker.noderank}], Intra rank: [{worker.intrarank}], GPU rank: [{worker.gpucommrank}], hasGPU: {worker.hasGPU}')
 

@@ -173,7 +173,6 @@ test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
 
 if USE_GPU:
     bm.use_gpu()
-    bm.enable_gpucache()
     total_induced_voltage.use_gpu()
     ring_RF_section.use_gpu()
     slice_beam.use_gpu()

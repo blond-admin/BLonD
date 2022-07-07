@@ -147,7 +147,6 @@ print("")
 
 if USE_GPU:
     bm.use_gpu()
-    bm.enable_gpucache()
     for m in map_:
         m.use_gpu()
 
