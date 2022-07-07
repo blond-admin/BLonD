@@ -61,18 +61,20 @@ class MyCpuarray(np.ndarray):
 class CGA:
     def __init__(self, input_array=None, shape=None, dtype=None):
 
-        if input_array is None and shape is None:
-            raise ValueError("Please provide either input_array or shape with dtype")
-            
-        self.dtype = input_array.dtype if dtype is None else dtype
-        if input_array is not None: # provided input_array
-            if input_array.shape == (0,): # simple init of CGA object
-                self._cpu_array = np.array([])
-                self._dev_array = cp.array([])
-            else:
-                self.create_arrays(input_array, self.dtype)
-        else:  # provided shape, dtype  
-            self.create_arrays(shape, self.dtype)
+        if input_array is None and shape is None: # init with None object
+            self.dtype = bm.precision.real_t
+            self._cpu_array = np.array([], dtype=self.dtype)
+            self._dev_array = cp.array([], dtype=self.dtype)
+        else:  
+            self.dtype = input_array.dtype if dtype is None else dtype
+            if input_array is not None: # provided input_array
+                if input_array.shape == (0,): # init with empty array 
+                    self._cpu_array = np.array([], dtype=self.dtype)
+                    self._dev_array = cp.array([], dtype=self.dtype)
+                else:
+                    self.create_arrays(input_array, self.dtype)
+            else:  # provided shape, dtype  
+                self.create_arrays(shape, self.dtype)
                 
     @property
     def my_array(self):
