@@ -3,7 +3,7 @@ import cupy as cp
 from ..utils import bmath as bm
 from ..gpu.cupy_butils_wrap import  triple_kernel, \
     indexing_double, indexing_int, sincos_mul_add
-from ..gpu.cupy_cache import get_gpuarray
+from ..gpu.cupy_array import get_gpuarray
 from ..llrf.beam_feedback import BeamFeedback
 
 try:
@@ -35,21 +35,17 @@ class GpuBeamFeedback(BeamFeedback):
             indexing = np.where(indexes)
 
             gpu_indexing = cp.array(indexing[0])
-            bin_centers_indexed = get_gpuarray(
-                (gpu_indexing.size, bm.precision.real_t, 0, "bc"))
+            bin_centers_indexed = get_gpuarray(gpu_indexing.size, bm.precision.real_t)
             indexing_double(bin_centers_indexed,
                             self.profile.dev_bin_centers, gpu_indexing)
-            n_macroparticles_indexed = get_gpuarray(
-                (gpu_indexing.size, bm.precision.real_t, 0, "mc"))
+            n_macroparticles_indexed = get_gpuarray(gpu_indexing.size, bm.precision.real_t)
             indexing_int(n_macroparticles_indexed,
                          self.profile.dev_n_macroparticles, gpu_indexing)
 
             time_offset = self.time_offset
 
-            sin_result = get_gpuarray(
-                (gpu_indexing.size, bm.precision.real_t, 0, "sin"))
-            cos_result = get_gpuarray(
-                (gpu_indexing.size, bm.precision.real_t, 0, "cos"))
+            sin_result = get_gpuarray(gpu_indexing.size, bm.precision.real_t)
+            cos_result = get_gpuarray(gpu_indexing.size, bm.precision.real_t)
 
             sincos_mul_add(bin_centers_indexed, omega_rf,
                            phi_rf, sin_result, cos_result)

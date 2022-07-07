@@ -8,7 +8,7 @@ from pycuda.tools import ScalarArg
 import cupy.fft as fft
 
 from ..gpu import grid_size, block_size
-from ..gpu.cupy_cache import get_gpuarray
+from ..gpu.cupy_array import get_gpuarray
 from ..utils import bmath as bm
 
 central_mod = bm.getMod()
@@ -144,15 +144,15 @@ def gpu_rfft(dev_a, n=0, result=None, caller_id=None):
     if caller_id is None:
         result = cp.empty(n // 2 + 1, bm.precision.complex_t)
     else:
-        result = get_gpuarray((n // 2 + 1, bm.precision.complex_t, 0, 'rfft'), zero_fills=False)
+        result = get_gpuarray(n // 2 + 1, bm.precision.complex_t)
     out_size = n // 2 + 1
     in_size = dev_a.size
 
     if n == in_size:
-        dev_in = get_gpuarray((n, bm.precision.real_t, 0, 'rfft'))
+        dev_in = get_gpuarray(n, bm.precision.real_t)
         dev_in = dev_a.astype(dev_in.dtype)
     else:
-        dev_in = get_gpuarray((n, bm.precision.real_t, 0, 'rfft'), zero_fills=True)
+        dev_in = get_gpuarray(n, bm.precision.real_t, zero_fills=True)
         if n < in_size:
             dev_in = dev_a[:n].astype(dev_in.dtype)
         else:
@@ -170,8 +170,7 @@ def gpu_irfft(dev_a, n=0, result=None, caller_id=None):
     if caller_id is None:
         result = cp.empty(n, dtype=bm.precision.real_t)
     else:
-        key = (n, bm.precision.real_t, caller_id, 'irfft')
-        result = get_gpuarray(key)
+        result = get_gpuarray(n, bm.precision.real_t)
 
     out_size = n
     in_size = dev_a.size
@@ -183,7 +182,7 @@ def gpu_irfft(dev_a, n=0, result=None, caller_id=None):
     if n == in_size:
         dev_in = dev_a
     else:
-        dev_in = get_gpuarray((n, bm.precision.complex_t, 0, 'irfft'), zero_fills=True)
+        dev_in = get_gpuarray(n, bm.precision.complex_t, zero_fills=True)
         if n < in_size:
             dev_in = dev_a[:n]
         else:
@@ -218,7 +217,7 @@ def gpu_convolve(signal, kernel, mode='full', result=None):
 
 def gpu_interp(dev_x, dev_xp, dev_yp, left=0.12345, right=0.12345, caller_id=None):
     if caller_id is None:
-        dev_res = get_gpuarray((dev_x.size, bm.precision.real_t, caller_id, 'interp'))
+        dev_res = get_gpuarray(dev_x.size, bm.precision.real_t)
     else:
         dev_res = cp.empty(dev_x.size, bm.precision.real_t)
     cuinterp(args = (dev_x, np.int32(dev_x.size),

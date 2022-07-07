@@ -1,7 +1,7 @@
 import numpy as np
 import cupy as cp
 from ..utils import bmath as bm
-from ..gpu.cupy_cache import get_gpuarray
+from ..gpu.cupy_array import get_gpuarray
 from ..gpu.cupy_butils_wrap import  cugradient, gpu_interp
 
 from ..beam.profile import Profile
@@ -119,22 +119,19 @@ class GpuProfile(Profile):
             raise RuntimeError('filted1d mode is not supported in GPU.')
         elif mode == 'gradient':
             if caller_id:
-                derivative = get_gpuarray(
-                    (x.size, bm.precision.real_t, caller_id, 'der'), True)
+                derivative = get_gpuarray(x.size, bm.precision.real_t, caller_id, zero_fills=True)
             else:
                 derivative = cp.empty(x.size, dtype=bm.precision.real_t)
             cugradient(bm.precision.real_t(dist_centers), self.dev_n_macroparticles,
                        derivative, np.int32(x.size), block=block_size, grid=grid_size)
         elif mode == 'diff':
             if caller_id:
-                derivative = get_gpuarray(
-                    (x.size, bm.precision.real_t, caller_id, 'der'), True)
+                derivative = get_gpuarray(x.size, bm.precision.real_t, caller_id, zero_fills=True)
             else:
                 derivative = cp.empty(
                     self.dev_n_macroparticles.size - 1, bm.precision.real_t)
             self.dev_n_macroparticles = cp.diff(derivative) / dist_centers
-            diff_centers = get_gpuarray(
-                (self.dev_bin_centers.size - 1, bm.precision.real_t, caller_id, 'dC'))
+            diff_centers = get_gpuarray(self.dev_bin_centers.size - 1, bm.precision.real_t)
             diff_centers = self.dev_bin_centers[:-1]
 
             diff_centers = diff_centers + dist_centers / 2

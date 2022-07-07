@@ -1,7 +1,7 @@
 import numpy as np
 
 from ..gpu import block_size, grid_size
-from ..gpu.cupy_cache import get_gpuarray
+from ..gpu.cupy_array import get_gpuarray
 from ..utils import bmath as bm
 
 my_gpu = bm.gpuDev()
@@ -37,8 +37,7 @@ def gpu_rf_volt_comp(dev_voltage, dev_omega_rf, dev_phi_rf, dev_bin_centers, dev
 
 
 def gpu_kick(dev_dt, dev_dE, dev_voltage, dev_omega_rf, dev_phi_rf, charge, n_rf, acceleration_kick):
-    dev_voltage_kick = get_gpuarray(
-        (dev_voltage.size, bm.precision.real_t, 0, 'vK'))
+    dev_voltage_kick = get_gpuarray(dev_voltage.size, bm.precision.real_t)
 
     assert dev_dt.dtype == bm.precision.real_t
     assert dev_dE.dtype == bm.precision.real_t
@@ -93,8 +92,8 @@ def gpu_linear_interp_kick(dev_dt, dev_dE, dev_voltage,
     macros = dev_dt.size
     slices = dev_bin_centers.size
 
-    dev_voltage_kick = get_gpuarray((slices - 1, bm.precision.real_t, 0, 'vK'))
-    dev_factor = get_gpuarray((slices - 1, bm.precision.real_t, 0, 'dF'))
+    dev_voltage_kick = get_gpuarray(slices - 1, bm.precision.real_t)
+    dev_factor = get_gpuarray(slices - 1, bm.precision.real_t)
     gm_linear_interp_kick_help(args = (dev_dt,
                                dev_dE,
                                dev_voltage,
@@ -133,8 +132,8 @@ def gpu_linear_interp_kick_drift(dev_voltage,
     macros = beam.dev_dt.size
     slices = dev_bin_centers.size
 
-    dev_voltage_kick = get_gpuarray((slices - 1, bm.precision.real_t, 0, 'vK'))
-    dev_factor = get_gpuarray((slices - 1, bm.precision.real_t, 0, 'dF'))
+    dev_voltage_kick = get_gpuarray(slices - 1, bm.precision.real_t)
+    dev_factor = get_gpuarray(slices - 1, bm.precision.real_t)
 
     gm_linear_interp_kick_help(args = (beam.dev_dt,
                                beam.dev_dE,
@@ -219,11 +218,11 @@ def gpu_beam_phase(bin_centers, profile, alpha, omega_rf, phi_rf, ind, bin_size)
     assert omega_rf.dtype == bm.precision.real_t
     assert phi_rf.dtype == bm.precision.real_t
 
-    array1 = get_gpuarray((bin_centers.size, bm.precision.real_t, 0, 'ar1'))
-    array2 = get_gpuarray((bin_centers.size, bm.precision.real_t, 0, 'ar2'))
+    array1 = get_gpuarray(bin_centers.size, bm.precision.real_t)
+    array2 = get_gpuarray(bin_centers.size, bm.precision.real_t)
 
-    dev_scoeff = get_gpuarray((1, bm.precision.real_t, 0, 'sc'))
-    dev_coeff = get_gpuarray((1, bm.precision.real_t, 0, 'co'))
+    dev_scoeff = get_gpuarray(1, bm.precision.real_t)
+    dev_coeff = get_gpuarray(1, bm.precision.real_t)
 
     beam_phase_v2(args = (bin_centers, profile,
                   bm.precision.real_t(alpha), omega_rf, phi_rf,

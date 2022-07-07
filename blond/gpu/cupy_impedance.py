@@ -4,7 +4,7 @@ import numpy as np
 import cupy as cp
 from scipy.constants import e
 from ..utils import bmath as bm
-from ..gpu.cupy_cache import get_gpuarray
+from ..gpu.cupy_array import get_gpuarray
 from ..gpu.cupy_butils_wrap import  gpu_interp
 
 from ..impedances.impedance import TotalInducedVoltage, _InducedVoltage, \
@@ -42,8 +42,7 @@ class GpuTotalInducedVoltage(TotalInducedVoltage):
         Method to sum all the induced voltages in one single array.
         """
         beam_spectrum_dict = {}
-        self.dev_induced_voltage = get_gpuarray((self.profile.n_slices,
-                                                 bm.precision.real_t, id(self), 'iv'))
+        self.dev_induced_voltage = get_gpuarray(self.profile.n_slices,bm.precision.real_t)
         self.dev_induced_voltage.fill(0)
         for induced_voltage_object in self.induced_voltage_list:
             induced_voltage_object.induced_voltage_generation(
@@ -114,12 +113,10 @@ class GpuInducedVoltage(_InducedVoltage):
             beam_spectrum_dict[self.n_fft] = self.profile.dev_beam_spectrum
         beam_spectrum = beam_spectrum_dict[self.n_fft]
         #with timing.timed_region('serial:indVolt1Turn'):
-        inp = get_gpuarray((beam_spectrum.size, bm.precision.complex_t,
-                                id(self), 'inp'))
+        inp = get_gpuarray(beam_spectrum.size, bm.precision.complex_t)
         inp = self.dev_total_impedance * beam_spectrum
         my_res = bm.irfft(inp, caller_id=id(self))
-        self.dev_induced_voltage = get_gpuarray(
-                (self.n_induced_voltage, bm.precision.real_t, id(self), 'iv'))
+        self.dev_induced_voltage = get_gpuarray(self.n_induced_voltage, bm.precision.real_t)
         a = bm.precision.real_t(-self.beam.Particle.charge * e * self.beam.ratio)
         self.dev_induced_voltage = a * my_res
 
@@ -136,8 +133,7 @@ class GpuInducedVoltage(_InducedVoltage):
                       
         self.dev_mtw_memory += self.dev_induced_voltage[:self.n_induced_voltage]
 
-        self.dev_induced_voltage = get_gpuarray(
-            (self.n_induced_voltage, bm.precision.real_t, id(self), 'mtw_iv'))
+        self.dev_induced_voltage = get_gpuarray(self.n_induced_voltage, bm.precision.real_t)
         self.dev_induced_voltage = self.dev_mtw_memory[:self.n_induced_voltage]
 
     #@timing.timeit(key='serial:shift_trev_freq')
@@ -149,7 +145,7 @@ class GpuInducedVoltage(_InducedVoltage):
         dev_induced_voltage_f = bm.rfft(self.dev_mtw_memory, self.n_mtw_fft)
         dev_induced_voltage_f *= cp.exp(self.dev_omegaj_mtw * t_rev)
 
-        self.dev_mtw_memory = get_gpuarray((self.n_mtw_memory, bm.precision.real_t, id(self), 'mtw_m'))
+        self.dev_mtw_memory = get_gpuarray(self.n_mtw_memory, bm.precision.real_t)
         dummy = bm.irfft(dev_induced_voltage_f, caller_id=id(self))
         self.dev_mtw_memory = dummy[:self.n_mtw_memory]
         slice = slice(-int(self.buffer_size), None, None)
@@ -162,8 +158,7 @@ class GpuInducedVoltage(_InducedVoltage):
         GPU implementation of shift_trev_time
         """
         t_rev = self.RFParams.t_rev[self.RFParams.counter[0]]
-        inc_dev_time_mtw = get_gpuarray(
-            (self.dev_time_mtw.size, bm.precision.real_t, id(self), "time_mtw"))
+        inc_dev_time_mtw = get_gpuarray(self.dev_time_mtw.size, bm.precision.real_t)
         inc_dev_time_mtw = self.dev_time_mtw
         inc_dev_time_mtw += t_rev
         self.dev_mtw_memory = gpu_interp(inc_dev_time_mtw,
@@ -205,6 +200,5 @@ class GpuInductiveImpedance(GpuInducedVoltage, InductiveImpedance):
             self.deriv_mode, caller_id=id(self))[1]
         induced_voltage = sv * induced_voltage
 
-        self.dev_induced_voltage = get_gpuarray((self.n_induced_voltage,
-                                                 bm.precision.real_t, id(self), "iv"))
+        self.dev_induced_voltage = get_gpuarray(self.n_induced_voltage,bm.precision.real_t)
         self.dev_induced_voltage = induced_voltage[:self.n_induced_voltage]
