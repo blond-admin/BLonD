@@ -341,28 +341,29 @@ Setup Instructions
 
 Install **Cuda** from the following link https://developer.nvidia.com/cuda-downloads.
 
-Install the python module pycuda and scikit-cuda with 
+Install **CuPy** library with 
 
 .. code-block:: bash
     
-    $ pip install pycuda
-    $ pip install scikit-cuda
+    $ pip install --pre cupy-cuda11x -f https://pip.cupy.dev/pre
+
+CuPy v11 pre-release supports all CUDA 11.2+ releases.
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To verify your installation open a python terminal and execute the following script
 
 .. code-block:: python
 
-    import pycuda.autoinit 
-    from pycuda import gpuarray 
+    import cupy as cp 
     import numpy as np 
-    a = gpuarray.to_gpu(np.zeros(1000,np.float64)) 
+    a = cp.array(np.zeros(1000,np.float64)) 
 
-To compile the Cuda files add the flag --gpu and pass the Compute Capability of your GPU as
-an argument. You can find your GPU's compute capability in this link https://en.wikipedia.org/wiki/CUDA.
-For example if your GPU is the GTX 1050 Ti and so you Compute Capability is 6.1, you need to run 
+To compile the Cuda files execute blond/compile.py and add the flag --gpu. The Compute
+Capability of your GPU will be automatically detected:
+
 .. code-block:: bash
 
-    $ python blond/compile --gpu 61
+    $ python blond/compile.py --gpu 
 
 Changes required in the main file for GPU
 -----------------------------------------
