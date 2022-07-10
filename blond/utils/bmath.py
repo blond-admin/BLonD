@@ -163,8 +163,6 @@ class GPUDev:
             GPUDev.__instance = self
         import cupy as cp
         import cupy_backends.cuda.api.driver as driver
-        from pycuda import driver as drv
-        #drv.init()
         self.id = _gpu_num
         self.dev =cp.cuda.Device(self.id)
         self.dev.use()

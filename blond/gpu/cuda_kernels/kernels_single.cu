@@ -602,7 +602,7 @@ __global__ void gpu_trapz_stage1(float *out, float *y, float x, int sz,
 
 
 extern "C"
-__global__ void gpu_trapz_stage2(float *out, const float *pycuda_reduction_inp, float *y, float x, int sz,
+__global__ void gpu_trapz_stage2(float *out, const float *cupy_reduction_inp, float *y, float x, int sz,
                       unsigned int seq_count, unsigned int n)
 {
     // Needs to be variable-size to prevent the braindead CUDA compiler from
@@ -615,7 +615,7 @@ __global__ void gpu_trapz_stage2(float *out, const float *pycuda_reduction_inp, 
     {
         if (i >= n)
             break;
-        acc = acc + (pycuda_reduction_inp[i]);
+        acc = acc + (cupy_reduction_inp[i]);
         i = 512;
     }
     sdata[tid] = acc;
@@ -696,7 +696,7 @@ __global__ void mean_non_zeros_stage1(float *out, float *x, float *id,
 
 
 extern "C"
-__global__ void mean_non_zeros_stage2(float *out, const float *pycuda_reduction_inp, float *x, float *id,
+__global__ void mean_non_zeros_stage2(float *out, const float *cupy_reduction_inp, float *x, float *id,
                            unsigned int seq_count, unsigned int n)
 {
     // Needs to be variable-size to prevent the braindead CUDA compiler from
@@ -709,7 +709,7 @@ __global__ void mean_non_zeros_stage2(float *out, const float *pycuda_reduction_
     {
         if (i >= n)
             break;
-        acc = REDUCE(acc, (pycuda_reduction_inp[i]));
+        acc = REDUCE(acc, (cupy_reduction_inp[i]));
         i += 512;
     }
     sdata[tid] = acc;
@@ -792,7 +792,7 @@ __global__ void stdKernel_stage1(float *out, float *x, float *y, float m,
 
 
 extern "C"
-__global__ void stdKernel_stage2(float *out, const float *pycuda_reduction_inp, float *x, float *y, float m,
+__global__ void stdKernel_stage2(float *out, const float *cupy_reduction_inp, float *x, float *y, float m,
                       unsigned int seq_count, unsigned int n)
 {
     // Needs to be variable-size to prevent the braindead CUDA compiler from
@@ -805,7 +805,7 @@ __global__ void stdKernel_stage2(float *out, const float *pycuda_reduction_inp, 
     {
         if (i >= n)
             break;
-        acc = REDUCE(acc, (pycuda_reduction_inp[i]));
+        acc = REDUCE(acc, (cupy_reduction_inp[i]));
         i += BLOCK_SIZE;
     }
     sdata[tid] = acc;
@@ -888,7 +888,7 @@ __global__ void sum_non_zeros_stage1(float *out, float *x,
 
 
 extern "C"
-__global__ void sum_non_zeros_stage2(float *out, const float *pycuda_reduction_inp, float *x,
+__global__ void sum_non_zeros_stage2(float *out, const float *cupy_reduction_inp, float *x,
                           unsigned int seq_count, unsigned int n)
 {
     // Needs to be variable-size to prevent the braindead CUDA compiler from
@@ -901,7 +901,7 @@ __global__ void sum_non_zeros_stage2(float *out, const float *pycuda_reduction_i
     {
         if (i >= n)
             break;
-        acc = REDUCE(acc, (pycuda_reduction_inp[i]));
+        acc = REDUCE(acc, (cupy_reduction_inp[i]));
         i += BLOCK_SIZE;
     }
     sdata[tid] = acc;

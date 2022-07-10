@@ -2,9 +2,6 @@ import os
 
 import numpy as np
 import cupy as cp
-import pycuda.elementwise as elw
-import pycuda.reduction as red
-from pycuda.tools import ScalarArg
 import cupy.fft as fft
 
 from ..gpu import grid_size, block_size
