@@ -347,8 +347,7 @@ Install **CuPy** library with
     
     $ pip install --pre cupy-cuda11x -f https://pip.cupy.dev/pre
 
-CuPy v11 pre-release supports all CUDA 11.2+ releases.
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+**CuPy v11 pre-release supports all CUDA 11.2+ releases.**
 
 To verify your installation open a python terminal and execute the following script
 
