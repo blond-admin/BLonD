@@ -56,13 +56,14 @@ _CPU_func_dict = {
     'slice_smooth': butils_wrap.slice_smooth,
     'music_track': butils_wrap.music_track,
     'music_track_multiturn': butils_wrap.music_track_multiturn,
-    'diff': np.diff,
-    'cumsum': np.cumsum,
-    'cumprod': np.cumprod,
-    'gradient': np.gradient,
-    'sqrt': np.sqrt,
     'device': 'CPU'
 }
+
+# add numpy functions in the dictionary
+for fname in dir(np):
+    if callable(getattr(np, fname)) and (fname not in _CPU_func_dict):
+        _CPU_func_dict[fname] = getattr(np, fname)
+
 
 _FFTW_func_dict = {
     'rfft': butils_wrap.rfft,
@@ -164,7 +165,7 @@ class GPUDev:
         import cupy as cp
         import cupy_backends.cuda.api.driver as driver
         self.id = _gpu_num
-        self.dev =cp.cuda.Device(self.id)
+        self.dev = cp.cuda.Device(self.id)
         self.dev.use()
         #self.ctx = driver.ctxCreate(self.dev)
         this_dir = os.path.dirname(os.path.realpath(__file__)) + "/"
@@ -228,40 +229,14 @@ def use_gpu(gpu_id=0):
         'LIKick_n_drift': cupy_physics_wrap.gpu_linear_interp_kick_drift,
         'synchrotron_radiation': cupy_physics_wrap.gpu_synchrotron_radiation,
         'synchrotron_radiation_full': cupy_physics_wrap.gpu_synchrotron_radiation_full,
-        # 'linear_interp_time_translation': butils_wrap.linear_interp_time_translation,
         'slice': cupy_physics_wrap.gpu_slice,
-        'slice_smooth': butils_wrap.slice_smooth,
-        # 'rfftfreq': gpu_butils_wrap.gpu_rfftfreq,
-        'rfftfreq': np.fft.rfftfreq,
-        'irfft_packed': butils_wrap.irfft_packed,
-        'sin': butils_wrap.sin,
-        'cos': butils_wrap.cos,
-        'exp': butils_wrap.exp,
-        'mean': butils_wrap.mean,
-        'std': butils_wrap.std,
-        'where': butils_wrap.where,
-        'interp': butils_wrap.interp,
-        'interp_const_space': butils_wrap.interp_const_space,
-        'cumtrapz': butils_wrap.cumtrapz,
-        'trapz': butils_wrap.trapz,
-        'linspace': butils_wrap.linspace,
-        'argmin': butils_wrap.argmin,
-        'argmax': butils_wrap.argmax,
-        'arange': butils_wrap.arange,
-        'sum': butils_wrap.sum,
-        'sort': butils_wrap.sort,
-        'add': butils_wrap.add,
-        'mul': butils_wrap.mul,
-        'fast_resonator': butils_wrap.fast_resonator,
-        'music_track': butils_wrap.music_track,
-        'music_track_multiturn': butils_wrap.music_track_multiturn,
-        'diff': np.diff,
-        'cumsum': np.cumsum,
-        'cumprod': np.cumprod,
-        'gradient': np.gradient,
-        'sqrt': np.sqrt,
+        'interp_const_space': cupy_butils_wrap.cuinterp,
         'device': 'GPU'
     }
+    # add cupy functions in the dictionary
+    for fname in dir(cp):
+        if callable(getattr(cp, fname)) and (fname not in _GPU_func_dict):
+            _GPU_func_dict[fname] = getattr(cp, fname)
     update_active_dict(_GPU_func_dict)
 
 
