@@ -81,40 +81,40 @@ def gpu_drift(dev_dt, dev_dE, solver_utf8, t_rev, length_ratio, alpha_order, eta
           block=block_size, grid=grid_size)#, time_kernel=True)
 
 
-def gpu_linear_interp_kick(dev_dt, dev_dE, dev_voltage,
-                           dev_bin_centers, charge,
+def gpu_linear_interp_kick(dt, dE, voltage,
+                           bin_centers, charge,
                            acceleration_kick):
-    assert dev_dt.dtype == bm.precision.real_t
-    assert dev_dE.dtype == bm.precision.real_t
-    assert dev_voltage.dtype == bm.precision.real_t
-    assert dev_bin_centers.dtype == bm.precision.real_t
+    assert dt.dtype == bm.precision.real_t
+    assert dE.dtype == bm.precision.real_t
+    assert voltage.dtype == bm.precision.real_t
+    assert bin_centers.dtype == bm.precision.real_t
 
-    macros = dev_dt.size
-    slices = dev_bin_centers.size
+    macros = dt.size
+    slices = bin_centers.size
 
-    dev_voltage_kick = get_gpuarray(slices - 1, bm.precision.real_t)
+    voltage_kick = get_gpuarray(slices - 1, bm.precision.real_t)
     dev_factor = get_gpuarray(slices - 1, bm.precision.real_t)
-    gm_linear_interp_kick_help(args = (dev_dt,
-                               dev_dE,
-                               dev_voltage,
-                               dev_bin_centers,
+    gm_linear_interp_kick_help(args = (dt,
+                               dE,
+                               voltage,
+                               bin_centers,
                                bm.precision.real_t(charge),
                                np.int32(slices),
                                np.int32(macros),
                                bm.precision.real_t(acceleration_kick),
-                               dev_voltage_kick,
+                               voltage_kick,
                                dev_factor),
                                grid=grid_size, block=block_size)#,time_kernel=True)
 
-    gm_linear_interp_kick_comp(args = (dev_dt,
-                               dev_dE,
-                               dev_voltage,
-                               dev_bin_centers,
+    gm_linear_interp_kick_comp(args = (dt,
+                               dE,
+                               voltage,
+                               bin_centers,
                                bm.precision.real_t(charge),
                                np.int32(slices),
                                np.int32(macros),
                                bm.precision.real_t(acceleration_kick),
-                               dev_voltage_kick,
+                               voltage_kick,
                                dev_factor),
                                grid=grid_size, block=block_size)#,time_kernel=True)
 

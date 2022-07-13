@@ -355,7 +355,7 @@ class _InducedVoltage(object):
         t_rev = self.RFParams.t_rev[self.RFParams.counter[0]]
         # Shift in frequency domain
         induced_voltage_f = bm.rfft(self.mtw_memory, self.n_mtw_fft)
-        induced_voltage_f *= np.exp(self.omegaj_mtw * t_rev)
+        induced_voltage_f *= bm.exp(self.omegaj_mtw * t_rev)
         self.mtw_memory = bm.irfft(induced_voltage_f)[:self.n_mtw_memory]
         # Setting to zero to the last part to remove the contribution from the
         # circular convolution
@@ -861,8 +861,8 @@ class InducedVoltageResonator(_InducedVoltage):
 
         # Compute the slopes of the line sections of the linearily interpolated
         # (normalized) line density.
-        self._kappa1[:] = np.diff(self.profile.n_macroparticles) \
-            / np.diff(self.profile.bin_centers) \
+        self._kappa1[:] = bm.diff(self.profile.n_macroparticles) \
+            / bm.diff(self.profile.bin_centers) \
             / (self.beam.n_macroparticles*self.profile.bin_size)
         # [:] makes kappa pass by reference
 
@@ -872,14 +872,14 @@ class InducedVoltageResonator(_InducedVoltage):
         # For each cavity compute the induced voltage and store in the r-th row
         for r in range(self.n_resonators):
             tmp_sum = ((((2 *
-                          np.cos(self._reOmegaP[r] * self._deltaT)
-                          + np.sin(self._reOmegaP[r] * self._deltaT)/self._Qtilde[r]) *
-                         np.exp(-self._imOmegaP[r] * self._deltaT)) *
+                          bm.cos(self._reOmegaP[r] * self._deltaT)
+                          + bm.sin(self._reOmegaP[r] * self._deltaT)/self._Qtilde[r]) *
+                         bm.exp(-self._imOmegaP[r] * self._deltaT)) *
                         self.Heaviside(self._deltaT)) -
-                       np.sign(self._deltaT))
+                       bm.sign(self._deltaT))
             # np.sum performs the sum over the points of the line density
             self._tmp_matrix[r] = self.R[r]/(2*self.omega_r[r]*self.Q[r]) \
-                * np.sum(self._kappa1 * np.diff(tmp_sum), axis=1)
+                * bm.sum(self._kappa1 * np.diff(tmp_sum), axis=1)
 
         # To obtain the voltage, sum the contribution of each cavity...
         self.induced_voltage = self._tmp_matrix.sum(axis=0)
@@ -894,7 +894,7 @@ class InducedVoltageResonator(_InducedVoltage):
         r"""
         Heaviside function, which returns 1 if x>1, 0 if x<0, and 1/2 if x=0
         """
-        return 0.5*(np.sign(x) + 1.)
+        return 0.5*(bm.sign(x) + 1.)
 
     def to_gpu(self):
         '''
@@ -905,6 +905,8 @@ class InducedVoltageResonator(_InducedVoltage):
         self.induced_voltage = cp.array(self.induced_voltage)
         self._kappa1 = cp.array(self._kappa1)
         self._deltaT = cp.array(self._deltaT)
+        self.tArray = cp.array(self.tArray)
+        self._tmp_matrix = cp.array(self._tmp_matrix)
 
     def to_cpu(self):
         '''
@@ -915,3 +917,5 @@ class InducedVoltageResonator(_InducedVoltage):
         self.induced_voltage = cp.asnumpy(self.induced_voltage)
         self._kappa1 = cp.asnumpy(self._kappa1)
         self._deltaT = cp.asnumpy(self._deltaT)
+        self.tArray = cp.asnumpy(self.tArray)
+        self._tmp_matrix = cp.asnumpy(self._tmp_matrix)

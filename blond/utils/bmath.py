@@ -241,7 +241,7 @@ def use_gpu(gpu_id=0):
         'std': butils_wrap.std,
         'where': butils_wrap.where,
         'interp': butils_wrap.interp,
-        'interp_const_space': butils_wrap.interp_const_space,
+        'interp_const_space': cupy_butils_wrap.cuinterp,
         'cumtrapz': butils_wrap.cumtrapz,
         'trapz': butils_wrap.trapz,
         'linspace': butils_wrap.linspace,
