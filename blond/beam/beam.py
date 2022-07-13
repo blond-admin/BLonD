@@ -216,25 +216,6 @@ class Beam(object):
         self._sumsq_dt = 0.
         self._sumsq_dE = 0.
 
-    def to_gpu(self):
-        '''
-        Transfer all necessary arrays to the GPU
-        '''
-        assert bm.device == 'GPU'
-        import cupy as cp
-        self.dE = cp.array(self.dE)
-        self.dt = cp.array(self.dt)
-        self.id = cp.array(self.id)
-
-    def to_cpu(self):
-        '''
-        Transfer all necessary arrays back to the CPU
-        '''
-        assert bm.device == 'CPU'
-        import cupy as cp
-        self.dE = cp.asnumpy(self.dE)
-        self.dt = cp.asnumpy(self.dt)
-        self.id = cp.asnumpy(self.id)
 
     @property
     def n_macroparticles_lost(self):
@@ -662,3 +643,23 @@ class Beam(object):
         else:
             temp = worker.gather(np.array([self.n_macroparticles_lost]))
             self.n_total_macroparticles_lost = np.sum(temp)
+
+    def to_gpu(self):
+        '''
+        Transfer all necessary arrays to the GPU
+        '''
+        assert bm.device == 'GPU'
+        import cupy as cp
+        self.dE = cp.array(self.dE)
+        self.dt = cp.array(self.dt)
+        self.id = cp.array(self.id)
+
+    def to_cpu(self):
+        '''
+        Transfer all necessary arrays back to the CPU
+        '''
+        assert bm.device == 'CPU'
+        import cupy as cp
+        self.dE = cp.asnumpy(self.dE)
+        self.dt = cp.asnumpy(self.dt)
+        self.id = cp.asnumpy(self.id)

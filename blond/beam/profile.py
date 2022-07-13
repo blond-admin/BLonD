@@ -419,28 +419,6 @@ class Profile(object):
         if OtherSlicesOptions.direct_slicing:
             self.track()
 
-    def to_gpu(self):
-        '''
-        Transfer all necessary arrays to the GPU
-        '''
-        assert bm.device == 'GPU'
-        import cupy as cp
-        self.bin_centers        = cp.array(self.bin_centers)
-        self.n_macroparticles   = cp.array(self.n_macroparticles)
-        self.beam_spectrum      = cp.array(self.beam_spectrum)
-        self.beam_spectrum_freq = cp.array(self.beam_spectrum_freq)
-
-
-    def to_cpu(self):
-        '''
-        Transfer all necessary arrays back to the CPU
-        '''
-        assert bm.device == 'CPU'
-        import cupy as cp
-        self.bin_centers        = cp.asnumpy(self.bin_centers)
-        self.n_macroparticles   = cp.asnumpy(self.n_macroparticles)
-        self.beam_spectrum      = cp.asnumpy(self.beam_spectrum)
-        self.beam_spectrum_freq = cp.asnumpy(self.beam_spectrum_freq)
 
     def set_slices_parameters(self):
         self.n_slices, self.cut_left, self.cut_right, self.n_sigma, \
@@ -610,3 +588,26 @@ class Profile(object):
             raise RuntimeError('Option for derivative is not recognized.')
 
         return x, derivative
+
+    def to_gpu(self):
+        '''
+        Transfer all necessary arrays to the GPU
+        '''
+        assert bm.device == 'GPU'
+        import cupy as cp
+        self.bin_centers        = cp.array(self.bin_centers)
+        self.n_macroparticles   = cp.array(self.n_macroparticles)
+        self.beam_spectrum      = cp.array(self.beam_spectrum)
+        self.beam_spectrum_freq = cp.array(self.beam_spectrum_freq)
+
+
+    def to_cpu(self):
+        '''
+        Transfer all necessary arrays back to the CPU
+        '''
+        assert bm.device == 'CPU'
+        import cupy as cp
+        self.bin_centers        = cp.asnumpy(self.bin_centers)
+        self.n_macroparticles   = cp.asnumpy(self.n_macroparticles)
+        self.beam_spectrum      = cp.asnumpy(self.beam_spectrum)
+        self.beam_spectrum_freq = cp.asnumpy(self.beam_spectrum_freq)
