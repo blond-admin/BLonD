@@ -480,16 +480,18 @@ __global__ void beam_phase_v2(
     const float * __restrict__ bin_centers,
     const int * __restrict__ profile,
     const float alpha,
-    const float * __restrict__ omega_rf_ar,
-    const float * __restrict__ phi_rf_ar,
-    const int ind,
+    // const float * __restrict__ omega_rf_ar,
+    // const float * __restrict__ phi_rf_ar,
+    const float omega_rf,
+    const float phi_rf,
+    // const int ind,
     const float bin_size,
     float * __restrict__ array1,
     float * __restrict__ array2,
     const int n_bins)
 {
-    float omega_rf = omega_rf_ar[ind];
-    float phi_rf = phi_rf_ar[ind];
+    // float omega_rf = omega_rf_ar[ind];
+    // float phi_rf = phi_rf_ar[ind];
     int tid = threadIdx.x + blockDim.x * blockIdx.x;
     float a, b;
     float sin_res, cos_res;
@@ -499,9 +501,6 @@ __global__ void beam_phase_v2(
         b = expf(alpha * bin_centers[i]) * profile[i];
         array1[i] = b * sin_res;
         array2[i] = b * cos_res;
-        // array1[i] = a;
-        // array2[i] = b;
-
     }
 }
 
@@ -538,113 +537,113 @@ __global__ void beam_phase_sum(
 
 }
 
-extern "C"
-__global__ void gpu_trapz_custom(
-    float *y,
-    float x,
-    int sz,
-    float *res)
-{
-    int tid = threadIdx.x + blockDim.x * blockIdx.x;
-    float my_sum = 0;
-    for (int i = tid; i < sz - 1; i += gridDim.x * blockDim.x)
-        my_sum += (y[i] + y[i + 1]) * x / 2.0;
+// extern "C"
+// __global__ void gpu_trapz_custom(
+//     float *y,
+//     float x,
+//     int sz,
+//     float *res)
+// {
+//     int tid = threadIdx.x + blockDim.x * blockIdx.x;
+//     float my_sum = 0;
+//     for (int i = tid; i < sz - 1; i += gridDim.x * blockDim.x)
+//         my_sum += (y[i] + y[i + 1]) * x / 2.0;
 
-    atomicAdd(&(res[0]), my_sum);
-}
-
-
-extern "C"
-__global__ void gpu_trapz_stage1(float *out, float *y, float x, int sz,
-                      unsigned int seq_count, unsigned int n)
-{
-    // Needs to be variable-size to prevent the braindead CUDA compiler from
-    // running constructors on this array. Grrrr.
-    extern __shared__ float sdata[];
-    unsigned int tid = threadIdx.x;
-    unsigned int i = blockIdx.x * 512 * seq_count + tid;
-    float acc = 0;
-    for (unsigned s = 0; s < seq_count; ++s)
-    {
-        if (i >= n)
-            break;
-        acc = acc + ((i < sz - 1) ? x * (y[i] + y[i + 1]) / 2.0 : 0.0);
-        i += 512;
-    }
-    sdata[tid] = acc;
-    __syncthreads();
-#if (512 >= 512)
-    if (tid < 256) { sdata[tid] = sdata[tid] + sdata[tid + 256]; }
-    __syncthreads();
-#endif
-#if (512 >= 256)
-    if (tid < 128) { sdata[tid] = sdata[tid] + sdata[tid + 128]; }
-    __syncthreads();
-#endif
-#if (512 >= 128)
-    if (tid < 64) { sdata[tid] = sdata[tid] + sdata[tid + 64]; }
-    __syncthreads();
-#endif
-    if (tid < 32)
-    {
-        // 'volatile' required according to Fermi compatibility guide 1.2.2
-        volatile float *smem = sdata;
-        if (512 >= 64) smem[tid] = smem[tid] + smem[tid + 32];
-        if (512 >= 32) smem[tid] = smem[tid] + smem[tid + 16];
-        if (512 >= 16) smem[tid] = smem[tid] + smem[tid + 8];
-        if (512 >= 8)  smem[tid] = smem[tid] + smem[tid + 4];
-        if (512 >= 4)  smem[tid] = smem[tid] + smem[tid + 2];
-        if (512 >= 2)  smem[tid] = smem[tid] + smem[tid + 1];
-    }
-    if (tid == 0) out[blockIdx.x] = sdata[0];
-}
+//     atomicAdd(&(res[0]), my_sum);
+// }
 
 
+// extern "C"
+// __global__ void gpu_trapz_stage1(float *out, float *y, float x, int sz,
+//                       unsigned int seq_count, unsigned int n)
+// {
+//     // Needs to be variable-size to prevent the braindead CUDA compiler from
+//     // running constructors on this array. Grrrr.
+//     extern __shared__ float sdata[];
+//     unsigned int tid = threadIdx.x;
+//     unsigned int i = blockIdx.x * 512 * seq_count + tid;
+//     float acc = 0;
+//     for (unsigned s = 0; s < seq_count; ++s)
+//     {
+//         if (i >= n)
+//             break;
+//         acc = acc + ((i < sz - 1) ? x * (y[i] + y[i + 1]) / 2.0 : 0.0);
+//         i += 512;
+//     }
+//     sdata[tid] = acc;
+//     __syncthreads();
+// #if (512 >= 512)
+//     if (tid < 256) { sdata[tid] = sdata[tid] + sdata[tid + 256]; }
+//     __syncthreads();
+// #endif
+// #if (512 >= 256)
+//     if (tid < 128) { sdata[tid] = sdata[tid] + sdata[tid + 128]; }
+//     __syncthreads();
+// #endif
+// #if (512 >= 128)
+//     if (tid < 64) { sdata[tid] = sdata[tid] + sdata[tid + 64]; }
+//     __syncthreads();
+// #endif
+//     if (tid < 32)
+//     {
+//         // 'volatile' required according to Fermi compatibility guide 1.2.2
+//         volatile float *smem = sdata;
+//         if (512 >= 64) smem[tid] = smem[tid] + smem[tid + 32];
+//         if (512 >= 32) smem[tid] = smem[tid] + smem[tid + 16];
+//         if (512 >= 16) smem[tid] = smem[tid] + smem[tid + 8];
+//         if (512 >= 8)  smem[tid] = smem[tid] + smem[tid + 4];
+//         if (512 >= 4)  smem[tid] = smem[tid] + smem[tid + 2];
+//         if (512 >= 2)  smem[tid] = smem[tid] + smem[tid + 1];
+//     }
+//     if (tid == 0) out[blockIdx.x] = sdata[0];
+// }
 
-extern "C"
-__global__ void gpu_trapz_stage2(float *out, const float *cupy_reduction_inp, float *y, float x, int sz,
-                      unsigned int seq_count, unsigned int n)
-{
-    // Needs to be variable-size to prevent the braindead CUDA compiler from
-    // running constructors on this array. Grrrr.
-    extern __shared__ float sdata[];
-    unsigned int tid = threadIdx.x;
-    unsigned int i = blockIdx.x * 512 * seq_count + tid;
-    float acc = 0;
-    for (unsigned s = 0; s < seq_count; ++s)
-    {
-        if (i >= n)
-            break;
-        acc = acc + (cupy_reduction_inp[i]);
-        i = 512;
-    }
-    sdata[tid] = acc;
-    __syncthreads();
-#if (512 >= 512)
-    if (tid < 256) { sdata[tid] = sdata[tid] + sdata[tid + 256]; }
-    __syncthreads();
-#endif
-#if (512 >= 256)
-    if (tid < 128) { sdata[tid] = sdata[tid] + sdata[tid + 128]; }
-    __syncthreads();
-#endif
-#if (512 >= 128)
-    if (tid < 64) { sdata[tid] = sdata[tid] + sdata[tid + 64]; }
-    __syncthreads();
-#endif
-    if (tid < 32)
-    {
-        // 'volatile' required according to Fermi compatibility guide 1.2.2
-        volatile float *smem = sdata;
-        if (512 >= 64) smem[tid] = smem[tid] + smem[tid + 32];
-        if (512 >= 32) smem[tid] = smem[tid] + smem[tid + 16];
-        if (512 >= 16) smem[tid] = smem[tid] + smem[tid + 8];
-        if (512 >= 8)  smem[tid] = smem[tid] + smem[tid + 4];
-        if (512 >= 4)  smem[tid] = smem[tid] + smem[tid + 2];
-        if (512 >= 2)  smem[tid] = smem[tid] + smem[tid + 1];
-    }
-    if (tid == 0) out[blockIdx.x] = sdata[0];
-}
+
+
+// extern "C"
+// __global__ void gpu_trapz_stage2(float *out, const float *cupy_reduction_inp, float *y, float x, int sz,
+//                       unsigned int seq_count, unsigned int n)
+// {
+//     // Needs to be variable-size to prevent the braindead CUDA compiler from
+//     // running constructors on this array. Grrrr.
+//     extern __shared__ float sdata[];
+//     unsigned int tid = threadIdx.x;
+//     unsigned int i = blockIdx.x * 512 * seq_count + tid;
+//     float acc = 0;
+//     for (unsigned s = 0; s < seq_count; ++s)
+//     {
+//         if (i >= n)
+//             break;
+//         acc = acc + (cupy_reduction_inp[i]);
+//         i = 512;
+//     }
+//     sdata[tid] = acc;
+//     __syncthreads();
+// #if (512 >= 512)
+//     if (tid < 256) { sdata[tid] = sdata[tid] + sdata[tid + 256]; }
+//     __syncthreads();
+// #endif
+// #if (512 >= 256)
+//     if (tid < 128) { sdata[tid] = sdata[tid] + sdata[tid + 128]; }
+//     __syncthreads();
+// #endif
+// #if (512 >= 128)
+//     if (tid < 64) { sdata[tid] = sdata[tid] + sdata[tid + 64]; }
+//     __syncthreads();
+// #endif
+//     if (tid < 32)
+//     {
+//         // 'volatile' required according to Fermi compatibility guide 1.2.2
+//         volatile float *smem = sdata;
+//         if (512 >= 64) smem[tid] = smem[tid] + smem[tid + 32];
+//         if (512 >= 32) smem[tid] = smem[tid] + smem[tid + 16];
+//         if (512 >= 16) smem[tid] = smem[tid] + smem[tid + 8];
+//         if (512 >= 8)  smem[tid] = smem[tid] + smem[tid + 4];
+//         if (512 >= 4)  smem[tid] = smem[tid] + smem[tid + 2];
+//         if (512 >= 2)  smem[tid] = smem[tid] + smem[tid + 1];
+//     }
+//     if (tid == 0) out[blockIdx.x] = sdata[0];
+// }
 
 
 extern "C"

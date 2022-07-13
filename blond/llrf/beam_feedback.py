@@ -197,7 +197,7 @@ class BeamFeedback(object):
 
         #: | *Optional import of RF PhaseNoise object*
         self.RFnoise = PhaseNoise
-        if (self.RFnoise != None
+        if (self.RFnoise is not None
                 and (len(self.RFnoise.dphi) != Ring.n_turns + 1)):
             # PhaseNoiseError
             raise RuntimeError(
@@ -236,6 +236,7 @@ class BeamFeedback(object):
         
         # Total phase offset
         self.rf_station.phi_rf[:, counter] += self.rf_station.dphi_rf
+
     def precalculate_time(self, Ring):
         '''
         *For machines like the PSB, where the PL acts only in certain time
@@ -280,23 +281,23 @@ class BeamFeedback(object):
         else:
             indexes = self.profile.bin_centers >= self.time_offset
             time_offset = self.time_offset
+            exp = bm.exp(self.alpha*(self.profile.bin_centers[indexes] -
+                                     time_offset))
             # Convolve with window function
-            scoeff = np.trapz(np.exp(self.alpha*(self.profile.bin_centers[indexes] -
-                                                 time_offset)) *
-                              np.sin(omega_rf*self.profile.bin_centers[indexes] +
+            scoeff = bm.trapz(exp *
+                              bm.sin(omega_rf*self.profile.bin_centers[indexes] +
                                      phi_rf) *
                               self.profile.n_macroparticles[indexes],
                               dx=self.profile.bin_size)
-            ccoeff = np.trapz(np.exp(self.alpha*(self.profile.bin_centers[indexes] -
-                                                 time_offset)) *
-                              np.cos(omega_rf*self.profile.bin_centers[indexes] +
+            ccoeff = bm.trapz(exp *
+                              bm.cos(omega_rf*self.profile.bin_centers[indexes] +
                                      phi_rf) *
                               self.profile.n_macroparticles[indexes],
                               dx=self.profile.bin_size)
             coeff = scoeff/ccoeff
 
         # Project beam phase to (pi/2,3pi/2) range
-        self.phi_beam = np.arctan(coeff) + np.pi
+        self.phi_beam = bm.arctan(coeff) + np.pi
 
     def beam_phase_sharpWindow(self):
         '''
@@ -312,26 +313,26 @@ class BeamFeedback(object):
         phi_rf = self.rf_station.phi_rf[0, turn]
 
         if self.alpha != 0.0:
-            indexes = np.logical_and((self.time_offset - np.pi / omega_rf)
+            indexes = bm.logical_and((self.time_offset - np.pi / omega_rf)
                                      <= self.profile.bin_centers,
                                      self.profile.bin_centers
                                      <= (-1/self.alpha + self.time_offset -
                                          2 * np.pi / omega_rf))
         else:
-            indexes = np.ones(self.profile.n_slices, dtype=bool)
+            indexes = bm.ones(self.profile.n_slices, dtype=bool)
 
         # Convolve with window function
-        scoeff = np.trapz(np.sin(omega_rf*self.profile.bin_centers[indexes]
+        scoeff = bm.trapz(bm.sin(omega_rf*self.profile.bin_centers[indexes]
                                  + phi_rf)
                           * self.profile.n_macroparticles[indexes],
                           dx=self.profile.bin_size)
-        ccoeff = np.trapz(np.cos(omega_rf*self.profile.bin_centers[indexes]
+        ccoeff = bm.trapz(bm.cos(omega_rf*self.profile.bin_centers[indexes]
                                  + phi_rf) *
                           self.profile.n_macroparticles[indexes],
                           dx=self.profile.bin_size)
 
         # Project beam phase to (pi/2,3pi/2) range
-        self.phi_beam = np.arctan(scoeff/ccoeff) + np.pi
+        self.phi_beam = bm.arctan(scoeff/ccoeff) + np.pi
 
     def phase_difference(self):
         '''
@@ -344,8 +345,8 @@ class BeamFeedback(object):
         self.dphi = self.phi_beam - self.rf_station.phi_s[counter]
 
         # Possibility to add RF phase noise through the PL
-        if self.RFnoise != None:
-            if self.noiseFB != None:
+        if self.RFnoise is not None:
+            if self.noiseFB is not None:
                 self.dphi += self.noiseFB.x*self.RFnoise.dphi[counter]
             else:
                 if self.machine == 'PSB':
@@ -364,7 +365,7 @@ class BeamFeedback(object):
 #        self.average_dE = np.mean(self.profile.Beam.dE[(self.profile.Beam.dt >
 #            self.profile.bin_centers[0])*(self.profile.Beam.dt <
 #                                         self.profile.bin_centers[-1])])
-        self.average_dE = np.mean(self.profile.Beam.dE[::self.sample_dE])   
+        self.average_dE = bm.mean(self.profile.Beam.dE[::self.sample_dE])
 
         self.drho = self.ring.alpha_0[0, counter] * \
             self.ring.ring_radius*self.average_dE / \
@@ -468,7 +469,7 @@ class BeamFeedback(object):
 
         # Frequency correction from phase loop and radial loop
         self.domega_dphi = - self.gain * self.dphi
-        self.domega_dR = - np.sign(self.rf_station.eta_0[counter])*self.gain2 * \
+        self.domega_dR = - bm.sign(self.rf_station.eta_0[counter])*self.gain2 * \
             (self.reference - self.drho) / self.ring.ring_radius
 
         self.domega_rf = self.domega_dphi + self.domega_dR
@@ -565,3 +566,17 @@ class BeamFeedback(object):
 
         # Apply frequency correction
         self.domega_rf = - self.domega_PL - self.domega_RL
+
+    def to_gpu(self):
+        '''
+        Transfer all necessary arrays to the GPU
+        '''
+        assert bm.device == 'GPU'
+        # No arrays need to be transfered
+
+    def to_cpu(self):
+        '''
+        Transfer all necessary arrays back to the CPU
+        '''
+        assert bm.device == 'CPU'
+        # No arrays need to be transfered

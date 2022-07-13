@@ -212,11 +212,11 @@ def gpu_synchrotron_radiation_full(dE, U0, n_kicks, tau_z, sigma_dE, energy):
                    np.int32(n_kicks), np.int32(1)), block=block_size, grid=grid_size)
 
 
-def gpu_beam_phase(bin_centers, profile, alpha, omega_rf, phi_rf, ind, bin_size):
+def gpu_beam_phase(bin_centers, profile, alpha, omega_rf, phi_rf, bin_size):
     assert bin_centers.dtype == bm.precision.real_t
     assert profile.dtype == np.int32
-    assert omega_rf.dtype == bm.precision.real_t
-    assert phi_rf.dtype == bm.precision.real_t
+    # assert omega_rf.dtype == bm.precision.real_t
+    # assert phi_rf.dtype == bm.precision.real_t
 
     array1 = get_gpuarray(bin_centers.size, bm.precision.real_t)
     array2 = get_gpuarray(bin_centers.size, bm.precision.real_t)
@@ -225,8 +225,10 @@ def gpu_beam_phase(bin_centers, profile, alpha, omega_rf, phi_rf, ind, bin_size)
     dev_coeff = get_gpuarray(1, bm.precision.real_t)
 
     beam_phase_v2(args = (bin_centers, profile,
-                  bm.precision.real_t(alpha), omega_rf, phi_rf,
-                  np.int32(ind), bm.precision.real_t(bin_size),
+                  bm.precision.real_t(alpha),
+                  bm.precision.real_t(omega_rf),
+                  bm.precision.real_t(phi_rf),
+                  bm.precision.real_t(bin_size),
                   array1, array2, np.int32(bin_centers.size)),
                   block=block_size, grid=grid_size)
 
