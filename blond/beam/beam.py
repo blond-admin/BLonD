@@ -216,6 +216,26 @@ class Beam(object):
         self._sumsq_dt = 0.
         self._sumsq_dE = 0.
 
+    def to_gpu(self):
+        '''
+        Transfer all necessary arrays to the GPU
+        '''
+        assert bm.device == 'GPU'
+        import cupy as cp
+        self.dE = cp.array(self.dE)
+        self.dt = cp.array(self.dt)
+        self.id = cp.array(self.id)
+
+    def to_cpu(self):
+        '''
+        Transfer all necessary arrays back to the CPU
+        '''
+        assert bm.device == 'CPU'
+        import cupy as cp
+        self.dE = cp.asnumpy(self.dE)
+        self.dt = cp.asnumpy(self.dt)
+        self.id = cp.asnumpy(self.id)
+
     @property
     def n_macroparticles_lost(self):
         '''Number of lost macro-particles, defined as @property.
@@ -226,8 +246,7 @@ class Beam(object):
             number of macroparticles lost.
 
         '''
-
-        return len(np.where(self.id == 0)[0])
+        return bm.count_nonzero(self.id==0)
 
     @property
     def n_macroparticles_alive(self):
@@ -272,20 +291,20 @@ class Beam(object):
         '''
 
         # Statistics only for particles that are not flagged as lost
-        itemindex = np.where(self.id != 0)[0]
+        itemindex = bm.where(self.id != 0)[0]
         # itemindex = bm.where(self.id, 0)
         self.mean_dt = bm.mean(self.dt[itemindex])
         self.sigma_dt = bm.std(self.dt[itemindex])
-        self._sumsq_dt = np.dot(self.dt[itemindex], self.dt[itemindex])
-        self.min_dt = np.min(self.dt[itemindex])
-        self.max_dt = np.max(self.dt[itemindex])
+        self._sumsq_dt = bm.dot(self.dt[itemindex], self.dt[itemindex])
+        self.min_dt = bm.min(self.dt[itemindex])
+        self.max_dt = bm.max(self.dt[itemindex])
 
         self.mean_dE = bm.mean(self.dE[itemindex])
         self.sigma_dE = bm.std(self.dE[itemindex])
-        self._sumsq_dE = np.dot(self.dE[itemindex], self.dE[itemindex])
+        self._sumsq_dE = bm.dot(self.dE[itemindex], self.dE[itemindex])
 
-        self.min_dE = np.min(self.dE[itemindex])
-        self.max_dE = np.max(self.dE[itemindex])
+        self.min_dE = bm.min(self.dE[itemindex])
+        self.max_dE = bm.max(self.dE[itemindex])
 
         # R.m.s. emittance in Gaussian approximation
         self.epsn_rms_l = np.pi*self.sigma_dE*self.sigma_dt  # in eVs
@@ -323,7 +342,7 @@ class Beam(object):
             maximum dt.
         '''
 
-        itemindex = np.where((self.dt - dt_min)*(dt_max - self.dt) < 0)[0]
+        itemindex = bm.where((self.dt - dt_min)*(dt_max - self.dt) < 0)[0]
 
         if itemindex.size != 0:
             self.id[itemindex] = 0
@@ -341,7 +360,7 @@ class Beam(object):
             maximum dE.
         '''
 
-        itemindex = np.where((self.dE - dE_min)*(dE_max - self.dE) < 0)[0]
+        itemindex = bm.where((self.dE - dE_min)*(dE_max - self.dE) < 0)[0]
 
         if itemindex.size != 0:
             self.id[itemindex] = 0
@@ -357,7 +376,7 @@ class Beam(object):
             minimum dE.
         '''
 
-        itemindex = np.where((self.dE - dE_min) < 0)[0]
+        itemindex = bm.where((self.dE - dE_min) < 0)[0]
 
         if itemindex.size != 0:
             self.id[itemindex] = 0
