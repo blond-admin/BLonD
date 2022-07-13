@@ -294,7 +294,8 @@ class BeamFeedback(object):
                                      phi_rf) *
                               self.profile.n_macroparticles[indexes],
                               dx=self.profile.bin_size)
-            coeff = scoeff/ccoeff
+            # needed to make sure the result is scalar and not 0-dim array
+            coeff = float(scoeff/ccoeff)
 
         # Project beam phase to (pi/2,3pi/2) range
         self.phi_beam = bm.arctan(coeff) + np.pi

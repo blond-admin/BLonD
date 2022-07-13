@@ -183,17 +183,17 @@ __global__ void gpu_rf_voltage_calc_mem_ops(double *new_voltages,
     }
 }
 
-extern "C"
-__global__ void halve_edges(double *my_array, int size) {
-    //__shared__ my_sum;
-    int tid = threadIdx.x;
-    if (tid == 0) {
-        my_array[0] = my_array[0] / 2.;
-    }
-    if (tid == 32) {
-        my_array[size - 1] = my_array[size - 1] / 2.;
-    }
-}
+// extern "C"
+// __global__ void halve_edges(double *my_array, int size) {
+//     //__shared__ my_sum;
+//     int tid = threadIdx.x;
+//     if (tid == 0) {
+//         my_array[0] = my_array[0] / 2.;
+//     }
+//     if (tid == 32) {
+//         my_array[size - 1] = my_array[size - 1] / 2.;
+//     }
+// }
 
 extern "C"
 __global__ void simple_kick(
@@ -307,22 +307,22 @@ __global__ void drift(double * __restrict__ beam_dt,
 
 
 
-extern "C"
-__global__ void histogram(double * __restrict__  input,
-                          int * __restrict__  output, const double cut_left,
-                          const double cut_right, const int n_slices,
-                          const int n_macroparticles)
-{
-    int tid = threadIdx.x + blockDim.x * blockIdx.x;
-    int target_bin;
-    double const inv_bin_width = n_slices / (cut_right - cut_left);
-    for (int i = tid; i < n_macroparticles; i = i + blockDim.x * gridDim.x) {
-        target_bin = floor((input[i] - cut_left) * inv_bin_width);
-        if (target_bin < 0 || target_bin >= n_slices)
-            continue;
-        atomicAdd(&(output[target_bin]), 1);
-    }
-}
+// extern "C"
+// __global__ void histogram(double * __restrict__  input,
+//                           int * __restrict__  output, const double cut_left,
+//                           const double cut_right, const int n_slices,
+//                           const int n_macroparticles)
+// {
+//     int tid = threadIdx.x + blockDim.x * blockIdx.x;
+//     int target_bin;
+//     double const inv_bin_width = n_slices / (cut_right - cut_left);
+//     for (int i = tid; i < n_macroparticles; i = i + blockDim.x * gridDim.x) {
+//         target_bin = floor((input[i] - cut_left) * inv_bin_width);
+//         if (target_bin < 0 || target_bin >= n_slices)
+//             continue;
+//         atomicAdd(&(output[target_bin]), 1);
+//     }
+// }
 
 extern "C"
 __global__ void hybrid_histogram(const double * __restrict__  input,
