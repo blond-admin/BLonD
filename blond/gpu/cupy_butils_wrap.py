@@ -18,7 +18,7 @@ ReductionKernel = cp.ReductionKernel
 
 cugradient = central_mod.get_function("cugradient")
 
-custom_gpu_trapz = central_mod.get_function("gpu_trapz_custom")
+# custom_gpu_trapz = central_mod.get_function("gpu_trapz_custom")
 
 
 # beam_feedback
@@ -67,15 +67,15 @@ sincos_mul_add_2 = ElementwiseKernel(
     "s[i] = cos(a*ar[i]+b-pi/2); c[i] = cos(a*ar[i]+b)",
     "sincos_mul_add_2")
 
-gpu_trapz = ReductionKernel(
-    in_params = f"raw {bm.precision.str} *y, {bm.precision.str} x, int32 sz",
-    out_params = f"{bm.precision.str} z",
-    map_expr = "(i<sz-1) ? x*(y[i]+y[i+1])/2.0 : 0.0",
-    reduce_expr = "a+b",
-    post_map_expr = "z = a",
-    identity="0",
-    name="gpu_trapz"
-)
+# gpu_trapz = ReductionKernel(
+#     in_params = f"raw {bm.precision.str} *y, {bm.precision.str} x, int32 sz",
+#     out_params = f"{bm.precision.str} z",
+#     map_expr = "(i<sz-1) ? x*(y[i]+y[i+1])/2.0 : 0.0",
+#     reduce_expr = "a+b",
+#     post_map_expr = "z = a",
+#     identity="0",
+#     name="gpu_trapz"
+# )
 
 
 # The following functions are being used for the methods of the tracker
@@ -189,10 +189,10 @@ def gpu_irfft(dev_a, n=0, result=None, caller_id=None):
     return result
 
 
-def gpu_rfftfreq(n, d=1.0, result=None):
-    factor = 1 / (d * n)
-    result = factor * cp.asnumpy(cp.arange(0, n // 2 + 1, dtype=bm.precision.real_t))
-    return result
+# def gpu_rfftfreq(n, d=1.0, result=None):
+#     factor = 1 / (d * n)
+#     result = factor * cp.asnumpy(cp.arange(0, n // 2 + 1, dtype=bm.precision.real_t))
+#     return result
 
 
 def gpu_convolve(signal, kernel, mode='full', result=None):

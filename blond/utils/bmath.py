@@ -218,8 +218,11 @@ def use_gpu(gpu_id=0):
     globals()['device'] = 'GPU'
 
     _GPU_func_dict = {
-        'rfft': cupy_butils_wrap.gpu_rfft,
-        'irfft': cupy_butils_wrap.gpu_irfft,
+        # 'rfft': cupy_butils_wrap.gpu_rfft,
+        # 'irfft': cupy_butils_wrap.gpu_irfft,
+        'rfft': cp.fft.rfft,
+        'irfft': cp.fft.irfft,
+        'rfftfreq': cp.fft.rfftfreq,
         'convolve': cupy_butils_wrap.gpu_convolve,
         'beam_phase': cupy_physics_wrap.gpu_beam_phase,
         'kick': cupy_physics_wrap.gpu_kick,
