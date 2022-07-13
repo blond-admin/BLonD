@@ -419,6 +419,29 @@ class Profile(object):
         if OtherSlicesOptions.direct_slicing:
             self.track()
 
+    def to_gpu(self):
+        '''
+        Transfer all necessary arrays to the GPU
+        '''
+        assert bm.device == 'GPU'
+        import cupy as cp
+        self.bin_centers        = cp.array(self.bin_centers)
+        self.n_macroparticles   = cp.array(self.n_macroparticles)
+        self.beam_spectrum      = cp.array(self.beam_spectrum)
+        self.beam_spectrum_freq = cp.array(self.beam_spectrum_freq)
+
+
+    def to_cpu(self):
+        '''
+        Transfer all necessary arrays back to the CPU
+        '''
+        assert bm.device == 'CPU'
+        import cupy as cp
+        self.bin_centers        = cp.asnumpy(self.bin_centers)
+        self.n_macroparticles   = cp.asnumpy(self.n_macroparticles)
+        self.beam_spectrum      = cp.asnumpy(self.beam_spectrum)
+        self.beam_spectrum_freq = cp.asnumpy(self.beam_spectrum_freq)
+
     def set_slices_parameters(self):
         self.n_slices, self.cut_left, self.cut_right, self.n_sigma, \
             self.edges, self.bin_centers, self.bin_size = \
@@ -570,15 +593,18 @@ class Profile(object):
         dist_centers = x[1] - x[0]
 
         if mode == 'filter1d':
+            if bm.device == 'GPU':
+                raise RuntimeError('filter1d mode is not supported in GPU.')
+                
             derivative = ndimage.gaussian_filter1d(
                 self.n_macroparticles, sigma=1, order=1, mode='wrap') / \
                 dist_centers
         elif mode == 'gradient':
-            derivative = np.gradient(self.n_macroparticles, dist_centers)
+            derivative = bm.gradient(self.n_macroparticles, dist_centers)
         elif mode == 'diff':
-            derivative = np.diff(self.n_macroparticles) / dist_centers
+            derivative = bm.diff(self.n_macroparticles) / dist_centers
             diffCenters = x[0:-1] + dist_centers/2
-            derivative = np.interp(x, diffCenters, derivative)
+            derivative = bm.interp(x, diffCenters, derivative)
         else:
             # ProfileDerivativeError
             raise RuntimeError('Option for derivative is not recognized.')
