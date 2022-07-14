@@ -1,5 +1,5 @@
 import numpy as np
-
+import cupy as cp
 from ..gpu import block_size, grid_size
 from ..gpu.cupy_array import get_gpuarray
 from ..utils import bmath as bm
@@ -7,19 +7,20 @@ from ..utils import bmath as bm
 my_gpu = bm.gpuDev()
 ker = my_gpu.mod
 
-def gpu_rf_volt_comp(voltage, omega_rf, phi_rf, bin_centers, rf_voltage, f_rf=0):
+def gpu_rf_volt_comp(voltage, omega_rf, phi_rf, bin_centers):
     assert voltage.dtype == bm.precision.real_t
     assert omega_rf.dtype == bm.precision.real_t
     assert phi_rf.dtype == bm.precision.real_t
     assert bin_centers.dtype == bm.precision.real_t
-    assert rf_voltage.dtype == bm.precision.real_t
     
+    rf_voltage = cp.empty(bin_centers.size, bm.precision.real_t)
+
     rvc = ker.get_function("rf_volt_comp")
 
     rvc(args = (voltage, omega_rf, phi_rf, bin_centers,
-        np.int32(voltage.size), np.int32(
-            bin_centers.size), np.int32(f_rf), rf_voltage),
-        block=block_size, grid=grid_size)#, time_kernel=True)
+        np.int32(voltage.size), np.int32(bin_centers.size), rf_voltage),
+        block=block_size, grid=grid_size)
+    return rf_voltage
 
 
 def gpu_kick(dt, dE, voltage, omega_rf, phi_rf, charge, n_rf, acceleration_kick):

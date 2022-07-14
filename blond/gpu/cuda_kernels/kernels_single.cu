@@ -228,7 +228,6 @@ __global__ void rf_volt_comp(const float * __restrict__ voltage,
                              const float * __restrict__ bin_centers,
                              const int n_rf,
                              const int n_bins,
-                             const int f_rf,
                              float * __restrict__ rf_voltage)
 {
     int tid = threadIdx.x + blockDim.x * blockIdx.x;

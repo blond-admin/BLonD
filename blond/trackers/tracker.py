@@ -319,6 +319,7 @@ class RingAndRFTracker(object):
             warnings.warn('Setting interpolation to TRUE')
             # self.logger.warning("Setting interpolation to TRUE")
 
+
     def kick(self, beam_dt, beam_dE, index):
         """Function updating the particle energy due to the RF kick in a given
         RF station. The kicks are summed over the different harmonic RF systems
@@ -333,9 +334,9 @@ class RingAndRFTracker(object):
 
         """
 
-        # voltage_kick = np.ascontiguousarray(self.charge*self.voltage[:, index])
-        # omegarf_kick = np.ascontiguousarray(self.omega_rf[:, index])
-        # phirf_kick = np.ascontiguousarray(self.phi_rf[:, index])
+        # voltage_kick = bm.ascontiguousarray(self.charge*self.voltage[:, index])
+        # omegarf_kick = bm.ascontiguousarray(self.omega_rf[:, index])
+        # phirf_kick = bm.ascontiguousarray(self.phi_rf[:, index])
         bm.kick(beam_dt, beam_dE, self.voltage[:, index],
                 self.omega_rf[:, index], self.phi_rf[:, index],
                 self.charge, self.n_rf, self.acceleration_kick[index])
@@ -378,9 +379,9 @@ class RingAndRFTracker(object):
         beam at a given turn. Requires a Profile object.
 
         """
-        voltages = np.ascontiguousarray(self.voltage[:, self.counter[0]])
-        omega_rf = np.ascontiguousarray(self.omega_rf[:, self.counter[0]])
-        phi_rf = np.ascontiguousarray(self.phi_rf[:, self.counter[0]])
+        voltages = bm.ascontiguousarray(self.voltage[:, self.counter[0]])
+        omega_rf = bm.ascontiguousarray(self.omega_rf[:, self.counter[0]])
+        phi_rf = bm.ascontiguousarray(self.phi_rf[:, self.counter[0]])
         # TODO: test with multiple harmonics, think about 800 MHz OTFB
         if self.cavityFB:
             self.rf_voltage = voltages[0] * self.cavityFB.V_corr * \
@@ -436,9 +437,9 @@ class RingAndRFTracker(object):
             # Distinguish the particles inside the frame from the particles on
             # the right-hand side of the frame.
             self.indices_right_outside = \
-                np.where(self.beam.dt > self.t_rev[turn + 1])[0]
+                bm.where(self.beam.dt > self.t_rev[turn + 1])[0]
             self.indices_inside_frame = \
-                np.where(self.beam.dt < self.t_rev[turn + 1])[0]
+                bm.where(self.beam.dt < self.t_rev[turn + 1])[0]
 
             if len(self.indices_right_outside) > 0:
                 # Change reference of all the particles on the right of the
@@ -449,9 +450,9 @@ class RingAndRFTracker(object):
                 # RHS of the current frame applying kick and drift to the
                 # bunch
                 # After that all the particles are in the new updated frame
-                self.insiders_dt = np.ascontiguousarray(
+                self.insiders_dt = bm.ascontiguousarray(
                     self.beam.dt[self.indices_inside_frame])
-                self.insiders_dE = np.ascontiguousarray(
+                self.insiders_dE = bm.ascontiguousarray(
                     self.beam.dE[self.indices_inside_frame])
                 self.kick(self.insiders_dt, self.insiders_dE, turn)
                 self.drift(self.insiders_dt, self.insiders_dE, turn+1)
@@ -460,7 +461,7 @@ class RingAndRFTracker(object):
                 # Check all the particles on the left of the just updated
                 # frame and apply a second kick and drift to them with the
                 # previous wave after having changed reference.
-                self.indices_left_outside = np.where(self.beam.dt < 0)[0]
+                self.indices_left_outside = bm.where(self.beam.dt < 0)[0]
 
             else:
                 self.kick(self.beam.dt, self.beam.dE, turn)
@@ -468,12 +469,12 @@ class RingAndRFTracker(object):
                 # Check all the particles on the left of the just updated
                 # frame and apply a second kick and drift to them with the
                 # previous wave after having changed reference.
-                self.indices_left_outside = np.where(self.beam.dt < 0)[0]
+                self.indices_left_outside = bm.where(self.beam.dt < 0)[0]
 
             if len(self.indices_left_outside) > 0:
-                left_outsiders_dt = np.ascontiguousarray(
+                left_outsiders_dt = bm.ascontiguousarray(
                     self.beam.dt[self.indices_left_outside])
-                left_outsiders_dE = np.ascontiguousarray(
+                left_outsiders_dE = bm.ascontiguousarray(
                     self.beam.dE[self.indices_left_outside])
                 left_outsiders_dt += self.t_rev[turn+1]
                 self.kick(left_outsiders_dt, left_outsiders_dE, turn)
@@ -511,3 +512,43 @@ class RingAndRFTracker(object):
 
         # Increment by one the turn counter
         self.counter[0] += 1
+
+
+    def to_gpu(self):
+        '''
+        Transfer all necessary arrays to the GPU
+        '''
+        assert bm.device == 'GPU'
+        import cupy as cp
+
+        if self.profile:
+            self.profile.to_gpu()
+        if self.totalInducedVoltage:
+            self.totalInducedVoltage.to_gpu()
+        if self.beam:
+            self.beam.to_gpu()
+        if self.beamFB:
+            self.beamFB.to_gpu()
+        if self.rf_params:
+            self.rf_params.to_gpu()
+
+
+    def to_cpu(self):
+        '''
+        Transfer all necessary arrays back to the CPU
+        '''
+        assert bm.device == 'CPU'
+        import cupy as cp
+
+        if self.profile:
+            self.profile.to_cpu()
+        if self.totalInducedVoltage:
+            self.totalInducedVoltage.to_cpu()
+        if self.beam:
+            self.beam.to_cpu()
+        if self.beamFB:
+            self.beamFB.to_cpu()
+        if self.rf_params:
+            self.rf_params.to_cpu()
+
+        
