@@ -169,12 +169,21 @@ class GPUDev:
         self.dev = cp.cuda.Device(self.id)
         self.dev.use()
 
+
         self.name = cp.cuda.runtime.getDeviceProperties(self.dev)['name']
         self.attributes = self.dev.attributes
         self.properties = cp.cuda.runtime.getDeviceProperties(self.dev)
 
-        this_dir = os.path.dirname(os.path.realpath(__file__)) + "/"
+        # set the default grid and block sizes
+        default_blocks = 2 * self.attributes['MutiProcessorCount']
+        default_threads = self.attributes['MaxThreadsPerBlock']
+        blocks = int(os.environ.get('GPU_BLOCKS', default_blocks))
+        threads = int(os.environ.get('GPU_THREADS', default_threads))
+        self.grid_size = (blocks, 1, 1)
+        self.block_size = (threads, 1, 1)
 
+
+        this_dir = os.path.dirname(os.path.realpath(__file__)) + "/"
         if precision.num == 1:
             self.mod = cp.RawModule(path=os.path.join(
                 this_dir, '../gpu/cuda_kernels/kernels_single.cubin'))
@@ -206,7 +215,7 @@ def use_gpu(gpu_id=0):
     from ..gpu import cupy_butils_wrap
     import cupy as cp
     # now we have to add use_gpu methods to our objects
-    from ..gpu import gpu_activation
+    # from ..gpu import gpu_activation
 
     print(''.join(['#']*20) +
           ' Using GPU: id {}, name {}, Compute Capability {} '.format(
