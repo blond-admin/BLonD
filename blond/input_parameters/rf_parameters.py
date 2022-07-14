@@ -395,6 +395,46 @@ class RFStation(object):
                 eta += eta_i * (delta**i)
             return eta
 
+    def to_gpu(self):
+        '''
+        Transfer all necessary arrays to the GPU
+        '''
+        assert bm.device == 'GPU'
+        import cupy as cp
+        if self.phi_modulation:
+            self.phi_modulation = (cp.array(self.phi_modulation[0]),
+                                   cp.array(self.phi_modulation[1]))
+        if self.phi_noise:
+            self.phi_noise = cp.array(self.phi_noise)
+
+        self.voltage = cp.array(self.voltage)
+        self.omega_rf = cp.array(self.omega_rf)
+        self.phi_rf = cp.array(self.phi_rf)
+        self.omega_rf_d = cp.array(self.omega_rf_d)
+        self.harmonic = cp.array(self.harmonic)
+        self.dphi_rf = cp.array(self.dphi_rf)
+        self.t_rf = cp.array(self.t_rf)
+
+    def to_cpu(self):
+        '''
+        Transfer all necessary arrays back to the CPU
+        '''
+        assert bm.device == 'CPU'
+        import cupy as cp
+        if self.phi_modulation:
+            self.phi_modulation = (cp.asnumpy(self.phi_modulation[0]),
+                                   cp.asnumpy(self.phi_modulation[1]))
+        if self.phi_noise:
+            self.phi_noise = cp.asnumpy(self.phi_noise)
+
+        self.voltage = cp.asnumpy(self.voltage)
+        self.omega_rf = cp.asnumpy(self.omega_rf)
+        self.phi_rf = cp.asnumpy(self.phi_rf)
+        self.omega_rf_d = cp.asnumpy(self.omega_rf_d)
+        self.harmonic = cp.asnumpy(self.harmonic)
+        self.dphi_rf = cp.asnumpy(self.dphi_rf)
+        self.t_rf = cp.asnumpy(self.t_rf)
+
 
 def calculate_Q_s(RFStation, Particle=Proton()):
     r""" Function calculating the turn-by-turn synchrotron tune for
@@ -536,3 +576,4 @@ def calculate_phi_s(RFStation, Particle=Proton(),
     else:
         raise RuntimeError("ERROR in calculate_phi_s(): unrecognised" +
                            " accelerating_systems option")
+
