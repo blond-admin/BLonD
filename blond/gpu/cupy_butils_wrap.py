@@ -8,7 +8,7 @@ from ..gpu import grid_size, block_size
 from ..gpu.cupy_array import get_gpuarray
 from ..utils import bmath as bm
 
-central_mod = bm.getMod()
+central_mod = bm.gpuDev().mod
 basedir = os.path.dirname(os.path.realpath(__file__)) + "/cuda_kernels/"
 
 

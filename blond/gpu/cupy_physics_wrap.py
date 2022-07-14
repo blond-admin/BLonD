@@ -5,7 +5,7 @@ from ..gpu.cupy_array import get_gpuarray
 from ..utils import bmath as bm
 
 my_gpu = bm.gpuDev()
-ker = bm.getMod()
+ker = my_gpu.mod
 
 def gpu_rf_volt_comp(voltage, omega_rf, phi_rf, bin_centers, rf_voltage, f_rf=0):
     assert voltage.dtype == bm.precision.real_t
