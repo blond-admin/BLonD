@@ -325,7 +325,7 @@ __global__ void drift(double * __restrict__ beam_dt,
 
 extern "C"
 __global__ void hybrid_histogram(const double * __restrict__  input,
-                                 int * __restrict__  output, const double cut_left,
+                                 double * __restrict__  output, const double cut_left,
                                  const double cut_right, const unsigned int n_slices,
                                  const int n_macroparticles, const int capacity)
 {
@@ -354,13 +354,13 @@ __global__ void hybrid_histogram(const double * __restrict__  input,
     }
     __syncthreads();
     for (int i = threadIdx.x; i < capacity; i += blockDim.x)
-        atomicAdd(&output[low_tbin + i], block_hist[i]);
+        atomicAdd(&output[low_tbin + i], (double) block_hist[i]);
 }
 
 
 extern "C"
 __global__ void sm_histogram(const double * __restrict__  input,
-                             int * __restrict__  output, const double cut_left,
+                             double * __restrict__  output, const double cut_left,
                              const double cut_right, const unsigned int n_slices,
                              const int n_macroparticles)
 {
@@ -379,7 +379,7 @@ __global__ void sm_histogram(const double * __restrict__  input,
     }
     __syncthreads();
     for (int i = threadIdx.x; i < n_slices; i += blockDim.x)
-        atomicAdd(&output[i], block_hist[i]);
+        atomicAdd(&output[i], (double) block_hist[i]);
 }
 
 
@@ -473,7 +473,7 @@ __global__ void lik_drift_only_gm_comp(
 extern "C"
 __global__ void beam_phase_v2(
     const double *bin_centers,
-    const int *profile,
+    const double *profile,
     const double alpha,
     // const double *omega_rf_ar,
     // const double *phi_rf_ar,

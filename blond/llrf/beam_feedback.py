@@ -298,7 +298,7 @@ class BeamFeedback(object):
             coeff = float(scoeff/ccoeff)
 
         # Project beam phase to (pi/2,3pi/2) range
-        self.phi_beam = bm.arctan(coeff) + np.pi
+        self.phi_beam = np.arctan(coeff) + np.pi
 
     def beam_phase_sharpWindow(self):
         '''
@@ -333,7 +333,7 @@ class BeamFeedback(object):
                           dx=self.profile.bin_size)
 
         # Project beam phase to (pi/2,3pi/2) range
-        self.phi_beam = bm.arctan(scoeff/ccoeff) + np.pi
+        self.phi_beam = np.arctan(scoeff/ccoeff) + np.pi
 
     def phase_difference(self):
         '''

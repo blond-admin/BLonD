@@ -78,7 +78,8 @@ phase_loop = BeamFeedback(general_params, rf_params, slices_ring, configuration)
 
 # Long tracker
 long_tracker = RingAndRFTracker(rf_params, my_beam, periodicity='Off',
-                                BeamFeedback=phase_loop)
+                                BeamFeedback=phase_loop
+                                )
 
 full_ring = FullRingAndRF([long_tracker])
 
@@ -117,7 +118,8 @@ test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
 
 
 # Accelerator map
-map_ = [full_ring] + [slices_ring] + [bunch_monitor] + [plots]
+map_ = [full_ring] + [slices_ring] 
+#+ [bunch_monitor] + [plots]
 
 if USE_GPU:
     bm.use_gpu()
@@ -128,7 +130,7 @@ if USE_GPU:
     rf_params.to_gpu()
 
 for i in range(1, n_turns+1):
-    print(i)
+    #print(i)
 
     for m in map_:
         m.track()
