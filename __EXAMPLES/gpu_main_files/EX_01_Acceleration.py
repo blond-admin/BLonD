@@ -15,6 +15,15 @@ No intensity effects
 '''
 #  General Imports
 from __future__ import division, print_function
+import blond.utils.bmath as bm
+from blond.plots.plot import Plot
+from blond.monitors.monitors import BunchMonitor
+from blond.beam.profile import CutOptions, FitOptions, Profile
+from blond.beam.distributions import bigaussian
+from blond.beam.beam import Beam, Proton
+from blond.trackers.tracker import RingAndRFTracker
+from blond.input_parameters.rf_parameters import RFStation
+from blond.input_parameters.ring import Ring
 from builtins import range
 import numpy as np
 import os
@@ -23,15 +32,6 @@ mpl.use('Agg')
 
 
 #  BLonD Imports
-from blond.input_parameters.ring import Ring
-from blond.input_parameters.rf_parameters import RFStation
-from blond.trackers.tracker import RingAndRFTracker
-from blond.beam.beam import Beam, Proton
-from blond.beam.distributions import bigaussian
-from blond.beam.profile import CutOptions, FitOptions, Profile
-from blond.monitors.monitors import BunchMonitor
-from blond.plots.plot import Plot
-import blond.utils.bmath as bm
 
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
@@ -90,11 +90,13 @@ bigaussian(ring, rf, beam, tau_0/4, reinsertion=True, seed=1)
 
 # Need slices for the Gaussian fit
 profile = Profile(beam, CutOptions(n_slices=100),
-                  FitOptions(fit_option='gaussian'))
+                  FitOptions(fit_option='gaussian')
+                  )
 
 # Define what to save in file
 bunchmonitor = BunchMonitor(ring, rf, beam,
-                            this_directory + '../output_files/EX_01_output_data', Profile=profile)
+                            this_directory + '../output_files/EX_01_output_data', 
+                            Profile=profile)
 
 format_options = {'dirname': this_directory + '../output_files/EX_01_fig'}
 plots = Plot(ring, rf, beam, dt_plt, N_t, 0, 0.0001763*h,
@@ -107,7 +109,7 @@ test_string = ''
 test_string += '{:<17}\t{:<17}\t{:<17}\t{:<17}\n'.format(
     'mean_dE', 'std_dE', 'mean_dt', 'std_dt')
 test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
-    np.mean(beam.dE), np.std(beam.dE), np.mean(beam.dt), np.std(beam.dt))
+    beam.dE.mean(), beam.dE.std(), beam.dt.mean(), beam.dt.std())
 
 
 # For the GPU version we disable bunchmonitor and plots, since they
@@ -122,9 +124,10 @@ print("")
 # This is the way to enable the GPU
 if USE_GPU:
     bm.use_gpu()
-    beam.use_gpu()
-    long_tracker.use_gpu()
-    profile.use_gpu()
+    rf.to_gpu()
+    beam.to_gpu()
+    long_tracker.to_gpu()
+    profile.to_gpu()
 
 
 # Tracking --------------------------------------------------------------------
@@ -145,10 +148,10 @@ for i in range(1, N_t+1):
 #     f.write(test_string)
 
 print("Done!")
-print("beam de std:", np.std(beam.dE))
-print("beam dt std:", np.std(beam.dt))
-print("profile std:", np.std(profile.n_macroparticles))
+print("beam dE std:", beam.dE.std())
+print("beam dt std:", beam.dt.std())
+print("profile std:", profile.n_macroparticles.std())
 print("Print statistics result")
 beam.statistics()
-print("beam de std:", beam.sigma_dE)
+print("beam dE std:", beam.sigma_dE)
 print("beam dt std:", beam.sigma_dt)

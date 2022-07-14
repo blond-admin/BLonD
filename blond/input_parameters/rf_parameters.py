@@ -359,7 +359,7 @@ class RFStation(object):
         else:
             
             self.phi_modulation = None
-            self.dev_phi_modulation = None
+            # self.dev_phi_modulation = None
 
 
         # Copy of the desing rf programs in the one used for tracking
@@ -401,10 +401,10 @@ class RFStation(object):
         '''
         assert bm.device == 'GPU'
         import cupy as cp
-        if self.phi_modulation:
+        if self.phi_modulation is not None:
             self.phi_modulation = (cp.array(self.phi_modulation[0]),
                                    cp.array(self.phi_modulation[1]))
-        if self.phi_noise:
+        if self.phi_noise is not None:
             self.phi_noise = cp.array(self.phi_noise)
 
         self.voltage = cp.array(self.voltage)
@@ -421,10 +421,10 @@ class RFStation(object):
         '''
         assert bm.device == 'CPU'
         import cupy as cp
-        if self.phi_modulation:
+        if self.phi_modulation is not None:
             self.phi_modulation = (cp.asnumpy(self.phi_modulation[0]),
                                    cp.asnumpy(self.phi_modulation[1]))
-        if self.phi_noise:
+        if self.phi_noise is not None:
             self.phi_noise = cp.asnumpy(self.phi_noise)
 
         self.voltage = cp.asnumpy(self.voltage)

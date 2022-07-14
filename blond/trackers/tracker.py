@@ -520,18 +520,19 @@ class RingAndRFTracker(object):
         '''
         assert bm.device == 'GPU'
         import cupy as cp
-
-        if self.profile:
-            self.profile.to_gpu()
-        if self.totalInducedVoltage:
-            self.totalInducedVoltage.to_gpu()
-        if self.beam:
-            self.beam.to_gpu()
-        if self.beamFB:
-            self.beamFB.to_gpu()
-        if self.rf_params:
-            self.rf_params.to_gpu()
-
+        self.t_rev = cp.array(self.t_rev)
+        self.harmonic = cp.array(self.harmonic)
+        self.voltage = cp.array(self.voltage)
+        if self.phi_noise is not None:
+            self.phi_noise = cp.array(self.phi_noise)
+        if self.phi_modulation is not None:
+            self.phi_modulation = cp.array(self.phi_modulation)
+        self.phi_rf = cp.array(self.phi_rf)
+        self.phi_s = cp.array(self.phi_s)
+        self.omega_rf = cp.array(self.omega_rf)
+        if hasattr(self, 'rf_voltage'):
+            self.rf_voltage = cp.array(self.rf_voltage)
+        
 
     def to_cpu(self):
         '''
@@ -539,16 +540,16 @@ class RingAndRFTracker(object):
         '''
         assert bm.device == 'CPU'
         import cupy as cp
-
-        if self.profile:
-            self.profile.to_cpu()
-        if self.totalInducedVoltage:
-            self.totalInducedVoltage.to_cpu()
-        if self.beam:
-            self.beam.to_cpu()
-        if self.beamFB:
-            self.beamFB.to_cpu()
-        if self.rf_params:
-            self.rf_params.to_cpu()
-
-        
+        self.t_rev = cp.asnumpy(self.t_rev)
+        self.harmonic = cp.asnumpy(self.harmonic)
+        self.voltage = cp.asnumpy(self.voltage)
+        if self.phi_noise is not None:
+            self.phi_noise = cp.asnumpy(self.phi_noise)
+        if self.phi_modulation is not None:
+            self.phi_modulation = cp.asnumpy(self.phi_modulation)
+        self.phi_rf = cp.asnumpy(self.phi_rf)
+        self.phi_s = cp.asnumpy(self.phi_s)
+        self.omega_rf = cp.asnumpy(self.omega_rf)
+        if hasattr(self, 'rf_voltage'):
+            self.rf_voltage = cp.asnumpy(self.rf_voltage)
+ 

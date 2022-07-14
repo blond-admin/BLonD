@@ -19,7 +19,7 @@ import numpy as np
 from scipy.signal import cheb2ord, cheby2, filtfilt, freqz
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
-
+from ..utils import bmath as bm
 
 def beam_profile_filter_chebyshev(Y_array, X_array, filter_option):
     """
@@ -103,7 +103,10 @@ def gaussian_fit(Y_array, X_array, p0):
     Gaussian fit of the profile, in order to get the bunch length and
     position. Returns fit values in units of s.
     """
-
+    if bm.device == 'GPU':
+        X_array = X_array.get()
+        Y_array = Y_array.get()
+        
     return curve_fit(gauss, X_array, Y_array, p0)[0]
 
 
