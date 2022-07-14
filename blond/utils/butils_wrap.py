@@ -78,7 +78,7 @@ class c_complex64(ct.Structure):
 #           True: element satisfied the cond, False: otherwise
 
 
-def where(x, more_than=None, less_than=None, result=None):
+def where_cpp(x, more_than=None, less_than=None, result=None):
     if result is None:
         result = np.empty_like(x, dtype=np.bool)
     if more_than is None and less_than is not None:

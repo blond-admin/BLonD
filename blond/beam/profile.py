@@ -488,11 +488,13 @@ class Profile(object):
         """
 
         if self.bunchLength == 0:
-            p0 = [max(self.n_macroparticles), np.mean(self.Beam.dt),
-                  np.std(self.Beam.dt)]
+            p0 = [float(self.n_macroparticles.max()), 
+                  float(self.Beam.dt.mean()),
+                  float(self.Beam.dt.std())]
         else:
-            p0 = [max(self.n_macroparticles), self.bunchPosition,
-                  self.bunchLength/4]
+            p0 = [float(self.n_macroparticles.max()),
+                  float(self.bunchPosition),
+                  float(self.bunchLength/4.)]
 
         self.fitExtraOptions = ffroutines.gaussian_fit(self.n_macroparticles,
                                                        self.bin_centers, p0)

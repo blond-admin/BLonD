@@ -90,7 +90,8 @@ bigaussian(ring, rf, beam, tau_0/4, reinsertion=True, seed=1)
 
 # Need slices for the Gaussian fit
 profile = Profile(beam, CutOptions(n_slices=100),
-                  FitOptions(fit_option='gaussian'))
+                  FitOptions(fit_option='gaussian')
+                  )
 
 # Define what to save in file
 bunchmonitor = BunchMonitor(ring, rf, beam,
@@ -107,7 +108,7 @@ test_string = ''
 test_string += '{:<17}\t{:<17}\t{:<17}\t{:<17}\n'.format(
     'mean_dE', 'std_dE', 'mean_dt', 'std_dt')
 test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
-    np.mean(beam.dE), np.std(beam.dE), np.mean(beam.dt), np.std(beam.dt))
+    beam.dE.mean(), beam.dE.std(), beam.dt.mean(), beam.dt.std())
 
 
 # For the GPU version we disable bunchmonitor and plots, since they
@@ -115,6 +116,7 @@ test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
 
 # Accelerator map
 map_ = [long_tracker] + [profile]
+# map_ = [profile]
 # + [bunchmonitor] + [plots]
 print("Map set")
 print("")
@@ -122,9 +124,13 @@ print("")
 # This is the way to enable the GPU
 if USE_GPU:
     bm.use_gpu()
-    beam.use_gpu()
-    long_tracker.use_gpu()
-    profile.use_gpu()
+    beam.to_gpu()
+    long_tracker.to_gpu()
+    profile.to_gpu()
+
+    # beam.use_gpu()
+    # long_tracker.use_gpu()
+    # profile.use_gpu()
 
 
 # Tracking --------------------------------------------------------------------
@@ -145,9 +151,9 @@ for i in range(1, N_t+1):
 #     f.write(test_string)
 
 print("Done!")
-print("beam de std:", np.std(beam.dE))
-print("beam dt std:", np.std(beam.dt))
-print("profile std:", np.std(profile.n_macroparticles))
+print("beam de std:", beam.dE.std())
+print("beam dt std:", beam.dt.std())
+print("profile std:", profile.n_macroparticles.std())
 print("Print statistics result")
 beam.statistics()
 print("beam de std:", beam.sigma_dE)

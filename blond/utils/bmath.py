@@ -28,7 +28,7 @@ _CPU_func_dict = {
     'exp': butils_wrap.exp,
     'mean': butils_wrap.mean,
     'std': butils_wrap.std,
-    'where': butils_wrap.where,
+    'where_cpp': butils_wrap.where_cpp,
     'interp': butils_wrap.interp,
     'interp_const_space': butils_wrap.interp_const_space,
     'cumtrapz': butils_wrap.cumtrapz,
@@ -175,7 +175,7 @@ class GPUDev:
         self.properties = cp.cuda.runtime.getDeviceProperties(self.dev)
 
         # set the default grid and block sizes
-        default_blocks = 2 * self.attributes['MutiProcessorCount']
+        default_blocks = 2 * self.attributes['MultiProcessorCount']
         default_threads = self.attributes['MaxThreadsPerBlock']
         blocks = int(os.environ.get('GPU_BLOCKS', default_blocks))
         threads = int(os.environ.get('GPU_THREADS', default_threads))
