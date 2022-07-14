@@ -523,9 +523,9 @@ class RingAndRFTracker(object):
         self.t_rev = cp.array(self.t_rev)
         self.harmonic = cp.array(self.harmonic)
         self.voltage = cp.array(self.voltage)
-        if self.phi_noise:
+        if self.phi_noise is not None:
             self.phi_noise = cp.array(self.phi_noise)
-        if self.phi_modulation:
+        if self.phi_modulation is not None:
             self.phi_modulation = cp.array(self.phi_modulation)
         self.phi_rf = cp.array(self.phi_rf)
         self.phi_s = cp.array(self.phi_s)
@@ -543,9 +543,9 @@ class RingAndRFTracker(object):
         self.t_rev = cp.asnumpy(self.t_rev)
         self.harmonic = cp.asnumpy(self.harmonic)
         self.voltage = cp.asnumpy(self.voltage)
-        if self.phi_noise:
+        if self.phi_noise is not None:
             self.phi_noise = cp.asnumpy(self.phi_noise)
-        if self.phi_modulation:
+        if self.phi_modulation is not None:
             self.phi_modulation = cp.asnumpy(self.phi_modulation)
         self.phi_rf = cp.asnumpy(self.phi_rf)
         self.phi_s = cp.asnumpy(self.phi_s)
