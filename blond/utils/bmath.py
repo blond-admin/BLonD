@@ -15,6 +15,8 @@ precision = butils_wrap.precision
 __exec_mode = 'single_node'
 # Other modes: multi_node
 
+__gpu_dev = None
+
 # dictionary storing the CPU versions of the desired functions #
 _CPU_func_dict = {
     'rfft': np.fft.rfft,
@@ -128,73 +130,69 @@ def update_active_dict(new_dict):
     update_active_dict.active_dict = new_dict
 
 
-################################################################################
+###############################################################################
 update_active_dict(_CPU_func_dict)
-################################################################################
+###############################################################################
 
 
 # GPU Related Utilities
-def gpuMode():
-    return globals()['device'] == 'GPU'
+# def gpuMode():
+#     return globals()['device'] == 'GPU'
 
 
-def gpuId():
-    return __gpu_dev.id
+# def gpuId():
+#     return __gpu_dev.id
 
 
 def gpuDev():
-    return __gpu_dev.dev
+    return __gpu_dev
 
 
-def gpuCtx():
-    return __gpu_dev.ctx
+# def gpuCtx():
+#     return __gpu_dev.ctx
 
 
-def getMod():
-    return __gpu_dev.my_mod()
+# def getMod():
+#     return __gpu_dev.my_mod()
 
 
 class GPUDev:
     __instance = None
 
     def __init__(self, _gpu_num=0):
-        if GPUDev.__instance != None:
+        if GPUDev.__instance is not None:
             raise Exception("The GPUDev class is a singleton!")
         else:
             GPUDev.__instance = self
         import cupy as cp
-        import cupy_backends.cuda.api.driver as driver
         self.id = _gpu_num
         self.dev = cp.cuda.Device(self.id)
         self.dev.use()
-        #self.ctx = driver.ctxCreate(self.dev)
+
+        self.name = cp.cuda.runtime.getDeviceProperties(self.dev)['name']
+        self.attributes = self.dev.attributes
+        self.properties = cp.cuda.runtime.getDeviceProperties(self.dev)
+
         this_dir = os.path.dirname(os.path.realpath(__file__)) + "/"
 
         if precision.num == 1:
-            self.mod = cp.RawModule(path = os.path.join(
+            self.mod = cp.RawModule(path=os.path.join(
                 this_dir, '../gpu/cuda_kernels/kernels_single.cubin'))
         else:
-            self.mod = cp.RawModule(path = os.path.join(
+            self.mod = cp.RawModule(path=os.path.join(
                 this_dir, '../gpu/cuda_kernels/kernels_double.cubin'))
 
     def report_attributes(self):
         # Saves into a file all the device attributes
-        with open(f'{self.dev.name()}-attributes.txt', 'w') as f:
-            for k, v in self.dev.get_attributes().items():
+        with open(f'{self.name}-attributes.txt', 'w') as f:
+            for k, v in self.attributes.items():
                 f.write(f"{k}:{v}\n")
 
     def func(self, name):
         return self.mod.get_function(name)
 
     def __del__(self):
-        #import cupy_backends.cuda.api.driver as driver
-        #gpuDev().use()
-        #driver.ctxDestroy(self.ctx)
-        self.ctx = None
         update_active_dict(_CPU_func_dict)
-
-    def my_mod(self):
-        return self.mod
 
 
 def use_gpu(gpu_id=0):
@@ -209,13 +207,11 @@ def use_gpu(gpu_id=0):
     import cupy as cp
     # now we have to add use_gpu methods to our objects
     from ..gpu import gpu_activation
-    dev_name = cp.cuda.runtime.getDeviceProperties(gpuDev())['name']
+
     print(''.join(['#']*20) +
           ' Using GPU: id {}, name {}, Compute Capability {} '.format(
-              gpuId(), dev_name, gpuDev().compute_capability)
+            __gpu_dev.id, __gpu_dev.name, __gpu_dev.dev.compute_capability)
           + ''.join(['#']*20), flush=True)
-    
-    globals()['device'] = 'GPU'
 
     _GPU_func_dict = {
         # 'rfft': cupy_butils_wrap.gpu_rfft,
@@ -242,6 +238,3 @@ def use_gpu(gpu_id=0):
             _GPU_func_dict[fname] = getattr(cp, fname)
     update_active_dict(_GPU_func_dict)
 
-
-# print ('Available functions on GPU:\n' + str(_CPU_numpy_func_dict.keys()))
-# print ('Available functions on CPU:\n' + str(_GPU_func_dict.keys()))
