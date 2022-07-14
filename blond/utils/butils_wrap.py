@@ -102,7 +102,7 @@ def where_cpp(x, more_than=None, less_than=None, result=None):
     return result
 
 
-def add(a, b, result=None, inplace=False):
+def add_cpp(a, b, result=None, inplace=False):
     if(len(a) != len(b)):
         raise ValueError(
             'operands could not be broadcast together with shapes ',
@@ -165,7 +165,7 @@ def add(a, b, result=None, inplace=False):
     return result
 
 
-def mul(a, b, result=None):
+def mul_cpp(a, b, result=None):
     if(type(a) == np.ndarray and type(b) != np.ndarray):
         if result is None:
             result = np.empty_like(a, order='C')
@@ -223,17 +223,17 @@ def mul(a, b, result=None):
     return result
 
 
-def argmin(x):
+def argmin_cpp(x):
     __lib.min_idx.restype = ct.c_int
     return __lib.min_idx(__getPointer(x), __getLen(x))
 
 
-def argmax(x):
+def argmax_cpp(x):
     __lib.max_idx.restype = ct.c_int
     return __lib.max_idx(__getPointer(x), __getLen(x))
 
 
-def linspace(start, stop, num=50, retstep=False, result=None):
+def linspace_cpp(start, stop, num=50, retstep=False, result=None):
     if result is None:
         result = np.empty(num, dtype=float)
     __lib.linspace(__c_real(start), __c_real(stop),
@@ -244,7 +244,7 @@ def linspace(start, stop, num=50, retstep=False, result=None):
         return result
 
 
-def arange(start, stop, step, dtype=float, result=None):
+def arange_cpp(start, stop, step, dtype=float, result=None):
     size = int(np.ceil((stop-start)/step))
     if result is None:
         result = np.empty(size, dtype=dtype)
@@ -258,12 +258,12 @@ def arange(start, stop, step, dtype=float, result=None):
     return result
 
 
-def sum(x):
+def sum_cpp(x):
     __lib.sum.restype = ct.c_double
     return __lib.sum(__getPointer(x), __getLen(x))
 
 
-def sort(x, reverse=False):
+def sort_cpp(x, reverse=False):
     if x.dtype == 'int32':
         __lib.sort_int(__getPointer(x), __getLen(x), ct.c_bool(reverse))
     elif x.dtype == 'float64':
@@ -288,7 +288,7 @@ def convolve(signal, kernel, mode='full', result=None):
     return result
 
 
-def mean(x):
+def mean_cpp(x):
     if isinstance(x[0], np.float32):
         __lib.meanf.restype = ct.c_float
         return __lib.meanf(__getPointer(x), __getLen(x))
@@ -297,7 +297,7 @@ def mean(x):
         return __lib.mean(__getPointer(x), __getLen(x))
 
 
-def std(x):
+def std_cpp(x):
     if isinstance(x[0], np.float32):
         __lib.stdevf.restype = ct.c_float
         return __lib.stdevf(__getPointer(x), __getLen(x))
@@ -306,7 +306,7 @@ def std(x):
         return __lib.stdev(__getPointer(x), __getLen(x))
 
 
-def sin(x, result=None):
+def sin_cpp(x, result=None):
     if isinstance(x, np.ndarray) and isinstance(x[0], np.float64):
         if result is None:
             result = np.empty(len(x), dtype=np.float64, order='C')
@@ -325,7 +325,7 @@ def sin(x, result=None):
         raise RuntimeError('[sin] The type %s is not supported' % type(x))
 
 
-def cos(x, result=None):
+def cos_cpp(x, result=None):
     if isinstance(x, np.ndarray) and isinstance(x[0], np.float64):
         if result is None:
             result = np.empty(len(x), dtype=np.float64, order='C')
@@ -344,7 +344,7 @@ def cos(x, result=None):
         raise RuntimeError('[cos] The type %s is not supported' % type(x))
 
 
-def exp(x, result=None):
+def exp_cpp(x, result=None):
     if isinstance(x, np.ndarray) and isinstance(x[0], np.float64):
         if result is None:
             result = np.empty(len(x), dtype=np.float64, order='C')
@@ -363,7 +363,7 @@ def exp(x, result=None):
         raise RuntimeError('[exp] The type %s is not supported' % type(x))
 
 
-def interp(x, xp, yp, left=None, right=None, result=None):
+def interp_cpp(x, xp, yp, left=None, right=None, result=None):
     x = x.astype(dtype=precision.real_t, order='C', copy=False)
     xp = xp.astype(dtype=precision.real_t, order='C', copy=False)
     yp = yp.astype(dtype=precision.real_t, order='C', copy=False)
@@ -539,7 +539,7 @@ def cumtrapz(y, x=None, dx=1.0, initial=None, result=None):
     return result
 
 
-def trapz(y, x=None, dx=1.0):
+def trapz_cpp(y, x=None, dx=1.0):
     if x is None:
         __lib.trapz_const_delta.restype = ct.c_double
         return __lib.trapz_const_delta(__getPointer(y), __c_real(dx),
