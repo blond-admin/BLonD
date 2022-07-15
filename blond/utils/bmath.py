@@ -218,14 +218,10 @@ def use_gpu(gpu_id=0):
         print(''.join(['#']*10) +
               ' Using GPU: id {}, name {}, Compute Capability {} '.format(
                 __gpu_dev.id, __gpu_dev.name, __gpu_dev.dev.compute_capability)
-              + ''.join(['#']*10 + '\n'), flush=True)
+              + ''.join(['#']*10) + '\n', flush=True)
     
-    from ..gpu import cupy_physics_wrap
     from ..gpu import cupy_butils_wrap
     import cupy as cp
-    # now we have to add use_gpu methods to our objects
-    # from ..gpu import gpu_activation
-
 
     _GPU_func_dict = {
         # 'rfft': cupy_butils_wrap.gpu_rfft,
@@ -234,15 +230,15 @@ def use_gpu(gpu_id=0):
         'irfft': cp.fft.irfft,
         'rfftfreq': cp.fft.rfftfreq,
         'convolve': cupy_butils_wrap.gpu_convolve,
-        'beam_phase': cupy_physics_wrap.gpu_beam_phase,
-        'kick': cupy_physics_wrap.gpu_kick,
-        'rf_volt_comp': cupy_physics_wrap.gpu_rf_volt_comp,
-        'drift': cupy_physics_wrap.gpu_drift,
-        'linear_interp_kick': cupy_physics_wrap.gpu_linear_interp_kick,
-        'LIKick_n_drift': cupy_physics_wrap.gpu_linear_interp_kick_drift,
-        'synchrotron_radiation': cupy_physics_wrap.gpu_synchrotron_radiation,
-        'synchrotron_radiation_full': cupy_physics_wrap.gpu_synchrotron_radiation_full,
-        'slice': cupy_physics_wrap.gpu_slice,
+        'beam_phase': cupy_butils_wrap.gpu_beam_phase,
+        'kick': cupy_butils_wrap.gpu_kick,
+        'rf_volt_comp': cupy_butils_wrap.gpu_rf_volt_comp,
+        'drift': cupy_butils_wrap.gpu_drift,
+        'linear_interp_kick': cupy_butils_wrap.gpu_linear_interp_kick,
+        'LIKick_n_drift': cupy_butils_wrap.gpu_linear_interp_kick_drift,
+        'synchrotron_radiation': cupy_butils_wrap.gpu_synchrotron_radiation,
+        'synchrotron_radiation_full': cupy_butils_wrap.gpu_synchrotron_radiation_full,
+        'slice': cupy_butils_wrap.gpu_slice,
         'interp_const_space': cupy_butils_wrap.cuinterp,
         'device': 'GPU'
     }
@@ -252,6 +248,6 @@ def use_gpu(gpu_id=0):
             _GPU_func_dict[fname] = getattr(cp, fname)
     update_active_dict(_GPU_func_dict)
 
-def use_cpu():
 
+def use_cpu():
     update_active_dict(_CPU_func_dict)
