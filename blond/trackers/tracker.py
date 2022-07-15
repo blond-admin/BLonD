@@ -518,38 +518,77 @@ class RingAndRFTracker(object):
         '''
         Transfer all necessary arrays to the GPU
         '''
+        # Check if to_gpu has been invoked already
+        if hasattr(self, '__device') and self.__device == 'GPU':
+            return
+
+        # transfer recursively objects
+        if self.profile:
+            self.profile.to_gpu()
+        if self.totalInducedVoltage:
+            self.totalInducedVoltage.to_gpu()
+        if self.beam:
+            self.beam.to_gpu()
+        if self.beamFB:
+            self.beamFB.to_gpu()
+        if self.rf_params:
+            self.rf_params.to_gpu()
+
         assert bm.device == 'GPU'
         import cupy as cp
-        self.t_rev = cp.array(self.t_rev)
-        self.harmonic = cp.array(self.harmonic)
-        self.voltage = cp.array(self.voltage)
-        if self.phi_noise is not None:
-            self.phi_noise = cp.array(self.phi_noise)
-        if self.phi_modulation is not None:
-            self.phi_modulation = cp.array(self.phi_modulation)
-        self.phi_rf = cp.array(self.phi_rf)
-        self.phi_s = cp.array(self.phi_s)
-        self.omega_rf = cp.array(self.omega_rf)
+
+        # import from rf_params
+        self.t_rev = self.rf_params.t_rev
+        self.harmonic = self.rf_params.harmonic
+        self.voltage = self.rf_params.voltage
+        self.phi_noise = self.rf_params.phi_noise
+        self.phi_modulation = self.rf_params.phi_modulation
+        self.phi_rf = self.rf_params.phi_rf
+        self.phi_s = self.rf_params.phi_s
+        self.omega_rf = self.rf_params.omega_rf
+
         if hasattr(self, 'rf_voltage'):
-            self.rf_voltage = cp.array(self.rf_voltage)
+            self.rf_voltage = self.rf_params.rf_voltage
+
+        # to make sure it will not be called again
+        self.__device = 'GPU'
         
 
     def to_cpu(self):
         '''
         Transfer all necessary arrays back to the CPU
         '''
+        # Check if to_cpu has been invoked already
+        if hasattr(self, '__device') and self.__device == 'CPU':
+            return
+
+        # transfer recursively objects
+        if self.profile:
+            self.profile.to_cpu()
+        if self.totalInducedVoltage:
+            self.totalInducedVoltage.to_cpu()
+        if self.beam:
+            self.beam.to_cpu()
+        if self.beamFB:
+            self.beamFB.to_cpu()
+        if self.rf_params:
+            self.rf_params.to_cpu()
+
         assert bm.device == 'CPU'
         import cupy as cp
-        self.t_rev = cp.asnumpy(self.t_rev)
-        self.harmonic = cp.asnumpy(self.harmonic)
-        self.voltage = cp.asnumpy(self.voltage)
-        if self.phi_noise is not None:
-            self.phi_noise = cp.asnumpy(self.phi_noise)
-        if self.phi_modulation is not None:
-            self.phi_modulation = cp.asnumpy(self.phi_modulation)
-        self.phi_rf = cp.asnumpy(self.phi_rf)
-        self.phi_s = cp.asnumpy(self.phi_s)
-        self.omega_rf = cp.asnumpy(self.omega_rf)
+
+        # import from rf_params
+        self.t_rev = self.rf_params.t_rev
+        self.harmonic = self.rf_params.harmonic
+        self.voltage = self.rf_params.voltage
+        self.phi_noise = self.rf_params.phi_noise
+        self.phi_modulation = self.rf_params.phi_modulation
+        self.phi_rf = self.rf_params.phi_rf
+        self.phi_s = self.rf_params.phi_s
+        self.omega_rf = self.rf_params.omega_rf
+
         if hasattr(self, 'rf_voltage'):
             self.rf_voltage = cp.asnumpy(self.rf_voltage)
- 
+
+        # to make sure it will not be called again
+        self.__device = 'CPU'

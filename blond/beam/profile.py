@@ -595,21 +595,43 @@ class Profile(object):
         '''
         Transfer all necessary arrays to the GPU
         '''
+        # Check if to_gpu has been invoked already
+        if hasattr(self, '__device') and self.__device == 'GPU':
+            return
+
+        # transfer recursively objects to_gpu
+        if self.Beam:
+            self.Beam.to_gpu()
+
         assert bm.device == 'GPU'
         import cupy as cp
-        self.bin_centers        = cp.array(self.bin_centers)
-        self.n_macroparticles   = cp.array(self.n_macroparticles)
-        self.beam_spectrum      = cp.array(self.beam_spectrum)
+
+        self.bin_centers = cp.array(self.bin_centers)
+        self.n_macroparticles = cp.array(self.n_macroparticles)
+        self.beam_spectrum = cp.array(self.beam_spectrum)
         self.beam_spectrum_freq = cp.array(self.beam_spectrum_freq)
 
+        # to make sure it will not be called again
+        self.__device = 'GPU'
 
     def to_cpu(self):
         '''
         Transfer all necessary arrays back to the CPU
         '''
+        # Check if to_cpu has been invoked already
+        if hasattr(self, '__device') and self.__device == 'CPU':
+            return
+
+        # transfer recursively objects
+        if self.Beam:
+            self.Beam.to_cpu()
+
         assert bm.device == 'CPU'
         import cupy as cp
-        self.bin_centers        = cp.asnumpy(self.bin_centers)
-        self.n_macroparticles   = cp.asnumpy(self.n_macroparticles)
-        self.beam_spectrum      = cp.asnumpy(self.beam_spectrum)
+        self.bin_centers = cp.asnumpy(self.bin_centers)
+        self.n_macroparticles = cp.asnumpy(self.n_macroparticles)
+        self.beam_spectrum = cp.asnumpy(self.beam_spectrum)
         self.beam_spectrum_freq = cp.asnumpy(self.beam_spectrum_freq)
+
+        # to make sure it will not be called again
+        self.__device = 'CPU'

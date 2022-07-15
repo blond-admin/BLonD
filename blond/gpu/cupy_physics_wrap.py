@@ -231,8 +231,9 @@ def gpu_beam_phase(bin_centers, profile, alpha, omega_rf, phi_rf, bin_size):
     beam_phase_sum(args=(array1, array2, dev_scoeff, dev_coeff,
                          np.int32(bin_centers.size)), block=(512, 1, 1),
                    grid=(1, 1, 1))  # , time_kernel=True)
-    to_ret = dev_scoeff[0].get()
-    return to_ret
+
+    # convert to numpy array, then to float
+    return float(dev_scoeff[0].get())
 
 # def gpu_dumb_slice(dev_dt, dev_n_macroparticles, cut_left, cut_right):
 #     """This is only here for benchmarks"""

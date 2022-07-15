@@ -572,12 +572,26 @@ class BeamFeedback(object):
         '''
         Transfer all necessary arrays to the GPU
         '''
+        # Check if to_gpu has been invoked already
+        if hasattr(self, '__device') and self.__device == 'GPU':
+            return
+
         assert bm.device == 'GPU'
         # No arrays need to be transfered
+
+        # to make sure it will not be called again
+        self.__device = 'GPU'
 
     def to_cpu(self):
         '''
         Transfer all necessary arrays back to the CPU
         '''
+        # Check if to_cpu has been invoked already
+        if hasattr(self, '__device') and self.__device == 'CPU':
+            return
+
         assert bm.device == 'CPU'
         # No arrays need to be transfered
+
+        # to make sure it will not be called again
+        self.__device = 'CPU'

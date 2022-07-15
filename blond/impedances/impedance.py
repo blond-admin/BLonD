@@ -124,19 +124,40 @@ class TotalInducedVoltage(object):
         '''
         Transfer all necessary arrays to the GPU
         '''
+        # Check if to_gpu has been invoked already
+        if hasattr(self, '__device') and self.__device == 'GPU':
+            return
+
+        # transfer recursively objects
+        for obj in self.induced_voltage_list:
+            obj.to_gpu()
+
         assert bm.device == 'GPU'
         import cupy as cp
         self.induced_voltage = cp.array(self.induced_voltage)
         self.time_array = cp.array(self.time_array)
 
+        # to make sure it will not be called again
+        self.__device = 'GPU'
+    
     def to_cpu(self):
         '''
         Transfer all necessary arrays back to the CPU
         '''
+        # Check if to_cpu has been invoked already
+        if hasattr(self, '__device') and self.__device == 'CPU':
+            return
+
+        # transfer recursively objects
+        for obj in self.induced_voltage_list:
+            obj.to_cpu()
+
         assert bm.device == 'CPU'
         import cupy as cp
         self.induced_voltage = cp.asnumpy(self.induced_voltage)
         self.time_array = cp.asnumpy(self.time_array)
+        # to make sure it will not be called again
+        self.__device = 'CPU'
 
 
 class _InducedVoltage(object):
@@ -485,6 +506,10 @@ class InducedVoltageTime(_InducedVoltage):
         '''
         Transfer all necessary arrays to the GPU
         '''
+        # Check if to_gpu has been invoked already
+        if hasattr(self, '__device') and self.__device == 'GPU':
+            return
+
         assert bm.device == 'GPU'
         import cupy as cp
         self.induced_voltage = cp.array(self.induced_voltage)
@@ -500,10 +525,18 @@ class InducedVoltageTime(_InducedVoltage):
         if hasattr(self, 'time'):
             self.time = cp.array(self.time)
 
+        # to make sure it will not be called again
+        self.__device = 'GPU'
+
+
     def to_cpu(self):
         '''
         Transfer all necessary arrays back to the CPU
         '''
+        # Check if to_cpu has been invoked already
+        if hasattr(self, '__device') and self.__device == 'CPU':
+            return
+
         assert bm.device == 'CPU'
         import cupy as cp
         self.induced_voltage = cp.asnumpy(self.induced_voltage)
@@ -518,6 +551,9 @@ class InducedVoltageTime(_InducedVoltage):
             self.total_wake = cp.asnumpy(self.total_wake)
         if hasattr(self, 'time'):
             self.time = cp.asnumpy(self.time)
+
+        # to make sure it will not be called again
+        self.__device = 'CPU'
 
 
 class InducedVoltageFreq(_InducedVoltage):
@@ -631,6 +667,10 @@ class InducedVoltageFreq(_InducedVoltage):
         '''
         Transfer all necessary arrays to the GPU
         '''
+        # Check if to_gpu has been invoked already
+        if hasattr(self, '__device') and self.__device == 'GPU':
+            return
+
         assert bm.device == 'GPU'
         import cupy as cp
         self.induced_voltage = cp.array(self.induced_voltage)
@@ -643,10 +683,17 @@ class InducedVoltageFreq(_InducedVoltage):
         if hasattr(self, 'omegaj_mtw'):
             self.omegaj_mtw = cp.array(self.omegaj_mtw)
 
+        # to make sure it will not be called again
+        self.__device = 'GPU'
+
     def to_cpu(self):
         '''
         Transfer all necessary arrays back to the CPU
         '''
+        # Check if to_cpu has been invoked already
+        if hasattr(self, '__device') and self.__device == 'CPU':
+            return
+
         assert bm.device == 'CPU'
         import cupy as cp
         self.induced_voltage = cp.asnumpy(self.induced_voltage)
@@ -658,6 +705,9 @@ class InducedVoltageFreq(_InducedVoltage):
             self.freq_mtw = cp.asnumpy(self.freq_mtw)
         if hasattr(self, 'omegaj_mtw'):
             self.omegaj_mtw = cp.asnumpy(self.omegaj_mtw)
+
+        # to make sure it will not be called again
+        self.__device = 'CPU'
 
 
 class InductiveImpedance(_InducedVoltage):
@@ -717,19 +767,31 @@ class InductiveImpedance(_InducedVoltage):
         '''
         Transfer all necessary arrays to the GPU
         '''
+        # Check if to_gpu has been invoked already
+        if hasattr(self, '__device') and self.__device == 'GPU':
+            return
+
         assert bm.device == 'GPU'
         import cupy as cp
         self.induced_voltage = cp.array(self.induced_voltage)
         self.Z_over_n = cp.array(self.Z_over_n)
+        # to make sure it will not be called again
+        self.__device = 'GPU'
 
     def to_cpu(self):
         '''
         Transfer all necessary arrays back to the CPU
         '''
+        # Check if to_cpu has been invoked already
+        if hasattr(self, '__device') and self.__device == 'CPU':
+            return
+
         assert bm.device == 'CPU'
         import cupy as cp
         self.induced_voltage = cp.asnumpy(self.induced_voltage)
         self.Z_over_n = cp.asnumpy(self.Z_over_n)
+        # to make sure it will not be called again
+        self.__device = 'CPU'
 
 
 class InducedVoltageResonator(_InducedVoltage):
@@ -900,6 +962,10 @@ class InducedVoltageResonator(_InducedVoltage):
         '''
         Transfer all necessary arrays to the GPU
         '''
+        # Check if to_gpu has been invoked already
+        if hasattr(self, '__device') and self.__device == 'GPU':
+            return
+
         assert bm.device == 'GPU'
         import cupy as cp
         self.induced_voltage = cp.array(self.induced_voltage)
@@ -907,11 +973,17 @@ class InducedVoltageResonator(_InducedVoltage):
         self._deltaT = cp.array(self._deltaT)
         self.tArray = cp.array(self.tArray)
         self._tmp_matrix = cp.array(self._tmp_matrix)
+        # to make sure it will not be called again
+        self.__device = 'GPU'
 
     def to_cpu(self):
         '''
         Transfer all necessary arrays back to the CPU
         '''
+        # Check if to_cpu has been invoked already
+        if hasattr(self, '__device') and self.__device == 'CPU':
+            return
+
         assert bm.device == 'CPU'
         import cupy as cp
         self.induced_voltage = cp.asnumpy(self.induced_voltage)
@@ -919,3 +991,6 @@ class InducedVoltageResonator(_InducedVoltage):
         self._deltaT = cp.asnumpy(self._deltaT)
         self.tArray = cp.asnumpy(self.tArray)
         self._tmp_matrix = cp.asnumpy(self._tmp_matrix)
+
+        # to make sure it will not be called again
+        self.__device = 'CPU'
