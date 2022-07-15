@@ -166,7 +166,7 @@ def gpu_slice(dt, profile, cut_left, cut_right):
     sm_histogram = kernels.get_function("sm_histogram")
 
     n_slices = profile.size
-    profile.fill(0)
+    #profile.fill(0)
     if 4*n_slices < bm.gpuDev().attributes['MaxSharedMemoryPerBlock']:
         sm_histogram(args=(dt, profile, bm.precision.real_t(cut_left),
                            bm.precision.real_t(cut_right), np.uint32(n_slices),
@@ -180,7 +180,7 @@ def gpu_slice(dt, profile, cut_left, cut_right):
             bm.gpuDev().attributes['MaxSharedMemoryPerBlock']/4)),
             grid=grid_size, block=block_size,
             shared_mem=bm.gpuDev().attributes['MaxSharedMemoryPerBlock'])  # , time_kernel=True)
-    return profile
+    #return profile
 
 
 def gpu_synchrotron_radiation(dE, U0, n_kicks, tau_z):
