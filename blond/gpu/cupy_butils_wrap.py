@@ -181,7 +181,6 @@ def gpu_slice(dt, profile, cut_left, cut_right):
             bm.gpuDev().attributes['MaxSharedMemoryPerBlock']/4)),
             grid=grid_size, block=block_size,
             shared_mem=bm.gpuDev().attributes['MaxSharedMemoryPerBlock'])  # , time_kernel=True)
-    return profile
 
 
 def gpu_synchrotron_radiation(dE, U0, n_kicks, tau_z):

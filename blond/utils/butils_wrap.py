@@ -192,7 +192,7 @@ def mul_cpp(a, b, result=None):
             raise TypeError('type ', a.dtype, ' is not supported')
 
     elif(type(b) == np.ndarray and type(a) != np.ndarray):
-        return mul(b, a, result)
+        return mul_cpp(b, a, result)
     elif(type(a) == np.ndarray and type(b) == np.ndarray):
         if result is None:
             result = np.empty_like(a, order='C')
