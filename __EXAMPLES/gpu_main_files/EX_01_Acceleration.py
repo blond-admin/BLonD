@@ -141,17 +141,16 @@ for i in range(1, N_t+1):
     # beam.losses_separatrix(ring, rf)
     # beam.losses_longitudinal_cut(0., 2.5e-9)
 
+print('dE mean: ', beam.dE.mean())
+print('dE std: ', beam.dE.std())
+print('profile mean: ', profile.n_macroparticles.mean())
+print('profile std: ', profile.n_macroparticles.std())
+
+
 # For testing purposes
-# test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
-#     np.mean(beam.dE), np.std(beam.dE), np.mean(beam.dt), np.std(beam.dt))
-# with open(this_directory + '../output_files/EX_01_test_data.txt', 'w') as f:
-#     f.write(test_string)
+test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
+    beam.dE.mean(), beam.dE.std(), beam.dt.mean(), beam.dt.std())
+with open(this_directory + '../output_files/EX_01_test_data.txt', 'w') as f:
+    f.write(test_string)
 
 print("Done!")
-print("beam dE std:", beam.dE.std())
-print("beam dt std:", beam.dt.std())
-print("profile std:", profile.n_macroparticles.std())
-print("Print statistics result")
-beam.statistics()
-print("beam dE std:", beam.sigma_dE)
-print("beam dt std:", beam.sigma_dt)

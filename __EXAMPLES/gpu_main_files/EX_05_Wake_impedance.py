@@ -42,7 +42,7 @@ mpl.use('Agg')
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 
-USE_GPU = 1
+USE_GPU = 0
 
 try:
     os.mkdir(this_directory + '../output_files')

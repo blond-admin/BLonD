@@ -648,18 +648,31 @@ class Beam(object):
         '''
         Transfer all necessary arrays to the GPU
         '''
+        # Check if to_gpu has been invoked already
+        if hasattr(self, '__device') and self.__device == 'GPU':
+            return
+
         assert bm.device == 'GPU'
         import cupy as cp
         self.dE = cp.array(self.dE)
         self.dt = cp.array(self.dt)
         self.id = cp.array(self.id)
 
+        self.__device = 'GPU'
+
     def to_cpu(self):
         '''
         Transfer all necessary arrays back to the CPU
         '''
+        # Check if to_cpu has been invoked already
+        if hasattr(self, '__device') and self.__device == 'CPU':
+            return
+
         assert bm.device == 'CPU'
         import cupy as cp
         self.dE = cp.asnumpy(self.dE)
         self.dt = cp.asnumpy(self.dt)
         self.id = cp.asnumpy(self.id)
+
+        # to make sure it will not be called again
+        self.__device = 'CPU'

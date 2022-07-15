@@ -216,3 +216,11 @@ print('dE mean: ', my_beam.dE.mean())
 print('dE std: ', my_beam.dE.std())
 print('profile mean: ', slice_beam.n_macroparticles.mean())
 print('profile std: ', slice_beam.n_macroparticles.std())
+
+# # For testing purposes
+test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
+    my_beam.dE.mean(), my_beam.dE.std(), my_beam.dt.mean(), my_beam.dt.std())
+with open(this_directory + '../output_files/EX_02_test_data.txt', 'w') as f:
+    f.write(test_string)
+
+print("Done!")
