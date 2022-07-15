@@ -171,7 +171,6 @@ class GPUDev:
         self.dev = cp.cuda.Device(self.id)
         self.dev.use()
 
-
         self.name = cp.cuda.runtime.getDeviceProperties(self.dev)['name']
         self.attributes = self.dev.attributes
         self.properties = cp.cuda.runtime.getDeviceProperties(self.dev)
@@ -184,14 +183,15 @@ class GPUDev:
         self.grid_size = (blocks, 1, 1)
         self.block_size = (threads, 1, 1)
 
-
         this_dir = os.path.dirname(os.path.realpath(__file__)) + "/"
+        comp_capability = self.dev.compute_capability
+
         if precision.num == 1:
             self.mod = cp.RawModule(path=os.path.join(
-                this_dir, '../gpu/cuda_kernels/kernels_single.cubin'))
+                this_dir, f'../gpu/cuda_kernels/kernels_single_sm_{comp_capability}.cubin'))
         else:
             self.mod = cp.RawModule(path=os.path.join(
-                this_dir, '../gpu/cuda_kernels/kernels_double.cubin'))
+                this_dir, f'../gpu/cuda_kernels/kernels_double_sm_{comp_capability}.cubin'))
 
     def report_attributes(self):
         # Saves into a file all the device attributes
@@ -217,9 +217,9 @@ def use_gpu(gpu_id=0):
 
         print(''.join(['#']*10) +
               ' Using GPU: id {}, name {}, Compute Capability {} '.format(
-                __gpu_dev.id, __gpu_dev.name, __gpu_dev.dev.compute_capability)
-              + ''.join(['#']*10) + '\n', flush=True)
-    
+            __gpu_dev.id, __gpu_dev.name, __gpu_dev.dev.compute_capability)
+            + ''.join(['#']*10) + '\n', flush=True)
+
     from ..gpu import cupy_butils_wrap
     import cupy as cp
 
