@@ -108,7 +108,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     boost_path = None
     with_fftw = args.with_fftw or args.with_fftw_threads or args.with_fftw_omp or \
-                (args.with_fftw_lib is not None) or (args.with_fftw_header is not None)
+        (args.with_fftw_lib is not None) or (args.with_fftw_header is not None)
     if args.boost is not None:
         if args.boost:
             boost_path = os.path.abspath(args.boost)
@@ -157,7 +157,8 @@ if __name__ == "__main__":
                 print('Compiler auto-optimization did not work. Error: ', ret.stdout)
             else:
                 # Format the output list
-                stdout = ret.stdout.replace('#define ', '').replace('__ 1', '').replace('__', '').split('\n')
+                stdout = ret.stdout.replace('#define ', '').replace(
+                    '__ 1', '').replace('__', '').split('\n')
                 # Add the appropriate vectorization flag (not use avx512)
                 if 'AVX2' in stdout:
                     cflags += ['-mavx2']
@@ -234,7 +235,6 @@ if __name__ == "__main__":
             print('\nCompilation failed.')
             print(e)
 
-
     # Compile the GPU library
     if args.gpu:
         print('\n'+''.join(['=']*80))
@@ -244,7 +244,7 @@ if __name__ == "__main__":
             import cupy as cp
 
             dev = cp.cuda.Device(0)
-            dev_name =  cp.cuda.runtime.getDeviceProperties(dev)['name']
+            dev_name = cp.cuda.runtime.getDeviceProperties(dev)['name']
             comp_capability = dev.compute_capability
             print('Device name {}'.format(dev_name))
         elif args.gpu is not None:
@@ -253,12 +253,14 @@ if __name__ == "__main__":
         print('Compiling the CUDA library for architecture {}.'.format(comp_capability))
         # Add the -arch required argument
         nvccflags += ['-arch', 'sm_{}'.format(comp_capability)]
-        libname_double = os.path.join(basepath, 'gpu/cuda_kernels/kernels_double.cubin')
-        libname_single = os.path.join(basepath, 'gpu/cuda_kernels/kernels_single.cubin')
+        libname_double = os.path.join(basepath,
+                                      f'gpu/cuda_kernels/kernels_double_sm_{comp_capability}.cubin')
+        libname_single = os.path.join(basepath,
+                                      f'gpu/cuda_kernels/kernels_single_sm_{comp_capability}.cubin')
         # we need to get the header files location
-        path = cp.__file__.split('/')[:-1] # remove __init__.py from path
-        path.extend(['_core','include'])
-        
+        path = cp.__file__.split('/')[:-1]  # remove __init__.py from path
+        path.extend(['_core', 'include'])
+
         cupyloc = os.path.join('/'.join(path))
 
         print('cupy: ', cupyloc)
@@ -271,9 +273,7 @@ if __name__ == "__main__":
                                os.path.join(basepath, 'gpu/cuda_kernels/kernels_double.cu')]
         subprocess.call(command)
 
-
         if os.path.isfile(libname_single) and os.path.isfile(libname_double):
             print('The CUDA library has been successfully compiled.')
         else:
             print('The CUDA library compilation failed.')
-

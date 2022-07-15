@@ -183,18 +183,6 @@ __global__ void gpu_rf_voltage_calc_mem_ops(double *new_voltages,
     }
 }
 
-// extern "C"
-// __global__ void halve_edges(double *my_array, int size) {
-//     //__shared__ my_sum;
-//     int tid = threadIdx.x;
-//     if (tid == 0) {
-//         my_array[0] = my_array[0] / 2.;
-//     }
-//     if (tid == 32) {
-//         my_array[size - 1] = my_array[size - 1] / 2.;
-//     }
-// }
-
 extern "C"
 __global__ void simple_kick(
     double  * __restrict__ beam_dt,
@@ -304,24 +292,6 @@ __global__ void drift(double * __restrict__ beam_dt,
     }
 }
 
-
-
-// extern "C"
-// __global__ void histogram(double * __restrict__  input,
-//                           int * __restrict__  output, const double cut_left,
-//                           const double cut_right, const int n_slices,
-//                           const int n_macroparticles)
-// {
-//     int tid = threadIdx.x + blockDim.x * blockIdx.x;
-//     int target_bin;
-//     double const inv_bin_width = n_slices / (cut_right - cut_left);
-//     for (int i = tid; i < n_macroparticles; i = i + blockDim.x * gridDim.x) {
-//         target_bin = floor((input[i] - cut_left) * inv_bin_width);
-//         if (target_bin < 0 || target_bin >= n_slices)
-//             continue;
-//         atomicAdd(&(output[target_bin]), 1);
-//     }
-// }
 
 extern "C"
 __global__ void hybrid_histogram(const double * __restrict__  input,
@@ -531,114 +501,6 @@ __global__ void beam_phase_sum(
         scoeff[0] = scoeff[0] / coeff[0];
 
 }
-
-// extern "C"
-// __global__ void gpu_trapz_custom(
-//     double *y,
-//     double x,
-//     int sz,
-//     double *res)
-// {
-//     int tid = threadIdx.x + blockDim.x * blockIdx.x;
-//     double my_sum = 0;
-//     for (int i = tid; i < sz - 1; i += gridDim.x * blockDim.x)
-//         my_sum += (y[i] + y[i + 1]) * x / 2.0;
-
-//     atomicAdd(&(res[0]), my_sum);
-// }
-
-
-// extern "C"
-// __global__ void gpu_trapz_stage1(double *out, double *y, double x, int sz,
-//                       unsigned int seq_count, unsigned int n)
-// {
-//     // Needs to be variable-size to prevent the braindead CUDA compiler from
-//     // running constructors on this array. Grrrr.
-//     extern __shared__ double sdata[];
-//     unsigned int tid = threadIdx.x;
-//     unsigned int i = blockIdx.x * 512 * seq_count + tid;
-//     double acc = 0;
-//     for (unsigned s = 0; s < seq_count; ++s)
-//     {
-//         if (i >= n)
-//             break;
-//         acc = acc + ((i < sz - 1) ? x * (y[i] + y[i + 1]) / 2.0 : 0.0);
-//         i += 512;
-//     }
-//     sdata[tid] = acc;
-//     __syncthreads();
-// #if (512 >= 512)
-//     if (tid < 256) { sdata[tid] = sdata[tid] + sdata[tid + 256]; }
-//     __syncthreads();
-// #endif
-// #if (512 >= 256)
-//     if (tid < 128) { sdata[tid] = sdata[tid] + sdata[tid + 128]; }
-//     __syncthreads();
-// #endif
-// #if (512 >= 128)
-//     if (tid < 64) { sdata[tid] = sdata[tid] + sdata[tid + 64]; }
-//     __syncthreads();
-// #endif
-//     if (tid < 32)
-//     {
-//         // 'volatile' required according to Fermi compatibility guide 1.2.2
-//         volatile double *smem = sdata;
-//         if (512 >= 64) smem[tid] = smem[tid] + smem[tid + 32];
-//         if (512 >= 32) smem[tid] = smem[tid] + smem[tid + 16];
-//         if (512 >= 16) smem[tid] = smem[tid] + smem[tid + 8];
-//         if (512 >= 8)  smem[tid] = smem[tid] + smem[tid + 4];
-//         if (512 >= 4)  smem[tid] = smem[tid] + smem[tid + 2];
-//         if (512 >= 2)  smem[tid] = smem[tid] + smem[tid + 1];
-//     }
-//     if (tid == 0) out[blockIdx.x] = sdata[0];
-// }
-
-
-
-// extern "C"
-// __global__ void gpu_trapz_stage2(double *out, const double *cupy_reduction_inp, double *y, double x, int sz,
-//                       unsigned int seq_count, unsigned int n)
-// {
-//     // Needs to be variable-size to prevent the braindead CUDA compiler from
-//     // running constructors on this array. Grrrr.
-//     extern __shared__ double sdata[];
-//     unsigned int tid = threadIdx.x;
-//     unsigned int i = blockIdx.x * 512 * seq_count + tid;
-//     double acc = 0;
-//     for (unsigned s = 0; s < seq_count; ++s)
-//     {
-//         if (i >= n)
-//             break;
-//         acc = acc + (cupy_reduction_inp[i]);
-//         i = 512;
-//     }
-//     sdata[tid] = acc;
-//     __syncthreads();
-// #if (512 >= 512)
-//     if (tid < 256) { sdata[tid] = sdata[tid] + sdata[tid + 256]; }
-//     __syncthreads();
-// #endif
-// #if (512 >= 256)
-//     if (tid < 128) { sdata[tid] = sdata[tid] + sdata[tid + 128]; }
-//     __syncthreads();
-// #endif
-// #if (512 >= 128)
-//     if (tid < 64) { sdata[tid] = sdata[tid] + sdata[tid + 64]; }
-//     __syncthreads();
-// #endif
-//     if (tid < 32)
-//     {
-//         // 'volatile' required according to Fermi compatibility guide 1.2.2
-//         volatile double *smem = sdata;
-//         if (512 >= 64) smem[tid] = smem[tid] + smem[tid + 32];
-//         if (512 >= 32) smem[tid] = smem[tid] + smem[tid + 16];
-//         if (512 >= 16) smem[tid] = smem[tid] + smem[tid + 8];
-//         if (512 >= 8)  smem[tid] = smem[tid] + smem[tid + 4];
-//         if (512 >= 4)  smem[tid] = smem[tid] + smem[tid + 2];
-//         if (512 >= 2)  smem[tid] = smem[tid] + smem[tid + 1];
-//     }
-//     if (tid == 0) out[blockIdx.x] = sdata[0];
-// }
 
 
 extern "C"

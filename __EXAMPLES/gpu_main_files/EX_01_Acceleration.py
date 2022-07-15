@@ -116,7 +116,7 @@ test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
 # make the simulation much slower
 
 # Accelerator map
-map_ = [long_tracker] + [profile]
+map_ = [long_tracker] + [profile] + [plots]
 # + [bunchmonitor] + [plots]
 print("Map set")
 print("")
@@ -132,11 +132,27 @@ if USE_GPU:
 
 # Tracking --------------------------------------------------------------------
 for i in range(1, N_t+1):
-
+    # print(i)
     # Track
-    for m in map_:
-        m.track()
+    long_tracker.track()
+    profile.track()
 
+    if i % dt_plt == 0:
+        if USE_GPU:
+            # Copy to CPU all needed data
+            bm.use_cpu()
+            beam.to_cpu()
+            profile.to_cpu()
+            rf.to_cpu()
+
+        plots.track()
+        
+        if USE_GPU:
+            # copy back to GPU
+            bm.use_gpu()
+            beam.to_gpu()
+            profile.to_gpu()
+            rf.to_gpu()
     # Define losses according to separatrix and/or longitudinal position
     # beam.losses_separatrix(ring, rf)
     # beam.losses_longitudinal_cut(0., 2.5e-9)

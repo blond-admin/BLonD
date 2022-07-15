@@ -1,24 +1,239 @@
-# import os
-
 import numpy as np
 import cupy as cp
-# import cupy.fft as fft
-
-# from ..gpu import grid_size, block_size
-# from ..gpu.cupy_array import get_gpuarray
 from ..utils import bmath as bm
 
-kernels = bm.gpuDev().mod
 grid_size, block_size = bm.gpuDev().grid_size, bm.gpuDev().block_size
-# basedir = os.path.dirname(os.path.realpath(__file__)) + "/cuda_kernels/"
-
-
-# ElementwiseKernel = cp.ElementwiseKernel
-# ReductionKernel = cp.ReductionKernel
-
+kernels = bm.gpuDev().mod
 
 cugradient = kernels.get_function("cugradient")
 cuinterp = kernels.get_function("cuinterp")
+
+
+def gpu_rf_volt_comp(voltage, omega_rf, phi_rf, bin_centers):
+    assert voltage.dtype == bm.precision.real_t
+    assert omega_rf.dtype == bm.precision.real_t
+    assert phi_rf.dtype == bm.precision.real_t
+    assert bin_centers.dtype == bm.precision.real_t
+
+    rf_voltage = cp.empty(bin_centers.size, bm.precision.real_t)
+
+    rvc = kernels.get_function("rf_volt_comp")
+
+    rvc(args=(voltage, omega_rf, phi_rf, bin_centers,
+              np.int32(voltage.size), np.int32(bin_centers.size), rf_voltage),
+        block=block_size, grid=grid_size)
+    return rf_voltage
+
+
+def gpu_kick(dt, dE, voltage, omega_rf, phi_rf, charge, n_rf, acceleration_kick):
+    assert dt.dtype == bm.precision.real_t
+    assert dE.dtype == bm.precision.real_t
+    assert omega_rf.dtype == bm.precision.real_t
+    assert phi_rf.dtype == bm.precision.real_t
+
+    kick_kernel = kernels.get_function("simple_kick")
+
+    voltage_kick = cp.empty(voltage.size, bm.precision.real_t)
+    voltage_kick = charge * voltage
+
+    kick_kernel(args=(dt,
+                      dE,
+                      np.int32(n_rf),
+                      voltage_kick,
+                      omega_rf,
+                      phi_rf,
+                      np.int32(dt.size),
+                      bm.precision.real_t(acceleration_kick)),
+                block=block_size, grid=grid_size)  # , time_kernel=True)
+
+
+def gpu_drift(dt, dE, solver, t_rev, length_ratio, alpha_order, eta_0,
+              eta_1, eta_2, alpha_0, alpha_1, alpha_2, beta, energy):
+
+    solver = solver.decode('utf-8')
+    if solver == "simple":
+        solver = np.int32(0)
+    elif solver == "legacy":
+        solver = np.int32(1)
+    else:
+        solver = np.int32(2)
+
+    drift = kernels.get_function("drift")
+
+    drift(args=(dt,
+                dE,
+                solver,
+                bm.precision.real_t(t_rev), bm.precision.real_t(length_ratio),
+                bm.precision.real_t(alpha_order), bm.precision.real_t(eta_0),
+                bm.precision.real_t(eta_1), bm.precision.real_t(eta_2),
+                bm.precision.real_t(alpha_0), bm.precision.real_t(alpha_1),
+                bm.precision.real_t(alpha_2),
+                bm.precision.real_t(beta), bm.precision.real_t(energy),
+                np.int32(dt.size)),
+          block=block_size, grid=grid_size)  # , time_kernel=True)
+
+
+def gpu_linear_interp_kick(dt, dE, voltage,
+                           bin_centers, charge,
+                           acceleration_kick):
+    assert dt.dtype == bm.precision.real_t
+    assert dE.dtype == bm.precision.real_t
+    assert voltage.dtype == bm.precision.real_t
+    assert bin_centers.dtype == bm.precision.real_t
+
+    macros = dt.size
+    slices = bin_centers.size
+
+    gm_linear_interp_kick_help = kernels.get_function("lik_only_gm_copy")
+    gm_linear_interp_kick_comp = kernels.get_function("lik_only_gm_comp")
+
+    voltage_kick = cp.empty(slices - 1, bm.precision.real_t)
+    dev_factor = cp.empty(slices - 1, bm.precision.real_t)
+    gm_linear_interp_kick_help(args=(dt,
+                                     dE,
+                                     voltage,
+                                     bin_centers,
+                                     bm.precision.real_t(charge),
+                                     np.int32(slices),
+                                     np.int32(macros),
+                                     bm.precision.real_t(acceleration_kick),
+                                     voltage_kick,
+                                     dev_factor),
+                               grid=grid_size, block=block_size)  # ,time_kernel=True)
+
+    gm_linear_interp_kick_comp(args=(dt,
+                                     dE,
+                                     voltage,
+                                     bin_centers,
+                                     bm.precision.real_t(charge),
+                                     np.int32(slices),
+                                     np.int32(macros),
+                                     bm.precision.real_t(acceleration_kick),
+                                     voltage_kick,
+                                     dev_factor),
+                               grid=grid_size, block=block_size)  # ,time_kernel=True)
+
+
+def gpu_linear_interp_kick_drift(dt, dE, total_voltage, bin_centers, charge, acc_kick,
+                                 solver, t_rev, length_ratio, alpha_order, eta_0, eta_1,
+                                 eta_2, beta, energy):
+    assert dt.dtype == bm.precision.real_t
+    assert dE.dtype == bm.precision.real_t
+    assert total_voltage.dtype == bm.precision.real_t
+    assert bin_centers.dtype == bm.precision.real_t
+    gm_linear_interp_kick_drift_comp = kernels.get_function(
+        "lik_drift_only_gm_comp")
+    gm_linear_interp_kick_help = kernels.get_function("lik_only_gm_copy")
+
+    macros = dt.size
+    slices = bin_centers.size
+
+    voltage_kick = cp.empty(slices - 1, bm.precision.real_t)
+    factor = cp.empty(slices - 1, bm.precision.real_t)
+
+    gm_linear_interp_kick_help(args=(dt,
+                                     dE,
+                                     total_voltage,
+                                     bin_centers,
+                                     bm.precision.real_t(charge),
+                                     np.int32(slices),
+                                     np.int32(macros),
+                                     bm.precision.real_t(acc_kick),
+                                     voltage_kick,
+                                     factor),
+                               grid=grid_size, block=block_size)  # ,time_kernel=True)
+    gm_linear_interp_kick_drift_comp(args=(dt,
+                                           dE,
+                                           total_voltage,
+                                           bin_centers,
+                                           bm.precision.real_t(charge),
+                                           np.int32(slices),
+                                           np.int32(macros),
+                                           bm.precision.real_t(acc_kick),
+                                           voltage_kick,
+                                           factor,
+                                           bm.precision.real_t(t_rev),
+                                           bm.precision.real_t(length_ratio),
+                                           bm.precision.real_t(eta_0),
+                                           bm.precision.real_t(beta),
+                                           bm.precision.real_t(energy)),
+                                     grid=grid_size, block=block_size)  # ,time_kernel=True)
+
+
+def gpu_slice(dt, profile, cut_left, cut_right):
+
+    assert dt.dtype == bm.precision.real_t
+    hybrid_histogram = kernels.get_function("hybrid_histogram")
+    sm_histogram = kernels.get_function("sm_histogram")
+
+    n_slices = profile.size
+    profile.fill(0)
+    if 4*n_slices < bm.gpuDev().attributes['MaxSharedMemoryPerBlock']:
+        sm_histogram(args=(dt, profile, bm.precision.real_t(cut_left),
+                           bm.precision.real_t(cut_right), np.uint32(n_slices),
+                           np.uint32(dt.size)),
+                     grid=grid_size, block=block_size, shared_mem=4*n_slices)  # , time_kernel=True)
+    else:
+        hybrid_histogram(args=(dt, profile, bm.precision.real_t(cut_left),
+                               bm.precision.real_t(
+                                   cut_right), np.uint32(n_slices),
+                               np.uint32(dt.size), np.int32(
+            bm.gpuDev().attributes['MaxSharedMemoryPerBlock']/4)),
+            grid=grid_size, block=block_size,
+            shared_mem=bm.gpuDev().attributes['MaxSharedMemoryPerBlock'])  # , time_kernel=True)
+
+
+def gpu_synchrotron_radiation(dE, U0, n_kicks, tau_z):
+    assert dE.dtype == bm.precision.real_t
+    synch_rad = kernels.get_function("synchrotron_radiation")
+
+    synch_rad(args=(dE, bm.precision.real_t(U0), np.int32(dE.size),
+                    bm.precision.real_t(tau_z),
+                    np.int32(n_kicks)),
+              block=block_size,
+              grid=(bm.gpuDev().attributes['MultiProcessorCount'], 1, 1))
+
+
+def gpu_synchrotron_radiation_full(dE, U0, n_kicks, tau_z, sigma_dE, energy):
+    assert dE.dtype == bm.precision.real_t
+    synch_rad_full = kernels.get_function("synchrotron_radiation_full")
+
+    synch_rad_full(args=(dE, bm.precision.real_t(U0), np.int32(dE.size),
+                         bm.precision.real_t(
+                             sigma_dE), bm.precision.real_t(energy),
+                         np.int32(n_kicks), np.int32(1)),
+                   block=block_size, grid=grid_size)
+
+
+def gpu_beam_phase(bin_centers, profile, alpha, omega_rf, phi_rf, bin_size):
+    assert bin_centers.dtype == bm.precision.real_t
+    assert profile.dtype == bm.precision.real_t
+    # assert omega_rf.dtype == bm.precision.real_t
+    # assert phi_rf.dtype == bm.precision.real_t
+
+    beam_phase_v2 = kernels.get_function("beam_phase_v2")
+    beam_phase_sum = kernels.get_function("beam_phase_sum")
+
+    array1 = cp.empty(bin_centers.size, bm.precision.real_t)
+    array2 = cp.empty(bin_centers.size, bm.precision.real_t)
+
+    dev_scoeff = cp.empty(1, bm.precision.real_t)
+    dev_coeff = cp.empty(1, bm.precision.real_t)
+
+    beam_phase_v2(args=(bin_centers, profile,
+                        bm.precision.real_t(alpha),
+                        bm.precision.real_t(omega_rf),
+                        bm.precision.real_t(phi_rf),
+                        bm.precision.real_t(bin_size),
+                        array1, array2, np.int32(bin_centers.size)),
+                  block=block_size, grid=grid_size)
+
+    beam_phase_sum(args=(array1, array2, dev_scoeff, dev_coeff,
+                         np.int32(bin_centers.size)), block=(512, 1, 1),
+                   grid=(1, 1, 1))  # , time_kernel=True)
+
+    # convert to numpy array, then to float
+    return float(dev_scoeff[0].get())
 
 
 def gpu_convolve(signal, kernel, mode='full', result=None):
@@ -45,114 +260,7 @@ def gpu_interp(dev_x, dev_xp, dev_yp, left=0.12345, right=0.12345):
              block=block_size, grid=grid_size)
     return dev_res
 
-# custom_gpu_trapz = kernels.get_function("gpu_trapz_custom")
-
-
-# beam_feedback
-# triple_kernel = kernels.get_function("gpu_beam_fb_track_other")
-
-# first_kernel_x = ElementwiseKernel(
-#     f"raw {bm.precision.str} harmonic,  {bm.precision.str} domega_rf, int32 size, int32 counter",
-#     f"raw {bm.precision.str} omega_rf",
-#     "omega_rf[i*size +counter] += domega_rf * harmonic[i*size + counter] / harmonic[counter]",
-#     "first_kernel_x")
-
-# second_kernel_x = ElementwiseKernel(
-#     f"raw {bm.precision.str} *harmonic, raw {bm.precision.str} omega_rf, raw {bm.precision.str} omega_rf_d, int32 size, int32 counter, {bm.precision.str} pi",
-#     f"raw {bm.precision.str} dphi_rf",
-#     "dphi_rf[i] +=  2.0*pi*harmonic[size*i+counter]*(omega_rf[size*i+counter]-omega_rf_d[size*i+counter])/omega_rf_d[size*i+counter]",
-#     "second_kernel_x")
-
-# third_kernel_x = ElementwiseKernel(
-#     f"raw {bm.precision.str} y, int32 size_0, int32 counter",
-#     f"raw {bm.precision.str} x",
-#     "x[i*size_0 + counter] += y[i]",
-#     "third_kernel_x")
-
-# indexing_double = ElementwiseKernel(
-#     f"raw {bm.precision.str} in, int32 *ind",
-#     f"raw {bm.precision.str} out",
-#     "out[i] = in[ind[i]]",
-#     "indexing_double")
-
-# indexing_int = ElementwiseKernel(
-#     f"raw int32 in, raw int32 ind",
-#     f"raw {bm.precision.str} out",
-#     "out[i] = in[ind[i]]",
-#     "indexing_int")
-
-# sincos_mul_add = ElementwiseKernel(
-#     f"raw {bm.precision.str} ar, {bm.precision.str} a, {bm.precision.str} b, raw {bm.precision.str} s, raw {bm.precision.str} c",
-#     '',
-#     "sincos(a*ar[i]+b, &s[i], &c[i])",
-#     "sincos_mul_add")
-
-# sincos_mul_add_2 = ElementwiseKernel(
-#     f"raw {bm.precision.str} ar, {bm.precision.str} a, {bm.precision.str} b, raw {bm.precision.str} c",
-#     f"raw {bm.precision.str} s",
-#     "s[i] = cos(a*ar[i]+b-pi/2); c[i] = cos(a*ar[i]+b)",
-#     "sincos_mul_add_2")
-
-# gpu_trapz = ReductionKernel(
-#     in_params = f"raw {bm.precision.str} *y, {bm.precision.str} x, int32 sz",
-#     out_params = f"{bm.precision.str} z",
-#     map_expr = "(i<sz-1) ? x*(y[i]+y[i+1])/2.0 : 0.0",
-#     reduce_expr = "a+b",
-#     post_map_expr = "z = a",
-#     identity="0",
-#     name="gpu_trapz"
-# )
-
-
-# The following functions are being used for the methods of the tracker
-
-# def first_kernel_tracker(phi_rf, x, phi_noise, length, turn, limit = None):
-#     index = len(phi_rf) if limit is None else limit
-#     for i in range(index):
-#         phi_rf[length*i + turn] += x * phi_noise[length*i + turn]
-
-# def second_kernel_tracker(phi_rf, omega_rf, phi_mod0, phi_mod1, size, turn, limit = None):
-#     index = len(phi_rf) if limit is None else limit
-#     for i in range(index):
-#         phi_rf[i*size+turn] += phi_mod0[i*size+turn]
-#         omega_rf[i*size+turn] += phi_mod1[i*size+turn]
-
-# def copy_column(x, y, size, column):
-#     for i in range(len(x)):
-#         x[i] = y[i*size + column]
-
-
-# rf_voltage_calculation_kernel = copy_column
-
-
-# def cavityFB_case(rf_voltage, voltage, omega_rf, phi_rf, bin_centers,
-#                     V_corr, phi_corr, size, column):
-#     from cupy import sin
-#     for i in range(len(rf_voltage)):
-#         rf_voltage[i] = voltage[0] * V_corr * sin(omega_rf[0] * bin_centers[i]+phi_rf[0]+phi_corr)
-
-
-# gpu_rf_voltage_calc_mem_ops = kernels.get_function("gpu_rf_voltage_calc_mem_ops")
-
-
-# The following methods are being used during the beam_phase
-
-
-# bm_phase_exp_times_scalar = ElementwiseKernel(
-#     f"raw {bm.precision.str} b, {bm.precision.str} c, raw int32 d",
-#     f"raw {bm.precision.str} a",
-#     "a[i] = exp(c*b[i])*d[i]",
-#     "bm_phase_exp_times_scalar")
-
-# bm_sin_cos = ElementwiseKernel(
-#     f"raw {bm.precision.str} b, raw {bm.precision.str} c",
-#     f"raw {bm.precision.str} a",
-#     "sincos(a[i],&b[i], &c[i])",
-#     "bm_sin_cos")
-
-
 # # ffts dicts, a cache for the plans of the ffts
-
 # plans_dict = {}
 # inverse_plans_dict = {}
 
