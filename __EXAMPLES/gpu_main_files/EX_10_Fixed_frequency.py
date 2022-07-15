@@ -132,6 +132,7 @@ if USE_GPU:
 
 
 for i in range(1, n_turns+1):
+    # print(i)
 
     for m in map_:
         m.track()

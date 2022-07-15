@@ -126,12 +126,9 @@ if USE_GPU:
     bm.use_gpu()
     long_tracker.to_gpu()
     slices_ring.to_gpu()
-    my_beam.to_gpu()
-    phase_loop.to_gpu()
-    rf_params.to_gpu()
 
 for i in range(1, n_turns+1):
-
+    # print(i)
     if i == 100:
         phase_loop.reference += 0.00001  # /1.6e-6
 
