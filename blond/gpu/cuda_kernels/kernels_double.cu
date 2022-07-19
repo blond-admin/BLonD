@@ -197,15 +197,14 @@ __global__ void simple_kick(
 {
     int tid = threadIdx.x + blockDim.x * blockIdx.x;
     double my_beam_dt;
-    double sin_res;
-    double dummy;
+    double my_beam_dE;
     for (int i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
         my_beam_dt = beam_dt[i];
+        my_beam_dE = beam_dE[i];
         for (int j = 0; j < n_rf; j++) {
-            sincos(omega_RF[j]*my_beam_dt + phi_RF[j], &sin_res, &dummy);
-            beam_dE[i] += voltage[j] * sin_res;
+            my_beam_dE += voltage[j] * sin(omega_RF[j]*my_beam_dt + phi_RF[j])
         }
-        beam_dE[i] += acc_kick;
+        beam_dE[i] = my_beam_dE + acc_kick;
     }
 }
 
@@ -219,10 +218,14 @@ __global__ void rf_volt_comp(const double * __restrict__ voltage,
                              double * __restrict__ rf_voltage)
 {
     int tid = threadIdx.x + blockDim.x * blockIdx.x;
-
+    double my_rf_voltage;
+    double my_bin_centers;
     for (int i = tid; i < n_bins; i += blockDim.x * gridDim.x) {
+        my_rf_voltage = rf_voltage[i]
+        my_bin_centers = bin_centers[i]
         for (int j = 0; j < n_rf; j++)
-            rf_voltage[i] = voltage[j] * sin(omega_rf[j] * bin_centers[i] + phi_rf[j]);
+            my_rf_voltage += voltage[j] * sin(omega_rf[j] * my_bin_centers + phi_rf[j]);
+        rf_voltage[i] = my_rf_voltage
     }
 }
 
