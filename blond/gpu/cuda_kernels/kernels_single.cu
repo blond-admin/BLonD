@@ -202,7 +202,7 @@ __global__ void simple_kick(
         my_beam_dt = beam_dt[i];
         my_beam_dE = beam_dE[i];
         for (int j = 0; j < n_rf; j++) {
-            my_beam_dE += voltage[j] * sinf(omega_RF[j]*my_beam_dt + phi_RF[j])
+            my_beam_dE += voltage[j] * sinf(omega_RF[j]*my_beam_dt + phi_RF[j]);
         }
         beam_dE[i] = my_beam_dE + acc_kick;
     }
@@ -221,11 +221,11 @@ __global__ void rf_volt_comp(const float * __restrict__ voltage,
     float my_rf_voltage;
     float my_bin_centers;
     for (int i = tid; i < n_bins; i += blockDim.x * gridDim.x) {
-        my_rf_voltage = rf_voltage[i]
-        my_bin_centers = bin_centers[i]
+        my_rf_voltage = rf_voltage[i];
+        my_bin_centers = bin_centers[i];
         for (int j = 0; j < n_rf; j++)
             my_rf_voltage += voltage[j] * sinf(omega_rf[j] * my_bin_centers + phi_rf[j]);
-        rf_voltage[i] = my_rf_voltage
+        rf_voltage[i] = my_rf_voltage;
     }
 }
 
