@@ -6,7 +6,6 @@ grid_size, block_size = bm.gpuDev().grid_size, bm.gpuDev().block_size
 kernels = bm.gpuDev().mod
 
 cugradient = kernels.get_function("cugradient")
-cuinterp = kernels.get_function("cuinterp")
 
 
 def gpu_rf_volt_comp(voltage, omega_rf, phi_rf, bin_centers):
@@ -205,35 +204,68 @@ def gpu_synchrotron_radiation_full(dE, U0, n_kicks, tau_z, sigma_dE, energy):
                    block=block_size, grid=grid_size)
 
 
+# def gpu_beam_phase(bin_centers, profile, alpha, omega_rf, phi_rf, bin_size):
+#     assert bin_centers.dtype == bm.precision.real_t
+#     assert profile.dtype == bm.precision.real_t
+#     # assert omega_rf.dtype == bm.precision.real_t
+#     # assert phi_rf.dtype == bm.precision.real_t
+#
+#     beam_phase_v2 = kernels.get_function("beam_phase_v2")
+#     beam_phase_sum = kernels.get_function("beam_phase_sum")
+#
+#     array1 = cp.empty(bin_centers.size, bm.precision.real_t)
+#     array2 = cp.empty(bin_centers.size, bm.precision.real_t)
+#
+#     dev_scoeff = cp.empty(1, bm.precision.real_t)
+#     dev_coeff = cp.empty(1, bm.precision.real_t)
+#
+#     beam_phase_v2(args=(bin_centers, profile,
+#                         bm.precision.real_t(alpha),
+#                         bm.precision.real_t(omega_rf),
+#                         bm.precision.real_t(phi_rf),
+#                         bm.precision.real_t(bin_size),
+#                         array1, array2, np.int32(bin_centers.size)),
+#                   block=block_size, grid=grid_size)
+#
+#     beam_phase_sum(args=(array1, array2, dev_scoeff, dev_coeff,
+#                          np.int32(bin_centers.size)), block=(512, 1, 1),
+#                    grid=(1, 1, 1))  # , time_kernel=True)
+#
+#     # convert to numpy array, then to float
+#     return float(dev_scoeff[0].get())
+
+
+@cp.fuse(kernel_name='beam_phase_helper')
+def __beam_phase_helper(bin_centers, profile, alpha, omega_rf, phi_rf):
+    base = cp.exp(alpha * bin_centers) * profile
+    a = omega_rf * bin_centers + phi_rf
+    return base * cp.sin(a), base * cp.cos(a)
 def gpu_beam_phase(bin_centers, profile, alpha, omega_rf, phi_rf, bin_size):
     assert bin_centers.dtype == bm.precision.real_t
     assert profile.dtype == bm.precision.real_t
-    # assert omega_rf.dtype == bm.precision.real_t
-    # assert phi_rf.dtype == bm.precision.real_t
 
-    beam_phase_v2 = kernels.get_function("beam_phase_v2")
-    beam_phase_sum = kernels.get_function("beam_phase_sum")
+    array1, array2 = __beam_phase_helper(bin_centers, profile, alpha, omega_rf, phi_rf)
+    scoeff = cp.trapz(array1, dx=bin_size)
+    ccoeff = cp.trapz(array2, dx=bin_size)
 
-    array1 = cp.empty(bin_centers.size, bm.precision.real_t)
-    array2 = cp.empty(bin_centers.size, bm.precision.real_t)
+    return float(scoeff / ccoeff)
 
-    dev_scoeff = cp.empty(1, bm.precision.real_t)
-    dev_coeff = cp.empty(1, bm.precision.real_t)
 
-    beam_phase_v2(args=(bin_centers, profile,
-                        bm.precision.real_t(alpha),
-                        bm.precision.real_t(omega_rf),
-                        bm.precision.real_t(phi_rf),
-                        bm.precision.real_t(bin_size),
-                        array1, array2, np.int32(bin_centers.size)),
-                  block=block_size, grid=grid_size)
+@cp.fuse(kernel_name='beam_phase_fast_helper')
+def __beam_phase_fast_helper(bin_centers, profile, omega_rf, phi_rf):
+    a = omega_rf * bin_centers + phi_rf
+    return profile * cp.sin(a), profile * cp.cos(a)
 
-    beam_phase_sum(args=(array1, array2, dev_scoeff, dev_coeff,
-                         np.int32(bin_centers.size)), block=(512, 1, 1),
-                   grid=(1, 1, 1))  # , time_kernel=True)
 
-    # convert to numpy array, then to float
-    return float(dev_scoeff[0].get())
+def gpu_beam_phase_fast(bin_centers, profile, omega_rf, phi_rf, bin_size):
+    assert bin_centers.dtype == bm.precision.real_t
+    assert profile.dtype == bm.precision.real_t
+
+    array1, array2 = __beam_phase_fast_helper(bin_centers, profile, omega_rf, phi_rf)
+    scoeff = cp.trapz(array1, dx=bin_size)
+    ccoeff = cp.trapz(array2, dx=bin_size)
+
+    return float(scoeff / ccoeff)
 
 
 def gpu_convolve(signal, kernel, mode='full', result=None):
@@ -252,6 +284,7 @@ def gpu_convolve(signal, kernel, mode='full', result=None):
 
 
 def gpu_interp(dev_x, dev_xp, dev_yp, left=0.12345, right=0.12345):
+    cuinterp = kernels.get_function("cuinterp")
     dev_res = cp.empty(dev_x.size, bm.precision.real_t)
     cuinterp(args=(dev_x, np.int32(dev_x.size),
                    dev_xp, np.int32(dev_xp.size),

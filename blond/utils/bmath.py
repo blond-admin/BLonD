@@ -43,6 +43,7 @@ _CPU_func_dict = {
     'add_cpp': butils_wrap.add_cpp,
     'mul_cpp': butils_wrap.mul_cpp,
     'beam_phase': butils_wrap.beam_phase,
+    'beam_phase_fast': butils_wrap.beam_phase_fast,
     'fast_resonator': butils_wrap.fast_resonator,
     'kick': butils_wrap.kick,
     'rf_volt_comp': butils_wrap.rf_volt_comp,
@@ -231,6 +232,7 @@ def use_gpu(gpu_id=0):
         'rfftfreq': cp.fft.rfftfreq,
         'convolve': cupy_butils_wrap.gpu_convolve,
         'beam_phase': cupy_butils_wrap.gpu_beam_phase,
+        'beam_phase_fast': cupy_butils_wrap.gpu_beam_phase_fast,
         'kick': cupy_butils_wrap.gpu_kick,
         'rf_volt_comp': cupy_butils_wrap.gpu_rf_volt_comp,
         'drift': cupy_butils_wrap.gpu_drift,
@@ -239,7 +241,7 @@ def use_gpu(gpu_id=0):
         'synchrotron_radiation': cupy_butils_wrap.gpu_synchrotron_radiation,
         'synchrotron_radiation_full': cupy_butils_wrap.gpu_synchrotron_radiation_full,
         'slice': cupy_butils_wrap.gpu_slice,
-        'interp_const_space': cupy_butils_wrap.cuinterp,
+        'interp_const_space': cupy_butils_wrap.gpu_interp,
         'device': 'GPU'
     }
     # add cupy functions in the dictionary

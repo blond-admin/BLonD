@@ -106,7 +106,7 @@ class FullRingAndRF(object):
             first_dt = - time_array_margin/2
             last_dt = 2*np.pi/main_omega_rf + time_array_margin/2
 
-            time_array = np.linspace(float(first_dt), float(last_dt), n_points)
+            time_array = np.linspace(float(first_dt), float(last_dt), int(n_points))
 
         self.total_voltage = np.sum(voltages.T *
                                     np.sin(omega_rf.T*time_array + phi_offsets.T), axis=0)
