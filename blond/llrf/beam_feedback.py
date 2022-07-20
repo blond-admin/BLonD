@@ -281,21 +281,25 @@ class BeamFeedback(object):
         else:
             indexes = self.profile.bin_centers >= self.time_offset
             time_offset = self.time_offset
-            exp = bm.exp(self.alpha*(self.profile.bin_centers[indexes] -
-                                     time_offset))
-            # Convolve with window function
-            scoeff = bm.trapz(exp *
-                              bm.sin(omega_rf*self.profile.bin_centers[indexes] +
-                                     phi_rf) *
+            coeff = bm.beam_phase(self.profile.bin_centers[indexes],
                               self.profile.n_macroparticles[indexes],
-                              dx=self.profile.bin_size)
-            ccoeff = bm.trapz(exp *
-                              bm.cos(omega_rf*self.profile.bin_centers[indexes] +
-                                     phi_rf) *
-                              self.profile.n_macroparticles[indexes],
-                              dx=self.profile.bin_size)
-            # needed to make sure the result is scalar and not 0-dim array
-            coeff = float(scoeff/ccoeff)
+                                  self.alpha, omega_rf, phi_rf,
+                                  self.profile.bin_size)
+            # exp = bm.exp(self.alpha*(self.profile.bin_centers[indexes] -
+            #                          time_offset))
+            # # Convolve with window function
+            # scoeff = bm.trapz(exp *
+            #                   bm.sin(omega_rf*self.profile.bin_centers[indexes] +
+            #                          phi_rf) *
+            #                   self.profile.n_macroparticles[indexes],
+            #                   dx=self.profile.bin_size)
+            # ccoeff = bm.trapz(exp *
+            #                   bm.cos(omega_rf*self.profile.bin_centers[indexes] +
+            #                          phi_rf) *
+            #                   self.profile.n_macroparticles[indexes],
+            #                   dx=self.profile.bin_size)
+            # # needed to make sure the result is scalar and not 0-dim array
+            # coeff = float(scoeff/ccoeff)
 
         # Project beam phase to (pi/2,3pi/2) range
         self.phi_beam = np.arctan(coeff) + np.pi

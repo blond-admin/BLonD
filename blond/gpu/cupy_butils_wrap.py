@@ -14,7 +14,7 @@ def gpu_rf_volt_comp(voltage, omega_rf, phi_rf, bin_centers):
     assert phi_rf.dtype == bm.precision.real_t
     assert bin_centers.dtype == bm.precision.real_t
 
-    rf_voltage = cp.empty(bin_centers.size, bm.precision.real_t)
+    rf_voltage = cp.zeros(bin_centers.size, bm.precision.real_t)
 
     rvc = kernels.get_function("rf_volt_comp")
 

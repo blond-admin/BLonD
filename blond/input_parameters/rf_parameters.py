@@ -398,6 +398,9 @@ class RFStation(object):
         '''
         Transfer all necessary arrays to the GPU
         '''
+        # Check if to_gpu has been invoked already
+        if hasattr(self, '__device') and self.__device == 'GPU':
+            return
         assert bm.device == 'GPU'
         import cupy as cp
         if self.phi_modulation is not None:
@@ -413,11 +416,16 @@ class RFStation(object):
         self.harmonic = cp.array(self.harmonic)
         self.dphi_rf = cp.array(self.dphi_rf)
         self.t_rf = cp.array(self.t_rf)
+        # to make sure it will not be called again
+        self.__device = 'GPU'
 
     def to_cpu(self):
         '''
         Transfer all necessary arrays back to the CPU
         '''
+        # Check if to_cpu has been invoked already
+        if hasattr(self, '__device') and self.__device == 'CPU':
+            return
         assert bm.device == 'CPU'
         import cupy as cp
         if self.phi_modulation is not None:
@@ -434,6 +442,8 @@ class RFStation(object):
         self.dphi_rf = cp.asnumpy(self.dphi_rf)
         self.t_rf = cp.asnumpy(self.t_rf)
 
+        # to make sure it will not be called again
+        self.__device = 'CPU'
 
 def calculate_Q_s(RFStation, Particle=Proton()):
     r""" Function calculating the turn-by-turn synchrotron tune for
