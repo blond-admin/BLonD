@@ -119,7 +119,7 @@ def gauss(x, *p):
     """
 
     A, x0, sx = p
-    return A*bm.exp(-(x-x0)**2/2./sx**2)
+    return A*np.exp(-(x-x0)**2/2./sx**2)
 
 
 def rms(Y_array, X_array):
