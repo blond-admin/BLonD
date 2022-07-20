@@ -584,6 +584,21 @@ def beam_phase(bin_centers, profile, alpha, omegarf, phirf, bin_size):
     return coeff
 
 
+def beam_phase_fast(bin_centers, profile, omegarf, phirf, bin_size):
+    bin_centers = bin_centers.astype(dtype=precision.real_t, order='C',
+                                     copy=False)
+    profile = profile.astype(dtype=precision.real_t, order='C', copy=False)
+
+    __lib.beam_phase_fast.restype = ct.c_double
+    coeff = __lib.beam_phase_fast(__getPointer(bin_centers),
+                             __getPointer(profile),
+                             __c_real(omegarf),
+                             __c_real(phirf),
+                             __c_real(bin_size),
+                             __getLen(profile))
+    return coeff
+
+
 def rf_volt_comp(voltages, omega_rf, phi_rf, bin_centers):
 
     bin_centers = bin_centers.astype(

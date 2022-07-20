@@ -520,6 +520,10 @@ class InducedVoltageTime(_InducedVoltage):
             self.mtw_memory = cp.array(self.mtw_memory)
         if hasattr(self, 'time_mtw'):
             self.time_mtw = cp.array(self.time_mtw)
+        if hasattr(self, 'omegaj_mtw'):
+            self.omegaj_mtw = cp.array(self.omegaj_mtw)
+        if hasattr(self, 'freq_mtw'):
+            self.freq_mtw = cp.array(self.freq_mtw)
         if hasattr(self, 'total_wake'):
             self.total_wake = cp.array(self.total_wake)
         if hasattr(self, 'time'):
@@ -547,6 +551,10 @@ class InducedVoltageTime(_InducedVoltage):
             self.mtw_memory = cp.asnumpy(self.mtw_memory)
         if hasattr(self, 'time_mtw'):
             self.time_mtw = cp.asnumpy(self.time_mtw)
+        if hasattr(self, 'omegaj_mtw'):
+            self.omegaj_mtw = cp.asnumpy(self.omegaj_mtw)
+        if hasattr(self, 'freq_mtw'):
+            self.freq_mtw = cp.asnumpy(self.freq_mtw)
         if hasattr(self, 'total_wake'):
             self.total_wake = cp.asnumpy(self.total_wake)
         if hasattr(self, 'time'):
@@ -678,6 +686,8 @@ class InducedVoltageFreq(_InducedVoltage):
         self.total_impedance = cp.array(self.total_impedance)
         if hasattr(self, 'mtw_memory'):
             self.mtw_memory = cp.array(self.mtw_memory)
+        if hasattr(self, 'time_mtw'):
+            self.time_mtw = cp.array(self.time_mtw)
         if hasattr(self, 'freq_mtw'):
             self.freq_mtw = cp.array(self.freq_mtw)
         if hasattr(self, 'omegaj_mtw'):
@@ -701,6 +711,8 @@ class InducedVoltageFreq(_InducedVoltage):
         self.total_impedance = cp.asnumpy(self.total_impedance)
         if hasattr(self, 'mtw_memory'):
             self.mtw_memory = cp.asnumpy(self.mtw_memory)
+        if hasattr(self, 'time_mtw'):
+            self.time_mtw = cp.asnumpy(self.time_mtw)
         if hasattr(self, 'freq_mtw'):
             self.freq_mtw = cp.asnumpy(self.freq_mtw)
         if hasattr(self, 'omegaj_mtw'):

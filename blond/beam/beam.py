@@ -227,7 +227,7 @@ class Beam(object):
             number of macroparticles lost.
 
         '''
-        return bm.count_nonzero(self.id==0)
+        return self.n_macroparticles - self.n_macroparticles_alive
 
     @property
     def n_macroparticles_alive(self):
@@ -240,7 +240,7 @@ class Beam(object):
 
         '''
 
-        return self.n_macroparticles - self.n_macroparticles_lost
+        return bm.count_nonzero(self.id)
 
     def eliminate_lost_particles(self):
         """Eliminate lost particles from the beam coordinate arrays

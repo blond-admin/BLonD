@@ -359,7 +359,6 @@ class RFStation(object):
         else:
             
             self.phi_modulation = None
-            # self.dev_phi_modulation = None
 
 
         # Copy of the desing rf programs in the one used for tracking
