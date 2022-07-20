@@ -116,7 +116,7 @@ if args['monitor']:
 bm.use_precision(precision)
 
 bm.use_mpi()
-bm.use_fftw()
+#bm.use_fftw()
 
 worker.assignGPUs(num_gpus=args['gpu'])
 
@@ -125,7 +125,7 @@ if worker.isMaster:
     worker.print_version()
 
 worker.initLog(bool(args['log']), args['logdir'])
-worker.initTrace(bool(args['trace']), args['tracefile'])
+#worker.initTrace(bool(args['trace']), args['tracefile'])
 worker.taskparallelism = withtp
 
 mpiprint(args)
@@ -512,10 +512,10 @@ if args['gpu'] > 0:
     tracker.use_gpu()
     phaseLoop.use_gpu()
 
-print(f'Glob rank: [{worker.rank}], Node rank: [{worker.noderank}], Intra rank: [{worker.intrarank}], GPU rank: [{worker.gpucommrank}], hasGPU: {worker.hasGPU}')
+print(f'Glob rank: [{worker.rank}], Node rank: [{worker.noderank}], GPU rank: [{worker.gpucommrank}], hasGPU: {worker.hasGPU}')
 
 
-worker.initDLB(args['loadbalance'], n_iterations)
+#worker.initDLB(args['loadbalance'], n_iterations)
 
 delta = 0
 worker.sync()
@@ -532,88 +532,37 @@ for turn in range(n_iterations):
         mpiprint('turn: '+str(turn))
     elif turn % 1000 == 0:
         mpiprint('turn: '+str(turn))
-
-    # Update profile
-    if (approx == 0):
-        profile._slice()
-        # worker.sync()
-        profile.reduce_histo()
-    elif (approx == 1) and (turn % n_turns_reduce == 0):
-        profile._slice()
-        # worker.sync()
-        profile.reduce_histo()
-    elif (approx == 2):
-        profile._slice()
-        profile.scale_histo()
-
-    # If we are in a gpu group, with tp
-    if withtp and worker.gpu_id >= 0:
-        if worker.hasGPU:
-            if (turn < 8*int(FBtime)):
-                longCavityImpedanceReduction.track()
-                shortCavityImpedanceReduction.track()
-            if (approx == 0) or (approx == 2):
-                inducedVoltage.induced_voltage_sum()
-            elif (approx == 1) and (turn % n_turns_reduce == 0):
-                inducedVoltage.induced_voltage_sum()
-            tracker.pre_track()
-
-        worker.gpuSync()
-
-        # Here I need to broadcast the calculated stuff
-        inducedVoltage.induced_voltage = worker.broadcast(
-            inducedVoltage.induced_voltage)
-        tracker.rf_voltage = worker.broadcast(tracker.rf_voltage)
-    # else just do the normal task-parallelism
-    elif withtp:
-        if worker.isFirst:
-            if (turn < 8*int(FBtime)):
-                longCavityImpedanceReduction.track()
-                shortCavityImpedanceReduction.track()
-            if (approx == 0) or (approx == 2):
-                inducedVoltage.induced_voltage_sum()
-            elif (approx == 1) and (turn % n_turns_reduce == 0):
-                inducedVoltage.induced_voltage_sum()
-        if worker.isLast:
-            tracker.pre_track()
-
-        worker.intraSync()
-        worker.sendrecv(inducedVoltage.induced_voltage, tracker.rf_voltage)
-    else:
-        if (turn < 8*int(FBtime)):
-            longCavityImpedanceReduction.track()
-            shortCavityImpedanceReduction.track()
-        if (approx == 0) or (approx == 2):
-            inducedVoltage.induced_voltage_sum()
-        elif (approx == 1) and (turn % n_turns_reduce == 0):
-            inducedVoltage.induced_voltage_sum()
-        tracker.pre_track()
-
-    tracker.track_only()
-
+    
+    profile.track()
+    if (turn < 8*int(FBtime)):
+        longCavityImpedanceReduction.track()
+        shortCavityImpedanceReduction.track()
+    
+    inducedVoltage.induced_voltage_sum()
+    tracker.track() 
+    
     if SPS_PHASELOOP is True:
         if turn % PL_save_turns == 0 and turn > 0:
-            with timing.timed_region('serial:binShift') as tr:
 
-                # present beam position
-                beamPosFromPhase = (phaseLoop.phi_beam - rf_station.phi_rf[0, turn])\
-                    / rf_station.omega_rf[0, turn] + t_batch_begin
-                # how much to shift the bin_centers
-                delta = beamPosPrev - beamPosFromPhase
-                beamPosPrev = beamPosFromPhase
+            # present beam position
+            beamPosFromPhase = (phaseLoop.phi_beam - rf_station.phi_rf[0, turn])\
+                / rf_station.omega_rf[0, turn] + t_batch_begin
+            # how much to shift the bin_centers
+            delta = beamPosPrev - beamPosFromPhase
+            beamPosPrev = beamPosFromPhase
 
-                profile.bin_centers -= delta
-                profile.cut_left -= delta
-                profile.cut_right -= delta
-                profile.edges -= delta
+            profile.bin_centers -= delta
+            profile.cut_left -= delta
+            profile.cut_right -= delta
+            profile.edges -= delta
 
-                # shift time_offset of phase loop as well, so that it starts at correct
-                # bin_center corresponding to time_offset
-                if phaseLoop.alpha != 0:
-                    phaseLoop.time_offset -= delta
+            # shift time_offset of phase loop as well, so that it starts at correct
+            # bin_center corresponding to time_offset
+            if phaseLoop.alpha != 0:
+                phaseLoop.time_offset -= delta
 
-                min_dt -= delta
-                max_dt -= delta
+            min_dt -= delta
+            max_dt -= delta
 
     if (args['monitor'] and monitor_interval > 0) and \
             (turn >= monitor_firstturn and turn < monitor_lastturn) and \
@@ -629,11 +578,11 @@ for turn in range(n_iterations):
             # profile.fwhm()
             slicesMonitor.track(turn)
 
-    worker.DLB(turn, beam)
+    #worker.DLB(turn, beam)
 
 # cp.report()
-if False:
-    beam.gather()
+#if False:
+beam.gather()
 
 end_t = time.time()
 mpiprint('Total time: ', end_t - start_t)
@@ -655,3 +604,4 @@ mpiprint('profile std: ', np.std(profile.n_macroparticles))
 # --- Saving results ----------------------------------------------------
 
 mpiprint('Done!')
+

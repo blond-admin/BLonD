@@ -146,7 +146,7 @@ if args['monitor']:
 bm.use_precision(precision)
 
 bm.use_mpi()
-bm.use_fftw()
+#bm.use_fftw()
 
 worker.assignGPUs(num_gpus=args['gpu'])
 
@@ -155,7 +155,7 @@ if worker.isMaster:
     worker.print_version()
 
 worker.initLog(bool(args['log']), args['logdir'])
-worker.initTrace(bool(args['trace']), args['tracefile'])
+#worker.initTrace(bool(args['trace']), args['tracefile'])
 worker.taskparallelism = withtp
 
 mpiprint(args)
@@ -453,10 +453,10 @@ if worker.hasGPU:
     PS_longitudinal_intensity.use_gpu()
     tracker.use_gpu()
 
-print(f'Glob rank: [{worker.rank}], Node rank: [{worker.noderank}], Intra rank: [{worker.intrarank}], GPU rank: [{worker.gpucommrank}], hasGPU: {worker.hasGPU}')
+print(f'Glob rank: [{worker.rank}], Node rank: [{worker.noderank}], GPU rank: [{worker.gpucommrank}], hasGPU: {worker.hasGPU}')
 
 
-worker.initDLB(args['loadbalance'], n_iterations)
+#worker.initDLB(args['loadbalance'], n_iterations)
 
 worker.sync()
 timing.reset()
@@ -471,64 +471,15 @@ for turn in range(n_iterations):
 
     # if (i > 0) and (i % datamatrix_output_step) == 0:
     #     t0 = time.time()
-
-    if (approx == 0):
-        profile._slice()
-        # worker.sync()
-        profile.reduce_histo()
-    elif (approx == 1) and (turn % n_turns_reduce == 0):
-        profile._slice()
-        # worker.sync()
-        profile.reduce_histo()
-    elif (approx == 2):
-        profile._slice()
-        profile.scale_histo()
+    profile.track()
 
     # Change impedance of 10 MHz only if it changes
     # if (i > 0) and (R_S_program_10MHz[i] != R_S_program_10MHz[i-1]):
     #     PS_intensity_freq_10MHz.impedance_source_list[0].R_S[:] = \
     #         R_S_10MHz_save * R_S_program_10MHz[i]
     #     PS_intensity_freq_10MHz.sum_impedances(PS_intensity_freq_10MHz.freq)
-
-    # If we are in a gpu group, with tp
-    if withtp and worker.gpu_id >= 0:
-        if worker.hasGPU:
-            if (approx == 0) or (approx == 2):
-                PS_longitudinal_intensity.induced_voltage_sum()
-            elif (approx == 1) and (turn % n_turns_reduce == 0):
-                PS_longitudinal_intensity.induced_voltage_sum()
-            tracker.pre_track()
-        # else:
-        #     pass
-
-        worker.gpuSync()
-
-        # Here I need to broadcast the calculated stuff
-        PS_longitudinal_intensity.induced_voltage = worker.broadcast(
-            PS_longitudinal_intensity.induced_voltage)
-        tracker.rf_voltage = worker.broadcast(tracker.rf_voltage)
-    # else just do the normal task-parallelism
-    elif withtp:
-        if worker.isFirst:
-            if (approx == 0) or (approx == 2):
-                PS_longitudinal_intensity.induced_voltage_sum()
-            elif (approx == 1) and (turn % n_turns_reduce == 0):
-                PS_longitudinal_intensity.induced_voltage_sum()
-        if worker.isLast:
-            tracker.pre_track()
-
-        worker.intraSync()
-        worker.sendrecv(
-            PS_longitudinal_intensity.induced_voltage, tracker.rf_voltage)
-    else:
-        if (approx == 0) or (approx == 2):
-            PS_longitudinal_intensity.induced_voltage_sum()
-        elif (approx == 1) and (turn % n_turns_reduce == 0):
-            PS_longitudinal_intensity.induced_voltage_sum()
-        # PS_longitudinal_intensity.induced_voltage_sum()
-        tracker.pre_track()
-
-    tracker.track_only()
+    PS_longitudinal_intensity.induced_voltage_sum()
+    tracker.track()
 
     if (args['monitor'] and monitor_interval > 0) and \
             (turn >= monitor_firstturn and turn < monitor_lastturn) and \
@@ -543,11 +494,11 @@ for turn in range(n_iterations):
             # profile.fwhm()
             slicesMonitor.track(turn)
 
-    worker.DLB(turn, beam)
+    #worker.DLB(turn, beam)
 
 # cp.report()
-if False:
-    beam.gather()
+#if False:
+beam.gather()
     
 end_t = time.time()
 timing.report(total_time=1e3*(end_t-start_t),

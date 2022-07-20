@@ -49,7 +49,7 @@ class Worker:
 
         # Setup TP intracomm
         self.hostname = MPI.Get_processor_name()
-        '''
+
         self.hostip = socket.gethostbyname(self.hostname)
         # Create communicator with processes on the same host
         color = np.dot(np.array(self.hostip.split('.'), int)
@@ -57,14 +57,14 @@ class Worker:
         self.nodecomm = self.intercomm.Split(color, self.rank)
         self.noderank = self.nodecomm.rank
         self.nodeworkers = self.nodecomm.size
-
+        '''
         # Break the hostcomm in neighboring pairs
         self.intracomm = self.nodecomm.Split(self.noderank//2, self.noderank)
         self.intraworkers = self.intracomm.size
         self.intrarank = self.intracomm.rank
         # tempcomm.Free()
-        self.log = False
         '''
+        self.log = False
         # Assign default values
         self.gpucomm = None
         self.gpucommworkers = 0

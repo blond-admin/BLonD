@@ -105,7 +105,7 @@ if args['monitor']:
 bm.use_precision(precision)
 
 bm.use_mpi()
-bm.use_fftw()
+# bm.use_fftw()
 
 worker.assignGPUs(num_gpus=args['gpu'])
 
@@ -116,7 +116,7 @@ if worker.isMaster:
 
 
 worker.initLog(bool(args['log']), args['logdir'])
-worker.initTrace(bool(args['trace']), args['tracefile'])
+# worker.initTrace(bool(args['trace']), args['tracefile'])
 worker.taskparallelism = withtp
 
 mpiprint(args)
@@ -176,7 +176,7 @@ for i in np.arange(n_bunches):
 
 # Profile required for PL
 cutRange = (n_bunches-1)*25.e-9+3.5e-9
-n_slices = np.int(cutRange/0.025e-9 + 1)
+n_slices = int(cutRange/0.025e-9 + 1)
 n_slices = next_regular(n_slices)
 profile = Profile(beam, CutOptions(n_slices=n_slices, cut_left=-0.5e-9,
                                    cut_right=(cutRange-0.5e-9)))
@@ -193,7 +193,7 @@ SL_gain = PL_gain/10.
 
 # Noise injected in the PL delayed by one turn and opposite sign
 config = {'machine': 'LHC', 'PL_gain': PL_gain, 'SL_gain': SL_gain}
-PL = BeamFeedback(ring, rf, profile, config, PhaseNoise=LHCnoise,
+PL = BeamFeedback(ring, rf, profile, config, PhaseNoiseArray=LHCnoise.dphi,
                   LHCNoiseFB=noiseFB)
 mpiprint("   PL gain is %.4e 1/s for initial turn T0 = %.4e s" % (PL.gain,
                                                                   ring.t_rev[0]))
@@ -213,16 +213,15 @@ indVoltage = InducedVoltageFreq(
     beam, profile, [ZTable], frequency_resolution=freq_res)
 totVoltage = TotalInducedVoltage(beam, profile, [indVoltage])
 
-# TODO add the noiseFB
+#tracker = RingAndRFTracker(rf, beam, BeamFeedback=None, Profile=profile,
+#                           interpolation=True, TotalInducedVoltage=totVoltage,
+#                           solver='simple')
+
+
 tracker = RingAndRFTracker(rf, beam, BeamFeedback=PL, Profile=profile,
                            interpolation=True, TotalInducedVoltage=totVoltage,
                            solver='simple')
 
-# tracker = RingAndRFTracker(rf, beam, BeamFeedback=PL, Profile=profile,
-#                            interpolation=True, TotalInducedVoltage=totVoltage,
-#                            solver='simple')
-
-# interpolation=True, TotalInducedVoltage=None)
 mpiprint("PL, SL, and tracker set...")
 # Fill beam distribution
 fullring = FullRingAndRF([tracker])
@@ -277,75 +276,24 @@ if worker.hasGPU:
     beam.use_gpu()
     PL.use_gpu()
 
-print(f'Glob rank: [{worker.rank}], Node rank: [{worker.noderank}], Intra rank: [{worker.intrarank}], GPU rank: [{worker.gpucommrank}], hasGPU: {worker.hasGPU}')
+print(f'Glob rank: [{worker.rank}], Node rank: [{worker.noderank}], GPU rank: [{worker.gpucommrank}], hasGPU: {worker.hasGPU}')
 
-worker.initDLB(args['loadbalance'], n_iterations)
+# worker.initDLB(args['loadbalance'], n_iterations)
 
 worker.sync()
 timing.reset()
 start_t = time.time()
 
 
-# import cuprof.cuprof as cp
-
-# cp.enable()
-# with cp.region_timer('main_loop'):
 for turn in range(n_iterations):
     # After the first 2/3 of the ramp, regulate down the bunch length
     if turn == 9042249:
         noiseFB.bl_targ = 1.1e-9
 
-    # Update profile
-    if (approx == 0):
-        profile._slice()
-        # worker.sync()
-        profile.reduce_histo()
-    elif (approx == 1) and (turn % n_turns_reduce == 0):
-        profile._slice()
-        # worker.sync()
-        profile.reduce_histo()
-    elif (approx == 2):
-        profile._slice()
-        profile.scale_histo()
+    profile.track()
 
-    # mpiprint('profile sum: ', np.sum(profile.n_macroparticles))
-
-    # If we are in a gpu group, with tp
-    if withtp and worker.gpu_id >= 0:
-        if worker.hasGPU:
-            if (approx == 0) or (approx == 2):
-                totVoltage.induced_voltage_sum()
-            elif (approx == 1) and (turn % n_turns_reduce == 0):
-                totVoltage.induced_voltage_sum()
-        else:
-            tracker.pre_track()
-
-        worker.gpuSync()
-
-        # Here I need to broadcast the calculated stuff
-        totVoltage.induced_voltage = worker.broadcast(
-            totVoltage.induced_voltage)
-        tracker.rf_voltage = worker.broadcast(tracker.rf_voltage, root=1)
-    # else just do the normal task-parallelism
-    elif withtp:
-        if worker.isFirst:
-            if (approx == 0) or (approx == 2):
-                totVoltage.induced_voltage_sum()
-            elif (approx == 1) and (turn % n_turns_reduce == 0):
-                totVoltage.induced_voltage_sum()
-        if worker.isLast:
-            tracker.pre_track()
-
-        worker.intraSync()
-        worker.sendrecv(totVoltage.induced_voltage, tracker.rf_voltage)
-    else:
-        if (approx == 0) or (approx == 2):
-            totVoltage.induced_voltage_sum()
-        elif (approx == 1) and (turn % n_turns_reduce == 0):
-            totVoltage.induced_voltage_sum()
-        tracker.pre_track()
-
-    tracker.track_only()
+    totVoltage.induced_voltage_sum()
+    tracker.track()
 
     if (args['monitor'] and monitor_interval > 0) and \
             (turn >= monitor_firstturn and turn < monitor_lastturn) and \
@@ -358,11 +306,11 @@ for turn in range(n_iterations):
         if worker.isMaster:
             multiBunchMonitor.track(turn)
 
-    worker.DLB(turn, beam)
+    # worker.DLB(turn, beam)
 # cp.report()
 
-if False:
-    beam.gather()
+#if False:
+beam.gather()
 
 end_t = time.time()
 
