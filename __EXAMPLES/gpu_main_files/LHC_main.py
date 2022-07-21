@@ -193,7 +193,7 @@ SL_gain = PL_gain/10.
 
 # Noise injected in the PL delayed by one turn and opposite sign
 config = {'machine': 'LHC', 'PL_gain': PL_gain, 'SL_gain': SL_gain}
-PL = BeamFeedback(ring, rf, profile, config, PhaseNoise=LHCnoise.dphi,
+PL = BeamFeedback(ring, rf, profile, config, PhaseNoise=LHCnoise,
                   LHCNoiseFB=noiseFB)
 mpiprint("   PL gain is %.4e 1/s for initial turn T0 = %.4e s" % (PL.gain,
                                                                   ring.t_rev[0]))
@@ -272,7 +272,7 @@ if worker.hasGPU:
     # Here we pass the gpu_id, if this is < 0, means don't use the gpu
     bm.use_gpu(gpu_id=worker.gpu_id)
     tracker.to_gpu()
-    totVoltage.utogpu()
+    totVoltage.to_gpu()
     beam.to_gpu()
     PL.to_gpu()
 
@@ -310,7 +310,7 @@ for turn in range(n_iterations):
 # cp.report()
 
 #if False:
-beam.gather()
+#beam.gather()
 
 end_t = time.time()
 
