@@ -245,8 +245,9 @@ def gpu_beam_phase(bin_centers, profile, alpha, omega_rf, phi_rf, bin_size):
     assert profile.dtype == bm.precision.real_t
 
     array1, array2 = __beam_phase_helper(bin_centers, profile, alpha, omega_rf, phi_rf)
-    scoeff = cp.trapz(array1, dx=bin_size)
-    ccoeff = cp.trapz(array2, dx=bin_size)
+    # due to the division, the bin_size is not needed
+    scoeff = cp.trapz(array1, dx=1)
+    ccoeff = cp.trapz(array2, dx=1)
 
     return float(scoeff / ccoeff)
 
@@ -262,8 +263,9 @@ def gpu_beam_phase_fast(bin_centers, profile, omega_rf, phi_rf, bin_size):
     assert profile.dtype == bm.precision.real_t
 
     array1, array2 = __beam_phase_fast_helper(bin_centers, profile, omega_rf, phi_rf)
-    scoeff = cp.trapz(array1, dx=bin_size)
-    ccoeff = cp.trapz(array2, dx=bin_size)
+    # due to the division, the bin_size is not needed
+    scoeff = cp.trapz(array1, dx=1)
+    ccoeff = cp.trapz(array2, dx=1)
 
     return float(scoeff / ccoeff)
 
