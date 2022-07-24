@@ -506,11 +506,13 @@ if args['monitor'] and monitor_interval > 0 and worker.isMaster:
                                       Nbunches=n_bunches)
 
 
-if args['gpu'] > 0:
+if worker.hasGPU:
     bm.use_gpu(gpu_id=worker.gpu_id)
-    profile.use_gpu()
-    tracker.use_gpu()
-    phaseLoop.use_gpu()
+    profile.to_gpu()
+    tracker.to_gpu()
+    phaseLoop.to_gpu()
+    inducedVoltage.to_gpu()
+    beam.to_gpu()
 
 print(f'Glob rank: [{worker.rank}], Node rank: [{worker.noderank}], GPU rank: [{worker.gpucommrank}], hasGPU: {worker.hasGPU}')
 
@@ -582,7 +584,7 @@ for turn in range(n_iterations):
 
 # cp.report()
 #if False:
-beam.gather()
+#beam.gather()
 
 end_t = time.time()
 mpiprint('Total time: ', end_t - start_t)
