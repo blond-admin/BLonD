@@ -345,9 +345,9 @@ Install **CuPy** library with
 
 .. code-block:: bash
     
-    $ pip install --pre cupy-cuda11x -f https://pip.cupy.dev/pre
+    $ pip install cupy-cuda11x 
 
-**CuPy v11 pre-release supports all CUDA 11.2+ releases.**
+**CuPy v11.0.0 supports all CUDA 11.2+ releases.**
 
 To verify your installation open a python terminal and execute the following script
 
@@ -373,7 +373,6 @@ Changes required in the main file for GPU
 
     from blond.utils import bmath as bm
     bm.use_gpu() # change some of the basic functions(kick, drift, ffts etc) to their GPU equivalent
-    bm.use_cucache() # enable a feature for better GPU performance
 
 2. Also for every object you are using in your main loop that is in the following list
 
@@ -401,16 +400,16 @@ Changes required in the main file for GPU
 |BeamFeedback                          |
 +--------------------------------------+
 
-you need to call their use_gpu() method. The following is a typical example from the
+you need to call their to_gpu() method. The following is a typical example from the
 __EXAMPLES/gpu_main_files/EX_01_Acceleration.py mainfile. 
 
 .. code-block:: python
 
-    beam.use_gpu()
-    long_tracker.use_gpu()
-    profile.use_gpu()
+    beam.to_gpu()
+    long_tracker.to_gpu()
+    profile.to_gpu()
 
-If an object of this list is contained inside a different one you don't need to use the use_gpu() 
+If an object of this list is contained inside a different one you don't need to use the to_gpu() 
 for the contained object. In the previous example, we don't the first and the third line 
 since beam, and profile is contained inside the tracker. The same would apply in a TotalInducedVoltage
 object and the objects in its induced_voltage_list.
