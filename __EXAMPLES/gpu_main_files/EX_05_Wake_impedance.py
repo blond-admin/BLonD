@@ -123,7 +123,7 @@ cut_options_freq = CutOptions(cut_left=0, cut_right=2*np.pi, n_slices=number_sli
 slice_beam_freq = Profile(my_beam_freq, cut_options_freq,
                           FitOptions(fit_option='gaussian'))
 cut_options_res = CutOptions(cut_left=0, cut_right=2*np.pi, n_slices=number_slices,
-                             RFSectionParameters=ring_RF_section_res, cuts_unit='rad')
+                             RFSectionParameters=ring_RF_section_res.rf_params, cuts_unit='rad')
 slice_beam_res = Profile(my_beam_res, cut_options_res,
                          FitOptions(fit_option='gaussian'))
 

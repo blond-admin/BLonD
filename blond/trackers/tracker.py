@@ -72,14 +72,15 @@ class FullRingAndRF(object):
         phi_offsets = np.array([])
 
         for RingAndRFSectionElement in self.RingAndRFSection_list:
-            charge = RingAndRFSectionElement.charge
-            for rf_system in range(RingAndRFSectionElement.n_rf):
+            RF_params = RingAndRFSectionElement.rf_params
+            charge = RF_params.Particle.charge
+            for rf_system in range(RF_params.n_rf):
                 voltages = np.append(voltages,
-                                     RingAndRFSectionElement.voltage[rf_system, turn])
+                                     RF_params.voltage[rf_system, turn])
                 omega_rf = np.append(omega_rf,
-                                     RingAndRFSectionElement.omega_rf[rf_system, turn])
+                                     RF_params.omega_rf[rf_system, turn])
                 phi_offsets = np.append(phi_offsets,
-                                        RingAndRFSectionElement.phi_rf[rf_system, turn])
+                                        RF_params.phi_rf[rf_system, turn])
 
         voltages = np.array(voltages, ndmin=2)
         omega_rf = np.array(omega_rf, ndmin=2)
@@ -98,7 +99,7 @@ class FullRingAndRF(object):
                                    " the RF parameters...")
             main_omega_rf = np.min(omega_rf[omega_rf == main_harmonic_option])
 
-        slippage_factor = self.RingAndRFSection_list[0].eta_0[turn]
+        slippage_factor = self.RingAndRFSection_list[0].rf_params.eta_0[turn]
 
         if time_array is None:
             time_array_margin = dt_margin_percent*2*np.pi/main_omega_rf
@@ -112,7 +113,7 @@ class FullRingAndRF(object):
                                     np.sin(omega_rf.T*time_array + phi_offsets.T), axis=0)
 
         eom_factor_potential = np.sign(slippage_factor)*charge / \
-            (RingAndRFSectionElement.t_rev[turn])
+            (RingAndRFSectionElement.rf_params.t_rev[turn])
 
         potential_well = - cumtrapz(eom_factor_potential*(self.total_voltage -
                                                           (- RingAndRFSectionElement.acceleration_kick[turn])/abs(charge)),

@@ -411,13 +411,13 @@ def matched_from_distribution_function(beam, full_ring_and_RF,
         distribution_function_ = distribution_function
     
     # Initialize variables depending on the accelerator parameters
-    slippage_factor = full_ring_and_RF.RingAndRFSection_list[0].eta_0[turn_number]
+    slippage_factor = full_ring_and_RF.RingAndRFSection_list[0].rf_params.eta_0[turn_number]
     beta = full_ring_and_RF.RingAndRFSection_list[0].rf_params.beta[turn_number]
     energy = full_ring_and_RF.RingAndRFSection_list[0].rf_params.energy[turn_number]
     
     eom_factor_dE = abs(slippage_factor) / (2*beta**2. * energy)
     eom_factor_potential = (np.sign(slippage_factor) * beam.Particle.charge /
-                          (full_ring_and_RF.RingAndRFSection_list[0].t_rev[turn_number]))
+                          (full_ring_and_RF.RingAndRFSection_list[0].rf_params.t_rev[turn_number]))
 
     #: *Number of points to be used in the potential well calculation*
     n_points_potential = int(n_points_potential)
