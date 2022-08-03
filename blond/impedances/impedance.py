@@ -107,10 +107,10 @@ class TotalInducedVoltage(object):
 
         self.induced_voltage_sum()
         bm.linear_interp_kick(dt=self.beam.dt, dE=self.beam.dE,
-                                  voltage=self.induced_voltage,
-                                  bin_centers=self.profile.bin_centers,
-                                  charge=self.beam.Particle.charge,
-                                  acceleration_kick=0.)
+                              voltage=self.induced_voltage,
+                              bin_centers=self.profile.bin_centers,
+                              charge=self.beam.Particle.charge,
+                              acceleration_kick=0.)
 
     def track_ghosts_particles(self, ghostBeam):
 
@@ -339,7 +339,7 @@ class _InducedVoltage(object):
         beam_spectrum = beam_spectrum_dict[self.n_fft]
 
         induced_voltage = - (self.beam.Particle.charge * e * self.beam.ratio
-                                 * bm.irfft(self.total_impedance.astype(dtype=bm.precision.complex_t, order='C', copy=False) * beam_spectrum))
+                             * bm.irfft(self.total_impedance.astype(dtype=bm.precision.complex_t, order='C', copy=False) * beam_spectrum))
 
         self.induced_voltage = induced_voltage[:self.n_induced_voltage].astype(
             dtype=bm.precision.real_t, order='C', copy=False)

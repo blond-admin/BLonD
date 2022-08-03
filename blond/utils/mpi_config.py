@@ -42,14 +42,17 @@ def sequential_wrap(f, beam, split_args={}, gather_args={}):
 
 class Worker:
     def __init__(self):
+        self.log = False
+
         # Global inter-communicator
         self.intercomm = MPI.COMM_WORLD
         self.rank = self.intercomm.rank
         self.workers = self.intercomm.size
 
-        # Setup TP intracomm
+        # Get hostname
         self.hostname = MPI.Get_processor_name()
-
+        
+        # Get host IP
         self.hostip = socket.gethostbyname(self.hostname)
         # Create communicator with processes on the same host
         color = np.dot(np.array(self.hostip.split('.'), int)
@@ -57,47 +60,15 @@ class Worker:
         self.nodecomm = self.intercomm.Split(color, self.rank)
         self.noderank = self.nodecomm.rank
         self.nodeworkers = self.nodecomm.size
-        '''
-        # Break the hostcomm in neighboring pairs
-        self.intracomm = self.nodecomm.Split(self.noderank//2, self.noderank)
-        self.intraworkers = self.intracomm.size
-        self.intrarank = self.intracomm.rank
-        # tempcomm.Free()
-        '''
-        self.log = False
-        # Assign default values
-        self.gpucomm = None
-        self.gpucommworkers = 0
-        self.gpucommrank = 0
+
+        # Assign default values for GPUs
         self.gpu_id = -1
         self.hasGPU = False
 
     def assignGPUs(self, num_gpus=0):
-        # Here goes the gpu assignment
-        if num_gpus > 0:
-            # Divide all workers into almost equal sized groups
-            split_groups = np.array_split(np.arange(self.nodeworkers), num_gpus)
-
-            # Find in which group this worker belongs
-            mygroup = 0
-            for i, a in enumerate(split_groups):
-                if self.noderank in a:
-                    mygroup = i
-                    break
-
-            # Save the group, it will be used to get access to the specific gpu
-            self.gpu_id = mygroup
-
-            # Create a communicator per group
-            self.gpucomm = self.nodecomm.Split(mygroup, self.noderank)
-            self.gpucommworkers = self.gpucomm.size
-            self.gpucommrank = self.gpucomm.rank
-
-            # If you are the first in the group, you get access to the gpu
-            if self.gpucommrank == 0:
-                self.hasGPU = True
-            else:
-                self.hasGPU = False
+        if self.noderank < num_gpus:
+            self.hasGPU = True
+            self.gpu_id = self.noderank
 
     def initLog(self, log, logdir):
         self.log = log
@@ -112,14 +83,6 @@ class Worker:
     @property
     def isMaster(self):
         return self.rank == 0
-
-    @property
-    def isFirst(self):
-        return (self.intrarank == 0) or (self.taskparallelism is False)
-
-    @property
-    def isLast(self):
-        return (self.intrarank == self.intraworkers-1) or (self.taskparallelism is False)
 
     # Define the begin and size numbers in order to split a variable of length size
     def gather(self, var):
@@ -207,13 +170,6 @@ class Worker:
             recvbuf = self.intercomm.bcast(recvbuf, root=root)
 
         return recvbuf
-        '''
-        if self.gpucommrank == root:
-            recvbuf = self.gpucomm.bcast(var, root=root)
-        else:
-            recvbuf = None
-            recvbuf = self.gpucomm.bcast(recvbuf, root=root)
-        '''
 
 
     def reduce(self, sendbuf, recvbuf=None, dtype=np.uint32, operator='custom_sum',

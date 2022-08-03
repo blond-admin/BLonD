@@ -137,24 +137,9 @@ update_active_dict(_CPU_func_dict)
 
 
 # GPU Related Utilities
-# def gpuMode():
-#     return globals()['device'] == 'GPU'
-
-
-# def gpuId():
-#     return __gpu_dev.id
-
 
 def gpuDev():
     return __gpu_dev
-
-
-# def gpuCtx():
-#     return __gpu_dev.ctx
-
-
-# def getMod():
-#     return __gpu_dev.my_mod()
 
 
 class GPUDev:

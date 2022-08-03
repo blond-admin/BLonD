@@ -23,7 +23,6 @@ import ctypes
 import warnings
 from ..utils import bmath as bm
 
-    
 class FullRingAndRF(object):
     """
     *Definition of the full ring and RF parameters in order to be able to have
@@ -304,8 +303,6 @@ class RingAndRFTracker(object):
             # ProfileError
             raise RuntimeError("ERROR in RingAndRFTracker: Please specify a" +
                                " Profile object to use the interpolation option")
-        elif (self.interpolation is True) and (self.profile is None):
-            self.rf_voltage = np.zeros(self.profile.n_slices, dtype=bm.precision.real_t, order='C')
 
         if (self.cavityFB is not None) and (self.profile is None):
             # ProfileError

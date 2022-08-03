@@ -32,7 +32,11 @@ mpl.use('Agg')
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 
-USE_GPU = 1
+USE_GPU = os.environ.get('USE_GPU', '0')
+if len(USE_GPU) and int(USE_GPU):
+    USE_GPU = True
+else:
+    USE_GPU = False
 
 try:
     os.mkdir(this_directory + '../output_files')

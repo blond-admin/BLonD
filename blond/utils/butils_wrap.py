@@ -550,13 +550,6 @@ def trapz_cpp(y, x=None, dx=1.0):
                                      __getLen(y))
 
 
-# def beam_phase(beamFB, omegarf, phirf):
-#     return _beam_phase(beamFB.profile.bin_centers,
-#                        beamFB.profile.n_macroparticles,
-#                        beamFB.alpha, omegarf, phirf,
-#                        beamFB.profile.bin_size)
-
-
 def beam_phase(bin_centers, profile, alpha, omegarf, phirf, bin_size):
     bin_centers = bin_centers.astype(dtype=precision.real_t, order='C',
                                      copy=False)

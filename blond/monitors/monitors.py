@@ -15,9 +15,7 @@
 
 from builtins import object
 import h5py as hp
-import os
 import numpy as np
-from ..utils import bmath as bm
 
 
 class BunchMonitor(object):
@@ -337,210 +335,35 @@ class SlicesMonitor(object):
         the slicing.
     '''
 
-    def __init__(self, filename, n_turns, profile, rf, Nbunches, buffer_size=100):
-
-        if not os.path.exists(os.path.dirname(filename)):
-            os.makedirs(os.path.dirname(filename))
+    def __init__(self, filename, n_turns, profile):
 
         self.h5file = hp.File(filename + '.h5', 'w')
         self.n_turns = n_turns
         self.i_turn = 0
         self.profile = profile
-        self.rf = rf
-        self.beam = self.profile.Beam
-        self.h5file.create_group('default')
-        self.h5group = self.h5file['default']
-        self.Nbunches = Nbunches
-        self.buffer_size = buffer_size
-        self.last_save = 0
+        self.h5file.create_group('Slices')
 
-        # self.create_data('profile', self.h5file['default'],
-        #                  (self.n_turns, self.profile.n_slices), dtype='int32')
-        # self.b_profile = np.zeros(
-        #     (self.buffer_size, self.profile.n_slices), dtype='int32')
+    def track(self, bunch):
 
-        self.create_data('turns', self.h5file['default'], (self.n_turns, ),
-                         dtype='int32')
-        self.b_turns = np.zeros(self.buffer_size, dtype='int32')
-
-        self.create_data('losses', self.h5file['default'],
-                         (self.n_turns, ), dtype='int')
-        self.b_losses = np.zeros((self.buffer_size, ), dtype='int32')
-
-        self.create_data('fwhm_bunch_position', self.h5file['default'],
-                         (self.n_turns, self.Nbunches), dtype='float64')
-
-        self.b_fwhm_bunch_position = np.zeros((self.buffer_size, self.Nbunches),
-                                              dtype='float64')
-
-        self.create_data('fwhm_bunch_length', self.h5file['default'],
-                         (self.n_turns, self.Nbunches), dtype='float64')
-        self.b_fwhm_bunch_length = np.zeros((self.buffer_size, self.Nbunches),
-                                            dtype='float64')
-
-        self.create_data('mean_profile', self.h5file['default'],
-                         (self.n_turns, self.Nbunches), dtype='float64')
-        self.b_mean_profile = np.zeros((self.buffer_size, self.Nbunches),
-                                       dtype='float64')
-
-        self.create_data('std_profile', self.h5file['default'],
-                         (self.n_turns, self.Nbunches), dtype='float64')
-        self.b_std_profile = np.zeros((self.buffer_size, self.Nbunches),
-                                      dtype='float64')
-
-        self.create_data('min_profile', self.h5file['default'],
-                         (self.n_turns, self.Nbunches), dtype='float64')
-        self.b_min_profile = np.zeros((self.buffer_size, self.Nbunches),
-                                      dtype='float64')
-
-        self.create_data('max_profile', self.h5file['default'],
-                         (self.n_turns, self.Nbunches), dtype='float64')
-        self.b_max_profile = np.zeros((self.buffer_size, self.Nbunches),
-                                      dtype='float64')
-
-        self.create_data('mean_dE', self.h5file['default'],
-                         (self.n_turns, self.Nbunches), dtype='float64')
-        self.create_data('norm_dE', self.h5file['default'],
-                         (self.n_turns, self.Nbunches), dtype='float64')
-        self.create_data('max_dE', self.h5file['default'],
-                         (self.n_turns, self.Nbunches), dtype='float64')
-        self.create_data('min_dE', self.h5file['default'],
-                         (self.n_turns, self.Nbunches), dtype='float64')
-        self.create_data('std_dE', self.h5file['default'],
-                         (self.n_turns, self.Nbunches), dtype='float64')
-
-        self.create_data('mean_dt', self.h5file['default'],
-                         (self.n_turns, self.Nbunches), dtype='float64')
-        self.create_data('norm_dt', self.h5file['default'],
-                         (self.n_turns, self.Nbunches), dtype='float64')
-        self.create_data('max_dt', self.h5file['default'],
-                         (self.n_turns, self.Nbunches), dtype='float64')
-        self.create_data('min_dt', self.h5file['default'],
-                         (self.n_turns, self.Nbunches), dtype='float64')
-        self.create_data('std_dt', self.h5file['default'],
-                         (self.n_turns, self.Nbunches), dtype='float64')
-
-        self.b_mean_dE = np.zeros(
-            (self.buffer_size, self.Nbunches), dtype='float64')
-        self.b_norm_dE = np.zeros(
-            (self.buffer_size, self.Nbunches), dtype='float64')
-        self.b_max_dE = np.zeros(
-            (self.buffer_size, self.Nbunches), dtype='float64')
-        self.b_min_dE = np.zeros(
-            (self.buffer_size, self.Nbunches), dtype='float64')
-        self.b_std_dE = np.zeros(
-            (self.buffer_size, self.Nbunches), dtype='float64')
-
-        self.b_mean_dt = np.zeros(
-            (self.buffer_size, self.Nbunches), dtype='float64')
-        self.b_norm_dt = np.zeros(
-            (self.buffer_size, self.Nbunches), dtype='float64')
-        self.b_max_dt = np.zeros(
-            (self.buffer_size, self.Nbunches), dtype='float64')
-        self.b_min_dt = np.zeros(
-            (self.buffer_size, self.Nbunches), dtype='float64')
-        self.b_std_dt = np.zeros(
-            (self.buffer_size, self.Nbunches), dtype='float64')
-
-    def __del__(self):
-        if self.i_turn > self.last_save:
-            self.write_data()
-        # self.h5file.close()
-
-    def write_buffer(self, turn):
-
-        # Nppb = int(self.profile.Beam.n_macroparticles // self.Nbunches)
-        # mean_dE = np.zeros(self.Nbunches, dtype=float)
-        # mean_dt = np.zeros(self.Nbunches, dtype=float)
-        # std_dE = np.zeros(self.Nbunches, dtype=float)
-        # std_dt = np.zeros(self.Nbunches, dtype=float)
-        # for i in range(self.Nbunches):
-        #     mean_dE[i] = np.mean(self.profile.Beam.dE[i*Nppb:(i+1)*Nppb])
-        #     mean_dt[i] = np.mean(self.profile.Beam.dt[i*Nppb:(i+1)*Nppb])
-        #     std_dE[i] = np.std(self.profile.Beam.dE[i*Nppb:(i+1)*Nppb])
-        #     std_dt[i] = np.std(self.profile.Beam.dt[i*Nppb:(i+1)*Nppb])
-
-        idx = self.i_turn % self.buffer_size
-
-        self.b_turns[idx] = turn
-        # self.b_profile[idx] = self.profile.n_macroparticles.astype(np.int32)
-        self.b_losses[idx] = self.beam.n_total_macroparticles_lost
-        self.b_fwhm_bunch_position[idx] = self.profile.bunchPosition
-        self.b_fwhm_bunch_length[idx] = self.profile.bunchLength
-        self.b_mean_profile[idx] = bm.mean(self.profile.n_macroparticles)
-        self.b_std_profile[idx] = bm.std(self.profile.n_macroparticles)
-        self.b_min_profile[idx] = np.min(self.profile.n_macroparticles)
-        self.b_max_profile[idx] = np.max(self.profile.n_macroparticles)
-
-        # if self.Nbunches == 1:
-        self.b_mean_dE[idx] = self.beam.mean_dE
-        self.b_std_dE[idx] = self.beam.sigma_dE
-        self.b_norm_dE[idx] = self.rf.voltage[0, turn]
-        self.b_min_dE[idx] = self.beam.min_dE
-        self.b_max_dE[idx] = self.beam.max_dE
-
-        self.b_mean_dt[idx] = self.beam.mean_dt
-        self.b_std_dt[idx] = self.beam.sigma_dt
-        self.b_min_dt[idx] = self.beam.min_dt
-        self.b_max_dt[idx] = self.beam.max_dt
-
-        if turn == 0:
-            self.b_norm_dt[idx] = self.rf.t_rev[0] * self.rf.eta_0[0] * \
-                self.rf.voltage[0, 0] / \
-                (self.rf.beta[0]**2 * self.rf.energy[0])
+        if not self.i_turn:
+            self.create_data(self.h5file['Slices'], (self.profile.n_slices,
+                                                     self.n_turns))
+            self.write_data(self.profile, self.h5file['Slices'], self.i_turn)
         else:
-            self.b_norm_dt[idx] = self.rf.t_rev[turn] * self.rf.eta_0[turn] * \
-                self.rf.voltage[0, turn-1] / \
-                (self.rf.beta[turn]**2 * self.rf.energy[turn])
+            self.write_data(self.profile, self.h5file['Slices'], self.i_turn)
 
-    def write_data(self):
-        i1_h5 = self.last_save
-        i2_h5 = self.i_turn
-        i1_b = 0
-        i2_b = self.i_turn - self.last_save
-        # print("i1_h5, i2_h5:{}-{}".format(i1_h5, i2_h5))
-
-        self.last_save = self.i_turn
-
-        self.h5group['turns'][i1_h5:i2_h5] = self.b_turns[i1_b:i2_b]
-        # self.h5group['profile'][i1_h5:i2_h5] = self.b_profile[i1_b:i2_b]
-        self.h5group['losses'][i1_h5:i2_h5] = self.b_losses[i1_b:i2_b]
-        self.h5group['fwhm_bunch_position'][i1_h5:i2_h5] = self.b_fwhm_bunch_position[i1_b:i2_b]
-        self.h5group['fwhm_bunch_length'][i1_h5:i2_h5] = self.b_fwhm_bunch_length[i1_b:i2_b]
-        self.h5group['mean_profile'][i1_h5:i2_h5] = self.b_mean_profile[i1_b:i2_b]
-        self.h5group['std_profile'][i1_h5:i2_h5] = self.b_std_profile[i1_b:i2_b]
-        self.h5group['min_profile'][i1_h5:i2_h5] = self.b_min_profile[i1_b:i2_b]
-        self.h5group['max_profile'][i1_h5:i2_h5] = self.b_max_profile[i1_b:i2_b]
-
-        # if self.Nbunches == 1:
-        self.h5group['mean_dE'][i1_h5:i2_h5] = self.b_mean_dE[i1_b:i2_b]
-        self.h5group['norm_dE'][i1_h5:i2_h5] = self.b_norm_dE[i1_b:i2_b]
-        self.h5group['std_dE'][i1_h5:i2_h5] = self.b_std_dE[i1_b:i2_b]
-        self.h5group['min_dE'][i1_h5:i2_h5] = self.b_min_dE[i1_b:i2_b]
-        self.h5group['max_dE'][i1_h5:i2_h5] = self.b_max_dE[i1_b:i2_b]
-
-        self.h5group['mean_dt'][i1_h5:i2_h5] = self.b_mean_dt[i1_b:i2_b]
-        self.h5group['norm_dt'][i1_h5:i2_h5] = self.b_norm_dt[i1_b:i2_b]
-        self.h5group['std_dt'][i1_h5:i2_h5] = self.b_std_dt[i1_b:i2_b]
-        self.h5group['min_dt'][i1_h5:i2_h5] = self.b_min_dt[i1_b:i2_b]
-        self.h5group['max_dt'][i1_h5:i2_h5] = self.b_max_dt[i1_b:i2_b]
-
-    def track(self, turn):
-
-        self.write_buffer(turn)
         self.i_turn += 1
 
-        if (self.i_turn > 0) and (self.i_turn % self.buffer_size == 0):
-            self.write_data()
+    def create_data(self, h5group, dims):
 
-    def create_data(self, name, h5group, dims, dtype):
+        h5group.create_dataset("n_macroparticles", dims, compression="gzip",
+                               compression_opts=9)
 
-        h5group.create_dataset(name, dims, compression='gzip',
-                               compression_opts=4, dtype=dtype, shuffle=True)
+    def write_data(self, bunch, h5group, i_turn):
+
+        h5group["n_macroparticles"][:, i_turn] = self.profile.n_macroparticles
 
     def close(self):
-        if self.i_turn > self.last_save:
-            self.write_data()
         self.h5file.close()
 
 
@@ -550,7 +373,7 @@ class MultiBunchMonitor(object):
         the slicing.
     '''
 
-    def __init__(self, filename, profile, rf, Nbunches, n_turns=None, buffer_size=100):
+    def __init__(self, filename, n_turns, profile, rf, Nbunches, buffer_size=100):
 
         self.h5file = hp.File(filename + '.h5', 'w')
         self.n_turns = n_turns
@@ -617,19 +440,6 @@ class MultiBunchMonitor(object):
                 'std_dt', self.h5file['default'], (self.n_turns, self.Nbunches),
                 dtype='float64')
 
-            self.create_data(
-                'max_dt', self.h5file['default'], (self.n_turns, self.Nbunches),
-                dtype='float64')
-            self.create_data(
-                'min_dt', self.h5file['default'], (self.n_turns, self.Nbunches),
-                dtype='float64')
-            self.create_data(
-                'max_dE', self.h5file['default'], (self.n_turns, self.Nbunches),
-                dtype='float64')
-            self.create_data(
-                'min_dE', self.h5file['default'], (self.n_turns, self.Nbunches),
-                dtype='float64')
-
             self.b_mean_dE = np.zeros(
                 (self.buffer_size, self.Nbunches), dtype=float)
             self.b_mean_dt = np.zeros(
@@ -645,14 +455,6 @@ class MultiBunchMonitor(object):
             self.b_std_dt = np.zeros(
                 (self.buffer_size, self.Nbunches), dtype=float)
 
-            self.b_max_dE = np.zeros(
-                (self.buffer_size, self.Nbunches), dtype=float)
-            self.b_min_dE = np.zeros(
-                (self.buffer_size, self.Nbunches), dtype=float)
-            self.b_max_dt = np.zeros(
-                (self.buffer_size, self.Nbunches), dtype=float)
-            self.b_min_dt = np.zeros(
-                (self.buffer_size, self.Nbunches), dtype=float)
 
     def __del__(self):
         if self.i_turn > self.last_save:
@@ -676,7 +478,7 @@ class MultiBunchMonitor(object):
 
         self.b_turns[idx] = turn
         self.b_profile[idx] = self.profile.n_macroparticles.astype(np.int32)
-        self.b_losses[idx] = self.beam.n_total_macroparticles_lost
+        self.b_losses[idx] = self.beam.losses
         self.b_fwhm_bunch_position[idx] = self.profile.bunchPosition
         self.b_fwhm_bunch_length[idx] = self.profile.bunchLength
 
@@ -686,10 +488,6 @@ class MultiBunchMonitor(object):
             self.b_std_dE[idx] = self.beam.sigma_dE
             self.b_std_dt[idx] = self.beam.sigma_dt
             self.b_dE_norm[idx] = self.rf.voltage[0, turn]
-            self.b_min_dE[idx] = self.beam.min_dE
-            self.b_max_dE[idx] = self.beam.max_dE
-            self.b_min_dt[idx] = self.beam.min_dt
-            self.b_max_dt[idx] = self.beam.max_dt
 
             if turn == 0:
                 self.b_dt_norm[idx] = self.rf.t_rev[0] * self.rf.eta_0[0] * \
@@ -722,10 +520,6 @@ class MultiBunchMonitor(object):
             self.h5group['mean_dt'][i1_h5:i2_h5] = self.b_mean_dt[i1_b:i2_b]
             self.h5group['std_dE'][i1_h5:i2_h5] = self.b_std_dE[i1_b:i2_b]
             self.h5group['std_dt'][i1_h5:i2_h5] = self.b_std_dt[i1_b:i2_b]
-            self.h5group['min_dE'][i1_h5:i2_h5] = self.b_min_dE[i1_b:i2_b]
-            self.h5group['max_dE'][i1_h5:i2_h5] = self.b_max_dE[i1_b:i2_b]
-            self.h5group['min_dt'][i1_h5:i2_h5] = self.b_min_dt[i1_b:i2_b]
-            self.h5group['max_dt'][i1_h5:i2_h5] = self.b_max_dt[i1_b:i2_b]
 
     def track(self, turn):
 

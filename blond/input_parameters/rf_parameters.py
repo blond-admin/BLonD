@@ -301,8 +301,6 @@ class RFStation(object):
                 Ring.cycle_time,
                 Ring.RingOptions.t_start)
         self.omega_rf_d = self.omega_rf_d.astype(bm.precision.real_t, order='C', copy=False)
-        # print("omega_rf_d[0]: {}".format(self.omega_rf_d[0]))
-
 
         # Reshape phase noise
         if phi_noise is not None:
@@ -355,7 +353,6 @@ class RFStation(object):
                 
             
             self.phi_modulation = (dPhi, dOmega)
-            
         else:
             
             self.phi_modulation = None
