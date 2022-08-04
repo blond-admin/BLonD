@@ -65,7 +65,7 @@ gamma_transition = 4.4  # [1]
 C = 2 * np.pi * radius  # [m]
 
 # Tracking details
-n_turns = 1000
+n_turns = 2
 n_turns_between_two_plots = 1
 
 # Derived parameters
@@ -193,8 +193,8 @@ if USE_GPU:
     dir_space_charge.to_gpu()
     total_induced_voltage.to_gpu()
 
-# map_ = [total_induced_voltage] + [ring_RF_section] + [slice_beam] #+ [bunchmonitor] + [plots]
-map_ = [ring_RF_section] + [slice_beam]
+map_ = [total_induced_voltage] + [ring_RF_section] + [slice_beam] #+ [bunchmonitor] + [plots]
+
 # TRACKING + PLOTS-------------------------------------------------------------
 
 for i in range(1, n_turns+1):
@@ -204,17 +204,39 @@ for i in range(1, n_turns+1):
     for m in map_:
         m.track()
 
-    # # Plots
-    # if (i% n_turns_between_two_plots) == 0:
+    # Plots
+    if (i% n_turns_between_two_plots) == 0:
+        slice_beam.beam_spectrum_freq_generation(slice_beam.n_slices)
+        slice_beam.beam_spectrum_generation(slice_beam.n_slices)
 
-    #     plot_impedance_vs_frequency(i, general_params, ind_volt_freq,
-    #       option1 = "single", style = '-', option3 = "freq_table", option2 = "spectrum", dirname = this_directory + '../output_files/EX_02_fig')
+        if USE_GPU:
+            bm.use_cpu()
+            total_induced_voltage.to_cpu()
+            ind_volt_freq.to_cpu()
+            slice_beam.to_cpu()
 
-    #     plot_induced_voltage_vs_bin_centers(i, general_params, total_induced_voltage, style = '.', dirname = this_directory + '../output_files/EX_02_fig')
+        plot_impedance_vs_frequency(i, general_params, ind_volt_freq,
+          option1 = "single", style = '-', option3 = "freq_table", option2 = "spectrum", dirname = this_directory + '../output_files/EX_02_fig')
 
-# For testing purposes
-# if (args.d):
-#     print(np.std(my_beam.dE))
+        plot_induced_voltage_vs_bin_centers(i, general_params, total_induced_voltage, style = '.', dirname = this_directory + '../output_files/EX_02_fig')
+
+        if USE_GPU:
+            bm.use_gpu()
+            total_induced_voltage.to_gpu()
+            ind_volt_freq.to_gpu()
+            slice_beam.to_gpu()
+
+if USE_GPU:
+    bm.use_cpu()
+    RF_sct_par.to_cpu()
+    my_beam.to_cpu()
+    slice_beam.to_cpu()
+    ring_RF_section.to_cpu()
+    ind_volt_freq.to_cpu()
+    steps.to_cpu()
+    dir_space_charge.to_cpu()
+    total_induced_voltage.to_cpu()
+
 
 print('dE mean: ', my_beam.dE.mean())
 print('dE std: ', my_beam.dE.std())

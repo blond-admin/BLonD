@@ -151,24 +151,51 @@ if USE_GPU:
 for i in range(1, N_t+1):
 
     # Plot has to be done before tracking (at least for cases with separatrix)
-    # if (i % dt_plt) == 0:
+    if (i % dt_plt) == 0:
 
-    #     print("Outputting at time step %d..." %i)
-    #     print("   Beam momentum %.6e eV" %beam.momentum)
-    #     print("   Beam gamma %3.3f" %beam.gamma)
-    #     print("   Beam beta %3.3f" %beam.beta)
-    #     print("   Beam energy %.6e eV" %beam.energy)
-    #     print("   Four-times r.m.s. bunch length %.4e [s]" %(4.*beam.sigma_dt))
-    #     print("   Gaussian bunch length %.4e [s]" %slice_beam.bunchLength)
-    #     print("")
+        print("Outputting at time step %d..." %i)
+        print("   Beam momentum %.6e eV" %beam.momentum)
+        print("   Beam gamma %3.3f" %beam.gamma)
+        print("   Beam beta %3.3f" %beam.beta)
+        print("   Beam energy %.6e eV" %beam.energy)
+        print("   Four-times r.m.s. bunch length %.4e [s]" %(4.*beam.sigma_dt))
+        print("   Gaussian bunch length %.4e [s]" %slice_beam.bunchLength)
+        print("")
 
     # Track
     for m in map_:
         m.track()
 
+    if (i % dt_plt) == 0:
+        if USE_GPU:
+            # Copy to CPU all needed data
+            bm.use_cpu()
+            rf_params.to_cpu()
+            beam.to_cpu()
+            slice_beam.to_cpu()
+            long_tracker.to_cpu()
+
+        plots.track()
+
+        if USE_GPU:
+            # copy back to GPU
+            bm.use_gpu()
+            rf_params.to_gpu()
+            beam.to_gpu()
+            slice_beam.to_gpu()
+            long_tracker.to_gpu()
+
     # Define losses according to separatrix and/or longitudinal position
-    # beam.losses_separatrix(general_params, rf_params)
-    # beam.losses_longitudinal_cut(0., 2.5e-9)
+    beam.losses_separatrix(general_params, rf_params)
+    beam.losses_longitudinal_cut(0., 2.5e-9)
+
+if USE_GPU:
+    bm.use_cpu()
+    rf_params.to_cpu()
+    beam.to_cpu()
+    slice_beam.to_cpu()
+    long_tracker.to_cpu()
+
 
 print('dE mean: ', beam.dE.mean())
 print('dE std: ', beam.dE.std())
@@ -176,8 +203,6 @@ print('profile mean: ', slice_beam.n_macroparticles.mean())
 print('profile std: ', slice_beam.n_macroparticles.std())
 
 
-# if (args.d):
-#     print(np.std(beam.dE))
 # For testing purposes
 test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
     beam.dE.mean(), beam.dE.std(), beam.dt.mean(), beam.dt.std())

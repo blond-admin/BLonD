@@ -391,7 +391,7 @@ class RFStation(object):
                 eta += eta_i * (delta**i)
             return eta
 
-    def to_gpu(self):
+    def to_gpu(self, recursive=True):
         '''
         Transfer all necessary arrays to the GPU
         '''
@@ -416,7 +416,7 @@ class RFStation(object):
         # to make sure it will not be called again
         self.__device = 'GPU'
 
-    def to_cpu(self):
+    def to_cpu(self, recursive=True):
         '''
         Transfer all necessary arrays back to the CPU
         '''

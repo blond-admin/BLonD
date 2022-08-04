@@ -120,7 +120,7 @@ class TotalInducedVoltage(object):
                               charge=self.beam.Particle.charge,
                               acceleration_kick=0.)
 
-    def to_gpu(self):
+    def to_gpu(self, recursive=True):
         '''
         Transfer all necessary arrays to the GPU
         '''
@@ -128,9 +128,10 @@ class TotalInducedVoltage(object):
         if hasattr(self, '__device') and self.__device == 'GPU':
             return
 
-        # transfer recursively objects
-        for obj in self.induced_voltage_list:
-            obj.to_gpu()
+        if recursive: 
+            # transfer recursively objects
+            for obj in self.induced_voltage_list:
+                obj.to_gpu()
 
         assert bm.device == 'GPU'
         import cupy as cp
@@ -140,7 +141,7 @@ class TotalInducedVoltage(object):
         # to make sure it will not be called again
         self.__device = 'GPU'
     
-    def to_cpu(self):
+    def to_cpu(self, recursive=True):
         '''
         Transfer all necessary arrays back to the CPU
         '''
@@ -148,9 +149,10 @@ class TotalInducedVoltage(object):
         if hasattr(self, '__device') and self.__device == 'CPU':
             return
 
-        # transfer recursively objects
-        for obj in self.induced_voltage_list:
-            obj.to_cpu()
+        if recursive:
+            # transfer recursively objects
+            for obj in self.induced_voltage_list:
+                obj.to_cpu()
 
         assert bm.device == 'CPU'
         import cupy as cp
@@ -502,7 +504,7 @@ class InducedVoltageTime(_InducedVoltage):
         # frequency domain (padding zeros)
         self.total_impedance = bm.rfft(self.total_wake, self.n_fft)
 
-    def to_gpu(self):
+    def to_gpu(self, recursive=True):
         '''
         Transfer all necessary arrays to the GPU
         '''
@@ -532,8 +534,7 @@ class InducedVoltageTime(_InducedVoltage):
         # to make sure it will not be called again
         self.__device = 'GPU'
 
-
-    def to_cpu(self):
+    def to_cpu(self, recursive=True):
         '''
         Transfer all necessary arrays back to the CPU
         '''
@@ -670,8 +671,7 @@ class InducedVoltageFreq(_InducedVoltage):
         # Factor relating Fourier transform and DFT
         self.total_impedance /= self.profile.bin_size
 
-
-    def to_gpu(self):
+    def to_gpu(self, recursive=True):
         '''
         Transfer all necessary arrays to the GPU
         '''
@@ -696,7 +696,7 @@ class InducedVoltageFreq(_InducedVoltage):
         # to make sure it will not be called again
         self.__device = 'GPU'
 
-    def to_cpu(self):
+    def to_cpu(self, recursive=True):
         '''
         Transfer all necessary arrays back to the CPU
         '''
@@ -775,7 +775,7 @@ class InductiveImpedance(_InducedVoltage):
         self.induced_voltage = (induced_voltage[:self.n_induced_voltage]).astype(
             dtype=bm.precision.real_t, order='C', copy=False)
 
-    def to_gpu(self):
+    def to_gpu(self, recursive=True):
         '''
         Transfer all necessary arrays to the GPU
         '''
@@ -790,7 +790,7 @@ class InductiveImpedance(_InducedVoltage):
         # to make sure it will not be called again
         self.__device = 'GPU'
 
-    def to_cpu(self):
+    def to_cpu(self, recursive=True):
         '''
         Transfer all necessary arrays back to the CPU
         '''
@@ -970,7 +970,7 @@ class InducedVoltageResonator(_InducedVoltage):
         """
         return 0.5*(bm.sign(x) + 1.)
 
-    def to_gpu(self):
+    def to_gpu(self, recursive=True):
         '''
         Transfer all necessary arrays to the GPU
         '''
@@ -988,7 +988,7 @@ class InducedVoltageResonator(_InducedVoltage):
         # to make sure it will not be called again
         self.__device = 'GPU'
 
-    def to_cpu(self):
+    def to_cpu(self, recursive=True):
         '''
         Transfer all necessary arrays back to the CPU
         '''

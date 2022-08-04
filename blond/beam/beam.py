@@ -298,7 +298,7 @@ class Beam(object):
             Used to call the function is_in_separatrix.
         '''
 
-        itemindex = np.where(is_in_separatrix(Ring, RFStation, self,
+        itemindex = bm.where(is_in_separatrix(Ring, RFStation, self,
                                               self.dt, self.dE) == False)[0]
 
         if itemindex.size != 0:
@@ -380,13 +380,13 @@ class Beam(object):
 
         nNew = len(newdt)
 
-        self.id = np.concatenate((self.id, np.arange(self.n_macroparticles + 1,
+        self.id = bm.concatenate((self.id, bm.arange(self.n_macroparticles + 1,
                                                      self.n_macroparticles
                                                      + nNew + 1, dtype=int)))
         self.n_macroparticles += nNew
 
-        self.dt = np.concatenate((self.dt, newdt))
-        self.dE = np.concatenate((self.dE, newdE))
+        self.dt = bm.concatenate((self.dt, newdt))
+        self.dE = bm.concatenate((self.dE, newdE))
 
     def add_beam(self, other_beam):
         '''
@@ -402,11 +402,11 @@ class Beam(object):
         if not isinstance(other_beam, type(self)):
             raise TypeError("add_beam method requires a beam object as input")
 
-        self.dt = np.concatenate((self.dt, other_beam.dt))
-        self.dE = np.concatenate((self.dE, other_beam.dE))
+        self.dt = bm.concatenate((self.dt, other_beam.dt))
+        self.dE = bm.concatenate((self.dE, other_beam.dE))
 
         counter = itl.count(self.n_macroparticles + 1)
-        newids = np.zeros(other_beam.n_macroparticles)
+        newids = bm.zeros(other_beam.n_macroparticles)
 
         for i in range(other_beam.n_macroparticles):
             if other_beam.id[i]:
@@ -414,7 +414,7 @@ class Beam(object):
             else:
                 next(counter)
 
-        self.id = np.concatenate((self.id, newids))
+        self.id = bm.concatenate((self.id, newids))
         self.n_macroparticles += other_beam.n_macroparticles
 
     def __iadd__(self, other):
@@ -457,16 +457,15 @@ class Beam(object):
 
         from ..utils.mpi_config import worker
         if worker.isMaster and random:
-            import random
-            random.shuffle(self.id)
+            bm.random.shuffle(self.id)
             if fast == False:
                 self.dt = self.dt[self.id-1]
                 self.dE = self.dE[self.id-1]
 
         self.id = worker.scatter(self.id)
         if fast:
-            self.dt = np.ascontiguousarray(self.dt[self.id-1])
-            self.dE = np.ascontiguousarray(self.dE[self.id-1])
+            self.dt = bm.ascontiguousarray(self.dt[self.id-1])
+            self.dE = bm.ascontiguousarray(self.dE[self.id-1])
         else:
             self.dt = worker.scatter(self.dt)
             self.dE = worker.scatter(self.dE)
@@ -597,7 +596,7 @@ class Beam(object):
             temp = worker.gather(np.array([self.n_macroparticles_lost]))
             self.n_total_macroparticles_lost = np.sum(temp)
 
-    def to_gpu(self):
+    def to_gpu(self, recursive=True):
         '''
         Transfer all necessary arrays to the GPU
         '''
@@ -613,7 +612,7 @@ class Beam(object):
 
         self.__device = 'GPU'
 
-    def to_cpu(self):
+    def to_cpu(self, recursive=True):
         '''
         Transfer all necessary arrays back to the CPU
         '''

@@ -558,7 +558,7 @@ class BeamFeedback(object):
         # Apply frequency correction
         self.domega_rf = - self.domega_PL - self.domega_RL
 
-    def to_gpu(self):
+    def to_gpu(self, recursive=True):
         '''
         Transfer all necessary arrays to the GPU
         '''
@@ -572,7 +572,7 @@ class BeamFeedback(object):
         # to make sure it will not be called again
         self.__device = 'GPU'
 
-    def to_cpu(self):
+    def to_cpu(self, recursive=True):
         '''
         Transfer all necessary arrays back to the CPU
         '''

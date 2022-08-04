@@ -511,8 +511,7 @@ class RingAndRFTracker(object):
         # Increment by one the turn counter
         self.counter[0] += 1
 
-
-    def to_gpu(self):
+    def to_gpu(self, recursive=True):
         '''
         Transfer all necessary arrays to the GPU
         '''
@@ -521,15 +520,15 @@ class RingAndRFTracker(object):
             return
 
         # transfer recursively objects
-        if self.profile:
+        if recursive and self.profile:
             self.profile.to_gpu()
-        if self.totalInducedVoltage:
+        if recursive and self.totalInducedVoltage:
             self.totalInducedVoltage.to_gpu()
-        if self.beam:
+        if recursive and self.beam:
             self.beam.to_gpu()
-        if self.beamFB:
+        if recursive and self.beamFB:
             self.beamFB.to_gpu()
-        if self.rf_params:
+        if recursive and self.rf_params:
             self.rf_params.to_gpu()
 
         assert bm.device == 'GPU'
@@ -551,8 +550,7 @@ class RingAndRFTracker(object):
         # to make sure it will not be called again
         self.__device = 'GPU'
         
-
-    def to_cpu(self):
+    def to_cpu(self, recursive=True):
         '''
         Transfer all necessary arrays back to the CPU
         '''
@@ -561,15 +559,15 @@ class RingAndRFTracker(object):
             return
 
         # transfer recursively objects
-        if self.profile:
+        if recursive and self.profile:
             self.profile.to_cpu()
-        if self.totalInducedVoltage:
+        if recursive and self.totalInducedVoltage:
             self.totalInducedVoltage.to_cpu()
-        if self.beam:
+        if recursive and self.beam:
             self.beam.to_cpu()
-        if self.beamFB:
+        if recursive and self.beamFB:
             self.beamFB.to_cpu()
-        if self.rf_params:
+        if recursive and self.rf_params:
             self.rf_params.to_cpu()
 
         assert bm.device == 'CPU'

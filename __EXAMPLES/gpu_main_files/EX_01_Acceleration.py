@@ -136,8 +136,19 @@ if USE_GPU:
 
 # Tracking --------------------------------------------------------------------
 for i in range(1, N_t+1):
-    # print(i)
-    # Track
+
+
+    # Plot has to be done before tracking (at least for cases with separatrix)
+    if i % dt_plt == 0:
+        print("Outputting at time step %d..." % i)
+        print("   Beam momentum %.6e eV" % beam.momentum)
+        print("   Beam gamma %3.3f" % beam.gamma)
+        print("   Beam beta %3.3f" % beam.beta)
+        print("   Beam energy %.6e eV" % beam.energy)
+        print("   Four-times r.m.s. bunch length %.4e s" % (4.*beam.sigma_dt))
+        print("   Gaussian bunch length %.4e s" % profile.bunchLength)
+        print("")
+
     long_tracker.track()
     profile.track()
 
@@ -157,9 +168,17 @@ for i in range(1, N_t+1):
             beam.to_gpu()
             profile.to_gpu()
             rf.to_gpu()
+    
     # Define losses according to separatrix and/or longitudinal position
-    # beam.losses_separatrix(ring, rf)
-    # beam.losses_longitudinal_cut(0., 2.5e-9)
+    beam.losses_separatrix(ring, rf)
+    beam.losses_longitudinal_cut(0., 2.5e-9)
+
+if USE_GPU:
+    bm.use_cpu()
+    rf.to_cpu()
+    beam.to_cpu()
+    long_tracker.to_cpu()
+    profile.to_cpu()
 
 print('dE mean: ', beam.dE.mean())
 print('dE std: ', beam.dE.std())

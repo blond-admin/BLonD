@@ -157,6 +157,36 @@ if USE_GPU:
 for i in np.arange(1, N_t+1):
     # print(i)
 
+    if (i % dt_plt) == 0:
+
+        if USE_GPU:
+            # Copy to CPU all needed data
+            bm.use_cpu()
+            beam.to_cpu()
+            long_tracker_1.to_cpu()
+            long_tracker_2.to_cpu()
+            long_tracker_tot.to_cpu()
+            rf_params_1.to_cpu()
+            rf_params_2.to_cpu()
+            rf_params_tot.to_cpu()
+            slice_beam.to_cpu()
+            beam_dummy.to_cpu()
+
+        plots.track()
+
+        if USE_GPU:
+            # copy back to GPU
+            bm.use_gpu()
+            beam.to_gpu()
+            long_tracker_1.to_gpu()
+            long_tracker_2.to_gpu()
+            long_tracker_tot.to_gpu()
+            rf_params_1.to_gpu()
+            rf_params_2.to_gpu()
+            rf_params_tot.to_gpu()
+            slice_beam.to_gpu()
+            beam_dummy.to_gpu()
+
     long_tracker_tot.track()
 
     # Track
@@ -164,11 +194,22 @@ for i in np.arange(1, N_t+1):
         m.track()
 
     # Define losses according to separatrix and/or longitudinal position
-    # beam.losses_separatrix(general_params, rf_params_tot)
-    # beam.losses_longitudinal_cut(0., 2.5e-9)
+    beam.losses_separatrix(general_params, rf_params_tot)
+    beam.losses_longitudinal_cut(0., 2.5e-9)
 
-# if (args.d):
-#     print(np.std(beam.dE))
+
+if USE_GPU:
+    bm.use_cpu()
+    beam.to_cpu()
+    long_tracker_1.to_cpu()
+    long_tracker_2.to_cpu()
+    long_tracker_tot.to_cpu()
+    rf_params_1.to_cpu()
+    rf_params_2.to_cpu()
+    rf_params_tot.to_cpu()
+    slice_beam.to_cpu()
+    beam_dummy.to_cpu()
+
 print('dE mean: ', beam.dE.mean())
 print('dE std: ', beam.dE.std())
 print('profile mean: ', slice_beam.n_macroparticles.mean())

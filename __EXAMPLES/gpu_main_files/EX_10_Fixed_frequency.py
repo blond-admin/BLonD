@@ -136,22 +136,49 @@ if USE_GPU:
 
 
 for i in range(1, n_turns+1):
-    # print(i)
 
     for m in map_:
         m.track()
+
+    if i % 1000 == 0:
+        if USE_GPU:
+            bm.use_cpu()
+            my_beam.to_cpu()
+            long_tracker.to_cpu()
+            slices_ring.to_cpu()
+            phase_loop.to_cpu()
+            rf_params.to_cpu()
+
+        plots.track()
+
+        if USE_GPU:
+            bm.use_gpu()
+            my_beam.to_gpu()
+            long_tracker.to_gpu()
+            slices_ring.to_gpu()
+            phase_loop.to_gpu()
+            rf_params.to_gpu()
+
     slices_ring.cut_options.track_cuts(my_beam)
     slices_ring.set_slices_parameters()
 
-    # if (i % 100 == 0):
-    #     print("Time step %d" %i)
-    #     print("    Radial error %.4e" %(phase_loop.drho))
-    #     print("    Radial loop frequency correction %.4e 1/s"
-    #           %(phase_loop.domega_rf))
-    #     print("    RF phase %.4f rad" %(rf_params.phi_rf[0,i]))
-    #     print("    RF frequency %.6e 1/s" %(rf_params.omega_rf[0,i]))
-    #     print("    Tracker phase %.4f rad" %(long_tracker.phi_rf[0,i]))
-    #     print("    Tracker frequency %.6e 1/s" %(long_tracker.omega_rf[0,i]))
+    if (i % 100 == 0):
+        print("Time step %d" %i)
+        print("    Radial error %.4e" %(phase_loop.drho))
+        print("    Radial loop frequency correction %.4e 1/s"
+              %(phase_loop.domega_rf))
+        print("    RF phase %.4f rad" %(rf_params.phi_rf[0,i]))
+        print("    RF frequency %.6e 1/s" %(rf_params.omega_rf[0,i]))
+        print("    Tracker phase %.4f rad" %(long_tracker.rf_params.phi_rf[0,i]))
+        print("    Tracker frequency %.6e 1/s" %(long_tracker.rf_params.omega_rf[0,i]))
+
+if USE_GPU:
+    bm.use_cpu()
+    my_beam.to_cpu()
+    long_tracker.to_cpu()
+    slices_ring.to_cpu()
+    phase_loop.to_cpu()
+    rf_params.to_cpu()
 
 print('dE mean: ', np.mean(my_beam.dE))
 print('dE std: ', np.std(my_beam.dE))

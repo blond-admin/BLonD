@@ -185,7 +185,7 @@ class CutOptions(object):
         return self.n_slices, self.cut_left, self.cut_right, self.n_sigma, \
             self.edges, self.bin_centers, self.bin_size
 
-    def to_gpu(self):
+    def to_gpu(self, recursive=True):
         '''
         Transfer all necessary arrays to the GPU
         '''
@@ -194,7 +194,7 @@ class CutOptions(object):
             return
 
         # transfer recursively objects
-        if self.RFParams:
+        if recursive and self.RFParams:
             self.RFParams.to_gpu()
 
         assert bm.device == 'GPU'
@@ -206,8 +206,7 @@ class CutOptions(object):
         # to make sure it will not be called again
         self.__device = 'GPU'
         
-
-    def to_cpu(self):
+    def to_cpu(self, recursive=True):
         '''
         Transfer all necessary arrays back to the CPU
         '''
@@ -216,7 +215,7 @@ class CutOptions(object):
             return
 
         # transfer recursively objects
-        if self.RFParams:
+        if recursive and self.RFParams:
             self.RFParams.to_cpu()
 
         assert bm.device == 'CPU'
@@ -631,7 +630,7 @@ class Profile(object):
 
         return x, derivative
 
-    def to_gpu(self):
+    def to_gpu(self, recursive=True):
         '''
         Transfer all necessary arrays to the GPU
         '''
@@ -640,10 +639,10 @@ class Profile(object):
             return
 
         # transfer recursively objects to_gpu
-        if self.Beam:
+        if recursive and self.Beam:
             self.Beam.to_gpu()
 
-        if self.cut_options:
+        if recursive and self.cut_options:
             self.cut_options.to_gpu()
 
         assert bm.device == 'GPU'
@@ -659,7 +658,7 @@ class Profile(object):
         # to make sure it will not be called again
         self.__device = 'GPU'
 
-    def to_cpu(self):
+    def to_cpu(self, recursive=True):
         '''
         Transfer all necessary arrays back to the CPU
         '''
@@ -668,10 +667,10 @@ class Profile(object):
             return
 
         # transfer recursively objects
-        if self.Beam:
+        if recursive and self.Beam:
             self.Beam.to_cpu()
 
-        if self.cut_options:
+        if recursive and self.cut_options:
             self.cut_options.to_cpu()
 
         assert bm.device == 'CPU'
