@@ -194,8 +194,8 @@ if USE_GPU:
 import time
 t0 = time.time()
 
-bunch_center = bm.zeros(n_turns)
-bunch_std = bm.zeros(n_turns)
+bunch_center = np.zeros(n_turns)
+bunch_std = np.zeros(n_turns)
 
 
 # TRACKING --------------------------------------------------------------------
@@ -205,8 +205,8 @@ for i in range(n_turns):
     for m in map_:
         m.track()
     
-    bunch_center[i] = beam.dt.mean()
-    bunch_std[i] = beam.dt.std()
+    bunch_center[i] = float(beam.dt.mean())
+    bunch_std[i] = float(beam.dt.std())
     
     if i % n_turns_between_two_plots == 0:
         if USE_GPU:

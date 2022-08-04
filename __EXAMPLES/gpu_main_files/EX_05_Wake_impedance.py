@@ -274,6 +274,9 @@ for i in np.arange(1, n_turns+1):
     if (i % dt_plt) == 0:
         if USE_GPU:
             bm.use_cpu()
+            slice_beam.to_cpu()
+            slice_beam_freq.to_cpu()
+            slice_beam_res.to_cpu()
             tot_vol.to_cpu()
             tot_vol_freq.to_cpu()
             tot_vol_res.to_cpu()
@@ -287,6 +290,9 @@ for i in np.arange(1, n_turns+1):
         
         if USE_GPU:
             bm.use_gpu()
+            slice_beam.to_gpu()
+            slice_beam_freq.to_gpu()
+            slice_beam_res.to_gpu()
             tot_vol.to_gpu()
             tot_vol_freq.to_gpu()
             tot_vol_res.to_gpu()
