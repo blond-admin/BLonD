@@ -301,8 +301,6 @@ class RFStation(object):
                 Ring.cycle_time,
                 Ring.RingOptions.t_start)
         self.omega_rf_d = self.omega_rf_d.astype(bm.precision.real_t, order='C', copy=False)
-        # print("omega_rf_d[0]: {}".format(self.omega_rf_d[0]))
-
 
         # Reshape phase noise
         if phi_noise is not None:
@@ -355,7 +353,6 @@ class RFStation(object):
                 
             
             self.phi_modulation = (dPhi, dOmega)
-            
         else:
             
             self.phi_modulation = None
@@ -394,7 +391,7 @@ class RFStation(object):
                 eta += eta_i * (delta**i)
             return eta
 
-    def to_gpu(self):
+    def to_gpu(self, recursive=True):
         '''
         Transfer all necessary arrays to the GPU
         '''
@@ -416,10 +413,12 @@ class RFStation(object):
         self.harmonic = cp.array(self.harmonic)
         self.dphi_rf = cp.array(self.dphi_rf)
         self.t_rf = cp.array(self.t_rf)
+        self.t_rev = cp.array(self.t_rev)
+
         # to make sure it will not be called again
         self.__device = 'GPU'
 
-    def to_cpu(self):
+    def to_cpu(self, recursive=True):
         '''
         Transfer all necessary arrays back to the CPU
         '''
@@ -441,7 +440,7 @@ class RFStation(object):
         self.harmonic = cp.asnumpy(self.harmonic)
         self.dphi_rf = cp.asnumpy(self.dphi_rf)
         self.t_rf = cp.asnumpy(self.t_rf)
-
+        self.t_rev = cp.asnumpy(self.t_rev)
         # to make sure it will not be called again
         self.__device = 'CPU'
 

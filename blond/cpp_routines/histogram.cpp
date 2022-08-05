@@ -140,12 +140,14 @@ extern "C" void histogramf(const float *__restrict__ input,
     const float inv_bin_width = n_slices / (cut_right - cut_left);
 
     // allocate memory for the thread_private histogram
-    // static float **histo = nullptr;
-    float **histo = (float **) malloc(omp_get_max_threads() * sizeof(float *));
-    histo[0] = (float *) malloc (omp_get_max_threads() * n_slices * sizeof(float));
-    for (int i = 0; i < omp_get_max_threads(); i++)
-        histo[i] = (*histo + n_slices * i);
+    static float **histo = nullptr;
 
+    if (!histo) {
+        histo = (float **) malloc(omp_get_max_threads() * sizeof(float *));
+        histo[0] = (float *) malloc (omp_get_max_threads() * n_slices * sizeof(float));
+        for (int i = 0; i < omp_get_max_threads(); i++)
+            histo[i] = (*histo + n_slices * i);
+    }
 
     #pragma omp parallel
     {
@@ -181,8 +183,8 @@ extern "C" void histogramf(const float *__restrict__ input,
     }
 
     // free memory
-    free(histo[0]);
-    free(histo);
+    // free(histo[0]);
+    // free(histo);
 }
 
 

@@ -36,7 +36,11 @@ u = physical_constants['atomic mass unit-electron volt relationship'][0]
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 
-USE_GPU = 1
+USE_GPU = os.environ.get('USE_GPU', '0')
+if len(USE_GPU) and int(USE_GPU):
+    USE_GPU = True
+else:
+    USE_GPU = False
 
 try:
     os.mkdir(this_directory + '../output_files')
@@ -160,24 +164,51 @@ if USE_GPU:
     rf_params.to_gpu()
 
 # Tracking ---------------------------------------------------------------------
+# for i in range(1, 500+1):
 for i in range(1, N_t+1):
 
     # Plot has to be done before tracking (at least for cases with separatrix)
-    # if (i % dt_plt) == 0:
-    #     print("Outputting at time step %d..." %i)
-    #     print("   Beam momentum %.6e eV" %beam.momentum)
-    #     print("   Beam gamma %3.3f" %beam.gamma)
-    #     print("   Beam beta %3.3f" %beam.beta)
-    #     print("   Beam energy %.6e eV" %beam.energy)
-    #     print("   Four-times r.m.s. bunch length %.4e s" %(4.*beam.sigma_dt))
-    #     print("")
+    if (i % dt_plt) == 0:
+        print("Outputting at time step %d..." %i)
+        print("   Beam momentum %.6e eV" %beam.momentum)
+        print("   Beam gamma %3.3f" %beam.gamma)
+        print("   Beam beta %3.3f" %beam.beta)
+        print("   Beam energy %.6e eV" %beam.energy)
+        print("   Four-times r.m.s. bunch length %.4e s" %(4.*beam.sigma_dt))
+        print("")
+
+        if USE_GPU:
+            bm.use_cpu()
+            long_tracker.to_cpu()
+            slice_beam.to_cpu()
+            beam.to_cpu()
+            rf_params.to_cpu()
+
+        plots.track()
+
+        if USE_GPU:
+            bm.use_gpu()
+            long_tracker.to_gpu()
+            slice_beam.to_gpu()
+            beam.to_gpu()
+            rf_params.to_gpu()
+
 
     # Track
     for m in map_:
         m.track()
 
     # # Define losses according to separatrix
-    # beam.losses_separatrix(general_params, rf_params)
+    beam.losses_separatrix(general_params, rf_params)
+
+
+if USE_GPU:
+    bm.use_cpu()
+    long_tracker.to_cpu()
+    slice_beam.to_cpu()
+    beam.to_cpu()
+    rf_params.to_cpu()
+
 
 print('dE mean: ', beam.dE.mean())
 print('dE std: ', beam.dE.std())
@@ -189,5 +220,6 @@ test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
     beam.dE.mean(), beam.dE.std(), beam.dt.mean(), beam.dt.std())
 with open(this_directory + '../output_files/EX_07_test_data.txt', 'w') as f:
     f.write(test_string)
+print(test_string)
 
 print("Done!")

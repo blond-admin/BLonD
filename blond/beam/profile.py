@@ -113,10 +113,8 @@ class CutOptions(object):
             # CutError
             raise RuntimeError('cuts_unit should be "s" or "rad"')
 
-        self.edges = np.zeros(
-            n_slices + 1, dtype=bm.precision.real_t, order='C')
-        self.bin_centers = np.zeros(
-            n_slices, dtype=bm.precision.real_t, order='C')
+        self.edges = np.zeros(n_slices + 1, dtype=bm.precision.real_t, order='C')
+        self.bin_centers = np.zeros(n_slices, dtype=bm.precision.real_t, order='C')
 
     def set_cuts(self, Beam=None):
         """
@@ -187,7 +185,7 @@ class CutOptions(object):
         return self.n_slices, self.cut_left, self.cut_right, self.n_sigma, \
             self.edges, self.bin_centers, self.bin_size
 
-    def to_gpu(self):
+    def to_gpu(self, recursive=True):
         '''
         Transfer all necessary arrays to the GPU
         '''
@@ -196,7 +194,7 @@ class CutOptions(object):
             return
 
         # transfer recursively objects
-        if self.RFParams:
+        if recursive and self.RFParams:
             self.RFParams.to_gpu()
 
         assert bm.device == 'GPU'
@@ -208,8 +206,7 @@ class CutOptions(object):
         # to make sure it will not be called again
         self.__device = 'GPU'
         
-
-    def to_cpu(self):
+    def to_cpu(self, recursive=True):
         '''
         Transfer all necessary arrays back to the CPU
         '''
@@ -218,7 +215,7 @@ class CutOptions(object):
             return
 
         # transfer recursively objects
-        if self.RFParams:
+        if recursive and self.RFParams:
             self.RFParams.to_cpu()
 
         assert bm.device == 'CPU'
@@ -434,13 +431,11 @@ class Profile(object):
         self.set_slices_parameters()
 
         # Initialize profile array as zero array
-        self.n_macroparticles = np.zeros(
-            self.n_slices, dtype=bm.precision.real_t, order='C')
+        self.n_macroparticles = np.zeros(self.n_slices, dtype=bm.precision.real_t, order='C')
 
         # Initialize beam_spectrum and beam_spectrum_freq as empty arrays
         self.beam_spectrum = np.array([], dtype=bm.precision.real_t, order='C')
-        self.beam_spectrum_freq = np.array(
-            [], dtype=bm.precision.real_t, order='C')
+        self.beam_spectrum_freq = np.array([], dtype=bm.precision.real_t, order='C')
 
         if OtherSlicesOptions.smooth:
             self.operations = [self._slice_smooth]
@@ -488,8 +483,8 @@ class Profile(object):
         bm.slice(self.Beam.dt, self.n_macroparticles, self.cut_left,
                  self.cut_right)
 
-        # if bm.mpiMode():
-            # self.reduce_histo()
+        if bm.mpiMode():
+            self.reduce_histo()
 
     def reduce_histo(self, dtype=np.uint32):
         if not bm.mpiMode():
@@ -583,8 +578,7 @@ class Profile(object):
             self.n_macroparticles, self.bin_centers, shift)
 
     def fwhm_multibunch(self, n_bunches, bunch_spacing_buckets,
-                        bucket_size_tau, bucket_tolerance=0.40,
-                        shift=0, shiftX=0):
+                        bucket_size_tau, bucket_tolerance=0.40, shift=0):
         """
         Computation of the bunch length and position from the FWHM
         assuming Gaussian line density for multibunch case.
@@ -592,8 +586,7 @@ class Profile(object):
 
         self.bunchPosition, self.bunchLength = ffroutines.fwhm_multibunch(
             self.n_macroparticles, self.bin_centers, n_bunches,
-            bunch_spacing_buckets, bucket_size_tau, bucket_tolerance,
-            shift=shift, shiftX=shiftX)
+            bunch_spacing_buckets, bucket_size_tau, bucket_tolerance, shift)
 
     def beam_spectrum_freq_generation(self, n_sampling_fft):
         """
@@ -637,7 +630,7 @@ class Profile(object):
 
         return x, derivative
 
-    def to_gpu(self):
+    def to_gpu(self, recursive=True):
         '''
         Transfer all necessary arrays to the GPU
         '''
@@ -646,10 +639,10 @@ class Profile(object):
             return
 
         # transfer recursively objects to_gpu
-        if self.Beam:
+        if recursive and self.Beam:
             self.Beam.to_gpu()
 
-        if self.cut_options:
+        if recursive and self.cut_options:
             self.cut_options.to_gpu()
 
         assert bm.device == 'GPU'
@@ -665,7 +658,7 @@ class Profile(object):
         # to make sure it will not be called again
         self.__device = 'GPU'
 
-    def to_cpu(self):
+    def to_cpu(self, recursive=True):
         '''
         Transfer all necessary arrays back to the CPU
         '''
@@ -674,10 +667,10 @@ class Profile(object):
             return
 
         # transfer recursively objects
-        if self.Beam:
+        if recursive and self.Beam:
             self.Beam.to_cpu()
 
-        if self.cut_options:
+        if recursive and self.cut_options:
             self.cut_options.to_cpu()
 
         assert bm.device == 'CPU'

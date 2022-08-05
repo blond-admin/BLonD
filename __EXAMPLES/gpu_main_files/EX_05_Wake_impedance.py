@@ -42,7 +42,11 @@ mpl.use('Agg')
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 
-USE_GPU = 0
+USE_GPU = os.environ.get('USE_GPU', '0')
+if len(USE_GPU) and int(USE_GPU):
+    USE_GPU = True
+else:
+    USE_GPU = False
 
 try:
     os.mkdir(this_directory + '../output_files')
@@ -65,7 +69,7 @@ gamma_transition = 1/np.sqrt(0.00192)   # [1]
 C = 6911.56  # [m]
 
 # Tracking details
-n_turns = 20
+n_turns = 2
 dt_plt = 1
 
 # Derived parameters
@@ -267,33 +271,88 @@ for i in np.arange(1, n_turns+1):
         m.track()
 
     # Plots
-    # if (i % dt_plt) == 0:
-    #     plot_induced_voltage_vs_bin_centers(i, general_params, tot_vol,
-    #                             style='.', dirname=this_directory + '../output_files/EX_05_fig/1')
-    #     plot_induced_voltage_vs_bin_centers(i, general_params_freq,
-    #               tot_vol_freq, style='.', dirname=this_directory + '../output_files/EX_05_fig/2')
-    #     plot_induced_voltage_vs_bin_centers(i, general_params_res,
-    #               tot_vol_res, style='.', dirname=this_directory + '../output_files/EX_05_fig/3')
-# if (args.d):
-print('dE mean: ', my_beam.dE.mean())
-print('dE std: ', my_beam.dE.std())
-print('profile mean: ', slice_beam.n_macroparticles.mean())
-print('profile std: ', slice_beam.n_macroparticles.std())
+    if (i % dt_plt) == 0:
+        if USE_GPU:
+            bm.use_cpu()
+            slice_beam.to_cpu()
+            slice_beam_freq.to_cpu()
+            slice_beam_res.to_cpu()
+            tot_vol.to_cpu()
+            tot_vol_freq.to_cpu()
+            tot_vol_res.to_cpu()
+
+        plot_induced_voltage_vs_bin_centers(i, general_params, tot_vol,
+                                style='.', dirname=this_directory + '../output_files/EX_05_fig/1')
+        plot_induced_voltage_vs_bin_centers(i, general_params_freq,
+                  tot_vol_freq, style='.', dirname=this_directory + '../output_files/EX_05_fig/2')
+        plot_induced_voltage_vs_bin_centers(i, general_params_res,
+                  tot_vol_res, style='.', dirname=this_directory + '../output_files/EX_05_fig/3')
+        
+        if USE_GPU:
+            bm.use_gpu()
+            slice_beam.to_gpu()
+            slice_beam_freq.to_gpu()
+            slice_beam_res.to_gpu()
+            tot_vol.to_gpu()
+            tot_vol_freq.to_gpu()
+            tot_vol_res.to_gpu()
+
+if USE_GPU:
+    bm.use_cpu()
+
+    RF_sct_par.to_cpu()
+    RF_sct_par_freq.to_cpu()
+    RF_sct_par_res.to_cpu()
+
+    slice_beam.to_cpu()
+    slice_beam_freq.to_cpu()
+    slice_beam_res.to_cpu()
+
+    my_beam.to_cpu()
+    my_beam_freq.to_cpu()
+    my_beam_res.to_cpu()
+
+    ring_RF_section.to_cpu()
+    ring_RF_section_freq.to_cpu()
+    ring_RF_section_res.to_cpu()
+
+    tot_vol.to_cpu()
+    tot_vol_freq.to_cpu()
+    tot_vol_res.to_cpu()
+
+    ind_volt_time.to_cpu()
+    ind_volt_freq.to_cpu()
+    ind_volt_res.to_cpu()
+
+print('mybeam dE mean: ', my_beam.dE.mean())
+print('mybeam dE std: ', my_beam.dE.std())
+print('mybeam profile mean: ', slice_beam.n_macroparticles.mean())
+print('mybeam profile std: ', slice_beam.n_macroparticles.std())
+
+print('mybeam_freq dE mean: ', my_beam_freq.dE.mean())
+print('mybeam_freq dE std: ', my_beam_freq.dE.std())
+print('mybeam_freq profile mean: ', slice_beam_freq.n_macroparticles.mean())
+print('mybeam_freq profile std: ', slice_beam_freq.n_macroparticles.std())
+
+print('mybeam_res dE mean: ', my_beam_res.dE.mean())
+print('mybeam_res dE std: ', my_beam_res.dE.std())
+print('mybeam_res profile mean: ', slice_beam_res.n_macroparticles.mean())
+print('mybeam_res profile std: ', slice_beam_res.n_macroparticles.std())
 
 # Plotting induced voltages---------------------------------------------------
-# plt.clf()
-# plt.ylabel("induced voltage [arb. unit]")
-# plt.xlabel("time [ns]")
-# plt.plot(1e9*slice_beam.bin_centers,tot_vol.induced_voltage,label='Time')
-# plt.plot(1e9*slice_beam_freq.bin_centers,tot_vol_freq.induced_voltage,\
-#          label='Freq')
-# plt.plot(1e9*slice_beam_res.bin_centers,tot_vol_res.induced_voltage,\
-#          label='Resonator')
-# plt.plot(1e9*slice_beam.bin_centers,VindGauss,label='Analytic')
-# plt.legend()
-# dirname=this_directory + '../output_files/EX_05_fig'
-# fign = dirname +'/comparison_induced_voltage.png'
-# plt.savefig(fign)
+plt.clf()
+plt.ylabel("induced voltage [arb. unit]")
+plt.xlabel("time [ns]")
+plt.plot(1e9*slice_beam.bin_centers,tot_vol.induced_voltage,label='Time')
+plt.plot(1e9*slice_beam_freq.bin_centers,tot_vol_freq.induced_voltage,\
+         label='Freq')
+plt.plot(1e9*slice_beam_res.bin_centers,tot_vol_res.induced_voltage,\
+         label='Resonator')
+plt.plot(1e9*slice_beam.bin_centers,VindGauss,label='Analytic')
+plt.legend()
+dirname=this_directory + '../output_files/EX_05_fig'
+fign = dirname +'/comparison_induced_voltage.png'
+plt.savefig(fign)
 
 # # For testing purposes
 test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(

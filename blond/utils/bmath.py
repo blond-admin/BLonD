@@ -29,8 +29,9 @@ _CPU_func_dict = {
     'mean_cpp': butils_wrap.mean_cpp,
     'std_cpp': butils_wrap.std_cpp,
     'where_cpp': butils_wrap.where_cpp,
-    'interp_cpp': butils_wrap.interp_cpp,
-    'interp_const_space': butils_wrap.interp_const_space,
+    # 'interp_cpp': butils_wrap.interp_cpp,
+    # 'interp_const_space': butils_wrap.interp_const_space,
+    'interp_const_space': np.interp,
     'cumtrapz': butils_wrap.cumtrapz,
     'trapz_cpp': butils_wrap.trapz_cpp,
     'linspace_cpp': butils_wrap.linspace_cpp,
@@ -137,24 +138,9 @@ update_active_dict(_CPU_func_dict)
 
 
 # GPU Related Utilities
-# def gpuMode():
-#     return globals()['device'] == 'GPU'
-
-
-# def gpuId():
-#     return __gpu_dev.id
-
 
 def gpuDev():
     return __gpu_dev
-
-
-# def gpuCtx():
-#     return __gpu_dev.ctx
-
-
-# def getMod():
-#     return __gpu_dev.my_mod()
 
 
 class GPUDev:
@@ -241,7 +227,8 @@ def use_gpu(gpu_id=0):
         'synchrotron_radiation': cupy_butils_wrap.gpu_synchrotron_radiation,
         'synchrotron_radiation_full': cupy_butils_wrap.gpu_synchrotron_radiation_full,
         'slice': cupy_butils_wrap.gpu_slice,
-        'interp_const_space': cupy_butils_wrap.gpu_interp,
+        # 'interp_const_space': cupy_butils_wrap.gpu_interp,
+        'interp_const_space': cp.interp,
         'device': 'GPU'
     }
     # add cupy functions in the dictionary

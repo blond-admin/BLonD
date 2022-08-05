@@ -219,23 +219,9 @@ class BeamFeedback(object):
 
         # Update the RF frequency of all systems for the next turn
         counter = self.rf_station.counter[0] + 1
-        
-        #self.domega_rf = np.float64(counter)
-        
         self.rf_station.omega_rf[:, counter] += self.domega_rf * \
             self.rf_station.harmonic[:, counter] / \
             self.rf_station.harmonic[0, counter]
-        # Update the RF phase of all systems for the next turn
-        # Accumulated phase offset due to PL in each RF system
-
-        self.rf_station.dphi_rf += 2.*np.pi*self.rf_station.harmonic[:, counter] * \
-            (self.rf_station.omega_rf[:, counter] -
-             self.rf_station.omega_rf_d[:, counter]) / \
-            self.rf_station.omega_rf_d[:, counter]
-
-        
-        # Total phase offset
-        self.rf_station.phi_rf[:, counter] += self.rf_station.dphi_rf
 
     def precalculate_time(self, Ring):
         '''
@@ -572,7 +558,7 @@ class BeamFeedback(object):
         # Apply frequency correction
         self.domega_rf = - self.domega_PL - self.domega_RL
 
-    def to_gpu(self):
+    def to_gpu(self, recursive=True):
         '''
         Transfer all necessary arrays to the GPU
         '''
@@ -586,7 +572,7 @@ class BeamFeedback(object):
         # to make sure it will not be called again
         self.__device = 'GPU'
 
-    def to_cpu(self):
+    def to_cpu(self, recursive=True):
         '''
         Transfer all necessary arrays back to the CPU
         '''

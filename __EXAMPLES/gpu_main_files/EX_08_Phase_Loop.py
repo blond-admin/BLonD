@@ -32,7 +32,11 @@ mpl.use('Agg')
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 
-USE_GPU = 0
+USE_GPU = os.environ.get('USE_GPU', '0')
+if len(USE_GPU) and int(USE_GPU):
+    USE_GPU = True
+else:
+    USE_GPU = False
 
 try:
     os.mkdir(this_directory + '../output_files')
@@ -97,17 +101,17 @@ my_beam.dE += 90.0e3
 slices_ring.track()
 
 # Monitor
-# bunch_monitor = BunchMonitor(general_params, rf_params, my_beam,
-#                              this_directory + '../output_files/EX_08_output_data',
-#                              Profile=slices_ring, PhaseLoop=phase_loop)
+bunch_monitor = BunchMonitor(general_params, rf_params, my_beam,
+                             this_directory + '../output_files/EX_08_output_data',
+                             Profile=slices_ring, PhaseLoop=phase_loop)
 
 
 # Plots
-# format_options = {'dirname': this_directory + '../output_files/EX_08_fig'}
-# plots = Plot(general_params, rf_params, my_beam, 50, n_turns, 0.0, 2*np.pi,
-#              -1e6, 1e6, xunit='rad', separatrix_plot=True, Profile=slices_ring,
-#              format_options=format_options,
-#              h5file=this_directory + '../output_files/EX_08_output_data', PhaseLoop=phase_loop)
+format_options = {'dirname': this_directory + '../output_files/EX_08_fig'}
+plots = Plot(general_params, rf_params, my_beam, 50, n_turns, 0.0, 2*np.pi,
+             -1e6, 1e6, xunit='rad', separatrix_plot=True, Profile=slices_ring,
+             format_options=format_options,
+             h5file=this_directory + '../output_files/EX_08_output_data', PhaseLoop=phase_loop)
 
 # For testing purposes
 test_string = ''
@@ -123,17 +127,33 @@ map_ = [full_ring] + [slices_ring]
 
 if USE_GPU:
     bm.use_gpu()
-    # my_beam.to_gpu()
     long_tracker.to_gpu()
     slices_ring.to_gpu()
-    # phase_loop.to_gpu()
-    # rf_params.to_gpu()
 
 for i in range(1, n_turns+1):
-    #print(i)
+    # print(i)
 
     for m in map_:
         m.track()
+
+    if i % 50 == 0:
+        if USE_GPU:
+            bm.use_cpu()
+            long_tracker.to_cpu()
+            slices_ring.to_cpu()        
+
+        plots.track()
+
+        if USE_GPU:
+            bm.use_gpu()
+            long_tracker.to_gpu()
+            slices_ring.to_gpu()
+
+
+if USE_GPU:
+    bm.use_cpu()
+    long_tracker.to_cpu()
+    slices_ring.to_cpu()
 
 print('dE mean: ', my_beam.dE.mean())
 print('dE std: ', my_beam.dE.std())

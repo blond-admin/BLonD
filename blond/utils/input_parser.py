@@ -71,17 +71,6 @@ parser.add_argument('-gpu', '--gpu', type=int, default=0,
                     help='Use the GPU to run the computational core: 0 (OFF), num (ON, number of gpus to use)'
                     'Default: 0 (OFF)')
 
-parser.add_argument('-gpucache', '--gpucache', type=int, default=1,
-                    help='Use the gpucache feature: 0 (OFF), 1 (ON)'
-                    'Default: 1 (ON)')
-
-parser.add_argument('-trace', '--trace', type=int, default=0, choices=[0, 1],
-                    help='Trace the specified regions of interest (MPE).'
-                    '\nDefault: No tracing.')
-
-parser.add_argument('-tracefile', '--tracefile', type=str, default='mpe-trace',
-                    help='The file name to save the MPE trace (without the file extension).'
-                    '\nDefault: mpe-trace')
 
 parser.add_argument('-lb', '--loadbalance', type=str,
                     default='off',
@@ -95,19 +84,6 @@ parser.add_argument('-lb', '--loadbalance', type=str,
                     'Lower values give more weight to the last measurements. Default: 5'
                     'keep: Only consider the last keep number of measurements. Default: 20'
                     'Default: off ')
-
-
-parser.add_argument('-artificialdelay', '--artificialdelay', type=str,
-                    default='off',
-                    help='Add artificial delay to a percentage of the workers. Format:\n' +
-                         'init,incr,top,dcr,workers,delay.\n' +
-                         'init: initiation interval.\n' +
-                         'incr: turns needed to reach max delay.\n' +
-                         'top: turns with constant max delay.\n' +
-                         'dcr: turns to reach initial delay.\n' +
-                         'workers: percentage of workers with delayed runtime.\n' +
-                         'delay: delay increase percentage.\n' +
-                         'Default: off. Example: 200,50,300,50,25,20')
 
 
 def parse():
