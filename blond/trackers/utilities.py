@@ -692,7 +692,7 @@ def phase_modulo_above_transition(phi):
     *Projects a phase array into the range -Pi/2 to +3*Pi/2.*
     '''
     
-    return phi - 2.*np.pi*np.floor(phi/(2.*np.pi))
+    return phi - 2.*np.pi*bm.floor(phi/(2.*np.pi))
 
 
  
