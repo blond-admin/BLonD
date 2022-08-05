@@ -382,9 +382,9 @@ def hamiltonian(Ring, RFStation, Beam, dt, dE,
     counter = RFStation.counter[0]
     h0 = RFStation.harmonic[0,counter]
     if total_voltage == None:
-        V0 = RFStation.voltage[0,counter]
+        V0 = float(RFStation.voltage[0,counter])
     else: 
-        V0 = total_voltage[counter]
+        V0 = float(total_voltage[counter])
     V0 *= RFStation.Particle.charge
     
     c1 = RFStation.eta_tracking(Beam, counter, dE)*c*np.pi/ \

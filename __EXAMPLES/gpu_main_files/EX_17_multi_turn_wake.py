@@ -151,22 +151,25 @@ total_ind_volt_freq_periodic = TotalInducedVoltage(beam, slice_beam,
 # For testing purposes
 test_string = ''
 test_string += '{:<17}\t{:<17}\t{:<17}\t{:<17}\n'.format(
-    'mean_ind_volt_freq', 'std_ind_volt_freq', 'mean_ind_volt_time', 'std_ind_volt_time')
+    'mean_dE', 'std_dE', 'mean_dt', 'std_dt')
 test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
-    total_ind_volt_freq.induced_voltage.mean(), total_ind_volt_freq.induced_voltage.std(),
-    total_ind_volt_time.induced_voltage.mean(), total_ind_volt_time.induced_voltage.std())
+    beam.dE.mean(), beam.dE.std(),
+    beam.dt.mean(), beam.dt.std())
 
 # ACCELERATION MAP-------------------------------------------------------------
 
 map_ = [total_ind_volt_freq] + [total_ind_volt_time]
+# map_ = [] + [total_ind_volt_time]
+
 
 total_ind_volt_freq_periodic.track()
 
 
 if USE_GPU:
     bm.use_gpu()
-    slice_beam.to_gpu()
     RF_sct_par.to_gpu()
+    slice_beam.to_gpu()
+    ring_RF_section.to_gpu()
     total_ind_volt_freq.to_gpu()
     total_ind_volt_time.to_gpu()
 
@@ -177,13 +180,14 @@ for i in range(n_turns):
     for m in map_:
         m.track()
 
+
 if USE_GPU:
     bm.use_cpu()
-    slice_beam.to_cpu()
     RF_sct_par.to_cpu()
+    slice_beam.to_cpu()
+    ring_RF_section.to_cpu()
     total_ind_volt_freq.to_cpu()
     total_ind_volt_time.to_cpu()
-
 
 plt.figure('comparison', figsize=[6,4.5])
 plt.plot(slice_beam.bin_centers*1e9, total_ind_volt_freq.induced_voltage, lw=2,
@@ -222,11 +226,10 @@ plt.savefig(this_directory + '../output_files/EX_17_fig/const_rev_f.png')
 RF_sct_par.t_rev *= 1-np.arange(n_turns+1)*10/100
 
 
-
-
 if USE_GPU:
     bm.use_gpu()
     RF_sct_par.to_gpu()
+    ring_RF_section.to_gpu()
     slice_beam.to_gpu()
     total_ind_volt_freq.to_gpu()
     total_ind_volt_time.to_gpu()
@@ -239,9 +242,11 @@ for i in range(n_turns):
     # Increasing turn counter manually because tracker is not called
     RF_sct_par.counter[0] += 1
 
+
 if USE_GPU:
     bm.use_cpu()
     RF_sct_par.to_cpu()
+    ring_RF_section.to_cpu()
     slice_beam.to_cpu()
     total_ind_volt_freq.to_cpu()
     total_ind_volt_time.to_cpu()
@@ -275,9 +280,9 @@ plt.savefig(this_directory + '../output_files/EX_17_fig/diff_rev_f.png')
 
 # For testing purposes
 test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
-    total_ind_volt_freq.induced_voltage.mean(), total_ind_volt_freq.induced_voltage.std(),
-    total_ind_volt_time.induced_voltage.mean(), total_ind_volt_time.induced_voltage.std())
+    beam.dE.mean(), beam.dE.std(),
+    beam.dt.mean(), beam.dt.std())
 with open(this_directory + '../output_files/EX_17_test_data.txt', 'w') as f:
     f.write(test_string)
-
+print(test_string)
 print("Done!")

@@ -285,15 +285,22 @@ def gpu_convolve(signal, kernel, mode='full', result=None):
     return result
 
 
-def gpu_interp(dev_x, dev_xp, dev_yp, left=0.12345, right=0.12345):
+def gpu_interp(x, xp, yp, left=None, right=None, result=None):
     cuinterp = kernels.get_function("cuinterp")
-    dev_res = cp.empty(dev_x.size, bm.precision.real_t)
-    cuinterp(args=(dev_x, np.int32(dev_x.size),
-                   dev_xp, np.int32(dev_xp.size),
-                   dev_yp, dev_res,
+
+    if not left:
+        left = yp[0]
+    if not right:
+        right = yp[-1]
+    if result is None:
+        result = cp.empty(x.size, bm.precision.real_t)
+
+    cuinterp(args=(x, np.int32(x.size),
+                   xp, np.int32(xp.size),
+                   yp, result,
                    bm.precision.real_t(left), bm.precision.real_t(right)),
              block=block_size, grid=grid_size)
-    return dev_res
+    return result
 
 # # ffts dicts, a cache for the plans of the ffts
 # plans_dict = {}

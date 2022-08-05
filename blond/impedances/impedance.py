@@ -391,9 +391,11 @@ class _InducedVoltage(object):
         """
 
         t_rev = self.RFParams.t_rev[self.RFParams.counter[0]]
-        self.mtw_memory = bm.interp_const_space(self.time_mtw + t_rev,
-                                                self.time_mtw, self.mtw_memory,
-                                                left=0, right=0)
+
+        # self.mtw_memory = bm.interp_const_space(self.time_mtw + t_rev,        
+        self.mtw_memory = bm.interp(self.time_mtw + t_rev,
+                                    self.time_mtw, self.mtw_memory,
+                                    left=0, right=0)
 
     def _track(self):
         """

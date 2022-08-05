@@ -164,6 +164,7 @@ if USE_GPU:
     rf_params.to_gpu()
 
 # Tracking ---------------------------------------------------------------------
+# for i in range(1, 500+1):
 for i in range(1, N_t+1):
 
     # Plot has to be done before tracking (at least for cases with separatrix)
@@ -219,5 +220,6 @@ test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
     beam.dE.mean(), beam.dE.std(), beam.dt.mean(), beam.dt.std())
 with open(this_directory + '../output_files/EX_07_test_data.txt', 'w') as f:
     f.write(test_string)
+print(test_string)
 
 print("Done!")

@@ -413,6 +413,8 @@ class RFStation(object):
         self.harmonic = cp.array(self.harmonic)
         self.dphi_rf = cp.array(self.dphi_rf)
         self.t_rf = cp.array(self.t_rf)
+        self.t_rev = cp.array(self.t_rev)
+
         # to make sure it will not be called again
         self.__device = 'GPU'
 
@@ -438,7 +440,7 @@ class RFStation(object):
         self.harmonic = cp.asnumpy(self.harmonic)
         self.dphi_rf = cp.asnumpy(self.dphi_rf)
         self.t_rf = cp.asnumpy(self.t_rf)
-
+        self.t_rev = cp.asnumpy(self.t_rev)
         # to make sure it will not be called again
         self.__device = 'CPU'
 
