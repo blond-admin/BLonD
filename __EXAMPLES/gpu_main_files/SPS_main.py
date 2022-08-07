@@ -514,7 +514,7 @@ if worker.hasGPU:
     inducedVoltage.to_gpu()
     beam.to_gpu()
 
-print(f'Glob rank: [{worker.rank}], Node rank: [{worker.noderank}], GPU rank: [{worker.gpucommrank}], hasGPU: {worker.hasGPU}')
+print(f'Glob rank: [{worker.rank}], Node rank: [{worker.noderank}], GPU rank: [{worker.gpu_id}], hasGPU: {worker.hasGPU}')
 
 
 #worker.initDLB(args['loadbalance'], n_iterations)

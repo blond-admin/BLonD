@@ -68,6 +68,9 @@ for fname in dir(np):
     if callable(getattr(np, fname)) and (fname not in _CPU_func_dict):
         _CPU_func_dict[fname] = getattr(np, fname)
 
+# add basic numpy modules to dictionary as they are not callable
+_CPU_func_dict['random'] = getattr(np, 'random')
+_CPU_func_dict['fft'] = getattr(np, 'fft')
 
 _FFTW_func_dict = {
     'rfft': butils_wrap.rfft,
@@ -236,6 +239,10 @@ def use_gpu(gpu_id=0):
         if callable(getattr(cp, fname)) and (fname not in _GPU_func_dict):
             _GPU_func_dict[fname] = getattr(cp, fname)
     update_active_dict(_GPU_func_dict)
+
+    # add basic cupy modules to dictionary as they are not callable
+    _GPU_func_dict['random'] = getattr(cp, 'random')
+    _GPU_func_dict['fft'] = getattr(cp, 'fft')
 
 
 def use_cpu():

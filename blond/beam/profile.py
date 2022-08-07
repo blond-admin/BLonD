@@ -498,7 +498,7 @@ class Profile(object):
             self.n_macroparticles = self.n_macroparticles.astype(
                     dtype, order='C')
 
-            worker.allreduce(self.n_macroparticles)
+            worker.allreduce(self.n_macroparticles.get())
 
             # Convert back to float64
             self.n_macroparticles = self.n_macroparticles.astype(
