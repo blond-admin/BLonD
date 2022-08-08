@@ -23,7 +23,7 @@ exec_args = ['python']
 
 class TestExamples(unittest.TestCase):
 
-    def _runExample(self, example, timeout=90):
+    def _runExample(self, example, timeout=None):
         file = os.path.join(main_files_dir, example)
         try:
             ret = subprocess.call(exec_args + [file], timeout=timeout)
@@ -125,6 +125,9 @@ class TestExamples(unittest.TestCase):
         example = 'EX_21_bunch_distribution.py'
         self._runExample(example)
 
+    def test_EX_22_Coherent_Radiation(self):
+        example = 'EX_22_Coherent_Radiation.py'
+        self._runExample(example)
 
 if __name__ == '__main__':
 

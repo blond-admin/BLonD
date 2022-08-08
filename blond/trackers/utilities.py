@@ -52,10 +52,10 @@ def synchrotron_frequency_distribution(Beam, FullRingAndRF, main_harmonic_option
     '''
     
     # Initialize variables depending on the accelerator parameters
-    slippage_factor = FullRingAndRF.RingAndRFSection_list[0].eta_0[0]
+    slippage_factor = FullRingAndRF.RingAndRFSection_list[0].rf_params.eta_0[0]
                         
     eom_factor_dE = abs(slippage_factor) / (2*Beam.beta**2. * Beam.energy)
-    eom_factor_potential = np.sign(slippage_factor) * Beam.Particle.charge / (FullRingAndRF.RingAndRFSection_list[0].t_rev[0])
+    eom_factor_potential = np.sign(slippage_factor) * Beam.Particle.charge / (FullRingAndRF.RingAndRFSection_list[0].rf_params.t_rev[0])
 
     # Generate potential well
     n_points_potential = int(1e4)

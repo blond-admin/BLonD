@@ -142,8 +142,8 @@ for i in range(1, n_turns+1):
               %(phase_loop.domega_rf))
         print("    RF phase %.4f rad" %(rf_params.phi_rf[0,i]))
         print("    RF frequency %.6e 1/s" %(rf_params.omega_rf[0,i]))
-        print("    Tracker phase %.4f rad" %(long_tracker.phi_rf[0,i]))
-        print("    Tracker frequency %.6e 1/s" %(long_tracker.omega_rf[0,i]))
+        print("    Tracker phase %.4f rad" %(long_tracker.rf_params.phi_rf[0,i]))
+        print("    Tracker frequency %.6e 1/s" %(long_tracker.rf_params.omega_rf[0,i]))
         
 my_beam.gather()
 worker.finalize()

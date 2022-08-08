@@ -46,11 +46,11 @@ def matched_from_line_density(beam, full_ring_and_RF, line_density_input=None,
     '''    
         
     # Initialize variables depending on the accelerator parameters
-    slippage_factor = full_ring_and_RF.RingAndRFSection_list[0].eta_0[0]
+    slippage_factor = full_ring_and_RF.RingAndRFSection_list[0].rf_params.eta_0[0]
     
     eom_factor_dE = abs(slippage_factor) / (2*beam.beta**2. * beam.energy)
     eom_factor_potential = (np.sign(slippage_factor) * beam.Particle.charge /
-                          (full_ring_and_RF.RingAndRFSection_list[0].t_rev[0]))
+                          (full_ring_and_RF.RingAndRFSection_list[0].rf_params.t_rev[0]))
      
     #: *Number of points to be used in the potential well calculation*
     n_points_potential = int(n_points_potential)
