@@ -42,14 +42,8 @@ if len(USE_GPU) and int(USE_GPU):
 else:
     USE_GPU = False
 
-try:
-    os.mkdir(this_directory + '../output_files')
-except:
-    pass
-try:
-    os.mkdir(this_directory + '../output_files/EX_01_fig')
-except:
-    pass
+os.makedirs(this_directory + '../gpu_output_files/EX_01_fig', exist_ok=True)
+
 
 # Simulation parameters -------------------------------------------------------
 # Bunch parameters
@@ -99,13 +93,13 @@ profile = Profile(beam, CutOptions(n_slices=100),
 
 # Define what to save in file
 bunchmonitor = BunchMonitor(ring, rf, beam,
-                            this_directory + '../output_files/EX_01_output_data', 
+                            this_directory + '../gpu_output_files/EX_01_output_data', 
                             Profile=profile)
 
-format_options = {'dirname': this_directory + '../output_files/EX_01_fig'}
+format_options = {'dirname': this_directory + '../gpu_output_files/EX_01_fig'}
 plots = Plot(ring, rf, beam, dt_plt, N_t, 0, 0.0001763*h,
              -400e6, 400e6, xunit='rad', separatrix_plot=True,
-             Profile=profile, h5file=this_directory + '../output_files/EX_01_output_data',
+             Profile=profile, h5file=this_directory + '../gpu_output_files/EX_01_output_data',
              format_options=format_options)
 
 # For testing purposes
@@ -189,7 +183,7 @@ print('profile std: ', profile.n_macroparticles.std())
 # For testing purposes
 test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
     beam.dE.mean(), beam.dE.std(), beam.dt.mean(), beam.dt.std())
-with open(this_directory + '../output_files/EX_01_test_data.txt', 'w') as f:
+with open(this_directory + '../gpu_output_files/EX_01_test_data.txt', 'w') as f:
     f.write(test_string)
 
 print("Done!")

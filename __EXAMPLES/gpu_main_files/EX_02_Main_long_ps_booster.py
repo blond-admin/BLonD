@@ -42,14 +42,9 @@ if len(USE_GPU) and int(USE_GPU):
 else:
     USE_GPU = False
 
-try:
-    os.mkdir(this_directory + '../output_files')
-except:
-    pass
-try:
-    os.mkdir(this_directory + '../output_files/EX_02_fig')
-except:
-    pass
+
+os.makedirs(this_directory + '../gpu_output_files/EX_02_fig', exist_ok=True)
+
 
 # SIMULATION PARAMETERS -------------------------------------------------------
 
@@ -103,7 +98,7 @@ slice_beam = Profile(my_beam, CutOptions(cut_left=-5.72984173562e-7,
 # MONITOR----------------------------------------------------------------------
 
 bunchmonitor = BunchMonitor(general_params, RF_sct_par, my_beam,
-                            this_directory + '../output_files/EX_02_output_data', 
+                            this_directory + '../gpu_output_files/EX_02_output_data', 
                             buffer_time=1)
 
 # LOAD IMPEDANCE TABLES--------------------------------------------------------
@@ -169,10 +164,10 @@ total_induced_voltage = TotalInducedVoltage(my_beam, slice_beam,
 # PLOTS
 
 format_options = {'dirname': this_directory +
-                  '../output_files/EX_02_fig', 'linestyle': '.'}
+                  '../gpu_output_files/EX_02_fig', 'linestyle': '.'}
 plots = Plot(general_params, RF_sct_par, my_beam, 1, n_turns, 0,
              5.72984173562e-7, - my_beam.sigma_dE * 4.2, my_beam.sigma_dE * 4.2, xunit='s',
-             separatrix_plot=True, Profile=slice_beam, h5file=this_directory + '../output_files/EX_02_output_data',
+             separatrix_plot=True, Profile=slice_beam, h5file=this_directory + '../gpu_output_files/EX_02_output_data',
              histograms_plot=True, format_options=format_options)
 
 # For testing purposes
@@ -216,9 +211,9 @@ for i in range(1, n_turns+1):
             slice_beam.to_cpu()
 
         plot_impedance_vs_frequency(i, general_params, ind_volt_freq,
-          option1 = "single", style = '-', option3 = "freq_table", option2 = "spectrum", dirname = this_directory + '../output_files/EX_02_fig')
+          option1 = "single", style = '-', option3 = "freq_table", option2 = "spectrum", dirname = this_directory + '../gpu_output_files/EX_02_fig')
 
-        plot_induced_voltage_vs_bin_centers(i, general_params, total_induced_voltage, style = '.', dirname = this_directory + '../output_files/EX_02_fig')
+        plot_induced_voltage_vs_bin_centers(i, general_params, total_induced_voltage, style = '.', dirname = this_directory + '../gpu_output_files/EX_02_fig')
 
         if USE_GPU:
             bm.use_gpu()
@@ -246,7 +241,7 @@ print('profile std: ', slice_beam.n_macroparticles.std())
 # # For testing purposes
 test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
     my_beam.dE.mean(), my_beam.dE.std(), my_beam.dt.mean(), my_beam.dt.std())
-with open(this_directory + '../output_files/EX_02_test_data.txt', 'w') as f:
+with open(this_directory + '../gpu_output_files/EX_02_test_data.txt', 'w') as f:
     f.write(test_string)
 
 print("Done!")

@@ -23,7 +23,7 @@ exec_args = ['python']
 
 class TestExamples(unittest.TestCase):
 
-    def _runExample(self, example, timeout=None):
+    def _runExample(self, example, timeout=90):
         file = os.path.join(main_files_dir, example)
         try:
             ret = subprocess.call(exec_args + [file], timeout=timeout)

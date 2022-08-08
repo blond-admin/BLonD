@@ -42,14 +42,7 @@ if len(USE_GPU) and int(USE_GPU):
 else:
     USE_GPU = False
 
-try:
-    os.mkdir(this_directory + '../output_files')
-except:
-    pass
-try:
-    os.mkdir(this_directory + '../output_files/EX_07_fig')
-except:
-    pass
+os.makedirs(this_directory + '../gpu_output_files/EX_07_fig', exist_ok=True)
 
 
 # Simulation parameters --------------------------------------------------------
@@ -105,24 +98,17 @@ print("Initial bucket length is %.3e s" % (2.*np.pi/rf_params.omega_rf[0, 0]))
 print("Final bucket length is %.3e s" % (2.*np.pi/rf_params.omega_rf[0, N_t]))
 
 phi_s_test = rf_params.phi_s  # : *Synchronous phase
-# : *Design RF frequency of the RF systems in the station [GHz]*
-omega_RF_d_test = rf_params.omega_rf_d
-#: *Initial, actual RF frequency of the RF systems in the station [GHz]*
-omega_RF_test = rf_params.omega_rf
-# : *Initial, actual RF phase of each harmonic system*
-phi_RF_test = rf_params.omega_rf
-# Energy increment (acceleration/deceleration) between two turns,
-E_increment_test = rf_params.delta_E
+omega_RF_d_test = rf_params.omega_rf_d #: *Design RF frequency of the RF systems in the station [GHz]*
+omega_RF_test = rf_params.omega_rf  #: *Initial, actual RF frequency of the RF systems in the station [GHz]*
+phi_RF_test = rf_params.omega_rf #: *Initial, actual RF phase of each harmonic system*
+E_increment_test = rf_params.delta_E #Energy increment (acceleration/deceleration) between two turns,
 
 
 long_tracker = RingAndRFTracker(rf_params, beam)
 
-# : *Slippage factor (0th order) for the given RF section*
-eta_0_test = rf_params.eta_0
-# : *Slippage factor (1st order) for the given RF section*
-eta_1_test = rf_params.eta_1
-# : *Slippage factor (2nd order) for the given RF section*
-eta_2_test = rf_params.eta_2
+eta_0_test = rf_params.eta_0 #: *Slippage factor (0th order) for the given RF section*
+eta_1_test = rf_params.eta_1 #: *Slippage factor (1st order) for the given RF section*
+eta_2_test = rf_params.eta_2 #: *Slippage factor (2nd order) for the given RF section*
 alpha_order_test = rf_params.alpha_order
 
 bigaussian(general_params, rf_params, beam, tau_0/4,
@@ -134,13 +120,13 @@ slice_beam = Profile(beam, CutOptions(n_slices=100))
 
 # Define what to save in file
 bunchmonitor = BunchMonitor(general_params, rf_params, beam,
-                            this_directory + '../output_files/EX_07_output_data',
+                            this_directory + '../gpu_output_files/EX_07_output_data',
                             Profile=slice_beam)
 
-format_options = {'dirname': this_directory + '../output_files/EX_07_fig'}
+format_options = {'dirname': this_directory + '../gpu_output_files/EX_07_fig'}
 plots = Plot(general_params, rf_params, beam, dt_plt, N_t, 0, 8.e-7,
              -400e6, 400e6, separatrix_plot=True, Profile=slice_beam,
-             h5file=this_directory + '../output_files/EX_07_output_data',
+             h5file=this_directory + '../gpu_output_files/EX_07_output_data',
              format_options=format_options)
 
 # For testing purposes
@@ -198,7 +184,7 @@ for i in range(1, N_t+1):
     for m in map_:
         m.track()
 
-    # # Define losses according to separatrix
+    # Define losses according to separatrix
     beam.losses_separatrix(general_params, rf_params)
 
 
@@ -218,7 +204,7 @@ print('profile std: ', slice_beam.n_macroparticles.std())
 # For testing purposes
 test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
     beam.dE.mean(), beam.dE.std(), beam.dt.mean(), beam.dt.std())
-with open(this_directory + '../output_files/EX_07_test_data.txt', 'w') as f:
+with open(this_directory + '../gpu_output_files/EX_07_test_data.txt', 'w') as f:
     f.write(test_string)
 print(test_string)
 

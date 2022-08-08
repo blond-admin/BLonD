@@ -30,16 +30,9 @@ from scipy.constants import m_p, e, c
 import os
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 
-
-try:
-    os.mkdir(this_directory + '../output_files')
-except:
-    pass
 fig_directory = this_directory + '../output_files/EX_11_fig/'
-if os.path.exists(fig_directory):    
-    pass
-else:
-    os.makedirs(fig_directory)
+os.makedirs(fig_directory, exist_ok=True)
+
 
 # RING PARAMETERS
 n_turns = 1
