@@ -39,12 +39,12 @@ def orig_rf_volt_comp(tracker):
     omega_rf = np.array([])
     phi_rf = np.array([])
 
-    for rf_system in range(tracker.n_rf):
-        voltages = np.append(voltages, tracker.voltage[rf_system,
+    for rf_system in range(tracker.rf_params.n_rf):
+        voltages = np.append(voltages, tracker.rf_params.voltage[rf_system,
                                                        tracker.counter[0]])
-        omega_rf = np.append(omega_rf, tracker.omega_rf[rf_system,
+        omega_rf = np.append(omega_rf, tracker.rf_params.omega_rf[rf_system,
                                                         tracker.counter[0]])
-        phi_rf = np.append(phi_rf, tracker.phi_rf[rf_system,
+        phi_rf = np.append(phi_rf, tracker.rf_params.phi_rf[rf_system,
                                                   tracker.counter[0]])
 
     voltages = np.array(voltages, ndmin=2)
@@ -245,7 +245,7 @@ class TestRfVoltageCalcWCavityFB(unittest.TestCase):
         for i in range(self.N_t):
             self.long_tracker.track()
             self.assertEqual( \
-                self.long_tracker.phi_rf[:, self.long_tracker.counter[0]-1], \
+                self.long_tracker.rf_params.phi_rf[:, self.long_tracker.counter[0]-1], \
                 self.rf.phi_modulation[0][0][i], msg = \
                 """Phi modulation not added correctly in tracker""")
 
