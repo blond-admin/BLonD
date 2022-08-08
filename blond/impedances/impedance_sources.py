@@ -30,7 +30,7 @@ from ..utils import bmath as bm
 
 class _ImpedanceObject(object):
 
-    """
+    r"""
     Parent impedance object to implement required methods and attributes
     common to all the child classes. The attributes are initialised to 0 but
     they are overwritten by float arrays when the child classes are used.
@@ -50,7 +50,7 @@ class _ImpedanceObject(object):
         self.impedance = 0
 
     def wake_calc(self, *args):
-        """
+        r"""
         Method required to compute the wake function. Returns an error if
         called from an object which does not implement this method.
         """
@@ -60,7 +60,7 @@ class _ImpedanceObject(object):
                                   'frequency domain')
 
     def imped_calc(self, *args):
-        """
+        r"""
         Method required to compute the impedance. Returns an error if called
         from an object which does not implement this method.
         """
@@ -865,7 +865,7 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
         n_cut = np.sqrt(2/3) * (np.pi / self.Delta)**1.5
 
         # use approximate equation for frequencies above high_frequency_transition * n_cut
-        approx_indexes = bm.where(n_array, more_than=high_frequency_transition * n_cut)
+        approx_indexes = bm.where_cpp(n_array, more_than=high_frequency_transition * n_cut)
         if np.count_nonzero(approx_indexes) > 0:
             self.impedance[approx_indexes] = self._fs_low_frequency(frequency_array[approx_indexes])
 
@@ -926,7 +926,7 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
             * 1/self.Delta / n_array**(1/3)
 
     def _pp_spectrum(self, frequency_array, zeta_max=9, **kwargs):
-        """
+        r'''
         Computes the parallel-plates impedance, based on eq. B13 of [Murphy1997]_.
 
         .. math::
@@ -950,7 +950,7 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
         -------
         None.
 
-        """
+        '''
 
         non_zero_indexes = frequency_array != 0
 
@@ -1040,7 +1040,7 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
 
     def _fs_spectrum(self, frequency_array, epsilon=1e-6,
                      low_frequency_transition=1e-5, high_frequency_transition=10):
-        """
+        r"""
         Computes the exact free-space synchrotron radiation impedance, based on eqs. A4 and A5 of
         [Murphy1997]_. For computation speed and numerical stability, the approximate expressions
         are used for frequencies lower / higher than the critical frequency `f_crit`.
@@ -1093,12 +1093,12 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
         l_array = frequency_array / self.f_crit
 
         # use the low frequency approximation where f < LFT * f_c
-        low_indexes = bm.where(l_array, less_than=low_frequency_transition)
+        low_indexes = bm.where_cpp(l_array, less_than=low_frequency_transition)
         if np.count_nonzero(low_indexes) > 0:
             self.impedance[low_indexes] = self._fs_low_frequency(frequency_array[low_indexes])
 
         # use the high frequency approximation where f > HFT * f_c
-        high_indexes = bm.where(l_array, more_than=high_frequency_transition)
+        high_indexes = bm.where_cpp(l_array, more_than=high_frequency_transition)
         if np.count_nonzero(high_indexes) > 0:
             self.impedance[high_indexes] = self._fs_high_frequency(frequency_array[high_indexes])
 
@@ -1125,7 +1125,7 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
         self.impedance[exact_indexes] *= self.Z0 * self.gamma * l_array[exact_indexes]
 
     def _fs_low_frequency_wrapper(self, frequency_array):
-        """
+        r"""
         Wrapper to compute the free-space low-frequency approximation of the synchrotron
         radiation impedance.
 
@@ -1143,7 +1143,7 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
         self.impedance = self._fs_low_frequency(frequency_array)
 
     def _fs_low_frequency(self, frequency_array):
-        """
+        r"""
         Computes the free-space low-frequency approximation of the synchrotron radiation impedance,
         according to eq. 6.18 of [Murphy1997]_.
 
@@ -1168,7 +1168,7 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
             * (frequency_array / self.f_0)**(1/3)
 
     def _fs_high_frequency(self, frequency_array):
-        """
+        r"""
         Computes the free-space high-frequency approximation of the synchrotron radiation impedance,
         based on eq. 6.20 of [Murphy1997]_. This function is a helper function for
         _fs_full_spectrum.
