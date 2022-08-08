@@ -25,7 +25,7 @@ from ..utils import bmath as bm
 
 
 class Particle(object):
-    """Class containing basic parameters, e.g. mass, of the particles to be tracked.
+    r"""Class containing basic parameters, e.g. mass, of the particles to be tracked.
 
     The following particles are already implemented: proton, electron, positron
 
@@ -107,7 +107,7 @@ class Positron(Particle):
 
 
 class Beam(object):
-    """Class containing the beam properties.
+    r"""Class containing the beam properties.
 
     This class containes the beam coordinates (dt, dE) and the beam properties.
 
@@ -256,7 +256,7 @@ class Beam(object):
                                " eliminated!")
 
     def statistics(self):
-        '''
+        r'''
         Calculation of the mean and standard deviation of beam coordinates,
         as well as beam emittance using different definitions.
         Take no arguments, statistics stored in
