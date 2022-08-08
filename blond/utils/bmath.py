@@ -29,6 +29,7 @@ _CPU_func_dict = {
     'mean_cpp': butils_wrap.mean_cpp,
     'std_cpp': butils_wrap.std_cpp,
     'where_cpp': butils_wrap.where_cpp,
+    'interp_cpp': np.interp,
     # 'interp_cpp': butils_wrap.interp_cpp,
     # 'interp_const_space': butils_wrap.interp_const_space,
     'interp_const_space': np.interp,
