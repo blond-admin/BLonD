@@ -725,7 +725,7 @@ class InducedVoltageFreq(_InducedVoltage):
 
 
 class InductiveImpedance(_InducedVoltage):
-    """
+    r"""
     Constant imaginary Z/n impedance
 
     Parameters
