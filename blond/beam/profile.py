@@ -190,7 +190,7 @@ class CutOptions(object):
         Transfer all necessary arrays to the GPU
         '''
         # Check if to_gpu has been invoked already
-        if hasattr(self, '__device') and self.__device == 'GPU':
+        if hasattr(self, f'_{self.__class__.__name__}__device') and self.__device == 'GPU':
             return
 
         # transfer recursively objects
@@ -211,7 +211,7 @@ class CutOptions(object):
         Transfer all necessary arrays back to the CPU
         '''
         # Check if to_cpu has been invoked already
-        if hasattr(self, '__device') and self.__device == 'CPU':
+        if hasattr(self, f'_{self.__class__.__name__}__device') and self.__device == 'CPU':
             return
 
         # transfer recursively objects
@@ -498,8 +498,10 @@ class Profile(object):
             self.n_macroparticles = self.n_macroparticles.astype(
                     dtype, order='C')
 
-            if bm.device == 'GPU':
+            if hasattr(self, f'_{self.__class__.__name__}__device') and self.__device == 'GPU':
+                import cupy as cp
                 worker.allreduce(self.n_macroparticles.get())
+                self.n_macroparticles = cp.array(self.n_macroparticles)
             else:
                 worker.allreduce(self.n_macroparticles)
 
@@ -638,7 +640,7 @@ class Profile(object):
         Transfer all necessary arrays to the GPU
         '''
         # Check if to_gpu has been invoked already
-        if hasattr(self, '__device') and self.__device == 'GPU':
+        if hasattr(self, f'_{self.__class__.__name__}__device') and self.__device == 'GPU':
             return
 
         # transfer recursively objects to_gpu
@@ -666,7 +668,7 @@ class Profile(object):
         Transfer all necessary arrays back to the CPU
         '''
         # Check if to_cpu has been invoked already
-        if hasattr(self, '__device') and self.__device == 'CPU':
+        if hasattr(self, f'_{self.__class__.__name__}__device') and self.__device == 'CPU':
             return
 
         # transfer recursively objects

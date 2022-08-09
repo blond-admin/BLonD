@@ -175,7 +175,7 @@ class SynchrotronRadiation(object):
         Transfer all necessary arrays to the GPU
         '''
         # Check if to_gpu has been invoked already
-        if hasattr(self, '__device') and self.__device == 'GPU':
+        if hasattr(self, f'_{self.__class__.__name__}__device') and self.__device == 'GPU':
             return
 
         assert bm.device == 'GPU'
@@ -189,7 +189,7 @@ class SynchrotronRadiation(object):
         Transfer all necessary arrays back to the CPU
         '''
         # Check if to_cpu has been invoked already
-        if hasattr(self, '__device') and self.__device == 'CPU':
+        if hasattr(self, f'_{self.__class__.__name__}__device') and self.__device == 'CPU':
             return
 
         assert bm.device == 'CPU'
