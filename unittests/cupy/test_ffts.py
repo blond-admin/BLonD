@@ -280,29 +280,16 @@ class TestFFTS(unittest.TestCase):
     def test_front_back_1(self):
         bm.use_gpu()
 
-        s = bm.random.randn(1000)
+        s = self.cp.random.randn(1000)
         res = bm.irfft(bm.rfft(s))
 
         self.cp.testing.assert_array_almost_equal(res, s, decimal=8)
 
     def test_front_back_2(self):
         bm.use_gpu()
-        s = bm.random.randn(101)
+        s = self.cp.random.randn(100)
         res = bm.irfft(bm.rfft(s))
         
-        self.cp.testing.assert_array_almost_equal(res, s, decimal=8)
-
-    def test_front_back_3(self):
-        bm.use_gpu()
-        s = bm.random.randn(100)
-        res = bm.irfft(bm.rfft(s, n=50), n=100)
-        self.cp.testing.assert_array_almost_equal(res, s, decimal=8)
-
-    def test_front_back_4(self):
-        bm.use_cpu()
-        bm.use_gpu()
-        s = bm.random.randn(100)
-        res = bm.irfft(bm.rfft(s, n=150), n=200)
         self.cp.testing.assert_array_almost_equal(res, s, decimal=8)
 
     def test_rfftfreq_1(self):
