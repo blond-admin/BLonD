@@ -14,6 +14,7 @@ Unittest for the FFTs used in blond with CuPy and NumPy
 """
 
 import unittest
+import pytest
 import numpy as np
 # import inspect
 # from numpy import fft
@@ -354,6 +355,69 @@ class TestFFTS(unittest.TestCase):
         except ZeroDivisionError as e:
             self.assertTrue(
                 True, 'This testcase should raise a ZeroDivisionError')
+
+
+class TestCupyConvolve:
+
+    # Run before every test
+    def setup_method(self):
+        try:
+            import cupy as cp
+            self.cp = cp
+        except ModuleNotFoundError:
+            raise self.skipTest('CuPy not found')
+
+    # Run after every test
+    def teardown_method(self):
+        bm.use_cpu()
+
+    @pytest.mark.parametrize('mode', ['full', 'same', 'valid'])
+    def test_convolve_1(self, mode):
+        s = np.random.randn(100)
+        k = np.random.randn(100)
+        res = np.convolve(s, k, mode=mode)
+
+        bm.use_gpu()
+        s = bm.array(s)
+        k = bm.array(k)
+        res_gpu = bm.convolve(s, k, mode=mode)
+        self.cp.testing.assert_array_almost_equal(res_gpu, res, decimal=8)
+
+    @pytest.mark.parametrize('mode', ['full', 'same', 'valid'])
+    def test_convolve_2(self, mode):
+        s = np.random.randn(200)
+        k = np.random.randn(200)
+        res = np.convolve(s, k, mode=mode)
+
+        bm.use_gpu()
+        s = bm.array(s)
+        k = bm.array(k)
+        res_gpu = bm.convolve(s, k, mode=mode)
+        self.cp.testing.assert_array_almost_equal(res_gpu, res, decimal=8)
+
+    @pytest.mark.parametrize('mode', ['full', 'same', 'valid'])
+    def test_convolve_3(self, mode):
+        s = np.random.randn(200)
+        k = np.random.randn(300)
+        res = np.convolve(s, k, mode=mode)
+
+        bm.use_gpu()
+        s = bm.array(s)
+        k = bm.array(k)
+        res_gpu = bm.convolve(s, k, mode=mode)
+        self.cp.testing.assert_array_almost_equal(res_gpu, res, decimal=8)
+
+    @pytest.mark.parametrize('mode', ['full', 'same', 'valid'])
+    def test_convolve_4(self, mode):
+        s = np.random.randn(11)
+        k = np.random.randn(13)
+        res = np.convolve(s, k, mode=mode)
+
+        bm.use_gpu()
+        s = bm.array(s)
+        k = bm.array(k)
+        res_gpu = bm.convolve(s, k, mode=mode)
+        self.cp.testing.assert_array_almost_equal(res_gpu, res, decimal=8)
 
 
 if __name__ == '__main__':
