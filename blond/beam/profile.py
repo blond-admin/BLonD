@@ -498,7 +498,10 @@ class Profile(object):
             self.n_macroparticles = self.n_macroparticles.astype(
                     dtype, order='C')
 
-            worker.allreduce(self.n_macroparticles.get())
+            if hasattr(self, '__device') and self.__device == 'GPU':
+                worker.allreduce(self.n_macroparticles, operator='sum')
+            else:
+                worker.allreduce(self.n_macroparticles, operator='custom_sum')
 
             # Convert back to float64
             self.n_macroparticles = self.n_macroparticles.astype(
@@ -511,7 +514,8 @@ class Profile(object):
 
         from ..utils.mpi_config import worker
         if self.Beam.is_splitted:
-            bm.mul(self.n_macroparticles, worker.workers, self.n_macroparticles)
+            self.n_macroparticles *= worker.workers
+            # bm.mul(self.n_macroparticles, worker.workers, self.n_macroparticles)
 
     def _slice_smooth(self, reduce=True):
         """
