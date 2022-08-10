@@ -186,21 +186,20 @@ def gpu_synchrotron_radiation(dE, U0, n_kicks, tau_z):
     assert dE.dtype == bm.precision.real_t
     synch_rad = kernels.get_function("synchrotron_radiation")
 
-    synch_rad(args=(dE, bm.precision.real_t(U0), np.int32(dE.size),
-                    bm.precision.real_t(tau_z),
+    synch_rad(args=(dE, bm.precision.real_t(U0/n_kicks), np.int32(dE.size),
+                    bm.precision.real_t(tau_z * n_kicks),
                     np.int32(n_kicks)),
-              block=block_size,
-              grid=(bm.gpuDev().attributes['MultiProcessorCount'], 1, 1))
+              block=block_size, grid=grid_size)
 
 
 def gpu_synchrotron_radiation_full(dE, U0, n_kicks, tau_z, sigma_dE, energy):
     assert dE.dtype == bm.precision.real_t
     synch_rad_full = kernels.get_function("synchrotron_radiation_full")
 
-    synch_rad_full(args=(dE, bm.precision.real_t(U0), np.int32(dE.size),
-                         bm.precision.real_t(
-                             sigma_dE), bm.precision.real_t(energy),
-                         np.int32(n_kicks), np.int32(1)),
+    synch_rad_full(args=(dE, bm.precision.real_t(U0/n_kicks), np.int32(dE.size),
+                         bm.precision.real_t(sigma_dE),
+                         bm.precision.real_t(tau_z * n_kicks),
+                         bm.precision.real_t(energy), np.int32(n_kicks)),
                    block=block_size, grid=grid_size)
 
 
@@ -240,11 +239,14 @@ def __beam_phase_helper(bin_centers, profile, alpha, omega_rf, phi_rf):
     base = cp.exp(alpha * bin_centers) * profile
     a = omega_rf * bin_centers + phi_rf
     return base * cp.sin(a), base * cp.cos(a)
+
+
 def gpu_beam_phase(bin_centers, profile, alpha, omega_rf, phi_rf, bin_size):
     assert bin_centers.dtype == bm.precision.real_t
     assert profile.dtype == bm.precision.real_t
 
-    array1, array2 = __beam_phase_helper(bin_centers, profile, alpha, omega_rf, phi_rf)
+    array1, array2 = __beam_phase_helper(
+        bin_centers, profile, alpha, omega_rf, phi_rf)
     # due to the division, the bin_size is not needed
     scoeff = cp.trapz(array1, dx=1)
     ccoeff = cp.trapz(array2, dx=1)
@@ -262,7 +264,8 @@ def gpu_beam_phase_fast(bin_centers, profile, omega_rf, phi_rf, bin_size):
     assert bin_centers.dtype == bm.precision.real_t
     assert profile.dtype == bm.precision.real_t
 
-    array1, array2 = __beam_phase_fast_helper(bin_centers, profile, omega_rf, phi_rf)
+    array1, array2 = __beam_phase_fast_helper(
+        bin_centers, profile, omega_rf, phi_rf)
     # due to the division, the bin_size is not needed
     scoeff = cp.trapz(array1, dx=1)
     ccoeff = cp.trapz(array2, dx=1)
