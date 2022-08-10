@@ -125,7 +125,7 @@ class TotalInducedVoltage(object):
         Transfer all necessary arrays to the GPU
         '''
         # Check if to_gpu has been invoked already
-        if hasattr(self, f'_{self.__class__.__name__}__device') and self.__device == 'GPU':
+        if hasattr(self, '_device') and self._device == 'GPU':
             return
 
         if recursive: 
@@ -139,14 +139,14 @@ class TotalInducedVoltage(object):
         self.time_array = cp.array(self.time_array)
 
         # to make sure it will not be called again
-        self.__device = 'GPU'
+        self._device = 'GPU'
     
     def to_cpu(self, recursive=True):
         '''
         Transfer all necessary arrays back to the CPU
         '''
         # Check if to_cpu has been invoked already
-        if hasattr(self, f'_{self.__class__.__name__}__device') and self.__device == 'CPU':
+        if hasattr(self, '_device') and self._device == 'CPU':
             return
 
         if recursive:
@@ -159,7 +159,7 @@ class TotalInducedVoltage(object):
         self.induced_voltage = cp.asnumpy(self.induced_voltage)
         self.time_array = cp.asnumpy(self.time_array)
         # to make sure it will not be called again
-        self.__device = 'CPU'
+        self._device = 'CPU'
 
 
 class _InducedVoltage(object):
@@ -511,7 +511,7 @@ class InducedVoltageTime(_InducedVoltage):
         Transfer all necessary arrays to the GPU
         '''
         # Check if to_gpu has been invoked already
-        if hasattr(self, f'_{self.__class__.__name__}__device') and self.__device == 'GPU':
+        if hasattr(self, '_device') and self._device == 'GPU':
             return
 
         assert bm.device == 'GPU'
@@ -534,14 +534,14 @@ class InducedVoltageTime(_InducedVoltage):
             self.time = cp.array(self.time)
 
         # to make sure it will not be called again
-        self.__device = 'GPU'
+        self._device = 'GPU'
 
     def to_cpu(self, recursive=True):
         '''
         Transfer all necessary arrays back to the CPU
         '''
         # Check if to_cpu has been invoked already
-        if hasattr(self, f'_{self.__class__.__name__}__device') and self.__device == 'CPU':
+        if hasattr(self, '_device') and self._device == 'CPU':
             return
 
         assert bm.device == 'CPU'
@@ -564,7 +564,7 @@ class InducedVoltageTime(_InducedVoltage):
             self.time = cp.asnumpy(self.time)
 
         # to make sure it will not be called again
-        self.__device = 'CPU'
+        self._device = 'CPU'
 
 
 class InducedVoltageFreq(_InducedVoltage):
@@ -678,7 +678,7 @@ class InducedVoltageFreq(_InducedVoltage):
         Transfer all necessary arrays to the GPU
         '''
         # Check if to_gpu has been invoked already
-        if hasattr(self, f'_{self.__class__.__name__}__device') and self.__device == 'GPU':
+        if hasattr(self, '_device') and self._device == 'GPU':
             return
 
         assert bm.device == 'GPU'
@@ -696,14 +696,14 @@ class InducedVoltageFreq(_InducedVoltage):
             self.omegaj_mtw = cp.array(self.omegaj_mtw)
 
         # to make sure it will not be called again
-        self.__device = 'GPU'
+        self._device = 'GPU'
 
     def to_cpu(self, recursive=True):
         '''
         Transfer all necessary arrays back to the CPU
         '''
         # Check if to_cpu has been invoked already
-        if hasattr(self, f'_{self.__class__.__name__}__device') and self.__device == 'CPU':
+        if hasattr(self, '_device') and self._device == 'CPU':
             return
 
         assert bm.device == 'CPU'
@@ -721,7 +721,7 @@ class InducedVoltageFreq(_InducedVoltage):
             self.omegaj_mtw = cp.asnumpy(self.omegaj_mtw)
 
         # to make sure it will not be called again
-        self.__device = 'CPU'
+        self._device = 'CPU'
 
 
 class InductiveImpedance(_InducedVoltage):
@@ -782,7 +782,7 @@ class InductiveImpedance(_InducedVoltage):
         Transfer all necessary arrays to the GPU
         '''
         # Check if to_gpu has been invoked already
-        if hasattr(self, f'_{self.__class__.__name__}__device') and self.__device == 'GPU':
+        if hasattr(self, '_device') and self._device == 'GPU':
             return
 
         assert bm.device == 'GPU'
@@ -790,14 +790,14 @@ class InductiveImpedance(_InducedVoltage):
         self.induced_voltage = cp.array(self.induced_voltage)
         self.Z_over_n = cp.array(self.Z_over_n)
         # to make sure it will not be called again
-        self.__device = 'GPU'
+        self._device = 'GPU'
 
     def to_cpu(self, recursive=True):
         '''
         Transfer all necessary arrays back to the CPU
         '''
         # Check if to_cpu has been invoked already
-        if hasattr(self, f'_{self.__class__.__name__}__device') and self.__device == 'CPU':
+        if hasattr(self, '_device') and self._device == 'CPU':
             return
 
         assert bm.device == 'CPU'
@@ -805,7 +805,7 @@ class InductiveImpedance(_InducedVoltage):
         self.induced_voltage = cp.asnumpy(self.induced_voltage)
         self.Z_over_n = cp.asnumpy(self.Z_over_n)
         # to make sure it will not be called again
-        self.__device = 'CPU'
+        self._device = 'CPU'
 
 
 class InducedVoltageResonator(_InducedVoltage):
@@ -977,7 +977,7 @@ class InducedVoltageResonator(_InducedVoltage):
         Transfer all necessary arrays to the GPU
         '''
         # Check if to_gpu has been invoked already
-        if hasattr(self, f'_{self.__class__.__name__}__device') and self.__device == 'GPU':
+        if hasattr(self, '_device') and self._device == 'GPU':
             return
 
         assert bm.device == 'GPU'
@@ -988,14 +988,14 @@ class InducedVoltageResonator(_InducedVoltage):
         self.tArray = cp.array(self.tArray)
         self._tmp_matrix = cp.array(self._tmp_matrix)
         # to make sure it will not be called again
-        self.__device = 'GPU'
+        self._device = 'GPU'
 
     def to_cpu(self, recursive=True):
         '''
         Transfer all necessary arrays back to the CPU
         '''
         # Check if to_cpu has been invoked already
-        if hasattr(self, f'_{self.__class__.__name__}__device') and self.__device == 'CPU':
+        if hasattr(self, '_device') and self._device == 'CPU':
             return
 
         assert bm.device == 'CPU'
@@ -1007,4 +1007,4 @@ class InducedVoltageResonator(_InducedVoltage):
         self._tmp_matrix = cp.asnumpy(self._tmp_matrix)
 
         # to make sure it will not be called again
-        self.__device = 'CPU'
+        self._device = 'CPU'
