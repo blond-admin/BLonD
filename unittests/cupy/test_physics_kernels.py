@@ -180,8 +180,9 @@ class TestBeamPhase:
         cp.testing.assert_allclose(dE_gpu, dE, rtol=1e-8, atol=0)
 
     @pytest.mark.parametrize('n_particles,n_slices,cut_left,cut_right',
-                             [(100, 5, 0.01, 0.01), (10000, 100, 0.5, 0.5), 
-                              (1000000, 1000, 0.0, 0.0), (1000000, 10000, 0.05, 0.01),
+                             [(100, 5, 0.01, 0.01), (10000, 100, 0.5, 0.5),
+                              (1000000, 1000, 0.0, 0.0),
+                              (1000000, 10000, 0.05, 0.01),
                               (10000000, 100000, 0.01, 0.01)])
     def test_profile_slices(self, n_particles, n_slices, cut_left, cut_right):
         import cupy as cp
@@ -194,7 +195,6 @@ class TestBeamPhase:
         cut_left = (1 + cut_left) * min_dt
         cut_right = (1 - cut_right) * max_dt
         profile = np.empty(n_slices, dtype=float)
-        
 
         bm.slice(dt, profile, cut_left, cut_right)
 
@@ -203,6 +203,162 @@ class TestBeamPhase:
         bm.slice(dt_gpu, profile_gpu, cut_left, cut_right)
 
         cp.testing.assert_allclose(profile_gpu, profile, rtol=1e-8, atol=0)
+
+    @pytest.mark.parametrize('n_particles,n_rf,n_iter',
+                             [(100, 1, 1), (100, 4, 10),
+                              (1000000, 1, 100), (1000000, 10, 100)])
+    def test_kick(self, n_particles, n_rf, n_iter):
+        import cupy as cp
+
+        dE = np.random.normal(loc=0, scale=1e7, size=n_particles)
+        dt = np.random.normal(loc=1e-5, scale=1e-7, size=n_particles)
+        dE_gpu = cp.array(dE)
+
+        charge = 1.0
+        acceleration_kick = 1e3 * np.random.rand()
+        voltage = np.random.randn(n_rf)
+        omega_rf = np.random.randn(n_rf)
+        phi_rf = np.random.randn(n_rf)
+
+        for i in range(n_iter):
+            bm.kick(dt, dE, voltage, omega_rf, phi_rf, charge, n_rf,
+                    acceleration_kick)
+
+        bm.use_gpu()
+        dt = bm.array(dt)
+        voltage = bm.array(voltage)
+        omega_rf = bm.array(omega_rf)
+        phi_rf = bm.array(phi_rf)
+
+        for i in range(n_iter):
+            bm.kick(dt, dE_gpu, voltage, omega_rf, phi_rf, charge, n_rf,
+                    acceleration_kick)
+
+        cp.testing.assert_allclose(dE_gpu, dE, rtol=1e-8, atol=0)
+
+    @pytest.mark.parametrize('n_particles,solver,alpha_order,n_iter',
+                             [(100, 'simple', 0, 1), (100, 'legacy', 1, 10),
+                              (100, 'exact', 2, 100), (10000, 'simple', 1, 100),
+                              (10000, 'legacy', 2, 100), (10000, 'exact', 0, 100),
+                              (1000000, 'simple', 2, 10), (1000000, 'legacy', 0, 10),
+                              (1000000, 'exact', 1, 10)])
+    def test_drift(self, n_particles, solver, alpha_order, n_iter):
+        import cupy as cp
+
+        solver = solver.encode(encoding='utf_8')
+        dE = np.random.normal(loc=0, scale=1e7, size=n_particles)
+        dt = np.random.normal(loc=1e-5, scale=1e-7, size=n_particles)
+        dt_gpu = cp.array(dt)
+
+        t_rev = np.random.rand()
+        length_ratio = np.random.uniform()
+        eta_0, eta_1, eta_2 = np.random.randn(3)
+        alpha_0, alpha_1, alpha_2 = np.random.randn(3)
+        beta = np.random.rand()
+        energy = np.random.rand()
+
+        for i in range(n_iter):
+            bm.drift(dt, dE, solver, t_rev, length_ratio, alpha_order,
+                     eta_0, eta_1, eta_2, alpha_0, alpha_1, alpha_2,
+                     beta, energy)
+
+        bm.use_gpu()
+        dE = bm.array(dE)
+
+        for i in range(n_iter):
+            bm.drift(dt_gpu, dE, solver, t_rev, length_ratio, alpha_order,
+                     eta_0, eta_1, eta_2, alpha_0, alpha_1, alpha_2,
+                     beta, energy)
+
+        cp.testing.assert_allclose(dt_gpu, dt, rtol=1e-8, atol=0)
+
+    @pytest.mark.parametrize('n_particles,n_iter',
+                             [(100, 1), (100, 10),
+                              (10000000, 1), (10000000, 10)])
+    def test_kick_drift(self, n_particles, n_iter):
+        import cupy as cp
+
+        solver = 'exact'
+        solver = solver.encode(encoding='utf_8')
+        alpha_order = 2
+        n_rf = 1
+        
+        # dE = np.random.normal(loc=1e5, scale=1e2, size=n_particles)
+        # dt = np.random.normal(loc=1e-5, scale=1e-7, size=n_particles)
+        dE = np.random.normal(loc=0, scale=1, size=n_particles)
+        dt = np.random.normal(loc=0, scale=1, size=n_particles)
+
+        dt_gpu = cp.array(dt)
+        dE_gpu  = cp.array(dE)
+
+        charge = 1.0
+        acceleration_kick = 0.
+        voltage = np.random.randn(n_rf)
+        omega_rf = np.random.randn(n_rf)
+        phi_rf = np.random.randn(n_rf)
+        t_rev = np.random.rand()
+        length_ratio = np.random.uniform()
+        eta_0, eta_1, eta_2 = np.random.randn(3)
+        alpha_0, alpha_1, alpha_2 = np.random.randn(3)
+
+        beta = 1.
+        energy = 1.
+
+        for i in range(n_iter):
+            bm.drift(dt, dE, solver, t_rev, length_ratio, alpha_order,
+                     eta_0, eta_1, eta_2, alpha_0, alpha_1, alpha_2,
+                     beta, energy)
+            bm.kick(dt, dE, voltage, omega_rf, phi_rf, charge, n_rf,
+                    acceleration_kick)
+
+
+        bm.use_gpu()
+        voltage = bm.array(voltage)
+        omega_rf = bm.array(omega_rf)
+        phi_rf = bm.array(phi_rf)
+
+        for i in range(n_iter):
+            bm.drift(dt_gpu, dE_gpu, solver, t_rev, length_ratio, alpha_order,
+                     eta_0, eta_1, eta_2, alpha_0, alpha_1, alpha_2,
+                     beta, energy)
+            bm.kick(dt_gpu, dE_gpu, voltage, omega_rf, phi_rf, charge, n_rf,
+                    acceleration_kick)
+
+        cp.testing.assert_allclose(dt_gpu.mean(), dt.mean(), rtol=1e-6, atol=0)
+        cp.testing.assert_allclose(dE_gpu.mean(), dE.mean(), rtol=1e-6, atol=0)
+
+    @pytest.mark.parametrize('n_particles,n_slices,n_iter',
+                             [(100, 1, 10),  (100, 10, 1), (10000, 256, 100),
+                              (1000000, 100, 100), (1000000, 1000, 100),
+                              (1000000, 100000, 100)])
+    def test_interp_kick(self, n_particles, n_slices, n_iter):
+        import cupy as cp
+
+        dE = np.random.normal(loc=0, scale=1e7, size=n_particles)
+        dE_gpu = cp.array(dE)
+
+        dt = np.random.normal(loc=1e-5, scale=1e-7, size=n_particles)
+        _, edges = np.histogram(dt, bins=n_slices)
+        bin_size = edges[1] - edges[0]
+        bin_centers = edges[:-1] + bin_size/2
+
+        charge = 1.0
+        acceleration_kick = 1e3 * np.random.rand()
+        voltage = np.random.randn(n_slices)
+
+        for i in range(n_iter):
+            bm.linear_interp_kick(dt, dE, voltage, bin_centers, charge, acceleration_kick)
+
+        bm.use_gpu()
+        dt = bm.array(dt)
+        voltage = bm.array(voltage)
+        bin_centers = bm.array(bin_centers)
+
+        for i in range(n_iter):
+            bm.linear_interp_kick(
+                dt, dE_gpu, voltage, bin_centers, charge, acceleration_kick)
+
+        cp.testing.assert_allclose(dE_gpu, dE, rtol=1e-8, atol=0)
 
 
 if __name__ == '__main__':
