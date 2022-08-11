@@ -13,16 +13,19 @@ Unittest for the FFTs used in blond with CuPy and NumPy
 :Authors: **Konstantinos Iliakis**
 """
 
-from cmath import tau
 import unittest
 import pytest
 import numpy as np
-# import inspect
-# from numpy import fft
 from blond.utils import bmath as bm
+from blond.input_parameters.ring import Ring
+from blond.input_parameters.rf_parameters import RFStation
+from blond.trackers.tracker import RingAndRFTracker
+from blond.beam.beam import Beam, Proton
+from blond.beam.distributions import bigaussian
+from blond.beam.profile import CutOptions, FitOptions, Profile
 
 
-class TestBeamPhase:
+class TestSyntheticData:
 
     # Run before every test
     def setup_method(self):
@@ -282,14 +285,14 @@ class TestBeamPhase:
         solver = solver.encode(encoding='utf_8')
         alpha_order = 2
         n_rf = 1
-        
+
         # dE = np.random.normal(loc=1e5, scale=1e2, size=n_particles)
         # dt = np.random.normal(loc=1e-5, scale=1e-7, size=n_particles)
         dE = np.random.normal(loc=0, scale=1, size=n_particles)
         dt = np.random.normal(loc=0, scale=1, size=n_particles)
 
         dt_gpu = cp.array(dt)
-        dE_gpu  = cp.array(dE)
+        dE_gpu = cp.array(dE)
 
         charge = 1.0
         acceleration_kick = 0.
@@ -310,7 +313,6 @@ class TestBeamPhase:
                      beta, energy)
             bm.kick(dt, dE, voltage, omega_rf, phi_rf, charge, n_rf,
                     acceleration_kick)
-
 
         bm.use_gpu()
         voltage = bm.array(voltage)
@@ -347,7 +349,8 @@ class TestBeamPhase:
         voltage = np.random.randn(n_slices)
 
         for i in range(n_iter):
-            bm.linear_interp_kick(dt, dE, voltage, bin_centers, charge, acceleration_kick)
+            bm.linear_interp_kick(
+                dt, dE, voltage, bin_centers, charge, acceleration_kick)
 
         bm.use_gpu()
         dt = bm.array(dt)
@@ -359,6 +362,219 @@ class TestBeamPhase:
                 dt, dE_gpu, voltage, bin_centers, charge, acceleration_kick)
 
         cp.testing.assert_allclose(dE_gpu, dE, rtol=1e-8, atol=0)
+
+
+class TestBigaussianData:
+    # Simulation parameters -------------------------------------------------------
+    # Bunch parameters
+    N_b = 1e9           # Intensity
+    tau_0 = 0.4e-9          # Initial bunch length, 4 sigma [s]
+    # Machine and RF parameters
+    C = 26658.883        # Machine circumference [m]
+    p_i = 450e9         # Synchronous momentum [eV/c]
+    p_f = 460.005e9      # Synchronous momentum, final
+    h = 35640            # Harmonic number
+    V = 6e6                # RF voltage [V]
+    dphi = 0             # Phase modulation/offset
+    gamma_t = 55.759505  # Transition gamma
+    alpha = 1./gamma_t/gamma_t        # First order mom. comp. factor
+    # Tracking details
+    N_t = 2000           # Number of turns to track
+
+    # Run before every test
+    def setup_method(self):
+        self.ring = Ring(self.C, self.alpha,
+                         np.linspace(self.p_i, self.p_f, self.N_t + 1),
+                         Proton(), self.N_t)
+
+        self.rf = RFStation(self.ring, [self.h],
+                            self.V * np.linspace(1, 1.1, self.N_t+1),
+                            [self.dphi])
+
+    # Run after every test
+    def teardown_method(self):
+        bm.use_cpu()
+
+    @pytest.mark.parametrize('N_p,n_iter',
+                             [(100, 10), (10000, 100), (100000, 100)])
+    def test_kick(self, N_p, n_iter):
+        import cupy as cp
+
+        rf_gpu = RFStation(self.ring, [self.h],
+                           self.V * np.linspace(1, 1.1, self.N_t+1),
+                           [self.dphi])
+
+        beam = Beam(self.ring, N_p, self.N_b)
+        beam_gpu = Beam(self.ring, N_p, self.N_b)
+
+        bigaussian(self.ring, self.rf, beam,
+                   self.tau_0/4, reinsertion=True, seed=1)
+
+        beam_gpu.dt[:] = beam.dt[:]
+        beam_gpu.dE[:] = beam.dE[:]
+
+        long_tracker = RingAndRFTracker(self.rf, beam)
+        long_tracker_gpu = RingAndRFTracker(rf_gpu, beam_gpu)
+
+        cp.testing.assert_allclose(beam_gpu.dE, beam.dE, rtol=1e-8, atol=0,
+                                   err_msg='Checking initial conditions')
+        cp.testing.assert_allclose(beam_gpu.dt, beam.dt, rtol=1e-8, atol=0,
+                                   err_msg='Checking initial conditions')
+
+        for i in range(n_iter):
+            long_tracker.kick(beam.dt, beam.dE, long_tracker.counter[0])
+            long_tracker.drift(beam.dt, beam.dE, long_tracker.counter[0]+1)
+
+            long_tracker.counter[0] += 1
+
+        bm.use_gpu()
+        beam_gpu.to_gpu()
+        long_tracker_gpu.to_gpu()
+        for i in range(n_iter):
+
+            long_tracker_gpu.kick(beam_gpu.dt, beam_gpu.dE,
+                                  long_tracker_gpu.counter[0])
+            long_tracker_gpu.drift(
+                beam_gpu.dt, beam_gpu.dE, long_tracker_gpu.counter[0]+1)
+
+            long_tracker_gpu.counter[0] += 1
+
+        cp.testing.assert_allclose(beam_gpu.dE, beam.dE, rtol=1e-8, atol=0)
+        cp.testing.assert_allclose(beam_gpu.dt, beam.dt, rtol=1e-8, atol=0)
+
+    @pytest.mark.parametrize('N_p,n_iter',
+                             [(1 << 8, 10), (1 << 14, 100), (1 << 20, 100)])
+    def test_simple_track(self, N_p, n_iter):
+        import cupy as cp
+
+        rf_gpu = RFStation(self.ring, [self.h],
+                           self.V * np.linspace(1, 1.1, self.N_t+1),
+                           [self.dphi])
+
+        beam = Beam(self.ring, N_p, self.N_b)
+        beam_gpu = Beam(self.ring, N_p, self.N_b)
+
+        bigaussian(self.ring, self.rf, beam,
+                   self.tau_0/4, reinsertion=True, seed=1)
+
+        beam_gpu.dt[:] = beam.dt[:]
+        beam_gpu.dE[:] = beam.dE[:]
+
+        long_tracker = RingAndRFTracker(self.rf, beam)
+        long_tracker_gpu = RingAndRFTracker(rf_gpu, beam_gpu)
+
+        cp.testing.assert_allclose(beam_gpu.dE, beam.dE, rtol=1e-8, atol=0,
+                                   err_msg='Checking initial conditions')
+        cp.testing.assert_allclose(beam_gpu.dt, beam.dt, rtol=1e-8, atol=0,
+                                   err_msg='Checking initial conditions')
+
+        for i in range(n_iter):
+            long_tracker.track()
+
+        bm.use_gpu()
+        beam_gpu.to_gpu()
+        long_tracker_gpu.to_gpu()
+        for i in range(n_iter):
+            long_tracker_gpu.track()
+
+        cp.testing.assert_allclose(beam_gpu.dE, beam.dE, rtol=1e-8, atol=0)
+        cp.testing.assert_allclose(beam_gpu.dt, beam.dt, rtol=1e-8, atol=0)
+
+    @pytest.mark.parametrize('N_p,n_slices,n_iter',
+                             [(100, 10, 10), (10000, 25, 100), (100000, 100, 100)])
+    def test_profile_track(self, N_p, n_slices, n_iter):
+        import cupy as cp
+
+        rf_gpu = RFStation(self.ring, [self.h],
+                           self.V * np.linspace(1, 1.1, self.N_t+1),
+                           [self.dphi])
+
+        beam = Beam(self.ring, N_p, self.N_b)
+        beam_gpu = Beam(self.ring, N_p, self.N_b)
+
+        bigaussian(self.ring, self.rf, beam,
+                   self.tau_0/4, reinsertion=True, seed=1)
+
+        beam_gpu.dt[:] = beam.dt[:]
+        beam_gpu.dE[:] = beam.dE[:]
+
+        profile = Profile(beam, CutOptions(n_slices=n_slices, cut_left=0,
+                                           cut_right=self.rf.t_rf[0, 0]),
+                          FitOptions(fit_option='gaussian'))
+
+        profile_gpu = Profile(beam_gpu, CutOptions(n_slices=n_slices, cut_left=0,
+                                                   cut_right=self.rf.t_rf[0, 0]),
+                              FitOptions(fit_option='gaussian'))
+
+        long_tracker = RingAndRFTracker(self.rf, beam)
+        long_tracker_gpu = RingAndRFTracker(rf_gpu, beam_gpu)
+
+        cp.testing.assert_allclose(beam_gpu.dE, beam.dE, rtol=1e-8, atol=0,
+                                   err_msg='Checking initial conditions')
+        cp.testing.assert_allclose(beam_gpu.dt, beam.dt, rtol=1e-8, atol=0,
+                                   err_msg='Checking initial conditions')
+
+        for i in range(n_iter):
+            long_tracker.track()
+            profile.track()
+
+        bm.use_gpu()
+        beam_gpu.to_gpu()
+        long_tracker_gpu.to_gpu()
+        profile_gpu.to_gpu()
+        for i in range(n_iter):
+            long_tracker_gpu.track()
+            profile_gpu.track()
+
+        cp.testing.assert_allclose(beam_gpu.dE, beam.dE, rtol=1e-8, atol=0)
+        cp.testing.assert_allclose(beam_gpu.dt, beam.dt, rtol=1e-8, atol=0)
+        cp.testing.assert_allclose(profile_gpu.n_macroparticles,
+                                   profile.n_macroparticles, rtol=1e-8, atol=0)
+
+    @pytest.mark.parametrize('N_p,n_slices,n_iter',
+                             [(100, 10, 10), (10000, 25, 100), (100000, 100, 100)])
+    def test_rf_voltage_calc(self, N_p, n_slices, n_iter):
+        import cupy as cp
+
+        rf_gpu = RFStation(self.ring, [self.h],
+                           self.V * np.linspace(1, 1.1, self.N_t+1),
+                           [self.dphi])
+
+        beam = Beam(self.ring, N_p, self.N_b)
+        beam_gpu = Beam(self.ring, N_p, self.N_b)
+
+        bigaussian(self.ring, self.rf, beam,
+                   self.tau_0/4, reinsertion=True, seed=1)
+
+        beam_gpu.dt[:] = beam.dt[:]
+        beam_gpu.dE[:] = beam.dE[:]
+
+        profile = Profile(beam, CutOptions(n_slices=n_slices, cut_left=0,
+                                           cut_right=self.rf.t_rf[0, 0]),
+                          FitOptions(fit_option='gaussian'))
+
+        profile_gpu = Profile(beam_gpu, CutOptions(n_slices=n_slices, cut_left=0,
+                                                   cut_right=self.rf.t_rf[0, 0]),
+                              FitOptions(fit_option='gaussian'))
+
+        long_tracker = RingAndRFTracker(self.rf, beam, Profile=profile)
+        long_tracker_gpu = RingAndRFTracker(
+            rf_gpu, beam_gpu, Profile=profile_gpu)
+
+        cp.testing.assert_allclose(beam_gpu.dE, beam.dE, rtol=1e-8, atol=0,
+                                   err_msg='Checking initial conditions')
+        cp.testing.assert_allclose(beam_gpu.dt, beam.dt, rtol=1e-8, atol=0,
+                                   err_msg='Checking initial conditions')
+
+        long_tracker.rf_voltage_calculation()
+
+        bm.use_gpu()
+        long_tracker_gpu.to_gpu()
+
+        long_tracker_gpu.rf_voltage_calculation()
+
+        cp.testing.assert_allclose(long_tracker_gpu.rf_voltage,
+                                   long_tracker.rf_voltage, rtol=1e-8, atol=0)
 
 
 if __name__ == '__main__':
