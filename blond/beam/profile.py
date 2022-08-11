@@ -498,12 +498,7 @@ class Profile(object):
             self.n_macroparticles = self.n_macroparticles.astype(
                     dtype, order='C')
 
-            if hasattr(self, '_device') and self._device == 'GPU':
-                import cupy as cp
-                worker.allreduce(self.n_macroparticles.get())
-                self.n_macroparticles = cp.array(self.n_macroparticles)
-            else:
-                worker.allreduce(self.n_macroparticles)
+            worker.allreduce(self.n_macroparticles)
 
             # Convert back to float64
             self.n_macroparticles = self.n_macroparticles.astype(
