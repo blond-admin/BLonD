@@ -45,7 +45,7 @@ class TestImpedanceBigaussianData:
     C = 6911.56  # [m]
 
     # Tracking details
-    n_turns = 2
+    n_turns = 1000
     dt_plt = 1
 
     # Derived parameters
@@ -79,8 +79,10 @@ class TestImpedanceBigaussianData:
         bigaussian(self.general_params, self.rf_gpu,
                    self.beam_gpu, self.tau_0/4, seed=1)
 
-        # LOAD IMPEDANCE TABLE--------------------------------------------------------
+        self.rf_tracker = RingAndRFTracker(self.rf, self.beam)
+        self.rf_tracker_gpu = RingAndRFTracker(self.rf_gpu, self.beam_gpu)
 
+        # LOAD IMPEDANCE TABLE--------------------------------------------------------
         table = np.loadtxt(os.path.join(
             this_directory, '../../__EXAMPLES/input_files/EX_05_new_HQ_table.dat'), comments='!')
 
@@ -98,7 +100,7 @@ class TestImpedanceBigaussianData:
                                (256, 'frequency'), (1024, 'frequency'),
                                (16384, 'frequency'), (256, 'resonator'),
                                (1024, 'resonator')])
-    def test_ind_volt_track(self, number_slices, mode):
+    def test_ind_volt(self, number_slices, mode):
         import cupy as cp
 
         cut_options = CutOptions(cut_left=0, cut_right=2*np.pi, n_slices=number_slices,
@@ -162,6 +164,88 @@ class TestImpedanceBigaussianData:
 
         cp.testing.assert_allclose(tot_volt_gpu.induced_voltage,
                                    tot_volt.induced_voltage, rtol=1e-8, atol=1e-6)
+
+
+    @ pytest.mark.parametrize('number_slices,mode,n_iter',
+                              [(256, 'time', 1), (1024, 'time', 100),
+                               (256, 'frequency', 1), (1024, 'frequency', 100)])
+    def test_ind_volt_track(self, number_slices, mode, n_iter):
+        import cupy as cp
+
+        cut_options = CutOptions(cut_left=0, cut_right=2*np.pi, n_slices=number_slices,
+                                 RFSectionParameters=self.rf, cuts_unit='rad')
+        slice_beam = Profile(self.beam, cut_options,
+                             FitOptions(fit_option='gaussian'))
+
+        cut_options_gpu = CutOptions(cut_left=0, cut_right=2*np.pi, n_slices=number_slices,
+                                     RFSectionParameters=self.rf_gpu, cuts_unit='rad')
+        slice_beam_gpu = Profile(
+            self.beam_gpu, cut_options_gpu, FitOptions(fit_option='gaussian'))
+
+        slice_beam.track()
+        slice_beam_gpu.track()
+
+        if mode == 'time':
+            ind_volt = InducedVoltageTime(
+                self.beam, slice_beam, [self.resonator])
+            ind_volt_gpu = InducedVoltageTime(
+                self.beam_gpu, slice_beam_gpu, [self.resonator])
+
+            cp.testing.assert_allclose(ind_volt_gpu.total_impedance,
+                                       ind_volt.total_impedance, rtol=1e-8, atol=0,
+                                       err_msg='Checking initial conditions')
+        elif mode == 'frequency':
+            ind_volt = InducedVoltageFreq(
+                self.beam, slice_beam, [self.resonator], 1e5)
+            ind_volt_gpu = InducedVoltageFreq(
+                self.beam_gpu, slice_beam_gpu, [self.resonator], 1e5)
+
+            cp.testing.assert_allclose(ind_volt_gpu.total_impedance,
+                                       ind_volt.total_impedance, rtol=1e-8, atol=0,
+                                       err_msg='Checking initial conditions')
+
+        elif mode == 'resonator':
+            ind_volt = InducedVoltageResonator(
+                self.beam, slice_beam, self.resonator)
+            ind_volt_gpu = InducedVoltageResonator(self.beam_gpu,
+                                                   slice_beam_gpu, self.resonator)
+
+        tot_volt = TotalInducedVoltage(self.beam, slice_beam, [ind_volt])
+        tot_volt_gpu = TotalInducedVoltage(
+            self.beam_gpu, slice_beam_gpu, [ind_volt_gpu])
+
+        cp.testing.assert_allclose(self.beam_gpu.dE, self.beam.dE, rtol=1e-8, atol=0,
+                                   err_msg='Checking initial conditions')
+        cp.testing.assert_allclose(self.beam_gpu.dt, self.beam.dt, rtol=1e-8, atol=0,
+                                   err_msg='Checking initial conditions')
+
+        cp.testing.assert_allclose(slice_beam_gpu.n_macroparticles,
+                                   slice_beam.n_macroparticles, rtol=1e-8, atol=0,
+                                   err_msg='Checking initial conditions')
+
+        for i in range(n_iter):
+            tot_volt.track()
+            self.rf_tracker.track()
+            slice_beam.track()
+
+        bm.use_gpu()
+        tot_volt_gpu.to_gpu()
+        slice_beam_gpu.to_gpu()
+        self.rf_tracker_gpu.to_gpu()
+
+        for i in range(n_iter):
+            tot_volt_gpu.track()
+            self.rf_tracker_gpu.track()
+            slice_beam_gpu.track()
+
+        cp.testing.assert_allclose(slice_beam_gpu.n_macroparticles,
+                                   slice_beam.n_macroparticles, rtol=1e-8, atol=0)
+
+        cp.testing.assert_allclose(tot_volt_gpu.induced_voltage,
+                                   tot_volt.induced_voltage, rtol=1e-8, atol=1e-6)
+
+        cp.testing.assert_allclose(self.beam_gpu.dE, self.beam.dE, rtol=1e-7, atol=0)
+        cp.testing.assert_allclose(self.beam_gpu.dt, self.beam.dt, rtol=1e-7, atol=0)
 
 
 if __name__ == '__main__':
