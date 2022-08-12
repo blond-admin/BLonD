@@ -30,15 +30,7 @@ import os
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 
-
-try:
-    os.mkdir(this_directory + '../output_files')
-except:
-    pass
-try:
-    os.mkdir(this_directory + '../output_files/EX_03_fig')
-except:
-    pass
+os.makedirs(this_directory + '../output_files/EX_03_fig', exist_ok=True)
 
 
 # Simulation parameters --------------------------------------------------------

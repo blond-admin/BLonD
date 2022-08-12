@@ -33,14 +33,8 @@ print = mpiprint
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 
-try:
-    os.mkdir(this_directory + '../mpi_output_files')
-except:
-    pass
-try:
-    os.mkdir(this_directory + '../mpi_output_files/EX_10_fig')
-except:
-    pass
+os.makedirs(this_directory + '../mpi_output_files/EX_10_fig', exist_ok=True)
+
 
 # Beam parameters
 n_macroparticles = 100000
@@ -142,8 +136,8 @@ for i in range(1, n_turns+1):
               %(phase_loop.domega_rf))
         print("    RF phase %.4f rad" %(rf_params.phi_rf[0,i]))
         print("    RF frequency %.6e 1/s" %(rf_params.omega_rf[0,i]))
-        print("    Tracker phase %.4f rad" %(long_tracker.phi_rf[0,i]))
-        print("    Tracker frequency %.6e 1/s" %(long_tracker.omega_rf[0,i]))
+        print("    Tracker phase %.4f rad" %(long_tracker.rf_params.phi_rf[0,i]))
+        print("    Tracker frequency %.6e 1/s" %(long_tracker.rf_params.omega_rf[0,i]))
         
 my_beam.gather()
 worker.finalize()

@@ -65,17 +65,18 @@ class TestSynchtrotronRadiation(unittest.TestCase):
     def test_initial_beam(self):
         atol = 0
         rtol = 1e-7
-        np.testing.assert_allclose([np.mean(self.beam.dt)], [1.0010434293297664e-09],
+        np.testing.assert_allclose([np.mean(self.beam.dt)], [1.0019653703433631e-09],
                                    atol=atol, rtol=rtol,
                                    err_msg='Initial avg beam.dt wrong')
-        np.testing.assert_allclose([np.std(self.beam.dt)], [9.956848503354043e-12],
+
+        np.testing.assert_allclose([np.std(self.beam.dt)], [1.1204522311616268e-11],
                                    atol=atol, rtol=rtol,
                                    err_msg='Initial std beam.dt wrong')
 
-        np.testing.assert_allclose([np.mean(self.beam.dE)], [-22869.066735787248],
+        np.testing.assert_allclose([np.mean(self.beam.dE)], [10748.973035173622],
                                    atol=atol, rtol=rtol,
                                    err_msg='Initial avg beam.dE wrong')
-        np.testing.assert_allclose([np.std(self.beam.dE)], [446199.02910303336],
+        np.testing.assert_allclose([np.std(self.beam.dE)], [447988.3517788615],
                                    atol=atol, rtol=rtol,
                                    err_msg='Initial std beam.dE wrong')
 
@@ -88,10 +89,10 @@ class TestSynchtrotronRadiation(unittest.TestCase):
                                    seed=self.seed, n_kicks=1, shift_beam=False,
                                    python=True, quantum_excitation=False)
         iSR.track()
-        np.testing.assert_allclose([np.mean(self.beam.dt)], [1.0010434293297664e-09],
+        np.testing.assert_allclose([np.mean(self.beam.dt)], [1.0019653703433631e-09],
                                    atol=atol, rtol=rtol,
                                    err_msg='SR affected mean beam.dt')
-        np.testing.assert_allclose([np.std(self.beam.dt)], [9.956848503354043e-12],
+        np.testing.assert_allclose([np.std(self.beam.dt)], [1.1204522311616268e-11],
                                    atol=atol, rtol=rtol,
                                    err_msg='SR affected std beam.dt')
 

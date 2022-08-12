@@ -111,7 +111,7 @@ def gaussian_fit(Y_array, X_array, p0):
 
 
 def gauss(x, *p):
-    """
+    r"""
     Defined as:
 
     .. math:: A \, e^{\\frac{\\left(x-x_0\\right)^2}{2\\sigma_x^2}}

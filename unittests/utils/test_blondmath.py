@@ -225,7 +225,7 @@ class TestWhere(unittest.TestCase):
         np.testing.assert_equal(a.shape, testing.shape, err_msg='Shapes do not match.')
         
     def test_where_7(self):
-        a = np.arange(9, dtype=np.float).reshape(3,3)
+        a = np.arange(9, dtype=float).reshape(3,3)
         threshold = 4
         real = a < threshold
         testing = bm.where_cpp(a, less_than=threshold)

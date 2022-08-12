@@ -40,14 +40,8 @@ if len(USE_GPU) and int(USE_GPU):
 else:
     USE_GPU = False
 
-try:
-    os.mkdir(this_directory + '../output_files')
-except:
-    pass
-try:
-    os.mkdir(this_directory + '../output_files/EX_04_fig')
-except:
-    pass
+os.makedirs(this_directory + '../gpu_output_files/EX_04_fig', exist_ok=True)
+
 
 # Simulation parameters -------------------------------------------------------
 # Bunch parameters
@@ -114,16 +108,16 @@ slice_beam = Profile(beam, CutOptions(n_slices=100),
                      FitOptions(fit_option='gaussian'))
 # Define what to save in file
 bunchmonitor = BunchMonitor(general_params, rf_params_tot, beam,
-                            this_directory + '../output_files/EX_04_output_data',
+                            this_directory + '../gpu_output_files/EX_04_output_data',
                             Profile=slice_beam, buffer_time=1)
 
 # PLOTS
 format_options = {'dirname': this_directory +
-                  '../output_files/EX_04_fig', 'linestyle': '.'}
+                  '../gpu_output_files/EX_04_fig', 'linestyle': '.'}
 plots = Plot(general_params, rf_params_tot, beam, dt_plt, dt_plt, 0,
              0.0001763*h, -450e6, 450e6, xunit='rad',
              separatrix_plot=True, Profile=slice_beam,
-             h5file=this_directory + '../output_files/EX_04_output_data',
+             h5file=this_directory + '../gpu_output_files/EX_04_output_data',
              histograms_plot=True, format_options=format_options)
 
 # For testing purposes
@@ -218,7 +212,7 @@ print('profile std: ', slice_beam.n_macroparticles.std())
 # # For testing purposes
 test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
     beam.dE.mean(), beam.dE.std(), beam.dt.mean(), beam.dt.std())
-with open(this_directory + '../output_files/EX_04_test_data.txt', 'w') as f:
+with open(this_directory + '../gpu_output_files/EX_04_test_data.txt', 'w') as f:
     f.write(test_string)
 
 

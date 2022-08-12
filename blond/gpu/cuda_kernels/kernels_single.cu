@@ -886,6 +886,7 @@ __global__ void bm_sin_cos_range(float *a, float *b, float *c , long start, long
 
 
 
+// This function calculates and applies only the synchrotron radiation damping term
 extern "C"
 __global__ void synchrotron_radiation(
     float *  beam_dE,
@@ -896,17 +897,24 @@ __global__ void synchrotron_radiation(
 {
 
     int tid = threadIdx.x + blockDim.x * blockIdx.x;
-    const float const_synch_rad = 2.0 / tau_z;
+    
+    // SR damping constant, adjusted for better performance
+    const float const_synch_rad = 1.0 - 2.0 / tau_z;
 
-    for (int j = 0; j < n_kicks; j++) {
-        for (int i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x)
-            beam_dE[i] -= const_synch_rad * beam_dE[i] + U0;
+    for (int i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
+        // SR damping term due to energy spread and
+        // Average energy change due to SR
+        for (int j = 0; j < n_kicks; j++) {
+            beam_dE[i] = beam_dE[i] * const_synch_rad - U0;
+        }
     }
 }
 
+// This function calculates and applies synchrotron radiation damping and
+// quantum excitation terms
 extern "C"
 __global__ void synchrotron_radiation_full(
-    float *  beam_dE,
+    double *  beam_dE,
     const float U0,
     const int n_macroparticles,
     const float sigma_dE,
@@ -914,14 +922,24 @@ __global__ void synchrotron_radiation_full(
     const float energy,
     const int n_kicks
 )
-{   unsigned int seed = 0;
+{
+    unsigned int seed = 1234;
     int tid = threadIdx.x + blockDim.x * blockIdx.x;
-    const float const_quantum_exc = 2.0 * sigma_dE / sqrtf(tau_z) * energy;
+    // Quantum excitation constant
+    const float const_quantum_exc = 2.0 * sigma_dE / sqrt(tau_z) * energy;
+    
+    // Adjusted SR damping constant
+    const float const_synch_rad = 1.0 - 2.0 / tau_z;
+
     curandState_t state;
     curand_init(seed, tid, 0, &state);
-    const float const_synch_rad = 2.0 / tau_z;
-    for (int j = 0; j < n_kicks; j++) {
-        for (int i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x)
-            beam_dE[i] -= const_synch_rad * beam_dE[i] + U0 - const_quantum_exc * curand_normal(&state);
+
+    // Compute synchrotron radiation damping term and
+    // Applies the quantum excitation term
+    for (int i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
+        for (int j = 0; j < n_kicks; j++) {
+            beam_dE[i] = beam_dE[i] * const_synch_rad 
+                         + const_quantum_exc * curand_normal(&state) - U0;
+        }
     }
 }

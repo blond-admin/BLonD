@@ -32,14 +32,8 @@ print = mpiprint
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 
-try:
-    os.mkdir(this_directory + '../mpi_output_files')
-except:
-    pass
-try:
-    os.mkdir(this_directory + '../mpi_output_files/EX_09_fig')
-except:
-    pass
+os.makedirs(this_directory + '../mpi_output_files/EX_09_fig', exist_ok=True)
+
 
 # Beam parameters
 n_macroparticles = 100000

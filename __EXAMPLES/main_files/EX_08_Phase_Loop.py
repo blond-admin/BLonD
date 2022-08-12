@@ -27,14 +27,8 @@ from blond.llrf.beam_feedback import BeamFeedback
 import os
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 
-try:
-    os.mkdir(this_directory + '../output_files')
-except:
-    pass
-try:
-    os.mkdir(this_directory + '../output_files/EX_08_fig')
-except:
-    pass
+os.makedirs(this_directory + '../output_files/EX_08_fig', exist_ok=True)
+
 
 # Beam parameters
 n_macroparticles = 100000
@@ -70,8 +64,9 @@ phase_loop = BeamFeedback(general_params, rf_params, slices_ring, configuration)
 
 
 #Long tracker
-long_tracker = RingAndRFTracker(rf_params, my_beam, periodicity='Off',
-                                BeamFeedback=phase_loop)
+long_tracker = RingAndRFTracker(rf_params, my_beam, periodicity=False,
+                                BeamFeedback=phase_loop
+                                )
 
 full_ring = FullRingAndRF([long_tracker])
 

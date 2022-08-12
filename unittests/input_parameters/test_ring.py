@@ -121,9 +121,9 @@ class TestGeneralParameters(unittest.TestCase):
                     np.linspace(450e9, 450e9, self.n_turns)]
 
         with self.assertRaisesRegex(
-                RuntimeError, "ERROR in Ring: The input data " +
-                "does not match the proper length " +
-                "\(n_turns\+1\)",
+                RuntimeError, r"ERROR in Ring: The input data " +
+                r"does not match the proper length " +
+                r"\(n_turns\+1\)",
                 msg='No RuntimeError for wrong length of momentum array!'):
 
             Ring(self.C, self.alpha_0, momentum, self.particle,

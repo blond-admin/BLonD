@@ -43,14 +43,7 @@ else:
     USE_GPU = False
 
 
-try:
-    os.mkdir(this_directory + '../output_files')
-except:
-    pass
-try:
-    os.mkdir(this_directory + '../output_files/EX_18_fig')
-except:
-    pass
+os.makedirs(this_directory + '../gpu_output_files/EX_18_fig', exist_ok=True)
 
 
 # SIMULATION PARAMETERS -------------------------------------------------------
@@ -162,7 +155,7 @@ plt.legend(('Impedance','RF frequency','Synchrotron sidebands'), loc=0,
            fontsize='medium')
 plt.xlabel('Frequency [MHz]')
 plt.ylabel(r'Impedance [$\Omega$]')
-plt.savefig(this_directory + '../output_files/EX_18_fig/impedance.png')
+plt.savefig(this_directory + '../gpu_output_files/EX_18_fig/impedance.png')
 plt.close()
 
 
@@ -218,7 +211,7 @@ for i in range(n_turns):
         plt.plot(beam.dt*1e9,beam.dE*1e-6,'.')
         plt.xlabel('Time [ns]')
         plt.ylabel('Energy [MeV]')
-        plt.savefig(this_directory + '../output_files/EX_18_fig/phase_space_{0:d}.png'.format(i))
+        plt.savefig(this_directory + '../gpu_output_files/EX_18_fig/phase_space_{0:d}.png'.format(i))
         plt.close()
 
         if USE_GPU:
@@ -239,19 +232,19 @@ plt.figure()
 plt.plot(bunch_center*1e9)
 plt.xlabel('Turns')
 plt.ylabel('Bunch center [ns]')
-plt.savefig(this_directory + '../output_files/EX_18_fig/bunch_center.png')
+plt.savefig(this_directory + '../gpu_output_files/EX_18_fig/bunch_center.png')
 plt.close()
 plt.figure()
 plt.plot(bunch_std*1e9)
 plt.xlabel('Turns')
 plt.ylabel('Bunch length [ns]')
-plt.savefig(this_directory + '../output_files/EX_18_fig/bunch_length.png')
+plt.savefig(this_directory + '../gpu_output_files/EX_18_fig/bunch_length.png')
 plt.close()
 
 # For testing purposes
 test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
     np.mean(beam.dE), np.std(beam.dE), np.mean(beam.dt), np.std(beam.dt))
-with open(this_directory + '../output_files/EX_18_test_data.txt', 'w') as f:
+with open(this_directory + '../gpu_output_files/EX_18_test_data.txt', 'w') as f:
     f.write(test_string)
 print(test_string)
     

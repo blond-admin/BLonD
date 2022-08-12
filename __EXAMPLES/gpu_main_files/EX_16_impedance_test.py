@@ -44,15 +44,7 @@ if len(USE_GPU) and int(USE_GPU):
 else:
     USE_GPU = False
 
-
-try:
-    os.mkdir(this_directory + '../output_files')
-except:
-    pass
-try:
-    os.mkdir(this_directory + '../output_files/EX_16_fig')
-except:
-    pass
+os.makedirs(this_directory + '../gpu_output_files/EX_16_fig', exist_ok=True)
 
 
 # SIMULATION PARAMETERS -------------------------------------------------------
@@ -189,12 +181,12 @@ plt.xlabel('Time [ns]')
 plt.ylabel('Induced voltage [V]')
 plt.legend(loc=2, fontsize='medium')
 
-plt.savefig(this_directory + '../output_files/EX_16_fig/fig.png')
+plt.savefig(this_directory + '../gpu_output_files/EX_16_fig/fig.png')
 
 # For testing purposes
 test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
     np.mean(beam.dE), np.std(beam.dE), np.mean(beam.dt), np.std(beam.dt))
-with open(this_directory + '../output_files/EX_16_test_data.txt', 'w') as f:
+with open(this_directory + '../gpu_output_files/EX_16_test_data.txt', 'w') as f:
     f.write(test_string)
 
     
