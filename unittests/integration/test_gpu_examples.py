@@ -13,6 +13,7 @@ Integration tests, execute all example GPU main files.
 """
 
 import unittest
+import pytest
 import os
 import subprocess
 
@@ -38,7 +39,7 @@ class TestGPUExamples(unittest.TestCase):
     # Run before every test
 
     def setUp(self):
-        pass
+        pytest.importorskip('cupy')
 
     # Run after every test
     def tearDown(self):

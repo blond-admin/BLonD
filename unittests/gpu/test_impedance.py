@@ -13,6 +13,8 @@ Unittest for the FFTs used in blond with CuPy and NumPy
 :Authors: **Konstantinos Iliakis**
 """
 
+
+
 import unittest
 import pytest
 import os
@@ -60,6 +62,9 @@ class TestImpedanceBigaussianData:
 
     # Run before every test
     def setup_method(self):
+        # Try to import cupy, skip if not found
+        pytest.importorskip('cupy')
+
         self.general_params = Ring(self.C, self.momentum_compaction,
                          self.sync_momentum, Proton(), self.n_turns)
 
@@ -95,7 +100,7 @@ class TestImpedanceBigaussianData:
     def teardown_method(self):
         bm.use_cpu()
 
-    @ pytest.mark.parametrize('number_slices,mode',
+    @pytest.mark.parametrize('number_slices,mode',
                               [(256, 'time'), (1024, 'time'), (16384, 'time'),
                                (256, 'frequency'), (1024, 'frequency'),
                                (16384, 'frequency'), (256, 'resonator'),
@@ -166,7 +171,7 @@ class TestImpedanceBigaussianData:
                                    tot_volt.induced_voltage, rtol=1e-8, atol=1e-6)
 
 
-    @ pytest.mark.parametrize('number_slices,mode,n_iter',
+    @pytest.mark.parametrize('number_slices,mode,n_iter',
                               [(256, 'time', 1), (1024, 'time', 100),
                                (256, 'frequency', 1), (1024, 'frequency', 100)])
     def test_ind_volt_track(self, number_slices, mode, n_iter):

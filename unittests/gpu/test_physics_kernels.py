@@ -25,10 +25,13 @@ from blond.beam.distributions import bigaussian
 from blond.beam.profile import CutOptions, FitOptions, Profile
 
 
+
 class TestSyntheticData:
 
     # Run before every test
     def setup_method(self):
+        # Try to import cupy, skip if not found
+        pytest.importorskip('cupy')
         np.random.seed(0)
 
     # Run after every test
@@ -383,6 +386,8 @@ class TestBigaussianData:
 
     # Run before every test
     def setup_method(self):
+        # Try to import cupy, skip if not found
+        pytest.importorskip('cupy')
         self.ring = Ring(self.C, self.alpha,
                          np.linspace(self.p_i, self.p_f, self.N_t + 1),
                          Proton(), self.N_t)

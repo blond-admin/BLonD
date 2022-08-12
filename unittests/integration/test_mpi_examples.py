@@ -14,6 +14,7 @@ Integration tests for the MPI mode.
 """
 
 import unittest
+import pytest
 import os
 import subprocess
 
@@ -36,6 +37,7 @@ class TestMpiExamples(unittest.TestCase):
 
     # Run before every test
     def setUp(self):
+        pytest.importorskip('mpi4py')
         try:
             subprocess.call(['mpirun', '--version'])
         except FileNotFoundError:
