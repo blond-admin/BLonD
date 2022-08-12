@@ -117,7 +117,7 @@ class CutOptions(object):
         self.bin_centers = np.zeros(n_slices, dtype=bm.precision.real_t, order='C')
 
     def set_cuts(self, Beam=None):
-        """
+        r"""
         Method to set self.cut_left, self.cut_right, self.edges and
         self.bin_centers attributes.
         The frame is defined by :math:`n\sigma_{RMS}` or manually by the user.

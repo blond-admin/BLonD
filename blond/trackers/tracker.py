@@ -319,7 +319,7 @@ class RingAndRFTracker(object):
 
 
     def kick(self, beam_dt, beam_dE, index):
-        """Function updating the particle energy due to the RF kick in a given
+        r"""Function updating the particle energy due to the RF kick in a given
         RF station. The kicks are summed over the different harmonic RF systems
         in the station. The cavity phase can be shifted by the user via
         phi_offset. The main RF (harmonic[0]) has by definition phase = 0 at
@@ -340,7 +340,7 @@ class RingAndRFTracker(object):
                 self.rf_params.charge, self.rf_params.n_rf, self.acceleration_kick[index])
 
     def drift(self, beam_dt, beam_dE, index):
-        """Function updating the particle arrival time to the RF station
+        r"""Function updating the particle arrival time to the RF station
         (drift). If only the zeroth order slippage factor is given, 'simple'
         and 'exact' solvers are available. The 'simple' solver is somewhat
         faster. Otherwise, the solver is automatically 'exact' and calculates
