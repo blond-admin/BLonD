@@ -190,7 +190,7 @@ class CutOptions(object):
         Transfer all necessary arrays to the GPU
         '''
         # Check if to_gpu has been invoked already
-        if hasattr(self, '__device') and self.__device == 'GPU':
+        if hasattr(self, '_device') and self._device == 'GPU':
             return
 
         # transfer recursively objects
@@ -204,14 +204,14 @@ class CutOptions(object):
         self.bin_centers = cp.array(self.bin_centers)
 
         # to make sure it will not be called again
-        self.__device = 'GPU'
+        self._device = 'GPU'
         
     def to_cpu(self, recursive=True):
         '''
         Transfer all necessary arrays back to the CPU
         '''
         # Check if to_cpu has been invoked already
-        if hasattr(self, '__device') and self.__device == 'CPU':
+        if hasattr(self, '_device') and self._device == 'CPU':
             return
 
         # transfer recursively objects
@@ -228,7 +228,7 @@ class CutOptions(object):
             self.rf_voltage = cp.asnumpy(self.rf_voltage)
 
         # to make sure it will not be called again
-        self.__device = 'CPU'
+        self._device = 'CPU'
 
 
 class FitOptions(object):
@@ -498,10 +498,7 @@ class Profile(object):
             self.n_macroparticles = self.n_macroparticles.astype(
                     dtype, order='C')
 
-            if hasattr(self, '__device') and self.__device == 'GPU':
-                worker.allreduce(self.n_macroparticles, operator='sum')
-            else:
-                worker.allreduce(self.n_macroparticles, operator='custom_sum')
+            worker.allreduce(self.n_macroparticles)
 
             # Convert back to float64
             self.n_macroparticles = self.n_macroparticles.astype(
@@ -639,7 +636,7 @@ class Profile(object):
         Transfer all necessary arrays to the GPU
         '''
         # Check if to_gpu has been invoked already
-        if hasattr(self, '__device') and self.__device == 'GPU':
+        if hasattr(self, '_device') and self._device == 'GPU':
             return
 
         # transfer recursively objects to_gpu
@@ -660,14 +657,14 @@ class Profile(object):
         self.beam_spectrum_freq = cp.array(self.beam_spectrum_freq)
 
         # to make sure it will not be called again
-        self.__device = 'GPU'
+        self._device = 'GPU'
 
     def to_cpu(self, recursive=True):
         '''
         Transfer all necessary arrays back to the CPU
         '''
         # Check if to_cpu has been invoked already
-        if hasattr(self, '__device') and self.__device == 'CPU':
+        if hasattr(self, '_device') and self._device == 'CPU':
             return
 
         # transfer recursively objects
@@ -688,4 +685,4 @@ class Profile(object):
         self.beam_spectrum_freq = cp.asnumpy(self.beam_spectrum_freq)
 
         # to make sure it will not be called again
-        self.__device = 'CPU'
+        self._device = 'CPU'
