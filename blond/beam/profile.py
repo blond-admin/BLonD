@@ -493,6 +493,9 @@ class Profile(object):
 
         from ..utils.mpi_config import worker
 
+        if worker.workers == 1:
+            return
+
         if self.Beam.is_splitted:
             # Convert to uint32t for better performance
             self.n_macroparticles = self.n_macroparticles.astype(
