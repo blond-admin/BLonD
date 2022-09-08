@@ -43,7 +43,7 @@ def gpu_kick(dt, dE, voltage, omega_rf, phi_rf, charge, n_rf, acceleration_kick)
                       phi_rf,
                       np.int32(dt.size),
                       bm.precision.real_t(acceleration_kick)),
-                block=block_size, grid=grid_size)  # , time_kernel=True)
+                block=block_size, grid=grid_size)  
 
 
 def gpu_drift(dt, dE, solver, t_rev, length_ratio, alpha_order, eta_0,
@@ -62,14 +62,14 @@ def gpu_drift(dt, dE, solver, t_rev, length_ratio, alpha_order, eta_0,
     drift(args=(dt,
                 dE,
                 solver,
-                bm.precision.real_t(t_rev), bm.precision.real_t(length_ratio),
+                t_rev.astype(bm.precision.real_t), bm.precision.real_t(length_ratio),
                 bm.precision.real_t(alpha_order), bm.precision.real_t(eta_0),
                 bm.precision.real_t(eta_1), bm.precision.real_t(eta_2),
                 bm.precision.real_t(alpha_0), bm.precision.real_t(alpha_1),
                 bm.precision.real_t(alpha_2),
                 bm.precision.real_t(beta), bm.precision.real_t(energy),
                 np.int32(dt.size)),
-          block=block_size, grid=grid_size)  # , time_kernel=True)
+          block=block_size, grid=grid_size)
 
 
 def gpu_linear_interp_kick(dt, dE, voltage,
@@ -98,7 +98,7 @@ def gpu_linear_interp_kick(dt, dE, voltage,
                                      bm.precision.real_t(acceleration_kick),
                                      voltage_kick,
                                      dev_factor),
-                               grid=grid_size, block=block_size)  # ,time_kernel=True)
+                               grid=grid_size, block=block_size)
 
     gm_linear_interp_kick_comp(args=(dt,
                                      dE,
@@ -110,7 +110,7 @@ def gpu_linear_interp_kick(dt, dE, voltage,
                                      bm.precision.real_t(acceleration_kick),
                                      voltage_kick,
                                      dev_factor),
-                               grid=grid_size, block=block_size)  # ,time_kernel=True)
+                               grid=grid_size, block=block_size)
 
 
 def gpu_linear_interp_kick_drift(dt, dE, total_voltage, bin_centers, charge, acc_kick,
@@ -140,7 +140,7 @@ def gpu_linear_interp_kick_drift(dt, dE, total_voltage, bin_centers, charge, acc
                                      bm.precision.real_t(acc_kick),
                                      voltage_kick,
                                      factor),
-                               grid=grid_size, block=block_size)  # ,time_kernel=True)
+                               grid=grid_size, block=block_size)
     gm_linear_interp_kick_drift_comp(args=(dt,
                                            dE,
                                            total_voltage,
@@ -156,7 +156,7 @@ def gpu_linear_interp_kick_drift(dt, dE, total_voltage, bin_centers, charge, acc
                                            bm.precision.real_t(eta_0),
                                            bm.precision.real_t(beta),
                                            bm.precision.real_t(energy)),
-                                     grid=grid_size, block=block_size)  # ,time_kernel=True)
+                                     grid=grid_size, block=block_size)
 
 
 def gpu_slice(dt, profile, cut_left, cut_right):
@@ -167,19 +167,24 @@ def gpu_slice(dt, profile, cut_left, cut_right):
 
     n_slices = profile.size
     profile.fill(0)
+
+    if not isinstance(cut_left, float):
+        cut_left = float(cut_left)
+    if not isinstance(cut_right, float):
+        cut_right = float(cut_right)
+
     if 4*n_slices < bm.gpuDev().attributes['MaxSharedMemoryPerBlock']:
         sm_histogram(args=(dt, profile, bm.precision.real_t(cut_left),
                            bm.precision.real_t(cut_right), np.uint32(n_slices),
                            np.uint32(dt.size)),
-                     grid=grid_size, block=block_size, shared_mem=4*n_slices)  # , time_kernel=True)
+                     grid=grid_size, block=block_size, shared_mem=4*n_slices)
     else:
         hybrid_histogram(args=(dt, profile, bm.precision.real_t(cut_left),
-                               bm.precision.real_t(
-                                   cut_right), np.uint32(n_slices),
+                               bm.precision.real_t(cut_right), np.uint32(n_slices),
                                np.uint32(dt.size), np.int32(
             bm.gpuDev().attributes['MaxSharedMemoryPerBlock']/4)),
             grid=grid_size, block=block_size,
-            shared_mem=bm.gpuDev().attributes['MaxSharedMemoryPerBlock'])  # , time_kernel=True)
+            shared_mem=bm.gpuDev().attributes['MaxSharedMemoryPerBlock'])
 
 
 def gpu_synchrotron_radiation(dE, U0, n_kicks, tau_z):
@@ -228,7 +233,7 @@ def gpu_synchrotron_radiation_full(dE, U0, n_kicks, tau_z, sigma_dE, energy):
 #
 #     beam_phase_sum(args=(array1, array2, dev_scoeff, dev_coeff,
 #                          np.int32(bin_centers.size)), block=(512, 1, 1),
-#                    grid=(1, 1, 1))  # , time_kernel=True)
+#                    grid=(1, 1, 1))  
 #
 #     # convert to numpy array, then to float
 #     return float(dev_scoeff[0].get())
