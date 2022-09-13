@@ -1,8 +1,5 @@
 #include <cupy/complex.cuh>
 #include <curand_kernel.h>
-#include <stdio.h>
-#define REDUCE(a, b) (a+b)
-#define BLOCK_SIZE 512
 #define PI 3.141592653589793238462643383279502884197169399375105820974944592307816406286
 #define PI_DIV_2 3.141592653589793238462643383279502884197169399375105820974944592307816406286/2
 
@@ -30,158 +27,6 @@
 // }
 // #endif
 
-
-extern "C"
-__global__ void gpu_losses_longitudinal_cut(
-    float *dt,
-    float *dev_id,
-    const int size,
-    const float min_dt,
-    const float max_dt)
-{
-    int tid = threadIdx.x + blockDim.x * blockIdx.x;
-    for (int i = tid; i < size; i += blockDim.x * gridDim.x)
-        if ((dt[i] - min_dt) * (max_dt - dt[i]) < 0)
-            dev_id[i] = 0;
-}
-
-extern "C"
-__global__ void gpu_losses_energy_cut(
-    float *dE,
-    float *dev_id,
-    const int size,
-    const float min_dE,
-    const float max_dE)
-{
-    int tid = threadIdx.x + blockDim.x * blockIdx.x;
-    for (int i = tid; i < size; i += blockDim.x * gridDim.x)
-        if ((dE[i] - min_dE) * (max_dE - dE[i]) < 0)
-            dev_id[i] = 0;
-}
-
-extern "C"
-__global__ void gpu_losses_below_energy(
-    float *dE,
-    float *dev_id,
-    const int size,
-    const float min_dE)
-{
-    int tid = threadIdx.x + blockDim.x * blockIdx.x;
-    for (int i = tid; i < size; i += blockDim.x * gridDim.x)
-        if (dE[i] - min_dE < 0)
-            dev_id[i] = 0;
-}
-
-extern "C"
-__global__ void cuinterp(float *x,
-                         int x_size,
-                         float *xp,
-                         int xp_size,
-                         float *yp,
-                         float *y,
-                         float left,
-                         float right)
-{
-    if (left == 0.12345)
-        left = yp[0];
-    if (right == 0.12345)
-        right = yp[xp_size - 1];
-    float curr;
-    int lo;
-    int mid;
-    int hi;
-    int tid = threadIdx.x + blockDim.x * blockIdx.x;
-    for (int i = tid; i < x_size; i += blockDim.x * gridDim.x) {
-        //need to find the right bin with binary search
-        // looks like bisect_left
-        curr = x[i];
-        hi = xp_size;
-        lo = 0;
-        while (lo < hi) {
-            mid = (lo + hi) / 2;
-            if (xp[mid] < curr)
-                lo = mid + 1;
-            else
-                hi = mid;
-        }
-        if (lo == xp_size)
-            y[i] = right;
-        else if (xp[lo - 1] == curr)
-            y[i] = yp[i];
-        else if (lo <= 1)
-            y[i] = left;
-        else {
-            y[i] = yp[lo - 1] +
-                   (yp[lo] - yp[lo - 1]) * (x[i] - xp[lo - 1]) /
-                   (xp[lo] - xp[lo - 1]);
-        }
-
-    }
-}
-
-extern "C"
-__global__ void cugradient(
-    float x,
-    int *y,
-    float *g,
-    int size)
-{
-    int tid = threadIdx.x + blockDim.x * blockIdx.x;
-    for (int i = tid + 1; i < size - 1; i += blockDim.x * gridDim.x) {
-
-        g[i] = (y[i + 1] - y[i - 1]) / (2 * x);
-        // g[i] = (hs*hs*fd + (hd*hd-hs*hs)*fx - hd*hd*fs)/
-        //     (hs*hd*(hd+hs));
-    }
-    if (tid == 0)
-        g[0] = (y[1] - y[0]) / x;
-    if (tid == 32)
-        g[size - 1] = (y[size - 1] - y[size - 2]) / x;
-}
-
-
-extern "C"
-__global__ void gpu_beam_fb_track_other(float *omega_rf,
-                                        float *harmonic,
-                                        float *dphi_rf,
-                                        float *omega_rf_d,
-                                        float *phi_rf,
-                                        // float pi,
-                                        float domega_rf,
-                                        int size,
-                                        int counter,
-                                        int n_rf)
-{
-    float a, b, c;
-    for (int i = threadIdx.x; i < n_rf; i += blockDim.x) {
-        a = domega_rf * harmonic[i * size + counter] / harmonic[counter];
-        b =  2.0 * PI * harmonic[size * i + counter] * (a + omega_rf[i * size + counter] - omega_rf_d[size * i + counter]) / omega_rf_d[size * i + counter];
-        c = dphi_rf[i] +  b;
-        omega_rf[i * size + counter] += a;
-        dphi_rf[i] +=  b;
-        phi_rf[size * i + counter] += c;
-    }
-}
-
-extern "C"
-__global__ void gpu_rf_voltage_calc_mem_ops(float *new_voltages,
-        float *new_omega_rf,
-        float *new_phi_rf,
-        float *voltages,
-        float *omega_rf,
-        float *phi_rf,
-        int start,
-        int end,
-        int step)
-{
-    int idx = 0;
-    for (int i = threadIdx.x * step + start; i < end; i += blockDim.x * step) {
-        new_voltages[idx] = voltages[i];
-        new_omega_rf[idx] = omega_rf[i];
-        new_phi_rf[idx] = phi_rf[i];
-        idx++;
-    }
-}
 
 extern "C"
 __global__ void simple_kick(
@@ -446,445 +291,6 @@ __global__ void lik_drift_only_gm_comp(
     }
 }
 
-extern "C"
-__global__ void beam_phase_v2(
-    const float * __restrict__ bin_centers,
-    const float * __restrict__ profile,
-    const float alpha,
-    // const float * __restrict__ omega_rf_ar,
-    // const float * __restrict__ phi_rf_ar,
-    const float omega_rf,
-    const float phi_rf,
-    // const int ind,
-    const float bin_size,
-    float * __restrict__ array1,
-    float * __restrict__ array2,
-    const int n_bins)
-{
-    // float omega_rf = omega_rf_ar[ind];
-    // float phi_rf = phi_rf_ar[ind];
-    int tid = threadIdx.x + blockDim.x * blockIdx.x;
-    float a, b;
-    float sin_res, cos_res;
-    for (int i = tid; i < n_bins; i += gridDim.x * blockDim.x) {
-        a = omega_rf * bin_centers[i] + phi_rf;
-        sincosf(a, &sin_res, &cos_res);
-        b = expf(alpha * bin_centers[i]) * profile[i];
-        array1[i] = b * sin_res;
-        array2[i] = b * cos_res;
-    }
-}
-
-extern "C"
-__global__ void beam_phase_sum(
-    const float * __restrict__ ar1,
-    const float * __restrict__ ar2,
-    float * __restrict__ scoeff,
-    float * __restrict__ coeff,
-    int n_bins)
-{
-    int tid = threadIdx.x + blockDim.x * blockIdx.x;
-
-    if (tid == 0) {
-        scoeff[0] = 0;
-        coeff[0] = 0;
-    }
-    __syncthreads();
-    float my_sum_1 = 0;
-    float my_sum_2 = 0;
-    if (tid == 0) {
-        my_sum_1 += ar1[0] / 2 + ar1[n_bins - 1] / 2;
-        my_sum_2 += ar2[0] / 2 + ar2[n_bins - 1] / 2;
-    }
-    for (int i = tid + 1; i < n_bins - 1; i += gridDim.x * blockDim.x) {
-        my_sum_1 += ar1[i];
-        my_sum_2 += ar2[i];
-    }
-    atomicAdd(&(scoeff[0]), my_sum_1);
-    atomicAdd(&(coeff[0]), my_sum_2);
-    __syncthreads();
-    if (tid == 0)
-        scoeff[0] = scoeff[0] / coeff[0];
-
-}
-
-
-extern "C"
-__global__ void mean_non_zeros_stage1(float *out, float *x, float *id,
-                           unsigned int seq_count, unsigned int n)
-{
-    // Needs to be variable-size to prevent the braindead CUDA compiler from
-    // running constructors on this array. Grrrr.
-    extern __shared__ float sdata[];
-    unsigned int tid = threadIdx.x;
-    unsigned int i = blockIdx.x * 512 * seq_count + tid;
-    float acc = 0;
-    for (unsigned s = 0; s < seq_count; ++s)
-    {
-        if (i >= n)
-            break;
-        acc = acc + ((id[i] != 0) * x[i]);
-        i += 512;
-    }
-    sdata[tid] = acc;
-    __syncthreads();
-#if (512 >= 512)
-    if (tid < 256) { sdata[tid] = sdata[tid] + sdata[tid + 256]; }
-    __syncthreads();
-#endif
-#if (512 >= 256)
-    if (tid < 128) { sdata[tid] = sdata[tid] + sdata[tid + 128]; }
-    __syncthreads();
-#endif
-#if (512 >= 128)
-    if (tid < 64) { sdata[tid] = sdata[tid] + sdata[tid + 64]; }
-    __syncthreads();
-#endif
-    if (tid < 32)
-    {
-        // 'volatile' required according to Fermi compatibility guide 1.2.2
-        volatile float *smem = sdata;
-        if (512 >= 64) smem[tid] = smem[tid] + smem[tid + 32];
-        if (512 >= 32) smem[tid] = smem[tid] + smem[tid + 16];
-        if (512 >= 16) smem[tid] = smem[tid] + smem[tid + 8];
-        if (512 >= 8)  smem[tid] = smem[tid] + smem[tid + 4];
-        if (512 >= 4)  smem[tid] = smem[tid] + smem[tid + 2];
-        if (512 >= 2)  smem[tid] = smem[tid] + smem[tid + 1];
-    }
-    if (tid == 0) out[blockIdx.x] = sdata[0];
-}
-
-
-
-extern "C"
-__global__ void mean_non_zeros_stage2(float *out, const float *cupy_reduction_inp, float *x, float *id,
-                           unsigned int seq_count, unsigned int n)
-{
-    // Needs to be variable-size to prevent the braindead CUDA compiler from
-    // running constructors on this array. Grrrr.
-    extern __shared__ float sdata[];
-    unsigned int tid = threadIdx.x;
-    unsigned int i = blockIdx.x * 512 * seq_count + tid;
-    float acc = 0;
-    for (unsigned s = 0; s < seq_count; ++s)
-    {
-        if (i >= n)
-            break;
-        acc = REDUCE(acc, (cupy_reduction_inp[i]));
-        i += 512;
-    }
-    sdata[tid] = acc;
-    __syncthreads();
-#if (512 >= 512)
-    if (tid < 256) { sdata[tid] = REDUCE(sdata[tid], sdata[tid + 256]); }
-    __syncthreads();
-#endif
-#if (512 >= 256)
-    if (tid < 128) { sdata[tid] = REDUCE(sdata[tid], sdata[tid + 128]); }
-    __syncthreads();
-#endif
-#if (512 >= 128)
-    if (tid < 64) { sdata[tid] = REDUCE(sdata[tid], sdata[tid + 64]); }
-    __syncthreads();
-#endif
-    if (tid < 32)
-    {
-        // 'volatile' required according to Fermi compatibility guide 1.2.2
-        volatile float *smem = sdata;
-        if (512 >= 64) smem[tid] = REDUCE(smem[tid], smem[tid + 32]);
-        if (512 >= 32) smem[tid] = REDUCE(smem[tid], smem[tid + 16]);
-        if (512 >= 16) smem[tid] = REDUCE(smem[tid], smem[tid + 8]);
-        if (512 >= 8)  smem[tid] = REDUCE(smem[tid], smem[tid + 4]);
-        if (512 >= 4)  smem[tid] = REDUCE(smem[tid], smem[tid + 2]);
-        if (512 >= 2)  smem[tid] = REDUCE(smem[tid], smem[tid + 1]);
-    }
-    if (tid == 0) out[blockIdx.x] = sdata[0];
-}
-
-
-
-
-extern "C"
-__global__ void stdKernel_stage1(float *out, float *x, float *y, float m,
-                      unsigned int seq_count, unsigned int n)
-{
-    // Needs to be variable-size to prevent the braindead CUDA compiler from
-    // running constructors on this array. Grrrr.
-    extern __shared__ float sdata[];
-    unsigned int tid = threadIdx.x;
-    unsigned int i = blockIdx.x * BLOCK_SIZE * seq_count + tid;
-    float acc = 0;
-    for (unsigned s = 0; s < seq_count; ++s)
-    {
-        if (i >= n)
-            break;
-        acc = REDUCE(acc, ((y[i] != 0) * (x[i] - m) * (x[i] - m)));
-        i += BLOCK_SIZE;
-    }
-    sdata[tid] = acc;
-    __syncthreads();
-#if (BLOCK_SIZE >= 512)
-    if (tid < 256) { sdata[tid] = REDUCE(sdata[tid], sdata[tid + 256]); }
-    __syncthreads();
-#endif
-#if (BLOCK_SIZE >= 256)
-    if (tid < 128) { sdata[tid] = REDUCE(sdata[tid], sdata[tid + 128]); }
-    __syncthreads();
-#endif
-#if (BLOCK_SIZE >= 128)
-    if (tid < 64) { sdata[tid] = REDUCE(sdata[tid], sdata[tid + 64]); }
-    __syncthreads();
-#endif
-    if (tid < 32)
-    {
-        // 'volatile' required according to Fermi compatibility guide 1.2.2
-        volatile float *smem = sdata;
-        if (BLOCK_SIZE >= 64) smem[tid] = REDUCE(smem[tid], smem[tid + 32]);
-        if (BLOCK_SIZE >= 32) smem[tid] = REDUCE(smem[tid], smem[tid + 16]);
-        if (BLOCK_SIZE >= 16) smem[tid] = REDUCE(smem[tid], smem[tid + 8]);
-        if (BLOCK_SIZE >= 8)  smem[tid] = REDUCE(smem[tid], smem[tid + 4]);
-        if (BLOCK_SIZE >= 4)  smem[tid] = REDUCE(smem[tid], smem[tid + 2]);
-        if (BLOCK_SIZE >= 2)  smem[tid] = REDUCE(smem[tid], smem[tid + 1]);
-    }
-    if (tid == 0) out[blockIdx.x] = sdata[0];
-}
-
-
-
-
-extern "C"
-__global__ void stdKernel_stage2(float *out, const float *cupy_reduction_inp, float *x, float *y, float m,
-                      unsigned int seq_count, unsigned int n)
-{
-    // Needs to be variable-size to prevent the braindead CUDA compiler from
-    // running constructors on this array. Grrrr.
-    extern __shared__ float sdata[];
-    unsigned int tid = threadIdx.x;
-    unsigned int i = blockIdx.x * BLOCK_SIZE * seq_count + tid;
-    float acc = 0;
-    for (unsigned s = 0; s < seq_count; ++s)
-    {
-        if (i >= n)
-            break;
-        acc = REDUCE(acc, (cupy_reduction_inp[i]));
-        i += BLOCK_SIZE;
-    }
-    sdata[tid] = acc;
-    __syncthreads();
-#if (BLOCK_SIZE >= 512)
-    if (tid < 256) { sdata[tid] = REDUCE(sdata[tid], sdata[tid + 256]); }
-    __syncthreads();
-#endif
-#if (BLOCK_SIZE >= 256)
-    if (tid < 128) { sdata[tid] = REDUCE(sdata[tid], sdata[tid + 128]); }
-    __syncthreads();
-#endif
-#if (BLOCK_SIZE >= 128)
-    if (tid < 64) { sdata[tid] = REDUCE(sdata[tid], sdata[tid + 64]); }
-    __syncthreads();
-#endif
-    if (tid < 32)
-    {
-        // 'volatile' required according to Fermi compatibility guide 1.2.2
-        volatile float *smem = sdata;
-        if (BLOCK_SIZE >= 64) smem[tid] = REDUCE(smem[tid], smem[tid + 32]);
-        if (BLOCK_SIZE >= 32) smem[tid] = REDUCE(smem[tid], smem[tid + 16]);
-        if (BLOCK_SIZE >= 16) smem[tid] = REDUCE(smem[tid], smem[tid + 8]);
-        if (BLOCK_SIZE >= 8)  smem[tid] = REDUCE(smem[tid], smem[tid + 4]);
-        if (BLOCK_SIZE >= 4)  smem[tid] = REDUCE(smem[tid], smem[tid + 2]);
-        if (BLOCK_SIZE >= 2)  smem[tid] = REDUCE(smem[tid], smem[tid + 1]);
-    }
-    if (tid == 0) out[blockIdx.x] = sdata[0];
-}
-
-
-
-
-extern "C"
-__global__ void sum_non_zeros_stage1(float *out, float *x,
-                          unsigned int seq_count, unsigned int n)
-{
-    // Needs to be variable-size to prevent the braindead CUDA compiler from
-    // running constructors on this array. Grrrr.
-    extern __shared__ float sdata[];
-    unsigned int tid = threadIdx.x;
-    unsigned int i = blockIdx.x * BLOCK_SIZE * seq_count + tid;
-    float acc = 0;
-    for (unsigned s = 0; s < seq_count; ++s)
-    {
-        if (i >= n)
-            break;
-        acc = REDUCE(acc, ((x[i] != 0)));
-        i += BLOCK_SIZE;
-    }
-    sdata[tid] = acc;
-    __syncthreads();
-#if (BLOCK_SIZE >= 512)
-    if (tid < 256) { sdata[tid] = REDUCE(sdata[tid], sdata[tid + 256]); }
-    __syncthreads();
-#endif
-#if (BLOCK_SIZE >= 256)
-    if (tid < 128) { sdata[tid] = REDUCE(sdata[tid], sdata[tid + 128]); }
-    __syncthreads();
-#endif
-#if (BLOCK_SIZE >= 128)
-    if (tid < 64) { sdata[tid] = REDUCE(sdata[tid], sdata[tid + 64]); }
-    __syncthreads();
-#endif
-    if (tid < 32)
-    {
-        // 'volatile' required according to Fermi compatibility guide 1.2.2
-        volatile float *smem = sdata;
-        if (BLOCK_SIZE >= 64) smem[tid] = REDUCE(smem[tid], smem[tid + 32]);
-        if (BLOCK_SIZE >= 32) smem[tid] = REDUCE(smem[tid], smem[tid + 16]);
-        if (BLOCK_SIZE >= 16) smem[tid] = REDUCE(smem[tid], smem[tid + 8]);
-        if (BLOCK_SIZE >= 8)  smem[tid] = REDUCE(smem[tid], smem[tid + 4]);
-        if (BLOCK_SIZE >= 4)  smem[tid] = REDUCE(smem[tid], smem[tid + 2]);
-        if (BLOCK_SIZE >= 2)  smem[tid] = REDUCE(smem[tid], smem[tid + 1]);
-    }
-    if (tid == 0) out[blockIdx.x] = sdata[0];
-}
-
-
-
-
-extern "C"
-__global__ void sum_non_zeros_stage2(float *out, const float *cupy_reduction_inp, float *x,
-                          unsigned int seq_count, unsigned int n)
-{
-    // Needs to be variable-size to prevent the braindead CUDA compiler from
-    // running constructors on this array. Grrrr.
-    extern __shared__ float sdata[];
-    unsigned int tid = threadIdx.x;
-    unsigned int i = blockIdx.x * BLOCK_SIZE * seq_count + tid;
-    float acc = 0;
-    for (unsigned s = 0; s < seq_count; ++s)
-    {
-        if (i >= n)
-            break;
-        acc = REDUCE(acc, (cupy_reduction_inp[i]));
-        i += BLOCK_SIZE;
-    }
-    sdata[tid] = acc;
-    __syncthreads();
-#if (BLOCK_SIZE >= 512)
-    if (tid < 256) { sdata[tid] = REDUCE(sdata[tid], sdata[tid + 256]); }
-    __syncthreads();
-#endif
-#if (BLOCK_SIZE >= 256)
-    if (tid < 128) { sdata[tid] = REDUCE(sdata[tid], sdata[tid + 128]); }
-    __syncthreads();
-#endif
-#if (BLOCK_SIZE >= 128)
-    if (tid < 64) { sdata[tid] = REDUCE(sdata[tid], sdata[tid + 64]); }
-    __syncthreads();
-#endif
-    if (tid < 32)
-    {
-        // 'volatile' required according to Fermi compatibility guide 1.2.2
-        volatile float *smem = sdata;
-        if (BLOCK_SIZE >= 64) smem[tid] = REDUCE(smem[tid], smem[tid + 32]);
-        if (BLOCK_SIZE >= 32) smem[tid] = REDUCE(smem[tid], smem[tid + 16]);
-        if (BLOCK_SIZE >= 16) smem[tid] = REDUCE(smem[tid], smem[tid + 8]);
-        if (BLOCK_SIZE >= 8)  smem[tid] = REDUCE(smem[tid], smem[tid + 4]);
-        if (BLOCK_SIZE >= 4)  smem[tid] = REDUCE(smem[tid], smem[tid + 2]);
-        if (BLOCK_SIZE >= 2)  smem[tid] = REDUCE(smem[tid], smem[tid + 1]);
-    }
-    if (tid == 0) out[blockIdx.x] = sdata[0];
-}
-
-
-
-
-
-
-extern "C"
-__global__ void bm_phase_exp_times_scalar_range(float *a, float *b, float c, int *d , long start, long stop, long step)
-{
-    unsigned tid = threadIdx.x;
-    unsigned total_threads = gridDim.x * blockDim.x;
-    unsigned cta_start = blockDim.x * blockIdx.x;
-    long i;
-    ;
-    if (step < 0)
-    {
-        for (i = start + (cta_start + tid) * step;
-                i > stop; i += total_threads * step)
-        {
-            a[i] = expf(c * b[i]) * d[i];
-        }
-    }
-    else
-    {
-        for (i = start + (cta_start + tid) * step;
-                i < stop; i += total_threads * step)
-        {
-            a[i] = expf(c * b[i]) * d[i];
-        }
-    }
-    ;
-}
-
-
-
-extern "C"
-__global__ void bm_phase_mul_add_range(float *a, float b, float *c, float d , long start, long stop, long step)
-{
-    unsigned tid = threadIdx.x;
-    unsigned total_threads = gridDim.x * blockDim.x;
-    unsigned cta_start = blockDim.x * blockIdx.x;
-    long i;
-    ;
-    if (step < 0)
-    {
-        for (i = start + (cta_start + tid) * step;
-                i > stop; i += total_threads * step)
-        {
-            a[i] = b * c[i] + d;
-        }
-    }
-    else
-    {
-        for (i = start + (cta_start + tid) * step;
-                i < stop; i += total_threads * step)
-        {
-            a[i] = b * c[i] + d;
-        }
-    }
-    ;
-}
-
-
-
-extern "C"
-__global__ void bm_sin_cos_range(float *a, float *b, float *c , long start, long stop, long step)
-{
-    unsigned tid = threadIdx.x;
-    unsigned total_threads = gridDim.x * blockDim.x;
-    unsigned cta_start = blockDim.x * blockIdx.x;
-    long i;
-    ;
-    if (step < 0)
-    {
-        for (i = start + (cta_start + tid) * step;
-                i > stop; i += total_threads * step)
-        {
-            sincosf(a[i], &b[i], &c[i]);
-        }
-    }
-    else
-    {
-        for (i = start + (cta_start + tid) * step;
-                i < stop; i += total_threads * step)
-        {
-            sincosf(a[i], &b[i], &c[i]);
-        }
-    }
-    ;
-}
-
-
-
 
 // This function calculates and applies only the synchrotron radiation damping term
 extern "C"
@@ -943,3 +349,70 @@ __global__ void synchrotron_radiation_full(
         }
     }
 }
+
+// extern "C"
+// __global__ void cuinterp(float *x,
+//                          int x_size,
+//                          float *xp,
+//                          int xp_size,
+//                          float *yp,
+//                          float *y,
+//                          float left,
+//                          float right)
+// {
+//     if (left == 0.12345)
+//         left = yp[0];
+//     if (right == 0.12345)
+//         right = yp[xp_size - 1];
+//     float curr;
+//     int lo;
+//     int mid;
+//     int hi;
+//     int tid = threadIdx.x + blockDim.x * blockIdx.x;
+//     for (int i = tid; i < x_size; i += blockDim.x * gridDim.x) {
+//         //need to find the right bin with binary search
+//         // looks like bisect_left
+//         curr = x[i];
+//         hi = xp_size;
+//         lo = 0;
+//         while (lo < hi) {
+//             mid = (lo + hi) / 2;
+//             if (xp[mid] < curr)
+//                 lo = mid + 1;
+//             else
+//                 hi = mid;
+//         }
+//         if (lo == xp_size)
+//             y[i] = right;
+//         else if (xp[lo - 1] == curr)
+//             y[i] = yp[i];
+//         else if (lo <= 1)
+//             y[i] = left;
+//         else {
+//             y[i] = yp[lo - 1] +
+//                    (yp[lo] - yp[lo - 1]) * (x[i] - xp[lo - 1]) /
+//                    (xp[lo] - xp[lo - 1]);
+//         }
+
+//     }
+// }
+
+// extern "C"
+// __global__ void cugradient(
+//     float x,
+//     int *y,
+//     float *g,
+//     int size)
+// {
+//     int tid = threadIdx.x + blockDim.x * blockIdx.x;
+//     for (int i = tid + 1; i < size - 1; i += blockDim.x * gridDim.x) {
+
+//         g[i] = (y[i + 1] - y[i - 1]) / (2 * x);
+//         // g[i] = (hs*hs*fd + (hd*hd-hs*hs)*fx - hd*hd*fs)/
+//         //     (hs*hd*(hd+hs));
+//     }
+//     if (tid == 0)
+//         g[0] = (y[1] - y[0]) / x;
+//     if (tid == 32)
+//         g[size - 1] = (y[size - 1] - y[size - 2]) / x;
+// }
