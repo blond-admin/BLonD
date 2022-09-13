@@ -239,7 +239,7 @@ class Worker:
             return sendbuf
 
 
-    def allreduce(self, sendbuf, recvbuf=None, dtype=np.uint32, operator='custom_sum',
+    def allreduce(self, sendbuf, recvbuf=None, dtype=np.uint32, operator='sum',
                   comm=None):
         if comm is None:
             comm = self.intercomm

@@ -497,14 +497,17 @@ class Profile(object):
             return
 
         if self.Beam.is_splitted:
+            
+            if bm.device == 'CPU':
             # Convert to uint32t for better performance
-            self.n_macroparticles = self.n_macroparticles.astype(
+                self.n_macroparticles = self.n_macroparticles.astype(
                     dtype, order='C')
 
             worker.allreduce(self.n_macroparticles)
 
+            if bm.device == 'CPU':
             # Convert back to float64
-            self.n_macroparticles = self.n_macroparticles.astype(
+                self.n_macroparticles = self.n_macroparticles.astype(
                     dtype=bm.precision.real_t, order='C', copy=False)
     
     def scale_histo(self):
