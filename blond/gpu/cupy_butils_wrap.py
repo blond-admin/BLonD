@@ -6,7 +6,7 @@ grid_size, block_size = bm.gpuDev().grid_size, bm.gpuDev().block_size
 kernels = bm.gpuDev().mod
 
 
-def gpu_rf_volt_comp(voltage, omega_rf, phi_rf, bin_centers):
+def rf_volt_comp(voltage, omega_rf, phi_rf, bin_centers):
     assert voltage.dtype == bm.precision.real_t
     assert omega_rf.dtype == bm.precision.real_t
     assert phi_rf.dtype == bm.precision.real_t
@@ -22,7 +22,7 @@ def gpu_rf_volt_comp(voltage, omega_rf, phi_rf, bin_centers):
     return rf_voltage
 
 
-def gpu_kick(dt, dE, voltage, omega_rf, phi_rf, charge, n_rf, acceleration_kick):
+def kick(dt, dE, voltage, omega_rf, phi_rf, charge, n_rf, acceleration_kick):
     assert dt.dtype == bm.precision.real_t
     assert dE.dtype == bm.precision.real_t
     assert omega_rf.dtype == bm.precision.real_t
@@ -44,7 +44,7 @@ def gpu_kick(dt, dE, voltage, omega_rf, phi_rf, charge, n_rf, acceleration_kick)
                 block=block_size, grid=grid_size)  
 
 
-def gpu_drift(dt, dE, solver, t_rev, length_ratio, alpha_order, eta_0,
+def drift(dt, dE, solver, t_rev, length_ratio, alpha_order, eta_0,
               eta_1, eta_2, alpha_0, alpha_1, alpha_2, beta, energy):
 
     solver = solver.decode('utf-8')
@@ -60,7 +60,7 @@ def gpu_drift(dt, dE, solver, t_rev, length_ratio, alpha_order, eta_0,
     drift(args=(dt,
                 dE,
                 solver,
-                t_rev.astype(bm.precision.real_t), bm.precision.real_t(length_ratio),
+                bm.precision.real_t(t_rev), bm.precision.real_t(length_ratio),
                 bm.precision.real_t(alpha_order), bm.precision.real_t(eta_0),
                 bm.precision.real_t(eta_1), bm.precision.real_t(eta_2),
                 bm.precision.real_t(alpha_0), bm.precision.real_t(alpha_1),
@@ -70,7 +70,7 @@ def gpu_drift(dt, dE, solver, t_rev, length_ratio, alpha_order, eta_0,
           block=block_size, grid=grid_size)
 
 
-def gpu_linear_interp_kick(dt, dE, voltage,
+def linear_interp_kick(dt, dE, voltage,
                            bin_centers, charge,
                            acceleration_kick):
     assert dt.dtype == bm.precision.real_t
@@ -111,7 +111,7 @@ def gpu_linear_interp_kick(dt, dE, voltage,
                                grid=grid_size, block=block_size)
 
 
-def gpu_linear_interp_kick_drift(dt, dE, total_voltage, bin_centers, charge, acc_kick,
+def linear_interp_kick_drift(dt, dE, total_voltage, bin_centers, charge, acc_kick,
                                  solver, t_rev, length_ratio, alpha_order, eta_0, eta_1,
                                  eta_2, beta, energy):
     assert dt.dtype == bm.precision.real_t
@@ -157,7 +157,7 @@ def gpu_linear_interp_kick_drift(dt, dE, total_voltage, bin_centers, charge, acc
                                      grid=grid_size, block=block_size)
 
 
-def gpu_slice(dt, profile, cut_left, cut_right):
+def slice(dt, profile, cut_left, cut_right):
 
     assert dt.dtype == bm.precision.real_t
     hybrid_histogram = kernels.get_function("hybrid_histogram")
@@ -185,7 +185,7 @@ def gpu_slice(dt, profile, cut_left, cut_right):
             shared_mem=bm.gpuDev().attributes['MaxSharedMemoryPerBlock'])
 
 
-def gpu_synchrotron_radiation(dE, U0, n_kicks, tau_z):
+def synchrotron_radiation(dE, U0, n_kicks, tau_z):
     assert dE.dtype == bm.precision.real_t
     synch_rad = kernels.get_function("synchrotron_radiation")
 
@@ -195,7 +195,7 @@ def gpu_synchrotron_radiation(dE, U0, n_kicks, tau_z):
               block=block_size, grid=grid_size)
 
 
-def gpu_synchrotron_radiation_full(dE, U0, n_kicks, tau_z, sigma_dE, energy):
+def synchrotron_radiation_full(dE, U0, n_kicks, tau_z, sigma_dE, energy):
     assert dE.dtype == bm.precision.real_t
     synch_rad_full = kernels.get_function("synchrotron_radiation_full")
 
@@ -213,7 +213,7 @@ def __beam_phase_helper(bin_centers, profile, alpha, omega_rf, phi_rf):
     return base * cp.sin(a), base * cp.cos(a)
 
 
-def gpu_beam_phase(bin_centers, profile, alpha, omega_rf, phi_rf, bin_size):
+def beam_phase(bin_centers, profile, alpha, omega_rf, phi_rf, bin_size):
     assert bin_centers.dtype == bm.precision.real_t
     assert profile.dtype == bm.precision.real_t
 
@@ -232,7 +232,7 @@ def __beam_phase_fast_helper(bin_centers, profile, omega_rf, phi_rf):
     return profile * cp.sin(a), profile * cp.cos(a)
 
 
-def gpu_beam_phase_fast(bin_centers, profile, omega_rf, phi_rf, bin_size):
+def beam_phase_fast(bin_centers, profile, omega_rf, phi_rf, bin_size):
     assert bin_centers.dtype == bm.precision.real_t
     assert profile.dtype == bm.precision.real_t
 
@@ -247,7 +247,7 @@ def gpu_beam_phase_fast(bin_centers, profile, omega_rf, phi_rf, bin_size):
 
 # cugradient = kernels.get_function("cugradient")
 
-# def gpu_convolve(signal, kernel, mode='full', result=None):
+# def convolve(signal, kernel, mode='full', result=None):
 #     if mode != 'full':
 #         # ConvolutionError
 #         raise RuntimeError('[convolve] Only full mode is supported')
@@ -258,7 +258,7 @@ def gpu_beam_phase_fast(bin_centers, profile, omega_rf, phi_rf, bin_size):
 #     return result
 
 
-# def gpu_interp(x, xp, yp, left=None, right=None, result=None):
+# def interp(x, xp, yp, left=None, right=None, result=None):
 #     cuinterp = kernels.get_function("cuinterp")
 
 #     if not left:
