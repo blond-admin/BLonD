@@ -57,6 +57,9 @@ def drift(dt, dE, solver, t_rev, length_ratio, alpha_order, eta_0,
 
     drift = kernels.get_function("drift")
 
+    if not isinstance(t_rev, float):
+        t_rev = float(t_rev)
+
     drift(args=(dt,
                 dE,
                 solver,
