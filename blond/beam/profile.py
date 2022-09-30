@@ -503,7 +503,16 @@ class Profile(object):
                 self.n_macroparticles = self.n_macroparticles.astype(
                     dtype, order='C')
 
+            if bm.device == 'GPU':
+                import cupy as cp
+                # tranfer to cpu
+                self.n_macroparticles = cp.asnumpy(self.n_macroparticles, dtype=dtype)
+
             worker.allreduce(self.n_macroparticles)
+
+            if bm.device == 'GPU':
+                # transfer back to gpu
+                self.n_macroparticles = cp.array(self.n_macroparticles, dtype=bm.precision.real_t)
 
             if bm.device == 'CPU':
             # Convert back to float64
