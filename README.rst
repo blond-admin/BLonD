@@ -405,13 +405,17 @@ __EXAMPLES/gpu_main_files/EX_01_Acceleration.py mainfile.
 
 .. code-block:: python
 
+    # Define Objects
+    beam = Beam(ring, N_p, N_b)
+    profile = Profile(beam, CutOptions(n_slices=100), 
+                  FitOptions(fit_option='gaussian'))
+    # Initialize gpu
     beam.to_gpu()
-    long_tracker.to_gpu()
     profile.to_gpu()
 
 If an object of this list is contained inside a different one you don't need to use the to_gpu() 
-for the contained object. In the previous example, we don't the first and the third line 
-since beam, and profile is contained inside the tracker. The same would apply in a TotalInducedVoltage
+for the contained object. In the previous example, we don't need to call beam.to_gpu()
+since beam is contained inside the profile. The same would apply in a TotalInducedVoltage
 object and the objects in its induced_voltage_list.
 
 
