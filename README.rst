@@ -142,7 +142,7 @@ There are some easy ways to reduce the execution time of your simulation:
     3. Pass the boost installation path when compiling BLonD:
         .. code-block:: bash
 
-         $ python blond/compile.py --boost=/user/path/to/boost_1_7_70/include
+         $ python blond/compile.py --boost=/user/path/to/boost_1_7_70
 
 4. Check the following section about the FFTW3 library.
 
