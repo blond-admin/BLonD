@@ -101,7 +101,15 @@ cpp_files = [
     os.path.join(basepath, 'beam/sparse_histogram.cpp'),
 ]
 
-nvccflags = ['nvcc', '--cubin', '-O3', '--use_fast_math', '-maxrregcount', '32']
+
+# Get nvcc from CUDA_PATH
+cuda_path = os.getenv('CUDA_PATH', default='')
+if cuda_path != '':
+    nvcc = cuda_path + '/bin/nvcc'
+else:
+    nvcc = 'nvcc'
+
+nvccflags = [nvcc, '--cubin', '-O3', '--use_fast_math', '-maxrregcount', '32']
 # nvccflags = ['nvcc', '--cubin', '-arch', 'sm_xx', '-O3', '--use_fast_math']
 
 if __name__ == "__main__":
