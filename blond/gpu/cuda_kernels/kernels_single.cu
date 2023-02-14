@@ -252,7 +252,7 @@ __global__ void lik_only_gm_comp(
     for (int i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
         fbin = floorf((beam_dt[i] - bin0) * inv_bin_width);
         if ((fbin < n_slices - 1) && (fbin >= 0))
-            beam_dE[i] += beam_dt[i] * glob_voltageKick[2*fbin] + glob_factor[2*fbin+1];
+            beam_dE[i] += beam_dt[i] * glob_vkick_factor[2*fbin] + glob_vkick_factor[2*fbin+1];
     }
 }
 
@@ -282,7 +282,7 @@ __global__ void lik_drift_only_gm_comp(
     for (int i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
         fbin = (unsigned) floorf((beam_dt[i] - bin0) * inv_bin_width);
         if ((fbin < n_slices - 1))
-            beam_dE[i] += beam_dt[i] * glob_voltageKick[2*fbin] + glob_factor[2*fbin+1];
+            beam_dE[i] += beam_dt[i] * glob_vkick_factor[2*fbin] + glob_vkick_factor[2*fbin+1];
         // beam_dt[i] += T * (1. / (1. - eta0 * beam_dE[i]) -1.);
         beam_dt[i] += T * beam_dE[i];
     }
