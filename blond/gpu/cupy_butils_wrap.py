@@ -5,6 +5,18 @@ from ..utils import bmath as bm
 grid_size, block_size = bm.gpuDev().grid_size, bm.gpuDev().block_size
 kernels = bm.gpuDev().mod
 
+# Load all required CUDA kernels
+rf_volt_comp_kernel = kernels.get_function("rf_volt_comp")
+kick_kernel = kernels.get_function("simple_kick")
+drift_kernel = kernels.get_function("drift")
+gm_linear_interp_kick_help = kernels.get_function("lik_only_gm_copy")
+gm_linear_interp_kick_comp = kernels.get_function("lik_only_gm_comp")
+gm_linear_interp_kick_drift_comp = kernels.get_function("lik_drift_only_gm_comp")
+hybrid_histogram = kernels.get_function("hybrid_histogram")
+sm_histogram = kernels.get_function("sm_histogram")
+synch_rad = kernels.get_function("synchrotron_radiation")
+synch_rad_full = kernels.get_function("synchrotron_radiation_full")
+
 
 def rf_volt_comp(voltage, omega_rf, phi_rf, bin_centers):
     assert voltage.dtype == bm.precision.real_t
@@ -14,9 +26,7 @@ def rf_volt_comp(voltage, omega_rf, phi_rf, bin_centers):
 
     rf_voltage = cp.zeros(bin_centers.size, bm.precision.real_t)
 
-    rf_volt_comp = kernels.get_function("rf_volt_comp")
-
-    rf_volt_comp(args=(voltage, omega_rf, phi_rf, bin_centers,
+    rf_volt_comp_kernel(args=(voltage, omega_rf, phi_rf, bin_centers,
               np.int32(voltage.size), np.int32(bin_centers.size), rf_voltage),
         block=block_size, grid=grid_size)
     return rf_voltage
@@ -27,8 +37,6 @@ def kick(dt, dE, voltage, omega_rf, phi_rf, charge, n_rf, acceleration_kick):
     assert dE.dtype == bm.precision.real_t
     assert omega_rf.dtype == bm.precision.real_t
     assert phi_rf.dtype == bm.precision.real_t
-
-    kick_kernel = kernels.get_function("simple_kick")
 
     voltage_kick = cp.empty(voltage.size, bm.precision.real_t)
     voltage_kick = charge * voltage
@@ -55,12 +63,11 @@ def drift(dt, dE, solver, t_rev, length_ratio, alpha_order, eta_0,
     else:
         solver = np.int32(2)
 
-    drift = kernels.get_function("drift")
 
     if not isinstance(t_rev, float):
         t_rev = float(t_rev)
 
-    drift(args=(dt,
+    drift_kernel(args=(dt,
                 dE,
                 solver,
                 bm.precision.real_t(t_rev), bm.precision.real_t(length_ratio),
@@ -84,11 +91,8 @@ def linear_interp_kick(dt, dE, voltage,
     macros = dt.size
     slices = bin_centers.size
 
-    gm_linear_interp_kick_help = kernels.get_function("lik_only_gm_copy")
-    gm_linear_interp_kick_comp = kernels.get_function("lik_only_gm_comp")
-
-    voltage_kick = cp.empty(slices - 1, bm.precision.real_t)
-    dev_factor = cp.empty(slices - 1, bm.precision.real_t)
+    
+    glob_vkick_factor = cp.empty(2*(slices - 1), bm.precision.real_t)
     gm_linear_interp_kick_help(args=(dt,
                                      dE,
                                      voltage,
@@ -97,8 +101,7 @@ def linear_interp_kick(dt, dE, voltage,
                                      np.int32(slices),
                                      np.int32(macros),
                                      bm.precision.real_t(acceleration_kick),
-                                     voltage_kick,
-                                     dev_factor),
+                                     glob_vkick_factor),
                                grid=grid_size, block=block_size)
 
     gm_linear_interp_kick_comp(args=(dt,
@@ -109,27 +112,22 @@ def linear_interp_kick(dt, dE, voltage,
                                      np.int32(slices),
                                      np.int32(macros),
                                      bm.precision.real_t(acceleration_kick),
-                                     voltage_kick,
-                                     dev_factor),
+                                     glob_vkick_factor),
                                grid=grid_size, block=block_size)
 
 
 def linear_interp_kick_drift(dt, dE, total_voltage, bin_centers, charge, acc_kick,
-                                 solver, t_rev, length_ratio, alpha_order, eta_0, eta_1,
-                                 eta_2, beta, energy):
+                                t_rev, length_ratio, alpha_order, eta_0, beta, energy):
     assert dt.dtype == bm.precision.real_t
     assert dE.dtype == bm.precision.real_t
     assert total_voltage.dtype == bm.precision.real_t
     assert bin_centers.dtype == bm.precision.real_t
-    gm_linear_interp_kick_drift_comp = kernels.get_function(
-        "lik_drift_only_gm_comp")
-    gm_linear_interp_kick_help = kernels.get_function("lik_only_gm_copy")
+    
 
     macros = dt.size
     slices = bin_centers.size
 
-    voltage_kick = cp.empty(slices - 1, bm.precision.real_t)
-    factor = cp.empty(slices - 1, bm.precision.real_t)
+    glob_vkick_factor = cp.empty(2*(slices - 1), bm.precision.real_t)
 
     gm_linear_interp_kick_help(args=(dt,
                                      dE,
@@ -139,8 +137,7 @@ def linear_interp_kick_drift(dt, dE, total_voltage, bin_centers, charge, acc_kic
                                      np.int32(slices),
                                      np.int32(macros),
                                      bm.precision.real_t(acc_kick),
-                                     voltage_kick,
-                                     factor),
+                                     glob_vkick_factor),
                                grid=grid_size, block=block_size)
     gm_linear_interp_kick_drift_comp(args=(dt,
                                            dE,
@@ -150,8 +147,7 @@ def linear_interp_kick_drift(dt, dE, total_voltage, bin_centers, charge, acc_kic
                                            np.int32(slices),
                                            np.int32(macros),
                                            bm.precision.real_t(acc_kick),
-                                           voltage_kick,
-                                           factor,
+                                           glob_vkick_factor,
                                            bm.precision.real_t(t_rev),
                                            bm.precision.real_t(length_ratio),
                                            bm.precision.real_t(eta_0),
@@ -163,9 +159,7 @@ def linear_interp_kick_drift(dt, dE, total_voltage, bin_centers, charge, acc_kic
 def slice(dt, profile, cut_left, cut_right):
 
     assert dt.dtype == bm.precision.real_t
-    hybrid_histogram = kernels.get_function("hybrid_histogram")
-    sm_histogram = kernels.get_function("sm_histogram")
-
+    
     n_slices = profile.size
     profile.fill(0)
 
@@ -190,8 +184,7 @@ def slice(dt, profile, cut_left, cut_right):
 
 def synchrotron_radiation(dE, U0, n_kicks, tau_z):
     assert dE.dtype == bm.precision.real_t
-    synch_rad = kernels.get_function("synchrotron_radiation")
-
+   
     synch_rad(args=(dE, bm.precision.real_t(U0/n_kicks), np.int32(dE.size),
                     bm.precision.real_t(tau_z * n_kicks),
                     np.int32(n_kicks)),
@@ -200,8 +193,7 @@ def synchrotron_radiation(dE, U0, n_kicks, tau_z):
 
 def synchrotron_radiation_full(dE, U0, n_kicks, tau_z, sigma_dE, energy):
     assert dE.dtype == bm.precision.real_t
-    synch_rad_full = kernels.get_function("synchrotron_radiation_full")
-
+    
     synch_rad_full(args=(dE, bm.precision.real_t(U0/n_kicks), np.int32(dE.size),
                          bm.precision.real_t(sigma_dE),
                          bm.precision.real_t(tau_z * n_kicks),

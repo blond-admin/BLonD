@@ -214,8 +214,7 @@ __global__ void lik_only_gm_copy(
     const int n_slices,
     const int n_macroparticles,
     const float acc_kick,
-    float * __restrict__ glob_voltageKick,
-    float * __restrict__ glob_factor
+    float * __restrict__ glob_vkick_factor
 )
 {
     int tid = threadIdx.x + blockDim.x * blockIdx.x;
@@ -224,9 +223,9 @@ __global__ void lik_only_gm_copy(
 
 
     for (int i = tid; i < n_slices - 1; i += gridDim.x * blockDim.x) {
-        glob_voltageKick[i] = charge * (voltage_array[i + 1] - voltage_array[i])
+        glob_vkick_factor[2*i] = charge * (voltage_array[i + 1] - voltage_array[i])
                               * inv_bin_width;
-        glob_factor[i] = (charge * voltage_array[i] - bin_centers[i] * glob_voltageKick[i])
+        glob_vkick_factor[2*i+1] = (charge * voltage_array[i] - bin_centers[i] * glob_vkick_factor[2*i])
                          + acc_kick;
     }
 }
@@ -242,8 +241,7 @@ __global__ void lik_only_gm_comp(
     const int n_slices,
     const int n_macroparticles,
     const float acc_kick,
-    float * __restrict__ glob_voltageKick,
-    float * __restrict__ glob_factor
+    float * __restrict__ glob_vkick_factor
 )
 {
     int tid = threadIdx.x + blockDim.x * blockIdx.x;
@@ -254,7 +252,7 @@ __global__ void lik_only_gm_comp(
     for (int i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
         fbin = floorf((beam_dt[i] - bin0) * inv_bin_width);
         if ((fbin < n_slices - 1) && (fbin >= 0))
-            beam_dE[i] += beam_dt[i] * glob_voltageKick[fbin] + glob_factor[fbin];
+            beam_dE[i] += beam_dt[i] * glob_voltageKick[2*fbin] + glob_factor[2*fbin+1];
     }
 }
 
@@ -269,8 +267,7 @@ __global__ void lik_drift_only_gm_comp(
     const int n_slices,
     const int n_macroparticles,
     const float acc_kick,
-    float *glob_voltageKick,
-    float *glob_factor,
+    float *glob_vkick_factor,
     const float T0, const float length_ratio,
     const float eta0, const float beta, const float energy
 )
@@ -285,7 +282,7 @@ __global__ void lik_drift_only_gm_comp(
     for (int i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
         fbin = (unsigned) floorf((beam_dt[i] - bin0) * inv_bin_width);
         if ((fbin < n_slices - 1))
-            beam_dE[i] += beam_dt[i] * glob_voltageKick[fbin] + glob_factor[fbin];
+            beam_dE[i] += beam_dt[i] * glob_voltageKick[2*fbin] + glob_factor[2*fbin+1];
         // beam_dt[i] += T * (1. / (1. - eta0 * beam_dE[i]) -1.);
         beam_dt[i] += T * beam_dE[i];
     }
