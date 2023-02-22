@@ -28,6 +28,8 @@ from blond.beam.profile import CutOptions, FitOptions, Profile
 from blond.monitors.monitors import BunchMonitor
 from blond.plots.plot import Plot
 import os
+import matplotlib as mpl
+mpl.use('Agg')
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 

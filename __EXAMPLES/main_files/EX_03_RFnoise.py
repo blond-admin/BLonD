@@ -27,6 +27,8 @@ from blond.monitors.monitors import BunchMonitor
 from blond.plots.plot import Plot
 from blond.llrf.rf_noise import FlatSpectrum
 import os
+import matplotlib as mpl
+mpl.use('Agg')
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 

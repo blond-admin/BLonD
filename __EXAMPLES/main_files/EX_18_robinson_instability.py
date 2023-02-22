@@ -29,6 +29,8 @@ from blond.beam.profile import Profile, CutOptions
 from blond.impedances.impedance import InducedVoltageFreq, TotalInducedVoltage
 from blond.impedances.impedance_sources import Resonators
 from scipy.constants import c, e, m_p
+import matplotlib as mpl
+mpl.use('Agg')
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 

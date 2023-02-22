@@ -26,6 +26,9 @@ from blond.beam.beam import Beam, Proton
 from blond.plots.plot import Plot
 from blond.llrf.beam_feedback import BeamFeedback
 import os
+import matplotlib as mpl
+mpl.use('Agg')
+
 from blond.utils import bmath as bm
 from blond.utils.mpi_config import worker, mpiprint
 bm.use_mpi()

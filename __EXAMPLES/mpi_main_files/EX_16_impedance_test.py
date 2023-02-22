@@ -32,6 +32,9 @@ from blond.impedances.impedance import InductiveImpedance, TotalInducedVoltage
 from blond.impedances.impedance_sources import Resonators
 from scipy.constants import c, e, m_p
 import os
+import matplotlib as mpl
+mpl.use('Agg')
+
 from blond.utils import bmath as bm
 from blond.utils.mpi_config import worker, mpiprint
 bm.use_mpi()

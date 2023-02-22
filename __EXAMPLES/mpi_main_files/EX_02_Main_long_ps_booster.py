@@ -29,6 +29,9 @@ from blond.impedances.impedance_sources import InputTable
 from blond.impedances.impedance import InductiveImpedance, InducedVoltageFreq, TotalInducedVoltage
 from scipy.constants import m_p, e, c
 import os
+import matplotlib as mpl
+mpl.use('Agg')
+
 from blond.utils import bmath as bm
 from blond.utils.mpi_config import worker, mpiprint
 bm.use_mpi()

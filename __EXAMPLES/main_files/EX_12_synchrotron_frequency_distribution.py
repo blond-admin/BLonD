@@ -32,6 +32,9 @@ from blond.trackers.utilities import synchrotron_frequency_distribution
 from scipy.constants import m_p, e, c
 from scipy.special import ellipk
 import os
+import matplotlib as mpl
+mpl.use('Agg')
+
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 
 

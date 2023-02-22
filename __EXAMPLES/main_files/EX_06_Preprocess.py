@@ -22,6 +22,9 @@ from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.rf_parameters_options import RFStationOptions
 from blond.beam.beam import Proton
 import os
+import matplotlib as mpl
+mpl.use('Agg')
+
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 
 os.makedirs(this_directory + '../output_files/EX_06_fig', exist_ok=True)

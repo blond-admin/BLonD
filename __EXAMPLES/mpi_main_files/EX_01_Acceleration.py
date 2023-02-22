@@ -28,6 +28,9 @@ from blond.beam.profile import CutOptions, FitOptions, Profile
 from blond.monitors.monitors import BunchMonitor
 from blond.plots.plot import Plot
 import os
+import matplotlib as mpl
+mpl.use('Agg')
+
 from blond.utils import bmath as bm
 from blond.utils.mpi_config import worker, mpiprint
 bm.use_mpi()

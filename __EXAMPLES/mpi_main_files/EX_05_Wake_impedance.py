@@ -35,6 +35,9 @@ from blond.plots.plot import Plot
 from blond.plots.plot_impedance import plot_induced_voltage_vs_bin_centers
 from blond.impedances.impedance_sources import Resonators
 import os
+import matplotlib as mpl
+mpl.use('Agg')
+
 from blond.utils import bmath as bm
 from blond.utils.mpi_config import worker, mpiprint
 bm.use_mpi()

@@ -29,6 +29,9 @@ from blond.beam.profile import Profile, CutOptions
 from blond.beam.beam import Beam, Particle
 from blond.plots.plot import Plot
 import os
+import matplotlib as mpl
+mpl.use('Agg')
+
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 
 os.makedirs(this_directory + '../output_files/EX_07_fig', exist_ok=True)

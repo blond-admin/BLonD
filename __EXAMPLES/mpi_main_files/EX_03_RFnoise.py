@@ -27,6 +27,9 @@ from blond.monitors.monitors import BunchMonitor
 from blond.plots.plot import Plot
 from blond.llrf.rf_noise import FlatSpectrum
 import os
+import matplotlib as mpl
+mpl.use('Agg')
+
 from blond.utils import bmath as bm
 from blond.utils.mpi_config import worker, mpiprint
 bm.use_mpi()

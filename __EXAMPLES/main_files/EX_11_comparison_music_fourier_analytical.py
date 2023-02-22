@@ -28,6 +28,9 @@ import blond.impedances.induced_voltage_analytical as indVoltAn
 import blond.impedances.music as musClass
 from scipy.constants import m_p, e, c
 import os
+import matplotlib as mpl
+mpl.use('Agg')
+
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 
 fig_directory = this_directory + '../output_files/EX_11_fig/'

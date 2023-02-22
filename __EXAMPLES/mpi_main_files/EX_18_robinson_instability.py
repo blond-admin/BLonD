@@ -18,6 +18,9 @@ from __future__ import division
 from __future__ import print_function
 from builtins import range
 import os
+import matplotlib as mpl
+mpl.use('Agg')
+
 import numpy as np
 import pylab as plt
 from blond.input_parameters.ring import Ring

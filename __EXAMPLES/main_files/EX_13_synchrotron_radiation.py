@@ -27,6 +27,8 @@ from blond.trackers.tracker import RingAndRFTracker, FullRingAndRF
 from blond.synchrotron_radiation.synchrotron_radiation import SynchrotronRadiation
 from scipy.constants import c, e, m_e
 from blond.beam.profile import CutOptions
+import matplotlib as mpl
+mpl.use('Agg')
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 
