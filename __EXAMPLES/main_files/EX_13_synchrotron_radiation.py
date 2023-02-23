@@ -27,18 +27,13 @@ from blond.trackers.tracker import RingAndRFTracker, FullRingAndRF
 from blond.synchrotron_radiation.synchrotron_radiation import SynchrotronRadiation
 from scipy.constants import c, e, m_e
 from blond.beam.profile import CutOptions
+import matplotlib as mpl
+mpl.use('Agg')
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 
+os.makedirs(this_directory + '../output_files/EX_13_fig/', exist_ok=True)
 
-try:
-    os.mkdir(this_directory + '../output_files')
-except:
-    pass
-try:
-    os.mkdir(this_directory + '../output_files/EX_13_fig')
-except:
-    pass
 
 
 # SIMULATION PARAMETERS -------------------------------------------------------

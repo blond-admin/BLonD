@@ -62,9 +62,9 @@ def matched_from_distribution_density_multibunch(beam, Ring, FullRingAndRF, dist
     harmonics = np.array([])
 
     for RingAndRFSectionElement in FullRingAndRF.RingAndRFSection_list:
-            for rf_system in range(RingAndRFSectionElement.n_rf):
-                voltages = np.append(voltages, RingAndRFSectionElement.voltage[rf_system, 0])
-                harmonics = np.append(harmonics, RingAndRFSectionElement.harmonic[rf_system, 0])
+            for rf_system in range(RingAndRFSectionElement.rf_params.n_rf):
+                voltages = np.append(voltages, RingAndRFSectionElement.rf_params.voltage[rf_system, 0])
+                harmonics = np.append(harmonics, RingAndRFSectionElement.rf_params.harmonic[rf_system, 0])
 
     if main_harmonic_option == 'lowest_freq':
             main_harmonic = np.min(harmonics)
@@ -252,9 +252,9 @@ def matched_from_line_density_multibunch(beam, Ring,
     harmonics = np.array([])
 
     for RingAndRFSectionElement in FullRingAndRF.RingAndRFSection_list:
-            for rf_system in range(RingAndRFSectionElement.n_rf):
-                voltages = np.append(voltages, RingAndRFSectionElement.voltage[rf_system, 0])
-                harmonics = np.append(harmonics, RingAndRFSectionElement.harmonic[rf_system, 0])
+            for rf_system in range(RingAndRFSectionElement.rf_params.n_rf):
+                voltages = np.append(voltages, RingAndRFSectionElement.rf_params.voltage[rf_system, 0])
+                harmonics = np.append(harmonics, RingAndRFSectionElement.rf_params.harmonic[rf_system, 0])
 
     if main_harmonic_option == 'lowest_freq':
             main_harmonic = np.min(harmonics)

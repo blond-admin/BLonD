@@ -25,16 +25,13 @@ from blond.beam.beam import Beam, Proton
 from blond.plots.plot import Plot
 from blond.llrf.beam_feedback import BeamFeedback
 import os
+import matplotlib as mpl
+mpl.use('Agg')
+
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 
-try:
-    os.mkdir(this_directory + '../output_files')
-except:
-    pass
-try:
-    os.mkdir(this_directory + '../output_files/EX_09_fig')
-except:
-    pass
+os.makedirs(this_directory + '../output_files/EX_9_fig', exist_ok=True)
+
 
 # Beam parameters
 n_macroparticles = 100000

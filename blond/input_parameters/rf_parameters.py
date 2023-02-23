@@ -20,6 +20,7 @@ from scipy.constants import c
 from scipy.integrate import cumtrapz
 from ..beam.beam import Proton
 from ..input_parameters.rf_parameters_options import RFStationOptions
+from ..utils import bmath as bm
 
 
 class RFStation(object):
@@ -220,6 +221,8 @@ class RFStation(object):
                  section_index=1, omega_rf=None, phi_noise=None,
                  phi_modulation=None, RFStationOptions=RFStationOptions()):
 
+
+
         # Different indices
         self.counter = [int(0)]
         self.section_index = int(section_index - 1)
@@ -244,6 +247,8 @@ class RFStation(object):
         self.alpha_order = Ring.alpha_order
         self.charge = self.Particle.charge
 
+
+
         # The order alpha_order used here can be replaced by Ring.alpha_order
         # when the assembler can differentiate the cases 'simple' and 'exact'
         # for the drift
@@ -262,13 +267,15 @@ class RFStation(object):
                                                       self.n_rf,
                                                       Ring.cycle_time,
                                                       Ring.RingOptions.t_start)
+        self.harmonic = self.harmonic.astype(bm.precision.real_t, order='C', copy=False)
+
         # Reshape design voltage
         self.voltage = RFStationOptions.reshape_data(voltage,
                                                      self.n_turns,
                                                      self.n_rf,
                                                      Ring.cycle_time,
                                                      Ring.RingOptions.t_start)
-
+        self.voltage = self.voltage.astype(bm.precision.real_t, order='C', copy=False)
         # Checking if the RFStation is empty
         if np.sum(self.voltage) == 0:
             self.empty = True
@@ -293,6 +300,7 @@ class RFStation(object):
                 self.n_rf,
                 Ring.cycle_time,
                 Ring.RingOptions.t_start)
+        self.omega_rf_d = self.omega_rf_d.astype(bm.precision.real_t, order='C', copy=False)
 
         # Reshape phase noise
         if phi_noise is not None:
@@ -302,6 +310,9 @@ class RFStation(object):
                 self.n_rf,
                 Ring.cycle_time,
                 Ring.RingOptions.t_start)
+            self.phi_noise = self.phi_noise.astype(bm.precision.real_t, order='C', copy=False)
+
+            
         else:
             self.phi_noise = None
             
@@ -312,8 +323,8 @@ class RFStation(object):
             except TypeError:
                 phi_modulation = [phi_modulation]
             
-            dPhi = np.zeros([self.n_rf, self.n_turns+1])
-            dOmega = np.zeros([self.n_rf, self.n_turns+1])
+            dPhi = np.zeros([self.n_rf, self.n_turns+1], dtype=bm.precision.real_t)
+            dOmega = np.zeros([self.n_rf, self.n_turns+1], dtype=bm.precision.real_t)
             for pMod in phi_modulation:
                 system = np.where(self.harmonic[:,0] == pMod.harmonic)[0]
                 if len(system) == 0:
@@ -346,11 +357,12 @@ class RFStation(object):
             
             self.phi_modulation = None
 
+
         # Copy of the desing rf programs in the one used for tracking
         # and that can be changed by feedbacks
-        self.phi_rf = np.array(self.phi_rf_d)
-        self.dphi_rf = np.zeros(self.n_rf)
-        self.omega_rf = np.array(self.omega_rf_d)
+        self.phi_rf = np.array(self.phi_rf_d).astype(bm.precision.real_t)
+        self.dphi_rf = np.zeros(self.n_rf).astype(bm.precision.real_t)
+        self.omega_rf = np.array(self.omega_rf_d).astype(bm.precision.real_t)
         self.t_rf = 2*np.pi / self.omega_rf
 
         # From helper functions
@@ -358,6 +370,7 @@ class RFStation(object):
             self.phi_s = calculate_phi_s(self, self.Particle)
             self.Q_s = calculate_Q_s(self, self.Particle)
             self.omega_s0 = self.Q_s*Ring.omega_rev
+
 
     def eta_tracking(self, beam, counter, dE):
         r"""Function to calculate the slippage factor as a function of the
@@ -378,6 +391,58 @@ class RFStation(object):
                 eta += eta_i * (delta**i)
             return eta
 
+    def to_gpu(self, recursive=True):
+        '''
+        Transfer all necessary arrays to the GPU
+        '''
+        # Check if to_gpu has been invoked already
+        if hasattr(self, '_device') and self._device == 'GPU':
+            return
+        assert bm.device == 'GPU'
+        import cupy as cp
+        if self.phi_modulation is not None:
+            self.phi_modulation = (cp.array(self.phi_modulation[0]),
+                                   cp.array(self.phi_modulation[1]))
+        if self.phi_noise is not None:
+            self.phi_noise = cp.array(self.phi_noise)
+
+        self.voltage = cp.array(self.voltage)
+        self.omega_rf = cp.array(self.omega_rf)
+        self.phi_rf = cp.array(self.phi_rf)
+        self.omega_rf_d = cp.array(self.omega_rf_d)
+        self.harmonic = cp.array(self.harmonic)
+        self.dphi_rf = cp.array(self.dphi_rf)
+        self.t_rf = cp.array(self.t_rf)
+        self.t_rev = cp.array(self.t_rev)
+
+        # to make sure it will not be called again
+        self._device = 'GPU'
+
+    def to_cpu(self, recursive=True):
+        '''
+        Transfer all necessary arrays back to the CPU
+        '''
+        # Check if to_cpu has been invoked already
+        if hasattr(self, '_device') and self._device == 'CPU':
+            return
+        assert bm.device == 'CPU'
+        import cupy as cp
+        if self.phi_modulation is not None:
+            self.phi_modulation = (cp.asnumpy(self.phi_modulation[0]),
+                                   cp.asnumpy(self.phi_modulation[1]))
+        if self.phi_noise is not None:
+            self.phi_noise = cp.asnumpy(self.phi_noise)
+
+        self.voltage = cp.asnumpy(self.voltage)
+        self.omega_rf = cp.asnumpy(self.omega_rf)
+        self.phi_rf = cp.asnumpy(self.phi_rf)
+        self.omega_rf_d = cp.asnumpy(self.omega_rf_d)
+        self.harmonic = cp.asnumpy(self.harmonic)
+        self.dphi_rf = cp.asnumpy(self.dphi_rf)
+        self.t_rf = cp.asnumpy(self.t_rf)
+        self.t_rev = cp.asnumpy(self.t_rev)
+        # to make sure it will not be called again
+        self._device = 'CPU'
 
 def calculate_Q_s(RFStation, Particle=Proton()):
     r""" Function calculating the turn-by-turn synchrotron tune for
@@ -519,3 +584,4 @@ def calculate_phi_s(RFStation, Particle=Proton(),
     else:
         raise RuntimeError("ERROR in calculate_phi_s(): unrecognised" +
                            " accelerating_systems option")
+

@@ -455,6 +455,7 @@ class MultiBunchMonitor(object):
             self.b_std_dt = np.zeros(
                 (self.buffer_size, self.Nbunches), dtype=float)
 
+
     def __del__(self):
         if self.i_turn > self.last_save:
             self.write_data()

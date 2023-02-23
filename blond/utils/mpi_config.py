@@ -1,10 +1,13 @@
 import sys
 import os
+from mpi4py import MPI
 import numpy as np
 import logging
 from functools import wraps
+import socket
+
+
 from ..utils import bmath as bm
-from mpi4py import MPI
 
 worker = None
 
@@ -38,45 +41,53 @@ def sequential_wrap(f, beam, split_args={}, gather_args={}):
 
 
 class Worker:
+    def __init__(self):
+        self.log = False
 
-    def __init__(self, args={}):
-        # args = parse()
-        # self.indices = {}
+        # Global inter-communicator
         self.intercomm = MPI.COMM_WORLD
         self.rank = self.intercomm.rank
-
-        # self.intercomm = MPI.COMM_WORLD.Split(self.rank == 0, self.rank)
-        # self.intercomm = self.intercomm.Create_intercomm(0, MPI.COMM_WORLD, 1)
-
         self.workers = self.intercomm.size
 
+        # Get hostname
         self.hostname = MPI.Get_processor_name()
-        self.log = args.get('log', False)
-        # self.trace = args.get('trace', False)
+        
+        # Get host IP
+        self.hostip = socket.gethostbyname(self.hostname)
+        # Create communicator with processes on the same host
+        color = np.dot(np.array(self.hostip.split('.'), int)
+                       [1:], [1, 256, 256**2])
+        self.nodecomm = self.intercomm.Split(color, self.rank)
+        self.noderank = self.nodecomm.rank
+        self.nodeworkers = self.nodecomm.size
 
-        if self.log:
-            self.logger = MPILog(
-                rank=self.rank, log_dir=args.get('logdir', './logs'))
-        else:
-            self.logger = MPILog(rank=self.rank)
+        # Assign default values for GPUs
+        self.gpu_id = -1
+        self.hasGPU = False
+
+    def assignGPUs(self, num_gpus=0):
+        if self.noderank < num_gpus:
+            self.hasGPU = True
+            self.gpu_id = self.noderank
+
+    def initLog(self, log, logdir):
+        self.log = log
+        self.logger = MPILog(rank=self.rank, log_dir=logdir)
+        if not self.log:
             self.logger.disable()
 
-        # if self.trace:
-        #     mpiprof.mode = 'tracing'
-        #     mpiprof.init(logfile=args.get('tracefile', 'trace'))
 
     def __del__(self):
         pass
-        # if self.trace:
-        # mpiprof.finalize()
 
     @property
     def isMaster(self):
         return self.rank == 0
 
-
+    # Define the begin and size numbers in order to split a variable of length size
     def gather(self, var):
-        self.logger.debug('gather')
+        if self.log:
+            self.logger.debug('gather')
 
         # First I need to know the total size
         counts = np.zeros(self.workers, dtype=int)
@@ -100,8 +111,10 @@ class Worker:
             return var
 
     # All workers gather the variable var (from all workers)
+
     def allgather(self, var):
-        self.logger.debug('allgather')
+        if self.log:
+            self.logger.debug('allgather')
 
         # One first gather to collect all the sizes
         counts = np.zeros(self.workers, dtype=int)
@@ -120,7 +133,8 @@ class Worker:
         return recvbuf
 
     def scatter(self, var):
-        self.logger.debug('scatter')
+        if self.log:
+            self.logger.debug('scatter')
 
         # First broadcast the total_size from the master
         total_size = int(self.intercomm.bcast(len(var), root=0))
@@ -141,50 +155,27 @@ class Worker:
 
         return recvbuf
 
-    def broadcast(self, var):
-        self.logger.debug('broadcast')
+    def broadcast(self, var, root=0):
+        if self.log:
+            self.logger.debug('broadcast')
 
         # First broadcast the size and dtype from the master
-        recvbuf = self.intercomm.bcast([len(var), var.dtype.char], root=0)
-        size, dtype = recvbuf[0], recvbuf[1]
+        # recvbuf = self.intercomm.bcast([len(var), var.dtype.char], root=0)
+        # size, dtype = recvbuf[0], recvbuf[1]
 
         if self.isMaster:   
-            recvbuf = self.intercomm.bcast(var, root=0)
+            recvbuf = self.intercomm.bcast(var, root=root)
         else:
-            recvbuf = np.empty(size, dtype=dtype)
-            recvbuf = self.intercomm.bcast(var, root=0)
+            recvbuf = None
+            recvbuf = self.intercomm.bcast(recvbuf, root=root)
 
         return recvbuf
 
-    # def allreduce(self, sendbuf, recvbuf=None):
-    #     self.logger.debug('allreduce')
-    #     dtype = sendbuf.dtype.name
-    #     if dtype == 'int16':
-    #         op = add_op_int16
-    #     elif dtype == 'int32':
-    #         op = add_op_int32
-    #     elif dtype == 'int64':
-    #         op = add_op_int64
-    #     elif dtype == 'uint16':
-    #         op = add_op_uint16
-    #     elif dtype == 'uint32':
-    #         op = add_op_uint32
-    #     elif dtype == 'uint64':
-    #         op = add_op_uint64
-    #     elif dtype == 'float32':
-    #         op = add_op_float32
-    #     elif dtype == 'float64':
-    #         op = add_op_float64
-    #     else:
-    #         print('Error: Not recognized dtype:{}'.format(dtype))
-    #         exit(-1)
 
-    #     if (recvbuf is None) or (sendbuf is recvbuf):
-    #         self.intercomm.Allreduce(MPI.IN_PLACE, sendbuf, op=op)
-    #     else:
-    #         self.intercomm.Allreduce(sendbuf, recvbuf, op=op)
-
-    def reduce(self, sendbuf, recvbuf=None, dtype=np.uint32, operator='custom_sum'):
+    def reduce(self, sendbuf, recvbuf=None, dtype=np.uint32, operator='custom_sum',
+               comm=None):
+        if comm is None:
+            comm = self.intercomm
         # supported ops:
         # sum, mean, std, max, min, prod, custom_sum
         if self.log:
@@ -233,10 +224,10 @@ class Worker:
 
         if worker.isMaster:
             if (recvbuf is None) or (sendbuf is recvbuf):
-                self.intercomm.Reduce(MPI.IN_PLACE, sendbuf, op=op, root=0)
+                comm.Reduce(MPI.IN_PLACE, sendbuf, op=op, root=0)
                 recvbuf = sendbuf
             else:
-                self.intercomm.Reduce(sendbuf, recvbuf, op=op, root=0)
+                comm.Reduce(sendbuf, recvbuf, op=op, root=0)
 
             if operator in ['mean', 'avg']:
                 return recvbuf / self.workers
@@ -244,10 +235,15 @@ class Worker:
                 return recvbuf
         else:
             recvbuf = None
-            self.intercomm.Reduce(sendbuf, recvbuf, op=op, root=0)
+            comm.Reduce(sendbuf, recvbuf, op=op, root=0)
             return sendbuf
 
-    def allreduce(self, sendbuf, recvbuf=None, dtype=np.uint32, operator='custom_sum'):
+
+    def allreduce(self, sendbuf, recvbuf=None, dtype=np.uint32, operator='sum',
+                  comm=None):
+        if comm is None:
+            comm = self.intercomm
+
         # supported ops:
         # sum, mean, std, max, min, prod, custom_sum
         if self.log:
@@ -292,10 +288,10 @@ class Worker:
             return np.array([np.sqrt(totals / (np.sum(recvbuf[2::3]) - 1))])
 
         if (recvbuf is None) or (sendbuf is recvbuf):
-            self.intercomm.Allreduce(MPI.IN_PLACE, sendbuf, op=op)
+            comm.Allreduce(MPI.IN_PLACE, sendbuf, op=op)
             recvbuf = sendbuf
         else:
-            self.intercomm.Allreduce(sendbuf, recvbuf, op=op)
+            comm.Allreduce(sendbuf, recvbuf, op=op)
 
         if operator in ['mean', 'avg']:
 
@@ -303,64 +299,38 @@ class Worker:
         else:
             return recvbuf
 
-
     def sync(self):
-        self.logger.debug('sync')
+        if self.log:
+            self.logger.debug('sync')
         self.intercomm.Barrier()
 
+
     def finalize(self):
-        self.logger.debug('finalize')
+        if self.log:
+            self.logger.debug('finalize')
         if not self.isMaster:
             sys.exit(0)
 
     def greet(self):
-        self.logger.debug('greet')
+        if self.log:
+            self.logger.debug('greet')
         print('[{}]@{}: Hello World!'.format(self.rank, self.hostname))
 
     def print_version(self):
-        self.logger.debug('version')
-        # print('[{}] Library version: {}'.format(self.rank, MPI.Get_library_version()))
-        # print('[{}] Version: {}'.format(self.rank,MPI.Get_version()))
+        if self.log:
+            self.logger.debug('version')
         print('[{}] Library: {}'.format(self.rank, MPI.get_vendor()))
 
-    # class sequential_context:
-    #     class SkipWithBlock(Exception):
-    #         pass
-
-    #     def __init__(self, beam, split_args={}, gather_args={}):
-    #         self.beam = beam
-    #         self.split_args = split_args
-    #         self.gather_args = gather_args
-
-    #     def __enter__(self):
-    #         self.beam.split(**self.split_args)
-    #         if not worker.isMaster:
-    #             # Do some magic
-    #             sys.settrace(lambda *args, **keys: None)
-    #             frame = sys._getframe(1)
-    #             frame.f_trace = self.trace
-
-    #     def trace(self, fname, event, arg):
-    #         raise self.SkipWithBlock()
-
-    #     def __exit__(self, type, value, traceback):
-    #         self.beam.gather(**self.gather_args)
-    #         if type is None:
-    #             return
-    #         if issubclass(type, self.SkipWithBlock):
-    #             return True
 
 
 class MPILog(object):
     """Class to log messages coming from other classes. Messages contain 
     {Time stamp} {Class name} {Log level} {Message}. Errors, warnings and info
     are logged into the console. To disable logging, call Logger().disable()
-
     Parameters
     ----------
     debug : bool
         Log DEBUG messages in 'debug.log'; default is False
-
     """
 
     def __init__(self, rank=0, log_dir='./logs'):
@@ -368,13 +338,11 @@ class MPILog(object):
         # Root logger on DEBUG level
         self.disabled = False
         self.root_logger = logging.getLogger()
-        self.root_logger.setLevel(logging.DEBUG)
-        os.makedirs(log_dir, exist_ok=True)
+        self.root_logger.setLevel(logging.WARNING)
+        if not os.path.exists(log_dir):
+            os.makedirs(log_dir, exist_ok=True)
 
-        if rank < 0:
-            log_name = log_dir+'/master.log'
-        else:
-            log_name = log_dir+'/worker-%.3d.log' % rank
+        log_name = log_dir+'/worker-%.3d.log' % rank
         # Console handler on INFO level
         # console_handler = logging.StreamHandler()
         # console_handler.setLevel(logging.INFO)
@@ -384,10 +352,10 @@ class MPILog(object):
         # self.root_logger.addHandler(console_handler)
 
         self.file_handler = logging.FileHandler(log_name, mode='w')
-        self.file_handler.setLevel(logging.DEBUG)
+        self.file_handler.setLevel(logging.WARNING)
         self.file_handler.setFormatter(log_format)
         self.root_logger.addHandler(self.file_handler)
-        logging.debug("Initialized")
+        logging.info("Initialized")
         # if debug == True:
         #     logging.debug("Logger in debug mode")
 
@@ -408,6 +376,10 @@ class MPILog(object):
     def info(self, string):
         if self.disabled == False:
             logging.info(string)
+
+    def critical(self, string):
+        if self.disabled == False:
+            logging.critical(string)
 
 
 if worker is None:

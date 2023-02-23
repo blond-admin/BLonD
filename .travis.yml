@@ -51,10 +51,10 @@ install:
         wget http://www.fftw.org/fftw-3.3.8.tar.gz > /dev/null;
         tar -xzvf fftw-3.3.8.tar.gz > /dev/null;
         cd fftw-3.3.8;
-        ./configure --prefix=$HOME/install/ --enable-openmp --enable-threads --enable-single --enable-avx --enable-avx2 --enable-fma --with-our-malloc --disable-fortran --enable-shared > /dev/null;
+        ./configure --prefix=$HOME/install/ --enable-openmp --enable-single --enable-avx --enable-avx2 --enable-fma --with-our-malloc --disable-fortran --enable-shared > /dev/null;
         make -j4 > /dev/null;
         make install > /dev/null;
-        ./configure --prefix=$HOME/install/ --enable-openmp --enable-threads --enable-avx --enable-avx2 --enable-fma --with-our-malloc --disable-fortran --enable-shared > /dev/null;
+        ./configure --prefix=$HOME/install/ --enable-openmp --enable-avx --enable-avx2 --enable-fma --with-our-malloc --disable-fortran --enable-shared > /dev/null;
         make -j4 > /dev/null;
         make install > /dev/null;
     fi
@@ -68,8 +68,7 @@ before_script:
   - export OMP_NUM_THREADS=2
 script:
   # - echo "Running tests"
-  - coverage run -m pytest -v --ignore=unittests/integration/test_validate_mpi.py unittests/ && coverage run --append -m pytest -v unittests/integration/test_validate_mpi.py
-  # - coverage run -m pytest -v unittests/utils/test_blondmath.py
+  - coverage run -m pytest -v -k 'not test_validate' -W ignore::DeprecationWarning unittests/ && coverage run --append -m pytest -v -k 'test_validate' -W ignore::DeprecationWarning
 after_success:
   # echo "Success"
   - coverage report
@@ -77,14 +76,6 @@ after_success:
   - if ! [[ "$TRAVIS_PULL_REQUEST" = ^[0-9]+$ ]]; then exit 0 ; fi ;
   - if [[ "$TRAVIS_BRANCH" != "master" ]]; then exit 0 ; fi ;
   - python -m pip install --upgrade pyqt5 sphinx sphinxcontrib-napoleon sphinx-autopackagesummary
-  # - mkdir -p ~/.ssh
-  # Needs ssh key generated using "ssh-keygen -f key_fname -t rsa"
-  # Env variable is private key encoded using "cat privatekey | base64 -w0" to avoid str manipulations
-  # - (echo "$GITHUB_TOKEN_DOCS" | base64 -d) > ~/.ssh/id_rsa
-  # - chmod 700 ~/.ssh/id_rsa
-  # - eval "$(ssh-agent -s)"
-  # - ssh-add ~/.ssh/id_rsa
-  # - ssh-keyscan -t rsa 'github.com' >> ~/.ssh/known_hosts 
   - git config --global user.name travis-ci
   - git config --global user.email travis@example.org
   - cd __doc

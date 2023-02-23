@@ -248,10 +248,13 @@ Set-up Instructions
     cd ~
     mkdir -p ~/downloads
     cd downloads
-    wget http://www.fftw.org/fftw-3.3.8.tar.gz
-    tar -xzvf fftw-3.3.8.tar.gz
-    cd fftw-3.3.8
-    ./configure --prefix=$HOME/install/ --enable-openmp --enable-single --enable-sse2 --enable-avx --enable-avx2 --enable-fma --enable-avx-128-fma  --with-our-malloc --disable-fortran --enable-shared
+    wget http://www.fftw.org/fftw-3.3.10.tar.gz
+    tar -xzvf fftw-3.3.10.tar.gz
+    cd fftw-3.3.10
+    ./configure --prefix=$HOME/install/ --enable-openmp --enable-single --enable-avx --enable-avx2 --enable-fma --with-our-malloc --disable-fortran --enable-shared
+    make -j4
+    make install
+    ./configure --prefix=$HOME/install/ --enable-openmp --enable-avx --enable-avx2 --enable-fma --with-our-malloc --disable-fortran --enable-shared
     make -j4
     make install
 
@@ -324,6 +327,92 @@ Changes required in the main file for MPI
     $ mpirun -n P python main_file.py
 
 7. For more examples have a look at the __EXAMPLES/mpi_main_files/ directory. 
+
+
+Using the GPU Implementation
+=============================
+
+Setup Instructions
+------------------
+
+Install **Cuda** from the following link https://developer.nvidia.com/cuda-downloads.
+
+Install **CuPy** library with 
+
+.. code-block:: bash
+    
+    $ pip install cupy-cuda11x 
+
+**CuPy v11.0.0 supports all CUDA 11.2+ releases.**
+
+To verify your installation open a python terminal and execute the following script
+
+.. code-block:: python
+
+    import cupy as cp 
+    import numpy as np 
+    a = cp.array(np.zeros(1000,np.float64)) 
+
+To compile the Cuda files execute blond/compile.py and add the flag --gpu. The Compute
+Capability of your GPU will be automatically detected:
+
+.. code-block:: bash
+
+    $ python blond/compile.py --gpu 
+
+Changes required in the main file for GPU
+-----------------------------------------
+
+1. Right before your main loop you need to add:
+
+.. code-block:: python
+
+    from blond.utils import bmath as bm
+    bm.use_gpu() # change some of the basic functions(kick, drift, ffts etc) to their GPU equivalent
+
+2. Also for every object you are using in your main loop that is in the following list
+
++--------------------------------------+
+| GPU objects                          |
++======================================+
+| Beam                                 |
++--------------------------------------+
+|Profile                               |
++--------------------------------------+
+|RingAndRFTracker                      |
++--------------------------------------+
+|TotalInducedVoltage                   |
++--------------------------------------+
+|_InducedVoltage                       |
++--------------------------------------+
+|InducedVoltageFreq                    |
++--------------------------------------+
+|InductiveImpedance                    |
++--------------------------------------+
+|InducedVoltageResonator               |
++--------------------------------------+
+|RFStation                             |
++--------------------------------------+
+|BeamFeedback                          |
++--------------------------------------+
+
+you need to call their to_gpu() method. The following is a typical example from the
+__EXAMPLES/gpu_main_files/EX_01_Acceleration.py mainfile. 
+
+.. code-block:: python
+
+    # Define Objects
+    beam = Beam(ring, N_p, N_b)
+    profile = Profile(beam, CutOptions(n_slices=100), 
+                  FitOptions(fit_option='gaussian'))
+    # Initialize gpu
+    beam.to_gpu()
+    profile.to_gpu()
+
+If an object of this list is contained inside a different one you don't need to use the to_gpu() 
+for the contained object. In the previous example, we don't need to call beam.to_gpu()
+since beam is contained inside the profile. The same would apply in a TotalInducedVoltage
+object and the objects in its induced_voltage_list.
 
 
 CURRENT DEVELOPERS

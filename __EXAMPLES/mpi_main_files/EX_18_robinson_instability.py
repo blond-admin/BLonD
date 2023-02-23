@@ -18,6 +18,9 @@ from __future__ import division
 from __future__ import print_function
 from builtins import range
 import os
+import matplotlib as mpl
+mpl.use('Agg')
+
 import numpy as np
 import pylab as plt
 from blond.input_parameters.ring import Ring
@@ -36,14 +39,7 @@ print = mpiprint
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 
-try:
-    os.mkdir(this_directory + '../mpi_output_files')
-except:
-    pass
-try:
-    os.mkdir(this_directory + '../mpi_output_files/EX_18_fig')
-except:
-    pass
+os.makedirs(this_directory + '../mpi_output_files/EX_18_fig', exist_ok=True)
 
 
 # SIMULATION PARAMETERS -------------------------------------------------------

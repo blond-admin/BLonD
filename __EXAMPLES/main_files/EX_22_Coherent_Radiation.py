@@ -22,16 +22,12 @@ from blond.impedances.impedance_sources import CoherentSynchrotronRadiation
 from blond.beam.beam import Electron
 
 import os
+import matplotlib as mpl
+mpl.use('Agg')
+
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 
-try:
-    os.mkdir(this_directory + '../output_files')
-except FileExistsError:
-    pass
-try:
-    os.mkdir(this_directory + '../output_files/EX_22_fig')
-except FileExistsError:
-    pass
+os.makedirs(this_directory + '../output_files/EX_22_fig/', exist_ok=True)
 
 
 h, r_bend = 32e-3, 1.273  # chamber height [m], bending radius [m]

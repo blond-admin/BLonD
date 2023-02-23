@@ -26,17 +26,14 @@ from blond.beam.profile import CutOptions, Profile, FitOptions
 from blond.monitors.monitors import BunchMonitor
 from blond.plots.plot import Plot
 import os
+import matplotlib as mpl
+mpl.use('Agg')
+
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 
 
-try:
-    os.mkdir(this_directory + '../output_files')
-except:
-    pass
-try:
-    os.mkdir(this_directory + '../output_files/EX_04_fig')
-except:
-    pass
+os.makedirs(this_directory + '../output_files/EX_04_fig', exist_ok=True)
+
 
 # Simulation parameters -------------------------------------------------------
 # Bunch parameters

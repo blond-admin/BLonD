@@ -19,15 +19,15 @@ import subprocess
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 main_files_dir = os.path.join(this_directory, '../../__EXAMPLES/main_files')
 exec_args = ['python']
-
+timeout = 90    # Timeout in seconds
 
 class TestExamples(unittest.TestCase):
 
-    def _runExample(self, example, timeout=90):
+    def _runExample(self, example, timeout=timeout):
         file = os.path.join(main_files_dir, example)
         try:
-            ret = subprocess.call(exec_args + [file], timeout=timeout)
-            self.assertEqual(ret, 0)
+            ret = subprocess.run(exec_args + [file], timeout=timeout)
+            self.assertEqual(ret.returncode, 0)
         except subprocess.TimeoutExpired as e:
             raise unittest.SkipTest(
                 '[{}] Timed out (timeout={}s)'.format(example, e.timeout))
@@ -125,6 +125,9 @@ class TestExamples(unittest.TestCase):
         example = 'EX_21_bunch_distribution.py'
         self._runExample(example)
 
+    def test_EX_22_Coherent_Radiation(self):
+        example = 'EX_22_Coherent_Radiation.py'
+        self._runExample(example)
 
 if __name__ == '__main__':
 

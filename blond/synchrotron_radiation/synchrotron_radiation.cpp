@@ -29,7 +29,7 @@ using namespace std;
 
 #endif
 
-long unsigned int seed = clock();
+long unsigned int seed = 1234;
 
 // This function calculates and applies only the synchrotron radiation damping term
 extern "C" void synchrotron_radiation(double * __restrict__ beam_dE, const double U0,

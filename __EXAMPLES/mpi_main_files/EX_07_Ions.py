@@ -29,6 +29,9 @@ from blond.beam.profile import Profile, CutOptions
 from blond.beam.beam import Beam, Particle
 from blond.plots.plot import Plot
 import os
+import matplotlib as mpl
+mpl.use('Agg')
+
 from blond.utils import bmath as bm
 from blond.utils.mpi_config import worker, mpiprint
 bm.use_mpi()
@@ -36,14 +39,8 @@ print = mpiprint
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 
-try:
-    os.mkdir(this_directory + '../mpi_output_files')
-except:
-    pass
-try:
-    os.mkdir(this_directory + '../mpi_output_files/EX_07_fig')
-except:
-    pass
+os.makedirs(this_directory + '../mpi_output_files/EX_07_fig', exist_ok=True)
+
 
 
 # Simulation parameters --------------------------------------------------------

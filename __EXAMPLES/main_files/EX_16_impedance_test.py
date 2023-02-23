@@ -32,16 +32,12 @@ from blond.impedances.impedance import InductiveImpedance, TotalInducedVoltage
 from blond.impedances.impedance_sources import Resonators
 from scipy.constants import c, e, m_p
 import os
+import matplotlib as mpl
+mpl.use('Agg')
+
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 
-try:
-    os.mkdir(this_directory + '../output_files')
-except:
-    pass
-try:
-    os.mkdir(this_directory + '../output_files/EX_16_fig')
-except:
-    pass
+os.makedirs(this_directory + '../output_files/EX_16_fig/', exist_ok=True)
 
 
 # SIMULATION PARAMETERS -------------------------------------------------------

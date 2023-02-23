@@ -22,7 +22,7 @@ import numpy as np
 import copy
 from scipy.constants import c
 from scipy.integrate import cumtrapz
-
+from ..utils import bmath as bm
 
 
 def synchrotron_frequency_distribution(Beam, FullRingAndRF, main_harmonic_option = 'lowest_freq', 
@@ -52,10 +52,10 @@ def synchrotron_frequency_distribution(Beam, FullRingAndRF, main_harmonic_option
     '''
     
     # Initialize variables depending on the accelerator parameters
-    slippage_factor = FullRingAndRF.RingAndRFSection_list[0].eta_0[0]
+    slippage_factor = FullRingAndRF.RingAndRFSection_list[0].rf_params.eta_0[0]
                         
     eom_factor_dE = abs(slippage_factor) / (2*Beam.beta**2. * Beam.energy)
-    eom_factor_potential = np.sign(slippage_factor) * Beam.Particle.charge / (FullRingAndRF.RingAndRFSection_list[0].t_rev[0])
+    eom_factor_potential = np.sign(slippage_factor) * Beam.Particle.charge / (FullRingAndRF.RingAndRFSection_list[0].rf_params.t_rev[0])
 
     # Generate potential well
     n_points_potential = int(1e4)
@@ -382,9 +382,9 @@ def hamiltonian(Ring, RFStation, Beam, dt, dE,
     counter = RFStation.counter[0]
     h0 = RFStation.harmonic[0,counter]
     if total_voltage == None:
-        V0 = RFStation.voltage[0,counter]
+        V0 = float(RFStation.voltage[0,counter])
     else: 
-        V0 = total_voltage[counter]
+        V0 = float(total_voltage[counter])
     V0 *= RFStation.Particle.charge
     
     c1 = RFStation.eta_tracking(Beam, counter, dE)*c*np.pi/ \
@@ -403,8 +403,8 @@ def hamiltonian(Ring, RFStation, Beam, dt, dE,
     elif eta0 > 0:
         phi_b = phase_modulo_above_transition(phi_b)    
 
-    return c1 * dE**2 + c2 * (np.cos(phi_b) - np.cos(phi_s) + 
-                               (phi_b - phi_s) * np.sin(phi_s))
+    return c1 * dE**2 + c2 * (bm.cos(phi_b) - bm.cos(phi_s) + 
+                               (phi_b - phi_s) * bm.sin(phi_s))
          
  
  
@@ -568,8 +568,8 @@ def is_in_separatrix(Ring, RFStation, Beam, dt, dE,
      
     Hsep = hamiltonian(Ring, RFStation, Beam, dt_sep, 0, 
                        total_voltage = None) 
-    isin = np.fabs(hamiltonian(Ring, RFStation, Beam, 
-                               dt, dE, total_voltage = None)) < np.fabs(Hsep)
+    isin = bm.fabs(hamiltonian(Ring, RFStation, Beam, 
+                               dt, dE, total_voltage = None)) < bm.fabs(Hsep)
      
     return isin
         
@@ -692,7 +692,7 @@ def phase_modulo_above_transition(phi):
     *Projects a phase array into the range -Pi/2 to +3*Pi/2.*
     '''
     
-    return phi - 2.*np.pi*np.floor(phi/(2.*np.pi))
+    return phi - 2.*np.pi*bm.floor(phi/(2.*np.pi))
 
 
  
@@ -701,7 +701,7 @@ def phase_modulo_below_transition(phi):
     *Projects a phase array into the range -Pi/2 to +3*Pi/2.*
     '''
     
-    return phi - 2.*np.pi*(np.floor(phi/(2.*np.pi) + 0.5))
+    return phi - 2.*np.pi*(bm.floor(phi/(2.*np.pi) + 0.5))
         
 
 
@@ -710,4 +710,4 @@ def time_modulo(dt, dt_offset, T):
     *Returns dt projected onto the desired interval.*
     '''
     
-    return dt - T*np.floor((dt + dt_offset)/T)
+    return dt - T*bm.floor((dt + dt_offset)/T)

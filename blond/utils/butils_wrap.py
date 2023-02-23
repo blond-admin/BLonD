@@ -13,13 +13,14 @@ from .. import libblond as __lib
 
 class Precision:
     def __init__(self, precision='double'):
-        self.str = precision
         if precision in ['single', 's', '32', 'float32', 'float', 'f']:
+            self.str = 'float32'
             self.real_t = np.float32
             self.c_real_t = ct.c_float
             self.complex_t = np.complex64
             self.num = 1
         elif precision in ['double', 'd', '64', 'float64']:
+            self.str = 'float64'
             self.real_t = np.float64
             self.c_real_t = ct.c_double
             self.complex_t = np.complex128
@@ -77,9 +78,9 @@ class c_complex64(ct.Structure):
 #           True: element satisfied the cond, False: otherwise
 
 
-def where(x, more_than=None, less_than=None, result=None):
+def where_cpp(x, more_than=None, less_than=None, result=None):
     if result is None:
-        result = np.empty_like(x, dtype=np.bool)
+        result = np.empty_like(x, dtype=bool)
     if more_than is None and less_than is not None:
         __lib.where_less_than(__getPointer(x), x.size,
                               ct.c_double(less_than),
@@ -101,7 +102,7 @@ def where(x, more_than=None, less_than=None, result=None):
     return result
 
 
-def add(a, b, result=None, inplace=False):
+def add_cpp(a, b, result=None, inplace=False):
     if(len(a) != len(b)):
         raise ValueError(
             'operands could not be broadcast together with shapes ',
@@ -164,7 +165,7 @@ def add(a, b, result=None, inplace=False):
     return result
 
 
-def mul(a, b, result=None):
+def mul_cpp(a, b, result=None):
     if(type(a) == np.ndarray and type(b) != np.ndarray):
         if result is None:
             result = np.empty_like(a, order='C')
@@ -176,7 +177,7 @@ def mul(a, b, result=None):
             __lib.scalar_mul_int64(__getPointer(a), ct.c_int64(np.int64(b)),
                                    __getLen(a), __getPointer(result))
         elif (a.dtype == 'float32'):
-            __lib.scalar_mul_float64(__getPointer(a), ct.c_float(np.float32(b)),
+            __lib.scalar_mul_float32(__getPointer(a), ct.c_float(np.float32(b)),
                                      __getLen(a), __getPointer(result))
         elif (a.dtype == 'float64'):
             __lib.scalar_mul_float64(__getPointer(a), ct.c_double(np.float64(b)),
@@ -191,7 +192,7 @@ def mul(a, b, result=None):
             raise TypeError('type ', a.dtype, ' is not supported')
 
     elif(type(b) == np.ndarray and type(a) != np.ndarray):
-        return mul(b, a, result)
+        return mul_cpp(b, a, result)
     elif(type(a) == np.ndarray and type(b) == np.ndarray):
         if result is None:
             result = np.empty_like(a, order='C')
@@ -203,7 +204,7 @@ def mul(a, b, result=None):
             __lib.vector_mul_int64(__getPointer(a), __getPointer(b),
                                    __getLen(a), __getPointer(result))
         elif (a.dtype == 'float32'):
-            __lib.vector_mul_float64(__getPointer(a), __getPointer(b),
+            __lib.vector_mul_float32(__getPointer(a), __getPointer(b),
                                      __getLen(a), __getPointer(result))
         elif (a.dtype == 'float64'):
             __lib.vector_mul_float64(__getPointer(a), __getPointer(b),
@@ -222,17 +223,17 @@ def mul(a, b, result=None):
     return result
 
 
-def argmin(x):
+def argmin_cpp(x):
     __lib.min_idx.restype = ct.c_int
     return __lib.min_idx(__getPointer(x), __getLen(x))
 
 
-def argmax(x):
+def argmax_cpp(x):
     __lib.max_idx.restype = ct.c_int
     return __lib.max_idx(__getPointer(x), __getLen(x))
 
 
-def linspace(start, stop, num=50, retstep=False, result=None):
+def linspace_cpp(start, stop, num=50, retstep=False, result=None):
     if result is None:
         result = np.empty(num, dtype=float)
     __lib.linspace(__c_real(start), __c_real(stop),
@@ -243,7 +244,7 @@ def linspace(start, stop, num=50, retstep=False, result=None):
         return result
 
 
-def arange(start, stop, step, dtype=float, result=None):
+def arange_cpp(start, stop, step, dtype=float, result=None):
     size = int(np.ceil((stop-start)/step))
     if result is None:
         result = np.empty(size, dtype=dtype)
@@ -257,12 +258,12 @@ def arange(start, stop, step, dtype=float, result=None):
     return result
 
 
-def sum(x):
+def sum_cpp(x):
     __lib.sum.restype = ct.c_double
     return __lib.sum(__getPointer(x), __getLen(x))
 
 
-def sort(x, reverse=False):
+def sort_cpp(x, reverse=False):
     if x.dtype == 'int32':
         __lib.sort_int(__getPointer(x), __getLen(x), ct.c_bool(reverse))
     elif x.dtype == 'float64':
@@ -287,7 +288,7 @@ def convolve(signal, kernel, mode='full', result=None):
     return result
 
 
-def mean(x):
+def mean_cpp(x):
     if isinstance(x[0], np.float32):
         __lib.meanf.restype = ct.c_float
         return __lib.meanf(__getPointer(x), __getLen(x))
@@ -296,7 +297,7 @@ def mean(x):
         return __lib.mean(__getPointer(x), __getLen(x))
 
 
-def std(x):
+def std_cpp(x):
     if isinstance(x[0], np.float32):
         __lib.stdevf.restype = ct.c_float
         return __lib.stdevf(__getPointer(x), __getLen(x))
@@ -305,7 +306,7 @@ def std(x):
         return __lib.stdev(__getPointer(x), __getLen(x))
 
 
-def sin(x, result=None):
+def sin_cpp(x, result=None):
     if isinstance(x, np.ndarray) and isinstance(x[0], np.float64):
         if result is None:
             result = np.empty(len(x), dtype=np.float64, order='C')
@@ -324,7 +325,7 @@ def sin(x, result=None):
         raise RuntimeError('[sin] The type %s is not supported' % type(x))
 
 
-def cos(x, result=None):
+def cos_cpp(x, result=None):
     if isinstance(x, np.ndarray) and isinstance(x[0], np.float64):
         if result is None:
             result = np.empty(len(x), dtype=np.float64, order='C')
@@ -343,7 +344,7 @@ def cos(x, result=None):
         raise RuntimeError('[cos] The type %s is not supported' % type(x))
 
 
-def exp(x, result=None):
+def exp_cpp(x, result=None):
     if isinstance(x, np.ndarray) and isinstance(x[0], np.float64):
         if result is None:
             result = np.empty(len(x), dtype=np.float64, order='C')
@@ -362,7 +363,7 @@ def exp(x, result=None):
         raise RuntimeError('[exp] The type %s is not supported' % type(x))
 
 
-def interp(x, xp, yp, left=None, right=None, result=None):
+def interp_cpp(x, xp, yp, left=None, right=None, result=None):
     x = x.astype(dtype=precision.real_t, order='C', copy=False)
     xp = xp.astype(dtype=precision.real_t, order='C', copy=False)
     yp = yp.astype(dtype=precision.real_t, order='C', copy=False)
@@ -538,7 +539,7 @@ def cumtrapz(y, x=None, dx=1.0, initial=None, result=None):
     return result
 
 
-def trapz(y, x=None, dx=1.0):
+def trapz_cpp(y, x=None, dx=1.0):
     if x is None:
         __lib.trapz_const_delta.restype = ct.c_double
         return __lib.trapz_const_delta(__getPointer(y), __c_real(dx),
@@ -547,13 +548,6 @@ def trapz(y, x=None, dx=1.0):
         __lib.trapz_var_delta.restype = ct.c_double
         return __lib.trapz_var_delta(__getPointer(y), __getPointer(x),
                                      __getLen(y))
-
-
-# def beam_phase(beamFB, omegarf, phirf):
-#     return _beam_phase(beamFB.profile.bin_centers,
-#                        beamFB.profile.n_macroparticles,
-#                        beamFB.alpha, omegarf, phirf,
-#                        beamFB.profile.bin_size)
 
 
 def beam_phase(bin_centers, profile, alpha, omegarf, phirf, bin_size):
@@ -580,6 +574,21 @@ def beam_phase(bin_centers, profile, alpha, omegarf, phirf, bin_size):
                                  __c_real(phirf),
                                  __c_real(bin_size),
                                  __getLen(profile))
+    return coeff
+
+
+def beam_phase_fast(bin_centers, profile, omegarf, phirf, bin_size):
+    bin_centers = bin_centers.astype(dtype=precision.real_t, order='C',
+                                     copy=False)
+    profile = profile.astype(dtype=precision.real_t, order='C', copy=False)
+
+    __lib.beam_phase_fast.restype = ct.c_double
+    coeff = __lib.beam_phase_fast(__getPointer(bin_centers),
+                             __getPointer(profile),
+                             __c_real(omegarf),
+                             __c_real(phirf),
+                             __c_real(bin_size),
+                             __getLen(profile))
     return coeff
 
 
@@ -624,7 +633,6 @@ def kick(dt, dE, voltage, omega_rf, phi_rf, charge, n_rf, acceleration_kick):
     omegarf_kick = omega_rf.astype(
         dtype=precision.real_t, order='C', copy=False)
     phirf_kick = phi_rf.astype(dtype=precision.real_t, order='C', copy=False)
-
     if precision.num == 1:
         __lib.kickf(__getPointer(dt),
                     __getPointer(dE),

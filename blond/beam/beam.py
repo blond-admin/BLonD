@@ -25,7 +25,7 @@ from ..utils import bmath as bm
 
 
 class Particle(object):
-    """Class containing basic parameters, e.g. mass, of the particles to be tracked.
+    r"""Class containing basic parameters, e.g. mass, of the particles to be tracked.
 
     The following particles are already implemented: proton, electron, positron
 
@@ -107,7 +107,7 @@ class Positron(Particle):
 
 
 class Beam(object):
-    """Class containing the beam properties.
+    r"""Class containing the beam properties.
 
     This class containes the beam coordinates (dt, dE) and the beam properties.
 
@@ -212,6 +212,7 @@ class Beam(object):
         self._sumsq_dt = 0.
         self._sumsq_dE = 0.
 
+
     @property
     def n_macroparticles_lost(self):
         '''Number of lost macro-particles, defined as @property.
@@ -222,8 +223,7 @@ class Beam(object):
             number of macroparticles lost.
 
         '''
-
-        return len(np.where(self.id == 0)[0])
+        return self.n_macroparticles - self.n_macroparticles_alive
 
     @property
     def n_macroparticles_alive(self):
@@ -236,7 +236,7 @@ class Beam(object):
 
         '''
 
-        return self.n_macroparticles - self.n_macroparticles_lost
+        return bm.count_nonzero(self.id)
 
     def eliminate_lost_particles(self):
         """Eliminate lost particles from the beam coordinate arrays
@@ -256,7 +256,7 @@ class Beam(object):
                                " eliminated!")
 
     def statistics(self):
-        '''
+        r'''
         Calculation of the mean and standard deviation of beam coordinates,
         as well as beam emittance using different definitions.
         Take no arguments, statistics stored in
@@ -268,20 +268,19 @@ class Beam(object):
         '''
 
         # Statistics only for particles that are not flagged as lost
-        itemindex = np.where(self.id != 0)[0]
-        # itemindex = bm.where(self.id, 0)
+        itemindex = bm.nonzero(self.id)[0]
         self.mean_dt = bm.mean(self.dt[itemindex])
         self.sigma_dt = bm.std(self.dt[itemindex])
-        self._sumsq_dt = np.dot(self.dt[itemindex], self.dt[itemindex])
-        # self.min_dt = np.min(self.dt[itemindex])
-        # self.max_dt = np.max(self.dt[itemindex])
+        self._sumsq_dt = bm.dot(self.dt[itemindex], self.dt[itemindex])
+        # self.min_dt = bm.min(self.dt[itemindex])
+        # self.max_dt = bm.max(self.dt[itemindex])
 
         self.mean_dE = bm.mean(self.dE[itemindex])
         self.sigma_dE = bm.std(self.dE[itemindex])
-        self._sumsq_dE = np.dot(self.dE[itemindex], self.dE[itemindex])
+        self._sumsq_dE = bm.dot(self.dE[itemindex], self.dE[itemindex])
 
-        # self.min_dE = np.min(self.dE[itemindex])
-        # self.max_dE = np.max(self.dE[itemindex])
+        # self.min_dE = bm.min(self.dE[itemindex])
+        # self.max_dE = bm.max(self.dE[itemindex])
 
         # R.m.s. emittance in Gaussian approximation
         self.epsn_rms_l = np.pi*self.sigma_dE*self.sigma_dt  # in eVs
@@ -299,7 +298,7 @@ class Beam(object):
             Used to call the function is_in_separatrix.
         '''
 
-        itemindex = np.where(is_in_separatrix(Ring, RFStation, self,
+        itemindex = bm.where(is_in_separatrix(Ring, RFStation, self,
                                               self.dt, self.dE) == False)[0]
 
         if itemindex.size != 0:
@@ -319,7 +318,7 @@ class Beam(object):
             maximum dt.
         '''
 
-        itemindex = np.where((self.dt - dt_min)*(dt_max - self.dt) < 0)[0]
+        itemindex = bm.where((self.dt - dt_min)*(dt_max - self.dt) < 0)[0]
 
         if itemindex.size != 0:
             self.id[itemindex] = 0
@@ -337,7 +336,7 @@ class Beam(object):
             maximum dE.
         '''
 
-        itemindex = np.where((self.dE - dE_min)*(dE_max - self.dE) < 0)[0]
+        itemindex = bm.where((self.dE - dE_min)*(dE_max - self.dE) < 0)[0]
 
         if itemindex.size != 0:
             self.id[itemindex] = 0
@@ -353,7 +352,7 @@ class Beam(object):
             minimum dE.
         '''
 
-        itemindex = np.where((self.dE - dE_min) < 0)[0]
+        itemindex = bm.where((self.dE - dE_min) < 0)[0]
 
         if itemindex.size != 0:
             self.id[itemindex] = 0
@@ -381,13 +380,13 @@ class Beam(object):
 
         nNew = len(newdt)
 
-        self.id = np.concatenate((self.id, np.arange(self.n_macroparticles + 1,
+        self.id = bm.concatenate((self.id, bm.arange(self.n_macroparticles + 1,
                                                      self.n_macroparticles
                                                      + nNew + 1, dtype=int)))
         self.n_macroparticles += nNew
 
-        self.dt = np.concatenate((self.dt, newdt))
-        self.dE = np.concatenate((self.dE, newdE))
+        self.dt = bm.concatenate((self.dt, newdt))
+        self.dE = bm.concatenate((self.dE, newdE))
 
     def add_beam(self, other_beam):
         '''
@@ -403,11 +402,11 @@ class Beam(object):
         if not isinstance(other_beam, type(self)):
             raise TypeError("add_beam method requires a beam object as input")
 
-        self.dt = np.concatenate((self.dt, other_beam.dt))
-        self.dE = np.concatenate((self.dE, other_beam.dE))
+        self.dt = bm.concatenate((self.dt, other_beam.dt))
+        self.dE = bm.concatenate((self.dE, other_beam.dE))
 
         counter = itl.count(self.n_macroparticles + 1)
-        newids = np.zeros(other_beam.n_macroparticles)
+        newids = bm.zeros(other_beam.n_macroparticles)
 
         for i in range(other_beam.n_macroparticles):
             if other_beam.id[i]:
@@ -415,7 +414,7 @@ class Beam(object):
             else:
                 next(counter)
 
-        self.id = np.concatenate((self.id, newids))
+        self.id = bm.concatenate((self.id, newids))
         self.n_macroparticles += other_beam.n_macroparticles
 
     def __iadd__(self, other):
@@ -458,16 +457,15 @@ class Beam(object):
 
         from ..utils.mpi_config import worker
         if worker.isMaster and random:
-            import random
-            random.shuffle(self.id)
+            bm.random.shuffle(self.id)
             if fast == False:
                 self.dt = self.dt[self.id-1]
                 self.dE = self.dE[self.id-1]
 
         self.id = worker.scatter(self.id)
         if fast:
-            self.dt = np.ascontiguousarray(self.dt[self.id-1])
-            self.dE = np.ascontiguousarray(self.dE[self.id-1])
+            self.dt = bm.ascontiguousarray(self.dt[self.id-1])
+            self.dE = bm.ascontiguousarray(self.dE[self.id-1])
         else:
             self.dt = worker.scatter(self.dt)
             self.dE = worker.scatter(self.dE)
@@ -549,14 +547,6 @@ class Beam(object):
                                self.n_total_macroparticles_lost)
                 - self.mean_dE**2)
 
-            # self.sigma_dt = worker.allreduce(
-            #     np.array([self.mean_dt, self.sigma_dt, self.n_macroparticles_alive]),
-            #     operator='std')[0]
-
-            # self.sigma_dE = worker.allreduce(
-            #     np.array([self.mean_dE, self.sigma_dE,
-            #               self.n_macroparticles_alive]),
-            #     operator='std')[0]
 
         else:
             self.mean_dt = worker.reduce(
@@ -582,15 +572,6 @@ class Beam(object):
                                self.n_total_macroparticles_lost)
                 - self.mean_dE**2)
 
-            # self.sigma_dt = worker.reduce(
-            #     np.array([self.mean_dt, self.sigma_dt,
-            #               self.n_macroparticles_alive]),
-            #     operator='std')[0]
-
-            # self.sigma_dE = worker.reduce(
-            #     np.array([self.mean_dE, self.sigma_dE,
-            #               self.n_macroparticles_alive]),
-            #     operator='std')[0]
 
     def gather_losses(self, all=False):
         '''
@@ -614,3 +595,36 @@ class Beam(object):
         else:
             temp = worker.gather(np.array([self.n_macroparticles_lost]))
             self.n_total_macroparticles_lost = np.sum(temp)
+
+    def to_gpu(self, recursive=True):
+        '''
+        Transfer all necessary arrays to the GPU
+        '''
+        # Check if to_gpu has been invoked already
+        if hasattr(self, '_device') and self._device == 'GPU':
+            return
+
+        assert bm.device == 'GPU'
+        import cupy as cp
+        self.dE = cp.array(self.dE)
+        self.dt = cp.array(self.dt)
+        self.id = cp.array(self.id)
+
+        self._device = 'GPU'
+
+    def to_cpu(self, recursive=True):
+        '''
+        Transfer all necessary arrays back to the CPU
+        '''
+        # Check if to_cpu has been invoked already
+        if hasattr(self, '_device') and self._device == 'CPU':
+            return
+
+        assert bm.device == 'CPU'
+        import cupy as cp
+        self.dE = cp.asnumpy(self.dE)
+        self.dt = cp.asnumpy(self.dt)
+        self.id = cp.asnumpy(self.id)
+
+        # to make sure it will not be called again
+        self._device = 'CPU'

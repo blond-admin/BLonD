@@ -7,15 +7,16 @@
 *.so
 *.dll
 *.project
-
+*.cubin
 *.pydevproject
 
 .settings
 .pytest_cache
-
+*__pycache__
 /__doc/_build/
 /__doc/build/
-/__EXAMPLES/output_files/
+/__EXAMPLES/*output_files/
+
 /__BENCHMARKS/debug.log
 /__BENCHMARKS/OTFB.png
 /__BENCHMARKS/2x40_2x80.hd5

@@ -19,7 +19,7 @@ import numpy as np
 from scipy.signal import cheb2ord, cheby2, filtfilt, freqz
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
-
+from ..utils import bmath as bm
 
 def beam_profile_filter_chebyshev(Y_array, X_array, filter_option):
     """
@@ -103,12 +103,15 @@ def gaussian_fit(Y_array, X_array, p0):
     Gaussian fit of the profile, in order to get the bunch length and
     position. Returns fit values in units of s.
     """
-
+    if bm.device == 'GPU':
+        X_array = X_array.get()
+        Y_array = Y_array.get()
+        
     return curve_fit(gauss, X_array, Y_array, p0)[0]
 
 
 def gauss(x, *p):
-    """
+    r"""
     Defined as:
 
     .. math:: A \, e^{\\frac{\\left(x-x_0\\right)^2}{2\\sigma_x^2}}
@@ -179,6 +182,9 @@ def fwhm_multibunch(Y_array, X_array, n_bunches,
     bl_fwhm = np.zeros(n_bunches)
     bp_fwhm = np.zeros(n_bunches)
 
+    if bm.device == 'GPU':
+        X_array = X_array.get()
+        Y_array = Y_array.get()
     for indexBunch in range(0, n_bunches):
 
         left_edge = indexBunch * bunch_spacing_buckets * bucket_size_tau -\
@@ -204,8 +210,11 @@ def rms_multibunch(Y_array, X_array, n_bunches,
     bl_rms = np.zeros(n_bunches)
     bp_rms = np.zeros(n_bunches)
 
-    for indexBunch in range(0, n_bunches):
+    if bm.device == 'GPU':
+        X_array = X_array.get()
+        Y_array = Y_array.get()
 
+    for indexBunch in range(0, n_bunches):
         left_edge = indexBunch * bunch_spacing_buckets * bucket_size_tau -\
             bucket_tolerance * bucket_size_tau
         right_edge = indexBunch * bunch_spacing_buckets * bucket_size_tau +\
