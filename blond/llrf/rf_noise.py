@@ -126,7 +126,7 @@ class FlatSpectrum(object):
     
     def generate(self):
        
-        for i in range(0, np.int(np.ceil(self.n_turns/self.corr))):
+        for i in range(0, int(np.ceil(self.n_turns/self.corr))):
         
             # Scale amplitude to keep area (phase noise amplitude) constant
             k = i*self.corr       # current time step
@@ -145,8 +145,8 @@ class FlatSpectrum(object):
             delta_f = f_max/(n_points_pos_f_incl_zero-1) 
 
             # Construct spectrum   
-            nmin = np.int(np.floor(self.fmin_s0*self.fs[k]/delta_f))  
-            nmax = np.int(np.ceil(self.fmax_s0*self.fs[k]/delta_f))    
+            nmin = int(np.floor(self.fmin_s0*self.fs[k]/delta_f))  
+            nmax = int(np.ceil(self.fmax_s0*self.fs[k]/delta_f))    
             
             # To compensate the notch due to PL at central frequency
             if self.predistortion == 'exponential':
