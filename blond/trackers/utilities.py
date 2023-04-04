@@ -186,27 +186,27 @@ class synchrotron_frequency_tracker(object):
     number of particles (defined by the user) and to store the evolution
     of their coordinates in phase space in order to compute their synchrotron
     frequency as a function of their amplitude in theta.*
-    
+
     *As the time step between two turns can change with acceleration, make sure
     that the momentum program is set to be constant when using this function,
     or that beta_rel~1.*
-    
+
     *The user can input the minimum and maximum theta for the theta_coordinate_range
     option as [min, max]. The input n_macroparticles will be generated with
     linear spacing between these values. One can also input the theta_coordinate_range
-    as the coordinates of all particles, but the length of the array should 
+    as the coordinates of all particles, but the length of the array should
     match the n_macroparticles value.*
     '''
 
-    def __init__(self, Ring, n_macroparticles, theta_coordinate_range, FullRingAndRF, 
-                 TotalInducedVoltage = None):
-        
+    def __init__(self, Ring, n_macroparticles, theta_coordinate_range, FullRingAndRF,
+                 TotalInducedVoltage=None):
+
         #: *Number of macroparticles used in the synchrotron_frequency_tracker method*
         self.n_macroparticles = int(n_macroparticles)
-        
+
         #: *Copy of the input FullRingAndRF object to retrieve the accelerator programs*
         self.FullRingAndRF = copy.deepcopy(FullRingAndRF)
-        
+
         #: *Copy of the input TotalInducedVoltage object to retrieve the intensity effects
         #: (the synchrotron_frequency_tracker particles are not contributing to the
         #: induced voltage).*
@@ -216,119 +216,124 @@ class synchrotron_frequency_tracker(object):
             intensity = TotalInducedVoltage.profiles.Beam.intensity
         else:
             intensity = 0.
-            
-        from beam.beam import Beam
+
         #: *Beam object containing the same physical information as the real beam,
-        #: but containing only the coordinates of the particles for which the 
+        #: but containing only the coordinates of the particles for which the
         #: synchrotron frequency are computed.*
+        from ..beam.beam import Beam
         self.Beam = Beam(Ring, n_macroparticles, intensity)
-        
+
+        # Ring object for the ring radius
+        self.Ring = Ring
+
         # Generating the distribution from the user input
         if len(theta_coordinate_range) == 2:
             self.Beam.dt = np.linspace(float(theta_coordinate_range[0]),
-                                       float(theta_coordinate_range[1]), n_macroparticles)\
-                                       * (self.Beam.ring_radius/(self.Beam.beta*c))
+                                       float(theta_coordinate_range[1]), n_macroparticles) \
+                           * (self.Ring.ring_radius / (self.Beam.beta * c))
         else:
             if len(theta_coordinate_range) != n_macroparticles:
-                #SynchrotronMotionError
+                # SynchrotronMotionError
                 raise RuntimeError('The input n_macroparticles does not match with the length of the theta_coordinates')
             else:
-                self.Beam.dt = np.array(theta_coordinate_range) * (self.Beam.ring_radius/(self.Beam.beta*c))
-                        
+                self.Beam.dt = np.array(theta_coordinate_range) * (self.Ring.ring_radius / (self.Beam.beta * c))
+
         self.Beam.dE = np.zeros(int(n_macroparticles))
- 
+
         for RFsection in self.FullRingAndRF.RingAndRFSection_list:
             RFsection.beam = self.Beam
-        
+
         #: *Revolution period in [s]*
         self.timeStep = Ring.t_rev[0]
-        
+
         #: *Number of turns of the simulation (+1 to include the input parameters)*
-        self.nTurns = Ring.n_turns+1
-        
+        self.nTurns = Ring.n_turns + 1
+
         #: *Saving the theta coordinates of the particles while tracking*
         self.theta_save = np.zeros((self.nTurns, int(n_macroparticles)))
-        
+
         #: *Saving the dE coordinates of the particles while tracking*
         self.dE_save = np.zeros((self.nTurns, int(n_macroparticles)))
-        
+
         #: *Tracking counter*
         self.counter = 0
-          
-        # The first save coordinates are the input coordinates      
-        self.theta_save[self.counter] = self.Beam.dt / (self.Beam.ring_radius/(self.Beam.beta*c))
+
+        # The first save coordinates are the input coordinates
+        self.theta_save[self.counter] = self.Beam.dt / (self.Ring.ring_radius / (self.Beam.beta * c))
         self.dE_save[self.counter] = self.Beam.dE
-    
-            
+
     def track(self):
         '''
         *Method to track the particles with or without intensity effects.*
         '''
-    
+
         self.FullRingAndRF.track()
-        
+
         if self.TotalInducedVoltage is not None:
             self.TotalInducedVoltage.track_ghosts_particles(self.Beam)
-            
+
         self.counter = self.counter + 1
-        
-        self.theta_save[self.counter] = self.Beam.dt / (self.Beam.ring_radius/(self.Beam.beta*c))
+
+        self.theta_save[self.counter] = self.Beam.dt / (self.Ring.ring_radius / (self.Beam.beta * c))
         self.dE_save[self.counter] = self.Beam.dE
-        
-            
-    def frequency_calculation(self, n_sampling=100000, start_turn = None, end_turn = None):
+
+    def frequency_calculation(self, n_sampling=100000, start_turn=None, end_turn=None):
         '''
         *Method to compute the fft of the particle oscillations in theta and dE
         to obtain their synchrotron frequencies. The particles for which
         the amplitude of oscillations is extending the minimum and maximum
         theta from user input are considered to be lost and their synchrotron
-        frequencies are not calculated.*
+        frequencies are not calculated.
         '''
-        
+
         n_sampling = int(n_sampling)
-        
+
         #: *Saving the synchrotron frequency from the theta oscillations for each particle*
         self.frequency_theta_save = np.zeros(int(self.n_macroparticles))
-        
+
         #: *Saving the synchrotron frequency from the dE oscillations for each particle*
         self.frequency_dE_save = np.zeros(int(self.n_macroparticles))
-        
-        #: *Saving the maximum of oscillations in theta for each particle 
+
+        #: *Saving the maximum of oscillations in theta for each particle
         #: (theta amplitude on the right side of the bunch)*
         self.max_theta_save = np.zeros(int(self.n_macroparticles))
-        
-        #: *Saving the minimum of oscillations in theta for each particle 
+
+        #: *Saving the minimum of oscillations in theta for each particle
         #: (theta amplitude on the left side of the bunch)*
         self.min_theta_save = np.zeros(int(self.n_macroparticles))
-        
-        # Maximum theta for which the particles are considered to be lost        
-        max_theta_range = np.max(self.theta_save[0,:])
-        
+
+        # Maximum theta for which the particles are considered to be lost
+        max_theta_range = np.max(self.theta_save[0, :])
+
         # Minimum theta for which the particles are considered to be lost
-        min_theta_range = np.min(self.theta_save[0,:])
-        
+        min_theta_range = np.min(self.theta_save[0, :])
+
         #: *Frequency array for the synchrotron frequency distribution*
         self.frequency_array = np.fft.rfftfreq(n_sampling, self.timeStep)
-        
+
         if start_turn is None:
             start_turn = 0
-        
+
         if end_turn is None:
             end_turn = self.nTurns + 1
-        
+
         # Computing the synchrotron frequency of each particle from the maximum
         # peak of the FFT.
         for indexParticle in range(0, self.n_macroparticles):
-            self.max_theta_save[indexParticle] = np.max(self.theta_save[start_turn:end_turn,indexParticle])
-            self.min_theta_save[indexParticle] = np.min(self.theta_save[start_turn:end_turn,indexParticle])
-            
-            if (self.max_theta_save[indexParticle]<max_theta_range) and (self.min_theta_save[indexParticle]>min_theta_range):
-            
-                theta_save_fft = abs(np.fft.rfft(self.theta_save[start_turn:end_turn,indexParticle] - np.mean(self.theta_save[start_turn:end_turn,indexParticle]), n_sampling))
-                dE_save_fft = abs(np.fft.rfft(self.dE_save[start_turn:end_turn,indexParticle] - np.mean(self.dE_save[start_turn:end_turn,indexParticle]), n_sampling))
-        
-                self.frequency_theta_save[indexParticle] = self.frequency_array[theta_save_fft==np.max(theta_save_fft)]
-                self.frequency_dE_save[indexParticle] = self.frequency_array[dE_save_fft==np.max(dE_save_fft)]
+            self.max_theta_save[indexParticle] = np.max(self.theta_save[start_turn:end_turn, indexParticle])
+            self.min_theta_save[indexParticle] = np.min(self.theta_save[start_turn:end_turn, indexParticle])
+
+            if (self.max_theta_save[indexParticle] < max_theta_range) and (
+                    self.min_theta_save[indexParticle] > min_theta_range):
+                theta_save_fft = abs(np.fft.rfft(self.theta_save[start_turn:end_turn, indexParticle] - np.mean(
+                    self.theta_save[start_turn:end_turn, indexParticle]), n_sampling))
+                dE_save_fft = abs(np.fft.rfft(self.dE_save[start_turn:end_turn, indexParticle] - np.mean(
+                    self.dE_save[start_turn:end_turn, indexParticle]), n_sampling))
+
+                self.frequency_theta_save[indexParticle] = self.frequency_array[
+                    np.argmax(theta_save_fft == np.max(theta_save_fft))]
+                self.frequency_dE_save[indexParticle] = self.frequency_array[
+                    np.argmax(dE_save_fft == np.max(dE_save_fft))]
 
 
 
