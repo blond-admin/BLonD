@@ -3,7 +3,4 @@ scipy
 matplotlib
 future
 h5py
-mpi4py
 mpmath
-cupy-cuda11x
-

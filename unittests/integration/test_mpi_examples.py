@@ -21,7 +21,7 @@ import subprocess
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 main_files_dir = os.path.join(this_directory + '../../__EXAMPLES/mpi_main_files')
 exec_args = ['mpirun', '-n', '2', 'python']
-timeout = 90    # Timeout in seconds
+timeout = 60    # Timeout in seconds
 
 
 class TestMpiExamples(unittest.TestCase):
