@@ -1,0 +1,72 @@
+# Changelog
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+### Added
+### Removed
+### Fixed
+### Changed
+
+## [2.0.0] - 2018-06-22
+### Added
+- setup.py: that supports actions such as clean, test, pep8, develop, docs, compile
+- many unittests
+### Removed
+### Fixed
+### Changed
+- Relative imports within the library
+- All library modules under blond directory
+- All C++ sources compiled into single library called libblond.{so,dll}
+- README.rst instead of .md
+- Renamed setup_cpp.py to compile.py. 
+
+## [1.19.0] - 2017-03-28
+### Added
+### Removed
+### Fixed
+### Changed
+- Several files have been rearranged and simplified
+
+## [1.18.0] - 2017-02-10
+### Added
+### Removed
+### Fixed
+- Fixed an important bug in linear_interp_kick.cpp: before the acceleration kick was not applied if rf_kick_interp==TRUE in RingAndRFSection
+### Changed
+
+## [1.17.0] - 2016-01-18
+### Added
+- Numerical synchrotron frequency distribution added (TC12)
+- Possibility to compute multi-turn wake with acceleration (inimpedance.py) 
+### Removed
+### Fixed
+### Changed
+
+## [1.16.0] - 2016-10-24
+### Added
+- MuSiC algorithm
+- TC11 added 
+### Removed
+### Fixed
+- minor bugs
+### Changed
+
+## [1.15.1] - 2016-07-29
+### Added
+- Several upgrades 
+### Removed
+### Fixed
+- bug fixes
+### Changed
+
+## [1.14.5] - 2016-06-23
+### Added
+- RF modulation file added in llrf folder 
+- documentation on-line for PSB phase loop added
+### Removed
+- setup_cython.py removed because not used
+### Fixed
+### Changed

@@ -19,7 +19,7 @@ import subprocess
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 main_files_dir = os.path.join(this_directory, '../../__EXAMPLES/main_files')
 exec_args = ['python']
-timeout = 90    # Timeout in seconds
+timeout = 60    # Timeout in seconds
 
 class TestExamples(unittest.TestCase):
 
