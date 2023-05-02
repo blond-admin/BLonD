@@ -494,12 +494,13 @@ extern "C" {
             const int pos = i + offset;
             if (pos >= M)
                 y[i] = right;
+            else if (pos == 0)
+                y[i] = left;
             else
                 y[i] = yp[pos - 1] + (yp[pos] - yp[pos - 1]) * c;
             // else if (xp[pos] == x[i])
             //     y[i] = yp[pos];
-            // else if (pos == 0)
-            //     y[i] = left;
+
         }
     }
 
@@ -522,12 +523,12 @@ extern "C" {
             const int pos = i + offset;
             if (pos >= M)
                 y[i] = right;
+            else if (pos == 0)
+                y[i] = left;
             else
                 y[i] = yp[pos - 1] + (yp[pos] - yp[pos - 1]) * c;
             // else if (xp[pos] == x[i])
             //     y[i] = yp[pos];
-            // else if (pos == 0)
-            //     y[i] = left;
         }
     }
 

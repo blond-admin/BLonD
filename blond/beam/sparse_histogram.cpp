@@ -26,7 +26,6 @@ extern "C" void sparse_histogram(const double * __restrict__ input,
                const int n_filled_buckets,
                const int n_macroparticles){
 	
-    int i;
     int j;
     int i_bucket;
     double a;
@@ -95,7 +94,6 @@ extern "C" void sparse_histogramf(const float * __restrict__ input,
                const int n_filled_buckets,
                const int n_macroparticles){
     
-    int i;
     int j;
     int i_bucket;
     float a;
