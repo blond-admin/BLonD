@@ -194,10 +194,10 @@ def fwhm_multibunch(Y_array, X_array, n_bunches,
         indexes_bucket = np.where((X_array > left_edge) *
                                   (X_array < right_edge))[0]
 
-        bl_fwhm[indexBunch], bp_fwhm[indexBunch] = fwhm(
+        bp_fwhm[indexBunch], bl_fwhm[indexBunch] = fwhm(
             Y_array[indexes_bucket], X_array[indexes_bucket], shift)
 
-    return bl_fwhm, bp_fwhm
+    return bp_fwhm, bl_fwhm
 
 
 def rms_multibunch(Y_array, X_array, n_bunches,
@@ -223,9 +223,9 @@ def rms_multibunch(Y_array, X_array, n_bunches,
         indexes_bucket = np.where((X_array > left_edge) *
                                   (X_array < right_edge))[0]
 
-        bl_rms[indexBunch], bp_rms[indexBunch] = rms(
+        bp_rms[indexBunch], bl_rms[indexBunch] = rms(
             Y_array[indexes_bucket],
             X_array[indexes_bucket])
 
-    return bl_rms, bp_rms
+    return bp_rms, bl_rms
 
