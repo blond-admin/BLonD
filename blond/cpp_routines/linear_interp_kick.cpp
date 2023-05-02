@@ -58,7 +58,7 @@ extern "C" void linear_interp_kick(double * __restrict__ beam_dt,
             }
 
             for (int j = 0; j < loop_count; j++) {
-                if (fbin[j] < n_slices - 1) {
+                if (fbin[j] < (unsigned) (n_slices - 1)) {
                     beam_dE[i + j] += beam_dt[i + j] * voltageKick[fbin[j]] + factor[fbin[j]];
                 }
             }
@@ -93,73 +93,6 @@ extern "C" void linear_interp_time_translation(
     }
 
 }
-
-extern "C" void linear_interp_kick_n_drift(double * __restrict__ beam_dt,
-        double * __restrict__ beam_dE,
-        const double * __restrict__ voltage_array,
-        const double * __restrict__ bin_centers,
-        const int n_slices,
-        const int n_macroparticles,
-        const double acc_kick,
-        const char * __restrict__ solver,
-        const double T0,
-        const double length_ratio,
-        const double alpha_order,
-        const double eta_zero,
-        const double eta_one,
-        const double eta_two,
-        const double beta,
-        const double energy,
-        const double charge)
-{
-
-
-    const int STEP = 64;
-    const double inv_bin_width = (n_slices - 1)
-                                 / (bin_centers[n_slices - 1]
-                                    - bin_centers[0]);
-    const double coeff = T0 * length_ratio * eta_zero / (beta * beta * energy);
-
-    double *voltageKick = (double *) malloc ((n_slices - 1) * sizeof(double));
-    double *factor = (double *) malloc ((n_slices - 1) * sizeof(double));
-
-    #pragma omp parallel
-    {
-        unsigned fbin[STEP];
-
-        #pragma omp for
-        for (int i = 0; i < n_slices - 1; i++) {
-            voltageKick[i] =  charge * (voltage_array[i + 1] - voltage_array[i]) * inv_bin_width;
-            factor[i] = charge * voltage_array[i] - bin_centers[i] * voltageKick[i] + acc_kick;
-        }
-
-        #pragma omp for
-        for (int i = 0; i < n_macroparticles; i += STEP) {
-
-            const int loop_count = n_macroparticles - i > STEP ?
-                                   STEP : n_macroparticles - i;
-
-            for (int j = 0; j < loop_count; j++) {
-                fbin[j] = (unsigned) std::floor((beam_dt[i + j] - bin_centers[0])
-                                                * inv_bin_width);
-            }
-
-            for (int j = 0; j < loop_count; j++) {
-                if (fbin[j] < n_slices - 1) {
-                    beam_dE[i + j] += beam_dt[i + j] * voltageKick[fbin[j]] + factor[fbin[j]];
-                }
-            }
-
-            for (int j = 0; j < loop_count; j++) {
-                beam_dt[i + j] += coeff * beam_dE[i + j];
-            }
-
-        }
-    }
-    free(voltageKick);
-    free(factor);
-}
-
 
 
 extern "C" void linear_interp_kickf(float * __restrict__ beam_dt,
@@ -203,7 +136,7 @@ extern "C" void linear_interp_kickf(float * __restrict__ beam_dt,
             }
 
             for (int j = 0; j < loop_count; j++) {
-                if (fbin[j] < n_slices - 1) {
+                if (fbin[j] < (unsigned) (n_slices - 1)) {
                     beam_dE[i + j] += beam_dt[i + j] * voltageKick[fbin[j]] + factor[fbin[j]];
                 }
             }
@@ -238,72 +171,3 @@ extern "C" void linear_interp_time_translationf(
     }
 
 }
-
-
-extern "C" void linear_interp_kick_n_driftf(float * __restrict__ beam_dt,
-        float * __restrict__ beam_dE,
-        const float * __restrict__ voltage_array,
-        const float * __restrict__ bin_centers,
-        const int n_slices,
-        const int n_macroparticles,
-        const float acc_kick,
-        const char * __restrict__ solver,
-        const float T0,
-        const float length_ratio,
-        const float alpha_order,
-        const float eta_zero,
-        const float eta_one,
-        const float eta_two,
-        const float beta,
-        const float energy,
-        const float charge)
-{
-
-
-    const int STEP = 64;
-    const float inv_bin_width = (n_slices - 1)
-                                / (bin_centers[n_slices - 1]
-                                   - bin_centers[0]);
-    const float coeff = T0 * length_ratio * eta_zero / (beta * beta * energy);
-
-    float *voltageKick = (float *) malloc ((n_slices - 1) * sizeof(float));
-    float *factor = (float *) malloc ((n_slices - 1) * sizeof(float));
-
-    #pragma omp parallel
-    {
-        unsigned fbin[STEP];
-
-        #pragma omp for
-        for (int i = 0; i < n_slices - 1; i++) {
-            voltageKick[i] =  charge * (voltage_array[i + 1] - voltage_array[i]) * inv_bin_width;
-            factor[i] = charge * voltage_array[i] - bin_centers[i] * voltageKick[i] + acc_kick;
-        }
-
-        #pragma omp for
-        for (int i = 0; i < n_macroparticles; i += STEP) {
-
-            const int loop_count = n_macroparticles - i > STEP ?
-                                   STEP : n_macroparticles - i;
-
-            for (int j = 0; j < loop_count; j++) {
-                fbin[j] = (unsigned) std::floor((beam_dt[i + j] - bin_centers[0])
-                                                * inv_bin_width);
-            }
-
-            for (int j = 0; j < loop_count; j++) {
-                if (fbin[j] < n_slices - 1) {
-                    beam_dE[i + j] += beam_dt[i + j] * voltageKick[fbin[j]] + factor[fbin[j]];
-                }
-            }
-
-            for (int j = 0; j < loop_count; j++) {
-                beam_dt[i + j] += coeff * beam_dE[i + j];
-            }
-
-        }
-    }
-    free(voltageKick);
-    free(factor);
-}
-
-

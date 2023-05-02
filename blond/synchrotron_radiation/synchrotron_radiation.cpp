@@ -61,7 +61,7 @@ extern "C" void synchrotron_radiation_full(double * __restrict__ beam_dE, const 
         const int n_kicks)
 {
 
-    std::hash<std::thread::id> hash;
+    // std::hash<std::thread::id> hash;
 
     // Quantum excitation constant
     const double const_quantum_exc = 2.0 * sigma_dE / sqrt(tau_z) * energy;
@@ -120,7 +120,7 @@ extern "C" void synchrotron_radiation_fullf(float * __restrict__ beam_dE, const 
         const int n_kicks)
 {
 
-    std::hash<std::thread::id> hash;
+    // std::hash<std::thread::id> hash;
 
     // Quantum excitation constant
     const float const_quantum_exc = 2.0 * sigma_dE / sqrt(tau_z) * energy;
