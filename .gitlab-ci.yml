@@ -1,16 +1,8 @@
 variables:
-  project_name: BLonD-1
+  project_name: BLonD
   # Set the project root to the directory containing your setup.py
   project_root: ./
-  PYPI_UPLOAD_URL: "https://test.pypi.org/legacy/"
-
-  # # repo_style can be either "mono" or "solo"
-  # # A repo_style of "mono" will serve the docs by pulling them from a subproject folder
-  # repo_style: solo
-  # PIP_INDEX_URL: https://acc-py-repo.cern.ch/repository/vr-py-releases/simple/
-  # PIP_TRUSTED_HOST: acc-py-repo.cern.ch
-  # ACC_PY_GITLAB_CI_TEMPLATES_VERSION: "v0"
-  # __TRACE_TEMPLATES_COMMAND: "python -m pip install --upgrade -qq acc-py-tracing && python -m acc_py_tracing && ACC_PY_TRACING_DISABLED=1 python -m pip uninstall -y -qq acc-py-tracing"
+  PYPI_UPLOAD_URL: "https://pypi.org/"
 
 .on_tag:
   # Rules to run a job only on a git tagged commit
@@ -22,21 +14,27 @@ variables:
   before_script:
     - apt-get update
     - apt-get install -y gcc g++  build-essential mpich libmpich-dev
-    - python --version && gcc --version && mpirun --version
-    - pip install -v ${project_root}[test]
-    - python -m pip install pytest_cov mpi4py  
+    # Testingt inside a virtual env
+    - python3 -m venv pyvenv
+    - source pyvenv/bin/activate
+    - python3 --version && gcc --version && mpirun --version
+    - python3 -m pip install -v ${project_root}[test]
+    - python3 -m pip install pytest_cov mpi4py
 
 .main:
   script:
     - cd ${project_root}
-    - python -m pytest -v unittests/ --cov --cov-config=.coveragerc --cov-report html:coverage-html 
-      --cov-report xml:coverage.xml --junitxml=junit-report.xml -k 'not test_validate and not examples'
-    # - python -m pytest -v unittests/ --cov --cov-config=.coveragerc --cov-report html 
-    #   --cov-report xml --junitxml=junit-report.xml -k 'test_validate'
+    # Run all unittests + the examples
+    - python3 -m pytest -v unittests/ --cov --cov-config=.coveragerc --cov-report html:coverage-html 
+      --cov-report xml:coverage.xml --junitxml=junit-report.xml -k 'not test_validate'
+    # Validate the agreement between mpi and non-mpi runs
+    - python3 -m pytest -v unittests/ --cov --cov-config=.coveragerc --cov-report html  --cov-append
+      --cov-report xml --junitxml=junit-report.xml -k 'test_validate'
 
 .after:
   after_script:
     - cd ${project_root}
+    - python3 -m pip install coverage
     - coverage report
     # - coverage xml -o coverage-report.xml
   coverage: /(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/
@@ -87,16 +85,18 @@ release_sdist_39:
   stage: deploy
   extends:
     - .on_tag
-  script:
-   - cd ${project_root}
-   - python -m pip install build twine
+  before_script:
+   - apt-get update
+   - apt-get install -y git
+   - python3 -m pip install build twine
    # Without an up-to-date setuptools, we don't get the requirements.txt
    # inside the sdist.
-   - python -m pip install -U setuptools
+   - python3 -m pip install -U setuptools
    - eval ${PRE_SDIST_BUILD}
-   - python -m build --sdist .
-   - git status
-   - python -m twine upload --verbose
+  script:
+   - cd ${project_root}
+   - python3 -m build --sdist .
+   - python3 -m twine upload --verbose
         --repository-url="${PYPI_UPLOAD_URL}"
         --username="${PYPI_USERNAME}"
         --password="${PYPI_PASSWORD}"

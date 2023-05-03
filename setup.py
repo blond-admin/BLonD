@@ -14,7 +14,7 @@ import subprocess
 import os
 
 HERE = Path(__file__).parent.absolute()
-with (HERE / 'README.rst').open('rt', encoding='utf-8') as fh:
+with (HERE / 'README.md').open('rt', encoding='utf-8') as fh:
     LONG_DESCRIPTION = fh.read().strip()
 
 
@@ -109,8 +109,8 @@ setup(
     author_email='helga.timko@cern.ch',
     maintainer='Konstantinos Iliakis',
     long_description=LONG_DESCRIPTION,
-    long_description_content_type='text/x-rst',
-    url='https://github.com/blond-admin/BLonD',
+    long_description_content_type='text/markdown',
+    url='https://gitlab.cern.ch/blond/BLonD',
     # download_url='https://github.com/blond-admin/BLonD/archive/v'+__version__+'.tar.gz',
     packages=find_packages(
         exclude=['__doc', '__BENCHMARKS', '__EXAMPLES', 'unittests']),
