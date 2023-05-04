@@ -18,7 +18,7 @@ with (HERE / 'README.md').open('rt', encoding='utf-8') as fh:
     LONG_DESCRIPTION = fh.read().strip()
 
 
-REQUIREMENTS: dict = {
+REQUIREMENTS = {
     'core': ['numpy',
              'scipy',
              'h5py',
@@ -57,7 +57,7 @@ class Compile_and_Egg_Info(_egg_info):
         _egg_info.finalize_options(self)
 
     def run(self):
-        cmd = ['python', 'blond/compile.py']
+        cmd = ['python3', 'blond/compile.py']
         if self.parallel:
             cmd.append('-p')
         if self.boost:
@@ -91,7 +91,7 @@ class CompileLibrary(distutils.cmd.Command):
 
     def run(self):
         """Run command."""
-        cmd = ['python', 'blond/compile.py']
+        cmd = ['python3', 'blond/compile.py']
         if self.openmp:
             cmd.append('-p')
         if self.boost:
@@ -114,7 +114,7 @@ setup(
     # download_url='https://github.com/blond-admin/BLonD/archive/v'+__version__+'.tar.gz',
     packages=find_packages(
         exclude=['__doc', '__BENCHMARKS', '__EXAMPLES', 'unittests']),
-    python_requires='>=3.7',
+    python_requires='>=3.6',
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",

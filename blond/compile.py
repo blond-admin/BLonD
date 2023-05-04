@@ -264,9 +264,9 @@ if __name__ == "__main__":
         # Add the -arch required argument
         nvccflags += ['-arch', 'sm_{}'.format(comp_capability)]
         libname_double = os.path.join(basepath,
-                                      f'gpu/cuda_kernels/kernels_double_sm_{comp_capability}.cubin')
+                                      'gpu/cuda_kernels/kernels_double_sm_{}.cubin'.format(comp_capability))
         libname_single = os.path.join(basepath,
-                                      f'gpu/cuda_kernels/kernels_single_sm_{comp_capability}.cubin')
+                                      'gpu/cuda_kernels/kernels_single_sm_{}.cubin'.format(comp_capability))
         # we need to get the header files location
         path = cp.__file__.split('/')[:-1]  # remove __init__.py from path
         path.extend(['_core', 'include'])
