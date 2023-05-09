@@ -110,8 +110,9 @@ pages:
   script:
    - cd ${project_root}
    - mkdir public
-   - python3 -m pip install --upgrade pyqt5 sphinx sphinx-rtd-theme sphinxcontrib-napoleon sphinx-autopackagesummary
-   - python3 -m pip install -r requirements.txt
+  #  - python3 -m pip install --upgrade pyqt5 sphinx sphinx-rtd-theme sphinxcontrib-napoleon sphinx-autopackagesummary
+  #  - python3 -m pip install -r requirements
+   - python3 -m pip install -v ${project_root}[doc]
    - make -C __doc html
    - cp -r __doc/_build/html/* public/
   artifacts:
