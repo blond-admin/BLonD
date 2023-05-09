@@ -9,6 +9,14 @@ input_parameters Package
     :undoc-members:
     :show-inheritance:
 
+:mod:`rf_parameters_options` Module
+-----------------------------------
+
+.. automodule:: blond.input_parameters.rf_parameters_options
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 :mod:`ring` Module
 ------------------
 
@@ -21,14 +29,6 @@ input_parameters Package
 --------------------------
 
 .. automodule:: blond.input_parameters.ring_options
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-:mod:`rf_parameters_options` Module
------------------------------------
-
-.. automodule:: blond.input_parameters.rf_parameters_options
     :members:
     :undoc-members:
     :show-inheritance:

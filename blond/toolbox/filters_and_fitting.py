@@ -9,7 +9,7 @@
 
 '''
 **Fitting and filters routines to be used alone or with the Profile class in
-    the beam package. **
+the beam package.**
 
 :Authors: **Danilo Quartullo**, **Alexandre Lasheen**,
           **Juan F. Esteban Mueller**

@@ -11,11 +11,11 @@ Contents
 The Beam Longitudinal Dynamics code BLonD is a CERN software package for the
 simulatation of longitudinal beam dynamics in synchrotrons.
 
-Visit the BLonD website_ for more details and the github_ distribution to 
+Visit the BLonD website_ for more details and the gitlab_ distribution to 
 download the code.
 
 .. _website: http://blond.web.cern.ch/
-.. _github: https://github.com/blond-admin/BLonD/releases
+.. _gitlab: https://gitlab.cern.ch/blond/BLonD
 
 Modules
 =======
@@ -35,8 +35,9 @@ Modules
     modules/synchrotron_radiation.rst
     modules/toolbox.rst
     modules/trackers.rst
-    modules/compile.rst
     modules/utils.rst
+    modules/compile.rst
+    modules/sanity_check.rst
 
 
 

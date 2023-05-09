@@ -103,3 +103,19 @@ release_sdist_39:
         dist/*.tar.gz
 
 
+pages:
+  variables:
+    PY_VERSION: "3.9"
+  image: python:${PY_VERSION}
+  script:
+   - cd ${project_root}
+   - mkdir public
+   - python3 -m pip install --upgrade pyqt5 sphinx sphinx-rtd-theme sphinxcontrib-napoleon sphinx-autopackagesummary
+   - python3 -m pip install -r requirements.txt
+   - make -C __doc html
+   - cp -r __doc/_build/html/* public/
+  artifacts:
+    paths:
+     - ${project_root}public
+  only:
+   - master

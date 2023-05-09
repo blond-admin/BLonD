@@ -549,13 +549,13 @@ class ResistiveWall(_ImpedanceObject):
     Parameters
     ----------
     pipe_radius : float
-        Beam pipe radius in m
+        Beam pipe radius in m 
     pipe_length : float
-        Beam pipe length in m
+        Beam pipe length in m 
     resistivity : float
-        Beam pipe resistivity in :math:`m / s`
+        Beam pipe resistivity in :math:`m / s` 
     conductivity : float
-        Beam pipe conductivity in :math:`s / m`
+        Beam pipe conductivity in :math:`s / m` 
 
     Attributes
     ----------

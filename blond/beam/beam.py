@@ -160,8 +160,6 @@ class Beam(object):
         total number of macroparticles in the beam [].
     ratio : float
         ratio intensity per macroparticle [].
-    n_macroparticles_lost : int
-        number of macro-particles marked as 'lost' [].
     id : numpy_array, int
         unique macro-particle ID number; zero if particle is 'lost'.
 
