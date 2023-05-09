@@ -33,7 +33,10 @@ REQUIREMENTS = {
     ],
     'doc': [
         'sphinx',
-        'acc-py-sphinx',
+        'sphinx-rtd-theme',
+        'sphinxcontrib-napoleon',
+        'sphinx-autopackagesummary',
+        'pyqt5',
     ],
 }
 
@@ -44,6 +47,7 @@ class Compile_and_Egg_Info(_egg_info):
     user_options += [
         ('parallel', 'p', 'Enable Multi-threaded code'),
         ('compiler=', 'c', 'Specify the compiler type'),
+        ('gpu=', None, 'Compile the CUDA backend'),
         ('boost=', None, 'Compile with the Boost Library')]
 
     def initialize_options(self):
@@ -51,6 +55,7 @@ class Compile_and_Egg_Info(_egg_info):
         self.parallel = None
         self.boost = None
         self.compiler = None
+        self.gpu = None
 
     def finalize_options(self):
         """Post-process options."""
@@ -64,6 +69,8 @@ class Compile_and_Egg_Info(_egg_info):
             cmd += ['-b', self.boost]
         if self.compiler:
             cmd += ['-c', self.compiler]
+        if self.gpu:
+            cmd += ['-gpu', self.gpu]
 
         subprocess.run(cmd, check=True, env=os.environ.copy())
                 # self.run_command('compile')
@@ -76,6 +83,7 @@ class CompileLibrary(distutils.cmd.Command):
     user_options = [
         ('parallel', 'p', 'Enable Multi-threaded code'),
         ('compiler=', 'c', 'Specify the compiler type'),
+        ('gpu=', None, 'Compile the CUDA backend'),
         ('boost=', None, 'Compile with the Boost Library')]
 
     def initialize_options(self):
@@ -84,6 +92,7 @@ class CompileLibrary(distutils.cmd.Command):
         self.openmp = None
         self.boost = None
         self.compiler = None
+        self.gpu = None
 
     def finalize_options(self):
         """Post-process options."""
@@ -98,6 +107,9 @@ class CompileLibrary(distutils.cmd.Command):
             cmd += ['-b', self.boost]
         if self.compiler:
             cmd += ['-c', self.compiler]
+        if self.gpu:
+            cmd += ['-gpu', self.gpu]
+
         subprocess.run(cmd, check=True, env=os.environ.copy())
 
 
