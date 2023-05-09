@@ -37,7 +37,7 @@ extern "C" void histogram(const double *__restrict__ input,
         const int id = omp_get_thread_num();
         const int threads = omp_get_num_threads();
         memset(histo[id], 0., n_slices * sizeof(double));
-        float fbin[STEP];
+        float fbin[STEP] = { -1 };
         #pragma omp for
         for (int i = 0; i < n_macroparticles; i += STEP) {
 
@@ -154,7 +154,7 @@ extern "C" void histogramf(const float *__restrict__ input,
         const int id = omp_get_thread_num();
         const int threads = omp_get_num_threads();
         memset(histo[id], 0., n_slices * sizeof(float));
-        float fbin[STEP];
+        float fbin[STEP] = { -1 };
         #pragma omp for
         for (int i = 0; i < n_macroparticles; i += STEP) {
 
