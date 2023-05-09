@@ -20,6 +20,7 @@ blond/_version.py
 *.DS_Store
 *egg-info
 venvs
+.vscode
 
 # End of placeholder for user defined entries
 

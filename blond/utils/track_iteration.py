@@ -69,7 +69,7 @@ class TrackIteration(object):
     def add_function(self, predicate, repetionRate, *args, **kwargs):
         '''
         Takes a user defined callable and calls it every repetionRate
-        number of turns with predicate(trackMap, turnNumber, *args, **kwargs)
+        number of turns with predicate(trackMap, turnNumber, ``*args``, ``**kwargs``)
         '''
         
         self.functionList.append((self._partial(predicate, args, kwargs)

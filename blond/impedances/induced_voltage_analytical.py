@@ -64,8 +64,7 @@ def analytical_gaussian_resonator(sigma_t, Q, R_s, omega_r, tau_array, n_particl
         output2 = Integrate[wake * lambda, t]
         outputreal2 = Simplify[ComplexExpand[Re[output2]],
                                {sigma > 0, alpha > 0, Rs > 0, ombar > 0, tau in Reals, t > 0}]
-        d/dt output2;
-        Simplify[ComplexExpand[Re[%]],
+        Simplify[ComplexExpand[Re[d/dt output2]],
                  {sigma > 0, alpha > 0, Rs > 0, ombar > 0, tau in Reals, t > 0}]
     
 

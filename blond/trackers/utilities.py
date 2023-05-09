@@ -1,4 +1,4 @@
-
+# coding: utf8
 # Copyright 2016 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
 # copied verbatim in the file LICENCE.md.
@@ -283,7 +283,7 @@ class synchrotron_frequency_tracker(object):
         to obtain their synchrotron frequencies. The particles for which
         the amplitude of oscillations is extending the minimum and maximum
         theta from user input are considered to be lost and their synchrotron
-        frequencies are not calculated.
+        frequencies are not calculated.*
         '''
 
         n_sampling = int(n_sampling)
