@@ -1,6 +1,6 @@
-# Code Name
+[![Pipeline Status](https://gitlab.cern.ch/blond/BLonD/badges/master/pipeline.svg)](https://gitlab.cern.ch/blond/BLonD/-/commits/master) [![Coverage Report](https://gitlab.cern.ch/blond/BLonD/badges/master/coverage.svg)](https://gitlab.cern.ch/blond/BLonD/-/commits/master) [![Latest Release](https://gitlab.cern.ch/blond/BLonD/-/badges/release.svg)](https://gitlab.cern.ch/blond/BLonD/-/releases) [![PyPi](https://img.shields.io/pypi/v/blond.svg)](https://pypi.org/project/blond/) [![Python](https://img.shields.io/badge/python-3.6%20%7C%203.7%20%7C%203.8%20%7C%203.9-blue)](https://www.python.org) [![Documentation Pages](https://img.shields.io/badge/docs-sphinx-blue)](https://blond-code.docs.cern.ch/)
 
-BLonD (Beam Longitudinal Dynamics)
+# Beam Longitudinal Dynamics Code (BLonD)
 
 # Copyright Notice
 
@@ -17,9 +17,9 @@ synchrotrons.
 
 # Useful Links
 
-Repository: <https://github.com/blond-admin/BLonD>
+Repository: <https://gitlab.cern.ch/blond/BLonD>
 
-Documentation: <http://blond-admin.github.io/BLonD/>
+Documentation: <https://blond-code.docs.cern.ch/>
 
 Project website: <http://blond.web.cern.ch>
 
