@@ -5,9 +5,6 @@ BLonD math and physics core functions
 @date 20.10.2017
 '''
 
-# from functools import wraps
-import os
-
 import numpy as np
 from ..utils import butils_wrap_cpp as _cpp
 from ..utils import butils_wrap_python as _py
@@ -22,7 +19,7 @@ def use_cpp():
     '''
     Replace all python functions by there equivalent in cpp
     '''
-
+    print('---------- Using the C++ computational backend ----------')
     # dictionary storing the CPP versions of the most compute intensive functions #
     CPP_func_dict = {
         'rfft': np.fft.rfft,
@@ -52,10 +49,8 @@ def use_cpp():
         'mean_cpp': _cpp.mean_cpp,
         'std_cpp': _cpp.std_cpp,
         'where_cpp': _cpp.where_cpp,
-        'interp_cpp': np.interp,
-        # 'interp_cpp': _cpp.interp_cpp,
-        # 'interp_const_space': _cpp.interp_const_space,
-        'interp_const_space': np.interp,
+        'interp_cpp': _cpp.interp_cpp,
+        'interp_const_space': _cpp.interp_const_space,
         'cumtrapz': _cpp.cumtrapz,
         'trapz_cpp': _cpp.trapz_cpp,
         'linspace_cpp': _cpp.linspace_cpp,
@@ -88,6 +83,8 @@ def use_py():
     '''
     Replace all python functions by there equivalent in python
     '''
+    print('---------- Using the Python computational backend ----------')
+
     # dictionary storing the Python-only versions of the most compute intensive functions #
     PY_func_dict = {
         'rfft': np.fft.rfft,
@@ -161,6 +158,7 @@ def use_fftw():
     Replace the existing rfft and irfft implementations
     with the ones coming from _cpp.
     '''
+    print('---------- Using the FFTW FFT library ----------')
 
     FFTW_func_dict = {
         'rfft': _cpp.rfft,
@@ -173,14 +171,8 @@ def use_fftw():
 # precision can be single or double
 def use_precision(_precision='double'):
     global precision
+    print(f'---------- Using {_precision} precision numeric datatypes ----------')
     precision.set(_precision)
-    # utils.precision = utils.PrecisionClass(_precision)
-    # precision = PrecisionClass(_precision)
-    # Make sure that the precision object in __init__.py is also updated
-    # from . import precision as _precision
-    # _precision = precision
-    # utils.precision = PrecisionClass(_precision)
-    # precision = _cpp.precision
 
 
 def __update_active_dict(new_dict):
@@ -218,13 +210,13 @@ def use_gpu(gpu_id=0):
 
     global gpu_dev
     from . import GPUDev
+    print('---------- Using the GPU computational backend ----------')
+
     if gpu_dev is None:
         gpu_dev = GPUDev(gpu_id)
 
-        print(''.join(['#']*10) +
-              ' Using GPU: id {}, name {}, Compute Capability {} '.format(
-            gpu_dev.id, gpu_dev.name, gpu_dev.dev.compute_capability)
-            + ''.join(['#']*10) + '\n', flush=True)
+        print('---------- GPU Device: id {}, name {}, Compute Capability {} ----------'.format(
+            gpu_dev.id, gpu_dev.name, gpu_dev.dev.compute_capability), flush=True)
 
     from ..gpu import butils_wrap_cupy as _cupy
     import cupy as cp
