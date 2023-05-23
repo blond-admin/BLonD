@@ -64,11 +64,20 @@ Use your distribution's package manager to install the compiler of your choice. 
     ```bash
     python blond/compile.py
     ```
-3. (Optional) See the complete list of the command line arguments with:
+
+    See the complete list of optional command line arguments with:
     ```bash
     python blond/compile.py --help
     ```
-4.  Adjust the `PYTHONPATH` environment variable to contain the path to the BLonD directory.
+3. Then install BLonD in edit mode with: 
+    ```bash
+    pip install -e .
+    ```
+
+    Or alternatively adjust the `PYTHONPATH` environment variable to contain the path to the BLonD directory, and install the requirements with:
+    ```bash
+    pip install -r requirements.txt
+    ```
 
 ## Confirm proper installation
 

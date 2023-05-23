@@ -26,9 +26,11 @@ try:
     else:
         print('YOU DO NOT HAVE A WINDOWS OR UNIX OPERATING SYSTEM. ABORTING...')
         sys.exit()
-except OSError as e:
-    print("""
-        Warning: The compiled blond library was not found.
-        The python routines will be used instead.
-        """)
+except OSError:
+    # Silently pass. The python backend will be used. 
+    pass
+    # print("""
+    #     Warning: The compiled blond library was not found.
+    #     The python routines will be used instead.
+    #     """)
 
