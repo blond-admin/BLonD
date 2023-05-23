@@ -1,9 +1,9 @@
 import numpy as np
 import cupy as cp
-from ..utils import bmath as bm
+from ..utils import precision, gpu_dev
 
-grid_size, block_size = bm.gpuDev().grid_size, bm.gpuDev().block_size
-kernels = bm.gpuDev().mod
+grid_size, block_size = gpu_dev.grid_size, gpu_dev.block_size
+kernels = gpu_dev.mod
 
 # Load all required CUDA kernels
 rf_volt_comp_kernel = kernels.get_function("rf_volt_comp")
@@ -19,12 +19,12 @@ synch_rad_full = kernels.get_function("synchrotron_radiation_full")
 
 
 def rf_volt_comp(voltage, omega_rf, phi_rf, bin_centers):
-    assert voltage.dtype == bm.precision.real_t
-    assert omega_rf.dtype == bm.precision.real_t
-    assert phi_rf.dtype == bm.precision.real_t
-    assert bin_centers.dtype == bm.precision.real_t
+    assert voltage.dtype == precision.real_t
+    assert omega_rf.dtype == precision.real_t
+    assert phi_rf.dtype == precision.real_t
+    assert bin_centers.dtype == precision.real_t
 
-    rf_voltage = cp.zeros(bin_centers.size, bm.precision.real_t)
+    rf_voltage = cp.zeros(bin_centers.size, precision.real_t)
 
     rf_volt_comp_kernel(args=(voltage, omega_rf, phi_rf, bin_centers,
               np.int32(voltage.size), np.int32(bin_centers.size), rf_voltage),
@@ -33,12 +33,12 @@ def rf_volt_comp(voltage, omega_rf, phi_rf, bin_centers):
 
 
 def kick(dt, dE, voltage, omega_rf, phi_rf, charge, n_rf, acceleration_kick):
-    assert dt.dtype == bm.precision.real_t
-    assert dE.dtype == bm.precision.real_t
-    assert omega_rf.dtype == bm.precision.real_t
-    assert phi_rf.dtype == bm.precision.real_t
+    assert dt.dtype == precision.real_t
+    assert dE.dtype == precision.real_t
+    assert omega_rf.dtype == precision.real_t
+    assert phi_rf.dtype == precision.real_t
 
-    voltage_kick = cp.empty(voltage.size, bm.precision.real_t)
+    voltage_kick = cp.empty(voltage.size, precision.real_t)
     voltage_kick = charge * voltage
 
     kick_kernel(args=(dt,
@@ -48,7 +48,7 @@ def kick(dt, dE, voltage, omega_rf, phi_rf, charge, n_rf, acceleration_kick):
                       omega_rf,
                       phi_rf,
                       np.int32(dt.size),
-                      bm.precision.real_t(acceleration_kick)),
+                      precision.real_t(acceleration_kick)),
                 block=block_size, grid=grid_size)  
 
 
@@ -70,12 +70,12 @@ def drift(dt, dE, solver, t_rev, length_ratio, alpha_order, eta_0,
     drift_kernel(args=(dt,
                 dE,
                 solver,
-                bm.precision.real_t(t_rev), bm.precision.real_t(length_ratio),
-                bm.precision.real_t(alpha_order), bm.precision.real_t(eta_0),
-                bm.precision.real_t(eta_1), bm.precision.real_t(eta_2),
-                bm.precision.real_t(alpha_0), bm.precision.real_t(alpha_1),
-                bm.precision.real_t(alpha_2),
-                bm.precision.real_t(beta), bm.precision.real_t(energy),
+                precision.real_t(t_rev), precision.real_t(length_ratio),
+                precision.real_t(alpha_order), precision.real_t(eta_0),
+                precision.real_t(eta_1), precision.real_t(eta_2),
+                precision.real_t(alpha_0), precision.real_t(alpha_1),
+                precision.real_t(alpha_2),
+                precision.real_t(beta), precision.real_t(energy),
                 np.int32(dt.size)),
           block=block_size, grid=grid_size)
 
@@ -83,24 +83,24 @@ def drift(dt, dE, solver, t_rev, length_ratio, alpha_order, eta_0,
 def linear_interp_kick(dt, dE, voltage,
                            bin_centers, charge,
                            acceleration_kick):
-    assert dt.dtype == bm.precision.real_t
-    assert dE.dtype == bm.precision.real_t
-    assert voltage.dtype == bm.precision.real_t
-    assert bin_centers.dtype == bm.precision.real_t
+    assert dt.dtype == precision.real_t
+    assert dE.dtype == precision.real_t
+    assert voltage.dtype == precision.real_t
+    assert bin_centers.dtype == precision.real_t
 
     macros = dt.size
     slices = bin_centers.size
 
     
-    glob_vkick_factor = cp.empty(2*(slices - 1), bm.precision.real_t)
+    glob_vkick_factor = cp.empty(2*(slices - 1), precision.real_t)
     gm_linear_interp_kick_help(args=(dt,
                                      dE,
                                      voltage,
                                      bin_centers,
-                                     bm.precision.real_t(charge),
+                                     precision.real_t(charge),
                                      np.int32(slices),
                                      np.int32(macros),
-                                     bm.precision.real_t(acceleration_kick),
+                                     precision.real_t(acceleration_kick),
                                      glob_vkick_factor),
                                grid=grid_size, block=block_size)
 
@@ -108,57 +108,57 @@ def linear_interp_kick(dt, dE, voltage,
                                      dE,
                                      voltage,
                                      bin_centers,
-                                     bm.precision.real_t(charge),
+                                     precision.real_t(charge),
                                      np.int32(slices),
                                      np.int32(macros),
-                                     bm.precision.real_t(acceleration_kick),
+                                     precision.real_t(acceleration_kick),
                                      glob_vkick_factor),
                                grid=grid_size, block=block_size)
 
 
 def linear_interp_kick_drift(dt, dE, total_voltage, bin_centers, charge, acc_kick,
                                 t_rev, length_ratio, alpha_order, eta_0, beta, energy):
-    assert dt.dtype == bm.precision.real_t
-    assert dE.dtype == bm.precision.real_t
-    assert total_voltage.dtype == bm.precision.real_t
-    assert bin_centers.dtype == bm.precision.real_t
+    assert dt.dtype == precision.real_t
+    assert dE.dtype == precision.real_t
+    assert total_voltage.dtype == precision.real_t
+    assert bin_centers.dtype == precision.real_t
     
 
     macros = dt.size
     slices = bin_centers.size
 
-    glob_vkick_factor = cp.empty(2*(slices - 1), bm.precision.real_t)
+    glob_vkick_factor = cp.empty(2*(slices - 1), precision.real_t)
 
     gm_linear_interp_kick_help(args=(dt,
                                      dE,
                                      total_voltage,
                                      bin_centers,
-                                     bm.precision.real_t(charge),
+                                     precision.real_t(charge),
                                      np.int32(slices),
                                      np.int32(macros),
-                                     bm.precision.real_t(acc_kick),
+                                     precision.real_t(acc_kick),
                                      glob_vkick_factor),
                                grid=grid_size, block=block_size)
     gm_linear_interp_kick_drift_comp(args=(dt,
                                            dE,
                                            total_voltage,
                                            bin_centers,
-                                           bm.precision.real_t(charge),
+                                           precision.real_t(charge),
                                            np.int32(slices),
                                            np.int32(macros),
-                                           bm.precision.real_t(acc_kick),
+                                           precision.real_t(acc_kick),
                                            glob_vkick_factor,
-                                           bm.precision.real_t(t_rev),
-                                           bm.precision.real_t(length_ratio),
-                                           bm.precision.real_t(eta_0),
-                                           bm.precision.real_t(beta),
-                                           bm.precision.real_t(energy)),
+                                           precision.real_t(t_rev),
+                                           precision.real_t(length_ratio),
+                                           precision.real_t(eta_0),
+                                           precision.real_t(beta),
+                                           precision.real_t(energy)),
                                      grid=grid_size, block=block_size)
 
 
 def slice(dt, profile, cut_left, cut_right):
 
-    assert dt.dtype == bm.precision.real_t
+    assert dt.dtype == precision.real_t
     
     n_slices = profile.size
     profile.fill(0)
@@ -168,36 +168,36 @@ def slice(dt, profile, cut_left, cut_right):
     if not isinstance(cut_right, float):
         cut_right = float(cut_right)
 
-    if 4*n_slices < bm.gpuDev().attributes['MaxSharedMemoryPerBlock']:
-        sm_histogram(args=(dt, profile, bm.precision.real_t(cut_left),
-                           bm.precision.real_t(cut_right), np.uint32(n_slices),
+    if 4*n_slices < gpu_dev.attributes['MaxSharedMemoryPerBlock']:
+        sm_histogram(args=(dt, profile, precision.real_t(cut_left),
+                           precision.real_t(cut_right), np.uint32(n_slices),
                            np.uint32(dt.size)),
                      grid=grid_size, block=block_size, shared_mem=4*n_slices)
     else:
-        hybrid_histogram(args=(dt, profile, bm.precision.real_t(cut_left),
-                               bm.precision.real_t(cut_right), np.uint32(n_slices),
+        hybrid_histogram(args=(dt, profile, precision.real_t(cut_left),
+                               precision.real_t(cut_right), np.uint32(n_slices),
                                np.uint32(dt.size), np.int32(
-            bm.gpuDev().attributes['MaxSharedMemoryPerBlock']/4)),
+            gpu_dev.attributes['MaxSharedMemoryPerBlock']/4)),
             grid=grid_size, block=block_size,
-            shared_mem=bm.gpuDev().attributes['MaxSharedMemoryPerBlock'])
+            shared_mem=gpu_dev.attributes['MaxSharedMemoryPerBlock'])
 
 
 def synchrotron_radiation(dE, U0, n_kicks, tau_z):
-    assert dE.dtype == bm.precision.real_t
+    assert dE.dtype == precision.real_t
    
-    synch_rad(args=(dE, bm.precision.real_t(U0/n_kicks), np.int32(dE.size),
-                    bm.precision.real_t(tau_z * n_kicks),
+    synch_rad(args=(dE, precision.real_t(U0/n_kicks), np.int32(dE.size),
+                    precision.real_t(tau_z * n_kicks),
                     np.int32(n_kicks)),
               block=block_size, grid=grid_size)
 
 
 def synchrotron_radiation_full(dE, U0, n_kicks, tau_z, sigma_dE, energy):
-    assert dE.dtype == bm.precision.real_t
+    assert dE.dtype == precision.real_t
     
-    synch_rad_full(args=(dE, bm.precision.real_t(U0/n_kicks), np.int32(dE.size),
-                         bm.precision.real_t(sigma_dE),
-                         bm.precision.real_t(tau_z * n_kicks),
-                         bm.precision.real_t(energy), np.int32(n_kicks)),
+    synch_rad_full(args=(dE, precision.real_t(U0/n_kicks), np.int32(dE.size),
+                         precision.real_t(sigma_dE),
+                         precision.real_t(tau_z * n_kicks),
+                         precision.real_t(energy), np.int32(n_kicks)),
                    block=block_size, grid=grid_size)
 
 
@@ -209,8 +209,8 @@ def __beam_phase_helper(bin_centers, profile, alpha, omega_rf, phi_rf):
 
 
 def beam_phase(bin_centers, profile, alpha, omega_rf, phi_rf, bin_size):
-    assert bin_centers.dtype == bm.precision.real_t
-    assert profile.dtype == bm.precision.real_t
+    assert bin_centers.dtype == precision.real_t
+    assert profile.dtype == precision.real_t
 
     array1, array2 = __beam_phase_helper(
         bin_centers, profile, alpha, omega_rf, phi_rf)
@@ -228,8 +228,8 @@ def __beam_phase_fast_helper(bin_centers, profile, omega_rf, phi_rf):
 
 
 def beam_phase_fast(bin_centers, profile, omega_rf, phi_rf, bin_size):
-    assert bin_centers.dtype == bm.precision.real_t
-    assert profile.dtype == bm.precision.real_t
+    assert bin_centers.dtype == precision.real_t
+    assert profile.dtype == precision.real_t
 
     array1, array2 = __beam_phase_fast_helper(
         bin_centers, profile, omega_rf, phi_rf)
@@ -248,7 +248,7 @@ def beam_phase_fast(bin_centers, profile, omega_rf, phi_rf, bin_size):
 #         raise RuntimeError('[convolve] Only full mode is supported')
 #     if result is None:
 #         result = cp.empty(len(signal) + len(kernel) - 1,
-#                           dtype=bm.precision.real_t)
+#                           dtype=precision.real_t)
 #     result = bm.irfft(bm.rfft(signal) * bm.rfft(kernel))
 #     return result
 
@@ -261,11 +261,11 @@ def beam_phase_fast(bin_centers, profile, omega_rf, phi_rf, bin_size):
 #     if not right:
 #         right = yp[-1]
 #     if result is None:
-#         result = cp.empty(x.size, bm.precision.real_t)
+#         result = cp.empty(x.size, precision.real_t)
 
 #     cuinterp(args=(x, np.int32(x.size),
 #                    xp, np.int32(xp.size),
 #                    yp, result,
-#                    bm.precision.real_t(left), bm.precision.real_t(right)),
+#                    precision.real_t(left), precision.real_t(right)),
 #              block=block_size, grid=grid_size)
 #     return result

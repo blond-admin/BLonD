@@ -7,11 +7,10 @@ https://packaging.python.org/guides/distributing-packages-using-setuptools/
 """
 from pathlib import Path
 from setuptools import setup, find_packages
-# from blond._version import __version__
 from setuptools.command.egg_info import egg_info as _egg_info
-import distutils
 import subprocess
 import os
+import sys
 
 HERE = Path(__file__).parent.absolute()
 with (HERE / 'README.md').open('rt', encoding='utf-8') as fh:
@@ -40,77 +39,25 @@ REQUIREMENTS = {
     ],
 }
 
-
 class Compile_and_Egg_Info(_egg_info):
-    description = 'Compile the C++ sources before installing'
-    user_options = _egg_info.user_options
-    user_options += [
-        ('parallel', 'p', 'Enable Multi-threaded code'),
-        ('compiler=', 'c', 'Specify the compiler type'),
-        ('gpu=', None, 'Compile the CUDA backend'),
-        ('boost=', None, 'Compile with the Boost Library')]
+    
+    description = _egg_info.description + '\nCompile the C++ sources before package installation.'
 
     def initialize_options(self):
         _egg_info.initialize_options(self)
-        self.parallel = None
-        self.boost = None
-        self.compiler = None
-        self.gpu = None
 
     def finalize_options(self):
         """Post-process options."""
         _egg_info.finalize_options(self)
 
     def run(self):
-        cmd = ['python3', 'blond/compile.py']
-        if self.parallel:
-            cmd.append('-p')
-        if self.boost:
-            cmd += ['-b', self.boost]
-        if self.compiler:
-            cmd += ['-c', self.compiler]
-        if self.gpu:
-            cmd += ['-gpu', self.gpu]
-
-        subprocess.run(cmd, check=True, env=os.environ.copy())
-                # self.run_command('compile')
+        cmd = [sys.executable, 'blond/compile.py']
+        try:
+            subprocess.run(cmd, check=True, env=os.environ.copy())
+        except Exception as e:
+            print('Compilation failed with: ', e)
+            print('Failing back to the python-only backend.')
         return _egg_info.run(self)
-
-class CompileLibrary(distutils.cmd.Command):
-    """Compile all C/C++ source files."""
-
-    description = 'Compile the shared libraries. Use blond/compile.py for advanced options.'
-    user_options = [
-        ('parallel', 'p', 'Enable Multi-threaded code'),
-        ('compiler=', 'c', 'Specify the compiler type'),
-        ('gpu=', None, 'Compile the CUDA backend'),
-        ('boost=', None, 'Compile with the Boost Library')]
-
-    def initialize_options(self):
-        """Set default values for options."""
-        # Each user option must be listed here with their default value.
-        self.openmp = None
-        self.boost = None
-        self.compiler = None
-        self.gpu = None
-
-    def finalize_options(self):
-        """Post-process options."""
-        pass
-
-    def run(self):
-        """Run command."""
-        cmd = ['python3', 'blond/compile.py']
-        if self.openmp:
-            cmd.append('-p')
-        if self.boost:
-            cmd += ['-b', self.boost]
-        if self.compiler:
-            cmd += ['-c', self.compiler]
-        if self.gpu:
-            cmd += ['-gpu', self.gpu]
-
-        subprocess.run(cmd, check=True, env=os.environ.copy())
 
 
 setup(
@@ -123,7 +70,6 @@ setup(
     long_description=LONG_DESCRIPTION,
     long_description_content_type='text/markdown',
     url='https://gitlab.cern.ch/blond/BLonD',
-    # download_url='https://github.com/blond-admin/BLonD/archive/v'+__version__+'.tar.gz',
     packages=find_packages(
         exclude=['__doc', '__BENCHMARKS', '__EXAMPLES', 'unittests']),
     python_requires='>=3.6',
@@ -150,6 +96,5 @@ setup(
     include_package_data=True,
     cmdclass={
         'egg_info': Compile_and_Egg_Info,
-        'compile': CompileLibrary,
     },
 )

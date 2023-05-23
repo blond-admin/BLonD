@@ -16,10 +16,11 @@ import unittest
 import pytest
 import os
 import subprocess
+import sys
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 main_files_dir = os.path.join(this_directory, '../../__EXAMPLES/gpu_main_files')
-exec_args = ['python']
+exec_args = [sys.executable]
 timeout = 90    # Timeout in seconds
 
 

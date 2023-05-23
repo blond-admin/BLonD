@@ -27,8 +27,8 @@ import argparse
 path = os.path.realpath(__file__)
 basepath = os.sep.join(path.split(os.sep)[:-1])
 
-parser = argparse.ArgumentParser(description='Run python setup_cpp.py to'
-                                             ' compile the cpp routines needed from BLonD')
+parser = argparse.ArgumentParser(description='Script used to compile the C++ (and CUDA) libraries needed by BLonD.',
+                                 epilog='All arguments can be controlled with the environment variable BLOND_COMPILE_OPTS. E.g.: BLOND_COMPILE_OPTS=\'-p,--flags=-O0 -g\'')
 
 parser.add_argument('-p', '--parallel',
                     default=False, action='store_true',
@@ -115,47 +115,57 @@ nvccflags = [nvcc, '--cubin', '-O3', '--use_fast_math', '-maxrregcount', '32']
 # nvccflags = ['nvcc', '--cubin', '-arch', 'sm_xx', '-O3', '--use_fast_math']
 
 if __name__ == "__main__":
-    args = parser.parse_args()
+    # Parse command line options
+    args = vars(parser.parse_args())
+
+    # Parse environment variable (BLOND_COMPILE_OPTS) options
+    env_args = {}
+    if 'BLOND_COMPILE_OPTS' in os.environ:
+        env_args_lst = os.environ['BLOND_COMPILE_OPTS'].split(',')
+        env_args = vars(parser.parse_args(env_args_lst))
+
+    args.update(env_args)
+
     boost_path = None
-    with_fftw = args.with_fftw or args.with_fftw_threads or args.with_fftw_omp or \
-        (args.with_fftw_lib is not None) or (args.with_fftw_header is not None)
-    if args.boost is not None:
-        if args.boost:
-            boost_path = os.path.abspath(args.boost)
+    with_fftw = args['with_fftw'] or args['with_fftw_threads'] or args['with_fftw_omp'] or \
+        (args['with_fftw_lib'] is not None) or (args['with_fftw_header'] is not None)
+    if args['boost'] is not None:
+        if args['boost']:
+            boost_path = os.path.abspath(args['boost'])
         else:
             boost_path = ''
         cflags += ['-I', boost_path, '-DBOOST']
-    compiler = args.compiler
+    compiler = args['compiler']
 
-    if args.libs:
-        libs = args.libs.split()
+    if args['libs']:
+        libs = args['libs'].split()
 
-    if args.parallel:
+    if args['parallel']:
         cflags += ['-fopenmp', '-DPARALLEL', '-D_GLIBCXX_PARALLEL']
 
-    if args.flags:
-        cflags += args.flags.split()
+    if args['flags']:
+        cflags += args['flags'].split()
 
     if with_fftw:
         cflags += ['-DUSEFFTW3']
-        if args.with_fftw_lib is not None:
-            libs += ['-L', args.with_fftw_lib]
-        if args.with_fftw_header is not None:
-            cflags += ['-I', args.with_fftw_header]
+        if args['with_fftw_lib'] is not None:
+            libs += ['-L', args['with_fftw_lib']]
+        if args['with_fftw_header'] is not None:
+            cflags += ['-I', args['with_fftw_header']]
         if 'win' in sys.platform:
             libs += ['-lfftw3-3']
         else:
             libs += ['-lfftw3', '-lfftw3f']
-            if args.with_fftw_omp:
+            if args['with_fftw_omp']:
                 cflags += ['-DFFTW3PARALLEL']
                 libs += ['-lfftw3_omp', '-lfftw3f_omp']
-            elif args.with_fftw_threads:
+            elif args['with_fftw_threads']:
                 cflags += ['-DFFTW3PARALLEL']
                 libs += ['-lfftw3_threads', '-lfftw3f_threads']
 
     if 'posix' in os.name:
         cflags += ['-fPIC']
-        if args.optimize:
+        if args['optimize']:
             # Check compiler defined directives
             # This is compatible with python3.6 - python 3.9
             # The universal_newlines argument transforms output to text (from binary)
@@ -185,13 +195,13 @@ if __name__ == "__main__":
                 if 'FMA' in stdout:
                     cflags += ['-mfma']
 
-        root, ext = os.path.splitext(args.libname)
+        root, ext = os.path.splitext(args['libname'])
         if not ext:
             ext = '.so'
         libname = os.path.abspath(root + ext)
 
     elif 'win' in sys.platform:
-        root, ext = os.path.splitext(args.libname)
+        root, ext = os.path.splitext(args['libname'])
         if not ext:
             ext = '.dll'
         libname = os.path.abspath(root + ext)
@@ -206,22 +216,24 @@ if __name__ == "__main__":
         sys.exit(-1)
     command = [compiler] + cflags + ['-o', libname] + cpp_files + libs
 
-    print('Enable Multi-threaded code: ', args.parallel)
-    print('Using boost: ', args.boost is not None)
-    if args.boost is not None:
+    print('Enable Multi-threaded code: ', args['parallel'])
+    print('Use boost: ', args['boost'] is not None)
+    if args['boost'] is not None:
         print('Boost installation path: ', boost_path)
-    print('With FFTW3: ', with_fftw)
+    print('Link with FFTW3: ', with_fftw)
     if with_fftw:
-        print('Parallel FFTW3:', args.with_fftw_threads or args.with_fftw_omp)
-    if args.with_fftw_lib or args.with_fftw_header:
-        print('FFTW3 Library path: ', args.with_fftw_lib)
-        print('FFTW3 Headers path: ', args.with_fftw_header)
+        print('Parallel FFTW3:', args['with_fftw_threads'] or args['with_fftw_omp'])
+    if args['with_fftw_lib'] or args['with_fftw_header']:
+        print('FFTW3 Library path: ', args['with_fftw_lib'])
+        print('FFTW3 Headers path: ', args['with_fftw_header'])
     print('C++ Compiler: ', compiler)
-    print('Compiler version: ')
-    subprocess.run([compiler, '--version'])
+    compiler_version = subprocess.run(
+        [compiler, '--version'], capture_output=True).stdout.decode().split('\n')[0]
+    print('Compiler version: ', compiler_version)
+    
     print('Compiler flags: ', ' '.join(cflags))
     print('Extra libraries: ', ' '.join(libs))
-    print('Library name: ', libname)
+    print('Compiled library name: ', libname)
 
     # If it exists already, remove the library before re-compiling
     if os.path.isfile(libname):
@@ -246,10 +258,10 @@ if __name__ == "__main__":
             print(e)
 
     # Compile the GPU library
-    if args.gpu:
+    if args['gpu']:
         print('\n'+''.join(['=']*80))
         print('\nCompiling the CUDA library')
-        if args.gpu == 'discover':
+        if args['gpu'] == 'discover':
             print('Discovering the device compute capability..')
             import cupy as cp
 
@@ -257,8 +269,8 @@ if __name__ == "__main__":
             dev_name = cp.cuda.runtime.getDeviceProperties(dev)['name']
             comp_capability = dev.compute_capability
             print('Device name {}'.format(dev_name))
-        elif args.gpu is not None:
-            comp_capability = args.gpu
+        elif args['gpu'] is not None:
+            comp_capability = args['gpu']
 
         print('Compiling the CUDA library for architecture {}.'.format(comp_capability))
         # Add the -arch required argument

@@ -174,6 +174,8 @@ class TestWhere(unittest.TestCase):
 
     # Run before every test
     def setUp(self):
+        if bm.device != 'CPU_CPP':
+            raise unittest.SkipTest('Compiled blond library not found, skipping test.')
         np.random.seed(0)
         pass
     # Run after every test
@@ -235,7 +237,10 @@ class TestSin(unittest.TestCase):
 
     # Run before every test
     def setUp(self):
-        pass
+        if bm.device != 'CPU_CPP':
+            raise unittest.SkipTest(
+                'Compiled blond library not found, skipping test.')
+
     # Run after every test
 
     def tearDown(self):
@@ -258,7 +263,10 @@ class TestCos(unittest.TestCase):
 
     # Run before every test
     def setUp(self):
-        pass
+        if bm.device != 'CPU_CPP':
+            raise unittest.SkipTest(
+                'Compiled blond library not found, skipping test.')
+
     # Run after every test
 
     def tearDown(self):
@@ -281,7 +289,9 @@ class TestExp(unittest.TestCase):
 
     # Run before every test
     def setUp(self):
-        pass
+        if bm.device != 'CPU_CPP':
+            raise unittest.SkipTest(
+                'Compiled blond library not found, skipping test.')
     # Run after every test
 
     def tearDown(self):
@@ -300,7 +310,9 @@ class TestMean(unittest.TestCase):
 
     # Run before every test
     def setUp(self):
-        pass
+        if bm.device != 'CPU_CPP':
+            raise unittest.SkipTest(
+                'Compiled blond library not found, skipping test.')
     # Run after every test
 
     def tearDown(self):
@@ -319,7 +331,9 @@ class TestStd(unittest.TestCase):
 
     # Run before every test
     def setUp(self):
-        pass
+        if bm.device != 'CPU_CPP':
+            raise unittest.SkipTest(
+                'Compiled blond library not found, skipping test.')
     # Run after every test
 
     def tearDown(self):
@@ -338,7 +352,9 @@ class TestSum(unittest.TestCase):
 
     # Run before every test
     def setUp(self):
-        pass
+        if bm.device != 'CPU_CPP':
+            raise unittest.SkipTest(
+                'Compiled blond library not found, skipping test.')
     # Run after every test
 
     def tearDown(self):
@@ -357,7 +373,9 @@ class TestLinspace(unittest.TestCase):
 
     # Run before every test
     def setUp(self):
-        pass
+        if bm.device != 'CPU_CPP':
+            raise unittest.SkipTest(
+                'Compiled blond library not found, skipping test.')
     # Run after every test
 
     def tearDown(self):
@@ -395,7 +413,9 @@ class TestArange(unittest.TestCase):
 
     # Run before every test
     def setUp(self):
-        pass
+        if bm.device != 'CPU_CPP':
+            raise unittest.SkipTest(
+                'Compiled blond library not found, skipping test.')
     # Run after every test
 
     def tearDown(self):
@@ -435,7 +455,9 @@ class TestArgMin(unittest.TestCase):
 
     # Run before every test
     def setUp(self):
-        pass
+        if bm.device != 'CPU_CPP':
+            raise unittest.SkipTest(
+                'Compiled blond library not found, skipping test.')
     # Run after every test
 
     def tearDown(self):
@@ -454,7 +476,9 @@ class TestArgMax(unittest.TestCase):
 
     # Run before every test
     def setUp(self):
-        pass
+        if bm.device != 'CPU_CPP':
+            raise unittest.SkipTest(
+                'Compiled blond library not found, skipping test.')
     # Run after every test
 
     def tearDown(self):
@@ -473,7 +497,9 @@ class TestConvolve(unittest.TestCase):
 
     # Run before every test
     def setUp(self):
-        pass
+        if bm.device != 'CPU_CPP':
+            raise unittest.SkipTest(
+                'Compiled blond library not found, skipping test.')
     # Run after every test
 
     def tearDown(self):
@@ -499,7 +525,9 @@ class TestInterp(unittest.TestCase):
 
     # Run before every test
     def setUp(self):
-        pass
+        if bm.device != 'CPU_CPP':
+            raise unittest.SkipTest(
+                'Compiled blond library not found, skipping test.')
     # Run after every test
 
     def tearDown(self):
@@ -543,7 +571,9 @@ class TestTrapz(unittest.TestCase):
 
     # Run before every test
     def setUp(self):
-        pass
+        if bm.device != 'CPU_CPP':
+            raise unittest.SkipTest(
+                'Compiled blond library not found, skipping test.')
     # Run after every test
 
     def tearDown(self):
@@ -569,7 +599,9 @@ class TestCumTrapz(unittest.TestCase):
 
     # Run before every test
     def setUp(self):
-        pass
+        if bm.device != 'CPU_CPP':
+            raise unittest.SkipTest(
+                'Compiled blond library not found, skipping test.')
     # Run after every test
 
     def tearDown(self):
@@ -614,7 +646,9 @@ class TestSort(unittest.TestCase):
 
     # Run before every test
     def setUp(self):
-        pass
+        if bm.device != 'CPU_CPP':
+            raise unittest.SkipTest(
+                'Compiled blond library not found, skipping test.')
     # Run after every test
 
     def tearDown(self):

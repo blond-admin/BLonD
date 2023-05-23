@@ -15,10 +15,11 @@ Integration tests, execute all __EXAMPLES main files.
 import unittest
 import os
 import subprocess
+import sys
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 main_files_dir = os.path.join(this_directory, '../../__EXAMPLES/main_files')
-exec_args = ['python']
+exec_args = [sys.executable]
 timeout = 60    # Timeout in seconds
 
 class TestExamples(unittest.TestCase):
@@ -26,6 +27,7 @@ class TestExamples(unittest.TestCase):
     def _runExample(self, example, timeout=timeout):
         file = os.path.join(main_files_dir, example)
         try:
+            ret = subprocess.run(exec_args +['-m', 'pip', 'show', 'blond'])
             ret = subprocess.run(exec_args + [file], timeout=timeout)
             self.assertEqual(ret.returncode, 0)
         except subprocess.TimeoutExpired as e:

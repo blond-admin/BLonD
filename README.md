@@ -23,15 +23,16 @@ Documentation: <https://blond-code.docs.cern.ch/>
 
 Project website: <http://blond.web.cern.ch>
 
-# Install
+# Installation
 
-## Requirements
+## Dependencies
 
-1.  A gcc compiler with C++11 support (version greater than 4.8.4).
-2.  An Anaconda distribution (Python 3 recommended).
-3.  That's all!
+1. Python 3.6 or above (Anaconda is recommended).  
+2. (Optional) For better performance, a C++ (e.g. `gcc`, `icc`, `clang`, etc) compiler with `C++11` support.
 
-## Windows GCC Installation Instructions
+### (Optional) C++ compiler installation instructions
+
+#### Windows
 
 1.  Download the latest mingw-w64 using this link:
     <https://winlibs.com/#download-release>
@@ -44,105 +45,85 @@ Project website: <http://blond.web.cern.ch>
     type: `gcc --version`. The first output line should contain the gcc
     version you just installed.
 
-## Install Steps
+#### Linux
+Use your distribution's package manager to install the compiler of your choice. BLonD has been tested with: `gcc` (recommended), `icc`, and `clang`.
+
+## Installation Steps
 
 ### Installing BLonD as a python package.
 
--   Using the pip package manager:
-
-    ``` bash
-    $ pip install blond
+-   Using the `pip` package manager:
+    ```bash
+    pip install blond
     ```
 
--   If this fails try to:
+### Installing BLonD manually (advanced users/ developers).
 
-    1.  Clone the repository from gitlab or download and extract the zip
-        from <https://gitlab.cern.ch/blond/BLonD/-/archive/master/BLonD-master.zip>
-    2.  Go to the downloaded BLonD directory and run:
-
-        ``` bash
-        $ python setup.py install
-        ```
-
--   If it still fails, go to the BLonD directory and run:
-
-    1.  
-        ``` bash
-        $ python setup.py compile
-        ```
-
-    2.  Then you have to set the PYTHONPATH variable to point to the
-        BLonD installation path.
-
--   In the occasion that it continues to fail, please open a new gitlab issue.
-
-### For advanced users or developers.
-
-1.  You are advised to install git in your system.
-2.  Clone the repository or download and extract it.
-3.  From within the BLonD directory run:
-    ``` bash
-    $ python blond/compile.py
+1.  Clone the repository (with `git`) or download and extract it.
+2.  (Optional) From within the BLonD directory run:
+    ```bash
+    python blond/compile.py
     ```
-4.  Adjust the PYTHONPATH to contain the path to the cloned repository.
+3. (Optional) See the complete list of the command line arguments with:
+    ```bash
+    python blond/compile.py --help
+    ```
+4.  Adjust the `PYTHONPATH` environment variable to contain the path to the BLonD directory.
 
 ## Confirm proper installation
 
--   Run the unittests with pytest (may need to be installed first with
-    pip install pytest):
-
+-   Run the unittests with `pytest` (the `pytest` package may need to be installed first):
     ``` bash
-    $ pytest -v unittests
+    pytest -v unittests
     ```
 
--   Try to run some of the main files found in the examples:
-
+-   Run some of the main files found in the `__EXAMPLES` directory:
     ``` bash
-    $ python __EXAMPLES/main_files/EX_01_Acceleration.py
-    $ python __EXAMPLES/main_files/EX_02_Main_long_ps_booster.py
-    $ etc..
+    python __EXAMPLES/main_files/EX_01_Acceleration.py
+    python __EXAMPLES/main_files/EX_02_Main_long_ps_booster.py
+    etc..
     ```
 
-## Performace Optimizations
+# Performance Optimizations
+By default, if the C++ blond library has not been compiled, the python-only backend will be used to run the most time-consuming operations. 
 
-There are some easy ways to reduce the execution time of your
-simulation:
+To use the C++ backend and accelerate the execution of the time-consuming operations, follow the instructions provided in the section *Installing BLonD manually*.
 
-1.  Use the multi-threaded C library. To use it you have to add the -p
-    flag when compiling the C library:
+In addition you may want to:
+* Use the multi-threaded blond C++ backend:
     ``` bash
-    $ python blond/compile.py --parallel
+    python blond/compile.py --parallel
     ```
 
-2.  Enable processor specific compiler optimizations:
+* Enable processor specific compiler optimizations:
     ``` bash
-    $ python blond/compile.py --flags='-march=native'
+    python blond/compile.py --parallel --optimize
     ```
 
-3.  If you are test-case is calling the synchrotron radiation tracking method, you can accelerate it by using the Boost library. To do so you have to:  
+* If you are test-case is calling the synchrotron radiation tracking method, you can accelerate it by using the Boost library. To do so you have to:  
     1.  Download Boost: <https://www.boost.org/>. Let's say the version
         you downloaded is boost_1\_70.
     2.  Extract it, let's say in `/user/path/to/boost_1_70`.
     3.  Pass the boost installation path when compiling BLonD:
         ``` bash
-        $ python blond/compile.py --boost=/user/path/to/boost_1_7_70
+        python blond/compile.py --boost=/user/path/to/boost_1_7_70
         ```
 
-4.  Check the following section about the FFTW3 library.
+* Check the following section about the FFTW3 library.
 
-5.  *All the above can be combined.*
-
-## Changing the floating point precision (32 bit floats or 64 bit floats)
-
--   By default BLonD uses double precision calculations (float64). To
-    change to single precision, for faster calculations, in the
-    beginning of your mainfile you will have to add the code lines:
-    ``` python
-    from blond.utils import bmath as bm
-    bm.use_precision('single') 
+* All the above can be combined, i.e.:
+    ```bash
+    python blond/compile.py --parallel --optimize --boost=...
     ```
 
--   No other modifications are needed.
+## Changing the floating point number datatype
+
+By default BLonD uses double precision calculations (float64). To change to single precision for faster calculations, in the beginning of your mainfile you will have to add the following code lines:
+```python
+from blond.utils import bmath as bm
+bm.use_precision('single') 
+```
+
 
 ## Use the FFTW3 library for the FFTs
 
@@ -311,13 +292,13 @@ supported. `fft_convolve()` to be added soon.
     **mpiexec**. To spawn P MPI processes run:
 
     ``` bash
-    $ mpirun -n P python main_file.py
+    mpirun -n P python main_file.py
     ```
 
 7.  For more examples have a look at the \_\_EXAMPLES/mpi_main_files/
     directory.
 
-# Using the GPU Implementation
+# Using the GPU backend
 
 ## Setup Instructions
 
@@ -333,13 +314,13 @@ supported. `fft_convolve()` to be added soon.
     a = cp.array(np.zeros(1000,np.float64)) 
     ```
 
-    To compile the Cuda files execute blond/compile.py and add the flag
+    To compile the CUDA files execute blond/compile.py and add the flag
     --gpu. The Compute Capability of your GPU will be automatically
     detected:
 
-``` bash
-$ python blond/compile.py --gpu 
-```
+    ``` bash
+    python blond/compile.py --gpu 
+    ```
 
 ## Changes required in the main file for GPU
 
@@ -354,39 +335,39 @@ $ python blond/compile.py --gpu
 2.  Also for every object you are using in your main loop that is in the
     following list:
 
-| GPU objects             |
-|-------------------------|
-| Beam                    |
-| Profile                 |
-| RingAndRFTracker        |
-| TotalInducedVoltage     |
-| InducedVoltageTime      |
-| InducedVoltageFreq      |
-| InductiveImpedance      |
-| InducedVoltageResonator |
-| RFStation               |
-| BeamFeedback            |
+    | GPU objects             |
+    |-------------------------|
+    | Beam                    |
+    | Profile                 |
+    | RingAndRFTracker        |
+    | TotalInducedVoltage     |
+    | InducedVoltageTime      |
+    | InducedVoltageFreq      |
+    | InductiveImpedance      |
+    | InducedVoltageResonator |
+    | RFStation               |
+    | BeamFeedback            |
 
-you need to call their `to_gpu()` method. The following is a typical
-example from the \_\_EXAMPLES/gpu_main_files/EX_01_Acceleration.py
-mainfile.
+    you need to call their `to_gpu()` method. The following is a typical
+    example from the \_\_EXAMPLES/gpu_main_files/EX_01_Acceleration.py
+    mainfile.
 
-``` python
-# Define Objects
-beam = Beam(ring, N_p, N_b)
-profile = Profile(beam, CutOptions(n_slices=100), 
-             FitOptions(fit_option='gaussian'))
-# Initialize gpu
-beam.to_gpu()
-profile.to_gpu()
-```
+    ``` python
+    # Define Objects
+    beam = Beam(ring, N_p, N_b)
+    profile = Profile(beam, CutOptions(n_slices=100), 
+                FitOptions(fit_option='gaussian'))
+    # Initialize gpu
+    beam.to_gpu()
+    profile.to_gpu()
+    ```
 
-If an object of this list has a reference inside a different one you
-don't need to use the `to_gpu()` for the referenced object. In the
-previous example, we don't need to call `beam.to_gpu()` since `beam` is
-referenced inside the `profile`. The same would apply in a
-`TotalInducedVoltage` object and the objects in its
-`induced_voltage_list`.
+    If an object of this list has a reference inside a different one you
+    don't need to use the `to_gpu()` for the referenced object. In the
+    previous example, we don't need to call `beam.to_gpu()` since `beam` is
+    referenced inside the `profile`. The same would apply in a
+    `TotalInducedVoltage` object and the objects in its
+    `induced_voltage_list`.
 
 # Developers
 
