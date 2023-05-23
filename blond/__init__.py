@@ -24,11 +24,11 @@ try:
         else:
             libblond = ctypes.CDLL(libblond_path)
     else:
-        print('YOU DO NOT HAVE A WINDOWS OR LINUX OPERATING SYSTEM. ABORTING...')
+        print('YOU DO NOT HAVE A WINDOWS OR UNIX OPERATING SYSTEM. ABORTING...')
         sys.exit()
 except OSError as e:
     print("""
         Warning: The compiled blond library was not found.
-        You can safely ignore this warning if you are in 
-        the process of compiling the library.""")
+        The python routines will be used instead.
+        """)
 

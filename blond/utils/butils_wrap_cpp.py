@@ -9,26 +9,7 @@ import ctypes as ct
 import numpy as np
 import os
 from .. import libblond as __lib
-
-
-class Precision:
-    def __init__(self, precision='double'):
-        if precision in ['single', 's', '32', 'float32', 'float', 'f']:
-            self.str = 'float32'
-            self.real_t = np.float32
-            self.c_real_t = ct.c_float
-            self.complex_t = np.complex64
-            self.num = 1
-        elif precision in ['double', 'd', '64', 'float64']:
-            self.str = 'float64'
-            self.real_t = np.float64
-            self.c_real_t = ct.c_double
-            self.complex_t = np.complex128
-            self.num = 2
-
-
-precision = Precision('double')
-
+from . import precision, c_real, c_complex, c_complex64, c_complex128
 
 def __getPointer(x):
     return x.ctypes.data_as(ct.c_void_p)
@@ -38,46 +19,10 @@ def __getLen(x):
     return ct.c_int(len(x))
 
 
-def __c_real(x):
-    if precision.num == 1:
-        return ct.c_float(x)
-    else:
-        return ct.c_double(x)
-
-
-class c_complex128(ct.Structure):
-    # Complex number, compatible with std::complex layout
-    _fields_ = [("real", ct.c_double), ("imag", ct.c_double)]
-
-    def __init__(self, pycomplex):
-        # Init from Python complex
-        self.real = pycomplex.real.astype(np.float64, order='C')
-        self.imag = pycomplex.imag.astype(np.float64, order='C')
-
-    def to_complex(self):
-        # Convert to Python complex
-        return self.real + (1.j) * self.imag
-
-
-class c_complex64(ct.Structure):
-    # Complex number, compatible with std::complex layout
-    _fields_ = [("real", ct.c_float), ("imag", ct.c_float)]
-
-    def __init__(self, pycomplex):
-        # Init from Python complex
-        self.real = pycomplex.real.astype(np.float32, order='C')
-        self.imag = pycomplex.imag.astype(np.float32, order='C')
-
-    def to_complex(self):
-        # Convert to Python complex
-        return self.real + (1.j) * self.imag
-
 # Similar to np.where with a condition of more_than < x < less_than
 # You need to define at least one of more_than, less_than
 # @return: a bool array, size equal to the input,
 #           True: element satisfied the cond, False: otherwise
-
-
 def where_cpp(x, more_than=None, less_than=None, result=None):
     if result is None:
         result = np.empty_like(x, dtype=bool)
@@ -236,7 +181,7 @@ def argmax_cpp(x):
 def linspace_cpp(start, stop, num=50, retstep=False, result=None):
     if result is None:
         result = np.empty(num, dtype=float)
-    __lib.linspace(__c_real(start), __c_real(stop),
+    __lib.linspace(c_real(start), c_real(stop),
                    ct.c_int(num), __getPointer(result))
     if retstep:
         return result, 1. * (stop-start) / (num-1)
@@ -249,8 +194,8 @@ def arange_cpp(start, stop, step, dtype=float, result=None):
     if result is None:
         result = np.empty(size, dtype=dtype)
     if dtype == float:
-        __lib.arange_double(__c_real(start), __c_real(stop),
-                            __c_real(step), __getPointer(result))
+        __lib.arange_double(c_real(start), c_real(stop),
+                            c_real(step), __getPointer(result))
     elif dtype == int:
         __lib.arange_int(ct.c_int(start), ct.c_int(stop),
                          ct.c_int(step), __getPointer(result))
@@ -379,15 +324,15 @@ def interp_cpp(x, xp, yp, left=None, right=None, result=None):
         __lib.interpf(__getPointer(x), __getLen(x),
                       __getPointer(xp), __getLen(xp),
                       __getPointer(yp),
-                      __c_real(left),
-                      __c_real(right),
+                      c_real(left),
+                      c_real(right),
                       __getPointer(result))
     else:
         __lib.interp(__getPointer(x), __getLen(x),
                      __getPointer(xp), __getLen(xp),
                      __getPointer(yp),
-                     __c_real(left),
-                     __c_real(right),
+                     c_real(left),
+                     c_real(right),
                      __getPointer(result))
 
     return result
@@ -409,15 +354,15 @@ def interp_const_space(x, xp, yp, left=None, right=None, result=None):
         __lib.interp_const_spacef(__getPointer(x), __getLen(x),
                                   __getPointer(xp), __getLen(xp),
                                   __getPointer(yp),
-                                  __c_real(left),
-                                  __c_real(right),
+                                  c_real(left),
+                                  c_real(right),
                                   __getPointer(result))
     else:
         __lib.interp_const_space(__getPointer(x), __getLen(x),
                                  __getPointer(xp), __getLen(xp),
                                  __getPointer(yp),
-                                 __c_real(left),
-                                 __c_real(right),
+                                 c_real(left),
+                                 c_real(right),
                                  __getPointer(result))
 
     return result
@@ -479,11 +424,11 @@ def rfftfreq(n, d=1.0, result=None):
     if precision.num == 1:
         __lib.rfftfreqf(ct.c_int(n),
                         __getPointer(result),
-                        __c_real(d))
+                        c_real(d))
     else:
         __lib.rfftfreq(ct.c_int(n),
                        __getPointer(result),
-                       __c_real(d))
+                       c_real(d))
 
     return result
 
@@ -529,12 +474,12 @@ def cumtrapz(y, x=None, dx=1.0, initial=None, result=None):
         if result is None:
             result = np.empty(len(y), dtype=float)
         __lib.cumtrapz_w_initial(__getPointer(y),
-                                 __c_real(dx), __c_real(initial),
+                                 c_real(dx), c_real(initial),
                                  __getLen(y), __getPointer(result))
     else:
         if result is None:
             result = np.empty(len(y)-1, dtype=float)
-        __lib.cumtrapz_wo_initial(__getPointer(y), __c_real(dx),
+        __lib.cumtrapz_wo_initial(__getPointer(y), c_real(dx),
                                   __getLen(y), __getPointer(result))
     return result
 
@@ -542,7 +487,7 @@ def cumtrapz(y, x=None, dx=1.0, initial=None, result=None):
 def trapz_cpp(y, x=None, dx=1.0):
     if x is None:
         __lib.trapz_const_delta.restype = ct.c_double
-        return __lib.trapz_const_delta(__getPointer(y), __c_real(dx),
+        return __lib.trapz_const_delta(__getPointer(y), c_real(dx),
                                        __getLen(y))
     else:
         __lib.trapz_var_delta.restype = ct.c_double
@@ -559,20 +504,20 @@ def beam_phase(bin_centers, profile, alpha, omegarf, phirf, bin_size):
         __lib.beam_phasef.restype = ct.c_float
         coeff = __lib.beam_phasef(__getPointer(bin_centers),
                                   __getPointer(profile),
-                                  __c_real(alpha),
-                                  __c_real(omegarf),
-                                  __c_real(phirf),
-                                  __c_real(bin_size),
+                                  c_real(alpha),
+                                  c_real(omegarf),
+                                  c_real(phirf),
+                                  c_real(bin_size),
                                   __getLen(profile))
 
     else:
         __lib.beam_phase.restype = ct.c_double
         coeff = __lib.beam_phase(__getPointer(bin_centers),
                                  __getPointer(profile),
-                                 __c_real(alpha),
-                                 __c_real(omegarf),
-                                 __c_real(phirf),
-                                 __c_real(bin_size),
+                                 c_real(alpha),
+                                 c_real(omegarf),
+                                 c_real(phirf),
+                                 c_real(bin_size),
                                  __getLen(profile))
     return coeff
 
@@ -584,11 +529,11 @@ def beam_phase_fast(bin_centers, profile, omegarf, phirf, bin_size):
 
     __lib.beam_phase_fast.restype = ct.c_double
     coeff = __lib.beam_phase_fast(__getPointer(bin_centers),
-                             __getPointer(profile),
-                             __c_real(omegarf),
-                             __c_real(phirf),
-                             __c_real(bin_size),
-                             __getLen(profile))
+                                  __getPointer(profile),
+                                  c_real(omegarf),
+                                  c_real(phirf),
+                                  c_real(bin_size),
+                                  __getLen(profile))
     return coeff
 
 
@@ -641,7 +586,7 @@ def kick(dt, dE, voltage, omega_rf, phi_rf, charge, n_rf, acceleration_kick):
                     __getPointer(omegarf_kick),
                     __getPointer(phirf_kick),
                     __getLen(dt),
-                    __c_real(acceleration_kick))
+                    c_real(acceleration_kick))
     else:
         __lib.kick(__getPointer(dt),
                    __getPointer(dE),
@@ -650,7 +595,7 @@ def kick(dt, dE, voltage, omega_rf, phi_rf, charge, n_rf, acceleration_kick):
                    __getPointer(omegarf_kick),
                    __getPointer(phirf_kick),
                    __getLen(dt),
-                   __c_real(acceleration_kick))
+                   c_real(acceleration_kick))
 
 
 def drift(dt, dE, solver, t_rev, length_ratio, alpha_order, eta_0,
@@ -664,33 +609,33 @@ def drift(dt, dE, solver, t_rev, length_ratio, alpha_order, eta_0,
         __lib.driftf(__getPointer(dt),
                      __getPointer(dE),
                      ct.c_char_p(solver),
-                     __c_real(t_rev),
-                     __c_real(length_ratio),
-                     __c_real(alpha_order),
-                     __c_real(eta_0),
-                     __c_real(eta_1),
-                     __c_real(eta_2),
-                     __c_real(alpha_0),
-                     __c_real(alpha_1),
-                     __c_real(alpha_2),
-                     __c_real(beta),
-                     __c_real(energy),
+                     c_real(t_rev),
+                     c_real(length_ratio),
+                     c_real(alpha_order),
+                     c_real(eta_0),
+                     c_real(eta_1),
+                     c_real(eta_2),
+                     c_real(alpha_0),
+                     c_real(alpha_1),
+                     c_real(alpha_2),
+                     c_real(beta),
+                     c_real(energy),
                      __getLen(dt))
     else:
         __lib.drift(__getPointer(dt),
                     __getPointer(dE),
                     ct.c_char_p(solver),
-                    __c_real(t_rev),
-                    __c_real(length_ratio),
-                    __c_real(alpha_order),
-                    __c_real(eta_0),
-                    __c_real(eta_1),
-                    __c_real(eta_2),
-                    __c_real(alpha_0),
-                    __c_real(alpha_1),
-                    __c_real(alpha_2),
-                    __c_real(beta),
-                    __c_real(energy),
+                    c_real(t_rev),
+                    c_real(length_ratio),
+                    c_real(alpha_order),
+                    c_real(eta_0),
+                    c_real(eta_1),
+                    c_real(eta_2),
+                    c_real(alpha_0),
+                    c_real(alpha_1),
+                    c_real(alpha_2),
+                    c_real(beta),
+                    c_real(energy),
                     __getLen(dt))
 
 
@@ -714,19 +659,19 @@ def linear_interp_kick(dt, dE, voltage,
                                   __getPointer(dE),
                                   __getPointer(voltage),
                                   __getPointer(bin_centers),
-                                  __c_real(charge),
+                                  c_real(charge),
                                   __getLen(bin_centers),
                                   __getLen(dt),
-                                  __c_real(acceleration_kick))
+                                  c_real(acceleration_kick))
     else:
         __lib.linear_interp_kick(__getPointer(dt),
                                  __getPointer(dE),
                                  __getPointer(voltage),
                                  __getPointer(bin_centers),
-                                 __c_real(charge),
+                                 c_real(charge),
                                  __getLen(bin_centers),
                                  __getLen(dt),
-                                 __c_real(acceleration_kick))
+                                 c_real(acceleration_kick))
 
 
 def linear_interp_kick_n_drift(dt, dE, total_voltage, bin_centers, charge, acc_kick,
@@ -750,17 +695,17 @@ def linear_interp_kick_n_drift(dt, dE, total_voltage, bin_centers, charge, acc_k
                                           __getPointer(bin_centers),
                                           __getLen(bin_centers),
                                           __getLen(dt),
-                                          __c_real(acc_kick),
+                                          c_real(acc_kick),
                                           ct.c_char_p(solver),
-                                          __c_real(t_rev),
-                                          __c_real(length_ratio),
-                                          __c_real(alpha_order),
-                                          __c_real(eta_0),
-                                          __c_real(eta_1),
-                                          __c_real(eta_2),
-                                          __c_real(beta),
-                                          __c_real(energy),
-                                          __c_real(charge))
+                                          c_real(t_rev),
+                                          c_real(length_ratio),
+                                          c_real(alpha_order),
+                                          c_real(eta_0),
+                                          c_real(eta_1),
+                                          c_real(eta_2),
+                                          c_real(beta),
+                                          c_real(energy),
+                                          c_real(charge))
     else:
         __lib.linear_interp_kick_n_drift(__getPointer(dt),
                                          __getPointer(dE),
@@ -768,17 +713,17 @@ def linear_interp_kick_n_drift(dt, dE, total_voltage, bin_centers, charge, acc_k
                                          __getPointer(bin_centers),
                                          __getLen(bin_centers),
                                          __getLen(dt),
-                                         __c_real(acc_kick),
+                                         c_real(acc_kick),
                                          ct.c_char_p(solver),
-                                         __c_real(t_rev),
-                                         __c_real(length_ratio),
-                                         __c_real(alpha_order),
-                                         __c_real(eta_0),
-                                         __c_real(eta_1),
-                                         __c_real(eta_2),
-                                         __c_real(beta),
-                                         __c_real(energy),
-                                         __c_real(charge))
+                                         c_real(t_rev),
+                                         c_real(length_ratio),
+                                         c_real(alpha_order),
+                                         c_real(eta_0),
+                                         c_real(eta_1),
+                                         c_real(eta_2),
+                                         c_real(beta),
+                                         c_real(energy),
+                                         c_real(charge))
 
 
 def slice(dt, profile, cut_left, cut_right):
@@ -791,15 +736,15 @@ def slice(dt, profile, cut_left, cut_right):
     if precision.num == 1:
         __lib.histogramf(__getPointer(dt),
                          __getPointer(profile),
-                         __c_real(cut_left),
-                         __c_real(cut_right),
+                         c_real(cut_left),
+                         c_real(cut_right),
                          __getLen(profile),
                          __getLen(dt))
     else:
         __lib.histogram(__getPointer(dt),
                         __getPointer(profile),
-                        __c_real(cut_left),
-                        __c_real(cut_right),
+                        c_real(cut_left),
+                        c_real(cut_right),
                         __getLen(profile),
                         __getLen(dt))
 
@@ -814,15 +759,15 @@ def slice_smooth(dt, profile, cut_left, cut_right):
     if precision.num == 1:
         __lib.smooth_histogramf(__getPointer(dt),
                                 __getPointer(profile),
-                                __c_real(cut_left),
-                                __c_real(cut_right),
+                                c_real(cut_left),
+                                c_real(cut_right),
                                 __getLen(profile),
                                 __getLen(dt))
     else:
         __lib.smooth_histogram(__getPointer(dt),
                                __getPointer(profile),
-                               __c_real(cut_left),
-                               __c_real(cut_right),
+                               c_real(cut_left),
+                               c_real(cut_right),
                                __getLen(profile),
                                __getLen(dt))
 
@@ -874,26 +819,26 @@ def music_track(dt, dE, induced_voltage, array_parameters,
                            __getPointer(induced_voltage),
                            __getPointer(array_parameters),
                            __getLen(dt),
-                           __c_real(alpha),
-                           __c_real(omega_bar),
-                           __c_real(const),
-                           __c_real(coeff1),
-                           __c_real(coeff2),
-                           __c_real(coeff3),
-                           __c_real(coeff4))
+                           c_real(alpha),
+                           c_real(omega_bar),
+                           c_real(const),
+                           c_real(coeff1),
+                           c_real(coeff2),
+                           c_real(coeff3),
+                           c_real(coeff4))
     else:
         __lib.music_track(__getPointer(dt),
                           __getPointer(dE),
                           __getPointer(induced_voltage),
                           __getPointer(array_parameters),
                           __getLen(dt),
-                          __c_real(alpha),
-                          __c_real(omega_bar),
-                          __c_real(const),
-                          __c_real(coeff1),
-                          __c_real(coeff2),
-                          __c_real(coeff3),
-                          __c_real(coeff4))
+                          c_real(alpha),
+                          c_real(omega_bar),
+                          c_real(const),
+                          c_real(coeff1),
+                          c_real(coeff2),
+                          c_real(coeff3),
+                          c_real(coeff4))
 
 
 def music_track_multiturn(dt, dE, induced_voltage, array_parameters,
@@ -919,26 +864,26 @@ def music_track_multiturn(dt, dE, induced_voltage, array_parameters,
                                      __getPointer(induced_voltage),
                                      __getPointer(array_parameters),
                                      __getLen(dt),
-                                     __c_real(alpha),
-                                     __c_real(omega_bar),
-                                     __c_real(const),
-                                     __c_real(coeff1),
-                                     __c_real(coeff2),
-                                     __c_real(coeff3),
-                                     __c_real(coeff4))
+                                     c_real(alpha),
+                                     c_real(omega_bar),
+                                     c_real(const),
+                                     c_real(coeff1),
+                                     c_real(coeff2),
+                                     c_real(coeff3),
+                                     c_real(coeff4))
     else:
         __lib.music_track_multiturn(__getPointer(dt),
                                     __getPointer(dE),
                                     __getPointer(induced_voltage),
                                     __getPointer(array_parameters),
                                     __getLen(dt),
-                                    __c_real(alpha),
-                                    __c_real(omega_bar),
-                                    __c_real(const),
-                                    __c_real(coeff1),
-                                    __c_real(coeff2),
-                                    __c_real(coeff3),
-                                    __c_real(coeff4))
+                                    c_real(alpha),
+                                    c_real(omega_bar),
+                                    c_real(const),
+                                    c_real(coeff1),
+                                    c_real(coeff2),
+                                    c_real(coeff3),
+                                    c_real(coeff4))
 
 
 def synchrotron_radiation(dE, U0, n_kicks, tau_z):
@@ -948,16 +893,16 @@ def synchrotron_radiation(dE, U0, n_kicks, tau_z):
     if precision.num == 1:
         __lib.synchrotron_radiationf(
             __getPointer(dE),
-            __c_real(U0 / n_kicks),
+            c_real(U0 / n_kicks),
             __getLen(dE),
-            __c_real(tau_z * n_kicks),
+            c_real(tau_z * n_kicks),
             ct.c_int(n_kicks))
     else:
         __lib.synchrotron_radiation(
             __getPointer(dE),
-            __c_real(U0 / n_kicks),
+            c_real(U0 / n_kicks),
             __getLen(dE),
-            __c_real(tau_z * n_kicks),
+            c_real(tau_z * n_kicks),
             ct.c_int(n_kicks))
 
 
@@ -969,20 +914,20 @@ def synchrotron_radiation_full(dE, U0, n_kicks, tau_z, sigma_dE, energy):
     if precision.num == 1:
         __lib.synchrotron_radiation_fullf(
             __getPointer(dE),
-            __c_real(U0 / n_kicks),
+            c_real(U0 / n_kicks),
             __getLen(dE),
-            __c_real(sigma_dE),
-            __c_real(tau_z * n_kicks),
-            __c_real(energy),
+            c_real(sigma_dE),
+            c_real(tau_z * n_kicks),
+            c_real(energy),
             ct.c_int(n_kicks))
     else:
         __lib.synchrotron_radiation_full(
             __getPointer(dE),
-            __c_real(U0 / n_kicks),
+            c_real(U0 / n_kicks),
             __getLen(dE),
-            __c_real(sigma_dE),
-            __c_real(tau_z * n_kicks),
-            __c_real(energy),
+            c_real(sigma_dE),
+            c_real(tau_z * n_kicks),
+            c_real(energy),
             ct.c_int(n_kicks))
 
 
@@ -1024,6 +969,18 @@ def fast_resonator(R_S, Q, frequency_array, frequency_R, impedance=None):
 
     impedance = realImp + 1j * imagImp
     return impedance
+
+
+def distribution_from_tomoscope(dt, dE, probDistr, seed, profLen,
+                                cutoff, x0, y0, dtBin, dEBin):
+
+    __lib.generate_distribution(__getPointer(dt),
+                                __getPointer(dE),
+                                __getPointer(probDistr),
+                                ct.c_uint(seed), ct.c_uint(profLen),
+                                ct.c_double(cutoff), ct.c_double(x0),
+                                ct.c_double(y0), ct.c_double(dtBin),
+                                ct.c_double(dEBin), __getLen(dt))
 
 
 # def mean(x):

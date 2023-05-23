@@ -485,7 +485,7 @@ class TravelingWaveCavity(_ImpedanceObject):
 
         for i in range(0, self.n_twc):
             a_tilde = self.a_factor[i] / (2 * np.pi)
-            indexes = np.where(self.time_array <= a_tilde)
+            indexes = self.time_array <= a_tilde
             self.wake[indexes] += ((np.sign(self.time_array[indexes]) + 1) * 2
                                    * self.R_S[i] / a_tilde
                                    * (1 - self.time_array[indexes] / a_tilde)
@@ -865,7 +865,7 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
         n_cut = np.sqrt(2/3) * (np.pi / self.Delta)**1.5
 
         # use approximate equation for frequencies above high_frequency_transition * n_cut
-        approx_indexes = bm.where_cpp(n_array, more_than=high_frequency_transition * n_cut)
+        approx_indexes = n_array > (high_frequency_transition * n_cut)
         if np.count_nonzero(approx_indexes) > 0:
             self.impedance[approx_indexes] = self._fs_low_frequency(frequency_array[approx_indexes])
 
@@ -1093,12 +1093,14 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
         l_array = frequency_array / self.f_crit
 
         # use the low frequency approximation where f < LFT * f_c
-        low_indexes = bm.where_cpp(l_array, less_than=low_frequency_transition)
+        # low_indexes = np.where(l_array < low_frequency_transition)[0]
+        low_indexes = l_array < low_frequency_transition
         if np.count_nonzero(low_indexes) > 0:
             self.impedance[low_indexes] = self._fs_low_frequency(frequency_array[low_indexes])
 
         # use the high frequency approximation where f > HFT * f_c
-        high_indexes = bm.where_cpp(l_array, more_than=high_frequency_transition)
+        # high_indexes = np.where(l_array > high_frequency_transition)[0]
+        high_indexes = l_array > high_frequency_transition
         if np.count_nonzero(high_indexes) > 0:
             self.impedance[high_indexes] = self._fs_high_frequency(frequency_array[high_indexes])
 

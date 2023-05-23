@@ -16,7 +16,6 @@ No intensity effects
 
 from __future__ import division, print_function
 import blond.utils.bmath as bm
-from blond.utils import input_parser
 from blond.plots.plot import Plot
 from blond.monitors.monitors import BunchMonitor
 from blond.beam.profile import CutOptions, Profile, FitOptions
