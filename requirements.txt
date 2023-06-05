@@ -1,6 +1,5 @@
 numpy
 scipy
 matplotlib
-future
 h5py
 mpmath

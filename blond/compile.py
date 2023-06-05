@@ -89,8 +89,8 @@ def main():
     libs = []
 
     # EXAMPLE FLAGS: -Ofast -std=c++11 -fopt-info-vec -march=native
-    #                -mfma4 -fopenmp -ftree-vectorizer-verbose=1
-    cflags = ['-O3', '-ffast-math', '-std=c++11', '-shared']
+    #                -mfma4 -fopenmp -ftree-vectorizer-verbose=1 '-ffast-math'
+    cflags = ['-O3', '-std=c++11', '-shared']
     # Some additional warning reporting related flags
     cflags += ['-Wall', '-Wno-unknown-pragmas']
 
@@ -174,6 +174,8 @@ def main():
     if 'posix' in os.name:
         cflags += ['-fPIC']
         if args['optimize']:
+            if '-ffast-math' not in cflags:
+                cflags += ['-ffast-math']
             # Check compiler defined directives
             # This is compatible with python3.6 - python 3.9
             # The universal_newlines argument transforms output to text (from binary)

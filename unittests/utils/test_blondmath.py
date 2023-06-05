@@ -17,10 +17,13 @@ import unittest
 
 import numpy as np
 
+import blond
 from blond.utils import bmath as bm
 
 # import inspect
 
+def test_verify_installation():
+    np.testing.assert_equal(blond.test(), 0)
 
 class TestFastResonator(unittest.TestCase):
 
