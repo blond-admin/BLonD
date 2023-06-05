@@ -1,8 +1,8 @@
-recursive-include blond/cpp_routines *.so
-recursive-include blond/cpp_routines *.dll
-recursive-include blond/cpp_routines *.cpp
-recursive-include blond/cpp_routines *.h
-recursive-include blond/beam *.cpp
-recursive-include blond/synchrotron_radiation *.cpp
-recursive-include blond/toolbox *.cpp
-recursive-include blond/gpu/cuda_kernels *.cu
+recursive-include blond *.cpp
+recursive-include blond *.h
+recursive-include blond *.cu
+
+recursive-exclude unittests *
+recursive-exclude __EXAMPLES *
+recursive-exclude __BENCHMARKS *
+recursive-exclude __doc *
