@@ -28,7 +28,6 @@ from ..plots.plot_llrf import (plot_PL_bunch_phase,
                                plot_LHCNoiseFB_FWHM_bbb)
 from ..plots.plot_slices import (plot_beam_profile, plot_beam_spectrum)
 
-
 def fig_folder(dirname):
     '''
     Create folder where plots will be stored.
@@ -48,10 +47,11 @@ def fig_folder(dirname):
 class Plot:
 
     def __init__(self, Ring, RFStation, Beam, dt_plot,
-                 dt_bckp, xmin, xmax, ymin, ymax, xunit='s', sampling=1,
-                 separatrix_plot=False, histograms_plot=True,
-                 Profile=None, h5file=None, output_frequency=1,
-                 PhaseLoop=None, LHCNoiseFB=None, format_options=None):
+                 dt_bckp, xmin, xmax, ymin, ymax, xunit = 's', sampling = 1,
+                 show_plots = False,
+                 separatrix_plot = False, histograms_plot = True, 
+                 Profile = None, h5file = None, output_frequency = 1, 
+                 PhaseLoop = None, LHCNoiseFB = None, format_options = None):
         '''
         Define what plots should be plotted during the simulation. Passing only
         basic objects, only phase space plot will be produced. Passing optional
@@ -61,6 +61,7 @@ class Plot:
         For plots as a function of time: use 'dt_bckp' to set plotting frequency
         in units of time steps.
         '''
+
 
         #: | *Import Ring*
         self.general_params = Ring
@@ -73,6 +74,9 @@ class Plot:
 
         #: | *Import Beam*
         self.beam = Beam
+
+        #: | *Defining whether the plots should be saved or directly shown*
+        self.show_plt = show_plots
 
         #: | *Plotting frequency in units of time steps*
         self.dt_plot = dt_plot
@@ -197,7 +201,10 @@ class Plot:
 
         # Set figure resolution, font
         plt.rc('figure', dpi=self.dpi)
+        plt.rc('figure', autolayout = True)
         plt.rc('savefig', dpi=self.dpi)
+        plt.rc('savefig', bbox='tight')
+        plt.rc('savefig', pad_inches = 0.1)
         plt.rc('font', family=self.ffamily)
 
     def track(self):
@@ -207,85 +214,86 @@ class Plot:
 
         # Snapshot-type plots
         if (self.tstep[0] % self.dt_plot) == 0:
-
-            plot_long_phase_space(self.general_params, self.rf_params,
-                                  self.beam, self.xmin, self.xmax, self.ymin,
-                                  self.ymax, self.xunit,
-                                  sampling=self.sampling,
-                                  separatrix_plot=self.separatix,
-                                  histograms_plot=self.histogram,
-                                  dirname=self.dirname, alpha=self.alpha)
-
+            
+            plot_long_phase_space(self.general_params, self.rf_params, 
+                                  self.beam, self.xmin, self.xmax, self.ymin, 
+                                  self.ymax, self.xunit, 
+                                  sampling = self.sampling, 
+                                  separatrix_plot = self.separatix, 
+                                  histograms_plot = self.histogram, 
+                                  dirname = self.dirname, show_plot=self.show_plt,
+                                  alpha = self.alpha)
+            
             if self.profile:
-                plot_beam_profile(self.profile, self.tstep[0],
-                                  style=self.lstyle, dirname=self.dirname)
+                plot_beam_profile(self.profile, self.tstep[0], 
+                                  style = self.lstyle, dirname = self.dirname, show_plot = self.show_plt)
 
                 self.profile.beam_spectrum_freq_generation(
                     self.profile.n_slices)
                 self.profile.beam_spectrum_generation(self.profile.n_slices)
-                plot_beam_spectrum(self.profile, self.tstep[0],
-                                   style=self.lstyle, dirname=self.dirname)
-
-        # Plots as a function of time
+                plot_beam_spectrum(self.profile, self.tstep[0], 
+                                   style = self.lstyle, dirname = self.dirname, show_plot = self.show_plt)
+        
+        # Plots as a function of time        
         if (self.tstep[0] % self.dt_bckp) == 0 and self.h5file:
 
             h5data = hp.File(self.h5file + '.h5', 'r')
-            plot_bunch_length_evol(self.rf_params, h5data,
-                                   output_freq=self.dt_mon,
-                                   dirname=self.dirname)
-
+            plot_bunch_length_evol(self.rf_params, h5data, 
+                                   output_freq = self.dt_mon, 
+                                   dirname = self.dirname, show_plot=self.show_plt)
+            
             if self.profile and self.profile.fit_option == 'gaussian':
-                plot_bunch_length_evol_gaussian(self.rf_params, self.profile,
-                                                h5data,
-                                                output_freq=self.dt_mon,
-                                                dirname=self.dirname)
-            plot_position_evol(self.rf_params, h5data,
-                               output_freq=self.dt_mon,
-                               style=self.lstyle, dirname=self.dirname)
-            plot_energy_evol(self.rf_params, h5data, output_freq=self.dt_mon,
-                             style=self.lstyle, dirname=self.dirname)
+                    plot_bunch_length_evol_gaussian(self.rf_params, self.profile,
+                                                    h5data, 
+                                                    output_freq = self.dt_mon, 
+                                                    dirname = self.dirname, show_plot=self.show_plt)
+            plot_position_evol(self.rf_params, h5data, 
+                               output_freq = self.dt_mon, 
+                               style = self.lstyle, dirname = self.dirname, show_plot=self.show_plt)
+            plot_energy_evol(self.rf_params, h5data, output_freq = self.dt_mon, 
+                             style = self.lstyle, dirname = self.dirname,show_plot=self.show_plt)
             plot_COM_motion(self.general_params, self.rf_params, h5data,
-                            output_freq=self.dt_mon, dirname=self.dirname)
-            plot_transmitted_particles(self.rf_params, h5data,
-                                       output_freq=self.dt_mon,
-                                       style=self.lstyle,
-                                       dirname=self.dirname)
-
+                            output_freq = self.dt_mon, dirname = self.dirname, show_plot=self.show_plt)
+            plot_transmitted_particles(self.rf_params, h5data, 
+                                       output_freq = self.dt_mon, 
+                                       style = self.lstyle, 
+                                       dirname = self.dirname, show_plot=self.show_plt)
+                    
             if self.PL:
-                plot_PL_RF_freq(self.rf_params, h5data,
-                                output_freq=self.dt_mon,
-                                dirname=self.dirname)
-                plot_PL_RF_phase(self.rf_params, h5data,
-                                 output_freq=self.dt_mon,
-                                 dirname=self.dirname)
-                plot_PL_bunch_phase(self.rf_params, h5data,
-                                    output_freq=self.dt_mon,
-                                    dirname=self.dirname)
-                plot_PL_phase_corr(self.rf_params, h5data,
-                                   output_freq=self.dt_mon,
-                                   dirname=self.dirname)
-                plot_PL_freq_corr(self.rf_params, h5data,
-                                  output_freq=self.dt_mon,
-                                  dirname=self.dirname)
-                plot_RF_phase_error(self.rf_params, h5data,
-                                    output_freq=self.dt_mon,
-                                    dirname=self.dirname)
-                plot_RL_radial_error(self.rf_params, h5data,
-                                     output_freq=self.dt_mon,
-                                     dirname=self.dirname)
-
+                plot_PL_RF_freq(self.rf_params, h5data, 
+                                output_freq = self.dt_mon,
+                                dirname = self.dirname, show_plot=self.show_plt)
+                plot_PL_RF_phase(self.rf_params, h5data, 
+                                 output_freq = self.dt_mon,
+                                 dirname = self.dirname, show_plot=self.show_plt)
+                plot_PL_bunch_phase(self.rf_params, h5data, 
+                                    output_freq = self.dt_mon, 
+                                    dirname = self.dirname, show_plot=self.show_plt)
+                plot_PL_phase_corr(self.rf_params, h5data, 
+                                   output_freq = self.dt_mon, 
+                                   dirname = self.dirname,show_plot=self.show_plt)
+                plot_PL_freq_corr(self.rf_params, h5data, 
+                                  output_freq = self.dt_mon, 
+                                  dirname = self.dirname,show_plot=self.show_plt)
+                plot_RF_phase_error(self.rf_params, h5data, 
+                                    output_freq = self.dt_mon, 
+                                    dirname = self.dirname,show_plot=self.show_plt)
+                plot_RL_radial_error(self.rf_params, h5data, 
+                                     output_freq = self.dt_mon, 
+                                     dirname = self.dirname,show_plot=self.show_plt)
+            
             if self.noiseFB:
-                plot_LHCNoiseFB(self.rf_params, self.noiseFB, h5data,
-                                output_freq=self.dt_mon,
-                                dirname=self.dirname)
-                plot_LHCNoiseFB_FWHM(self.rf_params, self.noiseFB, h5data,
-                                     output_freq=self.dt_mon,
-                                     dirname=self.dirname)
-
-                if self.noiseFB.bl_meas_bbb is not None:
-                    plot_LHCNoiseFB_FWHM_bbb(self.rf_params, self.noiseFB,
-                                             h5data, output_freq=self.dt_mon,
-                                             dirname=self.dirname)
+                plot_LHCNoiseFB(self.rf_params, self.noiseFB, h5data, 
+                                output_freq = self.dt_mon, 
+                                dirname = self.dirname, show_plot=self.show_plt)
+                plot_LHCNoiseFB_FWHM(self.rf_params, self.noiseFB, h5data, 
+                                     output_freq = self.dt_mon, 
+                                     dirname = self.dirname, show_plot=self.show_plt)
+            
+                if self.noiseFB.bl_meas_bbb != None:
+                    plot_LHCNoiseFB_FWHM_bbb(self.rf_params, self.noiseFB, 
+                                             h5data, output_freq = self.dt_mon, 
+                                             dirname = self.dirname, show_plot=self.show_plt)
 
             h5data.close()
 
