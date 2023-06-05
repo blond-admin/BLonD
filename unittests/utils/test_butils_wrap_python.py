@@ -14,28 +14,25 @@ Unittest for the FFTs used in blond with CuPy and NumPy
 """
 
 import unittest
-import pytest
+
 import numpy as np
+import pytest
 from scipy.constants import c
 
-from blond.utils import bmath as bm
-from blond import libblond
-from blond.input_parameters.ring import Ring
-from blond.input_parameters.rf_parameters import RFStation
-# from blond.trackers.tracker import RingAndRFTracker
+from blond import LIBBLOND
 from blond.beam.beam import Beam, Proton
-from blond.beam.distributions import bigaussian
 from blond.beam.sparse_slices import SparseSlices
 from blond.impedances.music import Music
-
-# from blond.beam.profile import CutOptions, FitOptions, Profile
+from blond.input_parameters.rf_parameters import RFStation
+from blond.input_parameters.ring import Ring
+from blond.utils import bmath as bm
 
 
 class Test:
 
     # Run before every test
     def setup_method(self):
-        if libblond is None:
+        if LIBBLOND is None:
             pytest.skip('C++ libblond not compiled')
         np.random.seed(0)
 
@@ -56,7 +53,7 @@ class Test:
         profile, edges = np.histogram(dt, bins=n_slices)
         profile = profile.astype(dtype=float)
         bin_size = edges[1] - edges[0]
-        bin_centers = edges[:-1] + bin_size/2
+        bin_centers = edges[:-1] + bin_size / 2
 
         res = bm.beam_phase(bin_centers, profile, alpha,
                             omega_rf, phi_rf, bin_size)
@@ -82,7 +79,7 @@ class Test:
         profile, edges = np.histogram(dt, bins=n_slices)
         profile = profile.astype(dtype=float)
         bin_size = edges[1] - edges[0]
-        bin_centers = edges[:-1] + bin_size/2
+        bin_centers = edges[:-1] + bin_size / 2
 
         res = bm.beam_phase_fast(bin_centers, profile,
                                  omega_rf, phi_rf, bin_size)
@@ -100,7 +97,6 @@ class Test:
     def test_rf_volt_comp(self, n_slices):
         bm.use_cpp()
         np.testing.assert_equal(bm.device, 'CPU_CPP')
-
 
         voltages = np.random.randn(n_slices)
         omega_rf = np.random.randn(n_slices)
@@ -124,7 +120,6 @@ class Test:
         bm.use_cpp()
         np.testing.assert_equal(bm.device, 'CPU_CPP')
 
-
         dE = np.random.uniform(-1e8, 1e8, n_particles)
         dE_py = dE.copy()
 
@@ -143,7 +138,6 @@ class Test:
     def test_synch_rad_full(self, n_particles, n_kicks):
         bm.use_cpp()
         np.testing.assert_equal(bm.device, 'CPU_CPP')
-
 
         dE = np.random.uniform(-1e8, 1e8, n_particles)
         dE_py = dE.copy()
@@ -180,12 +174,12 @@ class Test:
         cut_right = (1 - cut_right) * max_dt
         profile = np.empty(n_slices, dtype=float)
 
-        bm.slice(dt, profile, cut_left, cut_right)
+        bm.slice_beam(dt, profile, cut_left, cut_right)
 
         bm.use_py()
         np.testing.assert_equal(bm.device, 'CPU_PY')
         profile_py = bm.empty(n_slices, dtype=float)
-        bm.slice(dt_py, profile_py, cut_left, cut_right)
+        bm.slice_beam(dt_py, profile_py, cut_left, cut_right)
 
         np.testing.assert_allclose(profile_py, profile, atol=1)
 
@@ -195,7 +189,6 @@ class Test:
     def test_kick(self, n_particles, n_rf, n_iter):
         bm.use_cpp()
         np.testing.assert_equal(bm.device, 'CPU_CPP')
-
 
         dE = np.random.normal(loc=0, scale=1e7, size=n_particles)
         dt = np.random.normal(loc=1e-5, scale=1e-7, size=n_particles)
@@ -234,7 +227,6 @@ class Test:
         bm.use_cpp()
         np.testing.assert_equal(bm.device, 'CPU_CPP')
 
-
         solver = solver.encode(encoding='utf_8')
         dE = np.random.normal(loc=0, scale=1e7, size=n_particles)
         dt = np.random.normal(loc=1e-5, scale=1e-7, size=n_particles)
@@ -269,7 +261,6 @@ class Test:
     def test_kick_drift(self, n_particles, n_iter):
         bm.use_cpp()
         np.testing.assert_equal(bm.device, 'CPU_CPP')
-
 
         solver = 'exact'
         solver = solver.encode(encoding='utf_8')
@@ -329,14 +320,13 @@ class Test:
         bm.use_cpp()
         np.testing.assert_equal(bm.device, 'CPU_CPP')
 
-
         dE = np.random.normal(loc=0, scale=1e7, size=n_particles)
         dE_py = np.array(dE)
 
         dt = np.random.normal(loc=1e-5, scale=1e-7, size=n_particles)
         _, edges = np.histogram(dt, bins=n_slices)
         bin_size = edges[1] - edges[0]
-        bin_centers = edges[:-1] + bin_size/2
+        bin_centers = edges[:-1] + bin_size / 2
 
         charge = 1.0
         acceleration_kick = 1e3 * np.random.rand()
@@ -365,7 +355,6 @@ class Test:
     def test_slice_smooth(self, n_particles, n_slices, cut_left, cut_right):
         bm.use_cpp()
         np.testing.assert_equal(bm.device, 'CPU_CPP')
-
 
         dt = np.random.normal(loc=1e-5, scale=1e-7, size=n_particles)
         dt_py = dt.copy()
@@ -445,7 +434,6 @@ class Test:
         bm.use_cpp()
         np.testing.assert_equal(bm.device, 'CPU_CPP')
 
-
         R_S = np.random.uniform(size=size)
         Q = np.random.uniform(low=0.5, high=1, size=size)
         frequency_array = np.linspace(1, 100, num=size)
@@ -475,13 +463,13 @@ class TestWithObjects:
     V = 6e6                # RF voltage [V]
     dphi = 0             # Phase modulation/offset
     gamma_t = 55.759505  # Transition gamma
-    alpha = 1./gamma_t/gamma_t        # First order mom. comp. factor
+    alpha = 1. / gamma_t / gamma_t        # First order mom. comp. factor
     # Tracking details
     N_t = 100       # Number of turns to track
 
     # Run before every test
     def setup_method(self):
-        if libblond is None:
+        if LIBBLOND is None:
             pytest.skip('C++ libblond not compiled')
 
         self.ring = Ring(self.C, self.alpha,
@@ -489,7 +477,7 @@ class TestWithObjects:
                          Proton(), self.N_t)
 
         self.rf = RFStation(self.ring, [self.h],
-                            self.V * np.linspace(1, 1.1, self.N_t+1),
+                            self.V * np.linspace(1, 1.1, self.N_t + 1),
                             [self.dphi])
         self.beam = Beam(self.ring, self.N_p, self.N_b)
         self.beam.dE = np.random.uniform(-1e8, 1e8, self.N_p)
@@ -510,16 +498,15 @@ class TestWithObjects:
         bm.use_cpp()
         np.testing.assert_equal(bm.device, 'CPU_CPP')
 
-
-        filling_pattern = np.zeros(bunch_spacing*n_bunches)
+        filling_pattern = np.zeros(bunch_spacing * n_bunches)
         filling_pattern[::bunch_spacing] = 1
         bucket_length = self.C / c / self.h
 
         # Generate the multi-bunch beam
         indexes = np.arange(self.N_p)
         for i in range(int(np.sum(filling_pattern))):
-            self.beam.dt[indexes[int(i*len(self.beam.dt)//np.sum(filling_pattern))]:
-                         indexes[int((i+1)*len(self.beam.dt)//np.sum(filling_pattern)-1)]] += (
+            self.beam.dt[indexes[int(i * len(self.beam.dt) // np.sum(filling_pattern))]:
+                         indexes[int((i + 1) * len(self.beam.dt) // np.sum(filling_pattern) - 1)]] += (
                 bucket_length * np.where(filling_pattern)[0][i])
 
         slice_beam_cpp = SparseSlices(
@@ -541,7 +528,6 @@ class TestWithObjects:
     def test_music_track(self, n_macroparticles):
         bm.use_cpp()
         np.testing.assert_equal(bm.device, 'CPU_CPP')
-
 
         beam = Beam(self.ring, n_macroparticles, self.N_b)
         beam.dt = np.random.normal(loc=1e-5, scale=1e-7, size=n_macroparticles)
@@ -584,7 +570,6 @@ class TestWithObjects:
 
         np.testing.assert_array_almost_equal(
             music_py.induced_voltage, music_cpp.induced_voltage, decimal=8)
-
 
 
 if __name__ == '__main__':

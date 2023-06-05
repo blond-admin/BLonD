@@ -13,19 +13,21 @@ Unittest for synchrotron_radiation.synchrotron_radiation.py
 :Authors: **Markus Schwarz, Konstantinos Iliakis**
 """
 
-import unittest
-import numpy as np
 import os
+import unittest
 
-from blond.input_parameters.ring import Ring
-from blond.beam.beam import Beam, Electron, Positron
-from blond.beam.distributions import bigaussian, matched_from_distribution_function
-from blond.input_parameters.rf_parameters import RFStation
-from blond.beam.profile import Profile
-from blond.trackers.tracker import RingAndRFTracker, FullRingAndRF
-from blond.synchrotron_radiation.synchrotron_radiation import SynchrotronRadiation
+import numpy as np
 from scipy.constants import c, e, m_e
-from blond.beam.profile import CutOptions
+
+from blond.beam.beam import Beam, Electron, Positron
+from blond.beam.distributions import (bigaussian,
+                                      matched_from_distribution_function)
+from blond.beam.profile import CutOptions, Profile
+from blond.input_parameters.rf_parameters import RFStation
+from blond.input_parameters.ring import Ring
+from blond.synchrotron_radiation.synchrotron_radiation import \
+    SynchrotronRadiation
+from blond.trackers.tracker import FullRingAndRF, RingAndRFTracker
 
 
 class TestSynchtrotronRadiation(unittest.TestCase):
@@ -207,22 +209,22 @@ class TestSynchRad(unittest.TestCase):
 
     # Run before every testn_turns
     def setUp(self):
-        self.general_params = Ring(np.ones(self.n_sections) * self.C/self.n_sections,
+        self.general_params = Ring(np.ones(self.n_sections) * self.C / self.n_sections,
                                    np.tile(self.momentum_compaction,
                                            (1, self.n_sections)).T,
                                    np.tile(self.sync_momentum,
-                                           (self.n_sections, self.n_turns+1)),
+                                           (self.n_sections, self.n_turns + 1)),
                                    self.particle_type, self.n_turns, n_sections=self.n_sections)
         self.RF_sct_par = []
         self.RF_sct_par_cpp = []
-        for i in np.arange(self.n_sections)+1:
+        for i in np.arange(self.n_sections) + 1:
             self.RF_sct_par.append(RFStation(self.general_params,
                                              [self.harmonic_numbers], [
-                                                 self.voltage_program/self.n_sections],
+                                                 self.voltage_program / self.n_sections],
                                              [self.phi_offset], self.n_rf_systems, section_index=i))
             self.RF_sct_par_cpp.append(RFStation(self.general_params,
                                                  [self.harmonic_numbers], [
-                                                      self.voltage_program/self.n_sections],
+                                                     self.voltage_program / self.n_sections],
                                                  [self.phi_offset], self.n_rf_systems,
                                                  section_index=i))
 

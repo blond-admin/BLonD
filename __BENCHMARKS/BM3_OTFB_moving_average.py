@@ -13,8 +13,8 @@ Example for llrf.filters and llrf.cavity_feedback
 :Authors: **Helga Timko**
 """
 
+import matplotlib.pyplot as plt
 import numpy as np
-import matplotlib.pyplot as plt 
 
 from blond.llrf.signal_processing import moving_average
 

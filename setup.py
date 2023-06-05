@@ -5,12 +5,13 @@ For reference see
 https://packaging.python.org/guides/distributing-packages-using-setuptools/
 
 """
-from pathlib import Path
-from setuptools import setup, find_packages
-from setuptools.command.egg_info import egg_info as _egg_info
-import subprocess
 import os
+import subprocess
 import sys
+from pathlib import Path
+
+from setuptools import find_packages, setup
+from setuptools.command.egg_info import egg_info as _egg_info
 
 HERE = Path(__file__).parent.absolute()
 with (HERE / 'README.md').open('rt', encoding='utf-8') as fh:
@@ -39,8 +40,9 @@ REQUIREMENTS = {
     ],
 }
 
+
 class Compile_and_Egg_Info(_egg_info):
-    
+
     description = _egg_info.description + '\nCompile the C++ sources before package installation.'
 
     def initialize_options(self):
@@ -56,7 +58,7 @@ class Compile_and_Egg_Info(_egg_info):
             subprocess.run(cmd, check=True, env=os.environ.copy())
         except Exception as e:
             print('Compilation failed with: ', e)
-            print('Failing back to the python-only backend.')
+            print('Falling back to the python-only backend.')
         return _egg_info.run(self)
 
 

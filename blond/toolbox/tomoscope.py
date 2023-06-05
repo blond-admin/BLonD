@@ -14,16 +14,17 @@ probability density.**
 '''
 
 
-from __future__ import division
-from __future__ import print_function
-from builtins import str
-import numpy as np
-import h5py as hp
-import os
+from __future__ import division, print_function
+
 import linecache
-import ctypes
-from matplotlib import pyplot as plt
+import os
+from builtins import str
+
+import h5py as hp
 import matplotlib.cm as cm
+import numpy as np
+from matplotlib import pyplot as plt
+
 from ..utils import bmath as bm
 
 
@@ -59,7 +60,7 @@ def distribution_from_tomoscope_data(dataDir, nPart, cutoff=1000, seed=1234,
             print("Analysing data of directory %s" % directory)
 
             # Read tomoscope settings
-            plotInfo = dataDir+'\\'+directory+'\plotinfo.data'
+            plotInfo = dataDir + '\\' + directory + '\\plotinfo.data'
             profLen = np.uint(linecache.getline(plotInfo, 4)[17:-1])
             dtBin = np.double(linecache.getline(plotInfo, 6)[9:-1])
             dEBin = np.double(linecache.getline(plotInfo, 8)[9:-1])
@@ -67,7 +68,7 @@ def distribution_from_tomoscope_data(dataDir, nPart, cutoff=1000, seed=1234,
             y0 = np.double(linecache.getline(plotInfo, 13)[8:-1])
 
             # Read probability density from file
-            probDistr = np.loadtxt(dataDir+'\\'+directory+'\image001.data',
+            probDistr = np.loadtxt(dataDir + '\\' + directory + '\\image001.data',
                                    dtype=np.double, unpack=True)
             probDistr = np.ascontiguousarray(probDistr)
 
@@ -78,15 +79,7 @@ def distribution_from_tomoscope_data(dataDir, nPart, cutoff=1000, seed=1234,
             bm.distribution_from_tomoscope(dt, dE, probDistr, seed, profLen,
                                            cutoff, x0, y0, dtBin, dEBin)
 
-            # libblond.generate_distribution(dt.ctypes.data_as(ctypes.c_void_p),
-            #                              dE.ctypes.data_as(ctypes.c_void_p),
-            #                              probDistr.ctypes.data_as(ctypes.c_void_p),
-            #                              ctypes.c_uint(seed), ctypes.c_uint(profLen),
-            #                              ctypes.c_double(cutoff), ctypes.c_double(x0),
-            #                              ctypes.c_double(y0), ctypes.c_double(dtBin),
-            #                              ctypes.c_double(dEBin), ctypes.c_uint(nPart))
-
-            if plotFig == True:
+            if plotFig:
 
                 # Settings for plots
                 plt.rc('axes', labelsize=14, labelweight='normal')
@@ -102,7 +95,7 @@ def distribution_from_tomoscope_data(dataDir, nPart, cutoff=1000, seed=1234,
                 plt.savefig(distrDir + '\\' + directory + '.png')
                 plt.clf()
 
-            if saveDistr == True:
+            if saveDistr:
 
                 h5File = hp.File(distrDir + '\\' + directory + '.h5', 'w')
 

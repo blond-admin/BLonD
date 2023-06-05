@@ -15,16 +15,18 @@ statistics
 """
 
 from __future__ import division
-from builtins import object
-import numpy as np
+
 import itertools as itl
-from scipy.constants import m_p, m_e, e, c, epsilon_0, hbar
+
+import numpy as np
+from scipy.constants import c, e, epsilon_0, hbar, m_e, m_p
+
 from ..trackers.utilities import is_in_separatrix
-from ..utils import exceptions as blExcept
 from ..utils import bmath as bm
+from ..utils import exceptions as blExcept
 
 
-class Particle(object):
+class Particle:
     r"""Class containing basic parameters, e.g. mass, of the particles to be tracked.
 
     The following particles are already implemented: proton, electron, positron
@@ -44,9 +46,9 @@ class Particle(object):
         Particle charge in units of the elementary charge.
     radius_cl : float
         Classical particle radius in :math:`m`.
-    C_gamma : float
+    c_gamma : float
         Sand's radiation constant :math:`C_\gamma` in :math:`m / eV^3`.
-    C_q : float
+    c_q : float
         Quantum radiation constant :math:`C_q` in :math:`m`.
 
     Examples
@@ -71,13 +73,14 @@ class Particle(object):
             raise RuntimeError('ERROR: Particle mass not recognized!')
 
         # classical particle radius [m]
-        self.radius_cl = 0.25 / (np.pi * epsilon_0) * e**2 * self.charge**2 / (self.mass * e)
+        self.radius_cl = 0.25 / (np.pi * epsilon_0) * \
+            e**2 * self.charge**2 / (self.mass * e)
 
         # Sand's radiation constant [ m / eV^3]
-        self.C_gamma = 4*np.pi/3 * self.radius_cl / self.mass**3
+        self.c_gamma = 4 * np.pi / 3 * self.radius_cl / self.mass**3
 
         # Quantum radiation constant [m]
-        self.C_q = (55.0 / (32.0 * np.sqrt(3.0)) * hbar * c / (self.mass * e))
+        self.c_q = (55.0 / (32.0 * np.sqrt(3.0)) * hbar * c / (self.mass * e))
 
 
 class Proton(Particle):
@@ -86,7 +89,7 @@ class Proton(Particle):
 
     def __init__(self):
 
-        Particle.__init__(self, m_p*c**2/e, 1)
+        Particle.__init__(self, m_p * c**2 / e, 1)
 
 
 class Electron(Particle):
@@ -94,7 +97,7 @@ class Electron(Particle):
     """
 
     def __init__(self):
-        Particle.__init__(self, m_e*c**2/e, -1)
+        Particle.__init__(self, m_e * c**2 / e, -1)
 
 
 class Positron(Particle):
@@ -103,10 +106,10 @@ class Positron(Particle):
 
     def __init__(self):
 
-        Particle.__init__(self, m_e*c**2/e, 1)
+        Particle.__init__(self, m_e * c**2 / e, 1)
 
 
-class Beam(object):
+class Beam:
     r"""Class containing the beam properties.
 
     This class containes the beam coordinates (dt, dE) and the beam properties.
@@ -201,15 +204,17 @@ class Beam(object):
         self.sigma_dE = 0.
         self.intensity = float(intensity)
         self.n_macroparticles = int(n_macroparticles)
-        self.ratio = self.intensity/self.n_macroparticles
+        self.ratio = self.intensity / self.n_macroparticles
         self.id = np.arange(1, self.n_macroparticles + 1, dtype=int)
+        self.epsn_rms_l = 0.
         # For MPI
         self.n_total_macroparticles_lost = 0
         self.n_total_macroparticles = n_macroparticles
         self.is_splitted = False
         self._sumsq_dt = 0.
         self._sumsq_dE = 0.
-
+        # For GPU
+        self._device = 'CPU'
 
     @property
     def n_macroparticles_lost(self):
@@ -281,7 +286,7 @@ class Beam(object):
         # self.max_dE = bm.max(self.dE[itemindex])
 
         # R.m.s. emittance in Gaussian approximation
-        self.epsn_rms_l = np.pi*self.sigma_dE*self.sigma_dt  # in eVs
+        self.epsn_rms_l = np.pi * self.sigma_dE * self.sigma_dt  # in eVs
 
     def losses_separatrix(self, Ring, RFStation):
         '''Beam losses based on separatrix.
@@ -296,11 +301,10 @@ class Beam(object):
             Used to call the function is_in_separatrix.
         '''
 
-        itemindex = bm.where(is_in_separatrix(Ring, RFStation, self,
-                                              self.dt, self.dE) == False)[0]
+        lost_index = is_in_separatrix(Ring, RFStation, self,
+                                      self.dt, self.dE) == False
 
-        if itemindex.size != 0:
-            self.id[itemindex] = 0
+        self.id[lost_index] = 0
 
     def losses_longitudinal_cut(self, dt_min, dt_max):
         '''Beam losses based on longitudinal cuts.
@@ -316,10 +320,8 @@ class Beam(object):
             maximum dt.
         '''
 
-        itemindex = bm.where((self.dt - dt_min)*(dt_max - self.dt) < 0)[0]
-
-        if itemindex.size != 0:
-            self.id[itemindex] = 0
+        lost_index = (self.dt < dt_min) | (self.dt > dt_max)
+        self.id[lost_index] = 0
 
     def losses_energy_cut(self, dE_min, dE_max):
         '''Beam losses based on energy cuts, e.g. on collimators.
@@ -334,10 +336,8 @@ class Beam(object):
             maximum dE.
         '''
 
-        itemindex = bm.where((self.dE - dE_min)*(dE_max - self.dE) < 0)[0]
-
-        if itemindex.size != 0:
-            self.id[itemindex] = 0
+        lost_index = (self.dE < dE_min) | (self.dE > dE_max)
+        self.id[lost_index] = 0
 
     def losses_below_energy(self, dE_min):
         '''Beam losses based on lower energy cut.
@@ -350,10 +350,8 @@ class Beam(object):
             minimum dE.
         '''
 
-        itemindex = bm.where((self.dE - dE_min) < 0)[0]
-
-        if itemindex.size != 0:
-            self.id[itemindex] = 0
+        lost_index = (self.dE < dE_min)
+        self.id[lost_index] = 0
 
     def add_particles(self, new_particles):
         '''
@@ -428,9 +426,9 @@ class Beam(object):
         if isinstance(other, type(self)):
             self.add_beam(other)
             return self
-        else:
-            self.add_particles(other)
-            return self
+
+        self.add_particles(other)
+        return self
 
     def split(self, random=False, fast=False):
         '''
@@ -449,149 +447,147 @@ class Beam(object):
             the workers.
         '''
 
-        if not bm.mpiMode():
+        if not bm.in_mpi():
             raise RuntimeError(
                 'ERROR: Cannot use this routine unless in MPI Mode')
 
-        from ..utils.mpi_config import worker
-        if worker.isMaster and random:
+        from ..utils.mpi_config import WORKER
+        if WORKER.is_master and random:
             bm.random.shuffle(self.id)
-            if fast == False:
-                self.dt = self.dt[self.id-1]
-                self.dE = self.dE[self.id-1]
+            if not fast:
+                self.dt = self.dt[self.id - 1]
+                self.dE = self.dE[self.id - 1]
 
-        self.id = worker.scatter(self.id)
+        self.id = WORKER.scatter(self.id)
         if fast:
-            self.dt = bm.ascontiguousarray(self.dt[self.id-1])
-            self.dE = bm.ascontiguousarray(self.dE[self.id-1])
+            self.dt = bm.ascontiguousarray(self.dt[self.id - 1])
+            self.dE = bm.ascontiguousarray(self.dE[self.id - 1])
         else:
-            self.dt = worker.scatter(self.dt)
-            self.dE = worker.scatter(self.dE)
+            self.dt = WORKER.scatter(self.dt)
+            self.dE = WORKER.scatter(self.dE)
 
         assert (len(self.dt) == len(self.dE) and len(self.dt) == len(self.id))
 
         self.n_macroparticles = len(self.dt)
         self.is_splitted = True
 
-    def gather(self, all=False):
+    def gather(self, all_gather=False):
         '''
         MPI ONLY ROUTINE: Gather the beam coordinates to the master or all workers.
 
         Parameters
         ----------
-        all : boolean
+        all_gather : boolean
             If true, every worker will get a copy of the whole beam coordinates.
             If false, only the master will gather the coordinates.
         '''
-        if not bm.mpiMode():
+        if not bm.in_mpi():
             raise RuntimeError(
                 'ERROR: Cannot use this routine unless in MPI Mode')
-        from ..utils.mpi_config import worker
+        from ..utils.mpi_config import WORKER
 
-        if all:
-            self.dt = worker.allgather(self.dt)
-            self.dE = worker.allgather(self.dE)
-            self.id = worker.allgather(self.id)
+        if all_gather:
+            self.dt = WORKER.allgather(self.dt)
+            self.dE = WORKER.allgather(self.dE)
+            self.id = WORKER.allgather(self.id)
             self.is_splitted = False
         else:
-            self.dt = worker.gather(self.dt)
-            self.dE = worker.gather(self.dE)
-            self.id = worker.gather(self.id)
-            if worker.isMaster:
+            self.dt = WORKER.gather(self.dt)
+            self.dE = WORKER.gather(self.dE)
+            self.id = WORKER.gather(self.id)
+            if WORKER.is_master:
                 self.is_splitted = False
 
         self.n_macroparticles = len(self.dt)
 
-    def gather_statistics(self, all=False):
+    def gather_statistics(self, all_gather=False):
         '''
         MPI ONLY ROUTINE: Gather beam statistics.
 
         Parameters
         ----------
-        all : boolean
+        all_gather : boolean
             if true, all workers will gather the beam stats.
             If false, only the master will get the beam stats.
         '''
-        if not bm.mpiMode():
+        if not bm.in_mpi():
             raise RuntimeError(
                 'ERROR: Cannot use this routine unless in MPI Mode')
 
-        from ..utils.mpi_config import worker
-        if all:
+        from ..utils.mpi_config import WORKER
+        if all_gather:
 
-            self.mean_dt = worker.allreduce(
+            self.mean_dt = WORKER.allreduce(
                 np.array([self.mean_dt]), operator='mean')[0]
 
-            self.mean_dE = worker.allreduce(
+            self.mean_dE = WORKER.allreduce(
                 np.array([self.mean_dE]), operator='mean')[0]
 
-            self.n_total_macroparticles_lost = worker.allreduce(
+            self.n_total_macroparticles_lost = WORKER.allreduce(
                 np.array([self.n_macroparticles_lost]), operator='sum')[0]
 
-            # self.n_total_macroparticles_alive = worker.allreduce(
+            # self.n_total_macroparticles_alive = WORKER.allreduce(
             # np.array([self.n_macroparticles_alive]), operator='sum')[0]
 
-            self.sigma_dt = worker.allreduce(
+            self.sigma_dt = WORKER.allreduce(
                 np.array([self._sumsq_dt]), operator='sum')[0]
             self.sigma_dt = np.sqrt(
-                self.sigma_dt/(self.n_total_macroparticles -
-                               self.n_total_macroparticles_lost)
+                self.sigma_dt / (self.n_total_macroparticles -
+                                 self.n_total_macroparticles_lost)
                 - self.mean_dt**2)
 
-            self.sigma_dE = worker.allreduce(
+            self.sigma_dE = WORKER.allreduce(
                 np.array([self._sumsq_dE]), operator='sum')[0]
             self.sigma_dE = np.sqrt(
-                self.sigma_dE/(self.n_total_macroparticles -
-                               self.n_total_macroparticles_lost)
+                self.sigma_dE / (self.n_total_macroparticles -
+                                 self.n_total_macroparticles_lost)
                 - self.mean_dE**2)
-
 
         else:
-            self.mean_dt = worker.reduce(
+            self.mean_dt = WORKER.reduce(
                 np.array([self.mean_dt]), operator='mean')[0]
 
-            self.mean_dE = worker.reduce(
+            self.mean_dE = WORKER.reduce(
                 np.array([self.mean_dE]), operator='mean')[0]
 
-            self.n_total_macroparticles_lost = worker.reduce(
+            self.n_total_macroparticles_lost = WORKER.reduce(
                 np.array([self.n_macroparticles_lost]), operator='sum')[0]
 
-            self.sigma_dt = worker.reduce(
+            self.sigma_dt = WORKER.reduce(
                 np.array([self._sumsq_dt]), operator='sum')[0]
             self.sigma_dt = np.sqrt(
-                self.sigma_dt/(self.n_total_macroparticles -
-                               self.n_total_macroparticles_lost)
+                self.sigma_dt / (self.n_total_macroparticles -
+                                 self.n_total_macroparticles_lost)
                 - self.mean_dt**2)
 
-            self.sigma_dE = worker.reduce(
+            self.sigma_dE = WORKER.reduce(
                 np.array([self._sumsq_dE]), operator='sum')[0]
             self.sigma_dE = np.sqrt(
-                self.sigma_dE/(self.n_total_macroparticles -
-                               self.n_total_macroparticles_lost)
+                self.sigma_dE / (self.n_total_macroparticles -
+                                 self.n_total_macroparticles_lost)
                 - self.mean_dE**2)
 
-
-    def gather_losses(self, all=False):
+    def gather_losses(self, all_gather=False):
         '''
         MPI ONLY ROUTINE: Gather beam losses.
 
         Parameters
         ----------
-        all : boolean
+        all_gather : boolean
             if true, all workers will gather the beam stats.
             If false, only the master will get the beam stats.
         '''
-        if not bm.mpiMode():
+        if not bm.in_mpi():
             raise RuntimeError(
                 'ERROR: Cannot use this routine unless in MPI Mode')
 
-        from ..utils.mpi_config import worker
+        from ..utils.mpi_config import WORKER
 
-        if all:
-            temp = worker.allgather(np.array([self.n_macroparticles_lost]))
+        if all_gather:
+            temp = WORKER.allgather(np.array([self.n_macroparticles_lost]))
             self.n_total_macroparticles_lost = np.sum(temp)
         else:
-            temp = worker.gather(np.array([self.n_macroparticles_lost]))
+            temp = WORKER.gather(np.array([self.n_macroparticles_lost]))
             self.n_total_macroparticles_lost = np.sum(temp)
 
     def to_gpu(self, recursive=True):
@@ -602,7 +598,6 @@ class Beam(object):
         if hasattr(self, '_device') and self._device == 'GPU':
             return
 
-        assert bm.device == 'GPU'
         import cupy as cp
         self.dE = cp.array(self.dE)
         self.dt = cp.array(self.dt)
@@ -618,7 +613,6 @@ class Beam(object):
         if hasattr(self, '_device') and self._device == 'CPU':
             return
 
-        assert bm.device == 'CPU'
         import cupy as cp
         self.dE = cp.asnumpy(self.dE)
         self.dt = cp.asnumpy(self.dt)

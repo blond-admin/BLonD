@@ -14,16 +14,17 @@ Unittest for the FFTs used in blond with CuPy and NumPy
 """
 
 import unittest
-import pytest
+
 import numpy as np
-from blond.utils import bmath as bm
-from blond.input_parameters.ring import Ring
-from blond.input_parameters.rf_parameters import RFStation
-from blond.trackers.tracker import RingAndRFTracker
+import pytest
+
 from blond.beam.beam import Beam, Proton
 from blond.beam.distributions import bigaussian
 from blond.beam.profile import CutOptions, FitOptions, Profile
-
+from blond.input_parameters.rf_parameters import RFStation
+from blond.input_parameters.ring import Ring
+from blond.trackers.tracker import RingAndRFTracker
+from blond.utils import bmath as bm
 
 
 class TestSyntheticData:
@@ -70,7 +71,7 @@ class TestSyntheticData:
         profile, edges = np.histogram(dt, bins=n_slices)
         profile = profile.astype(dtype=float)
         bin_size = edges[1] - edges[0]
-        bin_centers = edges[:-1] + bin_size/2
+        bin_centers = edges[:-1] + bin_size / 2
 
         res = bm.beam_phase(bin_centers, profile, alpha,
                             omega_rf, phi_rf, bin_size)
@@ -114,7 +115,7 @@ class TestSyntheticData:
         profile, edges = np.histogram(dt, bins=n_slices)
         profile = profile.astype(dtype=float)
         bin_size = edges[1] - edges[0]
-        bin_centers = edges[:-1] + bin_size/2
+        bin_centers = edges[:-1] + bin_size / 2
 
         res = bm.beam_phase_fast(bin_centers, profile,
                                  omega_rf, phi_rf, bin_size)
@@ -202,11 +203,11 @@ class TestSyntheticData:
         cut_right = (1 - cut_right) * max_dt
         profile = np.empty(n_slices, dtype=float)
 
-        bm.slice(dt, profile, cut_left, cut_right)
+        bm.slice_beam(dt, profile, cut_left, cut_right)
 
         bm.use_gpu()
         profile_gpu = bm.empty(n_slices, dtype=float)
-        bm.slice(dt_gpu, profile_gpu, cut_left, cut_right)
+        bm.slice_beam(dt_gpu, profile_gpu, cut_left, cut_right)
 
         cp.testing.assert_allclose(profile_gpu, profile, rtol=1e-8, atol=0)
 
@@ -333,7 +334,7 @@ class TestSyntheticData:
         cp.testing.assert_allclose(dE_gpu.mean(), dE.mean(), rtol=1e-6, atol=0)
 
     @pytest.mark.parametrize('n_particles,n_slices,n_iter',
-                             [(100, 1, 10),  (100, 10, 1), (10000, 256, 100),
+                             [(100, 1, 10), (100, 10, 1), (10000, 256, 100),
                               (1000000, 100, 100), (1000000, 1000, 100),
                               (1000000, 100000, 100)])
     def test_interp_kick(self, n_particles, n_slices, n_iter):
@@ -345,7 +346,7 @@ class TestSyntheticData:
         dt = np.random.normal(loc=1e-5, scale=1e-7, size=n_particles)
         _, edges = np.histogram(dt, bins=n_slices)
         bin_size = edges[1] - edges[0]
-        bin_centers = edges[:-1] + bin_size/2
+        bin_centers = edges[:-1] + bin_size / 2
 
         charge = 1.0
         acceleration_kick = 1e3 * np.random.rand()
@@ -380,7 +381,7 @@ class TestBigaussianData:
     V = 6e6                # RF voltage [V]
     dphi = 0             # Phase modulation/offset
     gamma_t = 55.759505  # Transition gamma
-    alpha = 1./gamma_t/gamma_t        # First order mom. comp. factor
+    alpha = 1. / gamma_t / gamma_t        # First order mom. comp. factor
     # Tracking details
     N_t = 2000           # Number of turns to track
 
@@ -393,7 +394,7 @@ class TestBigaussianData:
                          Proton(), self.N_t)
 
         self.rf = RFStation(self.ring, [self.h],
-                            self.V * np.linspace(1, 1.1, self.N_t+1),
+                            self.V * np.linspace(1, 1.1, self.N_t + 1),
                             [self.dphi])
 
     # Run after every test
@@ -406,14 +407,14 @@ class TestBigaussianData:
         import cupy as cp
 
         rf_gpu = RFStation(self.ring, [self.h],
-                           self.V * np.linspace(1, 1.1, self.N_t+1),
+                           self.V * np.linspace(1, 1.1, self.N_t + 1),
                            [self.dphi])
 
         beam = Beam(self.ring, N_p, self.N_b)
         beam_gpu = Beam(self.ring, N_p, self.N_b)
 
         bigaussian(self.ring, self.rf, beam,
-                   self.tau_0/4, reinsertion=True, seed=1)
+                   self.tau_0 / 4, reinsertion=True, seed=1)
 
         beam_gpu.dt[:] = beam.dt[:]
         beam_gpu.dE[:] = beam.dE[:]
@@ -428,7 +429,7 @@ class TestBigaussianData:
 
         for i in range(n_iter):
             long_tracker.kick(beam.dt, beam.dE, long_tracker.counter[0])
-            long_tracker.drift(beam.dt, beam.dE, long_tracker.counter[0]+1)
+            long_tracker.drift(beam.dt, beam.dE, long_tracker.counter[0] + 1)
 
             long_tracker.counter[0] += 1
 
@@ -440,7 +441,7 @@ class TestBigaussianData:
             long_tracker_gpu.kick(beam_gpu.dt, beam_gpu.dE,
                                   long_tracker_gpu.counter[0])
             long_tracker_gpu.drift(
-                beam_gpu.dt, beam_gpu.dE, long_tracker_gpu.counter[0]+1)
+                beam_gpu.dt, beam_gpu.dE, long_tracker_gpu.counter[0] + 1)
 
             long_tracker_gpu.counter[0] += 1
 
@@ -453,14 +454,14 @@ class TestBigaussianData:
         import cupy as cp
 
         rf_gpu = RFStation(self.ring, [self.h],
-                           self.V * np.linspace(1, 1.1, self.N_t+1),
+                           self.V * np.linspace(1, 1.1, self.N_t + 1),
                            [self.dphi])
 
         beam = Beam(self.ring, N_p, self.N_b)
         beam_gpu = Beam(self.ring, N_p, self.N_b)
 
         bigaussian(self.ring, self.rf, beam,
-                   self.tau_0/4, reinsertion=True, seed=1)
+                   self.tau_0 / 4, reinsertion=True, seed=1)
 
         beam_gpu.dt[:] = beam.dt[:]
         beam_gpu.dE[:] = beam.dE[:]
@@ -491,14 +492,14 @@ class TestBigaussianData:
         import cupy as cp
 
         rf_gpu = RFStation(self.ring, [self.h],
-                           self.V * np.linspace(1, 1.1, self.N_t+1),
+                           self.V * np.linspace(1, 1.1, self.N_t + 1),
                            [self.dphi])
 
         beam = Beam(self.ring, N_p, self.N_b)
         beam_gpu = Beam(self.ring, N_p, self.N_b)
 
         bigaussian(self.ring, self.rf, beam,
-                   self.tau_0/4, reinsertion=True, seed=1)
+                   self.tau_0 / 4, reinsertion=True, seed=1)
 
         beam_gpu.dt[:] = beam.dt[:]
         beam_gpu.dE[:] = beam.dE[:]
@@ -542,14 +543,14 @@ class TestBigaussianData:
         import cupy as cp
 
         rf_gpu = RFStation(self.ring, [self.h],
-                           self.V * np.linspace(1, 1.1, self.N_t+1),
+                           self.V * np.linspace(1, 1.1, self.N_t + 1),
                            [self.dphi])
 
         beam = Beam(self.ring, N_p, self.N_b)
         beam_gpu = Beam(self.ring, N_p, self.N_b)
 
         bigaussian(self.ring, self.rf, beam,
-                   self.tau_0/4, reinsertion=True, seed=1)
+                   self.tau_0 / 4, reinsertion=True, seed=1)
 
         beam_gpu.dt[:] = beam.dt[:]
         beam_gpu.dE[:] = beam.dE[:]

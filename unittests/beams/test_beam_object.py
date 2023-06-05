@@ -16,20 +16,20 @@ Run as python testBeamObject.py in console or via travis
 # General imports
 # -----------------
 from __future__ import division, print_function
-import unittest
-import numpy
 
+import unittest
+
+import numpy
 from scipy.constants import physical_constants
 
+import blond.utils.exceptions as blExcept
 # BLonD imports
 # --------------
-from blond.beam.beam import Particle, Proton, Electron
-from blond.input_parameters.ring import Ring
-from blond.input_parameters.rf_parameters import RFStation
-from blond.beam.beam import Beam
+from blond.beam.beam import Beam, Electron, Particle, Proton
 from blond.beam.distributions import matched_from_distribution_function
+from blond.input_parameters.rf_parameters import RFStation
+from blond.input_parameters.ring import Ring
 from blond.trackers.tracker import FullRingAndRF, RingAndRFTracker
-import blond.utils.exceptions as blExcept
 
 
 class testParticleClass(unittest.TestCase):
@@ -38,7 +38,7 @@ class testParticleClass(unittest.TestCase):
         self.test_particle = Particle(1, 2)
 
     def test_particle_attributes(self):
-        for attribute in ['mass', 'charge', 'radius_cl', 'C_gamma', 'C_q']:
+        for attribute in ['mass', 'charge', 'radius_cl', 'c_gamma', 'c_q']:
             self.assertTrue(hasattr(self.test_particle, attribute),
                             msg=f"Particle: no '{attribute}' attribute")
 
@@ -66,12 +66,12 @@ class testElectron(unittest.TestCase):
     def test_Sand_radiation_constant(self):
         # value from S. Lee: Accelerator Physics, 2nd ed., eq (4.5)
         # convert from GeV^3 to eV^3
-        self.assertAlmostEqual(self.electron.C_gamma, 8.846e-5 / (1e9)**3, delta=1e-35,
+        self.assertAlmostEqual(self.electron.c_gamma, 8.846e-5 / (1e9)**3, delta=1e-35,
                                msg='Electron: wrong radiation constant')
 
     def test_quantum_radiation_constant(self):
         # value from A. Wolski: Beam Dynamics in High Energy Accelerators, p. 233
-        self.assertAlmostEqual(self.electron.C_q, 3.832e-13, delta=1e-16,
+        self.assertAlmostEqual(self.electron.c_q, 3.832e-13, delta=1e-16,
                                msg='Electron: wrong quantum excitation constant')
 
 
@@ -88,7 +88,7 @@ class testProton(unittest.TestCase):
     def test_Sand_radiation_constant(self):
         # value from S. Lee: Accelerator Physics, 2nd ed., eq (4.5)
         # convert from GeV^3 to eV^3
-        self.assertAlmostEqual(self.proton.C_gamma, 7.783e-18 / (1e9)**3, delta=1e-48,
+        self.assertAlmostEqual(self.proton.c_gamma, 7.783e-18 / (1e9)**3, delta=1e-48,
                                msg='Proton: wrong radiation constant')
 
 
@@ -109,7 +109,7 @@ class testBeamClass(unittest.TestCase):
         C = 6911.5038  # Machine circumference [m]
         p = 450e9  # Synchronous momentum [eV/c]
         gamma_t = 17.95142852  # Transition gamma
-        alpha = 1./gamma_t**2  # First order mom. comp. factor
+        alpha = 1. / gamma_t**2  # First order mom. comp. factor
 
         # Define general parameters
         # --------------------------
@@ -175,8 +175,8 @@ class testBeamClass(unittest.TestCase):
 
         sigma_dt = 1.
         sigma_dE = 1.
-        self.beam.dt = sigma_dt*numpy.random.randn(self.beam.n_macroparticles)
-        self.beam.dE = sigma_dE*numpy.random.randn(self.beam.n_macroparticles)
+        self.beam.dt = sigma_dt * numpy.random.randn(self.beam.n_macroparticles)
+        self.beam.dE = sigma_dE * numpy.random.randn(self.beam.n_macroparticles)
 
         self.beam.statistics()
 
@@ -288,7 +288,7 @@ class testBeamClass(unittest.TestCase):
 
         self.beam.add_beam(testBeam)
 
-        self.assertEqual(self.beam.id[2100000:2100100].tolist(), [0]*100,
+        self.assertEqual(self.beam.id[2100000:2100100].tolist(), [0] * 100,
                          msg="particle ids not applied correctly")
 
         self.assertEqual(self.beam.n_macroparticles, 2100200,

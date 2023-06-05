@@ -9,10 +9,18 @@ utils Package
     :undoc-members:
     :show-inheritance:
 
-:mod:`butils_wrap` Module
--------------------------
+:mod:`butils_wrap_cpp` Module
+-----------------------------
 
-.. automodule:: blond.utils.butils_wrap
+.. automodule:: blond.utils.butils_wrap_cpp
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+:mod:`butils_wrap_python` Module
+--------------------------------
+
+.. automodule:: blond.utils.butils_wrap_python
     :members:
     :undoc-members:
     :show-inheritance:
@@ -29,23 +37,6 @@ utils Package
 ------------------------
 
 .. automodule:: blond.utils.exceptions
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-:mod:`input_parser` Module
---------------------------
-
-.. automodule:: blond.utils.input_parser
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-
-:mod:`profile_mock` Module
---------------------------
-
-.. automodule:: blond.utils.profile_mock
     :members:
     :undoc-members:
     :show-inheritance:

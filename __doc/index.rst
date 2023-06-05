@@ -37,7 +37,6 @@ Modules
     modules/trackers.rst
     modules/utils.rst
     modules/compile.rst
-    modules/sanity_check.rst
 
 
 

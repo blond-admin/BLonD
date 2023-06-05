@@ -14,10 +14,12 @@ Unittest for utils.bmath
 """
 
 import unittest
+
 import numpy as np
-# import inspect
 
 from blond.utils import bmath as bm
+
+# import inspect
 
 
 class TestFastResonator(unittest.TestCase):
@@ -44,7 +46,7 @@ class TestFastResonator(unittest.TestCase):
         for i in range(0, n_resonators):
             impedance_py[1:] += R_S[i] / (1 + 1j * Q[i] *
                                           (freq_a[1:] / freq_R[i] -
-                                             freq_R[i] / freq_a[1:]))
+                                           freq_R[i] / freq_a[1:]))
 
         impedance_c = bm.fast_resonator(R_S, Q, freq_a, freq_R)
 
@@ -64,7 +66,7 @@ class TestFastResonator(unittest.TestCase):
         for i in range(0, n_resonators):
             impedance_py[1:] += R_S[i] / (1 + 1j * Q[i] *
                                           (freq_a[1:] / freq_R[i] -
-                                             freq_R[i] / freq_a[1:]))
+                                           freq_R[i] / freq_a[1:]))
 
         impedance_c = bm.fast_resonator(R_S, Q, freq_a, freq_R)
 
@@ -84,13 +86,12 @@ class TestFastResonator(unittest.TestCase):
         for i in range(0, n_resonators):
             impedance_py[1:] += R_S[i] / (1 + 1j * Q[i] *
                                           (freq_a[1:] / freq_R[i] -
-                                             freq_R[i] / freq_a[1:]))
+                                           freq_R[i] / freq_a[1:]))
 
         impedance_c = bm.fast_resonator(R_S, Q, freq_a, freq_R)
 
         np.testing.assert_almost_equal(
             impedance_py, impedance_c, decimal=decimal)
-
 
     def test_fast_resonator_py2_V_C_4(self):
         n_resonators = 20
@@ -106,7 +107,7 @@ class TestFastResonator(unittest.TestCase):
             Qsquare = Q[res] * Q[res]
             for freq in range(1, len(freq_a)):
                 commonTerm = (freq_a[freq] / freq_R[res]
-                              - freq_R[res]/freq_a[freq])
+                              - freq_R[res] / freq_a[freq])
                 impedance_py.real[freq] += R_S[res] \
                     / (1. + Qsquare * commonTerm * commonTerm)
                 impedance_py.imag[freq] -= R_S[res] * (Q[res] * commonTerm) \
@@ -133,7 +134,7 @@ class TestFastResonator(unittest.TestCase):
         for i in range(0, n_resonators):
             impedance_py[1:] += R_S[i] / (1 + 1j * Q[i] *
                                           (freq_a[1:] / freq_R[i] -
-                                             freq_R[i] / freq_a[1:]))
+                                           freq_R[i] / freq_a[1:]))
 
         impedance_c = bm.fast_resonator(R_S, Q, freq_a, freq_R)
 
@@ -155,7 +156,7 @@ class TestFastResonator(unittest.TestCase):
             Qsquare = Q[res] * Q[res]
             for freq in range(1, len(freq_a)):
                 commonTerm = (freq_a[freq] / freq_R[res]
-                              - freq_R[res]/freq_a[freq])
+                              - freq_R[res] / freq_a[freq])
                 impedance_py1.real[freq] += R_S[res] \
                     / (1. + Qsquare * commonTerm * commonTerm)
                 impedance_py1.imag[freq] -= R_S[res] * (Q[res] * commonTerm) \
@@ -163,7 +164,7 @@ class TestFastResonator(unittest.TestCase):
 
         for i in range(n_resonators):
             impedance_py2[1:] += R_S[i] / (1 + 1j * Q[i]
-                                          * (freq_a[1:] / freq_R[i]
+                                           * (freq_a[1:] / freq_R[i]
                                            - freq_R[i] / freq_a[1:]))
 
         np.testing.assert_almost_equal(
@@ -222,16 +223,17 @@ class TestWhere(unittest.TestCase):
         np.testing.assert_equal(real, testing)
 
     def test_where_6(self):
-        a = np.arange(100).reshape(10,10)
+        a = np.arange(100).reshape(10, 10)
         testing = bm.where_cpp(a, less_than=0)
         np.testing.assert_equal(a.shape, testing.shape, err_msg='Shapes do not match.')
-        
+
     def test_where_7(self):
-        a = np.arange(9, dtype=float).reshape(3,3)
+        a = np.arange(9, dtype=float).reshape(3, 3)
         threshold = 4
         real = a < threshold
         testing = bm.where_cpp(a, less_than=threshold)
         np.testing.assert_equal(real, testing)
+
 
 class TestSin(unittest.TestCase):
 
@@ -278,7 +280,7 @@ class TestCos(unittest.TestCase):
 
     def test_cos_scalar_2(self):
         np.testing.assert_almost_equal(
-            bm.cos_cpp(-2*np.pi), np.cos(-2*np.pi), decimal=8)
+            bm.cos_cpp(-2 * np.pi), np.cos(-2 * np.pi), decimal=8)
 
     def test_cos_vector_1(self):
         a = np.random.randn(100)

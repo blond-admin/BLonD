@@ -15,11 +15,13 @@ the beam package.**
           **Juan F. Esteban Mueller**
 '''
 
-import numpy as np
-from scipy.signal import cheb2ord, cheby2, filtfilt, freqz
 import matplotlib.pyplot as plt
+import numpy as np
 from scipy.optimize import curve_fit
+from scipy.signal import cheb2ord, cheby2, filtfilt, freqz
+
 from ..utils import bmath as bm
+
 
 def beam_profile_filter_chebyshev(Y_array, X_array, filter_option):
     """
@@ -65,7 +67,7 @@ def beam_profile_filter_chebyshev(Y_array, X_array, filter_option):
         w, transferGain = freqz(b, a=a, worN=len(Y_array))
         transferFreq = w / np.pi * nyqFreq
         group_delay = -np.diff(-np.unwrap(-np.angle(transferGain))) / \
-                      -np.diff(w*freqSampling)
+                      -np.diff(w * freqSampling)
 
         plt.figure()
         ax1 = plt.subplot(311)
@@ -82,8 +84,8 @@ def beam_profile_filter_chebyshev(Y_array, X_array, filter_option):
         # Plot the bunch spectrum and the filter transfer function
         plt.figure()
         plt.plot(
-            np.fft.fftfreq(len(Y_array), X_array[1]-X_array[0]),
-            20.*np.log10(np.abs(np.fft.fft(noisyProfile))))
+            np.fft.fftfreq(len(Y_array), X_array[1] - X_array[0]),
+            20. * np.log10(np.abs(np.fft.fft(noisyProfile))))
         plt.xlabel('Frequency [Hz]')
         plt.twinx()
         plt.plot(transferFreq, 20 * np.log10(abs(transferGain)), 'r')
@@ -106,7 +108,7 @@ def gaussian_fit(Y_array, X_array, p0):
     if bm.device == 'GPU':
         X_array = X_array.get()
         Y_array = Y_array.get()
-        
+
     return curve_fit(gauss, X_array, Y_array, p0)[0]
 
 
@@ -119,7 +121,7 @@ def gauss(x, *p):
     """
 
     A, x0, sx = p
-    return A*np.exp(-(x-x0)**2/2./sx**2)
+    return A * np.exp(-(x - x0)**2 / 2. / sx**2)
 
 
 def rms(Y_array, X_array):
@@ -128,14 +130,14 @@ def rms(Y_array, X_array):
     density (bunch length = 4sigma).
     """
 
-    timeResolution = X_array[1]-X_array[0]
+    timeResolution = X_array[1] - X_array[0]
 
     lineDenNormalized = Y_array / np.trapz(Y_array, dx=timeResolution)
 
     bp_rms = np.trapz(X_array * lineDenNormalized, dx=timeResolution)
 
     bl_rms = 4 * np.sqrt(
-        np.trapz((X_array-bp_rms)**2 * lineDenNormalized, dx=timeResolution))
+        np.trapz((X_array - bp_rms)**2 * lineDenNormalized, dx=timeResolution))
 
     return bp_rms, bl_rms
 
@@ -153,18 +155,18 @@ def fwhm(Y_array, X_array, shift=0):
     t1 = taux[0][0]
     t2 = taux[0][-1]
     # Interpolation of the time where the line density is half the maximum
-    bin_size = X_array[1]-X_array[0]
+    bin_size = X_array[1] - X_array[0]
     try:
         t_left = X_array[t1] - bin_size * \
             (Y_array[t1] - half_max) / \
-            (Y_array[t1] - Y_array[t1-1])
+            (Y_array[t1] - Y_array[t1 - 1])
         t_right = X_array[t2] + bin_size * \
             (Y_array[t2] - half_max) / \
-            (Y_array[t2]-Y_array[t2+1])
+            (Y_array[t2] - Y_array[t2 + 1])
 
-        bl_fwhm = 4 * (t_right-t_left) / (2 * np.sqrt(2 * np.log(2)))
-        bp_fwhm = (t_left+t_right)/2
-    except:
+        bl_fwhm = 4 * (t_right - t_left) / (2 * np.sqrt(2 * np.log(2)))
+        bp_fwhm = (t_left + t_right) / 2
+    except Exception:
         bl_fwhm = np.nan
         bp_fwhm = np.nan
 
@@ -228,4 +230,3 @@ def rms_multibunch(Y_array, X_array, n_bunches,
             X_array[indexes_bucket])
 
     return bp_rms, bl_rms
-

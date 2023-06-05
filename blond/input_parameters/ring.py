@@ -13,14 +13,17 @@
 '''
 
 from __future__ import division
-from builtins import str, range, object
-import numpy as np
+
 import warnings
+from builtins import range, str
+
+import numpy as np
 from scipy.constants import c
+
 from ..input_parameters.ring_options import RingOptions
 
 
-class Ring(object):
+class Ring:
     r""" Class containing the general properties of the synchrotron that are
     independent of the RF system or the beam.
 
@@ -194,7 +197,7 @@ class Ring(object):
         # Ring length and checks
         self.ring_length = np.array(ring_length, ndmin=1, dtype=float)
         self.ring_circumference = np.sum(self.ring_length)
-        self.ring_radius = self.ring_circumference/(2*np.pi)
+        self.ring_radius = self.ring_circumference / (2 * np.pi)
 
         if bending_radius is not None:
             self.bending_radius = float(bending_radius)
@@ -202,7 +205,7 @@ class Ring(object):
             self.bending_radius = bending_radius
 
         if self.n_sections != len(self.ring_length):
-            #InputDataError
+            # InputDataError
             raise RuntimeError("ERROR in Ring: Number of sections and ring " +
                                "length size do not match!")
 
@@ -227,29 +230,29 @@ class Ring(object):
 
         # Updating the number of turns in case it was changed after ramp
         # interpolation
-        if self.momentum.shape[1] != (self.n_turns+1):
+        if self.momentum.shape[1] != (self.n_turns + 1):
             self.n_turns = self.momentum.shape[1] - 1
             warnings.warn("WARNING in Ring: The number of turns for the " +
                           "simulation was changed by passing a momentum " +
                           "program.")
 
         # Derived from momentum
-        self.beta = np.sqrt(1/(1 + (self.Particle.mass/self.momentum)**2))
-        self.gamma = np.sqrt(1 + (self.momentum/self.Particle.mass)**2)
+        self.beta = np.sqrt(1 / (1 + (self.Particle.mass / self.momentum)**2))
+        self.gamma = np.sqrt(1 + (self.momentum / self.Particle.mass)**2)
         self.energy = np.sqrt(self.momentum**2 + self.Particle.mass**2)
         self.kin_energy = np.sqrt(self.momentum**2 + self.Particle.mass**2) - \
             self.Particle.mass
         self.delta_E = np.diff(self.energy, axis=1)
-        self.t_rev = np.dot(self.ring_length, 1/(self.beta*c))
+        self.t_rev = np.dot(self.ring_length, 1 / (self.beta * c))
         self.cycle_time = np.cumsum(self.t_rev)  # Always starts with zero
-        self.f_rev = 1/self.t_rev
-        self.omega_rev = 2*np.pi*self.f_rev
+        self.f_rev = 1 / self.t_rev
+        self.omega_rev = 2 * np.pi * self.f_rev
 
         # Momentum compaction, checks, and derived slippage factors
         if RingOptions.t_start is None:
             interp_time = self.cycle_time
         else:
-            interp_time = self.cycle_time+RingOptions.t_start
+            interp_time = self.cycle_time + RingOptions.t_start
 
         self.alpha_0 = RingOptions.reshape_data(
             alpha_0, self.n_turns, self.n_sections,
@@ -294,42 +297,42 @@ class Ring(object):
                 Third Edition, 2012.
         """
 
-        for i in range(self.alpha_order+1):
+        for i in range(self.alpha_order + 1):
             getattr(self, '_eta' + str(i))()
 
         # Fill unused eta arrays with zeros
         # This can be removed when the BLonD assembler is in place
         # to avoid high order momentum compaction programs filled
         # with zeros (should be propagated in RFStation.__init__())
-        for i in range(self.alpha_order+1, 3):
+        for i in range(self.alpha_order + 1, 3):
             setattr(self, "eta_%s" % i, np.zeros([self.n_sections,
-                                                  self.n_turns+1]))
+                                                  self.n_turns + 1]))
 
     def _eta0(self):
         """ Function to calculate the zeroth order slippage factor eta_0 """
 
-        self.eta_0 = np.empty([self.n_sections, self.n_turns+1])
+        self.eta_0 = np.empty([self.n_sections, self.n_turns + 1])
         for i in range(0, self.n_sections):
             self.eta_0[i] = self.alpha_0[i] - self.gamma[i]**(-2.)
 
     def _eta1(self):
         """ Function to calculate the first order slippage factor eta_1 """
 
-        self.eta_1 = np.empty([self.n_sections, self.n_turns+1])
+        self.eta_1 = np.empty([self.n_sections, self.n_turns + 1])
         for i in range(0, self.n_sections):
-            self.eta_1[i] = 3*self.beta[i]**2/(2*self.gamma[i]**2) + \
-                self.alpha_1[i] - self.alpha_0[i]*self.eta_0[i]
+            self.eta_1[i] = 3 * self.beta[i]**2 / (2 * self.gamma[i]**2) + \
+                self.alpha_1[i] - self.alpha_0[i] * self.eta_0[i]
 
     def _eta2(self):
         """ Function to calculate the second order slippage factor eta_2 """
 
-        self.eta_2 = np.empty([self.n_sections, self.n_turns+1])
+        self.eta_2 = np.empty([self.n_sections, self.n_turns + 1])
         for i in range(0, self.n_sections):
-            self.eta_2[i] = - self.beta[i]**2*(5*self.beta[i]**2 - 1) / \
-                (2*self.gamma[i]**2) + self.alpha_2[i] - 2*self.alpha_0[i] *\
+            self.eta_2[i] = - self.beta[i]**2 * (5 * self.beta[i]**2 - 1) / \
+                (2 * self.gamma[i]**2) + self.alpha_2[i] - 2 * self.alpha_0[i] *\
                 self.alpha_1[i] + self.alpha_1[i] / self.gamma[i]**2 + \
-                self.alpha_0[i]**2*self.eta_0[i] - 3*self.beta[i]**2 * \
-                self.alpha_0[i]/(2*self.gamma[i]**2)
+                self.alpha_0[i]**2 * self.eta_0[i] - 3 * self.beta[i]**2 * \
+                self.alpha_0[i] / (2 * self.gamma[i]**2)
 
     def parameters_at_time(self, cycle_moments):
         """ Function to return various cycle parameters at a specific moment in

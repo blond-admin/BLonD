@@ -16,16 +16,17 @@
 # General imports
 # -----------------
 import unittest
+
 import numpy as np
 
 # BLonD imports
 # --------------
 from blond.beam.beam import Beam, Proton
-from blond.input_parameters.ring import Ring
-from blond.beam.sparse_slices import SparseSlices
-from blond.beam.profile import Profile, CutOptions
-from blond.input_parameters.rf_parameters import RFStation
 from blond.beam.distributions import bigaussian
+from blond.beam.profile import CutOptions, Profile
+from blond.beam.sparse_slices import SparseSlices
+from blond.input_parameters.rf_parameters import RFStation
+from blond.input_parameters.ring import Ring
 
 
 class testProfileClass(unittest.TestCase):
@@ -53,7 +54,7 @@ class testProfileClass(unittest.TestCase):
         sync_momentum = 25.92e9  # SPS momentum at injection [eV/c]
 
         gamma_transition = 17.95142852  # Q20 Transition gamma
-        momentum_compaction = 1./gamma_transition**2  # Momentum compaction array
+        momentum_compaction = 1. / gamma_transition**2  # Momentum compaction array
 
         ring = Ring(circumference, momentum_compaction, sync_momentum, Proton(),
                     n_turns=n_turns)
@@ -64,7 +65,7 @@ class testProfileClass(unittest.TestCase):
         phi_offsets = 0
 
         self.rf_station = RFStation(ring, harmonic_number, voltage, phi_offsets, n_rf=1)
-        t_rf = self.rf_station.t_rf[0,0]
+        t_rf = self.rf_station.t_rf[0, 0]
 
         bunch_spacing = 5  # RF buckets
 
@@ -74,13 +75,13 @@ class testProfileClass(unittest.TestCase):
         for bunch in range(n_bunches):
 
             bunchBeam = Beam(ring, n_macroparticles_pb, intensity_pb)
-            bigaussian(ring, self.rf_station, bunchBeam, sigma, reinsertion=True, seed=1984+bunch)
+            bigaussian(ring, self.rf_station, bunchBeam, sigma, reinsertion=True, seed=1984 + bunch)
 
-            self.beam.dt[bunch*n_macroparticles_pb : (bunch+1)*n_macroparticles_pb] \
-                = bunchBeam.dt + bunch*bunch_spacing * t_rf
-            self.beam.dE[bunch*n_macroparticles_pb : (bunch+1)*n_macroparticles_pb] = bunchBeam.dE
+            self.beam.dt[bunch * n_macroparticles_pb: (bunch + 1) * n_macroparticles_pb] \
+                = bunchBeam.dt + bunch * bunch_spacing * t_rf
+            self.beam.dE[bunch * n_macroparticles_pb: (bunch + 1) * n_macroparticles_pb] = bunchBeam.dE
 
-        self.filling_pattern = np.zeros(bunch_spacing * (n_bunches-1) + 1)
+        self.filling_pattern = np.zeros(bunch_spacing * (n_bunches - 1) + 1)
         self.filling_pattern[::bunch_spacing] = 1
 
         # uniform profile
@@ -88,7 +89,7 @@ class testProfileClass(unittest.TestCase):
         profile_margin = 0 * t_rf
 
         t_batch_begin = 0 * t_rf
-        t_batch_end = (bunch_spacing * (n_bunches-1) + 1) * t_rf
+        t_batch_end = (bunch_spacing * (n_bunches - 1) + 1) * t_rf
 
         self.n_slices_rf = 32  # number of slices per RF-bucket
 
@@ -97,9 +98,9 @@ class testProfileClass(unittest.TestCase):
 
         # number of rf-buckets of the self.beam
         # + rf-buckets before the self.beam + rf-buckets after the self.beam
-        n_slices = self.n_slices_rf * (bunch_spacing * (n_bunches-1) + 1
-                                       + int(np.round((t_batch_begin - cut_left)/t_rf))
-                                       + int(np.round((cut_right - t_batch_end)/t_rf)))
+        n_slices = self.n_slices_rf * (bunch_spacing * (n_bunches - 1) + 1
+                                       + int(np.round((t_batch_begin - cut_left) / t_rf))
+                                       + int(np.round((cut_right - t_batch_end) / t_rf)))
 
         self.uniform_profile = Profile(self.beam,
                                        CutOptions=CutOptions(cut_left=cut_left, n_slices=n_slices,
@@ -126,8 +127,8 @@ class testProfileClass(unittest.TestCase):
                                           direct_slicing=True)
 
         for bunch in range(2):
-            indexes = (self.uniform_profile.bin_centers>nonuniform_profile.cut_left_array[bunch])\
-                * (self.uniform_profile.bin_centers<nonuniform_profile.cut_right_array[bunch])
+            indexes = (self.uniform_profile.bin_centers > nonuniform_profile.cut_left_array[bunch])\
+                * (self.uniform_profile.bin_centers < nonuniform_profile.cut_right_array[bunch])
 
             np.testing.assert_allclose(self.uniform_profile.bin_centers[indexes],
                                        nonuniform_profile.bin_centers_array[bunch],
@@ -145,13 +146,13 @@ class testProfileClass(unittest.TestCase):
         rtol = 1e-6             # relative tolerance
         atol = 0                # absolute tolerance
 
-        nonuniform_profile = SparseSlices(self.rf_station, self.beam, self.n_slices_rf, 
+        nonuniform_profile = SparseSlices(self.rf_station, self.beam, self.n_slices_rf,
                                           self.filling_pattern, tracker='C',
                                           direct_slicing=True)
 
         for bunch in range(2):
-            indexes = (self.uniform_profile.bin_centers>nonuniform_profile.cut_left_array[bunch])\
-                * (self.uniform_profile.bin_centers<nonuniform_profile.cut_right_array[bunch])
+            indexes = (self.uniform_profile.bin_centers > nonuniform_profile.cut_left_array[bunch])\
+                * (self.uniform_profile.bin_centers < nonuniform_profile.cut_right_array[bunch])
 
             np.testing.assert_allclose(self.uniform_profile.bin_centers[indexes],
                                        nonuniform_profile.bin_centers_array[bunch],
