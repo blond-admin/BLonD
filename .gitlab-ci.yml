@@ -18,7 +18,9 @@ variables:
     - python3 -m venv pyvenv
     - source pyvenv/bin/activate
     - python3 --version && gcc --version && mpirun --version
-    - python3 -m pip install -v ${project_root}[test]
+    - python3 -m pip install --upgrade pip
+    - python3 -m pip install -v -e ${project_root}[test]
+    - python3 blond/compile.py -p -optimize
     - python3 -m pip install pytest_cov mpi4py
 
 .main:
@@ -26,13 +28,14 @@ variables:
     - cd ${project_root}
     # Run all unittests + the examples
     - python3 -m pytest -v unittests/ --cov --cov-config=.coveragerc --cov-report html:coverage-html 
-      --cov-report xml:coverage.xml --junitxml=junit-report.xml -k 'not test_validate'
+      --cov-report xml:coverage.xml --junitxml=junit-report.xml -k 'not test_validate and not gpu'
     # Validate the agreement between mpi and non-mpi runs
     - python3 -m pytest -v unittests/ --cov --cov-config=.coveragerc --cov-report html  --cov-append
-      --cov-report xml --junitxml=junit-report.xml -k 'test_validate'
+      --cov-report xml --junitxml=junit-report.xml -k 'test_validate and not gpu'
 
 .after:
   after_script:
+    - source pyvenv/bin/activate
     - cd ${project_root}
     - python3 -m pip install coverage
     - coverage report
@@ -88,6 +91,7 @@ release_sdist_39:
   before_script:
    - apt-get update
    - apt-get install -y git
+   - python3 -m pip install --upgrade pip
    - python3 -m pip install build twine
    # Without an up-to-date setuptools, we don't get the requirements.txt
    # inside the sdist.
@@ -110,6 +114,7 @@ pages:
   script:
    - cd ${project_root}
    - mkdir public
+   - python3 -m pip install --upgrade pip
    - python3 -m pip install -v ${project_root}[doc]
    - make -C __doc html
    - cp -r __doc/_build/html/* public/

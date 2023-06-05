@@ -2,7 +2,9 @@
 requires = [
     'setuptools>=42',
     'wheel',
-    'setuptools_scm[toml]>=3.4'
+    'setuptools_scm[toml]>=3.4',
+    'build',
+    'twine'
 ]
 
 # Add an empty tool section to enable version inference.
