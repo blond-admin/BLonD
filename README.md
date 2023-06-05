@@ -262,7 +262,7 @@ supported. `fft_convolve()` to be added soon.
 
     ``` python
     from blond.utils import bmath as bm
-    from blond.utils.mpi_config import worker, mpiprint
+    from blond.utils.mpi_config import WORKER, mpiprint
     bm.use_mpi()  
     ```
 
@@ -278,7 +278,7 @@ supported. `fft_convolve()` to be added soon.
     worker only, you need to surround it with this if condition:
 
     ``` python
-    if worker.isMaster:
+    if WORKER.is_master:
         foo()
         ...
     ```
@@ -294,7 +294,7 @@ supported. `fft_convolve()` to be added soon.
     all workers except from the master with:
 
     ``` python
-    worker.finalize()
+    WORKER.finalize()
     ```
 
 6.  To run your script, you need to pass it to **mpirun** or

@@ -14,19 +14,16 @@ Unittest for trackers.tracker.py
 """
 
 import unittest
-import numpy as np
-import matplotlib.pyplot as plt
-# import inspect
 
-from blond.utils import bmath as bm
-from blond.input_parameters.ring import Ring
-from blond.input_parameters.rf_parameters import RFStation
-from blond.trackers.tracker import RingAndRFTracker
+import numpy as np
+
 from blond.beam.beam import Beam, Proton
 from blond.beam.distributions import bigaussian
 from blond.beam.profile import CutOptions, FitOptions, Profile
+from blond.input_parameters.rf_parameters import RFStation
+from blond.input_parameters.ring import Ring
 from blond.llrf.rf_modulation import PhaseModulation as PMod
-import os
+from blond.trackers.tracker import RingAndRFTracker
 
 
 def orig_rf_volt_comp(tracker):
@@ -41,11 +38,11 @@ def orig_rf_volt_comp(tracker):
 
     for rf_system in range(tracker.rf_params.n_rf):
         voltages = np.append(voltages, tracker.rf_params.voltage[rf_system,
-                                                       tracker.counter[0]])
+                                                                 tracker.counter[0]])
         omega_rf = np.append(omega_rf, tracker.rf_params.omega_rf[rf_system,
-                                                        tracker.counter[0]])
+                                                                  tracker.counter[0]])
         phi_rf = np.append(phi_rf, tracker.rf_params.phi_rf[rf_system,
-                                                  tracker.counter[0]])
+                                                            tracker.counter[0]])
 
     voltages = np.array(voltages, ndmin=2)
     omega_rf = np.array(omega_rf, ndmin=2)
@@ -53,14 +50,14 @@ def orig_rf_volt_comp(tracker):
 
     # TODO: test with multiple harmonics, think about 800 MHz OTFB
     if tracker.cavityFB:
-        rf_voltage = voltages[0, 0]*tracker.cavityFB.V_corr * \
-            np.sin(omega_rf[0, 0]*tracker.profile.bin_centers +
+        rf_voltage = voltages[0, 0] * tracker.cavityFB.V_corr * \
+            np.sin(omega_rf[0, 0] * tracker.profile.bin_centers +
                    phi_rf[0, 0] + tracker.cavityFB.phi_corr) + \
-            np.sum(voltages.T[1:]*np.sin(omega_rf.T[1:] *
-                                         tracker.profile.bin_centers + phi_rf.T[1:]), axis=0)
+            np.sum(voltages.T[1:] * np.sin(omega_rf.T[1:] *
+                                           tracker.profile.bin_centers + phi_rf.T[1:]), axis=0)
     else:
         rf_voltage = np.sum(voltages.T *
-                            np.sin(omega_rf.T*tracker.profile.bin_centers + phi_rf.T), axis=0)
+                            np.sin(omega_rf.T * tracker.profile.bin_centers + phi_rf.T), axis=0)
 
     return rf_voltage
 
@@ -79,7 +76,7 @@ class TestRfVoltageCalc(unittest.TestCase):
     V = 6e6                # RF voltage [V]
     dphi = 0             # Phase modulation/offset
     gamma_t = 55.759505  # Transition gamma
-    alpha = 1./gamma_t/gamma_t        # First order mom. comp. factor
+    alpha = 1. / gamma_t / gamma_t        # First order mom. comp. factor
     # Tracking details
     N_t = 2000           # Number of turns to track
 
@@ -89,9 +86,9 @@ class TestRfVoltageCalc(unittest.TestCase):
             self.p_i, self.p_f, self.N_t + 1), Proton(), self.N_t)
         self.beam = Beam(self.ring, self.N_p, self.N_b)
         self.rf = RFStation(
-            self.ring, [self.h], self.V * np.linspace(1, 1.1, self.N_t+1), [self.dphi])
+            self.ring, [self.h], self.V * np.linspace(1, 1.1, self.N_t + 1), [self.dphi])
         bigaussian(self.ring, self.rf, self.beam,
-                   self.tau_0/4, reinsertion=True, seed=1)
+                   self.tau_0 / 4, reinsertion=True, seed=1)
         self.profile = Profile(self.beam, CutOptions(n_slices=100, cut_left=0, cut_right=self.rf.t_rf[0, 0]),
                                FitOptions(fit_option='gaussian'))
         self.long_tracker = RingAndRFTracker(
@@ -148,7 +145,7 @@ class TestRfVoltageCalcWCavityFB(unittest.TestCase):
     V = 6e6                # RF voltage [V]
     dphi = 0             # Phase modulation/offset
     gamma_t = 55.759505  # Transition gamma
-    alpha = 1./gamma_t/gamma_t        # First order mom. comp. factor
+    alpha = 1. / gamma_t / gamma_t        # First order mom. comp. factor
     # Tracking details
     N_t = 2000           # Number of turns to track
 
@@ -158,9 +155,9 @@ class TestRfVoltageCalcWCavityFB(unittest.TestCase):
             self.p_i, self.p_f, self.N_t + 1), Proton(), self.N_t)
         self.beam = Beam(self.ring, self.N_p, self.N_b)
         self.rf = RFStation(
-            self.ring, [self.h], self.V * np.linspace(1, 1.1, self.N_t+1), [self.dphi])
+            self.ring, [self.h], self.V * np.linspace(1, 1.1, self.N_t + 1), [self.dphi])
         bigaussian(self.ring, self.rf, self.beam,
-                   self.tau_0/4, reinsertion=True, seed=1)
+                   self.tau_0 / 4, reinsertion=True, seed=1)
         self.profile = Profile(self.beam, CutOptions(n_slices=100, cut_left=0, cut_right=self.rf.t_rf[0, 0]),
                                FitOptions(fit_option='gaussian'))
 
@@ -224,30 +221,28 @@ class TestRfVoltageCalcWCavityFB(unittest.TestCase):
             orig_rf_voltage = orig_rf_volt_comp(self.long_tracker)
         np.testing.assert_almost_equal(
             self.long_tracker.rf_voltage, orig_rf_voltage, decimal=8)
-        
-        
+
     def test_phi_modulation(self):
-        
+
         timebase = np.linspace(0, 0.2, 10000)
         freq = 2E3
         amp = np.pi
         offset = 0
         harmonic = self.h
         phiMod = PMod(timebase, freq, amp, offset, harmonic)
-        
+
         self.rf = RFStation(
-            self.ring, [self.h], self.V * np.linspace(1, 1.1, self.N_t+1), \
-            [self.dphi], phi_modulation = phiMod)
-        
+            self.ring, [self.h], self.V * np.linspace(1, 1.1, self.N_t + 1),
+            [self.dphi], phi_modulation=phiMod)
+
         self.long_tracker = RingAndRFTracker(
             self.rf, self.beam, Profile=self.profile)
 
         for i in range(self.N_t):
             self.long_tracker.track()
-            self.assertEqual( \
-                self.long_tracker.rf_params.phi_rf[:, self.long_tracker.counter[0]-1], \
-                self.rf.phi_modulation[0][0][i], msg = \
-                """Phi modulation not added correctly in tracker""")
+            self.assertEqual(
+                self.long_tracker.rf_params.phi_rf[:, self.long_tracker.counter[0] - 1],
+                self.rf.phi_modulation[0][0][i], msg="""Phi modulation not added correctly in tracker""")
 
 
 if __name__ == '__main__':

@@ -15,12 +15,12 @@
 
 from __future__ import division
 
-import matplotlib.pyplot as plt
+# Set up logging
+import logging
+
 import numpy as np
 from scipy.constants import c
 
-# Set up logging
-import logging
 logger = logging.getLogger(__name__)
 
 
@@ -49,24 +49,24 @@ def rectangle(t, tau):
     """
 
     dt = t[1] - t[0]
-    llimit = np.where(np.fabs(t + tau/2) < dt/2)[0]
-    ulimit = np.where(np.fabs(t - tau/2) < dt/2)[0]
+    llimit = np.where(np.fabs(t + tau / 2) < dt / 2)[0]
+    ulimit = np.where(np.fabs(t - tau / 2) < dt / 2)[0]
     if len(llimit) != 1:
-        #ImpulseError
+        # ImpulseError
         raise RuntimeError("ERROR in impulse_response.rectangle(): time" +
                            " array doesn't start at rising edge!")
     if len(ulimit) not in [0, 1]:
-        #ImpulseError
+        # ImpulseError
         raise RuntimeError("ERROR in impulse_response.rectangle(): time" +
                            " array has multiple falling edges!")
     logger.debug("In rectangle(), index of rising edge is %d" % llimit[0])
     y = np.zeros(len(t))
     y[llimit[0]] = 0.5
     if len(ulimit) == 1:
-        y[llimit[0]+1:ulimit[0]] = np.ones(ulimit[0] - llimit[0] - 1)
+        y[llimit[0] + 1:ulimit[0]] = np.ones(ulimit[0] - llimit[0] - 1)
         y[ulimit[0]] = 0.5
     else:
-        y[llimit[0]+1:] = 1
+        y[llimit[0] + 1:] = 1
 
     return y
 
@@ -96,21 +96,21 @@ def triangle(t, tau):
     """
 
     dt = t[1] - t[0]
-    llimit = np.where(np.fabs(t) < dt/2)[0]
+    llimit = np.where(np.fabs(t) < dt / 2)[0]
     logger.debug("In triangle(), index of rising edge is %d" % llimit[0])
     if len(llimit) != 1:
-        #ImpulseError
+        # ImpulseError
         raise RuntimeError("ERROR in impulse_response.triangle(): time" +
                            " array doesn't start at rising edge!")
     y = np.zeros(len(t))
     y[llimit[0]] = 0.5
-    y[llimit[0]+1:] = 1 - t[llimit[0]+1:]/tau
+    y[llimit[0] + 1:] = 1 - t[llimit[0] + 1:] / tau
     y[np.where(y < 0)[0]] = 0
 
     return y
 
 
-class TravellingWaveCavity(object):
+class TravellingWaveCavity:
     r"""Impulse responses of a travelling wave cavity. The induced voltage
     :math:`V(t)` from the impulse response :math:`h(t)` and the I,Q (cavity or
     generator) current :math:`I(t)` can be written in matrix form,
@@ -210,7 +210,7 @@ class TravellingWaveCavity(object):
 
     """
 
-    def __init__(self, l_cell, N_cells, rho, v_g, omega_r, df = 0):
+    def __init__(self, l_cell, N_cells, rho, v_g, omega_r, df=0):
 
         self.l_cell = float(l_cell)
         self.N_cells = int(N_cells)
@@ -218,21 +218,21 @@ class TravellingWaveCavity(object):
         if v_g > 0 and v_g < 1:
             self.v_g = float(v_g)
         else:
-            #ImpulseError
+            # ImpulseError
             raise RuntimeError("ERROR in TravellingWaveCavity: group" +
                                " velocity out of limits (0,1)!")
         self.omega_r = float(omega_r) + 2 * np.pi * float(df)
 
         # Calculated
-        self.l_cav = float(self.l_cell*self.N_cells)
+        self.l_cav = float(self.l_cell * self.N_cells)
         # v_g opposite to wave!
-        self.tau = self.l_cav/(self.v_g*c)*(1 + self.v_g)
+        self.tau = self.l_cav / (self.v_g * c) * (1 + self.v_g)
 
         # Assumed impedance for measurement of generator current
         self.Z_0 = 50
         # Shunt impedances towards beam and generator
-        self.R_beam = 0.125*self.rho*self.l_cav**2
-        self.R_gen = self.l_cav*np.sqrt(0.5*self.rho*self.Z_0)
+        self.R_beam = 0.125 * self.rho * self.l_cav**2
+        self.R_gen = self.l_cav * np.sqrt(0.5 * self.rho * self.Z_0)
 
         # Set up logging
         self.logger = logging.getLogger(__class__.__name__)
@@ -267,8 +267,8 @@ class TravellingWaveCavity(object):
 
         self.omega_c = float(omega_c)
         self.d_omega = self.omega_c - self.omega_r
-        if np.fabs((self.d_omega)/self.omega_r) > 0.1:
-            #ImpulseError
+        if np.fabs((self.d_omega) / self.omega_r) > 0.1:
+            # ImpulseError
             raise RuntimeError("ERROR in TravellingWaveCavity" +
                                " impulse_response(): carrier frequency" +
                                " should be close to central frequency of the" +
@@ -279,12 +279,12 @@ class TravellingWaveCavity(object):
 
         # Impulse response if on carrier frequency
         self.h_gen = (self.R_gen / self.tau *
-                      rectangle(t_gen - 0.5*self.tau, self.tau)).astype(np.complex128)
+                      rectangle(t_gen - 0.5 * self.tau, self.tau)).astype(np.complex128)
 
         # Impulse response if not on carrier frequency
-        if np.fabs((self.d_omega)/self.omega_r) > 1e-12:
-            self.h_gen = self.h_gen.real*(np.cos(self.d_omega*t_gen) -          # TODO: Introduced a plus here
-                                          1j*np.sin(self.d_omega*t_gen))
+        if np.fabs((self.d_omega) / self.omega_r) > 1e-12:
+            self.h_gen = self.h_gen.real * (np.cos(self.d_omega * t_gen) -          # TODO: Introduced a plus here
+                                            1j * np.sin(self.d_omega * t_gen))
 
     def impulse_response_beam(self, omega_c, time_fine, time_coarse=None):
         r"""Impulse response from the cavity towards the beam. For a signal
@@ -317,7 +317,7 @@ class TravellingWaveCavity(object):
 
         self.omega_c = float(omega_c)
         self.d_omega = self.omega_c - self.omega_r
-        if np.fabs((self.d_omega)/self.omega_r) > 0.1:
+        if np.fabs((self.d_omega) / self.omega_r) > 0.1:
             raise RuntimeError("ERROR in TravellingWaveCavity" +
                                " impulse_response(): carrier frequency" +
                                " should be close to central frequency of the" +
@@ -327,27 +327,27 @@ class TravellingWaveCavity(object):
         t_beam = time_fine - time_fine[0]
 
         # Impulse response if on carrier frequency
-        self.h_beam = (-2*self.R_beam/self.tau*
+        self.h_beam = (-2 * self.R_beam / self.tau *
                        triangle(t_beam, self.tau)).astype(np.complex128)
 
         # Impulse response if not on carrier frequency
-        if np.fabs((self.d_omega)/self.omega_r) > 1e-12:
-            self.h_beam = self.h_beam.real*(np.cos(self.d_omega*t_beam) -           # TODO: Introduced a plus here
-                                            1j*np.sin(self.d_omega*t_beam))
+        if np.fabs((self.d_omega) / self.omega_r) > 1e-12:
+            self.h_beam = self.h_beam.real * (np.cos(self.d_omega * t_beam) -           # TODO: Introduced a plus here
+                                              1j * np.sin(self.d_omega * t_beam))
 
         if time_coarse is not None:
             # Move starting point of impulse response to correct value
             t_beam = time_coarse - time_coarse[0]
 
             # Impulse response if on carrier frequency
-            self.h_beam_coarse = (-2*self.R_beam/self.tau*
+            self.h_beam_coarse = (-2 * self.R_beam / self.tau *
                                   triangle(t_beam, self.tau)).astype(np.complex128)
 
             # Impulse response if not on carrier frequency
-            if np.fabs((self.d_omega)/self.omega_r) > 1e-12:
-                self.h_beam_coarse = self.h_beam_coarse.real* \
-                                     (np.cos(self.d_omega*t_beam) -                 # TODO: Introduced a plus here
-                                      1j*np.sin(self.d_omega*t_beam))
+            if np.fabs((self.d_omega) / self.omega_r) > 1e-12:
+                self.h_beam_coarse = self.h_beam_coarse.real * \
+                    (np.cos(self.d_omega * t_beam) -                 # TODO: Introduced a plus here
+                     1j * np.sin(self.d_omega * t_beam))
 
     def compute_wakes(self, time):
         r"""Computes the wake fields towards the beam and generator on the
@@ -370,32 +370,32 @@ class TravellingWaveCavity(object):
         """
 
         t_beam = time - time[0]
-        t_gen = time - time[0] - 0.5*self.tau
+        t_gen = time - time[0] - 0.5 * self.tau
 
         # Wake fields towards beam and generator
-        self.W_beam = 2*self.h_beam.real*np.cos(self.omega_r*t_beam)
-        self.W_gen = 2*self.h_gen.real*np.cos(self.omega_r*t_gen)
+        self.W_beam = 2 * self.h_beam.real * np.cos(self.omega_r * t_beam)
+        self.W_gen = 2 * self.h_gen.real * np.cos(self.omega_r * t_gen)
 
 
 class SPS3Section200MHzTWC(TravellingWaveCavity):
 
-    def __init__(self, df = 0):
+    def __init__(self, df=0):
 
         TravellingWaveCavity.__init__(self, 0.374, 32, 2.71e4, 0.0946,
-                                      2*np.pi*200.03766667e6, df = df)
+                                      2 * np.pi * 200.03766667e6, df=df)
 
 
 class SPS4Section200MHzTWC(TravellingWaveCavity):
 
-    def __init__(self, df = 0):
+    def __init__(self, df=0):
 
         TravellingWaveCavity.__init__(self, 0.374, 43, 2.71e4, 0.0946,
-                                      2*np.pi*199.9945e6, df = df)
+                                      2 * np.pi * 199.9945e6, df=df)
 
 
 class SPS5Section200MHzTWC(TravellingWaveCavity):
 
-    def __init__(self, df = 0):
+    def __init__(self, df=0):
 
         TravellingWaveCavity.__init__(self, 0.374, 54, 2.71e4, 0.0946,
-                                      2*np.pi*200.1e6, df = df)
+                                      2 * np.pi * 200.1e6, df=df)

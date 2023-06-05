@@ -1,40 +1,32 @@
 # -*- coding: utf-8 -*-
 
-# General imports
-# -----------------
 from __future__ import division, print_function
+
 import unittest
+
 import numpy as np
 
-# BLonD imports
-# --------------
-from blond.beam.beam import Proton
-from blond.input_parameters.ring import Ring
-from blond.input_parameters.rf_parameters import RFStation
 import blond.llrf.offset_frequency as offFreq
+from blond.beam.beam import Proton
+from blond.input_parameters.rf_parameters import RFStation
+from blond.input_parameters.ring import Ring
 
 
 class TestOffsetFrequency(unittest.TestCase):
 
     def setUp(self):
 
-        initial_time = 0
-        final_time = 25E-3
-
-        periodicity_tracking = True
-
         # Machine and RF parameters
         radius = 25
         gamma_transition = 4.4  # [1]
         C = 2 * np.pi * radius  # [m]
         momentum_compaction = 1 / gamma_transition**2  # [1]
-        particle_type = 'proton'
 
         self.ring = Ring(C, momentum_compaction,
                          ([0, 25E-3], [3.13E8, 3.5E8]), Proton())
 
         self.rf_params = RFStation(self.ring, [1, 2], [0, 0],
-                                   [np.pi, np.pi*0.95], 2)
+                                   [np.pi, np.pi * 0.95], 2)
 
     def test_fixed_freq(self):
 
@@ -57,7 +49,7 @@ class TestOffsetFrequency(unittest.TestCase):
                          self.injection_frequency.frequency_prog[self.injection_frequency.end_fixed_turn],
                          msg='Fixed frequency final value wrong')
 
-        self.assertAlmostEqual(self.rf_params.omega_rf_d[0][self.injection_frequency.end_transition_turn-1],
+        self.assertAlmostEqual(self.rf_params.omega_rf_d[0][self.injection_frequency.end_transition_turn - 1],
                                self.injection_frequency.frequency_prog[-1],
                                delta=1, msg='Fixed frequency end transition value wrong')
 

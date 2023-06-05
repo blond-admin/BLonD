@@ -1,38 +1,70 @@
-import sys
-import os
-from mpi4py import MPI
-import numpy as np
-import logging
-from functools import wraps
-import socket
+'''
+Functions related to running MPI simulations.
 
+@author: Konstantinos Iliakis
+@date: 01.01.2020
+'''
+
+import logging
+import os
+import socket
+import sys
+from functools import wraps
+
+import numpy as np
+from mpi4py import MPI
 
 from ..utils import bmath as bm
 
-worker = None
+WORKER = None
 
 
 def mpiprint(*args, all=False):
-    if worker.isMaster or all:
-        print('[{}]'.format(worker.rank), *args)
+    """Masks default print function, so that the worker id is also printed
+
+    Args:
+        all (bool, optional): _description_. Defaults to False.
+    """
+    if WORKER.is_master or all:
+        print(f'[{WORKER.rank}]', *args)
 
 
-def master_wrap(f):
-    @wraps(f)
+def master_wrap(func):
+    """Wrap function to be executed only by the master worker.
+
+    Args:
+        func (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
+    @wraps(func)
     def wrap(*args, **kwargs):
-        if worker.isMaster:
-            return f(*args, **kwargs)
-        else:
-            return None
+        if WORKER.is_master:
+            return func(*args, **kwargs)
+        return None
     return wrap
 
 
-def sequential_wrap(f, beam, split_args={}, gather_args={}):
-    @wraps(f)
+def sequential_wrap(func, beam, split_args={}, gather_args={}):
+    """Wrap a function to make it run in sequential mode.
+    When in sequential mode, all the beam coordinates are gathered before executing
+    the passed function, and re-splitted afterwards.
+
+    Args:
+        func (_type_): _description_
+        beam (_type_): _description_
+        split_args (dict, optional): _description_. Defaults to {}.
+        gather_args (dict, optional): _description_. Defaults to {}.
+
+    Returns:
+        _type_: _description_
+    """
+    @wraps(func)
     def wrap(*args, **kw):
         beam.gather(**gather_args)
-        if worker.isMaster:
-            result = f(*args, **kw)
+        if WORKER.is_master:
+            result = func(*args, **kw)
         else:
             result = None
         beam.split(**split_args)
@@ -41,9 +73,13 @@ def sequential_wrap(f, beam, split_args={}, gather_args={}):
 
 
 class Worker:
+    """Stores information accessed by each MPI worker. Also contains all needed MPI methods.
+    """
     def __init__(self):
+        """Constructor
+        """
         self.log = False
-
+        self.logger = None
         # Global inter-communicator
         self.intercomm = MPI.COMM_WORLD
         self.rank = self.intercomm.rank
@@ -51,7 +87,7 @@ class Worker:
 
         # Get hostname
         self.hostname = MPI.Get_processor_name()
-        
+
         # Get host IP
         self.hostip = socket.gethostbyname(self.hostname)
         # Create communicator with processes on the same host
@@ -63,29 +99,49 @@ class Worker:
 
         # Assign default values for GPUs
         self.gpu_id = -1
-        self.hasGPU = False
+        self.has_gpu = False
 
-    def assignGPUs(self, num_gpus=0):
+    def assign_gpus(self, num_gpus=0):
+        """Assign GPUs to workers
+
+        Args:
+            num_gpus (int, optional): _description_. Defaults to 0.
+        """
         if self.noderank < num_gpus:
-            self.hasGPU = True
+            self.has_gpu = True
             self.gpu_id = self.noderank
 
-    def initLog(self, log, logdir):
+    def init_log(self, log, logdir):
+        """Initialize the logs
+
+        Args:
+            log (_type_): _description_
+            logdir (_type_): _description_
+        """
         self.log = log
         self.logger = MPILog(rank=self.rank, log_dir=logdir)
         if not self.log:
             self.logger.disable()
 
-
-    def __del__(self):
-        pass
-
     @property
-    def isMaster(self):
+    def is_master(self):
+        """Return true if this worker is the master
+
+        Returns:
+            _type_: _description_
+        """
         return self.rank == 0
 
     # Define the begin and size numbers in order to split a variable of length size
     def gather(self, var):
+        """Gather a vector on the master
+
+        Args:
+            var (_type_): _description_
+
+        Returns:
+            _type_: _description_
+        """
         if self.log:
             self.logger.debug('gather')
 
@@ -95,7 +151,7 @@ class Worker:
         self.intercomm.Gather(sendbuf, counts, root=0)
         total_size = np.sum(counts)
 
-        if self.isMaster:
+        if self.is_master:
             # counts = [size // self.workers + 1 if i < size % self.workers
             #           else size // self.workers for i in range(self.workers)]
             displs = np.append([0], np.cumsum(counts[:-1]))
@@ -113,6 +169,14 @@ class Worker:
     # All workers gather the variable var (from all workers)
 
     def allgather(self, var):
+        """Gather vector to all workers.
+
+        Args:
+            var (_type_): _description_
+
+        Returns:
+            _type_: _description_
+        """
         if self.log:
             self.logger.debug('allgather')
 
@@ -133,6 +197,14 @@ class Worker:
         return recvbuf
 
     def scatter(self, var):
+        """Scatter vector from master to all workers.
+
+        Args:
+            var (_type_): _description_
+
+        Returns:
+            _type_: _description_
+        """
         if self.log:
             self.logger.debug('scatter')
 
@@ -142,20 +214,29 @@ class Worker:
         # Then calculate the counts (size for each worker)
         counts = [total_size // self.workers + 1 if i < total_size % self.workers
                   else total_size // self.workers for i in range(self.workers)]
-        
-        if self.isMaster:
+
+        if self.is_master:
             displs = np.append([0], np.cumsum(counts[:-1]))
-            recvbuf = np.empty(counts[worker.rank], dtype=var.dtype.char)
+            recvbuf = np.empty(counts[WORKER.rank], dtype=var.dtype.char)
             self.intercomm.Scatterv([var, counts, displs, var.dtype.char],
                                     recvbuf, root=0)
         else:
             sendbuf = None
-            recvbuf = np.empty(counts[worker.rank], dtype=var.dtype.char)
+            recvbuf = np.empty(counts[WORKER.rank], dtype=var.dtype.char)
             self.intercomm.Scatterv(sendbuf, recvbuf, root=0)
 
         return recvbuf
 
     def broadcast(self, var, root=0):
+        """Broadcast array to all workers.
+
+        Args:
+            var (_type_): _description_
+            root (int, optional): _description_. Defaults to 0.
+
+        Returns:
+            _type_: _description_
+        """
         if self.log:
             self.logger.debug('broadcast')
 
@@ -163,7 +244,7 @@ class Worker:
         # recvbuf = self.intercomm.bcast([len(var), var.dtype.char], root=0)
         # size, dtype = recvbuf[0], recvbuf[1]
 
-        if self.isMaster:   
+        if self.is_master:
             recvbuf = self.intercomm.bcast(var, root=root)
         else:
             recvbuf = None
@@ -171,9 +252,20 @@ class Worker:
 
         return recvbuf
 
-
     def reduce(self, sendbuf, recvbuf=None, dtype=np.uint32, operator='custom_sum',
                comm=None):
+        """Reduce array to master.
+
+        Args:
+            sendbuf (_type_): _description_
+            recvbuf (_type_, optional): _description_. Defaults to None.
+            dtype (_type_, optional): _description_. Defaults to np.uint32.
+            operator (str, optional): _description_. Defaults to 'custom_sum'.
+            comm (_type_, optional): _description_. Defaults to None.
+
+        Returns:
+            _type_: _description_
+        """
         if comm is None:
             comm = self.intercomm
         # supported ops:
@@ -181,40 +273,19 @@ class Worker:
         if self.log:
             self.logger.debug('reduce')
         operator = operator.lower()
-        if operator == 'custom_sum':
-            dtype = sendbuf.dtype.name
-            if dtype == 'int16':
-                op = add_op_int16
-            elif dtype == 'int32':
-                op = add_op_int32
-            elif dtype == 'int64':
-                op = add_op_int64
-            elif dtype == 'uint16':
-                op = add_op_uint16
-            elif dtype == 'uint32':
-                op = add_op_uint32
-            elif dtype == 'uint64':
-                op = add_op_uint64
-            elif dtype == 'float32':
-                op = add_op_float32
-            elif dtype == 'float64':
-                op = add_op_float64
-            else:
-                print('Error: Not recognized dtype:{}'.format(dtype))
-                exit(-1)
-        elif operator == 'sum':
-            op = MPI.SUM
+        if operator in ['sum', 'custom_sum']:
+            mpi_op = MPI.SUM
         elif operator == 'max':
-            op = MPI.MAX
+            mpi_op = MPI.MAX
         elif operator == 'min':
-            op = MPI.MIN
+            mpi_op = MPI.MIN
         elif operator == 'prod':
-            op = MPI.PROD
+            mpi_op = MPI.PROD
         elif operator in ['mean', 'avg']:
-            op = MPI.SUM
+            mpi_op = MPI.SUM
         elif operator == 'std':
             recvbuf = self.gather(sendbuf)
-            if worker.isMaster:
+            if WORKER.is_master:
                 assert len(recvbuf) == 3 * self.workers
                 totals = np.sum((recvbuf[2::3] - 1) * recvbuf[1::3]**2 +
                                 recvbuf[2::3] * (recvbuf[1::3] - bm.mean(recvbuf[0::3]))**2)
@@ -222,25 +293,35 @@ class Worker:
             else:
                 return np.array([sendbuf[1]])
 
-        if worker.isMaster:
+        if WORKER.is_master:
             if (recvbuf is None) or (sendbuf is recvbuf):
-                comm.Reduce(MPI.IN_PLACE, sendbuf, op=op, root=0)
+                comm.Reduce(MPI.IN_PLACE, sendbuf, op=mpi_op, root=0)
                 recvbuf = sendbuf
             else:
-                comm.Reduce(sendbuf, recvbuf, op=op, root=0)
+                comm.Reduce(sendbuf, recvbuf, op=mpi_op, root=0)
 
             if operator in ['mean', 'avg']:
                 return recvbuf / self.workers
-            else:
-                return recvbuf
+            return recvbuf
         else:
             recvbuf = None
-            comm.Reduce(sendbuf, recvbuf, op=op, root=0)
+            comm.Reduce(sendbuf, recvbuf, op=mpi_op, root=0)
             return sendbuf
-
 
     def allreduce(self, sendbuf, recvbuf=None, dtype=np.uint32, operator='sum',
                   comm=None):
+        """Reduce array to all workers.
+
+        Args:
+            sendbuf (_type_): _description_
+            recvbuf (_type_, optional): _description_. Defaults to None.
+            dtype (_type_, optional): _description_. Defaults to np.uint32.
+            operator (str, optional): _description_. Defaults to 'sum'.
+            comm (_type_, optional): _description_. Defaults to None.
+
+        Returns:
+            _type_: _description_
+        """
         if comm is None:
             comm = self.intercomm
 
@@ -249,37 +330,17 @@ class Worker:
         if self.log:
             self.logger.debug('allreduce')
         operator = operator.lower()
-        if operator == 'custom_sum':
-            dtype = sendbuf.dtype.name
-            if dtype == 'int16':
-                op = add_op_int16
-            elif dtype == 'int32':
-                op = add_op_int32
-            elif dtype == 'int64':
-                op = add_op_int64
-            elif dtype == 'uint16':
-                op = add_op_uint16
-            elif dtype == 'uint32':
-                op = add_op_uint32
-            elif dtype == 'uint64':
-                op = add_op_uint64
-            elif dtype == 'float32':
-                op = add_op_float32
-            elif dtype == 'float64':
-                op = add_op_float64
-            else:
-                print('Error: Not recognized dtype:{}'.format(dtype))
-                exit(-1)
-        elif operator == 'sum':
-            op = MPI.SUM
+
+        if operator in ['sum', 'custom_sum']:
+            mpi_op = MPI.SUM
         elif operator == 'max':
-            op = MPI.MAX
+            mpi_op = MPI.MAX
         elif operator == 'min':
-            op = MPI.MIN
+            mpi_op = MPI.MIN
         elif operator == 'prod':
-            op = MPI.PROD
+            mpi_op = MPI.PROD
         elif operator in ['mean', 'avg']:
-            op = MPI.SUM
+            mpi_op = MPI.SUM
         elif operator == 'std':
             recvbuf = self.allgather(sendbuf)
             assert len(recvbuf) == 3 * self.workers
@@ -288,43 +349,47 @@ class Worker:
             return np.array([np.sqrt(totals / (np.sum(recvbuf[2::3]) - 1))])
 
         if (recvbuf is None) or (sendbuf is recvbuf):
-            comm.Allreduce(MPI.IN_PLACE, sendbuf, op=op)
+            comm.Allreduce(MPI.IN_PLACE, sendbuf, op=mpi_op)
             recvbuf = sendbuf
         else:
-            comm.Allreduce(sendbuf, recvbuf, op=op)
+            comm.Allreduce(sendbuf, recvbuf, op=mpi_op)
 
         if operator in ['mean', 'avg']:
-
             return recvbuf / self.workers
-        else:
-            return recvbuf
+        return recvbuf
 
     def sync(self):
+        """Synchronize all workers.
+        """
         if self.log:
             self.logger.debug('sync')
         self.intercomm.Barrier()
 
-
     def finalize(self):
+        """Leave MPI.
+        """
         if self.log:
             self.logger.debug('finalize')
-        if not self.isMaster:
+        if not self.is_master:
             sys.exit(0)
 
     def greet(self):
+        """Print greeting message
+        """
         if self.log:
             self.logger.debug('greet')
-        print('[{}]@{}: Hello World!'.format(self.rank, self.hostname))
+        print(f'[{self.rank}]@{self.hostname}: Hello World!')
 
     def print_version(self):
+        """Print MPI version.
+        """
         if self.log:
             self.logger.debug('version')
-        print('[{}] Library: {}'.format(self.rank, MPI.get_vendor()))
+        print(f'[{self.rank}] Library: {MPI.get_vendor()}')
 
 
-
-class MPILog(object):
-    """Class to log messages coming from other classes. Messages contain 
+class MPILog:
+    """Class to log messages coming from other classes. Messages contain
     {Time stamp} {Class name} {Log level} {Message}. Errors, warnings and info
     are logged into the console. To disable logging, call Logger().disable()
     Parameters
@@ -342,7 +407,7 @@ class MPILog(object):
         if not os.path.exists(log_dir):
             os.makedirs(log_dir, exist_ok=True)
 
-        log_name = log_dir+'/worker-%.3d.log' % rank
+        log_name = log_dir + f'/worker-{rank:03d}.log'
         # Console handler on INFO level
         # console_handler = logging.StreamHandler()
         # console_handler.setLevel(logging.INFO)
@@ -370,89 +435,32 @@ class MPILog(object):
         self.disabled = True
 
     def debug(self, string):
-        if self.disabled == False:
+        """Set logging to debug verbosity
+
+        Args:
+            string (_type_): _description_
+        """
+        if not self.disabled:
             logging.debug(string)
 
     def info(self, string):
-        if self.disabled == False:
+        """Set logging to info verbosity
+
+        Args:
+            string (_type_): _description_
+        """
+        if not self.disabled:
             logging.info(string)
 
     def critical(self, string):
-        if self.disabled == False:
+        """Set logging to critical verbosity
+
+        Args:
+            string (_type_): _description_
+        """
+        if not self.disabled:
             logging.critical(string)
 
 
-if worker is None:
-    worker = Worker()
-
-
-def c_add_float32(xmem, ymem, dt):
-    x = np.frombuffer(xmem, dtype=np.float32)
-    y = np.frombuffer(ymem, dtype=np.float32)
-    bm.add(y, x, inplace=True)
-
-
-add_op_float32 = MPI.Op.Create(c_add_float32, commute=True)
-
-
-def c_add_float64(xmem, ymem, dt):
-    x = np.frombuffer(xmem, dtype=np.float64)
-    y = np.frombuffer(ymem, dtype=np.float64)
-    bm.add(y, x, inplace=True)
-
-
-add_op_float64 = MPI.Op.Create(c_add_float64, commute=True)
-
-
-def c_add_uint16(xmem, ymem, dt):
-    x = np.frombuffer(xmem, dtype=np.uint16)
-    y = np.frombuffer(ymem, dtype=np.uint16)
-    bm.add(y, x, inplace=True)
-
-
-add_op_uint16 = MPI.Op.Create(c_add_uint16, commute=True)
-
-
-def c_add_uint32(xmem, ymem, dt):
-    x = np.frombuffer(xmem, dtype=np.uint32)
-    y = np.frombuffer(ymem, dtype=np.uint32)
-    bm.add(y, x, inplace=True)
-
-
-add_op_uint32 = MPI.Op.Create(c_add_uint32, commute=True)
-
-
-def c_add_uint64(xmem, ymem, dt):
-    x = np.frombuffer(xmem, dtype=np.uint64)
-    y = np.frombuffer(ymem, dtype=np.uint64)
-    bm.add(y, x, inplace=True)
-
-
-add_op_uint64 = MPI.Op.Create(c_add_uint64, commute=True)
-
-
-def c_add_int16(xmem, ymem, dt):
-    x = np.frombuffer(xmem, dtype=np.int16)
-    y = np.frombuffer(ymem, dtype=np.int16)
-    bm.add(y, x, inplace=True)
-
-
-add_op_int16 = MPI.Op.Create(c_add_int16, commute=True)
-
-
-def c_add_int32(xmem, ymem, dt):
-    x = np.frombuffer(xmem, dtype=np.int32)
-    y = np.frombuffer(ymem, dtype=np.int32)
-    bm.add(y, x, inplace=True)
-
-
-add_op_int32 = MPI.Op.Create(c_add_int32, commute=True)
-
-
-def c_add_int64(xmem, ymem, dt):
-    x = np.frombuffer(xmem, dtype=np.int64)
-    y = np.frombuffer(ymem, dtype=np.int64)
-    bm.add(y, x, inplace=True)
-
-
-add_op_int64 = MPI.Op.Create(c_add_int64, commute=True)
+if WORKER is None:
+    WORKER = Worker()

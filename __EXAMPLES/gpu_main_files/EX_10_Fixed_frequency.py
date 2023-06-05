@@ -15,19 +15,23 @@ Test case to show the consequences of omega_rf != h*omega_rev
 '''
 
 from __future__ import division, print_function
+
+import os
+
+import matplotlib as mpl
+import numpy as np
+
 import blond.utils.bmath as bm
-from blond.llrf.beam_feedback import BeamFeedback
-from blond.plots.plot import Plot
 from blond.beam.beam import Beam, Proton
-from blond.beam.profile import Profile, CutOptions
-from blond.monitors.monitors import BunchMonitor
 from blond.beam.distributions import matched_from_distribution_function
-from blond.trackers.tracker import RingAndRFTracker, FullRingAndRF
+from blond.beam.profile import CutOptions, Profile
 from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
-import numpy as np
-import os
-import matplotlib as mpl
+from blond.llrf.beam_feedback import BeamFeedback
+from blond.monitors.monitors import BunchMonitor
+from blond.plots.plot import Plot
+from blond.trackers.tracker import FullRingAndRF, RingAndRFTracker
+
 mpl.use('Agg')
 
 
@@ -51,7 +55,7 @@ n_particles = 0
 radius = 25  # [m]
 gamma_transition = 4.076750841  # [1]
 alpha = 1 / gamma_transition**2  # [1]
-C = 2*np.pi*radius  # [m]
+C = 2 * np.pi * radius  # [m]
 
 n_turns = 10000
 
@@ -65,12 +69,12 @@ phi_offset_1 = np.pi   # [rad]
 rf_params = RFStation(
     general_params, [harmonic_numbers_1], [voltage_1],
     [phi_offset_1], n_rf_systems,
-    omega_rf=[1.00001*2.*np.pi/general_params.t_rev[0]])
+    omega_rf=[1.00001 * 2. * np.pi / general_params.t_rev[0]])
 
 my_beam = Beam(general_params, n_macroparticles, n_particles)
 
 
-cut_options = CutOptions(cut_left=0, cut_right=2.0*0.9e-6, n_slices=200)
+cut_options = CutOptions(cut_left=0, cut_right=2.0 * 0.9e-6, n_slices=200)
 slices_ring = Profile(my_beam, cut_options)
 
 
@@ -105,7 +109,7 @@ bunch_monitor = BunchMonitor(general_params, rf_params, my_beam,
 
 # Plots
 format_options = {'dirname': this_directory + '../gpu_output_files/EX_10_fig'}
-plots = Plot(general_params, rf_params, my_beam, 1000, 10000, 0.0, 2.0*0.9e-6,
+plots = Plot(general_params, rf_params, my_beam, 1000, 10000, 0.0, 2.0 * 0.9e-6,
              -1.e6, 1.e6, separatrix_plot=True, Profile=slices_ring,
              format_options=format_options,
              h5file=this_directory + '../gpu_output_files/EX_10_output_data', PhaseLoop=phase_loop)
@@ -129,7 +133,7 @@ if USE_GPU:
     rf_params.to_gpu()
 
 
-for i in range(1, n_turns+1):
+for i in range(1, n_turns + 1):
 
     for m in map_:
         m.track()
@@ -157,14 +161,14 @@ for i in range(1, n_turns+1):
     slices_ring.set_slices_parameters()
 
     if (i % 100 == 0):
-        print("Time step %d" %i)
-        print("    Radial error %.4e" %(phase_loop.drho))
+        print("Time step %d" % i)
+        print("    Radial error %.4e" % (phase_loop.drho))
         print("    Radial loop frequency correction %.4e 1/s"
-              %(phase_loop.domega_rf))
-        print("    RF phase %.4f rad" %(rf_params.phi_rf[0,i]))
-        print("    RF frequency %.6e 1/s" %(rf_params.omega_rf[0,i]))
-        print("    Tracker phase %.4f rad" %(long_tracker.rf_params.phi_rf[0,i]))
-        print("    Tracker frequency %.6e 1/s" %(long_tracker.rf_params.omega_rf[0,i]))
+              % (phase_loop.domega_rf))
+        print("    RF phase %.4f rad" % (rf_params.phi_rf[0, i]))
+        print("    RF frequency %.6e 1/s" % (rf_params.omega_rf[0, i]))
+        print("    Tracker phase %.4f rad" % (long_tracker.rf_params.phi_rf[0, i]))
+        print("    Tracker frequency %.6e 1/s" % (long_tracker.rf_params.omega_rf[0, i]))
 
 if USE_GPU:
     bm.use_cpu()

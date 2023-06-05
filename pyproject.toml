@@ -8,3 +8,9 @@ requires = [
 # Add an empty tool section to enable version inference.
 [tool.setuptools_scm]
 write_to = 'blond/_version.py'
+
+[tool.flake8]
+ignore = ['E501','W503','W504','W291']
+
+[tool.pylint.reports]
+output-format = 'colorized'

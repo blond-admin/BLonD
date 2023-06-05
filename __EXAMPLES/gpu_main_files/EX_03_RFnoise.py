@@ -15,20 +15,24 @@ No intensity effects
 '''
 
 from __future__ import division, print_function
+
+import os
+from builtins import range
+
+import matplotlib as mpl
+import numpy as np
+
 import blond.utils.bmath as bm
-from blond.llrf.rf_noise import FlatSpectrum
-from blond.plots.plot import Plot
-from blond.monitors.monitors import BunchMonitor
-from blond.beam.profile import CutOptions, Profile, FitOptions
-from blond.beam.distributions import bigaussian
 from blond.beam.beam import Beam, Proton
-from blond.trackers.tracker import RingAndRFTracker
+from blond.beam.distributions import bigaussian
+from blond.beam.profile import CutOptions, FitOptions, Profile
 from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
-from builtins import range
-import numpy as np
-import os
-import matplotlib as mpl
+from blond.llrf.rf_noise import FlatSpectrum
+from blond.monitors.monitors import BunchMonitor
+from blond.plots.plot import Plot
+from blond.trackers.tracker import RingAndRFTracker
+
 mpl.use('Agg')
 
 
@@ -56,7 +60,7 @@ h = 35640            # Harmonic number
 V = 6e6             # RF voltage [eV]
 dphi = 0             # Phase modulation/offset
 gamma_t = 55.759505  # Transition gamma
-alpha = 1./gamma_t/gamma_t        # First order mom. comp. factor
+alpha = 1. / gamma_t / gamma_t        # First order mom. comp. factor
 
 # Tracking details
 N_t = 200         # Number of turns to track
@@ -94,7 +98,7 @@ print("General and RF parameters set...")
 # Define beam and distribution
 
 # Generate new distribution
-bigaussian(general_params, rf_params, beam, tau_0/4,
+bigaussian(general_params, rf_params, beam, tau_0 / 4,
            reinsertion=True, seed=1)
 
 print("Beam set and distribution generated...")
@@ -115,7 +119,7 @@ bunchmonitor = BunchMonitor(general_params, rf_params, beam, this_directory +
 format_options = {'dirname': this_directory +
                   '../gpu_output_files/EX_03_fig', 'linestyle': '.'}
 plots = Plot(general_params, rf_params, beam, dt_plt, N_t, 0,
-             0.0001763*h, -450e6, 450e6, xunit='rad',
+             0.0001763 * h, -450e6, 450e6, xunit='rad',
              separatrix_plot=True, Profile=slice_beam, h5file=this_directory + '../gpu_output_files/EX_03_output_data',
              histograms_plot=True, format_options=format_options)
 
@@ -141,18 +145,18 @@ if USE_GPU:
 
 
 # Tracking ---------------------------------------------------------------------
-for i in range(1, N_t+1):
+for i in range(1, N_t + 1):
 
     # Plot has to be done before tracking (at least for cases with separatrix)
     if (i % dt_plt) == 0:
 
-        print("Outputting at time step %d..." %i)
-        print("   Beam momentum %.6e eV" %beam.momentum)
-        print("   Beam gamma %3.3f" %beam.gamma)
-        print("   Beam beta %3.3f" %beam.beta)
-        print("   Beam energy %.6e eV" %beam.energy)
-        print("   Four-times r.m.s. bunch length %.4e [s]" %(4.*beam.sigma_dt))
-        print("   Gaussian bunch length %.4e [s]" %slice_beam.bunchLength)
+        print("Outputting at time step %d..." % i)
+        print("   Beam momentum %.6e eV" % beam.momentum)
+        print("   Beam gamma %3.3f" % beam.gamma)
+        print("   Beam beta %3.3f" % beam.beta)
+        print("   Beam energy %.6e eV" % beam.energy)
+        print("   Four-times r.m.s. bunch length %.4e [s]" % (4. * beam.sigma_dt))
+        print("   Gaussian bunch length %.4e [s]" % slice_beam.bunchLength)
         print("")
 
     # Track

@@ -14,23 +14,29 @@ Example script to take into account intensity effects from impedance tables
 '''
 
 from __future__ import division, print_function
+
+import os
+from builtins import bytes, range, str
+
+import matplotlib as mpl
+import numpy as np
+from scipy.constants import c, e, m_p
+
 import blond.utils.bmath as bm
-from scipy.constants import m_p, e, c
-from blond.impedances.impedance import InductiveImpedance, InducedVoltageFreq, TotalInducedVoltage
-from blond.impedances.impedance_sources import InputTable
-from blond.plots.plot_impedance import plot_impedance_vs_frequency, plot_induced_voltage_vs_bin_centers
-from blond.plots.plot import Plot
-from blond.monitors.monitors import BunchMonitor
-from blond.beam.profile import CutOptions, Profile
-from blond.beam.distributions import bigaussian
 from blond.beam.beam import Beam, Proton
-from blond.trackers.tracker import RingAndRFTracker
+from blond.beam.distributions import bigaussian
+from blond.beam.profile import CutOptions, Profile
+from blond.impedances.impedance import (InducedVoltageFreq, InductiveImpedance,
+                                        TotalInducedVoltage)
+from blond.impedances.impedance_sources import InputTable
 from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
-from builtins import str, range, bytes
-import numpy as np
-import os
-import matplotlib as mpl
+from blond.monitors.monitors import BunchMonitor
+from blond.plots.plot import Plot
+from blond.plots.plot_impedance import (plot_impedance_vs_frequency,
+                                        plot_induced_voltage_vs_bin_centers)
+from blond.trackers.tracker import RingAndRFTracker
+
 mpl.use('Agg')
 
 
@@ -64,7 +70,7 @@ n_turns = 2
 n_turns_between_two_plots = 1
 
 # Derived parameters
-E_0 = m_p*c**2/e    # [eV]
+E_0 = m_p * c**2 / e    # [eV]
 tot_beam_energy = E_0 + kin_beam_energy  # [eV]
 sync_momentum = np.sqrt(tot_beam_energy**2 - E_0**2)  # [eV / c]
 momentum_compaction = 1 / gamma_transition**2  # [1]
@@ -98,7 +104,7 @@ slice_beam = Profile(my_beam, CutOptions(cut_left=-5.72984173562e-7,
 # MONITOR----------------------------------------------------------------------
 
 bunchmonitor = BunchMonitor(general_params, RF_sct_par, my_beam,
-                            this_directory + '../gpu_output_files/EX_02_output_data', 
+                            this_directory + '../gpu_output_files/EX_02_output_data',
                             buffer_time=1)
 
 # LOAD IMPEDANCE TABLES--------------------------------------------------------
@@ -188,11 +194,11 @@ if USE_GPU:
     dir_space_charge.to_gpu()
     total_induced_voltage.to_gpu()
 
-map_ = [total_induced_voltage] + [ring_RF_section] + [slice_beam] #+ [bunchmonitor] + [plots]
+map_ = [total_induced_voltage] + [ring_RF_section] + [slice_beam]  # + [bunchmonitor] + [plots]
 
 # TRACKING + PLOTS-------------------------------------------------------------
 
-for i in range(1, n_turns+1):
+for i in range(1, n_turns + 1):
 
     # print(i)
 
@@ -200,7 +206,7 @@ for i in range(1, n_turns+1):
         m.track()
 
     # Plots
-    if (i% n_turns_between_two_plots) == 0:
+    if (i % n_turns_between_two_plots) == 0:
         slice_beam.beam_spectrum_freq_generation(slice_beam.n_slices)
         slice_beam.beam_spectrum_generation(slice_beam.n_slices)
 
@@ -211,9 +217,9 @@ for i in range(1, n_turns+1):
             slice_beam.to_cpu()
 
         plot_impedance_vs_frequency(i, general_params, ind_volt_freq,
-          option1 = "single", style = '-', option3 = "freq_table", option2 = "spectrum", dirname = this_directory + '../gpu_output_files/EX_02_fig')
+                                    option1="single", style='-', option3="freq_table", option2="spectrum", dirname=this_directory + '../gpu_output_files/EX_02_fig')
 
-        plot_induced_voltage_vs_bin_centers(i, general_params, total_induced_voltage, style = '.', dirname = this_directory + '../gpu_output_files/EX_02_fig')
+        plot_induced_voltage_vs_bin_centers(i, general_params, total_induced_voltage, style='.', dirname=this_directory + '../gpu_output_files/EX_02_fig')
 
         if USE_GPU:
             bm.use_gpu()

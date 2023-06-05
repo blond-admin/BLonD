@@ -14,22 +14,25 @@ Unittest for the FFTs used in blond with CuPy and NumPy
 """
 
 
-import unittest
-import pytest
 import os
+import unittest
+
 import numpy as np
-from blond.utils import bmath as bm
-from blond.input_parameters.ring import Ring
-from blond.input_parameters.rf_parameters import RFStation
-from blond.trackers.tracker import RingAndRFTracker
+import pytest
+from scipy.constants import c, e, m_p
+
 from blond.beam.beam import Beam, Proton
 from blond.beam.distributions import bigaussian
 from blond.beam.profile import CutOptions, FitOptions, Profile
-from blond.impedances.impedance import InducedVoltageResonator, TotalInducedVoltage
-from blond.impedances.impedance import InducedVoltageTime, InducedVoltageFreq
+from blond.impedances.impedance import (InducedVoltageFreq,
+                                        InducedVoltageResonator,
+                                        InducedVoltageTime,
+                                        TotalInducedVoltage)
 from blond.impedances.impedance_sources import Resonators
-from scipy.constants import c, e, m_p
-
+from blond.input_parameters.rf_parameters import RFStation
+from blond.input_parameters.ring import Ring
+from blond.trackers.tracker import RingAndRFTracker
+from blond.utils import bmath as bm
 
 this_directory = os.path.dirname(os.path.realpath(__file__))
 
@@ -39,11 +42,11 @@ class TestImpedanceBigaussianData:
     # Simulation parameters -------------------------------------------------------
     # Beam parameters
     n_particles = 1e10
-    n_macroparticles = 5*1e6
+    n_macroparticles = 5 * 1e6
     tau_0 = 2e-9  # [s]
 
     # Machine and RF parameters
-    gamma_transition = 1/np.sqrt(0.00192)   # [1]
+    gamma_transition = 1 / np.sqrt(0.00192)   # [1]
     C = 6911.56  # [m]
 
     # Tracking details
@@ -76,12 +79,12 @@ class TestImpedanceBigaussianData:
         self.beam = Beam(self.general_params,
                          self.n_macroparticles, self.n_particles)
         bigaussian(self.general_params, self.rf,
-                   self.beam, self.tau_0/4, seed=1)
+                   self.beam, self.tau_0 / 4, seed=1)
 
         self.beam_gpu = Beam(self.general_params,
                              self.n_macroparticles, self.n_particles)
         bigaussian(self.general_params, self.rf_gpu,
-                   self.beam_gpu, self.tau_0/4, seed=1)
+                   self.beam_gpu, self.tau_0 / 4, seed=1)
 
         self.rf_tracker = RingAndRFTracker(self.rf, self.beam)
         self.rf_tracker_gpu = RingAndRFTracker(self.rf_gpu, self.beam_gpu)
@@ -107,12 +110,12 @@ class TestImpedanceBigaussianData:
     def test_ind_volt(self, number_slices, mode):
         import cupy as cp
 
-        cut_options = CutOptions(cut_left=0, cut_right=2*np.pi, n_slices=number_slices,
+        cut_options = CutOptions(cut_left=0, cut_right=2 * np.pi, n_slices=number_slices,
                                  RFSectionParameters=self.rf, cuts_unit='rad')
         slice_beam = Profile(self.beam, cut_options,
                              FitOptions(fit_option='gaussian'))
 
-        cut_options_gpu = CutOptions(cut_left=0, cut_right=2*np.pi, n_slices=number_slices,
+        cut_options_gpu = CutOptions(cut_left=0, cut_right=2 * np.pi, n_slices=number_slices,
                                      RFSectionParameters=self.rf_gpu, cuts_unit='rad')
         slice_beam_gpu = Profile(
             self.beam_gpu, cut_options_gpu, FitOptions(fit_option='gaussian'))
@@ -175,12 +178,12 @@ class TestImpedanceBigaussianData:
     def test_ind_volt_track(self, number_slices, mode, n_iter):
         import cupy as cp
 
-        cut_options = CutOptions(cut_left=0, cut_right=2*np.pi, n_slices=number_slices,
+        cut_options = CutOptions(cut_left=0, cut_right=2 * np.pi, n_slices=number_slices,
                                  RFSectionParameters=self.rf, cuts_unit='rad')
         slice_beam = Profile(self.beam, cut_options,
                              FitOptions(fit_option='gaussian'))
 
-        cut_options_gpu = CutOptions(cut_left=0, cut_right=2*np.pi, n_slices=number_slices,
+        cut_options_gpu = CutOptions(cut_left=0, cut_right=2 * np.pi, n_slices=number_slices,
                                      RFSectionParameters=self.rf_gpu, cuts_unit='rad')
         slice_beam_gpu = Profile(
             self.beam_gpu, cut_options_gpu, FitOptions(fit_option='gaussian'))
@@ -271,12 +274,12 @@ class TestImpedanceMTW:
     n_turns = 1000
 
     # Derived parameters
-    E_0 = m_p*c**2/e    # [eV]
+    E_0 = m_p * c**2 / e    # [eV]
     tot_beam_energy = E_0 + kin_beam_energy  # [eV]
     sync_momentum = np.sqrt(tot_beam_energy**2 - E_0**2)  # [eV/c]
 
     gamma = tot_beam_energy / E_0
-    beta = np.sqrt(1.0-1.0/gamma**2.0)
+    beta = np.sqrt(1.0 - 1.0 / gamma**2.0)
 
     momentum_compaction = 1 / gamma_transition**2
 
@@ -329,9 +332,9 @@ class TestImpedanceMTW:
 
     @pytest.mark.parametrize('number_slices,mode,mtw_mode,n_iter',
                              [(256, 'time', 'time', 1), (1024, 'time', 'time', 100),
-                            #   (256, 'time', 'freq', 1), (1024, 'time', 'freq', 100),
+                              #   (256, 'time', 'freq', 1), (1024, 'time', 'freq', 100),
                               (256, 'frequency', 'time', 1), (1024, 'frequency', 'time', 100),
-                            #   (256, 'frequency', 'freq', 1), (1024, 'frequency', 'freq', 100)
+                              #   (256, 'frequency', 'freq', 1), (1024, 'frequency', 'freq', 100)
                               ])
     def test_ind_volt_mtw(self, number_slices, mode, mtw_mode, n_iter):
         import cupy as cp
@@ -351,11 +354,11 @@ class TestImpedanceMTW:
             ind_volt = InducedVoltageTime(
                 self.beam, slice_beam, [self.resonator],
                 RFParams=self.rf, multi_turn_wake=True, mtw_mode=mtw_mode,
-                wake_length=self.n_turns*self.bucket_length)
+                wake_length=self.n_turns * self.bucket_length)
             ind_volt_gpu = InducedVoltageTime(
                 self.beam_gpu, slice_beam_gpu, [self.resonator],
                 RFParams=self.rf_gpu, multi_turn_wake=True, mtw_mode=mtw_mode,
-                wake_length=self.n_turns*self.bucket_length)
+                wake_length=self.n_turns * self.bucket_length)
 
         elif mode == 'frequency':
             ind_volt = InducedVoltageFreq(
@@ -363,7 +366,7 @@ class TestImpedanceMTW:
                 RFParams=self.rf, frequency_resolution=1e3,
                 multi_turn_wake=True, mtw_mode=mtw_mode)
             ind_volt_gpu = InducedVoltageFreq(
-                self.beam_gpu, slice_beam_gpu, [self.resonator], 
+                self.beam_gpu, slice_beam_gpu, [self.resonator],
                 RFParams=self.rf_gpu, frequency_resolution=1e3,
                 multi_turn_wake=True, mtw_mode=mtw_mode)
 

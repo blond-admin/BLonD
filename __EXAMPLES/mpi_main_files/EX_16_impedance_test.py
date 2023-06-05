@@ -1,8 +1,8 @@
 
 # Copyright 2014-2017 CERN. This software is distributed under the
-# terms of the GNU General Public Licence version 3 (GPL Version 3), 
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
 # copied verbatim in the file LICENCE.md.
-# In applying this licence, CERN does not waive the privileges and immunities 
+# In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
@@ -16,27 +16,32 @@ domain, and with an inductive impedance.
 '''
 
 
-from __future__ import division
-from __future__ import print_function
+from __future__ import division, print_function
+from blond.utils.mpi_config import mpiprint, WORKER
+from blond.utils import bmath as bm
+
+import os
 from builtins import range
+
+import matplotlib as mpl
 import numpy as np
 import pylab as plt
-from blond.input_parameters.ring import Ring
-from blond.input_parameters.rf_parameters import RFStation
-from blond.trackers.tracker import RingAndRFTracker
+from scipy.constants import c, e, m_p
+
 from blond.beam.beam import Beam, Proton
 from blond.beam.distributions import bigaussian
-from blond.beam.profile import Profile, CutOptions
-from blond.impedances.impedance import InducedVoltageFreq, InducedVoltageTime
-from blond.impedances.impedance import InductiveImpedance, TotalInducedVoltage
+from blond.beam.profile import CutOptions, Profile
+from blond.impedances.impedance import (InducedVoltageFreq, InducedVoltageTime,
+                                        InductiveImpedance,
+                                        TotalInducedVoltage)
 from blond.impedances.impedance_sources import Resonators
-from scipy.constants import c, e, m_p
-import os
-import matplotlib as mpl
+from blond.input_parameters.rf_parameters import RFStation
+from blond.input_parameters.ring import Ring
+from blond.trackers.tracker import RingAndRFTracker
+
 mpl.use('Agg')
 
-from blond.utils import bmath as bm
-from blond.utils.mpi_config import worker, mpiprint
+
 bm.use_mpi()
 print = mpiprint
 
@@ -45,14 +50,13 @@ this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 os.makedirs(this_directory + '../mpi_output_files/EX_16_fig', exist_ok=True)
 
 
-
 # SIMULATION PARAMETERS -------------------------------------------------------
 
 # Beam parameters
 n_particles = 1e11
 n_macroparticles = 1e6
-sigma_dt = 180e-9 / 4 # [s]
-kin_beam_energy = 1.4e9 # [eV]
+sigma_dt = 180e-9 / 4  # [s]
+kin_beam_energy = 1.4e9  # [eV]
 
 # Machine and RF parameters
 radius = 25.0
@@ -64,26 +68,26 @@ n_turns = 1
 n_turns_between_two_plots = 1
 
 # Derived parameters
-E_0 = m_p*c**2/e    # [eV]
-tot_beam_energy =  E_0 + kin_beam_energy # [eV]
-sync_momentum = np.sqrt(tot_beam_energy**2 - E_0**2) # [eV / c]
+E_0 = m_p * c**2 / e    # [eV]
+tot_beam_energy = E_0 + kin_beam_energy  # [eV]
+sync_momentum = np.sqrt(tot_beam_energy**2 - E_0**2)  # [eV / c]
 
 gamma = tot_beam_energy / E_0
-beta = np.sqrt(1.0-1.0/gamma**2.0)
+beta = np.sqrt(1.0 - 1.0 / gamma**2.0)
 
 momentum_compaction = 1 / gamma_transition**2
 
 # Cavities parameters
 n_rf_systems = 1
 harmonic_numbers = 1
-voltage_program = 8e3 #[V]
+voltage_program = 8e3  # [V]
 phi_offset = np.pi
 
 
 # DEFINE RING------------------------------------------------------------------
 
 general_params = Ring(C, momentum_compaction,
-                                   sync_momentum, Proton(), n_turns)
+                      sync_momentum, Proton(), n_turns)
 
 RF_sct_par = RFStation(general_params, [harmonic_numbers], [voltage_program],
                        [phi_offset], n_rf_systems)
@@ -91,7 +95,7 @@ RF_sct_par = RFStation(general_params, [harmonic_numbers], [voltage_program],
 beam = Beam(general_params, n_macroparticles, n_particles)
 ring_RF_section = RingAndRFTracker(RF_sct_par, beam)
 
-bucket_length = 2.0 * np.pi / RF_sct_par.omega_rf[0,0]
+bucket_length = 2.0 * np.pi / RF_sct_par.omega_rf[0, 0]
 
 # DEFINE BEAM------------------------------------------------------------------
 bigaussian(general_params, RF_sct_par, beam, sigma_dt, seed=1)
@@ -99,14 +103,14 @@ bigaussian(general_params, RF_sct_par, beam, sigma_dt, seed=1)
 
 # DEFINE SLICES----------------------------------------------------------------
 
-number_slices = int(100*2.5)
+number_slices = int(100 * 2.5)
 
-slice_beam = Profile(beam, CutOptions(cut_left=0, 
-                    cut_right=bucket_length, n_slices=number_slices)) 
+slice_beam = Profile(beam, CutOptions(cut_left=0,
+                                      cut_right=bucket_length, n_slices=number_slices))
 
 # LOAD IMPEDANCE TABLES--------------------------------------------------------
-                     
-ZoN = InductiveImpedance(beam, slice_beam, [100]*n_turns, RF_sct_par) 
+
+ZoN = InductiveImpedance(beam, slice_beam, [100] * n_turns, RF_sct_par)
 
 R_S = 5e4
 frequency_R = 10e6
@@ -119,7 +123,7 @@ resonator = Resonators(R_S, frequency_R, Q)
 imp_list = [resonator]
 
 ind_volt_freq = InducedVoltageFreq(beam, slice_beam, imp_list,
-                    frequency_resolution=1e4)
+                                   frequency_resolution=1e4)
 
 ind_volt_time = InducedVoltageTime(beam, slice_beam, imp_list)
 
@@ -129,14 +133,14 @@ total_ind_volt_time = TotalInducedVoltage(beam, slice_beam, [ind_volt_time])
 
 total_ind_volt_ZoN = TotalInducedVoltage(beam, slice_beam, [ZoN])
 
-# PLOTS 
+# PLOTS
 
 # ACCELERATION MAP-------------------------------------------------------------
 
 map_ = [slice_beam] + [total_ind_volt_freq] + [total_ind_volt_time] + \
        [total_ind_volt_ZoN] + [ring_RF_section]
 
-if worker.isMaster:
+if WORKER.is_master:
     # For testing purposes
     test_string = ''
     test_string += '{:<17}\t{:<17}\t{:<17}\t{:<17}\n'.format(
@@ -148,19 +152,19 @@ if worker.isMaster:
 # TRACKING + PLOTS-------------------------------------------------------------
 beam.split()
 for i in range(n_turns):
-    
+
     print(i)
     for m in map_:
         m.track()
 beam.gather()
-worker.finalize()
+WORKER.finalize()
 
 plt.figure()
-plt.plot(slice_beam.bin_centers*1e9, total_ind_volt_freq.induced_voltage, 
+plt.plot(slice_beam.bin_centers * 1e9, total_ind_volt_freq.induced_voltage,
          lw=2, label='Resonator freq. domain')
-plt.plot(slice_beam.bin_centers*1e9, total_ind_volt_time.induced_voltage,
+plt.plot(slice_beam.bin_centers * 1e9, total_ind_volt_time.induced_voltage,
          lw=2, alpha=0.75, label='Resonator time domain')
-plt.plot(slice_beam.bin_centers*1e9, total_ind_volt_ZoN.induced_voltage,
+plt.plot(slice_beam.bin_centers * 1e9, total_ind_volt_ZoN.induced_voltage,
          lw=2, alpha=0.75, label=r'Z/n = 100 $\Omega$')
 plt.xlabel('Time [ns]')
 plt.ylabel('Induced voltage [V]')

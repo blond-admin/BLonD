@@ -17,18 +17,20 @@
 # General imports
 # -----------------
 from __future__ import division, print_function
-import unittest
-import numpy as np
-import os
-# import matplotlib.pyplot as plt
 
+import os
+import unittest
+
+import numpy as np
+
+import blond.beam.profile as profileModule
 # BLonD imports
 # --------------
-from blond.beam.beam import Beam
-from blond.input_parameters.ring import Ring
-import blond.beam.profile as profileModule
-from blond.beam.beam import Proton
+from blond.beam.beam import Beam, Proton
 from blond.input_parameters.rf_parameters import RFStation
+from blond.input_parameters.ring import Ring
+
+# import matplotlib.pyplot as plt
 
 
 class testProfileClass(unittest.TestCase):
@@ -62,7 +64,7 @@ class testProfileClass(unittest.TestCase):
         dir_path = os.path.dirname(os.path.realpath(__file__))
 
         my_beam = Beam(self.ring, n_macroparticles, intensity)
-        my_beam.dt = np.load(dir_path+'/dt_coordinates.npz')['arr_0']
+        my_beam.dt = np.load(dir_path + '/dt_coordinates.npz')['arr_0']
 
         # First profile object initialization and tracking
         self.profile1 = profileModule.Profile(my_beam)
@@ -71,7 +73,7 @@ class testProfileClass(unittest.TestCase):
         # Second profile object initialization and tracking
         n_slices = 200
         CutOptions = profileModule.CutOptions(
-            cut_left=0, cut_right=2*np.pi,
+            cut_left=0, cut_right=2 * np.pi,
             n_slices=n_slices,
             cuts_unit='rad',
             RFSectionParameters=self.rf_params)

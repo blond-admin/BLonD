@@ -14,19 +14,23 @@ Test case to show how to use phase loop (CERN PS Booster context).
 '''
 
 from __future__ import division, print_function
-from blond.utils import bmath as bm
-from blond.llrf.beam_feedback import BeamFeedback
-from blond.plots.plot import Plot
+
+import os
+
+import matplotlib as mpl
+import numpy as np
+
 from blond.beam.beam import Beam, Proton
-from blond.beam.profile import Profile, CutOptions
-from blond.monitors.monitors import BunchMonitor
 from blond.beam.distributions import matched_from_distribution_function
-from blond.trackers.tracker import RingAndRFTracker, FullRingAndRF
+from blond.beam.profile import CutOptions, Profile
 from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
-import numpy as np
-import os
-import matplotlib as mpl
+from blond.llrf.beam_feedback import BeamFeedback
+from blond.monitors.monitors import BunchMonitor
+from blond.plots.plot import Plot
+from blond.trackers.tracker import FullRingAndRF, RingAndRFTracker
+from blond.utils import bmath as bm
+
 mpl.use('Agg')
 
 
@@ -49,7 +53,7 @@ n_particles = 0
 radius = 25  # [m]
 gamma_transition = 4.076750841
 alpha = 1 / gamma_transition**2
-C = 2*np.pi*radius  # [m]
+C = 2 * np.pi * radius  # [m]
 n_turns = 500
 general_params = Ring(C, alpha, 310891054.809,
                       Proton(), n_turns)
@@ -65,12 +69,12 @@ rf_params = RFStation(general_params, [harmonic_numbers_1], [voltage_1],
 my_beam = Beam(general_params, n_macroparticles, n_particles)
 
 
-cut_options = CutOptions(cut_left=0, cut_right=2*np.pi, n_slices=200,
+cut_options = CutOptions(cut_left=0, cut_right=2 * np.pi, n_slices=200,
                          RFSectionParameters=rf_params, cuts_unit='rad')
 slices_ring = Profile(my_beam, cut_options)
 
 # Phase loop
-configuration = {'machine': 'PSB', 'PL_gain': 1./25.e-6, 'period': 10.e-6}
+configuration = {'machine': 'PSB', 'PL_gain': 1. / 25.e-6, 'period': 10.e-6}
 phase_loop = BeamFeedback(general_params, rf_params, slices_ring, configuration)
 
 
@@ -102,7 +106,7 @@ bunch_monitor = BunchMonitor(general_params, rf_params, my_beam,
 
 # Plots
 format_options = {'dirname': this_directory + '../gpu_output_files/EX_08_fig'}
-plots = Plot(general_params, rf_params, my_beam, 50, n_turns, 0.0, 2*np.pi,
+plots = Plot(general_params, rf_params, my_beam, 50, n_turns, 0.0, 2 * np.pi,
              -1e6, 1e6, xunit='rad', separatrix_plot=True, Profile=slices_ring,
              format_options=format_options,
              h5file=this_directory + '../gpu_output_files/EX_08_output_data', PhaseLoop=phase_loop)
@@ -116,15 +120,14 @@ test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
 
 
 # Accelerator map
-map_ = [full_ring] + [slices_ring] 
-#+ [bunch_monitor] + [plots]
+map_ = [full_ring] + [slices_ring]
 
 if USE_GPU:
     bm.use_gpu()
     long_tracker.to_gpu()
     slices_ring.to_gpu()
 
-for i in range(1, n_turns+1):
+for i in range(1, n_turns + 1):
     # print(i)
 
     for m in map_:
@@ -134,7 +137,7 @@ for i in range(1, n_turns+1):
         if USE_GPU:
             bm.use_cpu()
             long_tracker.to_cpu()
-            slices_ring.to_cpu()        
+            slices_ring.to_cpu()
 
         plots.track()
 

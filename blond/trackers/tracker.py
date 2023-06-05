@@ -15,15 +15,17 @@ and the beam coordinates in phase space.**
 """
 
 from __future__ import division
-from builtins import range, object
+
+import warnings
+from builtins import range
+
 import numpy as np
 from scipy.integrate import cumtrapz
-import ctypes
-# import logging
-import warnings
+
 from ..utils import bmath as bm
 
-class FullRingAndRF(object):
+
+class FullRingAndRF:
     """
     *Definition of the full ring and RF parameters in order to be able to have
     a full turn information (used in the hamiltonian for example).*
@@ -46,7 +48,7 @@ class FullRingAndRF(object):
             self.ring_circumference += RingAndRFSectionElement.section_length
 
         #: *Ring radius in [m]*
-        self.ring_radius = self.ring_circumference / (2*np.pi)
+        self.ring_radius = self.ring_circumference / (2 * np.pi)
 
     def potential_well_generation(self, turn=0, n_points=int(1e5),
                                   main_harmonic_option='lowest_freq',
@@ -101,21 +103,21 @@ class FullRingAndRF(object):
         slippage_factor = self.RingAndRFSection_list[0].rf_params.eta_0[turn]
 
         if time_array is None:
-            time_array_margin = dt_margin_percent*2*np.pi/main_omega_rf
+            time_array_margin = dt_margin_percent * 2 * np.pi / main_omega_rf
 
-            first_dt = - time_array_margin/2
-            last_dt = 2*np.pi/main_omega_rf + time_array_margin/2
+            first_dt = - time_array_margin / 2
+            last_dt = 2 * np.pi / main_omega_rf + time_array_margin / 2
 
             time_array = np.linspace(float(first_dt), float(last_dt), int(n_points))
 
         self.total_voltage = np.sum(voltages.T *
-                                    np.sin(omega_rf.T*time_array + phi_offsets.T), axis=0)
+                                    np.sin(omega_rf.T * time_array + phi_offsets.T), axis=0)
 
-        eom_factor_potential = np.sign(slippage_factor)*charge / \
+        eom_factor_potential = np.sign(slippage_factor) * charge / \
             (RingAndRFSectionElement.rf_params.t_rev[turn])
 
-        potential_well = - cumtrapz(eom_factor_potential*(self.total_voltage -
-                                                          (- RingAndRFSectionElement.acceleration_kick[turn])/abs(charge)),
+        potential_well = - cumtrapz(eom_factor_potential * (self.total_voltage -
+                                                            (- RingAndRFSectionElement.acceleration_kick[turn]) / abs(charge)),
                                     dx=time_array[1] - time_array[0], initial=0)
         potential_well = potential_well - np.min(potential_well)
 
@@ -130,7 +132,7 @@ class FullRingAndRF(object):
             RingAndRFSectionElement.track()
 
 
-class RingAndRFTracker(object):
+class RingAndRFTracker:
     r""" Class taking care of basic particle coordinate tracking for a given
     RF station and the part of the ring until the next station, see figure.
 
@@ -287,13 +289,13 @@ class RingAndRFTracker(object):
         self.cavityFB = CavityFeedback
         try:
             self.periodicity = bool(periodicity)
-        except:
+        except Exception:
             # PeriodicityError
             raise RuntimeError("ERROR in RingAndRFTracker: Choice of" +
                                " periodicity not recognised!")
         try:
             self.interpolation = bool(interpolation)
-        except:
+        except Exception:
             # InterpolationError
             raise RuntimeError("ERROR in RingAndRFTracker: Choice of" +
                                " interpolation not recognised!")
@@ -316,7 +318,6 @@ class RingAndRFTracker(object):
             self.interpolation = True
             warnings.warn('Setting interpolation to TRUE')
             # self.logger.warning("Setting interpolation to TRUE")
-
 
     def kick(self, beam_dt, beam_dE, index):
         r"""Function updating the particle energy due to the RF kick in a given
@@ -383,7 +384,7 @@ class RingAndRFTracker(object):
         # TODO: test with multiple harmonics, think about 800 MHz OTFB
         if self.cavityFB:
             self.rf_voltage = voltages[0] * self.cavityFB.V_corr * \
-                bm.sin(omega_rf[0]*self.profile.bin_centers +
+                bm.sin(omega_rf[0] * self.profile.bin_centers +
                        phi_rf[0] + self.cavityFB.phi_corr) + \
                 bm.rf_volt_comp(voltages[1:], omega_rf[1:], phi_rf[1:],
                                 self.profile.bin_centers)
@@ -422,13 +423,13 @@ class RingAndRFTracker(object):
 
         # Update the RF phase of all systems for the next turn
         # Accumulated phase offset due to beam phase loop or frequency offset
-        self.rf_params.dphi_rf += 2.*np.pi*self.rf_params.harmonic[:,turn+1]* \
-                                  (self.rf_params.omega_rf[:,turn+1] -
-                                   self.rf_params.omega_rf_d[:,turn+1]) / \
-                                  self.rf_params.omega_rf_d[:,turn+1]
+        self.rf_params.dphi_rf += 2. * np.pi * self.rf_params.harmonic[:, turn + 1] * \
+            (self.rf_params.omega_rf[:, turn + 1] -
+             self.rf_params.omega_rf_d[:, turn + 1]) / \
+            self.rf_params.omega_rf_d[:, turn + 1]
 
         # Total phase offset
-        self.rf_params.phi_rf[:,turn+1] += self.rf_params.dphi_rf
+        self.rf_params.phi_rf[:, turn + 1] += self.rf_params.dphi_rf
 
         if self.periodicity:
 
@@ -453,7 +454,7 @@ class RingAndRFTracker(object):
                 self.insiders_dE = bm.ascontiguousarray(
                     self.beam.dE[self.indices_inside_frame])
                 self.kick(self.insiders_dt, self.insiders_dE, turn)
-                self.drift(self.insiders_dt, self.insiders_dE, turn+1)
+                self.drift(self.insiders_dt, self.insiders_dE, turn + 1)
                 self.beam.dt[self.indices_inside_frame] = self.insiders_dt
                 self.beam.dE[self.indices_inside_frame] = self.insiders_dE
                 # Check all the particles on the left of the just updated
@@ -474,9 +475,9 @@ class RingAndRFTracker(object):
                     self.beam.dt[self.indices_left_outside])
                 left_outsiders_dE = bm.ascontiguousarray(
                     self.beam.dE[self.indices_left_outside])
-                left_outsiders_dt += self.rf_params.t_rev[turn+1]
+                left_outsiders_dt += self.rf_params.t_rev[turn + 1]
                 self.kick(left_outsiders_dt, left_outsiders_dE, turn)
-                self.drift(left_outsiders_dt, left_outsiders_dE, turn+1)
+                self.drift(left_outsiders_dt, left_outsiders_dE, turn + 1)
                 self.beam.dt[self.indices_left_outside] = left_outsiders_dt
                 self.beam.dE[self.indices_left_outside] = left_outsiders_dE
 
@@ -503,10 +504,10 @@ class RingAndRFTracker(object):
             self.drift(self.beam.dt, self.beam.dE, turn + 1)
 
         # Updating the beam synchronous momentum etc.
-        self.beam.beta = self.rf_params.beta[turn+1]
-        self.beam.gamma = self.rf_params.gamma[turn+1]
-        self.beam.energy = self.rf_params.energy[turn+1]
-        self.beam.momentum = self.rf_params.momentum[turn+1]
+        self.beam.beta = self.rf_params.beta[turn + 1]
+        self.beam.gamma = self.rf_params.gamma[turn + 1]
+        self.beam.energy = self.rf_params.energy[turn + 1]
+        self.beam.momentum = self.rf_params.momentum[turn + 1]
 
         # Increment by one the turn counter
         self.counter[0] += 1
@@ -531,25 +532,13 @@ class RingAndRFTracker(object):
         if recursive and self.rf_params:
             self.rf_params.to_gpu()
 
-        assert bm.device == 'GPU'
-        import cupy as cp
-
-        # import from rf_params
-        # self.t_rev = self.rf_params.t_rev
-        # self.harmonic = self.rf_params.harmonic
-        # self.voltage = self.rf_params.voltage
-        # self.phi_noise = self.rf_params.phi_noise
-        # self.phi_modulation = self.rf_params.phi_modulation
-        # self.phi_rf = self.rf_params.phi_rf
-        # self.phi_s = self.rf_params.phi_s
-        # self.omega_rf = self.rf_params.omega_rf
 
         if hasattr(self, 'rf_voltage'):
             self.rf_voltage = self.rf_params.rf_voltage
 
         # to make sure it will not be called again
         self._device = 'GPU'
-        
+
     def to_cpu(self, recursive=True):
         '''
         Transfer all necessary arrays back to the CPU
@@ -570,18 +559,7 @@ class RingAndRFTracker(object):
         if recursive and self.rf_params:
             self.rf_params.to_cpu()
 
-        assert bm.device == 'CPU'
         import cupy as cp
-
-        # import from rf_params
-        # self.t_rev = self.rf_params.t_rev
-        # self.harmonic = self.rf_params.harmonic
-        # self.voltage = self.rf_params.voltage
-        # self.phi_noise = self.rf_params.phi_noise
-        # self.phi_modulation = self.rf_params.phi_modulation
-        # self.phi_rf = self.rf_params.phi_rf
-        # self.phi_s = self.rf_params.phi_s
-        # self.omega_rf = self.rf_params.omega_rf
 
         if hasattr(self, 'rf_voltage'):
             self.rf_voltage = cp.asnumpy(self.rf_voltage)

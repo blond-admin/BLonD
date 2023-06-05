@@ -14,8 +14,10 @@ Unittest for the FFTs used in blond with CuPy and NumPy
 """
 
 import unittest
-import pytest
+
 import numpy as np
+import pytest
+
 from blond.utils import bmath as bm
 
 
@@ -32,9 +34,9 @@ class TestFFTS:
 
     @pytest.mark.parametrize('size,n',
                              [(10, None), (100, None), (93, None),
-                             (17, None), (10000, None), (100, 50),
-                             (100, 51), (100, 151), (100, 100), 
-                             (100, 1000), (100, 1)])
+                              (17, None), (10000, None), (100, 50),
+                              (100, 51), (100, 151), (100, 100),
+                              (100, 1000), (100, 1)])
     def test_rfft(self, size, n):
         bm.use_cpu()
         s = np.random.randn(size)
@@ -90,8 +92,8 @@ class TestFFTS:
 
         bm.use_gpu()
         try:
-            res_gpu = bm.rfftfreq(n_points, delta_t)
-        except ZeroDivisionError as e:
+            _ = bm.rfftfreq(n_points, delta_t)
+        except ZeroDivisionError:
             self.assertTrue(
                 True, 'This testcase should raise a ZeroDivisionError')
 
