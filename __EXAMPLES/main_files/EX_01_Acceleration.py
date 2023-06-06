@@ -23,7 +23,7 @@ import matplotlib as mpl
 import numpy as np
 
 from blond.beam.beam import Beam, Proton
-from blond.beam.distributions import bigaussian
+from blond.beam.distributions import bigaussian, parabolic
 from blond.beam.profile import CutOptions, FitOptions, Profile
 from blond.input_parameters.rf_parameters import RFStation
 #  BLonD Imports
@@ -78,6 +78,7 @@ long_tracker = RingAndRFTracker(rf, beam)
 
 
 bigaussian(ring, rf, beam, tau_0 / 4, reinsertion=True, seed=1)
+# parabolic(ring, rf, beam, tau_0, seed=1)
 
 
 # Need slices for the Gaussian fit
