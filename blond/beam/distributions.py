@@ -837,41 +837,17 @@ def bigaussian(Ring, RFStation, Beam, sigma_dt, sigma_dE=None, seed=1234,
         bucket; default in False
 
     """
-
-    warnings.filterwarnings("once")
-    if Ring.n_sections > 1:
-        warnings.warn("WARNING in bigaussian(): the usage of several" +
-                      " sections is not yet implemented. Ignoring" +
-                      " all but the first!")
-    if RFStation.n_rf > 1:
-        warnings.warn("WARNING in bigaussian(): the usage of multiple RF" +
-                      " systems is not yet implemented. Ignoring" +
-                      " higher harmonics!")
-
+    
+    sigma_dE = _get_dE_from_dt(Ring, RFStation, sigma_dt)
     counter = RFStation.counter[0]
-
-    harmonic = RFStation.harmonic[0, counter]
-    energy = RFStation.energy[counter]
-    beta = RFStation.beta[counter]
     omega_rf = RFStation.omega_rf[0, counter]
     phi_s = RFStation.phi_s[counter]
     phi_rf = RFStation.phi_rf[0, counter]
     eta0 = RFStation.eta_0[counter]
-
+    
     # RF wave is shifted by Pi below transition
     if eta0 < 0:
         phi_rf -= np.pi
-
-    # Calculate sigma_dE from sigma_dt using single-harmonic Hamiltonian
-    if sigma_dE is None:
-        voltage = RFStation.charge * \
-            RFStation.voltage[0, counter]
-        eta0 = RFStation.eta_0[counter]
-
-        phi_b = omega_rf * sigma_dt + phi_s
-        sigma_dE = np.sqrt(voltage * energy * beta**2
-                           * (np.cos(phi_b) - np.cos(phi_s) + (phi_b - phi_s) * np.sin(phi_s))
-                           / (np.pi * harmonic * np.fabs(eta0)))
 
     Beam.sigma_dt = sigma_dt
     Beam.sigma_dE = sigma_dE
@@ -901,3 +877,140 @@ def bigaussian(Ring, RFStation, Beam, sigma_dt, sigma_dE=None, seed=1234,
 
             itemindex = bm.where(is_in_separatrix(Ring, RFStation, Beam,
                                                   Beam.dt, Beam.dE) == False)[0]
+
+
+def parabolic(Ring, RFStation, Beam,
+              bunch_length,
+              bunch_position=None, 
+              bunch_energy=None,
+              energy_spread=None,
+              seed=1234):
+    r"""Generate a bunch of particles distributed as a parabola in phase space.
+
+    Parameters
+    ----------
+    Ring : class
+        A Ring type class
+    RFStation : class
+        An RFStation type class
+    Beam : class
+        A Beam type class
+    bunch_position : float
+        The position in time [s] of the center of mass of the bunch
+    bunch_length : float
+        The length in time [s] of the bunch
+    bunch_energy : float
+        The position in energy [eV] of the center of mass of the bunch
+        (relative to the synchronous energy)
+    energy_spread : float
+        The spread in energy [eV] of the bunch
+    n_macroparticles : int
+        The number of macroparticles to generate.
+    seed : int (optional)
+        Fixed seed to have a reproducible distribution
+
+    """
+    
+    # Getting the position and spread if not defined by user
+    counter = RFStation.counter[0]
+    omega_rf = RFStation.omega_rf[0, counter]
+    phi_s = RFStation.phi_s[counter]
+    phi_rf = RFStation.phi_rf[0, counter]
+    eta0 = RFStation.eta_0[counter]
+    
+    # RF wave is shifted by Pi below transition
+    if eta0 < 0:
+        phi_rf -= np.pi
+    
+    if bunch_position is None:
+        bunch_position = (phi_s - phi_rf) / omega_rf
+        
+    if bunch_energy is None:
+        bunch_energy = 0
+    
+    if energy_spread is None:
+        energy_spread = _get_dE_from_dt(Ring, RFStation, bunch_length)
+
+    # Generating time and energy arrays
+    time_array = np.linspace(bunch_position - bunch_length / 2,
+                             bunch_position + bunch_length / 2,
+                             100)
+    energy_array = np.linspace(bunch_energy - energy_spread / 2,
+                               bunch_energy + energy_spread / 2,
+                               100)
+
+    # Getting Hamiltonian on a grid
+    dt_grid, deltaE_grid = np.meshgrid(
+        time_array, energy_array)
+
+    # Bin sizes
+    bin_dt = time_array[1] - time_array[0]
+    bin_energy = energy_array[1] - energy_array[0]
+
+    # Density grid
+    isodensity_lines = ((dt_grid - bunch_position) / bunch_length * 2)**2. + \
+        ((deltaE_grid - bunch_energy) / energy_spread * 2)**2.
+    density_grid = 1 - isodensity_lines**2.
+    density_grid[density_grid < 0] = 0
+    density_grid /= np.sum(density_grid)
+    
+    populate_bunch(Beam, dt_grid, deltaE_grid, density_grid, bin_dt,
+                   bin_energy, seed)
+
+
+def _get_dE_from_dt(Ring, RFStation, dt_amplitude):
+    r"""A routine to evaluate the dE amplitude from dt following a single
+    RF Hamiltonian.
+
+    Parameters
+    ----------
+    Ring : class
+        A Ring type class
+    RFStation : class
+        An RFStation type class
+    dt_amplitude : float
+        Full amplitude of the particle oscillation in [s]
+
+    Returns
+    -------
+    dE_amplitude : float
+        Full amplitude of the particle oscillation in [eV]
+
+    """
+
+    warnings.filterwarnings("once")
+    if Ring.n_sections > 1:
+        warnings.warn("WARNING in bigaussian(): the usage of several" +
+                        " sections is not yet implemented. Ignoring" +
+                        " all but the first!")
+    if RFStation.n_rf > 1:
+        warnings.warn("WARNING in bigaussian(): the usage of multiple RF" +
+                        " systems is not yet implemented. Ignoring" +
+                        " higher harmonics!")
+
+    counter = RFStation.counter[0]
+
+    harmonic = RFStation.harmonic[0, counter]
+    energy = RFStation.energy[counter]
+    beta = RFStation.beta[counter]
+    omega_rf = RFStation.omega_rf[0, counter]
+    phi_s = RFStation.phi_s[counter]
+    phi_rf = RFStation.phi_rf[0, counter]
+    eta0 = RFStation.eta_0[counter]
+
+    # RF wave is shifted by Pi below transition
+    if eta0 < 0:
+        phi_rf -= np.pi
+
+    # Calculate dE_amplitude from dt_amplitude using single-harmonic Hamiltonian
+    if dE_amplitude is None:
+        voltage = RFStation.charge * \
+            RFStation.voltage[0, counter]
+        eta0 = RFStation.eta_0[counter]
+
+        phi_b = omega_rf * dt_amplitude + phi_s
+        dE_amplitude = np.sqrt(voltage * energy * beta**2
+                            * (np.cos(phi_b) - np.cos(phi_s) + (phi_b - phi_s) * np.sin(phi_s))
+                            / (np.pi * harmonic * np.fabs(eta0)))
+    
+    return dE_amplitude
