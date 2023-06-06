@@ -838,7 +838,8 @@ def bigaussian(Ring, RFStation, Beam, sigma_dt, sigma_dE=None, seed=1234,
 
     """
     
-    sigma_dE = _get_dE_from_dt(Ring, RFStation, sigma_dt)
+    if sigma_dE is None:
+        sigma_dE = _get_dE_from_dt(Ring, RFStation, sigma_dt)
     counter = RFStation.counter[0]
     omega_rf = RFStation.omega_rf[0, counter]
     phi_s = RFStation.phi_s[counter]
@@ -1003,14 +1004,13 @@ def _get_dE_from_dt(Ring, RFStation, dt_amplitude):
         phi_rf -= np.pi
 
     # Calculate dE_amplitude from dt_amplitude using single-harmonic Hamiltonian
-    if dE_amplitude is None:
-        voltage = RFStation.charge * \
-            RFStation.voltage[0, counter]
-        eta0 = RFStation.eta_0[counter]
+    voltage = RFStation.charge * \
+        RFStation.voltage[0, counter]
+    eta0 = RFStation.eta_0[counter]
 
-        phi_b = omega_rf * dt_amplitude + phi_s
-        dE_amplitude = np.sqrt(voltage * energy * beta**2
-                            * (np.cos(phi_b) - np.cos(phi_s) + (phi_b - phi_s) * np.sin(phi_s))
-                            / (np.pi * harmonic * np.fabs(eta0)))
+    phi_b = omega_rf * dt_amplitude + phi_s
+    dE_amplitude = np.sqrt(voltage * energy * beta**2
+                        * (np.cos(phi_b) - np.cos(phi_s) + (phi_b - phi_s) * np.sin(phi_s))
+                        / (np.pi * harmonic * np.fabs(eta0)))
     
     return dE_amplitude
