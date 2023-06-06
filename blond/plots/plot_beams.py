@@ -17,6 +17,7 @@ from __future__ import division
 import numpy as np
 import matplotlib.pyplot as plt
 from ..trackers.utilities import separatrix
+from matplotlib.layout_engine import PlaceHolderLayoutEngine
 
 
 
@@ -46,7 +47,7 @@ def plot_long_phase_space(Ring, RFStation, Beam, xmin,
 
     # Prepare plot
     fig = plt.figure(1)
-    fig.set_tight_layout(False)
+    fig.set_layout_engine(PlaceHolderLayoutEngine(False,False))
     fig.set_size_inches(8,8)
     axScatter = plt.axes(rect_scatter)
     axHistx = plt.axes(rect_histx)
