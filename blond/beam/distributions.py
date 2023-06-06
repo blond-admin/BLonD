@@ -896,17 +896,15 @@ def parabolic(Ring, RFStation, Beam,
         An RFStation type class
     Beam : class
         A Beam type class
-    bunch_position : float
-        The position in time [s] of the center of mass of the bunch
     bunch_length : float
         The length in time [s] of the bunch
-    bunch_energy : float
+    bunch_position : float (optional)
+        The position in time [s] of the center of mass of the bunch
+    bunch_energy : float (optional)
         The position in energy [eV] of the center of mass of the bunch
         (relative to the synchronous energy)
-    energy_spread : float
+    energy_spread : float (optional)
         The spread in energy [eV] of the bunch
-    n_macroparticles : int
-        The number of macroparticles to generate.
     seed : int (optional)
         Fixed seed to have a reproducible distribution
 
