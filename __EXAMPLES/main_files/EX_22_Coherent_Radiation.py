@@ -14,15 +14,16 @@ Example script to plot the different CSR impedances
 
 """
 
+import os
+
+import matplotlib as mpl
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy.constants import e as elCharge
 
-from blond.impedances.impedance_sources import CoherentSynchrotronRadiation
 from blond.beam.beam import Electron
+from blond.impedances.impedance_sources import CoherentSynchrotronRadiation
 
-import os
-import matplotlib as mpl
 mpl.use('Agg')
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
@@ -98,4 +99,4 @@ energy_loss *= 2  # take negative frequencies into account
 print(f'energy loss per turn (integrated spectrum): {energy_loss / elCharge:1.3f} eV')
 
 # compare to textbook result
-print(f"energy loss per turn (Sand's constant): {Electron().C_gamma * (40e6)**4 / r_bend:1.3f} eV")
+print(f"energy loss per turn (Sand's constant): {Electron().c_gamma * (40e6)**4 / r_bend:1.3f} eV")

@@ -10,20 +10,21 @@
 '''
 **Module to compute the beam profile through slices**
 
-:Authors: **Danilo Quartullo**, **Alexandre Lasheen**, 
+:Authors: **Danilo Quartullo**, **Alexandre Lasheen**,
           **Juan F. Esteban Mueller**
 '''
 
 from __future__ import division, print_function
-from builtins import object
+
 import numpy as np
 # from numpy.fft import rfft, rfftfreq
 from scipy import ndimage
+
 from ..toolbox import filters_and_fitting as ffroutines
 from ..utils import bmath as bm
 
 
-class CutOptions(object):
+class CutOptions:
     r"""
     This class groups all the parameters necessary to slice the phase space
     distribution according to the time axis, apart from the array collecting
@@ -109,12 +110,15 @@ class CutOptions(object):
             # CutError
             raise RuntimeError('You should pass an RFParams object to ' +
                                'convert from radians to seconds')
-        if self.cuts_unit != 'rad' and self.cuts_unit != 's':
+        if self.cuts_unit not in ['rad', 's']:
             # CutError
             raise RuntimeError('cuts_unit should be "s" or "rad"')
 
         self.edges = np.zeros(n_slices + 1, dtype=bm.precision.real_t, order='C')
         self.bin_centers = np.zeros(n_slices, dtype=bm.precision.real_t, order='C')
+        self.bin_size = 0.0
+        # For CuPy backend
+        self._device = 'CPU'
 
     def set_cuts(self, Beam=None):
         r"""
@@ -136,8 +140,8 @@ class CutOptions(object):
             else:
                 mean_coords = np.mean(Beam.dt)
                 sigma_coords = np.std(Beam.dt)
-                self.cut_left = mean_coords - self.n_sigma*sigma_coords/2
-                self.cut_right = mean_coords + self.n_sigma*sigma_coords/2
+                self.cut_left = mean_coords - self.n_sigma * sigma_coords / 2
+                self.cut_right = mean_coords + self.n_sigma * sigma_coords / 2
 
         else:
 
@@ -148,7 +152,7 @@ class CutOptions(object):
 
         self.edges = np.linspace(self.cut_left, self.cut_right,
                                  self.n_slices + 1).astype(dtype=bm.precision.real_t, order='C', copy=False)
-        self.bin_centers = (self.edges[:-1] + self.edges[1:])/2
+        self.bin_centers = (self.edges[:-1] + self.edges[1:]) / 2
         self.bin_size = (self.cut_right - self.cut_left) / self.n_slices
 
     def track_cuts(self, Beam):
@@ -159,7 +163,7 @@ class CutOptions(object):
         Method to be refined!
         """
 
-        delta = Beam.mean_dt - 0.5*(self.cut_left + self.cut_right)
+        delta = Beam.mean_dt - 0.5 * (self.cut_left + self.cut_right)
 
         self.cut_left += delta
         self.cut_right += delta
@@ -197,7 +201,6 @@ class CutOptions(object):
         if recursive and self.RFParams:
             self.RFParams.to_gpu()
 
-        assert bm.device == 'GPU'
         import cupy as cp
 
         self.edges = cp.array(self.edges)
@@ -205,7 +208,7 @@ class CutOptions(object):
 
         # to make sure it will not be called again
         self._device = 'GPU'
-        
+
     def to_cpu(self, recursive=True):
         '''
         Transfer all necessary arrays back to the CPU
@@ -218,7 +221,6 @@ class CutOptions(object):
         if recursive and self.RFParams:
             self.RFParams.to_cpu()
 
-        assert bm.device == 'CPU'
         import cupy as cp
 
         self.edges = cp.asnumpy(self.edges)
@@ -231,7 +233,7 @@ class CutOptions(object):
         self._device = 'CPU'
 
 
-class FitOptions(object):
+class FitOptions:
     """
     This class defines the method to be used turn after turn to obtain the
     position and length of the bunch profile.
@@ -262,7 +264,7 @@ class FitOptions(object):
         self.fitExtraOptions = fitExtraOptions
 
 
-class FilterOptions(object):
+class FilterOptions:
 
     """
     This class defines the filter to be used turn after turn to smooth
@@ -295,7 +297,7 @@ class FilterOptions(object):
         self.filterExtraOptions = filterExtraOptions
 
 
-class OtherSlicesOptions(object):
+class OtherSlicesOptions:
 
     """
     This class groups all the remaining options for the Profile class.
@@ -332,7 +334,7 @@ class OtherSlicesOptions(object):
         self.direct_slicing = direct_slicing
 
 
-class Profile(object):
+class Profile:
     """
     Contains the beam profile and related quantities including beam spectrum,
     profile derivative.
@@ -427,6 +429,14 @@ class Profile(object):
         # Import (reference) Beam
         self.Beam = Beam
 
+        self.n_slices = 0
+        self.cut_left = 0.
+        self.cut_right = 0.
+        self.n_sigma = 0
+        self.edges = None
+        self.bin_centers = None
+        self.bin_size = 0.
+        self.fitExtraOptions = None
         # Get all computed parameters from CutOptions
         self.set_slices_parameters()
 
@@ -460,8 +470,13 @@ class Profile(object):
         if OtherSlicesOptions.direct_slicing:
             self.track()
 
+        # For CuPy backend
+        self._device = 'CPU'
 
     def set_slices_parameters(self):
+        """
+        Set various slices parameters.
+        """
         self.n_slices, self.cut_left, self.cut_right, self.n_sigma, \
             self.edges, self.bin_centers, self.bin_size = \
             self.cut_options.get_slices_parameters()
@@ -473,61 +488,56 @@ class Profile(object):
         needed for the MPI version.
         """
 
-        for op in self.operations:
-            op()
+        for operation in self.operations:
+            operation()
 
     def _slice(self):
         """
         Constant space slicing with a constant frame.
         """
-        bm.slice(self.Beam.dt, self.n_macroparticles, self.cut_left,
+        bm.slice_beam(self.Beam.dt, self.n_macroparticles, self.cut_left,
                  self.cut_right)
 
-        if bm.mpiMode():
+        if bm.in_mpi():
             self.reduce_histo()
 
     def reduce_histo(self, dtype=np.uint32):
-        if not bm.mpiMode():
+        """
+        Aggregate all local histograms to calculate the global beam profile.
+        """
+        if not bm.in_mpi():
             raise RuntimeError(
                 'ERROR: Cannot use this routine unless in MPI Mode')
 
-        from ..utils.mpi_config import worker
+        from ..utils.mpi_config import WORKER
 
-        if worker.workers == 1:
+        if WORKER.workers == 1:
             return
 
         if self.Beam.is_splitted:
-            
-            if bm.device == 'CPU':
-            # Convert to uint32t for better performance
+
+            if 'CPU' in bm.device:
+                # Convert to uint32t for better performance
                 self.n_macroparticles = self.n_macroparticles.astype(
                     dtype, order='C')
 
             if bm.device == 'GPU':
                 import cupy as cp
+
                 # tranfer to cpu
                 self.n_macroparticles = cp.asnumpy(self.n_macroparticles, dtype=dtype)
 
-            worker.allreduce(self.n_macroparticles)
+            WORKER.allreduce(self.n_macroparticles)
 
             if bm.device == 'GPU':
                 # transfer back to gpu
                 self.n_macroparticles = cp.array(self.n_macroparticles, dtype=bm.precision.real_t)
 
-            if bm.device == 'CPU':
-            # Convert back to float64
+            if 'CPU' in bm.device:
+                # Convert back to float64
                 self.n_macroparticles = self.n_macroparticles.astype(
                     dtype=bm.precision.real_t, order='C', copy=False)
-    
-    def scale_histo(self):
-        if not bm.mpiMode():
-            raise RuntimeError(
-                'ERROR: Cannot use this routine unless in MPI Mode')
 
-        from ..utils.mpi_config import worker
-        if self.Beam.is_splitted:
-            self.n_macroparticles *= worker.workers
-            # bm.mul(self.n_macroparticles, worker.workers, self.n_macroparticles)
 
     def _slice_smooth(self, reduce=True):
         """
@@ -536,7 +546,7 @@ class Profile(object):
         bm.slice_smooth(self.Beam.dt, self.n_macroparticles, self.cut_left,
                         self.cut_right)
 
-        if bm.mpiMode():
+        if bm.in_mpi():
             self.reduce_histo(dtype=np.float64)
 
     def apply_fit(self):
@@ -545,18 +555,18 @@ class Profile(object):
         """
 
         if self.bunchLength == 0:
-            p0 = [float(self.n_macroparticles.max()), 
+            p_0 = [float(self.n_macroparticles.max()),
                   float(self.Beam.dt.mean()),
                   float(self.Beam.dt.std())]
         else:
-            p0 = [float(self.n_macroparticles.max()),
+            p_0 = [float(self.n_macroparticles.max()),
                   float(self.bunchPosition),
-                  float(self.bunchLength/4.)]
+                  float(self.bunchLength / 4.)]
 
         self.fitExtraOptions = ffroutines.gaussian_fit(self.n_macroparticles,
-                                                       self.bin_centers, p0)
+                                                       self.bin_centers, p_0)
         self.bunchPosition = self.fitExtraOptions[1]
-        self.bunchLength = 4*self.fitExtraOptions[2]
+        self.bunchLength = 4 * self.fitExtraOptions[2]
 
     def apply_filter(self):
         """
@@ -610,7 +620,7 @@ class Profile(object):
         """
 
         self.beam_spectrum_freq = bm.rfftfreq(n_sampling_fft, self.bin_size)
-    
+
     def beam_spectrum_generation(self, n_sampling_fft):
         """
         Beam spectrum calculation
@@ -624,13 +634,13 @@ class Profile(object):
         derivative of the Beam profile respectively.*
         """
 
-        x = self.bin_centers
-        dist_centers = x[1] - x[0]
+        bin_centers = self.bin_centers
+        dist_centers = bin_centers[1] - bin_centers[0]
 
         if mode == 'filter1d':
             if bm.device == 'GPU':
                 raise RuntimeError('filter1d mode is not supported in GPU.')
-                
+
             derivative = ndimage.gaussian_filter1d(
                 self.n_macroparticles, sigma=1, order=1, mode='wrap') / \
                 dist_centers
@@ -638,13 +648,13 @@ class Profile(object):
             derivative = bm.gradient(self.n_macroparticles, dist_centers)
         elif mode == 'diff':
             derivative = bm.diff(self.n_macroparticles) / dist_centers
-            diffCenters = x[0:-1] + dist_centers/2
-            derivative = bm.interp(x, diffCenters, derivative)
+            diffCenters = bin_centers[0:-1] + dist_centers / 2
+            derivative = bm.interp(bin_centers, diffCenters, derivative)
         else:
             # ProfileDerivativeError
             raise RuntimeError('Option for derivative is not recognized.')
 
-        return x, derivative
+        return bin_centers, derivative
 
     def to_gpu(self, recursive=True):
         '''
@@ -661,7 +671,6 @@ class Profile(object):
         if recursive and self.cut_options:
             self.cut_options.to_gpu()
 
-        assert bm.device == 'GPU'
         import cupy as cp
 
         self.bin_centers = self.cut_options.bin_centers
@@ -689,7 +698,6 @@ class Profile(object):
         if recursive and self.cut_options:
             self.cut_options.to_cpu()
 
-        assert bm.device == 'CPU'
         import cupy as cp
 
         self.bin_centers = self.cut_options.bin_centers

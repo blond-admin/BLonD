@@ -19,7 +19,7 @@ import numpy as np
 
 
 
-def plot_beam_profile(Profile, counter, style = '-', dirname = 'fig'):
+def plot_beam_profile(Profile, counter, style = '-', dirname = 'fig', show_plot = False):
     
     """
     Plot of longitudinal beam profile
@@ -27,7 +27,7 @@ def plot_beam_profile(Profile, counter, style = '-', dirname = 'fig'):
  
     fig = plt.figure(1)
     fig.set_size_inches(8,6)
-    ax = plt.axes([0.15, 0.1, 0.8, 0.8])    
+    ax = plt.axes()
     ax.plot(Profile.bin_centers, Profile.n_macroparticles, style)
     
     ax.set_xlabel(r"$\Delta t$ [s]")
@@ -39,13 +39,16 @@ def plot_beam_profile(Profile, counter, style = '-', dirname = 'fig'):
                 va='center') 
     
     # Save plot
-    fign = dirname +'/beam_profile_' "%d" %counter + '.png'
-    plt.savefig(fign)
+    if show_plot:
+        plt.show()
+    else:
+        fign = dirname +'/beam_profile_' "%d" %counter + '.png'
+        plt.savefig(fign)
     plt.clf()
 
 
 
-def plot_beam_profile_derivative(Profile, counter, style='-', dirname='fig',
+def plot_beam_profile_derivative(Profile, counter, style='-', dirname='fig', show_plot = False,
                                  modes=['diff']):
     """
     Plot of the derivative of the longitudinal beam profile.
@@ -55,24 +58,27 @@ def plot_beam_profile_derivative(Profile, counter, style='-', dirname='fig',
     for mode in modes:
         x, derivative = Profile.beam_profile_derivative(mode)
         plt.plot(x, derivative, style, label=mode)
-    fign = dirname + '/beam_profile_derivative_' "%d" % counter + '.png'
     plt.legend()
-    plt.savefig(fign)
+    if show_plot:
+        plt.show()
+    else:
+        fign = dirname + '/beam_profile_derivative_' "%d" % counter + '.png'
+        plt.savefig(fign)
     plt.clf()
     
 
-def plot_beam_spectrum(Profile, counter, style = '-', dirname = 'fig'):
+def plot_beam_spectrum(Profile, counter, style = '-', dirname = 'fig', show_plot = False):
     
     """
     Plot of longitudinal beam profile
     """
  
     plt.figure(1, figsize=(8,6))
-    ax = plt.axes([0.15, 0.1, 0.8, 0.8]) 
+    ax = plt.axes()
     ax.plot(Profile.beam_spectrum_freq, np.absolute(Profile.beam_spectrum), style)
     
     ax.set_xlabel(r"Frequency [Hz]")
-    ax.set_ylabel('Beam spectrum, absolute value [arb. units]')
+    ax.set_ylabel('Beam spectrum, \n absolute value [arb. units]')
     ax.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
     ax.set_xlim(0,5.e9)
     
@@ -80,6 +86,9 @@ def plot_beam_spectrum(Profile, counter, style = '-', dirname = 'fig'):
                 va='center') 
     
     # Save plot
-    fign = dirname +'/beam_spectrum_' "%d" %counter + '.png'
-    plt.savefig(fign)
+    if show_plot:
+        plt.show()
+    else:
+        fign = dirname +'/beam_spectrum_' "%d" %counter + '.png'
+        plt.savefig(fign)
     plt.clf()

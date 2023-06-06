@@ -17,7 +17,7 @@ def kick(dt: np.ndarray, dE: np.ndarray, voltage: np.ndarray,
     Function to apply RF kick on the particles with sin function
     '''
 
-    voltage_kick = charge*voltage
+    voltage_kick = charge * voltage
 
     for j in range(n_rf):
         dE += voltage_kick[j] * np.sin(omega_rf[j] * dt + phi_rf[j])
@@ -27,7 +27,17 @@ def kick(dt: np.ndarray, dE: np.ndarray, voltage: np.ndarray,
 
 def rf_volt_comp(voltages: np.ndarray, omega_rf: np.ndarray, phi_rf: np.ndarray,
                  bin_centers: np.ndarray) -> np.ndarray:
+    """Compute rf voltage at each bin.
 
+    Args:
+        voltages (np.ndarray): _description_
+        omega_rf (np.ndarray): _description_
+        phi_rf (np.ndarray): _description_
+        bin_centers (np.ndarray): _description_
+
+    Returns:
+        np.ndarray: _description_
+    """
     rf_voltage = np.zeros(len(bin_centers))
 
     for j in range(len(voltages)):
@@ -61,9 +71,9 @@ def drift(dt: np.ndarray, dE: np.ndarray, solver: bytes, t_rev: float,
         eta1 = eta_1 * coeff * coeff
         eta2 = eta_2 * coeff * coeff * coeff
 
-        if (alpha_order == 0):
+        if alpha_order == 0:
             dt += T * (1. / (1. - eta0 * dE) - 1.)
-        elif (alpha_order == 1):
+        elif alpha_order == 1:
             dt += T * (1. / (1. - eta0 * dE
                                 - eta1 * dE * dE) - 1.)
         else:
@@ -77,7 +87,7 @@ def drift(dt: np.ndarray, dE: np.ndarray, solver: bytes, t_rev: float,
         # double beam_delta;
 
         beam_delta = np.sqrt(1. + invbetasq *
-                             (dE * dE * invenesq + 2.*dE / energy)) - 1.
+                             (dE * dE * invenesq + 2. * dE / energy)) - 1.
 
         dt += T * (
             (1. + alpha_0 * beam_delta +
@@ -88,14 +98,30 @@ def drift(dt: np.ndarray, dE: np.ndarray, solver: bytes, t_rev: float,
 
 
 # --------------- Similar to histogram.cpp -----------------
-def slice(dt: np.ndarray, profile: np.ndarray, 
+def slice_beam(dt: np.ndarray, profile: np.ndarray,
           cut_left: float, cut_right: float) -> None:
+    """Slice the time coordinate of the beam.
+
+    Args:
+        dt (np.ndarray): _description_
+        profile (np.ndarray): _description_
+        cut_left (float): _description_
+        cut_right (float): _description_
+    """
     profile[:] = np.histogram(dt, bins=len(profile),
                               range=(cut_left, cut_right))[0]
 
 
 def slice_smooth(dt: np.ndarray, profile: np.ndarray,
                  cut_left: float, cut_right: float) -> None:
+    """Smooth slice method.
+
+    Args:
+        dt (np.ndarray): _description_
+        profile (np.ndarray): _description_
+        cut_left (float): _description_
+        cut_right (float): _description_
+    """
     # Constants init
     n_slices = len(profile)
     bin_width = (cut_right - cut_left) / n_slices
@@ -125,11 +151,20 @@ def slice_smooth(dt: np.ndarray, profile: np.ndarray,
 def linear_interp_kick(dt: np.ndarray, dE: np.ndarray, voltage: np.ndarray,
                        bin_centers: np.ndarray, charge: float,
                        acceleration_kick: float) -> None:
+    """Interpolated kick method.
 
+    Args:
+        dt (np.ndarray): _description_
+        dE (np.ndarray): _description_
+        voltage (np.ndarray): _description_
+        bin_centers (np.ndarray): _description_
+        charge (float): _description_
+        acceleration_kick (float): _description_
+    """
     n_slices = len(bin_centers)
     inv_bin_width = (n_slices - 1) / (bin_centers[-1] - bin_centers[0])
 
-    fbin = np.floor((dt-bin_centers[0])*inv_bin_width).astype(np.int32)
+    fbin = np.floor((dt - bin_centers[0]) * inv_bin_width).astype(np.int32)
 
     helper1 = charge * (voltage[1:] - voltage[:-1]) * inv_bin_width
     helper2 = (charge * voltage[:-1] -
@@ -145,16 +180,33 @@ def linear_interp_kick(dt: np.ndarray, dE: np.ndarray, voltage: np.ndarray,
 # --------------- Similar to synchrotron_radiation.cpp -----------------
 def synchrotron_radiation(dE: np.ndarray, U0: float,
                           n_kicks: int, tau_z: float) -> None:
-    for i in range(n_kicks):
+    """Apply SR
+
+    Args:
+        dE (np.ndarray): _description_
+        U0 (float): _description_
+        n_kicks (int): _description_
+        tau_z (float): _description_
+    """
+    for _ in range(n_kicks):
         dE += -(2.0 / tau_z / n_kicks * dE + U0 / n_kicks)
 
 
 def synchrotron_radiation_full(dE: np.ndarray, U0: float,
                                n_kicks: int, tau_z: float,
                                sigma_dE: float, energy: float) -> None:
-    global RNG
+    """Apply SR with quantum excitation
 
-    for i in range(n_kicks):
+    Args:
+        dE (np.ndarray): _description_
+        U0 (float): _description_
+        n_kicks (int): _description_
+        tau_z (float): _description_
+        sigma_dE (float): _description_
+        energy (float): _description_
+    """
+
+    for _ in range(n_kicks):
         dE += -(2.0 / tau_z / n_kicks * dE +
                 U0 / n_kicks - 2.0 * sigma_dE /
                 np.sqrt(tau_z * n_kicks) * energy *
@@ -162,6 +214,11 @@ def synchrotron_radiation_full(dE: np.ndarray, U0: float,
 
 
 def set_random_seed(seed: int) -> None:
+    """Set the seed of the RNG used in synchrotron radiation
+
+    Args:
+        seed (int): _description_
+    """
     global RNG
     # Re-initialize the RNG with new seed
     RNG = np.random.default_rng(seed)
@@ -209,25 +266,25 @@ def music_track(dt: np.ndarray, dE: np.ndarray, induced_voltage: np.ndarray,
     input_first_component = 1.0
     input_second_component = 0.0
 
-    for i in range(len(dt)-1):
+    for i in range(len(dt) - 1):
 
-        time_difference = dt[i+1]-dt[i]
+        time_difference = dt[i + 1] - dt[i]
 
         exp_term = np.exp(-alpha * time_difference)
         cos_term = np.cos(omega_bar * time_difference)
         sin_term = np.sin(omega_bar * time_difference)
 
         product_first_component = exp_term * \
-            ((cos_term+coeff1*sin_term)*input_first_component
-                + coeff2*sin_term*input_second_component)
+            ((cos_term + coeff1 * sin_term) * input_first_component
+                + coeff2 * sin_term * input_second_component)
         product_second_component = exp_term * \
-            (coeff3*sin_term*input_first_component
-                + (cos_term+coeff4*sin_term)*input_second_component)
+            (coeff3 * sin_term * input_first_component
+                + (cos_term + coeff4 * sin_term) * input_second_component)
 
-        induced_voltage[i+1] = const * (0.5 + product_first_component)
-        dE[i+1] += induced_voltage[i+1]
+        induced_voltage[i + 1] = const * (0.5 + product_first_component)
+        dE[i + 1] += induced_voltage[i + 1]
 
-        input_first_component = product_first_component+1.0
+        input_first_component = product_first_component + 1.0
         input_second_component = product_second_component
 
     array_parameters[0] = input_first_component
@@ -239,7 +296,23 @@ def music_track_multiturn(dt: np.ndarray, dE: np.ndarray, induced_voltage: np.nd
                           array_parameters: np.ndarray, alpha: float, omega_bar: float,
                           const: float, coeff1: float, coeff2: float,
                           coeff3: float, coeff4: float) -> None:
+    """This function calculates the multi-turn induced voltage and updates the
+    energies of the particles.
+    Parameters and Returns as for music_track.
 
+    Args:
+        dt (np.ndarray): _description_
+        dE (np.ndarray): _description_
+        induced_voltage (np.ndarray): _description_
+        array_parameters (np.ndarray): _description_
+        alpha (float): _description_
+        omega_bar (float): _description_
+        const (float): _description_
+        coeff1 (float): _description_
+        coeff2 (float): _description_
+        coeff3 (float): _description_
+        coeff4 (float): _description_
+    """
     indices_sorted = np.argsort(dt)
     dt = dt[indices_sorted]
     dE = dE[indices_sorted]
@@ -255,35 +328,35 @@ def music_track_multiturn(dt: np.ndarray, dE: np.ndarray, induced_voltage: np.nd
 
     product_second_component = exp_term * (
         coeff3 * sin_term * array_parameters[0]
-        + (cos_term + coeff4 * sin_term)*array_parameters[1])
+        + (cos_term + coeff4 * sin_term) * array_parameters[1])
 
-    induced_voltage[0] = const * (0.5+product_first_component)
+    induced_voltage[0] = const * (0.5 + product_first_component)
 
     dE[0] += induced_voltage[0]
-    input_first_component = product_first_component+1.0
+    input_first_component = product_first_component + 1.0
     input_second_component = product_second_component
 
     # MuSiC algorithm for the current turn
 
-    for i in range(len(dt)-1):
+    for i in range(len(dt) - 1):
 
-        time_difference = dt[i+1]-dt[i]
+        time_difference = dt[i + 1] - dt[i]
 
         exp_term = np.exp(-alpha * time_difference)
         cos_term = np.cos(omega_bar * time_difference)
         sin_term = np.sin(omega_bar * time_difference)
 
         product_first_component = exp_term * \
-            ((cos_term+coeff1*sin_term)*input_first_component
-                + coeff2*sin_term*input_second_component)
+            ((cos_term + coeff1 * sin_term) * input_first_component
+                + coeff2 * sin_term * input_second_component)
         product_second_component = exp_term * \
-            (coeff3*sin_term*input_first_component
-                + (cos_term+coeff4*sin_term)*input_second_component)
+            (coeff3 * sin_term * input_first_component
+                + (cos_term + coeff4 * sin_term) * input_second_component)
 
-        induced_voltage[i+1] = const * (0.5+product_first_component)
-        dE[i+1] += induced_voltage[i+1]
+        induced_voltage[i + 1] = const * (0.5 + product_first_component)
+        dE[i + 1] += induced_voltage[i + 1]
 
-        input_first_component = product_first_component+1.0
+        input_first_component = product_first_component + 1.0
         input_second_component = product_second_component
 
     array_parameters[0] = input_first_component
@@ -336,10 +409,10 @@ def fast_resonator(R_S: np.ndarray, Q: np.ndarray, frequency_array: np.ndarray,
 def beam_phase(bin_centers: np.ndarray, profile: np.ndarray,
                alpha: float, omegarf: float,
                phirf: float, bin_size: float) -> float:
-    scoeff = np.trapz(np.exp(alpha*(bin_centers))
+    scoeff = np.trapz(np.exp(alpha * (bin_centers))
                       * np.sin(omegarf * bin_centers + phirf)
                       * profile, dx=bin_size)
-    ccoeff = np.trapz(np.exp(alpha*(bin_centers))
+    ccoeff = np.trapz(np.exp(alpha * (bin_centers))
                       * np.cos(omegarf * bin_centers + phirf)
                       * profile, dx=bin_size)
 
@@ -377,7 +450,7 @@ def sparse_histogram(dt: np.ndarray, profile: np.ndarray,
         # Find bucket in which the particle is and its index
         fbunch = int((a - cut_left[0]) * inv_bucket_length)
         i_bucket = int(bunch_indexes[fbunch])
-        if (i_bucket == -1):
+        if i_bucket == -1:
             continue
         # Find the bin inside the corresponding bucket
         fbin = int((a - cut_left[i_bucket]) * inv_bin_width)
@@ -410,18 +483,18 @@ def distribution_from_tomoscope(dt: np.ndarray, dE: np.ndarray, probDistr: np.nd
 
     # Normalize probability distribution
     totProb = cumulDistr[-1]
-    cumulDistr = cumulDistr/totProb
+    cumulDistr = cumulDistr / totProb
 
     # Generate particle coordinates
 
     n = 0
-    while(n < len(dt)):
+    while n < len(dt):
         randProb = np.random.random()
         m = bisect.bisect(cumulDistr, randProb)
         # for m in range(profLen2):
         #     if randProb < cumulDistr[m]:
         #         break
-        i = int(m/profLen)
+        i = int(m / profLen)
         k = m % profLen
 
         iPos = i + np.random.random() - 0.5

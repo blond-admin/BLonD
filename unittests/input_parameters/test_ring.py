@@ -15,11 +15,12 @@ Unit-test for input_parameters.ring.py
 
 import sys
 import unittest
+
 import numpy as np
 
+from blond.beam.beam import Electron
 from blond.input_parameters.ring import Ring
 from blond.input_parameters.ring_options import convert_data
-from blond.beam.beam import Electron
 
 
 class TestGeneralParameters(unittest.TestCase):
@@ -34,8 +35,8 @@ class TestGeneralParameters(unittest.TestCase):
         self.alpha_0 = [[3.21e-4], [2.89e-4]]
         self.alpha_1 = [[2.e-5], [1.e-5]]
         self.alpha_2 = [[5.e-7], [5.e-7]]
-        self.momentum = [450e9*(np.ones(self.n_turns+1)),
-                         450e9*(np.ones(self.n_turns+1))]
+        self.momentum = [450e9 * (np.ones(self.n_turns + 1)),
+                         450e9 * (np.ones(self.n_turns + 1))]
         self.particle = Electron()
 
         if int(sys.version[0]) == 2:

@@ -13,18 +13,19 @@ Example for llrf.filters and llrf.cavity_feedback
 :Authors: **Helga Timko**
 """
 
-import numpy as np
-import matplotlib.pyplot as plt
 import logging
 
-from blond.toolbox.logger import Logger
-from blond.input_parameters.ring import Ring
-from blond.input_parameters.rf_parameters import RFStation
+import matplotlib.pyplot as plt
+import numpy as np
+
 from blond.beam.beam import Beam, Proton
 from blond.beam.distributions import bigaussian
-from blond.beam.profile import Profile, CutOptions
-from blond.llrf.cavity_feedback import SPSCavityFeedback, CavityFeedbackCommissioning
-
+from blond.beam.profile import CutOptions, Profile
+from blond.input_parameters.rf_parameters import RFStation
+from blond.input_parameters.ring import Ring
+from blond.llrf.cavity_feedback import (CavityFeedbackCommissioning,
+                                        SPSCavityFeedback)
+from blond.toolbox.logger import Logger
 
 # CERN SPS --------------------------------------------------------------------
 # Machine and RF parameters

@@ -15,12 +15,14 @@ for the CERN machines**
 '''
 
 from __future__ import division
-from builtins import object
+
+
 import numpy as np
+
 from ..utils import bmath as bm
 
 
-class BeamFeedback(object):
+class BeamFeedback:
     '''
     One-turn beam phase loop for different machines with different hardware. 
     Use 'period' for a phase loop that is active only in certain turns. 
@@ -68,7 +70,7 @@ class BeamFeedback(object):
         #: | *Phase loop gain. Implementation depends on machine.*
         try:
             self.gain = self.config['PL_gain']
-        except:
+        except Exception:
             # PhaseLoopError
             raise RuntimeError(
                 "You need to specify the Phase Loop gain! Aborting")
@@ -88,11 +90,11 @@ class BeamFeedback(object):
             if self.gain2 != 0:
 
                 #: | *LHC Synchronisation loop coefficient [1]*
-                self.lhc_a = 5.25 - self.rf_station.omega_s0/(np.pi*40.)
+                self.lhc_a = 5.25 - self.rf_station.omega_s0 / (np.pi * 40.)
                 #: | *LHC Synchronisation loop time constant [turns]*
-                self.lhc_t = (2*np.pi*self.rf_station.Q_s*np.sqrt(self.lhc_a)) / \
-                    np.sqrt(1 + self.gain/self.gain2 *
-                            np.sqrt((1 + 1/self.lhc_a)/(1 + self.lhc_a)))
+                self.lhc_t = (2 * np.pi * self.rf_station.Q_s * np.sqrt(self.lhc_a)) / \
+                    np.sqrt(1 + self.gain / self.gain2 *
+                            np.sqrt((1 + 1 / self.lhc_a) / (1 + self.lhc_a)))
 
             else:
 
@@ -133,7 +135,7 @@ class BeamFeedback(object):
         # PSB CONFIGURATION
         elif self.machine == 'PSB':
 
-            self.gain = self.gain * np.ones(Ring.n_turns+1)
+            self.gain = self.gain * np.ones(Ring.n_turns + 1)
 
             #: | *Radial loop gain, proportional [1] and integral [1/s].*
             if 'RL_gain' not in self.config:
@@ -141,8 +143,8 @@ class BeamFeedback(object):
             else:
                 self.gain2 = self.config['RL_gain']
 
-            self.gain2[0] = self.gain2[0] * np.ones(Ring.n_turns+1)
-            self.gain2[1] = self.gain2[1] * np.ones(Ring.n_turns+1)
+            self.gain2[0] = self.gain2[0] * np.ones(Ring.n_turns + 1)
+            self.gain2[1] = self.gain2[1] * np.ones(Ring.n_turns + 1)
 
             #: | *Optional: PL & RL acting only in certain time intervals/turns.*
             self.dt = 0
@@ -237,10 +239,10 @@ class BeamFeedback(object):
                     try:
                         summa += Ring.t_rev[n]
                         n += 1
-                    except:
+                    except Exception:
                         self.on_time = np.append(self.on_time, 0)
                         return
-                self.on_time = np.append(self.on_time, n-1)
+                self.on_time = np.append(self.on_time, n - 1)
         else:
             self.on_time = np.arange(Ring.t_rev.size)
 
@@ -258,34 +260,16 @@ class BeamFeedback(object):
         phi_rf = self.rf_station.phi_rf[0, self.rf_station.counter[0]]
 
         if self.time_offset is None:
-            # indexes = np.ones(self.profile.n_slices, dtype=bool)
-            # time_offset = 0.0
             coeff = bm.beam_phase(self.profile.bin_centers,
                                   self.profile.n_macroparticles,
                                   self.alpha, omega_rf, phi_rf,
                                   self.profile.bin_size)
         else:
             indexes = self.profile.bin_centers >= self.time_offset
-            time_offset = self.time_offset
             coeff = bm.beam_phase(self.profile.bin_centers[indexes],
-                              self.profile.n_macroparticles[indexes],
+                                  self.profile.n_macroparticles[indexes],
                                   self.alpha, omega_rf, phi_rf,
                                   self.profile.bin_size)
-            # exp = bm.exp(self.alpha*(self.profile.bin_centers[indexes] -
-            #                          time_offset))
-            # # Convolve with window function
-            # scoeff = bm.trapz(exp *
-            #                   bm.sin(omega_rf*self.profile.bin_centers[indexes] +
-            #                          phi_rf) *
-            #                   self.profile.n_macroparticles[indexes],
-            #                   dx=self.profile.bin_size)
-            # ccoeff = bm.trapz(exp *
-            #                   bm.cos(omega_rf*self.profile.bin_centers[indexes] +
-            #                          phi_rf) *
-            #                   self.profile.n_macroparticles[indexes],
-            #                   dx=self.profile.bin_size)
-            # # needed to make sure the result is scalar and not 0-dim array
-            # coeff = float(scoeff/ccoeff)
 
         # Project beam phase to (pi/2,3pi/2) range
         self.phi_beam = np.arctan(coeff) + np.pi
@@ -307,23 +291,23 @@ class BeamFeedback(object):
             indexes = bm.logical_and((self.time_offset - np.pi / omega_rf)
                                      <= self.profile.bin_centers,
                                      self.profile.bin_centers
-                                     <= (-1/self.alpha + self.time_offset -
+                                     <= (-1 / self.alpha + self.time_offset -
                                          2 * np.pi / omega_rf))
         else:
             indexes = bm.ones(self.profile.n_slices, dtype=bool)
 
         # Convolve with window function
-        scoeff = bm.trapz(bm.sin(omega_rf*self.profile.bin_centers[indexes]
+        scoeff = bm.trapz(bm.sin(omega_rf * self.profile.bin_centers[indexes]
                                  + phi_rf)
                           * self.profile.n_macroparticles[indexes],
                           dx=self.profile.bin_size)
-        ccoeff = bm.trapz(bm.cos(omega_rf*self.profile.bin_centers[indexes]
+        ccoeff = bm.trapz(bm.cos(omega_rf * self.profile.bin_centers[indexes]
                                  + phi_rf) *
                           self.profile.n_macroparticles[indexes],
                           dx=self.profile.bin_size)
 
         # Project beam phase to (pi/2,3pi/2) range
-        self.phi_beam = np.arctan(scoeff/ccoeff) + np.pi
+        self.phi_beam = np.arctan(scoeff / ccoeff) + np.pi
 
     def phase_difference(self):
         '''
@@ -338,7 +322,7 @@ class BeamFeedback(object):
         # Possibility to add RF phase noise through the PL
         if self.RFnoise is not None:
             if self.noiseFB is not None:
-                self.dphi += self.noiseFB.x*self.RFnoise.dphi[counter]
+                self.dphi += self.noiseFB.x * self.RFnoise.dphi[counter]
             else:
                 if self.machine == 'PSB':
                     self.dphi = self.dphi
@@ -359,7 +343,7 @@ class BeamFeedback(object):
         self.average_dE = bm.mean(self.profile.Beam.dE[::self.sample_dE])
 
         self.drho = self.ring.alpha_0[0, counter] * \
-            self.ring.ring_radius*self.average_dE / \
+            self.ring.ring_radius * self.average_dE / \
             (self.ring.beta[0, counter]**2.
              * self.ring.energy[0, counter])
 
@@ -371,8 +355,8 @@ class BeamFeedback(object):
         counter = self.rf_station.counter[0]
 
         self.radial_steering_domega_rf = - self.rf_station.omega_rf_d[0, counter] * \
-            self.rf_station.eta_0[counter]/self.ring.alpha_0[0, counter] * \
-            self.reference/self.ring.ring_radius
+            self.rf_station.eta_0[counter] / self.ring.alpha_0[0, counter] * \
+            self.reference / self.ring.ring_radius
 
         self.rf_station.omega_rf[:, counter] += self.radial_steering_domega_rf * \
             self.rf_station.harmonic[:, counter] / \
@@ -380,7 +364,7 @@ class BeamFeedback(object):
 
         # Update the RF phase of all systems for the next turn
         # Accumulated phase offset due to PL in each RF system
-        self.rf_station.dphi_rf_steering += 2.*np.pi*self.rf_station.harmonic[:, counter] * \
+        self.rf_station.dphi_rf_steering += 2. * np.pi * self.rf_station.harmonic[:, counter] * \
             (self.rf_station.omega_rf[:, counter] -
              self.rf_station.omega_rf_d[:, counter]) / \
             self.rf_station.omega_rf_d[:, counter]
@@ -411,10 +395,10 @@ class BeamFeedback(object):
         self.phase_difference()
 
         # Frequency correction from phase loop and frequency loop
-        self.domega_rf = - self.gain*self.dphi \
-            - self.gain2*(self.rf_station.omega_rf[0, counter] -
-               self.rf_station.omega_rf_d[0, counter] +
-                          self.reference)
+        self.domega_rf = - self.gain * self.dphi \
+            - self.gain2 * (self.rf_station.omega_rf[0, counter] -
+                            self.rf_station.omega_rf_d[0, counter] +
+                            self.reference)
 
     def SPS_F(self):
         '''
@@ -430,8 +414,8 @@ class BeamFeedback(object):
 
         # Frequency correction from phase loop and frequency loop
         self.domega_dphi = - self.gain * self.dphi
-        self.domega_df = - self.gain2*(self.rf_station.omega_rf[0, counter] -
-                                       self.rf_station.omega_rf_d[0, counter])
+        self.domega_df = - self.gain2 * (self.rf_station.omega_rf[0, counter] -
+                                         self.rf_station.omega_rf_d[0, counter])
 
         self.domega_rf = self.domega_dphi + self.domega_df
 
@@ -460,7 +444,7 @@ class BeamFeedback(object):
 
         # Frequency correction from phase loop and radial loop
         self.domega_dphi = - self.gain * self.dphi
-        self.domega_dR = - bm.sign(self.rf_station.eta_0[counter])*self.gain2 * \
+        self.domega_dR = - bm.sign(self.rf_station.eta_0[counter]) * self.gain2 * \
             (self.reference - self.drho) / self.ring.ring_radius
 
         self.domega_rf = self.domega_dphi + self.domega_dR
@@ -503,13 +487,13 @@ class BeamFeedback(object):
         self.phase_difference()
 
         # Frequency correction from phase loop and synchro loop
-        self.domega_rf = - self.gain*self.dphi \
-                         - self.gain2*(self.lhc_y + self.lhc_a[counter]
-                                       * (dphi_rf + self.reference))
+        self.domega_rf = - self.gain * self.dphi \
+                         - self.gain2 * (self.lhc_y + self.lhc_a[counter]
+                                         * (dphi_rf + self.reference))
 
         # Update recursion variable
-        self.lhc_y = (1 - self.lhc_t[counter])*self.lhc_y + \
-                     (1 - self.lhc_a[counter])*self.lhc_t[counter] * \
+        self.lhc_y = (1 - self.lhc_t[counter]) * self.lhc_y + \
+                     (1 - self.lhc_a[counter]) * self.lhc_t[counter] * \
                      (dphi_rf + self.reference)
 
     def PSB(self):
@@ -528,27 +512,27 @@ class BeamFeedback(object):
         if counter == self.on_time[self.PL_counter] and counter >= self.delay:
             # Phase loop
             self.dphi_av = self.dphi_sum / (self.on_time[self.PL_counter]
-                                            - self.on_time[self.PL_counter-1])
+                                            - self.on_time[self.PL_counter - 1])
 
-            if self.RFnoise != None:
+            if self.RFnoise is not None:
                 self.dphi_av += self.RFnoise.dphi[counter]
 
-            self.domega_PL = 0.99803799*self.domega_PL \
-                + self.gain[counter]*(0.99901903*self.dphi_av -
-                                      0.99901003*self.dphi_av_prev)
+            self.domega_PL = 0.99803799 * self.domega_PL \
+                + self.gain[counter] * (0.99901903 * self.dphi_av -
+                                        0.99901003 * self.dphi_av_prev)
 
             self.dphi_av_prev = self.dphi_av
             self.dphi_sum = 0.
 
             # Radial loop
             self.dR_over_R = (self.rf_station.omega_rf[0, counter] -
-                              self.rf_station.omega_rf_d[0, counter])/(
+                              self.rf_station.omega_rf_d[0, counter]) / (
                 self.rf_station.omega_rf_d[0, counter] *
-                         (1./(self.ring.alpha_0[0, counter] *
-                              self.rf_station.gamma[counter]**2) - 1.))
+                (1. / (self.ring.alpha_0[0, counter] *
+                       self.rf_station.gamma[counter]**2) - 1.))
 
-            self.domega_RL = self.domega_RL + self.gain2[0][counter]*(self.dR_over_R
-                                                                      - self.dR_over_R_prev) + self.gain2[1][counter]*self.dR_over_R
+            self.domega_RL = self.domega_RL + self.gain2[0][counter] * (self.dR_over_R
+                                                                        - self.dR_over_R_prev) + self.gain2[1][counter] * self.dR_over_R
 
             self.dR_over_R_prev = self.dR_over_R
 
@@ -566,7 +550,6 @@ class BeamFeedback(object):
         if hasattr(self, '_device') and self._device == 'GPU':
             return
 
-        assert bm.device == 'GPU'
         # No arrays need to be transfered
 
         # to make sure it will not be called again
@@ -580,7 +563,6 @@ class BeamFeedback(object):
         if hasattr(self, '_device') and self._device == 'CPU':
             return
 
-        assert bm.device == 'CPU'
         # No arrays need to be transfered
 
         # to make sure it will not be called again

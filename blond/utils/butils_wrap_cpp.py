@@ -6,10 +6,13 @@ BLonD math wrapper functions
 '''
 
 import ctypes as ct
-import numpy as np
 import os
-from .. import libblond as __lib
-from . import precision, c_real, c_complex, c_complex64, c_complex128
+
+import numpy as np
+
+from .. import LIBBLOND as __lib
+from . import c_complex64, c_complex128, c_real, precision
+
 
 def __getPointer(x):
     return x.ctypes.data_as(ct.c_void_p)
@@ -56,7 +59,7 @@ def add_cpp(a, b, result=None, inplace=False):
         raise TypeError(
             'given arrays not of the same type ', a.dtype(), b.dtype())
 
-    if (result is None) and (inplace == False):
+    if (result is None) and (not inplace):
         result = np.empty_like(a, order='C')
 
     if (a.dtype == 'int32'):
@@ -184,13 +187,13 @@ def linspace_cpp(start, stop, num=50, retstep=False, result=None):
     __lib.linspace(c_real(start), c_real(stop),
                    ct.c_int(num), __getPointer(result))
     if retstep:
-        return result, 1. * (stop-start) / (num-1)
+        return result, 1. * (stop - start) / (num - 1)
     else:
         return result
 
 
 def arange_cpp(start, stop, step, dtype=float, result=None):
-    size = int(np.ceil((stop-start)/step))
+    size = int(np.ceil((stop - start) / step))
     if result is None:
         result = np.empty(size, dtype=dtype)
     if dtype == float:
@@ -370,10 +373,10 @@ def interp_const_space(x, xp, yp, left=None, right=None, result=None):
 
 def rfft(a, n=0, result=None):
     a = a.astype(dtype=precision.real_t, order='C', copy=False)
-    if (n == 0) and (result == None):
-        result = np.empty(len(a)//2 + 1, dtype=precision.complex_t, order='C')
-    elif (n != 0) and (result == None):
-        result = np.empty(n//2 + 1, dtype=precision.complex_t, order='C')
+    if (n == 0) and (result is None):
+        result = np.empty(len(a) // 2 + 1, dtype=precision.complex_t, order='C')
+    elif (n != 0) and (result is None):
+        result = np.empty(n // 2 + 1, dtype=precision.complex_t, order='C')
 
     if precision.num == 1:
         __lib.rfftf(__getPointer(a),
@@ -394,9 +397,9 @@ def rfft(a, n=0, result=None):
 def irfft(a, n=0, result=None):
     a = a.astype(dtype=precision.complex_t, order='C', copy=False)
 
-    if (n == 0) and (result == None):
-        result = np.empty(2*(len(a)-1), dtype=precision.real_t, order='C')
-    elif (n != 0) and (result == None):
+    if (n == 0) and (result is None):
+        result = np.empty(2 * (len(a) - 1), dtype=precision.real_t, order='C')
+    elif (n != 0) and (result is None):
         result = np.empty(n, dtype=precision.real_t, order='C')
 
     if precision.num == 1:
@@ -419,7 +422,7 @@ def rfftfreq(n, d=1.0, result=None):
     if d == 0:
         raise ZeroDivisionError('d must be non-zero')
     if result is None:
-        result = np.empty(n//2 + 1, dtype=precision.real_t)
+        result = np.empty(n // 2 + 1, dtype=precision.real_t)
 
     if precision.num == 1:
         __lib.rfftfreqf(ct.c_int(n),
@@ -441,9 +444,9 @@ def irfft_packed(signal, fftsize=0, result=None):
     signal = np.ascontiguousarray(np.reshape(
         signal, -1), dtype=precision.complex_t)
 
-    if (fftsize == 0) and (result == None):
-        result = np.empty(howmany * 2*(n0-1), dtype=precision.real_t)
-    elif (fftsize != 0) and (result == None):
+    if (fftsize == 0) and (result is None):
+        result = np.empty(howmany * 2 * (n0 - 1), dtype=precision.real_t)
+    elif (fftsize != 0) and (result is None):
         result = np.empty(howmany * fftsize, dtype=precision.real_t)
 
     if precision.num == 1:
@@ -478,7 +481,7 @@ def cumtrapz(y, x=None, dx=1.0, initial=None, result=None):
                                  __getLen(y), __getPointer(result))
     else:
         if result is None:
-            result = np.empty(len(y)-1, dtype=float)
+            result = np.empty(len(y) - 1, dtype=float)
         __lib.cumtrapz_wo_initial(__getPointer(y), c_real(dx),
                                   __getLen(y), __getPointer(result))
     return result
@@ -726,7 +729,7 @@ def linear_interp_kick_n_drift(dt, dE, total_voltage, bin_centers, charge, acc_k
                                          c_real(charge))
 
 
-def slice(dt, profile, cut_left, cut_right):
+def slice_beam(dt, profile, cut_left, cut_right):
     assert isinstance(dt[0], precision.real_t)
     assert isinstance(profile[0], precision.real_t)
 
@@ -1151,9 +1154,9 @@ def distribution_from_tomoscope(dt, dE, probDistr, seed, profLen,
 
 
 # def rfft(a, n=0, result=None):
-#     if (n == 0) and (result == None):
+#     if (n == 0) and (result is None):
 #         result = np.empty(len(a)//2 + 1, dtype=np.complex128)
-#     elif (n != 0) and (result == None):
+#     elif (n != 0) and (result is None):
 #         result = np.empty(n//2 + 1, dtype=np.complex128)
 
 #     __lib.rfft(__getPointer(a),
@@ -1167,9 +1170,9 @@ def distribution_from_tomoscope(dt, dE, probDistr, seed, profLen,
 
 # def irfft(a, n=0, result=None):
 
-#     if (n == 0) and (result == None):
+#     if (n == 0) and (result is None):
 #         result = np.empty(2*(len(a)-1), dtype=np.float64)
-#     elif (n != 0) and (result == None):
+#     elif (n != 0) and (result is None):
 #         result = np.empty(n, dtype=np.float64)
 
 #     __lib.irfft(__getPointer(a),
@@ -1199,9 +1202,9 @@ def distribution_from_tomoscope(dt, dE, probDistr, seed, profLen,
 
 #     signal = np.ascontiguousarray(np.reshape(signal, -1))
 
-#     if (fftsize == 0) and (result == None):
+#     if (fftsize == 0) and (result is None):
 #         result = np.empty(howmany * 2*(n0-1), dtype=np.float64)
-#     elif (fftsize != 0) and (result == None):
+#     elif (fftsize != 0) and (result is None):
 #         result = np.empty(howmany * fftsize, dtype=np.float64)
 
 #     __lib.irfft_packed(__getPointer(signal),

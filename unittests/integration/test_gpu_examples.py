@@ -12,11 +12,12 @@ Integration tests, execute all example GPU main files.
 :Authors: **Konstantinos Iliakis**
 """
 
-import unittest
-import pytest
 import os
 import subprocess
 import sys
+import unittest
+
+import pytest
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 main_files_dir = os.path.join(this_directory, '../../__EXAMPLES/gpu_main_files')

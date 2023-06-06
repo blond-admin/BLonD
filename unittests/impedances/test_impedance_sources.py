@@ -14,12 +14,14 @@ Unittest for impedances.impedance_sources
 """
 
 import unittest
-import numpy as np
 
+import numpy as np
 from scipy.constants import e as elCharge
+
 from blond.beam.beam import Electron
-from blond.impedances.impedance_sources import _ImpedanceObject, Resonators, ResistiveWall,\
-    CoherentSynchrotronRadiation
+from blond.impedances.impedance_sources import (CoherentSynchrotronRadiation,
+                                                ResistiveWall, Resonators,
+                                                _ImpedanceObject)
 
 
 class Test_ImpedanceObject(unittest.TestCase):
@@ -127,7 +129,7 @@ class TestCoherentSynchrotronRadiation(unittest.TestCase):
 
         energy_loss = 2 * np.trapz(Z_fs.impedance.real, frequencies) * elCharge  # [eV]
 
-        energy_loss_textbook = Electron().C_gamma * energy**4 / r_bend  # [eV]
+        energy_loss_textbook = Electron().c_gamma * energy**4 / r_bend  # [eV]
 
         self.assertAlmostEqual(energy_loss, energy_loss_textbook, places=3)
 

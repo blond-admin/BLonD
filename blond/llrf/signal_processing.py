@@ -14,16 +14,17 @@
 '''
 
 from __future__ import division
-import numpy as np
-from scipy.constants import e
-from scipy import signal as sgn
-import matplotlib.pyplot as plt
+from blond.llrf.impulse_response import TravellingWaveCavity
 
 # Set up logging
 import logging
-logger = logging.getLogger(__name__)
 
-from blond.llrf.impulse_response import TravellingWaveCavity
+import matplotlib.pyplot as plt
+import numpy as np
+from scipy import signal as sgn
+from scipy.constants import e
+
+logger = logging.getLogger(__name__)
 
 
 def polar_to_cartesian(amplitude, phase):
@@ -44,7 +45,7 @@ def polar_to_cartesian(amplitude, phase):
 
     logger.debug("Converting from polar to Cartesian")
 
-    return amplitude*(np.cos(phase) + 1j*np.sin(phase))
+    return amplitude * (np.cos(phase) + 1j * np.sin(phase))
 
 
 def cartesian_to_polar(IQ_vector):
@@ -92,17 +93,17 @@ def modulator(signal, omega_i, omega_f, T_sampling, phi_0=0):
     """
 
     if len(signal) < 2:
-        #TypeError
+        # TypeError
         raise RuntimeError("ERROR in filters.py/demodulator: signal should" +
                            " be an array!")
     delta_phi = (omega_i - omega_f) * T_sampling * np.arange(len(signal))
     # Pre compute sine and cosine for speed up
     cs = np.cos(delta_phi + phi_0)
     sn = np.sin(delta_phi + phi_0)
-    I_new = cs*signal.real + sn*signal.imag
-    Q_new = - sn*signal.real + cs*signal.imag
+    I_new = cs * signal.real + sn * signal.imag
+    Q_new = - sn * signal.real + cs * signal.imag
 
-    return I_new + 1j*Q_new
+    return I_new + 1j * Q_new
 
 
 def rf_beam_current(Profile, omega_c, T_rev, lpf=True, downsample=None, external_reference=True):
@@ -163,53 +164,53 @@ def rf_beam_current(Profile, omega_c, T_rev, lpf=True, downsample=None, external
 
     # Convert from dimensionless to Coulomb/Ampères
     # Take into account macro-particle charge with real-to-macro-particle ratio
-    charges = Profile.Beam.ratio*Profile.Beam.Particle.charge*e\
+    charges = Profile.Beam.ratio * Profile.Beam.Particle.charge * e\
         * np.copy(Profile.n_macroparticles)
     logger.debug("Sum of particles: %d, total charge: %.4e C",
                  np.sum(Profile.n_macroparticles), np.sum(charges))
-    logger.debug("DC current is %.4e A", np.sum(charges)/T_rev)
+    logger.debug("DC current is %.4e A", np.sum(charges) / T_rev)
 
     # Mix with frequency of interest; remember factor 2 demodulation
-    I_f = 2.*charges*np.cos(omega_c*Profile.bin_centers)
-    Q_f = -2.*charges*np.sin(omega_c*Profile.bin_centers)
+    I_f = 2. * charges * np.cos(omega_c * Profile.bin_centers)
+    Q_f = -2. * charges * np.sin(omega_c * Profile.bin_centers)
 
     # Pass through a low-pass filter
     if lpf is True:
         # Nyquist frequency 0.5*f_slices; cutoff at 20 MHz
-        cutoff = 20.e6*2.*Profile.bin_size
+        cutoff = 20.e6 * 2. * Profile.bin_size
         I_f = low_pass_filter(I_f, cutoff_frequency=cutoff)
         Q_f = low_pass_filter(Q_f, cutoff_frequency=cutoff)
-    logger.debug("RF total current is %.4e A", np.fabs(np.sum(I_f))/T_rev)
+    logger.debug("RF total current is %.4e A", np.fabs(np.sum(I_f)) / T_rev)
 
-    charges_fine = I_f + 1j*Q_f
+    charges_fine = I_f + 1j * Q_f
     if external_reference:
         # Phase correction
-        bucket = 2 * np.pi/(omega_c)
+        bucket = 2 * np.pi / (omega_c)
         # This term takes into account where the sampling of the profile starts
-        add_corr = Profile.bin_centers[0] / (bucket/2) - int(Profile.bin_centers[0] / (bucket/2)) \
-                   - Profile.bin_size / bucket
-        phase = (Profile.bin_centers[0] - Profile.bin_size/2 - 0.5*bucket)/bucket*2*np.pi \
-                + np.angle(charges_fine)[0] - np.pi * add_corr
+        add_corr = Profile.bin_centers[0] / (bucket / 2) - int(Profile.bin_centers[0] / (bucket / 2)) \
+            - Profile.bin_size / bucket
+        phase = (Profile.bin_centers[0] - Profile.bin_size / 2 - 0.5 * bucket) / bucket * 2 * np.pi \
+            + np.angle(charges_fine)[0] - np.pi * add_corr
         charges_fine = charges_fine * np.exp(-1j * phase)  # TODO: plus or minus
 
     if downsample:
         try:
             T_s = float(downsample['Ts'])
             n_points = int(downsample['points'])
-        except:
+        except Exception:
             raise RuntimeError('Downsampling input erroneous in rf_beam_current')
 
         # Find which index in fine grid matches index in coarse grid
-        ind_fine = np.floor((Profile.bin_centers - 0.5*Profile.bin_size)/T_s)
+        ind_fine = np.floor((Profile.bin_centers - 0.5 * Profile.bin_size) / T_s)
         ind_fine = np.array(ind_fine, dtype=int)
         indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
 
         # Pick total current within one coarse grid
-        charges_coarse = np.zeros(n_points, dtype=complex) #+ 1j*np.zeros(n_points)
+        charges_coarse = np.zeros(n_points, dtype=complex)  # + 1j*np.zeros(n_points)
         charges_coarse[ind_fine[0]] = np.sum(charges_fine[np.arange(indices[0])])
         for i in range(1, len(indices)):
-            charges_coarse[i + ind_fine[0]] = np.sum(charges_fine[np.arange(indices[i-1],
-                                                              indices[i])])
+            charges_coarse[i + ind_fine[0]] = np.sum(charges_fine[np.arange(indices[i - 1],
+                                                                            indices[i])])
 
         return charges_fine, charges_coarse
 
@@ -221,7 +222,7 @@ def comb_filter(y, x, a):
     """Feedback comb filter.
     """
 
-    return a*y + (1 - a)*x
+    return a * y + (1 - a) * x
 
 
 def low_pass_filter(signal, cutoff_frequency=0.5):
@@ -278,7 +279,7 @@ def moving_average(x, N, x_prev=None):
     # based on https://stackoverflow.com/a/14314054
     mov_avg = np.cumsum(x)
     mov_avg[N:] = mov_avg[N:] - mov_avg[:-N]
-    return mov_avg[N-1:] / N
+    return mov_avg[N - 1:] / N
 
 
 def moving_average_improved(x, N, x_prev=None):
@@ -286,10 +287,10 @@ def moving_average_improved(x, N, x_prev=None):
     if x_prev is not None:
         x = np.concatenate((x_prev, x))
 
-
-    mov_avg = sgn.fftconvolve(x, (1/N)*np.ones(N), mode='full')[-x.shape[0]:]
+    mov_avg = sgn.fftconvolve(x, (1 / N) * np.ones(N), mode='full')[-x.shape[0]:]
 
     return mov_avg[:x.shape[0] - N + 1]
+
 
 def H_cav(x, n_sections, x_prev=None):
 
@@ -305,13 +306,13 @@ def H_cav(x, n_sections, x_prev=None):
                       0.01421418, 0.0084533, 0.00343537, -0.00067663, -0.00380694, -0.00600952,
                       -0.00724786, -0.00765499, -0.04120219])
     else:
-        h = np.array([-0.0671217,   0.01355402,  0.01365686,  0.01444814,  0.01571424,  0.01766679,
-                      0.01996413,  0.02251791,  0.02529718,  0.02817416,  0.03113348,  0.03398052,
-                      0.03674144,  0.03924433,  0.04153931,  0.04344182,  0.04502165,  0.04612467,
-                      0.04685122,  0.06409968,  0.04685122,  0.04612467,  0.04502165,  0.04344182,
-                      0.04153931,  0.03924433,  0.03674144,  0.03398052,  0.03113348,  0.02817416,
-                      0.02529718,  0.02251791,  0.01996413,  0.01766679,  0.01571424,  0.01444814,
-                      0.01365686,  0.01355402, -0.0671217 ])
+        h = np.array([-0.0671217, 0.01355402, 0.01365686, 0.01444814, 0.01571424, 0.01766679,
+                      0.01996413, 0.02251791, 0.02529718, 0.02817416, 0.03113348, 0.03398052,
+                      0.03674144, 0.03924433, 0.04153931, 0.04344182, 0.04502165, 0.04612467,
+                      0.04685122, 0.06409968, 0.04685122, 0.04612467, 0.04502165, 0.04344182,
+                      0.04153931, 0.03924433, 0.03674144, 0.03398052, 0.03113348, 0.02817416,
+                      0.02529718, 0.02251791, 0.01996413, 0.01766679, 0.01571424, 0.01444814,
+                      0.01365686, 0.01355402, -0.0671217])
 
     resp = sgn.fftconvolve(x, h, mode='full')[-x.shape[0]:]
 
@@ -349,15 +350,15 @@ def feedforward_filter(TWC: TravellingWaveCavity, T_s, debug=False, taps=None,
     """
 
     # Filling time in samples
-    n_filling = int(TWC.tau/T_s)
+    n_filling = int(TWC.tau / T_s)
     logger.debug("Filling time in samples: %d", n_filling)
 
     # Number of FIR filter taps
     if taps is not None:
         n_taps = int(taps)
     else:
-        n_taps = 2*int(0.5*n_filling) + 13 #31
-    n_taps_2 = int(0.5*(n_taps+1))
+        n_taps = 2 * int(0.5 * n_filling) + 13  # 31
+    n_taps_2 = int(0.5 * (n_taps + 1))
     if n_taps % 2 == 0:
         raise RuntimeError("Number of taps in feedforward filter must be odd!")
     logger.debug("Number of taps: %d", n_taps)
@@ -367,26 +368,26 @@ def feedforward_filter(TWC: TravellingWaveCavity, T_s, debug=False, taps=None,
     logger.debug("Fitting samples: %d", n_fit)
 
     # Even-symmetric feed-forward filter matrix
-    even = np.zeros(shape=(n_taps,n_taps_2), dtype=np.float64)
+    even = np.zeros(shape=(n_taps, n_taps_2), dtype=np.float64)
     for i in range(n_taps):
-        even[i,abs(n_taps_2-i-1)] = 1
+        even[i, abs(n_taps_2 - i - 1)] = 1
 
     # Odd-symmetric feed-forward filter matrix
-    odd = np.zeros(shape=(n_taps, n_taps_2-1), dtype=np.float64)
-    for i in range(n_taps_2-1):
-        odd[i,abs(n_taps_2-i-2)] = -1
-        odd[n_taps-i-1, abs(n_taps_2 - i - 2)] = 1
+    odd = np.zeros(shape=(n_taps, n_taps_2 - 1), dtype=np.float64)
+    for i in range(n_taps_2 - 1):
+        odd[i, abs(n_taps_2 - i - 2)] = -1
+        odd[n_taps - i - 1, abs(n_taps_2 - i - 2)] = 1
 
     # Generator-cavity response matrix: non-zero during filling time
-    resp = np.zeros(shape=(n_fit, n_fit+n_filling-1), dtype=np.float64)
+    resp = np.zeros(shape=(n_fit, n_fit + n_filling - 1), dtype=np.float64)
     for i in range(n_fit):
-        resp[i,i:i+n_filling] = 1
+        resp[i, i:i + n_filling] = 1
 
     # Convolution with beam step current
-    conv = np.zeros(shape=(n_fit+n_filling-1, n_taps), dtype=np.float64)
+    conv = np.zeros(shape=(n_fit + n_filling - 1, n_taps), dtype=np.float64)
     for i in range(n_taps):
-        conv[i+n_filling, 0:i] = 1
-    conv[n_taps+n_filling:, :] = 1
+        conv[i + n_filling, 0:i] = 1
+    conv[n_taps + n_filling:, :] = 1
 
     if debug:
         np.set_printoptions(threshold=10000, linewidth=100)
@@ -401,27 +402,27 @@ def feedforward_filter(TWC: TravellingWaveCavity, T_s, debug=False, taps=None,
         print("\n\n")
 
     # Impulse response from cavity towards beam
-    time_array = np.linspace(0, n_fit*T_s, num=n_fit) - TWC.tau/2
+    time_array = np.linspace(0, n_fit * T_s, num=n_fit) - TWC.tau / 2
     TWC.impulse_response_beam(TWC.omega_r, time_array)
-    h_beam_real = TWC.h_beam.real/TWC.R_beam*TWC.tau
+    h_beam_real = TWC.h_beam.real / TWC.R_beam * TWC.tau
 
     # Even and odd parts of impulse response
     h_beam_even = np.zeros(n_fit)
     h_beam_odd = np.zeros(n_fit)
     if n_filling % 2 == 0:
-        n_c = int((n_fit-1)*0.5)
+        n_c = int((n_fit - 1) * 0.5)
         h_beam_even[n_c] = h_beam_real[0]
-        h_beam_even[n_c + 1:] = 0.5*h_beam_real[1:n_c + 1]
-        h_beam_even[:n_c] = 0.5*(h_beam_real[1:n_c + 1])[::-1]
+        h_beam_even[n_c + 1:] = 0.5 * h_beam_real[1:n_c + 1]
+        h_beam_even[:n_c] = 0.5 * (h_beam_real[1:n_c + 1])[::-1]
         h_beam_odd[n_c] = 0
-        h_beam_odd[n_c + 1:] = 0.5*h_beam_real[1:n_c + 1]
-        h_beam_odd[:n_c] = 0.5*(-h_beam_real[1:n_c + 1])[::-1]
+        h_beam_odd[n_c + 1:] = 0.5 * h_beam_real[1:n_c + 1]
+        h_beam_odd[:n_c] = 0.5 * (-h_beam_real[1:n_c + 1])[::-1]
     else:
-        n_c = int(n_fit*0.5)
-        h_beam_even[n_c:] = 0.5*h_beam_real[1:n_c+1]
-        h_beam_even[:n_c] = 0.5*(h_beam_real[1:n_c+1])[::-1]
-        h_beam_odd[n_c:] = 0.5*h_beam_real[1:n_c+1]
-        h_beam_odd[:n_c] = 0.5*(-h_beam_real[1:n_c+1])[::-1]
+        n_c = int(n_fit * 0.5)
+        h_beam_even[n_c:] = 0.5 * h_beam_real[1:n_c + 1]
+        h_beam_even[:n_c] = 0.5 * (h_beam_real[1:n_c + 1])[::-1]
+        h_beam_odd[n_c:] = 0.5 * h_beam_real[1:n_c + 1]
+        h_beam_odd[:n_c] = 0.5 * (-h_beam_real[1:n_c + 1])[::-1]
 
     # Beam current step for step response
     I_beam_step = np.ones(n_fit)
@@ -441,9 +442,9 @@ def feedforward_filter(TWC: TravellingWaveCavity, T_s, debug=False, taps=None,
         plt.rc('axes', labelsize=12, labelweight='normal')
 
         plt.figure("Impulse response")
-        plt.plot(time_array*1e6, h_beam_even, 'bo-', label='even')
-        plt.plot(time_array*1e6, h_beam_odd, 'ro-', label='odd')
-        plt.plot(time_array*1e6, h_beam_even+h_beam_odd, 'go-', label='total')
+        plt.plot(time_array * 1e6, h_beam_even, 'bo-', label='even')
+        plt.plot(time_array * 1e6, h_beam_odd, 'ro-', label='odd')
+        plt.plot(time_array * 1e6, h_beam_even + h_beam_odd, 'go-', label='total')
         plt.axhline(0, color='grey', alpha=0.5)
         plt.xlabel("Time [us]")
         plt.legend()
@@ -451,7 +452,7 @@ def feedforward_filter(TWC: TravellingWaveCavity, T_s, debug=False, taps=None,
         plt.figure("Beam-induced voltage")
         plt.plot(V_beam_even, 'bo-', label='even')
         plt.plot(V_beam_odd, 'ro-', label='odd')
-        plt.plot(V_beam_even+V_beam_odd, 'go-', label='total')
+        plt.plot(V_beam_even + V_beam_odd, 'go-', label='total')
         plt.axhline(0, color='grey', alpha=0.5)
         plt.xlabel("Samples [1]")
         plt.legend()
@@ -464,7 +465,7 @@ def feedforward_filter(TWC: TravellingWaveCavity, T_s, debug=False, taps=None,
         plt.figure("FF filter")
         plt.plot(h_ff_even, 'bo-', label='even')
         plt.plot(h_ff_odd, 'ro-', label='odd')
-        plt.plot(h_ff_even+h_ff_odd, 'go-', label='total')
+        plt.plot(h_ff_even + h_ff_odd, 'go-', label='total')
         plt.axhline(0, color='grey', alpha=0.5)
         plt.xlabel("Samples [1]")
         plt.legend()
@@ -476,7 +477,7 @@ def feedforward_filter(TWC: TravellingWaveCavity, T_s, debug=False, taps=None,
         plt.figure("Reconstructed signal")
         plt.plot(V_even, 'bo-', label='even')
         plt.plot(V_odd, 'ro-', label='odd')
-        plt.plot(V_even+V_odd, 'go-', label='total')
+        plt.plot(V_even + V_odd, 'go-', label='total')
         plt.axhline(0, color='grey', alpha=0.5)
         plt.xlabel("Samples [1]")
         plt.legend()

@@ -14,12 +14,15 @@
 '''
 
 from __future__ import division, print_function
-from builtins import range, object
+
+from builtins import range
+
 import numpy as np
+
 from ..utils import bmath as bm
 
 
-class SynchrotronRadiation(object):
+class SynchrotronRadiation:
 
     ''' Class to compute synchrotron radiation effects, including radiation
         damping and quantum excitation.
@@ -39,8 +42,8 @@ class SynchrotronRadiation(object):
         np.random.seed(seed=seed)
 
         # Calculate static parameters
-        self.C_gamma = self.ring.Particle.C_gamma
-        self.C_q = self.ring.Particle.C_q
+        self.c_gamma = self.ring.Particle.c_gamma
+        self.c_q = self.ring.Particle.c_q
 
         self.I2 = 2.0 * np.pi / self.rho     # Assuming isomagnetic machine
         self.I3 = 2.0 * np.pi / self.rho**2.0
@@ -58,9 +61,9 @@ class SynchrotronRadiation(object):
         # synchrotron radiation (temporary until bunch generation is updated)
         if (shift_beam) and (self.rf_params.section_index == 0):
             self.beam_phase_to_compensate_SR = np.abs(np.arcsin(
-                self.U0 / (self.ring.Particle.charge * self.rf_params.voltage[0][0]) ))
+                self.U0 / (self.ring.Particle.charge * self.rf_params.voltage[0][0])))
             self.beam_position_to_compensate_SR = self.beam_phase_to_compensate_SR \
-                * self.rf_params.t_rf[0, 0] / (2.0*np.pi)
+                * self.rf_params.t_rf[0, 0] / (2.0 * np.pi)
 
             self.beam.dt -= self.beam_position_to_compensate_SR
 
@@ -84,7 +87,7 @@ class SynchrotronRadiation(object):
         i_turn = self.rf_params.counter[0]
 
         # Energy loss per turn/RF section [eV]
-        self.U0 = (self.C_gamma * self.ring.energy[0, i_turn]**4.0
+        self.U0 = (self.c_gamma * self.ring.energy[0, i_turn]**4.0
                    * self.I2 / (2.0 * np. pi)
                    * self.rf_params.section_length
                    / self.ring.ring_circumference)
@@ -94,7 +97,7 @@ class SynchrotronRadiation(object):
                       self.U0)
 
         # Equilibrium energy spread
-        self.sigma_dE = np.sqrt(self.C_q *
+        self.sigma_dE = np.sqrt(self.c_q *
                                 self.ring.gamma[0, i_turn]**2.0 *
                                 self.I3 / (self.jz * self.I2))
 
@@ -110,9 +113,9 @@ class SynchrotronRadiation(object):
             print(f'Damping time = {self.tau_z:1.4f} turns')
         else:
             print('Energy loss per RF section = {0:1.4f} GeV/section'.format(
-                self.U0*1e-9))
+                self.U0 * 1e-9))
             print('Energy loss per turn = {0:1.4f} GeV/turn'.format(
-                self.U0*1e-9 * self.ring.ring_circumference
+                self.U0 * 1e-9 * self.ring.ring_circumference
                 / self.rf_params.section_length))
             print('Damping time = {0:1.4f} turns'.format(self.tau_z
                                                          * self.rf_params.section_length
@@ -126,7 +129,7 @@ class SynchrotronRadiation(object):
         i_turn = self.rf_params.counter[0]
         # Recalculate SR parameters if energy changes
         if (i_turn != 0 and self.ring.energy[0, i_turn] !=
-                self.ring.energy[0, i_turn-1]):
+                self.ring.energy[0, i_turn - 1]):
             self.calculate_SR_params()
         for i in range(self.n_kicks):
             self.beam.dE += -(2.0 / self.tau_z / self.n_kicks * self.beam.dE
@@ -137,7 +140,7 @@ class SynchrotronRadiation(object):
         i_turn = self.rf_params.counter[0]
         # Recalculate SR parameters if energy changes
         if (i_turn != 0 and self.ring.energy[0, i_turn] !=
-                self.ring.energy[0, i_turn-1]):
+                self.ring.energy[0, i_turn - 1]):
             self.calculate_SR_params()
         for i in range(self.n_kicks):
             self.beam.dE += -(2.0 / self.tau_z / self.n_kicks * self.beam.dE +
@@ -152,7 +155,7 @@ class SynchrotronRadiation(object):
         i_turn = self.rf_params.counter[0]
         # Recalculate SR parameters if energy changes
         if (i_turn != 0 and self.ring.energy[0, i_turn] !=
-                self.ring.energy[0, i_turn-1]):
+                self.ring.energy[0, i_turn - 1]):
             self.calculate_SR_params()
 
         bm.synchrotron_radiation(self.beam.dE, self.U0,
@@ -163,7 +166,7 @@ class SynchrotronRadiation(object):
         i_turn = self.rf_params.counter[0]
         # Recalculate SR parameters if energy changes
         if (i_turn != 0 and self.ring.energy[0, i_turn] !=
-                self.ring.energy[0, i_turn-1]):
+                self.ring.energy[0, i_turn - 1]):
             self.calculate_SR_params()
 
         bm.synchrotron_radiation_full(self.beam.dE, self.U0, self.n_kicks,
@@ -178,7 +181,6 @@ class SynchrotronRadiation(object):
         if hasattr(self, '_device') and self._device == 'GPU':
             return
 
-        assert bm.device == 'GPU'
         # No arrays need to be transfered
 
         # to make sure it will not be called again
@@ -192,7 +194,6 @@ class SynchrotronRadiation(object):
         if hasattr(self, '_device') and self._device == 'CPU':
             return
 
-        assert bm.device == 'CPU'
         # No arrays need to be transfered
 
         # to make sure it will not be called again

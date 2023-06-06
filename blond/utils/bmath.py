@@ -6,14 +6,11 @@ BLonD math and physics core functions
 '''
 
 import numpy as np
+
 from ..utils import butils_wrap_cpp as _cpp
 from ..utils import butils_wrap_python as _py
 from . import precision
-from . import gpu_dev
 
-# Global variables
-__exec_mode = 'single_node'
-# Other modes: multi_node
 
 def use_cpp():
     '''
@@ -21,7 +18,7 @@ def use_cpp():
     '''
     print('---------- Using the C++ computational backend ----------')
     # dictionary storing the CPP versions of the most compute intensive functions #
-    CPP_func_dict = {
+    cpp_func_dict = {
         'rfft': np.fft.rfft,
         'irfft': np.fft.irfft,
         'rfftfreq': np.fft.rfftfreq,
@@ -29,7 +26,7 @@ def use_cpp():
         'kick': _cpp.kick,
         'rf_volt_comp': _cpp.rf_volt_comp,
         'drift': _cpp.drift,
-        'slice': _cpp.slice,
+        'slice_beam': _cpp.slice_beam,
         'slice_smooth': _cpp.slice_smooth,
         'linear_interp_kick': _cpp.linear_interp_kick,
         'synchrotron_radiation': _cpp.synchrotron_radiation,
@@ -68,15 +65,15 @@ def use_cpp():
 
     # add numpy functions in the dictionary
     for fname in dir(np):
-        if callable(getattr(np, fname)) and (fname not in CPP_func_dict) \
+        if callable(getattr(np, fname)) and (fname not in cpp_func_dict) \
                 and (fname[0] != '_'):
-            CPP_func_dict[fname] = getattr(np, fname)
+            cpp_func_dict[fname] = getattr(np, fname)
 
     # add basic numpy modules to dictionary as they are not callable
-    CPP_func_dict['random'] = getattr(np, 'random')
-    CPP_func_dict['fft'] = getattr(np, 'fft')
+    cpp_func_dict['random'] = getattr(np, 'random')
+    cpp_func_dict['fft'] = getattr(np, 'fft')
 
-    __update_active_dict(CPP_func_dict)
+    __update_active_dict(cpp_func_dict)
 
 
 def use_py():
@@ -86,7 +83,7 @@ def use_py():
     print('---------- Using the Python computational backend ----------')
 
     # dictionary storing the Python-only versions of the most compute intensive functions #
-    PY_func_dict = {
+    py_func_dict = {
         'rfft': np.fft.rfft,
         'irfft': np.fft.irfft,
         'rfftfreq': np.fft.rfftfreq,
@@ -94,7 +91,7 @@ def use_py():
         'kick': _py.kick,
         'rf_volt_comp': _py.rf_volt_comp,
         'drift': _py.drift,
-        'slice': _py.slice,
+        'slice_beam': _py.slice_beam,
         'slice_smooth': _py.slice_smooth,
         'linear_interp_kick': _py.linear_interp_kick,
         'synchrotron_radiation': _py.synchrotron_radiation,
@@ -113,24 +110,24 @@ def use_py():
 
     # add numpy functions in the dictionary
     for fname in dir(np):
-        if callable(getattr(np, fname)) and (fname not in PY_func_dict) \
+        if callable(getattr(np, fname)) and (fname not in py_func_dict) \
                 and (fname[0] != '_'):
 
-            PY_func_dict[fname] = getattr(np, fname)
+            py_func_dict[fname] = getattr(np, fname)
 
     # add basic numpy modules to dictionary as they are not callable
-    PY_func_dict['random'] = getattr(np, 'random')
-    PY_func_dict['fft'] = getattr(np, 'fft')
+    py_func_dict['random'] = getattr(np, 'random')
+    py_func_dict['fft'] = getattr(np, 'fft')
 
     # Update the global functions
-    __update_active_dict(PY_func_dict)
+    __update_active_dict(py_func_dict)
 
 
 def use_cpu():
     '''
     If not library is found, use the python implementations
     '''
-    from .. import libblond as __lib
+    from .. import LIBBLOND as __lib
     if __lib is None:
         use_py()
     else:
@@ -141,16 +138,20 @@ def use_mpi():
     '''
     Replace some bm functions with MPI implementations
     '''
-    global __exec_mode
 
-    MPI_func_dict = {}
-    globals().update(MPI_func_dict)
-    __exec_mode = 'multi_node'
+    mpi_func_dict = {
+        'device': 'CPU_MPI'
+    }
+    globals().update(mpi_func_dict)
 
 
-def mpiMode():
-    global __exec_mode
-    return __exec_mode == 'multi_node'
+def in_mpi():
+    """Check if we are currently in MPI mode
+
+    Returns:
+        bool: True if in MPI mode
+    """
+    return globals()['device'] == 'CPU_MPI'
 
 
 def use_fftw():
@@ -160,17 +161,21 @@ def use_fftw():
     '''
     print('---------- Using the FFTW FFT library ----------')
 
-    FFTW_func_dict = {
+    fftw_func_dict = {
         'rfft': _cpp.rfft,
         'irfft': _cpp.irfft,
         'rfftfreq': _cpp.rfftfreq
     }
-    globals().update(FFTW_func_dict)
+    globals().update(fftw_func_dict)
 
 
 # precision can be single or double
 def use_precision(_precision='double'):
-    global precision
+    """Change the precision used in caclulations.
+
+    Args:
+        _precision (str, optional): Can be either 'single' or 'double'. Defaults to 'double'.
+    """
     print(f'---------- Using {_precision} precision numeric datatypes ----------')
     precision.set(_precision)
 
@@ -199,29 +204,34 @@ def __update_active_dict(new_dict):
 
 
 # GPU Related Utilities
-def gpuDev():
-    return gpu_dev
+def get_gpu_device():
+    """Get the GPU device object
+
+    Returns:
+        _type_: _description_
+    """
+    from ..gpu import GPU_DEV
+    return GPU_DEV
 
 
 def use_gpu(gpu_id=0):
+    """Use the GPU device to perform the calculations.
 
+    Args:
+        gpu_id (int, optional): The device id. Defaults to 0.
+    """
     if gpu_id < 0:
         return
 
-    global gpu_dev
-    from . import GPUDev
-    print('---------- Using the GPU computational backend ----------')
+    from ..gpu import GPU_DEV
 
-    if gpu_dev is None:
-        gpu_dev = GPUDev(gpu_id)
+    GPU_DEV.set(gpu_id)
 
-        print('---------- GPU Device: id {}, name {}, Compute Capability {} ----------'.format(
-            gpu_dev.id, gpu_dev.name, gpu_dev.dev.compute_capability), flush=True)
-
-    from ..gpu import butils_wrap_cupy as _cupy
     import cupy as cp
 
-    GPU_func_dict = {
+    from ..gpu import butils_wrap_cupy as _cupy
+
+    gpu_func_dict = {
         'rfft': cp.fft.rfft,
         'irfft': cp.fft.irfft,
         'rfftfreq': cp.fft.rfftfreq,
@@ -233,23 +243,27 @@ def use_gpu(gpu_id=0):
         'rf_volt_comp': _cupy.rf_volt_comp,
         'drift': _cupy.drift,
         'linear_interp_kick': _cupy.linear_interp_kick,
-        'LIKick_n_drift': _cupy.linear_interp_kick_drift,
+        # 'LIKick_n_drift': _cupy.linear_interp_kick_drift,
         'synchrotron_radiation': _cupy.synchrotron_radiation,
         'synchrotron_radiation_full': _cupy.synchrotron_radiation_full,
-        'slice': _cupy.slice,
+        'slice_beam': _cupy.slice_beam,
         # 'interp_const_space': _cupy.interp,
         'interp_const_space': cp.interp,
         'device': 'GPU'
     }
     # add cupy functions in the dictionary
     for fname in dir(cp):
-        if callable(getattr(cp, fname)) and (fname not in GPU_func_dict):
-            GPU_func_dict[fname] = getattr(cp, fname)
-    __update_active_dict(GPU_func_dict)
+        if callable(getattr(cp, fname)) and (fname not in gpu_func_dict):
+            gpu_func_dict[fname] = getattr(cp, fname)
+    __update_active_dict(gpu_func_dict)
 
     # add basic cupy modules to dictionary as they are not callable
-    GPU_func_dict['random'] = getattr(cp, 'random')
-    GPU_func_dict['fft'] = getattr(cp, 'fft')
+    gpu_func_dict['random'] = getattr(cp, 'random')
+    gpu_func_dict['fft'] = getattr(cp, 'fft')
+
+    print('---------- Using the GPU computational backend ----------')
+    print(f'---------- GPU Device: id {GPU_DEV.id}, name {GPU_DEV.name}, Compute Capability {GPU_DEV.dev.compute_capability} ----------',
+           flush=True)
 
 
 ###############################################################################

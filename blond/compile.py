@@ -18,103 +18,110 @@
 # GCC 64 BIT.
 
 from __future__ import print_function
-import os
-import sys
-import subprocess
-import ctypes
+
 import argparse
-
-path = os.path.realpath(__file__)
-basepath = os.sep.join(path.split(os.sep)[:-1])
-
-parser = argparse.ArgumentParser(description='Script used to compile the C++ (and CUDA) libraries needed by BLonD.',
-                                 epilog='All arguments can be controlled with the environment variable BLOND_COMPILE_OPTS. E.g.: BLOND_COMPILE_OPTS=\'-p,--flags=-O0 -g\'')
-
-parser.add_argument('-p', '--parallel',
-                    default=False, action='store_true',
-                    help='Produce Multi-threaded code. Use the environment'
-                         ' variable OMP_NUM_THREADS=xx to control the number of'
-                         ' threads that will be used.'
-                         ' Default: Serial code')
-
-parser.add_argument('-b', '--boost', type=str, nargs='?', const='',
-                    help='Use boost library to speedup synchrotron radiation'
-                         ' routines. If the installation path of boost differs'
-                         ' from the default, you have to pass it as an argument.'
-                         ' Default: Boost will not be used')
-
-parser.add_argument('-c', '--compiler', type=str, default='g++',
-                    help='C++ compiler that will be used to compile the'
-                         ' source files. Default: g++')
-
-parser.add_argument('--with-fftw', action='store_true',
-                    help='Use the FFTs from FFTW3.')
-
-parser.add_argument('-gpu', '--gpu', nargs='?', const='discover', default=None,
-                    help='Compile the GPU kernels too.'
-                    'Default: Only compile the C++ library.')
-
-parser.add_argument('--with-fftw-threads', action='store_true',
-                    help='Use the multi-threaded FFTs from FFTW3.')
-
-parser.add_argument('--with-fftw-omp', action='store_true',
-                    help='Use the OMP FFTs from FFTW3.')
-
-parser.add_argument('--with-fftw-lib', type=str,
-                    help='Path to the FFTW3 library (.so, .dll).')
-
-parser.add_argument('--with-fftw-header', type=str,
-                    help='Path to the FFTW3 header files.')
-
-parser.add_argument('--flags', type=str, default='',
-                    help='Additional compile flags.')
-
-parser.add_argument('--libs', type=str, default='',
-                    help='Any extra libraries needed to compile')
-
-parser.add_argument('-libname', '--libname', type=str, default=os.path.join(basepath, 'cpp_routines/libblond'),
-                    help='The blond library name, without the file extension.')
-
-parser.add_argument('-optimize', '--optimize', action='store_true',
-                    help='Auto optimize the compiled library.')
-
-# Additional libs needed to compile the blond library
-libs = []
-
-# EXAMPLE FLAGS: -Ofast -std=c++11 -fopt-info-vec -march=native
-#                -mfma4 -fopenmp -ftree-vectorizer-verbose=1
-cflags = ['-O3', '-ffast-math', '-std=c++11', '-shared']
-# Some additional warning reporting related flags
-cflags += ['-Wall', '-Wno-unknown-pragmas']
-
-cpp_files = [
-    os.path.join(basepath, 'cpp_routines/kick.cpp'),
-    os.path.join(basepath, 'cpp_routines/drift.cpp'),
-    os.path.join(basepath, 'cpp_routines/linear_interp_kick.cpp'),
-    os.path.join(basepath, 'cpp_routines/histogram.cpp'),
-    os.path.join(basepath, 'cpp_routines/music_track.cpp'),
-    os.path.join(basepath, 'cpp_routines/blondmath.cpp'),
-    os.path.join(basepath, 'cpp_routines/fast_resonator.cpp'),
-    os.path.join(basepath, 'cpp_routines/beam_phase.cpp'),
-    os.path.join(basepath, 'cpp_routines/fft.cpp'),
-    os.path.join(basepath, 'cpp_routines/openmp.cpp'),
-    os.path.join(basepath, 'toolbox/tomoscope.cpp'),
-    os.path.join(basepath, 'synchrotron_radiation/synchrotron_radiation.cpp'),
-    os.path.join(basepath, 'beam/sparse_histogram.cpp'),
-]
+import ctypes
+import os
+import subprocess
+import sys
 
 
-# Get nvcc from CUDA_PATH
-cuda_path = os.getenv('CUDA_PATH', default='')
-if cuda_path != '':
-    nvcc = cuda_path + '/bin/nvcc'
-else:
-    nvcc = 'nvcc'
+def main():
+    '''Compiles the blond C++ and/or CUDA library.
+    '''
+    path = os.path.realpath(__file__)
+    basepath = os.sep.join(path.split(os.sep)[:-1])
 
-nvccflags = [nvcc, '--cubin', '-O3', '--use_fast_math', '-maxrregcount', '32']
-# nvccflags = ['nvcc', '--cubin', '-arch', 'sm_xx', '-O3', '--use_fast_math']
+    parser = argparse.ArgumentParser(
+        description='Script used to compile the C++ (and CUDA) libraries needed by BLonD.',
+        epilog='All arguments can be controlled with the environment variable BLOND_COMPILE_OPTS. E.g.: BLOND_COMPILE_OPTS=\'-p,--flags=-O0 -g\''
+    )
 
-if __name__ == "__main__":
+    parser.add_argument('-p', '--parallel',
+                        default=False, action='store_true',
+                        help='Produce Multi-threaded code. Use the environment'
+                        ' variable OMP_NUM_THREADS=xx to control the number of'
+                        ' threads that will be used.'
+                        ' Default: Serial code')
+
+    parser.add_argument('-b', '--boost', type=str, nargs='?', const='',
+                        help='Use boost library to speedup synchrotron radiation'
+                        ' routines. If the installation path of boost differs'
+                        ' from the default, you have to pass it as an argument.'
+                        ' Default: Boost will not be used')
+
+    parser.add_argument('-c', '--compiler', type=str, default='g++',
+                        help='C++ compiler that will be used to compile the'
+                        ' source files. Default: g++')
+
+    parser.add_argument('--with-fftw', action='store_true',
+                        help='Use the FFTs from FFTW3.')
+
+    parser.add_argument('-gpu', '--gpu', nargs='?', const='discover', default=None,
+                        help='Compile the GPU kernels too.'
+                        'Default: Only compile the C++ library.')
+
+    parser.add_argument('--with-fftw-threads', action='store_true',
+                        help='Use the multi-threaded FFTs from FFTW3.')
+
+    parser.add_argument('--with-fftw-omp', action='store_true',
+                        help='Use the OMP FFTs from FFTW3.')
+
+    parser.add_argument('--with-fftw-lib', type=str,
+                        help='Path to the FFTW3 library (.so, .dll).')
+
+    parser.add_argument('--with-fftw-header', type=str,
+                        help='Path to the FFTW3 header files.')
+
+    parser.add_argument('--flags', type=str, default='',
+                        help='Additional compile flags.')
+
+    parser.add_argument('--libs', type=str, default='',
+                        help='Any extra libraries needed to compile')
+
+    parser.add_argument('-libname', '--libname', type=str, default=os.path.join(basepath, 'cpp_routines/libblond'),
+                        help='The blond library name, without the file extension.')
+
+    parser.add_argument('-optimize', '--optimize', action='store_true',
+                        help='Auto optimize the compiled library.')
+
+    # Additional libs needed to compile the blond library
+    libs = []
+
+    # EXAMPLE FLAGS: -Ofast -std=c++11 -fopt-info-vec -march=native
+    #                -mfma4 -fopenmp -ftree-vectorizer-verbose=1 '-ffast-math'
+    cflags = ['-O3', '-std=c++11', '-shared']
+    # Some additional warning reporting related flags
+    cflags += ['-Wall', '-Wno-unknown-pragmas']
+
+    cpp_files = [
+        os.path.join(basepath, 'cpp_routines/kick.cpp'),
+        os.path.join(basepath, 'cpp_routines/drift.cpp'),
+        os.path.join(basepath, 'cpp_routines/linear_interp_kick.cpp'),
+        os.path.join(basepath, 'cpp_routines/histogram.cpp'),
+        os.path.join(basepath, 'cpp_routines/music_track.cpp'),
+        os.path.join(basepath, 'cpp_routines/blondmath.cpp'),
+        os.path.join(basepath, 'cpp_routines/fast_resonator.cpp'),
+        os.path.join(basepath, 'cpp_routines/beam_phase.cpp'),
+        os.path.join(basepath, 'cpp_routines/fft.cpp'),
+        os.path.join(basepath, 'cpp_routines/openmp.cpp'),
+        os.path.join(basepath, 'toolbox/tomoscope.cpp'),
+        os.path.join(
+            basepath, 'synchrotron_radiation/synchrotron_radiation.cpp'),
+        os.path.join(basepath, 'beam/sparse_histogram.cpp'),
+    ]
+
+    # Get nvcc from CUDA_PATH
+    cuda_path = os.getenv('CUDA_PATH', default='')
+    if cuda_path != '':
+        nvcc = cuda_path + '/bin/nvcc'
+    else:
+        nvcc = 'nvcc'
+
+    nvccflags = [nvcc, '--cubin', '-O3',
+                 '--use_fast_math', '-maxrregcount', '32']
+    # nvccflags = ['nvcc', '--cubin', '-arch', 'sm_xx', '-O3', '--use_fast_math']
+
     # Parse command line options
     args = vars(parser.parse_args())
 
@@ -128,7 +135,8 @@ if __name__ == "__main__":
 
     boost_path = None
     with_fftw = args['with_fftw'] or args['with_fftw_threads'] or args['with_fftw_omp'] or \
-        (args['with_fftw_lib'] is not None) or (args['with_fftw_header'] is not None)
+        (args['with_fftw_lib'] is not None) or (
+            args['with_fftw_header'] is not None)
     if args['boost'] is not None:
         if args['boost']:
             boost_path = os.path.abspath(args['boost'])
@@ -166,11 +174,15 @@ if __name__ == "__main__":
     if 'posix' in os.name:
         cflags += ['-fPIC']
         if args['optimize']:
+            if '-ffast-math' not in cflags:
+                cflags += ['-ffast-math']
             # Check compiler defined directives
             # This is compatible with python3.6 - python 3.9
             # The universal_newlines argument transforms output to text (from binary)
-            ret = subprocess.run([compiler + ' -march=native -dM -E - < /dev/null | egrep "SSE|AVX|FMA"'],
-                                 shell=True, stdout=subprocess.PIPE, universal_newlines=True)
+            ret = subprocess.run(
+                [compiler + ' -march=native -dM -E - < /dev/null | egrep "SSE|AVX|FMA"'],
+                shell=True, stdout=subprocess.PIPE, universal_newlines=True,
+                check=False)
 
             # If we have an error
             if ret.returncode != 0:
@@ -207,7 +219,7 @@ if __name__ == "__main__":
         libname = os.path.abspath(root + ext)
 
         if hasattr(os, 'add_dll_directory'):
-            directory, filename = os.path.split(libname)
+            directory, _ = os.path.split(libname)
             os.add_dll_directory(directory)
 
     else:
@@ -222,15 +234,17 @@ if __name__ == "__main__":
         print('Boost installation path: ', boost_path)
     print('Link with FFTW3: ', with_fftw)
     if with_fftw:
-        print('Parallel FFTW3:', args['with_fftw_threads'] or args['with_fftw_omp'])
+        print('Parallel FFTW3:',
+              args['with_fftw_threads'] or args['with_fftw_omp'])
     if args['with_fftw_lib'] or args['with_fftw_header']:
         print('FFTW3 Library path: ', args['with_fftw_lib'])
         print('FFTW3 Headers path: ', args['with_fftw_header'])
     print('C++ Compiler: ', compiler)
-    compiler_version = subprocess.run(
-        [compiler, '--version'], capture_output=True).stdout.decode().split('\n')[0]
+    compiler_version = subprocess.run([compiler, '--version'],
+                                      capture_output=True,
+                                      check=False).stdout.decode().split('\n')[0]
     print('Compiler version: ', compiler_version)
-    
+
     print('Compiler flags: ', ' '.join(cflags))
     print('Extra libraries: ', ' '.join(libs))
     print('Compiled library name: ', libname)
@@ -239,27 +253,27 @@ if __name__ == "__main__":
     if os.path.isfile(libname):
         try:
             os.remove(libname)
-        except OSError as e:
+        except OSError:
             pass
 
     print('Compiling:\n', ' '.join(command))
-    ret = subprocess.run(command)
+    ret = subprocess.run(command, check=False)
     if ret.returncode != 0:
         print('\nThere was a compilation error.')
     else:
         try:
             if ('win' in sys.platform) and hasattr(os, 'add_dll_directory'):
-                libblond = ctypes.CDLL(libname, winmode=0)
+                _ = ctypes.CDLL(libname, winmode=0)
             else:
-                libblond = ctypes.CDLL(libname)
+                _ = ctypes.CDLL(libname)
             print('\nThe blond library has been successfully compiled.')
-        except Exception as e:
+        except Exception as exception:
             print('\nCompilation failed.')
-            print(e)
+            print(exception)
 
     # Compile the GPU library
     if args['gpu']:
-        print('\n'+''.join(['=']*80))
+        print('\n' + ''.join(['='] * 80))
         print('\nCompiling the CUDA library')
         if args['gpu'] == 'discover':
             print('Discovering the device compute capability..')
@@ -268,17 +282,18 @@ if __name__ == "__main__":
             dev = cp.cuda.Device(0)
             dev_name = cp.cuda.runtime.getDeviceProperties(dev)['name']
             comp_capability = dev.compute_capability
-            print('Device name {}'.format(dev_name))
+            print(f'Device name {dev_name}')
         elif args['gpu'] is not None:
             comp_capability = args['gpu']
 
-        print('Compiling the CUDA library for architecture {}.'.format(comp_capability))
+        print(
+            f'Compiling the CUDA library for architecture {comp_capability}.')
         # Add the -arch required argument
-        nvccflags += ['-arch', 'sm_{}'.format(comp_capability)]
+        nvccflags += ['-arch', f'sm_{comp_capability}']
         libname_double = os.path.join(basepath,
-                                      'gpu/cuda_kernels/kernels_double_sm_{}.cubin'.format(comp_capability))
+                                      f'gpu/cuda_kernels/kernels_double_sm_{comp_capability}.cubin')
         libname_single = os.path.join(basepath,
-                                      'gpu/cuda_kernels/kernels_single_sm_{}.cubin'.format(comp_capability))
+                                      f'gpu/cuda_kernels/kernels_single_sm_{comp_capability}.cubin')
         # we need to get the header files location
         path = cp.__file__.split('/')[:-1]  # remove __init__.py from path
         path.extend(['_core', 'include'])
@@ -287,11 +302,11 @@ if __name__ == "__main__":
 
         print('cupy: ', cupyloc)
 
-        command = nvccflags + ['-o', libname_single, '-I'+cupyloc,
+        command = nvccflags + ['-o', libname_single, '-I' + cupyloc,
                                os.path.join(basepath, 'gpu/cuda_kernels/kernels_single.cu')]
         subprocess.call(command)
 
-        command = nvccflags + ['-o', libname_double, '-I'+cupyloc,
+        command = nvccflags + ['-o', libname_double, '-I' + cupyloc,
                                os.path.join(basepath, 'gpu/cuda_kernels/kernels_double.cu')]
         subprocess.call(command)
 
@@ -299,3 +314,7 @@ if __name__ == "__main__":
             print('The CUDA library has been successfully compiled.')
         else:
             print('The CUDA library compilation failed.')
+
+
+if __name__ == "__main__":
+    main()

@@ -15,15 +15,17 @@
 '''
 
 from __future__ import division, print_function
-from builtins import range, object
+
+from builtins import range
+
 import numpy as np
-from ctypes import c_uint, c_double, c_void_p
 from scipy.constants import e
+
 from ..toolbox.next_regular import next_regular
 from ..utils import bmath as bm
 
 
-class TotalInducedVoltage(object):
+class TotalInducedVoltage:
     r"""
     Object gathering all the induced voltage contributions. The input is a
     list of objects able to compute induced voltages (InducedVoltageTime,
@@ -99,7 +101,6 @@ class TotalInducedVoltage(object):
         self.induced_voltage = temp_induced_voltage.astype(
             dtype=bm.precision.real_t, order='C', copy=False)
 
-
     def track(self):
         """
         Track method to apply the induced voltage kick on the beam.
@@ -128,19 +129,18 @@ class TotalInducedVoltage(object):
         if hasattr(self, '_device') and self._device == 'GPU':
             return
 
-        if recursive: 
+        if recursive:
             # transfer recursively objects
             for obj in self.induced_voltage_list:
                 obj.to_gpu()
 
-        assert bm.device == 'GPU'
         import cupy as cp
         self.induced_voltage = cp.array(self.induced_voltage)
         self.time_array = cp.array(self.time_array)
 
         # to make sure it will not be called again
         self._device = 'GPU'
-    
+
     def to_cpu(self, recursive=True):
         '''
         Transfer all necessary arrays back to the CPU
@@ -154,7 +154,6 @@ class TotalInducedVoltage(object):
             for obj in self.induced_voltage_list:
                 obj.to_cpu()
 
-        assert bm.device == 'CPU'
         import cupy as cp
         self.induced_voltage = cp.asnumpy(self.induced_voltage)
         self.time_array = cp.asnumpy(self.time_array)
@@ -162,7 +161,7 @@ class TotalInducedVoltage(object):
         self._device = 'CPU'
 
 
-class _InducedVoltage(object):
+class _InducedVoltage:
     r"""
     Induced voltage parent class. Only for internal use (inheritance), not to
     be directly instanciated.
@@ -250,31 +249,31 @@ class _InducedVoltage(object):
         Reprocess the impedance contributions. To be run when profile changes
         """
 
-        if (self.wake_length_input != None
-                and self.frequency_resolution_input == None):
+        if (self.wake_length_input is not None
+                and self.frequency_resolution_input is None):
             # Number of points of the induced voltage array
-            self.n_induced_voltage = int(np.ceil(self.wake_length_input /
-                                                 self.profile.bin_size))
+            self.n_induced_voltage = int(
+                np.ceil(self.wake_length_input / self.profile.bin_size))
             if self.n_induced_voltage < self.profile.n_slices:
                 # WakeLengthError
                 raise RuntimeError('Error: too short wake length. ' +
-                                   'Increase it above {0:1.2e} s.'.format(self.profile.n_slices *
-                                                                            self.profile.bin_size))
+                                   'Increase it above {0:1.2e} s.'.format(
+                                       self.profile.n_slices * self.profile.bin_size))
             # Wake length in s, rounded up to the next multiple of bin size
             self.wake_length = self.n_induced_voltage * self.profile.bin_size
-        elif (self.frequency_resolution_input != None
-                and self.wake_length_input == None):
-            self.n_induced_voltage = int(np.ceil(1 / (self.profile.bin_size *
-                                                      self.frequency_resolution_input)))
+        elif (self.frequency_resolution_input is not None
+                and self.wake_length_input is None):
+            self.n_induced_voltage = int(
+                np.ceil(1 / (self.profile.bin_size * self.frequency_resolution_input)))
             if self.n_induced_voltage < self.profile.n_slices:
                 # FrequencyResolutionError
                 raise RuntimeError('Error: too large frequency_resolution. ' +
-                                   'Reduce it below {0:1.2e} Hz.'.format(1 /
-                                                                           (self.profile.cut_right - self.profile.cut_left)))
+                                   'Reduce it below {0:1.2e} Hz.'.format(
+                                       1 / (self.profile.cut_right - self.profile.cut_left)))
             self.wake_length = self.n_induced_voltage * self.profile.bin_size
             # Frequency resolution in Hz
-        elif (self.wake_length_input == None
-                and self.frequency_resolution_input == None):
+        elif (self.wake_length_input is None
+                and self.frequency_resolution_input is None):
             # By default the wake_length is the slicing frame length
             self.wake_length = (self.profile.cut_right -
                                 self.profile.cut_left)
@@ -392,7 +391,7 @@ class _InducedVoltage(object):
 
         t_rev = self.RFParams.t_rev[self.RFParams.counter[0]]
 
-        # self.mtw_memory = bm.interp_const_space(self.time_mtw + t_rev,        
+        # self.mtw_memory = bm.interp_const_space(self.time_mtw + t_rev,
         self.mtw_memory = bm.interp(self.time_mtw + t_rev,
                                     self.time_mtw, self.mtw_memory,
                                     left=0, right=0)
@@ -488,7 +487,7 @@ class InducedVoltageTime(_InducedVoltage):
         self.time = np.arange(0, self.wake_length, self.wake_length
                               / self.n_induced_voltage,
                               dtype=bm.precision.real_t)
-        
+
         # Processing the wakes
         self.sum_wakes(self.time)
 
@@ -514,7 +513,6 @@ class InducedVoltageTime(_InducedVoltage):
         if hasattr(self, '_device') and self._device == 'GPU':
             return
 
-        assert bm.device == 'GPU'
         import cupy as cp
         self.induced_voltage = cp.array(self.induced_voltage)
         self.time = cp.array(self.time)
@@ -544,7 +542,6 @@ class InducedVoltageTime(_InducedVoltage):
         if hasattr(self, '_device') and self._device == 'CPU':
             return
 
-        assert bm.device == 'CPU'
         import cupy as cp
         self.induced_voltage = cp.asnumpy(self.induced_voltage)
         self.time = cp.asnumpy(self.time)
@@ -649,7 +646,7 @@ class InducedVoltageFreq(_InducedVoltage):
         # Frequency array and resolution of the impedance in Hz
         self.freq = self.profile.beam_spectrum_freq
         self.frequency_resolution = 1 / (self.n_fft * self.profile.bin_size)
-        
+
         # Length of the front wake in frequency domain calculations
         if self.front_wake_length:
             self.front_wake_buffer = int(np.ceil(
@@ -681,7 +678,6 @@ class InducedVoltageFreq(_InducedVoltage):
         if hasattr(self, '_device') and self._device == 'GPU':
             return
 
-        assert bm.device == 'GPU'
         import cupy as cp
         self.induced_voltage = cp.array(self.induced_voltage)
         self.freq = cp.array(self.freq)
@@ -706,7 +702,6 @@ class InducedVoltageFreq(_InducedVoltage):
         if hasattr(self, '_device') and self._device == 'CPU':
             return
 
-        assert bm.device == 'CPU'
         import cupy as cp
         self.induced_voltage = cp.asnumpy(self.induced_voltage)
         self.freq = cp.asnumpy(self.freq)
@@ -785,7 +780,6 @@ class InductiveImpedance(_InducedVoltage):
         if hasattr(self, '_device') and self._device == 'GPU':
             return
 
-        assert bm.device == 'GPU'
         import cupy as cp
         self.induced_voltage = cp.array(self.induced_voltage)
         self.Z_over_n = cp.array(self.Z_over_n)
@@ -800,7 +794,6 @@ class InductiveImpedance(_InducedVoltage):
         if hasattr(self, '_device') and self._device == 'CPU':
             return
 
-        assert bm.device == 'CPU'
         import cupy as cp
         self.induced_voltage = cp.asnumpy(self.induced_voltage)
         self.Z_over_n = cp.asnumpy(self.Z_over_n)
@@ -810,13 +803,13 @@ class InductiveImpedance(_InducedVoltage):
 
 class InducedVoltageResonator(_InducedVoltage):
     r"""
-    *Calculates the induced voltage of several resonators for arbitrary 
-    line density. It does so by linearily interpolating the line density and 
+    *Calculates the induced voltage of several resonators for arbitrary
+    line density. It does so by linearily interpolating the line density and
     solving the convolution integral with the resonator impedance analytically.
     The line density need NOT be sampled at equidistant points. The times where
-    the induced voltage is calculated need to be the same where the line 
-    density is sampled. If no timeArray is passed, the induced voltage is 
-    evaluated at the points of the line density. This is nececassry of 
+    the induced voltage is calculated need to be the same where the line
+    density is sampled. If no timeArray is passed, the induced voltage is
+    evaluated at the points of the line density. This is nececassry of
     compatability with other functions that calculate the induced voltage.
     Currently, it requires the all quality factors :math:`Q>0.5`
     Currently, only works for single turn.*
@@ -830,7 +823,7 @@ class InducedVoltageResonator(_InducedVoltage):
     Resonators : object
         Resonators object
     timeArray : float array, optional
-        Array of time values where the induced voltage is calculated. 
+        Array of time values where the induced voltage is calculated.
         If left out, the induced voltage is calculated at the times of the line
         density.
 
@@ -841,8 +834,8 @@ class InducedVoltageResonator(_InducedVoltage):
     profile : object
         Copy of the Profile object in order to access the line density.
     tArray : float array
-        array of time values where the induced voltage is calculated. 
-        If left out, the induced voltage is calculated at the times of the 
+        array of time values where the induced voltage is calculated.
+        If left out, the induced voltage is calculated at the times of the
         line density
     atLineDensityTimes : boolean
         flag indicating if the induced voltage has to be computed for timeArray
@@ -892,9 +885,9 @@ class InducedVoltageResonator(_InducedVoltage):
         self.n_resonators = len(self.R)
 
         # For internal use
-        self._Qtilde = self.Q * np.sqrt(1. - 1./(4.*self.Q**2.))
+        self._Qtilde = self.Q * np.sqrt(1. - 1. / (4. * self.Q**2.))
         self._reOmegaP = self.omega_r * self._Qtilde / self.Q
-        self._imOmegaP = self.omega_r / (2.*self.Q)
+        self._imOmegaP = self.omega_r / (2. * self.Q)
 
         # Each the 'n_resonator' rows of the matrix holds the induced voltage
         # at the 'n_time' time-values of one cavity. For internal use.
@@ -903,7 +896,7 @@ class InducedVoltageResonator(_InducedVoltage):
 
         # Slopes of the line segments. For internal use.
         self._kappa1 = np.zeros(
-            int(self.profile.n_slices-1), dtype=bm.precision.real_t, order='C')
+            int(self.profile.n_slices - 1), dtype=bm.precision.real_t, order='C')
 
         # Matrix to hold n_times many tArray[t]-bin_centers arrays.
         self._deltaT = np.zeros(
@@ -924,13 +917,13 @@ class InducedVoltageResonator(_InducedVoltage):
         # Since profile object changed, need to assign the proper dimensions to
         # _kappa1 and _deltaT
         self._kappa1 = np.zeros(
-            int(self.profile.n_slices-1), dtype=bm.precision.real_t, order='C')
+            int(self.profile.n_slices - 1), dtype=bm.precision.real_t, order='C')
         self._deltaT = np.zeros(
             (self.n_time, self.profile.n_slices), dtype=bm.precision.real_t, order='C')
 
     def induced_voltage_1turn(self, beam_spectrum_dict={}):
         r"""
-        Method to calculate the induced voltage through linearily 
+        Method to calculate the induced voltage through linearily
         interpolating the line density and applying the analytic equation
         to the result.
         """
@@ -939,29 +932,29 @@ class InducedVoltageResonator(_InducedVoltage):
         # (normalized) line density.
         self._kappa1[:] = bm.diff(self.profile.n_macroparticles) \
             / bm.diff(self.profile.bin_centers) \
-            / (self.beam.n_macroparticles*self.profile.bin_size)
+            / (self.beam.n_macroparticles * self.profile.bin_size)
         # [:] makes kappa pass by reference
 
         for t in range(self.n_time):
-            self._deltaT[t] = self.tArray[t]-self.profile.bin_centers
+            self._deltaT[t] = self.tArray[t] - self.profile.bin_centers
 
         # For each cavity compute the induced voltage and store in the r-th row
         for r in range(self.n_resonators):
             tmp_sum = ((((2 *
                           bm.cos(self._reOmegaP[r] * self._deltaT)
-                          + bm.sin(self._reOmegaP[r] * self._deltaT)/self._Qtilde[r]) *
+                          + bm.sin(self._reOmegaP[r] * self._deltaT) / self._Qtilde[r]) *
                          bm.exp(-self._imOmegaP[r] * self._deltaT)) *
                         self.Heaviside(self._deltaT)) -
                        bm.sign(self._deltaT))
             # np.sum performs the sum over the points of the line density
-            self._tmp_matrix[r] = self.R[r]/(2*self.omega_r[r]*self.Q[r]) \
+            self._tmp_matrix[r] = self.R[r] / (2 * self.omega_r[r] * self.Q[r]) \
                 * bm.sum(self._kappa1 * np.diff(tmp_sum), axis=1)
 
         # To obtain the voltage, sum the contribution of each cavity...
         self.induced_voltage = self._tmp_matrix.sum(axis=0)
         # ... and multiply with bunch charge
-        self.induced_voltage *= -self.beam.Particle.charge*e \
-            * self.beam.n_macroparticles*self.beam.ratio
+        self.induced_voltage *= -self.beam.Particle.charge * e \
+            * self.beam.n_macroparticles * self.beam.ratio
         self.induced_voltage = self.induced_voltage.astype(
             dtype=bm.precision.real_t, order='C', copy=False)
 
@@ -970,7 +963,7 @@ class InducedVoltageResonator(_InducedVoltage):
         r"""
         Heaviside function, which returns 1 if x>1, 0 if x<0, and 1/2 if x=0
         """
-        return 0.5*(bm.sign(x) + 1.)
+        return 0.5 * (bm.sign(x) + 1.)
 
     def to_gpu(self, recursive=True):
         '''
@@ -980,7 +973,6 @@ class InducedVoltageResonator(_InducedVoltage):
         if hasattr(self, '_device') and self._device == 'GPU':
             return
 
-        assert bm.device == 'GPU'
         import cupy as cp
         self.induced_voltage = cp.array(self.induced_voltage)
         self._kappa1 = cp.array(self._kappa1)
@@ -998,7 +990,6 @@ class InducedVoltageResonator(_InducedVoltage):
         if hasattr(self, '_device') and self._device == 'CPU':
             return
 
-        assert bm.device == 'CPU'
         import cupy as cp
         self.induced_voltage = cp.asnumpy(self.induced_voltage)
         self._kappa1 = cp.asnumpy(self._kappa1)

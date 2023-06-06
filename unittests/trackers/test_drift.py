@@ -22,14 +22,15 @@ an arbitrary particle with the revolution period of the design particle.
 
 # General imports
 import unittest
+
 import numpy as np
 from scipy.constants import c
 
+from blond.beam.beam import Beam, Proton
+from blond.input_parameters.rf_parameters import RFStation
 # BLonD imports
 from blond.input_parameters.ring import Ring
-from blond.input_parameters.rf_parameters import RFStation
 from blond.trackers.tracker import RingAndRFTracker
-from blond.beam.beam import Beam, Proton
 
 # Tests tolerance
 absolute_tolerance = 0.    # 0. / 1e-16
@@ -38,7 +39,7 @@ relative_tolerance = 1e-9  # 1e-9 / 0.
 
 def linear_drift(original_distribution_dE, eta_0, beta, energy, trev):
 
-    drift_kick = trev*eta_0*original_distribution_dE/(beta**2.*energy)
+    drift_kick = trev * eta_0 * original_distribution_dE / (beta**2. * energy)
 
     return drift_kick
 
@@ -46,10 +47,10 @@ def linear_drift(original_distribution_dE, eta_0, beta, energy, trev):
 def legacy_drift(original_distribution_dE, eta_0, eta_1, eta_2, beta, energy,
                  trev):
 
-    drift = trev*(
-        1./(1. - eta_0*original_distribution_dE/(beta**2.*energy)
-            - eta_1*(original_distribution_dE/(beta**2.*energy))**2.
-            - eta_2*(original_distribution_dE/(beta**2.*energy))**3.) - 1.)
+    drift = trev * (
+        1. / (1. - eta_0 * original_distribution_dE / (beta**2. * energy)
+              - eta_1 * (original_distribution_dE / (beta**2. * energy))**2.
+              - eta_2 * (original_distribution_dE / (beta**2. * energy))**3.) - 1.)
 
     return drift
 
@@ -58,15 +59,15 @@ def exact_drift(original_distribution_dE, alpha_0, alpha_1, alpha_2, beta,
                 energy, trev):
 
     delta = np.sqrt(
-        1.+1/beta**2.*(
-            (original_distribution_dE/energy)**2.
-            + 2.*(original_distribution_dE/energy))) - 1.
+        1. + 1 / beta**2. * (
+            (original_distribution_dE / energy)**2.
+            + 2. * (original_distribution_dE / energy))) - 1.
 
-    drift = trev*(
-        (1. + alpha_0*delta
-         + alpha_1*delta**2.
-         + alpha_2*delta**3.) *
-        (1.+(original_distribution_dE/energy))/(1.+delta) - 1.)
+    drift = trev * (
+        (1. + alpha_0 * delta
+         + alpha_1 * delta**2.
+         + alpha_2 * delta**3.) *
+        (1. + (original_distribution_dE / energy)) / (1. + delta) - 1.)
 
     return drift
 
@@ -81,14 +82,14 @@ def expected_drift(original_distribution_dE, alpha_0, alpha_1, alpha_2,
 
     particle_dp = particle_momentum - momentum
 
-    particle_beta = particle_momentum/particle_total_energy
+    particle_beta = particle_momentum / particle_total_energy
 
     particle_circ = circumference * (
-        1. + alpha_0*particle_dp/momentum
-        + alpha_1*(particle_dp/momentum)**2.
-        + alpha_2*(particle_dp/momentum)**3.)
+        1. + alpha_0 * particle_dp / momentum
+        + alpha_1 * (particle_dp / momentum)**2.
+        + alpha_2 * (particle_dp / momentum)**3.)
 
-    particle_trev = particle_circ/(particle_beta*c)
+    particle_trev = particle_circ / (particle_beta * c)
 
     drift = particle_trev - trev
 
@@ -104,12 +105,12 @@ class TestDrift(unittest.TestCase):
     tau_0 = 0.4e-9                      # Initial bunch length, 4 sigma [s]
 
     # Machine and RF parameters
-    C = 2*np.pi*25.                     # Machine circumference [m]
+    C = 2 * np.pi * 25.                     # Machine circumference [m]
     Ek = 160e6                          # Kinetic energy [eV]
     gamma_t = 4.1                       # Transition gamma
-    alpha_0 = 1./gamma_t/gamma_t        # First order mom. comp. factor
-    alpha_1 = 10*alpha_0
-    alpha_2 = 100*alpha_0
+    alpha_0 = 1. / gamma_t / gamma_t        # First order mom. comp. factor
+    alpha_1 = 10 * alpha_0
+    alpha_2 = 100 * alpha_0
 
     # Tracking details
     N_t = 2000                          # Number of turns to track
@@ -135,8 +136,8 @@ class TestDrift(unittest.TestCase):
 
         original_distribution_dt = np.zeros(self.beam.n_macroparticles)
         original_distribution_dE = np.linspace(
-            -0.1*self.beam.energy,
-            0.1*self.beam.energy,
+            -0.1 * self.beam.energy,
+            0.1 * self.beam.energy,
             self.beam.n_macroparticles)
 
         self.beam.dt[:] = np.array(original_distribution_dt)
@@ -168,8 +169,8 @@ class TestDrift(unittest.TestCase):
 
         original_distribution_dt = np.zeros(self.beam.n_macroparticles)
         original_distribution_dE = np.linspace(
-            -0.1*self.beam.energy,
-            0.1*self.beam.energy,
+            -0.1 * self.beam.energy,
+            0.1 * self.beam.energy,
             self.beam.n_macroparticles)
 
         self.beam.dt[:] = np.array(original_distribution_dt)
@@ -207,8 +208,8 @@ class TestDrift(unittest.TestCase):
 
         original_distribution_dt = np.zeros(self.beam.n_macroparticles)
         original_distribution_dE = np.linspace(
-            -0.1*self.beam.energy,
-            0.1*self.beam.energy,
+            -0.1 * self.beam.energy,
+            0.1 * self.beam.energy,
             self.beam.n_macroparticles)
 
         self.beam.dt[:] = np.array(original_distribution_dt)
@@ -246,8 +247,8 @@ class TestDrift(unittest.TestCase):
 
         original_distribution_dt = np.zeros(self.beam.n_macroparticles)
         original_distribution_dE = np.linspace(
-            -0.1*self.beam.energy,
-            0.1*self.beam.energy,
+            -0.1 * self.beam.energy,
+            0.1 * self.beam.energy,
             self.beam.n_macroparticles)
 
         self.beam.dt[:] = np.array(original_distribution_dt)
@@ -285,8 +286,8 @@ class TestDrift(unittest.TestCase):
 
         original_distribution_dt = np.zeros(self.beam.n_macroparticles)
         original_distribution_dE = np.linspace(
-            -0.1*self.beam.energy,
-            0.1*self.beam.energy,
+            -0.1 * self.beam.energy,
+            0.1 * self.beam.energy,
             self.beam.n_macroparticles)
 
         self.beam.dt[:] = np.array(original_distribution_dt)
@@ -324,8 +325,8 @@ class TestDrift(unittest.TestCase):
 
         original_distribution_dt = np.zeros(self.beam.n_macroparticles)
         original_distribution_dE = np.linspace(
-            -0.1*self.beam.energy,
-            0.1*self.beam.energy,
+            -0.1 * self.beam.energy,
+            0.1 * self.beam.energy,
             self.beam.n_macroparticles)
 
         self.beam.dt[:] = np.array(original_distribution_dt)
@@ -363,8 +364,8 @@ class TestDrift(unittest.TestCase):
 
         original_distribution_dt = np.zeros(self.beam.n_macroparticles)
         original_distribution_dE = np.linspace(
-            -0.1*self.beam.energy,
-            0.1*self.beam.energy,
+            -0.1 * self.beam.energy,
+            0.1 * self.beam.energy,
             self.beam.n_macroparticles)
 
         self.beam.dt[:] = np.array(original_distribution_dt)
@@ -402,8 +403,8 @@ class TestDrift(unittest.TestCase):
 
         original_distribution_dt = np.zeros(self.beam.n_macroparticles)
         original_distribution_dE = np.linspace(
-            -0.1*self.beam.energy,
-            0.1*self.beam.energy,
+            -0.1 * self.beam.energy,
+            0.1 * self.beam.energy,
             self.beam.n_macroparticles)
 
         self.beam.dt[:] = np.array(original_distribution_dt)
@@ -441,8 +442,8 @@ class TestDrift(unittest.TestCase):
 
         original_distribution_dt = np.zeros(self.beam.n_macroparticles)
         original_distribution_dE = np.linspace(
-            -0.1*self.beam.energy,
-            0.1*self.beam.energy,
+            -0.1 * self.beam.energy,
+            0.1 * self.beam.energy,
             self.beam.n_macroparticles)
 
         self.beam.dt[:] = np.array(original_distribution_dt)
@@ -480,8 +481,8 @@ class TestDrift(unittest.TestCase):
 
         original_distribution_dt = np.zeros(self.beam.n_macroparticles)
         original_distribution_dE = np.linspace(
-            -0.1*self.beam.energy,
-            0.1*self.beam.energy,
+            -0.1 * self.beam.energy,
+            0.1 * self.beam.energy,
             self.beam.n_macroparticles)
 
         self.beam.dt[:] = np.array(original_distribution_dt)

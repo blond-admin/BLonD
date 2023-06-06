@@ -14,6 +14,7 @@ Test preprocess.py
 
 import sys
 import unittest
+
 import numpy as np
 
 from blond.input_parameters.ring_options import RingOptions

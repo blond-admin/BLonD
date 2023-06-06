@@ -15,15 +15,18 @@
 '''
 
 from __future__ import division
-from builtins import str, range
-import numpy as np
+
+from builtins import range, str
+
 import matplotlib.pyplot as plt
+import numpy as np
 from scipy.constants import c
-from scipy.interpolate import splrep, splev
+from scipy.interpolate import splev, splrep
+
 from ..plots.plot import fig_folder
 
 
-class RingOptions(object):
+class RingOptions:
     r""" Class to preprocess the synchronous data for Ring, interpolating it to
     every turn.
 
@@ -56,6 +59,7 @@ class RingOptions(object):
         Decimation value for plotting; default is 1
 
     """
+
     def __init__(self, interpolation='linear', smoothing=0, flat_bottom=0,
                  flat_top=0, t_start=None, t_end=None, plot=False,
                  figdir='fig', figname='preprocess_ramp', sampling=1):
@@ -63,21 +67,21 @@ class RingOptions(object):
         if interpolation in ['linear', 'cubic', 'derivative']:
             self.interpolation = str(interpolation)
         else:
-            #InputDataError
+            # InputDataError
             raise RuntimeError("ERROR: Interpolation scheme in " +
                                "PreprocessRamp not recognised. Aborting...")
 
         self.smoothing = float(smoothing)
 
         if flat_bottom < 0:
-            #MomentumError
+            # MomentumError
             raise RuntimeError("ERROR: flat_bottom value in PreprocessRamp" +
                                " not recognised. Aborting...")
         else:
             self.flat_bottom = int(flat_bottom)
 
         if flat_top < 0:
-            #MomentumError
+            # MomentumError
             raise RuntimeError("ERROR: flat_top value in PreprocessRamp" +
                                " not recognised. Aborting...")
         else:
@@ -89,7 +93,7 @@ class RingOptions(object):
         if (plot is True) or (plot is False):
             self.plot = bool(plot)
         else:
-            #TypeError
+            # TypeError
             raise RuntimeError("ERROR: plot value in PreprocessRamp" +
                                " not recognised. Aborting...")
 
@@ -98,7 +102,7 @@ class RingOptions(object):
         if sampling > 0:
             self.sampling = int(sampling)
         else:
-            #TypeError
+            # TypeError
             raise RuntimeError("ERROR: sampling value in PreprocessRamp" +
                                " not recognised. Aborting...")
 
@@ -167,7 +171,7 @@ class RingOptions(object):
                 input_data = convert_data(input_data, mass, charge,
                                           synchronous_data_type,
                                           bending_radius)
-            output_data = input_data * np.ones((n_sections, n_turns+1))
+            output_data = input_data * np.ones((n_sections, n_turns + 1))
 
         # If tuple, separate time and synchronous data and check data
         elif isinstance(input_data, tuple):
@@ -182,7 +186,7 @@ class RingOptions(object):
                 input_data = (input_data, )
 
             if len(input_data) != n_sections:
-                #InputDataError
+                # InputDataError
                 raise RuntimeError("ERROR in Ring: the input data " +
                                    "does not match the number of sections")
 
@@ -201,7 +205,7 @@ class RingOptions(object):
 
                 if len(input_data_time) \
                         != len(input_data_values):
-                    #InputDataError
+                    # InputDataError
                     raise RuntimeError("ERROR in Ring: synchronous data " +
                                        "does not match the time data")
 
@@ -246,7 +250,7 @@ class RingOptions(object):
                                           synchronous_data_type,
                                           bending_radius)
 
-            output_data = np.zeros((n_sections, n_turns+1), dtype=float)
+            output_data = np.zeros((n_sections, n_turns + 1), dtype=float)
 
             # If the number of points is exactly the same as n_rf, this means
             # that the rf program for each harmonic is constant, reshaping
@@ -256,21 +260,21 @@ class RingOptions(object):
                 input_data = input_data.reshape((n_sections, 1))
 
             if len(input_data) != n_sections:
-                #InputDataError
+                # InputDataError
                 raise RuntimeError("ERROR in Ring: the input data " +
                                    "does not match the number of sections")
 
             for index_section in range(len(input_data)):
                 if len(input_data[index_section]) == 1:
                     output_data[index_section] = input_data[index_section] * \
-                                                np.ones(n_turns+1)
+                        np.ones(n_turns + 1)
 
-                elif len(input_data[index_section]) == (n_turns+1):
+                elif len(input_data[index_section]) == (n_turns + 1):
                     output_data[index_section] = np.array(
                         input_data[index_section])
 
                 else:
-                    #InputDataError
+                    # InputDataError
                     raise RuntimeError("ERROR in Ring: The input data " +
                                        "does not match the proper length " +
                                        "(n_turns+1)")
@@ -305,17 +309,17 @@ class RingOptions(object):
         # Some checks on the options
         if ((self.t_start is not None) and (self.t_start < time[0])) or \
                 ((self.t_end is not None) and (self.t_end > time[-1])):
-                #InputDataError
-                raise RuntimeError("ERROR: [t_start, t_end] should be " +
-                                   "included in the passed time array.")
+            # InputDataError
+            raise RuntimeError("ERROR: [t_start, t_end] should be " +
+                               "included in the passed time array.")
 
         # Obtain flat bottom data, extrapolate to constant
-        beta_0 = np.sqrt(1/(1 + (mass/momentum[0])**2))
-        T0 = circumference/(beta_0*c)  # Initial revolution period [s]
-        shift = time[0] - self.flat_bottom*T0
-        time_interp = shift + T0*np.arange(0, self.flat_bottom+1)
-        beta_interp = beta_0*np.ones(self.flat_bottom+1)
-        momentum_interp = momentum[0]*np.ones(self.flat_bottom+1)
+        beta_0 = np.sqrt(1 / (1 + (mass / momentum[0])**2))
+        T0 = circumference / (beta_0 * c)  # Initial revolution period [s]
+        shift = time[0] - self.flat_bottom * T0
+        time_interp = shift + T0 * np.arange(0, self.flat_bottom + 1)
+        beta_interp = beta_0 * np.ones(self.flat_bottom + 1)
+        momentum_interp = momentum[0] * np.ones(self.flat_bottom + 1)
 
         time_interp = time_interp.tolist()
         beta_interp = beta_interp.tolist()
@@ -328,23 +332,23 @@ class RingOptions(object):
         if self.interpolation == 'linear':
 
             time_interp.append(time_interp[-1]
-                               + circumference/(beta_interp[0]*c))
+                               + circumference / (beta_interp[0] * c))
 
             i = self.flat_bottom
             for k in range(1, len(time)):
 
-                while time_interp[i+1] <= time[k]:
+                while time_interp[i + 1] <= time[k]:
 
                     momentum_interp.append(
-                        momentum[k-1] + (momentum[k] - momentum[k-1]) *
-                        (time_interp[i+1] - time[k-1]) /
-                        (time[k] - time[k-1]))
+                        momentum[k - 1] + (momentum[k] - momentum[k - 1]) *
+                        (time_interp[i + 1] - time[k - 1]) /
+                        (time[k] - time[k - 1]))
 
                     beta_interp.append(
-                        np.sqrt(1/(1 + (mass/momentum_interp[i+1])**2)))
+                        np.sqrt(1 / (1 + (mass / momentum_interp[i + 1])**2)))
 
                     time_interp.append(
-                        time_interp[i+1] + circumference/(beta_interp[i+1]*c))
+                        time_interp[i + 1] + circumference / (beta_interp[i + 1] * c))
 
                     i += 1
 
@@ -358,40 +362,40 @@ class RingOptions(object):
             i = self.flat_bottom
 
             time_interp.append(
-                time_interp[-1] + circumference / (beta_interp[0]*c))
+                time_interp[-1] + circumference / (beta_interp[0] * c))
 
             while time_interp[i] <= time[-1]:
 
-                if (time_interp[i+1] < time_start_ramp):
+                if (time_interp[i + 1] < time_start_ramp):
 
                     momentum_interp.append(momentum[0])
 
                     beta_interp.append(
-                        np.sqrt(1/(1 + (mass/momentum_interp[i+1])**2)))
+                        np.sqrt(1 / (1 + (mass / momentum_interp[i + 1])**2)))
 
                     time_interp.append(
-                        time_interp[i+1] + circumference/(beta_interp[i+1]*c))
+                        time_interp[i + 1] + circumference / (beta_interp[i + 1] * c))
 
-                elif (time_interp[i+1] > time_end_ramp):
+                elif (time_interp[i + 1] > time_end_ramp):
 
                     momentum_interp.append(momentum[-1])
 
                     beta_interp.append(
-                        np.sqrt(1/(1 + (mass/momentum_interp[i+1])**2)))
+                        np.sqrt(1 / (1 + (mass / momentum_interp[i + 1])**2)))
 
                     time_interp.append(
-                        time_interp[i+1] + circumference/(beta_interp[i+1]*c))
+                        time_interp[i + 1] + circumference / (beta_interp[i + 1] * c))
 
                 else:
 
                     momentum_interp.append(
-                        splev(time_interp[i+1], interp_funtion_momentum))
+                        splev(time_interp[i + 1], interp_funtion_momentum))
 
                     beta_interp.append(
-                        np.sqrt(1/(1 + (mass/momentum_interp[i+1])**2)))
+                        np.sqrt(1 / (1 + (mass / momentum_interp[i + 1])**2)))
 
                     time_interp.append(
-                        time_interp[i+1] + circumference/(beta_interp[i+1]*c))
+                        time_interp[i + 1] + circumference / (beta_interp[i + 1] * c))
 
                 i += 1
 
@@ -399,31 +403,31 @@ class RingOptions(object):
         elif self.interpolation == 'derivative':
 
             momentum_initial = momentum_interp[0]
-            momentum_derivative = np.gradient(momentum)/np.gradient(time)
+            momentum_derivative = np.gradient(momentum) / np.gradient(time)
 
-            momentum_derivative_interp = [0]*self.flat_bottom + \
+            momentum_derivative_interp = [0] * self.flat_bottom + \
                 [momentum_derivative[0]]
             integral_point = momentum_initial
 
             i = self.flat_bottom
 
             time_interp.append(
-                time_interp[-1] + circumference/(beta_interp[0]*c))
+                time_interp[-1] + circumference / (beta_interp[0] * c))
 
             while time_interp[i] <= time[-1]:
 
-                derivative_point = np.interp(time_interp[i+1], time,
+                derivative_point = np.interp(time_interp[i + 1], time,
                                              momentum_derivative)
                 momentum_derivative_interp.append(derivative_point)
-                integral_point += (time_interp[i+1] - time_interp[i]) \
+                integral_point += (time_interp[i + 1] - time_interp[i]) \
                     * derivative_point
 
                 momentum_interp.append(integral_point)
                 beta_interp.append(
-                    np.sqrt(1/(1 + (mass/momentum_interp[i+1])**2)))
+                    np.sqrt(1 / (1 + (mass / momentum_interp[i + 1])**2)))
 
                 time_interp.append(
-                    time_interp[i+1] + circumference/(beta_interp[i+1]*c))
+                    time_interp[i + 1] + circumference / (beta_interp[i + 1] * c))
 
                 i += 1
 
@@ -445,15 +449,15 @@ class RingOptions(object):
         if self.flat_top > 0:
             time_interp = np.append(
                 time_interp,
-                time_interp[-1] + circumference*np.arange(1, self.flat_top+1)
-                / (beta_interp[-1]*c))
+                time_interp[-1] + circumference * np.arange(1, self.flat_top + 1)
+                / (beta_interp[-1] * c))
 
             beta_interp = np.append(
-                beta_interp, beta_interp[-1]*np.ones(self.flat_top))
+                beta_interp, beta_interp[-1] * np.ones(self.flat_top))
 
             momentum_interp = np.append(
                 momentum_interp,
-                momentum_interp[-1]*np.ones(self.flat_top))
+                momentum_interp[-1] * np.ones(self.flat_top))
 
         # Cutting the input momentum on the desired cycle time
         if self.t_start is not None:
@@ -461,7 +465,7 @@ class RingOptions(object):
         else:
             initial_index = 0
         if self.t_end is not None:
-            final_index = np.max(np.where(time_interp <= self.t_end)[0])+1
+            final_index = np.max(np.where(time_interp <= self.t_end)[0]) + 1
         else:
             final_index = len(time_interp)
         time_interp = time_interp[initial_index:final_index]
@@ -496,51 +500,51 @@ class RingOptions(object):
 
 def convert_data(synchronous_data, mass, charge,
                  synchronous_data_type='momentum', bending_radius=None):
-        """ Function to convert synchronous data (i.e. energy program of the
-        synchrotron) into momentum.
+    """ Function to convert synchronous data (i.e. energy program of the
+    synchrotron) into momentum.
 
-        Parameters
-        ----------
-        synchronous_data : float array
-            The synchronous data to be converted to momentum
-        mass : float or Particle.mass
-            The mass of the particles in [eV/c**2]
-        charge : int or Particle.charge
-            The charge of the particles in units of [e]
-        synchronous_data_type : str
-            Type of input for the synchronous data ; can be 'momentum',
-            'total energy', 'kinetic energy' or 'bending field' (last case
-            requires bending_radius to be defined)
-        bending_radius : float
-            Bending radius in [m] in case synchronous_data_type is
-            'bending field'
+    Parameters
+    ----------
+    synchronous_data : float array
+        The synchronous data to be converted to momentum
+    mass : float or Particle.mass
+        The mass of the particles in [eV/c**2]
+    charge : int or Particle.charge
+        The charge of the particles in units of [e]
+    synchronous_data_type : str
+        Type of input for the synchronous data ; can be 'momentum',
+        'total energy', 'kinetic energy' or 'bending field' (last case
+        requires bending_radius to be defined)
+    bending_radius : float
+        Bending radius in [m] in case synchronous_data_type is
+        'bending field'
 
-        Returns
-        -------
-        momentum : float array
-            The input synchronous_data converted into momentum [eV/c]
+    Returns
+    -------
+    momentum : float array
+        The input synchronous_data converted into momentum [eV/c]
 
-        """
+    """
 
-        if synchronous_data_type == 'momentum':
-            momentum = synchronous_data
-        elif synchronous_data_type == 'total energy':
-            momentum = np.sqrt(synchronous_data**2 - mass**2)
-        elif synchronous_data_type == 'kinetic energy':
-            momentum = np.sqrt((synchronous_data+mass)**2 - mass**2)
-        elif synchronous_data_type == 'bending field':
-            if bending_radius is None:
-                #InputDataError
-                raise RuntimeError("ERROR in Ring: bending_radius is not " +
-                                   "defined and is required to compute " +
-                                   "momentum")
-            momentum = synchronous_data*bending_radius*charge*c
-        else:
-            #InputDataError
-            raise RuntimeError("ERROR in Ring: Synchronous data" +
-                               " type not recognized!")
+    if synchronous_data_type == 'momentum':
+        momentum = synchronous_data
+    elif synchronous_data_type == 'total energy':
+        momentum = np.sqrt(synchronous_data**2 - mass**2)
+    elif synchronous_data_type == 'kinetic energy':
+        momentum = np.sqrt((synchronous_data + mass)**2 - mass**2)
+    elif synchronous_data_type == 'bending field':
+        if bending_radius is None:
+            # InputDataError
+            raise RuntimeError("ERROR in Ring: bending_radius is not " +
+                               "defined and is required to compute " +
+                               "momentum")
+        momentum = synchronous_data * bending_radius * charge * c
+    else:
+        # InputDataError
+        raise RuntimeError("ERROR in Ring: Synchronous data" +
+                           " type not recognized!")
 
-        return momentum
+    return momentum
 
 
 def load_data(filename, ignore=0, delimiter=None):

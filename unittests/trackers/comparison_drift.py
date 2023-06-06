@@ -14,21 +14,20 @@ Comparison of the different implementations using plots
 
 """
 
+import matplotlib.pyplot as plt
 # General imports
 import numpy as np
-import matplotlib.pyplot as plt
+# Drift test equations import
+from test_drift import exact_drift, expected_drift, legacy_drift, linear_drift
 
+from blond.beam.beam import Beam, Proton
+from blond.input_parameters.rf_parameters import RFStation
 # BLonD imports
 from blond.input_parameters.ring import Ring
-from blond.input_parameters.rf_parameters import RFStation
 from blond.trackers.tracker import RingAndRFTracker
-from blond.beam.beam import Beam, Proton
-
-# Drift test equations import
-from test_drift import linear_drift, legacy_drift, exact_drift, expected_drift
 
 
-class CompareDrift(object):
+class CompareDrift:
 
     # Using PSB as base for Simulation parameters -----------------------------
     # Bunch parameters
@@ -37,12 +36,12 @@ class CompareDrift(object):
     tau_0 = 0.4e-9                      # Initial bunch length, 4 sigma [s]
 
     # Machine and RF parameters
-    C = 2*np.pi*25.                     # Machine circumference [m]
+    C = 2 * np.pi * 25.                     # Machine circumference [m]
     Ek = 160e6                          # Kinetic energy [eV]
     gamma_t = 4.1                       # Transition gamma
-    alpha_0 = 1./gamma_t/gamma_t        # First order mom. comp. factor
-    alpha_1 = 10*alpha_0
-    alpha_2 = 100*alpha_0
+    alpha_0 = 1. / gamma_t / gamma_t        # First order mom. comp. factor
+    alpha_1 = 10 * alpha_0
+    alpha_2 = 100 * alpha_0
 
     # Tracking details
     N_t = 2000                          # Number of turns to track
@@ -59,8 +58,8 @@ class CompareDrift(object):
 
         original_distribution_dt = np.zeros(self.beam.n_macroparticles)
         original_distribution_dE = np.linspace(
-            -0.1*self.beam.energy,
-            0.1*self.beam.energy,
+            -0.1 * self.beam.energy,
+            0.1 * self.beam.energy,
             self.beam.n_macroparticles)
 
         self.beam.dt[:] = np.array(original_distribution_dt)
@@ -90,8 +89,8 @@ class CompareDrift(object):
 
         original_distribution_dt = np.zeros(self.beam.n_macroparticles)
         original_distribution_dE = np.linspace(
-            -0.1*self.beam.energy,
-            0.1*self.beam.energy,
+            -0.1 * self.beam.energy,
+            0.1 * self.beam.energy,
             self.beam.n_macroparticles)
 
         self.beam.dt[:] = np.array(original_distribution_dt)
@@ -127,8 +126,8 @@ class CompareDrift(object):
 
         original_distribution_dt = np.zeros(self.beam.n_macroparticles)
         original_distribution_dE = np.linspace(
-            -0.1*self.beam.energy,
-            0.1*self.beam.energy,
+            -0.1 * self.beam.energy,
+            0.1 * self.beam.energy,
             self.beam.n_macroparticles)
 
         self.beam.dt[:] = np.array(original_distribution_dt)
@@ -164,8 +163,8 @@ class CompareDrift(object):
 
         original_distribution_dt = np.zeros(self.beam.n_macroparticles)
         original_distribution_dE = np.linspace(
-            -0.1*self.beam.energy,
-            0.1*self.beam.energy,
+            -0.1 * self.beam.energy,
+            0.1 * self.beam.energy,
             self.beam.n_macroparticles)
 
         self.beam.dt[:] = np.array(original_distribution_dt)
@@ -201,8 +200,8 @@ class CompareDrift(object):
 
         original_distribution_dt = np.zeros(self.beam.n_macroparticles)
         original_distribution_dE = np.linspace(
-            -0.1*self.beam.energy,
-            0.1*self.beam.energy,
+            -0.1 * self.beam.energy,
+            0.1 * self.beam.energy,
             self.beam.n_macroparticles)
 
         self.beam.dt[:] = np.array(original_distribution_dt)
@@ -238,8 +237,8 @@ class CompareDrift(object):
 
         original_distribution_dt = np.zeros(self.beam.n_macroparticles)
         original_distribution_dE = np.linspace(
-            -0.1*self.beam.energy,
-            0.1*self.beam.energy,
+            -0.1 * self.beam.energy,
+            0.1 * self.beam.energy,
             self.beam.n_macroparticles)
 
         self.beam.dt[:] = np.array(original_distribution_dt)
@@ -275,8 +274,8 @@ class CompareDrift(object):
 
         original_distribution_dt = np.zeros(self.beam.n_macroparticles)
         original_distribution_dE = np.linspace(
-            -0.1*self.beam.energy,
-            0.1*self.beam.energy,
+            -0.1 * self.beam.energy,
+            0.1 * self.beam.energy,
             self.beam.n_macroparticles)
 
         self.beam.dt[:] = np.array(original_distribution_dt)
@@ -312,8 +311,8 @@ class CompareDrift(object):
 
         original_distribution_dt = np.zeros(self.beam.n_macroparticles)
         original_distribution_dE = np.linspace(
-            -0.1*self.beam.energy,
-            0.1*self.beam.energy,
+            -0.1 * self.beam.energy,
+            0.1 * self.beam.energy,
             self.beam.n_macroparticles)
 
         self.beam.dt[:] = np.array(original_distribution_dt)
@@ -349,8 +348,8 @@ class CompareDrift(object):
 
         original_distribution_dt = np.zeros(self.beam.n_macroparticles)
         original_distribution_dE = np.linspace(
-            -0.1*self.beam.energy,
-            0.1*self.beam.energy,
+            -0.1 * self.beam.energy,
+            0.1 * self.beam.energy,
             self.beam.n_macroparticles)
 
         self.beam.dt[:] = np.array(original_distribution_dt)
@@ -386,8 +385,8 @@ class CompareDrift(object):
 
         original_distribution_dt = np.zeros(self.beam.n_macroparticles)
         original_distribution_dE = np.linspace(
-            -0.1*self.beam.energy,
-            0.1*self.beam.energy,
+            -0.1 * self.beam.energy,
+            0.1 * self.beam.energy,
             self.beam.n_macroparticles)
 
         original_distribution_dt += self.ring.n_turns * expected_drift(

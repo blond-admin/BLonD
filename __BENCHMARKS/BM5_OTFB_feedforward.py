@@ -13,26 +13,27 @@ Example for SPS OTFB with FF
 :Authors: **Helga Timko**
 """
 
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib import gridspec
 import logging
 import os
 
-from blond.toolbox.logger import Logger
-from blond.input_parameters.ring import Ring
-from blond.input_parameters.rf_parameters import RFStation
-from blond.beam.beam import Beam, Proton
-from blond.llrf.impulse_response import SPS3Section200MHzTWC, \
-    SPS4Section200MHzTWC, SPS5Section200MHzTWC
-from blond.llrf.signal_processing import feedforward_filter
-from blond.beam.distributions import bigaussian
-from blond.beam.profile import Profile, CutOptions
-from blond.llrf.cavity_feedback import SPSCavityFeedback, \
-    CavityFeedbackCommissioning
-from blond.trackers.tracker import RingAndRFTracker
-from blond.plots.plot_beams import plot_long_phase_space
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib import gridspec
 
+from blond.beam.beam import Beam, Proton
+from blond.beam.distributions import bigaussian
+from blond.beam.profile import CutOptions, Profile
+from blond.input_parameters.rf_parameters import RFStation
+from blond.input_parameters.ring import Ring
+from blond.llrf.cavity_feedback import (CavityFeedbackCommissioning,
+                                        SPSCavityFeedback)
+from blond.llrf.impulse_response import (SPS3Section200MHzTWC,
+                                         SPS4Section200MHzTWC,
+                                         SPS5Section200MHzTWC)
+from blond.llrf.signal_processing import feedforward_filter
+from blond.plots.plot_beams import plot_long_phase_space
+from blond.toolbox.logger import Logger
+from blond.trackers.tracker import RingAndRFTracker
 
 # CERN SPS --------------------------------------------------------------------
 # Machine and RF parameters

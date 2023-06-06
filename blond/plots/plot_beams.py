@@ -23,7 +23,7 @@ from ..trackers.utilities import separatrix
 def plot_long_phase_space(Ring, RFStation, Beam, xmin,
                           xmax, ymin, ymax, xunit = 's', sampling = 1, 
                           separatrix_plot = False, histograms_plot = True, 
-                          dirname = 'fig', alpha = 1, color = 'b'):
+                          dirname = 'fig', show_plot = False, alpha = 1, color = 'b'):
     """
     Plot of longitudinal phase space. Optional use of histograms and separatrix.
     Choice of units: xunit = s, rad.
@@ -46,6 +46,7 @@ def plot_long_phase_space(Ring, RFStation, Beam, xmin,
 
     # Prepare plot
     fig = plt.figure(1)
+    fig.set_tight_layout(False)
     fig.set_size_inches(8,8)
     axScatter = plt.axes(rect_scatter)
     axHistx = plt.axes(rect_histx)
@@ -113,15 +114,18 @@ def plot_long_phase_space(Ring, RFStation, Beam, xmin,
         for label in labels:
             label.set_rotation(-90)
                      
-    # Save plot
-    fign = dirname +'/long_distr_'"%d"%RFStation.counter[0]+'.png'
-    plt.savefig(fign)
+    # Output plot
+    if show_plot:
+        plt.show()
+    else:
+        fign = dirname +'/long_distr_'"%d"%RFStation.counter[0]+'.png'
+        plt.savefig(fign)
     plt.clf()
 
 
 
 def plot_bunch_length_evol(RFStation, h5data, output_freq = 1, 
-                           dirname = 'fig'):
+                           dirname = 'fig', show_plot = False):
     """
     Plot of r.m.s. 4-sigma bunch length [s] as a function of time.
     """
@@ -142,22 +146,25 @@ def plot_bunch_length_evol(RFStation, h5data, output_freq = 1,
     # Plot
     fig = plt.figure(1)
     fig.set_size_inches(8,6)
-    ax = plt.axes([0.15, 0.1, 0.8, 0.8])
+    ax = plt.axes()
     ax.plot(t, bl, '.')
     ax.set_xlabel(r"No. turns [T$_0$]")
     ax.set_ylabel (r"Bunch length, $\Delta t_{4\sigma}$ r.m.s. [s]")
     if time_step > 100000:
         ax.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
-    
-    # Save plot
-    fign = dirname +'/bunch_length.png'
-    plt.savefig(fign)
+
+    # Output plot
+    if show_plot:
+        plt.show()
+    else:
+        fign = dirname +'/bunch_length.png'
+        plt.savefig(fign)
     plt.clf()
 
     
 
 def plot_bunch_length_evol_gaussian(RFStation, Profile, h5data, 
-                                    output_freq = 1, dirname = 'fig'):
+                                    output_freq = 1, dirname = 'fig', show_plot = False):
 
     """
     Plot of Gaussian 4-sigma bunch length [s] as a function of time.
@@ -180,22 +187,25 @@ def plot_bunch_length_evol_gaussian(RFStation, Profile, h5data,
     # Plot
     fig = plt.figure(1)
     fig.set_size_inches(8,6)
-    ax = plt.axes([0.15, 0.1, 0.8, 0.8])
+    ax = plt.axes()
     ax.plot(t, bl, '.')
     ax.set_xlabel(r"No. turns [T$_0$]")
     ax.set_ylabel (r"Bunch length, $\Delta t_{4\sigma}$ Gaussian fit [s]")
     if time_step > 100000:
         ax.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
    
-    # Save plot    
-    fign = dirname +'/bunch_length_Gaussian.png'
-    plt.savefig(fign)
+    # Output plot
+    if show_plot:
+        plt.show()
+    else:
+        fign = dirname +'/bunch_length_Gaussian.png'
+        plt.savefig(fign)
     plt.clf()
 
     
 
 def plot_position_evol(RFStation, h5data, output_freq = 1, 
-                       style = '.', dirname = 'fig'): 
+                       style = '.', dirname = 'fig', show_plot = False):
  
     # Time step of plotting
     time_step = RFStation.counter[0]
@@ -211,22 +221,25 @@ def plot_position_evol(RFStation, h5data, output_freq = 1,
     # Plot 
     fig = plt.figure(1)
     fig.set_size_inches(8,6)
-    ax = plt.axes([0.15, 0.1, 0.8, 0.8]) 
+    ax = plt.axes()
     ax.plot(t, pos, style) 
     ax.set_xlabel(r"No. turns [T$_0$]") 
     ax.set_ylabel (r"Bunch mean position, $<\Delta t>$ [s]") 
     if time_step > 100000:
         ax.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
      
-    # Save plot 
-    fign = dirname+'/bunch_mean_position.png'
-    plt.savefig(fign) 
+    # Output plot
+    if show_plot:
+        plt.show()
+    else:
+        fign = dirname+'/bunch_mean_position.png'
+        plt.savefig(fign)
     plt.clf() 
 
 
 
 def plot_energy_evol(RFStation, h5data, output_freq = 1, style = '.', 
-                     dirname = 'fig'): 
+                     dirname = 'fig', show_plot = False):
  
     # Time step of plotting
     time_step = RFStation.counter[0]
@@ -242,7 +255,7 @@ def plot_energy_evol(RFStation, h5data, output_freq = 1, style = '.',
     # Plot 
     fig = plt.figure(1)
     fig.set_size_inches(8,6)
-    ax = plt.axes([0.15, 0.1, 0.8, 0.8]) 
+    ax = plt.axes()
     ax.plot(t, nrg, style) 
     ax.set_xlabel(r"No. turns [T$_0$]") 
     ax.set_ylabel (r"Bunch mean energy, $<\Delta E>$ [eV]") 
@@ -250,14 +263,17 @@ def plot_energy_evol(RFStation, h5data, output_freq = 1, style = '.',
     if time_step > 100000:
         ax.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
      
-    # Save plot 
-    fign = dirname+'/bunch_mean_energy.png'
-    plt.savefig(fign) 
+    # Output plot
+    if show_plot:
+        plt.show()
+    else:
+        fign = dirname+'/bunch_mean_energy.png'
+        plt.savefig(fign)
     plt.clf() 
 
 
 def plot_transmitted_particles(RFStation, h5data, output_freq = 1, 
-                               style = '.', dirname = 'fig'): 
+                               style = '.', dirname = 'fig', show_plot = False):
  
     # Time step of plotting
     time_step = RFStation.counter[0]
@@ -273,15 +289,18 @@ def plot_transmitted_particles(RFStation, h5data, output_freq = 1,
  
     # Plot 
     plt.figure(1, figsize=(8,6)) 
-    ax = plt.axes([0.15, 0.1, 0.8, 0.8]) 
+    ax = plt.axes()
     ax.plot(t, prtcls, style) 
     ax.set_xlabel(r"No. turns [T$_0$]") 
     ax.set_ylabel (r"Transmitted macro-particles [1]") 
     ax.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
     if time_step > 100000:
         ax.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
-     
-    # Save plot 
-    fign = dirname+'/bunch_transmitted_particles.png'
-    plt.savefig(fign) 
+
+    # Output plot
+    if show_plot:
+        plt.show()
+    else:
+        fign = dirname+'/bunch_transmitted_particles.png'
+        plt.savefig(fign)
     plt.clf() 

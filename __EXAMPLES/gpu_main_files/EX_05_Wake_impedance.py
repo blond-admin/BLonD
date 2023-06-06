@@ -19,24 +19,31 @@ the corresponding h5 files).
 '''
 
 from __future__ import division, print_function
+
+import os
+
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import numpy as np
+
 import blond.utils.bmath as bm
-from blond.impedances.impedance_sources import Resonators
-from blond.plots.plot_impedance import plot_induced_voltage_vs_bin_centers
-from blond.plots.plot import Plot
 from blond.beam.beam import Beam, Proton
-from blond.impedances.induced_voltage_analytical import analytical_gaussian_resonator
-from blond.impedances.impedance import InducedVoltageResonator, TotalInducedVoltage
-from blond.impedances.impedance import InducedVoltageTime, InducedVoltageFreq
-from blond.beam.profile import Profile, CutOptions, FitOptions
-from blond.monitors.monitors import BunchMonitor
 from blond.beam.distributions import bigaussian
-from blond.trackers.tracker import RingAndRFTracker
+from blond.beam.profile import CutOptions, FitOptions, Profile
+from blond.impedances.impedance import (InducedVoltageFreq,
+                                        InducedVoltageResonator,
+                                        InducedVoltageTime,
+                                        TotalInducedVoltage)
+from blond.impedances.impedance_sources import Resonators
+from blond.impedances.induced_voltage_analytical import \
+    analytical_gaussian_resonator
 from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
-import numpy as np
-import os
-import matplotlib.pyplot as plt
-import matplotlib as mpl
+from blond.monitors.monitors import BunchMonitor
+from blond.plots.plot import Plot
+from blond.plots.plot_impedance import plot_induced_voltage_vs_bin_centers
+from blond.trackers.tracker import RingAndRFTracker
+
 mpl.use('Agg')
 
 
@@ -55,11 +62,11 @@ os.makedirs(this_directory + '../gpu_output_files/EX_05_fig', exist_ok=True)
 
 # Beam parameters
 n_particles = 1e10
-n_macroparticles = 5*1e6
+n_macroparticles = 5 * 1e6
 tau_0 = 2e-9  # [s]
 
 # Machine and RF parameters
-gamma_transition = 1/np.sqrt(0.00192)   # [1]
+gamma_transition = 1 / np.sqrt(0.00192)   # [1]
 C = 6911.56  # [m]
 
 # Tracking details
@@ -105,22 +112,22 @@ ring_RF_section_res = RingAndRFTracker(RF_sct_par_res, my_beam_res)
 
 # DEFINE BEAM------------------------------------------------------------------
 
-bigaussian(general_params, RF_sct_par, my_beam, tau_0/4,
+bigaussian(general_params, RF_sct_par, my_beam, tau_0 / 4,
            seed=1)
 bigaussian(general_params_freq, RF_sct_par_freq, my_beam_freq,
-           tau_0/4, seed=1)
+           tau_0 / 4, seed=1)
 bigaussian(general_params_res, RF_sct_par_res, my_beam_res,
-           tau_0/4, seed=1)
+           tau_0 / 4, seed=1)
 
 number_slices = 2**8
-cut_options = CutOptions(cut_left=0, cut_right=2*np.pi, n_slices=number_slices,
+cut_options = CutOptions(cut_left=0, cut_right=2 * np.pi, n_slices=number_slices,
                          RFSectionParameters=RF_sct_par, cuts_unit='rad')
 slice_beam = Profile(my_beam, cut_options, FitOptions(fit_option='gaussian'))
-cut_options_freq = CutOptions(cut_left=0, cut_right=2*np.pi, n_slices=number_slices,
+cut_options_freq = CutOptions(cut_left=0, cut_right=2 * np.pi, n_slices=number_slices,
                               RFSectionParameters=RF_sct_par_freq, cuts_unit='rad')
 slice_beam_freq = Profile(my_beam_freq, cut_options_freq,
                           FitOptions(fit_option='gaussian'))
-cut_options_res = CutOptions(cut_left=0, cut_right=2*np.pi, n_slices=number_slices,
+cut_options_res = CutOptions(cut_left=0, cut_right=2 * np.pi, n_slices=number_slices,
                              RFSectionParameters=RF_sct_par_res, cuts_unit='rad')
 slice_beam_res = Profile(my_beam_res, cut_options_res,
                          FitOptions(fit_option='gaussian'))
@@ -171,9 +178,9 @@ for r in range(len(Q_factor)):
     # mean(my_slices.bin_centers), because the analytical equation assumes the
     # Gauss to be centered at t=0, but the line density is centered at
     # mean(my_slices.bin_centers)
-    tmp = analytical_gaussian_resonator(tau_0/4,
+    tmp = analytical_gaussian_resonator(tau_0 / 4,
                                         Q_factor[r], R_shunt[r], 2 *
-                                        np.pi*f_res[r],
+                                        np.pi * f_res[r],
                                         slice_beam.bin_centers -
                                         np.mean(slice_beam.bin_centers),
                                         my_beam.intensity)
@@ -184,7 +191,7 @@ for r in range(len(Q_factor)):
 format_options = {'dirname': this_directory +
                   '../gpu_output_files/EX_05_fig/1', 'linestyle': '.'}
 plots = Plot(general_params, RF_sct_par, my_beam, dt_plt, n_turns, 0,
-             0.0014*harmonic_number, -1.5e8, 1.5e8, xunit='rad',
+             0.0014 * harmonic_number, -1.5e8, 1.5e8, xunit='rad',
              separatrix_plot=True, Profile=slice_beam,
              h5file=this_directory + '../gpu_output_files/EX_05_output_data',
              histograms_plot=True, sampling=50, format_options=format_options)
@@ -192,7 +199,7 @@ plots = Plot(general_params, RF_sct_par, my_beam, dt_plt, n_turns, 0,
 format_options = {'dirname': this_directory +
                   '../gpu_output_files/EX_05_fig/2', 'linestyle': '.'}
 plots_freq = Plot(general_params_freq, RF_sct_par_freq, my_beam_freq, dt_plt,
-                  n_turns, 0, 0.0014*harmonic_number, -1.5e8, 1.5e8,
+                  n_turns, 0, 0.0014 * harmonic_number, -1.5e8, 1.5e8,
                   xunit='rad', separatrix_plot=True, Profile=slice_beam_freq,
                   h5file=this_directory + '../gpu_output_files/EX_05_output_data_freq',
                   histograms_plot=True, sampling=50,
@@ -200,7 +207,7 @@ plots_freq = Plot(general_params_freq, RF_sct_par_freq, my_beam_freq, dt_plt,
 format_options = {'dirname': this_directory +
                   '../gpu_output_files/EX_05_fig/3', 'linestyle': '.'}
 plots_res = Plot(general_params_res, RF_sct_par_res, my_beam_res, dt_plt,
-                 n_turns, 0, 0.0014*harmonic_number, -1.5e8, 1.5e8,
+                 n_turns, 0, 0.0014 * harmonic_number, -1.5e8, 1.5e8,
                  xunit='rad', separatrix_plot=True, Profile=slice_beam_res,
                  h5file=this_directory + '../gpu_output_files/EX_05_output_data_res',
                  histograms_plot=True, sampling=50,
@@ -216,12 +223,9 @@ test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
 
 # ACCELERATION MAP-------------------------------------------------------------
 
-map_ = [tot_vol] + [ring_RF_section] + \
-    [slice_beam]  # + [bunchmonitor] + [plots]
-map_freq = [tot_vol_freq] + [ring_RF_section_freq] + [slice_beam_freq] \
-    #+ [bunchmonitor_freq] + [plots_freq]
-map_res = [tot_vol_res] + [ring_RF_section_res] + [slice_beam_res] \
-    #+ [bunchmonitor_res] + [plots_res]
+map_ = [tot_vol] + [ring_RF_section] + [slice_beam]
+map_freq = [tot_vol_freq] + [ring_RF_section_freq] + [slice_beam_freq]
+map_res = [tot_vol_res] + [ring_RF_section_res] + [slice_beam_res]
 
 
 if USE_GPU:
@@ -252,9 +256,8 @@ if USE_GPU:
     ind_volt_res.to_gpu()
 
 
-
 # TRACKING + PLOTS-------------------------------------------------------------
-for i in np.arange(1, n_turns+1):
+for i in np.arange(1, n_turns + 1):
 
     # print(i)
     for m in map_:
@@ -276,12 +279,12 @@ for i in np.arange(1, n_turns+1):
             tot_vol_res.to_cpu()
 
         plot_induced_voltage_vs_bin_centers(i, general_params, tot_vol,
-                                style='.', dirname=this_directory + '../gpu_output_files/EX_05_fig/1')
+                                            style='.', dirname=this_directory + '../gpu_output_files/EX_05_fig/1')
         plot_induced_voltage_vs_bin_centers(i, general_params_freq,
-                  tot_vol_freq, style='.', dirname=this_directory + '../gpu_output_files/EX_05_fig/2')
+                                            tot_vol_freq, style='.', dirname=this_directory + '../gpu_output_files/EX_05_fig/2')
         plot_induced_voltage_vs_bin_centers(i, general_params_res,
-                  tot_vol_res, style='.', dirname=this_directory + '../gpu_output_files/EX_05_fig/3')
-        
+                                            tot_vol_res, style='.', dirname=this_directory + '../gpu_output_files/EX_05_fig/3')
+
         if USE_GPU:
             bm.use_gpu()
             slice_beam.to_gpu()
@@ -337,15 +340,15 @@ print('mybeam_res profile std: ', slice_beam_res.n_macroparticles.std())
 plt.clf()
 plt.ylabel("induced voltage [arb. unit]")
 plt.xlabel("time [ns]")
-plt.plot(1e9*slice_beam.bin_centers,tot_vol.induced_voltage,label='Time')
-plt.plot(1e9*slice_beam_freq.bin_centers,tot_vol_freq.induced_voltage,\
+plt.plot(1e9 * slice_beam.bin_centers, tot_vol.induced_voltage, label='Time')
+plt.plot(1e9 * slice_beam_freq.bin_centers, tot_vol_freq.induced_voltage,
          label='Freq')
-plt.plot(1e9*slice_beam_res.bin_centers,tot_vol_res.induced_voltage,\
+plt.plot(1e9 * slice_beam_res.bin_centers, tot_vol_res.induced_voltage,
          label='Resonator')
-plt.plot(1e9*slice_beam.bin_centers,VindGauss,label='Analytic')
+plt.plot(1e9 * slice_beam.bin_centers, VindGauss, label='Analytic')
 plt.legend()
-dirname=this_directory + '../gpu_output_files/EX_05_fig'
-fign = dirname +'/comparison_induced_voltage.png'
+dirname = this_directory + '../gpu_output_files/EX_05_fig'
+fign = dirname + '/comparison_induced_voltage.png'
 plt.savefig(fign)
 
 # # For testing purposes

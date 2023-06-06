@@ -50,9 +50,9 @@ Use your distribution's package manager to install the compiler of your choice. 
 
 ## Installation Steps
 
-### Installing BLonD as a python package.
+### Installing BLonD from PyPI.
 
--   Using the `pip` package manager:
+-   Use the `pip` package manager and simply run:
     ```bash
     pip install blond
     ```
@@ -74,19 +74,21 @@ Use your distribution's package manager to install the compiler of your choice. 
     pip install -e .
     ```
 
-    Or alternatively adjust the `PYTHONPATH` environment variable to contain the path to the BLonD directory, and install the requirements with:
-    ```bash
-    pip install -r requirements.txt
-    ```
-
 ## Confirm proper installation
 
--   Run the unittests with `pytest` (the `pytest` package may need to be installed first):
+-   A quick way to confirm the successfull installation is to run:
     ``` bash
-    pytest -v unittests
+    python -c "from blond import test; test()"
     ```
 
--   Run some of the main files found in the `__EXAMPLES` directory:
+-   If you installed BLonD manually, you can in addition run the unittests with `pytest`. The `pytest` package has to be installed first with `pip`. :
+    ``` bash
+    pip install pytest
+    pytest -v unittests
+    ```
+    Note that running all the unit-tests might take more than 20 minutes, depending on your system.
+
+-   You may also run some of the example main files found in the `__EXAMPLES` directory:
     ``` bash
     python __EXAMPLES/main_files/EX_01_Acceleration.py
     python __EXAMPLES/main_files/EX_02_Main_long_ps_booster.py
@@ -262,7 +264,7 @@ supported. `fft_convolve()` to be added soon.
 
     ``` python
     from blond.utils import bmath as bm
-    from blond.utils.mpi_config import worker, mpiprint
+    from blond.utils.mpi_config import WORKER, mpiprint
     bm.use_mpi()  
     ```
 
@@ -278,7 +280,7 @@ supported. `fft_convolve()` to be added soon.
     worker only, you need to surround it with this if condition:
 
     ``` python
-    if worker.isMaster:
+    if WORKER.is_master:
         foo()
         ...
     ```
@@ -294,7 +296,7 @@ supported. `fft_convolve()` to be added soon.
     all workers except from the master with:
 
     ``` python
-    worker.finalize()
+    WORKER.finalize()
     ```
 
 6.  To run your script, you need to pass it to **mpirun** or
