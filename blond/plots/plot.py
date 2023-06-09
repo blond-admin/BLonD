@@ -14,7 +14,7 @@
 '''
 
 import os
-
+import numpy as np
 import h5py as hp
 import matplotlib.pyplot as plt
 
@@ -158,7 +158,7 @@ class Plot:
             self.msize = format_options['markersize']
 
         if 'alpha' not in format_options:
-            self.alpha = 0.05
+                self.alpha = 10**(-np.log10(self.beam.n_macroparticles)/6)
         else:
             self.alpha = format_options['alpha']
 
