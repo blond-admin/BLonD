@@ -96,7 +96,7 @@ bigaussian(general_params, RF_sct_par, my_beam, sigma_dt, seed=1)
 
 # DEFINE SLICES----------------------------------------------------------------
 slice_beam = Profile(my_beam, CutOptions(cut_left=-5.72984173562e-7,
-                                         cut_right=5.72984173562e-7, n_slices=100))
+                                         cut_right=5.72984173562e-7, n_slices=10000))
 
 
 # LOAD IMPEDANCE TABLES--------------------------------------------------------
@@ -191,11 +191,13 @@ for i in range(1, n_turns + 1):
 
     # Plots
     if (i % n_turns_between_two_plots) == 0:
+        plot_impedance_vs_frequency(ind_volt_freq, figure_index=i, cut_up_down=(0, 1000), cut_left_right=(0, 3e9),
+                                    show_plot=False,
+                                    plot_total_impedance=False, style='-', plot_interpolated_impedances=False,
+                                    plot_spectrum=False, dirname=this_directory + '../mpi_output_files/EX_02_fig')
 
-        plot_impedance_vs_frequency(i, general_params, ind_volt_freq,
-                                    option1="single", style='-', option3="freq_table", option2="spectrum", dirname=this_directory + '../mpi_output_files/EX_02_fig')
-
-        plot_induced_voltage_vs_bin_centers(i, general_params, total_induced_voltage, style='.', dirname=this_directory + '../mpi_output_files/EX_02_fig')
+        plot_induced_voltage_vs_bin_centers(total_induced_voltage, style='.',
+                                            dirname=this_directory + '../mpi_output_files/EX_02_fig', show_plot=False)
 
 my_beam.gather()
 WORKER.finalize()
