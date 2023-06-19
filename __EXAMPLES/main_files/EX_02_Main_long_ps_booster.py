@@ -75,18 +75,18 @@ phi_offset = np.pi
 
 # DEFINE RING------------------------------------------------------------------
 
-general_params = Ring(C, momentum_compaction, sync_momentum,
-                      Proton(), n_turns)
+ring = Ring(C, momentum_compaction, sync_momentum,
+            Proton(), n_turns)
 
-RF_sct_par = RFStation(general_params, [harmonic_numbers],
+RF_sct_par = RFStation(ring, [harmonic_numbers],
                        [voltage_program], [phi_offset], n_rf_systems)
 
-my_beam = Beam(general_params, n_macroparticles, n_particles)
+my_beam = Beam(ring, n_macroparticles, n_particles)
 
 ring_RF_section = RingAndRFTracker(RF_sct_par, my_beam)
 
 # DEFINE BEAM------------------------------------------------------------------
-bigaussian(general_params, RF_sct_par, my_beam, sigma_dt, seed=1)
+bigaussian(ring, RF_sct_par, my_beam, sigma_dt, seed=1)
 
 # DEFINE SLICES----------------------------------------------------------------
 slice_beam = Profile(my_beam, CutOptions(cut_left=-5.72984173562e-7,
@@ -94,7 +94,7 @@ slice_beam = Profile(my_beam, CutOptions(cut_left=-5.72984173562e-7,
 
 # MONITOR----------------------------------------------------------------------
 
-bunchmonitor = BunchMonitor(general_params, RF_sct_par, my_beam,
+bunchmonitor = BunchMonitor(ring, RF_sct_par, my_beam,
                             this_directory + '../output_files/EX_02_output_data', buffer_time=1)
 
 # LOAD IMPEDANCE TABLES--------------------------------------------------------
@@ -133,10 +133,10 @@ else:
 
 # steps
 steps = InductiveImpedance(my_beam, slice_beam, 34.6669349520904 / 10e9 *
-                           general_params.f_rev, RF_sct_par, deriv_mode='diff')
+                           ring.f_rev, RF_sct_par, deriv_mode='diff')
 # direct space charge
 dir_space_charge = InductiveImpedance(my_beam, slice_beam, -376.730313462
-                                      / (general_params.beta[0] * general_params.gamma[0]**2),
+                                      / (ring.beta[0] * ring.gamma[0] ** 2),
                                       RF_sct_par)
 
 
@@ -154,7 +154,7 @@ total_induced_voltage = TotalInducedVoltage(my_beam, slice_beam,
 # PLOTS
 
 format_options = {'dirname': this_directory + '../output_files/EX_02_fig', 'linestyle': '.'}
-plots = Plot(general_params, RF_sct_par, my_beam, 1, n_turns, 0,
+plots = Plot(ring, RF_sct_par, my_beam, 1, n_turns, 0,
              5.72984173562e-7, - my_beam.sigma_dE * 4.2, my_beam.sigma_dE * 4.2, xunit='s',
              separatrix_plot=True, Profile=slice_beam, h5file=this_directory + '../output_files/EX_02_output_data',
              histograms_plot=True, format_options=format_options)
@@ -183,10 +183,10 @@ for i in range(1, n_turns + 1):
     # Plots
     if (i % n_turns_between_two_plots) == 0:
 
-        plot_impedance_vs_frequency(ind_volt_freq, figure_index=i, cut_up_down=(0,1000), cut_left_right=(0,3e9), show_plot=False,
+        plot_impedance_vs_frequency(ind_volt_freq, figure_index=i, cut_up_down=(0,1000), cut_left_right=(0,3e9), show_plots=False,
                                     plot_total_impedance=False, style='-', plot_interpolated_impedances=False, plot_spectrum=False, dirname=this_directory + '../output_files/EX_02_fig')
 
-        plot_induced_voltage_vs_bin_centers(total_induced_voltage, style='.', dirname=this_directory + '../output_files/EX_02_fig',  show_plot=False)
+        plot_induced_voltage_vs_bin_centers(total_induced_voltage, style='.', dirname=this_directory + '../output_files/EX_02_fig', show_plots=False)
 
 # For testing purposes
 test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
