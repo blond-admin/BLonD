@@ -10,7 +10,7 @@ import numpy as np
 from ..utils import butils_wrap_cpp as _cpp
 from ..utils import butils_wrap_python as _py
 from . import precision
-
+import inspect
 
 def use_cpp():
     '''
@@ -64,10 +64,17 @@ def use_cpp():
     }
 
     # add numpy functions in the dictionary
-    for fname in dir(np):
-        if callable(getattr(np, fname)) and (fname not in cpp_func_dict) \
-                and (fname[0] != '_'):
-            cpp_func_dict[fname] = getattr(np, fname)
+    # for fname in dir(np):
+    #     if inspect.isfunction(getattr(np, fname)) and (fname not in cpp_func_dict) \
+    #             and not fname.startswith('_'):
+    #         cpp_func_dict[fname] = getattr(np, fname)
+
+    for fname, member in inspect.getmembers(np):
+        if callable(member) and not inspect.isclass(member) and (fname not in cpp_func_dict) \
+                and not fname.startswith('_'):
+            cpp_func_dict[fname] = member
+            # print('Found function: ', fname)
+
 
     # add basic numpy modules to dictionary as they are not callable
     cpp_func_dict['random'] = getattr(np, 'random')
@@ -109,11 +116,10 @@ def use_py():
     }
 
     # add numpy functions in the dictionary
-    for fname in dir(np):
-        if callable(getattr(np, fname)) and (fname not in py_func_dict) \
-                and (fname[0] != '_'):
-
-            py_func_dict[fname] = getattr(np, fname)
+    for fname, member in inspect.getmembers(np):
+        if callable(member) and not inspect.isclass(member) and (fname not in py_func_dict) \
+                and not fname.startswith('_'):
+            py_func_dict[fname] = member
 
     # add basic numpy modules to dictionary as they are not callable
     py_func_dict['random'] = getattr(np, 'random')
@@ -252,10 +258,18 @@ def use_gpu(gpu_id=0):
         'device': 'GPU'
     }
     # add cupy functions in the dictionary
-    for fname in dir(cp):
-        if callable(getattr(cp, fname)) and (fname not in gpu_func_dict):
-            gpu_func_dict[fname] = getattr(cp, fname)
+    # for fname in dir(cp):
+    #     if callable(getattr(cp, fname)) and (fname not in gpu_func_dict):
+    #         gpu_func_dict[fname] = getattr(cp, fname)
+
+    for fname, member in inspect.getmembers(cp):
+        if callable(member) and not inspect.isclass(member) and (fname not in gpu_func_dict) \
+                and not fname.startswith('_'):
+            gpu_func_dict[fname] = member
+
     __update_active_dict(gpu_func_dict)
+
+
 
     # add basic cupy modules to dictionary as they are not callable
     gpu_func_dict['random'] = getattr(cp, 'random')
