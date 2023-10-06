@@ -37,12 +37,19 @@ class TrackIteration:
     functionList : List of functions to be called with specified interval
     '''
 
-    def __init__(self, trackMap, initTurn=0, finalTurn=-1):
+    def __init__(self, trackMap, initTurn=0, finalTurn=-1, trackPeriods=[]):
 
         if not all((callable(m) for m in trackMap)):
             raise AttributeError("All map objects must be callable")
 
+        self.trackPeriods = trackPeriods
         self._map = trackMap
+        if len(trackPeriods) == 0:
+            self.trackPeriods = [1] * len(trackMap)
+        
+        if len(self.trackPeriods) != len(self._map):
+            raise ValueError("trackPeriods must be either empty or same length as trackMap")
+
         if isinstance(initTurn, int):
             self.turnNumber = initTurn
         else:
@@ -87,8 +94,9 @@ class TrackIteration:
             raise StopIteration
 
         try:
-            for m in self._map:
-                m()
+            for p, m in zip(self.trackPeriods, self._map):
+                if self.turnNumber % p == 0:
+                    m()
         except IndexError:
             raise StopIteration
 

@@ -221,19 +221,18 @@ def report(skip=0, total_time=None, out_file=None, out_dir='./',
         else:
             out = sys.stdout
             table = prettytable.PrettyTable()
-            field_names = ['function', 'total time (sec)', 'time per call (ms)', 'std (%)', 'calls', 'global_percentage']
+            field_names = ['function', 'total time (sec)', 'time per call (ms)', 'std (%)', 'calls', 'global (%)']
             table.field_names = field_names
             table.float_format = '.3'
-            formats = {
-                field_names[1]: lambda f, v: f"{v:.3f}",
-                field_names[2]: lambda f, v: f"{v:.3f}",
-                field_names[3]: lambda f, v: f"{v:.2f}",
-                field_names[5]: lambda f, v: f"{v:.2f}"
-            }
-
+            # formats = {
+            #     field_names[1]: lambda f, v: f"{v:.3f}",
+            #     field_names[2]: lambda f, v: f"{v:.3f}",
+            #     field_names[3]: lambda f, v: f"{v:.2f}",
+            #     field_names[5]: lambda f, v: f"{v:.2f}"
+            # }
+            # table.custom_format = formats
             #formats = {field: lambda f, v: f"{v:{f}}" for field, fmt in zip(field_names, format_strings)}
 
-            table.custom_format = formats
             table.align = "l"
 
         if isinstance(total_time, str):
@@ -252,7 +251,7 @@ def report(skip=0, total_time=None, out_file=None, out_dir='./',
 
         if out != sys.stdout:
             out.write(
-                'function\ttotal_time(sec)\ttime_per_call(ms)\tstd(%)\tcalls\tglobal_percentage\n')
+                'function\ttotal_time(sec)\ttime_per_call(ms)\tstd(%)\tcalls\tglobal(%)\n')
             
 
         for k, v in sorted(times.items()):
@@ -279,18 +278,18 @@ def report(skip=0, total_time=None, out_file=None, out_dir='./',
 
         if out != sys.stdout:
             out.write('%s\t%.3lf\t%.3lf\t%.2lf\t%d\t%.2lf\n'
-                    % ('Other', otherTime/1000., otherTime, 0.0, 1, otherPercent))
+                    % ('other', otherTime/1000., otherTime, 0.0, 1, otherPercent))
 
             out.write('%s\t%.3lf\t%.3lf\t%.2lf\t%d\t%.2lf\n'
                     % ('total_time', (_total_time/1e3), _total_time, 0.0, 1, 100))
         else:
-            table.add_row(['Other', otherTime/1000., otherTime, 0.0, 1, otherPercent])
+            table.add_row(['other', otherTime/1000., otherTime, 0.0, 1, otherPercent])
             table.add_row(['total_time', (_total_time/1e3), _total_time, 0.0, 1, 100])
             out.write(table.get_string() + "\n")
         
         if save_pickle and out_file:
             times['total_time'] = _total_time
-            times['Other'] = otherTime
+            times['other'] = otherTime
             out_file = os.path.splitext(out_file)[0] + '.p'
             with open(os.path.join(out_dir, out_file), 'wb') as picklefile:
                 pickle.dump(times, picklefile)
