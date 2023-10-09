@@ -20,7 +20,6 @@ import inspect
 import logging
 from blond.utils.track_iteration import TrackIteration
 from blond.utils import timing
-from typing import Tuple, Dict, List, Callable, Union
 from abc import ABC, abstractmethod
 logger = logging.getLogger(__name__)
 
@@ -32,6 +31,8 @@ class Trackable(ABC):
     '''
     def __init__(self, period: int =1) -> None:
         self.period = period
+        # self.place_after = None
+        # self.place_before = None
 
     @abstractmethod
     def track(self) -> None:
@@ -39,13 +40,77 @@ class Trackable(ABC):
         '''
         pass
 
+class PipelineElement(Trackable):
+    '''
+    PipelineElement class
+    '''
+    def __init__(self, element, period: int =1) -> None:
+        super().__init__(period)
+        self.name = element.__class__.__name__
+        self.element = element
+        self.track = element.track
+
+
 class Assembler:
     '''
     Assembler class
     '''
 
+    # This is the default tracking order of blond trackable elements
+    tracking_order = ['Profile',
+                      '_InducedVoltage', 'TotalInducedVoltage',
+                       'SynchrotronRadiation',
+                       'BeamFeedback',
+                       'SPSCavityFeedback', 'CavityFeedback',
+                       'LHCNoiseFB',
+                       'RingAndRFTracker', 'FullRingAndRF',
+                       'Plot',
+                       'BunchMonitor', 'SlicesMonitor', 'MultiBunchMonitor',
+                       ]
+
     @staticmethod
-    def get_function_name(func: Callable) -> str:
+    def get_tracking_order_idx(obj: 'Any') -> int:
+        '''Get tracking order index of a function
+
+        Args:
+            Obj (Callable): _description_
+
+        Returns:
+            int: _description_
+        '''
+        class_name = obj.__self__.__class__.__name__
+        parent_classes = [parent_class.__name__ for parent_class in obj.__class__.__bases__]
+
+        if class_name in Assembler.tracking_order:
+            # If class name is in tracking order, return its index
+            return Assembler.tracking_order.index(class_name)
+        elif any(parent_class in Assembler.tracking_order for parent_class in parent_classes):
+            #  If any of the parent_classes is in tracking order, return its index
+            for parent_class in parent_classes:
+                if parent_class in Assembler.tracking_order:
+                    return Assembler.tracking_order.index(parent_class)
+        else:
+            # Else we have a custom class, place it at the end. 
+            return len(Assembler.tracking_order)
+
+
+    @staticmethod
+    def sort_pipeline(pipeline: 'List[Callable]') -> 'List[Callable]':
+        '''Sort pipeline according to tracking order
+
+        Args:
+            pipeline (List[Callable]): _description_
+
+        Returns:
+            List[Callable]: _description_
+        '''
+        # Sort according to tracking order
+        pipeline = sorted(pipeline, key=lambda x: Assembler.get_tracking_order_idx(x))
+        return pipeline
+
+
+    @staticmethod
+    def get_function_name(func: 'Callable') -> str:
         '''_summary_
 
         Args:
@@ -94,7 +159,7 @@ class Assembler:
         return isinstance(elem, tuple) and len(elem) == 2 and callable(elem[0]) and isinstance(elem[1], tuple)
     
     @staticmethod
-    def split_args_kwargs(arguments: Union[Tuple, Dict]) -> Tuple[Tuple, Dict]:
+    def split_args_kwargs(arguments: 'Union[Tuple, Dict]') -> 'Tuple[Tuple, Dict]':
         '''
         Split arguments into positional and keyword arguments
         Arguments can be in the form:
@@ -112,7 +177,7 @@ class Assembler:
             return arguments, {}
 
     @staticmethod
-    def discover_blond_distributions() -> Dict:
+    def discover_blond_distributions() -> 'Dict':
         '''
         Discover all blond distributions
         '''
@@ -134,7 +199,7 @@ class Assembler:
         return blond_distributions
     
     @staticmethod
-    def discover_blond_classes() -> Dict[str, Callable]:
+    def discover_blond_classes() -> 'Dict[str, Callable]':
         '''
         Discover all blond classes
         '''
@@ -233,10 +298,14 @@ class Assembler:
         Returns:
             str: _description_
         '''
-        string = f'Assembler with {len(self.pipeline_tracker)} tracking elements'
-        for elem in self.pipeline_tracker:
-            string += f'\n\t{elem}'
-        
+        string = f'Assembler with {len(self.pipeline)} tracking elements and {len(self.objects)} objects.'
+        string += '\nPipeline elements:'
+        for i, elem in enumerate(self.pipeline):
+            string += f'\n\t{i}. {Assembler.get_function_name(elem)}'
+
+        string += '\nObjects:'
+        for key in self.objects.keys():
+            string += f'\n\t{key}'
 
         return string
 
@@ -271,7 +340,7 @@ class Assembler:
         self.__dict__.update(elem_dict)
         self.active_objects = elem_dict
     
-    def replace_object_references(self, args, kwargs) -> Tuple[Tuple, Dict]:
+    def replace_object_references(self, args, kwargs) -> 'Tuple[Tuple, Dict]':
         '''Check for values that are pointing to previously initialized objects
         and replace them with references to the initialized objects
 
@@ -294,7 +363,23 @@ class Assembler:
                 args[i] = self.objects[arg]
         return tuple(args), kwargs
 
-    
+    def convert_from_dictionary_to_object(self, elem: 'Dict') -> 'Any':
+        '''_summary_
+
+        Args:
+            elem (Dict): _description_
+        '''
+        assert len(elem) == 1, 'Dictionary elements must be in the form: {classname: {arg1: val1, arg2:val2, ...}}'
+        elem_class, (elem_all_args) = next(iter(elem.items()))
+        elem_args, elem_kwargs = Assembler.split_args_kwargs(elem_all_args)
+        logger.debug(f'Found dictionary element with {len(elem_args)} positional arguments and {len(elem_kwargs)} kwargs')
+        # Replace reference kwargs objects
+        elem_args, elem_kwargs = self.replace_object_references(elem_args, elem_kwargs)
+        elem = self.init_object_from_dict(elem_class, elem_args, elem_kwargs)
+
+        return elem
+
+
     def build_pipeline(self) -> None:
         '''Build the pipeline from the element list.
         Elements can be either objects or dictionaries.
@@ -302,13 +387,7 @@ class Assembler:
 
         for elem in self.element_list:
             if Assembler.is_dictionary(elem):
-                assert len(elem) == 1, 'Dictionary elements must be in the form: {classname: {arg1: val1, arg2:val2, ...}}'
-                elem_class, (elem_all_args) = next(iter(elem.items()))
-                elem_args, elem_kwargs = Assembler.split_args_kwargs(elem_all_args)
-                logger.debug(f'Found dictionary element with {len(elem_args)} positional arguments and {len(elem_kwargs)} kwargs')
-                # Replace reference kwargs objects
-                elem_args, elem_kwargs = self.replace_object_references(elem_args, elem_kwargs)
-                elem = self.init_object_from_dict(elem_class, elem_args, elem_kwargs)
+                self.convert_from_dictionary_to_object(elem)
             
             elem_class = type(elem).__name__
             logger.debug(f'Found element of type: {elem_class}')
@@ -328,11 +407,32 @@ class Assembler:
                 self.objects[elem_class] = elem
         
         self.promote_to_attributes(self.objects)
+
+        # Sort according to custom order
+        self.pipeline = Assembler.sort_pipeline(self.pipeline)
         
         self.pipeline_tracker = TrackIteration(self.pipeline, initTurn=0, finalTurn=-1, trackPeriods=self.tracking_periods)
         self.is_built = True
-            
-            
+    
+
+    def place_after(self, element: str, after: str) -> None:
+        '''Place element right aftern another element in the track pipeline
+
+        Args:
+            element (_type_): _description_
+            after (Union[str, Callable]): _description_
+        '''
+
+        if not self.is_built:
+            print('Warning: Object not built. Call build method first.')
+            return
+
+        # Need to remove existing element from pipeline
+        self.pipeline.remove(element)
+
+        after_idx = self.pipeline.index(after)
+        self.pipeline.insert(after_idx+1, element)
+
     def track(self, num_turns: int =1, with_timing: bool =False) -> None:
         '''Track all trackable pipeline objects for a number of turns
 
