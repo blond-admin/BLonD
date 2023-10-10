@@ -32,20 +32,15 @@ class Trackable(ABC):
     Abstract class for trackable elements
     '''
 
-    def __init__(self, period: int = 1, first_turn: int = 0, last_turn: int = -1,
-                 priority: 'Optional[int]' = None) -> None:
+    def __init__(self, period: int = 1, priority: 'Optional[int]' = None) -> None:
         '''Constructor
 
         Args:
             period (int, optional): Period in turn in between calls to the tracking method. Defaults to 1.
-            first_turn (int, optional): First turn to call tracking. Defaults to 0.
-            last_turn (int, optional): Last turn to call tracking. Defaults to -1.
             priority (Optional[int], optional): Tracking priority. Higher values will be tracked first. Defaults to None.
         '''
         self.period = period
         self.priority = priority
-        self.first_turn = first_turn
-        self.last_turn = last_turn
 
     @abstractmethod
     def track(self) -> None:
@@ -299,16 +294,14 @@ class Assembler:
             pipeline (List): list of PipelineElement trackable elements
             pipeline_tracker (TrackIteration): track iteration object
             element_list (List): list of elements as provided by the user
-            __active_objects (Dict): dictionary of all objects that have been promoted to attributes
             is_built (bool): flag to indicate if the assembler has been built
         '''
 
-        self.objects = {}
+        self.active_objects = {}
         self.pipeline = []
         self.pipeline_tracker = None
         self.element_list = element_list
-        self.__active_objects = {}
-        self.is_built = False
+        self.__is_built = False
         self.element_idx = 0
         self.with_timing = False
 
@@ -319,6 +312,22 @@ class Assembler:
         # Reset timing
         timing.reset()
 
+    @property
+    def is_built(self) -> bool:
+        return self.__is_built
+    
+    @is_built.setter
+    def is_built(self, value: bool) -> None:
+        if self.__is_built and not value:
+            # Unbuild the pipeline
+            self.remove_properties()
+            self.active_objects = {}
+            self.pipeline = []
+            self.pipeline_tracker = None
+
+            # logger.debug('Assembler is already built. Call build method to rebuild.')
+        self.__is_built = value
+
 
     def __str__(self) -> str:
         '''_summary_
@@ -326,13 +335,13 @@ class Assembler:
         Returns:
             str: _description_
         '''
-        string = f'Assembler with {len(self.pipeline)} tracking elements and {len(self.objects)} objects.'
+        string = f'Assembler with {len(self.pipeline)} tracking elements and {len(self.active_objects)} objects.'
         string += '\nPipeline elements:'
         for i, elem in enumerate(self.pipeline):
             string += f'\n\t{i}. {elem.name}'
 
         string += '\nObjects:'
-        for key in self.objects.keys():
+        for key in self.active_objects.keys():
             string += f'\n\t{key}'
 
         return string
@@ -352,21 +361,28 @@ class Assembler:
         return self.blond_classes[elem_class](*elem_args, **elem_kwargs)
 
 
-    def promote_to_attributes(self, elem_dict) -> None:
+    def promote_to_properties(self, elem_dict) -> None:
         '''_summary_
 
         Args:
             elem_dict (_type_): _description_
         '''
 
-        # delete all old references from self.__dict__
-        for key in self.__active_objects.keys():
-            if key in self.__dict__:
-                del self.__dict__[key]
+        # delete old properties
+        self.remove_properties()
 
         # add the new objects to the self.__dict__
         self.__dict__.update(elem_dict)
-        self.__active_objects = elem_dict
+
+
+    def remove_properties(self) -> None:
+        '''Remove all the active_objects from the assembler's properties
+        '''
+
+        # delete all old references from self.__dict__
+        for key in self.active_objects.keys():
+            if key in self.__dict__:
+                del self.__dict__[key]
 
 
     def replace_object_references(self, args, kwargs) -> 'Tuple[Tuple, Dict]':
@@ -383,13 +399,13 @@ class Assembler:
 
         # First check kwargs
         for k, v in kwargs.items():
-            if isinstance(v, str) and v in self.objects:
-                kwargs[k] = self.objects[v]
+            if isinstance(v, str) and v in self.active_objects:
+                kwargs[k] = self.active_objects[v]
         # Then check args. Convert to list to support assignment
         args = list(args)
         for i, arg in enumerate(args):
-            if isinstance(arg, str) and arg in self.objects:
-                args[i] = self.objects[arg]
+            if isinstance(arg, str) and arg in self.active_objects:
+                args[i] = self.active_objects[arg]
         return tuple(args), kwargs
 
 
@@ -418,6 +434,7 @@ class Assembler:
         Elements can be either objects or dictionaries.
         '''
 
+        new_active_objects = {}
         for elem in self.element_list:
             if isinstance(elem, dict):
                 self.convert_from_dictionary_to_object(elem)
@@ -431,16 +448,19 @@ class Assembler:
                     elem, idx=self.element_idx))
 
             # Since the assembler also has a record of all objects, need to store object in correct attribute
-            if elem_class in self.objects:
-                if not isinstance(self.objects[elem_class], list):
-                    self.objects[elem_class] = list(self.objects[elem_class])
-                self.objects[elem_class].append(elem)
+            if elem_class in new_active_objects:
+                if not isinstance(new_active_objects[elem_class], list):
+                    new_active_objects[elem_class] = list(new_active_objects[elem_class])
+                new_active_objects[elem_class].append(elem)
             else:
-                self.objects[elem_class] = elem
+                new_active_objects[elem_class] = elem
 
             self.element_idx += 1
 
-        self.promote_to_attributes(self.objects)
+        # Promote the new objects to properties
+        self.promote_to_properties(new_active_objects)
+        # Update the active objects
+        self.active_objects = new_active_objects
 
         # Sort according to custom order
         self.pipeline = Assembler.sort_pipeline(self.pipeline)
