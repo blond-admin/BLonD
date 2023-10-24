@@ -14,8 +14,6 @@ and the beam coordinates in phase space.**
 :Authors:  **Helga Timko**, **Alexandre Lasheen**, **Danilo Quartullo**
 """
 
-from __future__ import division
-
 import warnings
 from builtins import range
 
@@ -230,6 +228,10 @@ class RingAndRFTracker:
     NoiseFeedback : class (optional)
         A NoiseFeedback type class, bunch-length feedback on RF noise;
         default is None
+    CavityFeedback : class or list of classes (optional)
+        A CavityFeedback type child class, cavity feedback modulating the
+        RF voltage bucket-by-bucket in amplitude and phase. Can either be a single object or a list of such objects.
+        Default is None.
     periodicity : bool (optional)
         Option to switch periodic solver on/off; default is False (off)
     interpolation : bool (optional)
@@ -319,6 +321,9 @@ class RingAndRFTracker:
             warnings.warn('Setting interpolation to TRUE')
             # self.logger.warning("Setting interpolation to TRUE")
 
+        if (self.cavityFB is not None) and (not hasattr(self.cavityFB, '__iter__')):
+            self.cavityFB = [self.cavityFB]
+
     def kick(self, beam_dt, beam_dE, index):
         r"""Function updating the particle energy due to the RF kick in a given
         RF station. The kicks are summed over the different harmonic RF systems
@@ -383,11 +388,24 @@ class RingAndRFTracker:
         phi_rf = bm.ascontiguousarray(self.rf_params.phi_rf[:, self.counter[0]])
         # TODO: test with multiple harmonics, think about 800 MHz OTFB
         if self.cavityFB:
-            self.rf_voltage = voltages[0] * self.cavityFB.V_corr * \
-                bm.sin(omega_rf[0] * self.profile.bin_centers +
-                       phi_rf[0] + self.cavityFB.phi_corr) + \
-                bm.rf_volt_comp(voltages[1:], omega_rf[1:], phi_rf[1:],
-                                self.profile.bin_centers)
+            # Allocate memory for rf_voltage and reset it to zero
+            self.rf_voltage = np.zeros(self.profile.n_slices)
+
+            # Add corrections from cavity feedbacks for the different harmonics
+            for ind, feedback in enumerate(self.cavityFB):
+                if feedback is not None:
+                    self.rf_voltage += voltages[ind] * feedback.V_corr * \
+                                      bm.sin(omega_rf[ind] * self.profile.bin_centers +
+                                             phi_rf[ind] + feedback.phi_corr)
+                else:
+                    self.rf_voltage += bm.rf_volt_comp(voltages[ind:ind + 1], omega_rf[ind:ind + 1],
+                                                       phi_rf[ind:ind + 1], self.profile.bin_centers)
+
+            # Add RF voltage from harmonics that do not have a cavity feedback model
+            self.rf_voltage += bm.rf_volt_comp(voltages[len(self.cavityFB):],
+                                               omega_rf[len(self.cavityFB):],
+                                               phi_rf[len(self.cavityFB):],
+                                               self.profile.bin_centers)
         else:
             self.rf_voltage = bm.rf_volt_comp(voltages, omega_rf, phi_rf,
                                               self.profile.bin_centers)
@@ -430,6 +448,12 @@ class RingAndRFTracker:
 
         # Total phase offset
         self.rf_params.phi_rf[:, turn + 1] += self.rf_params.dphi_rf
+
+        # Correction from cavity loop
+        if self.cavityFB is not None:
+            for feedback in self.cavityFB:
+                if feedback is not None:
+                    feedback.track()
 
         if self.periodicity:
 
