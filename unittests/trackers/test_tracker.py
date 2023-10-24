@@ -50,11 +50,12 @@ def orig_rf_volt_comp(tracker):
 
     # TODO: test with multiple harmonics, think about 800 MHz OTFB
     if tracker.cavityFB:
-        rf_voltage = voltages[0, 0] * tracker.cavityFB.V_corr * \
-            np.sin(omega_rf[0, 0] * tracker.profile.bin_centers +
-                   phi_rf[0, 0] + tracker.cavityFB.phi_corr) + \
-            np.sum(voltages.T[1:] * np.sin(omega_rf.T[1:] *
-                                           tracker.profile.bin_centers + phi_rf.T[1:]), axis=0)
+        if tracker.cavityFB[0]:
+            rf_voltage = voltages[0, 0] * tracker.cavityFB[0].V_corr * \
+                np.sin(omega_rf[0, 0] * tracker.profile.bin_centers +
+                       phi_rf[0, 0] + tracker.cavityFB[0].phi_corr) + \
+                np.sum(voltages.T[1:] * np.sin(omega_rf.T[1:] *
+                                               tracker.profile.bin_centers + phi_rf.T[1:]), axis=0)
     else:
         rf_voltage = np.sum(voltages.T *
                             np.sin(omega_rf.T * tracker.profile.bin_centers + phi_rf.T), axis=0)
@@ -130,6 +131,9 @@ class CavityFB:
         self.V_corr = V
         self.phi_corr = phi
 
+    def track(self):
+        pass
+
 
 class TestRfVoltageCalcWCavityFB(unittest.TestCase):
     # Simulation parameters -------------------------------------------------------
@@ -170,14 +174,14 @@ class TestRfVoltageCalcWCavityFB(unittest.TestCase):
         pass
 
     def test_rf_voltage_calc_1(self):
-        self.long_tracker.cavityFB = CavityFB(1.1, 1.2)
+        self.long_tracker.cavityFB = [CavityFB(1.1, 1.2)]
         self.long_tracker.rf_voltage_calculation()
         orig_rf_voltage = orig_rf_volt_comp(self.long_tracker)
         np.testing.assert_almost_equal(
             self.long_tracker.rf_voltage, orig_rf_voltage, decimal=8)
 
     def test_rf_voltage_calc_2(self):
-        self.long_tracker.cavityFB = CavityFB(1.1, 1.2)
+        self.long_tracker.cavityFB = [CavityFB(1.1, 1.2)]
         for i in range(100):
             self.long_tracker.rf_voltage_calculation()
             orig_rf_voltage = orig_rf_volt_comp(self.long_tracker)
@@ -185,7 +189,7 @@ class TestRfVoltageCalcWCavityFB(unittest.TestCase):
             self.long_tracker.rf_voltage, orig_rf_voltage, decimal=8)
 
     def test_rf_voltage_calc_3(self):
-        self.long_tracker.cavityFB = CavityFB(1.1, 1.2)
+        self.long_tracker.cavityFB = [CavityFB(1.1, 1.2)]
         for i in range(100):
             self.profile.track()
             self.long_tracker.track()
@@ -195,16 +199,16 @@ class TestRfVoltageCalcWCavityFB(unittest.TestCase):
             self.long_tracker.rf_voltage, orig_rf_voltage, decimal=8)
 
     def test_rf_voltage_calc_4(self):
-        self.long_tracker.cavityFB = CavityFB(np.linspace(
-            1, 1.5, self.profile.n_slices), np.linspace(0.1, 0.5, self.profile.n_slices))
+        self.long_tracker.cavityFB = [CavityFB(np.linspace(
+            1, 1.5, self.profile.n_slices), np.linspace(0.1, 0.5, self.profile.n_slices))]
         self.long_tracker.rf_voltage_calculation()
         orig_rf_voltage = orig_rf_volt_comp(self.long_tracker)
         np.testing.assert_almost_equal(
             self.long_tracker.rf_voltage, orig_rf_voltage, decimal=8)
 
     def test_rf_voltage_calc_5(self):
-        self.long_tracker.cavityFB = CavityFB(np.linspace(
-            1, 1.5, self.profile.n_slices), np.linspace(0.1, 0.5, self.profile.n_slices))
+        self.long_tracker.cavityFB = [CavityFB(np.linspace(
+            1, 1.5, self.profile.n_slices), np.linspace(0.1, 0.5, self.profile.n_slices))]
         for i in range(100):
             self.long_tracker.rf_voltage_calculation()
             orig_rf_voltage = orig_rf_volt_comp(self.long_tracker)
@@ -212,8 +216,8 @@ class TestRfVoltageCalcWCavityFB(unittest.TestCase):
             self.long_tracker.rf_voltage, orig_rf_voltage, decimal=8)
 
     def test_rf_voltage_calc_6(self):
-        self.long_tracker.cavityFB = CavityFB(np.linspace(
-            1, 1.5, self.profile.n_slices), np.linspace(0.1, 0.5, self.profile.n_slices))
+        self.long_tracker.cavityFB = [CavityFB(np.linspace(
+            1, 1.5, self.profile.n_slices), np.linspace(0.1, 0.5, self.profile.n_slices))]
         for i in range(100):
             self.profile.track()
             self.long_tracker.track()
