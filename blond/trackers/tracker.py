@@ -511,6 +511,7 @@ class RingAndRFTracker:
                 if self.interpolation:
                     self.rf_voltage_calculation()
                     if self.totalInducedVoltage is not None:
+                        self.totalInducedVoltage.induced_voltage_sum()
                         self.total_voltage = self.rf_voltage \
                             + self.totalInducedVoltage.induced_voltage
                     else:
