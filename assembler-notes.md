@@ -26,6 +26,28 @@
     TODO
 
 
+## Features
+* Support for custom trackable objects
+* Tracking priority mechanism
+* Uses TrackIteration (Simon) internally for tracking
+* Initialization with object list or Dictionary (yaml on-going)
+* Automatically discover blond distributions (for dictionary initialization)
+* Automatically discover blond classes (for dictionary initialization)
+* Replace references to objects in dictionary initialization
+* BLonD objects also availabel as Assembler attributes
+* Supports insert/ append/ remove elements
+* build_pipeline() to build the pipeline (ready to track)
+* Integrated timing (with_timing=True)
+* Convenient __str__ to print the assembler
+
+## On-going/ Future Features
+* Export to yaml
+* Handle specific initialization options (i.e. for correct induced voltage tracking)
+* Replace completely the operation of the tracker
+    * Convert to a simple sequence of trackable objects
+* Unittesting
+* Examples
+
 
 
 
