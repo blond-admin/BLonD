@@ -151,7 +151,7 @@ class Assembler:
         '''
         # Sort according to tracking order
         pipeline = sorted(
-            pipeline, key=lambda x: x.priority, reverse=True)
+            pipeline, key=lambda x: x.priority if x.priority is not None else 0, reverse=True)
         return pipeline
 
 
@@ -385,13 +385,14 @@ class Assembler:
                 del self.__dict__[key]
 
 
-    def replace_object_references(self, args, kwargs) -> 'Tuple[Tuple, Dict]':
+    def replace_object_references(self, args, kwargs, active_objects) -> 'Tuple[Tuple, Dict]':
         '''Check for values that are pointing to previously initialized objects
         and replace them with references to the initialized objects
 
         Args:
-            args (_type_): _description_
-            kwargs (_type_): _description_
+            args (tuple): _description_
+            kwargs (Dict): _description_
+            active_objects (Dict): _description_
 
         Returns:
             Tuple[Tuple, Dict]: _description_
@@ -399,17 +400,17 @@ class Assembler:
 
         # First check kwargs
         for k, v in kwargs.items():
-            if isinstance(v, str) and v in self.active_objects:
-                kwargs[k] = self.active_objects[v]
+            if isinstance(v, str) and v in active_objects:
+                kwargs[k] = active_objects[v]
         # Then check args. Convert to list to support assignment
         args = list(args)
         for i, arg in enumerate(args):
-            if isinstance(arg, str) and arg in self.active_objects:
-                args[i] = self.active_objects[arg]
+            if isinstance(arg, str) and arg in active_objects:
+                args[i] = active_objects[arg]
         return tuple(args), kwargs
 
 
-    def convert_from_dictionary_to_object(self, elem: 'Dict') -> 'Any':
+    def convert_from_dictionary_to_object(self, elem: 'Dict', active_objects: 'Dict') -> 'Any':
         '''_summary_
 
         Args:
@@ -419,11 +420,11 @@ class Assembler:
             elem) == 1, 'Dictionary elements must be in the form: {classname: {arg1: val1, arg2:val2, ...}}'
         elem_class, (elem_all_args) = next(iter(elem.items()))
         elem_args, elem_kwargs = Assembler.split_args_kwargs(elem_all_args)
-        logger.debug(
-            f'Found dictionary element with {len(elem_args)} positional arguments and {len(elem_kwargs)} kwargs')
+        # logger.debug(
+        #     f'Found dictionary element with {len(elem_args)} positional arguments and {len(elem_kwargs)} kwargs')
         # Replace reference kwargs objects
         elem_args, elem_kwargs = self.replace_object_references(
-            elem_args, elem_kwargs)
+            elem_args, elem_kwargs, active_objects)
         elem = self.init_object_from_dict(elem_class, elem_args, elem_kwargs)
 
         return elem
@@ -433,14 +434,17 @@ class Assembler:
         '''Build the pipeline from the element list.
         Elements can be either objects or dictionaries.
         '''
-
+        if self.is_built:
+            logger.debug('Assembler is already built.')
+            return
+        
         new_active_objects = {}
         for elem in self.element_list:
             if isinstance(elem, dict):
-                self.convert_from_dictionary_to_object(elem)
+                self.convert_from_dictionary_to_object(elem, new_active_objects)
 
             elem_class = type(elem).__name__
-            logger.debug(f'Found element of type: {elem_class}')
+            # logger.debug(f'Found element of type: {elem_class}')
 
             if Assembler.is_trackable(elem):
                 # if trackable, need to add its track method to the pipeline
@@ -506,7 +510,7 @@ class Assembler:
 
         # Replace references to blond objects
         distr_args, distr_kwargs = self.replace_object_references(
-            distr_args, distr_kwargs)
+            distr_args, distr_kwargs, self.active_objects)
 
         # Call the distribution function
         distribution_func(*distr_args, **distr_kwargs)
@@ -556,7 +560,12 @@ class Assembler:
         Args:
             element (_type_): _description_
         '''
-        self.__insert_at(element, len(self.element_list))
+        # if element is list, then insert all elements of the list
+        if isinstance(element, list):
+            for elem in element:
+                self.__insert_at(elem, len(self.element_list))
+        else:
+            self.__insert_at(element, len(self.element_list))
 
 
     def insert(self, element: 'Any') -> None:
@@ -568,7 +577,7 @@ class Assembler:
     def remove_last(self) -> None:
         '''Remove last element from the element list.
         '''
-        self.remove(self.element_list[-1])
+        del self.element_list[-1]
         self.is_built = False
 
 
