@@ -605,13 +605,22 @@ def drift(dt, dE, solver, t_rev, length_ratio, alpha_order, eta_0,
           eta_1, eta_2, alpha_0, alpha_1, alpha_2, beta, energy):
     assert isinstance(dt[0], precision.real_t)
     assert isinstance(dE[0], precision.real_t)
+    
+    solver_to_int = {
+        'simple': 0,
+        'legacy': 1,
+        'exact': 2,
+    }
+    solver = solver_to_int[solver]
+    # solver = solver.encode(encoding='utf_8')
 
     # dt = dt.astype(dtype=precision.real_t, order='C', copy=False)
     # dE = dE.astype(dtype=precision.real_t, order='C', copy=False)
     if precision.num == 1:
         __lib.driftf(__getPointer(dt),
                      __getPointer(dE),
-                     ct.c_char_p(solver),
+                    #  ct.c_char_p(solver),
+                    ct.c_int(solver),
                      c_real(t_rev),
                      c_real(length_ratio),
                      c_real(alpha_order),
@@ -627,7 +636,8 @@ def drift(dt, dE, solver, t_rev, length_ratio, alpha_order, eta_0,
     else:
         __lib.drift(__getPointer(dt),
                     __getPointer(dE),
-                    ct.c_char_p(solver),
+                    ct.c_int(solver),
+                    # ct.c_char_p(solver),
                     c_real(t_rev),
                     c_real(length_ratio),
                     c_real(alpha_order),
@@ -896,16 +906,16 @@ def synchrotron_radiation(dE, U0, n_kicks, tau_z):
     if precision.num == 1:
         __lib.synchrotron_radiationf(
             __getPointer(dE),
-            c_real(U0 / n_kicks),
+            c_real(U0),
             __getLen(dE),
-            c_real(tau_z * n_kicks),
+            c_real(tau_z),
             ct.c_int(n_kicks))
     else:
         __lib.synchrotron_radiation(
             __getPointer(dE),
-            c_real(U0 / n_kicks),
+            c_real(U0),
             __getLen(dE),
-            c_real(tau_z * n_kicks),
+            c_real(tau_z),
             ct.c_int(n_kicks))
 
 
@@ -917,19 +927,19 @@ def synchrotron_radiation_full(dE, U0, n_kicks, tau_z, sigma_dE, energy):
     if precision.num == 1:
         __lib.synchrotron_radiation_fullf(
             __getPointer(dE),
-            c_real(U0 / n_kicks),
+            c_real(U0),
             __getLen(dE),
             c_real(sigma_dE),
-            c_real(tau_z * n_kicks),
+            c_real(tau_z),
             c_real(energy),
             ct.c_int(n_kicks))
     else:
         __lib.synchrotron_radiation_full(
             __getPointer(dE),
-            c_real(U0 / n_kicks),
+            c_real(U0),
             __getLen(dE),
             c_real(sigma_dE),
-            c_real(tau_z * n_kicks),
+            c_real(tau_z),
             c_real(energy),
             ct.c_int(n_kicks))
 
