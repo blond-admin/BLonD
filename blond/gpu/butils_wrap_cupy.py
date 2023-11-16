@@ -94,7 +94,7 @@ def drift(dt, dE, solver, t_rev, length_ratio, alpha_order, eta_0,
     """
     drift_kernel = GPU_DEV.mod.get_function("drift")
 
-    solver = solver.decode('utf-8')
+    # solver = solver.decode('utf-8')
     if solver == "simple":
         solver = np.int32(0)
     elif solver == "legacy":

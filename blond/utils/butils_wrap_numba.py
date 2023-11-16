@@ -1,30 +1,37 @@
 '''
-BLonD physics functions, python-only implementations
-
-@author: alasheen, kiliakis
+BLonD physics functions, numba implementations
 '''
 
 import numpy as np
 
-RNG = np.random.default_rng()
+from numba import jit
+from numba import prange
+from numba import get_num_threads, get_thread_id
+import math
+import random 
 
 
 # --------------- Similar to kick.cpp -----------------
+@jit(nopython=True, nogil=True, fastmath=True, parallel=True, cache=True)
 def kick(dt: np.ndarray, dE: np.ndarray, voltage: np.ndarray,
          omega_rf: np.ndarray, phi_rf: np.ndarray,
          charge: float, n_rf: int, acceleration_kick: float) -> None:
     '''
     Function to apply RF kick on the particles with sin function
     '''
-
     voltage_kick = charge * voltage
 
-    for j in range(n_rf):
-        dE += voltage_kick[j] * np.sin(omega_rf[j] * dt + phi_rf[j])
+    for j in range(len(voltage)):
+        if j == 0:
+            add_kick = acceleration_kick
+        else:
+            add_kick = 0.0
+        for i in prange(len(dt)):
+            dE[i] = dE[i] + voltage_kick[j] * \
+                np.sin(omega_rf[j] * dt[i] + phi_rf[j]) + add_kick
 
-    dE[:] += acceleration_kick
 
-
+@jit(nopython=True, nogil=True, fastmath=True, parallel=True, cache=True)
 def rf_volt_comp(voltages: np.ndarray, omega_rf: np.ndarray, phi_rf: np.ndarray,
                  bin_centers: np.ndarray) -> np.ndarray:
     """Compute rf voltage at each bin.
@@ -41,29 +48,33 @@ def rf_volt_comp(voltages: np.ndarray, omega_rf: np.ndarray, phi_rf: np.ndarray,
     rf_voltage = np.zeros(len(bin_centers))
 
     for j in range(len(voltages)):
-        rf_voltage += voltages[j] * np.sin(
-            omega_rf[j] * bin_centers + phi_rf[j])
+        for i in prange(len(bin_centers)):
+            rf_voltage[i] += voltages[j] * \
+                np.sin(omega_rf[j] * bin_centers[i] + phi_rf[j])
 
     return rf_voltage
 # ---------------------------------------------------
 
 
 # --------------- Similar to drift.cpp -----------------
+@jit(nopython=True, fastmath=True, parallel=True, cache=True)
 def drift(dt: np.ndarray, dE: np.ndarray, solver: str, t_rev: float,
           length_ratio: float, alpha_order, eta_0: float,
           eta_1: float, eta_2: float, alpha_0: float,
           alpha_1: float, alpha_2: float, beta: float, energy: float) -> None:
     '''
     Function to apply drift equation of motion
+    0 == 'simple'
+    1 == 'legacy'
+    2 == 'exact'
     '''
-
-    # solver_decoded = solver.decode(encoding='utf_8')
 
     T = t_rev * length_ratio
 
     if solver == 'simple':
         coeff = eta_0 / (beta * beta * energy)
-        dt += T * coeff * dE
+        for i in prange(len(dt)):
+            dt[i] += T * coeff * dE[i]
 
     elif solver == 'legacy':
         coeff = 1. / (beta * beta * energy)
@@ -72,34 +83,37 @@ def drift(dt: np.ndarray, dE: np.ndarray, solver: str, t_rev: float,
         eta2 = eta_2 * coeff * coeff * coeff
 
         if alpha_order == 0:
-            dt += T * (1. / (1. - eta0 * dE) - 1.)
+            for i in prange(len(dt)):
+                dt[i] += T * (1. / (1. - eta0 * dE[i]) - 1.)
         elif alpha_order == 1:
-            dt += T * (1. / (1. - eta0 * dE
-                                - eta1 * dE * dE) - 1.)
+            for i in prange(len(dt)):
+                dt[i] += T * (1. / (1. - eta0 * dE[i]
+                                    - eta1 * dE[i] * dE[i]) - 1.)
         else:
-            dt += T * (1. / (1. - eta0 * dE
-                                - eta1 * dE * dE
-                                - eta2 * dE * dE * dE) - 1.)
+            for i in prange(len(dt)):
+                dt[i] += T * (1. / (1. - eta0 * dE[i]
+                                    - eta1 * dE[i] * dE[i]
+                                    - eta2 * dE[i] * dE[i] * dE[i]) - 1.)
 
     else:
         invbetasq = 1 / (beta * beta)
         invenesq = 1 / (energy * energy)
-        # double beam_delta;
+        for i in prange(len(dt)):
+            beam_delta = np.sqrt(1. + invbetasq *
+                                 (dE[i] * dE[i] * invenesq + 2. * dE[i] / energy)) - 1.
 
-        beam_delta = np.sqrt(1. + invbetasq *
-                             (dE * dE * invenesq + 2. * dE / energy)) - 1.
-
-        dt += T * (
-            (1. + alpha_0 * beam_delta +
-             alpha_1 * (beam_delta * beam_delta) +
-             alpha_2 * (beam_delta * beam_delta * beam_delta)) *
-            (1. + dE / energy) / (1. + beam_delta) - 1.)
+            dt[i] += T * (
+                (1. + alpha_0 * beam_delta +
+                 alpha_1 * (beam_delta * beam_delta) +
+                 alpha_2 * (beam_delta * beam_delta * beam_delta)) *
+                (1. + dE[i] / energy) / (1. + beam_delta) - 1.)
 # ---------------------------------------------------
 
 
 # --------------- Similar to histogram.cpp -----------------
+@jit(nopython=True, nogil=True, fastmath=True, parallel=True, cache=True)
 def slice_beam(dt: np.ndarray, profile: np.ndarray,
-          cut_left: float, cut_right: float) -> None:
+               cut_left: float, cut_right: float) -> None:
     """Slice the time coordinate of the beam.
 
     Args:
@@ -108,10 +122,56 @@ def slice_beam(dt: np.ndarray, profile: np.ndarray,
         cut_left (float): _description_
         cut_right (float): _description_
     """
-    profile[:] = np.histogram(dt, bins=len(profile),
-                              range=(cut_left, cut_right))[0]
+
+    n_slices = len(profile)
+    n_parts = len(dt)
+    inv_bin_width = n_slices / (cut_right - cut_left)
+    n_threads = get_num_threads()
+
+    # Per thread private profile to avoid cross-thread synchronization
+    local_profile = np.zeros((n_threads, n_slices),
+                             dtype=np.int32)
+
+    # Operate in chunks of 512 particles to avoid calling the expensive
+    # get_thread_id() function too often
+    STEP = 512
+    local_target_bin = np.empty((n_threads, STEP), dtype=np.int32)
+    total_steps = math.ceil(n_parts / STEP)
+
+    for i in prange(total_steps):
+        thr_id = get_thread_id()
+        start_i = i*STEP
+        loop_count = min(STEP, n_parts - start_i)
+        local_target_bin[thr_id][:loop_count] = np.floor(
+            (dt[start_i:start_i+loop_count] - cut_left) * inv_bin_width)
+
+        for j in range(loop_count):
+            if local_target_bin[thr_id][j] >= 0 and local_target_bin[thr_id][j] < n_slices:
+                local_profile[thr_id, local_target_bin[thr_id][j]] += 1
+
+    # reduce the private profiles to the global profile
+    for i in prange(n_slices):
+        profile[i] = 0.0
+        for j in range(n_threads):
+            profile[i] += local_profile[j, i]
+
+    # profile[:] = 0.0
+
+    # profile_len = len(profile)
+    # inv_bin_width = profile_len / (cut_right - cut_left)
+    # target_bin = np.empty(len(dt), dtype=np.int32)
+    # for i in prange(len(dt)):
+    #     target_bin[i] = int(np.floor((dt[i] - cut_left) * inv_bin_width))
+
+    # for tbin in target_bin:
+    #     if tbin >= 0 and tbin < profile_len:
+    #         profile[tbin] += 1.0
+
+    # profile[:] = np.histogram(dt, bins=len(profile),
+    #                          range=(cut_left, cut_right))[0]
 
 
+@jit(nopython=True, fastmath=True, parallel=True, cache=True)
 def slice_smooth(dt: np.ndarray, profile: np.ndarray,
                  cut_left: float, cut_right: float) -> None:
     """Smooth slice method.
@@ -148,6 +208,7 @@ def slice_smooth(dt: np.ndarray, profile: np.ndarray,
 
 
 # --------------- Similar to linear_interp_kick.cpp -----------------
+@jit(nopython=True, nogil=True, fastmath=True, parallel=True, cache=True)
 def linear_interp_kick(dt: np.ndarray, dE: np.ndarray, voltage: np.ndarray,
                        bin_centers: np.ndarray, charge: float,
                        acceleration_kick: float) -> None:
@@ -164,20 +225,22 @@ def linear_interp_kick(dt: np.ndarray, dE: np.ndarray, voltage: np.ndarray,
     n_slices = len(bin_centers)
     inv_bin_width = (n_slices - 1) / (bin_centers[-1] - bin_centers[0])
 
-    fbin = np.floor((dt - bin_centers[0]) * inv_bin_width).astype(np.int32)
+    helper = np.empty(2 * (n_slices-1), dtype=np.float64)
+    for i in prange(n_slices-1):
+        helper[2*i] = charge * (voltage[i + 1] - voltage[i]) * inv_bin_width
+        helper[2*i+1] = (charge * voltage[i] - bin_centers[i]
+                         * helper[2*i]) + acceleration_kick
 
-    helper1 = charge * (voltage[1:] - voltage[:-1]) * inv_bin_width
-    helper2 = (charge * voltage[:-1] -
-               bin_centers[:-1] * helper1) + acceleration_kick
+    for i in prange(len(dt)):
+        fbin = int(np.floor((dt[i]-bin_centers[0])*inv_bin_width))
+        if (fbin >= 0) and (fbin < n_slices - 1):
+            dE[i] += dt[i] * helper[2*fbin] + helper[2*fbin+1]
 
-    for i in range(len(dt)):
-        # fbin = int(np.floor((dt[i]-bin_centers[0])*inv_bin_width))
-        if (fbin[i] >= 0) and (fbin[i] < n_slices - 1):
-            dE[i] += dt[i] * helper1[fbin[i]] + helper2[fbin[i]]
 # ---------------------------------------------------
 
 
 # --------------- Similar to synchrotron_radiation.cpp -----------------
+@jit(nopython=True, nogil=True, fastmath=True, parallel=True, cache=True)
 def synchrotron_radiation(dE: np.ndarray, U0: float,
                           n_kicks: int, tau_z: float) -> None:
     """Apply SR
@@ -188,10 +251,19 @@ def synchrotron_radiation(dE: np.ndarray, U0: float,
         n_kicks (int): _description_
         tau_z (float): _description_
     """
-    for _ in range(n_kicks):
-        dE += -(2.0 / tau_z / n_kicks * dE + U0 / n_kicks)
+    # Adjust inputs before the loop to reduce computations
+    U0 = U0 / n_kicks
+    tau_z = tau_z * n_kicks
+
+    # SR damping constant, adjusted for better performance
+    const_synch_rad = 1.0 - 2.0 / tau_z
+
+    for i in prange(len(dE)):
+        for _ in range(n_kicks):
+            dE[i] = dE[i] * const_synch_rad - U0
 
 
+@jit(nopython=True, nogil=True, fastmath=True, parallel=True, cache=True)
 def synchrotron_radiation_full(dE: np.ndarray, U0: float,
                                n_kicks: int, tau_z: float,
                                sigma_dE: float, energy: float) -> None:
@@ -206,26 +278,34 @@ def synchrotron_radiation_full(dE: np.ndarray, U0: float,
         energy (float): _description_
     """
 
-    for _ in range(n_kicks):
-        dE += -(2.0 / tau_z / n_kicks * dE +
-                U0 / n_kicks - 2.0 * sigma_dE /
-                np.sqrt(tau_z * n_kicks) * energy *
-                RNG.standard_normal(len(dE)))
+    # Adjust inputs before the loop to reduce computations
+    U0 = U0 / n_kicks
+    tau_z = tau_z * n_kicks
+
+    const_quantum_exc = 2.0 * sigma_dE / np.sqrt(tau_z) * energy
+    const_synch_rad = 1.0 - 2.0 / tau_z
+
+    for i in prange(len(dE)):
+        # rand_arr = np.random.normal(0.0, 1.0, size=n_kicks)
+        for j in range(n_kicks):
+            dE[i] = dE[i] * const_synch_rad + \
+                const_quantum_exc * random.gauss(0.0, 1.0)-U0
 
 
+# @jit(nopython=False, nogil=True, fastmath=False, parallel=False)
 def set_random_seed(seed: int) -> None:
     """Set the seed of the RNG used in synchrotron radiation
 
     Args:
         seed (int): _description_
     """
-    global RNG
-    # Re-initialize the RNG with new seed
-    RNG = np.random.default_rng(seed)
+    np.random.seed(seed)
+    random.seed(seed)
 # ---------------------------------------------------
 
 
 # --------------- Similar to music_track.cpp -----------------
+@jit(nopython=True, nogil=True, fastmath=True, cache=True)
 def music_track(dt: np.ndarray, dE: np.ndarray, induced_voltage: np.ndarray,
                 array_parameters: np.ndarray, alpha: float, omega_bar: float,
                 const: float, coeff1: float, coeff2: float,
@@ -292,6 +372,7 @@ def music_track(dt: np.ndarray, dE: np.ndarray, induced_voltage: np.ndarray,
     array_parameters[3] = dt[-1]
 
 
+@jit(nopython=True, nogil=True, fastmath=True, cache=True)
 def music_track_multiturn(dt: np.ndarray, dE: np.ndarray, induced_voltage: np.ndarray,
                           array_parameters: np.ndarray, alpha: float, omega_bar: float,
                           const: float, coeff1: float, coeff2: float,
@@ -365,47 +446,51 @@ def music_track_multiturn(dt: np.ndarray, dE: np.ndarray, induced_voltage: np.nd
 # ---------------------------------------------------
 
 
+# # --------------- Similar to fast_resonator.cpp -----------------
+# @jit(nopython=True, nogil=True, fastmath=True, parallel=True, cache=True)
+# def fast_resonator(R_S: np.ndarray, Q: np.ndarray, frequency_array: np.ndarray,
+#                    frequency_R: np.ndarray, impedance: np.ndarray = None) -> np.ndarray:
+
+#     if impedance is None:
+#         impedance = np.zeros(len(frequency_array), dtype=np.complex128)
+
+#     for freq in prange(1, len(frequency_array)):
+#         impedance[freq] = 0.0
+#         for i in range(len(R_S)):
+#             impedance[freq] += R_S[i] / (1 + 1j * Q[i] * (frequency_array[freq] / frequency_R[i] -
+#                                                           frequency_R[i] / frequency_array[freq]))
+
+#     return impedance
+# # ---------------------------------------------------
+
 # --------------- Similar to fast_resonator.cpp -----------------
 def fast_resonator(R_S: np.ndarray, Q: np.ndarray, frequency_array: np.ndarray,
                    frequency_R: np.ndarray, impedance: np.ndarray = None) -> np.ndarray:
     '''
-    This function takes as an input a list of resonators parameters and
-    computes the impedance in an optimised way.
-
-    Parameters
-    ----------
-    frequencies: float array
-        array of frequency in Hz
-    shunt_impedances: float array
-        array of shunt impedances in Ohm
-    Q_values: float array
-        array of quality factors
-    resonant_frequencies: float array
-        array of resonant frequency in Hz
-    n_resonators: int
-        number of resonantors
-    n_frequencies: int
-        length of the array 'frequencies'
-
-    Returns
-    -------
-    impedanceReal: float array
-        real part of the impedance
-    impedanceImag: float array
-        imaginary part of the impedance
+    We're defining and calling a function internally due to issues
+    dealing with parallelization and the allocation of the impedance array.
     '''
-    if impedance is None:
-        impedance = np.zeros(len(frequency_array), dtype=complex)
 
-    for i in range(len(R_S)):
-        impedance[1:] += R_S[i] / (1 + 1j * Q[i] * (frequency_array[1:] / frequency_R[i] -
-                                                    frequency_R[i] / frequency_array[1:]))
+
+    if impedance is None:
+        impedance = np.zeros(len(frequency_array), dtype=np.complex128)
+    
+    @jit(nopython=True, nogil=True, fastmath=True, parallel=True, cache=True)
+    def calc_impedance(R_S: np.ndarray, Q: np.ndarray, frequency_array: np.ndarray,
+                   frequency_R: np.ndarray, impedance: np.ndarray):
+        for freq in prange(1, len(frequency_array)):
+            for i in range(len(R_S)):
+                impedance[freq] += R_S[i] / (1 + 1j * Q[i] * (frequency_array[freq] / frequency_R[i] -
+                                                            frequency_R[i] / frequency_array[freq]))
+
+    calc_impedance(R_S, Q, frequency_array, frequency_R, impedance)
 
     return impedance
 # ---------------------------------------------------
 
 
 # --------------- Similar to beam_phase.cpp -----------------
+@jit(nopython=True, nogil=True, fastmath=True, parallel=True, cache=True)
 def beam_phase(bin_centers: np.ndarray, profile: np.ndarray,
                alpha: float, omegarf: float,
                phirf: float, bin_size: float) -> float:
@@ -419,6 +504,7 @@ def beam_phase(bin_centers: np.ndarray, profile: np.ndarray,
     return scoeff / ccoeff
 
 
+@jit(nopython=True, nogil=True, fastmath=True, parallel=True, cache=True)
 def beam_phase_fast(bin_centers: np.ndarray, profile: np.ndarray,
                     omegarf: float, phirf: float, bin_size: float) -> float:
     scoeff = np.trapz(profile * np.sin(omegarf * bin_centers + phirf),
@@ -431,6 +517,7 @@ def beam_phase_fast(bin_centers: np.ndarray, profile: np.ndarray,
 
 
 # --------------- Similar to sparse_histogram.cpp -----------------
+@jit(nopython=True, nogil=True, fastmath=True, parallel=False)
 def sparse_histogram(dt: np.ndarray, profile: np.ndarray,
                      cut_left: np.ndarray, cut_right: np.ndarray,
                      bunch_indexes: np.ndarray, n_slices_bucket: int) -> None:
@@ -459,6 +546,7 @@ def sparse_histogram(dt: np.ndarray, profile: np.ndarray,
 
 
 # --------------- Similar to tomoscope.cpp -----------------
+@jit(nopython=True, nogil=True, fastmath=True, parallel=True, cache=True)
 def distribution_from_tomoscope(dt: np.ndarray, dE: np.ndarray, probDistr: np.ndarray,
                                 seed: int, profLen: int,
                                 cutoff: float, x0: float, y0: float,

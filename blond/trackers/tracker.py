@@ -281,7 +281,6 @@ class RingAndRFTracker:
                                " longitudinal solver not recognised!")
         if self.rf_params.alpha_order > 1:  # Force exact solver for higher orders of eta
             self.solver = 'exact'
-        self.solver = self.solver.encode(encoding='utf_8')
 
         # Options
         self.beamFB = BeamFeedback

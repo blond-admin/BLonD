@@ -27,7 +27,7 @@ Project website: <http://blond.web.cern.ch>
 
 ## Dependencies
 
-1. Python 3.6 or above (Anaconda is recommended).  
+1. Python 3.8 or above (Anaconda is recommended).  
 2. (Optional) For better performance, a C++ (e.g. `gcc`, `icc`, `clang`, etc) compiler with `C++11` support.
 
 ### (Optional) C++ compiler installation instructions
@@ -96,12 +96,22 @@ Use your distribution's package manager to install the compiler of your choice. 
     ```
 
 # Performance Optimizations
-By default, if the C++ blond library has not been compiled, the python-only backend will be used to run the most time-consuming operations. 
+BLonD contains three computational backends, sorted in order of better performance:
+1. `C++` backend (Supports multi-threading and vectorization)
+2. [`Numba` backend](https://numba.pydata.org) (Supports multi-threading and vectorization)
+3. `Python`-only backend (No multi-threading or vectorization)
 
-To use the C++ backend and accelerate the execution of the time-consuming operations, follow the instructions provided in the section *Installing BLonD manually*.
+The performance order also defines the order in which the backends will be used. If the `C++` blond libary has been compiled, then the `C++` backend will be used. Otherwise, if the `numba` package is installed, the numba backend will be used. Finally, if neither condition is met, the `python`-only backend will be used.
+
+To use the `Numba` backend, you simply need to install the numba package with `pip`:
+```bash
+pip install numba
+```
+
+To use the `C++` backend, follow the instructions provided in the section *Installing BLonD manually*.
 
 In addition you may want to:
-* Use the multi-threaded blond C++ backend:
+* Use the multi-threaded blond `C++` backend:
     ``` bash
     python blond/compile.py --parallel
     ```
