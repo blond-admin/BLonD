@@ -32,15 +32,15 @@ class Trackable(ABC):
     Abstract class for trackable elements
     '''
 
-    def __init__(self, period: int = 1, priority: 'Optional[int]' = None) -> None:
+    def __init__(self, track_period: int = 1, track_priority: 'Optional[int]' = None) -> None:
         '''Constructor
 
         Args:
             period (int, optional): Period in turn in between calls to the tracking method. Defaults to 1.
             priority (Optional[int], optional): Tracking priority. Higher values will be tracked first. Defaults to None.
         '''
-        self.period = period
-        self.priority = priority
+        self.track_period = track_period
+        self.track_priority = track_priority
 
     @abstractmethod
     def track(self) -> None:
@@ -76,7 +76,6 @@ class Assembler:
                               'default': 0
                               }
 
-
     class PipelineElement:
         '''
         PipelineElement class. Used to hold all neccaessary information for a trackable element. 
@@ -95,19 +94,19 @@ class Assembler:
             self.element = element
 
             # Add the tracking period. If not given, assume 1 (i.e. every turn)
-            self.period = getattr(element, 'period', 1)
+            self.track_period = getattr(element, 'track_period', 1)
 
             # Assign the tracking priority. If not specified, get it from the Assembler method
-            self.priority = Assembler.get_tracking_priority(element)
+            self.track_priority = Assembler.get_tracking_priority(element)
 
             # Replace track method with the element's track method
             self.track = element.track
+
 
         def track(self):
             '''Placeholder track method, will be overwritten during initialization of the object
             '''
             raise NotImplementedError("Track method not implemented")
-
 
     @staticmethod
     def get_tracking_priority(element: Trackable) -> int:
@@ -123,9 +122,9 @@ class Assembler:
         parent_classes = [
             parent_class.__name__ for parent_class in element.__class__.__bases__]
 
-        if hasattr(element, 'priority'):
-            # If tracking_priority is defined, return it
-            return element.priority
+        if hasattr(element, 'track_priority'):
+            # If tracking_track_priority is defined, return it
+            return element.track_priority
         elif class_name in Assembler.tracking_priority_dict:
             # If class name is in tracking order, return its index
             return Assembler.tracking_priority_dict[class_name]
@@ -137,7 +136,6 @@ class Assembler:
         else:
             # Else we have a custom class, return the default priority.
             return Assembler.tracking_priority_dict['default']
-
 
     @staticmethod
     def sort_pipeline(pipeline: 'List[PipelineElement]') -> 'List[PipelineElement]':
@@ -151,9 +149,8 @@ class Assembler:
         '''
         # Sort according to tracking order
         pipeline = sorted(
-            pipeline, key=lambda x: x.priority if x.priority is not None else 0, reverse=True)
+            pipeline, key=lambda x: x.track_priority if x.track_priority is not None else 0, reverse=True)
         return pipeline
-
 
     @staticmethod
     def is_trackable(elem) -> bool:
@@ -167,7 +164,6 @@ class Assembler:
         '''
         return issubclass(type(elem), Trackable) or (hasattr(elem, 'track') and callable(elem.track))
 
-
     @staticmethod
     def is_callable_tuple(elem) -> bool:
         '''_summary_
@@ -180,7 +176,6 @@ class Assembler:
         '''
         # Check if elem is a tuple in the form (func, (func_args))
         return isinstance(elem, tuple) and len(elem) == 2 and callable(elem[0]) and isinstance(elem[1], tuple)
-
 
     @staticmethod
     def split_args_kwargs(arguments: 'Union[Tuple, Dict]') -> 'Tuple[Tuple, Dict]':
@@ -199,7 +194,6 @@ class Assembler:
             return arguments[0], arguments[1]
         elif isinstance(arguments, tuple):
             return arguments, {}
-
 
     @staticmethod
     def discover_blond_distributions() -> 'Dict':
@@ -223,7 +217,6 @@ class Assembler:
                     blond_distributions[name] = member
 
         return blond_distributions
-
 
     @staticmethod
     def discover_blond_classes() -> 'Dict[str, Callable]':
@@ -281,7 +274,6 @@ class Assembler:
 
         return blond_classes
 
-
     def __init__(self, element_list=[]) -> None:
         '''
         Initialize assembler
@@ -315,7 +307,7 @@ class Assembler:
     @property
     def is_built(self) -> bool:
         return self.__is_built
-    
+
     @is_built.setter
     def is_built(self, value: bool) -> None:
         if self.__is_built and not value:
@@ -327,7 +319,6 @@ class Assembler:
 
             # logger.debug('Assembler is already built. Call build method to rebuild.')
         self.__is_built = value
-
 
     def __str__(self) -> str:
         '''_summary_
@@ -345,7 +336,15 @@ class Assembler:
             string += f'\n\t{key}'
 
         return string
+    
+    def __getitem__(self, key):
+        return self.active_objects[key]
 
+    def __setitem__(self, key, value):
+        self.active_objects[key] = value
+
+    def __contains__(self, key):
+        return key in self.active_objects
 
     def init_object_from_dict(self, elem_class, elem_args, elem_kwargs):
         '''_summary_
@@ -360,20 +359,14 @@ class Assembler:
         '''
         return self.blond_classes[elem_class](*elem_args, **elem_kwargs)
 
-
     def promote_to_properties(self, elem_dict) -> None:
         '''_summary_
 
         Args:
             elem_dict (_type_): _description_
         '''
-
-        # delete old properties
-        self.remove_properties()
-
         # add the new objects to the self.__dict__
         self.__dict__.update(elem_dict)
-
 
     def remove_properties(self) -> None:
         '''Remove all the active_objects from the assembler's properties
@@ -383,7 +376,6 @@ class Assembler:
         for key in self.active_objects.keys():
             if key in self.__dict__:
                 del self.__dict__[key]
-
 
     def replace_object_references(self, args, kwargs, active_objects) -> 'Tuple[Tuple, Dict]':
         '''Check for values that are pointing to previously initialized objects
@@ -409,15 +401,14 @@ class Assembler:
                 args[i] = active_objects[arg]
         return tuple(args), kwargs
 
-
     def convert_from_dictionary_to_object(self, elem: 'Dict', active_objects: 'Dict') -> 'Any':
         '''_summary_
 
         Args:
             elem (Dict): _description_
         '''
-        assert len(
-            elem) == 1, 'Dictionary elements must be in the form: {classname: {arg1: val1, arg2:val2, ...}}'
+        assert len(elem) == 1, \
+            'Dictionary elements must be in the form: {classname: {arg1: val1, arg2:val2, ...}}'
         elem_class, (elem_all_args) = next(iter(elem.items()))
         elem_args, elem_kwargs = Assembler.split_args_kwargs(elem_all_args)
         # logger.debug(
@@ -429,6 +420,11 @@ class Assembler:
 
         return elem
 
+    def verify_object_dependencies(self) -> None:
+        '''Verify that all necessary objects have been initialized
+        '''
+        # TODO: Implement
+        pass
 
     def build_pipeline(self) -> None:
         '''Build the pipeline from the element list.
@@ -437,11 +433,15 @@ class Assembler:
         if self.is_built:
             logger.debug('Assembler is already built.')
             return
-        
+
+        # Remove existing propertirs
+        self.remove_properties()
+
         new_active_objects = {}
         for elem in self.element_list:
             if isinstance(elem, dict):
-                self.convert_from_dictionary_to_object(elem, new_active_objects)
+                self.convert_from_dictionary_to_object(
+                    elem, new_active_objects)
 
             elem_class = type(elem).__name__
             # logger.debug(f'Found element of type: {elem_class}')
@@ -454,29 +454,32 @@ class Assembler:
             # Since the assembler also has a record of all objects, need to store object in correct attribute
             if elem_class in new_active_objects:
                 if not isinstance(new_active_objects[elem_class], list):
-                    new_active_objects[elem_class] = list(new_active_objects[elem_class])
+                    new_active_objects[elem_class] = list(
+                        new_active_objects[elem_class])
                 new_active_objects[elem_class].append(elem)
             else:
                 new_active_objects[elem_class] = elem
 
             self.element_idx += 1
-
+        
         # Promote the new objects to properties
         self.promote_to_properties(new_active_objects)
         # Update the active objects
         self.active_objects = new_active_objects
 
+        # Verify that all needed objects have been initialized
+        self.verify_object_dependencies()
+
         # Sort according to custom order
         self.pipeline = Assembler.sort_pipeline(self.pipeline)
         # Extract tracking periods
-        tracking_periods = [elem.period for elem in self.pipeline]
+        tracking_periods = [elem.track_period for elem in self.pipeline]
         # extract the tracking methods
         track_methods = [elem.track for elem in self.pipeline]
 
         self.pipeline_tracker = TrackIteration(
             track_methods, initTurn=0, finalTurn=-1, trackPeriods=tracking_periods)
         self.is_built = True
-
 
     def build_distribution(self, distribution_dict: 'Optional[Dict]' = None,
                            distribution_func: 'Optional[Callable]' = None,
@@ -515,7 +518,6 @@ class Assembler:
         # Call the distribution function
         distribution_func(*distr_args, **distr_kwargs)
 
-
     def track(self, num_turns: int = 1, with_timing: bool = False) -> None:
         '''Track all trackable pipeline objects for a number of turns
 
@@ -542,7 +544,6 @@ class Assembler:
         # Track all objects for the given number of turns
         self.pipeline_tracker(num_turns)
 
-
     def __insert_at(self, element: 'Any', index: int = 0) -> None:
         '''Insert element at index, shifting all elements at and after the index to the right
 
@@ -552,7 +553,6 @@ class Assembler:
         '''
         self.element_list.insert(index, element)
         self.is_built = False
-
 
     def append(self, element: 'Any') -> None:
         '''Append element to the end of the element list.
@@ -567,12 +567,10 @@ class Assembler:
         else:
             self.__insert_at(element, len(self.element_list))
 
-
     def insert(self, element: 'Any') -> None:
         '''Synonym for append.
         '''
         self.append(element)
-
 
     def remove_last(self) -> None:
         '''Remove last element from the element list.
@@ -580,18 +578,15 @@ class Assembler:
         del self.element_list[-1]
         self.is_built = False
 
-
     def report_timing(self) -> None:
         '''Report timing information after tracking.
         '''
         timing.report()
 
-
     def to_yaml(self) -> None:
         '''Convert pipeline to yaml file.
         '''
         pass
-
 
     @classmethod
     def from_yaml(cls, file_name) -> Assembler:
@@ -613,7 +608,7 @@ class Assembler:
         return cls(element_dict)
 
 
-# THese are methods that will be probably deleted in the future. 
+# THese are methods that will be probably deleted in the future.
 # def __prepend(self, element: 'Any') -> None:
 #     '''Prepend element to the beginning of the element list
 
