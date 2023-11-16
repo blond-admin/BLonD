@@ -104,7 +104,7 @@ test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
 
 
 # Accelerator map
-map_ = [long_tracker] + [profile] + [bunchmonitor] + [plots]
+map_ = [long_tracker] + [profile] + [bunchmonitor] + []
 print("Map set")
 print("")
 

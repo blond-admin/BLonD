@@ -31,7 +31,7 @@ from blond.input_parameters.ring import Ring
 from blond.monitors.monitors import BunchMonitor
 from blond.plots.plot import Plot
 from blond.trackers.tracker import RingAndRFTracker
-from blond.utils.assembler import Assembler, Trackable
+from blond.utils.assembler import Assembler
 
 mpl.use('Agg')
 
@@ -104,28 +104,28 @@ class BeamLosses:
     
     def track(self):
         # Define losses according to separatrix and/or longitudinal position
-        beam.losses_separatrix(ring, rf)
+        beam.losses_separatrix(self.ring, self.rf)
         beam.losses_longitudinal_cut(0., 2.5e-9)
-
 
 class OutputReporting:
     def __init__(self, beam, profile):
         self.beam = beam
-        self.profile = profile 
+        self.profile = profile
+        self.track_period = dt_plt
+        self.track_priority = 1000
+        self.i = 0
 
     def track(self):
         # Plot has to be done before tracking (at least for cases with separatrix)
-        if (i % dt_plt) == 0:
-            print("Outputting at time step %d..." % i)
-            print("   Beam momentum %.6e eV" % beam.momentum)
-            print("   Beam gamma %3.3f" % beam.gamma)
-            print("   Beam beta %3.3f" % beam.beta)
-            print("   Beam energy %.6e eV" % beam.energy)
-            print("   Four-times r.m.s. bunch length %.4e s" % (4. * beam.sigma_dt))
-            print("   Gaussian bunch length %.4e s" % profile.bunchLength)
-            print("")
-
-
+        print("Outputting at time step %d..." % self.i)
+        print("   Beam momentum %.6e eV" % self.beam.momentum)
+        print("   Beam gamma %3.3f" % self.beam.gamma)
+        print("   Beam beta %3.3f" % self.beam.beta)
+        print("   Beam energy %.6e eV" % self.beam.energy)
+        print("   Four-times r.m.s. bunch length %.4e s" % (4. * self.beam.sigma_dt))
+        print("   Gaussian bunch length %.4e s" % self.profile.bunchLength)
+        print("")
+        self.i += self.track_period
 
 # For testing purposes
 test_string = ''
@@ -134,40 +134,14 @@ test_string += '{:<17}\t{:<17}\t{:<17}\t{:<17}\n'.format(
 test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
     np.mean(beam.dE), np.std(beam.dE), np.mean(beam.dt), np.std(beam.dt))
 
-
 assembler = Assembler(element_list=[ring, beam, rf, long_tracker, profile,
-                                    bunchmonitor, plots, BeamLosses(beam, ring, rf)])
-
+                                    bunchmonitor, BeamLosses(beam, ring, rf),
+                                    OutputReporting(beam, profile)])
 assembler.build_pipeline()
+print("Map set\n")
+
 assembler.track(N_t, with_timing=True)
-
-# Accelerator map
-# map_ = [long_tracker] + [profile] + [bunchmonitor] + [plots]
-# print("Map set")
-# print("")
-
-# Tracking --------------------------------------------------------------------
-# for i in range(1, N_t + 1):
-
-#     # Plot has to be done before tracking (at least for cases with separatrix)
-#     if (i % dt_plt) == 0:
-#         print("Outputting at time step %d..." % i)
-#         print("   Beam momentum %.6e eV" % beam.momentum)
-#         print("   Beam gamma %3.3f" % beam.gamma)
-#         print("   Beam beta %3.3f" % beam.beta)
-#         print("   Beam energy %.6e eV" % beam.energy)
-#         print("   Four-times r.m.s. bunch length %.4e s" % (4. * beam.sigma_dt))
-#         print("   Gaussian bunch length %.4e s" % profile.bunchLength)
-#         print("")
-
-#     # Track
-#     for m in map_:
-#         m.track()
-
-#     # Define losses according to separatrix and/or longitudinal position
-#     beam.losses_separatrix(ring, rf)
-#     beam.losses_longitudinal_cut(0., 2.5e-9)
-
+assembler.report_timing()
 # For testing purposes
 test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
     np.mean(beam.dE), np.std(beam.dE), np.mean(beam.dt), np.std(beam.dt))
