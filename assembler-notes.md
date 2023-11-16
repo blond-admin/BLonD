@@ -26,6 +26,8 @@
     TODO
 
 
+
+
 ## Features
 * Support for custom trackable objects
 * Initialization with object list or Dictionary (yaml on-going)
@@ -48,6 +50,7 @@
     * Convert to a simple sequence of trackable objects
 * Unittesting
 * Examples
+* Highest priority value?
 
 
 

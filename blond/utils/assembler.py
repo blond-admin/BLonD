@@ -56,7 +56,8 @@ class Assembler:
 
     '''
     This is the default tracking priority of blond trackable elements.
-    Priority 0 is reserved for custom elements.
+    Priority 0 is by defaule assigned to custom elements.
+    Priority -1 is reserved for the highest priority level.
     Higher priority number means that the element will be tracked first.
     '''
     tracking_priority_dict = {'Profile': 800,
@@ -76,12 +77,14 @@ class Assembler:
                               'default': 0
                               }
 
+    # top_priority = max(tracking_priority_dict.values())+1
+
     class PipelineElement:
         '''
         PipelineElement class. Used to hold all neccaessary information for a trackable element. 
         '''
 
-        def __init__(self, element, idx=0) -> None:
+        def __init__(self, element, track_priority, idx=0) -> None:
             '''Initialize PipelineElement
 
             Args:
@@ -97,45 +100,15 @@ class Assembler:
             self.track_period = getattr(element, 'track_period', 1)
 
             # Assign the tracking priority. If not specified, get it from the Assembler method
-            self.track_priority = Assembler.get_tracking_priority(element)
+            self.track_priority = track_priority
 
             # Replace track method with the element's track method
             self.track = element.track
-
 
         def track(self):
             '''Placeholder track method, will be overwritten during initialization of the object
             '''
             raise NotImplementedError("Track method not implemented")
-
-    @staticmethod
-    def get_tracking_priority(element: Trackable) -> int:
-        '''Get tracking priority of a Trackable element
-
-        Args:
-            element (Trackable): If not instance of Trackable, then it is a blond class with a track method
-
-        Returns:
-            int: The tracking priority of the element. Higher priority means that the element will be tracked first.
-        '''
-        class_name = element.__class__.__name__
-        parent_classes = [
-            parent_class.__name__ for parent_class in element.__class__.__bases__]
-
-        if hasattr(element, 'track_priority'):
-            # If tracking_track_priority is defined, return it
-            return element.track_priority
-        elif class_name in Assembler.tracking_priority_dict:
-            # If class name is in tracking order, return its index
-            return Assembler.tracking_priority_dict[class_name]
-        elif any(parent_class in Assembler.tracking_priority_dict for parent_class in parent_classes):
-            #  If any of the parent_classes is in tracking order, return its index
-            for parent_class in parent_classes:
-                if parent_class in Assembler.tracking_priority_dict:
-                    return Assembler.tracking_priority_dict[parent_class]
-        else:
-            # Else we have a custom class, return the default priority.
-            return Assembler.tracking_priority_dict['default']
 
     @staticmethod
     def sort_pipeline(pipeline: 'List[PipelineElement]') -> 'List[PipelineElement]':
@@ -336,7 +309,7 @@ class Assembler:
             string += f'\n\t{key}'
 
         return string
-    
+
     def __getitem__(self, key):
         return self.active_objects[key]
 
@@ -345,6 +318,67 @@ class Assembler:
 
     def __contains__(self, key):
         return key in self.active_objects
+
+    def get_tracking_priority(self, element: Trackable) -> int:
+        '''Get tracking priority of a Trackable element
+
+        Args:
+            element (Trackable): If not instance of Trackable, then it is a blond class with a track method
+
+        Returns:
+            int: The tracking priority of the element. Higher priority means that the element will be tracked first.
+        '''
+        class_name = element.__class__.__name__
+        parent_classes = [
+            parent_class.__name__ for parent_class in element.__class__.__bases__]
+
+        # Initialize priority to default level
+        priority = self.tracking_priority_dict['default']
+
+        if hasattr(element, 'track_priority'):
+            # If tracking_track_priority is defined, return it
+            priority = element.track_priority
+        elif class_name in self.tracking_priority_dict:
+            # If class name is in tracking order, return its index
+            priority = self.tracking_priority_dict[class_name]
+        elif any(parent_class in self.tracking_priority_dict for parent_class in parent_classes):
+            #  If any of the parent_classes is in tracking order, return its index
+            for parent_class in parent_classes:
+                if parent_class in self.tracking_priority_dict:
+                    priority = self.tracking_priority_dict[parent_class]
+                    break
+        else:
+            # Else use default priority.
+            pass
+
+        # If priority is -1, assign top priority
+        if priority == -1:
+            priority = self.top_priority
+
+        self.tracking_priority_dict[class_name] = priority
+
+        return priority
+
+    def show_priority_levels(self):
+        '''Print the tracking priority levels
+        '''
+        from prettytable import PrettyTable
+        print('Higher priority number means that the element will be tracked first.\n')
+        print('Lowest priority level is 0. -1 is reserved for highest priority level.\n')
+
+        table = PrettyTable()
+        table.field_names = ['Element', 'Priority']
+
+        print('Tracking priority levels:')
+        for key, value in self.tracking_priority_dict.items():
+            table.add_row([key, value])
+            # print(f'{key}: {value}')
+        print(table)
+        print('Top priority level: ', self.top_priority)
+
+    @property
+    def top_priority(self):
+        return max(self.tracking_priority_dict.values())+1
 
     def init_object_from_dict(self, elem_class, elem_args, elem_kwargs):
         '''_summary_
@@ -448,8 +482,9 @@ class Assembler:
 
             if Assembler.is_trackable(elem):
                 # if trackable, need to add its track method to the pipeline
-                self.pipeline.append(Assembler.PipelineElement(
-                    elem, idx=self.element_idx))
+                self.pipeline.append(
+                    Assembler.PipelineElement(elem, track_priority=self.get_tracking_priority(elem),
+                                              idx=self.element_idx))
 
             # Since the assembler also has a record of all objects, need to store object in correct attribute
             if elem_class in new_active_objects:
@@ -461,7 +496,7 @@ class Assembler:
                 new_active_objects[elem_class] = elem
 
             self.element_idx += 1
-        
+
         # Promote the new objects to properties
         self.promote_to_properties(new_active_objects)
         # Update the active objects
@@ -578,10 +613,11 @@ class Assembler:
         del self.element_list[-1]
         self.is_built = False
 
-    def report_timing(self) -> None:
+    def report_timing(self, *args, **kwargs) -> None:
         '''Report timing information after tracking.
+        args and kwargs are passed to blond.utils.timing.report
         '''
-        timing.report()
+        timing.report(*args, **kwargs)
 
     def to_yaml(self) -> None:
         '''Convert pipeline to yaml file.

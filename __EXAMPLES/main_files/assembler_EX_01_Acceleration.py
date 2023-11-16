@@ -104,8 +104,8 @@ class BeamLosses:
     
     def track(self):
         # Define losses according to separatrix and/or longitudinal position
-        beam.losses_separatrix(self.ring, self.rf)
-        beam.losses_longitudinal_cut(0., 2.5e-9)
+        self.beam.losses_separatrix(self.ring, self.rf)
+        self.beam.losses_longitudinal_cut(0., 2.5e-9)
 
 class OutputReporting:
     def __init__(self, beam, profile):
@@ -135,13 +135,14 @@ test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
     np.mean(beam.dE), np.std(beam.dE), np.mean(beam.dt), np.std(beam.dt))
 
 assembler = Assembler(element_list=[ring, beam, rf, long_tracker, profile,
-                                    bunchmonitor, BeamLosses(beam, ring, rf),
+                                    bunchmonitor, plots, BeamLosses(beam, ring, rf),
                                     OutputReporting(beam, profile)])
 assembler.build_pipeline()
 print("Map set\n")
 
 assembler.track(N_t, with_timing=True)
 assembler.report_timing()
+
 # For testing purposes
 test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
     np.mean(beam.dE), np.std(beam.dE), np.mean(beam.dt), np.std(beam.dt))
