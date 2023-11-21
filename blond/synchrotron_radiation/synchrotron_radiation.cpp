@@ -32,10 +32,13 @@ using namespace std;
 long unsigned int seed = 1234;
 
 // This function calculates and applies only the synchrotron radiation damping term
-extern "C" void synchrotron_radiation(double * __restrict__ beam_dE, const double U0,
-                                      const int n_macroparticles, const double tau_z,
+extern "C" void synchrotron_radiation(double * __restrict__ beam_dE, double U0,
+                                      const int n_macroparticles, double tau_z,
                                       const int n_kicks) {
-
+    
+    // Adjust inputs before the loop to reduce computations
+    U0 = U0 / n_kicks;
+    tau_z = tau_z * n_kicks;
     // SR damping constant, adjusted for better performance
     const double const_synch_rad = 1.0 - 2.0 / tau_z;
 
@@ -55,12 +58,14 @@ extern "C" void synchrotron_radiation(double * __restrict__ beam_dE, const doubl
 
 // This function calculates and applies synchrotron radiation damping and
 // quantum excitation terms
-extern "C" void synchrotron_radiation_full(double * __restrict__ beam_dE, const double U0,
+extern "C" void synchrotron_radiation_full(double * __restrict__ beam_dE, double U0,
         const int n_macroparticles, const double sigma_dE,
-        const double tau_z, const double energy,
+        double tau_z, const double energy,
         const int n_kicks)
 {
-
+    // Adjust inputs before the loop to reduce computations
+    U0 = U0 / n_kicks;
+    tau_z = tau_z * n_kicks;
     // std::hash<std::thread::id> hash;
 
     // Quantum excitation constant
@@ -91,10 +96,12 @@ extern "C" void synchrotron_radiation_full(double * __restrict__ beam_dE, const 
 
 
 // This function calculates and applies only the synchrotron radiation damping term
-extern "C" void synchrotron_radiationf(float * __restrict__ beam_dE, const float U0,
-                                      const int n_macroparticles, const float tau_z,
+extern "C" void synchrotron_radiationf(float * __restrict__ beam_dE, float U0,
+                                      const int n_macroparticles, float tau_z,
                                       const int n_kicks) {
-
+    // Adjust inputs before the loop to reduce computations
+    U0 = U0 / n_kicks;
+    tau_z = tau_z * n_kicks;
     // SR damping constant, adjusted for better performance
     const float const_synch_rad = 1.0 - 2.0 / tau_z;
 
@@ -114,12 +121,15 @@ extern "C" void synchrotron_radiationf(float * __restrict__ beam_dE, const float
 
 // This function calculates and applies synchrotron radiation damping and
 // quantum excitation terms
-extern "C" void synchrotron_radiation_fullf(float * __restrict__ beam_dE, const float U0,
+extern "C" void synchrotron_radiation_fullf(float * __restrict__ beam_dE, float U0,
         const int n_macroparticles, const float sigma_dE,
-        const float tau_z, const float energy,
+        float tau_z, const float energy,
         const int n_kicks)
 {
 
+    // Adjust inputs before the loop to reduce computations
+    U0 = U0 / n_kicks;
+    tau_z = tau_z * n_kicks;
     // std::hash<std::thread::id> hash;
 
     // Quantum excitation constant

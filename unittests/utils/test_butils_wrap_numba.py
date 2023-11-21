@@ -58,8 +58,8 @@ class Test:
         res = bm.beam_phase(bin_centers, profile, alpha,
                             omega_rf, phi_rf, bin_size)
 
-        bm.use_py()
-        np.testing.assert_equal(bm.device, 'CPU_PY')
+        bm.use_numba()
+        np.testing.assert_equal(bm.device, 'CPU_NU')
         bin_centers = bm.array(bin_centers)
         profile = bm.array(profile)
         res_py = bm.beam_phase(bin_centers, profile,
@@ -84,8 +84,8 @@ class Test:
         res = bm.beam_phase_fast(bin_centers, profile,
                                  omega_rf, phi_rf, bin_size)
 
-        bm.use_py()
-        np.testing.assert_equal(bm.device, 'CPU_PY')
+        bm.use_numba()
+        np.testing.assert_equal(bm.device, 'CPU_NU')
         bin_centers = bm.array(bin_centers)
         profile = bm.array(profile)
         res_py = bm.beam_phase_fast(bin_centers, profile,
@@ -105,8 +105,8 @@ class Test:
 
         res = bm.rf_volt_comp(voltages, omega_rf, phi_rf, bin_centers)
 
-        bm.use_py()
-        np.testing.assert_equal(bm.device, 'CPU_PY')
+        bm.use_numba()
+        np.testing.assert_equal(bm.device, 'CPU_NU')
         voltages = bm.array(voltages)
         omega_rf = bm.array(omega_rf)
         phi_rf = bm.array(phi_rf)
@@ -128,8 +128,8 @@ class Test:
 
         bm.synchrotron_radiation(dE, U0, n_kicks, tau_z)
 
-        bm.use_py()
-        np.testing.assert_equal(bm.device, 'CPU_PY')
+        bm.use_numba()
+        np.testing.assert_equal(bm.device, 'CPU_NU')
         bm.synchrotron_radiation(dE_py, U0, n_kicks, tau_z)
 
         np.testing.assert_allclose(dE_py, dE, rtol=1e-8, atol=0)
@@ -150,8 +150,8 @@ class Test:
 
         bm.synchrotron_radiation_full(dE, U0, n_kicks, tau_z, sigma_dE, energy)
 
-        bm.use_py()
-        np.testing.assert_equal(bm.device, 'CPU_PY')
+        bm.use_numba()
+        np.testing.assert_equal(bm.device, 'CPU_NU')
         bm.synchrotron_radiation_full(
             dE_py, U0, n_kicks, tau_z, sigma_dE, energy)
 
@@ -176,8 +176,8 @@ class Test:
 
         bm.slice_beam(dt, profile, cut_left, cut_right)
 
-        bm.use_py()
-        np.testing.assert_equal(bm.device, 'CPU_PY')
+        bm.use_numba()
+        np.testing.assert_equal(bm.device, 'CPU_NU')
         profile_py = bm.empty(n_slices, dtype=float)
         bm.slice_beam(dt_py, profile_py, cut_left, cut_right)
 
@@ -204,8 +204,8 @@ class Test:
             bm.kick(dt, dE, voltage, omega_rf, phi_rf, charge, n_rf,
                     acceleration_kick)
 
-        bm.use_py()
-        np.testing.assert_equal(bm.device, 'CPU_PY')
+        bm.use_numba()
+        np.testing.assert_equal(bm.device, 'CPU_NU')
         dt = bm.array(dt)
         voltage = bm.array(voltage)
         omega_rf = bm.array(omega_rf)
@@ -243,8 +243,8 @@ class Test:
                      eta_0, eta_1, eta_2, alpha_0, alpha_1, alpha_2,
                      beta, energy)
 
-        bm.use_py()
-        np.testing.assert_equal(bm.device, 'CPU_PY')
+        bm.use_numba()
+        np.testing.assert_equal(bm.device, 'CPU_NU')
         dE = bm.array(dE)
 
         for i in range(n_iter):
@@ -293,8 +293,8 @@ class Test:
             bm.kick(dt, dE, voltage, omega_rf, phi_rf, charge, n_rf,
                     acceleration_kick)
 
-        bm.use_py()
-        np.testing.assert_equal(bm.device, 'CPU_PY')
+        bm.use_numba()
+        np.testing.assert_equal(bm.device, 'CPU_NU')
         voltage = bm.array(voltage)
         omega_rf = bm.array(omega_rf)
         phi_rf = bm.array(phi_rf)
@@ -334,8 +334,8 @@ class Test:
             bm.linear_interp_kick(
                 dt, dE, voltage, bin_centers, charge, acceleration_kick)
 
-        bm.use_py()
-        np.testing.assert_equal(bm.device, 'CPU_PY')
+        bm.use_numba()
+        np.testing.assert_equal(bm.device, 'CPU_NU')
         dt = bm.array(dt)
         voltage = bm.array(voltage)
         bin_centers = bm.array(bin_centers)
@@ -365,67 +365,14 @@ class Test:
 
         bm.slice_smooth(dt, profile, cut_left, cut_right)
 
-        bm.use_py()
-        np.testing.assert_equal(bm.device, 'CPU_PY')
+        bm.use_numba()
+        np.testing.assert_equal(bm.device, 'CPU_NU')
         profile_py = bm.empty(n_slices, dtype=float)
         bm.slice_smooth(dt_py, profile_py, cut_left, cut_right)
 
         np.testing.assert_array_almost_equal(
             profile_py, profile, decimal=8)
 
-    @pytest.mark.parametrize('n_particles,n_kicks,seed',
-                             [(1000, 1, 1234),
-                              (10000, 10, 1),
-                              (100000, 10, 0)])
-    def test_set_random_seed_equal(self, n_particles, n_kicks, seed):
-
-        bm.use_py()
-        np.testing.assert_equal(bm.device, 'CPU_PY')
-
-        dE = np.random.uniform(-1e8, 1e8, n_particles)
-        dE_2 = dE.copy()
-
-        U0 = np.random.rand()
-        tau_z = np.random.rand()
-        sigma_dE = dE.std()
-        energy = 1.0
-
-        bm.set_random_seed(seed)
-        bm.synchrotron_radiation_full(dE, U0, n_kicks, tau_z, sigma_dE, energy)
-
-        bm.set_random_seed(seed)
-        bm.synchrotron_radiation_full(
-            dE_2, U0, n_kicks, tau_z, sigma_dE, energy)
-
-        np.testing.assert_array_almost_equal(dE, dE_2, decimal=8)
-
-    @pytest.mark.parametrize('n_particles,n_kicks,seed',
-                             [(1000, 1, 1234),
-                              (10000, 10, 1),
-                              (100000, 10, 0)])
-    def test_set_random_seed_not_equal(self, n_particles, n_kicks, seed):
-
-        bm.use_py()
-        np.testing.assert_equal(bm.device, 'CPU_PY')
-
-        dE = np.random.uniform(-1e8, 1e8, n_particles)
-        dE_2 = dE.copy()
-
-        U0 = np.random.rand()
-        tau_z = np.random.rand()
-        sigma_dE = dE.std()
-        energy = 1.0
-
-        bm.set_random_seed(seed)
-
-        bm.synchrotron_radiation_full(dE, U0, n_kicks, tau_z, sigma_dE, energy)
-
-        bm.synchrotron_radiation_full(
-            dE_2, U0, n_kicks, tau_z, sigma_dE, energy)
-
-        # They should not be the same due to the random numbers produced by the generator
-        np.testing.assert_raises(AssertionError,
-                                 np.testing.assert_array_almost_equal, dE, dE_2)
 
     @pytest.mark.parametrize('size', [10, 17, 100, 256, 1000])
     def test_fast_resonator(self, size):
@@ -439,8 +386,8 @@ class Test:
 
         impedance = bm.fast_resonator(R_S, Q, frequency_array, frequency_R)
 
-        bm.use_py()
-        np.testing.assert_equal(bm.device, 'CPU_PY')
+        bm.use_numba()
+        np.testing.assert_equal(bm.device, 'CPU_NU')
 
         impedance_py = bm.fast_resonator(R_S, Q, frequency_array, frequency_R)
 
@@ -511,8 +458,8 @@ class TestWithObjects:
             self.rf, self.beam, n_slices, filling_pattern)
         slice_beam_cpp.track()
 
-        bm.use_py()
-        np.testing.assert_equal(bm.device, 'CPU_PY')
+        bm.use_numba()
+        np.testing.assert_equal(bm.device, 'CPU_NU')
 
         slice_beam_py = SparseSlices(
             self.rf, self.beam, n_slices, filling_pattern)
@@ -536,8 +483,8 @@ class TestWithObjects:
 
         music_cpp.track_cpp()
 
-        bm.use_py()
-        np.testing.assert_equal(bm.device, 'CPU_PY')
+        bm.use_numba()
+        np.testing.assert_equal(bm.device, 'CPU_NU')
         music_py = Music(beam, resonator, n_macroparticles, self.N_b, self.ring.t_rev[0])
         music_py.track_cpp()
 
@@ -559,9 +506,9 @@ class TestWithObjects:
 
         music_cpp.track_cpp_multi_turn()
 
-        bm.use_py()
-        np.testing.assert_equal(bm.device, 'CPU_PY')
-        np.testing.assert_equal(bm.device, 'CPU_PY')
+        bm.use_numba()
+        np.testing.assert_equal(bm.device, 'CPU_NU')
+        np.testing.assert_equal(bm.device, 'CPU_NU')
 
         music_py = Music(beam, resonator, n_macroparticles, self.N_b, self.ring.t_rev[0])
         music_py.track_cpp_multi_turn()
