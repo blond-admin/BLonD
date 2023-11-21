@@ -1,26 +1,10 @@
-# coding: utf8
-# Copyright 2014-2017 CERN. This software is distributed under the
-# terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.md.
-# In applying this licence, CERN does not waive the privileges and immunities
-# granted to it by virtue of its status as an Intergovernmental Organization or
-# submit itself to any jurisdiction.
-# Project website: http://blond.web.cern.ch/
-
-'''
-**Various beam phase loops with optional synchronisation/frequency/radial loops
-for the CERN machines, implemented as Subclasses of the abstract BeamFeedback Superclass**
-
-:Authors: **Helga Timko**, **Alexandre Lasheen**, **Oleksandr Naumenko**
-'''
-
 from __future__ import division
+
 
 import numpy as np
 
 from ..utils import bmath as bm
 from blond.llrf.beam_feedback_abc import BeamFeedback
-
 
 ### LHC SUBCLASS
 class BeamFeedback_LHC(BeamFeedback):
@@ -36,9 +20,9 @@ class BeamFeedback_LHC(BeamFeedback):
 
         where the phase noise for the controlled blow-up can be optionally
         activated.
-
+        
     2.   Synchro loop using SL_gain: a synchro loop to remove
-        long-term frequency drifts:
+        long-term frequency drifts:     
 
         .. math::
             \\Delta \\omega_{rf}^{SL} = - g_{SL} (y + a \\Delta\\varphi_{rf}) ,
@@ -57,17 +41,16 @@ class BeamFeedback_LHC(BeamFeedback):
         .. math::
             \\tau(f_s) \\equiv 2 \\pi Q_s \\sqrt{ \\frac{a}{1 + \\frac{g_{PL}}{g_{SL}} \\sqrt{\\frac{1 + 1/a}{1 + a}} }}
 
-
+        
     3.  Frequency loop using 'freq_gain': a frequency loop to remove
         long-term frequency drifts:
 
         .. math::
             \\Delta \\omega_{rf}^{FL} = - g_{FL} (\\omega_{rf} - h \\omega_{0})
     """
-
     def __init__(self, Ring, RFStation, Profile,
-                 PhaseNoise=None, time_offset=None, window_coefficient=0, delay=0,
-                 PL_gain=0, SL_gain=0, freq_gain=0, frequency_reference=0):
+                 PhaseNoise=None, time_offset=None, window_coefficient=0, delay = 0,
+                 PL_gain = 0, SL_gain = 0, freq_gain = 0, frequency_reference = 0):
         """
 
         :param Ring: Ring Object
@@ -89,7 +72,7 @@ class BeamFeedback_LHC(BeamFeedback):
         """
 
         super().__init__(Ring, RFStation, Profile,
-                         PhaseNoise, time_offset, window_coefficient, delay)
+                 PhaseNoise, time_offset, window_coefficient, delay)
 
         self.PL_gain = PL_gain
         self.SL_gain = SL_gain
@@ -124,10 +107,10 @@ class BeamFeedback_LHC(BeamFeedback):
         # Frequency correction from phase loop and synchro loop
         self.domega_dphi = - self.PL_gain * dphi
         self.domega_dS = - self.SL_gain * (self.lhc_y + self.lhc_a[counter] \
-                                           * (dphi_rf + self.frequency_reference))
+                                         * (dphi_rf + self.frequency_reference))
         self.domega_df = - self.freq_gain * (self.rf_station.omega_rf[0, counter] -
-                                             self.rf_station.omega_rf_d[0, counter] +
-                                             self.frequency_reference)
+                            self.rf_station.omega_rf_d[0, counter] +
+                            self.frequency_reference)
 
         # Update recursion variable
         self.lhc_y = (1 - self.lhc_t[counter]) * self.lhc_y + \
@@ -165,10 +148,9 @@ class BeamFeedback_SPS(BeamFeedback):
         .. math::
             \\Delta \\omega_{rf}^{FL} = - g_{FL} (\\omega_{rf} - h \\omega_{0})
     """
-
     def __init__(self, Ring, RFStation, Profile,
-                 PhaseNoise=None, time_offset=None, window_coefficient=0, delay=0,
-                 PL_gain=0, RL_gain=0, freq_gain=0, radial_reference=0.):
+                 PhaseNoise=None, time_offset=None, window_coefficient=0, delay = 0,
+                 PL_gain = 0, RL_gain = 0, freq_gain = 0, radial_reference = 0.):
         """
 
         :param Ring: Ring Object
@@ -190,7 +172,7 @@ class BeamFeedback_SPS(BeamFeedback):
         """
 
         super().__init__(Ring, RFStation, Profile,
-                         PhaseNoise, time_offset, window_coefficient, delay, radial_reference)
+                 PhaseNoise, time_offset, window_coefficient, delay, radial_reference)
 
         self.PL_gain = PL_gain
         self.RL_gain = RL_gain
@@ -215,13 +197,12 @@ class BeamFeedback_SPS(BeamFeedback):
         self.domega_dphi = - self.proportional_control(self.PL_gain, dphi)
 
         self.domega_dR = - bm.sign(self.rf_station.eta_0[counter]) * self.RL_gain * \
-                         (self.radial_reference - drho) / self.ring.ring_radius
+            (self.radial_reference - drho) / self.ring.ring_radius
 
         self.domega_df = - self.freq_gain * (self.rf_station.omega_rf[0, counter] -
-                                             self.rf_station.omega_rf_d[0, counter])
+                                         self.rf_station.omega_rf_d[0, counter])
 
         return self.domega_dphi + self.domega_dR + self.domega_df
-
 
 class BeamFeedback_SPS_PL_PID(BeamFeedback):
     """
@@ -229,12 +210,12 @@ class BeamFeedback_SPS_PL_PID(BeamFeedback):
     their respective gains
 
     """
-
     def __init__(self, Ring, RFStation, Profile,
-                 PhaseNoise=None, time_offset=None, window_coefficient=0, delay=0,
-                 P_gain=1, I_gain=1, D_gain=1):
+                 PhaseNoise=None, time_offset=None, window_coefficient=0, delay = 0,
+                 P_gain = 1, I_gain = 1, D_gain = 1):
+
         super().__init__(Ring, RFStation, Profile,
-                         PhaseNoise, time_offset, window_coefficient,
+                 PhaseNoise, time_offset, window_coefficient,
                          delay)
         """
 
@@ -268,11 +249,12 @@ class BeamFeedback_SPS_PL_PID(BeamFeedback):
         """
         counter = self.rf_station.counter[0]
 
+
         dphi = self.phase_difference()
 
         # Frequency correction from phase loop
         domega_dphi = - self.PID_control(self.P_gain, self.I_gain, self.D_gain, self.prev_out,
-                                         dphi, self.prev_dphi, self.prevprev_dphi)
+                    dphi, self.prev_dphi, self.prevprev_dphi)
 
         self.prevprev_dphi = self.prev_dphi
         self.prev_dphi = dphi
@@ -315,11 +297,10 @@ class BeamFeedback_PS(BeamFeedback):
             \\Delta \\rho_{out} = (1-g_{internal}) \\Delta \\rho + g_{internal} \\Delta \\rho_{prev}
 
     """
-
     def __init__(self, Ring, RFStation, Profile,
-                 PhaseNoise=None, time_offset=None, window_coefficient=0, delay=0, radial_reference=0,
-                 PL_gain=0, RL_gain=0,
-                 gd_pl=5.704, gi_pl=1 - 8.66e-5, g_rl=1 - 1.853e-1):
+                 PhaseNoise=None, time_offset=None, window_coefficient=0, delay = 0, radial_reference = 0,
+                 PL_gain = 0, RL_gain = 0,
+                 gd_pl = 5.704, gi_pl = 1-8.66e-5, g_rl = 1-1.853e-1):
         """
 
         :param Ring: Ring Object
@@ -343,7 +324,7 @@ class BeamFeedback_PS(BeamFeedback):
         """
 
         super().__init__(Ring, RFStation, Profile,
-                         PhaseNoise, time_offset, window_coefficient, delay, radial_reference)
+                 PhaseNoise, time_offset, window_coefficient, delay, radial_reference)
 
         self.PL_gain = PL_gain
         self.RL_gain = RL_gain
@@ -367,13 +348,13 @@ class BeamFeedback_PS(BeamFeedback):
         drho = (self.radial_reference - drho)
 
         # Frequency correction from phase loop and radial loop
-        dphi_out = self.gd_pl * (dphi - self.prev_in_phase) + self.gi_pl * self.prev_out_phase
+        dphi_out = self.gd_pl * (dphi - self.prev_in_phase)  + self.gi_pl * self.prev_out_phase
         self.domega_dphi = - self.PL_gain * dphi_out
         self.prev_in_phase = dphi
         self.prev_out_phase = dphi_out
 
         drho_out = (1 - self.g_rl) * drho + self.g_rl * self.prev_out_radial
-        self.domega_dR = self.RL_gain * drho_out
+        self.domega_dR =  self.RL_gain * drho_out
         self.prev_out_radial = drho_out
 
         return self.domega_dphi + self.domega_dR
@@ -382,9 +363,9 @@ class BeamFeedback_PS(BeamFeedback):
 ### PSB SUBCLASSES
 class BeamFeedback_PSB(BeamFeedback):
     def __init__(self, Ring, RFStation, Profile,
-                 PhaseNoise=None, time_offset=None, window_coefficient=0, delay=0,
-                 PL_gain=1. / 25.e-6, RL_gain=[1.e7, 1.e11], period=10.e-6,
-                 transfer_coeff=[0.99803799, 0.99901903, 0.99901003]):
+                 PhaseNoise=None, time_offset=None, window_coefficient=0, delay = 0,
+                 PL_gain = 1. / 25.e-6, RL_gain = [1.e7, 1.e11], period = 10.e-6,
+                 transfer_coeff = [0.99803799, 0.99901903, 0.99901003]):
         """
 
         :param Ring: Ring Object
@@ -406,8 +387,8 @@ class BeamFeedback_PSB(BeamFeedback):
                 [<Gain of previous output>, <gain of current (average) phase difference>, <gain of previous (average) phase difference>]
         """
         super().__init__(Ring, RFStation, Profile,
-                         PhaseNoise=PhaseNoise, time_offset=time_offset, window_coefficient=window_coefficient,
-                         delay=delay, radial_reference=0)
+                 PhaseNoise=PhaseNoise, time_offset=time_offset, window_coefficient=window_coefficient,
+                         delay=delay, radial_reference = 0)
 
         # Phase Loop Gain
         self.PL_gain = PL_gain
@@ -422,6 +403,7 @@ class BeamFeedback_PSB(BeamFeedback):
         # Counter of turns passed since last time the PL was active
         self.PL_counter = 0
         self.on_time = np.array([])
+
 
         self.precalculate_time(Ring)
 
@@ -480,7 +462,7 @@ class BeamFeedback_PSB(BeamFeedback):
                                             self.rf_station.gamma[counter] ** 2) - 1.))
 
             self.domega_RL = self.domega_RL + self.RL_gain[0] * (self.dR_over_R
-                                                                 - self.dR_over_R_prev) \
+                                                                        - self.dR_over_R_prev) \
                              + self.RL_gain[1] * self.dR_over_R
 
             self.dR_over_R_prev = self.dR_over_R
@@ -490,7 +472,7 @@ class BeamFeedback_PSB(BeamFeedback):
 
         return - self.domega_PL - self.domega_RL
 
-    def phase_difference(self, sharpWindow=False):
+    def phase_difference(self, sharpWindow = False):
         '''
         TODO Docs
         '''
@@ -502,6 +484,7 @@ class BeamFeedback_PSB(BeamFeedback):
         counter = self.rf_station.counter[0]
         self.dphi = self.phi_beam - self.rf_station.phi_s[counter]
         return self.dphi
+
 
     def precalculate_time(self, Ring):
         '''

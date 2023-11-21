@@ -615,6 +615,7 @@ def potential_well_cut(time_potential, potential_array):
     n_minima = len(min_time_positions)
     n_maxima = len(max_time_positions)
 
+
     if n_minima == 0:
         # PotentialWellError
         raise RuntimeError('The potential well has no minima...')

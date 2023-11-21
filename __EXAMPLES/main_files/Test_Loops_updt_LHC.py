@@ -8,7 +8,7 @@
 # Project website: http://blond.web.cern.ch/
 
 '''
-Test case to show how to use phase loop (CERN PS Booster context).
+Test case to show how to use phase loop (CERN SPS context).
 
 :Authors: **Danilo Quartullo**
 '''
@@ -34,44 +34,53 @@ mpl.use('Agg')
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 
-os.makedirs(this_directory + '../output_files/EX_08_fig', exist_ok=True)
+os.makedirs(this_directory + '../output_files/Test_Loops_updt_fig', exist_ok=True)
 
 
-# Beam parameters
-n_macroparticles = 100000
-n_particles = 0
+# Bunch parameters
+N_b = 1e9           # Intensity
+N_p = 50000         # Macro-particles
+tau_0 = 0.4e-9          # Initial bunch length, 4 sigma [s]
 
 # Machine and RF parameters
-radius = 25  # [m]
-gamma_transition = 4.076750841
-alpha = 1 / gamma_transition**2
-C = 2 * np.pi * radius  # [m]
-n_turns = 500
-general_params = Ring(C, alpha, 310891054.809,
-                      Proton(), n_turns)
+C = 26658.883        # Machine circumference [m]
+p_i = 450e9         # Synchronous momentum [eV/c]
+p_f = 450.005e9      # Synchronous momentum, final
+h = 35640            # Harmonic number
+V = 6e6                # RF voltage [V]
+dphi = 0             # Phase modulation/offset
+gamma_t = 55.759505  # Transition gamma
+alpha = 1./gamma_t/gamma_t        # First order mom. comp. factor
 
-# Cavities parameters
-n_rf_systems = 1
-harmonic_numbers_1 = 1
-voltage_1 = 8000  # [V]
-phi_offset_1 = np.pi   # [rad]
-rf_params = RFStation(general_params, [harmonic_numbers_1], [voltage_1],
-                      [phi_offset_1], n_rf_systems)
-
-my_beam = Beam(general_params, n_macroparticles, n_particles)
+# Tracking details
+n_turns = 500       # Number of turns to track
 
 
-cut_options = CutOptions(cut_left=0, cut_right=2 * np.pi, n_slices=200,
+# Simulation setup ------------------------------------------------------------
+print("Setting up the simulation...")
+print("")
+
+
+# Define general parameters
+ring = Ring(C, alpha, np.linspace(p_i, p_f, n_turns+1), Proton(), n_turns)
+
+# Define beam and distribution
+beam = Beam(ring, N_p, N_b)
+
+
+# Define RF station parameters and corresponding tracker
+rf_params = RFStation(ring, [h], [V], [dphi])
+cut_options = CutOptions(cut_left=0, cut_right=2*np.pi, n_slices=200,
                          RFSectionParameters=rf_params, cuts_unit='rad')
-slices_ring = Profile(my_beam, cut_options)
+slices_ring = Profile(beam, cut_options)
 
 # Phase loop
-configuration = {'machine': 'PSB', 'PL_gain': 1. / 25.e-6, 'period': 10.e-6}
-phase_loop = BeamFeedback(general_params, rf_params, slices_ring, configuration)
+configuration = {'machine': 'LHC', 'PL_gain': 0.01, 'RL_gain': 0.01}
+phase_loop = BeamFeedback(ring, rf_params, slices_ring, configuration)
 
 
 # Long tracker
-long_tracker = RingAndRFTracker(rf_params, my_beam, periodicity=False,
+long_tracker = RingAndRFTracker(rf_params, beam, periodicity=False,
                                 BeamFeedback=phase_loop
                                 )
 
@@ -79,36 +88,36 @@ full_ring = FullRingAndRF([long_tracker])
 
 
 distribution_type = 'gaussian'
-bunch_length = 200.0e-9
+bunch_length = 0.4e-9
 distribution_variable = 'Action'
 
-matched_from_distribution_function(my_beam, full_ring,
+matched_from_distribution_function(beam, full_ring,
                                    bunch_length=bunch_length,
                                    distribution_type=distribution_type,
                                    distribution_variable=distribution_variable, seed=1222)
 
-my_beam.dE += 90.0e3
+# my_beam.dE += 5e6
 slices_ring.track()
 
 # Monitor
-bunch_monitor = BunchMonitor(general_params, rf_params, my_beam,
-                             this_directory + '../output_files/EX_08_output_data',
+bunch_monitor = BunchMonitor(ring, rf_params, beam,
+                             this_directory + '../output_files/Test_Loops_updt_output_data',
                              Profile=slices_ring, PhaseLoop=phase_loop)
 
 
 # Plots
-format_options = {'dirname': this_directory + '../output_files/EX_08_fig'}
-plots = Plot(general_params, rf_params, my_beam, 50, n_turns, 0.0, 2 * np.pi,
-             -1e6, 1e6, xunit='rad', separatrix_plot=True, Profile=slices_ring,
+format_options = {'dirname': this_directory + '../output_files/Test_Loops_updt_fig'}
+plots = Plot(ring, rf_params, beam, 50, n_turns, 0.0, 2 * np.pi,
+             -400e6, 400e6, xunit='rad', separatrix_plot=True, Profile=slices_ring,
              format_options=format_options,
-             h5file=this_directory + '../output_files/EX_08_output_data', PhaseLoop=phase_loop)
+             h5file=this_directory + '../output_files/Test_Loops_updt_output_data', PhaseLoop=phase_loop)
 
 # For testing purposes
 test_string = ''
 test_string += '{:<17}\t{:<17}\t{:<17}\t{:<17}\n'.format(
     'mean_dE', 'std_dE', 'mean_dt', 'std_dt')
 test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
-    np.mean(my_beam.dE), np.std(my_beam.dE), np.mean(my_beam.dt), np.std(my_beam.dt))
+    np.mean(beam.dE), np.std(beam.dE), np.mean(beam.dt), np.std(beam.dt))
 
 
 # Accelerator map
@@ -120,13 +129,12 @@ for i in range(1, n_turns + 1):
 
     for m in map_:
         m.track()
-    print("Phase Loop:", phase_loop.domega_PL,
-          "Radial Loop:", phase_loop.domega_RL)
+    print("domega from loop:", phase_loop.domega_rf)
 
 # For testing purposes
 test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
-    np.mean(my_beam.dE), np.std(my_beam.dE), np.mean(my_beam.dt), np.std(my_beam.dt))
-with open(this_directory + '../output_files/EX_08_test_data.txt', 'w') as f:
+    np.mean(beam.dE), np.std(beam.dE), np.mean(beam.dt), np.std(beam.dt))
+with open(this_directory + '../output_files/Test_Loops_updt_test_data.txt', 'w') as f:
     f.write(test_string)
 
 

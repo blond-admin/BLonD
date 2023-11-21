@@ -15,23 +15,20 @@ No intensity effects
 '''
 #  General Imports
 from __future__ import division, print_function
-
-import os
 from builtins import range
-
-import matplotlib as mpl
 import numpy as np
 
+#  BLonD Imports
+from blond.input_parameters.ring import Ring
+from blond.input_parameters.rf_parameters import RFStation
+from blond.trackers.tracker import RingAndRFTracker
 from blond.beam.beam import Beam, Proton
 from blond.beam.distributions import bigaussian, parabolic
 from blond.beam.profile import CutOptions, FitOptions, Profile
-from blond.input_parameters.rf_parameters import RFStation
-#  BLonD Imports
-from blond.input_parameters.ring import Ring
 from blond.monitors.monitors import BunchMonitor
 from blond.plots.plot import Plot
-from blond.trackers.tracker import RingAndRFTracker
-
+import os
+import matplotlib as mpl
 mpl.use('Agg')
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
@@ -53,7 +50,7 @@ h = 35640            # Harmonic number
 V = 6e6                # RF voltage [V]
 dphi = 0             # Phase modulation/offset
 gamma_t = 55.759505  # Transition gamma
-alpha = 1. / gamma_t / gamma_t        # First order mom. comp. factor
+alpha = 1./gamma_t/gamma_t        # First order mom. comp. factor
 
 # Tracking details
 N_t = 2000           # Number of turns to track
@@ -77,7 +74,7 @@ rf = RFStation(ring, [h], [V], [dphi])
 long_tracker = RingAndRFTracker(rf, beam)
 
 
-bigaussian(ring, rf, beam, tau_0 / 4, reinsertion=True, seed=1)
+bigaussian(ring, rf, beam, tau_0/4, reinsertion=True, seed=1)
 # parabolic(ring, rf, beam, tau_0, seed=1)
 
 
@@ -90,7 +87,7 @@ bunchmonitor = BunchMonitor(ring, rf, beam,
                             this_directory + '../output_files/EX_01_output_data', Profile=profile)
 
 format_options = {'dirname': this_directory + '../output_files/EX_01_fig'}
-plots = Plot(ring, rf, beam, dt_plt, N_t, 0, 0.0001763 * h,
+plots = Plot(ring, rf, beam, dt_plt, N_t, 0, 0.0001763*h,
              -400e6, 400e6, xunit='rad', separatrix_plot=True,
              Profile=profile, h5file=this_directory + '../output_files/EX_01_output_data',
              format_options=format_options)
@@ -109,7 +106,7 @@ print("Map set")
 print("")
 
 # Tracking --------------------------------------------------------------------
-for i in range(1, N_t + 1):
+for i in range(1, N_t+1):
 
     # Plot has to be done before tracking (at least for cases with separatrix)
     if (i % dt_plt) == 0:
@@ -118,7 +115,7 @@ for i in range(1, N_t + 1):
         print("   Beam gamma %3.3f" % beam.gamma)
         print("   Beam beta %3.3f" % beam.beta)
         print("   Beam energy %.6e eV" % beam.energy)
-        print("   Four-times r.m.s. bunch length %.4e s" % (4. * beam.sigma_dt))
+        print("   Four-times r.m.s. bunch length %.4e s" % (4.*beam.sigma_dt))
         print("   Gaussian bunch length %.4e s" % profile.bunchLength)
         print("")
 

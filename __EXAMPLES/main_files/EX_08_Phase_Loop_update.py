@@ -25,7 +25,7 @@ from blond.beam.distributions import matched_from_distribution_function
 from blond.beam.profile import CutOptions, Profile
 from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
-from blond.llrf.beam_feedback import BeamFeedback
+from blond.llrf.beam_feedback_update_subclasses import BeamFeedback_PSB
 from blond.monitors.monitors import BunchMonitor
 from blond.plots.plot import Plot
 from blond.trackers.tracker import FullRingAndRF, RingAndRFTracker
@@ -34,7 +34,7 @@ mpl.use('Agg')
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 
-os.makedirs(this_directory + '../output_files/EX_08_fig', exist_ok=True)
+os.makedirs(this_directory + '../output_files/EX_08_fig_updt', exist_ok=True)
 
 
 # Beam parameters
@@ -66,9 +66,7 @@ cut_options = CutOptions(cut_left=0, cut_right=2 * np.pi, n_slices=200,
 slices_ring = Profile(my_beam, cut_options)
 
 # Phase loop
-configuration = {'machine': 'PSB', 'PL_gain': 1. / 25.e-6, 'period': 10.e-6}
-phase_loop = BeamFeedback(general_params, rf_params, slices_ring, configuration)
-
+phase_loop = BeamFeedback_PSB(general_params, rf_params, slices_ring, RL_gain=[0,0])
 
 # Long tracker
 long_tracker = RingAndRFTracker(rf_params, my_beam, periodicity=False,
@@ -92,16 +90,16 @@ slices_ring.track()
 
 # Monitor
 bunch_monitor = BunchMonitor(general_params, rf_params, my_beam,
-                             this_directory + '../output_files/EX_08_output_data',
+                             this_directory + '../output_files/EX_08_updt_output_data',
                              Profile=slices_ring, PhaseLoop=phase_loop)
 
 
 # Plots
-format_options = {'dirname': this_directory + '../output_files/EX_08_fig'}
+format_options = {'dirname': this_directory + '../output_files/EX_08_updt_fig'}
 plots = Plot(general_params, rf_params, my_beam, 50, n_turns, 0.0, 2 * np.pi,
              -1e6, 1e6, xunit='rad', separatrix_plot=True, Profile=slices_ring,
              format_options=format_options,
-             h5file=this_directory + '../output_files/EX_08_output_data', PhaseLoop=phase_loop)
+             h5file=this_directory + '../output_files/EX_08_updt_output_data', PhaseLoop=phase_loop)
 
 # For testing purposes
 test_string = ''
@@ -120,13 +118,11 @@ for i in range(1, n_turns + 1):
 
     for m in map_:
         m.track()
-    print("Phase Loop:", phase_loop.domega_PL,
-          "Radial Loop:", phase_loop.domega_RL)
 
 # For testing purposes
 test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
     np.mean(my_beam.dE), np.std(my_beam.dE), np.mean(my_beam.dt), np.std(my_beam.dt))
-with open(this_directory + '../output_files/EX_08_test_data.txt', 'w') as f:
+with open(this_directory + '../output_files/EX_08_updt_test_data.txt', 'w') as f:
     f.write(test_string)
 
 
