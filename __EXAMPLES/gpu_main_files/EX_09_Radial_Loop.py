@@ -26,7 +26,7 @@ from blond.beam.distributions import matched_from_distribution_function
 from blond.beam.profile import CutOptions, Profile
 from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
-from blond.llrf.beam_feedback import BeamFeedback
+from blond.llrf.beam_feedback import BeamFeedback_PSB
 from blond.monitors.monitors import BunchMonitor
 from blond.plots.plot import Plot
 from blond.trackers.tracker import FullRingAndRF, RingAndRFTracker
@@ -78,9 +78,8 @@ slices_ring = Profile(my_beam, cut_options)
 # Phase loop
 # configuration = {'machine': 'PSB', 'PL_gain': 0., 'RL_gain': [34.8,16391],
 #                 'PL_period': 10.e-6, 'RL_period': 7}
-configuration = {'machine': 'PSB', 'PL_gain': 0,
-                 'RL_gain': [1.e7, 1.e11], 'period': 10.e-6}
-phase_loop = BeamFeedback(general_params, rf_params, slices_ring, configuration)
+phase_loop = BeamFeedback_PSB(general_params, rf_params, slices_ring,
+                              PL_gain = 0, RL_gain=[1.e7, 1.e11], period = 10.e-6)
 
 
 # Long tracker
@@ -132,7 +131,7 @@ if USE_GPU:
 for i in range(1, n_turns + 1):
     # print(i)
     if i == 100:
-        phase_loop.reference += 0.00001  # /1.6e-6
+        phase_loop.radial_reference += 0.00001  # /1.6e-6
 
     for m in map_:
         m.track()
