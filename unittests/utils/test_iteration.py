@@ -36,7 +36,7 @@ class TestTrackIteration(unittest.TestCase):
 
         self.n_turns = self.ring.n_turns
 
-        self.map_ = [self.full_ring.track, self.profile.track]
+        self.map_ = [self.full_ring, self.profile]
 
         self.trackIt = TrackIteration(self.map_)
 
@@ -56,13 +56,13 @@ class TestTrackIteration(unittest.TestCase):
         for i in range(5):
             next(self.trackIt)
 
-        self.assertEqual(self.trackIt.turnNumber, 8, msg='Turn number should have incremented to 8')
+        self.assertEqual(self.trackIt.turn_number, 8, msg='Turn number should have incremented to 8')
 
     def test_iter(self):
 
         for i in self.trackIt:
             pass
-        self.assertEqual(self.n_turns, self.trackIt.turnNumber, msg='Iterating all turns has not incremented turnNumber correctly')
+        self.assertEqual(self.n_turns, self.trackIt.turn_number, msg='Iterating all turns has not incremented turnNumber correctly')
 
     def test_call(self):
 
@@ -99,21 +99,26 @@ class TestTrackIteration(unittest.TestCase):
         self.trackIt(3)
 
         self.assertEqual(list1[0], 4, msg='function call should have incremented list')
-        self.assertEqual(list2[0], self.trackIt.turnNumber, msg='function should set list[0] to turn number')
+        self.assertEqual(list2[0], self.trackIt.turn_number, msg='function should set list[0] to turn number')
         self.assertEqual(list3[0], 8, msg='function should have been called')
 
     def test_exceptions(self):
 
+        class TestTrackable:
+            def track(self):
+                ...
+
         testPasses = [None, 1, 'abc']
         for t in testPasses:
-            with self.assertRaises(AttributeError, msg='Should raise AttrinuteError if non-callable object is passed in map'):
+            with self.assertRaises(AttributeError, msg='Should raise AttrinuteError if non-trackable object is passed in map'):
                 TrackIteration([t])
         testPasses = [None, 1., 'abc']
+
         for t in testPasses:
             with self.assertRaises(TypeError, msg='Should raise TypeError if initTurn is non-integer'):
-                TrackIteration([lambda _: _], t)
+                TrackIteration([TestTrackable()], t)
             with self.assertRaises(TypeError, msg='Should raise TypeError if initTurn is non-integer'):
-                TrackIteration([lambda _: _], 0, t)
+                TrackIteration([TestTrackable()], 0, t)
 
         def testItt():
             for i in range(self.n_turns + 1):
