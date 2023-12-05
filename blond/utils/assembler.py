@@ -54,31 +54,6 @@ class Assembler:
     Assembler class
     '''
 
-    '''
-    This is the default tracking priority of blond trackable elements.
-    Priority 0 is by defaule assigned to custom elements.
-    Priority -1 is reserved for the highest priority level.
-    Higher priority number means that the element will be tracked first.
-    '''
-    tracking_priority_dict = {'Profile': 800,
-                              '_InducedVoltage': 700,
-                              'TotalInducedVoltage': 700,
-                              'SynchrotronRadiation': 600,
-                              'BeamFeedback': 500,
-                              'SPSCavityFeedback': 500,
-                              'CavityFeedback': 500,
-                              'LHCNoiseFB': 400,
-                              'RingAndRFTracker': 300,
-                              'FullRingAndRF': 200,
-                              'Plot': 100,
-                              'BunchMonitor': 100,
-                              'SlicesMonitor': 100,
-                              'MultiBunchMonitor': 100,
-                              'default': 0
-                              }
-
-    # top_priority = max(tracking_priority_dict.values())+1
-
     class PipelineElement:
         '''
         PipelineElement class. Used to hold all neccaessary information for a trackable element. 
@@ -269,6 +244,29 @@ class Assembler:
         self.__is_built = False
         self.element_idx = 0
         self.with_timing = False
+        '''
+        This is the default tracking priority of blond trackable elements.
+        Priority 0 is by defaule assigned to custom elements.
+        Priority -1 is reserved for the highest priority level.
+        Higher priority number means that the element will be tracked first.
+        '''
+        self.tracking_priority_dict = {'Profile': 800,
+                                '_InducedVoltage': 700,
+                                'TotalInducedVoltage': 700,
+                                'SynchrotronRadiation': 600,
+                                'BeamFeedback': 500,
+                                'SPSCavityFeedback': 500,
+                                'CavityFeedback': 500,
+                                'LHCNoiseFB': 400,
+                                'RingAndRFTracker': 300,
+                                'FullRingAndRF': 200,
+                                'Plot': 100,
+                                'BunchMonitor': 100,
+                                'SlicesMonitor': 100,
+                                'MultiBunchMonitor': 100,
+                                'default': 0
+                                }
+
 
         # Discover the blond distributions
         self.blond_distributions = Assembler.discover_blond_distributions()
@@ -363,18 +361,18 @@ class Assembler:
         '''Print the tracking priority levels
         '''
         from prettytable import PrettyTable
-        print('Higher priority number means that the element will be tracked first.\n')
-        print('Lowest priority level is 0. -1 is reserved for highest priority level.\n')
+        print('Higher priority level means that the element will be tracked first.')
+        print('-1 is reserved for the current highest priority level.')
 
         table = PrettyTable()
         table.field_names = ['Element', 'Priority']
 
         print('Tracking priority levels:')
-        for key, value in self.tracking_priority_dict.items():
+        for key, value in sorted(self.tracking_priority_dict.items(), key=lambda item: item[1], reverse=True):
             table.add_row([key, value])
             # print(f'{key}: {value}')
         print(table)
-        print('Top priority level: ', self.top_priority)
+        # print('Top priority level: ', self.top_priority)
 
     @property
     def top_priority(self):
