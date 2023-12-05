@@ -43,7 +43,7 @@ class FullRingAndRF:
         #: *Ring circumference in [m]*
         self.ring_circumference = 0
         for RingAndRFSectionElement in self.RingAndRFSection_list:
-            self.ring_circumference += RingAndRFSectionElement.section_length
+            self.ring_circumference += RingAndRFSectionElement.rf_params.section_length
 
         #: *Ring radius in [m]*
         self.ring_radius = self.ring_circumference / (2 * np.pi)
@@ -156,63 +156,6 @@ class RingAndRFTracker:
     counter : [int]
         Inherited from
         :py:attr:`input_parameters.rf_parameters.RFStation.counter`
-    length_ratio : float
-        Inherited from
-        :py:attr:`input_parameters.ring.Ring.length_ratio`
-    section_length : float
-        Inherited from
-        :py:attr:`input_parameters.ring.Ring.section_length`
-    t_rev : float
-        Inherited from
-        :py:attr:`input_parameters.ring.Ring.t_rev`
-    n_rf : float
-        Inherited from
-        :py:attr:`input_parameters.rf_parameters.RFStation.n_rf`
-    beta : float
-        Inherited from
-        :py:attr:`input_parameters.ring.Ring.beta`
-    charge : float
-        Inherited from
-        :py:attr:`input_parameters.ring.Ring.Particle.charge`
-    harmonic : float array
-        Inherited from
-        :py:attr:`input_parameters.rf_parameters.RFStation.harmonic`
-    voltage : float array
-        Inherited from
-        :py:attr:`input_parameters.rf_parameters.RFStation.voltage`
-    phi_noise : float array
-        Inherited from
-        :py:attr:`input_parameters.rf_parameters.RFStation.phi_noise`
-    phi_modulation : 2-tuple of float array
-        Inherited from
-        :py:attr:`input_parameters.rf_parameters.RFStation.phi_modulation`
-    phi_rf : float array
-        Inherited from
-        :py:attr:`input_parameters.rf_parameters.RFStation.phi_rf`
-    phi_s : float array
-        Inherited from
-        :py:attr:`input_parameters.rf_parameters.RFStation.phi_s`
-    alpha_0 : float array
-        Inherited from
-        :py:attr:`input_parameters.ring.Ring.alpha_0`
-    alpha_1 : float array
-        Inherited from
-        :py:attr:`input_parameters.ring.Ring.alpha_1`
-    alpha_2 : float array
-        Inherited from
-        :py:attr:`input_parameters.ring.Ring.alpha_2`
-    eta_0 : float array
-        Inherited from
-        :py:attr:`input_parameters.ring.Ring.eta_0`
-    eta_1 : float array
-        Inherited from
-        :py:attr:`input_parameters.ring.Ring.eta_1`
-    eta_2 : float array
-        Inherited from
-        :py:attr:`input_parameters.ring.Ring.eta_2`
-    alpha_order : float array
-        Inherited from
-        :py:attr:`input_parameters.ring.Ring.alpha_order`
     acceleration_kick : float array
         Inherited from
         :py:attr:`input_parameters.ring.Ring.delta_E`
@@ -251,27 +194,6 @@ class RingAndRFTracker:
         # Imports from RF parameters
         self.rf_params = RFStation
         self.counter = RFStation.counter
-        self.length_ratio = RFStation.length_ratio
-        self.section_length = RFStation.section_length
-        # self.t_rev = RFStation.t_rev
-        # self.n_rf = RFStation.n_rf
-        # self.beta = RFStation.beta
-        # self.charge = RFStation.Particle.charge
-        # self.harmonic = RFStation.harmonic
-        # self.voltage = RFStation.voltage
-        # self.phi_noise = RFStation.phi_noise
-        # self.phi_modulation = RFStation.phi_modulation
-        # self.phi_rf = RFStation.phi_rf
-        # if not self.rf_params.empty:
-        #     self.phi_s = RFStation.phi_s
-        # self.omega_rf = RFStation.omega_rf
-        # self.alpha_0 = RFStation.alpha_0
-        # self.alpha_1 = RFStation.alpha_1
-        # self.alpha_2 = RFStation.alpha_2
-        # self.eta_0 = RFStation.eta_0
-        # self.eta_1 = RFStation.eta_1
-        # self.eta_2 = RFStation.eta_2
-        # self.alpha_order = RFStation.alpha_order
         self.acceleration_kick = - RFStation.delta_E
 
         # Other imports
@@ -337,12 +259,9 @@ class RingAndRFTracker:
 
         """
 
-        # voltage_kick = bm.ascontiguousarray(self.rf_params.charge*self.rf_params.voltage[:, index])
-        # omegarf_kick = bm.ascontiguousarray(self.rf_params.omega_rf[:, index])
-        # phirf_kick = bm.ascontiguousarray(self.rf_params.phi_rf[:, index])
         bm.kick(beam_dt, beam_dE, self.rf_params.voltage[:, index],
                 self.rf_params.omega_rf[:, index], self.rf_params.phi_rf[:, index],
-                self.rf_params.charge, self.rf_params.n_rf, self.acceleration_kick[index])
+                self.rf_params.Particle.charge, self.rf_params.n_rf, self.acceleration_kick[index])
 
     def drift(self, beam_dt, beam_dE, index):
         r"""Function updating the particle arrival time to the RF station
