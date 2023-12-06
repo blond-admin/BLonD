@@ -354,7 +354,6 @@ def total_voltage(RFsection_list, harmonic='first'):
         Vsin = RFsection_list[0].voltage[0] * np.sin(RFsection_list[0].phi_rf[0])
         if n_sections > 1:
             for i in range(1, n_sections):
-                print(RFsection_list[i].voltage[0])
                 Vcos += RFsection_list[i].voltage[0] * np.cos(RFsection_list[i].phi_rf[0])
                 Vsin += RFsection_list[i].voltage[0] * np.sin(RFsection_list[i].phi_rf[0])
         Vtot = np.sqrt(Vcos**2 + Vsin**2)
