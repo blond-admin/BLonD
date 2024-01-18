@@ -73,7 +73,7 @@ def use_cpp():
     cpp_func_dict['fft'] = getattr(np, 'fft')
 
     __update_active_dict(cpp_func_dict)
-    print('---------- Using the C++ computational backend ----------')
+    # print('---------- Using the C++ computational backend ----------')
 
 
 def use_numba():
@@ -124,7 +124,7 @@ def use_numba():
     # Update the global functions
     __update_active_dict(nu_func_dict)
 
-    print('---------- Using the Numba computational backend ----------')
+    # print('---------- Using the Numba computational backend ----------')
 
 
 def use_py():
@@ -172,7 +172,7 @@ def use_py():
     # Update the global functions
     __update_active_dict(py_func_dict)
 
-    print('---------- Using the Python computational backend ----------')
+    # print('---------- Using the Python computational backend ----------')
 
 
 
@@ -180,8 +180,8 @@ def use_cpu():
     '''
     If not library is found, use the python implementations
     '''
-    from .. import LIBBLOND as __lib
-    if __lib is None:
+    # from .. import get_libblond
+    if _cpp.get_libblond() is None:
         try: # try to use numba
             use_numba()
         except ImportError as e:
@@ -236,6 +236,14 @@ def use_precision(_precision='double'):
     """
     print(f'---------- Using {_precision} precision numeric datatypes ----------')
     precision.set(_precision)
+
+    try:
+        from ..gpu import GPU_DEV
+        GPU_DEV.load_library(_precision)
+    except Exception as e:
+        # The GPU backend is not available
+        pass
+    _cpp.load_libblond(_precision)
 
 
 def __update_active_dict(new_dict):
@@ -319,10 +327,16 @@ def use_gpu(gpu_id=0):
     gpu_func_dict['random'] = getattr(cp, 'random')
     gpu_func_dict['fft'] = getattr(cp, 'fft')
 
-    print('---------- Using the GPU computational backend ----------')
-    print(f'---------- GPU Device: id {GPU_DEV.id}, name {GPU_DEV.name}, Compute Capability {GPU_DEV.dev.compute_capability} ----------',
-           flush=True)
+    # print('---------- Using the GPU computational backend ----------')
+    # print(f'---------- GPU Device: id {GPU_DEV.id}, name {GPU_DEV.name}, Compute Capability {GPU_DEV.dev.compute_capability} ----------',
+    #        flush=True)
 
+
+def report_backend():
+    """Prints the currently active backend
+    """
+    global device
+    print(f'---------- Using the {device} computational backend ----------')
 
 ###############################################################################
 # By default use the CPU backend (python-only or C++)

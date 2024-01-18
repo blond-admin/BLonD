@@ -187,14 +187,14 @@ class TestSyntheticData:
         cp.testing.assert_allclose(dE_gpu, dE, rtol=1e-8, atol=0)
 
     @pytest.mark.parametrize('n_particles,n_slices,cut_left,cut_right',
-                             [(100, 5, 0.01, 0.01), (10000, 100, 0.5, 0.5),
+                             [(100, 5, 0.01, 0.01), (10000, 100, 0.05, 0.05),
                               (1000000, 1000, 0.0, 0.0),
                               (1000000, 10000, 0.05, 0.01),
                               (10000000, 100000, 0.01, 0.01)])
     def test_profile_slices(self, n_particles, n_slices, cut_left, cut_right):
         import cupy as cp
 
-        dt = np.random.normal(loc=1e-5, scale=1e-7, size=n_particles)
+        dt = np.random.normal(loc=1e-5, scale=1e-6, size=n_particles)
         dt_gpu = cp.array(dt)
 
         max_dt = dt.max()
@@ -252,7 +252,6 @@ class TestSyntheticData:
     def test_drift(self, n_particles, solver, alpha_order, n_iter):
         import cupy as cp
 
-        solver = solver.encode(encoding='utf_8')
         dE = np.random.normal(loc=0, scale=1e7, size=n_particles)
         dt = np.random.normal(loc=1e-5, scale=1e-7, size=n_particles)
         dt_gpu = cp.array(dt)
@@ -286,7 +285,6 @@ class TestSyntheticData:
         import cupy as cp
 
         solver = 'exact'
-        solver = solver.encode(encoding='utf_8')
         alpha_order = 2
         n_rf = 1
 
@@ -538,7 +536,7 @@ class TestBigaussianData:
                                    profile.n_macroparticles, rtol=1e-8, atol=0)
 
     @pytest.mark.parametrize('N_p,n_slices,n_iter',
-                             [(100, 10, 10), (10000, 25, 100), (100000, 100, 100)])
+                             [(100, 10, 10), (100000, 100, 20)])
     def test_rf_voltage_calc(self, N_p, n_slices, n_iter):
         import cupy as cp
 

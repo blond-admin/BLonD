@@ -94,20 +94,17 @@ def drift(dt, dE, solver, t_rev, length_ratio, alpha_order, eta_0,
     """
     drift_kernel = GPU_DEV.mod.get_function("drift")
 
-    # solver = solver.decode('utf-8')
-    if solver == "simple":
-        solver = np.int32(0)
-    elif solver == "legacy":
-        solver = np.int32(1)
-    else:
-        solver = np.int32(2)
+    solver_to_int = {
+        'simple': 0,
+        'legacy': 1,
+        'exact': 2,
+    }
+    solver = solver_to_int[solver]
 
-    if not isinstance(t_rev, float):
-        t_rev = float(t_rev)
+    if not isinstance(t_rev, precision.real_t):
+        t_rev = precision.real_t(t_rev)
 
-    drift_kernel(args=(dt,
-                       dE,
-                       solver,
+    drift_kernel(args=(dt, dE, solver,
                        precision.real_t(t_rev), precision.real_t(length_ratio),
                        precision.real_t(alpha_order), precision.real_t(eta_0),
                        precision.real_t(eta_1), precision.real_t(eta_2),

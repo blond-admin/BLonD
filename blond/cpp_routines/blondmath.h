@@ -12,98 +12,68 @@ C++ Math library
 @Author: Konstantinos Iliakis
 @Date: 20.10.2017
 */
+#pragma once
 
 #include <complex>
+#include "blond_common.h"
 
 extern "C" {
-  void where_more_than(const double *__restrict__ data, const int n,
-                       const double c1,
+  void where_more_than(const real_t *__restrict__ data, const int n,
+                       const real_t c1,
                        bool *__restrict__ res);
 
-  void where_less_than(const double *__restrict__ data, const int n,
-                       const double c1,
+  void where_less_than(const real_t *__restrict__ data, const int n,
+                       const real_t c1,
                        bool *__restrict__ res);
 
-  void where_more_less_than(const double *__restrict__ data, const int n,
-                            const double c1, const double c2,
+  void where_more_less_than(const real_t *__restrict__ data, const int n,
+                            const real_t c1, const real_t c2,
                             bool *__restrict__ res);
-
-  void where_more_thanf(const float *__restrict__ data, const int n,
-                        const float c1,
-                        bool *__restrict__ res);
 
   void where_less_thanf(const float *__restrict__ data, const int n,
                         const float c1,
                         bool *__restrict__ res);
 
-  void where_more_less_thanf(const float *__restrict__ data, const int n,
-                             const float c1, const float c2,
-                             bool *__restrict__ res);
+  int where(const real_t *__restrict__ dt, const int n_macroparticles,
+            const real_t constant1, const real_t constant2);
 
-  int where(const double *__restrict__ dt, const int n_macroparticles,
-            const double constant1, const double constant2);
-
-  int wheref(const float *__restrict__ dt, const int n_macroparticles,
-             const float constant1, const float constant2);
+  // int wheref(const float *__restrict__ dt, const int n_macroparticles,
+  //            const float constant1, const float constant2);
 
 
-  void where_more_than(const double *__restrict__ data, const int n,
-                       const double c1,
+  void where_more_than(const real_t *__restrict__ data, const int n,
+                       const real_t c1,
                        bool *__restrict__ res);
 
-  void where_less_than(const double *__restrict__ data, const int n,
-                       const double c1,
+  void where_less_than(const real_t *__restrict__ data, const int n,
+                       const real_t c1,
                        bool *__restrict__ res);
 
-  void where_more_less_than(const double *__restrict__ data, const int n,
-                            const double c1, const double c2,
+  void where_more_less_than(const real_t *__restrict__ data, const int n,
+                            const real_t c1, const real_t c2,
                             bool *__restrict__ res);
 
-  void convolution(const double * __restrict__ signal,
+  void convolution(const real_t * __restrict__ signal,
                    const int SignalLen,
-                   const double * __restrict__ kernel,
+                   const real_t * __restrict__ kernel,
                    const int KernelLen,
-                   double * __restrict__ res);
+                   real_t * __restrict__ res);
 
-  double mean(const double * __restrict__ data, const int n);
-  double stdev(const double * __restrict__ data,
+  real_t mean(const real_t * __restrict__ data, const int n);
+  real_t stdev(const real_t * __restrict__ data,
                const int n);
-  double fast_sin(double x);
-  double fast_cos(double x);
-  double fast_exp(double x);
-  void fast_sinv(const double * __restrict__ in,
+  real_t fast_sin(real_t x);
+  real_t fast_cos(real_t x);
+  real_t fast_exp(real_t x);
+  void fast_sinv(const real_t * __restrict__ in,
                  const int size,
-                 double * __restrict__ out);
-  void fast_cosv(const double * __restrict__ in,
+                 real_t * __restrict__ out);
+  void fast_cosv(const real_t * __restrict__ in,
                  const int size,
-                 double * __restrict__ out);
-  void fast_expv(const double * __restrict__ in,
+                 real_t * __restrict__ out);
+  void fast_expv(const real_t * __restrict__ in,
                  const int size,
-                 double * __restrict__ out);
-
-
-  void convolutionf(const float * __restrict__ signal,
-                    const int SignalLen,
-                    const float * __restrict__ kernel,
-                    const int KernelLen,
-                    float * __restrict__ res);
-
-  float meanf(const float * __restrict__ data, const int n);
-  float stdevf(const float * __restrict__ data,
-               const int n);
-  float fast_sinf(float x);
-  float fast_cosf(float x);
-  float fast_expf(float x);
-  void fast_sinvf(const float * __restrict__ in,
-                  const int size,
-                  float * __restrict__ out);
-  void fast_cosvf(const float * __restrict__ in,
-                  const int size,
-                  float * __restrict__ out);
-  void fast_expvf(const float * __restrict__ in,
-                  const int size,
-                  float * __restrict__ out);
-
+                 real_t * __restrict__ out);
 
   void add_int_vector(const int *__restrict__ a,
                       const int *__restrict__ b,
@@ -175,101 +145,55 @@ extern "C" {
   @right: value to return for x > xp[last]
   @y: the interpolated values, same shape as x
   */
-  void interp(const double * __restrict__ x,
+  void interp(const real_t * __restrict__ x,
               const int N,
-              const double * __restrict__ xp,
+              const real_t * __restrict__ xp,
               const int M,
-              const double * __restrict__ yp,
-              const double left,
-              const double right,
-              double * __restrict__ y);
+              const real_t * __restrict__ yp,
+              const real_t left,
+              const real_t right,
+              real_t * __restrict__ y);
 
-  void interp_const_space(const double * __restrict__ x,
+  void interp_const_space(const real_t * __restrict__ x,
                           const int N,
-                          const double * __restrict__ xp,
+                          const real_t * __restrict__ xp,
                           const int M,
-                          const double * __restrict__ yp,
-                          const double left,
-                          const double right,
-                          double * __restrict__ y);
+                          const real_t * __restrict__ yp,
+                          const real_t left,
+                          const real_t right,
+                          real_t * __restrict__ y);
 
   // Function to implement integration of f(x); over the interval
   // [a,b] using the trapezoid rule with nsub subdivisions.
-  void cumtrapz_wo_initial(const double * __restrict__ f,
-                           const double deltaX,
+  void cumtrapz_wo_initial(const real_t * __restrict__ f,
+                           const real_t deltaX,
                            const int nsub,
-                           double * __restrict__ psum);
+                           real_t * __restrict__ psum);
 
   // Function to implement integration of f(x); over the interval
   // [a,b] using the trapezoid rule with nsub subdivisions.
-  void cumtrapz_w_initial(const double * __restrict__ f,
-                          const double deltaX,
-                          const double initial,
+  void cumtrapz_w_initial(const real_t * __restrict__ f,
+                          const real_t deltaX,
+                          const real_t initial,
                           const int nsub,
-                          double * __restrict__ psum);
+                          real_t * __restrict__ psum);
 
-  double trapz_var_delta(const double * __restrict__ f,
-                         const double * __restrict__ deltaX,
+  real_t trapz_var_delta(const real_t * __restrict__ f,
+                         const real_t * __restrict__ deltaX,
                          const int nsub);
 
-  double trapz_const_delta(const double * __restrict__ f,
-                           const double deltaX,
+  real_t trapz_const_delta(const real_t * __restrict__ f,
+                           const real_t deltaX,
                            const int nsub);
 
-  int min_idx(const double * __restrict__ a, int size);
-  int max_idx(const double * __restrict__ a, int size);
-  void linspace(const double start, const double end, const int n,
-                double *__restrict__ out);
+  int min_idx(const real_t * __restrict__ a, int size);
+  int max_idx(const real_t * __restrict__ a, int size);
+  void linspace(const real_t start, const real_t end, const int n,
+                real_t *__restrict__ out);
 
   void arange_double(const double start, const double stop,
                      const double step,
                      double * __restrict__ out);
-
-  void interpf(const float * __restrict__ x,
-               const int N,
-               const float * __restrict__ xp,
-               const int M,
-               const float * __restrict__ yp,
-               const float left,
-               const float right,
-               float * __restrict__ y);
-
-  void interp_const_spacef(const float * __restrict__ x,
-                           const int N,
-                           const float * __restrict__ xp,
-                           const int M,
-                           const float * __restrict__ yp,
-                           const float left,
-                           const float right,
-                           float * __restrict__ y);
-
-  // Function to implement integration of f(x); over the interval
-  // [a,b] using the trapezoid rule with nsub subdivisions.
-  void cumtrapz_wo_initialf(const float * __restrict__ f,
-                            const float deltaX,
-                            const int nsub,
-                            float * __restrict__ psum);
-
-  // Function to implement integration of f(x); over the interval
-  // [a,b] using the trapezoid rule with nsub subdivisions.
-  void cumtrapz_w_initialf(const float * __restrict__ f,
-                           const float deltaX,
-                           const float initial,
-                           const int nsub,
-                           float * __restrict__ psum);
-
-  float trapz_var_deltaf(const float * __restrict__ f,
-                         const float * __restrict__ deltaX,
-                         const int nsub);
-
-  float trapz_const_deltaf(const float * __restrict__ f,
-                           const float deltaX,
-                           const int nsub);
-
-  int min_idxf(const float * __restrict__ a, int size);
-  int max_idxf(const float * __restrict__ a, int size);
-  void linspacef(const float start, const float end, const int n,
-                 float *__restrict__ out);
 
   void arange_float(const float start, const float stop,
                     const float step,
@@ -280,12 +204,8 @@ extern "C" {
                   const int step,
                   int * __restrict__ out);
 
-  double sum(const double * __restrict__ data, const int n);
+  real_t sum(const real_t * __restrict__ data, const int n);
   void sort_double(double * __restrict__ in, const int n, bool reverse);
-
-  float sumf(const float * __restrict__ data, const int n);
-  void sort_float(float * __restrict__ in, const int n, bool reverse);
-
 
   void sort_int(int * __restrict__ in, const int n, bool reverse);
   void sort_longint(long int * __restrict__ in, const int n, bool reverse);
