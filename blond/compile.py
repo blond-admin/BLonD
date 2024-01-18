@@ -57,10 +57,6 @@ def main():
     parser.add_argument('--with-fftw', action='store_true',
                         help='Use the FFTs from FFTW3.')
 
-    parser.add_argument('-gpu', '--gpu', nargs='?', const='discover', default=None,
-                        help='Compile the GPU kernels too.'
-                        'Default: Only compile the C++ library.')
-
     parser.add_argument('--with-fftw-threads', action='store_true',
                         help='Use the multi-threaded FFTs from FFTW3.')
 
@@ -80,10 +76,20 @@ def main():
                         help='Any extra libraries needed to compile')
 
     parser.add_argument('-libname', '--libname', type=str, default=os.path.join(basepath, 'cpp_routines/libblond'),
-                        help='The blond library name, without the file extension.')
+                        help='The C++ library name, without the file extension.')
 
     parser.add_argument('-optimize', '--optimize', action='store_true',
                         help='Auto optimize the compiled library.')
+
+    parser.add_argument('-no-cpp', '--no-cpp', action='store_true',
+                        help='Do not compile the C++ library.')
+
+    parser.add_argument('-gpu', '--gpu', nargs='?', const='discover', default=None,
+                        help='Compile the GPU kernels too.'
+                        'Default: Only compile the C++ library.')
+
+    parser.add_argument('-cuda-libname', '--cuda-libname', type=str, default=os.path.join(basepath, 'gpu/kernels'),
+                        help='The CUDA library name, without the file extension.')
 
     # Additional libs needed to compile the blond library
     libs = []
@@ -93,6 +99,10 @@ def main():
     cflags = ['-O3', '-std=c++11', '-shared']
     # Some additional warning reporting related flags
     cflags += ['-Wall', '-Wno-unknown-pragmas']
+
+    float_flags = ['-DUSEFLOAT']
+
+    nvcc_flags = ['--cubin', '-O3', '--use_fast_math', '-maxrregcount', '32']
 
     cpp_files = [
         os.path.join(basepath, 'cpp_routines/kick.cpp'),
@@ -111,32 +121,40 @@ def main():
         os.path.join(basepath, 'beam/sparse_histogram.cpp'),
     ]
 
+    cuda_files = [
+        os.path.join(basepath, 'gpu/kernels.cu'),
+    ]
+
+    nvcc = 'nvcc'
+
     # Get nvcc from CUDA_PATH
     cuda_path = os.getenv('CUDA_PATH', default='')
     if cuda_path != '':
         nvcc = cuda_path + '/bin/nvcc'
-    else:
-        nvcc = 'nvcc'
-
-    nvccflags = [nvcc, '--cubin', '-O3',
-                 '--use_fast_math', '-maxrregcount', '32']
-    # nvccflags = ['nvcc', '--cubin', '-arch', 'sm_xx', '-O3', '--use_fast_math']
 
     # Parse command line options
     args = vars(parser.parse_args())
 
     # Parse environment variable (BLOND_COMPILE_OPTS) options
-    env_args = {}
-    if 'BLOND_COMPILE_OPTS' in os.environ:
-        env_args_lst = os.environ['BLOND_COMPILE_OPTS'].split(',')
-        env_args = vars(parser.parse_args(env_args_lst))
+    # if 'BLOND_COMPILE_OPTS' in os.environ:
+    #     env_args_lst = os.environ['BLOND_COMPILE_OPTS'].split(',')
+    #     env_args = vars(parser.parse_args(env_args_lst))
+    #     args.update(env_args)
 
-    args.update(env_args)
+    if not args['no_cpp']:
+        compile_cpp_library(args, cflags, float_flags, libs, cpp_files)
 
-    boost_path = None
+    if args['gpu']:
+        compile_cuda_library(args, nvcc_flags, float_flags, cuda_files, nvcc)
+
+
+def compile_cpp_library(args, cflags, float_flags, libs, cpp_files):
+    # Check if we need to compile with FFTW
     with_fftw = args['with_fftw'] or args['with_fftw_threads'] or args['with_fftw_omp'] or \
-        (args['with_fftw_lib'] is not None) or (
-            args['with_fftw_header'] is not None)
+        (args['with_fftw_lib'] is not None) or (args['with_fftw_header'] is not None)
+    
+    # Get boost path
+    boost_path = None
     if args['boost'] is not None:
         if args['boost']:
             boost_path = os.path.abspath(args['boost'])
@@ -210,24 +228,28 @@ def main():
         root, ext = os.path.splitext(args['libname'])
         if not ext:
             ext = '.so'
-        libname = os.path.abspath(root + ext)
+        libname_single = os.path.abspath(root + '_single' + ext)
+        libname_double = os.path.abspath(root + '_double' + ext)
 
     elif 'win' in sys.platform:
         root, ext = os.path.splitext(args['libname'])
         if not ext:
             ext = '.dll'
-        libname = os.path.abspath(root + ext)
+
+        libname_single = os.path.abspath(root + '_single' + ext)
+        libname_double = os.path.abspath(root + '_double' + ext)
 
         if hasattr(os, 'add_dll_directory'):
-            directory, _ = os.path.split(libname)
+            directory, _ = os.path.split(libname_double)
             os.add_dll_directory(directory)
 
     else:
         print(
             'YOU ARE NOT USING A WINDOWS OR LINUX OPERATING SYSTEM. ABORTING...')
         sys.exit(-1)
-    command = [compiler] + cflags + ['-o', libname] + cpp_files + libs
 
+
+    # Report the compilation options
     print('Enable Multi-threaded code: ', args['parallel'])
     print('Use boost: ', args['boost'] is not None)
     if args['boost'] is not None:
@@ -247,73 +269,111 @@ def main():
 
     print('Compiler flags: ', ' '.join(cflags))
     print('Extra libraries: ', ' '.join(libs))
-    print('Compiled library name: ', libname)
 
-    # If it exists already, remove the library before re-compiling
-    if os.path.isfile(libname):
-        try:
-            os.remove(libname)
-        except OSError:
-            pass
-
-    print('Compiling:\n', ' '.join(command))
-    ret = subprocess.run(command, check=False)
-    if ret.returncode != 0:
-        print('\nThere was a compilation error.')
+    command = [compiler] + cflags + float_flags + \
+        cpp_files + libs + ['-o', libname_single]
+    print('\nCompiling the single-precision (32-bit) C++ library')
+    ret = run_compile(command, libname_single)
+    if ret != 0:
+        print('There was a compilation error.')
     else:
+        # Verify that the libraries have been compiled
         try:
             if ('win' in sys.platform) and hasattr(os, 'add_dll_directory'):
-                _ = ctypes.CDLL(libname, winmode=0)
+                _ = ctypes.CDLL(libname_single, winmode=0)
             else:
-                _ = ctypes.CDLL(libname)
-            print('\nThe blond library has been successfully compiled.')
+                _ = ctypes.CDLL(libname_single)
+            print('Compiled successfully.')
         except Exception as exception:
-            print('\nCompilation failed.')
+            print('Compilation failed.')
             print(exception)
 
+    command = [compiler] + cflags + cpp_files + libs + ['-o', libname_double]
+    print('\nCompiling the double-precision (64-bit) C++ library')
+    ret = run_compile(command, libname_double)
+    if ret != 0:
+        print('There was a compilation error.')
+    else:
+        # Verify that the libraries have been compiled
+        try:
+            if ('win' in sys.platform) and hasattr(os, 'add_dll_directory'):
+                _ = ctypes.CDLL(libname_double, winmode=0)
+            else:
+                _ = ctypes.CDLL(libname_double)
+            print('Compiled successfully.')
+        except Exception as exception:
+            print('Compilation failed.')
+            print(exception)
+
+
+def compile_cuda_library(args, nvccflags, float_flags, cuda_files, nvcc):
     # Compile the GPU library
-    if args['gpu']:
-        print('\n' + ''.join(['='] * 80))
-        print('\nCompiling the CUDA library')
-        if args['gpu'] == 'discover':
-            print('Discovering the device compute capability..')
-            import cupy as cp
+    # print('\n' + ''.join(['='] * 80))
+    print('\nCompiling the CUDA library')
+    if args['gpu'] == 'discover':
+        print('Discovering the device compute capability..')
+        import cupy as cp
 
-            dev = cp.cuda.Device(0)
-            dev_name = cp.cuda.runtime.getDeviceProperties(dev)['name']
-            comp_capability = dev.compute_capability
-            print(f'Device name {dev_name}')
-        elif args['gpu'] is not None:
-            comp_capability = args['gpu']
+        dev = cp.cuda.Device(0)
+        dev_name = cp.cuda.runtime.getDeviceProperties(dev)['name']
+        comp_capability = dev.compute_capability
+        print(f'Device name {dev_name}')
+    elif args['gpu'] is not None:
+        comp_capability = args['gpu']
 
-        print(
-            f'Compiling the CUDA library for architecture {comp_capability}.')
-        # Add the -arch required argument
-        nvccflags += ['-arch', f'sm_{comp_capability}']
-        libname_double = os.path.join(basepath,
-                                      f'gpu/cuda_kernels/kernels_double_sm_{comp_capability}.cubin')
-        libname_single = os.path.join(basepath,
-                                      f'gpu/cuda_kernels/kernels_single_sm_{comp_capability}.cubin')
-        # we need to get the header files location
-        path = cp.__file__.split('/')[:-1]  # remove __init__.py from path
-        path.extend(['_core', 'include'])
+    print(
+        f'Compiling the CUDA library for compute capability {comp_capability}.')
 
-        cupyloc = os.path.join('/'.join(path))
+    # Add the -arch required argument
+    nvccflags += ['-arch', f'sm_{comp_capability}']
+    
+    # Get the CuPy header files location
+    path = cp.__file__.split('/')[:-1]  # remove __init__.py from path
+    path.extend(['_core', 'include'])
+    cupyloc = os.path.join('/'.join(path))
 
-        print('cupy: ', cupyloc)
+    
+    print('CUDA Compiler: ', nvcc)
+    compiler_version = subprocess.run([nvcc, '--version'],
+                                      capture_output=True,
+                                      check=False).stdout.decode().split('\n')[0]
+    print('Compiler version: ', compiler_version)
+    print('Compiler flags: ', ' '.join(nvccflags))
+    print('CuPy location: ', cupyloc)
 
-        command = nvccflags + ['-o', libname_single, '-I' + cupyloc,
-                               os.path.join(basepath, 'gpu/cuda_kernels/kernels_single.cu')]
-        subprocess.call(command)
+    
+    libname_double = args['cuda_libname'] + f'_sm_{comp_capability}_double.cubin'
+    libname_single = args['cuda_libname'] + f'_sm_{comp_capability}_single.cubin'
 
-        command = nvccflags + ['-o', libname_double, '-I' + cupyloc,
-                               os.path.join(basepath, 'gpu/cuda_kernels/kernels_double.cu')]
-        subprocess.call(command)
+    command = [nvcc] + nvccflags + \
+        ['-o', libname_single, '-I' + cupyloc] + float_flags + cuda_files
+    
+    print('\nCompiling the single-precision (32-bit) CUDA library')
+    ret = run_compile(command, libname_single)
+    if ret != 0:
+        print('There was a compilation error.')
+    else:
+        print('Compiled successfully.')
 
-        if os.path.isfile(libname_single) and os.path.isfile(libname_double):
-            print('The CUDA library has been successfully compiled.')
-        else:
-            print('The CUDA library compilation failed.')
+    command = [nvcc] + nvccflags + \
+        ['-o', libname_double, '-I' + cupyloc] + cuda_files
+    print('\nCompiling the double-precision (64-bit) CUDA library')
+    ret = run_compile(command, libname_double)
+    if ret != 0:
+        print('There was a compilation error.')
+    else:
+        print('Compiled successfully.')
+
+
+def run_compile(command, libname):
+    if os.path.exists(libname):
+        os.remove(libname)
+    print(' '.join(command))
+    ret = subprocess.run(command, check=False)
+    if ret.returncode != 0 or not os.path.isfile(libname):
+        return -1
+    else:
+        return 0
 
 
 if __name__ == "__main__":

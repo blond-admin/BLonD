@@ -19,7 +19,8 @@ import numpy as np
 import pytest
 from scipy.constants import c
 
-from blond import LIBBLOND
+# from blond import get_libblond()
+from blond.utils.butils_wrap_cpp import get_libblond
 from blond.beam.beam import Beam, Proton
 from blond.beam.sparse_slices import SparseSlices
 from blond.impedances.music import Music
@@ -32,7 +33,7 @@ class Test:
 
     # Run before every test
     def setup_method(self):
-        if LIBBLOND is None:
+        if get_libblond() is None:
             pytest.skip('C++ libblond not compiled')
         np.random.seed(0)
 
@@ -165,7 +166,7 @@ class Test:
         bm.use_cpp()
         np.testing.assert_equal(bm.device, 'CPU_CPP')
 
-        dt = np.random.normal(loc=1e-5, scale=1e-7, size=n_particles)
+        dt = np.random.normal(loc=1e-5, scale=1e-6, size=n_particles)
         dt_py = dt.copy()
 
         max_dt = dt.max()
@@ -354,7 +355,7 @@ class Test:
         bm.use_cpp()
         np.testing.assert_equal(bm.device, 'CPU_CPP')
 
-        dt = np.random.normal(loc=1e-5, scale=1e-7, size=n_particles)
+        dt = np.random.normal(loc=1e-5, scale=1e-6, size=n_particles)
         dt_py = dt.copy()
 
         max_dt = dt.max()
@@ -467,7 +468,7 @@ class TestWithObjects:
 
     # Run before every test
     def setup_method(self):
-        if LIBBLOND is None:
+        if get_libblond() is None:
             pytest.skip('C++ libblond not compiled')
 
         self.ring = Ring(self.C, self.alpha,
