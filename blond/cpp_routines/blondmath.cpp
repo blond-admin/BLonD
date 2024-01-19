@@ -22,11 +22,13 @@ C++ Math library
 #include "blond_common.h"
 #include "openmp.h"
 
-// #include "sin.h"
-// #include "exp.h"
-// #include "cos.h"
-
-// using namespace std;
+#ifdef BOOST
+#include <boost/random.hpp>
+#include <boost/random/normal_distribution.hpp>
+#else
+#include<random>
+#include<thread>
+#endif
 
 extern "C"
 {
@@ -41,13 +43,13 @@ extern "C"
         using namespace std;
 #endif
 
-        #pragma omp parallel
+#pragma omp parallel
         {
             static __thread mt19937_64 *gen = nullptr;
             if (!gen)
                 gen = new mt19937_64(seed + omp_get_thread_num());
             static thread_local normal_distribution<> dist(mean, scale);
-            #pragma omp for
+#pragma omp for
             for (int i = 0; i < size; i++)
             {
                 arr[i] = dist(*gen);
@@ -409,10 +411,10 @@ extern "C"
         @right: value to return for x > xp[-1]
         @y: the interpolated values, same shape as x
         */
-        const T dx = xp[1] - xp[0];
-        const T inv_dx = 1.0 / dx;
-        const T xp0 = xp[0];
-        const T xplast = xp[M - 1];
+        const real_t dx = xp[1] - xp[0];
+        const real_t inv_dx = 1.0 / dx;
+        const real_t xp0 = xp[0];
+        const real_t xplast = xp[M - 1];
 
 #pragma omp parallel for
         for (int i = 0; i < N; i++)
@@ -423,7 +425,7 @@ extern "C"
                 y[i] = right;
             else
             {
-                const T fpos = (x[i] - xp0) * inv_dx;
+                const real_t fpos = (x[i] - xp0) * inv_dx;
                 const int pos = floor(fpos);
                 y[i] = yp[pos] + (yp[pos + 1] - yp[pos]) * (fpos - pos);
             }
