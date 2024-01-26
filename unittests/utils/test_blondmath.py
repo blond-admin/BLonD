@@ -762,6 +762,39 @@ class TestRandomNormal:
         np.testing.assert_allclose(mu_npy, mu_cpp, atol=1e-2)
         np.testing.assert_allclose(sigma_npy, sigma_cpp, atol=1e-2)
 
+    @pytest.mark.parametrize('size,left,right',
+                             [(100, 0, 1), (10000, 0, 1),
+                              (100, 0.1, 0.9), (10000, 0.1, 0.9)
+                              ])
+    def test_interp_const_bin_1(self, size, left, right):
+
+        x = np.random.uniform(0, 1, size)
+        xp = np.linspace(0, 1, size)
+        yp = np.random.normal(size=size, loc=0, scale=1)
+
+        # xp has to be sorted and evenly spaced
+        assert np.all(np.diff(xp) > 0)
+        y_cpp = bm.interp_const_bin(x, xp, yp, left, right)
+        y_npy = np.interp(x, xp, yp, left=left, right=right)
+
+        np.testing.assert_allclose(y_cpp, y_npy, rtol=1e-6)
+
+    @pytest.mark.parametrize('size,left,right',
+                             [(100, 0, 1), (10000, 0, 1),
+                              (100, 0.1, 0.9), (10000, 0.1, 0.9)
+                              ])
+    def test_interp_const_bin_2(self, size, left, right):
+
+        x = np.random.uniform(0, 1, size)
+        xp = np.linspace(0, 1, 10)
+        yp = np.random.normal(size=10, loc=0, scale=1)
+
+        # xp has to be sorted and evenly spaced
+        assert np.all(np.diff(xp) > 0)
+        y_cpp = bm.interp_const_bin(x, xp, yp, left, right)
+        y_npy = np.interp(x, xp, yp, left=left, right=right)
+
+        np.testing.assert_allclose(y_cpp, y_npy, rtol=1e-6)
 
 
 if __name__ == '__main__':
