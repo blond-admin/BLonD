@@ -415,14 +415,7 @@ def interp_const_bin(x, xp, yp, left=None, right=None, result=None):
     if result is None:
         result = np.empty(len(x), dtype=precision.real_t, order='C')
 
-    if precision.num == 1:
-        get_libblond().interp_const_binf(__getPointer(x), __getLen(x),
-                                         __getPointer(xp),
-                                         __getPointer(yp), __getLen(xp),
-                                         c_real(left), c_real(right),
-                                         __getPointer(result))
-    else:
-        get_libblond().interp_const_bin(__getPointer(x), __getLen(x),
+    get_libblond().interp_const_bin(__getPointer(x), __getLen(x),
                                         __getPointer(xp),
                                         __getPointer(yp), __getLen(xp),
                                         c_real(left), c_real(right),
@@ -431,21 +424,20 @@ def interp_const_bin(x, xp, yp, left=None, right=None, result=None):
     return result
 
 
-def random_normal(loc=0.0, scale=1.0, size=1):
+def random_normal(loc=0.0, scale=1.0, size=1, seed=1234):
     arr = np.empty(size, dtype=precision.real_t)
-
-    if precision.num == 1:
-        get_libblond().random_normalf(
+    print('loc', loc)
+    print('scale', scale)
+    print('size', size)
+    print('seed', seed)
+    get_libblond().random_normal(
             __getPointer(arr),
-            c_real(loc),
-            c_real(scale),
-            __getLen(arr))
-    else:
-        get_libblond().random_normal(
-            __getPointer(arr),
-            c_real(loc),
-            c_real(scale),
-            __getLen(arr))
+            ct.c_double(loc),
+            ct.c_double(scale),
+            # c_real(loc),
+            # c_real(scale),
+            __getLen(arr),
+            ct.c_ulong(seed))
 
     return arr
 

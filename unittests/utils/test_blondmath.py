@@ -14,6 +14,7 @@ Unittest for utils.bmath
 """
 
 import unittest
+import pytest
 
 import numpy as np
 
@@ -702,6 +703,65 @@ class TestSort(unittest.TestCase):
         bm.sort_cpp(y, reverse=True)
         y2 = sorted(y2, reverse=True)
         np.testing.assert_equal(y, y2)
+
+
+class TestRandomNormal:
+
+    # Run before every test
+    def setup_method(self):
+        if bm.device != 'CPU_CPP':
+            raise unittest.SkipTest(
+                'Compiled blond library not found, skipping test.')
+    # Run after every test
+
+    def teardown_method(self):
+        pass
+
+    @pytest.mark.parametrize('size,loc,scale',
+                             [(100000, 0, 1), (1000000, 0, 1), (10000000, 0, 1),
+                              (100000, 100, 5), (1000000, 100, 5), (10000000, 100, 5),
+                              (100000, -100, 10), (1000000, -100, 10), (10000000, -100, 10)
+                              ])
+    def test_vs_numpy(self, size, loc, scale):
+
+        np.random.seed(0)
+        y_npy = np.random.normal(loc=loc, scale=scale, size=size)
+        y_cpp = bm.random_normal(loc=loc, scale=scale, size=size, seed=0)
+
+        # normalize around 0, 1
+        y_npy = (y_npy - loc) / scale
+        y_cpp = (y_cpp - loc) / scale
+
+        mu_npy = np.mean(y_npy)
+        sigma_npy = np.std(y_npy)
+        mu_cpp = np.mean(y_cpp)
+        sigma_cpp = np.std(y_cpp)
+
+        np.testing.assert_allclose(mu_npy, mu_cpp, atol=1e-2)
+        np.testing.assert_allclose(sigma_npy, sigma_cpp, atol=1e-2)
+
+    @pytest.mark.parametrize('size,loc,scale',
+                             [(100000, 0, 1), (1000000, 0, 1), (10000000, 0, 1),
+                              (100000, 100, 5), (1000000, 100, 5), (10000000, 100, 5),
+                              (100000, -100, 10), (1000000, -100, 10), (10000000, -100, 10)
+                              ])
+    def test_different_seed(self, size, loc, scale):
+
+        y_cpp1 = bm.random_normal(loc=loc, scale=scale, size=size, seed=0)
+        y_cpp2 = bm.random_normal(loc=loc, scale=scale, size=size, seed=1)
+
+        # normalize around 0, 1
+        y_cpp1 = (y_cpp1 - loc) / scale
+        y_cpp2 = (y_cpp2 - loc) / scale
+
+        mu_npy = np.mean(y_cpp1)
+        sigma_npy = np.std(y_cpp1)
+        mu_cpp = np.mean(y_cpp2)
+        sigma_cpp = np.std(y_cpp2)
+
+        np.testing.assert_allclose(mu_npy, mu_cpp, atol=1e-2)
+        np.testing.assert_allclose(sigma_npy, sigma_cpp, atol=1e-2)
+
 
 
 if __name__ == '__main__':

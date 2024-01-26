@@ -26,8 +26,8 @@ C++ Math library
 #include <boost/random.hpp>
 #include <boost/random/normal_distribution.hpp>
 #else
-#include<random>
-#include<thread>
+#include <random>
+#include <thread>
 #endif
 
 extern "C"
@@ -48,11 +48,11 @@ extern "C"
             static __thread mt19937_64 *gen = nullptr;
             if (!gen)
                 gen = new mt19937_64(seed + omp_get_thread_num());
-            static thread_local normal_distribution<> dist(mean, scale);
+            static thread_local normal_distribution<real_t> dist(0.0, 1.0);
 #pragma omp for
             for (int i = 0; i < size; i++)
             {
-                arr[i] = dist(*gen);
+                arr[i] = mean + scale*dist(*gen);
             }
         }
     }
