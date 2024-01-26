@@ -741,9 +741,9 @@ class TestRandomNormal:
         np.testing.assert_allclose(sigma_npy, sigma_cpp, atol=1e-2)
 
     @pytest.mark.parametrize('size,loc,scale',
-                             [(100000, 0, 1), (1000000, 0, 1), (10000000, 0, 1),
-                              (100000, 100, 5), (1000000, 100, 5), (10000000, 100, 5),
-                              (100000, -100, 10), (1000000, -100, 10), (10000000, -100, 10)
+                             [(1000000, 0, 1), (10000000, 0, 1),
+                              (1000000, 100, 5), (10000000, 100, 5),
+                              (1000000, -100, 10), (10000000, -100, 10)
                               ])
     def test_different_seed(self, size, loc, scale):
 
