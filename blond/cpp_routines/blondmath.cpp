@@ -17,6 +17,7 @@ C++ Math library
 #include <algorithm>
 #include <functional>
 #include <complex>
+#include <cstdint>
 
 #include "blondmath.h"
 #include "blond_common.h"
@@ -36,7 +37,14 @@ extern "C"
     void random_normal(real_t *__restrict__ arr, const real_t mean,
                        const real_t scale, const int size, long unsigned int seed)
     {
-
+        /** @brief Function that generates numbers from a normal distribution
+         * Similar to numpy.random.normal
+         * @arr: array to fill with random numbers
+         * @mean: mean of the distribution
+         * @scale: standard deviation of the distribution
+         * @size: size of the array
+         * @seed: seed for the random number generator
+         */
 #ifdef BOOST
         using namespace boost;
 #else
@@ -402,15 +410,17 @@ extern "C"
                           real_t *__restrict__ y)
     {
         /**
-        @x: x-coordinates of the interpolated values
-        @N: The x array size
-        @xp: The x-coords of the data points, must be sorted and evenly spaced
-        @yp: the y-coords of the data points
-        @M: The xp array size
-        @left: value to return for x < xp[0]
-        @right: value to return for x > xp[-1]
-        @y: the interpolated values, same shape as x
-        */
+         * @brief Linear interpolation with constant bin size (space between xp values is constant)
+         * 
+         * @x: x-coordinates of the interpolated values
+         * @N: The x array size
+         * @xp: The x-coords of the data points, !!must be sorted!!
+         * @yp: the y-coords of the data points
+         * @M: The xp array size
+         * @left: value to return for x < xp[0]
+         * @right: value to return for x > xp[last]
+         * @y: the interpolated values, same shape as x
+         */
         const real_t dx = xp[1] - xp[0];
         const real_t inv_dx = 1.0 / dx;
         const real_t xp0 = xp[0];

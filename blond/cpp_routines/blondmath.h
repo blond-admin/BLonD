@@ -15,6 +15,7 @@ C++ Math library
 #pragma once
 
 #include <complex>
+#include <cstdint>
 #include "blond_common.h"
 
 extern "C"
