@@ -426,10 +426,6 @@ def interp_const_bin(x, xp, yp, left=None, right=None, result=None):
 
 def random_normal(loc=0.0, scale=1.0, size=1, seed=1234):
     arr = np.empty(size, dtype=precision.real_t)
-    print('loc', loc)
-    print('scale', scale)
-    print('size', size)
-    print('seed', seed)
     get_libblond().random_normal(
             __getPointer(arr),
             ct.c_double(loc),
