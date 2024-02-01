@@ -47,6 +47,7 @@ def use_cpp():
         'where_cpp': _cpp.where_cpp,
         'interp_cpp': _cpp.interp_cpp,
         'interp_const_space': _cpp.interp_const_space,
+        'interp_const_bin': _cpp.interp_const_bin,
         'cumtrapz': _cpp.cumtrapz,
         'trapz_cpp': _cpp.trapz_cpp,
         'linspace_cpp': _cpp.linspace_cpp,
@@ -58,6 +59,7 @@ def use_cpp():
         'sort_cpp': _cpp.sort_cpp,
         'add_cpp': _cpp.add_cpp,
         'mul_cpp': _cpp.mul_cpp,
+        'random_normal': _cpp.random_normal,
 
         'device': 'CPU_CPP'
     }
