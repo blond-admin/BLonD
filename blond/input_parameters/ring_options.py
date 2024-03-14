@@ -21,7 +21,7 @@ from builtins import range, str
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.constants import c
-from scipy.interpolate import splev, splrep
+from scipy.interpolate import splev, splrep, Akima1DInterpolator
 from typing import TYPE_CHECKING
 
 from ..plots.plot import fig_folder
@@ -38,7 +38,7 @@ class RingOptions:
     ----------
     interpolation : str
         Interpolation options for the data points. Available options are
-        'linear' (default), 'cubic', and 'derivative'
+        'linear' (default), 'cubic', 'derivative' and 'akima'
     smoothing : float
         Smoothing value for 'cubic' interpolation
     flat_bottom : int
@@ -68,7 +68,7 @@ class RingOptions:
                  flat_top=0, t_start=None, t_end=None, plot=False,
                  figdir='fig', figname='preprocess_ramp', sampling=1):
 
-        if interpolation in ['linear', 'cubic', 'derivative']:
+        if interpolation in ['linear', 'cubic', 'derivative', 'akima']:
             self.interpolation = str(interpolation)
         else:
             # InputDataError
@@ -358,6 +358,13 @@ class RingOptions:
                                                      momentum, mass)
             time_interp, momentum_interp, beta_interp = interps
 
+        elif self.interpolation == 'akima':
+
+            interps = self._akima_interpolation(time_interp, momentum_interp,
+                                                beta_interp, circumference,
+                                                time, momentum, mass)
+            time_interp, momentum_interp, beta_interp = interps
+
         time_interp.pop()
         time_interp = np.asarray(time_interp)
         beta_interp = np.asarray(beta_interp)
@@ -538,6 +545,28 @@ class RingOptions:
         momentum_interp *= momentum[-1] - momentum[0]
 
         momentum_interp += momentum[0]
+
+        return time_interp, momentum_interp, beta_interp
+
+    def _akima_interpolation(self, time_interp: List[float],
+                             momentum_interp: List[float],
+                             beta_interp: List[float],
+                             circumference: float,
+                             time: Iterable[float],
+                             momentum: Iterable[float],
+                             mass: float) -> Tuple[Iterable[float], ...]:
+
+
+        interp_func = Akima1DInterpolator(time, momentum)
+        while time_interp[i] <= time[-1]:
+
+            momentum_interp.append(interp_func(time_interp[i + 1]))
+            next_time, next_beta = self._next_time_beta(momentum_interp[i+1],
+                                                        mass, circumference)
+            beta_interp.append(next_beta)
+            time_interp.append(time_interp[i + 1] + next_time)
+
+            i += 1
 
         return time_interp, momentum_interp, beta_interp
 
