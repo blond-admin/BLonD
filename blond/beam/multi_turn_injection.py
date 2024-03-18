@@ -39,13 +39,13 @@ class MultiTurnInjection:
 
     Parameters
     ----------
-    beam : Beam
+    main_beam : Beam
         The instance of the Beam class to which injections are added
     """
 
-    def __init__(self, beam: Beam):
+    def __init__(self, main_beam: Beam):
 
-        self.beam = beam
+        self.main_beam = main_beam
         self._injections: Dict[int, Union[Beam, Iterable[float]]] = {}
 
     def __next__(self):
@@ -53,6 +53,10 @@ class MultiTurnInjection:
         If the current turn has an injection, the beam will be added to 
         the simulation.
 
+        Returns
+        -------
+        int:
+            The current turn number
 
         Raises
         ------
@@ -60,9 +64,11 @@ class MultiTurnInjection:
             Raised when the specified injections have been exhausted
         """
         if self._counter[0] in self._injections.keys():
-            self.beam += self._injections.pop(self._counter)
-        elif len(self._injections):
+            self.main_beam += self._injections.pop(self._counter[0])
+        elif len(self._injections) == 0:
             raise StopIteration("All defined injections have been used")
+    
+        return self._counter[0]
 
     def __iter__(self) -> Self:
         return self
@@ -83,7 +89,7 @@ class MultiTurnInjection:
         """
         self._counter = counter
 
-    def add_injection(self, beam: Union[Beam, Iterable[float]],
+    def add_injection(self, new_beam: Union[Beam, Iterable[float]],
                       injection_turn: int = None):
         """
         Specify a Beam object to be used for an injection.  If no
@@ -92,7 +98,7 @@ class MultiTurnInjection:
 
         Parameters
         ----------
-        beam : Union[Beam, Iterable[float]]
+        new_beam : Union[Beam, Iterable[float]]
             Either:
                 An instance of the Beam class to be added for this
                 injection
@@ -116,25 +122,26 @@ class MultiTurnInjection:
             a ValueError will be raised.
         """
 
-        if isinstance(beam, beam.Beam):
-            self._check_beam_injection(beam)
-        else:
-            self._check_array_injection(beam)
-
         if injection_turn is None:
             injection_turn = len(self._injections) + 1
 
-        self._injections[injection_turn] = np.array(beam)
+        if isinstance(new_beam, type(self.main_beam)):
+            self._check_beam_injection(new_beam)
+        else:
+            self._check_array_injection(new_beam)
+            new_beam = np.array(new_beam)
+
+        self._injections[injection_turn] = new_beam
     
 
-    def _check_beam_injection(self, beam: Beam):
+    def _check_beam_injection(self, new_beam: Beam):
 
-        if beam.ratio != self.beam.ratio:
+        if new_beam.ratio != self.main_beam.ratio:
             raise ValueError("The particles per macroparticle ratio must be "
                              + "the same for all injections.")
 
-    def _check_array_injection(self, beam: Iterable[float]):
+    def _check_array_injection(self, new_beam: Iterable[float]):
 
-        beam = np.array(beam)
-        if beam.shape[0] != 2 or len(beam.shape) != 2:
+        new_beam = np.array(new_beam)
+        if new_beam.shape[0] != 2 or len(new_beam.shape) != 2:
             raise ValueError("Injection array must be of shape (2, n)")
