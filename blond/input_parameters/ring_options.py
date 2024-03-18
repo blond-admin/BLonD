@@ -558,7 +558,12 @@ class RingOptions:
 
 
         interp_func = Akima1DInterpolator(time, momentum)
+
         i = self.flat_bottom
+
+        time_interp.append(
+            time_interp[-1] + circumference / (beta_interp[0] * c))
+
         while time_interp[i] <= time[-1]:
 
             momentum_interp.append(interp_func(time_interp[i + 1]))
