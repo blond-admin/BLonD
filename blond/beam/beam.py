@@ -14,8 +14,9 @@ statistics
 
 """
 
-from __future__ import division
+from __future__ import division, annotations
 
+from typing import TYPE_CHECKING
 import itertools as itl
 import warnings
 
@@ -27,6 +28,11 @@ from ..utils import bmath as bm
 from ..utils import exceptions as blExcept
 
 m_mu = physical_constants['muon mass'][0]
+if TYPE_CHECKING:
+    from typing import List, Iterable, Tuple, Self, Union
+
+    from ..input_parameters.ring import Ring
+    from ..input_parameters.rf_parameters import RFStation
 
 
 class Particle:
@@ -41,7 +47,7 @@ class Particle:
     user_charge : float
         Particle charge in units of the elementary charge
     user_decay_rate : float
-        Particle decay rate in units of 1/s 
+        Particle decay rate in units of 1/s
 
     Attributes
     ----------
@@ -220,7 +226,8 @@ class Beam:
     >>> my_beam = Beam(ring, n_macroparticle, intensity)
     """
 
-    def __init__(self, Ring, n_macroparticles, intensity, dE=None, dt=None):
+    def __init__(self, Ring: Ring, n_macroparticles: int, intensity: float,
+                 dE=None, dt=None):
 
         self.Particle = Ring.Particle
         self.beta = Ring.beta[0][0]
@@ -259,6 +266,23 @@ class Beam:
         self._mpi_sumsq_dE = 0.
         # For handling arrays on CPU/GPU
         self._device = 'CPU'
+
+    def __iadd__(self, other: Union[Self, Iterable[float]]) -> Self:
+        '''
+        Initialisation of in place addition calls add_beam(other) if other
+        is a blond beam object, calls add_particles(other) otherwise
+
+        Parameters
+        ----------
+        other : blond beam object or (2, n) array
+        '''
+
+        if isinstance(other, type(self)):
+            self.add_beam(other)
+            return self
+
+        self.add_particles(other)
+        return self
 
     @property
     def n_total_macroparticles_lost(self):
@@ -394,7 +418,8 @@ class Beam:
         # R.m.s. emittance in Gaussian approximation
         self.epsn_rms_l = np.pi * self.sigma_dE * self.sigma_dt  # in eVs
 
-    def losses_separatrix(self, Ring, RFStation):
+    #TODO:  Variable names to lower case
+    def losses_separatrix(self, Ring: Ring, RFStation: RFStation):
         '''Beam losses based on separatrix.
 
         Set to 0 all the particle's id not in the separatrix anymore.
@@ -412,7 +437,7 @@ class Beam:
 
         self.id[lost_index] = 0
 
-    def losses_longitudinal_cut(self, dt_min, dt_max):
+    def losses_longitudinal_cut(self, dt_min: float, dt_max: float):
         '''Beam losses based on longitudinal cuts.
 
         Set to 0 all the particle's id with dt not in the interval
@@ -429,7 +454,7 @@ class Beam:
         lost_index = (self.dt < dt_min) | (self.dt > dt_max)
         self.id[lost_index] = 0
 
-    def losses_energy_cut(self, dE_min, dE_max):
+    def losses_energy_cut(self, dE_min: float, dE_max: float):
         '''Beam losses based on energy cuts, e.g. on collimators.
 
         Set to 0 all the particle's id with dE not in the interval (dE_min, dE_max).
@@ -445,7 +470,7 @@ class Beam:
         lost_index = (self.dE < dE_min) | (self.dE > dE_max)
         self.id[lost_index] = 0
 
-    def losses_below_energy(self, dE_min):
+    def losses_below_energy(self, dE_min: float):
         '''Beam losses based on lower energy cut.
 
         Set to 0 all the particle's id with dE below dE_min.
@@ -472,7 +497,7 @@ class Beam:
         '''
         self.ratio *= np.exp(-time * self.Particle.decay_rate / (self.gamma))
 
-    def add_particles(self, new_particles):
+    def add_particles(self, new_particles: Iterable[float]):
         '''
         Method to add array of new particles to beam object
         New particles are given id numbers sequential from last id of this beam
@@ -503,7 +528,7 @@ class Beam:
         self.dt = bm.concatenate((self.dt, newdt))
         self.dE = bm.concatenate((self.dE, newdE))
 
-    def add_beam(self, other_beam):
+    def add_beam(self, other_beam: Beam):
         '''
         Method to add the particles from another beam to this beam
         New particles are given id numbers sequential from last id of this beam
@@ -532,24 +557,7 @@ class Beam:
         self.id = bm.concatenate((self.id, newids))
         self.n_macroparticles += other_beam.n_macroparticles
 
-    def __iadd__(self, other):
-        '''
-        Initialisation of in place addition calls add_beam(other) if other
-        is a blond beam object, calls add_particles(other) otherwise
-
-        Parameters
-        ----------
-        other : blond beam object or (2, n) array
-        '''
-
-        if isinstance(other, type(self)):
-            self.add_beam(other)
-            return self
-
-        self.add_particles(other)
-        return self
-
-    def split(self, random=False, fast=False):
+    def split(self, random: bool=False, fast: bool=False):
         '''
         MPI ONLY ROUTINE: Splits the beam equally among the workers for
         MPI processing.
@@ -590,7 +598,7 @@ class Beam:
         self.n_macroparticles = len(self.dt)
         self._mpi_is_splitted = True
 
-    def gather(self, all_gather=False):
+    def gather(self, all_gather: bool=False):
         '''
         MPI ONLY ROUTINE: Gather the beam coordinates to the master or all workers.
 
@@ -619,7 +627,7 @@ class Beam:
 
         self.n_macroparticles = len(self.dt)
 
-    def gather_statistics(self, all_gather=False):
+    def gather_statistics(self, all_gather: bool=False):
         '''
         MPI ONLY ROUTINE: Gather beam statistics.
 
@@ -686,7 +694,7 @@ class Beam:
                                  self._mpi_n_total_macroparticles_lost)
                 - self.mean_dE ** 2)
 
-    def gather_losses(self, all_gather=False):
+    def gather_losses(self, all_gather: bool=False):
         '''
         MPI ONLY ROUTINE: Gather beam losses.
 
@@ -709,7 +717,8 @@ class Beam:
             temp = WORKER.gather(np.array([self.n_macroparticles_lost]))
             self._mpi_n_total_macroparticles_lost = np.sum(temp)
 
-    def to_gpu(self, recursive=True):
+    #TODO:  recursive is not used, does not need to be there?
+    def to_gpu(self, recursive: bool=True):
         '''
         Transfer all necessary arrays to the GPU
         '''
@@ -724,7 +733,8 @@ class Beam:
 
         self._device = 'GPU'
 
-    def to_cpu(self, recursive=True):
+    #TODO:  recursive is not used, does not need to be there?
+    def to_cpu(self, recursive: bool=True):
         '''
         Transfer all necessary arrays back to the CPU
         '''
