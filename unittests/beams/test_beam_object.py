@@ -280,7 +280,7 @@ class testBeamClass(unittest.TestCase):
         self.assertEqual(self.beam.n_macroparticles, 2100000,
                          msg="n_macroparticles not incremented correctly")
 
-        testBeam = Beam(self.general_params, 200, 0)
+        testBeam = Beam(self.general_params, 200, 200*self.beam.ratio)
 
         testBeam.id[:100] = 0
 
