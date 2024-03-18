@@ -411,7 +411,7 @@ class Beam:
         self.dt = bm.concatenate((self.dt, newdt))
         self.dE = bm.concatenate((self.dE, newdE))
 
-    def add_beam(self, other_beam: Beam):
+    def add_beam(self, other_beam: Self):
         '''
         Method to add the particles from another beam to this beam
         New particles are given id numbers sequential from last id of this beam
@@ -420,10 +420,21 @@ class Beam:
         Parameters
         ----------
         other_beam : blond beam object
+
+        Raises
+        ------
+        TypeError:
+            If other_beam is not an instance of Beam, a TypeError is raised.
+        ValueError:
+            If other_beam.ratio != self.ratio, a ValueError is raised.
         '''
 
         if not isinstance(other_beam, type(self)):
             raise TypeError("add_beam method requires a beam object as input")
+
+        if other_beam.ratio != self.ratio:
+            raise ValueError("The other beam must have the same ratio as this"
+                             + " beam.")
 
         self.dt = bm.concatenate((self.dt, other_beam.dt))
         self.dE = bm.concatenate((self.dE, other_beam.dE))
