@@ -24,12 +24,24 @@ import numpy as np
 from . import beam
 
 if TYPE_CHECKING:
-    from typing import Dict, List
+    from typing import Dict, List, Self
 
     from .beam import Beam
 
 
 class MultiTurnInjection:
+    """
+    Class to handle multi-turn injection.  Multiple Beam objects can be
+    added along with the turn number on which they are injected.  On
+    each call to track() the turn number will be checked and, if it
+    matches the specified injection turn, the corresponding Beam object
+    will be added to the simulation.
+
+    Parameters
+    ----------
+    beam : Beam
+        The instance of the Beam class to which injections are added
+    """
 
     def __init__(self, beam: Beam):
 
@@ -37,23 +49,56 @@ class MultiTurnInjection:
         self._injections: Dict[int, Beam] = {}
 
     def __next__(self):
+        """
+        If the current turn has an injection, the beam will be added to 
+        the simulation.
+
+
+        Raises
+        ------
+        StopIteration
+            Raised when the specified injections have been exhausted
+        """
         if self._counter[0] in self._injections.keys():
             self.beam += self._injections.pop(self._counter)
         elif len(self._injections):
             raise StopIteration("All defined injections have been used")
 
-    def __iter__(self):
+    def __iter__(self) -> Self:
         return self
 
     def track(self):
+        """
+        Track function, calls next(self), allows the MultiTurnInjection
+        object to be used as a trackable object.
+        """
         next(self)
 
     #TODO:  Not a good solution, but avoids passing in the RFStation object
     # could be solved with the proposed TurnCounter object
     def set_counter(self, counter: List[int]):
+        """
+        Add a 1D list of int to the object to be used as the turn 
+        counter.  This should be derived from the RFStation object.
+        """
         self._counter = counter
 
     def add_injection(self, beam: Beam, injection_turn: int = None):
+        """
+        Specify a Beam object to be used for an injection.  If no
+        injection_turn is specified, it will be set to the the number
+        of already defined injections + 1.
+
+        Parameters
+        ----------
+        beam : Beam
+            An instance of the Beam class to be added for this injection
+        injection_turn : int, optional
+            The turn number on which the beam will be injected.
+            The default is None.
+            If None, the value will be set to the number of already
+            defined injections + 1
+        """
 
         if beam.ratio != self.beam.ratio:
             raise ValueError("The particles per macroparticle ratio must be "
