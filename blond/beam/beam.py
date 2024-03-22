@@ -211,9 +211,9 @@ class Beam:
         self.mean_dE = 0.
         self.sigma_dt = 0.
         self.sigma_dE = 0.
-        self.intensity = float(intensity)
         self.n_macroparticles = int(n_macroparticles)
-        self.ratio = self.intensity / self.n_macroparticles
+        self.intensity = float(intensity)
+
         self.id = np.arange(1, self.n_macroparticles + 1, dtype=int)
         self.epsn_rms_l = 0.
         # For MPI
@@ -266,6 +266,24 @@ class Beam:
         '''
 
         return bm.count_nonzero(self.id)
+
+    @property
+    def ratio(self) -> float:
+        return self._ratio
+
+    @ratio.setter
+    def ratio(self, value: float):
+        self._ratio = value
+        self._intensity = self._ratio * self.n_macroparticles
+
+    @property
+    def intensity(self) -> float:
+        return self._intensity
+
+    @intensity.setter
+    def intensity(self, value: float):
+        self._intensity = value
+        self._ratio = self._intensity / self.n_macroparticles
 
     def eliminate_lost_particles(self):
         """Eliminate lost particles from the beam coordinate arrays
