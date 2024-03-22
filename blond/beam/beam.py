@@ -544,6 +544,8 @@ class Beam:
                                                      + nNew + 1, dtype=int)))
         self.n_macroparticles += nNew
 
+        self.ratio = self.ratio
+
         self.dt = bm.concatenate((self.dt, newdt))
         self.dE = bm.concatenate((self.dE, newdE))
 
@@ -586,6 +588,8 @@ class Beam:
 
         self.id = bm.concatenate((self.id, newids))
         self.n_macroparticles += other_beam.n_macroparticles
+
+        self.ratio = self.ratio
 
     def split(self, random: bool=False, fast: bool=False):
         '''
