@@ -13,18 +13,22 @@
 :Authors: **Alexandre Lasheen**, **Danilo Quartullo**, **Helga Timko**
 '''
 
-from __future__ import division, print_function
+from __future__ import division, print_function, annotations
 
 from builtins import range, str
 
 import numpy as np
 from scipy.constants import c
 from scipy.integrate import cumtrapz
+from typing import TYPE_CHECKING
 
 from ..beam.beam import Proton
 from ..input_parameters.rf_parameters_options import RFStationOptions
 from ..utils import bmath as bm
 
+if TYPE_CHECKING:
+    from typing import Iterable
+    from numpy.typing import NDArray
 
 class RFStation:
     r""" Class containing all the RF parameters for all the RF systems in one
@@ -328,8 +332,8 @@ class RFStation:
                 if len(system) == 0:
                     raise ValueError("No matching harmonic in phi_modulation")
                 elif len(system) > 1:
-                    raise RuntimeError("""Phase modulation not yet 
-                                       implemented with multiple systems 
+                    raise RuntimeError("""Phase modulation not yet
+                                       implemented with multiple systems
                                        at the same harmonic.""")
                 else:
                     system = system[0]
@@ -384,6 +388,51 @@ class RFStation:
                 eta_i = getattr(self, 'eta_' + str(i))[counter]
                 eta += eta_i * (delta**i)
             return eta
+
+    def compute_voltage_waveform(self, time_array: Iterable[float],
+                                 turn_number: Union[int, None] = None,
+                                 design: bool = False) -> NDArray:
+        """
+        Convenience function to compute the voltage waveform provided by
+        this RFStation at the current turn (if turn_number is None) or at
+        the turn specified by turn_number.
+
+        Parameters
+        ----------
+        time_array : Iterable[float]
+            The array of time values at which to compute the voltage
+        turn_number : Union[int, None], optional
+            The turn number at which to compute the voltage.
+            The default is None.
+            If None, the present value of self.counter is used.
+        design : bool, optional
+            Flag to force using the design value (ignore the influence
+                                                  of feedbacks)
+            The default is False.
+            If True, the design value is used, if False the actual
+            value is used.
+
+        Returns
+        -------
+        NDArray
+            2D numpy array of [time, voltage].
+        """
+
+        turn_number = self.counter[0] if turn_number is None else turn_number
+
+        waveform = np.array([time_array, np.zeros_like(time_array)])
+        for system in range(self.n_rf):
+            volt = self.voltage[system, turn_number]
+            if design:
+                phase = self.phi_rf_d[system, turn_number]
+                omega = self.omega_rf_d[system, turn_number]
+            else:
+                phase = self.phi_rf[system, turn_number]
+                omega = self.omega_rf[system, turn_number]
+
+            waveform[1] += volt*np.sin(omega*waveform[0] + phase)
+
+        return waveform
 
     def to_gpu(self, recursive=True):
         '''
@@ -506,7 +555,7 @@ def calculate_phi_s(RFStation, Particle=Proton(),
         denergy = np.append(RFStation.delta_E, RFStation.delta_E[-1])
         acceleration_ratio = denergy / (Particle.charge * RFStation.voltage[0, :])
         acceleration_test = ((acceleration_ratio > -1) & (acceleration_ratio < 1)) == 0
-        
+
         # Validity check on acceleration_ratio
         if np.count_nonzero(acceleration_test) > 0:
             print("WARNING in calculate_phi_s(): acceleration is not " +
