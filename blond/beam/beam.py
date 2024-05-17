@@ -370,16 +370,22 @@ class Beam:
         lost_index = (self.dE < dE_min)
         self.id[lost_index] = 0
 
-    def losses_decay(self,time):
-        '''Beam losses due to the muon decay
+    def losses_decay(self, time):
+        '''Beam losses due to the particle decay
 
-        Set to 0 random particle's id with a probability equal to the decay probability.
-
+        Set the intensity to a lower value if the particle can decay. 
+        
+        Parameters
+        ----------
+        time : float
+            time in seconds, which is used to determine the fraction of the 
+            particle decay
         '''
         try:
             self.intensity *= np.exp(-time / (self.gamma
                                               * (self.Particle.lifetime)))
         except AttributeError:
+            # if the particle does not have a lifetime, intensity is unchanged
             pass
 
     def add_particles(self, new_particles):
