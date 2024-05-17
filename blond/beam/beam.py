@@ -25,6 +25,7 @@ from ..trackers.utilities import is_in_separatrix
 from ..utils import bmath as bm
 from ..utils import exceptions as blExcept
 
+m_mu = physical_constants['muon mass'][0]
 
 class Particle:
     r"""Class containing basic parameters, e.g. mass, of the particles to be tracked.
@@ -113,8 +114,7 @@ class MuPlus(Particle):
     """ Implements a muon+ `Particle`.
     """ 
     def __init__(self):
-        Particle.__init__(self,
-                          physical_constants['muon mass energy equivalent in MeV'][0] * 1e6, 1)
+        Particle.__init__(self, m_mu * c**2 / e, 1)
         self.lifetime = float(2.1969811e-6)
 
 
@@ -122,8 +122,7 @@ class MuMinus(Particle):
     """ Implements a muon- `Particle`.
     """ 
     def __init__(self):        
-        Particle.__init__(self,
-                          physical_constants['muon mass energy equivalent in MeV'][0] * 1e6, -1)
+        Particle.__init__(self, m_mu * c**2 / e, -1)
         self.lifetime = float(2.1969811e-6)
 
 
