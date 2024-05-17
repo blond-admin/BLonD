@@ -19,7 +19,7 @@ from __future__ import division
 import itertools as itl
 
 import numpy as np
-from scipy.constants import c, e, epsilon_0, hbar, m_e, m_p
+from scipy.constants import c, e, epsilon_0, hbar, m_e, m_p, physical_constants
 
 from ..trackers.utilities import is_in_separatrix
 from ..utils import bmath as bm
@@ -107,6 +107,23 @@ class Positron(Particle):
     def __init__(self):
 
         Particle.__init__(self, m_e * c**2 / e, 1)
+
+
+class PosMuon(Particle):
+    """ Implements a muon+ `Particle`.
+    """ 
+    def __init__(self):        
+        self.mass =  physical_constants['muon mass energy equivalent in MeV'][0] * 1e6
+        self.charge = float(+1)
+        self.lifetime = float(2.1969811e-6)
+        
+class NegMuon(Particle):
+    """ Implements a muon- `Particle`.
+    """ 
+    def __init__(self):        
+        self.mass =  physical_constants['muon mass energy equivalent in MeV'][0] * 1e6
+        self.charge = float(-1)
+        self.lifetime = float(2.1969811e-6)
 
 
 class Beam:
