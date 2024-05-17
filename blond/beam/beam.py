@@ -376,11 +376,11 @@ class Beam:
         Set to 0 random particle's id with a probability equal to the decay probability.
 
         '''
-        if hasattr(self.Particle, 'lifetime'):
-            self.intensity = self.intensity * (np.exp(-time / (self.gamma * (self.Particle.lifetime))))
-        else:
-            # Attribute not available
-            raise RuntimeError('ERROR: Particle is stable and does not decay!')
+        try:
+            self.intensity *= np.exp(-time / (self.gamma
+                                              * (self.Particle.lifetime)))
+        except AttributeError:
+            pass
 
     def add_particles(self, new_particles):
         '''
