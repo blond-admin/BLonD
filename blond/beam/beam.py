@@ -378,16 +378,9 @@ class Beam:
 
         '''
         if hasattr(self.Particle, 'lifetime'):
-            import random
-            random.seed(1234)
-            itemindex = np.where(self.id != 0)[0]  # list of alive particles
-            _=list(range(0, len(itemindex)))   # gives list with length of # of alive particles
-            _=random.sample(_,int((1-np.exp(-time/(self.gamma*(self.Particle.lifetime))))*len(_)))   # randomly removes are certain number of particles, with that number = macroparticles that decay within two time steps
-         
-            if len(itemindex) != 0:
-                self.id[itemindex[_]] = 0
+            self.intensity = self.intensity * (np.exp(-time / (self.gamma * (self.Particle.lifetime))))
         else:
-            # MassError
+            # Attribute not available
             raise RuntimeError('ERROR: Particle is stable and does not decay!')
 
     def add_particles(self, new_particles):
