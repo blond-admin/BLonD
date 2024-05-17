@@ -112,17 +112,18 @@ class Positron(Particle):
 class PosMuon(Particle):
     """ Implements a muon+ `Particle`.
     """ 
-    def __init__(self):        
-        self.mass =  physical_constants['muon mass energy equivalent in MeV'][0] * 1e6
-        self.charge = float(+1)
+    def __init__(self):
+        Particle.__init__(self,
+                          physical_constants['muon mass energy equivalent in MeV'][0] * 1e6, 1)
         self.lifetime = float(2.1969811e-6)
-        
+
+
 class NegMuon(Particle):
     """ Implements a muon- `Particle`.
     """ 
     def __init__(self):        
-        self.mass =  physical_constants['muon mass energy equivalent in MeV'][0] * 1e6
-        self.charge = float(-1)
+        Particle.__init__(self,
+                          physical_constants['muon mass energy equivalent in MeV'][0] * 1e6, -1)
         self.lifetime = float(2.1969811e-6)
 
 
