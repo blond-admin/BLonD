@@ -109,7 +109,7 @@ class Positron(Particle):
         Particle.__init__(self, m_e * c**2 / e, 1)
 
 
-class PosMuon(Particle):
+class MuPlus(Particle):
     """ Implements a muon+ `Particle`.
     """ 
     def __init__(self):
@@ -118,7 +118,7 @@ class PosMuon(Particle):
         self.lifetime = float(2.1969811e-6)
 
 
-class NegMuon(Particle):
+class MuMinus(Particle):
     """ Implements a muon- `Particle`.
     """ 
     def __init__(self):        
