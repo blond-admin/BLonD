@@ -370,10 +370,10 @@ class Beam:
         lost_index = (self.dE < dE_min)
         self.id[lost_index] = 0
 
-    def losses_decay(self, time: float):
+    def losses_decay(self, time: float) -> None:
         '''Beam losses due to the particle decay
 
-        Set the intensity to a lower value if the particle can decay.
+        Set the ratio to a lower value if the particle can decay.
 
         Parameters
         ----------
