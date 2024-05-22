@@ -373,17 +373,17 @@ class Beam:
     def losses_decay(self, time: float):
         '''Beam losses due to the particle decay
 
-        Set the intensity to a lower value if the particle can decay. 
-        
+        Set the intensity to a lower value if the particle can decay.
+
         Parameters
         ----------
         time : float
-            time in seconds, which is used to determine the fraction of the 
+            time in seconds, which is used to determine the fraction of the
             particle decay
         '''
         try:
-            self.intensity *= np.exp(-time / (self.gamma
-                                              * (self.Particle.lifetime)))
+            self.ratio *= np.exp(-time / (self.gamma
+                                          * (self.Particle.lifetime)))
         except AttributeError:
             # if the particle does not have a lifetime, intensity is unchanged
             pass
