@@ -437,6 +437,11 @@ class RFStation:
                 phase = self.phi_rf[system, turn_number]
                 omega = self.omega_rf[system, turn_number]
 
+            if self._device == 'GPU':
+                volt = volt.get()
+                phase = phase.get()
+                omega = omega.get()
+
             waveform[1] += volt*np.sin(omega*waveform[0] + phase)
 
         return waveform
