@@ -385,7 +385,7 @@ class Beam:
             self.ratio *= np.exp(-time / (self.gamma
                                           * (self.Particle.lifetime)))
         except AttributeError:
-            # if the particle does not have a lifetime, intensity is unchanged
+            # if the particle does not have a lifetime, ratio is unchanged
             pass
 
     def add_particles(self, new_particles):
