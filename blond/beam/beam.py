@@ -459,14 +459,11 @@ class Beam:
         self.dt = bm.concatenate((self.dt, other_beam.dt))
         self.dE = bm.concatenate((self.dE, other_beam.dE))
 
-        counter = itl.count(self.n_macroparticles + 1)
-        newids = bm.zeros(other_beam.n_macroparticles)
-
-        for i in range(other_beam.n_macroparticles):
-            if other_beam.id[i]:
-                newids[i] = next(counter)
-            else:
-                next(counter)
+        counter = bm.arange(self.n_macroparticles + 1,
+                            self.n_macroparticles + 1
+                            + other_beam.n_macroparticles,
+                            dtype=int)
+        newids = counter*other_beam.id
 
         self.id = bm.concatenate((self.id, newids))
         self.n_macroparticles += other_beam.n_macroparticles
