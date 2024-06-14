@@ -21,6 +21,7 @@ import numpy as np
 from scipy.constants import c
 
 from ..input_parameters.ring_options import RingOptions
+from ..utils import turn_counter as tc
 
 
 class Ring:
@@ -299,6 +300,11 @@ class Ring:
 
         # Slippage factor derived from alpha, beta, gamma
         self.eta_generation()
+        self.initialise_counter()
+
+    def initialise_counter(self, counter_name: str = None):
+        counter = tc.get_turn_counter(counter_name)
+        counter.initialise(self.n_turns, self.n_sections)
 
     def eta_generation(self):
         """ Function to generate the slippage factors (zeroth, first, and

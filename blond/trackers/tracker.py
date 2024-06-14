@@ -23,7 +23,7 @@ import numpy as np
 from scipy.integrate import cumtrapz
 
 from ..utils import bmath as bm
-
+from ..utils import turn_counter as tc
 
 class FullRingAndRF:
     """
@@ -31,7 +31,7 @@ class FullRingAndRF:
     a full turn information (used in the hamiltonian for example).*
     """
 
-    def __init__(self, RingAndRFSection_list):
+    def __init__(self, RingAndRFSection_list, counter_name = None):
 
         #: *List of the total RingAndRFSection objects*
         self.RingAndRFSection_list = RingAndRFSection_list
@@ -49,6 +49,9 @@ class FullRingAndRF:
 
         #: *Ring radius in [m]*
         self.ring_radius = self.ring_circumference / (2 * np.pi)
+
+        self.counter = tc.get_turn_counter(counter_name)
+        self.counter.n_sections = len(self.RingAndRFSection_list)
 
     def potential_well_generation(self, turn=0, n_points=int(1e5),
                                   main_harmonic_option='lowest_freq',
@@ -128,8 +131,8 @@ class FullRingAndRF:
         """Function to loop over all the RingAndRFSection.track methods
         """
 
-        for RingAndRFSectionElement in self.RingAndRFSection_list:
-            RingAndRFSectionElement.track()
+        self.RingAndRFSection_list[self.counter.current_section].track()
+        next(self.counter)
 
 
 class RingAndRFTracker:
@@ -155,9 +158,7 @@ class RingAndRFTracker:
     ----------
     RFStation : class
         A RFStation type class
-    counter : [int]
-        Inherited from
-        :py:attr:`input_parameters.rf_parameters.RFStation.counter`
+    counter : TurnCounter
     length_ratio : float
         Inherited from
         :py:attr:`input_parameters.ring.Ring.length_ratio`
@@ -240,7 +241,8 @@ class RingAndRFTracker:
 
     def __init__(self, RFStation, Beam, solver='simple', BeamFeedback=None,
                  NoiseFeedback=None, CavityFeedback=None, periodicity=False,
-                 interpolation=False, Profile=None, TotalInducedVoltage=None):
+                 interpolation=False, Profile=None, TotalInducedVoltage=None,
+                 counter_name=None):
 
         # Set up logging
         # self.logger = logging.getLogger(__class__.__name__)
@@ -248,7 +250,6 @@ class RingAndRFTracker:
 
         # Imports from RF parameters
         self.rf_params = RFStation
-        self.counter = RFStation.counter
         self.length_ratio = RFStation.length_ratio
         self.section_length = RFStation.section_length
         # self.t_rev = RFStation.t_rev
@@ -319,6 +320,13 @@ class RingAndRFTracker:
             warnings.warn('Setting interpolation to TRUE')
             # self.logger.warning("Setting interpolation to TRUE")
 
+        self.set_counter(counter_name)
+    
+
+    def set_counter(self, counter_name: str = None):
+        self.counter = tc.get_turn_counter(counter_name)
+
+
     def kick(self, beam_dt, beam_dE, index):
         r"""Function updating the particle energy due to the RF kick in a given
         RF station. The kicks are summed over the different harmonic RF systems
@@ -378,9 +386,10 @@ class RingAndRFTracker:
         beam at a given turn. Requires a Profile object.
 
         """
-        voltages = bm.ascontiguousarray(self.rf_params.voltage[:, self.counter[0]])
-        omega_rf = bm.ascontiguousarray(self.rf_params.omega_rf[:, self.counter[0]])
-        phi_rf = bm.ascontiguousarray(self.rf_params.phi_rf[:, self.counter[0]])
+        turn = self.counter.current_turn
+        voltages = bm.ascontiguousarray(self.rf_params.voltage[:, turn])
+        omega_rf = bm.ascontiguousarray(self.rf_params.omega_rf[:, turn])
+        phi_rf = bm.ascontiguousarray(self.rf_params.phi_rf[:, turn])
         # TODO: test with multiple harmonics, think about 800 MHz OTFB
         if self.cavityFB:
             self.rf_voltage = voltages[0] * self.cavityFB.V_corr * \
@@ -399,7 +408,8 @@ class RingAndRFTracker:
         of the Beam class.
 
         """
-        turn = self.counter[0]
+
+        turn = self.counter.current_turn
 
         # Add phase noise directly to the cavity RF phase
         if self.rf_params.phi_noise is not None:
@@ -509,8 +519,6 @@ class RingAndRFTracker:
         self.beam.energy = self.rf_params.energy[turn + 1]
         self.beam.momentum = self.rf_params.momentum[turn + 1]
 
-        # Increment by one the turn counter
-        self.counter[0] += 1
 
     def to_gpu(self, recursive=True):
         '''
