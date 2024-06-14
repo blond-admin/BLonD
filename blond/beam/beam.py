@@ -581,7 +581,8 @@ class Beam:
                             self.n_macroparticles + 1
                             + other_beam.n_macroparticles,
                             dtype=int)
-        newids = counter*other_beam.id
+
+        newids = counter*(other_beam.id != 0).astype(int)
 
         self.id = bm.concatenate((self.id, newids))
         self.n_macroparticles += other_beam.n_macroparticles

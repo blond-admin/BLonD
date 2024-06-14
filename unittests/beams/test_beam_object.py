@@ -289,6 +289,9 @@ class testBeamClass(unittest.TestCase):
 
         self.assertEqual(self.beam.id[2100000:2100100].tolist(), [0] * 100,
                          msg="particle ids not applied correctly")
+        
+        self.assertEqual(self.beam.id[-1], 2100200,
+                         msg='particle ids not applied correctly')
 
         self.assertEqual(self.beam.n_macroparticles, 2100200,
                          msg="Added macroparticles not incremented n_macro correctly")
