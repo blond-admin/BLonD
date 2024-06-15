@@ -16,11 +16,16 @@ user specified functions every n turns**
 from __future__ import annotations
 
 # General imports
+import dataclasses as dc
 from typing import TYPE_CHECKING
+
+# Local imports
+from ..utils import turn_counter as tc
 
 
 if TYPE_CHECKING:
-    from typing import Iterable, List, Callable, Protocol, Any, Self, Tuple
+    from typing import (Iterable, List, Callable, Protocol, Any, Self, Tuple,
+                        Dict)
 
     class Trackable(Protocol):
         def track(self) -> None:
@@ -30,6 +35,56 @@ if TYPE_CHECKING:
         def __call__(self, _map: Iterable[Trackable], turn_number: int,
                      *args: Any, **kwargs: Any):
             ...
+
+
+class TrackingMap:
+    def __init__(self,
+                 start_section: Trackable | Iterable[Trackable] | None = None,
+                 end_section: Trackable | Iterable[Trackable] | None = None,
+                 section_specific: Dict[int,
+                                        Trackable | Iterable[Trackable]]
+                                        | None = None,
+                 counter_name: str | None = None):
+
+        start_section = [] if start_section is None else start_section
+        end_section = [] if end_section is None else end_section
+        section_specific = {} if section_specific is None else section_specific
+
+        self._start_section = start_section
+        self._end_section = end_section
+        self._section_specific = section_specific
+        self._available_sections = list(section_specific.keys())
+
+        self.counter = tc.get_turn_counter(counter_name)
+    
+
+    def track(self):
+
+        self._track_section(self.counter.current_section)
+
+
+    def _track_section(self, section: int):
+        
+        self._track_start_section()
+        if section in self._available_sections:
+            self._track_section_specific(section)
+        self._track_end_section()
+    
+
+    def _track_start_section(self):
+
+        for trackable in self._start_section:
+            trackable.track()
+
+    def _track_end_section(self):
+
+        for trackable in self._end_section:
+            trackable.track()
+
+    def _track_section_specific(self, section: int):
+
+        for trackable in self._section_specific[section]:
+            trackable.track()
 
 
 
@@ -56,13 +111,18 @@ class TrackIteration:
     '''
 
 
-    def __init__(self, track_map: Iterable[Trackable], init_turn: int = 0,
-                 final_turn: int = -1):
+    def __init__(self, track_map: Iterable[Trackable] | TrackingMap,
+                 init_turn: int = 0, final_turn: int = -1,
+                 counter_name: str | None = None):
 
         if not all((hasattr(m, 'track') for m in track_map)):
             raise AttributeError("All map objects must be trackable")
 
-        self._map = list(track_map)
+        if isinstance(track_map, TrackingMap):
+            self._map = track_map
+        else:
+            self._map = list(track_map)
+
         if isinstance(init_turn, int):
             self.turn_number = init_turn
         else:
@@ -74,6 +134,7 @@ class TrackIteration:
             raise TypeError("final_turn must be an integer")
 
         self.function_list: List[Tuple[Predicate, int]] = []
+        self.counter = tc.get_turn_counter(counter_name)
 
 
     def _track_turns(self, n_turns):
@@ -109,6 +170,11 @@ class TrackIteration:
         turn_number % repetitionRate == 0
         '''
 
+        return self._use_next()
+    
+
+    def _simple_tracking(self):
+
         if self.turn_number == self._final_turn:
             raise StopIteration
 
@@ -125,6 +191,23 @@ class TrackIteration:
                 func(self._map, self.turn_number)
 
         return self.turn_number
+
+
+    def _complex_tracking(self):
+
+        if self.counter.current_turn == self._final_turn:
+            raise StopIteration
+
+        try:
+            self._map.track()
+        except IndexError:
+            raise StopIteration
+
+        for func, rate in self.function_list:
+            if self.turn_number % rate == 0:
+                func(self._map, self.turn_number)
+
+        return self.counter.current_turn
 
 
     def __iter__(self) -> Self:

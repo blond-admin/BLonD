@@ -48,8 +48,6 @@ class FullRingAndRF:
         #: *Ring radius in [m]*
         self.ring_radius = self.ring_circumference / (2 * np.pi)
 
-        self.counter = self.RingAndRFSection_list[0].counter
-
     def potential_well_generation(self, turn=0, n_points=int(1e5),
                                   main_harmonic_option='lowest_freq',
                                   dt_margin_percent=0., time_array=None):
