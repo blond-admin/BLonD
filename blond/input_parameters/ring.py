@@ -203,7 +203,7 @@ class Ring:
     def __init__(self, ring_length, alpha_0, synchronous_data, Particle,
                  n_turns=1, synchronous_data_type='momentum',
                  bending_radius=None, n_sections=1, alpha_1=None, alpha_2=None,
-                 RingOptions=RingOptions()):
+                 RingOptions=RingOptions(), counter_name=None):
 
         # Conversion of initial inputs to expected types
         self.n_turns = int(n_turns)
@@ -300,10 +300,13 @@ class Ring:
 
         # Slippage factor derived from alpha, beta, gamma
         self.eta_generation()
-        self.initialise_counter()
 
-    def initialise_counter(self, counter_name: str = None):
-        counter = tc.get_turn_counter(counter_name)
+        # Counter initialization
+        self.counter_name = counter_name
+        self._initialise_counter()
+
+    def _initialise_counter(self):
+        counter = tc.get_turn_counter(self.counter_name)
         counter.initialise(self.n_turns, self.n_sections)
 
     def eta_generation(self):

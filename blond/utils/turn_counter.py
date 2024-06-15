@@ -48,8 +48,10 @@ class TurnCounter:
 
 
     def initialise(self, max_turns: int, n_sections: int):
+
         if self.initialised:
             raise RuntimeError("Counter already initialised")
+
         self._max_turns = int(max_turns)
         self._n_sections = int(n_sections)
         self.initialised = True

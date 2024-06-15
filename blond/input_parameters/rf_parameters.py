@@ -366,13 +366,11 @@ class RFStation:
             self.Q_s = calculate_Q_s(self, self.Particle)
             self.omega_s0 = self.Q_s * Ring.omega_rev
 
-        self.set_counter()
+        self.set_counter(Ring.counter_name)
     
     def set_counter(self, counter_name: str = None):
-        from icecream import ic
-        ic()
-        self.counter = ic(tc.get_turn_counter(counter_name))
-        ic(self.counter)
+
+        self.counter = tc.get_turn_counter(counter_name)
 
     def eta_tracking(self, beam, counter, dE):
         r"""Function to calculate the slippage factor as a function of the

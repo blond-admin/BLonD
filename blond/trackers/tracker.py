@@ -31,7 +31,7 @@ class FullRingAndRF:
     a full turn information (used in the hamiltonian for example).*
     """
 
-    def __init__(self, RingAndRFSection_list, counter_name = None):
+    def __init__(self, RingAndRFSection_list):
 
         #: *List of the total RingAndRFSection objects*
         self.RingAndRFSection_list = RingAndRFSection_list
@@ -50,8 +50,7 @@ class FullRingAndRF:
         #: *Ring radius in [m]*
         self.ring_radius = self.ring_circumference / (2 * np.pi)
 
-        self.counter = tc.get_turn_counter(counter_name)
-        self.counter.n_sections = len(self.RingAndRFSection_list)
+        self.counter = self.RingAndRFSection_list[0].counter
 
     def potential_well_generation(self, turn=0, n_points=int(1e5),
                                   main_harmonic_option='lowest_freq',
