@@ -27,8 +27,8 @@ extern "C" void histogram(const double *__restrict__ input,
     const double inv_bin_width = n_slices / (cut_right - cut_left);
 
     // allocate memory for the thread_private histogram
-    double **histo = (double **) malloc(omp_get_max_threads() * sizeof(double *));
-    histo[0] = (double *) malloc (omp_get_max_threads() * n_slices * sizeof(double));
+    int **histo = (int **) malloc(omp_get_max_threads() * sizeof(int *));
+    histo[0] = (int *) malloc (omp_get_max_threads() * n_slices * sizeof(int));
     for (int i = 0; i < omp_get_max_threads(); i++)
         histo[i] = (*histo + n_slices * i);
 
@@ -36,7 +36,7 @@ extern "C" void histogram(const double *__restrict__ input,
     {
         const int id = omp_get_thread_num();
         const int threads = omp_get_num_threads();
-        memset(histo[id], 0., n_slices * sizeof(double));
+        memset(histo[id], 0, n_slices * sizeof(int));
         float fbin[STEP] = { -1 };
         #pragma omp for
         for (int i = 0; i < n_macroparticles; i += STEP) {
@@ -92,7 +92,7 @@ extern "C" void smooth_histogram(const double *__restrict__ input,
     {
         const int id = omp_get_thread_num();
         const int threads = omp_get_num_threads();
-        memset(histo[id], 0., n_slices * sizeof(double));
+        memset(histo[id], 0, n_slices * sizeof(double));
 
         // main caclulation
         #pragma omp for
@@ -140,20 +140,16 @@ extern "C" void histogramf(const float *__restrict__ input,
     const float inv_bin_width = n_slices / (cut_right - cut_left);
 
     // allocate memory for the thread_private histogram
-    static float **histo = nullptr;
-
-    if (!histo) {
-        histo = (float **) malloc(omp_get_max_threads() * sizeof(float *));
-        histo[0] = (float *) malloc (omp_get_max_threads() * n_slices * sizeof(float));
-        for (int i = 0; i < omp_get_max_threads(); i++)
-            histo[i] = (*histo + n_slices * i);
-    }
+    int **histo = (int **) malloc(omp_get_max_threads() * sizeof(int *));
+    histo[0] = (int *) malloc (omp_get_max_threads() * n_slices * sizeof(int));
+    for (int i = 0; i < omp_get_max_threads(); i++)
+        histo[i] = (*histo + n_slices * i);
 
     #pragma omp parallel
     {
         const int id = omp_get_thread_num();
         const int threads = omp_get_num_threads();
-        memset(histo[id], 0., n_slices * sizeof(float));
+        memset(histo[id], 0, n_slices * sizeof(int));
         float fbin[STEP] = { -1 };
         #pragma omp for
         for (int i = 0; i < n_macroparticles; i += STEP) {
@@ -210,7 +206,7 @@ extern "C" void smooth_histogramf(const float *__restrict__ input,
     {
         const int id = omp_get_thread_num();
         const int threads = omp_get_num_threads();
-        memset(histo[id], 0., n_slices * sizeof(float));
+        memset(histo[id], 0, n_slices * sizeof(float));
 
         // main caclulation
         #pragma omp for

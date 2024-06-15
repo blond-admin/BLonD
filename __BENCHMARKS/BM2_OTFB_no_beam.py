@@ -54,6 +54,7 @@ plt.rc('legend', fontsize=12)
 CLOSED_LOOP = True
 OPEN_LOOP = True
 OPEN_FB = True
+POST_LS2 = False
 
 # Logger for messages on console & in file
 Logger(debug = True)
@@ -84,25 +85,31 @@ if CLOSED_LOOP:
     logging.info("...... CLOSED LOOP test")
     Commissioning = CavityFeedbackCommissioning(debug=True, open_loop=False,
         open_FB=False, open_drive=False, open_FF=True)
-    OTFB = SPSCavityFeedback(rf, beam, profile, G_llrf=5, G_tx=0.5,
-                             a_comb=15/16, turns=50, post_LS2=False,
+    OTFB = SPSCavityFeedback(rf, beam, profile, G_llrf=5, a_comb=15/16,
+                             turns=50, post_LS2=POST_LS2,
                              Commissioning=Commissioning)
+    logging.info("Final voltage %.8e V"
+                 %np.average(np.absolute(OTFB.OTFB_1.V_coarse_tot[-10])))
 
 if OPEN_LOOP:
     logging.info("...... OPEN LOOP test")
     Commissioning = CavityFeedbackCommissioning(debug=True, open_loop=True,
         open_FB=False, open_drive=True, open_FF=True)
-    OTFB = SPSCavityFeedback(rf, beam, profile, G_llrf=5, G_tx=0.5,
-                             a_comb=15/16, turns=50, post_LS2=False,
+    OTFB = SPSCavityFeedback(rf, beam, profile, G_llrf=5, a_comb=15/16,
+                             turns=50, post_LS2=POST_LS2,
                              Commissioning=Commissioning)
+    logging.info("Final voltage %.8e V"
+                 %np.average(np.absolute(OTFB.OTFB_1.V_coarse_tot[-10])))
 
 if OPEN_FB:
     logging.info("...... OPEN FEEDBACK test")
     Commissioning = CavityFeedbackCommissioning(debug=True, open_loop=False,
         open_FB=True, open_drive=False, open_FF=True)
-    OTFB = SPSCavityFeedback(rf, beam, profile, G_llrf=5, G_tx=0.5,
-                             a_comb=15/16, turns=50, post_LS2=False,
+    OTFB = SPSCavityFeedback(rf, beam, profile, G_llrf=5, a_comb=15/16,
+                             turns=50, post_LS2=POST_LS2,
                              Commissioning=Commissioning)
+    logging.info("Final voltage %.8e V"
+                 %np.average(np.absolute(OTFB.OTFB_1.V_coarse_tot[-10])))
 
 logging.info("")
 logging.info("Done!")

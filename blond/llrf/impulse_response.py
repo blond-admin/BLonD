@@ -7,21 +7,92 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 **Filters and methods for control loops**
 
-:Authors: **Helga Timko**
-'''
+:Authors: **Birk Emil Karlsen-Bæck**, **Helga Timko**
+"""
 
-from __future__ import division
+from __future__ import annotations
 
 # Set up logging
 import logging
 
 import numpy as np
 from scipy.constants import c
+from scipy.sparse import diags
+from scipy.sparse.linalg import spsolve
 
 logger = logging.getLogger(__name__)
+
+
+def cavity_response_sparse_matrix(
+    I_beam,
+    I_gen,
+    n_samples,
+    V_ant_init,
+    I_gen_init,
+    samples_per_rf,
+    R_over_Q,
+    Q_L,
+    detuning,
+):
+    """Solving the ACS cavity response model as a sparse matrix problem
+    for a given set of initial conditions, resonator parameters and
+    generator and RF beam currents.
+
+    Parameters
+    ----------
+    I_beam : complex array
+        RF beam current
+    I_gen : complex array
+        Generator current
+    n_samples : int
+        Number of samples of the result array - 1
+    V_ant_init : complex float
+        Initial condition for the antenna voltage
+    I_gen_init : complex float
+        Initial condition of the generator current, i.e. one sample before the I_gen array
+    samples_per_rf : int
+        Number of samples per RF period
+    R_over_Q : float
+        The R over Q of the cavity
+    Q_L : float
+        The loaded quality factor of the cavity
+    detuning : float
+        The detuning of the cavity in frequency divided by the rf frequency
+
+    Returns
+    -------
+    complex array
+        The antenna voltage evaluated for the same period as I_beam and I_gen of length n_samples + 1
+
+    """
+
+    # Add a zero at the start of RF beam current
+    if len(I_beam) != n_samples + 1:
+        I_beam = np.concatenate((np.zeros(1, dtype=complex), I_beam))
+
+    # Check length of the generator current array
+    if len(I_gen) != n_samples + 1:
+        I_gen = np.concatenate((I_gen_init * np.ones(1, dtype=complex), I_gen))
+
+    # Compute matrix elements
+    A = 0.5 * R_over_Q * samples_per_rf
+    B = 1 - 0.5 * samples_per_rf / Q_L + 1j * detuning * samples_per_rf
+
+    # Initialize the two sparse matrices needed to find antenna voltage
+    B_matrix = diags(
+        [-B, 1], [-1, 0], (n_samples + 1, n_samples + 1), dtype=complex, format="csc"
+    )
+    I_matrix = diags([A], [-1], (n_samples + 1, n_samples + 1), dtype=complex)
+
+    # Find vector on the "current" side of the equation
+    b = I_matrix.dot(2 * I_gen - I_beam)
+    b[0] = V_ant_init
+
+    # Solve the sparse linear system of equations and return
+    return spsolve(B_matrix, b)
 
 
 def rectangle(t, tau):
@@ -53,20 +124,24 @@ def rectangle(t, tau):
     ulimit = np.where(np.fabs(t - tau / 2) < dt / 2)[0]
     if len(llimit) != 1:
         # ImpulseError
-        raise RuntimeError("ERROR in impulse_response.rectangle(): time" +
-                           " array doesn't start at rising edge!")
+        raise RuntimeError(
+            "ERROR in impulse_response.rectangle(): time"
+            + " array doesn't start at rising edge!"
+        )
     if len(ulimit) not in [0, 1]:
         # ImpulseError
-        raise RuntimeError("ERROR in impulse_response.rectangle(): time" +
-                           " array has multiple falling edges!")
+        raise RuntimeError(
+            "ERROR in impulse_response.rectangle(): time"
+            + " array has multiple falling edges!"
+        )
     logger.debug("In rectangle(), index of rising edge is %d" % llimit[0])
     y = np.zeros(len(t))
     y[llimit[0]] = 0.5
     if len(ulimit) == 1:
-        y[llimit[0] + 1:ulimit[0]] = np.ones(ulimit[0] - llimit[0] - 1)
+        y[llimit[0] + 1 : ulimit[0]] = np.ones(ulimit[0] - llimit[0] - 1)
         y[ulimit[0]] = 0.5
     else:
-        y[llimit[0] + 1:] = 1
+        y[llimit[0] + 1 :] = 1
 
     return y
 
@@ -100,11 +175,13 @@ def triangle(t, tau):
     logger.debug("In triangle(), index of rising edge is %d" % llimit[0])
     if len(llimit) != 1:
         # ImpulseError
-        raise RuntimeError("ERROR in impulse_response.triangle(): time" +
-                           " array doesn't start at rising edge!")
+        raise RuntimeError(
+            "ERROR in impulse_response.triangle(): time"
+            + " array doesn't start at rising edge!"
+        )
     y = np.zeros(len(t))
     y[llimit[0]] = 0.5
-    y[llimit[0] + 1:] = 1 - t[llimit[0] + 1:] / tau
+    y[llimit[0] + 1 :] = 1 - t[llimit[0] + 1 :] / tau
     y[np.where(y < 0)[0]] = 0
 
     return y
@@ -210,8 +287,15 @@ class TravellingWaveCavity:
 
     """
 
-    def __init__(self, l_cell, N_cells, rho, v_g, omega_r, df=0):
-
+    def __init__(
+        self,
+        l_cell: float,
+        N_cells: int,
+        rho: float,
+        v_g: float,
+        omega_r: float,
+        df: float = 0,
+    ):
         self.l_cell = float(l_cell)
         self.N_cells = int(N_cells)
         self.rho = float(rho)
@@ -219,8 +303,10 @@ class TravellingWaveCavity:
             self.v_g = float(v_g)
         else:
             # ImpulseError
-            raise RuntimeError("ERROR in TravellingWaveCavity: group" +
-                               " velocity out of limits (0,1)!")
+            raise RuntimeError(
+                "ERROR in TravellingWaveCavity: group"
+                + " velocity out of limits (0,1)!"
+            )
         self.omega_r = float(omega_r) + 2 * np.pi * float(df)
 
         # Calculated
@@ -239,7 +325,7 @@ class TravellingWaveCavity:
         self.logger.info("Class initialized")
         self.logger.debug("Filling time %.4e s", self.tau)
 
-    def impulse_response_gen(self, omega_c, time_coarse):
+    def impulse_response_gen(self, omega_c: float, time_coarse: float):
         r"""Impulse response from the cavity towards the
         generator. For a signal that is I,Q demodulated at a given carrier
         frequency :math:`\omega_c`. The formulae assume that the carrier
@@ -269,24 +355,30 @@ class TravellingWaveCavity:
         self.d_omega = self.omega_c - self.omega_r
         if np.fabs((self.d_omega) / self.omega_r) > 0.1:
             # ImpulseError
-            raise RuntimeError("ERROR in TravellingWaveCavity" +
-                               " impulse_response(): carrier frequency" +
-                               " should be close to central frequency of the" +
-                               " cavity!")
+            raise RuntimeError(
+                "ERROR in TravellingWaveCavity"
+                + " impulse_response(): carrier frequency"
+                + " should be close to central frequency of the"
+                + " cavity!"
+            )
 
         # Move starting point of impulse response to correct value
         t_gen = time_coarse - time_coarse[0]
 
         # Impulse response if on carrier frequency
-        self.h_gen = (self.R_gen / self.tau *
-                      rectangle(t_gen - 0.5 * self.tau, self.tau)).astype(np.complex128)
+        self.h_gen = (
+            self.R_gen / self.tau * rectangle(t_gen - 0.5 * self.tau, self.tau)
+        ).astype(np.complex128)
 
         # Impulse response if not on carrier frequency
         if np.fabs((self.d_omega) / self.omega_r) > 1e-12:
-            self.h_gen = self.h_gen.real * (np.cos(self.d_omega * t_gen) -          # TODO: Introduced a plus here
-                                            1j * np.sin(self.d_omega * t_gen))
+            self.h_gen = self.h_gen.real * (
+                np.cos(self.d_omega * t_gen) - 1j * np.sin(self.d_omega * t_gen)
+            )
 
-    def impulse_response_beam(self, omega_c, time_fine, time_coarse=None):
+    def impulse_response_beam(
+        self, omega_c: float, time_fine: float, time_coarse: float = None
+    ):
         r"""Impulse response from the cavity towards the beam. For a signal
         that is I,Q demodulated at a given carrier
         frequency :math:`\omega_c`. The formulae assume that the carrier
@@ -318,38 +410,43 @@ class TravellingWaveCavity:
         self.omega_c = float(omega_c)
         self.d_omega = self.omega_c - self.omega_r
         if np.fabs((self.d_omega) / self.omega_r) > 0.1:
-            raise RuntimeError("ERROR in TravellingWaveCavity" +
-                               " impulse_response(): carrier frequency" +
-                               " should be close to central frequency of the" +
-                               " cavity!")
+            raise RuntimeError(
+                "ERROR in TravellingWaveCavity"
+                + " impulse_response(): carrier frequency"
+                + " should be close to central frequency of the"
+                + " cavity!"
+            )
 
         # Move starting point of impulse response to correct value
         t_beam = time_fine - time_fine[0]
 
         # Impulse response if on carrier frequency
-        self.h_beam = (-2 * self.R_beam / self.tau *
-                       triangle(t_beam, self.tau)).astype(np.complex128)
+        self.h_beam = (-2 * self.R_beam / self.tau * triangle(t_beam, self.tau)).astype(
+            np.complex128
+        )
 
         # Impulse response if not on carrier frequency
         if np.fabs((self.d_omega) / self.omega_r) > 1e-12:
-            self.h_beam = self.h_beam.real * (np.cos(self.d_omega * t_beam) -           # TODO: Introduced a plus here
-                                              1j * np.sin(self.d_omega * t_beam))
+            self.h_beam = self.h_beam.real * (
+                np.cos(self.d_omega * t_beam) - 1j * np.sin(self.d_omega * t_beam)
+            )
 
         if time_coarse is not None:
             # Move starting point of impulse response to correct value
             t_beam = time_coarse - time_coarse[0]
 
             # Impulse response if on carrier frequency
-            self.h_beam_coarse = (-2 * self.R_beam / self.tau *
-                                  triangle(t_beam, self.tau)).astype(np.complex128)
+            self.h_beam_coarse = (
+                -2 * self.R_beam / self.tau * triangle(t_beam, self.tau)
+            ).astype(np.complex128)
 
             # Impulse response if not on carrier frequency
             if np.fabs((self.d_omega) / self.omega_r) > 1e-12:
-                self.h_beam_coarse = self.h_beam_coarse.real * \
-                    (np.cos(self.d_omega * t_beam) -                 # TODO: Introduced a plus here
-                     1j * np.sin(self.d_omega * t_beam))
+                self.h_beam_coarse = self.h_beam_coarse.real * (
+                    np.cos(self.d_omega * t_beam) - 1j * np.sin(self.d_omega * t_beam)
+                )
 
-    def compute_wakes(self, time):
+    def compute_wakes(self, time: float):
         r"""Computes the wake fields towards the beam and generator on the
         central cavity frequency.
 
@@ -378,24 +475,21 @@ class TravellingWaveCavity:
 
 
 class SPS3Section200MHzTWC(TravellingWaveCavity):
-
-    def __init__(self, df=0):
-
-        TravellingWaveCavity.__init__(self, 0.374, 32, 2.71e4, 0.0946,
-                                      2 * np.pi * 200.03766667e6, df=df)
+    def __init__(self, df: float = 0):
+        TravellingWaveCavity.__init__(
+            self, 0.374, 32, 2.71e4, 0.0946, 2 * np.pi * 200.03766667e6, df=df
+        )
 
 
 class SPS4Section200MHzTWC(TravellingWaveCavity):
-
-    def __init__(self, df=0):
-
-        TravellingWaveCavity.__init__(self, 0.374, 43, 2.71e4, 0.0946,
-                                      2 * np.pi * 199.9945e6, df=df)
+    def __init__(self, df: float = 0):
+        TravellingWaveCavity.__init__(
+            self, 0.374, 43, 2.71e4, 0.0946, 2 * np.pi * 199.9945e6, df=df
+        )
 
 
 class SPS5Section200MHzTWC(TravellingWaveCavity):
-
-    def __init__(self, df=0):
-
-        TravellingWaveCavity.__init__(self, 0.374, 54, 2.71e4, 0.0946,
-                                      2 * np.pi * 200.1e6, df=df)
+    def __init__(self, df: float = 0):
+        TravellingWaveCavity.__init__(
+            self, 0.374, 54, 2.71e4, 0.0946, 2 * np.pi * 200.1e6, df=df
+        )
