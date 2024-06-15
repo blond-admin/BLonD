@@ -92,7 +92,7 @@ profile.track()
 logging.debug("Beam q/m ratio %.3e", profile.Beam.ratio)
 
 
-OTFB = SPSCavityFeedback(rf, beam, profile, G_llrf=5, G_tx=0.5, a_comb=15/16,
+OTFB = SPSCavityFeedback(rf, beam, profile, G_llrf=5, a_comb=15/16,
                          turns=N_pretrack, post_LS2=False,
                          Commissioning=CavityFeedbackCommissioning(debug=True,
                                                                    open_FF=True))

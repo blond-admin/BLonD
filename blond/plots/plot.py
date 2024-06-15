@@ -17,7 +17,7 @@ import os
 
 import h5py as hp
 import matplotlib.pyplot as plt
-
+import numpy as np
 from ..plots.plot_beams import (plot_long_phase_space, plot_bunch_length_evol,
                                 plot_bunch_length_evol_gaussian, plot_position_evol,
                                 plot_energy_evol, plot_transmitted_particles)
@@ -158,7 +158,7 @@ class Plot:
             self.msize = format_options['markersize']
 
         if 'alpha' not in format_options:
-            self.alpha = 0.05
+            self.alpha = alpha=10**(-np.log10(self.beam.n_macroparticles)/6)
         else:
             self.alpha = format_options['alpha']
 

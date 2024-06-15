@@ -1,6 +1,6 @@
 LHC Cavity Loop
 ===============
-:Authors: **Helga Timko**
+:Authors: **Birk Emil Karlsen-Bæck**, **Helga Timko**
 
 .. image:: ACS_cavity_loop.png
     :align: right
@@ -189,7 +189,29 @@ STEP 5: Generator response
 
 STEP 6: Tuner control
 ---------------------
+The tuner control acts using the signal :math:`I_g \times V_a`, which is equivalent to
+:math:`\Im \left \{ I_g \overline{V}_a \right \}` in the complex plane. Here the bar denotes the complex conjugate.
+This signal is down sampled using a CIC filter with the following transfer function
 
+.. math::
+
+    \frac{Y(s)}{X(s)} = H_\textrm{CIC}(s) = \frac{1}{64} \left ( \frac{1 - e^{-8 T_s s}}{1 - e^{-T_s s}} \right )^2
+
+which is
+
+.. math::
+
+    y^{(n)} = \frac{1}{64} \left ( x^{(n)} - 2 x^{(n - 8)} + x^{(n - 16)} \right ) + 2 y^{(n - 1)} - y^{(n - 2)}
+
+in discrete time-domain. The maximum and minimum value of the output, :math:`\Im \left \[ I_g \overline{V}_a \right \]`,
+for a turn :math:`k` is then used to generate a correction to the central frequency of the cavity for turn
+:math:`k + 1` in the following way
+
+.. math::
+
+    \left( \frac{\Delta f}{f_c} \right)_{k + 1} = \left( \frac{\Delta f}{f_c} \right)_{k} - \frac{\mu}{2}
+    \frac{\Im \left[ I_g \overline{V}_a \right]_\textrm{min} + \Im \left[ I_g \overline{V}_a \right]_\textrm{max}}
+    {V_\textrm{set}^2}
 
 
 References

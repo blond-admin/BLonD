@@ -325,7 +325,7 @@ class OtherSlicesOptions:
 
     """
 
-    def __init__(self, smooth=False, direct_slicing=False):
+    def __init__(self, smooth=False, direct_slicing=True):
         """
         Constructor
         """
@@ -467,7 +467,7 @@ class Profile:
             self.filterExtraOptions = FilterOptions.filterExtraOptions
             self.operations.append(self.apply_filter)
 
-        if OtherSlicesOptions.direct_slicing:
+        if OtherSlicesOptions.direct_slicing and self.Beam is not None:
             self.track()
 
         # For CuPy backend

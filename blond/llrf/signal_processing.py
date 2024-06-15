@@ -10,10 +10,14 @@
 '''
 **Filters and methods for control loops**
 
-:Authors: **Helga Timko**
+:Authors: **Birk Emil Karlsen-Bæck**, **Helga Timko**
 '''
 
-from __future__ import division
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
+import numpy
+from scipy.special import comb
 from blond.llrf.impulse_response import TravellingWaveCavity
 
 # Set up logging
@@ -21,8 +25,12 @@ import logging
 
 import matplotlib.pyplot as plt
 import numpy as np
+import numpy.linalg as npla
 from scipy import signal as sgn
 from scipy.constants import e
+
+if TYPE_CHECKING:
+    from blond.beam.profile import Profile
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +78,26 @@ def cartesian_to_polar(IQ_vector):
     return np.absolute(IQ_vector), np.angle(IQ_vector)
 
 
-def modulator(signal, omega_i, omega_f, T_sampling, phi_0=0):
+def get_power_gen_i(I_gen_per_cav, Z_0):
+    """RF generator power from generator current (physical, in [A]), for any
+    f_r (and thus any tau)
+
+    Parameters
+    ----------
+    I_gen_per_cav : complex array
+        Generator current for a single cavity
+    Z_0 : float
+
+    Returns
+    -------
+    float array
+        Absolute value of the generator power
+
+    """
+    return 0.5 * Z_0 * np.abs(I_gen_per_cav)**2
+
+
+def modulator(signal, omega_i, omega_f, T_sampling, phi_0=0, dt=0):
     """Demodulate a signal from initial frequency to final frequency. The two
     frequencies should be close.
 
@@ -96,17 +123,18 @@ def modulator(signal, omega_i, omega_f, T_sampling, phi_0=0):
         # TypeError
         raise RuntimeError("ERROR in filters.py/demodulator: signal should" +
                            " be an array!")
-    delta_phi = (omega_i - omega_f) * T_sampling * np.arange(len(signal))
+    delta_phi = (omega_i - omega_f) * (T_sampling * np.arange(len(signal)) + dt)
     # Pre compute sine and cosine for speed up
     cs = np.cos(delta_phi + phi_0)
     sn = np.sin(delta_phi + phi_0)
-    I_new = cs * signal.real + sn * signal.imag
-    Q_new = - sn * signal.real + cs * signal.imag
+    I_new = cs*signal.real - sn*signal.imag
+    Q_new = sn*signal.real + cs*signal.imag
 
     return I_new + 1j * Q_new
 
 
-def rf_beam_current(Profile, omega_c, T_rev, lpf=True, downsample=None, external_reference=True):
+def rf_beam_current(Profile: Profile, omega_c: float, T_rev: float, lpf: bool = True, downsample: dict = None,
+                    external_reference: bool = True, dT: float = 0):
     r"""Function calculating the beam charge at the (RF) frequency, slice by
     slice. The charge distribution [C] of the beam is determined from the beam
     profile :math:`\lambda_i`, the particle charge :math:`q_p` and the real vs.
@@ -136,6 +164,9 @@ def rf_beam_current(Profile, omega_c, T_rev, lpf=True, downsample=None, external
     where :math:`t_i` are the time coordinates of the beam profile. After de-
     modulation, a low-pass filter at 20 MHz is applied.
 
+    For multi-bunch cases, make sure that the real beam intensity is the total
+    number of charges in the ring.
+
     Parameters
     ----------
     Profile : class
@@ -150,6 +181,10 @@ def rf_beam_current(Profile, omega_c, T_rev, lpf=True, downsample=None, external
         Dictionary containing float value for 'Ts' sampling time and int value
         for 'points'. Will downsample the RF beam charge onto a coarse time
         grid with 'Ts' sampling time and 'points' points.
+    external_reference : bool
+        Option to include the changing external reference of the time-grid
+    dT : float
+        The shift in time due to shifting reference frames
 
     Returns
     -------
@@ -164,8 +199,8 @@ def rf_beam_current(Profile, omega_c, T_rev, lpf=True, downsample=None, external
 
     # Convert from dimensionless to Coulomb/Ampères
     # Take into account macro-particle charge with real-to-macro-particle ratio
-    charges = Profile.Beam.ratio * Profile.Beam.Particle.charge * e\
-        * np.copy(Profile.n_macroparticles)
+    charges = Profile.Beam.ratio * Profile.Beam.Particle.charge * e \
+         * np.copy(Profile.n_macroparticles)
     logger.debug("Sum of particles: %d, total charge: %.4e C",
                  np.sum(Profile.n_macroparticles), np.sum(charges))
     logger.debug("DC current is %.4e A", np.sum(charges) / T_rev)
@@ -184,14 +219,11 @@ def rf_beam_current(Profile, omega_c, T_rev, lpf=True, downsample=None, external
 
     charges_fine = I_f + 1j * Q_f
     if external_reference:
-        # Phase correction
-        bucket = 2 * np.pi / (omega_c)
-        # This term takes into account where the sampling of the profile starts
-        add_corr = Profile.bin_centers[0] / (bucket / 2) - int(Profile.bin_centers[0] / (bucket / 2)) \
-            - Profile.bin_size / bucket
-        phase = (Profile.bin_centers[0] - Profile.bin_size / 2 - 0.5 * bucket) / bucket * 2 * np.pi \
-            + np.angle(charges_fine)[0] - np.pi * add_corr
-        charges_fine = charges_fine * np.exp(-1j * phase)  # TODO: plus or minus
+        # slippage in phase due to a non-integer harmonic number
+        dphi = dT * omega_c
+        # Total phase correction
+        phase = dphi
+        charges_fine = charges_fine * np.exp(1j * phase)
 
     if downsample:
         try:
@@ -201,12 +233,12 @@ def rf_beam_current(Profile, omega_c, T_rev, lpf=True, downsample=None, external
             raise RuntimeError('Downsampling input erroneous in rf_beam_current')
 
         # Find which index in fine grid matches index in coarse grid
-        ind_fine = np.floor((Profile.bin_centers - 0.5 * Profile.bin_size) / T_s)
+        ind_fine = np.round((Profile.bin_centers + dT - np.pi / omega_c)/T_s)
         ind_fine = np.array(ind_fine, dtype=int)
         indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
 
         # Pick total current within one coarse grid
-        charges_coarse = np.zeros(n_points, dtype=complex)  # + 1j*np.zeros(n_points)
+        charges_coarse = np.zeros(n_points, dtype=complex)
         charges_coarse[ind_fine[0]] = np.sum(charges_fine[np.arange(indices[0])])
         for i in range(1, len(indices)):
             charges_coarse[i + ind_fine[0]] = np.sum(charges_fine[np.arange(indices[i - 1],
@@ -223,6 +255,97 @@ def comb_filter(y, x, a):
     """
 
     return a * y + (1 - a) * x
+
+
+def fir_filter_coefficients(n_taps, sampling_freq, cutoff_freq):
+    """Band-stop type FIR filter from scipy
+    http://docs.scipy.org
+
+    Parameters
+    ----------
+    signal : complex array
+        Signal to be filtered
+    n_taps : int
+        Number of taps, should be impair
+    sampling_freq : float
+        Sampling frequency [Hz]
+    cutoff_freq : float
+        Cutoff frequency [Hz]
+
+
+    Returns
+    -------
+    ndarray
+        FIR filter coefficients of length n_taps
+
+    """
+
+    fPass = cutoff_freq/sampling_freq
+
+    return sgn.firwin(n_taps, [fPass], pass_zero=True)
+
+
+def fir_filter_lhc_otfb_coeff(n_taps=63):
+    '''FIR filter designed for the LHC OTFB, for a sampling frequency of
+    40 MS/s, with 63 taps.
+
+    Parameters
+    ----------
+    n_taps : int
+        Number of taps. 63 for 40 MS/s or 15 for 10 MS/s
+
+    Returns
+    -------
+    double array
+        Coefficients of LHC-type FIR filter
+    '''
+
+    if n_taps == 15:
+        coeff = [-0.0469, -0.016, 0.001, 0.0321, 0.0724, 0.1127, 0.1425,
+                 0.1534, 0.1425, 0.1127, 0.0724, 0.0321, 0.001, -0.016, -0.0469]
+    elif n_taps == 63:
+
+        coeff = [-0.038636, -0.00687283, -0.00719296, -0.00733319, -0.00726159,
+            -0.00694037, -0.00634775, -0.00548098, -0.00432789, -0.00288188,
+            -0.0011339, 0.00090253, 0.00321323, 0.00577238, 0.00856464,
+            0.0115605, 0.0147307, 0.0180265, 0.0214057, 0.0248156, 0.0282116,
+            0.0315334, 0.0347311, 0.0377502, 0.0405575, 0.0431076, 0.0453585,
+            0.047243, 0.0487253, 0.049782, 0.0504816, 0.0507121, 0.0504816,
+            0.049782, 0.0487253, 0.047243, 0.0453585, 0.0431076, 0.0405575,
+            0.0377502, 0.0347311, 0.0315334, 0.0282116, 0.0248156, 0.0214057,
+            0.0180265, 0.0147307, 0.0115605, 0.00856464, 0.00577238, 0.00321323,
+            0.00090253, -0.0011339, -0.00288188, -0.00432789, -0.00548098,
+            -0.00634775, -0.00694037, -0.00726159, -0.00733319, -0.00719296,
+            -0.00687283, -0.038636]
+    else:
+        raise ValueError("In LHC FIR filter, number of taps has to be 15 or 63")
+
+    return coeff
+
+
+def fir_filter(coeff, signal):
+    '''Apply FIR filter on discrete time signal.
+
+    Paramters
+    ---------
+    coeff : double array
+        Coefficients of FIR filter with length of number of taps
+    signal : complex or double array
+        Input signal to be filtered
+
+    Returns
+    -------
+    complex or double array
+        Filtered signal of length len(signal) - len(coeff)
+    '''
+
+    n_taps = len(coeff)
+    filtered_signal = np.zeros(len(signal) - n_taps)
+    for i in range(n_taps, len(signal)):
+        for k in range(n_taps):
+            filtered_signal[i-n_taps] += coeff[k] * signal[i - k]
+
+    return filtered_signal
 
 
 def low_pass_filter(signal, cutoff_frequency=0.5):
@@ -319,7 +442,38 @@ def H_cav(x, n_sections, x_prev=None):
     return resp[:x.shape[0] - h.shape[0] + 1]
 
 
-def feedforward_filter(TWC: TravellingWaveCavity, T_s, debug=False, taps=None,
+def smooth_step(x, x_min=0, x_max=1, N=1):
+    """Function to make a smooth step.
+
+    Parameters
+    ----------
+    x : float array
+        Data to be smoothed
+    x_min : float
+        Minimum output value of step
+    x_max : float
+        Maximum output value of step
+    N : int
+        Order of smoothness
+
+    Returns
+    -------
+    float array
+        Smooth step of input signal
+    Taken from: https://stackoverflow.com/questions/45165452/how-to-implement-a-smooth-clamp-function-in-python
+    """
+    x = np.clip((x - x_min) / (x_max - x_min), 0, 1)
+
+    result = 0
+    for n in range(0, N + 1):
+        result += comb(N + n, n) * comb(2 * N + 1, N - n) * (-x) ** n
+
+    result *= x ** (N + 1)
+
+    return result
+
+
+def feedforward_filter(TWC: TravellingWaveCavity, T_s, taps=None,
                        opt_output=False):
     """Function to design n-tap FIR filter for SPS TravellingWaveCavity.
 
@@ -329,8 +483,6 @@ def feedforward_filter(TWC: TravellingWaveCavity, T_s, debug=False, taps=None,
         TravellingWaveCavity type class
     T_s : float
         Sampling time [s]
-    debug : bool
-        When True, activates printouts and plots; default is False
     taps : int
         User-defined number of taps; default is None and number of taps is
         calculated from the filling time
@@ -350,7 +502,7 @@ def feedforward_filter(TWC: TravellingWaveCavity, T_s, debug=False, taps=None,
     """
 
     # Filling time in samples
-    n_filling = int(TWC.tau / T_s)
+    n_filling = round(TWC.tau / T_s)
     logger.debug("Filling time in samples: %d", n_filling)
 
     # Number of FIR filter taps
@@ -358,7 +510,7 @@ def feedforward_filter(TWC: TravellingWaveCavity, T_s, debug=False, taps=None,
         n_taps = int(taps)
     else:
         n_taps = 2 * int(0.5 * n_filling) + 13  # 31
-    n_taps_2 = int(0.5 * (n_taps + 1))
+
     if n_taps % 2 == 0:
         raise RuntimeError("Number of taps in feedforward filter must be odd!")
     logger.debug("Number of taps: %d", n_taps)
@@ -367,127 +519,123 @@ def feedforward_filter(TWC: TravellingWaveCavity, T_s, debug=False, taps=None,
     n_fit = int(n_taps + n_filling)
     logger.debug("Fitting samples: %d", n_fit)
 
-    # Even-symmetric feed-forward filter matrix
-    even = np.zeros(shape=(n_taps, n_taps_2), dtype=np.float64)
-    for i in range(n_taps):
-        even[i, abs(n_taps_2 - i - 1)] = 1
+    def V_real(t, tauf):
+        output = np.zeros(t.shape)
+        for i in range(len(t)):
+            if t[i] < -tauf:
+                output[i] = 0
+            elif t[i] < 0:
+                output[i] = (t[i]/tauf + 1)**2 / 2
+            elif t[i] < tauf:
+                output[i] = -1/2 * (t[i]/tauf)**2 + t[i]/tauf + 1/2
+            else:
+                output[i] = 1
+        return output
 
-    # Odd-symmetric feed-forward filter matrix
-    odd = np.zeros(shape=(n_taps, n_taps_2 - 1), dtype=np.float64)
-    for i in range(n_taps_2 - 1):
-        odd[i, abs(n_taps_2 - i - 2)] = -1
-        odd[n_taps - i - 1, abs(n_taps_2 - i - 2)] = 1
+    # Imaginary part
+    def V_imag(t, tauf):
+        output = np.zeros(t.shape)
+        for i in range(len(t)):
+            if t[i] < -tauf:
+                output[i] = 0
+            elif t[i] < 0:
+                output[i] = -(t[i]/tauf + 1)**2 / 2
+            elif t[i] < tauf:
+                output[i] = -1/2 * (t[i]/tauf)**2 + t[i]/tauf - 1/2
+            else:
+                output[i] = 0
+        return output
 
-    # Generator-cavity response matrix: non-zero during filling time
-    resp = np.zeros(shape=(n_fit, n_fit + n_filling - 1), dtype=np.float64)
-    for i in range(n_fit):
-        resp[i, i:i + n_filling] = 1
+    Pfit_ = np.linspace(-(n_fit - 1) / 2, (n_fit - 1) / 2, n_fit)
 
-    # Convolution with beam step current
-    conv = np.zeros(shape=(n_fit + n_filling - 1, n_taps), dtype=np.float64)
-    for i in range(n_taps):
-        conv[i + n_filling, 0:i] = 1
-    conv[n_taps + n_filling:, :] = 1
+    # Even symmetric part of beam loading
+    Dvectoreven = V_real(Pfit_, n_filling)
 
-    if debug:
-        np.set_printoptions(threshold=10000, linewidth=100)
-        print("Even matrix shape", even.shape)
-        print(even)
-        print("Odd matrix shape", odd.shape)
-        print(odd)
-        print("Response matrix shape", resp.shape)
-        print(resp)
-        print("Convolution matrix shape", conv.shape)
-        print(conv)
-        print("\n\n")
+    # Odd symmetric part of beam loading
+    Dvectorodd = V_imag(Pfit_, n_filling)
 
-    # Impulse response from cavity towards beam
-    time_array = np.linspace(0, n_fit * T_s, num=n_fit) - TWC.tau / 2
-    TWC.impulse_response_beam(TWC.omega_r, time_array)
-    h_beam_real = TWC.h_beam.real / TWC.R_beam * TWC.tau
+    # Step response of FIR. (M1, N1) must be odd
+    def Smatrix(M1, N1):
+        output = np.zeros((M1, N1))
+        for i in range(M1):
+            for j in range(N1):
+                if i - j >= (M1 - N1) / 2:
+                    output[i, j] = 1
+        return output
 
-    # Even and odd parts of impulse response
-    h_beam_even = np.zeros(n_fit)
-    h_beam_odd = np.zeros(n_fit)
-    if n_filling % 2 == 0:
-        n_c = int((n_fit - 1) * 0.5)
-        h_beam_even[n_c] = h_beam_real[0]
-        h_beam_even[n_c + 1:] = 0.5 * h_beam_real[1:n_c + 1]
-        h_beam_even[:n_c] = 0.5 * (h_beam_real[1:n_c + 1])[::-1]
-        h_beam_odd[n_c] = 0
-        h_beam_odd[n_c + 1:] = 0.5 * h_beam_real[1:n_c + 1]
-        h_beam_odd[:n_c] = 0.5 * (-h_beam_real[1:n_c + 1])[::-1]
-    else:
-        n_c = int(n_fit * 0.5)
-        h_beam_even[n_c:] = 0.5 * h_beam_real[1:n_c + 1]
-        h_beam_even[:n_c] = 0.5 * (h_beam_real[1:n_c + 1])[::-1]
-        h_beam_odd[n_c:] = 0.5 * h_beam_real[1:n_c + 1]
-        h_beam_odd[:n_c] = 0.5 * (-h_beam_real[1:n_c + 1])[::-1]
+    # Response of symmetrix rectangle of length L. P must be odd
+    def Rmatrix(P, L):
+        output = np.zeros((P, P + L - 1))
+        for i in range(output.shape[0]):
+            for j in range(output.shape[1]):
+                if i - j <= 0 and i - j > -L:
+                    output[i, j] = 1
+        return output
 
-    # Beam current step for step response
-    I_beam_step = np.ones(n_fit)
-    I_beam_step[0] = 0
-    I_beam_step[1] = 0.5
+    def uniform_weighting(n, Nt):
+        return 1
 
-    # Even and odd parts of induced voltage
-    V_beam_even = sgn.fftconvolve(I_beam_step, h_beam_even, mode='full')[:I_beam_step.shape[0]]
-    V_beam_odd = sgn.fftconvolve(I_beam_step, h_beam_odd, mode='full')[:I_beam_step.shape[0]]
-    # Normalised response
-    norm = np.max(V_beam_even)
-    V_beam_even /= norm
-    V_beam_odd /= norm
+    def Weigthing(Nt, weighting_function):
+        output = np.zeros((Nt, Nt))
+        for i in range(output.shape[0]):
+            for j in range(output.shape[1]):
+                if i == j:
+                    output[i, j] = weighting_function(i, Nt)
+        return output
 
-    if debug:
-        plt.rc('lines', linewidth=0.5, markersize=3)
-        plt.rc('axes', labelsize=12, labelweight='normal')
+    def EvenMatrix(Nt):
+        output = np.zeros((Nt, (Nt + 1) // 2))
+        for i in range(output.shape[0]):
+            for j in range(output.shape[1]):
+                if i + j == (Nt + 0) // 2:
+                    output[i, j] = 1
+                elif i - j == (Nt - 1) // 2:
+                    output[i, j] = 1
+        return output
 
-        plt.figure("Impulse response")
-        plt.plot(time_array * 1e6, h_beam_even, 'bo-', label='even')
-        plt.plot(time_array * 1e6, h_beam_odd, 'ro-', label='odd')
-        plt.plot(time_array * 1e6, h_beam_even + h_beam_odd, 'go-', label='total')
-        plt.axhline(0, color='grey', alpha=0.5)
-        plt.xlabel("Time [us]")
-        plt.legend()
+    def OddMatrix(Nt):
+        output = np.zeros((Nt, (Nt - 1) // 2))
+        for i in range(output.shape[0]):
+            for j in range(output.shape[1]):
+                if i + j == (Nt - 2) // 2:
+                    output[i, j] = -1
+                elif i - j == (Nt + 1) // 2:
+                    output[i, j] = 1
+        return output
 
-        plt.figure("Beam-induced voltage")
-        plt.plot(V_beam_even, 'bo-', label='even')
-        plt.plot(V_beam_odd, 'ro-', label='odd')
-        plt.plot(V_beam_even + V_beam_odd, 'go-', label='total')
-        plt.axhline(0, color='grey', alpha=0.5)
-        plt.xlabel("Samples [1]")
-        plt.legend()
+    def Hoptreal(Nt, L, P, Dvectoreven):
+        output = EvenMatrix(Nt).T @ Smatrix(P + L - 1, Nt).T @ Rmatrix(P, L).T @ Dvectoreven
 
-    # FIR filter even and odd parts
-    h_ff_even = even @ np.linalg.pinv(resp @ conv @ even) @ V_beam_even
-    h_ff_odd = odd @ np.linalg.pinv(resp @ conv @ odd) @ V_beam_odd
+        matrix1 = EvenMatrix(Nt)
+        matrix1 = Rmatrix(P, L).T @ Weigthing(P, uniform_weighting) @ Rmatrix(P, L) @ Smatrix(P + L - 1, Nt) @ matrix1
+        matrix1 = EvenMatrix(Nt).T @ Smatrix(P + L - 1, Nt).T @ matrix1
+        matrix1 = npla.inv(matrix1)
 
-    if debug:
-        plt.figure("FF filter")
-        plt.plot(h_ff_even, 'bo-', label='even')
-        plt.plot(h_ff_odd, 'ro-', label='odd')
-        plt.plot(h_ff_even + h_ff_odd, 'go-', label='total')
-        plt.axhline(0, color='grey', alpha=0.5)
-        plt.xlabel("Samples [1]")
-        plt.legend()
+        return matrix1 @ output
 
-        # Reconstructed signal
-        V_even = resp @ conv @ h_ff_even
-        V_odd = resp @ conv @ h_ff_odd
+    def Hoptimag(Nt, L, P, Dvectorodd):
+        output = OddMatrix(Nt).T @ Smatrix(P + L - 1, Nt).T @ Rmatrix(P, L).T @ Weigthing(P, uniform_weighting) \
+                 @ Dvectorodd
+        matrix1 = OddMatrix(Nt)
+        matrix1 = Rmatrix(P, L).T @ Weigthing(P, uniform_weighting) @ Rmatrix(P, L) @ Smatrix(P + L - 1, Nt) @ matrix1
+        matrix1 = OddMatrix(Nt).T @ Smatrix(P + L - 1, Nt).T @ matrix1
+        matrix1 = npla.inv(matrix1)
 
-        plt.figure("Reconstructed signal")
-        plt.plot(V_even, 'bo-', label='even')
-        plt.plot(V_odd, 'ro-', label='odd')
-        plt.plot(V_even + V_odd, 'go-', label='total')
-        plt.axhline(0, color='grey', alpha=0.5)
-        plt.xlabel("Samples [1]")
-        plt.legend()
-        plt.show()
+        return matrix1 @ output
 
-    # Return with or without optional output
+    def Hopteven(Nt, L, P, Dvectoreven):
+        return np.concatenate([Hoptreal(Nt, L, P, Dvectoreven)[1:][::-1], Hoptreal(Nt, L, P, Dvectoreven)])
+
+    def Hoptodd(Nt, L, P, Dvectorodd):
+        output = np.concatenate([-Hoptimag(Nt, L, P, Dvectorodd)[::-1], np.array([0])])
+        return np.concatenate([output, Hoptimag(Nt, L, P, Dvectorodd)])
+
+    h_ff = Hopteven(n_taps, n_filling, n_fit, Dvectoreven) + Hoptodd(n_taps, n_filling, n_fit, Dvectorodd)
+
     if opt_output:
-        return h_ff_even + h_ff_odd, n_taps, n_filling, n_fit
+        return h_ff, n_taps, n_filling, n_fit
     else:
-        return h_ff_even + h_ff_odd
+        return h_ff
 
 
 feedforward_filter_TWC3 = np.array(
@@ -513,14 +661,33 @@ feedforward_filter_TWC4 = np.array(
      -0.01050256])
 
 feedforward_filter_TWC5 = np.array(
-    [0.0189205535, -0.0105637125, 0.0007262783, 0.0007262783,
-     0.0006531768, -0.0105310359, -0.0104579343, 0.0007262783,
-     0.0007262783, 0.0007262783, 0.0063272331, -0.0083221785,
-     0.0010894175, 0.0010894175, 0.0010894175, 0.0010894175,
-     0.0010894175, 0.0010894175, 0.0010894175, 0.0010894175,
-     0.0010894175, 0.0010894175, 0.0010894175, 0.0010894175,
-     0.0010894175, 0.0010894175, 0.0010894175, 0.0010894175,
-     0.0010894175, 0.0010894175, 0.0010894175, 0.0105496942,
-     -0.0041924387, 0.0014525567, 0.0014525567, 0.0013063535,
-     0.0114011487, 0.0104579343, -0.0007262783, -0.0007262783,
-     -0.0007262783, 0.0104756312, -0.018823192])
+    [0.01802423, -0.01004643,  0.00069372,  0.00069372,  0.00069372, -0.01005897,
+     -0.01005897,  0.00069372,  0.00069372,  0.00069372,  0.0060638,  -0.00797153,
+     0.00104058,  0.00104058,  0.00104058,  0.00104058,  0.00104058,  0.00104058,
+     0.00104058,  0.00104058,  0.00104058,  0.00104058,  0.00104058,  0.00104058,
+     0.00104058,  0.00104058,  0.00104058,  0.00104058,  0.00104058,  0.00104058,
+     0.00104058,  0.0100527,  -0.00398263,  0.00138744,  0.00138744,  0.00138744,
+     0.01187999,  0.01031911, -0.00069372, -0.00069372, -0.00069372,  0.01004643,
+     -0.01802423])
+
+
+def plot_frequency_response(b, a=1):
+    """Plotting the frequency response of a filter with coefficients a, b."""
+
+    w, H = sgn.freqz(b, a)
+
+    plt.subplot(211)
+    plt.plot(2 * w / np.max(w), np.absolute(H))
+    plt.ylabel('Amplitude [linear]')
+    plt.xlabel(r'Frequency w.r.t. sampling frequency')
+    plt.title(r'Frequency response')
+
+    plt.subplot(212)
+    phase = np.unwrap(np.angle(H))
+    plt.plot(w / max(w), phase)
+    plt.ylabel('Phase [radians]')
+    plt.xlabel(r'Frequency w.r.t. sampling frequency')
+    plt.title(r'Phase response')
+    plt.subplots_adjust(hspace=0.5)
+
+    plt.show()
