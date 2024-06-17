@@ -38,6 +38,8 @@ class Particle:
         Energy equivalent of particle rest mass in eV
     user_charge : float
         Particle charge in units of the elementary charge
+    user_decay_rate : float
+        Particle decay rate in units of 1/s 
 
     Attributes
     ----------
@@ -45,6 +47,8 @@ class Particle:
         Energy equivalent of particle rest mass in eV.
     charge : float
         Particle charge in units of the elementary charge.
+    decay_rate : float
+        Inverse of the particle decay time (decay time in s)
     radius_cl : float
         Classical particle radius in :math:`m`.
     c_gamma : float
