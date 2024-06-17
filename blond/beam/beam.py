@@ -370,10 +370,10 @@ class Beam:
         lost_index = (self.dE < dE_min)
         self.id[lost_index] = 0
 
-    def losses_decay(self, time: float) -> None:
-        '''Beam losses due to the particle decay
+    def particle_decay(self, time: float) -> None:
+        '''Decreases beam inensity due to the particle decay
 
-        Set the ratio to a lower value if the particle can decay.
+        Sets the ratio to a lower value if the particle can decay. Number of macroparticles remains unchanged.
 
         Parameters
         ----------
