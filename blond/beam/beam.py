@@ -68,7 +68,7 @@ class Particle:
 
     """
 
-    def __init__(self, user_mass, user_charge, user_decay_rate):
+    def __init__(self, user_mass, user_charge, user_decay_rate = 0):
 
         if user_mass > 0.:
             self.mass = float(user_mass)
@@ -102,7 +102,7 @@ class Proton(Particle):
 
     def __init__(self):
 
-        Particle.__init__(self, m_p * c**2 / e, 1, 0)
+        Particle.__init__(self, m_p * c**2 / e, 1)
 
 
 class Electron(Particle):
@@ -110,7 +110,7 @@ class Electron(Particle):
     """
 
     def __init__(self):
-        Particle.__init__(self, m_e * c**2 / e, -1, 0)
+        Particle.__init__(self, m_e * c**2 / e, -1)
 
 
 class Positron(Particle):
@@ -119,7 +119,7 @@ class Positron(Particle):
 
     def __init__(self):
 
-        Particle.__init__(self, m_e * c**2 / e, 1, 0)
+        Particle.__init__(self, m_e * c**2 / e, 1)
 
 
 class MuPlus(Particle):
@@ -391,11 +391,8 @@ class Beam:
             time in seconds, which is used to determine the fraction of the
             particle decay
         '''
-        try:
-            self.ratio *= np.exp(-time * self.Particle.decay_rate / (self.gamma))
-        except AttributeError:
-            # if the particle does not have a lifetime, ratio is unchanged
-            pass
+        self.ratio *= np.exp(-time * self.Particle.decay_rate / (self.gamma))
+       
 
     def add_particles(self, new_particles):
         '''
