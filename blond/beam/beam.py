@@ -64,7 +64,7 @@ class Particle:
 
     """
 
-    def __init__(self, user_mass, user_charge):
+    def __init__(self, user_mass, user_charge, user_decay_rate):
 
         if user_mass > 0.:
             self.mass = float(user_mass)
@@ -72,6 +72,14 @@ class Particle:
         else:
             # MassError
             raise RuntimeError('ERROR: Particle mass not recognized!')
+            
+        if user_decay_rate > 0.:
+            self.decay_rate = float(user_decay_rate)
+            
+        else:
+            # MassError
+            raise RuntimeError('ERROR: Invalide particle decay rate!')
+            
 
         # classical particle radius [m]
         self.radius_cl = 0.25 / (np.pi * epsilon_0) * \
@@ -90,7 +98,7 @@ class Proton(Particle):
 
     def __init__(self):
 
-        Particle.__init__(self, m_p * c**2 / e, 1)
+        Particle.__init__(self, m_p * c**2 / e, 1, 0)
 
 
 class Electron(Particle):
@@ -98,7 +106,7 @@ class Electron(Particle):
     """
 
     def __init__(self):
-        Particle.__init__(self, m_e * c**2 / e, -1)
+        Particle.__init__(self, m_e * c**2 / e, -1, 0)
 
 
 class Positron(Particle):
@@ -107,24 +115,22 @@ class Positron(Particle):
 
     def __init__(self):
 
-        Particle.__init__(self, m_e * c**2 / e, 1)
+        Particle.__init__(self, m_e * c**2 / e, 1, 0)
 
 
 class MuPlus(Particle):
     """ Implements a muon+ `Particle`.
     """ 
     def __init__(self):
-        Particle.__init__(self, m_mu * c**2 / e, 1)
-        self.lifetime = float(2.1969811e-6)
+        Particle.__init__(self, m_mu * c**2 / e, 1, float(1/2.1969811e-6))
 
 
 class MuMinus(Particle):
     """ Implements a muon- `Particle`.
     """ 
     def __init__(self):        
-        Particle.__init__(self, m_mu * c**2 / e, -1)
-        self.lifetime = float(2.1969811e-6)
-
+        Particle.__init__(self, m_mu * c**2 / e, -1, float(1/2.1969811e-6))
+        
 
 class Beam:
     r"""Class containing the beam properties.
@@ -382,8 +388,7 @@ class Beam:
             particle decay
         '''
         try:
-            self.ratio *= np.exp(-time / (self.gamma
-                                          * (self.Particle.lifetime)))
+            self.ratio *= np.exp(-time * self.Particle.decay_rate / (self.gamma))
         except AttributeError:
             # if the particle does not have a lifetime, ratio is unchanged
             pass
