@@ -77,7 +77,7 @@ class Particle:
             # MassError
             raise RuntimeError('ERROR: Particle mass not recognized!')
             
-        if user_decay_rate > 0.:
+        if user_decay_rate >= 0.:
             self.decay_rate = float(user_decay_rate)
             
         else:
