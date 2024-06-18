@@ -24,7 +24,7 @@ class TurnCounter:
 
     def __next__(self):
 
-        if (self.current_turn == (self._max_turns-1)
+        if (self.current_turn == (self._max_turns)
             and self.current_section == (self._n_sections-1)):
             raise StopIteration
 
@@ -40,8 +40,8 @@ class TurnCounter:
         return self
 
     def __str__(self):
-        return (f"{self.name} - Turn {self.current_turn} - Section "
-               +f"{self.current_section}")
+        return (f"{self.name} - Turn {self.current_turn}/{self._max_turns}"
+                f" - Section {self.current_section}/{self._n_sections}")
 
     def __repr__(self):
         return self.__str__()

@@ -539,6 +539,7 @@ class RingAndRFTracker:
         self.beam.energy = self.rf_params.energy[turn + 1]
         self.beam.momentum = self.rf_params.momentum[turn + 1]
 
+        next(self.counter)
 
     def to_gpu(self, recursive=True):
         '''
