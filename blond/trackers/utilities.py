@@ -413,7 +413,8 @@ def hamiltonian(Ring, RFStation, Beam, dt, dE,
 def separatrix(Ring, RFStation, dt):
     r""" Function to calculate the ideal separatrix without intensity effects.
     For single or multiple RF systems. For the time being, multiple RF sections
-    are not yet implemented.
+    are implemented for the case that all RF stations have the same voltage over
+    one turn.
 
     Parameters
     ---------- 
@@ -435,7 +436,8 @@ def separatrix(Ring, RFStation, dt):
 
     if Ring.n_sections > 1:
         warnings.warn("WARNING in separatrix(): the usage of several RF" +
-                      " sections is not yet implemented!")
+                      " sections is only implemented for equal energy gains" + 
+                      " per RF station per turn!")
 
     # Import RF and ring parameters at this moment
     counter = RFStation.counter[0]
