@@ -444,7 +444,8 @@ def separatrix(Ring, RFStation, dt):
     voltage = Ring.Particle.charge * RFStation.voltage[:, counter]*Ring.n_sections
     omega_rf = RFStation.omega_rf[:, counter]
     phi_rf = RFStation.phi_rf[:, counter]
-
+    if Ring.Particle.charge < 0:
+        phi_rf = phi_rf - np.pi
     eta_0 = RFStation.eta_0[counter]
     beta_sq = RFStation.beta[counter]**2
     energy = RFStation.energy[counter]
@@ -453,7 +454,10 @@ def separatrix(Ring, RFStation, dt):
     except Exception:
         delta_E = RFStation.delta_E[-1]*Ring.n_sections
     T_0 = Ring.t_rev[counter]
-    index = np.min(np.where(voltage > 0)[0])
+    if Ring.Particle.charge > 0:
+        index = np.min(np.where(voltage > 0)[0])
+    elif Ring.Particle.charge < 0:
+        index = np.max(np.where(voltage < 0)[0])
     T_rf_0 = 2 * np.pi / omega_rf[index]
 
     # Projects time array into the range [t_RF, t_RF+T_RF] below and above
@@ -467,8 +471,11 @@ def separatrix(Ring, RFStation, dt):
 
     # Unstable fixed point in single-harmonic RF system
     if RFStation.n_rf == 1:
-
-        dt_s = RFStation.phi_s[counter] / omega_rf[0]
+        if Ring.Particle.charge > 0:
+            dt_s = RFStation.phi_s[counter] / omega_rf[0]
+        elif Ring.Particle.charge < 0:
+            dt_s = (np.pi-RFStation.phi_s[counter]) / omega_rf[0]
+            
         if eta_0 < 0:
             dt_RF = -(phi_rf[0] - np.pi) / omega_rf[0]
         else:
@@ -517,7 +524,9 @@ def separatrix(Ring, RFStation, dt):
     for i in range(RFStation.n_rf):
         Vtot += voltage[i] * (np.cos(omega_rf[i] * dt_ufp + phi_rf[i]) -
                               np.cos(omega_rf[i] * dt + phi_rf[i])) / omega_rf[i]
-
+    if Ring.Particle.charge < 0:
+        Vtot = -1*(Vtot)
+        
     separatrix_sq = 2 * beta_sq * energy / (eta_0 * T_0) * (Vtot + delta_E * (dt_ufp - dt))
     pos_ind = np.where(separatrix_sq >= 0)[0]
     separatrix_array = np.empty((len(separatrix_sq))) * np.nan
