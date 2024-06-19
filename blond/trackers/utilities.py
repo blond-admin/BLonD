@@ -439,7 +439,7 @@ def separatrix(Ring, RFStation, dt):
 
     # Import RF and ring parameters at this moment
     counter = RFStation.counter[0]
-    voltage = Ring.Particle.charge * RFStation.voltage[:, counter]
+    voltage = Ring.Particle.charge * RFStation.voltage[:, counter]*Ring.n_sections
     omega_rf = RFStation.omega_rf[:, counter]
     phi_rf = RFStation.phi_rf[:, counter]
 
@@ -447,9 +447,9 @@ def separatrix(Ring, RFStation, dt):
     beta_sq = RFStation.beta[counter]**2
     energy = RFStation.energy[counter]
     try:
-        delta_E = RFStation.delta_E[counter]
+        delta_E = RFStation.delta_E[counter]*Ring.n_sections
     except Exception:
-        delta_E = RFStation.delta_E[-1]
+        delta_E = RFStation.delta_E[-1]*Ring.n_sections
     T_0 = Ring.t_rev[counter]
     index = np.min(np.where(voltage > 0)[0])
     T_rf_0 = 2 * np.pi / omega_rf[index]
