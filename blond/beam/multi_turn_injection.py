@@ -93,7 +93,7 @@ class MultiTurnInjection:
                       injection_turn: int = None):
         """
         Specify a Beam object to be used for an injection.  If no
-        injection_turn is specified, it will be set to the the number
+        injection_turn is specified, it will be set to the number
         of already defined injections + 1.
 
         Parameters
