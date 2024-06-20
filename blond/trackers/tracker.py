@@ -33,7 +33,14 @@ class FullRingAndRF:
 
         #: *List of the total RingAndRFSection objects*
         self.RingAndRFSection_list = RingAndRFSection_list
-
+        names = []
+        for rf in self.RingAndRFSection_list:
+            name = rf.counter.name
+            names.append(name)
+        if len(set(names)) != 1:
+            raise ValueError("All input trackers must use the same counter")
+        else:
+            self.counter = tc.get_turn_counter(names[0])
         #: *Total potential well in [V]*
         self.potential_well = 0
 
@@ -127,7 +134,6 @@ class FullRingAndRF:
         """
 
         self.RingAndRFSection_list[self.counter.current_section].track()
-        next(self.counter)
 
 
 class RingAndRFTracker:
