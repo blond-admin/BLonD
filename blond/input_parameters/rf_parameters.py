@@ -369,7 +369,6 @@ class RFStation:
         self.set_counter(Ring.counter_name)
     
     def set_counter(self, counter_name: str = None):
-
         self.counter = tc.get_turn_counter(counter_name)
 
     def eta_tracking(self, beam, counter, dE):

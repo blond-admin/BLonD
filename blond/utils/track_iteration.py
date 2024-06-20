@@ -56,7 +56,7 @@ class TrackingMap:
         self._available_sections = list(section_specific.keys())
 
         self.counter = tc.get_turn_counter(counter_name)
-    
+
 
     def track(self):
 
@@ -64,12 +64,12 @@ class TrackingMap:
 
 
     def _track_section(self, section: int):
-        
+
         self._track_start_section()
         if section in self._available_sections:
             self._track_section_specific(section)
         self._track_end_section()
-    
+
 
     def _track_start_section(self):
 
@@ -136,6 +136,11 @@ class TrackIteration:
         self.function_list: List[Tuple[Predicate, int]] = []
         self.counter = tc.get_turn_counter(counter_name)
 
+        if isinstance(self._map, list):
+            self._use_next = self._simple_tracking
+        else:
+            self._use_next = self._complex_tracking
+
 
     def _track_turns(self, n_turns):
         '''
@@ -171,7 +176,7 @@ class TrackIteration:
         '''
 
         return self._use_next()
-    
+
 
     def _simple_tracking(self):
 
