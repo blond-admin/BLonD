@@ -433,7 +433,7 @@ class RFStation:
                 eta += eta_i * (delta ** i)
             return eta
 
-    def bucket_center(self, bucket_number, n_h=0):
+    def bucket_center(self, bucket_number: int, n_h: int = 0):
         '''
         Computes the center of a given RF bucket in time relative to the start of the turn.
         '''
