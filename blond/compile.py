@@ -24,6 +24,7 @@ import ctypes
 import os
 import subprocess
 import sys
+import cupy as cp
 
 
 def main():
@@ -310,7 +311,6 @@ def compile_cuda_library(args, nvccflags, float_flags, cuda_files, nvcc):
     # Compile the GPU library
     # print('\n' + ''.join(['='] * 80))
     print('\nCompiling the CUDA library')
-    import cupy as cp
     
     if args['gpu'] == 'discover':
         print('Discovering the device compute capability..')
