@@ -246,8 +246,7 @@ class RingAndRFTracker:
 
     def __init__(self, RFStation, Beam, solver='simple', BeamFeedback=None,
                  NoiseFeedback=None, CavityFeedback=None, periodicity=False,
-                 interpolation=False, Profile=None, TotalInducedVoltage=None,
-                 counter_name=None):
+                 interpolation=False, Profile=None, TotalInducedVoltage=None):
 
         # Set up logging
         # self.logger = logging.getLogger(__class__.__name__)
@@ -327,7 +326,7 @@ class RingAndRFTracker:
         if (self.cavityFB is not None) and (not hasattr(self.cavityFB, '__iter__')):
             self.cavityFB = [self.cavityFB]
 
-        self.set_counter(counter_name)
+        self.set_counter(self.rf_params.counter.name)
     
 
     def set_counter(self, counter_name: str = None):
