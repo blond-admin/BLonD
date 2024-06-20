@@ -24,11 +24,10 @@ from builtins import range, str
 
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.integrate import cumtrapz
+from scipy.integrate import cumulative_trapezoid as cumtrapz
 
 from ..beam.profile import CutOptions, Profile
-from ..trackers.utilities import (is_in_separatrix, minmax_location,
-                                  potential_well_cut)
+from ..trackers.utilities import is_in_separatrix, minmax_location, potential_well_cut
 from ..utils import bmath as bm
 
 

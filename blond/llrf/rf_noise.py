@@ -19,6 +19,7 @@ from __future__ import division, print_function
 from builtins import range
 
 import numpy as np
+import cupy as cp
 import numpy.random as rnd
 
 from ..plots.plot import fig_folder
@@ -226,6 +227,53 @@ class FlatSpectrum:
             self.dphi = np.concatenate((np.zeros(self.initial_final_turns[0]), self.dphi, np.zeros(1 + self.total_n_turns - self.initial_final_turns[1])))
 
 
+# class CallEveryNSeconds:
+#     def __init__(self, n: float, function, context, counter: float = 0):
+#         self.n = n
+#         self.counter = counter
+#         self.function = function
+#         self.context = context
+#
+#     def tick(self, dt):
+#         self.counter += dt
+#         if self.counter >= self.n == 0:
+#             self.counter -= n
+#             self.function(context)
+#
+# class CallEveryN:
+#     def __init__(self, n, function, context, counter = 0):
+#         self.n = n
+#         self.counter = counter
+#         self.function = function
+#         self.context = context
+#
+#     def __call__(self):
+#         self.tick()
+#
+#     def tick(self):
+#         self.counter += 1
+#         if self.counter % self.n == 0:
+#             self.function(context)
+#
+#
+# class NoiseContext:
+#     def __init__(self, simulation):
+#         self.simulation = simulation
+#         self.last_bqm_measurements = [0, 0, 0]
+#         self.amplitudes = [0, 0]
+#
+#
+# def update_bqm_measurement(context):
+#     updated_bqm_value = context.simulation.fwhm()
+#     context.last_bqm_measurements = [context.last_bqm_measurements[1], context.last_bqm_measurements[2], updated_bqm_value]
+#
+#
+# def update_noise_ampltude(context):
+#     x = context.simulation.a * context.simulation.x + context.simulation.g[context.simulation.rf_params.counter[0]] * (context.simulation.bl_targ - context.last_bqm_measurements[0])
+#     context.amplitudes = context.ampltitudes[1:] + [max(0, min(x, 1))]
+#     context.simulation.x = context.ampltitudes[0]
+
+
 class LHCNoiseFB:
     '''
     *Feedback on phase noise amplitude for LHC controlled longitudinal emittance
@@ -240,8 +288,15 @@ class LHCNoiseFB:
     '''
 
     def __init__(self, RFStation, Profile, bl_target, gain=0.1e9,
-                 factor=0.93, update_frequency=22500, variable_gain=True,
-                 bunch_pattern=None):
+                 factor=0.93, update_frequency=11245,
+                 variable_gain=True, bunch_pattern=None):
+
+        # self.nc = NoiseContext(self)
+        #
+        # self.timers = [CallEveryN(11245, update_noise_ampltude, self.nc),
+        #                CallEveryN(12370, update_bqm_measurement, self.nc)]
+
+        self.LHC_frev = 11245  # LHC revolution frequency in Hz
 
         #: | *Import RFStation*
         self.rf_params = RFStation
@@ -288,27 +343,65 @@ class LHCNoiseFB:
             self.bl_meas_bbb = np.zeros(len(self.bunch_pattern))
             self.fwhm = fwhm_functions['multi']
 
+        rnd.seed(1313)
+        self.delay = int(rnd.uniform(0, 1.1) * self.LHC_frev)  # in turns
+        self.BQM_clock = int(1.1 * self.LHC_frev)  # in turns, corresponds to 1.1s
+
+        self.chunk_counter = 0
+        self.tau_counter = 0
+        self.asynch_chunk = None
+        self.tau_memory = []
+
     def track(self):
         '''
         *Calculate PhaseNoise Feedback scaling factor as a function of measured
-        FWHM bunch length.*
+        FWHM bunch length.* Take into account the delay and asynchronisation between the BQM and the x update.
         '''
 
-        # Track only in certain turns
+        # for timer in self.timers:
+        #     timer.tick()
+
+        # Update x value every 1s
         if (self.rf_params.counter[0] % self.n_update) == 0:
-
-            # Update bunch length, every x turns determined in main file
-            self.fwhm()
-
-            # Update noise amplitude-scaling factor
-            self.x = self.a * self.x + self.g[self.rf_params.counter[0]] * \
-                (self.bl_targ - self.bl_meas)
+            if self.chunk_counter < 2:
+                self.x = 0
+            elif self.asynch_chunk == self.chunk_counter + 3:
+                pass
+            else:
+                # Update x value using the tau measurement from 2 chunks ago
+                self.x = self.a * self.x + self.g[self.rf_params.counter[0]] * \
+                    (self.bl_targ - self.tau_memory[0])
 
             # Limit to range [0,1]
-            if self.x < 0:
-                self.x = 0
-            if self.x > 1:
-                self.x = 1
+            self.x = max(0, min(self.x, 1))
+
+            print(
+                f'Chunk counter: {self.chunk_counter}, tau counter: {self.tau_counter}, tau memory: {self.tau_memory}, '
+                f'x: {self.x}'
+            )
+            
+            self.chunk_counter += 1
+
+        # Update tau measurement every 1.1s, based on BQM clock. There is a random initial delay between the BQM
+        # and x update
+        if (self.rf_params.counter[0] + self.delay) % self.BQM_clock == 0:
+
+            self.fwhm()
+
+            if self.tau_counter == 0:
+                # Initialize tau memory
+                self.tau_memory = cp.full(3, self.bl_meas)
+            elif self.chunk_counter - self.tau_counter == 1:
+                self.asynch_chunk = self.chunk_counter
+                # If the counters are asynchronised, it means that there was a chunk without a tau measurement
+                self.tau_memory = cp.array([self.tau_memory[1], self.tau_memory[2], self.tau_memory[2]])
+                # Reset tau counter to reistablish synchronisation
+                self.tau_counter += 1
+            else:
+                # Update tau memory
+                self.tau_memory = cp.array([self.tau_memory[1], self.tau_memory[2], self.bl_meas])
+
+            self.tau_counter += 1
 
     def fwhm_interpolation(self, index, half_height):
 
@@ -356,3 +449,4 @@ class LHCNoiseFB:
 
         # Average FWHM bunch length
         self.bl_meas = np.mean(self.bl_meas_bbb)
+
