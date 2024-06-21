@@ -526,7 +526,7 @@ def separatrix(Ring, RFStation, dt):
         Vtot += voltage[i] * (np.cos(omega_rf[i] * dt_ufp + phi_rf[i]) -
                               np.cos(omega_rf[i] * dt + phi_rf[i])) / omega_rf[i]
         
-    Vtot *= np.sign(Ring.particle.charge)
+    Vtot *= np.sign(Ring.Particle.charge)
         
     separatrix_sq = 2 * beta_sq * energy / (eta_0 * T_0) * (Vtot + delta_E * (dt_ufp - dt))
     pos_ind = np.where(separatrix_sq >= 0)[0]
