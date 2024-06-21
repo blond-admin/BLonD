@@ -15,3 +15,5 @@ omit =
     *.cu
     blond/compile.py
     blond/sanity_check.py
+    blond/gpu/*
+    blond/utils/butils_wrap_numba.py

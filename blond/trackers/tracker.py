@@ -14,8 +14,6 @@ and the beam coordinates in phase space.**
 :Authors:  **Helga Timko**, **Alexandre Lasheen**, **Danilo Quartullo**
 """
 
-from __future__ import division
-
 import warnings
 from builtins import range
 
@@ -23,7 +21,7 @@ import numpy as np
 from scipy.integrate import cumtrapz
 
 from ..utils import bmath as bm
-
+from ..utils import turn_counter as tc
 
 class FullRingAndRF:
     """
@@ -35,7 +33,14 @@ class FullRingAndRF:
 
         #: *List of the total RingAndRFSection objects*
         self.RingAndRFSection_list = RingAndRFSection_list
-
+        names = []
+        for rf in self.RingAndRFSection_list:
+            name = rf.counter.name
+            names.append(name)
+        if len(set(names)) != 1:
+            raise ValueError("All input trackers must use the same counter")
+        else:
+            self.counter = tc.get_turn_counter(names[0])
         #: *Total potential well in [V]*
         self.potential_well = 0
 
@@ -128,8 +133,7 @@ class FullRingAndRF:
         """Function to loop over all the RingAndRFSection.track methods
         """
 
-        for RingAndRFSectionElement in self.RingAndRFSection_list:
-            RingAndRFSectionElement.track()
+        self.RingAndRFSection_list[self.counter.current_section].track()
 
 
 class RingAndRFTracker:
@@ -155,9 +159,7 @@ class RingAndRFTracker:
     ----------
     RFStation : class
         A RFStation type class
-    counter : [int]
-        Inherited from
-        :py:attr:`input_parameters.rf_parameters.RFStation.counter`
+    counter : TurnCounter
     length_ratio : float
         Inherited from
         :py:attr:`input_parameters.ring.Ring.length_ratio`
@@ -230,6 +232,10 @@ class RingAndRFTracker:
     NoiseFeedback : class (optional)
         A NoiseFeedback type class, bunch-length feedback on RF noise;
         default is None
+    CavityFeedback : class or list of classes (optional)
+        A CavityFeedback type child class, cavity feedback modulating the
+        RF voltage bucket-by-bucket in amplitude and phase. Can either be a single object or a list of such objects.
+        Default is None.
     periodicity : bool (optional)
         Option to switch periodic solver on/off; default is False (off)
     interpolation : bool (optional)
@@ -248,7 +254,6 @@ class RingAndRFTracker:
 
         # Imports from RF parameters
         self.rf_params = RFStation
-        self.counter = RFStation.counter
         self.length_ratio = RFStation.length_ratio
         self.section_length = RFStation.section_length
         # self.t_rev = RFStation.t_rev
@@ -281,7 +286,6 @@ class RingAndRFTracker:
                                " longitudinal solver not recognised!")
         if self.rf_params.alpha_order > 1:  # Force exact solver for higher orders of eta
             self.solver = 'exact'
-        self.solver = self.solver.encode(encoding='utf_8')
 
         # Options
         self.beamFB = BeamFeedback
@@ -318,6 +322,16 @@ class RingAndRFTracker:
             self.interpolation = True
             warnings.warn('Setting interpolation to TRUE')
             # self.logger.warning("Setting interpolation to TRUE")
+
+        if (self.cavityFB is not None) and (not hasattr(self.cavityFB, '__iter__')):
+            self.cavityFB = [self.cavityFB]
+
+        self.set_counter(self.rf_params.counter.name)
+    
+
+    def set_counter(self, counter_name: str = None):
+        self.counter = tc.get_turn_counter(counter_name)
+
 
     def kick(self, beam_dt, beam_dE, index):
         r"""Function updating the particle energy due to the RF kick in a given
@@ -378,16 +392,30 @@ class RingAndRFTracker:
         beam at a given turn. Requires a Profile object.
 
         """
-        voltages = bm.ascontiguousarray(self.rf_params.voltage[:, self.counter[0]])
-        omega_rf = bm.ascontiguousarray(self.rf_params.omega_rf[:, self.counter[0]])
-        phi_rf = bm.ascontiguousarray(self.rf_params.phi_rf[:, self.counter[0]])
+        turn = self.counter.current_turn
+        voltages = bm.ascontiguousarray(self.rf_params.voltage[:, turn])
+        omega_rf = bm.ascontiguousarray(self.rf_params.omega_rf[:, turn])
+        phi_rf = bm.ascontiguousarray(self.rf_params.phi_rf[:, turn])
         # TODO: test with multiple harmonics, think about 800 MHz OTFB
         if self.cavityFB:
-            self.rf_voltage = voltages[0] * self.cavityFB.V_corr * \
-                bm.sin(omega_rf[0] * self.profile.bin_centers +
-                       phi_rf[0] + self.cavityFB.phi_corr) + \
-                bm.rf_volt_comp(voltages[1:], omega_rf[1:], phi_rf[1:],
-                                self.profile.bin_centers)
+            # Allocate memory for rf_voltage and reset it to zero
+            self.rf_voltage = np.zeros(self.profile.n_slices)
+
+            # Add corrections from cavity feedbacks for the different harmonics
+            for ind, feedback in enumerate(self.cavityFB):
+                if feedback is not None:
+                    self.rf_voltage += voltages[ind] * feedback.V_corr * \
+                                      bm.sin(omega_rf[ind] * self.profile.bin_centers +
+                                             phi_rf[ind] + feedback.phi_corr)
+                else:
+                    self.rf_voltage += bm.rf_volt_comp(voltages[ind:ind + 1], omega_rf[ind:ind + 1],
+                                                       phi_rf[ind:ind + 1], self.profile.bin_centers)
+
+            # Add RF voltage from harmonics that do not have a cavity feedback model
+            self.rf_voltage += bm.rf_volt_comp(voltages[len(self.cavityFB):],
+                                               omega_rf[len(self.cavityFB):],
+                                               phi_rf[len(self.cavityFB):],
+                                               self.profile.bin_centers)
         else:
             self.rf_voltage = bm.rf_volt_comp(voltages, omega_rf, phi_rf,
                                               self.profile.bin_centers)
@@ -399,7 +427,8 @@ class RingAndRFTracker:
         of the Beam class.
 
         """
-        turn = self.counter[0]
+
+        turn = self.counter.current_turn
 
         # Add phase noise directly to the cavity RF phase
         if self.rf_params.phi_noise is not None:
@@ -430,6 +459,12 @@ class RingAndRFTracker:
 
         # Total phase offset
         self.rf_params.phi_rf[:, turn + 1] += self.rf_params.dphi_rf
+
+        # Correction from cavity loop
+        if self.cavityFB is not None:
+            for feedback in self.cavityFB:
+                if feedback is not None:
+                    feedback.track()
 
         if self.periodicity:
 
@@ -509,8 +544,7 @@ class RingAndRFTracker:
         self.beam.energy = self.rf_params.energy[turn + 1]
         self.beam.momentum = self.rf_params.momentum[turn + 1]
 
-        # Increment by one the turn counter
-        self.counter[0] += 1
+        next(self.counter)
 
     def to_gpu(self, recursive=True):
         '''

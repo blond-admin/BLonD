@@ -383,7 +383,7 @@ def hamiltonian(Ring, RFStation, Beam, dt, dE,
     if RFStation.n_rf > 1:
         warnings.warn("WARNING: The Hamiltonian will be calculated for the first harmonic only!")
 
-    counter = RFStation.counter[0]
+    counter = RFStation.counter.current_turn
     h0 = RFStation.harmonic[0, counter]
     if total_voltage is None:
         V0 = float(RFStation.voltage[0, counter])
@@ -561,7 +561,7 @@ def is_in_separatrix(Ring, RFStation, Beam, dt, dE,
         warnings.warn("WARNING in is_in_separatrix(): taking into account" +
                       " the first harmonic only!")
 
-    counter = RFStation.counter[0]
+    counter = RFStation.counter.current_turn
     dt_sep = (np.pi - RFStation.phi_s[counter]
               - RFStation.phi_rf_d[0, counter]) / \
         RFStation.omega_rf[0, counter]

@@ -840,7 +840,7 @@ def bigaussian(Ring, RFStation, Beam, sigma_dt, sigma_dE=None, seed=1234,
     
     if sigma_dE is None:
         sigma_dE = _get_dE_from_dt(Ring, RFStation, sigma_dt)
-    counter = RFStation.counter[0]
+    counter = RFStation.counter.current_turn
     omega_rf = RFStation.omega_rf[0, counter]
     phi_s = RFStation.phi_s[counter]
     phi_rf = RFStation.phi_rf[0, counter]
@@ -987,7 +987,7 @@ def _get_dE_from_dt(Ring, RFStation, dt_amplitude):
                         " systems is not yet implemented. Ignoring" +
                         " higher harmonics!")
 
-    counter = RFStation.counter[0]
+    counter = RFStation.counter.current_turn
 
     harmonic = RFStation.harmonic[0, counter]
     energy = RFStation.energy[counter]

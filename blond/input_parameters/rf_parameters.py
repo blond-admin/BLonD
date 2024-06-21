@@ -24,6 +24,7 @@ from scipy.integrate import cumtrapz
 from ..beam.beam import Proton
 from ..input_parameters.rf_parameters_options import RFStationOptions
 from ..utils import bmath as bm
+from ..utils import turn_counter as tc
 
 
 class RFStation:
@@ -225,7 +226,6 @@ class RFStation:
                  phi_modulation=None, RFStationOptions=RFStationOptions()):
 
         # Different indices
-        self.counter = [int(0)]
         self.section_index = int(section_index - 1)
         if self.section_index < 0 \
                 or self.section_index > Ring.n_sections - 1:
@@ -366,6 +366,11 @@ class RFStation:
             self.Q_s = calculate_Q_s(self, self.Particle)
             self.omega_s0 = self.Q_s * Ring.omega_rev
 
+        self.set_counter(Ring.counter_name)
+    
+    def set_counter(self, counter_name: str = None):
+        self.counter = tc.get_turn_counter(counter_name)
+
     def eta_tracking(self, beam, counter, dE):
         r"""Function to calculate the slippage factor as a function of the
         energy offset :math:`\Delta E` of the particle. The slippage factor
@@ -505,14 +510,13 @@ def calculate_phi_s(RFStation, Particle=Proton(),
 
         denergy = np.append(RFStation.delta_E, RFStation.delta_E[-1])
         acceleration_ratio = denergy / (Particle.charge * RFStation.voltage[0, :])
-        acceleration_test = np.where((acceleration_ratio > -1) *
-                                     (acceleration_ratio < 1) is False)[0]
-
+        acceleration_test = ((acceleration_ratio > -1) & (acceleration_ratio < 1)) == 0
+        
         # Validity check on acceleration_ratio
-        if acceleration_test.size > 0:
+        if np.count_nonzero(acceleration_test) > 0:
             print("WARNING in calculate_phi_s(): acceleration is not " +
                   "possible (momentum increment is too big or voltage too " +
-                  "low) at index " + str(acceleration_test))
+                  "low) at index " + str(acceleration_test.nonzero()[0]))
 
         phi_s = np.arcsin(acceleration_ratio)
 

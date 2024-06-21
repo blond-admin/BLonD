@@ -16,7 +16,6 @@ def use_cpp():
     '''
     Replace all python functions by there equivalent in cpp
     '''
-    print('---------- Using the C++ computational backend ----------')
     # dictionary storing the CPP versions of the most compute intensive functions #
     cpp_func_dict = {
         'rfft': np.fft.rfft,
@@ -74,13 +73,64 @@ def use_cpp():
     cpp_func_dict['fft'] = getattr(np, 'fft')
 
     __update_active_dict(cpp_func_dict)
+    print('---------- Using the C++ computational backend ----------')
+
+
+def use_numba():
+    '''
+    Replace all python functions by their equivalent in numba
+    '''
+
+    from blond.utils import butils_wrap_numba as _nu
+
+
+    # dictionary storing the Numba-only versions of the most compute intensive functions #
+    nu_func_dict = {
+        'rfft': np.fft.rfft,
+        'irfft': np.fft.irfft,
+        'rfftfreq': np.fft.rfftfreq,
+
+        'kick': _nu.kick,
+        'rf_volt_comp': _nu.rf_volt_comp,
+        'drift': _nu.drift,
+        'slice_beam': _nu.slice_beam,
+        'slice_smooth': _nu.slice_smooth,
+        'linear_interp_kick': _nu.linear_interp_kick,
+        'synchrotron_radiation': _nu.synchrotron_radiation,
+        'synchrotron_radiation_full': _nu.synchrotron_radiation_full,
+        'music_track': _nu.music_track,
+        'music_track_multiturn': _nu.music_track_multiturn,
+        'fast_resonator': _nu.fast_resonator,
+        'beam_phase': _nu.beam_phase,
+        'beam_phase_fast': _nu.beam_phase_fast,
+        'sparse_histogram': _nu.sparse_histogram,
+        'distribution_from_tomoscope': _nu.distribution_from_tomoscope,
+        'set_random_seed': _nu.set_random_seed,
+
+        'device': 'CPU_NU'
+    }
+
+    # add numpy functions in the dictionary
+    for fname in dir(np):
+        if callable(getattr(np, fname)) and (fname not in nu_func_dict) \
+                and (fname[0] != '_'):
+
+            nu_func_dict[fname] = getattr(np, fname)
+
+    # add basic numpy modules to dictionary as they are not callable
+    nu_func_dict['random'] = getattr(np, 'random')
+    nu_func_dict['fft'] = getattr(np, 'fft')
+
+    # Update the global functions
+    __update_active_dict(nu_func_dict)
+
+    print('---------- Using the Numba computational backend ----------')
 
 
 def use_py():
     '''
     Replace all python functions by there equivalent in python
     '''
-    print('---------- Using the Python computational backend ----------')
 
     # dictionary storing the Python-only versions of the most compute intensive functions #
     py_func_dict = {
@@ -122,6 +172,9 @@ def use_py():
     # Update the global functions
     __update_active_dict(py_func_dict)
 
+    print('---------- Using the Python computational backend ----------')
+
+
 
 def use_cpu():
     '''
@@ -129,7 +182,12 @@ def use_cpu():
     '''
     from .. import LIBBLOND as __lib
     if __lib is None:
-        use_py()
+        try: # try to use numba
+            use_numba()
+        except ImportError as e:
+            print(f"Error: {e}. Please install numba with 'pip install numba' to use the numba backend."
+                  f" Using the python backend instead.")
+            use_py()
     else:
         use_cpp()
 

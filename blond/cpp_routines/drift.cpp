@@ -20,7 +20,7 @@ Project website: http://blond.web.cern.ch/
 
 extern "C" void drift(double * __restrict__ beam_dt,
                       const double * __restrict__ beam_dE,
-                      const char * __restrict__ solver,
+                      const int solver,
                       const double T0, const double length_ratio,
                       const double alpha_order, const double eta_zero,
                       const double eta_one, const double eta_two,
@@ -32,7 +32,7 @@ extern "C" void drift(double * __restrict__ beam_dt,
     int i;
     double T = T0 * length_ratio;
 
-    if ( strcmp (solver, "simple") == 0 )
+    if ( solver == 0 )
     {
         double coeff = eta_zero / (beta * beta * energy);
         #pragma omp parallel for
@@ -40,7 +40,7 @@ extern "C" void drift(double * __restrict__ beam_dt,
             beam_dt[i] += T * coeff * beam_dE[i];
     }
 
-    else if ( strcmp (solver, "legacy") == 0 )
+    else if ( solver == 1 )
     {
         const double coeff = 1. / (beta * beta * energy);
         const double eta0 = eta_zero * coeff;
@@ -91,7 +91,7 @@ extern "C" void drift(double * __restrict__ beam_dt,
 
 extern "C" void driftf(float * __restrict__ beam_dt,
                        const float * __restrict__ beam_dE,
-                       const char * __restrict__ solver,
+                       const int solver,
                        const float T0, const float length_ratio,
                        const float alpha_order, const float eta_zero,
                        const float eta_one, const float eta_two,
@@ -103,7 +103,7 @@ extern "C" void driftf(float * __restrict__ beam_dt,
   int i;
   float T = T0 * length_ratio;
 
-  if ( strcmp (solver, "simple") == 0 )
+  if ( solver == 0 )
   {
     float coeff = eta_zero / (beta * beta * energy);
     #pragma omp parallel for
@@ -111,7 +111,7 @@ extern "C" void driftf(float * __restrict__ beam_dt,
       beam_dt[i] += T * coeff * beam_dE[i];
   }
 
-  else if ( strcmp (solver, "legacy") == 0 )
+  else if ( solver == 1 )
   {
     const float coeff = 1. / (beta * beta * energy);
     const float eta0 = eta_zero * coeff;
