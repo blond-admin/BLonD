@@ -54,23 +54,17 @@ class TrackingMap:
         self._end_section = end_section
         self._section_specific = section_specific
         self._available_sections = list(section_specific.keys())
-        print(self._available_sections)
         self.counter = tc.get_turn_counter(counter_name)
 
 
     def track(self):
-        print(f"Tracking turn {self.counter.current_turn}"
-              +f" in section {self.counter.current_section}")
         self._track_section(self.counter.current_section)
 
 
     def _track_section(self, section: int):
 
-        # print(f"Track turn {self.counter.current_turn} in section "
-        #       +f"{self.counter.current_section}")
         self._track_start_section()
         if section in self._available_sections:
-            print(f"Section specific tracking {section}")
             self._track_section_specific(section)
         self._track_end_section()
 
