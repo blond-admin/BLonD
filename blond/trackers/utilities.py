@@ -453,7 +453,7 @@ def separatrix(Ring, RFStation, dt):
     try:
         delta_E = RFStation.delta_E[counter] * Ring.n_sections
     except Exception:
-        delta_E = RFStation.delta_E[-1]*Ring.n_sections
+        delta_E = RFStation.delta_E[-1] * Ring.n_sections
     T_0 = Ring.t_rev[counter]
     if Ring.Particle.charge > 0:
         index = np.min(np.where(voltage > 0)[0])
