@@ -54,19 +54,23 @@ class TrackingMap:
         self._end_section = end_section
         self._section_specific = section_specific
         self._available_sections = list(section_specific.keys())
-
+        print(self._available_sections)
         self.counter = tc.get_turn_counter(counter_name)
 
 
     def track(self):
-
+        print(f"Tracking turn {self.counter.current_turn}"
+              +f" in section {self.counter.current_section}")
         self._track_section(self.counter.current_section)
 
 
     def _track_section(self, section: int):
 
+        # print(f"Track turn {self.counter.current_turn} in section "
+        #       +f"{self.counter.current_section}")
         self._track_start_section()
         if section in self._available_sections:
+            print(f"Section specific tracking {section}")
             self._track_section_specific(section)
         self._track_end_section()
 
@@ -115,13 +119,12 @@ class TrackIteration:
                  init_turn: int = 0, final_turn: int = -1,
                  counter_name: str | None = None):
 
-        if not all((hasattr(m, 'track') for m in track_map)):
-            raise AttributeError("All map objects must be trackable")
-
         if isinstance(track_map, TrackingMap):
             self._map = track_map
         else:
             self._map = list(track_map)
+            if not all((hasattr(m, 'track') for m in track_map)):
+                raise AttributeError("All map objects must be trackable")
 
         if isinstance(init_turn, int):
             self.turn_number = init_turn
@@ -189,13 +192,14 @@ class TrackIteration:
         except IndexError:
             raise StopIteration
 
-        self.turn_number += 1
+        self.turn_number = self.counter.current_turn
+        self.section_number = self.counter.current_section
 
         for func, rate in self.function_list:
             if self.turn_number % rate == 0:
                 func(self._map, self.turn_number)
 
-        return self.turn_number
+        return self.turn_number, self.section_number
 
 
     def _complex_tracking(self):
@@ -208,11 +212,14 @@ class TrackIteration:
         except IndexError:
             raise StopIteration
 
+        self.turn_number = self.counter.current_turn
+        self.section_number = self.counter.current_section
+
         for func, rate in self.function_list:
             if self.turn_number % rate == 0:
                 func(self._map, self.turn_number)
 
-        return self.counter.current_turn
+        return self.turn_number, self.section_number
 
 
     def __iter__(self) -> Self:
