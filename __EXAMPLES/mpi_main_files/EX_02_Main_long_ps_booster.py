@@ -104,9 +104,10 @@ slice_beam = Profile(my_beam, CutOptions(cut_left=-5.72984173562e-7,
 var = str(kin_beam_energy / 1e9)
 
 # ejection kicker
-Ekicker = np.loadtxt(this_directory + '../input_files/EX_02_Ekicker_1.4GeV.txt', skiprows=1, dtype=complex, converters={0: lambda s:
-                                                                                                                        complex(bytes(s).decode('UTF-8').replace('i', 'j')),
-                                                                                                                        1: lambda s: complex(bytes(s).decode('UTF-8').replace('i', 'j'))})
+Ekicker = np.loadtxt(this_directory + '../input_files/EX_02_Ekicker_1.4GeV.txt', skiprows=1, dtype=complex,
+                     encoding="utf-8",
+                     converters={0: lambda s: complex(bytes(s, encoding="utf-8").decode('UTF-8').replace('i', 'j')),
+                                 1: lambda y: complex(bytes(y, encoding="utf-8").decode('UTF-8').replace('i', 'j'))})
 
 Ekicker_table = InputTable(Ekicker[:, 0].real, Ekicker[:, 1].real, Ekicker[:, 1].imag)
 
