@@ -227,53 +227,6 @@ class FlatSpectrum:
             self.dphi = np.concatenate((np.zeros(self.initial_final_turns[0]), self.dphi, np.zeros(1 + self.total_n_turns - self.initial_final_turns[1])))
 
 
-# class CallEveryNSeconds:
-#     def __init__(self, n: float, function, context, counter: float = 0):
-#         self.n = n
-#         self.counter = counter
-#         self.function = function
-#         self.context = context
-#
-#     def tick(self, dt):
-#         self.counter += dt
-#         if self.counter >= self.n == 0:
-#             self.counter -= n
-#             self.function(context)
-#
-# class CallEveryN:
-#     def __init__(self, n, function, context, counter = 0):
-#         self.n = n
-#         self.counter = counter
-#         self.function = function
-#         self.context = context
-#
-#     def __call__(self):
-#         self.tick()
-#
-#     def tick(self):
-#         self.counter += 1
-#         if self.counter % self.n == 0:
-#             self.function(context)
-#
-#
-# class NoiseContext:
-#     def __init__(self, simulation):
-#         self.simulation = simulation
-#         self.last_bqm_measurements = [0, 0, 0]
-#         self.amplitudes = [0, 0]
-#
-#
-# def update_bqm_measurement(context):
-#     updated_bqm_value = context.simulation.fwhm()
-#     context.last_bqm_measurements = [context.last_bqm_measurements[1], context.last_bqm_measurements[2], updated_bqm_value]
-#
-#
-# def update_noise_ampltude(context):
-#     x = context.simulation.a * context.simulation.x + context.simulation.g[context.simulation.rf_params.counter[0]] * (context.simulation.bl_targ - context.last_bqm_measurements[0])
-#     context.amplitudes = context.ampltitudes[1:] + [max(0, min(x, 1))]
-#     context.simulation.x = context.ampltitudes[0]
-
-
 class LHCNoiseFB:
     '''
     *Feedback on phase noise amplitude for LHC controlled longitudinal emittance
@@ -339,8 +292,9 @@ class LHCNoiseFB:
             self.fwhm = fwhm_functions['multi']
 
         # Initialize noise feedback parameters
-        self.last_bqm_measurements = cp.array([0, 0, 0])
+        self.last_bqm_measurements = cp.empty(3)
         self.x_amplitudes = cp.array([0, 0])
+        self.update_x = False
 
         rnd.seed(1313)
         self.delay = int(rnd.uniform(0, 1.1) * self.LHC_frev)  # in turns
@@ -359,20 +313,20 @@ class LHCNoiseFB:
 
     def update_bqm_measurement(self):
         self.fwhm()
-        self.last_bqm_measurements = cp.array([self.last_bqm_measurements[1], self.last_bqm_measurements[2], self.bl_meas])
-        print(
-            f'BQM measurement: x_counter: {self.timers[0].counter}, tau_counter: {self.timers[1].counter}, '
-            f'bqm_measurements: {self.last_bqm_measurements}, x_amplitudes: {self.x_amplitudes}, x: {self.x}'
-        )
+        if self.timers[1].counter == self.delay:
+            self.last_bqm_measurements = cp.array([self.bl_meas, self.bl_meas, self.bl_meas])
+            self.update_x = True
+        else:
+            self.last_bqm_measurements = cp.array([self.last_bqm_measurements[1], self.last_bqm_measurements[2], self.bl_meas])
 
     def update_noise_amplitude(self):
-        x = self.a * self.x + self.g[self.rf_params.counter[0]] * (self.bl_targ - self.last_bqm_measurements[0])
-        self.x_amplitudes = cp.array([self.x_amplitudes[1], max(0, min(x, 1))])
-        self.x = self.x_amplitudes[0]
-        print(
-            f'X measurement: x_counter: {self.timers[0].counter}, tau_counter: {self.timers[1].counter}, '
-            f'bqm_measurements: {self.last_bqm_measurements}, x_amplitudes: {self.x_amplitudes}, x: {self.x}'
-        )
+        if not self.update_x:
+            self.x = 0
+        else:
+            x = self.a * self.x + self.g[self.rf_params.counter[0]] * (self.bl_targ - self.last_bqm_measurements[0])
+            self.x_amplitudes = cp.array([self.x_amplitudes[1], cp.maximum(0, cp.minimum(x, 1))])
+            self.x = self.x_amplitudes[0]
+        print(f'counter: {self.timers[0].counter}, bqm: {self.last_bqm_measurements[0]}, x: {self.x}')
 
     def fwhm_interpolation(self, index, half_height):
 
@@ -434,6 +388,5 @@ class CallEveryNTurns:
 
     def tick(self):
         if (self.counter - self.delay) % self.n == 0:
-            print(f'Tick Counter: {self.counter}')
             self.function()
         self.counter += 1
