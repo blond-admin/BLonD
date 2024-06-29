@@ -242,7 +242,7 @@ class LHCNoiseFB:
 
     def __init__(self, RFStation, Profile, bl_target, gain=0.1e9,
                  factor=0.93, update_frequency=11245,
-                 variable_gain=True, bunch_pattern=None):
+                 variable_gain=True, bunch_pattern=None, old_FESA_class=False, no_delay=False):
 
         self.LHC_frev = 11245  # LHC revolution frequency in Hz
 
@@ -291,6 +291,8 @@ class LHCNoiseFB:
             self.bl_meas_bbb = np.zeros(len(self.bunch_pattern))
             self.fwhm = fwhm_functions['multi']
 
+        self.no_delay = no_delay
+
         # Initialize noise feedback parameters
         self.last_bqm_measurements = cp.empty(3)
         self.x_amplitudes = cp.array([0, 0])
@@ -299,8 +301,14 @@ class LHCNoiseFB:
         rnd.seed(1313)
         self.delay = int(rnd.uniform(0, 1.1) * self.LHC_frev)  # in turns
         print(f'BQM delay: {self.delay}')
-        self.timers = [CallEveryNTurns(self.LHC_frev, self.update_noise_amplitude),
-                       CallEveryNTurns(int(self.LHC_frev * 1.1), self.update_bqm_measurement, delay=self.delay)]
+        if old_FESA_class:
+            # In the old FESA class the x_amplitudes buffer was updated every 2s
+            # Need to figure this out
+            pass
+        else:
+            # In the new FESA class the x_amplitudes buffer is updated every 1s
+            self.timers = [CallEveryNTurns(self.LHC_frev, self.update_noise_amplitude),
+                           CallEveryNTurns(int(self.LHC_frev * 1.1), self.update_bqm_measurement, delay=self.delay)]
 
     def track(self):
         '''
@@ -308,8 +316,23 @@ class LHCNoiseFB:
         FWHM bunch length.* Take into account the delay and asynchronisation between the BQM and the x update.
         '''
 
-        for timer in self.timers:
-            timer.tick()
+        if self.no_delay:
+            # Track only in certain turns
+            if (self.rf_params.counter[0] % self.n_update) == 0:
+
+                # Update bunch length, every x turns determined in main file
+                self.fwhm()
+
+                # Update noise amplitude-scaling factor
+                self.x = self.a * self.x + self.g[self.rf_params.counter[0]] * \
+                         (self.bl_targ - self.bl_meas)
+
+                # Limit to range [0,1]
+                self.x = cp.maximum(0, cp.minimum(x, 1))
+
+        else:
+            for timer in self.timers:
+                timer.tick()
 
     def update_bqm_measurement(self):
         self.fwhm()
