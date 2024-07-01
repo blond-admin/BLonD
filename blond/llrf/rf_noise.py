@@ -328,7 +328,7 @@ class LHCNoiseFB:
                          (self.bl_targ - self.bl_meas)
 
                 # Limit to range [0,1]
-                self.x = cp.maximum(0, cp.minimum(x, 1))
+                self.x = cp.maximum(0, cp.minimum(self.x, 1))
 
         else:
             for timer in self.timers:
