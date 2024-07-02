@@ -280,6 +280,12 @@ class LHCNoiseFB:
         #: | *Bunch pattern for multi-bunch simulations*
         self.bunch_pattern = bunch_pattern
 
+        #: | *Flag to not use delay on the BQM and noise injection - it measures self.bl_meas and updates self.x instantly*
+        self.no_delay = no_delay
+
+        #: | *Switch to use old FESA class: buffer size for noise injection 2s and delayed application of 2 buffers*
+        self.old_FESA_class = old_FESA_class
+
         #: | *Function dictionary to calculate FWHM bunch length*
         fwhm_functions = {'single': self.fwhm_single_bunch,
                           'multi': self.fwhm_multi_bunch}
@@ -291,24 +297,28 @@ class LHCNoiseFB:
             self.bl_meas_bbb = np.zeros(len(self.bunch_pattern))
             self.fwhm = fwhm_functions['multi']
 
-        self.no_delay = no_delay
-
-        # Initialize noise feedback parameters
-        self.last_bqm_measurements = cp.empty(3)
-        self.x_amplitudes = cp.array([0, 0])
-        self.update_x = False
-
+        # Initialize the BQM delay in respect to noise injection
         rnd.seed(1313)
         self.delay = int(rnd.uniform(0, 1.1) * self.LHC_frev)  # in turns
         print(f'BQM delay: {self.delay}')
-        if old_FESA_class:
+
+        # Initialize buffers for the last 5 bqm measurements and their timestamps
+        self.last_bqm_measurements = cp.empty(5)
+        self.time_array = cp.empty(5)
+        self.update_x = False
+
+        if self.old_FESA_class:
             # In the old FESA class the x_amplitudes buffer was updated every 2s
-            # Need to figure this out
-            pass
+            self.timers = [CallEveryNTurns(self.LHC_frev * 2, self.update_noise_amplitude),
+                           CallEveryNTurns(int(self.LHC_frev * 1.1), self.update_bqm_measurement, delay=self.delay)]
+
+            self.delay_noise_inj = 2 * self.LHC_frev * 2  # delay noise injection for 2 chunks
         else:
             # In the new FESA class the x_amplitudes buffer is updated every 1s
             self.timers = [CallEveryNTurns(self.LHC_frev, self.update_noise_amplitude),
                            CallEveryNTurns(int(self.LHC_frev * 1.1), self.update_bqm_measurement, delay=self.delay)]
+
+            self.delay_noise_inj = self.LHC_frev  # delay noise injection for 1 chunk
 
     def track(self):
         '''
@@ -335,21 +345,39 @@ class LHCNoiseFB:
                 timer.tick()
 
     def update_bqm_measurement(self):
+        # Takes the bunch length measurement and updates self.bl_meas
         self.fwhm()
+
         if self.timers[1].counter == self.delay:
-            self.last_bqm_measurements = cp.array([self.bl_meas, self.bl_meas, self.bl_meas])
+            # Write buffers using the first measurement
+            self.last_bqm_measurements = cp.array([self.bl_meas, self.bl_meas, self.bl_meas, self.bl_meas, self.bl_meas])
+            self.time_array = cp.array([self.timers[1].counter, self.timers[1].counter, self.timers[1].counter,
+                                        self.timers[1].counter, self.timers[1].counter])
+            # Checks that the first bqm measurement was taken
             self.update_x = True
         else:
-            self.last_bqm_measurements = cp.array([self.last_bqm_measurements[1], self.last_bqm_measurements[2], self.bl_meas])
+            # Update buffers by rotating them to the left and adding the new measurement at the end
+            self.last_bqm_measurements = cp.roll(self.last_bqm_measurements, -1)
+            self.last_bqm_measurements[-1] = self.bl_meas
+            self.time_array = cp.roll(self.time_array, -1)
+            self.time_array[-1] = self.timers[1].counter
 
     def update_noise_amplitude(self):
-        if not self.update_x:
+        # timestamp in turns, before which the last bqm measurement was taken
+        timestamp = self.timers[0].counter - self.delay_noise_inj
+
+        if not self.update_x or timestamp < self.delay:
+            # If the first bqm measurement has not been taken yet, or cannot be used yet because of the delay,
+            # set x to 0
             self.x = 0
         else:
-            x = self.a * self.x + self.g[self.rf_params.counter[0]] * (self.bl_targ - self.last_bqm_measurements[0])
-            self.x_amplitudes = cp.array([self.x_amplitudes[1], cp.maximum(0, cp.minimum(x, 1))])
-            self.x = self.x_amplitudes[0]
-        print(f'counter: {self.timers[0].counter}, bqm: {self.last_bqm_measurements[0]}, x: {self.x}')
+            # Find the index of the last bqm measurement taken before timestamp
+            idx = cp.amax(cp.where(self.time_array < timestamp)[0])
+            bqm_measurement = self.last_bqm_measurements[idx]
+
+            # Update noise amplitude-scaling factor
+            x = self.a * self.x + self.g[self.rf_params.counter[0]] * (self.bl_targ - bqm_measurement)
+            self.x = cp.maximum(0, cp.minimum(x, 1))
 
     def fwhm_interpolation(self, index, half_height):
 
@@ -400,6 +428,12 @@ class LHCNoiseFB:
 
 
 class CallEveryNTurns:
+    ''' Call a function every n turns
+
+    n: number of turns between calls
+    function: function to call
+    delay: delay in turns before the first call'''
+
     def __init__(self, n, function, delay=0):
         self.n = n
         self.counter = 0
