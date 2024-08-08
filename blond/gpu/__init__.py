@@ -88,9 +88,13 @@ class GPUDev:
 
         this_dir = os.path.dirname(os.path.realpath(__file__)) + "/"
         comp_capability = self.dev.compute_capability
-        library_path = os.path.join(this_dir, f'../gpu/kernels_sm_{comp_capability}_{_precision}.cubin')
-        if os.path.exists(library_path):
+        try:
+            library_path = os.path.join(this_dir, f'../gpu/kernels_sm_{comp_capability}_{_precision}.cubin')
             self.mod = cp.RawModule(path=library_path)
+        except FileNotFoundError:
+            print(f'ERROR: Could not find the library for the compute capability {comp_capability}.'
+                  f' Try to compile BLonD again using: python BLonD/blond/compile.py -gpu {comp_capability} --optimize')
+            sys.exit()
 
 
 # Initialize empty GPU object
