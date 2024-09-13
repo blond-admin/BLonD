@@ -13,7 +13,7 @@ Project website: http://blond.web.cern.ch/
 
 #include "blond_common.h"
 
-extern "C" void kick(const real_t * __restrict__ beam_dt, 
+extern "C" void kick_old(const real_t * __restrict__ beam_dt,
                         real_t * __restrict__ beam_dE, const int n_rf, 
                         const real_t * __restrict__ voltage, 
                         const real_t * __restrict__ omega_RF, 
@@ -33,6 +33,26 @@ for (int j = 0; j < n_rf; j++)
     for (int i = 0; i < n_macroparticles; i++)
         beam_dE[i] = beam_dE[i] + acc_kick;
 
+}
+
+extern "C" void kick(const real_t * __restrict__ beam_dt,
+                        real_t * __restrict__ beam_dE, const int n_rf,
+                        const real_t * __restrict__ voltage,
+                        const real_t * __restrict__ omega_RF,
+                        const real_t * __restrict__ phi_RF,
+                        const int n_macroparticles,
+                        const real_t acc_kick) {
+
+    // KICK
+    #pragma omp parallel for
+    for (int i = 0; i < n_macroparticles; i++){
+        double dE_sum = acc_kick;
+        const double dti = beam_dt[i];
+        for (int j = 0; j < n_rf; j++){
+            dE_sum += voltage[j] * FAST_SIN(omega_RF[j] * dti + phi_RF[j]);
+        }
+        beam_dE[i] += dE_sum;
+    }
 }
 
 extern "C" void rf_volt_comp(const real_t * __restrict__ voltage,
