@@ -537,7 +537,7 @@ def separatrix(Ring, RFStation, dt):
         
     separatrix_sq = 2 * beta_sq * energy / (eta_0 * T_0) * (Vtot + delta_E * (dt_ufp - dt))
     pos_ind = np.where(separatrix_sq >= 0)[0]
-    separatrix_array = np.empty((len(separatrix_sq))) * np.nan
+    separatrix_array = np.full((len(separatrix_sq)), fill_value=np.nan)
     separatrix_array[pos_ind] = np.sqrt(separatrix_sq[pos_ind])
 
     return separatrix_array
