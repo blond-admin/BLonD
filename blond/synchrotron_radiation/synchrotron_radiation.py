@@ -1,4 +1,3 @@
-
 # Copyright 2016 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
 # copied verbatim in the file LICENCE.md.
@@ -23,7 +22,6 @@ from ..utils import bmath as bm
 
 
 class SynchrotronRadiation:
-
     ''' Class to compute synchrotron radiation effects, including radiation
         damping and quantum excitation.
         For multiple RF section, instanciate one object per RF section an call
@@ -45,9 +43,9 @@ class SynchrotronRadiation:
         self.c_gamma = self.ring.Particle.c_gamma
         self.c_q = self.ring.Particle.c_q
 
-        self.I2 = 2.0 * np.pi / self.rho     # Assuming isomagnetic machine
-        self.I3 = 2.0 * np.pi / self.rho**2.0
-        self.I4 = self.ring.ring_circumference * self.ring.alpha_0[0, 0] / self.rho**2.0
+        self.I2 = 2.0 * np.pi / self.rho  # Assuming isomagnetic machine
+        self.I3 = 2.0 * np.pi / self.rho ** 2.0
+        self.I4 = self.ring.ring_circumference * self.ring.alpha_0[0, 0] / self.rho ** 2.0
         self.jz = 2.0 + self.I4 / self.I2
 
         # Calculate synchrotron radiation parameters
@@ -63,7 +61,7 @@ class SynchrotronRadiation:
             self.beam_phase_to_compensate_SR = np.abs(np.arcsin(
                 self.U0 / (self.ring.Particle.charge * self.rf_params.voltage[0][0])))
             self.beam_position_to_compensate_SR = self.beam_phase_to_compensate_SR \
-                * self.rf_params.t_rf[0, 0] / (2.0 * np.pi)
+                                                  * self.rf_params.t_rf[0, 0] / (2.0 * np.pi)
 
             self.beam.dt -= self.beam_position_to_compensate_SR
 
@@ -87,8 +85,8 @@ class SynchrotronRadiation:
         i_turn = self.rf_params.counter[0]
 
         # Energy loss per turn/RF section [eV]
-        self.U0 = (self.c_gamma * self.ring.energy[0, i_turn]**4.0
-                   * self.I2 / (2.0 * np. pi)
+        self.U0 = (self.c_gamma * self.ring.energy[0, i_turn] ** 4.0
+                   * self.I2 / (2.0 * np.pi)
                    * self.rf_params.section_length
                    / self.ring.ring_circumference)
 
@@ -98,7 +96,7 @@ class SynchrotronRadiation:
 
         # Equilibrium energy spread
         self.sigma_dE = np.sqrt(self.c_q *
-                                self.ring.gamma[0, i_turn]**2.0 *
+                                self.ring.gamma[0, i_turn] ** 2.0 *
                                 self.I3 / (self.jz * self.I2))
 
     # Print SR parameters
@@ -109,7 +107,7 @@ class SynchrotronRadiation:
         print(f'jz = {self.jz:1.8f}')
         if (self.rf_params.section_length
                 == self.ring.ring_circumference):
-            print(f'Energy loss per turn = {self.U0/1e9:1.4f} GeV/turn')
+            print(f'Energy loss per turn = {self.U0 / 1e9:1.4f} GeV/turn')
             print(f'Damping time = {self.tau_z:1.4f} turns')
         else:
             print('Energy loss per RF section = {0:1.4f} GeV/section'.format(
@@ -121,7 +119,7 @@ class SynchrotronRadiation:
                                                          * self.rf_params.section_length
                                                          / self.ring.ring_circumference))
         print(f'Equilibrium energy spread = {self.sigma_dE * 100:1.4f}%'
-              + f' ({self.sigma_dE * self.ring.energy[0, i_turn]*1e-6:1.4f}) MeV')
+              + f' ({self.sigma_dE * self.ring.energy[0, i_turn] * 1e-6:1.4f}) MeV')
         print('------------------------------------------------')
 
     # Track particles with SR only (without quantum excitation)

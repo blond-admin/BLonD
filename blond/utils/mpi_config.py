@@ -38,11 +38,13 @@ def master_wrap(func):
     Returns:
         _type_: _description_
     """
+
     @wraps(func)
     def wrap(*args, **kwargs):
         if WORKER.is_master:
             return func(*args, **kwargs)
         return None
+
     return wrap
 
 
@@ -60,6 +62,7 @@ def sequential_wrap(func, beam, split_args={}, gather_args={}):
     Returns:
         _type_: _description_
     """
+
     @wraps(func)
     def wrap(*args, **kw):
         beam.gather(**gather_args)
@@ -69,12 +72,14 @@ def sequential_wrap(func, beam, split_args={}, gather_args={}):
             result = None
         beam.split(**split_args)
         return result
+
     return wrap
 
 
 class Worker:
     """Stores information accessed by each MPI worker. Also contains all needed MPI methods.
     """
+
     def __init__(self):
         """Constructor
         """
@@ -92,7 +97,7 @@ class Worker:
         self.hostip = socket.gethostbyname(self.hostname)
         # Create communicator with processes on the same host
         color = np.dot(np.array(self.hostip.split('.'), int)
-                       [1:], [1, 256, 256**2])
+                       [1:], [1, 256, 256 ** 2])
         self.nodecomm = self.intercomm.Split(color, self.rank)
         self.noderank = self.nodecomm.rank
         self.nodeworkers = self.nodecomm.size
@@ -287,8 +292,8 @@ class Worker:
             recvbuf = self.gather(sendbuf)
             if WORKER.is_master:
                 assert len(recvbuf) == 3 * self.workers
-                totals = np.sum((recvbuf[2::3] - 1) * recvbuf[1::3]**2 +
-                                recvbuf[2::3] * (recvbuf[1::3] - bm.mean(recvbuf[0::3]))**2)
+                totals = np.sum((recvbuf[2::3] - 1) * recvbuf[1::3] ** 2 +
+                                recvbuf[2::3] * (recvbuf[1::3] - bm.mean(recvbuf[0::3])) ** 2)
                 return np.array([np.sqrt(totals / (np.sum(recvbuf[2::3]) - 1))])
             else:
                 return np.array([sendbuf[1]])
@@ -344,8 +349,8 @@ class Worker:
         elif operator == 'std':
             recvbuf = self.allgather(sendbuf)
             assert len(recvbuf) == 3 * self.workers
-            totals = np.sum((recvbuf[2::3] - 1) * recvbuf[1::3]**2 +
-                            recvbuf[2::3] * (recvbuf[1::3] - bm.mean(recvbuf[::3]))**2)
+            totals = np.sum((recvbuf[2::3] - 1) * recvbuf[1::3] ** 2 +
+                            recvbuf[2::3] * (recvbuf[1::3] - bm.mean(recvbuf[::3])) ** 2)
             return np.array([np.sqrt(totals / (np.sum(recvbuf[2::3]) - 1))])
 
         if (recvbuf is None) or (sendbuf is recvbuf):

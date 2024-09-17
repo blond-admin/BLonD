@@ -6,6 +6,7 @@ Basic methods and objects related to the computational core.
 '''
 
 import ctypes as ct
+
 import numpy as np
 
 

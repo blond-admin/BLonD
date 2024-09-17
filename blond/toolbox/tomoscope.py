@@ -13,7 +13,6 @@ probability density.**
 :Authors: **Helga Timko**
 '''
 
-
 from __future__ import division, print_function
 
 import linecache
@@ -41,7 +40,7 @@ def distribution_from_tomoscope_data(dataDir, nPart, cutoff=1000, seed=1234,
 
     # Directory in which plots will be stored
     distrDir = dataDir + '\\Distributions_' + \
-        str(nPart) + 'particles_cutoff' + str(cutoff)
+               str(nPart) + 'particles_cutoff' + str(cutoff)
     # Try to create directory
     try:
         os.makedirs(distrDir)
@@ -80,7 +79,6 @@ def distribution_from_tomoscope_data(dataDir, nPart, cutoff=1000, seed=1234,
                                            cutoff, x0, y0, dtBin, dEBin)
 
             if plotFig:
-
                 # Settings for plots
                 plt.rc('axes', labelsize=14, labelweight='normal')
                 plt.rc('lines', linewidth=1.5, markersize=6)
@@ -96,7 +94,6 @@ def distribution_from_tomoscope_data(dataDir, nPart, cutoff=1000, seed=1234,
                 plt.clf()
 
             if saveDistr:
-
                 h5File = hp.File(distrDir + '\\' + directory + '.h5', 'w')
 
                 # Create group

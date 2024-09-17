@@ -76,7 +76,7 @@ class GPUDev:
             _type_: _description_
         """
         return self.mod.get_function(name)
-    
+
     def load_library(self, _precision):
         '''Load the GPU library
 

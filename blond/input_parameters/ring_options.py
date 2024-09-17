@@ -17,12 +17,12 @@
 from __future__ import division, annotations
 
 from builtins import range, str
+from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.constants import c
 from scipy.interpolate import splev, splrep, Akima1DInterpolator
-from typing import TYPE_CHECKING
 
 from ..plots.plot import fig_folder
 
@@ -187,7 +187,7 @@ class RingOptions:
             # tuple which size is the number of section as ((time, data), ).
             # and this if condition takes this into account
             if (n_sections == 1) and (len(input_data) > 1):
-                input_data = (input_data, )
+                input_data = (input_data,)
 
             if len(input_data) != n_sections:
                 # InputDataError
@@ -271,7 +271,7 @@ class RingOptions:
             for index_section in range(len(input_data)):
                 if len(input_data[index_section]) == 1:
                     output_data[index_section] = input_data[index_section] * \
-                        np.ones(n_turns + 1)
+                                                 np.ones(n_turns + 1)
 
                 elif len(input_data[index_section]) == (n_turns + 1):
                     output_data[index_section] = np.array(
@@ -318,7 +318,7 @@ class RingOptions:
                                "included in the passed time array.")
 
         # Obtain flat bottom data, extrapolate to constant
-        beta_0 = np.sqrt(1 / (1 + (mass / momentum[0])**2))
+        beta_0 = np.sqrt(1 / (1 + (mass / momentum[0]) ** 2))
         T0 = circumference / (beta_0 * c)  # Initial revolution period [s]
         shift = time[0] - self.flat_bottom * T0
         time_interp = shift + T0 * np.arange(0, self.flat_bottom + 1)
@@ -429,19 +429,18 @@ class RingOptions:
                               mass: float) -> Tuple[Iterable[float], ...]:
 
         time_interp.append(time_interp[-1]
-                            + circumference / (beta_interp[0] * c))
+                           + circumference / (beta_interp[0] * c))
 
         i = self.flat_bottom
         for k in range(1, len(time)):
 
             while time_interp[i + 1] <= time[k]:
-
                 momentum_interp.append(
                     momentum[k - 1] + (momentum[k] - momentum[k - 1]) *
                     (time_interp[i + 1] - time[k - 1]) /
                     (time[k] - time[k - 1]))
 
-                next_time, next_beta = self._next_time_beta(momentum_interp[i+1],
+                next_time, next_beta = self._next_time_beta(momentum_interp[i + 1],
                                                             mass, circumference)
                 beta_interp.append(next_beta)
                 time_interp.append(time_interp[i + 1] + next_time)
@@ -456,7 +455,7 @@ class RingOptions:
                              time: Iterable[float], momentum: Iterable[float],
                              mass: float, time_start_ramp: float,
                              time_end_ramp: float) -> Tuple[Iterable[float],
-                                                            ...]:
+    ...]:
 
         interp_funtion_momentum = splrep(
             time[(time >= time_start_ramp) * (time <= time_end_ramp)],
@@ -473,7 +472,7 @@ class RingOptions:
             if (time_interp[i + 1] < time_start_ramp):
 
                 momentum_interp.append(momentum[0])
-                next_time, next_beta = self._next_time_beta(momentum_interp[i+1],
+                next_time, next_beta = self._next_time_beta(momentum_interp[i + 1],
                                                             mass, circumference)
 
                 beta_interp.append(next_beta)
@@ -483,7 +482,7 @@ class RingOptions:
 
                 momentum_interp.append(momentum[-1])
 
-                next_time, next_beta = self._next_time_beta(momentum_interp[i+1],
+                next_time, next_beta = self._next_time_beta(momentum_interp[i + 1],
                                                             mass, circumference)
                 beta_interp.append(next_beta)
                 time_interp.append(time_interp[i + 1] + next_time)
@@ -492,7 +491,7 @@ class RingOptions:
 
                 momentum_interp.append(
                     splev(time_interp[i + 1], interp_funtion_momentum))
-                next_time, next_beta = self._next_time_beta(momentum_interp[i+1],
+                next_time, next_beta = self._next_time_beta(momentum_interp[i + 1],
                                                             mass, circumference)
                 beta_interp.append(next_beta)
                 time_interp.append(time_interp[i + 1] + next_time)
@@ -513,7 +512,7 @@ class RingOptions:
         momentum_derivative = np.gradient(momentum) / np.gradient(time)
 
         momentum_derivative_interp = [0] * self.flat_bottom + \
-            [momentum_derivative[0]]
+                                     [momentum_derivative[0]]
         integral_point = momentum_initial
 
         i = self.flat_bottom
@@ -522,15 +521,14 @@ class RingOptions:
             time_interp[-1] + circumference / (beta_interp[0] * c))
 
         while time_interp[i] <= time[-1]:
-
             derivative_point = np.interp(time_interp[i + 1], time,
-                                            momentum_derivative)
+                                         momentum_derivative)
             momentum_derivative_interp.append(derivative_point)
             integral_point += (time_interp[i + 1] - time_interp[i]) \
-                * derivative_point
+                              * derivative_point
 
             momentum_interp.append(integral_point)
-            next_time, next_beta = self._next_time_beta(momentum_interp[i+1],
+            next_time, next_beta = self._next_time_beta(momentum_interp[i + 1],
                                                         mass, circumference)
             beta_interp.append(next_beta)
             time_interp.append(time_interp[i + 1] + next_time)
@@ -556,7 +554,6 @@ class RingOptions:
                              momentum: Iterable[float],
                              mass: float) -> Tuple[Iterable[float], ...]:
 
-
         interp_func = Akima1DInterpolator(time, momentum)
 
         i = self.flat_bottom
@@ -565,9 +562,8 @@ class RingOptions:
             time_interp[-1] + circumference / (beta_interp[0] * c))
 
         while time_interp[i] <= time[-1]:
-
             momentum_interp.append(interp_func(time_interp[i + 1]))
-            next_time, next_beta = self._next_time_beta(momentum_interp[i+1],
+            next_time, next_beta = self._next_time_beta(momentum_interp[i + 1],
                                                         mass, circumference)
             beta_interp.append(next_beta)
             time_interp.append(time_interp[i + 1] + next_time)
@@ -576,13 +572,12 @@ class RingOptions:
 
         return time_interp, momentum_interp, beta_interp
 
-
     def _next_time_beta(self, next_momentum: float, mass: float,
                         circumference: float):
 
-        beta = np.sqrt(1 / (1 + (mass / next_momentum)**2))
+        beta = np.sqrt(1 / (1 + (mass / next_momentum) ** 2))
 
-        time = circumference / (beta*c)
+        time = circumference / (beta * c)
 
         return time, beta
 
@@ -618,9 +613,9 @@ def convert_data(synchronous_data, mass, charge,
     if synchronous_data_type == 'momentum':
         momentum = synchronous_data
     elif synchronous_data_type == 'total energy':
-        momentum = np.sqrt(synchronous_data**2 - mass**2)
+        momentum = np.sqrt(synchronous_data ** 2 - mass ** 2)
     elif synchronous_data_type == 'kinetic energy':
-        momentum = np.sqrt((synchronous_data + mass)**2 - mass**2)
+        momentum = np.sqrt((synchronous_data + mass) ** 2 - mass ** 2)
     elif synchronous_data_type == 'bending field':
         if bending_radius is None:
             # InputDataError

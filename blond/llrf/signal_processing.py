@@ -14,20 +14,19 @@
 '''
 
 from __future__ import annotations
-from typing import TYPE_CHECKING
-
-import numpy
-from scipy.special import comb
-from blond.llrf.impulse_response import TravellingWaveCavity
 
 # Set up logging
 import logging
+from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 import numpy as np
 import numpy.linalg as npla
 from scipy import signal as sgn
 from scipy.constants import e
+from scipy.special import comb
+
+from blond.llrf.impulse_response import TravellingWaveCavity
 
 if TYPE_CHECKING:
     from blond.beam.profile import Profile
@@ -94,7 +93,7 @@ def get_power_gen_i(I_gen_per_cav, Z_0):
         Absolute value of the generator power
 
     """
-    return 0.5 * Z_0 * np.abs(I_gen_per_cav)**2
+    return 0.5 * Z_0 * np.abs(I_gen_per_cav) ** 2
 
 
 def modulator(signal, omega_i, omega_f, T_sampling, phi_0=0, dt=0):
@@ -127,8 +126,8 @@ def modulator(signal, omega_i, omega_f, T_sampling, phi_0=0, dt=0):
     # Pre compute sine and cosine for speed up
     cs = np.cos(delta_phi + phi_0)
     sn = np.sin(delta_phi + phi_0)
-    I_new = cs*signal.real - sn*signal.imag
-    Q_new = sn*signal.real + cs*signal.imag
+    I_new = cs * signal.real - sn * signal.imag
+    Q_new = sn * signal.real + cs * signal.imag
 
     return I_new + 1j * Q_new
 
@@ -200,7 +199,7 @@ def rf_beam_current(Profile: Profile, omega_c: float, T_rev: float, lpf: bool = 
     # Convert from dimensionless to Coulomb/Ampères
     # Take into account macro-particle charge with real-to-macro-particle ratio
     charges = Profile.Beam.ratio * Profile.Beam.Particle.charge * e \
-         * np.copy(Profile.n_macroparticles)
+              * np.copy(Profile.n_macroparticles)
     logger.debug("Sum of particles: %d, total charge: %.4e C",
                  np.sum(Profile.n_macroparticles), np.sum(charges))
     logger.debug("DC current is %.4e A", np.sum(charges) / T_rev)
@@ -233,7 +232,7 @@ def rf_beam_current(Profile: Profile, omega_c: float, T_rev: float, lpf: bool = 
             raise RuntimeError('Downsampling input erroneous in rf_beam_current')
 
         # Find which index in fine grid matches index in coarse grid
-        ind_fine = np.round((Profile.bin_centers + dT - np.pi / omega_c)/T_s)
+        ind_fine = np.round((Profile.bin_centers + dT - np.pi / omega_c) / T_s)
         ind_fine = np.array(ind_fine, dtype=int)
         indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
 
@@ -280,7 +279,7 @@ def fir_filter_coefficients(n_taps, sampling_freq, cutoff_freq):
 
     """
 
-    fPass = cutoff_freq/sampling_freq
+    fPass = cutoff_freq / sampling_freq
 
     return sgn.firwin(n_taps, [fPass], pass_zero=True)
 
@@ -306,17 +305,17 @@ def fir_filter_lhc_otfb_coeff(n_taps=63):
     elif n_taps == 63:
 
         coeff = [-0.038636, -0.00687283, -0.00719296, -0.00733319, -0.00726159,
-            -0.00694037, -0.00634775, -0.00548098, -0.00432789, -0.00288188,
-            -0.0011339, 0.00090253, 0.00321323, 0.00577238, 0.00856464,
-            0.0115605, 0.0147307, 0.0180265, 0.0214057, 0.0248156, 0.0282116,
-            0.0315334, 0.0347311, 0.0377502, 0.0405575, 0.0431076, 0.0453585,
-            0.047243, 0.0487253, 0.049782, 0.0504816, 0.0507121, 0.0504816,
-            0.049782, 0.0487253, 0.047243, 0.0453585, 0.0431076, 0.0405575,
-            0.0377502, 0.0347311, 0.0315334, 0.0282116, 0.0248156, 0.0214057,
-            0.0180265, 0.0147307, 0.0115605, 0.00856464, 0.00577238, 0.00321323,
-            0.00090253, -0.0011339, -0.00288188, -0.00432789, -0.00548098,
-            -0.00634775, -0.00694037, -0.00726159, -0.00733319, -0.00719296,
-            -0.00687283, -0.038636]
+                 -0.00694037, -0.00634775, -0.00548098, -0.00432789, -0.00288188,
+                 -0.0011339, 0.00090253, 0.00321323, 0.00577238, 0.00856464,
+                 0.0115605, 0.0147307, 0.0180265, 0.0214057, 0.0248156, 0.0282116,
+                 0.0315334, 0.0347311, 0.0377502, 0.0405575, 0.0431076, 0.0453585,
+                 0.047243, 0.0487253, 0.049782, 0.0504816, 0.0507121, 0.0504816,
+                 0.049782, 0.0487253, 0.047243, 0.0453585, 0.0431076, 0.0405575,
+                 0.0377502, 0.0347311, 0.0315334, 0.0282116, 0.0248156, 0.0214057,
+                 0.0180265, 0.0147307, 0.0115605, 0.00856464, 0.00577238, 0.00321323,
+                 0.00090253, -0.0011339, -0.00288188, -0.00432789, -0.00548098,
+                 -0.00634775, -0.00694037, -0.00726159, -0.00733319, -0.00719296,
+                 -0.00687283, -0.038636]
     else:
         raise ValueError("In LHC FIR filter, number of taps has to be 15 or 63")
 
@@ -343,7 +342,7 @@ def fir_filter(coeff, signal):
     filtered_signal = np.zeros(len(signal) - n_taps)
     for i in range(n_taps, len(signal)):
         for k in range(n_taps):
-            filtered_signal[i-n_taps] += coeff[k] * signal[i - k]
+            filtered_signal[i - n_taps] += coeff[k] * signal[i - k]
 
     return filtered_signal
 
@@ -406,7 +405,6 @@ def moving_average(x, N, x_prev=None):
 
 
 def moving_average_improved(x, N, x_prev=None):
-
     if x_prev is not None:
         x = np.concatenate((x_prev, x))
 
@@ -416,7 +414,6 @@ def moving_average_improved(x, N, x_prev=None):
 
 
 def H_cav(x, n_sections, x_prev=None):
-
     if x_prev is not None:
         x = np.concatenate((x_prev, x))
 
@@ -525,9 +522,9 @@ def feedforward_filter(TWC: TravellingWaveCavity, T_s, taps=None,
             if t[i] < -tauf:
                 output[i] = 0
             elif t[i] < 0:
-                output[i] = (t[i]/tauf + 1)**2 / 2
+                output[i] = (t[i] / tauf + 1) ** 2 / 2
             elif t[i] < tauf:
-                output[i] = -1/2 * (t[i]/tauf)**2 + t[i]/tauf + 1/2
+                output[i] = -1 / 2 * (t[i] / tauf) ** 2 + t[i] / tauf + 1 / 2
             else:
                 output[i] = 1
         return output
@@ -539,9 +536,9 @@ def feedforward_filter(TWC: TravellingWaveCavity, T_s, taps=None,
             if t[i] < -tauf:
                 output[i] = 0
             elif t[i] < 0:
-                output[i] = -(t[i]/tauf + 1)**2 / 2
+                output[i] = -(t[i] / tauf + 1) ** 2 / 2
             elif t[i] < tauf:
-                output[i] = -1/2 * (t[i]/tauf)**2 + t[i]/tauf - 1/2
+                output[i] = -1 / 2 * (t[i] / tauf) ** 2 + t[i] / tauf - 1 / 2
             else:
                 output[i] = 0
         return output
@@ -661,13 +658,13 @@ feedforward_filter_TWC4 = np.array(
      -0.01050256])
 
 feedforward_filter_TWC5 = np.array(
-    [0.01802423, -0.01004643,  0.00069372,  0.00069372,  0.00069372, -0.01005897,
-     -0.01005897,  0.00069372,  0.00069372,  0.00069372,  0.0060638,  -0.00797153,
-     0.00104058,  0.00104058,  0.00104058,  0.00104058,  0.00104058,  0.00104058,
-     0.00104058,  0.00104058,  0.00104058,  0.00104058,  0.00104058,  0.00104058,
-     0.00104058,  0.00104058,  0.00104058,  0.00104058,  0.00104058,  0.00104058,
-     0.00104058,  0.0100527,  -0.00398263,  0.00138744,  0.00138744,  0.00138744,
-     0.01187999,  0.01031911, -0.00069372, -0.00069372, -0.00069372,  0.01004643,
+    [0.01802423, -0.01004643, 0.00069372, 0.00069372, 0.00069372, -0.01005897,
+     -0.01005897, 0.00069372, 0.00069372, 0.00069372, 0.0060638, -0.00797153,
+     0.00104058, 0.00104058, 0.00104058, 0.00104058, 0.00104058, 0.00104058,
+     0.00104058, 0.00104058, 0.00104058, 0.00104058, 0.00104058, 0.00104058,
+     0.00104058, 0.00104058, 0.00104058, 0.00104058, 0.00104058, 0.00104058,
+     0.00104058, 0.0100527, -0.00398263, 0.00138744, 0.00138744, 0.00138744,
+     0.01187999, 0.01031911, -0.00069372, -0.00069372, -0.00069372, 0.01004643,
      -0.01802423])
 
 

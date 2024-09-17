@@ -1,4 +1,3 @@
-
 # Copyright 2014-2017 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
 # copied verbatim in the file LICENCE.md.
@@ -262,7 +261,7 @@ class _InducedVoltage:
             # Wake length in s, rounded up to the next multiple of bin size
             self.wake_length = self.n_induced_voltage * self.profile.bin_size
         elif (self.frequency_resolution_input is not None
-                and self.wake_length_input is None):
+              and self.wake_length_input is None):
             self.n_induced_voltage = int(
                 np.ceil(1 / (self.profile.bin_size * self.frequency_resolution_input)))
             if self.n_induced_voltage < self.profile.n_slices:
@@ -273,7 +272,7 @@ class _InducedVoltage:
             self.wake_length = self.n_induced_voltage * self.profile.bin_size
             # Frequency resolution in Hz
         elif (self.wake_length_input is None
-                and self.frequency_resolution_input is None):
+              and self.frequency_resolution_input is None):
             # By default the wake_length is the slicing frame length
             self.wake_length = (self.profile.cut_right -
                                 self.profile.cut_left)
@@ -340,7 +339,8 @@ class _InducedVoltage:
         beam_spectrum = beam_spectrum_dict[self.n_fft]
 
         induced_voltage = - (self.beam.Particle.charge * e * self.beam.ratio
-                             * bm.irfft(self.total_impedance.astype(dtype=bm.precision.complex_t, order='C', copy=False) * beam_spectrum))
+                             * bm.irfft(
+                    self.total_impedance.astype(dtype=bm.precision.complex_t, order='C', copy=False) * beam_spectrum))
 
         self.induced_voltage = induced_voltage[:self.n_induced_voltage].astype(
             dtype=bm.precision.real_t, order='C', copy=False)
@@ -478,7 +478,7 @@ class InducedVoltageTime(_InducedVoltage):
                                       int(self.profile.n_slices) - 1)
         else:
             self.n_fft = int(self.n_induced_voltage) + \
-                int(self.profile.n_slices) - 1
+                         int(self.profile.n_slices) - 1
 
         # Frequency resolution in Hz
         self.frequency_resolution = 1 / (self.n_fft * self.profile.bin_size)
@@ -885,7 +885,7 @@ class InducedVoltageResonator(_InducedVoltage):
         self.n_resonators = len(self.R)
 
         # For internal use
-        self._Qtilde = self.Q * np.sqrt(1. - 1. / (4. * self.Q**2.))
+        self._Qtilde = self.Q * np.sqrt(1. - 1. / (4. * self.Q ** 2.))
         self._reOmegaP = self.omega_r * self._Qtilde / self.Q
         self._imOmegaP = self.omega_r / (2. * self.Q)
 
@@ -931,8 +931,8 @@ class InducedVoltageResonator(_InducedVoltage):
         # Compute the slopes of the line sections of the linearily interpolated
         # (normalized) line density.
         self._kappa1[:] = bm.diff(self.profile.n_macroparticles) \
-            / bm.diff(self.profile.bin_centers) \
-            / (self.beam.n_macroparticles * self.profile.bin_size)
+                          / bm.diff(self.profile.bin_centers) \
+                          / (self.beam.n_macroparticles * self.profile.bin_size)
         # [:] makes kappa pass by reference
 
         for t in range(self.n_time):
@@ -948,13 +948,13 @@ class InducedVoltageResonator(_InducedVoltage):
                        bm.sign(self._deltaT))
             # np.sum performs the sum over the points of the line density
             self._tmp_matrix[r] = self.R[r] / (2 * self.omega_r[r] * self.Q[r]) \
-                * bm.sum(self._kappa1 * np.diff(tmp_sum), axis=1)
+                                  * bm.sum(self._kappa1 * np.diff(tmp_sum), axis=1)
 
         # To obtain the voltage, sum the contribution of each cavity...
         self.induced_voltage = self._tmp_matrix.sum(axis=0)
         # ... and multiply with bunch charge
         self.induced_voltage *= -self.beam.Particle.charge * e \
-            * self.beam.n_macroparticles * self.beam.ratio
+                                * self.beam.n_macroparticles * self.beam.ratio
         self.induced_voltage = self.induced_voltage.astype(
             dtype=bm.precision.real_t, order='C', copy=False)
 

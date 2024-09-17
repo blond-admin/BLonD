@@ -118,10 +118,11 @@ class FullRingAndRF:
                                     np.sin(omega_rf.T * time_array + phi_offsets.T), axis=0)
 
         eom_factor_potential = np.sign(slippage_factor) * charge / \
-            (RingAndRFSectionElement.rf_params.t_rev[turn])
+                               (RingAndRFSectionElement.rf_params.t_rev[turn])
 
         potential_well = - cumtrapz(eom_factor_potential * (self.total_voltage -
-                                                            (- RingAndRFSectionElement.acceleration_kick[turn]) / abs(charge)),
+                                                            (- RingAndRFSectionElement.acceleration_kick[turn]) / abs(
+                    charge)),
                                     dx=time_array[1] - time_array[0], initial=0)
         potential_well = potential_well - np.min(potential_well)
 
@@ -319,8 +320,8 @@ class RingAndRFTracker:
             for ind, feedback in enumerate(self.cavityFB):
                 if feedback is not None:
                     self.rf_voltage += voltages[ind] * feedback.V_corr * \
-                                      bm.sin(omega_rf[ind] * self.profile.bin_centers +
-                                             phi_rf[ind] + feedback.phi_corr)
+                                       bm.sin(omega_rf[ind] * self.profile.bin_centers +
+                                              phi_rf[ind] + feedback.phi_corr)
                 else:
                     self.rf_voltage += bm.rf_volt_comp(voltages[ind:ind + 1], omega_rf[ind:ind + 1],
                                                        phi_rf[ind:ind + 1], self.profile.bin_centers)
@@ -366,9 +367,9 @@ class RingAndRFTracker:
         # Update the RF phase of all systems for the next turn
         # Accumulated phase offset due to beam phase loop or frequency offset
         self.rf_params.dphi_rf += 2. * np.pi * self.rf_params.harmonic[:, turn + 1] * \
-            (self.rf_params.omega_rf[:, turn + 1] -
-             self.rf_params.omega_rf_d[:, turn + 1]) / \
-            self.rf_params.omega_rf_d[:, turn + 1]
+                                  (self.rf_params.omega_rf[:, turn + 1] -
+                                   self.rf_params.omega_rf_d[:, turn + 1]) / \
+                                  self.rf_params.omega_rf_d[:, turn + 1]
 
         # Total phase offset
         self.rf_params.phi_rf[:, turn + 1] += self.rf_params.dphi_rf
@@ -436,7 +437,7 @@ class RingAndRFTracker:
                     self.rf_voltage_calculation()
                     if self.totalInducedVoltage is not None:
                         self.total_voltage = self.rf_voltage \
-                            + self.totalInducedVoltage.induced_voltage
+                                             + self.totalInducedVoltage.induced_voltage
                     else:
                         self.total_voltage = self.rf_voltage
 
@@ -479,7 +480,6 @@ class RingAndRFTracker:
             self.beamFB.to_gpu()
         if recursive and self.rf_params:
             self.rf_params.to_gpu()
-
 
         if hasattr(self, 'rf_voltage'):
             self.rf_voltage = self.rf_params.rf_voltage

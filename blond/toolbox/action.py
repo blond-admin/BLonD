@@ -1,4 +1,3 @@
-
 # Copyright 2016 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
 # copied verbatim in the file LICENCE.md.
@@ -23,13 +22,11 @@ from scipy.special import ellipe, ellipk
 
 
 def x(phimax):
-
     return np.sin(0.5 * phimax)
 
 
 def x2(phimax):
-
-    return np.sin(0.5 * phimax)**2
+    return np.sin(0.5 * phimax) ** 2
 
 
 def action_from_phase_amplitude(x2):
@@ -46,7 +43,6 @@ def action_from_phase_amplitude(x2):
                        (1. - x2[indices]) * ellipk(x2[indices]))
 
     if indices0:
-
         action[indices0] = np.float(ellipe(x2[indices0]))
 
     return action
@@ -117,11 +113,11 @@ def oscillation_amplitude_from_coordinates(Ring, RFStation, dt, dE,
     eta = RFStation.eta_0[0]
     T0 = Ring.t_rev[0]
     V = RFStation.voltage[0, 0]
-    beta_sq = RFStation.beta[0]**2
+    beta_sq = RFStation.beta[0] ** 2
     E = RFStation.energy[0]
     const = eta * T0 * omega_rf / (2. * V * beta_sq * E)
 
-    dtmax = np.fabs(np.arccos(np.cos(omega_rf * dt + phi_rf) + const * dE**2)
+    dtmax = np.fabs(np.arccos(np.cos(omega_rf * dt + phi_rf) + const * dE ** 2)
                     - phi_rf - phi_s) / omega_rf
 
     if Np_histogram is not None:
@@ -157,7 +153,6 @@ def action_from_oscillation_amplitude(RFStation, dtmax, timestep=0,
     action[indices] = (ellipe(xx[indices]) -
                        (1. - xx[indices]) * ellipk(xx[indices]))
     if indices0:
-
         action[indices0] = np.float(ellipe(xx[indices0]))
 
     if Np_histogram is not None:

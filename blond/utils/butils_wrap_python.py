@@ -45,6 +45,8 @@ def rf_volt_comp(voltages: np.ndarray, omega_rf: np.ndarray, phi_rf: np.ndarray,
             omega_rf[j] * bin_centers + phi_rf[j])
 
     return rf_voltage
+
+
 # ---------------------------------------------------
 
 
@@ -75,11 +77,11 @@ def drift(dt: np.ndarray, dE: np.ndarray, solver: str, t_rev: float,
             dt += T * (1. / (1. - eta0 * dE) - 1.)
         elif alpha_order == 1:
             dt += T * (1. / (1. - eta0 * dE
-                                - eta1 * dE * dE) - 1.)
+                             - eta1 * dE * dE) - 1.)
         else:
             dt += T * (1. / (1. - eta0 * dE
-                                - eta1 * dE * dE
-                                - eta2 * dE * dE * dE) - 1.)
+                             - eta1 * dE * dE
+                             - eta2 * dE * dE * dE) - 1.)
 
     else:
         invbetasq = 1 / (beta * beta)
@@ -90,16 +92,18 @@ def drift(dt: np.ndarray, dE: np.ndarray, solver: str, t_rev: float,
                              (dE * dE * invenesq + 2. * dE / energy)) - 1.
 
         dt += T * (
-            (1. + alpha_0 * beam_delta +
-             alpha_1 * (beam_delta * beam_delta) +
-             alpha_2 * (beam_delta * beam_delta * beam_delta)) *
-            (1. + dE / energy) / (1. + beam_delta) - 1.)
+                (1. + alpha_0 * beam_delta +
+                 alpha_1 * (beam_delta * beam_delta) +
+                 alpha_2 * (beam_delta * beam_delta * beam_delta)) *
+                (1. + dE / energy) / (1. + beam_delta) - 1.)
+
+
 # ---------------------------------------------------
 
 
 # --------------- Similar to histogram.cpp -----------------
 def slice_beam(dt: np.ndarray, profile: np.ndarray,
-          cut_left: float, cut_right: float) -> None:
+               cut_left: float, cut_right: float) -> None:
     """Slice the time coordinate of the beam.
 
     Args:
@@ -144,6 +148,8 @@ def slice_smooth(dt: np.ndarray, profile: np.ndarray,
             fffbin = int(fbin - 1)
         profile[ffbin] += (0.5 - distToCenter)
         profile[fffbin] += (0.5 + distToCenter)
+
+
 # ---------------------------------------------------
 
 
@@ -174,6 +180,8 @@ def linear_interp_kick(dt: np.ndarray, dE: np.ndarray, voltage: np.ndarray,
         # fbin = int(np.floor((dt[i]-bin_centers[0])*inv_bin_width))
         if (fbin[i] >= 0) and (fbin[i] < n_slices - 1):
             dE[i] += dt[i] * helper1[fbin[i]] + helper2[fbin[i]]
+
+
 # ---------------------------------------------------
 
 
@@ -222,6 +230,8 @@ def set_random_seed(seed: int) -> None:
     global RNG
     # Re-initialize the RNG with new seed
     RNG = np.random.default_rng(seed)
+
+
 # ---------------------------------------------------
 
 
@@ -267,7 +277,6 @@ def music_track(dt: np.ndarray, dE: np.ndarray, induced_voltage: np.ndarray,
     input_second_component = 0.0
 
     for i in range(len(dt) - 1):
-
         time_difference = dt[i + 1] - dt[i]
 
         exp_term = np.exp(-alpha * time_difference)
@@ -275,11 +284,11 @@ def music_track(dt: np.ndarray, dE: np.ndarray, induced_voltage: np.ndarray,
         sin_term = np.sin(omega_bar * time_difference)
 
         product_first_component = exp_term * \
-            ((cos_term + coeff1 * sin_term) * input_first_component
-                + coeff2 * sin_term * input_second_component)
+                                  ((cos_term + coeff1 * sin_term) * input_first_component
+                                   + coeff2 * sin_term * input_second_component)
         product_second_component = exp_term * \
-            (coeff3 * sin_term * input_first_component
-                + (cos_term + coeff4 * sin_term) * input_second_component)
+                                   (coeff3 * sin_term * input_first_component
+                                    + (cos_term + coeff4 * sin_term) * input_second_component)
 
         induced_voltage[i + 1] = const * (0.5 + product_first_component)
         dE[i + 1] += induced_voltage[i + 1]
@@ -322,13 +331,13 @@ def music_track_multiturn(dt: np.ndarray, dE: np.ndarray, induced_voltage: np.nd
     sin_term = np.sin(omega_bar * time_difference_0)
 
     product_first_component = exp_term * (
-        (cos_term + coeff1 * sin_term)
-        * array_parameters[0]
-        + coeff2 * sin_term * array_parameters[1])
+            (cos_term + coeff1 * sin_term)
+            * array_parameters[0]
+            + coeff2 * sin_term * array_parameters[1])
 
     product_second_component = exp_term * (
-        coeff3 * sin_term * array_parameters[0]
-        + (cos_term + coeff4 * sin_term) * array_parameters[1])
+            coeff3 * sin_term * array_parameters[0]
+            + (cos_term + coeff4 * sin_term) * array_parameters[1])
 
     induced_voltage[0] = const * (0.5 + product_first_component)
 
@@ -339,7 +348,6 @@ def music_track_multiturn(dt: np.ndarray, dE: np.ndarray, induced_voltage: np.nd
     # MuSiC algorithm for the current turn
 
     for i in range(len(dt) - 1):
-
         time_difference = dt[i + 1] - dt[i]
 
         exp_term = np.exp(-alpha * time_difference)
@@ -347,11 +355,11 @@ def music_track_multiturn(dt: np.ndarray, dE: np.ndarray, induced_voltage: np.nd
         sin_term = np.sin(omega_bar * time_difference)
 
         product_first_component = exp_term * \
-            ((cos_term + coeff1 * sin_term) * input_first_component
-                + coeff2 * sin_term * input_second_component)
+                                  ((cos_term + coeff1 * sin_term) * input_first_component
+                                   + coeff2 * sin_term * input_second_component)
         product_second_component = exp_term * \
-            (coeff3 * sin_term * input_first_component
-                + (cos_term + coeff4 * sin_term) * input_second_component)
+                                   (coeff3 * sin_term * input_first_component
+                                    + (cos_term + coeff4 * sin_term) * input_second_component)
 
         induced_voltage[i + 1] = const * (0.5 + product_first_component)
         dE[i + 1] += induced_voltage[i + 1]
@@ -362,6 +370,8 @@ def music_track_multiturn(dt: np.ndarray, dE: np.ndarray, induced_voltage: np.nd
     array_parameters[0] = input_first_component
     array_parameters[1] = input_second_component
     array_parameters[3] = dt[-1]
+
+
 # ---------------------------------------------------
 
 
@@ -402,6 +412,8 @@ def fast_resonator(R_S: np.ndarray, Q: np.ndarray, frequency_array: np.ndarray,
                                                     frequency_R[i] / frequency_array[1:]))
 
     return impedance
+
+
 # ---------------------------------------------------
 
 
@@ -427,6 +439,8 @@ def beam_phase_fast(bin_centers: np.ndarray, profile: np.ndarray,
                       dx=bin_size)
 
     return scoeff / ccoeff
+
+
 # ---------------------------------------------------
 
 
@@ -455,6 +469,8 @@ def sparse_histogram(dt: np.ndarray, profile: np.ndarray,
         # Find the bin inside the corresponding bucket
         fbin = int((a - cut_left[i_bucket]) * inv_bin_width)
         profile[i_bucket, fbin] += 1.0
+
+
 # ---------------------------------------------------
 
 

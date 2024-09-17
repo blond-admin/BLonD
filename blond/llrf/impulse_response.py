@@ -27,15 +27,15 @@ logger = logging.getLogger(__name__)
 
 
 def cavity_response_sparse_matrix(
-    I_beam,
-    I_gen,
-    n_samples,
-    V_ant_init,
-    I_gen_init,
-    samples_per_rf,
-    R_over_Q,
-    Q_L,
-    detuning,
+        I_beam,
+        I_gen,
+        n_samples,
+        V_ant_init,
+        I_gen_init,
+        samples_per_rf,
+        R_over_Q,
+        Q_L,
+        detuning,
 ):
     """Solving the ACS cavity response model as a sparse matrix problem
     for a given set of initial conditions, resonator parameters and
@@ -138,10 +138,10 @@ def rectangle(t, tau):
     y = np.zeros(len(t))
     y[llimit[0]] = 0.5
     if len(ulimit) == 1:
-        y[llimit[0] + 1 : ulimit[0]] = np.ones(ulimit[0] - llimit[0] - 1)
+        y[llimit[0] + 1: ulimit[0]] = np.ones(ulimit[0] - llimit[0] - 1)
         y[ulimit[0]] = 0.5
     else:
-        y[llimit[0] + 1 :] = 1
+        y[llimit[0] + 1:] = 1
 
     return y
 
@@ -181,7 +181,7 @@ def triangle(t, tau):
         )
     y = np.zeros(len(t))
     y[llimit[0]] = 0.5
-    y[llimit[0] + 1 :] = 1 - t[llimit[0] + 1 :] / tau
+    y[llimit[0] + 1:] = 1 - t[llimit[0] + 1:] / tau
     y[np.where(y < 0)[0]] = 0
 
     return y
@@ -288,13 +288,13 @@ class TravellingWaveCavity:
     """
 
     def __init__(
-        self,
-        l_cell: float,
-        N_cells: int,
-        rho: float,
-        v_g: float,
-        omega_r: float,
-        df: float = 0,
+            self,
+            l_cell: float,
+            N_cells: int,
+            rho: float,
+            v_g: float,
+            omega_r: float,
+            df: float = 0,
     ):
         self.l_cell = float(l_cell)
         self.N_cells = int(N_cells)
@@ -317,7 +317,7 @@ class TravellingWaveCavity:
         # Assumed impedance for measurement of generator current
         self.Z_0 = 50
         # Shunt impedances towards beam and generator
-        self.R_beam = 0.125 * self.rho * self.l_cav**2
+        self.R_beam = 0.125 * self.rho * self.l_cav ** 2
         self.R_gen = self.l_cav * np.sqrt(0.5 * self.rho * self.Z_0)
 
         # Set up logging
@@ -367,17 +367,17 @@ class TravellingWaveCavity:
 
         # Impulse response if on carrier frequency
         self.h_gen = (
-            self.R_gen / self.tau * rectangle(t_gen - 0.5 * self.tau, self.tau)
+                self.R_gen / self.tau * rectangle(t_gen - 0.5 * self.tau, self.tau)
         ).astype(np.complex128)
 
         # Impulse response if not on carrier frequency
         if np.fabs((self.d_omega) / self.omega_r) > 1e-12:
             self.h_gen = self.h_gen.real * (
-                np.cos(self.d_omega * t_gen) - 1j * np.sin(self.d_omega * t_gen)
+                    np.cos(self.d_omega * t_gen) - 1j * np.sin(self.d_omega * t_gen)
             )
 
     def impulse_response_beam(
-        self, omega_c: float, time_fine: float, time_coarse: float = None
+            self, omega_c: float, time_fine: float, time_coarse: float = None
     ):
         r"""Impulse response from the cavity towards the beam. For a signal
         that is I,Q demodulated at a given carrier
@@ -428,7 +428,7 @@ class TravellingWaveCavity:
         # Impulse response if not on carrier frequency
         if np.fabs((self.d_omega) / self.omega_r) > 1e-12:
             self.h_beam = self.h_beam.real * (
-                np.cos(self.d_omega * t_beam) - 1j * np.sin(self.d_omega * t_beam)
+                    np.cos(self.d_omega * t_beam) - 1j * np.sin(self.d_omega * t_beam)
             )
 
         if time_coarse is not None:
@@ -437,13 +437,13 @@ class TravellingWaveCavity:
 
             # Impulse response if on carrier frequency
             self.h_beam_coarse = (
-                -2 * self.R_beam / self.tau * triangle(t_beam, self.tau)
+                    -2 * self.R_beam / self.tau * triangle(t_beam, self.tau)
             ).astype(np.complex128)
 
             # Impulse response if not on carrier frequency
             if np.fabs((self.d_omega) / self.omega_r) > 1e-12:
                 self.h_beam_coarse = self.h_beam_coarse.real * (
-                    np.cos(self.d_omega * t_beam) - 1j * np.sin(self.d_omega * t_beam)
+                        np.cos(self.d_omega * t_beam) - 1j * np.sin(self.d_omega * t_beam)
                 )
 
     def compute_wakes(self, time: float):

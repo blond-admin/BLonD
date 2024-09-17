@@ -40,19 +40,19 @@ def main():
     parser.add_argument('-p', '--parallel',
                         default=False, action='store_true',
                         help='Produce Multi-threaded code. Use the environment'
-                        ' variable OMP_NUM_THREADS=xx to control the number of'
-                        ' threads that will be used.'
-                        ' Default: Serial code')
+                             ' variable OMP_NUM_THREADS=xx to control the number of'
+                             ' threads that will be used.'
+                             ' Default: Serial code')
 
     parser.add_argument('-b', '--boost', type=str, nargs='?', const='',
                         help='Use boost library to speedup synchrotron radiation'
-                        ' routines. If the installation path of boost differs'
-                        ' from the default, you have to pass it as an argument.'
-                        ' Default: Boost will not be used')
+                             ' routines. If the installation path of boost differs'
+                             ' from the default, you have to pass it as an argument.'
+                             ' Default: Boost will not be used')
 
     parser.add_argument('-c', '--compiler', type=str, default='g++',
                         help='C++ compiler that will be used to compile the'
-                        ' source files. Default: g++')
+                             ' source files. Default: g++')
 
     parser.add_argument('--with-fftw', action='store_true',
                         help='Use the FFTs from FFTW3.')
@@ -86,7 +86,7 @@ def main():
 
     parser.add_argument('-gpu', '--gpu', nargs='?', const='discover', default=None,
                         help='Compile the GPU kernels too.'
-                        'Default: Only compile the C++ library.')
+                             'Default: Only compile the C++ library.')
 
     parser.add_argument('-cuda-libname', '--cuda-libname', type=str, default=os.path.join(basepath, 'gpu/kernels'),
                         help='The CUDA library name, without the file extension.')
@@ -151,8 +151,8 @@ def main():
 def compile_cpp_library(args, cflags, float_flags, libs, cpp_files):
     # Check if we need to compile with FFTW
     with_fftw = args['with_fftw'] or args['with_fftw_threads'] or args['with_fftw_omp'] or \
-        (args['with_fftw_lib'] is not None) or (args['with_fftw_header'] is not None)
-    
+                (args['with_fftw_lib'] is not None) or (args['with_fftw_header'] is not None)
+
     # Get boost path
     boost_path = None
     if args['boost'] is not None:
@@ -248,7 +248,6 @@ def compile_cpp_library(args, cflags, float_flags, libs, cpp_files):
             'YOU ARE NOT USING A WINDOWS OR LINUX OPERATING SYSTEM. ABORTING...')
         sys.exit(-1)
 
-
     # Report the compilation options
     print('Enable Multi-threaded code: ', args['parallel'])
     print('Use boost: ', args['boost'] is not None)
@@ -271,7 +270,7 @@ def compile_cpp_library(args, cflags, float_flags, libs, cpp_files):
     print('Extra libraries: ', ' '.join(libs))
 
     command = [compiler] + cflags + float_flags + \
-        cpp_files + libs + ['-o', libname_single]
+              cpp_files + libs + ['-o', libname_single]
     print('\nCompiling the single-precision (32-bit) C++ library')
     ret = run_compile(command, libname_single)
     if ret != 0:
@@ -326,13 +325,12 @@ def compile_cuda_library(args, nvccflags, float_flags, cuda_files, nvcc):
 
     # Add the -arch required argument
     nvccflags += ['-arch', f'sm_{comp_capability}']
-    
+
     # Get the CuPy header files location
     path = cp.__file__.split('/')[:-1]  # remove __init__.py from path
     path.extend(['_core', 'include'])
     cupyloc = os.path.join('/'.join(path))
 
-    
     print('CUDA Compiler: ', nvcc)
     compiler_version = subprocess.run([nvcc, '--version'],
                                       capture_output=True,
@@ -341,13 +339,12 @@ def compile_cuda_library(args, nvccflags, float_flags, cuda_files, nvcc):
     print('Compiler flags: ', ' '.join(nvccflags))
     print('CuPy location: ', cupyloc)
 
-    
     libname_double = args['cuda_libname'] + f'_sm_{comp_capability}_double.cubin'
     libname_single = args['cuda_libname'] + f'_sm_{comp_capability}_single.cubin'
 
     command = [nvcc] + nvccflags + \
-        ['-o', libname_single, '-I' + cupyloc] + float_flags + cuda_files
-    
+              ['-o', libname_single, '-I' + cupyloc] + float_flags + cuda_files
+
     print('\nCompiling the single-precision (32-bit) CUDA library')
     ret = run_compile(command, libname_single)
     if ret != 0:
@@ -356,7 +353,7 @@ def compile_cuda_library(args, nvccflags, float_flags, cuda_files, nvcc):
         print('Compiled successfully.')
 
     command = [nvcc] + nvccflags + \
-        ['-o', libname_double, '-I' + cupyloc] + cuda_files
+              ['-o', libname_double, '-I' + cupyloc] + cuda_files
     print('\nCompiling the double-precision (64-bit) CUDA library')
     ret = run_compile(command, libname_double)
     if ret != 0:

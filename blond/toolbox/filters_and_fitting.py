@@ -121,7 +121,7 @@ def gauss(x, *p):
     """
 
     A, x0, sx = p
-    return A * np.exp(-(x - x0)**2 / 2. / sx**2)
+    return A * np.exp(-(x - x0) ** 2 / 2. / sx ** 2)
 
 
 def rms(Y_array, X_array):
@@ -137,7 +137,7 @@ def rms(Y_array, X_array):
     bp_rms = np.trapz(X_array * lineDenNormalized, dx=timeResolution)
 
     bl_rms = 4 * np.sqrt(
-        np.trapz((X_array - bp_rms)**2 * lineDenNormalized, dx=timeResolution))
+        np.trapz((X_array - bp_rms) ** 2 * lineDenNormalized, dx=timeResolution))
 
     return bp_rms, bl_rms
 
@@ -158,11 +158,11 @@ def fwhm(Y_array, X_array, shift=0):
     bin_size = X_array[1] - X_array[0]
     try:
         t_left = X_array[t1] - bin_size * \
-            (Y_array[t1] - half_max) / \
-            (Y_array[t1] - Y_array[t1 - 1])
+                 (Y_array[t1] - half_max) / \
+                 (Y_array[t1] - Y_array[t1 - 1])
         t_right = X_array[t2] + bin_size * \
-            (Y_array[t2] - half_max) / \
-            (Y_array[t2] - Y_array[t2 + 1])
+                  (Y_array[t2] - half_max) / \
+                  (Y_array[t2] - Y_array[t2 + 1])
 
         bl_fwhm = 4 * (t_right - t_left) / (2 * np.sqrt(2 * np.log(2)))
         bp_fwhm = (t_left + t_right) / 2
@@ -188,11 +188,10 @@ def fwhm_multibunch(Y_array, X_array, n_bunches,
         X_array = X_array.get()
         Y_array = Y_array.get()
     for indexBunch in range(0, n_bunches):
-
-        left_edge = indexBunch * bunch_spacing_buckets * bucket_size_tau -\
-            bucket_tolerance * bucket_size_tau
-        right_edge = indexBunch * bunch_spacing_buckets * bucket_size_tau +\
-            bucket_size_tau + bucket_tolerance * bucket_size_tau
+        left_edge = indexBunch * bunch_spacing_buckets * bucket_size_tau - \
+                    bucket_tolerance * bucket_size_tau
+        right_edge = indexBunch * bunch_spacing_buckets * bucket_size_tau + \
+                     bucket_size_tau + bucket_tolerance * bucket_size_tau
         indexes_bucket = np.where((X_array > left_edge) *
                                   (X_array < right_edge))[0]
 
@@ -217,10 +216,10 @@ def rms_multibunch(Y_array, X_array, n_bunches,
         Y_array = Y_array.get()
 
     for indexBunch in range(0, n_bunches):
-        left_edge = indexBunch * bunch_spacing_buckets * bucket_size_tau -\
-            bucket_tolerance * bucket_size_tau
-        right_edge = indexBunch * bunch_spacing_buckets * bucket_size_tau +\
-            bucket_size_tau + bucket_tolerance * bucket_size_tau
+        left_edge = indexBunch * bunch_spacing_buckets * bucket_size_tau - \
+                    bucket_tolerance * bucket_size_tau
+        right_edge = indexBunch * bunch_spacing_buckets * bucket_size_tau + \
+                     bucket_size_tau + bucket_tolerance * bucket_size_tau
 
         indexes_bucket = np.where((X_array > left_edge) *
                                   (X_array < right_edge))[0]

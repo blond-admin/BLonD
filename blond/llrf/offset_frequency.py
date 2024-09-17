@@ -81,8 +81,8 @@ class _FrequencyOffset:
 
         delta_phi = (2 * np.pi * self.rf_station.harmonic[:, :self.end_turn]
                      * (self.rf_station.harmonic[:, :self.end_turn]
-                         * self.new_frequency
-                         - self.design_frequency)
+                        * self.new_frequency
+                        - self.design_frequency)
                      / self.design_frequency)
         self.phase_slippage = np.cumsum(delta_phi, axis=1)
 
@@ -106,7 +106,7 @@ class _FrequencyOffset:
             for system in self.system:
                 self.rf_station.omega_rf[system, :self.end_turn] \
                     = (self.rf_station.harmonic[system, :self.end_turn]
-                        * self.new_frequency)
+                       * self.new_frequency)
                 self.rf_station.phi_rf[system, :self.end_turn] \
                     += self.phase_slippage[system]
                 self.rf_station.phi_rf[system, self.end_turn:] \
@@ -121,7 +121,6 @@ class FixedFrequency(_FrequencyOffset):
 
     def __init__(self, Ring, RFStation, FixedFrequency, FixedDuration,
                  TransitionDuration, transition=1):
-
         _FrequencyOffset.__init__(self, Ring, RFStation)
 
         #: | *Set value of fixed frequency*
@@ -146,7 +145,6 @@ class FixedFrequency(_FrequencyOffset):
         self.compute()
 
     def compute(self):
-
         self.calculate_frequency_prog()
         self.set_frequency(self.frequency_prog)
         self.calculate_phase_slip()
@@ -161,26 +159,25 @@ class FixedFrequency(_FrequencyOffset):
         transition_frequency_prog = np.linspace(float(self.fixed_frequency),
                                                 float(self.end_frequency),
                                                 (self.end_transition_turn
-                                                - self.end_fixed_turn))
+                                                 - self.end_fixed_turn))
 
         self.frequency_prog = np.concatenate((fixed_frequency_prog,
-                                             transition_frequency_prog))
+                                              transition_frequency_prog))
 
     def transition_1(self):
-
         t1 = (self.ring.cycle_time[self.end_transition_turn]
               - self.ring.cycle_time[self.end_fixed_turn])
         f1 = self.end_frequency
         f1Prime = (np.gradient(self.rf_station.omega_rf_d[0])
                    / np.gradient(self.ring.cycle_time))[self.end_transition_turn]
 
-        constA = (t1 * f1Prime - 2 * (f1 - self.fixed_frequency)) / t1**3
-        constB = - (t1 * f1Prime - 3 * (f1 - self.fixed_frequency)) / t1**2
+        constA = (t1 * f1Prime - 2 * (f1 - self.fixed_frequency)) / t1 ** 3
+        constB = - (t1 * f1Prime - 3 * (f1 - self.fixed_frequency)) / t1 ** 2
 
         transTime = (self.ring.cycle_time[self.end_fixed_turn:self.end_transition_turn]
                      - self.ring.cycle_time[self.end_fixed_turn])
 
-        transition_freq = (constA * transTime**3 + constB * transTime**2
+        transition_freq = (constA * transTime ** 3 + constB * transTime ** 2
                            + self.fixed_frequency)
 
         self.frequency_prog = np.concatenate((np.ones(self.end_fixed_turn)

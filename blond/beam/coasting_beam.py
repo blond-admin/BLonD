@@ -1,4 +1,3 @@
-
 # Copyright 2016 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
 # copied verbatim in the file LICENCE.md.
@@ -19,7 +18,6 @@ import numpy as np
 import numpy.random as rand
 
 import blond.utils.exceptions as blExcept
-
 
 
 def generate_coasting_beam(beam, t_start, t_stop, spread=1E-3,
@@ -58,11 +56,11 @@ def generate_coasting_beam(beam, t_start, t_stop, spread=1E-3,
     :raises blExcept.DistributionError: _description_
     '''
     if spread_type == 'dp/p':
-        energy_spread = beam.energy * beam.beta**2 * spread
+        energy_spread = beam.energy * beam.beta ** 2 * spread
     elif spread_type == 'dE/E':
         energy_spread = spread * beam.energy
     elif spread_type == 'dp':
-        energy_spread = beam.energy * beam.beta**2 * spread / beam.momentum
+        energy_spread = beam.energy * beam.beta ** 2 * spread / beam.momentum
     elif spread_type == 'dE':
         energy_spread = spread
     else:
@@ -75,13 +73,13 @@ def generate_coasting_beam(beam, t_start, t_stop, spread=1E-3,
 
     elif distribution == 'parabolic':
         energy_range = np.linspace(-energy_spread, energy_spread, 10000)
-        probability_distribution = 1 - (energy_range / energy_spread)**2
+        probability_distribution = 1 - (energy_range / energy_spread) ** 2
         probability_distribution /= np.cumsum(probability_distribution)[-1]
         beam.dE = rand.choice(energy_range, size=beam.n_macroparticles,
                               p=probability_distribution) \
-            + (rand.rand(beam.n_macroparticles) - 0.5) \
-            * (energy_range[1] - energy_range[0]) \
-            + energy_offset
+                  + (rand.rand(beam.n_macroparticles) - 0.5) \
+                  * (energy_range[1] - energy_range[0]) \
+                  + energy_offset
 
     # If distribution == 'user' is selected the user must supply a uniformly
     # spaced distribution and the assosciated probability for each bin
@@ -94,8 +92,8 @@ def generate_coasting_beam(beam, t_start, t_stop, spread=1E-3,
 
         beam.dE = rand.choice(user_distribution, size=beam.n_macroparticles,
                               p=user_probability) \
-            + (rand.rand(beam.n_macroparticles) - 0.5) \
-            * (user_distribution[1] - user_distribution[0])
+                  + (rand.rand(beam.n_macroparticles) - 0.5) \
+                  * (user_distribution[1] - user_distribution[0])
 
     else:
         raise blExcept.DistributionError("distribution type not recognised")

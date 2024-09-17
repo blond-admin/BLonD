@@ -1,4 +1,3 @@
-
 # Copyright 2016 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
 # copied verbatim in the file LICENCE.md.
@@ -13,14 +12,14 @@
 :Authors: **Danilo Quartullo**, **Helga Timko**
 '''
 
+import os
 
 import h5py as hp
 import numpy as np
-import os
+
 
 class BunchMonitor:
-
-    ''' Class able to save bunch data into h5 file. Use 'buffer_time' to select 
+    ''' Class able to save bunch data into h5 file. Use 'buffer_time' to select
         the frequency of saving to file in number of turns.
         If in the constructor a Profile object is passed, that means that one
         wants to save the gaussian-fit bunch length as well (obviously the 
@@ -114,14 +113,12 @@ class BunchMonitor:
         h5group["epsn_rms_l"][0] = self.beam.epsn_rms_l
 
         if self.fit_option:
-
             h5group.create_dataset("bunch_length", shape=dims,
                                    dtype='f',
                                    compression="gzip", compression_opts=9)
             h5group["bunch_length"][0] = self.profile.bunchLength
 
         if self.PL:
-
             h5group.create_dataset("PL_omegaRF", shape=dims,
                                    dtype=np.float64,
                                    compression="gzip", compression_opts=9)
@@ -170,14 +167,13 @@ class BunchMonitor:
             h5group["LHC_noise_FB_bl"][0] = self.LHCNoiseFB.bl_meas
 
             if self.LHCNoiseFB.bl_meas_bbb is not None:
-
                 h5group.create_dataset("LHC_noise_FB_bl_bbb",
                                        shape=(self.n_turns + 1,
                                               len(self.LHCNoiseFB.bl_meas_bbb)),
                                        dtype='f', compression="gzip",
                                        compression_opts=9)
                 h5group["LHC_noise_FB_bl_bbb"][0,
-                                               :] = self.LHCNoiseFB.bl_meas_bbb[:]
+                :] = self.LHCNoiseFB.bl_meas_bbb[:]
 
         # Close file
         self.close()
@@ -195,11 +191,9 @@ class BunchMonitor:
         self.b_epsn_rms = np.zeros(self.buffer_time)
 
         if self.fit_option:
-
             self.b_bl = np.zeros(self.buffer_time)
 
         if self.PL:
-
             self.b_PL_omegaRF = np.zeros(self.buffer_time)
             self.b_PL_phiRF = np.zeros(self.buffer_time)
             self.b_PL_bunch_phase = np.zeros(self.buffer_time)
@@ -228,11 +222,9 @@ class BunchMonitor:
         self.b_epsn_rms[i] = self.beam.epsn_rms_l
 
         if self.fit_option:
-
             self.b_bl[i] = self.profile.bunchLength
 
         if self.PL:
-
             self.b_PL_omegaRF[i] = self.rf_params.omega_rf[0, self.i_turn]
             self.b_PL_phiRF[i] = self.rf_params.phi_rf[0, self.i_turn]
             self.b_PL_bunch_phase[i] = self.PL.phi_beam
@@ -273,13 +265,11 @@ class BunchMonitor:
         h5group["epsn_rms_l"][i1:i2] = self.b_epsn_rms[:]
 
         if self.fit_option:
-
             h5group.require_dataset("bunch_length", shape=dims,
                                     dtype='f')
             h5group["bunch_length"][i1:i2] = self.b_bl[:]
 
         if self.PL:
-
             h5group.require_dataset("PL_omegaRF", shape=dims,
                                     dtype=np.float64)
             h5group["PL_omegaRF"][i1:i2] = self.b_PL_omegaRF[:]
@@ -323,7 +313,7 @@ class BunchMonitor:
                                                                       len(self.LHCNoiseFB.bl_meas_bbb)),
                                         dtype='f')
                 h5group["LHC_noise_FB_bl_bbb"][i1:i2,
-                                               :] = self.b_LHCnoiseFB_bl_bbb[:, :]
+                :] = self.b_LHCnoiseFB_bl_bbb[:, :]
 
     def open(self):
         self.h5file = hp.File(self.filename + '.h5', 'r+')
@@ -334,7 +324,6 @@ class BunchMonitor:
 
 
 class SlicesMonitor:
-
     ''' Class able to save the bunch profile, i.e. the histogram derived from
         the slicing.
     '''
@@ -376,7 +365,6 @@ class SlicesMonitor:
 
 
 class MultiBunchMonitor:
-
     ''' Class able to save multi-bunch profile, i.e. the histogram derived from
         the slicing.
     '''
@@ -405,13 +393,13 @@ class MultiBunchMonitor:
             (self.buffer_size, self.profile.n_slices), dtype='int32')
 
         self.create_data(
-            'turns', self.h5file['default'], (self.n_turns, ), dtype='int32')
+            'turns', self.h5file['default'], (self.n_turns,), dtype='int32')
         self.b_turns = np.zeros(self.buffer_size, dtype='int32')
 
         self.create_data('losses', self.h5file['default'],
-                         (self.n_turns, ), dtype='int')
+                         (self.n_turns,), dtype='int')
         self.b_losses = np.zeros(
-            (self.buffer_size, ), dtype='int32')
+            (self.buffer_size,), dtype='int32')
 
         self.create_data('fwhm_bunch_position', self.h5file['default'],
                          (self.n_turns, self.Nbunches), dtype='float64')
@@ -502,12 +490,12 @@ class MultiBunchMonitor:
 
             if turn == 0:
                 self.b_dt_norm[idx] = self.rf.t_rev[0] * self.rf.eta_0[0] * \
-                    self.rf.voltage[0, 0] / \
-                    (self.rf.beta[0]**2 * self.rf.energy[0])
+                                      self.rf.voltage[0, 0] / \
+                                      (self.rf.beta[0] ** 2 * self.rf.energy[0])
             else:
                 self.b_dt_norm[idx] = self.rf.t_rev[turn] * self.rf.eta_0[turn] * \
-                    self.rf.voltage[0, turn - 1] / \
-                    (self.rf.beta[turn]**2 * self.rf.energy[turn])
+                                      self.rf.voltage[0, turn - 1] / \
+                                      (self.rf.beta[turn] ** 2 * self.rf.energy[turn])
 
     def write_data(self):
         i1_h5 = self.last_save

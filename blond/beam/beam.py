@@ -27,6 +27,7 @@ from ..utils import exceptions as blExcept
 
 m_mu = physical_constants['muon mass'][0]
 
+
 class Particle:
     r"""Class containing basic parameters, e.g. mass, of the particles to be tracked.
 
@@ -68,7 +69,7 @@ class Particle:
 
     """
 
-    def __init__(self, user_mass, user_charge, user_decay_rate = 0):
+    def __init__(self, user_mass, user_charge, user_decay_rate=0):
 
         if user_mass > 0.:
             self.mass = float(user_mass)
@@ -76,21 +77,20 @@ class Particle:
         else:
             # MassError
             raise RuntimeError('ERROR: Particle mass not recognized!')
-            
+
         if user_decay_rate >= 0.:
             self.decay_rate = float(user_decay_rate)
-            
+
         else:
             # MassError
             raise RuntimeError('ERROR: Invalide particle decay rate!')
-            
 
         # classical particle radius [m]
         self.radius_cl = 0.25 / (np.pi * epsilon_0) * \
-            e**2 * self.charge**2 / (self.mass * e)
+                         e ** 2 * self.charge ** 2 / (self.mass * e)
 
         # Sand's radiation constant [ m / eV^3]
-        self.c_gamma = 4 * np.pi / 3 * self.radius_cl / self.mass**3
+        self.c_gamma = 4 * np.pi / 3 * self.radius_cl / self.mass ** 3
 
         # Quantum radiation constant [m]
         self.c_q = (55.0 / (32.0 * np.sqrt(3.0)) * hbar * c / (self.mass * e))
@@ -101,8 +101,7 @@ class Proton(Particle):
     """
 
     def __init__(self):
-
-        Particle.__init__(self, m_p * c**2 / e, 1)
+        Particle.__init__(self, m_p * c ** 2 / e, 1)
 
 
 class Electron(Particle):
@@ -110,7 +109,7 @@ class Electron(Particle):
     """
 
     def __init__(self):
-        Particle.__init__(self, m_e * c**2 / e, -1)
+        Particle.__init__(self, m_e * c ** 2 / e, -1)
 
 
 class Positron(Particle):
@@ -118,23 +117,24 @@ class Positron(Particle):
     """
 
     def __init__(self):
-
-        Particle.__init__(self, m_e * c**2 / e, 1)
+        Particle.__init__(self, m_e * c ** 2 / e, 1)
 
 
 class MuPlus(Particle):
     """ Implements a muon+ `Particle`.
-    """ 
+    """
+
     def __init__(self):
-        Particle.__init__(self, m_mu * c**2 / e, 1, float(1/2.1969811e-6))
+        Particle.__init__(self, m_mu * c ** 2 / e, 1, float(1 / 2.1969811e-6))
 
 
 class MuMinus(Particle):
     """ Implements a muon- `Particle`.
-    """ 
-    def __init__(self):        
-        Particle.__init__(self, m_mu * c**2 / e, -1, float(1/2.1969811e-6))
-        
+    """
+
+    def __init__(self):
+        Particle.__init__(self, m_mu * c ** 2 / e, -1, float(1 / 2.1969811e-6))
+
 
 class Beam:
     r"""Class containing the beam properties.
@@ -392,7 +392,6 @@ class Beam:
             particle decay
         '''
         self.ratio *= np.exp(-time * self.Particle.decay_rate / (self.gamma))
-       
 
     def add_particles(self, new_particles):
         '''
@@ -575,14 +574,14 @@ class Beam:
             self.sigma_dt = np.sqrt(
                 self.sigma_dt / (self.n_total_macroparticles -
                                  self.n_total_macroparticles_lost)
-                - self.mean_dt**2)
+                - self.mean_dt ** 2)
 
             self.sigma_dE = WORKER.allreduce(
                 np.array([self._sumsq_dE]), operator='sum')[0]
             self.sigma_dE = np.sqrt(
                 self.sigma_dE / (self.n_total_macroparticles -
                                  self.n_total_macroparticles_lost)
-                - self.mean_dE**2)
+                - self.mean_dE ** 2)
 
         else:
             self.mean_dt = WORKER.reduce(
@@ -599,14 +598,14 @@ class Beam:
             self.sigma_dt = np.sqrt(
                 self.sigma_dt / (self.n_total_macroparticles -
                                  self.n_total_macroparticles_lost)
-                - self.mean_dt**2)
+                - self.mean_dt ** 2)
 
             self.sigma_dE = WORKER.reduce(
                 np.array([self._sumsq_dE]), operator='sum')[0]
             self.sigma_dE = np.sqrt(
                 self.sigma_dE / (self.n_total_macroparticles -
                                  self.n_total_macroparticles_lost)
-                - self.mean_dE**2)
+                - self.mean_dE ** 2)
 
     def gather_losses(self, all_gather=False):
         '''

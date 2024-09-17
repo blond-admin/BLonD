@@ -1,4 +1,3 @@
-
 # Copyright 2016 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
 # copied verbatim in the file LICENCE.md.
@@ -55,7 +54,7 @@ def phase_noise_diffusion(Ring, RFStation, spectrum, distribution,
     T0 = Ring.t_rev[0]
     omega_s0 = RFStation.omega_s0[0]
     h = RFStation.harmonic[0, 0]
-    Jsep = 8. * omega_s0 / (np.pi * h**2)  # Action at the separatrix
+    Jsep = 8. * omega_s0 / (np.pi * h ** 2)  # Action at the separatrix
 
     # Settings for plots
     plt.rc('axes', labelsize=16, labelweight='normal')
@@ -80,12 +79,12 @@ def phase_noise_diffusion(Ring, RFStation, spectrum, distribution,
     Wm = np.zeros((M, N + 1))
     for k in range(0, M):
         m = 2 * k + 1
-        Wm[k][:] = (np.pi * m / ellipk(xx))**4 / \
-                   (4. * np.cosh(0.5 * np.pi * m * ellipk(1 - xx) / ellipk(xx))**2)
+        Wm[k][:] = (np.pi * m / ellipk(xx)) ** 4 / \
+                   (4. * np.cosh(0.5 * np.pi * m * ellipk(1 - xx) / ellipk(xx)) ** 2)
 
     # Diffusion coefficient for stationary bucket, according to Ivanov
     # Twice the sum over positive frequencies for double-sided spectrum
-    D = (omega_s0 / h)**4 * np.sum(Wm * spectrum, axis=0)
+    D = (omega_s0 / h) ** 4 * np.sum(Wm * spectrum, axis=0)
     Dav = 0.5 * (D[1:] + D[:-1])  # Average on grid
 
     ax = plt.axes([0.15, 0.1, 0.8, 0.8])
@@ -144,7 +143,6 @@ def phase_noise_diffusion(Ring, RFStation, spectrum, distribution,
     Fold = F.T
 
     for i in range(0, iterations):
-
         Fnew = np.dot(Mtot, Fold)
         Fold = Fnew
 

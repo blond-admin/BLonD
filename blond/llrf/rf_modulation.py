@@ -1,4 +1,3 @@
-
 # Copyright 2015 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
 # copied verbatim in the file LICENCE.md.
@@ -58,9 +57,9 @@ class PhaseModulation:
         frequency *= multiplier
 
         self.dphi = amplitude \
-            * np.sin(2 * np.pi * (np.cumsum(frequency
-                                            * np.gradient(self.timebase))))\
-            + offset
+                    * np.sin(2 * np.pi * (np.cumsum(frequency
+                                                    * np.gradient(self.timebase)))) \
+                    + offset
 
     def calc_delta_omega(self, omegaProg):
 
@@ -73,7 +72,7 @@ class PhaseModulation:
         else:
             omega = self._interp_param(omegaProg)
             self.domega = np.gradient(self.dphi) * omega \
-                / (2 * np.pi * self.harmonic)
+                          / (2 * np.pi * self.harmonic)
 
     # Interpolate functions onto self.timebase
     def _interp_param(self, param):

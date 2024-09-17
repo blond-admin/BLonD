@@ -7,9 +7,9 @@ BLonD math and physics core functions
 
 import numpy as np
 
+from . import precision
 from ..utils import butils_wrap_cpp as _cpp
 from ..utils import butils_wrap_python as _py
-from . import precision
 
 
 def use_cpp():
@@ -85,7 +85,6 @@ def use_numba():
 
     from blond.utils import butils_wrap_numba as _nu
 
-
     # dictionary storing the Numba-only versions of the most compute intensive functions #
     nu_func_dict = {
         'rfft': np.fft.rfft,
@@ -116,7 +115,6 @@ def use_numba():
     for fname in dir(np):
         if callable(getattr(np, fname)) and (fname not in nu_func_dict) \
                 and (fname[0] != '_'):
-
             nu_func_dict[fname] = getattr(np, fname)
 
     # add basic numpy modules to dictionary as they are not callable
@@ -164,7 +162,6 @@ def use_py():
     for fname in dir(np):
         if callable(getattr(np, fname)) and (fname not in py_func_dict) \
                 and (fname[0] != '_'):
-
             py_func_dict[fname] = getattr(np, fname)
 
     # add basic numpy modules to dictionary as they are not callable
@@ -177,14 +174,13 @@ def use_py():
     # print('---------- Using the Python computational backend ----------')
 
 
-
 def use_cpu():
     '''
     If not library is found, use the python implementations
     '''
     # from .. import get_libblond
     if _cpp.get_libblond() is None:
-        try: # try to use numba
+        try:  # try to use numba
             use_numba()
         except ImportError as e:
             print(f"Error: {e}. Please install numba with 'pip install numba' to use the numba backend."
@@ -339,6 +335,7 @@ def report_backend():
     """
     global device
     print(f'---------- Using the {device} computational backend ----------')
+
 
 ###############################################################################
 # By default use the CPU backend (python-only or C++)

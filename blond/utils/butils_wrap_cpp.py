@@ -8,11 +8,11 @@ BLonD math wrapper functions
 import ctypes as ct
 import os
 import sys
+
 import numpy as np
 
 # from .. import get_libblond
 from . import c_complex64, c_complex128, c_real, precision
-
 
 __LIBBLOND = None
 
@@ -416,10 +416,10 @@ def interp_const_bin(x, xp, yp, left=None, right=None, result=None):
         result = np.empty(len(x), dtype=precision.real_t, order='C')
 
     get_libblond().interp_const_bin(__getPointer(x), __getLen(x),
-                                        __getPointer(xp),
-                                        __getPointer(yp), __getLen(xp),
-                                        c_real(left), c_real(right),
-                                        __getPointer(result))
+                                    __getPointer(xp),
+                                    __getPointer(yp), __getLen(xp),
+                                    c_real(left), c_real(right),
+                                    __getPointer(result))
 
     return result
 
@@ -427,13 +427,13 @@ def interp_const_bin(x, xp, yp, left=None, right=None, result=None):
 def random_normal(loc=0.0, scale=1.0, size=1, seed=1234):
     arr = np.empty(size, dtype=precision.real_t)
     get_libblond().random_normal(
-            __getPointer(arr),
-            ct.c_double(loc),
-            ct.c_double(scale),
-            # c_real(loc),
-            # c_real(scale),
-            __getLen(arr),
-            ct.c_ulong(seed))
+        __getPointer(arr),
+        ct.c_double(loc),
+        ct.c_double(scale),
+        # c_real(loc),
+        # c_real(scale),
+        __getLen(arr),
+        ct.c_ulong(seed))
 
     return arr
 
@@ -486,7 +486,6 @@ def rfftfreq(n, d=1.0, result=None):
 
 
 def irfft_packed(signal, fftsize=0, result=None):
-
     n0 = len(signal[0])
     howmany = len(signal)
 
@@ -571,7 +570,6 @@ def beam_phase_fast(bin_centers, profile, omegarf, phirf, bin_size):
 
 
 def rf_volt_comp(voltages, omega_rf, phi_rf, bin_centers):
-
     bin_centers = bin_centers.astype(
         dtype=precision.real_t, order='C', copy=False)
     voltages = voltages.astype(dtype=precision.real_t, order='C', copy=False)
@@ -596,7 +594,7 @@ def kick(dt, dE, voltage, omega_rf, phi_rf, charge, n_rf, acceleration_kick):
     assert isinstance(dE[0], precision.real_t)
 
     voltage_kick = charge * \
-        voltage.astype(dtype=precision.real_t, order='C', copy=False)
+                   voltage.astype(dtype=precision.real_t, order='C', copy=False)
     omegarf_kick = omega_rf.astype(
         dtype=precision.real_t, order='C', copy=False)
     phirf_kick = phi_rf.astype(dtype=precision.real_t, order='C', copy=False)
@@ -636,7 +634,6 @@ def drift(dt, dE, solver, t_rev, length_ratio, alpha_order, eta_0,
 def linear_interp_kick(dt, dE, voltage,
                        bin_centers, charge,
                        acceleration_kick):
-
     assert isinstance(dt[0], precision.real_t)
     assert isinstance(dE[0], precision.real_t)
     assert isinstance(voltage[0], precision.real_t)
@@ -789,7 +786,6 @@ def fast_resonator(R_S, Q, frequency_array, frequency_R, impedance=None):
 
 def distribution_from_tomoscope(dt, dE, probDistr, seed, profLen,
                                 cutoff, x0, y0, dtBin, dEBin):
-
     get_libblond().generate_distribution(__getPointer(dt),
                                          __getPointer(dE),
                                          __getPointer(probDistr),

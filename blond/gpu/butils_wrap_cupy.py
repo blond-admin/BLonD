@@ -5,8 +5,8 @@
 import cupy as cp
 import numpy as np
 
-from ..utils import precision
 from . import GPU_DEV
+from ..utils import precision
 
 
 def rf_volt_comp(voltage, omega_rf, phi_rf, bin_centers):
@@ -24,7 +24,6 @@ def rf_volt_comp(voltage, omega_rf, phi_rf, bin_centers):
 
     rf_volt_comp_kernel = GPU_DEV.mod.get_function("rf_volt_comp")
 
-    
     assert voltage.dtype == precision.real_t
     assert omega_rf.dtype == precision.real_t
     assert phi_rf.dtype == precision.real_t
@@ -163,7 +162,6 @@ def linear_interp_kick(dt, dE, voltage,
                                grid=GPU_DEV.grid_size, block=GPU_DEV.block_size)
 
 
-
 def slice_beam(dt, profile, cut_left, cut_right):
     """Constant space slicing with a constant frame.
 
@@ -175,8 +173,6 @@ def slice_beam(dt, profile, cut_left, cut_right):
     """
     sm_histogram = GPU_DEV.mod.get_function("sm_histogram")
     hybrid_histogram = GPU_DEV.mod.get_function("hybrid_histogram")
-
-
 
     assert dt.dtype == precision.real_t
 
@@ -198,8 +194,8 @@ def slice_beam(dt, profile, cut_left, cut_right):
                                precision.real_t(cut_right), np.uint32(n_slices),
                                np.uint32(dt.size), np.int32(
             GPU_DEV.attributes['MaxSharedMemoryPerBlock'] / 4)),
-            grid=GPU_DEV.grid_size, block=GPU_DEV.block_size,
-            shared_mem=GPU_DEV.attributes['MaxSharedMemoryPerBlock'])
+                         grid=GPU_DEV.grid_size, block=GPU_DEV.block_size,
+                         shared_mem=GPU_DEV.attributes['MaxSharedMemoryPerBlock'])
 
 
 def synchrotron_radiation(dE, U0, n_kicks, tau_z):

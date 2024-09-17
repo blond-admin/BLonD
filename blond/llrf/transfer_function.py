@@ -14,15 +14,18 @@
 '''
 
 from __future__ import division
-import numpy as np
-import numpy.fft as npfft
-from matplotlib.mlab import psd, csd
-import matplotlib.pyplot as plt
-import scipy.signal as scs
 
 # Set up logging
 import logging
+
+import matplotlib.pyplot as plt
+import numpy as np
+import numpy.fft as npfft
+import scipy.signal as scs
+from matplotlib.mlab import psd, csd
+
 logger = logging.getLogger(__name__)
+
 
 class TransferFunction(object):
     r'''Reconstructing the transfer function of a DUT based on input and output
@@ -50,8 +53,7 @@ class TransferFunction(object):
         self.signal_in = signal_in
         self.signal_out = signal_out
         self.T_s = T_s
-        self.plot =plot
-
+        self.plot = plot
 
     def analyse(self, data_cut):
 
@@ -65,21 +67,20 @@ class TransferFunction(object):
 
         # Estimate transfer function
         self.f_est, self.H_est = self.estimate_transfer_function(input_signal,
-            output_signal, self.T_s, self.plot, self.logger)
-
+                                                                 output_signal, self.T_s, self.plot, self.logger)
 
     @staticmethod
     def estimate_transfer_function(input, output, T_s, plot, logger):
         # Calculate transfer function
-        f_s = 1/T_s
-        n_fft = int(np.floor(len(input)/4))
+        f_s = 1 / T_s
+        n_fft = int(np.floor(len(input) / 4))
         f_est, H_est = tf_estimate(input, output, window=np.hamming(n_fft),
                                    noverlap=0, Fs=f_s, NFFT=n_fft)
         if plot:
             TransferFunction.plot_magnitude_and_phase(f_est, H_est)
 
         # reorder results to be form -freq to +freq
-        f_est = [x + f_s/2 if x < 0 else x - f_s/2 for x in f_est]
+        f_est = [x + f_s / 2 if x < 0 else x - f_s / 2 for x in f_est]
 
         # Spectrum of the input signal
         f_max = TransferFunction.input_signal_spectrum(input, n_fft, f_s, plot)
@@ -98,7 +99,6 @@ class TransferFunction(object):
             TransferFunction.plot_magnitude_and_phase(f, H)
 
         return f, H
-
 
     @staticmethod
     def input_signal_spectrum(input, n, f_s, plot):
@@ -186,12 +186,12 @@ class TransferFunction(object):
         gs = plt.GridSpec(2, 1)
         ax1 = fig.add_subplot(gs[0, 0])
         ax1.set_title('Transfer function')
-        ax1.plot(freq / 10**6, magnitude, 'r', linewidth=0.3)
+        ax1.plot(freq / 10 ** 6, magnitude, 'r', linewidth=0.3)
         ax1.set_xlabel('Frequency [MHz]')
         ax1.set_ylabel('Gain [dB]')
 
         ax2 = fig.add_subplot(gs[1, 0], sharex=ax1)
-        ax2.plot(freq / 10**6, (180/np.pi)*phases, 'r', linewidth=0.3)
+        ax2.plot(freq / 10 ** 6, (180 / np.pi) * phases, 'r', linewidth=0.3)
         ax2.set_xlabel('Frequency [MHz]')
         ax2.set_ylabel('Phase [degrees]')
         plt.show()
@@ -239,6 +239,4 @@ def tf_estimate(x, y, *args, **kwargs):
     p_xy, frequencies_csd = csd(y, x, *args, **kwargs)
     p_xx, frequencies_psd = psd(x, *args, **kwargs)
 
-    return frequencies_csd, (p_xy/p_xx).conjugate()
-
-
+    return frequencies_csd, (p_xy / p_xx).conjugate()

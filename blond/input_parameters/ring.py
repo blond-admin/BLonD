@@ -251,11 +251,11 @@ class Ring:
                           "program.")
 
         # Derived from momentum
-        self.beta = np.sqrt(1 / (1 + (self.Particle.mass / self.momentum)**2))
-        self.gamma = np.sqrt(1 + (self.momentum / self.Particle.mass)**2)
-        self.energy = np.sqrt(self.momentum**2 + self.Particle.mass**2)
-        self.kin_energy = np.sqrt(self.momentum**2 + self.Particle.mass**2) - \
-            self.Particle.mass
+        self.beta = np.sqrt(1 / (1 + (self.Particle.mass / self.momentum) ** 2))
+        self.gamma = np.sqrt(1 + (self.momentum / self.Particle.mass) ** 2)
+        self.energy = np.sqrt(self.momentum ** 2 + self.Particle.mass ** 2)
+        self.kin_energy = np.sqrt(self.momentum ** 2 + self.Particle.mass ** 2) - \
+                          self.Particle.mass
         self.delta_E = np.diff(self.energy, axis=1)
         self.t_rev = np.dot(self.ring_length, 1 / (self.beta * c))
         self.cycle_time = np.cumsum(self.t_rev)  # Always starts with zero
@@ -327,26 +327,26 @@ class Ring:
 
         self.eta_0 = np.empty([self.n_sections, self.n_turns + 1])
         for i in range(0, self.n_sections):
-            self.eta_0[i] = self.alpha_0[i] - self.gamma[i]**(-2.)
+            self.eta_0[i] = self.alpha_0[i] - self.gamma[i] ** (-2.)
 
     def _eta1(self):
         """ Function to calculate the first order slippage factor eta_1 """
 
         self.eta_1 = np.empty([self.n_sections, self.n_turns + 1])
         for i in range(0, self.n_sections):
-            self.eta_1[i] = 3 * self.beta[i]**2 / (2 * self.gamma[i]**2) + \
-                self.alpha_1[i] - self.alpha_0[i] * self.eta_0[i]
+            self.eta_1[i] = 3 * self.beta[i] ** 2 / (2 * self.gamma[i] ** 2) + \
+                            self.alpha_1[i] - self.alpha_0[i] * self.eta_0[i]
 
     def _eta2(self):
         """ Function to calculate the second order slippage factor eta_2 """
 
         self.eta_2 = np.empty([self.n_sections, self.n_turns + 1])
         for i in range(0, self.n_sections):
-            self.eta_2[i] = - self.beta[i]**2 * (5 * self.beta[i]**2 - 1) / \
-                (2 * self.gamma[i]**2) + self.alpha_2[i] - 2 * self.alpha_0[i] *\
-                self.alpha_1[i] + self.alpha_1[i] / self.gamma[i]**2 + \
-                self.alpha_0[i]**2 * self.eta_0[i] - 3 * self.beta[i]**2 * \
-                self.alpha_0[i] / (2 * self.gamma[i]**2)
+            self.eta_2[i] = - self.beta[i] ** 2 * (5 * self.beta[i] ** 2 - 1) / \
+                            (2 * self.gamma[i] ** 2) + self.alpha_2[i] - 2 * self.alpha_0[i] * \
+                            self.alpha_1[i] + self.alpha_1[i] / self.gamma[i] ** 2 + \
+                            self.alpha_0[i] ** 2 * self.eta_0[i] - 3 * self.beta[i] ** 2 * \
+                            self.alpha_0[i] / (2 * self.gamma[i] ** 2)
 
     def parameters_at_time(self, cycle_moments):
         """ Function to return various cycle parameters at a specific moment in

@@ -20,7 +20,6 @@ if Version(scipy.__version__) >= Version("1.14"):
 else:
     from scipy.integrate import cumtrapz
 
-
 from ..beam.beam import Beam
 from ..beam.distributions import (X0_from_bunch_length, distribution_function,
                                   matched_from_distribution_function,
@@ -56,14 +55,17 @@ def matched_from_distribution_density_multibunch(beam, Ring, FullRingAndRF, dist
         if minimum_n_macroparticles is None:
             n_macroparticles_per_bunch = np.round(beam.n_macroparticles / beam.intensity * intensity_per_bunch)
         else:
-            n_macroparticles_per_bunch = np.round(minimum_n_macroparticles / np.min(intensity_per_bunch) * intensity_per_bunch)
+            n_macroparticles_per_bunch = np.round(
+                minimum_n_macroparticles / np.min(intensity_per_bunch) * intensity_per_bunch)
 
     if np.sum(intensity_per_bunch) != beam.intensity:
-        print('WARNING !! The total intensity per bunch does not match the total intensity of the beam, the beam.intensity will be overwritten')
+        print(
+            'WARNING !! The total intensity per bunch does not match the total intensity of the beam, the beam.intensity will be overwritten')
         beam.intensity = np.sum(intensity_per_bunch)
 
     if np.sum(n_macroparticles_per_bunch) != beam.n_macroparticles:
-        print('WARNING !! The number of macroparticles per bunch does not match the total number of the beam, the beam.n_macroparticles will be overwritten')
+        print(
+            'WARNING !! The number of macroparticles per bunch does not match the total number of the beam, the beam.n_macroparticles will be overwritten')
         beam.n_macroparticles = int(np.sum(n_macroparticles_per_bunch))
 
     voltages = np.array([])
@@ -243,14 +245,17 @@ def matched_from_line_density_multibunch(beam, Ring,
         if minimum_n_macroparticles is None:
             n_macroparticles_per_bunch = np.round(beam.n_macroparticles / beam.intensity * intensity_per_bunch)
         else:
-            n_macroparticles_per_bunch = np.round(minimum_n_macroparticles / np.min(intensity_per_bunch) * intensity_per_bunch)
+            n_macroparticles_per_bunch = np.round(
+                minimum_n_macroparticles / np.min(intensity_per_bunch) * intensity_per_bunch)
 
     if np.sum(intensity_per_bunch) != beam.intensity:
-        print('WARNING !! The total intensity per bunch does not match the total intensity of the beam, the beam.intensity will be overwritten')
+        print(
+            'WARNING !! The total intensity per bunch does not match the total intensity of the beam, the beam.intensity will be overwritten')
         beam.intensity = np.sum(intensity_per_bunch)
 
     if np.sum(n_macroparticles_per_bunch) != beam.n_macroparticles:
-        print('WARNING !! The number of macroparticles per bunch does not match the total number of the beam, the beam.n_macroparticles will be overwritten')
+        print(
+            'WARNING !! The number of macroparticles per bunch does not match the total number of the beam, the beam.n_macroparticles will be overwritten')
         beam.n_macroparticles = int(np.sum(n_macroparticles_per_bunch))
 
     voltages = np.array([])
@@ -354,19 +359,29 @@ def matched_from_line_density_multibunch(beam, Ring,
             bucket_tolerance = 0.40
 
             left_edge = (indexBunch + 1) * bunch_spacing_buckets * bucket_size_tau - bucket_tolerance * bucket_size_tau
-            right_edge = ((indexBunch + 1) * bunch_spacing_buckets + 1) * bucket_size_tau + bucket_tolerance * bucket_size_tau
+            right_edge = ((
+                                      indexBunch + 1) * bunch_spacing_buckets + 1) * bucket_size_tau + bucket_tolerance * bucket_size_tau
 
-            tau_induced_voltage_next_bunch = TotalInducedVoltageIteration.profile.bin_centers[(TotalInducedVoltageIteration.profile.bin_centers > left_edge) * (TotalInducedVoltageIteration.profile.bin_centers < right_edge)]
-            induced_voltage_next_bunch = TotalInducedVoltageIteration.induced_voltage[(TotalInducedVoltageIteration.profile.bin_centers > left_edge) * (TotalInducedVoltageIteration.profile.bin_centers < right_edge)]
+            tau_induced_voltage_next_bunch = TotalInducedVoltageIteration.profile.bin_centers[
+                (TotalInducedVoltageIteration.profile.bin_centers > left_edge) * (
+                            TotalInducedVoltageIteration.profile.bin_centers < right_edge)]
+            induced_voltage_next_bunch = TotalInducedVoltageIteration.induced_voltage[
+                (TotalInducedVoltageIteration.profile.bin_centers > left_edge) * (
+                            TotalInducedVoltageIteration.profile.bin_centers < right_edge)]
 
-            time_induced_voltage_next_bunch = (tau_induced_voltage_next_bunch - (indexBunch + 1) * bunch_spacing_buckets * bucket_size_tau)
+            time_induced_voltage_next_bunch = (
+                        tau_induced_voltage_next_bunch - (indexBunch + 1) * bunch_spacing_buckets * bucket_size_tau)
 
-            extraVoltageDict = {'time_array': time_induced_voltage_next_bunch, 'voltage_array': induced_voltage_next_bunch}
+            extraVoltageDict = {'time_array': time_induced_voltage_next_bunch,
+                                'voltage_array': induced_voltage_next_bunch}
 
     if plot_option:
         plt.figure('Bunch train + induced voltage')
         plt.clf()
-        plt.plot(TotalInducedVoltageIteration.profile.bin_centers, TotalInducedVoltageIteration.profile.n_macroparticles / (1. * np.max(TotalInducedVoltageIteration.profile.n_macroparticles)) * np.max(TotalInducedVoltageIteration.induced_voltage))
+        plt.plot(TotalInducedVoltageIteration.profile.bin_centers,
+                 TotalInducedVoltageIteration.profile.n_macroparticles / (
+                             1. * np.max(TotalInducedVoltageIteration.profile.n_macroparticles)) * np.max(
+                     TotalInducedVoltageIteration.induced_voltage))
         plt.plot(TotalInducedVoltageIteration.profile.bin_centers, TotalInducedVoltageIteration.induced_voltage)
         plt.show()
 
@@ -381,7 +396,7 @@ def match_beam_from_distribution(beam, FullRingAndRF, GeneralParameters,
                                  main_harmonic_option='lowest_freq',
                                  TotalInducedVoltage=None, n_iterations=1,
                                  n_points_potential=1e4,
-                                 dt_margin_percent=0.40, seed=None,):
+                                 dt_margin_percent=0.40, seed=None, ):
     '''
     *This function generates n equaly spaced bunches for a stationary
     distribution and try to match them with intensity effects.*
@@ -398,9 +413,9 @@ def match_beam_from_distribution(beam, FullRingAndRF, GeneralParameters,
     - 2piJ = emittance, this restrict the value of J0 (or H0)
     - with g0(H) we can randomize the macroparticles*
     '''
-# ------------------------------------------------------------------------
-# USEFUL VARIABLES
-# ------------------------------------------------------------------------
+    # ------------------------------------------------------------------------
+    # USEFUL VARIABLES
+    # ------------------------------------------------------------------------
     # Slicing necessary only with intensity effects
     if TotalInducedVoltage is not None:
         profile = TotalInducedVoltage.profile
@@ -412,7 +427,7 @@ def match_beam_from_distribution(beam, FullRingAndRF, GeneralParameters,
     beta = rf_params.beta[0]
     E = rf_params.energy[0]
     charge = rf_params.charge
-#    acceleration_kick = FullRingAndRF.RingAndRFSection_list[0].acceleration_kick[0]
+    #    acceleration_kick = FullRingAndRF.RingAndRFSection_list[0].acceleration_kick[0]
 
     # Minimum omega_rf is used to compute the size of the bucket
     omega_rf = []
@@ -423,16 +438,16 @@ def match_beam_from_distribution(beam, FullRingAndRF, GeneralParameters,
     eta_0 = rf_params.eta_0[0]
 
     # Coefficient of Kin and Pot part of the hamiltonian
-    normalization_DeltaE = np.abs(eta_0) / (2. * beta**2 * E)
+    normalization_DeltaE = np.abs(eta_0) / (2. * beta ** 2 * E)
     normalization_potential = np.sign(eta_0) * charge / t_rev
 
     intensity_per_bunch = beam.intensity / n_bunches
     n_macro_per_bunch = int(beam.n_macroparticles / n_bunches)
     bucket_size_tau = 2 * np.pi / (np.min(omega_rf))
 
-# ------------------------------------------------------------------------
-# GENERATES N BUNCHES WITHOUT INTENSITY EFFECTS
-# ------------------------------------------------------------------------
+    # ------------------------------------------------------------------------
+    # GENERATES N BUNCHES WITHOUT INTENSITY EFFECTS
+    # ------------------------------------------------------------------------
 
     FullRingAndRF.potential_well_generation(n_points=n_points_potential,
                                             dt_margin_percent=dt_margin_percent,
@@ -453,19 +468,19 @@ def match_beam_from_distribution(beam, FullRingAndRF, GeneralParameters,
     matched_bunch_list = []
     for indexBunch in range(n_bunches):
         (time_grid, deltaE_grid, distribution, time_resolution,
-            energy_resolution, single_profile) = match_a_bunch(
-                normalization_DeltaE, temporary_beam,
-                potential_well_coordinates,
-                potential_well, seed, distribution_options,
-                full_ring_and_RF=FullRingAndRF)
+         energy_resolution, single_profile) = match_a_bunch(
+            normalization_DeltaE, temporary_beam,
+            potential_well_coordinates,
+            potential_well, seed, distribution_options,
+            full_ring_and_RF=FullRingAndRF)
         matched_bunch_list.append(
             (time_grid, deltaE_grid, distribution, time_resolution,
              energy_resolution, single_profile))
 
     print(str(n_bunches) + ' stationary bunches without intensity generated')
-# ------------------------------------------------------------------------
-# REMATCH THE BUNCHES WITH INTENSITY EFFECTS
-# ------------------------------------------------------------------------
+    # ------------------------------------------------------------------------
+    # REMATCH THE BUNCHES WITH INTENSITY EFFECTS
+    # ------------------------------------------------------------------------
     if TotalInducedVoltage is not None:
         print('Applying intensity effects ...')
         previous_well = potential_well
@@ -489,7 +504,7 @@ def match_beam_from_distribution(beam, FullRingAndRF, GeneralParameters,
             induced_potential = - normalization_potential * cumtrapz(
                 induced_voltage,
                 dx=induced_voltage_coordinates[1] -
-                induced_voltage_coordinates[0],
+                   induced_voltage_coordinates[0],
                 initial=0)
 
             for indexBunch in range(n_bunches):
@@ -510,7 +525,7 @@ def match_beam_from_distribution(beam, FullRingAndRF, GeneralParameters,
                     distribution_options,
                     full_ring_and_RF=FullRingAndRF)
 
-            conv = np.sqrt(np.sum((previous_well - distorted_pot_well)**2.)) / len(distorted_pot_well)
+            conv = np.sqrt(np.sum((previous_well - distorted_pot_well) ** 2.)) / len(distorted_pot_well)
             previous_well = distorted_pot_well
 
             print('iteration ' + str(it + 1) + ', convergence parameter = ' + str(conv))
@@ -528,7 +543,6 @@ def match_beam_from_distribution(beam, FullRingAndRF, GeneralParameters,
             TotalInducedVoltage.induced_voltage_sum()
 
     for indexBunch in range(n_bunches):
-
         (time_grid, deltaE_grid, distribution, time_resolution,
          energy_resolution, single_profile) = matched_bunch_list[indexBunch]
         populate_bunch(temporary_beam, time_grid, deltaE_grid, distribution,
@@ -573,9 +587,9 @@ def match_beam_from_distribution_multibatch(beam, FullRingAndRF, GeneralParamete
     - 2piJ = emittance, this restrict the value of J0 (or H0)
     - with g0(H) we can randomize the macroparticles*
     '''
-# ------------------------------------------------------------------------
-# USEFUL VARIABLES
-# ------------------------------------------------------------------------
+    # ------------------------------------------------------------------------
+    # USEFUL VARIABLES
+    # ------------------------------------------------------------------------
     # Ring informations, Trev, energy, RF parameters ...
     rf_params = FullRingAndRF.RingAndRFSection_list[0].rf_params
     n_rf = rf_params.n_rf
@@ -589,14 +603,14 @@ def match_beam_from_distribution_multibatch(beam, FullRingAndRF, GeneralParamete
         charge = rf_params.charge
         eta_0 = rf_params.eta_0[0]
 
-        normalization_DeltaE = np.abs(eta_0) / (2. * beta**2 * E)
+        normalization_DeltaE = np.abs(eta_0) / (2. * beta ** 2 * E)
         normalization_potential = np.sign(eta_0) * charge / t_rev
 
     # Ring informations, Trev, energy, RF parameters ...
-#    beta = rf_params.beta[0]
-#    E = rf_params.energy[0]
-#    charge = rf_params.charge
-#    acceleration_kick = FullRingAndRF.RingAndRFSection_list[0].acceleration_kick[0]
+    #    beta = rf_params.beta[0]
+    #    E = rf_params.energy[0]
+    #    charge = rf_params.charge
+    #    acceleration_kick = FullRingAndRF.RingAndRFSection_list[0].acceleration_kick[0]
 
     # Minimum omega_rf is used to compute the size of the bucket
     omega_rf = []
@@ -604,11 +618,11 @@ def match_beam_from_distribution_multibatch(beam, FullRingAndRF, GeneralParamete
         omega_rf += [rf_params.omega_rf[i][0]]
     omega_rf = np.array(omega_rf)
 
-#    eta_0 = rf_params.eta_0[0]
+    #    eta_0 = rf_params.eta_0[0]
 
-#    # Coefficient of Kin and Pot part of the hamiltonian
-#    normalization_DeltaE = np.abs(eta_0) / (2.*beta**2*E)
-#    normalization_potential = np.sign(eta_0)*charge/t_rev
+    #    # Coefficient of Kin and Pot part of the hamiltonian
+    #    normalization_DeltaE = np.abs(eta_0) / (2.*beta**2*E)
+    #    normalization_potential = np.sign(eta_0)*charge/t_rev
 
     intensity_per_bunch = beam.intensity / n_bunches / n_batch
     n_macro_per_bunch = int(beam.n_macroparticles / n_bunches / n_batch)
@@ -616,20 +630,22 @@ def match_beam_from_distribution_multibatch(beam, FullRingAndRF, GeneralParamete
 
     temporary_batch = Beam(GeneralParameters, int(n_macro_per_bunch * n_bunches), (intensity_per_bunch * n_bunches))
 
-#    print(temporary_batch.dt)
+    #    print(temporary_batch.dt)
     match_beam_from_distribution(temporary_batch, FullRingAndRF, GeneralParameters,
                                  distribution_options, n_bunches, bunch_spacing_buckets,
                                  TotalInducedVoltage=None, n_iterations=n_iterations,
                                  n_points_potential=n_points_potential)
 
-#    matched_from_distribution_density_multibunch(temporary_batch, GeneralParameters, FullRingAndRF, distribution_options,
-#                                          n_bunches, bunch_spacing_buckets,
-#                                          TotalInducedVoltage = TotalInducedVoltage,
-#                                          n_iterations_input = n_iterations)
+    #    matched_from_distribution_density_multibunch(temporary_batch, GeneralParameters, FullRingAndRF, distribution_options,
+    #                                          n_bunches, bunch_spacing_buckets,
+    #                                          TotalInducedVoltage = TotalInducedVoltage,
+    #                                          n_iterations_input = n_iterations)
     length_dt = len(temporary_batch.dt)
     print(length_dt)
     for index_batch in range(n_batch):
-        beam.dt[index_batch * length_dt:(index_batch + 1) * length_dt] = temporary_batch.dt + index_batch * (n_bunches - 1) * bunch_spacing_buckets * bucket_size_tau + (index_batch) * batch_spacing_buckets * bucket_size_tau
+        beam.dt[index_batch * length_dt:(index_batch + 1) * length_dt] = temporary_batch.dt + index_batch * (
+                    n_bunches - 1) * bunch_spacing_buckets * bucket_size_tau + (
+                                                                             index_batch) * batch_spacing_buckets * bucket_size_tau
         beam.dE[index_batch * length_dt:(index_batch + 1) * length_dt] = temporary_batch.dE
 
     plt.figure('copymultibatch')
@@ -641,9 +657,9 @@ def match_beam_from_distribution_multibatch(beam, FullRingAndRF, GeneralParamete
     plt.plot(profile.bin_centers, profile.n_macroparticles)
     plt.figure('beamInSlice')
     plt.plot(profile.Beam.dt[::100], profile.Beam.dE[::100], 'b.')
-# ------------------------------------------------------------------------
-# REMATCH THE BUNCHES WITH INTENSITY EFFECTS
-# ------------------------------------------------------------------------
+    # ------------------------------------------------------------------------
+    # REMATCH THE BUNCHES WITH INTENSITY EFFECTS
+    # ------------------------------------------------------------------------
     if TotalInducedVoltage is not None:
         #        TotalInducedVoltage.profile.Beam.dt[:len(beam.dt)] = beam.dt
         #        TotalInducedVoltage.profile.Beam.dE[:len(beam.dE)] = beam.dE
@@ -657,14 +673,16 @@ def match_beam_from_distribution_multibatch(beam, FullRingAndRF, GeneralParamete
             plt.figure('profile before induced voltage')
             profile.track()
             plt.plot(profile.bin_centers, profile.n_macroparticles)
-#
-#            plt.figure('inducedvoltage before induced voltage')
-#            profile.track()
-#            plt.plot(TotalInducedVoltage.time_array,TotalInducedVoltage.induced_voltage)
-#
+            #
+            #            plt.figure('inducedvoltage before induced voltage')
+            #            profile.track()
+            #            plt.plot(TotalInducedVoltage.time_array,TotalInducedVoltage.induced_voltage)
+            #
             induced_voltage_coordinates = TotalInducedVoltage.time_array
             induced_voltage = TotalInducedVoltage.induced_voltage
-            induced_potential = - normalization_potential * cumtrapz(induced_voltage, dx=induced_voltage_coordinates[1] - induced_voltage_coordinates[0], initial=0)
+            induced_potential = - normalization_potential * cumtrapz(induced_voltage,
+                                                                     dx=induced_voltage_coordinates[1] -
+                                                                        induced_voltage_coordinates[0], initial=0)
 
             plt.figure('testInducedVolt')
             plt.plot(induced_voltage_coordinates, induced_voltage)
@@ -687,7 +705,8 @@ def match_beam_from_distribution_multibatch(beam, FullRingAndRF, GeneralParamete
                     # Extract the induced potential for the specific bucket
                     induced_potential_bunch = np.interp(potential_well_coordinates
                                                         + indexBunch * bunch_spacing_buckets * bucket_size_tau
-                                                        + indexBatch * (batch_spacing_buckets + (n_bunches - 1) * bunch_spacing_buckets) * bucket_size_tau,
+                                                        + indexBatch * (batch_spacing_buckets + (
+                                n_bunches - 1) * bunch_spacing_buckets) * bucket_size_tau,
                                                         induced_voltage_coordinates, induced_potential)
 
                     # Recompute the phase space distribution for the new
@@ -706,8 +725,13 @@ def match_beam_from_distribution_multibatch(beam, FullRingAndRF, GeneralParamete
 
                     length_dt = len(dt)
                     length_dE = len(dE)
-                    beam.dt[(indexBunch + n_bunches * indexBatch) * length_dt:(indexBunch + n_bunches * indexBatch + 1) * length_dt] = dt + (indexBunch * bunch_spacing_buckets * bucket_size_tau) + indexBatch * (batch_spacing_buckets + (n_bunches - 1) * bunch_spacing_buckets) * bucket_size_tau
-                    beam.dE[(indexBunch + n_bunches * indexBatch) * length_dE:(indexBunch + n_bunches * indexBatch + 1) * length_dE] = dE
+                    beam.dt[(indexBunch + n_bunches * indexBatch) * length_dt:(
+                                                                                          indexBunch + n_bunches * indexBatch + 1) * length_dt] = dt + (
+                                indexBunch * bunch_spacing_buckets * bucket_size_tau) + indexBatch * (
+                                                                                                                                                              batch_spacing_buckets + (
+                                                                                                                                                                  n_bunches - 1) * bunch_spacing_buckets) * bucket_size_tau
+                    beam.dE[(indexBunch + n_bunches * indexBatch) * length_dE:(
+                                                                                          indexBunch + n_bunches * indexBatch + 1) * length_dE] = dE
 
             print('iteration ' + str(it) + ', average RMS emittance (4sigma) = ' + str(4 * conv / n_bunches))
             profile.track()
@@ -716,7 +740,6 @@ def match_beam_from_distribution_multibatch(beam, FullRingAndRF, GeneralParamete
 
 def compute_X_grid(normalization_DeltaE, time_array, potential_well,
                    distribution_variable):
-
     # Delta Energy array
     max_DeltaE = np.sqrt(np.max(potential_well) / normalization_DeltaE)
     coord_array_DeltaE = np.linspace(-float(max_DeltaE), float(max_DeltaE), len(time_array))
@@ -728,12 +751,13 @@ def compute_X_grid(normalization_DeltaE, time_array, potential_well,
     # Grid
     time_grid, deltaE_grid = np.meshgrid(time_array, coord_array_DeltaE)
     potential_well_grid = np.meshgrid(potential_well, potential_well)[0]
-    H_grid = normalization_DeltaE * deltaE_grid**2 + potential_well_grid
+    H_grid = normalization_DeltaE * deltaE_grid ** 2 + potential_well_grid
 
     # Compute the action J
     J_array = np.zeros(shape=potential_well.shape, dtype=float)
     for i in range(len(J_array)):
-        DELTA = np.sqrt((potential_well[i] - potential_well)[potential_well <= potential_well[i]] / normalization_DeltaE)
+        DELTA = np.sqrt(
+            (potential_well[i] - potential_well)[potential_well <= potential_well[i]] / normalization_DeltaE)
         J_array[i] = 1. / np.pi * np.trapz(DELTA, dx=time_array[1] - time_array[0])
 
     # Compute J grid
@@ -743,10 +767,10 @@ def compute_X_grid(normalization_DeltaE, time_array, potential_well,
     if distribution_variable == 'Action':
         J_grid = np.interp(H_grid, sorted_H, sorted_J,
                            left=0, right=np.inf)
-        return sorted_H, sorted_J, J_grid, time_grid, deltaE_grid,\
+        return sorted_H, sorted_J, J_grid, time_grid, deltaE_grid, \
             time_resolution, energy_resolution
     else:
-        return sorted_H, sorted_J, H_grid, time_grid, deltaE_grid,\
+        return sorted_H, sorted_J, H_grid, time_grid, deltaE_grid, \
             time_resolution, energy_resolution
 
 
@@ -758,7 +782,6 @@ def compute_H0(emittance, H, J):
 def match_a_bunch(normalization_DeltaE, beam, potential_well_coordinates,
                   potential_well, seed, distribution_options,
                   full_ring_and_RF=None):
-
     if 'type' in distribution_options:
         distribution_type = distribution_options['type']
     else:
@@ -789,7 +812,7 @@ def match_a_bunch(normalization_DeltaE, beam, potential_well_coordinates,
     else:
         distribution_variable = 'Hamiltonian'
 
-    H, J, X_grid, time_grid, deltaE_grid, time_resolution, energy_resolution =\
+    H, J, X_grid, time_grid, deltaE_grid, time_resolution, energy_resolution = \
         compute_X_grid(normalization_DeltaE, potential_well_coordinates,
                        potential_well, distribution_variable)
 

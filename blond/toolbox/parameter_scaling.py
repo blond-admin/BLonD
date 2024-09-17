@@ -35,14 +35,16 @@ circumferences = {'0': 2 * np.pi * 25,
                   '1': 2 * np.pi * 100.,
                   '2': 2 * np.pi * 1100.009, '3': 2 * np.pi * 1100.009, '4': 2 * np.pi * 1100.009,
                   '5': 26658.883, '6': 26658.883}
-energies_fb = {'0': (160.e6 + m_p * c**2 / e),
-               '1': (2.0e9 + m_p * c**2 / e),
+energies_fb = {'0': (160.e6 + m_p * c ** 2 / e),
+               '1': (2.0e9 + m_p * c ** 2 / e),
                '2': 25.92e9, '3': 25.92e9, '4': 25.92e9,
                '5': 450.e9, '6': 450.e9}
-energies_ft = {'0': (2.0e9 + m_p * c**2 / e),
+energies_ft = {'0': (2.0e9 + m_p * c ** 2 / e),
                '1': 25.92e9,
                '2': 450.e9, '3': 450.e9, '4': 450.e9,
                '5': 6.5e12, '6': 6.5e12}
+
+
 # Machine-dependent parameters [SI-units] -------------------------------------
 
 
@@ -59,21 +61,22 @@ class ParameterScaling:
     @property
     def dE_b(self):
         return np.sqrt(self.beta_sq * self.energy * self.voltage * (1 -
-                       np.cos(self.phi_b)) / (np.pi * self.harmonic * self.eta_0))
+                                                                    np.cos(self.phi_b)) / (
+                                   np.pi * self.harmonic * self.eta_0))
 
     @property
     def integral(self):
         return integrate.quad(lambda x: np.sqrt(2. * (np.cos(x) -
-                              np.cos(self.phi_b))), 0, self.phi_b)[0]
+                                                      np.cos(self.phi_b))), 0, self.phi_b)[0]
 
     @property
     def emittance(self):
         return 4. * self.energy * self.omega_s0 * self.beta_sq * self.integral / \
-            (self.omega_rf**2 * self.eta_0)
+            (self.omega_rf ** 2 * self.eta_0)
 
     def relativistic_quantities(self):
 
-        self.momentum = np.sqrt(self.energy**2 - self.mass**2)
+        self.momentum = np.sqrt(self.energy ** 2 - self.mass ** 2)
         self.tb1.append(f"    Synchronous momentum: {self.momentum} eV")
 
         self.kinetic_energy = self.energy - self.mass
@@ -82,7 +85,7 @@ class ParameterScaling:
         self.gamma = self.energy / self.mass
         self.tb1.append(f"    Synchronous relativistic gamma: {self.gamma}")
 
-        self.beta = np.sqrt(1. - 1. / self.gamma**2)
+        self.beta = np.sqrt(1. - 1. / self.gamma ** 2)
         self.tb1.append(f"    Synchronous relativistic beta: {self.beta}")
 
         self.beta_sq = self.beta ** 2
@@ -107,7 +110,7 @@ class ParameterScaling:
 
     def tune(self):
 
-        self.eta_0 = np.fabs(1. / self.gamma_t**2 - 1. / self.gamma**2)
+        self.eta_0 = np.fabs(1. / self.gamma_t ** 2 - 1. / self.gamma ** 2)
         self.tb1.append(f"    Slippage factor (zeroth order): {self.eta_0}")
 
         self.Q_s0 = np.sqrt(self.harmonic * self.voltage * self.eta_0 /
@@ -131,7 +134,7 @@ class ParameterScaling:
         self.dt_max = 0.5 * self.t_rev / self.harmonic
         self.tb1.append(f"    Half of bucket length: {self.dt_max * 1.e9} ns")
 
-        self.dE_max = np.sqrt(2. * self.beta**2 * self.energy * self.voltage /
+        self.dE_max = np.sqrt(2. * self.beta ** 2 * self.energy * self.voltage /
                               (np.pi * self.eta_0 * self.harmonic))
         self.tb1.append(f"    Half of bucket height: {self.dE_max * 1.e-6} MeV")
 
@@ -371,12 +374,13 @@ class ParameterScaling:
         self.emittance_target = self.leEmittance.text()
         self.bunch_length_target = self.leBunchLength.text()
 
-        self.tb1.append("\n\n" + "**************************** BEAM PARAMETER CALCULATOR ****************************" + "\n")
+        self.tb1.append(
+            "\n\n" + "**************************** BEAM PARAMETER CALCULATOR ****************************" + "\n")
         self.tb1.append(f"Input -- chosen machine/optics: {self.machine}\n")
 
         # Derived parameters --------------------------------------------------
 
-        self.alpha = 1. / self.gamma_t**2
+        self.alpha = 1. / self.gamma_t ** 2
         self.tb1.append(f"    * with relativistic gamma at transition: {self.gamma_t}")
         self.tb1.append(f"    * with momentum compaction factor: {self.alpha}")
 
@@ -399,7 +403,7 @@ class ParameterScaling:
             return
         self.tb1.append(f"Input -- RF voltage: {self.voltage * 1.e-6} MV")
 
-        self.mass = m_p * c**2 / e
+        self.mass = m_p * c ** 2 / e
         self.tb1.append(f"Input -- particle mass: {self.mass * 1.e-6} MeV\n")
 
         # Derived quantities --------------------------------------------------
@@ -440,6 +444,7 @@ class ParameterScaling:
 
 if __name__ == "__main__":
     import sys
+
     app = QtWidgets.QApplication(sys.argv)
     mainWindow = QtWidgets.QMainWindow()
     ui = ParameterScaling()

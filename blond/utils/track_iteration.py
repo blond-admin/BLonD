@@ -18,19 +18,19 @@ from __future__ import annotations
 # General imports
 from typing import TYPE_CHECKING
 
-
 if TYPE_CHECKING:
     from typing import Iterable, List, Callable, Protocol, Any, Self, Tuple
+
 
     class Trackable(Protocol):
         def track(self) -> None:
             ...
 
+
     class Predicate(Protocol):
         def __call__(self, _map: Iterable[Trackable], turn_number: int,
                      *args: Any, **kwargs: Any):
             ...
-
 
 
 class TrackIteration:
@@ -55,7 +55,6 @@ class TrackIteration:
     function_list : List of functions to be called with specified interval
     '''
 
-
     def __init__(self, track_map: Iterable[Trackable], init_turn: int = 0,
                  final_turn: int = -1):
 
@@ -75,7 +74,6 @@ class TrackIteration:
 
         self.function_list: List[Tuple[Predicate, int]] = []
 
-
     def _track_turns(self, n_turns):
         '''
         Function to track for specified number of turns
@@ -85,7 +83,6 @@ class TrackIteration:
         for i in range(n_turns):
             next(self)
 
-
     def add_function(self, predicate: Predicate, repetion_rate: int,
                      *args: Any, **kwargs: Any):
         '''
@@ -94,8 +91,7 @@ class TrackIteration:
         '''
 
         self.function_list.append((self._partial(predicate, *args, **kwargs),
-                                  repetion_rate))
-
+                                   repetion_rate))
 
     def __next__(self) -> int:
         '''
@@ -126,14 +122,12 @@ class TrackIteration:
 
         return self.turn_number
 
-
     def __iter__(self) -> Self:
         '''
         returns self
         '''
 
         return self
-
 
     def __call__(self, n_turns: int = 1) -> int:
         '''
@@ -143,7 +137,6 @@ class TrackIteration:
 
         self._track_turns(n_turns)
         return self.turn_number
-
 
     def _partial(self, predicate: Callable, *args, **kwargs) -> Callable:
         '''

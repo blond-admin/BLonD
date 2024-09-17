@@ -1,4 +1,3 @@
-
 # Copyright 2016 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
 # copied verbatim in the file LICENCE.md.
@@ -21,19 +20,19 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from ..impedances.impedance_sources import InputTable
-import matplotlib.lines as mlines
 
 # Automatic layouting of plots
 plt.rc('figure', autolayout=True)
 plt.rc('savefig', bbox='tight')
 plt.rc('savefig', pad_inches=0.1)
-plt.rc('figure', figsize = [8,6])
+plt.rc('figure', figsize=[8, 6])
 
-def plot_impedance_vs_frequency(induced_voltage_freq, figure_index = 0,
-                                plot_total_impedance = True, plot_spectrum=False,
-                                plot_interpolated_impedances = False, style='-',
+
+def plot_impedance_vs_frequency(induced_voltage_freq, figure_index=0,
+                                plot_total_impedance=True, plot_spectrum=False,
+                                plot_interpolated_impedances=False, style='-',
                                 cut_left_right=None, cut_up_down=None,
-                                dirname='fig', show_plots = False):
+                                dirname='fig', show_plots=False):
     """
     Plots Impedance in frequency domain. Given an InducedVoltageFreq object, i.e. one
     that was created from a list of impedances:
@@ -89,9 +88,11 @@ def plot_impedance_vs_frequency(induced_voltage_freq, figure_index = 0,
         # by bin size. This is reverted here when plotting to get sensible units
 
         ax1.plot(induced_voltage_freq.freq,
-                 induced_voltage_freq.total_impedance.real * induced_voltage_freq.profile.bin_size, style, label = "Real Impedance")
+                 induced_voltage_freq.total_impedance.real * induced_voltage_freq.profile.bin_size, style,
+                 label="Real Impedance")
         ax1.plot(induced_voltage_freq.freq,
-                 induced_voltage_freq.total_impedance.imag * induced_voltage_freq.profile.bin_size, style, label = "Imaginary Impedance")
+                 induced_voltage_freq.total_impedance.imag * induced_voltage_freq.profile.bin_size, style,
+                 label="Imaginary Impedance")
 
         ax1.set_xlim(cut_left_right)
         ax1.set_ylim(cut_up_down)
@@ -100,7 +101,7 @@ def plot_impedance_vs_frequency(induced_voltage_freq, figure_index = 0,
         if plot_spectrum:
             ax2 = ax1.twinx()
             ax2.plot(induced_voltage_freq.profile.beam_spectrum_freq,
-                     np.abs(induced_voltage_freq.profile.beam_spectrum), label = "Beam Spectrum")
+                     np.abs(induced_voltage_freq.profile.beam_spectrum), label="Beam Spectrum")
 
             ax2.set_xlim(cut_left_right)
             ax2.set_ylim(cut_up_down)
@@ -157,18 +158,15 @@ def plot_impedance_vs_frequency(induced_voltage_freq, figure_index = 0,
         ax1.set_xlabel("Frequency [Hz]")
         ax1.set_ylabel("Imaginary Impedance [Ohm]")
 
-
         fign1 = dirname + '/real_imp_vs_' + fig_suffix + '_' "%d" % figure_index + '.png'
         if plot_spectrum:
             ax2 = ax0.twinx()
             spectrum, = ax2.plot(induced_voltage_freq.profile.beam_spectrum_freq,
-                     np.abs(induced_voltage_freq.profile.beam_spectrum), label = "Beam Spectrum",color = "r")
+                                 np.abs(induced_voltage_freq.profile.beam_spectrum), label="Beam Spectrum", color="r")
             ax2.set_xlim(cut_left_right)
             ax2.set_ylim(cut_up_down)
             ax2.set_ylabel("Beam Spectrum [a.u.]")
             ax2.legend(handles=[spectrum])
-
-
 
         plt.figure(0)
         if show_plots:
@@ -178,11 +176,10 @@ def plot_impedance_vs_frequency(induced_voltage_freq, figure_index = 0,
             plt.clf()
         fign2 = dirname + '/imag_imp_vs_' + fig_suffix + '_' "%d" % figure_index + '.png'
 
-
         if plot_spectrum:
             ax3 = ax1.twinx()
             spectrum, = ax3.plot(induced_voltage_freq.profile.beam_spectrum_freq,
-                     np.abs(induced_voltage_freq.profile.beam_spectrum), label = "Beam Spectrum", color = "r")
+                                 np.abs(induced_voltage_freq.profile.beam_spectrum), label="Beam Spectrum", color="r")
             ax3.set_xlim(cut_left_right)
             ax3.set_ylim(cut_up_down)
             ax3.set_ylabel("Beam Spectrum [a.u.]")
@@ -195,11 +192,12 @@ def plot_impedance_vs_frequency(induced_voltage_freq, figure_index = 0,
             plt.savefig(fign2)
             plt.clf()
 
-def plot_wake_vs_time(induced_voltage_time, figure_index = 0,
-                      plot_total_wake = True,
-                      plot_interpolated_wake = False, style='-',
+
+def plot_wake_vs_time(induced_voltage_time, figure_index=0,
+                      plot_total_wake=True,
+                      plot_interpolated_wake=False, style='-',
                       cut_left_right=None, cut_up_down=None,
-                      dirname='fig', show_plots = False):
+                      dirname='fig', show_plots=False):
     """
     Plots wakes in time domain. Given an InducedVoltageTime object, i.e. one
     that was created from a list of wakes:
@@ -247,7 +245,7 @@ def plot_wake_vs_time(induced_voltage_time, figure_index = 0,
         ax1 = plt.subplots()[1]
 
         ax1.plot(induced_voltage_time.time,
-                 induced_voltage_time.total_wake, style, label ="Wake")
+                 induced_voltage_time.total_wake, style, label="Wake")
 
         ax1.set_xlim(cut_left_right)
         ax1.set_ylim(cut_up_down)
@@ -288,10 +286,7 @@ def plot_wake_vs_time(induced_voltage_time, figure_index = 0,
         ax0.set_xlabel("Time [s]")
         ax0.set_ylabel("Wake [Ohm/s]")
 
-
         fign1 = dirname + '/wake_vs_' + fig_suffix + '_' "%d" % figure_index + '.png'
-
-
 
         plt.figure(0)
         if show_plots:
@@ -300,8 +295,9 @@ def plot_wake_vs_time(induced_voltage_time, figure_index = 0,
             plt.savefig(fign1)
             plt.clf()
 
-def plot_induced_voltage_vs_bin_centers(total_induced_voltage, style='-', figure_index = 0,
-                                        dirname='fig', show_plots = False):
+
+def plot_induced_voltage_vs_bin_centers(total_induced_voltage, style='-', figure_index=0,
+                                        dirname='fig', show_plots=False):
     """
     Plots the total induced voltage calculated in the TotalInducedVoltage object given.
 

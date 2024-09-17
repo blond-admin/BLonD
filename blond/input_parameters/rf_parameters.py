@@ -26,7 +26,6 @@ if Version(scipy.__version__) >= Version("1.14"):
 else:
     from scipy.integrate import cumtrapz
 
-
 from scipy.constants import c
 
 from ..beam.beam import Proton
@@ -299,7 +298,7 @@ class RFStation:
         # Calculating design rf angular frequency
         if omega_rf is None:
             self.omega_rf_d = 2. * np.pi * self.beta * c * self.harmonic / \
-                (self.ring_circumference)
+                              (self.ring_circumference)
         else:
             self.omega_rf_d = RFStationOptions.reshape_data(
                 omega_rf,
@@ -387,10 +386,10 @@ class RFStation:
             return self.eta_0[counter]
         else:
             eta = 0
-            delta = dE / (beam.beta**2 * beam.energy)
+            delta = dE / (beam.beta ** 2 * beam.energy)
             for i in range(self.alpha_order + 1):
                 eta_i = getattr(self, 'eta_' + str(i))[counter]
-                eta += eta_i * (delta**i)
+                eta += eta_i * (delta ** i)
             return eta
 
     def to_gpu(self, recursive=True):
@@ -466,7 +465,7 @@ def calculate_Q_s(RFStation, Particle=Proton()):
     return np.sqrt(RFStation.harmonic[0] * np.abs(Particle.charge) *
                    RFStation.voltage[0] *
                    np.abs(RFStation.eta_0 * np.cos(RFStation.phi_s)) /
-                   (2 * np.pi * RFStation.beta**2 * RFStation.energy))
+                   (2 * np.pi * RFStation.beta ** 2 * RFStation.energy))
 
 
 def calculate_phi_s(RFStation, Particle=Proton(),
@@ -514,7 +513,7 @@ def calculate_phi_s(RFStation, Particle=Proton(),
         denergy = np.append(RFStation.delta_E, RFStation.delta_E[-1])
         acceleration_ratio = denergy / (Particle.charge * RFStation.voltage[0, :])
         acceleration_test = ((acceleration_ratio > -1) & (acceleration_ratio < 1)) == 0
-        
+
         # Validity check on acceleration_ratio
         if np.count_nonzero(acceleration_test) > 0:
             print("WARNING in calculate_phi_s(): acceleration is not " +
@@ -531,8 +530,8 @@ def calculate_phi_s(RFStation, Particle=Proton(),
 
         # Project phi_s in correct range
         phi_s[index] = (np.heaviside(np.sign(Particle.charge), 0) * np.pi - phi_s[index]) % (2 * np.pi)
-        phi_s[index_below] = (np.heaviside(np.sign(Particle.charge), 0) * np.pi + phi_s[index_below])\
-            % (2 * np.pi)
+        phi_s[index_below] = (np.heaviside(np.sign(Particle.charge), 0) * np.pi + phi_s[index_below]) \
+                             % (2 * np.pi)
         # phi_s[index] = (np.pi - phi_s[index]) % (2*np.pi)
         # phi_s[index_below] = (np.pi + phi_s[index_below]) % (2*np.pi)
 
@@ -556,10 +555,10 @@ def calculate_phi_s(RFStation, Particle=Proton(),
 
             for indexRF in range(len(RFStation.voltage[:, indexTurn + 1])):
                 totalRF += RFStation.voltage[indexRF, indexTurn + 1] * \
-                    np.sin(RFStation.harmonic[indexRF, indexTurn + 1] /
-                           np.min(RFStation.harmonic[:, indexTurn + 1]) *
-                           phase_array +
-                           RFStation.phi_rf[indexRF, indexTurn + 1])
+                           np.sin(RFStation.harmonic[indexRF, indexTurn + 1] /
+                                  np.min(RFStation.harmonic[:, indexTurn + 1]) *
+                                  phase_array +
+                                  RFStation.phi_rf[indexRF, indexTurn + 1])
 
             potential_well = - cumtrapz(
                 np.sign(eta0[indexTurn]) * (totalRF -
@@ -568,7 +567,7 @@ def calculate_phi_s(RFStation, Particle=Proton(),
                 dx=phase_array[1] - phase_array[0], initial=0)
 
             phi_s[indexTurn] = np.mean(phase_array[
-                potential_well == np.min(potential_well)])
+                                           potential_well == np.min(potential_well)])
 
         phi_s = np.insert(phi_s, 0, phi_s[0]) + RFStation.phi_rf[0, :]
         phi_s[eta0 < 0] += np.pi

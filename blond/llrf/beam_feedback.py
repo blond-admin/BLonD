@@ -16,7 +16,6 @@ for the CERN machines**
 
 from __future__ import division
 
-
 import numpy as np
 
 from ..utils import bmath as bm
@@ -93,8 +92,8 @@ class BeamFeedback:
                 self.lhc_a = 5.25 - self.rf_station.omega_s0 / (np.pi * 40.)
                 #: | *LHC Synchronisation loop time constant [turns]*
                 self.lhc_t = (2 * np.pi * self.rf_station.Q_s * np.sqrt(self.lhc_a)) / \
-                    np.sqrt(1 + self.gain / self.gain2 *
-                            np.sqrt((1 + 1 / self.lhc_a) / (1 + self.lhc_a)))
+                             np.sqrt(1 + self.gain / self.gain2 *
+                                     np.sqrt((1 + 1 / self.lhc_a) / (1 + self.lhc_a)))
 
             else:
 
@@ -222,8 +221,8 @@ class BeamFeedback:
         # Update the RF frequency of all systems for the next turn
         counter = self.rf_station.counter[0] + 1
         self.rf_station.omega_rf[:, counter] += self.domega_rf * \
-            self.rf_station.harmonic[:, counter] / \
-            self.rf_station.harmonic[0, counter]
+                                                self.rf_station.harmonic[:, counter] / \
+                                                self.rf_station.harmonic[0, counter]
 
     def precalculate_time(self, Ring):
         '''
@@ -337,15 +336,15 @@ class BeamFeedback:
         counter = self.rf_station.counter[0]
 
         # Correct for design orbit
-#        self.average_dE = np.mean(self.profile.Beam.dE[(self.profile.Beam.dt >
-#            self.profile.bin_centers[0])*(self.profile.Beam.dt <
-#                                         self.profile.bin_centers[-1])])
+        #        self.average_dE = np.mean(self.profile.Beam.dE[(self.profile.Beam.dt >
+        #            self.profile.bin_centers[0])*(self.profile.Beam.dt <
+        #                                         self.profile.bin_centers[-1])])
         self.average_dE = bm.mean(self.profile.Beam.dE[::self.sample_dE])
 
         self.drho = self.ring.alpha_0[0, counter] * \
-            self.ring.ring_radius * self.average_dE / \
-            (self.ring.beta[0, counter]**2.
-             * self.ring.energy[0, counter])
+                    self.ring.ring_radius * self.average_dE / \
+                    (self.ring.beta[0, counter] ** 2.
+                     * self.ring.energy[0, counter])
 
     def radial_steering_from_freq(self):
         '''
@@ -355,19 +354,19 @@ class BeamFeedback:
         counter = self.rf_station.counter[0]
 
         self.radial_steering_domega_rf = - self.rf_station.omega_rf_d[0, counter] * \
-            self.rf_station.eta_0[counter] / self.ring.alpha_0[0, counter] * \
-            self.reference / self.ring.ring_radius
+                                         self.rf_station.eta_0[counter] / self.ring.alpha_0[0, counter] * \
+                                         self.reference / self.ring.ring_radius
 
         self.rf_station.omega_rf[:, counter] += self.radial_steering_domega_rf * \
-            self.rf_station.harmonic[:, counter] / \
-            self.rf_station.harmonic[0, counter]
+                                                self.rf_station.harmonic[:, counter] / \
+                                                self.rf_station.harmonic[0, counter]
 
         # Update the RF phase of all systems for the next turn
         # Accumulated phase offset due to PL in each RF system
         self.rf_station.dphi_rf_steering += 2. * np.pi * self.rf_station.harmonic[:, counter] * \
-            (self.rf_station.omega_rf[:, counter] -
-             self.rf_station.omega_rf_d[:, counter]) / \
-            self.rf_station.omega_rf_d[:, counter]
+                                            (self.rf_station.omega_rf[:, counter] -
+                                             self.rf_station.omega_rf_d[:, counter]) / \
+                                            self.rf_station.omega_rf_d[:, counter]
 
         # Total phase offset
         self.rf_station.phi_rf[:, counter] += self.rf_station.dphi_rf_steering
@@ -396,9 +395,9 @@ class BeamFeedback:
 
         # Frequency correction from phase loop and frequency loop
         self.domega_rf = - self.gain * self.dphi \
-            - self.gain2 * (self.rf_station.omega_rf[0, counter] -
-                            self.rf_station.omega_rf_d[0, counter] +
-                            self.reference)
+                         - self.gain2 * (self.rf_station.omega_rf[0, counter] -
+                                         self.rf_station.omega_rf_d[0, counter] +
+                                         self.reference)
 
     def SPS_F(self):
         '''
@@ -445,7 +444,7 @@ class BeamFeedback:
         # Frequency correction from phase loop and radial loop
         self.domega_dphi = - self.gain * self.dphi
         self.domega_dR = - bm.sign(self.rf_station.eta_0[counter]) * self.gain2 * \
-            (self.reference - self.drho) / self.ring.ring_radius
+                         (self.reference - self.drho) / self.ring.ring_radius
 
         self.domega_rf = self.domega_dphi + self.domega_dR
 
@@ -518,8 +517,8 @@ class BeamFeedback:
                 self.dphi_av += self.RFnoise.dphi[counter]
 
             self.domega_PL = 0.99803799 * self.domega_PL \
-                + self.gain[counter] * (0.99901903 * self.dphi_av -
-                                        0.99901003 * self.dphi_av_prev)
+                             + self.gain[counter] * (0.99901903 * self.dphi_av -
+                                                     0.99901003 * self.dphi_av_prev)
 
             self.dphi_av_prev = self.dphi_av
             self.dphi_sum = 0.
@@ -527,12 +526,13 @@ class BeamFeedback:
             # Radial loop
             self.dR_over_R = (self.rf_station.omega_rf[0, counter] -
                               self.rf_station.omega_rf_d[0, counter]) / (
-                self.rf_station.omega_rf_d[0, counter] *
-                (1. / (self.ring.alpha_0[0, counter] *
-                       self.rf_station.gamma[counter]**2) - 1.))
+                                     self.rf_station.omega_rf_d[0, counter] *
+                                     (1. / (self.ring.alpha_0[0, counter] *
+                                            self.rf_station.gamma[counter] ** 2) - 1.))
 
             self.domega_RL = self.domega_RL + self.gain2[0][counter] * (self.dR_over_R
-                                                                        - self.dR_over_R_prev) + self.gain2[1][counter] * self.dR_over_R
+                                                                        - self.dR_over_R_prev) + self.gain2[1][
+                                 counter] * self.dR_over_R
 
             self.dR_over_R_prev = self.dR_over_R
 
