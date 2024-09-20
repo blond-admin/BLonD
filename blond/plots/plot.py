@@ -12,22 +12,32 @@
 :Authors: **Helga Timko**
 '''
 
+from __future__ import annotations
+
 import os
+from typing import TYPE_CHECKING
 
 import h5py as hp
 import matplotlib.pyplot as plt
 import numpy as np
 
-from ..plots.plot_beams import (plot_long_phase_space, plot_bunch_length_evol,
+from blond.plots.plot_beams import (plot_long_phase_space, plot_bunch_length_evol,
                                 plot_bunch_length_evol_gaussian, plot_position_evol,
                                 plot_energy_evol, plot_transmitted_particles)
-from ..plots.plot_llrf import (plot_PL_bunch_phase,
+from blond.plots.plot_llrf import (plot_PL_bunch_phase,
                                plot_PL_RF_phase, plot_PL_phase_corr, plot_PL_RF_freq,
                                plot_PL_freq_corr, plot_RF_phase_error, plot_RL_radial_error,
                                plot_COM_motion, plot_LHCNoiseFB, plot_LHCNoiseFB_FWHM,
                                plot_LHCNoiseFB_FWHM_bbb)
-from ..plots.plot_slices import (plot_beam_profile, plot_beam_spectrum)
+from blond.plots.plot_slices import (plot_beam_profile, plot_beam_spectrum)
+from blond.utils.abstracts import TrackableBaseClass
+from blond.utils.legacy_support import handle_legacy_kwargs
 
+if TYPE_CHECKING:
+    from blond.beam.beam import Beam
+    from blond.input_parameters.rf_parameters import RFStation
+    from blond.input_parameters.ring import Ring
+    from blond.beam.profile import Profile
 
 def fig_folder(dirname):
     '''
@@ -47,12 +57,13 @@ def fig_folder(dirname):
 
 class Plot:
 
-    def __init__(self, Ring, RFStation, Beam, dt_plot,
+    @handle_legacy_kwargs
+    def __init__(self, ring: Ring, rf_station: RFStation, beam: Beam, dt_plot,
                  dt_bckp, xmin, xmax, ymin, ymax, xunit='s', sampling=1,
                  show_plots=False,
                  separatrix_plot=False, histograms_plot=True,
-                 Profile=None, h5file=None, output_frequency=1,
-                 PhaseLoop=None, LHCNoiseFB=None, format_options=None):
+                 profile=None, h5file=None, output_frequency=1,
+                 phase_loop=None, LHCNoiseFB=None, format_options=None):
         '''
         Define what plots should be plotted during the simulation. Passing only
         basic objects, only phase space plot will be produced. Passing optional
@@ -64,16 +75,16 @@ class Plot:
         '''
 
         #: | *Import Ring*
-        self.general_params = Ring
+        self.general_params = ring
 
         #: | *Import RFStation*
-        self.rf_params = RFStation
+        self.rf_params = rf_station
 
         #: | *Import actual time step RFStation*
-        self.tstep = RFStation.counter
+        self.tstep = rf_station.counter
 
         #: | *Import Beam*
-        self.beam = Beam
+        self.beam: Beam = beam
 
         #: | *Defining whether the plots should be saved or directly shown*
         self.show_plt = show_plots
@@ -107,7 +118,7 @@ class Plot:
         self.histogram = histograms_plot
 
         #: | *Optional import of Profile*
-        self.profile = Profile
+        self.profile: Profile = profile
 
         #: | *Optional import of Monitor file*
         self.h5file = h5file
@@ -116,7 +127,7 @@ class Plot:
         self.dt_mon = output_frequency
 
         #: | *Optional import of PhaseLoop*
-        self.PL = PhaseLoop
+        self.phase_loop = phase_loop
 
         #: | *Optional import of LHCNoiseFB*
         self.noiseFB = LHCNoiseFB
@@ -126,6 +137,18 @@ class Plot:
 
         # Track at initialisation
         self.track()
+
+    @property
+    def PL(self):
+        from warnings import warn
+        warn("PL is deprecated, use phase_loop", DeprecationWarning)
+        return self.phase_loop
+
+    @PL.setter
+    def PL(self, val):
+        from warnings import warn
+        warn("PL is deprecated, use phase_loop", DeprecationWarning)
+        self.phase_loop = val
 
     def set_format(self, format_options):
         '''
@@ -259,7 +282,7 @@ class Plot:
                                        style=self.lstyle,
                                        dirname=self.dirname, show_plot=self.show_plt)
 
-            if self.PL:
+            if self.phase_loop:
                 plot_PL_RF_freq(self.rf_params, h5data,
                                 output_freq=self.dt_mon,
                                 dirname=self.dirname, show_plot=self.show_plt)

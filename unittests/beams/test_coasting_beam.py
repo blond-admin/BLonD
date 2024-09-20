@@ -20,7 +20,7 @@ import scipy.optimize as spOpt
 import blond.beam.beam as bBeam
 import blond.beam.coasting_beam as cBeam
 import blond.input_parameters.ring as Ring
-import blond.utils.exceptions as blExcept
+import blond.utils.exceptions as blond_exceptions
 from blond.beam.beam import Proton
 
 
@@ -72,7 +72,7 @@ class testCoastingBeamModule(unittest.TestCase):
             cBeam.generate_coasting_beam(self.beam, 0, self.ring.t_rev[0],
                                          spread_type=t)
 
-        with self.assertRaises(blExcept.DistributionError,
+        with self.assertRaises(blond_exceptions.DistributionError,
                                msg="""Invalid spread type 
                                should raise exception"""):
 
@@ -86,14 +86,14 @@ class testCoastingBeamModule(unittest.TestCase):
             cBeam.generate_coasting_beam(self.beam, 0, self.ring.t_rev[0],
                                          distribution=t)
 
-        with self.assertRaises(blExcept.DistributionError,
+        with self.assertRaises(blond_exceptions.DistributionError,
                                msg="""'user' distribution without required
                                input should raise exception"""):
 
             cBeam.generate_coasting_beam(self.beam, 0, self.ring.t_rev[0],
                                          spread_type='user')
 
-        with self.assertRaises(blExcept.DistributionError,
+        with self.assertRaises(blond_exceptions.DistributionError,
                                msg="""Invalid distribution type 
                                should raise exception"""):
 

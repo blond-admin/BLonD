@@ -12,13 +12,21 @@ intensity effects is considered.**
 
 :Authors: **Helga Timko**
 '''
+from __future__ import annotations
 
 from __future__ import division
 
-from builtins import range
+from typing import TYPE_CHECKING
 
 import numpy as np
 from scipy.special import ellipe, ellipk
+
+from blond.input_parameters.rf_parameters import RFStation
+from blond.utils.legacy_support import handle_legacy_kwargs
+
+if TYPE_CHECKING:
+    from blond.input_parameters.ring import Ring
+    from blond.input_parameters.rf_parameters import RFStation
 
 
 def x(phimax):
@@ -43,7 +51,7 @@ def action_from_phase_amplitude(x2):
                        (1. - x2[indices]) * ellipk(x2[indices]))
 
     if indices0:
-        action[indices0] = np.float(ellipe(x2[indices0]))
+        action[indices0] = float(ellipe(x2[indices0]))
 
     return action
 
@@ -98,23 +106,24 @@ def phase_amplitude_from_tune(tune):
     return phimax
 
 
-def oscillation_amplitude_from_coordinates(Ring, RFStation, dt, dE,
+@handle_legacy_kwargs
+def oscillation_amplitude_from_coordinates(ring: Ring, rf_station: RFStation, dt: np.ndarray, dE: np.ndarray,
                                            timestep=0, Np_histogram=None):
-    '''
+    """
     Returns the oscillation amplitude in time for given particle coordinates,
-    assuming single-harmonic RF system and no intensity effects. 
+    assuming single-harmonic RF system and no intensity effects.
     Optional: RF parameters at a given timestep (default = 0) are used.
     Optional: Number of points for histogram output
-    '''
+    """
 
-    omega_rf = RFStation.omega_rf[0, timestep]
-    phi_rf = RFStation.phi_rf[0, timestep]
-    phi_s = RFStation.phi_s[timestep]
-    eta = RFStation.eta_0[0]
-    T0 = Ring.t_rev[0]
-    V = RFStation.voltage[0, 0]
-    beta_sq = RFStation.beta[0] ** 2
-    E = RFStation.energy[0]
+    omega_rf = rf_station.omega_rf[0, timestep]
+    phi_rf = rf_station.phi_rf[0, timestep]
+    phi_s = rf_station.phi_s[timestep]
+    eta = rf_station.eta_0[0]
+    T0 = ring.t_rev[0]
+    V = rf_station.voltage[0, 0]
+    beta_sq = rf_station.beta[0] ** 2
+    E = rf_station.energy[0]
     const = eta * T0 * omega_rf / (2. * V * beta_sq * E)
 
     dtmax = np.fabs(np.arccos(np.cos(omega_rf * dt + phi_rf) + const * dE ** 2)
@@ -133,8 +142,8 @@ def oscillation_amplitude_from_coordinates(Ring, RFStation, dt, dE,
 
         return dtmax
 
-
-def action_from_oscillation_amplitude(RFStation, dtmax, timestep=0,
+@handle_legacy_kwargs
+def action_from_oscillation_amplitude(rf_station: RFStation, dtmax, timestep=0,
                                       Np_histogram=None):
     '''
     Returns the relative action for given oscillation amplitude in time,
@@ -144,7 +153,7 @@ def action_from_oscillation_amplitude(RFStation, dtmax, timestep=0,
     Optional: Number of points for histogram output
     '''
 
-    omega_rf = RFStation.omega_RF[0, timestep]
+    omega_rf = rf_station.omega_rf[0, timestep]
     xx = x2(omega_rf * dtmax)
     action = np.zeros(len(xx))
 
@@ -153,7 +162,7 @@ def action_from_oscillation_amplitude(RFStation, dtmax, timestep=0,
     action[indices] = (ellipe(xx[indices]) -
                        (1. - xx[indices]) * ellipk(xx[indices]))
     if indices0:
-        action[indices0] = np.float(ellipe(xx[indices0]))
+        action[indices0] = float(ellipe(xx[indices0]))
 
     if Np_histogram is not None:
 

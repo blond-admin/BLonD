@@ -95,7 +95,7 @@ POST_LS2_4SEC = True
 Logger(debug=True)
 
 # Set up machine parameters
-ring = Ring(C, alpha, p_s, Particle=Proton(), n_turns=N_t)
+ring = Ring(C, alpha, p_s, particle=Proton(), n_turns=N_t)
 logging.info("...... Machine parameters set!")
 
 # Set up RF parameters
@@ -113,8 +113,8 @@ logging.info("Number of particles %d" %len(beam.dt))
 logging.info("Time coordinates are in range %.4e to %.4e s" %(np.min(beam.dt),
                                                      np.max(beam.dt)))
 
-profile = Profile(beam, CutOptions = CutOptions(cut_left=0.e-9,
-    cut_right=rf.t_rev[0], n_slices=4620))
+profile = Profile(beam, cut_options= CutOptions(cut_left=0.e-9,
+                                                cut_right=rf.t_rev[0], n_slices=4620))
 profile.track()
 
 logging.info("...... OPEN FEEDBACK test")

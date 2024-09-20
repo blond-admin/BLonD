@@ -7,22 +7,30 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 **Function(s) for pre-processing input data**
 
 :Authors: **Helga Timko**, **Alexandre Lasheen**, **Danilo Quartullo**,
     **Simon Albright**
-'''
+"""
 
-from __future__ import division
+from __future__ import division, annotations
 
-from builtins import range, str
+import os
+from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import splev, splrep
 
-from ..plots.plot import fig_folder
+from blond.plots.plot import fig_folder
+from blond.utils.legacy_support import handle_legacy_kwargs
+
+if TYPE_CHECKING:
+    from numpy import ndarray
+    from typing import Any, List, Literal, Union, Optional, Tuple, Callable
+    from blond.input_parameters.ring import Ring
+    from typing import Any, List, Literal, Union
 
 
 class RFStationOptions:
@@ -48,8 +56,14 @@ class RFStationOptions:
 
     """
 
-    def __init__(self, interpolation='linear', smoothing=0, plot=False,
-                 figdir='fig', figname=['data'], sampling=1):
+    def __init__(self,
+                 interpolation: Literal['linear', 'cubic'] = 'linear',
+                 smoothing: float = 0.0,
+                 plot: bool = False,
+                 figdir: Union[os.PathLike, str] = 'fig',
+                 figname: List[str] = ['data'],
+                 sampling: int = 1
+                 ) -> None:
 
         if interpolation in ['linear', 'cubic']:
             self.interpolation = str(interpolation)
@@ -78,8 +92,12 @@ class RFStationOptions:
             raise RuntimeError("ERROR: sampling value in PreprocessRamp" +
                                " not recognised. Aborting...")
 
-    def reshape_data(self, input_data, n_turns, n_rf, interp_time,
-                     t_start=0):
+    def reshape_data(self, input_data: Any,
+                     n_turns: int,
+                     n_rf: int,
+                     interp_time: ndarray,
+                     t_start: Optional[float] = 0.0
+                     ) -> ndarray:
         r"""Checks whether the user input is consistent with the expectation
         for the RFStation object. The possibilites are detailed in the
         documentation of the RFStation object.
@@ -237,9 +255,9 @@ class RFStationOptions:
 
         return output_data
 
-
-def combine_rf_functions(function_list, merge_type='linear', resolution=1e-3,
-                         Ring=None, main_h=True):
+@handle_legacy_kwargs
+def combine_rf_functions(function_list: List[Tuple[Callable, List[float]]], merge_type='linear', resolution=1e-3,
+                         ring: Ring=None, main_h=True):
     r"""Function to combine different RF programs. Each program is passed in a
     tuple with complete function (single valued or numpy array) and 2-list
     [start_time, stop_time].
@@ -258,7 +276,7 @@ def combine_rf_functions(function_list, merge_type='linear', resolution=1e-3,
             linear_tune : for use with voltages, provides a linear change in the tune from function_1[stop_time] to function_2[start_time]
     resolution : float
         the time in seconds between points of the interpolation
-    Ring : class
+    ring : class
         A Ring type class, only used with linear_tune merge_type
     main_h : boolean
         if main_h is True dE is considered in linear_tune merge_type, otherwise dE is set to 0
@@ -384,8 +402,8 @@ def combine_rf_functions(function_list, merge_type='linear', resolution=1e-3,
             # harmonic, charge and 2pi are constant so can be ignored
             if not isinstance(function_list[i][0], np.ndarray):
 
-                initPars = Ring.parameters_at_time(fullTime[-1])
-                finalPars = Ring.parameters_at_time(function_list[i][1][0])
+                initPars = ring.parameters_at_time(fullTime[-1])
+                finalPars = ring.parameters_at_time(function_list[i][1][0])
 
                 vInit = fullFunction[-1]
                 vFin = function_list[i][0]
@@ -410,7 +428,7 @@ def combine_rf_functions(function_list, merge_type='linear', resolution=1e-3,
                                    nSteps)
                 tuneInterp = np.linspace(float(initTune), float(finalTune), nSteps)
 
-                mergePars = Ring.parameters_at_time(time)
+                mergePars = ring.parameters_at_time(time)
 
                 if main_h is False:
                     mergePars['delta_E'] *= 0
@@ -440,8 +458,8 @@ def combine_rf_functions(function_list, merge_type='linear', resolution=1e-3,
                 nSteps = int(tDur / resolution[i - 1])
                 time = np.linspace(float(fullTime[-1]), float(funcTime[0]), nSteps)
 
-                initPars = Ring.parameters_at_time(fullTime[-1])
-                finalPars = Ring.parameters_at_time(funcTime[0])
+                initPars = ring.parameters_at_time(fullTime[-1])
+                finalPars = ring.parameters_at_time(funcTime[0])
 
                 if main_h is False:
                     initPars['delta_E'] = 0.
@@ -462,7 +480,7 @@ def combine_rf_functions(function_list, merge_type='linear', resolution=1e-3,
 
                 tuneInterp = np.linspace(float(initTune), float(finalTune), nSteps)
 
-                mergePars = Ring.parameters_at_time(time)
+                mergePars = ring.parameters_at_time(time)
 
                 if main_h is False:
                     mergePars['delta_E'] *= 0

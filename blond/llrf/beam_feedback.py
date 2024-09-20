@@ -14,11 +14,23 @@ for the CERN machines**
 :Authors: **Helga Timko**, **Alexandre Lasheen**
 '''
 
-from __future__ import division
+from __future__ import division, annotations
+
+from typing import TYPE_CHECKING
 
 import numpy as np
 
-from ..utils import bmath as bm
+from blond.utils import bmath as bm
+from blond.utils.abstracts import TrackableBaseClass
+from blond.utils.legacy_support import handle_legacy_kwargs
+
+if TYPE_CHECKING:
+    from typing import Dict, Union
+    from blond.input_parameters.rf_parameters import RFStation
+    from blond.input_parameters.ring import Ring
+    from blond.beam.profile import Profile
+    from blond.utils.types import DeviceType
+    from blond.llrf.rf_noise import LHCNoiseFB
 
 
 class BeamFeedback:
@@ -29,19 +41,25 @@ class BeamFeedback:
     affects the RF phase as well.
     '''
 
-    def __init__(self, Ring, RFStation, Profile,
-                 configuration,
-                 PhaseNoise=None,
-                 LHCNoiseFB=None, delay=0):
+    @handle_legacy_kwargs
+    def __init__(self,
+                 ring: Ring,
+                 rf_station: RFStation,
+                 profile: Profile,
+                 configuration: Dict[str, Union[str, float]], # todo improve type hint
+                 PhaseNoise: None = None, # todo class doesnt exist anymore??
+                 LHCNoiseFB: Union[LHCNoiseFB, None] = None,
+                 delay: int = 0
+                 ) -> None:
 
         #: | *Import Ring*
-        self.ring = Ring
+        self.ring = ring
 
         #: | *Import RFStation*
-        self.rf_station = RFStation
+        self.rf_station = rf_station
 
         #: | *Import Profile*
-        self.profile = Profile
+        self.profile: Profile = profile
 
         #: | *Machine-dependent configuration of LLRF system.*
         self.config = configuration
@@ -134,7 +152,7 @@ class BeamFeedback:
         # PSB CONFIGURATION
         elif self.machine == 'PSB':
 
-            self.gain = self.gain * np.ones(Ring.n_turns + 1)
+            self.gain = self.gain * np.ones(ring.n_turns + 1)
 
             #: | *Radial loop gain, proportional [1] and integral [1/s].*
             if 'RL_gain' not in self.config:
@@ -142,8 +160,8 @@ class BeamFeedback:
             else:
                 self.gain2 = self.config['RL_gain']
 
-            self.gain2[0] = self.gain2[0] * np.ones(Ring.n_turns + 1)
-            self.gain2[1] = self.gain2[1] * np.ones(Ring.n_turns + 1)
+            self.gain2[0] = self.gain2[0] * np.ones(ring.n_turns + 1)
+            self.gain2[1] = self.gain2[1] * np.ones(ring.n_turns + 1)
 
             #: | *Optional: PL & RL acting only in certain time intervals/turns.*
             self.dt = 0
@@ -157,7 +175,7 @@ class BeamFeedback:
             self.PL_counter = 0
             self.on_time = np.array([])
 
-            self.precalculate_time(Ring)
+            self.precalculate_time(ring)
 
             #: | *Array of transfer function coefficients.*
             if 'coefficients' not in self.config:
@@ -199,7 +217,7 @@ class BeamFeedback:
         #: | *Optional import of RF PhaseNoise object*
         self.RFnoise = PhaseNoise
         if (self.RFnoise is not None
-                and (len(self.RFnoise.dphi) != Ring.n_turns + 1)):
+                and (len(self.RFnoise.dphi) != ring.n_turns + 1)):
             # PhaseNoiseError
             raise RuntimeError(
                 'Phase noise has to have a length of n_turns + 1')
@@ -208,12 +226,12 @@ class BeamFeedback:
         self.noiseFB = LHCNoiseFB
 
     def track(self):
-        '''
+        """
         Calculate PL correction on main RF frequency depending on machine and
         propagate it to other RF systems.
         The update of the RF phase and frequency for the next turn,
         for all systems is done in the tracker.
-        '''
+        """
 
         # Calculate PL correction on RF frequency
         getattr(self, self.machine)()
@@ -224,7 +242,8 @@ class BeamFeedback:
                                                 self.rf_station.harmonic[:, counter] / \
                                                 self.rf_station.harmonic[0, counter]
 
-    def precalculate_time(self, Ring):
+    @handle_legacy_kwargs
+    def precalculate_time(self, ring: Ring):
         '''
         *For machines like the PSB, where the PL acts only in certain time
         intervals, pre-calculate on which turns to act.*
@@ -232,20 +251,20 @@ class BeamFeedback:
 
         if self.dt > 0:
             n = self.delay + 1
-            while n < Ring.t_rev.size:
+            while n < ring.t_rev.size:
                 summa = 0
                 while summa < self.dt:
                     try:
-                        summa += Ring.t_rev[n]
+                        summa += ring.t_rev[n]
                         n += 1
                     except Exception:
                         self.on_time = np.append(self.on_time, 0)
                         return
                 self.on_time = np.append(self.on_time, n - 1)
         else:
-            self.on_time = np.arange(Ring.t_rev.size)
+            self.on_time = np.arange(ring.t_rev.size)
 
-    def beam_phase(self):
+    def beam_phase(self) -> None:
         '''
         *Beam phase measured at the main RF frequency and phase. The beam is 
         convolved with the window function of the band-pass filter of the 
@@ -336,10 +355,10 @@ class BeamFeedback:
         counter = self.rf_station.counter[0]
 
         # Correct for design orbit
-        #        self.average_dE = np.mean(self.profile.Beam.dE[(self.profile.Beam.dt >
-        #            self.profile.bin_centers[0])*(self.profile.Beam.dt <
+        #        self.average_dE = np.mean(self.profile.beam.dE[(self.profile.beam.dt >
+        #            self.profile.bin_centers[0])*(self.profile.beam.dt <
         #                                         self.profile.bin_centers[-1])])
-        self.average_dE = bm.mean(self.profile.Beam.dE[::self.sample_dE])
+        self.average_dE = bm.mean(self.profile.beam.dE[::self.sample_dE])
 
         self.drho = self.ring.alpha_0[0, counter] * \
                     self.ring.ring_radius * self.average_dE / \
@@ -363,6 +382,7 @@ class BeamFeedback:
 
         # Update the RF phase of all systems for the next turn
         # Accumulated phase offset due to PL in each RF system
+        # FIXME dphi_rf_steering never declared, this will crash
         self.rf_station.dphi_rf_steering += 2. * np.pi * self.rf_station.harmonic[:, counter] * \
                                             (self.rf_station.omega_rf[:, counter] -
                                              self.rf_station.omega_rf_d[:, counter]) / \
@@ -553,7 +573,7 @@ class BeamFeedback:
         # No arrays need to be transfered
 
         # to make sure it will not be called again
-        self._device = 'GPU'
+        self._device: DeviceType = 'GPU'
 
     def to_cpu(self, recursive=True):
         '''
@@ -566,4 +586,4 @@ class BeamFeedback:
         # No arrays need to be transfered
 
         # to make sure it will not be called again
-        self._device = 'CPU'
+        self._device: DeviceType = 'CPU'

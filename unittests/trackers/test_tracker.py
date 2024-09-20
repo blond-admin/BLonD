@@ -93,7 +93,7 @@ class TestRfVoltageCalc(unittest.TestCase):
         self.profile = Profile(self.beam, CutOptions(n_slices=100, cut_left=0, cut_right=self.rf.t_rf[0, 0]),
                                FitOptions(fit_option='gaussian'))
         self.long_tracker = RingAndRFTracker(
-            self.rf, self.beam, Profile=self.profile)
+            self.rf, self.beam, profile=self.profile)
 
     # Run after every test
 
@@ -166,7 +166,7 @@ class TestRfVoltageCalcWCavityFB(unittest.TestCase):
                                FitOptions(fit_option='gaussian'))
 
         self.long_tracker = RingAndRFTracker(
-            self.rf, self.beam, Profile=self.profile)
+            self.rf, self.beam, profile=self.profile)
 
     # Run after every test
 
@@ -240,7 +240,7 @@ class TestRfVoltageCalcWCavityFB(unittest.TestCase):
             [self.dphi], phi_modulation=phiMod)
 
         self.long_tracker = RingAndRFTracker(
-            self.rf, self.beam, Profile=self.profile)
+            self.rf, self.beam, profile=self.profile)
 
         for i in range(self.N_t):
             self.long_tracker.track()

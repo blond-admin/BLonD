@@ -67,7 +67,7 @@ print("")
 
 # Define general parameters
 ring = Ring(C, alpha, np.linspace(p_i, p_f, 2001), Proton(), N_t)
-
+a = ring.ring_length
 # Define beam and distribution
 beam = Beam(ring, N_p, N_b)
 
@@ -87,12 +87,12 @@ profile = Profile(beam, CutOptions(n_slices=100),
 
 # Define what to save in file
 bunchmonitor = BunchMonitor(ring, rf, beam,
-                            this_directory + '../output_files/EX_01_output_data', Profile=profile)
+                            this_directory + '../output_files/EX_01_output_data', profile=profile)
 
 format_options = {'dirname': this_directory + '../output_files/EX_01_fig'}
 plots = Plot(ring, rf, beam, dt_plt, N_t, 0, 0.0001763 * h,
              -400e6, 400e6, xunit='rad', separatrix_plot=True,
-             Profile=profile, h5file=this_directory + '../output_files/EX_01_output_data',
+             profile=profile, h5file=this_directory + '../output_files/EX_01_output_data',
              format_options=format_options)
 
 # For testing purposes
@@ -110,6 +110,7 @@ print("")
 
 # Tracking --------------------------------------------------------------------
 for i in range(1, N_t + 1):
+    print(f'{i=}')
 
     # Plot has to be done before tracking (at least for cases with separatrix)
     if (i % dt_plt) == 0:

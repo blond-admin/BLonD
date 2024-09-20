@@ -75,7 +75,7 @@ class TestSeparatrixBigaussian(unittest.TestCase):
             elif not singleRF:
                 rf_params = RFStation(general_params, h, V, phi_1, n_rf=2)
                 rf_params.phi_s = calculate_phi_s(
-                    rf_params, Particle=general_params.Particle,
+                    rf_params, particle=general_params.particle,
                     accelerating_systems='all')
 
         elif not negativeEta:
@@ -94,7 +94,7 @@ class TestSeparatrixBigaussian(unittest.TestCase):
             elif not singleRF:
                 rf_params = RFStation(general_params, h, V, phi_2, n_rf=2)
                 rf_params.phi_s = calculate_phi_s(
-                    rf_params, Particle=general_params.Particle,
+                    rf_params, particle=general_params.particle,
                     accelerating_systems='all')
 
         # Define beam and distribution

@@ -6,7 +6,7 @@ the output will contain at least one factor 2.**
 '''
 
 
-def next_regular(target):
+def next_regular(target: int) -> int:
     """
     Find the next regular number greater than or equal to target.
     Regular numbers are composites of the prime factors 2, 3, and 5.

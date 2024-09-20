@@ -11,14 +11,20 @@
 
 :Authors: **Helga Timko**
 '''
+from typing import TYPE_CHECKING
 
 from __future__ import division
 
 import matplotlib.pyplot as plt
+import numpy as np
+
+if TYPE_CHECKING:
+    from typing import Union
+    from os import PathLike
 
 
-def plot_voltage_programme(time, voltage, sampling=1, dirname='fig',
-                           figno=0):
+def plot_voltage_programme(time: np.ndarray, voltage: np.ndarray, sampling: int = 1,
+                           dirname: Union[str, PathLike[str]] = 'fig', figno: int =0):
     """
     Plot of the RF voltage as a function of time.
     For large amount of data, use "sampling" to plot a fraction of the data.

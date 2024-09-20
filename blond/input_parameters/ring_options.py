@@ -16,7 +16,7 @@
 
 from __future__ import division, annotations
 
-from builtins import range, str
+import os
 from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
@@ -24,10 +24,15 @@ import numpy as np
 from scipy.constants import c
 from scipy.interpolate import splev, splrep, Akima1DInterpolator
 
-from ..plots.plot import fig_folder
+from blond.plots.plot import fig_folder
 
 if TYPE_CHECKING:
-    from typing import List, Iterable, Tuple
+    from typing import List, Iterable, Tuple, Union, Literal, Optional
+
+    from numpy import ndarray
+
+    from blond.utils.types import InterpolationTypes
+    from blond.input_parameters.ring import SynchronousDataTypes
 
 
 class RingOptions:
@@ -64,9 +69,17 @@ class RingOptions:
 
     """
 
-    def __init__(self, interpolation='linear', smoothing=0, flat_bottom=0,
-                 flat_top=0, t_start=None, t_end=None, plot=False,
-                 figdir='fig', figname='preprocess_ramp', sampling=1):
+    def __init__(self,
+                 interpolation: InterpolationTypes = 'linear',
+                 smoothing: float = 0,
+                 flat_bottom: int = 0,
+                 flat_top: int = 0,
+                 t_start: Optional[int] = None,
+                 t_end: Optional[int] = None,
+                 plot: bool = False,
+                 figdir: Union[os.PathLike, str] = 'fig',
+                 figname: str = 'preprocess_ramp',
+                 sampling: int = 1) -> None:
 
         if interpolation in ['linear', 'cubic', 'derivative', 'akima']:
             self.interpolation = str(interpolation)
@@ -110,18 +123,26 @@ class RingOptions:
             raise RuntimeError("ERROR: sampling value in PreprocessRamp" +
                                " not recognised. Aborting...")
 
-    def reshape_data(self, input_data, n_turns, n_sections,
-                     interp_time='t_rev', input_to_momentum=False,
-                     synchronous_data_type='momentum', mass=None, charge=None,
-                     circumference=None, bending_radius=None):
+    def reshape_data(self,
+                     input_data: float | int | tuple | list | np.ndarray,
+                     n_turns: int,
+                     n_sections: int,
+                     interp_time: Literal['t_rev'] | float | np.ndarray = 't_rev',  # todo dtype Literal['?','?']
+                     input_to_momentum: bool = False,
+                     synchronous_data_type: SynchronousDataTypes = 'momentum',
+                     mass: Union[float, None] = None,
+                     charge: Union[float, None] = None,
+                     circumference: Union[float, None] = None,
+                     bending_radius: Union[float, None] = None
+                     ) -> np.ndarray:
         r"""Checks whether the user input is consistent with the expectation
-        for the Ring object. The possibilites are detailed in the documentation
+        for the Ring object. The possibilities are detailed in the documentation
         of the Ring object.
 
 
         Parameters
         ----------
-        input_data : Ring.synchronous_data, Ring.alpha_0,1,2
+        input_data : Ring.synchronous_data, Ring.alpha_0,1,2 # todo typo ring alpha??, todo
             Main input data to reshape
         n_turns : Ring.n_turns
             Number of turns the simulation should be. Note that if
@@ -165,7 +186,7 @@ class RingOptions:
         # TO BE IMPLEMENTED: if you pass a filename the function reads the file
         # and reshape the data
         if isinstance(input_data, str):
-            pass
+            raise NotImplementedError()
 
         # If single float, expands the value to match the input number of turns
         # and sections
@@ -195,7 +216,7 @@ class RingOptions:
                                    "does not match the number of sections")
 
             # Loops over all the sections to interpolate the programs, appends
-            # the results on the output_data list which is afterwards
+            # the results on the output_data list which is afterward
             # converted to a numpy.array
             for index_section in range(n_sections):
                 input_data_time = input_data[index_section][0]
@@ -282,12 +303,19 @@ class RingOptions:
                     raise RuntimeError("ERROR in Ring: The input data " +
                                        "does not match the proper length " +
                                        "(n_turns+1)")
+        else:
+            raise TypeError(type(input_data))
 
         return output_data
 
-    def preprocess(self, mass, circumference, time, momentum):
+    def preprocess(self,
+                   mass: float,
+                   circumference: float,
+                   time: np.ndarray,
+                   momentum: np.ndarray
+                   ) -> Tuple[ndarray, ndarray]:
         r"""Function to pre-process acceleration ramp data, interpolating it to
-        every turn. Currently it works only if the number of RF sections is
+        every turn. Currently, it works only if the number of RF sections is
         equal to one, to be extended for multiple RF sections.
 
         Parameters
@@ -425,7 +453,7 @@ class RingOptions:
     def _linear_interpolation(self, time_interp: List[float],
                               momentum_interp: List[float],
                               beta_interp: List[float], circumference: float,
-                              time: Iterable[float], momentum: Iterable[float],
+                              time: np.ndarray, momentum: np.ndarray,
                               mass: float) -> Tuple[Iterable[float], ...]:
 
         time_interp.append(time_interp[-1]
@@ -452,10 +480,9 @@ class RingOptions:
     def _cubic_interpolation(self, time_interp: List[float],
                              momentum_interp: List[float],
                              beta_interp: List[float], circumference: float,
-                             time: Iterable[float], momentum: Iterable[float],
+                             time: np.ndarray, momentum: np.ndarray,
                              mass: float, time_start_ramp: float,
-                             time_end_ramp: float) -> Tuple[Iterable[float],
-    ...]:
+                             time_end_ramp: float) -> Tuple[np.ndarray,    ...]:
 
         interp_funtion_momentum = splrep(
             time[(time >= time_start_ramp) * (time <= time_end_ramp)],
@@ -572,8 +599,11 @@ class RingOptions:
 
         return time_interp, momentum_interp, beta_interp
 
-    def _next_time_beta(self, next_momentum: float, mass: float,
-                        circumference: float):
+    def _next_time_beta(self,
+                        next_momentum: float,
+                        mass: float,
+                        circumference: float
+                        ) -> Tuple[float, float]:
 
         beta = np.sqrt(1 / (1 + (mass / next_momentum) ** 2))
 
@@ -582,8 +612,12 @@ class RingOptions:
         return time, beta
 
 
-def convert_data(synchronous_data, mass, charge,
-                 synchronous_data_type='momentum', bending_radius=None):
+def convert_data(synchronous_data: np.ndarray,
+                 mass: float,
+                 charge: float,
+                 synchronous_data_type: SynchronousDataTypes = 'momentum',
+                 bending_radius: Optional[float] = None
+                 ) -> np.ndarray:
     """ Function to convert synchronous data (i.e. energy program of the
     synchrotron) into momentum.
 

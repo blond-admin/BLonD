@@ -322,9 +322,9 @@ def music_track(dt: np.ndarray, dE: np.ndarray, induced_voltage: np.ndarray,
 
     Parameters
     ----------
-    beam_dt : float array
+    dt : float array
         Longitudinal coordinates [s]
-    beam_dE : float array
+    dE : float array
         Initial energies [V]
     induced_voltage : float array
         array used to store the output of the computation

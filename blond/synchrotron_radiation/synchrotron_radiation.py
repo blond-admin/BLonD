@@ -12,36 +12,53 @@
 :Authors: **Juan F. Esteban Mueller**
 '''
 
-from __future__ import division, print_function
+from __future__ import division, print_function, annotations
 
-from builtins import range
+from typing import TYPE_CHECKING
 
 import numpy as np
 
-from ..utils import bmath as bm
+from blond.utils import bmath as bm
+from blond.utils.abstracts import TrackableBaseClass
+from blond.utils.legacy_support import handle_legacy_kwargs
 
+if TYPE_CHECKING:
+    from typing import Union, Callable, Dict
+    from blond.beam.beam import Beam
+    from blond.input_parameters.rf_parameters import RFStation
+    from blond.input_parameters.ring import Ring
+    from blond.utils.types import DeviceType
 
 class SynchrotronRadiation:
     ''' Class to compute synchrotron radiation effects, including radiation
         damping and quantum excitation.
-        For multiple RF section, instanciate one object per RF section an call
+        For multiple RF section, instance one object per RF section a call
         the track() method after tracking each section.
     '''
 
-    def __init__(self, Ring, RFParameters, Beam, bending_radius,
-                 n_kicks=1, quantum_excitation=True, python=False, seed=None,
-                 shift_beam=True):
+    @handle_legacy_kwargs
+    def __init__(self,
+                 ring: Ring,
+                 rf_parameters: RFStation,
+                 beam: Beam,
+                 bending_radius: float,
+                 n_kicks: int = 1,
+                 quantum_excitation: bool = True,
+                 python: bool = False,
+                 seed: Union[int, None] = None,
+                 shift_beam: bool = True
+                 ) -> None:
 
-        self.ring = Ring
-        self.rf_params = RFParameters
-        self.beam = Beam
+        self.ring = ring
+        self.rf_params = rf_parameters
+        self.beam: beam = beam
         self.rho = bending_radius
         self.n_kicks = n_kicks  # To apply SR in several kicks
         np.random.seed(seed=seed)
 
         # Calculate static parameters
-        self.c_gamma = self.ring.Particle.c_gamma
-        self.c_q = self.ring.Particle.c_q
+        self.c_gamma = self.ring.particle.c_gamma
+        self.c_q = self.ring.particle.c_q
 
         self.I2 = 2.0 * np.pi / self.rho  # Assuming isomagnetic machine
         self.I3 = 2.0 * np.pi / self.rho ** 2.0
@@ -59,7 +76,7 @@ class SynchrotronRadiation:
         # synchrotron radiation (temporary until bunch generation is updated)
         if (shift_beam) and (self.rf_params.section_index == 0):
             self.beam_phase_to_compensate_SR = np.abs(np.arcsin(
-                self.U0 / (self.ring.Particle.charge * self.rf_params.voltage[0][0])))
+                self.U0 / (self.ring.particle.charge * self.rf_params.voltage[0][0])))
             self.beam_position_to_compensate_SR = self.beam_phase_to_compensate_SR \
                                                   * self.rf_params.t_rf[0, 0] / (2.0 * np.pi)
 
@@ -81,7 +98,7 @@ class SynchrotronRadiation:
                 self.track = self.track_SR_C
 
     # Method to compute the SR parameters
-    def calculate_SR_params(self):
+    def calculate_SR_params(self) -> None:
         i_turn = self.rf_params.counter[0]
 
         # Energy loss per turn/RF section [eV]
@@ -123,7 +140,7 @@ class SynchrotronRadiation:
         print('------------------------------------------------')
 
     # Track particles with SR only (without quantum excitation)
-    def track_SR_python(self):
+    def track_SR_python(self) -> None:
         i_turn = self.rf_params.counter[0]
         # Recalculate SR parameters if energy changes
         if (i_turn != 0 and self.ring.energy[0, i_turn] !=
@@ -134,7 +151,7 @@ class SynchrotronRadiation:
                               + self.U0 / self.n_kicks)
 
     # Track particles with SR and quantum excitation
-    def track_full_python(self):
+    def track_full_python(self) -> None:
         i_turn = self.rf_params.counter[0]
         # Recalculate SR parameters if energy changes
         if (i_turn != 0 and self.ring.energy[0, i_turn] !=
@@ -149,7 +166,7 @@ class SynchrotronRadiation:
 
     # Track particles with SR only (without quantum excitation)
     # C implementation
-    def track_SR_C(self):
+    def track_SR_C(self) -> None:
         i_turn = self.rf_params.counter[0]
         # Recalculate SR parameters if energy changes
         if (i_turn != 0 and self.ring.energy[0, i_turn] !=
@@ -160,7 +177,7 @@ class SynchrotronRadiation:
                                  self.n_kicks, self.tau_z)
 
     # Track particles with SR and quantum excitation. C implementation
-    def track_full_C(self):
+    def track_full_C(self) -> None:
         i_turn = self.rf_params.counter[0]
         # Recalculate SR parameters if energy changes
         if (i_turn != 0 and self.ring.energy[0, i_turn] !=
@@ -182,7 +199,7 @@ class SynchrotronRadiation:
         # No arrays need to be transfered
 
         # to make sure it will not be called again
-        self._device = 'GPU'
+        self._device: DeviceType = 'GPU'
 
     def to_cpu(self, recursive=True):
         '''
@@ -195,4 +212,4 @@ class SynchrotronRadiation:
         # No arrays need to be transfered
 
         # to make sure it will not be called again
-        self._device = 'CPU'
+        self._device: DeviceType = 'CPU'

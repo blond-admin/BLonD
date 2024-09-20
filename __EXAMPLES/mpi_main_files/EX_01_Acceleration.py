@@ -96,12 +96,12 @@ map_ = [long_tracker] + [profile]
 if WORKER.is_master:
     bunchmonitor = BunchMonitor(ring, rf, beam,
                                 this_directory + '../mpi_output_files/EX_01_output_data',
-                                Profile=profile)
+                                profile=profile)
     format_options = {'dirname': this_directory +
                       '../mpi_output_files/EX_01_fig'}
     plots = Plot(ring, rf, beam, dt_plt, N_t, 0, 0.0001763 * h,
                  -400e6, 400e6, xunit='rad', separatrix_plot=True,
-                 Profile=profile, h5file=this_directory + '../mpi_output_files/EX_01_output_data',
+                 profile=profile, h5file=this_directory + '../mpi_output_files/EX_01_output_data',
                  format_options=format_options)
 
     map_ += [bunchmonitor] + [plots]

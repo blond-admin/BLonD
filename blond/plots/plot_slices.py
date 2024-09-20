@@ -11,14 +11,26 @@
 
 :Authors: **Helga Timko**, **Danilo Quartullo**
 '''
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from __future__ import division
 
 import matplotlib.pyplot as plt
 import numpy as np
 
+from blond.utils.legacy_support import handle_legacy_kwargs
 
-def plot_beam_profile(Profile, counter, style='-', dirname='fig', show_plot=False):
+if TYPE_CHECKING:
+    from typing import Union
+    from os import PathLike
+    from blond.beam.profile import Profile
+
+
+@handle_legacy_kwargs
+def plot_beam_profile(profile: Profile, counter, style='-', dirname: Union[str, PathLike[str]] = 'fig',
+                      show_plot=False):
     """
     Plot of longitudinal beam profile
     """
@@ -26,7 +38,7 @@ def plot_beam_profile(Profile, counter, style='-', dirname='fig', show_plot=Fals
     fig = plt.figure(1)
     fig.set_size_inches(8, 6)
     ax = plt.axes()
-    ax.plot(Profile.bin_centers, Profile.n_macroparticles, style)
+    ax.plot(profile.bin_centers, profile.n_macroparticles, style)
 
     ax.set_xlabel(r"$\Delta t$ [s]")
     ax.set_ylabel('Beam profile [arb. units]')
@@ -45,7 +57,10 @@ def plot_beam_profile(Profile, counter, style='-', dirname='fig', show_plot=Fals
     plt.clf()
 
 
-def plot_beam_profile_derivative(Profile, counter, style='-', dirname='fig', show_plot=False,
+@handle_legacy_kwargs
+def plot_beam_profile_derivative(profile: Profile, counter: int, style='-',
+                                 dirname: Union[str, PathLike[str]] = 'fig',
+                                 show_plot=False,
                                  modes=['diff']):
     """
     Plot of the derivative of the longitudinal beam profile.
@@ -53,7 +68,7 @@ def plot_beam_profile_derivative(Profile, counter, style='-', dirname='fig', sho
     1) 'filter1d', 2) 'gradient', 3) 'diff'
     """
     for mode in modes:
-        x, derivative = Profile.beam_profile_derivative(mode)
+        x, derivative = profile.beam_profile_derivative(mode)
         plt.plot(x, derivative, style, label=mode)
     plt.legend()
     if show_plot:
@@ -63,15 +78,16 @@ def plot_beam_profile_derivative(Profile, counter, style='-', dirname='fig', sho
         plt.savefig(fign)
     plt.clf()
 
-
-def plot_beam_spectrum(Profile, counter, style='-', dirname='fig', show_plot=False):
+@handle_legacy_kwargs
+def plot_beam_spectrum(profile: Profile, counter: int, style='-', dirname: Union[str, PathLike[str]] = 'fig',
+                       show_plot=False):
     """
     Plot of longitudinal beam profile
     """
 
     plt.figure(1, figsize=(8, 6))
     ax = plt.axes()
-    ax.plot(Profile.beam_spectrum_freq, np.absolute(Profile.beam_spectrum), style)
+    ax.plot(profile.beam_spectrum_freq, np.absolute(profile.beam_spectrum), style)
 
     ax.set_xlabel(r"Frequency [Hz]")
     ax.set_ylabel('Beam spectrum, \n absolute value [arb. units]')

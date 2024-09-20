@@ -10,14 +10,17 @@
 :Authors: **Danilo Quartullo, Konstantinos Iliakis**
 '''
 
-from __future__ import division
+from __future__ import division, annotations
 
-from builtins import range
+from typing import TYPE_CHECKING
 
 import numpy as np
 from scipy.constants import e
 
-from ..utils import bmath as bm
+from blond.utils import bmath as bm
+
+if TYPE_CHECKING:
+    from blond.beam.beam import Beam
 
 
 class Music:
@@ -31,7 +34,7 @@ class Music:
 
     Parameters
     ----------
-    Beam : object
+    beam : object
         Beam object.
     resonator : float list
         List of the resonator parameters:
@@ -100,9 +103,9 @@ class Music:
 
     """
 
-    def __init__(self, Beam, resonator, n_macroparticles, n_particles, t_rev):
+    def __init__(self, beam: Beam, resonator, n_macroparticles, n_particles, t_rev):
 
-        self.beam = Beam
+        self.beam: Beam = beam
         self.R_S = resonator[0]
         self.omega_R = resonator[1]
         self.Q = resonator[2]

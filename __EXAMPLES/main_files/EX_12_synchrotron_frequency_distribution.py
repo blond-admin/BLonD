@@ -249,7 +249,7 @@ beam_generation_output = matched_from_distribution_function(beam, full_tracker,
                                                             emittance=emittance,
                                                             distribution_variable=distribution_variable,
                                                             main_harmonic_option='lowest_freq',
-                                                            TotalInducedVoltage=total_induced_voltage,
+                                                            total_induced_voltage=total_induced_voltage,
                                                             n_iterations=20, seed=1256)
 
 [sync_freq_distribution_left, sync_freq_distribution_right], \
@@ -257,7 +257,7 @@ beam_generation_output = matched_from_distribution_function(beam, full_tracker,
     [delta_time_left, delta_time_right], \
     particleDistributionFreq, synchronous_time = \
     synchrotron_frequency_distribution(beam, full_tracker,
-                                       TotalInducedVoltage=beam_generation_output[1])
+                                       total_induced_voltage=beam_generation_output[1])
 
 # Plot of the synchrotron frequency distribution
 plt.figure('fs_distribution_IE')

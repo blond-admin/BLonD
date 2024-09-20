@@ -20,7 +20,7 @@ from blond.input_parameters.ring import Ring
 from blond.input_parameters.rf_parameters import RFStation
 from blond.beam.beam import Beam, Proton
 from blond.beam.profile import Profile, CutOptions
-from blond.llrf.cavity_feedback import LHCCavityLoop, LHCRFFeedback
+from blond.llrf.cavity_feedback import LHCCavityLoop, LHCRFFeedback # FIXME LHCRFFeedback never declared
 
 import logging
 import numpy as np
@@ -61,7 +61,7 @@ plt.rc('legend', fontsize=12)
 Logger(debug=True)
 
 
-ring = Ring(C, alpha, p_s, Particle=Proton(), n_turns=1)
+ring = Ring(C, alpha, p_s, particle=Proton(), n_turns=1)
 rf = RFStation(ring, [h], [V], [dphi])
 
 # dummy beam & profile

@@ -6,49 +6,56 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 **Methods to generate RF phase noise from noise spectrum and feedback noise
 amplitude as a function of bunch length**
 
 :Authors: **Helga Timko**
-'''
+"""
 
-from __future__ import division, print_function
+from __future__ import division, print_function, annotations
 
-from builtins import range
+from typing import TYPE_CHECKING
 
 import numpy as np
 import numpy.random as rnd
 
-from ..plots.plot import fig_folder
-from ..plots.plot_llrf import plot_phase_noise, plot_noise_spectrum
-from ..toolbox.next_regular import next_regular
+from blond.beam.profile import Profile
+from blond.plots.plot import fig_folder
+from blond.plots.plot_llrf import plot_phase_noise, plot_noise_spectrum
+from blond.toolbox.next_regular import next_regular
+from blond.utils.abstracts import TrackableBaseClass
+from blond.utils.legacy_support import handle_legacy_kwargs
+
+if TYPE_CHECKING:
+    from blond.input_parameters.rf_parameters import RFStation
+    from blond.input_parameters.ring import Ring
 
 cfwhm = np.sqrt(2. / np.log(2.))
 
 
 class FlatSpectrum:
-
-    def __init__(self, Ring, RFStation, delta_f=1,
+    @handle_legacy_kwargs
+    def __init__(self, ring: Ring, rf_station: RFStation, delta_f=1,
                  corr_time=10000, fmin_s0=0.8571, fmax_s0=1.1,
                  initial_amplitude=1.e-6, seed1=1234, seed2=7564,
                  predistortion=None, continuous_phase=False, folder_plots='fig_noise', print_option=True,
-                 initial_final_turns=[0, -1]):
-        '''
+                 initial_final_turns=(0, -1)):
+        """
         Generate phase noise from a band-limited spectrum.
-        Input frequency band using 'fmin' and 'fmax' w.r.t. the synchrotron 
-        frequency. Input double-sided spectrum amplitude [rad^2/Hz] using 
+        Input frequency band using 'fmin' and 'fmax' w.r.t. the synchrotron
+        frequency. Input double-sided spectrum amplitude [rad^2/Hz] using
         'initial_amplitude'. Fix seeds to obtain reproducible phase noise.
-        Select 'time_points' suitably to resolve the spectrum in frequency 
+        Select 'time_points' suitably to resolve the spectrum in frequency
         domain. After 'corr_time' turns, the seed is changed to cut numerical
         correlated sequences of the random number generator.
-        '''
-        self.total_n_turns = Ring.n_turns
-        self.initial_final_turns = initial_final_turns
+        """
+        self.total_n_turns = ring.n_turns
+        self.initial_final_turns = list(initial_final_turns)
         if self.initial_final_turns[1] == -1:
             self.initial_final_turns[1] = self.total_n_turns + 1
 
-        self.f0 = Ring.f_rev[self.initial_final_turns[0]:self.initial_final_turns[1]]  # revolution frequency in Hz
+        self.f0 = ring.f_rev[self.initial_final_turns[0]:self.initial_final_turns[1]]  # revolution frequency in Hz
         self.delta_f = delta_f  # frequency resolution [Hz]
         self.corr = corr_time  # adjust noise every 'corr' time steps
         self.fmin_s0 = fmin_s0  # spectrum lower bound in synchr. freq.
@@ -61,7 +68,7 @@ class FlatSpectrum:
             # Overwrite frequencies
             self.fmin_s0 = 0.8571
             self.fmax_s0 = 1.001
-        self.fs = RFStation.omega_s0[self.initial_final_turns[0]:self.initial_final_turns[1]] / (
+        self.fs = rf_station.omega_s0[self.initial_final_turns[0]:self.initial_final_turns[1]] / (
                     2 * np.pi)  # synchrotron frequency in Hz
         self.n_turns = len(self.fs) - 1
         self.dphi = np.zeros(self.n_turns + 1)
@@ -244,15 +251,16 @@ class LHCNoiseFB:
     for multi-bunch simulations; the feedback uses the average bunch length.*
     '''
 
-    def __init__(self, RFStation, Profile, bl_target, gain=0.1e9,
+    @handle_legacy_kwargs
+    def __init__(self, rf_station: RFStation, profile: Profile, bl_target, gain=0.1e9,
                  factor=0.93, update_frequency=22500, variable_gain=True,
                  bunch_pattern=None):
 
         #: | *Import RFStation*
-        self.rf_params = RFStation
+        self.rf_params = rf_station
 
         #: | *Import Profile*
-        self.profile = Profile
+        self.profile: Profile = profile
 
         #: | *Phase noise scaling factor. Initially 0.*
         self.x = 0.
@@ -347,8 +355,8 @@ class LHCNoiseFB:
         '''
 
         # Find correct RF buckets
-        phi_RF = self.rf_params.phi_RF[0, self.rf_params.counter[0]]
-        omega_RF = self.rf_params.omega_RF[0, self.rf_params.counter[0]]
+        phi_RF = self.rf_params.phi_rf[0, self.rf_params.counter[0]]
+        omega_RF = self.rf_params.omega_rf[0, self.rf_params.counter[0]]
         bucket_min = (phi_RF + 2. * np.pi * self.bunch_pattern) / omega_RF
         bucket_max = bucket_min + 2. * np.pi / omega_RF
 

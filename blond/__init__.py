@@ -3,8 +3,7 @@
 
 :Authors: Konstantinos Iliakis**
 '''
-
-
+# todo add most important imports here to make it more accessible
 def test():
     """A simple test to verify that blond has been correctly installed.
     """

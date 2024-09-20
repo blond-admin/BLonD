@@ -4,17 +4,24 @@ Functions related to running MPI simulations.
 @author: Konstantinos Iliakis
 @date: 01.01.2020
 '''
+from __future__ import annotations
 
 import logging
 import os
 import socket
 import sys
 from functools import wraps
+from typing import TYPE_CHECKING
 
 import numpy as np
 from mpi4py import MPI
 
-from ..utils import bmath as bm
+from blond.utils import bmath as bm
+
+if TYPE_CHECKING:
+    from typing import Callable
+
+    from blond.beam.beam import Beam
 
 WORKER = None
 
@@ -29,7 +36,7 @@ def mpiprint(*args, all=False):
         print(f'[{WORKER.rank}]', *args)
 
 
-def master_wrap(func):
+def master_wrap(func: Callable):
     """Wrap function to be executed only by the master worker.
 
     Args:
@@ -48,7 +55,7 @@ def master_wrap(func):
     return wrap
 
 
-def sequential_wrap(func, beam, split_args={}, gather_args={}):
+def sequential_wrap(func: Callable, beam: Beam, split_args={}, gather_args={}):
     """Wrap a function to make it run in sequential mode.
     When in sequential mode, all the beam coordinates are gathered before executing
     the passed function, and re-splitted afterwards.

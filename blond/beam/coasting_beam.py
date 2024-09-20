@@ -6,25 +6,34 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 **Module to generate coasting beam**
 
 :Authors: **Simon Albright**
-'''
+"""
+from __future__ import annotations
 
-from builtins import str
+from typing import TYPE_CHECKING
 
 import numpy as np
 import numpy.random as rand
 
-import blond.utils.exceptions as blExcept
+import blond.utils.exceptions as blond_exceptions
+
+if TYPE_CHECKING:
+    from blond.beam.beam import Beam
+    from typing import Literal
 
 
-def generate_coasting_beam(beam, t_start, t_stop, spread=1E-3,
-                           spread_type='dp/p', energy_offset=0,
-                           distribution='gaussian', user_distribution=None,
-                           user_probability=None):
-    '''
+def generate_coasting_beam(
+        beam: Beam, t_start: float, t_stop: float, spread: float = 1E-3,
+        spread_type: Literal['dp/p', 'dE/E', 'dp', 'dE',] = 'dp/p',
+        energy_offset: float = 0,
+        distribution: Literal['gaussian', 'parabolic', 'user'] = 'gaussian',
+        user_distribution: np.ndarray = None,
+        user_probability: np.ndarray = None
+) -> None:
+    """
     energy_offset represents the absolute energy difference between the center
     of the coasting beam and the synchronous particle spread is used for the
     absolute max/min in a parabolic or the standard deviation in a gaussian
@@ -51,10 +60,11 @@ def generate_coasting_beam(beam, t_start, t_stop, spread=1E-3,
     :type user_distribution: _type_, optional
     :param user_probability: _description_, defaults to None
     :type user_probability: _type_, optional
-    :raises blExcept.DistributionError: _description_
-    :raises blExcept.DistributionError: _description_
-    :raises blExcept.DistributionError: _description_
-    '''
+    :raises blond_exceptions.DistributionError: _description_
+    :raises blond_exceptions.DistributionError: _description_
+    :raises blond_exceptions.DistributionError: _description_
+    """
+    # todo docstring
     if spread_type == 'dp/p':
         energy_spread = beam.energy * beam.beta ** 2 * spread
     elif spread_type == 'dE/E':
@@ -64,8 +74,8 @@ def generate_coasting_beam(beam, t_start, t_stop, spread=1E-3,
     elif spread_type == 'dE':
         energy_spread = spread
     else:
-        raise blExcept.DistributionError("spread_type " + str(spread_type) +
-                                         " not recognised")
+        raise blond_exceptions.DistributionError("spread_type " + str(spread_type) +
+                                                 " not recognised")
 
     if distribution == 'gaussian':
         beam.dE = rand.normal(loc=energy_offset, scale=energy_spread,
@@ -82,11 +92,11 @@ def generate_coasting_beam(beam, t_start, t_stop, spread=1E-3,
                   + energy_offset
 
     # If distribution == 'user' is selected the user must supply a uniformly
-    # spaced distribution and the assosciated probability for each bin
+    # spaced distribution and the associated probability for each bin
     # momentum_spread and energy_offset are not used in this instance.
     elif distribution == 'user':
         if user_distribution is None or user_probability is None:
-            raise blExcept.DistributionError("""Distribution 'user' requires
+            raise blond_exceptions.DistributionError("""Distribution 'user' requires
                                              'user_distribution' and 
                                              'user_probability' to be defined""")
 
@@ -96,6 +106,6 @@ def generate_coasting_beam(beam, t_start, t_stop, spread=1E-3,
                   * (user_distribution[1] - user_distribution[0])
 
     else:
-        raise blExcept.DistributionError("distribution type not recognised")
+        raise blond_exceptions.DistributionError("distribution type not recognised")
 
     beam.dt = rand.rand(beam.n_macroparticles) * (t_stop - t_start) + t_start

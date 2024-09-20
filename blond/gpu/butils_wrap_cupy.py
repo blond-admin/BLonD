@@ -1,13 +1,22 @@
-'''
+"""
 @author: Konstantinos Iliakis, George Tsapatsaris
-'''
+"""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import cupy as cp
 import numpy as np
 
 from . import GPU_DEV
-from ..utils import precision
 
+if TYPE_CHECKING:
+    pass
+
+from blond.utils import precision
+
+# TODO all typing
 
 def rf_volt_comp(voltage, omega_rf, phi_rf, bin_centers):
     """Calculate the rf voltage at each profile bin
@@ -100,8 +109,8 @@ def drift(dt, dE, solver, t_rev, length_ratio, alpha_order, eta_0,
     }
     solver = solver_to_int[solver]
 
-    if not isinstance(t_rev, precision.real_t):
-        t_rev = precision.real_t(t_rev)
+    if not isinstance(t_rev, precision.real_t): # todo bugfix typecheck for cupy type
+        t_rev = precision.real_t(t_rev) # todo in order for this line to work, we need .get() find out python versioning
 
     drift_kernel(args=(dt, dE, solver,
                        precision.real_t(t_rev), precision.real_t(length_ratio),
@@ -162,7 +171,7 @@ def linear_interp_kick(dt, dE, voltage,
                                grid=GPU_DEV.grid_size, block=GPU_DEV.block_size)
 
 
-def slice_beam(dt, profile, cut_left, cut_right):
+def slice_beam(dt: np.ndarray, profile: np.ndarray, cut_left: float, cut_right: float):
     """Constant space slicing with a constant frame.
 
     Args:
@@ -258,7 +267,8 @@ def __beam_phase_helper(bin_centers, profile, alpha, omega_rf, phi_rf):
     return base * cp.sin(a), base * cp.cos(a)
 
 
-def beam_phase(bin_centers, profile, alpha, omega_rf, phi_rf, bin_size):
+def beam_phase(bin_centers: np.ndarray, profile: np.ndarray, alpha: float, omega_rf: float, phi_rf: float,
+               bin_size: float):
     """Beam phase measured at the main RF frequency and phase. The beam is
        convolved with the window function of the band-pass filter of the
        machine. The coefficients of sine and cosine components determine the
@@ -305,7 +315,7 @@ def __beam_phase_fast_helper(bin_centers, profile, omega_rf, phi_rf):
     return profile * cp.sin(arr), profile * cp.cos(arr)
 
 
-def beam_phase_fast(bin_centers, profile, omega_rf, phi_rf, bin_size):
+def beam_phase_fast(bin_centers: np.ndarray, profile: np.ndarray, omega_rf: float, phi_rf: float, bin_size: float):
     """Simplified, faster variation of the beam_phase function
 
     Args:

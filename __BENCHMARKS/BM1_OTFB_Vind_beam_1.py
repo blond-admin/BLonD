@@ -74,7 +74,7 @@ else:
     Logger().disable()
 
 # Set up machine parameters
-ring = Ring(C, alpha, p_s, Particle=Proton(), n_turns=N_t)
+ring = Ring(C, alpha, p_s, particle=Proton(), n_turns=N_t)
 logging.info("...... Machine parameters set!")
 
 # Set up RF parameters
@@ -89,8 +89,8 @@ logging.info("Number of particles %d" %len(beam.dt))
 logging.info("Time coordinates are in range %.4e to %.4e s" %(np.min(beam.dt),
                                                               np.max(beam.dt)))
 
-profile = Profile(beam, CutOptions=CutOptions(cut_left=-1.e-9,
-                                              cut_right=6.e-9, n_slices=100))
+profile = Profile(beam, cut_options=CutOptions(cut_left=-1.e-9,
+                                               cut_right=6.e-9, n_slices=100))
 profile.track()
 
 if RF_CURRENT == True:
@@ -140,8 +140,8 @@ if RF_CURRENT2 == True:
     for i in range(bunches):
         beam2.dt[i*N_m:(i+1)*N_m] = beam.dt + i*bunch_spacing
         beam2.dE[i*N_m:(i+1)*N_m] = beam.dE
-    profile2 = Profile(beam2, CutOptions=CutOptions(cut_left=0,
-        cut_right=bunches*bunch_spacing, n_slices=1000*buckets))
+    profile2 = Profile(beam2, cut_options=CutOptions(cut_left=0,
+                                                     cut_right=bunches*bunch_spacing, n_slices=1000*buckets))
     profile2.track()
 
     tot_charges = np.sum(profile2.n_macroparticles) / \
@@ -221,8 +221,8 @@ if FINE_COARSE == True:
     for i in range(bunches):
         beam2.dt[i*N_m:(i+1)*N_m] = beam.dt + i*bunch_spacing
         beam2.dE[i*N_m:(i+1)*N_m] = beam.dE
-    profile2 = Profile(beam2, CutOptions=CutOptions(cut_left=0,
-        cut_right=bunches*bunch_spacing, n_slices=1000*buckets))
+    profile2 = Profile(beam2, cut_options=CutOptions(cut_left=0,
+                                                     cut_right=bunches*bunch_spacing, n_slices=1000*buckets))
     profile2.track()
 
     # Compare beam impulse response on coarse and fine grid
@@ -289,8 +289,8 @@ if FINE_COARSE == True:
 
 if VIND_BEAM == True:
 
-    profile = Profile(beam, CutOptions=CutOptions(cut_left=-1.e-9,
-        cut_right=6.e-9, n_slices=140))
+    profile = Profile(beam, cut_options=CutOptions(cut_left=-1.e-9,
+                                                   cut_right=6.e-9, n_slices=140))
     profile.track()
 
     # One-turn feedback around 3-, 4-, and 5-section cavities
@@ -338,7 +338,7 @@ if VIND_BEAM == True:
     TWC200_4.wake_calc(profile.bin_centers - profile.bin_centers[0])
     TWC200_5.wake_calc(profile.bin_centers - profile.bin_centers[0])
     wake1 = 2*(TWC200_4.wake + TWC200_5.wake)
-    Vind = -profile.Beam.ratio*profile.Beam.Particle.charge*e*\
+    Vind = -profile.beam.ratio*profile.beam.particle.charge*e*\
         np.convolve(wake1, profile.n_macroparticles, mode='full')[:140]
     plt.plot(convtime[:140], Vind, color='teal', label='Time domain w conv')
     
@@ -348,7 +348,7 @@ if VIND_BEAM == True:
     OTFB_4.TWC.compute_wakes(profile.bin_centers)
     OTFB_5.TWC.compute_wakes(profile.bin_centers)
     wake2 = 2*(OTFB_4.TWC.W_beam + OTFB_5.TWC.W_beam)
-    Vind = -profile.Beam.ratio*profile.Beam.Particle.charge*e*\
+    Vind = -profile.beam.ratio*profile.beam.particle.charge*e*\
         np.convolve(wake2, profile.n_macroparticles, mode='full')[:140]
     plt.plot(convtime[:140], Vind, color='turquoise', label='Wake, OTFB')
     plt.xlabel("Time [s]")

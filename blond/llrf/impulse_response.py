@@ -22,6 +22,9 @@ import numpy as np
 from scipy.constants import c
 from scipy.sparse import diags
 from scipy.sparse.linalg import spsolve
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from numpy import ndarray
 
 logger = logging.getLogger(__name__)
 
@@ -95,7 +98,7 @@ def cavity_response_sparse_matrix(
     return spsolve(B_matrix, b)
 
 
-def rectangle(t, tau):
+def rectangle(t: ndarray, tau: float) -> ndarray:
     r"""Rectangular function of time
 
     .. math:: \mathsf{rect} \left( \frac{t}{\tau} \right) =
@@ -146,7 +149,7 @@ def rectangle(t, tau):
     return y
 
 
-def triangle(t, tau):
+def triangle(t: ndarray, tau: float) -> ndarray:
     r"""Triangular function of time
 
     .. math:: \mathsf{tri} \left( \frac{t}{\tau} \right) =
@@ -295,7 +298,7 @@ class TravellingWaveCavity:
             v_g: float,
             omega_r: float,
             df: float = 0,
-    ):
+    ) -> None:
         self.l_cell = float(l_cell)
         self.N_cells = int(N_cells)
         self.rho = float(rho)
@@ -325,11 +328,11 @@ class TravellingWaveCavity:
         self.logger.info("Class initialized")
         self.logger.debug("Filling time %.4e s", self.tau)
 
-    def impulse_response_gen(self, omega_c: float, time_coarse: float):
+    def impulse_response_gen(self, omega_c: float, time_coarse: np.ndarray) -> None:
         r"""Impulse response from the cavity towards the
         generator. For a signal that is I,Q demodulated at a given carrier
         frequency :math:`\omega_c`. The formulae assume that the carrier
-        frequency is be close to the central frequency
+        frequency is close to the central frequency
         :math:`\omega_c/\omega_r \ll 1` and that the signal is low-pass
         filtered (i.e.\ high-frequency components can be neglected).
 
@@ -377,8 +380,8 @@ class TravellingWaveCavity:
             )
 
     def impulse_response_beam(
-            self, omega_c: float, time_fine: float, time_coarse: float = None
-    ):
+            self, omega_c: float, time_fine: np.ndarray, time_coarse: np.ndarray = None
+    ) -> None:
         r"""Impulse response from the cavity towards the beam. For a signal
         that is I,Q demodulated at a given carrier
         frequency :math:`\omega_c`. The formulae assume that the carrier
@@ -446,7 +449,7 @@ class TravellingWaveCavity:
                         np.cos(self.d_omega * t_beam) - 1j * np.sin(self.d_omega * t_beam)
                 )
 
-    def compute_wakes(self, time: float):
+    def compute_wakes(self, time: np.ndarray) -> None:
         r"""Computes the wake fields towards the beam and generator on the
         central cavity frequency.
 
@@ -475,21 +478,21 @@ class TravellingWaveCavity:
 
 
 class SPS3Section200MHzTWC(TravellingWaveCavity):
-    def __init__(self, df: float = 0):
+    def __init__(self, df: float = 0) -> None:
         TravellingWaveCavity.__init__(
             self, 0.374, 32, 2.71e4, 0.0946, 2 * np.pi * 200.03766667e6, df=df
         )
 
 
 class SPS4Section200MHzTWC(TravellingWaveCavity):
-    def __init__(self, df: float = 0):
+    def __init__(self, df: float = 0) -> None:
         TravellingWaveCavity.__init__(
             self, 0.374, 43, 2.71e4, 0.0946, 2 * np.pi * 199.9945e6, df=df
         )
 
 
 class SPS5Section200MHzTWC(TravellingWaveCavity):
-    def __init__(self, df: float = 0):
+    def __init__(self, df: float = 0) -> None:
         TravellingWaveCavity.__init__(
             self, 0.374, 54, 2.71e4, 0.0946, 2 * np.pi * 200.1e6, df=df
         )

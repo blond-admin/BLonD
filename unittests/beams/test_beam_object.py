@@ -22,7 +22,7 @@ import unittest
 import numpy
 from scipy.constants import physical_constants
 
-import blond.utils.exceptions as blExcept
+import blond.utils.exceptions as blond_exceptions
 # BLonD imports
 # --------------
 from blond.beam.beam import Beam, Electron, Particle, Proton
@@ -313,12 +313,12 @@ class testBeamClass(unittest.TestCase):
         self.assertEqual(12E-9, np.max(self.beam.dt),
                          msg="coordinates of added beam not used correctly")
 
-        with self.assertRaises(blExcept.ParticleAdditionError,
+        with self.assertRaises(blond_exceptions.ParticleAdditionError,
                                msg="""Unequal length time and energy should raise exception"""):
 
             self.beam += ([1, 2, 3], [4, 5])
 
-        with self.assertRaises(blExcept.ParticleAdditionError,
+        with self.assertRaises(blond_exceptions.ParticleAdditionError,
                                msg="""Mising time/energy should raise exception"""):
 
             self.beam += ([1, 2, 3])

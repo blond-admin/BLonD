@@ -561,9 +561,9 @@ class TestBigaussianData:
                                                    cut_right=self.rf.t_rf[0, 0]),
                               FitOptions(fit_option='gaussian'))
 
-        long_tracker = RingAndRFTracker(self.rf, beam, Profile=profile)
+        long_tracker = RingAndRFTracker(self.rf, beam, profile=profile)
         long_tracker_gpu = RingAndRFTracker(
-            rf_gpu, beam_gpu, Profile=profile_gpu)
+            rf_gpu, beam_gpu, profile=profile_gpu)
 
         cp.testing.assert_allclose(beam_gpu.dE, beam.dE, rtol=1e-8, atol=0,
                                    err_msg='Checking initial conditions')

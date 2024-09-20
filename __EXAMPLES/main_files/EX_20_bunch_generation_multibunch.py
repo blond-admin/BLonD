@@ -144,7 +144,7 @@ matched_from_distribution_density_multibunch(beam, general_params,
                                              n_bunches, bunch_spacing_buckets,
                                              intensity_list=intensity_list,
                                              minimum_n_macroparticles=minimum_n_macroparticles,
-                                             TotalInducedVoltage=total_ind_volt,
+                                             total_induced_voltage=total_ind_volt,
                                              n_iterations_input=10, seed=7878)
 
 
@@ -172,7 +172,7 @@ matched_from_line_density_multibunch(beam, general_params,
                                      full_tracker, line_density_options_list, n_bunches,
                                      bunch_spacing_buckets, intensity_list=intensity_list,
                                      minimum_n_macroparticles=minimum_n_macroparticles,
-                                     TotalInducedVoltage=total_ind_volt, seed=12)
+                                     total_induced_voltage=total_ind_volt, seed=12)
 
 plt.figure('From line density')
 slice_beam.track()

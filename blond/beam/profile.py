@@ -7,21 +7,31 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 **Module to compute the beam profile through slices**
 
 :Authors: **Danilo Quartullo**, **Alexandre Lasheen**,
           **Juan F. Esteban Mueller**
-'''
+"""
 
-from __future__ import division, print_function
+from __future__ import division, print_function, annotations
+
+from typing import TYPE_CHECKING
 
 import numpy as np
-# from numpy.fft import rfft, rfftfreq
 from scipy import ndimage
 
-from ..toolbox import filters_and_fitting as ffroutines
-from ..utils import bmath as bm
+from blond.toolbox import filters_and_fitting as ffroutines
+from blond.utils import bmath as bm
+from blond.utils.legacy_support import handle_legacy_kwargs
+
+if TYPE_CHECKING:
+    from numpy import ndarray
+    from typing import Literal, List, Callable, Union, Tuple
+    from blond.utils.types import DeviceType
+    from blond.beam.beam import Beam
+    from blond.input_parameters.rf_parameters import RFStation
+    from blond.utils.types import FilterExtraOptionsType, CutUnitType, FitOptionTypes, FilterMethodType
 
 
 class CutOptions:
@@ -48,7 +58,7 @@ class CutOptions:
     cuts_unit : str
         the unit of cut_left and cut_right, it can be seconds 's' or radians
         'rad'
-    RFSectionParameters : object
+    rf_station : object
         RFSectionParameters[0][0] is necessary for the conversion from radians
         to seconds if cuts_unit = 'rad'. RFSectionParameters[0][0] is the value
         of omega_rf of the main harmonic at turn number 0
@@ -72,55 +82,68 @@ class CutOptions:
     >>> from input_parameters.rf_parameters import RFStation
     >>> self.ring = Ring(n_turns = 1, ring_length = 100,
     >>> alpha = 0.00001, momentum = 1e9)
-    >>> self.rf_params = RFStation(Ring=self.ring, n_rf=1, harmonic=[4620],
+    >>> self.rf_params = RFStation(ring=self.ring, n_rf=1, harmonic=[4620],
     >>>                  voltage=[7e6], phi_rf_d=[0.])
     >>> CutOptions = profileModule.CutOptions(cut_left=0, cut_right=2*np.pi,
-    >>> n_slices = 100, cuts_unit='rad', RFSectionParameters=self.rf_params)
+    >>> n_slices = 100, cuts_unit='rad', rf_station=self.rf_params)
 
     """
 
-    def __init__(self, cut_left=None, cut_right=None, n_slices=100,
-                 n_sigma=None, cuts_unit='s', RFSectionParameters=None):
+    @handle_legacy_kwargs
+    def __init__(self,
+                 cut_left: Union[float, None] = None,
+                 cut_right: Union[float, None] = None,
+                 n_slices: int = 100,
+                 n_sigma: int = None,
+                 cuts_unit: CutUnitType = 's',
+                 rf_station: Union[RFStation, None] = None
+                 ) -> None:
         """
         Constructor
         """
 
-        if cut_left is not None:
-            self.cut_left = float(cut_left)
-        else:
-            self.cut_left = cut_left
+        self.cut_left: Union[float, None] = float(cut_left) if cut_left is not None \
+            else None
 
-        if cut_right is not None:
-            self.cut_right = float(cut_right)
-        else:
-            self.cut_right = cut_right
+        self.cut_right: Union[float, None] = float(cut_right) if cut_right is not None \
+            else None
 
         self.n_slices = int(n_slices)
 
-        if n_sigma is not None:
-            self.n_sigma = float(n_sigma)
-        else:
-            self.n_sigma = n_sigma
+        self.n_sigma: Union[float, None] = float(n_sigma) if n_sigma is not None \
+            else None
 
-        self.cuts_unit = str(cuts_unit)
+        self.cuts_unit: CutUnitType = cuts_unit
 
-        self.RFParams = RFSectionParameters
+        self.rf_station: Union[RFStation, None] = rf_station
 
-        if self.cuts_unit == 'rad' and self.RFParams is None:
+        if self.cuts_unit == 'rad' and self.rf_station is None:
             # CutError
-            raise RuntimeError('You should pass an RFParams object to ' +
+            raise RuntimeError('Argument "rf_station" required ' +
                                'convert from radians to seconds')
         if self.cuts_unit not in ['rad', 's']:
             # CutError
-            raise RuntimeError('cuts_unit should be "s" or "rad"')
+            raise NameError(f'cuts_unit should be "s" or "rad", not {cuts_unit=} !')
 
-        self.edges = np.zeros(n_slices + 1, dtype=bm.precision.real_t, order='C')
-        self.bin_centers = np.zeros(n_slices, dtype=bm.precision.real_t, order='C')
-        self.bin_size = 0.0
+        self.edges: np.ndarray = np.zeros(n_slices + 1, dtype=bm.precision.real_t, order='C')
+        self.bin_centers: np.ndarray = np.zeros(n_slices, dtype=bm.precision.real_t, order='C')
+        self.bin_size: float = 0.0
         # For CuPy backend
-        self._device = 'CPU'
+        self._device: DeviceType = 'CPU'
 
-    def set_cuts(self, Beam=None):
+    @property
+    def RFParams(self):
+        from warnings import warn
+        warn("AMBIGUOUS is deprecated, use ring", DeprecationWarning)
+        return self.rf_station
+
+    @RFParams.setter
+    def RFParams(self, val):
+        from warnings import warn
+        warn("AMBIGUOUS is deprecated, use ring", DeprecationWarning)
+        self.rf_station = val
+
+    def set_cuts(self, beam: Union[Beam, None] = None) -> None:
         r"""
         Method to set self.cut_left, self.cut_right, self.edges and
         self.bin_centers attributes.
@@ -133,15 +156,17 @@ class CutOptions:
         if self.cut_left is None and self.cut_right is None:
 
             if self.n_sigma is None:
-                dt_min = Beam.dt.min()
-                dt_max = Beam.dt.max()
+                dt_min = beam.dt.min()
+                dt_max = beam.dt.max()
                 self.cut_left = dt_min - 0.05 * (dt_max - dt_min)
                 self.cut_right = dt_max + 0.05 * (dt_max - dt_min)
             else:
-                mean_coords = np.mean(Beam.dt)
-                sigma_coords = np.std(Beam.dt)
+                mean_coords = np.mean(beam.dt)
+                sigma_coords = np.std(beam.dt)
                 self.cut_left = mean_coords - self.n_sigma * sigma_coords / 2
                 self.cut_right = mean_coords + self.n_sigma * sigma_coords / 2
+
+        # todo handle cutleftNone, cutright!=None and vice versa
 
         else:
 
@@ -150,27 +175,29 @@ class CutOptions:
             self.cut_right = float(self.convert_coordinates(self.cut_right,
                                                             self.cuts_unit))
 
-        self.edges = np.linspace(self.cut_left, self.cut_right,
-                                 self.n_slices + 1).astype(dtype=bm.precision.real_t, order='C', copy=False)
+        self.edges = np.linspace(
+            self.cut_left, self.cut_right,
+            self.n_slices + 1
+        ).astype(dtype=bm.precision.real_t, order='C', copy=False)
         self.bin_centers = (self.edges[:-1] + self.edges[1:]) / 2
         self.bin_size = (self.cut_right - self.cut_left) / self.n_slices
 
-    def track_cuts(self, Beam):
+    def track_cuts(self, beam: Beam):
         """
         Track the slice frame (limits and slice position) as the mean of the
         bunch moves.
         Requires Beam statistics!
         Method to be refined!
         """
-
-        delta = Beam.mean_dt - 0.5 * (self.cut_left + self.cut_right)
+        # todo Method to be refined!
+        delta = beam.mean_dt - 0.5 * (self.cut_left + self.cut_right)
 
         self.cut_left += delta
         self.cut_right += delta
         self.edges += delta
         self.bin_centers += delta
 
-    def convert_coordinates(self, value, input_unit_type):
+    def convert_coordinates(self, value: float, input_unit_type: CutUnitType) -> float:
         """
         Method to convert a value from 'rad' to 's'.
         """
@@ -179,27 +206,29 @@ class CutOptions:
             return value
 
         elif input_unit_type == 'rad':
-            return value / \
-                self.RFParams.omega_rf[0, self.RFParams.counter[0]]
+            return value / float(self.rf_station.omega_rf[0, self.rf_station.counter[0]])
 
-    def get_slices_parameters(self):
+        else:
+            raise NameError(input_unit_type)
+
+    def get_slices_parameters(self) -> Tuple[int, float, float, None, ndarray, ndarray, float]:
         """
-        Reuturn all the computed parameters.
+        Return all the computed parameters.
         """
         return self.n_slices, self.cut_left, self.cut_right, self.n_sigma, \
             self.edges, self.bin_centers, self.bin_size
 
     def to_gpu(self, recursive=True):
-        '''
+        """
         Transfer all necessary arrays to the GPU
-        '''
+        """
         # Check if to_gpu has been invoked already
-        if hasattr(self, '_device') and self._device == 'GPU':
+        if hasattr(self, '_device') and self._device == 'GPU':  # todo why should property not exist
             return
 
         # transfer recursively objects
-        if recursive and self.RFParams:
-            self.RFParams.to_gpu()
+        if recursive and self.rf_station:
+            self.rf_station.to_gpu()
 
         import cupy as cp
 
@@ -207,19 +236,19 @@ class CutOptions:
         self.bin_centers = cp.array(self.bin_centers)
 
         # to make sure it will not be called again
-        self._device = 'GPU'
+        self._device: DeviceType = 'GPU'
 
     def to_cpu(self, recursive=True):
-        '''
+        """
         Transfer all necessary arrays back to the CPU
-        '''
+        """
         # Check if to_cpu has been invoked already
         if hasattr(self, '_device') and self._device == 'CPU':
             return
 
         # transfer recursively objects
-        if recursive and self.RFParams:
-            self.RFParams.to_cpu()
+        if recursive and self.rf_station:
+            self.rf_station.to_cpu()
 
         import cupy as cp
 
@@ -230,7 +259,7 @@ class CutOptions:
             self.rf_voltage = cp.asnumpy(self.rf_voltage)
 
         # to make sure it will not be called again
-        self._device = 'CPU'
+        self._device: DeviceType = 'CPU'
 
 
 class FitOptions:
@@ -241,27 +270,41 @@ class FitOptions:
     Parameters
     ----------
 
-    fit_method : string
+    fit_option : string
         Current options are 'gaussian',
         'fwhm' (full-width-half-maximum converted to 4 sigma gaussian bunch)
         and 'rms'. The methods 'gaussian' and 'rms' give both 4 sigma.
-    fitExtraOptions : unknown
+    fit_extra_options : unknown # TODO
         For the moment no options can be passed into fitExtraOptions
 
     Attributes
     ----------
 
-    fit_method : string
-    fitExtraOptions : unknown
+    fit_option : string
+    fit_extra_options : unknown # TODO
     """
 
-    def __init__(self, fit_option=None, fitExtraOptions=None):
+    def __init__(self,
+                 fit_option: Union[FitOptionTypes, None] = None,
+                 fit_extra_options: None=None) -> None: # todo type hint
         """
         Constructor
         """
 
-        self.fit_option = str(fit_option)
-        self.fitExtraOptions = fitExtraOptions
+        self.fit_option: Union[FitOptionTypes, None]= fit_option
+        self.fit_extra_options: None = fit_extra_options
+
+    @property
+    def fitExtraOptions(self):
+        from warnings import warn
+        warn("fitExtraOptions is deprecated, use fit_extra_options", DeprecationWarning)
+        return self.fit_extra_options
+
+    @fitExtraOptions.setter
+    def fitExtraOptions(self, val):
+        from warnings import warn
+        warn("fitExtraOptions is deprecated, use fit_extra_options", DeprecationWarning)
+        self.fit_extra_options = val
 
 
 class FilterOptions:
@@ -272,9 +315,9 @@ class FilterOptions:
     Parameters
     ----------
 
-    filterMethod : string
+    filter_method : string
         The only option available is 'chebishev'
-    filterExtraOptions : dictionary
+    filter_extra_options : dictionary
         Parameters for the Chebishev filter (see the method
         beam_profile_filter_chebyshev in filters_and_fitting.py in the toolbox
         package)
@@ -282,18 +325,43 @@ class FilterOptions:
     Attributes
     ----------
 
-    filterMethod : string
-    filterExtraOptions : dictionary
+    filter_method : string
+    filter_extra_options : dictionary
 
     """
 
-    def __init__(self, filterMethod=None, filterExtraOptions=None):
+    def __init__(self, filter_method: Union[FilterMethodType, None] = None,
+                 filter_extra_options: Union[FilterExtraOptionsType, None] = None) -> None:
         """
         Constructor
         """
 
-        self.filterMethod = str(filterMethod)
-        self.filterExtraOptions = filterExtraOptions
+        self.filter_method: Union[FilterMethodType, None] = filter_method
+        self.filter_extra_options: Union[FilterExtraOptionsType, None] = filter_extra_options
+
+    @property
+    def filterMethod(self):
+        from warnings import warn
+        warn("filterMethod is deprecated, use filter_method", DeprecationWarning)
+        return self.filter_method
+
+    @filterMethod.setter
+    def filterMethod(self, val):
+        from warnings import warn
+        warn("filterMethod is deprecated, use filter_method", DeprecationWarning)
+        self.filter_method = val
+
+    @property
+    def filterExtraOptions(self):
+        from warnings import warn
+        warn("filterExtraOptions is deprecated, use filter_extra_options", DeprecationWarning)
+        return self.filter_extra_options
+
+    @filterExtraOptions.setter
+    def filterExtraOptions(self, val):
+        from warnings import warn
+        warn("filterExtraOptions is deprecated, use filter_extra_options", DeprecationWarning)
+        self.filter_extra_options = val
 
 
 class OtherSlicesOptions:
@@ -306,7 +374,7 @@ class OtherSlicesOptions:
     smooth : boolean
         If set True, this method slices the bunch not in the
         standard way (fixed one slice all the macroparticles contribute
-        with +1 or 0 depending if they are inside or not). The method assigns
+        with +1 or 0 depending on if they are inside or not). The method assigns
         to each macroparticle a real value between 0 and +1 depending on its
         time coordinate. This method can be considered a filter able to smooth
         the profile.
@@ -323,7 +391,7 @@ class OtherSlicesOptions:
 
     """
 
-    def __init__(self, smooth=False, direct_slicing=True):
+    def __init__(self, smooth: bool = False, direct_slicing: bool = True) -> None:
         """
         Constructor
         """
@@ -340,22 +408,22 @@ class Profile:
     Parameters
     ----------
 
-    Beam : object
+    beam : object
         Beam from which the profile has to be calculated
-    CutOptions : object
+    cut_options : object
         Options for profile cutting (see above)
-    FitOptions : object
+    fit_options : object
         Options to get profile position and length (see above)
-    FilterOptions : object
+    filter_options : object
         Options to set a filter (see above)
-    OtherSlicesOptions : object
+    other_slices_options : object
         All remaining options, like smooth histogram and direct
         slicing (see above)
 
     Attributes
     ----------
 
-    Beam : object
+    beam : object
     n_slices : int
         number of slices to be used
     cut_left : float
@@ -385,7 +453,7 @@ class Profile:
         profile position [s]
     bunchLength : float
         profile length [s]
-    filterExtraOptions : unknown (see above)
+    filter_extra_options : unknown (see above)
 
     Examples
     --------
@@ -394,84 +462,116 @@ class Profile:
     >>> CutOptions = profileModule.CutOptions(cut_left=0,
     >>>       cut_right=self.ring.t_rev[0], n_slices = n_slices, cuts_unit='s')
     >>> FitOptions = profileModule.FitOptions(fit_option='gaussian',
-    >>>                                        fitExtraOptions=None)
+    >>>                                        fit_extra_options=None)
     >>> filter_option = {'pass_frequency':1e7,
     >>>    'stop_frequency':1e8, 'gain_pass':1, 'gain_stop':2,
     >>>    'transfer_function_plot':False}
-    >>> FilterOptions = profileModule.FilterOptions(filterMethod='chebishev',
-    >>>         filterExtraOptions=filter_option)
+    >>> FilterOptions = profileModule.FilterOptions(filter_method='chebishev',
+    >>>         filter_extra_options=filter_option)
     >>> OtherSlicesOptions = profileModule.OtherSlicesOptions(smooth=False,
     >>>                             direct_slicing = True)
-    >>> self.profile4 = profileModule.Profile(my_beam, CutOptions = CutOptions,
-    >>>                     FitOptions= FitOptions,
-    >>>                     FilterOptions=FilterOptions,
-    >>>                     OtherSlicesOptions = OtherSlicesOptions)
+    >>> self.profile4 = profileModule.Profile(my_beam, cut_options = CutOptions,
+    >>>                     fit_options= FitOptions,
+    >>>                     filter_options=FilterOptions,
+    >>>                     other_slices_options = OtherSlicesOptions)
 
     """
 
-    def __init__(self, Beam,
-                 CutOptions=CutOptions(),
-                 FitOptions=FitOptions(),
-                 FilterOptions=FilterOptions(),
-                 OtherSlicesOptions=OtherSlicesOptions()):
+    @handle_legacy_kwargs
+    def __init__(self, beam: Beam,
+                 cut_options: CutOptions = CutOptions(),
+                 fit_options: FitOptions = FitOptions(),
+                 filter_options: FilterOptions = FilterOptions(),
+                 other_slices_options: OtherSlicesOptions = OtherSlicesOptions()) -> None:
         """
         Constructor
         """
 
-        # Copy of CutOptions object to be usef for reslicing
-        self.cut_options = CutOptions
+        # Copy of CutOptions object to be used for re-slicing
+        self.cut_options: CutOptions = cut_options
 
         # Define bins
-        CutOptions.set_cuts(Beam)
+        cut_options.set_cuts(beam)
 
         # Import (reference) Beam
-        self.Beam = Beam
+        self.beam: Beam = beam
 
         self.n_slices = 0
         self.cut_left = 0.
         self.cut_right = 0.
         self.n_sigma = 0
-        self.edges = None
-        self.bin_centers = None
+        self.edges: Union[np.ndarray, None] = None
+        self.bin_centers: Union[np.ndarray, None] = None
         self.bin_size = 0.
-        self.fitExtraOptions = None
+        self.fit_extra_options = None  # todo typing
         # Get all computed parameters from CutOptions
         self.set_slices_parameters()
 
         # Initialize profile array as zero array
-        self.n_macroparticles = np.zeros(self.n_slices, dtype=bm.precision.real_t, order='C')
+        self.n_macroparticles: np.ndarray = np.zeros(self.n_slices, dtype=bm.precision.real_t, order='C')
 
         # Initialize beam_spectrum and beam_spectrum_freq as empty arrays
-        self.beam_spectrum = np.array([], dtype=bm.precision.real_t, order='C')
-        self.beam_spectrum_freq = np.array([], dtype=bm.precision.real_t, order='C')
+        self.beam_spectrum: np.ndarray = np.array([], dtype=bm.precision.real_t, order='C')
+        self.beam_spectrum_freq: np.ndarray = np.array([], dtype=bm.precision.real_t, order='C')
 
-        if OtherSlicesOptions.smooth:
-            self.operations = [self._slice_smooth]
+        self.operations: List[Callable] = []
+        if other_slices_options.smooth:
+            self.operations.append(self._slice_smooth)
         else:
-            self.operations = [self._slice]
+            self.operations.append(self._slice)
 
         if FitOptions.fit_option is not None:
             self.fit_option = FitOptions.fit_option
             self.bunchPosition = 0.0
             self.bunchLength = 0.0
-            if FitOptions.fit_option == 'gaussian':
+            if fit_options.fit_option == 'gaussian':
                 self.operations.append(self.apply_fit)
-            elif FitOptions.fit_option == 'rms':
+            elif fit_options.fit_option == 'rms':
                 self.operations.append(self.rms)
-            elif FitOptions.fit_option == 'fwhm':
+            elif fit_options.fit_option == 'fwhm':
                 self.operations.append(self.fwhm)
+            else:
+                raise NameError(f"{fit_options=}")
 
-        if FilterOptions.filterMethod == 'chebishev':
-            self.filterExtraOptions = FilterOptions.filterExtraOptions
+        if filter_options.filter_method == 'chebishev':
+            self.filter_extra_options = filter_options.filter_extra_options
             self.operations.append(self.apply_filter)
+        elif filter_options.filter_method is None:
+            pass
+        else:
+            raise NameError(f"{filter_options.filter_method=}")
 
-        if OtherSlicesOptions.direct_slicing and self.Beam is not None:
+        if other_slices_options.direct_slicing and self.beam is not None:
             self.track()
 
         # For CuPy backend
-        self._device = 'CPU'
+        self._device: DeviceType = 'CPU'
 
-    def set_slices_parameters(self):
+    @property
+    def Beam(self):
+        from warnings import warn
+        warn("Beam is deprecated, use beam", DeprecationWarning)
+        return self.beam
+
+    @Beam.setter
+    def Beam(self, val):
+        from warnings import warn
+        warn("Beam is deprecated, use beam", DeprecationWarning)
+        self.beam = val
+
+    @property
+    def filterExtraOptions(self):
+        from warnings import warn
+        warn("filterExtraOptions is deprecated, use filter_extra_options", DeprecationWarning)
+        return self.filter_extra_options
+
+    @filterExtraOptions.setter
+    def filterExtraOptions(self, val):
+        from warnings import warn
+        warn("filterExtraOptions is deprecated, use filter_extra_options", DeprecationWarning)
+        self.filter_extra_options = val
+
+    def set_slices_parameters(self) -> None:
         """
         Set various slices parameters.
         """
@@ -479,7 +579,7 @@ class Profile:
             self.edges, self.bin_centers, self.bin_size = \
             self.cut_options.get_slices_parameters()
 
-    def track(self):
+    def track(self) -> None:
         """
         Track method in order to update the slicing along with the tracker.
         The kwargs are currently only needed to forward the reduce kw argument
@@ -489,11 +589,11 @@ class Profile:
         for operation in self.operations:
             operation()
 
-    def _slice(self):
+    def _slice(self) -> None:
         """
         Constant space slicing with a constant frame.
         """
-        bm.slice_beam(self.Beam.dt, self.n_macroparticles, self.cut_left,
+        bm.slice_beam(self.beam.dt, self.n_macroparticles, self.cut_left,
                       self.cut_right)
 
         if bm.in_mpi():
@@ -507,12 +607,12 @@ class Profile:
             raise RuntimeError(
                 'ERROR: Cannot use this routine unless in MPI Mode')
 
-        from ..utils.mpi_config import WORKER
+        from blond.utils.mpi_config import WORKER
 
         if WORKER.workers == 1:
             return
 
-        if self.Beam.is_splitted:
+        if self.beam.is_splitted:
 
             if 'CPU' in bm.device:
                 # Convert to uint32t for better performance
@@ -536,43 +636,56 @@ class Profile:
                 self.n_macroparticles = self.n_macroparticles.astype(
                     dtype=bm.precision.real_t, order='C', copy=False)
 
-    def _slice_smooth(self, reduce=True):
+    def _slice_smooth(self, reduce: bool=True) -> None:
         """
         At the moment 4x slower than _slice but smoother (filtered).
         """
-        bm.slice_smooth(self.Beam.dt, self.n_macroparticles, self.cut_left,
+        bm.slice_smooth(self.beam.dt, self.n_macroparticles, self.cut_left,
                         self.cut_right)
 
         if bm.in_mpi():
             self.reduce_histo(dtype=np.float64)
 
-    def apply_fit(self):
+    def apply_fit(self) -> None:
         """
         It applies Gaussian fit to the profile.
         """
 
         if self.bunchLength == 0:
             p_0 = [float(self.n_macroparticles.max()),
-                   float(self.Beam.dt.mean()),
-                   float(self.Beam.dt.std())]
+                   float(self.beam.dt.mean()),
+                   float(self.beam.dt.std())]
         else:
             p_0 = [float(self.n_macroparticles.max()),
                    float(self.bunchPosition),
                    float(self.bunchLength / 4.)]
 
-        self.fitExtraOptions = ffroutines.gaussian_fit(self.n_macroparticles,
-                                                       self.bin_centers, p_0)
-        self.bunchPosition = self.fitExtraOptions[1]
-        self.bunchLength = 4 * self.fitExtraOptions[2]
+        self.fit_extra_options = ffroutines.gaussian_fit(self.n_macroparticles,
+                                                         self.bin_centers,
+                                                         p_0)
+        self.bunchPosition = self.fit_extra_options[1]
+        self.bunchLength = 4 * self.fit_extra_options[2]
 
-    def apply_filter(self):
+    @property
+    def fitExtraOptions(self):  # TODO
+        from warnings import warn
+        warn("fitExtraOptions is deprecated, use fit_extra_options", DeprecationWarning)  # TODO
+        return self.fit_extra_options
+
+    @fitExtraOptions.setter  # TODO
+    def fitExtraOptions(self, val):  # TODO
+        from warnings import warn
+        warn("fitExtraOptions is deprecated, use fit_extra_options", DeprecationWarning)  # TODO
+        self.fit_extra_options = val
+
+    def apply_filter(self) -> None:
         """
         It applies Chebishev filter to the profile.
         """
         self.n_macroparticles = ffroutines.beam_profile_filter_chebyshev(
-            self.n_macroparticles, self.bin_centers, self.filterExtraOptions)
+            self.n_macroparticles, self.bin_centers, self.filter_extra_options)
 
-    def rms(self):
+    def rms(self) -> None:
         """
         Computation of the RMS bunch length and position from the line
         density (bunch length = 4sigma).
@@ -591,7 +704,7 @@ class Profile:
             self.n_macroparticles, self.bin_centers, n_bunches,
             bunch_spacing_buckets, bucket_size_tau, bucket_tolerance)
 
-    def fwhm(self, shift=0):
+    def fwhm(self, shift: float=0) -> None:
         """
         Computation of the bunch length and position from the FWHM
         assuming Gaussian line density.
@@ -611,14 +724,14 @@ class Profile:
             self.n_macroparticles, self.bin_centers, n_bunches,
             bunch_spacing_buckets, bucket_size_tau, bucket_tolerance, shift)
 
-    def beam_spectrum_freq_generation(self, n_sampling_fft):
+    def beam_spectrum_freq_generation(self, n_sampling_fft: int) -> None:
         """
         Frequency array of the beam spectrum
         """
 
         self.beam_spectrum_freq = bm.rfftfreq(n_sampling_fft, self.bin_size)
 
-    def beam_spectrum_generation(self, n_sampling_fft):
+    def beam_spectrum_generation(self, n_sampling_fft: int) -> None:
         """
         Beam spectrum calculation
         """
@@ -654,16 +767,16 @@ class Profile:
         return bin_centers, derivative
 
     def to_gpu(self, recursive=True):
-        '''
+        """
         Transfer all necessary arrays to the GPU
-        '''
+        """
         # Check if to_gpu has been invoked already
         if hasattr(self, '_device') and self._device == 'GPU':
             return
 
         # transfer recursively objects to_gpu
-        if recursive and self.Beam:
-            self.Beam.to_gpu()
+        if recursive and self.beam:
+            self.beam.to_gpu()
 
         if recursive and self.cut_options:
             self.cut_options.to_gpu()
@@ -678,19 +791,19 @@ class Profile:
         self.beam_spectrum_freq = cp.array(self.beam_spectrum_freq)
 
         # to make sure it will not be called again
-        self._device = 'GPU'
+        self._device: DeviceType = 'GPU'
 
     def to_cpu(self, recursive=True):
-        '''
+        """
         Transfer all necessary arrays back to the CPU
-        '''
+        """
         # Check if to_cpu has been invoked already
         if hasattr(self, '_device') and self._device == 'CPU':
             return
 
         # transfer recursively objects
-        if recursive and self.Beam:
-            self.Beam.to_cpu()
+        if recursive and self.beam:
+            self.beam.to_cpu()
 
         if recursive and self.cut_options:
             self.cut_options.to_cpu()
@@ -705,4 +818,4 @@ class Profile:
         self.beam_spectrum_freq = cp.asnumpy(self.beam_spectrum_freq)
 
         # to make sure it will not be called again
-        self._device = 'CPU'
+        self._device: DeviceType = 'CPU'

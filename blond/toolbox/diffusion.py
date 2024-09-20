@@ -16,6 +16,7 @@ RF bucket is considered.**
 from __future__ import division
 
 from builtins import range
+from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -23,12 +24,20 @@ import scipy.integrate as int
 from pylab import cm
 from scipy.special import ellipk
 
+from blond.utils.legacy_support import handle_legacy_kwargs
 from .action import x2, action_from_phase_amplitude
 
+if TYPE_CHECKING:
+    from typing import Union
+    from os import PathLike
+    from blond.input_parameters.rf_parameters import RFStation
+    from blond.input_parameters.ring import Ring
 
-def phase_noise_diffusion(Ring, RFStation, spectrum, distribution,
-                          distributionBins, Ngrids=200, M=1,
-                          iterations=100000, figdir=None):
+
+@handle_legacy_kwargs
+def phase_noise_diffusion(ring: Ring, rf_station: RFStation, spectrum: np.ndarray, distribution: np.ndarray,
+                          distributionBins: np.ndarray, Ngrids: int = 200, M: int = 1,
+                          iterations: int = 100000, figdir: Union[PathLike, str, None] = None):
     '''
     Calculate diffusion in action space according to a given double-sided phase
     noise spectrum, on a uniform grid in oscillation amplitude.
@@ -51,9 +60,9 @@ def phase_noise_diffusion(Ring, RFStation, spectrum, distribution,
         raise RuntimeError("In phase_noise_diffusion(): distribution has to be an array of Ngrids elements!")
 
     # Some constants
-    T0 = Ring.t_rev[0]
-    omega_s0 = RFStation.omega_s0[0]
-    h = RFStation.harmonic[0, 0]
+    T0 = ring.t_rev[0]
+    omega_s0 = rf_station.omega_s0[0]
+    h = rf_station.harmonic[0, 0]
     Jsep = 8. * omega_s0 / (np.pi * h ** 2)  # Action at the separatrix
 
     # Settings for plots

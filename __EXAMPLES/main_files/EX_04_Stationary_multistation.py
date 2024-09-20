@@ -105,13 +105,13 @@ slice_beam = Profile(beam, CutOptions(n_slices=100),
 # Define what to save in file
 bunchmonitor = BunchMonitor(general_params, rf_params_tot, beam,
                             this_directory + '../output_files/EX_04_output_data',
-                            Profile=slice_beam, buffer_time=1)
+                            profile=slice_beam, buffer_time=1)
 
 # PLOTS
 format_options = {'dirname': this_directory + '../output_files/EX_04_fig', 'linestyle': '.'}
 plots = Plot(general_params, rf_params_tot, beam, dt_plt, dt_plt, 0,
              0.0001763 * h, -450e6, 450e6, xunit='rad',
-             separatrix_plot=True, Profile=slice_beam,
+             separatrix_plot=True, profile=slice_beam,
              h5file=this_directory + '../output_files/EX_04_output_data',
              histograms_plot=True, format_options=format_options)
 

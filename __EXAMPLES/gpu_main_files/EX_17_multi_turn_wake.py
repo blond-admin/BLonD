@@ -126,11 +126,11 @@ resonator = Resonators(R_S, frequency_R, Q)
 imp_list = [resonator]
 
 ind_volt_freq = InducedVoltageFreq(beam, slice_beam, imp_list,
-                                   RFParams=RF_sct_par, frequency_resolution=1e3,
+                                   rf_station=RF_sct_par, frequency_resolution=1e3,
                                    multi_turn_wake=True, mtw_mode='time')
 
 ind_volt_time = InducedVoltageTime(beam, slice_beam, imp_list,
-                                   RFParams=RF_sct_par, wake_length=n_turns * bucket_length,
+                                   rf_station=RF_sct_par, wake_length=n_turns * bucket_length,
                                    multi_turn_wake=True)
 
 ind_volt_freq_periodic = InducedVoltageFreq(beam, slice_beam, imp_list)
@@ -203,8 +203,8 @@ for i in range(1, n_turns + 1):
                                                           np.sqrt(2.0 * np.pi)) * np.exp(-0.5 * (time_array - bucket_length / 2.0 +
                                                                                                  np.sum(RF_sct_par.t_rev[i:-1]))**2.0 / sigma_dt**2.0)
 
-ind_volt = - beam.Particle.charge * e * beam.ratio * \
-    np.convolve(profiles, ind_volt_time.total_wake)
+ind_volt = - beam.particle.charge * e * beam.ratio * \
+           np.convolve(profiles, ind_volt_time.total_wake)
 
 plt.plot(time_array * 1e9, ind_volt[:time_array.shape[0]], lw=2, alpha=0.75,
          label='"Manual" convolution')
@@ -261,7 +261,7 @@ for i in range(1, n_turns + 1):
                                                           np.sqrt(2.0 * np.pi)) * np.exp(-0.5 * (time_array - bucket_length / 2.0 +
                                                                                                  np.sum(RF_sct_par.t_rev[i:-1]))**2.0 / sigma_dt**2.0)
 
-ind_volt = -(beam.Particle.charge * e * beam.ratio *
+ind_volt = -(beam.particle.charge * e * beam.ratio *
              np.convolve(profiles, ind_volt_time.total_wake))
 
 plt.plot(time_array * 1e9, ind_volt[:time_array.shape[0]], lw=2, alpha=0.75,

@@ -14,15 +14,29 @@
 
 from __future__ import division
 
-from builtins import range
+from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+import h5py as hp
 import matplotlib.pyplot as plt
 import numpy as np
 from pylab import cm
 
+from blond.utils.legacy_support import handle_legacy_kwargs
 
-def plot_noise_spectrum(frequency, spectrum, sampling=1, dirname='fig', show_plot=False,
-                        figno=0):
+if TYPE_CHECKING:
+    from typing import Union
+    from os import PathLike
+    from blond.input_parameters.ring import Ring
+    from blond.input_parameters.rf_parameters import RFStation
+    from blond.llrf.rf_noise import LHCNoiseFB
+
+
+@handle_legacy_kwargs
+def plot_noise_spectrum(frequency: np.ndarray, spectrum: np.ndarray, sampling: int = 1,
+                        dirname: Union[str, PathLike[str]] = 'fig', show_plot=False,
+                        figno: int =0):
     """
     Plot of the phase noise spectrum.
     For large amount of data, use "sampling" to plot a fraction of the data.
@@ -49,8 +63,10 @@ def plot_noise_spectrum(frequency, spectrum, sampling=1, dirname='fig', show_plo
     plt.clf()
 
 
-def plot_phase_noise(time, dphi, sampling=1, dirname='fig', show_plot=False,
-                     figno=0):
+@handle_legacy_kwargs
+def plot_phase_noise(time: np.ndarray, dphi: np.ndarray, sampling=1,
+                     dirname: Union[str, PathLike[str]] = 'fig', show_plot=False,
+                     figno: int =0):
     """
     Plot of phase noise as a function of time.
     For large amount of data, use "sampling" to plot a fraction of the data.
@@ -73,15 +89,16 @@ def plot_phase_noise(time, dphi, sampling=1, dirname='fig', show_plot=False,
     plt.clf()
 
 
-def plot_PL_bunch_phase(RFStation, h5data, output_freq=1,
-                        dirname='fig', show_plot=False):
+@handle_legacy_kwargs
+def plot_PL_bunch_phase(rf_station: RFStation, h5data: hp.File, output_freq=1,
+                        dirname: Union[str, PathLike[str]] = 'fig', show_plot=False):
     """
     Plot of bunch phase measured by the Phase Loop as a function of time.
     For large amount of data, monitor with larger 'output_freq'.
     """
 
     # Time step of plotting
-    time_step = RFStation.counter[0]
+    time_step = rf_station.counter[0]
 
     # Load/create data
     if output_freq < 1:
@@ -111,15 +128,16 @@ def plot_PL_bunch_phase(RFStation, h5data, output_freq=1,
     plt.clf()
 
 
-def plot_PL_RF_phase(RFStation, h5data, output_freq=1,
-                     dirname='fig', show_plot=False):
+@handle_legacy_kwargs
+def plot_PL_RF_phase(rf_station: RFStation, h5data: hp.File, output_freq=1,
+                     dirname: Union[str, PathLike[str]] = 'fig', show_plot=False):
     """
     Plot of RF phase; monitored with Phase Loop.
     For large amount of data, monitor with larger 'output_freq'.
     """
 
     # Time step of plotting
-    time_step = RFStation.counter[0]
+    time_step = rf_station.counter[0]
 
     # Load/create data
     if output_freq < 1:
@@ -147,16 +165,16 @@ def plot_PL_RF_phase(RFStation, h5data, output_freq=1,
         plt.savefig(fign)
     plt.clf()
 
-
-def plot_PL_phase_corr(RFStation, h5data, output_freq=1,
-                       dirname='fig', show_plot=False):
+@handle_legacy_kwargs
+def plot_PL_phase_corr(rf_station: RFStation, h5data: hp.File, output_freq=1,
+                       dirname: Union[str, PathLike[str]] = 'fig', show_plot=False):
     """
     Plot of phase correction applied by the Phase Loop as a function of time.
     For large amount of data, monitor with larger 'output_freq'.
     """
 
     # Time step of plotting
-    time_step = RFStation.counter[0]
+    time_step = rf_station.counter[0]
 
     # Load/create data
     if output_freq < 1:
@@ -185,16 +203,16 @@ def plot_PL_phase_corr(RFStation, h5data, output_freq=1,
         plt.savefig(fign)
     plt.clf()
 
-
-def plot_PL_RF_freq(RFStation, h5data, output_freq=1,
-                    dirname='fig', show_plot=False):
+@handle_legacy_kwargs
+def plot_PL_RF_freq(rf_station: RFStation, h5data: hp.File, output_freq=1,
+                    dirname: Union[str, PathLike[str]] = 'fig', show_plot=False):
     """
     Plot of RF revolution frequency; monitored with Phase Loop.
     For large amount of data, monitor with larger 'output_freq'.
     """
 
     # Time step of plotting
-    time_step = RFStation.counter[0]
+    time_step = rf_station.counter[0]
 
     # Load/create data
     if output_freq < 1:
@@ -222,16 +240,16 @@ def plot_PL_RF_freq(RFStation, h5data, output_freq=1,
         plt.savefig(fign)
     plt.clf()
 
-
-def plot_PL_freq_corr(RFStation, h5data, output_freq=1,
-                      dirname='fig', show_plot=False):
+@handle_legacy_kwargs
+def plot_PL_freq_corr(rf_station, h5data: hp.File, output_freq=1,
+                      dirname: Union[str, PathLike[str]] = 'fig', show_plot=False):
     """
     Plot of frequency correction applied by the Phase Loop as a function of time.
     For large amount of data, monitor with larger 'output_freq'.
     """
 
     # Time step of plotting
-    time_step = RFStation.counter[0]
+    time_step = rf_station.counter[0]
 
     # Load/create data
     if output_freq < 1:
@@ -260,16 +278,16 @@ def plot_PL_freq_corr(RFStation, h5data, output_freq=1,
         plt.savefig(fign)
     plt.clf()
 
-
-def plot_RF_phase_error(RFStation, h5data, output_freq=1,
-                        dirname='fig', show_plot=False):
+@handle_legacy_kwargs
+def plot_RF_phase_error(rf_station: RFStation, h5data: hp.File, output_freq=1,
+                        dirname: Union[str, PathLike[str]] = 'fig', show_plot=False):
     """
     Plot of accumulated RF phase error; the Synchro Loop can act on this.
     For large amount of data, monitor with larger 'output_freq'.
     """
 
     # Time step of plotting
-    time_step = RFStation.counter[0]
+    time_step = rf_station.counter[0]
 
     # Load/create data
     if output_freq < 1:
@@ -297,16 +315,16 @@ def plot_RF_phase_error(RFStation, h5data, output_freq=1,
         plt.savefig(fign)
     plt.clf()
 
-
-def plot_RL_radial_error(RFStation, h5data, output_freq=1,
-                         dirname='fig', show_plot=False):
+@handle_legacy_kwargs
+def plot_RL_radial_error(rf_station, h5data: hp.File, output_freq=1,
+                         dirname: Union[str, PathLike[str]] = 'fig', show_plot=False):
     """
     Plot of relative radial error; monitored with Phase Loop.
     For large amount of data, monitor with larger 'output_freq'.
     """
 
     # Time step of plotting
-    time_step = RFStation.counter[0]
+    time_step = rf_station.counter[0]
 
     # Load/create data
     if output_freq < 1:
@@ -335,15 +353,16 @@ def plot_RL_radial_error(RFStation, h5data, output_freq=1,
     plt.clf()
 
 
-def plot_COM_motion(Ring, RFStation, h5data,
-                    output_freq=1, dirname='fig', show_plot=False):
+@handle_legacy_kwargs
+def plot_COM_motion(ring: Ring, rf_station: RFStation, h5data: hp.File,
+                    output_freq=1, dirname: Union[str, PathLike[str]] = 'fig', show_plot=False):
     """
     Evolution of bunch C.O.M. in longitudinal phase space. 
     Optional use of histograms and separatrix.
     """
 
     # Time step of plotting
-    time_step = RFStation.counter[0]
+    time_step = rf_station.counter[0]
 
     # Load/create data
     if output_freq < 1:
@@ -376,16 +395,16 @@ def plot_COM_motion(Ring, RFStation, h5data,
         plt.savefig(fign)
     plt.clf()
 
-
-def plot_LHCNoiseFB(RFStation, LHCNoiseFB, h5data, output_freq=1,
-                    dirname='fig', show_plot=False):
+@handle_legacy_kwargs
+def plot_LHCNoiseFB(rf_station: RFStation, lhc_noise_feedback: LHCNoiseFB, h5data: hp.File, output_freq=1,
+                    dirname: Union[str, PathLike[str]] = 'fig', show_plot=False):
     """
     Plot of the phase noise multiplication factor as a function of time.
     For large amount of data, monitor with larger 'output_freq'.
     """
 
     # Time step of plotting
-    time_step = RFStation.counter[0]
+    time_step = rf_station.counter[0]
 
     # Load/create data
     if output_freq < 1:
@@ -414,16 +433,16 @@ def plot_LHCNoiseFB(RFStation, LHCNoiseFB, h5data, output_freq=1,
         plt.savefig(fign)
     plt.clf()
 
-
-def plot_LHCNoiseFB_FWHM(RFStation, LHCNoiseFB, h5data,
-                         output_freq=1, dirname='fig', show_plot=False):
+@handle_legacy_kwargs
+def plot_LHCNoiseFB_FWHM(rf_station: RFStation, lhc_noise_feedback: LHCNoiseFB, h5data,
+                         output_freq=1, dirname: Union[str, PathLike[str]] = 'fig', show_plot=False):
     """
     Plot of the FWHM bunch length used in LHCNoiseFB as a function of time.
     For large amount of data, monitor with larger 'output_freq'.
     """
 
     # Time step of plotting
-    time_step = RFStation.counter[0]
+    time_step = rf_station.counter[0]
 
     # Load/create data
     if output_freq < 1:
@@ -451,16 +470,16 @@ def plot_LHCNoiseFB_FWHM(RFStation, LHCNoiseFB, h5data,
         plt.savefig(fign)
     plt.clf()
 
-
-def plot_LHCNoiseFB_FWHM_bbb(RFStation, LHCNoiseFB, h5data,
-                             output_freq=1, dirname='fig', show_plot=False):
+@handle_legacy_kwargs
+def plot_LHCNoiseFB_FWHM_bbb(rf_station: RFStation, lhc_noise_feedback: LHCNoiseFB, h5data,
+                             output_freq=1, dirname: Union[str, PathLike[str]] = 'fig', show_plot=False):
     """
     Plot of bunch-by-bunch FWHM bunch length used in LHCNoiseFB as a function 
     of time. For large amount of data, monitor with larger 'output_freq'.
     """
 
     # Time step of plotting
-    time_step = RFStation.counter[0]
+    time_step = rf_station.counter[0]
 
     # Load/create data
     if output_freq < 1:

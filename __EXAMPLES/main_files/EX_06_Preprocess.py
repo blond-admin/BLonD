@@ -58,7 +58,7 @@ ring_opt = RingOptions(interpolation='linear', plot=True,
                        t_start=initial_time, t_end=final_time)
 
 general_params = Ring(C, alpha, (time_array, momentum), particle_type,
-                      RingOptions=ring_opt)
+                      ring_options=ring_opt)
 
 # Cavities parameters
 n_rf_systems = 3
@@ -95,6 +95,6 @@ rf_params = RFStation(
      (time_C04, voltage_C04),
      (time_C16, voltage_C16)),
     [phi_rf_1, phi_rf_2, phi_rf_3], n_rf_systems,
-    RFStationOptions=rf_station_options)
+    rf_station_options=rf_station_options)
 
 print("Done!")

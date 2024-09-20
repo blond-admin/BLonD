@@ -85,16 +85,16 @@ general_params = Ring(C, alpha, np.linspace(p_i, p_f, N_t + 1),
 
 # Define beam and distribution
 beam = Beam(general_params, N_p, N_b)
-print("Particle mass is %.3e eV" % general_params.Particle.mass)
-print("Particle charge is %d e" % general_params.Particle.charge)
+print("Particle mass is %.3e eV" % general_params.particle.mass)
+print("Particle charge is %d e" % general_params.particle.charge)
 
 linspace_test = np.linspace(p_i, p_f, N_t + 1)
 momentum_test = general_params.momentum
 beta_test = general_params.beta
 gamma_test = general_params.gamma
 energy_test = general_params.energy
-mass_test = general_params.Particle.mass  # [eV]
-charge_test = general_params.Particle.charge  # e*Z
+mass_test = general_params.particle.mass  # [eV]
+charge_test = general_params.particle.charge  # e*Z
 
 # Define RF station parameters and corresponding tracker
 rf_params = RFStation(general_params, [h], [V], [dphi])
@@ -125,11 +125,11 @@ slice_beam = Profile(beam, CutOptions(n_slices=100))
 # Define what to save in file
 bunchmonitor = BunchMonitor(general_params, rf_params, beam,
                             this_directory + '../gpu_output_files/EX_07_output_data',
-                            Profile=slice_beam)
+                            profile=slice_beam)
 
 format_options = {'dirname': this_directory + '../gpu_output_files/EX_07_fig'}
 plots = Plot(general_params, rf_params, beam, dt_plt, N_t, 0, 8.e-7,
-             -400e6, 400e6, separatrix_plot=True, Profile=slice_beam,
+             -400e6, 400e6, separatrix_plot=True, profile=slice_beam,
              h5file=this_directory + '../gpu_output_files/EX_07_output_data',
              format_options=format_options)
 

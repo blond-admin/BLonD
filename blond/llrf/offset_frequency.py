@@ -7,77 +7,108 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 **Frequency corrections to design frequency to allow fixed injection frequency
 and frequency offsets**
 
 :Authors: **Simon Albright**
-'''
+"""
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Iterable
 
 import numpy as np
 
+from blond.utils.legacy_support import handle_legacy_kwargs
+
+if TYPE_CHECKING:
+    from blond.input_parameters.rf_parameters import RFStation
+    from blond.input_parameters.ring import Ring
+    from numpy import ndarray
+    from typing import List, Optional, Union, TYPE_CHECKING
+
 
 class _FrequencyOffset:
-    '''
+    """
     Compute effect of having a different RF and design frequency
-    '''
+    """
 
-    def __init__(self, Ring, RFStation, System=None, MainH=None):
+    @handle_legacy_kwargs
+    def __init__(self,
+                 ring: Ring,
+                 rf_station: RFStation,
+                 system: Optional[int, Iterable[int]] = None,
+                 main_harmonic: Optional[float] = None
+                 ) -> None:
 
         #: | *Import Ring*
-        self.ring = Ring
+        self.ring = ring
 
         #: | *Import RFStation*
-        self.rf_station = RFStation
+        self.rf_station = rf_station
 
         #: | *Set system number(s) to modify, if None all are modified*
-        if isinstance(System, int):
-            self.system = [System]
-        elif hasattr(System, '__iter__'):
-            self.system = []
-            for s in System:
+        self.system: Union[List[int], None] = [] if system is not None else None
+
+        if isinstance(system, int):
+            self.system.append(system)
+        elif hasattr(system, '__iter__'):
+            for s in system:
                 self.system.append(s)
-        elif System is None:
-            self.system = System
+        elif system is None:
+            pass
         else:
-            raise TypeError("System must be int, iterable of ints or None")
+            raise TypeError(f"System must be int, iterable of ints or None, not {system} !")
 
         if self.system and not all((isinstance(s, int) for s in self.system)):
             raise TypeError("System must be int, iterable of ints or None")
 
         #: | *Main harmonic the delta F is taken as being in reference to,
         #: |  if None RFStation.harmonic[0][0] is taken as the main*
-        if MainH is not None:
-            self.mainH = MainH
+        if main_harmonic is not None:
+            self.main_harmonic = main_harmonic
         else:
-            self.mainH = RFStation.harmonic[0][0]
+            self.main_harmonic = rf_station.harmonic[0][0]
 
-    def set_frequency(self, NewFrequencyProgram):
-        '''
+    @property
+    def mainH(self):
+        from warnings import warn
+        warn("mainH is deprecated, use main_harmonic", DeprecationWarning)
+        return self.main_harmonic
+
+    @mainH.setter
+    def mainH(self, val):
+        from warnings import warn
+        warn("mainH is deprecated, use main_harmonic", DeprecationWarning)
+        self.main_harmonic = val
+
+    def set_frequency(self, new_frequency_program: ndarray) -> None:
+        """
         Set new frequency program
-        '''
+        """
 
+        # todo better handling with if clauses
         #: | *Check of frequency is passed as array of [time, freq]*
-        if isinstance(NewFrequencyProgram, np.ndarray):
-            if NewFrequencyProgram.shape[0] == 2:
+        if isinstance(new_frequency_program, np.ndarray):
+            if new_frequency_program.shape[0] == 2:
                 end_turn = np.where(self.ring.cycle_time >=
-                                    NewFrequencyProgram[0][-1])[0][0]
-                NewFrequencyProgram = np.interp(self.ring.cycle_time[:end_turn],
-                                                NewFrequencyProgram[0], NewFrequencyProgram[1])
+                                    new_frequency_program[0][-1])[0][0]
+                new_frequency_program = np.interp(self.ring.cycle_time[:end_turn],
+                                                  new_frequency_program[0], new_frequency_program[1])
 
         #: | *Store new frequency as numpy array relative to the main harmonic*
-        self.new_frequency = np.array(NewFrequencyProgram) / self.mainH
+        self.new_frequency = np.array(new_frequency_program) / self.main_harmonic
 
         self.end_turn = len(self.new_frequency)
 
         #: | *Store design frequency during offset*
         self.design_frequency = self.rf_station.omega_rf_d[:, :self.end_turn]
 
-    def calculate_phase_slip(self):
-        '''
+    def calculate_phase_slip(self) -> None:
+        """
         Calculate the phase slippage resulting from the frequency offset for \
         each RF system
-        '''
+        """
 
         delta_phi = (2 * np.pi * self.rf_station.harmonic[:, :self.end_turn]
                      * (self.rf_station.harmonic[:, :self.end_turn]
@@ -86,10 +117,10 @@ class _FrequencyOffset:
                      / self.design_frequency)
         self.phase_slippage = np.cumsum(delta_phi, axis=1)
 
-    def apply_new_frequency(self):
-        '''
+    def apply_new_frequency(self) -> None:
+        """
         Sets the RF frequency and phase
-        '''
+        """
 
         if self.system is None:
             self.rf_station.omega_rf[:, :self.end_turn] = \
@@ -114,23 +145,29 @@ class _FrequencyOffset:
 
 
 class FixedFrequency(_FrequencyOffset):
-    '''
+    """
     Compute effect of fixed RF frequency different to frequency from momentum
     program at the start of the cycle.
-    '''
+    """
 
-    def __init__(self, Ring, RFStation, FixedFrequency, FixedDuration,
-                 TransitionDuration, transition=1):
-        _FrequencyOffset.__init__(self, Ring, RFStation)
+    @handle_legacy_kwargs
+    def __init__(self,
+                 ring: Ring,
+                 rf_station: RFStation,
+                 fixed_frequency: float,
+                 fixed_duration: float,
+                 transition_duration: float,
+                 transition: bool = True) -> None:
+        _FrequencyOffset.__init__(self, ring, rf_station)
 
         #: | *Set value of fixed frequency*
-        self.fixed_frequency = FixedFrequency
+        self.fixed_frequency = fixed_frequency
 
         #: | *Duration of fixed frequency*
-        self.fixed_duration = FixedDuration
+        self.fixed_duration = fixed_duration
 
         #: | *Duration of transition to design frequency*
-        self.transition_duration = TransitionDuration
+        self.transition_duration = transition_duration
 
         self.end_fixed_turn = np.where(self.ring.cycle_time >=
                                        self.fixed_duration)[0][0]
@@ -139,21 +176,21 @@ class FixedFrequency(_FrequencyOffset):
 
         self.end_frequency = self.rf_station.omega_rf_d[0, self.end_transition_turn]
 
-        if transition == 1:
+        if transition:
             self.calculate_frequency_prog = self.transition_1
 
         self.compute()
 
-    def compute(self):
+    def compute(self) -> None:
         self.calculate_frequency_prog()
         self.set_frequency(self.frequency_prog)
         self.calculate_phase_slip()
         self.apply_new_frequency()
 
     def linear_calculate_frequency_prog(self):
-        '''
+        """
         Calculate the fixed and transition frequency programs turn by turn
-        '''
+        """
 
         fixed_frequency_prog = np.ones(self.end_fixed_turn) * self.fixed_frequency
         transition_frequency_prog = np.linspace(float(self.fixed_frequency),
@@ -164,7 +201,7 @@ class FixedFrequency(_FrequencyOffset):
         self.frequency_prog = np.concatenate((fixed_frequency_prog,
                                               transition_frequency_prog))
 
-    def transition_1(self):
+    def transition_1(self) -> None:
         t1 = (self.ring.cycle_time[self.end_transition_turn]
               - self.ring.cycle_time[self.end_fixed_turn])
         f1 = self.end_frequency

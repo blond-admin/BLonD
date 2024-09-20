@@ -5,14 +5,14 @@ BLonD math and physics core functions
 @date 20.10.2017
 '''
 
+from numpy import * # todo the namespaces are overwritten by the functions below
 import numpy as np
-
 from . import precision
-from ..utils import butils_wrap_cpp as _cpp
-from ..utils import butils_wrap_python as _py
+from blond.utils import butils_wrap_cpp as _cpp
+from blond.utils import butils_wrap_python as _py
 
 
-def use_cpp():
+def use_cpp() -> None:
     '''
     Replace all python functions by there equivalent in cpp
     '''
@@ -174,11 +174,11 @@ def use_py():
     # print('---------- Using the Python computational backend ----------')
 
 
-def use_cpu():
+def use_cpu() -> None:
     '''
     If not library is found, use the python implementations
     '''
-    # from .. import get_libblond
+    # from blond. import get_libblond
     if _cpp.get_libblond() is None:
         try:  # try to use numba
             use_numba()
@@ -201,7 +201,7 @@ def use_mpi():
     globals().update(mpi_func_dict)
 
 
-def in_mpi():
+def in_mpi() -> bool:
     """Check if we are currently in MPI mode
 
     Returns:
@@ -210,7 +210,7 @@ def in_mpi():
     return globals()['device'] == 'CPU_MPI'
 
 
-def use_fftw():
+def use_fftw() -> None:
     '''
     Replace the existing rfft and irfft implementations
     with the ones coming from _cpp.
@@ -236,7 +236,7 @@ def use_precision(_precision='double'):
     precision.set(_precision)
 
     try:
-        from ..gpu import GPU_DEV
+        from blond.gpu import GPU_DEV
         GPU_DEV.load_library(_precision)
     except Exception as e:
         # The GPU backend is not available
@@ -274,7 +274,7 @@ def get_gpu_device():
     Returns:
         _type_: _description_
     """
-    from ..gpu import GPU_DEV
+    from blond.gpu import GPU_DEV
     return GPU_DEV
 
 
@@ -287,13 +287,13 @@ def use_gpu(gpu_id=0):
     if gpu_id < 0:
         return
 
-    from ..gpu import GPU_DEV
+    from blond.gpu import GPU_DEV
 
     GPU_DEV.set(gpu_id)
 
     import cupy as cp
 
-    from ..gpu import butils_wrap_cupy as _cupy
+    from blond.gpu import butils_wrap_cupy as _cupy
 
     gpu_func_dict = {
         'rfft': cp.fft.rfft,

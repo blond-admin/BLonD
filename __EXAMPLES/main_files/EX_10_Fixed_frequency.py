@@ -78,7 +78,7 @@ phase_loop = BeamFeedback(general_params, rf_params, slices_ring, configuration)
 
 # Long tracker
 long_tracker = RingAndRFTracker(rf_params, my_beam,
-                                BeamFeedback=phase_loop)
+                                beam_feedback=phase_loop)
 
 full_ring = FullRingAndRF([long_tracker])
 
@@ -96,15 +96,15 @@ slices_ring.track()
 # Monitor
 bunch_monitor = BunchMonitor(general_params, rf_params, my_beam,
                              this_directory + '../output_files/EX_10_output_data',
-                             Profile=slices_ring, PhaseLoop=phase_loop)
+                             profile=slices_ring, phase_loop=phase_loop)
 
 
 # Plots
 format_options = {'dirname': this_directory + '../output_files/EX_10_fig'}
 plots = Plot(general_params, rf_params, my_beam, 1000, 10000, 0.0, 2.0 * 0.9e-6,
-             -1.e6, 1.e6, separatrix_plot=True, Profile=slices_ring,
+             -1.e6, 1.e6, separatrix_plot=True, profile=slices_ring,
              format_options=format_options,
-             h5file=this_directory + '../output_files/EX_10_output_data', PhaseLoop=phase_loop)
+             h5file=this_directory + '../output_files/EX_10_output_data', phase_loop=phase_loop)
 
 # For testing purposes
 test_string = ''

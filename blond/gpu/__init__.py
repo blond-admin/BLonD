@@ -7,7 +7,7 @@ Basic methods and objects related to the GPU computational core.
 
 import os
 
-from ..utils import precision
+from blond.utils import precision
 
 
 class GPUDev:

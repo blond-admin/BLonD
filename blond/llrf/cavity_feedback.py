@@ -27,9 +27,15 @@ import scipy.signal
 from scipy.interpolate import interp1d
 
 from blond.llrf.impulse_response import (
+    SPS3Section200MHzTWC,
+    SPS4Section200MHzTWC,
+    SPS5Section200MHzTWC,
     cavity_response_sparse_matrix,
 )
 from blond.llrf.signal_processing import (
+    feedforward_filter_TWC3,
+    feedforward_filter_TWC4,
+    feedforward_filter_TWC5,
     cartesian_to_polar,
     comb_filter,
     modulator,
@@ -40,6 +46,20 @@ from blond.llrf.signal_processing import (
     fir_filter_lhc_otfb_coeff,
     smooth_step,
 )
+from blond.utils.abstracts import TrackableBaseClass
+from blond.utils.legacy_support import handle_legacy_kwargs
+
+if TYPE_CHECKING:
+    from numpy import float64, ndarray
+    from typing import List, Optional, Union
+# TODO resolve
+SPS3Section200MHzTWC  # to prevent autoformatter removing the code. It is later called using eval()
+SPS4Section200MHzTWC  # to prevent autoformatter removing the code. It is later called using eval()
+SPS5Section200MHzTWC  # to prevent autoformatter removing the code. It is later called using eval()
+feedforward_filter_TWC3  # to prevent autoformatter removing the code. It is later called using eval()
+feedforward_filter_TWC4  # to prevent autoformatter removing the code. It is later called using eval()
+feedforward_filter_TWC5  # to prevent autoformatter removing the code. It is later called using eval()
+
 from blond.utils import bmath as bm
 
 if TYPE_CHECKING:
@@ -48,38 +68,36 @@ if TYPE_CHECKING:
     from typing import Any
 
 
-class CavityFeedback(ABC):
+class CavityFeedback:
     r"""Parent class for implementing cavity feedback models interfacing with BLonD
 
     Parameters
     ----------
-    RFStation : class
+    rf_station : class
         An RFStation type class
-    Beam : class
-        A Beam type class
-    Profile : class
+    profile : class
         A Profile type class
     n_cavities : int
         Number of cavities the feedback is acting with
     n_s : int
         The number of RF periods the coarse grid sampling period corresponds to
     n_h : int
-        The index of the harmoninc in the RFStation that the feedback should act on
+        The index of the harmonic in the RFStation that the feedback should act on
     """
 
     def __init__(
             self,
-            RFStation: RFStation,
-            Profile: Profile,
+            rf_station: RFStation,
+            profile: Profile,
             n_cavities: int,
             n_s: int,
             n_h: int,
             lpf: bool = False,
-    ):
+    ) -> None:
         # BLonD classes the feedback should get information from
-        self.rfstation = RFStation
-        self.profile = Profile
-        self.counter = self.rfstation.counter[0]
+        self.rf_station: RFStation = rf_station
+        self.profile: Profile = profile
+        self.counter = self.rf_station.counter[0]
 
         # Number of cavities the feedback is working on
         self.n_cavities = int(n_cavities)
@@ -93,7 +111,7 @@ class CavityFeedback(ABC):
 
         # The harmonic index the cavity feedback is working on
         self.n_h = int(n_h)
-        if self.n_h > self.rfstation.n_rf - 1:
+        if self.n_h > self.rf_station.n_rf - 1:
             raise RuntimeError(
                 "ERROR in CavityFeedback: argument"
                 " n_h is greater than the number of n_rf in RFStation"
@@ -105,19 +123,19 @@ class CavityFeedback(ABC):
                 self.n_s
                 * 2
                 * np.pi
-                / self.rfstation.omega_rf[self.n_h, self.rfstation.counter[0]]
+                / self.rf_station.omega_rf[self.n_h, self.rf_station.counter[0]]
         )
-        self.n_coarse = round(self.rfstation.t_rev[0] / self.T_s)
+        self.n_coarse = round(self.rf_station.t_rev[0] / self.T_s)
         self.omega_carrier = (
-                self.rfstation.omega_rf[self.n_h, self.rfstation.counter[0]] / self.n_s
+                self.rf_station.omega_rf[self.n_h, self.rf_station.counter[0]] / self.n_s
         )
-        self.omega_rf = self.rfstation.omega_rf[self.n_h, self.rfstation.counter[0]]
+        self.omega_rf = self.rf_station.omega_rf[self.n_h, self.rf_station.counter[0]]
         self.dT = 0
 
         # The least amount of arrays needed to feedback to the tracker object
         self.rf_centers = (
                 np.arange(self.n_coarse) * self.T_s
-                + 0.5 * self.rfstation.t_rf[self.n_h, self.rfstation.counter[0]]
+                + 0.5 * self.rf_station.t_rf[self.n_h, self.rf_station.counter[0]]
         )
         self.V_SET = np.zeros(2 * self.n_coarse, dtype=complex)
         self.I_BEAM_COARSE = np.zeros(2 * self.n_coarse, dtype=complex)
@@ -126,6 +144,18 @@ class CavityFeedback(ABC):
         self.V_ANT_FINE = np.zeros(self.profile.n_slices, dtype=complex)
         self.I_GEN_COARSE = np.zeros(2 * self.n_coarse, dtype=complex)
         self.I_GEN_FINE = np.zeros(self.profile.n_slices, dtype=complex)
+    @property
+    def rfstation(self):
+        from warnings import warn
+        warn("rfstation is deprecated, use ring", DeprecationWarning)
+        return self.rf_station
+
+    @rfstation.setter
+    def rfstation(self, val):
+        from warnings import warn
+        warn("rfstation is deprecated, use ring", DeprecationWarning)
+        self.rf_station = val
+
 
     @abstractmethod
     def circuit_track(self, no_beam: bool = False):
@@ -140,7 +170,7 @@ class CavityFeedback(ABC):
         This is meant to be implemented in the child class by the user."""
         pass
 
-    def track_no_beam(self, n_pretrack: int = None):
+    def track_no_beam(self, n_pretrack: int = None) -> None:
         r"""Tracking method of the cavity feedback without beam in the accelerator"""
 
         self.update_rf_variables()
@@ -151,7 +181,7 @@ class CavityFeedback(ABC):
             for i in range(n_pretrack):
                 self.circuit_track(no_beam=True)
 
-    def track(self):
+    def track(self) -> None:
         r"""Tracking method of the cavity feedback"""
         # Update parameters from rest of BLonD classes
         self.update_rf_variables()
@@ -169,14 +199,14 @@ class CavityFeedback(ABC):
         )
 
         # Calculate OTFB correction w.r.t. RF voltage and phase in RFStation
-        self.V_corr /= self.rfstation.voltage[self.n_h, self.rfstation.counter[0]]
+        self.V_corr /= self.rf_station.voltage[self.n_h, self.rf_station.counter[0]]
         self.phi_corr = self.alpha_sum - np.angle(
             np.interp(
                 self.profile.bin_centers, self.rf_centers, self.V_SET[-self.n_coarse:]
             )
         )
 
-    def rf_beam_current(self, lpf: bool = False):
+    def rf_beam_current(self, lpf: bool = False) -> None:
         r"""Calculate RF beam current from beam profile"""
 
         # Beam current from profile
@@ -184,7 +214,7 @@ class CavityFeedback(ABC):
         self.I_BEAM_FINE, self.I_BEAM_COARSE[-self.n_coarse:] = rf_beam_current(
             self.profile,
             self.omega_rf,
-            self.rfstation.t_rev[self.counter],
+            self.rf_station.t_rev[self.counter],
             lpf=lpf,
             downsample={"Ts": self.T_s, "points": self.n_coarse},
             external_reference=True,
@@ -197,23 +227,23 @@ class CavityFeedback(ABC):
                 self.I_BEAM_COARSE[-self.n_coarse:] / self.T_s
         )
 
-    def set_point_from_rfstation(self):
+    def set_point_from_rfstation(self) -> ndarray:
         r"""Computes the setpoint in I/Q based on the RF voltage in the RFStation"""
 
         V_set = polar_to_cartesian(
-            self.rfstation.voltage[self.n_h, self.counter] / self.n_cavities, 0
+            self.rf_station.voltage[self.n_h, self.counter] / self.n_cavities, 0
         )
 
         return V_set * np.ones(self.n_coarse)
 
-    def update_rf_variables(self):
+    def update_rf_variables(self) -> None:
         r"""Updating variables from the other BLonD classes"""
 
         # Present time step
-        self.counter = self.rfstation.counter[0]
+        self.counter = self.rf_station.counter[0]
 
         # Present RF angular frequency
-        self.omega_rf = self.rfstation.omega_rf[self.n_h, self.counter]
+        self.omega_rf = self.rf_station.omega_rf[self.n_h, self.counter]
 
         # Present carrier frequency: main RF frequency
         self.omega_carrier_prev = self.omega_carrier
@@ -225,14 +255,14 @@ class CavityFeedback(ABC):
 
         # Update the coarse grid sampling
         self.n_coarse = round(
-            self.rfstation.t_rev[self.rfstation.counter[0]] / self.T_s
+            self.rf_station.t_rev[self.rf_station.counter[0]] / self.T_s
         )
 
         # Present coarse grid and save previous turn coarse grid
         self.rf_centers_prev = np.copy(self.rf_centers)
 
         # Residual part of last turn entering the current turn due to non-integer harmonic number
-        self.dT = -self.rfstation.phi_rf[self.n_h, self.counter] / self.omega_rf
+        self.dT = -self.rf_station.phi_rf[self.n_h, self.counter] / self.omega_rf
         self.rf_centers = (
                                   np.arange(self.n_coarse) + 0.5 / self.n_s
                           ) * self.T_s + self.dT
@@ -272,12 +302,12 @@ class SPSCavityLoopCommissioning:
             open_fb: bool = False,
             open_drive: bool = False,
             open_ff: bool = True,
-            v_set=None,
+            v_set: Union[np.ndarray, None]=None,
             cpp_conv: bool = False,
             pwr_clamp: bool = False,
             rot_iq: complex = 1,
             excitation: bool = False,
-    ):
+    ) -> None:
         self.debug = bool(debug)
         self.open_loop = 0 if open_loop else 1
         self.open_fb = 0 if open_fb else 1
@@ -354,7 +384,7 @@ class LHCCavityLoopCommissioning:
             excitation_otfb_2: bool = False,
             seed1: Any = 1234,
             seed2: Any = 7564,
-    ):
+    ) -> None:
         # Import variables
         self.alpha = alpha
         self.d_phi_ad = d_phi_ad * np.pi / 180
@@ -398,9 +428,9 @@ class SPSOneTurnFeedback(CavityFeedback):
 
     Parameters
     ----------
-    RFStation : class
+    rf_station : class
         An RFStation type class
-    Profile : class
+    profile : class
         A Profile type class
     n_sections : int
         Number of sections of the traveling wave cavity
@@ -425,8 +455,8 @@ class SPSOneTurnFeedback(CavityFeedback):
 
     def __init__(
             self,
-            RFStation: RFStation,
-            Profile: Profile,
+            rf_station: RFStation,
+            profile: Profile,
             n_sections: int,
             n_cavities: int = 4,
             V_part: float = 4 / 9,
@@ -437,9 +467,9 @@ class SPSOneTurnFeedback(CavityFeedback):
             df: float = 0,
             Commissioning: SPSCavityLoopCommissioning = None,
             n_h: int = 0,
-    ):
+    ) -> None:
         super().__init__(
-            RFStation=RFStation, Profile=Profile, n_cavities=n_cavities, n_s=1, n_h=n_h
+            rf_station=rf_station, profile=profile, n_cavities=n_cavities, n_s=1, n_h=n_h
         )
 
         # Set up logging
@@ -507,7 +537,7 @@ class SPSOneTurnFeedback(CavityFeedback):
                     0.5 * (self.n_ff - 1)
                     + 0.5
                     * self.TWC.tau
-                    / self.rfstation.t_rf[self.n_h, self.rfstation.counter[0]]
+                    / self.rf_station.t_rf[self.n_h, self.rf_station.counter[0]]
                     / 5
                 )
                 self.logger.debug("Feed-forward delay in samples %d", self.n_ff_delay)
@@ -571,7 +601,7 @@ class SPSOneTurnFeedback(CavityFeedback):
 
         # Initialize moving average
         self.n_mov_av = round(
-            self.TWC.tau / self.rfstation.t_rf[self.n_h, self.rfstation.counter[0]]
+            self.TWC.tau / self.rf_station.t_rf[self.n_h, self.rf_station.counter[0]]
         )
         self.DV_MOV_AVG = np.zeros(2 * self.n_coarse, dtype=complex)
         self.logger.debug("Moving average over %d points", self.n_mov_av)
@@ -610,7 +640,7 @@ class SPSOneTurnFeedback(CavityFeedback):
         self.update_fb_variables()
         self.logger.info("Class initialized")
 
-    def circuit_track(self, no_beam: bool = False):
+    def circuit_track(self, no_beam: bool = False) -> None:
         r"""Tracking the SPS CL internally."""
 
         # Update the impulse response at present carrier frequency
@@ -650,7 +680,7 @@ class SPSOneTurnFeedback(CavityFeedback):
             self.V_IND_COARSE_GEN[-self.n_coarse:],
         )
 
-    def llrf_model(self):
+    def llrf_model(self) -> None:
         r"""The LLRF model of the SPSOneTurnFeedback. This function calles the functions related
         to the LLRF part of the model in the correct order."""
 
@@ -662,7 +692,7 @@ class SPSOneTurnFeedback(CavityFeedback):
         self.mod_to_fr()
         self.mov_avg()
 
-    def gen_model(self):
+    def gen_model(self) -> None:
         r"""The Generator model of the SPSOneTurnFeedback. This function calles the functions related
         to the generator part of the model in the correct order."""
 
@@ -671,7 +701,7 @@ class SPSOneTurnFeedback(CavityFeedback):
         self.sum_and_gain()
         self.gen_response()
 
-    def beam_model(self):
+    def beam_model(self) -> None:
         r"""The Beam model of the SPSOneTurnFeedback. This function find the RF beam current from the Profile-
         object, applies the cavity response towards the beam and the feed-forward correction if engaged.
         """
@@ -713,7 +743,7 @@ class SPSOneTurnFeedback(CavityFeedback):
                 omega_i=self.omega_carrier,
                 omega_f=self.omega_c,
                 T_sampling=5 * self.T_s,
-                phi_0=(self.dphi_mod + self.rfstation.dphi_rf[0]),
+                phi_0=(self.dphi_mod + self.rf_station.dphi_rf[0]),
             )
 
             self.I_FF_CORR[: self.n_coarse_ff] = self.I_FF_CORR[-self.n_coarse_ff:]
@@ -736,7 +766,7 @@ class SPSOneTurnFeedback(CavityFeedback):
                 omega_i=self.omega_c,
                 omega_f=self.omega_carrier,
                 T_sampling=5 * self.T_s,
-                phi_0=-(self.dphi_mod + self.rfstation.dphi_rf[0] + phi_delay),
+                phi_0=-(self.dphi_mod + self.rf_station.dphi_rf[0] + phi_delay),
             )
 
             # Compensate for FIR filter delay
@@ -748,7 +778,7 @@ class SPSOneTurnFeedback(CavityFeedback):
                                                      ]
 
     # BEAM MODEL
-    def beam_response(self, coarse: bool = False):
+    def beam_response(self, coarse: bool = False) -> None:
         r"""Computes the beam-induced voltage on the fine- and coarse-grid by convolving
         the RF beam current with the cavity response towards the beam. The voltage is
         multiplied by the number of cavities to find the total."""
@@ -779,7 +809,7 @@ class SPSOneTurnFeedback(CavityFeedback):
     # INDIVIDUAL COMPONENTS ---------------------------------------------------
     # LLRF MODEL
 
-    def set_point_std(self):
+    def set_point_std(self) -> None:
         r"""Computes the desired set point voltage in I/Q."""
 
         self.logger.debug("Entering %s function" % sys._getframe(0).f_code.co_name)
@@ -804,7 +834,7 @@ class SPSOneTurnFeedback(CavityFeedback):
         self.logger.debug("Entering %s function" % sys._getframe(0).f_code.co_name)
         pass
 
-    def error_and_gain(self):
+    def error_and_gain(self) -> None:
         r"""This function computes the difference between the set point and the antenna voltage
         and amplifies it with the LLRF gain."""
 
@@ -831,7 +861,7 @@ class SPSOneTurnFeedback(CavityFeedback):
             1e-6 * np.mean(np.absolute(self.DV_GEN)),
         )
 
-    def comb(self):
+    def comb(self) -> None:
         r"""This function applies the comb filter to the error signal."""
 
         # Shuffle present data to previous data
@@ -843,7 +873,7 @@ class SPSOneTurnFeedback(CavityFeedback):
             self.a_comb,
         )
 
-    def one_turn_delay(self):
+    def one_turn_delay(self) -> None:
         r"""This function applies the complementary delay such that the correction is applied
         with exactly the delay of one turn."""
 
@@ -853,7 +883,7 @@ class SPSOneTurnFeedback(CavityFeedback):
                                            self.n_coarse - self.n_delay: -self.n_delay
                                            ]
 
-    def mod_to_fr(self):
+    def mod_to_fr(self) -> None:
         r"""This function modulates the error signal to the resonant frequency of the cavity."""
 
         # Store last turn modulated signal
@@ -868,7 +898,7 @@ class SPSOneTurnFeedback(CavityFeedback):
             dt=self.dT,
         )
 
-    def mov_avg(self):
+    def mov_avg(self) -> None:
         r"""This function applies the cavity filter, modelled as a moving average, to the modulated
         error signal."""
 
@@ -881,7 +911,7 @@ class SPSOneTurnFeedback(CavityFeedback):
 
     # GENERATOR MODEL
 
-    def mod_to_frf(self):
+    def mod_to_frf(self) -> None:
         r"""This function modulates the error signal from the resonant frequency of the cavity to the
         original carrier frequency, the RF frequency."""
 
@@ -898,7 +928,7 @@ class SPSOneTurnFeedback(CavityFeedback):
             dt=self.dT,
         )
 
-    def sum_and_gain(self):
+    def sum_and_gain(self) -> None:
         r"""Summing of the error signal from the LLRF-part of the model and the set point voltage.
         The generator current is then found by multiplying by the transmitter gain and R_gen. The feed-forward
         current will also be added to the generator current if enabled."""
@@ -921,7 +951,7 @@ class SPSOneTurnFeedback(CavityFeedback):
                 self.I_FF_CORR_DEL[-self.n_coarse_ff:],
             )
 
-    def gen_response(self):
+    def gen_response(self) -> None:
         r"""Generator current is convolved with cavity response towards the generator to get the
         generator-induced voltage. Multiplied by the number of cavities to find the total generator-
         induced voltage."""
@@ -935,7 +965,7 @@ class SPSOneTurnFeedback(CavityFeedback):
                 * self.T_s
         )
 
-    def matr_conv(self, I: np.ndarray, h: np.ndarray):
+    def matr_conv(self, I: np.ndarray, h: np.ndarray) -> ndarray:
         r"""Convolution of beam current with impulse response; uses a complete
         matrix with off-diagonal elements."""
 
@@ -953,7 +983,7 @@ class SPSOneTurnFeedback(CavityFeedback):
 
         return result
 
-    def update_fb_variables(self):
+    def update_fb_variables(self) -> None:
         r"""Update variables in the feedback"""
 
         # Phase offset at the end of a 1-turn modulated signal (for demodulated, multiply by -1 as c and r reversed)
@@ -966,7 +996,7 @@ class SPSOneTurnFeedback(CavityFeedback):
         self.dphi_mod = self.dphi_mod % (2 * np.pi)
 
         # Present delay time
-        self.n_mov_av = int(self.TWC.tau / self.rfstation.t_rf[self.n_h, self.counter])
+        self.n_mov_av = int(self.TWC.tau / self.rf_station.t_rf[self.n_h, self.counter])
         self.n_delay = self.n_coarse - self.n_mov_av
 
     # Power related functions
@@ -991,9 +1021,9 @@ class SPSCavityFeedback:
 
     Parameters
     ----------
-    RFStation : class
+    rf_station : class
         An RFStation type class
-    Profile : class
+    profile : class
         A Profile type class
     G_ff : float or list
         FF gain [1]; if passed as a float, both 3- and 4-section (4- and
@@ -1020,27 +1050,28 @@ class SPSCavityFeedback:
         the pre-LS2 scenario
     df : float or list
         Frequency difference between measured frequency and desired frequency;
-        same convetion as G_ff; default is 0
+        same convention as G_ff; default is 0
     Commissioning : class
         A SPSCavityLoopCommissioning type class; default is None. If this parameter is None, a new
         SPSCavityLoopCommissioning is used.
     """
 
+    @handle_legacy_kwargs
     def __init__(
             self,
-            RFStation: RFStation,
-            Profile: Profile,
-            G_ff=1,
-            G_llrf=10,
-            G_tx=0.5,
-            a_comb=None,
+            rf_station: RFStation,
+            profile: Profile,
+            G_ff: Union[float, list]=1,
+            G_llrf: Union[float, list]=10,
+            G_tx: List[float, list]=0.5,
+            a_comb: Optional[float]=None,
             turns: int = 1000,
             post_LS2: bool = True,
-            V_part=None,
-            df=0,
+            V_part: Optional[float]=None,
+            df: List[float]=0,
             Commissioning: SPSCavityLoopCommissioning = None,
             n_h: int = 0,
-    ):
+    ) -> None:
         # Options for commissioning the feedback
         if Commissioning is None:
             Commissioning = SPSCavityLoopCommissioning()
@@ -1048,7 +1079,7 @@ class SPSCavityFeedback:
         self.Commissioning = Commissioning
         self.rot_iq = Commissioning.rot_iq
 
-        self.rfstation = RFStation
+        self.rf_station = rf_station
 
         # Parse input for gains
         if hasattr(G_ff, "__iter__"):
@@ -1093,8 +1124,8 @@ class SPSCavityFeedback:
             if V_part is None:
                 V_part = 6 / 10
             self.OTFB_1 = SPSOneTurnFeedback(
-                RFStation=RFStation,
-                Profile=Profile,
+                rf_station=rf_station,
+                profile=profile,
                 n_sections=3,
                 n_cavities=4,
                 V_part=V_part,
@@ -1107,8 +1138,8 @@ class SPSCavityFeedback:
                 n_h=n_h,
             )
             self.OTFB_2 = SPSOneTurnFeedback(
-                RFStation=RFStation,
-                Profile=Profile,
+                rf_station=rf_station,
+                profile=profile,
                 n_sections=4,
                 n_cavities=2,
                 V_part=1 - V_part,
@@ -1127,8 +1158,8 @@ class SPSCavityFeedback:
             if V_part is None:
                 V_part = 4 / 9
             self.OTFB_1 = SPSOneTurnFeedback(
-                RFStation=RFStation,
-                Profile=Profile,
+                rf_station=rf_station,
+                profile=profile,
                 n_sections=4,
                 n_cavities=2,
                 V_part=V_part,
@@ -1141,8 +1172,8 @@ class SPSCavityFeedback:
                 n_h=n_h,
             )
             self.OTFB_2 = SPSOneTurnFeedback(
-                RFStation=RFStation,
-                Profile=Profile,
+                rf_station=rf_station,
+                profile=profile,
                 n_sections=5,
                 n_cavities=2,
                 V_part=1 - V_part,
@@ -1169,7 +1200,19 @@ class SPSCavityFeedback:
 
         self.logger.info("Class initialized")
 
-    def track(self):
+    @property
+    def rfstation(self):
+        from warnings import warn
+        warn("rfstation is deprecated, use rf_station", DeprecationWarning)
+        return self.rf_station
+
+    @rfstation.setter
+    def rfstation(self, val):
+        from warnings import warn
+        warn("rfstation is deprecated, use rf_station", DeprecationWarning)
+        self.rf_station = val
+
+    def track(self) -> None:
         r"""Main tracking method for the SPSCavityFeedback. This tracks both cavity types
         with beam."""
 
@@ -1187,8 +1230,8 @@ class SPSCavityFeedback:
         self.V_corr, self.alpha_sum = cartesian_to_polar(self.V_sum)
 
         # Calculate OTFB correction w.r.t. RF voltage and phase in RFStation
-        self.V_corr /= self.rfstation.voltage[
-            self.OTFB_1.n_h, self.rfstation.counter[0]
+        self.V_corr /= self.rf_station.voltage[
+            self.OTFB_1.n_h, self.rf_station.counter[0]
         ]
         self.phi_corr = self.alpha_sum - np.angle(
             np.interp(
@@ -1198,7 +1241,7 @@ class SPSCavityFeedback:
             )
         )
 
-    def track_init(self, debug: bool = False):
+    def track_init(self, debug: bool = False) -> None:
         r"""Tracking of the SPSCavityFeedback without beam."""
 
         if debug:
@@ -1241,8 +1284,8 @@ class SPSCavityFeedback:
         self.V_corr, self.alpha_sum = cartesian_to_polar(self.V_sum)
 
         # Calculate OTFB correction w.r.t. RF voltage and phase in RFStation
-        self.V_corr /= self.rfstation.voltage[
-            self.OTFB_1.n_h, self.rfstation.counter[0]
+        self.V_corr /= self.rf_station.voltage[
+            self.OTFB_1.n_h, self.rf_station.counter[0]
         ]
         self.phi_corr = self.alpha_sum - np.angle(
             np.interp(
@@ -1261,9 +1304,9 @@ class LHCCavityLoop(CavityFeedback):
 
     Parameters
     ----------
-    RFStation : class
+    rf_station : class
         An RFStation type class
-    Profile : class
+    profile : class
         Beam profile object
     n_cavities : int
         Number of cavities per beam; default is 8
@@ -1290,8 +1333,8 @@ class LHCCavityLoop(CavityFeedback):
 
     def __init__(
             self,
-            RFStation: RFStation,
-            Profile: Profile,
+            rf_station: RFStation,
+            profile: Profile,
             n_cavities: int = 8,
             f_c: float = 400.789e6,
             G_gen: float = 1,
@@ -1303,9 +1346,9 @@ class LHCCavityLoop(CavityFeedback):
             tau_otfb: float = 1472e-9,
             RFFB: LHCCavityLoopCommissioning = None,
             n_h: int = 0,
-    ):
+    ) -> None:
         super().__init__(
-            RFStation=RFStation, Profile=Profile, n_cavities=n_cavities, n_s=10, n_h=n_h
+            rf_station=rf_station, profile=profile, n_cavities=n_cavities, n_s=10, n_h=n_h
         )
 
         # Set up logging
@@ -1404,10 +1447,10 @@ class LHCCavityLoop(CavityFeedback):
         r"""Track the feedback model"""
         if not no_beam:
             self.I_BEAM_FINE *= -1j * np.exp(
-                1j * (self.rfstation.phi_s[self.rfstation.counter[0]])
+                1j * (self.rf_station.phi_s[self.rf_station.counter[0]])
             )
             self.I_BEAM_COARSE[-self.n_coarse:] *= -1j * np.exp(
-                1j * (self.rfstation.phi_s[self.rfstation.counter[0]])
+                1j * (self.rf_station.phi_s[self.rf_station.counter[0]])
             )
 
         # Track the different parts of the model
@@ -1434,7 +1477,7 @@ class LHCCavityLoop(CavityFeedback):
             # Apply the tuner correction
             self.tuner()
 
-    def cavity_response(self, samples):
+    def cavity_response(self, samples: float) -> None:
         r"""ACS cavity reponse model"""
 
         self.V_ANT_COARSE[self.ind] = (
@@ -1483,7 +1526,7 @@ class LHCCavityLoop(CavityFeedback):
                 self.n_cavities * self.V_ANT_FINE[-self.profile.n_slices:]
         )
 
-    def generator_current(self):
+    def generator_current(self) -> None:
         r"""Generator response
 
         Attributes
@@ -1500,12 +1543,12 @@ class LHCCavityLoop(CavityFeedback):
                 + self.open_drive_inv * self.I_gen_offset
         )
 
-    def generator_power(self):
+    def generator_power(self) -> ndarray:
         r"""Calculation of generator power from generator current"""
 
         return 0.5 * self.R_over_Q * self.Q_L * np.absolute(self.I_GEN_COARSE) ** 2
 
-    def one_turn_feedback(self, T_s: float):
+    def one_turn_feedback(self, T_s: float) -> None:
         r"""Apply effect of the OTFB on the analog branch"""
 
         # OTFB itself
@@ -1530,7 +1573,7 @@ class LHCCavityLoop(CavityFeedback):
                 - self.V_FIR_OUT[self.ind - 1]
         )
 
-    def rf_feedback(self, T_s: float):
+    def rf_feedback(self, T_s: float) -> None:
         r"""Analog and digital RF feedback response"""
 
         # Calculate voltage difference to act on
@@ -1587,7 +1630,7 @@ class LHCCavityLoop(CavityFeedback):
 
         self.V_SET = np.concatenate((v_set_prev, self.set_point_from_rfstation()))
 
-    def swap(self):
+    def swap(self) -> None:
         r"""Model of the Switch and Protect module: clamping of the output
         power above a given input power."""
 
@@ -1613,7 +1656,7 @@ class LHCCavityLoop(CavityFeedback):
                         np.min(self.TUNER_INTEGRATED[-self.n_coarse:].imag)
                         + np.max(self.TUNER_INTEGRATED[-self.n_coarse:].imag)
                 )
-                / (self.rfstation.voltage[self.n_h, self.counter] / self.n_cavities) ** 2
+                / (self.rf_station.voltage[self.n_h, self.counter] / self.n_cavities) ** 2
         )
 
         # Propagate the corrections to the detuning two the global parameters
@@ -1621,8 +1664,8 @@ class LHCCavityLoop(CavityFeedback):
         self.d_omega = self.detuning * self.omega_c
         self.omega_c = self.omega_rf + self.d_omega
 
-    def tuner_input(self):
-        r"""Gathering data for the detuning algortithm"""
+    def tuner_input(self) -> None:
+        r"""Gathering data for the detuning algorithm"""
 
         # Calculating input signal
         self.TUNER_INPUT[self.ind] = self.I_GEN_COARSE[self.ind] * np.conj(
@@ -1641,7 +1684,7 @@ class LHCCavityLoop(CavityFeedback):
                 - self.TUNER_INTEGRATED[self.ind - 2]
         )
 
-    def track_one_turn(self):
+    def track_one_turn(self) -> None:
         r"""Single-turn tracking, index by index."""
 
         for i in range(self.n_coarse):
@@ -1706,7 +1749,7 @@ class LHCCavityLoop(CavityFeedback):
             )
         )
 
-    def update_fb_variables(self):
+    def update_fb_variables(self) -> None:
         r"""Update counter and frequency-dependent variables in a given turn"""
 
         # Delay time

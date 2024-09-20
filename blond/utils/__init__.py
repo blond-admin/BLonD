@@ -1,13 +1,17 @@
-'''
+"""
 Basic methods and objects related to the computational core.
 
 @author: Konstantinos Iliakis
 @date: 25.05.2023
-'''
+"""
 
 import ctypes as ct
+from typing import Union, TYPE_CHECKING
 
 import numpy as np
+
+if TYPE_CHECKING:
+    from typing import Union
 
 
 class PrecisionClass:
@@ -15,7 +19,7 @@ class PrecisionClass:
     """
     __instance = None
 
-    def __init__(self, _precision='double'):
+    def __init__(self, _precision: str = 'double') -> None:
         """Constructor
 
         Args:
@@ -27,7 +31,7 @@ class PrecisionClass:
         PrecisionClass.__instance = self
         self.set(_precision)
 
-    def set(self, _precision='double'):
+    def set(self, _precision: str = 'double') -> None:
         """Set the precision to single or double.
 
         Args:
@@ -45,7 +49,7 @@ class PrecisionClass:
             self.c_real_t = ct.c_double
             self.complex_t = np.complex128
             self.num = 2
-
+        # todo else??
 
 class c_complex128(ct.Structure):
     """128-bit (64+64) Complex number, compatible with std::complex layout
@@ -58,7 +62,7 @@ class c_complex128(ct.Structure):
     """
     _fields_ = [("real", ct.c_double), ("imag", ct.c_double)]
 
-    def __init__(self, pycomplex):
+    def __init__(self, pycomplex: np.ndarray):
         """Init from Python complex
 
         Args:
@@ -87,7 +91,7 @@ class c_complex64(ct.Structure):
     """
     _fields_ = [("real", ct.c_float), ("imag", ct.c_float)]
 
-    def __init__(self, pycomplex):
+    def __init__(self, pycomplex: np.ndarray):
         """Init from Python complex
 
         Args:
@@ -105,7 +109,7 @@ class c_complex64(ct.Structure):
         return self.real + (1.j) * self.imag
 
 
-def c_real(scalar):
+def c_real(scalar: Union[float, int]) -> Union[ct.c_float, ct.c_double]:
     """Convert input to default precision.
 
     Args:
@@ -119,7 +123,7 @@ def c_real(scalar):
     return ct.c_double(scalar)
 
 
-def c_complex(scalar):
+def c_complex(scalar: complex):
     """Convert input to default precision.
 
     Args:

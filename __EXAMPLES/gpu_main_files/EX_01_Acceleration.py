@@ -98,12 +98,12 @@ profile = Profile(beam, CutOptions(n_slices=100),
 # Define what to save in file
 bunchmonitor = BunchMonitor(ring, rf, beam,
                             this_directory + '../gpu_output_files/EX_01_output_data',
-                            Profile=profile)
+                            profile=profile)
 
 format_options = {'dirname': this_directory + '../gpu_output_files/EX_01_fig'}
 plots = Plot(ring, rf, beam, dt_plt, N_t, 0, 0.0001763 * h,
              -400e6, 400e6, xunit='rad', separatrix_plot=True,
-             Profile=profile, h5file=this_directory + '../gpu_output_files/EX_01_output_data',
+             profile=profile, h5file=this_directory + '../gpu_output_files/EX_01_output_data',
              format_options=format_options)
 
 # For testing purposes

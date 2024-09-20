@@ -111,7 +111,7 @@ slice_beam.track()
 
 # Define what to save in file
 bunchmonitor = BunchMonitor(general_params, rf_params, beam, this_directory +
-                            '../gpu_output_files/EX_03_output_data', Profile=slice_beam)
+                            '../gpu_output_files/EX_03_output_data', profile=slice_beam)
 
 
 # PLOTS
@@ -120,7 +120,7 @@ format_options = {'dirname': this_directory +
                   '../gpu_output_files/EX_03_fig', 'linestyle': '.'}
 plots = Plot(general_params, rf_params, beam, dt_plt, N_t, 0,
              0.0001763 * h, -450e6, 450e6, xunit='rad',
-             separatrix_plot=True, Profile=slice_beam, h5file=this_directory + '../gpu_output_files/EX_03_output_data',
+             separatrix_plot=True, profile=slice_beam, h5file=this_directory + '../gpu_output_files/EX_03_output_data',
              histograms_plot=True, format_options=format_options)
 
 # For testing purposes

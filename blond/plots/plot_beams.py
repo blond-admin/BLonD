@@ -11,6 +11,9 @@
 
 :Authors: **Helga Timko**, **Danilo Quartullo**
 '''
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from __future__ import division
 
@@ -18,13 +21,24 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.layout_engine import PlaceHolderLayoutEngine
 
-from ..trackers.utilities import separatrix
+from blond.trackers.utilities import separatrix
+from blond.utils.legacy_support import handle_legacy_kwargs
+
+if TYPE_CHECKING:
+    from blond.input_parameters.rf_parameters import RFStation
+    from blond.input_parameters.ring import Ring
+    from blond.beam.beam import Beam
+    from typing import Union
+    from os import PathLike
+    import h5py as hp
+    from blond.beam.profile import Profile
 
 
-def plot_long_phase_space(Ring, RFStation, Beam, xmin,
-                          xmax, ymin, ymax, xunit='s', sampling=1,
+@handle_legacy_kwargs
+def plot_long_phase_space(ring: Ring, rf_station: RFStation, beam: Beam, xmin: float,
+                          xmax: float, ymin: float, ymax: float, xunit='s', sampling=1,
                           separatrix_plot=False, histograms_plot=True,
-                          dirname='fig', show_plot=False, alpha=1, color='b'):
+                          dirname: Union[str, PathLike[str]] = 'fig', show_plot=False, alpha=1, color='b'):
     """
     Plot of longitudinal phase space. Optional use of histograms and separatrix.
     Choice of units: xunit = s, rad.
@@ -33,8 +47,8 @@ def plot_long_phase_space(Ring, RFStation, Beam, xmin,
 
     # Conversion from particle arrival time to RF phase
     if xunit == 'rad':
-        omega_RF = RFStation.omega_rf[0, RFStation.counter[0]]
-        phi_RF = RFStation.phi_rf[0, RFStation.counter[0]]
+        omega_RF = rf_station.omega_rf[0, rf_station.counter[0]]
+        phi_RF = rf_station.phi_rf[0, rf_station.counter[0]]
 
     # Definitions for placing the axes
     left, width = 0.115, 0.63
@@ -54,23 +68,23 @@ def plot_long_phase_space(Ring, RFStation, Beam, xmin,
     axHisty = plt.axes(rect_histy)
 
     # Main plot: longitudinal distribution
-    indlost = np.where(Beam.id[::sampling] == 0)[0]  # particles lost
-    indalive = np.where(Beam.id[::sampling] != 0)[0]  # particles transmitted
+    indlost = np.where(beam.id[::sampling] == 0)[0]  # particles lost
+    indalive = np.where(beam.id[::sampling] != 0)[0]  # particles transmitted
     if xunit == 's':
         axScatter.set_xlabel(r"$\Delta t$ [s]")
-        axScatter.scatter(Beam.dt[indalive], Beam.dE[indalive],
+        axScatter.scatter(beam.dt[indalive], beam.dE[indalive],
                           s=1, edgecolor='none', alpha=alpha, color=color)
         if len(indlost) > 0:
-            axScatter.scatter(Beam.dt[indlost], Beam.dE[indlost], color='0.5',
+            axScatter.scatter(beam.dt[indlost], beam.dE[indlost], color='0.5',
                               s=1, edgecolor='none')
     elif xunit == 'rad':
         axScatter.set_xlabel(r"$\varphi$ [rad]")
-        axScatter.scatter(omega_RF * Beam.dt[indalive] + phi_RF,
-                          Beam.dE[indalive], s=1, edgecolor='none',
+        axScatter.scatter(omega_RF * beam.dt[indalive] + phi_RF,
+                          beam.dE[indalive], s=1, edgecolor='none',
                           alpha=alpha, color=color)
         if len(indlost) > 0:
-            axScatter.scatter(omega_RF * Beam.dt[indlost] + phi_RF,
-                              Beam.dE[indlost], color='0.5', s=1,
+            axScatter.scatter(omega_RF * beam.dt[indlost] + phi_RF,
+                              beam.dE[indlost], color='0.5', s=1,
                               edgecolor='none')
     axScatter.set_ylabel(r"$\Delta$E [eV]")
     axScatter.yaxis.labelpad = 1
@@ -79,16 +93,16 @@ def plot_long_phase_space(Ring, RFStation, Beam, xmin,
     axScatter.set_ylim(ymin, ymax)
 
     axScatter.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
-    plt.figtext(0.95, 0.95, '%d turns' % RFStation.counter[0],
+    plt.figtext(0.95, 0.95, '%d turns' % rf_station.counter[0],
                 fontsize=16, ha='right', va='center')
 
     # Separatrix
     if separatrix_plot:
         x_sep = np.linspace(float(xmin), float(xmax), 1000)
         if xunit == 's':
-            y_sep = separatrix(Ring, RFStation, x_sep)
+            y_sep = separatrix(ring, rf_station, x_sep)
         elif xunit == 'rad':
-            y_sep = separatrix(Ring, RFStation, (x_sep - phi_RF) / omega_RF)
+            y_sep = separatrix(ring, rf_station, (x_sep - phi_RF) / omega_RF)
         axScatter.plot(x_sep, y_sep, 'r')
         axScatter.plot(x_sep, - y_sep, 'r')
 
@@ -100,10 +114,10 @@ def plot_long_phase_space(Ring, RFStation, Beam, xmin,
         yh = np.arange(ymin, ymax + ybin, ybin)
 
         if xunit == 's':
-            axHistx.hist(Beam.dt[::sampling], bins=xh, histtype='step', color=color)
+            axHistx.hist(beam.dt[::sampling], bins=xh, histtype='step', color=color)
         elif xunit == 'rad':
-            axHistx.hist(omega_RF * Beam.dt[::sampling] + phi_RF, bins=xh, histtype='step', color=color)
-        axHisty.hist(Beam.dE[::sampling], bins=yh, histtype='step',
+            axHistx.hist(omega_RF * beam.dt[::sampling] + phi_RF, bins=xh, histtype='step', color=color)
+        axHisty.hist(beam.dE[::sampling], bins=yh, histtype='step',
                      orientation='horizontal', color=color)
         axHistx.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
         axHisty.ticklabel_format(style='sci', axis='x', scilimits=(0, 0))
@@ -119,19 +133,20 @@ def plot_long_phase_space(Ring, RFStation, Beam, xmin,
     if show_plot:
         plt.show()
     else:
-        fign = dirname + '/long_distr_'"%d" % RFStation.counter[0] + '.png'
+        fign = dirname + '/long_distr_'"%d" % rf_station.counter[0] + '.png'
         plt.savefig(fign)
     plt.clf()
 
 
-def plot_bunch_length_evol(RFStation, h5data, output_freq=1,
-                           dirname='fig', show_plot=False):
+@handle_legacy_kwargs
+def plot_bunch_length_evol(rf_station: RFStation, h5data: hp.File, output_freq=1,
+                           dirname: Union[str, PathLike[str]] = 'fig', show_plot=False):
     """
     Plot of r.m.s. 4-sigma bunch length [s] as a function of time.
     """
 
     # Time step of plotting
-    time_step = RFStation.counter[0]
+    time_step = rf_station.counter[0]
 
     # Get bunch length data in metres or seconds
     if output_freq < 1:
@@ -161,15 +176,16 @@ def plot_bunch_length_evol(RFStation, h5data, output_freq=1,
     plt.clf()
 
 
-def plot_bunch_length_evol_gaussian(RFStation, Profile, h5data,
-                                    output_freq=1, dirname='fig', show_plot=False):
+@handle_legacy_kwargs
+def plot_bunch_length_evol_gaussian(rf_station: RFStation, profile: Profile, h5data,
+                                    output_freq=1, dirname: Union[str, PathLike[str]] = 'fig', show_plot=False):
     """
     Plot of Gaussian 4-sigma bunch length [s] as a function of time.
     Requires profile.
     """
 
     # Time step of plotting
-    time_step = RFStation.counter[0]
+    time_step = rf_station.counter[0]
 
     # Get bunch length data in metres or nanoseconds
     if output_freq < 1:
@@ -200,10 +216,11 @@ def plot_bunch_length_evol_gaussian(RFStation, Profile, h5data,
     plt.clf()
 
 
-def plot_position_evol(RFStation, h5data, output_freq=1,
-                       style='.', dirname='fig', show_plot=False):
+@handle_legacy_kwargs
+def plot_position_evol(rf_station: RFStation, h5data: hp.File, output_freq=1,
+                       style='.', dirname: Union[str, PathLike[str]] = 'fig', show_plot=False):
     # Time step of plotting
-    time_step = RFStation.counter[0]
+    time_step = rf_station.counter[0]
 
     # Get position data [s] 
     if output_freq < 1:
@@ -232,10 +249,11 @@ def plot_position_evol(RFStation, h5data, output_freq=1,
     plt.clf()
 
 
-def plot_energy_evol(RFStation, h5data, output_freq=1, style='.',
-                     dirname='fig', show_plot=False):
+@handle_legacy_kwargs
+def plot_energy_evol(rf_station: RFStation, h5data: hp.File, output_freq=1, style='.',
+                     dirname: Union[str, PathLike[str]] = 'fig', show_plot=False):
     # Time step of plotting
-    time_step = RFStation.counter[0]
+    time_step = rf_station.counter[0]
 
     # Get position data in metres or nanoseconds 
     if output_freq < 1:
@@ -265,10 +283,11 @@ def plot_energy_evol(RFStation, h5data, output_freq=1, style='.',
     plt.clf()
 
 
-def plot_transmitted_particles(RFStation, h5data, output_freq=1,
-                               style='.', dirname='fig', show_plot=False):
+@handle_legacy_kwargs
+def plot_transmitted_particles(rf_station: RFStation, h5data: hp.File, output_freq=1,
+                               style='.', dirname: Union[str, PathLike[str]] = 'fig', show_plot=False):
     # Time step of plotting
-    time_step = RFStation.counter[0]
+    time_step = rf_station.counter[0]
 
     # Get position data in metres or nanoseconds 
     if output_freq < 1:

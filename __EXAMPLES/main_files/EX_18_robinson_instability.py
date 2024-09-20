@@ -133,7 +133,7 @@ print('Robinson instability growth rate = {0:1.3f} turns'.format(tau_RS /
 imp_list = [resonator]
 
 ind_volt_freq = InducedVoltageFreq(beam, slice_beam, imp_list,
-                                   RFParams=RF_sct_par, frequency_resolution=5e2,
+                                   rf_station=RF_sct_par, frequency_resolution=5e2,
                                    multi_turn_wake=True, mtw_mode='time')
 
 total_ind_volt = TotalInducedVoltage(beam, slice_beam, [ind_volt_freq])
@@ -159,7 +159,7 @@ plt.close()
 matched_from_distribution_function(beam, full_tracker,
                                    distribution_type=distribution_type,
                                    bunch_length=bunch_length, n_iterations=20,
-                                   TotalInducedVoltage=total_ind_volt, seed=10)
+                                   total_induced_voltage=total_ind_volt, seed=10)
 
 # For testing purposes
 test_string = ''

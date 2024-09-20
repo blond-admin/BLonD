@@ -56,7 +56,7 @@ class TrackIteration:
     '''
 
     def __init__(self, track_map: Iterable[Trackable], init_turn: int = 0,
-                 final_turn: int = -1):
+                 final_turn: int = -1) -> None:
 
         if not all((hasattr(m, 'track') for m in track_map)):
             raise AttributeError("All map objects must be trackable")
@@ -74,7 +74,7 @@ class TrackIteration:
 
         self.function_list: List[Tuple[Predicate, int]] = []
 
-    def _track_turns(self, n_turns):
+    def _track_turns(self, n_turns: int) -> None:
         '''
         Function to track for specified number of turns
         calls next() function n_turns times
@@ -84,7 +84,7 @@ class TrackIteration:
             next(self)
 
     def add_function(self, predicate: Predicate, repetion_rate: int,
-                     *args: Any, **kwargs: Any):
+                     *args: Any, **kwargs: Any) -> None:
         '''
         Takes a user defined callable and calls it every repetion_rate
         number of turns with predicate(track_map, turn_number, *args, **kwargs)
