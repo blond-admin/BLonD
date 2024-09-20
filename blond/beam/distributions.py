@@ -805,69 +805,101 @@ def populate_bunch(beam: Beam, time_grid: np.ndarray, deltaE_grid: np.ndarray,
         dtype=bm.precision.real_t, order='C', copy=False)
 
 
-def distribution_function(
-        action_array: np.ndarray,
-        dist_type: DistributionFunctionDistType,
-        length: float,
-        exponent: Union[float, None] = None) -> np.ndarray:
-    """
-    *Distribution function (formulas from Laclare).*
-    """
-
-    if dist_type in ['binomial', 'waterbag', 'parabolic_amplitude',
-                     'parabolic_line']:
-        if dist_type == 'waterbag':
-            exponent = 0
-        elif dist_type == 'parabolic_amplitude':
-            exponent = 1
-        elif dist_type == 'parabolic_line':
-            exponent = 0.5
-
-        warnings.filterwarnings("ignore")
-        distribution_function_ = (1 - action_array / length) ** exponent
-        warnings.filterwarnings("default")
-        distribution_function_[action_array > length] = 0
-    elif dist_type == 'gaussian':
-        distribution_function_ = np.exp(- 2 * action_array / length)
-    else:
-        # DistributionError
-        raise RuntimeError('The dist_type option was not recognized')
-
+def __distribution_function_by_exponent(action_array: np.ndarray, exponent: float, length: float) -> np.ndarray:
+    warnings.filterwarnings("ignore")
+    distribution_function_ = (1 - action_array / length) ** exponent
+    warnings.filterwarnings("default")
+    distribution_function_[action_array > length] = 0
     return distribution_function_
 
 
 
-def line_density(coord_array: np.ndarray,
-                 dist_type: LineDensityDistType,
-                 bunch_length: float,
-                 bunch_position: float = 0.0,
-                 exponent: Union[float, None] = None) -> np.ndarray:
-    """
-    *Line density*
-    """
+def distribution_function(action_array, dist_type, length, exponent=None):
+    '''
+    *Distribution function (formulas from Laclare).*
+    '''
 
-    if dist_type in ['binomial', 'waterbag', 'parabolic_amplitude',
-                     'parabolic_line']:
-        if dist_type == 'waterbag':
-            exponent = 0
-        elif dist_type == 'parabolic_amplitude':
-            exponent = 1
-        elif dist_type == 'parabolic_line':
-            exponent = 0.5
+    if dist_type == 'waterbag':
+        if exponent is not None:
+            warnings.warn(f"exponent is ignored for {dist_type=}")
+        exponent = 0
+        distribution_ = __distribution_function_by_exponent(action_array, exponent, length)
 
-        warnings.filterwarnings("ignore")
-        line_density_ = ((1 - (2.0 * (coord_array - bunch_position) /
-                               bunch_length) ** 2) ** (exponent + 0.5))
-        warnings.filterwarnings("default")
-        line_density_[np.abs(coord_array - bunch_position)
-                      > bunch_length / 2] = 0
+    elif dist_type == 'parabolic_amplitude':
+        if exponent is not None:
+            warnings.warn(f"exponent is ignored for {dist_type=}")
+        exponent = 1
+        distribution_ = __distribution_function_by_exponent(action_array, exponent, length)
+
+    elif dist_type == 'parabolic_line':
+        if exponent is not None:
+            warnings.warn(f"exponent is ignored for {dist_type=}")
+        exponent = 0.5
+        distribution_ = __distribution_function_by_exponent(action_array, exponent, length)
+
+    elif dist_type == 'binomial':
+        assert exponent is not None, "Please specify exponent"
+        distribution_ = __distribution_function_by_exponent(action_array, exponent, length)
 
     elif dist_type == 'gaussian':
+        distribution_ = np.exp(- 2 * action_array / length)
+
+    else:
+        # DistributionError
+        raise RuntimeError('The dist_type option was not recognized')
+
+    return distribution_
+
+
+def __line_density_by_exponent(bunch_length: float,
+                               bunch_position: float,
+                               coord_array: np.ndarray,
+                               exponent: float) -> np.ndarray:
+    warnings.filterwarnings("ignore")
+    line_density_ = ((1 - (2.0 * (coord_array - bunch_position) /
+                           bunch_length) ** 2) ** (exponent + 0.5))
+    warnings.filterwarnings("default")
+    line_density_[np.abs(coord_array - bunch_position)
+                  > bunch_length / 2] = 0
+    return line_density_
+
+def line_density(coord_array, dist_type, bunch_length, bunch_position: float = 0.0,
+                 exponent: Union[float, None] = None):
+    '''
+    *Line density*
+    '''
+
+    if dist_type == 'waterbag':
+        if exponent is not None:
+            warnings.warn(f"exponent is ignored for {dist_type=}")
+        exponent = 0
+        line_density_ = __line_density_by_exponent(bunch_length, bunch_position, coord_array, exponent)
+
+    elif dist_type == 'parabolic_amplitude':
+        if exponent is not None:
+            warnings.warn(f"exponent is ignored for {dist_type=}")
+        exponent = 1
+        line_density_ = __line_density_by_exponent(bunch_length, bunch_position, coord_array, exponent)
+
+    elif dist_type == 'parabolic_line':
+        if exponent is not None:
+            warnings.warn(f"exponent is ignored for {dist_type=}")
+        exponent = 0.5
+        line_density_ = __line_density_by_exponent(bunch_length, bunch_position, coord_array, exponent)
+    elif dist_type == 'binomial':
+        assert exponent is not None, "Please specify exponent!"
+        line_density_ = __line_density_by_exponent(bunch_length, bunch_position, coord_array, exponent)
+
+    elif dist_type == 'gaussian':
+        if exponent is not None:
+            warnings.warn(f"exponent is ignored for {dist_type=}")
         sigma = bunch_length / 4
         line_density_ = np.exp(-(coord_array - bunch_position)
                                 ** 2 / (2 * sigma ** 2))
 
     elif dist_type == 'cosine_squared':
+        if exponent is not None:
+            warnings.warn(f"exponent is ignored for {dist_type=}")
         warnings.filterwarnings("ignore")
         line_density_ = (np.cos(np.pi * (coord_array - bunch_position) /
                                 bunch_length) ** 2)
