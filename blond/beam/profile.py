@@ -14,7 +14,7 @@
           **Juan F. Esteban Mueller**
 """
 
-from __future__ import division, print_function, annotations
+from __future__ import annotations
 
 from typing import TYPE_CHECKING
 

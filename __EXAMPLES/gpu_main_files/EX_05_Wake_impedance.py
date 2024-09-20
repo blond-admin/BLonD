@@ -18,7 +18,6 @@ the corresponding h5 files).
 :Authors: **Danilo Quartullo**
 '''
 
-from __future__ import division, print_function
 
 import os
 

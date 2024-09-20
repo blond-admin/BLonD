@@ -14,7 +14,7 @@ Example for the PSB with a narrow-band resonator, to check Robinson instability
 :Authors: **Juan F. Esteban Mueller**
 '''
 
-from __future__ import division, print_function
+
 import time
 
 import os

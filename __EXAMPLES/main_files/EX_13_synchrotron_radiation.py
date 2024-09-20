@@ -14,7 +14,6 @@ Example for the FCC-ee at 175 GeV.
 :Authors: **Juan F. Esteban Mueller**
 '''
 
-from __future__ import division
 from scipy.optimize import curve_fit
 
 import os

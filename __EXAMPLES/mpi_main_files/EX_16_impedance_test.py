@@ -16,7 +16,7 @@ domain, and with an inductive impedance.
 '''
 
 
-from __future__ import division, print_function
+
 from blond.utils.mpi_config import mpiprint, WORKER
 from blond.utils import bmath as bm
 

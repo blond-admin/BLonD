@@ -14,7 +14,6 @@ Example for the PSB with a narrow-band resonator, to check Robinson instability
 :Authors: **Juan F. Esteban Mueller**
 '''
 
-from __future__ import division, print_function
 import time
 from blond.trackers.tracker import FullRingAndRF, RingAndRFTracker
 from blond.input_parameters.ring import Ring

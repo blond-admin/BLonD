@@ -14,7 +14,6 @@ No intensity effects
 Run as python TestSeparatrixBigaussian.py in console or via travis
 '''
 
-from __future__ import division, print_function
 
 import unittest
 

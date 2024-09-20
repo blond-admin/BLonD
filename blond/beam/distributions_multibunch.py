@@ -4,7 +4,7 @@
 :Authors: **Danilo Quartullo**, **Alexandre Lasheen**, **Theodoros Argyropoulos**
 """
 
-from __future__ import absolute_import, division, print_function, annotations
+from __future__ import annotations
 
 import copy
 import gc

@@ -14,7 +14,7 @@
 :Authors: **Danilo Quartullo**, **Helga Timko**, **Alexandre Lasheen**
 '''
 
-from __future__ import division, print_function, annotations
+from __future__ import annotations
 
 import copy
 import warnings

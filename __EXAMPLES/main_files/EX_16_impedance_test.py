@@ -16,7 +16,6 @@ domain, and with an inductive impedance.
 '''
 
 
-from __future__ import division, print_function
 
 import os
 from builtins import range

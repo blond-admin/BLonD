@@ -13,7 +13,7 @@ Test case for the bunch generation routines. Example for the LHC at 7 TeV.
 :Authors: **Juan F. Esteban Mueller**
 '''
 
-from __future__ import division, print_function
+
 
 import os
 from builtins import str

@@ -14,7 +14,7 @@ No intensity effects
 :Authors: **Alexandre Lasheen**
 '''
 
-from __future__ import division, print_function
+
 from blond.utils.mpi_config import mpiprint, WORKER
 from blond.utils import bmath as bm
 from blond.trackers.tracker import RingAndRFTracker

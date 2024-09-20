@@ -13,7 +13,6 @@
 :Authors: **Jelena Banjac, Helga Timko**
 '''
 
-from __future__ import division
 
 # Set up logging
 import logging

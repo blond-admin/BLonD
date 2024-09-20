@@ -13,7 +13,6 @@ probability density.**
 :Authors: **Helga Timko**
 '''
 
-from __future__ import division, print_function
 
 import linecache
 import os

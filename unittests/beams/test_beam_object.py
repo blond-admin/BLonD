@@ -15,7 +15,6 @@ Run as python testBeamObject.py in console or via travis
 
 # General imports
 # -----------------
-from __future__ import division, print_function
 
 import unittest
 

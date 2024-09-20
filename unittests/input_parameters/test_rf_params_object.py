@@ -13,7 +13,6 @@ Run as python test_rf_params_object.py in console or via travis
 :Authors: **Joel Repond**, **Markus Schwarz**
 '''
 
-from __future__ import division, print_function
 
 import unittest
 

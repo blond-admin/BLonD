@@ -14,7 +14,7 @@
     **Simon Albright**
 """
 
-from __future__ import division, annotations
+from __future__ import annotations
 
 import os
 from typing import TYPE_CHECKING
@@ -28,6 +28,7 @@ from blond.utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
     from numpy import ndarray
+    from typing import Any, List, Literal, Union, Optional
     from typing import Any, List, Literal, Union, Optional, Tuple, Callable
     from blond.input_parameters.ring import Ring
     from typing import Any, List, Literal, Union

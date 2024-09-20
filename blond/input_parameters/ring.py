@@ -12,7 +12,7 @@
     :Authors: **Alexandre Lasheen**, **Danilo Quartullo**, **Helga Timko**
 """
 
-from __future__ import division, annotations
+from __future__ import annotations
 
 import warnings
 from builtins import range

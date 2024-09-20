@@ -13,7 +13,7 @@
 :Authors: **Alexandre Lasheen**, **Danilo Quartullo**, **Helga Timko**
 '''
 
-from __future__ import division, print_function, annotations
+from __future__ import annotations
 
 from builtins import range, str
 from typing import TYPE_CHECKING

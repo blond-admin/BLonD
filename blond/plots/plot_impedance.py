@@ -12,7 +12,6 @@
 :Authors: **Helga Timko**, **Danilo Quartullo**
 '''
 
-from __future__ import division
 
 from __future__ import annotations
 

@@ -14,9 +14,8 @@
 :Authors: **Juan F. Esteban Mueller**
 """
 
-from __future__ import division, print_function, annotations
+from __future__ import annotations
 
-from builtins import range
 from typing import TYPE_CHECKING
 
 import numpy as np

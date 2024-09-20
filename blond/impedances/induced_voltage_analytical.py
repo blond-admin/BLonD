@@ -10,7 +10,6 @@
 :Authors: **Danilo Quartullo**, **Joel Repond**
 '''
 
-from __future__ import division, print_function
 
 import numpy as np
 import scipy.special as scisp

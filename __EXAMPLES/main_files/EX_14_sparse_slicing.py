@@ -14,7 +14,6 @@ Example for the FCC-ee at 175 GeV.
 :Authors: **Juan F. Esteban Mueller**
 '''
 
-from __future__ import division, print_function
 import time
 
 import os

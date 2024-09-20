@@ -17,7 +17,6 @@ intensity effects. Comparison with analytical formula.
 :Authors: **Juan F. Esteban Mueller**
 '''
 
-from __future__ import division
 
 import os
 

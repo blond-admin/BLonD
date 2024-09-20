@@ -14,8 +14,7 @@
           **Joel Repond**
 """
 
-from __future__ import absolute_import, division, print_function, \
-    annotations  # todo check future imports, remove irrelevant items
+from __future__ import annotations
 
 import copy
 import gc

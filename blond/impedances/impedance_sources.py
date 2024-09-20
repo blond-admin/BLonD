@@ -17,7 +17,7 @@ classes, as for example InputTable, Resonators and TravelingWaveCavity.**
     **Markus Schwarz**
 """
 
-from __future__ import division, print_function, annotations
+from __future__ import annotations
 
 from builtins import range
 from typing import TYPE_CHECKING

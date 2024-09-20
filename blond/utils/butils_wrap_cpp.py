@@ -14,7 +14,6 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-# from .. import get_libblond
 from . import c_complex64, c_complex128, c_real, precision
 
 if TYPE_CHECKING:

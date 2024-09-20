@@ -14,7 +14,6 @@ intensity effects is considered.**
 '''
 from __future__ import annotations
 
-from __future__ import division
 
 from typing import TYPE_CHECKING
 

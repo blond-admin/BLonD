@@ -13,7 +13,6 @@ RF bucket is considered.**
 :Authors: **Helga Timko**
 '''
 
-from __future__ import division
 
 from builtins import range
 from typing import TYPE_CHECKING

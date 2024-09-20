@@ -14,7 +14,6 @@ Test case to show the consequences of omega_rf != h*omega_rev
 :Authors: **Danilo Quartullo**
 '''
 
-from __future__ import division, print_function
 
 import os
 

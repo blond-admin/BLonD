@@ -14,7 +14,6 @@ No intensity effects
 :Authors: **Helga Timko**
 '''
 #  General Imports
-from __future__ import division, print_function
 
 import os
 from builtins import range

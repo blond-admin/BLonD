@@ -16,7 +16,6 @@ domain.
 '''
 
 
-from __future__ import division, print_function
 from blond.trackers.tracker import RingAndRFTracker
 from blond.input_parameters.ring import Ring
 from blond.input_parameters.rf_parameters import RFStation

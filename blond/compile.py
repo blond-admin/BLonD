@@ -17,7 +17,6 @@
 # TO GET GCC 4.8.1 64 BIT. IN GENERAL IT IS ADVISED TO USE PYTHON 64 BIT PLUS
 # GCC 64 BIT.
 
-from __future__ import print_function
 
 import argparse
 import ctypes

@@ -13,7 +13,7 @@ Example script to take into account intensity effects from impedance tables
 :Authors: **Danilo Quartullo**
 '''
 
-from __future__ import division, print_function
+
 from blond.utils.mpi_config import mpiprint, WORKER
 from blond.utils import bmath as bm
 

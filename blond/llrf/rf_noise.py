@@ -13,7 +13,7 @@ amplitude as a function of bunch length**
 :Authors: **Helga Timko**
 """
 
-from __future__ import division, print_function, annotations
+from __future__ import annotations
 
 from typing import TYPE_CHECKING
 

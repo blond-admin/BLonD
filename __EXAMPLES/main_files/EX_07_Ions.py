@@ -14,7 +14,6 @@ No intensity effects
 :Authors: **Alexandre Lasheen**
 '''
 
-from __future__ import division, print_function
 from blond.trackers.tracker import RingAndRFTracker
 from blond.plots.plot import Plot
 from blond.monitors.monitors import BunchMonitor

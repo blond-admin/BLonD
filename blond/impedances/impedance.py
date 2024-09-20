@@ -13,7 +13,7 @@
           **Alexandre Lasheen**, **Markus Schwarz**
 '''
 
-from __future__ import division, print_function, annotations
+from __future__ import annotations
 
 from abc import abstractmethod
 from builtins import range

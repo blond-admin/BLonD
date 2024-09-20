@@ -14,7 +14,6 @@ main file (CERN PS Booster context).
 :Authors: **Danilo Quartullo**
 '''
 
-from __future__ import division
 
 import os
 

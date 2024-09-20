@@ -10,7 +10,7 @@
 :Authors: **Danilo Quartullo, Konstantinos Iliakis**
 '''
 
-from __future__ import division, annotations
+from __future__ import annotations
 
 from typing import TYPE_CHECKING
 

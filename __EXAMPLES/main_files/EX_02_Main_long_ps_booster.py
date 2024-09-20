@@ -13,7 +13,6 @@ Example script to take into account intensity effects from impedance tables
 :Authors: **Danilo Quartullo**
 '''
 
-from __future__ import division, print_function
 
 import os
 from builtins import bytes, range, str

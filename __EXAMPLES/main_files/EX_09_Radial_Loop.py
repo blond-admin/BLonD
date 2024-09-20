@@ -13,7 +13,6 @@ Test case to show how to use radial loop (CERN PS Booster context).
 :Authors: **Danilo Quartullo**
 '''
 
-from __future__ import division, print_function
 
 import os
 

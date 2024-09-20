@@ -13,7 +13,7 @@ Test case to show how to use radial loop (CERN PS Booster context).
 :Authors: **Danilo Quartullo**
 '''
 
-from __future__ import division, print_function
+
 from blond.utils.mpi_config import mpiprint, WORKER
 from blond.utils import bmath as bm
 

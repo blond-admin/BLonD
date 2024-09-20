@@ -14,7 +14,7 @@ for the CERN machines**
 :Authors: **Helga Timko**, **Alexandre Lasheen**
 '''
 
-from __future__ import division, annotations
+from __future__ import annotations
 
 from typing import TYPE_CHECKING
 

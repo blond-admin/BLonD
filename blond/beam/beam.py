@@ -14,7 +14,7 @@ statistics
 
 """
 
-from __future__ import division, annotations
+from __future__ import annotations
 
 import itertools as itl
 from typing import TYPE_CHECKING

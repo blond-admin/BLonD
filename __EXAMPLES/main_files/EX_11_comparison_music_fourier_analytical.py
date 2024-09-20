@@ -15,7 +15,6 @@ FFT, time domain with MuSiC, time domain with analytical formula.
 :Authors: **Danilo Quartullo**
 '''
 
-from __future__ import division
 
 import os
 
