@@ -267,8 +267,27 @@ class _InducedVoltage:
         # Multi-turn wake mode can be 'freq' or 'time' (default). If 'freq'
         # is used, each turn the induced voltage of previous turns is shifted
         # in the frequency domain. For 'time', a linear interpolation is used.
-        self.mtw_mode = mtw_mode
+        self.mtw_mode: MtwModeTypes = mtw_mode
 
+        ###############
+        # Previously only declared in process()
+        self.n_fft: Union[int, None] = None
+        self.wake_length: Union[float, None] = None
+        self.n_induced_voltage: Union[int, None] = None
+        self.n_mtw_memory: Union[int, None] = None
+        self.front_wake_buffer: Union[int, None] = None
+        self.buffer_size: Union[int, None] = None
+        self.mtw_memory: Union[np.ndarray, None] = None
+        self.total_impedance: Union[np.ndarray, None] = None
+        self.induced_voltage_generation: Union[Callable, None] = None
+
+        self.freq_mtw: Union[np.array, cp.array, None] = None
+        self.omegaj_mtw: Union[np.array, cp.array, None] = None
+        self.shift_trev: Union[Callable, None] = None
+        self.time_mtw: Union[np.array, cp.array, None] = None
+        ###############
+
+        self._device: DeviceType = "CPU"
         self.process()
 
     @property
@@ -453,6 +472,14 @@ class _InducedVoltage:
                               charge=self.beam.particle.charge,
                               acceleration_kick=0.)
 
+    @abstractmethod
+    def to_gpu(self, recursive=True):
+        pass
+
+    @abstractmethod
+    def to_cpu(self, recursive=True):
+        pass
+
 
 class InducedVoltageTime(_InducedVoltage):
     r"""
@@ -574,17 +601,17 @@ class InducedVoltageTime(_InducedVoltage):
         self.time = cp.array(self.time)
         self.total_wake = cp.array(self.total_wake)
         self.total_impedance = cp.array(self.total_impedance)
-        if hasattr(self, 'mtw_memory'):
+        if self.mtw_memory is not None:
             self.mtw_memory = cp.array(self.mtw_memory)
-        if hasattr(self, 'time_mtw'):
+        if self.time_mtw is not None:
             self.time_mtw = cp.array(self.time_mtw)
-        if hasattr(self, 'omegaj_mtw'):
+        if self.omegaj_mtw is not None:
             self.omegaj_mtw = cp.array(self.omegaj_mtw)
-        if hasattr(self, 'freq_mtw'):
+        if self.freq_mtw is not None:
             self.freq_mtw = cp.array(self.freq_mtw)
-        if hasattr(self, 'total_wake'):
+        if self.total_wake is not None:
             self.total_wake = cp.array(self.total_wake)
-        if hasattr(self, 'time'):
+        if self.time is not None:
             self.time = cp.array(self.time)
 
         # to make sure it will not be called again
@@ -603,17 +630,17 @@ class InducedVoltageTime(_InducedVoltage):
         self.time = cp.asnumpy(self.time)
         self.total_wake = cp.asnumpy(self.total_wake)
         self.total_impedance = cp.asnumpy(self.total_impedance)
-        if hasattr(self, 'mtw_memory'):
+        if self.mtw_memory is not None:
             self.mtw_memory = cp.asnumpy(self.mtw_memory)
-        if hasattr(self, 'time_mtw'):
+        if self.time_mtw is not None:
             self.time_mtw = cp.asnumpy(self.time_mtw)
-        if hasattr(self, 'omegaj_mtw'):
+        if self.omegaj_mtw is not None:
             self.omegaj_mtw = cp.asnumpy(self.omegaj_mtw)
-        if hasattr(self, 'freq_mtw'):
+        if self.freq_mtw is not None:
             self.freq_mtw = cp.asnumpy(self.freq_mtw)
-        if hasattr(self, 'total_wake'):
+        if self.total_wake is not None:
             self.total_wake = cp.asnumpy(self.total_wake)
-        if hasattr(self, 'time'):
+        if self.time is not None:
             self.time = cp.asnumpy(self.time)
 
         # to make sure it will not be called again
@@ -679,7 +706,15 @@ class InducedVoltageFreq(_InducedVoltage):
         # If the impedance calculation is performed in frequency domain, an
         # artificial front wake may appear. With this option, it is possible to
         # set to zero a portion at the end of the induced voltage array.*
-        self.front_wake_length = front_wake_length
+        self.front_wake_length: float = front_wake_length
+
+
+        ###############
+        # Previously only declared in process()
+        self.freq: Union[np.ndarray, None] = None
+        self.frequency_resolution: Union[float, None] = None
+
+        ###############
 
         # Call the __init__ method of the parent class
         _InducedVoltage.__init__(self, beam, profile, wake_length=None,
@@ -743,13 +778,13 @@ class InducedVoltageFreq(_InducedVoltage):
         self.induced_voltage = cp.array(self.induced_voltage)
         self.freq = cp.array(self.freq)
         self.total_impedance = cp.array(self.total_impedance)
-        if hasattr(self, 'mtw_memory'):
+        if self.mtw_memory:
             self.mtw_memory = cp.array(self.mtw_memory)
-        if hasattr(self, 'time_mtw'):
+        if self.time_mtw:
             self.time_mtw = cp.array(self.time_mtw)
-        if hasattr(self, 'freq_mtw'):
+        if self.freq_mtw:
             self.freq_mtw = cp.array(self.freq_mtw)
-        if hasattr(self, 'omegaj_mtw'):
+        if self.omegaj_mtw:
             self.omegaj_mtw = cp.array(self.omegaj_mtw)
 
         # to make sure it will not be called again
@@ -767,13 +802,13 @@ class InducedVoltageFreq(_InducedVoltage):
         self.induced_voltage = cp.asnumpy(self.induced_voltage)
         self.freq = cp.asnumpy(self.freq)
         self.total_impedance = cp.asnumpy(self.total_impedance)
-        if hasattr(self, 'mtw_memory'):
+        if self.mtw_memory:
             self.mtw_memory = cp.asnumpy(self.mtw_memory)
-        if hasattr(self, 'time_mtw'):
+        if self.time_mtw:
             self.time_mtw = cp.asnumpy(self.time_mtw)
-        if hasattr(self, 'freq_mtw'):
+        if self.freq_mtw:
             self.freq_mtw = cp.asnumpy(self.freq_mtw)
-        if hasattr(self, 'omegaj_mtw'):
+        if self.omegaj_mtw:
             self.omegaj_mtw = cp.asnumpy(self.omegaj_mtw)
 
         # to make sure it will not be called again

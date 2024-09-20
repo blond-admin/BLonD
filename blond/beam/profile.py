@@ -520,8 +520,8 @@ class Profile:
         else:
             self.operations.append(self._slice)
 
-        if FitOptions.fit_option is not None:
-            self.fit_option = FitOptions.fit_option
+        self.fit_option = fit_options.fit_option
+        if fit_options.fit_option is not None: # todo remove conditional attributes
             self.bunchPosition = 0.0
             self.bunchLength = 0.0
             if fit_options.fit_option == 'gaussian':
