@@ -69,6 +69,17 @@ test_py_38:
     - .after
     - .publish
 
+test_py_39:
+  variables:
+    PY_VERSION: "3.9"
+  image: python:${PY_VERSION}
+  stage: test
+  extends:
+    - .before
+    - .main
+    - .after
+    # - .publish
+
 test_py_310:
   variables:
     PY_VERSION: "3.10"
@@ -80,6 +91,27 @@ test_py_310:
     - .after
     # - .publish
 
+test_py_311:
+  variables:
+    PY_VERSION: "3.11"
+  image: python:${PY_VERSION}
+  stage: test
+  extends:
+    - .before
+    - .main
+    - .after
+    # - .publish
+
+test_py_312:
+  variables:
+    PY_VERSION: "3.12"
+  image: python:${PY_VERSION}
+  stage: test
+  extends:
+    - .before
+    - .main
+    - .after
+    # - .publish
 
 release_sdist_38:
   variables:
