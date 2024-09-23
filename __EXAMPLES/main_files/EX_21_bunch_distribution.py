@@ -26,6 +26,8 @@ from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
 from blond.toolbox.action import oscillation_amplitude_from_coordinates
 
+DRAFT_MODE = True  # To check if executing correctly, rather than to run the full simulation
+
 mpl.use('Agg')
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
@@ -36,7 +38,7 @@ os.makedirs(this_directory + '../output_files/EX_21_fig/', exist_ok=True)
 # LHC parameters --------------------------------------------------------------
 # Bunch parameters
 N_b = 1e9           # Intensity
-N_p = 1000000         # Macro-particles
+N_p = 1001 if DRAFT_MODE else 1000000         # Macro-particles
 tau_0 = 1.0e-9      # Initial bunch length, 4 sigma [s]
 
 # Machine and RF parameters

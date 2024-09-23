@@ -32,6 +32,8 @@ from blond.monitors.monitors import BunchMonitor
 from blond.plots.plot import Plot
 from blond.trackers.tracker import RingAndRFTracker
 
+DRAFT_MODE = True  # To check if executing correctly, rather than to run the full simulation
+
 mpl.use('Agg')
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
@@ -42,7 +44,10 @@ os.makedirs(this_directory + '../output_files/EX_01_fig', exist_ok=True)
 # Simulation parameters -------------------------------------------------------
 # Bunch parameters
 N_b = 1e9           # Intensity
-N_p = 50000         # Macro-particles
+if DRAFT_MODE:
+    N_p = 1001   # Macro-particles
+else:
+    N_p = 50000  # Macro-particles
 tau_0 = 0.4e-9          # Initial bunch length, 4 sigma [s]
 
 # Machine and RF parameters
@@ -66,7 +71,7 @@ print("")
 
 
 # Define general parameters
-ring = Ring(C, alpha, np.linspace(p_i, p_f, 2001), Proton(), N_t)
+ring = Ring(C, alpha, np.linspace(p_i, p_f, N_t+1), Proton(), N_t)
 
 # Define beam and distribution
 beam = Beam(ring, N_p, N_b)
@@ -109,6 +114,8 @@ print("Map set")
 print("")
 
 # Tracking --------------------------------------------------------------------
+if DRAFT_MODE:
+    N_t = 20
 for i in range(1, N_t + 1):
 
     # Plot has to be done before tracking (at least for cases with separatrix)

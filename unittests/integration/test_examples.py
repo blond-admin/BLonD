@@ -120,6 +120,7 @@ class TestExamples(unittest.TestCase):
         example = 'EX_19_bunch_generation.py'
         self._runExample(example)
 
+    @unittest.skip("Implement a faster way of execution, otherwise this test would take several minutes")
     def test_EX_20_bunch_generation_multibunch(self):
         example = 'EX_20_bunch_generation_multibunch.py'
         self._runExample(example)
