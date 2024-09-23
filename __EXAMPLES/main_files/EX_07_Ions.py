@@ -27,9 +27,9 @@ import numpy as np
 import matplotlib as mpl
 import os
 
-from builtins import range
-
 from scipy.constants import physical_constants
+
+DRAFT_MODE = True  # To check if executing correctly, rather than to run the full simulation
 
 # Atomic Mass Unit [eV]
 u = physical_constants['atomic mass unit-electron volt relationship'][0]
@@ -45,7 +45,7 @@ os.makedirs(this_directory + '../output_files/EX_07_fig', exist_ok=True)
 # Simulation parameters --------------------------------------------------------
 # Bunch parameters
 N_b = 5.0e11                 # Design Intensity in SIS100
-N_p = 50000                  # Macro-particles
+N_p = 1001 if DRAFT_MODE else 50000                  # Macro-particles
 tau_0 = 100.0e-9             # Initial bunch length, 4 sigma [s]
 Z = 28.                      # Charge state of Uranium
 m_p = 238.05078826 * u         # Isotope mass of U-238
@@ -141,6 +141,10 @@ print("")
 
 
 # Tracking ---------------------------------------------------------------------
+if DRAFT_MODE:
+    # Tracking details
+    N_t = 45                 # Number of turns to track
+    dt_plt = 5                # Time steps between plots
 for i in range(1, N_t + 1):
 
     # Plot has to be done before tracking (at least for cases with separatrix)

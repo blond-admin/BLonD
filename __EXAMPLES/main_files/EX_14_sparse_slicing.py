@@ -32,6 +32,8 @@ from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
 from blond.trackers.tracker import FullRingAndRF, RingAndRFTracker
 
+DRAFT_MODE = True  # To check if executing correctly, rather than to run the full simulation
+
 mpl.use('Agg')
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
@@ -43,7 +45,7 @@ os.makedirs(this_directory + '../output_files/EX_14_fig/', exist_ok=True)
 
 # Beam parameters
 n_particles = int(1.7e11)
-n_macroparticles = int(50e6)
+n_macroparticles = int(1001)  if DRAFT_MODE else int(50e6)
 sync_momentum = 175e9  # [eV]
 
 distribution_type = 'gaussian'

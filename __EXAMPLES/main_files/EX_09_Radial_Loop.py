@@ -30,6 +30,8 @@ from blond.monitors.monitors import BunchMonitor
 from blond.plots.plot import Plot
 from blond.trackers.tracker import FullRingAndRF, RingAndRFTracker
 
+DRAFT_MODE = True  # To check if executing correctly, rather than to run the full simulation
+
 mpl.use('Agg')
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
@@ -38,7 +40,7 @@ os.makedirs(this_directory + '../output_files/EX_9_fig', exist_ok=True)
 
 
 # Beam parameters
-n_macroparticles = 100000
+n_macroparticles = 1001 if DRAFT_MODE else 100000
 n_particles = 0
 
 
@@ -115,7 +117,8 @@ test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
 
 # Accelerator map
 map_ = [long_tracker] + [slices_ring] + [bunch_monitor] + [plots]
-
+if DRAFT_MODE:
+    n_turns = 20
 for i in range(1, n_turns + 1):
 
     if i == 100:

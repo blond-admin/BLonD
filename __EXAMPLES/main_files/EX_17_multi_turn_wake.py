@@ -36,6 +36,8 @@ from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
 from blond.trackers.tracker import RingAndRFTracker
 
+DRAFT_MODE = True  # To check if executing correctly, rather than to run the full simulation
+
 mpl.use('Agg')
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
@@ -47,7 +49,7 @@ os.makedirs(this_directory + '../output_files/EX_17_fig/', exist_ok=True)
 
 # Beam parameters
 n_particles = 1e11
-n_macroparticles = 5e5
+n_macroparticles = 1001 if DRAFT_MODE else 5e5
 sigma_dt = 180e-9 / 4  # [s]
 kin_beam_energy = 1.4e9  # [eV]
 
@@ -145,6 +147,8 @@ total_ind_volt_freq_periodic.track()
 
 
 # FIRST COMPARISON: CONSTANT REVOLUTION FREQUENCY -----------------------------
+if DRAFT_MODE:
+    n_turns = 5
 for i in range(n_turns):
 
     for m in map_:
