@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import logging
 import sys
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
@@ -302,7 +302,7 @@ class SPSCavityLoopCommissioning:
             open_fb: bool = False,
             open_drive: bool = False,
             open_ff: bool = True,
-            v_set: Union[np.ndarray, None]=None,
+            v_set: Union[np.ndarray, None] = None,
             cpp_conv: bool = False,
             pwr_clamp: bool = False,
             rot_iq: complex = 1,
@@ -1061,14 +1061,14 @@ class SPSCavityFeedback(TrackableBaseClass):
             self,
             rf_station: RFStation,
             profile: Profile,
-            G_ff: Union[float, list]=1,
-            G_llrf: Union[float, list]=10,
-            G_tx: List[float, list]=0.5,
-            a_comb: Optional[float]=None,
+            G_ff: Union[float, list] = 1,
+            G_llrf: Union[float, list] = 10,
+            G_tx: List[float, list] = 0.5,
+            a_comb: Optional[float] = None,
             turns: int = 1000,
             post_LS2: bool = True,
-            V_part: Optional[float]=None,
-            df: List[float]=0,
+            V_part: Optional[float] = None,
+            df: List[float] = 0,
             Commissioning: SPSCavityLoopCommissioning = None,
             n_h: int = 0,
     ) -> None:

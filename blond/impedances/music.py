@@ -105,7 +105,7 @@ class Music:
 
     def __init__(self, beam: Beam, resonator, n_macroparticles, n_particles, t_rev):
 
-        self.beam: Beam = beam
+        self.beam : Beam = beam
         self.R_S = resonator[0]
         self.omega_R = resonator[1]
         self.Q = resonator[2]

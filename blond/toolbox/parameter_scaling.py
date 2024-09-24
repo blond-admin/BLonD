@@ -62,7 +62,7 @@ class ParameterScaling:
     def dE_b(self):
         return np.sqrt(self.beta_sq * self.energy * self.voltage * (1 -
                                                                     np.cos(self.phi_b)) / (
-                                   np.pi * self.harmonic * self.eta_0))
+                               np.pi * self.harmonic * self.eta_0))
 
     @property
     def integral(self):

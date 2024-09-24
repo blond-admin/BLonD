@@ -51,6 +51,7 @@ class PrecisionClass:
             self.num = 2
         # todo else??
 
+
 class c_complex128(ct.Structure):
     """128-bit (64+64) Complex number, compatible with std::complex layout
 

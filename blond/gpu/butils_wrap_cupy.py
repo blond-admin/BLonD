@@ -15,6 +15,8 @@ if TYPE_CHECKING:
     pass
 
 from blond.utils import precision
+from . import GPU_DEV
+
 
 # TODO all typing
 
@@ -109,8 +111,9 @@ def drift(dt, dE, solver, t_rev, length_ratio, alpha_order, eta_0,
     }
     solver = solver_to_int[solver]
 
-    if not isinstance(t_rev, precision.real_t): # todo bugfix typecheck for cupy type
-        t_rev = precision.real_t(t_rev) # todo in order for this line to work, we need .get() find out python versioning
+    if not isinstance(t_rev, precision.real_t):  # todo bugfix typecheck for cupy type
+        t_rev = precision.real_t(
+            t_rev)  # todo in order for this line to work, we need .get() find out python versioning
 
     drift_kernel(args=(dt, dE, solver,
                        precision.real_t(t_rev), precision.real_t(length_ratio),

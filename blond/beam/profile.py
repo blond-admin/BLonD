@@ -28,7 +28,7 @@ from blond.utils.abstracts import TrackableBaseClass
 
 if TYPE_CHECKING:
     from numpy import ndarray
-    from typing import Literal, List, Callable, Union, Tuple
+    from typing import List, Callable, Union, Tuple
     from blond.utils.types import DeviceType
     from blond.beam.beam import Beam
     from blond.input_parameters.rf_parameters import RFStation
@@ -287,12 +287,12 @@ class FitOptions:
 
     def __init__(self,
                  fit_option: Union[FitOptionTypes, None] = None,
-                 fit_extra_options: None=None) -> None: # todo type hint
+                 fit_extra_options: None = None) -> None:  # todo type hint
         """
         Constructor
         """
 
-        self.fit_option: Union[FitOptionTypes, None]= fit_option
+        self.fit_option: Union[FitOptionTypes, None] = fit_option
         self.fit_extra_options: None = fit_extra_options
 
     @property
@@ -522,7 +522,7 @@ class Profile(TrackableBaseClass):
             self.operations.append(self._slice)
 
         self.fit_option = fit_options.fit_option
-        if fit_options.fit_option is not None: # todo remove conditional attributes
+        if fit_options.fit_option is not None:  # todo remove conditional attributes
             self.bunchPosition = 0.0
             self.bunchLength = 0.0
             if fit_options.fit_option == 'gaussian':
@@ -637,7 +637,7 @@ class Profile(TrackableBaseClass):
                 self.n_macroparticles = self.n_macroparticles.astype(
                     dtype=bm.precision.real_t, order='C', copy=False)
 
-    def _slice_smooth(self, reduce: bool=True) -> None:
+    def _slice_smooth(self, reduce: bool = True) -> None:
         """
         At the moment 4x slower than _slice but smoother (filtered).
         """
@@ -705,7 +705,7 @@ class Profile(TrackableBaseClass):
             self.n_macroparticles, self.bin_centers, n_bunches,
             bunch_spacing_buckets, bucket_size_tau, bucket_tolerance)
 
-    def fwhm(self, shift: float=0) -> None:
+    def fwhm(self, shift: float = 0) -> None:
         """
         Computation of the bunch length and position from the FWHM
         assuming Gaussian line density.

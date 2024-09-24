@@ -26,7 +26,7 @@ from blond.utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:  # only for Python type hints
     from blond.beam.beam import Particle
-    from typing import Literal, Union, Any, Optional
+    from typing import Literal, Union, Any
 
     SynchronousDataTypes = Literal['momentum', 'total energy', 'kinetic energy', 'bending field']
 
@@ -211,7 +211,7 @@ class Ring:
     def __init__(self,
                  ring_length: Union[float, list, tuple, np.ndarray],
                  alpha_0: Union[float, list, tuple, np.ndarray],
-                 synchronous_data: Any, # todo type hint
+                 synchronous_data: Any,  # todo type hint
                  particle: Particle,
                  n_turns: int = 1,
                  synchronous_data_type: SynchronousDataTypes = 'momentum',

@@ -24,8 +24,8 @@ import blond.utils.data_check as dCheck
 from blond.utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
-    from numpy import float64, ndarray
-    from typing import Any, List, Tuple, Union
+    from numpy import ndarray
+    from typing import Any, List, Union
 
 
 class PhaseModulation:

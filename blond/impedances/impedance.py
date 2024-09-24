@@ -25,6 +25,7 @@ from scipy.constants import e
 from blond.toolbox.next_regular import next_regular
 from blond.utils import bmath as bm
 from blond.utils.abstracts import TrackableBaseClass
+
 from blond.utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
@@ -233,7 +234,7 @@ class _InducedVoltage:
     """
     @handle_legacy_kwargs
     def __init__(self, beam: Beam, profile: Profile,
-                 frequency_resolution: Optional[float]=None,
+                 frequency_resolution: Optional[float] = None,
                  wake_length: Union[float, None] = None,
                  multi_turn_wake: bool = False,
                  mtw_mode: Union[MtwModeTypes, None] = 'time',
@@ -384,7 +385,8 @@ class _InducedVoltage:
         else:
             self.induced_voltage_generation = self.induced_voltage_1turn
 
-    def induced_voltage_1turn(self, beam_spectrum_dict: Union[dict, None] = None) -> None:  # todo improve type hint for dict
+    def induced_voltage_1turn(self,
+                              beam_spectrum_dict: Union[dict, None] = None) -> None:  # todo improve type hint for dict
         """
         Method to calculate the induced voltage at the current turn. DFTs are
         used for calculations in time and frequency domain (see classes below)
@@ -707,7 +709,6 @@ class InducedVoltageFreq(_InducedVoltage):
         # artificial front wake may appear. With this option, it is possible to
         # set to zero a portion at the end of the induced voltage array.*
         self.front_wake_length: float = front_wake_length
-
 
         ###############
         # Previously only declared in process()

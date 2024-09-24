@@ -23,6 +23,7 @@ import numpy as np
 from blond.utils.abstracts import TrackableBaseClass
 from blond.utils.legacy_support import handle_legacy_kwargs
 
+
 if TYPE_CHECKING:
     from typing import Sequence, SupportsIndex, Union
 

@@ -46,8 +46,8 @@ class BeamFeedback(TrackableBaseClass):
                  ring: Ring,
                  rf_station: RFStation,
                  profile: Profile,
-                 configuration: Dict[str, Union[str, float]], # todo improve type hint
-                 PhaseNoise: None = None, # todo class doesnt exist anymore??
+                 configuration: Dict[str, Union[str, float]],  # todo improve type hint
+                 PhaseNoise: None = None,  # todo class doesnt exist anymore??
                  LHCNoiseFB: Union[LHCNoiseFB, None] = None,
                  delay: int = 0
                  ) -> None:

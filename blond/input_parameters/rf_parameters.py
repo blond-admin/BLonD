@@ -274,7 +274,6 @@ class RFStation:
         self.alpha_1 = ring.alpha_1[self.section_index]
         self.alpha_2 = ring.alpha_2[self.section_index]
 
-
         self.eta_0 = ring.eta_0[self.section_index]
         self.eta_1 = ring.eta_1[self.section_index]
         self.eta_2 = ring.eta_2[self.section_index]

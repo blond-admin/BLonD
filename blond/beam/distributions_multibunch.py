@@ -8,13 +8,11 @@ from __future__ import annotations
 
 import copy
 import gc
-import sys
 
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy
 from packaging.version import Version
-
 
 if Version(scipy.__version__) >= Version("1.14"):
     from scipy.integrate import cumulative_trapezoid as cumtrapz

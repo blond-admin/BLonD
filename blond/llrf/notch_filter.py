@@ -12,7 +12,6 @@
 :Authors: **Danilo Quartullo**
 '''
 
-
 import numpy as np
 
 

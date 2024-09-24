@@ -69,7 +69,7 @@ class FlatSpectrum:
             self.fmin_s0 = 0.8571
             self.fmax_s0 = 1.001
         self.fs = rf_station.omega_s0[self.initial_final_turns[0]:self.initial_final_turns[1]] / (
-                    2 * np.pi)  # synchrotron frequency in Hz
+                2 * np.pi)  # synchrotron frequency in Hz
         self.n_turns = len(self.fs) - 1
         self.dphi = np.zeros(self.n_turns + 1)
         self.continuous_phase = continuous_phase

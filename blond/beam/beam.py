@@ -242,8 +242,8 @@ class Beam:
         self.n_total_macroparticles_lost: int = 0
         self.n_total_macroparticles: int = n_macroparticles
         self.is_splitted: bool = False
-        self._sumsq_dt: Union[np.ndarray , float] = 0.0
-        self._sumsq_dE: Union[np.ndarray , float] = 0.0
+        self._sumsq_dt: Union[np.ndarray, float] = 0.0
+        self._sumsq_dE: Union[np.ndarray, float] = 0.0
         # For GPU
         self._device: DeviceType = 'CPU'
 
@@ -472,7 +472,7 @@ class Beam:
         self.id = bm.concatenate((self.id, newids))
         self.n_macroparticles += other_beam.n_macroparticles
 
-    def __iadd__(self, other: Union[Beam , np.ndarray , list[list]]) -> Beam:
+    def __iadd__(self, other: Union[Beam, np.ndarray, list[list]]) -> Beam:
         """
         Initialisation of in place addition calls add_beam(other) if other
         is a blond beam object, calls add_particles(other) otherwise

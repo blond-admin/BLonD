@@ -17,12 +17,13 @@ and the beam coordinates in phase space.**
 from __future__ import annotations
 
 import warnings
-from blond.utils.abstracts import TrackableBaseClass
+from typing import TYPE_CHECKING
 
 import numpy as np
 import scipy
 from packaging.version import Version
-from typing import TYPE_CHECKING
+
+from blond.utils.abstracts import TrackableBaseClass
 
 if TYPE_CHECKING:
     from typing import Optional
@@ -236,10 +237,10 @@ class RingAndRFTracker(TrackableBaseClass):
     def __init__(self,
                  rf_station: RFStation,
                  beam: Beam,
-                 solver: Literal['simple', 'exact', 'legacy'] = 'simple',
-                 beam_feedback: Union[BeamFeedback, None] = None,
+                 solver: Literal[ 'simple',  'exact', 'legacy'] = 'simple',
+                 beam_feedback: Union[BeamFeedback, None ]= None,
                  noise_feedback: None = None,  # FIXME type hint, NoiseFeedback class doesnt exist
-                 cavity_feedback: Union[CavityFeedback, None] = None,
+                 cavity_feedback: Union[CavityFeedback, None ]= None,
                  periodicity: bool = False,
                  interpolation: bool = False,
                  profile: Union[Profile, None] = None,

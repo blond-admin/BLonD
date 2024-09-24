@@ -38,7 +38,7 @@ from blond.utils import bmath as bm
 from blond.utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
-    from typing import Literal, Callable, Union, List
+    from typing import Literal, Callable, Union
     from numpy import ndarray
     from blond.input_parameters.ring import Ring
     from blond.input_parameters.rf_parameters import RFStation
@@ -573,7 +573,7 @@ def matched_from_distribution_function(beam: Beam, full_ring_and_rf: FullRingAnd
             dE_trajectory[pot_well_high_res > potential_well_low_res[j]] = 0
             # todo fix trapz naming
             J_array_dE0[j] = 1 / np.pi * np.trapezoid(dE_trajectory,
-                                                  dx=time_potential_high_res[1] - time_potential_high_res[0])
+                                                      dx=time_potential_high_res[1] - time_potential_high_res[0])
 
         # Sorting the H and J functions to be able to interpolate J(H)
         H_array_dE0 = potential_well_low_res

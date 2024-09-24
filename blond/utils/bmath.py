@@ -5,11 +5,12 @@ BLonD math and physics core functions
 @date 20.10.2017
 '''
 
-from numpy import * # todo the namespaces are overwritten by the functions below
 import numpy as np
-from . import precision
+from numpy import *  # todo the namespaces are overwritten by the functions below
+
 from blond.utils import butils_wrap_cpp as _cpp
 from blond.utils import butils_wrap_python as _py
+from . import precision
 
 
 def use_cpp() -> None:

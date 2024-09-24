@@ -1,8 +1,10 @@
-'''
+"""
 **__init__.py: Locate and load the compiled blond library.**
 
 :Authors: Konstantinos Iliakis**
-'''
+"""
+
+
 # todo add most important imports here to make it more accessible
 def test():
     """A simple test to verify that blond has been correctly installed.

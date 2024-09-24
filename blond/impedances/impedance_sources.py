@@ -508,7 +508,7 @@ class TravelingWaveCavity(_ImpedanceObject):
                                    * bm.cos(2 * np.pi * self.frequency_R[i] *
                                             self.time_array[indexes]))
 
-    def imped_calc(self, frequency_array:np.ndarray):
+    def imped_calc(self, frequency_array: np.ndarray):
         r"""
         Impedance calculation method as a function of frequency.
 
@@ -960,7 +960,7 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
         self.impedance[exact_indexes] *= self.Z0 * 4 * np.pi ** 2 * 2 ** (1 / 3) \
                                          * 1 / self.Delta / n_array ** (1 / 3)
 
-    def _pp_spectrum(self, frequency_array: np.ndarray, zeta_max:float=9., **kwargs):
+    def _pp_spectrum(self, frequency_array: np.ndarray, zeta_max: float = 9., **kwargs):
         r'''
         Computes the parallel-plates impedance, based on eq. B13 of [Murphy1997]_.
 
@@ -1227,18 +1227,20 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
                                        * np.sqrt(frequency_array / self.f_crit) * bm.exp(-frequency_array / self.f_crit)
                                        - 4j / 9 * self.f_crit / frequency_array)
 
-     # todo type hint
+    # todo type hint
     def _fs_integrandReZ(self, x):
         # integrand of real part of free-space impedance
         return kv(5 / 3, x)
-     # todo type hint
+
+    # todo type hint
     def _fs_integrandImZ1(self, y, x):
         # integrand of imaginary part of free-space impedance for y<1
         return np.real(bm.exp(-x * y) * (
                 (1j * y + np.sqrt(1 - y ** 2)) ** (5 / 3) + 1 / (1j * y + np.sqrt(1 - y ** 2)) ** (5 / 3) - 2 * np.sqrt(
             1 - y ** 2))
                        / (4 * y * np.sqrt(1 - y ** 2)))
-     # todo type hint
+
+    # todo type hint
     def _fs_integrandImZ2(self, y, x):
         # integrand of imaginary part of free-space impedance for y>1
         return bm.exp(-x * y) * (

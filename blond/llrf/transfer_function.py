@@ -13,7 +13,6 @@
 :Authors: **Jelena Banjac, Helga Timko**
 '''
 
-
 # Set up logging
 import logging
 

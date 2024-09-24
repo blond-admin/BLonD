@@ -17,12 +17,13 @@ from __future__ import annotations
 
 # Set up logging
 import logging
+from typing import TYPE_CHECKING
 
 import numpy as np
 from scipy.constants import c
 from scipy.sparse import diags
 from scipy.sparse.linalg import spsolve
-from typing import TYPE_CHECKING
+
 if TYPE_CHECKING:
     from numpy import ndarray
 
