@@ -146,12 +146,12 @@ def rms(y_array: np.ndarray, x_array: np.ndarray) -> Tuple[float, float]:
 
     timeResolution = x_array[1] - x_array[0]
 
-    lineDenNormalized = y_array / np.trapz(y_array, dx=timeResolution)
+    lineDenNormalized = y_array / np.trapezoid(y_array, dx=timeResolution)
 
-    bp_rms = np.trapz(x_array * lineDenNormalized, dx=timeResolution)
+    bp_rms = np.trapezoid(x_array * lineDenNormalized, dx=timeResolution)
 
     bl_rms = 4 * np.sqrt(
-        np.trapz((x_array - bp_rms) ** 2 * lineDenNormalized, dx=timeResolution))
+        np.trapezoid((x_array - bp_rms) ** 2 * lineDenNormalized, dx=timeResolution))
 
     return bp_rms, bl_rms
 

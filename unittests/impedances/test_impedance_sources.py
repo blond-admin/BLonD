@@ -127,7 +127,7 @@ class TestCoherentSynchrotronRadiation(unittest.TestCase):
         Z_fs = CoherentSynchrotronRadiation(r_bend, gamma=gamma)
         Z_fs.imped_calc(frequencies, low_frequency_transition=1e-4)
 
-        energy_loss = 2 * np.trapz(Z_fs.impedance.real, frequencies) * elCharge  # [eV]
+        energy_loss = 2 * np.trapezoid(Z_fs.impedance.real, frequencies) * elCharge  # [eV]
 
         energy_loss_textbook = Electron().c_gamma * energy**4 / r_bend  # [eV]
 

@@ -94,7 +94,7 @@ plt.tight_layout()
 plt.savefig(this_directory + '../output_files/EX_22_fig/csr_impedance_imag.png')
 
 # compute the energy loss per turn as a cross-check
-energy_loss = np.trapz(Z_fs.impedance.real, freqs) * elCharge**2  # [J]
+energy_loss = np.trapezoid(Z_fs.impedance.real, freqs) * elCharge**2  # [J]
 energy_loss *= 2  # take negative frequencies into account
 print(f'energy loss per turn (integrated spectrum): {energy_loss / elCharge:1.3f} eV')
 

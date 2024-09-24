@@ -609,18 +609,18 @@ class TestTrapz(unittest.TestCase):
 
     def test_trapz_1(self):
         y = np.random.randn(100)
-        np.testing.assert_almost_equal(bm.trapz_cpp(y), np.trapz(y), decimal=8)
+        np.testing.assert_almost_equal(bm.trapz_cpp(y), np.trapezoid(y), decimal=8)
 
     def test_trapz_2(self):
         y = np.random.randn(100)
         x = np.random.rand(100)
         np.testing.assert_almost_equal(bm.trapz_cpp(y, x=x),
-                                       np.trapz(y, x=x), decimal=8)
+                                       np.trapezoid(y, x=x), decimal=8)
 
     def test_trapz_3(self):
         y = np.random.randn(100)
         np.testing.assert_almost_equal(bm.trapz_cpp(y, dx=0.1),
-                                       np.trapz(y, dx=0.1), decimal=8)
+                                       np.trapezoid(y, dx=0.1), decimal=8)
 
 
 class TestCumTrapz(unittest.TestCase):

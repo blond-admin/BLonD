@@ -283,7 +283,7 @@ def matched_from_line_density(beam: Beam,
                     integrand = np.array([0])
 
                 distribution_function_[i] = (np.sqrt(eom_factor_dE) / np.pi *
-                                             np.trapz(integrand, dx=line_den_resolution))
+                                             np.trapezoid(integrand, dx=line_den_resolution))
 
                 hamiltonian_coord[i] = potential_abel[i]
 
@@ -301,7 +301,7 @@ def matched_from_line_density(beam: Beam,
                     integrand = np.array([0])
 
                 distribution_function_[i] = -(np.sqrt(eom_factor_dE) / np.pi *
-                                              np.trapz(integrand, dx=line_den_resolution))
+                                              np.trapezoid(integrand, dx=line_den_resolution))
                 hamiltonian_coord[i] = potential_abel[i]
 
         warnings.filterwarnings("default")
@@ -572,7 +572,7 @@ def matched_from_distribution_function(beam: Beam, full_ring_and_rf: FullRingAnd
                                            potential_well_low_res[j]]) / eom_factor_dE)
             dE_trajectory[pot_well_high_res > potential_well_low_res[j]] = 0
             # todo fix trapz naming
-            J_array_dE0[j] = 1 / np.pi * np.trapz(dE_trajectory,
+            J_array_dE0[j] = 1 / np.pi * np.trapezoid(dE_trajectory,
                                                   dx=time_potential_high_res[1] - time_potential_high_res[0])
 
         # Sorting the H and J functions to be able to interpolate J(H)
