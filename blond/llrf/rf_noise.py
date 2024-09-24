@@ -238,7 +238,7 @@ class FlatSpectrum:
                                         np.zeros(1 + self.total_n_turns - self.initial_final_turns[1])))
 
 
-class LHCNoiseFB:
+class LHCNoiseFB(TrackableBaseClass):
     '''
     *Feedback on phase noise amplitude for LHC controlled longitudinal emittance
     blow-up using noise injection through cavity controller or phase loop.

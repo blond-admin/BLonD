@@ -29,7 +29,8 @@ if TYPE_CHECKING:
     from blond.input_parameters.ring import Ring
     from blond.utils.types import DeviceType
 
-class SynchrotronRadiation:
+
+class SynchrotronRadiation(TrackableBaseClass):
     ''' Class to compute synchrotron radiation effects, including radiation
         damping and quantum excitation.
         For multiple RF section, instance one object per RF section a call
@@ -96,6 +97,13 @@ class SynchrotronRadiation:
                 self.track = self.track_full_C
             else:
                 self.track = self.track_SR_C
+        self.track_models: Dict[str, Callable] = {
+            "track_SR_python": self.track_SR_python,
+            "track_full_python": self.track_full_python,
+            "track_SR_C": self.track_SR_C,
+            "track_full_C": self.track_full_C,
+        }
+        self.track_mode: Union[str, None] = None
 
     # Method to compute the SR parameters
     def calculate_SR_params(self) -> None:
@@ -138,6 +146,11 @@ class SynchrotronRadiation:
         print(f'Equilibrium energy spread = {self.sigma_dE * 100:1.4f}%'
               + f' ({self.sigma_dE * self.ring.energy[0, i_turn] * 1e-6:1.4f}) MeV')
         print('------------------------------------------------')
+
+    def track(self):
+        if self.track_mode is None:
+            raise NameError(f"'execution_model' is None, but should be one of {self.track_models.keys()}")
+        self.track_models[self.track_mode]()
 
     # Track particles with SR only (without quantum excitation)
     def track_SR_python(self) -> None:

@@ -55,7 +55,7 @@ def fig_folder(dirname):
             raise
 
 
-class Plot:
+class Plot(TrackableBaseClass):
 
     @handle_legacy_kwargs
     def __init__(self, ring: Ring, rf_station: RFStation, beam: Beam, dt_plot,

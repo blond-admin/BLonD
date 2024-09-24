@@ -68,7 +68,7 @@ if TYPE_CHECKING:
     from typing import Any
 
 
-class CavityFeedback:
+class CavityFeedback(TrackableBaseClass):
     r"""Parent class for implementing cavity feedback models interfacing with BLonD
 
     Parameters
@@ -1012,7 +1012,7 @@ class SPSOneTurnFeedback(CavityFeedback):
         pass
 
 
-class SPSCavityFeedback:
+class SPSCavityFeedback(TrackableBaseClass):
     """Class determining the turn-by-turn total RF voltage and phase correction
     originating from the individual cavity feedbacks. Assumes two 4-section and
     two 5-section travelling wave cavities in the pre-LS2 scenario and four

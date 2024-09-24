@@ -24,6 +24,7 @@ from scipy import ndimage
 from blond.toolbox import filters_and_fitting as ffroutines
 from blond.utils import bmath as bm
 from blond.utils.legacy_support import handle_legacy_kwargs
+from blond.utils.abstracts import TrackableBaseClass
 
 if TYPE_CHECKING:
     from numpy import ndarray
@@ -400,7 +401,7 @@ class OtherSlicesOptions:
         self.direct_slicing = direct_slicing
 
 
-class Profile:
+class Profile(TrackableBaseClass):
     """
     Contains the beam profile and related quantities including beam spectrum,
     profile derivative.

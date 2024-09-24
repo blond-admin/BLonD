@@ -43,7 +43,7 @@ if TYPE_CHECKING:
     MtwModeTypes = Literal["freq", "time"]
 
 
-class TotalInducedVoltage:
+class TotalInducedVoltage(TrackableBaseClass):
     r"""
     Object gathering all the induced voltage contributions. The input is a
     list of objects able to compute induced voltages (InducedVoltageTime,

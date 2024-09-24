@@ -24,9 +24,11 @@ from typing import TYPE_CHECKING
 import numpy as np
 import scipy
 from packaging.version import Version
+from blond.utils.abstracts import TrackableBaseClass
 from scipy.constants import c
 
 from blond.utils.legacy_support import handle_legacy_kwargs
+from blond.utils.abstracts import TrackableBaseClass
 
 if Version(scipy.__version__) >= Version("1.14"):
     from scipy.integrate import cumulative_trapezoid as cumtrapz
@@ -214,7 +216,7 @@ def synchrotron_frequency_distribution(beam: Beam,
         particleDistributionFreq, synchronous_time
 
 
-class SynchrotronFrequencyTracker:
+class SynchrotronFrequencyTracker(TrackableBaseClass):
     '''
     *This class can be added to the tracking map to track a certain
     number of particles (defined by the user) and to store the evolution

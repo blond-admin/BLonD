@@ -17,11 +17,18 @@ and the beam coordinates in phase space.**
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING
+from blond.utils.abstracts import TrackableBaseClass
 
 import numpy as np
 import scipy
 from packaging.version import Version
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from typing import Optional
+    from blond.impedances.impedance import TotalInducedVoltage
+    from numpy import ndarray
+
 
 from blond.llrf.cavity_feedback import CavityFeedback
 from blond.utils.abstracts import TrackableBaseClass
@@ -51,14 +58,14 @@ if TYPE_CHECKING:
     MainHarmonicOptionType = Literal['lowest_freq', 'highest_voltage'] | int | float
 
 
-class FullRingAndRF:
+class FullRingAndRF(TrackableBaseClass):
     """
     *Definition of the full ring and RF parameters in order to be able to have
     a full turn information (used in the hamiltonian for example).*
     """
 
     @handle_legacy_kwargs
-    def __init__(self, ring_and_rf_section: List[RingAndRFTracker]):
+    def __init__(self, ring_and_rf_section: List[RingAndRFTracker]) -> None:
 
         #: *List of the total RingAndRFSection objects*
         self.ring_and_rf_section = ring_and_rf_section
@@ -91,7 +98,7 @@ class FullRingAndRF:
 
     def potential_well_generation(self, turn: int = 0, n_points: int = int(1e5),
                                   main_harmonic_option: MainHarmonicOptionType = 'lowest_freq',
-                                  dt_margin_percent: float = 0., time_array: np.ndarray = None):
+                                  dt_margin_percent: float = 0., time_array: np.ndarray = None) -> None:
         """Method to generate the potential well out of the RF systems. The
         assumption made is that all the RF voltages are averaged over one turn.
         The potential well is then approximated over one turn, which is not the
@@ -164,7 +171,7 @@ class FullRingAndRF:
         self.potential_well_coordinates = time_array
         self.potential_well = potential_well
 
-    def track(self):
+    def track(self) -> None:
         """Function to loop over all the RingAndRFSection.track methods
         """
 
@@ -172,7 +179,7 @@ class FullRingAndRF:
             RingAndRFSectionElement.track()
 
 
-class RingAndRFTracker:
+class RingAndRFTracker(TrackableBaseClass):
     r""" Class taking care of basic particle coordinate tracking for a given
     RF station and the part of the ring until the next station, see figure.
 
@@ -296,7 +303,7 @@ class RingAndRFTracker:
         if (self.cavityFB is not None) and (not hasattr(self.cavityFB, '__iter__')):
             self.cavityFB = [self.cavityFB]
 
-    def kick(self, beam_dt, beam_dE, index):
+    def kick(self, beam_dt: ndarray, beam_dE: ndarray, index: int) -> None:
         r"""Function updating the particle energy due to the RF kick in a given
         RF station. The kicks are summed over the different harmonic RF systems
         in the station. The cavity phase can be shifted by the user via
@@ -314,7 +321,7 @@ class RingAndRFTracker:
                 self.rf_params.omega_rf[:, index], self.rf_params.phi_rf[:, index],
                 self.rf_params.particle.charge, self.rf_params.n_rf, self.acceleration_kick[index])
 
-    def drift(self, beam_dt, beam_dE, index):
+    def drift(self, beam_dt: ndarray, beam_dE: ndarray, index: int) -> None:
         r"""Function updating the particle arrival time to the RF station
         (drift). If only the zeroth order slippage factor is given, 'simple'
         and 'exact' solvers are available. The 'simple' solver is somewhat
@@ -347,7 +354,7 @@ class RingAndRFTracker:
                  self.rf_params.alpha_1[index], self.rf_params.alpha_2[index],
                  self.rf_params.beta[index], self.rf_params.energy[index])
 
-    def rf_voltage_calculation(self):
+    def rf_voltage_calculation(self) -> None:
         """Function calculating the total, discretised RF voltage seen by the
         beam at a given turn. Requires a Profile object.
 
@@ -379,7 +386,7 @@ class RingAndRFTracker:
             self.rf_voltage = bm.rf_volt_comp(voltages, omega_rf, phi_rf,
                                               self.profile.bin_centers)
 
-    def track(self):
+    def track(self) -> None:
         """Tracking method for the section. Applies first the kick, then the
         drift. Calls also RF/beam feedbacks if applicable. Updates the counter
         of the corresponding RFStation class and the energy-related variables

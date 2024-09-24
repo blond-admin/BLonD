@@ -34,7 +34,7 @@ if TYPE_CHECKING:
     from blond.llrf.beam_feedback import BeamFeedback
 
 
-class BunchMonitor:
+class BunchMonitor(TrackableBaseClass):
     ''' Class able to save bunch data into h5 file. Use 'buffer_time' to select
         the frequency of saving to file in number of turns.
         If in the constructor a Profile object is passed, that means that one
@@ -363,7 +363,7 @@ class BunchMonitor:
         self.h5file.close()
 
 
-class SlicesMonitor:
+class SlicesMonitor(TrackableBaseClass):
     """ Class able to save the bunch profile, i.e. the histogram derived from
         the slicing.
     """
@@ -404,7 +404,7 @@ class SlicesMonitor:
         self.h5file.close()
 
 
-class MultiBunchMonitor:
+class MultiBunchMonitor(TrackableBaseClass):
     """ Class able to save multi-bunch profile, i.e. the histogram derived from
         the slicing.
     """
