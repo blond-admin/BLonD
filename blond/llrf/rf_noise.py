@@ -242,7 +242,7 @@ class LHCNoiseFB:
 
     def __init__(self, RFStation, Profile, bl_target, gain=0.1e9,
                  factor=0.93, update_frequency=11245,
-                 variable_gain=True, bunch_pattern=None, old_FESA_class=False, no_delay=False):
+                 variable_gain=True, bunch_pattern=None, old_FESA_class=False, no_delay=False, seed=1313):
 
         self.LHC_frev = 11245  # LHC revolution frequency in Hz
 
@@ -298,9 +298,8 @@ class LHCNoiseFB:
             self.fwhm = fwhm_functions['multi']
 
         # Initialize the BQM delay in respect to noise injection
-        rnd.seed(1313)
+        rnd.seed(seed)
         self.delay = int(rnd.uniform(0, 1.1) * self.LHC_frev)  # in turns
-        print(f'BQM delay: {self.delay}')
 
         # Initialize buffers for the last 5 bqm measurements and their timestamps
         self.last_bqm_measurements = cp.empty(5)
@@ -430,14 +429,16 @@ class LHCNoiseFB:
 
 
 class CallEveryNTurns:
-    ''' Call a function every n turns
+    '''
+    *Call a function every n turns
 
-    n: number of turns between calls
+    n_turns: number of turns between calls
     function: function to call
-    delay: delay in turns before the first call'''
+    delay: delay in turns before the first call*
+    '''
 
-    def __init__(self, n, function, delay=0):
-        self.n = n
+    def __init__(self, n_turns: int, function: Callable, delay: int = 0):
+        self.n_turns = n_turns
         self.counter = 0
         self.function = function
         self.delay = delay
@@ -446,6 +447,6 @@ class CallEveryNTurns:
         self.tick()
 
     def tick(self):
-        if (self.counter - self.delay) % self.n == 0:
+        if (self.counter - self.delay) % self.n_turns == 0:
             self.function()
         self.counter += 1
