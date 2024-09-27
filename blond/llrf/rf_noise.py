@@ -437,7 +437,7 @@ class CallEveryNTurns:
     delay: delay in turns before the first call*
     '''
 
-    def __init__(self, n_turns: int, function: Callable, delay: int = 0):
+    def __init__(self, n_turns: int, function: callable, delay: int = 0):
         self.n_turns = n_turns
         self.counter = 0
         self.function = function
