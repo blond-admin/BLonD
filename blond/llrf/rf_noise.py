@@ -241,8 +241,8 @@ class LHCNoiseFB:
     '''
 
     def __init__(self, RFStation, Profile, bl_target, gain=0.1e9,
-                 factor=0.93, update_frequency=11245,
-                 variable_gain=True, bunch_pattern=None, old_FESA_class=False, no_delay=False, seed=1313):
+                 factor=0.93, update_frequency=11245, variable_gain=True, bunch_pattern=None,
+                 old_FESA_class=False, no_delay=False):
 
         self.LHC_frev = 11245  # LHC revolution frequency in Hz
 
