@@ -26,6 +26,8 @@ from ..plots.plot import fig_folder
 from ..plots.plot_llrf import plot_phase_noise, plot_noise_spectrum
 from ..toolbox.next_regular import next_regular
 
+from typing import Callable
+
 cfwhm = np.sqrt(2. / np.log(2.))
 
 
@@ -242,7 +244,7 @@ class LHCNoiseFB:
 
     def __init__(self, RFStation, Profile, bl_target, gain=0.1e9,
                  factor=0.93, update_frequency=11245, variable_gain=True, bunch_pattern=None,
-                 old_FESA_class=False, no_delay=False):
+                 old_FESA_class=False, no_delay=False, seed=1313):
 
         self.LHC_frev = 11245  # LHC revolution frequency in Hz
 
@@ -437,7 +439,7 @@ class CallEveryNTurns:
     delay: delay in turns before the first call*
     '''
 
-    def __init__(self, n_turns: int, function: callable, delay: int = 0):
+    def __init__(self, n_turns: int, function: Callable, delay: int = 0):
         self.n_turns = n_turns
         self.counter = 0
         self.function = function
