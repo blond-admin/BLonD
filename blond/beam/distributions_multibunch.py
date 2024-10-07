@@ -12,7 +12,14 @@ from builtins import range
 
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.integrate import cumtrapz
+import scipy
+from packaging.version import Version
+
+if Version(scipy.__version__) >= Version("1.14"):
+    from scipy.integrate import cumulative_trapezoid as cumtrapz
+else:
+    from scipy.integrate import cumtrapz
+
 
 from ..beam.beam import Beam
 from ..beam.distributions import (X0_from_bunch_length, distribution_function,
