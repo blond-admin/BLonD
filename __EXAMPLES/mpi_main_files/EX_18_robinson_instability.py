@@ -235,7 +235,7 @@ plt.close()
 # For testing purposes
 test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
     np.mean(beam.dE), np.std(beam.dE), np.mean(beam.dt), np.std(beam.dt))
-with open(this_directory + '../mpi_output_files/EX_16_test_data.txt', 'w') as f:
+with open(this_directory + '../mpi_output_files/EX_18_test_data.txt', 'w') as f:
     f.write(test_string)
 
 
