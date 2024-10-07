@@ -3,3 +3,4 @@ scipy
 matplotlib>=3.7
 h5py
 mpmath
+packaging

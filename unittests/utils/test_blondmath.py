@@ -20,11 +20,20 @@ import numpy as np
 
 import blond
 from blond.utils import bmath as bm
+from packaging.version import Version
+import scipy
+
+if Version(scipy.__version__) >= Version("1.14"):
+    from scipy.integrate import cumulative_trapezoid as cumtrapz
+else:
+    from scipy.integrate import cumtrapz
+
 
 # import inspect
 
 def test_verify_installation():
     np.testing.assert_equal(blond.test(), 0)
+
 
 class TestFastResonator(unittest.TestCase):
 
@@ -32,6 +41,7 @@ class TestFastResonator(unittest.TestCase):
     def setUp(self):
         np.random.seed(0)
         pass
+
     # Run after every test
 
     def tearDown(self):
@@ -113,9 +123,9 @@ class TestFastResonator(unittest.TestCase):
                 commonTerm = (freq_a[freq] / freq_R[res]
                               - freq_R[res] / freq_a[freq])
                 impedance_py.real[freq] += R_S[res] \
-                    / (1. + Qsquare * commonTerm * commonTerm)
+                                           / (1. + Qsquare * commonTerm * commonTerm)
                 impedance_py.imag[freq] -= R_S[res] * (Q[res] * commonTerm) \
-                    / (1. + Qsquare * commonTerm * commonTerm)
+                                           / (1. + Qsquare * commonTerm * commonTerm)
             # impedance_py[1:] += R_S[i] / (1 + 1j * Q[i] *
             #                               (freq_a[1:] / freq_R[i] -
             #                                  freq_R[i] / freq_a[1:]))
@@ -162,14 +172,14 @@ class TestFastResonator(unittest.TestCase):
                 commonTerm = (freq_a[freq] / freq_R[res]
                               - freq_R[res] / freq_a[freq])
                 impedance_py1.real[freq] += R_S[res] \
-                    / (1. + Qsquare * commonTerm * commonTerm)
+                                            / (1. + Qsquare * commonTerm * commonTerm)
                 impedance_py1.imag[freq] -= R_S[res] * (Q[res] * commonTerm) \
-                    / (1. + Qsquare * commonTerm * commonTerm)
+                                            / (1. + Qsquare * commonTerm * commonTerm)
 
         for i in range(n_resonators):
             impedance_py2[1:] += R_S[i] / (1 + 1j * Q[i]
                                            * (freq_a[1:] / freq_R[i]
-                                           - freq_R[i] / freq_a[1:]))
+                                              - freq_R[i] / freq_a[1:]))
 
         np.testing.assert_almost_equal(
             impedance_py1, impedance_py2, decimal=decimal)
@@ -183,6 +193,7 @@ class TestWhere(unittest.TestCase):
             raise unittest.SkipTest('Compiled blond library not found, skipping test.')
         np.random.seed(0)
         pass
+
     # Run after every test
 
     def tearDown(self):
@@ -298,6 +309,7 @@ class TestExp(unittest.TestCase):
         if bm.device != 'CPU_CPP':
             raise unittest.SkipTest(
                 'Compiled blond library not found, skipping test.')
+
     # Run after every test
 
     def tearDown(self):
@@ -319,6 +331,7 @@ class TestMean(unittest.TestCase):
         if bm.device != 'CPU_CPP':
             raise unittest.SkipTest(
                 'Compiled blond library not found, skipping test.')
+
     # Run after every test
 
     def tearDown(self):
@@ -340,6 +353,7 @@ class TestStd(unittest.TestCase):
         if bm.device != 'CPU_CPP':
             raise unittest.SkipTest(
                 'Compiled blond library not found, skipping test.')
+
     # Run after every test
 
     def tearDown(self):
@@ -361,6 +375,7 @@ class TestSum(unittest.TestCase):
         if bm.device != 'CPU_CPP':
             raise unittest.SkipTest(
                 'Compiled blond library not found, skipping test.')
+
     # Run after every test
 
     def tearDown(self):
@@ -382,6 +397,7 @@ class TestLinspace(unittest.TestCase):
         if bm.device != 'CPU_CPP':
             raise unittest.SkipTest(
                 'Compiled blond library not found, skipping test.')
+
     # Run after every test
 
     def tearDown(self):
@@ -422,6 +438,7 @@ class TestArange(unittest.TestCase):
         if bm.device != 'CPU_CPP':
             raise unittest.SkipTest(
                 'Compiled blond library not found, skipping test.')
+
     # Run after every test
 
     def tearDown(self):
@@ -464,6 +481,7 @@ class TestArgMin(unittest.TestCase):
         if bm.device != 'CPU_CPP':
             raise unittest.SkipTest(
                 'Compiled blond library not found, skipping test.')
+
     # Run after every test
 
     def tearDown(self):
@@ -485,6 +503,7 @@ class TestArgMax(unittest.TestCase):
         if bm.device != 'CPU_CPP':
             raise unittest.SkipTest(
                 'Compiled blond library not found, skipping test.')
+
     # Run after every test
 
     def tearDown(self):
@@ -506,6 +525,7 @@ class TestConvolve(unittest.TestCase):
         if bm.device != 'CPU_CPP':
             raise unittest.SkipTest(
                 'Compiled blond library not found, skipping test.')
+
     # Run after every test
 
     def tearDown(self):
@@ -534,6 +554,7 @@ class TestInterp(unittest.TestCase):
         if bm.device != 'CPU_CPP':
             raise unittest.SkipTest(
                 'Compiled blond library not found, skipping test.')
+
     # Run after every test
 
     def tearDown(self):
@@ -580,6 +601,7 @@ class TestTrapz(unittest.TestCase):
         if bm.device != 'CPU_CPP':
             raise unittest.SkipTest(
                 'Compiled blond library not found, skipping test.')
+
     # Run after every test
 
     def tearDown(self):
@@ -608,6 +630,7 @@ class TestCumTrapz(unittest.TestCase):
         if bm.device != 'CPU_CPP':
             raise unittest.SkipTest(
                 'Compiled blond library not found, skipping test.')
+
     # Run after every test
 
     def tearDown(self):
@@ -618,7 +641,7 @@ class TestCumTrapz(unittest.TestCase):
         y = np.random.randn(100)
         initial = np.random.rand()
         np.testing.assert_almost_equal(bm.cumtrapz(y, initial=initial),
-                                       scipy.integrate.cumtrapz(
+                                       cumtrapz(
                                            y, initial=initial),
                                        decimal=8)
 
@@ -626,7 +649,7 @@ class TestCumTrapz(unittest.TestCase):
         import scipy.integrate
         y = np.random.randn(100)
         np.testing.assert_almost_equal(bm.cumtrapz(y),
-                                       scipy.integrate.cumtrapz(y),
+                                       cumtrapz(y),
                                        decimal=8)
 
     def test_cumtrapz_3(self):
@@ -634,7 +657,7 @@ class TestCumTrapz(unittest.TestCase):
         y = np.random.randn(100)
         dx = np.random.rand()
         np.testing.assert_almost_equal(bm.cumtrapz(y, dx=dx),
-                                       scipy.integrate.cumtrapz(y, dx=dx),
+                                       cumtrapz(y, dx=dx),
                                        decimal=8)
 
     def test_cumtrapz_4(self):
@@ -643,7 +666,7 @@ class TestCumTrapz(unittest.TestCase):
         dx = np.random.rand()
         initial = np.random.rand()
         np.testing.assert_almost_equal(bm.cumtrapz(y, initial=initial, dx=dx),
-                                       scipy.integrate.cumtrapz(
+                                       cumtrapz(
                                            y, initial=initial, dx=dx),
                                        decimal=8)
 
@@ -655,6 +678,7 @@ class TestSort(unittest.TestCase):
         if bm.device != 'CPU_CPP':
             raise unittest.SkipTest(
                 'Compiled blond library not found, skipping test.')
+
     # Run after every test
 
     def tearDown(self):
@@ -712,6 +736,7 @@ class TestRandomNormal:
         if bm.device != 'CPU_CPP':
             raise unittest.SkipTest(
                 'Compiled blond library not found, skipping test.')
+
     # Run after every test
 
     def teardown_method(self):
@@ -723,7 +748,6 @@ class TestRandomNormal:
                               (100000, -100, 10), (1000000, -100, 10), (10000000, -100, 10)
                               ])
     def test_vs_numpy(self, size, loc, scale):
-
         np.random.seed(0)
         y_npy = np.random.normal(loc=loc, scale=scale, size=size)
         y_cpp = bm.random_normal(loc=loc, scale=scale, size=size, seed=0)
@@ -746,7 +770,6 @@ class TestRandomNormal:
                               (1000000, -100, 10), (10000000, -100, 10)
                               ])
     def test_different_seed(self, size, loc, scale):
-
         y_cpp1 = bm.random_normal(loc=loc, scale=scale, size=size, seed=0)
         y_cpp2 = bm.random_normal(loc=loc, scale=scale, size=size, seed=1)
 
@@ -767,7 +790,6 @@ class TestRandomNormal:
                               (100, 0.1, 0.9), (10000, 0.1, 0.9)
                               ])
     def test_interp_const_bin_1(self, size, left, right):
-
         x = np.random.uniform(0, 1, size)
         xp = np.linspace(0, 1, size)
         yp = np.random.normal(size=size, loc=0, scale=1)
@@ -784,7 +806,6 @@ class TestRandomNormal:
                               (100, 0.1, 0.9), (10000, 0.1, 0.9)
                               ])
     def test_interp_const_bin_2(self, size, left, right):
-
         x = np.random.uniform(0, 1, size)
         xp = np.linspace(0, 1, 10)
         yp = np.random.normal(size=10, loc=0, scale=1)
@@ -798,5 +819,4 @@ class TestRandomNormal:
 
 
 if __name__ == '__main__':
-
     unittest.main()
