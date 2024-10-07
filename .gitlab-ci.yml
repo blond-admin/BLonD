@@ -58,28 +58,6 @@ variables:
     #   junit: ${project_root}/coverage-report.xml
 
 
-test_py_38:
-  variables:  
-    PY_VERSION: "3.8"
-  image: python:${PY_VERSION}
-  stage: test
-  extends:
-    - .before
-    - .main
-    - .after
-    - .publish
-
-test_py_39:
-  variables:
-    PY_VERSION: "3.9"
-  image: python:${PY_VERSION}
-  stage: test
-  extends:
-    - .before
-    - .main
-    - .after
-    # - .publish
-
 test_py_310:
   variables:
     PY_VERSION: "3.10"
@@ -89,7 +67,7 @@ test_py_310:
     - .before
     - .main
     - .after
-    # - .publish
+    - .publish
 
 test_py_311:
   variables:
@@ -113,9 +91,9 @@ test_py_312:
     - .after
     # - .publish
 
-release_sdist_38:
+release_sdist_310:
   variables:
-    PY_VERSION: "3.8"
+    PY_VERSION: "3.10"
   image: python:${PY_VERSION}
   stage: deploy
   extends:
@@ -141,7 +119,7 @@ release_sdist_38:
 
 pages:
   variables:
-    PY_VERSION: "3.8"
+    PY_VERSION: "3.10"
   image: python:${PY_VERSION}
   script:
    - cd ${project_root}
