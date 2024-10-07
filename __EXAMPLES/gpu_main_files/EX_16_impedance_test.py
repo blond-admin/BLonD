@@ -37,6 +37,8 @@ import matplotlib as mpl
 import numpy as np
 import pylab as plt
 
+DRAFT_MODE = True  # To check if executing correctly, rather than to run the full simulation
+
 mpl.use('Agg')
 
 
@@ -55,7 +57,7 @@ os.makedirs(this_directory + '../gpu_output_files/EX_16_fig', exist_ok=True)
 
 # Beam parameters
 n_particles = 1e11
-n_macroparticles = 1e6
+n_macroparticles = 1001 if DRAFT_MODE else 1e6
 sigma_dt = 180e-9 / 4  # [s]
 kin_beam_energy = 1.4e9  # [eV]
 

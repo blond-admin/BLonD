@@ -45,6 +45,8 @@ from blond.plots.plot import Plot
 from blond.plots.plot_impedance import plot_induced_voltage_vs_bin_centers
 from blond.trackers.tracker import RingAndRFTracker
 
+DRAFT_MODE = True  # To check if executing correctly, rather than to run the full simulation
+
 mpl.use('Agg')
 
 
@@ -59,7 +61,10 @@ os.makedirs(this_directory + '../mpi_output_files/EX_05_fig', exist_ok=True)
 
 # Beam parameters
 n_particles = 1e10
-n_macroparticles = 5 * 1e6
+if DRAFT_MODE:
+    n_macroparticles = 1001
+else:
+    n_macroparticles = 5 * 1e6
 tau_0 = 2e-9  # [s]
 
 # Machine and RF parameters

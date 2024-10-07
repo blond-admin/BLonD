@@ -36,6 +36,8 @@ import matplotlib as mpl
 import numpy as np
 import pylab as plt
 
+DRAFT_MODE = True  # To check if executing correctly, rather than to run the full simulation
+
 mpl.use('Agg')
 
 
@@ -170,6 +172,8 @@ if USE_GPU:
 
 
 # FIRST COMPARISON: CONSTANT REVOLUTION FREQUENCY -----------------------------
+if DRAFT_MODE:
+    n_turns = 5
 for i in range(n_turns):
 
     for m in map_:

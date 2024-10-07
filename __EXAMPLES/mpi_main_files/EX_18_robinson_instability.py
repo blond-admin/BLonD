@@ -35,6 +35,8 @@ from builtins import range
 
 import matplotlib as mpl
 
+DRAFT_MODE = True  # To check if executing correctly, rather than to run the full simulation
+
 mpl.use('Agg')
 
 
@@ -50,7 +52,7 @@ os.makedirs(this_directory + '../mpi_output_files/EX_18_fig', exist_ok=True)
 
 # Beam parameters
 n_particles = 1e11
-n_macroparticles = 1e5
+n_macroparticles = 1001 if DRAFT_MODE else 1e5
 kin_beam_energy = 1.4e9     # [eV]
 
 
@@ -164,7 +166,7 @@ if WORKER.is_master:
 
 matched_from_distribution_function(beam, full_tracker,
                                    distribution_type=distribution_type,
-                                   bunch_length=bunch_length, n_iterations=20,
+                                   bunch_length=bunch_length, n_iterations=3  if DRAFT_MODE else 20,
                                    TotalInducedVoltage=total_ind_volt, seed=10)
 
 # ACCELERATION MAP ------------------------------------------------------------
@@ -187,6 +189,8 @@ bunch_std = np.zeros(n_turns)
 
 beam.split()
 # TRACKING --------------------------------------------------------------------
+if DRAFT_MODE:
+    n_turns = 5
 for i in range(n_turns):
 
     print(i)
