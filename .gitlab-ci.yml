@@ -50,7 +50,7 @@ variables:
     - cd ${project_root}
     # Run all unittests + the examples
     - python3 -m pytest -v unittests/ --cov --cov-config=.coveragerc --cov-report html:coverage-html
-      --cov-report xml:coverage.xml --junitxml=junit-report.xml -k 'not test_validate and not gpu'
+      --cov-report xml:coverage.xml --junitxml=junit-report.xml -k 'not test_validate'
 
 .after:
   after_script:
