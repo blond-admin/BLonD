@@ -3,35 +3,54 @@ variables:
   # Set the project root to the directory containing your setup.py
   project_root: ./
   PYPI_UPLOAD_URL: "https://upload.pypi.org/legacy/"
+  CUDA_VERSION: "12.4"
 
 .on_tag:
   # Rules to run a job only on a git tagged commit
   rules:
-   - if: $CI_COMMIT_TAG
-     when: on_success
+    - if: $CI_COMMIT_TAG
+      when: on_success
 
 .before:
   before_script:
     - apt-get update
+    - ls -l /usr/bin/ | grep "nvidia*" # nvidia graphics card name
+    - uname -m && cat /etc/*release  # linux distribution
+
     - apt-get install -y gcc g++  build-essential mpich libmpich-dev
-    # Testingt inside a virtual env
+
+    # Install cuda-toolkit
+    - nvidia-smi
+    - gcc --version
+    - wget https://developer.download.nvidia.com/compute/cuda/repos/debian12/x86_64/cuda-keyring_1.1-1_all.deb
+    - dpkg -i cuda-keyring_1.1-1_all.deb
+    - apt-get update
+    - apt-get install -y cuda-toolkit
+
+    # make sure NVCC is accessible
+    - export CUDA_HOME=/usr/local/cuda
+    - export PATH=${CUDA_HOME}/bin:${PATH}
+    - export LD_LIBRARY_PATH=${CUDA_HOME}/lib64:$LD_LIBRARY_PATH
+
+    - nvcc --version # probe NVCC installation
+
+    # Testing inside a virtual env
     - python3 -m venv pyvenv
     - source pyvenv/bin/activate
     - python3 --version && gcc --version && mpirun --version
     - python3 -m pip install --upgrade pip
     - python3 -m pip install -v -e ${project_root}[test]
-    - python3 blond/compile.py -p -optimize
+    - python3 -m pip install cupy-cuda12x
     - python3 -m pip install pytest_cov mpi4py
+    - python3 blond/compile.py -p --optimize --parallel -gpu
+
 
 .main:
   script:
     - cd ${project_root}
     # Run all unittests + the examples
-    - python3 -m pytest -v unittests/ --cov --cov-config=.coveragerc --cov-report html:coverage-html 
+    - python3 -m pytest -v unittests/ --cov --cov-config=.coveragerc --cov-report html:coverage-html
       --cov-report xml:coverage.xml --junitxml=junit-report.xml -k 'not test_validate and not gpu'
-    # Validate the agreement between mpi and non-mpi runs
-    - python3 -m pytest -v unittests/ --cov --cov-config=.coveragerc --cov-report html  --cov-append
-      --cov-report xml --junitxml=junit-report.xml -k 'test_validate and not gpu'
 
 .after:
   after_script:
@@ -41,7 +60,7 @@ variables:
     - coverage report
     # - coverage xml -o coverage-report.xml
   coverage: /(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/
-  
+
 .publish:
   artifacts:
     expire_in: 30 days
@@ -68,6 +87,8 @@ test_py_310:
     - .main
     - .after
     - .publish
+  tags:
+    - k8s-gpu
 
 test_py_311:
   variables:
@@ -79,6 +100,8 @@ test_py_311:
     - .main
     - .after
     # - .publish
+  tags:
+    - k8s-gpu
 
 test_py_312:
   variables:
@@ -90,6 +113,8 @@ test_py_312:
     - .main
     - .after
     # - .publish
+  tags:
+    - k8s-gpu
 
 release_sdist_310:
   variables:
@@ -99,22 +124,22 @@ release_sdist_310:
   extends:
     - .on_tag
   before_script:
-   - apt-get update
-   - apt-get install -y git
-   - python3 -m pip install --upgrade pip
-   - python3 -m pip install build twine
-   # Without an up-to-date setuptools, we don't get the requirements.txt
-   # inside the sdist.
-   - python3 -m pip install -U setuptools
-   - eval ${PRE_SDIST_BUILD}
+    - apt-get update
+    - apt-get install -y git
+    - python3 -m pip install --upgrade pip
+    - python3 -m pip install build twine
+    # Without an up-to-date setuptools, we don't get the requirements.txt
+    # inside the sdist.
+    - python3 -m pip install -U setuptools
+    - eval ${PRE_SDIST_BUILD}
   script:
-   - cd ${project_root}
-   - python3 -m build --sdist .
-   - python3 -m twine upload --verbose
-        --repository-url="${PYPI_UPLOAD_URL}"
-        --username="${PYPI_USERNAME}"
-        --password="${PYPI_PASSWORD}"
-        dist/*.tar.gz
+    - cd ${project_root}
+    - python3 -m build --sdist .
+    - python3 -m twine upload --verbose
+      --repository-url="${PYPI_UPLOAD_URL}"
+      --username="${PYPI_USERNAME}"
+      --password="${PYPI_PASSWORD}"
+      dist/*.tar.gz
 
 
 pages:
@@ -122,14 +147,14 @@ pages:
     PY_VERSION: "3.10"
   image: python:${PY_VERSION}
   script:
-   - cd ${project_root}
-   - mkdir public
-   - python3 -m pip install --upgrade pip
-   - python3 -m pip install -v ${project_root}[doc]
-   - make -C __doc html
-   - cp -r __doc/_build/html/* public/
+    - cd ${project_root}
+    - mkdir public
+    - python3 -m pip install --upgrade pip
+    - python3 -m pip install -v ${project_root}[doc]
+    - make -C __doc html
+    - cp -r __doc/_build/html/* public/
   artifacts:
     paths:
-     - ${project_root}public
+      - ${project_root}public
   only:
-   - master
+    - master
