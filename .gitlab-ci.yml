@@ -50,7 +50,7 @@ variables:
     - cd ${project_root}
     # Run all unittests + the examples
     - python3 -m pytest -v unittests/ --cov --cov-config=.coveragerc --cov-report html:coverage-html
-      --cov-report xml:coverage.xml --junitxml=junit-report.xml -k 'not test_validate'
+      --cov-report xml:coverage.xml --junitxml=junit-report.xml
 
 .after:
   after_script:
@@ -73,6 +73,8 @@ variables:
       junit: ${project_root}junit-report.xml
     paths:
       - ${project_root}coverage-html/*
+      - ${project_root}coverage.xml
+      - ${project_root}junit-report.xml
     # reports:
     #   junit: ${project_root}/coverage-report.xml
 
