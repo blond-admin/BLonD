@@ -168,7 +168,7 @@ plt.close()
 
 matched_from_distribution_function(beam, full_tracker,
                                    distribution_type=distribution_type,
-                                   bunch_length=bunch_length, n_iterations=20,
+                                   bunch_length=bunch_length, n_iterations=3  if DRAFT_MODE else 20,
                                    TotalInducedVoltage=total_ind_volt, seed=10)
 
 # For testing purposes
@@ -197,9 +197,11 @@ bunch_std = np.zeros(n_turns)
 
 
 # TRACKING --------------------------------------------------------------------
+if DRAFT_MODE:
+    n_turns = 5
 for i in range(n_turns):
 
-    # print(i)
+    print(i)
     for m in map_:
         m.track()
 
