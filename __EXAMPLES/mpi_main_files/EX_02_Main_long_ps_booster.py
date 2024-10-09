@@ -38,7 +38,8 @@ from blond.plots.plot_impedance import (plot_impedance_vs_frequency,
                                         plot_induced_voltage_vs_bin_centers)
 from blond.trackers.tracker import RingAndRFTracker
 
-DRAFT_MODE = True  # To check if executing correctly, rather than to run the full simulation
+DRAFT_MODE = False or bool(int(os.environ.get("BLOND_EXAMPLES_DRAFT_MODE", False)))  
+# To check if executing correctly, rather than to run the full simulation
 
 mpl.use('Agg')
 

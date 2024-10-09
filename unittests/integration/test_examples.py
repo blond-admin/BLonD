@@ -21,7 +21,7 @@ this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 main_files_dir = os.path.join(this_directory, '../../__EXAMPLES/main_files')
 exec_args = [sys.executable]
 timeout = 60    # Timeout in seconds
-
+os.environ["BLOND_EXAMPLES_DRAFT_MODE"] = "1"
 
 class TestExamples(unittest.TestCase):
 

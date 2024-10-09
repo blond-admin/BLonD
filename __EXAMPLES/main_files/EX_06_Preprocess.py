@@ -27,7 +27,8 @@ from blond.input_parameters.rf_parameters_options import RFStationOptions
 from blond.input_parameters.ring import Ring
 from blond.input_parameters.ring_options import RingOptions
 
-DRAFT_MODE = True  # To check if executing correctly, rather than to run the full simulation
+DRAFT_MODE = False or bool(int(os.environ.get("BLOND_EXAMPLES_DRAFT_MODE", False)))  
+# To check if executing correctly, rather than to run the full simulation
 
 mpl.use('Agg')
 

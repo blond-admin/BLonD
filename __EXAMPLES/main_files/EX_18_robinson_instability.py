@@ -34,7 +34,8 @@ from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
 from blond.trackers.tracker import FullRingAndRF, RingAndRFTracker
 
-DRAFT_MODE = True  # To check if executing correctly, rather than to run the full simulation
+DRAFT_MODE = False or bool(int(os.environ.get("BLOND_EXAMPLES_DRAFT_MODE", False)))  
+# To check if executing correctly, rather than to run the full simulation
 
 mpl.use('Agg')
 

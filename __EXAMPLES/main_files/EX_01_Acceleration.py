@@ -32,8 +32,8 @@ from blond.monitors.monitors import BunchMonitor
 from blond.plots.plot import Plot
 from blond.trackers.tracker import RingAndRFTracker
 
-DRAFT_MODE = True  # To check if executing correctly, rather than to run the full simulation
-
+# To check if executing correctly, rather than to run the full simulation
+DRAFT_MODE = False or bool(int(bool(int(os.environ.get("BLOND_EXAMPLES_DRAFT_MODE", False)))))
 mpl.use('Agg')
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
