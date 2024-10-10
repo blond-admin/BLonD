@@ -32,7 +32,7 @@ from blond.monitors.monitors import BunchMonitor
 from blond.plots.plot import Plot
 from blond.trackers.tracker import RingAndRFTracker
 
-DRAFT_MODE = False or bool(int(os.environ.get("BLOND_EXAMPLES_DRAFT_MODE", False)))  
+DRAFT_MODE = bool(int(os.environ.get("BLOND_EXAMPLES_DRAFT_MODE", False)))
 # To check if executing correctly, rather than to run the full simulation
 
 mpl.use('Agg')
@@ -44,11 +44,8 @@ os.makedirs(this_directory + '../output_files/EX_03_fig', exist_ok=True)
 
 # Simulation parameters --------------------------------------------------------
 # Bunch parameters
-N_b = 1.e9           # Intensityif DRAFT_MODE:
-if DRAFT_MODE:
-    N_p = 1001          # Macro-particles
-else:
-    N_p = 50001  # Macro-particles
+N_b = 1.e9           # Intensity
+N_p = 1001 if DRAFT_MODE else N_p = 50001  # Macro-particles
 tau_0 = 0.4e-9          # Initial bunch length, 4 sigma [s]
 
 # Machine and RF parameters

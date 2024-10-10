@@ -37,7 +37,7 @@ from blond.input_parameters.ring import Ring
 from blond.trackers.tracker import FullRingAndRF, RingAndRFTracker
 from blond.trackers.utilities import synchrotron_frequency_distribution
 
-DRAFT_MODE = False or bool(int(os.environ.get("BLOND_EXAMPLES_DRAFT_MODE", False)))  
+DRAFT_MODE = bool(int(os.environ.get("BLOND_EXAMPLES_DRAFT_MODE", False)))
 # To check if executing correctly, rather than to run the full simulation
 
 mpl.use('Agg')

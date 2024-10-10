@@ -34,7 +34,7 @@ import matplotlib as mpl
 import numpy as np
 import pylab as plt
 
-DRAFT_MODE = False or bool(int(os.environ.get("BLOND_EXAMPLES_DRAFT_MODE", False)))  
+DRAFT_MODE = bool(int(os.environ.get("BLOND_EXAMPLES_DRAFT_MODE", False)))
 # To check if executing correctly, rather than to run the full simulation
 
 mpl.use('Agg')
@@ -202,7 +202,7 @@ if DRAFT_MODE:
     n_turns = 5
 for i in range(n_turns):
 
-    print(i)
+    # print(i)
     for m in map_:
         m.track()
 
