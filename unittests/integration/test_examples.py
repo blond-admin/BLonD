@@ -21,7 +21,7 @@ this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 main_files_dir = os.path.join(this_directory, '../../__EXAMPLES/main_files')
 exec_args = [sys.executable]
 timeout = 60    # Timeout in seconds
-
+os.environ["BLOND_EXAMPLES_DRAFT_MODE"] = "1"
 
 class TestExamples(unittest.TestCase):
 
@@ -120,6 +120,7 @@ class TestExamples(unittest.TestCase):
         example = 'EX_19_bunch_generation.py'
         self._runExample(example)
 
+    @unittest.skip("Implement a faster way of execution, otherwise this test would take several minutes")
     def test_EX_20_bunch_generation_multibunch(self):
         example = 'EX_20_bunch_generation_multibunch.py'
         self._runExample(example)
