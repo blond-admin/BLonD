@@ -279,9 +279,8 @@ class RingOptions:
 
                 else:
                     # InputDataError
-                    raise RuntimeError("ERROR in Ring: The input data " +
-                                       "does not match the proper length " +
-                                       "(n_turns+1)")
+                    raise RuntimeError("ERROR in Ring: The 'input_data'" +
+                                       f"should have {(n_turns+1)=} entries, but shape is {input_data.shape=}")
 
         return output_data
 
