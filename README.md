@@ -390,9 +390,21 @@ supported. `fft_convolve()` to be added soon.
     `TotalInducedVoltage` object and the objects in its
     `induced_voltage_list`.
 
+# Contributing to BLonD
+We welcome contributions from the beam physics community to enhance the capabilities and features of BLonD.
+
+For contribution as developer:
+1. Create an [GitLab issue](https://gitlab.cern.ch/blond/BLonD/-/issues) and describe what you want to improve, fix, adapt, etc.
+2. Create a branch from your issue by clicking the upper right blue button on your issue page.
+3. Checkout your branch with your programming suite (or with the terminal: `git checkout https://gitlab.cern.ch/blond/BLonD/-/issues/YOUR-BRANCH`).
+4. Commit and push your changes to your branch until satisfaction.
+5. Create a merge request in GitLab from `YOUR-BRANCH` to `develop`.
+6. Your code will be reviewed and finally be merged.
+
 # Developers
 
 -   Simon Albright (simon.albright (at) cern.ch)
+-   Simon Lauber (simon.fabian.lauber (at) cern.ch)
 -   Theodoros Argyropoulos (theodoros.argyropoulos (at) cern.ch)
 -   Konstantinos Iliakis (konstantinos.iliakis (at) cern.ch)
 -   Ivan Karpov (ivan.karpov (at) cern.ch)

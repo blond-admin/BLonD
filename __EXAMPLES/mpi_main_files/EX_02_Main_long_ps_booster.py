@@ -14,8 +14,6 @@ Example script to take into account intensity effects from impedance tables
 '''
 
 from __future__ import division, print_function
-from blond.utils.mpi_config import mpiprint, WORKER
-from blond.utils import bmath as bm
 
 import os
 from builtins import bytes, range, str
@@ -37,6 +35,11 @@ from blond.plots.plot import Plot
 from blond.plots.plot_impedance import (plot_impedance_vs_frequency,
                                         plot_induced_voltage_vs_bin_centers)
 from blond.trackers.tracker import RingAndRFTracker
+from blond.utils import bmath as bm
+from blond.utils.mpi_config import mpiprint, WORKER
+
+DRAFT_MODE = bool(int(os.environ.get("BLOND_EXAMPLES_DRAFT_MODE", False)))
+# To check if executing correctly, rather than to run the full simulation
 
 mpl.use('Agg')
 
@@ -53,7 +56,7 @@ os.makedirs(this_directory + '../mpi_output_files/EX_02_fig', exist_ok=True)
 
 # Beam parameters
 n_particles = 1e11
-n_macroparticles = 5e5
+n_macroparticles = 1001 if DRAFT_MODE else 5e5
 sigma_dt = 180e-9 / 4  # [s]
 kin_beam_energy = 1.4e9  # [eV]
 
@@ -104,9 +107,10 @@ slice_beam = Profile(my_beam, CutOptions(cut_left=-5.72984173562e-7,
 var = str(kin_beam_energy / 1e9)
 
 # ejection kicker
-Ekicker = np.loadtxt(this_directory + '../input_files/EX_02_Ekicker_1.4GeV.txt', skiprows=1, dtype=complex, converters={0: lambda s:
-                                                                                                                        complex(bytes(s).decode('UTF-8').replace('i', 'j')),
-                                                                                                                        1: lambda s: complex(bytes(s).decode('UTF-8').replace('i', 'j'))})
+Ekicker = np.loadtxt(this_directory + '../input_files/EX_02_Ekicker_1.4GeV.txt', skiprows=1, dtype=complex,
+                     encoding="utf-8",
+                     converters={0: lambda s: complex(bytes(s, encoding="utf-8").decode('UTF-8').replace('i', 'j')),
+                                 1: lambda y: complex(bytes(y, encoding="utf-8").decode('UTF-8').replace('i', 'j'))})
 
 Ekicker_table = InputTable(Ekicker[:, 0].real, Ekicker[:, 1].real, Ekicker[:, 1].imag)
 

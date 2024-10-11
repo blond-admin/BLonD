@@ -33,6 +33,9 @@ import blond.impedances.music as musClass
 import blond.input_parameters.rf_parameters as rfparClass
 import blond.input_parameters.ring as genparClass
 
+DRAFT_MODE = bool(int(os.environ.get("BLOND_EXAMPLES_DRAFT_MODE", False)))
+# To check if executing correctly, rather than to run the full simulation
+
 mpl.use('Agg')
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
@@ -70,7 +73,7 @@ rf_params = rfparClass.RFStation(general_params, [h_1], [V_1],
                                  [phi_1], n_rf_systems)
 
 # DEFINE FIRST BEAM TO BE USED WITH SLICES (t AND f DOMAINS), AND VOLTAGE CALCULATION
-n_macroparticles = 10000000
+n_macroparticles = 1001 if DRAFT_MODE else 10000000
 my_beam = beamClass.Beam(general_params, n_macroparticles, n_particles)
 np.random.seed(1000)
 sigma_gaussian = 3e-8

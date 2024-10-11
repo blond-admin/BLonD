@@ -19,12 +19,13 @@ from __future__ import division
 import itertools as itl
 
 import numpy as np
-from scipy.constants import c, e, epsilon_0, hbar, m_e, m_p
+from scipy.constants import c, e, epsilon_0, hbar, m_e, m_p, physical_constants
 
 from ..trackers.utilities import is_in_separatrix
 from ..utils import bmath as bm
 from ..utils import exceptions as blExcept
 
+m_mu = physical_constants['muon mass'][0]
 
 class Particle:
     r"""Class containing basic parameters, e.g. mass, of the particles to be tracked.
@@ -37,6 +38,8 @@ class Particle:
         Energy equivalent of particle rest mass in eV
     user_charge : float
         Particle charge in units of the elementary charge
+    user_decay_rate : float
+        Particle decay rate in units of 1/s 
 
     Attributes
     ----------
@@ -44,6 +47,8 @@ class Particle:
         Energy equivalent of particle rest mass in eV.
     charge : float
         Particle charge in units of the elementary charge.
+    decay_rate : float
+        Inverse of the particle decay time (decay time in s)
     radius_cl : float
         Classical particle radius in :math:`m`.
     c_gamma : float
@@ -63,7 +68,7 @@ class Particle:
 
     """
 
-    def __init__(self, user_mass, user_charge):
+    def __init__(self, user_mass, user_charge, user_decay_rate = 0):
 
         if user_mass > 0.:
             self.mass = float(user_mass)
@@ -71,6 +76,14 @@ class Particle:
         else:
             # MassError
             raise RuntimeError('ERROR: Particle mass not recognized!')
+            
+        if user_decay_rate >= 0.:
+            self.decay_rate = float(user_decay_rate)
+            
+        else:
+            # MassError
+            raise RuntimeError('ERROR: Invalide particle decay rate!')
+            
 
         # classical particle radius [m]
         self.radius_cl = 0.25 / (np.pi * epsilon_0) * \
@@ -108,6 +121,20 @@ class Positron(Particle):
 
         Particle.__init__(self, m_e * c**2 / e, 1)
 
+
+class MuPlus(Particle):
+    """ Implements a muon+ `Particle`.
+    """ 
+    def __init__(self):
+        Particle.__init__(self, m_mu * c**2 / e, 1, float(1/2.1969811e-6))
+
+
+class MuMinus(Particle):
+    """ Implements a muon- `Particle`.
+    """ 
+    def __init__(self):        
+        Particle.__init__(self, m_mu * c**2 / e, -1, float(1/2.1969811e-6))
+        
 
 class Beam:
     r"""Class containing the beam properties.
@@ -352,6 +379,20 @@ class Beam:
 
         lost_index = (self.dE < dE_min)
         self.id[lost_index] = 0
+
+    def particle_decay(self, time: float) -> None:
+        '''Decreases beam inensity due to the particle decay
+
+        Sets the ratio to a lower value if the particle can decay. Number of macroparticles remains unchanged.
+
+        Parameters
+        ----------
+        time : float
+            time in seconds, which is used to determine the fraction of the
+            particle decay
+        '''
+        self.ratio *= np.exp(-time * self.Particle.decay_rate / (self.gamma))
+       
 
     def add_particles(self, new_particles):
         '''

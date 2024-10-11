@@ -34,6 +34,9 @@ import matplotlib as mpl
 import numpy as np
 import pylab as plt
 
+DRAFT_MODE = bool(int(os.environ.get("BLOND_EXAMPLES_DRAFT_MODE", False)))
+# To check if executing correctly, rather than to run the full simulation
+
 mpl.use('Agg')
 
 
@@ -53,7 +56,7 @@ os.makedirs(this_directory + '../gpu_output_files/EX_18_fig', exist_ok=True)
 
 # Beam parameters
 n_particles = 1e11
-n_macroparticles = 1e5
+n_macroparticles = 1001 if DRAFT_MODE else 1e5
 kin_beam_energy = 1.4e9     # [eV]
 
 
@@ -166,7 +169,7 @@ plt.close()
 
 matched_from_distribution_function(beam, full_tracker,
                                    distribution_type=distribution_type,
-                                   bunch_length=bunch_length, n_iterations=20,
+                                   bunch_length=bunch_length, n_iterations=3  if DRAFT_MODE else 20,
                                    TotalInducedVoltage=total_ind_volt, seed=10)
 
 # For testing purposes
@@ -195,6 +198,8 @@ bunch_std = np.zeros(n_turns)
 
 
 # TRACKING --------------------------------------------------------------------
+if DRAFT_MODE:
+    n_turns = 5
 for i in range(n_turns):
 
     # print(i)
