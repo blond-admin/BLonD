@@ -14,8 +14,6 @@ Example script to take into account intensity effects from impedance tables
 '''
 
 from __future__ import division, print_function
-from blond.utils.mpi_config import mpiprint, WORKER
-from blond.utils import bmath as bm
 
 import os
 from builtins import bytes, range, str
@@ -37,6 +35,8 @@ from blond.plots.plot import Plot
 from blond.plots.plot_impedance import (plot_impedance_vs_frequency,
                                         plot_induced_voltage_vs_bin_centers)
 from blond.trackers.tracker import RingAndRFTracker
+from blond.utils import bmath as bm
+from blond.utils.mpi_config import mpiprint, WORKER
 
 DRAFT_MODE = bool(int(os.environ.get("BLOND_EXAMPLES_DRAFT_MODE", False)))
 # To check if executing correctly, rather than to run the full simulation
@@ -56,7 +56,7 @@ os.makedirs(this_directory + '../mpi_output_files/EX_02_fig', exist_ok=True)
 
 # Beam parameters
 n_particles = 1e11
-n_macroparticles = 1001 if DRAFT_MODE else n_macroparticles = 5e5
+n_macroparticles = 1001 if DRAFT_MODE else 5e5
 sigma_dt = 180e-9 / 4  # [s]
 kin_beam_energy = 1.4e9  # [eV]
 

@@ -37,7 +37,7 @@ this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 os.makedirs(this_directory + '../output_files/EX_06_fig', exist_ok=True)
 
 # Beam parameters
-n_particles = 1001 if DRAFT_MODE else n_particles = 3e12
+n_particles = 1001 if DRAFT_MODE else 3e12
 
 
 

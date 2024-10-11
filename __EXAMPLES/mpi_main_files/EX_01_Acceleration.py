@@ -15,8 +15,6 @@ No intensity effects
 '''
 #  General Imports
 from __future__ import division, print_function
-from blond.utils.mpi_config import mpiprint, WORKER
-from blond.utils import bmath as bm
 
 import os
 from builtins import range
@@ -33,6 +31,8 @@ from blond.input_parameters.ring import Ring
 from blond.monitors.monitors import BunchMonitor
 from blond.plots.plot import Plot
 from blond.trackers.tracker import RingAndRFTracker
+from blond.utils import bmath as bm
+from blond.utils.mpi_config import mpiprint, WORKER
 
 DRAFT_MODE = bool(int(os.environ.get("BLOND_EXAMPLES_DRAFT_MODE", False)))
 # To check if executing correctly, rather than to run the full simulation
@@ -50,7 +50,7 @@ os.makedirs(this_directory + '../mpi_output_files/EX_01_fig', exist_ok=True)
 # Simulation parameters -------------------------------------------------------
 # Bunch parameters
 N_b = 1e9           # Intensity
-N_p = 1001 if DRAFT_MODE else N_p = 50000  # Macro-particles
+N_p = 1001 if DRAFT_MODE else 50000  # Macro-particles
 tau_0 = 0.4e-9          # Initial bunch length, 4 sigma [s]
 
 # Machine and RF parameters

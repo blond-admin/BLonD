@@ -45,7 +45,7 @@ os.makedirs(this_directory + '../output_files/EX_04_fig', exist_ok=True)
 # Simulation parameters -------------------------------------------------------
 # Bunch parameters
 N_b = 1.e9           # Intensity
-N_p = 1001 if DRAFT_MODE else N_p = 10001  # Macro-particles
+N_p = 1001 if DRAFT_MODE else 10001  # Macro-particles
 
 tau_0 = 0.4e-9          # Initial bunch length, 4 sigma [s]
 
