@@ -248,6 +248,10 @@ class TestSyntheticData:
         import cupy as cp
         from blond.utils.butils_wrap_python import kick as kick_python
         from blond.gpu.butils_wrap_cupy import kick as kick_cupy
+        from blond.gpu import GPU_DEV
+
+        GPU_DEV.set()  # Set CUDA library to double for working on same precision as Python
+        GPU_DEV.load_library('double')  # Set CUDA library to double for working on same precision as Python
 
         # create array to be sliced
         trap_for_slicing = 1e6 * np.array([
@@ -257,7 +261,7 @@ class TestSyntheticData:
         trap_for_slicing_cp = cp.array(trap_for_slicing)
 
         n_particles = 10
-        dE = np.random.normal(loc=0, scale=1e7, size=n_particles)
+        dE = 1e6 * np.random.normal(loc=0, scale=1e7, size=n_particles)
         dt = np.random.normal(loc=1e-5, scale=1e-7, size=n_particles)
         charge = 1.0
         acceleration_kick = 1e3 * np.random.rand()
