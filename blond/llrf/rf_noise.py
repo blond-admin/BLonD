@@ -16,17 +16,14 @@ amplitude as a function of bunch length**
 
 from __future__ import division, print_function
 
-from builtins import range
+from typing import Callable
 
 import numpy as np
-import cupy as cp
 import numpy.random as rnd
 
 from ..plots.plot import fig_folder
 from ..plots.plot_llrf import plot_phase_noise, plot_noise_spectrum
 from ..toolbox.next_regular import next_regular
-
-from typing import Callable
 
 cfwhm = np.sqrt(2. / np.log(2.))
 
@@ -245,6 +242,7 @@ class LHCNoiseFB:
     def __init__(self, RFStation, Profile, bl_target, gain=0.1e9,
                  factor=0.93, update_frequency=11245, variable_gain=True, bunch_pattern=None,
                  old_FESA_class=False, no_delay=False, seed=1313):
+        import cupy as cp
 
         self.LHC_frev = 11245  # LHC revolution frequency in Hz
 
@@ -326,6 +324,7 @@ class LHCNoiseFB:
         *Calculate PhaseNoise Feedback scaling factor as a function of measured
         FWHM bunch length.* Take into account the delay and asynchronisation between the BQM and the x update.
         '''
+        import cupy as cp
 
         if self.no_delay:
             # Track only in certain turns
@@ -346,6 +345,8 @@ class LHCNoiseFB:
                 timer.tick()
 
     def update_bqm_measurement(self):
+        import cupy as cp
+
         # Takes the bunch length measurement and updates self.bl_meas
         self.fwhm()
 
@@ -365,6 +366,8 @@ class LHCNoiseFB:
         self.time_array[-1] = self.timers[1].counter
 
     def update_noise_amplitude(self):
+        import cupy as cp
+
         # timestamp in turns, before which the last bqm measurement was taken
         timestamp = self.timers[0].counter - self.delay_noise_inj
 
