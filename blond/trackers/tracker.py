@@ -18,7 +18,13 @@ import warnings
 from builtins import range
 
 import numpy as np
-from scipy.integrate import cumulative_trapezoid as cumtrapz
+import scipy
+from packaging.version import Version
+
+if Version(scipy.__version__) >= Version("1.14"):
+    from scipy.integrate import cumulative_trapezoid as cumtrapz
+else:
+    from scipy.integrate import cumtrapz
 
 from ..utils import bmath as bm
 

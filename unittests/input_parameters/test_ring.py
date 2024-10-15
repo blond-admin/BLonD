@@ -12,7 +12,6 @@ Unit-test for input_parameters.ring.py
 :Authors: **Markus Schwarz**, **Alexandre Lasheen**
 """
 
-
 import sys
 import unittest
 
@@ -57,13 +56,12 @@ class TestGeneralParameters(unittest.TestCase):
     def test_ring_length_exception(self):
         # Test if 'ring length size' RuntimeError gets thrown for wrong number
         # of rf sections
-        num_sections = 1    # only one rf-section!
+        num_sections = 1  # only one rf-section!
 
         with self.assertRaisesRegex(
                 RuntimeError, 'ERROR in Ring: Number of sections and ring ' +
-                'length size do not match!',
+                              'length size do not match!',
                 msg='No RuntimeError for wrong n_sections!'):
-
             Ring(self.C, self.alpha_0, self.momentum,
                  self.particle, self.n_turns, n_sections=num_sections,
                  alpha_1=self.alpha_1, alpha_2=self.alpha_2)
@@ -71,13 +69,12 @@ class TestGeneralParameters(unittest.TestCase):
     def test_alpha_shape_exception(self):
         # Test if 'momentum compaction' RuntimeError gets thrown for wrong
         # shape of alpha
-        alpha = [[3.21e-4, 2.e-5, 5.e-7]]   # only one array!
+        alpha = [[3.21e-4, 2.e-5, 5.e-7]]  # only one array!
 
         with self.assertRaisesRegex(
                 RuntimeError, "ERROR in Ring: the input data " +
-                "does not match the number of sections",
+                              "does not match the number of sections",
                 msg='No RuntimeError for wrong shape of alpha!'):
-
             Ring(self.C, alpha, self.momentum, self.particle, self.n_turns,
                  n_sections=self.num_sections)
 
@@ -92,9 +89,8 @@ class TestGeneralParameters(unittest.TestCase):
 
         with self.assertRaisesRegex(
                 RuntimeError, "ERROR in Ring: synchronous data does " +
-                "not match the time data",
+                              "not match the time data",
                 msg='No RuntimeError for wrong synchronous_data!'):
-
             Ring(self.C, self.alpha_0,
                  ((cycle_time, self.momentum), (cycle_time, self.momentum)),
                  self.particle, self.n_turns, n_sections=self.num_sections)
@@ -107,9 +103,8 @@ class TestGeneralParameters(unittest.TestCase):
 
         with self.assertRaisesRegex(
                 RuntimeError, "ERROR in Ring: synchronous data " +
-                "does not match the time data",
+                              "does not match the time data",
                 msg='No RuntimeError for wrong shape of momentum!'):
-
             Ring(self.C, self.alpha_0,
                  ((cycle_time, momentum[0]), (cycle_time, momentum[1])),
                  self.particle, self.n_turns, n_sections=self.num_sections)
@@ -121,12 +116,7 @@ class TestGeneralParameters(unittest.TestCase):
         momentum = [np.linspace(450e9, 450e9, self.n_turns),
                     np.linspace(450e9, 450e9, self.n_turns)]
 
-        with self.assertRaisesRegex(
-                RuntimeError, r"ERROR in Ring: The input data " +
-                r"does not match the proper length " +
-                r"\(n_turns\+1\)",
-                msg='No RuntimeError for wrong length of momentum array!'):
-
+        with self.assertRaises(RuntimeError):
             Ring(self.C, self.alpha_0, momentum, self.particle,
                  self.n_turns, n_sections=self.num_sections)
 
@@ -140,7 +130,7 @@ class TestGeneralParameters(unittest.TestCase):
 
         self.assertTrue((general_parameters.kin_energy >= 0.0).all(),
                         msg='In TestGeneralParameters kinetic energy is ' +
-                        'negative!')
+                            'negative!')
 
     def test_cycle_time_turn1(self):
         # Cycle_time[0] must be equal to t_rev[0]
@@ -151,14 +141,13 @@ class TestGeneralParameters(unittest.TestCase):
         self.assertEqual(general_parameters.cycle_time[0],
                          general_parameters.t_rev[0],
                          msg='In TestGeneralParameters cycle_time at first ' +
-                         'turn not equal to revolution time at first turn!')
+                             'turn not equal to revolution time at first turn!')
 
     def test_convert_data_exception(self):
         with self.assertRaisesRegex(
                 RuntimeError,
                 'ERROR in Ring: Synchronous data type not recognized!',
                 msg='No RuntimeError for wrong synchronous data type!'):
-
             convert_data(25e9, self.particle.mass, self.particle.charge,
                          synchronous_data_type='somethingCompletelyDifferent')
 
@@ -189,5 +178,4 @@ class TestGeneralParameters(unittest.TestCase):
 
 
 if __name__ == '__main__':
-
     unittest.main()

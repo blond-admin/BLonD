@@ -16,19 +16,16 @@ import random
 def kick(dt: np.ndarray, dE: np.ndarray, voltage: np.ndarray,
          omega_rf: np.ndarray, phi_rf: np.ndarray,
          charge: float, n_rf: int, acceleration_kick: float) -> None:
-    '''
+    """
     Function to apply RF kick on the particles with sin function
-    '''
-    voltage_kick = charge * voltage
-
-    for j in range(len(voltage)):
-        if j == 0:
-            add_kick = acceleration_kick
-        else:
-            add_kick = 0.0
-        for i in prange(len(dt)):
-            dE[i] = dE[i] + voltage_kick[j] * \
-                np.sin(omega_rf[j] * dt[i] + phi_rf[j]) + add_kick
+    """
+    for i in prange(len(dt)):
+        dE_sum = 0.0
+        dti = dt[i]
+        for j in range(len(voltage)):
+            dE_sum += voltage[j] * np.sin(omega_rf[j] * dti + phi_rf[j])
+        dE_sum *= charge
+        dE[i] += dE_sum + acceleration_kick
 
 
 @jit(nopython=True, nogil=True, fastmath=True, parallel=True, cache=True)
