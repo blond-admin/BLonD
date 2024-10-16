@@ -216,7 +216,7 @@ class Worker:
                   else total_size // self.workers for i in range(self.workers)]
 
         if self.is_master:
-            displs = np.append([0], np.cumsum(counts[:-1]))
+            displs = np.append([0], np.cumsum(counts[:-1])).astype(int)
             recvbuf = np.empty(counts[WORKER.rank], dtype=var.dtype.char)
             self.intercomm.Scatterv([var, counts, displs, var.dtype.char],
                                     recvbuf, root=0)
