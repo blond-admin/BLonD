@@ -13,29 +13,36 @@ Integration tests for the MPI mode.
 :Authors: **Konstantinos Iliakis**
 """
 
+import importlib.util
 import os
 import subprocess
 import sys
 import unittest
 
 import pytest
+
 os.environ["BLOND_EXAMPLES_DRAFT_MODE"] = "1"
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 main_files_dir = os.path.join(this_directory + '../../__EXAMPLES/mpi_main_files')
 exec_args = ['mpirun', '-n', '2', sys.executable]
-timeout = 60    # Timeout in seconds
 
 
 class TestMpiExamples(unittest.TestCase):
 
-    def _runMPIExample(self, example, timeout=timeout):
+    def _runMPIExample(self, example):
+
         file = os.path.join(main_files_dir, example)
-        try:
-            ret = subprocess.run(exec_args + [file], timeout=timeout)
-            self.assertEqual(ret.returncode, 0)
-        except subprocess.TimeoutExpired as e:
-            raise unittest.SkipTest('[{}] Timed out (timeout={}s)'.format(example, e.timeout))
+
+        # Create a module spec from the file
+        spec = importlib.util.spec_from_file_location("module.name", file)
+        module = importlib.util.module_from_spec(spec)
+
+        # Execute the module
+        sys.modules["module.name"] = module
+        spec.loader.exec_module(module)
+
+        return module  # Return the module if you need to access its attributes
 
     # Run before every test
 
@@ -96,5 +103,4 @@ class TestMpiExamples(unittest.TestCase):
 
 
 if __name__ == '__main__':
-
     unittest.main()
