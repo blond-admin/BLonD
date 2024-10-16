@@ -17,6 +17,7 @@ the beam package.**
 
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.integrate import trapezoid
 from scipy.optimize import curve_fit
 from scipy.signal import cheb2ord, cheby2, filtfilt, freqz
 
@@ -132,12 +133,12 @@ def rms(Y_array, X_array):
 
     timeResolution = X_array[1] - X_array[0]
 
-    lineDenNormalized = Y_array / np.trapz(Y_array, dx=timeResolution)
+    lineDenNormalized = Y_array / trapezoid(Y_array, dx=timeResolution)
 
-    bp_rms = np.trapz(X_array * lineDenNormalized, dx=timeResolution)
+    bp_rms = trapezoid(X_array * lineDenNormalized, dx=timeResolution)
 
     bl_rms = 4 * np.sqrt(
-        np.trapz((X_array - bp_rms)**2 * lineDenNormalized, dx=timeResolution))
+        trapezoid((X_array - bp_rms) ** 2 * lineDenNormalized, dx=timeResolution))
 
     return bp_rms, bl_rms
 

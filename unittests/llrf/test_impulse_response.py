@@ -30,6 +30,7 @@ from blond.llrf.cavity_feedback import (SPSCavityLoopCommissioning,
 from blond.llrf.impulse_response import (SPS4Section200MHzTWC, rectangle,
                                          triangle)
 
+
 class TestRectangle(unittest.TestCase):
 
     def test_1(self):
@@ -189,8 +190,8 @@ class TestTravelingWaveCavity(unittest.TestCase):
                          - np.angle(OTFB_4.V_SET[-OTFB_4.n_coarse]))
 
         V_ind_OTFB = np.around(V_ind_OTFB, digit_round)
-
-        ratio_array = np.array(V_ind_impSource.tolist()) / np.array(V_ind_OTFB.tolist())
+        with np.errstate(divide='ignore'):
+            ratio_array = V_ind_impSource.copy() / V_ind_OTFB.copy()
         ratio_array = ratio_array[~np.isnan(ratio_array)]
         max_ratio = np.max(ratio_array)
 

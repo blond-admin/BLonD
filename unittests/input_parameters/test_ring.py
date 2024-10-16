@@ -14,6 +14,7 @@ Unit-test for input_parameters.ring.py
 
 import sys
 import unittest
+import warnings
 
 import numpy as np
 
@@ -162,19 +163,21 @@ class TestGeneralParameters(unittest.TestCase):
 
     def test_convert_data_wrong_total_energy(self):
         # use energy 25 instead of 25e9
-
-        self.assertIsNaN(
-            convert_data(25, self.particle.mass, self.particle.charge,
-                         synchronous_data_type='total energy'),
-            msg='No NaN for total energy less than rest mass!')
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            self.assertIsNaN(
+                convert_data(25, self.particle.mass, self.particle.charge,
+                             synchronous_data_type='total energy'),
+                msg='No NaN for total energy less than rest mass!')
 
     def test_convert_data_wrong_kinetic_energy(self):
         # use negative kinetic energy
-
-        self.assertIsNaN(
-            convert_data(-25, self.particle.mass, self.particle.charge,
-                         synchronous_data_type='kinetic energy'),
-            msg='No NaN for total energy less than rest mass!')
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            self.assertIsNaN(
+                convert_data(-25, self.particle.mass, self.particle.charge,
+                             synchronous_data_type='kinetic energy'),
+                msg='No NaN for total energy less than rest mass!')
 
 
 if __name__ == '__main__':

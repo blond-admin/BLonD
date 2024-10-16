@@ -5,6 +5,7 @@ BLonD physics functions, python-only implementations
 '''
 
 import numpy as np
+from scipy.integrate import trapezoid
 
 RNG = np.random.default_rng()
 
@@ -409,10 +410,10 @@ def fast_resonator(R_S: np.ndarray, Q: np.ndarray, frequency_array: np.ndarray,
 def beam_phase(bin_centers: np.ndarray, profile: np.ndarray,
                alpha: float, omegarf: float,
                phirf: float, bin_size: float) -> float:
-    scoeff = np.trapz(np.exp(alpha * (bin_centers))
+    scoeff = trapezoid(np.exp(alpha * (bin_centers))
                       * np.sin(omegarf * bin_centers + phirf)
                       * profile, dx=bin_size)
-    ccoeff = np.trapz(np.exp(alpha * (bin_centers))
+    ccoeff = trapezoid(np.exp(alpha * (bin_centers))
                       * np.cos(omegarf * bin_centers + phirf)
                       * profile, dx=bin_size)
 
@@ -421,9 +422,9 @@ def beam_phase(bin_centers: np.ndarray, profile: np.ndarray,
 
 def beam_phase_fast(bin_centers: np.ndarray, profile: np.ndarray,
                     omegarf: float, phirf: float, bin_size: float) -> float:
-    scoeff = np.trapz(profile * np.sin(omegarf * bin_centers + phirf),
+    scoeff = trapezoid(profile * np.sin(omegarf * bin_centers + phirf),
                       dx=bin_size)
-    ccoeff = np.trapz(profile * np.cos(omegarf * bin_centers + phirf),
+    ccoeff = trapezoid(profile * np.cos(omegarf * bin_centers + phirf),
                       dx=bin_size)
 
     return scoeff / ccoeff

@@ -1,4 +1,3 @@
-
 # Copyright 2016 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
 # copied verbatim in the file LICENCE.md.
@@ -31,8 +30,7 @@ if Version(scipy.__version__) >= Version("1.14"):
     from scipy.integrate import cumulative_trapezoid as cumtrapz
 else:
     from scipy.integrate import cumtrapz
-
-
+from scipy.integrate import trapezoid
 from ..beam.profile import CutOptions, Profile
 from ..trackers.utilities import (is_in_separatrix, minmax_location,
                                   potential_well_cut)
@@ -58,7 +56,7 @@ def matched_from_line_density(beam, full_ring_and_RF, line_density_input=None,
     # Initialize variables depending on the accelerator parameters
     slippage_factor = full_ring_and_RF.RingAndRFSection_list[0].rf_params.eta_0[0]
 
-    eom_factor_dE = abs(slippage_factor) / (2 * beam.beta**2. * beam.energy)
+    eom_factor_dE = abs(slippage_factor) / (2 * beam.beta ** 2. * beam.energy)
     eom_factor_potential = (np.sign(slippage_factor) * beam.Particle.charge /
                             (full_ring_and_RF.RingAndRFSection_list[0].rf_params.t_rev[0]))
 
@@ -79,7 +77,7 @@ def matched_from_line_density(beam, full_ring_and_RF, line_density_input=None,
         extra_potential_input = - (eom_factor_potential *
                                    cumtrapz(extra_voltage_input,
                                             dx=extra_voltage_time_input[1] -
-                                            extra_voltage_time_input[0], initial=0))
+                                               extra_voltage_time_input[0], initial=0))
         extra_potential = np.interp(time_potential, extra_voltage_time_input,
                                     extra_potential_input)
 
@@ -122,9 +120,9 @@ def matched_from_line_density(beam, full_ring_and_RF, line_density_input=None,
 
         # Inputing new line density
         profile.cut_options.cut_left = time_line_den[0] - \
-            0.5 * line_den_resolution
+                                       0.5 * line_den_resolution
         profile.cut_options.cut_right = time_line_den[-1] + \
-            0.5 * line_den_resolution
+                                        0.5 * line_den_resolution
         profile.cut_options.n_slices = n_points_line_den
         profile.cut_options.cuts_unit = 's'
         profile.cut_options.set_cuts()
@@ -264,7 +262,7 @@ def matched_from_line_density(beam, full_ring_and_RF, line_density_input=None,
                     integrand = np.array([0])
 
                 distribution_function_[i] = (np.sqrt(eom_factor_dE) / np.pi *
-                                             np.trapz(integrand, dx=line_den_resolution))
+                                             trapezoid(integrand, dx=line_den_resolution))
 
                 hamiltonian_coord[i] = potential_abel[i]
 
@@ -282,7 +280,7 @@ def matched_from_line_density(beam, full_ring_and_RF, line_density_input=None,
                     integrand = np.array([0])
 
                 distribution_function_[i] = -(np.sqrt(eom_factor_dE) / np.pi *
-                                              np.trapz(integrand, dx=line_den_resolution))
+                                              trapezoid(integrand, dx=line_den_resolution))
                 hamiltonian_coord[i] = potential_abel[i]
 
         warnings.filterwarnings("default")
@@ -321,7 +319,7 @@ def matched_from_line_density(beam, full_ring_and_RF, line_density_input=None,
     potential_well_grid = np.meshgrid(potential_well_for_grid,
                                       potential_well_for_grid)[0]
 
-    hamiltonian_grid = eom_factor_dE * deltaE_grid**2 + potential_well_grid
+    hamiltonian_grid = eom_factor_dE * deltaE_grid ** 2 + potential_well_grid
 
     # Sort the distribution function and generate the density grid
     hamiltonian_argsort = np.argsort(hamiltonian_coord)
@@ -357,9 +355,9 @@ def matched_from_line_density(beam, full_ring_and_RF, line_density_input=None,
     if TotalInducedVoltage is not None:
         # Inputing new line density
         profile.cut_options.cut_left = time_for_grid[0] - \
-            0.5 * (time_for_grid[1] - time_for_grid[0])
+                                       0.5 * (time_for_grid[1] - time_for_grid[0])
         profile.cut_options.cut_right = time_for_grid[-1] + 0.5 * (
-            time_for_grid[1] - time_for_grid[0])
+                time_for_grid[1] - time_for_grid[0])
         profile.cut_options.n_slices = n_points_grid
         profile.cut_options.set_cuts()
         profile.set_slices_parameters()
@@ -376,8 +374,8 @@ def matched_from_line_density(beam, full_ring_and_RF, line_density_input=None,
             induced_voltage_object
 
     gc.collect()
-    return [hamiltonian_coord, distribution_function_],\
-            [time_line_den, line_density_]
+    return [hamiltonian_coord, distribution_function_], \
+        [time_line_den, line_density_]
 
 
 def matched_from_distribution_function(beam, full_ring_and_RF,
@@ -431,7 +429,7 @@ def matched_from_distribution_function(beam, full_ring_and_RF,
     beta = full_ring_and_RF.RingAndRFSection_list[0].rf_params.beta[turn_number]
     energy = full_ring_and_RF.RingAndRFSection_list[0].rf_params.energy[turn_number]
 
-    eom_factor_dE = abs(slippage_factor) / (2 * beta**2. * energy)
+    eom_factor_dE = abs(slippage_factor) / (2 * beta ** 2. * energy)
     eom_factor_potential = (np.sign(slippage_factor) * beam.Particle.charge /
                             (full_ring_and_RF.RingAndRFSection_list[0].rf_params.t_rev[turn_number]))
 
@@ -454,7 +452,7 @@ def matched_from_distribution_function(beam, full_ring_and_RF,
         extra_voltage_input = extraVoltageDict['voltage_array']
         extra_potential_input = -(eom_factor_potential *
                                   cumtrapz(extra_voltage_input, dx=extra_voltage_time_input[1] -
-                                           extra_voltage_time_input[0], initial=0))
+                                                                   extra_voltage_time_input[0], initial=0))
         extra_potential = np.interp(time_potential, extra_voltage_time_input,
                                     extra_potential_input)
 
@@ -474,7 +472,7 @@ def matched_from_distribution_function(beam, full_ring_and_RF,
         total_potential = (potential_well + induced_potential +
                            extra_potential)
 
-        sse = np.sqrt(np.sum((old_potential - total_potential)**2))
+        sse = np.sqrt(np.sum((old_potential - total_potential) ** 2))
 
         print('Matching the bunch... (iteration: ' + str(i) + ' and sse: ' +
               str(sse) + ')')
@@ -544,8 +542,8 @@ def matched_from_distribution_function(beam, full_ring_and_RF,
                                            potential_well_low_res[j]]) / eom_factor_dE)
             dE_trajectory[pot_well_high_res > potential_well_low_res[j]] = 0
 
-            J_array_dE0[j] = 1 / np.pi * np.trapz(dE_trajectory,
-                                                  dx=time_potential_high_res[1] - time_potential_high_res[0])
+            J_array_dE0[j] = 1 / np.pi * trapezoid(dE_trajectory,
+                                                   dx=time_potential_high_res[1] - time_potential_high_res[0])
 
         # Sorting the H and J functions to be able to interpolate J(H)
         H_array_dE0 = potential_well_low_res
@@ -553,7 +551,7 @@ def matched_from_distribution_function(beam, full_ring_and_RF,
         sorted_J_dE0 = J_array_dE0[H_array_dE0.argsort()]
 
         # Calculating the H and J grid
-        H_grid = eom_factor_dE * deltaE_grid**2 + potential_well_grid
+        H_grid = eom_factor_dE * deltaE_grid ** 2 + potential_well_grid
         J_grid = np.interp(H_grid, sorted_H_dE0, sorted_J_dE0, left=0,
                            right=np.inf)
 
@@ -606,9 +604,9 @@ def matched_from_distribution_function(beam, full_ring_and_RF,
         if TotalInducedVoltage is not None:
             # Inputing new line density
             profile.cut_options.cut_left = time_potential_low_res[0] - \
-                0.5 * time_resolution_low
+                                           0.5 * time_resolution_low
             profile.cut_options.cut_right = time_potential_low_res[-1] + \
-                0.5 * time_resolution_low
+                                            0.5 * time_resolution_low
             profile.cut_options.n_slices = n_points_grid
             profile.cut_options.cuts_unit = 's'
             profile.cut_options.set_cuts()
@@ -684,19 +682,24 @@ def X0_from_bunch_length(bunch_length, bunch_length_fit, X_grid, sorted_X_dE0,
             if (line_density_ > 0).any():
                 tau = 4.0 * np.sqrt(np.sum((time_potential_low_res -
                                             np.sum(line_density_ * time_potential_low_res) /
-                                            np.sum(line_density_))**2 * line_density_) /
+                                            np.sum(line_density_)) ** 2 * line_density_) /
                                     np.sum(line_density_))
 
                 if bunch_length_fit is not None:
                     profile = Profile(
-                        beam, CutOptions=CutOptions(cut_left=time_potential_low_res[0] -
-                                                    0.5 * bin_size, cut_right=time_potential_low_res[-1] +
-                                                    0.5 * bin_size, n_slices=n_points_grid, RFSectionParameters=full_ring_and_RF.RingAndRFSection_list[0].rf_params))
-#                     profile = Profile(
-#                       full_ring_and_RF.RingAndRFSection_list[0].rf_params,
-#                       beam, n_points_grid, cut_left=time_potential_low_res[0] -
-#                       0.5*bin_size , cut_right=time_potential_low_res[-1] +
-#                       0.5*bin_size)
+                        beam,
+                        CutOptions=CutOptions(
+                            cut_left=time_potential_low_res[0] - 0.5 * bin_size,
+                            cut_right=time_potential_low_res[-1] + 0.5 * bin_size,
+                            n_slices=n_points_grid,
+                            RFSectionParameters=full_ring_and_RF.RingAndRFSection_list[0].rf_params
+                        )
+                    )
+                    #  profile = Profile(
+                    #    full_ring_and_RF.RingAndRFSection_list[0].rf_params,
+                    #    beam, n_points_grid, cut_left=time_potential_low_res[0] -
+                    #    0.5*bin_size , cut_right=time_potential_low_res[-1] +
+                    #    0.5*bin_size)
 
                     profile.n_macroparticles = line_density_
 
@@ -727,7 +730,7 @@ def X0_from_bunch_length(bunch_length, bunch_length_fit, X_grid, sorted_X_dE0,
             print('WARNING: The desired bunch length is too small ' +
                   'to be generated accurately!')
 
-#    return 0.5 * (X_low + X_hi)
+    #    return 0.5 * (X_low + X_hi)
     return X0
 
 
@@ -745,10 +748,14 @@ def populate_bunch(beam, time_grid, deltaE_grid, density_grid, time_step,
                                beam.n_macroparticles, p=density_grid.flatten())
 
     # Randomize particles inside each grid cell (uniform distribution)
-    beam.dt = (np.ascontiguousarray(time_grid.flatten()[indexes] +
-                                    (np.random.rand(beam.n_macroparticles) - 0.5) * time_step)).astype(dtype=bm.precision.real_t, order='C', copy=False)
-    beam.dE = (np.ascontiguousarray(deltaE_grid.flatten()[indexes] +
-                                    (np.random.rand(beam.n_macroparticles) - 0.5) * deltaE_step)).astype(dtype=bm.precision.real_t, order='C', copy=False)
+    beam.dt = (
+        np.ascontiguousarray(
+            time_grid.flatten()[indexes] + (np.random.rand(beam.n_macroparticles) - 0.5) * time_step
+        )).astype(dtype=bm.precision.real_t, order='C', copy=False)
+    beam.dE = (
+        np.ascontiguousarray(
+            deltaE_grid.flatten()[indexes] + (np.random.rand(beam.n_macroparticles) - 0.5) * deltaE_step
+        )).astype(dtype=bm.precision.real_t, order='C', copy=False)
 
 
 def distribution_function(action_array, dist_type, length, exponent=None):
@@ -766,7 +773,7 @@ def distribution_function(action_array, dist_type, length, exponent=None):
             exponent = 0.5
 
         warnings.filterwarnings("ignore")
-        distribution_function_ = (1 - action_array / length)**exponent
+        distribution_function_ = (1 - action_array / length) ** exponent
         warnings.filterwarnings("default")
         distribution_function_[action_array > length] = 0
     elif dist_type == 'gaussian':
@@ -795,7 +802,7 @@ def line_density(coord_array, dist_type, bunch_length, bunch_position=0,
 
         warnings.filterwarnings("ignore")
         line_density_ = ((1 - (2.0 * (coord_array - bunch_position) /
-                         bunch_length)**2)**(exponent + 0.5))
+                               bunch_length) ** 2) ** (exponent + 0.5))
         warnings.filterwarnings("default")
         line_density_[np.abs(coord_array - bunch_position)
                       > bunch_length / 2] = 0
@@ -803,12 +810,12 @@ def line_density(coord_array, dist_type, bunch_length, bunch_position=0,
     elif dist_type == 'gaussian':
         sigma = bunch_length / 4
         line_density_ = np.exp(-(coord_array - bunch_position)
-                               ** 2 / (2 * sigma**2))
+                                ** 2 / (2 * sigma ** 2))
 
     elif dist_type == 'cosine_squared':
         warnings.filterwarnings("ignore")
         line_density_ = (np.cos(np.pi * (coord_array - bunch_position) /
-                                bunch_length)**2)
+                                bunch_length) ** 2)
         warnings.filterwarnings("default")
         line_density_[np.abs(coord_array - bunch_position)
                       > bunch_length / 2] = 0
@@ -844,7 +851,7 @@ def bigaussian(Ring, RFStation, Beam, sigma_dt, sigma_dE=None, seed=1234,
         bucket; default in False
 
     """
-    
+
     if sigma_dE is None:
         sigma_dE = _get_dE_from_dt(Ring, RFStation, sigma_dt)
     counter = RFStation.counter[0]
@@ -852,7 +859,7 @@ def bigaussian(Ring, RFStation, Beam, sigma_dt, sigma_dE=None, seed=1234,
     phi_s = RFStation.phi_s[counter]
     phi_rf = RFStation.phi_rf[0, counter]
     eta0 = RFStation.eta_0[counter]
-    
+
     # RF wave is shifted by Pi below transition
     if eta0 < 0:
         phi_rf -= np.pi
@@ -864,11 +871,12 @@ def bigaussian(Ring, RFStation, Beam, sigma_dt, sigma_dE=None, seed=1234,
     rng_dt = np.random.default_rng(seed)
     rng_dE = np.random.default_rng(seed + 1)
 
-    Beam.dt = sigma_dt * rng_dt.normal(size=Beam.n_macroparticles).astype(dtype=bm.precision.real_t, order='C', copy=False) + \
-        (phi_s - phi_rf) / omega_rf
-    Beam.dE = sigma_dE * \
-        rng_dE.normal(size=Beam.n_macroparticles).astype(
-            dtype=bm.precision.real_t, order='C')
+    Beam.dt = (sigma_dt * rng_dt.normal(size=Beam.n_macroparticles)
+               .astype(dtype=bm.precision.real_t, order='C', copy=False)
+               + (phi_s - phi_rf) / omega_rf)
+    Beam.dE = (sigma_dE *
+               rng_dE.normal(size=Beam.n_macroparticles)
+               .astype(dtype=bm.precision.real_t, order='C'))
 
     # Re-insert if necessary
     if reinsertion:
@@ -876,9 +884,9 @@ def bigaussian(Ring, RFStation, Beam, sigma_dt, sigma_dE=None, seed=1234,
         itemindex = bm.where(is_in_separatrix(Ring, RFStation, Beam,
                                               Beam.dt, Beam.dE) == False)[0]
         while itemindex.size > 0:
-
-            Beam.dt[itemindex] = sigma_dt * rng_dt.normal(size=itemindex.size).astype(dtype=bm.precision.real_t, order='C', copy=False) \
-                + (phi_s - phi_rf) / omega_rf
+            Beam.dt[itemindex] = (sigma_dt * rng_dt.normal(size=itemindex.size)
+                                  .astype(dtype=bm.precision.real_t, order='C', copy=False)
+                                  + (phi_s - phi_rf) / omega_rf)
 
             Beam.dE[itemindex] = sigma_dE * rng_dE.normal(
                 size=itemindex.size).astype(dtype=bm.precision.real_t, order='C')
@@ -889,7 +897,7 @@ def bigaussian(Ring, RFStation, Beam, sigma_dt, sigma_dE=None, seed=1234,
 
 def parabolic(Ring, RFStation, Beam,
               bunch_length,
-              bunch_position=None, 
+              bunch_position=None,
               bunch_energy=None,
               energy_spread=None,
               seed=1234):
@@ -916,24 +924,24 @@ def parabolic(Ring, RFStation, Beam,
         Fixed seed to have a reproducible distribution
 
     """
-    
+
     # Getting the position and spread if not defined by user
     counter = RFStation.counter[0]
     omega_rf = RFStation.omega_rf[0, counter]
     phi_s = RFStation.phi_s[counter]
     phi_rf = RFStation.phi_rf[0, counter]
     eta0 = RFStation.eta_0[counter]
-    
+
     # RF wave is shifted by Pi below transition
     if eta0 < 0:
         phi_rf -= np.pi
-    
+
     if bunch_position is None:
         bunch_position = (phi_s - phi_rf) / omega_rf
-        
+
     if bunch_energy is None:
         bunch_energy = 0
-    
+
     if energy_spread is None:
         energy_spread = _get_dE_from_dt(Ring, RFStation, bunch_length)
 
@@ -954,12 +962,12 @@ def parabolic(Ring, RFStation, Beam,
     bin_energy = energy_array[1] - energy_array[0]
 
     # Density grid
-    isodensity_lines = ((dt_grid - bunch_position) / bunch_length * 2)**2. + \
-        ((deltaE_grid - bunch_energy) / energy_spread * 2)**2.
-    density_grid = 1 - isodensity_lines**2.
+    isodensity_lines = ((dt_grid - bunch_position) / bunch_length * 2) ** 2. + \
+                       ((deltaE_grid - bunch_energy) / energy_spread * 2) ** 2.
+    density_grid = 1 - isodensity_lines ** 2.
     density_grid[density_grid < 0] = 0
     density_grid /= np.sum(density_grid)
-    
+
     populate_bunch(Beam, dt_grid, deltaE_grid, density_grid, bin_dt,
                    bin_energy, seed)
 
@@ -987,12 +995,12 @@ def _get_dE_from_dt(Ring, RFStation, dt_amplitude):
     warnings.filterwarnings("once")
     if Ring.n_sections > 1:
         warnings.warn("WARNING in bigaussian(): the usage of several" +
-                        " sections is not yet implemented. Ignoring" +
-                        " all but the first!")
+                      " sections is not yet implemented. Ignoring" +
+                      " all but the first!")
     if RFStation.n_rf > 1:
         warnings.warn("WARNING in bigaussian(): the usage of multiple RF" +
-                        " systems is not yet implemented. Ignoring" +
-                        " higher harmonics!")
+                      " systems is not yet implemented. Ignoring" +
+                      " higher harmonics!")
 
     counter = RFStation.counter[0]
 
@@ -1010,12 +1018,12 @@ def _get_dE_from_dt(Ring, RFStation, dt_amplitude):
 
     # Calculate dE_amplitude from dt_amplitude using single-harmonic Hamiltonian
     voltage = RFStation.charge * \
-        RFStation.voltage[0, counter]
+              RFStation.voltage[0, counter]
     eta0 = RFStation.eta_0[counter]
 
     phi_b = omega_rf * dt_amplitude + phi_s
-    dE_amplitude = np.sqrt(voltage * energy * beta**2
-                        * (np.cos(phi_b) - np.cos(phi_s) + (phi_b - phi_s) * np.sin(phi_s))
-                        / (np.pi * harmonic * np.fabs(eta0)))
-    
+    dE_amplitude = np.sqrt(voltage * energy * beta ** 2
+                           * (np.cos(phi_b) - np.cos(phi_s) + (phi_b - phi_s) * np.sin(phi_s))
+                           / (np.pi * harmonic * np.fabs(eta0)))
+
     return dE_amplitude
