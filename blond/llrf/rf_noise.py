@@ -352,9 +352,8 @@ class LHCNoiseFB:
 
         if self.timers[1].counter == self.delay:
             # Write buffers using the first measurement
-            self.last_bqm_measurements = cp.array([self.bl_meas, self.bl_meas, self.bl_meas, self.bl_meas, self.bl_meas])
-            self.time_array = cp.array([self.timers[1].counter, self.timers[1].counter, self.timers[1].counter,
-                                        self.timers[1].counter, self.timers[1].counter])
+            self.last_bqm_measurements = cp.full(5, self.bl_meas)
+            self.time_array = cp.full(5, self.timers[1].counter)
             # Checks that the first bqm measurement was taken
             self.update_x = True
             return
