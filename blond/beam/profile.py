@@ -144,11 +144,12 @@ class CutOptions:
                 self.cut_right = mean_coords + self.n_sigma * sigma_coords / 2
 
         else:
-
-            self.cut_left = float(self.convert_coordinates(self.cut_left,
-                                                           self.cuts_unit))
-            self.cut_right = float(self.convert_coordinates(self.cut_right,
-                                                            self.cuts_unit))
+            try:
+                self.cut_left = float(self.convert_coordinates(self.cut_left, self.cuts_unit)[0])
+                self.cut_right = float(self.convert_coordinates(self.cut_right, self.cuts_unit)[0])
+            except (TypeError, IndexError):
+                self.cut_left = float(self.convert_coordinates(self.cut_left, self.cuts_unit))
+                self.cut_right = float(self.convert_coordinates(self.cut_right, self.cuts_unit))
 
         self.edges = np.linspace(self.cut_left, self.cut_right,
                                  self.n_slices + 1).astype(dtype=bm.precision.real_t, order='C', copy=False)
@@ -179,7 +180,7 @@ class CutOptions:
             return value
 
         elif input_unit_type == 'rad':
-            return value /\
+            return value / \
                 self.RFParams.omega_rf[0, self.RFParams.counter[0]]
 
     def get_slices_parameters(self):
@@ -265,7 +266,6 @@ class FitOptions:
 
 
 class FilterOptions:
-
     """
     This class defines the filter to be used turn after turn to smooth
     the bunch profile.
@@ -298,7 +298,6 @@ class FilterOptions:
 
 
 class OtherSlicesOptions:
-
     """
     This class groups all the remaining options for the Profile class.
 
@@ -496,7 +495,7 @@ class Profile:
         Constant space slicing with a constant frame.
         """
         bm.slice_beam(self.Beam.dt, self.n_macroparticles, self.cut_left,
-                 self.cut_right)
+                      self.cut_right)
 
         if bm.in_mpi():
             self.reduce_histo()
@@ -538,7 +537,6 @@ class Profile:
                 self.n_macroparticles = self.n_macroparticles.astype(
                     dtype=bm.precision.real_t, order='C', copy=False)
 
-
     def _slice_smooth(self, reduce=True):
         """
         At the moment 4x slower than _slice but smoother (filtered).
@@ -556,12 +554,12 @@ class Profile:
 
         if self.bunchLength == 0:
             p_0 = [float(self.n_macroparticles.max()),
-                  float(self.Beam.dt.mean()),
-                  float(self.Beam.dt.std())]
+                   float(self.Beam.dt.mean()),
+                   float(self.Beam.dt.std())]
         else:
             p_0 = [float(self.n_macroparticles.max()),
-                  float(self.bunchPosition),
-                  float(self.bunchLength / 4.)]
+                   float(self.bunchPosition),
+                   float(self.bunchLength / 4.)]
 
         self.fitExtraOptions = ffroutines.gaussian_fit(self.n_macroparticles,
                                                        self.bin_centers, p_0)
@@ -643,7 +641,7 @@ class Profile:
 
             derivative = ndimage.gaussian_filter1d(
                 self.n_macroparticles, sigma=1, order=1, mode='wrap') / \
-                dist_centers
+                         dist_centers
         elif mode == 'gradient':
             derivative = bm.gradient(self.n_macroparticles, dist_centers)
         elif mode == 'diff':

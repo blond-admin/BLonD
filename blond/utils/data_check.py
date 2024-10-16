@@ -88,7 +88,7 @@ def _check_number(input_data):
         _type_: _description_
     """
     try:
-        int(input_data)
+        int(input_data)  # todo DeprecationWarning: Conversion of an array with ndim > 0 to a scalar is deprecated, and will error in future. Ensure you extract a single element from your array before performing this operation. (Deprecated NumPy 1.25.)
         if isinstance(input_data, np.ndarray):
             raise TypeError
         return True
