@@ -17,7 +17,7 @@ def main():
         populate_folders(folder_read, py_version, read_py_version)
 
 
-def without_dot(s: str):
+def without_dot(s: str) -> str:
     return s.replace(".", "")
 
 
@@ -40,8 +40,10 @@ def populate_folders(folder_read: str, py_version_new: str, py_version_old: str)
     """
     folder_write = f"python{without_dot(py_version_new)}-cuda/"
     make_folder(folder_write)
+
     with open(folder_write + ".gitignore", "w") as f:
         pass
+
     for file in os.listdir(folder_read):
         with open(folder_read + file, "r") as f:
             content = f.read()
