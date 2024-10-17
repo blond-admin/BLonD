@@ -254,9 +254,7 @@ def music_track(dt: np.ndarray, dE: np.ndarray, induced_voltage: np.ndarray,
         array used to store the output of the computation
     array_parameters : float array
         See documentation in music.py
-    n_macroparticles : int
-        number of macro-particles
-    alpha, omega_bar, cnst, coeff1, coeff2, coeff3, coeff4 : floats
+    alpha, omega_bar, const, coeff1, coeff2, coeff3, coeff4 : floats
         See documentation in music.py
 
     Returns

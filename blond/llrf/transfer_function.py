@@ -111,6 +111,7 @@ class TransferFunction(object):
             Number of points in the spectrum
         f_s : float
             Sampling frequency [1/s]
+        plot: not used
 
         Returns
         -------

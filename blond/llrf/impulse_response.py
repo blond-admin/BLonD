@@ -453,21 +453,6 @@ class TravellingWaveCavity:
     def compute_wakes(self, time: np.ndarray) -> None:
         r"""Computes the wake fields towards the beam and generator on the
         central cavity frequency.
-
-        Parameters
-        ----------
-        time_beam : float
-            Time array of the beam to act on
-        time_gen : float
-            Time array of the generator to act on
-
-        Attributes
-        ----------
-        W_beam : float array
-            :math:`W_b(t)` [\Omega/s] as defined above
-        W_gen : float array
-            :math:`W_g(t)` [\Omega/s] as defined above
-
         """
 
         t_beam = time - time[0]

@@ -1923,7 +1923,7 @@ class LHCCavityLoop(CavityFeedback):
 
         Parameters
         ----------
-        peak_beam_current : float
+        real_peak_beam_current : float
             Peak RF beam current
         R_over_Q : float
             Cavity R/Q

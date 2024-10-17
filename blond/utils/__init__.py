@@ -112,12 +112,6 @@ class c_complex64(ct.Structure):
 
 def c_real(scalar: Union[float, int]) -> Union[ct.c_float, ct.c_double]:
     """Convert input to default precision.
-
-    Args:
-        x (_type_): _description_
-
-    Returns:
-        _type_: _description_
     """
     if precision.num == 1:
         return ct.c_float(scalar)
@@ -126,12 +120,6 @@ def c_real(scalar: Union[float, int]) -> Union[ct.c_float, ct.c_double]:
 
 def c_complex(scalar: complex):
     """Convert input to default precision.
-
-    Args:
-        x (_type_): _description_
-
-    Returns:
-        _type_: _description_
     """
     if precision.num == 1:
         return c_complex64(scalar)
