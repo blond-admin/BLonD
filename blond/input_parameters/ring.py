@@ -15,7 +15,6 @@
 from __future__ import annotations
 
 import warnings
-from builtins import range
 from typing import TYPE_CHECKING
 
 import numpy as np

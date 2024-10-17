@@ -15,7 +15,6 @@ Example script to take into account intensity effects from impedance tables
 
 
 import os
-from builtins import bytes, range, str
 
 import matplotlib as mpl
 import numpy as np

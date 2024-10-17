@@ -14,24 +14,23 @@ Example for the PSB with a narrow-band resonator, to check Robinson instability
 :Authors: **Juan F. Esteban Mueller**
 '''
 
-import time
-from blond.trackers.tracker import FullRingAndRF, RingAndRFTracker
-from blond.input_parameters.ring import Ring
-from blond.input_parameters.rf_parameters import RFStation
-from blond.impedances.impedance_sources import Resonators
-from blond.impedances.impedance import InducedVoltageFreq, TotalInducedVoltage
-from blond.beam.profile import CutOptions, Profile
-from blond.beam.distributions import matched_from_distribution_function
-from blond.beam.beam import Beam, Proton
-import blond.utils.bmath as bm
-from scipy.constants import c, e, m_p
-
 import os
-from builtins import range
+import time
 
 import matplotlib as mpl
 import numpy as np
 import pylab as plt
+from scipy.constants import c, e, m_p
+
+import blond.utils.bmath as bm
+from blond.beam.beam import Beam, Proton
+from blond.beam.distributions import matched_from_distribution_function
+from blond.beam.profile import CutOptions, Profile
+from blond.impedances.impedance import InducedVoltageFreq, TotalInducedVoltage
+from blond.impedances.impedance_sources import Resonators
+from blond.input_parameters.rf_parameters import RFStation
+from blond.input_parameters.ring import Ring
+from blond.trackers.tracker import FullRingAndRF, RingAndRFTracker
 
 mpl.use('Agg')
 

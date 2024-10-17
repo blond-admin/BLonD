@@ -15,11 +15,7 @@ No intensity effects
 '''
 #  General Imports
 
-from blond.utils.mpi_config import mpiprint, WORKER
-from blond.utils import bmath as bm
-
 import os
-from builtins import range
 
 import matplotlib as mpl
 import numpy as np
@@ -33,6 +29,8 @@ from blond.input_parameters.ring import Ring
 from blond.monitors.monitors import BunchMonitor
 from blond.plots.plot import Plot
 from blond.trackers.tracker import RingAndRFTracker
+from blond.utils import bmath as bm
+from blond.utils.mpi_config import mpiprint, WORKER
 
 mpl.use('Agg')
 

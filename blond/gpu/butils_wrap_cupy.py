@@ -9,13 +9,11 @@ from typing import TYPE_CHECKING
 import cupy as cp
 import numpy as np
 
-from . import GPU_DEV
-
 if TYPE_CHECKING:
     pass
 
 from blond.utils import precision
-from . import GPU_DEV
+from blond.gpu import GPU_DEV
 
 
 # TODO all typing

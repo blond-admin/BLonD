@@ -16,24 +16,23 @@ domain.
 '''
 
 
-from blond.trackers.tracker import RingAndRFTracker
-from blond.input_parameters.ring import Ring
-from blond.input_parameters.rf_parameters import RFStation
-from blond.impedances.impedance_sources import Resonators
-from blond.impedances.impedance import (InducedVoltageFreq, InducedVoltageTime,
-                                        TotalInducedVoltage)
-from blond.beam.profile import CutOptions, Profile
-from blond.beam.distributions import bigaussian
-from blond.beam.beam import Beam, Proton
-import blond.utils.bmath as bm
-from scipy.constants import c, e, m_p
 import os
-
-from builtins import range
 
 import matplotlib as mpl
 import numpy as np
 import pylab as plt
+from scipy.constants import c, e, m_p
+
+import blond.utils.bmath as bm
+from blond.beam.beam import Beam, Proton
+from blond.beam.distributions import bigaussian
+from blond.beam.profile import CutOptions, Profile
+from blond.impedances.impedance import (InducedVoltageFreq, InducedVoltageTime,
+                                        TotalInducedVoltage)
+from blond.impedances.impedance_sources import Resonators
+from blond.input_parameters.rf_parameters import RFStation
+from blond.input_parameters.ring import Ring
+from blond.trackers.tracker import RingAndRFTracker
 
 mpl.use('Agg')
 

@@ -14,11 +14,7 @@ Example script to take into account intensity effects from impedance tables
 '''
 
 
-from blond.utils.mpi_config import mpiprint, WORKER
-from blond.utils import bmath as bm
-
 import os
-from builtins import bytes, range, str
 
 import matplotlib as mpl
 import numpy as np
@@ -37,6 +33,8 @@ from blond.plots.plot import Plot
 from blond.plots.plot_impedance import (plot_impedance_vs_frequency,
                                         plot_induced_voltage_vs_bin_centers)
 from blond.trackers.tracker import RingAndRFTracker
+from blond.utils import bmath as bm
+from blond.utils.mpi_config import mpiprint, WORKER
 
 mpl.use('Agg')
 

@@ -16,13 +16,12 @@ No intensity effects
 #  General Imports
 
 import os
-from builtins import range
 
 import matplotlib as mpl
 import numpy as np
 
 from blond.beam.beam import Beam, Proton
-from blond.beam.distributions import bigaussian, parabolic
+from blond.beam.distributions import bigaussian
 from blond.beam.profile import CutOptions, FitOptions, Profile
 from blond.input_parameters.rf_parameters import RFStation
 #  BLonD Imports

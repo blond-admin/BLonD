@@ -15,10 +15,8 @@ Example for the PSB with a narrow-band resonator, to check Robinson instability
 '''
 
 
-import time
-
 import os
-from builtins import range
+import time
 
 import matplotlib as mpl
 import numpy as np

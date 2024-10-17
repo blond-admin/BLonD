@@ -13,7 +13,6 @@ RF bucket is considered.**
 :Authors: **Helga Timko**
 '''
 
-from builtins import range
 from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
@@ -22,8 +21,8 @@ import scipy.integrate as int
 from pylab import cm
 from scipy.special import ellipk
 
+from blond.toolbox.action import x2, action_from_phase_amplitude
 from blond.utils.legacy_support import handle_legacy_kwargs
-from .action import x2, action_from_phase_amplitude
 
 if TYPE_CHECKING:
     from typing import Union

@@ -17,11 +17,7 @@ domain, and with an inductive impedance.
 
 
 
-from blond.utils.mpi_config import mpiprint, WORKER
-from blond.utils import bmath as bm
-
 import os
-from builtins import range
 
 import matplotlib as mpl
 import numpy as np
@@ -38,6 +34,8 @@ from blond.impedances.impedance_sources import Resonators
 from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
 from blond.trackers.tracker import RingAndRFTracker
+from blond.utils import bmath as bm
+from blond.utils.mpi_config import mpiprint, WORKER
 
 mpl.use('Agg')
 

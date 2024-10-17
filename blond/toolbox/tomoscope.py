@@ -15,7 +15,6 @@ probability density.**
 
 import linecache
 import os
-from builtins import str
 
 import h5py as hp
 import matplotlib.cm as cm

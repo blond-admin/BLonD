@@ -15,23 +15,22 @@ No intensity effects
 '''
 
 
-from blond.utils.mpi_config import mpiprint, WORKER
-from blond.utils import bmath as bm
-from blond.trackers.tracker import RingAndRFTracker
-from blond.plots.plot import Plot
-from blond.monitors.monitors import BunchMonitor
-from blond.input_parameters.ring import Ring
-from blond.input_parameters.rf_parameters import RFStation
-from blond.beam.profile import CutOptions, Profile
-from blond.beam.distributions import bigaussian
-from blond.beam.beam import Beam, Particle
-import numpy as np
-import matplotlib as mpl
 import os
 
-from builtins import range
-
+import matplotlib as mpl
+import numpy as np
 from scipy.constants import physical_constants
+
+from blond.beam.beam import Beam, Particle
+from blond.beam.distributions import bigaussian
+from blond.beam.profile import CutOptions, Profile
+from blond.input_parameters.rf_parameters import RFStation
+from blond.input_parameters.ring import Ring
+from blond.monitors.monitors import BunchMonitor
+from blond.plots.plot import Plot
+from blond.trackers.tracker import RingAndRFTracker
+from blond.utils import bmath as bm
+from blond.utils.mpi_config import mpiprint, WORKER
 
 # Atomic Mass Unit [eV]
 u = physical_constants['atomic mass unit-electron volt relationship'][0]

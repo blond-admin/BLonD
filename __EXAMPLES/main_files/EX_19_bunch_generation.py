@@ -16,7 +16,6 @@ Test case for the bunch generation routines. Example for the LHC at 7 TeV.
 
 
 import os
-from builtins import str
 
 import matplotlib as mpl
 import numpy as np

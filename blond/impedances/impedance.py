@@ -16,7 +16,6 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from builtins import range
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -25,7 +24,6 @@ from scipy.constants import e
 from blond.toolbox.next_regular import next_regular
 from blond.utils import bmath as bm
 from blond.utils.abstracts import TrackableBaseClass
-
 from blond.utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:

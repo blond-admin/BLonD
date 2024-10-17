@@ -16,7 +16,6 @@ No intensity effects
 #  General Imports
 
 import os
-from builtins import range
 
 import matplotlib as mpl
 import numpy as np

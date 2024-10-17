@@ -15,7 +15,6 @@
 
 from __future__ import annotations
 
-from builtins import range, str
 from typing import TYPE_CHECKING
 
 import numpy as np

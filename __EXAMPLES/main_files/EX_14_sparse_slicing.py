@@ -14,10 +14,8 @@ Example for the FCC-ee at 175 GeV.
 :Authors: **Juan F. Esteban Mueller**
 '''
 
-import time
-
 import os
-from builtins import range
+import time
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt

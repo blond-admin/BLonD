@@ -8,9 +8,7 @@ BLonD math and physics core functions
 import numpy as np
 from numpy import *  # todo the namespaces are overwritten by the functions below
 
-from blond.utils import butils_wrap_cpp as _cpp
-from blond.utils import butils_wrap_python as _py
-from . import precision
+from blond.utils import butils_wrap_cpp as _cpp, butils_wrap_python as _py, precision
 
 
 def use_cpp() -> None:

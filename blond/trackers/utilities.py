@@ -18,13 +18,11 @@ from __future__ import annotations
 
 import copy
 import warnings
-from builtins import range
 from typing import TYPE_CHECKING
 
 import numpy as np
 import scipy
 from packaging.version import Version
-from blond.utils.abstracts import TrackableBaseClass
 from scipy.constants import c
 
 from blond.utils.legacy_support import handle_legacy_kwargs
