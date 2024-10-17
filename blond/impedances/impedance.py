@@ -310,14 +310,15 @@ class _InducedVoltage:
                 self.omegaj_mtw = 2.0j * np.pi * self.freq_mtw
                 # Selecting time-shift method
                 self.shift_trev = self.shift_trev_freq
-            else:
+            if self.mtw_mode == 'time':
                 # Selecting time-shift method
                 self.shift_trev = self.shift_trev_time
                 # Time array
                 self.time_mtw = np.linspace(0, self.wake_length,
                                             self.n_mtw_memory, endpoint=False,
                                             dtype=bm.precision.real_t)
-
+            else:
+                raise NameError(self.mtw_mode)
             # Array to add and shift in time the multi-turn wake over the turns
             self.mtw_memory = np.zeros(self.n_mtw_memory,
                                        dtype=bm.precision.real_t, order='C')
@@ -447,7 +448,7 @@ class InducedVoltageTime(_InducedVoltage):
     """
 
     def __init__(self, Beam, Profile, wake_source_list, wake_length=None,
-                 multi_turn_wake=False, RFParams=None, mtw_mode=None,
+                 multi_turn_wake=False, RFParams=None, mtw_mode: Literal["freq", "time"] = 'time',
                  use_regular_fft=True):
 
         # Wake sources list (e.g. list of Resonator objects)
@@ -606,7 +607,7 @@ class InducedVoltageFreq(_InducedVoltage):
 
     def __init__(self, Beam, Profile, impedance_source_list,
                  frequency_resolution=None, multi_turn_wake=False,
-                 front_wake_length=0, RFParams=None, mtw_mode=None,
+                 front_wake_length=0, RFParams=None, mtw_mode: Literal["freq", "time"] = 'time',
                  use_regular_fft=True):
 
         # Impedance sources list (e.g. list of Resonator objects)
@@ -906,7 +907,7 @@ class InducedVoltageResonator(_InducedVoltage):
         # Call the __init__ method of the parent class [calls process()]
         _InducedVoltage.__init__(self, Beam, Profile, wake_length=None,
                                  frequency_resolution=None,
-                                 multi_turn_wake=False, RFParams=None, mtw_mode=None)
+                                 multi_turn_wake=False, RFParams=None, mtw_mode='time')
 
     def process(self):
         r"""
