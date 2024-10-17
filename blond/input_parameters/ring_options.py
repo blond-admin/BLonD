@@ -17,12 +17,12 @@
 from __future__ import division, annotations
 
 from builtins import range, str
+from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.constants import c
 from scipy.interpolate import splev, splrep, Akima1DInterpolator
-from typing import TYPE_CHECKING
 
 from ..plots.plot import fig_folder
 
@@ -279,9 +279,8 @@ class RingOptions:
 
                 else:
                     # InputDataError
-                    raise RuntimeError("ERROR in Ring: The input data " +
-                                       "does not match the proper length " +
-                                       "(n_turns+1)")
+                    raise RuntimeError("ERROR in Ring: The 'input_data'" +
+                                       f"should have {(n_turns+1)=} entries, but shape is {input_data.shape=}")
 
         return output_data
 
@@ -309,7 +308,8 @@ class RingOptions:
             Interpolated momentum [eV/c]
 
         """
-
+        time = np.array(time)
+        momentum = np.array(momentum)
         # Some checks on the options
         if ((self.t_start is not None) and (self.t_start < time[0])) or \
                 ((self.t_end is not None) and (self.t_end > time[-1])):

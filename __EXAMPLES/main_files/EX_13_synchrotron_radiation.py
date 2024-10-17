@@ -33,6 +33,9 @@ from blond.synchrotron_radiation.synchrotron_radiation import \
     SynchrotronRadiation
 from blond.trackers.tracker import FullRingAndRF, RingAndRFTracker
 
+DRAFT_MODE = bool(int(os.environ.get("BLOND_EXAMPLES_DRAFT_MODE", False)))
+# To check if executing correctly, rather than to run the full simulation
+
 mpl.use('Agg')
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
@@ -45,7 +48,7 @@ os.makedirs(this_directory + '../output_files/EX_13_fig/', exist_ok=True)
 # Beam parameters
 particle_type = Electron()
 n_particles = int(1.7e11)
-n_macroparticles = int(1e5)
+n_macroparticles = int(1001)  if DRAFT_MODE else int(1e5)
 sync_momentum = 175e9  # [eV]
 
 
@@ -136,7 +139,8 @@ map_ += [slice_beam]
 
 avg_dt = np.zeros(n_turns)
 std_dt = np.zeros(n_turns)
-
+if DRAFT_MODE:
+    n_turns = 5
 for i in range(n_turns):
     for m in map_:
         m.track()

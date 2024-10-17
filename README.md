@@ -1,4 +1,9 @@
+<div align="center">
+<img src="BLonD2_centered.png" alt="drawing" width="300"/>
+</div>
+
 [![Pipeline Status](https://gitlab.cern.ch/blond/BLonD/badges/master/pipeline.svg)](https://gitlab.cern.ch/blond/BLonD/-/commits/master) [![Coverage Report](https://gitlab.cern.ch/blond/BLonD/badges/master/coverage.svg)](https://gitlab.cern.ch/blond/BLonD/-/commits/master) [![Latest Release](https://gitlab.cern.ch/blond/BLonD/-/badges/release.svg)](https://gitlab.cern.ch/blond/BLonD/-/releases) [![PyPi](https://img.shields.io/pypi/v/blond.svg)](https://pypi.org/project/blond/) [![Python](https://img.shields.io/badge/python-3.6%20%7C%203.7%20%7C%203.8%20%7C%203.9-blue)](https://www.python.org) [![Documentation Pages](https://img.shields.io/badge/docs-sphinx-blue)](https://blond-code.docs.cern.ch/)
+
 
 # Beam Longitudinal Dynamics Code (BLonD)
 
@@ -390,9 +395,21 @@ supported. `fft_convolve()` to be added soon.
     `TotalInducedVoltage` object and the objects in its
     `induced_voltage_list`.
 
+# Contributing to BLonD
+We welcome contributions from the beam physics community to enhance the capabilities and features of BLonD.
+
+For contribution as developer:
+1. Create an [GitLab issue](https://gitlab.cern.ch/blond/BLonD/-/issues) and describe what you want to improve, fix, adapt, etc.
+2. Create a branch from your issue by clicking the upper right blue button on your issue page.
+3. Checkout your branch with your programming suite (or with the terminal: `git checkout https://gitlab.cern.ch/blond/BLonD/-/issues/YOUR-BRANCH`).
+4. Commit and push your changes to your branch until satisfaction.
+5. Create a merge request in GitLab from `YOUR-BRANCH` to `develop`.
+6. Your code will be reviewed and finally be merged.
+
 # Developers
 
 -   Simon Albright (simon.albright (at) cern.ch)
+-   Simon Lauber (simon.fabian.lauber (at) cern.ch)
 -   Theodoros Argyropoulos (theodoros.argyropoulos (at) cern.ch)
 -   Konstantinos Iliakis (konstantinos.iliakis (at) cern.ch)
 -   Ivan Karpov (ivan.karpov (at) cern.ch)
