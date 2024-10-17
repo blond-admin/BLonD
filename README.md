@@ -1,6 +1,6 @@
-<p align="center">
-<img src="BLonD2_bt_centered.png" alt="drawing" width="300"/>
-</p>
+<div align="center">
+<img src="BLonD2_centered.png" alt="drawing" width="300"/>
+</div>
 
 [![Pipeline Status](https://gitlab.cern.ch/blond/BLonD/badges/master/pipeline.svg)](https://gitlab.cern.ch/blond/BLonD/-/commits/master) [![Coverage Report](https://gitlab.cern.ch/blond/BLonD/badges/master/coverage.svg)](https://gitlab.cern.ch/blond/BLonD/-/commits/master) [![Latest Release](https://gitlab.cern.ch/blond/BLonD/-/badges/release.svg)](https://gitlab.cern.ch/blond/BLonD/-/releases) [![PyPi](https://img.shields.io/pypi/v/blond.svg)](https://pypi.org/project/blond/) [![Python](https://img.shields.io/badge/python-3.6%20%7C%203.7%20%7C%203.8%20%7C%203.9-blue)](https://www.python.org) [![Documentation Pages](https://img.shields.io/badge/docs-sphinx-blue)](https://blond-code.docs.cern.ch/)
 
