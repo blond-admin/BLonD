@@ -7,11 +7,11 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 **Transfer function analysis for open and closed loop**
 
 :Authors: **Jelena Banjac, Helga Timko**
-'''
+"""
 
 # Set up logging
 import logging
@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 class TransferFunction(object):
-    r'''Reconstructing the transfer function of a DUT based on input and output
+    r"""Reconstructing the transfer function of a DUT based on input and output
     signals.
 
     Parameters
@@ -39,7 +39,7 @@ class TransferFunction(object):
         sampling time
     plot : bool
         Enable/disable plotting; default is False
-    '''
+    """
 
     def __init__(self, signal_in, signal_out, T_s, plot=False):
 

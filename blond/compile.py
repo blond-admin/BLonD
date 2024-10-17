@@ -6,10 +6,10 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 
 @author: Danilo Quartullo, Konstantinos Iliakis
-'''
+"""
 
 # MAKE SURE YOU HAVE GCC 4.8.1 OR LATER VERSIONS ON YOUR SYSTEM LINKED TO YOUR
 # SYSTEM PATH.IF YOU ARE ON CERN-LXPLUS YOU CAN TYPE FROM CONSOLE
@@ -26,8 +26,8 @@ import sys
 
 
 def main():
-    '''Compiles the blond C++ and/or CUDA library.
-    '''
+    """Compiles the blond C++ and/or CUDA library.
+    """
     path = os.path.realpath(__file__)
     basepath = os.sep.join(path.split(os.sep)[:-1])
 

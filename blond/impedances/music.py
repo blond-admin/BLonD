@@ -6,9 +6,9 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 :Authors: **Danilo Quartullo, Konstantinos Iliakis**
-'''
+"""
 
 from __future__ import annotations
 

@@ -6,11 +6,11 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 **Module to save beam statistics in h5 files**
 
 :Authors: **Danilo Quartullo**, **Helga Timko**
-'''
+"""
 
 from __future__ import annotations
 
@@ -35,12 +35,12 @@ if TYPE_CHECKING:
 
 
 class BunchMonitor(TrackableBaseClass):
-    ''' Class able to save bunch data into h5 file. Use 'buffer_time' to select
+    """ Class able to save bunch data into h5 file. Use 'buffer_time' to select
         the frequency of saving to file in number of turns.
         If in the constructor a Profile object is passed, that means that one
         wants to save the gaussian-fit bunch length as well (obviously the 
         Profile object has to have the fit_option set to 'gaussian').
-    '''  # todo docstring
+    """  # todo docstring
 
     @handle_legacy_kwargs
     def __init__(self, ring: Ring, rf_parameters: RFStation, beam: Beam,

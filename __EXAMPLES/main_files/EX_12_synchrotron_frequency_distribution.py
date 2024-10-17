@@ -8,14 +8,14 @@
 # Project website: http://blond.web.cern.ch/
 
 
-'''
+"""
 Test case for the synchrotron frequency distribution routine in the utilities
 of the tracker module.
 Example for the LHC at 7 TeV. Single RF, double RF in BSM and BLM, and with
 intensity effects. Comparison with analytical formula.
 
 :Authors: **Juan F. Esteban Mueller**
-'''
+"""
 
 
 import os

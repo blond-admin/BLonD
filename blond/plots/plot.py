@@ -6,11 +6,11 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 **Class to choose plots and customize plot layout**
 
 :Authors: **Helga Timko**
-'''
+"""
 
 from __future__ import annotations
 
@@ -44,9 +44,9 @@ if TYPE_CHECKING:
 
 
 def fig_folder(dirname):
-    '''
+    """
     Create folder where plots will be stored.
-    '''
+    """
 
     # Try to create directory
     try:
@@ -180,11 +180,11 @@ class Plot(TrackableBaseClass):
         self.phase_loop = val
 
     def set_format(self, format_options: Union[dict, None]):
-        '''
+        """
         Initialize plot folder and custom plot formatting. For more options, see
 
         http://matplotlib.org/1.3.1/users/customizing.html
-        '''
+        """
 
         if format_options is None:
             format_options = {'dummy': 0}
@@ -260,9 +260,9 @@ class Plot(TrackableBaseClass):
         plt.rc('font', family=self.ffamily)
 
     def track(self):
-        '''
+        """
         Plot in certain time steps and depending on imported objects
-        '''
+        """
 
         # Snapshot-type plots
         if (self.tstep[0] % self.dt_plot) == 0:

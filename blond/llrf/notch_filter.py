@@ -6,11 +6,11 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 **Method to apply a notch filter to a specified impedance source**
 
 :Authors: **Danilo Quartullo**
-'''
+"""
 
 import numpy as np
 

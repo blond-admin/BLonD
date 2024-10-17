@@ -7,12 +7,12 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 **Various beam phase loops with optional synchronisation/frequency/radial loops
 for the CERN machines**
 
 :Authors: **Helga Timko**, **Alexandre Lasheen**
-'''
+"""
 
 from __future__ import annotations
 
@@ -34,12 +34,12 @@ if TYPE_CHECKING:
 
 
 class BeamFeedback(TrackableBaseClass):
-    '''
-    One-turn beam phase loop for different machines with different hardware. 
-    Use 'period' for a phase loop that is active only in certain turns. 
+    """
+    One-turn beam phase loop for different machines with different hardware.
+    Use 'period' for a phase loop that is active only in certain turns.
     The phase loop acts directly on the RF frequency of all harmonics and
     affects the RF phase as well.
-    '''
+    """
 
     @handle_legacy_kwargs
     def __init__(self,
@@ -244,10 +244,10 @@ class BeamFeedback(TrackableBaseClass):
 
     @handle_legacy_kwargs
     def precalculate_time(self, ring: Ring):
-        '''
+        """
         *For machines like the PSB, where the PL acts only in certain time
         intervals, pre-calculate on which turns to act.*
-        '''
+        """
 
         if self.dt > 0:
             n = self.delay + 1
@@ -265,13 +265,13 @@ class BeamFeedback(TrackableBaseClass):
             self.on_time = np.arange(ring.t_rev.size)
 
     def beam_phase(self) -> None:
-        '''
-        *Beam phase measured at the main RF frequency and phase. The beam is 
-        convolved with the window function of the band-pass filter of the 
-        machine. The coefficients of sine and cosine components determine the 
+        """
+        *Beam phase measured at the main RF frequency and phase. The beam is
+        convolved with the window function of the band-pass filter of the
+        machine. The coefficients of sine and cosine components determine the
         beam phase, projected to the range -Pi/2 to 3/2 Pi. Note that this beam
         phase is already w.r.t. the instantaneous RF phase.*
-        '''
+        """
 
         # Main RF frequency at the present turn
         omega_rf = self.rf_station.omega_rf[0, self.rf_station.counter[0]]
@@ -293,12 +293,12 @@ class BeamFeedback(TrackableBaseClass):
         self.phi_beam = np.arctan(coeff) + np.pi
 
     def beam_phase_sharpWindow(self):
-        '''
+        """
         *Beam phase measured at the main RF frequency and phase. The beam is
         averaged over a window. The coefficients of sine and cosine components
         determine the beam phase, projected to the range -Pi/2 to 3/2 Pi.
         Note that this beam phase is already w.r.t. the instantaneous RF phase.*
-        '''
+        """
 
         # Main RF frequency at the present turn
         turn = self.rf_station.counter[0]
@@ -328,10 +328,10 @@ class BeamFeedback(TrackableBaseClass):
         self.phi_beam = np.arctan(scoeff / ccoeff) + np.pi
 
     def phase_difference(self):
-        '''
+        """
         *Phase difference between beam and RF phase of the main RF system.
         Optional: add RF phase noise through dphi directly.*
-        '''
+        """
 
         # Correct for design stable phase
         counter = self.rf_station.counter[0]
@@ -348,9 +348,9 @@ class BeamFeedback(TrackableBaseClass):
                     self.dphi += self.RFnoise.dphi[counter]
 
     def radial_difference(self):
-        '''
+        """
         *Radial difference between beam and design orbit.*
-        '''
+        """
 
         counter = self.rf_station.counter[0]
 
@@ -366,9 +366,9 @@ class BeamFeedback(TrackableBaseClass):
                      * self.ring.energy[0, counter])
 
     def radial_steering_from_freq(self):
-        '''
+        """
         *Frequency and phase change for the current turn due to the radial steering program.*
-        '''
+        """
 
         counter = self.rf_station.counter[0]
 
@@ -392,21 +392,21 @@ class BeamFeedback(TrackableBaseClass):
         self.rf_station.phi_rf[:, counter] += self.rf_station.dphi_rf_steering
 
     def LHC_F(self):
-        '''
+        """
         Calculation of the LHC RF frequency correction from the phase difference
         between beam and RF (actual synchronous phase). The transfer function is
 
         .. math::
-            \\Delta \\omega_{rf}^{PL} = - g_{PL} (\\Delta\\varphi_{PL} + \\phi_{N}) 
+            \\Delta \\omega_{rf}^{PL} = - g_{PL} (\\Delta\\varphi_{PL} + \\phi_{N})
 
-        where the phase noise for the controlled blow-up can be optionally 
-        activated.  
+        where the phase noise for the controlled blow-up can be optionally
+        activated.
         Using 'gain2', a frequency loop can be activated in addition to remove
         long-term frequency drifts:
 
         .. math::
-            \\Delta \\omega_{rf}^{FL} = - g_{FL} (\\omega_{rf} - h \\omega_{0})    
-        '''
+            \\Delta \\omega_{rf}^{FL} = - g_{FL} (\\omega_{rf} - h \\omega_{0})
+        """
 
         counter = self.rf_station.counter[0]
 
@@ -420,11 +420,11 @@ class BeamFeedback(TrackableBaseClass):
                                          self.reference)
 
     def SPS_F(self):
-        '''
+        """
         Calculation of the SPS RF frequency correction from the phase
-        difference between beam and RF (actual synchronous phase). Same as 
+        difference between beam and RF (actual synchronous phase). Same as
         LHC_F, except the calculation of the beam phase.
-        '''
+        """
 
         counter = self.rf_station.counter[0]
 
@@ -439,18 +439,18 @@ class BeamFeedback(TrackableBaseClass):
         self.domega_rf = self.domega_dphi + self.domega_df
 
     def SPS_RL(self):
-        '''
+        """
         Calculation of the SPS RF frequency correction from the phase difference
         between beam and RF (actual synchronous phase). The transfer function is
 
         .. math::
-            \\Delta \\omega_{rf}^{PL} = - g_{PL} (\\Delta\\varphi_{PL} + \\phi_{N}) 
+            \\Delta \\omega_{rf}^{PL} = - g_{PL} (\\Delta\\varphi_{PL} + \\phi_{N})
 
-        where the phase noise for the controlled blow-up can be optionally 
-        activated.  
+        where the phase noise for the controlled blow-up can be optionally
+        activated.
         Using 'gain2', a radial loop can be activated in addition to remove
         long-term frequency drifts
-        '''
+        """
 
         counter = self.rf_station.counter[0]
 
@@ -469,17 +469,17 @@ class BeamFeedback(TrackableBaseClass):
         self.domega_rf = self.domega_dphi + self.domega_dR
 
     def LHC(self):
-        '''
+        """
         Calculation of the LHC RF frequency correction from the phase difference
         between beam and RF (actual synchronous phase). The transfer function is
 
         .. math::
-            \\Delta \\omega_{rf}^{PL} = - g_{PL} (\\Delta\\varphi_{PL} + \\phi_{N}) 
+            \\Delta \\omega_{rf}^{PL} = - g_{PL} (\\Delta\\varphi_{PL} + \\phi_{N})
 
-        where the phase noise for the controlled blow-up can be optionally 
-        activated.  
+        where the phase noise for the controlled blow-up can be optionally
+        activated.
         Using 'gain2', a synchro loop can be activated in addition to remove
-        long-term frequency drifts:     
+        long-term frequency drifts:
 
         .. math::
             \\Delta \\omega_{rf}^{SL} = - g_{SL} (y + a \\Delta\\varphi_{rf}) ,
@@ -497,7 +497,7 @@ class BeamFeedback(TrackableBaseClass):
 
         .. math::
             \\tau(f_s) \\equiv 2 \\pi Q_s \\sqrt{ \\frac{a}{1 + \\frac{g_{PL}}{g_{SL}} \\sqrt{\\frac{1 + 1/a}{1 + a}} }}
-        '''
+        """
 
         counter = self.rf_station.counter[0]
         dphi_rf = self.rf_station.dphi_rf[0]
@@ -516,9 +516,9 @@ class BeamFeedback(TrackableBaseClass):
                      (dphi_rf + self.reference)
 
     def PSB(self):
-        '''
+        """
         Phase and radial loops for PSB. See documentation on-line for details.
-        '''
+        """
 
         # Average phase error while frequency is updated
         counter = self.rf_station.counter[0]
@@ -563,9 +563,9 @@ class BeamFeedback(TrackableBaseClass):
         self.domega_rf = - self.domega_PL - self.domega_RL
 
     def to_gpu(self, recursive=True):
-        '''
+        """
         Transfer all necessary arrays to the GPU
-        '''
+        """
         # Check if to_gpu has been invoked already
         if hasattr(self, '_device') and self._device == 'GPU':
             return
@@ -576,9 +576,9 @@ class BeamFeedback(TrackableBaseClass):
         self._device: DeviceType = 'GPU'
 
     def to_cpu(self, recursive=True):
-        '''
+        """
         Transfer all necessary arrays back to the CPU
-        '''
+        """
         # Check if to_cpu has been invoked already
         if hasattr(self, '_device') and self._device == 'CPU':
             return

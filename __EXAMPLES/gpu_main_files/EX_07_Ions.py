@@ -7,12 +7,12 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 Example input for simulation of ion dynamics
 No intensity effects
 
 :Authors: **Alexandre Lasheen**
-'''
+"""
 
 
 import os

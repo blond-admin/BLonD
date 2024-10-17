@@ -7,11 +7,11 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 **Sanity check. Run before committing**
 
 :Authors: **Helga Timko, Konstantinos Iliakis**
-'''
+"""
 
 import argparse
 import subprocess

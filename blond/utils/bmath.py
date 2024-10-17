@@ -1,9 +1,9 @@
-'''
+"""
 BLonD math and physics core functions
 
 @author Stefan Hegglin, Konstantinos Iliakis, Panagiotis Tsapatsaris, Georgios Typaldos
 @date 20.10.2017
-'''
+"""
 
 import numpy as np
 from numpy import *  # todo the namespaces are overwritten by the functions below
@@ -12,9 +12,9 @@ from blond.utils import butils_wrap_cpp as _cpp, butils_wrap_python as _py, prec
 
 
 def use_cpp() -> None:
-    '''
+    """
     Replace all python functions by there equivalent in cpp
-    '''
+    """
     # dictionary storing the CPP versions of the most compute intensive functions #
     cpp_func_dict = {
         'rfft': np.fft.rfft,
@@ -78,9 +78,9 @@ def use_cpp() -> None:
 
 
 def use_numba():
-    '''
+    """
     Replace all python functions by their equivalent in numba
-    '''
+    """
 
     from blond.utils import butils_wrap_numba as _nu
 
@@ -127,9 +127,9 @@ def use_numba():
 
 
 def use_py():
-    '''
+    """
     Replace all python functions by there equivalent in python
-    '''
+    """
 
     # dictionary storing the Python-only versions of the most compute intensive functions #
     py_func_dict = {
@@ -174,9 +174,9 @@ def use_py():
 
 
 def use_cpu() -> None:
-    '''
+    """
     If not library is found, use the python implementations
-    '''
+    """
     # from blond. import get_libblond
     if _cpp.get_libblond() is None:
         try:  # try to use numba
@@ -190,9 +190,9 @@ def use_cpu() -> None:
 
 
 def use_mpi():
-    '''
+    """
     Replace some bm functions with MPI implementations
-    '''
+    """
 
     mpi_func_dict = {
         'device': 'CPU_MPI'
@@ -210,10 +210,10 @@ def in_mpi() -> bool:
 
 
 def use_fftw() -> None:
-    '''
+    """
     Replace the existing rfft and irfft implementations
     with the ones coming from _cpp.
-    '''
+    """
     print('---------- Using the FFTW FFT library ----------')
 
     fftw_func_dict = {
@@ -244,13 +244,13 @@ def use_precision(_precision='double'):
 
 
 def __update_active_dict(new_dict):
-    '''
+    """
     Update the currently active dictionary. Removes the keys of the currently
     active dictionary from globals() and spills the keys
     from new_dict to globals()
     Args:
         new_dict A dictionary which contents will be spilled to globals()
-    '''
+    """
     if not hasattr(__update_active_dict, 'active_dict'):
         __update_active_dict.active_dict = new_dict
 

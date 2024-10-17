@@ -814,9 +814,9 @@ def __distribution_function_by_exponent(action_array: np.ndarray, exponent: floa
 
 
 def distribution_function(action_array, dist_type, length, exponent=None):
-    '''
+    """
     *Distribution function (formulas from Laclare).*
-    '''
+    """
 
     if dist_type == 'waterbag':
         if exponent is not None:
@@ -864,9 +864,9 @@ def __line_density_by_exponent(bunch_length: float,
 
 def line_density(coord_array, dist_type, bunch_length, bunch_position: float = 0.0,
                  exponent: Union[float, None] = None):
-    '''
+    """
     *Line density*
-    '''
+    """
 
     if dist_type == 'waterbag':
         if exponent is not None:

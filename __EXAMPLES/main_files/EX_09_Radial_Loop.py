@@ -7,11 +7,11 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 Test case to show how to use radial loop (CERN PS Booster context).
 
 :Authors: **Danilo Quartullo**
-'''
+"""
 
 
 import os

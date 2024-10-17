@@ -7,12 +7,12 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 Test case for the bunch generation routines for multi bunch.
 Example for the LHC at 7 TeV.
 
 :Authors: **Juan F. Esteban Mueller**
-'''
+"""
 
 
 

@@ -7,12 +7,12 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
-Test case to show the consequences of omega_rf != h*omega_rev  
+"""
+Test case to show the consequences of omega_rf != h*omega_rev
 (CERN PS Booster context).
 
 :Authors: **Danilo Quartullo**
-'''
+"""
 
 
 import os

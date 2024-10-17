@@ -6,12 +6,12 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 **Module to compute intensity effects**
 
 :Authors: **Juan F. Esteban Mueller**, **Danilo Quartullo**,
           **Alexandre Lasheen**, **Markus Schwarz**
-'''
+"""
 
 from __future__ import annotations
 
@@ -589,9 +589,9 @@ class InducedVoltageTime(_InducedVoltage):
         self.total_impedance = bm.rfft(self.total_wake, self.n_fft)
 
     def to_gpu(self, recursive=True):
-        '''
+        """
         Transfer all necessary arrays to the GPU
-        '''
+        """
         # Check if to_gpu has been invoked already
         if self._device == 'GPU':
             return
@@ -618,9 +618,9 @@ class InducedVoltageTime(_InducedVoltage):
         self._device: DeviceType = 'GPU'
 
     def to_cpu(self, recursive=True):
-        '''
+        """
         Transfer all necessary arrays back to the CPU
-        '''
+        """
         # Check if to_cpu has been invoked already
         if self._device == 'CPU':
             return
@@ -868,9 +868,9 @@ class InductiveImpedance(_InducedVoltage):
             dtype=bm.precision.real_t, order='C', copy=False)
 
     def to_gpu(self, recursive=True):
-        '''
+        """
         Transfer all necessary arrays to the GPU
-        '''
+        """
         # Check if to_gpu has been invoked already
         if hasattr(self, '_device') and self._device == 'GPU':
             return
@@ -882,9 +882,9 @@ class InductiveImpedance(_InducedVoltage):
         self._device: DeviceType = 'GPU'
 
     def to_cpu(self, recursive=True):
-        '''
+        """
         Transfer all necessary arrays back to the CPU
-        '''
+        """
         # Check if to_cpu has been invoked already
         if hasattr(self, '_device') and self._device == 'CPU':
             return
@@ -1061,9 +1061,9 @@ class InducedVoltageResonator(_InducedVoltage):
         return 0.5 * (bm.sign(x) + 1.)
 
     def to_gpu(self, recursive=True):
-        '''
+        """
         Transfer all necessary arrays to the GPU
-        '''
+        """
         # Check if to_gpu has been invoked already
         if hasattr(self, '_device') and self._device == 'GPU':
             return
@@ -1078,9 +1078,9 @@ class InducedVoltageResonator(_InducedVoltage):
         self._device: DeviceType = 'GPU'
 
     def to_cpu(self, recursive=True):
-        '''
+        """
         Transfer all necessary arrays back to the CPU
-        '''
+        """
         # Check if to_cpu has been invoked already
         if hasattr(self, '_device') and self._device == 'CPU':
             return

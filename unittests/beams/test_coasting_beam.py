@@ -7,10 +7,10 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 Unit-tests for coasting beam generation.
 
-'''
+"""
 
 import unittest
 

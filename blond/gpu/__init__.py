@@ -1,9 +1,9 @@
-'''
+"""
 Basic methods and objects related to the GPU computational core.
 
 @author: Konstantinos Iliakis
 @date: 25.05.2023
-'''
+"""
 
 import os
 

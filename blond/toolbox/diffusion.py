@@ -6,12 +6,12 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 **Numerical diffusion model based on Ivanov (1992). Stationary single-harmonic
 RF bucket is considered.**
 
 :Authors: **Helga Timko**
-'''
+"""
 
 from typing import TYPE_CHECKING
 
@@ -35,17 +35,17 @@ if TYPE_CHECKING:
 def phase_noise_diffusion(ring: Ring, rf_station: RFStation, spectrum: np.ndarray, distribution: np.ndarray,
                           distributionBins: np.ndarray, Ngrids: int = 200, M: int = 1,
                           iterations: int = 100000, figdir: Union[PathLike, str, None] = None):
-    '''
+    """
     Calculate diffusion in action space according to a given double-sided phase
     noise spectrum, on a uniform grid in oscillation amplitude.
     The spectrum is defined on the grid points (Ngrids + 1 points) for all M.
-    The particle distribution in action is defined on the grids (Ngrids points). 
+    The particle distribution in action is defined on the grids (Ngrids points).
     Returns the diffused action distribution.
     Optional: define number of side-bands (M) to be taken into account, default
-    is M = 1; N.B. this will only give impair modes for phase noise. 
+    is M = 1; N.B. this will only give impair modes for phase noise.
     Optional: number of iterations to track.
     Optional: save figures into directory 'figdir'.
-    '''
+    """
 
     # Input check
     N = Ngrids

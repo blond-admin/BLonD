@@ -6,11 +6,11 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 **Module to plot different LLRF features**
 
 :Authors: **Helga Timko**, **Danilo Quartullo**
-'''
+"""
 
 from __future__ import annotations
 

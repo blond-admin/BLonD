@@ -506,9 +506,9 @@ class RingAndRFTracker(TrackableBaseClass):
         self.counter[0] += 1
 
     def to_gpu(self, recursive=True):
-        '''
+        """
         Transfer all necessary arrays to the GPU
-        '''
+        """
         # Check if to_gpu has been invoked already
         if hasattr(self, '_device') and self._device == 'GPU':
             return
@@ -532,9 +532,9 @@ class RingAndRFTracker(TrackableBaseClass):
         self._device: DeviceType = 'GPU'
 
     def to_cpu(self, recursive=True):
-        '''
+        """
         Transfer all necessary arrays back to the CPU
-        '''
+        """
         # Check if to_cpu has been invoked already
         if hasattr(self, '_device') and self._device == 'CPU':
             return

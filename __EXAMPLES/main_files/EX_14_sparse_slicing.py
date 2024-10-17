@@ -7,12 +7,12 @@
 # Project website: http://blond.web.cern.ch/
 
 
-'''
+"""
 Test case for the sparse_slicing routine.
 Example for the FCC-ee at 175 GeV.
 
 :Authors: **Juan F. Esteban Mueller**
-'''
+"""
 
 import os
 import time

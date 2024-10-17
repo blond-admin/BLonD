@@ -6,9 +6,9 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 :Authors: **Danilo Quartullo**, **Joel Repond**
-'''
+"""
 
 import numpy as np
 import scipy.special as scisp

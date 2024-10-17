@@ -61,8 +61,8 @@ load_libblond(precision='double')
 
 
 def get_libblond() -> Union[ct.CDLL, None]:
-    '''Returns the blond library.
-    '''
+    """Returns the blond library.
+    """
     return __LIBBLOND
 
 

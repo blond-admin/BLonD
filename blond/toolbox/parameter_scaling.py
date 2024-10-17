@@ -7,11 +7,11 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 **Scaling of longitudinal beam and machine parameters, with user interface.**
 
 :Authors: **Konstantinos Iliakis**, **Helga Timko**
-'''
+"""
 
 import numpy as np
 from PyQt5 import QtCore, QtWidgets

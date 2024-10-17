@@ -1,9 +1,9 @@
-'''
+"""
 Functions related to running MPI simulations.
 
 @author: Konstantinos Iliakis
 @date: 01.01.2020
-'''
+"""
 from __future__ import annotations
 
 import logging

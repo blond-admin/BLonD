@@ -1,6 +1,6 @@
-'''
+"""
 BLonD physics functions, numba implementations
-'''
+"""
 
 import math
 import random
@@ -61,12 +61,12 @@ def drift(dt: np.ndarray, dE: np.ndarray, solver: str, t_rev: float,
           length_ratio: float, alpha_order, eta_0: float,
           eta_1: float, eta_2: float, alpha_0: float,
           alpha_1: float, alpha_2: float, beta: float, energy: float) -> None:
-    '''
+    """
     Function to apply drift equation of motion
     0 == 'simple'
     1 == 'legacy'
     2 == 'exact'
-    '''
+    """
 
     T = t_rev * length_ratio
 
@@ -316,7 +316,7 @@ def music_track(dt: np.ndarray, dE: np.ndarray, induced_voltage: np.ndarray,
                 array_parameters: np.ndarray, alpha: float, omega_bar: float,
                 const: float, coeff1: float, coeff2: float,
                 coeff3: float, coeff4: float) -> None:
-    '''
+    """
     This function calculates the single-turn induced voltage and updates the
     energies of the particles.
 
@@ -339,7 +339,7 @@ def music_track(dt: np.ndarray, dE: np.ndarray, induced_voltage: np.ndarray,
         Computed induced voltage.
     beam_dE : float array
         Array of energies updated.
-    '''
+    """
 
     indices_sorted = np.argsort(dt)
     dt = dt[indices_sorted]
@@ -470,10 +470,10 @@ def music_track_multiturn(dt: np.ndarray, dE: np.ndarray, induced_voltage: np.nd
 # --------------- Similar to fast_resonator.cpp -----------------
 def fast_resonator(R_S: np.ndarray, Q: np.ndarray, frequency_array: np.ndarray,
                    frequency_R: np.ndarray, impedance: np.ndarray = None) -> np.ndarray:
-    '''
+    """
     We're defining and calling a function internally due to issues
     dealing with parallelization and the allocation of the impedance array.
-    '''
+    """
 
     if impedance is None:
         impedance = np.zeros(len(frequency_array), dtype=np.complex128)
@@ -528,10 +528,10 @@ def beam_phase_fast(bin_centers: np.ndarray, profile: np.ndarray,
 def sparse_histogram(dt: np.ndarray, profile: np.ndarray,
                      cut_left: np.ndarray, cut_right: np.ndarray,
                      bunch_indexes: np.ndarray, n_slices_bucket: int) -> None:
-    '''
+    """
     Optimised routine that calculates the histogram for a sparse beam
     Author: Juan F. Esteban Mueller, Danilo Quartullo, Alexandre Lasheen, Markus Schwarz
-    '''
+    """
     # Only valid for cut_edges = edges
     inv_bucket_length = 1.0 / (cut_right[0] - cut_left[0])
     inv_bin_width = inv_bucket_length * n_slices_bucket
@@ -560,10 +560,10 @@ def distribution_from_tomoscope(dt: np.ndarray, dE: np.ndarray, probDistr: np.nd
                                 seed: int, profLen: int,
                                 cutoff: float, x0: float, y0: float,
                                 dtBin: float, dEBin: float) -> None:
-    '''
+    """
     Generation of particle distribution from probability density
     Author: Helga Timko
-    '''
+    """
     import bisect
 
     # Initialize random seed

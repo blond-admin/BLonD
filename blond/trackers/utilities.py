@@ -7,12 +7,12 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 
 **Utilities to calculate Hamiltonian, separatrix, total voltage for the full ring.**
 
 :Authors: **Danilo Quartullo**, **Helga Timko**, **Alexandre Lasheen**
-'''
+"""
 
 from __future__ import annotations
 
@@ -216,7 +216,7 @@ def synchrotron_frequency_distribution(beam: Beam,
 
 
 class SynchrotronFrequencyTracker(TrackableBaseClass):
-    '''
+    """
     *This class can be added to the tracking map to track a certain
     number of particles (defined by the user) and to store the evolution
     of their coordinates in phase space in order to compute their synchrotron
@@ -231,7 +231,7 @@ class SynchrotronFrequencyTracker(TrackableBaseClass):
     linear spacing between these values. One can also input the theta_coordinate_range
     as the coordinates of all particles, but the length of the array should
     match the n_macroparticles value.*
-    '''
+    """
 
     @handle_legacy_kwargs
     def __init__(self, ring: Ring, n_macroparticles: int, theta_coordinate_range: np.ndarray,
@@ -348,9 +348,9 @@ class SynchrotronFrequencyTracker(TrackableBaseClass):
         self.ring = val
 
     def track(self):
-        '''
+        """
         *Method to track the particles with or without intensity effects.*
-        '''
+        """
 
         self.full_ring_and_rf.track()
 
@@ -363,13 +363,13 @@ class SynchrotronFrequencyTracker(TrackableBaseClass):
         self.dE_save[self.counter] = self.beam.dE
 
     def frequency_calculation(self, n_sampling=100000, start_turn=None, end_turn=None):
-        '''
+        """
         *Method to compute the fft of the particle oscillations in theta and dE
         to obtain their synchrotron frequencies. The particles for which
         the amplitude of oscillations is extending the minimum and maximum
         theta from user input are considered to be lost and their synchrotron
         frequencies are not calculated.*
-        '''
+        """
 
         n_sampling = int(n_sampling)
 
@@ -679,9 +679,9 @@ def is_in_separatrix(ring: Ring, rf_station: RFStation, beam: Beam, dt: ndarray,
 
 
 def minmax_location(x: ndarray, f: ndarray) -> Tuple[List[ndarray], List[ndarray]]:
-    '''
+    """
     *Function to locate the minima and maxima of the f(x) numerical function.*
-    '''
+    """
 
     f_derivative = np.diff(f)
     x_derivative = x[0:-1] + (x[1] - x[0]) / 2
@@ -708,10 +708,10 @@ def minmax_location(x: ndarray, f: ndarray) -> Tuple[List[ndarray], List[ndarray
 
 
 def potential_well_cut(time_potential: ndarray, potential_array: ndarray) -> Tuple[ndarray, ndarray]:
-    '''
+    """
     *Function to cut the potential well in order to take only the separatrix
     (several cases according to the number of min/max).*
-    '''
+    """
 
     # Check for the min/max of the potential well
     minmax_positions, minmax_values = minmax_location(time_potential,
@@ -795,24 +795,24 @@ def potential_well_cut(time_potential: ndarray, potential_array: ndarray) -> Tup
 
 
 def phase_modulo_above_transition(phi: ndarray) -> ndarray:
-    '''
+    """
     *Projects a phase array into the range -Pi/2 to +3*Pi/2.*
-    '''
+    """
 
     return phi - 2. * np.pi * bm.floor(phi / (2. * np.pi))
 
 
 def phase_modulo_below_transition(phi: np.ndarray) -> ndarray:
-    '''
+    """
     *Projects a phase array into the range -Pi/2 to +3*Pi/2.*
-    '''
+    """
 
     return phi - 2. * np.pi * (bm.floor(phi / (2. * np.pi) + 0.5))
 
 
 def time_modulo(dt: np.ndarray, dt_offset: float, T: float) -> ndarray:
-    '''
+    """
     *Returns dt projected onto the desired interval.*
-    '''
+    """
 
     return dt - T * bm.floor((dt + dt_offset) / T)

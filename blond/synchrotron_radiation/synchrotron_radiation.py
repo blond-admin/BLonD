@@ -6,11 +6,11 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 **Class to compute synchrotron radiation damping and quantum excitation**
 
 :Authors: **Juan F. Esteban Mueller**
-'''
+"""
 
 from __future__ import annotations
 
@@ -31,11 +31,11 @@ if TYPE_CHECKING:
 
 
 class SynchrotronRadiation(TrackableBaseClass):
-    ''' Class to compute synchrotron radiation effects, including radiation
+    """ Class to compute synchrotron radiation effects, including radiation
         damping and quantum excitation.
         For multiple RF section, instance one object per RF section a call
         the track() method after tracking each section.
-    '''
+    """
 
     @handle_legacy_kwargs
     def __init__(self,
@@ -202,9 +202,9 @@ class SynchrotronRadiation(TrackableBaseClass):
                                       self.ring.energy[0, i_turn])
 
     def to_gpu(self, recursive=True):
-        '''
+        """
         Transfer all necessary arrays to the GPU
-        '''
+        """
         # Check if to_gpu has been invoked already
         if hasattr(self, '_device') and self._device == 'GPU':
             return
@@ -215,9 +215,9 @@ class SynchrotronRadiation(TrackableBaseClass):
         self._device: DeviceType = 'GPU'
 
     def to_cpu(self, recursive=True):
-        '''
+        """
         Transfer all necessary arrays back to the CPU
-        '''
+        """
         # Check if to_cpu has been invoked already
         if hasattr(self, '_device') and self._device == 'CPU':
             return

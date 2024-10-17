@@ -6,12 +6,12 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 **Methods to generate RF phase modulation from given frequency, amplitude
 and offset functions**
 
 :Authors: **Simon Albright**
-'''
+"""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

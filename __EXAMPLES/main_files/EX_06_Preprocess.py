@@ -7,12 +7,12 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 Test case to show how to use preprocess_ramp and preprocess_rf_params in the
 main file (CERN PS Booster context).
 
 :Authors: **Danilo Quartullo**
-'''
+"""
 
 
 import os

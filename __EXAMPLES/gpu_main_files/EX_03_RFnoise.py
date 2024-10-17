@@ -7,12 +7,12 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 Example input for simulation with RF noise
 No intensity effects
 
 :Authors: **Helga Timko**
-'''
+"""
 
 
 import os

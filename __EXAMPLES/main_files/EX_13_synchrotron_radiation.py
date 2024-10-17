@@ -7,12 +7,12 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 Test case for the synchrotron radiation routine.
 Example for the FCC-ee at 175 GeV.
 
 :Authors: **Juan F. Esteban Mueller**
-'''
+"""
 
 from scipy.optimize import curve_fit
 

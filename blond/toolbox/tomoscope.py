@@ -6,12 +6,12 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
-** CERN Tomoscope-related functions to generate particle distribution or 
+"""
+** CERN Tomoscope-related functions to generate particle distribution or
 probability density.**
 
 :Authors: **Helga Timko**
-'''
+"""
 
 import linecache
 import os
@@ -26,14 +26,14 @@ from blond.utils import bmath as bm
 
 def distribution_from_tomoscope_data(dataDir, nPart, cutoff=1000, seed=1234,
                                      plotFig=True, saveDistr=False):
-    '''
-    'dataDir' is the directory of *directories* of offline-processed tomoscope 
+    """
+    'dataDir' is the directory of *directories* of offline-processed tomoscope
     data containing 'plotinfo.data' and 'image001.data'
     Use 'cutoff' to eliminate measurement noise (use values around 50-100).
     Use 'seed' to change the random number seed.
     Use 'plotFig = True' to plot and save figures.
-    Use 'saveDistr = True' to save particle coordinates.    
-    '''
+    Use 'saveDistr = True' to save particle coordinates.
+    """
 
     # Directory in which plots will be stored
     distrDir = dataDir + '\\Distributions_' + \

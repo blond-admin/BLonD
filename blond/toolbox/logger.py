@@ -7,11 +7,11 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 **Logging messages**
 
 :Authors: **Helga Timko**
-'''
+"""
 
 import logging
 

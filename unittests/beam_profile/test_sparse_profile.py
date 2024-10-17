@@ -7,11 +7,11 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 **Unit-tests for the self.SparseSlices  class.**
 
 :Authors: **Markus Schwarz**
-'''
+"""
 
 # General imports
 # -----------------

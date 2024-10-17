@@ -6,11 +6,11 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 **Functions to plot general and RF paramaters**
 
 :Authors: **Helga Timko**
-'''
+"""
 from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt

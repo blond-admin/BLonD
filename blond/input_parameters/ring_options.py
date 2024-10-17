@@ -7,12 +7,12 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 **Function(s) for pre-processing input data**
 
 :Authors: **Helga Timko**, **Alexandre Lasheen**, **Danilo Quartullo**,
     **Simon Albright**
-'''
+"""
 
 from __future__ import annotations
 

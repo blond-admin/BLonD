@@ -6,12 +6,12 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 **Phase-space variable conversions related to action. Single-RF case without
 intensity effects is considered.**
 
 :Authors: **Helga Timko**
-'''
+"""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -36,10 +36,10 @@ def x2(phimax):
 
 
 def action_from_phase_amplitude(x2):
-    '''
+    """
     Returns the relative action for given oscillation amplitude in time.
-    Action is normalised to the value at the separatrix, given in units of 1. 
-    '''
+    Action is normalised to the value at the separatrix, given in units of 1.
+    """
 
     action = np.zeros(len(x2))
 
@@ -55,19 +55,19 @@ def action_from_phase_amplitude(x2):
 
 
 def tune_from_phase_amplitude(phimax):
-    '''
+    """
     Find the tune w.r.t. the central synchrotron frequency corresponding to a
-    given amplitude of synchrotron oscillations in phase 
-    '''
+    given amplitude of synchrotron oscillations in phase
+    """
 
     return 0.5 * np.pi / ellipk(x(phimax))
 
 
 def phase_amplitude_from_tune(tune):
-    '''
+    """
     Find the amplitude of synchrotron oscillations in phase corresponding to a
     given tune w.r.t. the central synchrotron frequency
-    '''
+    """
 
     n = len(tune)
     phimax = np.zeros(n)
@@ -143,13 +143,13 @@ def oscillation_amplitude_from_coordinates(ring: Ring, rf_station: RFStation, dt
 @handle_legacy_kwargs
 def action_from_oscillation_amplitude(rf_station: RFStation, dtmax, timestep=0,
                                       Np_histogram=None):
-    '''
+    """
     Returns the relative action for given oscillation amplitude in time,
     assuming single-harmonic RF system and no intensity effects.
-    Action is normalised to the value at the separatrix, given in units of 1. 
+    Action is normalised to the value at the separatrix, given in units of 1.
     Optional: RF parameters at a given timestep (default = 0) are used.
     Optional: Number of points for histogram output
-    '''
+    """
 
     omega_rf = rf_station.omega_rf[0, timestep]
     xx = x2(omega_rf * dtmax)

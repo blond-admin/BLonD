@@ -7,11 +7,11 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 Example script to take into account intensity effects from impedance tables
 
 :Authors: **Danilo Quartullo**
-'''
+"""
 
 
 import os

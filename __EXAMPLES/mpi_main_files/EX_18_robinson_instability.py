@@ -7,12 +7,12 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 Example script to take into account intensity effects with multi-turn wakes
 Example for the PSB with a narrow-band resonator, to check Robinson instability
 
 :Authors: **Juan F. Esteban Mueller**
-'''
+"""
 
 
 import os

@@ -960,12 +960,12 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
                                          * 1 / self.Delta / n_array ** (1 / 3)
 
     def _pp_spectrum(self, frequency_array: np.ndarray, zeta_max: float = 9., **kwargs):
-        r'''
+        r"""
         Computes the parallel-plates impedance, based on eq. B13 of [Murphy1997]_.
 
         .. math::
-            Z_{pp}(f) = Z_{fs,exact} - Z_{fs,approx} + 
-            Z_0 \sqrt{8\pi} 3^{2/3} \exp(i \pi/6) \left(\frac{f}{f_0}\right)^{1/3} 
+            Z_{pp}(f) = Z_{fs,exact} - Z_{fs,approx} +
+            Z_0 \sqrt{8\pi} 3^{2/3} \exp(i \pi/6) \left(\frac{f}{f_0}\right)^{1/3}
             \frac{1}{\alpha(f)}
             \sum_{p=0}^\infty h\left(\frac{1}{2}\left(\frac{\pi(2p+1)}{\alpha(f)}\right)^2 \right)
 
@@ -984,7 +984,7 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
         -------
         None.
 
-        '''
+        """
 
         non_zero_indexes = frequency_array != 0
 

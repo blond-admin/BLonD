@@ -7,12 +7,12 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 **Unit-tests for the Beam Profile class.
    Run as python testBeamProfileObject.py in console or via travis. **
 
 :Authors: **Danilo Quartullo**
-'''
+"""
 
 # General imports
 # -----------------

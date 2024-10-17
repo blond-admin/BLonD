@@ -7,11 +7,11 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 Unit-tests for the Beam class.
 
 Run as python testBeamObject.py in console or via travis
-'''
+"""
 
 # General imports
 # -----------------

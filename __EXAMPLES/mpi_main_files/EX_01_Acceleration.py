@@ -7,12 +7,12 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 Example input for simulation of acceleration
 No intensity effects
 
 :Authors: **Helga Timko**
-'''
+"""
 #  General Imports
 
 import os

@@ -7,13 +7,13 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 Calculation of the induced voltage for a gaussian bunch and a resonator.
 Four different methods: time domain with convolution, frequency domain with
 FFT, time domain with MuSiC, time domain with analytical formula.
 
 :Authors: **Danilo Quartullo**
-'''
+"""
 
 
 import os

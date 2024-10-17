@@ -7,12 +7,12 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 Example input for simulating a ring with multiple RF stations
 No intensity effects
 
 :Authors: **Helga Timko**
-'''
+"""
 
 
 import os

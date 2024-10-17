@@ -331,7 +331,7 @@ def fir_filter_lhc_otfb_coeff(n_taps: int = 63) -> List[float]:
 
 
 def fir_filter(coeff: np.ndarray, signal: np.ndarray):
-    '''Apply FIR filter on discrete time signal.
+    """Apply FIR filter on discrete time signal.
 
     Parameters
     ---------
@@ -344,7 +344,7 @@ def fir_filter(coeff: np.ndarray, signal: np.ndarray):
     -------
     complex or double array
         Filtered signal of length len(signal) - len(coeff)
-    '''
+    """
 
     n_taps = len(coeff)
     filtered_signal = np.zeros(len(signal) - n_taps)

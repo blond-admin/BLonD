@@ -7,11 +7,11 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 **Module gathering and processing all RF parameters used in the simulation.**
 
 :Authors: **Alexandre Lasheen**, **Danilo Quartullo**, **Helga Timko**
-'''
+"""
 
 from __future__ import annotations
 
@@ -427,9 +427,9 @@ class RFStation:
             return eta
 
     def to_gpu(self, recursive=True):
-        '''
+        """
         Transfer all necessary arrays to the GPU
-        '''
+        """
         # Check if to_gpu has been invoked already
         if hasattr(self, '_device') and self._device == 'GPU':
             return
@@ -453,9 +453,9 @@ class RFStation:
         self._device: DeviceType = 'GPU'
 
     def to_cpu(self, recursive=True):
-        '''
+        """
         Transfer all necessary arrays back to the CPU
-        '''
+        """
         # Check if to_cpu has been invoked already
         if hasattr(self, '_device') and self._device == 'CPU':
             return

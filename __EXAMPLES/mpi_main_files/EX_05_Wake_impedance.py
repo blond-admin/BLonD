@@ -7,7 +7,7 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 SPS simulation with intensity effects in time and frequency domains using
 a table of resonators. The input beam has been cloned to show that the two
 methods are equivalent (compare the two figure folders). Note that to create an
@@ -16,7 +16,7 @@ This script shows also an example of how to use the class SliceMonitor (check
 the corresponding h5 files).
 
 :Authors: **Danilo Quartullo**
-'''
+"""
 
 
 from blond.utils.mpi_config import mpiprint, WORKER

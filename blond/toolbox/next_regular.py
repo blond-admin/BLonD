@@ -1,9 +1,9 @@
-'''
-**Optimised next_regular routine to generate Hamming numbers: 
+"""
+**Optimised next_regular routine to generate Hamming numbers:
 the output will contain at least one factor 2.**
 
-:Authors: **Alexandre Lasheen**, **Juan F. Esteban Mueller**, **Danilo Quartullo** 
-'''
+:Authors: **Alexandre Lasheen**, **Juan F. Esteban Mueller**, **Danilo Quartullo**
+"""
 
 
 def next_regular(target: int) -> int:

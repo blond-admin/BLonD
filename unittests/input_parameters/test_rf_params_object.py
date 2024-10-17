@@ -7,11 +7,11 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 Unit-tests for the RFSectionParameters class.
 Run as python test_rf_params_object.py in console or via travis
 :Authors: **Joel Repond**, **Markus Schwarz**
-'''
+"""
 
 
 import unittest

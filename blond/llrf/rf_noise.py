@@ -239,17 +239,17 @@ class FlatSpectrum:
 
 
 class LHCNoiseFB(TrackableBaseClass):
-    '''
+    """
     *Feedback on phase noise amplitude for LHC controlled longitudinal emittance
     blow-up using noise injection through cavity controller or phase loop.
-    The feedback compares the FWHM bunch length of the bunch to a target value 
+    The feedback compares the FWHM bunch length of the bunch to a target value
     and scales the phase noise to keep the targeted value.
     Activate the feedback either by passing it in RFStation or in
     the PhaseLoop object.
     Update the noise amplitude scaling using track().
-    Pass the bunch pattern (occupied bucket numbers from 0...h-1) in buckets 
+    Pass the bunch pattern (occupied bucket numbers from 0...h-1) in buckets
     for multi-bunch simulations; the feedback uses the average bunch length.*
-    '''
+    """
 
     @handle_legacy_kwargs
     def __init__(self, rf_station: RFStation, profile: Profile, bl_target, gain=0.1e9,
@@ -302,10 +302,10 @@ class LHCNoiseFB(TrackableBaseClass):
             self.fwhm = fwhm_functions['multi']
 
     def track(self):
-        '''
+        """
         *Calculate PhaseNoise Feedback scaling factor as a function of measured
         FWHM bunch length.*
-        '''
+        """
 
         # Track only in certain turns
         if (self.rf_params.counter[0] % self.n_update) == 0:
@@ -340,9 +340,9 @@ class LHCNoiseFB(TrackableBaseClass):
         return cfwhm * (right - left)
 
     def fwhm_single_bunch(self):
-        '''
+        """
         *Single-bunch FWHM bunch length calculation with interpolation.*
-        '''
+        """
 
         half_height = np.max(self.profile.n_macroparticles) / 2.
         index = np.where(self.profile.n_macroparticles > half_height)[0]
@@ -350,9 +350,9 @@ class LHCNoiseFB(TrackableBaseClass):
         self.bl_meas = self.fwhm_interpolation(index, half_height)
 
     def fwhm_multi_bunch(self):
-        '''
+        """
         *Multi-bunch FWHM bunch length calculation with interpolation.*
-        '''
+        """
 
         # Find correct RF buckets
         phi_RF = self.rf_params.phi_rf[0, self.rf_params.counter[0]]
