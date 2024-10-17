@@ -284,7 +284,7 @@ class FitOptions:
     fit_option : string
     fit_extra_options : unknown # TODO
     """
-
+    @handle_legacy_kwargs
     def __init__(self,
                  fit_option: Union[FitOptionTypes, None] = None,
                  fit_extra_options: None = None) -> None:  # todo type hint
@@ -330,7 +330,7 @@ class FilterOptions:
     filter_extra_options : dictionary
 
     """
-
+    @handle_legacy_kwargs
     def __init__(self, filter_method: Union[FilterMethodType, None] = None,
                  filter_extra_options: Union[FilterExtraOptionsType, None] = None) -> None:
         """
