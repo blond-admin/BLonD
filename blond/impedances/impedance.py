@@ -310,7 +310,7 @@ class _InducedVoltage:
                 self.omegaj_mtw = 2.0j * np.pi * self.freq_mtw
                 # Selecting time-shift method
                 self.shift_trev = self.shift_trev_freq
-            if self.mtw_mode == 'time':
+            elif self.mtw_mode == 'time':
                 # Selecting time-shift method
                 self.shift_trev = self.shift_trev_time
                 # Time array
