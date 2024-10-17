@@ -33,6 +33,7 @@ if Version(scipy.__version__) >= Version("1.14"):
 else:
     from scipy.integrate import cumtrapz
 
+
 from blond.utils import bmath as bm
 
 if TYPE_CHECKING:

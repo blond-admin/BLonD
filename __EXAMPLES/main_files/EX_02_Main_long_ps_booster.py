@@ -34,6 +34,9 @@ from blond.plots.plot_impedance import (plot_impedance_vs_frequency,
                                         plot_induced_voltage_vs_bin_centers)
 from blond.trackers.tracker import RingAndRFTracker
 
+DRAFT_MODE = bool(int(os.environ.get("BLOND_EXAMPLES_DRAFT_MODE", False)))
+# To check if executing correctly, rather than to run the full simulation
+
 mpl.use('Agg')
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
@@ -45,7 +48,7 @@ os.makedirs(this_directory + '../output_files/EX_02_fig', exist_ok=True)
 
 # Beam parameters
 n_particles = 1e11
-n_macroparticles = 5e5
+n_macroparticles = 1001 if DRAFT_MODE else  5e5
 sigma_dt = 180e-9 / 4  # [s]
 kin_beam_energy = 1.4e9  # [eV]
 

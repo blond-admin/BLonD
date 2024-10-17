@@ -30,6 +30,9 @@ from blond.monitors.monitors import BunchMonitor
 from blond.plots.plot import Plot
 from blond.trackers.tracker import FullRingAndRF, RingAndRFTracker
 
+DRAFT_MODE = bool(int(os.environ.get("BLOND_EXAMPLES_DRAFT_MODE", False)))
+# To check if executing correctly, rather than to run the full simulation
+
 mpl.use('Agg')
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
@@ -38,7 +41,7 @@ os.makedirs(this_directory + '../output_files/EX_10_fig', exist_ok=True)
 
 
 # Beam parameters
-n_macroparticles = 100000
+n_macroparticles = 1001  if DRAFT_MODE else 100000
 n_particles = 0
 
 
@@ -114,7 +117,11 @@ test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
 
 # Accelerator map
 map_ = [long_tracker] + [slices_ring] + [bunch_monitor] + [plots]
-
+if DRAFT_MODE:
+    n_turns = 10
+    n_plot = 3
+else:
+    n_plot = 100
 for i in range(1, n_turns + 1):
 
     for m in map_:
@@ -122,7 +129,7 @@ for i in range(1, n_turns + 1):
     slices_ring.cut_options.track_cuts(my_beam)
     slices_ring.set_slices_parameters()
 
-    if (i % 100 == 0):
+    if (i % n_plot == 0):
         print("Time step %d" % i)
         print("    Radial error %.4e" % (phase_loop.drho))
         print("    Radial loop frequency correction %.4e 1/s"

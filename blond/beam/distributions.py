@@ -32,6 +32,7 @@ if Version(scipy.__version__) >= Version("1.14"):
 else:
     from scipy.integrate import cumtrapz
 
+
 from blond.beam.profile import CutOptions, Profile
 from blond.trackers.utilities import is_in_separatrix, minmax_location, potential_well_cut
 from blond.utils import bmath as bm

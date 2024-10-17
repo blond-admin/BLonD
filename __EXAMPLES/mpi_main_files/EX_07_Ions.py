@@ -32,6 +32,9 @@ from blond.trackers.tracker import RingAndRFTracker
 from blond.utils import bmath as bm
 from blond.utils.mpi_config import mpiprint, WORKER
 
+DRAFT_MODE = bool(int(os.environ.get("BLOND_EXAMPLES_DRAFT_MODE", False)))
+# To check if executing correctly, rather than to run the full simulation
+
 # Atomic Mass Unit [eV]
 u = physical_constants['atomic mass unit-electron volt relationship'][0]
 
@@ -50,7 +53,7 @@ os.makedirs(this_directory + '../mpi_output_files/EX_07_fig', exist_ok=True)
 # Simulation parameters --------------------------------------------------------
 # Bunch parameters
 N_b = 5.0e11                 # Design Intensity in SIS100
-N_p = 50000                  # Macro-particles
+N_p = 1001 if DRAFT_MODE else 50000                  # Macro-particles
 tau_0 = 100.0e-9             # Initial bunch length, 4 sigma [s]
 Z = 28.                      # Charge state of Uranium
 m_p = 238.05078826 * u         # Isotope mass of U-238
@@ -123,6 +126,10 @@ slice_beam = Profile(beam, CutOptions(n_slices=100))
 # Accelerator map
 map_ = [long_tracker] + [slice_beam]
 
+if DRAFT_MODE:
+    # Tracking details
+    N_t = 45                 # Number of turns to track
+    dt_plt = 5                # Time steps between plots
 if WORKER.is_master:
 
     # Define what to save in file

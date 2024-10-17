@@ -68,13 +68,23 @@ def kick(dt, dE, voltage, omega_rf, phi_rf, charge, n_rf, acceleration_kick):
 
     voltage_kick = cp.empty(voltage.size, precision.real_t)
     voltage_kick = charge * voltage
-
+    """
+    voltage_kick, omega_rf and phi_rf are not correctly indexed inside
+    inside the kernel.  As a result, the wrong kick is applied when
+    using multiple RF harmonics.  Ideally, the arrays should be correctly
+    indexed within the kernel, but that will require a fairly heavy
+    change to a lot of the code.  As a short term solution, casting the
+    three with cp.array will work, and adds about 30 us per call.  With
+    1E6 particles and two harmonics, that's about a 10% increase in the
+    runtime of this function.
+    """
+    #TODO: Correct indexing of voltage, omega and phi
     kick_kernel(args=(dt,
                       dE,
                       np.int32(n_rf),
-                      voltage_kick,
-                      omega_rf,
-                      phi_rf,
+                      cp.array(voltage_kick),
+                      cp.array(omega_rf),
+                      cp.array(phi_rf),
                       np.int32(dt.size),
                       precision.real_t(acceleration_kick)),
                 block=GPU_DEV.block_size, grid=GPU_DEV.grid_size)

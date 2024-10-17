@@ -19,6 +19,7 @@ if Version(scipy.__version__) >= Version("1.14"):
 else:
     from scipy.integrate import cumtrapz
 
+
 from blond.beam.beam import Beam
 from blond.beam.distributions import (x0_from_bunch_length, distribution_function,
                                       matched_from_distribution_function,

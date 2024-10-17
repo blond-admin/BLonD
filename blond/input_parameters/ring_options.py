@@ -300,9 +300,8 @@ class RingOptions:
 
                 else:
                     # InputDataError
-                    raise RuntimeError("ERROR in Ring: The input data " +
-                                       "does not match the proper length " +
-                                       "(n_turns+1)")
+                    raise RuntimeError("ERROR in Ring: The 'input_data'" +
+                                       f"should have {(n_turns+1)=} entries, but shape is {input_data.shape=}")
         else:
             raise TypeError(type(input_data))
 
@@ -337,7 +336,8 @@ class RingOptions:
             Interpolated momentum [eV/c]
 
         """
-
+        time = np.array(time)
+        momentum = np.array(momentum)
         # Some checks on the options
         if ((self.t_start is not None) and (self.t_start < time[0])) or \
                 ((self.t_end is not None) and (self.t_end > time[-1])):

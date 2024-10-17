@@ -31,6 +31,9 @@ from blond.monitors.monitors import BunchMonitor
 from blond.plots.plot import Plot
 from blond.trackers.tracker import RingAndRFTracker
 
+DRAFT_MODE = bool(int(os.environ.get("BLOND_EXAMPLES_DRAFT_MODE", False)))
+# To check if executing correctly, rather than to run the full simulation
+
 mpl.use('Agg')
 
 # Atomic Mass Unit [eV]
@@ -50,7 +53,7 @@ os.makedirs(this_directory + '../gpu_output_files/EX_07_fig', exist_ok=True)
 # Simulation parameters --------------------------------------------------------
 # Bunch parameters
 N_b = 5.0e11                 # Design Intensity in SIS100
-N_p = 50000                  # Macro-particles
+N_p = 1001 if DRAFT_MODE else 50000                  # Macro-particles
 tau_0 = 100.0e-9             # Initial bunch length, 4 sigma [s]
 Z = 28.                      # Charge state of Uranium
 m_p = 238.05078826 * u         # Isotope mass of U-238
@@ -152,6 +155,10 @@ if USE_GPU:
     rf_params.to_gpu()
 
 # Tracking ---------------------------------------------------------------------
+if DRAFT_MODE:
+    # Tracking details
+    N_t = 45                 # Number of turns to track
+    dt_plt = 5                # Time steps between plots
 # for i in range(1, 500+1):
 for i in range(1, N_t + 1):
 

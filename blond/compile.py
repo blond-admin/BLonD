@@ -97,7 +97,9 @@ def main():
     #                -mfma4 -fopenmp -ftree-vectorizer-verbose=1 '-ffast-math'
     cflags = ['-O3', '-std=c++11', '-shared']
     # Some additional warning reporting related flags
-    cflags += ['-Wall', '-Wno-unknown-pragmas']
+    cflags += ['-Wall', '-Wno-unknown-pragmas', '-D_USE_MATH_DEFINES']
+    # The last flag is mainly necessary on windows, as here the M_PI etc.
+    # are not defined by mingw without the flag.
 
     float_flags = ['-DUSEFLOAT']
 

@@ -23,40 +23,32 @@ import numpy as np
 import scipy
 from packaging.version import Version
 
-from blond.utils.abstracts import TrackableBaseClass
-
-if TYPE_CHECKING:
-    from typing import Optional
-    from blond.impedances.impedance import TotalInducedVoltage
-    from numpy import ndarray
-
-
 from blond.llrf.cavity_feedback import CavityFeedback
 from blond.utils.abstracts import TrackableBaseClass
 from blond.utils.legacy_support import handle_legacy_kwargs
-
-if TYPE_CHECKING:
-    from blond.llrf.beam_feedback import BeamFeedback
-    from typing import Optional
-    from blond.impedances.impedance import TotalInducedVoltage
-    from numpy import ndarray
+from blond.utils import bmath as bm
 
 if Version(scipy.__version__) >= Version("1.14"):
     from scipy.integrate import cumulative_trapezoid as cumtrapz
 else:
     from scipy.integrate import cumtrapz
 
-from blond.utils import bmath as bm
 
 if TYPE_CHECKING:
+    from blond.llrf.beam_feedback import BeamFeedback
+    from typing import Optional
+    from blond.impedances.impedance import TotalInducedVoltage
+    from numpy import ndarray
     from typing import Literal, List, Union
 
     from blond.beam.profile import Profile
     from blond.beam.beam import Beam
     from blond.input_parameters.rf_parameters import RFStation
     from blond.utils.types import DeviceType
-
     MainHarmonicOptionType = Literal['lowest_freq', 'highest_voltage'] | int | float
+
+
+
 
 
 class FullRingAndRF(TrackableBaseClass):

@@ -30,6 +30,9 @@ else:
 
 from scipy.constants import c
 
+
+from scipy.constants import c
+
 from blond.beam.beam import Proton
 from blond.input_parameters.rf_parameters_options import RFStationOptions
 from blond.utils import bmath as bm

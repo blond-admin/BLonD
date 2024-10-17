@@ -226,7 +226,7 @@ def use_fftw() -> None:
 
 # precision can be single or double
 def use_precision(_precision='double'):
-    """Change the precision used in caclulations.
+    """Change the precision used in calculations.
 
     Args:
         _precision (str, optional): Can be either 'single' or 'double'. Defaults to 'double'.
@@ -238,8 +238,8 @@ def use_precision(_precision='double'):
         from blond.gpu import GPU_DEV
         GPU_DEV.load_library(_precision)
     except Exception as e:
-        # The GPU backend is not available
-        pass
+        from warnings import warn
+        warn(f"The GPU backend is not available:\n{e}", UserWarning)
     _cpp.load_libblond(_precision)
 
 
