@@ -1,4 +1,3 @@
-
 # Copyright 2014-2017 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
 # copied verbatim in the file LICENCE.md.
@@ -14,9 +13,9 @@
           **Alexandre Lasheen**, **Markus Schwarz**
 '''
 
-from __future__ import division, print_function
+from __future__ import annotations
 
-from builtins import range
+from typing import Literal
 
 import numpy as np
 from scipy.constants import e
@@ -203,14 +202,14 @@ class _InducedVoltage:
         RFStation object for turn counter and revolution period
     multi_turn_wake : boolean
         Multi-turn wake enable flag
-    mtw_mode : boolean
+    mtw_mode : str
         Multi-turn wake mode can be 'freq' or 'time' (default)
     use_regular_fft : boolean
         User set value to use (default) or not regular numbers for FFTs
     """
 
     def __init__(self, Beam, Profile, frequency_resolution=None,
-                 wake_length=None, multi_turn_wake=False, mtw_mode='time',
+                 wake_length=None, multi_turn_wake=False, mtw_mode: Literal["freq", "time"] = 'time',
                  RFParams=None, use_regular_fft=True):
 
         # Beam object in order to access the beam info
@@ -240,6 +239,8 @@ class _InducedVoltage:
         # Multi-turn wake mode can be 'freq' or 'time' (default). If 'freq'
         # is used, each turn the induced voltage of previous turns is shifted
         # in the frequency domain. For 'time', a linear interpolation is used.
+        if mtw_mode not in ("freq", "time"):
+            raise NameError(mtw_mode)
         self.mtw_mode = mtw_mode
 
         self.process()
