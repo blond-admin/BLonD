@@ -23,9 +23,8 @@ import numpy as np
 from blond.utils.abstracts import TrackableBaseClass
 from blond.utils.legacy_support import handle_legacy_kwargs
 
-
 if TYPE_CHECKING:
-    from typing import Sequence, SupportsIndex, Union
+    from typing import Sequence, SupportsIndex, Union, Optional
 
     from blond.beam.beam import Beam
     from blond.input_parameters.rf_parameters import RFStation
@@ -47,8 +46,8 @@ class BunchMonitor(TrackableBaseClass):
     def __init__(self, ring: Ring, rf_parameters: RFStation, beam: Beam,
                  filename: Union[os.PathLike, str],
                  buffer_time: Union[None, int] = None,  # todo document this
-                 profile: Profile = None, phase_loop: BeamFeedback = None,
-                 lhc_noise_feedback: LHCNoiseFB = None):
+                 profile: Optional[Profile] = None, phase_loop: Optional[BeamFeedback] = None,
+                 lhc_noise_feedback: Optional[LHCNoiseFB] = None):
 
         self.filename = filename
         self.n_turns = ring.n_turns
@@ -57,7 +56,7 @@ class BunchMonitor(TrackableBaseClass):
         self.rf_params = rf_parameters
         self.beam: Beam = beam
         self.profile: Profile = profile
-        if self.profile:
+        if self.profile is not None:
             if self.profile.fit_option is not None:
                 self.fit_option = True
             else:
@@ -75,27 +74,27 @@ class BunchMonitor(TrackableBaseClass):
         self.track()
 
     @property
-    def PL(self):  # TODO
+    def PL(self):
         from warnings import warn
-        warn("PL is deprecated, use phase_loop", DeprecationWarning)  # TODO
+        warn("PL is deprecated, use phase_loop", DeprecationWarning)
         return self.phase_loop
 
-    @PL.setter  # TODO
-    def PL(self, val):  # TODO
+    @PL.setter
+    def PL(self, val):
         from warnings import warn
-        warn("PL is deprecated, use phase_loop", DeprecationWarning)  # TODO
+        warn("PL is deprecated, use phase_loop", DeprecationWarning)
         self.phase_loop = val
 
     @property
-    def LHCNoiseFB(self):  # TODO
+    def LHCNoiseFB(self):
         from warnings import warn
-        warn("LHCNoiseFB is deprecated, use phase_loop", DeprecationWarning)  # TODO
+        warn("LHCNoiseFB is deprecated, use phase_loop", DeprecationWarning)
         return self.lhc_noise_feedback
 
-    @LHCNoiseFB.setter  # TODO
-    def LHCNoiseFB(self, val):  # TODO
+    @LHCNoiseFB.setter
+    def LHCNoiseFB(self, val):
         from warnings import warn
-        warn("LHCNoiseFB is deprecated, use lhc_noise_fb", DeprecationWarning)  # TODO
+        warn("LHCNoiseFB is deprecated, use lhc_noise_fb", DeprecationWarning)
 
     def track(self):
         self.beam.statistics()
@@ -159,7 +158,7 @@ class BunchMonitor(TrackableBaseClass):
                                    compression="gzip", compression_opts=9)
             h5group["bunch_length"][0] = self.profile.bunchLength
 
-        if self.phase_loop:
+        if self.phase_loop is not None:
             h5group.create_dataset("PL_omegaRF", shape=dims,
                                    dtype=np.float64,
                                    compression="gzip", compression_opts=9)
@@ -195,7 +194,7 @@ class BunchMonitor(TrackableBaseClass):
                                    compression="gzip", compression_opts=9)
             h5group["RL_drho"][0] = self.phase_loop.drho
 
-        if self.lhc_noise_feedback:
+        if self.lhc_noise_feedback is not None:
 
             h5group.create_dataset("LHC_noise_FB_factor", shape=dims,
                                    dtype='f',
@@ -234,7 +233,7 @@ class BunchMonitor(TrackableBaseClass):
         if self.fit_option:
             self.b_bl = np.zeros(self.buffer_time)
 
-        if self.phase_loop:
+        if self.phase_loop is not None:
             self.b_PL_omegaRF = np.zeros(self.buffer_time)
             self.b_PL_phiRF = np.zeros(self.buffer_time)
             self.b_PL_bunch_phase = np.zeros(self.buffer_time)
@@ -243,7 +242,7 @@ class BunchMonitor(TrackableBaseClass):
             self.b_SL_dphiRF = np.zeros(self.buffer_time)
             self.b_RL_drho = np.zeros(self.buffer_time)
 
-        if self.lhc_noise_feedback:
+        if self.lhc_noise_feedback is not None:
 
             self.b_LHCnoiseFB_factor = np.zeros(self.buffer_time)
             self.b_LHCnoiseFB_bl = np.zeros(self.buffer_time)
@@ -265,7 +264,7 @@ class BunchMonitor(TrackableBaseClass):
         if self.fit_option:
             self.b_bl[i] = self.profile.bunchLength
 
-        if self.phase_loop:
+        if self.phase_loop is not None:
             self.b_PL_omegaRF[i] = self.rf_params.omega_rf[0, self.i_turn]
             self.b_PL_phiRF[i] = self.rf_params.phi_rf[0, self.i_turn]
             self.b_PL_bunch_phase[i] = self.phase_loop.phi_beam
@@ -274,7 +273,7 @@ class BunchMonitor(TrackableBaseClass):
             self.b_SL_dphiRF[i] = self.rf_params.dphi_rf[0]
             self.b_RL_drho[i] = self.phase_loop.drho
 
-        if self.lhc_noise_feedback:
+        if self.lhc_noise_feedback is not None:
 
             self.b_LHCnoiseFB_factor[i] = self.lhc_noise_feedback.x
             self.b_LHCnoiseFB_bl[i] = self.lhc_noise_feedback.bl_meas
@@ -310,7 +309,7 @@ class BunchMonitor(TrackableBaseClass):
                                     dtype='f')
             h5group["bunch_length"][i1:i2] = self.b_bl[:]
 
-        if self.phase_loop:
+        if self.phase_loop is not None:
             h5group.require_dataset("PL_omegaRF", shape=dims,
                                     dtype=np.float64)
             h5group["PL_omegaRF"][i1:i2] = self.b_PL_omegaRF[:]
@@ -339,7 +338,7 @@ class BunchMonitor(TrackableBaseClass):
                                     dtype='f')
             h5group["RL_drho"][i1:i2] = self.b_RL_drho[:]
 
-        if self.lhc_noise_feedback:
+        if self.lhc_noise_feedback is not None:
 
             h5group.require_dataset("LHC_noise_FB_factor", shape=dims,
                                     dtype='f')

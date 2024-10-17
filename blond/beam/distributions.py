@@ -39,7 +39,7 @@ from blond.utils import bmath as bm
 from blond.utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
-    from typing import Literal, Callable, Union
+    from typing import Literal, Callable, Union, Optional
     from numpy import ndarray
     from blond.input_parameters.ring import Ring
     from blond.input_parameters.rf_parameters import RFStation
@@ -48,15 +48,14 @@ if TYPE_CHECKING:
     from blond.trackers.tracker import FullRingAndRF, MainHarmonicOptionType
     from blond.utils.types import (DistributionUserTableType, LineDensityInputType,
                                    ExtraVoltageDictType, DistributionVariableType,
-                                   HalfOptionType, BunchLengthFitTypes, LineDensityDistType,
-                                   DistributionFunctionDistType)
+                                   HalfOptionType, BunchLengthFitTypes, LineDensityDistType)
 
 @handle_legacy_kwargs
 def matched_from_line_density(beam: Beam,
                               full_ring_and_rf: FullRingAndRF,
                               line_density_input: Union[LineDensityInputType, None] = None,
                               main_harmonic_option: MainHarmonicOptionType = 'lowest_freq',
-                              total_induced_voltage: TotalInducedVoltage = None,
+                              total_induced_voltage: Optional[TotalInducedVoltage] = None,
                               plot: bool = False,
                               figdir: Union[PathLike, str] = 'fig',
                               half_option: HalfOptionType = 'first',
@@ -416,7 +415,7 @@ def matched_from_distribution_function(beam: Beam, full_ring_and_rf: FullRingAnd
                                        distribution_type: Union[str, None] = None,
                                        emittance: Union[float, None] = None,
                                        bunch_length: Union[float, None] = None,
-                                       bunch_length_fit: BunchLengthFitTypes = None,
+                                       bunch_length_fit: Optional[BunchLengthFitTypes] = None,
                                        distribution_variable: DistributionVariableType = 'Hamiltonian',
                                        process_pot_well: bool = True,
                                        turn_number: int = 0):

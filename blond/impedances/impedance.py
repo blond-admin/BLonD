@@ -777,13 +777,13 @@ class InducedVoltageFreq(_InducedVoltage):
         self.induced_voltage = cp.array(self.induced_voltage)
         self.freq = cp.array(self.freq)
         self.total_impedance = cp.array(self.total_impedance)
-        if self.mtw_memory:
+        if self.mtw_memory is not None:
             self.mtw_memory = cp.array(self.mtw_memory)
-        if self.time_mtw:
+        if self.time_mtw is not None:
             self.time_mtw = cp.array(self.time_mtw)
-        if self.freq_mtw:
+        if self.freq_mtw is not None:
             self.freq_mtw = cp.array(self.freq_mtw)
-        if self.omegaj_mtw:
+        if self.omegaj_mtw is not None:
             self.omegaj_mtw = cp.array(self.omegaj_mtw)
 
         # to make sure it will not be called again
@@ -801,13 +801,13 @@ class InducedVoltageFreq(_InducedVoltage):
         self.induced_voltage = cp.asnumpy(self.induced_voltage)
         self.freq = cp.asnumpy(self.freq)
         self.total_impedance = cp.asnumpy(self.total_impedance)
-        if self.mtw_memory:
+        if self.mtw_memory is not None:
             self.mtw_memory = cp.asnumpy(self.mtw_memory)
-        if self.time_mtw:
+        if self.time_mtw is not None:
             self.time_mtw = cp.asnumpy(self.time_mtw)
-        if self.freq_mtw:
+        if self.freq_mtw is not None:
             self.freq_mtw = cp.asnumpy(self.freq_mtw)
-        if self.omegaj_mtw:
+        if self.omegaj_mtw is not None:
             self.omegaj_mtw = cp.asnumpy(self.omegaj_mtw)
 
         # to make sure it will not be called again

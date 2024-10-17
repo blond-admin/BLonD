@@ -23,12 +23,12 @@ from scipy import ndimage
 
 from blond.toolbox import filters_and_fitting as ffroutines
 from blond.utils import bmath as bm
-from blond.utils.legacy_support import handle_legacy_kwargs
 from blond.utils.abstracts import TrackableBaseClass
+from blond.utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
     from numpy import ndarray
-    from typing import List, Callable, Union, Tuple
+    from typing import List, Callable, Union, Tuple, Optional
     from blond.utils.types import DeviceType
     from blond.beam.beam import Beam
     from blond.input_parameters.rf_parameters import RFStation
@@ -95,7 +95,7 @@ class CutOptions:
                  cut_left: Union[float, None] = None,
                  cut_right: Union[float, None] = None,
                  n_slices: int = 100,
-                 n_sigma: int = None,
+                 n_sigma: Optional[int] = None,
                  cuts_unit: CutUnitType = 's',
                  rf_station: Union[RFStation, None] = None
                  ) -> None:

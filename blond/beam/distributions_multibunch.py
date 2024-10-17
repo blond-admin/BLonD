@@ -31,7 +31,7 @@ from blond.utils.legacy_support import handle_legacy_kwargs
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Union
+    from typing import Union, Optional
     from blond.input_parameters.ring import Ring
     from blond.beam.beam import Beam
     from blond.impedances.impedance import TotalInducedVoltage
@@ -596,7 +596,7 @@ def match_beam_from_distribution_multibatch(beam: Beam, full_ring_and_rf: FullRi
                                             n_batch: int,
                                             batch_spacing_buckets: int,
                                             main_harmonic_option: MainHarmonicOptionType = 'lowest_freq',
-                                            total_induced_voltage: TotalInducedVoltage = None,
+                                            total_induced_voltage: Optional[TotalInducedVoltage] = None,
                                             n_iterations: int = 1,
                                             n_points_potential: int = int(1e4),
                                             dt_margin_percent: float = 0.40, seed: Union[int, None] = None):

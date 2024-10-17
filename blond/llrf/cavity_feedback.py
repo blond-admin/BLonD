@@ -170,7 +170,7 @@ class CavityFeedback(TrackableBaseClass):
         This is meant to be implemented in the child class by the user."""
         pass
 
-    def track_no_beam(self, n_pretrack: int = None) -> None:
+    def track_no_beam(self, n_pretrack: Optional[int] = None) -> None:
         r"""Tracking method of the cavity feedback without beam in the accelerator"""
 
         self.update_rf_variables()
@@ -465,7 +465,7 @@ class SPSOneTurnFeedback(CavityFeedback):
             G_tx: float = 1,
             a_comb: float = 63 / 64,
             df: float = 0,
-            Commissioning: SPSCavityLoopCommissioning = None,
+            Commissioning: Optional[SPSCavityLoopCommissioning] = None,
             n_h: int = 0,
     ) -> None:
         super().__init__(
@@ -1069,7 +1069,7 @@ class SPSCavityFeedback(TrackableBaseClass):
             post_LS2: bool = True,
             V_part: Optional[float] = None,
             df: List[float] = 0,
-            Commissioning: SPSCavityLoopCommissioning = None,
+            Commissioning: Optional[SPSCavityLoopCommissioning] = None,
             n_h: int = 0,
     ) -> None:
         # Options for commissioning the feedback
@@ -1344,7 +1344,7 @@ class LHCCavityLoop(CavityFeedback):
             R_over_Q: float = 45,
             tau_loop: float = 650e-9,
             tau_otfb: float = 1472e-9,
-            RFFB: LHCCavityLoopCommissioning = None,
+            RFFB: Optional[LHCCavityLoopCommissioning] = None,
             n_h: int = 0,
     ) -> None:
         super().__init__(

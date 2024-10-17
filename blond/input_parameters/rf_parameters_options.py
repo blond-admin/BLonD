@@ -258,7 +258,7 @@ class RFStationOptions:
 
 @handle_legacy_kwargs
 def combine_rf_functions(function_list: List[Tuple[Callable, List[float]]], merge_type='linear', resolution=1e-3,
-                         ring: Ring=None, main_h=True):
+                         ring: Optional[Ring] = None, main_h=True):
     r"""Function to combine different RF programs. Each program is passed in a
     tuple with complete function (single valued or numpy array) and 2-list
     [start_time, stop_time].

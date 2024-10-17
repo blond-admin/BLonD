@@ -25,8 +25,8 @@ import scipy
 from packaging.version import Version
 from scipy.constants import c
 
-from blond.utils.legacy_support import handle_legacy_kwargs
 from blond.utils.abstracts import TrackableBaseClass
+from blond.utils.legacy_support import handle_legacy_kwargs
 
 if Version(scipy.__version__) >= Version("1.14"):
     from scipy.integrate import cumulative_trapezoid as cumtrapz
@@ -236,7 +236,7 @@ class SynchrotronFrequencyTracker(TrackableBaseClass):
     @handle_legacy_kwargs
     def __init__(self, ring: Ring, n_macroparticles: int, theta_coordinate_range: np.ndarray,
                  full_ring_and_rf: FullRingAndRF,
-                 total_induced_voltage: TotalInducedVoltage = None):
+                 total_induced_voltage: Optional[TotalInducedVoltage] = None):
 
         #: *Number of macroparticles used in the synchrotron_frequency_tracker method*
         self.n_macroparticles = int(n_macroparticles)
@@ -630,7 +630,7 @@ def separatrix(ring: Ring, rf_station: RFStation, dt: np.ndarray) -> ndarray:
 
 @handle_legacy_kwargs
 def is_in_separatrix(ring: Ring, rf_station: RFStation, beam: Beam, dt: ndarray, dE: ndarray,
-                     total_voltage: None = None) -> ndarray:
+                     total_voltage: Optional[np.ndarray] = None) -> ndarray:
     r"""Function checking whether coordinate pair(s) are inside the separatrix. 
     Uses the single-RF sinusoidal Hamiltonian.
 

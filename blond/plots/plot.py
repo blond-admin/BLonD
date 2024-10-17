@@ -34,10 +34,13 @@ from blond.utils.abstracts import TrackableBaseClass
 from blond.utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
+    from typing import Optional, Union
     from blond.beam.beam import Beam
     from blond.input_parameters.rf_parameters import RFStation
     from blond.input_parameters.ring import Ring
     from blond.beam.profile import Profile
+    from blond.llrf.beam_feedback import BeamFeedback
+    from blond.llrf.rf_noise import LHCNoiseFB
 
 
 def fig_folder(dirname):
@@ -59,24 +62,25 @@ def fig_folder(dirname):
 class Plot(TrackableBaseClass):
 
     @handle_legacy_kwargs
-    def __init__(self, ring: Ring, rf_station: RFStation, beam: Beam, dt_plot,
-                 dt_bckp, xmin, xmax, ymin, ymax, xunit='s', sampling=1,
-                 show_plots=False,
-                 separatrix_plot=False, histograms_plot=True,
-                 profile=None, h5file=None, output_frequency=1,
-                 phase_loop=None, LHCNoiseFB=None, format_options=None):
-        '''
+    def __init__(self, ring: Ring, rf_station: RFStation, beam: Beam, dt_plot: int,
+                 dt_bckp: int, xmin: float, xmax: float, ymin: float, ymax: float, xunit: str = 's', sampling: int = 1,
+                 show_plots: bool = False,
+                 separatrix_plot: bool = False, histograms_plot: bool = True,
+                 profile: Optional[Profile] = None, h5file: Optional[hp.File] = None, output_frequency: int = 1,
+                 phase_loop: Optional[BeamFeedback] = None, lhc_noise_fb: Optional[LHCNoiseFB] = None,
+                 format_options: Optional[dict] = None):
+        """
         Define what plots should be plotted during the simulation. Passing only
         basic objects, only phase space plot will be produced. Passing optional
         objects, plots related to those objects will be produced as well.
-        For plots at a certain turn: use 'dt_plot' to set the plotting frequency 
-        in units of time steps. 
+        For plots at a certain turn: use 'dt_plot' to set the plotting frequency
+        in units of time steps.
         For plots as a function of time: use 'dt_bckp' to set plotting frequency
         in units of time steps.
-        '''
+        """
 
         #: | *Import Ring*
-        self.general_params = ring
+        self.ring = ring
 
         #: | *Import RFStation*
         self.rf_params = rf_station
@@ -131,13 +135,37 @@ class Plot(TrackableBaseClass):
         self.phase_loop = phase_loop
 
         #: | *Optional import of LHCNoiseFB*
-        self.noiseFB = LHCNoiseFB
+        self.lhc_noise_fb = lhc_noise_fb
 
         # Set plotting format
         self.set_format(format_options)
 
         # Track at initialisation
         self.track()
+
+    @property
+    def noiseFB(self):
+        from warnings import warn
+        warn("noiseFB is deprecated, use lhc_noise_fb", DeprecationWarning)
+        return self.lhc_noise_fb
+
+    @noiseFB.setter
+    def noiseFB(self, val):
+        from warnings import warn
+        warn("noiseFB is deprecated, use lhc_noise_fb", DeprecationWarning)
+        self.lhc_noise_fb = val
+
+    @property
+    def general_params(self):
+        from warnings import warn
+        warn("general_params is deprecated, use ring", DeprecationWarning)
+        return self.ring
+
+    @general_params.setter
+    def general_params(self, val):
+        from warnings import warn
+        warn("general_params is deprecated, use ring", DeprecationWarning)
+        self.ring = val
 
     @property
     def PL(self):
@@ -151,7 +179,7 @@ class Plot(TrackableBaseClass):
         warn("PL is deprecated, use phase_loop", DeprecationWarning)
         self.phase_loop = val
 
-    def set_format(self, format_options):
+    def set_format(self, format_options: Union[dict, None]):
         '''
         Initialize plot folder and custom plot formatting. For more options, see
 
@@ -239,7 +267,7 @@ class Plot(TrackableBaseClass):
         # Snapshot-type plots
         if (self.tstep[0] % self.dt_plot) == 0:
 
-            plot_long_phase_space(self.general_params, self.rf_params,
+            plot_long_phase_space(self.ring, self.rf_params,
                                   self.beam, self.xmin, self.xmax, self.ymin,
                                   self.ymax, self.xunit,
                                   sampling=self.sampling,
@@ -248,7 +276,7 @@ class Plot(TrackableBaseClass):
                                   dirname=self.dirname, show_plot=self.show_plt,
                                   alpha=self.alpha)
 
-            if self.profile:
+            if self.profile is not None:
                 plot_beam_profile(self.profile, self.tstep[0],
                                   style=self.lstyle, dirname=self.dirname, show_plot=self.show_plt)
 
@@ -276,14 +304,14 @@ class Plot(TrackableBaseClass):
                                style=self.lstyle, dirname=self.dirname, show_plot=self.show_plt)
             plot_energy_evol(self.rf_params, h5data, output_freq=self.dt_mon,
                              style=self.lstyle, dirname=self.dirname, show_plot=self.show_plt)
-            plot_COM_motion(self.general_params, self.rf_params, h5data,
+            plot_COM_motion(self.ring, self.rf_params, h5data,
                             output_freq=self.dt_mon, dirname=self.dirname, show_plot=self.show_plt)
             plot_transmitted_particles(self.rf_params, h5data,
                                        output_freq=self.dt_mon,
                                        style=self.lstyle,
                                        dirname=self.dirname, show_plot=self.show_plt)
 
-            if self.phase_loop:
+            if self.phase_loop is not None:
                 plot_PL_RF_freq(self.rf_params, h5data,
                                 output_freq=self.dt_mon,
                                 dirname=self.dirname, show_plot=self.show_plt)
@@ -306,16 +334,16 @@ class Plot(TrackableBaseClass):
                                      output_freq=self.dt_mon,
                                      dirname=self.dirname, show_plot=self.show_plt)
 
-            if self.noiseFB:
-                plot_LHCNoiseFB(self.rf_params, self.noiseFB, h5data,
+            if self.lhc_noise_fb is not None:
+                plot_LHCNoiseFB(self.rf_params, self.lhc_noise_fb, h5data,
                                 output_freq=self.dt_mon,
                                 dirname=self.dirname, show_plot=self.show_plt)
-                plot_LHCNoiseFB_FWHM(self.rf_params, self.noiseFB, h5data,
+                plot_LHCNoiseFB_FWHM(self.rf_params, self.lhc_noise_fb, h5data,
                                      output_freq=self.dt_mon,
                                      dirname=self.dirname, show_plot=self.show_plt)
 
-                if self.noiseFB.bl_meas_bbb != None:
-                    plot_LHCNoiseFB_FWHM_bbb(self.rf_params, self.noiseFB,
+                if self.lhc_noise_fb.bl_meas_bbb != None:
+                    plot_LHCNoiseFB_FWHM_bbb(self.rf_params, self.lhc_noise_fb,
                                              h5data, output_freq=self.dt_mon,
                                              dirname=self.dirname, show_plot=self.show_plt)
 

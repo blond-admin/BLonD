@@ -24,9 +24,9 @@ import scipy
 from packaging.version import Version
 
 from blond.llrf.cavity_feedback import CavityFeedback
+from blond.utils import bmath as bm
 from blond.utils.abstracts import TrackableBaseClass
 from blond.utils.legacy_support import handle_legacy_kwargs
-from blond.utils import bmath as bm
 
 if Version(scipy.__version__) >= Version("1.14"):
     from scipy.integrate import cumulative_trapezoid as cumtrapz
@@ -356,7 +356,7 @@ class RingAndRFTracker(TrackableBaseClass):
         omega_rf = bm.ascontiguousarray(self.rf_params.omega_rf[:, self.counter[0]])
         phi_rf = bm.ascontiguousarray(self.rf_params.phi_rf[:, self.counter[0]])
         # TODO: test with multiple harmonics, think about 800 MHz OTFB
-        if self.cavityFB:
+        if self.cavityFB is not None:
             # Allocate memory for rf_voltage and reset it to zero
             self.rf_voltage = np.zeros(self.profile.n_slices)
 
