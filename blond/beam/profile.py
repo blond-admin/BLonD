@@ -489,13 +489,13 @@ class Profile(CpuGpuTrackable):
         """
 
         if cut_options is None:
-            CutOptions()
+            cut_options = CutOptions()
         if fit_options is None:
-            FitOptions()
+            fit_options = FitOptions()
         if filter_options is None:
-            FilterOptions()
+            filter_options = FilterOptions()
         if other_slices_options is None:
-            OtherSlicesOptions()
+            other_slices_options = OtherSlicesOptions()
 
 
 
