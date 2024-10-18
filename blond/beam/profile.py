@@ -60,7 +60,7 @@ class CutOptions(CpuGpuTransferable):
     cuts_unit : str
         the unit of cut_left and cut_right, it can be seconds 's' or radians
         'rad'
-    rf_station : object
+    rf_station : Optional[RFStation]
         RFSectionParameters[0][0] is necessary for the conversion from radians
         to seconds if cuts_unit = 'rad'. RFSectionParameters[0][0] is the value
         of omega_rf of the main harmonic at turn number 0
@@ -72,7 +72,6 @@ class CutOptions(CpuGpuTransferable):
     n_slices : int
     n_sigma : float
     cuts_unit : str
-    RFSectionParameters : object
     edges : float array
         contains the edges of the slices
     bin_centers : float array
@@ -410,22 +409,22 @@ class Profile(CpuGpuTrackable):
     Parameters
     ----------
 
-    beam : object
+    beam : Beam
         Beam from which the profile has to be calculated
-    cut_options : object
+    cut_options : Optional[CutOptions]
         Options for profile cutting (see above)
-    fit_options : object
+    fit_options : Optional[FitOptions]
         Options to get profile position and length (see above)
-    filter_options : object
+    filter_options : Optional[FilterOptions]
         Options to set a filter (see above)
-    other_slices_options : object
+    other_slices_options : Optional[OtherSlicesOptions]
         All remaining options, like smooth histogram and direct
         slicing (see above)
 
     Attributes
     ----------
 
-    beam : object
+    beam: Beam
     n_slices : int
         number of slices to be used
     cut_left : float
@@ -481,13 +480,24 @@ class Profile(CpuGpuTrackable):
 
     @handle_legacy_kwargs
     def __init__(self, beam: Beam,
-                 cut_options: CutOptions = CutOptions(),
-                 fit_options: FitOptions = FitOptions(),
-                 filter_options: FilterOptions = FilterOptions(),
-                 other_slices_options: OtherSlicesOptions = OtherSlicesOptions()) -> None:
+                 cut_options: Optional[CutOptions] = None,
+                 fit_options: Optional[FitOptions] = None,
+                 filter_options: Optional[FilterOptions] = None,
+                 other_slices_options: Optional[OtherSlicesOptions] = None) -> None:
         """
         Constructor
         """
+
+        if cut_options is None:
+            CutOptions()
+        if fit_options is None:
+            FitOptions()
+        if filter_options is None:
+            FilterOptions()
+        if other_slices_options is None:
+            OtherSlicesOptions()
+
+
 
         # Copy of CutOptions object to be used for re-slicing
         self.cut_options = cut_options

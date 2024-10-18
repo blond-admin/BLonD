@@ -483,11 +483,11 @@ class Beam(CpuGpuTransferable):
         other : blond beam object or (2, n) array
         """
 
-        if isinstance(other, type(self)):  # todo if elif else needed???
+        if isinstance(other, type(self)):
             self.add_beam(other)
             return self
         else:
-            self.add_particles(other)
+            self.add_particles(other) # might raise exception on wrong type
             return self
 
     def split(self, random: bool = False, fast: bool = False):

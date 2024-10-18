@@ -52,20 +52,20 @@ class TotalInducedVoltage(CpuGpuTrackable):
 
     Parameters
     ----------
-    beam : object
+    beam : Beam
         Beam object
-    profile : object
+    profile : Profile
         Profile object
-    induced_voltage_list : object list
+    induced_voltage_list : _InducedVoltage list
         List of objects for which induced voltages have to be calculated
 
     Attributes
     ----------
-    beam : object
+    beam : Beam
         Copy of the Beam object in order to access the beam info
-    profile : object
+    profile : Profile
         Copy of the Profile object in order to access the profile info
-    induced_voltage_list : object list
+    induced_voltage_list : _InducedVoltage list
         List of objects for which induced voltages have to be calculated
     induced_voltage : float array
         Array to store the computed induced voltage [V]
@@ -78,13 +78,13 @@ class TotalInducedVoltage(CpuGpuTrackable):
         Constructor.
         """
         # Copy of the Beam object in order to access the beam info.
-        self.beam: Beam = beam
+        self.beam = beam
 
         # Copy of the Profile object in order to access the profile info.
-        self.profile: Profile = profile
+        self.profile = profile
 
         # Induced voltage list.
-        self.induced_voltage_list: List[_InducedVoltage] = induced_voltage_list
+        self.induced_voltage_list = induced_voltage_list
 
         # Induced voltage from the sum of the wake sources in V
         self.induced_voltage: Union[np.ndarray, cp.ndarray] = np.zeros(int(self.profile.n_slices),
@@ -190,9 +190,9 @@ class _InducedVoltage(CpuGpuTransferable):
 
     Parameters
     ----------
-    beam : object
+    beam: Beam
         Beam object
-    profile : object
+    profile : Profile
         Profile object
     frequency_resolution : float, optional
         Frequency resolution of the impedance [Hz]
@@ -202,7 +202,7 @@ class _InducedVoltage(CpuGpuTransferable):
         Multi-turn wake enable flag
     mtw_mode : str
         Multi-turn wake mode can be 'freq' or 'time' (default)
-    rf_station : object, optional
+    rf_station : RFStation, optional
         RFStation object for turn counter and revolution period
     use_regular_fft : boolean
         use the next_regular function to ensure regular number for FFT
@@ -211,17 +211,15 @@ class _InducedVoltage(CpuGpuTransferable):
 
     Attributes
     ----------
-    beam : object
+    beam: Beam
         Copy of the Beam object in order to access the beam info
-    profile : object
+    profile : Profile
         Copy of the Profile object in order to access the profile info
     induced_voltage : float array
         Induced voltage from the sum of the wake sources in V
     wake_length_input : float
         Wake length [s]
-    frequency_resolution : float
-        Frequency resolution of the impedance [Hz]
-    rf_params : object
+    rf_params : RFStation
         RFStation object for turn counter and revolution period
     multi_turn_wake : boolean
         Multi-turn wake enable flag
@@ -236,7 +234,7 @@ class _InducedVoltage(CpuGpuTransferable):
                  wake_length: Union[float, None] = None,
                  multi_turn_wake: bool = False,
                  mtw_mode: Union[MtwModeTypes, None] = 'time',
-                 rf_station: Union[RFStation, None] = None,
+                 rf_station: Optional[RFStation] = None,
                  use_regular_fft: bool = True) -> None:
 
         # Beam object in order to access the beam info
@@ -487,9 +485,9 @@ class InducedVoltageTime(_InducedVoltage):
 
     Parameters
     ----------
-    beam : object
+    beam: Beam
         Beam object
-    profile : object
+    profile : Profile
         Profile object
     wake_source_list : list
         Wake sources list (e.g. list of Resonator objects)
@@ -497,7 +495,7 @@ class InducedVoltageTime(_InducedVoltage):
         Wake length [s]
     multi_turn_wake : boolean, optional
         Multi-turn wake enable flag
-    rf_station : object, optional
+    rf_station : RFStation, optional
         RFStation object for turn counter and revolution period
     mtw_mode : boolean, optional
         Multi-turn wake mode can be 'freq' or 'time' (default)
@@ -653,9 +651,9 @@ class InducedVoltageFreq(_InducedVoltage):
 
     Parameters
     ----------
-    beam : object
+    beam: Beam
         Beam object
-    profile : object
+    profile : Profile
         Profile object
     impedance_source_list : list
         Impedance sources list (e.g. list of Resonator objects)
@@ -665,7 +663,7 @@ class InducedVoltageFreq(_InducedVoltage):
         Multi-turn wake enable flag
     front_wake_length : float
         Lenght [s] of the front wake (if any) for multi-turn wake mode
-    rf_station : object, optional
+    rf_station : RFStation, optional
         RFStation object for turn counter and revolution period
     mtw_mode : boolean, optional
         Multi-turn wake mode can be 'freq' or 'time' (default)
@@ -820,13 +818,13 @@ class InductiveImpedance(_InducedVoltage):
 
     Parameters
     ----------
-    beam : object
+    beam: Beam
         Beam object
-    profile : object
+    profile : Profile
         Profile object
     Z_over_n : float array
         Constant imaginary Z/n program in* :math:`\Omega`.
-    rf_station : object
+    rf_station : RFStation
         RFStation object for turn counter and revolution period
     deriv_mode : string, optional
         Derivation method to compute induced voltage
@@ -911,11 +909,11 @@ class InducedVoltageResonator(_InducedVoltage):
 
     Parameters
     ----------
-    beam : object
+    beam: Beam
         Beam object
-    profile : object
+    profile : Profile
         Profile object
-    resonators : object
+    resonators : Resonators
         Resonators object
     timeArray : float array, optional
         Array of time values where the induced voltage is calculated.
@@ -924,9 +922,9 @@ class InducedVoltageResonator(_InducedVoltage):
 
     Attributes
     ----------
-    beam : object
+    beam: Beam
         Copy of the Beam object in order to access the beam info.
-    profile : object
+    profile : Profile
         Copy of the Profile object in order to access the line density.
     tArray : float array
         array of time values where the induced voltage is calculated.

@@ -34,7 +34,7 @@ class Music: # todo is this a trackable?? if yes, needs Music(TrackableBaseClass
 
     Parameters
     ----------
-    beam : object
+    beam: Beam
         Beam object.
     resonator : float list
         List of the resonator parameters:
@@ -49,7 +49,7 @@ class Music: # todo is this a trackable?? if yes, needs Music(TrackableBaseClass
 
     Attributes
     ----------
-    beam : object
+    beam: Beam
         Beam object.
     R_S : float
         shunt impedance [:math:`\Omega`]
