@@ -411,7 +411,7 @@ class Beam(CpuGpuTransferable):
         """
         self.ratio *= np.exp(-time * self.particle.decay_rate / self.gamma)
 
-    def add_particles(self, new_particles: Union[np.ndarray, list[list]]) -> None:
+    def add_particles(self, new_particles: Union[np.ndarray, list[list[float]]]) -> None:
         """
         Method to add array of new particles to beam object
         New particles are given id numbers sequential from last id of this beam
@@ -433,13 +433,13 @@ class Beam(CpuGpuTransferable):
                 "new_particles shape must be (2, n)"
             )
 
-        nNew = len(newdt)
+        n_new = len(newdt)
 
         self.id = bm.concatenate((self.id, bm.arange(self.n_macroparticles + 1,
-                                                     self.n_macroparticles + nNew + 1,
+                                                     self.n_macroparticles + n_new + 1,
                                                      dtype=int)
                                   ))
-        self.n_macroparticles += nNew
+        self.n_macroparticles += n_new
 
         self.dt = bm.concatenate((self.dt, newdt))
         self.dE = bm.concatenate((self.dE, newdE))
@@ -473,7 +473,7 @@ class Beam(CpuGpuTransferable):
         self.id = bm.concatenate((self.id, newids))
         self.n_macroparticles += other_beam.n_macroparticles
 
-    def __iadd__(self, other: Union[Beam, np.ndarray, list[list]]) -> Beam:
+    def __iadd__(self, other: Union[Beam, np.ndarray, list[list[float]]]) -> Beam:
         """
         Initialisation of in place addition calls add_beam(other) if other
         is a blond beam object, calls add_particles(other) otherwise

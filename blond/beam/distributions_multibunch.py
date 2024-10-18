@@ -71,8 +71,9 @@ def matched_from_distribution_density_multibunch(beam: Beam, ring: Ring, full_ri
         if minimum_n_macroparticles is None:
             n_macroparticles_per_bunch = np.round(beam.n_macroparticles / beam.intensity * intensity_per_bunch)
         else:
-            n_macroparticles_per_bunch = np.round(
-                minimum_n_macroparticles / np.min(intensity_per_bunch) * intensity_per_bunch)
+            n_macroparticles_per_bunch = np.round(minimum_n_macroparticles
+                                                  / np.min(intensity_per_bunch)
+                                                  * intensity_per_bunch)
 
     if np.sum(intensity_per_bunch) != beam.intensity:
         print(

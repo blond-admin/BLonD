@@ -490,7 +490,7 @@ class Profile(CpuGpuTrackable):
         """
 
         # Copy of CutOptions object to be used for re-slicing
-        self.cut_options: CutOptions = cut_options
+        self.cut_options = cut_options
 
         # Define bins
         cut_options.set_cuts(beam)

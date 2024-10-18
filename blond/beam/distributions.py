@@ -750,6 +750,7 @@ def x0_from_bunch_length(bunch_length: float,
                     profile.n_macroparticles = line_density_
 
                     if bunch_length_fit == 'gauss':
+                        raise NotImplementedError()
                         # FIXME this wont work as gaussian_fit is undefined. What shall this function do?
                         profile.bl_gauss = tau
                         profile.bp_gauss = np.sum(line_density_ *
