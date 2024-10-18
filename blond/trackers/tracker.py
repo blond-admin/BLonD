@@ -25,7 +25,7 @@ from packaging.version import Version
 
 from blond.llrf.cavity_feedback import CavityFeedback
 from blond.utils import bmath as bm
-from blond.utils.abstracts import TrackableBaseClass
+from blond.utils.abstracts import TrackableBaseClass, CpuGpuTrackable
 from blond.utils.legacy_support import handle_legacy_kwargs
 
 if Version(scipy.__version__) >= Version("1.14"):
@@ -172,7 +172,7 @@ class FullRingAndRF(TrackableBaseClass):
             RingAndRFSectionElement.track()
 
 
-class RingAndRFTracker(TrackableBaseClass):
+class RingAndRFTracker(CpuGpuTrackable):
     r""" Class taking care of basic particle coordinate tracking for a given
     RF station and the part of the ring until the next station, see figure.
 

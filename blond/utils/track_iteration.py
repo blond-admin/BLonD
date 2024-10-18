@@ -17,18 +17,13 @@ from __future__ import annotations
 
 # General imports
 from typing import TYPE_CHECKING
-
 if TYPE_CHECKING:
     from typing import Iterable, List, Callable, Protocol, Any, Self, Tuple
-
-
-    class Trackable(Protocol):
-        def track(self) -> None:
-            ...
+    from blond.utils.abstracts import TrackableBaseClass
 
 
     class Predicate(Protocol):
-        def __call__(self, _map: Iterable[Trackable], turn_number: int,
+        def __call__(self, _map: Iterable[TrackableBaseClass], turn_number: int,
                      *args: Any, **kwargs: Any):
             ...
 
@@ -55,7 +50,7 @@ class TrackIteration:
     function_list : List of functions to be called with specified interval
     """
 
-    def __init__(self, track_map: Iterable[Trackable], init_turn: int = 0,
+    def __init__(self, track_map: Iterable[TrackableBaseClass], init_turn: int = 0,
                  final_turn: int = -1) -> None:
 
         if not all((hasattr(m, 'track') for m in track_map)):

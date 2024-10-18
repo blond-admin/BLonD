@@ -23,7 +23,7 @@ from scipy.constants import e
 
 from blond.toolbox.next_regular import next_regular
 from blond.utils import bmath as bm
-from blond.utils.abstracts import TrackableBaseClass
+from blond.utils.abstracts import TrackableBaseClass, CpuGpuTrackable, CpuGpuTransferable
 from blond.utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
@@ -42,7 +42,7 @@ if TYPE_CHECKING:
     MtwModeTypes = Literal["freq", "time"]
 
 
-class TotalInducedVoltage(TrackableBaseClass):
+class TotalInducedVoltage(CpuGpuTrackable):
     r"""
     Object gathering all the induced voltage contributions. The input is a
     list of objects able to compute induced voltages (InducedVoltageTime,
@@ -183,7 +183,7 @@ class TotalInducedVoltage(TrackableBaseClass):
         self._device: DeviceType = 'CPU'
 
 
-class _InducedVoltage:
+class _InducedVoltage(CpuGpuTransferable):
     r"""
     Induced voltage parent class. Only for internal use (inheritance), not to
     be directly instantiated.

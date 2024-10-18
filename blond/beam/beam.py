@@ -26,6 +26,7 @@ from blond.trackers.utilities import is_in_separatrix
 from blond.utils import bmath as bm
 from blond.utils import exceptions as blond_exceptions
 from blond.utils.legacy_support import handle_legacy_kwargs
+from blond.utils.abstracts import CpuGpuTransferable
 
 if TYPE_CHECKING:
     from typing import Union
@@ -144,7 +145,7 @@ class MuMinus(Particle):
         Particle.__init__(self, m_mu * c ** 2 / e, -1, float(1 / 2.1969811e-6))
 
 
-class Beam:
+class Beam(CpuGpuTransferable):
     r"""Class containing the beam properties.
 
     This class containes the beam coordinates (dt, dE) and the beam properties.
@@ -664,7 +665,7 @@ class Beam:
 
         self._device: DeviceType = 'GPU'
 
-    def to_cpu(self):
+    def to_cpu(self, recursive=True):
         """
         Transfer all necessary arrays back to the CPU
         """

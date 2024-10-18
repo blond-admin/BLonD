@@ -15,13 +15,14 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 import numpy as np
 import scipy
 from packaging.version import Version
 
 from blond.beam.beam import Particle
+from blond.utils.abstracts import CpuGpuTransferable
 
 if Version(scipy.__version__) >= Version("1.14"):
     from scipy.integrate import cumulative_trapezoid as cumtrapz
@@ -43,7 +44,7 @@ if TYPE_CHECKING:
     from blond.utils.types import DeviceType
 
 
-class RFStation:
+class RFStation(CpuGpuTransferable):
     r""" Class containing all the RF parameters for all the RF systems in one
     ring segment or RF station.
 
@@ -238,7 +239,7 @@ class RFStation:
     """
 
     @handle_legacy_kwargs
-    def __init__(self, ring: Ring, harmonic: int, voltage, phi_rf_d, n_rf=1,
+    def __init__(self, ring: Ring, harmonic: Union[int, list[int]], voltage: Union[float, list[float]], phi_rf_d, n_rf=1,
                  section_index=1, omega_rf=None, phi_noise=None,
                  phi_modulation=None, rf_station_options: RFStationOptions = RFStationOptions()):
 

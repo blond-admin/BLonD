@@ -23,8 +23,9 @@ from scipy import ndimage
 
 from blond.toolbox import filters_and_fitting as ffroutines
 from blond.utils import bmath as bm
-from blond.utils.abstracts import TrackableBaseClass
+from blond.utils.abstracts import TrackableBaseClass, CpuGpuTrackable
 from blond.utils.legacy_support import handle_legacy_kwargs
+from blond.utils.abstracts import CpuGpuTransferable
 
 if TYPE_CHECKING:
     from numpy import ndarray
@@ -35,7 +36,7 @@ if TYPE_CHECKING:
     from blond.utils.types import FilterExtraOptionsType, CutUnitType, FitOptionTypes, FilterMethodType
 
 
-class CutOptions:
+class CutOptions(CpuGpuTransferable):
     r"""
     This class groups all the parameters necessary to slice the phase space
     distribution according to the time axis, apart from the array collecting
@@ -401,7 +402,7 @@ class OtherSlicesOptions:
         self.direct_slicing = direct_slicing
 
 
-class Profile(TrackableBaseClass):
+class Profile(CpuGpuTrackable):
     """
     Contains the beam profile and related quantities including beam spectrum,
     profile derivative.

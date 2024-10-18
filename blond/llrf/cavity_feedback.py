@@ -144,6 +144,7 @@ class CavityFeedback(TrackableBaseClass):
         self.V_ANT_FINE = np.zeros(self.profile.n_slices, dtype=complex)
         self.I_GEN_COARSE = np.zeros(2 * self.n_coarse, dtype=complex)
         self.I_GEN_FINE = np.zeros(self.profile.n_slices, dtype=complex)
+
     @property
     def rfstation(self):
         from warnings import warn
@@ -155,7 +156,6 @@ class CavityFeedback(TrackableBaseClass):
         from warnings import warn
         warn("rfstation is deprecated, use ring", DeprecationWarning)
         self.rf_station = val
-
 
     @abstractmethod
     def circuit_track(self, no_beam: bool = False):
@@ -317,7 +317,7 @@ class SPSCavityLoopCommissioning:
         self.cpp_conv = cpp_conv
         self.pwr_clamp = pwr_clamp
         self.rot_iq = rot_iq
-        self.excitation = int(excitation)
+        self.excitation: int = int(excitation)
 
 
 class LHCCavityLoopCommissioning:

@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from blond.utils import bmath as bm
-from blond.utils.abstracts import TrackableBaseClass
+from blond.utils.abstracts import CpuGpuTrackable
 from blond.utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     from blond.utils.types import DeviceType
 
 
-class SynchrotronRadiation(TrackableBaseClass):
+class SynchrotronRadiation(CpuGpuTrackable):
     """ Class to compute synchrotron radiation effects, including radiation
         damping and quantum excitation.
         For multiple RF section, instance one object per RF section a call
