@@ -23,7 +23,8 @@ from blond.utils.abstracts import CpuGpuTrackable
 from blond.utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
-    from typing import Union, Callable, Dict
+    from typing import Callable, Dict,Optional
+
     from blond.beam.beam import Beam
     from blond.input_parameters.rf_parameters import RFStation
     from blond.input_parameters.ring import Ring
@@ -46,7 +47,7 @@ class SynchrotronRadiation(CpuGpuTrackable):
                  n_kicks: int = 1,
                  quantum_excitation: bool = True,
                  python: bool = False,
-                 seed: Union[int, None] = None,
+                 seed: Optional[int] = None,
                  shift_beam: bool = True
                  ) -> None:
 
@@ -103,7 +104,7 @@ class SynchrotronRadiation(CpuGpuTrackable):
             "track_SR_C": self.track_SR_C,
             "track_full_C": self.track_full_C,
         }
-        self.track_mode: Union[str, None] = None
+        self.track_mode: str | None = None
 
     # Method to compute the SR parameters
     def calculate_SR_params(self) -> None:

@@ -25,16 +25,18 @@ from blond.toolbox.action import x2, action_from_phase_amplitude
 from blond.utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
-    from typing import Union
     from os import PathLike
+
+    from numpy.typing import NDArray
+
     from blond.input_parameters.rf_parameters import RFStation
     from blond.input_parameters.ring import Ring
 
 
 @handle_legacy_kwargs
-def phase_noise_diffusion(ring: Ring, rf_station: RFStation, spectrum: np.ndarray, distribution: np.ndarray,
-                          distributionBins: np.ndarray, Ngrids: int = 200, M: int = 1,
-                          iterations: int = 100000, figdir: Union[PathLike, str, None] = None):
+def phase_noise_diffusion(ring: Ring, rf_station: RFStation, spectrum: NDArray, distribution: NDArray,
+                          distributionBins: NDArray, Ngrids: int = 200, M: int = 1,
+                          iterations: int = 100000, figdir: PathLike | str | None = None):
     """
     Calculate diffusion in action space according to a given double-sided phase
     noise spectrum, on a uniform grid in oscillation amplitude.

@@ -23,13 +23,14 @@ from scipy import ndimage
 
 from blond.toolbox import filters_and_fitting as ffroutines
 from blond.utils import bmath as bm
-from blond.utils.abstracts import TrackableBaseClass, CpuGpuTrackable
+from blond.utils.abstracts import CpuGpuTrackable, CpuGpuTransferable
 from blond.utils.legacy_support import handle_legacy_kwargs
-from blond.utils.abstracts import CpuGpuTransferable
 
 if TYPE_CHECKING:
-    from numpy import ndarray
-    from typing import List, Callable, Union, Tuple, Optional
+    from typing import List, Callable, Tuple, Optional
+
+    from numpy.typing import NDArray
+
     from blond.utils.types import DeviceType
     from blond.beam.beam import Beam
     from blond.input_parameters.rf_parameters import RFStation
@@ -92,31 +93,31 @@ class CutOptions(CpuGpuTransferable):
 
     @handle_legacy_kwargs
     def __init__(self,
-                 cut_left: Union[float, None] = None,
-                 cut_right: Union[float, None] = None,
+                 cut_left: Optional[float] = None,
+                 cut_right: Optional[float] = None,
                  n_slices: int = 100,
                  n_sigma: Optional[int] = None,
                  cuts_unit: CutUnitType = 's',
-                 rf_station: Union[RFStation, None] = None
+                 rf_station: Optional[RFStation] = None
                  ) -> None:
         """
         Constructor
         """
 
-        self.cut_left: Union[float, None] = float(cut_left) if cut_left is not None \
+        self.cut_left: Optional[float] = float(cut_left) if cut_left is not None \
             else None
 
-        self.cut_right: Union[float, None] = float(cut_right) if cut_right is not None \
+        self.cut_right: Optional[float] = float(cut_right) if cut_right is not None \
             else None
 
         self.n_slices = int(n_slices)
 
-        self.n_sigma: Union[float, None] = float(n_sigma) if n_sigma is not None \
+        self.n_sigma: Optional[float] = float(n_sigma) if n_sigma is not None \
             else None
 
         self.cuts_unit: CutUnitType = cuts_unit
 
-        self.rf_station: Union[RFStation, None] = rf_station
+        self.rf_station: Optional[RFStation] = rf_station
 
         if self.cuts_unit == 'rad' and self.rf_station is None:
             # CutError
@@ -126,8 +127,8 @@ class CutOptions(CpuGpuTransferable):
             # CutError
             raise NameError(f'cuts_unit should be "s" or "rad", not {cuts_unit=} !')
 
-        self.edges: np.ndarray = np.zeros(n_slices + 1, dtype=bm.precision.real_t, order='C')
-        self.bin_centers: np.ndarray = np.zeros(n_slices, dtype=bm.precision.real_t, order='C')
+        self.edges: NDArray = np.zeros(n_slices + 1, dtype=bm.precision.real_t, order='C')
+        self.bin_centers: NDArray = np.zeros(n_slices, dtype=bm.precision.real_t, order='C')
         self.bin_size: float = 0.0
         # For CuPy backend
         self._device: DeviceType = 'CPU'
@@ -144,7 +145,7 @@ class CutOptions(CpuGpuTransferable):
         warn("AMBIGUOUS is deprecated, use ring", DeprecationWarning)
         self.rf_station = val
 
-    def set_cuts(self, beam: Union[Beam, None] = None) -> None:
+    def set_cuts(self, beam: Optional[Beam] = None) -> None:
         r"""
         Method to set self.cut_left, self.cut_right, self.edges and
         self.bin_centers attributes.
@@ -212,7 +213,7 @@ class CutOptions(CpuGpuTransferable):
         else:
             raise NameError(input_unit_type)
 
-    def get_slices_parameters(self) -> Tuple[int, float, float, None, ndarray, ndarray, float]:
+    def get_slices_parameters(self) -> Tuple[int, float, float, None, NDArray, NDArray, float]:
         """
         Return all the computed parameters.
         """
@@ -286,13 +287,13 @@ class FitOptions:
     """
     @handle_legacy_kwargs
     def __init__(self,
-                 fit_option: Union[FitOptionTypes, None] = None,
+                 fit_option: Optional[FitOptionTypes] = None,
                  fit_extra_options: None = None) -> None:  # todo type hint
         """
         Constructor
         """
 
-        self.fit_option: Union[FitOptionTypes, None] = fit_option
+        self.fit_option: Optional[FitOptionTypes] = fit_option
         self.fit_extra_options: None = fit_extra_options
 
     @property
@@ -331,14 +332,14 @@ class FilterOptions:
 
     """
     @handle_legacy_kwargs
-    def __init__(self, filter_method: Union[FilterMethodType, None] = None,
-                 filter_extra_options: Union[FilterExtraOptionsType, None] = None) -> None:
+    def __init__(self, filter_method: Optional[FilterMethodType] = None,
+                 filter_extra_options: Optional[FilterExtraOptionsType] = None) -> None:
         """
         Constructor
         """
 
-        self.filter_method: Union[FilterMethodType, None] = filter_method
-        self.filter_extra_options: Union[FilterExtraOptionsType, None] = filter_extra_options
+        self.filter_method: Optional[FilterMethodType] = filter_method
+        self.filter_extra_options: Optional[FilterExtraOptionsType] = filter_extra_options
 
     @property
     def filterMethod(self):
@@ -512,19 +513,19 @@ class Profile(CpuGpuTrackable):
         self.cut_left = 0.
         self.cut_right = 0.
         self.n_sigma = 0
-        self.edges: Union[np.ndarray, None] = None
-        self.bin_centers: Union[np.ndarray, None] = None
+        self.edges: NDArray | None = None
+        self.bin_centers: NDArray | None = None
         self.bin_size = 0.
         self.fit_extra_options = None  # todo typing
         # Get all computed parameters from CutOptions
         self.set_slices_parameters()
 
         # Initialize profile array as zero array
-        self.n_macroparticles: np.ndarray = np.zeros(self.n_slices, dtype=bm.precision.real_t, order='C')
+        self.n_macroparticles: NDArray = np.zeros(self.n_slices, dtype=bm.precision.real_t, order='C')
 
         # Initialize beam_spectrum and beam_spectrum_freq as empty arrays
-        self.beam_spectrum: np.ndarray = np.array([], dtype=bm.precision.real_t, order='C')
-        self.beam_spectrum_freq: np.ndarray = np.array([], dtype=bm.precision.real_t, order='C')
+        self.beam_spectrum: NDArray = np.array([], dtype=bm.precision.real_t, order='C')
+        self.beam_spectrum_freq: NDArray = np.array([], dtype=bm.precision.real_t, order='C')
 
         self.operations: List[Callable] = []
         if other_slices_options.smooth:
@@ -589,7 +590,7 @@ class Profile(CpuGpuTrackable):
         """
         self.n_slices, self.cut_left, self.cut_right, self.n_sigma, \
             self.edges, self.bin_centers, self.bin_size = \
-            self.cut_options.get_slices_parameters()
+            self.cut_options.get_slices_parameters() # fixme get_slices_parameters doesnt exist
 
     def track(self) -> None:
         """

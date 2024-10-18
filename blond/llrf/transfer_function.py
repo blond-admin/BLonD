@@ -123,9 +123,9 @@ class TransferFunction(object):
         N_sp: float
             Number of sections that the N-data spectrum is divided to
             calculate periodogram [1..N]
-        f_m : ndarray
+        f_m : NDArray
             Array of sample frequencies.
-        P_ss: ndarray
+        P_ss: NDArray
             Power spectral density or power spectrum of input signal `In`.
             Afterwards, it shifted the
             zero-frequency component to the center of the spectrum.

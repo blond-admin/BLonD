@@ -1,20 +1,23 @@
 """
 BLonD physics functions, numba implementations
 """
-
+from __future__ import annotations
 import math
 import random
+from typing import TYPE_CHECKING
 
 import numpy as np
 from numba import get_num_threads, get_thread_id
 from numba import jit
 from numba import prange
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
 
 
 # --------------- Similar to kick.cpp -----------------
 @jit(nopython=True, nogil=True, fastmath=True, parallel=True, cache=True)
-def kick(dt: np.ndarray, dE: np.ndarray, voltage: np.ndarray,
-         omega_rf: np.ndarray, phi_rf: np.ndarray,
+def kick(dt: NDArray, dE: NDArray, voltage: NDArray,
+         omega_rf: NDArray, phi_rf: NDArray,
          charge: float, n_rf: int, acceleration_kick: float) -> None:
     """
     Function to apply RF kick on the particles with sin function
@@ -29,8 +32,8 @@ def kick(dt: np.ndarray, dE: np.ndarray, voltage: np.ndarray,
 
 
 @jit(nopython=True, nogil=True, fastmath=True, parallel=True, cache=True)
-def rf_volt_comp(voltages: np.ndarray, omega_rf: np.ndarray, phi_rf: np.ndarray,
-                 bin_centers: np.ndarray) -> np.ndarray:
+def rf_volt_comp(voltages: NDArray, omega_rf: NDArray, phi_rf: NDArray,
+                 bin_centers: NDArray) -> NDArray:
     """Compute rf voltage at each bin.
 
     Args:
@@ -57,7 +60,7 @@ def rf_volt_comp(voltages: np.ndarray, omega_rf: np.ndarray, phi_rf: np.ndarray,
 
 # --------------- Similar to drift.cpp -----------------
 @jit(nopython=True, fastmath=True, parallel=True, cache=True)
-def drift(dt: np.ndarray, dE: np.ndarray, solver: str, t_rev: float,
+def drift(dt: NDArray, dE: NDArray, solver: str, t_rev: float,
           length_ratio: float, alpha_order, eta_0: float,
           eta_1: float, eta_2: float, alpha_0: float,
           alpha_1: float, alpha_2: float, beta: float, energy: float) -> None:
@@ -113,7 +116,7 @@ def drift(dt: np.ndarray, dE: np.ndarray, solver: str, t_rev: float,
 
 # --------------- Similar to histogram.cpp -----------------
 @jit(nopython=True, nogil=True, fastmath=True, parallel=True, cache=True)
-def slice_beam(dt: np.ndarray, profile: np.ndarray,
+def slice_beam(dt: NDArray, profile: NDArray,
                cut_left: float, cut_right: float) -> None:
     """Slice the time coordinate of the beam.
 
@@ -173,7 +176,7 @@ def slice_beam(dt: np.ndarray, profile: np.ndarray,
 
 
 @jit(nopython=True, fastmath=True, parallel=True, cache=True)
-def slice_smooth(dt: np.ndarray, profile: np.ndarray,
+def slice_smooth(dt: NDArray, profile: NDArray,
                  cut_left: float, cut_right: float) -> None:
     """Smooth slice method.
 
@@ -212,8 +215,8 @@ def slice_smooth(dt: np.ndarray, profile: np.ndarray,
 
 # --------------- Similar to linear_interp_kick.cpp -----------------
 @jit(nopython=True, nogil=True, fastmath=True, parallel=True, cache=True)
-def linear_interp_kick(dt: np.ndarray, dE: np.ndarray, voltage: np.ndarray,
-                       bin_centers: np.ndarray, charge: float,
+def linear_interp_kick(dt: NDArray, dE: NDArray, voltage: NDArray,
+                       bin_centers: NDArray, charge: float,
                        acceleration_kick: float) -> None:
     """Interpolated kick method.
 
@@ -245,7 +248,7 @@ def linear_interp_kick(dt: np.ndarray, dE: np.ndarray, voltage: np.ndarray,
 
 # --------------- Similar to synchrotron_radiation.cpp -----------------
 @jit(nopython=True, nogil=True, fastmath=True, parallel=True, cache=True)
-def synchrotron_radiation(dE: np.ndarray, U0: float,
+def synchrotron_radiation(dE: NDArray, U0: float,
                           n_kicks: int, tau_z: float) -> None:
     """Apply SR
 
@@ -268,7 +271,7 @@ def synchrotron_radiation(dE: np.ndarray, U0: float,
 
 
 @jit(nopython=True, nogil=True, fastmath=True, parallel=True, cache=True)
-def synchrotron_radiation_full(dE: np.ndarray, U0: float,
+def synchrotron_radiation_full(dE: NDArray, U0: float,
                                n_kicks: int, tau_z: float,
                                sigma_dE: float, energy: float) -> None:
     """Apply SR with quantum excitation
@@ -312,8 +315,8 @@ def set_random_seed(seed: int) -> None:
 
 # --------------- Similar to music_track.cpp -----------------
 @jit(nopython=True, nogil=True, fastmath=True, cache=True)
-def music_track(dt: np.ndarray, dE: np.ndarray, induced_voltage: np.ndarray,
-                array_parameters: np.ndarray, alpha: float, omega_bar: float,
+def music_track(dt: NDArray, dE: NDArray, induced_voltage: NDArray,
+                array_parameters: NDArray, alpha: float, omega_bar: float,
                 const: float, coeff1: float, coeff2: float,
                 coeff3: float, coeff4: float) -> None:
     """
@@ -376,8 +379,8 @@ def music_track(dt: np.ndarray, dE: np.ndarray, induced_voltage: np.ndarray,
 
 
 @jit(nopython=True, nogil=True, fastmath=True, cache=True)
-def music_track_multiturn(dt: np.ndarray, dE: np.ndarray, induced_voltage: np.ndarray,
-                          array_parameters: np.ndarray, alpha: float, omega_bar: float,
+def music_track_multiturn(dt: NDArray, dE: NDArray, induced_voltage: NDArray,
+                          array_parameters: NDArray, alpha: float, omega_bar: float,
                           const: float, coeff1: float, coeff2: float,
                           coeff3: float, coeff4: float) -> None:
     """This function calculates the multi-turn induced voltage and updates the
@@ -452,8 +455,8 @@ def music_track_multiturn(dt: np.ndarray, dE: np.ndarray, induced_voltage: np.nd
 
 # # --------------- Similar to fast_resonator.cpp -----------------
 # @jit(nopython=True, nogil=True, fastmath=True, parallel=True, cache=True)
-# def fast_resonator(R_S: np.ndarray, Q: np.ndarray, frequency_array: np.ndarray,
-#                    frequency_R: np.ndarray, impedance: np.ndarray = None) -> np.ndarray:
+# def fast_resonator(R_S: NDArray, Q: NDArray, frequency_array: NDArray,
+#                    frequency_R: NDArray, impedance: NDArray = None) -> NDArray:
 
 #     if impedance is None:
 #         impedance = np.zeros(len(frequency_array), dtype=np.complex128)
@@ -468,8 +471,8 @@ def music_track_multiturn(dt: np.ndarray, dE: np.ndarray, induced_voltage: np.nd
 # # ---------------------------------------------------
 
 # --------------- Similar to fast_resonator.cpp -----------------
-def fast_resonator(R_S: np.ndarray, Q: np.ndarray, frequency_array: np.ndarray,
-                   frequency_R: np.ndarray, impedance: np.ndarray = None) -> np.ndarray:
+def fast_resonator(R_S: NDArray, Q: NDArray, frequency_array: NDArray,
+                   frequency_R: np.ndarray, impedance: np.ndarray = None) -> NDArray:
     """
     We're defining and calling a function internally due to issues
     dealing with parallelization and the allocation of the impedance array.

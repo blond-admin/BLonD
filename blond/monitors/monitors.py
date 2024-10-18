@@ -44,8 +44,8 @@ class BunchMonitor(TrackableBaseClass):
 
     @handle_legacy_kwargs
     def __init__(self, ring: Ring, rf_parameters: RFStation, beam: Beam,
-                 filename: Union[os.PathLike, str],
-                 buffer_time: Union[None, int] = None,  # todo document this
+                 filename: os.PathLike | str,
+                 buffer_time: Optional[int] = None,  # todo document this
                  profile: Optional[Profile] = None, phase_loop: Optional[BeamFeedback] = None,
                  lhc_noise_feedback: Optional[LHCNoiseFB] = None):
 
@@ -111,7 +111,7 @@ class BunchMonitor(TrackableBaseClass):
             self.close()
             self.init_buffer()
 
-    def init_data(self, filename: Union[os.PathLike, str], dims: Union[SupportsIndex, Sequence[SupportsIndex]]):
+    def init_data(self, filename: os.PathLike | str, dims: SupportsIndex | Sequence[SupportsIndex]):
 
         # Prepare data
         self.beam.statistics()
@@ -280,7 +280,7 @@ class BunchMonitor(TrackableBaseClass):
             if self.lhc_noise_feedback.bl_meas_bbb is not None:
                 self.b_LHCnoiseFB_bl_bbb[i, :] = self.lhc_noise_feedback.bl_meas_bbb[:]
 
-    def write_data(self, h5group: hp.Group, dims: Union[SupportsIndex, Sequence[SupportsIndex]]):
+    def write_data(self, h5group: hp.Group, dims: SupportsIndex | Sequence[SupportsIndex]):
 
         i1 = self.i_turn - self.buffer_time
         i2 = self.i_turn
@@ -368,7 +368,7 @@ class SlicesMonitor(TrackableBaseClass):
         the slicing.
     """
 
-    def __init__(self, filename: Union[os.PathLike, str], n_turns: int, profile: Profile):
+    def __init__(self, filename: os.PathLike | str, n_turns: int, profile: Profile):
 
         # create directory to save h5 file if needed
         dirname = os.path.dirname(filename)
@@ -410,7 +410,7 @@ class MultiBunchMonitor(TrackableBaseClass):
     """
 
     @handle_legacy_kwargs
-    def __init__(self, filename: Union[os.PathLike, str], n_turns, profile: Profile, rf_station: RFStation,
+    def __init__(self, filename: os.PathLike | str, n_turns, profile: Profile, rf_station: RFStation,
                  n_bunches: int, buffer_size=100):
 
         # create directory to save h5 file if needed

@@ -30,7 +30,11 @@ from blond.utils.legacy_support import handle_legacy_kwargs
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Union, Optional
+    from typing import Optional, List
+
+    from numpy.typing import NDArray
+
+
     from blond.input_parameters.ring import Ring
     from blond.beam.beam import Beam
     from blond.impedances.impedance import TotalInducedVoltage
@@ -41,16 +45,16 @@ if TYPE_CHECKING:
 
 @handle_legacy_kwargs
 def matched_from_distribution_density_multibunch(beam: Beam, ring: Ring, full_ring_and_rf: FullRingAndRF,
-                                                 distribution_options_list: Union[list, dict],  # todo better specify
+                                                 distribution_options_list: List | dict,  # todo better specify
                                                  n_bunches: int,
                                                  bunch_spacing_buckets: int,
-                                                 intensity_list: Union[list, np.ndarray, None] = None,
-                                                 minimum_n_macroparticles: Union[int, None] = None,
+                                                 intensity_list: List | NDArray | None = None,
+                                                 minimum_n_macroparticles: Optional[int] = None,
                                                  main_harmonic_option: MainHarmonicOptionType = 'lowest_freq',
-                                                 total_induced_voltage: Union[TotalInducedVoltage, None] = None,
+                                                 total_induced_voltage: Optional[TotalInducedVoltage] = None,
                                                  n_iterations_input: int = 1,
                                                  plot_option: bool = False,
-                                                 seed: Union[int, None] = None,
+                                                 seed: Optional[int] = None,
                                                  ):
     """
     *Function to generate a multi-bunch beam using the matched_from_distribution_density
@@ -241,15 +245,15 @@ def matched_from_distribution_density_multibunch(beam: Beam, ring: Ring, full_ri
 @handle_legacy_kwargs
 def matched_from_line_density_multibunch(beam: Beam, ring: Ring,
                                          full_ring_and_rf: FullRingAndRF,
-                                         line_density_options_list: Union[list, dict], n_bunches,
+                                         line_density_options_list: List | dict, n_bunches,
                                          bunch_spacing_buckets: int,
-                                         intensity_list: Union[list, np.ndarray, None] = None,
-                                         minimum_n_macroparticles: Union[int, None] = None,
+                                         intensity_list: List | NDArray | None = None,
+                                         minimum_n_macroparticles: Optional[int] = None,
                                          main_harmonic_option: MainHarmonicOptionType = 'lowest_freq',
-                                         total_induced_voltage: Union[TotalInducedVoltage, None] = None,
+                                         total_induced_voltage: Optional[TotalInducedVoltage] = None,
                                          half_option: HalfOptionType = 'first',
                                          plot_option: bool = False,
-                                         seed: Union[int, None] = None,
+                                         seed: Optional[int] = None,
                                          ):
     """
     *Function to generate a multi-bunch beam using the matched_from_distribution_density
@@ -424,10 +428,10 @@ def match_beam_from_distribution(beam: Beam, full_ring_and_rf: FullRingAndRF, ri
                                  n_bunches: int,
                                  bunch_spacing_buckets: int,
                                  main_harmonic_option: MainHarmonicOptionType = 'lowest_freq',
-                                 total_induced_voltage: Union[TotalInducedVoltage, None] = None,
+                                 total_induced_voltage: Optional[TotalInducedVoltage] = None,
                                  n_iterations: int = 1,
                                  n_points_potential: int = int(1e4),
-                                 dt_margin_percent: float = 0.40, seed: Union[int, None] = None,
+                                 dt_margin_percent: float = 0.40, seed: Optional[int] = None,
                                  ):
     """
     *This function generates n equally spaced bunches for a stationary
@@ -603,7 +607,7 @@ def match_beam_from_distribution_multibatch(beam: Beam, full_ring_and_rf: FullRi
                                             total_induced_voltage: Optional[TotalInducedVoltage] = None,
                                             n_iterations: int = 1,
                                             n_points_potential: int = int(1e4),
-                                            dt_margin_percent: float = 0.40, seed: Union[int, None] = None):
+                                            dt_margin_percent: float = 0.40, seed: Optional[int] = None):
     """
     *This function generates n equally spaced bunches for a stationary
     distribution and try to match them with intensity effects.*
@@ -780,7 +784,7 @@ def match_beam_from_distribution_multibatch(beam: Beam, full_ring_and_rf: FullRi
 
 
 def compute_x_grid(normalization_DeltaE,  # todo TypeHint
-                   time_array: np.ndarray, potential_well: np.ndarray,
+                   time_array: NDArray, potential_well: NDArray,
                    distribution_variable: DistributionVariableType):
     # Delta Energy array
     max_DeltaE = np.sqrt(np.max(potential_well) / normalization_DeltaE)
@@ -823,9 +827,9 @@ def compute_H0(emittance, H, J):
 
 @handle_legacy_kwargs
 def match_a_bunch(normalization_DeltaE,  # todo type hint
-                  beam: Beam, potential_well_coordinates: np.ndarray,
-                  potential_well: np.ndarray, seed: int, distribution_options: DistributionOptionsType,
-                  full_ring_and_rf: Union[FullRingAndRF, None] = None,
+                  beam: Beam, potential_well_coordinates: NDArray,
+                  potential_well: NDArray, seed: int, distribution_options: DistributionOptionsType,
+                  full_ring_and_rf: Optional[FullRingAndRF] = None,
                   ):
     if 'type' in distribution_options:
         distribution_type = distribution_options['type']

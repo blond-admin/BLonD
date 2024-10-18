@@ -33,22 +33,19 @@ if Version(scipy.__version__) >= Version("1.14"):
 else:
     from scipy.integrate import cumtrapz
 
-
 if TYPE_CHECKING:
-    from blond.llrf.beam_feedback import BeamFeedback
-    from typing import Optional
-    from blond.impedances.impedance import TotalInducedVoltage
-    from numpy import ndarray
-    from typing import Literal, List, Union
+    from typing import Optional, Literal, List
 
+    from numpy.typing import NDArray
+
+    from blond.impedances.impedance import TotalInducedVoltage
+    from blond.llrf.beam_feedback import BeamFeedback
     from blond.beam.profile import Profile
     from blond.beam.beam import Beam
     from blond.input_parameters.rf_parameters import RFStation
     from blond.utils.types import DeviceType
+
     MainHarmonicOptionType = Literal['lowest_freq', 'highest_voltage'] | int | float
-
-
-
 
 
 class FullRingAndRF(TrackableBaseClass):
@@ -64,10 +61,10 @@ class FullRingAndRF(TrackableBaseClass):
         self.ring_and_rf_section = ring_and_rf_section
 
         #: *Total potential well in [V]*
-        self.potential_well: Union[np.ndarray, None] = None
+        self.potential_well: NDArray | None = None
 
         #: *Total potential well theta coordinates in [rad]*
-        self.potential_well_coordinates: Union[np.ndarray, None] = None
+        self.potential_well_coordinates: NDArray | None = None
 
         #: *Ring circumference in [m]*
         self.ring_circumference: float = 0.0
@@ -91,7 +88,7 @@ class FullRingAndRF(TrackableBaseClass):
 
     def potential_well_generation(self, turn: int = 0, n_points: int = int(1e5),
                                   main_harmonic_option: MainHarmonicOptionType = 'lowest_freq',
-                                  dt_margin_percent: float = 0., time_array: np.ndarray = None) -> None:
+                                  dt_margin_percent: float = 0., time_array: NDArray = None) -> None:
         """Method to generate the potential well out of the RF systems. The
         assumption made is that all the RF voltages are averaged over one turn.
         The potential well is then approximated over one turn, which is not the
@@ -229,13 +226,13 @@ class RingAndRFTracker(CpuGpuTrackable):
     def __init__(self,
                  rf_station: RFStation,
                  beam: Beam,
-                 solver: Literal[ 'simple',  'exact', 'legacy'] = 'simple',
-                 beam_feedback: Union[BeamFeedback, None ]= None,
+                 solver: Literal['simple', 'exact', 'legacy'] = 'simple',
+                 beam_feedback: Optional[BeamFeedback] = None,
                  noise_feedback: None = None,  # FIXME type hint, NoiseFeedback class doesnt exist
-                 cavity_feedback: Union[CavityFeedback, None ]= None,
+                 cavity_feedback: Optional[CavityFeedback] = None,
                  periodicity: bool = False,
                  interpolation: bool = False,
-                 profile: Union[Profile, None] = None,
+                 profile: Optional[Profile] = None,
                  total_induced_voltage: Optional[TotalInducedVoltage] = None) -> None:
 
         # Set up logging
@@ -296,7 +293,7 @@ class RingAndRFTracker(CpuGpuTrackable):
         if (self.cavityFB is not None) and (not hasattr(self.cavityFB, '__iter__')):
             self.cavityFB = [self.cavityFB]
 
-    def kick(self, beam_dt: ndarray, beam_dE: ndarray, index: int) -> None:
+    def kick(self, beam_dt: NDArray, beam_dE: NDArray, index: int) -> None:
         r"""Function updating the particle energy due to the RF kick in a given
         RF station. The kicks are summed over the different harmonic RF systems
         in the station. The cavity phase can be shifted by the user via
@@ -314,7 +311,7 @@ class RingAndRFTracker(CpuGpuTrackable):
                 self.rf_params.omega_rf[:, index], self.rf_params.phi_rf[:, index],
                 self.rf_params.particle.charge, self.rf_params.n_rf, self.acceleration_kick[index])
 
-    def drift(self, beam_dt: ndarray, beam_dE: ndarray, index: int) -> None:
+    def drift(self, beam_dt: NDArray, beam_dE: NDArray, index: int) -> None:
         r"""Function updating the particle arrival time to the RF station
         (drift). If only the zeroth order slippage factor is given, 'simple'
         and 'exact' solvers are available. The 'simple' solver is somewhat

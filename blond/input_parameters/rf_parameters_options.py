@@ -27,11 +27,12 @@ from blond.plots.plot import fig_folder
 from blond.utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
-    from numpy import ndarray
-    from typing import Any, List, Literal, Union, Optional
-    from typing import Any, List, Literal, Union, Optional, Tuple, Callable
+    from typing import Any, List, Literal, Optional, Tuple, Callable
+
+    from numpy.typing import NDArray
+
     from blond.input_parameters.ring import Ring
-    from typing import Any, List, Literal, Union
+
 
 
 class RFStationOptions:
@@ -61,7 +62,7 @@ class RFStationOptions:
                  interpolation: Literal['linear', 'cubic'] = 'linear',
                  smoothing: float = 0.0,
                  plot: bool = False,
-                 figdir: Union[os.PathLike, str] = 'fig',
+                 figdir: os.PathLike | str = 'fig',
                  figname: List[str] = ['data'],
                  sampling: int = 1
                  ) -> None:
@@ -96,9 +97,9 @@ class RFStationOptions:
     def reshape_data(self, input_data: Any,
                      n_turns: int,
                      n_rf: int,
-                     interp_time: ndarray,
+                     interp_time: NDArray,
                      t_start: Optional[float] = 0.0
-                     ) -> ndarray:
+                     ) -> NDArray:
         r"""Checks whether the user input is consistent with the expectation
         for the RFStation object. The possibilites are detailed in the
         documentation of the RFStation object.

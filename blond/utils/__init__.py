@@ -4,14 +4,14 @@ Basic methods and objects related to the computational core.
 @author: Konstantinos Iliakis
 @date: 25.05.2023
 """
-
+from  __future__ import annotations
 import ctypes as ct
-from typing import Union, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 import numpy as np
 
 if TYPE_CHECKING:
-    from typing import Union
+    from numpy.typing import NDArray
 
 
 class PrecisionClass:
@@ -63,7 +63,7 @@ class c_complex128(ct.Structure):
     """
     _fields_ = [("real", ct.c_double), ("imag", ct.c_double)]
 
-    def __init__(self, pycomplex: np.ndarray):
+    def __init__(self, pycomplex: NDArray):
         """Init from Python complex
 
         Args:
@@ -92,7 +92,7 @@ class c_complex64(ct.Structure):
     """
     _fields_ = [("real", ct.c_float), ("imag", ct.c_float)]
 
-    def __init__(self, pycomplex: np.ndarray):
+    def __init__(self, pycomplex: NDArray):
         """Init from Python complex
 
         Args:
@@ -110,7 +110,7 @@ class c_complex64(ct.Structure):
         return self.real + (1.j) * self.imag
 
 
-def c_real(scalar: Union[float, int]) -> Union[ct.c_float, ct.c_double]:
+def c_real(scalar: float | int) -> ct.c_float | ct.c_double:
     """Convert input to default precision.
     """
     if precision.num == 1:

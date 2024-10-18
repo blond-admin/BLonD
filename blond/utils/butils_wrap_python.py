@@ -3,15 +3,21 @@ BLonD physics functions, python-only implementations
 
 @author: alasheen, kiliakis
 """
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import numpy as np
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
 
 RNG = np.random.default_rng()
 
 
 # --------------- Similar to kick.cpp -----------------
-def kick(dt: np.ndarray, dE: np.ndarray, voltage: np.ndarray,
-         omega_rf: np.ndarray, phi_rf: np.ndarray,
+def kick(dt: NDArray, dE: NDArray, voltage: NDArray,
+         omega_rf: NDArray, phi_rf: NDArray,
          charge: float, n_rf: int, acceleration_kick: float) -> None:
     """
     Function to apply RF kick on the particles with sin function
@@ -25,8 +31,8 @@ def kick(dt: np.ndarray, dE: np.ndarray, voltage: np.ndarray,
     dE[:] += acceleration_kick
 
 
-def rf_volt_comp(voltages: np.ndarray, omega_rf: np.ndarray, phi_rf: np.ndarray,
-                 bin_centers: np.ndarray) -> np.ndarray:
+def rf_volt_comp(voltages: NDArray, omega_rf: NDArray, phi_rf: NDArray,
+                 bin_centers: NDArray) -> NDArray:
     """Compute rf voltage at each bin.
 
     Args:
@@ -51,7 +57,7 @@ def rf_volt_comp(voltages: np.ndarray, omega_rf: np.ndarray, phi_rf: np.ndarray,
 
 
 # --------------- Similar to drift.cpp -----------------
-def drift(dt: np.ndarray, dE: np.ndarray, solver: str, t_rev: float,
+def drift(dt: NDArray, dE: NDArray, solver: str, t_rev: float,
           length_ratio: float, alpha_order, eta_0: float,
           eta_1: float, eta_2: float, alpha_0: float,
           alpha_1: float, alpha_2: float, beta: float, energy: float) -> None:
@@ -102,7 +108,7 @@ def drift(dt: np.ndarray, dE: np.ndarray, solver: str, t_rev: float,
 
 
 # --------------- Similar to histogram.cpp -----------------
-def slice_beam(dt: np.ndarray, profile: np.ndarray,
+def slice_beam(dt: NDArray, profile: NDArray,
                cut_left: float, cut_right: float) -> None:
     """Slice the time coordinate of the beam.
 
@@ -116,7 +122,7 @@ def slice_beam(dt: np.ndarray, profile: np.ndarray,
                               range=(cut_left, cut_right))[0]
 
 
-def slice_smooth(dt: np.ndarray, profile: np.ndarray,
+def slice_smooth(dt: NDArray, profile: NDArray,
                  cut_left: float, cut_right: float) -> None:
     """Smooth slice method.
 
@@ -154,8 +160,8 @@ def slice_smooth(dt: np.ndarray, profile: np.ndarray,
 
 
 # --------------- Similar to linear_interp_kick.cpp -----------------
-def linear_interp_kick(dt: np.ndarray, dE: np.ndarray, voltage: np.ndarray,
-                       bin_centers: np.ndarray, charge: float,
+def linear_interp_kick(dt: NDArray, dE: NDArray, voltage: NDArray,
+                       bin_centers: NDArray, charge: float,
                        acceleration_kick: float) -> None:
     """Interpolated kick method.
 
@@ -186,7 +192,7 @@ def linear_interp_kick(dt: np.ndarray, dE: np.ndarray, voltage: np.ndarray,
 
 
 # --------------- Similar to synchrotron_radiation.cpp -----------------
-def synchrotron_radiation(dE: np.ndarray, U0: float,
+def synchrotron_radiation(dE: NDArray, U0: float,
                           n_kicks: int, tau_z: float) -> None:
     """Apply SR
 
@@ -200,7 +206,7 @@ def synchrotron_radiation(dE: np.ndarray, U0: float,
         dE += -(2.0 / tau_z / n_kicks * dE + U0 / n_kicks)
 
 
-def synchrotron_radiation_full(dE: np.ndarray, U0: float,
+def synchrotron_radiation_full(dE: NDArray, U0: float,
                                n_kicks: int, tau_z: float,
                                sigma_dE: float, energy: float) -> None:
     """Apply SR with quantum excitation
@@ -236,8 +242,8 @@ def set_random_seed(seed: int) -> None:
 
 
 # --------------- Similar to music_track.cpp -----------------
-def music_track(dt: np.ndarray, dE: np.ndarray, induced_voltage: np.ndarray,
-                array_parameters: np.ndarray, alpha: float, omega_bar: float,
+def music_track(dt: NDArray, dE: NDArray, induced_voltage: NDArray,
+                array_parameters: NDArray, alpha: float, omega_bar: float,
                 const: float, coeff1: float, coeff2: float,
                 coeff3: float, coeff4: float) -> None:
     """
@@ -299,8 +305,8 @@ def music_track(dt: np.ndarray, dE: np.ndarray, induced_voltage: np.ndarray,
     array_parameters[3] = dt[-1]
 
 
-def music_track_multiturn(dt: np.ndarray, dE: np.ndarray, induced_voltage: np.ndarray,
-                          array_parameters: np.ndarray, alpha: float, omega_bar: float,
+def music_track_multiturn(dt: NDArray, dE: NDArray, induced_voltage: NDArray,
+                          array_parameters: NDArray, alpha: float, omega_bar: float,
                           const: float, coeff1: float, coeff2: float,
                           coeff3: float, coeff4: float) -> None:
     """This function calculates the multi-turn induced voltage and updates the
@@ -374,8 +380,8 @@ def music_track_multiturn(dt: np.ndarray, dE: np.ndarray, induced_voltage: np.nd
 
 
 # --------------- Similar to fast_resonator.cpp -----------------
-def fast_resonator(R_S: np.ndarray, Q: np.ndarray, frequency_array: np.ndarray,
-                   frequency_R: np.ndarray, impedance: np.ndarray = None) -> np.ndarray:
+def fast_resonator(R_S: NDArray, Q: NDArray, frequency_array: np.ndarray,
+                   frequency_R: np.ndarray, impedance: np.ndarray = None) -> NDArray:
     """
     This function takes as an input a list of resonators parameters and
     computes the impedance in an optimised way.

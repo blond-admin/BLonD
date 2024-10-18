@@ -23,20 +23,21 @@ from blond.trackers.utilities import separatrix
 from blond.utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
+    from os import PathLike
+
+    import h5py as hp
+
+    from blond.beam.beam import Beam
+    from blond.beam.profile import Profile
     from blond.input_parameters.rf_parameters import RFStation
     from blond.input_parameters.ring import Ring
-    from blond.beam.beam import Beam
-    from typing import Union
-    from os import PathLike
-    import h5py as hp
-    from blond.beam.profile import Profile
 
 
 @handle_legacy_kwargs
 def plot_long_phase_space(ring: Ring, rf_station: RFStation, beam: Beam, xmin: float,
                           xmax: float, ymin: float, ymax: float, xunit='s', sampling=1,
                           separatrix_plot=False, histograms_plot=True,
-                          dirname: Union[str, PathLike[str]] = 'fig', show_plot=False, alpha=1, color='b'):
+                          dirname: str | PathLike[str] = 'fig', show_plot=False, alpha=1, color='b'):
     """
     Plot of longitudinal phase space. Optional use of histograms and separatrix.
     Choice of units: xunit = s, rad.
@@ -138,7 +139,7 @@ def plot_long_phase_space(ring: Ring, rf_station: RFStation, beam: Beam, xmin: f
 
 @handle_legacy_kwargs
 def plot_bunch_length_evol(rf_station: RFStation, h5data: hp.File, output_freq=1,
-                           dirname: Union[str, PathLike[str]] = 'fig', show_plot=False):
+                           dirname: str | PathLike[str] = 'fig', show_plot=False):
     """
     Plot of r.m.s. 4-sigma bunch length [s] as a function of time.
     """
@@ -176,7 +177,7 @@ def plot_bunch_length_evol(rf_station: RFStation, h5data: hp.File, output_freq=1
 
 @handle_legacy_kwargs
 def plot_bunch_length_evol_gaussian(rf_station: RFStation, profile: Profile, h5data,
-                                    output_freq=1, dirname: Union[str, PathLike[str]] = 'fig', show_plot=False):
+                                    output_freq=1, dirname: str | PathLike[str] = 'fig', show_plot=False):
     """
     Plot of Gaussian 4-sigma bunch length [s] as a function of time.
     Requires profile.
@@ -216,7 +217,7 @@ def plot_bunch_length_evol_gaussian(rf_station: RFStation, profile: Profile, h5d
 
 @handle_legacy_kwargs
 def plot_position_evol(rf_station: RFStation, h5data: hp.File, output_freq=1,
-                       style='.', dirname: Union[str, PathLike[str]] = 'fig', show_plot=False):
+                       style='.', dirname: str | PathLike[str] = 'fig', show_plot=False):
     # Time step of plotting
     time_step = rf_station.counter[0]
 
@@ -249,7 +250,7 @@ def plot_position_evol(rf_station: RFStation, h5data: hp.File, output_freq=1,
 
 @handle_legacy_kwargs
 def plot_energy_evol(rf_station: RFStation, h5data: hp.File, output_freq=1, style='.',
-                     dirname: Union[str, PathLike[str]] = 'fig', show_plot=False):
+                     dirname: str | PathLike[str] = 'fig', show_plot=False):
     # Time step of plotting
     time_step = rf_station.counter[0]
 
@@ -283,7 +284,7 @@ def plot_energy_evol(rf_station: RFStation, h5data: hp.File, output_freq=1, styl
 
 @handle_legacy_kwargs
 def plot_transmitted_particles(rf_station: RFStation, h5data: hp.File, output_freq=1,
-                               style='.', dirname: Union[str, PathLike[str]] = 'fig', show_plot=False):
+                               style='.', dirname: str | PathLike[str] = 'fig', show_plot=False):
     # Time step of plotting
     time_step = rf_station.counter[0]
 

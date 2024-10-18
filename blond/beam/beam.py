@@ -25,11 +25,13 @@ from scipy.constants import c, e, epsilon_0, hbar, m_e, m_p, physical_constants
 from blond.trackers.utilities import is_in_separatrix
 from blond.utils import bmath as bm
 from blond.utils import exceptions as blond_exceptions
-from blond.utils.legacy_support import handle_legacy_kwargs
 from blond.utils.abstracts import CpuGpuTransferable
+from blond.utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
-    from typing import Union, List
+    from typing import List
+
+    from numpy.typing import NDArray
     from blond.input_parameters.ring import Ring
     from blond.input_parameters.rf_parameters import RFStation
     from blond.utils.types import DeviceType
@@ -228,8 +230,8 @@ class Beam(CpuGpuTransferable):
         self.gamma: float = ring.gamma[0][0]
         self.energy: float = ring.energy[0][0]
         self.momentum: float = ring.momentum[0][0]
-        self.dt: Union[np.ndarray, cp.array] = np.zeros([int(n_macroparticles)], dtype=bm.precision.real_t)
-        self.dE: Union[np.ndarray, cp.array] = np.zeros([int(n_macroparticles)], dtype=bm.precision.real_t)
+        self.dt: NDArray | cp.array = np.zeros([int(n_macroparticles)], dtype=bm.precision.real_t)
+        self.dE: NDArray | cp.array = np.zeros([int(n_macroparticles)], dtype=bm.precision.real_t)
         self.mean_dt: float = 0.
         self.mean_dE: float = 0.
         self.sigma_dt: float = 0.
@@ -237,14 +239,14 @@ class Beam(CpuGpuTransferable):
         self.intensity: float = float(intensity)
         self.n_macroparticles: int = int(n_macroparticles)
         self.ratio: float = self.intensity / self.n_macroparticles
-        self.id: Union[np.ndarray, cp.array] = np.arange(1, self.n_macroparticles + 1, dtype=int)
+        self.id: NDArray | cp.array = np.arange(1, self.n_macroparticles + 1, dtype=int)
         self.epsn_rms_l: float = 0.
         # For MPI
         self.n_total_macroparticles_lost: int = 0
         self.n_total_macroparticles: int = n_macroparticles
         self.is_splitted: bool = False
-        self._sumsq_dt: Union[np.ndarray, float] = 0.0
-        self._sumsq_dE: Union[np.ndarray, float] = 0.0
+        self._sumsq_dt: NDArray | float = 0.0
+        self._sumsq_dE: NDArray | float = 0.0
         # For GPU
         self._device: DeviceType = 'CPU'
 
@@ -411,7 +413,7 @@ class Beam(CpuGpuTransferable):
         """
         self.ratio *= np.exp(-time * self.particle.decay_rate / self.gamma)
 
-    def add_particles(self, new_particles: Union[np.ndarray, List[List[float]]]) -> None:
+    def add_particles(self, new_particles: NDArray | List[List[float]]) -> None:
         """
         Method to add array of new particles to beam object
         New particles are given id numbers sequential from last id of this beam
@@ -473,7 +475,7 @@ class Beam(CpuGpuTransferable):
         self.id = bm.concatenate((self.id, newids))
         self.n_macroparticles += other_beam.n_macroparticles
 
-    def __iadd__(self, other: Union[Beam, np.ndarray, List[List[float]]]) -> Beam:
+    def __iadd__(self, other: Beam | NDArray | List[List[float]]) -> Beam:
         """
         Initialisation of in place addition calls add_beam(other) if other
         is a blond beam object, calls add_particles(other) otherwise
@@ -487,7 +489,7 @@ class Beam(CpuGpuTransferable):
             self.add_beam(other)
             return self
         else:
-            self.add_particles(other) # might raise exception on wrong type
+            self.add_particles(other)  # might raise exception on wrong type
             return self
 
     def split(self, random: bool = False, fast: bool = False):

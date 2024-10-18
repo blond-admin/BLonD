@@ -21,11 +21,11 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from blond.utils import bmath as bm
-from blond.utils.abstracts import TrackableBaseClass, CpuGpuTrackable
+from blond.utils.abstracts import CpuGpuTrackable
 from blond.utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
-    from typing import Dict, Union
+    from typing import Dict, Optional
     from blond.input_parameters.rf_parameters import RFStation
     from blond.input_parameters.ring import Ring
     from blond.beam.profile import Profile
@@ -46,9 +46,9 @@ class BeamFeedback(CpuGpuTrackable):
                  ring: Ring,
                  rf_station: RFStation,
                  profile: Profile,
-                 configuration: Dict[str, Union[str, float]],  # todo improve type hint
+                 configuration: Dict[str, str | float],  # todo improve type hint
                  PhaseNoise: None = None,  # todo class doesnt exist anymore??
-                 LHCNoiseFB: Union[LHCNoiseFB, None] = None,
+                 LHCNoiseFB: Optional[LHCNoiseFB] = None,
                  delay: int = 0
                  ) -> None:
 

@@ -3,7 +3,6 @@ from __future__ import annotations
 import sys
 from typing import TYPE_CHECKING, Literal
 
-import numpy as np
 
 if TYPE_CHECKING:
     if sys.version_info < (3, 11):  # todo consider this fix in other files
@@ -11,8 +10,10 @@ if TYPE_CHECKING:
     else:
         from typing import TypedDict, NotRequired
     from typing import Literal
-    from typing import TYPE_CHECKING, TypedDict, Literal, Union
+    from typing import TYPE_CHECKING, TypedDict, Literal
     from typing_extensions import TypedDict, NotRequired
+
+    from numpy.typing import NDArray
 
 
     class DistributionOptionsType(TypedDict):
@@ -25,18 +26,18 @@ if TYPE_CHECKING:
 
 
     class DistributionUserTableType(TypedDict):
-        user_table_action: np.ndarray
-        user_table_distribution: np.ndarray
+        user_table_action: NDArray
+        user_table_distribution: NDArray
 
 
     class LineDensityInputType(TypedDict):
-        time_line_den: np.ndarray
-        line_density: np.ndarray
+        time_line_den: NDArray
+        line_density: NDArray
 
 
     class ExtraVoltageDictType(TypedDict):
-        time_array: np.ndarray
-        voltage_array: np.ndarray
+        time_array: NDArray
+        voltage_array: NDArray
 
 
     class FilterExtraOptionsType(TypedDict):
@@ -51,7 +52,7 @@ if TYPE_CHECKING:
 
     HalfOptionType = Literal['first', 'second', 'both']
 
-    BunchLengthFitTypes = Union[Literal['full', 'gauss', 'fwhm'], None]
+    BunchLengthFitTypes = Literal['full', 'gauss', 'fwhm'] | None
 
     LineDensityDistType = Literal[
         'waterbag', 'parabolic_amplitude', 'parabolic_line',

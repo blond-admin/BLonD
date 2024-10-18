@@ -26,6 +26,9 @@ from blond.utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
     from typing import Literal
+
+    from numpy.typing import NDArray
+
     from blond.beam.beam import Beam
     from blond.input_parameters.rf_parameters import RFStation
 
@@ -41,7 +44,7 @@ class SparseSlices:
 
     @handle_legacy_kwargs
     def __init__(self, rf_station: RFStation, beam: Beam,
-                 n_slices_bucket: int, filling_pattern: np.ndarray, tracker: TrackerTypes = 'C',
+                 n_slices_bucket: int, filling_pattern: NDArray, tracker: TrackerTypes = 'C',
                  direct_slicing: bool = False) -> None:
 
         #: *Import (reference) Beam*
@@ -55,17 +58,17 @@ class SparseSlices:
 
         #: *Filling pattern as a boolean array where True (1) means filled
         # bucket*
-        self.filling_pattern: np.ndarray = filling_pattern
+        self.filling_pattern: NDArray = filling_pattern
 
         # Bunch index for each filled bucket (-1 if empty). Only for C++ track
-        self.bunch_indexes: np.ndarray = np.cumsum(filling_pattern) * filling_pattern - 1
+        self.bunch_indexes: NDArray = np.cumsum(filling_pattern) * filling_pattern - 1
 
         #: *Number of buckets to be sliced*
         self.n_filled_buckets: int = int(np.sum(filling_pattern))
 
         # Pre-processing the slicing edges
-        self.cut_left_array: np.ndarray = np.zeros(self.n_filled_buckets)
-        self.cut_right_array: np.ndarray = np.zeros(self.n_filled_buckets)
+        self.cut_left_array: NDArray = np.zeros(self.n_filled_buckets)
+        self.cut_right_array: NDArray = np.zeros(self.n_filled_buckets)
         self.set_cuts()
 
         # Initialize individual slicing objects

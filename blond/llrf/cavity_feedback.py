@@ -50,8 +50,11 @@ from blond.utils.abstracts import TrackableBaseClass
 from blond.utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
+    from typing import List, Optional
+
     from numpy import float64, ndarray
-    from typing import List, Optional, Union
+    from numpy.typing import NDArray
+
 # TODO resolve
 SPS3Section200MHzTWC  # to prevent autoformatter removing the code. It is later called using eval()
 SPS4Section200MHzTWC  # to prevent autoformatter removing the code. It is later called using eval()
@@ -227,7 +230,7 @@ class CavityFeedback(TrackableBaseClass):
                 self.I_BEAM_COARSE[-self.n_coarse:] / self.T_s
         )
 
-    def set_point_from_rfstation(self) -> ndarray:
+    def set_point_from_rfstation(self) -> NDArray:
         r"""Computes the setpoint in I/Q based on the RF voltage in the RFStation"""
 
         V_set = polar_to_cartesian(
@@ -302,7 +305,7 @@ class SPSCavityLoopCommissioning:
             open_fb: bool = False,
             open_drive: bool = False,
             open_ff: bool = True,
-            v_set: Union[np.ndarray, None] = None,
+            v_set: Optional[NDArray] = None,
             cpp_conv: bool = False,
             pwr_clamp: bool = False,
             rot_iq: complex = 1,
@@ -965,7 +968,7 @@ class SPSOneTurnFeedback(CavityFeedback):
                 * self.T_s
         )
 
-    def matr_conv(self, I: np.ndarray, h: np.ndarray) -> ndarray:
+    def matr_conv(self, I: NDArray, h: NDArray) -> NDArray:
         r"""Convolution of beam current with impulse response; uses a complete
         matrix with off-diagonal elements."""
 
@@ -1061,8 +1064,8 @@ class SPSCavityFeedback(TrackableBaseClass):
             self,
             rf_station: RFStation,
             profile: Profile,
-            G_ff: Union[float, list] = 1,
-            G_llrf: Union[float, list] = 10,
+            G_ff: float | list = 1,
+            G_llrf: float | list = 10,
             G_tx: List[float, list] = 0.5,
             a_comb: Optional[float] = None,
             turns: int = 1000,
@@ -1543,7 +1546,7 @@ class LHCCavityLoop(CavityFeedback):
                 + self.open_drive_inv * self.I_gen_offset
         )
 
-    def generator_power(self) -> ndarray:
+    def generator_power(self) -> NDArray:
         r"""Calculation of generator power from generator current"""
 
         return 0.5 * self.R_over_Q * self.Q_L * np.absolute(self.I_GEN_COARSE) ** 2
@@ -1764,7 +1767,7 @@ class LHCCavityLoop(CavityFeedback):
         self.samples = self.omega_rf * self.T_s
         self.detuning = self.d_omega / self.omega_c
 
-    def update_set_point_excitation(self, excitation: np.ndarray, turn: int):
+    def update_set_point_excitation(self, excitation: NDArray, turn: int):
         r"""Updates the set point for the next turn based on the excitation to
         be injected."""
 

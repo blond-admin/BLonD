@@ -21,8 +21,11 @@ import numpy.random as rand
 import blond.utils.exceptions as blond_exceptions
 
 if TYPE_CHECKING:
-    from blond.beam.beam import Beam
     from typing import Literal
+
+    from numpy.typing import NDArray
+
+    from blond.beam.beam import Beam
 
 
 def generate_coasting_beam(
@@ -30,8 +33,8 @@ def generate_coasting_beam(
         spread_type: Literal['dp/p', 'dE/E', 'dp', 'dE',] = 'dp/p',
         energy_offset: float = 0,
         distribution: Literal['gaussian', 'parabolic', 'user'] = 'gaussian',
-        user_distribution: np.ndarray = None,
-        user_probability: np.ndarray = None
+        user_distribution: NDArray = None,
+        user_probability: NDArray = None
 ) -> None:
     """
     energy_offset represents the absolute energy difference between the center

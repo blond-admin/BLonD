@@ -24,8 +24,11 @@ from blond.input_parameters.ring_options import RingOptions
 from blond.utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:  # only for Python type hints
+    from typing import Literal, Any, Optional
+
+    from numpy.typing import NDArray
+
     from blond.beam.beam import Particle
-    from typing import Literal, Union, Any
 
     SynchronousDataTypes = Literal['momentum', 'total energy', 'kinetic energy', 'bending field']
 
@@ -208,16 +211,16 @@ class Ring:
 
     @handle_legacy_kwargs
     def __init__(self,
-                 ring_length: Union[float, list, tuple, np.ndarray],
-                 alpha_0: Union[float, list, tuple, np.ndarray],
+                 ring_length: float | list | tuple | NDArray,
+                 alpha_0: float | list | tuple | NDArray,
                  synchronous_data: Any,  # todo type hint
                  particle: Particle,
                  n_turns: int = 1,
                  synchronous_data_type: SynchronousDataTypes = 'momentum',
-                 bending_radius: Union[float, None] = None,
+                 bending_radius: Optional[float] = None,
                  n_sections: int = 1,
-                 alpha_1: Union[None, float, list, tuple, np.ndarray] = None,
-                 alpha_2: Union[None, float, list, tuple, np.ndarray] = None,
+                 alpha_1: None | float | list | tuple | NDArray = None,
+                 alpha_2: None | float | list | tuple | NDArray = None,
                  ring_options: RingOptions = RingOptions()
                  ) -> None:
 
@@ -226,11 +229,11 @@ class Ring:
         self.n_sections = int(n_sections)  # todo could len(ring_length)
 
         # Ring length and checks
-        self.ring_length: np.ndarray = np.array(ring_length, ndmin=1, dtype=float)  # todo why
+        self.ring_length: NDArray = np.array(ring_length, ndmin=1, dtype=float)  # todo why
         self.ring_circumference: float = np.sum(self.ring_length)
         self.ring_radius: float = self.ring_circumference / (2 * np.pi)
 
-        self.bending_radius: Union[float, None] = float(bending_radius) if bending_radius is not None \
+        self.bending_radius: Optional[float] = float(bending_radius) if bending_radius is not None \
             else None
 
         if self.n_sections != len(self.ring_length):
@@ -246,7 +249,7 @@ class Ring:
 
         # Reshaping the input synchronous data to the adequate format and
         # get back the momentum program from RingOptions
-        self.momentum: np.ndarray = ring_options.reshape_data(
+        self.momentum: NDArray = ring_options.reshape_data(
             synchronous_data,
             self.n_turns,
             self.n_sections,
@@ -268,16 +271,16 @@ class Ring:
 
         # Derived from momentum
         # todo this should be attributes?
-        self.beta: np.ndarray = np.sqrt(1 / (1 + (self.particle.mass / self.momentum) ** 2))
-        self.gamma: np.ndarray = np.sqrt(1 + (self.momentum / self.particle.mass) ** 2)
-        self.energy: np.ndarray = np.sqrt(self.momentum ** 2 + self.particle.mass ** 2)
-        self.kin_energy: np.ndarray = (np.sqrt(self.momentum ** 2 + self.particle.mass ** 2) -
+        self.beta: NDArray = np.sqrt(1 / (1 + (self.particle.mass / self.momentum) ** 2))
+        self.gamma: NDArray = np.sqrt(1 + (self.momentum / self.particle.mass) ** 2)
+        self.energy: NDArray = np.sqrt(self.momentum ** 2 + self.particle.mass ** 2)
+        self.kin_energy: NDArray = (np.sqrt(self.momentum ** 2 + self.particle.mass ** 2) -
                                        self.particle.mass)
-        self.delta_E: np.ndarray = np.diff(self.energy, axis=1)
-        self.t_rev: np.ndarray = np.dot(self.ring_length, 1 / (self.beta * c))
-        self.cycle_time: np.ndarray = np.cumsum(self.t_rev)  # Always starts with zero
-        self.f_rev: np.ndarray = 1 / self.t_rev
-        self.omega_rev: np.ndarray = 2 * np.pi * self.f_rev
+        self.delta_E: NDArray = np.diff(self.energy, axis=1)
+        self.t_rev: NDArray = np.dot(self.ring_length, 1 / (self.beta * c))
+        self.cycle_time: NDArray = np.cumsum(self.t_rev)  # Always starts with zero
+        self.f_rev: NDArray = 1 / self.t_rev
+        self.omega_rev: NDArray = 2 * np.pi * self.f_rev
 
         # Momentum compaction, checks, and derived slippage factors
         if ring_options.t_start is None:
@@ -389,7 +392,7 @@ class Ring:
                             self.alpha_0[i] ** 2 * self.eta_0[i] - 3 * self.beta[i] ** 2 * \
                             self.alpha_0[i] / (2 * self.gamma[i] ** 2)
 
-    def parameters_at_time(self, cycle_moments: Union[np.array, list]):
+    def parameters_at_time(self, cycle_moments: np.array | list):
         """ Function to return various cycle parameters at a specific moment in
         time. The cycle time is defined to start at zero in turn zero.
 

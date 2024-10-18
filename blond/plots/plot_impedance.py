@@ -24,8 +24,8 @@ from blond.utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
     from os import PathLike
-    from typing import Union
-# Automatic layouting of plots
+
+# Automatic layout of plots
 plt.rc('figure', autolayout=True)
 plt.rc('savefig', bbox='tight')
 plt.rc('savefig', pad_inches=0.1)
@@ -36,7 +36,7 @@ def plot_impedance_vs_frequency(induced_voltage_freq, figure_index=0,
                                 plot_total_impedance=True, plot_spectrum=False,
                                 plot_interpolated_impedances=False, style='-',
                                 cut_left_right=None, cut_up_down=None,
-                                dirname: Union[str, PathLike[str]] = 'fig', show_plots=False):
+                                dirname: str | PathLike[str] = 'fig', show_plots=False):
     """
     Plots Impedance in frequency domain. Given an InducedVoltageFreq object, i.e. one
     that was created from a list of impedances:
@@ -201,7 +201,7 @@ def plot_wake_vs_time(induced_voltage_time, figure_index=0,
                       plot_total_wake=True,
                       plot_interpolated_wake=False, style='-',
                       cut_left_right=None, cut_up_down=None,
-                      dirname: Union[str, PathLike[str]] = 'fig', show_plots=False):
+                      dirname: str | PathLike[str] = 'fig', show_plots=False):
     """
     Plots wakes in time domain. Given an InducedVoltageTime object, i.e. one
     that was created from a list of wakes:
@@ -302,7 +302,7 @@ def plot_wake_vs_time(induced_voltage_time, figure_index=0,
 
 @handle_legacy_kwargs
 def plot_induced_voltage_vs_bin_centers(total_induced_voltage, style='-', figure_index=0,
-                                        dirname: Union[str, PathLike[str]] = 'fig', show_plots=False):
+                                        dirname: str | PathLike[str] = 'fig', show_plots=False):
     """
     Plots the total induced voltage calculated in the TotalInducedVoltage object given.
 

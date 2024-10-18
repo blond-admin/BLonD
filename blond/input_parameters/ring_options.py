@@ -27,9 +27,9 @@ from scipy.interpolate import splev, splrep, Akima1DInterpolator
 from blond.plots.plot import fig_folder
 
 if TYPE_CHECKING:
-    from typing import List, Iterable, Tuple, Union, Literal, Optional
+    from typing import List, Iterable, Tuple, Literal, Optional
 
-    from numpy import ndarray
+    from numpy.typing import NDArray
 
     from blond.utils.types import InterpolationTypes
     from blond.input_parameters.ring import SynchronousDataTypes
@@ -77,7 +77,7 @@ class RingOptions:
                  t_start: Optional[int] = None,
                  t_end: Optional[int] = None,
                  plot: bool = False,
-                 figdir: Union[os.PathLike, str] = 'fig',
+                 figdir: os.PathLike | str = 'fig',
                  figname: str = 'preprocess_ramp',
                  sampling: int = 1) -> None:
 
@@ -124,17 +124,17 @@ class RingOptions:
                                " not recognised. Aborting...")
 
     def reshape_data(self,
-                     input_data: float | int | tuple | list | np.ndarray,
+                     input_data: float | int | tuple | list | NDArray,
                      n_turns: int,
                      n_sections: int,
-                     interp_time: Literal['t_rev'] | float | np.ndarray = 't_rev',  # todo dtype Literal['?','?']
+                     interp_time: Literal['t_rev'] | float | NDArray = 't_rev',  # todo dtype Literal['?','?']
                      input_to_momentum: bool = False,
                      synchronous_data_type: SynchronousDataTypes = 'momentum',
-                     mass: Union[float, None] = None,
-                     charge: Union[float, None] = None,
-                     circumference: Union[float, None] = None,
-                     bending_radius: Union[float, None] = None
-                     ) -> np.ndarray:
+                     mass: Optional[float] = None,
+                     charge: Optional[float] = None,
+                     circumference: Optional[float] = None,
+                     bending_radius: Optional[float] = None
+                     ) -> NDArray:
         r"""Checks whether the user input is consistent with the expectation
         for the Ring object. The possibilities are detailed in the documentation
         of the Ring object.
@@ -310,9 +310,9 @@ class RingOptions:
     def preprocess(self,
                    mass: float,
                    circumference: float,
-                   time: np.ndarray,
-                   momentum: np.ndarray
-                   ) -> Tuple[ndarray, ndarray]:
+                   time: NDArray,
+                   momentum: NDArray
+                   ) -> Tuple[NDArray, NDArray]:
         r"""Function to pre-process acceleration ramp data, interpolating it to
         every turn. Currently, it works only if the number of RF sections is
         equal to one, to be extended for multiple RF sections.
@@ -453,7 +453,7 @@ class RingOptions:
     def _linear_interpolation(self, time_interp: List[float],
                               momentum_interp: List[float],
                               beta_interp: List[float], circumference: float,
-                              time: np.ndarray, momentum: np.ndarray,
+                              time: NDArray, momentum: NDArray,
                               mass: float) -> Tuple[Iterable[float], ...]:
 
         time_interp.append(time_interp[-1]
@@ -480,7 +480,7 @@ class RingOptions:
     def _cubic_interpolation(self, time_interp: List[float],
                              momentum_interp: List[float],
                              beta_interp: List[float], circumference: float,
-                             time: np.ndarray, momentum: np.ndarray,
+                             time: NDArray, momentum: NDArray,
                              mass: float, time_start_ramp: float,
                              time_end_ramp: float) -> Tuple[np.ndarray,    ...]:
 
@@ -612,12 +612,12 @@ class RingOptions:
         return time, beta
 
 
-def convert_data(synchronous_data: np.ndarray,
+def convert_data(synchronous_data: NDArray,
                  mass: float,
                  charge: float,
                  synchronous_data_type: SynchronousDataTypes = 'momentum',
                  bending_radius: Optional[float] = None
-                 ) -> np.ndarray:
+                 ) -> NDArray:
     """ Function to convert synchronous data (i.e. energy program of the
     synchrotron) into momentum.
 

@@ -104,7 +104,7 @@ if not os.path.exists("fig"):
     os.mkdir("fig")
 
 plot_long_phase_space(ring, rf, beam, 0, 5e-9, -2e8, 2e8,
-                      dirname: Union[str , PathLike[str]]='fig', alpha=0.5, color=colors[0])
+                      dirname='fig', alpha=0.5, color=colors[0])
 
 
 

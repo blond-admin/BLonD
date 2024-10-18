@@ -10,7 +10,7 @@ import cupy as cp
 import numpy as np
 
 if TYPE_CHECKING:
-    pass
+    from numpy.typing import NDArray
 
 from blond.utils import precision
 from blond.gpu import GPU_DEV
@@ -182,7 +182,7 @@ def linear_interp_kick(dt, dE, voltage,
                                grid=GPU_DEV.grid_size, block=GPU_DEV.block_size)
 
 
-def slice_beam(dt: np.ndarray, profile: np.ndarray, cut_left: float, cut_right: float):
+def slice_beam(dt: NDArray, profile: NDArray, cut_left: float, cut_right: float):
     """Constant space slicing with a constant frame.
 
     Args:
@@ -278,7 +278,7 @@ def __beam_phase_helper(bin_centers, profile, alpha, omega_rf, phi_rf):
     return base * cp.sin(a), base * cp.cos(a)
 
 
-def beam_phase(bin_centers: np.ndarray, profile: np.ndarray, alpha: float, omega_rf: float, phi_rf: float,
+def beam_phase(bin_centers: NDArray, profile: NDArray, alpha: float, omega_rf: float, phi_rf: float,
                bin_size: float):
     """Beam phase measured at the main RF frequency and phase. The beam is
        convolved with the window function of the band-pass filter of the
@@ -326,7 +326,7 @@ def __beam_phase_fast_helper(bin_centers, profile, omega_rf, phi_rf):
     return profile * cp.sin(arr), profile * cp.cos(arr)
 
 
-def beam_phase_fast(bin_centers: np.ndarray, profile: np.ndarray, omega_rf: float, phi_rf: float, bin_size: float):
+def beam_phase_fast(bin_centers: NDArray, profile: NDArray, omega_rf: float, phi_rf: float, bin_size: float):
     """Simplified, faster variation of the beam_phase function
 
     Args:

@@ -235,7 +235,7 @@ class RFStation(CpuGpuTransferable):
     """
 
     @handle_legacy_kwargs
-    def __init__(self, ring: Ring, harmonic: Union[int, List[int]], voltage: Union[float, List[float]], phi_rf_d,
+    def __init__(self, ring: Ring, harmonic: int| List[int], voltage: float | List[float], phi_rf_d,
                  n_rf=1,
                  section_index=1, omega_rf=None, phi_noise=None,
                  phi_modulation=None, rf_station_options: RFStationOptions = RFStationOptions()):

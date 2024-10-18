@@ -40,8 +40,8 @@ from blond.utils.legacy_support import handle_legacy_kwargs
 
 
 if TYPE_CHECKING:
-    from typing import Literal, Callable, Union, Optional
-    from numpy import ndarray
+    from typing import Literal, Callable, Optional
+    from numpy.typing import NDArray
     from blond.input_parameters.ring import Ring
     from blond.input_parameters.rf_parameters import RFStation
     from blond.beam.beam import Beam
@@ -56,22 +56,22 @@ if TYPE_CHECKING:
 @handle_legacy_kwargs
 def matched_from_line_density(beam: Beam,
                               full_ring_and_rf: FullRingAndRF,
-                              line_density_input: Union[LineDensityInputType, None] = None,
+                              line_density_input: Optional[LineDensityInputType] = None,
                               main_harmonic_option: MainHarmonicOptionType = 'lowest_freq',
                               total_induced_voltage: Optional[TotalInducedVoltage] = None,
                               plot: bool = False,
-                              figdir: Union[PathLike, str] = 'fig',
+                              figdir: PathLike | str = 'fig',
                               half_option: HalfOptionType = 'first',
-                              extra_voltage_dict: Union[ExtraVoltageDictType, None] = None,
+                              extra_voltage_dict: Optional[ExtraVoltageDictType] = None,
                               n_iterations: int = 100,
                               n_points_potential: int = int(1e4),
                               n_points_grid: int = int(1e3),
                               dt_margin_percent: float = 0.40,
                               n_points_abel: float = 1e4,
-                              bunch_length: Union[float, None] = None,
-                              line_density_type: Union[LineDensityDistType, Literal['user_input'], None] = None,
-                              line_density_exponent: Union[float, None] = None,
-                              seed: Union[int, None] = None,
+                              bunch_length: Optional[float] = None,
+                              line_density_type: LineDensityDistType | Literal['user_input'] | None = None,
+                              line_density_exponent: Optional[float] = None,
+                              seed: Optional[int] = None,
                               process_pot_well: bool = True):
     """
     *Function to generate a beam by inputting the line density. The distribution
@@ -404,21 +404,21 @@ def matched_from_line_density(beam: Beam,
 
 @handle_legacy_kwargs
 def matched_from_distribution_function(beam: Beam, full_ring_and_rf: FullRingAndRF,
-                                       distribution_function_input: Union[Callable, None] = None,
+                                       distribution_function_input: Optional[Callable] = None,
                                        # needs better specification
-                                       distribution_user_table: Union[DistributionUserTableType, None] = None,
+                                       distribution_user_table: Optional[DistributionUserTableType] = None,
                                        main_harmonic_option: MainHarmonicOptionType = 'lowest_freq',
-                                       total_induced_voltage: Union[TotalInducedVoltage, None] = None,
+                                       total_induced_voltage: Optional[TotalInducedVoltage] = None,
                                        n_iterations: int = 1,
                                        n_points_potential: float = 1e4,
                                        n_points_grid: int = int(1e3),
                                        dt_margin_percent: float = 0.40,
-                                       extra_voltage_dict: Union[ExtraVoltageDictType, None] = None,
-                                       seed: Union[int, None] = None,
-                                       distribution_exponent: Union[float, None] = None,
-                                       distribution_type: Union[str, None] = None,
-                                       emittance: Union[float, None] = None,
-                                       bunch_length: Union[float, None] = None,
+                                       extra_voltage_dict: Optional[ExtraVoltageDictType] = None,
+                                       seed: Optional[int] = None,
+                                       distribution_exponent: Optional[float] = None,
+                                       distribution_type: Optional[str] = None,
+                                       emittance: Optional[float] = None,
+                                       bunch_length: Optional[float] = None,
                                        bunch_length_fit: Optional[BunchLengthFitTypes] = None,
                                        distribution_variable: DistributionVariableType = 'Hamiltonian',
                                        process_pot_well: bool = True,
@@ -469,8 +469,8 @@ def matched_from_distribution_function(beam: Beam, full_ring_and_rf: FullRingAnd
                                                n_points=n_points_potential,
                                                dt_margin_percent=dt_margin_percent,
                                                main_harmonic_option=main_harmonic_option)
-    potential_well: np.ndarray = full_ring_and_rf.potential_well
-    time_potential: np.ndarray = full_ring_and_rf.potential_well_coordinates
+    potential_well: NDArray = full_ring_and_rf.potential_well
+    time_potential: NDArray = full_ring_and_rf.potential_well_coordinates
 
     induced_potential = 0
 
@@ -685,10 +685,10 @@ def matched_from_distribution_function(beam: Beam, full_ring_and_rf: FullRingAnd
 @handle_legacy_kwargs
 def x0_from_bunch_length(bunch_length: float,
                          bunch_length_fit: BunchLengthFitTypes,
-                         X_grid: np.ndarray,
-                         sorted_X_dE0: np.ndarray,
+                         X_grid: NDArray,
+                         sorted_X_dE0: NDArray,
                          n_points_grid: int,
-                         time_potential_low_res: np.ndarray,
+                         time_potential_low_res: NDArray,
                          distribution_function_: Callable,
                          # TODO this is just distribution_function with strange way, is this intended?
                          distribution_type: str,
@@ -788,8 +788,8 @@ def x0_from_bunch_length(bunch_length: float,
 
 
 @handle_legacy_kwargs
-def populate_bunch(beam: Beam, time_grid: np.ndarray, deltaE_grid: np.ndarray,
-                   density_grid: np.ndarray, time_step: float,
+def populate_bunch(beam: Beam, time_grid: NDArray, deltaE_grid: NDArray,
+                   density_grid: NDArray, time_step: float,
                    deltaE_step: float, seed: int) -> None:
     """
     *Method to populate the bunch using a random number generator from the
@@ -811,7 +811,7 @@ def populate_bunch(beam: Beam, time_grid: np.ndarray, deltaE_grid: np.ndarray,
         dtype=bm.precision.real_t, order='C', copy=False)
 
 
-def __distribution_function_by_exponent(action_array: np.ndarray, exponent: float, length: float) -> np.ndarray:
+def __distribution_function_by_exponent(action_array: NDArray, exponent: float, length: float) -> NDArray:
     warnings.filterwarnings("ignore")
     distribution_function_ = (1 - action_array / length) ** exponent
     warnings.filterwarnings("default")
@@ -819,7 +819,7 @@ def __distribution_function_by_exponent(action_array: np.ndarray, exponent: floa
     return distribution_function_
 
 
-def distribution_function(action_array: np.ndarray,
+def distribution_function(action_array: NDArray,
                           dist_type: DistTypeDistFunction,
                           length: float,
                           exponent: Optional[float] = None):
@@ -861,8 +861,8 @@ def distribution_function(action_array: np.ndarray,
 
 def __line_density_by_exponent(bunch_length: float,
                                bunch_position: float,
-                               coord_array: np.ndarray,
-                               exponent: float) -> np.ndarray:
+                               coord_array: NDArray,
+                               exponent: float) -> NDArray:
     warnings.filterwarnings("ignore")
     line_density_ = ((1 - (2.0 * (coord_array - bunch_position) /
                            bunch_length) ** 2) ** (exponent + 0.5))
@@ -873,7 +873,7 @@ def __line_density_by_exponent(bunch_length: float,
 
 
 def line_density(coord_array, dist_type, bunch_length, bunch_position: float = 0.0,
-                 exponent: Union[float, None] = None):
+                 exponent: Optional[float] = None):
     """
     *Line density*
     """
@@ -924,7 +924,7 @@ def line_density(coord_array, dist_type, bunch_length, bunch_position: float = 0
 
 @handle_legacy_kwargs
 def bigaussian(ring: Ring, rf_station: RFStation, beam: Beam,
-               sigma_dt: float, sigma_dE: Union[float, None] = None, seed: int = 1234,
+               sigma_dt: float, sigma_dE: Optional[float] = None, seed: int = 1234,
                reinsertion: bool = False) -> None:
     r"""Function generating a Gaussian beam both in time and energy
     coordinates. Fills Beam.dt and Beam.dE arrays.
@@ -996,9 +996,9 @@ def bigaussian(ring: Ring, rf_station: RFStation, beam: Beam,
 @handle_legacy_kwargs
 def parabolic(ring: Ring, rf_station: RFStation, beam: Beam,
               bunch_length: float,
-              bunch_position: Union[float, None] = None,
-              bunch_energy: Union[float, None] = None,
-              energy_spread: Union[float, None] = None,
+              bunch_position: Optional[float] = None,
+              bunch_energy: Optional[float] = None,
+              energy_spread: Optional[float] = None,
               seed: int = 1234):
     r"""Generate a bunch of particles distributed as a parabola in phase space.
 

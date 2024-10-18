@@ -33,14 +33,13 @@ if Version(scipy.__version__) >= Version("1.14"):
 else:
     from scipy.integrate import cumtrapz
 
-
 from blond.utils import bmath as bm
 
 if TYPE_CHECKING:
-    from typing import List, Tuple, Union, Optional
+    from typing import List, Tuple, Optional
 
     from numpy import ndarray
-
+    from numpy.typing import NDArray
     from blond.input_parameters.rf_parameters import RFStation
     from blond.input_parameters.ring import Ring
     from blond.trackers.tracker import FullRingAndRF, MainHarmonicOptionType
@@ -234,7 +233,7 @@ class SynchrotronFrequencyTracker(TrackableBaseClass):
     """
 
     @handle_legacy_kwargs
-    def __init__(self, ring: Ring, n_macroparticles: int, theta_coordinate_range: np.ndarray,
+    def __init__(self, ring: Ring, n_macroparticles: int, theta_coordinate_range: NDArray,
                  full_ring_and_rf: FullRingAndRF,
                  total_induced_voltage: Optional[TotalInducedVoltage] = None):
 
@@ -247,7 +246,7 @@ class SynchrotronFrequencyTracker(TrackableBaseClass):
         #: *Copy of the input TotalInducedVoltage object to retrieve the intensity effects
         #: (the synchrotron_frequency_tracker particles are not contributing to the
         #: induced voltage).*
-        self.total_induced_voltage: Union[TotalInducedVoltage, None] = None
+        self.total_induced_voltage: Optional[TotalInducedVoltage] = None
         if total_induced_voltage is not None:
             self.total_induced_voltage = total_induced_voltage
             intensity = total_induced_voltage.profiles.beam.intensity  # fixme
@@ -457,10 +456,10 @@ def total_voltage(RFsection_list, harmonic='first'):
 def hamiltonian(ring: Ring,
                 rf_station: RFStation,
                 beam: Beam,
-                dt: Union[ndarray, float],
-                dE: Union[ndarray, float],
-                total_voltage: Optional[np.ndarray] = None
-                ) -> Union[ndarray, float]:
+                dt: float | NDArray,
+                dE: float | NDArray,
+                total_voltage: Optional[NDArray] = None
+                ) -> float | NDArray:
     """Single RF sinusoidal Hamiltonian.
     For the time being, for single RF section only or from total voltage.
     Uses beta, energy averaged over the turn.
@@ -502,7 +501,7 @@ def hamiltonian(ring: Ring,
 
 
 @handle_legacy_kwargs
-def separatrix(ring: Ring, rf_station: RFStation, dt: np.ndarray) -> ndarray:
+def separatrix(ring: Ring, rf_station: RFStation, dt: NDArray) -> NDArray:
     # TODO:  Use list of RFStation and consider all voltages instead of multiplying by n sections
     r""" Function to calculate the ideal separatrix without intensity effects.
     For single or multiple RF systems. For the time being, multiple RF sections
@@ -629,8 +628,8 @@ def separatrix(ring: Ring, rf_station: RFStation, dt: np.ndarray) -> ndarray:
 
 
 @handle_legacy_kwargs
-def is_in_separatrix(ring: Ring, rf_station: RFStation, beam: Beam, dt: ndarray, dE: ndarray,
-                     total_voltage: Optional[np.ndarray] = None) -> ndarray:
+def is_in_separatrix(ring: Ring, rf_station: RFStation, beam: Beam, dt: NDArray, dE: NDArray,
+                     total_voltage: Optional[np.ndarray] = None) -> NDArray:
     r"""Function checking whether coordinate pair(s) are inside the separatrix. 
     Uses the single-RF sinusoidal Hamiltonian.
 
@@ -678,7 +677,7 @@ def is_in_separatrix(ring: Ring, rf_station: RFStation, beam: Beam, dt: ndarray,
     return isin
 
 
-def minmax_location(x: ndarray, f: ndarray) -> Tuple[List[ndarray], List[ndarray]]:
+def minmax_location(x: NDArray, f: NDArray) -> Tuple[List[ndarray], List[ndarray]]:
     """
     *Function to locate the minima and maxima of the f(x) numerical function.*
     """
@@ -707,7 +706,7 @@ def minmax_location(x: ndarray, f: ndarray) -> Tuple[List[ndarray], List[ndarray
     return [min_x_position, max_x_position], [min_values, max_values]
 
 
-def potential_well_cut(time_potential: ndarray, potential_array: ndarray) -> Tuple[ndarray, ndarray]:
+def potential_well_cut(time_potential: NDArray, potential_array: NDArray) -> Tuple[ndarray, ndarray]:
     """
     *Function to cut the potential well in order to take only the separatrix
     (several cases according to the number of min/max).*
@@ -794,7 +793,7 @@ def potential_well_cut(time_potential: ndarray, potential_array: ndarray) -> Tup
     return time_potential_sep, potential_well_sep
 
 
-def phase_modulo_above_transition(phi: ndarray) -> ndarray:
+def phase_modulo_above_transition(phi: NDArray) -> NDArray:
     """
     *Projects a phase array into the range -Pi/2 to +3*Pi/2.*
     """
@@ -802,7 +801,7 @@ def phase_modulo_above_transition(phi: ndarray) -> ndarray:
     return phi - 2. * np.pi * bm.floor(phi / (2. * np.pi))
 
 
-def phase_modulo_below_transition(phi: np.ndarray) -> ndarray:
+def phase_modulo_below_transition(phi: NDArray) -> NDArray:
     """
     *Projects a phase array into the range -Pi/2 to +3*Pi/2.*
     """
@@ -810,7 +809,7 @@ def phase_modulo_below_transition(phi: np.ndarray) -> ndarray:
     return phi - 2. * np.pi * (bm.floor(phi / (2. * np.pi) + 0.5))
 
 
-def time_modulo(dt: np.ndarray, dt_offset: float, T: float) -> ndarray:
+def time_modulo(dt: NDArray, dt_offset: float, T: float) -> NDArray:
     """
     *Returns dt projected onto the desired interval.*
     """

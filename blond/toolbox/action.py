@@ -23,6 +23,8 @@ from blond.input_parameters.rf_parameters import RFStation
 from blond.utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
+    from numpy.typing import NDArray
+
     from blond.input_parameters.ring import Ring
     from blond.input_parameters.rf_parameters import RFStation
 
@@ -105,7 +107,7 @@ def phase_amplitude_from_tune(tune):
 
 
 @handle_legacy_kwargs
-def oscillation_amplitude_from_coordinates(ring: Ring, rf_station: RFStation, dt: np.ndarray, dE: np.ndarray,
+def oscillation_amplitude_from_coordinates(ring: Ring, rf_station: RFStation, dt: NDArray, dE: NDArray,
                                            timestep=0, Np_histogram=None):
     """
     Returns the oscillation amplitude in time for given particle coordinates,

@@ -24,18 +24,18 @@ import blond.utils.data_check as dCheck
 from blond.utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
-    from numpy import ndarray
-    from typing import Any, List, Union
+    from typing import Any, List
 
+    from numpy.typing import NDArray
 
 class PhaseModulation:
 
     def __init__(self,
-                 timebase: ndarray,
-                 frequency: Union[float, ndarray],
-                 amplitude: Union[float, ndarray],
-                 offset: Union[float, ndarray],
-                 harmonic: Union[float, int],
+                 timebase: NDArray,
+                 frequency: float | NDArray,
+                 amplitude: float | NDArray,
+                 offset: float | NDArray,
+                 harmonic: float | int,
                  multiplier: int = 1,
                  modulate_frequency: bool = True) -> None:
 
@@ -75,7 +75,7 @@ class PhaseModulation:
                     + offset
 
     @handle_legacy_kwargs
-    def calc_delta_omega(self, omega_prog: ndarray) -> None:
+    def calc_delta_omega(self, omega_prog: NDArray) -> None:
 
         dCheck.check_input(omega_prog, "omegaProg must have shape (2, n)", (2, -1))
 
@@ -88,7 +88,7 @@ class PhaseModulation:
                           / (2 * np.pi * self.harmonic)
 
     # Interpolate functions onto self.timebase
-    def _interp_param(self, param: Any) -> ndarray:
+    def _interp_param(self, param: Any) -> NDArray:
 
         if dCheck.check_data_dimensions(param, 0)[0]:
             return np.array([param] * len(self.timebase))
@@ -101,7 +101,7 @@ class PhaseModulation:
 
     # Extend passed parameter to requred n_rf if n_rf > 1 for treatment in
     # rf_parameters
-    def extend_to_n_rf(self, harmonics: Union[List[int], ndarray]) -> Any:
+    def extend_to_n_rf(self, harmonics: List[int] | NDArray) -> Any:
 
         try:
             n_rf = len(harmonics)

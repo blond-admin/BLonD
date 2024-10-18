@@ -26,6 +26,7 @@ from scipy.sparse.linalg import spsolve
 
 if TYPE_CHECKING:
     from numpy import ndarray
+    from numpy.typing import NDArray
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +100,7 @@ def cavity_response_sparse_matrix(
     return spsolve(B_matrix, b)
 
 
-def rectangle(t: ndarray, tau: float) -> ndarray:
+def rectangle(t: NDArray, tau: float) -> NDArray:
     r"""Rectangular function of time
 
     .. math:: \mathsf{rect} \left( \frac{t}{\tau} \right) =
@@ -150,7 +151,7 @@ def rectangle(t: ndarray, tau: float) -> ndarray:
     return y
 
 
-def triangle(t: ndarray, tau: float) -> ndarray:
+def triangle(t: NDArray, tau: float) -> NDArray:
     r"""Triangular function of time
 
     .. math:: \mathsf{tri} \left( \frac{t}{\tau} \right) =
@@ -329,7 +330,7 @@ class TravellingWaveCavity:
         self.logger.info("Class initialized")
         self.logger.debug("Filling time %.4e s", self.tau)
 
-    def impulse_response_gen(self, omega_c: float, time_coarse: np.ndarray) -> None:
+    def impulse_response_gen(self, omega_c: float, time_coarse: NDArray) -> None:
         r"""Impulse response from the cavity towards the
         generator. For a signal that is I,Q demodulated at a given carrier
         frequency :math:`\omega_c`. The formulae assume that the carrier
@@ -381,7 +382,7 @@ class TravellingWaveCavity:
             )
 
     def impulse_response_beam(
-            self, omega_c: float, time_fine: np.ndarray, time_coarse: np.ndarray = None
+            self, omega_c: float, time_fine: NDArray, time_coarse: NDArray = None
     ) -> None:
         r"""Impulse response from the cavity towards the beam. For a signal
         that is I,Q demodulated at a given carrier
@@ -450,7 +451,7 @@ class TravellingWaveCavity:
                         np.cos(self.d_omega * t_beam) - 1j * np.sin(self.d_omega * t_beam)
                 )
 
-    def compute_wakes(self, time: np.ndarray) -> None:
+    def compute_wakes(self, time: NDArray) -> None:
         r"""Computes the wake fields towards the beam and generator on the
         central cavity frequency.
         """

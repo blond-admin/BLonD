@@ -23,15 +23,14 @@ from scipy.constants import e
 
 from blond.toolbox.next_regular import next_regular
 from blond.utils import bmath as bm
-from blond.utils.abstracts import TrackableBaseClass, CpuGpuTrackable, CpuGpuTransferable
+from blond.utils.abstracts import CpuGpuTrackable, CpuGpuTransferable
 from blond.utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
-    from numpy import ndarray
-    from typing import Optional, TYPE_CHECKING, Callable
+    from typing import Optional, Callable, Literal, List
     import cupy as cp
 
-    from typing import Union, Literal, List
+    from numpy.typing import NDArray
 
     from blond.beam.beam import Beam
     from blond.beam.profile import Profile
@@ -72,6 +71,7 @@ class TotalInducedVoltage(CpuGpuTrackable):
     time_array : float array
         Time array corresponding to induced_voltage [s]
     """
+
     @handle_legacy_kwargs
     def __init__(self, beam: Beam, profile: Profile, induced_voltage_list: List[_InducedVoltage]) -> None:
         """
@@ -87,13 +87,13 @@ class TotalInducedVoltage(CpuGpuTrackable):
         self.induced_voltage_list = induced_voltage_list
 
         # Induced voltage from the sum of the wake sources in V
-        self.induced_voltage: Union[np.ndarray, cp.ndarray] = np.zeros(int(self.profile.n_slices),
-                                                                       dtype=bm.precision.real_t,
-                                                                       order='C'
-                                                                       )
+        self.induced_voltage: NDArray | cp.ndarray = np.zeros(int(self.profile.n_slices),
+                                                              dtype=bm.precision.real_t,
+                                                              order='C'
+                                                              )
 
         # Time array of the wake in s
-        self.time_array: Union[np.ndarray, cp.ndarray] = self.profile.bin_centers
+        self.time_array: NDArray | cp.ndarray = self.profile.bin_centers
 
     def reprocess(self):
         """
@@ -133,6 +133,7 @@ class TotalInducedVoltage(CpuGpuTrackable):
                               bin_centers=self.profile.bin_centers,
                               charge=self.beam.particle.charge,
                               acceleration_kick=0.)
+
     @handle_legacy_kwargs
     def track_ghosts_particles(self, ghost_beam: Beam):
 
@@ -228,12 +229,13 @@ class _InducedVoltage(CpuGpuTransferable):
     use_regular_fft : boolean
         User set value to use (default) or not regular numbers for FFTs
     """
+
     @handle_legacy_kwargs
     def __init__(self, beam: Beam, profile: Profile,
                  frequency_resolution: Optional[float] = None,
-                 wake_length: Union[float, None] = None,
+                 wake_length: Optional[float] = None,
                  multi_turn_wake: bool = False,
-                 mtw_mode: Union[MtwModeTypes, None] = 'time',
+                 mtw_mode: Optional[MtwModeTypes] = 'time',  # todo fix
                  rf_station: Optional[RFStation] = None,
                  use_regular_fft: bool = True) -> None:
 
@@ -244,19 +246,19 @@ class _InducedVoltage(CpuGpuTransferable):
         self.profile: Profile = profile
 
         # Induced voltage from the sum of the wake sources in V
-        self.induced_voltage: Union[np.ndarray, float] = 0.0
+        self.induced_voltage: NDArray | float = 0.0
 
         # Wake length in s (optional)
-        self.wake_length_input: Union[float, None] = wake_length
+        self.wake_length_input: Optional[float] = wake_length
 
         # Frequency resolution of the impedance (optional)
-        self.frequency_resolution_input: Union[float, None] = frequency_resolution
+        self.frequency_resolution_input: Optional[float] = frequency_resolution
 
         # Use regular numbers for fft (optional)
         self.use_regular_fft: bool = use_regular_fft
 
         # RFStation object for turn counter and revolution period
-        self.rf_params: Union[RFStation, None] = rf_station  # todo
+        self.rf_params: Optional[RFStation] = rf_station  # todo
 
         # Multi-turn wake enable flag
         self.multi_turn_wake: bool = multi_turn_wake
@@ -268,20 +270,20 @@ class _InducedVoltage(CpuGpuTransferable):
 
         ###############
         # Previously only declared in process()
-        self.n_fft: Union[int, None] = None
-        self.wake_length: Union[float, None] = None
-        self.n_induced_voltage: Union[int, None] = None
-        self.n_mtw_memory: Union[int, None] = None
-        self.front_wake_buffer: Union[int, None] = None
-        self.buffer_size: Union[int, None] = None
-        self.mtw_memory: Union[np.ndarray, None] = None
-        self.total_impedance: Union[np.ndarray, None] = None
-        self.induced_voltage_generation: Union[Callable, None] = None
+        self.n_fft: int | None = None
+        self.wake_length: float | None = None
+        self.n_induced_voltage: int | None = None
+        self.n_mtw_memory: int | None = None
+        self.front_wake_buffer: int | None = None
+        self.buffer_size: int | None = None
+        self.mtw_memory: NDArray | None = None
+        self.total_impedance: NDArray | None = None
+        self.induced_voltage_generation: Callable | None = None
 
-        self.freq_mtw: Union[np.array, cp.array, None] = None
-        self.omegaj_mtw: Union[np.array, cp.array, None] = None
-        self.shift_trev: Union[Callable, None] = None
-        self.time_mtw: Union[np.array, cp.array, None] = None
+        self.freq_mtw: NDArray | cp.ndarray | None = None
+        self.omegaj_mtw: NDArray | cp.ndarray | None = None
+        self.shift_trev: Callable | None = None
+        self.time_mtw: NDArray | cp.ndarray | None = None
         ###############
 
         self._device: DeviceType = "CPU"
@@ -382,7 +384,7 @@ class _InducedVoltage(CpuGpuTransferable):
             self.induced_voltage_generation = self.induced_voltage_1turn
 
     def induced_voltage_1turn(self,
-                              beam_spectrum_dict: Union[dict, None] = None) -> None:  # todo improve type hint for dict
+                              beam_spectrum_dict: Optional[dict] = None) -> None:  # todo improve type hint for dict
         """
         Method to calculate the induced voltage at the current turn. DFTs are
         used for calculations in time and frequency domain (see classes below)
@@ -405,7 +407,7 @@ class _InducedVoltage(CpuGpuTransferable):
         self.induced_voltage = induced_voltage[:self.n_induced_voltage].astype(
             dtype=bm.precision.real_t, order='C', copy=False)
 
-    def induced_voltage_mtw(self, beam_spectrum_dict: Union[dict, None] = None):  # todo improve type hint for dict
+    def induced_voltage_mtw(self, beam_spectrum_dict: Optional[dict] = None):  # todo improve type hint for dict
         """
         Method to calculate the induced voltage taking into account the effect
         from previous passages (multi-turn wake)
@@ -513,27 +515,28 @@ class InducedVoltageTime(_InducedVoltage):
     use_regular_fft : boolean
         User set value to use (default) or not regular numbers for FFTs
     """
+
     @handle_legacy_kwargs
     def __init__(self, beam: Beam,
                  profile: Profile,
                  wake_source_list: List[_ImpedanceObject],
-                 wake_length: Union[float, None] = None,
+                 wake_length: Optional[float] = None,
                  multi_turn_wake: bool = False,
-                 rf_station: Union[RFStation, None] = None,
-                 mtw_mode: Union[MtwModeTypes, None] = None,
+                 rf_station: Optional[RFStation] = None,
+                 mtw_mode: Optional[MtwModeTypes] = None,
                  use_regular_fft: bool = True) -> None:
 
         # Wake sources list (e.g. list of Resonator objects)
         self.wake_source_list: List[_ImpedanceObject] = wake_source_list
 
         # Total wake array of all sources in :math:`\Omega / s`
-        self.total_wake: Union[np.ndarray, int] = 0  # todo better handling of initialization
+        self.total_wake: NDArray | int = 0  # todo better handling of initialization
 
         ###################################
         # previously only defined in process
         # fixme frequency_resolution vs frequency_resolution_input of parent class
-        self.frequency_resolution: Union[float, None] = None
-        self.time: Union[np.ndarray, None] = None
+        self.frequency_resolution: Optional[float] = None
+        self.time: NDArray | None = None
         ####################################
 
         # Call the __init__ method of the parent class [calls process()]
@@ -572,7 +575,7 @@ class InducedVoltageTime(_InducedVoltage):
         # Processing the wakes
         self.sum_wakes(self.time)
 
-    def sum_wakes(self, time_array: np.ndarray) -> None:
+    def sum_wakes(self, time_array: NDArray) -> None:
         """
         Summing all the wake contributions in one total wake.
         """
@@ -683,22 +686,23 @@ class InducedVoltageFreq(_InducedVoltage):
     use_regular_fft : boolean
         User set value to use (default) or not regular numbers for FFTs
     """
+
     @handle_legacy_kwargs
     def __init__(self, beam: Beam,
                  profile: Profile,
                  impedance_source_list: List[_ImpedanceObject],
-                 frequency_resolution: Union[float, None] = None,
+                 frequency_resolution: Optional[float] = None,
                  multi_turn_wake: bool = False,
                  front_wake_length: float = 0,
-                 rf_station: Union[RFStation, None] = None,
-                 mtw_mode: Union[MtwModeTypes, None] = None,
+                 rf_station: Optional[RFStation] = None,
+                 mtw_mode: Optional[MtwModeTypes] = None,
                  use_regular_fft: bool = True) -> None:
 
         # Impedance sources list (e.g. list of Resonator objects)
         self.impedance_source_list: List[_ImpedanceObject] = impedance_source_list
 
         # Total impedance array of all sources in* :math:`\Omega`
-        self.total_impedance: Union[np.ndarray, int] = 0
+        self.total_impedance: NDArray | int = 0
 
         # Lenght in s of the front wake (if any) for multi-turn wake mode.
         # If the impedance calculation is performed in frequency domain, an
@@ -708,8 +712,8 @@ class InducedVoltageFreq(_InducedVoltage):
 
         ###############
         # Previously only declared in process()
-        self.freq: Union[np.ndarray, None] = None
-        self.frequency_resolution: Union[float, None] = None
+        self.freq: NDArray | None = None
+        self.frequency_resolution: Optional[float] = None
 
         ###############
 
@@ -748,7 +752,7 @@ class InducedVoltageFreq(_InducedVoltage):
         # Processing the impedances
         self.sum_impedances(self.freq)
 
-    def sum_impedances(self, freq: ndarray) -> None:
+    def sum_impedances(self, freq: NDArray) -> None:
         """
         Summing all the wake contributions in one total impedance.
         """
@@ -836,8 +840,9 @@ class InductiveImpedance(_InducedVoltage):
     deriv_mode : string, optional
         Derivation method to compute induced voltage
     """
+
     @handle_legacy_kwargs
-    def __init__(self, beam: Beam, profile:Profile, Z_over_n, rf_station: RFStation,
+    def __init__(self, beam: Beam, profile: Profile, Z_over_n, rf_station: RFStation,
                  deriv_mode='gradient'):
 
         # Constant imaginary Z/n program in* :math:`\Omega`.
@@ -942,6 +947,7 @@ class InducedVoltageResonator(_InducedVoltage):
     induced_voltage : float array
         Computed induced voltage [V]
     """
+
     @handle_legacy_kwargs
     def __init__(self, beam: Beam, profile: Profile, resonators: Resonators, timeArray=None):
 

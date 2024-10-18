@@ -22,10 +22,12 @@ import numpy as np
 from blond.utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
+    from typing import List, Optional, TYPE_CHECKING
+
+    from numpy.typing import NDArray
+
     from blond.input_parameters.rf_parameters import RFStation
     from blond.input_parameters.ring import Ring
-    from numpy import ndarray
-    from typing import List, Optional, Union, TYPE_CHECKING
 
 
 class _FrequencyOffset:
@@ -48,7 +50,7 @@ class _FrequencyOffset:
         self.rf_station = rf_station
 
         #: | *Set system number(s) to modify, if None all are modified*
-        self.system: Union[List[int], None] = [] if system is not None else None
+        self.system: List[int] | None = [] if system is not None else None
 
         if isinstance(system, int):
             self.system.append(system)
@@ -82,7 +84,7 @@ class _FrequencyOffset:
         warn("mainH is deprecated, use main_harmonic", DeprecationWarning)
         self.main_harmonic = val
 
-    def set_frequency(self, new_frequency_program: ndarray) -> None:
+    def set_frequency(self, new_frequency_program: NDArray) -> None:
         """
         Set new frequency program
         """

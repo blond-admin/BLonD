@@ -34,7 +34,7 @@ from blond.utils.abstracts import TrackableBaseClass
 from blond.utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
-    from typing import Optional, Union
+    from typing import Optional
     from blond.beam.beam import Beam
     from blond.input_parameters.rf_parameters import RFStation
     from blond.input_parameters.ring import Ring
@@ -179,7 +179,7 @@ class Plot(TrackableBaseClass):
         warn("PL is deprecated, use phase_loop", DeprecationWarning)
         self.phase_loop = val
 
-    def set_format(self, format_options: Union[dict, None]):
+    def set_format(self, format_options: Optional[dict]):
         """
         Initialize plot folder and custom plot formatting. For more options, see
 
@@ -342,7 +342,7 @@ class Plot(TrackableBaseClass):
                                      output_freq=self.dt_mon,
                                      dirname=self.dirname, show_plot=self.show_plt)
 
-                if self.lhc_noise_fb.bl_meas_bbb != None:
+                if self.lhc_noise_fb.bl_meas_bbb is not None:
                     plot_LHCNoiseFB_FWHM_bbb(self.rf_params, self.lhc_noise_fb,
                                              h5data, output_freq=self.dt_mon,
                                              dirname=self.dirname, show_plot=self.show_plt)

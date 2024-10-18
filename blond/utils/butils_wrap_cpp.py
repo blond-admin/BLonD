@@ -17,7 +17,9 @@ import numpy as np
 from . import c_complex64, c_complex128, c_real, precision
 
 if TYPE_CHECKING:
-    from typing import Optional, Type, Union, Tuple, Literal
+    from typing import Optional, Type, Tuple, Literal
+
+    from numpy.typing import NDArray
 
 __LIBBLOND = None
 
@@ -60,17 +62,17 @@ def load_libblond(precision: str = 'single') -> None:
 load_libblond(precision='double')
 
 
-def get_libblond() -> Union[ct.CDLL, None]:
+def get_libblond() -> ct.CDLL | None:
     """Returns the blond library.
     """
     return __LIBBLOND
 
 
-def __getPointer(x: np.ndarray) -> ct.c_void_p:
+def __getPointer(x: NDArray) -> ct.c_void_p:
     return x.ctypes.data_as(ct.c_void_p)
 
 
-def __getLen(x: np.ndarray) -> ct.c_int:
+def __getLen(x: NDArray) -> ct.c_int:
     return ct.c_int(len(x))
 
 
@@ -78,8 +80,8 @@ def __getLen(x: np.ndarray) -> ct.c_int:
 # You need to define at least one of more_than, less_than
 # @return: a bool array, size equal to the input,
 #           True: element satisfied the cond, False: otherwise
-def where_cpp(x: np.ndarray, more_than: Optional[float] = None, less_than: Optional[float] = None,
-              result: Optional[np.ndarray] = None) -> np.ndarray:
+def where_cpp(x: NDArray, more_than: Optional[float] = None, less_than: Optional[float] = None,
+              result: Optional[NDArray] = None) -> NDArray:
     if result is None:
         result = np.empty_like(x, dtype=bool)
     if more_than is None and less_than is not None:
@@ -103,7 +105,7 @@ def where_cpp(x: np.ndarray, more_than: Optional[float] = None, less_than: Optio
     return result
 
 
-def add_cpp(a, b, result: Optional[np.ndarray] = None, inplace=False) -> np.ndarray:
+def add_cpp(a, b, result: Optional[np.ndarray] = None, inplace=False) -> NDArray:
     if (len(a) != len(b)):
         raise ValueError(
             'operands could not be broadcast together with shapes ',
@@ -166,7 +168,7 @@ def add_cpp(a, b, result: Optional[np.ndarray] = None, inplace=False) -> np.ndar
     return result
 
 
-def mul_cpp(a: np.ndarray, b: np.ndarray, result: Optional[np.ndarray] = None) -> np.ndarray:
+def mul_cpp(a: NDArray, b: NDArray, result: Optional[np.ndarray] = None) -> NDArray:
     if (type(a) == np.ndarray and type(b) != np.ndarray):
         if result is None:
             result = np.empty_like(a, order='C')
@@ -224,18 +226,18 @@ def mul_cpp(a: np.ndarray, b: np.ndarray, result: Optional[np.ndarray] = None) -
     return result
 
 
-def argmin_cpp(x: np.ndarray) -> int:
+def argmin_cpp(x: NDArray) -> int:
     get_libblond().min_idx.restype = ct.c_int
     return get_libblond().min_idx(__getPointer(x), __getLen(x))
 
 
-def argmax_cpp(x: np.ndarray) -> int:
+def argmax_cpp(x: NDArray) -> int:
     get_libblond().max_idx.restype = ct.c_int
     return get_libblond().max_idx(__getPointer(x), __getLen(x))
 
 
-def linspace_cpp(start: Union[float, int], stop: Union[float, int], num: int = 50, retstep: bool = False,
-                 result: Optional[np.ndarray] = None) -> Union[np.ndarray, Tuple[np.ndarray, float]]:
+def linspace_cpp(start: float | int, stop: float | int, num: int = 50, retstep: bool = False,
+                 result: Optional[np.ndarray] = None) -> NDArray | Tuple[np.ndarray | float]:
     if result is None:
         result = np.empty(num, dtype=float)
     get_libblond().linspace(c_real(start), c_real(stop),
@@ -246,9 +248,9 @@ def linspace_cpp(start: Union[float, int], stop: Union[float, int], num: int = 5
         return result
 
 
-def arange_cpp(start: Union[float, int], stop: Union[float, int], step: Union[float, int],
+def arange_cpp(start: float | int, stop: float | int, step: float | int,
                dtype: Type[float, int] = float,
-               result: Optional[np.ndarray] = None) -> np.ndarray:
+               result: Optional[np.ndarray] = None) -> NDArray:
     size = int(np.ceil((stop - start) / step))
     if result is None:
         result = np.empty(size, dtype=dtype)
@@ -262,12 +264,12 @@ def arange_cpp(start: Union[float, int], stop: Union[float, int], step: Union[fl
     return result
 
 
-def sum_cpp(x: np.ndarray) -> float:
+def sum_cpp(x: NDArray) -> float:
     get_libblond().sum.restype = ct.c_double
     return get_libblond().sum(__getPointer(x), __getLen(x))
 
 
-def sort_cpp(x: np.ndarray, reverse: bool = False) -> np.ndarray:
+def sort_cpp(x: NDArray, reverse: bool = False) -> NDArray:
     if x.dtype == 'int32':
         get_libblond().sort_int(__getPointer(x), __getLen(x), ct.c_bool(reverse))
     elif x.dtype == 'float64':
@@ -280,8 +282,8 @@ def sort_cpp(x: np.ndarray, reverse: bool = False) -> np.ndarray:
     return x
 
 
-def convolve(signal: np.ndarray, kernel: np.ndarray, mode: str = 'full',
-             result: Optional[np.ndarray] = None) -> np.ndarray:
+def convolve(signal: NDArray, kernel: NDArray, mode: str = 'full',
+             result: Optional[np.ndarray] = None) -> NDArray:
     if mode != 'full':
         # ConvolutionError
         raise RuntimeError('[convolve] Only full mode is supported')
@@ -293,7 +295,7 @@ def convolve(signal: np.ndarray, kernel: np.ndarray, mode: str = 'full',
     return result
 
 
-def mean_cpp(x: np.ndarray) -> float:
+def mean_cpp(x: NDArray) -> float:
     if isinstance(x[0], np.float32):
         get_libblond().meanf.restype = ct.c_float
         return get_libblond().meanf(__getPointer(x), __getLen(x))
@@ -302,7 +304,7 @@ def mean_cpp(x: np.ndarray) -> float:
         return get_libblond().mean(__getPointer(x), __getLen(x))
 
 
-def std_cpp(x: np.ndarray) -> float:
+def std_cpp(x: NDArray) -> float:
     if isinstance(x[0], np.float32):
         get_libblond().stdevf.restype = ct.c_float
         return get_libblond().stdevf(__getPointer(x), __getLen(x))
@@ -311,7 +313,7 @@ def std_cpp(x: np.ndarray) -> float:
         return get_libblond().stdev(__getPointer(x), __getLen(x))
 
 
-def sin_cpp(x: Union[np.ndarray, float, int], result: Optional[np.ndarray] = None) -> Union[np.ndarray, float]:
+def sin_cpp(x: NDArray | float | int, result: Optional[np.ndarray] = None) -> NDArray | float:
     if isinstance(x, np.ndarray) and isinstance(x[0], np.float64):
         if result is None:
             result = np.empty(len(x), dtype=np.float64, order='C')
@@ -330,7 +332,7 @@ def sin_cpp(x: Union[np.ndarray, float, int], result: Optional[np.ndarray] = Non
         raise RuntimeError('[sin] The type %s is not supported' % type(x))
 
 
-def cos_cpp(x: Union[np.ndarray, float, int], result: Optional[np.ndarray] = None) -> Union[np.ndarray, float]:
+def cos_cpp(x: NDArray | float | int, result: Optional[np.ndarray] = None) -> NDArray | float:
     if isinstance(x, np.ndarray) and isinstance(x[0], np.float64):
         if result is None:
             result = np.empty(len(x), dtype=np.float64, order='C')
@@ -349,7 +351,7 @@ def cos_cpp(x: Union[np.ndarray, float, int], result: Optional[np.ndarray] = Non
         raise RuntimeError('[cos] The type %s is not supported' % type(x))
 
 
-def exp_cpp(x: Union[np.ndarray, float, int], result: Optional[np.ndarray] = None) -> Union[np.ndarray, float]:
+def exp_cpp(x: NDArray | float | int, result: Optional[np.ndarray] = None) -> NDArray | float:
     if isinstance(x, np.ndarray) and isinstance(x[0], np.float64):
         if result is None:
             result = np.empty(len(x), dtype=np.float64, order='C')
@@ -368,9 +370,9 @@ def exp_cpp(x: Union[np.ndarray, float, int], result: Optional[np.ndarray] = Non
         raise RuntimeError('[exp] The type %s is not supported' % type(x))
 
 
-def interp_cpp(x: np.ndarray, xp: np.ndarray, yp: np.ndarray, left: Optional[float] = None,
+def interp_cpp(x: NDArray, xp: NDArray, yp: NDArray, left: Optional[float] = None,
                right: Optional[float] = None,
-               result: Optional[np.ndarray] = None) -> np.ndarray:
+               result: Optional[np.ndarray] = None) -> NDArray:
     x = x.astype(dtype=precision.real_t, order='C', copy=False)
     xp = xp.astype(dtype=precision.real_t, order='C', copy=False)
     yp = yp.astype(dtype=precision.real_t, order='C', copy=False)
@@ -392,10 +394,10 @@ def interp_cpp(x: np.ndarray, xp: np.ndarray, yp: np.ndarray, left: Optional[flo
     return result
 
 
-def interp_const_space(x: np.ndarray, xp: np.ndarray, yp: np.ndarray,
+def interp_const_space(x: NDArray, xp: NDArray, yp: NDArray,
                        left: Optional[float] = None, right: Optional[float] = None,
                        result: Optional[np.ndarray] = None
-                       ) -> np.ndarray:
+                       ) -> NDArray:
     x = x.astype(dtype=precision.real_t, order='C', copy=False)
     xp = xp.astype(dtype=precision.real_t, order='C', copy=False)
     yp = yp.astype(dtype=precision.real_t, order='C', copy=False)
@@ -420,7 +422,7 @@ def interp_const_space(x: np.ndarray, xp: np.ndarray, yp: np.ndarray,
 def interp_const_bin(x: np.ndarray, xp: np.ndarray, yp: np.ndarray,
                      left: Optional[float] = None, right: Optional[float] = None,
                      result: Optional[np.ndarray] = None
-                     ) -> np.ndarray:
+                     ) -> NDArray:
     x = x.astype(dtype=precision.real_t, order='C', copy=False)
     xp = xp.astype(dtype=precision.real_t, order='C', copy=False)
     yp = yp.astype(dtype=precision.real_t, order='C', copy=False)
@@ -455,7 +457,7 @@ def random_normal(loc: float = 0.0, scale: float = 1.0, size: int = 1, seed=1234
     return arr
 
 
-def rfft(a: np.ndarray, n: int = 0, result: Optional[np.ndarray] = None) -> np.ndarray:
+def rfft(a: np.ndarray, n: int = 0, result: Optional[np.ndarray] = None) -> NDArray:
     a = a.astype(dtype=precision.real_t, order='C', copy=False)
     if (n == 0) and (result is None):
         result = np.empty(
@@ -472,7 +474,7 @@ def rfft(a: np.ndarray, n: int = 0, result: Optional[np.ndarray] = None) -> np.n
     return result
 
 
-def irfft(a: np.ndarray, n: int = 0, result: Optional[np.ndarray] = None) -> np.ndarray:
+def irfft(a: np.ndarray, n: int = 0, result: Optional[np.ndarray] = None) -> NDArray:
     a = a.astype(dtype=precision.complex_t, order='C', copy=False)
 
     if (n == 0) and (result is None):
@@ -489,7 +491,7 @@ def irfft(a: np.ndarray, n: int = 0, result: Optional[np.ndarray] = None) -> np.
     return result
 
 
-def rfftfreq(n: int, d: Union[float, int] = 1.0, result: Optional[np.ndarray] = None) -> np.ndarray:
+def rfftfreq(n: int, d: float | int = 1.0, result: Optional[np.ndarray] = None) -> NDArray:
     if d == 0:
         raise ZeroDivisionError('d must be non-zero')
     if result is None:
@@ -502,7 +504,7 @@ def rfftfreq(n: int, d: Union[float, int] = 1.0, result: Optional[np.ndarray] = 
     return result
 
 
-def irfft_packed(signal: np.ndarray, fftsize: int = 0, result: Optional[np.ndarray] = None) -> np.ndarray:
+def irfft_packed(signal: np.ndarray, fftsize: int = 0, result: Optional[np.ndarray] = None) -> NDArray:
     n0 = len(signal[0])
     howmany = len(signal)
 
@@ -527,7 +529,7 @@ def irfft_packed(signal: np.ndarray, fftsize: int = 0, result: Optional[np.ndarr
 
 
 def cumtrapz(y: np.ndarray, x: Optional[np.ndarray] = None, dx: float = 1.0, initial: Optional[float] = None,
-             result: Optional[np.ndarray] = None) -> np.ndarray:
+             result: Optional[np.ndarray] = None) -> NDArray:
     if x is not None:
         # IntegrationError
         raise RuntimeError('[cumtrapz] x attribute is not yet supported')
@@ -589,7 +591,7 @@ def beam_phase_fast(bin_centers: np.ndarray, profile: np.ndarray, omegarf: float
     return coeff
 
 
-def rf_volt_comp(voltages: np.ndarray, omega_rf: np.ndarray, phi_rf: np.ndarray, bin_centers: np.ndarray) -> np.ndarray:
+def rf_volt_comp(voltages: np.ndarray, omega_rf: np.ndarray, phi_rf: np.ndarray, bin_centers: np.ndarray) -> NDArray:
     bin_centers = bin_centers.astype(
         dtype=precision.real_t, order='C', copy=False)
     voltages = voltages.astype(dtype=precision.real_t, order='C', copy=False)
@@ -788,7 +790,7 @@ def set_random_seed(seed):
     get_libblond().set_random_seed(ct.c_int(seed))
 
 
-def fast_resonator(R_S: np.ndarray, Q: np.ndarray, frequency_array: np.ndarray, frequency_R: np.ndarray) -> np.ndarray:
+def fast_resonator(R_S: np.ndarray, Q: np.ndarray, frequency_array: np.ndarray, frequency_R: np.ndarray) -> NDArray:
     R_S = R_S.astype(dtype=precision.real_t, order='C', copy=False)
     Q = Q.astype(dtype=precision.real_t, order='C', copy=False)
     frequency_array = frequency_array.astype(
