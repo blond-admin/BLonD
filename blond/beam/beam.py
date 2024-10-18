@@ -29,7 +29,7 @@ from blond.utils.legacy_support import handle_legacy_kwargs
 from blond.utils.abstracts import CpuGpuTransferable
 
 if TYPE_CHECKING:
-    from typing import Union
+    from typing import Union, List
     from blond.input_parameters.ring import Ring
     from blond.input_parameters.rf_parameters import RFStation
     from blond.utils.types import DeviceType
@@ -411,7 +411,7 @@ class Beam(CpuGpuTransferable):
         """
         self.ratio *= np.exp(-time * self.particle.decay_rate / self.gamma)
 
-    def add_particles(self, new_particles: Union[np.ndarray, list[list[float]]]) -> None:
+    def add_particles(self, new_particles: Union[np.ndarray, List[List[float]]]) -> None:
         """
         Method to add array of new particles to beam object
         New particles are given id numbers sequential from last id of this beam
@@ -423,8 +423,8 @@ class Beam(CpuGpuTransferable):
         """
 
         try:
-            newdt: Union[np.ndarray, list] = new_particles[0]
-            newdE: Union[np.ndarray, list] = new_particles[1]
+            newdt = new_particles[0]
+            newdE = new_particles[1]
             if len(newdt) != len(newdE):
                 raise blond_exceptions.ParticleAdditionError(
                     "new_particles must have equal number of time and energy coordinates")
@@ -473,7 +473,7 @@ class Beam(CpuGpuTransferable):
         self.id = bm.concatenate((self.id, newids))
         self.n_macroparticles += other_beam.n_macroparticles
 
-    def __iadd__(self, other: Union[Beam, np.ndarray, list[list[float]]]) -> Beam:
+    def __iadd__(self, other: Union[Beam, np.ndarray, List[List[float]]]) -> Beam:
         """
         Initialisation of in place addition calls add_beam(other) if other
         is a blond beam object, calls add_particles(other) otherwise

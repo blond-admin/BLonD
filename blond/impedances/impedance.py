@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     from typing import Optional, TYPE_CHECKING, Callable
     import cupy as cp
 
-    from typing import Union, Literal
+    from typing import Union, Literal, List
 
     from blond.beam.beam import Beam
     from blond.beam.profile import Profile
@@ -73,7 +73,7 @@ class TotalInducedVoltage(CpuGpuTrackable):
         Time array corresponding to induced_voltage [s]
     """
     @handle_legacy_kwargs
-    def __init__(self, beam: Beam, profile: Profile, induced_voltage_list: list[_InducedVoltage]) -> None:
+    def __init__(self, beam: Beam, profile: Profile, induced_voltage_list: List[_InducedVoltage]) -> None:
         """
         Constructor.
         """
@@ -84,7 +84,7 @@ class TotalInducedVoltage(CpuGpuTrackable):
         self.profile: Profile = profile
 
         # Induced voltage list.
-        self.induced_voltage_list: list[_InducedVoltage] = induced_voltage_list
+        self.induced_voltage_list: List[_InducedVoltage] = induced_voltage_list
 
         # Induced voltage from the sum of the wake sources in V
         self.induced_voltage: Union[np.ndarray, cp.ndarray] = np.zeros(int(self.profile.n_slices),
@@ -518,7 +518,7 @@ class InducedVoltageTime(_InducedVoltage):
     @handle_legacy_kwargs
     def __init__(self, beam: Beam,
                  profile: Profile,
-                 wake_source_list: list[_ImpedanceObject],
+                 wake_source_list: List[_ImpedanceObject],
                  wake_length: Union[float, None] = None,
                  multi_turn_wake: bool = False,
                  rf_station: Union[RFStation, None] = None,
@@ -526,7 +526,7 @@ class InducedVoltageTime(_InducedVoltage):
                  use_regular_fft: bool = True) -> None:
 
         # Wake sources list (e.g. list of Resonator objects)
-        self.wake_source_list: list[_ImpedanceObject] = wake_source_list
+        self.wake_source_list: List[_ImpedanceObject] = wake_source_list
 
         # Total wake array of all sources in :math:`\Omega / s`
         self.total_wake: Union[np.ndarray, int] = 0  # todo better handling of initialization
@@ -688,7 +688,7 @@ class InducedVoltageFreq(_InducedVoltage):
     @handle_legacy_kwargs
     def __init__(self, beam: Beam,
                  profile: Profile,
-                 impedance_source_list: list[_ImpedanceObject],
+                 impedance_source_list: List[_ImpedanceObject],
                  frequency_resolution: Union[float, None] = None,
                  multi_turn_wake: bool = False,
                  front_wake_length: float = 0,
@@ -697,7 +697,7 @@ class InducedVoltageFreq(_InducedVoltage):
                  use_regular_fft: bool = True) -> None:
 
         # Impedance sources list (e.g. list of Resonator objects)
-        self.impedance_source_list: list[_ImpedanceObject] = impedance_source_list
+        self.impedance_source_list: List[_ImpedanceObject] = impedance_source_list
 
         # Total impedance array of all sources in* :math:`\Omega`
         self.total_impedance: Union[np.ndarray, int] = 0

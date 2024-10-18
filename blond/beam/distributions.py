@@ -27,16 +27,17 @@ import numpy as np
 import scipy
 from packaging.version import Version
 
+
 if Version(scipy.__version__) >= Version("1.14"):
     from scipy.integrate import cumulative_trapezoid as cumtrapz
 else:
     from scipy.integrate import cumtrapz
 
-
 from blond.beam.profile import CutOptions, Profile
 from blond.trackers.utilities import is_in_separatrix, minmax_location, potential_well_cut
 from blond.utils import bmath as bm
 from blond.utils.legacy_support import handle_legacy_kwargs
+
 
 if TYPE_CHECKING:
     from typing import Literal, Callable, Union, Optional
@@ -49,6 +50,8 @@ if TYPE_CHECKING:
     from blond.utils.types import (DistributionUserTableType, LineDensityInputType,
                                    ExtraVoltageDictType, DistributionVariableType,
                                    HalfOptionType, BunchLengthFitTypes, LineDensityDistType)
+    from blond.utils.types import DistTypeDistFunction
+
 
 @handle_legacy_kwargs
 def matched_from_line_density(beam: Beam,
@@ -398,6 +401,7 @@ def matched_from_line_density(beam: Beam,
     return [hamiltonian_coord, distribution_function_], \
         [time_line_den, line_density_]
 
+
 @handle_legacy_kwargs
 def matched_from_distribution_function(beam: Beam, full_ring_and_rf: FullRingAndRF,
                                        distribution_function_input: Union[Callable, None] = None,
@@ -677,6 +681,7 @@ def matched_from_distribution_function(beam: Beam, full_ring_and_rf: FullRingAnd
     else:
         return [time_potential_low_res, line_density_]
 
+
 @handle_legacy_kwargs
 def x0_from_bunch_length(bunch_length: float,
                          bunch_length_fit: BunchLengthFitTypes,
@@ -781,6 +786,7 @@ def x0_from_bunch_length(bunch_length: float,
     #    return 0.5 * (X_low + X_hi)
     return X0
 
+
 @handle_legacy_kwargs
 def populate_bunch(beam: Beam, time_grid: np.ndarray, deltaE_grid: np.ndarray,
                    density_grid: np.ndarray, time_step: float,
@@ -813,8 +819,10 @@ def __distribution_function_by_exponent(action_array: np.ndarray, exponent: floa
     return distribution_function_
 
 
-
-def distribution_function(action_array, dist_type, length, exponent=None):
+def distribution_function(action_array: np.ndarray,
+                          dist_type: DistTypeDistFunction,
+                          length: float,
+                          exponent: Optional[float] = None):
     """
     *Distribution function (formulas from Laclare).*
     """
@@ -862,6 +870,7 @@ def __line_density_by_exponent(bunch_length: float,
     line_density_[np.abs(coord_array - bunch_position)
                   > bunch_length / 2] = 0
     return line_density_
+
 
 def line_density(coord_array, dist_type, bunch_length, bunch_position: float = 0.0,
                  exponent: Union[float, None] = None):
@@ -911,6 +920,7 @@ def line_density(coord_array, dist_type, bunch_length, bunch_position: float = 0
         raise RuntimeError('The dist_type option was not recognized')
 
     return line_density_
+
 
 @handle_legacy_kwargs
 def bigaussian(ring: Ring, rf_station: RFStation, beam: Beam,
@@ -981,6 +991,7 @@ def bigaussian(ring: Ring, rf_station: RFStation, beam: Beam,
 
             itemindex = bm.where(is_in_separatrix(ring, rf_station, beam,
                                                   beam.dt, beam.dE) == False)[0]
+
 
 @handle_legacy_kwargs
 def parabolic(ring: Ring, rf_station: RFStation, beam: Beam,
@@ -1057,6 +1068,7 @@ def parabolic(ring: Ring, rf_station: RFStation, beam: Beam,
     density_grid /= np.sum(density_grid)
 
     populate_bunch(beam, dt_grid, deltaE_grid, density_grid, bin_dt, bin_energy, seed)
+
 
 @handle_legacy_kwargs
 def _get_dE_from_dt(ring: Ring, rf_station: RFStation, dt_amplitude: float) -> float:

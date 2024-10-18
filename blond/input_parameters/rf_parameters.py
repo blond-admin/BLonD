@@ -20,26 +20,22 @@ from typing import TYPE_CHECKING, Union
 import numpy as np
 import scipy
 from packaging.version import Version
+from scipy.constants import c
 
 from blond.beam.beam import Particle
+from blond.beam.beam import Proton
+from blond.input_parameters.rf_parameters_options import RFStationOptions
+from blond.utils import bmath as bm
 from blond.utils.abstracts import CpuGpuTransferable
+from blond.utils.legacy_support import handle_legacy_kwargs
 
 if Version(scipy.__version__) >= Version("1.14"):
     from scipy.integrate import cumulative_trapezoid as cumtrapz
 else:
     from scipy.integrate import cumtrapz
 
-from scipy.constants import c
-
-
-from scipy.constants import c
-
-from blond.beam.beam import Proton
-from blond.input_parameters.rf_parameters_options import RFStationOptions
-from blond.utils import bmath as bm
-from blond.utils.legacy_support import handle_legacy_kwargs
-
 if TYPE_CHECKING:
+    from typing import List
     from blond.input_parameters.ring import Ring
     from blond.utils.types import DeviceType
 
@@ -239,7 +235,8 @@ class RFStation(CpuGpuTransferable):
     """
 
     @handle_legacy_kwargs
-    def __init__(self, ring: Ring, harmonic: Union[int, list[int]], voltage: Union[float, list[float]], phi_rf_d, n_rf=1,
+    def __init__(self, ring: Ring, harmonic: Union[int, List[int]], voltage: Union[float, List[float]], phi_rf_d,
+                 n_rf=1,
                  section_index=1, omega_rf=None, phi_noise=None,
                  phi_modulation=None, rf_station_options: RFStationOptions = RFStationOptions()):
 

@@ -19,7 +19,6 @@ if Version(scipy.__version__) >= Version("1.14"):
 else:
     from scipy.integrate import cumtrapz
 
-
 from blond.beam.beam import Beam
 from blond.beam.distributions import (x0_from_bunch_length, distribution_function,
                                       matched_from_distribution_function,
@@ -38,6 +37,7 @@ if TYPE_CHECKING:
     from blond.trackers.tracker import FullRingAndRF, MainHarmonicOptionType
     from blond.utils.types import DistributionVariableType, HalfOptionType
     from blond.utils.types import DistributionOptionsType
+
 
 @handle_legacy_kwargs
 def matched_from_distribution_density_multibunch(beam: Beam, ring: Ring, full_ring_and_rf: FullRingAndRF,
@@ -237,6 +237,7 @@ def matched_from_distribution_density_multibunch(beam: Beam, ring: Ring, full_ri
     beam.dE = beam_iteration.dE.astype(dtype=bm.precision.real_t, order='C', copy=False)
     gc.collect()
 
+
 @handle_legacy_kwargs
 def matched_from_line_density_multibunch(beam: Beam, ring: Ring,
                                          full_ring_and_rf: FullRingAndRF,
@@ -416,6 +417,7 @@ def matched_from_line_density_multibunch(beam: Beam, ring: Ring,
     beam.dE = beam_iteration.dE.astype(dtype=bm.precision.real_t, order='C', copy=False)
     gc.collect()
 
+
 @handle_legacy_kwargs
 def match_beam_from_distribution(beam: Beam, full_ring_and_rf: FullRingAndRF, ring: Ring,
                                  distribution_options: DistributionOptionsType,
@@ -590,6 +592,7 @@ def match_beam_from_distribution(beam: Beam, full_ring_and_rf: FullRingAndRF, ri
     beam.dE = beam.dE.astype(dtype=bm.precision.real_t, order='C', copy=False)
     gc.collect()
 
+
 @handle_legacy_kwargs
 def match_beam_from_distribution_multibatch(beam: Beam, full_ring_and_rf: FullRingAndRF, ring: Ring,
                                             distribution_options: DistributionOptionsType, n_bunches: int,
@@ -758,13 +761,18 @@ def match_beam_from_distribution_multibatch(beam: Beam, full_ring_and_rf: FullRi
 
                     length_dt = len(dt)
                     length_dE = len(dE)
-                    beam.dt[(indexBunch + n_bunches * indexBatch) * length_dt:(
-                                                                                      indexBunch + n_bunches * indexBatch + 1) * length_dt] = dt + (
-                            indexBunch * bunch_spacing_buckets * bucket_size_tau) + indexBatch * (
-                                                                                                                                                      batch_spacing_buckets + (
-                                                                                                                                                      n_bunches - 1) * bunch_spacing_buckets) * bucket_size_tau
-                    beam.dE[(indexBunch + n_bunches * indexBatch) * length_dE:(
-                                                                                      indexBunch + n_bunches * indexBatch + 1) * length_dE] = dE
+                    slice_start = (indexBunch + n_bunches * indexBatch) * length_dt
+                    slice_stop = (indexBunch + n_bunches * indexBatch + 1) * length_dt
+                    beam.dt[slice_start:slice_stop] = (
+                            dt
+                            + (indexBunch * bunch_spacing_buckets * bucket_size_tau)
+                            + indexBatch * (
+                                    batch_spacing_buckets + (n_bunches - 1) * bunch_spacing_buckets
+                            ) * bucket_size_tau
+                    )
+                    slice_start = (indexBunch + n_bunches * indexBatch) * length_dE
+                    slice_stop = (indexBunch + n_bunches * indexBatch + 1) * length_dE
+                    beam.dE[slice_start:slice_stop] = dE
 
             print('iteration ' + str(it) + ', average RMS emittance (4sigma) = ' + str(4 * conv / n_bunches))
             profile.track()
@@ -811,6 +819,7 @@ def compute_x_grid(normalization_DeltaE,  # todo TypeHint
 def compute_H0(emittance, H, J):
     #  Estimation of H corresponding to the emittance
     return np.interp(emittance / (2. * np.pi), J, H)
+
 
 @handle_legacy_kwargs
 def match_a_bunch(normalization_DeltaE,  # todo type hint

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import sys
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 
@@ -73,3 +73,10 @@ if TYPE_CHECKING:
     ResonatorsMethodType = Literal['c++', 'python']
     InterpolationTypes = Literal['linear', 'cubic', 'derivative' , 'akima']
 
+DistTypeDistFunction = Literal[
+    'waterbag',
+    'parabolic_amplitude',
+    'parabolic_line',
+    'binomial',
+    'gaussian',
+]
