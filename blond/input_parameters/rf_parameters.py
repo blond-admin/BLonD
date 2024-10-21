@@ -22,8 +22,7 @@ import scipy
 from packaging.version import Version
 from scipy.constants import c
 
-from ..beam.beam import Particle
-from ..beam.beam import Proton
+from ..beam.beam import Particle,Proton
 from .rf_parameters_options import RFStationOptions
 from ..utils import bmath as bm
 from ..utils.abstracts import CpuGpuTransferable

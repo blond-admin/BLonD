@@ -110,7 +110,7 @@ class c_complex64(ct.Structure):
         return self.real + (1.j) * self.imag
 
 
-def c_real(scalar: float | int) -> ct.c_float | ct.c_double:
+def c_real(scalar: float) -> ct.c_float | ct.c_double:
     """Convert input to default precision.
     """
     if precision.num == 1:

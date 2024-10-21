@@ -34,7 +34,7 @@ from ..utils import bmath as bm
 if TYPE_CHECKING:
     from typing import List, Optional, Iterable
 
-    from numpy.typing import NDArray
+    from numpy.typing import NDArray, ArrayLike
 
     from ..utils.types import ResonatorsMethodType
 
@@ -137,8 +137,11 @@ class InputTable(_ImpedanceObject):
 
     """
 
-    def __init__(self, input_1: Iterable[float], input_2: Iterable[float],
-                 input_3: Optional[Iterable[float]] = None):
+    def __init__(self,
+                 input_1: ArrayLike[float],
+                 input_2: ArrayLike[float],
+                 input_3: Optional[ArrayLike[float]] = None
+                 ):
 
 
         _ImpedanceObject.__init__(self)

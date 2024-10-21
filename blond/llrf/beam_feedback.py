@@ -550,9 +550,11 @@ class BeamFeedback(CpuGpuTrackable):
                                      (1. / (self.ring.alpha_0[0, counter] *
                                             self.rf_station.gamma[counter] ** 2) - 1.))
 
-            self.domega_RL = self.domega_RL + self.gain2[0][counter] * (self.dR_over_R
-                                                                        - self.dR_over_R_prev) + self.gain2[1][
-                                 counter] * self.dR_over_R
+            self.domega_RL = (
+                    self.domega_RL +
+                    self.gain2[0][counter] * (self.dR_over_R - self.dR_over_R_prev) +
+                    self.gain2[1][counter] * self.dR_over_R
+            )
 
             self.dR_over_R_prev = self.dR_over_R
 

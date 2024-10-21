@@ -23,21 +23,23 @@ from ..input_parameters.rf_parameters import RFStation
 from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
-    from numpy.typing import NDArray
+    from typing import Optional
+
+    from numpy.typing import NDArray, ArrayLike
 
     from ..input_parameters.ring import Ring
     from ..input_parameters.rf_parameters import RFStation
 
 
-def x(phimax):
+def x(phimax: ArrayLike) -> ArrayLike:
     return np.sin(0.5 * phimax)
 
 
-def x2(phimax):
+def x2(phimax: ArrayLike) -> ArrayLike:
     return np.sin(0.5 * phimax) ** 2
 
 
-def action_from_phase_amplitude(x2):
+def action_from_phase_amplitude(x2: NDArray) -> NDArray:
     """
     Returns the relative action for given oscillation amplitude in time.
     Action is normalised to the value at the separatrix, given in units of 1.
@@ -56,7 +58,7 @@ def action_from_phase_amplitude(x2):
     return action
 
 
-def tune_from_phase_amplitude(phimax):
+def tune_from_phase_amplitude(phimax: float) -> float:
     """
     Find the tune w.r.t. the central synchrotron frequency corresponding to a
     given amplitude of synchrotron oscillations in phase
@@ -65,7 +67,7 @@ def tune_from_phase_amplitude(phimax):
     return 0.5 * np.pi / ellipk(x(phimax))
 
 
-def phase_amplitude_from_tune(tune):
+def phase_amplitude_from_tune(tune: NDArray) -> NDArray:
     """
     Find the amplitude of synchrotron oscillations in phase corresponding to a
     given tune w.r.t. the central synchrotron frequency
@@ -108,7 +110,7 @@ def phase_amplitude_from_tune(tune):
 
 @handle_legacy_kwargs
 def oscillation_amplitude_from_coordinates(ring: Ring, rf_station: RFStation, dt: NDArray, dE: NDArray,
-                                           timestep=0, Np_histogram=None):
+                                           timestep: int = 0, Np_histogram: Optional[NDArray] = None):
     """
     Returns the oscillation amplitude in time for given particle coordinates,
     assuming single-harmonic RF system and no intensity effects.
@@ -142,9 +144,10 @@ def oscillation_amplitude_from_coordinates(ring: Ring, rf_station: RFStation, dt
 
         return dtmax
 
+
 @handle_legacy_kwargs
-def action_from_oscillation_amplitude(rf_station: RFStation, dtmax, timestep=0,
-                                      Np_histogram=None):
+def action_from_oscillation_amplitude(rf_station: RFStation, dtmax: float, timestep: int = 0,
+                                      Np_histogram: Optional[NDArray] = None):
     """
     Returns the relative action for given oscillation amplitude in time,
     assuming single-harmonic RF system and no intensity effects.

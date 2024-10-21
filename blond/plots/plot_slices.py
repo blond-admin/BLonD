@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
 @handle_legacy_kwargs
 def plot_beam_profile(profile: Profile, counter, style='-', dirname: str | PathLike[str] = 'fig',
-                      show_plot=False):
+                      show_plot: bool = False):
     """
     Plot of longitudinal beam profile
     """
@@ -58,7 +58,7 @@ def plot_beam_profile(profile: Profile, counter, style='-', dirname: str | PathL
 @handle_legacy_kwargs
 def plot_beam_profile_derivative(profile: Profile, counter: int, style='-',
                                  dirname: str | PathLike[str] = 'fig',
-                                 show_plot=False,
+                                 show_plot: bool = False,
                                  modes=['diff']):
     """
     Plot of the derivative of the longitudinal beam profile.
@@ -78,7 +78,7 @@ def plot_beam_profile_derivative(profile: Profile, counter: int, style='-',
 
 @handle_legacy_kwargs
 def plot_beam_spectrum(profile: Profile, counter: int, style='-', dirname: str | PathLike[str] = 'fig',
-                       show_plot=False):
+                       show_plot: bool = False):
     """
     Plot of longitudinal beam profile
     """

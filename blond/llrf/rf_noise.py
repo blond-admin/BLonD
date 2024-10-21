@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     from ..input_parameters.rf_parameters import RFStation
     from ..input_parameters.ring import Ring
 
-cfwhm = np.sqrt(2. / np.log(2.))
+CFWHM = np.sqrt(2. / np.log(2.))
 
 
 class FlatSpectrum:
@@ -337,7 +337,7 @@ class LHCNoiseFB(TrackableBaseClass):
                                                                          self.profile.n_macroparticles[
                                                                              index[-1] + 1]) * time_resolution
 
-        return cfwhm * (right - left)
+        return CFWHM * (right - left)
 
     def fwhm_single_bunch(self):
         """
