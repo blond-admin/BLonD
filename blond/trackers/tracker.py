@@ -270,7 +270,7 @@ class RingAndRFTracker(CpuGpuTrackable):
             # InterpolationError
             raise RuntimeError("ERROR in RingAndRFTracker: Choice of" +
                                " interpolation not recognised!")
-        self.profile: Profile = profile
+        self.profile = profile
         self.totalInducedVoltage = total_induced_voltage
         if (self.interpolation is True) and (self.profile is None):
             # ProfileError

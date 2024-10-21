@@ -303,16 +303,12 @@ class RingOptions:
                     raise RuntimeError("ERROR in Ring: The 'input_data'" +
                                        f"should have {(n_turns+1)=} entries, but shape is {input_data.shape=}")
         else:
-            raise TypeError(type(input_data))
+            raise TypeError(f"Type of input_data ({type(input_data)}) is not recognised")
 
         return output_data
 
-    def preprocess(self,
-                   mass: float,
-                   circumference: float,
-                   time: NDArray,
-                   momentum: NDArray
-                   ) -> Tuple[NDArray, NDArray]:
+    def preprocess(self, mass: float, circumference: float, time: NDArray,
+                   momentum: NDArray) -> Tuple[NDArray, NDArray]:
         r"""Function to pre-process acceleration ramp data, interpolating it to
         every turn. Currently, it works only if the number of RF sections is
         equal to one, to be extended for multiple RF sections.

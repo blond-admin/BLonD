@@ -124,7 +124,7 @@ def _check_length(input_data: NDArray | List | Tuple, length: int) -> bool:
         return False
 
 
-def _check_dimensions(input_data: NDArray | List | Tuple, dim: Iterable) -> bool:
+def _check_dimensions(input_data: NDArray | List | Tuple, dim: Iterable[int]) -> bool:
     """
     Casts input_data to numpy array and dimensions to tuple
     compares shape of array to tuple and returns True if equal.

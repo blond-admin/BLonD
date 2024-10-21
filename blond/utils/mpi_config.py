@@ -55,7 +55,8 @@ def master_wrap(func: Callable):
     return wrap
 
 
-def sequential_wrap(func: Callable, beam: Beam, split_args={}, gather_args={}):
+def sequential_wrap(func: Callable, beam: Beam, split_args: Optional[Dict] = None,
+                    gather_args: Optional[Dict] = None) -> Callable:
     """Wrap a function to make it run in sequential mode.
     When in sequential mode, all the beam coordinates are gathered before executing
     the passed function, and re-splitted afterwards.
@@ -69,6 +70,9 @@ def sequential_wrap(func: Callable, beam: Beam, split_args={}, gather_args={}):
     Returns:
         _type_: _description_
     """
+
+    split_args = {} if split_args is None else split_args
+    gather_args = {} if gather_args is None else gather_args
 
     @wraps(func)
     def wrap(*args, **kw):
