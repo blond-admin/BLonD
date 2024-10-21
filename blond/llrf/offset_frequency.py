@@ -22,7 +22,7 @@ import numpy as np
 from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
-    from typing import List, Optional, TYPE_CHECKING
+    from typing import Optional, TYPE_CHECKING
 
     from numpy.typing import NDArray
 
@@ -50,7 +50,7 @@ class _FrequencyOffset:
         self.rf_station = rf_station
 
         #: | *Set system number(s) to modify, if None all are modified*
-        self.system: List[int] | None = [] if system is not None else None
+        self.system: list[int] | None = [] if system is not None else None
 
         if isinstance(system, int):
             self.system.append(system)

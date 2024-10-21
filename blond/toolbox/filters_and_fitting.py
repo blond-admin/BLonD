@@ -27,7 +27,6 @@ from ..utils import bmath as bm
 from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
-    from typing import List, Tuple
 
     from numpy.typing import NDArray as NumpyNDArray
     from cupy.typing import NDArray as CupyNDArray
@@ -117,7 +116,7 @@ def beam_profile_filter_chebyshev(y_array: NumpyNDArray,
 @handle_legacy_kwargs
 def gaussian_fit(y_array: NDArray,
                  x_array: NDArray,
-                 p0: List[float]) -> NumpyNDArray:
+                 p0: list[float]) -> NumpyNDArray:
     """
     Gaussian fit of the profile, in order to get the bunch length and
     position. Returns fit values in units of s.
@@ -141,7 +140,7 @@ def gauss(x: NumpyNDArray, *p) -> NumpyNDArray:
     return A * np.exp(-(x - x0) ** 2 / 2. / sx ** 2)
 
 @handle_legacy_kwargs
-def rms(y_array: NumpyNDArray, x_array: NumpyNDArray) -> Tuple[float, float]:
+def rms(y_array: NumpyNDArray, x_array: NumpyNDArray) -> tuple[float, float]:
     """
     Computation of the RMS bunch length and position from the line
     density (bunch length = 4sigma).
@@ -159,7 +158,7 @@ def rms(y_array: NumpyNDArray, x_array: NumpyNDArray) -> Tuple[float, float]:
     return bp_rms, bl_rms
 
 @handle_legacy_kwargs
-def fwhm(y_array: NumpyNDArray, x_array: NumpyNDArray, shift: float = 0) -> Tuple[float, float]:
+def fwhm(y_array: NumpyNDArray, x_array: NumpyNDArray, shift: float = 0) -> tuple[float, float]:
     """
     Computation of the bunch length and position from the FWHM
     assuming Gaussian line density.
@@ -197,7 +196,7 @@ def fwhm_multibunch(y_array: NDArray,
                     bucket_size_tau: float,
                     bucket_tolerance: float = 0.40,
                     shift: float = 0
-                    ) -> Tuple[np.ndarray, np.ndarray]:
+                    ) -> tuple[NDArray, NDArray]:
     """
     Computation of the bunch length and position from the FWHM
     assuming Gaussian line density for multibunch case.
@@ -228,7 +227,7 @@ def rms_multibunch(y_array: NDArray,
                    n_bunches: int,
                    bunch_spacing_buckets: int,
                    bucket_size_tau: float,
-                   bucket_tolerance: float = 0.40) -> Tuple[float, float]:
+                   bucket_tolerance: float = 0.40) -> tuple[float, float]:
     """
     Computation of the rms bunch length (4sigma) and position.
     """

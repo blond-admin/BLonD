@@ -30,7 +30,7 @@ from ..utils.legacy_support import handle_legacy_kwargs
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Optional, List
+    from typing import Optional
 
     from numpy.typing import NDArray
 
@@ -45,10 +45,10 @@ if TYPE_CHECKING:
 
 @handle_legacy_kwargs
 def matched_from_distribution_density_multibunch(beam: Beam, ring: Ring, full_ring_and_rf: FullRingAndRF,
-                                                 distribution_options_list: List | dict,  # todo better specify
+                                                 distribution_options_list: list | dict,  # todo better specify
                                                  n_bunches: int,
                                                  bunch_spacing_buckets: int,
-                                                 intensity_list: List | NDArray | None = None,
+                                                 intensity_list: list | NDArray | None = None,
                                                  minimum_n_macroparticles: Optional[int] = None,
                                                  main_harmonic_option: MainHarmonicOptionType = 'lowest_freq',
                                                  total_induced_voltage: Optional[TotalInducedVoltage] = None,
@@ -245,9 +245,9 @@ def matched_from_distribution_density_multibunch(beam: Beam, ring: Ring, full_ri
 @handle_legacy_kwargs
 def matched_from_line_density_multibunch(beam: Beam, ring: Ring,
                                          full_ring_and_rf: FullRingAndRF,
-                                         line_density_options_list: List | dict, n_bunches,
+                                         line_density_options_list: list | dict, n_bunches,
                                          bunch_spacing_buckets: int,
-                                         intensity_list: List | NDArray | None = None,
+                                         intensity_list: list | NDArray | None = None,
                                          minimum_n_macroparticles: Optional[int] = None,
                                          main_harmonic_option: MainHarmonicOptionType = 'lowest_freq',
                                          total_induced_voltage: Optional[TotalInducedVoltage] = None,

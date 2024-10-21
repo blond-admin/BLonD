@@ -27,7 +27,7 @@ from ..utils.abstracts import CpuGpuTrackable, CpuGpuTransferable
 from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
-    from typing import Optional, Callable, Literal, List
+    from typing import Optional, Callable, Literal
     import cupy as cp
 
     from numpy.typing import NDArray
@@ -240,33 +240,33 @@ class _InducedVoltage(CpuGpuTransferable):
                  use_regular_fft: bool = True) -> None:
 
         # Beam object in order to access the beam info
-        self.beam: Beam = beam
+        self.beam = beam
 
         # Profile object in order to access the profile info
-        self.profile: Profile = profile
+        self.profile = profile
 
         # Induced voltage from the sum of the wake sources in V
         self.induced_voltage: NDArray | float = 0.0
 
         # Wake length in s (optional)
-        self.wake_length_input: Optional[float] = wake_length
+        self.wake_length_input = wake_length
 
         # Frequency resolution of the impedance (optional)
-        self.frequency_resolution_input: Optional[float] = frequency_resolution
+        self.frequency_resolution_input = frequency_resolution
 
         # Use regular numbers for fft (optional)
-        self.use_regular_fft: bool = use_regular_fft
+        self.use_regular_fft = use_regular_fft
 
         # RFStation object for turn counter and revolution period
-        self.rf_params: Optional[RFStation] = rf_station  # todo
+        self.rf_params = rf_station  # todo
 
         # Multi-turn wake enable flag
-        self.multi_turn_wake: bool = multi_turn_wake
+        self.multi_turn_wake = multi_turn_wake
 
         # Multi-turn wake mode can be 'freq' or 'time' (default). If 'freq'
         # is used, each turn the induced voltage of previous turns is shifted
         # in the frequency domain. For 'time', a linear interpolation is used.
-        self.mtw_mode: MtwModeTypes = mtw_mode
+        self.mtw_mode = mtw_mode
 
         ###############
         # Previously only declared in process()
@@ -519,7 +519,7 @@ class InducedVoltageTime(_InducedVoltage):
     @handle_legacy_kwargs
     def __init__(self, beam: Beam,
                  profile: Profile,
-                 wake_source_list: List[_ImpedanceObject],
+                 wake_source_list: list[_ImpedanceObject],
                  wake_length: Optional[float] = None,
                  multi_turn_wake: bool = False,
                  rf_station: Optional[RFStation] = None,
@@ -527,7 +527,7 @@ class InducedVoltageTime(_InducedVoltage):
                  use_regular_fft: bool = True) -> None:
 
         # Wake sources list (e.g. list of Resonator objects)
-        self.wake_source_list: List[_ImpedanceObject] = wake_source_list
+        self.wake_source_list: list[_ImpedanceObject] = wake_source_list
 
         # Total wake array of all sources in :math:`\Omega / s`
         self.total_wake: NDArray | int = 0  # todo better handling of initialization
@@ -690,7 +690,7 @@ class InducedVoltageFreq(_InducedVoltage):
     @handle_legacy_kwargs
     def __init__(self, beam: Beam,
                  profile: Profile,
-                 impedance_source_list: List[_ImpedanceObject],
+                 impedance_source_list: list[_ImpedanceObject],
                  frequency_resolution: Optional[float] = None,
                  multi_turn_wake: bool = False,
                  front_wake_length: float = 0,
@@ -699,7 +699,7 @@ class InducedVoltageFreq(_InducedVoltage):
                  use_regular_fft: bool = True) -> None:
 
         # Impedance sources list (e.g. list of Resonator objects)
-        self.impedance_source_list: List[_ImpedanceObject] = impedance_source_list
+        self.impedance_source_list: list[_ImpedanceObject] = impedance_source_list
 
         # Total impedance array of all sources in* :math:`\Omega`
         self.total_impedance: NDArray | int = 0
@@ -957,9 +957,9 @@ class InducedVoltageResonator(_InducedVoltage):
             raise RuntimeError('All quality factors Q must be larger than 0.5')
 
         # Copy of the Beam object in order to access the beam info.
-        self.beam: Beam = beam
+        self.beam = beam
         # Copy of the Profile object in order to access the line density.
-        self.profile: Profile = profile
+        self.profile = profile
 
         # Optional array of time values where the induced voltage is calculated.
         # If left out, the induced voltage is calculated at the times of the

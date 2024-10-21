@@ -27,7 +27,7 @@ from ..utils.abstracts import CpuGpuTrackable, CpuGpuTransferable
 from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
-    from typing import List, Callable, Tuple, Optional
+    from typing import Callable, Optional
 
     from numpy.typing import NDArray
 
@@ -213,7 +213,7 @@ class CutOptions(CpuGpuTransferable):
         else:
             raise NameError(input_unit_type)
 
-    def get_slices_parameters(self) -> Tuple[int, float, float, None, NDArray, NDArray, float]:
+    def get_slices_parameters(self) -> tuple[int, float, float, None, NDArray, NDArray, float]:
         """
         Return all the computed parameters.
         """
@@ -507,7 +507,7 @@ class Profile(CpuGpuTrackable):
         cut_options.set_cuts(beam)
 
         # Import (reference) Beam
-        self.beam: Beam = beam
+        self.beam = beam
 
         self.n_slices = 0
         self.cut_left = 0.
@@ -527,7 +527,7 @@ class Profile(CpuGpuTrackable):
         self.beam_spectrum: NDArray = np.array([], dtype=bm.precision.real_t, order='C')
         self.beam_spectrum_freq: NDArray = np.array([], dtype=bm.precision.real_t, order='C')
 
-        self.operations: List[Callable] = []
+        self.operations: list[Callable] = []
         if other_slices_options.smooth:
             self.operations.append(self._slice_smooth)
         else:

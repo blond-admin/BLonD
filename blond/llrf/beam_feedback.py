@@ -25,7 +25,7 @@ from ..utils.abstracts import CpuGpuTrackable
 from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
-    from typing import Dict, Optional
+    from typing import Optional
     from ..input_parameters.rf_parameters import RFStation
     from ..input_parameters.ring import Ring
     from ..beam.profile import Profile
@@ -46,7 +46,7 @@ class BeamFeedback(CpuGpuTrackable):
                  ring: Ring,
                  rf_station: RFStation,
                  profile: Profile,
-                 configuration: Dict[str, str | float],  # todo improve type hint
+                 configuration: dict[str, str | float],  # todo improve type hint
                  PhaseNoise: None = None,  # todo class doesnt exist anymore??
                  LHCNoiseFB: Optional[LHCNoiseFB] = None,
                  delay: int = 0

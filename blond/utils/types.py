@@ -9,8 +9,7 @@ if TYPE_CHECKING:
     else:
         from typing import TypedDict, NotRequired
     from typing import Literal
-    from typing import TYPE_CHECKING, TypedDict, Literal
-    from typing_extensions import TypedDict, NotRequired
+    from typing import TYPE_CHECKING, Literal
 
     from numpy.typing import NDArray
 
@@ -53,13 +52,14 @@ if TYPE_CHECKING:
 
     BunchLengthFitTypes = Literal['full', 'gauss', 'fwhm'] | None
 
-    LineDensityDistType = Literal[
-        'waterbag', 'parabolic_amplitude', 'parabolic_line',
-        'binomial', 'gaussian', 'cosine_squared'
+    LineDensityDistType = Literal['waterbag', 'parabolic_amplitude',
+    'parabolic_line', 'binomial',
+    'gaussian', 'cosine_squared'
     ]
 
-    DistributionFunctionDistType = Literal[
-        'waterbag', 'parabolic_amplitude', 'parabolic_line', 'binomial', 'gaussian'
+    DistributionFunctionDistType = Literal['waterbag', 'parabolic_amplitude',
+    'parabolic_line', 'binomial',
+    'gaussian'
     ]
 
     DeviceType = Literal["CPU", "GPU"]
@@ -73,12 +73,8 @@ if TYPE_CHECKING:
     ResonatorsMethodType = Literal['c++', 'python']
     InterpolationTypes = Literal['linear', 'cubic', 'derivative', 'akima']
 
-    BeamProfileDerivativeModes = Literal[
-        "filter1d",
-        "gradient",
-        "diff",
-    ]
+    BeamProfileDerivativeModes = Literal["filter1d", "gradient", "diff",]
 
 DistTypeDistFunction = Literal['waterbag', 'parabolic_amplitude',
-                               'parabolic_line', 'binomial',
-                               'gaussian']
+'parabolic_line', 'binomial',
+'gaussian']

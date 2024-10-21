@@ -89,7 +89,7 @@ class Plot(TrackableBaseClass):
         self.tstep = rf_station.counter
 
         #: | *Import Beam*
-        self.beam: Beam = beam
+        self.beam = beam
 
         #: | *Defining whether the plots should be saved or directly shown*
         self.show_plt = show_plots

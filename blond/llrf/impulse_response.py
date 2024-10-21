@@ -25,7 +25,6 @@ from scipy.sparse import diags
 from scipy.sparse.linalg import spsolve
 
 if TYPE_CHECKING:
-    from numpy import ndarray
     from numpy.typing import NDArray
 
 logger = logging.getLogger(__name__)

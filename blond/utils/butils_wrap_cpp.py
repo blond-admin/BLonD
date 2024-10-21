@@ -17,7 +17,7 @@ import numpy as np
 from . import c_complex64, c_complex128, c_real, precision
 
 if TYPE_CHECKING:
-    from typing import Optional, Type, Tuple, Literal
+    from typing import Optional, Type, Literal
 
     from numpy.typing import NDArray
 
@@ -237,7 +237,7 @@ def argmax_cpp(x: NDArray) -> int:
 
 
 def linspace_cpp(start: float, stop: float, num: int = 50, retstep: bool = False,
-                 result: Optional[NDArray] = None) -> NDArray | Tuple[NDAarray, float]:
+                 result: Optional[NDArray] = None) -> NDArray | tuple[NDArray, float]:
     if result is None:
         result = np.empty(num, dtype=float)
     get_libblond().linspace(c_real(start), c_real(stop),
@@ -332,7 +332,7 @@ def sin_cpp(x: NDArray | float | int, result: Optional[NDArray] = None) -> NDArr
         raise RuntimeError('[sin] The type %s is not supported' % type(x))
 
 
-def cos_cpp(x: NDArray | float | int, result: Optional[np.ndarray] = None) -> NDArray | float:
+def cos_cpp(x: NDArray | float | int, result: Optional[NDArray] = None) -> NDArray | float:
     if isinstance(x, np.ndarray) and isinstance(x[0], np.float64):
         if result is None:
             result = np.empty(len(x), dtype=np.float64, order='C')

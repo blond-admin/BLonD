@@ -36,13 +36,13 @@ def rf_volt_comp(voltages: NDArray, omega_rf: NDArray, phi_rf: NDArray,
     """Compute rf voltage at each bin.
 
     Args:
-        voltages (np.ndarray): _description_
-        omega_rf (np.ndarray): _description_
-        phi_rf (np.ndarray): _description_
-        bin_centers (np.ndarray): _description_
+        voltages (NDArray): _description_
+        omega_rf (NDArray): _description_
+        phi_rf (NDArray): _description_
+        bin_centers (NDArray): _description_
 
     Returns:
-        np.ndarray: _description_
+        NDArray: _description_
     """
     rf_voltage = np.zeros(len(bin_centers))
 
@@ -113,8 +113,8 @@ def slice_beam(dt: NDArray, profile: NDArray,
     """Slice the time coordinate of the beam.
 
     Args:
-        dt (np.ndarray): _description_
-        profile (np.ndarray): _description_
+        dt (NDArray): _description_
+        profile (NDArray): _description_
         cut_left (float): _description_
         cut_right (float): _description_
     """
@@ -127,8 +127,8 @@ def slice_smooth(dt: NDArray, profile: NDArray,
     """Smooth slice method.
 
     Args:
-        dt (np.ndarray): _description_
-        profile (np.ndarray): _description_
+        dt (NDArray): _description_
+        profile (NDArray): _description_
         cut_left (float): _description_
         cut_right (float): _description_
     """
@@ -166,10 +166,10 @@ def linear_interp_kick(dt: NDArray, dE: NDArray, voltage: NDArray,
     """Interpolated kick method.
 
     Args:
-        dt (np.ndarray): _description_
-        dE (np.ndarray): _description_
-        voltage (np.ndarray): _description_
-        bin_centers (np.ndarray): _description_
+        dt (NDArray): _description_
+        dE (NDArray): _description_
+        voltage (NDArray): _description_
+        bin_centers (NDArray): _description_
         charge (float): _description_
         acceleration_kick (float): _description_
     """
@@ -197,7 +197,7 @@ def synchrotron_radiation(dE: NDArray, U0: float,
     """Apply SR
 
     Args:
-        dE (np.ndarray): _description_
+        dE (NDArray): _description_
         U0 (float): _description_
         n_kicks (int): _description_
         tau_z (float): _description_
@@ -212,7 +212,7 @@ def synchrotron_radiation_full(dE: NDArray, U0: float,
     """Apply SR with quantum excitation
 
     Args:
-        dE (np.ndarray): _description_
+        dE (NDArray): _description_
         U0 (float): _description_
         n_kicks (int): _description_
         tau_z (float): _description_
@@ -314,10 +314,10 @@ def music_track_multiturn(dt: NDArray, dE: NDArray, induced_voltage: NDArray,
     Parameters and Returns as for music_track.
 
     Args:
-        dt (np.ndarray): _description_
-        dE (np.ndarray): _description_
-        induced_voltage (np.ndarray): _description_
-        array_parameters (np.ndarray): _description_
+        dt (NDArray): _description_
+        dE (NDArray): _description_
+        induced_voltage (NDArray): _description_
+        array_parameters (NDArray): _description_
         alpha (float): _description_
         omega_bar (float): _description_
         const (float): _description_
@@ -380,8 +380,8 @@ def music_track_multiturn(dt: NDArray, dE: NDArray, induced_voltage: NDArray,
 
 
 # --------------- Similar to fast_resonator.cpp -----------------
-def fast_resonator(R_S: NDArray, Q: NDArray, frequency_array: np.ndarray,
-                   frequency_R: np.ndarray, impedance: np.ndarray = None) -> NDArray:
+def fast_resonator(R_S: NDArray, Q: NDArray, frequency_array: NDArray,
+                   frequency_R: NDArray, impedance: NDArray = None) -> NDArray:
     """
     This function takes as an input a list of resonators parameters and
     computes the impedance in an optimised way.
@@ -422,7 +422,7 @@ def fast_resonator(R_S: NDArray, Q: NDArray, frequency_array: np.ndarray,
 
 
 # --------------- Similar to beam_phase.cpp -----------------
-def beam_phase(bin_centers: np.ndarray, profile: np.ndarray,
+def beam_phase(bin_centers: NDArray, profile: NDArray,
                alpha: float, omegarf: float,
                phirf: float, bin_size: float) -> float:
     scoeff = np.trapezoid(np.exp(alpha * (bin_centers))
@@ -435,7 +435,7 @@ def beam_phase(bin_centers: np.ndarray, profile: np.ndarray,
     return scoeff / ccoeff
 
 
-def beam_phase_fast(bin_centers: np.ndarray, profile: np.ndarray,
+def beam_phase_fast(bin_centers: NDArray, profile: NDArray,
                     omegarf: float, phirf: float, bin_size: float) -> float:
     scoeff = np.trapezoid(profile * np.sin(omegarf * bin_centers + phirf),
                           dx=bin_size)
@@ -449,9 +449,9 @@ def beam_phase_fast(bin_centers: np.ndarray, profile: np.ndarray,
 
 
 # --------------- Similar to sparse_histogram.cpp -----------------
-def sparse_histogram(dt: np.ndarray, profile: np.ndarray,
-                     cut_left: np.ndarray, cut_right: np.ndarray,
-                     bunch_indexes: np.ndarray, n_slices_bucket: int) -> None:
+def sparse_histogram(dt: NDArray, profile: NDArray,
+                     cut_left: NDArray, cut_right: NDArray,
+                     bunch_indexes: NDArray, n_slices_bucket: int) -> None:
     """
     Optimised routine that calculates the histogram for a sparse beam
     Author: Juan F. Esteban Mueller, Danilo Quartullo, Alexandre Lasheen, Markus Schwarz

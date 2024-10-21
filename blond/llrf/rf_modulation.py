@@ -24,7 +24,7 @@ from ..utils import data_check as dCheck
 from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
-    from typing import Any, List
+    from typing import Any
 
     from numpy.typing import NDArray
 
@@ -101,7 +101,7 @@ class PhaseModulation:
 
     # Extend passed parameter to requred n_rf if n_rf > 1 for treatment in
     # rf_parameters
-    def extend_to_n_rf(self, harmonics: List[int] | NDArray) -> Any:
+    def extend_to_n_rf(self, harmonics: list[int] | NDArray) -> Any:
 
         try:
             n_rf = len(harmonics)

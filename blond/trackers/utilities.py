@@ -36,7 +36,7 @@ else:
 from ..utils import bmath as bm
 
 if TYPE_CHECKING:
-    from typing import List, Tuple, Optional
+    from typing import Optional
 
     from numpy import ndarray
     from numpy.typing import NDArray
@@ -628,7 +628,7 @@ def separatrix(ring: Ring, rf_station: RFStation, dt: NDArray) -> NDArray:
 
 @handle_legacy_kwargs
 def is_in_separatrix(ring: Ring, rf_station: RFStation, beam: Beam, dt: NDArray, dE: NDArray,
-                     total_voltage: Optional[np.ndarray] = None) -> NDArray:
+                     total_voltage: Optional[NDArray] = None) -> NDArray:
     r"""Function checking whether coordinate pair(s) are inside the separatrix. 
     Uses the single-RF sinusoidal Hamiltonian.
 
@@ -669,14 +669,14 @@ def is_in_separatrix(ring: Ring, rf_station: RFStation, beam: Beam, dt: NDArray,
                / rf_station.omega_rf[0, counter])
 
     Hsep = hamiltonian(ring, rf_station, beam, dt_sep, 0,
-                       total_voltage=None)
+                       total_voltage=None) # toodo maybe the kwarg should be passed here??
     isin = bm.fabs(hamiltonian(ring, rf_station, beam,
                                dt, dE, total_voltage=None)) < bm.fabs(Hsep)
 
     return isin
 
 
-def minmax_location(x: NDArray, f: NDArray) -> Tuple[List[ndarray], List[ndarray]]:
+def minmax_location(x: NDArray, f: NDArray) -> tuple[list[ndarray], list[ndarray]]:
     """
     *Function to locate the minima and maxima of the f(x) numerical function.*
     """
@@ -706,7 +706,7 @@ def minmax_location(x: NDArray, f: NDArray) -> Tuple[List[ndarray], List[ndarray
     return [min_x_position, max_x_position], [min_values, max_values]
 
 
-def potential_well_cut(time_potential: NDArray, potential_array: NDArray) -> Tuple[NDArray, NDArray]:
+def potential_well_cut(time_potential: NDArray, potential_array: NDArray) -> tuple[NDArray, NDArray]:
     """
     *Function to cut the potential well in order to take only the separatrix
     (several cases according to the number of min/max).*

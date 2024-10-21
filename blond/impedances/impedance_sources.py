@@ -32,7 +32,7 @@ from scipy.special import kv, polygamma
 from ..utils import bmath as bm
 
 if TYPE_CHECKING:
-    from typing import List, Optional, Iterable
+    from typing import Optional, Iterable
 
     from numpy.typing import NDArray, ArrayLike
 
@@ -282,9 +282,9 @@ class Resonators(_ImpedanceObject):
     """
 
     def __init__(self,
-                 R_S: float | List[float] | NDArray,
-                 frequency_R: float | List[float] | NDArray,
-                 Q: float | List[float] | NDArray,
+                 R_S: float | list[float] | NDArray,
+                 frequency_R: float | list[float] | NDArray,
+                 Q: float | list[float] | NDArray,
                  method: ResonatorsMethodType = 'c++') -> None:
 
         _ImpedanceObject.__init__(self)

@@ -29,7 +29,6 @@ from ..utils.abstracts import CpuGpuTransferable
 from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
-    from typing import List
 
     from numpy.typing import NDArray
     import cupy as cp
@@ -415,7 +414,7 @@ class Beam(CpuGpuTransferable):
         """
         self.ratio *= np.exp(-time * self.particle.decay_rate / self.gamma)
 
-    def add_particles(self, new_particles: NDArray | List[List[float]]) -> None:
+    def add_particles(self, new_particles: NDArray | list[list[float]]) -> None:
         """
         Method to add array of new particles to beam object
         New particles are given id numbers sequential from last id of this beam
@@ -477,7 +476,7 @@ class Beam(CpuGpuTransferable):
         self.id = bm.concatenate((self.id, newids))
         self.n_macroparticles += other_beam.n_macroparticles
 
-    def __iadd__(self, other: Beam | NDArray | List[List[float]]) -> Beam:
+    def __iadd__(self, other: Beam | NDArray | list[list[float]]) -> Beam:
         """
         Initialisation of in place addition calls add_beam(other) if other
         is a blond beam object, calls add_particles(other) otherwise

@@ -18,7 +18,7 @@ from __future__ import annotations
 # General imports
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from typing import Iterable, List, Callable, Protocol, Any, Self, Tuple
+    from typing import Iterable, Callable, Protocol, Any, Self
     from .abstracts import TrackableBaseClass
 
 
@@ -47,7 +47,7 @@ class TrackIteration:
 
     Attributes
     ----------
-    function_list : List of functions to be called with specified interval
+    function_list : list of functions to be called with specified interval
     """
 
     def __init__(self, track_map: Iterable[TrackableBaseClass], init_turn: int = 0,
@@ -67,7 +67,7 @@ class TrackIteration:
         else:
             raise TypeError("final_turn must be an integer")
 
-        self.function_list: List[Tuple[Predicate, int]] = []
+        self.function_list: list[tuple[Predicate, int]] = []
 
     def _track_turns(self, n_turns: int) -> None:
         """

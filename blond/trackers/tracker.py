@@ -34,7 +34,7 @@ else:
     from scipy.integrate import cumtrapz
 
 if TYPE_CHECKING:
-    from typing import Optional, Literal, List
+    from typing import Optional, Literal
 
     from numpy.typing import NDArray
 
@@ -55,7 +55,7 @@ class FullRingAndRF(TrackableBaseClass):
     """
 
     @handle_legacy_kwargs
-    def __init__(self, ring_and_rf_section: List[RingAndRFTracker]) -> None:
+    def __init__(self, ring_and_rf_section: list[RingAndRFTracker]) -> None:
 
         #: *List of the total RingAndRFSection objects*
         self.ring_and_rf_section = ring_and_rf_section
@@ -245,7 +245,7 @@ class RingAndRFTracker(CpuGpuTrackable):
         self.acceleration_kick = - rf_station.delta_E
 
         # Other imports
-        self.beam: Beam = beam
+        self.beam = beam
         self.solver = str(solver)
         if self.solver not in ['simple', 'exact', 'legacy']:
             # SolverError

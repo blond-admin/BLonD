@@ -29,7 +29,7 @@ from scipy.special import comb
 from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
-    from typing import List, Optional, Tuple
+    from typing import Optional
 
     from numpy.typing import NDArray
 
@@ -60,7 +60,7 @@ def polar_to_cartesian(amplitude: float | NDArray, phase: float | NDArray) -> ND
     return amplitude * (np.cos(phase) + 1j * np.sin(phase))
 
 
-def cartesian_to_polar(IQ_vector: NDArray) -> Tuple[NDArray, NDArray]:
+def cartesian_to_polar(IQ_vector: NDArray) -> tuple[NDArray, NDArray]:
     """Convert data from Cartesian (I,Q) to polar coordinates.
 
     Parameters
@@ -145,7 +145,7 @@ def modulator(signal: NDArray, omega_i: float, omega_f: float, T_sampling: float
 def rf_beam_current(profile: Profile, omega_c: float, T_rev: float, lpf: bool = True,
                     downsample: Optional[dict] = None,
                     external_reference: bool = True, dT: float = 0
-                    ) -> NDArray | Tuple[NDArray, NDArray]:
+                    ) -> NDArray | tuple[NDArray, NDArray]:
     r"""Function calculating the beam charge at the (RF) frequency, slice by
     slice. The charge distribution [C] of the beam is determined from the beam
     profile :math:`\lambda_i`, the particle charge :math:`q_p` and the real vs.
@@ -293,7 +293,7 @@ def fir_filter_coefficients(n_taps: int, sampling_freq: float, cutoff_freq: floa
     return sgn.firwin(n_taps, [fPass], pass_zero=True)
 
 
-def fir_filter_lhc_otfb_coeff(n_taps: int = 63) -> List[float]:
+def fir_filter_lhc_otfb_coeff(n_taps: int = 63) -> list[float]:
     """FIR filter designed for the LHC OTFB, for a sampling frequency of
     40 MS/s, with 63 taps.
 
@@ -483,7 +483,7 @@ def feedforward_filter(TWC: TravellingWaveCavity,
                        T_s: float,
                        taps: Optional[int] = None,
                        opt_output: bool = False
-                       ) -> Tuple[NDArray, int, int, int]:
+                       ) -> tuple[NDArray, int, int, int]:
     """Function to design n-tap FIR filter for SPS TravellingWaveCavity.
 
     Parameters

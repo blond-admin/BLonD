@@ -27,7 +27,7 @@ from scipy.interpolate import splev, splrep, Akima1DInterpolator
 from ..plots.plot import fig_folder
 
 if TYPE_CHECKING:
-    from typing import List, Iterable, Tuple, Literal, Optional
+    from typing import Iterable, Literal, Optional
 
     from numpy.typing import NDArray
 
@@ -308,7 +308,7 @@ class RingOptions:
         return output_data
 
     def preprocess(self, mass: float, circumference: float, time: NDArray,
-                   momentum: NDArray) -> Tuple[NDArray, NDArray]:
+                   momentum: NDArray) -> tuple[NDArray, NDArray]:
         r"""Function to pre-process acceleration ramp data, interpolating it to
         every turn. Currently, it works only if the number of RF sections is
         equal to one, to be extended for multiple RF sections.
@@ -446,11 +446,11 @@ class RingOptions:
 
         return time_interp, momentum_interp
 
-    def _linear_interpolation(self, time_interp: List[float],
-                              momentum_interp: List[float],
-                              beta_interp: List[float], circumference: float,
+    def _linear_interpolation(self, time_interp: list[float],
+                              momentum_interp: list[float],
+                              beta_interp: list[float], circumference: float,
                               time: NDArray, momentum: NDArray,
-                              mass: float) -> Tuple[Iterable[float], ...]:
+                              mass: float) -> tuple[Iterable[float], ...]:
 
         time_interp.append(time_interp[-1]
                            + circumference / (beta_interp[0] * c))
@@ -473,12 +473,12 @@ class RingOptions:
 
         return time_interp, momentum_interp, beta_interp
 
-    def _cubic_interpolation(self, time_interp: List[float],
-                             momentum_interp: List[float],
-                             beta_interp: List[float], circumference: float,
+    def _cubic_interpolation(self, time_interp: list[float],
+                             momentum_interp: list[float],
+                             beta_interp: list[float], circumference: float,
                              time: NDArray, momentum: NDArray,
                              mass: float, time_start_ramp: float,
-                             time_end_ramp: float) -> Tuple[np.ndarray,    ...]:
+                             time_end_ramp: float) -> tuple[NDArray,    ...]:
 
         interp_funtion_momentum = splrep(
             time[(time >= time_start_ramp) * (time <= time_end_ramp)],
@@ -523,13 +523,13 @@ class RingOptions:
 
         return time_interp, momentum_interp, beta_interp
 
-    def _derivative_interpolation(self, time_interp: List[float],
-                                  momentum_interp: List[float],
-                                  beta_interp: List[float],
+    def _derivative_interpolation(self, time_interp: list[float],
+                                  momentum_interp: list[float],
+                                  beta_interp: list[float],
                                   circumference: float,
                                   time: Iterable[float],
                                   momentum: Iterable[float],
-                                  mass: float) -> Tuple[Iterable[float], ...]:
+                                  mass: float) -> tuple[Iterable[float], ...]:
 
         momentum_initial = momentum_interp[0]
         momentum_derivative = np.gradient(momentum) / np.gradient(time)
@@ -569,13 +569,13 @@ class RingOptions:
 
         return time_interp, momentum_interp, beta_interp
 
-    def _akima_interpolation(self, time_interp: List[float],
-                             momentum_interp: List[float],
-                             beta_interp: List[float],
+    def _akima_interpolation(self, time_interp: list[float],
+                             momentum_interp: list[float],
+                             beta_interp: list[float],
                              circumference: float,
                              time: Iterable[float],
                              momentum: Iterable[float],
-                             mass: float) -> Tuple[Iterable[float], ...]:
+                             mass: float) -> tuple[Iterable[float], ...]:
 
         interp_func = Akima1DInterpolator(time, momentum)
 
@@ -599,7 +599,7 @@ class RingOptions:
                         next_momentum: float,
                         mass: float,
                         circumference: float
-                        ) -> Tuple[float, float]:
+                        ) -> tuple[float, float]:
 
         beta = np.sqrt(1 / (1 + (mass / next_momentum) ** 2))
 

@@ -27,12 +27,11 @@ from ..plots.plot import fig_folder
 from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
-    from typing import List, Literal, Optional, Tuple, Callable
+    from typing import Literal, Optional, Callable
 
     from numpy.typing import NDArray, ArrayLike
 
     from .ring import Ring
-
 
 
 class RFStationOptions:
@@ -63,7 +62,7 @@ class RFStationOptions:
                  smoothing: float = 0.0,
                  plot: bool = False,
                  figdir: os.PathLike | str = 'fig',
-                 figname: List[str] = ['data'],
+                 figname: list[str] = ['data'],
                  sampling: int = 1
                  ) -> None:
 
@@ -150,7 +149,6 @@ class RFStationOptions:
         elif isinstance(input_data, tuple):
 
             output_data = []
-
 
             interp_time = interp_time + t_start
 
@@ -257,8 +255,9 @@ class RFStationOptions:
 
         return output_data
 
+
 @handle_legacy_kwargs
-def combine_rf_functions(function_list: List[Tuple[Callable, List[float]]], merge_type='linear', resolution=1e-3,
+def combine_rf_functions(function_list: list[tuple[Callable, list[float]]], merge_type='linear', resolution=1e-3,
                          ring: Optional[Ring] = None, main_h=True):
     r"""Function to combine different RF programs. Each program is passed in a
     tuple with complete function (single valued or numpy array) and 2-list

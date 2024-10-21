@@ -48,12 +48,16 @@ from .signal_processing import (
 )
 from ..utils.abstracts import TrackableBaseClass
 from ..utils.legacy_support import handle_legacy_kwargs
+from ..utils import bmath as bm
 
 if TYPE_CHECKING:
-    from typing import List, Optional
+    from typing import Optional, Any
 
     from numpy import float64, ndarray
     from numpy.typing import NDArray
+
+    from ..input_parameters.rf_parameters import RFStation
+    from ..beam.profile import Profile
 
 # TODO resolve
 SPS3Section200MHzTWC  # to prevent autoformatter removing the code. It is later called using eval()
@@ -63,12 +67,8 @@ feedforward_filter_TWC3  # to prevent autoformatter removing the code. It is lat
 feedforward_filter_TWC4  # to prevent autoformatter removing the code. It is later called using eval()
 feedforward_filter_TWC5  # to prevent autoformatter removing the code. It is later called using eval()
 
-from ..utils import bmath as bm
 
-if TYPE_CHECKING:
-    from ..input_parameters.rf_parameters import RFStation
-    from ..beam.profile import Profile
-    from typing import Any
+
 
 
 class CavityFeedback(TrackableBaseClass):
@@ -1066,12 +1066,12 @@ class SPSCavityFeedback(TrackableBaseClass):
             profile: Profile,
             G_ff: float | list = 1,
             G_llrf: float | list = 10,
-            G_tx: List[float, list] = 0.5,
+            G_tx: list[float, list] = 0.5,
             a_comb: Optional[float] = None,
             turns: int = 1000,
             post_LS2: bool = True,
             V_part: Optional[float] = None,
-            df: List[float] = 0,
+            df: list[float] = 0,
             Commissioning: Optional[SPSCavityLoopCommissioning] = None,
             n_h: int = 0,
     ) -> None:

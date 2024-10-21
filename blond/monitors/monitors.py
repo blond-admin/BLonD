@@ -54,8 +54,8 @@ class BunchMonitor(TrackableBaseClass):
         self.i_turn = 0
         self.buffer_time = buffer_time if buffer_time is not None else self.n_turns
         self.rf_params = rf_parameters
-        self.beam: Beam = beam
-        self.profile: Profile = profile
+        self.beam = beam
+        self.profile = profile
         if self.profile is not None:
             if self.profile.fit_option is not None:
                 self.fit_option = True

@@ -48,27 +48,27 @@ class SparseSlices:
                  direct_slicing: bool = False) -> None:
 
         #: *Import (reference) Beam*
-        self.beam: Beam = beam
+        self.beam = beam
 
         #: *Import (reference) RFStation*
-        self.rf_station: RFStation = rf_station
+        self.rf_station = rf_station
 
         #: *Number of slices per bucket*
-        self.n_slices_bucket: int = n_slices_bucket
+        self.n_slices_bucket = n_slices_bucket
 
         #: *Filling pattern as a boolean array where True (1) means filled
         # bucket*
-        self.filling_pattern: NDArray = filling_pattern
+        self.filling_pattern = filling_pattern
 
         # Bunch index for each filled bucket (-1 if empty). Only for C++ track
-        self.bunch_indexes: NDArray = np.cumsum(filling_pattern) * filling_pattern - 1
+        self.bunch_indexes = np.cumsum(filling_pattern) * filling_pattern - 1
 
         #: *Number of buckets to be sliced*
-        self.n_filled_buckets: int = int(np.sum(filling_pattern))
+        self.n_filled_buckets = int(np.sum(filling_pattern))
 
         # Pre-processing the slicing edges
-        self.cut_left_array: NDArray = np.zeros(self.n_filled_buckets)
-        self.cut_right_array: NDArray = np.zeros(self.n_filled_buckets)
+        self.cut_left_array = np.zeros(self.n_filled_buckets)
+        self.cut_right_array = np.zeros(self.n_filled_buckets)
         self.set_cuts()
 
         # Initialize individual slicing objects

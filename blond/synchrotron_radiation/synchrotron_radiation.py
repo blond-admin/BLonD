@@ -23,7 +23,7 @@ from ..utils.abstracts import CpuGpuTrackable
 from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
-    from typing import Callable, Dict,Optional
+    from typing import Callable, Optional
 
     from ..beam.beam import Beam
     from ..input_parameters.rf_parameters import RFStation
@@ -53,7 +53,7 @@ class SynchrotronRadiation(CpuGpuTrackable):
 
         self.ring = ring
         self.rf_params = rf_parameters
-        self.beam: beam = beam
+        self.beam = beam
         self.rho = bending_radius
         self.n_kicks = n_kicks  # To apply SR in several kicks
         np.random.seed(seed=seed)
@@ -98,7 +98,7 @@ class SynchrotronRadiation(CpuGpuTrackable):
                 self.track = self.track_full_C
             else:
                 self.track = self.track_SR_C
-        self.track_models: Dict[str, Callable] = {
+        self.track_models: dict[str, Callable] = {
             "track_SR_python": self.track_SR_python,
             "track_full_python": self.track_full_python,
             "track_SR_C": self.track_SR_C,
