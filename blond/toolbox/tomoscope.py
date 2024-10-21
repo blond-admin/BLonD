@@ -21,7 +21,7 @@ import matplotlib.cm as cm
 import numpy as np
 from matplotlib import pyplot as plt
 
-from blond.utils import bmath as bm
+from ..utils import bmath as bm
 
 
 def distribution_from_tomoscope_data(dataDir, nPart, cutoff=1000, seed=1234,

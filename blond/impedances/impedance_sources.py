@@ -29,14 +29,14 @@ from scipy.special import airy
 from scipy.special import gamma as gamma_func
 from scipy.special import kv, polygamma
 
-from blond.utils import bmath as bm
+from ..utils import bmath as bm
 
 if TYPE_CHECKING:
     from typing import List, Optional, Iterable
 
     from numpy.typing import NDArray
 
-    from blond.utils.types import ResonatorsMethodType
+    from ..utils.types import ResonatorsMethodType
 
 
 class _ImpedanceObject:

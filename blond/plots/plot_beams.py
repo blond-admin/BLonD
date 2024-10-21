@@ -19,18 +19,18 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.layout_engine import PlaceHolderLayoutEngine
 
-from blond.trackers.utilities import separatrix
-from blond.utils.legacy_support import handle_legacy_kwargs
+from ..trackers.utilities import separatrix
+from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
     from os import PathLike
 
     import h5py as hp
 
-    from blond.beam.beam import Beam
-    from blond.beam.profile import Profile
-    from blond.input_parameters.rf_parameters import RFStation
-    from blond.input_parameters.ring import Ring
+    from ..beam.beam import Beam
+    from ..beam.profile import Profile
+    from ..input_parameters.rf_parameters import RFStation
+    from ..input_parameters.ring import Ring
 
 
 @handle_legacy_kwargs

@@ -20,8 +20,8 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 # BLonD imports
-import blond.utils.data_check as dCheck
-from blond.utils.legacy_support import handle_legacy_kwargs
+from ..utils import data_check as dCheck
+from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
     from typing import Any, List

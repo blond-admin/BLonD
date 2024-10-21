@@ -24,15 +24,15 @@ import numpy as np
 from scipy.constants import c
 from scipy.interpolate import splev, splrep, Akima1DInterpolator
 
-from blond.plots.plot import fig_folder
+from ..plots.plot import fig_folder
 
 if TYPE_CHECKING:
     from typing import List, Iterable, Tuple, Literal, Optional
 
     from numpy.typing import NDArray
 
-    from blond.utils.types import InterpolationTypes
-    from blond.input_parameters.ring import SynchronousDataTypes
+    from ..utils.types import InterpolationTypes
+    from .ring import SynchronousDataTypes
 
 
 class RingOptions:

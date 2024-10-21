@@ -26,15 +26,15 @@ from scipy import signal as sgn
 from scipy.constants import e
 from scipy.special import comb
 
-from blond.utils.legacy_support import handle_legacy_kwargs
+from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
     from typing import List, Optional, Tuple
 
     from numpy.typing import NDArray
 
-    from blond.llrf.impulse_response import TravellingWaveCavity
-    from blond.beam.profile import Profile
+    from .impulse_response import TravellingWaveCavity
+    from ..beam.profile import Profile
 
 logger = logging.getLogger(__name__)
 

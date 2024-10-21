@@ -12,8 +12,8 @@ import numpy as np
 if TYPE_CHECKING:
     from numpy.typing import NDArray
 
-from blond.utils import precision
-from blond.gpu import GPU_DEV
+from ..utils import precision
+from . import GPU_DEV
 
 
 # TODO all typing

@@ -21,16 +21,16 @@ import matplotlib.pyplot as plt
 import numpy as np
 from pylab import cm
 
-from blond.utils.legacy_support import handle_legacy_kwargs
+from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
     from os import PathLike
 
     from numpy.typing import NDArray
 
-    from blond.input_parameters.ring import Ring
-    from blond.input_parameters.rf_parameters import RFStation
-    from blond.llrf.rf_noise import LHCNoiseFB
+    from ..input_parameters.ring import Ring
+    from ..input_parameters.rf_parameters import RFStation
+    from ..llrf.rf_noise import LHCNoiseFB
 
 
 @handle_legacy_kwargs

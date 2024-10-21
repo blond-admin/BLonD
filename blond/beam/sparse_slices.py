@@ -20,17 +20,17 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from blond.beam.profile import CutOptions, Profile
-from blond.utils import bmath as bm
-from blond.utils.legacy_support import handle_legacy_kwargs
+from .profile import CutOptions, Profile
+from ..utils import bmath as bm
+from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
     from typing import Literal
 
     from numpy.typing import NDArray
 
-    from blond.beam.beam import Beam
-    from blond.input_parameters.rf_parameters import RFStation
+    from .beam import Beam
+    from ..input_parameters.rf_parameters import RFStation
 
     TrackerTypes = Literal["C", "onebyone"]
 

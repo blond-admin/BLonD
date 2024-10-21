@@ -8,7 +8,7 @@ BLonD math and physics core functions
 import numpy as np
 from numpy import *  # todo the namespaces are overwritten by the functions below
 
-from blond.utils import butils_wrap_cpp as _cpp, butils_wrap_python as _py, precision
+from . import butils_wrap_cpp as _cpp, butils_wrap_python as _py, precision
 
 
 def use_cpp() -> None:
@@ -82,7 +82,7 @@ def use_numba():
     Replace all python functions by their equivalent in numba
     """
 
-    from blond.utils import butils_wrap_numba as _nu
+    from . import butils_wrap_numba as _nu
 
     # dictionary storing the Numba-only versions of the most compute intensive functions #
     nu_func_dict = {
@@ -235,7 +235,7 @@ def use_precision(_precision='double'):
     precision.set(_precision)
 
     try:
-        from blond.gpu import GPU_DEV
+        from ..gpu import GPU_DEV
         GPU_DEV.load_library(_precision)
     except Exception as e:
         from warnings import warn
@@ -273,7 +273,7 @@ def get_gpu_device():
     Returns:
         _type_: _description_
     """
-    from blond.gpu import GPU_DEV
+    from ..gpu import GPU_DEV
     return GPU_DEV
 
 
@@ -286,13 +286,13 @@ def use_gpu(gpu_id=0):
     if gpu_id < 0:
         return
 
-    from blond.gpu import GPU_DEV
+    from ..gpu import GPU_DEV
 
     GPU_DEV.set(gpu_id)
 
     import cupy as cp
 
-    from blond.gpu import butils_wrap_cupy as _cupy
+    from ..gpu import butils_wrap_cupy as _cupy
 
     gpu_func_dict = {
         'rfft': cp.fft.rfft,

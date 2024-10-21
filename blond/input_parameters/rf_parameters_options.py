@@ -23,15 +23,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import splev, splrep
 
-from blond.plots.plot import fig_folder
-from blond.utils.legacy_support import handle_legacy_kwargs
+from ..plots.plot import fig_folder
+from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
     from typing import List, Literal, Optional, Tuple, Callable
 
     from numpy.typing import NDArray, ArrayLike
 
-    from blond.input_parameters.ring import Ring
+    from .ring import Ring
 
 
 

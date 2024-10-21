@@ -21,20 +21,20 @@ from typing import TYPE_CHECKING
 import numpy as np
 from scipy import ndimage
 
-from blond.toolbox import filters_and_fitting as ffroutines
-from blond.utils import bmath as bm
-from blond.utils.abstracts import CpuGpuTrackable, CpuGpuTransferable
-from blond.utils.legacy_support import handle_legacy_kwargs
+from ..toolbox import filters_and_fitting as ffroutines
+from ..utils import bmath as bm
+from ..utils.abstracts import CpuGpuTrackable, CpuGpuTransferable
+from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
     from typing import List, Callable, Tuple, Optional
 
     from numpy.typing import NDArray
 
-    from blond.utils.types import DeviceType
-    from blond.beam.beam import Beam
-    from blond.input_parameters.rf_parameters import RFStation
-    from blond.utils.types import FilterExtraOptionsType, CutUnitType, FitOptionTypes, FilterMethodType,BeamProfileDerivativeModes
+    from ..utils.types import DeviceType
+    from .beam import Beam
+    from ..input_parameters.rf_parameters import RFStation
+    from ..utils.types import FilterExtraOptionsType, CutUnitType, FitOptionTypes, FilterMethodType,BeamProfileDerivativeModes
 
 
 class CutOptions(CpuGpuTransferable):
@@ -620,7 +620,7 @@ class Profile(CpuGpuTrackable):
             raise RuntimeError(
                 'ERROR: Cannot use this routine unless in MPI Mode')
 
-        from blond.utils.mpi_config import WORKER
+        from ..utils.mpi_config import WORKER
 
         if WORKER.workers == 1:
             return

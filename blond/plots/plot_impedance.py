@@ -19,8 +19,8 @@ from typing import TYPE_CHECKING
 import matplotlib.pyplot as plt
 import numpy as np
 
-from blond.impedances.impedance_sources import InputTable
-from blond.utils.legacy_support import handle_legacy_kwargs
+from ..impedances.impedance_sources import InputTable
+from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
     from os import PathLike

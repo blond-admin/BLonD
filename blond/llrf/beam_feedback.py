@@ -20,17 +20,17 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from blond.utils import bmath as bm
-from blond.utils.abstracts import CpuGpuTrackable
-from blond.utils.legacy_support import handle_legacy_kwargs
+from ..utils import bmath as bm
+from ..utils.abstracts import CpuGpuTrackable
+from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
     from typing import Dict, Optional
-    from blond.input_parameters.rf_parameters import RFStation
-    from blond.input_parameters.ring import Ring
-    from blond.beam.profile import Profile
-    from blond.utils.types import DeviceType
-    from blond.llrf.rf_noise import LHCNoiseFB
+    from ..input_parameters.rf_parameters import RFStation
+    from ..input_parameters.ring import Ring
+    from ..beam.profile import Profile
+    from ..utils.types import DeviceType
+    from .rf_noise import LHCNoiseFB
 
 
 class BeamFeedback(CpuGpuTrackable):

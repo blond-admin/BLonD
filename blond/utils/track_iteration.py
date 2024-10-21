@@ -19,7 +19,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from typing import Iterable, List, Callable, Protocol, Any, Self, Tuple
-    from blond.utils.abstracts import TrackableBaseClass
+    from .abstracts import TrackableBaseClass
 
 
     class Predicate(Protocol):

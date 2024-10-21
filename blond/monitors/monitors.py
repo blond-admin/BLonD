@@ -20,18 +20,18 @@ from typing import TYPE_CHECKING
 import h5py as hp
 import numpy as np
 
-from blond.utils.abstracts import TrackableBaseClass
-from blond.utils.legacy_support import handle_legacy_kwargs
+from ..utils.abstracts import TrackableBaseClass
+from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
     from typing import Sequence, SupportsIndex, Union, Optional
 
-    from blond.beam.beam import Beam
-    from blond.input_parameters.rf_parameters import RFStation
-    from blond.input_parameters.ring import Ring
-    from blond.beam.profile import Profile
-    from blond.llrf.rf_noise import LHCNoiseFB
-    from blond.llrf.beam_feedback import BeamFeedback
+    from ..beam.beam import Beam
+    from ..input_parameters.rf_parameters import RFStation
+    from ..input_parameters.ring import Ring
+    from ..beam.profile import Profile
+    from ..llrf.rf_noise import LHCNoiseFB
+    from ..llrf.beam_feedback import BeamFeedback
 
 
 class BunchMonitor(TrackableBaseClass):

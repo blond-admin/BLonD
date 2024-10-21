@@ -22,12 +22,12 @@ import scipy
 from packaging.version import Version
 from scipy.constants import c
 
-from blond.beam.beam import Particle
-from blond.beam.beam import Proton
-from blond.input_parameters.rf_parameters_options import RFStationOptions
-from blond.utils import bmath as bm
-from blond.utils.abstracts import CpuGpuTransferable
-from blond.utils.legacy_support import handle_legacy_kwargs
+from ..beam.beam import Particle
+from ..beam.beam import Proton
+from .rf_parameters_options import RFStationOptions
+from ..utils import bmath as bm
+from ..utils.abstracts import CpuGpuTransferable
+from ..utils.legacy_support import handle_legacy_kwargs
 
 if Version(scipy.__version__) >= Version("1.14"):
     from scipy.integrate import cumulative_trapezoid as cumtrapz
@@ -36,8 +36,8 @@ else:
 
 if TYPE_CHECKING:
     from typing import List
-    from blond.input_parameters.ring import Ring
-    from blond.utils.types import DeviceType
+    from .ring import Ring
+    from ..utils.types import DeviceType
 
 
 class RFStation(CpuGpuTransferable):

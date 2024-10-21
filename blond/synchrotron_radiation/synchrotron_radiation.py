@@ -18,17 +18,17 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from blond.utils import bmath as bm
-from blond.utils.abstracts import CpuGpuTrackable
-from blond.utils.legacy_support import handle_legacy_kwargs
+from ..utils import bmath as bm
+from ..utils.abstracts import CpuGpuTrackable
+from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
     from typing import Callable, Dict,Optional
 
-    from blond.beam.beam import Beam
-    from blond.input_parameters.rf_parameters import RFStation
-    from blond.input_parameters.ring import Ring
-    from blond.utils.types import DeviceType
+    from ..beam.beam import Beam
+    from ..input_parameters.rf_parameters import RFStation
+    from ..input_parameters.ring import Ring
+    from ..utils.types import DeviceType
 
 
 class SynchrotronRadiation(CpuGpuTrackable):

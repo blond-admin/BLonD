@@ -28,11 +28,11 @@ def test():
         assert version.parse(numpy.__version__) >= version.parse(
             '1.20'), 'numpy version {numpy.__version__} does not meet minimum required version 1.20'
 
-        from blond import (beam, impedances, input_parameters, llrf, monitors,
-                           plots, synchrotron_radiation, toolbox, trackers,
-                           utils)
+        from . import (beam, impedances, input_parameters, llrf, monitors,
+                       plots, synchrotron_radiation, toolbox, trackers,
+                       utils)
         # This should report the backend that is used
-        from blond.utils import bmath
+        from .utils import bmath
         bmath.report_backend()
         print('\nBLonD installed successfully!')
         return 0

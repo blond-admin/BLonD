@@ -21,16 +21,16 @@ import scipy.integrate as int
 from pylab import cm
 from scipy.special import ellipk
 
-from blond.toolbox.action import x2, action_from_phase_amplitude
-from blond.utils.legacy_support import handle_legacy_kwargs
+from .action import x2, action_from_phase_amplitude
+from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
     from os import PathLike
 
     from numpy.typing import NDArray
 
-    from blond.input_parameters.rf_parameters import RFStation
-    from blond.input_parameters.ring import Ring
+    from ..input_parameters.rf_parameters import RFStation
+    from ..input_parameters.ring import Ring
 
 
 @handle_legacy_kwargs

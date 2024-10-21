@@ -25,28 +25,28 @@ import scipy
 from packaging.version import Version
 from scipy.constants import c
 
-from blond.utils.abstracts import TrackableBaseClass
-from blond.utils.legacy_support import handle_legacy_kwargs
+from ..utils.abstracts import TrackableBaseClass
+from ..utils.legacy_support import handle_legacy_kwargs
 
 if Version(scipy.__version__) >= Version("1.14"):
     from scipy.integrate import cumulative_trapezoid as cumtrapz
 else:
     from scipy.integrate import cumtrapz
 
-from blond.utils import bmath as bm
+from ..utils import bmath as bm
 
 if TYPE_CHECKING:
     from typing import List, Tuple, Optional
 
     from numpy import ndarray
     from numpy.typing import NDArray
-    from blond.input_parameters.rf_parameters import RFStation
-    from blond.input_parameters.ring import Ring
-    from blond.trackers.tracker import FullRingAndRF, MainHarmonicOptionType
-    from blond.beam.beam import Beam
-    from blond.input_parameters.rf_parameters import RFStation
-    from blond.input_parameters.ring import Ring
-    from blond.impedances.impedance import TotalInducedVoltage
+    from ..input_parameters.rf_parameters import RFStation
+    from ..input_parameters.ring import Ring
+    from .tracker import FullRingAndRF, MainHarmonicOptionType
+    from ..beam.beam import Beam
+    from ..input_parameters.rf_parameters import RFStation
+    from ..input_parameters.ring import Ring
+    from ..impedances.impedance import TotalInducedVoltage
 
 
 @handle_legacy_kwargs
@@ -256,7 +256,7 @@ class SynchrotronFrequencyTracker(TrackableBaseClass):
         #: *Beam object containing the same physical information as the real beam,
         #: but containing only the coordinates of the particles for which the
         #: synchrotron frequency are computed.*
-        from blond.beam.beam import Beam
+        from ..beam.beam import Beam
         self.beam = Beam(ring, n_macroparticles, intensity)
 
         # Ring object for the ring radius

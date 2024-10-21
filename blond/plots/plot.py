@@ -21,26 +21,26 @@ import h5py as hp
 import matplotlib.pyplot as plt
 import numpy as np
 
-from blond.plots.plot_beams import (plot_long_phase_space, plot_bunch_length_evol,
+from .plot_beams import (plot_long_phase_space, plot_bunch_length_evol,
                                     plot_bunch_length_evol_gaussian, plot_position_evol,
                                     plot_energy_evol, plot_transmitted_particles)
-from blond.plots.plot_llrf import (plot_PL_bunch_phase,
+from .plot_llrf import (plot_PL_bunch_phase,
                                    plot_PL_RF_phase, plot_PL_phase_corr, plot_PL_RF_freq,
                                    plot_PL_freq_corr, plot_RF_phase_error, plot_RL_radial_error,
                                    plot_COM_motion, plot_LHCNoiseFB, plot_LHCNoiseFB_FWHM,
                                    plot_LHCNoiseFB_FWHM_bbb)
-from blond.plots.plot_slices import (plot_beam_profile, plot_beam_spectrum)
-from blond.utils.abstracts import TrackableBaseClass
-from blond.utils.legacy_support import handle_legacy_kwargs
+from .plot_slices import (plot_beam_profile, plot_beam_spectrum)
+from ..utils.abstracts import TrackableBaseClass
+from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
     from typing import Optional
-    from blond.beam.beam import Beam
-    from blond.input_parameters.rf_parameters import RFStation
-    from blond.input_parameters.ring import Ring
-    from blond.beam.profile import Profile
-    from blond.llrf.beam_feedback import BeamFeedback
-    from blond.llrf.rf_noise import LHCNoiseFB
+    from ..beam.beam import Beam
+    from ..input_parameters.rf_parameters import RFStation
+    from ..input_parameters.ring import Ring
+    from ..beam.profile import Profile
+    from ..llrf.beam_feedback import BeamFeedback
+    from ..llrf.rf_noise import LHCNoiseFB
 
 
 def fig_folder(dirname):

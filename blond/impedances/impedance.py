@@ -21,10 +21,10 @@ from typing import TYPE_CHECKING
 import numpy as np
 from scipy.constants import e
 
-from blond.toolbox.next_regular import next_regular
-from blond.utils import bmath as bm
-from blond.utils.abstracts import CpuGpuTrackable, CpuGpuTransferable
-from blond.utils.legacy_support import handle_legacy_kwargs
+from ..toolbox.next_regular import next_regular
+from ..utils import bmath as bm
+from ..utils.abstracts import CpuGpuTrackable, CpuGpuTransferable
+from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
     from typing import Optional, Callable, Literal, List
@@ -32,11 +32,11 @@ if TYPE_CHECKING:
 
     from numpy.typing import NDArray
 
-    from blond.beam.beam import Beam
-    from blond.beam.profile import Profile
-    from blond.impedances.impedance_sources import _ImpedanceObject, Resonators
-    from blond.input_parameters.rf_parameters import RFStation
-    from blond.utils.types import DeviceType,BeamProfileDerivativeModes
+    from ..beam.beam import Beam
+    from ..beam.profile import Profile
+    from .impedance_sources import _ImpedanceObject, Resonators
+    from ..input_parameters.rf_parameters import RFStation
+    from ..utils.types import DeviceType,BeamProfileDerivativeModes
 
     MtwModeTypes = Literal["freq", "time"]
 

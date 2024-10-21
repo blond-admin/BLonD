@@ -33,24 +33,24 @@ if Version(scipy.__version__) >= Version("1.14"):
 else:
     from scipy.integrate import cumtrapz
 
-from blond.beam.profile import CutOptions, Profile
-from blond.trackers.utilities import is_in_separatrix, minmax_location, potential_well_cut
-from blond.utils import bmath as bm
-from blond.utils.legacy_support import handle_legacy_kwargs
+from .profile import CutOptions, Profile
+from ..trackers.utilities import is_in_separatrix, minmax_location, potential_well_cut
+from ..utils import bmath as bm
+from ..utils.legacy_support import handle_legacy_kwargs
 
 
 if TYPE_CHECKING:
     from typing import Literal, Callable, Optional
     from numpy.typing import NDArray
-    from blond.input_parameters.ring import Ring
-    from blond.input_parameters.rf_parameters import RFStation
-    from blond.beam.beam import Beam
-    from blond.impedances.impedance import TotalInducedVoltage
-    from blond.trackers.tracker import FullRingAndRF, MainHarmonicOptionType
-    from blond.utils.types import (DistributionUserTableType, LineDensityInputType,
+    from ..input_parameters.ring import Ring
+    from ..input_parameters.rf_parameters import RFStation
+    from .beam import Beam
+    from ..impedances.impedance import TotalInducedVoltage
+    from ..trackers.tracker import FullRingAndRF, MainHarmonicOptionType
+    from ..utils.types import (DistributionUserTableType, LineDensityInputType,
                                    ExtraVoltageDictType, DistributionVariableType,
                                    HalfOptionType, BunchLengthFitTypes, LineDensityDistType)
-    from blond.utils.types import DistTypeDistFunction
+    from ..utils.types import DistTypeDistFunction
 
 
 @handle_legacy_kwargs

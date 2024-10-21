@@ -17,12 +17,12 @@ from typing import TYPE_CHECKING
 import numpy as np
 from scipy.constants import e
 
-from blond.utils import bmath as bm
+from ..utils import bmath as bm
 
 if TYPE_CHECKING:
     from typing import Tuple
 
-    from blond.beam.beam import Beam
+    from ..beam.beam import Beam
 
 
 class Music: # todo is this a trackable?? if yes, needs Music(TrackableBaseClass) and def track(self):

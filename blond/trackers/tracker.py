@@ -23,10 +23,10 @@ import numpy as np
 import scipy
 from packaging.version import Version
 
-from blond.llrf.cavity_feedback import CavityFeedback
-from blond.utils import bmath as bm
-from blond.utils.abstracts import TrackableBaseClass, CpuGpuTrackable
-from blond.utils.legacy_support import handle_legacy_kwargs
+from ..llrf.cavity_feedback import CavityFeedback
+from ..utils import bmath as bm
+from ..utils.abstracts import TrackableBaseClass, CpuGpuTrackable
+from ..utils.legacy_support import handle_legacy_kwargs
 
 if Version(scipy.__version__) >= Version("1.14"):
     from scipy.integrate import cumulative_trapezoid as cumtrapz
@@ -38,12 +38,12 @@ if TYPE_CHECKING:
 
     from numpy.typing import NDArray
 
-    from blond.impedances.impedance import TotalInducedVoltage
-    from blond.llrf.beam_feedback import BeamFeedback
-    from blond.beam.profile import Profile
-    from blond.beam.beam import Beam
-    from blond.input_parameters.rf_parameters import RFStation
-    from blond.utils.types import DeviceType
+    from ..impedances.impedance import TotalInducedVoltage
+    from ..llrf.beam_feedback import BeamFeedback
+    from ..beam.profile import Profile
+    from ..beam.beam import Beam
+    from ..input_parameters.rf_parameters import RFStation
+    from ..utils.types import DeviceType
 
     MainHarmonicOptionType = Literal['lowest_freq', 'highest_voltage'] | int | float
 

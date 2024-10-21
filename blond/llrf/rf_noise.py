@@ -20,16 +20,16 @@ from typing import TYPE_CHECKING
 import numpy as np
 import numpy.random as rnd
 
-from blond.beam.profile import Profile
-from blond.plots.plot import fig_folder
-from blond.plots.plot_llrf import plot_phase_noise, plot_noise_spectrum
-from blond.toolbox.next_regular import next_regular
-from blond.utils.abstracts import TrackableBaseClass
-from blond.utils.legacy_support import handle_legacy_kwargs
+from ..beam.profile import Profile
+from ..plots.plot import fig_folder
+from ..plots.plot_llrf import plot_phase_noise, plot_noise_spectrum
+from ..toolbox.next_regular import next_regular
+from ..utils.abstracts import TrackableBaseClass
+from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
-    from blond.input_parameters.rf_parameters import RFStation
-    from blond.input_parameters.ring import Ring
+    from ..input_parameters.rf_parameters import RFStation
+    from ..input_parameters.ring import Ring
 
 cfwhm = np.sqrt(2. / np.log(2.))
 

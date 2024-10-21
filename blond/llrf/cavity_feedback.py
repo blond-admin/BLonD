@@ -26,13 +26,13 @@ import numpy.random as rnd
 import scipy.signal
 from scipy.interpolate import interp1d
 
-from blond.llrf.impulse_response import (
+from .impulse_response import (
     SPS3Section200MHzTWC,
     SPS4Section200MHzTWC,
     SPS5Section200MHzTWC,
     cavity_response_sparse_matrix,
 )
-from blond.llrf.signal_processing import (
+from .signal_processing import (
     feedforward_filter_TWC3,
     feedforward_filter_TWC4,
     feedforward_filter_TWC5,
@@ -46,8 +46,8 @@ from blond.llrf.signal_processing import (
     fir_filter_lhc_otfb_coeff,
     smooth_step,
 )
-from blond.utils.abstracts import TrackableBaseClass
-from blond.utils.legacy_support import handle_legacy_kwargs
+from ..utils.abstracts import TrackableBaseClass
+from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
     from typing import List, Optional
@@ -63,11 +63,11 @@ feedforward_filter_TWC3  # to prevent autoformatter removing the code. It is lat
 feedforward_filter_TWC4  # to prevent autoformatter removing the code. It is later called using eval()
 feedforward_filter_TWC5  # to prevent autoformatter removing the code. It is later called using eval()
 
-from blond.utils import bmath as bm
+from ..utils import bmath as bm
 
 if TYPE_CHECKING:
-    from blond.input_parameters.rf_parameters import RFStation
-    from blond.beam.profile import Profile
+    from ..input_parameters.rf_parameters import RFStation
+    from ..beam.profile import Profile
     from typing import Any
 
 

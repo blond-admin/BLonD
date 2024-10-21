@@ -20,15 +20,15 @@ from typing import TYPE_CHECKING
 import numpy as np
 from scipy.constants import c
 
-from blond.input_parameters.ring_options import RingOptions
-from blond.utils.legacy_support import handle_legacy_kwargs
+from .ring_options import RingOptions
+from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:  # only for Python type hints
     from typing import Literal, Any, Optional
 
     from numpy.typing import NDArray
 
-    from blond.beam.beam import Particle
+    from ..beam.beam import Particle
 
     SynchronousDataTypes = Literal['momentum', 'total energy', 'kinetic energy', 'bending field']
 

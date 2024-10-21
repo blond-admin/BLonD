@@ -22,20 +22,22 @@ from typing import TYPE_CHECKING
 import numpy as np
 from scipy.constants import c, e, epsilon_0, hbar, m_e, m_p, physical_constants
 
-from blond.trackers.utilities import is_in_separatrix
-from blond.utils import bmath as bm
-from blond.utils import exceptions as blond_exceptions
-from blond.utils.abstracts import CpuGpuTransferable
-from blond.utils.legacy_support import handle_legacy_kwargs
+from ..trackers.utilities import is_in_separatrix
+from ..utils import bmath as bm
+from ..utils import exceptions as blond_exceptions
+from ..utils.abstracts import CpuGpuTransferable
+from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
     from typing import List
 
     from numpy.typing import NDArray
-    from blond.input_parameters.ring import Ring
-    from blond.input_parameters.rf_parameters import RFStation
-    from blond.utils.types import DeviceType
     import cupy as cp
+
+    from ..input_parameters.ring import Ring
+    from ..input_parameters.rf_parameters import RFStation
+    from ..utils.types import DeviceType
+
 m_mu = physical_constants['muon mass'][0]
 
 
@@ -513,7 +515,7 @@ class Beam(CpuGpuTransferable):
             raise RuntimeError(
                 'ERROR: Cannot use this routine unless in MPI Mode')
 
-        from blond.utils.mpi_config import WORKER
+        from ..utils.mpi_config import WORKER
         if WORKER.is_master and random:
             bm.random.shuffle(self.id)
             if not fast:
@@ -546,7 +548,7 @@ class Beam(CpuGpuTransferable):
         if not bm.in_mpi():
             raise RuntimeError(
                 'ERROR: Cannot use this routine unless in MPI Mode')
-        from blond.utils.mpi_config import WORKER
+        from ..utils.mpi_config import WORKER
 
         if all_gather:
             self.dt = WORKER.allgather(self.dt)
@@ -576,7 +578,7 @@ class Beam(CpuGpuTransferable):
             raise RuntimeError(
                 'ERROR: Cannot use this routine unless in MPI Mode')
 
-        from blond.utils.mpi_config import WORKER
+        from ..utils.mpi_config import WORKER
         if all_gather:
 
             self.mean_dt = WORKER.allreduce(
@@ -643,7 +645,7 @@ class Beam(CpuGpuTransferable):
             raise RuntimeError(
                 'ERROR: Cannot use this routine unless in MPI Mode')
 
-        from blond.utils.mpi_config import WORKER
+        from ..utils.mpi_config import WORKER
 
         if all_gather:
             temp = WORKER.allgather(np.array([self.n_macroparticles_lost]))

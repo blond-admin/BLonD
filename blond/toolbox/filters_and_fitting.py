@@ -23,8 +23,8 @@ import numpy as np
 from scipy.optimize import curve_fit
 from scipy.signal import cheb2ord, cheby2, filtfilt, freqz
 
-from blond.utils import bmath as bm
-from blond.utils.legacy_support import handle_legacy_kwargs
+from ..utils import bmath as bm
+from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
     from typing import List, Tuple
@@ -32,7 +32,7 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
     import cupy as cp
 
-    from blond.utils.types import FilterExtraOptionsType
+    from ..utils.types import FilterExtraOptionsType
 
 @handle_legacy_kwargs
 def beam_profile_filter_chebyshev(y_array: NDArray,

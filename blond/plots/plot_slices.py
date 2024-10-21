@@ -18,12 +18,12 @@ from typing import TYPE_CHECKING
 import matplotlib.pyplot as plt
 import numpy as np
 
-from blond.utils.legacy_support import handle_legacy_kwargs
+from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
     from typing import Union
     from os import PathLike
-    from blond.beam.profile import Profile
+    from ..beam.profile import Profile
 
 
 @handle_legacy_kwargs
