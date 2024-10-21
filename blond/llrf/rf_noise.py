@@ -68,8 +68,8 @@ class FlatSpectrum:
             # Overwrite frequencies
             self.fmin_s0 = 0.8571
             self.fmax_s0 = 1.001
-        self.fs = rf_station.omega_s0[self.initial_final_turns[0]:self.initial_final_turns[1]] / (
-                2 * np.pi)  # synchrotron frequency in Hz
+        self.fs = (rf_station.omega_s0[self.initial_final_turns[0]:self.initial_final_turns[1]] 
+                  / (2 * np.pi))  # synchrotron frequency in Hz
         self.n_turns = len(self.fs) - 1
         self.dphi = np.zeros(self.n_turns + 1)
         self.continuous_phase = continuous_phase
@@ -230,8 +230,9 @@ class FlatSpectrum:
 
         if self.continuous_phase:
             psi = np.arange(0, self.n_turns + 1) * 2 * np.pi / self.corr
-            self.dphi = self.dphi * np.sin(psi[:self.n_turns + 1]) + self.dphi2[:(self.n_turns + 1)] * np.cos(
-                psi[:self.n_turns + 1])
+            self.dphi = (self.dphi * np.sin(psi[:self.n_turns + 1])
+                         + self.dphi2[:(self.n_turns + 1)]
+                         * np.cos(psi[:self.n_turns + 1]))
 
         if self.initial_final_turns[0] > 0 or self.initial_final_turns[1] < self.total_n_turns + 1:
             self.dphi = np.concatenate((np.zeros(self.initial_final_turns[0]), self.dphi,

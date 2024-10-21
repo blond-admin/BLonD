@@ -79,10 +79,6 @@ if TYPE_CHECKING:
         "diff",
     ]
 
-DistTypeDistFunction = Literal[
-    'waterbag',
-    'parabolic_amplitude',
-    'parabolic_line',
-    'binomial',
-    'gaussian',
-]
+DistTypeDistFunction = Literal['waterbag', 'parabolic_amplitude',
+                               'parabolic_line', 'binomial',
+                               'gaussian']

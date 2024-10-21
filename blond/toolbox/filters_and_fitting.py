@@ -228,7 +228,7 @@ def rms_multibunch(y_array: NDArray,
                    n_bunches: int,
                    bunch_spacing_buckets: int,
                    bucket_size_tau: float,
-                   bucket_tolerance: float = 0.40):
+                   bucket_tolerance: float = 0.40) -> Tuple[float, float]:
     """
     Computation of the rms bunch length (4sigma) and position.
     """

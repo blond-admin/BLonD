@@ -26,6 +26,7 @@ def impedance_notches(f_rev, frequencies, imp_source, list_harmonics, list_width
     frequencies_remainder_array = np.array([])
     Z_remainder_array = np.array([])
 
+    # TODO: Remove eval
     for i in list_harmonics:
         exec("y_" + str(i) + " = np.interp(i*f_rev, frequencies, imp_source)")
         array_left = np.append(array_left, np.array([i * f_rev - halfmajorWidth, i * f_rev + halfmajorWidth]))

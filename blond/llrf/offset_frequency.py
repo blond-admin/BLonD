@@ -60,7 +60,7 @@ class _FrequencyOffset:
         elif system is None:
             pass
         else:
-            raise TypeError(f"System must be int, iterable of ints or None, not {system} !")
+            raise TypeError(f"System must be int, iterable of ints or None, not {type(system)} !")
 
         if self.system and not all((isinstance(s, int) for s in self.system)):
             raise TypeError("System must be int, iterable of ints or None")

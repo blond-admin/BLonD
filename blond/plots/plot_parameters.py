@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
 
 def plot_voltage_programme(time: NDArray, voltage: NDArray, sampling: int = 1,
-                           dirname: str | PathLike[str] = 'fig', figno: int =0):
+                           dirname: str | PathLike[str] = 'fig', figno: int = 0):
     """
     Plot of the RF voltage as a function of time.
     For large amount of data, use "sampling" to plot a fraction of the data.

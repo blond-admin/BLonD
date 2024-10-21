@@ -90,7 +90,7 @@ def plot_phase_noise(time: NDArray, dphi: NDArray, sampling=1,
 
 
 @handle_legacy_kwargs
-def plot_PL_bunch_phase(rf_station: RFStation, h5data: hp.File, output_freq=1,
+def plot_PL_bunch_phase(rf_station: RFStation, h5data: hp.File, output_freq: float = 1,
                         dirname: str | PathLike[str] = 'fig', show_plot: bool = False):
     """
     Plot of bunch phase measured by the Phase Loop as a function of time.
@@ -129,7 +129,7 @@ def plot_PL_bunch_phase(rf_station: RFStation, h5data: hp.File, output_freq=1,
 
 
 @handle_legacy_kwargs
-def plot_PL_RF_phase(rf_station: RFStation, h5data: hp.File, output_freq=1,
+def plot_PL_RF_phase(rf_station: RFStation, h5data: hp.File, output_freq: float = 1,
                      dirname: str | PathLike[str] = 'fig', show_plot: bool = False):
     """
     Plot of RF phase; monitored with Phase Loop.
