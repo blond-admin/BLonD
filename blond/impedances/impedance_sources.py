@@ -32,7 +32,7 @@ from scipy.special import kv, polygamma
 from blond.utils import bmath as bm
 
 if TYPE_CHECKING:
-    from typing import List, Optional
+    from typing import List, Optional, Iterable
 
     from numpy.typing import NDArray
 
@@ -137,8 +137,9 @@ class InputTable(_ImpedanceObject):
 
     """
 
-    # todo typehints
-    def __init__(self, input_1, input_2, input_3=None):
+    def __init__(self, input_1: Iterable[float], input_2: Iterable[float],
+                 input_3: Optional[Iterable[float]] = None):
+
 
         _ImpedanceObject.__init__(self)
         # todo rework
@@ -460,9 +461,9 @@ class TravelingWaveCavity(_ImpedanceObject):
     """
 
     def __init__(self,
-                 R_S: float | List[float] | NDArray,
-                 frequency_R: float | List[float] | NDArray,
-                 a_factor: float | List[float] | NDArray
+                 R_S: float | Iterable[float] | NDArray,
+                 frequency_R: float | Iterable[float] | NDArray,
+                 a_factor: float | Iterable[float] | NDArray
                  ) -> None:
 
         _ImpedanceObject.__init__(self)

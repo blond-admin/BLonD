@@ -20,6 +20,8 @@ from scipy.constants import e
 from blond.utils import bmath as bm
 
 if TYPE_CHECKING:
+    from typing import Tuple
+
     from blond.beam.beam import Beam
 
 
@@ -103,7 +105,8 @@ class Music: # todo is this a trackable?? if yes, needs Music(TrackableBaseClass
 
     """
 
-    def __init__(self, beam: Beam, resonator, n_macroparticles, n_particles, t_rev):
+    def __init__(self, beam: Beam, resonator: Tuple[float, float, float],
+                 n_macroparticles: int, n_particles: int, t_rev: float):
 
         self.beam : Beam = beam
         self.R_S = resonator[0]

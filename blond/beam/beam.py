@@ -652,7 +652,7 @@ class Beam(CpuGpuTransferable):
             temp = WORKER.gather(np.array([self.n_macroparticles_lost]))
             self.n_total_macroparticles_lost = np.sum(temp)
 
-    def to_gpu(self):
+    def to_gpu(self, recursive=True):
         """
         Transfer all necessary arrays to the GPU
         """

@@ -34,7 +34,7 @@ if TYPE_CHECKING:
     from blond.utils.types import DeviceType
     from blond.beam.beam import Beam
     from blond.input_parameters.rf_parameters import RFStation
-    from blond.utils.types import FilterExtraOptionsType, CutUnitType, FitOptionTypes, FilterMethodType
+    from blond.utils.types import FilterExtraOptionsType, CutUnitType, FitOptionTypes, FilterMethodType,BeamProfileDerivativeModes
 
 
 class CutOptions(CpuGpuTransferable):
@@ -750,7 +750,7 @@ class Profile(CpuGpuTrackable):
         """
         self.beam_spectrum = bm.rfft(self.n_macroparticles, n_sampling_fft)
 
-    def beam_profile_derivative(self, mode='gradient'):
+    def beam_profile_derivative(self, mode: BeamProfileDerivativeModes='gradient'):
         """
         The input is one of the three available methods for differentiating
         a function. The two outputs are the bin centres and the discrete

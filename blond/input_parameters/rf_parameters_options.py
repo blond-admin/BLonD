@@ -27,9 +27,9 @@ from blond.plots.plot import fig_folder
 from blond.utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
-    from typing import Any, List, Literal, Optional, Tuple, Callable
+    from typing import List, Literal, Optional, Tuple, Callable
 
-    from numpy.typing import NDArray
+    from numpy.typing import NDArray, ArrayLike
 
     from blond.input_parameters.ring import Ring
 
@@ -94,11 +94,11 @@ class RFStationOptions:
             raise RuntimeError("ERROR: sampling value in PreprocessRamp" +
                                " not recognised. Aborting...")
 
-    def reshape_data(self, input_data: Any,
+    def reshape_data(self, input_data: ArrayLike,
                      n_turns: int,
                      n_rf: int,
                      interp_time: NDArray,
-                     t_start: Optional[float] = 0.0
+                     t_start: Optional[float] = None
                      ) -> NDArray:
         r"""Checks whether the user input is consistent with the expectation
         for the RFStation object. The possibilites are detailed in the
@@ -132,7 +132,10 @@ class RFStationOptions:
             Returns the data with the adequate shape for the RStation object
 
         """
-
+        if t_start is None:
+            t_start = 0.0
+        else:
+            t_start = float(t_start)
         # TO BE IMPLEMENTED: if you pass a filename the function reads the file
         # and reshape the data
         if isinstance(input_data, str):
@@ -148,9 +151,6 @@ class RFStationOptions:
 
             output_data = []
 
-            # Hot fix to safely treat t_start
-            if t_start is None:
-                t_start = 0
 
             interp_time = interp_time + t_start
 

@@ -221,9 +221,10 @@ class Ring:
                  n_sections: int = 1,
                  alpha_1: None | float | list | tuple | NDArray = None,
                  alpha_2: None | float | list | tuple | NDArray = None,
-                 ring_options: RingOptions = RingOptions()
+                 ring_options: Optional[RingOptions] = None
                  ) -> None:
-
+        if ring_options is None:
+            ring_options = RingOptions()
         # Conversion of initial inputs to expected types
         self.n_turns = int(n_turns)
         self.n_sections = int(n_sections)  # todo could len(ring_length)

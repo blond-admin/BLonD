@@ -34,9 +34,9 @@ if TYPE_CHECKING:
 
     from blond.beam.beam import Beam
     from blond.beam.profile import Profile
-    from blond.utils.types import DeviceType
     from blond.impedances.impedance_sources import _ImpedanceObject, Resonators
     from blond.input_parameters.rf_parameters import RFStation
+    from blond.utils.types import DeviceType,BeamProfileDerivativeModes
 
     MtwModeTypes = Literal["freq", "time"]
 
@@ -842,8 +842,8 @@ class InductiveImpedance(_InducedVoltage):
     """
 
     @handle_legacy_kwargs
-    def __init__(self, beam: Beam, profile: Profile, Z_over_n, rf_station: RFStation,
-                 deriv_mode='gradient'):
+    def __init__(self, beam: Beam, profile: Profile, Z_over_n: float, rf_station: RFStation,
+                 deriv_mode: BeamProfileDerivativeModes='gradient'):
 
         # Constant imaginary Z/n program in* :math:`\Omega`.
         self.Z_over_n = Z_over_n
