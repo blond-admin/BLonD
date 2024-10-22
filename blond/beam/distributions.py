@@ -41,7 +41,9 @@ from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
     from typing import Literal, Callable, Optional
+
     from numpy.typing import NDArray
+
     from ..input_parameters.ring import Ring
     from ..input_parameters.rf_parameters import RFStation
     from .beam import Beam
@@ -72,7 +74,9 @@ def matched_from_line_density(beam: Beam,
                               line_density_type: LineDensityDistType | Literal['user_input'] | None = None,
                               line_density_exponent: Optional[float] = None,
                               seed: Optional[int] = None,
-                              process_pot_well: bool = True):
+                              process_pot_well: bool = True)\
+                    -> (tuple[list[NDArray], TotalInducedVoltage]
+                        | tuple[list[NDArray, NDArray], list[NDArray, NDArray]]):
     """
     *Function to generate a beam by inputting the line density. The distribution
     function is then reconstructed with the Abel transform and the particles
@@ -83,15 +87,16 @@ def matched_from_line_density(beam: Beam,
     slippage_factor = full_ring_and_rf.ring_and_rf_section[0].rf_params.eta_0[0]
 
     eom_factor_dE = abs(slippage_factor) / (2 * beam.beta ** 2. * beam.energy)
-    eom_factor_potential = (np.sign(slippage_factor) * beam.particle.charge /
-                            (full_ring_and_rf.ring_and_rf_section[0].rf_params.t_rev[0]))
+    eom_factor_potential = (np.sign(slippage_factor) * beam.particle.charge
+                / full_ring_and_rf.ring_and_rf_section[0].rf_params.t_rev[0])
 
     #: *Number of points to be used in the potential well calculation*
     n_points_potential = int(n_points_potential)
     # Generate potential well
-    full_ring_and_rf.potential_well_generation(n_points=n_points_potential,
-                                               dt_margin_percent=dt_margin_percent,
-                                               main_harmonic_option=main_harmonic_option)
+    full_ring_and_rf.potential_well_generation(
+                                    n_points=n_points_potential,
+                                    dt_margin_percent=dt_margin_percent,
+                                    main_harmonic_option=main_harmonic_option)
     potential_well = full_ring_and_rf.potential_well
     time_potential = full_ring_and_rf.potential_well_coordinates
 
@@ -100,23 +105,28 @@ def matched_from_line_density(beam: Beam,
     if extra_voltage_dict is not None:
         extra_voltage_time_input = extra_voltage_dict['time_array']
         extra_voltage_input = extra_voltage_dict['voltage_array']
-        extra_potential_input = - (eom_factor_potential *
-                                   cumtrapz(extra_voltage_input,
-                                            dx=float(extra_voltage_time_input[1]) -
-                                               float(extra_voltage_time_input[0]), initial=0))
-        extra_potential = np.interp(time_potential, extra_voltage_time_input, extra_potential_input)
+        extra_potential_input = - (eom_factor_potential
+                            * cumtrapz(extra_voltage_input,
+                                       dx=float(extra_voltage_time_input[1])
+                                          - float(extra_voltage_time_input[0]),
+                                        initial=0))
+        extra_potential = np.interp(time_potential, extra_voltage_time_input,
+                                    extra_potential_input)
 
     if line_density_type != 'user_input':
         # Time coordinates for the line density
         n_points_line_den = int(1e4)
-        time_line_den = np.linspace(float(time_potential[0]), float(time_potential[-1]),
+        time_line_den = np.linspace(float(time_potential[0]),
+                                    float(time_potential[-1]),
                                     n_points_line_den)
         line_den_resolution = time_line_den[1] - time_line_den[0]
 
         # Normalizing the line density
         line_density_ = line_density(time_line_den, line_density_type,
                                      bunch_length, exponent=line_density_exponent,
-                                     bunch_position=float(time_potential[0] + time_potential[-1]) / 2)
+                                     bunch_position=float(time_potential[0]
+                                                          + time_potential[-1])
+                                                          / 2)
 
         line_density_ -= np.min(line_density_)
         line_density_ *= beam.n_macroparticles / np.sum(line_density_)
@@ -163,14 +173,17 @@ def matched_from_line_density(beam: Beam,
         induced_voltage = induced_voltage_object.induced_voltage
 
         # Calculating the induced potential
-        induced_potential = -(eom_factor_potential * cumtrapz(induced_voltage,
-                                                              dx=profile.bin_size, initial=0))
+        induced_potential = -(eom_factor_potential
+                              * cumtrapz(induced_voltage, dx=profile.bin_size,
+                                         initial=0))
 
     # Centering the bunch in the potential well
     for i in range(0, n_iterations):
         if total_induced_voltage is not None:
             # Interpolating the potential well
-            induced_potential_final = np.interp(time_potential, profile.bin_centers, induced_potential)
+            induced_potential_final = np.interp(time_potential,
+                                                profile.bin_centers,
+                                                induced_potential)
 
         # Induced voltage contribution
         total_potential = (potential_well + induced_potential_final +
@@ -286,7 +299,8 @@ def matched_from_line_density(beam: Beam,
                     integrand = np.array([0])
 
                 distribution_function_[i] = (np.sqrt(eom_factor_dE) / np.pi *
-                                             np.trapezoid(integrand, dx=line_den_resolution))
+                                             np.trapezoid(integrand,
+                                                          dx=line_den_resolution))
 
                 hamiltonian_coord[i] = potential_abel[i]
 
@@ -304,7 +318,8 @@ def matched_from_line_density(beam: Beam,
                     integrand = np.array([0])
 
                 distribution_function_[i] = -(np.sqrt(eom_factor_dE) / np.pi *
-                                              np.trapezoid(integrand, dx=line_den_resolution))
+                                              np.trapezoid(integrand,
+                                                           dx=line_den_resolution))
                 hamiltonian_coord[i] = potential_abel[i]
 
         warnings.filterwarnings("default")
@@ -320,9 +335,12 @@ def matched_from_line_density(beam: Beam,
 
     if half_option == 'both':
         hamiltonian_coord = hamiltonian_average[:, 0]
-        distribution_function_ = (distribution_function_average[:, 0] +
-                                  np.interp(hamiltonian_coord, hamiltonian_average[:, 1],
-                                            distribution_function_average[:, 1])) / 2
+        distribution_function_ = ((distribution_function_average[:, 0]
+                                   + np.interp(
+                                       hamiltonian_coord,
+                                       hamiltonian_average[:, 1],
+                                       distribution_function_average[:, 1]))
+                                   / 2)
 
     # Compute deltaE frame corresponding to the separatrix
     max_potential = np.max(potential_half)
@@ -330,7 +348,8 @@ def matched_from_line_density(beam: Beam,
 
     # Initializing the grids by reducing the resolution to a
     # n_points_grid*n_points_grid frame
-    time_for_grid = np.linspace(float(time_line_den[0]), float(time_line_den[-1]),
+    time_for_grid = np.linspace(float(time_line_den[0]),
+                                float(time_line_den[-1]),
                                 n_points_grid)
     deltaE_for_grid = np.linspace(-float(max_deltaE),
                                   float(max_deltaE), n_points_grid)
@@ -378,14 +397,14 @@ def matched_from_line_density(beam: Beam,
 
     if total_induced_voltage is not None:
         # Inputting new line density
-        profile.cut_options.cut_left = time_for_grid[0] - \
-                                       0.5 * (time_for_grid[1] - time_for_grid[0])
+        profile.cut_options.cut_left = (time_for_grid[0] - 0.5
+                                        *(time_for_grid[1] - time_for_grid[0]))
         profile.cut_options.cut_right = time_for_grid[-1] + 0.5 * (
                 time_for_grid[1] - time_for_grid[0])
         profile.cut_options.n_slices = n_points_grid
         profile.cut_options.set_cuts()
         profile.set_slices_parameters()
-        profile.n_macroparticles = reconstructed_line_den * beam.n_macroparticles
+        profile.n_macroparticles = reconstructed_line_den*beam.n_macroparticles
 
         # Re-calculating the sources of wakes/impedances according to this
         # slicing
@@ -422,7 +441,8 @@ def matched_from_distribution_function(beam: Beam, full_ring_and_rf: FullRingAnd
                                        bunch_length_fit: Optional[BunchLengthFitTypes] = None,
                                        distribution_variable: DistributionVariableType = 'Hamiltonian',
                                        process_pot_well: bool = True,
-                                       turn_number: int = 0):
+                                       turn_number: int = 0) \
+                 -> tuple[list[NDArray], TotalInducedVoltage] | list[NDArray]:
     """
     *Function to generate a beam by inputting the distribution function (by
     choosing the type of distribution and the emittance).
@@ -459,8 +479,8 @@ def matched_from_distribution_function(beam: Beam, full_ring_and_rf: FullRingAnd
     energy = full_ring_and_rf.ring_and_rf_section[0].rf_params.energy[turn_number]
 
     eom_factor_dE = abs(slippage_factor) / (2 * beta ** 2. * energy)
-    eom_factor_potential = (np.sign(slippage_factor) * beam.particle.charge /
-                            (full_ring_and_rf.ring_and_rf_section[0].rf_params.t_rev[turn_number]))
+    eom_factor_potential = (np.sign(slippage_factor) * beam.particle.charge
+                            / (full_ring_and_rf.ring_and_rf_section[0].rf_params.t_rev[turn_number]))
 
     #: *Number of points to be used in the potential well calculation*
     n_points_potential = int(n_points_potential)
@@ -479,11 +499,10 @@ def matched_from_distribution_function(beam: Beam, full_ring_and_rf: FullRingAnd
     if extra_voltage_dict is not None:
         extra_voltage_time_input = extra_voltage_dict['time_array']
         extra_voltage_input = extra_voltage_dict['voltage_array']
-        extra_potential_input = -(eom_factor_potential *
-                                  cumtrapz(
-                                      extra_voltage_input,
-                                      dx=(float(extra_voltage_time_input[1]) -
-                                          float(extra_voltage_time_input[0])),
+        extra_potential_input = -(eom_factor_potential
+                            * cumtrapz(extra_voltage_input,
+                                      dx=(float(extra_voltage_time_input[1])
+                                          -float(extra_voltage_time_input[0])),
                                       initial=0)
                                   )
         extra_potential = np.interp(time_potential, extra_voltage_time_input,
@@ -534,7 +553,8 @@ def matched_from_distribution_function(beam: Beam, full_ring_and_rf: FullRingAnd
         deltaE_coord_array = np.linspace(-float(max_deltaE), float(max_deltaE),
                                          n_points_grid)
         potential_well_low_res = np.interp(time_potential_low_res,
-                                           time_potential_sep, potential_well_sep)
+                                           time_potential_sep,
+                                           potential_well_sep)
         time_grid, deltaE_grid = np.meshgrid(time_potential_low_res,
                                              deltaE_coord_array)
         potential_well_grid = np.meshgrid(potential_well_low_res,
@@ -553,7 +573,8 @@ def matched_from_distribution_function(beam: Beam, full_ring_and_rf: FullRingAnd
             right_time = time_potential_low_res[np.min((time_indexes[-1],
                                                         n_points_grid - 1))]
             # Potential well calculation with high resolution in that frame
-            time_potential_high_res = np.linspace(float(left_time), float(right_time),
+            time_potential_high_res = np.linspace(float(left_time),
+                                                  float(right_time),
                                                   n_points_potential)
             full_ring_and_RF2.potential_well_generation(
                 n_points=n_points_potential,
@@ -571,13 +592,16 @@ def matched_from_distribution_function(beam: Beam, full_ring_and_rf: FullRingAnd
 
             # Integration to calculate action
             dE_trajectory[pot_well_high_res <= potential_well_low_res[j]] = \
-                np.sqrt((potential_well_low_res[j] -
-                         pot_well_high_res[pot_well_high_res <=
-                                           potential_well_low_res[j]]) / eom_factor_dE)
+                np.sqrt((potential_well_low_res[j]
+                         -pot_well_high_res[pot_well_high_res
+                                           <= potential_well_low_res[j]])
+                         / eom_factor_dE)
             dE_trajectory[pot_well_high_res > potential_well_low_res[j]] = 0
             # todo fix trapz naming
-            J_array_dE0[j] = 1 / np.pi * np.trapezoid(dE_trajectory,
-                                                      dx=time_potential_high_res[1] - time_potential_high_res[0])
+            J_array_dE0[j] = (1 / np.pi
+                              * np.trapezoid(dE_trajectory,
+                                             dx=time_potential_high_res[1]
+                                                - time_potential_high_res[0]))
 
         # Sorting the H and J functions to be able to interpolate J(H)
         H_array_dE0 = potential_well_low_res
@@ -606,9 +630,10 @@ def matched_from_distribution_function(beam: Beam, full_ring_and_rf: FullRingAnd
         if bunch_length is not None:
             X0 = x0_from_bunch_length(bunch_length, bunch_length_fit,
                                       X_grid, sorted_X_dE0, n_points_grid,
-                                      time_potential_low_res, distribution_function_,
-                                      distribution_type, distribution_exponent, beam,
-                                      full_ring_and_rf)
+                                      time_potential_low_res,
+                                      distribution_function_,
+                                      distribution_type, distribution_exponent,
+                                      beam, full_ring_and_rf)
 
         elif emittance is not None:
             if distribution_variable == 'Action':
@@ -639,10 +664,10 @@ def matched_from_distribution_function(beam: Beam, full_ring_and_rf: FullRingAnd
         # Induced voltage contribution
         if total_induced_voltage is not None:
             # Inputing new line density
-            profile.cut_options.cut_left = time_potential_low_res[0] - \
-                                           0.5 * time_resolution_low
-            profile.cut_options.cut_right = time_potential_low_res[-1] + \
-                                            0.5 * time_resolution_low
+            profile.cut_options.cut_left = (time_potential_low_res[0]
+                                            - 0.5 * time_resolution_low)
+            profile.cut_options.cut_right = (time_potential_low_res[-1]
+                                             + 0.5 * time_resolution_low)
             profile.cut_options.n_slices = n_points_grid
             profile.cut_options.cuts_unit = 's'
             profile.cut_options.set_cuts()
@@ -658,10 +683,10 @@ def matched_from_distribution_function(beam: Beam, full_ring_and_rf: FullRingAnd
             induced_voltage = induced_voltage_object.induced_voltage
 
             # Calculating the induced potential
-            induced_potential_low_res = -(eom_factor_potential *
-                                          cumtrapz(induced_voltage,
-                                                   dx=time_resolution_low,
-                                                   initial=0))
+            induced_potential_low_res = -(eom_factor_potential 
+                                          * cumtrapz(induced_voltage,
+                                                     dx=time_resolution_low,
+                                                     initial=0))
             induced_potential = np.interp(time_potential,
                                           time_potential_low_res,
                                           induced_potential_low_res,
@@ -669,12 +694,9 @@ def matched_from_distribution_function(beam: Beam, full_ring_and_rf: FullRingAnd
         del full_ring_and_RF2
         gc.collect()
     # Populating the bunch
-    populate_bunch(
-        beam, time_grid, deltaE_grid, density_grid,
-        time_resolution_low,
-        float(deltaE_coord_array[1] - deltaE_coord_array[0]),
-        seed,
-    )
+    populate_bunch(beam, time_grid, deltaE_grid, density_grid,
+                   time_resolution_low, float(deltaE_coord_array[1]
+                                              - deltaE_coord_array[0]), seed)
 
     if total_induced_voltage is not None:
         return [time_potential_low_res, line_density_], induced_voltage_object
@@ -732,18 +754,22 @@ def x0_from_bunch_length(bunch_length: float,
 
             # Calculating the bunch length of that line density
             if (line_density_ > 0).any():
-                tau = 4.0 * np.sqrt(np.sum((time_potential_low_res -
-                                            np.sum(line_density_ * time_potential_low_res) /
-                                            np.sum(line_density_)) ** 2 * line_density_) /
-                                    np.sum(line_density_))
+                tau = 4.0 * np.sqrt(np.sum((time_potential_low_res
+                                            - np.sum(line_density_
+                                                     * time_potential_low_res)
+                                            / np.sum(line_density_)) ** 2
+                                            * line_density_)
+                                    / np.sum(line_density_))
 
                 if bunch_length_fit is not None:
                     profile = Profile(
                         beam, cut_options=CutOptions(
-                            cut_left=time_potential_low_res[0] - 0.5 * bin_size,
-                            cut_right=time_potential_low_res[-1] + 0.5 * bin_size,
-                            n_slices=n_points_grid,
-                            rf_station=full_ring_and_rf.ring_and_rf_section[0].rf_params
+                                    cut_left = (time_potential_low_res[0] - 0.5
+                                                * bin_size),
+                                    cut_right = (time_potential_low_res[-1]
+                                                 + 0.5 * bin_size),
+                                    n_slices = n_points_grid,
+                                    rf_station = full_ring_and_rf.ring_and_rf_section[0].rf_params
                         )
                     )
                     #                     profile = Profile(
@@ -758,8 +784,9 @@ def x0_from_bunch_length(bunch_length: float,
                         raise NotImplementedError()
                         # FIXME this wont work as gaussian_fit is undefined. What shall this function do?
                         profile.bl_gauss = tau
-                        profile.bp_gauss = np.sum(line_density_ *
-                                                  time_potential_low_res) / np.sum(line_density_)
+                        profile.bp_gauss = (np.sum(line_density_ *
+                                                   time_potential_low_res)
+                                            / np.sum(line_density_))
                         profile.gaussian_fit()  # FIXME
                         tau = profile.bl_gauss
                     elif bunch_length_fit == 'fwhm':
@@ -804,14 +831,17 @@ def populate_bunch(beam: Beam, time_grid: NDArray, deltaE_grid: NDArray,
 
     # Randomize particles inside each grid cell (uniform distribution)
     beam.dt = (np.ascontiguousarray(time_grid.flatten()[indexes] +
-                                    (np.random.rand(beam.n_macroparticles) - 0.5) * time_step)).astype(
+                                    (np.random.rand(beam.n_macroparticles)
+                                     - 0.5) * time_step)).astype(
         dtype=bm.precision.real_t, order='C', copy=False)
     beam.dE = (np.ascontiguousarray(deltaE_grid.flatten()[indexes] +
-                                    (np.random.rand(beam.n_macroparticles) - 0.5) * deltaE_step)).astype(
+                                    (np.random.rand(beam.n_macroparticles)
+                                     - 0.5) * deltaE_step)).astype(
         dtype=bm.precision.real_t, order='C', copy=False)
 
 
-def __distribution_function_by_exponent(action_array: NDArray, exponent: float, length: float) -> NDArray:
+def __distribution_function_by_exponent(action_array: NDArray, exponent: float,
+                                        length: float) -> NDArray:
     warnings.filterwarnings("ignore")
     distribution_function_ = (1 - action_array / length) ** exponent
     warnings.filterwarnings("default")
@@ -831,23 +861,27 @@ def distribution_function(action_array: NDArray,
         if exponent is not None:
             warnings.warn(f"exponent is ignored for {dist_type=}")
         exponent = 0
-        distribution_ = __distribution_function_by_exponent(action_array, exponent, length)
+        distribution_ = __distribution_function_by_exponent(action_array,
+                                                            exponent, length)
 
     elif dist_type == 'parabolic_amplitude':
         if exponent is not None:
             warnings.warn(f"exponent is ignored for {dist_type=}")
         exponent = 1
-        distribution_ = __distribution_function_by_exponent(action_array, exponent, length)
+        distribution_ = __distribution_function_by_exponent(action_array,
+                                                            exponent, length)
 
     elif dist_type == 'parabolic_line':
         if exponent is not None:
             warnings.warn(f"exponent is ignored for {dist_type=}")
         exponent = 0.5
-        distribution_ = __distribution_function_by_exponent(action_array, exponent, length)
+        distribution_ = __distribution_function_by_exponent(action_array,
+                                                            exponent, length)
 
     elif dist_type == 'binomial':
         assert exponent is not None, "Please specify exponent"
-        distribution_ = __distribution_function_by_exponent(action_array, exponent, length)
+        distribution_ = __distribution_function_by_exponent(action_array,
+                                                            exponent, length)
 
     elif dist_type == 'gaussian':
         distribution_ = np.exp(- 2 * action_array / length)
@@ -872,8 +906,9 @@ def __line_density_by_exponent(bunch_length: float,
     return line_density_
 
 
-def line_density(coord_array, dist_type, bunch_length, bunch_position: float = 0.0,
-                 exponent: Optional[float] = None):
+def line_density(coord_array: NDArray, dist_type: str, bunch_length: float,
+                 bunch_position: float = 0.0,
+                 exponent: Optional[float] = None) -> NDArray:
     """
     *Line density*
     """
@@ -923,8 +958,8 @@ def line_density(coord_array, dist_type, bunch_length, bunch_position: float = 0
 
 
 @handle_legacy_kwargs
-def bigaussian(ring: Ring, rf_station: RFStation, beam: Beam,
-               sigma_dt: float, sigma_dE: Optional[float] = None, seed: int = 1234,
+def bigaussian(ring: Ring, rf_station: RFStation, beam: Beam, sigma_dt: float,
+               sigma_dE: Optional[float] = None, seed: int = 1234,
                reinsertion: bool = False) -> None:
     r"""Function generating a Gaussian beam both in time and energy
     coordinates. Fills Beam.dt and Beam.dE arrays.
@@ -995,11 +1030,9 @@ def bigaussian(ring: Ring, rf_station: RFStation, beam: Beam,
 
 @handle_legacy_kwargs
 def parabolic(ring: Ring, rf_station: RFStation, beam: Beam,
-              bunch_length: float,
-              bunch_position: Optional[float] = None,
+              bunch_length: float, bunch_position: Optional[float] = None,
               bunch_energy: Optional[float] = None,
-              energy_spread: Optional[float] = None,
-              seed: int = 1234):
+              energy_spread: Optional[float] = None, seed: int = 1234):
     r"""Generate a bunch of particles distributed as a parabola in phase space.
 
     Parameters
@@ -1061,17 +1094,21 @@ def parabolic(ring: Ring, rf_station: RFStation, beam: Beam,
     bin_energy = float(energy_array[1] - energy_array[0])
 
     # Density grid
-    isodensity_lines = ((dt_grid - bunch_position) / bunch_length * 2) ** 2. + \
-                       ((deltaE_grid - bunch_energy) / energy_spread * 2) ** 2.
+    isodensity_lines = (((dt_grid - bunch_position)
+                           / bunch_length * 2) ** 2.
+                         + ((deltaE_grid - bunch_energy)
+                           / energy_spread * 2) ** 2.)
     density_grid = 1 - isodensity_lines ** 2.
     density_grid[density_grid < 0] = 0
     density_grid /= np.sum(density_grid)
 
-    populate_bunch(beam, dt_grid, deltaE_grid, density_grid, bin_dt, bin_energy, seed)
+    populate_bunch(beam, dt_grid, deltaE_grid, density_grid, bin_dt,
+                   bin_energy, seed)
 
 
 @handle_legacy_kwargs
-def _get_dE_from_dt(ring: Ring, rf_station: RFStation, dt_amplitude: float) -> float:
+def _get_dE_from_dt(ring: Ring, rf_station: RFStation, dt_amplitude: float)\
+                                                                      -> float:
     r"""A routine to evaluate the dE amplitude from dt following a single
     RF Hamiltonian.
 
@@ -1122,7 +1159,8 @@ def _get_dE_from_dt(ring: Ring, rf_station: RFStation, dt_amplitude: float) -> f
 
     phi_b = omega_rf * dt_amplitude + phi_s
     dE_amplitude = np.sqrt(voltage * energy * beta ** 2
-                           * (np.cos(phi_b) - np.cos(phi_s) + (phi_b - phi_s) * np.sin(phi_s))
+                           * (np.cos(phi_b) - np.cos(phi_s) + (phi_b - phi_s)
+                              * np.sin(phi_s))
                            / (np.pi * harmonic * np.fabs(eta0)))
 
     return dE_amplitude
