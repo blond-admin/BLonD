@@ -138,7 +138,7 @@ class RFStationOptions:
         # TO BE IMPLEMENTED: if you pass a filename the function reads the file
         # and reshape the data
         if isinstance(input_data, str):
-            pass
+            raise NotImplementedError()
 
         # If single float, expands the value to match the input number of turns
         # and rf harmonics

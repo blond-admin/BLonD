@@ -437,7 +437,7 @@ class Profile(CpuGpuTrackable):
         not given explicitly
     edges : float array
         contains the edges of the slices
-    bin_centers : float array
+    bin_centers : NDArray, optional
         contains the centres of the slices
     bin_size : float
         lenght of one bin (or slice)

@@ -37,7 +37,7 @@ if TYPE_CHECKING:
 def plot_long_phase_space(ring: Ring, rf_station: RFStation, beam: Beam, xmin: float,
                           xmax: float, ymin: float, ymax: float, xunit='s', sampling=1,
                           separatrix_plot=False, histograms_plot=True,
-                          dirname: str | PathLike[str] = 'fig', show_plot: bool = False, alpha=1, color='b'):
+                          dirname: str | PathLike[str] = 'fig', show_plot: bool = False, alpha:float=1, color='b'):
     """
     Plot of longitudinal phase space. Optional use of histograms and separatrix.
     Choice of units: xunit = s, rad.

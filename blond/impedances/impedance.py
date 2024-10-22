@@ -28,9 +28,11 @@ from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
     from typing import Optional, Callable, Literal
-    import cupy as cp
 
-    from numpy.typing import NDArray
+    from numpy.typing import NDArray as NumpyNDArray
+    from cupy.typing import NDArray as CupyNDArray
+
+    NDArray = NumpyNDArray | CupyNDArray
 
     from ..beam.beam import Beam
     from ..beam.profile import Profile
@@ -73,7 +75,7 @@ class TotalInducedVoltage(CpuGpuTrackable):
     """
 
     @handle_legacy_kwargs
-    def __init__(self, beam: Beam, profile: Profile, induced_voltage_list: List[_InducedVoltage]) -> None:
+    def __init__(self, beam: Beam, profile: Profile, induced_voltage_list: list[_InducedVoltage]) -> None:
         """
         Constructor.
         """
@@ -87,13 +89,13 @@ class TotalInducedVoltage(CpuGpuTrackable):
         self.induced_voltage_list = induced_voltage_list
 
         # Induced voltage from the sum of the wake sources in V
-        self.induced_voltage: NDArray | cp.ndarray = np.zeros(int(self.profile.n_slices),
+        self.induced_voltage: NDArray = np.zeros(int(self.profile.n_slices),
                                                               dtype=bm.precision.real_t,
                                                               order='C'
                                                               )
 
         # Time array of the wake in s
-        self.time_array: NDArray | cp.ndarray = self.profile.bin_centers
+        self.time_array: NDArray = self.profile.bin_centers
 
     def reprocess(self):
         """
@@ -280,10 +282,10 @@ class _InducedVoltage(CpuGpuTransferable):
         self.total_impedance: NDArray | None = None
         self.induced_voltage_generation: Callable | None = None
 
-        self.freq_mtw: NDArray | cp.ndarray | None = None
-        self.omegaj_mtw: NDArray | cp.ndarray | None = None
+        self.freq_mtw: NDArray | None = None
+        self.omegaj_mtw: NDArray | None = None
         self.shift_trev: Callable | None = None
-        self.time_mtw: NDArray | cp.ndarray | None = None
+        self.time_mtw: NDArray | None = None
         ###############
 
         self._device: DeviceType = "CPU"
@@ -472,13 +474,6 @@ class _InducedVoltage(CpuGpuTransferable):
                               charge=self.beam.particle.charge,
                               acceleration_kick=0.)
 
-    @abstractmethod
-    def to_gpu(self, recursive=True):
-        pass
-
-    @abstractmethod
-    def to_cpu(self, recursive=True):
-        pass
 
 
 class InducedVoltageTime(_InducedVoltage):
@@ -949,7 +944,7 @@ class InducedVoltageResonator(_InducedVoltage):
     """
 
     @handle_legacy_kwargs
-    def __init__(self, beam: Beam, profile: Profile, resonators: Resonators, timeArray=None):
+    def __init__(self, beam: Beam, profile: Profile, resonators: Resonators, timeArray: Optional[NDArray]=None):
 
         # Test if one or more quality factors is smaller than 0.5.
         if sum(resonators.Q < 0.5) > 0:

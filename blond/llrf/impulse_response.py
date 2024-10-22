@@ -25,6 +25,7 @@ from scipy.sparse import diags
 from scipy.sparse.linalg import spsolve
 
 if TYPE_CHECKING:
+    from typing import Optional
     from numpy.typing import NDArray
 
 logger = logging.getLogger(__name__)
@@ -381,7 +382,7 @@ class TravellingWaveCavity:
             )
 
     def impulse_response_beam(
-            self, omega_c: float, time_fine: NDArray, time_coarse: NDArray = None
+            self, omega_c: float, time_fine: NDArray, time_coarse: Optional[NDArray] = None
     ) -> None:
         r"""Impulse response from the cavity towards the beam. For a signal
         that is I,Q demodulated at a given carrier
@@ -394,9 +395,9 @@ class TravellingWaveCavity:
         ----------
         omega_c : float
             Carrier revolution frequency [1/s]
-        time_fine : float
+        time_fine : NDArray
             Time array of the beam profile to act on
-        time_coarse : float
+        time_coarse : NDArray
             Time array of the LLRF to act on; default is None
 
         Attributes

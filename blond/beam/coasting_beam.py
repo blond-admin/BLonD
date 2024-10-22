@@ -21,7 +21,7 @@ import numpy.random as rand
 from ..utils import exceptions as blond_exceptions
 
 if TYPE_CHECKING:
-    from typing import Literal
+    from typing import Literal, Optional
 
     from numpy.typing import NDArray
 
@@ -33,8 +33,8 @@ def generate_coasting_beam(
         spread_type: Literal['dp/p', 'dE/E', 'dp', 'dE',] = 'dp/p',
         energy_offset: float = 0,
         distribution: Literal['gaussian', 'parabolic', 'user'] = 'gaussian',
-        user_distribution: NDArray = None,
-        user_probability: NDArray = None
+        user_distribution: Optional[NDArray] = None,
+        user_probability: Optional[NDArray] = None
 ) -> None:
     """
     energy_offset represents the absolute energy difference between the center

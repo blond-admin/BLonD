@@ -267,7 +267,7 @@ class RFStation(CpuGpuTransferable):
         # for the drift
         alpha_order = 2
 
-        # method new
+        # TODO method new, as alpha_order is hardcoded.
         self.alpha_0 = ring.alpha_0[self.section_index]
         self.alpha_1 = ring.alpha_1[self.section_index]
         self.alpha_2 = ring.alpha_2[self.section_index]
