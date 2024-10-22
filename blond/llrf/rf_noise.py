@@ -28,6 +28,10 @@ from ..utils.abstracts import TrackableBaseClass
 from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
+    from typing import Optional, Literal, Tuple, Sequence
+
+    from numpy.typing import ArrayLike, NDArray
+
     from ..input_parameters.rf_parameters import RFStation
     from ..input_parameters.ring import Ring
 
@@ -36,11 +40,14 @@ CFWHM = np.sqrt(2. / np.log(2.))
 
 class FlatSpectrum:
     @handle_legacy_kwargs
-    def __init__(self, ring: Ring, rf_station: RFStation, delta_f=1,
-                 corr_time=10000, fmin_s0=0.8571, fmax_s0=1.1,
-                 initial_amplitude=1.e-6, seed1=1234, seed2=7564,
-                 predistortion=None, continuous_phase=False, folder_plots='fig_noise', print_option=True,
-                 initial_final_turns=(0, -1)):
+    def __init__(self, ring: Ring, rf_station: RFStation, delta_f: float = 1,
+                 corr_time: int = 10000, fmin_s0: float = 0.8571,
+                 fmax_s0: float = 1.1, initial_amplitude: float = 1.e-6,
+                 seed1: int = 1234, seed2: int = 7564,
+                 predistortion: Optional[Literal["weightFunction"]] = None,
+                 continuous_phase: bool = False,
+                 folder_plots: str = 'fig_noise', print_option: bool =True,
+                 initial_final_turns: Tuple[int] = (0, -1)):
         """
         Generate phase noise from a band-limited spectrum.
         Input frequency band using 'fmin' and 'fmax' w.r.t. the synchrotron
@@ -55,7 +62,9 @@ class FlatSpectrum:
         if self.initial_final_turns[1] == -1:
             self.initial_final_turns[1] = self.total_n_turns + 1
 
-        self.f0 = ring.f_rev[self.initial_final_turns[0]:self.initial_final_turns[1]]  # revolution frequency in Hz
+        # revolution frequency in Hz
+        self.f0 = ring.f_rev[self.initial_final_turns[0]
+                             :self.initial_final_turns[1]] 
         self.delta_f = delta_f  # frequency resolution [Hz]
         self.corr = corr_time  # adjust noise every 'corr' time steps
         self.fmin_s0 = fmin_s0  # spectrum lower bound in synchr. freq.
@@ -68,7 +77,8 @@ class FlatSpectrum:
             # Overwrite frequencies
             self.fmin_s0 = 0.8571
             self.fmax_s0 = 1.001
-        self.fs = (rf_station.omega_s0[self.initial_final_turns[0]:self.initial_final_turns[1]] 
+        self.fs = (rf_station.omega_s0[self.initial_final_turns[0]
+                                       :self.initial_final_turns[1]] 
                   / (2 * np.pi))  # synchrotron frequency in Hz
         self.n_turns = len(self.fs) - 1
         self.dphi = np.zeros(self.n_turns + 1)
@@ -78,7 +88,8 @@ class FlatSpectrum:
         self.folder_plots = folder_plots
         self.print_option = print_option
 
-    def spectrum_to_phase_noise(self, freq, spectrum, transform=None):
+    def spectrum_to_phase_noise(self, freq: NDArray, spectrum: NDArray,
+                                transform: Optional[str] = None):
 
         nf = len(spectrum)
         fmax = freq[nf - 1]
@@ -155,22 +166,33 @@ class FlatSpectrum:
             # To compensate the notch due to PL at central frequency
             if self.predistortion == 'exponential':
 
-                spectrum = np.concatenate((np.zeros(nmin), ampl * np.exp(
-                    np.log(100.) * np.arange(0, nmax - nmin + 1) / (nmax - nmin)),
-                                           np.zeros(n_points_pos_f_incl_zero - nmax - 1)))
+                spectrum = np.concatenate((np.zeros(nmin),
+                                           ampl * np.exp(np.log(100.)
+                                                         * np.arange(0,
+                                                                     nmax
+                                                                     - nmin+1)
+                                                         / (nmax - nmin)),
+                                           np.zeros(n_points_pos_f_incl_zero
+                                                    - nmax - 1)))
 
             elif self.predistortion == 'linear':
 
                 spectrum = np.concatenate((np.zeros(nmin),
-                                           np.linspace(0, float(ampl), nmax - nmin + 1),
-                                           np.zeros(n_points_pos_f_incl_zero - nmax - 1)))
+                                           np.linspace(0, float(ampl),
+                                                       nmax - nmin + 1),
+                                           np.zeros(n_points_pos_f_incl_zero
+                                                    - nmax - 1)))
 
             elif self.predistortion == 'hyperbolic':
 
                 spectrum = np.concatenate((np.zeros(nmin),
                                            ampl * np.ones(nmax - nmin + 1) *
-                                           1 / (1 + 0.99 * (nmin - np.arange(nmin, nmax + 1))
-                                                / (nmax - nmin)), np.zeros(n_points_pos_f_incl_zero - nmax - 1)))
+                                           1 / (1 + 0.99
+                                                * (nmin - np.arange(nmin,
+                                                                    nmax + 1))
+                                                / (nmax - nmin)),
+                                            np.zeros(n_points_pos_f_incl_zero
+                                                     - nmax - 1)))
 
             elif self.predistortion == 'weightfunction':
 
@@ -178,20 +200,24 @@ class FlatSpectrum:
                 frel[np.where(frel > 0.999)[0]] = 0.999  # truncate center freqs
                 sigma = 0.754  # rms bunch length in rad corresponding to 1.2 ns
                 gamma = 0.577216
-                weight = (4. * np.pi * frel / sigma ** 2) ** 2 * \
-                         np.exp(-16. * (1. - frel) / sigma ** 2) + \
-                         0.25 * (1 + 8. * frel / sigma ** 2 *
-                                 np.exp(-8. * (1. - frel) / sigma ** 2) *
-                                 (gamma + np.log(8. * (1. - frel) / sigma ** 2) +
-                                  8. * (1. - frel) / sigma ** 2)) ** 2
+                weight = ((4.*np.pi*frel / sigma**2)**2
+                          * np.exp(-16. * (1.-frel) / sigma ** 2)
+                          + 0.25 * (1+8.*frel / sigma ** 2
+                                    * np.exp(-8. * (1.-frel) / sigma ** 2)
+                                    * (gamma + np.log(8. * (1.-frel)
+                                                      / sigma ** 2)
+                                    + 8. * (1.-frel) / sigma ** 2)) ** 2)
+
                 weight /= weight[0]  # normalise to have 1 at fmin
                 spectrum = np.concatenate((np.zeros(nmin), ampl * weight,
-                                           np.zeros(n_points_pos_f_incl_zero - nmax - 1)))
+                                           np.zeros(n_points_pos_f_incl_zero
+                                                    - nmax - 1)))
 
             else:
                 spectrum = np.concatenate((np.zeros(nmin),
                                            ampl * np.ones(nmax - nmin + 1),
-                                           np.zeros(n_points_pos_f_incl_zero - nmax - 1)))
+                                           np.zeros(n_points_pos_f_incl_zero
+                                                    - nmax - 1)))
 
             # Fill phase noise array
             if i < int(self.n_turns / self.corr) - 1:
@@ -209,23 +235,27 @@ class FlatSpectrum:
                     self.spectrum_to_phase_noise(freq, spectrum)
                     self.seed1 += 239
                     self.seed2 += 158
-                    self.dphi2[:self.corr / 4] = self.dphi_output[:self.corr / 4]
+                    self.dphi2[:self.corr / 4] = self.dphi_output[:self.corr/4]
 
                 self.spectrum_to_phase_noise(freq, spectrum)
                 self.seed1 += 239
                 self.seed2 += 158
-                self.dphi2[(k + self.corr / 4):(kmax + self.corr / 4)] = self.dphi_output[0:(kmax - k)]
+                self.dphi2[(k + self.corr / 4):(kmax + self.corr / 4)] \
+                                            = self.dphi_output[0:(kmax - k)]
 
             if self.folder_plots is not None:
                 fig_folder(self.folder_plots)
                 plot_noise_spectrum(freq, spectrum, sampling=1, figno=i,
                                     dirname=self.folder_plots)
-                plot_phase_noise(self.t[0:(kmax - k)], self.dphi_output[0:(kmax - k)],
-                                 sampling=1, figno=i, dirname=self.folder_plots)
+                plot_phase_noise(self.t[0:(kmax - k)],
+                                 self.dphi_output[0:(kmax - k)],
+                                 sampling = 1, figno = i,
+                                 dirname = self.folder_plots)
 
             rms_noise = np.std(self.dphi_output)
             if self.print_option:
-                print("RF noise for time step %.4e s (iter %d) has r.m.s. phase %.4e rad (%.3e deg)"
+                print("RF noise for time step %.4e s (iter %d) has r.m.s. "
+                      +"phase %.4e rad (%.3e deg)"
                       % (self.t[1], i, rms_noise, rms_noise * 180 / np.pi))
 
         if self.continuous_phase:
@@ -234,9 +264,13 @@ class FlatSpectrum:
                          + self.dphi2[:(self.n_turns + 1)]
                          * np.cos(psi[:self.n_turns + 1]))
 
-        if self.initial_final_turns[0] > 0 or self.initial_final_turns[1] < self.total_n_turns + 1:
-            self.dphi = np.concatenate((np.zeros(self.initial_final_turns[0]), self.dphi,
-                                        np.zeros(1 + self.total_n_turns - self.initial_final_turns[1])))
+        if ((self.initial_final_turns[0] > 0)
+            or (self.initial_final_turns[1] < self.total_n_turns + 1)):
+            self.dphi = np.concatenate((np.zeros(self.initial_final_turns[0]),
+                                        self.dphi,
+                                        np.zeros(1 + self.total_n_turns
+                                                 - self.initial_final_turns[1])
+                                        ))
 
 
 class LHCNoiseFB(TrackableBaseClass):
@@ -253,9 +287,10 @@ class LHCNoiseFB(TrackableBaseClass):
     """
 
     @handle_legacy_kwargs
-    def __init__(self, rf_station: RFStation, profile: Profile, bl_target, gain=0.1e9,
-                 factor=0.93, update_frequency=22500, variable_gain=True,
-                 bunch_pattern=None):
+    def __init__(self, rf_station: RFStation, profile: Profile,
+                 bl_target: float, gain: float = 0.1e9, factor: float = 0.93,
+                 update_frequency: int = 22500, variable_gain: bool = True,
+                 bunch_pattern: Optional[ArrayLike] = None):
 
         #: | *Import RFStation*
         self.rf_params = rf_station
@@ -304,8 +339,8 @@ class LHCNoiseFB(TrackableBaseClass):
 
     def track(self):
         """
-        *Calculate PhaseNoise Feedback scaling factor as a function of measured
-        FWHM bunch length.*
+        *Calculate PhaseNoise Feedback scaling factor as a function of
+        measured FWHM bunch length.*
         """
 
         # Track only in certain turns
@@ -315,8 +350,8 @@ class LHCNoiseFB(TrackableBaseClass):
             self.fwhm()
 
             # Update noise amplitude-scaling factor
-            self.x = self.a * self.x + self.g[self.rf_params.counter[0]] * \
-                     (self.bl_targ - self.bl_meas)
+            self.x = (self.a * self.x + self.g[self.rf_params.counter[0]]
+                      * (self.bl_targ - self.bl_meas))
 
             # Limit to range [0,1]
             if self.x < 0:
@@ -324,19 +359,23 @@ class LHCNoiseFB(TrackableBaseClass):
             if self.x > 1:
                 self.x = 1
 
-    def fwhm_interpolation(self, index, half_height):
+    def fwhm_interpolation(self, index: Sequence[int],
+                           half_height: int) -> float:
 
-        time_resolution = self.profile.bin_centers[1] - self.profile.bin_centers[0]
+        time_resolution = (self.profile.bin_centers[1]
+                           - self.profile.bin_centers[0])
 
-        left = self.profile.bin_centers[index[0]] - (self.profile.n_macroparticles[index[0]] -
-                                                     half_height) / (self.profile.n_macroparticles[index[0]] -
-                                                                     self.profile.n_macroparticles[
-                                                                         index[0] - 1]) * time_resolution
+        left = (self.profile.bin_centers[index[0]]
+                 - (self.profile.n_macroparticles[index[0]] - half_height)
+                 / (self.profile.n_macroparticles[index[0]]
+                    - self.profile.n_macroparticles[index[0] - 1])
+                 * time_resolution)
 
-        right = self.profile.bin_centers[index[-1]] + (self.profile.n_macroparticles[index[-1]]
-                                                       - half_height) / (self.profile.n_macroparticles[index[-1]] -
-                                                                         self.profile.n_macroparticles[
-                                                                             index[-1] + 1]) * time_resolution
+        right = (self.profile.bin_centers[index[-1]]
+                 + (self.profile.n_macroparticles[index[-1]] - half_height)
+                 / (self.profile.n_macroparticles[index[-1]]
+                    - self.profile.n_macroparticles[index[-1] + 1])
+                 * time_resolution)
 
         return CFWHM * (right - left)
 
