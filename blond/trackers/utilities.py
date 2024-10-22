@@ -23,7 +23,14 @@ from builtins import range
 
 import numpy as np
 from scipy.constants import c
-from scipy.integrate import cumtrapz
+import scipy
+from packaging.version import Version
+
+if Version(scipy.__version__) >= Version("1.14"):
+    from scipy.integrate import cumulative_trapezoid as cumtrapz
+else:
+    from scipy.integrate import cumtrapz
+
 
 from ..utils import bmath as bm
 
@@ -354,7 +361,6 @@ def total_voltage(RFsection_list, harmonic='first'):
         Vsin = RFsection_list[0].voltage[0] * np.sin(RFsection_list[0].phi_rf[0])
         if n_sections > 1:
             for i in range(1, n_sections):
-                print(RFsection_list[i].voltage[0])
                 Vcos += RFsection_list[i].voltage[0] * np.cos(RFsection_list[i].phi_rf[0])
                 Vsin += RFsection_list[i].voltage[0] * np.sin(RFsection_list[i].phi_rf[0])
         Vtot = np.sqrt(Vcos**2 + Vsin**2)
@@ -412,9 +418,11 @@ def hamiltonian(Ring, RFStation, Beam, dt, dE,
 
 
 def separatrix(Ring, RFStation, dt):
+#TODO:  Use list of RFStation and consider all voltages instead of multiplying by n sections
     r""" Function to calculate the ideal separatrix without intensity effects.
     For single or multiple RF systems. For the time being, multiple RF sections
-    are not yet implemented.
+    are implemented for the case that all RF stations have the same voltage over
+    one turn.
 
     Parameters
     ---------- 
@@ -436,23 +444,28 @@ def separatrix(Ring, RFStation, dt):
 
     if Ring.n_sections > 1:
         warnings.warn("WARNING in separatrix(): the usage of several RF" +
-                      " sections is not yet implemented!")
+                      " sections is only implemented for equal energy gains" + 
+                      " per RF station per turn!")
 
     # Import RF and ring parameters at this moment
     counter = RFStation.counter[0]
-    voltage = Ring.Particle.charge * RFStation.voltage[:, counter]
+    voltage = Ring.Particle.charge * RFStation.voltage[:, counter] * Ring.n_sections
     omega_rf = RFStation.omega_rf[:, counter]
     phi_rf = RFStation.phi_rf[:, counter]
-
+    if Ring.Particle.charge < 0:
+        phi_rf = phi_rf - np.pi
     eta_0 = RFStation.eta_0[counter]
     beta_sq = RFStation.beta[counter]**2
     energy = RFStation.energy[counter]
     try:
-        delta_E = RFStation.delta_E[counter]
+        delta_E = RFStation.delta_E[counter] * Ring.n_sections
     except Exception:
-        delta_E = RFStation.delta_E[-1]
+        delta_E = RFStation.delta_E[-1] * Ring.n_sections
     T_0 = Ring.t_rev[counter]
-    index = np.min(np.where(voltage > 0)[0])
+    if Ring.Particle.charge > 0:
+        index = np.min(np.where(voltage > 0)[0])
+    elif Ring.Particle.charge < 0:
+        index = np.max(np.where(voltage < 0)[0])
     T_rf_0 = 2 * np.pi / omega_rf[index]
 
     # Projects time array into the range [t_RF, t_RF+T_RF] below and above
@@ -466,8 +479,11 @@ def separatrix(Ring, RFStation, dt):
 
     # Unstable fixed point in single-harmonic RF system
     if RFStation.n_rf == 1:
-
-        dt_s = RFStation.phi_s[counter] / omega_rf[0]
+        if Ring.Particle.charge > 0:
+            dt_s = RFStation.phi_s[counter] / omega_rf[0]
+        elif Ring.Particle.charge < 0:
+            dt_s = (np.pi-RFStation.phi_s[counter]) / omega_rf[0]
+            
         if eta_0 < 0:
             dt_RF = -(phi_rf[0] - np.pi) / omega_rf[0]
         else:
@@ -516,10 +532,12 @@ def separatrix(Ring, RFStation, dt):
     for i in range(RFStation.n_rf):
         Vtot += voltage[i] * (np.cos(omega_rf[i] * dt_ufp + phi_rf[i]) -
                               np.cos(omega_rf[i] * dt + phi_rf[i])) / omega_rf[i]
-
+        
+    Vtot *= np.sign(Ring.Particle.charge)
+        
     separatrix_sq = 2 * beta_sq * energy / (eta_0 * T_0) * (Vtot + delta_E * (dt_ufp - dt))
     pos_ind = np.where(separatrix_sq >= 0)[0]
-    separatrix_array = np.empty((len(separatrix_sq))) * np.nan
+    separatrix_array = np.full((len(separatrix_sq)), fill_value=np.nan)
     separatrix_array[pos_ind] = np.sqrt(separatrix_sq[pos_ind])
 
     return separatrix_array

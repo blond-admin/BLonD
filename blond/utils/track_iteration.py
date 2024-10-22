@@ -20,10 +20,15 @@ from typing import TYPE_CHECKING
 
 
 if TYPE_CHECKING:
-    from typing import Iterable, List, Callable, Protocol, Any, Self
+    from typing import Iterable, List, Callable, Protocol, Any, Self, Tuple
 
     class Trackable(Protocol):
         def track(self) -> None:
+            ...
+
+    class Predicate(Protocol):
+        def __call__(self, _map: Iterable[Trackable], turn_number: int,
+                     *args: Any, **kwargs: Any):
             ...
 
 
@@ -57,7 +62,7 @@ class TrackIteration:
         if not all((hasattr(m, 'track') for m in track_map)):
             raise AttributeError("All map objects must be trackable")
 
-        self._map = track_map
+        self._map = list(track_map)
         if isinstance(init_turn, int):
             self.turn_number = init_turn
         else:
@@ -68,11 +73,7 @@ class TrackIteration:
         else:
             raise TypeError("final_turn must be an integer")
 
-        self.function_list: List[
-                            Tuple[
-                            Callable[[Iterable[Trackable], int, ...]],
-                            int]
-                            ] = []
+        self.function_list: List[Tuple[Predicate, int]] = []
 
 
     def _track_turns(self, n_turns):
@@ -85,8 +86,8 @@ class TrackIteration:
             next(self)
 
 
-    def add_function(self, predicate: Callable[[Iterable[Trackable], int, ...]],
-                     repetion_rate: int, *args: Any, **kwargs: Any):
+    def add_function(self, predicate: Predicate, repetion_rate: int,
+                     *args: Any, **kwargs: Any):
         '''
         Takes a user defined callable and calls it every repetion_rate
         number of turns with predicate(track_map, turn_number, *args, **kwargs)

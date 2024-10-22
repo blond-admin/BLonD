@@ -33,13 +33,13 @@ class PrecisionClass:
             _precision (str, optional): _description_. Defaults to 'double'.
         """
         if _precision in ['single', 's', '32', 'float32', 'float', 'f']:
-            self.str = 'float32'
+            self.str = 'single'
             self.real_t = np.float32
             self.c_real_t = ct.c_float
             self.complex_t = np.complex64
             self.num = 1
         elif _precision in ['double', 'd', '64', 'float64']:
-            self.str = 'float64'
+            self.str = 'double'
             self.real_t = np.float64
             self.c_real_t = ct.c_double
             self.complex_t = np.complex128

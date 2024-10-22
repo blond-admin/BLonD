@@ -18,8 +18,16 @@ from __future__ import division, print_function
 from builtins import range, str
 
 import numpy as np
+import scipy
+from packaging.version import Version
+
+if Version(scipy.__version__) >= Version("1.14"):
+    from scipy.integrate import cumulative_trapezoid as cumtrapz
+else:
+    from scipy.integrate import cumtrapz
+
+
 from scipy.constants import c
-from scipy.integrate import cumtrapz
 
 from ..beam.beam import Proton
 from ..input_parameters.rf_parameters_options import RFStationOptions
