@@ -13,8 +13,6 @@ except ImportError:
 
 from typing import TYPE_CHECKING
 
-from icecream import ic
-
 # BLonD imports
 from ..utils import bmath as bm
 
