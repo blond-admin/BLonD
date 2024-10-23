@@ -223,8 +223,6 @@ class Beam:
     >>> my_beam = Beam(ring, n_macroparticle, intensity)
     """
 
-    #TODO:  Variable names should all be lower case, leaving for now as
-    # could be a breaking change
     def __init__(self, Ring: Ring, n_macroparticles: int, intensity: float):
 
         self.Particle = Ring.Particle
@@ -359,7 +357,6 @@ class Beam:
         # R.m.s. emittance in Gaussian approximation
         self.epsn_rms_l = np.pi * self.sigma_dE * self.sigma_dt  # in eVs
 
-    #TODO:  Variable names to lower case
     def losses_separatrix(self, Ring: Ring, RFStation: RFStation):
         '''Beam losses based on separatrix.
 
@@ -688,7 +685,6 @@ class Beam:
 
         self._device = 'GPU'
 
-    #TODO:  recursive is not used, does not need to be there?
     def to_cpu(self, recursive: bool=True):
         '''
         Transfer all necessary arrays back to the CPU
