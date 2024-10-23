@@ -26,16 +26,21 @@ import numpy.random as rnd
 import scipy.signal
 from scipy.interpolate import interp1d
 
-from .impulse_response import (
+from .impulse_response import (  # noqa
     SPS3Section200MHzTWC,
     SPS4Section200MHzTWC,
     SPS5Section200MHzTWC,
-    cavity_response_sparse_matrix,
 )
+# Import SPS3Section and feedforward_filter for eval(..) below
+# noqa statement is used to block autoformatter from
+# removing seemingly unused import statements
+from .impulse_response import (  # noqa
+    SPS3Section200MHzTWC,
+    SPS4Section200MHzTWC,
+    SPS5Section200MHzTWC,
+)
+from .impulse_response import cavity_response_sparse_matrix
 from .signal_processing import (
-    feedforward_filter_TWC3,
-    feedforward_filter_TWC4,
-    feedforward_filter_TWC5,
     cartesian_to_polar,
     comb_filter,
     modulator,
@@ -46,9 +51,17 @@ from .signal_processing import (
     fir_filter_lhc_otfb_coeff,
     smooth_step,
 )
+# Import SPS3Section and feedforward_filter for eval(..) below
+# noqa statement is used to block autoformatter from
+# removing seemingly unused import statements
+from .signal_processing import (  # noqa
+    feedforward_filter_TWC3,
+    feedforward_filter_TWC4,
+    feedforward_filter_TWC5,
+)
+from ..utils import bmath as bm
 from ..utils.abstracts import TrackableBaseClass
 from ..utils.legacy_support import handle_legacy_kwargs
-from ..utils import bmath as bm
 
 if TYPE_CHECKING:
     from typing import Optional, Any
@@ -58,17 +71,6 @@ if TYPE_CHECKING:
 
     from ..input_parameters.rf_parameters import RFStation
     from ..beam.profile import Profile
-
-# TODO resolve
-SPS3Section200MHzTWC  # to prevent autoformatter removing the code. It is later called using eval()
-SPS4Section200MHzTWC  # to prevent autoformatter removing the code. It is later called using eval()
-SPS5Section200MHzTWC  # to prevent autoformatter removing the code. It is later called using eval()
-feedforward_filter_TWC3  # to prevent autoformatter removing the code. It is later called using eval()
-feedforward_filter_TWC4  # to prevent autoformatter removing the code. It is later called using eval()
-feedforward_filter_TWC5  # to prevent autoformatter removing the code. It is later called using eval()
-
-
-
 
 
 class CavityFeedback(TrackableBaseClass):
