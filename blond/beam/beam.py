@@ -390,7 +390,7 @@ class Beam:
     @property
     def n_macroparticles(self) -> int:
         return self._n_macroparticles
-    
+
     @n_macroparticles.setter
     def n_macroparticles(self, value: int):
         self._update_particles(n_macroparticles=value)
@@ -398,7 +398,7 @@ class Beam:
     def _update_particles(self, *, n_macroparticles: Optional[int] = None,
                           intensity: Optional[float] = None,
                           ratio: Optional[float] = None):
-        
+
         input = (n_macroparticles, intensity, ratio)
 
         match input:
@@ -410,13 +410,13 @@ class Beam:
             case (n_mac, None, None): self._n_macroparticles = n_mac
 
             case (None, inten, None): self._set_intensity(inten)
-            
+
             case (None, None, rat): self._set_ratio(rat)
-            
+
             case (n_mac, inten, None):
                 self._n_macroparticles = n_mac
                 self._set_intensity(inten)
-            
+
             case (n_mac, None, rat):
                 self._n_macroparticles = n_mac
                 self._set_ratio(rat)
@@ -424,7 +424,7 @@ class Beam:
     def _set_intensity(self, intensity: float):
         self._intensity = intensity
         self._ratio = intensity / self._n_macroparticles
-    
+
     def _set_ratio(self, ratio: float):
         self._ratio = ratio
         self._intensity = ratio * self._n_macroparticles
@@ -478,7 +478,6 @@ class Beam:
         # R.m.s. emittance in Gaussian approximation
         self.epsn_rms_l = np.pi * self.sigma_dE * self.sigma_dt  # in eVs
 
-    #TODO:  Variable names to lower case
     def losses_separatrix(self, Ring: Ring, RFStation: RFStation):
         '''Beam losses based on separatrix.
 
