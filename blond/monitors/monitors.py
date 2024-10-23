@@ -20,11 +20,10 @@ from typing import TYPE_CHECKING
 import h5py as hp
 import numpy as np
 
-from ..utils.abstracts import TrackableBaseClass
 from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
-    from typing import Sequence, SupportsIndex, Union, Optional
+    from typing import Sequence, SupportsIndex, Optional
 
     from ..beam.beam import Beam
     from ..input_parameters.rf_parameters import RFStation
@@ -34,7 +33,7 @@ if TYPE_CHECKING:
     from ..llrf.beam_feedback import BeamFeedback
 
 
-class BunchMonitor(TrackableBaseClass):
+class BunchMonitor:
     """ Class able to save bunch data into h5 file. Use 'buffer_time' to select
         the frequency of saving to file in number of turns.
         If in the constructor a Profile object is passed, that means that one
@@ -363,7 +362,7 @@ class BunchMonitor(TrackableBaseClass):
         self.h5file.close()
 
 
-class SlicesMonitor(TrackableBaseClass):
+class SlicesMonitor:
     """ Class able to save the bunch profile, i.e. the histogram derived from
         the slicing.
     """
@@ -404,7 +403,7 @@ class SlicesMonitor(TrackableBaseClass):
         self.h5file.close()
 
 
-class MultiBunchMonitor(TrackableBaseClass):
+class MultiBunchMonitor:
     """ Class able to save multi-bunch profile, i.e. the histogram derived from
         the slicing.
     """

@@ -23,7 +23,6 @@ from scipy import ndimage
 
 from ..toolbox import filters_and_fitting as ffroutines
 from ..utils import bmath as bm
-from ..utils.abstracts import CpuGpuTrackable, CpuGpuTransferable
 from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
@@ -37,7 +36,7 @@ if TYPE_CHECKING:
     from ..utils.types import FilterExtraOptionsType, CutUnitType, FitOptionTypes, FilterMethodType,BeamProfileDerivativeModes
 
 
-class CutOptions(CpuGpuTransferable):
+class CutOptions:
     r"""
     This class groups all the parameters necessary to slice the phase space
     distribution according to the time axis, apart from the array collecting
@@ -402,7 +401,7 @@ class OtherSlicesOptions:
         self.direct_slicing = direct_slicing
 
 
-class Profile(CpuGpuTrackable):
+class Profile:
     """
     Contains the beam profile and related quantities including beam spectrum,
     profile derivative.

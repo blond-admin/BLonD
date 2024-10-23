@@ -19,7 +19,6 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from ..utils import bmath as bm
-from ..utils.abstracts import CpuGpuTrackable
 from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
@@ -31,7 +30,7 @@ if TYPE_CHECKING:
     from ..utils.types import DeviceType
 
 
-class SynchrotronRadiation(CpuGpuTrackable):
+class SynchrotronRadiation:
     """ Class to compute synchrotron radiation effects, including radiation
         damping and quantum excitation.
         For multiple RF section, instance one object per RF section a call

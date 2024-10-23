@@ -21,7 +21,6 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from ..utils import bmath as bm
-from ..utils.abstracts import CpuGpuTrackable
 from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
@@ -33,7 +32,7 @@ if TYPE_CHECKING:
     from .rf_noise import LHCNoiseFB
 
 
-class BeamFeedback(CpuGpuTrackable):
+class BeamFeedback:
     """
     One-turn beam phase loop for different machines with different hardware.
     Use 'period' for a phase loop that is active only in certain turns.

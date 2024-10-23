@@ -23,7 +23,6 @@ from scipy.constants import e
 
 from ..toolbox.next_regular import next_regular
 from ..utils import bmath as bm
-from ..utils.abstracts import CpuGpuTrackable, CpuGpuTransferable
 from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
@@ -43,7 +42,7 @@ if TYPE_CHECKING:
     MtwModeTypes = Literal["freq", "time"]
 
 
-class TotalInducedVoltage(CpuGpuTrackable):
+class TotalInducedVoltage:
     r"""
     Object gathering all the induced voltage contributions. The input is a
     list of objects able to compute induced voltages (InducedVoltageTime,
@@ -186,7 +185,7 @@ class TotalInducedVoltage(CpuGpuTrackable):
         self._device: DeviceType = 'CPU'
 
 
-class _InducedVoltage(CpuGpuTransferable):
+class _InducedVoltage:
     r"""
     Induced voltage parent class. Only for internal use (inheritance), not to
     be directly instantiated.

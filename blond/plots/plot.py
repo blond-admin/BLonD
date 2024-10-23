@@ -30,7 +30,6 @@ from .plot_llrf import (plot_PL_bunch_phase,
                                    plot_COM_motion, plot_LHCNoiseFB, plot_LHCNoiseFB_FWHM,
                                    plot_LHCNoiseFB_FWHM_bbb)
 from .plot_slices import (plot_beam_profile, plot_beam_spectrum)
-from ..utils.abstracts import TrackableBaseClass
 from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
@@ -59,7 +58,7 @@ def fig_folder(dirname):
             raise
 
 
-class Plot(TrackableBaseClass):
+class Plot:
 
     @handle_legacy_kwargs
     def __init__(self, ring: Ring, rf_station: RFStation, beam: Beam, dt_plot: int,

@@ -25,7 +25,6 @@ import scipy
 from packaging.version import Version
 from scipy.constants import c
 
-from ..utils.abstracts import TrackableBaseClass
 from ..utils.legacy_support import handle_legacy_kwargs
 
 if Version(scipy.__version__) >= Version("1.14"):
@@ -216,7 +215,7 @@ def synchrotron_frequency_distribution(beam: Beam,
         particleDistributionFreq, synchronous_time
 
 
-class SynchrotronFrequencyTracker(TrackableBaseClass):
+class SynchrotronFrequencyTracker:
     """
     *This class can be added to the tracking map to track a certain
     number of particles (defined by the user) and to store the evolution

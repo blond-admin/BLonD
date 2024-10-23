@@ -25,7 +25,6 @@ from scipy.constants import c, e, epsilon_0, hbar, m_e, m_p, physical_constants
 from ..trackers.utilities import is_in_separatrix
 from ..utils import bmath as bm
 from ..utils import exceptions as blond_exceptions
-from ..utils.abstracts import CpuGpuTransferable
 from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
@@ -148,7 +147,7 @@ class MuMinus(Particle):
         Particle.__init__(self, m_mu * c ** 2 / e, -1, float(1 / 2.1969811e-6))
 
 
-class Beam(CpuGpuTransferable):
+class Beam:
     r"""Class containing the beam properties.
 
     This class containes the beam coordinates (dt, dE) and the beam properties.

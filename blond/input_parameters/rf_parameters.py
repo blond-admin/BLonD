@@ -25,7 +25,6 @@ from scipy.constants import c
 from ..beam.beam import Particle,Proton
 from .rf_parameters_options import RFStationOptions
 from ..utils import bmath as bm
-from ..utils.abstracts import CpuGpuTransferable
 from ..utils.legacy_support import handle_legacy_kwargs
 
 if Version(scipy.__version__) >= Version("1.14"):
@@ -38,7 +37,7 @@ if TYPE_CHECKING:
     from ..utils.types import DeviceType
 
 
-class RFStation(CpuGpuTransferable):
+class RFStation:
     r""" Class containing all the RF parameters for all the RF systems in one
     ring segment or RF station.
 

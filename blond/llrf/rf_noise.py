@@ -24,7 +24,6 @@ from ..beam.profile import Profile
 from ..plots.plot import fig_folder
 from ..plots.plot_llrf import plot_phase_noise, plot_noise_spectrum
 from ..toolbox.next_regular import next_regular
-from ..utils.abstracts import TrackableBaseClass
 from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
@@ -239,7 +238,7 @@ class FlatSpectrum:
                                         np.zeros(1 + self.total_n_turns - self.initial_final_turns[1])))
 
 
-class LHCNoiseFB(TrackableBaseClass):
+class LHCNoiseFB:
     """
     *Feedback on phase noise amplitude for LHC controlled longitudinal emittance
     blow-up using noise injection through cavity controller or phase loop.

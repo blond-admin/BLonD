@@ -17,13 +17,18 @@ from __future__ import annotations
 
 # General imports
 from typing import TYPE_CHECKING
+
 if TYPE_CHECKING:
     from typing import Iterable, Callable, Protocol, Any, Self
-    from .abstracts import TrackableBaseClass
+
+
+    class Trackable(Protocol):
+        def track(self) -> None:
+            ...
 
 
     class Predicate(Protocol):
-        def __call__(self, _map: Iterable[TrackableBaseClass], turn_number: int,
+        def __call__(self, _map: Iterable[Trackable], turn_number: int,
                      *args: Any, **kwargs: Any):
             ...
 

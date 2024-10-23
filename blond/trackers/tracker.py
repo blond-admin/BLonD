@@ -25,7 +25,6 @@ from packaging.version import Version
 
 from ..llrf.cavity_feedback import CavityFeedback
 from ..utils import bmath as bm
-from ..utils.abstracts import TrackableBaseClass, CpuGpuTrackable
 from ..utils.legacy_support import handle_legacy_kwargs
 
 if Version(scipy.__version__) >= Version("1.14"):
@@ -48,7 +47,7 @@ if TYPE_CHECKING:
     MainHarmonicOptionType = Literal['lowest_freq', 'highest_voltage'] | int | float
 
 
-class FullRingAndRF(TrackableBaseClass):
+class FullRingAndRF:
     """
     *Definition of the full ring and RF parameters in order to be able to have
     a full turn information (used in the hamiltonian for example).*
@@ -169,7 +168,7 @@ class FullRingAndRF(TrackableBaseClass):
             RingAndRFSectionElement.track()
 
 
-class RingAndRFTracker(CpuGpuTrackable):
+class RingAndRFTracker:
     r""" Class taking care of basic particle coordinate tracking for a given
     RF station and the part of the ring until the next station, see figure.
 

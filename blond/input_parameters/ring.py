@@ -227,10 +227,10 @@ class Ring:
             ring_options = RingOptions()
         # Conversion of initial inputs to expected types
         self.n_turns = int(n_turns)
-        self.n_sections = int(n_sections)  # todo could len(ring_length)
+        self.n_sections = int(n_sections)
 
         # Ring length and checks
-        self.ring_length: NDArray = np.array(ring_length, ndmin=1, dtype=float)  # todo why
+        self.ring_length: NDArray = np.array(ring_length, ndmin=1, dtype=float)
         self.ring_circumference: float = np.sum(self.ring_length)
         self.ring_radius: float = self.ring_circumference / (2 * np.pi)
 
