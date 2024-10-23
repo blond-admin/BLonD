@@ -3,15 +3,16 @@ Script for BLonD developers to autogenerate docker files for different Python ve
 The script takes a template docker file that might be edited as desired.
 """
 import os
-from os import mkdir
+from pathlib import Path
 from warnings import warn
 
 
 def main():
     PY_VERSIONS = ['3.10', '3.11', '3.12']
     read_py_version = PY_VERSIONS[0]
-    folder_read = f"python{without_dot(read_py_version)}-cuda/"
-    if not os.path.isdir(folder_read):
+    folder_read = Path(f"python{without_dot(read_py_version)}-cuda/")
+
+    if not folder_read.exists():
         raise FileNotFoundError(f"{folder_read} not found!")
 
     for py_version in PY_VERSIONS[1:]:
@@ -22,12 +23,7 @@ def without_dot(s: str) -> str:
     return s.replace(".", "")
 
 
-def make_folder(folder_write: str):
-    if not os.path.isdir(folder_write):
-        mkdir(folder_write)
-
-
-def populate_folders(folder_read: str, py_version_new: str, py_version_old: str):
+def populate_folders(folder_read: Path, py_version_new: str, py_version_old: str):
     """Copies all files from folder_read to folder_write whilst editing the file contents.
 
     Parameters
@@ -39,10 +35,10 @@ def populate_folders(folder_read: str, py_version_new: str, py_version_old: str)
     py_version_old
         The Python version of the read folder
     """
-    folder_write = f"python{without_dot(py_version_new)}-cuda/"
-    make_folder(folder_write)
+    folder_write = Path(f"python{without_dot(py_version_new)}-cuda/")
+    Path(folder_write).mkdir(exist_ok=True)
 
-    with open(folder_write + ".gitignore", "w") as f:
+    with open(folder_write / ".gitignore", "w") as f:
         pass
 
     # Check if the read folder is empty
@@ -51,13 +47,21 @@ def populate_folders(folder_read: str, py_version_new: str, py_version_old: str)
         warn(f"{folder_read} is empty! No files to copy.")
 
     for file in files:
-        with open(folder_read + file, "r") as f:
+        with open(folder_read / file, "r") as f:
             content = f.read()
         content = replace_python_versions(content, py_version_new, py_version_old)
+        if file.endswith(".sh"):
+            # First line should be the Shebang in .sh file
+            insert_index = content.index("\n") + 1
+        else:
+            insert_index = 0
 
-        content = f"# This file is auto-generated using {folder_read + file}\n" + content
+        content = (content[:insert_index] +
+                   f"# This file is auto-generated using {folder_read / file}\n"
+                   + content[insert_index:]
+                   )
 
-        with open(folder_write + file, "w") as f:
+        with open(folder_write / file, "w") as f:
             f.write(content)
 
 
