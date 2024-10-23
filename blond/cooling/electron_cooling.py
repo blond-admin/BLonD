@@ -11,7 +11,7 @@ try:
 except ImportError:
     _CP = False
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, overload
 
 # BLonD imports
 from ..utils import bmath as bm
@@ -36,6 +36,26 @@ class ElectronCooling:
                  e_energy_spread: float | ArrayLike,
                  density_electrons: float | ArrayLike,
                  cycle_time: Iterable[float], counter: list[int]):
+        """
+        Create a new electron cooler object.
+
+        Parameters
+        ----------
+        beam : Beam
+            The beam object to apply the cooling to.
+        length : float
+            The length of the cooler in m.
+        gun_voltage : float | ArrayLike
+            The voltage of the electron gun in V.
+        e_energy_spread : float | ArrayLike
+            The relative energy spread of the electrons.
+        density_electrons : float | ArrayLike
+            The electron density.
+        cycle_time : Iterable[float]
+            The array of times defining the cycle.
+        counter : list[int]
+            The turn counter.
+        """
 
         self.beam = beam
         self.length = length
@@ -51,8 +71,33 @@ class ElectronCooling:
         self._part_charge = self.beam.Particle.charge
         self._device = 'CPU'
 
+    @overload
+    def cooling_force(self, turn: int, particle_velocity: float) -> float:
+        ...
 
-    def _cooling_force(self, turn: int, particle_velocity: float | NDArray):
+    @overload
+    def cooling_force(self, turn: int, particle_velocity: NDArray) -> NDArray:
+        ...
+
+    def cooling_force(self, turn: int, particle_velocity: float | NDArray)\
+                                                            -> float | NDArray:
+        """
+        Calculates the cooling force for a given particle velocity or
+        selection of velocities.  Calculation is based on the Parkhomchuk
+        model.
+
+        Parameters
+        ----------
+        turn : int
+            The turn number at which to compute.
+        particle_velocity : float | NDArray
+            The velocity or velocities.
+
+        Returns
+        -------
+        force : float | NDArray
+            The cooling force applied to each particle.
+        """
 
         v_gun = self.gun_voltage[turn]
         density = self.density_electrons[turn]
@@ -76,6 +121,14 @@ class ElectronCooling:
 
 
     def track(self):
+        """
+        Apply the cooling force on the current turn.
+
+        Returns
+        -------
+        None.
+
+        """
 
         part_energy = self.beam.dE + self.beam.energy
 
@@ -84,11 +137,20 @@ class ElectronCooling:
 
         particle_velocity = part_beta * cont.c
 
-        self.beam.dE += self._cooling_force(self._counter[0],
+        self.beam.dE += self.cooling_force(self._counter[0],
                                             particle_velocity)/cont.e
 
 
     def _interpolate(self, cycle_time: Iterable[float]):
+        """
+        Interpolate the input gun voltage, electron energy spread
+        and electron density onto the given cycle times.
+
+        Parameters
+        ----------
+        cycle_time : Iterable[float]
+            The array of cycle times.
+        """
 
         if hasattr(self.gun_voltage, "__iter__"):
             self.gun_voltage = np.interp(cycle_time, self.gun_voltage[0],
@@ -115,7 +177,7 @@ class ElectronCooling:
                                       + self.density_electrons)
 
 
-    def to_gpu(self, recursive = True):
+    def to_gpu(self, recursive: bool = True):
 
         if not _CP:
             raise RuntimeError("Cannot send to GPU, cupy not available.")
@@ -127,7 +189,7 @@ class ElectronCooling:
             raise RuntimeError("Cannot send to GPU, already there")
 
 
-    def to_cpu(self):
+    def to_cpu(self, recursive: bool = True):
 
         if not _CP:
             raise RuntimeError("Cannot retrieve from GPU, cupy not available.")
