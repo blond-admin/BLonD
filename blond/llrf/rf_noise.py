@@ -254,8 +254,7 @@ class FlatSpectrum:
 
             rms_noise = np.std(self.dphi_output)
             if self.print_option:
-                print("RF noise for time step %.4e s (iter %d) has r.m.s. "
-                      +"phase %.4e rad (%.3e deg)"
+                print("RF noise for time step %.4e s (iter %d) has r.m.s. phase %.4e rad (%.3e deg)"
                       % (self.t[1], i, rms_noise, rms_noise * 180 / np.pi))
 
         if self.continuous_phase:
