@@ -1,3 +1,4 @@
+ENTRYPOINT["/bin/bash"]
 FROM python:3.10
 
 # Set the environment variable to non-interactive
@@ -21,4 +22,3 @@ ENV LD_LIBRARY_PATH=${CUDA_HOME}/lib64:$LD_LIBRARY_PATH
 RUN bash -c 'python3 -m pip install --upgrade pip&& \
        python3 -m pip install cupy-cuda12x  pytest_cov mpi4py'
 
-CMD ["bash"]
