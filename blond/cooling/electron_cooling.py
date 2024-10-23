@@ -77,13 +77,15 @@ class ElectronCooling:
 
     def track(self):
 
-        part_energy = self.beam.dE + self._part_mass
+        part_energy = self.beam.dE + self.beam.energy
+
         part_beta = 1/bm.sqrt(1 + self._part_mass**2
                               / (part_energy**2 - self._part_mass**2))
 
         particle_velocity = part_beta * cont.c
 
-        self.beam.dE += self._cooling_force(self.counter[0], particle_velocity)
+        self.beam.dE += self._cooling_force(self._counter[0],
+                                            particle_velocity)/cont.e
 
 
     def _interpolate(self, cycle_time: Iterable[float]):
