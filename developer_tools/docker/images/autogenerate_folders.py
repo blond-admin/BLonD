@@ -11,7 +11,8 @@ def main():
     PY_VERSIONS = ['3.10', '3.11', '3.12']
     read_py_version = PY_VERSIONS[0]
     folder_read = f"python{without_dot(read_py_version)}-cuda/"
-    assert os.path.isdir(folder_read), f"{folder_read} not found!"
+    if not os.path.isdir(folder_read):
+        raise FileNotFoundError(f"{folder_read} not found!")
 
     for py_version in PY_VERSIONS[1:]:
         populate_folders(folder_read, py_version, read_py_version)
@@ -44,7 +45,12 @@ def populate_folders(folder_read: str, py_version_new: str, py_version_old: str)
     with open(folder_write + ".gitignore", "w") as f:
         pass
 
-    for file in os.listdir(folder_read):
+    # Check if the read folder is empty
+    files = os.listdir(folder_read)
+    if not files:
+        warn(f"{folder_read} is empty! No files to copy.")
+
+    for file in files:
         with open(folder_read + file, "r") as f:
             content = f.read()
         content = replace_python_versions(content, py_version_new, py_version_old)
