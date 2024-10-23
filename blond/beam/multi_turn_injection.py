@@ -21,10 +21,9 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 # BLonD imports
-from . import beam
 
 if TYPE_CHECKING:
-    from typing import Dict, List, Self, Union, Iterable
+    from typing import Self, Iterable
 
     from .beam import Beam
 
@@ -46,7 +45,7 @@ class MultiTurnInjection:
     def __init__(self, main_beam: Beam):
 
         self.main_beam = main_beam
-        self._injections: Dict[int, Union[Beam, Iterable[float]]] = {}
+        self._injections: dict[int, Beam | Iterable[float]] = {}
 
     def __next__(self):
         """
@@ -82,14 +81,14 @@ class MultiTurnInjection:
 
     #TODO:  Not a good solution, but avoids passing in the RFStation object
     # could be solved with the proposed TurnCounter object
-    def set_counter(self, counter: List[int]):
+    def set_counter(self, counter: list[int]):
         """
         Add a 1D list of int to the object to be used as the turn 
         counter.  This should be derived from the RFStation object.
         """
         self._counter = counter
 
-    def add_injection(self, new_beam: Union[Beam, Iterable[float]],
+    def add_injection(self, new_beam: Beam | Iterable[float],
                       injection_turn: int = None):
         """
         Specify a Beam object to be used for an injection.  If no
