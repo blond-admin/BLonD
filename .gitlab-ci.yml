@@ -3,7 +3,6 @@ variables:
   # Set the project root to the directory containing your setup.py
   project_root: ./
   PYPI_UPLOAD_URL: "https://upload.pypi.org/legacy/"
-  CUDA_VERSION: "12.4"
 
 .on_tag:
   # Rules to run a job only on a git tagged commit
@@ -14,7 +13,7 @@ variables:
 .before:
   before_script:
     - apt-get update
-    # Install cuda-toolkit
+    # Verify CUDA installation
     - nvidia-smi
     - gcc --version
     - nvcc --version # probe NVCC installation
