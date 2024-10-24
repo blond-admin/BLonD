@@ -36,7 +36,7 @@ def populate_folders(folder_read: Path, py_version_new: str, py_version_old: str
         The Python version of the read folder
     """
     folder_write = Path(f"python{without_dot(py_version_new)}-cuda/")
-    Path(folder_write).mkdir(exist_ok=True)
+    folder_write.mkdir(exist_ok=True)
 
     with open(folder_write / ".gitignore", "w") as f:
         pass
