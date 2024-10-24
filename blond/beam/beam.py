@@ -29,7 +29,7 @@ from ..utils import exceptions as blExcept
 
 m_mu = physical_constants['muon mass'][0]
 if TYPE_CHECKING:
-    from typing import List, Iterable, Tuple, Self, Union
+    from typing import Iterable, Self, Optional
 
     from ..input_parameters.ring import Ring
     from ..input_parameters.rf_parameters import RFStation
@@ -251,8 +251,9 @@ class Beam:
         self.mean_dE = 0.
         self.sigma_dt = 0.
         self.sigma_dE = 0.
-        self.n_macroparticles = int(n_macroparticles)
-        self.intensity = float(intensity)
+
+        self._update_particles(n_macroparticles=int(n_macroparticles),
+                               intensity=float(intensity))
 
         self.id = np.arange(1, self.n_macroparticles + 1, dtype=int)
         self.epsn_rms_l = 0.
@@ -267,7 +268,7 @@ class Beam:
         # For handling arrays on CPU/GPU
         self._device = 'CPU'
 
-    def __iadd__(self, other: Union[Self, Iterable[float]]) -> Self:
+    def __iadd__(self, other: Self | Iterable[float]) -> Self:
         '''
         Initialisation of in place addition calls add_beam(other) if other
         is a blond beam object, calls add_particles(other) otherwise
@@ -376,8 +377,7 @@ class Beam:
 
     @ratio.setter
     def ratio(self, value: float):
-        self._ratio = value
-        self._intensity = self._ratio * self.n_macroparticles
+        self._update_particles(ratio=value)
 
     @property
     def intensity(self) -> float:
@@ -385,8 +385,45 @@ class Beam:
 
     @intensity.setter
     def intensity(self, value: float):
-        self._intensity = value
-        self._ratio = self._intensity / self.n_macroparticles
+        self._update_particles(intensity=value)
+
+    @property
+    def n_macroparticles(self) -> int:
+        return self._n_macroparticles
+
+    def _update_particles(self, *, n_macroparticles: Optional[int] = None,
+                          intensity: Optional[float] = None,
+                          ratio: Optional[float] = None):
+        
+        input = (n_macroparticles, intensity, ratio)
+
+        match input:
+            case (None, None, None):
+                raise ValueError("All input None is not a valid option")
+            case (None, inten, rat) if inten is not None and rat is not None:
+                raise ValueError("Setting both intensity and ratio is not a"
+                                 + " valid option")
+            case (n_mac, None, None): self._n_macroparticles = n_mac
+
+            case (None, inten, None): self._set_intensity(inten)
+            
+            case (None, None, rat): self._set_ratio(rat)
+            
+            case (n_mac, inten, None):
+                self._n_macroparticles = n_mac
+                self._set_intensity(inten)
+            
+            case (n_mac, None, rat):
+                self._n_macroparticles = n_mac
+                self._set_ratio(rat)
+
+    def _set_intensity(self, intensity: float):
+        self._intensity = intensity
+        self._ratio = intensity / self._n_macroparticles
+    
+    def _set_ratio(self, ratio: float):
+        self._ratio = ratio
+        self._intensity = ratio * self._n_macroparticles
 
 
     def eliminate_lost_particles(self):
@@ -537,14 +574,14 @@ class Beam:
             raise blExcept.ParticleAdditionError(
                 "new_particles shape must be (2, n)")
 
-        nNew = len(newdt)
+        n_new = len(newdt)
 
         self.id = bm.concatenate((self.id, bm.arange(self.n_macroparticles + 1,
                                                      self.n_macroparticles
-                                                     + nNew + 1, dtype=int)))
-        self.n_macroparticles += nNew
+                                                     + n_new + 1, dtype=int)))
 
-        self.ratio = self.ratio
+        self._update_particles(n_macroparticles=self._n_macroparticles + n_new,
+                               ratio=self.ratio)
 
         self.dt = bm.concatenate((self.dt, newdt))
         self.dE = bm.concatenate((self.dE, newdE))
@@ -585,9 +622,11 @@ class Beam:
         newids = counter*(other_beam.id != 0).astype(int)
 
         self.id = bm.concatenate((self.id, newids))
-        self.n_macroparticles += other_beam.n_macroparticles
 
-        self.ratio = self.ratio
+        self._update_particles(n_macroparticles=self.n_macroparticles
+                                                + other_beam.n_macroparticles,
+                               ratio=self.ratio)
+
 
     def split(self, random: bool=False, fast: bool=False):
         '''
@@ -749,7 +788,6 @@ class Beam:
             temp = WORKER.gather(np.array([self.n_macroparticles_lost]))
             self._mpi_n_total_macroparticles_lost = np.sum(temp)
 
-    #TODO:  recursive is not used, does not need to be there?
     def to_gpu(self, recursive: bool=True):
         '''
         Transfer all necessary arrays to the GPU
@@ -765,7 +803,6 @@ class Beam:
 
         self._device = 'GPU'
 
-    #TODO:  recursive is not used, does not need to be there?
     def to_cpu(self, recursive: bool=True):
         '''
         Transfer all necessary arrays back to the CPU
