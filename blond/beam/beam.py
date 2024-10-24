@@ -315,7 +315,7 @@ class Beam:
     def n_macroparticles(self) -> int:
         return self._n_macroparticles
     
-    @property
+    @n_macroparticles.setter
     def n_macroparticles(self, value: int):
         self._update_particles(n_macroparticles=value)
 
