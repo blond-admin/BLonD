@@ -262,10 +262,10 @@ class Beam:
 
         if isinstance(other, type(self)):
             self.add_beam(other)
-            return self
-
-        self.add_particles(other)
+        else:
+            self.add_particles(other)
         return self
+
 
     @property
     def n_macroparticles_lost(self) -> int:
@@ -464,6 +464,8 @@ class Beam:
                                                      + nNew + 1, dtype=int)))
         self.n_macroparticles += nNew
 
+        # Update of self.ratio is needed to force the recalculation
+        # of self.intensity and ensure that there is no change in self.ratio.
         self.ratio = self.ratio
 
         self.dt = bm.concatenate((self.dt, newdt))
