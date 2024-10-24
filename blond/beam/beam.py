@@ -314,6 +314,10 @@ class Beam:
     @property
     def n_macroparticles(self) -> int:
         return self._n_macroparticles
+    
+    @property
+    def n_macroparticles(self, value: int):
+        self._update_particles(n_macroparticles=value)
 
     def _update_particles(self, *, n_macroparticles: Optional[int] = None,
                           intensity: Optional[float] = None,
