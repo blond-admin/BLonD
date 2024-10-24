@@ -280,10 +280,10 @@ class Beam:
 
         if isinstance(other, type(self)):
             self.add_beam(other)
-            return self
-
-        self.add_particles(other)
+        else:
+            self.add_particles(other)
         return self
+
 
     @property
     def n_total_macroparticles_lost(self):
