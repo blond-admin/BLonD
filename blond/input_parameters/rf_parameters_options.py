@@ -27,7 +27,7 @@ from ..plots.plot import fig_folder
 from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
-    from typing import Literal, Optional, Callable
+    from typing import Literal, Optional, Callable, Sequence
 
     from numpy.typing import NDArray, ArrayLike
 

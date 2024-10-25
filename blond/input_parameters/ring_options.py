@@ -27,9 +27,9 @@ from scipy.interpolate import splev, splrep, Akima1DInterpolator
 from ..plots.plot import fig_folder
 
 if TYPE_CHECKING:
-    from typing import Iterable, Literal, Optional
+    from typing import Literal, Optional
 
-    from numpy.typing import NDArray
+    from numpy.typing import NDArray, ArrayLike
 
     from ..utils.types import InterpolationTypes
     from .ring import SynchronousDataTypes
@@ -450,7 +450,7 @@ class RingOptions:
                               momentum_interp: list[float],
                               beta_interp: list[float], circumference: float,
                               time: NDArray, momentum: NDArray,
-                              mass: float) -> tuple[Iterable[float], ...]:
+                              mass: float) -> tuple[ArrayLike[float], ...]:
 
         time_interp.append(time_interp[-1]
                            + circumference / (beta_interp[0] * c))
@@ -527,9 +527,9 @@ class RingOptions:
                                   momentum_interp: list[float],
                                   beta_interp: list[float],
                                   circumference: float,
-                                  time: Iterable[float],
-                                  momentum: Iterable[float],
-                                  mass: float) -> tuple[Iterable[float], ...]:
+                                  time: ArrayLike[float],
+                                  momentum: ArrayLike[float],
+                                  mass: float) -> tuple[ArrayLike[float], ...]:
 
         momentum_initial = momentum_interp[0]
         momentum_derivative = np.gradient(momentum) / np.gradient(time)
@@ -573,9 +573,9 @@ class RingOptions:
                              momentum_interp: list[float],
                              beta_interp: list[float],
                              circumference: float,
-                             time: Iterable[float],
-                             momentum: Iterable[float],
-                             mass: float) -> tuple[Iterable[float], ...]:
+                             time: ArrayLike[float],
+                             momentum: ArrayLike[float],
+                             mass: float) -> tuple[ArrayLike[float], ...]:
 
         interp_func = Akima1DInterpolator(time, momentum)
 

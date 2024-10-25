@@ -24,7 +24,7 @@ from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
     from os import PathLike
-
+    from typing import Literal
     import h5py as hp
 
     from ..beam.beam import Beam
@@ -259,7 +259,7 @@ def plot_position_evol(rf_station: RFStation, h5data: hp.File,
 
 
 @handle_legacy_kwargs
-def plot_position_evol(rf_station: RFStation, h5data: hp.File,
+def plot_energy_evol(rf_station: RFStation, h5data: hp.File,
                        output_freq: float = 1, style: str = '.',
                        dirname: str | PathLike[str] = 'fig',
                        show_plot: bool = False):
@@ -295,7 +295,7 @@ def plot_position_evol(rf_station: RFStation, h5data: hp.File,
 
 
 @handle_legacy_kwargs
-def plot_position_evol(rf_station: RFStation, h5data: hp.File,
+def plot_transmitted_particles(rf_station: RFStation, h5data: hp.File,
                        output_freq: float = 1, style: str = '.',
                        dirname: str | PathLike[str] = 'fig',
                        show_plot: bool = False):

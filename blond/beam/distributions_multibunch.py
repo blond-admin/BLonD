@@ -21,9 +21,9 @@ else:
 
 from .beam import Beam
 from .distributions import (x0_from_bunch_length, distribution_function,
-                                      matched_from_distribution_function,
-                                      matched_from_line_density, populate_bunch,
-                                      potential_well_cut)
+                            matched_from_distribution_function,
+                            matched_from_line_density, populate_bunch,
+                            potential_well_cut)
 from ..utils import bmath as bm
 from ..utils.legacy_support import handle_legacy_kwargs
 
@@ -390,9 +390,8 @@ def matched_from_line_density_multibunch(beam: Beam, ring: Ring,
             bucket_tolerance = 0.40
 
             left_edge = (indexBunch + 1) * bunch_spacing_buckets * bucket_size_tau - bucket_tolerance * bucket_size_tau
-            right_edge = ((indexBunch + 1) * bunch_spacing_buckets + 1)
-                          * bucket_size_tau + bucket_tolerance
-                          * bucket_size_tau
+            right_edge = (((indexBunch + 1) * bunch_spacing_buckets + 1)
+                          * bucket_size_tau + bucket_tolerance * bucket_size_tau)
 
             tau_induced_voltage_next_bunch = total_induced_voltage_iteration.profile.bin_centers[
                 (total_induced_voltage_iteration.profile.bin_centers > left_edge)
@@ -685,12 +684,13 @@ def match_beam_from_distribution_multibatch(beam: Beam, full_ring_and_rf: FullRi
     length_dt = len(temporary_batch.dt)
     print(length_dt)
     for index_batch in range(n_batch):
-        i_l, i_r = index_batch * length_dt, (index_batch + 1) * length_dt
-        beam.dt[i_l : i_r] = temporary_batch.dt + index_batch
-                             * (n_bunches - 1) * bunch_spacing_buckets
-                             * bucket_size_tau + (index_batch)
-                             * batch_spacing_buckets * bucket_size_tau
-        beam.dE[index_batch * length_dt:(index_batch + 1) * length_dt] = temporary_batch.dE
+        start = index_batch * length_dt
+        stop = (index_batch + 1) * length_dt
+        beam.dt[start:stop] = (temporary_batch.dt
+                               + index_batch * (n_bunches - 1) * bunch_spacing_buckets * bucket_size_tau
+                               + (index_batch) * batch_spacing_buckets * bucket_size_tau)
+        beam.dE[start:stop] = temporary_batch.dE
+
 
     plt.figure('copymultibatch')
     plt.plot(beam.dt[::100], beam.dE[::100], 'b.')

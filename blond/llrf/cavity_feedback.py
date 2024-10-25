@@ -89,7 +89,7 @@ class CavityFeedback:
         The index of the harmonic in the RFStation that the feedback should act on
     """
 
-def __init__(self, rf_station: RFStation, profile: Profile, n_cavities: int,
+    def __init__(self, rf_station: RFStation, profile: Profile, n_cavities: int,
              n_s: int, n_h: int, lpf: bool = False) -> None:
         # BLonD classes the feedback should get information from
         self.rf_station: RFStation = rf_station

@@ -9,11 +9,15 @@
 """
 :Authors: **Danilo Quartullo**, **Joel Repond**
 """
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import numpy as np
 import scipy.special as scisp
 from scipy.constants import e
-
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
 
 def analytical_gaussian_resonator(sigma_t: float, Q: float, R_s: float,
                                   omega_r: float, tau_array: NDArray | float,
