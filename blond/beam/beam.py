@@ -223,8 +223,6 @@ class Beam:
     >>> my_beam = Beam(ring, n_macroparticle, intensity)
     """
 
-    #TODO:  Variable names should all be lower case, leaving for now as
-    # could be a breaking change
     def __init__(self, Ring: Ring, n_macroparticles: int, intensity: float):
 
         self.Particle = Ring.Particle
@@ -265,10 +263,10 @@ class Beam:
 
         if isinstance(other, type(self)):
             self.add_beam(other)
-            return self
-
-        self.add_particles(other)
+        else:
+            self.add_particles(other)
         return self
+
 
     @property
     def n_macroparticles_lost(self) -> int:
@@ -400,7 +398,6 @@ class Beam:
         # R.m.s. emittance in Gaussian approximation
         self.epsn_rms_l = np.pi * self.sigma_dE * self.sigma_dt  # in eVs
 
-    #TODO:  Variable names to lower case
     def losses_separatrix(self, Ring: Ring, RFStation: RFStation):
         '''Beam losses based on separatrix.
 
