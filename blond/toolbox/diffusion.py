@@ -25,6 +25,7 @@ from .action import x2, action_from_phase_amplitude
 from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
+    from typing import Tuple
     from os import PathLike
 
     from numpy.typing import NDArray
@@ -34,9 +35,12 @@ if TYPE_CHECKING:
 
 
 @handle_legacy_kwargs
-def phase_noise_diffusion(ring: Ring, rf_station: RFStation, spectrum: NDArray, distribution: NDArray,
-                          distributionBins: NDArray, Ngrids: int = 200, M: int = 1,
-                          iterations: int = 100000, figdir: PathLike | str | None = None):
+def phase_noise_diffusion(ring: Ring, rf_station: RFStation, spectrum: NDArray,
+                          distribution: NDArray, distributionBins: NDArray,
+                          Ngrids: int = 200, M: int = 1,
+                          iterations: int = 100000,
+                          figdir: PathLike | str | None = None)\
+                                        -> Tuple[NDArray, NDArray, NDArray]:
     """
     Calculate diffusion in action space according to a given double-sided phase
     noise spectrum, on a uniform grid in oscillation amplitude.
