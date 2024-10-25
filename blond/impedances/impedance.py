@@ -15,7 +15,6 @@
 
 from __future__ import annotations
 
-from abc import abstractmethod
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -37,7 +36,7 @@ if TYPE_CHECKING:
     from ..beam.profile import Profile
     from .impedance_sources import _ImpedanceObject, Resonators
     from ..input_parameters.rf_parameters import RFStation
-    from ..utils.types import DeviceType,BeamProfileDerivativeModes
+    from ..utils.types import DeviceType, BeamProfileDerivativeModes
 
     MtwModeTypes = Literal["freq", "time"]
 
@@ -74,7 +73,8 @@ class TotalInducedVoltage:
     """
 
     @handle_legacy_kwargs
-    def __init__(self, beam: Beam, profile: Profile, induced_voltage_list: list[_InducedVoltage]) -> None:
+    def __init__(self, beam: Beam, profile: Profile,
+                 induced_voltage_list: list[_InducedVoltage]) -> None:
         """
         Constructor.
         """
@@ -117,8 +117,8 @@ class TotalInducedVoltage:
                 induced_voltage_object.induced_voltage[:self.profile.n_slices]
 
         self.induced_voltage = temp_induced_voltage.astype(
-                                                    dtype=bm.precision.real_t,
-                                                    order='C', copy=False)
+            dtype=bm.precision.real_t,
+            order='C', copy=False)
 
     def track(self):
         """
@@ -400,9 +400,9 @@ class _InducedVoltage:
         # FIXME total_impedance might be not None
         induced_voltage = -(self.beam.particle.charge * e * self.beam.ratio
                             * bm.irfft(self.total_impedance.astype(
-                                                dtype=bm.precision.complex_t,
-                                                order='C', copy=False)
-                            * beam_spectrum))
+                    dtype=bm.precision.complex_t,
+                    order='C', copy=False)
+                                       * beam_spectrum))
 
         self.induced_voltage = induced_voltage[:self.n_induced_voltage].astype(
             dtype=bm.precision.real_t, order='C', copy=False)
@@ -839,7 +839,7 @@ class InductiveImpedance(_InducedVoltage):
     @handle_legacy_kwargs
     def __init__(self, beam: Beam, profile: Profile, Z_over_n: float,
                  rf_station: RFStation,
-                 deriv_mode: BeamProfileDerivativeModes='gradient'):
+                 deriv_mode: BeamProfileDerivativeModes = 'gradient'):
 
         # Constant imaginary Z/n program in* :math:`\Omega`.
         self.Z_over_n = Z_over_n
@@ -863,7 +863,7 @@ class InductiveImpedance(_InducedVoltage):
                              * self.rf_params.t_rev[index]
                              / self.profile.bin_size
                              * self.profile.beam_profile_derivative(
-                                                           self.deriv_mode)[1])
+                    self.deriv_mode)[1])
 
         self.induced_voltage = (induced_voltage[:self.n_induced_voltage]).astype(
             dtype=bm.precision.real_t, order='C', copy=False)
@@ -948,7 +948,7 @@ class InducedVoltageResonator(_InducedVoltage):
 
     @handle_legacy_kwargs
     def __init__(self, beam: Beam, profile: Profile, resonators: Resonators,
-                 timeArray: Optional[NDArray]=None):
+                 timeArray: Optional[NDArray] = None):
 
         # Test if one or more quality factors is smaller than 0.5.
         if sum(resonators.Q < 0.5) > 0:
@@ -1054,8 +1054,8 @@ class InducedVoltageResonator(_InducedVoltage):
         # ... and multiply with bunch charge
         self.induced_voltage *= -self.beam.particle.charge * e \
                                 * self.beam.n_macroparticles * self.beam.ratio
-        self.induced_voltage = self.induced_voltage.astype(
-            dtype=bm.precision.real_t, order='C', copy=False)
+        self.induced_voltage = (self.induced_voltage
+                                .astype(dtype=bm.precision.real_t, order='C', copy=False))
 
     # Implementation of Heaviside function
     def Heaviside(self, x):

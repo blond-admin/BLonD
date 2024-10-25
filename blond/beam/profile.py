@@ -174,10 +174,8 @@ class CutOptions:
             self.cut_right = float(self.convert_coordinates(self.cut_right,
                                                             self.cuts_unit))
 
-        self.edges = np.linspace(
-            self.cut_left, self.cut_right,
-            self.n_slices + 1
-        ).astype(dtype=bm.precision.real_t, order='C', copy=False)
+        self.edges = (np.linspace(self.cut_left, self.cut_right, self.n_slices + 1)
+                      .astype(dtype=bm.precision.real_t, order='C', copy=False))
         self.bin_centers = (self.edges[:-1] + self.edges[1:]) / 2
         self.bin_size = (self.cut_right - self.cut_left) / self.n_slices
 
@@ -282,6 +280,7 @@ class FitOptions:
     fit_option : string
     fit_extra_options : unknown # TODO
     """
+
     @handle_legacy_kwargs
     def __init__(self,
                  fit_option: Optional[FitOptionTypes] = None,
@@ -328,6 +327,7 @@ class FilterOptions:
     filter_extra_options : dictionary
 
     """
+
     @handle_legacy_kwargs
     def __init__(self, filter_method: Optional[FilterMethodType] = None,
                  filter_extra_options: Optional[FilterExtraOptionsType] = None) -> None:
@@ -585,7 +585,7 @@ class Profile:
         """
         self.n_slices, self.cut_left, self.cut_right, self.n_sigma, \
             self.edges, self.bin_centers, self.bin_size = \
-            self.cut_options.get_slices_parameters() # fixme get_slices_parameters doesnt exist
+            self.cut_options.get_slices_parameters()  # fixme get_slices_parameters doesnt exist
 
     def track(self) -> None:
         """
@@ -745,7 +745,7 @@ class Profile:
         """
         self.beam_spectrum = bm.rfft(self.n_macroparticles, n_sampling_fft)
 
-    def beam_profile_derivative(self, mode: BeamProfileDerivativeModes='gradient'):
+    def beam_profile_derivative(self, mode: BeamProfileDerivativeModes = 'gradient'):
         """
         The input is one of the three available methods for differentiating
         a function. The two outputs are the bin centres and the discrete

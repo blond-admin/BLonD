@@ -15,7 +15,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 import scipy
@@ -235,7 +235,9 @@ class RFStation:
     def __init__(self, ring: Ring, harmonic: int| list[int], voltage: float | list[float], phi_rf_d,
                  n_rf=1,
                  section_index=1, omega_rf=None, phi_noise=None,
-                 phi_modulation=None, rf_station_options: RFStationOptions = RFStationOptions()):
+                 phi_modulation=None, rf_station_options: Optional[RFStationOptions] = None):
+        if rf_station_options is None:
+            rf_station_options = RFStationOptions()
 
         # Different indices
         self.counter = [int(0)]
@@ -474,7 +476,7 @@ class RFStation:
 
 
 @handle_legacy_kwargs
-def calculate_Q_s(rf_station: RFStation, particle: Particle = Proton()):
+def calculate_Q_s(rf_station: RFStation, particle: Optional[Particle] = None):
     r""" Function calculating the turn-by-turn synchrotron tune for
     single-harmonic RF, without intensity effects.
 
@@ -491,6 +493,8 @@ def calculate_Q_s(rf_station: RFStation, particle: Particle = Proton()):
         Synchrotron tune.
 
     """
+    if particle is None:
+        particle = Proton()
 
     return np.sqrt(rf_station.harmonic[0] * np.abs(particle.charge)
                    * rf_station.voltage[0] * np.abs(rf_station.eta_0
@@ -499,7 +503,7 @@ def calculate_Q_s(rf_station: RFStation, particle: Particle = Proton()):
 
 
 @handle_legacy_kwargs
-def calculate_phi_s(rf_station: RFStation, particle: Particle = Proton(),
+def calculate_phi_s(rf_station: RFStation, particle: Optional[Particle] = None,
                     accelerating_systems='as_single'):
     r"""Function calculating the turn-by-turn synchronous phase according to
     the parameters in the RFStation object. The phase is expressed in
@@ -536,7 +540,8 @@ def calculate_phi_s(rf_station: RFStation, particle: Particle = Proton(),
         Synchronous phase.
 
     """
-
+    if particle is None:
+        particle = Proton()
     eta0 = rf_station.eta_0
 
     if accelerating_systems == 'as_single':
