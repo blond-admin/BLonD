@@ -15,8 +15,9 @@ import scipy.special as scisp
 from scipy.constants import e
 
 
-def analytical_gaussian_resonator(sigma_t: float, Q: float, R_s: float, omega_r: float, tau_array: float,
-                                  n_particles: int):
+def analytical_gaussian_resonator(sigma_t: float, Q: float, R_s: float,
+                                  omega_r: float, tau_array: NDArray | float,
+                                  n_particles: int) -> NDArray | float:
     r"""Calculate the analytical induced voltage for a gaussian bunch and a resonator.
 
     Parameters

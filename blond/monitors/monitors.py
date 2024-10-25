@@ -409,8 +409,8 @@ class MultiBunchMonitor:
     """
 
     @handle_legacy_kwargs
-    def __init__(self, filename: os.PathLike | str, n_turns, profile: Profile, rf_station: RFStation,
-                 n_bunches: int, buffer_size=100):
+    def __init__(self, filename: os.PathLike | str, n_turns, profile: Profile,
+                 rf_station: RFStation, n_bunches: int, buffer_size=100):
 
         # create directory to save h5 file if needed
         dirname = os.path.dirname(filename)
@@ -554,13 +554,17 @@ class MultiBunchMonitor:
             self.b_dE_norm[idx] = self.rf_station.voltage[0, turn]
 
             if turn == 0:
-                self.b_dt_norm[idx] = self.rf_station.t_rev[0] * self.rf_station.eta_0[0] * \
-                                      self.rf_station.voltage[0, 0] / \
-                                      (self.rf_station.beta[0] ** 2 * self.rf_station.energy[0])
+                self.b_dt_norm[idx] = (self.rf_station.t_rev[0]
+                                       * self.rf_station.eta_0[0]
+                                       * self.rf_station.voltage[0, 0]
+                                       / (self.rf_station.beta[0]**2
+                                          * self.rf_station.energy[0]))
             else:
-                self.b_dt_norm[idx] = self.rf_station.t_rev[turn] * self.rf_station.eta_0[turn] * \
-                                      self.rf_station.voltage[0, turn - 1] / \
-                                      (self.rf_station.beta[turn] ** 2 * self.rf_station.energy[turn])
+                self.b_dt_norm[idx] = (self.rf_station.t_rev[turn]
+                                       * self.rf_station.eta_0[turn]
+                                       * self.rf_station.voltage[0, turn - 1]
+                                       / (self.rf_station.beta[turn]**2
+                                          * self.rf_station.energy[turn]))
 
     def write_data(self):
         i1_h5 = self.last_save

@@ -33,7 +33,9 @@ if TYPE_CHECKING:
     from ..utils.types import DeviceType
     from .beam import Beam
     from ..input_parameters.rf_parameters import RFStation
-    from ..utils.types import FilterExtraOptionsType, CutUnitType, FitOptionTypes, FilterMethodType,BeamProfileDerivativeModes
+    from ..utils.types import (FilterExtraOptionsType, CutUnitType,
+                               FitOptionTypes, FilterMethodType,
+                               BeamProfileDerivativeModes)
 
 
 class CutOptions:
@@ -91,14 +93,10 @@ class CutOptions:
     """
 
     @handle_legacy_kwargs
-    def __init__(self,
-                 cut_left: Optional[float] = None,
-                 cut_right: Optional[float] = None,
-                 n_slices: int = 100,
-                 n_sigma: Optional[int] = None,
-                 cuts_unit: CutUnitType = 's',
-                 rf_station: Optional[RFStation] = None
-                 ) -> None:
+    def __init__(self, cut_left: Optional[float] = None,
+                 cut_right: Optional[float] = None, n_slices: int = 100,
+                 n_sigma: Optional[int] = None, cuts_unit: CutUnitType = 's',
+                 rf_station: Optional[RFStation] = None) -> None:
         """
         Constructor
         """
@@ -496,8 +494,6 @@ class Profile:
             filter_options = FilterOptions()
         if other_slices_options is None:
             other_slices_options = OtherSlicesOptions()
-
-
 
         # Copy of CutOptions object to be used for re-slicing
         self.cut_options = cut_options

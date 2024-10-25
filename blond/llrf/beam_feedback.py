@@ -41,15 +41,10 @@ class BeamFeedback:
     """
 
     @handle_legacy_kwargs
-    def __init__(self,
-                 ring: Ring,
-                 rf_station: RFStation,
-                 profile: Profile,
+    def __init__(self, ring: Ring, rf_station: RFStation, profile: Profile,
                  configuration: dict[str, str | float],  # todo improve type hint
                  PhaseNoise: None = None,  # todo class doesnt exist anymore??
-                 LHCNoiseFB: Optional[LHCNoiseFB] = None,
-                 delay: int = 0
-                 ) -> None:
+                 LHCNoiseFB: Optional[LHCNoiseFB] = None, delay: int = 0) -> None:
 
         #: | *Import Ring*
         self.ring = ring
@@ -549,11 +544,9 @@ class BeamFeedback:
                                      (1. / (self.ring.alpha_0[0, counter] *
                                             self.rf_station.gamma[counter] ** 2) - 1.))
 
-            self.domega_RL = (
-                    self.domega_RL +
-                    self.gain2[0][counter] * (self.dR_over_R - self.dR_over_R_prev) +
-                    self.gain2[1][counter] * self.dR_over_R
-            )
+            self.domega_RL = (self.domega_RL + self.gain2[0][counter]
+                              * (self.dR_over_R - self.dR_over_R_prev)
+                              + self.gain2[1][counter] * self.dR_over_R)
 
             self.dR_over_R_prev = self.dR_over_R
 

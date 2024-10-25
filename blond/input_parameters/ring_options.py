@@ -478,7 +478,7 @@ class RingOptions:
                              beta_interp: list[float], circumference: float,
                              time: NDArray, momentum: NDArray,
                              mass: float, time_start_ramp: float,
-                             time_end_ramp: float) -> tuple[NDArray,    ...]:
+                             time_end_ramp: float) -> tuple[NDArray, ...]:
 
         interp_funtion_momentum = splrep(
             time[(time >= time_start_ramp) * (time <= time_end_ramp)],
@@ -595,11 +595,8 @@ class RingOptions:
 
         return time_interp, momentum_interp, beta_interp
 
-    def _next_time_beta(self,
-                        next_momentum: float,
-                        mass: float,
-                        circumference: float
-                        ) -> tuple[float, float]:
+    def _next_time_beta(self, next_momentum: float, mass: float,
+                        circumference: float) -> tuple[float, float]:
 
         beta = np.sqrt(1 / (1 + (mass / next_momentum) ** 2))
 
@@ -608,12 +605,9 @@ class RingOptions:
         return time, beta
 
 
-def convert_data(synchronous_data: NDArray,
-                 mass: float,
-                 charge: float,
+def convert_data(synchronous_data: NDArray, mass: float, charge: float,
                  synchronous_data_type: SynchronousDataTypes = 'momentum',
-                 bending_radius: Optional[float] = None
-                 ) -> NDArray:
+                 bending_radius: Optional[float] = None) -> NDArray:
     """ Function to convert synchronous data (i.e. energy program of the
     synchrotron) into momentum.
 

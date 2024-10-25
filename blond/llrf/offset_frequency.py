@@ -36,12 +36,9 @@ class _FrequencyOffset:
     """
 
     @handle_legacy_kwargs
-    def __init__(self,
-                 ring: Ring,
-                 rf_station: RFStation,
+    def __init__(self, ring: Ring, rf_station: RFStation,
                  system: Optional[int, Iterable[int]] = None,
-                 main_harmonic: Optional[float] = None
-                 ) -> None:
+                 main_harmonic: Optional[float] = None) -> None:
 
         #: | *Import Ring*
         self.ring = ring
@@ -93,10 +90,11 @@ class _FrequencyOffset:
         #: | *Check of frequency is passed as array of [time, freq]*
         if isinstance(new_frequency_program, np.ndarray):
             if new_frequency_program.shape[0] == 2:
-                end_turn = np.where(self.ring.cycle_time >=
-                                    new_frequency_program[0][-1])[0][0]
+                end_turn = np.where(self.ring.cycle_time
+                                    >= new_frequency_program[0][-1])[0][0]
                 new_frequency_program = np.interp(self.ring.cycle_time[:end_turn],
-                                                  new_frequency_program[0], new_frequency_program[1])
+                                                  new_frequency_program[0],
+                                                  new_frequency_program[1])
 
         #: | *Store new frequency as numpy array relative to the main harmonic*
         self.new_frequency = np.array(new_frequency_program) / self.main_harmonic
@@ -153,14 +151,11 @@ class FixedFrequency(_FrequencyOffset):
     """
 
     @handle_legacy_kwargs
-    def __init__(self,
-                 ring: Ring,
-                 rf_station: RFStation,
-                 fixed_frequency: float,
-                 fixed_duration: float,
-                 transition_duration: float,
-                 transition: bool = True) -> None:
-        _FrequencyOffset.__init__(self, ring, rf_station)
+    def __init__(self, ring: Ring, rf_station: RFStation,
+                 fixed_frequency: float, fixed_duration: float,
+                 transition_duration: float, transition: bool = True) -> None:
+
+        super().__init__(ring, rf_station)
 
         #: | *Set value of fixed frequency*
         self.fixed_frequency = fixed_frequency

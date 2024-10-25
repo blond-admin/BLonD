@@ -61,12 +61,14 @@ def fig_folder(dirname):
 class Plot:
 
     @handle_legacy_kwargs
-    def __init__(self, ring: Ring, rf_station: RFStation, beam: Beam, dt_plot: int,
-                 dt_bckp: int, xmin: float, xmax: float, ymin: float, ymax: float, xunit: str = 's', sampling: int = 1,
-                 show_plots: bool = False,
-                 separatrix_plot: bool = False, histograms_plot: bool = True,
-                 profile: Optional[Profile] = None, h5file: Optional[hp.File] = None, output_frequency: int = 1,
-                 phase_loop: Optional[BeamFeedback] = None, lhc_noise_fb: Optional[LHCNoiseFB] = None,
+    def __init__(self, ring: Ring, rf_station: RFStation, beam: Beam,
+                 dt_plot: int, dt_bckp: int, xmin: float, xmax: float,
+                 ymin: float, ymax: float, xunit: str = 's', sampling: int = 1,
+                 show_plots: bool = False, separatrix_plot: bool = False,
+                 histograms_plot: bool = True, profile: Optional[Profile] = None,
+                 h5file: Optional[hp.File] = None, output_frequency: int = 1,
+                 phase_loop: Optional[BeamFeedback] = None,
+                 lhc_noise_fb: Optional[LHCNoiseFB] = None,
                  format_options: Optional[dict] = None):
         """
         Define what plots should be plotted during the simulation. Passing only

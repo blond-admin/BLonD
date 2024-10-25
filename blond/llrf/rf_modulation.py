@@ -30,13 +30,9 @@ if TYPE_CHECKING:
 
 class PhaseModulation:
 
-    def __init__(self,
-                 timebase: NDArray,
-                 frequency: float | NDArray,
-                 amplitude: float | NDArray,
-                 offset: float | NDArray,
-                 harmonic: float | int,
-                 multiplier: int = 1,
+    def __init__(self, timebase: NDArray, frequency: float | NDArray,
+                 amplitude: float | NDArray, offset: float | NDArray,
+                 harmonic: float | int, multiplier: int = 1,
                  modulate_frequency: bool = True) -> None:
 
         msg = "must be a single numerical value or have shape (2, n)"

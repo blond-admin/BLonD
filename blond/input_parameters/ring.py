@@ -393,7 +393,7 @@ class Ring:
                             self.alpha_0[i] ** 2 * self.eta_0[i] - 3 * self.beta[i] ** 2 * \
                             self.alpha_0[i] / (2 * self.gamma[i] ** 2)
 
-    def parameters_at_time(self, cycle_moments: np.array | list):
+    def parameters_at_time(self, cycle_moments: Iterable[float] | float):
         """ Function to return various cycle parameters at a specific moment in
         time. The cycle time is defined to start at zero in turn zero.
 

@@ -137,11 +137,8 @@ class InputTable(_ImpedanceObject):
 
     """
 
-    def __init__(self,
-                 input_1: ArrayLike[float],
-                 input_2: ArrayLike[float],
-                 input_3: Optional[ArrayLike[float]] = None
-                 ):
+    def __init__(self, input_1: ArrayLike[float], input_2: ArrayLike[float],
+                 input_3: Optional[ArrayLike[float]] = None):
 
 
         _ImpedanceObject.__init__(self)
@@ -281,8 +278,7 @@ class Resonators(_ImpedanceObject):
     >>> resonators.imped_calc(frequency)
     """
 
-    def __init__(self,
-                 R_S: float | list[float] | NDArray,
+    def __init__(self, R_S: float | list[float] | NDArray,
                  frequency_R: float | list[float] | NDArray,
                  Q: float | list[float] | NDArray,
                  method: ResonatorsMethodType = 'c++') -> None:
@@ -463,11 +459,9 @@ class TravelingWaveCavity(_ImpedanceObject):
     >>> twc.imped_calc(frequency)
     """
 
-    def __init__(self,
-                 R_S: float | Iterable[float] | NDArray,
+    def __init__(self, R_S: float | Iterable[float] | NDArray,
                  frequency_R: float | Iterable[float] | NDArray,
-                 a_factor: float | Iterable[float] | NDArray
-                 ) -> None:
+                 a_factor: float | Iterable[float] | NDArray) -> None:
 
         _ImpedanceObject.__init__(self)
 
@@ -534,19 +528,18 @@ class TravelingWaveCavity(_ImpedanceObject):
         self.impedance = np.zeros(len(self.frequency_array), dtype=bm.precision.complex_t, order='C')
 
         for i in range(0, self.n_twc):
-            Zplus = self.R_S[i] * ((bm.sin(self.a_factor[i] / 2 *
-                                           (self.frequency_array - self.frequency_R[i])) /
-                                    (self.a_factor[i] / 2 * (self.frequency_array -
-                                                             self.frequency_R[i]))) ** 2 - 2j * (self.a_factor[i] *
-                                                                                                 (self.frequency_array -
-                                                                                                  self.frequency_R[i]) -
-                                                                                                 bm.sin(self.a_factor[
-                                                                                                            i] * (
-                                                                                                                self.frequency_array -
-                                                                                                                self.frequency_R[
-                                                                                                                    i]))) / (
-                                           self.a_factor[i] *
-                                           (self.frequency_array - self.frequency_R[i])) ** 2)
+            Zplus = (self.R_S[i]
+                     * ((bm.sin(self.a_factor[i] / 2 * (self.frequency_array
+                                                        - self.frequency_R[i]))
+                         / (self.a_factor[i] / 2 * (self.frequency_array
+                                                    - self.frequency_R[i])))**2
+                         - 2j * (self.a_factor[i] * (self.frequency_array
+                                                     - self.frequency_R[i])
+                                 - bm.sin(self.a_factor[i]
+                                          * (self.frequency_array
+                                          - self.frequency_R[i])))
+                     / (self.a_factor[i] * (self.frequency_array
+                                            - self.frequency_R[i])) ** 2))
 
             Zminus = self.R_S[i] * ((bm.sin(self.a_factor[i] / 2 *
                                             (self.frequency_array + self.frequency_R[i])) /
@@ -608,9 +601,7 @@ class ResistiveWall(_ImpedanceObject):
     >>> rw.imped_calc(frequency)
     """
 
-    def __init__(self,
-                 pipe_radius: float,
-                 pipe_length: float,
+    def __init__(self, pipe_radius: float, pipe_length: float,
                  resistivity: Optional[float] = None,
                  conductivity: Optional[float] = None):
 
@@ -672,12 +663,16 @@ class ResistiveWall(_ImpedanceObject):
 
         self.frequency_array = frequency_array
 
-        self.impedance = (self.Z0 * c * self.pipe_length /
-                          (np.pi * (1.0 - 1j * np.sign(self.frequency_array)) * 2 *
-                           self.pipe_radius * c * np.sqrt(self.conductivity * self.Z0 * c /
-                                                          (4.0 * np.pi * np.abs(self.frequency_array)))
-                           + 1j * self.pipe_radius ** 2.0 * 2.0 * np.pi * self.frequency_array)).astype(
-            dtype=bm.precision.complex_t, order='C', copy=False)
+        self.impedance = (self.Z0 * c * self.pipe_length
+                          / (np.pi * (1.0 - 1j * np.sign(self.frequency_array))
+                             * 2 * self.pipe_radius * c
+                             * np.sqrt(self.conductivity * self.Z0 * c
+                                       / (4.0 * np.pi
+                                          * np.abs(self.frequency_array)))
+                             + 1j * self.pipe_radius ** 2.0 * 2.0 * np.pi
+                             * self.frequency_array)
+                         ).astype(dtype=bm.precision.complex_t, order='C',
+                                  copy=False)
 
         self.impedance[np.isnan(self.impedance)] = 0.0
 
@@ -771,8 +766,7 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
 
     """
 
-    def __init__(self, r_bend: float,
-                 gamma: Optional[float] = None,
+    def __init__(self, r_bend: float, gamma: Optional[float] = None,
                  chamber_height: float = np.inf) -> None:
         r"""
 
@@ -859,11 +853,8 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
                 'method for impedance calculation in CoherentSynchrotronRadiation object '
                 + 'not recognized')
 
-    def _pp_low_frequency(self,
-                          frequency_array: NDArray,
-                          u_max: float = 10.,
-                          high_frequency_transition: float = np.inf
-                          ):
+    def _pp_low_frequency(self, frequency_array: NDArray, u_max: float = 10.,
+                          high_frequency_transition: float = np.inf):
         """
         Computes the parallel-plates impedance according to eq. 8 of [Chao2011]_. For frequencies
         larger than the cut-off frequencies, it approaches the low-frequency free-space impedance,
@@ -1240,15 +1231,15 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
     # todo type hint
     def _fs_integrandImZ1(self, y, x):
         # integrand of imaginary part of free-space impedance for y<1
-        return np.real(bm.exp(-x * y) * (
-                (1j * y + np.sqrt(1 - y ** 2)) ** (5 / 3) + 1 / (1j * y + np.sqrt(1 - y ** 2)) ** (5 / 3) - 2 * np.sqrt(
-            1 - y ** 2))
+        return np.real(bm.exp(-x*y) * ((1j*y + np.sqrt(1 - y**2)) ** (5/3)
+                                       + 1/(1j*y + np.sqrt(1 - y**2)) ** (5/3)
+                                       - 2 * np.sqrt(1 - y ** 2))
                        / (4 * y * np.sqrt(1 - y ** 2)))
 
     # todo type hint
     def _fs_integrandImZ2(self, y, x):
         # integrand of imaginary part of free-space impedance for y>1
-        return bm.exp(-x * y) * (
-                8 * np.sqrt(y ** 2 - 1) - (y + np.sqrt(y ** 2 - 1)) ** (5 / 3) + 1 / (y + np.sqrt(y ** 2 - 1)) ** (
-                5 / 3)) \
-            / (8 * y * np.sqrt(y ** 2 - 1))
+        return (bm.exp(-x*y) * (8*np.sqrt(y**2 - 1)
+                                - (y + np.sqrt(y**2 - 1)) ** (5/3)
+                                + 1/(y + np.sqrt(y**2 - 1)) ** (5/3))
+                / (8 * y * np.sqrt(y**2 - 1)))

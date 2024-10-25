@@ -492,10 +492,10 @@ def calculate_Q_s(rf_station: RFStation, particle: Particle = Proton()):
 
     """
 
-    return np.sqrt(rf_station.harmonic[0] * np.abs(particle.charge) *
-                   rf_station.voltage[0] *
-                   np.abs(rf_station.eta_0 * np.cos(rf_station.phi_s)) /
-                   (2 * np.pi * rf_station.beta ** 2 * rf_station.energy))
+    return np.sqrt(rf_station.harmonic[0] * np.abs(particle.charge)
+                   * rf_station.voltage[0] * np.abs(rf_station.eta_0
+                                                    * np.cos(rf_station.phi_s))
+                   / (2*np.pi*rf_station.beta**2 * rf_station.energy))
 
 
 @handle_legacy_kwargs
@@ -585,17 +585,18 @@ def calculate_phi_s(rf_station: RFStation, particle: Particle = Proton(),
                     -float(rf_station.phi_rf[0, indexTurn + 1]) + np.pi, 1000)
 
             for indexRF in range(len(rf_station.voltage[:, indexTurn + 1])):
-                totalRF += rf_station.voltage[indexRF, indexTurn + 1] * \
-                           np.sin(rf_station.harmonic[indexRF, indexTurn + 1] /
-                                  np.min(rf_station.harmonic[:, indexTurn + 1]) *
-                                  phase_array +
-                                  rf_station.phi_rf[indexRF, indexTurn + 1])
+                totalRF += (rf_station.voltage[indexRF, indexTurn+1]
+                            * np.sin(rf_station.harmonic[indexRF, indexTurn+1]
+                                     /np.min(rf_station.harmonic[:, indexTurn+1])
+                            * phase_array
+                            + rf_station.phi_rf[indexRF, indexTurn + 1]))
 
-            potential_well = - cumtrapz(
-                np.sign(eta0[indexTurn]) * (totalRF -
-                                            rf_station.delta_E[indexTurn] /
-                                            abs(particle.charge)),
-                dx=phase_array[1] - phase_array[0], initial=0)
+            potential_well = - cumtrapz(np.sign(eta0[indexTurn])
+                                        * (totalRF
+                                           - rf_station.delta_E[indexTurn]
+                                           / abs(particle.charge)),
+                                        dx=phase_array[1] - phase_array[0],
+                                        initial=0)
 
             phi_s[indexTurn] = np.mean(phase_array[
                                            potential_well == np.min(potential_well)])

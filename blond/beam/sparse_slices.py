@@ -43,8 +43,8 @@ class SparseSlices:
     """
 
     @handle_legacy_kwargs
-    def __init__(self, rf_station: RFStation, beam: Beam,
-                 n_slices_bucket: int, filling_pattern: NDArray, tracker: TrackerTypes = 'C',
+    def __init__(self, rf_station: RFStation, beam: Beam, n_slices_bucket: int,
+                 filling_pattern: NDArray, tracker: TrackerTypes = 'C',
                  direct_slicing: bool = False) -> None:
 
         #: *Import (reference) Beam*
@@ -83,10 +83,11 @@ class SparseSlices:
         for i in range(self.n_filled_buckets):
             # Only valid for cut_edges='edges'
 
-            self.profiles_list.append(Profile(beam, CutOptions(cut_left=float(self.cut_left_array[i]),
-                                                               cut_right=float(self.cut_right_array[i]),
-                                                               n_slices=n_slices_bucket)
-                                              ))
+            self.profiles_list.append(
+                    Profile(beam,
+                            CutOptions(cut_left=float(self.cut_left_array[i]),
+                                       cut_right=float(self.cut_right_array[i]),
+                                       n_slices=n_slices_bucket)))
 
             self.profiles_list[i].n_macroparticles = self.n_macroparticles_array[i, :]
             self.bin_centers_array[i, :] = self.profiles_list[i].bin_centers

@@ -101,8 +101,8 @@ def get_power_gen_i(I_gen_per_cav: NDArray, Z_0: float) -> float:
     return 0.5 * Z_0 * np.abs(I_gen_per_cav) ** 2
 
 
-def modulator(signal: NDArray, omega_i: float, omega_f: float, T_sampling: float, phi_0: float = 0,
-              dt: float = 0) -> NDArray:
+def modulator(signal: NDArray, omega_i: float, omega_f: float,
+              T_sampling: float, phi_0: float = 0, dt: float = 0) -> NDArray:
     """Demodulate a signal from initial frequency to final frequency. The two
     frequencies should be close.
 
@@ -210,8 +210,8 @@ def rf_beam_current(profile: Profile, omega_c: float, T_rev: float, lpf: bool = 
 
     # Convert from dimensionless to Coulomb/Ampères
     # Take into account macro-particle charge with real-to-macro-particle ratio
-    charges = profile.beam.ratio * profile.beam.particle.charge * e \
-              * np.copy(profile.n_macroparticles)
+    charges = (profile.beam.ratio * profile.beam.particle.charge * e
+               * np.copy(profile.n_macroparticles))
     logger.debug("Sum of particles: %d, total charge: %.4e C",
                  np.sum(profile.n_macroparticles), np.sum(charges))
     logger.debug("DC current is %.4e A", np.sum(charges) / T_rev)
@@ -479,11 +479,9 @@ def smooth_step(x: NDArray, x_min: float = 0, x_max: float = 1, N: int = 1):
     return result
 
 
-def feedforward_filter(TWC: TravellingWaveCavity,
-                       T_s: float,
-                       taps: Optional[int] = None,
-                       opt_output: bool = False
-                       ) -> tuple[NDArray, int, int, int]:
+def feedforward_filter(TWC: TravellingWaveCavity, T_s: float,
+                       taps: Optional[int] = None, opt_output: bool = False)\
+                                              -> tuple[NDArray, int, int, int]:
     """Function to design n-tap FIR filter for SPS TravellingWaveCavity.
 
     Parameters

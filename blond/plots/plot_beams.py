@@ -34,10 +34,14 @@ if TYPE_CHECKING:
 
 
 @handle_legacy_kwargs
-def plot_long_phase_space(ring: Ring, rf_station: RFStation, beam: Beam, xmin: float,
-                          xmax: float, ymin: float, ymax: float, xunit='s', sampling=1,
-                          separatrix_plot=False, histograms_plot=True,
-                          dirname: str | PathLike[str] = 'fig', show_plot: bool = False, alpha:float=1, color='b'):
+def plot_long_phase_space(ring: Ring, rf_station: RFStation, beam: Beam,
+                          xmin: float, xmax: float, ymin: float, ymax: float,
+                          xunit: Literal['s'] | Literal['rad'] = 's',
+                          sampling: int = 1, separatrix_plot: bool = False,
+                          histograms_plot: bool = True,
+                          dirname: str | PathLike[str] = 'fig',
+                          show_plot: bool = False, alpha: float = 1,
+                          color: str = 'b'):
     """
     Plot of longitudinal phase space. Optional use of histograms and separatrix.
     Choice of units: xunit = s, rad.
@@ -138,8 +142,10 @@ def plot_long_phase_space(ring: Ring, rf_station: RFStation, beam: Beam, xmin: f
 
 
 @handle_legacy_kwargs
-def plot_bunch_length_evol(rf_station: RFStation, h5data: hp.File, output_freq=1,
-                           dirname: str | PathLike[str] = 'fig', show_plot: bool = False):
+def plot_bunch_length_evol(rf_station: RFStation, h5data: hp.File,
+                           output_freq: float = 1,
+                           dirname: str | PathLike[str] = 'fig',
+                           show_plot: bool = False):
     """
     Plot of r.m.s. 4-sigma bunch length [s] as a function of time.
     """
@@ -176,8 +182,10 @@ def plot_bunch_length_evol(rf_station: RFStation, h5data: hp.File, output_freq=1
 
 
 @handle_legacy_kwargs
-def plot_bunch_length_evol_gaussian(rf_station: RFStation, profile: Profile, h5data,
-                                    output_freq=1, dirname: str | PathLike[str] = 'fig', show_plot: bool = False):
+def plot_bunch_length_evol_gaussian(rf_station: RFStation, profile: Profile,
+                                    h5data: hp.File, output_freq: float = 1,
+                                    dirname: str | PathLike[str] = 'fig',
+                                    show_plot: bool = False):
     """
     Plot of Gaussian 4-sigma bunch length [s] as a function of time.
     Requires profile.
@@ -216,8 +224,10 @@ def plot_bunch_length_evol_gaussian(rf_station: RFStation, profile: Profile, h5d
 
 
 @handle_legacy_kwargs
-def plot_position_evol(rf_station: RFStation, h5data: hp.File, output_freq=1,
-                       style='.', dirname: str | PathLike[str] = 'fig', show_plot: bool = False):
+def plot_position_evol(rf_station: RFStation, h5data: hp.File,
+                       output_freq: float = 1, style: str = '.',
+                       dirname: str | PathLike[str] = 'fig',
+                       show_plot: bool = False):
     # Time step of plotting
     time_step = rf_station.counter[0]
 
@@ -249,8 +259,10 @@ def plot_position_evol(rf_station: RFStation, h5data: hp.File, output_freq=1,
 
 
 @handle_legacy_kwargs
-def plot_energy_evol(rf_station: RFStation, h5data: hp.File, output_freq=1, style='.',
-                     dirname: str | PathLike[str] = 'fig', show_plot: bool = False):
+def plot_position_evol(rf_station: RFStation, h5data: hp.File,
+                       output_freq: float = 1, style: str = '.',
+                       dirname: str | PathLike[str] = 'fig',
+                       show_plot: bool = False):
     # Time step of plotting
     time_step = rf_station.counter[0]
 
@@ -283,8 +295,10 @@ def plot_energy_evol(rf_station: RFStation, h5data: hp.File, output_freq=1, styl
 
 
 @handle_legacy_kwargs
-def plot_transmitted_particles(rf_station: RFStation, h5data: hp.File, output_freq=1,
-                               style='.', dirname: str | PathLike[str] = 'fig', show_plot: bool = False):
+def plot_position_evol(rf_station: RFStation, h5data: hp.File,
+                       output_freq: float = 1, style: str = '.',
+                       dirname: str | PathLike[str] = 'fig',
+                       show_plot: bool = False):
     # Time step of plotting
     time_step = rf_station.counter[0]
 

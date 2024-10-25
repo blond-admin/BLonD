@@ -93,12 +93,9 @@ class RFStationOptions:
             raise RuntimeError("ERROR: sampling value in PreprocessRamp" +
                                " not recognised. Aborting...")
 
-    def reshape_data(self, input_data: ArrayLike,
-                     n_turns: int,
-                     n_rf: int,
-                     interp_time: NDArray,
-                     t_start: Optional[float] = None
-                     ) -> NDArray:
+    def reshape_data(self, input_data: ArrayLike, n_turns: int, n_rf: int,
+                     interp_time: NDArray, t_start: Optional[float] = None)\
+                                                                    -> NDArray:
         r"""Checks whether the user input is consistent with the expectation
         for the RFStation object. The possibilites are detailed in the
         documentation of the RFStation object.
@@ -257,8 +254,10 @@ class RFStationOptions:
 
 
 @handle_legacy_kwargs
-def combine_rf_functions(function_list: list[tuple[Callable, list[float]]], merge_type='linear', resolution=1e-3,
-                         ring: Optional[Ring] = None, main_h=True):
+def combine_rf_functions(function_list: list[tuple[Callable, list[float]]],
+                         merge_type: str | Sequence[str] = 'linear',
+                         resolution: float = 1e-3, ring: Optional[Ring] = None,
+                         main_h: bool = True) -> NDArray:
     r"""Function to combine different RF programs. Each program is passed in a
     tuple with complete function (single valued or numpy array) and 2-list
     [start_time, stop_time].
