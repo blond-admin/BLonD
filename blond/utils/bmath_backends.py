@@ -1,7 +1,21 @@
+"""File to deal with dependencies to numpy, cupy, c++, numba, etc."""
+from __future__ import annotations
+
 import warnings
+from typing import TYPE_CHECKING
+
+from numba import Literal
+
+if TYPE_CHECKING:
+    from typing import Literal
+    from ..gpu import GPU_DEV
 
 
 class MasterBackend:
+    """
+    Listing of all attributes that must be declared for different backends
+    """
+
     def __init__(self):
         from blond.utils.butils_wrap_cpp import precision
         self.precision = precision
@@ -167,45 +181,74 @@ class MasterBackend:
                 )
 
     def use_cpp(self):
+        """
+        Replace some dependencies by there equivalent in C++
+        """
+
         # hacky way to replace all methods from __init__
         self.__dict__ = CppBackend().__dict__
 
     def use_numba(self):
+        """
+        Replace some dependencies by there equivalent in Numba
+        """
         # hacky way to replace all methods from __init__
         warnings.warn("""It is recommended to update bmath""")
         self.__dict__ = NumbaBackend().__dict__
 
     def use_py(self):
+        """
+        Replace some dependencies by there equivalent in Numpy/Python
+        """
         # hacky way to replace all methods from __init__
         self.__dict__ = PyBackend().__dict__
 
     def use_cpu(self):
-        sucess = False
+        """Try using one of the CPU backends
+
+        Notes
+        -----
+        Order of priority:
+            1. CppBackend
+            2. NumbaBackend
+            3. PyBackend"""
+        success = False
         for backend_class in (CppBackend, NumbaBackend, PyBackend):
             try:
                 backend = backend_class()
-                import blond
-                blond.utils.bmath = backend
-                sucess = True
+                self.__dict__ = backend.__dict__
+                success = True
                 break
             except Exception as exc:
                 print(f"Couldn't set {backend_class.__name__}: {exc}")
-        assert sucess, "Could not set any CPU backend."
+        assert success, "Could not set any CPU backend."
 
     def use_mpi(self):
+        """Sets the device to CPU_MPI"""
         self.device = "CPU_MPI"  # todo which backend??
 
-    def in_mpi(self):
+    def in_mpi(self) -> bool:
+        """Checks if the device is CPU_MPI"""
         return self.device == "CPU_MPI"
 
     def use_fftw(self):
+        """Overwrites rfft, irfft, and rfftfreq by C++ functions"""
         from blond.utils import butils_wrap_cpp as _cpp
 
         self.rfft = _cpp.rfft
         self.irfft = _cpp.irfft
         self.rfftfreq = _cpp.rfftfreq
 
-    def use_precision(self, _precision='double'):
+    def use_precision(self,
+                      _precision: Literal['single', 'double'] = 'double'):
+        """Change the precision used in calculations.
+
+        Parameters
+        ----------
+        _precision (str, optional):
+            Can be either 'single' or 'double'.  Defaults to 'double'.
+        """
+
         from blond.utils import butils_wrap_cpp as _cpp
         self.precision.set(_precision)
 
@@ -221,16 +264,24 @@ class MasterBackend:
         # outdated method from bmath
         raise NotImplementedError()
 
-    def get_gpu_device(self):
+    def get_gpu_device(self) -> GPU_DEV:
         """Get the GPU device object
 
         Returns:
-            _type_: _description_
+            GPU_DEV: TODO
         """
         from ..gpu import GPU_DEV
         return GPU_DEV
 
-    def use_gpu(self, gpu_id=0):
+    def use_gpu(self, gpu_id: int = 0):
+        """Use the GPU device to perform the calculations.
+
+        Parameters
+        ----------
+            gpu_id int:
+                The device id. Defaults to 0.
+        """
+
         if gpu_id < 0:
             warnings.warn(f"Invalid {gpu_id=}, must positive number!")
             return
@@ -239,10 +290,10 @@ class MasterBackend:
 
         GPU_DEV.set(gpu_id)
 
-
         self.__dict__ = GpuBackend().__dict__
 
     def report_backend(self):
+        """Prints the current backend"""
         print(f'Using the {self.device}')
 
 
@@ -581,16 +632,16 @@ class GpuBackend(__CupyBackend):
         # self.interp_const_space = cp.interp  # todo add?
 
 
-check_backends = [CppBackend(), NumbaBackend(), PyBackend()]
+__check_backends = [CppBackend(), NumbaBackend(), PyBackend()]
 try:
     import cupy
 
-    check_backends.append(GpuBackend())
+    __check_backends.append(GpuBackend())
 except ImportError:
     pass
 
-for my_backend in check_backends:
-    my_backend.verify_backend()
+for __my_backend in __check_backends:
+    __my_backend.verify_backend()
 
 
 # this line controls static type hints of bmath
