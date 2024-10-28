@@ -3,7 +3,6 @@ variables:
   # Set the project root to the directory containing your setup.py
   project_root: ./
   PYPI_UPLOAD_URL: "https://upload.pypi.org/legacy/"
-  CUDA_VERSION: "12.4"
 
 .on_tag:
   # Rules to run a job only on a git tagged commit
@@ -14,34 +13,14 @@ variables:
 .before:
   before_script:
     - apt-get update
-    - ls -l /usr/bin/ | grep "nvidia*" # nvidia graphics card name
-    - uname -m && cat /etc/*release  # linux distribution
-
-    - apt-get install -y gcc g++  build-essential mpich libmpich-dev
-
-    # Install cuda-toolkit
+    # Verify CUDA installation
     - nvidia-smi
     - gcc --version
-    - wget https://developer.download.nvidia.com/compute/cuda/repos/debian12/x86_64/cuda-keyring_1.1-1_all.deb
-    - dpkg -i cuda-keyring_1.1-1_all.deb
-    - apt-get update
-    - apt-get install -y cuda-toolkit
-
-    # make sure NVCC is accessible
-    - export CUDA_HOME=/usr/local/cuda
-    - export PATH=${CUDA_HOME}/bin:${PATH}
-    - export LD_LIBRARY_PATH=${CUDA_HOME}/lib64:$LD_LIBRARY_PATH
-
     - nvcc --version # probe NVCC installation
 
-    # Testing inside a virtual env
-    - python3 -m venv pyvenv
-    - source pyvenv/bin/activate
     - python3 --version && gcc --version && mpirun --version
     - python3 -m pip install --upgrade pip
     - python3 -m pip install -v -e ${project_root}[test]
-    - python3 -m pip install cupy-cuda12x
-    - python3 -m pip install pytest_cov mpi4py
     - python3 blond/compile.py -p --optimize --parallel -gpu
 
 
@@ -54,7 +33,6 @@ variables:
 
 .after:
   after_script:
-    - source pyvenv/bin/activate
     - cd ${project_root}
     - python3 -m pip install coverage
     - coverage report
@@ -80,9 +58,7 @@ variables:
 
 
 test_py_310:
-  variables:
-    PY_VERSION: "3.10"
-  image: python:${PY_VERSION}
+  image: gitlab-registry.cern.ch/blond/blond/python310
   stage: test
   extends:
     - .before
@@ -93,9 +69,7 @@ test_py_310:
     - k8s-gpu
 
 test_py_311:
-  variables:
-    PY_VERSION: "3.11"
-  image: python:${PY_VERSION}
+  image: gitlab-registry.cern.ch/blond/blond/python311
   stage: test
   extends:
     - .before
@@ -106,9 +80,7 @@ test_py_311:
     - k8s-gpu
 
 test_py_312:
-  variables:
-    PY_VERSION: "3.12"
-  image: python:${PY_VERSION}
+  image: gitlab-registry.cern.ch/blond/blond/python312
   stage: test
   extends:
     - .before
@@ -119,9 +91,7 @@ test_py_312:
     - k8s-gpu
 
 release_sdist_310:
-  variables:
-    PY_VERSION: "3.10"
-  image: python:${PY_VERSION}
+  image: gitlab-registry.cern.ch/blond/blond/python310
   stage: deploy
   extends:
     - .on_tag
@@ -145,9 +115,7 @@ release_sdist_310:
 
 
 pages:
-  variables:
-    PY_VERSION: "3.10"
-  image: python:${PY_VERSION}
+  image: gitlab-registry.cern.ch/blond/blond/python310
   script:
     - cd ${project_root}
     - mkdir public
