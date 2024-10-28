@@ -472,6 +472,12 @@ class _InducedVoltage:
                               charge=self.beam.particle.charge,
                               acceleration_kick=0.)
 
+    def to_gpu(self, recursive=True):
+        raise NotImplementedError()
+
+    def to_cpu(self, recursive=True):
+        raise NotImplementedError()
+
 
 class InducedVoltageTime(_InducedVoltage):
     r"""

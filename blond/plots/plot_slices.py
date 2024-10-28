@@ -21,7 +21,6 @@ import numpy as np
 from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
-    from typing import Union
     from os import PathLike
     from ..beam.profile import Profile
 
