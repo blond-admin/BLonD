@@ -4,7 +4,6 @@ from __future__ import annotations
 import warnings
 from typing import TYPE_CHECKING
 
-
 if TYPE_CHECKING:
     from typing import Literal
     from ..gpu import GPU_DEV
@@ -102,7 +101,7 @@ class MasterBackend:
         self.argsort = None
         self.complex128 = None
         self.irfft = None
-        self.cumtrapz = None
+        # self.cumtrapz = None # not available in cupy
         self.convolve = None
         self.rfft = None
         self.rfftfreq = None
@@ -303,11 +302,6 @@ class __NumpyBackend(MasterBackend):
         import scipy
         from packaging.version import Version
 
-        if Version(scipy.__version__) >= Version("1.14"):
-            from scipy.integrate import cumulative_trapezoid as cumtrapz
-        else:
-            from scipy.integrate import cumtrapz
-
         self.arctan = np.arctan
         self.ones = np.ones
         self.float64 = np.float64
@@ -364,7 +358,7 @@ class __NumpyBackend(MasterBackend):
         self.int32 = np.int32
         self.double = np.double
         self.trapz = np.trapz
-        self.cumtrapz = cumtrapz
+        # self.cumtrapz = cumtrapz # not available in cupy
         self.zeros_like = np.zeros_like
         self.full = np.full
         self.concatenate = np.concatenate
@@ -401,6 +395,7 @@ class __CupyBackend(MasterBackend):
         super().__init__()
 
         import cupy as cp
+        # self.cumtrapz = None # not available in cupy..
         self.float32 = cp.float32
         self.int32 = cp.int32
         self.all = cp.all
@@ -523,7 +518,7 @@ class CppBackend(__NumpyBackend):
         # elf.interp_cpp = _cpp.interp_cpp # todo add?
         # self.interp_const_space = _cpp.interp_const_space  # todo add?
         # self.interp_const_bin = _cpp.interp_const_bin
-        self.cumtrapz = _cpp.cumtrapz
+        # self.cumtrapz = _cpp.cumtrapz # not available in cupy
         # elf.trapz_cpp = _cpp.trapz_cpp # todo add?
         # elf.linspace_cpp = _cpp.linspace_cpp # todo add?
         # elf.argmin_cpp = _cpp.argmin_cpp # todo add?
