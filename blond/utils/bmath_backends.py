@@ -601,24 +601,27 @@ class PyBackend(__NumpyBackend):
 class GpuBackend(__CupyBackend):
     def __init__(self):
         super().__init__()
-        from blond.gpu import butils_wrap_cupy as _cupy
+        self.device = 'GPU'
+
+        from blond.gpu import butils_wrap_cupy
         import cupy as cp
+
         self.rfft = cp.fft.rfft
         self.irfft = cp.fft.irfft
         self.rfftfreq = cp.fft.rfftfreq
         self.convolve = cp.convolve
-        # 'convolve' = _cupy.convolve
-        self.beam_phase = _cupy.beam_phase
-        self.beam_phase_fast = _cupy.beam_phase_fast
-        self.kick = _cupy.kick
-        self.rf_volt_comp = _cupy.rf_volt_comp
-        self.drift = _cupy.drift
-        self.linear_interp_kick = _cupy.linear_interp_kick
-        # 'LIKick_n_drift' = _cupy.linear_interp_kick_drift
-        self.synchrotron_radiation = _cupy.synchrotron_radiation
-        self.synchrotron_radiation_full = _cupy.synchrotron_radiation_full
-        self.slice_beam = _cupy.slice_beam
-        # 'interp_const_space' = _cupy.interp
+        # 'convolve' = butils_wrap_cupy.convolve
+        self.beam_phase = butils_wrap_cupy.beam_phase
+        self.beam_phase_fast = butils_wrap_cupy.beam_phase_fast
+        self.kick = butils_wrap_cupy.kick
+        self.rf_volt_comp = butils_wrap_cupy.rf_volt_comp
+        self.drift = butils_wrap_cupy.drift
+        self.linear_interp_kick = butils_wrap_cupy.linear_interp_kick
+        # 'LIKick_n_drift' = butils_wrap_cupy.linear_interp_kick_drift
+        self.synchrotron_radiation = butils_wrap_cupy.synchrotron_radiation
+        self.synchrotron_radiation_full = butils_wrap_cupy.synchrotron_radiation_full
+        self.slice_beam = butils_wrap_cupy.slice_beam
+        # 'interp_const_space' = butils_wrap_cupy.interp
         # self.interp_const_space = cp.interp  # todo add?
 
 
