@@ -91,7 +91,6 @@ class MasterBackend:
         self.float32 = None
         self.ascontiguousarray = None
         self.trapezoid = None
-        self.insert = None
         self.complex64 = None
         self.copy = None
         self.poly1d = None
@@ -336,7 +335,6 @@ class __NumpyBackend(MasterBackend):
         self.argmax = np.argmax
         self.zeros = np.zeros
         self.exp = np.exp
-        self.insert = np.insert
         self.cos = np.cos
         self.max = np.max
         self.floor = np.floor
@@ -427,7 +425,6 @@ class __CupyBackend(MasterBackend):
         self.gradient = cp.gradient
         self.nonzero = cp.nonzero
         self.take = cp.take
-        self.insert = cp.insert
         self.hstack = cp.hstack
         self.ones = cp.ones
         self.cos = cp.cos
