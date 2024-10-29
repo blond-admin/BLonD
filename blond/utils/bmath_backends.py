@@ -38,7 +38,6 @@ class MasterBackend:
         self.exp = None
         self.int32 = None
         self.delete = None
-        self.matrix = None
         self.unique = None
         self.abs = None
         self.zeros = None
@@ -90,7 +89,6 @@ class MasterBackend:
         self.absolute = None
         self.float32 = None
         self.ascontiguousarray = None
-        self.trapezoid = None
         self.complex64 = None
         self.copy = None
         self.poly1d = None
@@ -313,7 +311,6 @@ class __NumpyBackend(MasterBackend):
         self.arctan = np.arctan
         self.ones = np.ones
         self.float64 = np.float64
-        self.trapezoid = np.trapezoid
         self.sign = np.sign
         self.sum = np.sum
         self.complex64 = np.complex64
@@ -358,7 +355,6 @@ class __NumpyBackend(MasterBackend):
         self.real = np.real
         self.meshgrid = np.meshgrid
         self.std = np.std
-        self.matrix = np.matrix
         self.empty = np.empty
         self.cumsum = np.cumsum
         self.min = np.min
@@ -444,7 +440,6 @@ class __CupyBackend(MasterBackend):
         self.append = cp.append
         self.invert = cp.invert
         self.arange = cp.arange
-        self.trapezoid = cp.trapezoid
         self.dot = cp.dot
         self.zeros_like = cp.zeros_like
         self.concatenate = cp.concatenate
@@ -467,7 +462,6 @@ class __CupyBackend(MasterBackend):
         self.unique = cp.unique
         self.isinf = cp.isinf
         self.resize = cp.resize
-        self.matrix = cp.matrix
         self.copy = cp.copy
         self.convolve = cp.convolve
         self.sign = cp.sign
