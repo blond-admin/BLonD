@@ -507,7 +507,7 @@ class CppBackend(__NumpyBackend):
         self.beam_phase_fast = _cpp.beam_phase_fast
         self.sparse_histogram = _cpp.sparse_histogram
         self.distribution_from_tomoscope = _cpp.distribution_from_tomoscope
-        self.set_random_seed = _cpp.set_random_seed
+        #self.set_random_seed = _cpp.set_random_seed # fixme
 
         # elf.sin_cpp = _cpp.sin_cpp # todo add?
         # elf.cos_cpp = _cpp.cos_cpp # todo add?
@@ -561,7 +561,6 @@ class NumbaBackend(__NumpyBackend):
         self.beam_phase_fast = _nu.beam_phase_fast
         self.sparse_histogram = _nu.sparse_histogram
         self.distribution_from_tomoscope = _nu.distribution_from_tomoscope
-        self.set_random_seed = _nu.set_random_seed
 
 
 class PyBackend(__NumpyBackend):
@@ -592,6 +591,13 @@ class PyBackend(__NumpyBackend):
         self.distribution_from_tomoscope = _py.distribution_from_tomoscope
         self.set_random_seed = _py.set_random_seed
 
+def not_implemented():
+    """
+    Used as a placeholder for development
+    """
+    from warnings import warn
+    warn("This method is a placeholder and must be replaced by an actual method!", DeprecationWarning)
+    raise NotImplementedError("Contact BLonD developers !")
 
 class GpuBackend(__CupyBackend):
     def __init__(self):
@@ -619,6 +625,13 @@ class GpuBackend(__CupyBackend):
         # 'interp_const_space' = butils_wrap_cupy.interp
         # self.interp_const_space = cp.interp  # todo add?
 
+        self.sparse_histogram = not_implemented # todo implement !
+        self.distribution_from_tomoscope = not_implemented # todo implement !
+        self.fast_resonator = not_implemented # todo implement !
+        self.rf_volt_comp = not_implemented # todo implement !
+        self.slice_smooth = not_implemented # todo implement !
+        self.music_track_multiturn = not_implemented # todo implement !
+        self.music_track = not_implemented # todo implement !
 
 __check_backends = [CppBackend(), NumbaBackend(), PyBackend()]
 try:
