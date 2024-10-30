@@ -635,6 +635,8 @@ class GpuBackend(__CupyBackend):
         self.music_track_multiturn = not_implemented # todo implement !
         self.music_track = not_implemented # todo implement !
 
+        self.set_random_seed = cp.random.seed
+
 __check_backends = [CppBackend(), NumbaBackend(), PyBackend()]
 try:
     import cupy
