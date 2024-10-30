@@ -113,7 +113,7 @@ class MasterBackend:
         self.slice_beam = None
         self.drift = None
         self.sparse_histogram = None
-        self.distribution_from_tomoscope = None
+        # self.distribution_from_tomoscope = None # todo still required??
         self.set_random_seed = None
         self.synchrotron_radiation_full = None
         self.kick = None
@@ -122,8 +122,8 @@ class MasterBackend:
         self.rf_volt_comp = None
         self.slice_smooth = None
         self.linear_interp_kick = None
-        self.music_track_multiturn = None
-        self.music_track = None
+        # self.music_track_multiturn = None # todo might be legacy
+        # self.music_track = None todo might be legacy?
         self.synchrotron_radiation = None
         self.beam_phase = None
 
@@ -500,14 +500,14 @@ class CppBackend(__NumpyBackend):
         self.linear_interp_kick = _cpp.linear_interp_kick
         self.synchrotron_radiation = _cpp.synchrotron_radiation
         self.synchrotron_radiation_full = _cpp.synchrotron_radiation_full
-        self.music_track = _cpp.music_track
-        self.music_track_multiturn = _cpp.music_track_multiturn
+        # self.music_track = _cpp.music_track todo might be legacy?
+        # self.music_track_multiturn = _cpp.music_track_multiturn # todo might be legacy
         self.fast_resonator = _cpp.fast_resonator
         self.beam_phase = _cpp.beam_phase
         self.beam_phase_fast = _cpp.beam_phase_fast
         self.sparse_histogram = _cpp.sparse_histogram
-        self.distribution_from_tomoscope = _cpp.distribution_from_tomoscope
-        #self.set_random_seed = _cpp.set_random_seed # fixme
+        # self.distribution_from_tomoscope = _cpp.distribution_from_tomoscope # todo still required??
+        # self.set_random_seed = _cpp.set_random_seed # fixme
         self.set_random_seed = np.random.seed
 
         # elf.sin_cpp = _cpp.sin_cpp # todo add?
@@ -555,14 +555,14 @@ class NumbaBackend(__NumpyBackend):
         self.linear_interp_kick = _nu.linear_interp_kick
         self.synchrotron_radiation = _nu.synchrotron_radiation
         self.synchrotron_radiation_full = _nu.synchrotron_radiation_full
-        self.music_track = _nu.music_track
-        self.music_track_multiturn = _nu.music_track_multiturn
+        # self.music_track = _nu.music_track todo might be legacy?
+        # self.music_track_multiturn = _nu.music_track_multiturn # todo might be legacy
         self.fast_resonator = _nu.fast_resonator
         self.beam_phase = _nu.beam_phase
         self.beam_phase_fast = _nu.beam_phase_fast
         self.sparse_histogram = _nu.sparse_histogram
-        self.distribution_from_tomoscope = _nu.distribution_from_tomoscope
-        self.set_random_seed = np.random.seed # fixme
+        # self.distribution_from_tomoscope = _nu.distribution_from_tomoscope # todo still required??
+        self.set_random_seed = np.random.seed  # fixme
 
 
 class PyBackend(__NumpyBackend):
@@ -584,14 +584,15 @@ class PyBackend(__NumpyBackend):
         self.linear_interp_kick = _py.linear_interp_kick
         self.synchrotron_radiation = _py.synchrotron_radiation
         self.synchrotron_radiation_full = _py.synchrotron_radiation_full
-        self.music_track = _py.music_track
-        self.music_track_multiturn = _py.music_track_multiturn
+        # self.music_track = _py.music_track todo might be legacy?
+        # self.music_track_multiturn = _py.music_track_multiturn # todo might be legacy
         self.fast_resonator = _py.fast_resonator
         self.beam_phase = _py.beam_phase
         self.beam_phase_fast = _py.beam_phase_fast
         self.sparse_histogram = _py.sparse_histogram
-        self.distribution_from_tomoscope = _py.distribution_from_tomoscope
+        # self.distribution_from_tomoscope = _py.distribution_from_tomoscope # todo still required??
         self.set_random_seed = _py.set_random_seed
+
 
 def not_implemented():
     """
@@ -600,6 +601,7 @@ def not_implemented():
     from warnings import warn
     warn("This method is a placeholder and must be replaced by an actual method!", DeprecationWarning)
     raise NotImplementedError("Contact BLonD developers !")
+
 
 class GpuBackend(__CupyBackend):
     def __init__(self):
@@ -628,14 +630,15 @@ class GpuBackend(__CupyBackend):
         self.rf_volt_comp = butils_wrap_cupy.rf_volt_comp
 
         # self.interp_const_space = cp.interp  # todo add?
-        self.sparse_histogram = not_implemented # todo implement !
-        self.distribution_from_tomoscope = not_implemented # todo implement !
-        self.fast_resonator = not_implemented # todo implement !
-        self.slice_smooth = not_implemented # todo implement !
-        self.music_track_multiturn = not_implemented # todo implement !
-        self.music_track = not_implemented # todo implement !
+        self.sparse_histogram = not_implemented  # todo implement !
+        # self.distribution_from_tomoscope = not_implemented # todo implement ! # todo still required??
+        self.fast_resonator = not_implemented  # todo implement !
+        self.slice_smooth = not_implemented  # todo implement !
+        # self.music_track_multiturn = not_implemented # todo implement ! # todo might be legacy
+        # self.music_track = not_implemented # todo implement ! todo might be legacy?
 
         self.set_random_seed = cp.random.seed
+
 
 __check_backends = [CppBackend(), NumbaBackend(), PyBackend()]
 try:

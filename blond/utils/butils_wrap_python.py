@@ -236,6 +236,7 @@ def set_random_seed(seed: int) -> None:
     global RNG
     # Re-initialize the RNG with new seed
     RNG = np.random.default_rng(seed)
+    np.random.seed(seed)
 
 
 # ---------------------------------------------------
@@ -425,22 +426,22 @@ def fast_resonator(R_S: NDArray, Q: NDArray, frequency_array: NDArray,
 def beam_phase(bin_centers: NDArray, profile: NDArray,
                alpha: float, omegarf: float,
                phirf: float, bin_size: float) -> float:
-    scoeff = np.trapezoid(np.exp(alpha * (bin_centers))
-                          * np.sin(omegarf * bin_centers + phirf)
-                          * profile, dx=bin_size)
-    ccoeff = np.trapezoid(np.exp(alpha * (bin_centers))
-                          * np.cos(omegarf * bin_centers + phirf)
-                          * profile, dx=bin_size)
+    scoeff = np.trapz(np.exp(alpha * (bin_centers))
+                      * np.sin(omegarf * bin_centers + phirf)
+                      * profile, dx=bin_size)
+    ccoeff = np.trapz(np.exp(alpha * (bin_centers))
+                      * np.cos(omegarf * bin_centers + phirf)
+                      * profile, dx=bin_size)
 
     return scoeff / ccoeff
 
 
 def beam_phase_fast(bin_centers: NDArray, profile: NDArray,
                     omegarf: float, phirf: float, bin_size: float) -> float:
-    scoeff = np.trapezoid(profile * np.sin(omegarf * bin_centers + phirf),
-                          dx=bin_size)
-    ccoeff = np.trapezoid(profile * np.cos(omegarf * bin_centers + phirf),
-                          dx=bin_size)
+    scoeff = np.trapz(profile * np.sin(omegarf * bin_centers + phirf),
+                      dx=bin_size)
+    ccoeff = np.trapz(profile * np.cos(omegarf * bin_centers + phirf),
+                      dx=bin_size)
 
     return scoeff / ccoeff
 
@@ -477,6 +478,7 @@ def sparse_histogram(dt: NDArray, profile: NDArray,
 
 # ---------------------------------------------------
 
+import bisect
 
 # --------------- Similar to tomoscope.cpp -----------------
 def distribution_from_tomoscope(dt: np.ndarray, dE: np.ndarray, probDistr: np.ndarray,
@@ -487,7 +489,6 @@ def distribution_from_tomoscope(dt: np.ndarray, dE: np.ndarray, probDistr: np.nd
     Generation of particle distribution from probability density
     Author: Helga Timko
     """
-    import bisect
 
     # Initialize random seed
     np.random.seed(seed)
