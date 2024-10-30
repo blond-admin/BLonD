@@ -625,12 +625,12 @@ class GpuBackend(__CupyBackend):
         self.synchrotron_radiation_full = butils_wrap_cupy.synchrotron_radiation_full
         self.slice_beam = butils_wrap_cupy.slice_beam
         # 'interp_const_space' = butils_wrap_cupy.interp
-        # self.interp_const_space = cp.interp  # todo add?
+        self.rf_volt_comp = butils_wrap_cupy.rf_volt_comp
 
+        # self.interp_const_space = cp.interp  # todo add?
         self.sparse_histogram = not_implemented # todo implement !
         self.distribution_from_tomoscope = not_implemented # todo implement !
         self.fast_resonator = not_implemented # todo implement !
-        self.rf_volt_comp = not_implemented # todo implement !
         self.slice_smooth = not_implemented # todo implement !
         self.music_track_multiturn = not_implemented # todo implement !
         self.music_track = not_implemented # todo implement !
