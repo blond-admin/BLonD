@@ -562,6 +562,7 @@ class NumbaBackend(__NumpyBackend):
         self.beam_phase_fast = _nu.beam_phase_fast
         self.sparse_histogram = _nu.sparse_histogram
         self.distribution_from_tomoscope = _nu.distribution_from_tomoscope
+        self.set_random_seed = np.random.seed # fixme
 
 
 class PyBackend(__NumpyBackend):
