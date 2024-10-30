@@ -491,7 +491,7 @@ class CppBackend(__NumpyBackend):
         self.device = "CPU_CPP"
 
         from blond.utils import butils_wrap_cpp as _cpp
-
+        import numpy as np
         self.kick = _cpp.kick
         self.rf_volt_comp = _cpp.rf_volt_comp
         self.drift = _cpp.drift
@@ -508,6 +508,7 @@ class CppBackend(__NumpyBackend):
         self.sparse_histogram = _cpp.sparse_histogram
         self.distribution_from_tomoscope = _cpp.distribution_from_tomoscope
         #self.set_random_seed = _cpp.set_random_seed # fixme
+        self.set_random_seed = np.random.seed
 
         # elf.sin_cpp = _cpp.sin_cpp # todo add?
         # elf.cos_cpp = _cpp.cos_cpp # todo add?
