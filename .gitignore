@@ -353,3 +353,4 @@ gradle-app.setting
 
 # End of https://www.gitignore.io/api/c,r,git,svn,c++,java,pydev,maven,gradle,kotlin,vagrant,pycharm,eclipse,intellij,java-web,pycharm+all,pycharm+iml,intellij+iml,intellij+all
 
+/unittests/interfaces/rf_noise_cpp/rf-noise-cpp/

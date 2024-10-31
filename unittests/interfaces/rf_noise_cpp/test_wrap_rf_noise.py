@@ -19,13 +19,15 @@ def clone_gitlab_repo(repo_url: str, destination_folder: str):
 
 class RfNoise(unittest.TestCase):
     def setUp(self):
-        repo_url = 'https://gitlab.cern.ch/be-rf-cs/Tools-and-libs/rf-noise-cpp'  # Replace with your repo URL
-        destination_folder = Path(__file__).parent.resolve() / 'rf-noise-cpp'  # Folder where you want to clone the repo
-        print(destination_folder)
-        if not destination_folder.exists():
-            clone_gitlab_repo(repo_url, str(destination_folder))
-        os.environ["RF_NOISE_DIR"] = str(destination_folder)
-
+        try:
+            from blond.interfaces.rf_noise_cpp.wrap_rf_noise import rf_noise, _local_path  # only possible after setUp
+        except FileNotFoundError:
+            repo_url = 'https://gitlab.cern.ch/be-rf-cs/Tools-and-libs/rf-noise-cpp'  # Replace with your repo URL
+            destination_folder = Path(__file__).parent.resolve() / 'rf-noise-cpp'  # Folder where you want to clone the repo
+            print(destination_folder)
+            if not destination_folder.exists():
+                clone_gitlab_repo(repo_url, str(destination_folder))
+            os.environ["RF_NOISE_DIR"] = str(destination_folder)
     def test_flat_noise(self):
         from blond.interfaces.rf_noise_cpp.wrap_rf_noise import rf_noise, _local_path  # only possible after setUp
         ys = np.ones(10)
