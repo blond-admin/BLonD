@@ -166,6 +166,40 @@ def rf_noise(frequency_high: NDArray,
     -------
     results: NDArray
         The RF noise along time
+
+    Examples
+    --------
+    >>> ys = np.loadtxt("lhc_spectrum.txt")
+    >>> xs = np.linspace(0.0, 1.0, len(ys))
+    >>>
+    >>> N = 20000000
+    >>> f_low = np.linspace(10, 100, N)
+    >>> f_high = np.linspace(20, 200, N)
+    >>> results = None
+    >>>
+    >>> results = rf_noise(
+    >>>     frequency_high=f_high,
+    >>>     frequency_low=f_low,
+    >>>     gain_x=xs,
+    >>>     gain_y=ys,
+    >>>     n_source=2048,
+    >>>     n_pnt_min=8,
+    >>>     r_seed=0,
+    >>>     sampling_rate=11245.49,
+    >>>     rms=1.0,
+    >>>     results=results,
+    >>> )
+    >>> from matplotlib import pyplot as plt
+    >>>
+    >>> plt.title("rf_noise_wrapper Python ctypes interface")
+    >>> plt.specgram(results, Fs=11245.49, NFFT=int(20000000 / 1000), label="specgram(results)")
+    >>> xxx = np.linspace(0, 20000000 / 11245.49, 20000000)
+    >>> plt.plot(xxx, f_low, label="fLo", color="red")
+    >>> plt.plot(xxx, f_high, label="fHi", color="red")
+    >>> plt.ylim(0, 2 * f_high[-1])
+    >>> plt.legend(loc="upper left")
+    >>>
+    >>> plt.show()
     """
     if results is None:
         results = np.empty(len(frequency_high), dtype=np.double)
@@ -219,41 +253,3 @@ def rf_noise(frequency_high: NDArray,
         ctypes.c_double(rms)  # rms
     )
     return results
-
-
-if __name__ == "__main__":
-    def __example1():
-        ys = np.loadtxt("lhc_spectrum.txt")
-        xs = np.linspace(0.0, 1.0, len(ys))
-
-        N = 20000000
-        f_low = np.linspace(10, 100, N)
-        f_high = np.linspace(20, 200, N)
-        results = None
-
-        results = rf_noise(
-            frequency_high=f_high,
-            frequency_low=f_low,
-            gain_x=xs,
-            gain_y=ys,
-            n_source=2048,
-            n_pnt_min=8,
-            r_seed=0,
-            sampling_rate=11245.49,
-            rms=1.0,
-            results=results,
-        )
-        from matplotlib import pyplot as plt
-
-        plt.title("rf_noise_wrapper Python ctypes interface")
-        plt.specgram(results, Fs=11245.49, NFFT=int(20000000 / 1000), label="specgram(results)")
-        xxx = np.linspace(0, 20000000 / 11245.49, 20000000)
-        plt.plot(xxx, f_low, label="fLo", color="red")
-        plt.plot(xxx, f_high, label="fHi", color="red")
-        plt.ylim(0, 2 * f_high[-1])
-        plt.legend(loc="upper left")
-
-        plt.show()
-
-
-    __example1()
