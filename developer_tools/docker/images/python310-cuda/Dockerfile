@@ -14,6 +14,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN --mount=type=secret,id=gitlab_token \
     GITLAB_READ_TOKEN=$(cat /run/secrets/gitlab_token) && \
     git clone https://oauth2:$GITLAB_READ_TOKEN@gitlab.cern.ch/be-rf-cs/Tools-and-libs/rf-noise-cpp.git/ /usr/local/rf-noise-cpp
+RUN apt-get update && \
+    apt-get install -y libboost-all-dev
 ENV RF_NOISE_DIR=/usr/local/rf-noise-cpp
 #######################################################################################
 
