@@ -16,7 +16,7 @@ from os.path import isfile
 from warnings import warn
 
 from numpy.typing import NDArray
-
+_local_path = pathlib.Path(__file__).parent.resolve()
 
 def _generate_compiled_file_name() -> str:
     # Get system information
@@ -29,7 +29,7 @@ def _generate_compiled_file_name() -> str:
     return file_name
 
 
-_target_library = f"{_generate_compiled_file_name()}.so"
+_target_library = str(_local_path / f"{_generate_compiled_file_name()}.so")
 # check if lib exists already
 if isfile(_target_library):
     _make_library = False
@@ -38,7 +38,7 @@ else:
 
 if "RF_NOISE_DIR" in os.environ.keys():
     # give user possibility to change the location of the RF Noise source
-    _rf_noise_dir = os.environ["RF_NOISE_DIR"]
+    _rf_noise_dir = pathlib.Path(os.environ["RF_NOISE_DIR"])
 else:
     # assume that its in a neighboring folder of BLonD
     _rf_noise_dir = pathlib.Path('./../../../../rf-noise-cpp/').resolve()
@@ -78,16 +78,19 @@ def _compile_rf_noise_library(rf_noise_dir: pathlib.Path):
     rf_noise_src = rf_noise_dir / "src/rf-noise/"
     cpp_files = tuple(filter(lambda s: s.endswith(".cpp"), os.listdir(rf_noise_src)))
     rf_noise_cpp_files = " ".join([str(rf_noise_src / s) for s in cpp_files])
-    make_command = (f"g++ -fPIC -shared -o {_generate_compiled_file_name()}.so rf_noise_wrapper.cpp "
+    make_command = (f"g++ -fPIC -shared -o {_target_library} {_local_path / "rf_noise_wrapper.cpp"} "
                     + rf_noise_cpp_files + " " +
-                    "varigen.h" + " " +
+                    f"{_local_path / "varigen.h"}" + " " +
                     f"-I{rf_noise_src} "
                     "-lboost_system -static "
                     )
     process = subprocess.Popen(make_command.strip().split(" "), )
     process.communicate()
     if process.returncode != 0:
-        os.remove(_target_library)
+        try:
+            os.remove(_target_library)
+        except FileNotFoundError:
+            pass
         raise RuntimeError(f"Compilation terminated with {process.returncode=}\n for {make_command=}")
 
 
@@ -98,7 +101,7 @@ import ctypes
 import numpy as np
 
 # Load the shared library
-_library_rf_noise = ctypes.CDLL(f'./{_target_library}')
+_library_rf_noise = ctypes.CDLL(str(_target_library))
 
 # Define the function's argument and return types
 _library_rf_noise.rf_noise_wrapper.argtypes = [
@@ -175,7 +178,7 @@ def rf_noise(frequency_high: NDArray,
     >>> N = 20000000
     >>> f_low = np.linspace(10, 100, N)
     >>> f_high = np.linspace(20, 200, N)
-    >>> results = None
+    >>> results = np.empty(N)
     >>>
     >>> results = rf_noise(
     >>>     frequency_high=f_high,
