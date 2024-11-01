@@ -195,7 +195,7 @@ class TestXsuiteLHC(unittest.TestCase):
 
         # --- Insert particle ---
         beam.dt = np.array([rfstation.t_rf[0, 0] * (1 - dt_offset)])
-        beam.dE = np.array([0])
+        beam.dE = np.array([0.0])
 
         if two_rfstations:
             second_rfstation = RFStation(ring, [self.h], [self.V * (1 - v_part)],
@@ -407,7 +407,7 @@ class TestXsuitePSB(unittest.TestCase):
 
         # --- Insert particle ---
         beam.dt = np.array([rfstation.t_rf[0, 0] * (1 - dt_offset)])
-        beam.dE = np.array([0])
+        beam.dE = np.array([0.0])
 
         return RingAndRFTracker(rfstation, beam), beam
 
