@@ -1,5 +1,10 @@
-ENTRYPOINT ["/bin/bash"]
 FROM python:3.10
+
+# Create a non-root user
+RUN useradd -m non_root
+
+# Switch to root to install packages
+USER root
 
 # Set the environment variable to non-interactive
 ENV DEBIAN_FRONTEND=noninteractive
@@ -36,3 +41,11 @@ ENV LD_LIBRARY_PATH=${CUDA_HOME}/lib64:$LD_LIBRARY_PATH
 RUN bash -c 'python3 -m pip install --upgrade pip&& \
        python3 -m pip install cupy-cuda12x  pytest_cov mpi4py'
 
+# Switch to the non-root user
+USER non_root
+
+# Set the working directory (optional, adjust as needed)
+WORKDIR /home/non_root
+
+# Set the entrypoint
+ENTRYPOINT ["/bin/bash"]
