@@ -21,9 +21,9 @@ from blond.input_parameters.rf_parameters import RFStation
 from blond.trackers.tracker import RingAndRFTracker
 
 # Interface
-from xsuite_blond_interface import (BlondElement,
-                                    blond_beam_to_xsuite_coords,
-                                    xsuite_coords_to_blond_coords)
+from blond.interfaces.xsuite import (BlondElement,
+                                     blond_beam_to_xsuite_coords,
+                                     xsuite_coords_to_blond_coords)
 
 # Monitor objects
 from blond.monitors.monitors import BunchMonitor
@@ -31,7 +31,7 @@ from blond.plots.plot import Plot
 
 # Directory to save files
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
-results_directory = this_directory + '../output_files/EX_03'
+results_directory = this_directory + '../output_files/EX_25'
 os.makedirs(results_directory, exist_ok=True)
 
 # Parameters ----------------------------------------------------------------------------------------------------------
@@ -102,12 +102,12 @@ print('dE_sep,m: ' + str(dE_sep))
 
 # Make bunchmonitor
 bunchmonitor = BunchMonitor(ring, rfstation_1, beam,
-                            results_directory + '/EX_03_output_data', Profile=None)
+                            results_directory + '/EX_25_output_data', Profile=None)
 
-format_options = {'dirname': results_directory + '/EX_03_fig'}
+format_options = {'dirname': results_directory + '/EX_25_fig'}
 plots = Plot(ring, rfstation_1, beam, dt_plt, N_t, 0, 2 * t_u,
              -1.05 * dE_sep, 1.05 * dE_sep, xunit='s', separatrix_plot=True,
-             Profile=None, h5file=results_directory + '/EX_03_output_data',
+             Profile=None, h5file=results_directory + '/EX_25_output_data',
              format_options=format_options)
 
 # --- Creating interface elements ---
@@ -225,9 +225,9 @@ for i in range(N_t):
         np.float64(mon.beta0[0, i])
     )
 
-with open(results_directory + '/EX_03_output_data.txt', 'w') as f:
+with open(results_directory + '/EX_25_output_data.txt', 'w') as f:
     f.write(test_string)
-with open(results_directory + '/EX_03_output_data_xsuite.txt', 'w') as f:
+with open(results_directory + '/EX_25_output_data_xsuite.txt', 'w') as f:
     f.write(xsuite_string)
 
 # Results --------------------------------------------------------------------------------------------------------------
