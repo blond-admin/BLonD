@@ -78,7 +78,7 @@ def _compile_rf_noise_library(rf_noise_dir: pathlib.Path):
     rf_noise_src = rf_noise_dir / "src/rf-noise/"
     cpp_files = tuple(filter(lambda s: s.endswith(".cpp"), os.listdir(rf_noise_src)))
     rf_noise_cpp_files = " ".join([str(rf_noise_src / s) for s in cpp_files])
-    make_command = (f"g++ -fPIC -shared -o {_target_library} {_local_path / 'rf_noise_wrapper.cpp'} "
+    make_command = (f"g++ -m64 -fPIC -shared -o {_target_library} {_local_path / 'rf_noise_wrapper.cpp'} "
                     + rf_noise_cpp_files + " " +
                     f"{_local_path / 'varigen.h'}" + " " +
                     f"-I{rf_noise_src} "
