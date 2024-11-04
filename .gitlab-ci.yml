@@ -12,7 +12,6 @@ variables:
 
 .before:
   before_script:
-    - apt-get update
     # Verify CUDA installation
     - nvidia-smi
     - gcc --version
