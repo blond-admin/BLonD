@@ -122,10 +122,11 @@ class MasterBackend:
         self.rf_volt_comp = None
         self.slice_smooth = None
         self.linear_interp_kick = None
-        # self.music_track_multiturn = None # todo might be legacy
-        # self.music_track = None todo might be legacy?
+        self.music_track_multiturn = None # todo might be legacy
+        self.music_track = None # todo might be legacy?
         self.synchrotron_radiation = None
         self.beam_phase = None
+        self.resonator_induced_voltage_1_turn = None
 
         # self.interp_const_bin = None
         # self.mean_cpp = None # todo required??
@@ -170,7 +171,7 @@ class MasterBackend:
             if key not in master_attributes:
                 raise AttributeError(
                     f"Attribute 'self.{key}' is not foreseen: "
-                    f"Please declare attribute in 'BackendMaster' and all of "
+                    f"Please declare attribute in 'MasterBackend' and all of "
                     f"its subclasses !"
 
                 )
@@ -180,22 +181,27 @@ class MasterBackend:
         Replace some dependencies by there equivalent in C++
         """
 
-        # hacky way to replace all methods from __init__
+        # overwrite class methods etc.
+        self.__class__ = CppBackend
+        # overwrite class attributes declared in __init__
         self.__dict__ = CppBackend().__dict__
 
     def use_numba(self):
         """
         Replace some dependencies by there equivalent in Numba
         """
-        # hacky way to replace all methods from __init__
-        warnings.warn("""It is recommended to update bmath""")
+        # overwrite class methods etc.
+        self.__class__ = NumbaBackend
+        # overwrite class attributes declared in __init__
         self.__dict__ = NumbaBackend().__dict__
 
     def use_py(self):
         """
         Replace some dependencies by there equivalent in Numpy/Python
         """
-        # hacky way to replace all methods from __init__
+        # overwrite class methods etc.
+        self.__class__ = PyBackend
+        # overwrite class attributes declared in __init__
         self.__dict__ = PyBackend().__dict__
 
     def use_cpu(self):
@@ -211,7 +217,11 @@ class MasterBackend:
         for backend_class in (CppBackend, NumbaBackend, PyBackend):
             try:
                 backend = backend_class()
+                # overwrite class methods etc.
+                self.__class__ = backend_class
+                # overwrite class attributes declared in __init__
                 self.__dict__ = backend.__dict__
+
                 success = True
                 break
             except Exception as exc:
@@ -285,6 +295,7 @@ class MasterBackend:
 
         GPU_DEV.set(gpu_id)
 
+        self.__class__ = GpuBackend
         self.__dict__ = GpuBackend().__dict__
 
     def report_backend(self):
@@ -491,6 +502,7 @@ class CppBackend(__NumpyBackend):
         self.device = "CPU_CPP"
 
         from blond.utils import butils_wrap_cpp as _cpp
+        from blond.utils import butils_wrap_python as _py
         import numpy as np
         self.kick = _cpp.kick
         self.rf_volt_comp = _cpp.rf_volt_comp
@@ -500,8 +512,8 @@ class CppBackend(__NumpyBackend):
         self.linear_interp_kick = _cpp.linear_interp_kick
         self.synchrotron_radiation = _cpp.synchrotron_radiation
         self.synchrotron_radiation_full = _cpp.synchrotron_radiation_full
-        # self.music_track = _cpp.music_track todo might be legacy?
-        # self.music_track_multiturn = _cpp.music_track_multiturn # todo might be legacy
+        self.music_track = _cpp.music_track # todo might be legacy?
+        self.music_track_multiturn = _cpp.music_track_multiturn # todo might be legacy
         self.fast_resonator = _cpp.fast_resonator
         self.beam_phase = _cpp.beam_phase
         self.beam_phase_fast = _cpp.beam_phase_fast
@@ -509,6 +521,7 @@ class CppBackend(__NumpyBackend):
         # self.distribution_from_tomoscope = _cpp.distribution_from_tomoscope # todo still required??
         # self.set_random_seed = _cpp.set_random_seed # fixme
         self.set_random_seed = np.random.seed
+        self.resonator_induced_voltage_1_turn = _py.resonator_induced_voltage_1_turn
 
         # elf.sin_cpp = _cpp.sin_cpp # todo add?
         # elf.cos_cpp = _cpp.cos_cpp # todo add?
@@ -555,14 +568,15 @@ class NumbaBackend(__NumpyBackend):
         self.linear_interp_kick = _nu.linear_interp_kick
         self.synchrotron_radiation = _nu.synchrotron_radiation
         self.synchrotron_radiation_full = _nu.synchrotron_radiation_full
-        # self.music_track = _nu.music_track todo might be legacy?
-        # self.music_track_multiturn = _nu.music_track_multiturn # todo might be legacy
+        self.music_track = _nu.music_track # todo might be legacy?
+        self.music_track_multiturn = _nu.music_track_multiturn # todo might be legacy
         self.fast_resonator = _nu.fast_resonator
         self.beam_phase = _nu.beam_phase
         self.beam_phase_fast = _nu.beam_phase_fast
         self.sparse_histogram = _nu.sparse_histogram
         # self.distribution_from_tomoscope = _nu.distribution_from_tomoscope # todo still required??
         self.set_random_seed = np.random.seed  # fixme
+        self.resonator_induced_voltage_1_turn = _nu.resonator_induced_voltage_1_turn
 
 
 class PyBackend(__NumpyBackend):
@@ -584,14 +598,15 @@ class PyBackend(__NumpyBackend):
         self.linear_interp_kick = _py.linear_interp_kick
         self.synchrotron_radiation = _py.synchrotron_radiation
         self.synchrotron_radiation_full = _py.synchrotron_radiation_full
-        # self.music_track = _py.music_track todo might be legacy?
-        # self.music_track_multiturn = _py.music_track_multiturn # todo might be legacy
+        self.music_track = _py.music_track # todo might be legacy?
+        self.music_track_multiturn = _py.music_track_multiturn # todo might be legacy
         self.fast_resonator = _py.fast_resonator
         self.beam_phase = _py.beam_phase
         self.beam_phase_fast = _py.beam_phase_fast
         self.sparse_histogram = _py.sparse_histogram
         # self.distribution_from_tomoscope = _py.distribution_from_tomoscope # todo still required??
         self.set_random_seed = _py.set_random_seed
+        self.resonator_induced_voltage_1_turn = _py.resonator_induced_voltage_1_turn
 
 
 def not_implemented():
@@ -609,6 +624,7 @@ class GpuBackend(__CupyBackend):
         self.device = 'GPU'
 
         from blond.gpu import butils_wrap_cupy
+        from blond.utils import butils_wrap_python as _py
         import cupy as cp
 
         self.rfft = cp.fft.rfft
@@ -628,14 +644,15 @@ class GpuBackend(__CupyBackend):
         self.slice_beam = butils_wrap_cupy.slice_beam
         # 'interp_const_space' = butils_wrap_cupy.interp
         self.rf_volt_comp = butils_wrap_cupy.rf_volt_comp
+        self.resonator_induced_voltage_1_turn = _py.resonator_induced_voltage_1_turn
 
         # self.interp_const_space = cp.interp  # todo add?
         self.sparse_histogram = not_implemented  # todo implement !
         # self.distribution_from_tomoscope = not_implemented # todo implement ! # todo still required??
         self.fast_resonator = not_implemented  # todo implement !
         self.slice_smooth = not_implemented  # todo implement !
-        # self.music_track_multiturn = not_implemented # todo implement ! # todo might be legacy
-        # self.music_track = not_implemented # todo implement ! todo might be legacy?
+        self.music_track_multiturn = not_implemented # todo implement ! # todo might be legacy
+        self.music_track = not_implemented # todo implement ! todo might be legacy?
 
         self.set_random_seed = cp.random.seed
 
@@ -654,7 +671,7 @@ for __my_backend in __check_backends:
 
 # this line controls static type hints of bmath
 # static type hints are done to PyBackend
-class AnyBackend(PyBackend):
+class AnyBackend(NumbaBackend):
     def __init__(self):
         """Initialized as PyBackend (Numpy based)
 

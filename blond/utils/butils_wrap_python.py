@@ -11,7 +11,6 @@ import numpy as np
 from numpy.typing import NDArray
 from scipy.constants import e
 
-from blond.utils import bmath as bm
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -594,6 +593,8 @@ def resonator_induced_voltage_1_turn(kappa1: NDArray,
     float_precision: type
         Digital precision of calculation
     """
+    from blond.utils import bmath as bm # local import to prevent cyclic import
+
     # Compute the slopes of the line sections of the linearly interpolated
     # (normalized) line density.
     kappa1[:] = (bm.diff(n_macroparticles)

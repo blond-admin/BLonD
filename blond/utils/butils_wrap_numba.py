@@ -279,44 +279,6 @@ def fast_resonator(R_S: NDArray, Q: NDArray, frequency_array: NDArray,
     return impedance
 
 
-from blond.utils.butils_wrap_python import (
-    distribution_from_tomoscope as __distribution_from_tomoscope_python,
-    sparse_histogram as __sparse_histogram_python,
-    beam_phase_fast as __beam_phase_fast_python,
-    beam_phase as __beam_phase_python,
-    music_track_multiturn as __music_track_multiturn_python,
-    music_track as __music_track_python,
-    slice_smooth as __slice_smooth_python,
-    # as __XXX_python,
-)
-# Just-in-time (JIT) compilation of Python routines for speedup
-# TODO define signature, similar to the C++ callbacks
-# TODO implement versions that can be executed in parallel
-options = dict(nopython=True, nogil=True, fastmath=True, cache=True)
-sparse_histogram = jit(__sparse_histogram_python, **options)
-sparse_histogram.__doc__ = __sparse_histogram_python.__doc__
-
-distribution_from_tomoscope = jit(__distribution_from_tomoscope_python, **options)
-distribution_from_tomoscope.__doc__ = __distribution_from_tomoscope_python.__doc__
-
-beam_phase_fast = jit(__beam_phase_fast_python, **options)
-beam_phase_fast.__doc__ = __beam_phase_fast_python.__doc__
-
-beam_phase = jit(__beam_phase_python, **options)
-beam_phase.__doc__ = __beam_phase_python.__doc__
-
-music_track_multiturn = jit(__music_track_multiturn_python, **options)
-music_track_multiturn.__doc__ = __music_track_multiturn_python.__doc__
-
-music_track = jit(__music_track_python, **options)
-music_track.__doc__ = __music_track_python.__doc__
-
-slice_smooth = jit(__slice_smooth_python, **options)
-slice_smooth.__doc__ = __slice_smooth_python.__doc__
-
-# XXX = jit(__XXX_python, **options)
-# XXX.__doc__ = __XXX_python.__doc__
-
 @jit(nopython=True, nogil=True, fastmath=True, parallel=True, cache=True)
 def _resonator_induced_voltage_1_turn(kappa1: NDArray,
                                       n_macroparticles: NDArray,
@@ -473,3 +435,42 @@ def resonator_induced_voltage_1_turn(kappa1: NDArray,
     induced_voltage = induced_voltage.astype(dtype=float_precision, order='C',
                                              copy=False)
     return induced_voltage, deltaT
+
+
+from blond.utils.butils_wrap_python import (
+    distribution_from_tomoscope as __distribution_from_tomoscope_python,
+    sparse_histogram as __sparse_histogram_python,
+    beam_phase_fast as __beam_phase_fast_python,
+    beam_phase as __beam_phase_python,
+    music_track_multiturn as __music_track_multiturn_python,
+    music_track as __music_track_python,
+    slice_smooth as __slice_smooth_python,
+    # as __XXX_python,
+)
+# Just-in-time (JIT) compilation of Python routines for speedup
+# TODO define signature, similar to the C++ callbacks
+# TODO implement versions that can be executed in parallel
+options = dict(nopython=True, nogil=True, fastmath=True, cache=True)
+sparse_histogram = jit(__sparse_histogram_python, **options)
+sparse_histogram.__doc__ = __sparse_histogram_python.__doc__
+
+distribution_from_tomoscope = jit(__distribution_from_tomoscope_python, **options)
+distribution_from_tomoscope.__doc__ = __distribution_from_tomoscope_python.__doc__
+
+beam_phase_fast = jit(__beam_phase_fast_python, **options)
+beam_phase_fast.__doc__ = __beam_phase_fast_python.__doc__
+
+beam_phase = jit(__beam_phase_python, **options)
+beam_phase.__doc__ = __beam_phase_python.__doc__
+
+music_track_multiturn = jit(__music_track_multiturn_python, **options)
+music_track_multiturn.__doc__ = __music_track_multiturn_python.__doc__
+
+music_track = jit(__music_track_python, **options)
+music_track.__doc__ = __music_track_python.__doc__
+
+slice_smooth = jit(__slice_smooth_python, **options)
+slice_smooth.__doc__ = __slice_smooth_python.__doc__
+
+# XXX = jit(__XXX_python, **options)
+# XXX.__doc__ = __XXX_python.__doc__

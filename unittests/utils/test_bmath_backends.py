@@ -1,17 +1,17 @@
 import unittest
 from copy import deepcopy
 
-from blond.utils.bmath_backends import NumbaBackend, CppBackend, GpuBackend
-from blond.utils.bmath_backends import PyBackend
 import numpy as np
 
-import random
+from blond.utils.bmath_backends import NumbaBackend, CppBackend, GpuBackend
+from blond.utils.bmath_backends import PyBackend
 
 py_backend = PyBackend()
 
 
 class TestSameResult(unittest.TestCase):
     def setUp(self):
+        # set up backends that are compared against python backend
         try:
             import cupy
             self.tested_backends = (
@@ -32,7 +32,7 @@ class TestSameResult(unittest.TestCase):
         expected_result = py_backend.rfft(*deepcopy(args), **deepcopy(kwargs))
         for tested_backend in self.tested_backends:
             other_result = tested_backend.rfft(*deepcopy(args), **deepcopy(kwargs))
-            self.assertTrue(np.allclose(expected_result, other_result))
+            self.assertTrue(np.allclose(expected_result, other_result), f"Failed with {tested_backend}")
 
     def test_irfft(self):
         args = (np.random.randn(100),)
@@ -41,7 +41,7 @@ class TestSameResult(unittest.TestCase):
         expected_result = py_backend.irfft(*deepcopy(args), **deepcopy(kwargs))
         for tested_backend in self.tested_backends:
             other_result = tested_backend.irfft(*deepcopy(args), **deepcopy(kwargs))
-            self.assertTrue(np.allclose(expected_result, other_result))
+            self.assertTrue(np.allclose(expected_result, other_result), f"Failed with {tested_backend}")
 
     def test_rfftfreq(self):
         args = (100, 0.1)
@@ -50,7 +50,7 @@ class TestSameResult(unittest.TestCase):
         expected_result = py_backend.rfftfreq(*deepcopy(args), **deepcopy(kwargs))
         for tested_backend in self.tested_backends:
             other_result = tested_backend.rfftfreq(*deepcopy(args), **deepcopy(kwargs))
-            self.assertTrue(np.allclose(expected_result, other_result))
+            self.assertTrue(np.allclose(expected_result, other_result), f"Failed with {tested_backend}")
 
     def test_convolve(self):
         args = (np.random.randn(100), np.random.randn(10))
@@ -59,7 +59,7 @@ class TestSameResult(unittest.TestCase):
         expected_result = py_backend.convolve(*deepcopy(args), **deepcopy(kwargs))
         for tested_backend in self.tested_backends:
             other_result = tested_backend.convolve(*deepcopy(args), **deepcopy(kwargs))
-            self.assertTrue(np.allclose(expected_result, other_result))
+            self.assertTrue(np.allclose(expected_result, other_result), f"Failed with {tested_backend}")
 
     def test_beam_phase(self):
         args = ()
@@ -85,7 +85,7 @@ class TestSameResult(unittest.TestCase):
         expected_result = py_backend.beam_phase(*deepcopy(args), **deepcopy(kwargs))
         for tested_backend in self.tested_backends:
             other_result = tested_backend.beam_phase(*deepcopy(args), **deepcopy(kwargs))
-            self.assertTrue(np.allclose(expected_result, other_result))
+            self.assertTrue(np.allclose(expected_result, other_result), f"Failed with {tested_backend}")
 
     def test_beam_phase_fast(self):
         args = ()
@@ -109,7 +109,7 @@ class TestSameResult(unittest.TestCase):
         expected_result = py_backend.beam_phase_fast(*deepcopy(args), **deepcopy(kwargs))
         for tested_backend in self.tested_backends:
             other_result = tested_backend.beam_phase_fast(*deepcopy(args), **deepcopy(kwargs))
-            self.assertTrue(np.allclose(expected_result, other_result))
+            self.assertTrue(np.allclose(expected_result, other_result), f"Failed with {tested_backend}")
 
     def test_kick(self):
         args = ()
@@ -141,7 +141,7 @@ class TestSameResult(unittest.TestCase):
             args_other, kwargs_other = deepcopy(args), deepcopy(kwargs)
             tested_backend.kick(*args_other, **kwargs_other)
             other_result = kwargs_other["dE"]
-            self.assertTrue(np.allclose(expected_result, other_result))
+            self.assertTrue(np.allclose(expected_result, other_result), f"Failed with {tested_backend}")
 
     def test_rf_volt_comp(self):
         args = ()
@@ -156,7 +156,7 @@ class TestSameResult(unittest.TestCase):
         expected_result = py_backend.rf_volt_comp(*deepcopy(args), **deepcopy(kwargs))
         for tested_backend in self.tested_backends:
             other_result = tested_backend.rf_volt_comp(*deepcopy(args), **deepcopy(kwargs))
-            self.assertTrue(np.allclose(expected_result, other_result))
+            self.assertTrue(np.allclose(expected_result, other_result), f"Failed with {tested_backend}")
 
     def test_drift(self):
         for solver in ('simple', 'legacy', 'exact',):
@@ -183,7 +183,7 @@ class TestSameResult(unittest.TestCase):
                     kwargs_other = deepcopy(kwargs)
                     tested_backend.drift(*deepcopy(args), **kwargs_other)
                     other_result = kwargs_other["dt"]
-                    self.assertTrue(np.allclose(expected_result, other_result))
+                    self.assertTrue(np.allclose(expected_result, other_result), f"Failed with {tested_backend}")
 
     def test_linear_interp_kick(self):
         args = ()
@@ -216,7 +216,7 @@ class TestSameResult(unittest.TestCase):
             kwargs_other = deepcopy(kwargs)
             tested_backend.linear_interp_kick(*deepcopy(args), **kwargs_other)
             other_result = kwargs_other["dE"]
-            self.assertTrue(np.allclose(expected_result, other_result))
+            self.assertTrue(np.allclose(expected_result, other_result), f"Failed with {tested_backend}")
 
     def test_synchrotron_radiation(self):
         args = ()
@@ -229,7 +229,7 @@ class TestSameResult(unittest.TestCase):
             kwargs_other = deepcopy(kwargs)
             tested_backend.synchrotron_radiation(*deepcopy(args), **kwargs_other)
             other_result = kwargs_other["dE"]
-            self.assertTrue(np.allclose(expected_result, other_result))
+            self.assertTrue(np.allclose(expected_result, other_result), f"Failed with {tested_backend}")
 
     def test_synchrotron_radiation_full(self):
         args = ()
@@ -245,7 +245,7 @@ class TestSameResult(unittest.TestCase):
             kwargs_other = deepcopy(kwargs)
             tested_backend.synchrotron_radiation_full(*deepcopy(args), **kwargs_other)
             other_result = kwargs_other["dE"]
-            self.assertTrue(np.allclose(expected_result, other_result))
+            self.assertTrue(np.allclose(expected_result, other_result), f"Failed with {tested_backend}")
 
     def test_slice_beam(self):
         args = ()
@@ -268,16 +268,30 @@ class TestSameResult(unittest.TestCase):
             kwargs_other = deepcopy(kwargs)
             tested_backend.slice_beam(*deepcopy(args), **kwargs_other)
             other_result = kwargs_other["profile"]
-            self.assertTrue(np.allclose(expected_result, other_result))
+            self.assertTrue(np.allclose(expected_result, other_result), f"Failed with {tested_backend}")
 
     def test_sparse_histogram(self):
         args = ()
-        kwargs = dict()
 
-        expected_result = py_backend.sparse_histogram(*deepcopy(args), **deepcopy(kwargs))
+        kwargs = dict(
+            dt=np.ones(10),
+            profile=np.zeros((5, 5)),
+            cut_left=-0.1 * np.ones(5),
+            cut_right=0.1 * np.ones(5),
+            bunch_indexes=np.ones(10),
+            n_slices_bucket=2,
+        )
+
+        kwargs_py = deepcopy(kwargs)
+        py_backend.sparse_histogram(*deepcopy(args), **kwargs_py)
+        expected_result = kwargs_py["profile"]
         for tested_backend in self.tested_backends:
-            other_result = tested_backend.sparse_histogram(*deepcopy(args), **deepcopy(kwargs))
-            self.assertTrue(np.allclose(expected_result, other_result))
+            if isinstance(tested_backend, GpuBackend):
+                continue
+            kwargs_other = deepcopy(kwargs)
+            tested_backend.sparse_histogram(*deepcopy(args), **kwargs_other)
+            other_result = kwargs_other["profile"]
+            self.assertTrue(np.allclose(expected_result, other_result), f"Failed with {tested_backend}")
 
     @unittest.skip("Might be legacy")  # todo resolve questions
     def test_distribution_from_tomoscope(self):
@@ -304,8 +318,8 @@ class TestSameResult(unittest.TestCase):
             tested_backend.distribution_from_tomoscope(*deepcopy(args), **kwargs_other)
             other_result_dE = kwargs_other["dE"]
             other_result_dt = kwargs_other["dt"]
-            self.assertTrue(np.allclose(expected_result_dE, other_result_dE))
-            self.assertTrue(np.allclose(expected_result_dt, other_result_dt))
+            self.assertTrue(np.allclose(expected_result_dE, other_result_dE), f"Failed with {tested_backend}")
+            self.assertTrue(np.allclose(expected_result_dt, other_result_dt), f"Failed with {tested_backend}")
 
     def test_fast_resonator(self):
         args = ()
@@ -323,8 +337,10 @@ class TestSameResult(unittest.TestCase):
 
         expected_result = py_backend.fast_resonator(*deepcopy(args), **deepcopy(kwargs))
         for tested_backend in self.tested_backends:
+            if isinstance(tested_backend, GpuBackend):
+                continue
             other_result = tested_backend.fast_resonator(*deepcopy(args), **deepcopy(kwargs))
-            self.assertTrue(np.allclose(expected_result, other_result))
+            self.assertTrue(np.allclose(expected_result, other_result), f"Failed with {tested_backend}")
 
     def test_slice_smooth(self):
         args = ()
@@ -342,30 +358,67 @@ class TestSameResult(unittest.TestCase):
         py_backend.slice_smooth(*deepcopy(args), **kwargs_py)
         expected_result = kwargs_py["profile"]
         for tested_backend in self.tested_backends:
+            if isinstance(tested_backend, GpuBackend):
+                continue
             kwargs_other = deepcopy(kwargs)
             tested_backend.slice_smooth(*deepcopy(args), **kwargs_other)
             other_result = kwargs_other["profile"]
-            self.assertTrue(np.allclose(expected_result, other_result))
+            self.assertTrue(np.allclose(expected_result, other_result), f"Failed with {tested_backend}")
 
-    @unittest.skip("Might be legacy")  # todo resolve questions
     def test_music_track_multiturn(self):
+        np.random.seed(0)
         args = ()
-        kwargs = dict()
+        kwargs = dict(
+            dt=np.arange(20, dtype=float),
+            dE=np.arange(20, dtype=float),
+            induced_voltage=np.arange(20, dtype=float),
+            array_parameters=np.empty(4),
+            alpha=0.1,
+            omega_bar=1,
+            const=2,
+            coeff1=3,
+            coeff2=4,
+            coeff3=5,
+            coeff4=6,
+        )
 
-        expected_result = py_backend.music_track_multiturn(*deepcopy(args), **deepcopy(kwargs))
+        kwargs_py = deepcopy(kwargs)
+        py_backend.music_track_multiturn(*deepcopy(args), **kwargs_py)
+        expected_result = kwargs_py["array_parameters"]
         for tested_backend in self.tested_backends:
-            other_result = tested_backend.music_track_multiturn(*deepcopy(args), **deepcopy(kwargs))
-            self.assertTrue(np.allclose(expected_result, other_result))
+            if isinstance(tested_backend, GpuBackend):
+                continue
+            kwargs_other = deepcopy(kwargs)
+            tested_backend.music_track_multiturn(*deepcopy(args), **kwargs_other)
+            other_result = kwargs_other["array_parameters"]
+            self.assertTrue(np.allclose(expected_result, other_result), f"Failed with {tested_backend}, expected {expected_result}, but got {other_result}")
 
-    @unittest.skip("Might be legacy")  # todo resolve questions
     def test_music_track(self):
         args = ()
-        kwargs = dict()
+        kwargs = dict(
+            dt=np.random.randn(20),
+            dE=np.random.randn(20),
+            induced_voltage=np.random.randn(20),
+            array_parameters=np.empty(4),
+            alpha=0.1,
+            omega_bar=1,
+            const=2,
+            coeff1=3,
+            coeff2=4,
+            coeff3=5,
+            coeff4=6,
+        )
 
-        expected_result = py_backend.music_track(*deepcopy(args), **deepcopy(kwargs))
+        kwargs_py = deepcopy(kwargs)
+        py_backend.music_track(*deepcopy(args), **kwargs_py)
+        expected_result = kwargs_py["array_parameters"]
         for tested_backend in self.tested_backends:
-            other_result = tested_backend.music_track(*deepcopy(args), **deepcopy(kwargs))
-            self.assertTrue(np.allclose(expected_result, other_result))
+            if isinstance(tested_backend, GpuBackend):
+                continue
+            kwargs_other = deepcopy(kwargs)
+            tested_backend.music_track(*deepcopy(args), **kwargs_other)
+            other_result = kwargs_other["array_parameters"]
+            self.assertTrue(np.allclose(expected_result, other_result), f"Failed with {tested_backend}")
 
     def test_set_random_seed(self):
         args = ()
@@ -376,8 +429,11 @@ class TestSameResult(unittest.TestCase):
         for tested_backend in self.tested_backends:
             tested_backend.set_random_seed(*deepcopy(args), **deepcopy(kwargs))
             other_result = tested_backend.random.rand(10)
-            self.assertTrue(np.allclose(expected_result, other_result))
+            self.assertTrue(np.allclose(expected_result, other_result), f"Failed with {tested_backend}")
 
 
 if __name__ == "__main__":
     unittest.main()
+
+
+

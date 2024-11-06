@@ -120,5 +120,5 @@ precision = PrecisionClass('double')
 
 from .bmath_backends import AnyBackend
 bmath = AnyBackend() # this line controls static type hints of bmath
-# "bmath.use_cpp()"
+bmath.use_cpu()
 
