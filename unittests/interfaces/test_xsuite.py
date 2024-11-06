@@ -27,6 +27,7 @@ from blond.beam.profile import CutOptions, Profile
 from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
 from blond.trackers.tracker import RingAndRFTracker, FullRingAndRF
+from blond.monitors.monitors import BunchMonitor
 
 from blond.interfaces.xsuite import (BlondElement, BlondObserver,
                                      EnergyUpdate,
@@ -58,8 +59,8 @@ class TestXsuiteLHC(unittest.TestCase):
 
     def testSingleParticle(self):
         r'''Test of a single particle simulation in the LHC at constant energy'''
-        rtol = 1e-2                             # relative tolerance
-        atol = 0                                # absolute tolerance
+        rtol = 4e-9                             # relative tolerance
+        atol = 5e-9                             # absolute tolerance
 
         # ----- Interface Simulation -----
         # Initialize the BLonD cavity
@@ -72,10 +73,14 @@ class TestXsuiteLHC(unittest.TestCase):
         line.insert_element(index=0, element=cavity, name='blond_cavity')
 
         dt_inter, dE_inter = self.performSingleParticleInterfaceSimulation(line, blond_tracker, beam)
+        dt_inter = dt_inter / np.max(dt_inter)
+        dE_inter = dE_inter / np.max(dE_inter)
 
         # ----- Pure BLonD Simulation -----
         blond_tracker, beam = self.singleParticleBLonDSimulation()
         dt_blond, dE_blond = self.performSingleParticleBLonDSimulation(blond_tracker, beam)
+        dt_blond = dt_blond / np.max(dt_blond)
+        dE_blond = dE_blond / np.max(dE_blond)
 
         # ----- Perform test -----
         np.testing.assert_allclose(
@@ -89,8 +94,8 @@ class TestXsuiteLHC(unittest.TestCase):
 
     def testSingleParticleRamp(self):
         r'''Test of acceleration of a single particle simulation in the LHC'''
-        rtol = 1e-2                             # relative tolerance
-        atol = 0                                # absolute tolerance
+        rtol = 4e-9                             # relative tolerance
+        atol = 5e-9                             # absolute tolerance
 
         # Initialize the BLonD cavity
         blond_tracker, beam = self.singleParticleBLonDSimulation(ramp=True)
@@ -103,13 +108,18 @@ class TestXsuiteLHC(unittest.TestCase):
 
         # Insert energy ramp
         energy_update = EnergyUpdate(blond_tracker.rf_params.momentum)
-        line.insert_element(index='matrix', element=energy_update, name='energy_update')
+        line.insert_element(index='blond_cavity', element=energy_update, name='energy_update')
 
         dt_inter, dE_inter = self.performSingleParticleInterfaceSimulation(line, blond_tracker, beam)
+        dt_inter = dt_inter / np.max(dt_inter)
+        dE_inter = dE_inter / np.max(dE_inter)
+        line.get_table().show()
 
         # ----- Pure BLonD Simulation -----
-        blond_tracker, beam = self.singleParticleBLonDSimulation(ramp=True)
+        blond_tracker, beam = self.singleParticleBLonDSimulation(ramp=True, pure_blond=True)
         dt_blond, dE_blond = self.performSingleParticleBLonDSimulation(blond_tracker, beam)
+        dt_blond = dt_blond / np.max(dt_blond)
+        dE_blond = dE_blond / np.max(dE_blond)
 
         # ----- Perform test -----
         np.testing.assert_allclose(
@@ -123,8 +133,8 @@ class TestXsuiteLHC(unittest.TestCase):
 
     def testSingleParticleTwoRFStations(self):
         r'''Test of a single particle simulation in the LHC at constant energy with two RF stations'''
-        rtol = 1e-2                             # relative tolerance
-        atol = 0                                # absolute tolerance
+        rtol = 4e-9                             # relative tolerance
+        atol = 5e-9                             # absolute tolerance
 
         # Initialize the BLonD cavities
         blond_tracker_1, blond_tracker_2, beam = self.singleParticleBLonDSimulation(two_rfstations=True)
@@ -138,10 +148,14 @@ class TestXsuiteLHC(unittest.TestCase):
         line.insert_element(index='matrix_2', element=cavity_2, name='blond_cavity_2')
 
         dt_inter, dE_inter = self.performSingleParticleInterfaceSimulation(line, blond_tracker_1, beam)
+        dt_inter = dt_inter / np.max(dt_inter)
+        dE_inter = dE_inter / np.max(dE_inter)
 
         # ----- Pure BLonD Simulation -----
-        blond_tracker, beam = self.singleParticleBLonDSimulation(two_rfstations=True)
-        dt_blond, dE_blond = self.performSingleParticleBLonDSimulation(blond_tracker, beam)
+        blond_tracker_1, blond_tracker_2, beam = self.singleParticleBLonDSimulation(two_rfstations=True)
+        dt_blond, dE_blond = self.performSingleParticleBLonDSimulation(blond_tracker_1, beam, blond_tracker_2)
+        dt_blond = dt_blond / np.max(dt_blond)
+        dE_blond = dE_blond / np.max(dE_blond)
 
         # ----- Perform test -----
         np.testing.assert_allclose(
@@ -153,12 +167,8 @@ class TestXsuiteLHC(unittest.TestCase):
             err_msg='In testSingleParticleTwoRFStations the energy-coordinate differs'
         )
 
-    def testBunchWithPhaseLoop(self):
-        r'''Test of a single bunch simulation in the LHC at constant energy with the beam-phase loop'''
-        # TODO: finish implementation of the test with the beam-phase loop
-        line = self.initializeXsuiteLine()
-
-    def singleParticleBLonDSimulation(self, ramp: bool = False, two_rfstations: bool = False):
+    def singleParticleBLonDSimulation(self, ramp: bool = False, two_rfstations: bool = False,
+                                      pure_blond: bool = False):
         r'''
         Method to generate a BLonD simulation in the LHC with a single particle with a time offset with respect to the
         RF bucket.
@@ -169,12 +179,17 @@ class TestXsuiteLHC(unittest.TestCase):
 
         # Simulation parameters
         N_t = 481                               # Number of (tracked) turns [-]
-        dt_offset = 0.1                         # Input particles dt [s]
+        dt_offset = 0.15                        # Input particles dt [s]
         v_part = 1
 
         # --- BLonD objects ---
         if ramp:
-            ring = Ring(self.C, self.alpha, np.linspace(self.p_s, self.p_f, N_t + 1), Proton(), n_turns=N_t)
+            cycle = np.linspace(self.p_s, self.p_f, N_t + 1)
+            if pure_blond:
+                cycle = np.concatenate(
+                    (np.array([self.p_s]), np.linspace(self.p_s, self.p_f, N_t + 1)[:-1])
+                )
+            ring = Ring(self.C, self.alpha, cycle, Proton(), n_turns=N_t)
         else:
             if two_rfstations:
                 # Additional input
@@ -201,7 +216,9 @@ class TestXsuiteLHC(unittest.TestCase):
             second_rfstation = RFStation(ring, [self.h], [self.V * (1 - v_part)],
                                          [self.dphi], section_index=2)
 
-            return RingAndRFTracker(rfstation, beam), RingAndRFTracker(second_rfstation, beam), beam
+            return (RingAndRFTracker(rfstation, beam),
+                    RingAndRFTracker(second_rfstation, beam),
+                    beam)
 
         return RingAndRFTracker(rfstation, beam), beam
 
@@ -248,6 +265,9 @@ class TestXsuiteLHC(unittest.TestCase):
         return line
 
     def performSingleParticleInterfaceSimulation(self, line, blond_track, beam):
+        r'''
+        Perform simulation with the interface.
+        '''
         # Add particles to line and build tracker
         line.particle_ref = xp.Particles(p0c=self.p_s, mass0=xp.PROTON_MASS_EV, q0=1.)
         line.build_tracker()
@@ -262,7 +282,7 @@ class TestXsuiteLHC(unittest.TestCase):
         # --- Track matrix ---
         N_t = len(blond_track.rf_params.phi_s) - 1
         particles = line.build_particles(x=0, y=0, px=0, py=0, zeta=np.copy(zeta), ptau=np.copy(ptau))
-        line.track(particles, num_turns=N_t, turn_by_turn_monitor=True, with_progress=True)
+        line.track(particles, num_turns=N_t, turn_by_turn_monitor=True, with_progress=False)
         mon = line.record_last_track
 
         dt_array = np.zeros(N_t)
@@ -279,6 +299,9 @@ class TestXsuiteLHC(unittest.TestCase):
 
     @staticmethod
     def performSingleParticleBLonDSimulation(blond_track, beam, second_blond_tracker: RingAndRFTracker = None):
+        r'''
+        Perform simulation in pure BLonD.
+        '''
         # The number of turns to track
         N_t = len(blond_track.rf_params.phi_s) - 1
 
@@ -292,9 +315,9 @@ class TestXsuiteLHC(unittest.TestCase):
             full_tracker = blond_track
 
         for i in range(N_t):
-            full_tracker.track()
             dt_array[i] = beam.dt[0]
             dE_array[i] = beam.dE[0]
+            full_tracker.track()
 
         return dt_array, dE_array
 
@@ -320,8 +343,8 @@ class TestXsuitePSB(unittest.TestCase):
 
     def testSingleParticle(self):
         r'''Test of a single particle simulation in the PSB at constant energy'''
-        rtol = 1e-2                             # relative tolerance
-        atol = 0                                # absolute tolerance
+        rtol = 4e-4                             # relative tolerance
+        atol = 4.1e-4                           # absolute tolerance
 
         # ----- Interface Simulation -----
         # Initialize the BLonD cavity
@@ -334,10 +357,14 @@ class TestXsuitePSB(unittest.TestCase):
         line.insert_element(index=0, element=cavity, name='blond_cavity')
 
         dt_inter, dE_inter = self.performSingleParticleInterfaceSimulation(line, blond_tracker, beam)
+        dt_inter = dt_inter / np.max(dt_inter)
+        dE_inter = dE_inter / np.max(dE_inter)
 
         # ----- Pure BLonD Simulation -----
         blond_tracker, beam = self.singleParticleBLonDSimulation()
         dt_blond, dE_blond = self.performSingleParticleBLonDSimulation(blond_tracker, beam)
+        dt_blond = dt_blond / np.max(dt_blond)
+        dE_blond = dE_blond / np.max(dE_blond)
 
         # ----- Perform test -----
         np.testing.assert_allclose(
@@ -351,8 +378,8 @@ class TestXsuitePSB(unittest.TestCase):
 
     def testSingleParticleRamp(self):
         r'''Test of acceleration of a single particle simulation in the PSB'''
-        rtol = 1e-2                             # relative tolerance
-        atol = 0                                # absolute tolerance
+        rtol = 4e-4                             # relative tolerance
+        atol = 4.1e-4                           # absolute tolerance
 
         # Initialize the BLonD cavity
         blond_tracker, beam = self.singleParticleBLonDSimulation(ramp=True)
@@ -368,10 +395,14 @@ class TestXsuitePSB(unittest.TestCase):
         line.insert_element(index='matrix', element=energy_update, name='energy_update')
 
         dt_inter, dE_inter = self.performSingleParticleInterfaceSimulation(line, blond_tracker, beam)
+        dt_inter = dt_inter / np.max(dt_inter)
+        dE_inter = dE_inter / np.max(dE_inter)
 
         # ----- Pure BLonD Simulation -----
-        blond_tracker, beam = self.singleParticleBLonDSimulation(ramp=True)
+        blond_tracker, beam = self.singleParticleBLonDSimulation(ramp=True, pure_blond=True)
         dt_blond, dE_blond = self.performSingleParticleBLonDSimulation(blond_tracker, beam)
+        dt_blond = dt_blond / np.max(dt_blond)
+        dE_blond = dE_blond / np.max(dE_blond)
 
         # ----- Perform test -----
         np.testing.assert_allclose(
@@ -383,7 +414,7 @@ class TestXsuitePSB(unittest.TestCase):
             err_msg='In testSingleParticleRamp the energy-coordinate differs'
         )
 
-    def singleParticleBLonDSimulation(self, ramp: bool = False):
+    def singleParticleBLonDSimulation(self, ramp: bool = False, pure_blond: bool = False):
         r'''
         Method to generate a BLonD simulation in the LHC with a single particle with a time offset with respect to the
         RF bucket.
@@ -394,11 +425,16 @@ class TestXsuitePSB(unittest.TestCase):
 
         # Simulation parameters
         N_t = 6000                              # Number of (tracked) turns [-]
-        dt_offset = 0.1                         # Input particles dt [s]
+        dt_offset = 0.15                         # Input particles dt [s]
 
         # --- BLonD objects ---
         if ramp:
-            ring = Ring(self.C, self.alpha, np.linspace(self.p_s, self.p_f, N_t + 1), Proton(), n_turns=N_t)
+            cycle = np.linspace(self.p_s, self.p_f, N_t + 1)
+            if pure_blond:
+                cycle = np.concatenate(
+                    (np.array([self.p_s]), np.linspace(self.p_s, self.p_f, N_t + 1)[:-1])
+                )
+            ring = Ring(self.C, self.alpha, cycle, Proton(), n_turns=N_t)
         else:
             ring = Ring(self.C, self.alpha, self.p_s, Proton(), n_turns=N_t)
 
@@ -434,21 +470,24 @@ class TestXsuitePSB(unittest.TestCase):
         return line
 
     def performSingleParticleInterfaceSimulation(self, line, blond_track, beam):
+        r'''
+        Perform simulation with the interface.
+        '''
         # Add particles to line and build tracker
         line.particle_ref = xp.Particles(p0c=self.p_s, mass0=xp.PROTON_MASS_EV, q0=1.)
         line.build_tracker()
 
         # --- Convert the initial BLonD distribution to xsuite coordinates ---
-        zeta, ptau = blond_beam_to_xsuite_coords(beam,
-                                                 line.particle_ref.beta0[0],
-                                                 line.particle_ref.energy0[0],
-                                                 phi_s=blond_track.rf_params.phi_s[0],
-                                                 omega_rf=blond_track.rf_params.omega_rf[0, 0])
+        zeta, ptau = blond_beam_to_xsuite_coords(
+            beam, line.particle_ref.beta0[0], line.particle_ref.energy0[0],
+            phi_s=blond_track.rf_params.phi_s[0] - blond_track.rf_params.phi_rf[0, 0],
+            omega_rf=blond_track.rf_params.omega_rf[0, 0]
+        )
 
         # --- Track matrix ---
         N_t = len(blond_track.rf_params.phi_s) - 1
         particles = line.build_particles(x=0, y=0, px=0, py=0, zeta=np.copy(zeta), ptau=np.copy(ptau))
-        line.track(particles, num_turns=N_t, turn_by_turn_monitor=True, with_progress=True)
+        line.track(particles, num_turns=N_t, turn_by_turn_monitor=True, with_progress=False)
         mon = line.record_last_track
 
         dt_array = np.zeros(N_t)
@@ -465,6 +504,9 @@ class TestXsuitePSB(unittest.TestCase):
 
     @staticmethod
     def performSingleParticleBLonDSimulation(blond_track, beam):
+        r'''
+        Perform simulation in pure BLonD.
+        '''
         # The number of turns to track
         N_t = len(blond_track.rf_params.phi_s) - 1
 
@@ -475,8 +517,8 @@ class TestXsuitePSB(unittest.TestCase):
         full_tracker = blond_track
 
         for i in range(N_t):
-            full_tracker.track()
             dt_array[i] = beam.dt[0]
             dE_array[i] = beam.dE[0]
+            full_tracker.track()
 
         return dt_array, dE_array
