@@ -289,7 +289,7 @@ class testBeamClass(unittest.TestCase):
 
         self.assertEqual(self.beam.id[2100000:2100100].tolist(), [0] * 100,
                          msg="particle ids not applied correctly")
-        
+
         self.assertEqual(self.beam.id[-1], 2100200,
                          msg='particle ids not applied correctly')
 
@@ -363,6 +363,39 @@ class testBeamClass(unittest.TestCase):
         self.assertEqual(n_macroparticles_after, n_macroparticles_before)
         self.assertEqual(n_macroparticles_alive_after, n_macroparticles_alive_before - 1)
         self.assertEqual(n_macroparticles_not_alive_after, n_macroparticles_not_alive_before + 1)
+
+    def test_beam_info_setting(self):
+
+        with self.assertRaises(ValueError):
+            self.beam._set_beam_info()
+
+        with self.assertRaises(ValueError):
+            self.beam._set_beam_info(None, 1, 1)
+
+    # def test_ratio_property(self):
+    #     beam1 = Beam(Ring=self.general_params, n_macroparticles=1, intensity=1)
+    #     self.assertEqual(beam1.ratio, 1)
+
+    # def test_ratio_setter_ratio(self):
+    #     beam1 = Beam(Ring=self.general_params, n_macroparticles=1, intensity=1)
+    #     beam1.ratio = 2  # rat
+    #     self.assertEqual(2.0, beam1.ratio)
+    #     self.assertEqual(1.0, beam1.n_macroparticles)
+    #     self.assertEqual(2.0, beam1.intensity)
+
+    # def test_ratio_setter_intensity(self):
+    #     beam1 = Beam(Ring=self.general_params, n_macroparticles=1, intensity=1)
+    #     beam1.intensity = 2  # rat
+    #     self.assertEqual(2,0, beam1.ratio)
+    #     self.assertEqual(1.0, beam1.n_macroparticles)
+    #     self.assertEqual(2.0, beam1.intensity)
+
+    # def test_ratio_setter_n_macroparticles(self):
+    #     beam1 = Beam(Ring=self.general_params, n_macroparticles=1, intensity=1)
+    #     beam1.n_macroparticles = 2  # rat
+    #     self.assertEqual(0.5, beam1.ratio)
+    #     self.assertEqual(2.0, beam1.n_macroparticles)
+    #     self.assertEqual(1.0, beam1.intensity, 1)
 
 
 if __name__ == '__main__':
