@@ -14,18 +14,24 @@ Unittest for the FFTs used in blond with CuPy and NumPy
 """
 
 import unittest
+from copy import deepcopy
+import os
 
 import numpy as np
 import pytest
 from scipy.constants import c
 
-from blond.utils.butils_wrap_cpp import get_libblond
 from blond.beam.beam import Beam, Proton
 from blond.beam.sparse_slices import SparseSlices
 from blond.impedances.music import Music
 from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
 from blond.utils import bmath as bm
+from blond.utils.butils_wrap_cpp import get_libblond
+from blond.utils.butils_wrap_numba import \
+    resonator_induced_voltage_1_turn as resonator_induced_voltage_1_turn_numba
+from blond.utils.butils_wrap_python import \
+    resonator_induced_voltage_1_turn as resonator_induced_voltage_1_turn_python
 
 
 class Test:
@@ -182,6 +188,49 @@ class Test:
         bm.slice_beam(dt_py, profile_py, cut_left, cut_right)
 
         np.testing.assert_allclose(profile_py, profile, atol=1)
+
+    def test_resonator_induced_voltage_1_turn(self):
+        folder = os.path.abspath(os.path.dirname(__file__)) + "/_kwargs_resonator_induced_voltage_1_turn/"
+        examples = {}
+        for file in os.listdir(folder):
+            print(f"{file=}")
+            examples[file.replace(".npy", "")] = np.load(folder + file)
+
+        kwargs_numba = dict(
+            kappa1=examples['_kappa1'],
+            n_macroparticles=examples['profile.n_macroparticles'],
+            bin_centers=examples['profile.bin_centers'],
+            bin_size=float(examples['profile.bin_size']),
+            deltaT=np.empty((47594, 512)),
+            tArray=examples['tArray'],
+            reOmegaP=examples['_reOmegaP'],
+            imOmegaP=examples['_imOmegaP'],
+            Qtilde=examples['_Qtilde'],
+            n_resonators=int(examples['n_resonators']),
+            omega_r=examples['omega_r'],
+            Q=examples['Q'],
+            charge=float(examples['beam.Particle.charge']),
+            beam_n_macroparticles=int(examples['beam.n_macroparticles']),
+            ratio=float(examples['beam.ratio']),
+            R=examples['R'],
+            induced_voltage=examples['induced_voltage'],
+            float_precision=np.float64,
+            n_time=len(examples["tArray"]),
+            tmp_matrix=np.empty(
+                (
+                    int(examples["n_resonators"]),
+                    len(examples["induced_voltage"])
+                )
+            )
+        )
+
+        kwargs_py = deepcopy(kwargs_numba)
+
+        induced_voltage_numba, deltaT_numba = resonator_induced_voltage_1_turn_numba(**kwargs_numba)
+        induced_voltage_python, deltaT_python = resonator_induced_voltage_1_turn_python(**kwargs_py)
+        assert np.allclose(deltaT_python, deltaT_numba), "Problem with calculation of deltaT"
+        assert np.allclose(induced_voltage_python,
+                           induced_voltage_numba), "Problem with calculation of induced_voltage"
 
     @pytest.mark.parametrize('n_particles,n_rf,n_iter',
                              [(100, 1, 1), (100, 4, 10),
@@ -373,7 +422,6 @@ class Test:
         np.testing.assert_array_almost_equal(
             profile_py, profile, decimal=8)
 
-
     @pytest.mark.parametrize('size', [10, 17, 100, 256, 1000])
     def test_fast_resonator(self, size):
         bm.use_cpp()
@@ -397,20 +445,20 @@ class Test:
 class TestWithObjects:
     # Simulation parameters -------------------------------------------------------
     # Bunch parameters
-    N_p = 1000000        # Number of particles
-    N_b = 1e9           # Intensity
-    tau_0 = 0.4e-9      # Initial bunch length, 4 sigma [s]
+    N_p = 1000000  # Number of particles
+    N_b = 1e9  # Intensity
+    tau_0 = 0.4e-9  # Initial bunch length, 4 sigma [s]
     # Machine and RF parameters
-    C = 26658.883        # Machine circumference [m]
-    p_i = 450e9          # Synchronous momentum [eV/c]
-    p_f = 460.005e9      # Synchronous momentum, final
-    h = 35640            # Harmonic number
-    V = 6e6                # RF voltage [V]
-    dphi = 0             # Phase modulation/offset
+    C = 26658.883  # Machine circumference [m]
+    p_i = 450e9  # Synchronous momentum [eV/c]
+    p_f = 460.005e9  # Synchronous momentum, final
+    h = 35640  # Harmonic number
+    V = 6e6  # RF voltage [V]
+    dphi = 0  # Phase modulation/offset
     gamma_t = 55.759505  # Transition gamma
-    alpha = 1. / gamma_t / gamma_t        # First order mom. comp. factor
+    alpha = 1. / gamma_t / gamma_t  # First order mom. comp. factor
     # Tracking details
-    N_t = 100       # Number of turns to track
+    N_t = 100  # Number of turns to track
 
     # Run before every test
     def setup_method(self):
@@ -452,7 +500,7 @@ class TestWithObjects:
         for i in range(int(np.sum(filling_pattern))):
             self.beam.dt[indexes[int(i * len(self.beam.dt) // np.sum(filling_pattern))]:
                          indexes[int((i + 1) * len(self.beam.dt) // np.sum(filling_pattern) - 1)]] += (
-                bucket_length * np.where(filling_pattern)[0][i])
+                    bucket_length * np.where(filling_pattern)[0][i])
 
         slice_beam_cpp = SparseSlices(
             self.rf, self.beam, n_slices, filling_pattern)
@@ -518,5 +566,4 @@ class TestWithObjects:
 
 
 if __name__ == '__main__':
-
     unittest.main()

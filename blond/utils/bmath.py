@@ -60,6 +60,8 @@ def use_cpp():
         'add_cpp': _cpp.add_cpp,
         'mul_cpp': _cpp.mul_cpp,
         'random_normal': _cpp.random_normal,
+        'resonator_induced_voltage_1_turn':
+            _py.resonator_induced_voltage_1_turn,
 
         'device': 'CPU_CPP'
     }
@@ -107,6 +109,8 @@ def use_numba():
         'sparse_histogram': _nu.sparse_histogram,
         'distribution_from_tomoscope': _nu.distribution_from_tomoscope,
         'set_random_seed': _nu.set_random_seed,
+        'resonator_induced_voltage_1_turn':
+            _nu.resonator_induced_voltage_1_turn,
 
         'device': 'CPU_NU'
     }
@@ -154,6 +158,8 @@ def use_py():
         'sparse_histogram': _py.sparse_histogram,
         'distribution_from_tomoscope': _py.distribution_from_tomoscope,
         'set_random_seed': _py.set_random_seed,
+        'resonator_induced_voltage_1_turn':
+            _py.resonator_induced_voltage_1_turn,
 
         'device': 'CPU_PY'
     }
@@ -312,6 +318,8 @@ def use_gpu(gpu_id=0):
         'synchrotron_radiation_full': _cupy.synchrotron_radiation_full,
         'slice_beam': _cupy.slice_beam,
         # 'interp_const_space': _cupy.interp,
+        'resonator_induced_voltage_1_turn':
+            _py.resonator_induced_voltage_1_turn,
         'interp_const_space': cp.interp,
         'device': 'GPU'
     }
