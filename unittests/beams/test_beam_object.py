@@ -329,36 +329,66 @@ class testBeamClass(unittest.TestCase):
         with self.assertRaises(TypeError, msg='Wrong type should raise exception'):
             self.beam.add_beam(([1], [2]))
 
+
     def test_beam_info_setting(self):
 
         with self.assertRaises(ValueError):
             self.beam._set_beam_info()
-            self.beam._set_beam_info(None, 1, 1)
+        with self.assertRaises(ValueError):
+            self.beam._set_beam_info(n_macroparticles = None,
+                                     intensity = 1, ratio = 1)
 
-    # def test_ratio_property(self):
-    #     beam1 = Beam(Ring=self.general_params, n_macroparticles=1, intensity=1)
-    #     self.assertEqual(beam1.ratio, 1)
+        # Set private variables first to force 0s
+        self.beam._intensity = 0
+        self.beam._ratio = 0
+        self.beam._n_macroparticles = 0
 
-    # def test_ratio_setter_ratio(self):
-    #     beam1 = Beam(Ring=self.general_params, n_macroparticles=1, intensity=1)
-    #     beam1.ratio = 2  # rat
-    #     self.assertEqual(2.0, beam1.ratio)
-    #     self.assertEqual(1.0, beam1.n_macroparticles)
-    #     self.assertEqual(2.0, beam1.intensity)
+        # Access properties to ensure link between private and getters
+        self.assertEqual(self.beam.ratio, 0, "Beam ratio should be 0")
+        self.assertEqual(self.beam.n_macroparticles, 0,
+                         "Beam n_macroparticles should be 0")
+        self.assertEqual(self.beam.intensity, 0, "Beam intensity should be 0")
 
-    # def test_ratio_setter_intensity(self):
-    #     beam1 = Beam(Ring=self.general_params, n_macroparticles=1, intensity=1)
-    #     beam1.intensity = 2  # rat
-    #     self.assertEqual(2,0, beam1.ratio)
-    #     self.assertEqual(1.0, beam1.n_macroparticles)
-    #     self.assertEqual(2.0, beam1.intensity)
 
-    # def test_ratio_setter_n_macroparticles(self):
-    #     beam1 = Beam(Ring=self.general_params, n_macroparticles=1, intensity=1)
-    #     beam1.n_macroparticles = 2  # rat
-    #     self.assertEqual(0.5, beam1.ratio)
-    #     self.assertEqual(2.0, beam1.n_macroparticles)
-    #     self.assertEqual(1.0, beam1.intensity, 1)
+        self.beam.n_macroparticles = 1
+        self.assertEqual(self.beam.ratio, 0, "Beam ratio should be 0")
+        self.assertEqual(self.beam.n_macroparticles, 1,
+                         "Beam n_macroparticles should be 1")
+        self.assertEqual(self.beam.intensity, 0, "Beam intensity should be 0")
+
+
+        self.beam.intensity = 1
+        self.assertEqual(self.beam.ratio, 1, "Beam ratio should be 1")
+        self.assertEqual(self.beam.n_macroparticles, 1,
+                         "Beam n_macroparticles should be 1")
+        self.assertEqual(self.beam.intensity, 1, "Beam intensity should be 1")
+
+
+        self.beam.ratio = 10
+        self.assertEqual(self.beam.ratio, 10, "Beam ratio should be 10")
+        self.assertEqual(self.beam.n_macroparticles, 1,
+                         "Beam n_macroparticles should be 1")
+        self.assertEqual(self.beam.intensity, 10, "Beam intensity should be 10")
+
+
+        # Set private variables first to force 0s
+        self.beam._intensity = 0
+        self.beam._ratio = 0
+        self.beam._n_macroparticles = 0
+
+
+        self.beam._set_beam_info(n_macroparticles=1, intensity=1)
+        self.assertEqual(self.beam.ratio, 1, "Beam ratio should be 1")
+        self.assertEqual(self.beam.n_macroparticles, 1,
+                         "Beam n_macroparticles should be 1")
+        self.assertEqual(self.beam.intensity, 1, "Beam intensity should be 1")
+
+
+        self.beam._set_beam_info(n_macroparticles=10, ratio=1)
+        self.assertEqual(self.beam.ratio, 1, "Beam ratio should be 0")
+        self.assertEqual(self.beam.n_macroparticles, 10,
+                         "Beam n_macroparticles should be 10")
+        self.assertEqual(self.beam.intensity, 10, "Beam intensity should be 10")
 
 
 if __name__ == '__main__':
