@@ -122,8 +122,8 @@ class MasterBackend:
         self.rf_volt_comp = None
         self.slice_smooth = None
         self.linear_interp_kick = None
-        self.music_track_multiturn = None # todo might be legacy
-        self.music_track = None # todo might be legacy?
+        self.music_track_multiturn = None  # todo might be legacy
+        self.music_track = None  # todo might be legacy?
         self.synchrotron_radiation = None
         self.beam_phase = None
         self.resonator_induced_voltage_1_turn = None
@@ -310,8 +310,6 @@ class __NumpyBackend(MasterBackend):
         super().__init__()
 
         import numpy as np
-        import scipy
-        from packaging.version import Version
 
         self.arctan = np.arctan
         self.ones = np.ones
@@ -512,8 +510,8 @@ class CppBackend(__NumpyBackend):
         self.linear_interp_kick = _cpp.linear_interp_kick
         self.synchrotron_radiation = _cpp.synchrotron_radiation
         self.synchrotron_radiation_full = _cpp.synchrotron_radiation_full
-        self.music_track = _cpp.music_track # todo might be legacy?
-        self.music_track_multiturn = _cpp.music_track_multiturn # todo might be legacy
+        self.music_track = _cpp.music_track  # todo might be legacy?
+        self.music_track_multiturn = _cpp.music_track_multiturn  # todo might be legacy
         self.fast_resonator = _cpp.fast_resonator
         self.beam_phase = _cpp.beam_phase
         self.beam_phase_fast = _cpp.beam_phase_fast
@@ -568,8 +566,8 @@ class NumbaBackend(__NumpyBackend):
         self.linear_interp_kick = _nu.linear_interp_kick
         self.synchrotron_radiation = _nu.synchrotron_radiation
         self.synchrotron_radiation_full = _nu.synchrotron_radiation_full
-        self.music_track = _nu.music_track # todo might be legacy?
-        self.music_track_multiturn = _nu.music_track_multiturn # todo might be legacy
+        self.music_track = _nu.music_track  # todo might be legacy?
+        self.music_track_multiturn = _nu.music_track_multiturn  # todo might be legacy
         self.fast_resonator = _nu.fast_resonator
         self.beam_phase = _nu.beam_phase
         self.beam_phase_fast = _nu.beam_phase_fast
@@ -598,8 +596,8 @@ class PyBackend(__NumpyBackend):
         self.linear_interp_kick = _py.linear_interp_kick
         self.synchrotron_radiation = _py.synchrotron_radiation
         self.synchrotron_radiation_full = _py.synchrotron_radiation_full
-        self.music_track = _py.music_track # todo might be legacy?
-        self.music_track_multiturn = _py.music_track_multiturn # todo might be legacy
+        self.music_track = _py.music_track  # todo might be legacy?
+        self.music_track_multiturn = _py.music_track_multiturn  # todo might be legacy
         self.fast_resonator = _py.fast_resonator
         self.beam_phase = _py.beam_phase
         self.beam_phase_fast = _py.beam_phase_fast
@@ -651,10 +649,11 @@ class GpuBackend(__CupyBackend):
         # self.distribution_from_tomoscope = not_implemented # todo implement ! # todo still required??
         self.fast_resonator = not_implemented  # todo implement !
         self.slice_smooth = not_implemented  # todo implement !
-        self.music_track_multiturn = not_implemented # todo implement ! # todo might be legacy
-        self.music_track = not_implemented # todo implement ! todo might be legacy?
+        self.music_track_multiturn = not_implemented  # todo implement ! # todo might be legacy
+        self.music_track = not_implemented  # todo implement ! todo might be legacy?
 
         self.set_random_seed = cp.random.seed
+
 
 
 __check_backends = [CppBackend(), NumbaBackend(), PyBackend()]
@@ -671,7 +670,7 @@ for __my_backend in __check_backends:
 
 # this line controls static type hints of bmath
 # static type hints are done to PyBackend
-class AnyBackend(NumbaBackend):
+class AnyBackend(PyBackend):
     def __init__(self):
         """Initialized as PyBackend (Numpy based)
 

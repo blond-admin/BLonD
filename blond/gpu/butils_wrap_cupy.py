@@ -18,11 +18,11 @@ from . import GPU_DEV
 
 # TODO all typing
 
-def rf_volt_comp(voltage, omega_rf, phi_rf, bin_centers):
+def rf_volt_comp(voltages, omega_rf, phi_rf, bin_centers):
     """Calculate the rf voltage at each profile bin
 
     Args:
-        voltage (float array): _description_
+        voltages (float array): _description_
         omega_rf (float array): _description_
         phi_rf (float array): _description_
         bin_centers (float array): _description_
@@ -33,15 +33,15 @@ def rf_volt_comp(voltage, omega_rf, phi_rf, bin_centers):
 
     rf_volt_comp_kernel = GPU_DEV.mod.get_function("rf_volt_comp")
 
-    assert voltage.dtype == precision.real_t
+    assert voltages.dtype == precision.real_t
     assert omega_rf.dtype == precision.real_t
     assert phi_rf.dtype == precision.real_t
     assert bin_centers.dtype == precision.real_t
 
     rf_voltage = cp.zeros(bin_centers.size, precision.real_t)
 
-    rf_volt_comp_kernel(args=(voltage, omega_rf, phi_rf, bin_centers,
-                              np.int32(voltage.size), np.int32(bin_centers.size), rf_voltage),
+    rf_volt_comp_kernel(args=(voltages, omega_rf, phi_rf, bin_centers,
+                              np.int32(voltages.size), np.int32(bin_centers.size), rf_voltage),
                         block=GPU_DEV.block_size, grid=GPU_DEV.grid_size)
     return rf_voltage
 
@@ -278,7 +278,7 @@ def __beam_phase_helper(bin_centers, profile, alpha, omega_rf, phi_rf):
     return base * cp.sin(a), base * cp.cos(a)
 
 
-def beam_phase(bin_centers: NDArray, profile: NDArray, alpha: float, omega_rf: float, phi_rf: float,
+def beam_phase(bin_centers: NDArray, profile: NDArray, alpha: float, omegarf: float, phirf: float,
                bin_size: float):
     """Beam phase measured at the main RF frequency and phase. The beam is
        convolved with the window function of the band-pass filter of the
@@ -290,8 +290,8 @@ def beam_phase(bin_centers: NDArray, profile: NDArray, alpha: float, omega_rf: f
         bin_centers (_type_): _description_
         profile (_type_): _description_
         alpha (_type_): _description_
-        omega_rf (_type_): _description_
-        phi_rf (_type_): _description_
+        omegarf (_type_): _description_
+        phirf (_type_): _description_
         bin_size (_type_): _description_
 
     Returns:
@@ -301,7 +301,7 @@ def beam_phase(bin_centers: NDArray, profile: NDArray, alpha: float, omega_rf: f
     assert profile.dtype == precision.real_t
 
     array1, array2 = __beam_phase_helper(
-        bin_centers, profile, alpha, omega_rf, phi_rf)
+        bin_centers, profile, alpha, omegarf, phirf)
     # due to the division, the bin_size is not needed
     scoeff = cp.trapz(array1, dx=1)
     ccoeff = cp.trapz(array2, dx=1)
@@ -326,14 +326,14 @@ def __beam_phase_fast_helper(bin_centers, profile, omega_rf, phi_rf):
     return profile * cp.sin(arr), profile * cp.cos(arr)
 
 
-def beam_phase_fast(bin_centers: NDArray, profile: NDArray, omega_rf: float, phi_rf: float, bin_size: float):
+def beam_phase_fast(bin_centers: NDArray, profile: NDArray, omegarf: float, phirf: float, bin_size: float):
     """Simplified, faster variation of the beam_phase function
 
     Args:
         bin_centers (_type_): _description_
         profile (_type_): _description_
-        omega_rf (_type_): _description_
-        phi_rf (_type_): _description_
+        omegarf (_type_): _description_
+        phirf (_type_): _description_
         bin_size (_type_): _description_
 
     Returns:
@@ -343,7 +343,7 @@ def beam_phase_fast(bin_centers: NDArray, profile: NDArray, omega_rf: float, phi
     assert profile.dtype == precision.real_t
 
     array1, array2 = __beam_phase_fast_helper(
-        bin_centers, profile, omega_rf, phi_rf)
+        bin_centers, profile, omegarf, phirf)
     # due to the division, the bin_size is not needed
     scoeff = cp.trapz(array1, dx=1)
     ccoeff = cp.trapz(array2, dx=1)

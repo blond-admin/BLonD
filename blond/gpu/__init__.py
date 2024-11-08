@@ -30,6 +30,7 @@ class GPUDev:
         self.grid_size = 0
         self.block_size = 0
         self.mod = None
+        self.set() # try to initialize mod
 
     def set(self, _gpu_num=0):
         import cupy as cp
