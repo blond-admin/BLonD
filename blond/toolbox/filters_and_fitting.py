@@ -29,8 +29,14 @@ from ..utils.legacy_support import handle_legacy_kwargs
 if TYPE_CHECKING:
 
     from numpy.typing import NDArray as NumpyNDArray
-    from cupy.typing import NDArray as CupyNDArray
-    NDArray = NumpyNDArray | CupyNDArray
+
+    try:
+        from cupy.typing import NDArray as CupyNDArray
+    except ImportError:
+        NDArray = NumpyNDArray
+    else:
+        NDArray = NumpyNDArray | CupyNDArray
+
     from ..utils.types import FilterExtraOptionsType
 
 @handle_legacy_kwargs
