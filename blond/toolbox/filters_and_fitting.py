@@ -65,8 +65,8 @@ def beam_profile_filter_chebyshev(y_array: NumpyNDArray,
     gain_stop = filter_option['gain_stop']
 
     # Compute the lowest order for a Chebyshev Type II digital filter
-    n_coefficients, wn = cheb2ord(frequency_pass, frequency_stop, gain_pass,
-                                  gain_stop)
+    n_coefficients, wn = cheb2ord(frequency_pass, frequency_stop,
+                                  gain_pass, gain_stop)
 
     # Compute the coefficients a Chebyshev Type II digital filter
     b, a = cheby2(n_coefficients, gain_stop, wn, btype='low')
@@ -80,8 +80,8 @@ def beam_profile_filter_chebyshev(y_array: NumpyNDArray,
         # Plot the filter transfer function
         w, transferGain = freqz(b, a=a, worN=len(y_array))
         transferFreq = w / np.pi * nyq_freq
-        group_delay = -np.diff(-np.unwrap(-np.angle(transferGain))) / \
-                      -np.diff(w * freq_sampling)
+        group_delay = (-np.diff(-np.unwrap(-np.angle(transferGain)))
+                       / -np.diff(w * freq_sampling))
 
         plt.figure()
         ax1 = plt.subplot(311)
@@ -97,9 +97,8 @@ def beam_profile_filter_chebyshev(y_array: NumpyNDArray,
 
         # Plot the bunch spectrum and the filter transfer function
         plt.figure()
-        plt.plot(
-            np.fft.fftfreq(len(y_array), x_array[1] - x_array[0]),
-            20. * np.log10(np.abs(np.fft.fft(noisy_profile))))
+        plt.plot(np.fft.fftfreq(len(y_array), x_array[1] - x_array[0]),
+                 20. * np.log10(np.abs(np.fft.fft(noisy_profile))))
         plt.xlabel('Frequency [Hz]')
         plt.twinx()
         plt.plot(transferFreq, 20 * np.log10(abs(transferGain)), 'r')
@@ -114,8 +113,7 @@ def beam_profile_filter_chebyshev(y_array: NumpyNDArray,
         return y_array
 
 @handle_legacy_kwargs
-def gaussian_fit(y_array: NDArray,
-                 x_array: NDArray,
+def gaussian_fit(y_array: NDArray, x_array: NDArray,
                  p0: list[float]) -> NumpyNDArray:
     """
     Gaussian fit of the profile, in order to get the bunch length and
@@ -152,13 +150,14 @@ def rms(y_array: NumpyNDArray, x_array: NumpyNDArray) -> tuple[float, float]:
 
     bp_rms = np.trapezoid(x_array * lineDenNormalized, dx=timeResolution)
 
-    bl_rms = 4 * np.sqrt(
-        np.trapezoid((x_array - bp_rms) ** 2 * lineDenNormalized, dx=timeResolution))
+    bl_rms = 4 * np.sqrt(np.trapezoid((x_array-bp_rms) ** 2
+                                      * lineDenNormalized, dx=timeResolution))
 
     return bp_rms, bl_rms
 
 @handle_legacy_kwargs
-def fwhm(y_array: NumpyNDArray, x_array: NumpyNDArray, shift: float = 0) -> tuple[float, float]:
+def fwhm(y_array: NumpyNDArray, x_array: NumpyNDArray,
+         shift: float = 0) -> tuple[float, float]:
     """
     Computation of the bunch length and position from the FWHM
     assuming Gaussian line density.
@@ -173,12 +172,10 @@ def fwhm(y_array: NumpyNDArray, x_array: NumpyNDArray, shift: float = 0) -> tupl
     # Interpolation of the time, where the line density is half the maximum
     bin_size = x_array[1] - x_array[0]
     try:
-        t_left = x_array[t1] - bin_size * \
-                 (y_array[t1] - half_max) / \
-                 (y_array[t1] - y_array[t1 - 1])
-        t_right = x_array[t2] + bin_size * \
-                  (y_array[t2] - half_max) / \
-                  (y_array[t2] - y_array[t2 + 1])
+        t_left = (x_array[t1] - bin_size * (y_array[t1] - half_max)
+                  / (y_array[t1] - y_array[t1 - 1]))
+        t_right = (x_array[t2] + bin_size * (y_array[t2] - half_max)
+                   / (y_array[t2] - y_array[t2 + 1]))
 
         bl_fwhm = 4 * (t_right - t_left) / (2 * np.sqrt(2 * np.log(2)))
         bp_fwhm = (t_left + t_right) / 2
@@ -209,15 +206,17 @@ def fwhm_multibunch(y_array: NDArray,
         x_array = x_array.get()
         y_array = y_array.get()
     for indexBunch in range(0, n_bunches):
-        left_edge = indexBunch * bunch_spacing_buckets * bucket_size_tau - \
-                    bucket_tolerance * bucket_size_tau
-        right_edge = indexBunch * bunch_spacing_buckets * bucket_size_tau + \
-                     bucket_size_tau + bucket_tolerance * bucket_size_tau
-        indexes_bucket = np.where((x_array > left_edge) *
-                                  (x_array < right_edge))[0]
+        left_edge = (indexBunch * bunch_spacing_buckets * bucket_size_tau
+                     - bucket_tolerance * bucket_size_tau)
+        right_edge = (indexBunch * bunch_spacing_buckets * bucket_size_tau
+                      + bucket_size_tau + bucket_tolerance * bucket_size_tau)
+        indexes_bucket = np.where((x_array > left_edge)
+                                   * (x_array < right_edge))[0]
 
         bp_fwhm[indexBunch], bl_fwhm[indexBunch] = fwhm(
-            y_array[indexes_bucket], x_array[indexes_bucket], shift)
+                                                       y_array[indexes_bucket],
+                                                       x_array[indexes_bucket],
+                                                       shift)
 
     return bp_fwhm, bl_fwhm
 
@@ -240,13 +239,13 @@ def rms_multibunch(y_array: NDArray,
         y_array = y_array.get()
 
     for indexBunch in range(0, n_bunches):
-        left_edge = indexBunch * bunch_spacing_buckets * bucket_size_tau - \
-                    bucket_tolerance * bucket_size_tau
-        right_edge = indexBunch * bunch_spacing_buckets * bucket_size_tau + \
-                     bucket_size_tau + bucket_tolerance * bucket_size_tau
+        left_edge = (indexBunch * bunch_spacing_buckets * bucket_size_tau
+                     - bucket_tolerance * bucket_size_tau)
+        right_edge = (indexBunch * bunch_spacing_buckets * bucket_size_tau
+                      + bucket_size_tau + bucket_tolerance * bucket_size_tau)
 
-        indexes_bucket = np.where((x_array > left_edge) *
-                                  (x_array < right_edge))[0]
+        indexes_bucket = np.where((x_array > left_edge)
+                                   * (x_array < right_edge))[0]
 
         bp_rms[indexBunch], bl_rms[indexBunch] = rms(
             y_array[indexes_bucket],
