@@ -21,13 +21,15 @@ import numpy as np
 from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
-    from typing import Union
+    from typing import Optional
+
     from os import PathLike
     from ..beam.profile import Profile
 
 
 @handle_legacy_kwargs
-def plot_beam_profile(profile: Profile, counter, style='-', dirname: str | PathLike[str] = 'fig',
+def plot_beam_profile(profile: Profile, counter: int, style: str =  '-',
+                      dirname: str | PathLike[str] = 'fig',
                       show_plot: bool = False):
     """
     Plot of longitudinal beam profile
@@ -56,15 +58,20 @@ def plot_beam_profile(profile: Profile, counter, style='-', dirname: str | PathL
 
 
 @handle_legacy_kwargs
-def plot_beam_profile_derivative(profile: Profile, counter: int, style='-',
+def plot_beam_profile_derivative(profile: Profile, counter: int,
+                                 style: str = '-',
                                  dirname: str | PathLike[str] = 'fig',
                                  show_plot: bool = False,
-                                 modes=['diff']):
+                                 modes: Optional[list[str]] = None):
     """
     Plot of the derivative of the longitudinal beam profile.
     Modes list should contain 1 or more of the elements below:
     1) 'filter1d', 2) 'gradient', 3) 'diff'
+    If modes is None, ['diff'] is used.
     """
+
+    modes = ['diff'] if modes is None else modes
+
     for mode in modes:
         x, derivative = profile.beam_profile_derivative(mode)
         plt.plot(x, derivative, style, label=mode)
@@ -77,7 +84,8 @@ def plot_beam_profile_derivative(profile: Profile, counter: int, style='-',
     plt.clf()
 
 @handle_legacy_kwargs
-def plot_beam_spectrum(profile: Profile, counter: int, style='-', dirname: str | PathLike[str] = 'fig',
+def plot_beam_spectrum(profile: Profile, counter: int, style: str = '-',
+                       dirname: str | PathLike[str] = 'fig',
                        show_plot: bool = False):
     """
     Plot of longitudinal beam profile
@@ -85,7 +93,8 @@ def plot_beam_spectrum(profile: Profile, counter: int, style='-', dirname: str |
 
     plt.figure(1, figsize=(8, 6))
     ax = plt.axes()
-    ax.plot(profile.beam_spectrum_freq, np.absolute(profile.beam_spectrum), style)
+    ax.plot(profile.beam_spectrum_freq, np.absolute(profile.beam_spectrum),
+            style)
 
     ax.set_xlabel(r"Frequency [Hz]")
     ax.set_ylabel('Beam spectrum, \n absolute value [arb. units]')
