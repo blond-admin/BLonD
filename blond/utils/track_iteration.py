@@ -51,7 +51,7 @@ class TrackIteration:
     function_list : list of functions to be called with specified interval
     """
 
-    def __init__(self, track_map: Iterable[TrackableBaseClass], init_turn: int = 0,
+    def __init__(self, track_map: Iterable[Trackable], init_turn: int = 0,
                  final_turn: int = -1) -> None:
 
         if not all((hasattr(m, 'track') for m in track_map)):
@@ -107,6 +107,7 @@ class TrackIteration:
         try:
             for m in self._map:
                 m.track()
+        # TODO:  Check it is the expected IndexError (caused by reaching n_turns)
         except IndexError:
             raise StopIteration
 
