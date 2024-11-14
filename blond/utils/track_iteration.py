@@ -21,11 +21,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from typing import Iterable, Callable, Protocol, Any, Self
 
-
-    class Trackable(Protocol):
-        def track(self) -> None:
-            ...
-
+    from .types import Trackable
 
     class Predicate(Protocol):
         def __call__(self, _map: Iterable[Trackable], turn_number: int,
