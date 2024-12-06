@@ -108,19 +108,24 @@ def synchrotron_frequency_distribution(beam: Beam,
         induced_potential = (- eom_factor_potential
                              * np.insert(cumtrapz(induced_voltage,
                                                  dx=float(time_induced_voltage[1]
-                                                    - time_induced_voltage[0])), 0, 0))
+                                                    - time_induced_voltage[0])),
+                                          0, 0))
 
         # Interpolating the potential well
-        induced_potential_final = np.interp(time_coord_array, time_induced_voltage, induced_potential)
+        induced_potential_final = np.interp(time_coord_array,
+                                            time_induced_voltage,
+                                            induced_potential)
 
     # Induced voltage contribution
     total_potential = potential_well_array + induced_potential_final
 
     # Process the potential well in order to take a frame around the separatrix
-    time_coord_sep, potential_well_sep = potential_well_cut(time_coord_array, total_potential)
+    time_coord_sep, potential_well_sep = potential_well_cut(time_coord_array,
+                                                            total_potential)
 
     potential_well_sep = potential_well_sep - np.min(potential_well_sep)
-    synchronous_phase_index = np.where(potential_well_sep == np.min(potential_well_sep))[0]
+    synchronous_phase_index = np.where(potential_well_sep
+                                       == np.min(potential_well_sep))[0]
 
     # Computing the action J by integrating the dE trajectories
     J_array_dE0 = np.zeros(len(potential_well_sep))
@@ -136,7 +141,8 @@ def synchrotron_frequency_distribution(beam: Beam,
         right_time = time_coord_sep[np.min((time_indexes[-1],
                                             len(time_coord_sep) - 1))]
         # Potential well calculation with high resolution in that frame
-        time_potential_high_res = np.linspace(float(left_time), float(right_time),
+        time_potential_high_res = np.linspace(float(left_time),
+                                              float(right_time),
                                               n_points_potential)
         full_ring_and_rf.potential_well_generation(
             n_points=n_points_potential,
@@ -149,11 +155,12 @@ def synchrotron_frequency_distribution(beam: Beam,
                                            induced_potential)
             pot_well_high_res -= pot_well_high_res.min()
         # Integration to calculate action
-        dE_trajectory = np.sqrt((potential_well_sep[i] -
-                                 pot_well_high_res) / eom_factor_dE)
+        dE_trajectory = np.sqrt((potential_well_sep[i]
+                                 - pot_well_high_res) / eom_factor_dE)
         dE_trajectory[np.isnan(dE_trajectory)] = 0
         J_array_dE0[i] = 1 / np.pi * np.trapezoid(dE_trajectory,
-                                                  dx=time_potential_high_res[1] - time_potential_high_res[0])
+                                            dx=time_potential_high_res[1]
+                                                - time_potential_high_res[0])
 
     warnings.filterwarnings("default")
 
@@ -179,21 +186,33 @@ def synchrotron_frequency_distribution(beam: Beam,
     delta_time_right = delta_time_right - delta_time_right[0]
 
     if smooth_option is not None:
-        H_array_left = np.convolve(H_array_left, np.ones(smooth_option) / smooth_option, mode='valid')
-        J_array_left = np.convolve(J_array_left, np.ones(smooth_option) / smooth_option, mode='valid')
-        H_array_right = np.convolve(H_array_right, np.ones(smooth_option) / smooth_option, mode='valid')
-        J_array_right = np.convolve(J_array_right, np.ones(smooth_option) / smooth_option, mode='valid')
-        delta_time_left = (delta_time_left + (smooth_option - 1) * (delta_time_left[1] - delta_time_left[0]) / 2)[
-                          0:len(delta_time_left) - smooth_option + 1]
-        delta_time_right = (delta_time_right + (smooth_option - 1) * (delta_time_right[1] - delta_time_right[0]) / 2)[
-                           0:len(delta_time_right) - smooth_option + 1]
+        H_array_left = np.convolve(H_array_left, np.ones(smooth_option)
+                                                 / smooth_option,
+                                   mode='valid')
+        J_array_left = np.convolve(J_array_left, np.ones(smooth_option)
+                                                 / smooth_option,
+                                   mode='valid')
+        H_array_right = np.convolve(H_array_right, np.ones(smooth_option)
+                                                   / smooth_option,
+                                   mode='valid')
+        J_array_right = np.convolve(J_array_right, np.ones(smooth_option)
+                                                   / smooth_option,
+                                   mode='valid')
+        delta_time_left = (delta_time_left + (smooth_option - 1)
+                           * (delta_time_left[1] - delta_time_left[0])
+                           / 2)[0:len(delta_time_left) - smooth_option + 1]
+        delta_time_right = (delta_time_right + (smooth_option - 1)
+                            * (delta_time_right[1] - delta_time_right[0])
+                            / 2)[0:len(delta_time_right) - smooth_option + 1]
 
     delta_time_left = np.fliplr([delta_time_left])[0]
 
     # Calculation of fs as fs= dH/dJ / (2*pi)
-    sync_freq_distribution_left = np.gradient(H_array_left) / np.gradient(J_array_left) / (2 * np.pi)
+    sync_freq_distribution_left = (np.gradient(H_array_left)
+                                   / np.gradient(J_array_left) / (2 * np.pi))
     sync_freq_distribution_left = np.fliplr([sync_freq_distribution_left])[0]
-    sync_freq_distribution_right = np.gradient(H_array_right) / np.gradient(J_array_right) / (2 * np.pi)
+    sync_freq_distribution_right = (np.gradient(H_array_right)
+                                    / np.gradient(J_array_right) / (2 * np.pi))
 
     # Emittance arrays
     emittance_array_left = J_array_left * (2 * np.pi)
@@ -201,18 +220,22 @@ def synchrotron_frequency_distribution(beam: Beam,
     emittance_array_right = J_array_right * (2 * np.pi)
 
     # Calculating particle distribution in synchrotron frequency
-    H_particles = eom_factor_dE * beam.dE ** 2 + np.interp(beam.dt, time_coord_array, total_potential)
-    sync_freq_distribution = np.concatenate((sync_freq_distribution_left, sync_freq_distribution_right))
+    H_particles = eom_factor_dE * beam.dE**2 + np.interp(beam.dt,
+                                                         time_coord_array,
+                                                         total_potential)
+    sync_freq_distribution = np.concatenate((sync_freq_distribution_left,
+                                             sync_freq_distribution_right))
     H_array = np.concatenate((np.fliplr([H_array_left])[0], H_array_right))
     sync_freq_distribution = sync_freq_distribution[H_array.argsort()]
     H_array.sort()
 
-    particleDistributionFreq = np.interp(H_particles, H_array, sync_freq_distribution)
+    particleDistributionFreq = np.interp(H_particles, H_array,
+                                         sync_freq_distribution)
 
-    return [sync_freq_distribution_left, sync_freq_distribution_right], \
-        [emittance_array_left, emittance_array_right], \
-        [delta_time_left, delta_time_right], \
-        particleDistributionFreq, synchronous_time
+    return ([sync_freq_distribution_left, sync_freq_distribution_right],
+            [emittance_array_left, emittance_array_right],
+            [delta_time_left, delta_time_right],
+            particleDistributionFreq, synchronous_time)
 
 
 class SynchrotronFrequencyTracker:
@@ -234,7 +257,8 @@ class SynchrotronFrequencyTracker:
     """
 
     @handle_legacy_kwargs
-    def __init__(self, ring: Ring, n_macroparticles: int, theta_coordinate_range: NDArray,
+    def __init__(self, ring: Ring, n_macroparticles: int,
+                 theta_coordinate_range: NDArray,
                  full_ring_and_rf: FullRingAndRF,
                  total_induced_voltage: Optional[TotalInducedVoltage] = None):
 
@@ -250,6 +274,7 @@ class SynchrotronFrequencyTracker:
         self.total_induced_voltage: Optional[TotalInducedVoltage] = None
         if total_induced_voltage is not None:
             self.total_induced_voltage = total_induced_voltage
+            # FIXME:  Correct handling of intensity
             intensity = total_induced_voltage.profiles.beam.intensity  # fixme
         else:
             intensity = 0.
@@ -266,14 +291,16 @@ class SynchrotronFrequencyTracker:
         # Generating the distribution from the user input
         if len(theta_coordinate_range) == 2:
             self.beam.dt = (np.linspace(float(theta_coordinate_range[0]),
-                                       float(theta_coordinate_range[1]), n_macroparticles)
+                                        float(theta_coordinate_range[1]),
+                                        n_macroparticles)
                             * (self.ring.ring_radius / (self.beam.beta * c)))
         else:
             if len(theta_coordinate_range) != n_macroparticles:
                 # SynchrotronMotionError
                 raise RuntimeError('The input n_macroparticles does not match with the length of the theta_coordinates')
             else:
-                self.beam.dt = np.array(theta_coordinate_range) * (self.ring.ring_radius / (self.beam.beta * c))
+                self.beam.dt = (np.array(theta_coordinate_range)
+                                * (self.ring.ring_radius / (self.beam.beta*c)))
 
         self.beam.dE = np.zeros(int(n_macroparticles))
 
@@ -296,31 +323,36 @@ class SynchrotronFrequencyTracker:
         self.counter = 0
 
         # The first save coordinates are the input coordinates
-        self.theta_save[self.counter] = self.beam.dt / (self.ring.ring_radius / (self.beam.beta * c))
+        self.theta_save[self.counter] = self.beam.dt / (self.ring.ring_radius
+                                                        / (self.beam.beta * c))
         self.dE_save[self.counter] = self.beam.dE
 
     @property
     def TotalInducedVoltage(self):
         from warnings import warn
-        warn("TotalInducedVoltage is deprecated, use total_induced_voltage", DeprecationWarning)
+        warn("TotalInducedVoltage is deprecated, use total_induced_voltage",
+             DeprecationWarning)
         return self.total_induced_voltage
 
     @TotalInducedVoltage.setter
     def TotalInducedVoltage(self, val):
         from warnings import warn
-        warn("TotalInducedVoltage is deprecated, use total_induced_voltage", DeprecationWarning)
+        warn("TotalInducedVoltage is deprecated, use total_induced_voltage",
+             DeprecationWarning)
         self.total_induced_voltage = val
 
     @property
     def FullRingAndRF(self):
         from warnings import warn
-        warn("FullRingAndRF is deprecated, use full_ring_and_rf", DeprecationWarning)
+        warn("FullRingAndRF is deprecated, use full_ring_and_rf",
+             DeprecationWarning)
         return self.full_ring_and_rf
 
     @FullRingAndRF.setter
     def FullRingAndRF(self, val):
         from warnings import warn
-        warn("FullRingAndRF is deprecated, use full_ring_and_rf", DeprecationWarning)
+        warn("FullRingAndRF is deprecated, use full_ring_and_rf",
+             DeprecationWarning)
         self.full_ring_and_rf = val
 
     @property
@@ -359,10 +391,12 @@ class SynchrotronFrequencyTracker:
 
         self.counter = self.counter + 1
 
-        self.theta_save[self.counter] = self.beam.dt / (self.ring.ring_radius / (self.beam.beta * c))
+        self.theta_save[self.counter] = self.beam.dt / (self.ring.ring_radius
+                                                        / (self.beam.beta * c))
         self.dE_save[self.counter] = self.beam.dE
 
-    def frequency_calculation(self, n_sampling=100000, start_turn=None, end_turn=None):
+    def frequency_calculation(self, n_sampling=100000, start_turn=None,
+                              end_turn=None):
         """
         *Method to compute the fft of the particle oscillations in theta and dE
         to obtain their synchrotron frequencies. The particles for which
@@ -408,12 +442,18 @@ class SynchrotronFrequencyTracker:
             self.max_theta_save[indexParticle] = np.max(self.theta_save[start_turn:end_turn, indexParticle])
             self.min_theta_save[indexParticle] = np.min(self.theta_save[start_turn:end_turn, indexParticle])
 
-            if (self.max_theta_save[indexParticle] < max_theta_range) and (
-                    self.min_theta_save[indexParticle] > min_theta_range):
-                theta_save_fft = abs(np.fft.rfft(self.theta_save[start_turn:end_turn, indexParticle] - np.mean(
-                    self.theta_save[start_turn:end_turn, indexParticle]), n_sampling))
-                dE_save_fft = abs(np.fft.rfft(self.dE_save[start_turn:end_turn, indexParticle] - np.mean(
-                    self.dE_save[start_turn:end_turn, indexParticle]), n_sampling))
+            if ((self.max_theta_save[indexParticle] < max_theta_range)
+                and (self.min_theta_save[indexParticle] > min_theta_range)):
+
+                theta_save_fft = abs(np.fft.rfft(
+                                self.theta_save[start_turn:end_turn, indexParticle]
+                                - np.mean(self.theta_save[start_turn:end_turn, indexParticle]),
+                                                n_sampling))
+
+                dE_save_fft = abs(np.fft.rfft(
+                            self.dE_save[start_turn:end_turn, indexParticle]
+                            - np.mean(self.dE_save[start_turn:end_turn, indexParticle]),
+                                              n_sampling))
 
                 self.frequency_theta_save[indexParticle] = self.frequency_array[
                     np.argmax(theta_save_fft == np.max(theta_save_fft))]
@@ -424,7 +464,7 @@ class SynchrotronFrequencyTracker:
 synchrotron_frequency_tracker = SynchrotronFrequencyTracker
 
 
-def total_voltage(RFsection_list, harmonic='first'):
+def total_voltage(RFsection_list: list[RFStation], harmonic: str = 'first'):
     """
     Total voltage from all the RF stations and systems in the ring.
     To be generalized.
@@ -435,12 +475,16 @@ def total_voltage(RFsection_list, harmonic='first'):
     #: *Sums up only the voltage of the first harmonic RF,
     #: taking into account relative phases*
     if harmonic == 'first':
-        Vcos = RFsection_list[0].voltage[0] * np.cos(RFsection_list[0].phi_rf[0])
-        Vsin = RFsection_list[0].voltage[0] * np.sin(RFsection_list[0].phi_rf[0])
+        Vcos = (RFsection_list[0].voltage[0]
+                * np.cos(RFsection_list[0].phi_rf[0]))
+        Vsin = (RFsection_list[0].voltage[0]
+                * np.sin(RFsection_list[0].phi_rf[0]))
         if n_sections > 1:
             for i in range(1, n_sections):
-                Vcos += RFsection_list[i].voltage[0] * np.cos(RFsection_list[i].phi_rf[0])
-                Vsin += RFsection_list[i].voltage[0] * np.sin(RFsection_list[i].phi_rf[0])
+                Vcos += (RFsection_list[i].voltage[0]
+                         * np.cos(RFsection_list[i].phi_rf[0]))
+                Vsin += (RFsection_list[i].voltage[0]
+                         * np.sin(RFsection_list[i].phi_rf[0]))
         Vtot = np.sqrt(Vcos ** 2 + Vsin ** 2)
         return Vtot
 
@@ -494,8 +538,8 @@ def hamiltonian(ring: Ring, rf_station: RFStation, beam: Beam,
     elif eta0 > 0:
         phi_b = phase_modulo_above_transition(phi_b)
 
-    return c1 * dE ** 2 + c2 * (bm.cos(phi_b) - bm.cos(phi_s) +
-                                (phi_b - phi_s) * bm.sin(phi_s))
+    return c1 * dE ** 2 + c2 * (bm.cos(phi_b) - bm.cos(phi_s)
+                                + (phi_b - phi_s) * bm.sin(phi_s))
 
 
 @handle_legacy_kwargs
@@ -507,7 +551,7 @@ def separatrix(ring: Ring, rf_station: RFStation, dt: NDArray) -> NDArray:
     one turn.
 
     Parameters
-    ---------- 
+    ----------
     ring : class
         A Ring type class
     rf_station : class
@@ -531,19 +575,26 @@ def separatrix(ring: Ring, rf_station: RFStation, dt: NDArray) -> NDArray:
 
     # Import RF and ring parameters at this moment
     counter = rf_station.counter[0]
-    voltage = ring.particle.charge * rf_station.voltage[:, counter] * ring.n_sections
+    voltage = (ring.particle.charge * rf_station.voltage[:, counter]
+               * ring.n_sections)
     omega_rf = rf_station.omega_rf[:, counter]
     phi_rf = rf_station.phi_rf[:, counter]
+
     if ring.particle.charge < 0:
         phi_rf = phi_rf - np.pi
+
     eta_0 = rf_station.eta_0[counter]
     beta_sq = rf_station.beta[counter] ** 2
     energy = rf_station.energy[counter]
+
     try:
         delta_E = rf_station.delta_E[counter] * ring.n_sections
     except Exception:
+        # FIXME:  More targeted exception required
         delta_E = rf_station.delta_E[-1] * ring.n_sections
+
     T_0 = ring.t_rev[counter]
+
     if ring.particle.charge > 0:
         index = np.min(np.where(voltage > 0)[0])
     elif ring.particle.charge < 0:
@@ -578,8 +629,10 @@ def separatrix(ring: Ring, rf_station: RFStation, dt: NDArray) -> NDArray:
     # Unstable fixed point in multi-harmonic RF system
     else:
 
-        dt_ufp = np.linspace(-float(phi_rf[index] / omega_rf[index] - T_rf_0 / 1000),
-                             float(T_rf_0 - phi_rf[index] / omega_rf[index] + T_rf_0 / 1000), 1002)
+        dt_ufp = np.linspace(-float(phi_rf[index] / omega_rf[index]
+                                    - T_rf_0 / 1000),
+                             float(T_rf_0 - phi_rf[index] / omega_rf[index]
+                                   + T_rf_0 / 1000), 1002)
 
         if eta_0 < 0:
             dt_ufp += 0.5 * T_rf_0  # Shift in RF phase below transition
@@ -606,18 +659,20 @@ def separatrix(ring: Ring, rf_station: RFStation, dt: NDArray) -> NDArray:
             while (Vtot[ind + 1] - Vtot[ind]) < 0:
                 i += 1
                 ind = zero_crossings[i]
-        dt_ufp = dt_ufp[ind] + Vtot[ind] / (Vtot[ind] - Vtot[ind + 1]) * \
-                 (dt_ufp[ind + 1] - dt_ufp[ind])
+        dt_ufp = (dt_ufp[ind] + Vtot[ind] / (Vtot[ind] - Vtot[ind + 1])
+                  * (dt_ufp[ind + 1] - dt_ufp[ind]))
 
     # Construct separatrix
     Vtot = np.zeros(len(dt))
     for i in range(rf_station.n_rf):
-        Vtot += voltage[i] * (np.cos(omega_rf[i] * dt_ufp + phi_rf[i]) -
-                              np.cos(omega_rf[i] * dt + phi_rf[i])) / omega_rf[i]
+        Vtot += (voltage[i] * (np.cos(omega_rf[i] * dt_ufp + phi_rf[i])
+                               - np.cos(omega_rf[i] * dt + phi_rf[i]))
+                 / omega_rf[i])
 
     Vtot *= np.sign(ring.particle.charge)
 
-    separatrix_sq = 2 * beta_sq * energy / (eta_0 * T_0) * (Vtot + delta_E * (dt_ufp - dt))
+    separatrix_sq = 2 * beta_sq * energy / (eta_0 * T_0) * (Vtot + delta_E
+                                                            * (dt_ufp - dt))
     pos_ind = np.where(separatrix_sq >= 0)[0]
     separatrix_array = np.full((len(separatrix_sq)), fill_value=np.nan)
     separatrix_array[pos_ind] = np.sqrt(separatrix_sq[pos_ind])
@@ -626,13 +681,15 @@ def separatrix(ring: Ring, rf_station: RFStation, dt: NDArray) -> NDArray:
 
 
 @handle_legacy_kwargs
-def is_in_separatrix(ring: Ring, rf_station: RFStation, beam: Beam, dt: NDArray, dE: NDArray,
+# TODO:  Verify unusued argument "total_voltage"
+def is_in_separatrix(ring: Ring, rf_station: RFStation, beam: Beam,
+                     dt: NDArray, dE: NDArray,
                      total_voltage: Optional[NDArray] = None) -> NDArray:
-    r"""Function checking whether coordinate pair(s) are inside the separatrix. 
+    r"""Function checking whether coordinate pair(s) are inside the separatrix.
     Uses the single-RF sinusoidal Hamiltonian.
 
     Parameters
-    ---------- 
+    ----------
     ring : class
         A Ring type class
     rf_station : class
@@ -675,7 +732,8 @@ def is_in_separatrix(ring: Ring, rf_station: RFStation, beam: Beam, dt: NDArray,
     return isin
 
 
-def minmax_location(x: NDArray, f: NDArray) -> tuple[list[ndarray], list[ndarray]]:
+def minmax_location(x: NDArray, f: NDArray) -> tuple[list[ndarray],
+                                                     list[ndarray]]:
     """
     *Function to locate the minima and maxima of the f(x) numerical function.*
     """
@@ -705,7 +763,8 @@ def minmax_location(x: NDArray, f: NDArray) -> tuple[list[ndarray], list[ndarray
     return [min_x_position, max_x_position], [min_values, max_values]
 
 
-def potential_well_cut(time_potential: NDArray, potential_array: NDArray) -> tuple[NDArray, NDArray]:
+def potential_well_cut(time_potential: NDArray,
+                       potential_array: NDArray) -> tuple[NDArray, NDArray]:
     """
     *Function to cut the potential well in order to take only the separatrix
     (several cases according to the number of min/max).*
@@ -758,34 +817,43 @@ def potential_well_cut(time_potential: NDArray, potential_array: NDArray) -> tup
     elif n_maxima == 2:
         lower_maximum_value = np.min(max_potential_values)
         higher_maximum_value = np.max(max_potential_values)
-        lower_maximum_time = max_time_positions[max_potential_values == lower_maximum_value]
-        higher_maximum_time = max_time_positions[max_potential_values == higher_maximum_value]
+        lower_maximum_time = max_time_positions[max_potential_values
+                                                == lower_maximum_value]
+        higher_maximum_time = max_time_positions[max_potential_values
+                                                 == higher_maximum_value]
+
         if len(lower_maximum_time) == 2:
             saved_indexes = (potential_array < lower_maximum_value) * \
                             (time_potential > lower_maximum_time[0]) * \
                             (time_potential < lower_maximum_time[1])
             time_potential_sep = time_potential[saved_indexes]
             potential_well_sep = potential_array[saved_indexes]
+
         elif min_time_positions[0] > lower_maximum_time:
             saved_indexes = (potential_array < lower_maximum_value) * \
                             (time_potential > lower_maximum_time) * \
                             (time_potential < higher_maximum_time)
             time_potential_sep = time_potential[saved_indexes]
             potential_well_sep = potential_array[saved_indexes]
+
         else:
             saved_indexes = (potential_array < lower_maximum_value) * \
                             (time_potential < lower_maximum_time) * \
                             (time_potential > higher_maximum_time)
             time_potential_sep = time_potential[saved_indexes]
             potential_well_sep = potential_array[saved_indexes]
+
     elif n_maxima > 2:
         left_max_time = np.min(max_time_positions)
         right_max_time = np.max(max_time_positions)
         left_max_value = max_potential_values[max_time_positions == left_max_time]
         right_max_value = max_potential_values[max_time_positions == right_max_time]
         separatrix_value = np.min([left_max_value, right_max_value])
-        saved_indexes = (time_potential > left_max_time) * (time_potential < right_max_time) * (
-                potential_array < separatrix_value)
+
+        saved_indexes = ((time_potential > left_max_time)
+                         * (time_potential < right_max_time)
+                         * (potential_array < separatrix_value))
+
         time_potential_sep = time_potential[saved_indexes]
         potential_well_sep = potential_array[saved_indexes]
 

@@ -63,7 +63,8 @@ class SynchrotronRadiation:
 
         self.I2 = 2.0 * np.pi / self.rho  # Assuming isomagnetic machine
         self.I3 = 2.0 * np.pi / self.rho ** 2.0
-        self.I4 = self.ring.ring_circumference * self.ring.alpha_0[0, 0] / self.rho ** 2.0
+        self.I4 = (self.ring.ring_circumference * self.ring.alpha_0[0, 0]
+                   / self.rho**2.0)
         self.jz = 2.0 + self.I4 / self.I2
 
         # Calculate synchrotron radiation parameters
@@ -77,9 +78,11 @@ class SynchrotronRadiation:
         # synchrotron radiation (temporary until bunch generation is updated)
         if (shift_beam) and (self.rf_params.section_index == 0):
             self.beam_phase_to_compensate_SR = np.abs(np.arcsin(
-                self.U0 / (self.ring.particle.charge * self.rf_params.voltage[0][0])))
-            self.beam_position_to_compensate_SR = self.beam_phase_to_compensate_SR \
-                                                  * self.rf_params.t_rf[0, 0] / (2.0 * np.pi)
+                                    self.U0 / (self.ring.particle.charge
+                                            * self.rf_params.voltage[0][0])))
+            self.beam_position_to_compensate_SR = (self.beam_phase_to_compensate_SR
+                                                   * self.rf_params.t_rf[0, 0]
+                                                   / (2.0 * np.pi))
 
             self.beam.dt -= self.beam_position_to_compensate_SR
 
@@ -110,19 +113,18 @@ class SynchrotronRadiation:
         i_turn = self.rf_params.counter[0]
 
         # Energy loss per turn/RF section [eV]
-        self.U0 = (self.c_gamma * self.ring.energy[0, i_turn] ** 4.0
+        self.U0 = (self.c_gamma * self.ring.energy[0, i_turn]**4.0
                    * self.I2 / (2.0 * np.pi)
                    * self.rf_params.section_length
                    / self.ring.ring_circumference)
 
         # Damping time [turns]
-        self.tau_z = (2.0 / self.jz * self.ring.energy[0, i_turn] /
-                      self.U0)
+        self.tau_z = (2.0 / self.jz * self.ring.energy[0, i_turn]
+                      / self.U0)
 
         # Equilibrium energy spread
-        self.sigma_dE = np.sqrt(self.c_q *
-                                self.ring.gamma[0, i_turn] ** 2.0 *
-                                self.I3 / (self.jz * self.I2))
+        self.sigma_dE = np.sqrt(self.c_q * self.ring.gamma[0, i_turn]**2.0
+                                * self.I3 / (self.jz * self.I2))
 
     # Print SR parameters
     def print_SR_params(self):
@@ -149,7 +151,8 @@ class SynchrotronRadiation:
 
     def track(self):
         if self.track_mode is None:
-            raise NameError(f"'execution_model' is None, but should be one of {self.track_models.keys()}")
+            raise NameError("'execution_model' is None, but should be "
+                            + f"one of {self.track_models.keys()}")
         self.track_models[self.track_mode]()
 
     # Track particles with SR only (without quantum excitation)
@@ -171,19 +174,19 @@ class SynchrotronRadiation:
                 self.ring.energy[0, i_turn - 1]):
             self.calculate_SR_params()
         for i in range(self.n_kicks):
-            self.beam.dE += -(2.0 / self.tau_z / self.n_kicks * self.beam.dE +
-                              self.U0 / self.n_kicks - 2.0 * self.sigma_dE /
-                              np.sqrt(self.tau_z * self.n_kicks) *
-                              self.ring.energy[0, i_turn] *
-                              np.random.randn(self.beam.n_macroparticles))
+            self.beam.dE += -(2.0 / self.tau_z / self.n_kicks * self.beam.dE
+                              + self.U0 / self.n_kicks - 2.0 * self.sigma_dE
+                              / np.sqrt(self.tau_z * self.n_kicks)
+                              * self.ring.energy[0, i_turn]
+                              * np.random.randn(self.beam.n_macroparticles))
 
     # Track particles with SR only (without quantum excitation)
     # C implementation
     def track_SR_C(self) -> None:
         i_turn = self.rf_params.counter[0]
         # Recalculate SR parameters if energy changes
-        if (i_turn != 0 and self.ring.energy[0, i_turn] !=
-                self.ring.energy[0, i_turn - 1]):
+        if (i_turn != 0 and self.ring.energy[0, i_turn]
+                            != self.ring.energy[0, i_turn - 1]):
             self.calculate_SR_params()
 
         bm.synchrotron_radiation(self.beam.dE, self.U0,

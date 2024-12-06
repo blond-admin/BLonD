@@ -8,8 +8,8 @@ if TYPE_CHECKING:
         from typing_extensions import TypedDict, NotRequired
     else:
         from typing import TypedDict, NotRequired
-    from typing import Literal
-    from typing import TYPE_CHECKING, Literal
+
+    from typing import TYPE_CHECKING, Literal, Protocol
 
     from numpy.typing import NDArray
 
@@ -74,6 +74,10 @@ if TYPE_CHECKING:
     InterpolationTypes = Literal['linear', 'cubic', 'derivative', 'akima']
 
     BeamProfileDerivativeModes = Literal["filter1d", "gradient", "diff",]
+
+    class Trackable(Protocol):
+        def track(self):
+            ...
 
 DistTypeDistFunction = Literal['waterbag', 'parabolic_amplitude',
 'parabolic_line', 'binomial',
