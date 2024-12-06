@@ -86,7 +86,7 @@ extern "C" {
 #endif
         // cout << "Threads: " << threads << "\n";
         fftw_complex *b = reinterpret_cast<fftw_complex *>(out);
-        return fftw_plan_dft_r2c_1d(n, in, b, flag);
+        return fftw_plan_dft_r2c_1d(n, (double*)in, b, flag);
     }
 
     fftw_plan init_irfft(const int n, complex_t *in, real_t *out,
@@ -107,7 +107,7 @@ extern "C" {
         // cout << "Threads: " << threads << "\n";
 
         fftw_complex *b = reinterpret_cast<fftw_complex *>(in);
-        return fftw_plan_dft_c2r_1d(n, b, out, flag);
+        return fftw_plan_dft_c2r_1d(n, b, (double*)out, flag);
     }
 
 
@@ -132,7 +132,7 @@ extern "C" {
         return fftw_plan_many_dft_c2r(1, &n, howmany,
                                       b, NULL,
                                       1, n / 2 + 1,
-                                      out, NULL,
+                                      (double*)out, NULL,
                                       1, n,
                                       flag);
         // return fftw_plan_dft_c2r_2d(n, n1, b, out, flag);
