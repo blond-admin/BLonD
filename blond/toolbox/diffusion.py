@@ -57,10 +57,12 @@ def phase_noise_diffusion(ring: Ring, rf_station: RFStation, spectrum: NDArray,
     N = Ngrids
     if spectrum.shape != (M, N + 1):
         # NoiseDiffusionError
-        raise RuntimeError("In phase_noise_diffusion(): spectrum has to have shape (M, Ngrids+1)!")
+        raise RuntimeError("In phase_noise_diffusion(): spectrum has "
+                           + "to have shape (M, Ngrids+1)!")
     if len(distribution) != N:
         # NoiseDiffusionError
-        raise RuntimeError("In phase_noise_diffusion(): distribution has to be an array of Ngrids elements!")
+        raise RuntimeError("In phase_noise_diffusion(): distribution "
+                           + "has to be an array of Ngrids elements!")
 
     # Some constants
     T0 = ring.t_rev[0]
@@ -91,8 +93,9 @@ def phase_noise_diffusion(ring: Ring, rf_station: RFStation, spectrum: NDArray,
     Wm = np.zeros((M, N + 1))
     for k in range(0, M):
         m = 2 * k + 1
-        Wm[k][:] = (np.pi * m / ellipk(xx)) ** 4 / \
-                   (4. * np.cosh(0.5 * np.pi * m * ellipk(1 - xx) / ellipk(xx)) ** 2)
+        Wm[k][:] = ((np.pi * m / ellipk(xx)) ** 4
+                    / (4. * np.cosh(0.5 * np.pi * m * ellipk(1 - xx)
+                                    / ellipk(xx))**2))
 
     # Diffusion coefficient for stationary bucket, according to Ivanov
     # Twice the sum over positive frequencies for double-sided spectrum
@@ -203,10 +206,10 @@ def phase_noise_diffusion(ring: Ring, rf_station: RFStation, spectrum: NDArray,
                 fontsize=12, ha='left', va='center')
     plt.figtext(0.6, 0.3, r'$\sigma_{\varphi}^{(f)}=$ %.4f rad' % sigma_phi_f,
                 fontsize=12, ha='left', va='center')
-    plt.figtext(0.6, 0.25, r'$\tau_{4\sigma}^{(i)}=$ %.4f ns' % tau_i, fontsize=12,
-                ha='left', va='center')
-    plt.figtext(0.6, 0.2, r'$\tau_{4\sigma}^{(f)}=$ %.4f ns' % tau_f, fontsize=12,
-                ha='left', va='center')
+    plt.figtext(0.6, 0.25, r'$\tau_{4\sigma}^{(i)}=$ %.4f ns' % tau_i,
+                fontsize=12, ha='left', va='center')
+    plt.figtext(0.6, 0.2, r'$\tau_{4\sigma}^{(f)}=$ %.4f ns' % tau_f,
+                fontsize=12, ha='left', va='center')
     if figdir:
         plt.savefig(figdir + "F_vs_J.png")
         plt.clf()
