@@ -232,7 +232,7 @@ class RFStation:
     """
 
     @handle_legacy_kwargs
-    def __init__(self, ring: Ring, harmonic: int| list[int], voltage: float | list[float], phi_rf_d,
+    def __init__(self, ring: Ring, harmonic: int| list[int] | float| list[float], voltage: float | list[float], phi_rf_d,
                  n_rf=1,
                  section_index=1, omega_rf=None, phi_noise=None,
                  phi_modulation=None, rf_station_options: Optional[RFStationOptions] = None):

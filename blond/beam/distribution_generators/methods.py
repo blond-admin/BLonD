@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 
     from ..beam import Beam
     from ...trackers.tracker import FullRingAndRF
-    from ...utils.types import (BunchLengthFitTypes)
+    from ...utils.types import (BunchLengthFitTypes, DistTypeDistFunction, DistributionFunctionTypeHint)
 
 
 @handle_legacy_kwargs
@@ -40,10 +40,9 @@ def x0_from_bunch_length(bunch_length: float,
                          sorted_X_dE0: NDArray,
                          n_points_grid: int,
                          time_potential_low_res: NDArray,
-                         distribution_function_: Callable,
-                         # TODO this is just distribution_function with strange way, is this intended?
-                         distribution_type: str,
-                         distribution_exponent: float,
+                         distribution_function_: DistributionFunctionTypeHint,
+                         distribution_type: DistTypeDistFunction,
+                         distribution_exponent: float | None,
                          beam: Beam,
                          full_ring_and_rf: FullRingAndRF
                          ) -> float:
@@ -93,10 +92,8 @@ def x0_from_bunch_length(bunch_length: float,
                 if bunch_length_fit is not None:
                     profile = Profile(
                         beam, cut_options=CutOptions(
-                            cut_left=(time_potential_low_res[0] - 0.5
-                                      * bin_size),
-                            cut_right=(time_potential_low_res[-1]
-                                       + 0.5 * bin_size),
+                            cut_left=(time_potential_low_res[0] - 0.5 * bin_size),
+                            cut_right=(time_potential_low_res[-1] + 0.5 * bin_size),
                             n_slices=n_points_grid,
                             rf_station=full_ring_and_rf.ring_and_rf_section[0].rf_params
                         )
@@ -121,6 +118,11 @@ def x0_from_bunch_length(bunch_length: float,
                     elif bunch_length_fit == 'fwhm':
                         profile.fwhm()
                         tau = profile.bunchLength
+                    else:
+                        raise NameError(f"'bunch_length_fit' must be in ['full', 'gauss', 'fwhm'], not {bunch_length_fit}")
+            else:
+                tau = tau
+                pass # todo
 
         # Update of the interval for the next iteration
         if tau >= bunch_length:

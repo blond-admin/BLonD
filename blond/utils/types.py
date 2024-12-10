@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     else:
         from typing import TypedDict, NotRequired
 
-    from typing import TYPE_CHECKING, Literal, Protocol
+    from typing import TYPE_CHECKING, Literal, Protocol, Callable, Optional
 
     from numpy.typing import NDArray
 
@@ -79,6 +79,8 @@ if TYPE_CHECKING:
         def track(self):
             ...
 
-DistTypeDistFunction = Literal['waterbag', 'parabolic_amplitude',
-'parabolic_line', 'binomial',
-'gaussian']
+    DistTypeDistFunction = Literal['waterbag', 'parabolic_amplitude',
+    'parabolic_line', 'binomial',
+    'gaussian']
+
+    DistributionFunctionTypeHint = Callable[[NDArray, DistTypeDistFunction, float, Optional[float]], NDArray]

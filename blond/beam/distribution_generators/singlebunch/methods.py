@@ -25,6 +25,7 @@ from ....utils import bmath as bm
 from ....utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
+    from typing import Optional
     from numpy.typing import NDArray
 
     from ....input_parameters.ring import Ring
@@ -35,7 +36,7 @@ if TYPE_CHECKING:
 @handle_legacy_kwargs
 def populate_bunch(beam: Beam, time_grid: NDArray, deltaE_grid: NDArray,
                    density_grid: NDArray, time_step: float,
-                   deltaE_step: float, seed: int) -> None:
+                   deltaE_step: float, seed: Optional[int]) -> None:
     """
     *Method to populate the bunch using a random number generator from the
     particle density in phase space.*
