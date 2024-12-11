@@ -169,10 +169,8 @@ class CutOptions:
 
         else:
 
-            self.cut_left = float(self.convert_coordinates(self.cut_left,
-                                                           self.cuts_unit))
-            self.cut_right = float(self.convert_coordinates(self.cut_right,
-                                                            self.cuts_unit))
+            self.cut_left = float(self.convert_coordinates(self.cut_left,                                                           self.cuts_unit))
+            self.cut_right = float(self.convert_coordinates(self.cut_right,                                                            self.cuts_unit))
 
         self.edges = (np.linspace(self.cut_left, self.cut_right, self.n_slices + 1)
                       .astype(dtype=bm.precision.real_t, order='C', copy=False))
@@ -409,11 +407,11 @@ class Profile:
 
     beam : Beam
         Beam from which the profile has to be calculated
-    cut_options : Optional[CutOptions]
+    cut_options : CutOptions, Optional
         Options for profile cutting (see above)
-    fit_options : Optional[FitOptions]
+    fit_options : FitOptions, Optional
         Options to get profile position and length (see above)
-    filter_options : Optional[FilterOptions]
+    filter_options : FilterOptions, Optional
         Options to set a filter (see above)
     other_slices_options : Optional[OtherSlicesOptions]
         All remaining options, like smooth histogram and direct
