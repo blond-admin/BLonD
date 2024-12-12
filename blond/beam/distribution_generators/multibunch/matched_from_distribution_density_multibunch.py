@@ -18,7 +18,6 @@ from ..singlebunch.matched_from_distribution_function import FitDistributionUser
 from ...beam import Beam
 from ....utils import bmath as bm
 from ....utils.legacy_support import handle_legacy_kwargs
-from ....utils.types import DistributionVariableType
 
 if TYPE_CHECKING:
     from typing import Optional
@@ -29,6 +28,7 @@ if TYPE_CHECKING:
     from ...beam import Beam
     from ....impedances.impedance import TotalInducedVoltage
     from ....trackers.tracker import FullRingAndRF, MainHarmonicOptionType
+    from ....utils.types import DistributionVariableType
 
 
 @handle_legacy_kwargs
