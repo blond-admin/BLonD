@@ -322,9 +322,8 @@ class _InducedVoltage:
                 np.ceil(1 / (self.profile.bin_size * self.frequency_resolution_input)))
             if self.n_induced_voltage < self.profile.n_slices:
                 # FrequencyResolutionError
-                raise RuntimeError('Error: too large frequency_resolution. ' +
-                                   'Reduce it below {0:1.2e} Hz.'.format(
-                                       1 / (self.profile.cut_right - self.profile.cut_left)))
+                raise RuntimeError(f"Too large frequency_resolution in {self}. " +
+                                   f"Reduce 'frequency_resolution' below {(1 / (self.profile.cut_right - self.profile.cut_left)):1.2e} Hz.")
             self.wake_length = self.n_induced_voltage * self.profile.bin_size
             # Frequency resolution in Hz
         elif (self.wake_length_input is None
