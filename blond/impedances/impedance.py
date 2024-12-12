@@ -340,10 +340,11 @@ class _InducedVoltage:
         if self.multi_turn_wake:
             # Number of points of the memory array for multi-turn wake
             self.n_mtw_memory = self.n_induced_voltage
-
+            print('mtw initialised')
             self.front_wake_buffer = 0
 
             if self.mtw_mode == 'freq':
+                print('in freq domain')
                 # In frequency domain, an extra buffer for a revolution turn is
                 # needed due to the circular time shift in frequency domain
                 self.buffer_size = np.ceil(np.max(self.rf_params.t_rev)
@@ -365,6 +366,7 @@ class _InducedVoltage:
                 # Selecting time-shift method
                 self.shift_trev = self.shift_trev_freq
             else:
+                print('in time domain')
                 # Selecting time-shift method
                 self.shift_trev = self.shift_trev_time
                 # Time array
@@ -430,7 +432,7 @@ class _InducedVoltage:
         self.mtw_memory[:self.n_induced_voltage] += self.induced_voltage
 
         self.induced_voltage = self.mtw_memory[:self.n_induced_voltage]
-
+        print('multi turn wake is being calculated')
     def shift_trev_freq(self):
         """
         Method to shift the induced voltage by a revolution period in the
@@ -946,10 +948,20 @@ class InducedVoltageResonator(_InducedVoltage):
         Computed induced voltage [V]
     """
 
-    @handle_legacy_kwargs
-    def __init__(self, beam: Beam, profile: Profile, resonators: Resonators,
-                 timeArray: Optional[NDArray] = None):
-
+        
+    @handle_legacy_kwargs 
+    def __init__(self, beam: Beam,
+                 profile: Profile,
+                 resonators: list[_ImpedanceObject],
+                 frequency_resolution: Optional[float] = None,
+                 wake_length: Optional[float] = None,
+                 multi_turn_wake: bool = False,
+                 timeArray: Optional[NDArray] = None,
+                 rf_station: Optional[RFStation] = None,
+                 mtw_mode: Optional[MtwModeTypes] = None,
+                 use_regular_fft: bool = True) -> None:
+        
+        
         # Test if one or more quality factors is smaller than 0.5.
         if sum(resonators.Q < 0.5) > 0:
             # ResonatorError
@@ -1000,11 +1012,13 @@ class InducedVoltageResonator(_InducedVoltage):
         self._deltaT = np.zeros(
             (self.n_time, self.profile.n_slices), dtype=bm.precision.real_t, order='C')
 
-        # Call the __init__ method of the parent class [calls process()]
-        _InducedVoltage.__init__(self, beam, profile, wake_length=None,
-                                 frequency_resolution=None,
-                                 multi_turn_wake=False, rf_station=None,
-                                 mtw_mode=None)
+         # Call the __init__ method of the parent class [calls process()]
+        _InducedVoltage.__init__(self, beam, profile,
+                                 frequency_resolution=frequency_resolution,
+                                 wake_length=wake_length,
+                                 multi_turn_wake=multi_turn_wake,
+                                 rf_station=rf_station, mtw_mode=mtw_mode,
+                                 use_regular_fft=use_regular_fft)
 
     def process(self):
         r"""
