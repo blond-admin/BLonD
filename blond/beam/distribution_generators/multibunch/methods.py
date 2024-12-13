@@ -23,6 +23,7 @@ from ...distribution_generators.singlebunch.matched_from_distribution_function i
 from ....utils.legacy_support import handle_legacy_kwargs
 
 from typing import TYPE_CHECKING
+from ..singlebunch.matched_from_distribution_function import FitEmittanceDistribution, FitBunchLengthDistribution
 
 if TYPE_CHECKING:
     from typing import Optional
@@ -32,7 +33,6 @@ if TYPE_CHECKING:
     from ...beam import Beam
     from ....trackers.tracker import FullRingAndRF
     from ....utils.types import DistributionVariableType
-    from ....utils.types import DistributionOptionsType
 
 
 def compute_x_grid(normalization_DeltaE,  # todo TypeHint
@@ -82,65 +82,35 @@ def compute_H0(emittance, H, J):
 @handle_legacy_kwargs
 def match_a_bunch(normalization_DeltaE: float, beam: Beam,
                   potential_well_coordinates: NDArray, potential_well: NDArray,
-                  seed: int, distribution_options: DistributionOptionsType,
+                  seed: int, fit: FitEmittanceDistribution | FitBunchLengthDistribution,
                   full_ring_and_rf: Optional[FullRingAndRF] = None) \
         -> tuple[NDArray, NDArray, NDArray, float, float, NDArray]:
-    if 'type' in distribution_options:
-        distribution_type = distribution_options['type']
-    else:
-        distribution_type = None
-
-    if 'exponent' in distribution_options:
-        distribution_exponent = distribution_options['exponent']
-    else:
-        distribution_exponent = None
-
-    if 'emittance' in distribution_options:
-        emittance = distribution_options['emittance']
-    else:
-        emittance = None
-
-    if 'bunch_length' in distribution_options:
-        bunch_length = distribution_options['bunch_length']
-    else:
-        bunch_length = None
-
-    if 'bunch_length_fit' in distribution_options:
-        bunch_length_fit = distribution_options['bunch_length_fit']
-    else:
-        bunch_length_fit = None
-
-    if 'density_variable' in distribution_options:
-        distribution_variable = distribution_options['density_variable']
-    else:
-        distribution_variable = 'Hamiltonian'
-
     H, J, X_grid, time_grid, deltaE_grid, time_resolution, energy_resolution = \
         compute_x_grid(normalization_DeltaE, potential_well_coordinates,
-                       potential_well, distribution_variable)
+                       potential_well, fit.distribution_variable)
 
     # Choice of either H or J as the variable used
-    if distribution_variable == 'Action':
+    if fit.distribution_variable == 'Action':
         sorted_X = J
-    elif distribution_variable == 'Hamiltonian':
+    elif fit.distribution_variable == 'Hamiltonian':
         sorted_X = H
     else:
         # DistributionError
         raise SystemError('distribution_variable should be Action or Hamiltonian')
 
-    if bunch_length is not None:
+    if isinstance(fit, FitBunchLengthDistribution):
         n_points_grid = X_grid.shape[0]
-        X0 = x0_from_bunch_length(bunch_length, bunch_length_fit, X_grid, sorted_X,
+        X0 = x0_from_bunch_length(fit.bunch_length, fit.bunch_length_fit, X_grid, sorted_X,
                                   n_points_grid, potential_well_coordinates,
-                                  distribution_function, distribution_type,
-                                  distribution_exponent, beam, full_ring_and_rf)
-    elif emittance is not None:
-        X0 = compute_H0(emittance, H, J)
+                                  distribution_function, fit.distribution_type,
+                                  fit.distribution_exponent, beam, full_ring_and_rf)
+    elif isinstance(fit, FitEmittanceDistribution):
+        X0 = compute_H0(fit.emittance, H, J)
     else:
         # DistributionError
         raise SystemError('You should specify either bunch_length or emittance')
 
-    distribution = distribution_function(X_grid, distribution_type, X0, exponent=distribution_exponent)
+    distribution = distribution_function(X_grid, fit.distribution_type, X0, exponent=fit.distribution_exponent)
     distribution[X_grid > np.max(H)] = 0
     distribution = distribution / np.sum(distribution)
 

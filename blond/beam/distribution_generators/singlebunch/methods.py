@@ -64,7 +64,9 @@ def populate_bunch(beam: Beam, time_grid: NDArray, deltaE_grid: NDArray,
     # Generating particles randomly inside the grid cells according to the
     # provided density_grid
     indexes = np.random.choice(np.arange(0, np.size(density_grid)),
-                               beam.n_macroparticles, p=density_grid.flatten())
+                               size=beam.n_macroparticles,
+                               p=density_grid.flatten()
+                               )
 
     # Randomize particles inside each grid cell (uniform distribution)
     beam.dt = (np.ascontiguousarray(time_grid.flatten()[indexes] +

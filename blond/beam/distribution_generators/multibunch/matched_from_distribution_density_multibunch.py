@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 import matplotlib.pyplot as plt
 import numpy as np
 
-from ..singlebunch.matched_from_distribution_function import FitDistributionUserTable, FitEmittance, FitBunchLength, \
+from ..singlebunch.matched_from_distribution_function import FitTableDistribution, FitEmittanceDistribution, FitBunchLengthDistribution, \
     MatchedFromDistributionFunction
 from ...beam import Beam
 from ....utils import bmath as bm
@@ -33,12 +33,12 @@ if TYPE_CHECKING:
 
 @handle_legacy_kwargs
 def matched_from_distribution_density_multibunch(beam: Beam, ring: Ring, full_ring_and_rf: FullRingAndRF,
-                                                 fit: FitDistributionUserTable | FitEmittance | FitBunchLength | list[
-                                                     FitDistributionUserTable | FitEmittance | FitBunchLength],
+                                                 fit: FitTableDistribution | FitEmittanceDistribution | FitBunchLengthDistribution | list[
+                                                     FitTableDistribution | FitEmittanceDistribution | FitBunchLengthDistribution],
                                                  n_bunches: int,
                                                  bunch_spacing_buckets: int,
                                                  intensity_list: list | NDArray | None = None,
-                                                 minimum_n_macroparticles: Optional[int] = None,
+                                                 minimum_n_macroparticles: Optional[list[int | float]] = None,
                                                  main_harmonic_option: MainHarmonicOptionType = 'lowest_freq',
                                                  total_induced_voltage: Optional[TotalInducedVoltage] = None,
                                                  n_iterations_input: int = 1,

@@ -32,19 +32,20 @@ if TYPE_CHECKING:
     from ...beam import Beam
     from ....impedances.impedance import TotalInducedVoltage
     from ....trackers.tracker import FullRingAndRF, MainHarmonicOptionType
-    from ....utils.types import DistributionOptionsType
+    from ..singlebunch.matched_from_distribution_function import FitEmittanceDistribution, FitBunchLengthDistribution
 
 
 @handle_legacy_kwargs
 def match_beam_from_distribution(beam: Beam, full_ring_and_rf: FullRingAndRF, ring: Ring,
-                                 distribution_options: DistributionOptionsType,
+                                 fit: FitEmittanceDistribution | FitBunchLengthDistribution,
                                  n_bunches: int,
                                  bunch_spacing_buckets: int,
                                  main_harmonic_option: MainHarmonicOptionType = 'lowest_freq',
                                  total_induced_voltage: Optional[TotalInducedVoltage] = None,
                                  n_iterations: int = 1,
                                  n_points_potential: int = int(1e4),
-                                 dt_margin_percent: float = 0.40, seed: Optional[int] = None,
+                                 dt_margin_percent: float = 0.40,
+                                 seed: Optional[int] = None,
                                  ):
     """This generates n equally spaced bunches for a stationary distribution.
 
@@ -150,7 +151,7 @@ def match_beam_from_distribution(beam: Beam, full_ring_and_rf: FullRingAndRF, ri
          energy_resolution, single_profile) = match_a_bunch(
             normalization_DeltaE, temporary_beam,
             potential_well_coordinates,
-            potential_well, seed, distribution_options,
+            potential_well, seed, fit,
             full_ring_and_rf=full_ring_and_rf)
         matched_bunch_list.append(
             (time_grid, deltaE_grid, distribution, time_resolution,
@@ -201,7 +202,7 @@ def match_beam_from_distribution(beam: Beam, full_ring_and_rf: FullRingAndRF, ri
                     normalization_DeltaE, temporary_beam,
                     potential_well_coordinates,
                     distorted_pot_well, seed,
-                    distribution_options,
+                    fit,
                     full_ring_and_rf=full_ring_and_rf)
 
             conv = np.sqrt(np.sum((previous_well - distorted_pot_well) ** 2.)) / len(distorted_pot_well)

@@ -31,12 +31,12 @@ if TYPE_CHECKING:
     from ...beam import Beam
     from ....impedances.impedance import TotalInducedVoltage
     from ....trackers.tracker import FullRingAndRF, MainHarmonicOptionType
-    from ....utils.types import DistributionOptionsType
+    from ..singlebunch.matched_from_distribution_function import FitEmittanceDistribution, FitBunchLengthDistribution
 
 
 @handle_legacy_kwargs
 def match_beam_from_distribution_multibatch(beam: Beam, full_ring_and_rf: FullRingAndRF, ring: Ring,
-                                            distribution_options: DistributionOptionsType, n_bunches: int,
+                                            fit: FitEmittanceDistribution | FitBunchLengthDistribution, n_bunches: int,
                                             bunch_spacing_buckets: int,
                                             n_batch: int,
                                             batch_spacing_buckets: int,
@@ -115,7 +115,7 @@ def match_beam_from_distribution_multibatch(beam: Beam, full_ring_and_rf: FullRi
         normalization_DeltaE = np.abs(eta_0) / (2. * beta ** 2 * E)
         normalization_potential = np.sign(eta_0) * charge / t_rev
 
-    # Ring informations, Trev, energy, RF parameters ...
+    # Ring information, Trev, energy, RF parameters ...
     #    beta = rf_params.beta[0]
     #    E = rf_params.energy[0]
     #    charge = rf_params.charge
@@ -141,7 +141,7 @@ def match_beam_from_distribution_multibatch(beam: Beam, full_ring_and_rf: FullRi
 
     #    print(temporary_batch.dt)
     match_beam_from_distribution(temporary_batch, full_ring_and_rf, ring,
-                                 distribution_options, n_bunches, bunch_spacing_buckets,
+                                 fit, n_bunches, bunch_spacing_buckets,
                                  total_induced_voltage=None, n_iterations=n_iterations,
                                  n_points_potential=n_points_potential)
 
@@ -230,7 +230,7 @@ def match_beam_from_distribution_multibatch(beam: Beam, full_ring_and_rf: FullRi
                     match_a_bunch(normalization_DeltaE, temporary_beam,
                                   potential_well_coordinates,
                                   potential_well + induced_potential_bunch, seed,
-                                  distribution_options,
+                                  fit,
                                   full_ring_and_rf=full_ring_and_rf)
 
                     dt = temporary_beam.dt

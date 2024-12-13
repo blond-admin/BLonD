@@ -196,9 +196,9 @@ def matched_from_line_density(beam: Beam,
     Returns
     -------
     if total_induced_voltage is not None:
-        [hamiltonian_coord, distribution_function_], induced_voltage_object
+        [hamiltonian_coord, distribution_function_], _induced_voltage_object
     else:
-        [hamiltonian_coord, distribution_function_], [time_line_den, line_density_]
+        [hamiltonian_coord, distribution_function_], [_time_line_den, _line_density_]
     """
     # Generate potential well
     full_ring_and_rf.potential_well_generation(
@@ -208,10 +208,10 @@ def matched_from_line_density(beam: Beam,
     )
     if line_density_input is not None:
         assert line_density_type == "user_input"
-        fit = FitLineDensityInput(line_density_input=line_density_input)
+        fit = FitTableLineDensity(line_density_input=line_density_input)
     else:
         assert line_density_type != "user_input"
-        fit = FitBunchLength(
+        fit = FitBunchLengthLineDensity(
             bunch_length=bunch_length,
             line_density_type=line_density_type,
             line_density_exponent=line_density_exponent,
@@ -236,13 +236,13 @@ def matched_from_line_density(beam: Beam,
     m.match_beam()
 
     if total_induced_voltage is not None:
-        return [m.hamiltonian_coord, m.distribution_function_], m.induced_voltage_object
+        return [m.hamiltonian_coord, m.distribution_function_], m._induced_voltage_object
 
     else:
-        return [m.hamiltonian_coord, m.distribution_function_], [m.time_line_den, m.line_density_]
+        return [m.hamiltonian_coord, m.distribution_function_], [m._time_line_den, m._line_density_]
 
 
-class FitBunchLength:
+class FitBunchLengthLineDensity:
     """Parameters for MatchedFromLineDensity to fit bunch length
 
     Parameters
@@ -281,7 +281,7 @@ class FitBunchLength:
             self.line_density_exponent = float(line_density_exponent)
 
 
-class FitLineDensityInput:
+class FitTableLineDensity:
     """Parameters for MatchedFromLineDensity to fit a profile
 
     Parameters
@@ -320,7 +320,7 @@ class MatchedFromLineDensity:
     full_ring_and_rf
         Definition of the full ring and RF parameters in order to be able to have a full turn information
     fit
-       FitBunchLength or FitLineDensityInput
+       FitBunchLengthDistribution or FitTableLineDensity
     total_induced_voltage
         TODO
     extra_voltage_dict
@@ -332,10 +332,8 @@ class MatchedFromLineDensity:
 
     Attributes
     ----------
-    beam
-        Class containing the beam properties.
     fit
-       FitBunchLength or FitLineDensityInput
+       FitBunchLengthDistribution or FitTableLineDensity
     plot
         If true, plotting/saving the result to 'figdir'
     figdir
@@ -361,40 +359,44 @@ class MatchedFromLineDensity:
     def __init__(self,
                  beam: Beam,
                  full_ring_and_rf: FullRingAndRF,
-                 fit: FitBunchLength | FitLineDensityInput,
+                 fit: FitBunchLengthLineDensity | FitTableLineDensity,
                  total_induced_voltage: Optional[TotalInducedVoltage] = None,
                  extra_voltage_dict: Optional[ExtraVoltageDictType] = None,
                  ):
-        self.beam = beam
+        self._beam = beam
         self.fit = fit
 
         # Initialize variables depending on the accelerator parameters
         _slippage_factor = full_ring_and_rf.ring_and_rf_section[0].rf_params.eta_0[0]
 
-        self._eom_factor_dE = abs(_slippage_factor) / (2 * self.beam.beta ** 2. * self.beam.energy)
-        _eom_factor_potential = (np.sign(_slippage_factor) * self.beam.particle.charge
+        self._eom_factor_dE = abs(_slippage_factor) / (2 * self._beam.beta ** 2. * self._beam.energy)
+        _eom_factor_potential = (np.sign(_slippage_factor) * self._beam.particle.charge
                                  / full_ring_and_rf.ring_and_rf_section[0].rf_params.t_rev[0])
 
-        assert full_ring_and_rf.potential_well is not None, "Please call full_ring_and_rf.potential_well_generation() befor using it for beam matching!"
-        self.potential_well = full_ring_and_rf.potential_well
-        self.time_potential = full_ring_and_rf.potential_well_coordinates  # required for next line
-        # _init_extra_potential requires self.time_potential
-        self.extra_potential = self._init_extra_potential(_eom_factor_potential, extra_voltage_dict)
+        assert full_ring_and_rf.potential_well is not None, "Please call full_ring_and_rf.potential_well_generation() before using it for _beam matching!"
+        self._potential_well = full_ring_and_rf.potential_well
+        self._time_potential = full_ring_and_rf.potential_well_coordinates  # required for next line
+        # _init_extra_potential requires self._time_potential
+        self._extra_potential = self._init_extra_potential(_eom_factor_potential, extra_voltage_dict)
 
         # _init_density_arrays required for _init_induced_voltage
-        self.line_density_, self.time_line_den = self._init_density_arrays(
-            self.beam,
+        self._line_density_, self._time_line_den = self._init_density_arrays(
+            self._beam,
         )
 
         if total_induced_voltage is not None:
-            # _init_induced_voltage requires self.line_density_
-            self.induced_potential, self.induced_voltage_object, self.profile = (
+            # _init_induced_voltage requires self._line_density_
+            self._induced_potential, self._induced_voltage_object, self.profile = (
                 self._init_induced_voltage(_eom_factor_potential, total_induced_voltage)
             )
         else:
-            self.induced_potential, self.induced_voltage_object, self.profile = None, None, None
+            self._induced_potential, self._induced_voltage_object, self.profile = None, None, None
+
         ##########################
-        # Variables for self.main_calculation
+        # Attributes for the user
+        ##########################
+
+        # other options that can be adjusted by the user before using match_beam()
         self.n_iterations: int = 100
         self.process_pot_well: bool = True
         self.n_points_abel: int = int(1e4)
@@ -407,22 +409,22 @@ class MatchedFromLineDensity:
 
     @property
     def line_den_resolution(self):
-        return self.time_line_den[1] - self.time_line_den[0]
+        return self._time_line_den[1] - self._time_line_den[0]
 
     def _init_induced_voltage(self, _eom_factor_potential, total_induced_voltage):
         # Calculating the induced voltage
         induced_voltage_object = copy.deepcopy(total_induced_voltage)
         profile = induced_voltage_object.profile
         # Inputting new line density
-        profile.cut_options.cut_left = self.time_line_den[0] - \
+        profile.cut_options.cut_left = self._time_line_den[0] - \
                                        0.5 * self.line_den_resolution
-        profile.cut_options.cut_right = self.time_line_den[-1] + \
+        profile.cut_options.cut_right = self._time_line_den[-1] + \
                                         0.5 * self.line_den_resolution
-        profile.cut_options.n_slices = len(self.time_line_den)
+        profile.cut_options.n_slices = len(self._time_line_den)
         profile.cut_options.cuts_unit = 's'
         profile.cut_options.set_cuts()
         profile.set_slices_parameters()
-        profile.n_macroparticles = self.line_density_
+        profile.n_macroparticles = self._line_density_
         # Re-calculating the sources of wakes/impedances according to this
         # slicing
         induced_voltage_object.reprocess()
@@ -436,25 +438,25 @@ class MatchedFromLineDensity:
         return induced_potential, induced_voltage_object, profile
 
     def _init_density_arrays(self, beam: Beam):
-        if isinstance(self.fit, FitBunchLength):
-            _fit: FitBunchLength = self.fit
+        if isinstance(self.fit, FitBunchLengthLineDensity):
+            _fit: FitBunchLengthLineDensity = self.fit
             # Time coordinates for the line density
-            time_line_den = np.linspace(float(self.time_potential[0]),
-                                        float(self.time_potential[-1]),
+            time_line_den = np.linspace(float(self._time_potential[0]),
+                                        float(self._time_potential[-1]),
                                         int(1e4))
 
             # Normalizing the line density
             line_density_ = line_density(time_line_den, _fit.line_density_type,
                                          _fit.bunch_length, exponent=_fit.line_density_exponent,
-                                         bunch_position=float(self.time_potential[0]
-                                                              + self.time_potential[-1])
+                                         bunch_position=float(self._time_potential[0]
+                                                              + self._time_potential[-1])
                                                         / 2)
 
             line_density_ -= np.min(line_density_)
             line_density_ *= beam.n_macroparticles / np.sum(line_density_)
 
-        elif isinstance(self.fit, FitLineDensityInput):
-            _fit: FitLineDensityInput = self.fit
+        elif isinstance(self.fit, FitTableLineDensity):
+            _fit: FitTableLineDensity = self.fit
             # Time coordinates for the line density
             time_line_den = _fit.line_density_input['time_line_den']
             # Normalizing the line density
@@ -477,7 +479,7 @@ class MatchedFromLineDensity:
                                                   dx=float(extra_voltage_time_input[1])
                                                      - float(extra_voltage_time_input[0]),
                                                   initial=0))
-            extra_potential = np.interp(self.time_potential, extra_voltage_time_input, extra_potential_input)
+            extra_potential = np.interp(self._time_potential, extra_voltage_time_input, extra_potential_input)
         return extra_potential
 
     def match_beam(self):
@@ -508,29 +510,29 @@ class MatchedFromLineDensity:
             if self.profile is not None:
                 # Interpolating the potential well
                 induced_potential_final = np.interp(
-                    self.time_potential,
+                    self._time_potential,
                     self.profile.bin_centers,
-                    self.induced_potential
+                    self._induced_potential
                 )
             else:
                 induced_potential_final = 0
 
             # Induced voltage contribution
-            total_potential = (self.potential_well + induced_potential_final +
-                               self.extra_potential)
+            total_potential = (self._potential_well + induced_potential_final +
+                               self._extra_potential)
 
             # Potential well calculation around the separatrix
             if not self.process_pot_well:
-                time_potential_sep, potential_well_sep = self.time_potential, total_potential
+                time_potential_sep, potential_well_sep = self._time_potential, total_potential
             else:
                 time_potential_sep, potential_well_sep = potential_well_cut(
-                    self.time_potential, total_potential)
+                    self._time_potential, total_potential)
 
             minmax_positions_potential, minmax_values_potential = \
                 minmax_location(time_potential_sep, potential_well_sep)
             minmax_positions_profile, minmax_values_profile = \
-                minmax_location(self.time_line_den[self.line_density_ != 0],
-                                self.line_density_[self.line_density_ != 0])
+                minmax_location(self._time_line_den[self._line_density_ != 0],
+                                self._line_density_[self._line_density_ != 0])
 
             n_minima_potential = len(minmax_positions_potential[0])
             n_maxima_profile = len(minmax_positions_profile[1])
@@ -555,10 +557,10 @@ class MatchedFromLineDensity:
             # Moving the bunch (not for the last iteration if intensity effects
             # are present)
             if self.profile is None:
-                self.time_line_den -= max_profile_pos - min_potential_pos
+                self._time_line_den -= max_profile_pos - min_potential_pos
                 max_profile_pos -= max_profile_pos - min_potential_pos
             elif i != self.n_iterations - 1:
-                self.time_line_den -= max_profile_pos - min_potential_pos
+                self._time_line_den -= max_profile_pos - min_potential_pos
                 # Update profile
                 self.profile.cut_options.cut_left -= max_profile_pos - min_potential_pos
                 self.profile.cut_options.cut_right -= max_profile_pos - min_potential_pos
@@ -578,20 +580,20 @@ class MatchedFromLineDensity:
 
         for abel_index in range(0, abel_both_step):
             if self.half_option == 'first':
-                half_indexes = np.where((self.time_line_den >= self.time_line_den[0]) *
-                                        (self.time_line_den <= max_profile_pos))
+                half_indexes = np.where((self._time_line_den >= self._time_line_den[0]) *
+                                        (self._time_line_den <= max_profile_pos))
             if self.half_option == 'second':
-                half_indexes = np.where((self.time_line_den >= max_profile_pos) *
-                                        (self.time_line_den <= self.time_line_den[-1]))
+                half_indexes = np.where((self._time_line_den >= max_profile_pos) *
+                                        (self._time_line_den <= self._time_line_den[-1]))
             if self.half_option == 'both' and abel_index == 0:
-                half_indexes = np.where((self.time_line_den >= self.time_line_den[0]) *
-                                        (self.time_line_den <= max_profile_pos))
+                half_indexes = np.where((self._time_line_den >= self._time_line_den[0]) *
+                                        (self._time_line_den <= max_profile_pos))
             if self.half_option == 'both' and abel_index == 1:
-                half_indexes = np.where((self.time_line_den >= max_profile_pos) *
-                                        (self.time_line_den <= self.time_line_den[-1]))
+                half_indexes = np.where((self._time_line_den >= max_profile_pos) *
+                                        (self._time_line_den <= self._time_line_den[-1]))
 
-            line_den_half = self.line_density_[half_indexes]
-            time_half = self.time_line_den[half_indexes]
+            line_den_half = self._line_density_[half_indexes]
+            time_half = self._time_line_den[half_indexes]
             potential_half = np.interp(time_half, time_potential_sep,
                                        potential_well_sep)
             potential_half = potential_half - np.min(potential_half)
@@ -683,8 +685,8 @@ class MatchedFromLineDensity:
 
         # Initializing the grids by reducing the resolution to a
         # n_points_grid*n_points_grid frame
-        time_for_grid = np.linspace(float(self.time_line_den[0]),
-                                    float(self.time_line_den[-1]),
+        time_for_grid = np.linspace(float(self._time_line_den[0]),
+                                    float(self._time_line_den[-1]),
                                     self.n_points_grid)
         deltaE_for_grid = np.linspace(-float(max_deltaE),
                                       float(max_deltaE), self.n_points_grid)
@@ -715,7 +717,7 @@ class MatchedFromLineDensity:
         self._plot_result(reconstructed_line_den, time_for_grid)
 
         # Populating the bunch
-        populate_bunch(self.beam, time_grid, deltaE_grid, density_grid,
+        populate_bunch(self._beam, time_grid, deltaE_grid, density_grid,
                        float(time_for_grid[1] - time_for_grid[0]),
                        float(deltaE_for_grid[1] - deltaE_for_grid[0]), self.seed)
         return time_for_grid, reconstructed_line_den, hamiltonian_coord, distribution_function_
@@ -724,9 +726,9 @@ class MatchedFromLineDensity:
         # Plotting the result
         if self.plot:
             plt.figure('Generated bunch')
-            plt.plot(self.time_line_den, self.line_density_)
+            plt.plot(self._time_line_den, self._line_density_)
             plt.plot(time_for_grid, reconstructed_line_den /
-                     np.max(reconstructed_line_den) * np.max(self.line_density_))
+                     np.max(reconstructed_line_den) * np.max(self._line_density_))
             plt.title('Line densities')
             if self.plot == 'show':
                 plt.show()
@@ -744,14 +746,14 @@ class MatchedFromLineDensity:
             self.profile.cut_options.n_slices = self.n_points_grid
             self.profile.cut_options.set_cuts()
             self.profile.set_slices_parameters()
-            self.profile.n_macroparticles = reconstructed_line_den * self.beam.n_macroparticles
+            self.profile.n_macroparticles = reconstructed_line_den * self._beam.n_macroparticles
 
             # Re-calculating the sources of wakes/impedances according to this
             # slicing
-            self.induced_voltage_object.reprocess()
+            self._induced_voltage_object.reprocess()
 
             # Calculating the induced voltage
-            self.induced_voltage_object.induced_voltage_sum()
+            self._induced_voltage_object.induced_voltage_sum()
 
             # write intended results
             self.hamiltonian_coord = hamiltonian_coord
@@ -762,5 +764,5 @@ class MatchedFromLineDensity:
             # write intended results
             self.hamiltonian_coord = hamiltonian_coord
             self.distribution_function_ = distribution_function_
-            self.time_line_den = self.time_line_den
-            self.line_density_ = self.time_line_den
+            self._time_line_den = self._time_line_den
+            self._line_density_ = self._time_line_den

@@ -156,9 +156,6 @@ def matched_from_distribution_function(
         Class containing the beam properties.
     full_ring_and_rf
         Definition of the full ring and RF parameters in order to be able to have a full turn information
-    distribution_function_input
-        (Optional Callable) Distribution function.
-        Tip: Use distribution_function_input OR distribution_user_table
     distribution_user_table
         Dictionary holding the arrays action and distribution
         Tip: Use distribution_function_input OR distribution_user_table
@@ -197,8 +194,8 @@ def matched_from_distribution_function(
         Used in combination with bunch_length
         None, 'full', 'gauss', 'fwhm'
     distribution_variable
-        'Action'
-        'Hamiltonian'
+        'Action' # TODO
+        'Hamiltonian' # TODO
     process_pot_well
         If true, process the potential well in order
         to take a frame around the separatrix
@@ -268,17 +265,17 @@ def matched_from_distribution_function(
                                                dt_margin_percent=dt_margin_percent,
                                                main_harmonic_option=main_harmonic_option)
     if distribution_user_table is not None:
-        fit = FitDistributionUserTable(distribution_user_table=distribution_user_table)
-    if emittance is not None:
-        fit = FitEmittance(
+        fit = FitTableDistribution(distribution_user_table=distribution_user_table)
+    elif emittance is not None:
+        fit = FitEmittanceDistribution(
             emittance=emittance,
             distribution_type=distribution_type,
             distribution_exponent=distribution_exponent,
         )
         if distribution_function_input is not None:
             fit.distribution_function_input = distribution_function_input
-    if bunch_length is not None:
-        fit = FitBunchLength(
+    elif bunch_length is not None:
+        fit = FitBunchLengthDistribution(
             bunch_length=bunch_length,
             bunch_length_fit=bunch_length_fit,
             distribution_type=distribution_type,
@@ -286,7 +283,9 @@ def matched_from_distribution_function(
         )
         if distribution_function_input is not None:
             fit.distribution_function_input = distribution_function_input
-
+    else:
+        raise KeyError(
+            "'distribution_user_table','emittance', or 'bunch_length' must be given to matched_from_distribution_function()!")
     m = MatchedFromDistributionFunction(
         beam=beam,
         full_ring_and_rf=full_ring_and_rf,
@@ -305,20 +304,19 @@ def matched_from_distribution_function(
 
     m.match_beam()
     if total_induced_voltage is not None:
-        return [m._time_potential_low_res, m._line_density_], m.induced_voltage_object
+        return [m._time_potential_low_res, m._line_density_], m._induced_voltage_object
     else:
         return [m._time_potential_low_res, m._line_density_]
 
 
-class FitEmittance:
+class FitEmittanceDistribution:
     """Parameters for MatchedFromDistributionFunction to fit emittance
 
     Parameters
     ----------
     emittance
         Beam emittance to calculate density grid.
-        Use either emittance OR bunch_length.
-        When using 'distribution_user_table', 'emittance' is ignored!
+        Use either emittance.
     distribution_type
         'waterbag', 'parabolic_amplitude', 'parabolic_line', 'binomial', 'gaussian'
     distribution_exponent
@@ -356,7 +354,7 @@ class FitEmittance:
             self.distribution_exponent = float(distribution_exponent)
 
 
-class FitBunchLength:
+class FitBunchLengthDistribution:
     """Parameters for MatchedFromDistributionFunction to fit emittance
 
         Parameters
@@ -397,8 +395,8 @@ class FitBunchLength:
         self.distribution_function_input = distribution_function
         self.bunch_length = float(bunch_length)
         self.distribution_type: DistTypeDistFunction = str(distribution_type)
-        if (self.distribution_type != 'binomial'):
-            if (distribution_exponent is not None):
+        if self.distribution_type != 'binomial':
+            if distribution_exponent is not None:
                 warnings.warn("'distribution_exponent' is only required for distribution_type='binomial'!")
             self.distribution_exponent = None
 
@@ -408,7 +406,7 @@ class FitBunchLength:
         self.bunch_length_fit = bunch_length_fit
 
 
-class FitDistributionUserTable:
+class FitTableDistribution:
     def __init__(self, distribution_user_table: DistributionUserTableType):
         super().__init__()
         assert isinstance(distribution_user_table, dict)
@@ -479,7 +477,7 @@ class MatchedFromDistributionFunction:
     def __init__(self,
                  beam: Beam,
                  full_ring_and_rf: FullRingAndRF,
-                 fit: FitDistributionUserTable | FitEmittance | FitBunchLength,
+                 fit: FitTableDistribution | FitEmittanceDistribution | FitBunchLengthDistribution,
                  total_induced_voltage: Optional[TotalInducedVoltage] = None,
                  extra_voltage_dict: Optional[ExtraVoltageDictType] = None,
                  turn_number: int = 0,
@@ -487,31 +485,31 @@ class MatchedFromDistributionFunction:
                  ):
         assert full_ring_and_rf.potential_well is not None, "Please call full_ring_and_rf.potential_well_generation() before using it for beam matching!"
 
-        self.beam = beam
-        self._eom_factor_dE, self._eom_factor_potential = _calc_eom(self.beam, full_ring_and_rf, turn_number)
+        self._beam = beam
+        self._eom_factor_dE, self._eom_factor_potential = self._calc_eom(full_ring_and_rf=full_ring_and_rf,
+                                                                         turn_number=turn_number)
         self._n_points_potential = len(full_ring_and_rf.potential_well_coordinates)
 
-        self.full_ring_and_rf = full_ring_and_rf
-        self.potential_well: NDArray = full_ring_and_rf.potential_well
-        self.time_potential: NDArray = full_ring_and_rf.potential_well_coordinates
+        self._full_ring_and_rf = full_ring_and_rf
+        self._potential_well: NDArray = full_ring_and_rf.potential_well
+        self._time_potential: NDArray = full_ring_and_rf.potential_well_coordinates
 
-        self.induced_potential: float | NDArray = 0
+        self._induced_potential: float | NDArray = 0
 
-        self.extra_potential = _calc_extra_potential(self._eom_factor_potential, extra_voltage_dict,
-                                                     self.time_potential)
+        self._extra_potential = self._calc_extra_potential(extra_voltage_dict=extra_voltage_dict)
 
-        self._total_potential = self.potential_well + self.induced_potential + self.extra_potential
+        self._total_potential = self._potential_well + self._induced_potential + self._extra_potential
 
         if total_induced_voltage is None:
             if n_iterations != 1:
-                warnings.warn("When given 'total_induced_voltage', 'n_iterations' is overwritten as 1!", UserWarning)
+                warnings.warn("When given 'total_induced_voltage', '_n_iterations' is overwritten as 1!", UserWarning)
             n_iterations = 1
-            self.induced_voltage_object: TotalInducedVoltage | None = None
-            self.profile: Profile | None = None
+            self._induced_voltage_object: TotalInducedVoltage | None = None
+            self._profile: Profile | None = None
         else:
-            self.induced_voltage_object: TotalInducedVoltage | None = copy.deepcopy(total_induced_voltage)
-            self.profile: Profile | None = self.induced_voltage_object.profile
-        self.n_iterations = n_iterations  # might be reset by total_induced_voltage to 1
+            self._induced_voltage_object: TotalInducedVoltage | None = copy.deepcopy(total_induced_voltage)
+            self._profile: Profile | None = self._induced_voltage_object.profile
+        self._n_iterations = n_iterations  # might be reset by total_induced_voltage to 1
         self._dE_trajectory = np.zeros(self._n_points_potential)
 
         ##########################
@@ -528,16 +526,30 @@ class MatchedFromDistributionFunction:
         #########################
 
         self._time_potential_low_res: NDArray = None  # set by _outer_loop
-
         self._line_density_: NDArray = None  # set by _outer_loop
 
+    def match_beam(self):
+        """Match the beam to the fit parameters"""
+        self._outer_loop()
+        self._ready_results()
+
+    def _ready_results(self):
+        """Convenience function to document the behaviour of legacy matched_from_distribution_function()"""
+        if self._profile is not None:
+            self._time_potential_low_res = self._time_potential_low_res
+            self._line_density_ = self._line_density_
+            self._induced_voltage_object = self._induced_voltage_object
+        else:
+            self._time_potential_low_res = self._time_potential_low_res
+            self._line_density_ = self._line_density_
+
     def _outer_loop(self):
-        for i in range(self.n_iterations):
+        for i in range(self._n_iterations):
             old_potential = copy.deepcopy(self._total_potential)
 
             # Adding the induced potential to the RF potential
-            self._total_potential = (self.potential_well + self.induced_potential +
-                                     self.extra_potential)
+            self._total_potential = (self._potential_well + self._induced_potential +
+                                     self._extra_potential)
 
             sse = np.sqrt(np.sum((old_potential - self._total_potential) ** 2))
 
@@ -546,10 +558,10 @@ class MatchedFromDistributionFunction:
 
             # Process the potential well in order to take a frame around the separatrix
             if not self.process_pot_well:
-                time_potential_sep, potential_well_sep = self.time_potential, self._total_potential
+                time_potential_sep, potential_well_sep = self._time_potential, self._total_potential
             else:
                 time_potential_sep, potential_well_sep = potential_well_cut(
-                    self.time_potential, self._total_potential)
+                    self._time_potential, self._total_potential)
 
             # Potential is shifted to put the minimum on 0
             potential_well_sep = potential_well_sep - np.min(potential_well_sep)
@@ -579,7 +591,7 @@ class MatchedFromDistributionFunction:
 
             J_array_dE0 = self._inner_loop(
                 i=i,
-                full_ring_and_rf2=copy.deepcopy(self.full_ring_and_rf),
+                full_ring_and_rf2=copy.deepcopy(self._full_ring_and_rf),
                 potential_well_low_res=potential_well_low_res,
             )
 
@@ -607,23 +619,24 @@ class MatchedFromDistributionFunction:
             # Computing the density grid
             # Computing bunch length as a function of H/J if needed
             # Bunch length can be calculated as 4-rms, Gaussian fit, or FWHM
-            if isinstance(self.fit, FitBunchLength):
-                _fit: FitBunchLength = self.fit
+            if isinstance(self.fit, FitBunchLengthDistribution):
+                _fit: FitBunchLengthDistribution = self.fit
                 X0 = x0_from_bunch_length(_fit.bunch_length, _fit.bunch_length_fit,
                                           X_grid, sorted_X_dE0, self.n_points_grid,
                                           self._time_potential_low_res,
                                           _fit.distribution_function_input,
                                           _fit.distribution_type, _fit.distribution_exponent,
-                                          self.beam, self.full_ring_and_rf)
+                                          self._beam, self._full_ring_and_rf)
                 density_grid = _fit.distribution_function_input(X_grid, _fit.distribution_type, X0,
                                                                 _fit.distribution_exponent)
-            elif isinstance(self.fit, FitEmittance):
-                _fit: FitEmittance = self.fit
-                X0 = x0_from_emittance(self.distribution_variable, _fit.emittance, sorted_H_dE0, sorted_J_dE0)
+            elif isinstance(self.fit, FitEmittanceDistribution):
+                _fit: FitEmittanceDistribution = self.fit
+                X0 = self.x0_from_emittance(emittance=_fit.emittance, sorted_H_dE0=sorted_H_dE0,
+                                            sorted_J_dE0=sorted_J_dE0)
                 density_grid = _fit.distribution_function_input(X_grid, _fit.distribution_type, X0,
                                                                 _fit.distribution_exponent)
-            elif isinstance(self.fit, FitDistributionUserTable):
-                _fit: FitDistributionUserTable = self.fit
+            elif isinstance(self.fit, FitTableDistribution):
+                _fit: FitTableDistribution = self.fit
                 density_grid = np.interp(
                     X_grid,
                     _fit.distribution_user_table['user_table_action'],
@@ -638,21 +651,14 @@ class MatchedFromDistributionFunction:
 
             # Calculating the line density
             self._line_density_ = np.sum(density_grid, axis=0)
-            self._line_density_ *= self.beam.n_macroparticles / np.sum(self._line_density_)
+            self._line_density_ *= self._beam.n_macroparticles / np.sum(self._line_density_)
 
             # Induced voltage contribution
-            if self.profile is not None:
-                self.induced_potential = _calc_induced_potential(self._eom_factor_potential,
-                                                                 self.induced_voltage_object,
-                                                                 self._line_density_,
-                                                                 self.n_points_grid,
-                                                                 self.profile,
-                                                                 self.time_potential,
-                                                                 self._time_potential_low_res,
-                                                                 time_resolution_low)
+            if self._profile is not None:
+                self._induced_potential = self._calc_induced_potential(time_resolution_low)
             gc.collect()
         # Populating the bunch
-        populate_bunch(self.beam, time_grid, deltaE_grid, density_grid,
+        populate_bunch(self._beam, time_grid, deltaE_grid, density_grid,
                        time_resolution_low, float(deltaE_coord_array[1]
                                                   - deltaE_coord_array[0]), self.seed)
 
@@ -677,11 +683,11 @@ class MatchedFromDistributionFunction:
                 main_harmonic_option=self.main_harmonic_option)
             pot_well_high_res = full_ring_and_rf2.potential_well
 
-            if self.profile is not None and i != 0:
+            if self._profile is not None and i != 0:
                 induced_potential_hires = np.interp(
                     time_potential_high_res,
-                    self.time_potential, self.induced_potential +
-                                         self.extra_potential, left=0, right=0)
+                    self._time_potential, self._induced_potential +
+                                          self._extra_potential, left=0, right=0)
                 pot_well_high_res += induced_potential_hires
                 pot_well_high_res -= pot_well_high_res.min()
 
@@ -698,100 +704,73 @@ class MatchedFromDistributionFunction:
                                                 - time_potential_high_res[0]))
         return J_array_dE0
 
-    def _ready_results(self):
-        """Convenience function to document the behaviour of legacy matched_from_distribution_function()"""
-        if self.profile is not None:
-            self._time_potential_low_res = self._time_potential_low_res
-            self._line_density_ = self._line_density_
-            self.induced_voltage_object = self.induced_voltage_object
+    def _calc_induced_potential(self, time_resolution_low: float) -> NDArray:
+        # Inputting new line density
+        self._profile.cut_options.cut_left = (
+                self._time_potential_low_res[0] - 0.5 * time_resolution_low)
+        self._profile.cut_options.cut_right = (
+                self._time_potential_low_res[-1] + 0.5 * time_resolution_low)
+        self._profile.cut_options.n_slices = self.n_points_grid
+        self._profile.cut_options.cuts_unit = 's'
+        self._profile.cut_options.set_cuts()
+        self._profile.set_slices_parameters()
+        self._profile.n_macroparticles = self._line_density_
+        # Re-calculating the sources of wakes/impedances according to this
+        # slicing
+        self._induced_voltage_object.reprocess()
+        # Calculating the induced voltage
+        self._induced_voltage_object.induced_voltage_sum()
+        induced_voltage = self._induced_voltage_object.induced_voltage
+        # Calculating the induced potential
+        induced_potential_low_res = -(self._eom_factor_potential
+                                      * cumtrapz(induced_voltage,
+                                                 dx=time_resolution_low,
+                                                 initial=0))
+        induced_potential = np.interp(self._time_potential,
+                                      self._time_potential_low_res,
+                                      induced_potential_low_res,
+                                      left=0, right=0)
+        return induced_potential
+
+    def _calc_eom(self,
+                  full_ring_and_rf: FullRingAndRF,
+                  turn_number: int
+                  ) -> (float, float):
+        """Initialize variables depending on the accelerator parameters"""
+        slippage_factor = full_ring_and_rf.ring_and_rf_section[0].rf_params.eta_0[turn_number]
+        beta = full_ring_and_rf.ring_and_rf_section[0].rf_params.beta[turn_number]
+        energy = full_ring_and_rf.ring_and_rf_section[0].rf_params.energy[turn_number]
+        eom_factor_dE = abs(slippage_factor) / (2 * beta ** 2. * energy)
+        eom_factor_potential = (np.sign(slippage_factor) * self._beam.particle.charge
+                                / (full_ring_and_rf.ring_and_rf_section[0].rf_params.t_rev[turn_number]))
+        return eom_factor_dE, eom_factor_potential
+
+    def _calc_extra_potential(self, extra_voltage_dict: dict[str, NDArray],
+                              ) -> float | NDArray:
+        """Extra potential from previous bunches (for multi-bunch generation)"""
+        extra_potential = 0
+        if extra_voltage_dict is not None:
+            extra_voltage_time_input = extra_voltage_dict['time_array']
+            extra_voltage_input = extra_voltage_dict['voltage_array']
+            extra_potential_input = -(self._eom_factor_potential
+                                      * cumtrapz(extra_voltage_input,
+                                                 dx=(float(extra_voltage_time_input[1])
+                                                     - float(extra_voltage_time_input[0])),
+                                                 initial=0)
+                                      )
+            extra_potential = np.interp(self._time_potential, extra_voltage_time_input, extra_potential_input)
+        return extra_potential
+
+    def x0_from_emittance(self,
+                          emittance: float,
+                          sorted_H_dE0: NDArray,
+                          sorted_J_dE0: NDArray
+                          ) -> float:
+        if self.distribution_variable == 'Action':
+            X0 = emittance / (2 * np.pi)
+        elif self.distribution_variable == 'Hamiltonian':
+            X0 = np.interp(emittance / (2 * np.pi), sorted_J_dE0, sorted_H_dE0)
         else:
-            self._time_potential_low_res = self._time_potential_low_res
-            self._line_density_ = self._line_density_
-
-    def match_beam(self):
-        self._outer_loop()
-        self._ready_results()
-
-
-def x0_from_emittance(distribution_variable: DistributionVariableType,
-                      emittance: float,
-                      sorted_H_dE0: NDArray,
-                      sorted_J_dE0: NDArray
-                      ) -> float:
-    if distribution_variable == 'Action':
-        X0 = emittance / (2 * np.pi)
-    elif distribution_variable == 'Hamiltonian':
-        X0 = np.interp(emittance / (2 * np.pi), sorted_J_dE0, sorted_H_dE0)
-    else:
-        raise RuntimeError(
-            f"'distribution_variable' must be 'Action' or 'Hamiltonian', not '{distribution_variable}'")
-    return X0
-
-
-def _calc_induced_potential(eom_factor_potential: float,
-                            induced_voltage_object: TotalInducedVoltage,
-                            line_density_: NDArray,
-                            n_points_grid: int,
-                            profile: Profile,
-                            time_potential: NDArray,
-                            time_potential_low_res: NDArray,
-                            time_resolution_low: float) -> NDArray:
-    # Inputting new line density
-    profile.cut_options.cut_left = (time_potential_low_res[0]
-                                    - 0.5 * time_resolution_low)
-    profile.cut_options.cut_right = (time_potential_low_res[-1]
-                                     + 0.5 * time_resolution_low)
-    profile.cut_options.n_slices = n_points_grid
-    profile.cut_options.cuts_unit = 's'
-    profile.cut_options.set_cuts()
-    profile.set_slices_parameters()
-    profile.n_macroparticles = line_density_
-    # Re-calculating the sources of wakes/impedances according to this
-    # slicing
-    induced_voltage_object.reprocess()
-    # Calculating the induced voltage
-    induced_voltage_object.induced_voltage_sum()
-    induced_voltage = induced_voltage_object.induced_voltage
-    # Calculating the induced potential
-    induced_potential_low_res = -(eom_factor_potential
-                                  * cumtrapz(induced_voltage,
-                                             dx=time_resolution_low,
-                                             initial=0))
-    induced_potential = np.interp(time_potential,
-                                  time_potential_low_res,
-                                  induced_potential_low_res,
-                                  left=0, right=0)
-    return induced_potential
-
-
-def _calc_eom(beam: Beam,
-              full_ring_and_rf: FullRingAndRF,
-              turn_number: int
-              ) -> (float, float):
-    """Initialize variables depending on the accelerator parameters"""
-    slippage_factor = full_ring_and_rf.ring_and_rf_section[0].rf_params.eta_0[turn_number]
-    beta = full_ring_and_rf.ring_and_rf_section[0].rf_params.beta[turn_number]
-    energy = full_ring_and_rf.ring_and_rf_section[0].rf_params.energy[turn_number]
-    eom_factor_dE = abs(slippage_factor) / (2 * beta ** 2. * energy)
-    eom_factor_potential = (np.sign(slippage_factor) * beam.particle.charge
-                            / (full_ring_and_rf.ring_and_rf_section[0].rf_params.t_rev[turn_number]))
-    return eom_factor_dE, eom_factor_potential
-
-
-def _calc_extra_potential(eom_factor_potential: float,
-                          extra_voltage_dict: dict[str, NDArray],
-                          time_potential: NDArray
-                          ) -> float | NDArray:
-    """Extra potential from previous bunches (for multi-bunch generation)"""
-    extra_potential = 0
-    if extra_voltage_dict is not None:
-        extra_voltage_time_input = extra_voltage_dict['time_array']
-        extra_voltage_input = extra_voltage_dict['voltage_array']
-        extra_potential_input = -(eom_factor_potential
-                                  * cumtrapz(extra_voltage_input,
-                                             dx=(float(extra_voltage_time_input[1])
-                                                 - float(extra_voltage_time_input[0])),
-                                             initial=0)
-                                  )
-        extra_potential = np.interp(time_potential, extra_voltage_time_input, extra_potential_input)
-    return extra_potential
+            raise RuntimeError(
+                f"'distribution_variable' must be 'Action' or 'Hamiltonian', not '{self.distribution_variable}'")
+        return X0

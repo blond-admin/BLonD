@@ -2,6 +2,7 @@ from typing import Callable, Dict
 from warnings import warn
 
 
+
 def _handle_legacy_kwargs(new_by_old: dict[str, str]):
     """Handles renamed keyword arguments and warns user
 
@@ -95,13 +96,13 @@ def kwargs_by_distribution_options(distribution_options: dict):
         distribution_user_table = None
     if distribution_user_table is not None:
         from blond.beam.distribution_generators.singlebunch.matched_from_distribution_function import \
-            FitDistributionUserTable
-        fit = FitDistributionUserTable(
+            FitTableDistribution
+        fit = FitTableDistribution(
             distribution_user_table=distribution_user_table
         )
     elif emittance is not None:
-        from blond.beam.distribution_generators.singlebunch.matched_from_distribution_function import FitEmittance
-        fit = FitEmittance(
+        from blond.beam.distribution_generators.singlebunch.matched_from_distribution_function import FitEmittanceDistribution
+        fit = FitEmittanceDistribution(
             emittance=emittance,
             distribution_type=distribution_type,
             distribution_exponent=distribution_exponent,
@@ -109,8 +110,8 @@ def kwargs_by_distribution_options(distribution_options: dict):
         if distribution_function_input is not None:
             fit.distribution_function_input = distribution_function_input
     elif bunch_length is not None:
-        from blond.beam.distribution_generators.singlebunch.matched_from_distribution_function import FitBunchLength
-        fit = FitBunchLength(
+        from blond.beam.distribution_generators.singlebunch.matched_from_distribution_function import FitBunchLengthDistribution
+        fit = FitBunchLengthDistribution(
             bunch_length=bunch_length,
             bunch_length_fit=bunch_length_fit,
             distribution_type=distribution_type,
@@ -158,12 +159,12 @@ def kwargs_by_line_density_options(line_density_options):
     else:
         line_density_input = None
 
-    from blond.beam.distribution_generators.singlebunch.matched_from_line_density import FitLineDensityInput, \
-        FitBunchLength
+    from blond.beam.distribution_generators.singlebunch.matched_from_line_density import FitTableLineDensity, \
+        FitBunchLengthLineDensity
     if line_density_input is not None:
-        fit = FitLineDensityInput(line_density_input=line_density_input)
+        fit = FitTableLineDensity(line_density_input=line_density_input)
     elif bunch_length is not None:
-        fit = FitBunchLength(
+        fit = FitBunchLengthLineDensity(
             bunch_length=bunch_length,
             line_density_type=line_density_type,
             line_density_exponent=line_density_exponent
@@ -172,9 +173,56 @@ def kwargs_by_line_density_options(line_density_options):
         raise RuntimeError("Something went wrong !")
     return {"fit": fit}
 
+def convert_distribution_options(distribution_options):
+    if 'type' in distribution_options:
+        distribution_type = distribution_options['type']
+    else:
+        distribution_type = None
+
+    if 'exponent' in distribution_options:
+        distribution_exponent = distribution_options['exponent']
+    else:
+        distribution_exponent = None
+
+    if 'emittance' in distribution_options:
+        emittance = distribution_options['emittance']
+    else:
+        emittance = None
+
+    if 'bunch_length' in distribution_options:
+        bunch_length = distribution_options['bunch_length']
+    else:
+        bunch_length = None
+
+    if 'bunch_length_fit' in distribution_options:
+        bunch_length_fit = distribution_options['bunch_length_fit']
+    else:
+        bunch_length_fit = None
+
+    if 'density_variable' in distribution_options:
+        distribution_variable = distribution_options['density_variable']
+    else:
+        distribution_variable = 'Hamiltonian'
+
+    if emittance is not None:
+        from blond.beam.distribution_generators.singlebunch.matched_from_distribution_function import FitEmittanceDistribution
+        fit = FitEmittanceDistribution(emittance=emittance,
+                                       distribution_type=distribution_type,
+                                       distribution_exponent=distribution_exponent)
+    elif bunch_length is not None:
+        from blond.beam.distribution_generators.singlebunch.matched_from_distribution_function import FitBunchLengthDistribution
+        fit = FitBunchLengthDistribution(bunch_length=bunch_length,
+                                         distribution_type=distribution_type,
+                                         distribution_exponent=distribution_exponent,
+                                         bunch_length_fit=bunch_length_fit)
+    else:
+        raise RuntimeError("Something went wrong !")
+
+    return {"fit": fit}
 
 # general replacements that were performed in blond
 __new_by_old = {
+    "distribution_options": convert_distribution_options,
     "distribution_options_list": convert_distribution_options_list,
     "line_density_options_list": convert_line_density_options_list,
     "Beam": "beam",

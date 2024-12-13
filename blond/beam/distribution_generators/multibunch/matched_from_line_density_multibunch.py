@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from ...beam import Beam
-from ...distribution_generators.singlebunch.matched_from_line_density import FitLineDensityInput, FitBunchLength, \
+from ...distribution_generators.singlebunch.matched_from_line_density import FitTableLineDensity, FitBunchLengthLineDensity, \
     MatchedFromLineDensity
 from ....utils import bmath as bm
 from ....utils.legacy_support import handle_legacy_kwargs
@@ -33,12 +33,12 @@ if TYPE_CHECKING:
 @handle_legacy_kwargs
 def matched_from_line_density_multibunch(beam: Beam, ring: Ring,
                                          full_ring_and_rf: FullRingAndRF,
-                                         fit: FitLineDensityInput | FitBunchLength |
-                                              list[FitLineDensityInput | FitBunchLength],
+                                         fit: FitTableLineDensity | FitBunchLengthLineDensity |
+                                              list[FitTableLineDensity | FitBunchLengthLineDensity],
                                          n_bunches: int,
                                          bunch_spacing_buckets: int,
                                          intensity_list: list | NDArray | None = None,
-                                         minimum_n_macroparticles: Optional[int] = None,
+                                         minimum_n_macroparticles: Optional[list[int | float]] = None,
                                          main_harmonic_option: MainHarmonicOptionType = 'lowest_freq',
                                          total_induced_voltage: Optional[TotalInducedVoltage] = None,
                                          half_option: HalfOptionType = 'first',
@@ -178,7 +178,6 @@ def matched_from_line_density_multibunch(beam: Beam, ring: Ring,
 
         # m.plot = plot
         # m.figdir = figdir
-        # m.n_iterations = int(n_iterations)
         # m.process_pot_well = process_pot_well
         # m.n_points_abel = int(n_points_abel)
         # m.n_points_grid = n_points_grid
