@@ -106,7 +106,8 @@ def kwargs_by_distribution_options(distribution_options: dict):
             distribution_type=distribution_type,
             distribution_exponent=distribution_exponent,
         )
-        fit.distribution_function_input = distribution_function_input
+        if distribution_function_input is not None:
+            fit.distribution_function_input = distribution_function_input
     elif bunch_length is not None:
         from blond.beam.distribution_generators.singlebunch.matched_from_distribution_function import FitBunchLength
         fit = FitBunchLength(
@@ -115,7 +116,8 @@ def kwargs_by_distribution_options(distribution_options: dict):
             distribution_type=distribution_type,
             distribution_exponent=distribution_exponent,
         )
-        fit.distribution_function_input = distribution_function_input
+        if distribution_function_input is not None:
+            fit.distribution_function_input = distribution_function_input
     else:
         raise RuntimeError()
     return {"fit": fit, "distribution_variable": distribution_variable}

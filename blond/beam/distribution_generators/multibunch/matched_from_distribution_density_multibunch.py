@@ -126,9 +126,9 @@ def matched_from_distribution_density_multibunch(beam: Beam, ring: Ring, full_ri
             # Commented parameters that are available,
             # but unused by current implementation:
 
-            # turn=turn_number,
-            # n_points=int(n_points_potential),
-            # dt_margin_percent=dt_margin_percent,
+            turn=0,  # default values from legacy matched_from_distribution_function
+            n_points=int(1e3),  # default values from legacy matched_from_distribution_function
+            dt_margin_percent=0.40,  # default values from legacy matched_from_distribution_function
         )
 
         m = MatchedFromDistributionFunction(
@@ -140,8 +140,8 @@ def matched_from_distribution_density_multibunch(beam: Beam, ring: Ring, full_ri
             # Commented parameters that are available,
             # but unused by current implementation:
 
-            # n_iterations=n_iterations,
-            # turn_number=turn_number,
+            # n_iterations=1,
+            # turn_number=0,
         )
 
         m.seed = seed
@@ -153,7 +153,6 @@ def matched_from_distribution_density_multibunch(beam: Beam, ring: Ring, full_ri
 
         # m.n_points_grid = n_points_grid
         # m.process_pot_well = process_pot_well
-
 
         m.match_beam()
 

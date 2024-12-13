@@ -124,11 +124,14 @@ def matched_from_line_density_multibunch(beam: Beam, ring: Ring,
         full_ring_and_rf.potential_well_generation(
             main_harmonic_option=main_harmonic_option,
 
+            n_points=int(1e3),  # default values from legacy matched_from_line_density
+            dt_margin_percent=0.40,  # default values from legacy matched_from_line_density
+
             # Commented parameters that are available,
             # but unused by current implementation:
 
-            # n_points=n_points_potential,
-            # dt_margin_percent=dt_margin_percent,
+            # turn = 0
+            # time_array = None
         )
 
         m = MatchedFromLineDensity(
@@ -138,13 +141,16 @@ def matched_from_line_density_multibunch(beam: Beam, ring: Ring,
             total_induced_voltage=total_induced_voltage,
             extra_voltage_dict=extra_voltage_dict,
         )
+        # Commented parameters that are available,
+        # but unused by current implementation:
+
         # m.plot = plot
         # m.figdir = figdir
         # m.n_iterations = int(n_iterations)
         # m.process_pot_well = process_pot_well
         # m.n_points_abel = int(n_points_abel)
-        m.half_option = half_option
         # m.n_points_grid = n_points_grid
+        m.half_option = half_option
         m.seed = seed
 
         m.match_beam()

@@ -275,7 +275,8 @@ def matched_from_distribution_function(
             distribution_type=distribution_type,
             distribution_exponent=distribution_exponent,
         )
-        fit.distribution_function_input = distribution_function_input
+        if distribution_function_input is not None:
+            fit.distribution_function_input = distribution_function_input
     if bunch_length is not None:
         fit = FitBunchLength(
             bunch_length=bunch_length,
@@ -283,7 +284,8 @@ def matched_from_distribution_function(
             distribution_type=distribution_type,
             distribution_exponent=distribution_exponent,
         )
-        fit.distribution_function_input = distribution_function_input
+        if distribution_function_input is not None:
+            fit.distribution_function_input = distribution_function_input
 
     m = MatchedFromDistributionFunction(
         beam=beam,
