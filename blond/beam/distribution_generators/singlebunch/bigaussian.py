@@ -37,7 +37,9 @@ if TYPE_CHECKING:
 def bigaussian(ring: Ring, rf_station: RFStation, beam: Beam, sigma_dt: float,
                sigma_dE: Optional[float] = None, seed: int = 1234,
                reinsertion: bool = False) -> None:
-    r"""Function generating a Gaussian beam both in time and energy
+    r"""Function generating a Gaussian beam in time and energy coordinates.
+
+    Function generating a Gaussian beam both in time and energy
     coordinates. Fills Beam.dt and Beam.dE arrays.
 
     Parameters

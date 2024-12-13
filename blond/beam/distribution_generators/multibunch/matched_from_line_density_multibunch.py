@@ -50,10 +50,42 @@ def matched_from_line_density_multibunch(beam: Beam, ring: Ring,
     function for each bunch. The extra parameters to include are the number of
     bunches and the spacing between two bunches (assumed constant presently).
     Moreover, the line_density_options_list corresponds to the distribution_options
-    of the matched_from_line_density function. It can be inputed as
+    of the matched_from_line_density function. It can be inputted as
     a dictionary just like the matched_from_line_density function (assuming
     the same parameters for all bunches), or as a list of length n_bunches
     to have different parameters for each bunch.*
+
+    Parameters
+    ----------
+    beam
+        Class containing the beam properties.
+    ring
+        Class containing the general properties of the synchrotron that are
+        independent of the RF system or the beam.
+    full_ring_and_rf
+        Definition of the full ring and RF parameters in order to be able to have a full turn information
+    fit
+        FitTableLineDensity or FitBunchLengthDistribution or list[FitTableLineDensity or list[FitBunchLengthDistribution]
+    n_bunches
+        # todo
+    bunch_spacing_buckets
+        # todo
+    intensity_list
+        # todo
+    minimum_n_macroparticles
+        # todo
+    main_harmonic_option
+        'lowest_freq', 'highest_voltage'
+    total_induced_voltage
+        # todo
+    half_option
+        TODO
+        'first', 'second', or 'both'
+    plot_option
+        Whether to plot the output
+    seed
+        Random seed
+
     """
 
     if intensity_list is None:

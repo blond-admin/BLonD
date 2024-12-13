@@ -37,9 +37,27 @@ if TYPE_CHECKING:
 def populate_bunch(beam: Beam, time_grid: NDArray, deltaE_grid: NDArray,
                    density_grid: NDArray, time_step: float,
                    deltaE_step: float, seed: Optional[int]) -> None:
-    """
-    *Method to populate the bunch using a random number generator from the
-    particle density in phase space.*
+    """Populates bunch from the particle density in phase space.
+
+    Method to populate the bunch using a random number generator from the
+    particle density in phase space.
+
+    Parameters
+    ----------
+    beam
+        Class containing the beam properties.
+    time_grid
+        Used to fill beam.dt using probability from density_grid
+    deltaE_grid
+        Used to fill beam.dE using probability from density_grid
+    density_grid
+        Probability distribution of `time_grid` and `deltaE_grid`
+    time_step
+        beam.dt is randomly displaced by  +- 0.5 * time_step
+    deltaE_step
+        beam.dE is randomly displaced by  +- 0.5 * deltaE_step
+    seed
+        Random seed
     """
     # Initialise the random number generator
     np.random.seed(seed=seed)

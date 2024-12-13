@@ -416,6 +416,66 @@ class FitDistributionUserTable:
 
 
 class MatchedFromDistributionFunction:
+    """Function to generate a beam by inputting the distribution function
+
+        *Function to generate a beam by inputting the distribution function by
+        choosing the type of distribution and the emittance.
+        The potential well is preprocessed to check for the min/max and center
+        the frame around the separatrix.
+        An error will be raised if there is not a full potential well (2 max
+        and 1 min at least), or if there are several wells (more than 2 max and
+        1 min, this case will be treated in the future).
+        An adjustable margin (40% by default) is applied in order to be able to
+        catch the min/max of the potential well that might be on the edge of the
+        frame. The slippage factor should be updated to take the higher orders.
+        Outputs should be added in order for the user to check step by step if
+        his bunch is going to be well generated. More detailed 'step by step'
+        documentation should be implemented
+        The user can input a custom distribution function by setting the parameter
+        distribution_type = 'user_input' and passing the function in the
+        parameter distribution_options['function'], with the following definition:
+        distribution_function(action_array, dist_type, length, exponent=None).
+        The user can also add an input table by setting the parameter
+        distribution_type = 'user_input_table',
+        distribution_options['user_table_action'] = array of action (in H or in J)
+        and distribution_options['user_table_distribution']*
+
+
+        Parameters
+        ----------
+        beam
+           Class containing the beam properties.
+        full_ring_and_rf
+           Definition of the full ring and RF parameters in order to be able to have a full turn information
+        total_induced_voltage
+           TODO
+        n_iterations
+           Number of iterations to match distribution
+        extra_voltage_dict
+           Extra potential from previous bunches (for multi-bunch generation).
+           Offsets the total_potential.
+           (total_potential = potential_well + induced_potential + _extra_potential)
+        turn_number
+           Used to calculate the EOM??
+
+        Attributes
+        ----------
+        n_points_grid
+           Internal grid resolution
+        seed
+            Random seed
+        fit
+            Fit options
+        distribution_variable
+            'Action' TODO documentation
+            'Hamiltonian' TODO documentation
+        process_pot_well
+            If true, process the potential well in order
+            to take a frame around the separatrix
+        main_harmonic_option
+            'lowest_freq', 'highest_voltage'
+       """
+
     def __init__(self,
                  beam: Beam,
                  full_ring_and_rf: FullRingAndRF,
@@ -425,7 +485,7 @@ class MatchedFromDistributionFunction:
                  turn_number: int = 0,
                  n_iterations: int = 1,
                  ):
-        assert full_ring_and_rf.potential_well is not None, "Please call full_ring_and_rf.potential_well_generation() befor using it for beam matching!"
+        assert full_ring_and_rf.potential_well is not None, "Please call full_ring_and_rf.potential_well_generation() before using it for beam matching!"
 
         self.beam = beam
         self._eom_factor_dE, self._eom_factor_potential = _calc_eom(self.beam, full_ring_and_rf, turn_number)
@@ -454,7 +514,11 @@ class MatchedFromDistributionFunction:
         self.n_iterations = n_iterations  # might be reset by total_induced_voltage to 1
         self._dE_trajectory = np.zeros(self._n_points_potential)
 
-        #########################
+        ##########################
+        # Attributes for the user
+        ##########################
+
+        # other options that can be adjusted by the user before using match_beam()
         self.n_points_grid: int = int(1e3)
         self.seed: Optional[int] = None
         self.fit = fit

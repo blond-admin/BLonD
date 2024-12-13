@@ -45,7 +45,9 @@ def match_beam_from_distribution_multibatch(beam: Beam, full_ring_and_rf: FullRi
                                             n_iterations: int = 1,
                                             n_points_potential: int = int(1e4),
                                             dt_margin_percent: float = 0.40, seed: Optional[int] = None):
-    """
+    """This function generates n equally spaced bunches for a stationary distribution.
+
+
     *This function generates n equally spaced bunches for a stationary
     distribution and try to match them with intensity effects.*
 
@@ -62,6 +64,37 @@ def match_beam_from_distribution_multibatch(beam: Beam, full_ring_and_rf: FullRi
     - The action J can be integrated over the whole phase space
     - 2piJ = emittance, this restricts the value of J0 (or H0)
     - with g0(H) we can randomize the macroparticles*
+
+
+    Parameters
+    ----------
+    beam
+        Class containing the beam properties.
+    full_ring_and_rf
+        Definition of the full ring and RF parameters in order to be able to have a full turn information
+    ring
+        Class containing the general properties of the synchrotron that are
+        independent of the RF system or the beam.
+    fit
+        FitTableLineDensity or FitBunchLengthDistribution or list[FitTableLineDensity or list[FitBunchLengthDistribution]
+    bunch_spacing_buckets
+        # todo
+    n_batch
+        # todo
+    batch_spacing_buckets
+        # todo
+    main_harmonic_option
+        'lowest_freq', 'highest_voltage'
+    total_induced_voltage
+        # todo
+    n_iterations
+        # todo
+    n_points_potential
+        # todo
+    dt_margin_percent
+        # todo
+    seed
+        Random seed
     """
     # ------------------------------------------------------------------------
     # USEFUL VARIABLES
