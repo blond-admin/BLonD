@@ -10,6 +10,7 @@ from blond.beam.distributions_multibunch import (
     match_beam_from_distribution,
     match_beam_from_distribution_multibatch,
 )
+from parameterized import parameterized
 
 
 class TestExecutable(unittest.TestCase):
@@ -71,95 +72,126 @@ class TestExecutable(unittest.TestCase):
 
         self.total_ind_volt = TotalInducedVoltage(self.beam, profile, [ind_volt_freq])
 
-    def test_matched_from_distribution_density_multibunch(self):
-        self.setUp()
-        for emittance, bunch_length in [(66, None), (None, 1e-9)]:
-            distribution_types = ['waterbag', 'parabolic_amplitude',
+
+def kwargs_matched_from_distribution_density_multibunch():
+    ret = []
+    i = 0
+    for emittance, bunch_length in [(66, None), (None, 1e-9)]:
+        distribution_types = ['waterbag', 'parabolic_amplitude',
+                              'parabolic_line', 'binomial',
+                              'gaussian']
+        for distribution_type in distribution_types:
+            for main_harmonic_option in ['lowest_freq', 'highest_voltage']:
+                if distribution_type == 'binomial':
+                    distribution_exponent = 1
+                else:
+                    distribution_exponent = None
+                for bunch_length_fit in ['full', 'fwhm', None]:
+                    for distribution_variable in ['Hamiltonian', 'Action']:
+                        distribution_options = dict(
+                            type=distribution_type,
+                            exponent=distribution_exponent,
+                            emittance=emittance,
+                            bunch_length=bunch_length,
+                            bunch_length_fit=bunch_length_fit,
+                            density_variable=distribution_variable,
+                        )
+                        n_bunches = 3
+                        distribution_options_list = [distribution_options for _ in range(n_bunches)]
+                        ret.append((dict(
+                            distribution_options_list=distribution_options_list,
+                            n_bunches=n_bunches,
+                            main_harmonic_option=main_harmonic_option,
+                        ),)
+                        )
+                        i += 1
+    return [ret[0], ret[-1]] # minimum selection of tests to save time
+
+
+class TestMatchedFromDistributionDensityMultibunch(TestExecutable, unittest.TestCase):
+    @parameterized.expand(kwargs_matched_from_distribution_density_multibunch)
+    def test_matched_from_distribution_density_multibunch(self, kwargs):
+        matched_from_distribution_density_multibunch(
+            beam=self.beam,
+            ring=self.ring,
+            full_ring_and_rf=self.full_ring_and_rf,
+            distribution_options_list=kwargs["distribution_options_list"],
+            n_bunches=kwargs["n_bunches"],
+            bunch_spacing_buckets=10,
+            intensity_list=[1e11, 1e11, 1e11],
+            main_harmonic_option=kwargs["main_harmonic_option"],
+            # total_induced_voltage=self.total_ind_volt,
+            seed=1,
+        )
+
+
+def kwargs_matched_from_line_density_multibunch():
+    ret = []
+    for kwargs in [{"line_density_input": dict(time_line_den=np.linspace(-1, 1, 100) * 1e-9,
+                                               line_density=1 - np.linspace(-1, 1, 100) ** 2,
+                                               )
+                    },
+                   {"bunch_length": 0.5e-9,
+                    }]:
+        if "bunch_length" in kwargs.keys():
+            line_density_types = ['waterbag', 'parabolic_amplitude',
                                   'parabolic_line', 'binomial',
-                                  'gaussian']
-            for distribution_type in distribution_types:
-                for main_harmonic_option in ['lowest_freq', 'highest_voltage']:
-                    if distribution_type == 'binomial':
-                        distribution_exponent = 1
-                    else:
-                        distribution_exponent = None
-                    for bunch_length_fit in ['full', 'fwhm', None]:
-                        for distribution_variable in ['Hamiltonian', 'Action']:
-                            distribution_options = dict(
-                                type=distribution_type,
-                                exponent=distribution_exponent,
-                                emittance=emittance,
-                                bunch_length=bunch_length,
-                                bunch_length_fit=bunch_length_fit,
-                                density_variable=distribution_variable,
-                            )
-                            n_bunches = 3
-                            distribution_options_list = [distribution_options for _ in range(n_bunches)]
-                            print(locals())
-                            matched_from_distribution_density_multibunch(
-                                beam=self.beam,
-                                ring=self.ring,
-                                full_ring_and_rf=self.full_ring_and_rf,
-                                distribution_options_list=distribution_options_list,
-                                n_bunches=n_bunches,
-                                bunch_spacing_buckets=10,
-                                intensity_list=[1e11, 1e11, 1e11],
-                                main_harmonic_option=main_harmonic_option,
-                                # total_induced_voltage=self.total_ind_volt,
-                                seed=1,
-                            )
+                                  'gaussian', 'cosine_squared'
+                                  ]
+        else:
+            line_density_types = ['user_input']
+        for line_density_type in line_density_types:
+            for main_harmonic_option in ['lowest_freq', 'highest_voltage']:
+                if line_density_type == 'binomial':
+                    line_density_exponent = 1
+                else:
+                    line_density_exponent = None
+                for half_option in ['first', 'second', 'both']:
+                    line_density_options = {
+                        'type': line_density_type,
+                        'exponent': line_density_exponent,
 
-    def test_matched_from_line_density_multibunch(self):
-        self.setUp()
-        for kwargs in [{"line_density_input": dict(time_line_den=np.linspace(-1, 1, 100) * 1e-9,
-                                                   line_density=1 - np.linspace(-1, 1, 100) ** 2,
-                                                   )
-                        },
-                       {"bunch_length": 0.5e-9,
-                        }]:
-            if "bunch_length" in kwargs.keys():
-                line_density_types = ['waterbag', 'parabolic_amplitude',
-                                      'parabolic_line', 'binomial',
-                                      'gaussian', 'cosine_squared'
-                                      ]
-            else:
-                line_density_types = ['user_input']
-            for line_density_type in line_density_types:
-                for main_harmonic_option in ['lowest_freq', 'highest_voltage']:
-                    if line_density_type == 'binomial':
-                        line_density_exponent = 1
-                    else:
-                        line_density_exponent = None
-                    for half_option in ['first', 'second', 'both']:
-                        line_density_options = {
-                            'type': line_density_type,
-                            'exponent': line_density_exponent,
+                    }
+                if line_density_type == 'user_input':
+                    line_density_options["time_line_den"] = kwargs['line_density_input']['time_line_den']
+                    line_density_options["line_density"] = kwargs['line_density_input']['line_density']
+                else:
+                    line_density_options['bunch_length'] = kwargs["bunch_length"]
 
-                        }
-                    if line_density_type == 'user_input':
-                        line_density_options["time_line_den"] = kwargs['line_density_input']['time_line_den']
-                        line_density_options["line_density"] = kwargs['line_density_input']['line_density']
-                    else:
-                        line_density_options['bunch_length'] = kwargs["bunch_length"]
-
-                    n_bunches = 3
-                    line_density_options_list = [line_density_options for _ in range(n_bunches)]
-                    matched_from_line_density_multibunch(
-                        beam=self.beam,
-                        ring=self.ring,
-                        full_ring_and_rf=self.full_ring_and_rf,
+                n_bunches = 3
+                line_density_options_list = [line_density_options for _ in range(n_bunches)]
+                ret.append((
+                    dict(
                         line_density_options_list=line_density_options_list,
-                        bunch_spacing_buckets=10,
                         n_bunches=n_bunches,
-                        intensity_list=[1e11, 1e11, 1e11],
                         main_harmonic_option=main_harmonic_option,
-                        # total_induced_voltage=self.total_ind_volt,
                         half_option=half_option,
-                        seed=1,
                     )
+                    ,))
+    return [ret[0], ret[-1]] # minimum selection of tests to save time
 
+
+class TestMatchedFromLineDensityMultibunch(TestExecutable, unittest.TestCase):
+
+    @parameterized.expand(kwargs_matched_from_line_density_multibunch())
+    def test_matched_from_line_density_multibunch(self, kwargs):
+
+        matched_from_line_density_multibunch(
+            beam=self.beam,
+            ring=self.ring,
+            full_ring_and_rf=self.full_ring_and_rf,
+            line_density_options_list=kwargs["line_density_options_list"],
+            bunch_spacing_buckets=10,
+            n_bunches=kwargs["n_bunches"],
+            intensity_list=[1e11, 1e11, 1e11],
+            main_harmonic_option=kwargs["main_harmonic_option"],
+            # total_induced_voltage=self.total_ind_volt,
+            half_option=kwargs["half_option"],
+            seed=1,
+        )
+
+class TestMatchBeamFromDistributionMultibatch(TestExecutable, unittest.TestCase):
     def test_match_beam_from_distribution_multibatch(self):
-        self.setUp()
         self.skipTest("Implement performant version to test this module")
         for emittance, bunch_length in [(66, None), (None, 1e-9)]:
             distribution_types = ['waterbag', 'parabolic_amplitude',
@@ -192,10 +224,10 @@ class TestExecutable(unittest.TestCase):
                                 n_batch=3,
                                 batch_spacing_buckets=10,
                                 main_harmonic_option=main_harmonic_option,
-                                #total_induced_voltage=self.total_ind_volt,
+                                # total_induced_voltage=self.total_ind_volt,
                                 n_iterations=2,
-                                #n_points_potential=None,
-                                #dt_margin_percent=None,
+                                # n_points_potential=None,
+                                # dt_margin_percent=None,
                                 seed=1,
 
                             )
