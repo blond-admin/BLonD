@@ -17,6 +17,7 @@ statistics
 from __future__ import division
 
 import itertools as itl
+import warnings
 
 import numpy as np
 from scipy.constants import c, e, epsilon_0, hbar, m_e, m_p, physical_constants
@@ -192,6 +193,9 @@ class Beam:
         ratio intensity per macroparticle [].
     id : numpy_array, int
         unique macro-particle ID number; zero if particle is 'lost'.
+    n_macroparticles_eliminated : int
+        Number of macroparticles that were removed
+        by Beam.eliminate_lost_particles()
 
     See Also
     ---------
@@ -240,24 +244,27 @@ class Beam:
         self.is_splitted = False
         self._sumsq_dt = 0.
         self._sumsq_dE = 0.
+        self.n_macroparticles_eliminated = 0
         # For GPU
         self._device = 'CPU'
 
     @property
     def n_macroparticles_lost(self):
-        '''Number of lost macro-particles, defined as @property.
+        '''Number of macro-particles marked as not alive
 
         Returns
         -------
         n_macroparticles_lost : int
-            number of macroparticles lost.
+            number of macroparticles where 'id' is 'lost' (i.e. 0).
 
         '''
+        warnings.warn("Use 'n_macroparticles_not_alive' instead of 'n_macroparticles_lost' for readability", DeprecationWarning)
+
         return self.n_macroparticles - self.n_macroparticles_alive
 
     @property
     def n_macroparticles_alive(self):
-        '''Number of transmitted macro-particles, defined as @property.
+        '''Number of macro-particles marked as alive
 
         Returns
         -------
@@ -266,18 +273,31 @@ class Beam:
 
         '''
 
-        return bm.count_nonzero(self.id)
+        return bm.count_nonzero(self.id)  # TODO why can this number be different from n_macroparticles
 
+    @property
+    def n_macroparticles_not_alive(self):
+        '''Number of macro-particles marked as not-alive
+
+        Returns
+        -------
+        n_macroparticles_not_alive : int
+            number of macroparticles marked as lost.
+
+        '''
+
+        return self.n_macroparticles - self.n_macroparticles_alive
     def eliminate_lost_particles(self):
         """Eliminate lost particles from the beam coordinate arrays
         """
 
-        indexalive = np.where(self.id != 0)[0]
-        if len(indexalive) > 0:
+        select_alive = self.id != 0
+        if np.sum(select_alive) > 0:
+            self.n_macroparticles_eliminated += np.sum(~select_alive)
             self.dt = np.ascontiguousarray(
-                self.dt[indexalive], dtype=bm.precision.real_t)
+                self.dt[select_alive], dtype=bm.precision.real_t)
             self.dE = np.ascontiguousarray(
-                self.dE[indexalive], dtype=bm.precision.real_t)
+                self.dE[select_alive], dtype=bm.precision.real_t)
             self.n_macroparticles = len(self.dt)
             self.id = np.arange(1, self.n_macroparticles + 1, dtype=int)
         else:
