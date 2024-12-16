@@ -429,7 +429,6 @@ class _InducedVoltage:
         self.mtw_memory[:self.n_induced_voltage] += self.induced_voltage
 
         self.induced_voltage = self.mtw_memory[:self.n_induced_voltage]
-        print('multi turn wake is being calculated')
 
     def shift_trev_freq(self):
         """
