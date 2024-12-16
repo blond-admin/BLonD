@@ -340,11 +340,9 @@ class _InducedVoltage:
         if self.multi_turn_wake:
             # Number of points of the memory array for multi-turn wake
             self.n_mtw_memory = self.n_induced_voltage
-            print('mtw initialised')
             self.front_wake_buffer = 0
 
             if self.mtw_mode == 'freq':
-                print('in freq domain')
                 # In frequency domain, an extra buffer for a revolution turn is
                 # needed due to the circular time shift in frequency domain
                 self.buffer_size = np.ceil(np.max(self.rf_params.t_rev)
@@ -366,7 +364,6 @@ class _InducedVoltage:
                 # Selecting time-shift method
                 self.shift_trev = self.shift_trev_freq
             else:
-                print('in time domain')
                 # Selecting time-shift method
                 self.shift_trev = self.shift_trev_time
                 # Time array
