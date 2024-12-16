@@ -433,6 +433,7 @@ class _InducedVoltage:
 
         self.induced_voltage = self.mtw_memory[:self.n_induced_voltage]
         print('multi turn wake is being calculated')
+
     def shift_trev_freq(self):
         """
         Method to shift the induced voltage by a revolution period in the
@@ -534,12 +535,15 @@ class InducedVoltageTime(_InducedVoltage):
         ####################################
 
         # Call the __init__ method of the parent class [calls process()]
-        _InducedVoltage.__init__(self, beam, profile,
-                                 frequency_resolution=None,
-                                 wake_length=wake_length,
-                                 multi_turn_wake=multi_turn_wake,
-                                 rf_station=rf_station, mtw_mode=mtw_mode,
-                                 use_regular_fft=use_regular_fft)
+        super().__init__(beam=beam,
+                         profile=profile,
+                         frequency_resolution=None,
+                         wake_length=wake_length,
+                         multi_turn_wake=multi_turn_wake,
+                         rf_station=rf_station,
+                         mtw_mode=mtw_mode,
+                         use_regular_fft=use_regular_fft,
+                         )
 
     def process(self) -> None:
         """
@@ -714,11 +718,11 @@ class InducedVoltageFreq(_InducedVoltage):
         ###############
 
         # Call the __init__ method of the parent class
-        _InducedVoltage.__init__(self, beam, profile, wake_length=None,
-                                 frequency_resolution=frequency_resolution,
-                                 multi_turn_wake=multi_turn_wake,
-                                 rf_station=rf_station, mtw_mode=mtw_mode,
-                                 use_regular_fft=use_regular_fft)
+        super().__init__(beam, profile, wake_length=None,
+                         frequency_resolution=frequency_resolution,
+                         multi_turn_wake=multi_turn_wake,
+                         rf_station=rf_station, mtw_mode=mtw_mode,
+                         use_regular_fft=use_regular_fft)
 
     def process(self) -> None:
         """
@@ -850,7 +854,7 @@ class InductiveImpedance(_InducedVoltage):
         self.deriv_mode = deriv_mode
 
         # Call the __init__ method of the parent class
-        _InducedVoltage.__init__(self, beam, profile, rf_station=rf_station)
+        super().__init__(beam, profile, rf_station=rf_station)
 
     def induced_voltage_1turn(self, beam_spectrum_dict={}):
         """
@@ -948,11 +952,10 @@ class InducedVoltageResonator(_InducedVoltage):
         Computed induced voltage [V]
     """
 
-        
-    @handle_legacy_kwargs 
+    @handle_legacy_kwargs
     def __init__(self, beam: Beam,
                  profile: Profile,
-                 resonators: list[_ImpedanceObject],
+                 resonators: Resonators,
                  frequency_resolution: Optional[float] = None,
                  wake_length: Optional[float] = None,
                  multi_turn_wake: bool = False,
@@ -960,8 +963,7 @@ class InducedVoltageResonator(_InducedVoltage):
                  rf_station: Optional[RFStation] = None,
                  mtw_mode: Optional[MtwModeTypes] = None,
                  use_regular_fft: bool = True) -> None:
-        
-        
+
         # Test if one or more quality factors is smaller than 0.5.
         if sum(resonators.Q < 0.5) > 0:
             # ResonatorError
@@ -1012,13 +1014,13 @@ class InducedVoltageResonator(_InducedVoltage):
         self._deltaT = np.zeros(
             (self.n_time, self.profile.n_slices), dtype=bm.precision.real_t, order='C')
 
-         # Call the __init__ method of the parent class [calls process()]
-        _InducedVoltage.__init__(self, beam, profile,
-                                 frequency_resolution=frequency_resolution,
-                                 wake_length=wake_length,
-                                 multi_turn_wake=multi_turn_wake,
-                                 rf_station=rf_station, mtw_mode=mtw_mode,
-                                 use_regular_fft=use_regular_fft)
+        # Call the __init__ method of the parent class [calls process()]
+        super().__init__(beam, profile,
+                         frequency_resolution=frequency_resolution,
+                         wake_length=wake_length,
+                         multi_turn_wake=multi_turn_wake,
+                         rf_station=rf_station, mtw_mode=mtw_mode,
+                         use_regular_fft=use_regular_fft)
 
     def process(self):
         r"""
@@ -1033,6 +1035,9 @@ class InducedVoltageResonator(_InducedVoltage):
             int(self.profile.n_slices - 1), dtype=bm.precision.real_t, order='C')
         self._deltaT = np.zeros(
             (self.n_time, self.profile.n_slices), dtype=bm.precision.real_t, order='C')
+
+    def on_profile_change(self):
+        self.process(self)
 
     def induced_voltage_1turn(self, beam_spectrum_dict={}):
         r"""

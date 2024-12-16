@@ -139,7 +139,7 @@ class TestInducedVoltageResonator(unittest.TestCase):
             particle=Proton(),
             n_turns=2,
         )
-        rf_station = RFStation(
+        self.rf_station = RFStation(
             ring=ring,
             harmonic=[4620],
             voltage=[0.9e6],
@@ -153,13 +153,13 @@ class TestInducedVoltageResonator(unittest.TestCase):
         )
         bigaussian(
             ring=ring,
-            rf_station=rf_station,
+            rf_station=self.rf_station,
             beam=beam,
             sigma_dt=2e-9 / 4, seed=1,
         )
         self.beam = beam
         cut_options = CutOptions(cut_left=0, cut_right=2 * np.pi, n_slices=2 ** 8,
-                                 rf_station=rf_station, cuts_unit='rad')
+                                 rf_station=self.rf_station, cuts_unit='rad')
         self.profile = Profile(beam, cut_options,
                                FitOptions(fit_option='gaussian'))
         table = np.loadtxt(this_directory + '/EX_05_new_HQ_table.dat', comments='!')
@@ -175,15 +175,17 @@ class TestInducedVoltageResonator(unittest.TestCase):
     def test_init_mtw(self):
         # TODO Improve testcases
         ivr = InducedVoltageResonator(beam=self.beam, profile=self.profile, resonators=self.resonator,
-                                      mtw_mode=True
+                                      multi_turn_wake=True
                                       )
 
     def test_init_mtw2(self):
         # TODO Improve testcases
         ivr = InducedVoltageResonator(beam=self.beam, profile=self.profile, resonators=self.resonator,
-                                      mtw_mode=True
+                                      rf_station=self.rf_station,
+                                      multi_turn_wake=True
                                       )
         ivr.process()
+        ivr.induced_voltage_mtw()
         my_array = ivr.induced_voltage
         self.assertTrue(np.any(my_array != 0.0))
 
