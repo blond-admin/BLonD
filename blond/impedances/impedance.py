@@ -958,6 +958,7 @@ class InducedVoltageResonator(_InducedVoltage):
                  timeArray: Optional[NDArray] = None,
                  rf_station: Optional[RFStation] = None,
                  mtw_mode: Optional[MtwModeTypes] = None,
+                 array_length: Optional[int] = None,
                  use_regular_fft: bool = True) -> None:
 
         # Test if one or more quality factors is smaller than 0.5.
@@ -980,6 +981,7 @@ class InducedVoltageResonator(_InducedVoltage):
             self.tArray = timeArray
             self.atLineDensityTimes = False
 
+        self.array_length = array_length
         # Length of timeArray
         self.n_time = len(self.tArray)
 
@@ -1071,7 +1073,34 @@ class InducedVoltageResonator(_InducedVoltage):
                                 * self.beam.n_macroparticles * self.beam.ratio
         self.induced_voltage = (self.induced_voltage
                                 .astype(dtype=bm.precision.real_t, order='C', copy=False))
+        
 
+    def induced_voltage_mtw(self, beam_spectrum_dict: Optional[dict] = None):
+        """
+        Method to calculate the induced voltage taking into account the effect
+        from previous passages (multi-turn wake) @ F. Batsch
+        """
+        print('inside induced voltage mtw')
+        # work-around fix for timeshift, shift the entries in the array by 1 t_rev=512px
+        self.mtw_memory = np.append(self.mtw_memory, np.zeros(self.profile.n_slices))
+        self.mtw_memory = self.mtw_memory[self.profile.n_slices:]
+
+        # Induced voltage of the current turn calculation
+        if beam_spectrum_dict is None:
+            beam_spectrum_dict = dict()
+            
+        self.induced_voltage_1turn(beam_spectrum_dict)
+
+        # Setting to zero to the last part to remove the contribution from the
+        # front wake
+        self.induced_voltage[self.n_induced_voltage - self.front_wake_buffer:] = 0
+
+        # Add the induced voltage of the current turn to the memory from previous
+        self.mtw_memory[:int(self.n_induced_voltage)] += self.induced_voltage  
+
+        self.induced_voltage = self.mtw_memory[:self.n_induced_voltage]
+        
+    
     # Implementation of Heaviside function
     def Heaviside(self, x):
         r"""
