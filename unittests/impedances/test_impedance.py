@@ -162,7 +162,7 @@ class TestInducedVoltageResonator(unittest.TestCase):
                                  rf_station=self.rf_station, cuts_unit='rad')
         self.profile = Profile(beam, cut_options,
                                FitOptions(fit_option='gaussian'))
-        table = np.loadtxt(this_directory + '/EX_05_new_HQ_table.dat', comments='!')
+        table = np.loadtxt(this_directory + './EX_05_new_HQ_table.dat', comments='!')
         R_shunt = table[:, 2] * 10 ** 6
         f_res = table[:, 0] * 10 ** 9
         Q_factor = table[:, 1]
