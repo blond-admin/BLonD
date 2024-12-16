@@ -153,7 +153,7 @@ class  BaseTestInducedVoltageResonator(unittest.TestCase):
 
         
 
-    def test_mtw_calculation(self):
+    def test_mtw_true_induced_voltage(self):
         # TODO Improve testcases
         ivr = InducedVoltageResonator(beam=self.beam, profile=self.profile, resonators=self.resonator,
                                       rf_station=self.rf_station, multi_turn_wake=True)
@@ -161,6 +161,15 @@ class  BaseTestInducedVoltageResonator(unittest.TestCase):
         ivr.induced_voltage_mtw()
         my_array = ivr.induced_voltage
         self.assertTrue(np.any(my_array != 0.0))
+
+
+
+
+        
+
+                                      
+                        
+
 
 
 
@@ -190,8 +199,6 @@ class TestInducedVoltageResonatorRf1(BaseTestInducedVoltageResonator, unittest.T
             n_turns=2)
                         
         
-        
-
         self.rf_station = RFStation(
             ring=ring,
             harmonic=[4620],
@@ -217,10 +224,10 @@ class TestInducedVoltageResonatorRf1(BaseTestInducedVoltageResonator, unittest.T
         self.profile = Profile(beam, cut_options,
                                FitOptions(fit_option='gaussian'))
         table = np.loadtxt(this_directory + './EX_05_new_HQ_table.dat', comments='!')
-        R_shunt = table[:, 2] * 10 ** 6
-        f_res = table[:, 0] * 10 ** 9
-        Q_factor = table[:, 1]
-        self.resonator = Resonators(R_shunt, f_res, Q_factor)
+        self.R_shunt = table[:, 2] * 10 ** 6
+        self.f_res = table[:, 0] * 10 ** 9
+        self.Q_factor = table[:, 1]
+        self.resonator = Resonators(self.R_shunt, self.f_res, self.Q_factor)
 
 
 
@@ -244,7 +251,6 @@ class TestInducedVoltageResonatorRf2(BaseTestInducedVoltageResonator, unittest.T
         circ = 6911.56
         n_rf_stations = 2
         l_per_section = circ/ n_rf_stations
-
         ring_per_section = Ring(ring_length=l_per_section, 
                                 alpha_0=mom_compaction,
                         particle=Proton(), synchronous_data=25.92e9)
@@ -252,10 +258,9 @@ class TestInducedVoltageResonatorRf2(BaseTestInducedVoltageResonator, unittest.T
         sectionlengths = np.full(n_rf_stations, l_per_section)
         alpha_c = np.full(n_rf_stations, mom_compaction)
         n_turns = math.ceil(ring_per_section.n_turns /n_rf_stations)
+
         ring = Ring(ring_length=sectionlengths, alpha_0=alpha_c, particle=Proton(), n_turns=n_turns, n_sections=n_rf_stations,
                     synchronous_data=25.92e9)
-
-
 
         self.rf_station = RFStation(
             ring=ring,
@@ -282,13 +287,12 @@ class TestInducedVoltageResonatorRf2(BaseTestInducedVoltageResonator, unittest.T
         self.profile = Profile(beam, cut_options,
                                FitOptions(fit_option='gaussian'))
         table = np.loadtxt(this_directory + './EX_05_new_HQ_table.dat', comments='!')
-        R_shunt = table[:, 2] * 10 ** 6
-        f_res = table[:, 0] * 10 ** 9
-        Q_factor = table[:, 1]
-        self.resonator = Resonators(R_shunt, f_res, Q_factor)
+        self.R_shunt = table[:, 2] * 10 ** 6
+        self.f_res = table[:, 0] * 10 ** 9
+        self.Q_factor = table[:, 1]
+        self.resonator = Resonators(self.R_shunt, self.f_res, self.Q_factor)
              
  
-
 
 
 if __name__ == '__main__':
