@@ -92,8 +92,8 @@ def phase_amplitude_from_tune(tune: NDArray) -> NDArray:
             difference = 0.25 * np.pi
             k = 0
 
-            while np.fabs(tune[i] - tune_from_phase_amplitude(guess)) / tune[i] \
-                    > 0.001 and np.fabs(difference / guess) > 1.e-10:
+            while (np.fabs(tune[i] - tune_from_phase_amplitude(guess))
+                   / tune[i] > 0.001 and np.fabs(difference / guess) > 1.e-10):
 
                 guess += np.sign(tune_from_phase_amplitude(guess)
                                  - tune[i]) * difference
@@ -101,7 +101,9 @@ def phase_amplitude_from_tune(tune: NDArray) -> NDArray:
                 k += 1
                 if k > 100:
                     # PhaseSpaceError
-                    raise RuntimeError("Exceeded maximum number of iterations in phase_amplitude_from_tune()!")
+                    raise RuntimeError("Exceeded maximum number of "
+                                       + "iterations in "
+                                       + "phase_amplitude_from_tune()!")
 
             phimax[i] = guess
 
@@ -109,8 +111,10 @@ def phase_amplitude_from_tune(tune: NDArray) -> NDArray:
 
 
 @handle_legacy_kwargs
-def oscillation_amplitude_from_coordinates(ring: Ring, rf_station: RFStation, dt: NDArray, dE: NDArray,
-                                           timestep: int = 0, Np_histogram: Optional[NDArray] = None):
+def oscillation_amplitude_from_coordinates(ring: Ring, rf_station: RFStation,
+                                           dt: NDArray, dE: NDArray,
+                                           timestep: int = 0,
+                                           Np_histogram: Optional[NDArray] = None):
     """
     Returns the oscillation amplitude in time for given particle coordinates,
     assuming single-harmonic RF system and no intensity effects.
@@ -128,7 +132,7 @@ def oscillation_amplitude_from_coordinates(ring: Ring, rf_station: RFStation, dt
     E = rf_station.energy[0]
     const = eta * T0 * omega_rf / (2. * V * beta_sq * E)
 
-    dtmax = np.fabs(np.arccos(np.cos(omega_rf * dt + phi_rf) + const * dE ** 2)
+    dtmax = np.fabs(np.arccos(np.cos(omega_rf*dt + phi_rf) + const*dE**2)
                     - phi_rf - phi_s) / omega_rf
 
     if Np_histogram is not None:
@@ -146,7 +150,8 @@ def oscillation_amplitude_from_coordinates(ring: Ring, rf_station: RFStation, dt
 
 
 @handle_legacy_kwargs
-def action_from_oscillation_amplitude(rf_station: RFStation, dtmax: float, timestep: int = 0,
+def action_from_oscillation_amplitude(rf_station: RFStation, dtmax: float,
+                                      timestep: int = 0,
                                       Np_histogram: Optional[NDArray] = None):
     """
     Returns the relative action for given oscillation amplitude in time,
