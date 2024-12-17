@@ -19,7 +19,7 @@ from __future__ import division, print_function
 
 import unittest
 
-import numpy
+import numpy as np
 from scipy.constants import physical_constants
 
 import blond.utils.exceptions as blExcept
@@ -154,7 +154,7 @@ class testBeamClass(unittest.TestCase):
                               msg='Beam: n_macroparticles is not an int')
         self.assertIsInstance(self.beam.ratio, float,
                               msg='Beam: ratio is not a float')
-        self.assertIsInstance(self.beam.id, numpy.ndarray,
+        self.assertIsInstance(self.beam.id, np.ndarray,
                               msg='Beam: id is not a numpy.array')
         self.assertIn('int', type(self.beam.id[0]).__name__,
                       msg='Beam: id array does not contain int')
@@ -162,9 +162,9 @@ class testBeamClass(unittest.TestCase):
                               msg='Beam: n_macroparticles_lost is not an int')
         self.assertIsInstance(self.beam.n_macroparticles_alive, int,
                               msg='Beam: n_macroparticles_alive is not an int')
-        self.assertIsInstance(self.beam.dt, numpy.ndarray,
+        self.assertIsInstance(self.beam.dt, np.ndarray,
                               msg='Beam: dt is not a numpy.array')
-        self.assertIsInstance(self.beam.dE, numpy.ndarray,
+        self.assertIsInstance(self.beam.dE, np.ndarray,
                               msg='Beam: dE is not a numpy.array')
         self.assertIn('float', type(self.beam.dt[0]).__name__,
                       msg='Beam: dt does not contain float')
@@ -175,8 +175,8 @@ class testBeamClass(unittest.TestCase):
 
         sigma_dt = 1.
         sigma_dE = 1.
-        self.beam.dt = sigma_dt * numpy.random.randn(self.beam.n_macroparticles)
-        self.beam.dE = sigma_dE * numpy.random.randn(self.beam.n_macroparticles)
+        self.beam.dt = sigma_dt * np.random.randn(self.beam.n_macroparticles)
+        self.beam.dE = sigma_dE * np.random.randn(self.beam.n_macroparticles)
 
         self.beam.statistics()
 
@@ -267,7 +267,6 @@ class testBeamClass(unittest.TestCase):
                          msg='Beam: Failed losses_energy_cut, second')
 
     def test_addition(self):
-        np = numpy
 
         testdEs = np.linspace(-1E6, 1E6, 2000000)
         testdts = np.linspace(0, 10E-9, 2000000)
@@ -327,6 +326,11 @@ class testBeamClass(unittest.TestCase):
             self.beam.add_beam(([1], [2]))
 
 
+    def test_addition2(self):
+        testdEs = np.linspace(-1E6, 1E6, 2000000)
+        testdts = np.linspace(0, 10E-9, 2000000)
+        beam = Beam(Ring=self.general_params, n_macroparticles=int(2000000), intensity=1e9, dE=testdEs, dt=testdts)
+        self.assertEqual(beam.n_macroparticles, 2000000)
 if __name__ == '__main__':
 
     unittest.main()
