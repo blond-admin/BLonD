@@ -30,6 +30,7 @@ class TestBeam(unittest.TestCase):
         self.beam.id[1] = 0
         self.beam.eliminate_lost_particles()
         self.assertEqual(self.beam.n_macroparticles_eliminated, 1)
+        self.assertEqual(self.beam.n_macroparticles_not_alive, 0)
 
 
 if __name__ == '__main__':
