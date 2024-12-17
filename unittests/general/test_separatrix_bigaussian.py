@@ -24,7 +24,7 @@ from blond.beam.distributions import bigaussian
 from blond.beam.profile import CutOptions, Profile
 from blond.input_parameters.rf_parameters import RFStation, calculate_phi_s
 from blond.input_parameters.ring import Ring
-from blond.llrf.beam_feedback import BeamFeedback
+from blond.llrf.beam_feedback import BeamFeedbackLHC
 from blond.trackers.utilities import separatrix
 
 
@@ -104,9 +104,7 @@ class TestSeparatrixBigaussian(unittest.TestCase):
         slices = Profile(beam, CutOptions(cut_left=0.e-9, cut_right=600.e-9,
                                           n_slices=1000))
         slices.track()
-        configuration = {'machine': 'LHC',
-                         'PL_gain': 0.1 * general_params.t_rev[0]}
-        PL = BeamFeedback(general_params, rf_params, slices, configuration)
+        PL = BeamFeedbackLHC(general_params, rf_params, slices, PL_gain=0.1 * general_params.t_rev[0])
         PL.beam_phase()
 
         # Quantities to be compared

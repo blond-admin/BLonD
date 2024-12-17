@@ -15,7 +15,7 @@ from blond.beam.distributions import bigaussian
 from blond.beam.profile import CutOptions, Profile
 from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
-from blond.llrf.beam_feedback import BeamFeedback
+from blond.llrf.beam_feedback import BeamFeedbackSPS_RL
 from blond.trackers.tracker import FullRingAndRF, RingAndRFTracker
 
 
@@ -32,7 +32,7 @@ class TestBeamFeedback(unittest.TestCase):
         C = 6911.5038  # Machine circumference [m]
         sync_momentum = 25.92e9  # SPS momentum at injection [eV/c]
         gamma_transition = 17.95142852  # Q20 Transition gamma
-        momentum_compaction = 1. / gamma_transition**2  # Momentum compaction array
+        momentum_compaction = 1. / gamma_transition ** 2  # Momentum compaction array
 
         self.ring = Ring(C, momentum_compaction, sync_momentum, Proton(),
                          n_turns=n_turns)
@@ -68,8 +68,7 @@ class TestBeamFeedback(unittest.TestCase):
         atol = 0              # absolute tolerance
         # Phase loop setup
 
-        phase_loop = BeamFeedback(self.ring, self.rf_station, self.profile,
-                                  {'machine': 'SPS_RL', 'PL_gain': PL_gain})
+        phase_loop = BeamFeedbackSPS_RL(self.ring, self.rf_station, self.profile, PL_gain=PL_gain)
 
         # Tracker setup
         section_tracker = RingAndRFTracker(
