@@ -24,15 +24,14 @@ extern "C"
         std::vector<double> xsVec(xs, xs + xsSize);
         std::vector<double> ysVec(ys, ys + ysSize);
 
-        GenericShapeFunc *shapeFunction = new DiscreteShapeFunction(xsVec, ysVec);
+        DiscreteShapeFunction shapeFunction(xsVec, ysVec);
         // fClockIn, rmsIn, GenericShapeFunc, nSourceMin,  nPntMin , iRandDoIn
-        VariNoise vn(samplingRate, rms, shapeFunction, nSource, nPntMin, rSeed);
+        VariNoise vn(samplingRate, rms, &shapeFunction, nSource, nPntMin, rSeed);
         for (size_t i = 0; i < resultSize; i++)
         {
             vn.SetBandPosAndRelAmp(fLow[i], fHigh[i], 1.0);
             result[i] = vn.NextValue();
         }
-        delete shapeFunction;
 
         return;
     }
