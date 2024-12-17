@@ -13,6 +13,8 @@ from scipy.constants import e
 
 
 if TYPE_CHECKING:
+    from typing import Optional
+
     from numpy.typing import NDArray
 
 RNG = np.random.default_rng()
@@ -385,7 +387,7 @@ def music_track_multiturn(dt: NDArray, dE: NDArray, induced_voltage: NDArray,
 
 # --------------- Similar to fast_resonator.cpp -----------------
 def fast_resonator(R_S: NDArray, Q: NDArray, frequency_array: NDArray,
-                   frequency_R: NDArray, impedance: NDArray = None) -> NDArray:
+                   frequency_R: NDArray, impedance: Optional[NDArray] = None) -> NDArray:
     """
     This function takes as an input a list of resonators parameters and
     computes the impedance in an optimised way.

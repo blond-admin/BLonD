@@ -19,6 +19,7 @@ classes, as for example InputTable, Resonators and TravelingWaveCavity.**
 
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING
 
 import mpmath
@@ -279,8 +280,7 @@ class Resonators(_ImpedanceObject):
 
     def __init__(self, R_S: float | list[float] | NDArray,
                  frequency_R: float | list[float] | NDArray,
-                 Q: float | list[float] | NDArray,
-                 method: ResonatorsMethodType = 'c++') -> None:
+                 Q: float | list[float] | NDArray) -> None:
 
         _ImpedanceObject.__init__(self)
 
@@ -300,15 +300,6 @@ class Resonators(_ImpedanceObject):
 
         # Number of resonant modes
         self.n_resonators = len(self.R_S)
-
-        if method == 'c++':
-            self.imped_calc = self._imped_calc_cpp
-        elif method == 'python':
-            self.imped_calc = self._imped_calc_python
-        else:
-            # WrongCalcError
-            raise RuntimeError(
-                'method for impedance calculation in Resonator object not recognized')
 
     @property
     def frequency_R(self):
@@ -358,6 +349,36 @@ class Resonators(_ImpedanceObject):
                           * (bm.cos(omega_bar * self.time_array) - alpha /
                              omega_bar * bm.sin(omega_bar * self.time_array)))
 
+    def imped_calc(self, frequency_array: NDArray) -> None:
+        r"""Impedance calculation method as a function of frequency
+
+        Parameters
+        ----------
+        frequency_array : float array
+            Input frequency array in Hz
+
+        Attributes
+        ----------
+        frequency_array : float array
+            Input frequency array in Hz
+        impedance : complex array
+            Output impedance in :math:`\Omega + j \Omega`
+        """
+
+        if not isinstance(self.impedance, int):
+
+            if len(self.impedance) == len(frequency_array):
+                impedance = self.impedance  # reuse and overwrite self.impedance
+        else:
+            impedance = None
+        self.frequency_array = frequency_array
+        self.impedance = bm.fast_resonator(R_S=self.R_S,
+                                           Q=self.Q,
+                                           frequency_array=self.frequency_array,
+                                           frequency_R=self.frequency_R,
+                                           impedance=impedance
+                                           )
+
     def _imped_calc_python(self, frequency_array: NDArray):
         r"""
         Impedance calculation method as a function of frequency using Python.
@@ -374,6 +395,7 @@ class Resonators(_ImpedanceObject):
         impedance : complex array
             Output impedance in :math:`\Omega + j \Omega`
         """
+        warnings.warn("Use '_imped_calc_()' instead!", DeprecationWarning)
 
         self.frequency_array = frequency_array
         self.impedance = np.zeros(len(self.frequency_array), dtype=bm.precision.complex_t, order='C')
@@ -399,6 +421,7 @@ class Resonators(_ImpedanceObject):
         impedance : complex array
             Output impedance in :math:`\Omega + j \Omega`
         """
+        warnings.warn("Use '_imped_calc_()' instead!", DeprecationWarning)
 
         self.frequency_array = frequency_array
         self.impedance = bm.fast_resonator(self.R_S, self.Q,

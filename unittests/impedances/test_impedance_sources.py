@@ -41,10 +41,6 @@ class TestResonators(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             Resonators(1, 2, 0.2)
 
-    def test_wrongMethodError(self):
-        with self.assertRaises(RuntimeError):
-            Resonators(1, 2, 3, method='something')
-
 
 class TestResistiveWall(unittest.TestCase):
 
