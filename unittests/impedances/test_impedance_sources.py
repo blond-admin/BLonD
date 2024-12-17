@@ -133,6 +133,42 @@ class TestCoherentSynchrotronRadiation(unittest.TestCase):
 
         self.assertAlmostEqual(energy_loss, energy_loss_textbook, places=3)
 
+    def test_wakeIfFrontWake(self):
+        # based on Example 22: Coherent Radiation
+
+        r_bend, energy = 1.273, 40e6  # bending radius [m], particle energy [eV]
+        gamma = energy / Electron().mass  # Lorentz factor
+
+        # bunch intensity and length
+        intensity, sigma_dt = 7e6, 3e-12  # 1, [s]
+
+        # times where to compute wake potential
+        times = np.linspace(-2e-11, 2e-11, num=11)
+
+        # frequencies at which to compute impedance (from 1e8 to 1e15 Hz)
+        freqs = 10**np.linspace(8, 15, num=200)
+
+        Z_fs = CoherentSynchrotronRadiation(r_bend, gamma=gamma)
+        Z_fs.imped_calc(freqs, high_frequency_transition=10)
+
+        # Fourier transform of Gaussian bunch profile
+        Lambda = np.exp(-0.5 * (2*np.pi*freqs*sigma_dt)**2)
+
+        W_fs = np.zeros_like(times)
+        for it, t in enumerate(times):
+            W_fs[it] = 2 * np.trapz(
+                Z_fs.impedance*Lambda*np.exp(2j*np.pi*freqs*t), freqs).real
+
+        # convert to volt
+        W_fs *= elCharge * intensity
+
+        W_fs_test = np.array([-2.99526459e+01, -4.11849124e+01, -6.39549552e+01,
+                              -1.15710237e+02, -2.71278552e+01,  +4.34850900e+02,
+                              +2.48528445e+02, +1.86894225e+01, -2.58048424e-01,
+                              -2.86820828e-01, -2.03095038e-01])
+
+        np.testing.assert_allclose(W_fs, W_fs_test)
+
 
 if __name__ == '__main__':
 
