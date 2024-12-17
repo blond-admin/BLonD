@@ -795,7 +795,7 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
             plates impedances are used. If false, the Lorentz factor `gamma` must be specified.
             The default is True.
         parallel_plates : TYPE, optional
-            If ture, the parallel plates impedance is computed. In this case, `chamber_height`
+            If true, the parallel plates impedance is computed. In this case, `chamber_height`
             must be specified. If false, the free-space impedance is computed. The default is False.
 
         Raises
