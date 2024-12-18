@@ -93,47 +93,45 @@ class BeamFeedback(ABC):
 
     @handle_legacy_kwargs
     def __init__(self, ring: Ring, rf_station: RFStation, profile: Profile,
-                 gain_phase_loop: float, machine: str,
-                 phase_noise: None = None,  # todo class doesnt exist anymore??
-                 delay: int = 0,
-                 alpha=0., time_offset=None) -> None:
+                 machine: str, phase_noise: None = None,  # todo class doesnt exist anymore??
+                 alpha=0., time_offset=None,
+                 turn_delay: int = 1) -> None:
+
         self.machine = str(machine)
-        #: | *Import Ring*
+        # Import Ring
         self.ring = ring
 
-        #: | *Import RFStation*
+        # Import RFStation
         self.rf_station = rf_station
 
-        #: | *Import Profile*
+        # Import Profile
         self.profile: Profile = profile
 
-        self.delay = delay
-
-        #: | *Band-pass filter window coefficient for beam phase calculation.*
+        # Band-pass filter window coefficient for beam phase calculation.
         self.alpha = alpha
 
         # determines from which RF-buckets the band-pass filter starts to act
         self.time_offset = time_offset
 
-        #: | *Phase loop gain. Implementation depends on machine.*
-        self.gain_phase_loop = gain_phase_loop
+        # Delay between measurement and application of correction
+        self.turn_delay = turn_delay
 
-        #: | *Relative radial displacement [1], for radial loop.*
+        # Relative radial displacement [1], for radial loop.
         self.drho = 0.
 
-        #: | *Phase loop frequency correction of the main RF system.*
+        # Phase loop frequency correction of the main RF system.
         self.domega_rf = 0.
 
-        #: | *Beam phase measured at the main RF frequency.*
+        # Beam phase measured at the main RF frequency.
         self.phi_beam = 0.
 
-        #: | *Phase difference between beam and RF.*
+        # Phase difference between beam and RF.
         self.dphi = 0.
 
-        #: | *Reference signal for secondary loop to test step response.*
+        # Reference signal for secondary loop to test step response.
         self.reference = 0.
 
-        #: | *Optional import of RF phase_noise object*
+        # Optional import of RF phase_noise object
         self.rf_noise = phase_noise
         if (self.rf_noise is not None
                 and (len(self.rf_noise.dphi) != ring.n_turns + 1)):
@@ -169,7 +167,7 @@ class BeamFeedback(ABC):
         self._track()
 
         # Update the RF frequency of all systems for the next turn
-        counter = self.rf_station.counter[0] + 1
+        counter = self.rf_station.counter[0] + self.turn_delay
         self.rf_station.omega_rf[:, counter] += self.domega_rf * \
                                                 self.rf_station.harmonic[:, counter] / \
                                                 self.rf_station.harmonic[0, counter]
@@ -201,6 +199,45 @@ class BeamFeedback(ABC):
 
         # Project beam phase to (pi/2,3pi/2) range
         self.phi_beam = np.arctan(coeff) + np.pi
+
+    def beam_phase_sharpWindow(self):
+        warnings.warn("Use 'beam_phase_sharp_window' instead!", DeprecationWarning)
+        self.beam_phase_sharp_window()
+
+    def beam_phase_sharp_window(self):
+        """
+        *Beam phase measured at the main RF frequency and phase. The beam is
+        averaged over a window. The coefficients of sine and cosine components
+        determine the beam phase, projected to the range -Pi/2 to 3/2 Pi.
+        Note that this beam phase is already w.r.t. the instantaneous RF phase.*
+        """
+
+        # Main RF frequency at the present turn
+        turn = self.rf_station.counter[0]
+        omega_rf = self.rf_station.omega_rf[0, turn]
+        phi_rf = self.rf_station.phi_rf[0, turn]
+
+        if self.alpha != 0.0:
+            indexes = bm.logical_and((self.time_offset - np.pi / omega_rf)
+                                     <= self.profile.bin_centers,
+                                     self.profile.bin_centers
+                                     <= (-1 / self.alpha + self.time_offset -
+                                         2 * np.pi / omega_rf))
+        else:
+            indexes = bm.ones(self.profile.n_slices, dtype=bool)
+
+        # Convolve with window function
+        scoeff = bm.trapz(bm.sin(omega_rf * self.profile.bin_centers[indexes]
+                                 + phi_rf)
+                          * self.profile.n_macroparticles[indexes],
+                          dx=self.profile.bin_size)
+        ccoeff = bm.trapz(bm.cos(omega_rf * self.profile.bin_centers[indexes]
+                                 + phi_rf) *
+                          self.profile.n_macroparticles[indexes],
+                          dx=self.profile.bin_size)
+
+        # Project beam phase to (pi/2,3pi/2) range
+        self.phi_beam = np.arctan(scoeff / ccoeff) + np.pi
 
     def phase_difference(self):
         """
@@ -250,7 +287,7 @@ class BeamFeedback(ABC):
         self._device: DeviceType = 'CPU'
 
 
-class BeamFeedbackLHC(BeamFeedback):
+class LHCBeamFeedback(BeamFeedback):
     """Calculation of the LHC RF frequency correction
 
     Calculation of the LHC RF frequency correction from the phase difference
@@ -318,23 +355,25 @@ class BeamFeedbackLHC(BeamFeedback):
                  lhc_noise_feedback: Optional[LHCNoiseFB] = None,
                  **kwargs):
 
-        super().__init__(ring=ring, rf_station=rf_station, profile=profile, machine="LHC",
-                         gain_phase_loop=gain_phase_loop, **kwargs)
+        super().__init__(ring=ring, rf_station=rf_station, profile=profile, machine="LHC", **kwargs)
 
-        #: | *Optional import of amplitude-scaling feedback object LHCNoiseFB*
+        # Optional import of amplitude-scaling feedback object LHCNoiseFB
         self.lhc_noise_feedback = lhc_noise_feedback
 
-        #: | *Synchronisation loop gain.*
+        # Beam-phase loop gain
+        self.gain_phase_loop = gain_phase_loop
+
+        # Synchronisation loop gain.
         self.gain_synchro_loop = gain_synchro_loop
 
-        #: | *LHC Synchronisation loop recursion variable*
+        # LHC Synchronisation loop recursion variable
         self.lhc_y = 0
 
         if self.gain_synchro_loop != 0:
 
-            #: | *LHC Synchronisation loop coefficient [1]*
+            # LHC Synchronisation loop coefficient [1]
             self.lhc_a = 5.25 - self.rf_station.omega_s0 / (np.pi * 40.)
-            #: | *LHC Synchronisation loop time constant [turns]*
+            # LHC Synchronisation loop time constant [turns]
             self.lhc_t = (2 * np.pi * self.rf_station.Q_s * np.sqrt(self.lhc_a)) / \
                          np.sqrt(1 + self.gain_phase_loop / self.gain_synchro_loop *
                                  np.sqrt((1 + 1 / self.lhc_a) / (1 + self.lhc_a)))
@@ -372,7 +411,7 @@ class BeamFeedbackLHC(BeamFeedback):
                      (dphi_rf + self.reference)
 
 
-class BeamFeedbackLHC_F(BeamFeedback):
+class LHCBeamFeedbackFrequency(BeamFeedback):
     """Calculation of the LHC RF frequency correction
 
     Calculation of the LHC RF frequency correction from the phase difference
@@ -418,11 +457,15 @@ class BeamFeedbackLHC_F(BeamFeedback):
     def __init__(self, ring: Ring, rf_station: RFStation, profile: Profile,
                  gain_phase_loop: float, gain_frequency_loop=0.0, lhc_noise_feedback: Optional[LHCNoiseFB] = None,
                  **kwargs):
-        super().__init__(ring=ring, rf_station=rf_station, profile=profile, machine="LHC_F",
-                         gain_phase_loop=gain_phase_loop, **kwargs)
-        #: | *Optional import of amplitude-scaling feedback object LHCNoiseFB*
+        super().__init__(ring=ring, rf_station=rf_station, profile=profile, machine="LHC_F", **kwargs)
+
+        # Beam-phase loop gain
+        self.gain_phase_loop = gain_phase_loop
+
+        # Optional import of amplitude-scaling feedback object LHCNoiseFB
         self.lhc_noise_feedback = lhc_noise_feedback
-        #: | *Frequency loop gain.*
+
+        # Frequency loop gain.
         self.gain_frequency_loop = gain_frequency_loop
 
     def _track(self):
@@ -439,7 +482,7 @@ class BeamFeedbackLHC_F(BeamFeedback):
                                                        self.reference)
 
 
-class BeamFeedbackSPS_RL(BeamFeedback):
+class SPSBeamFeedbackRadial(BeamFeedback):
     """Calculation of the SPS RF frequency correction
 
     Calculation of the SPS RF frequency correction from the phase difference
@@ -483,12 +526,14 @@ class BeamFeedbackSPS_RL(BeamFeedback):
     def __init__(self, ring: Ring, rf_station: RFStation, profile: Profile,
                  gain_phase_loop: float, gain_radial_loop=0.0, sample_dE=1,
                  **kwargs):
-        super().__init__(ring=ring, rf_station=rf_station, profile=profile, machine="SPS_RL",
-                         gain_phase_loop=gain_phase_loop, **kwargs)
-        #: | *Phase loop gain.*
+        super().__init__(ring=ring, rf_station=rf_station, profile=profile, machine="SPS_RL", **kwargs)
+
+        self.gain_phase_loop = gain_phase_loop
+
+        # Phase loop gain.
         self.gain_radial_loop = gain_radial_loop
 
-        #: | *Number of particles to sample from dE for orbit calculation*
+        # Number of particles to sample from dE for orbit calculation
         self.sample_dE = sample_dE
 
     def radial_difference(self):
@@ -553,7 +598,7 @@ class BeamFeedbackSPS_RL(BeamFeedback):
         self.domega_rf = self.domega_dphi + self.domega_dR
 
 
-class BeamFeedbackSPS_F(BeamFeedback):
+class SPSBeamFeedbackFrequency(BeamFeedback):
     """Calculation of the SPS RF frequency correction
 
     Calculation of the SPS RF frequency correction from the phase
@@ -584,9 +629,12 @@ class BeamFeedbackSPS_F(BeamFeedback):
     @handle_legacy_kwargs
     def __init__(self, ring: Ring, rf_station: RFStation, profile: Profile,
                  gain_phase_loop: float, gain_frequency_loop=0., **kwargs):
-        super().__init__(ring=ring, rf_station=rf_station, profile=profile, machine="SPS_F",
-                         gain_phase_loop=gain_phase_loop, **kwargs)
-        #: | *Frequency loop gain.*
+        super().__init__(ring=ring, rf_station=rf_station, profile=profile, machine="SPS_F", **kwargs)
+
+        # Beam-phase loop gain.
+        self.gain_phase_loop = gain_phase_loop
+
+        # Frequency loop gain.
         self.gain_frequency_loop = gain_frequency_loop
 
     def _track(self):
@@ -608,46 +656,8 @@ class BeamFeedbackSPS_F(BeamFeedback):
 
         self.domega_rf = self.domega_dphi + self.domega_df
 
-    def beam_phase_sharpWindow(self):
-        warnings.warn("Use 'beam_phase_sharp_window' instead!", DeprecationWarning)
 
-    def beam_phase_sharp_window(self):
-        """
-        *Beam phase measured at the main RF frequency and phase. The beam is
-        averaged over a window. The coefficients of sine and cosine components
-        determine the beam phase, projected to the range -Pi/2 to 3/2 Pi.
-        Note that this beam phase is already w.r.t. the instantaneous RF phase.*
-        """
-
-        # Main RF frequency at the present turn
-        turn = self.rf_station.counter[0]
-        omega_rf = self.rf_station.omega_rf[0, turn]
-        phi_rf = self.rf_station.phi_rf[0, turn]
-
-        if self.alpha != 0.0:
-            indexes = bm.logical_and((self.time_offset - np.pi / omega_rf)
-                                     <= self.profile.bin_centers,
-                                     self.profile.bin_centers
-                                     <= (-1 / self.alpha + self.time_offset -
-                                         2 * np.pi / omega_rf))
-        else:
-            indexes = bm.ones(self.profile.n_slices, dtype=bool)
-
-        # Convolve with window function
-        scoeff = bm.trapz(bm.sin(omega_rf * self.profile.bin_centers[indexes]
-                                 + phi_rf)
-                          * self.profile.n_macroparticles[indexes],
-                          dx=self.profile.bin_size)
-        ccoeff = bm.trapz(bm.cos(omega_rf * self.profile.bin_centers[indexes]
-                                 + phi_rf) *
-                          self.profile.n_macroparticles[indexes],
-                          dx=self.profile.bin_size)
-
-        # Project beam phase to (pi/2,3pi/2) range
-        self.phi_beam = np.arctan(scoeff / ccoeff) + np.pi
-
-
-class BeamFeedbackPSB(BeamFeedback):
+class PSBBeamFeedback(BeamFeedback):
     """Phase and radial loops for PSB.
 
 
@@ -705,21 +715,21 @@ class BeamFeedbackPSB(BeamFeedback):
     def __init__(self, ring: Ring, rf_station: RFStation, profile: Profile,
                  gain_phase_loop: float, gain_radial_loop=(0., 0.), dt=10.e-6,
                  coefficients=(0.999019, -0.999019, 0., 1., -0.998038, 0.),
-                 **kwargs):
-        super().__init__(ring=ring, rf_station=rf_station, profile=profile, machine="PSB",
-                         gain_phase_loop=gain_phase_loop, **kwargs)
+                 delay: int = 0, **kwargs):
+        super().__init__(ring=ring, rf_station=rf_station, profile=profile, machine="PSB", **kwargs)
 
-        self.gain = self.gain_phase_loop * np.ones(self.ring.n_turns + 1)
+        self.gain = gain_phase_loop * np.ones(self.ring.n_turns + 1)
 
-        #: | *Radial loop gain, proportional [1] and integral [1/s].*
+        self.delay = delay
+
+        # Radial loop gain, proportional [1] and integral [1/s].
         self.gain_radial_loop = list(gain_radial_loop)
 
-        #: | *Optional: PL & RL acting only in certain time intervals/turns.*
+        # Optional: PL & RL acting only in certain time intervals/turns.
         self.gain_radial_loop[0] = self.gain_radial_loop[0] * np.ones(self.ring.n_turns + 1)
         self.gain_radial_loop[1] = self.gain_radial_loop[1] * np.ones(self.ring.n_turns + 1)
 
-
-        # | *Phase Loop sampling period [s]*
+        # Phase Loop sampling period [s]
         self.dt = dt
 
         # Counter of turns passed since last time the PL was active
@@ -728,21 +738,21 @@ class BeamFeedbackPSB(BeamFeedback):
 
         self.precalculate_time(self.ring)
 
-        #: | *Array of transfer function coefficients.*
+        # Array of transfer function coefficients.
         self.coefficients = list(coefficients)
 
-        #: | *Memory of previous phase correction, for phase loop.*
+        # Memory of previous phase correction, for phase loop.
         self.dphi_sum = 0.
         self.dphi_av = 0.
         self.dphi_av_prev = 0.
 
-        #: | *Memory of previous relative radial correction, for rad loop.*
+        # Memory of previous relative radial correction, for rad loop.
         self.dR_over_R_prev = 0.
 
-        #: | *Phase loop phase correction [1/s]*
+        # Phase loop phase correction [1/s]
         self.domega_PL = 0.
 
-        #: | *Radial loop radial correction [1/s]*
+        # Radial loop radial correction [1/s]
         self.domega_RL = 0.
 
         self.dR_over_R = 0
