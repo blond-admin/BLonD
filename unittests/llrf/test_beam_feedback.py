@@ -15,7 +15,7 @@ from blond.beam.distributions import bigaussian
 from blond.beam.profile import CutOptions, Profile
 from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
-from blond.llrf.beam_feedback import BeamFeedbackSPS_RL
+from blond.llrf.beam_feedback import SPSBeamFeedbackRadial
 from blond.trackers.tracker import FullRingAndRF, RingAndRFTracker
 
 
@@ -68,7 +68,7 @@ class TestBeamFeedback(unittest.TestCase):
         atol = 0              # absolute tolerance
         # Phase loop setup
 
-        phase_loop = BeamFeedbackSPS_RL(self.ring, self.rf_station, self.profile, PL_gain=PL_gain)
+        phase_loop = SPSBeamFeedbackRadial(self.ring, self.rf_station, self.profile, PL_gain=PL_gain)
 
         # Tracker setup
         section_tracker = RingAndRFTracker(
