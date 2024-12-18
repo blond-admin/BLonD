@@ -911,7 +911,7 @@ class InducedVoltageResonator(_InducedVoltage):
     solving the convolution integral with the resonator impedance analytically.
     The line density need NOT be sampled at equidistant points. The times where
     the induced voltage is calculated need to be the same where the line
-    density is sampled. If no timeArray is passed, the induced voltage is
+    density is sampled. If no time_array is passed, the induced voltage is
     evaluated at the points of the line density. This is nececassry of
     compatability with other functions that calculate the induced voltage.
     Currently, it requires the all quality factors :math:`Q>0.5`
@@ -925,10 +925,13 @@ class InducedVoltageResonator(_InducedVoltage):
         Profile object
     resonators : Resonators
         Resonators object
-    timeArray : float array, optional
+    time_array : float array, optional
         Array of time values where the induced voltage is calculated.
         If left out, the induced voltage is calculated at the times of the line
         density.
+    array_length : int, optional
+        length of an array of one turn 
+    
 
     Attributes
     ----------
@@ -960,9 +963,8 @@ class InducedVoltageResonator(_InducedVoltage):
                  frequency_resolution: Optional[float] = None,
                  wake_length: Optional[float] = None,
                  multi_turn_wake: bool = False,
-                 timeArray: Optional[NDArray] = None,
+                 time_array: Optional[NDArray] = None,
                  rf_station: Optional[RFStation] = None,
-                 mtw_mode: Optional[MtwModeTypes] = None,
                  array_length: Optional[int] = None,
                  use_regular_fft: bool = True) -> None:
 
@@ -979,15 +981,15 @@ class InducedVoltageResonator(_InducedVoltage):
         # Optional array of time values where the induced voltage is calculated.
         # If left out, the induced voltage is calculated at the times of the
         # line density.
-        if timeArray is None:
+        if time_array is None:
             self.tArray = self.profile.bin_centers
             self.atLineDensityTimes = True
         else:
-            self.tArray = timeArray
+            self.tArray = time_array
             self.atLineDensityTimes = False
 
         self.array_length = array_length
-        # Length of timeArray
+
         self.n_time = len(self.tArray)
 
         # Copy of the shunt impedances of the Resonators in* :math:`\Omega`
@@ -1022,7 +1024,7 @@ class InducedVoltageResonator(_InducedVoltage):
                          frequency_resolution=frequency_resolution,
                          wake_length=wake_length,
                          multi_turn_wake=multi_turn_wake,
-                         rf_station=rf_station, mtw_mode=mtw_mode,
+                         rf_station=rf_station, mtw_mode=None,
                          use_regular_fft=use_regular_fft)
 
     def process(self):
@@ -1079,25 +1081,23 @@ class InducedVoltageResonator(_InducedVoltage):
         self.induced_voltage = (self.induced_voltage
                                 .astype(dtype=bm.precision.real_t, order='C', copy=False))
         
-
+    
     def induced_voltage_mtw(self, beam_spectrum_dict={}):
-        """
-        Method to calculate the induced voltage taking into account the effect
-        from previous passages (multi-turn wake)
-        """
 
-        # shift the entries in array by 1 t_rev=512px
+        """
+        Induced voltage method for InducedVoltageResonator. 
+        mtw_memory is shifted by one turn, setting the final values in the array as 0.
+        @fbatsch
+        """
+        
+        # shift the entries in array by 1 t_rev and set to 0
         self.mtw_memory = np.append(self.mtw_memory, np.zeros(self.array_length))
+        # remove one turn length of memory 
         self.mtw_memory = self.mtw_memory[self.array_length:]
-
         # Induced voltage of the current turn calculation
         self.induced_voltage_1turn(beam_spectrum_dict)
-
         # Add induced voltage of the current turn to the memory from previous
-
-        self.mtw_memory[:int(
-            self.n_time)] += self.induced_voltage  
-    
+        self.mtw_memory[:int(self.n_time)] += self.induced_voltage  
         self.induced_voltage = self.mtw_memory[:self.n_time]
         
 
