@@ -411,7 +411,10 @@ class _InducedVoltage:
         Method to calculate the induced voltage taking into account the effect
         from previous passages (multi-turn wake)
         """
+
+
         if beam_spectrum_dict is None:
+            print('beam_spectrum_dict is None')
             beam_spectrum_dict = dict()
         # Shift of the memory wake field by the current revolution period
         self.shift_trev()
@@ -419,17 +422,17 @@ class _InducedVoltage:
         # Induced voltage of the current turn calculation
         self.induced_voltage_1turn(beam_spectrum_dict)
 
+
         # Setting to zero to the last part to remove the contribution from the
         # front wake
         self.induced_voltage[self.n_induced_voltage -
                              self.front_wake_buffer:] = 0
+        
 
         # Add the induced voltage of the current turn to the memory from
         # previous turns
         self.mtw_memory[:self.n_induced_voltage] += self.induced_voltage
-
         self.induced_voltage = self.mtw_memory[:self.n_induced_voltage]
-
     def shift_trev_freq(self):
         """
         Method to shift the induced voltage by a revolution period in the
@@ -452,11 +455,13 @@ class _InducedVoltage:
         """
 
         t_rev = self.rf_params.t_rev[self.rf_params.counter[0]]
-
+ 
         # self.mtw_memory = bm.interp_const_space(self.time_mtw + t_rev,
         self.mtw_memory = bm.interp(self.time_mtw + t_rev,
                                     self.time_mtw, self.mtw_memory,
                                     left=0, right=0)
+
+
 
     def _track(self):
         """
@@ -1075,31 +1080,27 @@ class InducedVoltageResonator(_InducedVoltage):
                                 .astype(dtype=bm.precision.real_t, order='C', copy=False))
         
 
-    def induced_voltage_mtw(self, beam_spectrum_dict: Optional[dict] = None):
+    def induced_voltage_mtw(self, beam_spectrum_dict={}):
         """
         Method to calculate the induced voltage taking into account the effect
-        from previous passages (multi-turn wake) @ F. Batsch
+        from previous passages (multi-turn wake)
         """
-        print('inside induced voltage mtw')
-        # work-around fix for timeshift, shift the entries in the array by 1 t_rev=512px
-        self.mtw_memory = np.append(self.mtw_memory, np.zeros(self.profile.n_slices))
-        self.mtw_memory = self.mtw_memory[self.profile.n_slices:]
+
+        # shift the entries in array by 1 t_rev=512px
+        self.mtw_memory = np.append(self.mtw_memory, np.zeros(self.array_length))
+        self.mtw_memory = self.mtw_memory[self.array_length:]
 
         # Induced voltage of the current turn calculation
-        if beam_spectrum_dict is None:
-            beam_spectrum_dict = dict()
-            
         self.induced_voltage_1turn(beam_spectrum_dict)
 
-        # Setting to zero to the last part to remove the contribution from the
-        # front wake
-        self.induced_voltage[self.n_induced_voltage - self.front_wake_buffer:] = 0
+        # Add induced voltage of the current turn to the memory from previous
 
-        # Add the induced voltage of the current turn to the memory from previous
-        self.mtw_memory[:int(self.n_induced_voltage)] += self.induced_voltage  
-
-        self.induced_voltage = self.mtw_memory[:self.n_induced_voltage]
+        self.mtw_memory[:int(
+            self.n_time)] += self.induced_voltage  
+    
+        self.induced_voltage = self.mtw_memory[:self.n_time]
         
+
     
     # Implementation of Heaviside function
     def Heaviside(self, x):
