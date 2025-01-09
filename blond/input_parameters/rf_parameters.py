@@ -300,7 +300,9 @@ class RFStation:
                                                        self.n_rf,
                                                        ring.cycle_time,
                                                        ring.ring_options.t_start)
-        self.voltage = self.voltage.astype(bm.precision.real_t, order='C', copy=False)
+        self.voltage = self.voltage.astype(bm.precision.real_t,
+                                           order='F', # F contigous, so voltage[:,turn_i] is contigous
+                                           copy=False)
         # Checking if the RFStation is empty
         if np.sum(self.voltage) == 0:
             self.empty = True
@@ -379,11 +381,17 @@ class RFStation:
 
             self.phi_modulation = None
 
-        # Copy of the desing rf programs in the one used for tracking
+        # Copy of the design rf programs in the one used for tracking
         # and that can be changed by feedbacks
-        self.phi_rf = np.array(self.phi_rf_d).astype(bm.precision.real_t)
-        self.dphi_rf = np.zeros(self.n_rf).astype(bm.precision.real_t)
-        self.omega_rf = np.array(self.omega_rf_d).astype(bm.precision.real_t)
+        self.phi_rf = np.array(self.phi_rf_d).astype(bm.precision.real_t, order="F")
+        # F contigous, so phi_rf[:,turn_i] is contigous
+
+        self.dphi_rf = np.zeros(self.n_rf).astype(bm.precision.real_t, order="F")
+        # F contigous, so dphi_rf[:,turn_i] is contigous
+
+        self.omega_rf = np.array(self.omega_rf_d).astype(bm.precision.real_t, order="F")
+        # F contigous, so omega_rf[:,turn_i] is contigous
+
         self.t_rf = 2 * np.pi / self.omega_rf
 
         # From helper functions

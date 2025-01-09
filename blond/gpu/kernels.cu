@@ -38,8 +38,9 @@
 extern "C"
 __global__ void simple_kick(
     real_t  * __restrict__ beam_dt,
-    real_t        * __restrict__ beam_dE,
+    real_t  * __restrict__ beam_dE,
     const int n_rf,
+    const real_t charge,
     const real_t  * __restrict__ voltage,
     const real_t  * __restrict__ omega_RF,
     const real_t  * __restrict__ phi_RF,
@@ -54,7 +55,7 @@ __global__ void simple_kick(
         my_beam_dt = beam_dt[i];
         my_beam_dE = beam_dE[i];
         for (int j = 0; j < n_rf; j++) {
-            my_beam_dE += voltage[j] * sin(omega_RF[j]*my_beam_dt + phi_RF[j]);
+            my_beam_dE += charge * voltage[j] * sin(omega_RF[j]*my_beam_dt + phi_RF[j]);
         }
         beam_dE[i] = my_beam_dE + acc_kick;
     }
