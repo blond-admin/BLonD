@@ -17,12 +17,14 @@ and the beam coordinates in phase space.**
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 import numpy as np
 import scipy
 from packaging.version import Version
 
+from blond.gpu import GPU_DEV
+from blond.utils import precision
 from ..llrf.cavity_feedback import CavityFeedback
 from ..utils import bmath as bm
 from ..utils.legacy_support import handle_legacy_kwargs
@@ -44,7 +46,7 @@ if TYPE_CHECKING:
     from ..input_parameters.rf_parameters import RFStation
     from ..utils.types import DeviceType
 
-    MainHarmonicOptionType = Literal['lowest_freq', 'highest_voltage'] | float
+    MainHarmonicOptionType = Union[Literal['lowest_freq', 'highest_voltage'], float]
 
 
 class FullRingAndRF:
@@ -434,54 +436,10 @@ class RingAndRFTracker:
                     feedback.track()
 
         if self.periodicity:
-
-            # Distinguish the particles inside the frame from the particles on
-            # the right-hand side of the frame.
-            self.indices_right_outside = \
-                bm.where(self.beam.dt > self.rf_params.t_rev[turn + 1])[0]
-            self.indices_inside_frame = \
-                bm.where(self.beam.dt < self.rf_params.t_rev[turn + 1])[0]
-
-            if len(self.indices_right_outside) > 0:
-                # Change reference of all the particles on the right of the
-                # current frame; these particles skip one kick and drift
-                self.beam.dt[self.indices_right_outside] -= \
-                    self.rf_params.t_rev[turn + 1]
-                # Synchronize the bunch with the particles that are on the
-                # RHS of the current frame applying kick and drift to the
-                # bunch
-                # After that all the particles are in the new updated frame
-                self.insiders_dt = bm.ascontiguousarray(
-                    self.beam.dt[self.indices_inside_frame])
-                self.insiders_dE = bm.ascontiguousarray(
-                    self.beam.dE[self.indices_inside_frame])
-                self.kick(self.insiders_dt, self.insiders_dE, turn)
-                self.drift(self.insiders_dt, self.insiders_dE, turn + 1)
-                self.beam.dt[self.indices_inside_frame] = self.insiders_dt
-                self.beam.dE[self.indices_inside_frame] = self.insiders_dE
-                # Check all the particles on the left of the just updated
-                # frame and apply a second kick and drift to them with the
-                # previous wave after having changed reference.
-                self.indices_left_outside = bm.where(self.beam.dt < 0)[0]
-
+            if hasattr(self, '_device') and self._device == 'GPU':
+                self._kickdrift_considering_periodicity_gpu(turn)
             else:
-                self.kick(self.beam.dt, self.beam.dE, turn)
-                self.drift(self.beam.dt, self.beam.dE, turn + 1)
-                # Check all the particles on the left of the just updated
-                # frame and apply a second kick and drift to them with the
-                # previous wave after having changed reference.
-                self.indices_left_outside = bm.where(self.beam.dt < 0)[0]
-
-            if len(self.indices_left_outside) > 0:
-                left_outsiders_dt = bm.ascontiguousarray(
-                    self.beam.dt[self.indices_left_outside])
-                left_outsiders_dE = bm.ascontiguousarray(
-                    self.beam.dE[self.indices_left_outside])
-                left_outsiders_dt += self.rf_params.t_rev[turn + 1]
-                self.kick(left_outsiders_dt, left_outsiders_dE, turn)
-                self.drift(left_outsiders_dt, left_outsiders_dE, turn + 1)
-                self.beam.dt[self.indices_left_outside] = left_outsiders_dt
-                self.beam.dE[self.indices_left_outside] = left_outsiders_dE
+                self._kickdrift_considering_periodicity(turn)
 
         else:
 
@@ -513,6 +471,100 @@ class RingAndRFTracker:
 
         # Increment by one the turn counter
         self.counter[0] += 1
+
+    def _kickdrift_considering_periodicity(self, turn: int):
+        """Kick&drift considering t_rev for continuity
+
+        Parameters
+        ----------
+        turn
+            Current turn
+        """
+        # Distinguish the particles inside the frame from the particles on
+        # the right-hand side of the frame.
+        self.indices_right_outside = \
+            bm.where(self.beam.dt > self.rf_params.t_rev[turn + 1])[0]
+        self.indices_inside_frame = \
+            bm.where(self.beam.dt < self.rf_params.t_rev[turn + 1])[0]
+
+        if len(self.indices_right_outside) > 0:
+            # Change reference of all the particles on the right of the
+            # current frame; these particles skip one kick and drift
+            self.beam.dt[self.indices_right_outside] -= \
+                self.rf_params.t_rev[turn + 1]
+            # Synchronize the bunch with the particles that are on the
+            # RHS of the current frame applying kick and drift to the
+            # bunch
+            # After that all the particles are in the new updated frame
+            self.insiders_dt = bm.ascontiguousarray(
+                self.beam.dt[self.indices_inside_frame])
+            self.insiders_dE = bm.ascontiguousarray(
+                self.beam.dE[self.indices_inside_frame])
+            self.kick(self.insiders_dt, self.insiders_dE, turn)
+            self.drift(self.insiders_dt, self.insiders_dE, turn + 1)
+            self.beam.dt[self.indices_inside_frame] = self.insiders_dt
+            self.beam.dE[self.indices_inside_frame] = self.insiders_dE
+            # Check all the particles on the left of the just updated
+            # frame and apply a second kick and drift to them with the
+            # previous wave after having changed reference.
+            self.indices_left_outside = bm.where(self.beam.dt < 0)[0]
+        else:
+            self.kick(self.beam.dt, self.beam.dE, turn)
+            self.drift(self.beam.dt, self.beam.dE, turn + 1)
+            # Check all the particles on the left of the just updated
+            # frame and apply a second kick and drift to them with the
+            # previous wave after having changed reference.
+            self.indices_left_outside = bm.where(self.beam.dt < 0)[0]
+        if len(self.indices_left_outside) > 0:
+            left_outsiders_dt = bm.ascontiguousarray(
+                self.beam.dt[self.indices_left_outside])
+            left_outsiders_dE = bm.ascontiguousarray(
+                self.beam.dE[self.indices_left_outside])
+            left_outsiders_dt += self.rf_params.t_rev[turn + 1]
+            self.kick(left_outsiders_dt, left_outsiders_dE, turn)
+            self.drift(left_outsiders_dt, left_outsiders_dE, turn + 1)
+            self.beam.dt[self.indices_left_outside] = left_outsiders_dt
+            self.beam.dE[self.indices_left_outside] = left_outsiders_dE
+
+    def _kickdrift_considering_periodicity_gpu(self, turn: int):
+        """Kick&drift considering t_rev for continuity
+
+        Notes
+        -----
+        Same as self._kickdrift_considering_periodicity, but for GPU
+
+        Parameters
+        ----------
+        turn
+            Current turn
+        """
+
+        # parameters to calculate coeff of drift
+        T0 = self.rf_params.t_rev[turn + 1]
+        length_ratio = self.rf_params.length_ratio
+        eta_zero = self.rf_params.eta_0[turn + 1]
+        beta = self.rf_params.beta[turn + 1]
+        energy = self.rf_params.energy[turn + 1]
+
+        n_rf = self.rf_params.voltage.shape[0]
+
+        kickdrift_considering_periodicity = GPU_DEV.mod.get_function("kickdrift_considering_periodicity")
+        kickdrift_considering_periodicity(
+            args=(
+                self.beam.dt,
+                self.beam.dE,
+                precision.real_t(self.rf_params.t_rev[turn + 1]),
+                n_rf,
+                self.rf_params.voltage[:, turn],
+                self.rf_params.omega_rf[:, turn],
+                self.rf_params.phi_rf[:, turn],
+                precision.real_t(self.rf_params.particle.charge),
+                precision.real_t(self.acceleration_kick[turn]),
+                precision.real_t(T0 * length_ratio * eta_zero / (beta * beta * energy)),  # turn+1
+                len(self.beam.dt)
+            ),
+            block=GPU_DEV.block_size, grid=GPU_DEV.grid_size
+        )
 
     def to_gpu(self, recursive=True):
         """
