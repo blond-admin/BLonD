@@ -266,10 +266,10 @@ class TestInducedVoltageResonator_nrf_2(unittest.TestCase):
                                FitOptions(fit_option='gaussian'))
         
         this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
-        table = np.loadtxt(this_directory + './data/example_data.dat', comments='!')
-        self.R_shunt = table[:, 2] * 10**6
-        self.f_res = table[:, 0] * 10
-        self.Q_factor = table[:, 1]
+        self.R_shunt = np.load(this_directory + './data/R_shunt.npy') * 10**6
+        self.f_res = np.load(this_directory + './data/f_res.npy') * 10**9
+        self.Q_factor = np.load(this_directory + './data/Q_factor.npy')
+
 
 
 
