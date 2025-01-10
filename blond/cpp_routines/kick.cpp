@@ -25,8 +25,8 @@ extern "C" void kick(const real_t * __restrict__ beam_dt,
     // KICK
     #pragma omp parallel for
     for (int i = 0; i < n_macroparticles; i++){
-        double dE_sum = 0.0;
-        const double dti = beam_dt[i];
+        real_t dE_sum = 0.0;
+        const real_t dti = beam_dt[i];
         for (int j = 0; j < n_rf; j++){
             dE_sum += voltage[j] * FAST_SIN(omega_RF[j] * dti + phi_RF[j]);
         }
