@@ -531,6 +531,9 @@ def irfft_packed(signal: NDArray, fftsize: int = 0, result: Optional[NDArray] = 
 
 def cumtrapz(y: NDArray, x: Optional[NDArray] = None, dx: float = 1.0, initial: Optional[float] = None,
              result: Optional[NDArray] = None) -> NDArray:
+    raise NotImplementedError("The bmath.cumtrapz behaviour differs from"
+                              "scipy.integrate.cumulative_trapezoid."
+                              "Please contact the developers if you need this routine!")
     if x is not None:
         # IntegrationError
         raise RuntimeError('[cumtrapz] x attribute is not yet supported')
