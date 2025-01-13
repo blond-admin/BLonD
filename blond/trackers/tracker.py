@@ -77,15 +77,13 @@ class FullRingAndRF:
 
     @property
     def RingAndRFSection_list(self):
-        from warnings import warn
-        warn("RingAndRFSection_list is deprecated, use ring_and_rf_section",
+        warnings.warn("RingAndRFSection_list is deprecated, use ring_and_rf_section",
              DeprecationWarning)
         return self.ring_and_rf_section
 
     @RingAndRFSection_list.setter
     def RingAndRFSection_list(self, val):
-        from warnings import warn
-        warn("RingAndRFSection_list is deprecated, use ring_and_rf_section",
+        warnings.warn("RingAndRFSection_list is deprecated, use ring_and_rf_section",
              DeprecationWarning)
         self.ring_and_rf_section = val
 
@@ -538,6 +536,11 @@ class RingAndRFTracker:
         turn
             Current turn
         """
+        if self.solver != 'simple':
+            warnings.warn("If you require faster tracking with 'periodicity=True' on the GPU:"
+                          " Switch solver to 'simple' or rewrite"
+                          " 'kickdrift_considering_periodicity' to consider different drift equation!", PerformanceWarning)
+            self._kickdrift_considering_periodicity(turn=turn)
 
         # parameters to calculate coeff of drift
         T0 = self.rf_params.t_rev[turn + 1]
@@ -621,3 +624,6 @@ class RingAndRFTracker:
 
         # to make sure it will not be called again
         self._device: DeviceType = 'CPU'
+
+class PerformanceWarning(Warning):
+    pass
