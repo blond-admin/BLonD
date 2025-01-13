@@ -282,10 +282,11 @@ class Ring:
         self.f_rev: NDArray = 1 / self.t_rev
         self.omega_rev: NDArray = 2 * np.pi * self.f_rev
 
+        
 
-                
         if self.n_sections == 1:
             self.delta_E = np.diff(self.energy, axis=1)
+
         else:
             self.delta_E = np.reshape(np.zeros(n_turns*n_sections),(n_sections,n_turns))
             for i in range(n_turns):  
@@ -294,6 +295,7 @@ class Ring:
                         self.delta_E[j,i] = self.energy[j,i+1]-self.energy[-1,i]
                     else:
                         self.delta_E[j,i] = self.energy[j,i+1]-self.energy[j-1,i+1]
+
 
 
         # Momentum compaction, checks, and derived slippage factors
