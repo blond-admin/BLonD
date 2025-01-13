@@ -18,7 +18,8 @@ from copy import deepcopy
 
 import cupy
 import numpy as np
-from parameterized import parameterized
+import pytest
+
 
 from blond.beam.beam import Beam, Proton
 from blond.beam.distributions import bigaussian
@@ -253,10 +254,10 @@ class TestRfVoltageCalcWCavityFB(unittest.TestCase):
                 self.rf.phi_modulation[0][0][i], msg="""Phi modulation not added correctly in tracker""")
 
 
-class TestPeriodicity(unittest.TestCase):
+class Test:
     n_turns = 2000
     turn = 0
-    def tearDown(self):
+    def teardown_method(self):
         bmath.use_cpu()
 
     def _setUp(self):
@@ -291,7 +292,8 @@ class TestPeriodicity(unittest.TestCase):
                     self.profile, self.long_tracker,):
             obj.to_gpu()
 
-    @parameterized.expand((bmath.use_cpp, bmath.use_py, bmath.use_numba, bmath.use_gpu))
+    @pytest.mark.parametrize('set_mode',
+                             (bmath.use_cpp, bmath.use_py, bmath.use_numba, bmath.use_gpu))
     def test_executes(self, set_mode):
         print(set_mode)
         set_mode()
@@ -301,7 +303,7 @@ class TestPeriodicity(unittest.TestCase):
         dt_new = deepcopy(self.long_tracker.beam.dt)
         # assert that _fix_periodicity is acting on dt
         # otherwise testcase has no sense
-        self.assertTrue(np.any(dt_org != dt_new))
+        assert (np.any(dt_org != dt_new))
 
     def test_executes_gpu(self):
         bmath.use_gpu()
@@ -311,7 +313,7 @@ class TestPeriodicity(unittest.TestCase):
         dt_new = deepcopy(self.long_tracker.beam.dt)
         # assert that _fix_periodicity is acting on dt
         # otherwise testcase has no sense
-        self.assertTrue(np.any(dt_org != dt_new))
+        assert (np.any(dt_org != dt_new))
 
     def test_gpu_correct(self):
         bmath.use_gpu()
@@ -329,8 +331,8 @@ class TestPeriodicity(unittest.TestCase):
         # otherwise testcase has no sense
         cupy.testing.assert_allclose(dt_new, dt_ok)
 
+    @pytest.mark.skip(reason="Only for devs")
     def test_gpu_faster(self):
-        self.skipTest('Only for devs')
         from cupy.cuda import Device
 
         bmath.use_gpu()
