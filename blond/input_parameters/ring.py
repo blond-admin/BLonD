@@ -282,21 +282,19 @@ class Ring:
         self.f_rev: NDArray = 1 / self.t_rev
         self.omega_rev: NDArray = 2 * np.pi * self.f_rev
 
+        
 
         if self.n_sections == 1:
             self.delta_E = np.diff(self.energy, axis=1)
 
         else:
             self.delta_E = np.reshape(np.zeros(n_turns*n_sections),(n_sections,n_turns))
-            # to take the section from the previous turn
             for i in range(n_turns):  
                 for j in range(n_sections):
                     if j == 0:
                         self.delta_E[j,i] = self.energy[j,i+1]-self.energy[-1,i]
                     else:
                         self.delta_E[j,i] = self.energy[j,i+1]-self.energy[j-1,i+1]
-
-
 
 
 
