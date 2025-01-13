@@ -351,14 +351,14 @@ class Beam:
         """
 
         select_alive = self.id != 0
-        if np.sum(select_alive) > 0:
-            self.n_macroparticles_eliminated += np.sum(~select_alive)
-            self.dt = np.ascontiguousarray(
+        if bm.sum(select_alive) > 0:
+            self.n_macroparticles_eliminated += bm.sum(~select_alive)
+            self.dt = bm.ascontiguousarray(
                 self.dt[select_alive], dtype=bm.precision.real_t)
-            self.dE = np.ascontiguousarray(
+            self.dE = bm.ascontiguousarray(
                 self.dE[select_alive], dtype=bm.precision.real_t)
             self.n_macroparticles = len(self.dt)
-            self.id = np.arange(1, self.n_macroparticles + 1, dtype=int)
+            self.id = bm.arange(1, self.n_macroparticles + 1, dtype=int)
         else:
             # AllParticlesLost
             raise RuntimeError("ERROR in Beams: all particles lost and" +
