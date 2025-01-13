@@ -32,7 +32,7 @@ Project website: <http://blond.web.cern.ch>
 
 ## Dependencies
 
-1. Python 3.8 or above (Anaconda is recommended).  
+1. Python 3.10 or above (python venv is recommended).  
 2. (Optional) For better performance, a C++ (e.g. `gcc`, `icc`, `clang`, etc) compiler with `C++11` support.
 
 ### (Optional) C++ compiler installation instructions
