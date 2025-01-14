@@ -244,7 +244,7 @@ class _InducedVoltage:
         self.profile = profile
 
         # Induced voltage from the sum of the wake sources in V
-        self.induced_voltage = np.zeros(int(Profile.n_slices), dtype=bm.precision.real_t, order='C')
+        self.induced_voltage = np.zeros(int(profile.n_slices), dtype=bm.precision.real_t, order='C')
 
         # Wake length in s (optional)
         self.wake_length_input = wake_length
@@ -1037,7 +1037,7 @@ class InducedVoltageResonator(_InducedVoltage):
                                                 self.n_resonators,
                                                 self.omega_r,
                                                 self.Q, self._tmp_matrix,
-                                                self.beam.Particle.charge,
+                                                self.beam.particle.charge,
                                                 self.beam.n_macroparticles,
                                                 self.beam.ratio, self.R,
                                                 self.induced_voltage,
