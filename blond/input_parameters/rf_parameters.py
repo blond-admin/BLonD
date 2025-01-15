@@ -15,7 +15,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import numpy as np
 import scipy
@@ -33,6 +33,8 @@ else:
     from scipy.integrate import cumtrapz
 
 if TYPE_CHECKING:
+    from typing import Literal, Optional
+
     from .ring import Ring
     from ..utils.types import DeviceType
 
@@ -512,7 +514,7 @@ def calculate_Q_s(rf_station: RFStation, particle: Optional[Particle] = None):
 
 @handle_legacy_kwargs
 def calculate_phi_s(rf_station: RFStation, particle: Optional[Particle] = None,
-                    accelerating_systems='as_single'):
+                    accelerating_systems:Literal['as_single','all','first']='as_single'):
     r"""Function calculating the turn-by-turn synchronous phase according to
     the parameters in the RFStation object. The phase is expressed in
     the lowest RF harmonic and with respect to the RF bucket (see the equations

@@ -372,14 +372,14 @@ const int n_macroparticles
     real_t my_beam_dt;
     real_t my_beam_dE;
     real_t sum_;
-    bool is_inside_frame;
+    bool is_left_of_trev;
     for (int i=tid; i<n_macroparticles; i=i+blockDim.x*gridDim.x){
         my_beam_dt = beam_dt[i];
         my_beam_dE = beam_dE[i];
 
         // Distinguish the particles inside the frame from the particles on
         // the right-hand side of the frame.
-        is_inside_frame = my_beam_dt < t_rev_tmp;
+        is_left_of_trev = my_beam_dt < t_rev_tmp;
         if (my_beam_dt > t_rev_tmp){
             my_beam_dt  -= t_rev_tmp;
         }
@@ -388,7 +388,7 @@ const int n_macroparticles
         // RHS of the current frame applying kick and drift to the
         // bunch
         // After that all the particles are in the new updated frame
-        if (is_inside_frame){
+        if (is_left_of_trev){
             // kick
             sum_ = 0.0;
             for (int j = 0; j < n_rf; j++) {

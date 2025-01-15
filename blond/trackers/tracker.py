@@ -25,6 +25,7 @@ from packaging.version import Version
 
 from blond.gpu import GPU_DEV
 from blond.utils import precision
+from blond.utils.custom_warnings import PerformanceWarning
 from ..llrf.cavity_feedback import CavityFeedback
 from ..utils import bmath as bm
 from ..utils.legacy_support import handle_legacy_kwargs
@@ -624,6 +625,3 @@ class RingAndRFTracker:
 
         # to make sure it will not be called again
         self._device: DeviceType = 'CPU'
-
-class PerformanceWarning(Warning):
-    pass
