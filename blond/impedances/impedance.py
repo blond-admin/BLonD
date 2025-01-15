@@ -244,7 +244,7 @@ class _InducedVoltage:
         self.profile = profile
 
         # Induced voltage from the sum of the wake sources in V
-        self.induced_voltage: NDArray | float = 0.0
+        self.induced_voltage = np.zeros(int(profile.n_slices), dtype=bm.precision.real_t, order='C')
 
         # Wake length in s (optional)
         self.wake_length_input = wake_length
@@ -427,7 +427,7 @@ class _InducedVoltage:
         # front wake
         self.induced_voltage[self.n_induced_voltage -
                              self.front_wake_buffer:] = 0
-        
+
 
         # Add the induced voltage of the current turn to the memory from
         # previous turns
@@ -455,7 +455,7 @@ class _InducedVoltage:
         """
 
         t_rev = self.rf_params.t_rev[self.rf_params.counter[0]]
- 
+
         # self.mtw_memory = bm.interp_const_space(self.time_mtw + t_rev,
         self.mtw_memory = bm.interp(self.time_mtw + t_rev,
                                     self.time_mtw, self.mtw_memory,
@@ -907,13 +907,13 @@ class InductiveImpedance(_InducedVoltage):
 class InducedVoltageResonator(_InducedVoltage):
     r"""
     *Calculates the induced voltage of several resonators for arbitrary
-    line density. It does so by linearily interpolating the line density and
+    line density. It does so by linearly interpolating the line density and
     solving the convolution integral with the resonator impedance analytically.
-    The line density need NOT be sampled at equidistant points. The times where
+    The line density need NOT be sampled at equidistant points. The times when
     the induced voltage is calculated need to be the same where the line
     density is sampled. If no time_array is passed, the induced voltage is
-    evaluated at the points of the line density. This is nececassry of
-    compatability with other functions that calculate the induced voltage.
+    evaluated at the points of the line density. This is necessary of
+    compatibility with other functions that calculate the induced voltage.
     Currently, it requires the all quality factors :math:`Q>0.5`
     Currently, only works for single turn.*
 
@@ -930,8 +930,8 @@ class InducedVoltageResonator(_InducedVoltage):
         If left out, the induced voltage is calculated at the times of the line
         density.
     array_length : int, optional
-        length of an array of one turn 
-    
+        length of an array of one turn
+
 
     Attributes
     ----------
@@ -940,7 +940,7 @@ class InducedVoltageResonator(_InducedVoltage):
     profile : Profile
         Copy of the Profile object in order to access the line density.
     tArray : float array
-        array of time values where the induced voltage is calculated.
+        Array of time values where the induced voltage is calculated.
         If left out, the induced voltage is calculated at the times of the
         line density
     atLineDensityTimes : boolean
@@ -994,7 +994,7 @@ class InducedVoltageResonator(_InducedVoltage):
 
         # Copy of the shunt impedances of the Resonators in* :math:`\Omega`
         self.R = resonators.R_S
-        # Copy of the resonant frequencies of the Resonators in in 1/s
+        # Copy of the resonant frequencies of the Resonators in 1/s
         self.omega_r = resonators.omega_R  # resonant frequencies [1/s]
         # Copy of the quality factors of the Resonators
         self.Q = resonators.Q
@@ -1046,68 +1046,26 @@ class InducedVoltageResonator(_InducedVoltage):
 
     def induced_voltage_1turn(self, beam_spectrum_dict={}):
         r"""
-        Method to calculate the induced voltage through linearily
+        Method to calculate the induced voltage through linearly
         interpolating the line density and applying the analytic equation
         to the result.
         """
-
-        # Compute the slopes of the line sections of the linearily interpolated
-        # (normalized) line density.
-        self._kappa1[:] = bm.diff(self.profile.n_macroparticles) \
-                          / bm.diff(self.profile.bin_centers) \
-                          / (self.beam.n_macroparticles * self.profile.bin_size)
-        # [:] makes kappa pass by reference
-
-        for t in range(self.n_time):
-            self._deltaT[t] = self.tArray[t] - self.profile.bin_centers
-
-        # For each cavity compute the induced voltage and store in the r-th row
-        for r in range(self.n_resonators):
-            tmp_sum = ((((2 *
-                          bm.cos(self._reOmegaP[r] * self._deltaT)
-                          + bm.sin(self._reOmegaP[r] * self._deltaT) / self._Qtilde[r]) *
-                         bm.exp(-self._imOmegaP[r] * self._deltaT)) *
-                        self.Heaviside(self._deltaT)) -
-                       bm.sign(self._deltaT))
-            # np.sum performs the sum over the points of the line density
-            self._tmp_matrix[r] = self.R[r] / (2 * self.omega_r[r] * self.Q[r]) \
-                                  * bm.sum(self._kappa1 * np.diff(tmp_sum), axis=1)
-
-        # To obtain the voltage, sum the contribution of each cavity...
-        self.induced_voltage = self._tmp_matrix.sum(axis=0)
-        # ... and multiply with bunch charge
-        self.induced_voltage *= -self.beam.particle.charge * e \
-                                * self.beam.n_macroparticles * self.beam.ratio
-        self.induced_voltage = (self.induced_voltage
-                                .astype(dtype=bm.precision.real_t, order='C', copy=False))
-        
-    
-    def induced_voltage_mtw(self, beam_spectrum_dict={}):
-
-        """
-        Induced voltage method for InducedVoltageResonator. 
-        mtw_memory is shifted by one turn, setting the final values in the array as 0.
-        @fbatsch
-        """
-        
-        # shift the entries in array by 1 t_rev and set to 0
-        self.mtw_memory = np.append(self.mtw_memory, np.zeros(self.array_length))
-        # remove one turn length of memory 
-        self.mtw_memory = self.mtw_memory[self.array_length:]
-        # Induced voltage of the current turn calculation
-        self.induced_voltage_1turn(beam_spectrum_dict)
-        # Add induced voltage of the current turn to the memory from previous
-        self.mtw_memory[:int(self.n_time)] += self.induced_voltage  
-        self.induced_voltage = self.mtw_memory[:self.n_time]
-        
-
-    
-    # Implementation of Heaviside function
-    def Heaviside(self, x):
-        r"""
-        Heaviside function, which returns 1 if x>1, 0 if x<0, and 1/2 if x=0
-        """
-        return 0.5 * (bm.sign(x) + 1.)
+        self.induced_voltage, self._deltaT = (
+            bm.resonator_induced_voltage_1_turn(self._kappa1,
+                                                self.profile.n_macroparticles,
+                                                self.profile.bin_centers,
+                                                self.profile.bin_size,
+                                                self.n_time, self._deltaT,
+                                                self.tArray, self._reOmegaP,
+                                                self._imOmegaP, self._Qtilde,
+                                                self.n_resonators,
+                                                self.omega_r,
+                                                self.Q, self._tmp_matrix,
+                                                self.beam.particle.charge,
+                                                self.beam.n_macroparticles,
+                                                self.beam.ratio, self.R,
+                                                self.induced_voltage,
+                                                bm.precision.real_t))
 
     def to_gpu(self, recursive=True):
         """
