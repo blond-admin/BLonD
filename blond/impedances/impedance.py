@@ -1044,6 +1044,9 @@ class InducedVoltageResonator(_InducedVoltage):
     def on_profile_change(self):
         self.process(self)
 
+
+
+
     def induced_voltage_1turn(self, beam_spectrum_dict={}):
         r"""
         Method to calculate the induced voltage through linearly
@@ -1066,6 +1069,24 @@ class InducedVoltageResonator(_InducedVoltage):
                                                 self.beam.ratio, self.R,
                                                 self.induced_voltage,
                                                 bm.precision.real_t))
+
+    def induced_voltage_mtw(self, beam_spectrum_dict={}):
+
+        """
+        Induced voltage method for InducedVoltageResonator.
+        mtw_memory is shifted by one turn, setting the final values in the array as 0.
+        @fbatsch
+        """
+
+        # shift the entries in array by 1 t_rev and set to 0
+        self.mtw_memory = np.append(self.mtw_memory, np.zeros(self.array_length))
+        # remove one turn length of memory
+        self.mtw_memory = self.mtw_memory[self.array_length:]
+        # Induced voltage of the current turn calculation
+        self.induced_voltage_1turn(beam_spectrum_dict)
+        # Add induced voltage of the current turn to the memory from previous
+        self.mtw_memory[:int(self.n_time)] += self.induced_voltage
+        self.induced_voltage = self.mtw_memory[:self.n_time]
 
     def to_gpu(self, recursive=True):
         """
