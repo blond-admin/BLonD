@@ -904,6 +904,8 @@ class InductiveImpedance(_InducedVoltage):
         self._device: DeviceType = 'CPU'
 
 
+
+
 class InducedVoltageResonator(_InducedVoltage):
     r"""
     *Calculates the induced voltage of several resonators for arbitrary
@@ -915,7 +917,8 @@ class InducedVoltageResonator(_InducedVoltage):
     evaluated at the points of the line density. This is necessary of
     compatibility with other functions that calculate the induced voltage.
     Currently, it requires the all quality factors :math:`Q>0.5`
-    Currently, only works for single turn.*
+    Can be used for multiple turns. There is an option to include a counter-rotatng
+    beam.
 
     Parameters
     ----------
@@ -925,231 +928,22 @@ class InducedVoltageResonator(_InducedVoltage):
         Profile object
     resonators : Resonators
         Resonators object
+    frequency_resolution : float, optional
+
+    wake_length : float, optional
+
+    multi_turn_wake : bool, optional
+        Flag to specify if wake calculation is multi-turn
+    counter_rotation : bool, optional
+        Flag to specify if counter-rotating beams
+
     time_array : float array, optional
         Array of time values where the induced voltage is calculated.
         If left out, the induced voltage is calculated at the times of the line
         density.
-    array_length : int, optional
-        length of an array of one turn
+    time_array_2: : float array, optional
+        For use with counter-rotating beams
 
-
-    Attributes
-    ----------
-    beam: Beam
-        Copy of the Beam object in order to access the beam info.
-    profile : Profile
-        Copy of the Profile object in order to access the line density.
-    tArray : float array
-        Array of time values where the induced voltage is calculated.
-        If left out, the induced voltage is calculated at the times of the
-        line density
-    atLineDensityTimes : boolean
-        flag indicating if the induced voltage has to be computed for timeArray
-        or for the line density
-    n_time : int
-        length of tArray
-    R, omega_r, Q : lists of float
-        Resonators parameters
-    n_resonators : int
-        Number of resonators
-    induced_voltage : float array
-        Computed induced voltage [V]
-    """
-
-    @handle_legacy_kwargs
-    def __init__(self, beam: Beam,
-                 profile: Profile,
-                 resonators: Resonators,
-                 frequency_resolution: Optional[float] = None,
-                 wake_length: Optional[float] = None,
-                 multi_turn_wake: bool = False,
-                 time_array: Optional[NDArray] = None,
-                 rf_station: Optional[RFStation] = None,
-                 array_length: Optional[int] = None,
-                 use_regular_fft: bool = True) -> None:
-
-        # Test if one or more quality factors is smaller than 0.5.
-        if sum(resonators.Q < 0.5) > 0:
-            # ResonatorError
-            raise RuntimeError('All quality factors Q must be larger than 0.5')
-
-        # Copy of the Beam object in order to access the beam info.
-        self.beam = beam
-        # Copy of the Profile object in order to access the line density.
-        self.profile = profile
-
-        # Optional array of time values where the induced voltage is calculated.
-        # If left out, the induced voltage is calculated at the times of the
-        # line density.
-        if time_array is None:
-            self.tArray = self.profile.bin_centers
-            self.atLineDensityTimes = True
-        else:
-            self.tArray = time_array
-            self.atLineDensityTimes = False
-
-        self.array_length = array_length
-
-        self.n_time = len(self.tArray)
-
-        # Copy of the shunt impedances of the Resonators in* :math:`\Omega`
-        self.R = resonators.R_S
-        # Copy of the resonant frequencies of the Resonators in 1/s
-        self.omega_r = resonators.omega_R  # resonant frequencies [1/s]
-        # Copy of the quality factors of the Resonators
-        self.Q = resonators.Q
-        # Number of resonators
-        self.n_resonators = len(self.R)
-
-        # For internal use
-        self._Qtilde = self.Q * np.sqrt(1. - 1. / (4. * self.Q ** 2.))
-        self._reOmegaP = self.omega_r * self._Qtilde / self.Q
-        self._imOmegaP = self.omega_r / (2. * self.Q)
-
-        # Each the 'n_resonator' rows of the matrix holds the induced voltage
-        # at the 'n_time' time-values of one cavity. For internal use.
-        self._tmp_matrix = np.ones(
-            (self.n_resonators, self.n_time), dtype=bm.precision.real_t, order='C')
-
-        # Slopes of the line segments. For internal use.
-        self._kappa1 = np.zeros(
-            int(self.profile.n_slices - 1), dtype=bm.precision.real_t, order='C')
-
-        # Matrix to hold n_times many tArray[t]-bin_centers arrays.
-        self._deltaT = np.zeros(
-            (self.n_time, self.profile.n_slices), dtype=bm.precision.real_t, order='C')
-
-        # Call the __init__ method of the parent class [calls process()]
-        super().__init__(beam, profile,
-                         frequency_resolution=frequency_resolution,
-                         wake_length=wake_length,
-                         multi_turn_wake=multi_turn_wake,
-                         rf_station=rf_station, mtw_mode=None,
-                         use_regular_fft=use_regular_fft)
-
-    def process(self):
-        r"""
-        Reprocess the impedance contributions. To be run when slicing changes
-        """
-
-        _InducedVoltage.process(self)
-
-        # Since profile object changed, need to assign the proper dimensions to
-        # _kappa1 and _deltaT
-        self._kappa1 = np.zeros(
-            int(self.profile.n_slices - 1), dtype=bm.precision.real_t, order='C')
-        self._deltaT = np.zeros(
-            (self.n_time, self.profile.n_slices), dtype=bm.precision.real_t, order='C')
-
-    def on_profile_change(self):
-        self.process(self)
-
-
-
-
-    def induced_voltage_1turn(self, beam_spectrum_dict={}):
-        r"""
-        Method to calculate the induced voltage through linearly
-        interpolating the line density and applying the analytic equation
-        to the result.
-        """
-        self.induced_voltage, self._deltaT = (
-            bm.resonator_induced_voltage_1_turn(self._kappa1,
-                                                self.profile.n_macroparticles,
-                                                self.profile.bin_centers,
-                                                self.profile.bin_size,
-                                                self.n_time, self._deltaT,
-                                                self.tArray, self._reOmegaP,
-                                                self._imOmegaP, self._Qtilde,
-                                                self.n_resonators,
-                                                self.omega_r,
-                                                self.Q, self._tmp_matrix,
-                                                self.beam.particle.charge,
-                                                self.beam.n_macroparticles,
-                                                self.beam.ratio, self.R,
-                                                self.induced_voltage,
-                                                bm.precision.real_t))
-
-    def induced_voltage_mtw(self, beam_spectrum_dict={}):
-
-        """
-        Induced voltage method for InducedVoltageResonator.
-        mtw_memory is shifted by one turn, setting the final values in the array as 0.
-        @fbatsch
-        """
-
-        # shift the entries in array by 1 t_rev and set to 0
-        self.mtw_memory = np.append(self.mtw_memory, np.zeros(self.array_length))
-        # remove one turn length of memory
-        self.mtw_memory = self.mtw_memory[self.array_length:]
-        # Induced voltage of the current turn calculation
-        self.induced_voltage_1turn(beam_spectrum_dict)
-        # Add induced voltage of the current turn to the memory from previous
-        self.mtw_memory[:int(self.n_time)] += self.induced_voltage
-        self.induced_voltage = self.mtw_memory[:self.n_time]
-
-    def to_gpu(self, recursive=True):
-        """
-        Transfer all necessary arrays to the GPU
-        """
-        # Check if to_gpu has been invoked already
-        if hasattr(self, '_device') and self._device == 'GPU':
-            return
-
-        import cupy as cp
-        self.induced_voltage = cp.array(self.induced_voltage)
-        self._kappa1 = cp.array(self._kappa1)
-        self._deltaT = cp.array(self._deltaT)
-        self.tArray = cp.array(self.tArray)
-        self._tmp_matrix = cp.array(self._tmp_matrix)
-        # to make sure it will not be called again
-        self._device: DeviceType = 'GPU'
-
-    def to_cpu(self, recursive=True):
-        """
-        Transfer all necessary arrays back to the CPU
-        """
-        # Check if to_cpu has been invoked already
-        if hasattr(self, '_device') and self._device == 'CPU':
-            return
-
-        import cupy as cp
-        self.induced_voltage = cp.asnumpy(self.induced_voltage)
-        self._kappa1 = cp.asnumpy(self._kappa1)
-        self._deltaT = cp.asnumpy(self._deltaT)
-        self.tArray = cp.asnumpy(self.tArray)
-        self._tmp_matrix = cp.asnumpy(self._tmp_matrix)
-
-        # to make sure it will not be called again
-        self._device: DeviceType = 'CPU'
-
-
-
-class InducedVoltageResonator_test(_InducedVoltage):
-    r"""
-    *Calculates the induced voltage of several resonators for arbitrary
-    line density. It does so by linearly interpolating the line density and
-    solving the convolution integral with the resonator impedance analytically.
-    The line density need NOT be sampled at equidistant points. The times when
-    the induced voltage is calculated need to be the same where the line
-    density is sampled. If no time_array is passed, the induced voltage is
-    evaluated at the points of the line density. This is necessary of
-    compatibility with other functions that calculate the induced voltage.
-    Currently, it requires the all quality factors :math:`Q>0.5`
-    Currently, only works for single turn.*
-
-    Parameters
-    ----------
-    beam: Beam
-        Beam object
-    profile : Profile
-        Profile object
-    resonators : Resonators
-        Resonators object
-    time_array : float array, optional
-        Array of time values where the induced voltage is calculated.
-        If left out, the induced voltage is calculated at the times of the line
-        density.
     array_length : int, optional
         length of an array of one turn
 
@@ -1339,11 +1133,19 @@ class InducedVoltageResonator_test(_InducedVoltage):
                                             self.profile.n_macroparticles,
                                             self.profile.bin_centers,
                                             self.profile.bin_size,
-                                            self._deltaT2, self.tArray2, self._reOmegaP,
+                                            self.n_time, self._deltaT2,
+                                            self.tArray2, self._reOmegaP,
                                             self._imOmegaP, self._Qtilde,
-                                            self.n_resonators, self.omega_r, self.Q, self.beam.Particle.charge,
+                                            self.n_resonators,
+                                            self.omega_r,
+                                            self.Q, self._tmp_matrix,
+                                            self.beam.particle.charge,
                                             self.beam.n_macroparticles,
-                                            self.beam.ratio, self.R, self.induced_voltage_CR, )
+                                            self.beam.ratio, self.R,
+                                            self.induced_voltage_CR,
+                                            bm.precision.real_t)
+
+
 
     def induced_voltage_mtw(self, beam_spectrum_dict={}):
         r"""
@@ -1408,49 +1210,62 @@ class InducedVoltageResonator_test(_InducedVoltage):
         self._device: DeviceType = 'CPU'
 
 
-class InducedVoltage_from_counterrotation(_InducedVoltage):
+class InducedVoltage_from_cr(_InducedVoltage): #todo: Does it need to inherit from InducedVoltage?
     r"""
-    *Takes the induced voltage from the counter-rotating beam, inverts it in time and applies it*
+    *Takes the induced voltage from the counter-rotating beam, inverts it in time and applies it.*
+
 
     Parameters
     ----------
+    induced_voltage_object_cr : Optional
+        An object containing induced voltage data from the counter-rotating beam. This object should
+        have an attribute `induced_voltage_CR` which holds the voltage values.
+    n_slices : Optional
+    wake_length : Optional[float]
+        The length of the wake, which determines how long the induced voltage persists over time.
 
     Attributes
     ----------
 
+    inducedvoltageobject : object
+        The object that provides the induced voltage data for the counter-rotating beam.
+
+    n_slices :
+
+    wake_length : float
+        The length of the wake for the induced voltage.
+
+    induced_voltage_generation : callable
+        The method to generate the induced voltage, in this case, the `induced_voltage_counterbeam` method.
+
+    induced_voltage : NDArray
+        An array to store the calculated induced voltage values.
+
     """
     def __init__(self, induced_voltage_object_cr: Optional = None,
-                 n_slices: Optional = None,
-                 wake_length: Optional[float] = None,
-                 multi_turn_wake: bool = False,
-                 counter_rotation: bool = True):
-
-
-
-        #super().__init__(multi_turn_wake=multi_turn_wake, wake_length=wake_length,)
+                 n_slices: Optional[int] = None,
+                 Induced_voltage: Optional =None,):
 
         self.inducedvoltageobject = induced_voltage_object_cr
-        self.n_slices = n_slices # declaration probably not necessary
+        self.n_slices = N_slices
         self.wake_length = self.inducedvoltageobject.wake_length
         self.induced_voltage_generation = self.induced_voltage_counterbeam
+
 
     def process(self):
         r"""
         Reprocess the impedance contributions. To be run when slicing changes
         """
-        _InducedVoltage.process(self)
+        _InducedVoltage().process()
+        self.induced_voltage = np.zeros(self.n_time, dtype=bm.precision.real_t, order='C') # todo: Investigate why induced_voltage set to 0
 
-        self.induced_voltage = np.zeros(
-            (self.n_time), dtype=bm.precision.real_t, order='C')
 
     def induced_voltage_counterbeam(self, beam_spectrum_dict={}):
         r"""
-        Method to calculate the induced voltage through linearily
-        interpolating the line density and applying the analytic equation
-        to the result.
+        Inverts the induced voltage object of the counter-rotating beam.
         """
         if hasattr(self.inducedvoltageobject, "induced_voltage_CR"):
-            self.induced_voltage = -1 * (self.inducedvoltageobject.induced_voltage_CR[:self.n_slices])  #
+            self.induced_voltage = -1 * (self.inducedvoltageobject.induced_voltage_CR[:self.n_slices])
         else:
-            self.induced_voltage = np.zeros(self.inducedvoltageobject.n_time)
+            self.induced_voltage = np.zeros(self.inducedvoltageobject.n_time, dtype=bm.precision.real_t)
 
