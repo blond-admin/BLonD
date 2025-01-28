@@ -944,7 +944,7 @@ class InducedVoltageResonator(_InducedVoltage):
         If left out, the induced voltage is calculated at the times of the
         line density
     atLineDensityTimes : boolean
-        flag indicating if the induced voltage has to be computed for timeArray
+        flag indicating if the induced voltage has to be computed for time_array
         or for the line density
     n_time : int
         length of tArray
