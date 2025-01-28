@@ -10,7 +10,7 @@
 """
 Example for llrf.filters and llrf.cavity_feedback
 
-:Authors: **Helga Timko**
+:Authors: **Birk Emil Karlsen-Bæck**, **Helga Timko**
 """
 
 import logging
@@ -26,7 +26,7 @@ from blond.impedances.impedance import InducedVoltageTime, TotalInducedVoltage
 from blond.impedances.impedance_sources import TravelingWaveCavity
 from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
-from blond.llrf.cavity_feedback import (CavityFeedbackCommissioning,
+from blond.llrf.cavity_feedback import (SPSCavityLoopCommissioning,
                                         SPSOneTurnFeedback)
 from blond.llrf.impulse_response import (SPS3Section200MHzTWC,
                                          SPS4Section200MHzTWC)
@@ -35,7 +35,7 @@ from blond.toolbox.logger import Logger
 
 # CERN SPS --------------------------------------------------------------------
 # Machine and RF parameters
-C = 2*np.pi*1100.009        # Ring circumference [m]
+C = 2 * np.pi * 1100.009    # Ring circumference [m]
 gamma_t = 18.0              # Gamma at transition
 alpha = 1/gamma_t**2        # Momentum compaction factor
 p_s = 25.92e9               # Synchronous momentum at injection [eV]
@@ -68,7 +68,7 @@ plt.rc('legend', fontsize=12)
 
 
 # Logger for messages on console & in file
-if LOGGING == True:
+if LOGGING:
     Logger(debug = True)
 else:
     Logger().disable()
@@ -83,7 +83,7 @@ logging.info("...... RF parameters set!")
 
 # Define beam and fill it
 beam = Beam(ring, N_m, N_b)
-bigaussian(ring, rf, beam, 3.2e-9/4, seed = 1234, reinsertion = True)
+bigaussian(ring, rf, beam, 3.2e-9/4, seed=1234, reinsertion=True)
 logging.info("...... Beam set!")
 logging.info("Number of particles %d" %len(beam.dt))
 logging.info("Time coordinates are in range %.4e to %.4e s" %(np.min(beam.dt),
@@ -93,16 +93,12 @@ profile = Profile(beam, CutOptions=CutOptions(cut_left=-1.e-9,
                                               cut_right=6.e-9, n_slices=100))
 profile.track()
 
-if RF_CURRENT == True:
-
+if RF_CURRENT:
     # RF current calculation for Gaussian profile
     rf_current = rf_beam_current(profile, 2*np.pi*f_rf, ring.t_rev[0],
                                  lpf=False)
     rf_current_filt = rf_beam_current(profile, 2*np.pi*f_rf, ring.t_rev[0],
                                       lpf=True)
-    #np.set_printoptions(precision=10)
-    #print(repr(rf_current_filt.real))
-    #print(repr(rf_current_filt.imag))
 
     fig, ax1 = plt.subplots()
     ax1.plot(profile.bin_centers, profile.n_macroparticles, 'g')
@@ -113,6 +109,7 @@ if RF_CURRENT == True:
     ax2.plot(profile.bin_centers, rf_current.imag, 'r', label='current, imag')
     ax2.set_ylabel("RF current, charge count [C]")
     ax2.legend()
+    fig.tight_layout()
 
     fig, ax3 = plt.subplots()
     ax3.plot(profile.bin_centers, profile.n_macroparticles, 'g')
@@ -123,11 +120,10 @@ if RF_CURRENT == True:
     ax4.plot(profile.bin_centers, rf_current_filt.imag, 'r', label='filtered, imag')
     ax4.set_ylabel("RF current, charge count [C]")
     ax4.legend()
+    fig.tight_layout()
 
 
-
-if RF_CURRENT2 == True:
-
+if RF_CURRENT2:
     # Create a batch of 100 equal, short bunches at HL-LHC intensity
     bunches = 100
     T_s = 5*rf.t_rev[0]/rf.harmonic[0, 0]
@@ -163,6 +159,7 @@ if RF_CURRENT2 == True:
     ax6.plot(profile2.bin_centers*1e6, rf_current_fine.imag, 'r', label='fine, imag')
     ax6.set_ylabel("RF charge distribution [C]")
     ax6.legend()
+    fig.tight_layout()
 
     t_coarse = np.linspace(0, rf.t_rev[0], num=int(rf.harmonic[0,0]/5))
 
@@ -181,35 +178,35 @@ if RF_CURRENT2 == True:
     ax8.legend()
     logging.info("Peak beam current, meas %.10f A" %(peak_rf_current))
     logging.info("Peak beam current, theor %.4f A" %(2*N_b*e/bunch_spacing))
+    fig.tight_layout()
 
 
-if IMP_RESP == True:
-
+if IMP_RESP:
     # Impulse response of beam- and generator-induced voltage for TWC
-    # Comparison of wake and impulse resonse
+    # Comparison of wake and impulse response
     time = np.linspace(-1e-6, 4.e-6, 10000)
-    TWC_v1 = SPS4Section200MHzTWC()
-    TWC_v1.impulse_response_beam(2*np.pi*f_rf, time)
-    TWC_v1.impulse_response_gen(2*np.pi*f_rf, time)
+    TWC_v1 = SPS4Section200MHzTWC(df=f_rf - 199.9945e6)
+    TWC_v1.impulse_response_beam(2 * np.pi * f_rf, time)
+    TWC_v1.impulse_response_gen(2 * np.pi * f_rf, time)
     TWC_v1.compute_wakes(time)
-    TWC_v2 = TravelingWaveCavity(0.876e6, f_rf, 2*np.pi*6.207e-7)
+    TWC_v2 = TravelingWaveCavity(0.876e6, f_rf, 2 * np.pi * 6.207e-7)
     TWC_v2.wake_calc(time - time[0])
     t_beam = time - time[0]
-    t_gen = time - time[0] - 0.5*TWC_v1.tau
+    t_gen = time - time[0] - 0.5 * TWC_v1.tau
 
     plt.figure()
     plt.plot(TWC_v2.time_array, TWC_v2.wake, 'b', marker='.', label='wake, impedances')
-    plt.plot(t_beam, TWC_v1.W_beam, 'r', marker='.', label='cav wake, OTFB')
+    plt.plot(t_beam, -TWC_v1.W_beam, 'r', marker='.', label='cav wake, OTFB')
     plt.plot(t_beam, TWC_v1.h_beam.real, 'g', marker='.', label='hs_cav, OTFB')
     plt.plot(t_gen, TWC_v1.W_gen, 'orange', marker='.', label='gen wake, OTFB')
     plt.plot(t_gen, TWC_v1.h_gen.real, 'purple', marker='.', label='hs_gen, OTFB')
     plt.xlabel("Time [s]")
     plt.ylabel("Wake/impulse response [Ohms/s]")
     plt.legend()
+    plt.tight_layout()
 
 
-if FINE_COARSE == True:
-
+if FINE_COARSE:
     # Create a batch of 100 equal, short bunches at HL-LHC intensity
     bunches = 100
     N_m = int(1e5)
@@ -241,8 +238,8 @@ if FINE_COARSE == True:
         rf.omega_rf[0, 0], ring.t_rev[0], lpf=False,
         downsample={'Ts': rf.t_rev[0]/rf.harmonic[0, 0], 'points': rf.harmonic[0, 0]})
 
-    OTFB = SPSOneTurnFeedback(rf, beam2, profile2, 3, n_cavities=1,
-        Commissioning=CavityFeedbackCommissioning(open_FF=True))
+    OTFB = SPSOneTurnFeedback(rf, profile2, 3, n_cavities=1,
+        Commissioning=SPSCavityLoopCommissioning(open_ff=True))
     V_beam_fine = -OTFB.matr_conv(rf_current_fine, h_beam_fine)
     V_beam_coarse = -OTFB.matr_conv(rf_current_coarse, h_beam_coarse)
     print(len(time_fine), rf_current_fine.shape, V_beam_fine.shape)
@@ -271,6 +268,7 @@ if FINE_COARSE == True:
     plt.ylabel("Wake/impulse response [Ohms/s]")
     plt.xlim((-1,5))
     plt.legend()
+    plt.tight_layout()
 
     plt.figure()
     plt.plot(time_fine*1e6, V_beam_fine.real*1e-6, 'b', marker='.', label='V_beam, fine, real')
@@ -285,22 +283,22 @@ if FINE_COARSE == True:
     plt.ylabel("Induced voltage per cavity [MV]")
     plt.xlim((-1,5))
     plt.legend()
+    plt.tight_layout()
 
 
-if VIND_BEAM == True:
-
+if VIND_BEAM:
     profile = Profile(beam, CutOptions=CutOptions(cut_left=-1.e-9,
         cut_right=6.e-9, n_slices=140))
     profile.track()
 
     # One-turn feedback around 3-, 4-, and 5-section cavities
     omega_c = 2*np.pi*f_rf
-    OTFB_3 = SPSOneTurnFeedback(rf, beam, profile, 3,
-        Commissioning=CavityFeedbackCommissioning(open_FF=True))
-    OTFB_4 = SPSOneTurnFeedback(rf, beam, profile, 4,
-        Commissioning=CavityFeedbackCommissioning(open_FF=True))
-    OTFB_5 = SPSOneTurnFeedback(rf, beam, profile, 5,
-        Commissioning=CavityFeedbackCommissioning(open_FF=True))
+    OTFB_3 = SPSOneTurnFeedback(rf, profile, 3,
+        Commissioning=SPSCavityLoopCommissioning(open_ff=True))
+    OTFB_4 = SPSOneTurnFeedback(rf, profile, 4,
+        Commissioning=SPSCavityLoopCommissioning(open_ff=True))
+    OTFB_5 = SPSOneTurnFeedback(rf, profile, 5,
+        Commissioning=SPSCavityLoopCommissioning(open_ff=True))
     OTFB_3.counter = 0 # First turn
     OTFB_4.counter = 0 # First turn
     OTFB_5.counter = 0 # First turn
@@ -322,8 +320,9 @@ if VIND_BEAM == True:
     plt.plot(convtime[:140], V_ind_beam.real[:140], 'b', label='Re(Vind), OTFB')
     plt.plot(convtime, V_ind_beam.imag, 'r--')
     plt.plot(convtime[:140], V_ind_beam.imag[:140], 'r', label='Im(Vind), OTFB')
-    plt.plot(convtime[:140], V_ind_beam.real[:140]*np.cos(OTFB_4.omega_c*convtime[:140]) \
-             + V_ind_beam.imag[:140]*np.sin(OTFB_4.omega_c*convtime[:140]), 
+    plt.plot(convtime[:140],
+             V_ind_beam.real[:140] * np.cos(OTFB_4.omega_c * convtime[:140])
+             + V_ind_beam.imag[:140] * np.sin(OTFB_4.omega_c * convtime[:140]),
              color='purple', label='Total, OTFB')
 
     # Comparison with impedances: FREQUENCY DOMAIN
@@ -337,8 +336,8 @@ if VIND_BEAM == True:
     # Comparison with impedances: TIME DOMAIN
     TWC200_4.wake_calc(profile.bin_centers - profile.bin_centers[0])
     TWC200_5.wake_calc(profile.bin_centers - profile.bin_centers[0])
-    wake1 = 2*(TWC200_4.wake + TWC200_5.wake)
-    Vind = -profile.Beam.ratio*profile.Beam.Particle.charge*e*\
+    wake1 = 2 * (TWC200_4.wake + TWC200_5.wake)
+    Vind = -profile.Beam.ratio * profile.Beam.Particle.charge*e*\
         np.convolve(wake1, profile.n_macroparticles, mode='full')[:140]
     plt.plot(convtime[:140], Vind, color='teal', label='Time domain w conv')
     
@@ -347,15 +346,16 @@ if VIND_BEAM == True:
     OTFB_5.TWC.impulse_response_gen(omega_c, profile.bin_centers)
     OTFB_4.TWC.compute_wakes(profile.bin_centers)
     OTFB_5.TWC.compute_wakes(profile.bin_centers)
-    wake2 = 2*(OTFB_4.TWC.W_beam + OTFB_5.TWC.W_beam)
-    Vind = -profile.Beam.ratio*profile.Beam.Particle.charge*e*\
+    wake2 = -2 * (OTFB_4.TWC.W_beam + OTFB_5.TWC.W_beam)
+    Vind = -profile.Beam.ratio * profile.Beam.Particle.charge * e * \
         np.convolve(wake2, profile.n_macroparticles, mode='full')[:140]
     plt.plot(convtime[:140], Vind, color='turquoise', label='Wake, OTFB')
     plt.xlabel("Time [s]")
     plt.ylabel("Induced voltage [V]")
     plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
     plt.legend(loc=2)
-    
+    plt.tight_layout()
+
     plt.figure()
     plt.plot(profile.bin_centers, wake1, label='from impedances')
     plt.plot(profile.bin_centers, wake2, label='from OTFB')
@@ -363,7 +363,7 @@ if VIND_BEAM == True:
     plt.ylabel("Wake field [Ohms/s]")
     plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
     plt.legend(loc=4)
-    
+    plt.tight_layout()
 
 
 plt.show()
