@@ -37,15 +37,18 @@ from ..utils import bmath as bm
 if TYPE_CHECKING:
     from typing import Optional
 
+
     from numpy import ndarray
     from numpy.typing import NDArray
     from ..input_parameters.rf_parameters import RFStation
     from ..input_parameters.ring import Ring
-    from .tracker import FullRingAndRF, MainHarmonicOptionType
+    from .tracker import FullRingAndRF, MainHarmonicOptionType, RingAndRFTracker
     from ..beam.beam import Beam
+    from ..beam.profile import CutOptions
     from ..input_parameters.rf_parameters import RFStation
-    from ..input_parameters.ring import Ring
     from ..impedances.impedance import TotalInducedVoltage
+
+
 
 
 @handle_legacy_kwargs
@@ -882,3 +885,69 @@ def time_modulo(dt: NDArray, dt_offset: float, T: float) -> NDArray:
     """
 
     return dt - T * bm.floor((dt + dt_offset) / T)
+
+
+def separatrix_with_intensity(ring: [Ring],
+                              full_ring_and_rf: [FullRingAndRF],
+                              longitudinal_tracker: [RingAndRFTracker],
+                              n_turn: [int],
+                              n_section: [int],
+                              cut_options: [CutOptions],
+                              total_induced_voltage: Optional[TotalInducedVoltage]):
+    r""" Computes separatrix including intensity effects for multiple RF stations. D. Quartullo, F. Batsch.
+
+    Parameters
+    ----------
+    ring : Ring
+        A Ring type class
+    full_ring_and_rf : FullRingAndRF
+    longitudinal_tracker : RingAndRFTracker
+        An object for beam and profile parameters used in the calculations.
+    n_turn : int
+        The index of the turn.
+    n_section : int
+        The index of the RF section.
+    cut_options : CutOptions
+        Options for profile cutting, including bin centers.
+    total_induced_voltage : Optional[TotalInducedVoltage]
+        The induced voltage that affects the potential well, or `None` if there is no induced voltage.
+
+    Returns
+    -------
+        - time_coord_sep: Separatrix time coordinates.
+        - separatrix: The undisturbed separatrix.
+        - time_coord_sep_intensity: Separatrix time coordinates with intensity effects.
+        - separatrix_intensity: The separatrix with intensity effects.
+        - bucket_area: The bucket area.
+        - bucket_area_intensity: The bucket area with intensity effects.
+    """
+
+    eom_factor_dE = -ring.eta_0[n_section, n_turn + 1] / (
+                2 * ring.beta[n_section, n_turn + 1] ** 2 * ring.energy[n_section, n_turn + 1])
+    eom_factor_potential = longitudinal_tracker.rf_params.Particle.charge / ring.t_rev[n_turn]
+    # Compute the undisturbed bucket area and separatrix
+    full_ring_and_rf.potential_well_generation(turn=n_turn)
+    time_coord_sep, potential_well_sep_ud = potential_well_cut(full_ring_and_rf.potential_well_coordinates,
+                                                               full_ring_and_rf.potential_well)
+    separatrix = np.sqrt((potential_well_sep_ud - potential_well_sep_ud[0]) / eom_factor_dE)
+    bucket_area = 2 * np.trapezoid(separatrix, dx=time_coord_sep[1] - time_coord_sep[0])
+
+    if total_induced_voltage is None:
+        return time_coord_sep, separatrix, time_coord_sep, separatrix , bucket_area, bucket_area
+
+    induced_potential = -np.sign(ring.eta_0[n_section, n_turn]) * eom_factor_potential * np.insert(
+        cumtrapz(total_induced_voltage.induced_voltage * ring.n_sections,
+                 dx=cut_options.bin_centers[1] - cut_options.bin_centers[0]), 0, 0)
+
+
+    induced_potential_interp = np.interp(full_ring_and_rf.potential_well_coordinates, cut_options.bin_centers,
+                                         induced_potential)
+
+    total_potential = full_ring_and_rf.potential_well + induced_potential_interp
+    time_coord_sep_intensity, potential_well_sep = potential_well_cut(full_ring_and_rf.potential_well_coordinates,total_potential)
+    separatrix_intensity = np.sqrt((potential_well_sep - potential_well_sep[0]) / eom_factor_dE)
+    is_nandE = np.isnan(separatrix_intensity)
+    separatrix_intensity[np.isnan(separatrix_intensity)] = 0
+    bucket_area_intensity = 2 * np.trapezoid(separatrix_intensity,dx=time_coord_sep_intensity[1] - time_coord_sep_intensity[0])
+    separatrix_intensity[np.isnan(separatrix_intensity)] = np.nan
+    return time_coord_sep, separatrix, time_coord_sep_intensity, separatrix_intensity, bucket_area, bucket_area_intensity
