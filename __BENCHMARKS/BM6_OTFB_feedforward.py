@@ -160,8 +160,8 @@ if FEEDFORWARD:
     ax1_1.set_ylabel(r"$Re(V_{\mathsf{cav}})$ [MV]")
     ax1_2.set_xlabel(r"Time [$\mu$s]")
     ax1_2.set_ylabel(r"$Im(V_{\mathsf{cav}})$ [MV]")
-    ax1_1.set_ylim((-2.5, 5))
-    ax1_2.set_ylim((-7, 0))
+    ax1_1.set_ylim((-2.8, 8))
+    ax1_2.set_ylim((-14, 0))
     ax1_1.plot(1e6 * profile.bin_centers, 1e-6 * OTFB.V_sum.real, color='grey')
     ax1_1.fill_between(1e6 * profile.bin_centers, 0, 1e-6 * OTFB.V_sum.real,
                        alpha=0.2, color='grey')
@@ -183,7 +183,7 @@ if FEEDFORWARD:
     ax2_2.set_xlabel(r"Time [$\mu$s]")
     ax2_2.set_ylabel(r"$Im(V_{\mathsf{ind,beam}})$ [MV]")
     ax2_1.set_ylim((-2.5, 5))
-    ax2_2.set_ylim((-1.8, 1.8))
+    ax2_2.set_ylim((-2.0, 2.0))
 
     OTFB.OTFB_1.V_ind_beam = np.zeros(profile.n_slices)
     OTFB.OTFB_2.V_ind_beam = np.zeros(profile.n_slices)

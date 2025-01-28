@@ -495,7 +495,7 @@ class SPSOneTurnFeedback(CavityFeedback):
         # Gain settings
         self.G_ff = float(G_ff)
         self.G_llrf = float(G_llrf)
-        self.G_tx = float(G_tx) / self.n_cavities
+        self.G_tx = float(G_tx)
 
         # 200 MHz travelling wave cavity (TWC) model
         if n_sections in [3, 4, 5]:
@@ -508,13 +508,14 @@ class SPSOneTurnFeedback(CavityFeedback):
                     sys.modules[__name__], "feedforward_filter_TWC" + str(n_sections)
                 )
                 self.n_ff = len(self.coeff_ff)  # Number of coefficients for FF
-                self.n_ff_delay = int(
+                self.n_ff_delay = round(
                     0.5 * (self.n_ff - 1)
                     + 0.5
                     * self.TWC.tau
-                    / self.rfstation.t_rf[self.n_h, self.rfstation.counter[0]]
+                    / self.T_s
                     / 5
                 )
+
                 self.logger.debug("Feed-forward delay in samples %d", self.n_ff_delay)
 
                 # Multiply gain by normalisation factors from filter and
@@ -624,15 +625,15 @@ class SPSOneTurnFeedback(CavityFeedback):
             self.omega_carrier, self.profile.bin_centers, self.rf_centers
         )
 
+        if not no_beam:
+            # Beam-induced voltage from beam profile
+            self.beam_model()
+
         # On current measured (I,Q) voltage, apply LLRF model
         self.llrf_model()
 
         # Generator-induced voltage from generator current
         self.gen_model()
-
-        if not no_beam:
-            # Beam-induced voltage from beam profile
-            self.beam_model()
 
         # Sum generator- and beam-induced voltages for coarse grid
         self.V_ANT_START = np.copy(self.V_ANT_COARSE)
@@ -653,6 +654,9 @@ class SPSOneTurnFeedback(CavityFeedback):
             self.profile.bin_centers,
             self.rf_centers,
             self.V_IND_COARSE_GEN[-self.n_coarse :],
+        )
+        self.V_ANT_FINE[-self.profile.n_slices:] = (
+            self.n_cavities * self.V_ANT_FINE[-self.profile.n_slices:]
         )
 
     def llrf_model(self):
@@ -707,8 +711,6 @@ class SPSOneTurnFeedback(CavityFeedback):
                 np.sum(I_COARSE_BEAM_RESHAPED, axis=1) / 5
             )
 
-            self.TWC.impulse_response_ffwd(self.omega_carrier, self.rf_centers[::5])
-
             # Do a down-modulation to the resonant frequency of the TWC
             self.I_BEAM_COARSE_FF_MOD[: self.n_coarse_ff] = self.I_BEAM_COARSE_FF_MOD[
                 -self.n_coarse_ff :
@@ -718,11 +720,12 @@ class SPSOneTurnFeedback(CavityFeedback):
                 omega_i=self.omega_carrier,
                 omega_f=self.omega_c,
                 T_sampling=5 * self.T_s,
-                phi_0=(self.dphi_mod + self.rfstation.dphi_rf[0]),
+                phi_0=self.dphi_mod,
+                dt=self.dT
             )
 
             self.I_FF_CORR[: self.n_coarse_ff] = self.I_FF_CORR[-self.n_coarse_ff :]
-            self.I_FF_CORR[-self.n_coarse_ff :] = np.zeros(self.n_coarse_ff)
+            self.I_FF_CORR[-self.n_coarse_ff :] = np.zeros(self.n_coarse_ff, dtype=complex)
             for ind in range(self.n_coarse_ff, 2 * self.n_coarse_ff):
                 for k in range(self.n_ff):
                     self.I_FF_CORR[ind] += (
@@ -741,7 +744,8 @@ class SPSOneTurnFeedback(CavityFeedback):
                 omega_i=self.omega_c,
                 omega_f=self.omega_carrier,
                 T_sampling=5 * self.T_s,
-                phi_0=-(self.dphi_mod + self.rfstation.dphi_rf[0] + phi_delay),
+                phi_0=-(self.dphi_mod + phi_delay),
+                dt=self.dT
             )
 
             # Compensate for FIR filter delay
@@ -764,8 +768,7 @@ class SPSOneTurnFeedback(CavityFeedback):
                 -self.n_coarse :
             ]
             self.V_IND_COARSE_BEAM[-self.n_coarse :] = (
-                self.n_cavities
-                * self.matr_conv(self.I_BEAM_COARSE, self.TWC.h_beam_coarse)[
+                self.matr_conv(self.I_BEAM_COARSE, self.TWC.h_beam_coarse)[
                     -self.n_coarse :
                 ]
                 * self.T_s
@@ -774,8 +777,7 @@ class SPSOneTurnFeedback(CavityFeedback):
             # Only convolve the slices for the current turn because the fine grid points can be less
             # than one turn in length
             self.V_IND_FINE_BEAM[-self.profile.n_slices :] = (
-                self.n_cavities
-                * self.matr_conv(
+                self.matr_conv(
                     self.I_BEAM_FINE[-self.profile.n_slices :], self.TWC.h_beam
                 )[-self.profile.n_slices :]
                 * self.profile.bin_size
@@ -791,8 +793,7 @@ class SPSOneTurnFeedback(CavityFeedback):
         # Read RF voltage from rf object
         self.V_set = self.set_point_from_rfstation()
         self.V_set = (
-            self.n_cavities
-            * self.V_part
+            self.V_part
             * self.V_set
             * np.exp(1j * (-0.5 * np.pi + np.angle(self.rot_iq)))
         )
@@ -817,7 +818,8 @@ class SPSOneTurnFeedback(CavityFeedback):
         self.DV_GEN[: self.n_coarse] = self.DV_GEN[-self.n_coarse :]
         self.DV_GEN[-self.n_coarse :] = self.G_llrf * (
             self.V_SET[-self.n_coarse :]
-            - self.open_loop * self.V_ANT_COARSE[-self.n_coarse :]
+            - self.open_loop * (self.V_IND_COARSE_GEN[-self.n_coarse :]
+            + self.V_IND_COARSE_BEAM[-self.n_coarse :])
             + self.excitation * self.NOISE[-self.n_coarse :]
         )
         self.logger.debug(
@@ -917,10 +919,11 @@ class SPSOneTurnFeedback(CavityFeedback):
         )
         # Apply amplifier gain
         self.I_GEN_COARSE[-self.n_coarse :] *= self.G_tx / self.TWC.R_gen
+
         if self.open_ff == 1:
             self.I_GEN_COARSE[-self.n_coarse :] = self.I_GEN_COARSE[
                 -self.n_coarse :
-            ] + self.G_ff * 5 * np.interp(
+            ] + self.G_ff * np.interp(
                 self.rf_centers,
                 self.rf_centers[::5],
                 self.I_FF_CORR_DEL[-self.n_coarse_ff :],
@@ -935,8 +938,7 @@ class SPSOneTurnFeedback(CavityFeedback):
         self.V_IND_COARSE_GEN[: self.n_coarse] = self.V_IND_COARSE_GEN[-self.n_coarse :]
         # Compute current turn generator-induced voltage
         self.V_IND_COARSE_GEN[-self.n_coarse :] = (
-            self.n_cavities
-            * self.matr_conv(self.I_GEN_COARSE, self.TWC.h_gen)[-self.n_coarse :]
+            self.matr_conv(self.I_GEN_COARSE, self.TWC.h_gen)[-self.n_coarse :]
             * self.T_s
         )
 
@@ -953,7 +955,7 @@ class SPSOneTurnFeedback(CavityFeedback):
         signal = np.ascontiguousarray(signal)
         kernel = np.ascontiguousarray(kernel)
 
-        result = np.zeros(len(kernel) + len(signal) - 1)
+        result = np.zeros(len(kernel) + len(signal) - 1, dtype=complex)
         bm.convolve(signal, kernel, result=result, mode="full")
 
         return result
@@ -973,6 +975,15 @@ class SPSOneTurnFeedback(CavityFeedback):
         # Present delay time
         self.n_mov_av = int(self.TWC.tau / self.rfstation.t_rf[self.n_h, self.counter])
         self.n_delay = self.n_coarse - self.n_mov_av
+
+        if self.open_ff == 1:
+            self.n_ff_delay = round(
+                0.5 * (self.n_ff - 1)
+                + 0.5
+                * self.TWC.tau
+                / self.rfstation.t_rf[self.n_h, self.counter]
+                / 5
+            )
 
     # Power related functions
     def calc_power(self):
@@ -1037,7 +1048,7 @@ class SPSCavityFeedback:
         Profile: Profile,
         G_ff=1,
         G_llrf=10,
-        G_tx=0.5,
+        G_tx=1,
         a_comb=None,
         turns: int = 1000,
         post_LS2: bool = True,
@@ -1226,7 +1237,7 @@ class SPSCavityFeedback:
                 )
                 ax.plot(
                     self.OTFB_1.rf_centers * 1e6,
-                    np.abs(self.OTFB_1.V_ANT_COARSE[-self.OTFB_1.n_coarse :]),
+                    self.OTFB_1.n_cavities * np.abs(self.OTFB_1.V_ANT_COARSE[-self.OTFB_1.n_coarse :]),
                     color=colors[i],
                     linestyle="",
                     marker=".",

@@ -162,27 +162,27 @@ if POST_LS2_4SEC:
 # BEFORE LS2
 logging.info("...... ALL PRE-LS2 CAVITIES")
 OTFB = SPSCavityFeedback(
-    rf, profile, G_llrf=5, a_comb=15/16, turns=50,
+    rf, profile, G_tx=1, G_llrf=5, a_comb=15/16, turns=50,
     post_LS2=False, commissioning=Commissioning,
     df=[rf.omega_rf[0,0] / (2 * np.pi) - 199.9945e6,
         rf.omega_rf[0, 0] / (2 * np.pi) - 200.1e6]
 )
 logging.info("Final voltage, 4-section cavities %.8e V"
-             %np.average(np.absolute(OTFB.OTFB_1.V_ANT_COARSE[-10]) * OTFB.OTFB_1.n_cavities))
+             %np.average(np.absolute(OTFB.OTFB_1.V_ANT_COARSE) * OTFB.OTFB_1.n_cavities))
 logging.info("Final voltage, 5-section cavities %.8e V"
-             %np.average(np.absolute(OTFB.OTFB_2.V_ANT_COARSE[-10]) * OTFB.OTFB_2.n_cavities))
+             %np.average(np.absolute(OTFB.OTFB_2.V_ANT_COARSE) * OTFB.OTFB_2.n_cavities))
 
 # AFTER LS2
 logging.info("...... ALL POST-LS2 CAVITIES")
 OTFB = SPSCavityFeedback(
-    rf, profile, G_llrf=5, a_comb=15/16, turns=50,
+    rf, profile, G_tx=1, G_llrf=5, a_comb=15/16, turns=50,
     post_LS2=True, commissioning=Commissioning,
     df=[rf.omega_rf[0,0] / (2 * np.pi) - 200.03766667e6,
         rf.omega_rf[0, 0] / (2 * np.pi) - 199.9945e6]
 )
 logging.info("Final voltage, 3-section cavities %.8e V"
-             %np.average(np.absolute(OTFB.OTFB_1.V_ANT_COARSE[-10]) * OTFB.OTFB_1.n_cavities))
+             %np.average(np.absolute(OTFB.OTFB_1.V_ANT_COARSE) * OTFB.OTFB_1.n_cavities))
 logging.info("Final voltage, 4-section cavities %.8e V"
-             %np.average(np.absolute(OTFB.OTFB_2.V_ANT_COARSE[-10]) * OTFB.OTFB_2.n_cavities))
+             %np.average(np.absolute(OTFB.OTFB_2.V_ANT_COARSE) * OTFB.OTFB_2.n_cavities))
 
 
