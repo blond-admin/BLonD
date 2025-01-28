@@ -239,7 +239,7 @@ if FINE_COARSE:
         downsample={'Ts': rf.t_rev[0]/rf.harmonic[0, 0], 'points': rf.harmonic[0, 0]})
 
     OTFB = SPSOneTurnFeedback(rf, profile2, 3, n_cavities=1,
-        Commissioning=SPSCavityLoopCommissioning(open_ff=True))
+        commissioning=SPSCavityLoopCommissioning(open_ff=True))
     V_beam_fine = -OTFB.matr_conv(rf_current_fine, h_beam_fine)
     V_beam_coarse = -OTFB.matr_conv(rf_current_coarse, h_beam_coarse)
     print(len(time_fine), rf_current_fine.shape, V_beam_fine.shape)
@@ -294,11 +294,11 @@ if VIND_BEAM:
     # One-turn feedback around 3-, 4-, and 5-section cavities
     omega_c = 2*np.pi*f_rf
     OTFB_3 = SPSOneTurnFeedback(rf, profile, 3,
-        Commissioning=SPSCavityLoopCommissioning(open_ff=True))
+        commissioning=SPSCavityLoopCommissioning(open_ff=True))
     OTFB_4 = SPSOneTurnFeedback(rf, profile, 4,
-        Commissioning=SPSCavityLoopCommissioning(open_ff=True))
+        commissioning=SPSCavityLoopCommissioning(open_ff=True))
     OTFB_5 = SPSOneTurnFeedback(rf, profile, 5,
-        Commissioning=SPSCavityLoopCommissioning(open_ff=True))
+        commissioning=SPSCavityLoopCommissioning(open_ff=True))
     OTFB_3.counter = 0 # First turn
     OTFB_4.counter = 0 # First turn
     OTFB_5.counter = 0 # First turn

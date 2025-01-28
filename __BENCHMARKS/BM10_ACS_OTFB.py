@@ -73,9 +73,7 @@ bigaussian(ring, rf, bunch, sigma_dt=tau_0)
 
 beam = Beam(ring, N_m * NB, N_p * NB)
 buckets = rf.t_rf[0, 0] * 10
-#for i in range(0, 144):
-#    beam.dt[i * N_m:(i + 1) * N_m] = bunch.dt[0:N_m] + i * buckets + 200 * buckets
-#    beam.dE[i * N_m:(i + 1) * N_m] = bunch.dE[0:N_m]
+
 for i in range(0, 48):
     beam.dt[i * N_m:(i + 1) * N_m] = bunch.dt[0:N_m] + i * buckets + 200 * buckets
     beam.dE[i * N_m:(i + 1) * N_m] = bunch.dE[0:N_m]

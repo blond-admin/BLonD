@@ -74,7 +74,7 @@ def init_otfb(no_sections, no_cavities, V_part, G_tx, df):
         rf, profile, no_sections,
         n_cavities=no_cavities, V_part=V_part, G_ff=0,
         G_llrf=5, G_tx=G_tx, a_comb=15/16,
-        Commissioning=Commissioning, df=df
+        commissioning=Commissioning, df=df
     )
     for i in range(50):
         OTFB.track_no_beam()

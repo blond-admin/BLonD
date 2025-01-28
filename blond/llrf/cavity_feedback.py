@@ -440,7 +440,7 @@ class SPSOneTurnFeedback(CavityFeedback):
         G_tx: float = 1,
         a_comb: float = 63 / 64,
         df: float = 0,
-        Commissioning: SPSCavityLoopCommissioning = None,
+        commissioning: SPSCavityLoopCommissioning = None,
         n_h: int = 0,
     ):
         super().__init__(
@@ -450,39 +450,39 @@ class SPSOneTurnFeedback(CavityFeedback):
         # Set up logging
         self.logger = logging.getLogger(__class__.__name__)
 
-        if Commissioning is None:
-            Commissioning = SPSCavityLoopCommissioning()
+        if commissioning is None:
+            commissioning = SPSCavityLoopCommissioning()
 
         # Commissioning options
-        self.open_loop = Commissioning.open_loop
+        self.open_loop = commissioning.open_loop
         if self.open_loop == 0:  # Open Loop
             self.logger.debug("Opening overall OTFB loop")
         elif self.open_loop == 1:
             self.logger.debug("Closing overall OTFB loop")
-        self.open_fb = Commissioning.open_fb
+        self.open_fb = commissioning.open_fb
         if self.open_fb == 0:  # Open Feedback
             self.logger.debug("Opening feedback of drive correction")
         elif self.open_fb == 1:
             self.logger.debug("Closing feedback of drive correction")
-        self.open_drive = Commissioning.open_drive
+        self.open_drive = commissioning.open_drive
         if self.open_drive == 0:  # Open Drive
             self.logger.debug("Opening drive to generator")
         elif self.open_drive == 1:
             self.logger.debug("Closing drive to generator")
-        self.open_ff = Commissioning.open_ff
+        self.open_ff = commissioning.open_ff
         if self.open_ff == 0:  # Open Feedforward
             self.logger.debug("Opening feed-forward on beam current")
         elif self.open_ff == 1:
             self.logger.debug("Closing feed-forward on beam current")
-        self.V_SET = Commissioning.V_SET
+        self.V_SET = commissioning.V_SET
         if self.V_SET is None:  # Vset as array or not
             self.set_point_modulation = False
         else:
             self.set_point_modulation = True
 
-        self.cpp_conv = Commissioning.cpp_conv
-        self.rot_iq = Commissioning.rot_iq
-        self.excitation = Commissioning.excitation
+        self.cpp_conv = commissioning.cpp_conv
+        self.rot_iq = commissioning.rot_iq
+        self.excitation = commissioning.excitation
 
         self.n_sections = int(n_sections)
 
@@ -1043,15 +1043,9 @@ class SPSCavityFeedback:
         post_LS2: bool = True,
         V_part=None,
         df=0,
-        Commissioning: SPSCavityLoopCommissioning = None,
+        commissioning: list | SPSCavityLoopCommissioning = SPSCavityLoopCommissioning(),
         n_h: int = 0,
     ):
-        # Options for commissioning the feedback
-        if Commissioning is None:
-            Commissioning = SPSCavityLoopCommissioning()
-
-        self.Commissioning = Commissioning
-        self.rot_iq = Commissioning.rot_iq
 
         self.rfstation = RFStation
 
@@ -1084,6 +1078,13 @@ class SPSCavityFeedback:
             df_1 = df
             df_2 = df
 
+        if hasattr(commissioning, "__iter__"):
+            commissioning_1 = commissioning[0]
+            commissioning_2 = commissioning[1]
+        else:
+            commissioning_1 = commissioning
+            commissioning_2 = commissioning
+
         # Voltage partitioning has to be a fraction
         if V_part and V_part * (1 - V_part) < 0:
             raise RuntimeError(
@@ -1108,7 +1109,7 @@ class SPSCavityFeedback:
                 G_tx=float(G_tx_1),
                 a_comb=float(a_comb),
                 df=float(df_1),
-                Commissioning=self.Commissioning,
+                commissioning=commissioning_1,
                 n_h=n_h,
             )
             self.OTFB_2 = SPSOneTurnFeedback(
@@ -1122,7 +1123,7 @@ class SPSCavityFeedback:
                 G_tx=float(G_tx_2),
                 a_comb=float(a_comb),
                 df=float(df_2),
-                Commissioning=self.Commissioning,
+                commissioning=commissioning_2,
                 n_h=n_h,
             )
         else:
@@ -1142,7 +1143,7 @@ class SPSCavityFeedback:
                 G_tx=float(G_tx_1),
                 a_comb=float(a_comb),
                 df=float(df_1),
-                Commissioning=self.Commissioning,
+                commissioning=commissioning_1,
                 n_h=n_h,
             )
             self.OTFB_2 = SPSOneTurnFeedback(
@@ -1156,7 +1157,7 @@ class SPSCavityFeedback:
                 G_tx=float(G_tx_2),
                 a_comb=float(a_comb),
                 df=float(df_2),
-                Commissioning=self.Commissioning,
+                commissioning=commissioning_2,
                 n_h=n_h,
             )
 
@@ -1170,7 +1171,7 @@ class SPSCavityFeedback:
             raise RuntimeError(
                 "ERROR in SPSCavityFeedback: 'turns' has to" " be a positive integer!"
             )
-        self.track_init(debug=Commissioning.debug)
+        self.track_init(debug=commissioning_1.debug)
 
         self.logger.info("Class initialized")
 
