@@ -47,7 +47,7 @@ if TYPE_CHECKING:
     from ..input_parameters.rf_parameters import RFStation
     from ..utils.types import DeviceType
 
-    MainHarmonicOptionType = Union[Literal['lowest_freq', 'highest_voltage'], float]
+    MainHarmonicOptionType = Literal['lowest_freq', 'highest_voltage'] | float
 
 
 class FullRingAndRF:
