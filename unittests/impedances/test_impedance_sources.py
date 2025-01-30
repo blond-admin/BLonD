@@ -16,6 +16,10 @@ Unittest for impedances.impedance_sources
 import unittest
 
 import numpy as np
+try:
+    np.trapezoid
+except AttributeError:
+    np.trapezoid = np.trapz
 from scipy.constants import e as elCharge
 
 from blond.beam.beam import Electron

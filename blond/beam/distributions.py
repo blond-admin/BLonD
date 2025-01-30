@@ -32,6 +32,11 @@ if Version(scipy.__version__) >= Version("1.14"):
     from scipy.integrate import cumulative_trapezoid as cumtrapz
 else:
     from scipy.integrate import cumtrapz
+try:
+    import numpy as np
+    np.trapezoid
+except AttributeError:
+    np.trapezoid = np.trapz
 
 from .profile import CutOptions, Profile
 from ..trackers.utilities import is_in_separatrix, minmax_location, potential_well_cut

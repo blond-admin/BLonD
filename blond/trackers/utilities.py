@@ -21,6 +21,10 @@ import warnings
 from typing import TYPE_CHECKING
 
 import numpy as np
+try:
+    np.trapezoid
+except AttributeError:
+    np.trapezoid = np.trapz
 import scipy
 from packaging.version import Version
 from scipy.constants import c
