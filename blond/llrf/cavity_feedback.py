@@ -1250,8 +1250,8 @@ class SPSCavityFeedback:
         self.V_sum = np.interp(
             self.OTFB_1.profile.bin_centers,
             self.OTFB_1.rf_centers,
-            self.OTFB_1.V_IND_COARSE_GEN[-self.OTFB_1.n_coarse :]
-            + self.OTFB_2.V_IND_COARSE_GEN[-self.OTFB_2.n_coarse :],
+            self.OTFB_1.n_cavities * self.OTFB_1.V_IND_COARSE_GEN[-self.OTFB_1.n_coarse :]
+            + self.OTFB_2.n_cavities * self.OTFB_2.V_IND_COARSE_GEN[-self.OTFB_2.n_coarse :],
         )
 
         # Convert to amplitude and phase
