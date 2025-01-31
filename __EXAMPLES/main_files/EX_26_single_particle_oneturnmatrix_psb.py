@@ -23,8 +23,8 @@ from blond.trackers.tracker import RingAndRFTracker
 
 # Interface
 from blond.interfaces.xsuite import (BlondElement,
-                                     blond_beam_to_xsuite_coords,
-                                     xsuite_coords_to_blond_coords)
+                                     blond_to_xsuite_transform,
+                                     xsuite_to_blond_transform)
 
 # Monitor objects
 from blond.monitors.monitors import BunchMonitor
@@ -153,11 +153,11 @@ line.get_table().show()
 print(f"\nSetting up simulation...")
 
 # --- Convert the initial BLonD distribution to xsuite coordinates ---
-zeta, ptau = blond_beam_to_xsuite_coords(beam, 
-                                         line.particle_ref.beta0[0],
-                                         line.particle_ref.energy0[0],
-                                         phi_s=rfstation.phi_s[0] - rfstation.phi_rf[0, 0],      # Correct for RF phase
-                                         omega_rf=rfstation.omega_rf[0, 0])
+zeta, ptau = blond_to_xsuite_transform(
+    beam.dt, beam.dE, line.particle_ref.beta0[0],
+    line.particle_ref.energy0[0], phi_s=rfstation.phi_s[0] - rfstation.phi_rf[0, 0],      # Correct for RF phase
+    omega_rf=rfstation.omega_rf[0, 0]
+)
 
 # --- Track matrix ---
 particles = line.build_particles(x=0, y=0, px=0, py=0, zeta=np.copy(zeta), ptau=np.copy(ptau))
@@ -184,11 +184,12 @@ xsuite_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.
 
 # Convert the xsuite particle coordinates back to BLonD
 for i in range(N_t):
-    dt, dE = xsuite_coords_to_blond_coords(mon.zeta[:, i].T, mon.ptau[:, i].T,
-                                           rfstation.beta[i],
-                                           rfstation.energy[i],
-                                           phi_s=rfstation.phi_s[i] - rfstation.phi_rf[0, 0],  # Correct for RF phase
-                                           omega_rf=rfstation.omega_rf[0, i])
+    dt, dE = xsuite_to_blond_transform(
+        mon.zeta[:, i].T, mon.ptau[:, i].T,
+        rfstation.beta[i], rfstation.energy[i],
+        phi_s=rfstation.phi_s[i] - rfstation.phi_rf[0, 0],  # Correct for RF phase
+        omega_rf=rfstation.omega_rf[0, i]
+    )
 
     # Statistics
     test_string += ('{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}'

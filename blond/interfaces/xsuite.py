@@ -21,13 +21,15 @@ if TYPE_CHECKING:
     from typing import Any, Union
 
 
-def blond_beam_to_xsuite_coords(beam: Beam, beta0: float, energy0: float,
-                                omega_rf: float, phi_s: float = 0):
+def blond_to_xsuite_transform(dt: Union[float, np.ndarray], de: Union[float, np.ndarray], beta0: float,
+                              energy0: float, omega_rf: float, phi_s: float = 0):
     r'''
     Coordinate transformation from Xsuite to BLonD at a given turn or multiple turns if numpy arrays ar given.
 
-    :param beam: blond.beam.beam.Beam class.
-        BLonD beam class to extract the initial coordinates dE and dt.
+    :param dt: float or NDArray.
+        The deviation in time from the reference clock in BLonD.
+    :param de: float or NDArray.
+        The deviation in energy from the synchronous particle.
     :param beta0: float.
         Synchronous beta.
     :param energy0: float.
@@ -40,13 +42,14 @@ def blond_beam_to_xsuite_coords(beam: Beam, beta0: float, energy0: float,
 
     :return zeta, ptau: as numpy-arrays (or single variable)
     '''
-    ptau = beam.dE / (beta0 * energy0)
-    zeta = -(beam.dt - phi_s / omega_rf) * beta0 * clight
+
+    ptau = de / (beta0 * energy0)
+    zeta = -(dt - phi_s / omega_rf) * beta0 * clight
     return zeta, ptau
 
 
-def xsuite_coords_to_blond_coords(zeta: Union[float, np.ndarray], ptau: Union[float, np.ndarray],
-                                  beta0: float, energy0: float, omega_rf: float, phi_s: float = 0):
+def xsuite_to_blond_transform(zeta: Union[float, np.ndarray], ptau: Union[float, np.ndarray],
+                              beta0: float, energy0: float, omega_rf: float, phi_s: float = 0):
     r'''
     Coordinate transformation from Xsuite to BLonD.
 
