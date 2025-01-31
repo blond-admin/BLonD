@@ -26,7 +26,6 @@ from ..trackers.utilities import is_in_separatrix
 from ..utils import bmath as bm
 from ..utils import exceptions as blExcept
 
-
 m_mu = physical_constants['muon mass'][0]
 
 if TYPE_CHECKING:
