@@ -31,19 +31,124 @@ from blond.monitors.monitors import BunchMonitor
 
 from blond.interfaces.xsuite import (BlondElement, BlondObserver,
                                      EnergyUpdate,
-                                     blond_beam_to_xsuite_coords,
-                                     xsuite_coords_to_blond_coords)
-
-this_directory = os.path.dirname(os.path.realpath(__file__))
+                                     blond_to_xsuite_transform,
+                                     xsuite_to_blond_transform)
 
 # TODO: Make a test of the EnergyFrequencyUpdate and BlondObserver classes
 
 
 class TestXsuiteBLonDTransforms(unittest.TestCase):
-    # TODO: finish implementation of the test of the particle coordinates
-    def setUp(self):
-        pass
 
+    def setUp(self):
+        # Accelerator parameters
+        C = 26658.8832
+        p_s = 450e9
+        h = 35640
+        alpha = 0.00034849575112251314
+        V = 5e6
+        dphi = 0
+
+        # BLonD ring and RF station
+        self.ring = Ring(C, alpha, p_s, Proton(), n_turns=1)
+        self.rfstation = RFStation(self.ring, [h], [V], [dphi])
+
+    def testBlondToXsuiteTransform(self):
+        # Arrays of time and energy offsets
+        dts = np.linspace(
+            self.rfstation.t_rf[0, 0] * 1e-3,
+            self.rfstation.t_rf[0, 0], 10
+        )
+        dEs = np.linspace(-200e6, 200e6, 10)
+
+        # Transform BLonD coordinates to Xsuite
+        zeta, ptau = blond_to_xsuite_transform(
+            dts, dEs, self.ring.beta[0, 0], self.ring.energy[0, 0],
+            self.rfstation.omega_rf[0, 0], self.rfstation.phi_s[0]
+        )
+
+        # Correct values
+        act_zeta = np.array(
+            [0.37325428,  0.29022578,  0.20719727,  0.12416876,  0.04114025,
+             -0.04188826, -0.12491676, -0.20794527, -0.29097378, -0.37400229]
+        )
+        act_ptau = np.array(
+            [-4.44444444e-04, -3.45679012e-04, -2.46913580e-04, -1.48148148e-04, -4.93827160e-05,
+             4.93827160e-05,  1.48148148e-04,  2.46913580e-04, 3.45679012e-04,  4.44444444e-04]
+        )
+
+        # Check if the coordinates are the same
+        np.testing.assert_allclose(
+            act_zeta, zeta,
+            err_msg='In testBlondToXsuiteTransform the zeta-coordinate differs'
+        )
+        np.testing.assert_allclose(
+            act_ptau, ptau,
+            err_msg='In testBlondToXsuiteTransform the ptau-coordinate differs'
+        )
+
+    def testXsuiteToBlondTransform(self):
+        # Arrays of z and ptau from xsuite
+        zeta = np.linspace(
+            -0.37, 0.37, 10
+        )
+        ptau = np.linspace(
+            -4e-4, 4e-4, 10
+        )
+
+        # Transform BLonD coordinates to Xsuite
+        dt, de = xsuite_to_blond_transform(
+            zeta, ptau, self.ring.beta[0, 0], self.ring.energy[0, 0],
+            self.rfstation.omega_rf[0, 0], self.rfstation.phi_s[0]
+        )
+
+        # Correct values
+        act_dt = np.array(
+            [2.48172990e-09, 2.20746549e-09, 1.93320108e-09, 1.65893668e-09, 1.38467227e-09,
+             1.11040786e-09, 8.36143453e-10, 5.61879046e-10, 2.87614638e-10, 1.33502300e-11]
+        )
+        act_de = np.array(
+            [-1.8e+08, -1.4e+08, -1.0e+08, -6.0e+07, -2.0e+07,
+             2.0e+07,  6.0e+07,  1.0e+08, 1.4e+08,  1.8e+08]
+        )
+
+        # Check if the coordinates are the same
+        np.testing.assert_allclose(
+            act_dt, dt,
+            err_msg='In testXsuiteToBlondTransform the time-coordinate differs'
+        )
+        np.testing.assert_allclose(
+            act_de, de,
+            err_msg='In testXsuiteToBlondTransform the energy-coordinate differs'
+        )
+
+    def testTransformInverse(self):
+        # Arrays of time and energy offsets
+        dts = np.linspace(
+            self.rfstation.t_rf[0, 0] * 1e-3,
+            self.rfstation.t_rf[0, 0], 20
+        )
+        dEs = np.linspace(-200e6, 200e6, 20)
+
+        # Perform transforms to xsuite coordinates and back
+        zeta, ptau = blond_to_xsuite_transform(
+            dts, dEs, self.ring.beta[0, 0], self.ring.energy[0, 0],
+            self.rfstation.omega_rf[0, 0], self.rfstation.phi_s[0]
+        )
+
+        _dts, _dEs = xsuite_to_blond_transform(
+            zeta, ptau, self.ring.beta[0, 0], self.ring.energy[0, 0],
+            self.rfstation.omega_rf[0, 0], self.rfstation.phi_s[0]
+        )
+
+        # Check if the coordinates are the same
+        np.testing.assert_allclose(
+            dts, _dts,
+            err_msg='In testTransformInverse the time-coordinate differs'
+        )
+        np.testing.assert_allclose(
+            dEs, _dEs,
+            err_msg='In testTransformInverse the energy-coordinate differs'
+        )
 
 class TestXsuiteLHC(unittest.TestCase):
 
@@ -273,11 +378,11 @@ class TestXsuiteLHC(unittest.TestCase):
         line.build_tracker()
 
         # --- Convert the initial BLonD distribution to xsuite coordinates ---
-        zeta, ptau = blond_beam_to_xsuite_coords(beam,
-                                                 line.particle_ref.beta0[0],
-                                                 line.particle_ref.energy0[0],
-                                                 phi_s=blond_track.rf_params.phi_s[0],
-                                                 omega_rf=blond_track.rf_params.omega_rf[0, 0])
+        zeta, ptau = blond_to_xsuite_transform(
+            beam.dt, beam.dE, line.particle_ref.beta0[0],
+            line.particle_ref.energy0[0], phi_s=blond_track.rf_params.phi_s[0],
+            omega_rf=blond_track.rf_params.omega_rf[0, 0]
+        )
 
         # --- Track matrix ---
         N_t = len(blond_track.rf_params.phi_s) - 1
@@ -289,7 +394,7 @@ class TestXsuiteLHC(unittest.TestCase):
         dE_array = np.zeros(N_t)
         # Convert the xsuite particle coordinates back to BLonD
         for i in range(N_t):
-            dt_array[i], dE_array[i] = xsuite_coords_to_blond_coords(
+            dt_array[i], dE_array[i] = xsuite_to_blond_transform(
                 mon.zeta[:, i].T, mon.ptau[:, i].T, blond_track.rf_params.beta[i], blond_track.rf_params.energy[i],
                 phi_s=blond_track.rf_params.phi_s[i] - blond_track.rf_params.phi_rf[0, 0],
                 omega_rf=blond_track.rf_params.omega_rf[0, i]
@@ -478,8 +583,8 @@ class TestXsuitePSB(unittest.TestCase):
         line.build_tracker()
 
         # --- Convert the initial BLonD distribution to xsuite coordinates ---
-        zeta, ptau = blond_beam_to_xsuite_coords(
-            beam, line.particle_ref.beta0[0], line.particle_ref.energy0[0],
+        zeta, ptau = blond_to_xsuite_transform(
+            beam.dt, beam.dE, line.particle_ref.beta0[0], line.particle_ref.energy0[0],
             phi_s=blond_track.rf_params.phi_s[0] - blond_track.rf_params.phi_rf[0, 0],
             omega_rf=blond_track.rf_params.omega_rf[0, 0]
         )
@@ -494,7 +599,7 @@ class TestXsuitePSB(unittest.TestCase):
         dE_array = np.zeros(N_t)
         # Convert the xsuite particle coordinates back to BLonD
         for i in range(N_t):
-            dt_array[i], dE_array[i] = xsuite_coords_to_blond_coords(
+            dt_array[i], dE_array[i] = xsuite_to_blond_transform(
                 mon.zeta[:, i].T, mon.ptau[:, i].T, blond_track.rf_params.beta[i], blond_track.rf_params.energy[i],
                 phi_s=blond_track.rf_params.phi_s[i] - blond_track.rf_params.phi_rf[0, 0],
                 omega_rf=blond_track.rf_params.omega_rf[0, i]
