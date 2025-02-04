@@ -1,5 +1,5 @@
 # Futurisation
-from __future__ import annotation
+from __future__ import annotations
 
 # General
 from typing import TYPE_CHECKING
@@ -17,13 +17,18 @@ class TurnCounter:
         self.current_turn = 0
         self.current_section = 0
 
+        self._max_turns = -1
+        self._n_sections = -1
+
+        self.initialised = False
+
     def __next__(self):
 
-        if (self.current_turn == (self.max_turns-1)
-            and self.current_section == (self.n_sections-1)):
+        if (self.current_turn == (self._max_turns)
+            and self.current_section == (self._n_sections-1)):
             raise StopIteration
 
-        if self.current_section == (self.n_sections-1):
+        if self.current_section == (self._n_sections-1):
             self.current_section = 0
             self.current_turn += 1
         else:
@@ -35,10 +40,21 @@ class TurnCounter:
         return self
 
     def __str__(self):
-        return f"{self.name} - Turn {self.current_turn} - Section {self.current_section}"
+        return (f"{self.name} - Turn {self.current_turn}/{self._max_turns}"
+                f" - Section {self.current_section}/{self._n_sections}")
 
     def __repr__(self):
         return self.__str__()
+
+
+    def initialise(self, max_turns: int, n_sections: int):
+
+        if self.initialised:
+            raise RuntimeError("Counter already initialised")
+
+        self._max_turns = int(max_turns)
+        self._n_sections = int(n_sections)
+        self.initialised = True
 
 
 _DEFINED_COUNTERS : Dict[str, TurnCounter] = {}
