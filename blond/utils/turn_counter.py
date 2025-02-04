@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Dict
+    from typing import Optional
 
 
 class TurnCounter:
@@ -57,10 +57,10 @@ class TurnCounter:
         self.initialised = True
 
 
-_DEFINED_COUNTERS : Dict[str, TurnCounter] = {}
+_DEFINED_COUNTERS : dict[str, TurnCounter] = {}
 
 
-def get_turn_counter(name: str = None) -> TurnCounter:
+def get_turn_counter(name: Optional[str] = None) -> TurnCounter:
 
     if name is None:
         name = 'BLonD'
