@@ -245,7 +245,7 @@ class _InducedVoltage:
         self.profile = profile
 
         # Induced voltage from the sum of the wake sources in V
-        self.induced_voltage: NDArray  = np.zeros(int(profile.n_slices), dtype=bm.precision.real_t, order='C')
+        self.induced_voltage: NDArray = np.zeros(int(profile.n_slices), dtype=bm.precision.real_t, order='C')
 
         # Wake length in s (optional)
         self.wake_length_input = wake_length
