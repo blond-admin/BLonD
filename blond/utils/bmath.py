@@ -48,7 +48,7 @@ def use_cpp():
         'interp_cpp': _cpp.interp_cpp,
         'interp_const_space': _cpp.interp_const_space,
         'interp_const_bin': _cpp.interp_const_bin,
-        'cumtrapz': _cpp.cumtrapz,
+        # 'cumtrapz': _cpp.cumtrapz, # needs reimplementation to match cupy/scipy
         'trapz_cpp': _cpp.trapz_cpp,
         'linspace_cpp': _cpp.linspace_cpp,
         'argmin_cpp': _cpp.argmin_cpp,
