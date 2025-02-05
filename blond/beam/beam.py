@@ -329,7 +329,7 @@ class Beam:
             case (None, inten, rat) if inten is not None and rat is not None:
                 raise ValueError("Setting both intensity and ratio is not a"
                                  + " valid option")
-            case (n_mac, None, None): self._n_macroparticles = n_mac
+            case (n_mac, None, None): self._set_n_macroparticles(n_mac)
 
             case (None, inten, None): self._set_intensity(inten)
             
@@ -342,6 +342,10 @@ class Beam:
             case (n_mac, None, rat):
                 self._n_macroparticles = n_mac
                 self._set_ratio(rat)
+
+    def _set_n_macroparticles(self, n_macroparticles: int):
+        self._n_macroparticles = n_macroparticles
+        self._ratio = self._intensity / self._n_macroparticles
 
     def _set_intensity(self, intensity: float):
         self._intensity = intensity

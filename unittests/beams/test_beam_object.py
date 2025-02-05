@@ -390,6 +390,45 @@ class testBeamClass(unittest.TestCase):
                          "Beam n_macroparticles should be 10")
         self.assertEqual(self.beam.intensity, 10, "Beam intensity should be 10")
 
+    def test_beam_info_n_macroparticles(self):
+        self.beam.n_macroparticles = 1
+        self.beam.intensity = 1
+        self.assertEqual(self.beam.n_macroparticles, 1)
+        self.assertEqual(self.beam.intensity, 1)
+        self.assertEqual(self.beam.ratio, 1)
+
+        # ratio = intensity / n_macroparticles
+        self.beam.n_macroparticles = 10
+        self.assertEqual(self.beam.n_macroparticles, 10)
+        self.assertEqual(self.beam.ratio, .1)
+        self.assertEqual(self.beam.intensity, 1)
+
+    def test_beam_info_intensity(self):
+        self.beam.n_macroparticles = 1
+        self.beam.intensity = 1
+        self.assertEqual(self.beam.n_macroparticles, 1)
+        self.assertEqual(self.beam.intensity, 1)
+        self.assertEqual(self.beam.ratio, 1)
+
+        # ratio = intensity / n_macroparticles
+        self.beam.intensity = 10
+        self.assertEqual(self.beam.n_macroparticles, 1)
+        self.assertEqual(self.beam.ratio, 10)
+        self.assertEqual(self.beam.intensity, 10)
+
+    def test_beam_info_ratio(self):
+        self.beam.n_macroparticles = 1
+        self.beam.intensity = 1
+        self.assertEqual(self.beam.n_macroparticles, 1)
+        self.assertEqual(self.beam.intensity, 1)
+        self.assertEqual(self.beam.ratio, 1)
+
+        # ratio = intensity / n_macroparticles
+        self.beam.ratio = 10 # sets implicitly intensity
+        self.assertEqual(self.beam.n_macroparticles, 1)
+        self.assertEqual(self.beam.ratio, 10)
+        self.assertEqual(self.beam.intensity, 10)
+
 
 if __name__ == '__main__':
 
