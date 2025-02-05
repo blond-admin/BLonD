@@ -266,7 +266,7 @@ class Beam:
         return self._mpi_n_total_macroparticles_lost
 
     @n_total_macroparticles_lost.setter
-    def TODO(self, val):
+    def n_total_macroparticles_lost(self, val):
         self._mpi_n_total_macroparticles_lost = val
 
     @property
@@ -279,12 +279,12 @@ class Beam:
         self._mpi_n_total_macroparticles = val
 
     @property
-    def _is_splitted(self):
+    def is_splitted(self):
         warnings.warn("Use '_mpi_is_splitted' instead !", DeprecationWarning)
         return self._mpi_is_splitted
 
-    @_is_splitted.setter
-    def _is_splitted(self, val):
+    @is_splitted.setter
+    def is_splitted(self, val):
         self._mpi_is_splitted = val
 
     @property
