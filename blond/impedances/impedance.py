@@ -210,7 +210,8 @@ class _InducedVoltage:
     """
 
     def __init__(self, Beam, Profile, frequency_resolution=None,
-                 wake_length=None, multi_turn_wake=False, mtw_mode: Literal['freq', 'time'] = 'time',
+                 wake_length=None, multi_turn_wake=False,
+                 mtw_mode: Literal['freq', 'time'] = 'time',
                  RFParams=None, use_regular_fft=True):
 
         # Beam object in order to access the beam info
@@ -220,7 +221,8 @@ class _InducedVoltage:
         self.profile = Profile
 
         # Induced voltage from the sum of the wake sources in V
-        self.induced_voltage = np.zeros(int(Profile.n_slices), dtype=bm.precision.real_t, order='C')
+        self.induced_voltage = np.zeros(int(Profile.n_slices),
+                                        dtype=bm.precision.real_t, order='C')
 
         # Wake length in s (optional)
         self.wake_length_input = wake_length
@@ -449,7 +451,8 @@ class InducedVoltageTime(_InducedVoltage):
     """
 
     def __init__(self, Beam, Profile, wake_source_list, wake_length=None,
-                 multi_turn_wake=False, RFParams=None, mtw_mode: Literal['freq', 'time'] = 'time',
+                 multi_turn_wake=False, RFParams=None,
+                 mtw_mode: Literal['freq', 'time'] = 'time',
                  use_regular_fft=True):
 
         # Wake sources list (e.g. list of Resonator objects)
@@ -608,7 +611,8 @@ class InducedVoltageFreq(_InducedVoltage):
 
     def __init__(self, Beam, Profile, impedance_source_list,
                  frequency_resolution=None, multi_turn_wake=False,
-                 front_wake_length=0, RFParams=None, mtw_mode: Literal['freq', 'time'] = 'time',
+                 front_wake_length=0, RFParams=None,
+                 mtw_mode: Literal['freq', 'time'] = 'time',
                  use_regular_fft=True):
 
         # Impedance sources list (e.g. list of Resonator objects)
