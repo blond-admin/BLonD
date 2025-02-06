@@ -17,19 +17,19 @@ def clone_gitlab_repo(repo_url: str, destination_folder: str):
         print(f"Error cloning repository: {e}")
 
 
-class RfNoise(unittest.TestCase):
-    def setUp(self):
-        try:
-            from blond.interfaces.rf_noise_cpp.wrap_rf_noise import rf_noise, _local_path  # only possible after setUp
-        except FileNotFoundError:
-            repo_url = 'https://gitlab.cern.ch/be-rf-cs/Tools-and-libs/rf-noise-cpp'  # Replace with your repo URL
-            destination_folder = Path(__file__).parent.resolve() / 'rf-noise-cpp'  # Folder where you want to clone the repo
-            print(destination_folder)
-            if not destination_folder.exists():
-                clone_gitlab_repo(repo_url, str(destination_folder))
-            os.environ["RF_NOISE_DIR"] = str(destination_folder)
-    def test_flat_noise(self):
+def rf_noise_repo_is_missing():
+    try:
         from blond.interfaces.rf_noise_cpp.wrap_rf_noise import rf_noise, _local_path  # only possible after setUp
+        return False, ""
+    except FileNotFoundError as exc:
+        return True, str(exc)
+
+
+class RfNoise(unittest.TestCase):
+
+    @unittest.skipIf(*rf_noise_repo_is_missing())
+    def test_flat_noise(self):
+        from blond.interfaces.rf_noise_cpp.wrap_rf_noise import rf_noise  # only possible after setUp
         ys = np.ones(10)
         xs = np.linspace(0.0, 1.0, len(ys))  # flat denisity within band
         N = 20000000
@@ -74,7 +74,7 @@ class RfNoise(unittest.TestCase):
         from blond.interfaces.rf_noise_cpp.wrap_rf_noise import rf_noise, _local_path  # only possible after setUp
         ys = np.loadtxt(_local_path / "lhc_spectrum.txt")
         xs = np.linspace(0.0, 1.0, len(ys))
-        N = 20000000
+        N = 20_000_000
         f_low = np.linspace(10, 100, N)
         f_high = np.linspace(20, 200, N)
         results = np.empty(N)

@@ -18,7 +18,9 @@ ENV DEBIAN_FRONTEND=noninteractive
 # 3. Build your docker container
 RUN --mount=type=secret,id=gitlab_token \
     GITLAB_READ_TOKEN=$(cat /run/secrets/gitlab_token) && \
-    git clone https://oauth2:$GITLAB_READ_TOKEN@gitlab.cern.ch/be-rf-cs/Tools-and-libs/rf-noise-cpp.git/ /usr/local/rf-noise-cpp
+    git clone https://oauth2:$GITLAB_READ_TOKEN@gitlab.cern.ch/be-rf-cs/Tools-and-libs/rf-noise-cpp.git/ /usr/local/rf-noise-cpp && \
+    cd /usr/local/rf-noise-cpp/ && \
+    git checkout c735f8b715f74bcbc55c1facb50f2d9660d6db9a
 RUN apt-get update && \
     apt-get install -y libboost-all-dev
 ENV RF_NOISE_DIR=/usr/local/rf-noise-cpp

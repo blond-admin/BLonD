@@ -1,3 +1,5 @@
+// hardcopy from https://gitlab.cern.ch/bbielaws/varinoisegen (30.10.2024)
+// Commit SHA 9f32cdbffcdaed60e07d3ba3cdcc71b617dede82
 #ifndef VARIGEN_DEF
 #define VARIGEN_DEF
 
