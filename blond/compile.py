@@ -264,11 +264,13 @@ def compile_cpp_library(args, cflags, float_flags, libs, cpp_files):
         print('FFTW3 Library path: ', args['with_fftw_lib'])
         print('FFTW3 Headers path: ', args['with_fftw_header'])
     print('C++ Compiler: ', compiler)
-    compiler_version = subprocess.run([compiler, '--version'],
-                                      capture_output=True,
-                                      check=False).stdout.decode().split('\n')[0]
-    print('Compiler version: ', compiler_version)
-
+    try:
+        compiler_version = subprocess.run([compiler, '--version'],
+                                        capture_output=True,
+                                        check=False).stdout.decode().split('\n')[0]
+        print('Compiler version: ', compiler_version)
+    except FileNotFoundError as exc:
+        raise RuntimeError(f"Compiler '{compiler}' not found.") from exc
     print('Compiler flags: ', ' '.join(cflags))
     print('Extra libraries: ', ' '.join(libs))
 
@@ -337,9 +339,14 @@ def compile_cuda_library(args, nvccflags, float_flags, cuda_files, nvcc):
 
     
     print('CUDA Compiler: ', nvcc)
-    compiler_version = subprocess.run([nvcc, '--version'],
+    try:
+
+        compiler_version = subprocess.run([nvcc, '--version'],
                                       capture_output=True,
                                       check=False).stdout.decode().split('\n')[0]
+    except FileNotFoundError as exc:
+        raise RuntimeError(f"Compiler '{nvcc}' not found.") from exc
+    
     print('Compiler version: ', compiler_version)
     print('Compiler flags: ', ' '.join(nvccflags))
     print('CuPy location: ', cupyloc)
