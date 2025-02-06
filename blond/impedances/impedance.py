@@ -1041,9 +1041,6 @@ class InducedVoltageResonator(_InducedVoltage):
     def on_profile_change(self):
         self.process(self)
 
-
-
-
     def induced_voltage_1turn(self, beam_spectrum_dict={}):
         r"""
         Method to calculate the induced voltage through linearly
