@@ -191,9 +191,6 @@ class TestGeneralParameters(unittest.TestCase):
                     [np.float64(1.0), np.float64(2.0), np.float64(3.0)])  # might crash
         Ring(C, alpha, momentum, Proton(), n_turns)  # might crash
 
-
-
-
     def test_bug_multi_RF_dE(self):
         from blond.beam.beam import Proton
         C = 2 * np.pi * 1100.009  # Ring circumference [m]
