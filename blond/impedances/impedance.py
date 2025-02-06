@@ -460,8 +460,6 @@ class _InducedVoltage:
                                     self.time_mtw, self.mtw_memory,
                                     left=0, right=0)
 
-
-
     def _track(self):
         """
         Tracking method
