@@ -73,6 +73,7 @@ __new_by_old = {
     "RingAndRFSection_list": "ring_and_rf_section",
     "BeamFeedback": "beam_feedback",
     "CavityFeedback": "cavity_feedback",
-    "smoothOption": "smooth_option"
+    "smoothOption": "smooth_option",
+    "timeArray":"time_array",
 }
 handle_legacy_kwargs = _handle_legacy_kwargs(__new_by_old)

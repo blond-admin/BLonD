@@ -15,6 +15,7 @@ Project website: http://blond.web.cern.ch/
 
 extern "C" void kick(const real_t * __restrict__ beam_dt,
                         real_t * __restrict__ beam_dE, const int n_rf,
+                        const real_t charge,
                         const real_t * __restrict__ voltage,
                         const real_t * __restrict__ omega_RF,
                         const real_t * __restrict__ phi_RF,
@@ -24,12 +25,12 @@ extern "C" void kick(const real_t * __restrict__ beam_dt,
     // KICK
     #pragma omp parallel for
     for (int i = 0; i < n_macroparticles; i++){
-        double dE_sum = acc_kick;
-        const double dti = beam_dt[i];
+        real_t dE_sum = 0.0;
+        const real_t dti = beam_dt[i];
         for (int j = 0; j < n_rf; j++){
             dE_sum += voltage[j] * FAST_SIN(omega_RF[j] * dti + phi_RF[j]);
         }
-        beam_dE[i] += dE_sum;
+        beam_dE[i] += charge * dE_sum + acc_kick;
     }
 }
 
