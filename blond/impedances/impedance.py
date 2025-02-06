@@ -1044,7 +1044,7 @@ class InducedVoltageResonator(_InducedVoltage):
                                                 self.n_resonators,
                                                 self.omega_r,
                                                 self.Q, self._tmp_matrix,
-                                                self.beam.Particle.charge,
+                                                self.beam.particle.charge,
                                                 self.beam.n_macroparticles,
                                                 self.beam.ratio, self.R,
                                                 self.induced_voltage,

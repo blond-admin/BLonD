@@ -366,10 +366,9 @@ class Resonators(_ImpedanceObject):
             Output impedance in :math:`\Omega + j \Omega`
         """
 
-        if not isinstance(self.impedance, int):
+        if not isinstance(self.impedance, int) and (len(self.impedance) == len(frequency_array)):
+            impedance = self.impedance  # reuse and overwrite self.impedance
 
-            if len(self.impedance) == len(frequency_array):
-                impedance = self.impedance  # reuse and overwrite self.impedance
         else:
             impedance = None
         self.frequency_array = frequency_array

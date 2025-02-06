@@ -791,7 +791,8 @@ def set_random_seed(seed):
     get_libblond().set_random_seed(ct.c_int(seed))
 
 
-def fast_resonator(R_S: np.ndarray, Q: np.ndarray, frequency_array: np.ndarray, frequency_R: np.ndarray, impedance: Optional[NDArray]=None) -> NDArray:
+def fast_resonator(R_S: np.ndarray, Q: np.ndarray, frequency_array: np.ndarray,
+                   frequency_R: np.ndarray, impedance: Optional[NDArray] = None) -> NDArray:
     R_S = R_S.astype(dtype=precision.real_t, order='C', copy=False)
     Q = Q.astype(dtype=precision.real_t, order='C', copy=False)
     frequency_array = frequency_array.astype(
@@ -811,7 +812,7 @@ def fast_resonator(R_S: np.ndarray, Q: np.ndarray, frequency_array: np.ndarray, 
         __getPointer(frequency_R),
         __getLen(R_S),
         __getLen(frequency_array))
-    if impedance is not None:
+    if (impedance is not None) and (impedance.dtype == np.complex128) and len(imagImp) == len(impedance):
         impedance.real = realImp
         impedance.imag = imagImp
     else:
