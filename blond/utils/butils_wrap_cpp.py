@@ -561,7 +561,7 @@ def trapz_cpp(y: NDArray, x: Optional[NDArray] = None, dx: float = 1.0) -> float
                                               __getLen(y))
 
 
-def beam_phase(bin_centers: NDArray, profile: NDArray, alpha: float, omegarf: float, phirf: float,
+def beam_phase(bin_centers: NDArray, profile: NDArray, alpha: float, omega_rf: float, phi_rf: float,
                bin_size: float) -> float:
     bin_centers = bin_centers.astype(dtype=precision.real_t, order='C',
                                      copy=False)
@@ -571,14 +571,14 @@ def beam_phase(bin_centers: NDArray, profile: NDArray, alpha: float, omegarf: fl
     coeff = get_libblond().beam_phase(__getPointer(bin_centers),
                                       __getPointer(profile),
                                       c_real(alpha),
-                                      c_real(omegarf),
-                                      c_real(phirf),
+                                      c_real(omega_rf),
+                                      c_real(phi_rf),
                                       c_real(bin_size),
                                       __getLen(profile))
     return coeff
 
 
-def beam_phase_fast(bin_centers: NDArray, profile: NDArray, omegarf: float, phirf: float,
+def beam_phase_fast(bin_centers: NDArray, profile: NDArray, omega_rf: float, phi_rf: float,
                     bin_size: float) -> float:
     bin_centers = bin_centers.astype(dtype=precision.real_t, order='C',
                                      copy=False)
@@ -587,8 +587,8 @@ def beam_phase_fast(bin_centers: NDArray, profile: NDArray, omegarf: float, phir
     get_libblond().beam_phase_fast.restype = precision.c_real_t
     coeff = get_libblond().beam_phase_fast(__getPointer(bin_centers),
                                            __getPointer(profile),
-                                           c_real(omegarf),
-                                           c_real(phirf),
+                                           c_real(omega_rf),
+                                           c_real(phi_rf),
                                            c_real(bin_size),
                                            __getLen(profile))
     return coeff
@@ -622,7 +622,7 @@ def kick(dt: NDArray, dE: NDArray, voltage: NDArray, omega_rf: NDArray,
 
     voltage_kick = charge * \
                    voltage.astype(dtype=precision.real_t, order='C', copy=False)
-    omegarf_kick = omega_rf.astype(
+    omega_rf_kick = omega_rf.astype(
         dtype=precision.real_t, order='C', copy=False)
     phirf_kick = phi_rf.astype(dtype=precision.real_t, order='C', copy=False)
 
@@ -630,7 +630,7 @@ def kick(dt: NDArray, dE: NDArray, voltage: NDArray, omega_rf: NDArray,
                         __getPointer(dE),
                         ct.c_int(n_rf),
                         __getPointer(voltage_kick),
-                        __getPointer(omegarf_kick),
+                        __getPointer(omega_rf_kick),
                         __getPointer(phirf_kick),
                         __getLen(dt),
                         c_real(acceleration_kick))

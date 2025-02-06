@@ -1,9 +1,21 @@
 """File to deal with dependencies to numpy, cupy, c++, numba, etc."""
 from __future__ import annotations
 
+import logging
+import traceback
 import warnings
 from typing import TYPE_CHECKING
 
+import numpy as np
+
+try:
+    import cupy as cp
+except ImportError as _cupy_import_error:
+    _cupy_available = False
+else:
+    _cupy_available = True
+
+logger = logging.getLogger(__name__)
 if TYPE_CHECKING:
     from typing import Literal
     from ..gpu import GPU_DEV
@@ -173,7 +185,6 @@ class MasterBackend:
                     f"Attribute 'self.{key}' is not foreseen: "
                     f"Please declare attribute in 'MasterBackend' and all of "
                     f"its subclasses !"
-
                 )
 
     def use_cpp(self):
@@ -214,6 +225,7 @@ class MasterBackend:
             2. NumbaBackend
             3. PyBackend"""
         success = False
+        fail_trace = None
         for backend_class in (CppBackend, NumbaBackend, PyBackend):
             try:
                 backend = backend_class()
@@ -225,8 +237,12 @@ class MasterBackend:
                 success = True
                 break
             except Exception as exc:
-                print(f"Couldn't set {backend_class.__name__}: {exc}")
-        assert success, "Could not set any CPU backend."
+                try:
+                    raise RuntimeError(f"Couldn't set {backend_class.__name__} as backend!") from exc
+                except RuntimeError:  # will be definitely raised to get trace
+                    fail_trace = traceback.format_exc()  # get RuntimeError exception
+                    logger.info(f"{fail_trace}")
+        assert success, f"{fail_trace}"  # Display why not even PyBackend was able to load
 
     def use_mpi(self):
         """Sets the device to CPU_MPI"""
@@ -239,6 +255,8 @@ class MasterBackend:
     def use_fftw(self):
         """Overwrites rfft, irfft, and rfftfreq by C++ functions"""
         from blond.utils import butils_wrap_cpp as _cpp
+        if isinstance(self, GpuBackend):
+            raise RuntimeError("Attempting to use fftw on GPU")
 
         self.rfft = _cpp.rfft
         self.irfft = _cpp.irfft
@@ -254,16 +272,7 @@ class MasterBackend:
             Can be either 'single' or 'double'.  Defaults to 'double'.
         """
 
-        from blond.utils import butils_wrap_cpp as _cpp
         self.precision.set(_precision)
-
-        try:
-            from ..gpu import GPU_DEV
-            GPU_DEV.load_library(_precision)
-        except Exception as e:
-            from warnings import warn
-            warn(f"The GPU backend is not available:\n{e}", UserWarning)
-        _cpp.load_libblond(_precision)
 
     def __update_active_dict(self):
         # outdated method from bmath
@@ -308,8 +317,6 @@ class __NumpyBackend(MasterBackend):
         """All numpy  function definitions. Accelerator science definitions
         missing"""
         super().__init__()
-
-        import numpy as np
 
         self.arctan = np.arctan
         self.ones = np.ones
@@ -402,8 +409,8 @@ class __CupyBackend(MasterBackend):
         """All cupy  function definitions. Accelerator science definitions
         missing"""
         super().__init__()
-
-        import cupy as cp
+        if not _cupy_available:
+            raise _cupy_import_error
         # self.cumtrapz = None # not available in cupy..
         self.float32 = cp.float32
         self.int32 = cp.int32
@@ -501,7 +508,7 @@ class CppBackend(__NumpyBackend):
 
         from blond.utils import butils_wrap_cpp as _cpp
         from blond.utils import butils_wrap_python as _py
-        import numpy as np
+
         self.kick = _cpp.kick
         self.rf_volt_comp = _cpp.rf_volt_comp
         self.drift = _cpp.drift
@@ -543,6 +550,21 @@ class CppBackend(__NumpyBackend):
         # elf.mul_cpp = _cpp.mul_cpp # todo add?
         # self.random_normal = _cpp.random_normal # todo required
 
+    def use_precision(self,
+                      _precision: Literal['single', 'double'] = 'double'):
+        """Change the precision used in calculations.
+
+        Parameters
+        ----------
+        _precision (str, optional):
+            Can be either 'single' or 'double'.  Defaults to 'double'.
+        """
+
+        MasterBackend.use_precision(self, _precision)
+        from blond.utils import butils_wrap_cpp as _cpp
+
+        _cpp.load_libblond(_precision)
+
 
 class NumbaBackend(__NumpyBackend):
     def __init__(self):
@@ -553,7 +575,7 @@ class NumbaBackend(__NumpyBackend):
         self.device = "CPU_NU"
 
         from blond.utils import butils_wrap_numba as _nu
-        import numpy as np
+
         self.rfft = np.fft.rfft
         self.irfft = np.fft.irfft
         self.rfftfreq = np.fft.rfftfreq
@@ -619,11 +641,11 @@ def not_implemented():
 class GpuBackend(__CupyBackend):
     def __init__(self):
         super().__init__()
+
         self.device = 'GPU'
 
         from blond.gpu import butils_wrap_cupy
         from blond.utils import butils_wrap_python as _py
-        import cupy as cp
 
         self.rfft = cp.fft.rfft
         self.irfft = cp.fft.irfft
@@ -654,15 +676,24 @@ class GpuBackend(__CupyBackend):
 
         self.set_random_seed = cp.random.seed
 
+    def use_precision(self,
+                      _precision: Literal['single', 'double'] = 'double'):
+        """Change the precision used in calculations.
+
+        Parameters
+        ----------
+        _precision (str, optional):
+            Can be either 'single' or 'double'.  Defaults to 'double'.
+        """
+        from ..gpu import GPU_DEV
+
+        MasterBackend.use_precision(self, _precision)
+        GPU_DEV.load_library(_precision)
 
 
 __check_backends = [CppBackend(), NumbaBackend(), PyBackend()]
-try:
-    import cupy
-
+if _cupy_available:
     __check_backends.append(GpuBackend())
-except ImportError:
-    pass
 
 for __my_backend in __check_backends:
     __my_backend.verify_backend()
@@ -670,7 +701,7 @@ for __my_backend in __check_backends:
 
 # this line controls static type hints of bmath
 # static type hints are done to PyBackend
-class AnyBackend(PyBackend):
+class BlondMathBackend(PyBackend):
     def __init__(self):
         """Initialized as PyBackend (Numpy based)
 

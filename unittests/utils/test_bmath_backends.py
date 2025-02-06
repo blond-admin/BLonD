@@ -100,8 +100,8 @@ class TestSameResult(unittest.TestCase):
             bin_centers=bin_centers,
             profile=profile,
             alpha=alpha,
-            omegarf=omega_rf,
-            phirf=phi_rf,
+            omega_rf=omega_rf,
+            phi_rf=phi_rf,
             bin_size=bin_size,
         )
 
@@ -126,8 +126,8 @@ class TestSameResult(unittest.TestCase):
         kwargs = dict(
             bin_centers=bin_centers,
             profile=profile,
-            omegarf=omega_rf,
-            phirf=phi_rf,
+            omega_rf=omega_rf,
+            phi_rf=phi_rf,
             bin_size=bin_size,
         )
 

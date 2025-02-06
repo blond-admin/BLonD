@@ -278,7 +278,7 @@ def __beam_phase_helper(bin_centers, profile, alpha, omega_rf, phi_rf):
     return base * cp.sin(a), base * cp.cos(a)
 
 
-def beam_phase(bin_centers: NDArray, profile: NDArray, alpha: float, omegarf: float, phirf: float,
+def beam_phase(bin_centers: NDArray, profile: NDArray, alpha: float, omega_rf: float, phi_rf: float,
                bin_size: float):
     """Beam phase measured at the main RF frequency and phase. The beam is
        convolved with the window function of the band-pass filter of the
@@ -290,8 +290,8 @@ def beam_phase(bin_centers: NDArray, profile: NDArray, alpha: float, omegarf: fl
         bin_centers (_type_): _description_
         profile (_type_): _description_
         alpha (_type_): _description_
-        omegarf (_type_): _description_
-        phirf (_type_): _description_
+        omega_rf (_type_): _description_
+        phi_rf (_type_): _description_
         bin_size (_type_): _description_
 
     Returns:
@@ -301,7 +301,7 @@ def beam_phase(bin_centers: NDArray, profile: NDArray, alpha: float, omegarf: fl
     assert profile.dtype == precision.real_t
 
     array1, array2 = __beam_phase_helper(
-        bin_centers, profile, alpha, omegarf, phirf)
+        bin_centers, profile, alpha, omega_rf, phi_rf)
     # due to the division, the bin_size is not needed
     scoeff = cp.trapz(array1, dx=1)
     ccoeff = cp.trapz(array2, dx=1)
@@ -326,14 +326,14 @@ def __beam_phase_fast_helper(bin_centers, profile, omega_rf, phi_rf):
     return profile * cp.sin(arr), profile * cp.cos(arr)
 
 
-def beam_phase_fast(bin_centers: NDArray, profile: NDArray, omegarf: float, phirf: float, bin_size: float):
+def beam_phase_fast(bin_centers: NDArray, profile: NDArray, omega_rf: float, phi_rf: float, bin_size: float):
     """Simplified, faster variation of the beam_phase function
 
     Args:
         bin_centers (_type_): _description_
         profile (_type_): _description_
-        omegarf (_type_): _description_
-        phirf (_type_): _description_
+        omega_rf (_type_): _description_
+        phi_rf (_type_): _description_
         bin_size (_type_): _description_
 
     Returns:
@@ -343,7 +343,7 @@ def beam_phase_fast(bin_centers: NDArray, profile: NDArray, omegarf: float, phir
     assert profile.dtype == precision.real_t
 
     array1, array2 = __beam_phase_fast_helper(
-        bin_centers, profile, omegarf, phirf)
+        bin_centers, profile, omega_rf, phi_rf)
     # due to the division, the bin_size is not needed
     scoeff = cp.trapz(array1, dx=1)
     ccoeff = cp.trapz(array2, dx=1)

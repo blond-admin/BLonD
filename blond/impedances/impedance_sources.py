@@ -365,13 +365,15 @@ class Resonators(_ImpedanceObject):
         impedance : complex array
             Output impedance in :math:`\Omega + j \Omega`
         """
-
+        # if self.impedance is an array with the correct size
         if not isinstance(self.impedance, int) and (len(self.impedance) == len(frequency_array)):
-            impedance = self.impedance  # reuse and overwrite self.impedance
-
+            # reuse array
+            impedance = self.impedance
         else:
+            # otherwise fast_resonator will create an array anyway
             impedance = None
         self.frequency_array = frequency_array
+        # fast_resonator should use and write on impedance, if not None
         self.impedance = bm.fast_resonator(R_S=self.R_S,
                                            Q=self.Q,
                                            frequency_array=self.frequency_array,

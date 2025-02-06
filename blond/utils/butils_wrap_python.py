@@ -5,12 +5,12 @@ BLonD physics functions, python-only implementations
 """
 from __future__ import annotations
 
+import bisect
 from typing import TYPE_CHECKING
 
 import numpy as np
 from numpy.typing import NDArray
 from scipy.constants import e
-
 
 if TYPE_CHECKING:
     from typing import Optional
@@ -429,23 +429,23 @@ def fast_resonator(R_S: NDArray, Q: NDArray, frequency_array: NDArray,
 
 # --------------- Similar to beam_phase.cpp -----------------
 def beam_phase(bin_centers: NDArray, profile: NDArray,
-               alpha: float, omegarf: float,
-               phirf: float, bin_size: float) -> float:
+               alpha: float, omega_rf: float,
+               phi_rf: float, bin_size: float) -> float:
     scoeff = np.trapz(np.exp(alpha * (bin_centers))
-                      * np.sin(omegarf * bin_centers + phirf)
+                      * np.sin(omega_rf * bin_centers + phi_rf)
                       * profile, dx=bin_size)
     ccoeff = np.trapz(np.exp(alpha * (bin_centers))
-                      * np.cos(omegarf * bin_centers + phirf)
+                      * np.cos(omega_rf * bin_centers + phi_rf)
                       * profile, dx=bin_size)
 
     return scoeff / ccoeff
 
 
 def beam_phase_fast(bin_centers: NDArray, profile: NDArray,
-                    omegarf: float, phirf: float, bin_size: float) -> float:
-    scoeff = np.trapz(profile * np.sin(omegarf * bin_centers + phirf),
+                    omega_rf: float, phi_rf: float, bin_size: float) -> float:
+    scoeff = np.trapz(profile * np.sin(omega_rf * bin_centers + phi_rf),
                       dx=bin_size)
-    ccoeff = np.trapz(profile * np.cos(omegarf * bin_centers + phirf),
+    ccoeff = np.trapz(profile * np.cos(omega_rf * bin_centers + phi_rf),
                       dx=bin_size)
 
     return scoeff / ccoeff
@@ -483,7 +483,6 @@ def sparse_histogram(dt: NDArray, profile: NDArray,
 
 # ---------------------------------------------------
 
-import bisect
 
 # --------------- Similar to tomoscope.cpp -----------------
 def distribution_from_tomoscope(dt: np.ndarray, dE: np.ndarray, probDistr: np.ndarray,
