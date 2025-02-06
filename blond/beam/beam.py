@@ -257,7 +257,7 @@ class Beam:
         self._mpi_is_splitted = False
         self._mpi_sumsq_dt = 0.
         self._mpi_sumsq_dE = 0.
-        # For GPU
+        # For CPU
         self._device = 'CPU'
 
     @property
@@ -642,24 +642,24 @@ class Beam:
             self.mean_dE = WORKER.allreduce(
                 np.array([self.mean_dE]), operator='mean')[0]
 
-            self.n_total_macroparticles_lost = WORKER.allreduce(
-                np.array([self.n_macroparticles_lost]), operator='sum')[0]
+            self._mpi_n_total_macroparticles_lost = WORKER.allreduce(
+                np.array([self.n_macroparticles_not_alive]), operator='sum')[0]
 
-            # self.n_total_macroparticles_alive = WORKER.allreduce(
+            # self.__mpi_n_total_macroparticles_alive = WORKER.allreduce(
             # np.array([self.n_macroparticles_alive]), operator='sum')[0]
 
             self.sigma_dt = WORKER.allreduce(
                 np.array([self._mpi_sumsq_dt]), operator='sum')[0]
             self.sigma_dt = np.sqrt(
                 self.sigma_dt / (self._mpi_n_total_macroparticles -
-                                 self.n_total_macroparticles_lost)
+                                 self._mpi_n_total_macroparticles_lost)
                 - self.mean_dt ** 2)
 
             self.sigma_dE = WORKER.allreduce(
                 np.array([self._mpi_sumsq_dE]), operator='sum')[0]
             self.sigma_dE = np.sqrt(
                 self.sigma_dE / (self._mpi_n_total_macroparticles -
-                                 self.n_total_macroparticles_lost)
+                                 self._mpi_n_total_macroparticles_lost)
                 - self.mean_dE ** 2)
 
         else:
@@ -669,21 +669,21 @@ class Beam:
             self.mean_dE = WORKER.reduce(
                 np.array([self.mean_dE]), operator='mean')[0]
 
-            self.n_total_macroparticles_lost = WORKER.reduce(
-                np.array([self.n_macroparticles_lost]), operator='sum')[0]
+            self._mpi_n_total_macroparticles_lost = WORKER.reduce(
+                np.array([self.n_macroparticles_not_alive]), operator='sum')[0]
 
             self.sigma_dt = WORKER.reduce(
                 np.array([self._mpi_sumsq_dt]), operator='sum')[0]
             self.sigma_dt = np.sqrt(
                 self.sigma_dt / (self._mpi_n_total_macroparticles -
-                                 self.n_total_macroparticles_lost)
+                                 self._mpi_n_total_macroparticles_lost)
                 - self.mean_dt ** 2)
 
             self.sigma_dE = WORKER.reduce(
                 np.array([self._mpi_sumsq_dE]), operator='sum')[0]
             self.sigma_dE = np.sqrt(
                 self.sigma_dE / (self._mpi_n_total_macroparticles -
-                                 self.n_total_macroparticles_lost)
+                                 self._mpi_n_total_macroparticles_lost)
                 - self.mean_dE ** 2)
 
     def gather_losses(self, all_gather=False):
@@ -704,10 +704,10 @@ class Beam:
 
         if all_gather:
             temp = WORKER.allgather(np.array([self.n_macroparticles_lost]))
-            self.n_total_macroparticles_lost = np.sum(temp)
+            self._mpi_n_total_macroparticles_lost = np.sum(temp)
         else:
             temp = WORKER.gather(np.array([self.n_macroparticles_lost]))
-            self.n_total_macroparticles_lost = np.sum(temp)
+            self._mpi_n_total_macroparticles_lost = np.sum(temp)
 
     def to_gpu(self, recursive=True):
         '''

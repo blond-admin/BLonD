@@ -66,7 +66,7 @@ class testElectron(unittest.TestCase):
     def test_Sand_radiation_constant(self):
         # value from S. Lee: Accelerator Physics, 2nd ed., eq (4.5)
         # convert from GeV^3 to eV^3
-        self.assertAlmostEqual(self.electron.c_gamma, 8.846e-5 / (1e9)**3, delta=1e-35,
+        self.assertAlmostEqual(self.electron.c_gamma, 8.846e-5 / (1e9) ** 3, delta=1e-35,
                                msg='Electron: wrong radiation constant')
 
     def test_quantum_radiation_constant(self):
@@ -88,7 +88,7 @@ class testProton(unittest.TestCase):
     def test_Sand_radiation_constant(self):
         # value from S. Lee: Accelerator Physics, 2nd ed., eq (4.5)
         # convert from GeV^3 to eV^3
-        self.assertAlmostEqual(self.proton.c_gamma, 7.783e-18 / (1e9)**3, delta=1e-48,
+        self.assertAlmostEqual(self.proton.c_gamma, 7.783e-18 / (1e9) ** 3, delta=1e-48,
                                msg='Proton: wrong radiation constant')
 
 
@@ -109,7 +109,7 @@ class testBeamClass(unittest.TestCase):
         C = 6911.5038  # Machine circumference [m]
         p = 450e9  # Synchronous momentum [eV/c]
         gamma_t = 17.95142852  # Transition gamma
-        alpha = 1. / gamma_t**2  # First order mom. comp. factor
+        alpha = 1. / gamma_t ** 2  # First order mom. comp. factor
 
         # Define general parameters
         # --------------------------
@@ -314,23 +314,53 @@ class testBeamClass(unittest.TestCase):
 
         with self.assertRaises(blExcept.ParticleAdditionError,
                                msg="""Unequal length time and energy should raise exception"""):
-
             self.beam += ([1, 2, 3], [4, 5])
 
         with self.assertRaises(blExcept.ParticleAdditionError,
                                msg="""Mising time/energy should raise exception"""):
-
             self.beam += ([1, 2, 3])
 
         with self.assertRaises(TypeError, msg='Wrong type should raise exception'):
             self.beam.add_beam(([1], [2]))
 
-
-    def test_addition2(self):
+    def test_init_de_dt(self):
         testdEs = np.linspace(-1E6, 1E6, 2000000)
         testdts = np.linspace(0, 10E-9, 2000000)
-        beam = Beam(Ring=self.general_params, n_macroparticles=int(2000000), intensity=1e9, dE=testdEs, dt=testdts)
+        beam = Beam(Ring=self.general_params, n_macroparticles=int(2000000),
+                    intensity=1e9, dE=testdEs, dt=testdts)
         self.assertEqual(beam.n_macroparticles, 2000000)
-if __name__ == '__main__':
 
+    def test_init_de_dt2(self):
+        testdEs = np.linspace(-1E6, 1E6, 2000000)
+        testdts = np.linspace(0, 10E-9, 2000000)
+        self.assertRaises(
+            AssertionError,
+            lambda: Beam(Ring=self.general_params, n_macroparticles=int(1000000),  # mismatch in n_macroparticles
+                         intensity=1e9, dE=testdEs, dt=testdts)
+        )
+
+    def test_change_id(self):
+        testdEs = np.linspace(-1E6, 1E6, 2000000)
+        testdts = np.linspace(0, 10E-9, 2000000)
+        beam = Beam(Ring=self.general_params, n_macroparticles=int(2000000),
+                    intensity=1e9, dE=testdEs, dt=testdts)
+        # before
+        n_macroparticles_before = beam.n_macroparticles
+        n_macroparticles_alive_before = beam.n_macroparticles_alive
+        n_macroparticles_not_alive_before = beam.n_macroparticles_not_alive
+
+        beam.id[0] = 0
+
+        # before
+        n_macroparticles_after = beam.n_macroparticles
+        n_macroparticles_alive_after = beam.n_macroparticles_alive
+        n_macroparticles_not_alive_after = beam.n_macroparticles_not_alive
+
+        # test before corresponds to after
+        self.assertEqual(n_macroparticles_after, n_macroparticles_before)
+        self.assertEqual(n_macroparticles_alive_after, n_macroparticles_alive_before - 1)
+        self.assertEqual(n_macroparticles_not_alive_after, n_macroparticles_not_alive_before + 1)
+
+
+if __name__ == '__main__':
     unittest.main()
