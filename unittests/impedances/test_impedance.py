@@ -280,8 +280,7 @@ class TestInducedVoltageResonator_nrf_2(unittest.TestCase):
     def test_init_mtw(self):
         ivr = InducedVoltageResonator(beam=self.beam, profile=self.profile,
                                       resonators=self.resonator,
-                                      multi_turn_wake=True
-                                      )
+                                      multi_turn_wake=True)
         
     def test_mtw_false_induced_volt(self):
         ivr = InducedVoltageResonator(beam=self.beam, profile=self.profile,
