@@ -277,15 +277,18 @@ class TestInducedVoltageResonator_nrf_2(unittest.TestCase):
 
 
     def test_init(self):
-        ivr = InducedVoltageResonator(beam=self.beam, profile=self.profile, resonators=self.resonator)
+        ivr = InducedVoltageResonator(beam=self.beam, profile=self.profile,
+                                      resonators=self.resonator)
 
     def test_init_mtw(self):
-        ivr = InducedVoltageResonator(beam=self.beam, profile=self.profile, resonators=self.resonator,
+        ivr = InducedVoltageResonator(beam=self.beam, profile=self.profile,
+                                      resonators=self.resonator,
                                       multi_turn_wake=True
                                       )
         
     def test_mtw_false_induced_volt(self):
-        ivr = InducedVoltageResonator(beam=self.beam, profile=self.profile, resonators=self.resonator,
+        ivr = InducedVoltageResonator(beam=self.beam, profile=self.profile,
+                                      resonators=self.resonator,
                                       multi_turn_wake=False)
         ivr.process()
         ivr.induced_voltage_1turn()
@@ -293,16 +296,20 @@ class TestInducedVoltageResonator_nrf_2(unittest.TestCase):
         self.assertTrue(np.any(my_array != 0.0))
 
     def test_multi_rf_station(self):
-        ivr = InducedVoltageResonator(beam=self.beam, profile=self.profile, resonators=self.resonator, 
-                                      rf_station=self.rf_station, multi_turn_wake=False)
+        ivr = InducedVoltageResonator(beam=self.beam, profile=self.profile,
+                                      resonators=self.resonator, 
+                                      rf_station=self.rf_station,
+                                      multi_turn_wake=False)
         ivr.process()
         ivr.induced_voltage_1turn()
         my_array = ivr.induced_voltage
         self.assertTrue(np.any(my_array != 0.0))
 
     def test_mtw_true_induced_voltage(self):
-        ivr = InducedVoltageResonator(beam=self.beam, profile=self.profile, resonators=self.resonator,
-                                      rf_station=self.rf_station, multi_turn_wake=True)
+        ivr = InducedVoltageResonator(beam=self.beam, profile=self.profile,
+                                      resonators=self.resonator,
+                                      rf_station=self.rf_station,
+                                      multi_turn_wake=True)
         ivr.process()
         ivr.induced_voltage_mtw()
         my_array = ivr.induced_voltage
