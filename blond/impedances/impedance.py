@@ -427,7 +427,6 @@ class _InducedVoltage:
         self.induced_voltage[self.n_induced_voltage -
                              self.front_wake_buffer:] = 0
 
-
         # Add the induced voltage of the current turn to the memory from
         # previous turns
         self.mtw_memory[:self.n_induced_voltage] += self.induced_voltage
