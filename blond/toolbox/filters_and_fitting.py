@@ -132,12 +132,12 @@ def rms(Y_array, X_array):
 
     timeResolution = X_array[1] - X_array[0]
 
-    lineDenNormalized = Y_array / np.trapz(Y_array, dx=timeResolution)
+    lineDenNormalized = Y_array / np.trapezoid(Y_array, dx=timeResolution)
 
-    bp_rms = np.trapz(X_array * lineDenNormalized, dx=timeResolution)
+    bp_rms = np.trapezoid(X_array * lineDenNormalized, dx=timeResolution)
 
     bl_rms = 4 * np.sqrt(
-        np.trapz((X_array - bp_rms)**2 * lineDenNormalized, dx=timeResolution))
+        np.trapezoid((X_array - bp_rms)**2 * lineDenNormalized, dx=timeResolution))
 
     return bp_rms, bl_rms
 
