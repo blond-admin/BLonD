@@ -237,28 +237,25 @@ class TestInducedVoltageResonator_nrf_2(unittest.TestCase):
         alpha_c = np.full(n_rf_stations, mom_compaction)
         n_turns = math.ceil(ring_per_section.n_turns /n_rf_stations)
 
-        ring = Ring(ring_length=sectionlengths, alpha_0=alpha_c, particle=Proton(), n_turns=n_turns, n_sections=n_rf_stations,
-                    synchronous_data=25.92e9)
+        ring = Ring(ring_length=sectionlengths, alpha_0=alpha_c,
+                    particle=Proton(), n_turns=n_turns,
+                    n_sections=n_rf_stations, synchronous_data=25.92e9)
 
-        self.rf_station = RFStation(
-            ring=ring,
-            harmonic=[4620],
-            voltage=[0.9e6],
-            phi_rf_d=[0.0],
-            n_rf=1,
-        )
-        
-        beam = Beam(
-            ring=ring,
-            n_macroparticles=1001,
-            intensity=int(1e10),
-        )
-        bigaussian(
-            ring=ring,
-            rf_station=self.rf_station,
-            beam=beam,
-            sigma_dt=2e-9 / 4, seed=1,
-        )
+        self.rf_station = RFStation(ring=ring,
+                                    harmonic=[4620],
+                                    voltage=[0.9e6],
+                                    phi_rf_d=[0.0],
+                                    n_rf=1)
+
+        beam = Beam(ring=ring,
+                    n_macroparticles=1001,
+                    intensity=int(1e10))
+
+        bigaussian(ring=ring,
+                   rf_station=self.rf_station,
+                   beam=beam,
+                   sigma_dt=2e-9 / 4,
+                   seed=1)
         self.beam = beam
         cut_options = CutOptions(cut_left=0, cut_right=2 * np.pi, n_slices=2 ** 8,
                                  rf_station=self.rf_station, cuts_unit='rad')
