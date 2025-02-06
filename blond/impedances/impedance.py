@@ -422,7 +422,6 @@ class _InducedVoltage:
         # Induced voltage of the current turn calculation
         self.induced_voltage_1turn(beam_spectrum_dict)
 
-
         # Setting to zero to the last part to remove the contribution from the
         # front wake
         self.induced_voltage[self.n_induced_voltage -
