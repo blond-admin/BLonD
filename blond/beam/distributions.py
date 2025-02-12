@@ -1,4 +1,3 @@
-
 # Copyright 2016 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
 # copied verbatim in the file LICENCE.md.
@@ -442,9 +441,10 @@ def matched_from_distribution_function(beam, full_ring_and_RF,
                                                n_points=n_points_potential,
                                                dt_margin_percent=dt_margin_percent,
                                                main_harmonic_option=main_harmonic_option)
-    potential_well = full_ring_and_RF.potential_well
-    time_potential = full_ring_and_RF.potential_well_coordinates
-
+    time_potential, potential_well = full_ring_and_RF.potential_well_coordinates, full_ring_and_RF.potential_well
+    if process_pot_well:
+        time_potential, potential_well = potential_well_cut(
+            time_potential, potential_well)
     induced_potential = 0
 
     # Extra potential from previous bunches (for multi-bunch generation)
@@ -479,31 +479,30 @@ def matched_from_distribution_function(beam, full_ring_and_RF,
         print('Matching the bunch... (iteration: ' + str(i) + ' and sse: ' +
               str(sse) + ')')
 
+        if sse == 0 and i > 0:
+            break
+
         # Process the potential well in order to take a frame around the separatrix
-        if not process_pot_well:
-            time_potential_sep, potential_well_sep = time_potential, total_potential
-        else:
-            time_potential_sep, potential_well_sep = potential_well_cut(
-                time_potential, total_potential)
 
         # Potential is shifted to put the minimum on 0
-        potential_well_sep = potential_well_sep - np.min(potential_well_sep)
+        potential_well = potential_well - np.min(potential_well)
 
         # Compute deltaE frame corresponding to the separatrix
-        max_potential = np.max(potential_well_sep)
+        max_potential = np.max(potential_well)
         max_deltaE = np.sqrt(max_potential / eom_factor_dE)
 
         # Initializing the grids by reducing the resolution to a
         # n_points_grid*n_points_grid frame
-        time_potential_low_res = np.linspace(float(time_potential_sep[0]),
-                                             float(time_potential_sep[-1]),
+        time_potential_low_res = np.linspace(float(time_potential[0]),
+                                             float(time_potential[-1]),
                                              n_points_grid)
         time_resolution_low = (time_potential_low_res[1] -
                                time_potential_low_res[0])
         deltaE_coord_array = np.linspace(-float(max_deltaE), float(max_deltaE),
                                          n_points_grid)
         potential_well_low_res = np.interp(time_potential_low_res,
-                                           time_potential_sep, potential_well_sep)
+                                           time_potential, potential_well)
+
         time_grid, deltaE_grid = np.meshgrid(time_potential_low_res,
                                              deltaE_coord_array)
         potential_well_grid = np.meshgrid(potential_well_low_res,
@@ -544,7 +543,7 @@ def matched_from_distribution_function(beam, full_ring_and_RF,
                                            potential_well_low_res[j]]) / eom_factor_dE)
             dE_trajectory[pot_well_high_res > potential_well_low_res[j]] = 0
 
-            J_array_dE0[j] = 1 / np.pi * np.trapz(dE_trajectory,
+            J_array_dE0[j] = 1 / np.pi * np.trapezoid(dE_trajectory,
                                                   dx=time_potential_high_res[1] - time_potential_high_res[0])
 
         # Sorting the H and J functions to be able to interpolate J(H)
