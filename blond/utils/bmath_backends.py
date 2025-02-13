@@ -1,4 +1,8 @@
-"""File to deal with dependencies to numpy, cupy, c++, numba, etc."""
+"""**File to deal with dependencies to numpy, cupy, c++, numba, etc.**
+
+:Authors: **Simon Lauber**, **Stefan Hegglin**, **Konstantinos Iliakis**,
+ **Panagiotis Tsapatsaris**, **Georgios Typaldos**
+"""
 from __future__ import annotations
 
 import logging
@@ -44,7 +48,7 @@ class MasterBackend:
         self.arctan = None
         self.arcsin = None
         self.sqrt = None
-        self.trapz = None
+        self.trapezoid = None
         self.reshape = None
         self.exp = None
         self.int32 = None
@@ -316,6 +320,11 @@ class __NumpyBackend(MasterBackend):
     def __init__(self):
         """All numpy  function definitions. Accelerator science definitions
         missing"""
+
+        try:
+            np.trapezoid
+        except AttributeError:
+            np.trapezoid = np.trapz
         super().__init__()
 
         self.arctan = np.arctan
@@ -373,7 +382,7 @@ class __NumpyBackend(MasterBackend):
         self.invert = np.invert
         self.int32 = np.int32
         self.double = np.double
-        self.trapz = np.trapz
+        self.trapezoid = np.trapezoid
         # self.cumtrapz = cumtrapz # not available in cupy
         self.zeros_like = np.zeros_like
         self.full = np.full
@@ -411,6 +420,11 @@ class __CupyBackend(MasterBackend):
         super().__init__()
         if not _cupy_available:
             raise _cupy_import_error
+
+        try:
+            cp.trapezoid
+        except AttributeError:
+            cp.trapezoid = cp.trapz
         # self.cumtrapz = None # not available in cupy..
         self.float32 = cp.float32
         self.int32 = cp.int32
@@ -486,7 +500,7 @@ class __CupyBackend(MasterBackend):
         self.clip = cp.clip
         self.vectorize = cp.vectorize
         self.arcsin = cp.arcsin
-        self.trapz = cp.trapz
+        self.trapezoid = cp.trapezoid
         self.reshape = cp.reshape
         self.cosh = cp.cosh
 
