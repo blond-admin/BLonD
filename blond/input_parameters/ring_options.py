@@ -287,7 +287,8 @@ class RingOptions:
             if len(input_data) != n_sections:
                 # InputDataError
                 raise RuntimeError("ERROR in Ring: the input data " +
-                                   "does not match the number of sections")
+                                   "does not match the number of sections,"
+                                   f"{len(input_data)=}, {n_sections=}")
 
             for index_section in range(len(input_data)):
                 if len(input_data[index_section]) == 1:

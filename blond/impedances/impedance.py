@@ -925,7 +925,7 @@ class InducedVoltageResonator(_InducedVoltage):
         Profile object
     resonators : Resonators
         Resonators object
-    timeArray : float array, optional
+    time_array : float array, optional
         Array of time values where the induced voltage is calculated.
         If left out, the induced voltage is calculated at the times of the line
         density.
@@ -955,7 +955,7 @@ class InducedVoltageResonator(_InducedVoltage):
 
     @handle_legacy_kwargs
     def __init__(self, beam: Beam, profile: Profile, resonators: Resonators,
-                 timeArray: Optional[NDArray] = None):
+                 time_array: Optional[NDArray] = None):
 
         # Test if one or more quality factors is smaller than 0.5.
         if sum(resonators.Q < 0.5) > 0:
@@ -970,11 +970,11 @@ class InducedVoltageResonator(_InducedVoltage):
         # Optional array of time values where the induced voltage is calculated.
         # If left out, the induced voltage is calculated at the times of the
         # line density.
-        if timeArray is None:
+        if time_array is None:
             self.tArray = self.profile.bin_centers
             self.atLineDensityTimes = True
         else:
-            self.tArray = timeArray
+            self.tArray = time_array
             self.atLineDensityTimes = False
 
         # Length of timeArray

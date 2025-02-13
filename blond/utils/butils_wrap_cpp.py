@@ -10,6 +10,7 @@ from __future__ import annotations
 import ctypes as ct
 import os
 import sys
+import warnings
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -54,9 +55,9 @@ def load_libblond(precision: str = 'single') -> None:
         else:
             print('YOU DO NOT HAVE A WINDOWS OR UNIX OPERATING SYSTEM. ABORTING.')
             sys.exit()
-    except OSError:
-        # Silently pass. An alternative backend can be used.
-        pass
+    except OSError as exc:
+        # An alternative backend can be used.
+        warnings.warn(str(exc))
 
 
 load_libblond(precision='double')
@@ -620,18 +621,26 @@ def kick(dt: NDArray, dE: NDArray, voltage: NDArray, omega_rf: NDArray,
     assert isinstance(dt[0], precision.real_t)
     assert isinstance(dE[0], precision.real_t)
 
-    voltage_kick = charge * \
-                   voltage.astype(dtype=precision.real_t, order='C', copy=False)
-    omega_rf_kick = omega_rf.astype(
-        dtype=precision.real_t, order='C', copy=False)
-    phirf_kick = phi_rf.astype(dtype=precision.real_t, order='C', copy=False)
+
+    if not  (voltage.flags.f_contiguous or voltage.flags.c_contiguous):
+        warnings.warn("voltage must be contigous!")
+        voltage = voltage.astype(dtype=precision.real_t, order='C', copy=False)
+    if not (omega_rf.flags.f_contiguous or omega_rf.flags.c_contiguous):
+        warnings.warn("omega_rf must be contigous!")
+        omega_rf = omega_rf.astype(dtype=precision.real_t, order='C', copy=False)
+    if not (phi_rf.flags.f_contiguous or phi_rf.flags.c_contiguous):
+        warnings.warn("phi_rf must be contigous!")
+        phi_rf = phi_rf.astype(dtype=precision.real_t, order='C', copy=False)
+
+
 
     get_libblond().kick(__getPointer(dt),
                         __getPointer(dE),
                         ct.c_int(n_rf),
-                        __getPointer(voltage_kick),
-                        __getPointer(omega_rf_kick),
-                        __getPointer(phirf_kick),
+                        c_real(charge),
+                        __getPointer(voltage),
+                        __getPointer(omega_rf),
+                        __getPointer(phi_rf),
                         __getLen(dt),
                         c_real(acceleration_kick))
 
