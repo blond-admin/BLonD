@@ -21,6 +21,7 @@ from scipy.constants import e
 
 from ..toolbox.next_regular import next_regular
 from ..utils import bmath as bm
+
 if TYPE_CHECKING:
     from typing import Literal
 
@@ -242,11 +243,22 @@ class _InducedVoltage:
         # Multi-turn wake mode can be 'freq' or 'time' (default). If 'freq'
         # is used, each turn the induced voltage of previous turns is shifted
         # in the frequency domain. For 'time', a linear interpolation is used.
-        if mtw_mode not in ('freq', 'time'):
-            raise NameError(mtw_mode)
         self.mtw_mode = mtw_mode
 
         self.process()
+
+    @property
+    def mtw_mode(self):
+        """Multi-turn wake mode can be 'freq' or 'time' (default). If 'freq'
+        is used, each turn the induced voltage of previous turns is shifted
+        in the frequency domain. For 'time', a linear interpolation is used."""
+        return self._mtw_mode
+
+    @mtw_mode.setter
+    def mtw_mode(self, mtw_mode):
+        if mtw_mode not in ('freq', 'time'):
+            raise NameError(mtw_mode)
+        self._mtw_mode = mtw_mode
 
     def process(self):
         """
@@ -266,7 +278,7 @@ class _InducedVoltage:
             # Wake length in s, rounded up to the next multiple of bin size
             self.wake_length = self.n_induced_voltage * self.profile.bin_size
         elif (self.frequency_resolution_input is not None
-                and self.wake_length_input is None):
+              and self.wake_length_input is None):
             self.n_induced_voltage = int(
                 np.ceil(1 / (self.profile.bin_size * self.frequency_resolution_input)))
             if self.n_induced_voltage < self.profile.n_slices:
@@ -277,7 +289,7 @@ class _InducedVoltage:
             self.wake_length = self.n_induced_voltage * self.profile.bin_size
             # Frequency resolution in Hz
         elif (self.wake_length_input is None
-                and self.frequency_resolution_input is None):
+              and self.frequency_resolution_input is None):
             # By default the wake_length is the slicing frame length
             self.wake_length = (self.profile.cut_right -
                                 self.profile.cut_left)
@@ -344,8 +356,12 @@ class _InducedVoltage:
         # self.profile.beam_spectrum_generation(self.n_fft)
         beam_spectrum = beam_spectrum_dict[self.n_fft]
 
-        induced_voltage = - (self.beam.Particle.charge * e * self.beam.ratio
-                             * bm.irfft(self.total_impedance.astype(dtype=bm.precision.complex_t, order='C', copy=False) * beam_spectrum))
+        induced_voltage = - (
+                self.beam.Particle.charge * e * self.beam.ratio
+                * bm.irfft(self.total_impedance.astype(dtype=bm.precision.complex_t, order='C', copy=False)
+                           * beam_spectrum
+                           )
+        )
 
         self.induced_voltage = induced_voltage[:self.n_induced_voltage].astype(
             dtype=bm.precision.real_t, order='C', copy=False)
@@ -483,8 +499,9 @@ class InducedVoltageTime(_InducedVoltage):
             self.n_fft = next_regular(int(self.n_induced_voltage) +
                                       int(self.profile.n_slices) - 1)
         else:
-            self.n_fft = int(self.n_induced_voltage) + \
-                int(self.profile.n_slices) - 1
+            self.n_fft = (int(self.n_induced_voltage)
+                         + int(self.profile.n_slices)
+                         - 1)
 
         # Frequency resolution in Hz
         self.frequency_resolution = 1 / (self.n_fft * self.profile.bin_size)
@@ -892,7 +909,7 @@ class InducedVoltageResonator(_InducedVoltage):
         self.n_resonators = len(self.R)
 
         # For internal use
-        self._Qtilde = self.Q * np.sqrt(1. - 1. / (4. * self.Q**2.))
+        self._Qtilde = self.Q * np.sqrt(1. - 1. / (4. * self.Q ** 2.))
         self._reOmegaP = self.omega_r * self._Qtilde / self.Q
         self._imOmegaP = self.omega_r / (2. * self.Q)
 
