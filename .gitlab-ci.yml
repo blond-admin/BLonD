@@ -61,7 +61,7 @@ variables:
 test_py_38:
   variables:  
     PY_VERSION: "3.8"
-  image: python:${PY_VERSION}
+  image: gitlab-registry.cern.ch/blond/blond/python38_legacy
   stage: test
   extends:
     - .before
@@ -72,7 +72,7 @@ test_py_38:
 test_py_310:
   variables:
     PY_VERSION: "3.10"
-  image: python:${PY_VERSION}
+  image: gitlab-registry.cern.ch/blond/blond/python310_legacy
   stage: test
   extends:
     - .before
@@ -84,7 +84,7 @@ test_py_310:
 release_sdist_38:
   variables:
     PY_VERSION: "3.8"
-  image: python:${PY_VERSION}
+  image: gitlab-registry.cern.ch/blond/blond/python38_legacy
   stage: deploy
   extends:
     - .on_tag
@@ -110,7 +110,7 @@ release_sdist_38:
 pages:
   variables:
     PY_VERSION: "3.8"
-  image: python:${PY_VERSION}
+  image: gitlab-registry.cern.ch/blond/blond/python38_legacy
   script:
    - cd ${project_root}
    - mkdir public
