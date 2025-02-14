@@ -176,6 +176,21 @@ class TestGeneralParameters(unittest.TestCase):
                          synchronous_data_type='kinetic energy'),
             msg='No NaN for total energy less than rest mass!')
 
+    def test_bug_floattype(self):
+        from blond.beam.beam import Proton
+        # Different treatment of python float and numpy float
+        C = 2 * np.pi * 1100.009  # Ring circumference [m]
+        gamma_t = 18.0  # Gamma at transition
+        alpha = 1 / gamma_t ** 2  # Momentum compaction factor
+        n_turns = 10
+        momentum = ([0, 0.1, 0.2], [1., 2., 3.])  # valid input parameters
+        Ring(C, alpha, momentum, Proton(), n_turns)  # should work
+        # When giving the momentum to the ring object in the format ([time0, time1, ...], [momentum0, momentum1, ...])
+        # a TypeError is raised if momentumX is of type np.float64. The traceback is:
+        momentum = ([np.float64(0.0), np.float64(0.1), np.float64(0.2)],  # might crash
+                    [np.float64(1.0), np.float64(2.0), np.float64(3.0)])  # might crash
+        Ring(C, alpha, momentum, Proton(), n_turns)  # might crash
+
 
 if __name__ == '__main__':
     unittest.main()

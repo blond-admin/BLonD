@@ -314,7 +314,7 @@ def compile_cuda_library(args, nvccflags, float_flags, cuda_files, nvcc):
     import cupy as cp
 
     print('\nCompiling the CUDA library')
-    
+
     if args['gpu'] == 'discover':
         print('Discovering the device compute capability..')
 

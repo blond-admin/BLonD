@@ -511,6 +511,9 @@ def irfft_packed(signal, fftsize=0, result=None):
 
 
 def cumtrapz(y, x=None, dx=1.0, initial=None, result=None):
+    raise NotImplementedError("The bmath.cumtrapz behaviour differs from"
+                              "scipy.integrate.cumulative_trapezoid."
+                              "Please contact the developers if you need this routine!")
     if x is not None:
         # IntegrationError
         raise RuntimeError('[cumtrapz] x attribute is not yet supported')
