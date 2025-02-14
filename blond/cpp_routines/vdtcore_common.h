@@ -28,9 +28,6 @@
 
 #ifndef VDTCOMMON_H_
 #define VDTCOMMON_H_
-#define M_PI 3.14159265358979323846
-#define M_PI_2 1.57079632679489661923
-#define M_PI_4 0.785398163397448309616
 #include "inttypes.h"
 #include <cmath>
 
@@ -39,6 +36,8 @@ namespace vdt{
 namespace details{
 
 // Constants
+// These M_PI etc are defined in cmath/math.h,
+// but _USE_MATH_DEFINES needs to be enabled on mingw
 const double TWOPI = 2.*M_PI;
 const double PI = M_PI;
 const double PIO2 = M_PI_2;

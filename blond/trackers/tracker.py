@@ -14,13 +14,17 @@ and the beam coordinates in phase space.**
 :Authors:  **Helga Timko**, **Alexandre Lasheen**, **Danilo Quartullo**
 """
 
-from __future__ import division
-
 import warnings
 from builtins import range
 
 import numpy as np
-from scipy.integrate import cumtrapz
+import scipy
+from packaging.version import Version
+
+if Version(scipy.__version__) >= Version("1.14"):
+    from scipy.integrate import cumulative_trapezoid as cumtrapz
+else:
+    from scipy.integrate import cumtrapz
 
 from ..utils import bmath as bm
 
@@ -45,7 +49,7 @@ class FullRingAndRF:
         #: *Ring circumference in [m]*
         self.ring_circumference = 0
         for RingAndRFSectionElement in self.RingAndRFSection_list:
-            self.ring_circumference += RingAndRFSectionElement.section_length
+            self.ring_circumference += RingAndRFSectionElement.rf_params.section_length
 
         #: *Ring radius in [m]*
         self.ring_radius = self.ring_circumference / (2 * np.pi)
@@ -158,63 +162,6 @@ class RingAndRFTracker:
     counter : [int]
         Inherited from
         :py:attr:`input_parameters.rf_parameters.RFStation.counter`
-    length_ratio : float
-        Inherited from
-        :py:attr:`input_parameters.ring.Ring.length_ratio`
-    section_length : float
-        Inherited from
-        :py:attr:`input_parameters.ring.Ring.section_length`
-    t_rev : float
-        Inherited from
-        :py:attr:`input_parameters.ring.Ring.t_rev`
-    n_rf : float
-        Inherited from
-        :py:attr:`input_parameters.rf_parameters.RFStation.n_rf`
-    beta : float
-        Inherited from
-        :py:attr:`input_parameters.ring.Ring.beta`
-    charge : float
-        Inherited from
-        :py:attr:`input_parameters.ring.Ring.Particle.charge`
-    harmonic : float array
-        Inherited from
-        :py:attr:`input_parameters.rf_parameters.RFStation.harmonic`
-    voltage : float array
-        Inherited from
-        :py:attr:`input_parameters.rf_parameters.RFStation.voltage`
-    phi_noise : float array
-        Inherited from
-        :py:attr:`input_parameters.rf_parameters.RFStation.phi_noise`
-    phi_modulation : 2-tuple of float array
-        Inherited from
-        :py:attr:`input_parameters.rf_parameters.RFStation.phi_modulation`
-    phi_rf : float array
-        Inherited from
-        :py:attr:`input_parameters.rf_parameters.RFStation.phi_rf`
-    phi_s : float array
-        Inherited from
-        :py:attr:`input_parameters.rf_parameters.RFStation.phi_s`
-    alpha_0 : float array
-        Inherited from
-        :py:attr:`input_parameters.ring.Ring.alpha_0`
-    alpha_1 : float array
-        Inherited from
-        :py:attr:`input_parameters.ring.Ring.alpha_1`
-    alpha_2 : float array
-        Inherited from
-        :py:attr:`input_parameters.ring.Ring.alpha_2`
-    eta_0 : float array
-        Inherited from
-        :py:attr:`input_parameters.ring.Ring.eta_0`
-    eta_1 : float array
-        Inherited from
-        :py:attr:`input_parameters.ring.Ring.eta_1`
-    eta_2 : float array
-        Inherited from
-        :py:attr:`input_parameters.ring.Ring.eta_2`
-    alpha_order : float array
-        Inherited from
-        :py:attr:`input_parameters.ring.Ring.alpha_order`
     acceleration_kick : float array
         Inherited from
         :py:attr:`input_parameters.ring.Ring.delta_E`
@@ -230,6 +177,10 @@ class RingAndRFTracker:
     NoiseFeedback : class (optional)
         A NoiseFeedback type class, bunch-length feedback on RF noise;
         default is None
+    CavityFeedback : class or list of classes (optional)
+        A CavityFeedback type child class, cavity feedback modulating the
+        RF voltage bucket-by-bucket in amplitude and phase. Can either be a single object or a list of such objects.
+        Default is None.
     periodicity : bool (optional)
         Option to switch periodic solver on/off; default is False (off)
     interpolation : bool (optional)
@@ -249,27 +200,6 @@ class RingAndRFTracker:
         # Imports from RF parameters
         self.rf_params = RFStation
         self.counter = RFStation.counter
-        self.length_ratio = RFStation.length_ratio
-        self.section_length = RFStation.section_length
-        # self.t_rev = RFStation.t_rev
-        # self.n_rf = RFStation.n_rf
-        # self.beta = RFStation.beta
-        # self.charge = RFStation.Particle.charge
-        # self.harmonic = RFStation.harmonic
-        # self.voltage = RFStation.voltage
-        # self.phi_noise = RFStation.phi_noise
-        # self.phi_modulation = RFStation.phi_modulation
-        # self.phi_rf = RFStation.phi_rf
-        # if not self.rf_params.empty:
-        #     self.phi_s = RFStation.phi_s
-        # self.omega_rf = RFStation.omega_rf
-        # self.alpha_0 = RFStation.alpha_0
-        # self.alpha_1 = RFStation.alpha_1
-        # self.alpha_2 = RFStation.alpha_2
-        # self.eta_0 = RFStation.eta_0
-        # self.eta_1 = RFStation.eta_1
-        # self.eta_2 = RFStation.eta_2
-        # self.alpha_order = RFStation.alpha_order
         self.acceleration_kick = - RFStation.delta_E
 
         # Other imports
@@ -281,7 +211,6 @@ class RingAndRFTracker:
                                " longitudinal solver not recognised!")
         if self.rf_params.alpha_order > 1:  # Force exact solver for higher orders of eta
             self.solver = 'exact'
-        self.solver = self.solver.encode(encoding='utf_8')
 
         # Options
         self.beamFB = BeamFeedback
@@ -319,6 +248,9 @@ class RingAndRFTracker:
             warnings.warn('Setting interpolation to TRUE')
             # self.logger.warning("Setting interpolation to TRUE")
 
+        if (self.cavityFB is not None) and (not hasattr(self.cavityFB, '__iter__')):
+            self.cavityFB = [self.cavityFB]
+
     def kick(self, beam_dt, beam_dE, index):
         r"""Function updating the particle energy due to the RF kick in a given
         RF station. The kicks are summed over the different harmonic RF systems
@@ -333,12 +265,9 @@ class RingAndRFTracker:
 
         """
 
-        # voltage_kick = bm.ascontiguousarray(self.rf_params.charge*self.rf_params.voltage[:, index])
-        # omegarf_kick = bm.ascontiguousarray(self.rf_params.omega_rf[:, index])
-        # phirf_kick = bm.ascontiguousarray(self.rf_params.phi_rf[:, index])
         bm.kick(beam_dt, beam_dE, self.rf_params.voltage[:, index],
                 self.rf_params.omega_rf[:, index], self.rf_params.phi_rf[:, index],
-                self.rf_params.charge, self.rf_params.n_rf, self.acceleration_kick[index])
+                self.rf_params.Particle.charge, self.rf_params.n_rf, self.acceleration_kick[index])
 
     def drift(self, beam_dt, beam_dE, index):
         r"""Function updating the particle arrival time to the RF station
@@ -383,11 +312,24 @@ class RingAndRFTracker:
         phi_rf = bm.ascontiguousarray(self.rf_params.phi_rf[:, self.counter[0]])
         # TODO: test with multiple harmonics, think about 800 MHz OTFB
         if self.cavityFB:
-            self.rf_voltage = voltages[0] * self.cavityFB.V_corr * \
-                bm.sin(omega_rf[0] * self.profile.bin_centers +
-                       phi_rf[0] + self.cavityFB.phi_corr) + \
-                bm.rf_volt_comp(voltages[1:], omega_rf[1:], phi_rf[1:],
-                                self.profile.bin_centers)
+            # Allocate memory for rf_voltage and reset it to zero
+            self.rf_voltage = np.zeros(self.profile.n_slices)
+
+            # Add corrections from cavity feedbacks for the different harmonics
+            for ind, feedback in enumerate(self.cavityFB):
+                if feedback is not None:
+                    self.rf_voltage += voltages[ind] * feedback.V_corr * \
+                                      bm.sin(omega_rf[ind] * self.profile.bin_centers +
+                                             phi_rf[ind] + feedback.phi_corr)
+                else:
+                    self.rf_voltage += bm.rf_volt_comp(voltages[ind:ind + 1], omega_rf[ind:ind + 1],
+                                                       phi_rf[ind:ind + 1], self.profile.bin_centers)
+
+            # Add RF voltage from harmonics that do not have a cavity feedback model
+            self.rf_voltage += bm.rf_volt_comp(voltages[len(self.cavityFB):],
+                                               omega_rf[len(self.cavityFB):],
+                                               phi_rf[len(self.cavityFB):],
+                                               self.profile.bin_centers)
         else:
             self.rf_voltage = bm.rf_volt_comp(voltages, omega_rf, phi_rf,
                                               self.profile.bin_centers)
@@ -430,6 +372,12 @@ class RingAndRFTracker:
 
         # Total phase offset
         self.rf_params.phi_rf[:, turn + 1] += self.rf_params.dphi_rf
+
+        # Correction from cavity loop
+        if self.cavityFB is not None:
+            for feedback in self.cavityFB:
+                if feedback is not None:
+                    feedback.track()
 
         if self.periodicity:
 

@@ -7,16 +7,15 @@ BLonD math and physics core functions
 
 import numpy as np
 
+from . import precision
 from ..utils import butils_wrap_cpp as _cpp
 from ..utils import butils_wrap_python as _py
-from . import precision
 
 
 def use_cpp():
     '''
     Replace all python functions by there equivalent in cpp
     '''
-    print('---------- Using the C++ computational backend ----------')
     # dictionary storing the CPP versions of the most compute intensive functions #
     cpp_func_dict = {
         'rfft': np.fft.rfft,
@@ -48,7 +47,8 @@ def use_cpp():
         'where_cpp': _cpp.where_cpp,
         'interp_cpp': _cpp.interp_cpp,
         'interp_const_space': _cpp.interp_const_space,
-        'cumtrapz': _cpp.cumtrapz,
+        'interp_const_bin': _cpp.interp_const_bin,
+        # 'cumtrapz': _cpp.cumtrapz, # needs reimplementation to match cupy/scipy
         'trapz_cpp': _cpp.trapz_cpp,
         'linspace_cpp': _cpp.linspace_cpp,
         'argmin_cpp': _cpp.argmin_cpp,
@@ -59,6 +59,9 @@ def use_cpp():
         'sort_cpp': _cpp.sort_cpp,
         'add_cpp': _cpp.add_cpp,
         'mul_cpp': _cpp.mul_cpp,
+        'random_normal': _cpp.random_normal,
+        'resonator_induced_voltage_1_turn':
+            _py.resonator_induced_voltage_1_turn,
 
         'device': 'CPU_CPP'
     }
@@ -74,13 +77,64 @@ def use_cpp():
     cpp_func_dict['fft'] = getattr(np, 'fft')
 
     __update_active_dict(cpp_func_dict)
+    # print('---------- Using the C++ computational backend ----------')
+
+
+def use_numba():
+    '''
+    Replace all python functions by their equivalent in numba
+    '''
+
+    from blond.utils import butils_wrap_numba as _nu
+
+    # dictionary storing the Numba-only versions of the most compute intensive functions #
+    nu_func_dict = {
+        'rfft': np.fft.rfft,
+        'irfft': np.fft.irfft,
+        'rfftfreq': np.fft.rfftfreq,
+
+        'kick': _nu.kick,
+        'rf_volt_comp': _nu.rf_volt_comp,
+        'drift': _nu.drift,
+        'slice_beam': _nu.slice_beam,
+        'slice_smooth': _nu.slice_smooth,
+        'linear_interp_kick': _nu.linear_interp_kick,
+        'synchrotron_radiation': _nu.synchrotron_radiation,
+        'synchrotron_radiation_full': _nu.synchrotron_radiation_full,
+        'music_track': _nu.music_track,
+        'music_track_multiturn': _nu.music_track_multiturn,
+        'fast_resonator': _nu.fast_resonator,
+        'beam_phase': _nu.beam_phase,
+        'beam_phase_fast': _nu.beam_phase_fast,
+        'sparse_histogram': _nu.sparse_histogram,
+        'distribution_from_tomoscope': _nu.distribution_from_tomoscope,
+        'set_random_seed': _nu.set_random_seed,
+        'resonator_induced_voltage_1_turn':
+            _nu.resonator_induced_voltage_1_turn,
+
+        'device': 'CPU_NU'
+    }
+
+    # add numpy functions in the dictionary
+    for fname in dir(np):
+        if callable(getattr(np, fname)) and (fname not in nu_func_dict) \
+                and (fname[0] != '_'):
+            nu_func_dict[fname] = getattr(np, fname)
+
+    # add basic numpy modules to dictionary as they are not callable
+    nu_func_dict['random'] = getattr(np, 'random')
+    nu_func_dict['fft'] = getattr(np, 'fft')
+
+    # Update the global functions
+    __update_active_dict(nu_func_dict)
+
+    # print('---------- Using the Numba computational backend ----------')
 
 
 def use_py():
     '''
     Replace all python functions by there equivalent in python
     '''
-    print('---------- Using the Python computational backend ----------')
 
     # dictionary storing the Python-only versions of the most compute intensive functions #
     py_func_dict = {
@@ -104,6 +158,8 @@ def use_py():
         'sparse_histogram': _py.sparse_histogram,
         'distribution_from_tomoscope': _py.distribution_from_tomoscope,
         'set_random_seed': _py.set_random_seed,
+        'resonator_induced_voltage_1_turn':
+            _py.resonator_induced_voltage_1_turn,
 
         'device': 'CPU_PY'
     }
@@ -112,7 +168,6 @@ def use_py():
     for fname in dir(np):
         if callable(getattr(np, fname)) and (fname not in py_func_dict) \
                 and (fname[0] != '_'):
-
             py_func_dict[fname] = getattr(np, fname)
 
     # add basic numpy modules to dictionary as they are not callable
@@ -122,14 +177,21 @@ def use_py():
     # Update the global functions
     __update_active_dict(py_func_dict)
 
+    # print('---------- Using the Python computational backend ----------')
+
 
 def use_cpu():
     '''
     If not library is found, use the python implementations
     '''
-    from .. import LIBBLOND as __lib
-    if __lib is None:
-        use_py()
+    # from .. import get_libblond
+    if _cpp.get_libblond() is None:
+        try:  # try to use numba
+            use_numba()
+        except ImportError as e:
+            print(f"Error: {e}. Please install numba with 'pip install numba' to use the numba backend."
+                  f" Using the python backend instead.")
+            use_py()
     else:
         use_cpp()
 
@@ -171,13 +233,21 @@ def use_fftw():
 
 # precision can be single or double
 def use_precision(_precision='double'):
-    """Change the precision used in caclulations.
+    """Change the precision used in calculations.
 
     Args:
         _precision (str, optional): Can be either 'single' or 'double'. Defaults to 'double'.
     """
     print(f'---------- Using {_precision} precision numeric datatypes ----------')
     precision.set(_precision)
+
+    try:
+        from ..gpu import GPU_DEV
+        GPU_DEV.load_library(_precision)
+    except Exception as e:
+        from warnings import warn
+        warn(f"The GPU backend is not available:\n{e}", UserWarning)
+    _cpp.load_libblond(_precision)
 
 
 def __update_active_dict(new_dict):
@@ -248,6 +318,8 @@ def use_gpu(gpu_id=0):
         'synchrotron_radiation_full': _cupy.synchrotron_radiation_full,
         'slice_beam': _cupy.slice_beam,
         # 'interp_const_space': _cupy.interp,
+        'resonator_induced_voltage_1_turn':
+            _py.resonator_induced_voltage_1_turn,
         'interp_const_space': cp.interp,
         'device': 'GPU'
     }
@@ -261,9 +333,16 @@ def use_gpu(gpu_id=0):
     gpu_func_dict['random'] = getattr(cp, 'random')
     gpu_func_dict['fft'] = getattr(cp, 'fft')
 
-    print('---------- Using the GPU computational backend ----------')
-    print(f'---------- GPU Device: id {GPU_DEV.id}, name {GPU_DEV.name}, Compute Capability {GPU_DEV.dev.compute_capability} ----------',
-           flush=True)
+    # print('---------- Using the GPU computational backend ----------')
+    # print(f'---------- GPU Device: id {GPU_DEV.id}, name {GPU_DEV.name}, Compute Capability {GPU_DEV.dev.compute_capability} ----------',
+    #        flush=True)
+
+
+def report_backend():
+    """Prints the currently active backend
+    """
+    global device
+    print(f'---------- Using the {device} computational backend ----------')
 
 
 ###############################################################################

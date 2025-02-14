@@ -12,17 +12,19 @@ Project website: http://blond.web.cern.ch/
 // Author: Helga Timko
 
 #include <stdlib.h>
+#include "../cpp_routines/blond_common.h"
+
 using uint = unsigned int;
 
-double randd() {
-    return (double)rand() / (RAND_MAX + 1.0);
+real_t randd() {
+    return (real_t)rand() / (RAND_MAX + 1.0);
 }
 
 
-extern "C" void generate_distribution(double * __restrict__ dt,
-                                      double * __restrict__ dE, const double * probDistr, const uint seed,
-                                      const uint profLen, const double cutoff, const double x0, const double y0,
-                                      const double dtBin, const double dEBin, const uint nPart) {
+extern "C" void generate_distribution(real_t * __restrict__ dt,
+                                      real_t * __restrict__ dE, const real_t * probDistr, const uint seed,
+                                      const uint profLen, const real_t cutoff, const real_t x0, const real_t y0,
+                                      const real_t dtBin, const real_t dEBin, const uint nPart) {
 
 
 // Initialise random seed
@@ -30,16 +32,16 @@ extern "C" void generate_distribution(double * __restrict__ dt,
 
 // Initialise some variables
     uint i, k, m;
-    double iPos, kPos;
-    double cutoff2 = cutoff * cutoff;
-    double dtMin = -1.*x0 * dtBin;
-    double dEMin = -1.*y0 * dEBin;
+    real_t iPos, kPos;
+    real_t cutoff2 = cutoff * cutoff;
+    real_t dtMin = -1.*x0 * dtBin;
+    real_t dEMin = -1.*y0 * dEBin;
 
 
 // Calculate cumulative probability
-    double totProb = 0.;
+    real_t totProb = 0.;
     uint profLen2 = uint(profLen * profLen);
-    double cumulDistr [profLen2];
+    real_t cumulDistr [profLen2];
 
     for (m = 0; m < profLen2; m++) {
         cumulDistr[m] = probDistr[m] + totProb;
@@ -48,7 +50,7 @@ extern "C" void generate_distribution(double * __restrict__ dt,
 
 
 // Normalise probability distribution
-    double invTotProb = 1. / totProb;
+    real_t invTotProb = 1. / totProb;
 
     for (m = 0; m < profLen2; m++) {
         cumulDistr[m] *= invTotProb;
@@ -57,7 +59,7 @@ extern "C" void generate_distribution(double * __restrict__ dt,
 
 // Generate particle coordinates
     uint n = 0;
-    double randProb;
+    real_t randProb;
 
     while ( n < nPart ) {
         randProb = randd();
@@ -68,11 +70,11 @@ extern "C" void generate_distribution(double * __restrict__ dt,
         i = int(m / profLen);
         k = m % profLen;
 
-        iPos = double(i) + randd() - 0.5;
-        kPos = double(k) + randd() - 0.5;
+        iPos = real_t(i) + randd() - 0.5;
+        kPos = real_t(k) + randd() - 0.5;
 
         // Add particle if inside cutoff
-        if ( double ((iPos - x0) * (iPos - x0) + (kPos - y0) * (kPos - y0)) < cutoff2 ) {
+        if ( real_t ((iPos - x0) * (iPos - x0) + (kPos - y0) * (kPos - y0)) < cutoff2 ) {
             dt[n] = dtMin + iPos * dtBin;
             dE[n] = dEMin + kPos * dEBin;
             n++;

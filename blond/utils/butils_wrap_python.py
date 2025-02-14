@@ -5,6 +5,10 @@ BLonD physics functions, python-only implementations
 '''
 
 import numpy as np
+from numpy.typing import NDArray
+from scipy.constants import e
+
+from blond.utils import bmath as bm
 
 RNG = np.random.default_rng()
 
@@ -49,7 +53,7 @@ def rf_volt_comp(voltages: np.ndarray, omega_rf: np.ndarray, phi_rf: np.ndarray,
 
 
 # --------------- Similar to drift.cpp -----------------
-def drift(dt: np.ndarray, dE: np.ndarray, solver: bytes, t_rev: float,
+def drift(dt: np.ndarray, dE: np.ndarray, solver: str, t_rev: float,
           length_ratio: float, alpha_order, eta_0: float,
           eta_1: float, eta_2: float, alpha_0: float,
           alpha_1: float, alpha_2: float, beta: float, energy: float) -> None:
@@ -57,15 +61,15 @@ def drift(dt: np.ndarray, dE: np.ndarray, solver: bytes, t_rev: float,
     Function to apply drift equation of motion
     '''
 
-    solver_decoded = solver.decode(encoding='utf_8')
+    # solver_decoded = solver.decode(encoding='utf_8')
 
     T = t_rev * length_ratio
 
-    if solver_decoded == 'simple':
+    if solver == 'simple':
         coeff = eta_0 / (beta * beta * energy)
         dt += T * coeff * dE
 
-    elif solver_decoded == 'legacy':
+    elif solver == 'legacy':
         coeff = 1. / (beta * beta * energy)
         eta0 = eta_0 * coeff
         eta1 = eta_1 * coeff * coeff
@@ -505,3 +509,96 @@ def distribution_from_tomoscope(dt: np.ndarray, dE: np.ndarray, probDistr: np.nd
             dE[n] = dEMin + kPos * dEBin
             n += 1
 # ---------------------------------------------------
+
+
+def resonator_induced_voltage_1_turn(kappa1: NDArray,
+                                     n_macroparticles: NDArray,
+                                     bin_centers: NDArray, bin_size: float,
+                                     n_time: int, deltaT: NDArray,
+                                     tArray: NDArray, reOmegaP: NDArray,
+                                     imOmegaP: NDArray, Qtilde: NDArray,
+                                     n_resonators: int, omega_r: NDArray,
+                                     Q: NDArray, tmp_matrix: NDArray,
+                                     charge: float, beam_n_macroparticles: int,
+                                     ratio: float, R: NDArray,
+                                     induced_voltage: NDArray,
+                                     float_precision: type):
+    r"""
+    Method to calculate the induced voltage through linearly
+    interpolating the line density and applying the analytic equation
+    to the result.
+
+    Parameters
+    ----------
+    kappa1: NDArray
+        For ``InducedVoltageResonator``:  np.zeros(int(profile.n_slices - 1), dtype=bm.precision.real_t, order='C')
+    n_macroparticles: NDArray
+        ``Profile`` options
+    bin_centers: NDArray
+        ``Profile`` options
+    bin_size: float
+        ``Profile`` options
+    n_time: int
+        length of ``tArray``
+    deltaT: NDArray
+        For ``InducedVoltageResonator``: np.zeros((n_time, profile.n_slices), dtype=bm.precision.real_t, order='C')
+    tArray: NDArray
+        Array of time values where the induced voltage is calculated.
+        If left out, the induced voltage is calculated at the times of the
+        line density
+    reOmegaP: NDArray
+        For``InducedVoltageResonator``:  omega_r * Qtilde / Q
+    imOmegaP: NDArray
+        For``InducedVoltageResonator``: omega_r / (2. * Q)
+    Qtilde: NDArray
+        For ``InducedVoltageResonator``:  Q * np.sqrt(1. - 1. / (4. * Q**2.))
+    n_resonators: int
+        Number of resonators
+    omega_r: NDArray
+        The resonant frequencies of the Resonators [1/s]
+    Q: NDArray
+        Resonators parameters: Quality factors of the resonators
+    tmp_matrix: NDArray
+        For ``InducedVoltageResonator``: np.ones((n_resonators, n_time), dtype=bm.precision.real_t, order='C')
+    charge: float
+        ``Beam`` parameter
+    beam_n_macroparticles: int
+        ``Beam`` parameter
+    ratio: float
+        ``Beam`` parameter
+    R: NDArray
+        Resonators parameters: Shunt impedances of the Resonators [:math:`\Omega`]
+    induced_voltage: NDArray
+        Computed induced voltage [V]
+    float_precision: type
+        Digital precision of calculation
+    """
+    # Compute the slopes of the line sections of the linearly interpolated
+    # (normalized) line density.
+    kappa1[:] = (bm.diff(n_macroparticles)
+                 / bm.diff(bin_centers)
+                 / (beam_n_macroparticles * bin_size))
+    # [:] makes kappa pass by reference
+
+    for t in range(n_time):
+        deltaT[t] = tArray[t] - bin_centers
+
+    # For each cavity compute the induced voltage and store in the r-th row
+    for r in range(n_resonators):
+        tmp_sum = ((((2 * bm.cos(reOmegaP[r] * deltaT)
+                      + bm.sin(reOmegaP[r] * deltaT) / Qtilde[r])
+                     * bm.exp(-imOmegaP[r] * deltaT))
+                    * 0.5 * (bm.sign(deltaT) + 1))  # Heaviside
+                   - bm.sign(deltaT))
+        # bm.sum performs the sum over the points of the line density
+        tmp_matrix[r] = (R[r] / (2 * omega_r[r] * Q[r])
+                         * bm.sum(kappa1 * bm.diff(tmp_sum), axis=1))
+
+    # To obtain the voltage, sum the contribution of each cavity...
+    induced_voltage = tmp_matrix.sum(axis=0)
+    # ... and multiply with bunch charge
+    induced_voltage *= (-charge * e * beam_n_macroparticles * ratio)
+    induced_voltage = induced_voltage.astype(dtype=float_precision, order='C',
+                                             copy=False)
+
+    return induced_voltage, deltaT

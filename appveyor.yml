@@ -3,7 +3,7 @@ image:
 environment:
   matrix:
     # - PATH: C:\Python36-x64;C:\mingw-w64\x86_64-7.2.0-posix-seh-rt_v5-rev1\mingw64\bin;%PATH%
-    - PATH: C:\Python37-x64;C:\mingw-w64\x86_64-7.2.0-posix-seh-rt_v5-rev1\mingw64\bin;%PATH%
+    # - PATH: C:\Python37-x64;C:\mingw-w64\x86_64-7.2.0-posix-seh-rt_v5-rev1\mingw64\bin;%PATH%
     - PATH: C:\Python38-x64;C:\mingw-w64\x86_64-7.2.0-posix-seh-rt_v5-rev1\mingw64\bin;%PATH%
   # matrix:
     # - VSVER: Visual Studio 14 2015

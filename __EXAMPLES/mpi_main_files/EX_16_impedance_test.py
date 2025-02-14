@@ -39,6 +39,9 @@ from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
 from blond.trackers.tracker import RingAndRFTracker
 
+DRAFT_MODE = bool(int(os.environ.get("BLOND_EXAMPLES_DRAFT_MODE", False)))
+# To check if executing correctly, rather than to run the full simulation
+
 mpl.use('Agg')
 
 
@@ -54,7 +57,7 @@ os.makedirs(this_directory + '../mpi_output_files/EX_16_fig', exist_ok=True)
 
 # Beam parameters
 n_particles = 1e11
-n_macroparticles = 1e6
+n_macroparticles = 1001 if DRAFT_MODE else 1e6
 sigma_dt = 180e-9 / 4  # [s]
 kin_beam_energy = 1.4e9  # [eV]
 

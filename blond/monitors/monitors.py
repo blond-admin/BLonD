@@ -16,7 +16,7 @@
 
 import h5py as hp
 import numpy as np
-
+import os
 
 class BunchMonitor:
 
@@ -76,6 +76,10 @@ class BunchMonitor:
 
         # Prepare data
         self.beam.statistics()
+
+        # create directory to save h5 file if needed
+        dirname = os.path.dirname(filename)
+        os.makedirs(dirname, exist_ok=True)
 
         # Open file
         self.h5file = hp.File(filename + '.h5', 'w')
@@ -337,6 +341,10 @@ class SlicesMonitor:
 
     def __init__(self, filename, n_turns, profile):
 
+        # create directory to save h5 file if needed
+        dirname = os.path.dirname(filename)
+        os.makedirs(dirname, exist_ok=True)
+
         self.h5file = hp.File(filename + '.h5', 'w')
         self.n_turns = n_turns
         self.i_turn = 0
@@ -374,6 +382,10 @@ class MultiBunchMonitor:
     '''
 
     def __init__(self, filename, n_turns, profile, rf, Nbunches, buffer_size=100):
+
+        # create directory to save h5 file if needed
+        dirname = os.path.dirname(filename)
+        os.makedirs(dirname, exist_ok=True)
 
         self.h5file = hp.File(filename + '.h5', 'w')
         self.n_turns = n_turns

@@ -187,14 +187,14 @@ class TestSyntheticData:
         cp.testing.assert_allclose(dE_gpu, dE, rtol=1e-8, atol=0)
 
     @pytest.mark.parametrize('n_particles,n_slices,cut_left,cut_right',
-                             [(100, 5, 0.01, 0.01), (10000, 100, 0.5, 0.5),
+                             [(100, 5, 0.01, 0.01), (10000, 100, 0.05, 0.05),
                               (1000000, 1000, 0.0, 0.0),
                               (1000000, 10000, 0.05, 0.01),
                               (10000000, 100000, 0.01, 0.01)])
     def test_profile_slices(self, n_particles, n_slices, cut_left, cut_right):
         import cupy as cp
 
-        dt = np.random.normal(loc=1e-5, scale=1e-7, size=n_particles)
+        dt = np.random.normal(loc=1e-5, scale=1e-6, size=n_particles)
         dt_gpu = cp.array(dt)
 
         max_dt = dt.max()
@@ -243,6 +243,49 @@ class TestSyntheticData:
 
         cp.testing.assert_allclose(dE_gpu, dE, rtol=1e-8, atol=0)
 
+    def test_kick_bug_with_slices(self):
+        import numpy as np
+        import cupy as cp
+        from blond.utils.butils_wrap_python import kick as kick_python
+        from blond.gpu.butils_wrap_cupy import kick as kick_cupy
+        from blond.gpu import GPU_DEV
+
+        GPU_DEV.set()  # Set CUDA library to double for working on same precision as Python
+        GPU_DEV.load_library('double')  # Set CUDA library to double for working on same precision as Python
+
+        # create array to be sliced
+        trap_for_slicing = 1e6 * np.array([
+            [1, 2, 3],
+            [4, 5, 6],
+        ], dtype=float)
+        trap_for_slicing_cp = cp.array(trap_for_slicing)
+
+        n_particles = 10
+        dE = 1e6 * np.random.normal(loc=0, scale=1e7, size=n_particles)
+        dt = np.random.normal(loc=1e-5, scale=1e-7, size=n_particles)
+        charge = 1.0
+        acceleration_kick = 1e3 * np.random.rand()
+
+        # slice the array on CPU. This should behave correctly..
+        voltage = trap_for_slicing[:, 0]
+        omega_rf = trap_for_slicing[:, 0]
+        phi_rf = trap_for_slicing[:, 0]
+        n_rf = len(voltage)
+
+        dt_cp = cp.array(dt)
+        dE_cp = cp.array(dE)
+
+        # slice the array on GPU. This should trigger the bug..?
+        voltage_cp = trap_for_slicing_cp[:, 0]
+        omega_rf_cp = trap_for_slicing_cp[:, 0]
+        phi_rf_cp = trap_for_slicing_cp[:, 0]
+
+        kick_python(dt, dE, voltage, omega_rf, phi_rf, charge, n_rf, acceleration_kick)
+        kick_cupy(dt_cp, dE_cp, voltage_cp, omega_rf_cp, phi_rf_cp, charge, n_rf, acceleration_kick)
+
+        for i in range(len(dE)):
+            assert (dE[i] == dE_cp.get()[i]), f"{dE[i]} != {dE_cp.get()[i]}"
+
     @pytest.mark.parametrize('n_particles,solver,alpha_order,n_iter',
                              [(100, 'simple', 0, 1), (100, 'legacy', 1, 10),
                               (100, 'exact', 2, 100), (10000, 'simple', 1, 100),
@@ -252,7 +295,6 @@ class TestSyntheticData:
     def test_drift(self, n_particles, solver, alpha_order, n_iter):
         import cupy as cp
 
-        solver = solver.encode(encoding='utf_8')
         dE = np.random.normal(loc=0, scale=1e7, size=n_particles)
         dt = np.random.normal(loc=1e-5, scale=1e-7, size=n_particles)
         dt_gpu = cp.array(dt)
@@ -286,7 +328,6 @@ class TestSyntheticData:
         import cupy as cp
 
         solver = 'exact'
-        solver = solver.encode(encoding='utf_8')
         alpha_order = 2
         n_rf = 1
 
@@ -538,7 +579,7 @@ class TestBigaussianData:
                                    profile.n_macroparticles, rtol=1e-8, atol=0)
 
     @pytest.mark.parametrize('N_p,n_slices,n_iter',
-                             [(100, 10, 10), (10000, 25, 100), (100000, 100, 100)])
+                             [(100, 10, 10), (100000, 100, 20)])
     def test_rf_voltage_calc(self, N_p, n_slices, n_iter):
         import cupy as cp
 

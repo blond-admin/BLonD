@@ -74,63 +74,51 @@ class ParameterScaling:
     def relativistic_quantities(self):
 
         self.momentum = np.sqrt(self.energy**2 - self.mass**2)
-        self.tb1.append("    Synchronous momentum: " +
-                        np.str(self.momentum) + " eV")
+        self.tb1.append(f"    Synchronous momentum: {self.momentum} eV")
 
         self.kinetic_energy = self.energy - self.mass
-        self.tb1.append("    Synchronous kinetic energy: " +
-                        np.str(self.kinetic_energy) + " eV")
+        self.tb1.append(f"    Synchronous kinetic energy: {self.kinetic_energy} eV")
 
         self.gamma = self.energy / self.mass
-        self.tb1.append("    Synchronous relativistic gamma: " +
-                        np.str(self.gamma) + "")
+        self.tb1.append(f"    Synchronous relativistic gamma: {self.gamma}")
 
         self.beta = np.sqrt(1. - 1. / self.gamma**2)
-        self.tb1.append("    Synchronous relativistic beta: " +
-                        np.str(self.beta) + "")
+        self.tb1.append(f"    Synchronous relativistic beta: {self.beta}")
 
         self.beta_sq = self.beta ** 2
-        self.tb1.append("    Synchronous relativistic beta squared: " +
-                        np.str(self.beta_sq) + "\n")
+        self.tb1.append(f"    Synchronous relativistic beta squared: {self.beta_sq}\n")
 
     def frequencies(self):
 
         self.t_rev = self.circumference / (self.beta * c)
-        self.tb1.append("    Revolution period: " +
-                        np.str(self.t_rev * 1.e6) + " us")
+        self.tb1.append(f"    Revolution period: {self.t_rev * 1.e6} us")
 
         self.f_rev = 1. / self.t_rev
-        self.tb1.append("    Revolution frequency: " +
-                        np.str(self.f_rev) + " Hz")
+        self.tb1.append(f"    Revolution frequency: {self.f_rev} Hz")
 
         self.omega_rev = 2. * np.pi * self.f_rev
-        self.tb1.append("        Angular revolution frequency: " +
-                        np.str(self.omega_rev) + " 1/s")
+        self.tb1.append(f"        Angular revolution frequency: {self.omega_rev} 1/s")
 
         self.f_RF = self.harmonic * self.f_rev
-        self.tb1.append("    RF frequency: " + np.str(self.f_RF * 1.e-6) + " MHz")
+        self.tb1.append(f"    RF frequency: {self.f_RF * 1.e-6} MHz")
 
         self.omega_rf = 2. * np.pi * self.f_RF
-        self.tb1.append("        Angular RF frequency: " +
-                        np.str(self.omega_rf) + " 1/s\n")
+        self.tb1.append(f"        Angular RF frequency: {self.omega_rf} 1/s\n")
 
     def tune(self):
 
         self.eta_0 = np.fabs(1. / self.gamma_t**2 - 1. / self.gamma**2)
-        self.tb1.append("    Slippage factor (zeroth order): " +
-                        np.str(self.eta_0) + "")
+        self.tb1.append(f"    Slippage factor (zeroth order): {self.eta_0}")
 
         self.Q_s0 = np.sqrt(self.harmonic * self.voltage * self.eta_0 /
                             (2. * np.pi * self.beta_sq * self.energy))
-        self.tb1.append("    Central synchrotron tune: " + np.str(self.Q_s0) + "")
+        self.tb1.append(f"    Central synchrotron tune: {self.Q_s0}")
 
         self.f_s0 = self.Q_s0 * self.f_rev
-        self.tb1.append("    Central synchrotron frequency: " +
-                        np.str(self.f_s0) + "")
+        self.tb1.append(f"    Central synchrotron frequency: {self.f_s0}")
 
         self.omega_s0 = 2. * np.pi * self.f_s0
-        self.tb1.append("        Angular synchrotron frequency: " +
-                        np.str(self.omega_s0) + " 1/s\n")
+        self.tb1.append(f"        Angular synchrotron frequency: {self.omega_s0} 1/s\n")
 
     def bucket_parameters(self):
 
@@ -138,20 +126,17 @@ class ParameterScaling:
 
         self.bucket_area = 8. * np.sqrt(2. * self.beta_sq * self.energy * self.voltage /
                                         (np.pi * self.harmonic * self.eta_0)) / self.omega_rf
-        self.tb1.append("    Bucket area: " + np.str(self.bucket_area) + " eVs")
+        self.tb1.append(f"    Bucket area: {self.bucket_area} eVs")
 
         self.dt_max = 0.5 * self.t_rev / self.harmonic
-        self.tb1.append("    Half of bucket length: " +
-                        np.str(self.dt_max * 1.e9) + " ns")
+        self.tb1.append(f"    Half of bucket length: {self.dt_max * 1.e9} ns")
 
         self.dE_max = np.sqrt(2. * self.beta**2 * self.energy * self.voltage /
                               (np.pi * self.eta_0 * self.harmonic))
-        self.tb1.append("    Half of bucket height: " +
-                        np.str(self.dE_max * 1.e-6) + " MeV")
+        self.tb1.append(f"    Half of bucket height: {self.dE_max * 1.e-6} MeV")
 
         self.delta_max = self.dE_max / (self.beta_sq * self.energy)
-        self.tb1.append("        In relative momentum offset: " +
-                        np.str(self.delta_max) + "\n")
+        self.tb1.append(f"        In relative momentum offset: {self.delta_max}\n")
 
     def emittance_from_bunch_length(self, four_sigma_bunch_length):
 
@@ -159,20 +144,13 @@ class ParameterScaling:
         if self.tau >= 2. * self.dt_max:
             self.tb1.append("Chosen bunch length too large for this bucket. Aborting!")
             raise RuntimeError("Chosen bunch length too large for this bucket. Aborting!")
-        self.tb1.append("Calculating emittance of 4-sigma bunch length: " +
-                        np.str(self.tau * 1.e9) + " ns")
-        self.tb1.append("    Emittance contour in phase: " +
-                        np.str(self.phi_b) + " rad")
-        self.tb1.append("    Emittance contour in relative momentum: " +
-                        np.str(self.delta_b) + "")
-        self.tb1.append("    Emittance contour in energy offset: " +
-                        np.str(self.dE_b * 1.e-6) + " MeV")
-        self.tb1.append("    R.m.s. bunch length is: " +
-                        np.str(self.tau * c / 4 * 100) + " cm")
-        self.tb1.append("    R.m.s. energy spread is: " +
-                        np.str(0.5 * self.dE_b / self.kinetic_energy) + "")
-        self.tb1.append("    Longitudinal emittance is: " +
-                        np.str(self.emittance) + " eVs\n")
+        self.tb1.append(f"Calculating emittance of 4-sigma bunch length: {self.tau * 1.e9} ns")
+        self.tb1.append(f"    Emittance contour in phase: {self.phi_b} rad")
+        self.tb1.append(f"    Emittance contour in relative momentum: {self.delta_b}")
+        self.tb1.append(f"    Emittance contour in energy offset: {self.dE_b * 1.e-6} MeV")
+        self.tb1.append(f"    R.m.s. bunch length is: {self.tau * c / 4 * 100} cm")
+        self.tb1.append(f"    R.m.s. energy spread is: {0.5 * self.dE_b / self.kinetic_energy}")
+        self.tb1.append(f"    Longitudinal emittance is: {self.emittance} eVs\n")
 
     def bunch_length_from_emittance(self, emittance):
 
@@ -181,8 +159,7 @@ class ParameterScaling:
         if self.emittance_aim >= self.bucket_area:
             self.tb1.append("Chosen emittance too large for this bucket. Aborting!")
             raise RuntimeError("Chosen emittance too large for this bucket. Aborting!")
-        self.tb1.append("Calculating 4-sigma bunch length for an emittance of "
-                        + np.str(self.emittance_aim) + " eVs")
+        self.tb1.append(f"Calculating 4-sigma bunch length for an emittance of {self.emittance_aim} eVs")
 
         # Make a guess, iterate to get closer
         self.tau = self.dt_max / 2.
@@ -190,11 +167,9 @@ class ParameterScaling:
                        / self.emittance_aim) > 0.001):
             self.tau *= np.sqrt(self.emittance_aim / self.emittance)
 
-        self.tb1.append("    Bunch length is: " + np.str(self.tau * 1.e9) + " ns")
-        self.tb1.append("    Corresponding matched rms relative momentum offset: " +
-                        np.str(self.delta_b) + "")
-        self.tb1.append("    Emittance contour in phase: " +
-                        np.str(self.phi_b) + " rad")
+        self.tb1.append(f"    Bunch length is: {self.tau * 1.e9} ns")
+        self.tb1.append(f"    Corresponding matched rms relative momentum offset: {self.delta_b}")
+        self.tb1.append(f"    Emittance contour in phase: {self.phi_b} rad")
 
     def setupUi(self, mainWindow):
 
@@ -397,42 +372,35 @@ class ParameterScaling:
         self.bunch_length_target = self.leBunchLength.text()
 
         self.tb1.append("\n\n" + "**************************** BEAM PARAMETER CALCULATOR ****************************" + "\n")
-        self.tb1.append("Input -- chosen machine/optics: " +
-                        np.str(self.machine) + "\n")
+        self.tb1.append(f"Input -- chosen machine/optics: {self.machine}\n")
 
         # Derived parameters --------------------------------------------------
 
         self.alpha = 1. / self.gamma_t**2
-        self.tb1.append("    * with relativistic gamma at transition: " +
-                        np.str(self.gamma_t) + "")
-        self.tb1.append("    * with momentum compaction factor: " +
-                        np.str(self.alpha) + "")
+        self.tb1.append(f"    * with relativistic gamma at transition: {self.gamma_t}")
+        self.tb1.append(f"    * with momentum compaction factor: {self.alpha}")
 
         self.harmonic = harmonics[self.setup]
-        self.tb1.append("    * with main harmonic: " + np.str(self.harmonic) + "")
+        self.tb1.append(f"    * with main harmonic: {self.harmonic}")
 
         self.circumference = circumferences[self.setup]
-        self.tb1.append("    * and machine circumference: " +
-                        np.str(self.circumference) + " m\n")
+        self.tb1.append(f"    * and machine circumference: {self.circumference} m\n")
 
         if self.energy_type == 'Flat bottom':
             self.energy = energies_fb[self.setup]
         elif self.energy_type == 'Flat top':
             self.energy = energies_ft[self.setup]
-        self.tb1.append("Input -- synchronous total energy: " +
-                        np.str(self.energy * 1.e-6) + " MeV")
+        self.tb1.append(f"Input -- synchronous total energy: {self.energy * 1.e-6} MeV")
 
         try:
             self.voltage = np.double(self.voltage)
         except ValueError:
             self.tb1.append("Voltage not recognised!")
             return
-        self.tb1.append("Input -- RF voltage: " +
-                        np.str(self.voltage * 1.e-6) + " MV")
+        self.tb1.append(f"Input -- RF voltage: {self.voltage * 1.e-6} MV")
 
         self.mass = m_p * c**2 / e
-        self.tb1.append("Input -- particle mass: " +
-                        np.str(self.mass * 1.e-6) + " MeV\n")
+        self.tb1.append(f"Input -- particle mass: {self.mass * 1.e-6} MeV\n")
 
         # Derived quantities --------------------------------------------------
         self.relativistic_quantities()

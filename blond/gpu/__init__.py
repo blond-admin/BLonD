@@ -12,17 +12,12 @@ from ..utils import precision
 
 class GPUDev:
     """GPU Device object, singleton class
-
-    Returns:
-        _type_: _description_
     """
     __instance = None
 
     def __init__(self):
-        """Initializes the GPU device object.
-
-        Args:
-            _gpu_num (int, optional): The device id. Defaults to 0.
+        """
+        Initializes the GPU device object.
         """
         if GPUDev.__instance is not None:
             return
@@ -55,15 +50,8 @@ class GPUDev:
         self.grid_size = (blocks, 1, 1)
         self.block_size = (threads, 1, 1)
 
-        this_dir = os.path.dirname(os.path.realpath(__file__)) + "/"
-        comp_capability = self.dev.compute_capability
-
-        if precision.num == 1:
-            self.mod = cp.RawModule(path=os.path.join(
-                this_dir, f'../gpu/cuda_kernels/kernels_single_sm_{comp_capability}.cubin'))
-        else:
-            self.mod = cp.RawModule(path=os.path.join(
-                this_dir, f'../gpu/cuda_kernels/kernels_double_sm_{comp_capability}.cubin'))
+        self.mod = None
+        self.load_library(precision.str)
 
     def report_attributes(self):
         """ Stores in file device attributes
@@ -83,6 +71,24 @@ class GPUDev:
             _type_: _description_
         """
         return self.mod.get_function(name)
+    
+    def load_library(self, _precision):
+        """Load the GPU library
+
+        Args:
+            _precision (str): must be either 'single' or 'double'
+        """
+        import cupy as cp
+        assert _precision in ['single', 'double']
+
+        this_dir = os.path.dirname(os.path.realpath(__file__)) + "/"
+        comp_capability = self.dev.compute_capability
+        library_path = os.path.join(this_dir, f'../gpu/kernels_sm_{comp_capability}_{_precision}.cubin')
+        if os.path.exists(library_path):
+            self.mod = cp.RawModule(path=library_path)
+        else:
+            raise FileNotFoundError(f'Could not find the library for the compute capability {comp_capability}.'
+                                    f'Try to compile BLonD again using: python BLonD/blond/compile.py -gpu {comp_capability} --optimize')
 
 
 # Initialize empty GPU object

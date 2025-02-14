@@ -18,8 +18,16 @@ from __future__ import division, print_function
 from builtins import range, str
 
 import numpy as np
+import scipy
+from packaging.version import Version
+
+if Version(scipy.__version__) >= Version("1.14"):
+    from scipy.integrate import cumulative_trapezoid as cumtrapz
+else:
+    from scipy.integrate import cumtrapz
+
+
 from scipy.constants import c
-from scipy.integrate import cumtrapz
 
 from ..beam.beam import Proton
 from ..input_parameters.rf_parameters_options import RFStationOptions
@@ -505,14 +513,13 @@ def calculate_phi_s(RFStation, Particle=Proton(),
 
         denergy = np.append(RFStation.delta_E, RFStation.delta_E[-1])
         acceleration_ratio = denergy / (Particle.charge * RFStation.voltage[0, :])
-        acceleration_test = np.where((acceleration_ratio > -1) *
-                                     (acceleration_ratio < 1) is False)[0]
-
+        acceleration_test = ((acceleration_ratio > -1) & (acceleration_ratio < 1)) == 0
+        
         # Validity check on acceleration_ratio
-        if acceleration_test.size > 0:
+        if np.count_nonzero(acceleration_test) > 0:
             print("WARNING in calculate_phi_s(): acceleration is not " +
                   "possible (momentum increment is too big or voltage too " +
-                  "low) at index " + str(acceleration_test))
+                  "low) at index " + str(acceleration_test.nonzero()[0]))
 
         phi_s = np.arcsin(acceleration_ratio)
 

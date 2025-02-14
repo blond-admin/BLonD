@@ -181,8 +181,6 @@ class TestDrift(unittest.TestCase):
 
         # Forcing usage of legacy
         self.long_tracker.solver = 'legacy'
-        self.long_tracker.solver = self.long_tracker.solver.encode(
-            encoding='utf_8')
 
         for i in range(self.ring.n_turns):
             self.long_tracker.track()
@@ -220,8 +218,6 @@ class TestDrift(unittest.TestCase):
 
         # Forcing usage of legacy
         self.long_tracker.solver = 'legacy'
-        self.long_tracker.solver = self.long_tracker.solver.encode(
-            encoding='utf_8')
 
         for i in range(self.ring.n_turns):
             self.long_tracker.track()
@@ -259,8 +255,6 @@ class TestDrift(unittest.TestCase):
 
         # Forcing usage of legacy
         self.long_tracker.solver = 'legacy'
-        self.long_tracker.solver = self.long_tracker.solver.encode(
-            encoding='utf_8')
 
         for i in range(self.ring.n_turns):
             self.long_tracker.track()
@@ -298,8 +292,6 @@ class TestDrift(unittest.TestCase):
 
         # Forcing usage of legacy
         self.long_tracker.solver = 'legacy'
-        self.long_tracker.solver = self.long_tracker.solver.encode(
-            encoding='utf_8')
 
         for i in range(self.ring.n_turns):
             self.long_tracker.track()
@@ -337,8 +329,6 @@ class TestDrift(unittest.TestCase):
 
         # Forcing usage of legacy
         self.long_tracker.solver = 'exact'
-        self.long_tracker.solver = self.long_tracker.solver.encode(
-            encoding='utf_8')
 
         for i in range(self.ring.n_turns):
             self.long_tracker.track()
@@ -376,8 +366,6 @@ class TestDrift(unittest.TestCase):
 
         # Forcing usage of legacy
         self.long_tracker.solver = 'exact'
-        self.long_tracker.solver = self.long_tracker.solver.encode(
-            encoding='utf_8')
 
         for i in range(self.ring.n_turns):
             self.long_tracker.track()
@@ -415,8 +403,6 @@ class TestDrift(unittest.TestCase):
 
         # Forcing usage of legacy
         self.long_tracker.solver = 'exact'
-        self.long_tracker.solver = self.long_tracker.solver.encode(
-            encoding='utf_8')
 
         for i in range(self.ring.n_turns):
             self.long_tracker.track()
@@ -454,8 +440,6 @@ class TestDrift(unittest.TestCase):
 
         # Forcing usage of legacy
         self.long_tracker.solver = 'exact'
-        self.long_tracker.solver = self.long_tracker.solver.encode(
-            encoding='utf_8')
 
         for i in range(self.ring.n_turns):
             self.long_tracker.track()
@@ -493,8 +477,6 @@ class TestDrift(unittest.TestCase):
 
         # Forcing usage of legacy
         self.long_tracker.solver = 'exact'
-        self.long_tracker.solver = self.long_tracker.solver.encode(
-            encoding='utf_8')
 
         for i in range(self.ring.n_turns):
             self.long_tracker.track()

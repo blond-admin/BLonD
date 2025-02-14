@@ -14,8 +14,6 @@ Example script to take into account intensity effects from impedance tables
 '''
 
 from __future__ import division, print_function
-from blond.utils.mpi_config import mpiprint, WORKER
-from blond.utils import bmath as bm
 
 import os
 from builtins import bytes, range, str
@@ -37,6 +35,11 @@ from blond.plots.plot import Plot
 from blond.plots.plot_impedance import (plot_impedance_vs_frequency,
                                         plot_induced_voltage_vs_bin_centers)
 from blond.trackers.tracker import RingAndRFTracker
+from blond.utils import bmath as bm
+from blond.utils.mpi_config import mpiprint, WORKER
+
+DRAFT_MODE = bool(int(os.environ.get("BLOND_EXAMPLES_DRAFT_MODE", False)))
+# To check if executing correctly, rather than to run the full simulation
 
 mpl.use('Agg')
 
@@ -53,7 +56,7 @@ os.makedirs(this_directory + '../mpi_output_files/EX_02_fig', exist_ok=True)
 
 # Beam parameters
 n_particles = 1e11
-n_macroparticles = 5e5
+n_macroparticles = 1001 if DRAFT_MODE else 5e5
 sigma_dt = 180e-9 / 4  # [s]
 kin_beam_energy = 1.4e9  # [eV]
 
@@ -81,22 +84,22 @@ phi_offset = np.pi
 
 # DEFINE RING------------------------------------------------------------------
 
-general_params = Ring(C, momentum_compaction, sync_momentum,
-                      Proton(), n_turns)
+ring = Ring(C, momentum_compaction, sync_momentum,
+            Proton(), n_turns)
 
-RF_sct_par = RFStation(general_params, [harmonic_numbers],
+RF_sct_par = RFStation(ring, [harmonic_numbers],
                        [voltage_program], [phi_offset], n_rf_systems)
 
-my_beam = Beam(general_params, n_macroparticles, n_particles)
+my_beam = Beam(ring, n_macroparticles, n_particles)
 
 ring_RF_section = RingAndRFTracker(RF_sct_par, my_beam)
 
 # DEFINE BEAM------------------------------------------------------------------
-bigaussian(general_params, RF_sct_par, my_beam, sigma_dt, seed=1)
+bigaussian(ring, RF_sct_par, my_beam, sigma_dt, seed=1)
 
 # DEFINE SLICES----------------------------------------------------------------
 slice_beam = Profile(my_beam, CutOptions(cut_left=-5.72984173562e-7,
-                                         cut_right=5.72984173562e-7, n_slices=100))
+                                         cut_right=5.72984173562e-7, n_slices=10000))
 
 
 # LOAD IMPEDANCE TABLES--------------------------------------------------------
@@ -104,9 +107,10 @@ slice_beam = Profile(my_beam, CutOptions(cut_left=-5.72984173562e-7,
 var = str(kin_beam_energy / 1e9)
 
 # ejection kicker
-Ekicker = np.loadtxt(this_directory + '../input_files/EX_02_Ekicker_1.4GeV.txt', skiprows=1, dtype=complex, converters={0: lambda s:
-                                                                                                                        complex(bytes(s).decode('UTF-8').replace('i', 'j')),
-                                                                                                                        1: lambda s: complex(bytes(s).decode('UTF-8').replace('i', 'j'))})
+Ekicker = np.loadtxt(this_directory + '../input_files/EX_02_Ekicker_1.4GeV.txt', skiprows=1, dtype=complex,
+                     encoding="utf-8",
+                     converters={0: lambda s: complex(bytes(s, encoding="utf-8").decode('UTF-8').replace('i', 'j')),
+                                 1: lambda y: complex(bytes(y, encoding="utf-8").decode('UTF-8').replace('i', 'j'))})
 
 Ekicker_table = InputTable(Ekicker[:, 0].real, Ekicker[:, 1].real, Ekicker[:, 1].imag)
 
@@ -135,10 +139,10 @@ else:
 
 # steps
 steps = InductiveImpedance(my_beam, slice_beam, 34.6669349520904 / 10e9 *
-                           general_params.f_rev, RF_sct_par, deriv_mode='diff')
+                           ring.f_rev, RF_sct_par, deriv_mode='diff')
 # direct space charge
 dir_space_charge = InductiveImpedance(my_beam, slice_beam, -376.730313462
-                                      / (general_params.beta[0] * general_params.gamma[0]**2),
+                                      / (ring.beta[0] * ring.gamma[0] ** 2),
                                       RF_sct_par)
 
 
@@ -159,13 +163,13 @@ map_ = [total_induced_voltage] + [ring_RF_section] + [slice_beam]
 
 if WORKER.is_master:
     # MONITOR----------------------------------------------------------------------
-    bunchmonitor = BunchMonitor(general_params, RF_sct_par, my_beam,
+    bunchmonitor = BunchMonitor(ring, RF_sct_par, my_beam,
                                 this_directory + '../mpi_output_files/EX_02_output_data', buffer_time=1)
 
     # PLOTS
 
     format_options = {'dirname': this_directory + '../mpi_output_files/EX_02_fig', 'linestyle': '.'}
-    plots = Plot(general_params, RF_sct_par, my_beam, 1, n_turns, 0,
+    plots = Plot(ring, RF_sct_par, my_beam, 1, n_turns, 0,
                  5.72984173562e-7, - my_beam.sigma_dE * 4.2, my_beam.sigma_dE * 4.2, xunit='s',
                  separatrix_plot=True, Profile=slice_beam, h5file=this_directory + '../mpi_output_files/EX_02_output_data',
                  histograms_plot=True, format_options=format_options)
@@ -191,11 +195,13 @@ for i in range(1, n_turns + 1):
 
     # Plots
     if (i % n_turns_between_two_plots) == 0:
+        plot_impedance_vs_frequency(ind_volt_freq, figure_index=i, cut_up_down=(0, 1000), cut_left_right=(0, 3e9),
+                                    show_plots=False,
+                                    plot_total_impedance=False, style='-', plot_interpolated_impedances=False,
+                                    plot_spectrum=False, dirname=this_directory + '../mpi_output_files/EX_02_fig')
 
-        plot_impedance_vs_frequency(i, general_params, ind_volt_freq,
-                                    option1="single", style='-', option3="freq_table", option2="spectrum", dirname=this_directory + '../mpi_output_files/EX_02_fig')
-
-        plot_induced_voltage_vs_bin_centers(i, general_params, total_induced_voltage, style='.', dirname=this_directory + '../mpi_output_files/EX_02_fig')
+        plot_induced_voltage_vs_bin_centers(total_induced_voltage, style='.',
+                                            dirname=this_directory + '../mpi_output_files/EX_02_fig', show_plots=False)
 
 my_beam.gather()
 WORKER.finalize()

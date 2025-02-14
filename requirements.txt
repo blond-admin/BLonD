@@ -1,5 +1,6 @@
-numpy
+numpy>=1.20
 scipy
-matplotlib
+matplotlib>=3.7
 h5py
 mpmath
+packaging

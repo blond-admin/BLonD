@@ -14,16 +14,20 @@
     **Simon Albright**
 '''
 
-from __future__ import division
+from __future__ import division, annotations
 
 from builtins import range, str
+from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.constants import c
-from scipy.interpolate import splev, splrep
+from scipy.interpolate import splev, splrep, Akima1DInterpolator
 
 from ..plots.plot import fig_folder
+
+if TYPE_CHECKING:
+    from typing import List, Iterable, Tuple
 
 
 class RingOptions:
@@ -34,7 +38,7 @@ class RingOptions:
     ----------
     interpolation : str
         Interpolation options for the data points. Available options are
-        'linear' (default), 'cubic', and 'derivative'
+        'linear' (default), 'cubic', 'derivative' and 'akima'
     smoothing : float
         Smoothing value for 'cubic' interpolation
     flat_bottom : int
@@ -64,7 +68,7 @@ class RingOptions:
                  flat_top=0, t_start=None, t_end=None, plot=False,
                  figdir='fig', figname='preprocess_ramp', sampling=1):
 
-        if interpolation in ['linear', 'cubic', 'derivative']:
+        if interpolation in ['linear', 'cubic', 'derivative', 'akima']:
             self.interpolation = str(interpolation)
         else:
             # InputDataError
@@ -275,9 +279,8 @@ class RingOptions:
 
                 else:
                     # InputDataError
-                    raise RuntimeError("ERROR in Ring: The input data " +
-                                       "does not match the proper length " +
-                                       "(n_turns+1)")
+                    raise RuntimeError("ERROR in Ring: The 'input_data'" +
+                                       f"should have {(n_turns+1)=} entries, but shape is {input_data.shape=}")
 
         return output_data
 
@@ -305,7 +308,8 @@ class RingOptions:
             Interpolated momentum [eV/c]
 
         """
-
+        time = np.array(time)
+        momentum = np.array(momentum)
         # Some checks on the options
         if ((self.t_start is not None) and (self.t_start < time[0])) or \
                 ((self.t_end is not None) and (self.t_end > time[-1])):
@@ -331,114 +335,35 @@ class RingOptions:
         # Interpolate data recursively
         if self.interpolation == 'linear':
 
-            time_interp.append(time_interp[-1]
-                               + circumference / (beta_interp[0] * c))
-
-            i = self.flat_bottom
-            for k in range(1, len(time)):
-
-                while time_interp[i + 1] <= time[k]:
-
-                    momentum_interp.append(
-                        momentum[k - 1] + (momentum[k] - momentum[k - 1]) *
-                        (time_interp[i + 1] - time[k - 1]) /
-                        (time[k] - time[k - 1]))
-
-                    beta_interp.append(
-                        np.sqrt(1 / (1 + (mass / momentum_interp[i + 1])**2)))
-
-                    time_interp.append(
-                        time_interp[i + 1] + circumference / (beta_interp[i + 1] * c))
-
-                    i += 1
+            interps = self._linear_interpolation(time_interp, momentum_interp,
+                                                 beta_interp, circumference,
+                                                 time, momentum, mass)
+            time_interp, momentum_interp, beta_interp = interps
 
         elif self.interpolation == 'cubic':
 
-            interp_funtion_momentum = splrep(
-                time[(time >= time_start_ramp) * (time <= time_end_ramp)],
-                momentum[(time >= time_start_ramp) * (time <= time_end_ramp)],
-                s=self.smoothing)
-
-            i = self.flat_bottom
-
-            time_interp.append(
-                time_interp[-1] + circumference / (beta_interp[0] * c))
-
-            while time_interp[i] <= time[-1]:
-
-                if (time_interp[i + 1] < time_start_ramp):
-
-                    momentum_interp.append(momentum[0])
-
-                    beta_interp.append(
-                        np.sqrt(1 / (1 + (mass / momentum_interp[i + 1])**2)))
-
-                    time_interp.append(
-                        time_interp[i + 1] + circumference / (beta_interp[i + 1] * c))
-
-                elif (time_interp[i + 1] > time_end_ramp):
-
-                    momentum_interp.append(momentum[-1])
-
-                    beta_interp.append(
-                        np.sqrt(1 / (1 + (mass / momentum_interp[i + 1])**2)))
-
-                    time_interp.append(
-                        time_interp[i + 1] + circumference / (beta_interp[i + 1] * c))
-
-                else:
-
-                    momentum_interp.append(
-                        splev(time_interp[i + 1], interp_funtion_momentum))
-
-                    beta_interp.append(
-                        np.sqrt(1 / (1 + (mass / momentum_interp[i + 1])**2)))
-
-                    time_interp.append(
-                        time_interp[i + 1] + circumference / (beta_interp[i + 1] * c))
-
-                i += 1
+            interps = self._cubic_interpolation(time_interp, momentum_interp,
+                                                beta_interp, circumference,
+                                                time, momentum, mass,
+                                                time_start_ramp, time_end_ramp)
+            time_interp, momentum_interp, beta_interp = interps
 
         # Interpolate momentum in 1st derivative to maintain smooth B-dot
         elif self.interpolation == 'derivative':
 
-            momentum_initial = momentum_interp[0]
-            momentum_derivative = np.gradient(momentum) / np.gradient(time)
+            interps = self._derivative_interpolation(time_interp,
+                                                     momentum_interp,
+                                                     beta_interp,
+                                                     circumference, time,
+                                                     momentum, mass)
+            time_interp, momentum_interp, beta_interp = interps
 
-            momentum_derivative_interp = [0] * self.flat_bottom + \
-                [momentum_derivative[0]]
-            integral_point = momentum_initial
+        elif self.interpolation == 'akima':
 
-            i = self.flat_bottom
-
-            time_interp.append(
-                time_interp[-1] + circumference / (beta_interp[0] * c))
-
-            while time_interp[i] <= time[-1]:
-
-                derivative_point = np.interp(time_interp[i + 1], time,
-                                             momentum_derivative)
-                momentum_derivative_interp.append(derivative_point)
-                integral_point += (time_interp[i + 1] - time_interp[i]) \
-                    * derivative_point
-
-                momentum_interp.append(integral_point)
-                beta_interp.append(
-                    np.sqrt(1 / (1 + (mass / momentum_interp[i + 1])**2)))
-
-                time_interp.append(
-                    time_interp[i + 1] + circumference / (beta_interp[i + 1] * c))
-
-                i += 1
-
-            # Adjust result to get flat top energy correct as derivation and
-            # integration leads to ~10^-8 error in flat top momentum
-            momentum_interp = np.asarray(momentum_interp)
-            momentum_interp -= momentum_interp[0]
-            momentum_interp /= momentum_interp[-1]
-            momentum_interp *= momentum[-1] - momentum[0]
-
-            momentum_interp += momentum[0]
+            interps = self._akima_interpolation(time_interp, momentum_interp,
+                                                beta_interp, circumference,
+                                                time, momentum, mass)
+            time_interp, momentum_interp, beta_interp = interps
 
         time_interp.pop()
         time_interp = np.asarray(time_interp)
@@ -496,6 +421,170 @@ class RingOptions:
             plt.clf()
 
         return time_interp, momentum_interp
+
+    def _linear_interpolation(self, time_interp: List[float],
+                              momentum_interp: List[float],
+                              beta_interp: List[float], circumference: float,
+                              time: Iterable[float], momentum: Iterable[float],
+                              mass: float) -> Tuple[Iterable[float], ...]:
+
+        time_interp.append(time_interp[-1]
+                            + circumference / (beta_interp[0] * c))
+
+        i = self.flat_bottom
+        for k in range(1, len(time)):
+
+            while time_interp[i + 1] <= time[k]:
+
+                momentum_interp.append(
+                    momentum[k - 1] + (momentum[k] - momentum[k - 1]) *
+                    (time_interp[i + 1] - time[k - 1]) /
+                    (time[k] - time[k - 1]))
+
+                next_time, next_beta = self._next_time_beta(momentum_interp[i+1],
+                                                            mass, circumference)
+                beta_interp.append(next_beta)
+                time_interp.append(time_interp[i + 1] + next_time)
+
+                i += 1
+
+        return time_interp, momentum_interp, beta_interp
+
+    def _cubic_interpolation(self, time_interp: List[float],
+                             momentum_interp: List[float],
+                             beta_interp: List[float], circumference: float,
+                             time: Iterable[float], momentum: Iterable[float],
+                             mass: float, time_start_ramp: float,
+                             time_end_ramp: float) -> Tuple[Iterable[float],
+                                                            ...]:
+
+        interp_funtion_momentum = splrep(
+            time[(time >= time_start_ramp) * (time <= time_end_ramp)],
+            momentum[(time >= time_start_ramp) * (time <= time_end_ramp)],
+            s=self.smoothing)
+
+        i = self.flat_bottom
+
+        time_interp.append(
+            time_interp[-1] + circumference / (beta_interp[0] * c))
+
+        while time_interp[i] <= time[-1]:
+
+            if (time_interp[i + 1] < time_start_ramp):
+
+                momentum_interp.append(momentum[0])
+                next_time, next_beta = self._next_time_beta(momentum_interp[i+1],
+                                                            mass, circumference)
+
+                beta_interp.append(next_beta)
+                time_interp.append(time_interp[i + 1] + next_time)
+
+            elif (time_interp[i + 1] > time_end_ramp):
+
+                momentum_interp.append(momentum[-1])
+
+                next_time, next_beta = self._next_time_beta(momentum_interp[i+1],
+                                                            mass, circumference)
+                beta_interp.append(next_beta)
+                time_interp.append(time_interp[i + 1] + next_time)
+
+            else:
+
+                momentum_interp.append(
+                    splev(time_interp[i + 1], interp_funtion_momentum))
+                next_time, next_beta = self._next_time_beta(momentum_interp[i+1],
+                                                            mass, circumference)
+                beta_interp.append(next_beta)
+                time_interp.append(time_interp[i + 1] + next_time)
+
+            i += 1
+
+        return time_interp, momentum_interp, beta_interp
+
+    def _derivative_interpolation(self, time_interp: List[float],
+                                  momentum_interp: List[float],
+                                  beta_interp: List[float],
+                                  circumference: float,
+                                  time: Iterable[float],
+                                  momentum: Iterable[float],
+                                  mass: float) -> Tuple[Iterable[float], ...]:
+
+        momentum_initial = momentum_interp[0]
+        momentum_derivative = np.gradient(momentum) / np.gradient(time)
+
+        momentum_derivative_interp = [0] * self.flat_bottom + \
+            [momentum_derivative[0]]
+        integral_point = momentum_initial
+
+        i = self.flat_bottom
+
+        time_interp.append(
+            time_interp[-1] + circumference / (beta_interp[0] * c))
+
+        while time_interp[i] <= time[-1]:
+
+            derivative_point = np.interp(time_interp[i + 1], time,
+                                            momentum_derivative)
+            momentum_derivative_interp.append(derivative_point)
+            integral_point += (time_interp[i + 1] - time_interp[i]) \
+                * derivative_point
+
+            momentum_interp.append(integral_point)
+            next_time, next_beta = self._next_time_beta(momentum_interp[i+1],
+                                                        mass, circumference)
+            beta_interp.append(next_beta)
+            time_interp.append(time_interp[i + 1] + next_time)
+
+            i += 1
+
+        # Adjust result to get flat top energy correct as derivation and
+        # integration leads to ~10^-8 error in flat top momentum
+        momentum_interp = np.asarray(momentum_interp)
+        momentum_interp -= momentum_interp[0]
+        momentum_interp /= momentum_interp[-1]
+        momentum_interp *= momentum[-1] - momentum[0]
+
+        momentum_interp += momentum[0]
+
+        return time_interp, momentum_interp, beta_interp
+
+    def _akima_interpolation(self, time_interp: List[float],
+                             momentum_interp: List[float],
+                             beta_interp: List[float],
+                             circumference: float,
+                             time: Iterable[float],
+                             momentum: Iterable[float],
+                             mass: float) -> Tuple[Iterable[float], ...]:
+
+
+        interp_func = Akima1DInterpolator(time, momentum)
+
+        i = self.flat_bottom
+
+        time_interp.append(
+            time_interp[-1] + circumference / (beta_interp[0] * c))
+
+        while time_interp[i] <= time[-1]:
+
+            momentum_interp.append(interp_func(time_interp[i + 1]))
+            next_time, next_beta = self._next_time_beta(momentum_interp[i+1],
+                                                        mass, circumference)
+            beta_interp.append(next_beta)
+            time_interp.append(time_interp[i + 1] + next_time)
+
+            i += 1
+
+        return time_interp, momentum_interp, beta_interp
+
+
+    def _next_time_beta(self, next_momentum: float, mass: float,
+                        circumference: float):
+
+        beta = np.sqrt(1 / (1 + (mass / next_momentum)**2))
+
+        time = circumference / (beta*c)
+
+        return time, beta
 
 
 def convert_data(synchronous_data, mass, charge,

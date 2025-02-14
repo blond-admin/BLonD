@@ -43,6 +43,9 @@ from blond.plots.plot import Plot
 from blond.plots.plot_impedance import plot_induced_voltage_vs_bin_centers
 from blond.trackers.tracker import RingAndRFTracker
 
+DRAFT_MODE = bool(int(os.environ.get("BLOND_EXAMPLES_DRAFT_MODE", False)))
+# To check if executing correctly, rather than to run the full simulation
+
 mpl.use('Agg')
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
@@ -54,7 +57,7 @@ os.makedirs(this_directory + '../output_files/EX_05_fig', exist_ok=True)
 
 # Beam parameters
 n_particles = 1e10
-n_macroparticles = 5 * 1e6
+n_macroparticles = 1001 if DRAFT_MODE else  5 * 1e6
 tau_0 = 2e-9  # [s]
 
 # Machine and RF parameters
@@ -226,12 +229,12 @@ for i in np.arange(1, n_turns + 1):
 
     # Plots
     if (i % dt_plt) == 0:
-        plot_induced_voltage_vs_bin_centers(i, general_params, tot_vol,
+        plot_induced_voltage_vs_bin_centers(tot_vol, figure_index=i,
                                             style='.', dirname=this_directory + '../output_files/EX_05_fig/1')
-        plot_induced_voltage_vs_bin_centers(i, general_params_freq,
-                                            tot_vol_freq, style='.', dirname=this_directory + '../output_files/EX_05_fig/2')
-        plot_induced_voltage_vs_bin_centers(i, general_params_res,
-                                            tot_vol_res, style='.', dirname=this_directory + '../output_files/EX_05_fig/3')
+        plot_induced_voltage_vs_bin_centers(tot_vol_freq, figure_index=i,
+                                            style='.', dirname=this_directory + '../output_files/EX_05_fig/2')
+        plot_induced_voltage_vs_bin_centers(tot_vol_res, figure_index=i,
+                                            style='.', dirname=this_directory + '../output_files/EX_05_fig/3')
 
 # Plotting induced voltages---------------------------------------------------
 plt.clf()

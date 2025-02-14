@@ -19,20 +19,24 @@ import numpy as np
 import pytest
 from scipy.constants import c
 
-from blond import LIBBLOND
+# from blond import get_libblond()
+from blond.utils.butils_wrap_cpp import get_libblond
 from blond.beam.beam import Beam, Proton
 from blond.beam.sparse_slices import SparseSlices
 from blond.impedances.music import Music
 from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
 from blond.utils import bmath as bm
+from blond.impedances.impedance import InducedVoltageResonator
+from blond.impedances.impedance_sources import Resonators
+from blond.beam.profile import CutOptions, FitOptions, Profile
 
 
 class Test:
 
     # Run before every test
     def setup_method(self):
-        if LIBBLOND is None:
+        if get_libblond() is None:
             pytest.skip('C++ libblond not compiled')
         np.random.seed(0)
 
@@ -165,7 +169,7 @@ class Test:
         bm.use_cpp()
         np.testing.assert_equal(bm.device, 'CPU_CPP')
 
-        dt = np.random.normal(loc=1e-5, scale=1e-7, size=n_particles)
+        dt = np.random.normal(loc=1e-5, scale=1e-6, size=n_particles)
         dt_py = dt.copy()
 
         max_dt = dt.max()
@@ -227,7 +231,6 @@ class Test:
         bm.use_cpp()
         np.testing.assert_equal(bm.device, 'CPU_CPP')
 
-        solver = solver.encode(encoding='utf_8')
         dE = np.random.normal(loc=0, scale=1e7, size=n_particles)
         dt = np.random.normal(loc=1e-5, scale=1e-7, size=n_particles)
         dt_py = np.array(dt)
@@ -263,7 +266,6 @@ class Test:
         np.testing.assert_equal(bm.device, 'CPU_CPP')
 
         solver = 'exact'
-        solver = solver.encode(encoding='utf_8')
         alpha_order = 2
         n_rf = 1
 
@@ -356,7 +358,7 @@ class Test:
         bm.use_cpp()
         np.testing.assert_equal(bm.device, 'CPU_CPP')
 
-        dt = np.random.normal(loc=1e-5, scale=1e-7, size=n_particles)
+        dt = np.random.normal(loc=1e-5, scale=1e-6, size=n_particles)
         dt_py = dt.copy()
 
         max_dt = dt.max()
@@ -469,7 +471,7 @@ class TestWithObjects:
 
     # Run before every test
     def setup_method(self):
-        if LIBBLOND is None:
+        if get_libblond() is None:
             pytest.skip('C++ libblond not compiled')
 
         self.ring = Ring(self.C, self.alpha,
@@ -570,6 +572,48 @@ class TestWithObjects:
 
         np.testing.assert_array_almost_equal(
             music_py.induced_voltage, music_cpp.induced_voltage, decimal=8)
+
+    @pytest.mark.parametrize('n_macroparticles', [100, 1000, 10000])
+    @pytest.mark.filterwarnings("ignore: Covariance")
+    def test_resonator_induced_voltage_1_turn(self, n_macroparticles):
+        bm.use_py()
+
+        num_resonators = 50
+        phi_offset = 0.0
+        n_rf_systems = 1
+        voltage_program = 0.9e6
+
+        number_slices = 2**8
+
+        general_params_res = Ring(self.C, self.alpha,
+                                  self.p_i, Proton(), self.N_t)
+
+        RF_sct_par_res = RFStation(general_params_res,
+                                   [self.h], [voltage_program],
+                                   [phi_offset], n_rf_systems)
+
+        cut_options_res = CutOptions(cut_left=0, cut_right=2 * np.pi, n_slices=number_slices,
+                                     RFSectionParameters=RF_sct_par_res, cuts_unit='rad')
+        slice_beam_res = Profile(self.beam, cut_options_res, FitOptions(fit_option='gaussian'))
+
+        R_S = np.random.uniform(size=num_resonators)
+        Q = np.random.uniform(low=0.5, high=1, size=num_resonators)
+        frequency_array = np.linspace(1, 100, num=num_resonators)
+
+        resonator = Resonators(R_S, frequency_array, Q)
+
+        bm.use_numba()
+        ind_volt_res = InducedVoltageResonator(self.beam, slice_beam_res, resonator)
+        ind_volt_res.induced_voltage_1turn()
+        volt_save = ind_volt_res.induced_voltage
+        time_save = ind_volt_res._deltaT
+
+        bm.use_py()
+        ind_volt_res = InducedVoltageResonator(self.beam, slice_beam_res, resonator)
+        ind_volt_res.induced_voltage_1turn()
+
+        np.testing.assert_array_almost_equal(volt_save, ind_volt_res.induced_voltage, decimal=8)
+        np.testing.assert_array_almost_equal(time_save, ind_volt_res._deltaT, decimal=8)
 
 
 if __name__ == '__main__':

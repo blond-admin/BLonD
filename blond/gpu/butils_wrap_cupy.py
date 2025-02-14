@@ -60,13 +60,23 @@ def kick(dt, dE, voltage, omega_rf, phi_rf, charge, n_rf, acceleration_kick):
 
     voltage_kick = cp.empty(voltage.size, precision.real_t)
     voltage_kick = charge * voltage
-
+    """
+    voltage_kick, omega_rf and phi_rf are not correctly indexed inside
+    inside the kernel.  As a result, the wrong kick is applied when
+    using multiple RF harmonics.  Ideally, the arrays should be correctly
+    indexed within the kernel, but that will require a fairly heavy
+    change to a lot of the code.  As a short term solution, casting the
+    three with cp.array will work, and adds about 30 us per call.  With
+    1E6 particles and two harmonics, that's about a 10% increase in the
+    runtime of this function.
+    """
+    #TODO: Correct indexing of voltage, omega and phi
     kick_kernel(args=(dt,
                       dE,
                       np.int32(n_rf),
-                      voltage_kick,
-                      omega_rf,
-                      phi_rf,
+                      cp.array(voltage_kick),
+                      cp.array(omega_rf),
+                      cp.array(phi_rf),
                       np.int32(dt.size),
                       precision.real_t(acceleration_kick)),
                 block=GPU_DEV.block_size, grid=GPU_DEV.grid_size)
@@ -94,20 +104,17 @@ def drift(dt, dE, solver, t_rev, length_ratio, alpha_order, eta_0,
     """
     drift_kernel = GPU_DEV.mod.get_function("drift")
 
-    solver = solver.decode('utf-8')
-    if solver == "simple":
-        solver = np.int32(0)
-    elif solver == "legacy":
-        solver = np.int32(1)
-    else:
-        solver = np.int32(2)
+    solver_to_int = {
+        'simple': 0,
+        'legacy': 1,
+        'exact': 2,
+    }
+    solver = solver_to_int[solver]
 
-    if not isinstance(t_rev, float):
-        t_rev = float(t_rev)
+    if not isinstance(t_rev, precision.real_t):
+        t_rev = precision.real_t(t_rev)
 
-    drift_kernel(args=(dt,
-                       dE,
-                       solver,
+    drift_kernel(args=(dt, dE, solver,
                        precision.real_t(t_rev), precision.real_t(length_ratio),
                        precision.real_t(alpha_order), precision.real_t(eta_0),
                        precision.real_t(eta_1), precision.real_t(eta_2),
