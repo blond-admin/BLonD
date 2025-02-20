@@ -257,7 +257,7 @@ class Beam:
         self._mpi_is_splitted = False
         self._mpi_sumsq_dt = 0.
         self._mpi_sumsq_dE = 0.
-        # For CPU
+        # For handling arrays on CPU/GPU
         self._device = 'CPU'
 
     @property
@@ -331,7 +331,7 @@ class Beam:
 
         '''
 
-        return bm.count_nonzero(self.id)  # TODO why can this number be different from n_macroparticles
+        return bm.count_nonzero(self.id)
 
     @property
     def n_macroparticles_not_alive(self):
