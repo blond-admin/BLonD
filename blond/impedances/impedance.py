@@ -248,14 +248,14 @@ class _InducedVoltage:
         self.process()
 
     @property
-    def mtw_mode(self):
+    def mtw_mode(self) -> Literal['freq', 'time']:
         """Multi-turn wake mode can be 'freq' or 'time' (default). If 'freq'
         is used, each turn the induced voltage of previous turns is shifted
         in the frequency domain. For 'time', a linear interpolation is used."""
         return self._mtw_mode
 
     @mtw_mode.setter
-    def mtw_mode(self, mtw_mode):
+    def mtw_mode(self, mtw_mode: Literal['freq', 'time']):
         if mtw_mode not in ('freq', 'time'):
             raise NameError(mtw_mode)
         self._mtw_mode = mtw_mode
