@@ -1,0 +1,5 @@
+pyqt5
+sphinx-autopackagesummary
+sphinx-rtd-theme
+sphinx<7
+sphinxcontrib-napoleon

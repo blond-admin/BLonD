@@ -33,7 +33,7 @@ Project website: <http://blond.web.cern.ch>
 ## Dependencies
 
 1. Python 3.10 or above (python venv is recommended).  
-2. (Optional) For better performance, a C++ (e.g. `gcc`, `icc`, `clang`, etc) compiler with `C++11` support.
+2. (Optional) For better performance, a C++ (e.g. `gcc`, `icc`, `clang`, etc.) compiler with `C++11` support.
 
 ### (Optional) C++ compiler installation instructions
 
@@ -69,10 +69,15 @@ Use your distribution's package manager to install the compiler of your choice. 
     ```bash
     python blond/compile.py
     ```
+    or from anywhere (after installing BLonD)
+    
+    ```bash
+    blond-compile # executes /BLonD/blond/compile.py
+    ```
 
     See the complete list of optional command line arguments with:
     ```bash
-    python blond/compile.py --help
+    blond-compile --help
     ```
 3. Then install BLonD in edit mode with: 
     ```bash
@@ -81,7 +86,7 @@ Use your distribution's package manager to install the compiler of your choice. 
 
 ## Confirm proper installation
 
--   A quick way to confirm the successfull installation is to run:
+-   A quick way to confirm the successful installation is to run:
     ``` bash
     python -c "from blond import test; test()"
     ```
@@ -106,7 +111,7 @@ BLonD contains three computational backends, sorted in order of better performan
 2. [`Numba` backend](https://numba.pydata.org) (Supports multi-threading and vectorization)
 3. `Python`-only backend (No multi-threading or vectorization)
 
-The performance order also defines the order in which the backends will be used. If the `C++` blond libary has been compiled, then the `C++` backend will be used. Otherwise, if the `numba` package is installed, the numba backend will be used. Finally, if neither condition is met, the `python`-only backend will be used.
+The performance order also defines the order in which the backends will be used. If the `C++` blond library has been compiled, then the `C++` backend will be used. Otherwise, if the `numba` package is installed, the numba backend will be used. Finally, if neither condition is met, the `python`-only backend will be used.
 
 To use the `Numba` backend, you simply need to install the numba package with `pip`:
 ```bash
@@ -115,15 +120,15 @@ pip install numba
 
 To use the `C++` backend, follow the instructions provided in the section *Installing BLonD manually*.
 
-In addition you may want to:
-* Use the multi-threaded blond `C++` backend:
+In addition, you may want to:
+* Use the multithreaded blond `C++` backend:
     ``` bash
-    python blond/compile.py --parallel
+    blond-compile --parallel
     ```
 
 * Enable processor specific compiler optimizations:
     ``` bash
-    python blond/compile.py --parallel --optimize
+    blond-compile --parallel --optimize
     ```
 
 * If you are test-case is calling the synchrotron radiation tracking method, you can accelerate it by using the Boost library. To do so you have to:  
@@ -132,19 +137,19 @@ In addition you may want to:
     2.  Extract it, let's say in `/user/path/to/boost_1_70`.
     3.  Pass the boost installation path when compiling BLonD:
         ``` bash
-        python blond/compile.py --boost=/user/path/to/boost_1_7_70
+        blond-compile --boost=/user/path/to/boost_1_7_70
         ```
 
 * Check the following section about the FFTW3 library.
 
 * All the above can be combined, i.e.:
     ```bash
-    python blond/compile.py --parallel --optimize --boost=...
+    blond-compile --parallel --optimize --boost=...
     ```
 
 ## Changing the floating point number datatype
 
-By default BLonD uses double precision calculations (float64). To change to single precision for faster calculations, in the beginning of your mainfile you will have to add the following code lines:
+By default, BLonD uses double precision calculations (float64). To change to single precision for faster calculations, in the beginning of your main file you will have to add the following code lines:
 ```python
 from blond.utils import bmath as bm
 bm.use_precision('single') 
@@ -162,7 +167,7 @@ supported. `fft_convolve()` to be added soon.
         <ftp://ftp.fftw.org/pub/fftw/fftw-3.3.5-dll64.zip>
     2.  Copy the `libfftw3-3.dll` under your python's distribution
         directory.
-    3.  Run the `blond/compile.py` with the flag `--with-fftw`.
+    3.  Run the `blond-compile` with the flag `--with-fftw`.
     4.  If the FFTW3 library is not installed in one of the default
         directories, use the `--with-fftw-lib` and `--with-fftw-header`
         to point to the directories where the shared library and header
@@ -183,7 +188,7 @@ supported. `fft_convolve()` to be added soon.
 
     1.  Download and compile the FFTW3 library. Link:
         <http://www.fftw.org/fftw-3.3.8.tar.gz>
-    2.  Run the `blond/compile.py` with the flag: `--with-fftw`.
+    2.  Run the `blond-compile` with the flag: `--with-fftw`.
     3.  If the FFTW3 library is not installed in one of the default
         directories, use the `--with-fftw-lib` and `--with-fftw-header`
         to point to the directories where the shared library and header
@@ -265,17 +270,17 @@ supported. `fft_convolve()` to be added soon.
     cd git
     git clone --branch=master https://github.com/blond-admin/BLonD.git
     cd BLonD
-    python blond/compile.py -p --with-fftw --with-fftw-threads --with-fftw-lib=$INSTALL_DIR/lib --with-fftw-header=$INSTALL_DIR/include
+    blond-compile -p --with-fftw --with-fftw-threads --with-fftw-lib=$INSTALL_DIR/lib --with-fftw-header=$INSTALL_DIR/include
     ```
 
 -   adjust your main file as needed (described bellow).
 
--   example scripts to setup and run a parameter scan in the HPC Slurm
+-   example scripts to set up and run a parameter scan in the HPC Slurm
     cluster: <https://cernbox.cern.ch/index.php/s/shqtotwyn4rm8ws>
 
 ## Changes required in the main file for MPI
 
-1.  This statements in the beginning of the script:
+1.  These statements in the beginning of the script:
 
     ``` python
     from blond.utils import bmath as bm
@@ -345,7 +350,7 @@ supported. `fft_convolve()` to be added soon.
     detected:
 
     ``` bash
-    python blond/compile.py --gpu 
+    blond-compiley --gpu 
     ```
 
 ## Changes required in the main file for GPU
@@ -376,7 +381,7 @@ supported. `fft_convolve()` to be added soon.
 
     you need to call their `to_gpu()` method. The following is a typical
     example from the \_\_EXAMPLES/gpu_main_files/EX_01_Acceleration.py
-    mainfile.
+    main file.
 
     ``` python
     # Define Objects
