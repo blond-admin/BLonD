@@ -257,7 +257,7 @@ class _InducedVoltage:
     @mtw_mode.setter
     def mtw_mode(self, mtw_mode: Literal['freq', 'time']):
         if mtw_mode not in ('freq', 'time'):
-            raise NameError(mtw_mode)
+            raise ValueError(f"{mtw_mode=} not valid, choose either 'freq' or 'time'")
         self._mtw_mode = mtw_mode
 
     def process(self):
@@ -333,7 +333,7 @@ class _InducedVoltage:
                                             self.n_mtw_memory, endpoint=False,
                                             dtype=bm.precision.real_t)
             else:
-                raise NameError(self.mtw_mode)
+                raise RuntimeError(f"Invalid value for {self.mtw_mode=}")
             # Array to add and shift in time the multi-turn wake over the turns
             self.mtw_memory = np.zeros(self.n_mtw_memory,
                                        dtype=bm.precision.real_t, order='C')
