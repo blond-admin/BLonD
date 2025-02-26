@@ -6,3 +6,4 @@ recursive-exclude unittests *
 recursive-exclude __EXAMPLES *
 recursive-exclude __BENCHMARKS *
 recursive-exclude __doc *
+recursive-exclude developer_tools *
