@@ -28,6 +28,8 @@ Documentation: <https://blond-code.docs.cern.ch/>
 
 Project website: <http://blond.web.cern.ch>
 
+BLonD example project: https://gitlab.cern.ch/blond/blond-simulation-template
+
 # Installation
 
 ## Dependencies
