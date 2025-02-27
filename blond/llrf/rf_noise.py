@@ -28,7 +28,7 @@ from ..plots.plot import fig_folder
 from ..plots.plot_llrf import plot_phase_noise, plot_noise_spectrum
 from ..toolbox.next_regular import next_regular
 
-cfwhm = bm.sqrt(2. / bm.log(2.))
+cfwhm = np.sqrt(2. / np.log(2.))
 
 
 class FlatSpectrum:
@@ -96,9 +96,9 @@ class FlatSpectrum:
         rnd.seed(self.seed2)
         r2 = rnd.random_sample(nt)
         if transform is None or transform == 'r':
-            Gt = bm.cos(2 * np.pi * r1) * bm.sqrt(-2 * bm.log(r2))
+            Gt = np.cos(2 * np.pi * r1) * np.sqrt(-2 * np.log(r2))
         elif transform == 'c':
-            Gt = bm.exp(2 * np.pi * 1j * r1) * bm.sqrt(-2 * bm.log(r2))
+            Gt = np.exp(2 * np.pi * 1j * r1) * np.sqrt(-2 * np.log(r2))
 
         # FFT to frequency domain
         if transform is None or transform == 'r':
@@ -125,7 +125,7 @@ class FlatSpectrum:
 
     def generate(self):
 
-        for i in range(0, int(bm.ceil(self.n_turns / self.corr))):
+        for i in range(0, int(np.ceil(self.n_turns / self.corr))):
 
             # Scale amplitude to keep area (phase noise amplitude) constant
             k = i * self.corr       # current time step
@@ -133,7 +133,7 @@ class FlatSpectrum:
 
             # Calculate the frequency step
             f_max = self.f0[k] / 2
-            n_points_pos_f_incl_zero = int(bm.ceil(f_max / self.delta_f) + 1)
+            n_points_pos_f_incl_zero = int(np.ceil(f_max / self.delta_f) + 1)
             nt = 2 * (n_points_pos_f_incl_zero - 1)
             nt_regular = next_regular(int(nt))
             if nt_regular % 2 != 0 or nt_regular < self.corr:
@@ -144,14 +144,14 @@ class FlatSpectrum:
             delta_f = f_max / (n_points_pos_f_incl_zero - 1)
 
             # Construct spectrum
-            nmin = int(bm.floor(self.fmin_s0 * self.fs[k] / delta_f))
-            nmax = int(bm.ceil(self.fmax_s0 * self.fs[k] / delta_f))
+            nmin = int(np.floor(self.fmin_s0 * self.fs[k] / delta_f))
+            nmax = int(np.ceil(self.fmax_s0 * self.fs[k] / delta_f))
 
             # To compensate the notch due to PL at central frequency
             if self.predistortion == 'exponential':
 
                 spectrum = bm.concatenate((bm.zeros(nmin), ampl * bm.exp(
-                    bm.log(100.) * bm.arange(0, nmax - nmin + 1) / (nmax - nmin)),
+                    np.log(100.) * bm.arange(0, nmax - nmin + 1) / (nmax - nmin)),
                     bm.zeros(n_points_pos_f_incl_zero - nmax - 1)))
 
             elif self.predistortion == 'linear':
@@ -255,11 +255,11 @@ class LHCNoiseFB:
     - seed: seed for the random number generator
     '''
 
-    def __init__(self, RFStation_: RFStation, Profile_: Profile, bl_target: float, gain: int = 0.1e9,
+    def __init__(self, RFStation_: RFStation, Profile_: Profile, f_rev: float, bl_target: float, gain: int = 0.1e9,
                  factor: float = 0.93, update_frequency: int = 11245, variable_gain: bool = True, bunch_pattern: np.ndarray = None,
-                 old_FESA_class: bool = False, no_delay: bool = False, seed: int = 1313) -> None:
+                 old_FESA_class: bool = False, no_delay: bool = False, seed: int | None = 1313) -> None:
 
-        self.LHC_frev = 11245  # LHC revolution frequency in Hz
+        self.LHC_frev = round(f_rev)  # LHC revolution frequency in Hz
 
         #: | *Import RfStation*
         self.rf_params = RFStation_
