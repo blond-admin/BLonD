@@ -412,9 +412,7 @@ class _InducedVoltage:
         from previous passages (multi-turn wake)
         """
 
-
         if beam_spectrum_dict is None:
-            print('beam_spectrum_dict is None')
             beam_spectrum_dict = dict()
         # Shift of the memory wake field by the current revolution period
         self.shift_trev()
@@ -431,6 +429,7 @@ class _InducedVoltage:
         # previous turns
         self.mtw_memory[:self.n_induced_voltage] += self.induced_voltage
         self.induced_voltage = self.mtw_memory[:self.n_induced_voltage]
+
     def shift_trev_freq(self):
         """
         Method to shift the induced voltage by a revolution period in the
@@ -935,7 +934,7 @@ class InducedVoltageResonator(_InducedVoltage):
         Copy of the Beam object in order to access the beam info.
     profile : Profile
         Copy of the Profile object in order to access the line density.
-    tArray : float array
+    timr_array : float array
         Array of time values where the induced voltage is calculated.
         If left out, the induced voltage is calculated at the times of the
         line density
@@ -943,7 +942,7 @@ class InducedVoltageResonator(_InducedVoltage):
         flag indicating if the induced voltage has to be computed for time_array
         or for the line density
     n_time : int
-        length of tArray
+        length of time_array
     R, omega_r, Q : lists of float
         Resonators parameters
     n_resonators : int
@@ -962,6 +961,7 @@ class InducedVoltageResonator(_InducedVoltage):
                  time_array: Optional[NDArray] = None,
                  rf_station: Optional[RFStation] = None,
                  array_length: Optional[int] = None,
+                 mtw_mode: Optional[MtwModeTypes] = None,
                  use_regular_fft: bool = True) -> None:
 
         # Test if one or more quality factors is smaller than 0.5.
@@ -978,15 +978,15 @@ class InducedVoltageResonator(_InducedVoltage):
         # If left out, the induced voltage is calculated at the times of the
         # line density.
         if time_array is None:
-            self.tArray = self.profile.bin_centers
+            self.time_array = self.profile.bin_centers
             self.atLineDensityTimes = True
         else:
-            self.tArray = time_array
+            self.time_array = time_array
             self.atLineDensityTimes = False
 
         self.array_length = array_length
 
-        self.n_time = len(self.tArray)
+        self.n_time = len(self.time_array)
 
         # Copy of the shunt impedances of the Resonators in* :math:`\Omega`
         self.R = resonators.R_S
@@ -1011,7 +1011,7 @@ class InducedVoltageResonator(_InducedVoltage):
         self._kappa1 = np.zeros(
             int(self.profile.n_slices - 1), dtype=bm.precision.real_t, order='C')
 
-        # Matrix to hold n_times many tArray[t]-bin_centers arrays.
+        # Matrix to hold n_times many time_array[t]-bin_centers arrays.
         self._deltaT = np.zeros(
             (self.n_time, self.profile.n_slices), dtype=bm.precision.real_t, order='C')
 
@@ -1020,7 +1020,7 @@ class InducedVoltageResonator(_InducedVoltage):
                          frequency_resolution=frequency_resolution,
                          wake_length=wake_length,
                          multi_turn_wake=multi_turn_wake,
-                         rf_station=rf_station, mtw_mode=None,
+                         rf_station=rf_station, mtw_mode=mtw_mode,
                          use_regular_fft=use_regular_fft)
 
     def process(self):
@@ -1052,7 +1052,7 @@ class InducedVoltageResonator(_InducedVoltage):
                                                 self.profile.bin_centers,
                                                 self.profile.bin_size,
                                                 self.n_time, self._deltaT,
-                                                self.tArray, self._reOmegaP,
+                                                self.time_array, self._reOmegaP,
                                                 self._imOmegaP, self._Qtilde,
                                                 self.n_resonators,
                                                 self.omega_r,
@@ -1093,7 +1093,7 @@ class InducedVoltageResonator(_InducedVoltage):
         self.induced_voltage = cp.array(self.induced_voltage)
         self._kappa1 = cp.array(self._kappa1)
         self._deltaT = cp.array(self._deltaT)
-        self.tArray = cp.array(self.tArray)
+        self.time_array = cp.array(self.time_array)
         self._tmp_matrix = cp.array(self._tmp_matrix)
         # to make sure it will not be called again
         self._device: DeviceType = 'GPU'
@@ -1110,7 +1110,7 @@ class InducedVoltageResonator(_InducedVoltage):
         self.induced_voltage = cp.asnumpy(self.induced_voltage)
         self._kappa1 = cp.asnumpy(self._kappa1)
         self._deltaT = cp.asnumpy(self._deltaT)
-        self.tArray = cp.asnumpy(self.tArray)
+        self.time_array = cp.asnumpy(self.time_array)
         self._tmp_matrix = cp.asnumpy(self._tmp_matrix)
 
         # to make sure it will not be called again

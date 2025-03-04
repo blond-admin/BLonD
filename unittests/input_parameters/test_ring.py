@@ -198,20 +198,16 @@ class TestGeneralParameters(unittest.TestCase):
         alpha = 1 / gamma_t ** 2  # Momentum compaction factor
         n_turns = self.n_turns
         n_sections = 4
-        l_per_section = C/ n_sections
+        l_per_section = C / n_sections
         section_lengths = np.full(n_sections, l_per_section)
         # should be a linear energy ramp, taking the value from the section in the previous turn
-        momentum = np.arange(n_sections * (n_turns + 1),dtype=float).reshape(n_turns + 1, n_sections).T*1e10
-        momentum[:, 0] = momentum[0, 1]
+        momentum = np.arange(0, (n_turns+1)*n_sections).reshape((n_turns+1, n_sections)).transpose()+1e10
         ring = Ring(ring_length=section_lengths, alpha_0=alpha,
-            synchronous_data=momentum, particle=Proton(),
-            n_turns=n_turns, n_sections=n_sections,
+                    synchronous_data=momentum, particle=Proton(),
+                    n_turns=n_turns, n_sections=n_sections,
                     synchronous_data_type='momentum')
-        a = ring.delta_E[1,0]
-        b = ring.delta_E[1,1]
-        assert np.isclose(a/b,1,rtol=1e-1), \
-        f"Assertion failed for linear momentum with multi RF: {ring.delta_E[1, 0]} == {ring.delta_E[1,1]}"
-
+        delta_E_values = ring.delta_E.flatten()
+        np.testing.assert_allclose(delta_E_values, delta_E_values[0], rtol=1e-2,)
 
 
 
