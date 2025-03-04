@@ -22,6 +22,7 @@ from blond.input_parameters.ring import Ring
 from blond.input_parameters.ring_options import convert_data
 
 
+
 class TestGeneralParameters(unittest.TestCase):
 
     # Initialization ----------------------------------------------------------
@@ -193,6 +194,7 @@ class TestGeneralParameters(unittest.TestCase):
 
     def test_bug_multi_RF_dE(self):
         from blond.beam.beam import Proton
+        # test if delta_E is calculated correctly for multi-RF stations
         C = 2 * np.pi * 1100.009  # Ring circumference [m]
         gamma_t = 18.0  # Gamma at transition
         alpha = 1 / gamma_t ** 2  # Momentum compaction factor
@@ -200,16 +202,14 @@ class TestGeneralParameters(unittest.TestCase):
         n_sections = 4
         l_per_section = C / n_sections
         section_lengths = np.full(n_sections, l_per_section)
-        # should be a linear energy ramp, taking the value from the section in the previous turn
-        momentum = np.arange(0, (n_turns+1)*n_sections).reshape((n_turns+1, n_sections)).transpose()*1e10
+        # a linear energy ramp, taking the value from the section in the previous turn
+        momentum = np.arange(0, (n_turns + 1) * n_sections).reshape((n_turns + 1, n_sections)).transpose() * 1e10
         ring = Ring(ring_length=section_lengths, alpha_0=alpha,
                     synchronous_data=momentum, particle=Proton(),
                     n_turns=n_turns, n_sections=n_sections,
                     synchronous_data_type='momentum')
         delta_E_values = ring.delta_E.flatten()
-        np.testing.assert_allclose(delta_E_values, delta_E_values[0], rtol=1e-2,)
-
-
+        np.testing.assert_allclose(delta_E_values, delta_E_values[0], rtol=1e-2)
 
 
 if __name__ == '__main__':
