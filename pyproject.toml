@@ -65,3 +65,8 @@ ignore = [
 
 [tool.pylint.reports]
 output-format = 'colorized'
+
+
+[tool.ruff]
+# Allow lines to be as long as 120.
+line-length = 79

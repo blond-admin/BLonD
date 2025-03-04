@@ -23,6 +23,7 @@ import warnings
 import numpy as np
 from scipy.constants import c, e, epsilon_0, hbar, m_e, m_p, physical_constants
 
+from .beam_abstract import BeamBaseClass
 from ..trackers.utilities import is_in_separatrix
 from ..utils import bmath as bm
 from ..utils import exceptions as blond_exceptions
@@ -148,7 +149,7 @@ class MuMinus(Particle):
         Particle.__init__(self, m_mu * c ** 2 / e, -1, float(1 / 2.1969811e-6))
 
 
-class Beam:
+class Beam(BeamBaseClass):
     r"""Class containing the beam properties.
 
     This class containes the beam coordinates (dt, dE) and the beam properties.
@@ -228,13 +229,15 @@ class Beam:
     """
 
     @handle_legacy_kwargs
-    def __init__(self, ring: Ring, n_macroparticles: int, intensity: float,
-                 dt:Optional[NDArray]=None, dE:Optional[NDArray]=None) -> None:
-        self.particle = ring.particle
-        self.beta: float = ring.beta[0][0]
-        self.gamma: float = ring.gamma[0][0]
-        self.energy: float = ring.energy[0][0]
-        self.momentum: float = ring.momentum[0][0]
+    def __init__(self, ring: Ring, n_macroparticles: int, intensity: float, dt: Optional[NDArray] = None,
+                 dE: Optional[NDArray] = None) -> None:
+
+        super().__init__(
+            ring=ring,
+            n_macroparticles=n_macroparticles,
+            intensity=intensity
+        )
+
         if dt is None:
             self.dt: NDArray | cp.array  = np.zeros([int(n_macroparticles)], dtype=bm.precision.real_t)
         else:
@@ -248,25 +251,9 @@ class Beam:
             self.dE: NDArray | cp.array  = np.ascontiguousarray(dE)
 
 
-        self.mean_dt: float = 0.
-        self.mean_dE: float = 0.
-        self.sigma_dt: float = 0.
-        self.sigma_dE: float = 0.
-        self.intensity: float = float(intensity)
-        self.n_macroparticles: int = int(n_macroparticles)
-        self.ratio: float = self.intensity / self.n_macroparticles
-        self.id: NDArray | cp.array = np.arange(1, self.n_macroparticles + 1, dtype=int)
-        self.epsn_rms_l: float = 0.
-        self.n_macroparticles_eliminated = 0
 
-        # For MPI
-        self._mpi_n_total_macroparticles_lost: int = 0
-        self._mpi_n_total_macroparticles: int = n_macroparticles
-        self._mpi_is_splitted: bool = False
-        self._mpi_sumsq_dt: NDArray | float = 0.
-        self._mpi_sumsq_dE: NDArray | float = 0.
-        # For handling arrays on CPU/GPU
-        self._device = 'CPU'
+        self.id: NDArray | cp.array = np.arange(1, self.n_macroparticles + 1, dtype=int)
+
 
     @property
     def Particle(self):
