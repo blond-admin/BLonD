@@ -17,7 +17,7 @@ statistics
 from __future__ import annotations
 
 import itertools as itl
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 import warnings
 
 import numpy as np
@@ -228,7 +228,8 @@ class Beam:
     """
 
     @handle_legacy_kwargs
-    def __init__(self, ring: Ring, n_macroparticles: int, intensity: float) -> None:
+    def __init__(self, ring: Ring, n_macroparticles: int, intensity: float,
+                 dt:Optional[NDArray]=None, dE:Optional[NDArray]=None) -> None:
         self.particle = ring.particle
         self.beta: float = ring.beta[0][0]
         self.gamma: float = ring.gamma[0][0]
