@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import itertools as itl
 from typing import TYPE_CHECKING
+import warnings
 
 import numpy as np
 from scipy.constants import c, e, epsilon_0, hbar, m_e, m_p, physical_constants
@@ -199,6 +200,9 @@ class Beam:
         ratio intensity per macroparticle [].
     id : numpy_array, int
         unique macro-particle ID number; zero if particle is 'lost'.
+    n_macroparticles_eliminated : int
+        Number of macroparticles that were removed
+        by Beam.eliminate_lost_particles()
 
     See Also
     ---------
@@ -230,8 +234,19 @@ class Beam:
         self.gamma: float = ring.gamma[0][0]
         self.energy: float = ring.energy[0][0]
         self.momentum: float = ring.momentum[0][0]
-        self.dt: NDArray | cp.array = np.zeros([int(n_macroparticles)], dtype=bm.precision.real_t)
-        self.dE: NDArray | cp.array = np.zeros([int(n_macroparticles)], dtype=bm.precision.real_t)
+        if dt is None:
+            self.dt: NDArray | cp.array  = np.zeros([int(n_macroparticles)], dtype=bm.precision.real_t)
+        else:
+            assert n_macroparticles == len(dt)
+            self.dt: NDArray | cp.array  = np.ascontiguousarray(dt)
+
+        if dE is None:
+            self.dE: NDArray | cp.array  = np.zeros([int(n_macroparticles)], dtype=bm.precision.real_t)
+        else:
+            assert n_macroparticles == len(dE)
+            self.dE: NDArray | cp.array  = np.ascontiguousarray(dE)
+
+
         self.mean_dt: float = 0.
         self.mean_dE: float = 0.
         self.sigma_dt: float = 0.
@@ -241,14 +256,16 @@ class Beam:
         self.ratio: float = self.intensity / self.n_macroparticles
         self.id: NDArray | cp.array = np.arange(1, self.n_macroparticles + 1, dtype=int)
         self.epsn_rms_l: float = 0.
+        self.n_macroparticles_eliminated = 0
+
         # For MPI
-        self.n_total_macroparticles_lost: int = 0
-        self.n_total_macroparticles: int = n_macroparticles
-        self.is_splitted: bool = False
-        self._sumsq_dt: NDArray | float = 0.0
-        self._sumsq_dE: NDArray | float = 0.0
-        # For GPU
-        self._device: DeviceType = 'CPU'
+        self._mpi_n_total_macroparticles_lost: int = 0
+        self._mpi_n_total_macroparticles: int = n_macroparticles
+        self._mpi_is_splitted: bool = False
+        self._mpi_sumsq_dt: NDArray | float = 0.
+        self._mpi_sumsq_dE: NDArray | float = 0.
+        # For handling arrays on CPU/GPU
+        self._device = 'CPU'
 
     @property
     def Particle(self):
@@ -263,20 +280,68 @@ class Beam:
         self.particle = val
 
     @property
+    def n_total_macroparticles_lost(self):
+        warnings.warn("Use '_mpi_n_total_macroparticles_lost' instead !", DeprecationWarning)
+        return self._mpi_n_total_macroparticles_lost
+
+    @n_total_macroparticles_lost.setter
+    def n_total_macroparticles_lost(self, val):
+        self._mpi_n_total_macroparticles_lost = val
+
+    @property
+    def n_total_macroparticles(self):
+        warnings.warn("Use '_mpi_n_total_macroparticles' instead !", DeprecationWarning)
+        return self._mpi_n_total_macroparticles
+
+    @n_total_macroparticles.setter
+    def n_total_macroparticles(self, val):
+        self._mpi_n_total_macroparticles = val
+
+    @property
+    def is_splitted(self):
+        warnings.warn("Use '_mpi_is_splitted' instead !", DeprecationWarning)
+        return self._mpi_is_splitted
+
+    @is_splitted.setter
+    def is_splitted(self, val):
+        self._mpi_is_splitted = val
+
+    @property
+    def _sumsq_dt(self):
+        warnings.warn("Use '_mpi_sumsq_dt' instead !", DeprecationWarning)
+        return self._mpi_sumsq_dt
+
+    @_sumsq_dt.setter
+    def _sumsq_dt(self, val):
+        self._mpi_sumsq_dt = val
+
+    @property
+    def _sumsq_dE(self):
+        warnings.warn("Use '_mpi_sumsq_dE' instead !", DeprecationWarning)
+        return self._mpi_sumsq_dE
+
+    @_sumsq_dE.setter
+    def _sumsq_dE(self, val):
+        self._mpi_sumsq_dE = val
+
+    @property
     def n_macroparticles_lost(self) -> int:
-        """Number of lost macro-particles, defined as @property.
+        """Number of macro-particles marked as not alive
 
         Returns
         -------
         n_macroparticles_lost : int
-            number of macroparticles lost.
+            number of macroparticles where 'id' is 'lost' (i.e. 0).
 
         """
+        warnings.warn("Use 'n_macroparticles_not_alive' instead of 'n_macroparticles_lost' for readability",
+                      DeprecationWarning)
+
         return self.n_macroparticles - self.n_macroparticles_alive
 
     @property
     def n_macroparticles_alive(self) -> int:
-        """Number of transmitted macro-particles, defined as @property.
+        """Number of macro-particles marked as alive
 
         Returns
         -------
@@ -287,18 +352,32 @@ class Beam:
 
         return bm.count_nonzero(self.id)
 
+    @property
+    def n_macroparticles_not_alive(self):
+        '''Number of macro-particles marked as not-alive
+
+        Returns
+        -------
+        n_macroparticles_not_alive : int
+            number of macroparticles marked as lost.
+
+        '''
+
+        return self.n_macroparticles - self.n_macroparticles_alive
+
     def eliminate_lost_particles(self):
         """Eliminate lost particles from the beam coordinate arrays
         """
 
-        indexalive = np.where(self.id != 0)[0]
-        if len(indexalive) > 0:
-            self.dt = np.ascontiguousarray(
-                self.dt[indexalive], dtype=bm.precision.real_t)
-            self.dE = np.ascontiguousarray(
-                self.dE[indexalive], dtype=bm.precision.real_t)
+        select_alive = self.id != 0
+        if bm.sum(select_alive) > 0:
+            self.n_macroparticles_eliminated += bm.sum(~select_alive)
+            self.dt = bm.ascontiguousarray(
+                self.dt[select_alive], dtype=bm.precision.real_t)
+            self.dE = bm.ascontiguousarray(
+                self.dE[select_alive], dtype=bm.precision.real_t)
             self.n_macroparticles = len(self.dt)
-            self.id = np.arange(1, self.n_macroparticles + 1, dtype=int)
+            self.id = bm.arange(1, self.n_macroparticles + 1, dtype=int)
         else:
             # AllParticlesLost
             raise RuntimeError("ERROR in Beams: all particles lost and" +
@@ -320,13 +399,13 @@ class Beam:
         itemindex = bm.nonzero(self.id)[0]
         self.mean_dt = bm.mean(self.dt[itemindex])
         self.sigma_dt = bm.std(self.dt[itemindex])
-        self._sumsq_dt = bm.dot(self.dt[itemindex], self.dt[itemindex])
+        self._mpi_sumsq_dt = bm.dot(self.dt[itemindex], self.dt[itemindex])
         # self.min_dt = bm.min(self.dt[itemindex])
         # self.max_dt = bm.max(self.dt[itemindex])
 
         self.mean_dE = bm.mean(self.dE[itemindex])
         self.sigma_dE = bm.std(self.dE[itemindex])
-        self._sumsq_dE = bm.dot(self.dE[itemindex], self.dE[itemindex])
+        self._mpi_sumsq_dE = bm.dot(self.dE[itemindex], self.dE[itemindex])
 
         # self.min_dE = bm.min(self.dE[itemindex])
         # self.max_dE = bm.max(self.dE[itemindex])
@@ -531,7 +610,7 @@ class Beam:
         assert (len(self.dt) == len(self.dE) and len(self.dt) == len(self.id))
 
         self.n_macroparticles = len(self.dt)
-        self.is_splitted = True
+        self._mpi_is_splitted = True
 
     def gather(self, all_gather: bool = False):
         """
@@ -552,13 +631,13 @@ class Beam:
             self.dt = WORKER.allgather(self.dt)
             self.dE = WORKER.allgather(self.dE)
             self.id = WORKER.allgather(self.id)
-            self.is_splitted = False
+            self._mpi_is_splitted = False
         else:
             self.dt = WORKER.gather(self.dt)
             self.dE = WORKER.gather(self.dE)
             self.id = WORKER.gather(self.id)
             if WORKER.is_master:
-                self.is_splitted = False
+                self._mpi_is_splitted = False
 
         self.n_macroparticles = len(self.dt)
 
@@ -585,24 +664,24 @@ class Beam:
             self.mean_dE = WORKER.allreduce(
                 np.array([self.mean_dE]), operator='mean')[0]
 
-            self.n_total_macroparticles_lost = WORKER.allreduce(
-                np.array([self.n_macroparticles_lost]), operator='sum')[0]
+            self._mpi_n_total_macroparticles_lost = WORKER.allreduce(
+                np.array([self.n_macroparticles_not_alive]), operator='sum')[0]
 
-            # self.n_total_macroparticles_alive = WORKER.allreduce(
+            # self.__mpi_n_total_macroparticles_alive = WORKER.allreduce(
             # np.array([self.n_macroparticles_alive]), operator='sum')[0]
 
             self.sigma_dt = WORKER.allreduce(
-                np.array([self._sumsq_dt]), operator='sum')[0]
+                np.array([self._mpi_sumsq_dt]), operator='sum')[0]
             self.sigma_dt = np.sqrt(
-                self.sigma_dt / (self.n_total_macroparticles -
-                                 self.n_total_macroparticles_lost)
+                self.sigma_dt / (self._mpi_n_total_macroparticles -
+                                 self._mpi_n_total_macroparticles_lost)
                 - self.mean_dt ** 2)
 
             self.sigma_dE = WORKER.allreduce(
-                np.array([self._sumsq_dE]), operator='sum')[0]
+                np.array([self._mpi_sumsq_dE]), operator='sum')[0]
             self.sigma_dE = np.sqrt(
-                self.sigma_dE / (self.n_total_macroparticles -
-                                 self.n_total_macroparticles_lost)
+                self.sigma_dE / (self._mpi_n_total_macroparticles -
+                                 self._mpi_n_total_macroparticles_lost)
                 - self.mean_dE ** 2)
 
         else:
@@ -612,21 +691,21 @@ class Beam:
             self.mean_dE = WORKER.reduce(
                 np.array([self.mean_dE]), operator='mean')[0]
 
-            self.n_total_macroparticles_lost = WORKER.reduce(
-                np.array([self.n_macroparticles_lost]), operator='sum')[0]
+            self._mpi_n_total_macroparticles_lost = WORKER.reduce(
+                np.array([self.n_macroparticles_not_alive]), operator='sum')[0]
 
             self.sigma_dt = WORKER.reduce(
-                np.array([self._sumsq_dt]), operator='sum')[0]
+                np.array([self._mpi_sumsq_dt]), operator='sum')[0]
             self.sigma_dt = np.sqrt(
-                self.sigma_dt / (self.n_total_macroparticles -
-                                 self.n_total_macroparticles_lost)
+                self.sigma_dt / (self._mpi_n_total_macroparticles -
+                                 self._mpi_n_total_macroparticles_lost)
                 - self.mean_dt ** 2)
 
             self.sigma_dE = WORKER.reduce(
-                np.array([self._sumsq_dE]), operator='sum')[0]
+                np.array([self._mpi_sumsq_dE]), operator='sum')[0]
             self.sigma_dE = np.sqrt(
-                self.sigma_dE / (self.n_total_macroparticles -
-                                 self.n_total_macroparticles_lost)
+                self.sigma_dE / (self._mpi_n_total_macroparticles -
+                                 self._mpi_n_total_macroparticles_lost)
                 - self.mean_dE ** 2)
 
     def gather_losses(self, all_gather: bool = False):
@@ -647,10 +726,10 @@ class Beam:
 
         if all_gather:
             temp = WORKER.allgather(np.array([self.n_macroparticles_lost]))
-            self.n_total_macroparticles_lost = np.sum(temp)
+            self._mpi_n_total_macroparticles_lost = np.sum(temp)
         else:
             temp = WORKER.gather(np.array([self.n_macroparticles_lost]))
-            self.n_total_macroparticles_lost = np.sum(temp)
+            self._mpi_n_total_macroparticles_lost = np.sum(temp)
 
     def to_gpu(self, recursive=True):
         """

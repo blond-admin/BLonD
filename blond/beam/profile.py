@@ -620,7 +620,7 @@ class Profile:
         if WORKER.workers == 1:
             return
 
-        if self.beam.is_splitted:
+        if self.beam._mpi_is_splitted:
 
             if 'CPU' in bm.device:
                 # Convert to uint32t for better performance
