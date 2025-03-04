@@ -95,6 +95,33 @@ class BeamDistributedSingleNode(BeamBaseClass):
         self.dt_multi_gpu = MultiGpuArray(dt)
         self.id_multi_gpu = MultiGpuArray(id)
 
+    def download_ids(self):
+        ids = np.concatenate(
+            [
+                self.id_multi_gpu.gpu_arrays[gpu_i].asnumpy()
+                for gpu_i in range(self.n_gpus)
+            ]
+        )
+        return ids
+
+    def download_dts(self):
+        dts = np.concatenate(
+            [
+                self.dt_multi_gpu.gpu_arrays[gpu_i].asnumpy()
+                for gpu_i in range(self.n_gpus)
+            ]
+        )
+        return dts
+
+    def download_dEs(self):
+        dEs = np.concatenate(
+            [
+                self.dE_multi_gpu.gpu_arrays[gpu_i].asnumpy()
+                for gpu_i in range(self.n_gpus)
+            ]
+        )
+        return dEs
+
     @property
     def n_gpus(self):
         return cp.cuda.runtime.getDeviceCount()

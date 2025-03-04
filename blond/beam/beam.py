@@ -329,7 +329,7 @@ class Beam(BeamBaseClass):
 
     @property
     def n_macroparticles_alive(self) -> int:
-        """Number of macro-particles marked as alive
+        """Number of macro-particles marked as alive (id ≠ 0)
 
         Returns
         -------
