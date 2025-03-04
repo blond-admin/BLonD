@@ -201,7 +201,7 @@ class TestGeneralParameters(unittest.TestCase):
         l_per_section = C / n_sections
         section_lengths = np.full(n_sections, l_per_section)
         # should be a linear energy ramp, taking the value from the section in the previous turn
-        momentum = np.arange(0, (n_turns+1)*n_sections).reshape((n_turns+1, n_sections)).transpose()+1e10
+        momentum = np.arange(0, (n_turns+1)*n_sections).reshape((n_turns+1, n_sections)).transpose()*1e10
         ring = Ring(ring_length=section_lengths, alpha_0=alpha,
                     synchronous_data=momentum, particle=Proton(),
                     n_turns=n_turns, n_sections=n_sections,
