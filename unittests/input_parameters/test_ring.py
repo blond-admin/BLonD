@@ -209,7 +209,7 @@ class TestGeneralParameters(unittest.TestCase):
                     n_turns=n_turns, n_sections=n_sections,
                     synchronous_data_type='momentum')
         delta_E_values = ring.delta_E.flatten()
-        np.testing.assert_allclose(delta_E_values, delta_E_values[0], rtol=1e-2)
+        np.testing.assert_allclose(delta_E_values, delta_E_values[0], rtol=1e-3)
 
 
 if __name__ == '__main__':
