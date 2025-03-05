@@ -68,6 +68,14 @@ class BeamBaseClass:
     @property
     @abstractmethod
     def n_macroparticles_alive(self) -> int:
+        """Number of macro-particles marked as alive (id ≠ 0)
+
+        Returns
+        -------
+        n_macroparticles_alive : int
+            number of macroparticles not lost.
+
+        """
         pass
 
     @property
@@ -89,12 +97,31 @@ class BeamBaseClass:
 
     @abstractmethod
     def statistics(self) -> None:
+        r"""Update statistics of dE and dE array
+
+        Notes
+        -----
+        Following attributes are updated:
+        - mean_dt
+        - mean_dE
+        - sigma_dt
+        - sigma_dE
+        """
         pass
 
     @abstractmethod
     @handle_legacy_kwargs
     def losses_separatrix(self, ring: Ring, rf_station: RFStation) -> None:
-        pass
+        """Mark particles outside separatrix as not-alive (id=0)
+
+        Parameters
+        ----------
+        ring : Ring
+            Function arguments of is_in_separatrix(...).
+        rf_station : RFStation
+            Function arguments of is_in_separatrix(...).
+
+        """
 
     @abstractmethod
     def losses_longitudinal_cut(self, dt_min: float, dt_max: float) -> None:
@@ -121,21 +148,48 @@ class BeamBaseClass:
         """
         self.ratio *= np.exp(
             -time * self.particle.decay_rate / self.gamma
-        )  # todo bugfix
-
+        )  # todo bugfix should act on number of particles?
 
     @abstractmethod
     def dE_mean(self, ignore_id_0: bool = False):
+        """Calculate mean of energy
+
+        Parameters
+        ----------
+        ignore_id_0
+            If True, particles with id = 0 are ignored
+        """
         pass
 
     @abstractmethod
     def dE_std(self, ignore_id_0: bool = False):
+        """Calculate standard deviation of energy
+
+        Parameters
+        ----------
+        ignore_id_0
+            If True, particles with id = 0 are ignored
+        """
         pass
 
     @abstractmethod
     def dt_mean(self, ignore_id_0: bool = False):
+        """Calculate mean of time
+
+        Parameters
+        ----------
+        ignore_id_0
+            If True, particles with id = 0 are ignored
+        """
         pass
 
     @abstractmethod
     def dt_std(self, ignore_id_0: bool = False):
+        """Calculate standard deviation of time
+
+        Parameters
+        ----------
+        ignore_id_0
+            If True, particles with id = 0 are ignored
+        """
         pass

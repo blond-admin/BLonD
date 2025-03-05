@@ -749,3 +749,59 @@ class Beam(BeamBaseClass):
 
         # to make sure it will not be called again
         self._device: DeviceType = 'CPU'
+
+    def dE_mean(self, ignore_id_0: bool = False):
+        """Calculate mean of energy
+
+        Parameters
+        ----------
+        ignore_id_0
+            If True, particles with id = 0 are ignored
+        """
+        if ignore_id_0:
+            mask = self.id > 0
+            return np.mean(self.dE[mask])
+        else:
+            return np.mean(self.dE)
+
+    def dE_std(self, ignore_id_0: bool = False):
+        """Calculate standard deviation of energy
+
+        Parameters
+        ----------
+        ignore_id_0
+            If True, particles with id = 0 are ignored
+        """
+        if ignore_id_0:
+            mask = self.id > 0
+            return np.std(self.dE[mask])
+        else:
+            return np.std(self.dE)
+
+    def dt_mean(self, ignore_id_0: bool = False):
+        """Calculate mean of time
+
+        Parameters
+        ----------
+        ignore_id_0
+            If True, particles with id = 0 are ignored
+        """
+        if ignore_id_0:
+            mask = self.id > 0
+            return np.mean(self.dt[mask])
+        else:
+            return np.mean(self.dt)
+
+    def dt_std(self, ignore_id_0: bool = False):
+        """Calculate standard deviation of time
+
+        Parameters
+        ----------
+        ignore_id_0
+            If True, particles with id = 0 are ignored
+        """
+        if ignore_id_0:
+            mask = self.id > 0
+            return np.std(self.dt[mask])
+        else:
+            return np.std(self.dt)
