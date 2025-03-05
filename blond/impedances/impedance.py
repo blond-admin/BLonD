@@ -307,13 +307,13 @@ class _InducedVoltage:
     @property
     def RFParams(self):
         from warnings import warn
-        warn("RFParams is deprecated, use rf_params", DeprecationWarning)
+        warn("RFParams is deprecated, use rf_params", DeprecationWarning, stacklevel=2)
         return self.rf_params
 
     @RFParams.setter
     def RFParams(self, val):
         from warnings import warn
-        warn("RFParams is deprecated, use rf_params", DeprecationWarning)
+        warn("RFParams is deprecated, use rf_params", DeprecationWarning, stacklevel=2)
         self.rf_params = val
 
     def process(self) -> None:

@@ -271,18 +271,30 @@ class Beam:
     @property
     def Particle(self):
         from warnings import warn
-        warn("Particle is deprecated, use particle", DeprecationWarning)
+        warn(
+            "Particle is deprecated, use particle",
+             DeprecationWarning,
+             stacklevel=2
+             )
         return self.particle
 
     @Particle.setter
     def Particle(self, val):
         from warnings import warn
-        warn("Particle is deprecated, use particle", DeprecationWarning)
+        warn(
+            "Particle is deprecated, use particle",
+             DeprecationWarning,
+             stacklevel=2
+        )
         self.particle = val
 
     @property
     def n_total_macroparticles_lost(self):
-        warnings.warn("Use '_mpi_n_total_macroparticles_lost' instead !", DeprecationWarning)
+        warnings.warn(
+            "Use '_mpi_n_total_macroparticles_lost' instead !",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return self._mpi_n_total_macroparticles_lost
 
     @n_total_macroparticles_lost.setter
@@ -291,7 +303,11 @@ class Beam:
 
     @property
     def n_total_macroparticles(self):
-        warnings.warn("Use '_mpi_n_total_macroparticles' instead !", DeprecationWarning)
+        warnings.warn(
+            "Use '_mpi_n_total_macroparticles' instead !",
+            DeprecationWarning,
+            stacklevel=2
+        )
         return self._mpi_n_total_macroparticles
 
     @n_total_macroparticles.setter
@@ -300,7 +316,11 @@ class Beam:
 
     @property
     def is_splitted(self):
-        warnings.warn("Use '_mpi_is_splitted' instead !", DeprecationWarning)
+        warnings.warn(
+            "Use '_mpi_is_splitted' instead !",
+            DeprecationWarning,
+            stacklevel=2
+        )
         return self._mpi_is_splitted
 
     @is_splitted.setter
@@ -309,7 +329,7 @@ class Beam:
 
     @property
     def _sumsq_dt(self):
-        warnings.warn("Use '_mpi_sumsq_dt' instead !", DeprecationWarning)
+        warnings.warn("Use '_mpi_sumsq_dt' instead !", DeprecationWarning, stacklevel=2)
         return self._mpi_sumsq_dt
 
     @_sumsq_dt.setter
@@ -318,7 +338,7 @@ class Beam:
 
     @property
     def _sumsq_dE(self):
-        warnings.warn("Use '_mpi_sumsq_dE' instead !", DeprecationWarning)
+        warnings.warn("Use '_mpi_sumsq_dE' instead !", DeprecationWarning, stacklevel=2)
         return self._mpi_sumsq_dE
 
     @_sumsq_dE.setter
@@ -335,8 +355,12 @@ class Beam:
             number of macroparticles where 'id' is 'lost' (i.e. 0).
 
         """
-        warnings.warn("Use 'n_macroparticles_not_alive' instead of 'n_macroparticles_lost' for readability",
-                      DeprecationWarning)
+        warnings.warn(
+            "Use 'n_macroparticles_not_alive' instead of "
+            "'n_macroparticles_lost' for readability",
+            DeprecationWarning,
+            stacklevel=2
+        )
 
         return self.n_macroparticles - self.n_macroparticles_alive
 

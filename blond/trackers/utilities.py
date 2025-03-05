@@ -331,52 +331,52 @@ class SynchrotronFrequencyTracker:
     def TotalInducedVoltage(self):
         from warnings import warn
         warn("TotalInducedVoltage is deprecated, use total_induced_voltage",
-             DeprecationWarning)
+             DeprecationWarning, stacklevel=2)
         return self.total_induced_voltage
 
     @TotalInducedVoltage.setter
     def TotalInducedVoltage(self, val):
         from warnings import warn
         warn("TotalInducedVoltage is deprecated, use total_induced_voltage",
-             DeprecationWarning)
+             DeprecationWarning, stacklevel=2)
         self.total_induced_voltage = val
 
     @property
     def FullRingAndRF(self):
         from warnings import warn
         warn("FullRingAndRF is deprecated, use full_ring_and_rf",
-             DeprecationWarning)
+             DeprecationWarning, stacklevel=2)
         return self.full_ring_and_rf
 
     @FullRingAndRF.setter
     def FullRingAndRF(self, val):
         from warnings import warn
         warn("FullRingAndRF is deprecated, use full_ring_and_rf",
-             DeprecationWarning)
+             DeprecationWarning, stacklevel=2)
         self.full_ring_and_rf = val
 
     @property
     def Beam(self):
         from warnings import warn
-        warn("Beam is deprecated, use beam", DeprecationWarning)
+        warn("Beam is deprecated, use beam", DeprecationWarning, stacklevel=2)
         return self.beam
 
     @Beam.setter
     def Beam(self, val):
         from warnings import warn
-        warn("Beam is deprecated, use beam", DeprecationWarning)
+        warn("Beam is deprecated, use beam", DeprecationWarning, stacklevel=2)
         self.beam = val
 
     @property
     def Ring(self):
         from warnings import warn
-        warn("Ring is deprecated, use ring", DeprecationWarning)
+        warn("Ring is deprecated, use ring", DeprecationWarning, stacklevel=2)
         return self.ring
 
     @Ring.setter
     def Ring(self, val):
         from warnings import warn
-        warn("Ring is deprecated, use ring", DeprecationWarning)
+        warn("Ring is deprecated, use ring", DeprecationWarning, stacklevel=2)
         self.ring = val
 
     def track(self):

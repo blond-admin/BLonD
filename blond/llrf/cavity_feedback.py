@@ -145,13 +145,13 @@ class CavityFeedback:
     @property
     def rfstation(self):
         from warnings import warn
-        warn("rfstation is deprecated, use ring", DeprecationWarning)
+        warn("rfstation is deprecated, use ring", DeprecationWarning, stacklevel=2)
         return self.rf_station
 
     @rfstation.setter
     def rfstation(self, val):
         from warnings import warn
-        warn("rfstation is deprecated, use ring", DeprecationWarning)
+        warn("rfstation is deprecated, use ring", DeprecationWarning, stacklevel=2)
         self.rf_station = val
 
     @abstractmethod
@@ -1215,13 +1215,13 @@ class SPSCavityFeedback:
     @property
     def rfstation(self):
         from warnings import warn
-        warn("rfstation is deprecated, use rf_station", DeprecationWarning)
+        warn("rfstation is deprecated, use rf_station", DeprecationWarning, stacklevel=2)
         return self.rf_station
 
     @rfstation.setter
     def rfstation(self, val):
         from warnings import warn
-        warn("rfstation is deprecated, use rf_station", DeprecationWarning)
+        warn("rfstation is deprecated, use rf_station", DeprecationWarning, stacklevel=2)
         self.rf_station = val
 
     def track(self) -> None:

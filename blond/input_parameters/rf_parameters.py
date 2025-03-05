@@ -405,13 +405,13 @@ class RFStation:
     @property
     def Particle(self):
         from warnings import warn
-        warn("Particle is deprecated, use particle", DeprecationWarning)
+        warn("Particle is deprecated, use particle", DeprecationWarning, stacklevel=2)
         return self.particle
 
     @Particle.setter
     def Particle(self, val):
         from warnings import warn
-        warn("Particle is deprecated, use particle", DeprecationWarning)
+        warn("Particle is deprecated, use particle", DeprecationWarning, stacklevel=2)
         self.particle = val
 
     def eta_tracking(self, beam, counter, dE):

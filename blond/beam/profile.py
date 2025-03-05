@@ -133,13 +133,13 @@ class CutOptions:
     @property
     def RFParams(self):
         from warnings import warn
-        warn("AMBIGUOUS is deprecated, use ring", DeprecationWarning)
+        warn("AMBIGUOUS is deprecated, use ring", DeprecationWarning, stacklevel=2)
         return self.rf_station
 
     @RFParams.setter
     def RFParams(self, val):
         from warnings import warn
-        warn("AMBIGUOUS is deprecated, use ring", DeprecationWarning)
+        warn("AMBIGUOUS is deprecated, use ring", DeprecationWarning, stacklevel=2)
         self.rf_station = val
 
     def set_cuts(self, beam: Optional[Beam] = None) -> None:
@@ -295,13 +295,13 @@ class FitOptions:
     @property
     def fitExtraOptions(self):
         from warnings import warn
-        warn("fitExtraOptions is deprecated, use fit_extra_options", DeprecationWarning)
+        warn("fitExtraOptions is deprecated, use fit_extra_options", DeprecationWarning, stacklevel=2)
         return self.fit_extra_options
 
     @fitExtraOptions.setter
     def fitExtraOptions(self, val):
         from warnings import warn
-        warn("fitExtraOptions is deprecated, use fit_extra_options", DeprecationWarning)
+        warn("fitExtraOptions is deprecated, use fit_extra_options", DeprecationWarning, stacklevel=2)
         self.fit_extra_options = val
 
 
@@ -341,25 +341,25 @@ class FilterOptions:
     @property
     def filterMethod(self):
         from warnings import warn
-        warn("filterMethod is deprecated, use filter_method", DeprecationWarning)
+        warn("filterMethod is deprecated, use filter_method", DeprecationWarning, stacklevel=2)
         return self.filter_method
 
     @filterMethod.setter
     def filterMethod(self, val):
         from warnings import warn
-        warn("filterMethod is deprecated, use filter_method", DeprecationWarning)
+        warn("filterMethod is deprecated, use filter_method", DeprecationWarning, stacklevel=2)
         self.filter_method = val
 
     @property
     def filterExtraOptions(self):
         from warnings import warn
-        warn("filterExtraOptions is deprecated, use filter_extra_options", DeprecationWarning)
+        warn("filterExtraOptions is deprecated, use filter_extra_options", DeprecationWarning, stacklevel=2)
         return self.filter_extra_options
 
     @filterExtraOptions.setter
     def filterExtraOptions(self, val):
         from warnings import warn
-        warn("filterExtraOptions is deprecated, use filter_extra_options", DeprecationWarning)
+        warn("filterExtraOptions is deprecated, use filter_extra_options", DeprecationWarning, stacklevel=2)
         self.filter_extra_options = val
 
 
@@ -558,25 +558,25 @@ class Profile:
     @property
     def Beam(self):
         from warnings import warn
-        warn("Beam is deprecated, use beam", DeprecationWarning)
+        warn("Beam is deprecated, use beam", DeprecationWarning, stacklevel=2)
         return self.beam
 
     @Beam.setter
     def Beam(self, val):
         from warnings import warn
-        warn("Beam is deprecated, use beam", DeprecationWarning)
+        warn("Beam is deprecated, use beam", DeprecationWarning, stacklevel=2)
         self.beam = val
 
     @property
     def filterExtraOptions(self):
         from warnings import warn
-        warn("filterExtraOptions is deprecated, use filter_extra_options", DeprecationWarning)
+        warn("filterExtraOptions is deprecated, use filter_extra_options", DeprecationWarning, stacklevel=2)
         return self.filter_extra_options
 
     @filterExtraOptions.setter
     def filterExtraOptions(self, val):
         from warnings import warn
-        warn("filterExtraOptions is deprecated, use filter_extra_options", DeprecationWarning)
+        warn("filterExtraOptions is deprecated, use filter_extra_options", DeprecationWarning, stacklevel=2)
         self.filter_extra_options = val
 
     def set_slices_parameters(self) -> None:
@@ -677,13 +677,13 @@ class Profile:
     @property
     def fitExtraOptions(self):  # TODO
         from warnings import warn
-        warn("fitExtraOptions is deprecated, use fit_extra_options", DeprecationWarning)  # TODO
+        warn("fitExtraOptions is deprecated, use fit_extra_options", DeprecationWarning, stacklevel=2)  # TODO
         return self.fit_extra_options
 
     @fitExtraOptions.setter  # TODO
     def fitExtraOptions(self, val):  # TODO
         from warnings import warn
-        warn("fitExtraOptions is deprecated, use fit_extra_options", DeprecationWarning)  # TODO
+        warn("fitExtraOptions is deprecated, use fit_extra_options", DeprecationWarning, stacklevel=2)  # TODO
         self.fit_extra_options = val
 
     def apply_filter(self) -> None:
