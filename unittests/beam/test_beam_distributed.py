@@ -11,7 +11,7 @@ from blond.beam.beam_distributed import (
     BeamDistributedSingleNode,
 )
 from blond.input_parameters.ring import Ring
-from input_parameters.rf_parameters import RFStation
+from blond.input_parameters.rf_parameters import RFStation
 
 
 class TestMultiGpuArray(unittest.TestCase):
@@ -59,6 +59,9 @@ class TestBeamDistributedSingleNode(unittest.TestCase):
             dE=dE,
         )
         self.ring = ring
+        self.rf_station = RFStation(
+            ring=self.ring, harmonic=4620, voltage=4.5e6, phi_rf_d=0.0
+        )
 
     def test_n_gpus(self):
         self.assertIsInstance(self.beam_distributed.n_gpus, int)
@@ -110,7 +113,7 @@ class TestBeamDistributedSingleNode(unittest.TestCase):
         for beam in (self.beam_distributed, self.beam_):
             beam.losses_separatrix(
                 ring=self.ring,
-                rf_station=RFStation(),  # TODO
+                rf_station=self.rf_station,
             )
 
         ids = self.beam_distributed.download_ids()
@@ -164,3 +167,7 @@ class TestBeamDistributedSingleNode(unittest.TestCase):
                 self.beam_distributed.dt_std(ignore_id_0=ignore_id_0),
                 self.beam_.dt_std(ignore_id_0=ignore_id_0),
             )
+
+
+if __name__ == "__main__":
+    unittest.main()

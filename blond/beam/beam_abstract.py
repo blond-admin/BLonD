@@ -65,8 +65,8 @@ class BeamBaseClass:
         # For handling arrays on CPU/GPU
         self._device = "CPU"
 
-    @abstractmethod
     @property
+    @abstractmethod
     def n_macroparticles_alive(self) -> int:
         pass
 
