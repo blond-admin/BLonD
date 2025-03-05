@@ -73,19 +73,19 @@ class BeamBaseClass:
         Returns
         -------
         n_macroparticles_alive : int
-            number of macroparticles not lost.
+            Number of macro-particles marked as alive (id ≠ 0)
 
         """
         pass
 
     @property
     def n_macroparticles_not_alive(self):
-        """Number of macro-particles marked as not-alive
+        """Number of macro-particles marked as not-alive (id=0)
 
         Returns
         -------
         n_macroparticles_not_alive : int
-            number of macroparticles marked as lost.
+            Number of macro-particles marked as not-alive (id=0)
 
         """
         return self.n_macroparticles - self.n_macroparticles_alive
@@ -125,25 +125,49 @@ class BeamBaseClass:
 
     @abstractmethod
     def losses_longitudinal_cut(self, dt_min: float, dt_max: float) -> None:
-        pass
+        """Mark particles outside time range as not-alive (id=0)
+
+        Parameters
+        ----------
+        dt_min : float
+            Lower limit (dt=dt_min is kept)
+        dt_max : float
+            Upper limit (dt=dt_max is kept)
+        """
 
     @abstractmethod
     def losses_energy_cut(self, dE_min: float, dE_max: float) -> None:
-        pass
+        """Mark particles outside energy range as not-alive (id=0)
+
+        Parameters
+        ----------
+        dE_min : float
+            Lower limit (dE=dE_min is kept)
+        dE_max : float
+            Upper limit (dE=dE_max is kept)
+        """
 
     @abstractmethod
     def losses_below_energy(self, dE_min: float):
-        pass
+        """Mark particles outside energy range as not-alive (id=0)
+
+        Parameters
+        ----------
+        dE_min : float
+            Lower limit (dE=dE_min is kept)
+        """
 
     def particle_decay(self, time: float) -> None:
         """Decreases beam intensity due to the particle decay
 
-        Sets the ratio to a lower value if the particle can decay. Number of macroparticles remains unchanged.
+        Sets the ratio to a lower value if the particle can decay.
+        Number of macroparticles remains unchanged.
 
         Parameters
         ----------
         time : float
-            time in seconds, which is used to determine the fraction of the
+            time in seconds, which is used
+            to determine the fraction of the
             particle decay
         """
         self.ratio *= np.exp(

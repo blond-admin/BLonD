@@ -74,6 +74,15 @@ class MultiGpuArray:
             with cp.cuda.Device(gpu_i):
                 func(array, out=out.gpu_arrays[gpu_i])
 
+    def download_array(self):
+        array = np.concatenate(
+            [
+                self.gpu_arrays[gpu_i].asnumpy()
+                for gpu_i in self.gpu_arrays.keys()
+            ]
+        )
+        return array
+
 
 class BeamDistributedSingleNode(BeamBaseClass):
     def __init__(
@@ -96,31 +105,13 @@ class BeamDistributedSingleNode(BeamBaseClass):
         self.id_multi_gpu = MultiGpuArray(id)
 
     def download_ids(self):
-        ids = np.concatenate(
-            [
-                self.id_multi_gpu.gpu_arrays[gpu_i].asnumpy()
-                for gpu_i in range(self.n_gpus)
-            ]
-        )
-        return ids
+        return self.id_multi_gpu.download_array()
 
     def download_dts(self):
-        dts = np.concatenate(
-            [
-                self.dt_multi_gpu.gpu_arrays[gpu_i].asnumpy()
-                for gpu_i in range(self.n_gpus)
-            ]
-        )
-        return dts
+        return self.dt_multi_gpu.download_array()
 
     def download_dEs(self):
-        dEs = np.concatenate(
-            [
-                self.dE_multi_gpu.gpu_arrays[gpu_i].asnumpy()
-                for gpu_i in range(self.n_gpus)
-            ]
-        )
-        return dEs
+        return self.dE_multi_gpu.download_array()
 
     @property
     def n_gpus(self):

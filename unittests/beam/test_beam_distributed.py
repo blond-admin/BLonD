@@ -23,9 +23,9 @@ class TestMultiGpuArray(unittest.TestCase):
         np.testing.assert_almost_equal(results, 3)
 
     def test_map_inplace(self):
-        out = np.empty(100)
+        out = MultiGpuArray(np.empty(100))
         self.multi_gpu_array.map_inplace(lambda x: cp.add(x, 2), out=out)
-        np.testing.assert_almost_equal(out, 3)
+        np.testing.assert_almost_equal(out.download_array(), 3)
 
 
 class TestBeamDistributedSingleNode(unittest.TestCase):
@@ -47,9 +47,9 @@ class TestBeamDistributedSingleNode(unittest.TestCase):
         self.beam_distributed = BeamDistributedSingleNode(
             ring=ring,
             intensity=intensity,
-            dE=dE,
-            dt=dt,
-            id=id_,
+            dE=dE.copy(),
+            dt=dt.copy(),
+            id=id_.copy(),
         )
         self.beam_ = Beam(
             ring=ring,
@@ -58,6 +58,7 @@ class TestBeamDistributedSingleNode(unittest.TestCase):
             dt=dt,
             dE=dE,
         )
+        self.beam_.id = id_
         self.ring = ring
         self.rf_station = RFStation(
             ring=self.ring, harmonic=4620, voltage=4.5e6, phi_rf_d=0.0
