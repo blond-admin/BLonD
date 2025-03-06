@@ -71,7 +71,7 @@ def main(mock_n_gpus):
         id=_beam.id,
         mock_n_gpus=mock_n_gpus,
     )
-
+    print(f"{beam.n_gpus=}")
     long_tracker = RingAndRFTracker(rf, beam)
 
     # parabolic(ring, rf, beam, tau_0, seed=1)
@@ -170,4 +170,5 @@ def main(mock_n_gpus):
     print("Done!")
 
 if __name__ == "__main__":
-    main(mock_n_gpus=4)
+    main(mock_n_gpus=1)
+    main(mock_n_gpus=None)

@@ -1,0 +1,7 @@
+# A list of inputs for which to execute the simulation
+#
+# In this file you can specify the values of the arguments you specified
+# in the simulation_run.sh and submit_condor.sh (in the same order).
+#
+# The values must be separated by a space. Here is an example:
+1

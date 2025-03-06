@@ -1,0 +1,33 @@
+# Configuration of what to send to HTCondor
+
+# Read the docs: https://htcondor.readthedocs.io/en/latest/man-pages/condor_submit.html
+
+# Using this file you can submit your list of simulations on HTCondor. (using sets of different argument values)
+# On the command line type: condor_submit config_condor.sub
+
+
+#notify_user            = max.mustermann@cern.ch # You can get mails on finished simulations
+#notification           = Always # Uncomment this on for notifications
+
+if !defined FNAME
+    FNAME               = outputs
+endif
+
+ID                      = $(Cluster).$(Process)
+
+output                  = ./logs/$(FNAME).$(ID).out
+error                   = ./logs/$(FNAME).$(ID).err
+log                     = ./logs/$(FNAME).$(Cluster).log
+
+should_transfer_files   = YES
+when_to_transfer_output = ON_EXIT
+
+request_GPUs		    = 1
+request_CPUs            = 1
++MaxRunTime             = 60
+#+AccountingGroup = "???" # TODO
+
+arguments               = $(VAR1) $(VAR2)  # You can change the number of variables (also changing simulation_args.txt)
+executable              = simulation_run.sh
+
+queue VAR1, VAR2 from simulation_args.txt
