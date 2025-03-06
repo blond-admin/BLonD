@@ -16,16 +16,27 @@ from blond.input_parameters.rf_parameters import RFStation
 
 class TestMultiGpuArray(unittest.TestCase):
     def setUp(self):
-        self.multi_gpu_array = MultiGpuArray(array_cpu=np.ones(100), axis=0)
+        self.multi_gpu_array = MultiGpuArray(
+            array_cpu=np.arange(1, 101), axis=0, mock_n_gpus=4
+        )
 
     def test_map(self):
-        results = self.multi_gpu_array.map(lambda x: cp.add(x, 2))
-        np.testing.assert_almost_equal(results, 3)
+        results = self.multi_gpu_array.map(lambda x: float(cp.min(x)))
+        print(results)
+        np.testing.assert_almost_equal(
+            results, np.array([1.0, 26.0, 51.0, 76.0])
+        )
 
     def test_map_inplace(self):
-        out = MultiGpuArray(np.empty(100))
-        self.multi_gpu_array.map_inplace(lambda x: cp.add(x, 2), out=out)
-        np.testing.assert_almost_equal(out.download_array(), 3)
+        out = MultiGpuArray(np.empty(100), mock_n_gpus=4)
+
+        def operation(x, out):
+            cp.add(x, 2, out)
+
+        self.multi_gpu_array.map_inplace(operation, out=out)
+        np.testing.assert_almost_equal(
+            out.download_array(), np.arange(1, 101) + 2
+        )
 
 
 class TestBeamDistributedSingleNode(unittest.TestCase):
@@ -50,6 +61,7 @@ class TestBeamDistributedSingleNode(unittest.TestCase):
             dE=dE.copy(),
             dt=dt.copy(),
             id=id_.copy(),
+            mock_n_gpus=4,
         )
         self.beam_ = Beam(
             ring=ring,
@@ -76,14 +88,22 @@ class TestBeamDistributedSingleNode(unittest.TestCase):
     def test_eliminate_lost_particles(self):
         self.beam_.eliminate_lost_particles()
         self.beam_distributed.eliminate_lost_particles()
-
         self.assertEqual(
-            self.beam_distributed.n_macroparticles_alive,
             self.beam_.n_macroparticles_alive,
+            self.beam_distributed.n_macroparticles_alive,
         )
         self.assertEqual(
-            self.beam_distributed.n_macroparticles,
             self.beam_.n_macroparticles,
+            self.beam_distributed.n_macroparticles,
+        )
+        np.testing.assert_array_equal(
+            self.beam_.id, self.beam_distributed.id_multi_gpu.download_array()
+        )
+        np.testing.assert_array_equal(
+            self.beam_.dE, self.beam_distributed.dE_multi_gpu.download_array()
+        )
+        np.testing.assert_array_equal(
+            self.beam_.dt, self.beam_distributed.dt_multi_gpu.download_array()
         )
 
     def test_statistics(self):
@@ -144,29 +164,29 @@ class TestBeamDistributedSingleNode(unittest.TestCase):
     def test_dE_mean(self):
         for ignore_id_0 in (False, True):
             self.assertEqual(
-                self.beam_distributed.dE_mean(ignore_id_0=ignore_id_0),
                 self.beam_.dE_mean(ignore_id_0=ignore_id_0),
+                self.beam_distributed.dE_mean(ignore_id_0=ignore_id_0),
             )
 
     def test_dE_std(self):
         for ignore_id_0 in (False, True):
             self.assertEqual(
-                self.beam_distributed.dE_std(ignore_id_0=ignore_id_0),
                 self.beam_.dE_std(ignore_id_0=ignore_id_0),
+                self.beam_distributed.dE_std(ignore_id_0=ignore_id_0),
             )
 
     def test_dt_mean(self):
         for ignore_id_0 in (False, True):
             self.assertEqual(
-                self.beam_distributed.dt_mean(ignore_id_0=ignore_id_0),
                 self.beam_.dt_mean(ignore_id_0=ignore_id_0),
+                self.beam_distributed.dt_mean(ignore_id_0=ignore_id_0),
             )
 
     def test_dt_std(self):
         for ignore_id_0 in (False, True):
             self.assertEqual(
-                self.beam_distributed.dt_std(ignore_id_0=ignore_id_0),
                 self.beam_.dt_std(ignore_id_0=ignore_id_0),
+                self.beam_distributed.dt_std(ignore_id_0=ignore_id_0),
             )
 
 
