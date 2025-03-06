@@ -7,6 +7,7 @@ import cupy as cp
 import numpy as np
 
 from .beam_abstract import BeamBaseClass
+from ..gpu.butils_wrap_cupy import kick, drift
 from ..input_parameters.rf_parameters import RFStation
 from ..input_parameters.ring import Ring
 from ..trackers.utilities import is_in_separatrix
@@ -42,7 +43,7 @@ class MultiGpuArray:
         else:
             n_gpus = cp.cuda.runtime.getDeviceCount()
 
-        sub_arrays = np.split(array_cpu, n_gpus, axis=axis)
+        sub_arrays = np.array_split(array_cpu, n_gpus, axis=axis)
         for gpu_i, array_tmp in enumerate(sub_arrays):
             with self.get_device(gpu_i=gpu_i):
                 # upload to GPU
@@ -95,6 +96,12 @@ class MultiGpuArray:
                 else:
                     raise ValueError(f"{result=}")
         return results
+
+    def min(self):
+        return np.min(self.map(lambda x: float(cp.min(x))))
+
+    def max(self):
+        return np.max(self.map(lambda x: float(cp.max(x))))
 
     def map_inplace(self, func: Callable, out: MultiGpuArray):
         """Map function along all GPUs and write on 'out'
@@ -334,6 +341,18 @@ class BeamDistributedSingleNode(BeamBaseClass):
         sums = np.array(sums)
         return np.sqrt(np.sum(sums) / N)
 
+    def dt_min(self):  # todo ignore lost particles?
+        return self.dt_multi_gpu.min()
+
+    def dE_min(self):  # todo ignore lost particles?
+        return self.dE_multi_gpu.min()
+
+    def dt_max(self):  # todo ignore lost particles?
+        return self.dt_multi_gpu.max()
+
+    def dE_max(self):  # todo ignore lost particles?
+        return self.dE_multi_gpu.max()
+
     def dt_mean(self, ignore_id_0: bool = False):
         if ignore_id_0:
             means = self.map(_dt_mean_helper_ignore_id_0)
@@ -353,6 +372,127 @@ class BeamDistributedSingleNode(BeamBaseClass):
 
         sums = np.array(sums)
         return np.sqrt(np.sum(sums) / N)
+
+    def histogram(self, out, cut_left, cut_right):  # todo rewrite using bmath
+        histograms = self.dt_multi_gpu.map(
+            lambda x: cp.histogram(
+                x, bins=len(out), range=(cut_left, cut_right)
+            )[0],
+        )
+        hist = histograms[0]
+        if len(histograms) > 1:
+            for hist_tmp in histograms[1:]:
+                hist[:] += hist_tmp[:]
+
+        return hist
+
+    def kick(
+        self,
+        voltage: CupyNDArray,
+        omega_rf: CupyNDArray,
+        phi_rf: CupyNDArray,
+        charge: float,
+        n_rf: int,
+        acceleration_kick: float,
+    ):
+        self.map(
+            kick_helper,
+            voltage=voltage,
+            omega_rf=omega_rf,
+            phi_rf=phi_rf,
+            charge=charge,
+            n_rf=n_rf,
+            acceleration_kick=acceleration_kick,
+        )
+
+    def drift(
+        self,
+        solver,
+        t_rev,
+        length_ratio,
+        alpha_order,
+        eta_0,
+        eta_1,
+        eta_2,
+        alpha_0,
+        alpha_1,
+        alpha_2,
+        beta,
+        energy,
+    ):
+        self.map(
+            drift_helper,
+            solver=solver,
+            t_rev=t_rev,
+            length_ratio=length_ratio,
+            alpha_order=alpha_order,
+            eta_0=eta_0,
+            eta_1=eta_1,
+            eta_2=eta_2,
+            alpha_0=alpha_0,
+            alpha_1=alpha_1,
+            alpha_2=alpha_2,
+            beta=beta,
+            energy=energy,
+        )
+
+
+def kick_helper(
+    dt_gpu_i,
+    dE_gpu_i,
+    id_gpu_i,
+    voltage,
+    omega_rf,
+    phi_rf,
+    charge,
+    n_rf,
+    acceleration_kick,
+):
+    kick(
+        dt=dt_gpu_i,
+        dE=dE_gpu_i,
+        voltage=voltage,
+        omega_rf=omega_rf,
+        phi_rf=phi_rf,
+        charge=charge,
+        n_rf=n_rf,
+        acceleration_kick=acceleration_kick,
+    )
+
+
+def drift_helper(
+    dt_gpu_i,
+    dE_gpu_i,
+    id_gpu_i,
+    solver,
+    t_rev,
+    length_ratio,
+    alpha_order,
+    eta_0,
+    eta_1,
+    eta_2,
+    alpha_0,
+    alpha_1,
+    alpha_2,
+    beta,
+    energy,
+):
+    drift(
+        dt=dt_gpu_i,
+        dE=dE_gpu_i,
+        solver=solver,
+        t_rev=t_rev,
+        length_ratio=length_ratio,
+        alpha_order=alpha_order,
+        eta_0=eta_0,
+        eta_1=eta_1,
+        eta_2=eta_2,
+        alpha_0=alpha_0,
+        alpha_1=alpha_1,
+        alpha_2=alpha_2,
+        beta=beta,
+        energy=energy,
+    )
 
 
 def _losses_separatrix_helper(

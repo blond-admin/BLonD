@@ -458,9 +458,38 @@ class RingAndRFTracker:
                                           acceleration_kick=self.acceleration_kick[turn])
 
                 else:
-                    self.kick(self.beam.dt, self.beam.dE, turn)
+                    from blond.beam.beam_distributed import (
+                        BeamDistributedSingleNode)
 
-            self.drift(self.beam.dt, self.beam.dE, turn + 1)
+                    if isinstance(self.beam,BeamDistributedSingleNode ):
+                        import cupy as cp
+                        self.beam.kick(
+                            voltage=cp.array(self.rf_params.voltage[:, turn]),
+                            omega_rf=cp.array(self.rf_params.omega_rf[:, turn]),
+                            phi_rf=cp.array(self.rf_params.phi_rf[:,turn]),
+                            charge=float(self.rf_params.particle.charge),
+                            n_rf=int(self.rf_params.n_rf),
+                            acceleration_kick=float(self.acceleration_kick[turn])
+                        )
+                    else:
+                        self.kick(self.beam.dt, self.beam.dE, turn)
+            if isinstance(self.beam, BeamDistributedSingleNode):
+                self.beam.drift(
+                    solver=self.solver,
+                    t_rev=float(self.rf_params.t_rev[turn+1]),
+                    length_ratio=float(self.rf_params.length_ratio),
+                    alpha_order=float(self.rf_params.alpha_order),
+                    eta_0=float(self.rf_params.eta_0[turn+1]),
+                    eta_1=float(self.rf_params.eta_1[turn+1]),
+                    eta_2=float(self.rf_params.eta_2[turn+1]),
+                    alpha_0=float(self.rf_params.alpha_0[turn+1]),
+                    alpha_1=float(self.rf_params.alpha_1[turn+1]),
+                    alpha_2=float(self.rf_params.alpha_2[turn+1]),
+                    beta=float(self.rf_params.beta[turn+1]),
+                    energy=float(self.rf_params.energy[turn+1])
+                )
+            else:
+                self.drift(self.beam.dt, self.beam.dE, turn + 1)
 
         # Updating the beam synchronous momentum etc.
         self.beam.beta = self.rf_params.beta[turn + 1]
@@ -538,9 +567,12 @@ class RingAndRFTracker:
             Current turn
         """
         if self.solver != 'simple':
-            warnings.warn("If you require faster tracking with 'periodicity=True' on the GPU:"
-                          " Switch solver to 'simple' or rewrite"
-                          " 'kickdrift_considering_periodicity' to consider different drift equation!", PerformanceWarning)
+            warnings.warn(
+                "If you require faster tracking with 'periodicity=True' on the GPU:"
+                " Switch solver to 'simple' or rewrite"
+                " 'kickdrift_considering_periodicity' to consider different drift equation!",
+                PerformanceWarning
+            )
             self._kickdrift_considering_periodicity(turn=turn)
 
         # parameters to calculate coeff of drift

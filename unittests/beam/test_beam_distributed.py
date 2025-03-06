@@ -4,6 +4,8 @@ import unittest
 
 import cupy as cp
 import numpy as np
+from sympy.physics.quantum.sho1d import omega
+from sympy.physics.units import voltage
 
 from blond.beam.beam import Proton, Beam
 from blond.beam.beam_distributed import (
@@ -12,6 +14,7 @@ from blond.beam.beam_distributed import (
 )
 from blond.input_parameters.ring import Ring
 from blond.input_parameters.rf_parameters import RFStation
+from blond.utils import bmath as bm
 
 
 class TestMultiGpuArray(unittest.TestCase):
@@ -188,6 +191,58 @@ class TestBeamDistributedSingleNode(unittest.TestCase):
                 self.beam_.dt_std(ignore_id_0=ignore_id_0),
                 self.beam_distributed.dt_std(ignore_id_0=ignore_id_0),
             )
+
+    def test_histogram(self):
+        hist = self.beam_distributed.histogram(
+            out=np.empty(64), cut_left=1, cut_right=150
+        )
+        hist_npy = np.histogram(self.beam_.dt, bins=64, range=(1, 65))[0]
+
+        np.testing.assert_array_equal(hist_npy, hist.get())
+
+    def test_kick(self):
+        n_rf = 5
+        charge = 1.0
+        acceleration_kick = 1e3 * np.random.rand()
+        voltage = cp.random.randn(n_rf)
+        omega_rf = cp.random.randn(n_rf)
+        phi_rf = cp.random.randn(n_rf)
+        bm.use_gpu()
+        self.beam_distributed.kick(
+            voltage=voltage,
+            omega_rf=omega_rf,
+            phi_rf=phi_rf,
+            charge=charge,
+            n_rf=n_rf,
+            acceleration_kick=acceleration_kick,
+        )
+        bm.use_cpu()
+
+
+    def test_drift(self):
+        t_rev = np.random.rand()
+        length_ratio = np.random.uniform()
+        eta_0, eta_1, eta_2 = np.random.randn(3)
+        alpha_0, alpha_1, alpha_2 = np.random.randn(3)
+        beta = np.random.rand()
+        energy = np.random.rand()
+        bm.use_gpu()
+        self.beam_distributed.drift(
+            solver="simple",
+            t_rev=t_rev,
+            length_ratio=length_ratio,
+            alpha_order=1,
+            eta_0=eta_0,
+            eta_1=eta_1,
+            eta_2=eta_2,
+            alpha_0=alpha_0,
+            alpha_1=alpha_1,
+            alpha_2=alpha_2,
+            beta=beta,
+            energy=energy,
+        )
+        bm.use_cpu()
+
 
 
 if __name__ == "__main__":

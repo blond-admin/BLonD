@@ -217,3 +217,19 @@ class BeamBaseClass:
             If True, particles with id = 0 are ignored
         """
         pass
+
+    @abstractmethod
+    def dt_min(self):  # todo ignore lost particles?
+        pass
+
+    @abstractmethod
+    def dE_min(self):  # todo ignore lost particles?
+        pass
+
+    @abstractmethod
+    def dt_max(self):  # todo ignore lost particles?
+        pass
+
+    @abstractmethod
+    def dE_max(self):  # todo ignore lost particles?
+        pass

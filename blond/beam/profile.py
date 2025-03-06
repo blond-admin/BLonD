@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from scipy import ndimage
 
+from .beam_distributed import BeamDistributedSingleNode
 from ..toolbox import filters_and_fitting as ffroutines
 from ..utils import bmath as bm
 from ..utils.legacy_support import handle_legacy_kwargs
@@ -155,8 +156,8 @@ class CutOptions:
         if self.cut_left is None and self.cut_right is None:
 
             if self.n_sigma is None:
-                dt_min = beam.dt.min()
-                dt_max = beam.dt.max()
+                dt_min = beam.dt_min()
+                dt_max = beam.dt_max()
                 self.cut_left = dt_min - 0.05 * (dt_max - dt_min)
                 self.cut_right = dt_max + 0.05 * (dt_max - dt_min)
             else:
@@ -598,12 +599,16 @@ class Profile:
             operation()
 
     def _slice(self) -> None:
-        """
-        Constant space slicing with a constant frame.
-        """
-        bm.slice_beam(self.beam.dt, self.n_macroparticles, self.cut_left,
-                      self.cut_right)
-
+        """Constant space slicing with a constant frame."""
+        if isinstance(self.beam, BeamDistributedSingleNode):
+            self.n_macroparticles = self.beam.histogram(
+                out=self.n_macroparticles,
+                cut_left=self.cut_left,
+                cut_right=self.cut_right)
+        else:
+            bm.slice_beam(self.beam.dt, self.n_macroparticles, self.cut_left,
+                          self.cut_right)
+    
         if bm.in_mpi():
             self.reduce_histo()
 
@@ -661,8 +666,8 @@ class Profile:
 
         if self.bunchLength == 0:
             p_0 = [float(self.n_macroparticles.max()),
-                   float(self.beam.dt.mean()),
-                   float(self.beam.dt.std())]
+                   float(self.beam.dt_mean()),
+                   float(self.beam.dt_std())]
         else:
             p_0 = [float(self.n_macroparticles.max()),
                    float(self.bunchPosition),

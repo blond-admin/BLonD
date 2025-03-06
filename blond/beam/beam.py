@@ -228,6 +228,8 @@ class Beam(BeamBaseClass):
     >>> my_beam = Beam(ring, n_macroparticle, intensity)
     """
 
+
+
     @handle_legacy_kwargs
     def __init__(self, ring: Ring, n_macroparticles: int, intensity: float, dt: Optional[NDArray] = None,
                  dE: Optional[NDArray] = None) -> None:
@@ -805,3 +807,25 @@ class Beam(BeamBaseClass):
             return np.std(self.dt[mask])
         else:
             return np.std(self.dt)
+
+    def dt_min(self):
+        return self.dt.min()
+
+    def dE_min(self):
+        return self.dE.min()
+
+    def dt_max(self):
+        return self.dt.max()
+
+    def dE_max(self):
+        return self.dE.max()
+
+    def slice_beam(self, profile: NDArray, cut_left: float, cut_right: float):
+        bm.slice_beam(
+            dt=self.dt,
+            profile=profile,
+            cut_left=cut_left,
+            cut_right=cut_right,
+        )
+        if bm.in_mpi():
+            self.reduce_histo()
