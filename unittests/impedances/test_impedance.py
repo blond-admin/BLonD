@@ -19,7 +19,7 @@ import numpy as np
 from blond.beam.profile import CutOptions, Profile
 from blond.impedances.impedance import InducedVoltageFreq, InducedVoltageTime, InducedVoltageResonator
 from blond.impedances.impedance_sources import Resonators
-from impedances.impedance import TotalInducedVoltage
+from blond.impedances.impedance import TotalInducedVoltage
 
 
 class TestInducedVoltageFreq(unittest.TestCase):
@@ -143,7 +143,7 @@ class TestInducedVoltageResonator_n_rf1(unittest.TestCase):
 
         self.rf_station = RFStation(ring=ring,
                                     harmonic=[4620],
-                                    voltage=[0.9e6],
+                                    voltage=[3000e6],
                                     phi_rf_d=[0.0],
                                     n_rf=1,
                                     )
@@ -186,9 +186,18 @@ class TestInducedVoltageResonator_n_rf1(unittest.TestCase):
         my_array = ivr.induced_voltage
         self.assertTrue(np.any(my_array != 0.0))
 
-    def test_multi_rf_station(self):
+    def test_total_induced_voltage(self):
         ivr = InducedVoltageResonator(beam=self.beam, profile=self.profile, resonators=self.resonator,
                                       rf_station=self.rf_station, multi_turn_wake=False)
+        total_induced_voltage = TotalInducedVoltage(beam=self.beam, profile=self.profile, induced_voltage_list=[ivr])
+        total_induced_voltage.induced_voltage_sum()
+
+        #ivr.process()
+        #ivr.induced_voltage_mtw()
+        #my_array = ivr.induced_voltage
+        #self.assertTrue(np.any(my_array != 0.0))
+
+
         ivr.process()
         ivr.induced_voltage_1turn()
         self.assertTrue(np.any(ivr.induced_voltage != 0.0))
@@ -220,14 +229,15 @@ class TestInducedVoltageResonator_nrf_2(unittest.TestCase):
         n_turns = 2
         sectionlengths = np.full(n_rf_stations, l_per_section)
         alpha_c = np.full(n_rf_stations, mom_compaction)
-        energy_program = np.full((n_rf_stations, n_turns + 1), 25.92e9)
+        energy_program = np.array([[1*25e9,1*25e9,1.2*25e9],
+                                   [1.0*25e9,1.1*25e9,1.3*25e9]]) # todo
 
         ring = Ring(ring_length=sectionlengths, alpha_0=alpha_c,
                     particle=Proton(), n_turns=n_turns,
                     n_sections=n_rf_stations, synchronous_data=energy_program)
         self.rf_station = RFStation(ring=ring,
                                      harmonic=[4620],
-                                     voltage=[0.9e6],
+                                     voltage=[300e6],
                                      phi_rf_d=[0.0],
                                      n_rf=1)
 
@@ -241,25 +251,12 @@ class TestInducedVoltageResonator_nrf_2(unittest.TestCase):
         self.profile = Profile(beam, cut_options,
                                FitOptions(fit_option='gaussian'))
 
-        this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
-        self.R_shunt = np.load(this_directory + './data/R_shunt.npy') * 10 ** 6
-        self.f_res = np.load(this_directory + './data/f_res.npy') * 10 ** 9
-        self.Q_factor = np.load(this_directory + './data/Q_factor.npy')
+        self.R_shunt = 11897424000
+        self.f_res = 11897424000.
+        self.Q_factor = 696000.0
         self.resonator = Resonators(self.R_shunt, self.f_res, self.Q_factor)
-
-    def test_mtw_true_induced_voltage(self):
-        ivr = InducedVoltageResonator(beam=self.beam, profile=self.profile,
-                                      resonators=self.resonator,
-                                      rf_station=self.rf_station,
-                                      multi_turn_wake=True)
-
-        #total_induced_voltage = TotalInducedVoltage(beam=beam, profile=profile, induced_voltage_list=[ivr])
-        #total_induced_voltage.sum()
-
-        #ivr.process()
-        #ivr.induced_voltage_mtw()
-        #my_array = ivr.induced_voltage
-        #self.assertTrue(np.any(my_array != 0.0))
+        print(self.Q_factor)
+        print(self.f_res)
 
 
     def test_init(self):
@@ -280,15 +277,18 @@ class TestInducedVoltageResonator_nrf_2(unittest.TestCase):
         my_array = ivr.induced_voltage
         self.assertTrue(np.any(my_array != 0.0))
 
-    def test_multi_rf_station(self):
-        ivr = InducedVoltageResonator(beam=self.beam, profile=self.profile,
-                                      resonators=self.resonator,
-                                      rf_station=self.rf_station,
-                                      multi_turn_wake=False)
-        ivr.process()
-        ivr.induced_voltage_1turn()
-        my_array = ivr.induced_voltage
-        self.assertTrue(np.any(my_array != 0.0))
+
+    def test_total_induced_voltage(self):
+        ivr = InducedVoltageResonator(beam=self.beam, profile=self.profile, resonators=self.resonator,
+                                      rf_station=self.rf_station, multi_turn_wake=False,
+                                      wake_length=self.profile.bin_size * len(self.profile.bin_centers),
+                                      array_length=2**9)
+
+        total_induced_voltage = TotalInducedVoltage(beam=self.beam, profile=self.profile,
+                                                    induced_voltage_list=[ivr], )
+        total_induced_voltage.induced_voltage_sum() # todo
+        total_induced_voltage.induced_voltage_sum()
+
 
 
 

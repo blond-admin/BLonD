@@ -416,6 +416,7 @@ class _InducedVoltage:
             beam_spectrum_dict = dict()
         # Shift of the memory wake field by the current revolution period
         self.shift_trev()
+        print(self.induced_voltage)
 
         # Induced voltage of the current turn calculation
         self.induced_voltage_1turn(beam_spectrum_dict)
@@ -460,7 +461,7 @@ class _InducedVoltage:
         # self.mtw_memory = bm.interp_const_space(self.time_mtw + t_rev,
         self.mtw_memory = bm.interp(self.time_mtw + t_rev,
                                     self.time_mtw, self.mtw_memory,
-                                    left=0, right=0)
+                                    left=0, right=0) # todo
 
     def _track(self):
         """
