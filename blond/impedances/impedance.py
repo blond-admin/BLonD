@@ -424,11 +424,15 @@ class _InducedVoltage:
         # front wake
         self.induced_voltage[self.n_induced_voltage -
                              self.front_wake_buffer:] = 0
+        print(self.induced_voltage)
 
         # Add the induced voltage of the current turn to the memory from
         # previous turns
         self.mtw_memory[:self.n_induced_voltage] += self.induced_voltage
+        print(self.mtw_memory)
+
         self.induced_voltage = self.mtw_memory[:self.n_induced_voltage]
+        print(self.induced_voltage)
 
     def shift_trev_freq(self):
         """
@@ -1070,13 +1074,19 @@ class InducedVoltageResonator(_InducedVoltage):
 
         # shift the entries in array by 1 t_rev and set to 0
         self.mtw_memory = np.append(self.mtw_memory, np.zeros(self.array_length))
+        print(self.mtw_memory)
         # remove one turn length of memory
         self.mtw_memory = self.mtw_memory[self.array_length:]
+        print(self.mtw_memory)
         # Induced voltage of the current turn calculation
         self.induced_voltage_1turn(beam_spectrum_dict)
+        print(self.induced_voltage)
         # Add induced voltage of the current turn to the memory from previous
         self.mtw_memory[:int(self.n_time)] += self.induced_voltage
+        print(self.mtw_memory)
+
         self.induced_voltage = self.mtw_memory[:self.n_time]
+        print(self.induced_voltage)
 
     def to_gpu(self, recursive=True):
         """

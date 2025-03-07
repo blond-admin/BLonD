@@ -192,6 +192,7 @@ class TestGeneralParameters(unittest.TestCase):
         Ring(C, alpha, momentum, Proton(), n_turns)  # might crash
 
     def test_bug_multi_RF_dE(self):
+        # test if the delta_E is correctly calculated with multi-RF stations
         from blond.beam.beam import Proton
         C = 2 * np.pi * 1100.009  # Ring circumference [m]
         gamma_t = 18.0  # Gamma at transition
