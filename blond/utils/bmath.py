@@ -7,9 +7,9 @@ BLonD math and physics core functions
 
 import numpy as np
 
+from . import precision
 from ..utils import butils_wrap_cpp as _cpp
 from ..utils import butils_wrap_python as _py
-from . import precision
 
 
 def use_cpp():
@@ -48,7 +48,7 @@ def use_cpp():
         'interp_cpp': _cpp.interp_cpp,
         'interp_const_space': _cpp.interp_const_space,
         'interp_const_bin': _cpp.interp_const_bin,
-        'cumtrapz': _cpp.cumtrapz,
+        # 'cumtrapz': _cpp.cumtrapz, # needs reimplementation to match cupy/scipy
         'trapz_cpp': _cpp.trapz_cpp,
         'linspace_cpp': _cpp.linspace_cpp,
         'argmin_cpp': _cpp.argmin_cpp,
@@ -60,6 +60,8 @@ def use_cpp():
         'add_cpp': _cpp.add_cpp,
         'mul_cpp': _cpp.mul_cpp,
         'random_normal': _cpp.random_normal,
+        'resonator_induced_voltage_1_turn':
+            _py.resonator_induced_voltage_1_turn,
 
         'device': 'CPU_CPP'
     }
@@ -85,7 +87,6 @@ def use_numba():
 
     from blond.utils import butils_wrap_numba as _nu
 
-
     # dictionary storing the Numba-only versions of the most compute intensive functions #
     nu_func_dict = {
         'rfft': np.fft.rfft,
@@ -108,6 +109,8 @@ def use_numba():
         'sparse_histogram': _nu.sparse_histogram,
         'distribution_from_tomoscope': _nu.distribution_from_tomoscope,
         'set_random_seed': _nu.set_random_seed,
+        'resonator_induced_voltage_1_turn':
+            _nu.resonator_induced_voltage_1_turn,
 
         'device': 'CPU_NU'
     }
@@ -116,7 +119,6 @@ def use_numba():
     for fname in dir(np):
         if callable(getattr(np, fname)) and (fname not in nu_func_dict) \
                 and (fname[0] != '_'):
-
             nu_func_dict[fname] = getattr(np, fname)
 
     # add basic numpy modules to dictionary as they are not callable
@@ -156,6 +158,8 @@ def use_py():
         'sparse_histogram': _py.sparse_histogram,
         'distribution_from_tomoscope': _py.distribution_from_tomoscope,
         'set_random_seed': _py.set_random_seed,
+        'resonator_induced_voltage_1_turn':
+            _py.resonator_induced_voltage_1_turn,
 
         'device': 'CPU_PY'
     }
@@ -164,7 +168,6 @@ def use_py():
     for fname in dir(np):
         if callable(getattr(np, fname)) and (fname not in py_func_dict) \
                 and (fname[0] != '_'):
-
             py_func_dict[fname] = getattr(np, fname)
 
     # add basic numpy modules to dictionary as they are not callable
@@ -177,14 +180,13 @@ def use_py():
     # print('---------- Using the Python computational backend ----------')
 
 
-
 def use_cpu():
     '''
     If not library is found, use the python implementations
     '''
     # from .. import get_libblond
     if _cpp.get_libblond() is None:
-        try: # try to use numba
+        try:  # try to use numba
             use_numba()
         except ImportError as e:
             print(f"Error: {e}. Please install numba with 'pip install numba' to use the numba backend."
@@ -231,7 +233,7 @@ def use_fftw():
 
 # precision can be single or double
 def use_precision(_precision='double'):
-    """Change the precision used in caclulations.
+    """Change the precision used in calculations.
 
     Args:
         _precision (str, optional): Can be either 'single' or 'double'. Defaults to 'double'.
@@ -243,8 +245,8 @@ def use_precision(_precision='double'):
         from ..gpu import GPU_DEV
         GPU_DEV.load_library(_precision)
     except Exception as e:
-        # The GPU backend is not available
-        pass
+        from warnings import warn
+        warn(f"The GPU backend is not available:\n{e}", UserWarning)
     _cpp.load_libblond(_precision)
 
 
@@ -316,6 +318,8 @@ def use_gpu(gpu_id=0):
         'synchrotron_radiation_full': _cupy.synchrotron_radiation_full,
         'slice_beam': _cupy.slice_beam,
         # 'interp_const_space': _cupy.interp,
+        'resonator_induced_voltage_1_turn':
+            _py.resonator_induced_voltage_1_turn,
         'interp_const_space': cp.interp,
         'device': 'GPU'
     }
@@ -339,6 +343,7 @@ def report_backend():
     """
     global device
     print(f'---------- Using the {device} computational backend ----------')
+
 
 ###############################################################################
 # By default use the CPU backend (python-only or C++)

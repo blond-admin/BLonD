@@ -928,6 +928,8 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
 
         self.impedance[exact_indexes] *= self.Z0 * 4 * np.pi**2 * 2**(1 / 3) \
             * 1 / self.Delta / n_array**(1 / 3)
+        # fixed sign of imaginary part
+        self.impedance[exact_indexes] = self.impedance[exact_indexes].conj()
 
     def _pp_spectrum(self, frequency_array, zeta_max=9, **kwargs):
         r'''
@@ -1011,7 +1013,8 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
             * polygamma(4, pMax_array + 0.5)
 
         Z_pp *= self.Z0 * (8 * np.pi)**0.5 * 3**(2 / 3) * np.exp(1j * np.pi / 6) * n_array**(1 / 3) / alphas
-
+        # fixed sign of imaginary part
+        Z_pp = Z_pp.conj()
         self.impedance[non_zero_indexes] += Z_pp
 
     def _hFun(self, z):
@@ -1117,13 +1120,14 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
         # generalized hypergeometric functions
         # Imaginary part: quad_vec can't handle the integrable singularity at y=1 for y<1, we need
         # to integrate up to 1-epsilon
+        # fixed sign of imaginary part
         self.impedance[exact_indexes] =\
             np.sqrt(3) * gamma_func(2 / 3) / l_array[exact_indexes]**(2 / 3) / 2**(4 / 3)\
             * self.hyper_vec([-1 / 3], [-2 / 3, 2 / 3], 0.25 * l_array[exact_indexes]**2) \
             + 81 * np.pi * l_array[exact_indexes]**(8 / 3) / (640 * 2**(2 / 3) * gamma_func(-1 / 3))\
             * self.hyper_vec([4 / 3], [7 / 3, 8 / 3], 0.25 * l_array[exact_indexes]**2)\
             - 0.25 * np.pi\
-            + 1j * (integrate.quad_vec(lambda y: self._fs_integrandImZ1(y, l_array[exact_indexes]),
+            - 1j * (integrate.quad_vec(lambda y: self._fs_integrandImZ1(y, l_array[exact_indexes]),
                                        0, 1 - epsilon)[0]
                     - integrate.quad_vec(lambda y: self._fs_integrandImZ2(y, l_array[exact_indexes]),
                                          1, np.inf)[0])
@@ -1169,8 +1173,8 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
         complex array
             impedance
         """
-
-        return self.Z0 * gamma_func(2 / 3) / 3**(1 / 3) * np.exp(1j * np.pi / 6) \
+        # fixed sign of imaginary part
+        return self.Z0 * gamma_func(2 / 3) / 3**(1 / 3) * np.exp(-1j * np.pi / 6) \
             * (frequency_array / self.f_0)**(1 / 3)
 
     def _fs_high_frequency(self, frequency_array):
@@ -1189,10 +1193,10 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
         complex array
             impedance
         """
-
+        # fixed sign of imaginary part
         return self.Z0 * self.gamma * (np.sqrt(3 * np.pi / 32)
                                        * np.sqrt(frequency_array / self.f_crit) * bm.exp(-frequency_array / self.f_crit)
-                                       - 4j / 9 * self.f_crit / frequency_array)
+                                       + 4j / 9 * self.f_crit / frequency_array)
 
     def _fs_integrandReZ(self, x):
         # integrand of real part of free-space impedance
