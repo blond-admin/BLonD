@@ -954,7 +954,7 @@ class InducedVoltageResonator(_InducedVoltage):
     @handle_legacy_kwargs
     def __init__(self, beam: Beam,
                  profile: Profile,
-                 resonators: Resonators,
+                 resonators: Optional[Resonators] = None,
                  frequency_resolution: Optional[float] = None,
                  wake_length: Optional[float] = None,
                  multi_turn_wake: bool = False,
