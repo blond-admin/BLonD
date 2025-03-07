@@ -978,15 +978,15 @@ class InducedVoltageResonator(_InducedVoltage):
         # If left out, the induced voltage is calculated at the times of the
         # line density.
         if time_array is None:
-            self.time_array = self.profile.bin_centers
+            self.tArray = self.profile.bin_centers
             self.atLineDensityTimes = True
         else:
-            self.time_array = time_array
+            self.tArray = time_array
             self.atLineDensityTimes = False
 
         self.array_length = array_length
 
-        self.n_time = len(self.time_array)
+        self.n_time = len(self.tArray)
 
         # Copy of the shunt impedances of the Resonators in* :math:`\Omega`
         self.R = resonators.R_S
@@ -1037,9 +1037,6 @@ class InducedVoltageResonator(_InducedVoltage):
         self._deltaT = np.zeros(
             (self.n_time, self.profile.n_slices), dtype=bm.precision.real_t, order='C')
 
-    def on_profile_change(self):
-        self.process(self)
-
     def induced_voltage_1turn(self, beam_spectrum_dict={}):
         r"""
         Method to calculate the induced voltage through linearly
@@ -1052,7 +1049,7 @@ class InducedVoltageResonator(_InducedVoltage):
                                                 self.profile.bin_centers,
                                                 self.profile.bin_size,
                                                 self.n_time, self._deltaT,
-                                                self.time_array, self._reOmegaP,
+                                                self.tArray, self._reOmegaP,
                                                 self._imOmegaP, self._Qtilde,
                                                 self.n_resonators,
                                                 self.omega_r,
@@ -1093,7 +1090,7 @@ class InducedVoltageResonator(_InducedVoltage):
         self.induced_voltage = cp.array(self.induced_voltage)
         self._kappa1 = cp.array(self._kappa1)
         self._deltaT = cp.array(self._deltaT)
-        self.time_array = cp.array(self.time_array)
+        self.tArray = cp.array(self.tArray)
         self._tmp_matrix = cp.array(self._tmp_matrix)
         # to make sure it will not be called again
         self._device: DeviceType = 'GPU'
@@ -1110,7 +1107,7 @@ class InducedVoltageResonator(_InducedVoltage):
         self.induced_voltage = cp.asnumpy(self.induced_voltage)
         self._kappa1 = cp.asnumpy(self._kappa1)
         self._deltaT = cp.asnumpy(self._deltaT)
-        self.time_array = cp.asnumpy(self.time_array)
+        self.tArray = cp.asnumpy(self.tArray)
         self._tmp_matrix = cp.asnumpy(self._tmp_matrix)
 
         # to make sure it will not be called again
