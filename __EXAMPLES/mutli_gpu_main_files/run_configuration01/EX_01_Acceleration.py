@@ -42,6 +42,7 @@ this_directory = os.path.dirname(os.path.realpath(__file__)) + "/"
 
 os.makedirs(this_directory + "../output_files/EX_01_fig", exist_ok=True)
 def main(mock_n_gpus):
+    bm.use_cpu()
     N_t = 2000  # Number of turns to track
     dt_plt = 200  # Time steps between plots
 
