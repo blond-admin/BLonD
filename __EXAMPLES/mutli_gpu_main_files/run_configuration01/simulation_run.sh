@@ -6,5 +6,5 @@ source "/afs/cern.ch/work/s/slauber/SimulationProjects/BLonD/.venv/bin/activate"
 
 # Runs simulation ./blond_simulation_template/main
 # You might want to adapt these lines
-python "/afs/cern.ch/work/s/slauber/SimulationProjects/BLonD/EX_01_Acceleration.py"
+python "/afs/cern.ch/work/s/slauber/SimulationProjects/BLonD/__EXAMPLES/mutli_gpu_main_files/run_configuration01/EX_01_Acceleration.py"
 
