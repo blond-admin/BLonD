@@ -22,10 +22,9 @@ log                     = ./logs/$(FNAME).$(Cluster).log
 should_transfer_files   = YES
 when_to_transfer_output = ON_EXIT
 
-request_GPUs		    = 1
+request_GPUs		    = 4
 request_CPUs            = 1
 +MaxRunTime             = 60
-#+AccountingGroup = "???" # TODO
 
 arguments               = $(VAR1) $(VAR2)  # You can change the number of variables (also changing simulation_args.txt)
 executable              = simulation_run.sh

@@ -19,6 +19,12 @@ if TYPE_CHECKING:
 
 
 class MultiGpuArray:
+    # DEVELOPER NOTE:
+    # At the time of writing (Q1 2025),
+    # cupyx.distributed.array.DistributedArray
+    # exists already, but most features are "not supported"
+    # for this reason it is not used for now
+
     def __init__(
         self, array_cpu: NDArray, *, axis=0, mock_n_gpus: Optional[int] = None
     ):
@@ -34,6 +40,7 @@ class MultiGpuArray:
             Pretend to have n_gpus when the system has only one.
             This should be used for testing only.
         """
+
         self.mock_n_gpus = mock_n_gpus
 
         self.gpu_arrays: Dict[int, CupyNDArray] = {}
