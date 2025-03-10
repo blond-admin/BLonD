@@ -88,7 +88,8 @@ class GPUDev:
             self.mod = cp.RawModule(path=library_path)
         else:
             raise FileNotFoundError(f'Could not find the library for the compute capability {comp_capability}.'
-                                    f'Try to compile BLonD again using: python BLonD/blond/compile.py -gpu {comp_capability} --optimize')
+                                    f'Try to compile BLonD again using: '
+                                    f'blond-compile -gpu {comp_capability} --optimize')
 
 
 # Initialize empty GPU object

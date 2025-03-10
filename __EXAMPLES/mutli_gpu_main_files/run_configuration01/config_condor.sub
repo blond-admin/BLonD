@@ -25,6 +25,7 @@ when_to_transfer_output = ON_EXIT
 request_GPUs		    = 4
 request_CPUs            = 1
 +MaxRunTime             = 60
++AccountingGroup        = batch-u-abp-ext-rf
 
 arguments               = $(VAR1)  # You can change the number of variables (also changing simulation_args.txt)
 executable              = simulation_run.sh
