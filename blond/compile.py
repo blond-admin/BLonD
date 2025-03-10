@@ -17,12 +17,12 @@
 # TO GET GCC 4.8.1 64 BIT. IN GENERAL IT IS ADVISED TO USE PYTHON 64 BIT PLUS
 # GCC 64 BIT.
 
-
 import argparse
 import ctypes
 import os
 import subprocess
 import sys
+from copy import copy
 
 
 def main():
@@ -83,9 +83,10 @@ def main():
     parser.add_argument('-no-cpp', '--no-cpp', action='store_true',
                         help='Do not compile the C++ library.')
 
-    parser.add_argument('-gpu', '--gpu', nargs='?', const='discover', default=None,
-                        help='Compile the GPU kernels too.'
-                             'Default: Only compile the C++ library.')
+    parser.add_argument("-gpu", "--gpu", nargs="*",
+        help="Compile the GPU kernels too."
+        "Default: Only compile the C++ library.",
+    )
 
     parser.add_argument('-cuda-libname', '--cuda-libname', type=str, default=os.path.join(basepath, 'gpu/kernels'),
                         help='The CUDA library name, without the file extension.')
@@ -144,8 +145,7 @@ def main():
 
     if not args['no_cpp']:
         compile_cpp_library(args, cflags, float_flags, libs, cpp_files)
-
-    if args['gpu']:
+    if args["gpu"] is not None:
         compile_cuda_library(args, nvcc_flags, float_flags, cuda_files, nvcc)
 
 
@@ -312,56 +312,80 @@ def compile_cuda_library(args, nvccflags, float_flags, cuda_files, nvcc):
     print('\nCompiling the CUDA library')
     import cupy as cp
 
-    if args['gpu'] == 'discover':
-        print('Discovering the device compute capability..')
+    if len(args["gpu"]) == 0:
+        print("Discovering the device compute capability..")
 
         dev = cp.cuda.Device(0)
-        dev_name = cp.cuda.runtime.getDeviceProperties(dev)['name']
-        comp_capability = dev.compute_capability
-        print(f'Device name {dev_name}')
-    elif args['gpu'] is not None:
-        comp_capability = args['gpu']
-
+        dev_name = cp.cuda.runtime.getDeviceProperties(dev)["name"]
+        comp_capabilities = [
+            dev.compute_capability,
+        ]
+        print(f"Device name {str(dev_name)} with compute_capability "
+              f"{dev.compute_capability}.")
+    elif len(args["gpu"]) > 0:
+        comp_capabilities = args["gpu"]
+    else:
+        raise RuntimeError(f"Unexpected {args['gpu']=}")
     print(
-        f'Compiling the CUDA library for compute capability {comp_capability}.')
+        f"Compiling the CUDA library for compute capability {comp_capabilities}."
+    )
+    nvccflags_org = nvccflags
+    for comp_capability in comp_capabilities:
+        nvccflags = copy(nvccflags_org)
+        # Add the -arch required argument
+        nvccflags += ["-arch", f"sm_{comp_capability}"]
 
-    # Add the -arch required argument
-    nvccflags += ['-arch', f'sm_{comp_capability}']
+        # Get the CuPy header files location
+        path = cp.__file__.split("/")[:-1]  # remove __init__.py from path
+        path.extend(["_core", "include"])
+        cupyloc = os.path.join("/".join(path))
 
-    # Get the CuPy header files location
-    path = cp.__file__.split('/')[:-1]  # remove __init__.py from path
-    path.extend(['_core', 'include'])
-    cupyloc = os.path.join('/'.join(path))
+        print("CUDA Compiler: ", nvcc)
+        compiler_version = (
+            subprocess.run(
+                [nvcc, "--version"], capture_output=True, check=False
+            )
+            .stdout.decode()
+            .split("\n")[0]
+        )
+        print("Compiler version: ", compiler_version)
+        print("Compiler flags: ", " ".join(nvccflags))
+        print("CuPy location: ", cupyloc)
 
-    print('CUDA Compiler: ', nvcc)
-    compiler_version = subprocess.run([nvcc, '--version'],
-                                      capture_output=True,
-                                      check=False).stdout.decode().split('\n')[0]
-    print('Compiler version: ', compiler_version)
-    print('Compiler flags: ', ' '.join(nvccflags))
-    print('CuPy location: ', cupyloc)
+        libname_double = (
+            args["cuda_libname"] + f"_sm_{comp_capability}_double.cubin"
+        )
+        libname_single = (
+            args["cuda_libname"] + f"_sm_{comp_capability}_single.cubin"
+        )
 
-    libname_double = args['cuda_libname'] + f'_sm_{comp_capability}_double.cubin'
-    libname_single = args['cuda_libname'] + f'_sm_{comp_capability}_single.cubin'
+        command = (
+            [nvcc]
+            + nvccflags
+            + ["-o", libname_single, "-I" + cupyloc]
+            + float_flags
+            + cuda_files
+        )
 
-    command = [nvcc] + nvccflags + \
-              ['-o', libname_single, '-I' + cupyloc] + float_flags + cuda_files
+        print("\nCompiling the single-precision (32-bit) CUDA library")
+        ret = run_compile(command, libname_single)
+        if ret != 0:
+            print("There was a compilation error.")
+        else:
+            print("Compiled successfully.")
 
-    print('\nCompiling the single-precision (32-bit) CUDA library')
-    ret = run_compile(command, libname_single)
-    if ret != 0:
-        print('There was a compilation error.')
-    else:
-        print('Compiled successfully.')
-
-    command = [nvcc] + nvccflags + \
-              ['-o', libname_double, '-I' + cupyloc] + cuda_files
-    print('\nCompiling the double-precision (64-bit) CUDA library')
-    ret = run_compile(command, libname_double)
-    if ret != 0:
-        print('There was a compilation error.')
-    else:
-        print('Compiled successfully.')
+        command = (
+            [nvcc]
+            + nvccflags
+            + ["-o", libname_double, "-I" + cupyloc]
+            + cuda_files
+        )
+        print("\nCompiling the double-precision (64-bit) CUDA library")
+        ret = run_compile(command, libname_double)
+        if ret != 0:
+            print("There was a compilation error.")
+        else:
+            print("Compiled successfully.")
 
 
 def run_compile(command, libname):
