@@ -26,7 +26,7 @@ request_GPUs		    = 4
 request_CPUs            = 1
 +MaxRunTime             = 60
 
-arguments               = $(VAR1) $(VAR2)  # You can change the number of variables (also changing simulation_args.txt)
+arguments               = $(VAR1)  # You can change the number of variables (also changing simulation_args.txt)
 executable              = simulation_run.sh
 
-queue VAR1, VAR2 from simulation_args.txt
+queue VAR1 from simulation_args.txt
