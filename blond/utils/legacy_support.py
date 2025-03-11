@@ -20,7 +20,8 @@ def _handle_legacy_kwargs(new_by_old: dict[str, str]):
                     warn(
                         f"Keyword argument '{key_potentially_old}' when calling "
                         f"'{func.__name__}' is deprecated. Use '{new_by_old[key_potentially_old]}' instead.",
-                        DeprecationWarning
+                        DeprecationWarning,
+                        stacklevel=2
                     )
                 kwargs_fixed[new_by_old.get(key_potentially_old, key_potentially_old)] = argument
             return func(*args, **kwargs_fixed)

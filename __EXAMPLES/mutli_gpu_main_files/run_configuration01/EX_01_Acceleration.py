@@ -42,6 +42,7 @@ this_directory = os.path.dirname(os.path.realpath(__file__)) + "/"
 
 os.makedirs(this_directory + "../output_files/EX_01_fig", exist_ok=True)
 def main(mock_n_gpus):
+    print(f"{mock_n_gpus=}")
     bm.use_cpu()
     N_t = 2000  # Number of turns to track
     dt_plt = 200  # Time steps between plots
@@ -57,13 +58,15 @@ def main(mock_n_gpus):
     )
     a = ring.ring_length
     # Define beam and distribution
-    _beam = Beam(ring, 1001 if DRAFT_MODE else 50000, 1e9)
+    _beam = Beam(ring, 1001 if DRAFT_MODE else int(1e7), 1e9)
 
 
     # Define RF station parameters and corresponding tracker
     rf = RFStation(ring, [35640], [6e6], [0])
 
     bigaussian(ring, rf, _beam, 0.4e-9 / 4, reinsertion=True, seed=1)
+    bm.use_gpu()
+
     beam = BeamDistributedSingleNode(
         ring=ring,
         intensity=_beam.intensity,
@@ -118,7 +121,6 @@ def main(mock_n_gpus):
     test_string += "{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n".format(
         (beam.dE_mean()), (beam.dE_std()), (beam.dt_mean()), (beam.dt_std())
     )
-    bm.use_gpu()
     locals_ = locals().copy()
     for thing in locals_:
         try:
@@ -127,14 +129,12 @@ def main(mock_n_gpus):
             pass
     # Accelerator map
     map_ = [long_tracker] + [profile]
-    print("Map set")
-    print("")
 
     # Tracking --------------------------------------------------------------------
     if DRAFT_MODE:
         N_t = 20
     t0 = time.perf_counter()
-    for i in range(1, N_t + 1):
+    for i in range(1, 50):
 
         # Plot has to be done before tracking (at least for cases with separatrix)
         if (i % dt_plt) == 0:
@@ -168,8 +168,13 @@ def main(mock_n_gpus):
               "w") as f:
         f.write(test_string)"""
 
-    print("Done!")
 
 if __name__ == "__main__":
+
     main(mock_n_gpus=1)
+    print()
+    main(mock_n_gpus=None)
+    print()
+    main(mock_n_gpus=1)
+    print()
     main(mock_n_gpus=None)

@@ -117,10 +117,10 @@ class BeamBaseClass:
         Parameters
         ----------
         ring : Ring
-            Function arguments of is_in_separatrix(...).
+            Class containing the general properties of the synchrotron
         rf_station : RFStation
-            Function arguments of is_in_separatrix(...).
-
+            Class containing all the RF parameters for all the RF systems
+            in one ring segment
         """
 
     @abstractmethod
@@ -220,16 +220,20 @@ class BeamBaseClass:
 
     @abstractmethod
     def dt_min(self):  # todo ignore lost particles?
+        """Minimum of all 'dt' """
         pass
 
     @abstractmethod
     def dE_min(self):  # todo ignore lost particles?
+        """Minimum of all 'dE' """
         pass
 
     @abstractmethod
     def dt_max(self):  # todo ignore lost particles?
+        """Maximum of all 'dt' """
         pass
 
     @abstractmethod
     def dE_max(self):  # todo ignore lost particles?
+        """Maximum of all 'dE' """
         pass

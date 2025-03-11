@@ -191,7 +191,7 @@ def slice_beam(dt: NDArray, profile: NDArray, cut_left: float, cut_right: float)
     sm_histogram = GPU_DEV.mod.get_function("sm_histogram")
     hybrid_histogram = GPU_DEV.mod.get_function("hybrid_histogram")
 
-    assert dt.dtype == precision.real_t
+    assert dt.dtype == precision.real_t, f"{dt.dtype=}, not {precision.real_t}"
 
     n_slices = profile.size
     profile.fill(0)

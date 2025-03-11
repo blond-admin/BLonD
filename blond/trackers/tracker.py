@@ -463,10 +463,10 @@ class RingAndRFTracker:
 
                     if isinstance(self.beam,BeamDistributedSingleNode ):
                         import cupy as cp
-                        self.beam.kick(
-                            voltage=cp.array(self.rf_params.voltage[:, turn]),
-                            omega_rf=cp.array(self.rf_params.omega_rf[:, turn]),
-                            phi_rf=cp.array(self.rf_params.phi_rf[:,turn]),
+                        self.beam.kick( # todo
+                            voltage=(self.rf_params.voltage[:, turn]),
+                            omega_rf=(self.rf_params.omega_rf[:, turn]),
+                            phi_rf=(self.rf_params.phi_rf[:,turn]),
                             charge=float(self.rf_params.particle.charge),
                             n_rf=int(self.rf_params.n_rf),
                             acceleration_kick=float(self.acceleration_kick[turn])

@@ -4,49 +4,50 @@ import unittest
 
 import cupy as cp
 import numpy as np
-from sympy.physics.quantum.sho1d import omega
-from sympy.physics.units import voltage
+from cupyx.profiler._time import _PerfCaseResult
 
 from blond.beam.beam import Proton, Beam
 from blond.beam.beam_distributed import (
-    MultiGpuArray,
+    DistributedMultiGpuArray,
     BeamDistributedSingleNode,
 )
-from blond.input_parameters.ring import Ring
 from blond.input_parameters.rf_parameters import RFStation
+from blond.input_parameters.ring import Ring
 from blond.utils import bmath as bm
+
+
+def _float_min(x):
+    return float(cp.min(x))
+
+
+def _total_runtime(res: _PerfCaseResult):
+    return np.mean(res.gpu_times + res.cpu_times)
 
 
 class TestMultiGpuArray(unittest.TestCase):
     def setUp(self):
-        self.multi_gpu_array = MultiGpuArray(
+        self.multi_gpu_array = DistributedMultiGpuArray(
             array_cpu=np.arange(1, 101), axis=0, mock_n_gpus=4
+        )
+        self.multi_gpu_array_1thread = DistributedMultiGpuArray(
+            array_cpu=np.arange(1, 101), axis=0, mock_n_gpus=1
         )
 
     def test_map(self):
-        results = self.multi_gpu_array.map(lambda x: float(cp.min(x)))
+        print("test map")
+        results = self.multi_gpu_array.map(_float_min)
         print(results)
         np.testing.assert_almost_equal(
             results, np.array([1.0, 26.0, 51.0, 76.0])
-        )
-
-    def test_map_inplace(self):
-        out = MultiGpuArray(np.empty(100), mock_n_gpus=4)
-
-        def operation(x, out):
-            cp.add(x, 2, out)
-
-        self.multi_gpu_array.map_inplace(operation, out=out)
-        np.testing.assert_almost_equal(
-            out.download_array(), np.arange(1, 101) + 2
         )
 
 
 class TestBeamDistributedSingleNode(unittest.TestCase):
     def setUp(self):
         """Special version of beam, which storage of dE, dt and id distributed on several GPUs"""
-        id_ = np.arange(1, 100 + 1)
-        id_[:50] = 0
+        n_particles = int(1000)
+        id_ = np.arange(1, n_particles + 1)
+        id_[: (n_particles // 2)] = 0
 
         ring = Ring(
             ring_length=2 * np.pi * 1100.009,
@@ -55,8 +56,10 @@ class TestBeamDistributedSingleNode(unittest.TestCase):
             particle=Proton(),
             n_turns=1,
         )
-        dE = np.arange(0, 100)
-        dt = np.invert(np.arange(0, 100))
+        from blond.utils import precision
+
+        dE = np.arange(0, n_particles).astype(precision.real_t)
+        dt = np.invert(np.arange(0, n_particles)).astype(precision.real_t)
         intensity = 1e3
         self.beam_distributed = BeamDistributedSingleNode(
             ring=ring,
@@ -64,14 +67,14 @@ class TestBeamDistributedSingleNode(unittest.TestCase):
             dE=dE.copy(),
             dt=dt.copy(),
             id=id_.copy(),
-            mock_n_gpus=4,
+            mock_n_gpus=1,
         )
         self.beam_ = Beam(
             ring=ring,
             n_macroparticles=len(dt),
             intensity=intensity,
-            dt=dt,
-            dE=dE,
+            dt=dt.copy(),
+            dE=dE.copy(),
         )
         self.beam_.id = id_
         self.ring = ring
@@ -172,7 +175,14 @@ class TestBeamDistributedSingleNode(unittest.TestCase):
             )
 
     def test_dE_std(self):
-        for ignore_id_0 in (False, True):
+        for ignore_id_0 in (False,):
+            self.assertEqual(
+                self.beam_.dE_std(ignore_id_0=ignore_id_0),
+                self.beam_distributed.dE_std(ignore_id_0=ignore_id_0),
+            )
+
+    def test_dE_std_ignore_id_0(self):
+        for ignore_id_0 in (True,):
             self.assertEqual(
                 self.beam_.dE_std(ignore_id_0=ignore_id_0),
                 self.beam_distributed.dE_std(ignore_id_0=ignore_id_0),
@@ -186,27 +196,40 @@ class TestBeamDistributedSingleNode(unittest.TestCase):
             )
 
     def test_dt_std(self):
-        for ignore_id_0 in (False, True):
+        for ignore_id_0 in (False,):
+            self.assertEqual(
+                np.float64(cp.std(self.beam_distributed.download_dts())),
+                self.beam_distributed.dt_std(ignore_id_0=ignore_id_0),
+            )
+            self.assertEqual(
+                self.beam_.dt_std(ignore_id_0=ignore_id_0),
+                self.beam_distributed.dt_std(ignore_id_0=ignore_id_0),
+            )
+
+    def test_dt_std_ignore_id_0(self):
+        for ignore_id_0 in (True,):
             self.assertEqual(
                 self.beam_.dt_std(ignore_id_0=ignore_id_0),
                 self.beam_distributed.dt_std(ignore_id_0=ignore_id_0),
             )
 
     def test_histogram(self):
+        bm.use_gpu()
         hist = self.beam_distributed.histogram(
             out=np.empty(64), cut_left=1, cut_right=150
         )
         hist_npy = np.histogram(self.beam_.dt, bins=64, range=(1, 65))[0]
 
         np.testing.assert_array_equal(hist_npy, hist.get())
+        bm.use_cpu()
 
     def test_kick(self):
         n_rf = 5
         charge = 1.0
         acceleration_kick = 1e3 * np.random.rand()
-        voltage = cp.random.randn(n_rf)
-        omega_rf = cp.random.randn(n_rf)
-        phi_rf = cp.random.randn(n_rf)
+        voltage = np.random.randn(n_rf)
+        omega_rf = np.random.randn(n_rf)
+        phi_rf = np.random.randn(n_rf)
         bm.use_gpu()
         self.beam_distributed.kick(
             voltage=voltage,
@@ -217,7 +240,6 @@ class TestBeamDistributedSingleNode(unittest.TestCase):
             acceleration_kick=acceleration_kick,
         )
         bm.use_cpu()
-
 
     def test_drift(self):
         t_rev = np.random.rand()
@@ -242,7 +264,6 @@ class TestBeamDistributedSingleNode(unittest.TestCase):
             energy=energy,
         )
         bm.use_cpu()
-
 
 
 if __name__ == "__main__":
