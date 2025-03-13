@@ -16,9 +16,14 @@ Unittest for impedances.impedance
 import unittest
 
 import numpy as np
-from blond.beam.profile import CutOptions, Profile
-from blond.impedances.impedance import InducedVoltageFreq, InducedVoltageTime, InducedVoltageResonator
+from blond.beam.profile import CutOptions, Profile, FitOptions
+from blond.impedances.impedance import InducedVoltageFreq, InducedVoltageTime, InducedVoltageResonator, \
+    TotalInducedVoltage
 from blond.impedances.impedance_sources import Resonators
+from blond.beam.beam import Beam, Proton
+from blond.input_parameters.rf_parameters import RFStation
+from blond.input_parameters.ring import Ring
+from blond.trackers.tracker import RingAndRFTracker
 
 
 class TestInducedVoltageFreq(unittest.TestCase):
@@ -118,173 +123,70 @@ class TestInducedVoltageTime(unittest.TestCase):
         np.testing.assert_allclose(test_object.wake_length_input, 11e-9)
 
 
-class TestInducedVoltageResonator_n_rf1(unittest.TestCase):
+class TestInducedVoltageResonatorMultiTurnWake(unittest.TestCase):
 
     def setUp(self):
-        import os
-        import numpy as np
-        from blond.beam.beam import Beam, Proton
-        from blond.beam.distributions import bigaussian
-        from blond.beam.profile import CutOptions, FitOptions, Profile
-        from blond.impedances.impedance_sources import Resonators
-        from blond.input_parameters.rf_parameters import RFStation
-        from blond.input_parameters.ring import Ring
 
-        gamma_transition = 1 / np.sqrt(0.00192)
-        mom_compaction = 1 / gamma_transition ** 2
-        circ = 6911.56
+        mom_compaction = 4.68e-4
+        circ = 5989.95
+        self.n_stations = 1
+        l_per_section = circ / self.n_stations
+        self.n_turns = 3
+        sectionlengths = np.full(self.n_stations, l_per_section)
+        alpha_c = np.full(self.n_stations, mom_compaction)
+        # program should be shape (n_stations, n_turns+1)
+        energy_program = np.array([1 * 25e9, 1 * 25e9, 1.04 * 25e9, 1.05e9])
 
-        ring = Ring(ring_length=circ,
-                    alpha_0=mom_compaction,
-                    synchronous_data=25.92e9,
-                    particle=Proton(),
-                    n_turns=2)
-
-        self.rf_station = RFStation(ring=ring,
-                                    harmonic=[4620],
-                                    voltage=[0.9e6],
-                                    phi_rf_d=[0.0],
-                                    n_rf=1,
-                                    )
-
-        beam = Beam(ring=ring,
-                    n_macroparticles=1001,
-                    intensity=int(1e10),
-                    )
-        bigaussian(ring=ring,
-                   rf_station=self.rf_station,
-                   beam=beam,
-                   sigma_dt=2e-9 / 4, seed=1,
-                   )
-        self.beam = beam
-
-        cut_options = CutOptions(cut_left=0, cut_right=2 * np.pi, n_slices=2 ** 8,
-                                 rf_station=self.rf_station, cuts_unit='rad')
-        self.profile = Profile(beam, cut_options,
-                               FitOptions(fit_option='gaussian'))
-
-        this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
-        self.R_shunt = np.load(this_directory + './data/R_shunt.npy') * 10 ** 6
-        self.f_res = np.load(this_directory + './data/f_res.npy') * 10 ** 9
-        self.Q_factor = np.load(this_directory + './data/Q_factor.npy')
-
-        self.resonator = Resonators(self.R_shunt, self.f_res, self.Q_factor)
-
-    def test_init(self):
-        ivr = InducedVoltageResonator(beam=self.beam, profile=self.profile, resonators=self.resonator)
-
-    def test_init_mtw(self):
-        ivr = InducedVoltageResonator(beam=self.beam, profile=self.profile, resonators=self.resonator,
-                                      multi_turn_wake=True)
-
-    def test_mtw_false_induced_volt(self):
-        ivr = InducedVoltageResonator(beam=self.beam, profile=self.profile, resonators=self.resonator,
-                                      multi_turn_wake=False)
-        ivr.process()
-        ivr.induced_voltage_1turn()
-        my_array = ivr.induced_voltage
-        self.assertTrue(np.any(my_array != 0.0))
-
-    def test_multi_rf_station(self):
-        ivr = InducedVoltageResonator(beam=self.beam, profile=self.profile, resonators=self.resonator,
-                                      rf_station=self.rf_station, multi_turn_wake=False)
-        ivr.process()
-        ivr.induced_voltage_1turn()
-        my_array = ivr.induced_voltage
-        self.assertTrue(np.any(my_array != 0.0))
-
-    def test_mtw_true_induced_voltage(self):
-        ivr = InducedVoltageResonator(beam=self.beam, profile=self.profile, resonators=self.resonator,
-                                      rf_station=self.rf_station, multi_turn_wake=True)
-        ivr.process()
-        ivr.induced_voltage_mtw()
-        my_array = ivr.induced_voltage
-        self.assertTrue(np.any(my_array != 0.0))
-
-
-class TestInducedVoltageResonator_nrf_2(unittest.TestCase):
-
-    def setUp(self):
-        import os
-        import numpy as np
-        from blond.beam.beam import Beam, Proton
-        from blond.beam.profile import CutOptions, FitOptions, Profile
-        from blond.impedances.impedance_sources import Resonators
-        from blond.input_parameters.rf_parameters import RFStation
-        from blond.input_parameters.ring import Ring
-
-        gamma_transition = 1 / np.sqrt(0.00192)
-        mom_compaction = 1 / gamma_transition ** 2
-        circ = 6911.56
-        n_rf_stations = 2
-        l_per_section = circ / n_rf_stations
-        n_turns = 2
-        sectionlengths = np.full(n_rf_stations, l_per_section)
-        alpha_c = np.full(n_rf_stations, mom_compaction)
-        energy_program = np.full((n_rf_stations, n_turns + 1), 25.92e9)
-
-        ring = Ring(ring_length=sectionlengths, alpha_0=alpha_c,
-                    particle=Proton(), n_turns=n_turns,
-                    n_sections=n_rf_stations, synchronous_data=energy_program)
-        self.rf_station = RFStation(ring=ring,
-                                     harmonic=[4620],
-                                     voltage=[0.9e6],
-                                     phi_rf_d=[0.0],
-                                     n_rf=1)
-
-        beam = Beam(ring=ring,
-                    n_macroparticles=1001,
-                    intensity=int(1e10))
-
-        self.beam = beam
-        cut_options = CutOptions(cut_left=0, cut_right=2 * np.pi, n_slices=2 ** 8,
+        self.ring = Ring(ring_length=sectionlengths, alpha_0=alpha_c,
+                         particle=Proton(), n_turns=self.n_turns,
+                         n_sections=self.n_stations, synchronous_data=energy_program)
+        self.R_shunt = 11897424000
+        self.Q_factor = 0.696e6
+        fdet = -1320
+        self.f_res = 1297263703
+        self.harmonic = int(self.f_res * self.ring.t_rev[0])
+        self.rf_station = RFStation(ring=self.ring, harmonic=[self.harmonic], voltage=[300e6], phi_rf_d=[0.0], n_rf=1)
+        self.n_slices = 2**9
+        self.beam = Beam(ring=self.ring,
+                         n_macroparticles=1001,
+                         intensity=int(1e10))
+        cut_options = CutOptions(cut_left=0, cut_right=2 * np.pi, n_slices=self.n_slices,
                                  cuts_unit='rad', rf_station=self.rf_station)
-        self.profile = Profile(beam, cut_options,
+        self.profile = Profile(self.beam, cut_options,
                                FitOptions(fit_option='gaussian'))
 
-        this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
-        self.R_shunt = np.load(this_directory + './data/R_shunt.npy') * 10 ** 6
-        self.f_res = np.load(this_directory + './data/f_res.npy') * 10 ** 9
-        self.Q_factor = np.load(this_directory + './data/Q_factor.npy')
-        self.resonator = Resonators(self.R_shunt, self.f_res, self.Q_factor)
+        self.resonator = Resonators(self.R_shunt, self.f_res + fdet, self.Q_factor)
 
-    def test_init(self):
-        ivr = InducedVoltageResonator(beam=self.beam, profile=self.profile,
-                                      resonators=self.resonator)
-
-    def test_init_mtw(self):
-        ivr = InducedVoltageResonator(beam=self.beam, profile=self.profile,
-                                      resonators=self.resonator,
-                                      multi_turn_wake=True)
-
-    def test_mtw_false_induced_volt(self):
-        ivr = InducedVoltageResonator(beam=self.beam, profile=self.profile,
-                                      resonators=self.resonator,
-                                      multi_turn_wake=False)
-        ivr.process()
-        ivr.induced_voltage_1turn()
-        my_array = ivr.induced_voltage
-        self.assertTrue(np.any(my_array != 0.0))
-
-    def test_multi_rf_station(self):
-        ivr = InducedVoltageResonator(beam=self.beam, profile=self.profile,
+    def test_total_induced_voltage(self):
+        potential_min_cav = self.rf_station.phi_s[0] / self.rf_station.omega_rf[0, 0]
+        min_index = np.abs(self.profile.bin_centers - potential_min_cav).argmin()
+        timeArray = []
+        for turn_ind in range(self.n_turns):
+            timeArray = np.append(timeArray,
+                                       self.rf_station.t_rev[turn_ind] * turn_ind +
+                                       np.linspace(self.profile.bin_centers[0],
+                                                   self.profile.bin_centers[-1] + 2 * (
+                                                           self.profile.bin_centers[min_index] -
+                                                           self.profile.bin_centers[0]),
+                                                   self.n_slices + 2 * min_index))
+        ivr = InducedVoltageResonator(beam=self.beam, profile=self.profile, time_array=timeArray,
+                                      multi_turn_wake=True,
                                       resonators=self.resonator,
                                       rf_station=self.rf_station,
-                                      multi_turn_wake=False)
-        ivr.process()
-        ivr.induced_voltage_1turn()
-        my_array = ivr.induced_voltage
-        self.assertTrue(np.any(my_array != 0.0))
-
-    def test_mtw_true_induced_voltage(self):
-        ivr = InducedVoltageResonator(beam=self.beam, profile=self.profile,
-                                      resonators=self.resonator,
-                                      rf_station=self.rf_station,
-                                      multi_turn_wake=True)
-        ivr.process()
-        ivr.induced_voltage_mtw()
-        my_array = ivr.induced_voltage
-        self.assertTrue(np.any(my_array != 0.0))
+                                      wake_length=len(timeArray) * self.profile.bin_size,
+                                      array_length=int(len(timeArray) / self.n_turns))
+        totalvolt = TotalInducedVoltage(beam=self.beam, profile=self.profile, induced_voltage_list=[ivr])
+        longitudinal_tracker = RingAndRFTracker(rf_station=self.rf_station, beam=self.beam, profile=self.profile,
+                                                total_induced_voltage=totalvolt,
+                                                interpolation=True)
+        induced_voltages = []
+        for i in range(self.n_turns):
+            totalvolt.induced_voltage_sum()
+            longitudinal_tracker.track()
+            induced_voltages.append(longitudinal_tracker.totalInducedVoltage.induced_voltage)
+        induced_voltages = np.array(induced_voltages)
+        expected_voltages = np.load("./data/mtw_resonator_induced_voltage.npy")
+        np.testing.assert_allclose(induced_voltages, expected_voltages, rtol=1e-5, atol=1e-1)
 
 
 if __name__ == '__main__':
