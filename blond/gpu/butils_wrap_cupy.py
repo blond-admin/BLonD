@@ -86,6 +86,31 @@ def kick(dt, dE, voltage, omega_rf, phi_rf, charge, n_rf, acceleration_kick):
                       ),
                 block=GPU_DEV.block_size, grid=GPU_DEV.grid_size)
 
+def losses_longitudinal_cut(dt, id, dt_min, dt_max): # todo testcase
+    """Apply the energy kick
+
+    Args:
+        dt (float array): the time coordinate
+        dE (float array): the energy coordinate
+        voltage (float array): _description_
+        omega_rf (float array): _description_
+        phi_rf (float array): _description_
+        charge (float): _description_
+        n_rf (int): _description_
+        acceleration_kick (float): _description_
+    """
+    losses_longitudinal_cut_kernel = GPU_DEV.mod.get_function(
+        "losses_longitudinal_cut")
+
+
+    losses_longitudinal_cut_kernel(args=(dt,
+                      id,
+                      len(dt),
+                      dt_min,
+                      dt_max,
+                      ),
+                block=GPU_DEV.block_size, grid=GPU_DEV.grid_size)
+
 
 def drift(dt, dE, solver, t_rev, length_ratio, alpha_order, eta_0,
           eta_1, eta_2, alpha_0, alpha_1, alpha_2, beta, energy):

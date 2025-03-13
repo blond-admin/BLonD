@@ -3,26 +3,36 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Optional
 
 import cupy as cp
+import numba.cuda
 import numpy as np
 
-from .beam_abstract import BeamBaseClass
-from ..gpu.butils_wrap_cupy import kick, drift, slice_beam
+from ..beam.beam import Beam
+from ..beam.beam_abstract import BeamBaseClass
+from ..gpu.butils_wrap_cupy import (
+    kick,
+    drift,
+    slice_beam,
+    losses_longitudinal_cut,
+)
 from ..input_parameters.rf_parameters import RFStation
 from ..input_parameters.ring import Ring
 from ..trackers.utilities import is_in_separatrix
+from ..utils import precision
 
 if TYPE_CHECKING:
     from cupy.typing import NDArray as CupyNDArray
     from typing import Callable, Dict
     from numpy.typing import NDArray
 
+max_n_gpus = cp.cuda.runtime.getDeviceCount()
+streams = [cp.cuda.Stream(non_blocking=True) for i in range(16)]  # todo
+
 
 def get_device(gpu_i: int):
     """Get the device of the selected GPU"""
-    max_n_gpus = cp.cuda.runtime.getDeviceCount()
 
     if max_n_gpus == 1:
-        device_i = cp.cuda.Stream(non_blocking=True)
+        device_i = streams[gpu_i]
     else:
         device_i = cp.cuda.Device(gpu_i)
     return device_i
@@ -56,9 +66,11 @@ class DistributedMultiGpuArray:
         if self.mock_n_gpus is not None:
             n_gpus = self.mock_n_gpus
         else:
-            n_gpus = cp.cuda.runtime.getDeviceCount()
+            n_gpus = max_n_gpus
 
         self.gpu_arrays: Dict[int, CupyNDArray] = {}
+        self.buffers: Dict[int, CupyNDArray] = {}
+        self.buffers_int: Dict[int, CupyNDArray] = {}
         sub_arrays = np.array_split(array_cpu, n_gpus, axis=axis)
         for gpu_i, array_tmp in enumerate(sub_arrays):
             with get_device(gpu_i=gpu_i):
@@ -66,9 +78,26 @@ class DistributedMultiGpuArray:
                 self.gpu_arrays[gpu_i] = cp.array(
                     array_tmp, dtype=array_cpu.dtype
                 )
+
+                self.buffers[gpu_i] = cp.empty((1,), dtype=array_cpu.dtype)
+                self.buffers_int[gpu_i] = cp.empty((1,), dtype=int)
         print(f"{len(self.gpu_arrays)=}")
 
-    def map(self, func: Callable, **kwargs):
+    def get_buffer(self):
+        results = []
+        for gpu_i, buffer in self.buffers.items():
+            with get_device(gpu_i=gpu_i):
+                results.append(buffer.get()[0])
+        return results
+
+    def get_buffer_int(self):
+        results = []
+        for gpu_i, buffer in self.buffers_int.items():
+            with get_device(gpu_i=gpu_i):
+                results.append(buffer.get()[0])
+        return results
+
+    def map_no_result(self, func: Callable, **kwargs):
         """Execute function on all GPUs
 
         Parameters
@@ -83,23 +112,61 @@ class DistributedMultiGpuArray:
             List of results of func(array_gpu_i)
         """
 
-        results = []
+        for gpu_i, array in self.gpu_arrays.items():
+            with get_device(gpu_i=gpu_i):
+                func(array, **kwargs)
+        cp.cuda.runtime.deviceSynchronize()
+
+    def map_float(self, func: Callable, **kwargs):
+        """Execute function on all GPUs
+
+        Parameters
+        ----------
+        func
+            The function to calculate on the array
+            func(array_gpu_i)
+
+        Returns
+        -------
+        results
+            List of results of func(array_gpu_i)
+        """
 
         for gpu_i, array in self.gpu_arrays.items():
             with get_device(gpu_i=gpu_i):
-                results.append(
-                    func(array, **kwargs),
-                )
+                val = func(array, **kwargs)
+                self.buffers[gpu_i][0] = val
 
-        return results
+    def map_int(self, func: Callable, **kwargs):
+        """Execute function on all GPUs
+
+        Parameters
+        ----------
+        func
+            The function to calculate on the array
+            func(array_gpu_i)
+
+        Returns
+        -------
+        results
+            List of results of func(array_gpu_i)
+        """
+
+        for gpu_i, array in self.gpu_arrays.items():
+            with get_device(gpu_i=gpu_i):
+                val = func(array, **kwargs)
+                self.buffers_int[gpu_i][0] = val
+        return
 
     def min(self):
         """Minimum of entire array"""
-        return np.min(self.map(lambda x: float(cp.min(x))))
+        self.map_float(lambda x: cp.min(x))
+        return np.min(self.get_buffer())
 
     def max(self):
         """Maximum of entire array"""
-        return np.max(self.map(lambda x: float(cp.max(x))))
+        self.map_float(lambda x: cp.max(x))
+        return np.max(self.get_buffer())
 
     def download_array(self):
         """Get arrays from several GPUs as one CPU array"""
@@ -152,6 +219,54 @@ class BeamDistributedSingleNode(BeamBaseClass):
         self.__id_multi_gpu = DistributedMultiGpuArray(
             id, mock_n_gpus=mock_n_gpus
         )
+        self.profile_multi_gpu = {}
+        self.n_bins = -1
+
+        self.buffers_float: Dict[int, CupyNDArray] = {}
+        self.buffers_int: Dict[int, CupyNDArray] = {}
+        for gpu_i, array_tmp in enumerate(self.__dE_multi_gpu.gpu_arrays):
+            with get_device(gpu_i=gpu_i):
+                self.buffers_float[gpu_i] = cp.empty((1,), dtype=dE.dtype)
+                self.buffers_int[gpu_i] = cp.empty((1,), dtype=int)
+
+    @staticmethod
+    def from_beam(beam: Beam, ring: Ring, mock_n_gpus: Optional[int] = None):
+        _beam = BeamDistributedSingleNode(
+            ring=ring,
+            intensity=beam.intensity,
+            dE=beam.dE,
+            dt=beam.dt,
+            id=beam.id,
+            mock_n_gpus=mock_n_gpus,
+        )
+        return _beam
+
+    def get_buffer(self):
+        results = []
+        for gpu_i, buffer_i in self.buffers_float.items():
+            with get_device(gpu_i=gpu_i):
+                results.append(buffer_i.get()[0])
+        return results
+
+    def get_buffer_int(self):
+        results = []
+        for gpu_i, buffer_i in self.buffers_int.items():
+            with get_device(gpu_i=gpu_i):
+                results.append(buffer_i.get()[0])
+        return results
+
+    def __init_profile_multi_gpu(self, n_bins):
+        if self.n_bins == n_bins:
+            return
+        from blond.utils import precision
+
+        self.n_bins = n_bins
+        self.profile_multi_gpu = {}
+        for gpu_i in range(len(self.dE_multi_gpu.gpu_arrays)):
+            with get_device(gpu_i=gpu_i):
+                self.profile_multi_gpu[gpu_i] = cp.zeros(
+                    n_bins, dtype=precision.real_t
+                )
 
     @property
     def dE_multi_gpu(self):
@@ -164,6 +279,30 @@ class BeamDistributedSingleNode(BeamBaseClass):
     @property
     def id_multi_gpu(self):
         return self.__id_multi_gpu
+
+    def map_no_result(self, func: Callable, **kwargs):
+        """Execute function on all GPUs
+
+        Parameters
+        ----------
+        func
+            The function to calculate on the array
+            value_float = func(array_gpu_i)
+
+        Returns
+        -------
+        results
+            List of results of func(array_gpu_i)
+        """
+
+        for gpu_i in range(self.n_gpus):
+            with get_device(gpu_i):
+                func(
+                    dt_gpu_i=self.dt_multi_gpu.gpu_arrays[gpu_i],
+                    dE_gpu_i=self.dE_multi_gpu.gpu_arrays[gpu_i],
+                    id_gpu_i=self.id_multi_gpu.gpu_arrays[gpu_i],
+                    **kwargs,
+                )
 
     def map(self, func: Callable, **kwargs):
         """Execute function on all GPUs
@@ -183,15 +322,13 @@ class BeamDistributedSingleNode(BeamBaseClass):
         results = []
 
         for gpu_i in range(self.n_gpus):
-            results.append(
-                func(
+            with get_device(gpu_i):
+                self.buffers_float[gpu_i][0] = func(
                     dt_gpu_i=self.dt_multi_gpu.gpu_arrays[gpu_i],
                     dE_gpu_i=self.dE_multi_gpu.gpu_arrays[gpu_i],
                     id_gpu_i=self.id_multi_gpu.gpu_arrays[gpu_i],
                     **kwargs,
-                ),
-            )
-        cp.cuda.runtime.deviceSynchronize()
+                )
         return results
 
     def download_ids(self):
@@ -212,12 +349,13 @@ class BeamDistributedSingleNode(BeamBaseClass):
         if self.dE_multi_gpu.mock_n_gpus is not None:
             return self.dE_multi_gpu.mock_n_gpus
         else:
-            return cp.cuda.runtime.getDeviceCount()
+            return max_n_gpus
 
     @property
     def n_macroparticles_alive(self) -> int:
         """Number of macro-particles marked as alive (id ≠ 0)"""
-        counts = self.id_multi_gpu.map(lambda x: int(cp.count_nonzero(x)))
+        self.id_multi_gpu.map_int(lambda x: cp.count_nonzero(x))
+        counts = self.id_multi_gpu.get_buffer_int()
         return np.sum(counts)
 
     def eliminate_lost_particles(self):
@@ -287,10 +425,11 @@ class BeamDistributedSingleNode(BeamBaseClass):
             in one ring segment
 
         """
-        self.map(
+        # todo make concurrent execution possible
+        self.map_no_result(
             _losses_separatrix_helper,
-            beam=self,
             ring=ring,
+            beam=self,
             rf_station=rf_station,
         )
 
@@ -304,7 +443,9 @@ class BeamDistributedSingleNode(BeamBaseClass):
         dt_max : float
             Upper limit (dt=dt_max is kept)
         """
-        self.map(_losses_longitudinal_cut_helper, dt_min=dt_min, dt_max=dt_max)
+        self.map_no_result(
+            _losses_longitudinal_cut_helper, dt_min=dt_min, dt_max=dt_max
+        )
 
     def losses_energy_cut(self, dE_min: float, dE_max: float) -> None:
         """Mark particles outside energy range as not-alive (id=0)
@@ -316,7 +457,9 @@ class BeamDistributedSingleNode(BeamBaseClass):
         dE_max : float
             Upper limit (dE=dE_max is kept)
         """
-        self.map(_losses_energy_cut_helper, dE_min=dE_min, dE_max=dE_max)
+        self.map_no_result(
+            _losses_energy_cut_helper, dE_min=dE_min, dE_max=dE_max
+        )
 
     def losses_below_energy(self, dE_min: float):
         """Mark particles outside energy range as not-alive (id=0)
@@ -326,7 +469,7 @@ class BeamDistributedSingleNode(BeamBaseClass):
         dE_min : float
             Lower limit (dE=dE_min is kept)
         """
-        self.map(_losses_below_energy_helper, dE_min=dE_min)
+        self.map_no_result(_losses_below_energy_helper, dE_min=dE_min)
 
     def dE_mean(self, ignore_id_0: bool = False):
         """Calculate mean of energy
@@ -337,9 +480,12 @@ class BeamDistributedSingleNode(BeamBaseClass):
             If True, particles with id = 0 are ignored
         """
         if ignore_id_0:
-            means = self.map(_dE_mean_helper_ignore_id_0)
+            self.map(_dE_mean_helper_ignore_id_0)
+            means = self.get_buffer()
+
         else:
-            means = self.dE_multi_gpu.map(_dE_mean_helper)
+            self.dE_multi_gpu.map_float(_dE_mean_helper)
+            means = self.dE_multi_gpu.get_buffer()
 
         return float(np.nanmean(means))
 
@@ -353,13 +499,14 @@ class BeamDistributedSingleNode(BeamBaseClass):
         """
         mean = self.dE_mean(ignore_id_0=ignore_id_0)
         if ignore_id_0:
-            sums = self.map(_dE_std_helper_ignore_id_0, mean=mean)
+            self.map(_dE_std_helper_ignore_id_0, mean=mean)
+            sums = self.get_buffer()
             N = self.n_macroparticles_alive
         else:
-            sums = self.dE_multi_gpu.map(_dE_std_helper, mean=mean)
+            self.dE_multi_gpu.map_float(_dE_std_helper, mean=mean)
+            sums = self.dE_multi_gpu.get_buffer()
             N = self.n_macroparticles
 
-        sums = np.array(sums)
         return np.sqrt(np.nansum(sums) / N)
 
     def dt_min(self):  # todo ignore lost particles?
@@ -387,10 +534,11 @@ class BeamDistributedSingleNode(BeamBaseClass):
             If True, particles with id = 0 are ignored
         """
         if ignore_id_0:
-            means = self.map(_dt_mean_helper_ignore_id_0)
+            self.map(_dt_mean_helper_ignore_id_0)
+            means = self.get_buffer()
         else:
-            means = self.dt_multi_gpu.map(_dt_mean_helper)
-
+            self.dt_multi_gpu.map_float(_dt_mean_helper)
+            means = self.dt_multi_gpu.get_buffer()
         return float(np.nanmean(means))
 
     def dt_std(self, ignore_id_0: bool = False):
@@ -403,27 +551,30 @@ class BeamDistributedSingleNode(BeamBaseClass):
         """
         mean = self.dt_mean(ignore_id_0=ignore_id_0)
         if ignore_id_0:
-            sums = self.map(_dt_std_helper_ignore_id_0, mean=mean)
+            self.map(_dt_std_helper_ignore_id_0, mean=mean)
+            sums = self.get_buffer()
             N = self.n_macroparticles_alive
         else:
-            sums = self.dt_multi_gpu.map(_dt_std_helper, mean=mean)
+            self.dt_multi_gpu.map_float(_dt_std_helper, mean=mean)
+            sums = self.dt_multi_gpu.get_buffer()
             N = self.n_macroparticles
-
-        sums = np.array(sums)
         return np.sqrt(np.nansum(sums) / N)
 
     def histogram(self, out, cut_left, cut_right):  # todo rewrite using bmath
         """Computes a histogram of the dt coordinates"""
-        histograms = self.dt_multi_gpu.map(
-            slice_beam_helper,
-            n_bins=len(out),
-            cut_left=cut_left,
-            cut_right=cut_right,
-        )
-        hist = histograms[0]
-        if len(histograms) > 1:
-            for hist_tmp in histograms[1:]:
-                hist[:] += hist_tmp[:]
+        self.__init_profile_multi_gpu(n_bins=len(out))
+        for gpu_i, dt_multi_gpu in self.dt_multi_gpu.gpu_arrays.items():
+            with get_device(gpu_i=gpu_i):
+                slice_beam(
+                    dt=dt_multi_gpu,
+                    profile=self.profile_multi_gpu[gpu_i],
+                    cut_left=cut_left,
+                    cut_right=cut_right,
+                )
+        hist = self.profile_multi_gpu[0].get()
+        if len(self.profile_multi_gpu) > 1:
+            for hist_tmp in self.profile_multi_gpu.values():
+                hist[:] += hist_tmp[:].get()
 
         return cp.array(hist)
 
@@ -441,7 +592,7 @@ class BeamDistributedSingleNode(BeamBaseClass):
         assert not hasattr(voltage, "get")
         assert not hasattr(omega_rf, "get")
         assert not hasattr(phi_rf, "get")
-        self.map(
+        self.map_no_result(
             kick_helper,
             voltage=voltage,
             omega_rf=omega_rf,
@@ -466,7 +617,7 @@ class BeamDistributedSingleNode(BeamBaseClass):
         beta,
         energy,
     ):
-        self.map(
+        self.map_no_result(
             drift_helper,
             solver=solver,
             t_rev=t_rev,
@@ -481,21 +632,6 @@ class BeamDistributedSingleNode(BeamBaseClass):
             beta=beta,
             energy=energy,
         )
-
-
-def slice_beam_helper(
-    dt_gpu_i,
-    n_bins,
-    cut_left,
-    cut_right,
-):
-    from ..utils import precision
-
-    profile = cp.zeros(n_bins, dtype=precision.real_t)
-    slice_beam(
-        dt=dt_gpu_i, profile=profile, cut_left=cut_left, cut_right=cut_right
-    )
-    return profile.get()
 
 
 def kick_helper(
@@ -557,28 +693,43 @@ def drift_helper(
 
 
 def _losses_separatrix_helper(
-    dt_gpu_i, dE_gpu_i, id_gpu_i, beam, ring, rf_station
+    dt_gpu_i,
+    dE_gpu_i,
+    id_gpu_i,
+    ring,
+    beam,
+    rf_station,
 ):
-    lost_index = ~is_in_separatrix(ring, rf_station, beam, dt_gpu_i, dE_gpu_i)
+    lost_index = ~is_in_separatrix(
+        ring=ring,
+        rf_station=rf_station,
+        beam=beam,
+        dt=dt_gpu_i,
+        dE=dE_gpu_i,
+    )
     id_gpu_i[lost_index] = 0
 
 
 def _losses_longitudinal_cut_helper(
     dt_gpu_i, dE_gpu_i, id_gpu_i, dt_min, dt_max
 ):
-    id_gpu_i[(dt_gpu_i < dt_min) | (dt_gpu_i > dt_max)] = 0
+    losses_longitudinal_cut(
+        dt=dt_gpu_i, id=id_gpu_i, dt_min=dt_min, dt_max=dt_max
+    )
 
 
 def _losses_energy_cut_helper(dt_gpu_i, dE_gpu_i, id_gpu_i, dE_min, dE_max):
-    id_gpu_i[(dE_gpu_i < dE_min) | (dE_gpu_i > dE_max)] = 0
+    id_gpu_i[(dE_gpu_i < dE_min) | (dE_gpu_i > dE_max)] = 0  # todo rewrite
+    # for GPU
 
 
 def _losses_below_energy_helper(dt_gpu_i, dE_gpu_i, id_gpu_i, dE_min):
-    id_gpu_i[dE_gpu_i < dE_min] = 0
+    id_gpu_i[dE_gpu_i < dE_min] = 0  # todo rewrite
+    # for GPU
 
 
 def _dE_mean_helper(dE_gpu_i):
-    return float(cp.mean(dE_gpu_i))
+    return cp.mean(dE_gpu_i)
 
 
 def _dE_mean_helper_ignore_id_0(dt_gpu_i, dE_gpu_i, id_gpu_i):
@@ -587,12 +738,12 @@ def _dE_mean_helper_ignore_id_0(dt_gpu_i, dE_gpu_i, id_gpu_i):
     if len(masked) == 0:
         return np.nan
     else:
-        return float(cp.mean(masked))
+        return cp.mean(masked)
 
 
 def _dE_std_helper(dE_gpu_i, mean):
     tmp = dE_gpu_i - mean
-    return float(cp.sum(tmp * tmp))
+    return cp.sum(tmp * tmp)
 
 
 def _dE_std_helper_ignore_id_0(dt_gpu_i, dE_gpu_i, id_gpu_i, mean):
@@ -601,11 +752,11 @@ def _dE_std_helper_ignore_id_0(dt_gpu_i, dE_gpu_i, id_gpu_i, mean):
         return np.nan
     else:
         tmp = dE_gpu_i[mask] - mean
-        return float(cp.sum(tmp * tmp))
+        return cp.sum(tmp * tmp)
 
 
 def _dt_mean_helper(dt_gpu_i):
-    return float(cp.mean(dt_gpu_i))
+    return cp.mean(dt_gpu_i)
 
 
 def _dt_mean_helper_ignore_id_0(dt_gpu_i, dE_gpu_i, id_gpu_i):
@@ -614,12 +765,12 @@ def _dt_mean_helper_ignore_id_0(dt_gpu_i, dE_gpu_i, id_gpu_i):
     if len(masked) == 0:
         return np.nan
     else:
-        return float(cp.mean(masked))
+        return cp.mean(masked)
 
 
 def _dt_std_helper(dt_gpu_i, mean):
     tmp = dt_gpu_i - mean
-    return float(cp.sum(tmp * tmp))
+    return cp.sum(tmp * tmp)
 
 
 def _dt_std_helper_ignore_id_0(dt_gpu_i, dE_gpu_i, id_gpu_i, mean):
@@ -628,4 +779,4 @@ def _dt_std_helper_ignore_id_0(dt_gpu_i, dE_gpu_i, id_gpu_i, mean):
         return np.nan
     else:
         tmp = dt_gpu_i[mask] - mean
-        return float(cp.sum(tmp * tmp))
+        return cp.sum(tmp * tmp)

@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from scipy import ndimage
 
-from .beam_distributed import BeamDistributedSingleNode
+from ..gpu.beam_distributed import BeamDistributedSingleNode
 from ..toolbox import filters_and_fitting as ffroutines
 from ..utils import bmath as bm
 from ..utils.legacy_support import handle_legacy_kwargs

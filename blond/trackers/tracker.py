@@ -458,7 +458,7 @@ class RingAndRFTracker:
                                           acceleration_kick=self.acceleration_kick[turn])
 
                 else:
-                    from blond.beam.beam_distributed import (
+                    from blond.gpu.beam_distributed import (
                         BeamDistributedSingleNode)
 
                     if isinstance(self.beam,BeamDistributedSingleNode ):

@@ -5,6 +5,23 @@
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
+import cupy as cp
+import os
+
+# To check if executing correctly, rather than to run the full simulation
+DRAFT_MODE = False or bool(
+    int(bool(int(os.environ.get("BLOND_EXAMPLES_DRAFT_MODE", False))))
+)
+print(f"{DRAFT_MODE=}")
+if DRAFT_MODE:
+    # to mock several GPUs,
+    # one kernel should not fill the full grid of blocks,
+    # but only a part of it
+    device = cp.cuda.Device(0)
+    default_blocks = int(device.attributes["MultiProcessorCount"] / 4)
+    default_threads = int(device.attributes["MaxThreadsPerBlock"])
+    os.environ["GPU_BLOCKS"] = str(default_blocks)
+    os.environ["GPU_THREADS"] = str(default_threads)
 
 """
 Example input for simulation of acceleration
@@ -20,7 +37,7 @@ import time
 import matplotlib as mpl
 import numpy as np
 from blond.utils import bmath as bm
-from blond.beam.beam_distributed import BeamDistributedSingleNode
+from blond.gpu.beam_distributed import BeamDistributedSingleNode
 from blond.beam.beam import Beam, Proton
 from blond.beam.distributions import bigaussian
 from blond.beam.profile import CutOptions, FitOptions, Profile
@@ -32,21 +49,19 @@ from blond.monitors.monitors import BunchMonitor
 from blond.plots.plot import Plot
 from blond.trackers.tracker import RingAndRFTracker
 
-# To check if executing correctly, rather than to run the full simulation
-DRAFT_MODE = False or bool(
-    int(bool(int(os.environ.get("BLOND_EXAMPLES_DRAFT_MODE", False))))
-)
+
 mpl.use("Agg")
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + "/"
 
 os.makedirs(this_directory + "../output_files/EX_01_fig", exist_ok=True)
+
+
 def main(mock_n_gpus):
     print(f"{mock_n_gpus=}")
     bm.use_cpu()
     N_t = 2000  # Number of turns to track
     dt_plt = 200  # Time steps between plots
-
 
     # Define general parameters
     ring = Ring(
@@ -58,8 +73,7 @@ def main(mock_n_gpus):
     )
     a = ring.ring_length
     # Define beam and distribution
-    _beam = Beam(ring, 1001 if DRAFT_MODE else int(1e7), 1e9)
-
+    _beam = Beam(ring, 50000 if DRAFT_MODE else int(5e7), 1e9)
 
     # Define RF station parameters and corresponding tracker
     rf = RFStation(ring, [35640], [6e6], [0])
@@ -67,24 +81,16 @@ def main(mock_n_gpus):
     bigaussian(ring, rf, _beam, 0.4e-9 / 4, reinsertion=True, seed=1)
     bm.use_gpu()
 
-    beam = BeamDistributedSingleNode(
-        ring=ring,
-        intensity=_beam.intensity,
-        dE=_beam.dE,
-        dt=_beam.dt,
-        id=_beam.id,
-        mock_n_gpus=mock_n_gpus,
+    beam = BeamDistributedSingleNode.from_beam(
+        beam=_beam, ring=ring, mock_n_gpus=mock_n_gpus
     )
     print(f"{beam.n_gpus=}")
     long_tracker = RingAndRFTracker(rf, beam)
 
     # parabolic(ring, rf, beam, tau_0, seed=1)
 
-
     # Need slices for the Gaussian fit
-    profile = Profile(
-        beam, CutOptions(n_slices=100)
-    )
+    profile = Profile(beam, CutOptions(n_slices=100))
 
     # Define what to save in file
     bunchmonitor = BunchMonitor(
@@ -135,7 +141,6 @@ def main(mock_n_gpus):
         N_t = 20
     t0 = time.perf_counter()
     for i in range(1, 50):
-
         # Plot has to be done before tracking (at least for cases with separatrix)
         if (i % dt_plt) == 0:
             print("Outputting at time step %d..." % i)
@@ -144,20 +149,26 @@ def main(mock_n_gpus):
             print("   Beam beta %3.3f" % beam.beta)
             print("   Beam energy %.6e eV" % beam.energy)
             print(
-                "   Four-times r.m.s. bunch length %.4e s" % (4.0 * beam.sigma_dt)
+                "   Four-times r.m.s. bunch length %.4e s"
+                % (4.0 * beam.sigma_dt)
             )
-            #print("   Gaussian bunch length %.4e s" % profile.bunchLength)
+            # print("   Gaussian bunch length %.4e s" % profile.bunchLength)
             print("")
 
         # Track
-        for m in map_:
-            m.track()
+        long_tracker.track()
 
         # Define losses according to separatrix and/or longitudinal position
         beam.losses_separatrix(ring, rf)
         beam.losses_longitudinal_cut(0.0, 2.5e-9)
+        profile.track()
+
+    import cupy as cp
+
+    cp.cuda.runtime.deviceSynchronize()
+
     t1 = time.perf_counter()
-    print(t1-t0,"s runtime")
+    print(t1 - t0, "s runtime")
 
     # For testing purposes
     """
@@ -170,11 +181,10 @@ def main(mock_n_gpus):
 
 
 if __name__ == "__main__":
+    if DRAFT_MODE:
+        main(mock_n_gpus=4)
+    else:
+        main(mock_n_gpus=None)
 
-    main(mock_n_gpus=1)
-    print()
-    main(mock_n_gpus=None)
     print()
     main(mock_n_gpus=1)
-    print()
-    main(mock_n_gpus=None)

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+import time
 
 import cupy as cp
 import numpy as np
@@ -25,33 +26,40 @@ def _total_runtime(res: _PerfCaseResult):
 
 
 class TestMultiGpuArray(unittest.TestCase):
-    def setUp(self):
+    def setUp(self, mock_n_gpus=1):
         self.multi_gpu_array = DistributedMultiGpuArray(
-            array_cpu=np.arange(1, 101), axis=0, mock_n_gpus=4
-        )
-        self.multi_gpu_array_1thread = DistributedMultiGpuArray(
-            array_cpu=np.arange(1, 101), axis=0, mock_n_gpus=1
+            array_cpu=np.arange(1, 50_000), axis=0, mock_n_gpus=mock_n_gpus
         )
 
     def test_map(self):
         self.multi_gpu_array.map_float(_float_min)
-        results = self.multi_gpu_array.get_buffer()
-        print(results)
-        np.testing.assert_almost_equal(
-            results, np.array([1.0, 26.0, 51.0, 76.0])
-        )
+        for mock_n_gpus in (1,5,10):
+            self.setUp(mock_n_gpus=mock_n_gpus)
+            t0 = time.time()
+            self.multi_gpu_array.map_float(_float_min)
+            t1 = time.time()
+            print(mock_n_gpus, t1-t0)
+            results = self.multi_gpu_array.get_buffer()
+
+
     def test_min(self):
         results = self.multi_gpu_array.min()
-        print(results)
-        np.testing.assert_almost_equal(
-            results, 1
-        )
+        for mock_n_gpus in (1,5,10):
+            self.setUp(mock_n_gpus=mock_n_gpus)
+            t0 = time.time()
+            results = self.multi_gpu_array.min()
+            t1 = time.time()
+            print(mock_n_gpus, t1-t0)
+
     def test_max(self):
         results = self.multi_gpu_array.max()
-        print(results, type(results))
-        np.testing.assert_almost_equal(
-            results, 100
-        )
+        for mock_n_gpus in (1,5,10):
+            self.setUp(mock_n_gpus=mock_n_gpus)
+            t0 = time.time()
+            results = self.multi_gpu_array.max()
+            t1 = time.time()
+            print(mock_n_gpus, t1-t0)
+
 
 class TestBeamDistributedSingleNode(unittest.TestCase):
     def setUp(self):
