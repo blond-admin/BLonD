@@ -411,12 +411,10 @@ class _InducedVoltage:
         Method to calculate the induced voltage taking into account the effect
         from previous passages (multi-turn wake)
         """
-
         if beam_spectrum_dict is None:
             beam_spectrum_dict = dict()
         # Shift of the memory wake field by the current revolution period
         self.shift_trev()
-        print(self.induced_voltage)
 
         # Induced voltage of the current turn calculation
         self.induced_voltage_1turn(beam_spectrum_dict)
@@ -425,15 +423,12 @@ class _InducedVoltage:
         # front wake
         self.induced_voltage[self.n_induced_voltage -
                              self.front_wake_buffer:] = 0
-        print(self.induced_voltage)
 
         # Add the induced voltage of the current turn to the memory from
         # previous turns
         self.mtw_memory[:self.n_induced_voltage] += self.induced_voltage
-        print(self.mtw_memory)
 
         self.induced_voltage = self.mtw_memory[:self.n_induced_voltage]
-        print(self.induced_voltage)
 
     def shift_trev_freq(self):
         """
@@ -457,11 +452,13 @@ class _InducedVoltage:
         """
 
         t_rev = self.rf_params.t_rev[self.rf_params.counter[0]]
+        print(t_rev)
+
 
         # self.mtw_memory = bm.interp_const_space(self.time_mtw + t_rev,
         self.mtw_memory = bm.interp(self.time_mtw + t_rev,
                                     self.time_mtw, self.mtw_memory,
-                                    left=0, right=0) # todo
+                                    left=0, right=0)  # todo
 
     def _track(self):
         """
@@ -1001,7 +998,6 @@ class InducedVoltageResonator(_InducedVoltage):
         self.Q = resonators.Q
         # Number of resonators
         self.n_resonators = len(self.R)
-
         # For internal use
         self._Qtilde = self.Q * np.sqrt(1. - 1. / (4. * self.Q ** 2.))
         self._reOmegaP = self.omega_r * self._Qtilde / self.Q
@@ -1064,7 +1060,7 @@ class InducedVoltageResonator(_InducedVoltage):
                                                 self.beam.ratio, self.R,
                                                 self.induced_voltage,
                                                 bm.precision.real_t))
-
+    '''
     def induced_voltage_mtw(self, beam_spectrum_dict={}):
 
         """
@@ -1072,23 +1068,16 @@ class InducedVoltageResonator(_InducedVoltage):
         mtw_memory is shifted by one turn, setting the final values in the array as 0.
         @fbatsch
         """
-
         # shift the entries in array by 1 t_rev and set to 0
         self.mtw_memory = np.append(self.mtw_memory, np.zeros(self.array_length))
-        print(self.mtw_memory)
         # remove one turn length of memory
         self.mtw_memory = self.mtw_memory[self.array_length:]
-        print(self.mtw_memory)
         # Induced voltage of the current turn calculation
         self.induced_voltage_1turn(beam_spectrum_dict)
-        print(self.induced_voltage)
         # Add induced voltage of the current turn to the memory from previous
         self.mtw_memory[:int(self.n_time)] += self.induced_voltage
-        print(self.mtw_memory)
-
         self.induced_voltage = self.mtw_memory[:self.n_time]
-        print(self.induced_voltage)
-
+    '''
     def to_gpu(self, recursive=True):
         """
         Transfer all necessary arrays to the GPU
