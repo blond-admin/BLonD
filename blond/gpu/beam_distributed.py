@@ -13,6 +13,7 @@ from ..gpu.butils_wrap_cupy import (
     drift,
     slice_beam,
     losses_longitudinal_cut,
+    losses_separatrix,
 )
 from ..input_parameters.rf_parameters import RFStation
 from ..input_parameters.ring import Ring
@@ -69,7 +70,7 @@ class DistributedMultiGpuArray:
             n_gpus = max_n_gpus
 
         self.gpu_arrays: Dict[int, CupyNDArray] = {}
-        self.buffers: Dict[int, CupyNDArray] = {}
+        self.buffers_float: Dict[int, CupyNDArray] = {}
         self.buffers_int: Dict[int, CupyNDArray] = {}
         sub_arrays = np.array_split(array_cpu, n_gpus, axis=axis)
         for gpu_i, array_tmp in enumerate(sub_arrays):
@@ -79,22 +80,24 @@ class DistributedMultiGpuArray:
                     array_tmp, dtype=array_cpu.dtype
                 )
 
-                self.buffers[gpu_i] = cp.empty((1,), dtype=array_cpu.dtype)
+                self.buffers_float[gpu_i] = cp.empty(
+                    (1,), dtype=array_cpu.dtype
+                )
                 self.buffers_int[gpu_i] = cp.empty((1,), dtype=int)
         print(f"{len(self.gpu_arrays)=}")
 
     def get_buffer(self):
         results = []
-        for gpu_i, buffer in self.buffers.items():
+        for gpu_i, buffer in self.buffers_float.items():
             with get_device(gpu_i=gpu_i):
-                results.append(buffer.get()[0])
+                results.append(buffer[0].get())
         return results
 
     def get_buffer_int(self):
         results = []
         for gpu_i, buffer in self.buffers_int.items():
             with get_device(gpu_i=gpu_i):
-                results.append(buffer.get()[0])
+                results.append(buffer[0].get())
         return results
 
     def map_no_result(self, func: Callable, **kwargs):
@@ -135,7 +138,7 @@ class DistributedMultiGpuArray:
         for gpu_i, array in self.gpu_arrays.items():
             with get_device(gpu_i=gpu_i):
                 val = func(array, **kwargs)
-                self.buffers[gpu_i][0] = val
+                self.buffers_float[gpu_i][0] = val
 
     def map_int(self, func: Callable, **kwargs):
         """Execute function on all GPUs
@@ -245,14 +248,14 @@ class BeamDistributedSingleNode(BeamBaseClass):
         results = []
         for gpu_i, buffer_i in self.buffers_float.items():
             with get_device(gpu_i=gpu_i):
-                results.append(buffer_i.get()[0])
+                results.append(buffer_i[0].get())
         return results
 
     def get_buffer_int(self):
         results = []
         for gpu_i, buffer_i in self.buffers_int.items():
             with get_device(gpu_i=gpu_i):
-                results.append(buffer_i.get()[0])
+                results.append(buffer_i[0].get())
         return results
 
     def __init_profile_multi_gpu(self, n_bins):
@@ -700,14 +703,14 @@ def _losses_separatrix_helper(
     beam,
     rf_station,
 ):
-    lost_index = ~is_in_separatrix(
+    losses_separatrix(
         ring=ring,
         rf_station=rf_station,
         beam=beam,
         dt=dt_gpu_i,
         dE=dE_gpu_i,
+        id=id_gpu_i,
     )
-    id_gpu_i[lost_index] = 0
 
 
 def _losses_longitudinal_cut_helper(

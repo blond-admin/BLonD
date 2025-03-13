@@ -34,6 +34,66 @@
     #endif
 #endif
 
+extern "C"
+__global__ void losses_longitudinal_cut(
+    real_t  * __restrict__ beam_dt,
+    int64_t  * beam_id,
+    const int n_macroparticles,
+    const real_t dt_min,
+    const real_t dt_max
+)
+{
+    int tid = threadIdx.x + blockDim.x * blockIdx.x;
+    real_t my_beam_dt;
+    for (int i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
+        my_beam_dt = beam_dt[i];
+        if ((my_beam_dt < dt_min) || (my_beam_dt > dt_max)){
+            beam_id[i] = 0;
+        }
+    }
+}
+
+extern "C"
+__global__ void eliminate_particles_with_hamiltonian(
+    const real_t hamilton_separation,
+    const real_t c1,
+    const real_t c2,
+    real_t  * __restrict__ dE,
+    real_t  * __restrict__ dt,
+    const real_t eta0_turn_i,
+    int64_t  * id,
+    const real_t phi_rf_d_turn_i,
+    const real_t phi_rf_turn_i,
+    const real_t phi_s_turn_i,
+    const int n_macroparticles
+)
+{
+    int tid = threadIdx.x + blockDim.x * blockIdx.x;
+    real_t phi_b;
+    real_t hamiltonian_;
+    const real_t cosphi_s_turn_i = cos(phi_s_turn_i);
+    const real_t sinphi_s_turn_i = sin(phi_s_turn_i);
+    for (int i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
+        phi_b = phi_rf_turn_i * dt[i] + phi_rf_d_turn_i;
+        // Modulo 2 Pi of bunch phase
+        if (eta0_turn_i < 0){
+            // Projects a phase array into the range -Pi/2 to +3*Pi/2.
+            phi_b = phi_b - 2.0 * M_PI * (floorf(phi_b / (2.0 * M_PI) + 0.5));
+        }
+        else if (eta0_turn_i > 0){
+            // Projects a phase array into the range -Pi/2 to +3*Pi/2.*
+            phi_b = phi_b - 2.0 * M_PI * floorf(phi_b / (2.0 * M_PI));
+        }
+        hamiltonian_ = c1 * (dE[i] * dE[i]) + c2 * (
+                cos(phi_b) - cosphi_s_turn_i + (phi_b - phi_s_turn_i) * phi_s_turn_i
+        );
+        if (!(abs(hamiltonian_) < abs(hamilton_separation))){
+            id[i] = 0;
+        }
+    }
+}
+
+
 
 extern "C"
 __global__ void simple_kick(

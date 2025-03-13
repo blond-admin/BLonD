@@ -3,18 +3,28 @@
 """
 
 from __future__ import annotations
+from __future__ import annotations
 
 import warnings
 from typing import TYPE_CHECKING
 
 import cupy as cp
 import numpy as np
+from scipy.constants import c
+
+from blond.trackers.utilities import hamiltonian
+from . import GPU_DEV
+from ..utils import precision
+from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
+    from typing import Optional
+
     from numpy.typing import NDArray
 
-from ..utils import precision
-from . import GPU_DEV
+    from ..beam.beam import Beam
+    from ..input_parameters.rf_parameters import RFStation
+    from ..input_parameters.ring import Ring
 
 
 # TODO all typing
@@ -110,6 +120,124 @@ def losses_longitudinal_cut(dt, id, dt_min, dt_max): # todo testcase
                       dt_max,
                       ),
                 block=GPU_DEV.block_size, grid=GPU_DEV.grid_size)
+
+@handle_legacy_kwargs
+def losses_separatrix(
+    ring: Ring,
+    rf_station: RFStation,
+    beam: Beam,
+    dt: NDArray,
+    dE: NDArray,
+    id: NDArray,
+    total_voltage: Optional[NDArray] = None,
+) -> None:
+    r"""Function checking whether coordinate pair(s) are inside the separatrix.
+    Uses the single-RF sinusoidal Hamiltonian.
+
+    Parameters
+    ----------
+    ring : class
+        A Ring type class
+    rf_station : class
+        An RFStation type class
+    beam : class
+        A Beam type class
+    dt : float array
+        Time coordinates of the particles to be checked
+    dE : float array
+        Energy coordinates of the particles to be checked
+    total_voltage : float array
+        Total voltage to be used if not single-harmonic RF
+
+    Returns
+    -------
+    bool array
+        True/False array for the given coordinates
+
+    """
+    if total_voltage is not None:
+        raise NotImplementedError
+    warnings.filterwarnings("once")
+
+    if ring.n_sections > 1:
+        warnings.warn(
+            "WARNING: in is_in_separatrix(): the usage of several"
+            + " sections is not yet implemented!"
+        )
+    if rf_station.n_rf > 1:
+        warnings.warn(
+            "WARNING in is_in_separatrix(): taking into account"
+            + " the first harmonic only!"
+        )
+
+    counter = rf_station.counter[0]
+    dt_sep = (
+        np.pi - rf_station.phi_s[counter] - rf_station.phi_rf_d[0, counter]
+    ) / rf_station.omega_rf[0, counter]
+
+    hamilton_separation = hamiltonian(
+        ring=ring,
+        rf_station=rf_station,
+        beam=beam,
+        dt=dt_sep,
+        dE=0,
+    )
+
+    warnings.filterwarnings("once")
+
+    if ring.n_sections > 1:
+        warnings.warn(
+            "WARNING: The Hamiltonian is not yet properly computed for several sections!"
+        )
+    if rf_station.n_rf > 1:
+        warnings.warn(
+            "WARNING: The Hamiltonian will be calculated for the first harmonic only!"
+        )
+    ######################################################################
+    # hamiltonian calculation, but rewritten without attribute access
+    # to be executable on GPU
+    counter = rf_station.counter[0]
+    h0 = float(rf_station.harmonic[0, counter])
+    V0 = float(rf_station.voltage[0, counter]) * rf_station.particle.charge
+
+    # slippage factor as a function of the energy offset
+    slippage_by_energy = float(rf_station.eta_tracking(beam, counter,
+                                                       dE)) # todo will fail
+    # if
+    ring_circumference = ring.ring_circumference
+    beam_beta = beam.beta
+    beam_energy = beam.energy
+    phi_s_turn_i = rf_station.phi_s[counter]
+    phi_rf_turn_i = rf_station.omega_rf[0, counter]
+    phi_rf_d_turn_i = rf_station.phi_rf_d[0, counter]
+    eta0_turn_i = rf_station.eta_0[counter]
+
+    c1 = (
+        slippage_by_energy
+        * c
+        * np.pi
+        / (ring_circumference * beam_beta * beam_energy)
+    )
+    c2 = c * beam_beta * V0 / (h0 * ring_circumference)
+    ######################################################################
+    eliminate_particles_with_hamiltonian_kernel = GPU_DEV.mod.get_function(
+        "eliminate_particles_with_hamiltonian")
+
+    eliminate_particles_with_hamiltonian_kernel(block=GPU_DEV.block_size,
+                                                grid=GPU_DEV.grid_size,
+                                                args=(
+        precision.real_t(hamilton_separation),
+        precision.real_t(c1),
+        precision.real_t(c2),
+        dE,
+        dt,
+        precision.real_t(eta0_turn_i),
+        id,
+        precision.real_t(phi_rf_d_turn_i),
+        precision.real_t(phi_rf_turn_i),
+        precision.real_t(phi_s_turn_i),
+        len(dE)
+    ))
 
 
 def drift(dt, dE, solver, t_rev, length_ratio, alpha_order, eta_0,

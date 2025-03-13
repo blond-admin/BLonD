@@ -538,8 +538,8 @@ def hamiltonian(ring: Ring, rf_station: RFStation, beam: Beam,
     elif eta0 > 0:
         phi_b = phase_modulo_above_transition(phi_b)
 
-    return c1 * dE ** 2 + c2 * (bm.cos(phi_b) - bm.cos(phi_s)
-                                + (phi_b - phi_s) * bm.sin(phi_s))
+    return c1 * dE ** 2 + c2 * (np.cos(phi_b) - np.cos(phi_s)
+                                + (phi_b - phi_s) * np.sin(phi_s))
 
 
 @handle_legacy_kwargs
@@ -865,7 +865,7 @@ def phase_modulo_above_transition(phi: NDArray) -> NDArray:
     *Projects a phase array into the range -Pi/2 to +3*Pi/2.*
     """
 
-    return phi - 2. * np.pi * bm.floor(phi / (2. * np.pi))
+    return phi - 2. * np.pi * np.floor(phi / (2. * np.pi))
 
 
 def phase_modulo_below_transition(phi: NDArray) -> NDArray:
@@ -873,7 +873,7 @@ def phase_modulo_below_transition(phi: NDArray) -> NDArray:
     *Projects a phase array into the range -Pi/2 to +3*Pi/2.*
     """
 
-    return phi - 2. * np.pi * (bm.floor(phi / (2. * np.pi) + 0.5))
+    return phi - 2. * np.pi * (np.floor(phi / (2. * np.pi) + 0.5))
 
 
 def time_modulo(dt: NDArray, dt_offset: float, T: float) -> NDArray:
