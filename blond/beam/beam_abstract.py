@@ -220,20 +220,96 @@ class BeamBaseClass:
 
     @abstractmethod
     def dt_min(self):  # todo ignore lost particles?
-        """Minimum of all 'dt' """
+        """Minimum of all 'dt'"""
         pass
 
     @abstractmethod
     def dE_min(self):  # todo ignore lost particles?
-        """Minimum of all 'dE' """
+        """Minimum of all 'dE'"""
         pass
 
     @abstractmethod
     def dt_max(self):  # todo ignore lost particles?
-        """Maximum of all 'dt' """
+        """Maximum of all 'dt'"""
         pass
 
     @abstractmethod
     def dE_max(self):  # todo ignore lost particles?
-        """Maximum of all 'dE' """
+        """Maximum of all 'dE'"""
+        pass
+
+    @abstractmethod
+    def kick(
+        self, rf_station: RFStation, acceleration_kicks: NDArray, turn_i: int
+    ):
+        r"""Function updating the dE array
+
+        Function updating the particle energy due to the RF kick in a given
+        RF station. The kicks are summed over the different harmonic RF systems
+        in the station. The cavity phase can be shifted by the user via
+        phi_offset. The main RF (harmonic[0]) has by definition phase = 0 at
+        time = 0 below transition. The phases of all other RF systems are
+        defined w.r.t.\ to the main RF. The increment in energy is given by the
+        discrete equation of motion:
+
+        .. math::
+            \Delta E^{n+1} = \Delta E^n + \sum_{k=0}^{n_{\mathsf{rf}}-1}{e V_k^n \\sin{\\left(\omega_{\mathsf{rf,k}}^n \\Delta t^n + \phi_{\mathsf{rf,k}}^n \\right)}} - (E_s^{n+1} - E_s^n)
+
+        """
+
+        pass
+
+    @abstractmethod
+    def drift(self, rf_station: RFStation, solver: str, turn_i: int):
+        r"""Function updating the dt array
+
+        Function updating the particle arrival time to the RF station
+        (drift). If only the zeroth order slippage factor is given, 'simple'
+        and 'exact' solvers are available. The 'simple' solver is somewhat
+        faster. Otherwise, the solver is automatically 'exact' and calculates
+        the frequency slippage up to second order. The corresponding equations
+        are (nb: the n indices correspond to the turn number):
+
+        .. math::
+            \\Delta t^{n+1} = \\Delta t^{n} + \\frac{L}{C} T_0^{n+1} \\left[ \\left(1+\\sum_{i=0}^{2}{\\alpha_i\\left(\\delta^{n+1}\\right)^{i+1}}\\right)   \\frac{1+\\left(\\Delta E/E_s\\right)^{n+1}}{1+\\delta^{n+1}}    - 1\\right] \quad \\text{(exact)}
+
+        .. math::
+            \\Delta t^{n+1} = \\Delta t^{n} + \\frac{L}{C} T_0^{n+1} \\left(\\frac{1}{1 - \\eta(\\delta^{n+1})\\delta^{n+1}} - 1\\right) \quad \\text{(legacy)}
+
+        .. math::
+            \\Delta t^{n+1} = \\Delta t^{n} + \\frac{L}{C} T_0^{n+1}\\eta_0\\delta^{n+1} \quad \\text{(simple)}
+
+        The relative momentum needs to be calculated from the relative energy
+        and is obtained as follows:
+
+        .. math::
+            \\delta = \\sqrt{1+\\beta_s^{-2}\\left[\\left(\\frac{\\Delta E}{E_s}\\right)^2 + 2\\frac{\\Delta E}{E_s}\\right]} - 1 \quad \\text{(exact)}
+
+        .. math::
+            \\delta = \\frac{\\Delta E}{\\beta_s^2 E_s} \quad \\text{(simple, legacy)}
+
+        """
+        pass
+
+    def linear_interp_kick(
+        self,
+        voltage: NDArray,
+        bin_centers: NDArray,
+        charge: float,
+        acceleration_kick: float,
+    ):
+        pass
+
+
+    def kickdrift_considering_periodicity(
+        self,
+        acceleration_kicks: NDArray,
+        rf_station: RFStation,
+        solver: str,
+        turn_i: int,
+    ):
+        pass
+
+    def slice_beam(self, profile, cut_left, cut_right):  # todo rewrite using bmath
+        """Computes a histogram of the dt coordinates"""
         pass

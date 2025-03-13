@@ -53,6 +53,48 @@ __global__ void losses_longitudinal_cut(
     }
 }
 
+
+extern "C"
+__global__ void losses_energy_cut(
+    real_t  * __restrict__ beam_dE,
+    int64_t  * beam_id,
+    const int n_macroparticles,
+    const real_t dE_min,
+    const real_t dE_max
+)
+{
+    int tid = threadIdx.x + blockDim.x * blockIdx.x;
+    real_t my_beam_dE;
+    for (int i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
+        my_beam_dE = beam_dE[i];
+        if ((my_beam_dE < dE_min) || (my_beam_dE > dE_max)){
+            beam_id[i] = 0;
+        }
+    }
+}
+
+
+extern "C"
+__global__ void losses_below_energy(
+    real_t  * __restrict__ beam_dE,
+    int64_t  * beam_id,
+    const int n_macroparticles,
+    const real_t dE_min
+)
+{
+    int tid = threadIdx.x + blockDim.x * blockIdx.x;
+    real_t my_beam_dE;
+    for (int i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
+        my_beam_dE = beam_dE[i];
+        if (my_beam_dE < dE_min){
+            beam_id[i] = 0;
+        }
+    }
+}
+
+
+
+
 extern "C"
 __global__ void eliminate_particles_with_hamiltonian(
     const real_t hamilton_separation,

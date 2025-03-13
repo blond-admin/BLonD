@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from scipy import ndimage
 
-from ..gpu.beam_distributed import BeamDistributedSingleNode
+from .beam_abstract import BeamBaseClass
 from ..toolbox import filters_and_fitting as ffroutines
 from ..utils import bmath as bm
 from ..utils.legacy_support import handle_legacy_kwargs
@@ -161,8 +161,8 @@ class CutOptions:
                 self.cut_left = dt_min - 0.05 * (dt_max - dt_min)
                 self.cut_right = dt_max + 0.05 * (dt_max - dt_min)
             else:
-                mean_coords = np.mean(beam.dt)
-                sigma_coords = np.std(beam.dt)
+                mean_coords = beam.dt_mean()
+                sigma_coords = beam.dt_std()
                 self.cut_left = mean_coords - self.n_sigma * sigma_coords / 2
                 self.cut_right = mean_coords + self.n_sigma * sigma_coords / 2
 
@@ -478,7 +478,7 @@ class Profile:
     """
 
     @handle_legacy_kwargs
-    def __init__(self, beam: Beam,
+    def __init__(self, beam: BeamBaseClass,
                  cut_options: Optional[CutOptions] = None,
                  fit_options: Optional[FitOptions] = None,
                  filter_options: Optional[FilterOptions] = None,
@@ -600,15 +600,12 @@ class Profile:
 
     def _slice(self) -> None:
         """Constant space slicing with a constant frame."""
-        if isinstance(self.beam, BeamDistributedSingleNode):
-            self.n_macroparticles = self.beam.histogram(
-                out=self.n_macroparticles,
-                cut_left=self.cut_left,
-                cut_right=self.cut_right)
-        else:
-            bm.slice_beam(self.beam.dt, self.n_macroparticles, self.cut_left,
-                          self.cut_right)
-    
+        self.beam.slice_beam(
+            profile=self.n_macroparticles,
+            cut_right=self.cut_right,
+            cut_left=self.cut_left
+        )
+
         if bm.in_mpi():
             self.reduce_histo()
 

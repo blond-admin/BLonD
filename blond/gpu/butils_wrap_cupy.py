@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from typing import Optional
 
     from numpy.typing import NDArray
+    from cupy.typing import NDArray as CupyNDArray
 
     from ..beam.beam import Beam
     from ..input_parameters.rf_parameters import RFStation
@@ -96,19 +97,9 @@ def kick(dt, dE, voltage, omega_rf, phi_rf, charge, n_rf, acceleration_kick):
                       ),
                 block=GPU_DEV.block_size, grid=GPU_DEV.grid_size)
 
-def losses_longitudinal_cut(dt, id, dt_min, dt_max):  # todo testcase
-    """Apply the energy kick
+def losses_longitudinal_cut(dt:CupyNDArray, id:CupyNDArray, dt_min:float,
+                            dt_max:float):  # todo testcase
 
-    Args:
-        dt (float array): the time coordinate
-        dE (float array): the energy coordinate
-        voltage (float array): _description_
-        omega_rf (float array): _description_
-        phi_rf (float array): _description_
-        charge (float): _description_
-        n_rf (int): _description_
-        acceleration_kick (float): _description_
-    """
     losses_longitudinal_cut_kernel = GPU_DEV.mod.get_function(
         "losses_longitudinal_cut"
     )
@@ -124,16 +115,49 @@ def losses_longitudinal_cut(dt, id, dt_min, dt_max):  # todo testcase
         block=GPU_DEV.block_size,
         grid=GPU_DEV.grid_size,
     )
+def losses_energy_cut(dE:CupyNDArray, id:CupyNDArray, dE_min:float,
+                      dE_max:float):
+    # todo testcase
+    losses_energy_cut_kernel = GPU_DEV.mod.get_function(
+        "losses_energy_cut"
+    )
 
+    losses_energy_cut_kernel(
+        args=(
+            dE,
+            id,
+            len(dE),
+            dE_min,
+            dE_max,
+        ),
+        block=GPU_DEV.block_size,
+        grid=GPU_DEV.grid_size,
+    )
+def losses_below_energy(dE:CupyNDArray, id:CupyNDArray, dE_min:float):
+    # todo testcase
+    losses_below_energy_kernel = GPU_DEV.mod.get_function(
+        "losses_below_energy"
+    )
+
+    losses_below_energy_kernel(
+        args=(
+            dE,
+            id,
+            len(dE),
+            dE_min,
+        ),
+        block=GPU_DEV.block_size,
+        grid=GPU_DEV.grid_size,
+    )
 
 @handle_legacy_kwargs
 def losses_separatrix(
     ring: Ring,
     rf_station: RFStation,
     beam: Beam,
-    dt: NDArray,
-    dE: NDArray,
-    id: NDArray,
+    dt: CupyNDArray,
+    dE: CupyNDArray,
+    id: CupyNDArray,
     total_voltage: Optional[NDArray] = None,
 ) -> None:
     r"""Function checking whether coordinate pair(s) are inside the separatrix.
@@ -507,3 +531,52 @@ def beam_phase_fast(bin_centers: NDArray, profile: NDArray, omega_rf: float, phi
     ccoeff = cp.trapz(array2, dx=1)
 
     return float(scoeff / ccoeff)
+
+
+def kickdrift_considering_periodicity(
+    acceleration_kick: float,
+    beam_dE: CupyNDArray,
+    beam_dt: CupyNDArray,
+    rf_station: RFStation,
+    solver: str,
+    turn: int,
+):
+    if solver != "simple":
+        msg = (
+            "If you require faster tracking with 'periodicity=True' on the GPU:"
+            " Switch solver to 'simple' or rewrite"
+            " 'kickdrift_considering_periodicity' to consider "
+            "different drift equation!"
+        )
+        raise Exception(msg)
+    # parameters to calculate coeff of drift
+    # Coeff is precalulated on GPU, to spare the time on the GPU
+    T0 = rf_station.t_rev[turn + 1]
+    length_ratio = rf_station.length_ratio
+    eta_zero = rf_station.eta_0[turn + 1]
+    beta = rf_station.beta[turn + 1]
+    energy = rf_station.energy[turn + 1]
+    n_rf = rf_station.voltage.shape[0]
+    kickdrift_considering_periodicity = GPU_DEV.mod.get_function(
+        "kickdrift_considering_periodicity"
+    )
+    kickdrift_considering_periodicity(
+        args=(
+            beam_dt,
+            beam_dE,
+            precision.real_t(rf_station.t_rev[turn + 1]),
+            n_rf,
+            rf_station.voltage[:, turn],
+            rf_station.omega_rf[:, turn],
+            rf_station.phi_rf[:, turn],
+            precision.real_t(rf_station.particle.charge),
+            precision.real_t(acceleration_kick),
+            precision.real_t(
+                T0 * length_ratio * eta_zero / (beta * beta * energy)
+            ),
+            # turn+1
+            len(beam_dt),
+        ),
+        block=GPU_DEV.block_size,
+        grid=GPU_DEV.grid_size,
+    )

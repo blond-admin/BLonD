@@ -17,15 +17,12 @@ and the beam coordinates in phase space.**
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING
 
 import numpy as np
 import scipy
 from packaging.version import Version
 
-from blond.gpu import GPU_DEV
-from blond.utils import precision
-from blond.utils.custom_warnings import PerformanceWarning
 from ..llrf.cavity_feedback import CavityFeedback
 from ..utils import bmath as bm
 from ..utils.legacy_support import handle_legacy_kwargs
@@ -43,7 +40,7 @@ if TYPE_CHECKING:
     from ..impedances.impedance import TotalInducedVoltage
     from ..llrf.beam_feedback import BeamFeedback
     from ..beam.profile import Profile
-    from ..beam.beam import Beam
+    from ..beam.beam_abstract import BeamBaseClass
     from ..input_parameters.rf_parameters import RFStation
     from ..utils.types import DeviceType
 
@@ -137,6 +134,8 @@ class FullRingAndRF:
                                    + " harmonic to compute the potential well"
                                    + " does not match the RF parameters...")
             main_omega_rf = np.min(omega_rf[omega_rf == main_harmonic_option])
+        else:
+            raise RuntimeError("Didnt match any case to set 'main_omega_rf'.")
 
         slippage_factor = self.ring_and_rf_section[0].rf_params.eta_0[turn]
 
@@ -231,7 +230,7 @@ class RingAndRFTracker:
     @handle_legacy_kwargs
     def __init__(self,
                  rf_station: RFStation,
-                 beam: Beam,
+                 beam: BeamBaseClass,
                  solver: Literal['simple', 'exact', 'legacy'] = 'simple',
                  beam_feedback: Optional[BeamFeedback] = None,
                  noise_feedback: None = None,  # FIXME type hint, NoiseFeedback class doesnt exist
@@ -312,7 +311,8 @@ class RingAndRFTracker:
             \Delta E^{n+1} = \Delta E^n + \sum_{k=0}^{n_{\mathsf{rf}}-1}{e V_k^n \\sin{\\left(\omega_{\mathsf{rf,k}}^n \\Delta t^n + \phi_{\mathsf{rf,k}}^n \\right)}} - (E_s^{n+1} - E_s^n)
 
         """
-
+        raise NotImplementedError("Use beam.kick(rf_station, "
+                                  "acceleration_kicks, turn_i) instead")
         bm.kick(beam_dt, beam_dE, self.rf_params.voltage[:, index],
                 self.rf_params.omega_rf[:, index], self.rf_params.phi_rf[:, index],
                 self.rf_params.particle.charge, self.rf_params.n_rf,
@@ -345,6 +345,8 @@ class RingAndRFTracker:
             \\delta = \\frac{\\Delta E}{\\beta_s^2 E_s} \quad \\text{(simple, legacy)}
 
         """
+        raise NotImplementedError("Use beam.drift(rf_station, solver, "
+                                  "turn_i) instead !")
         bm.drift(beam_dt, beam_dE, self.solver, self.rf_params.t_rev[index],
                  self.rf_params.length_ratio, self.rf_params.alpha_order,
                  self.rf_params.eta_0[index], self.rf_params.eta_1[index],
@@ -435,10 +437,11 @@ class RingAndRFTracker:
                     feedback.track()
 
         if self.periodicity:
-            if hasattr(self, '_device') and self._device == 'GPU':
-                self._kickdrift_considering_periodicity_gpu(turn)
-            else:
-                self._kickdrift_considering_periodicity(turn)
+            self.beam.kickdrift_considering_periodicity(
+                acceleration_kicks=self.acceleration_kick,
+                rf_station=self.rf_params,
+                turn_i=turn
+            )
 
         else:
 
@@ -451,45 +454,20 @@ class RingAndRFTracker:
                     else:
                         self.total_voltage = self.rf_voltage
 
-                    bm.linear_interp_kick(dt=self.beam.dt, dE=self.beam.dE,
-                                          voltage=self.total_voltage,
-                                          bin_centers=self.profile.bin_centers,
-                                          charge=self.beam.particle.charge,
-                                          acceleration_kick=self.acceleration_kick[turn])
+                    self.beam.linear_interp_kick(
+                        voltage=self.total_voltage,
+                        bin_centers=self.profile.bin_centers,
+                        charge=self.beam.particle.charge,
+                        acceleration_kick=self.acceleration_kick[turn]
+                    )
 
                 else:
-                    from blond.gpu.beam_distributed import (
-                        BeamDistributedSingleNode)
+                    self.beam.kick(rf_station=self.rf_params,
+                                   acceleration_kicks=self.acceleration_kick,
+                                   turn_i=turn)
 
-                    if isinstance(self.beam,BeamDistributedSingleNode ):
-                        import cupy as cp
-                        self.beam.kick( # todo
-                            voltage=(self.rf_params.voltage[:, turn]),
-                            omega_rf=(self.rf_params.omega_rf[:, turn]),
-                            phi_rf=(self.rf_params.phi_rf[:,turn]),
-                            charge=float(self.rf_params.particle.charge),
-                            n_rf=int(self.rf_params.n_rf),
-                            acceleration_kick=float(self.acceleration_kick[turn])
-                        )
-                    else:
-                        self.kick(self.beam.dt, self.beam.dE, turn)
-            if isinstance(self.beam, BeamDistributedSingleNode):
-                self.beam.drift(
-                    solver=self.solver,
-                    t_rev=float(self.rf_params.t_rev[turn+1]),
-                    length_ratio=float(self.rf_params.length_ratio),
-                    alpha_order=float(self.rf_params.alpha_order),
-                    eta_0=float(self.rf_params.eta_0[turn+1]),
-                    eta_1=float(self.rf_params.eta_1[turn+1]),
-                    eta_2=float(self.rf_params.eta_2[turn+1]),
-                    alpha_0=float(self.rf_params.alpha_0[turn+1]),
-                    alpha_1=float(self.rf_params.alpha_1[turn+1]),
-                    alpha_2=float(self.rf_params.alpha_2[turn+1]),
-                    beta=float(self.rf_params.beta[turn+1]),
-                    energy=float(self.rf_params.energy[turn+1])
-                )
-            else:
-                self.drift(self.beam.dt, self.beam.dE, turn + 1)
+            self.beam.drift(rf_station=self.rf_params, solver=self.solver,
+                            turn_i=turn + 1)
 
         # Updating the beam synchronous momentum etc.
         self.beam.beta = self.rf_params.beta[turn + 1]
@@ -508,6 +486,10 @@ class RingAndRFTracker:
         turn
             Current turn
         """
+        raise NotImplementedError("Use instead "
+                                  "beam.kickdrift_considering_periodicity("
+                                  "acceleration_kicks, rf_station, solver, "
+                                  "turn_i) " )
         # Distinguish the particles inside the frame from the particles on
         # the right-hand side of the frame.
         self.indices_right_outside = \
@@ -554,53 +536,6 @@ class RingAndRFTracker:
             self.beam.dt[self.indices_left_outside] = left_outsiders_dt
             self.beam.dE[self.indices_left_outside] = left_outsiders_dE
 
-    def _kickdrift_considering_periodicity_gpu(self, turn: int):
-        """Kick&drift considering t_rev for continuity
-
-        Notes
-        -----
-        Same as self._kickdrift_considering_periodicity, but for GPU
-
-        Parameters
-        ----------
-        turn
-            Current turn
-        """
-        if self.solver != 'simple':
-            warnings.warn(
-                "If you require faster tracking with 'periodicity=True' on the GPU:"
-                " Switch solver to 'simple' or rewrite"
-                " 'kickdrift_considering_periodicity' to consider different drift equation!",
-                PerformanceWarning
-            )
-            self._kickdrift_considering_periodicity(turn=turn)
-
-        # parameters to calculate coeff of drift
-        T0 = self.rf_params.t_rev[turn + 1]
-        length_ratio = self.rf_params.length_ratio
-        eta_zero = self.rf_params.eta_0[turn + 1]
-        beta = self.rf_params.beta[turn + 1]
-        energy = self.rf_params.energy[turn + 1]
-
-        n_rf = self.rf_params.voltage.shape[0]
-
-        kickdrift_considering_periodicity = GPU_DEV.mod.get_function("kickdrift_considering_periodicity")
-        kickdrift_considering_periodicity(
-            args=(
-                self.beam.dt,
-                self.beam.dE,
-                precision.real_t(self.rf_params.t_rev[turn + 1]),
-                n_rf,
-                self.rf_params.voltage[:, turn],
-                self.rf_params.omega_rf[:, turn],
-                self.rf_params.phi_rf[:, turn],
-                precision.real_t(self.rf_params.particle.charge),
-                precision.real_t(self.acceleration_kick[turn]),
-                precision.real_t(T0 * length_ratio * eta_zero / (beta * beta * energy)),  # turn+1
-                len(self.beam.dt)
-            ),
-            block=GPU_DEV.block_size, grid=GPU_DEV.grid_size
-        )
 
     def to_gpu(self, recursive=True):
         """

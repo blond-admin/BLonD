@@ -5,14 +5,28 @@ from typing import TYPE_CHECKING, Optional
 import cupy as cp
 import numpy as np
 
+from ._beam_distributed_gluecode import (
+    _kick_helper,
+    _drift_helper,
+    _losses_separatrix_helper,
+    _losses_longitudinal_cut_helper,
+    _losses_energy_cut_helper,
+    _losses_below_energy_helper,
+    _dE_mean_helper,
+    _dE_mean_helper_ignore_id_0,
+    _dE_std_helper,
+    _dE_std_helper_ignore_id_0,
+    _dt_mean_helper,
+    _dt_mean_helper_ignore_id_0,
+    _dt_std_helper,
+    _dt_std_helper_ignore_id_0,
+    _linear_interp_kick_helper,
+    _kickdrift_considering_periodicity_helper,
+)
 from ..beam.beam import Beam
 from ..beam.beam_abstract import BeamBaseClass
 from ..gpu.butils_wrap_cupy import (
-    kick,
-    drift,
     slice_beam,
-    losses_longitudinal_cut,
-    losses_separatrix,
 )
 from ..input_parameters.rf_parameters import RFStation
 from ..input_parameters.ring import Ring
@@ -23,6 +37,7 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
 
 max_n_gpus = cp.cuda.runtime.getDeviceCount()
+all_devices = [cp.cuda.Device(gpu_i) for gpu_i in range(max_n_gpus)]
 streams = [cp.cuda.Stream(non_blocking=True) for i in range(16)]  # todo
 
 
@@ -32,7 +47,7 @@ def get_device(gpu_i: int):
     if max_n_gpus == 1:
         device_i = streams[gpu_i]
     else:
-        device_i = cp.cuda.Device(gpu_i)
+        device_i = all_devices[gpu_i]
     return device_i
 
 
@@ -78,9 +93,7 @@ class DistributedMultiGpuArray:
                     array_tmp, dtype=array_cpu.dtype
                 )
 
-                self.buffers[gpu_i] = cp.empty(
-                    (1,), dtype=array_cpu.dtype
-                )
+                self.buffers[gpu_i] = cp.empty((1,), dtype=array_cpu.dtype)
                 self.buffers_int[gpu_i] = cp.empty((1,), dtype=int)
         print(f"{len(self.gpu_arrays)=}")
 
@@ -561,9 +574,11 @@ class BeamDistributedSingleNode(BeamBaseClass):
             N = self.n_macroparticles
         return np.sqrt(np.nansum(sums) / N)
 
-    def histogram(self, out, cut_left, cut_right):  # todo rewrite using bmath
+    def slice_beam(
+        self, profile, cut_left, cut_right
+    ):  # todo rewrite using bmath
         """Computes a histogram of the dt coordinates"""
-        self.__init_profile_multi_gpu(n_bins=len(out))
+        self.__init_profile_multi_gpu(n_bins=len(profile))
         for gpu_i, dt_multi_gpu in self.dt_multi_gpu.gpu_arrays.items():
             with get_device(gpu_i=gpu_i):
                 slice_beam(
@@ -576,208 +591,77 @@ class BeamDistributedSingleNode(BeamBaseClass):
         if len(self.profile_multi_gpu) > 1:
             for hist_tmp in self.profile_multi_gpu.values():
                 hist[:] += hist_tmp[:].get()
+        profile[:] = cp.array(hist)[:]
 
-        return cp.array(hist)
-
+    # TODO TESTCASE
     def kick(
-        self,
-        voltage: NDArray,
-        omega_rf: NDArray,
-        phi_rf: NDArray,
-        charge: float,
-        n_rf: int,
-        acceleration_kick: float,
+        self, rf_station: RFStation, acceleration_kicks: NDArray, turn_i: int
     ):
         # accept only CPU arrays,
         # send them to the specific GPU during execution
+        voltage = rf_station.voltage[:, turn_i]
+        omega_rf = rf_station.omega_rf[:, turn_i]
+        phi_rf = rf_station.phi_rf[:, turn_i]
+
         assert not hasattr(voltage, "get")
         assert not hasattr(omega_rf, "get")
         assert not hasattr(phi_rf, "get")
         self.map_no_result(
-            kick_helper,
+            _kick_helper,
             voltage=voltage,
             omega_rf=omega_rf,
             phi_rf=phi_rf,
+            charge=rf_station.particle.charge,
+            n_rf=rf_station.n_rf,
+            acceleration_kick=acceleration_kicks[turn_i],
+        )
+
+    # TODO TESTCASE
+    def drift(self, rf_station: RFStation, solver: str, turn_i: int):
+        self.map_no_result(
+            _drift_helper,
+            solver=solver,
+            t_rev=float(rf_station.t_rev[turn_i]),
+            length_ratio=float(rf_station.length_ratio),
+            alpha_order=float(rf_station.alpha_order),
+            eta_0=float(rf_station.eta_0[turn_i]),
+            eta_1=float(rf_station.eta_1[turn_i]),
+            eta_2=float(rf_station.eta_2[turn_i]),
+            alpha_0=float(rf_station.alpha_0[turn_i]),
+            alpha_1=float(rf_station.alpha_1[turn_i]),
+            alpha_2=float(rf_station.alpha_2[turn_i]),
+            beta=float(rf_station.beta[turn_i]),
+            energy=float(rf_station.energy[turn_i]),
+        )
+
+    # TODO TESTCASE
+    def linear_interp_kick(
+        self,
+        voltage: NDArray,
+        bin_centers: NDArray,
+        charge: float,
+        acceleration_kick: float,
+    ):
+        self.map_no_result(
+            _linear_interp_kick_helper,
+            voltage=voltage,
+            bin_centers=bin_centers,
             charge=charge,
-            n_rf=n_rf,
             acceleration_kick=acceleration_kick,
         )
 
-    def drift(
+    # TODO TESTCASE
+    def kickdrift_considering_periodicity(
         self,
-        solver,
-        t_rev,
-        length_ratio,
-        alpha_order,
-        eta_0,
-        eta_1,
-        eta_2,
-        alpha_0,
-        alpha_1,
-        alpha_2,
-        beta,
-        energy,
+        acceleration_kicks: NDArray,
+        rf_station: RFStation,
+        solver: str,
+        turn_i: int,
     ):
         self.map_no_result(
-            drift_helper,
+            _kickdrift_considering_periodicity_helper,
+            acceleration_kicks=acceleration_kicks,
+            rf_station=rf_station,
             solver=solver,
-            t_rev=t_rev,
-            length_ratio=length_ratio,
-            alpha_order=alpha_order,
-            eta_0=eta_0,
-            eta_1=eta_1,
-            eta_2=eta_2,
-            alpha_0=alpha_0,
-            alpha_1=alpha_1,
-            alpha_2=alpha_2,
-            beta=beta,
-            energy=energy,
+            turn=turn_i,
         )
-
-
-def kick_helper(
-    dt_gpu_i,
-    dE_gpu_i,
-    id_gpu_i,
-    voltage,
-    omega_rf,
-    phi_rf,
-    charge,
-    n_rf,
-    acceleration_kick,
-):
-    kick(
-        dt=dt_gpu_i,
-        dE=dE_gpu_i,
-        voltage=cp.array(voltage),  # so that voltage is on each device
-        omega_rf=cp.array(omega_rf),  # so that voltage is on each device
-        phi_rf=cp.array(phi_rf),  # so that voltage is on each device
-        charge=charge,
-        n_rf=n_rf,
-        acceleration_kick=acceleration_kick,
-    )
-
-
-def drift_helper(
-    dt_gpu_i,
-    dE_gpu_i,
-    id_gpu_i,
-    solver,
-    t_rev,
-    length_ratio,
-    alpha_order,
-    eta_0,
-    eta_1,
-    eta_2,
-    alpha_0,
-    alpha_1,
-    alpha_2,
-    beta,
-    energy,
-):
-    drift(
-        dt=dt_gpu_i,
-        dE=dE_gpu_i,
-        solver=solver,
-        t_rev=t_rev,
-        length_ratio=length_ratio,
-        alpha_order=alpha_order,
-        eta_0=eta_0,
-        eta_1=eta_1,
-        eta_2=eta_2,
-        alpha_0=alpha_0,
-        alpha_1=alpha_1,
-        alpha_2=alpha_2,
-        beta=beta,
-        energy=energy,
-    )
-
-
-def _losses_separatrix_helper(
-    dt_gpu_i,
-    dE_gpu_i,
-    id_gpu_i,
-    ring,
-    beam,
-    rf_station,
-):
-    losses_separatrix(
-        ring=ring,
-        rf_station=rf_station,
-        beam=beam,
-        dt=dt_gpu_i,
-        dE=dE_gpu_i,
-        id=id_gpu_i,
-    )
-
-
-def _losses_longitudinal_cut_helper(
-    dt_gpu_i, dE_gpu_i, id_gpu_i, dt_min, dt_max
-):
-    losses_longitudinal_cut(
-        dt=dt_gpu_i, id=id_gpu_i, dt_min=dt_min, dt_max=dt_max
-    )
-
-
-def _losses_energy_cut_helper(dt_gpu_i, dE_gpu_i, id_gpu_i, dE_min, dE_max):
-    id_gpu_i[(dE_gpu_i < dE_min) | (dE_gpu_i > dE_max)] = 0  # todo rewrite
-    # for GPU
-
-
-def _losses_below_energy_helper(dt_gpu_i, dE_gpu_i, id_gpu_i, dE_min):
-    id_gpu_i[dE_gpu_i < dE_min] = 0  # todo rewrite
-    # for GPU
-
-
-def _dE_mean_helper(dE_gpu_i):
-    return cp.mean(dE_gpu_i)
-
-
-def _dE_mean_helper_ignore_id_0(dt_gpu_i, dE_gpu_i, id_gpu_i):
-    mask = id_gpu_i > 0
-    masked = dE_gpu_i[mask]
-    if len(masked) == 0:
-        return np.nan
-    else:
-        return cp.mean(masked)
-
-
-def _dE_std_helper(dE_gpu_i, mean):
-    tmp = dE_gpu_i - mean
-    return cp.sum(tmp * tmp)
-
-
-def _dE_std_helper_ignore_id_0(dt_gpu_i, dE_gpu_i, id_gpu_i, mean):
-    mask = id_gpu_i > 0
-    if not cp.any(mask):
-        return np.nan
-    else:
-        tmp = dE_gpu_i[mask] - mean
-        return cp.sum(tmp * tmp)
-
-
-def _dt_mean_helper(dt_gpu_i):
-    return cp.mean(dt_gpu_i)
-
-
-def _dt_mean_helper_ignore_id_0(dt_gpu_i, dE_gpu_i, id_gpu_i):
-    mask = id_gpu_i > 0
-    masked = dt_gpu_i[mask]
-    if len(masked) == 0:
-        return np.nan
-    else:
-        return cp.mean(masked)
-
-
-def _dt_std_helper(dt_gpu_i, mean):
-    tmp = dt_gpu_i - mean
-    return cp.sum(tmp * tmp)
-
-
-def _dt_std_helper_ignore_id_0(dt_gpu_i, dE_gpu_i, id_gpu_i, mean):
-    mask = id_gpu_i > 0
-    if not cp.any(mask):
-        return np.nan
-    else:
-        tmp = dt_gpu_i[mask] - mean
-        return cp.sum(tmp * tmp)

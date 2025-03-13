@@ -829,3 +829,169 @@ class Beam(BeamBaseClass):
         )
         if bm.in_mpi():
             self.reduce_histo()
+
+    def kick(
+        self, rf_station: RFStation, acceleration_kicks: NDArray, turn_i: int
+    ):
+        r"""Function updating the dE array
+
+        Function updating the particle energy due to the RF kick in a given
+        RF station. The kicks are summed over the different harmonic RF systems
+        in the station. The cavity phase can be shifted by the user via
+        phi_offset. The main RF (harmonic[0]) has by definition phase = 0 at
+        time = 0 below transition. The phases of all other RF systems are
+        defined w.r.t.\ to the main RF. The increment in energy is given by the
+        discrete equation of motion:
+
+        .. math::
+            \Delta E^{n+1} = \Delta E^n + \sum_{k=0}^{n_{\mathsf{rf}}-1}{e V_k^n \\sin{\\left(\omega_{\mathsf{rf,k}}^n \\Delta t^n + \phi_{\mathsf{rf,k}}^n \\right)}} - (E_s^{n+1} - E_s^n)
+
+        """
+
+        bm.kick(
+            dt=self.dt,
+            dE=self.dE,
+            voltage=rf_station.voltage[:, turn_i],
+            omega_rf=rf_station.omega_rf[:, turn_i],
+            phi_rf=rf_station.phi_rf[:, turn_i],
+            charge=rf_station.particle.charge,
+            n_rf=rf_station.n_rf,
+            acceleration_kick=acceleration_kicks[turn_i]
+        )
+
+    def drift(self, rf_station: RFStation, solver: str, turn_i: int):
+        r"""Function updating the dt array
+
+        Function updating the particle arrival time to the RF station
+        (drift). If only the zeroth order slippage factor is given, 'simple'
+        and 'exact' solvers are available. The 'simple' solver is somewhat
+        faster. Otherwise, the solver is automatically 'exact' and calculates
+        the frequency slippage up to second order. The corresponding equations
+        are (nb: the n indices correspond to the turn number):
+
+        .. math::
+            \\Delta t^{n+1} = \\Delta t^{n} + \\frac{L}{C} T_0^{n+1} \\left[ \\left(1+\\sum_{i=0}^{2}{\\alpha_i\\left(\\delta^{n+1}\\right)^{i+1}}\\right)   \\frac{1+\\left(\\Delta E/E_s\\right)^{n+1}}{1+\\delta^{n+1}}    - 1\\right] \quad \\text{(exact)}
+
+        .. math::
+            \\Delta t^{n+1} = \\Delta t^{n} + \\frac{L}{C} T_0^{n+1} \\left(\\frac{1}{1 - \\eta(\\delta^{n+1})\\delta^{n+1}} - 1\\right) \quad \\text{(legacy)}
+
+        .. math::
+            \\Delta t^{n+1} = \\Delta t^{n} + \\frac{L}{C} T_0^{n+1}\\eta_0\\delta^{n+1} \quad \\text{(simple)}
+
+        The relative momentum needs to be calculated from the relative energy
+        and is obtained as follow:
+
+        .. math::
+            \\delta = \\sqrt{1+\\beta_s^{-2}\\left[\\left(\\frac{\\Delta E}{E_s}\\right)^2 + 2\\frac{\\Delta E}{E_s}\\right]} - 1 \quad \\text{(exact)}
+
+        .. math::
+            \\delta = \\frac{\\Delta E}{\\beta_s^2 E_s} \quad \\text{(simple, legacy)}
+
+        """
+        bm.drift(
+            dE=self.dE,
+            dt=self.dt,
+            solver=solver,
+            t_rev=rf_station.t_rev[turn_i],
+            length_ratio=rf_station.length_ratio,
+            alpha_order=rf_station.alpha_order,
+            eta_0=rf_station.eta_0[turn_i],
+            eta_1=rf_station.eta_1[turn_i],
+            eta_2=rf_station.eta_2[turn_i],
+            alpha_0=rf_station.alpha_0[turn_i],
+            alpha_1=rf_station.alpha_1[turn_i],
+            alpha_2=rf_station.alpha_2[turn_i],
+            beta=rf_station.beta[turn_i],
+            energy=rf_station.energy[turn_i])
+
+    def linear_interp_kick(
+        self,
+        voltage: NDArray,
+        bin_centers: NDArray,
+        charge: float,
+        acceleration_kick: float,
+    ):
+        bm.linear_interp_kick(dt=self.dt, dE=self.dE,
+                              voltage=voltage,
+                              bin_centers=bin_centers,
+                              charge=charge,
+                              acceleration_kick=acceleration_kick)
+
+    def kickdrift_considering_periodicity(
+        self,
+        acceleration_kicks: NDArray,
+        rf_station: RFStation,
+        solver: str,
+        turn_i: int,
+    ):
+        # Distinguish the particles inside the frame from the particles on
+        # the right-hand side of the frame.
+        indices_right_outside = \
+            bm.where(self.dt > rf_station.t_rev[turn_i + 1])[0]
+        indices_inside_frame = \
+            bm.where(self.dt < rf_station.t_rev[turn_i + 1])[0]
+
+        if len(indices_right_outside) > 0:
+            # Change reference of all the particles on the right of the
+            # current frame; these particles skip one kick and drift
+            self.dt[indices_right_outside] -= \
+                rf_station.t_rev[turn_i + 1]
+            # Synchronize the bunch with the particles that are on the
+            # RHS of the current frame applying kick and drift to the
+            # bunch
+            # After that all the particles are in the new updated frame
+            insiders_dt = bm.ascontiguousarray(
+                self.dt[indices_inside_frame])
+            insiders_dE = bm.ascontiguousarray(
+                self.dE[indices_inside_frame])
+            #kick(insiders_dt, insiders_dE, turn)
+            index = turn_i
+            bm.kick(insiders_dt, insiders_dE, rf_station.voltage[:, index],
+                    rf_station.omega_rf[:, index],
+                    rf_station.phi_rf[:, index],
+                    rf_station.particle.charge, rf_station.n_rf,
+                    acceleration_kicks[index])
+            #drift(insiders_dt, insiders_dE, turn + 1)
+            self.dt[indices_inside_frame] = insiders_dt
+            self.dE[indices_inside_frame] = insiders_dE
+            # Check all the particles on the left of the just updated
+            # frame and apply a second kick and drift to them with the
+            # previous wave after having changed reference.
+            indices_left_outside = bm.where(self.dt < 0)[0]
+        else:
+            #kick(self.dt, self.dE, turn)
+            self.kick(rf_station=rf_station,
+                      acceleration_kicks=acceleration_kicks, turn_i=turn_i)
+
+            #drift(self.dt, self.dE, turn + 1)
+            self.drift(rf_station=rf_station,solver=solver,turn_i=turn_i+1)
+            # Check all the particles on the left of the just updated
+            # frame and apply a second kick and drift to them with the
+            # previous wave after having changed reference.
+            indices_left_outside = bm.where(self.dt < 0)[0]
+        if len(indices_left_outside) > 0:
+            left_outsiders_dt = bm.ascontiguousarray(
+                self.dt[indices_left_outside])
+            left_outsiders_dE = bm.ascontiguousarray(
+                self.dE[indices_left_outside])
+            left_outsiders_dt += rf_station.t_rev[turn_i + 1]
+            #kick(left_outsiders_dt, left_outsiders_dE, turn)
+            index = turn_i
+            bm.kick(left_outsiders_dt, left_outsiders_dE, rf_station.voltage[:, index],
+                    rf_station.omega_rf[:, index],
+                    rf_station.phi_rf[:, index],
+                    rf_station.particle.charge, rf_station.n_rf,
+                    acceleration_kicks[index])
+            # drift(left_outsiders_dt, left_outsiders_dE, turn + 1)
+            index = turn_i + 1
+            bm.drift(left_outsiders_dt, left_outsiders_dE, solver,
+                     rf_station.t_rev[index],
+                     rf_station.length_ratio, rf_station.alpha_order,
+                     rf_station.eta_0[index], rf_station.eta_1[index],
+                     rf_station.eta_2[index],
+                     rf_station.alpha_0[index],
+                     rf_station.alpha_1[index],
+                     rf_station.alpha_2[index],
+                     rf_station.beta[index], rf_station.energy[index])
+            self.dt[indices_left_outside] = left_outsiders_dt
+            self.dE[indices_left_outside] = left_outsiders_dE
