@@ -575,7 +575,7 @@ class BeamDistributedSingleNode(BeamBaseClass):
         return np.sqrt(np.nansum(sums) / N)
 
     def slice_beam(
-        self, profile, cut_left, cut_right
+        self, profile: CupyNDArray, cut_left:float, cut_right:float
     ):  # todo rewrite using bmath
         """Computes a histogram of the dt coordinates"""
         self.__init_profile_multi_gpu(n_bins=len(profile))
@@ -591,7 +591,10 @@ class BeamDistributedSingleNode(BeamBaseClass):
         if len(self.profile_multi_gpu) > 1:
             for hist_tmp in self.profile_multi_gpu.values():
                 hist[:] += hist_tmp[:].get()
-        profile[:] = cp.array(hist)[:]
+        if hasattr(profile, "get"):
+            profile[:] = cp.array(hist)[:]
+        else:
+            profile[:] = hist[:]
 
     # TODO TESTCASE
     def kick(

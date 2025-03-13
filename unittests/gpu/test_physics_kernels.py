@@ -505,8 +505,12 @@ class TestBigaussianData:
                                    err_msg='Checking initial conditions')
 
         for i in range(n_iter):
-            long_tracker.kick(beam.dt, beam.dE, long_tracker.counter[0])
-            long_tracker.drift(beam.dt, beam.dE, long_tracker.counter[0] + 1)
+            long_tracker.beam.kick(rf_station=long_tracker.rf_params,
+                                  acceleration_kicks=long_tracker.acceleration_kick,
+                                  turn_i=long_tracker.counter[0])
+            long_tracker.beam.drift(rf_station=long_tracker.rf_params,
+                                    solver=long_tracker.solver,
+                                    turn_i=long_tracker.counter[0] + 1)
 
             long_tracker.counter[0] += 1
 
@@ -515,10 +519,12 @@ class TestBigaussianData:
         long_tracker_gpu.to_gpu()
         for i in range(n_iter):
 
-            long_tracker_gpu.kick(beam_gpu.dt, beam_gpu.dE,
-                                  long_tracker_gpu.counter[0])
-            long_tracker_gpu.drift(
-                beam_gpu.dt, beam_gpu.dE, long_tracker_gpu.counter[0] + 1)
+            long_tracker_gpu.beam.kick(rf_station=long_tracker_gpu.rf_params,
+                                  acceleration_kicks=long_tracker_gpu.acceleration_kick,
+                                  turn_i=long_tracker_gpu.counter[0])
+            long_tracker_gpu.beam.drift(rf_station=long_tracker_gpu.rf_params,
+                                    solver=long_tracker_gpu.solver,
+                                    turn_i=long_tracker_gpu.counter[0] + 1)
 
             long_tracker_gpu.counter[0] += 1
 

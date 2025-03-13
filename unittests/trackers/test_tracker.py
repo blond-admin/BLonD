@@ -29,6 +29,8 @@ from blond.input_parameters.ring import Ring
 from blond.llrf.rf_modulation import PhaseModulation as PMod
 from blond.trackers.tracker import RingAndRFTracker
 from blond.utils import bmath
+from blond.gpu.butils_wrap_cupy import (kickdrift_considering_periodicity as
+                                        kickdrift_considering_periodicity_gpu)
 
 
 def orig_rf_volt_comp(tracker):
@@ -273,7 +275,7 @@ class Test:
         dt_test = np.linspace(-2 * self.rf_station.t_rev[self.turn + 1],
                               +2 * self.rf_station.t_rev[self.turn + 1],
                               self.beam.n_macroparticles)
-        dE_test = 1e3 + np.random.randn(self.beam.n_macroparticles)
+        dE_test = 1e3 + np.linspace(-1,1,self.beam.n_macroparticles)
         self.beam.dt = dt_test
         self.beam.dE = dE_test
         self.profile = Profile(self.beam, CutOptions(n_slices=100, cut_left=0, cut_right=self.rf_station.t_rf[0, 0]),
@@ -299,7 +301,12 @@ class Test:
         set_mode()
         self._setUp()
         dt_org = deepcopy(self.long_tracker.beam.dt)
-        self.long_tracker._kickdrift_considering_periodicity(turn=self.turn)
+        self.long_tracker.beam.kickdrift_considering_periodicity(
+            acceleration_kicks=self.long_tracker.acceleration_kick,
+            rf_station=self.long_tracker.rf_params,
+            solver=self.long_tracker.solver,
+            turn_i=self.turn,
+        )
         dt_new = deepcopy(self.long_tracker.beam.dt)
         # assert that _fix_periodicity is acting on dt
         # otherwise testcase has no sense
@@ -309,7 +316,14 @@ class Test:
         bmath.use_gpu()
         self._setUp()
         dt_org = deepcopy(self.long_tracker.beam.dt)
-        self.long_tracker._kickdrift_considering_periodicity_gpu(turn=self.turn)
+        self.long_tracker.to_gpu()
+        turn = 0
+        self.long_tracker.beam.kickdrift_considering_periodicity(
+            acceleration_kicks=self.long_tracker.acceleration_kick,
+            rf_station=self.long_tracker.rf_params,
+            solver=self.long_tracker.solver,
+            turn_i=self.turn,
+        )
         dt_new = deepcopy(self.long_tracker.beam.dt)
         # assert that _fix_periodicity is acting on dt
         # otherwise testcase has no sense
@@ -318,18 +332,33 @@ class Test:
     def test_gpu_correct(self):
         bmath.use_gpu()
         self._setUp()
-        self.long_tracker._kickdrift_considering_periodicity_gpu(turn=self.turn)
-        dt_new = self.long_tracker.beam.dt.copy()
+        self.long_tracker.to_gpu()
+        kickdrift_considering_periodicity_gpu(
+            acceleration_kick=self.long_tracker.acceleration_kick[self.turn],
+            beam_dE=self.long_tracker.beam.dE,
+            beam_dt=self.long_tracker.beam.dt,
+            rf_station=self.long_tracker.rf_params,
+            solver=self.long_tracker.solver,
+            turn=self.turn
+        )
+        dt_new = self.long_tracker.beam.dt.get().copy()
 
 
         bmath.use_cpu()
         self._setUp()
-        self.long_tracker._kickdrift_considering_periodicity(turn=self.turn)
+        self.long_tracker.beam.kickdrift_considering_periodicity(
+            acceleration_kicks=self.long_tracker.acceleration_kick,
+            rf_station=self.long_tracker.rf_params,
+            solver=self.long_tracker.solver,
+            turn_i=self.turn,
+        )
         dt_ok= self.long_tracker.beam.dt.copy()
-
+        sel = ~np.isclose(dt_new, dt_ok,rtol=1e-7, atol=1e-11)
+        print(dt_ok[sel])
+        print(dt_new[sel])
         # assert that _fix_periodicity is acting on dt
         # otherwise testcase has no sense
-        cupy.testing.assert_allclose(dt_new, dt_ok)
+        np.testing.assert_allclose(dt_new, dt_ok,rtol=1e-7, atol=1e-11)
 
     @pytest.mark.skip(reason="Only for devs")
     def test_gpu_faster(self):

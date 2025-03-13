@@ -5,8 +5,9 @@
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
-import cupy as cp
 import os
+
+import cupy as cp
 
 # To check if executing correctly, rather than to run the full simulation
 DRAFT_MODE = False or bool(
@@ -40,13 +41,12 @@ from blond.utils import bmath as bm
 from blond.gpu.beam_distributed import BeamDistributedSingleNode
 from blond.beam.beam import Beam, Proton
 from blond.beam.distributions import bigaussian
-from blond.beam.profile import CutOptions, FitOptions, Profile
+from blond.beam.profile import CutOptions, Profile
 from blond.input_parameters.rf_parameters import RFStation
 
 #  BLonD Imports
 from blond.input_parameters.ring import Ring
 from blond.monitors.monitors import BunchMonitor
-from blond.plots.plot import Plot
 from blond.trackers.tracker import RingAndRFTracker
 
 
@@ -138,9 +138,9 @@ def main(mock_n_gpus):
 
     # Tracking --------------------------------------------------------------------
     if DRAFT_MODE:
-        N_t = 20
+        N_t = 50
     t0 = time.perf_counter()
-    for i in range(1, 50):
+    for i in range(1,  N_t):
         # Plot has to be done before tracking (at least for cases with separatrix)
         if (i % dt_plt) == 0:
             print("Outputting at time step %d..." % i)
