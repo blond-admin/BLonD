@@ -96,7 +96,7 @@ def kick(dt, dE, voltage, omega_rf, phi_rf, charge, n_rf, acceleration_kick):
                       ),
                 block=GPU_DEV.block_size, grid=GPU_DEV.grid_size)
 
-def losses_longitudinal_cut(dt, id, dt_min, dt_max): # todo testcase
+def losses_longitudinal_cut(dt, id, dt_min, dt_max):  # todo testcase
     """Apply the energy kick
 
     Args:
@@ -110,16 +110,21 @@ def losses_longitudinal_cut(dt, id, dt_min, dt_max): # todo testcase
         acceleration_kick (float): _description_
     """
     losses_longitudinal_cut_kernel = GPU_DEV.mod.get_function(
-        "losses_longitudinal_cut")
+        "losses_longitudinal_cut"
+    )
 
+    losses_longitudinal_cut_kernel(
+        args=(
+            dt,
+            id,
+            len(dt),
+            dt_min,
+            dt_max,
+        ),
+        block=GPU_DEV.block_size,
+        grid=GPU_DEV.grid_size,
+    )
 
-    losses_longitudinal_cut_kernel(args=(dt,
-                      id,
-                      len(dt),
-                      dt_min,
-                      dt_max,
-                      ),
-                block=GPU_DEV.block_size, grid=GPU_DEV.grid_size)
 
 @handle_legacy_kwargs
 def losses_separatrix(
@@ -201,8 +206,9 @@ def losses_separatrix(
     V0 = float(rf_station.voltage[0, counter]) * rf_station.particle.charge
 
     # slippage factor as a function of the energy offset
-    slippage_by_energy = float(rf_station.eta_tracking(beam, counter,
-                                                       dE)) # todo will fail
+    slippage_by_energy = float(
+        rf_station.eta_tracking(beam, counter, dE)
+    )  # todo will fail if self.alpha_order != 0
     # if
     ring_circumference = ring.ring_circumference
     beam_beta = beam.beta
@@ -221,23 +227,25 @@ def losses_separatrix(
     c2 = c * beam_beta * V0 / (h0 * ring_circumference)
     ######################################################################
     eliminate_particles_with_hamiltonian_kernel = GPU_DEV.mod.get_function(
-        "eliminate_particles_with_hamiltonian")
-
-    eliminate_particles_with_hamiltonian_kernel(block=GPU_DEV.block_size,
-                                                grid=GPU_DEV.grid_size,
-                                                args=(
-        precision.real_t(hamilton_separation),
-        precision.real_t(c1),
-        precision.real_t(c2),
-        dE,
-        dt,
-        precision.real_t(eta0_turn_i),
-        id,
-        precision.real_t(phi_rf_d_turn_i),
-        precision.real_t(phi_rf_turn_i),
-        precision.real_t(phi_s_turn_i),
-        len(dE)
-    ))
+        "eliminate_particles_with_hamiltonian"
+    )
+    eliminate_particles_with_hamiltonian_kernel(
+        block=GPU_DEV.block_size,
+        grid=GPU_DEV.grid_size,
+        args=(
+            precision.real_t(hamilton_separation),
+            precision.real_t(c1),
+            precision.real_t(c2),
+            dE,
+            dt,
+            precision.real_t(eta0_turn_i),
+            id,
+            precision.real_t(phi_rf_d_turn_i),
+            precision.real_t(phi_rf_turn_i),
+            precision.real_t(phi_s_turn_i),
+            len(dE),
+        ),
+    )
 
 
 def drift(dt, dE, solver, t_rev, length_ratio, alpha_order, eta_0,

@@ -78,16 +78,17 @@ __global__ void eliminate_particles_with_hamiltonian(
         // Modulo 2 Pi of bunch phase
         if (eta0_turn_i < 0){
             // Projects a phase array into the range -Pi/2 to +3*Pi/2.
-            phi_b = phi_b - 2.0 * M_PI * (floorf(phi_b / (2.0 * M_PI) + 0.5));
+            phi_b  -= 2.0 * M_PI * (floor(phi_b / (2.0 * M_PI) + 0.5));
         }
         else if (eta0_turn_i > 0){
             // Projects a phase array into the range -Pi/2 to +3*Pi/2.*
-            phi_b = phi_b - 2.0 * M_PI * floorf(phi_b / (2.0 * M_PI));
+            phi_b -= 2.0 * M_PI * floor(phi_b / (2.0 * M_PI));
+
         }
-        hamiltonian_ = c1 * (dE[i] * dE[i]) + c2 * (
-                cos(phi_b) - cosphi_s_turn_i + (phi_b - phi_s_turn_i) * phi_s_turn_i
-        );
-        if (!(abs(hamiltonian_) < abs(hamilton_separation))){
+
+        hamiltonian_ = c1 * (dE[i] * dE[i]) + c2 * (cos(phi_b) - cosphi_s_turn_i
+                                + (phi_b - phi_s_turn_i) * sinphi_s_turn_i);
+        if ((abs(hamiltonian_) >= abs(hamilton_separation))){
             id[i] = 0;
         }
     }

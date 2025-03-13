@@ -15,7 +15,7 @@ from blond.utils import bmath as bm
 class TestLossesSeparatrix(unittest.TestCase):
     def setUp(self):
         """Special version of beam, which storage of dE, dt and id distributed on several GPUs"""
-        n_particles = int(1000)
+        n_particles = int(10)
         id_ = np.arange(1, n_particles + 1)
         id_[: (n_particles // 2)] = 0
 
@@ -28,8 +28,9 @@ class TestLossesSeparatrix(unittest.TestCase):
         )
         from blond.utils import precision
 
-        dE = np.arange(0, n_particles).astype(precision.real_t)
-        dt = np.invert(np.arange(0, n_particles)).astype(precision.real_t)
+        dE = 1e9 * np.arange(0, n_particles).astype(precision.real_t)
+        dt = 1e-8 * np.invert(np.arange(0, n_particles)).astype(
+            precision.real_t)
         intensity = 1e3
 
         self.beam_ = Beam(
@@ -39,6 +40,7 @@ class TestLossesSeparatrix(unittest.TestCase):
             dt=dt.copy(),
             dE=dE.copy(),
         )
+
         self.beam_.id = id_
         self.ring = ring
         self.rf_station = RFStation(
@@ -68,6 +70,8 @@ class TestLossesSeparatrix(unittest.TestCase):
             dt=self.beam_.dt.copy(),
             dE=self.beam_.dE.copy(),
         )
+        assert np.any(lost_index), "Rewrite this testcase"
+
         ids_correct[lost_index] = 0
         bm.use_gpu()
         self.beam_.to_gpu()

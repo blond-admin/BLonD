@@ -4,9 +4,10 @@ import unittest
 
 import cupy as cp
 import numpy as np
-from cupyx.profiler._time import _PerfCaseResult
+from cupyx.profiler._time import _PerfCaseResult, benchmark
 
 from blond.beam.beam import Proton, Beam
+from blond.gpu import GPU_DEV
 from blond.gpu.beam_distributed import (
     DistributedMultiGpuArray,
     BeamDistributedSingleNode,
@@ -26,12 +27,16 @@ def _total_runtime(res: _PerfCaseResult):
 
 class TestMultiGpuArray(unittest.TestCase):
     def setUp(self):
+        GPU_DEV.block_size /= 4
         self.multi_gpu_array = DistributedMultiGpuArray(
             array_cpu=np.arange(1, 101), axis=0, mock_n_gpus=4
         )
         self.multi_gpu_array_1thread = DistributedMultiGpuArray(
             array_cpu=np.arange(1, 101), axis=0, mock_n_gpus=1
         )
+
+    def tearDown(self):
+        GPU_DEV.block_size *= 4
 
     def test_map(self):
         self.multi_gpu_array.map_float(_float_min)
@@ -40,18 +45,19 @@ class TestMultiGpuArray(unittest.TestCase):
         np.testing.assert_almost_equal(
             results, np.array([1.0, 26.0, 51.0, 76.0])
         )
+
     def test_min(self):
         results = self.multi_gpu_array.min()
         print(results)
-        np.testing.assert_almost_equal(
-            results, 1
-        )
+        np.testing.assert_almost_equal(results, 1)
+
+
+
     def test_max(self):
         results = self.multi_gpu_array.max()
         print(results, type(results))
-        np.testing.assert_almost_equal(
-            results, 100
-        )
+        np.testing.assert_almost_equal(results, 100)
+
 
 class TestBeamDistributedSingleNode(unittest.TestCase):
     def setUp(self):

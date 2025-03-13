@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Optional
 
 import cupy as cp
-import numba.cuda
 import numpy as np
 
 from ..beam.beam import Beam
@@ -17,8 +16,6 @@ from ..gpu.butils_wrap_cupy import (
 )
 from ..input_parameters.rf_parameters import RFStation
 from ..input_parameters.ring import Ring
-from ..trackers.utilities import is_in_separatrix
-from ..utils import precision
 
 if TYPE_CHECKING:
     from cupy.typing import NDArray as CupyNDArray
@@ -70,8 +67,9 @@ class DistributedMultiGpuArray:
             n_gpus = max_n_gpus
 
         self.gpu_arrays: Dict[int, CupyNDArray] = {}
-        self.buffers_float: Dict[int, CupyNDArray] = {}
+        self.buffers: Dict[int, CupyNDArray] = {}
         self.buffers_int: Dict[int, CupyNDArray] = {}
+
         sub_arrays = np.array_split(array_cpu, n_gpus, axis=axis)
         for gpu_i, array_tmp in enumerate(sub_arrays):
             with get_device(gpu_i=gpu_i):
@@ -80,7 +78,7 @@ class DistributedMultiGpuArray:
                     array_tmp, dtype=array_cpu.dtype
                 )
 
-                self.buffers_float[gpu_i] = cp.empty(
+                self.buffers[gpu_i] = cp.empty(
                     (1,), dtype=array_cpu.dtype
                 )
                 self.buffers_int[gpu_i] = cp.empty((1,), dtype=int)
@@ -88,7 +86,7 @@ class DistributedMultiGpuArray:
 
     def get_buffer(self):
         results = []
-        for gpu_i, buffer in self.buffers_float.items():
+        for gpu_i, buffer in self.buffers.items():
             with get_device(gpu_i=gpu_i):
                 results.append(buffer[0].get())
         return results
@@ -138,7 +136,7 @@ class DistributedMultiGpuArray:
         for gpu_i, array in self.gpu_arrays.items():
             with get_device(gpu_i=gpu_i):
                 val = func(array, **kwargs)
-                self.buffers_float[gpu_i][0] = val
+                self.buffers[gpu_i][0] = val
 
     def map_int(self, func: Callable, **kwargs):
         """Execute function on all GPUs
