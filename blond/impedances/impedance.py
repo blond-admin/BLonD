@@ -1076,7 +1076,6 @@ class InducedVoltageResonator(_InducedVoltage):
         self.mtw_memory[:int(self.n_time)] += self.induced_voltage
         self.induced_voltage = self.mtw_memory[:self.n_time]
 
-
     def to_gpu(self, recursive=True):
         """
         Transfer all necessary arrays to the GPU

@@ -146,7 +146,7 @@ class TestInducedVoltageResonatorMultiTurnWake(unittest.TestCase):
         self.f_res = 1297263703
         self.harmonic = int(self.f_res * self.ring.t_rev[0])
         self.rf_station = RFStation(ring=self.ring, harmonic=[self.harmonic], voltage=[300e6], phi_rf_d=[0.0], n_rf=1)
-        self.n_slices = 2**9
+        self.n_slices = 2 ** 9
         self.beam = Beam(ring=self.ring,
                          n_macroparticles=1001,
                          intensity=int(1e10))
@@ -163,12 +163,12 @@ class TestInducedVoltageResonatorMultiTurnWake(unittest.TestCase):
         timeArray = []
         for turn_ind in range(self.n_turns):
             timeArray = np.append(timeArray,
-                                       self.rf_station.t_rev[turn_ind] * turn_ind +
-                                       np.linspace(self.profile.bin_centers[0],
-                                                   self.profile.bin_centers[-1] + 2 * (
-                                                           self.profile.bin_centers[min_index] -
-                                                           self.profile.bin_centers[0]),
-                                                   self.n_slices + 2 * min_index))
+                                  self.rf_station.t_rev[turn_ind] * turn_ind +
+                                  np.linspace(self.profile.bin_centers[0],
+                                              self.profile.bin_centers[-1] + 2 * (
+                                                      self.profile.bin_centers[min_index] -
+                                                      self.profile.bin_centers[0]),
+                                              self.n_slices + 2 * min_index))
         ivr = InducedVoltageResonator(beam=self.beam, profile=self.profile, time_array=timeArray,
                                       multi_turn_wake=True,
                                       resonators=self.resonator,
