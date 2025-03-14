@@ -26,10 +26,10 @@ from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
-    import cupy as cp
 
     from ..input_parameters.ring import Ring
     from ..input_parameters.rf_parameters import RFStation
+    from ..utils.types import SolverTypes
 
 m_mu = physical_constants["muon mass"][0]
 
@@ -260,7 +260,7 @@ class BeamBaseClass:
         pass
 
     @abstractmethod
-    def drift(self, rf_station: RFStation, solver: str, turn_i: int):
+    def drift(self, rf_station: RFStation, solver: SolverTypes, turn_i: int):
         r"""Function updating the dt array
 
         Function updating the particle arrival time to the RF station
@@ -305,7 +305,7 @@ class BeamBaseClass:
         self,
         acceleration_kicks: NDArray,
         rf_station: RFStation,
-        solver: str,
+        solver: SolverTypes,
         turn_i: int,
     ):
         pass

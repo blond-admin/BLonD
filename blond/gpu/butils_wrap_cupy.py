@@ -26,11 +26,12 @@ if TYPE_CHECKING:
     from ..beam.beam import Beam
     from ..input_parameters.rf_parameters import RFStation
     from ..input_parameters.ring import Ring
+    from ..utils.types import SolverTypes
 
 
-# TODO all typing
 
-def rf_volt_comp(voltage, omega_rf, phi_rf, bin_centers):
+def rf_volt_comp(voltage: CupyNDArray, omega_rf: CupyNDArray,
+                 phi_rf: CupyNDArray, bin_centers: CupyNDArray):
     """Calculate the rf voltage at each profile bin
 
     Args:
@@ -58,7 +59,9 @@ def rf_volt_comp(voltage, omega_rf, phi_rf, bin_centers):
     return rf_voltage
 
 
-def kick(dt, dE, voltage, omega_rf, phi_rf, charge, n_rf, acceleration_kick):
+def kick(dt: CupyNDArray, dE: CupyNDArray, voltage: CupyNDArray,
+         omega_rf: CupyNDArray, phi_rf: CupyNDArray,
+         charge:float, n_rf:int, acceleration_kick:float):
     """Apply the energy kick
 
     Args:
@@ -84,6 +87,11 @@ def kick(dt, dE, voltage, omega_rf, phi_rf, charge, n_rf, acceleration_kick):
         warnings.warn("phi_rf must be contigous!")
         phi_rf = phi_rf.astype(dtype=precision.real_t, order='C', copy=False)
 
+    assert isinstance(dt, cp.ndarray)
+    assert isinstance(dE, cp.ndarray)
+    assert isinstance(voltage, cp.ndarray)
+    assert isinstance(omega_rf, cp.ndarray)
+    assert isinstance(phi_rf, cp.ndarray)
 
     kick_kernel(args=(dt,
                       dE,
@@ -115,7 +123,7 @@ def losses_longitudinal_cut(dt:CupyNDArray, id:CupyNDArray, dt_min:float,
         block=GPU_DEV.block_size,
         grid=GPU_DEV.grid_size,
     )
-def losses_energy_cut(dE:CupyNDArray, id:CupyNDArray, dE_min:float,
+def losses_energy_cut(dE: CupyNDArray, id: CupyNDArray, dE_min:float,
                       dE_max:float):
     # todo testcase
     losses_energy_cut_kernel = GPU_DEV.mod.get_function(
@@ -272,8 +280,10 @@ def losses_separatrix(
     )
 
 
-def drift(dt, dE, solver, t_rev, length_ratio, alpha_order, eta_0,
-          eta_1, eta_2, alpha_0, alpha_1, alpha_2, beta, energy):
+def drift(dt: CupyNDArray, dE: CupyNDArray, solver: str, t_rev: float,
+          length_ratio: float, alpha_order: float, eta_0: float,
+          eta_1: float, eta_2: float, alpha_0: float, alpha_1: float,
+          alpha_2: float, beta: float, energy: float):
     """Apply the time drift function.
 
     Args:
@@ -316,9 +326,9 @@ def drift(dt, dE, solver, t_rev, length_ratio, alpha_order, eta_0,
                  block=GPU_DEV.block_size, grid=GPU_DEV.grid_size)
 
 
-def linear_interp_kick(dt, dE, voltage,
-                       bin_centers, charge,
-                       acceleration_kick):
+def linear_interp_kick(dt: CupyNDArray, dE: CupyNDArray, voltage: CupyNDArray,
+                       bin_centers: CupyNDArray, charge: float,
+                       acceleration_kick: float):
     """An accelerated version of the kick function.
 
     Args:
@@ -335,7 +345,9 @@ def linear_interp_kick(dt, dE, voltage,
     assert dt.dtype == precision.real_t
     assert dE.dtype == precision.real_t
     assert voltage.dtype == precision.real_t
+    assert isinstance(voltage, cp.ndarray)
     assert bin_centers.dtype == precision.real_t
+    assert isinstance(bin_centers, cp.ndarray)
 
     macros = dt.size
     slices = bin_centers.size
@@ -364,7 +376,8 @@ def linear_interp_kick(dt, dE, voltage,
                                grid=GPU_DEV.grid_size, block=GPU_DEV.block_size)
 
 
-def slice_beam(dt: NDArray, profile: NDArray, cut_left: float, cut_right: float):
+def slice_beam(dt: CupyNDArray, profile: CupyNDArray,
+               cut_left: float, cut_right: float):
     """Constant space slicing with a constant frame.
 
     Args:
@@ -400,7 +413,8 @@ def slice_beam(dt: NDArray, profile: NDArray, cut_left: float, cut_right: float)
                          shared_mem=GPU_DEV.attributes['MaxSharedMemoryPerBlock'])
 
 
-def synchrotron_radiation(dE, U0, n_kicks, tau_z):
+def synchrotron_radiation(dE: CupyNDArray, U0: float, n_kicks: int,
+                          tau_z: float):
     """Track particles with SR only (without quantum excitation)
 
     Args:
@@ -419,7 +433,8 @@ def synchrotron_radiation(dE, U0, n_kicks, tau_z):
               block=GPU_DEV.block_size, grid=GPU_DEV.grid_size)
 
 
-def synchrotron_radiation_full(dE, U0, n_kicks, tau_z, sigma_dE, energy):
+def synchrotron_radiation_full(dE: CupyNDArray, U0: float, n_kicks: int,
+                               tau_z: float, sigma_dE: float, energy: float):
     """Track particles with SR and quantum excitation.
 
     Args:
@@ -442,7 +457,8 @@ def synchrotron_radiation_full(dE, U0, n_kicks, tau_z, sigma_dE, energy):
 
 
 @cp.fuse(kernel_name='beam_phase_helper')
-def __beam_phase_helper(bin_centers, profile, alpha, omega_rf, phi_rf):
+def __beam_phase_helper(bin_centers: CupyNDArray, profile: CupyNDArray,
+                        alpha: float, omega_rf: float, phi_rf: float):
     """Helper function, used by beam_phase
 
     Args:
@@ -460,8 +476,8 @@ def __beam_phase_helper(bin_centers, profile, alpha, omega_rf, phi_rf):
     return base * cp.sin(a), base * cp.cos(a)
 
 
-def beam_phase(bin_centers: NDArray, profile: NDArray, alpha: float, omega_rf: float, phi_rf: float,
-               bin_size: float):
+def beam_phase(bin_centers: NDArray, profile: NDArray, alpha: float,
+               omega_rf: float, phi_rf: float, bin_size: float):
     """Beam phase measured at the main RF frequency and phase. The beam is
        convolved with the window function of the band-pass filter of the
        machine. The coefficients of sine and cosine components determine the
@@ -492,7 +508,8 @@ def beam_phase(bin_centers: NDArray, profile: NDArray, alpha: float, omega_rf: f
 
 
 @cp.fuse(kernel_name='beam_phase_fast_helper')
-def __beam_phase_fast_helper(bin_centers, profile, omega_rf, phi_rf):
+def __beam_phase_fast_helper(bin_centers: CupyNDArray, profile: CupyNDArray,
+                             omega_rf: float, phi_rf: float):
     """Helper function used by beam_phase_fast
 
     Args:
@@ -508,7 +525,8 @@ def __beam_phase_fast_helper(bin_centers, profile, omega_rf, phi_rf):
     return profile * cp.sin(arr), profile * cp.cos(arr)
 
 
-def beam_phase_fast(bin_centers: NDArray, profile: NDArray, omega_rf: float, phi_rf: float, bin_size: float):
+def beam_phase_fast(bin_centers: CupyNDArray, profile: CupyNDArray,
+                    omega_rf: float, phi_rf: float, bin_size: float):
     """Simplified, faster variation of the beam_phase function
 
     Args:
@@ -538,7 +556,7 @@ def kickdrift_considering_periodicity(
     beam_dE: CupyNDArray,
     beam_dt: CupyNDArray,
     rf_station: RFStation,
-    solver: str,
+    solver: SolverTypes,
     turn: int,
 ):
     if solver != "simple":
@@ -560,15 +578,38 @@ def kickdrift_considering_periodicity(
     kickdrift_considering_periodicity = GPU_DEV.mod.get_function(
         "kickdrift_considering_periodicity"
     )
+    assert beam_dt.dtype == precision.real_t
+    assert beam_dE.dtype == precision.real_t
+
+    voltage = rf_station.voltage[:, turn]
+    omega_rf = rf_station.omega_rf[:, turn]
+    phi_rf = rf_station.phi_rf[:, turn]
+
+    assert voltage.data.contiguous
+    assert omega_rf.data.contiguous
+    assert phi_rf.data.contiguous
+
+    assert isinstance(beam_dt, cp.ndarray)
+    assert isinstance(beam_dE, cp.ndarray)
+
+    if not isinstance(voltage, cp.ndarray):
+        voltage = cp.array(voltage, dtype=precision.real_t)
+    if not isinstance(omega_rf, cp.ndarray):
+        omega_rf = cp.array(omega_rf, dtype=precision.real_t)
+    if not isinstance(phi_rf, cp.ndarray):
+        phi_rf = cp.array(phi_rf, dtype=precision.real_t)
+
+
+
     kickdrift_considering_periodicity(
         args=(
             beam_dt,
             beam_dE,
             precision.real_t(rf_station.t_rev[turn + 1]),
             n_rf,
-            rf_station.voltage[:, turn],
-            rf_station.omega_rf[:, turn],
-            rf_station.phi_rf[:, turn],
+            voltage,
+            omega_rf,
+            phi_rf,
             precision.real_t(rf_station.particle.charge),
             precision.real_t(acceleration_kick),
             precision.real_t(

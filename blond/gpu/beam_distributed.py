@@ -619,8 +619,7 @@ class BeamDistributedSingleNode(BeamBaseClass):
             acceleration_kick=acceleration_kicks[turn_i],
         )
 
-    # TODO TESTCASE
-    def drift(self, rf_station: RFStation, solver: str, turn_i: int):
+    def drift(self, rf_station: RFStation, solver: SolverTypes, turn_i: int):
         self.map_no_result(
             _drift_helper,
             solver=solver,
@@ -658,7 +657,7 @@ class BeamDistributedSingleNode(BeamBaseClass):
         self,
         acceleration_kicks: NDArray,
         rf_station: RFStation,
-        solver: str,
+        solver: SolverTypes,
         turn_i: int,
     ):
         self.map_no_result(

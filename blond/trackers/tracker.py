@@ -42,7 +42,7 @@ if TYPE_CHECKING:
     from ..beam.profile import Profile
     from ..beam.beam_abstract import BeamBaseClass
     from ..input_parameters.rf_parameters import RFStation
-    from ..utils.types import DeviceType
+    from ..utils.types import DeviceType, SolverTypes
 
     MainHarmonicOptionType = Literal['lowest_freq', 'highest_voltage'] | float
 
@@ -231,7 +231,7 @@ class RingAndRFTracker:
     def __init__(self,
                  rf_station: RFStation,
                  beam: BeamBaseClass,
-                 solver: Literal['simple', 'exact', 'legacy'] = 'simple',
+                 solver: SolverTypes = 'simple',
                  beam_feedback: Optional[BeamFeedback] = None,
                  noise_feedback: None = None,  # FIXME type hint, NoiseFeedback class doesnt exist
                  cavity_feedback: Optional[CavityFeedback] = None,

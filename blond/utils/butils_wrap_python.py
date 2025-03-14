@@ -15,6 +15,7 @@ from blond.utils import bmath as bm
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
+    from ..utils.types import SolverTypes
 
 RNG = np.random.default_rng()
 
@@ -61,7 +62,7 @@ def rf_volt_comp(voltages: NDArray, omega_rf: NDArray, phi_rf: NDArray,
 
 
 # --------------- Similar to drift.cpp -----------------
-def drift(dt: NDArray, dE: NDArray, solver: str, t_rev: float,
+def drift(dt: NDArray, dE: NDArray, solver: SolverTypes, t_rev: float,
           length_ratio: float, alpha_order, eta_0: float,
           eta_1: float, eta_2: float, alpha_0: float,
           alpha_1: float, alpha_2: float, beta: float, energy: float) -> None:

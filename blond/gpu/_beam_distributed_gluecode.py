@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import cupy as cp
 import numpy as np
 from cupy.typing import NDArray as CupyNDArray
@@ -16,8 +18,12 @@ from blond.gpu.butils_wrap_cupy import (
     linear_interp_kick,
     kickdrift_considering_periodicity,
 )
-from blond.input_parameters.rf_parameters import RFStation
-from blond.input_parameters.ring import Ring
+from blond.utils import precision
+
+if TYPE_CHECKING:
+    from blond.input_parameters.rf_parameters import RFStation
+    from blond.input_parameters.ring import Ring
+    from blond.utils.types import SolverTypes
 
 
 def _kick_helper(
@@ -47,7 +53,7 @@ def _drift_helper(
     dt_gpu_i: CupyNDArray,
     dE_gpu_i: CupyNDArray,
     id_gpu_i: CupyNDArray,
-    solver: str,
+    solver: SolverTypes,
     t_rev: float,
     length_ratio: float,
     alpha_order: float,
@@ -215,9 +221,9 @@ def _kickdrift_considering_periodicity_helper(
     dt_gpu_i: CupyNDArray,
     dE_gpu_i: CupyNDArray,
     id_gpu_i: CupyNDArray,
-    acceleration_kicks: NDArray,
+    acceleration_kicks: NDArray | CupyNDArray,
     rf_station: RFStation,
-    solver: str,
+    solver: SolverTypes,
     turn: int,
 ):
     kickdrift_considering_periodicity(

@@ -75,6 +75,8 @@ if TYPE_CHECKING:
 
     BeamProfileDerivativeModes = Literal["filter1d", "gradient", "diff",]
 
+    SolverTypes = Literal['simple', 'exact', 'legacy']
+
     class Trackable(Protocol):
         def track(self):
             ...
