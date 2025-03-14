@@ -156,7 +156,7 @@ class TestCoherentSynchrotronRadiation(unittest.TestCase):
 
         W_fs = np.zeros_like(times)
         for it, t in enumerate(times):
-            W_fs[it] = 2 * np.trapz(
+            W_fs[it] = 2 * np.trapezoid(
                 Z_fs.impedance*Lambda*np.exp(2j*np.pi*freqs*t), freqs).real
 
         # convert to volt

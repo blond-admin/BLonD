@@ -266,9 +266,12 @@ class Ring:
         # interpolation
         if self.momentum.shape[1] != (self.n_turns + 1):
             self.n_turns = self.momentum.shape[1] - 1
-            warnings.warn("WARNING in Ring: The number of turns for the " +
-                          "simulation was changed by passing a momentum " +
-                          "program.")
+            warnings.warn(
+                "WARNING in Ring: The number of turns for the "
+                "simulation was changed by passing a momentum "
+                "program.",
+                stacklevel=2
+            )
 
         # Derived from momentum
         # todo this should be attributes?
@@ -276,27 +279,19 @@ class Ring:
         self.gamma: NDArray = np.sqrt(1 + (self.momentum / self.particle.mass) ** 2)
         self.energy: NDArray = np.sqrt(self.momentum ** 2 + self.particle.mass ** 2)
         self.kin_energy: NDArray = (np.sqrt(self.momentum ** 2 + self.particle.mass ** 2) -
-                                       self.particle.mass)
+                                    self.particle.mass)
         self.t_rev: NDArray = np.dot(self.ring_length, 1 / (self.beta * c))
         self.cycle_time: NDArray = np.cumsum(self.t_rev)  # Always starts with zero
         self.f_rev: NDArray = 1 / self.t_rev
         self.omega_rev: NDArray = 2 * np.pi * self.f_rev
 
-        
-
         if self.n_sections == 1:
             self.delta_E = np.diff(self.energy, axis=1)
-
         else:
-            self.delta_E = np.reshape(np.zeros(n_turns*n_sections),(n_sections,n_turns))
-            for i in range(n_turns):  
-                for j in range(n_sections):
-                    if j == 0:
-                        self.delta_E[j,i] = self.energy[j,i+1]-self.energy[-1,i]
-                    else:
-                        self.delta_E[j,i] = self.energy[j,i+1]-self.energy[j-1,i+1]
-
-
+            # when there is more than 1 RF station, self.energy has shape (n_sections, n_turns+1)
+            self.delta_E = np.zeros((n_sections, n_turns))
+            self.delta_E[0, :] = self.energy[0, 1:n_turns + 1] - self.energy[-1, 0:n_turns]
+            self.delta_E[1:, :] = self.energy[1:, 1:n_turns + 1] - self.energy[:-1, 1:n_turns + 1]
 
         # Momentum compaction, checks, and derived slippage factors
         if ring_options.t_start is None:
@@ -339,25 +334,25 @@ class Ring:
     @property
     def Particle(self):
         from warnings import warn
-        warn("Particle is deprecated, use particle", DeprecationWarning)
+        warn("Particle is deprecated, use particle", DeprecationWarning, stacklevel=2)
         return self.particle
 
     @Particle.setter
     def Particle(self, val):
         from warnings import warn
-        warn("Particle is deprecated, use particle", DeprecationWarning)
+        warn("Particle is deprecated, use particle", DeprecationWarning, stacklevel=2)
         self.particle = val
 
     @property
     def RingOptions(self):
         from warnings import warn
-        warn("RingOptions is deprecated, use ring_options", DeprecationWarning)
+        warn("RingOptions is deprecated, use ring_options", DeprecationWarning, stacklevel=2)
         return self.ring_options
 
     @RingOptions.setter
     def RingOptions(self, val):
         from warnings import warn
-        warn("RingOptions is deprecated, use ring_options", DeprecationWarning)
+        warn("RingOptions is deprecated, use ring_options", DeprecationWarning, stacklevel=2)
         self.ring_options = val
 
     def eta_generation(self) -> None:

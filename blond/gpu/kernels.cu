@@ -38,8 +38,9 @@
 extern "C"
 __global__ void simple_kick(
     real_t  * __restrict__ beam_dt,
-    real_t        * __restrict__ beam_dE,
+    real_t  * __restrict__ beam_dE,
     const int n_rf,
+    const real_t charge,
     const real_t  * __restrict__ voltage,
     const real_t  * __restrict__ omega_RF,
     const real_t  * __restrict__ phi_RF,
@@ -54,7 +55,7 @@ __global__ void simple_kick(
         my_beam_dt = beam_dt[i];
         my_beam_dE = beam_dE[i];
         for (int j = 0; j < n_rf; j++) {
-            my_beam_dE += voltage[j] * sin(omega_RF[j]*my_beam_dt + phi_RF[j]);
+            my_beam_dE += charge * voltage[j] * sin(omega_RF[j]*my_beam_dt + phi_RF[j]);
         }
         beam_dE[i] = my_beam_dE + acc_kick;
     }
@@ -349,4 +350,77 @@ __global__ void synchrotron_radiation_full(
                          + const_quantum_exc * CURAND_NORMAL(&state) - U0;
         }
     }
+}
+
+
+extern "C"
+__global__ void kickdrift_considering_periodicity(
+real_t * __restrict__ beam_dt,
+real_t  * __restrict__ beam_dE,
+const real_t t_rev_tmp, // self.rf_params.t_rev[turn + 1]
+const int  n_rf,
+const real_t * __restrict__ voltage, // self.rf_params.voltage[:, turn]
+const real_t * __restrict__ omega_rf, // self.rf_params.omega_rf[:, turn]
+const real_t * __restrict__ phi_rf, // self.rf_params.voltage[:, turn]
+const real_t charge,
+const real_t acc_kick, // self.rf_params.voltage[:, turn]
+const real_t coeff, // T0 * length_ratio * eta_zero / (beta * beta * energy // (of turn+1)
+const int n_macroparticles
+){
+    // This is a GPU clone of RingAndRFTracker.kickdrift_considering_periodicity
+    int tid = threadIdx.x + blockDim.x * blockIdx.x;
+    real_t my_beam_dt;
+    real_t my_beam_dE;
+    real_t sum_;
+    bool is_left_of_trev;
+    for (int i=tid; i<n_macroparticles; i=i+blockDim.x*gridDim.x){
+        my_beam_dt = beam_dt[i];
+        my_beam_dE = beam_dE[i];
+
+        // Distinguish the particles inside the frame from the particles on
+        // the right-hand side of the frame.
+        is_left_of_trev = my_beam_dt < t_rev_tmp;
+        if (my_beam_dt > t_rev_tmp){
+            my_beam_dt  -= t_rev_tmp;
+        }
+
+        // Synchronize the bunch with the particles that are on the
+        // RHS of the current frame applying kick and drift to the
+        // bunch
+        // After that all the particles are in the new updated frame
+        if (is_left_of_trev){
+            // kick
+            sum_ = 0.0;
+            for (int j = 0; j < n_rf; j++) {
+                sum_ +=  voltage[j] * sin(omega_rf[j] * my_beam_dt + phi_rf[j]);
+            }
+            my_beam_dE += charge * sum_ + acc_kick;
+
+            // drift, solver = 0
+            my_beam_dt += coeff * my_beam_dE;
+
+        }
+
+
+        // Check all the particles on the left of the just updated
+        // frame and apply a second kick and drift to them with the
+        // previous wave after having changed reference.
+        if (my_beam_dt < 0){
+            my_beam_dt += t_rev_tmp;
+
+            // kick
+            sum_ = 0.0;
+            for (int j = 0; j < n_rf; j++) {
+                sum_ +=  voltage[j] * sin(omega_rf[j] * my_beam_dt + phi_rf[j]);
+            }
+            my_beam_dE += charge * sum_ + acc_kick;
+            // drift, solver = 0
+            my_beam_dt += coeff * my_beam_dE;
+        }
+
+        beam_dE[i] = my_beam_dE;
+        beam_dt[i] = my_beam_dt;
+
+    }
+
 }

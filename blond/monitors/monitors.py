@@ -75,25 +75,25 @@ class BunchMonitor:
     @property
     def PL(self):
         from warnings import warn
-        warn("PL is deprecated, use phase_loop", DeprecationWarning)
+        warn("PL is deprecated, use phase_loop", DeprecationWarning, stacklevel=2)
         return self.phase_loop
 
     @PL.setter
     def PL(self, val):
         from warnings import warn
-        warn("PL is deprecated, use phase_loop", DeprecationWarning)
+        warn("PL is deprecated, use phase_loop", DeprecationWarning, stacklevel=2)
         self.phase_loop = val
 
     @property
     def LHCNoiseFB(self):
         from warnings import warn
-        warn("LHCNoiseFB is deprecated, use phase_loop", DeprecationWarning)
+        warn("LHCNoiseFB is deprecated, use phase_loop", DeprecationWarning, stacklevel=2)
         return self.lhc_noise_feedback
 
     @LHCNoiseFB.setter
     def LHCNoiseFB(self, val):
         from warnings import warn
-        warn("LHCNoiseFB is deprecated, use lhc_noise_fb", DeprecationWarning)
+        warn("LHCNoiseFB is deprecated, use lhc_noise_fb", DeprecationWarning, stacklevel=2)
 
     def track(self):
         self.beam.statistics()
@@ -499,25 +499,25 @@ class MultiBunchMonitor:
     @property
     def rf(self):  # TODO
         from warnings import warn
-        warn("rf is deprecated, use rf_station", DeprecationWarning)  # TODO
+        warn("rf is deprecated, use rf_station", DeprecationWarning, stacklevel=2)  # TODO
         return self.rf_station
 
     @rf.setter  # TODO
     def rf(self, val):  # TODO
         from warnings import warn
-        warn("rf is deprecated, use rf_station", DeprecationWarning)  # TODO
+        warn("rf is deprecated, use rf_station", DeprecationWarning, stacklevel=2)  # TODO
         self.rf_station = val
 
     @property
     def Nbunches(self):  # TODO
         from warnings import warn
-        warn("Nbunches is deprecated, use n_bunches", DeprecationWarning)  # TODO
+        warn("Nbunches is deprecated, use n_bunches", DeprecationWarning, stacklevel=2)  # TODO
         return self.n_bunches
 
     @Nbunches.setter  # TODO
     def Nbunches(self, val):  # TODO
         from warnings import warn
-        warn("Nbunches is deprecated, use n_bunches", DeprecationWarning)  # TODO
+        warn("Nbunches is deprecated, use n_bunches", DeprecationWarning, stacklevel=2)  # TODO
         self.n_bunches = val
 
     def __del__(self):

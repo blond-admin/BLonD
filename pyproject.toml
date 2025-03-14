@@ -1,18 +1,67 @@
 [build-system]
 requires = [
-    'setuptools>=42',
-    'wheel',
-    'setuptools_scm[toml]>=3.4',
-    'build',
-    'twine'
+    "setuptools >= 61.0",
+    "wheel",
+    "setuptools_scm[toml]>=3.4",
+    "build",
+    "twine"
+
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "blond"
+dynamic = ["dependencies", "optional-dependencies", "version"]
+description = "CERN code for simulating longitudinal beam dynamics in synchrotrons."
+readme = "README.md"
+license = {file= "LICENSE.txt" }
+requires-python = ">=3.9"
+authors = [
+    { name = "Helga Timko", email = "helga.timko@cern.ch" },
+]
+maintainers = [
+    { name = "Alexandre Lasheen", email = "alexandre.lasheen@cern.ch" },
+    { name = "Simon Albright", email = "simon.albright@cern.ch" },
+    { name = "Simon Lauber", email = "simon.fabian.lauber@cern.ch" },
+]
+classifiers = [
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Physics",
 ]
 
-# Add an empty tool section to enable version inference.
+[tool.setuptools]
+packages = ["blond"]
+include-package-data = true
+
+[project.urls]
+Homepage = "https://blond.web.cern.ch/"
+Documentation = "https://blond-code.docs.cern.ch/"
+Repository = "https://gitlab.cern.ch/blond/BLonD"
+
+
+[project.scripts]
+blond-compile = "blond.compile:main"
+
 [tool.setuptools_scm]
-write_to = 'blond/_version.py'
+write_to = 'blond/_version.py' # autogenerates version string using git
+
+[tool.setuptools.dynamic]
+dependencies = { file = ["requirements.txt"] }
+optional-dependencies = { all = { file = ["requirements-doc.txt","requirements-lint.txt","requirements-test.txt","requirements-gpu.txt"] }, gpu = { file = ["requirements-gpu.txt"] }, doc = { file = ["requirements-doc.txt"] }, lint = { file = ["requirements-lint.txt"] }, test = { file = ["requirements-test.txt"] } }
 
 [tool.flake8]
-ignore = ['E501','W503','W504','W291']
+ignore = [
+    'E501', # Line too long (82 > 79 characters) (E501)
+    'W503', # Line break occurred before a binary operator (W503)
+    'W504', # Line break occurred after a binary operator (W504)
+    'W291', # Trailing whitespace (W291)
+]
 
 [tool.pylint.reports]
 output-format = 'colorized'

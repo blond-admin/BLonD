@@ -191,32 +191,20 @@ class TestGeneralParameters(unittest.TestCase):
                     [np.float64(1.0), np.float64(2.0), np.float64(3.0)])  # might crash
         Ring(C, alpha, momentum, Proton(), n_turns)  # might crash
 
-
-
-
-    def test_bug_multi_RF_dE(self):
-        from blond.beam.beam import Proton
+    def test_multi_RF_dE(self):
+        # test if the delta_E is correctly calculated with multi-RF stations
         C = 2 * np.pi * 1100.009  # Ring circumference [m]
-        gamma_t = 18.0  # Gamma at transition
-        alpha = 1 / gamma_t ** 2  # Momentum compaction factor
-        n_turns = self.n_turns
-        n_sections = 4
-        l_per_section = C/ n_sections
-        section_lengths = np.full(n_sections, l_per_section)
-        # should be a linear energy ramp, taking the value from the section in the previous turn
-        momentum = np.arange(n_sections * (n_turns + 1),dtype=float).reshape(n_turns + 1, n_sections).T*1e10
-        momentum[:, 0] = momentum[0, 1]
-        ring = Ring(ring_length=section_lengths, alpha_0=alpha,
-            synchronous_data=momentum, particle=Proton(),
-            n_turns=n_turns, n_sections=n_sections,
+        l_per_section = C / self.num_sections
+        section_lengths = np.full(self.num_sections, l_per_section)
+        # the shape of momentum should be (n_sections, n_turns+1)
+        momentum = np.arange(0, (self.n_turns + 1) * self.num_sections).reshape(
+            (self.n_turns + 1, self.num_sections)).transpose() * 1e10
+        ring = Ring(ring_length=section_lengths, alpha_0=self.alpha_0,
+                    synchronous_data=momentum, particle=self.particle,
+                    n_turns=self.n_turns, n_sections=self.num_sections,
                     synchronous_data_type='momentum')
-        a = ring.delta_E[1,0]
-        b = ring.delta_E[1,1]
-        assert np.isclose(a/b,1,rtol=1e-1), \
-        f"Assertion failed for linear momentum with multi RF: {ring.delta_E[1, 0]} == {ring.delta_E[1,1]}"
-
-
-
+        delta_E_values = ring.delta_E.flatten()
+        np.testing.assert_allclose(delta_E_values, delta_E_values[0], rtol=1e-3)
 
 
 if __name__ == '__main__':

@@ -147,37 +147,37 @@ class Plot:
     @property
     def noiseFB(self):
         from warnings import warn
-        warn("noiseFB is deprecated, use lhc_noise_fb", DeprecationWarning)
+        warn("noiseFB is deprecated, use lhc_noise_fb", DeprecationWarning, stacklevel=2)
         return self.lhc_noise_fb
 
     @noiseFB.setter
     def noiseFB(self, val):
         from warnings import warn
-        warn("noiseFB is deprecated, use lhc_noise_fb", DeprecationWarning)
+        warn("noiseFB is deprecated, use lhc_noise_fb", DeprecationWarning, stacklevel=2)
         self.lhc_noise_fb = val
 
     @property
     def general_params(self):
         from warnings import warn
-        warn("general_params is deprecated, use ring", DeprecationWarning)
+        warn("general_params is deprecated, use ring", DeprecationWarning, stacklevel=2)
         return self.ring
 
     @general_params.setter
     def general_params(self, val):
         from warnings import warn
-        warn("general_params is deprecated, use ring", DeprecationWarning)
+        warn("general_params is deprecated, use ring", DeprecationWarning, stacklevel=2)
         self.ring = val
 
     @property
     def PL(self):
         from warnings import warn
-        warn("PL is deprecated, use phase_loop", DeprecationWarning)
+        warn("PL is deprecated, use phase_loop", DeprecationWarning, stacklevel=2)
         return self.phase_loop
 
     @PL.setter
     def PL(self, val):
         from warnings import warn
-        warn("PL is deprecated, use phase_loop", DeprecationWarning)
+        warn("PL is deprecated, use phase_loop", DeprecationWarning, stacklevel=2)
         self.phase_loop = val
 
     def set_format(self, format_options: Optional[dict]):
