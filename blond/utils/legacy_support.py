@@ -1,3 +1,4 @@
+import inspect
 from typing import Callable
 from warnings import warn
 
@@ -15,14 +16,20 @@ def _handle_legacy_kwargs(new_by_old: dict[str, str]):
     def decorator(func: Callable):
         def wrapped(*args, **kwargs_potentially_old):
             kwargs_fixed = {}
-            for key_potentially_old, argument in kwargs_potentially_old.items():
+            for (
+                key_potentially_old,
+                argument,
+            ) in kwargs_potentially_old.items():
                 if key_potentially_old in new_by_old:
                     warn(
                         f"Keyword argument '{key_potentially_old}' when calling "
                         f"'{func.__name__}' is deprecated. Use '{new_by_old[key_potentially_old]}' instead.",
-                        DeprecationWarning
+                        DeprecationWarning,
+                        stacklevel=2
                     )
-                kwargs_fixed[new_by_old.get(key_potentially_old, key_potentially_old)] = argument
+                kwargs_fixed[
+                    new_by_old.get(key_potentially_old, key_potentially_old)
+                ] = argument
             return func(*args, **kwargs_fixed)
 
         return wrapped

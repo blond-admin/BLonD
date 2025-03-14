@@ -40,6 +40,9 @@ if TYPE_CHECKING:
 
     MtwModeTypes = Literal["freq", "time"]
 
+if TYPE_CHECKING:
+    from typing import Literal
+
 
 class TotalInducedVoltage:
     r"""
@@ -244,7 +247,8 @@ class _InducedVoltage:
         self.profile = profile
 
         # Induced voltage from the sum of the wake sources in V
-        self.induced_voltage = np.zeros(int(profile.n_slices), dtype=bm.precision.real_t, order='C')
+        self.induced_voltage = np.zeros(int(profile.n_slices),
+                                        dtype=bm.precision.real_t, order='C')
 
         # Wake length in s (optional)
         self.wake_length_input = wake_length
@@ -288,15 +292,28 @@ class _InducedVoltage:
         self.process()
 
     @property
+    def mtw_mode(self) -> Literal['freq', 'time']:
+        """Multi-turn wake mode can be 'freq' or 'time' (default). If 'freq'
+        is used, each turn the induced voltage of previous turns is shifted
+        in the frequency domain. For 'time', a linear interpolation is used."""
+        return self._mtw_mode
+
+    @mtw_mode.setter
+    def mtw_mode(self, mtw_mode: Literal['freq', 'time']):
+        if mtw_mode not in ('freq', 'time'):
+            raise ValueError(f"{mtw_mode=} not valid, choose either 'freq' or 'time'")
+        self._mtw_mode = mtw_mode
+
+    @property
     def RFParams(self):
         from warnings import warn
-        warn("RFParams is deprecated, use rf_params", DeprecationWarning)
+        warn("RFParams is deprecated, use rf_params", DeprecationWarning, stacklevel=2)
         return self.rf_params
 
     @RFParams.setter
     def RFParams(self, val):
         from warnings import warn
-        warn("RFParams is deprecated, use rf_params", DeprecationWarning)
+        warn("RFParams is deprecated, use rf_params", DeprecationWarning, stacklevel=2)
         self.rf_params = val
 
     def process(self) -> None:
@@ -363,14 +380,15 @@ class _InducedVoltage:
                 self.omegaj_mtw = 2.0j * np.pi * self.freq_mtw
                 # Selecting time-shift method
                 self.shift_trev = self.shift_trev_freq
-            else:
+            elif self.mtw_mode == 'time':
                 # Selecting time-shift method
                 self.shift_trev = self.shift_trev_time
                 # Time array
                 self.time_mtw = np.linspace(0, self.wake_length,
                                             self.n_mtw_memory, endpoint=False,
                                             dtype=bm.precision.real_t)
-
+            else:
+                raise RuntimeError(f"Invalid value for {self.mtw_mode=}")
             # Array to add and shift in time the multi-turn wake over the turns
             self.mtw_memory = np.zeros(self.n_mtw_memory,
                                        dtype=bm.precision.real_t, order='C')
@@ -401,7 +419,8 @@ class _InducedVoltage:
                             * bm.irfft(self.total_impedance.astype(
                     dtype=bm.precision.complex_t,
                     order='C', copy=False)
-                                       * beam_spectrum))
+                                       * beam_spectrum)
+        )
 
         self.induced_voltage = induced_voltage[:self.n_induced_voltage].astype(
             dtype=bm.precision.real_t, order='C', copy=False)
@@ -514,7 +533,7 @@ class InducedVoltageTime(_InducedVoltage):
                  wake_length: Optional[float] = None,
                  multi_turn_wake: bool = False,
                  rf_station: Optional[RFStation] = None,
-                 mtw_mode: Optional[MtwModeTypes] = None,
+                 mtw_mode: Optional[MtwModeTypes] = 'time',
                  use_regular_fft: bool = True) -> None:
 
         # Wake sources list (e.g. list of Resonator objects)
@@ -557,8 +576,9 @@ class InducedVoltageTime(_InducedVoltage):
             self.n_fft = next_regular(int(self.n_induced_voltage) +
                                       int(self.profile.n_slices) - 1)
         else:
-            self.n_fft = int(self.n_induced_voltage) + \
-                         int(self.profile.n_slices) - 1
+            self.n_fft = (int(self.n_induced_voltage)
+                         + int(self.profile.n_slices)
+                         - 1)
 
         # Frequency resolution in Hz
         self.frequency_resolution = 1 / (self.n_fft * self.profile.bin_size)
@@ -691,7 +711,7 @@ class InducedVoltageFreq(_InducedVoltage):
                  multi_turn_wake: bool = False,
                  front_wake_length: float = 0,
                  rf_station: Optional[RFStation] = None,
-                 mtw_mode: Optional[MtwModeTypes] = None,
+                 mtw_mode: Optional[MtwModeTypes] = 'time',
                  use_regular_fft: bool = True) -> None:
 
         # Impedance sources list (e.g. list of Resonator objects)
@@ -961,7 +981,6 @@ class InducedVoltageResonator(_InducedVoltage):
                  time_array: Optional[NDArray] = None,
                  rf_station: Optional[RFStation] = None,
                  array_length: Optional[int] = None,
-                 mtw_mode: Optional[MtwModeTypes] = None,
                  use_regular_fft: bool = True) -> None:
 
         # Test if one or more quality factors is smaller than 0.5.
@@ -1019,7 +1038,7 @@ class InducedVoltageResonator(_InducedVoltage):
                          frequency_resolution=frequency_resolution,
                          wake_length=wake_length,
                          multi_turn_wake=multi_turn_wake,
-                         rf_station=rf_station, mtw_mode=mtw_mode,
+                         rf_station=rf_station, mtw_mode='time',
                          use_regular_fft=use_regular_fft)
 
     def process(self):

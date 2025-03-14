@@ -72,13 +72,13 @@ class _FrequencyOffset:
     @property
     def mainH(self):
         from warnings import warn
-        warn("mainH is deprecated, use main_harmonic", DeprecationWarning)
+        warn("mainH is deprecated, use main_harmonic", DeprecationWarning, stacklevel=2)
         return self.main_harmonic
 
     @mainH.setter
     def mainH(self, val):
         from warnings import warn
-        warn("mainH is deprecated, use main_harmonic", DeprecationWarning)
+        warn("mainH is deprecated, use main_harmonic", DeprecationWarning, stacklevel=2)
         self.main_harmonic = val
 
     def set_frequency(self, new_frequency_program: NDArray) -> None:
