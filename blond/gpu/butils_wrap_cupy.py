@@ -35,10 +35,10 @@ def rf_volt_comp(voltage: CupyNDArray, omega_rf: CupyNDArray,
     """Calculate the rf voltage at each profile bin
 
     Args:
-        voltage (float array): _description_
-        omega_rf (float array): _description_
-        phi_rf (float array): _description_
-        bin_centers (float array): _description_
+        voltage (float array): _description_ # TODO
+        omega_rf (float array): _description_ # TODO
+        phi_rf (float array): _description_ # TODO
+        bin_centers (float array): _description_ # TODO
 
     Returns:
         float array: the calculated rf_voltage
@@ -64,15 +64,24 @@ def kick(dt: CupyNDArray, dE: CupyNDArray, voltage: CupyNDArray,
          charge:float, n_rf:int, acceleration_kick:float):
     """Apply the energy kick
 
-    Args:
-        dt (float array): the time coordinate
-        dE (float array): the energy coordinate
-        voltage (float array): _description_
-        omega_rf (float array): _description_
-        phi_rf (float array): _description_
-        charge (float): _description_
-        n_rf (int): _description_
-        acceleration_kick (float): _description_
+    Parameters
+    ----------
+    dt
+        The time coordinates
+    dE
+        The energy coordinates
+    voltage
+        Voltage of each RF resonator
+    omega_rf
+        Angular frequency of each RF resonator
+    phi_rf
+        RF Phase of each RF resonator
+    charge
+        Charge of the particle
+    n_rf
+        Number of RF resonators, e.g. `len(voltage)`
+    acceleration_kick
+        Additional kick on each particle
     """
     kick_kernel = GPU_DEV.mod.get_function("simple_kick")
 
@@ -105,12 +114,20 @@ def kick(dt: CupyNDArray, dE: CupyNDArray, voltage: CupyNDArray,
                       ),
                 block=GPU_DEV.block_size, grid=GPU_DEV.grid_size)
 
-def losses_longitudinal_cut(dt:CupyNDArray, id:CupyNDArray, dt_min:float,
+def losses_longitudinal_cut(dt: CupyNDArray, id: CupyNDArray, dt_min:float,
                             dt_max:float):  # todo testcase
 
     losses_longitudinal_cut_kernel = GPU_DEV.mod.get_function(
         "losses_longitudinal_cut"
     )
+    assert isinstance(dt, cp.ndarray)
+    assert isinstance(id, cp.ndarray)
+
+
+    assert dt.dtype == precision.real_t
+    assert id.dtype == np.int64
+    assert type(dt_min) == float
+    assert type(dt_max) == float
 
     losses_longitudinal_cut_kernel(
         args=(
@@ -130,6 +147,16 @@ def losses_energy_cut(dE: CupyNDArray, id: CupyNDArray, dE_min:float,
         "losses_energy_cut"
     )
 
+
+    assert isinstance(dE, cp.ndarray)
+    assert isinstance(id, cp.ndarray)
+
+
+    assert dE.dtype == precision.real_t
+    assert id.dtype == np.int64
+    assert type(dE_min) == float
+    assert type(dE_max) == float
+
     losses_energy_cut_kernel(
         args=(
             dE,
@@ -146,6 +173,13 @@ def losses_below_energy(dE:CupyNDArray, id:CupyNDArray, dE_min:float):
     losses_below_energy_kernel = GPU_DEV.mod.get_function(
         "losses_below_energy"
     )
+    assert isinstance(dE, cp.ndarray)
+    assert isinstance(id, cp.ndarray)
+
+
+    assert dE.dtype == precision.real_t
+    assert id.dtype == np.int64
+    assert type(dE_min) == float
 
     losses_below_energy_kernel(
         args=(
@@ -261,6 +295,12 @@ def losses_separatrix(
     eliminate_particles_with_hamiltonian_kernel = GPU_DEV.mod.get_function(
         "eliminate_particles_with_hamiltonian"
     )
+    assert isinstance(dE, cp.ndarray)
+    assert isinstance(dt, cp.ndarray)
+    assert isinstance(id, cp.ndarray)
+
+    assert id.dtype == cp.int64
+
     eliminate_particles_with_hamiltonian_kernel(
         block=GPU_DEV.block_size,
         grid=GPU_DEV.grid_size,
@@ -287,20 +327,20 @@ def drift(dt: CupyNDArray, dE: CupyNDArray, solver: str, t_rev: float,
     """Apply the time drift function.
 
     Args:
-        dt (_type_): _description_
-        dE (_type_): _description_
-        solver (_type_): _description_
-        t_rev (_type_): _description_
-        length_ratio (_type_): _description_
-        alpha_order (_type_): _description_
-        eta_0 (_type_): _description_
-        eta_1 (_type_): _description_
-        eta_2 (_type_): _description_
-        alpha_0 (_type_): _description_
-        alpha_1 (_type_): _description_
-        alpha_2 (_type_): _description_
-        beta (_type_): _description_
-        energy (_type_): _description_
+        dt (_type_): _description_ # TODO
+        dE (_type_): _description_ # TODO
+        solver (_type_): _description_ # TODO
+        t_rev (_type_): _description_ # TODO
+        length_ratio (_type_): _description_ # TODO
+        alpha_order (_type_): _description_ # TODO
+        eta_0 (_type_): _description_ # TODO
+        eta_1 (_type_): _description_ # TODO
+        eta_2 (_type_): _description_ # TODO
+        alpha_0 (_type_): _description_ # TODO
+        alpha_1 (_type_): _description_ # TODO
+        alpha_2 (_type_): _description_ # TODO
+        beta (_type_): _description_ # TODO
+        energy (_type_): _description_ # TODO
     """
     drift_kernel = GPU_DEV.mod.get_function("drift")
 
@@ -314,6 +354,9 @@ def drift(dt: CupyNDArray, dE: CupyNDArray, solver: str, t_rev: float,
     if not isinstance(t_rev, precision.real_t):  # todo bugfix typecheck for cupy type
         t_rev = precision.real_t(
             t_rev)  # todo in order for this line to work, we need .get() find out python versioning
+
+    assert isinstance(dt, cp.ndarray)
+    assert isinstance(dE, cp.ndarray)
 
     drift_kernel(args=(dt, dE, solver,
                        precision.real_t(t_rev), precision.real_t(length_ratio),
@@ -332,12 +375,12 @@ def linear_interp_kick(dt: CupyNDArray, dE: CupyNDArray, voltage: CupyNDArray,
     """An accelerated version of the kick function.
 
     Args:
-        dt (_type_): _description_
-        dE (_type_): _description_
-        voltage (_type_): _description_
-        bin_centers (_type_): _description_
-        charge (_type_): _description_
-        acceleration_kick (_type_): _description_
+        dt (_type_): _description_ # TODO
+        dE (_type_): _description_ # TODO
+        voltage (_type_): _description_ # TODO
+        bin_centers (_type_): _description_ # TODO
+        charge (_type_): _description_ # TODO
+        acceleration_kick (_type_): _description_ # TODO
     """
     gm_linear_interp_kick_help = GPU_DEV.mod.get_function("lik_only_gm_copy")
     gm_linear_interp_kick_comp = GPU_DEV.mod.get_function("lik_only_gm_comp")
@@ -381,10 +424,10 @@ def slice_beam(dt: CupyNDArray, profile: CupyNDArray,
     """Constant space slicing with a constant frame.
 
     Args:
-        dt (_type_): _description_
-        profile (_type_): _description_
-        cut_left (_type_): _description_
-        cut_right (_type_): _description_
+        dt (_type_): _description_ # TODO
+        profile (_type_): _description_ # TODO
+        cut_left (_type_): _description_ # TODO
+        cut_right (_type_): _description_ # TODO
     """
     sm_histogram = GPU_DEV.mod.get_function("sm_histogram")
     hybrid_histogram = GPU_DEV.mod.get_function("hybrid_histogram")
@@ -418,10 +461,10 @@ def synchrotron_radiation(dE: CupyNDArray, U0: float, n_kicks: int,
     """Track particles with SR only (without quantum excitation)
 
     Args:
-        dE (_type_): _description_
-        U0 (_type_): _description_
-        n_kicks (_type_): _description_
-        tau_z (_type_): _description_
+        dE (_type_): _description_ # TODO
+        U0 (_type_): _description_ # TODO
+        n_kicks (_type_): _description_ # TODO
+        tau_z (_type_): _description_ # TODO
     """
     synch_rad = GPU_DEV.mod.get_function("synchrotron_radiation")
 
@@ -438,12 +481,12 @@ def synchrotron_radiation_full(dE: CupyNDArray, U0: float, n_kicks: int,
     """Track particles with SR and quantum excitation.
 
     Args:
-        dE (_type_): _description_
-        U0 (_type_): _description_
-        n_kicks (_type_): _description_
-        tau_z (_type_): _description_
-        sigma_dE (_type_): _description_
-        energy (_type_): _description_
+        dE (_type_): _description_ # TODO
+        U0 (_type_): _description_ # TODO
+        n_kicks (_type_): _description_ # TODO
+        tau_z (_type_): _description_ # TODO
+        sigma_dE (_type_): _description_ # TODO
+        energy (_type_): _description_ # TODO
     """
     synch_rad_full = GPU_DEV.mod.get_function("synchrotron_radiation_full")
 
@@ -462,14 +505,14 @@ def __beam_phase_helper(bin_centers: CupyNDArray, profile: CupyNDArray,
     """Helper function, used by beam_phase
 
     Args:
-        bin_centers (_type_): _description_
-        profile (_type_): _description_
-        alpha (_type_): _description_
-        omega_rf (_type_): _description_
-        phi_rf (_type_): _description_
+        bin_centers (_type_): _description_ # TODO
+        profile (_type_): _description_ # TODO
+        alpha (_type_): _description_ # TODO
+        omega_rf (_type_): _description_ # TODO
+        phi_rf (_type_): _description_ # TODO
 
     Returns:
-        _type_: _description_
+        _type_: _description_ # TODO
     """
     base = cp.exp(alpha * bin_centers) * profile
     a = omega_rf * bin_centers + phi_rf
@@ -485,15 +528,15 @@ def beam_phase(bin_centers: NDArray, profile: NDArray, alpha: float,
        phase is already w.r.t. the instantaneous RF phase.*
 
     Args:
-        bin_centers (_type_): _description_
-        profile (_type_): _description_
-        alpha (_type_): _description_
-        omega_rf (_type_): _description_
-        phi_rf (_type_): _description_
-        bin_size (_type_): _description_
+        bin_centers (_type_): _description_ # TODO
+        profile (_type_): _description_ # TODO
+        alpha (_type_): _description_ # TODO
+        omega_rf (_type_): _description_ # TODO
+        phi_rf (_type_): _description_ # TODO
+        bin_size (_type_): _description_ # TODO
 
     Returns:
-        _type_: _description_
+        _type_: _description_ # TODO
     """
     assert bin_centers.dtype == precision.real_t
     assert profile.dtype == precision.real_t
@@ -513,13 +556,13 @@ def __beam_phase_fast_helper(bin_centers: CupyNDArray, profile: CupyNDArray,
     """Helper function used by beam_phase_fast
 
     Args:
-        bin_centers (_type_): _description_
-        profile (_type_): _description_
-        omega_rf (_type_): _description_
-        phi_rf (_type_): _description_
+        bin_centers (_type_): _description_ # TODO
+        profile (_type_): _description_ # TODO
+        omega_rf (_type_): _description_ # TODO
+        phi_rf (_type_): _description_ # TODO
 
     Returns:
-        _type_: _description_
+        _type_: _description_ # TODO
     """
     arr = omega_rf * bin_centers + phi_rf
     return profile * cp.sin(arr), profile * cp.cos(arr)
@@ -530,14 +573,14 @@ def beam_phase_fast(bin_centers: CupyNDArray, profile: CupyNDArray,
     """Simplified, faster variation of the beam_phase function
 
     Args:
-        bin_centers (_type_): _description_
-        profile (_type_): _description_
-        omega_rf (_type_): _description_
-        phi_rf (_type_): _description_
-        bin_size (_type_): _description_
+        bin_centers (_type_): _description_ # TODO
+        profile (_type_): _description_ # TODO
+        omega_rf (_type_): _description_ # TODO
+        phi_rf (_type_): _description_ # TODO
+        bin_size (_type_): _description_ # TODO
 
     Returns:
-        _type_: _description_
+        _type_: _description_ # TODO
     """
     assert bin_centers.dtype == precision.real_t
     assert profile.dtype == precision.real_t
@@ -559,6 +602,10 @@ def kickdrift_considering_periodicity(
     solver: SolverTypes,
     turn: int,
 ):
+    # This is copy and paste of beam.kickdrift_considering_periodicity,
+    # but refactored so that all functions interacting with beam_dE, beam_dt
+    # execute efficiently on the GPU
+
     if solver != "simple":
         msg = (
             "If you require faster tracking with 'periodicity=True' on the GPU:"
@@ -585,9 +632,7 @@ def kickdrift_considering_periodicity(
     omega_rf = rf_station.omega_rf[:, turn]
     phi_rf = rf_station.phi_rf[:, turn]
 
-    assert voltage.data.contiguous
-    assert omega_rf.data.contiguous
-    assert phi_rf.data.contiguous
+
 
     assert isinstance(beam_dt, cp.ndarray)
     assert isinstance(beam_dE, cp.ndarray)
@@ -599,7 +644,9 @@ def kickdrift_considering_periodicity(
     if not isinstance(phi_rf, cp.ndarray):
         phi_rf = cp.array(phi_rf, dtype=precision.real_t)
 
-
+    assert voltage.flags.f_contiguous or voltage.flags.c_contiguous
+    assert omega_rf.flags.f_contiguous or omega_rf.flags.c_contiguous
+    assert phi_rf.flags.f_contiguous or phi_rf.flags.c_contiguous
 
     kickdrift_considering_periodicity(
         args=(

@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 import cupy as cp
 import numpy as np
 from cupy.typing import NDArray as CupyNDArray
-from numpy._typing import NDArray
+from numpy.typing import NDArray
 
 from blond.beam.beam import Beam
 from blond.gpu.butils_wrap_cupy import (
@@ -18,7 +18,6 @@ from blond.gpu.butils_wrap_cupy import (
     linear_interp_kick,
     kickdrift_considering_periodicity,
 )
-from blond.utils import precision
 
 if TYPE_CHECKING:
     from blond.input_parameters.rf_parameters import RFStation
@@ -30,13 +29,17 @@ def _kick_helper(
     dt_gpu_i: CupyNDArray,
     dE_gpu_i: CupyNDArray,
     id_gpu_i: CupyNDArray,
-    voltage,  # TODO
+    voltage,
     omega_rf,
     phi_rf,
     charge: float,
     n_rf: int,
     acceleration_kick: float,
 ):
+    # copy voltage etc. to the active device.
+    # We can do this because anyway each turn there is another voltage
+    # rf_station.voltage[:, turn_i]
+
     kick(
         dt=dt_gpu_i,
         dE=dE_gpu_i,
@@ -141,7 +144,8 @@ def _dE_mean_helper_ignore_id_0(
     dt_gpu_i: CupyNDArray, dE_gpu_i: CupyNDArray, id_gpu_i: CupyNDArray
 ):
     mask: CupyNDArray = id_gpu_i > 0  # noqa
-    masked = dE_gpu_i[mask]
+    masked = dE_gpu_i[mask]  # might be written more efficient  because
+    # masking makes array copies
     if len(masked) == 0:
         return np.nan
     else:
@@ -163,7 +167,8 @@ def _dE_std_helper_ignore_id_0(
     if not cp.any(mask):
         return np.nan
     else:
-        tmp = dE_gpu_i[mask] - mean
+        tmp = dE_gpu_i[mask] - mean  # might be written more efficient,
+        # because masking makes array copies
         return cp.sum(tmp * tmp)
 
 
@@ -175,7 +180,8 @@ def _dt_mean_helper_ignore_id_0(
     dt_gpu_i: CupyNDArray, dE_gpu_i: CupyNDArray, id_gpu_i: CupyNDArray
 ):
     mask: CupyNDArray = id_gpu_i > 0  # noqa
-    masked = dt_gpu_i[mask]
+    masked = dt_gpu_i[mask]  # might be written more efficient# because
+    # masking makes array copies
     if len(masked) == 0:
         return np.nan
     else:
@@ -194,7 +200,8 @@ def _dt_std_helper_ignore_id_0(
     if not cp.any(mask):
         return np.nan
     else:
-        tmp = dt_gpu_i[mask] - mean
+        tmp = dt_gpu_i[mask] - mean  # might be written more efficient,
+        # because masking makes array copies
         return cp.sum(tmp * tmp)
 
 
@@ -202,16 +209,18 @@ def _linear_interp_kick_helper(
     dt_gpu_i: CupyNDArray,
     dE_gpu_i: CupyNDArray,
     id_gpu_i: CupyNDArray,
-    voltage: NDArray,  # TODO
-    bin_centers: NDArray,
-    charge: NDArray,
-    acceleration_kick: NDArray,
+    voltage: NDArray | CupyNDArray,
+    bin_centers: NDArray | CupyNDArray,
+    charge: float,
+    acceleration_kick: float,
 ):
     linear_interp_kick(
         dt=dt_gpu_i,
         dE=dE_gpu_i,
-        voltage=voltage,
-        bin_centers=bin_centers,
+        voltage=cp.array(voltage),  # so that voltage is on each device
+        bin_centers=cp.array(
+            bin_centers
+        ),  # so that bin_centers is on each device
         charge=charge,
         acceleration_kick=acceleration_kick,
     )
@@ -221,13 +230,13 @@ def _kickdrift_considering_periodicity_helper(
     dt_gpu_i: CupyNDArray,
     dE_gpu_i: CupyNDArray,
     id_gpu_i: CupyNDArray,
-    acceleration_kicks: NDArray | CupyNDArray,
+    acceleration_kick: float,
     rf_station: RFStation,
     solver: SolverTypes,
     turn: int,
 ):
     kickdrift_considering_periodicity(
-        acceleration_kick=acceleration_kicks[turn],
+        acceleration_kick=acceleration_kick,
         beam_dE=dE_gpu_i,
         beam_dt=dt_gpu_i,
         rf_station=rf_station,

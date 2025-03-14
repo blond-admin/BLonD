@@ -4,6 +4,7 @@ import unittest
 
 import cupy as cp
 import numpy as np
+from cupy.cuda import Device
 from cupyx.profiler._time import _PerfCaseResult, benchmark
 
 from blond.beam.beam import Proton, Beam
@@ -19,6 +20,10 @@ from blond.utils import bmath as bm
 
 def _float_min(x):
     return cp.min(x)
+
+
+def count_nonzero(x):
+    return cp.count_nonzero(x)
 
 
 def _total_runtime(res: _PerfCaseResult):
@@ -46,17 +51,24 @@ class TestMultiGpuArray(unittest.TestCase):
             results, np.array([1.0, 26.0, 51.0, 76.0])
         )
 
+    def test_map_int(self):
+        self.multi_gpu_array.map_int(count_nonzero)
+        results = self.multi_gpu_array.get_buffer_int()
+        np.testing.assert_almost_equal(results, 25 * np.ones(4))
+
     def test_min(self):
         results = self.multi_gpu_array.min()
         print(results)
         np.testing.assert_almost_equal(results, 1)
 
-
-
     def test_max(self):
         results = self.multi_gpu_array.max()
         print(results, type(results))
         np.testing.assert_almost_equal(results, 100)
+
+    def test_download_array(self):
+        res = self.multi_gpu_array.download_array()
+        np.testing.assert_array_equal(res, np.arange(1, 101))
 
 
 class TestBeamDistributedSingleNode(unittest.TestCase):
@@ -77,13 +89,16 @@ class TestBeamDistributedSingleNode(unittest.TestCase):
 
         dE = np.arange(0, n_particles).astype(precision.real_t)
         dt = np.invert(np.arange(0, n_particles)).astype(precision.real_t)
+        self.dE_org = dE.copy()
+        self.dt_org = dt.copy()
+        self.id_org = id_.copy()
         intensity = 1e3
         self.beam_distributed = BeamDistributedSingleNode(
             ring=ring,
             intensity=intensity,
             dE=dE.copy(),
             dt=dt.copy(),
-            id=id_.copy(),
+            id_=id_.copy(),
             mock_n_gpus=4,
         )
         self.beam_ = Beam(
@@ -99,6 +114,14 @@ class TestBeamDistributedSingleNode(unittest.TestCase):
             ring=self.ring, harmonic=4620, voltage=4.5e6, phi_rf_d=0.0
         )
 
+    def test_from_beam(self):
+        BeamDistributedSingleNode.from_beam(
+            beam=self.beam_, ring=self.ring, mock_n_gpus=4
+        )
+
+    def test___init_profile_multi_gpu(self):
+        self.beam_distributed._init_profile_multi_gpu(64)
+
     def test_n_gpus(self):
         self.assertIsInstance(self.beam_distributed.n_gpus, int)
 
@@ -106,6 +129,21 @@ class TestBeamDistributedSingleNode(unittest.TestCase):
         self.assertEqual(
             self.beam_distributed.n_macroparticles_alive,
             self.beam_.n_macroparticles_alive,
+        )
+
+    def test_download_ids(self):
+        np.testing.assert_array_equal(
+            self.beam_distributed.download_ids(), self.id_org
+        )
+
+    def test_download_dts(self):
+        np.testing.assert_array_equal(
+            self.beam_distributed.download_dts(), self.dt_org
+        )
+
+    def test_download_dEs(self):
+        np.testing.assert_array_equal(
+            self.beam_distributed.download_dEs(), self.dE_org
         )
 
     def test_eliminate_lost_particles(self):
@@ -154,35 +192,52 @@ class TestBeamDistributedSingleNode(unittest.TestCase):
         )
 
     def test_losses_separatrix(self):
-        for beam in (self.beam_distributed, self.beam_):
-            beam.losses_separatrix(
-                ring=self.ring,
-                rf_station=self.rf_station,
-            )
+        self.beam_.losses_separatrix(
+            ring=self.ring,
+            rf_station=self.rf_station,
+        )
+        bm.use_gpu()
+        self.beam_distributed.losses_separatrix(
+            ring=self.ring,
+            rf_station=self.rf_station,
+        )
 
         ids = self.beam_distributed.download_ids()
+        Device().synchronize() # Will crash if a MemoryError happened before
+        bm.use_cpu()
         np.testing.assert_array_equal(ids, self.beam_.id)
 
     def test_losses_longitudinal_cut(self):
+        bm.use_gpu()
+
         for beam in (self.beam_distributed, self.beam_):
-            beam.losses_longitudinal_cut(dt_min=100 - 75, dt_max=100 - 85)
+            beam.losses_longitudinal_cut(dt_min=100 - 75., dt_max=100 - 85.)
 
         ids = self.beam_distributed.download_ids()
         np.testing.assert_array_equal(ids, self.beam_.id)
+        Device().synchronize() # Will crash if a MemoryError happened before
+        bm.use_cpu()
 
     def test_losses_energy_cut(self):
+        bm.use_gpu()
+
         for beam in (self.beam_distributed, self.beam_):
             beam.losses_energy_cut(dE_min=float(75), dE_max=float(85))
 
         ids = self.beam_distributed.download_ids()
         np.testing.assert_array_equal(ids, self.beam_.id)
+        Device().synchronize() # Will crash if a MemoryError happened before
+        bm.use_cpu()
 
     def test_losses_below_energy(self):
+        bm.use_gpu()
         for beam in (self.beam_distributed, self.beam_):
             beam.losses_below_energy(dE_min=float(75))
 
         ids = self.beam_distributed.download_ids()
         np.testing.assert_array_equal(ids, self.beam_.id)
+        Device().synchronize() # Will crash if a MemoryError happened before
+        bm.use_cpu()
 
     def test_dE_mean(self):
         for ignore_id_0 in (False, True):
@@ -230,6 +285,18 @@ class TestBeamDistributedSingleNode(unittest.TestCase):
                 self.beam_distributed.dt_std(ignore_id_0=ignore_id_0),
             )
 
+    def test_dt_min(self):
+        assert np.min(self.dt_org) == self.beam_distributed.dt_min()
+
+    def test_dE_min(self):
+        assert np.min(self.dE_org) == self.beam_distributed.dE_min()
+
+    def test_dt_max(self):
+        assert np.max(self.dt_org) == self.beam_distributed.dt_max()
+
+    def test_dE_max(self):
+        assert np.max(self.dE_org) == self.beam_distributed.dE_max()
+
     def test_histogram(self):
         bm.use_gpu()
         hist = cp.empty(64)
@@ -239,29 +306,68 @@ class TestBeamDistributedSingleNode(unittest.TestCase):
         hist_npy = np.histogram(self.beam_.dt, bins=64, range=(1, 65))[0]
 
         np.testing.assert_array_equal(hist_npy, hist.get())
+        Device().synchronize() # Will crash if a MemoryError happened before
         bm.use_cpu()
 
-    def test_kick(self):
-        n_rf = 5
+    def test_kick_NDArray(self):
         acceleration_kicks = 1e3 * np.random.randn(5)
         bm.use_gpu()
         self.beam_distributed.kick(
             rf_station=self.rf_station,
             acceleration_kicks=acceleration_kicks,
-            turn_i=1
+            turn_i=1,
         )
+        Device().synchronize() # Will crash if a MemoryError happened before
+        bm.use_cpu()
+
+    def test_kick2_CupyNDArray(self):
+        acceleration_kicks = 1e3 * np.random.randn(5)
+        bm.use_gpu()
+        self.rf_station.to_gpu() # voltage, omega_rf, phi_rf is sent to GPU
+        self.beam_distributed.kick(
+            rf_station=self.rf_station,
+            acceleration_kicks=acceleration_kicks,
+            turn_i=1,
+        )
+        Device().synchronize() # Will crash if a MemoryError happened before
+        #  todo make comparison
         bm.use_cpu()
 
     def test_drift(self):
         bm.use_gpu()
 
         self.beam_distributed.drift(
-            solver="simple",
-            rf_station=self.rf_station,
-            turn_i=0
+            solver="simple", rf_station=self.rf_station, turn_i=0
         )
+        Device().synchronize() # Will crash if a MemoryError happened before
+        #  todo make comparison
         bm.use_cpu()
 
+    def test_linear_interp_kick(self):
+        bm.use_gpu()
+        for i in range(2):
+            self.beam_distributed.linear_interp_kick(
+                voltage=cp.random.randn(64),  # TODO
+                bin_centers=cp.arange(64, dtype=float),
+                charge=self.beam_distributed.particle.charge,
+                acceleration_kick=32.0,
+            )
+        Device().synchronize() # Will crash if a MemoryError happened before
+        #  todo make comparison
+        bm.use_cpu()
+
+    def test_kickdrift_considering_periodicity(self):
+        bm.use_gpu()
+        self.beam_distributed.kickdrift_considering_periodicity(
+            acceleration_kicks=np.zeros(
+                self.rf_station.n_turns, dtype=float
+            ),
+            rf_station=self.rf_station,
+            solver="simple",
+            turn_i=0,
+        ) #  todo make comparison
+        Device().synchronize() # Will crash if a MemoryError happened before
+        bm.use_cpu()
 
 if __name__ == "__main__":
     unittest.main()

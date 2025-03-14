@@ -30,11 +30,14 @@ from ..gpu.butils_wrap_cupy import (
 )
 from ..input_parameters.rf_parameters import RFStation
 from ..input_parameters.ring import Ring
+from ..utils import precision
 
 if TYPE_CHECKING:
     from cupy.typing import NDArray as CupyNDArray
     from typing import Callable, Dict
-    from numpy.typing import NDArray
+    from numpy.typing import NDArray as NumpyNDArray
+
+    from ..utils.types import SolverTypes
 
 max_n_gpus = cp.cuda.runtime.getDeviceCount()
 all_devices = [cp.cuda.Device(gpu_i) for gpu_i in range(max_n_gpus)]
@@ -59,7 +62,11 @@ class DistributedMultiGpuArray:
     # for this reason it is not used for now
 
     def __init__(
-        self, array_cpu: NDArray, *, axis=0, mock_n_gpus: Optional[int] = None
+        self,
+        array_cpu: NumpyNDArray,
+        *,
+        axis=0,
+        mock_n_gpus: Optional[int] = None,
     ):
         """Array that is split to the memory of several GPUs one machine
 
@@ -170,7 +177,6 @@ class DistributedMultiGpuArray:
             with get_device(gpu_i=gpu_i):
                 val = func(array, **kwargs)
                 self.buffers_int[gpu_i][0] = val
-        return
 
     def min(self):
         """Minimum of entire array"""
@@ -195,9 +201,9 @@ class BeamDistributedSingleNode(BeamBaseClass):
         self,
         ring: Ring,
         intensity: float,
-        dE: NDArray,
-        dt: NDArray,
-        id: NDArray,  # TODO
+        dE: NumpyNDArray,
+        dt: NumpyNDArray,
+        id_: NumpyNDArray,
         mock_n_gpus: Optional[int] = None,
     ):
         """Special version of beam, which storage of dE, dt and id distributed on several GPUs
@@ -212,14 +218,14 @@ class BeamDistributedSingleNode(BeamBaseClass):
             Beam arrival times with respect to synchronous time [s].
         dt
             Beam energy offset with respect to the synchronous particle [eV].
-        id
+        id_
             Index of the particle (might change during execution)
         mock_n_gpus
             Pretend to have n_gpus when the system has only one.
             This should be used for testing only.
         """
         assert len(dE) == len(dt), f"{len(dE)=}, but {len(dt)=}"
-        assert len(dE) == len(id), f"{len(dE)=}, but {len(id)=}"
+        assert len(dE) == len(id_), f"{len(dE)=}, but {len(id_)=}"
 
         super().__init__(
             ring=ring, n_macroparticles=len(dE), intensity=intensity
@@ -231,7 +237,7 @@ class BeamDistributedSingleNode(BeamBaseClass):
             dt, mock_n_gpus=mock_n_gpus
         )
         self.__id_multi_gpu = DistributedMultiGpuArray(
-            id, mock_n_gpus=mock_n_gpus
+            id_, mock_n_gpus=mock_n_gpus
         )
         self.profile_multi_gpu = {}
         self.n_bins = -1
@@ -250,7 +256,7 @@ class BeamDistributedSingleNode(BeamBaseClass):
             intensity=beam.intensity,
             dE=beam.dE,
             dt=beam.dt,
-            id=beam.id,
+            id_=beam.id,
             mock_n_gpus=mock_n_gpus,
         )
         return _beam
@@ -269,7 +275,7 @@ class BeamDistributedSingleNode(BeamBaseClass):
                 results.append(buffer_i[0].get())
         return results
 
-    def __init_profile_multi_gpu(self, n_bins):
+    def _init_profile_multi_gpu(self, n_bins):
         if self.n_bins == n_bins:
             return
         from blond.utils import precision
@@ -381,14 +387,18 @@ class BeamDistributedSingleNode(BeamBaseClass):
                 dE_tmp = self.dE_multi_gpu.gpu_arrays[gpu_i]
                 dt_tmp = self.dt_multi_gpu.gpu_arrays[gpu_i]
                 id_tmp = self.id_multi_gpu.gpu_arrays[gpu_i]
-                select_alive: NDArray = id_tmp[:] != 0  # noqa
+                select_alive: CupyNDArray = id_tmp[:] != 0  # noqa
                 n_alive = cp.sum(select_alive)
                 if n_alive == (len(select_alive) - 1):
                     pass
                 else:
                     self.n_macroparticles_eliminated += cp.sum(~select_alive)
-                    self.dE_multi_gpu.gpu_arrays[gpu_i] = dE_tmp[select_alive]
-                    self.dt_multi_gpu.gpu_arrays[gpu_i] = dt_tmp[select_alive]
+                    self.dE_multi_gpu.gpu_arrays[gpu_i] = cp.ascontiguousarray(
+                        dE_tmp[select_alive]
+                    )
+                    self.dt_multi_gpu.gpu_arrays[gpu_i] = cp.ascontiguousarray(
+                        dt_tmp[select_alive]
+                    )
 
                     self.id_multi_gpu.gpu_arrays[gpu_i] = cp.arange(
                         (n_macroparticles_new + 1),
@@ -396,9 +406,7 @@ class BeamDistributedSingleNode(BeamBaseClass):
                         + len(self.dE_multi_gpu.gpu_arrays[gpu_i]),
                     )
 
-                n_macroparticles_new += len(
-                    self.dE_multi_gpu.gpu_arrays[gpu_i]
-                )
+                n_macroparticles_new += int(n_alive)
         self.n_macroparticles = n_macroparticles_new
         if n_macroparticles_new == 0:
             # AllParticlesLost
@@ -575,10 +583,10 @@ class BeamDistributedSingleNode(BeamBaseClass):
         return np.sqrt(np.nansum(sums) / N)
 
     def slice_beam(
-        self, profile: CupyNDArray, cut_left:float, cut_right:float
-    ):  # todo rewrite using bmath
+        self, profile: CupyNDArray, cut_left: float, cut_right: float
+    ):
         """Computes a histogram of the dt coordinates"""
-        self.__init_profile_multi_gpu(n_bins=len(profile))
+        self._init_profile_multi_gpu(n_bins=len(profile))
         for gpu_i, dt_multi_gpu in self.dt_multi_gpu.gpu_arrays.items():
             with get_device(gpu_i=gpu_i):
                 slice_beam(
@@ -596,19 +604,17 @@ class BeamDistributedSingleNode(BeamBaseClass):
         else:
             profile[:] = hist[:]
 
-    # TODO TESTCASE
     def kick(
-        self, rf_station: RFStation, acceleration_kicks: NDArray, turn_i: int
+        self,
+        rf_station: RFStation,
+        acceleration_kicks: NumpyNDArray | CupyNDArray,
+        turn_i: int,
     ):
-        # accept only CPU arrays,
-        # send them to the specific GPU during execution
+        # send them to the specific GPU during execution inside _kick_helper
         voltage = rf_station.voltage[:, turn_i]
         omega_rf = rf_station.omega_rf[:, turn_i]
         phi_rf = rf_station.phi_rf[:, turn_i]
 
-        assert not hasattr(voltage, "get")
-        assert not hasattr(omega_rf, "get")
-        assert not hasattr(phi_rf, "get")
         self.map_no_result(
             _kick_helper,
             voltage=voltage,
@@ -636,33 +642,31 @@ class BeamDistributedSingleNode(BeamBaseClass):
             energy=float(rf_station.energy[turn_i]),
         )
 
-    # TODO TESTCASE
     def linear_interp_kick(
         self,
-        voltage: NDArray,
-        bin_centers: NDArray,
+        voltage: NumpyNDArray | CupyNDArray,
+        bin_centers: NumpyNDArray | CupyNDArray,
         charge: float,
         acceleration_kick: float,
     ):
         self.map_no_result(
             _linear_interp_kick_helper,
-            voltage=voltage,
-            bin_centers=bin_centers,
+            voltage=voltage,  # will get uploaded to each device in helper
+            bin_centers=bin_centers,  # will get uploaded to each device in helper
             charge=charge,
             acceleration_kick=acceleration_kick,
         )
 
-    # TODO TESTCASE
     def kickdrift_considering_periodicity(
         self,
-        acceleration_kicks: NDArray,
+        acceleration_kicks: NumpyNDArray | CupyNDArray,
         rf_station: RFStation,
         solver: SolverTypes,
         turn_i: int,
     ):
         self.map_no_result(
             _kickdrift_considering_periodicity_helper,
-            acceleration_kicks=acceleration_kicks,
+            acceleration_kick=precision.real_t(acceleration_kicks[turn_i]),
             rf_station=rf_station,
             solver=solver,
             turn=turn_i,

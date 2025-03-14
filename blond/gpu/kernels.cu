@@ -38,7 +38,7 @@ extern "C"
 __global__ void losses_longitudinal_cut(
     real_t  * __restrict__ beam_dt,
     int64_t  * beam_id,
-    const int n_macroparticles,
+    const int64_t n_macroparticles,
     const real_t dt_min,
     const real_t dt_max
 )
@@ -58,7 +58,7 @@ extern "C"
 __global__ void losses_energy_cut(
     real_t  * __restrict__ beam_dE,
     int64_t  * beam_id,
-    const int n_macroparticles,
+    const int64_t n_macroparticles,
     const real_t dE_min,
     const real_t dE_max
 )
@@ -461,14 +461,14 @@ __global__ void kickdrift_considering_periodicity(
 real_t * __restrict__ beam_dt,
 real_t  * __restrict__ beam_dE,
 const real_t t_rev_tmp, // self.rf_params.t_rev[turn + 1]
-const int  n_rf,
+const int64_t  n_rf,
 const real_t * __restrict__ voltage, // self.rf_params.voltage[:, turn]
 const real_t * __restrict__ omega_rf, // self.rf_params.omega_rf[:, turn]
 const real_t * __restrict__ phi_rf, // self.rf_params.voltage[:, turn]
 const real_t charge,
 const real_t acc_kick, // self.rf_params.voltage[:, turn]
 const real_t coeff, // T0 * length_ratio * eta_zero / (beta * beta * energy // (of turn+1)
-const int n_macroparticles
+const int64_t n_macroparticles
 ){
     // This is a GPU clone of RingAndRFTracker.kickdrift_considering_periodicity
     int tid = threadIdx.x + blockDim.x * blockIdx.x;
