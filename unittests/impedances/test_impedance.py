@@ -16,6 +16,7 @@ Unittest for impedances.impedance
 import unittest
 
 import numpy as np
+import os
 from blond.beam.profile import CutOptions, Profile, FitOptions
 from blond.impedances.impedance import InducedVoltageFreq, InducedVoltageTime, InducedVoltageResonator, \
     TotalInducedVoltage
@@ -185,7 +186,9 @@ class TestInducedVoltageResonatorMultiTurnWake(unittest.TestCase):
             longitudinal_tracker.track()
             induced_voltages.append(longitudinal_tracker.totalInducedVoltage.induced_voltage)
         induced_voltages = np.array(induced_voltages)
-        expected_voltages = np.load("./data/mtw_resonator_induced_voltage.npy")
+
+        folder = os.path.abspath(os.path.dirname(__file__)) + "/data/"
+        expected_voltages = np.load(folder + "mtw_resonator_induced_voltage.npy")
         np.testing.assert_allclose(induced_voltages, expected_voltages, rtol=1e-5, atol=1e-1)
 
 
